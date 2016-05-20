@@ -168,16 +168,16 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 0), 100, 2);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 0), 100, 2)
 {"type": "Point", "coordinates": [10, 11]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", -1), 100, 4);
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", -1000), 100, 6);
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4294967295), 100, 6);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4294967295), 100, 6)
 {"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4294967295"}}, "type": "Point", "coordinates": [10, 11]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4294967296), 100, 6);
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4294967295123), 100, 7);
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 12), 0, 0);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 12), 0, 0)
 {"type": "Point", "coordinates": [10, 11]}
@@ -233,16 +233,16 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "0"), 100, 1);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "0"), 100, 1)
 {"bbox": [10, 11, 10, 11], "type": "Point", "coordinates": [10, 11]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "-1"), 100, 2);
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "-1000"), 100, 3);
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "4294967295"), 100, 4);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "4294967295"), 100, 4)
 {"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4294967295"}}, "type": "Point", "coordinates": [10, 11]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "4294967296"), 100, 5);
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "4294967295123"), 100, 6);
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", (CAST(10 AS CHAR))), 100, 7);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", (CAST(10 AS CHAR))), 100, 7)
 {"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::10"}}, "bbox": [10, 11, 10, 11], "type": "Point", "coordinates": [10, 11]}
@@ -394,43 +394,43 @@ CHARSET(ST_ASGEOJSON(POINT(-1.42, 283.12)))
 utf8mb4
 # Invalid function calls
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("1"));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT"));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT()"));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10)"));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(a b)"));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 b)"));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(a 11)"));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10, 11)"));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POLYGON((40 40, 20 45, 45 30, 40 40)"), 10);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40)),"
                                     "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35),"), 10, 2);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION( "
                                     "GEOMETRYCOLLECTION(POINT(10 20)),"
                                     "GEOMETRYCOLLECTION(LINESTRING(0 0, 100 100)),"
                                     "GEOMETRYCOLLECTION(POLYGON((0 0, 0 10, 10 10, 0 0))),"
                                     ")"
                                   ));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOINT()"), 10);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTILINESTRING(())"), 10);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOLYGON((()))"), 10);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("LINESTRING(1)"), 10);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTILINESTRING((0 0, 10 10),())"), 10);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 20)"), 2, -1);
 ERROR HY000: Incorrect options value: '-1' for function st_asgeojson
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 20)"), 2, -1000);

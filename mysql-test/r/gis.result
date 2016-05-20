@@ -456,7 +456,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select st_astext(st_geometryfromwkb(st_aswkb(st_geometryfromtext('POINT(1 4)')))) AS `ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_PointFromText('POINT(1 4)'))))`
+Note	1003	/* select#1 */ select st_astext(st_geometryfromwkb(st_aswkb(st_pointfromtext('POINT(1 4)')))) AS `ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_PointFromText('POINT(1 4)'))))`
 SELECT ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',101));
 ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',101))
 101
@@ -465,7 +465,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select st_srid(st_geometryfromtext('LineString(1 1,2 2)',101)) AS `ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',101))`
+Note	1003	/* select#1 */ select st_srid(st_geomfromtext('LineString(1 1,2 2)',101)) AS `ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',101))`
 explain extended select ST_issimple(MultiPoint(Point(3, 6), Point(4, 10))), ST_issimple(Point(3, 6));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -679,7 +679,7 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 values ("qwerty");
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 values (ST_pointfromtext('point(1,1)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_pointfromtext.
 drop table t1;
 select (ST_asWKT(ST_geomfromwkb((0x000000000140240000000000004024000000000000))));
 (ST_asWKT(ST_geomfromwkb((0x000000000140240000000000004024000000000000))))
@@ -744,7 +744,7 @@ DROP TABLE t1;
 CREATE TABLE `t1` ( `col9` set('a'), `col89` date);
 INSERT INTO `t1` VALUES ('','0000-00-00');
 select ST_geomfromtext(col9,col89) as a from t1;
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 DROP TABLE t1;
 CREATE TABLE t1 (
 geomdata polygon NOT NULL,
@@ -884,17 +884,17 @@ SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS MBRwithin       FROM t1 a1 JOIN
 MBRwithin
 big,center
 SET @vert1   = ST_GeomFromText('POLYGON ((0 -2, 0 2, 0 -2))');
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SET @horiz1  = ST_GeomFromText('POLYGON ((-2 0, 2 0, -2 0))');
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SET @horiz2 = ST_GeomFromText('POLYGON ((-1 0, 3 0, -1 0))');
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SET @horiz3 = ST_GeomFromText('POLYGON ((2 0, 3 0, 2 0))');
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SET @point1 = ST_GeomFromText('POLYGON ((0 0))');
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SET @point2 = ST_GeomFromText('POLYGON ((-2 0))');
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS MBRoverlaps FROM t1 a1 WHERE MBROverlaps(a1.square, @vert1) GROUP BY a1.name;
 MBRoverlaps
 SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS MBRoverlaps FROM t1 a1 WHERE MBROverlaps(a1.square, @horiz1) GROUP BY a1.name;
@@ -962,7 +962,7 @@ SELECT COUNT(*) FROM t1 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`p` = <cache>(st_geometryfromtext('POINT(1 2)')))
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`p` = <cache>(st_pointfromtext('POINT(1 2)')))
 SELECT COUNT(*) FROM t1 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 COUNT(*)
 2
@@ -971,7 +971,7 @@ SELECT COUNT(*) FROM t2 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ref	p	p	28	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` where (`test`.`t2`.`p` = <cache>(st_geometryfromtext('POINT(1 2)')))
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` where (`test`.`t2`.`p` = <cache>(st_pointfromtext('POINT(1 2)')))
 SELECT COUNT(*) FROM t2 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 COUNT(*)
 2
@@ -980,7 +980,7 @@ SELECT COUNT(*) FROM t2 IGNORE INDEX(p) WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` IGNORE INDEX (`p`) where (`test`.`t2`.`p` = <cache>(st_geometryfromtext('POINT(1 2)')))
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` IGNORE INDEX (`p`) where (`test`.`t2`.`p` = <cache>(st_pointfromtext('POINT(1 2)')))
 SELECT COUNT(*) FROM t2 IGNORE INDEX(p) WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 COUNT(*)
 2
@@ -1049,10 +1049,10 @@ ERROR 22007: Illegal non geometric ''00000'' value found during parsing
 #
 SET @a=0x00000000030000000100000000000000000000000000144000000000000014400000000000001840000000000000184000000000000014400000000000001440;
 SET @a=ST_POLYFROMWKB(@a);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromwkb.
+ERROR 22023: Invalid GIS data provided to function st_polyfromwkb.
 SET @a=0x00000000030000000000000000000000000000000000144000000000000014400000000000001840000000000000184000000000000014400000000000001440;
 SET @a=ST_POLYFROMWKB(@a);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromwkb.
+ERROR 22023: Invalid GIS data provided to function st_polyfromwkb.
 create table t1(a polygon NOT NULL)engine=myisam;
 insert into t1 values (ST_geomfromtext("point(0 1)"));
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
@@ -1139,7 +1139,7 @@ CREATE TABLE g1(a TEXT NOT NULL, KEY(a(255)));
 INSERT INTO g1 VALUES ('a'),('a');
 SELECT 1 FROM g1 WHERE a >= ANY
 (SELECT 1 FROM g1 WHERE a = ST_geomfromtext('') OR a) ;
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 DROP TABLE g1;
 #
 # Bug#16451878 GEOMETRY QUERY CRASHES SERVER
@@ -2175,7 +2175,7 @@ EXPLAIN SELECT ST_AsText(p) FROM t1 WHERE ST_Equals(p, ST_PointFromText('POINT(2
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY,idx2	idx2	34	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`p`) AS `ST_AsText(p)` from `test`.`t1` where st_equals(`test`.`t1`.`p`,<cache>(st_geometryfromtext('POINT(20 20)')))
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`p`) AS `ST_AsText(p)` from `test`.`t1` where st_equals(`test`.`t1`.`p`,<cache>(st_pointfromtext('POINT(20 20)')))
 SELECT ST_AsText(p) FROM t1 WHERE ST_Equals(p, ST_PointFromText('POINT(20 20)'));
 ST_AsText(p)
 DROP TABLE t1;
@@ -2209,7 +2209,7 @@ EXPLAIN SELECT ST_AsText(p) FROM t1 WHERE ST_Equals(p, ST_PointFromText('POINT(2
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY,idx2	idx2	34	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`p`) AS `ST_AsText(p)` from `test`.`t1` where st_equals(`test`.`t1`.`p`,<cache>(st_geometryfromtext('POINT(20 20)')))
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`p`) AS `ST_AsText(p)` from `test`.`t1` where st_equals(`test`.`t1`.`p`,<cache>(st_pointfromtext('POINT(20 20)')))
 SELECT ST_AsText(p) FROM t1 WHERE ST_Equals(p, ST_PointFromText('POINT(20 20)'));
 ST_AsText(p)
 DROP TABLE t1;
@@ -3091,67 +3091,67 @@ SET @wkb_mls = ST_ASWKB(ST_GEOMFROMTEXT(@wkt_mls));
 SET @wkb_mpy = ST_ASWKB(ST_GEOMFROMTEXT(@wkt_mpy));
 SET @wkb_gc = ST_ASWKB(ST_GEOMFROMTEXT(@wkt_gc));
 SELECT ST_SRID(ST_GEOMCOLLFROMTEXT(@wkt_gc, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_geomcollfromtext'
 SELECT ST_SRID(ST_GEOMCOLLFROMTXT(@wkt_gc, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_geomcollfromtxt'
 SELECT ST_SRID(ST_GEOMETRYCOLLECTIONFROMTEXT(@wkt_gc, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_geometrycollectionfromtext'
 SELECT ST_SRID(ST_GEOMETRYFROMTEXT(@wkt_pt, -1));
 ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_SRID(ST_GEOMFROMTEXT(@wkt_pt, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_SRID(ST_LINEFROMTEXT(@wkt_ls, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_linefromtext'
 SELECT ST_SRID(ST_LINESTRINGFROMTEXT(@wkt_ls, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_linestringfromtext'
 SELECT ST_SRID(ST_MLINEFROMTEXT(@wkt_mls, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_mlinefromtext'
 SELECT ST_SRID(ST_MPOINTFROMTEXT(@wkt_mpt, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_mpointfromtext'
 SELECT ST_SRID(ST_MPOLYFROMTEXT(@wkt_mpy, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_mpolyfromtext'
 SELECT ST_SRID(ST_MULTILINESTRINGFROMTEXT(@wkt_mls, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_multilinestringfromtext'
 SELECT ST_SRID(ST_MULTIPOINTFROMTEXT(@wkt_mpt, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_multipointfromtext'
 SELECT ST_SRID(ST_MULTIPOLYGONFROMTEXT(@wkt_mpy, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_multipolygonfromtext'
 SELECT ST_SRID(ST_POINTFROMTEXT(@wkt_pt, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_pointfromtext'
 SELECT ST_SRID(ST_POLYFROMTEXT(@wkt_py, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_polyfromtext'
 SELECT ST_SRID(ST_POLYGONFROMTEXT(@wkt_py, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_polygonfromtext'
 SELECT ST_SRID(ST_GEOMCOLLFROMWKB(@wkb_gc, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_geomcollfromwkb'
 SELECT ST_SRID(ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_gc, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_geometrycollectionfromwkb'
 SELECT ST_SRID(ST_GEOMETRYFROMWKB(@wkb_pt, -1));
 ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
 SELECT ST_SRID(ST_GEOMFROMWKB(@wkb_pt, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_geomfromwkb'
 SELECT ST_SRID(ST_LINEFROMWKB(@wkb_ls, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_linefromwkb'
 SELECT ST_SRID(ST_LINESTRINGFROMWKB(@wkb_ls, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_linestringfromwkb'
 SELECT ST_SRID(ST_MLINEFROMWKB(@wkb_mls, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_mlinefromwkb'
 SELECT ST_SRID(ST_MPOINTFROMWKB(@wkb_mpt, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_mpointfromwkb'
 SELECT ST_SRID(ST_MPOLYFROMWKB(@wkb_mpy, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_mpolyfromwkb'
 SELECT ST_SRID(ST_MULTILINESTRINGFROMWKB(@wkb_mls, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_multilinestringfromwkb'
 SELECT ST_SRID(ST_MULTIPOINTFROMWKB(@wkb_mpt, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_multipointfromwkb'
 SELECT ST_SRID(ST_MULTIPOLYGONFROMWKB(@wkb_mpy, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_multipolygonfromwkb'
 SELECT ST_SRID(ST_POINTFROMWKB(@wkb_pt, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_pointfromwkb'
 SELECT ST_SRID(ST_POLYFROMWKB(@wkb_py, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_polyfromwkb'
 SELECT ST_SRID(ST_POLYGONFROMWKB(@wkb_py, -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_polygonfromwkb'
 SELECT ST_SRID(ST_GEOMCOLLFROMTEXT(@wkt_gc, 0));
 ST_SRID(ST_GEOMCOLLFROMTEXT(@wkt_gc, 0))
 0
@@ -3432,64 +3432,626 @@ SELECT ST_SRID(ST_POLYGONFROMWKB(@wkb_py, 4294967295));
 ST_SRID(ST_POLYGONFROMWKB(@wkb_py, 4294967295))
 4294967295
 SELECT ST_SRID(ST_GEOMCOLLFROMTEXT(@wkt_gc, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_geomcollfromtext'
 SELECT ST_SRID(ST_GEOMCOLLFROMTXT(@wkt_gc, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_geomcollfromtxt'
 SELECT ST_SRID(ST_GEOMETRYCOLLECTIONFROMTEXT(@wkt_gc, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_geometrycollectionfromtext'
 SELECT ST_SRID(ST_GEOMETRYFROMTEXT(@wkt_pt, 4294967296));
 ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_SRID(ST_GEOMFROMTEXT(@wkt_pt, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_SRID(ST_LINEFROMTEXT(@wkt_ls, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_linefromtext'
 SELECT ST_SRID(ST_LINESTRINGFROMTEXT(@wkt_ls, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_linestringfromtext'
 SELECT ST_SRID(ST_MLINEFROMTEXT(@wkt_mls, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_mlinefromtext'
 SELECT ST_SRID(ST_MPOINTFROMTEXT(@wkt_mpt, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_mpointfromtext'
 SELECT ST_SRID(ST_MPOLYFROMTEXT(@wkt_mpy, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_mpolyfromtext'
 SELECT ST_SRID(ST_MULTILINESTRINGFROMTEXT(@wkt_mls, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_multilinestringfromtext'
 SELECT ST_SRID(ST_MULTIPOINTFROMTEXT(@wkt_mpt, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_multipointfromtext'
 SELECT ST_SRID(ST_MULTIPOLYGONFROMTEXT(@wkt_mpy, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_multipolygonfromtext'
 SELECT ST_SRID(ST_POINTFROMTEXT(@wkt_pt, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_pointfromtext'
 SELECT ST_SRID(ST_POLYFROMTEXT(@wkt_py, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_polyfromtext'
 SELECT ST_SRID(ST_POLYGONFROMTEXT(@wkt_py, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_polygonfromtext'
 SELECT ST_SRID(ST_GEOMCOLLFROMWKB(@wkb_gc, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_geomcollfromwkb'
 SELECT ST_SRID(ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_gc, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_geometrycollectionfromwkb'
 SELECT ST_SRID(ST_GEOMETRYFROMWKB(@wkb_pt, 4294967296));
 ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
 SELECT ST_SRID(ST_GEOMFROMWKB(@wkb_pt, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_geomfromwkb'
 SELECT ST_SRID(ST_LINEFROMWKB(@wkb_ls, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_linefromwkb'
 SELECT ST_SRID(ST_LINESTRINGFROMWKB(@wkb_ls, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_linestringfromwkb'
 SELECT ST_SRID(ST_MLINEFROMWKB(@wkb_mls, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_mlinefromwkb'
 SELECT ST_SRID(ST_MPOINTFROMWKB(@wkb_mpt, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_mpointfromwkb'
 SELECT ST_SRID(ST_MPOLYFROMWKB(@wkb_mpy, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_mpolyfromwkb'
 SELECT ST_SRID(ST_MULTILINESTRINGFROMWKB(@wkb_mls, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_multilinestringfromwkb'
 SELECT ST_SRID(ST_MULTIPOINTFROMWKB(@wkb_mpt, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_multipointfromwkb'
 SELECT ST_SRID(ST_MULTIPOLYGONFROMWKB(@wkb_mpy, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_multipolygonfromwkb'
 SELECT ST_SRID(ST_POINTFROMWKB(@wkb_pt, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_pointfromwkb'
 SELECT ST_SRID(ST_POLYFROMWKB(@wkb_py, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_polyfromwkb'
 SELECT ST_SRID(ST_POLYGONFROMWKB(@wkb_py, 4294967296));
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_polygonfromwkb'
+#
+# Bug #22883056 INCORRECT FUNCTION REFERENCED IN SPATIAL ERROR MESSAGE
+# ERROR 3037 (22023)
+#
+SET @wkt_pt = 'POINT(0 0)';
+SET @wkt_ls = 'LINESTRING(0 0, 1 1)';
+SET @wkt_py = 'POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))';
+SET @wkt_mpt = 'MULTIPOINT((0 0))';
+SET @wkt_mls = 'MULTILINESTRING((0 0, 1 1))';
+SET @wkt_mpy = 'MULTIPOLYGON(((0 0, 10 0, 10 10, 0 10, 0 0)))';
+SET @wkt_gc = 'GEOMETRYCOLLECTION(POINT(0 0))';
+SET @wkb_pt = ST_ASWKB(ST_GEOMFROMTEXT(@wkt_pt));
+SET @wkb_ls = ST_ASWKB(ST_GEOMFROMTEXT(@wkt_ls));
+SET @wkb_py = ST_ASWKB(ST_GEOMFROMTEXT(@wkt_py));
+SET @wkb_mpt = ST_ASWKB(ST_GEOMFROMTEXT(@wkt_mpt));
+SET @wkb_mls = ST_ASWKB(ST_GEOMFROMTEXT(@wkt_mls));
+SET @wkb_mpy = ST_ASWKB(ST_GEOMFROMTEXT(@wkt_mpy));
+SET @wkb_gc = ST_ASWKB(ST_GEOMFROMTEXT(@wkt_gc));
+# WKT functions
+DO ST_GEOMCOLLFROMTEXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_geomcollfromtext.
+DO ST_GEOMCOLLFROMTEXT(@wkt_ls);
+ERROR 22S01: WKT value is a geometry of unexpected type LINESTRING in st_geomcollfromtext.
+DO ST_GEOMCOLLFROMTEXT(@wkt_py);
+ERROR 22S01: WKT value is a geometry of unexpected type POLYGON in st_geomcollfromtext.
+DO ST_GEOMCOLLFROMTEXT(@wkt_mpt);
+DO ST_GEOMCOLLFROMTEXT(@wkt_mls);
+DO ST_GEOMCOLLFROMTEXT(@wkt_mpy);
+DO ST_GEOMCOLLFROMTEXT(@wkt_gc);
+DO ST_GEOMCOLLFROMTXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_geomcollfromtxt.
+DO ST_GEOMCOLLFROMTXT(@wkt_ls);
+ERROR 22S01: WKT value is a geometry of unexpected type LINESTRING in st_geomcollfromtxt.
+DO ST_GEOMCOLLFROMTXT(@wkt_py);
+ERROR 22S01: WKT value is a geometry of unexpected type POLYGON in st_geomcollfromtxt.
+DO ST_GEOMCOLLFROMTXT(@wkt_mpt);
+DO ST_GEOMCOLLFROMTXT(@wkt_mls);
+DO ST_GEOMCOLLFROMTXT(@wkt_mpy);
+DO ST_GEOMCOLLFROMTXT(@wkt_gc);
+DO ST_GEOMETRYCOLLECTIONFROMTEXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_geometrycollectionfromtext.
+DO ST_GEOMETRYCOLLECTIONFROMTEXT(@wkt_ls);
+ERROR 22S01: WKT value is a geometry of unexpected type LINESTRING in st_geometrycollectionfromtext.
+DO ST_GEOMETRYCOLLECTIONFROMTEXT(@wkt_py);
+ERROR 22S01: WKT value is a geometry of unexpected type POLYGON in st_geometrycollectionfromtext.
+DO ST_GEOMETRYCOLLECTIONFROMTEXT(@wkt_mpt);
+DO ST_GEOMETRYCOLLECTIONFROMTEXT(@wkt_mls);
+DO ST_GEOMETRYCOLLECTIONFROMTEXT(@wkt_mpy);
+DO ST_GEOMETRYCOLLECTIONFROMTEXT(@wkt_gc);
+DO ST_GEOMETRYFROMTEXT(@wkt_pt);
+DO ST_GEOMETRYFROMTEXT(@wkt_ls);
+DO ST_GEOMETRYFROMTEXT(@wkt_py);
+DO ST_GEOMETRYFROMTEXT(@wkt_mpt);
+DO ST_GEOMETRYFROMTEXT(@wkt_mls);
+DO ST_GEOMETRYFROMTEXT(@wkt_mpy);
+DO ST_GEOMETRYFROMTEXT(@wkt_gc);
+DO ST_GEOMFROMTEXT(@wkt_pt);
+DO ST_GEOMFROMTEXT(@wkt_ls);
+DO ST_GEOMFROMTEXT(@wkt_py);
+DO ST_GEOMFROMTEXT(@wkt_mpt);
+DO ST_GEOMFROMTEXT(@wkt_mls);
+DO ST_GEOMFROMTEXT(@wkt_mpy);
+DO ST_GEOMFROMTEXT(@wkt_gc);
+DO ST_LINEFROMTEXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_linefromtext.
+DO ST_LINEFROMTEXT(@wkt_ls);
+DO ST_LINEFROMTEXT(@wkt_py);
+ERROR 22S01: WKT value is a geometry of unexpected type POLYGON in st_linefromtext.
+DO ST_LINEFROMTEXT(@wkt_mpt);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOINT in st_linefromtext.
+DO ST_LINEFROMTEXT(@wkt_mls);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTILINESTRING in st_linefromtext.
+DO ST_LINEFROMTEXT(@wkt_mpy);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOLYGON in st_linefromtext.
+DO ST_LINEFROMTEXT(@wkt_gc);
+ERROR 22S01: WKT value is a geometry of unexpected type GEOMETRYCOLLECTION in st_linefromtext.
+DO ST_LINESTRINGFROMTEXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_linestringfromtext.
+DO ST_LINESTRINGFROMTEXT(@wkt_ls);
+DO ST_LINESTRINGFROMTEXT(@wkt_py);
+ERROR 22S01: WKT value is a geometry of unexpected type POLYGON in st_linestringfromtext.
+DO ST_LINESTRINGFROMTEXT(@wkt_mpt);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOINT in st_linestringfromtext.
+DO ST_LINESTRINGFROMTEXT(@wkt_mls);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTILINESTRING in st_linestringfromtext.
+DO ST_LINESTRINGFROMTEXT(@wkt_mpy);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOLYGON in st_linestringfromtext.
+DO ST_LINESTRINGFROMTEXT(@wkt_gc);
+ERROR 22S01: WKT value is a geometry of unexpected type GEOMETRYCOLLECTION in st_linestringfromtext.
+DO ST_MLINEFROMTEXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_mlinefromtext.
+DO ST_MLINEFROMTEXT(@wkt_ls);
+ERROR 22S01: WKT value is a geometry of unexpected type LINESTRING in st_mlinefromtext.
+DO ST_MLINEFROMTEXT(@wkt_py);
+ERROR 22S01: WKT value is a geometry of unexpected type POLYGON in st_mlinefromtext.
+DO ST_MLINEFROMTEXT(@wkt_mpt);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOINT in st_mlinefromtext.
+DO ST_MLINEFROMTEXT(@wkt_mls);
+DO ST_MLINEFROMTEXT(@wkt_mpy);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOLYGON in st_mlinefromtext.
+DO ST_MLINEFROMTEXT(@wkt_gc);
+ERROR 22S01: WKT value is a geometry of unexpected type GEOMETRYCOLLECTION in st_mlinefromtext.
+DO ST_MPOINTFROMTEXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_mpointfromtext.
+DO ST_MPOINTFROMTEXT(@wkt_ls);
+ERROR 22S01: WKT value is a geometry of unexpected type LINESTRING in st_mpointfromtext.
+DO ST_MPOINTFROMTEXT(@wkt_py);
+ERROR 22S01: WKT value is a geometry of unexpected type POLYGON in st_mpointfromtext.
+DO ST_MPOINTFROMTEXT(@wkt_mpt);
+DO ST_MPOINTFROMTEXT(@wkt_mls);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTILINESTRING in st_mpointfromtext.
+DO ST_MPOINTFROMTEXT(@wkt_mpy);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOLYGON in st_mpointfromtext.
+DO ST_MPOINTFROMTEXT(@wkt_gc);
+ERROR 22S01: WKT value is a geometry of unexpected type GEOMETRYCOLLECTION in st_mpointfromtext.
+DO ST_MPOLYFROMTEXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_mpolyfromtext.
+DO ST_MPOLYFROMTEXT(@wkt_ls);
+ERROR 22S01: WKT value is a geometry of unexpected type LINESTRING in st_mpolyfromtext.
+DO ST_MPOLYFROMTEXT(@wkt_py);
+ERROR 22S01: WKT value is a geometry of unexpected type POLYGON in st_mpolyfromtext.
+DO ST_MPOLYFROMTEXT(@wkt_mpt);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOINT in st_mpolyfromtext.
+DO ST_MPOLYFROMTEXT(@wkt_mls);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTILINESTRING in st_mpolyfromtext.
+DO ST_MPOLYFROMTEXT(@wkt_mpy);
+DO ST_MPOLYFROMTEXT(@wkt_gc);
+ERROR 22S01: WKT value is a geometry of unexpected type GEOMETRYCOLLECTION in st_mpolyfromtext.
+DO ST_MULTILINESTRINGFROMTEXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_multilinestringfromtext.
+DO ST_MULTILINESTRINGFROMTEXT(@wkt_ls);
+ERROR 22S01: WKT value is a geometry of unexpected type LINESTRING in st_multilinestringfromtext.
+DO ST_MULTILINESTRINGFROMTEXT(@wkt_py);
+ERROR 22S01: WKT value is a geometry of unexpected type POLYGON in st_multilinestringfromtext.
+DO ST_MULTILINESTRINGFROMTEXT(@wkt_mpt);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOINT in st_multilinestringfromtext.
+DO ST_MULTILINESTRINGFROMTEXT(@wkt_mls);
+DO ST_MULTILINESTRINGFROMTEXT(@wkt_mpy);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOLYGON in st_multilinestringfromtext.
+DO ST_MULTILINESTRINGFROMTEXT(@wkt_gc);
+ERROR 22S01: WKT value is a geometry of unexpected type GEOMETRYCOLLECTION in st_multilinestringfromtext.
+DO ST_MULTIPOINTFROMTEXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_multipointfromtext.
+DO ST_MULTIPOINTFROMTEXT(@wkt_ls);
+ERROR 22S01: WKT value is a geometry of unexpected type LINESTRING in st_multipointfromtext.
+DO ST_MULTIPOINTFROMTEXT(@wkt_py);
+ERROR 22S01: WKT value is a geometry of unexpected type POLYGON in st_multipointfromtext.
+DO ST_MULTIPOINTFROMTEXT(@wkt_mpt);
+DO ST_MULTIPOINTFROMTEXT(@wkt_mls);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTILINESTRING in st_multipointfromtext.
+DO ST_MULTIPOINTFROMTEXT(@wkt_mpy);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOLYGON in st_multipointfromtext.
+DO ST_MULTIPOINTFROMTEXT(@wkt_gc);
+ERROR 22S01: WKT value is a geometry of unexpected type GEOMETRYCOLLECTION in st_multipointfromtext.
+DO ST_MULTIPOLYGONFROMTEXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_multipolygonfromtext.
+DO ST_MULTIPOLYGONFROMTEXT(@wkt_ls);
+ERROR 22S01: WKT value is a geometry of unexpected type LINESTRING in st_multipolygonfromtext.
+DO ST_MULTIPOLYGONFROMTEXT(@wkt_py);
+ERROR 22S01: WKT value is a geometry of unexpected type POLYGON in st_multipolygonfromtext.
+DO ST_MULTIPOLYGONFROMTEXT(@wkt_mpt);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOINT in st_multipolygonfromtext.
+DO ST_MULTIPOLYGONFROMTEXT(@wkt_mls);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTILINESTRING in st_multipolygonfromtext.
+DO ST_MULTIPOLYGONFROMTEXT(@wkt_mpy);
+DO ST_MULTIPOLYGONFROMTEXT(@wkt_gc);
+ERROR 22S01: WKT value is a geometry of unexpected type GEOMETRYCOLLECTION in st_multipolygonfromtext.
+DO ST_POINTFROMTEXT(@wkt_pt);
+DO ST_POINTFROMTEXT(@wkt_ls);
+ERROR 22S01: WKT value is a geometry of unexpected type LINESTRING in st_pointfromtext.
+DO ST_POINTFROMTEXT(@wkt_py);
+ERROR 22S01: WKT value is a geometry of unexpected type POLYGON in st_pointfromtext.
+DO ST_POINTFROMTEXT(@wkt_mpt);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOINT in st_pointfromtext.
+DO ST_POINTFROMTEXT(@wkt_mls);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTILINESTRING in st_pointfromtext.
+DO ST_POINTFROMTEXT(@wkt_mpy);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOLYGON in st_pointfromtext.
+DO ST_POINTFROMTEXT(@wkt_gc);
+ERROR 22S01: WKT value is a geometry of unexpected type GEOMETRYCOLLECTION in st_pointfromtext.
+DO ST_POLYFROMTEXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_polyfromtext.
+DO ST_POLYFROMTEXT(@wkt_ls);
+ERROR 22S01: WKT value is a geometry of unexpected type LINESTRING in st_polyfromtext.
+DO ST_POLYFROMTEXT(@wkt_py);
+DO ST_POLYFROMTEXT(@wkt_mpt);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOINT in st_polyfromtext.
+DO ST_POLYFROMTEXT(@wkt_mls);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTILINESTRING in st_polyfromtext.
+DO ST_POLYFROMTEXT(@wkt_mpy);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOLYGON in st_polyfromtext.
+DO ST_POLYFROMTEXT(@wkt_gc);
+ERROR 22S01: WKT value is a geometry of unexpected type GEOMETRYCOLLECTION in st_polyfromtext.
+DO ST_POLYGONFROMTEXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_polygonfromtext.
+DO ST_POLYGONFROMTEXT(@wkt_ls);
+ERROR 22S01: WKT value is a geometry of unexpected type LINESTRING in st_polygonfromtext.
+DO ST_POLYGONFROMTEXT(@wkt_py);
+DO ST_POLYGONFROMTEXT(@wkt_mpt);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOINT in st_polygonfromtext.
+DO ST_POLYGONFROMTEXT(@wkt_mls);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTILINESTRING in st_polygonfromtext.
+DO ST_POLYGONFROMTEXT(@wkt_mpy);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOLYGON in st_polygonfromtext.
+DO ST_POLYGONFROMTEXT(@wkt_gc);
+ERROR 22S01: WKT value is a geometry of unexpected type GEOMETRYCOLLECTION in st_polygonfromtext.
+# WKB functions
+DO ST_GEOMCOLLFROMWKB(@wkb_pt);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_geomcollfromwkb.
+DO ST_GEOMCOLLFROMWKB(@wkb_ls);
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_geomcollfromwkb.
+DO ST_GEOMCOLLFROMWKB(@wkb_py);
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_geomcollfromwkb.
+DO ST_GEOMCOLLFROMWKB(@wkb_mpt);
+DO ST_GEOMCOLLFROMWKB(@wkb_mls);
+DO ST_GEOMCOLLFROMWKB(@wkb_mpy);
+DO ST_GEOMCOLLFROMWKB(@wkb_gc);
+DO ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_pt);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_geometrycollectionfromwkb.
+DO ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_ls);
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_geometrycollectionfromwkb.
+DO ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_py);
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_geometrycollectionfromwkb.
+DO ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_mpt);
+DO ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_mls);
+DO ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_mpy);
+DO ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_gc);
+DO ST_GEOMETRYFROMWKB(@wkb_pt);
+DO ST_GEOMETRYFROMWKB(@wkb_ls);
+DO ST_GEOMETRYFROMWKB(@wkb_py);
+DO ST_GEOMETRYFROMWKB(@wkb_mpt);
+DO ST_GEOMETRYFROMWKB(@wkb_mls);
+DO ST_GEOMETRYFROMWKB(@wkb_mpy);
+DO ST_GEOMETRYFROMWKB(@wkb_gc);
+DO ST_GEOMFROMWKB(@wkb_pt);
+DO ST_GEOMFROMWKB(@wkb_ls);
+DO ST_GEOMFROMWKB(@wkb_py);
+DO ST_GEOMFROMWKB(@wkb_mpt);
+DO ST_GEOMFROMWKB(@wkb_mls);
+DO ST_GEOMFROMWKB(@wkb_mpy);
+DO ST_GEOMFROMWKB(@wkb_gc);
+DO ST_LINEFROMWKB(@wkb_pt);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_linefromwkb.
+DO ST_LINEFROMWKB(@wkb_ls);
+DO ST_LINEFROMWKB(@wkb_py);
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_linefromwkb.
+DO ST_LINEFROMWKB(@wkb_mpt);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_linefromwkb.
+DO ST_LINEFROMWKB(@wkb_mls);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_linefromwkb.
+DO ST_LINEFROMWKB(@wkb_mpy);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_linefromwkb.
+DO ST_LINEFROMWKB(@wkb_gc);
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMETRYCOLLECTION in st_linefromwkb.
+DO ST_LINESTRINGFROMWKB(@wkb_pt);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_linestringfromwkb.
+DO ST_LINESTRINGFROMWKB(@wkb_ls);
+DO ST_LINESTRINGFROMWKB(@wkb_py);
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_linestringfromwkb.
+DO ST_LINESTRINGFROMWKB(@wkb_mpt);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_linestringfromwkb.
+DO ST_LINESTRINGFROMWKB(@wkb_mls);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_linestringfromwkb.
+DO ST_LINESTRINGFROMWKB(@wkb_mpy);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_linestringfromwkb.
+DO ST_LINESTRINGFROMWKB(@wkb_gc);
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMETRYCOLLECTION in st_linestringfromwkb.
+DO ST_MLINEFROMWKB(@wkb_pt);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_mlinefromwkb.
+DO ST_MLINEFROMWKB(@wkb_ls);
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_mlinefromwkb.
+DO ST_MLINEFROMWKB(@wkb_py);
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_mlinefromwkb.
+DO ST_MLINEFROMWKB(@wkb_mpt);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_mlinefromwkb.
+DO ST_MLINEFROMWKB(@wkb_mls);
+DO ST_MLINEFROMWKB(@wkb_mpy);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_mlinefromwkb.
+DO ST_MLINEFROMWKB(@wkb_gc);
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMETRYCOLLECTION in st_mlinefromwkb.
+DO ST_MPOINTFROMWKB(@wkb_pt);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_mpointfromwkb.
+DO ST_MPOINTFROMWKB(@wkb_ls);
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_mpointfromwkb.
+DO ST_MPOINTFROMWKB(@wkb_py);
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_mpointfromwkb.
+DO ST_MPOINTFROMWKB(@wkb_mpt);
+DO ST_MPOINTFROMWKB(@wkb_mls);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_mpointfromwkb.
+DO ST_MPOINTFROMWKB(@wkb_mpy);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_mpointfromwkb.
+DO ST_MPOINTFROMWKB(@wkb_gc);
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMETRYCOLLECTION in st_mpointfromwkb.
+DO ST_MPOLYFROMWKB(@wkb_pt);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_mpolyfromwkb.
+DO ST_MPOLYFROMWKB(@wkb_ls);
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_mpolyfromwkb.
+DO ST_MPOLYFROMWKB(@wkb_py);
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_mpolyfromwkb.
+DO ST_MPOLYFROMWKB(@wkb_mpt);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_mpolyfromwkb.
+DO ST_MPOLYFROMWKB(@wkb_mls);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_mpolyfromwkb.
+DO ST_MPOLYFROMWKB(@wkb_mpy);
+DO ST_MPOLYFROMWKB(@wkb_gc);
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMETRYCOLLECTION in st_mpolyfromwkb.
+DO ST_MULTILINESTRINGFROMWKB(@wkb_pt);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_multilinestringfromwkb.
+DO ST_MULTILINESTRINGFROMWKB(@wkb_ls);
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_multilinestringfromwkb.
+DO ST_MULTILINESTRINGFROMWKB(@wkb_py);
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_multilinestringfromwkb.
+DO ST_MULTILINESTRINGFROMWKB(@wkb_mpt);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_multilinestringfromwkb.
+DO ST_MULTILINESTRINGFROMWKB(@wkb_mls);
+DO ST_MULTILINESTRINGFROMWKB(@wkb_mpy);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_multilinestringfromwkb.
+DO ST_MULTILINESTRINGFROMWKB(@wkb_gc);
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMETRYCOLLECTION in st_multilinestringfromwkb.
+DO ST_MULTIPOINTFROMWKB(@wkb_pt);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_multipointfromwkb.
+DO ST_MULTIPOINTFROMWKB(@wkb_ls);
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_multipointfromwkb.
+DO ST_MULTIPOINTFROMWKB(@wkb_py);
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_multipointfromwkb.
+DO ST_MULTIPOINTFROMWKB(@wkb_mpt);
+DO ST_MULTIPOINTFROMWKB(@wkb_mls);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_multipointfromwkb.
+DO ST_MULTIPOINTFROMWKB(@wkb_mpy);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_multipointfromwkb.
+DO ST_MULTIPOINTFROMWKB(@wkb_gc);
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMETRYCOLLECTION in st_multipointfromwkb.
+DO ST_MULTIPOLYGONFROMWKB(@wkb_pt);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_multipolygonfromwkb.
+DO ST_MULTIPOLYGONFROMWKB(@wkb_ls);
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_multipolygonfromwkb.
+DO ST_MULTIPOLYGONFROMWKB(@wkb_py);
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_multipolygonfromwkb.
+DO ST_MULTIPOLYGONFROMWKB(@wkb_mpt);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_multipolygonfromwkb.
+DO ST_MULTIPOLYGONFROMWKB(@wkb_mls);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_multipolygonfromwkb.
+DO ST_MULTIPOLYGONFROMWKB(@wkb_mpy);
+DO ST_MULTIPOLYGONFROMWKB(@wkb_gc);
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMETRYCOLLECTION in st_multipolygonfromwkb.
+DO ST_POINTFROMWKB(@wkb_pt);
+DO ST_POINTFROMWKB(@wkb_ls);
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_pointfromwkb.
+DO ST_POINTFROMWKB(@wkb_py);
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_pointfromwkb.
+DO ST_POINTFROMWKB(@wkb_mpt);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_pointfromwkb.
+DO ST_POINTFROMWKB(@wkb_mls);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_pointfromwkb.
+DO ST_POINTFROMWKB(@wkb_mpy);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_pointfromwkb.
+DO ST_POINTFROMWKB(@wkb_gc);
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMETRYCOLLECTION in st_pointfromwkb.
+DO ST_POLYFROMWKB(@wkb_pt);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_polyfromwkb.
+DO ST_POLYFROMWKB(@wkb_ls);
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_polyfromwkb.
+DO ST_POLYFROMWKB(@wkb_py);
+DO ST_POLYFROMWKB(@wkb_mpt);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_polyfromwkb.
+DO ST_POLYFROMWKB(@wkb_mls);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_polyfromwkb.
+DO ST_POLYFROMWKB(@wkb_mpy);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_polyfromwkb.
+DO ST_POLYFROMWKB(@wkb_gc);
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMETRYCOLLECTION in st_polyfromwkb.
+DO ST_POLYGONFROMWKB(@wkb_pt);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_polygonfromwkb.
+DO ST_POLYGONFROMWKB(@wkb_ls);
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_polygonfromwkb.
+DO ST_POLYGONFROMWKB(@wkb_py);
+DO ST_POLYGONFROMWKB(@wkb_mpt);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_polygonfromwkb.
+DO ST_POLYGONFROMWKB(@wkb_mls);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_polygonfromwkb.
+DO ST_POLYGONFROMWKB(@wkb_mpy);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_polygonfromwkb.
+DO ST_POLYGONFROMWKB(@wkb_gc);
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMETRYCOLLECTION in st_polygonfromwkb.
+# WKB functions used on geometry values (MySQL extension)
+DO ST_GEOMCOLLFROMWKB(ST_GEOMFROMTEXT(@wkt_pt));
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_geomcollfromwkb.
+DO ST_GEOMCOLLFROMWKB(ST_GEOMFROMTEXT(@wkt_ls));
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_geomcollfromwkb.
+DO ST_GEOMCOLLFROMWKB(ST_GEOMFROMTEXT(@wkt_py));
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_geomcollfromwkb.
+DO ST_GEOMCOLLFROMWKB(ST_GEOMFROMTEXT(@wkt_mpt));
+DO ST_GEOMCOLLFROMWKB(ST_GEOMFROMTEXT(@wkt_mls));
+DO ST_GEOMCOLLFROMWKB(ST_GEOMFROMTEXT(@wkt_mpy));
+DO ST_GEOMCOLLFROMWKB(ST_GEOMFROMTEXT(@wkt_gc));
+DO ST_GEOMETRYCOLLECTIONFROMWKB(ST_GEOMFROMTEXT(@wkt_pt));
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_geometrycollectionfromwkb.
+DO ST_GEOMETRYCOLLECTIONFROMWKB(ST_GEOMFROMTEXT(@wkt_ls));
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_geometrycollectionfromwkb.
+DO ST_GEOMETRYCOLLECTIONFROMWKB(ST_GEOMFROMTEXT(@wkt_py));
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_geometrycollectionfromwkb.
+DO ST_GEOMETRYCOLLECTIONFROMWKB(ST_GEOMFROMTEXT(@wkt_mpt));
+DO ST_GEOMETRYCOLLECTIONFROMWKB(ST_GEOMFROMTEXT(@wkt_mls));
+DO ST_GEOMETRYCOLLECTIONFROMWKB(ST_GEOMFROMTEXT(@wkt_mpy));
+DO ST_GEOMETRYCOLLECTIONFROMWKB(ST_GEOMFROMTEXT(@wkt_gc));
+DO ST_GEOMETRYFROMWKB(ST_GEOMFROMTEXT(@wkt_pt));
+DO ST_GEOMETRYFROMWKB(ST_GEOMFROMTEXT(@wkt_ls));
+DO ST_GEOMETRYFROMWKB(ST_GEOMFROMTEXT(@wkt_py));
+DO ST_GEOMETRYFROMWKB(ST_GEOMFROMTEXT(@wkt_mpt));
+DO ST_GEOMETRYFROMWKB(ST_GEOMFROMTEXT(@wkt_mls));
+DO ST_GEOMETRYFROMWKB(ST_GEOMFROMTEXT(@wkt_mpy));
+DO ST_GEOMETRYFROMWKB(ST_GEOMFROMTEXT(@wkt_gc));
+DO ST_GEOMFROMWKB(ST_GEOMFROMTEXT(@wkt_pt));
+DO ST_GEOMFROMWKB(ST_GEOMFROMTEXT(@wkt_ls));
+DO ST_GEOMFROMWKB(ST_GEOMFROMTEXT(@wkt_py));
+DO ST_GEOMFROMWKB(ST_GEOMFROMTEXT(@wkt_mpt));
+DO ST_GEOMFROMWKB(ST_GEOMFROMTEXT(@wkt_mls));
+DO ST_GEOMFROMWKB(ST_GEOMFROMTEXT(@wkt_mpy));
+DO ST_GEOMFROMWKB(ST_GEOMFROMTEXT(@wkt_gc));
+DO ST_LINEFROMWKB(ST_GEOMFROMTEXT(@wkt_pt));
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_linefromwkb.
+DO ST_LINEFROMWKB(ST_GEOMFROMTEXT(@wkt_ls));
+DO ST_LINEFROMWKB(ST_GEOMFROMTEXT(@wkt_py));
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_linefromwkb.
+DO ST_LINEFROMWKB(ST_GEOMFROMTEXT(@wkt_mpt));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_linefromwkb.
+DO ST_LINEFROMWKB(ST_GEOMFROMTEXT(@wkt_mls));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_linefromwkb.
+DO ST_LINEFROMWKB(ST_GEOMFROMTEXT(@wkt_mpy));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_linefromwkb.
+DO ST_LINEFROMWKB(ST_GEOMFROMTEXT(@wkt_gc));
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMETRYCOLLECTION in st_linefromwkb.
+DO ST_LINESTRINGFROMWKB(ST_GEOMFROMTEXT(@wkt_pt));
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_linestringfromwkb.
+DO ST_LINESTRINGFROMWKB(ST_GEOMFROMTEXT(@wkt_ls));
+DO ST_LINESTRINGFROMWKB(ST_GEOMFROMTEXT(@wkt_py));
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_linestringfromwkb.
+DO ST_LINESTRINGFROMWKB(ST_GEOMFROMTEXT(@wkt_mpt));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_linestringfromwkb.
+DO ST_LINESTRINGFROMWKB(ST_GEOMFROMTEXT(@wkt_mls));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_linestringfromwkb.
+DO ST_LINESTRINGFROMWKB(ST_GEOMFROMTEXT(@wkt_mpy));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_linestringfromwkb.
+DO ST_LINESTRINGFROMWKB(ST_GEOMFROMTEXT(@wkt_gc));
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMETRYCOLLECTION in st_linestringfromwkb.
+DO ST_MLINEFROMWKB(ST_GEOMFROMTEXT(@wkt_pt));
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_mlinefromwkb.
+DO ST_MLINEFROMWKB(ST_GEOMFROMTEXT(@wkt_ls));
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_mlinefromwkb.
+DO ST_MLINEFROMWKB(ST_GEOMFROMTEXT(@wkt_py));
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_mlinefromwkb.
+DO ST_MLINEFROMWKB(ST_GEOMFROMTEXT(@wkt_mpt));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_mlinefromwkb.
+DO ST_MLINEFROMWKB(ST_GEOMFROMTEXT(@wkt_mls));
+DO ST_MLINEFROMWKB(ST_GEOMFROMTEXT(@wkt_mpy));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_mlinefromwkb.
+DO ST_MLINEFROMWKB(ST_GEOMFROMTEXT(@wkt_gc));
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMETRYCOLLECTION in st_mlinefromwkb.
+DO ST_MPOINTFROMWKB(ST_GEOMFROMTEXT(@wkt_pt));
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_mpointfromwkb.
+DO ST_MPOINTFROMWKB(ST_GEOMFROMTEXT(@wkt_ls));
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_mpointfromwkb.
+DO ST_MPOINTFROMWKB(ST_GEOMFROMTEXT(@wkt_py));
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_mpointfromwkb.
+DO ST_MPOINTFROMWKB(ST_GEOMFROMTEXT(@wkt_mpt));
+DO ST_MPOINTFROMWKB(ST_GEOMFROMTEXT(@wkt_mls));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_mpointfromwkb.
+DO ST_MPOINTFROMWKB(ST_GEOMFROMTEXT(@wkt_mpy));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_mpointfromwkb.
+DO ST_MPOINTFROMWKB(ST_GEOMFROMTEXT(@wkt_gc));
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMETRYCOLLECTION in st_mpointfromwkb.
+DO ST_MPOLYFROMWKB(ST_GEOMFROMTEXT(@wkt_pt));
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_mpolyfromwkb.
+DO ST_MPOLYFROMWKB(ST_GEOMFROMTEXT(@wkt_ls));
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_mpolyfromwkb.
+DO ST_MPOLYFROMWKB(ST_GEOMFROMTEXT(@wkt_py));
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_mpolyfromwkb.
+DO ST_MPOLYFROMWKB(ST_GEOMFROMTEXT(@wkt_mpt));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_mpolyfromwkb.
+DO ST_MPOLYFROMWKB(ST_GEOMFROMTEXT(@wkt_mls));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_mpolyfromwkb.
+DO ST_MPOLYFROMWKB(ST_GEOMFROMTEXT(@wkt_mpy));
+DO ST_MPOLYFROMWKB(ST_GEOMFROMTEXT(@wkt_gc));
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMETRYCOLLECTION in st_mpolyfromwkb.
+DO ST_MULTILINESTRINGFROMWKB(ST_GEOMFROMTEXT(@wkt_pt));
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_multilinestringfromwkb.
+DO ST_MULTILINESTRINGFROMWKB(ST_GEOMFROMTEXT(@wkt_ls));
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_multilinestringfromwkb.
+DO ST_MULTILINESTRINGFROMWKB(ST_GEOMFROMTEXT(@wkt_py));
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_multilinestringfromwkb.
+DO ST_MULTILINESTRINGFROMWKB(ST_GEOMFROMTEXT(@wkt_mpt));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_multilinestringfromwkb.
+DO ST_MULTILINESTRINGFROMWKB(ST_GEOMFROMTEXT(@wkt_mls));
+DO ST_MULTILINESTRINGFROMWKB(ST_GEOMFROMTEXT(@wkt_mpy));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_multilinestringfromwkb.
+DO ST_MULTILINESTRINGFROMWKB(ST_GEOMFROMTEXT(@wkt_gc));
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMETRYCOLLECTION in st_multilinestringfromwkb.
+DO ST_MULTIPOINTFROMWKB(ST_GEOMFROMTEXT(@wkt_pt));
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_multipointfromwkb.
+DO ST_MULTIPOINTFROMWKB(ST_GEOMFROMTEXT(@wkt_ls));
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_multipointfromwkb.
+DO ST_MULTIPOINTFROMWKB(ST_GEOMFROMTEXT(@wkt_py));
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_multipointfromwkb.
+DO ST_MULTIPOINTFROMWKB(ST_GEOMFROMTEXT(@wkt_mpt));
+DO ST_MULTIPOINTFROMWKB(ST_GEOMFROMTEXT(@wkt_mls));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_multipointfromwkb.
+DO ST_MULTIPOINTFROMWKB(ST_GEOMFROMTEXT(@wkt_mpy));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_multipointfromwkb.
+DO ST_MULTIPOINTFROMWKB(ST_GEOMFROMTEXT(@wkt_gc));
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMETRYCOLLECTION in st_multipointfromwkb.
+DO ST_MULTIPOLYGONFROMWKB(ST_GEOMFROMTEXT(@wkt_pt));
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_multipolygonfromwkb.
+DO ST_MULTIPOLYGONFROMWKB(ST_GEOMFROMTEXT(@wkt_ls));
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_multipolygonfromwkb.
+DO ST_MULTIPOLYGONFROMWKB(ST_GEOMFROMTEXT(@wkt_py));
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_multipolygonfromwkb.
+DO ST_MULTIPOLYGONFROMWKB(ST_GEOMFROMTEXT(@wkt_mpt));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_multipolygonfromwkb.
+DO ST_MULTIPOLYGONFROMWKB(ST_GEOMFROMTEXT(@wkt_mls));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_multipolygonfromwkb.
+DO ST_MULTIPOLYGONFROMWKB(ST_GEOMFROMTEXT(@wkt_mpy));
+DO ST_MULTIPOLYGONFROMWKB(ST_GEOMFROMTEXT(@wkt_gc));
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMETRYCOLLECTION in st_multipolygonfromwkb.
+DO ST_POINTFROMWKB(ST_GEOMFROMTEXT(@wkt_pt));
+DO ST_POINTFROMWKB(ST_GEOMFROMTEXT(@wkt_ls));
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_pointfromwkb.
+DO ST_POINTFROMWKB(ST_GEOMFROMTEXT(@wkt_py));
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_pointfromwkb.
+DO ST_POINTFROMWKB(ST_GEOMFROMTEXT(@wkt_mpt));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_pointfromwkb.
+DO ST_POINTFROMWKB(ST_GEOMFROMTEXT(@wkt_mls));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_pointfromwkb.
+DO ST_POINTFROMWKB(ST_GEOMFROMTEXT(@wkt_mpy));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_pointfromwkb.
+DO ST_POINTFROMWKB(ST_GEOMFROMTEXT(@wkt_gc));
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMETRYCOLLECTION in st_pointfromwkb.
+DO ST_POLYFROMWKB(ST_GEOMFROMTEXT(@wkt_pt));
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_polyfromwkb.
+DO ST_POLYFROMWKB(ST_GEOMFROMTEXT(@wkt_ls));
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_polyfromwkb.
+DO ST_POLYFROMWKB(ST_GEOMFROMTEXT(@wkt_py));
+DO ST_POLYFROMWKB(ST_GEOMFROMTEXT(@wkt_mpt));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_polyfromwkb.
+DO ST_POLYFROMWKB(ST_GEOMFROMTEXT(@wkt_mls));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_polyfromwkb.
+DO ST_POLYFROMWKB(ST_GEOMFROMTEXT(@wkt_mpy));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_polyfromwkb.
+DO ST_POLYFROMWKB(ST_GEOMFROMTEXT(@wkt_gc));
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMETRYCOLLECTION in st_polyfromwkb.
+DO ST_POLYGONFROMWKB(ST_GEOMFROMTEXT(@wkt_pt));
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_polygonfromwkb.
+DO ST_POLYGONFROMWKB(ST_GEOMFROMTEXT(@wkt_ls));
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_polygonfromwkb.
+DO ST_POLYGONFROMWKB(ST_GEOMFROMTEXT(@wkt_py));
+DO ST_POLYGONFROMWKB(ST_GEOMFROMTEXT(@wkt_mpt));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_polygonfromwkb.
+DO ST_POLYGONFROMWKB(ST_GEOMFROMTEXT(@wkt_mls));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_polygonfromwkb.
+DO ST_POLYGONFROMWKB(ST_GEOMFROMTEXT(@wkt_mpy));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_polygonfromwkb.
+DO ST_POLYGONFROMWKB(ST_GEOMFROMTEXT(@wkt_gc));
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMETRYCOLLECTION in st_polygonfromwkb.

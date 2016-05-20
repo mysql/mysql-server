@@ -1001,15 +1001,15 @@ ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT ST_X(ST_POINTFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_POINTFROMTEXT'
 SELECT ST_X(ST_POINTFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_pointfromtext.
 SELECT ST_X(ST_POINTFROMTEXT('POINT()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_pointfromtext.
 SELECT ST_X(ST_POINTFROMTEXT('POINT(1)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_pointfromtext.
 SELECT ST_X(ST_POINTFROMTEXT('POINT(a 1)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_pointfromtext.
 SELECT ST_X(ST_POINTFROMTEXT('POINT(1 1,2)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_pointfromtext.
 SELECT ST_X(ST_POINTFROMTEXT('POINT('!' 0)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'))' at line 1
 #====================================================================================
@@ -1036,15 +1036,15 @@ ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT ST_Y(ST_POINTFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_POINTFROMTEXT'
 SELECT ST_Y(ST_POINTFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_pointfromtext.
 SELECT ST_Y(ST_POINTFROMTEXT('POINT()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_pointfromtext.
 SELECT ST_Y(ST_POINTFROMTEXT('POINT(1)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_pointfromtext.
 SELECT ST_Y(ST_POINTFROMTEXT('POINT(a 1)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_pointfromtext.
 SELECT ST_Y(ST_POINTFROMTEXT('POINT(1 1,2)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_pointfromtext.
 SELECT ST_Y(ST_POINTFROMTEXT('POINT('!' 0)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'))' at line 1
 #====================================================================================
@@ -1066,15 +1066,15 @@ ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT ST_ISCLOSED(ST_LINEFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_LINEFROMTEXT'
 SELECT ST_ISCLOSED(ST_LINEFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_ISCLOSED(ST_LINEFROMTEXT('LINESTRING()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_ISCLOSED(ST_LINEFROMTEXT('LINESTRING(0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_ISCLOSED(ST_LINESTRINGFROMTEXT('LINESTRING(1 2,1'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
 SELECT ST_ISCLOSED(ST_LINESTRINGFROMTEXT('LINESTRING(1 1,2 2,a 3)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
 SELECT ST_ISCLOSED(ST_LINESTRINGFROMTEXT('LINESTRING('!' 0,1 1,2 2)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,1 1,2 2)'))' at line 1
 #====================================================================================
@@ -1096,15 +1096,15 @@ ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT ST_LENGTH(ST_LINEFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_LINEFROMTEXT'
 SELECT ST_LENGTH(ST_LINEFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_LENGTH(ST_LINEFROMTEXT('LINESTRING()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_LENGTH(ST_LINEFROMTEXT('LINESTRING(0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_LENGTH(ST_LINESTRINGFROMTEXT('LINESTRING(1 2,1'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
 SELECT ST_LENGTH(ST_LINESTRINGFROMTEXT('LINESTRING(1 1,2 2,a 3)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
 SELECT ST_LENGTH(ST_LINESTRINGFROMTEXT('LINESTRING('!' 0,1 1,2 2)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,1 1,2 2)'))' at line 1
 #====================================================================================
@@ -1126,15 +1126,15 @@ ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT ST_NUMPOINTS(ST_LINEFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_LINEFROMTEXT'
 SELECT ST_NUMPOINTS(ST_LINEFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_NUMPOINTS(ST_LINEFROMTEXT('LINESTRING()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_NUMPOINTS(ST_LINEFROMTEXT('LINESTRING(0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_NUMPOINTS(ST_LINESTRINGFROMTEXT('LINESTRING(1 2,1'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
 SELECT ST_NUMPOINTS(ST_LINESTRINGFROMTEXT('LINESTRING(1 1,2 2,a 3)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
 SELECT ST_NUMPOINTS(ST_LINESTRINGFROMTEXT('LINESTRING('!' 0,1 1,2 2)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,1 1,2 2)'))' at line 1
 #====================================================================================
@@ -1156,15 +1156,15 @@ ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT ST_STARTPOINT(ST_LINEFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_LINEFROMTEXT'
 SELECT ST_STARTPOINT(ST_LINEFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_STARTPOINT(ST_LINEFROMTEXT('LINESTRING()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_STARTPOINT(ST_LINEFROMTEXT('LINESTRING(0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_STARTPOINT(ST_LINESTRINGFROMTEXT('LINESTRING(1 2,1'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
 SELECT ST_STARTPOINT(ST_LINESTRINGFROMTEXT('LINESTRING(1 1,2 2,a 3)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
 SELECT ST_STARTPOINT(ST_LINESTRINGFROMTEXT('LINESTRING('!' 0,1 1,2 2)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,1 1,2 2)'))' at line 1
 #====================================================================================
@@ -1186,15 +1186,15 @@ ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT ST_ENDPOINT(ST_LINEFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_LINEFROMTEXT'
 SELECT ST_ENDPOINT(ST_LINEFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_ENDPOINT(ST_LINEFROMTEXT('LINESTRING()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_ENDPOINT(ST_LINEFROMTEXT('LINESTRING(0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_ENDPOINT(ST_LINESTRINGFROMTEXT('LINESTRING(1 2,1'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
 SELECT ST_ENDPOINT(ST_LINESTRINGFROMTEXT('LINESTRING(1 1,2 2,a 3)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
 SELECT ST_ENDPOINT(ST_LINESTRINGFROMTEXT('LINESTRING('!' 0,1 1,2 2)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,1 1,2 2)'))' at line 1
 #====================================================================================
@@ -1222,15 +1222,15 @@ ERROR 42000: Incorrect parameter count in the call to native function 'ST_POINTN
 SELECT ST_POINTN(ST_LINEFROMTEXT('NULL'));
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_POINTN'
 SELECT ST_POINTN(ST_LINEFROMTEXT('NULL'), 1);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_POINTN(ST_LINEFROMTEXT('LINESTRING()'), 2);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_POINTN(ST_LINEFROMTEXT('LINESTRING(0)'), 3);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_POINTN(ST_LINESTRINGFROMTEXT('LINESTRING(1 2,1'), 4);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
 SELECT ST_POINTN(ST_LINESTRINGFROMTEXT('LINESTRING(1 1,2 2,a 3)'), 5);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
 SELECT ST_POINTN(ST_LINESTRINGFROMTEXT('LINESTRING('!' 0,1 1,2 2)'), 6);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,1 1,2 2)'), 6)' at line 1
 SELECT ST_POINTN(ST_LINESTRINGFROMTEXT('LINESTRING(0 0,1 1,2 2)'), 0);
@@ -1272,17 +1272,17 @@ ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT ST_NUMINTERIORRINGS(ST_POLYFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_POLYFROMTEXT'
 SELECT ST_NUMINTERIORRINGS(ST_POLYFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polyfromtext.
 SELECT ST_NUMINTERIORRINGS(ST_POLYFROMTEXT('POLYGON(())'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polyfromtext.
 SELECT ST_NUMINTERIORRINGS(ST_POLYFROMTEXT('POLYGON((0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polyfromtext.
 SELECT ST_NUMINTERIORRINGS(ST_POLYGONFROMTEXT('POLYGON((0 0,0 4,4 4,0 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polygonfromtext.
 SELECT ST_NUMINTERIORRINGS(ST_POLYGONFROMTEXT('POLYGON((0 0,2 0,2))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polygonfromtext.
 SELECT ST_NUMINTERIORRINGS(ST_POLYGONFROMTEXT('POLYGON((0 0,0 5,5 a,0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polygonfromtext.
 SELECT ST_NUMINTERIORRINGS(ST_POLYGONFROMTEXT('POLYGON(('!' 0,2 0,2 4,0 0))'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,2 0,2 4,0 0))'))' at line 1
 #====================================================================================
@@ -1304,17 +1304,17 @@ ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT ST_EXTERIORRING(ST_POLYFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_POLYFROMTEXT'
 SELECT ST_EXTERIORRING(ST_POLYFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polyfromtext.
 SELECT ST_EXTERIORRING(ST_POLYFROMTEXT('POLYGON(())'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polyfromtext.
 SELECT ST_EXTERIORRING(ST_POLYFROMTEXT('POLYGON((0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polyfromtext.
 SELECT ST_EXTERIORRING(ST_POLYGONFROMTEXT('POLYGON((0 0,0 4,4 4,0 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polygonfromtext.
 SELECT ST_EXTERIORRING(ST_POLYGONFROMTEXT('POLYGON((0 0,2 0,2))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polygonfromtext.
 SELECT ST_EXTERIORRING(ST_POLYGONFROMTEXT('POLYGON((0 0,0 5,5 a,0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polygonfromtext.
 SELECT ST_EXTERIORRING(ST_POLYGONFROMTEXT('POLYGON(('!' 0,2 0,2 4,0 0))'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,2 0,2 4,0 0))'))' at line 1
 #====================================================================================
@@ -1340,17 +1340,17 @@ ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT ST_INTERIORRINGN(ST_POLYFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_INTERIORRINGN'
 SELECT ST_INTERIORRINGN(ST_POLYFROMTEXT('NULL'), 1);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polyfromtext.
 SELECT ST_INTERIORRINGN(ST_POLYFROMTEXT('POLYGON(())'), 2);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polyfromtext.
 SELECT ST_INTERIORRINGN(ST_POLYFROMTEXT('POLYGON((0))'), 3);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polyfromtext.
 SELECT ST_INTERIORRINGN(ST_POLYGONFROMTEXT('POLYGON((0 0,0 4,4 4,0 0)'), 4);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polygonfromtext.
 SELECT ST_INTERIORRINGN(ST_POLYGONFROMTEXT('POLYGON((0 0,2 0,2))'), 5);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polygonfromtext.
 SELECT ST_INTERIORRINGN(ST_POLYGONFROMTEXT('POLYGON((0 0,0 5,5 a,0 0))'), 6);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polygonfromtext.
 SELECT ST_INTERIORRINGN(ST_POLYGONFROMTEXT('POLYGON(('!' 0,2 0,2 4,0 0))'), 7);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,2 0,2 4,0 0))'), 7)' at line 1
 SELECT ST_INTERIORRINGN(ST_POLYGONFROMTEXT('POLYGON((0 0,0 2,2 2,0 0))'), 0);
@@ -1387,17 +1387,17 @@ ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT ST_ISCLOSED(ST_POLYFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_POLYFROMTEXT'
 SELECT ST_ISCLOSED(ST_MLINEFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_mlinefromtext.
 SELECT ST_ISCLOSED(ST_MLINEFROMTEXT('MULTILINESTRING(())'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_mlinefromtext.
 SELECT ST_ISCLOSED(ST_MLINEFROMTEXT('MULTILINESTRING((1 1,2 2),()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_mlinefromtext.
 SELECT ST_ISCLOSED(ST_MLINEFROMTEXT('MULTILINESTRING((1 1,2 2,3 3)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_mlinefromtext.
 SELECT ST_ISCLOSED(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((1 1,2 3,3 3,4))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_multilinestringfromtext.
 SELECT ST_ISCLOSED(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((1 1,2 2,3 3,4 a))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_multilinestringfromtext.
 SELECT ST_ISCLOSED(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING(('!' 1,2 2,3 3,4 4'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 1,2 2,3 3,4 4'))' at line 1
 #====================================================================================
@@ -1419,17 +1419,17 @@ ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT ST_LENGTH(ST_POLYFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_POLYFROMTEXT'
 SELECT ST_LENGTH(ST_MLINEFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_mlinefromtext.
 SELECT ST_LENGTH(ST_MLINEFROMTEXT('MULTILINESTRING(())'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_mlinefromtext.
 SELECT ST_LENGTH(ST_MLINEFROMTEXT('MULTILINESTRING((1 1,2 2),()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_mlinefromtext.
 SELECT ST_LENGTH(ST_MLINEFROMTEXT('MULTILINESTRING((1 1,2 2,3 3)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_mlinefromtext.
 SELECT ST_LENGTH(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((1 1,2 3,3 3,4))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_multilinestringfromtext.
 SELECT ST_LENGTH(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((1 1,2 2,3 3,4 a))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_multilinestringfromtext.
 SELECT ST_LENGTH(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING(('!' 1,2 2,3 3,4 4'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 1,2 2,3 3,4 4'))' at line 1
 #====================================================================================
@@ -1451,17 +1451,17 @@ ERROR 42S22: Unknown column 'b' in 'field list'
 SELECT ST_NUMGEOMETRIES(ST_GEOMCOLLFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_GEOMCOLLFROMTEXT'
 SELECT ST_NUMGEOMETRIES(ST_GEOMCOLLFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomcollfromtext.
 SELECT ST_NUMGEOMETRIES(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(1)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomcollfromtext.
 SELECT ST_NUMGEOMETRIES(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomcollfromtext.
 SELECT ST_NUMGEOMETRIES(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(1 1,2 2)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomcollfromtext.
 SELECT ST_NUMGEOMETRIES(ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(1 1,2))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geometrycollectionfromtext.
 SELECT ST_NUMGEOMETRIES(ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(1 1,2 a))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geometrycollectionfromtext.
 SELECT ST_NUMGEOMETRIES(ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(1 1,2 '!'))'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!'))'))' at line 1
 #====================================================================================
@@ -1487,17 +1487,17 @@ ERROR 42S22: Unknown column 'A' in 'field list'
 SELECT ST_GEOMETRYN(ST_GEOMCOLLFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_GEOMETRYN'
 SELECT ST_GEOMETRYN(ST_GEOMCOLLFROMTEXT('NULL'), 1);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomcollfromtext.
 SELECT ST_GEOMETRYN(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(1)'), 2);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomcollfromtext.
 SELECT ST_GEOMETRYN(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(0))'), 3);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomcollfromtext.
 SELECT ST_GEOMETRYN(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(1 1,2 2)'), 4);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomcollfromtext.
 SELECT ST_GEOMETRYN(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(1 1,2))'), 5);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomcollfromtext.
 SELECT ST_GEOMETRYN(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(1 1,2 a))'), 6);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomcollfromtext.
 SELECT ST_GEOMETRYN(ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(1 1,2 '!'))'), 7);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!'))'), 7)' at line 1
 SELECT ST_GEOMETRYN(ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(1 1,2 2))'), 0);

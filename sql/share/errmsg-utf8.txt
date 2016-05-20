@@ -7719,6 +7719,9 @@ ER_INVALID_BITWISE_AGGREGATE_OPERANDS_SIZE
 ER_WARN_UNSUPPORTED_HINT
   eng "Hints aren't supported in %s"
 
+ER_UNEXPECTED_GEOMETRY_TYPE 22S01
+  eng "%.64s value is a geometry of unexpected type %.64s in %.64s."
+
 #
 #  End of 5.8 error messages.
 #

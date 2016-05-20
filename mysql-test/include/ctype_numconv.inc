@@ -658,8 +658,8 @@ create table t1 as select concat(ST_NumGeometries(ST_MultiPointFromText('MULTIPO
 show create table t1;
 drop table t1;
 
-select hex(concat(ST_NumPoints(ST_MultiPointFromText('LINESTRING(0 0,10 10)'))));
-create table t1 as select concat(ST_NumPoints(ST_MultiPointFromText('LINESTRING(0 0,10 10)'))) as c1;
+select hex(concat(ST_NumPoints(ST_LineFromText('LINESTRING(0 0,10 10)'))));
+create table t1 as select concat(ST_NumPoints(ST_LineFromText('LINESTRING(0 0,10 10)'))) as c1;
 show create table t1;
 drop table t1;
 

@@ -881,55 +881,55 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)'), 1, NULL));
 ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)'), 1, NULL))
 NULL
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT()'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('LINESTRING()'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON(())'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT()'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING(())'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON((()))'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(a 0)'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(! 0)'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT('!' 0)'), 1));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'), 1))' at line 1
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(12,34 0)'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('LINESTRING(a 0,10 10)'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('LINESTRING(0 0,! 10)'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('LINESTRING('!' 0,10 10)'), 1));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'), 1))' at line 1
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'), 1));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'), 1))' at line 1
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0))'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,5 5))'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,5 5,10 10))'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,10 10),(0 0))'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5)),((10 10)))'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5)),((1 1,1 1,1 1,1 1)))'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10))'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)'), -1));
 ERROR HY000: Incorrect arguments to st_buffer
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)'), -100));

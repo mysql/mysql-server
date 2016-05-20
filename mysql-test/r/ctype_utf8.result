@@ -3396,7 +3396,7 @@ select hex(concat(ST_Dimension(ST_GeomFromText('LINESTRING(0 0,10 10)'))));
 hex(concat(ST_Dimension(ST_GeomFromText('LINESTRING(0 0,10 10)'))))
 31
 create table t1 as select concat(ST_Dimension(ST_GeomFromText('LINSTRING(0 0,10 10)'))) as c1;
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 select hex(concat(ST_NumGeometries(ST_MultiPointFromText('MULTIPOINT(0 0,10 10)'))));
 hex(concat(ST_NumGeometries(ST_MultiPointFromText('MULTIPOINT(0 0,10 10)'))))
 32
@@ -3407,10 +3407,10 @@ t1	CREATE TABLE `t1` (
   `c1` varchar(10) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
-select hex(concat(ST_NumPoints(ST_MultiPointFromText('LINESTRING(0 0,10 10)'))));
-hex(concat(ST_NumPoints(ST_MultiPointFromText('LINESTRING(0 0,10 10)'))))
+select hex(concat(ST_NumPoints(ST_LineFromText('LINESTRING(0 0,10 10)'))));
+hex(concat(ST_NumPoints(ST_LineFromText('LINESTRING(0 0,10 10)'))))
 32
-create table t1 as select concat(ST_NumPoints(ST_MultiPointFromText('LINESTRING(0 0,10 10)'))) as c1;
+create table t1 as select concat(ST_NumPoints(ST_LineFromText('LINESTRING(0 0,10 10)'))) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

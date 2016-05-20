@@ -1146,13 +1146,13 @@ ERROR HY000: Incorrect type for argument point in function st_geohash.
 SELECT ST_GEOHASH(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('POINT(180 90)'),ST_GEOMFROMTEXT('POINT(0 0)')),20);
 ERROR HY000: Incorrect type for argument point in function st_geohash.
 SELECT ST_GEOHASH(ST_GEOMFROMTEXT('POINT()'),20);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_GEOHASH(ST_GEOMFROMTEXT('POINT(1)'),20);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_GEOHASH(ST_GEOMFROMTEXT('POINT(1 a)'),20);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_GEOHASH(ST_GEOMFROMTEXT('POINT(180,90)'),20);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 #=============================================================
 # ST_LONGFROMGEOHASH()
 #=============================================================

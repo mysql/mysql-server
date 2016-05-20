@@ -176,7 +176,7 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 select st_difference((convert(st_polygonfromwkb(linestring(point(1,1))) using gb18030)),
                      st_geomcollfromwkb(point(1,1)));
 SET sql_mode = default;
-select ST_astext(ST_mpointfromwkb(st_intersection(linestring(point(-59,82),point(32,29)), point(2,-5)))) as result;
+select ST_astext(ST_geomfromwkb(st_intersection(linestring(point(-59,82),point(32,29)), point(2,-5)))) as result;
 
 SELECT ST_AsText(ST_Symdifference(ST_GeomFromText('POLYGON((5 0,15 25,25 0,15 5,5 0))'),ST_GeomFromText('POLYGON((5 0,15 25,25 0,15 5,5 0))')));
 SELECT st_equals(ST_GeomFromWKB(ST_AsWKB(Polygon(Linestring(Point(0, 0),Point(1, 0),Point(1, 1),Point(0, 1), Point(0, 0))))),

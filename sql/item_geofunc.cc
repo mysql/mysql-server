@@ -212,6 +212,106 @@ bool Item_func_geometry_from_text::itemize(Parse_context *pc, Item **res)
 }
 
 
+const char *Item_func_geometry_from_text::func_name() const
+{
+  switch (m_functype)
+  {
+  case Functype::GEOMCOLLFROMTEXT:
+    return "st_geomcollfromtext";
+  case Functype::GEOMCOLLFROMTXT:
+    return "st_geomcollfromtxt";
+  case Functype::GEOMETRYCOLLECTIONFROMTEXT:
+    return "st_geometrycollectionfromtext";
+  case Functype::GEOMETRYFROMTEXT:
+    return "st_geometryfromtext";
+  case Functype::GEOMFROMTEXT:
+    return "st_geomfromtext";
+  case Functype::LINEFROMTEXT:
+    return "st_linefromtext";
+  case Functype::LINESTRINGFROMTEXT:
+    return "st_linestringfromtext";
+  case Functype::MLINEFROMTEXT:
+    return "st_mlinefromtext";
+  case Functype::MPOINTFROMTEXT:
+    return "st_mpointfromtext";
+  case Functype::MPOLYFROMTEXT:
+    return "st_mpolyfromtext";
+  case Functype::MULTILINESTRINGFROMTEXT:
+    return "st_multilinestringfromtext";
+  case Functype::MULTIPOINTFROMTEXT:
+    return "st_multipointfromtext";
+  case Functype::MULTIPOLYGONFROMTEXT:
+    return "st_multipolygonfromtext";
+  case Functype::POINTFROMTEXT:
+    return "st_pointfromtext";
+  case Functype::POLYFROMTEXT:
+    return "st_polyfromtext";
+  case Functype::POLYGONFROMTEXT:
+    return "st_polygonfromtext";
+  }
+
+  DBUG_ASSERT(false); // Unreachable.
+  return "st_geomfromtext";
+}
+
+
+Geometry::wkbType Item_func_geometry_from_text::allowed_wkb_type() const
+{
+  switch (m_functype)
+  {
+  case Functype::GEOMETRYFROMTEXT:
+  case Functype::GEOMFROMTEXT:
+    return Geometry::wkb_invalid_type;
+  case Functype::POINTFROMTEXT:
+    return Geometry::wkb_point;
+  case Functype::LINEFROMTEXT:
+  case Functype::LINESTRINGFROMTEXT:
+    return Geometry::wkb_linestring;
+  case Functype::POLYFROMTEXT:
+  case Functype::POLYGONFROMTEXT:
+    return Geometry::wkb_polygon;
+  case Functype::MPOINTFROMTEXT:
+  case Functype::MULTIPOINTFROMTEXT:
+    return Geometry::wkb_multipoint;
+  case Functype::MLINEFROMTEXT:
+  case Functype::MULTILINESTRINGFROMTEXT:
+    return Geometry::wkb_multilinestring;
+  case Functype::MPOLYFROMTEXT:
+  case Functype::MULTIPOLYGONFROMTEXT:
+    return Geometry::wkb_multipolygon;
+  case Functype::GEOMCOLLFROMTEXT:
+  case Functype::GEOMCOLLFROMTXT:
+  case Functype::GEOMETRYCOLLECTIONFROMTEXT:
+    return Geometry::wkb_geometrycollection;
+  }
+
+  DBUG_ASSERT(false); // Unreachable.
+  return Geometry::wkb_invalid_type;
+}
+
+
+bool Item_func_geometry_from_text::is_allowed_wkb_type(Geometry::wkbType type)
+  const
+{
+  // Allowed if
+  // 1. type is the allowed type, or
+  // 2. the allowed type is Geometry, or
+  // 3. the allowed type is GeometryCollection and type is a subtype
+  //    of GeometryCollection
+  if (type == allowed_wkb_type() ||                              // 1
+      allowed_wkb_type() == Geometry::wkb_invalid_type ||        // 2
+      (allowed_wkb_type() == Geometry::wkb_geometrycollection && // 3
+       (type == Geometry::wkb_multipoint ||
+        type == Geometry::wkb_multilinestring ||
+        type == Geometry::wkb_multipolygon)))
+  {
+    return true;
+  }
+
+  return false;
+}
+
+
 /**
   Parses a WKT string to produce a geometry encoded with an SRID prepending
   its WKB bytes, namely a byte string of GEOMETRY format.
@@ -248,11 +348,19 @@ String *Item_func_geometry_from_text::val_str(String *str)
     return error_str();
   str->length(0);
   str->q_append(srid);
-  if (!Geometry::create_from_wkt(&buffer, &trs, str, 0))
+  Geometry *g= Geometry::create_from_wkt(&buffer, &trs, str, 0);
+  if (g == nullptr)
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
   }
+  if (!is_allowed_wkb_type(g->get_type()))
+  {
+    my_error(ER_UNEXPECTED_GEOMETRY_TYPE, MYF(0), "WKT",
+             g->get_class_info()->m_name.str, func_name());
+    return error_str();
+  }
+
   return str;
 }
 
@@ -266,6 +374,103 @@ bool Item_func_geometry_from_wkb::itemize(Parse_context *pc, Item **res)
   DBUG_ASSERT(arg_count == 1 || arg_count == 2);
   if (arg_count == 1)
     pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_RAND);
+  return false;
+}
+
+
+const char *Item_func_geometry_from_wkb::func_name() const
+{
+  switch (m_functype)
+  {
+  case Functype::GEOMCOLLFROMWKB:
+    return "st_geomcollfromwkb";
+  case Functype::GEOMETRYCOLLECTIONFROMWKB:
+    return "st_geometrycollectionfromwkb";
+  case Functype::GEOMETRYFROMWKB:
+    return "st_geometryfromwkb";
+  case Functype::GEOMFROMWKB:
+    return "st_geomfromwkb";
+  case Functype::LINEFROMWKB:
+    return "st_linefromwkb";
+  case Functype::LINESTRINGFROMWKB:
+    return "st_linestringfromwkb";
+  case Functype::MLINEFROMWKB:
+    return "st_mlinefromwkb";
+  case Functype::MPOINTFROMWKB:
+    return "st_mpointfromwkb";
+  case Functype::MPOLYFROMWKB:
+    return "st_mpolyfromwkb";
+  case Functype::MULTILINESTRINGFROMWKB:
+    return "st_multilinestringfromwkb";
+  case Functype::MULTIPOINTFROMWKB:
+    return "st_multipointfromwkb";
+  case Functype::MULTIPOLYGONFROMWKB:
+    return "st_multipolygonfromwkb";
+  case Functype::POINTFROMWKB:
+    return "st_pointfromwkb";
+  case Functype::POLYFROMWKB:
+    return "st_polyfromwkb";
+  case Functype::POLYGONFROMWKB:
+    return "st_polygonfromwkb";
+  }
+
+  DBUG_ASSERT(false); // Unreachable.
+  return "st_geomfromwkb";
+}
+
+
+Geometry::wkbType Item_func_geometry_from_wkb::allowed_wkb_type() const
+{
+  switch (m_functype)
+  {
+  case Functype::GEOMETRYFROMWKB:
+  case Functype::GEOMFROMWKB:
+    return Geometry::wkb_invalid_type;
+  case Functype::POINTFROMWKB:
+    return Geometry::wkb_point;
+  case Functype::LINEFROMWKB:
+  case Functype::LINESTRINGFROMWKB:
+    return Geometry::wkb_linestring;
+  case Functype::POLYFROMWKB:
+  case Functype::POLYGONFROMWKB:
+    return Geometry::wkb_polygon;
+  case Functype::MPOINTFROMWKB:
+  case Functype::MULTIPOINTFROMWKB:
+    return Geometry::wkb_multipoint;
+  case Functype::MLINEFROMWKB:
+  case Functype::MULTILINESTRINGFROMWKB:
+    return Geometry::wkb_multilinestring;
+  case Functype::MPOLYFROMWKB:
+  case Functype::MULTIPOLYGONFROMWKB:
+    return Geometry::wkb_multipolygon;
+  case Functype::GEOMCOLLFROMWKB:
+  case Functype::GEOMETRYCOLLECTIONFROMWKB:
+    return Geometry::wkb_geometrycollection;
+  }
+
+  DBUG_ASSERT(false); // Unreachable.
+  return Geometry::wkb_invalid_type;
+}
+
+
+bool
+Item_func_geometry_from_wkb::is_allowed_wkb_type(Geometry::wkbType type) const
+{
+  // Allowed if
+  // 1. type is the allowed type, or
+  // 2. the allowed type is Geometry, or
+  // 3. the allowed type is GeometryCollection and type is a subtype
+  //    of GeometryCollection
+  if (type == allowed_wkb_type() ||                              // 1
+      allowed_wkb_type() == Geometry::wkb_invalid_type ||        // 2
+      (allowed_wkb_type() == Geometry::wkb_geometrycollection && // 3
+       (type == Geometry::wkb_multipoint ||
+        type == Geometry::wkb_multilinestring ||
+        type == Geometry::wkb_multipolygon)))
+  {
+    return true;
+  }
+
   return false;
 }
 
@@ -312,9 +517,16 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
   if (args[0]->field_type() == MYSQL_TYPE_GEOMETRY)
   {
     Geometry_buffer buff;
-    if (Geometry::construct(&buff, wkb->ptr(), wkb->length()) == nullptr)
+    Geometry *g= Geometry::construct(&buff, wkb->ptr(), wkb->length());
+    if (g == nullptr)
     {
       my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+      return error_str();
+    }
+    if (!is_allowed_wkb_type(g->get_type()))
+    {
+      my_error(ER_UNEXPECTED_GEOMETRY_TYPE, MYF(0), "WKB",
+               g->get_class_info()->m_name.str, func_name());
       return error_str();
     }
 
@@ -345,10 +557,17 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
   str->length(0);
   str->q_append(srid);
   Geometry_buffer buffer;
-  if (!Geometry::create_from_wkb(&buffer, wkb->ptr(), wkb->length(), str,
-                                 false/* Don't init stream. */))
+  Geometry *g= Geometry::create_from_wkb(&buffer, wkb->ptr(), wkb->length(),
+                                         str, false /* Don't init stream. */);
+  if (g == nullptr)
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+  if (!is_allowed_wkb_type(g->get_type()))
+  {
+    my_error(ER_UNEXPECTED_GEOMETRY_TYPE, MYF(0), "WKB",
+             g->get_class_info()->m_name.str, func_name());
     return error_str();
   }
 
