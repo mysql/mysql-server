@@ -47,9 +47,6 @@
 
 #if MYSQL_VERSION_ID >= 50501
 
-/* thd has no version field anymore */
-#define NDB_THD_HAS_NO_VERSION
-
 /* No mysql_rm_table_part2 anymore in 5.5.8 */
 #define NDB_NO_MYSQL_RM_TABLE_PART2
 

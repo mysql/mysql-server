@@ -17088,9 +17088,6 @@ Ndb_util_thread::do_run()
   if (thd->store_globals())
     goto ndb_util_thread_fail;
   thd_set_command(thd, COM_DAEMON);
-#ifndef NDB_THD_HAS_NO_VERSION
-  thd->version=refresh_version;
-#endif
   thd->get_protocol_classic()->set_client_capabilities(0);
   thd->security_context()->skip_grants();
   thd->get_protocol_classic()->init_net((st_vio *) 0);
