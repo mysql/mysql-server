@@ -373,7 +373,6 @@ static int ndbcluster_fill_files_table(handlerton *hton,
                                        Item *cond);
 static int handle_trailing_share(THD *thd, NDB_SHARE *share);
 
-#if MYSQL_VERSION_ID >= 50501
 /**
    Used to fill in INFORMATION_SCHEMA* tables.
 
@@ -393,7 +392,7 @@ ndbcluster_fill_is_table(handlerton *hton, THD *thd, TABLE_LIST *tables,
     return  ndbcluster_fill_files_table(hton, thd, tables, cond);
   return 0;
 }
-#endif
+
 
 static handler *ndbcluster_create_handler(handlerton *hton,
                                           TABLE_SHARE *table,
@@ -13942,11 +13941,7 @@ int ndbcluster_init(void* p)
     h->get_tablespace=   ndbcluster_get_tablespace; /* Get ts for old ver */
     h->alter_tablespace= ndbcluster_alter_tablespace;    /* Show status */
     h->partition_flags=  ndbcluster_partition_flags; /* Partition flags */
-#if MYSQL_VERSION_ID >= 50501
     h->fill_is_table=    ndbcluster_fill_is_table;
-#else
-    h->fill_files_table= ndbcluster_fill_files_table;
-#endif
     ndbcluster_binlog_init(h);
     h->flags=            HTON_CAN_RECREATE |
                          HTON_TEMPORARY_NOT_SUPPORTED |

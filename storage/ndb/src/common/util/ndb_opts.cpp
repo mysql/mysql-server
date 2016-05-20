@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -124,23 +124,12 @@ void ndb_std_print_version()
 extern "C"
 my_bool ndb_is_load_default_arg_separator(const char* arg)
 {
-#ifndef MYSQL_VERSION_ID
-#error "Need MYSQL_VERSION_ID defined"
-#endif
-
-#if MYSQL_VERSION_ID >= 50510
   /*
     load_default() in 5.5+ returns an extra arg which has to
     be skipped when processing the argv array
    */
   if (my_getopt_is_args_separator(arg))
     return TRUE;
-#elif MYSQL_VERSION_ID >= 50501
-  if (arg == args_separator)
-    return TRUE;
-#else
-  (void)arg;
-#endif
   return FALSE;
 }
 
