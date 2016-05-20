@@ -652,9 +652,6 @@ ndb_create_thd(char * stackptr)
   thd->init_for_queries();
   thd_set_command(thd, COM_DAEMON);
   thd->system_thread= SYSTEM_THREAD_NDBCLUSTER_BINLOG;
-#ifndef NDB_THD_HAS_NO_VERSION
-  thd->version= refresh_version;
-#endif
   thd->get_protocol_classic()->set_client_capabilities(0);
   thd->lex->start_transaction_opt= 0;
   thd->security_context()->skip_grants();
@@ -6504,9 +6501,6 @@ Ndb_binlog_thread::do_run()
 
   thd_set_command(thd, COM_DAEMON);
   thd->system_thread= SYSTEM_THREAD_NDBCLUSTER_BINLOG;
-#ifndef NDB_THD_HAS_NO_VERSION
-  thd->version= refresh_version;
-#endif
   thd->get_protocol_classic()->set_client_capabilities(0);
   thd->security_context()->skip_grants();
   // Create thd->net vithout vio
