@@ -18,8 +18,6 @@
 #ifndef HA_NDBCLUSTER_GLUE_H
 #define HA_NDBCLUSTER_GLUE_H
 
-#include <mysql_version.h>
-
 #ifndef MYSQL_SERVER
 #define MYSQL_SERVER
 #endif
@@ -57,41 +55,21 @@ uint32 thd_unmasked_server_id(const THD* thd)
 static inline
 ulonglong thd_options(const THD * thd)
 {
-#if MYSQL_VERSION_ID < 50500
-  return thd->options;
-#else
-  /* "options" has moved to "variables.option_bits" */
   return thd->variables.option_bits;
-#endif
 }
 
 /* set the "command" member of thd */
 static inline
 void thd_set_command(THD* thd, enum enum_server_command command)
 {
-#if MYSQL_VERSION_ID < 50600
-  thd->command = command;
-#else
-  /* "command" renamed to "m_command", use accessor function */
   thd->set_command(command);
-#endif
 }
 
 /* get pointer to Diagnostics Area for statement from THD */
 static inline
 Diagnostics_area* thd_stmt_da(THD* thd)
 {
-#if MYSQL_VERSION_ID < 50500
-  return &(thd->main_da);
-#else
-#if MYSQL_VERSION_ID < 50603
-  /* "main_da" has been made private and one should use "stmt_da*" */
-  return thd->stmt_da;
-#else
-  /* "stmt_da*" has been made private and one should use 'get_stmt_da()' */
   return thd->get_stmt_da();
-#endif
-#endif
 }
 
 #endif
