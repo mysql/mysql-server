@@ -1,0 +1,11 @@
+########### suite/json/t/json_insert_ndb.test                        #
+# Tests insert into json columns using the ndb storage engine        #
+#                                                                    #
+# This test copies some tests originally in json.test                #
+######################################################################
+# Set the session storage engine
+--source include/have_ndb.inc
+set default_storage_engine=ndb;
+
+# Run the test
+--source suite/json/inc/json_insert.inc
