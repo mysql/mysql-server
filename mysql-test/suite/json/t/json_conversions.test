@@ -1,7 +1,14 @@
-# This test takes rather long time so let us run it only in --big-test mode
+########### suite/json/t/json_conversions.test                       #
+# Tests conversion from json data types to mysql data types          #
+#                                                                    #
+# This test copies all tests originally in json_conversions.test     #
+######################################################################
+#
+# This takes a long time on tiny hardware so run it only in --big-test mode
+#
 --source include/big_test.inc
 #
-# Skip it valgrind until BUG#21616914 has been fixed
+# Skip it in valgrind until BUG#21616914 has been fixed
 #
 --source include/not_valgrind.inc
 
@@ -6688,18 +6695,18 @@ delimiter ;$
 # for JSON vs JSON datatypes is present
 #--------------------------------------------------------
 
---source include/json_vs_json_comparator.inc
+--source suite/json/inc/json_vs_json_comparator.inc
 
 # In this part comparision tests for each comparator
 # for JSON vs Other datatypes is present
 #--------------------------------------------------------
---source include/sql_vs_json_equalto.inc
---source include/sql_vs_json_lessthan.inc
---source include/sql_vs_json_greaterthan.inc
---source include/sql_vs_json_lessthanequalto.inc
---source include/sql_vs_json_greaterthanequalto.inc
---source include/sql_vs_json_notequal.inc
---source include/sql_vs_json_null_safe_equal_to.inc
+--source suite/json/inc/sql_vs_json_equalto.inc
+--source suite/json/inc/sql_vs_json_lessthan.inc
+--source suite/json/inc/sql_vs_json_greaterthan.inc
+--source suite/json/inc/sql_vs_json_lessthanequalto.inc
+--source suite/json/inc/sql_vs_json_greaterthanequalto.inc
+--source suite/json/inc/sql_vs_json_notequal.inc
+--source suite/json/inc/sql_vs_json_null_safe_equal_to.inc
 
 drop table t_bit;
 drop table t_tin;
