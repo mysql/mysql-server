@@ -795,6 +795,16 @@ insert into t values (7, '8', '[]');
 --error ER_SUBQUERY_NO_1_ROW
 select cast((select i from t) as json);
 
+# Test what happens if the subquery returns NULL. The casts should
+# return SQL NULL.
+delete from t;
+insert into t values (null, null, null);
+select cast((select i from t) as json);
+select cast((select j from t) as json);
+select cast((select cast(i as json) from t) as json);
+select cast((select cast(j as json) from t) as json);
+select cast((select cast(c as json) from t) as json);
+
 # negative test cases
 --error ER_OPERAND_COLUMNS
 select cast((select i,i from t) as json);

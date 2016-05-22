@@ -22,6 +22,11 @@ CAST(CAST(0 AS UNSIGNED) AS JSON) = -0.0e0
 SELECT CAST(CAST(0 AS UNSIGNED) AS JSON) = CAST(-0.0e0 AS DECIMAL);
 CAST(CAST(0 AS UNSIGNED) AS JSON) = CAST(-0.0e0 AS DECIMAL)
 1
+select cast('"abc"' as json);
+cast('"abc"' as json)
+"abc"
+select cast('abc' as json);
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Invalid value." at position 0.
 
 # String literal - valid JSON
 select JSON_VALID('123');
@@ -2741,6 +2746,15 @@ JSON_CONTAINS('[1,2]', '[[1]]')
 SELECT JSON_CONTAINS('[1,2]', '1', '$.abc');
 JSON_CONTAINS('[1,2]', '1', '$.abc')
 NULL
+SELECT JSON_CONTAINS('{}', '{}');
+JSON_CONTAINS('{}', '{}')
+1
+SELECT JSON_CONTAINS('{}', '{"a":1}');
+JSON_CONTAINS('{}', '{"a":1}')
+0
+SELECT JSON_CONTAINS('{"a":1}', '{"a":1,"b":2}');
+JSON_CONTAINS('{"a":1}', '{"a":1,"b":2}')
+0
 SELECT JSON_CONTAINS
 (
 CAST('[1, 4, 6]' AS JSON),
