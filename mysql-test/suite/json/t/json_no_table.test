@@ -16,6 +16,13 @@ SELECT CAST(CAST(0 AS SIGNED) AS JSON) = CAST(-0.0e0 AS DECIMAL);
 SELECT CAST(CAST(0 AS UNSIGNED) AS JSON) = -0.0e0;
 SELECT CAST(CAST(0 AS UNSIGNED) AS JSON) = CAST(-0.0e0 AS DECIMAL);
 
+# Test that CAST string argument isn't treated as ANY_JSON_ATOM
+# in that a MySQL string needs to be parsed to JSON here; it is not
+# auto-converted to a JSON string as in ANY_JSON_ATOM contexts.
+select cast('"abc"' as json);
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+select cast('abc' as json);
+
 --echo
 --echo # String literal - valid JSON
 select JSON_VALID('123');             # uint
@@ -1904,6 +1911,9 @@ SELECT JSON_CONTAINS('[null,1,[2,3],true,false]', '[null,1,[4],false]');
 SELECT JSON_CONTAINS('[true,false]', '[[true]]');
 SELECT JSON_CONTAINS('[1,2]', '[[1]]');
 SELECT JSON_CONTAINS('[1,2]', '1', '$.abc');
+SELECT JSON_CONTAINS('{}', '{}');
+SELECT JSON_CONTAINS('{}', '{"a":1}');
+SELECT JSON_CONTAINS('{"a":1}', '{"a":1,"b":2}');
 
 # examples from the wl7909 spec
 # returns 1

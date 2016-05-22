@@ -5073,6 +5073,23 @@ cast((select cast(c as json) from t) as json)
 insert into t values (7, '8', '[]');
 select cast((select i from t) as json);
 ERROR 21000: Subquery returns more than 1 row
+delete from t;
+insert into t values (null, null, null);
+select cast((select i from t) as json);
+cast((select i from t) as json)
+NULL
+select cast((select j from t) as json);
+cast((select j from t) as json)
+NULL
+select cast((select cast(i as json) from t) as json);
+cast((select cast(i as json) from t) as json)
+NULL
+select cast((select cast(j as json) from t) as json);
+cast((select cast(j as json) from t) as json)
+NULL
+select cast((select cast(c as json) from t) as json);
+cast((select cast(c as json) from t) as json)
+NULL
 select cast((select i,i from t) as json);
 ERROR 21000: Operand should contain 1 column(s)
 select cast((select * from t) as json);
