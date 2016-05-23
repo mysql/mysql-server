@@ -1964,7 +1964,7 @@ int ndbcluster_log_schema_op(THD *thd,
         /* Schema change originating from this MySQLD, check SQL_LOG_BIN
          * variable and pass 'setting' to all logging MySQLDs via AnyValue  
          */
-        if (thd_options(thd) & OPTION_BIN_LOG) /* e.g. SQL_LOG_BIN == on */
+        if (thd_test_options(thd, OPTION_BIN_LOG)) /* e.g. SQL_LOG_BIN == on */
         {
           DBUG_PRINT("info", ("Schema event for binlogging"));
           ndbcluster_anyvalue_set_normal(anyValue);

@@ -8288,7 +8288,7 @@ int ha_ndbcluster::start_statement(THD *thd,
   if (table_count == 0)
   {
     trans_register_ha(thd, FALSE, ht, NULL);
-    if (thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+    if (thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
     {
       if (!trans)
         trans_register_ha(thd, TRUE, ht, NULL);
@@ -8338,7 +8338,7 @@ int ha_ndbcluster::start_statement(THD *thd,
 
     thd_ndb->init_open_tables();
     thd_ndb->m_slow_path= FALSE;
-    if (!(thd_options(thd) & OPTION_BIN_LOG) ||
+    if (!(thd_test_options(thd, OPTION_BIN_LOG)) ||
         thd->variables.binlog_format == BINLOG_FORMAT_STMT)
     {
       thd_ndb->trans_options|= TNTO_NO_LOGGING;
@@ -8499,7 +8499,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       DBUG_PRINT("info", ("Rows has changed"));
 
       if (thd_ndb->trans &&
-          thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+          thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
       {
         DBUG_PRINT("info", ("Add share to list of changed tables, %p",
                             m_share));
@@ -8522,7 +8522,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     {
       DBUG_PRINT("trans", ("Last external_lock"));
 
-      if ((!(thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) &&
+      if ((!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
           thd_ndb->trans)
       {
         if (thd_ndb->trans)
@@ -8785,7 +8785,7 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
     DBUG_PRINT("info", ("trans == NULL"));
     DBUG_RETURN(0);
   }
-  if (!all && (thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+  if (!all && thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
   {
     /*
       An odditity in the handler interface is that commit on handlerton
@@ -8989,7 +8989,8 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
     DBUG_PRINT("info", ("trans == NULL"));
     DBUG_RETURN(0);
   }
-  if (!all && (thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
+  if (!all &&
+      thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN) &&
       (thd_ndb->save_point_count > 0))
   {
     /*
@@ -14938,7 +14939,7 @@ ndbcluster_cache_retrieval_allowed(THD *thd,
   DBUG_PRINT("enter", ("dbname: %s, tabname: %s",
                        dbname, tabname));
 
-  if (thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+  if (thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
   {
     /* Don't allow qc to be used if table has been previously
        modified in transaction */
@@ -15022,7 +15023,7 @@ ha_ndbcluster::register_query_cache_table(THD *thd,
   DBUG_PRINT("enter",("dbname: %s, tabname: %s",
 		      m_dbname, m_tabname));
 
-  if (thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+  if (thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
   {
     /* Don't allow qc to be used if table has been previously
        modified in transaction */

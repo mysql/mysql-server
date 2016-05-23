@@ -50,14 +50,6 @@ uint32 thd_unmasked_server_id(const THD* thd)
 }
 
 
-/* extract the bitmask of options from THD */
-static inline
-ulonglong thd_options(const THD * thd)
-{
-  return thd->variables.option_bits;
-}
-
-
 /* get pointer to Diagnostics Area for statement from THD */
 static inline
 Diagnostics_area* thd_stmt_da(THD* thd)
