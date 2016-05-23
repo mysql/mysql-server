@@ -459,42 +459,6 @@ ut_vsnprintf(
 	str[size - 1] = '\0';
 }
 
-/**********************************************************************//**
-A substitute for snprintf(3), formatted output conversion into
-a limited buffer.
-@return number of characters that would have been printed if the size
-were unlimited, not including the terminating '\0'. */
-int
-ut_snprintf(
-/*========*/
-	char*		str,	/*!< out: string */
-	size_t		size,	/*!< in: str size */
-	const char*	fmt,	/*!< in: format */
-	...)			/*!< in: format values */
-{
-	int	res;
-	va_list	ap1;
-	va_list	ap2;
-
-	va_start(ap1, fmt);
-	va_start(ap2, fmt);
-
-	res = _vscprintf(fmt, ap1);
-	ut_a(res != -1);
-
-	if (size > 0) {
-		_vsnprintf(str, size, fmt, ap2);
-
-		if ((size_t) res >= size) {
-			str[size - 1] = '\0';
-		}
-	}
-
-	va_end(ap1);
-	va_end(ap2);
-
-	return(res);
-}
 #endif /* _WIN32 */
 
 /** Convert an error number to a human readable text message.

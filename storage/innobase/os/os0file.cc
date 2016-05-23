@@ -1772,7 +1772,7 @@ os_file_make_new_pathname(
 	new_path = static_cast<char*>(ut_malloc_nokey(new_path_len));
 	memcpy(new_path, old_path, dir_len);
 
-	ut_snprintf(new_path + dir_len,
+	snprintf(new_path + dir_len,
 		    new_path_len - dir_len,
 		    "%c%s.ibd",
 		    OS_PATH_SEPARATOR,
@@ -8064,7 +8064,7 @@ Encryption::create_master_key(byte** master_key)
 	memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
 
 	/* Generate new master key */
-	ut_snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
+	snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
 		    "%s-%s-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
 		    uuid, master_key_id + 1);
 
@@ -8106,14 +8106,14 @@ Encryption::get_master_key(ulint master_key_id,
 	memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
 
 	if (srv_uuid != NULL) {
-		ut_snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
+		snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
 			    "%s-%s-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
 			    srv_uuid, master_key_id);
 	} else {
 		/* For compitable with 5.7.11, we need to get master key with
 		server id. */
 		memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
-		ut_snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
+		snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
 			    "%s-%lu-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
 			    server_id, master_key_id);
 	}
@@ -8173,7 +8173,7 @@ Encryption::get_master_key(ulint* master_key_id,
 		memcpy(uuid, server_uuid, ENCRYPTION_SERVER_UUID_LEN);
 
 		/* Prepare the server uuid. */
-		ut_snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
+		snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
 			    "%s-%s-1", ENCRYPTION_MASTER_KEY_PRIFIX,
 			    uuid);
 
@@ -8200,7 +8200,7 @@ Encryption::get_master_key(ulint* master_key_id,
 	} else {
 		*master_key_id = Encryption::master_key_id;
 
-		ut_snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
+		snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
 			    "%s-%s-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
 			    uuid, *master_key_id);
 
@@ -8218,7 +8218,7 @@ Encryption::get_master_key(ulint* master_key_id,
 
 			memset(key_name, 0,
 			       ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
-			ut_snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
+			snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
 				    "%s-%lu-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
 				    server_id, *master_key_id);
 

@@ -2811,7 +2811,7 @@ fts_update_sync_doc_id(
 
 	info = pars_info_create();
 
-	id_len = ut_snprintf(
+	id_len = snprintf(
 		(char*) id, sizeof(id), FTS_DOC_ID_FORMAT, doc_id + 1);
 
 	pars_info_bind_varchar_literal(info, "doc_id", id, id_len);

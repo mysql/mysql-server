@@ -694,7 +694,7 @@ dict_mem_create_temporary_tablename(
 	size = dblen + (sizeof(TEMP_FILE_PREFIX) + 3 + 20 + 1 + 10);
 	name = static_cast<char*>(mem_heap_alloc(heap, size));
 	memcpy(name, dbtab, dblen);
-	ut_snprintf(name + dblen, size - dblen,
+	snprintf(name + dblen, size - dblen,
 		    TEMP_FILE_PREFIX_INNODB UINT64PF "-" UINT32PF,
 		    id, dict_temp_file_num);
 
