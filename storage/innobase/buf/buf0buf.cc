@@ -1052,8 +1052,11 @@ buf_pool_set_sizes(void)
 		buf_pool = buf_pool_from_array(i);
 		curr_size += buf_pool->curr_pool_size;
 	}
-
-	srv_buf_pool_curr_size = curr_size;
+	if (srv_buf_pool_curr_size == 0) {
+		srv_buf_pool_curr_size = curr_size;
+	} else {
+		srv_buf_pool_curr_size = srv_buf_pool_size;
+	}
 	srv_buf_pool_old_size = srv_buf_pool_size;
 	srv_buf_pool_base_size = srv_buf_pool_size;
 	os_wmb;
