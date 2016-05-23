@@ -1563,7 +1563,7 @@ srv_start(
 #ifdef UNIV_PFS_THREAD
         /* For read only mode, we don't need ibuf and log I/O thread.
         Please see innobase_start_or_create_for_mysql() */
-        ulint   	start = (srv_read_only_mode) ? 0 : 2;
+        ulint	start = (srv_read_only_mode) ? 0 : 2;
 #endif /* UNIV_PFS_THREAD */
 
 	for (ulint t = 0; t < srv_n_file_io_threads; ++t) {

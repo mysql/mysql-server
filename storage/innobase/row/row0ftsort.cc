@@ -1031,22 +1031,10 @@ row_fts_start_psort(fts_psort_t* psort_info)
 
 		psort_info[i].psort_id = i;
 
-		/* Capture all automatic variables by value [=]. */
-		std::packaged_task<void()> task([=]()
-		{
-#ifdef UNIV_PFS_THREAD
-			Runnable	runnable{
-				fts_parallel_tokenization_thread_key};
-#else
-			Runnable	runnable{};
-#endif /* UNIV_PFS_THREAD */
-			runnable.run(
-				fts_parallel_tokenization_thread,
-				&psort_info[i]);
-		});
-
-		std::thread	t(std::move(task));
-		t.detach();
+		CREATE_THREAD(
+			fts_parallel_tokenization_thread,
+			fts_parallel_tokenization_thread_key,
+			&psort_info[i]);
 	}
 }
 
