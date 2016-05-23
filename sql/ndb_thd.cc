@@ -20,6 +20,8 @@
 #include "ndb_thd.h"
 #include "ndb_thd_ndb.h"
 
+#include <sql_class.h>
+#include "mysqld.h"         // opt_server_id_mask
 
 /*
   Make sure THD has a Thd_ndb struct allocated and associated
@@ -48,7 +50,6 @@ Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb)
   return thd_ndb->ndb;
 }
 
-#include <sql_class.h>
 
 void
 thd_print_warning_list(THD* thd, const char* prefix)

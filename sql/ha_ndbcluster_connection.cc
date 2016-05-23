@@ -20,12 +20,14 @@
 #include <mysql/psi/mysql_thread.h>
 
 #include "ha_ndbcluster_glue.h"
+#include "sql_class.h"
 #include "kernel/ndb_limits.h"
 #include "my_dbug.h"
 #include "ndbapi/NdbApi.hpp"
 #include "portlib/NdbTick.h"
 #include "util/BaseString.hpp"
 #include "util/Vector.hpp"
+#include "mysqld.h"         // server_id, connection_events_loop_aborted 
 
 Ndb* g_ndb= NULL;
 Ndb_cluster_connection* g_ndb_cluster_connection= NULL;

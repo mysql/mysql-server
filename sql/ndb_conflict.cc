@@ -20,6 +20,7 @@
 #include "ndb_binlog_extra_row_info.h"
 #include "ndb_conflict.h"
 #include "ndb_table_guard.h"
+#include "mysqld.h"   // lower_case_table_names
 
 extern st_ndb_slave_state g_ndb_slave_state;
 

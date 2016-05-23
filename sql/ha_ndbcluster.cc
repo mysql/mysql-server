@@ -69,6 +69,16 @@
 #include "ndbapi/NdbInterpretedCode.hpp"
 #include "partition_info.h"
 #include "template_utils.h"
+#include "mysqld.h"         // global_system_variables table_alias_charset ...
+#include "current_thd.h"
+#include "derror.h"         // ER_THD
+
+#ifndef DBUG_OFF
+#include "sql_test.h"       // print_where
+#endif
+#include "auth_common.h"    // wild_case_compare
+#include "sql_table.h"      // build_table_filename,
+                            // tablename_to_filename
 
 using std::min;
 using std::max;

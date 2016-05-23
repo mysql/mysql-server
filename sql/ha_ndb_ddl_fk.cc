@@ -17,11 +17,13 @@
 
 #include "ha_ndbcluster.h"
 #include "ha_ndbcluster_glue.h"
+#include "sql_class.h"
 #include "key_spec.h"
 #include "my_dbug.h"
 #include "mysql/service_thd_alloc.h"
 #include "ndb_table_guard.h"
 #include "template_utils.h"
+#include "mysqld.h"         // global_system_variables table_alias_charset ...
 
 #define ERR_RETURN(err)                  \
 {                                        \

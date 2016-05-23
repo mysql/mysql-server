@@ -21,6 +21,10 @@
 #include "my_dbug.h"
 #include "ndb_tdc.h"
 
+#include "sql_table.h"      // build_table_filename
+#include "sql_class.h"
+#include "current_thd.h"
+#include "derror.h"         // ER_THD
 
 static MYSQL_THDVAR_UINT(
   max_rows,                          /* name */

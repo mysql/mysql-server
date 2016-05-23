@@ -25,6 +25,9 @@
 #include "ha_ndbcluster_glue.h"
 #include "my_dbug.h"
 
+#include "item_cmpfunc.h"   // Item_func_like etc.
+#include "current_thd.h"
+
 // Typedefs for long names 
 typedef NdbDictionary::Column NDBCOL;
 typedef NdbDictionary::Table NDBTAB;

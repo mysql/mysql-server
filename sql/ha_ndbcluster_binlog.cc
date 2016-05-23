@@ -41,6 +41,12 @@
 #include "rpl_filter.h"
 #include "rpl_injector.h"
 #include "rpl_slave.h"
+#include "log_event.h"      // my_strmov_quoted_identifier
+#include "transaction.h"
+#include "sql_table.h"      // build_table_filename,
+                            // tablename_to_filename
+#include "mysqld.h"         // global_system_variables table_alias_charset ...
+#include "derror.h"         // ER_THD
 
 extern my_bool opt_ndb_log_orig;
 extern my_bool opt_ndb_log_bin;

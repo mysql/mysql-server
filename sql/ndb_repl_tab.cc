@@ -23,6 +23,7 @@
 #include "mf_wcomp.h"
 #include "ndb_table_guard.h"
 #include "ndb_share.h"
+#include "mysql/service_my_snprintf.h"
 
 Ndb_rep_tab_key::Ndb_rep_tab_key(const char* _db,
                                  const char* _table_name,
