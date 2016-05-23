@@ -1,3 +1,5 @@
+# Setting general_log to initial state empty
+TRUNCATE TABLE mysql.general_log;
 SET @old_log_output = @@global.log_output;
 SET @old_general_log = @@global.general_log;
 SET @old_general_log_file = @@global.general_log_file;
@@ -82,6 +84,8 @@ count(*) >= 36
 ##########################################
 # Dropping the created table
 DROP TABLE t1;
+# Removing general_log content
+TRUNCATE TABLE mysql.general_log;
 # Deleting log file created
 SET GLOBAL log_output = @old_log_output;
 SET GLOBAL general_log = @old_general_log;

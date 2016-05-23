@@ -1,5 +1,8 @@
 --source include/not_embedded.inc
 
+--echo # Setting general_log to initial state empty
+TRUNCATE TABLE mysql.general_log;
+
 SET @old_log_output = @@global.log_output;
 SET @old_general_log = @@global.general_log;
 SET @old_general_log_file = @@global.general_log_file;
@@ -54,6 +57,9 @@ SELECT count(*) >= 36 FROM mysql.general_log WHERE command_type IN ('Connect','Q
 
 --echo # Dropping the created table
 DROP TABLE t1;
+
+--echo # Removing general_log content
+TRUNCATE TABLE mysql.general_log;
 
 --echo # Deleting log file created
 --remove_file $MYSQLTEST_VARDIR/log/test_session_general.log

@@ -1,6 +1,9 @@
 --source include/not_embedded.inc
 --disable_ps_protocol
 
+--echo # Setting general_log content empty.
+TRUNCATE TABLE mysql.general_log;
+
 --echo # Creating tables
 CREATE TABLE t_int (c1  TINYINT,
                     c2  SMALLINT,
@@ -106,6 +109,9 @@ DROP TABLE t_int;
 DROP TABLE t_bigint;
 DROP TABLE t_real;
 DROP TABLE t_date;
+
+--echo # Removing general_log content
+TRUNCATE TABLE mysql.general_log;
 
 --echo # Deleting log file created
 --remove_file $MYSQLTEST_VARDIR/log/test_sql_general.log
