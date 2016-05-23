@@ -48,7 +48,8 @@ enum Trans_flags {
 typedef struct Trans_table_info {
   const char* table_name;
   uint number_of_primary_keys;
-  bool transactional_table;
+  /// The db_type of the storage engine used by the table
+  int db_type;
 } Trans_table_info;
 
 /**
