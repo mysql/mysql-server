@@ -44,7 +44,6 @@ INCLUDE(CheckCSourceCompiles)
 INCLUDE(CheckCXXSourceCompiles)
 INCLUDE(CheckCXXSourceRuns)
 INCLUDE(ndb_require_variable)
-INCLUDE(ndb_check_mysql_include_file)
 
 CHECK_FUNCTION_EXISTS(posix_memalign HAVE_POSIX_MEMALIGN)
 CHECK_FUNCTION_EXISTS(clock_gettime HAVE_CLOCK_GETTIME)
@@ -214,11 +213,6 @@ IF(WITH_NDB_PORT GREATER 0)
   SET(NDB_PORT ${WITH_NDB_PORT})
   MESSAGE(STATUS "Setting MySQL Cluster management server port to ${NDB_PORT}")
 ENDIF()
-
-#
-# Check which MySQL include files exists
-#
-NDB_CHECK_MYSQL_INCLUDE_FILE(my_default.h HAVE_MY_DEFAULT_H)
 
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/include/ndb_config.h.in
                ${CMAKE_CURRENT_BINARY_DIR}/include/ndb_config.h)

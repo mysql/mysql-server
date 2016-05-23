@@ -29,9 +29,7 @@
 #include <mysql.h>
 #include <my_sys.h>
 #include <my_getopt.h>
-#ifdef HAVE_MY_DEFAULT_H
 #include <my_default.h>
-#endif
 #include <my_dir.h>
 
 enum ErrorCodes 
