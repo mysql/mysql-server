@@ -107,6 +107,7 @@ SET(DD_SOURCES
   dd/impl/tables/parameter_type_elements.cc
   dd/impl/tables/routines.cc
   dd/impl/tables/schemata.cc
+  dd/impl/tables/spatial_reference_systems.cc
   dd/impl/tables/table_partitions.cc
   dd/impl/tables/table_partition_values.cc
   dd/impl/tables/tables.cc
@@ -136,6 +137,7 @@ SET(DD_SOURCES
   dd/impl/types/procedure_impl.cc
   dd/impl/types/routine_impl.cc
   dd/impl/types/schema_impl.cc
+  dd/impl/types/spatial_reference_system_impl.cc
   dd/impl/types/table_impl.cc
   dd/impl/types/tablespace_file_impl.cc
   dd/impl/types/tablespace_impl.cc
@@ -173,6 +175,8 @@ SET(SQL_SHARED_SOURCES
   filesort_utils.cc
   aggregate_check.cc
   geometry_rtree.cc
+  gis/srs/srs.cc
+  gis/srs/wkt_parser.cc
   gstream.cc
   handler.cc
   hostname.cc
@@ -397,6 +401,8 @@ SET(SQL_BOOST_SOURCES
   debug_sync.cc
   handler.cc
   geometry_rtree.cc
+  gis/srs/srs.cc
+  gis/srs/wkt_parser.cc
   item_geofunc.cc
   item_geofunc_buffer.cc
   item_geofunc_internal.cc
@@ -438,6 +444,15 @@ IF(HAVE_UNDEF)
     ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
     ${SQL_BOOST_SOURCES}
     COMPILE_FLAGS "-Wno-undef")
+ENDIF()
+
+# Boost source compares signed and unsigned integer expressions
+MY_CHECK_CXX_COMPILER_FLAG("-Wsign-compare" HAVE_SIGN_COMPARE)
+IF(HAVE_SIGN_COMPARE)
+  ADD_COMPILE_FLAGS(
+    gis/srs/wkt_parser.cc
+    COMPILE_FLAGS "-Wno-sign-compare"
+  )
 ENDIF()
 
 # Boost source use auto_ptr, deprecated in C++11

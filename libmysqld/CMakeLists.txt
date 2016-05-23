@@ -106,6 +106,8 @@ SET(LIBMYSQLD_BOOST_SOURCES
   ../sql/debug_sync.cc
   ../sql/handler.cc
   ../sql/geometry_rtree.cc
+  ../sql/gis/srs/srs.cc
+  ../sql/gis/srs/wkt_parser.cc
   ../sql/item_geofunc.cc
   ../sql/item_geofunc_buffer.cc
   ../sql/item_geofunc_internal.cc
@@ -159,6 +161,15 @@ IF(HAVE_UNDEF)
     ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
     ${LIBMYSQLD_BOOST_SOURCES}
     COMPILE_FLAGS "-Wno-undef")
+ENDIF()
+
+# Boost source compares signed and unsigned integer expressions
+MY_CHECK_CXX_COMPILER_FLAG("-Wsign-compare" HAVE_SIGN_COMPARE)
+IF(HAVE_SIGN_COMPARE)
+  ADD_COMPILE_FLAGS(
+    ../sql/gis/srs/wkt_parser.cc
+    COMPILE_FLAGS "-Wno-sign-compare"
+  )
 ENDIF()
 
 # Boost source use auto_ptr, deprecated in C++11

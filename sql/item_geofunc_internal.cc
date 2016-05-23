@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,6 +14,48 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <item_geofunc_internal.h>
+#include "sql_class.h"             // THD
+
+
+bool Srs_fetcher::lock(Geometry::srid_t srid)
+{
+  DBUG_ENTER("lock_srs");
+
+  DBUG_ASSERT(srid != 0);
+
+  char id_str[11]; // uint32 => max 10 digits + \0
+  int10_to_str(srid, id_str, 10);
+
+  MDL_request mdl_request;
+  mdl_request.init_with_source(MDL_key::SRID,
+                               "",
+                               id_str,
+                               MDL_SHARED_READ,
+                               MDL_TRANSACTION,
+                               __FILE__,
+                               __LINE__);
+  if (m_thd->mdl_context.acquire_lock(&mdl_request,
+                                      m_thd->variables.lock_wait_timeout))
+  {
+    // If locking fails, an error has already been flagged.
+    DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(false);
+}
+
+
+bool Srs_fetcher::acquire(Geometry::srid_t srid,
+                          const dd::Spatial_reference_system **srs)
+{
+  if (lock(srid))
+    return true;
+
+  if (m_ddc->acquire(srid, srs))
+    return true;
+  return false;
+}
+
 
 void handle_gis_exception(const char *funcname)
 {

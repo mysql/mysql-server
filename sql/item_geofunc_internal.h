@@ -1,7 +1,7 @@
 #ifndef GEOFUNC_INTERNAL_INCLUDED
 #define GEOFUNC_INTERNAL_INCLUDED
 
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,6 +35,10 @@
 #include "item_geofunc.h"
 #include "gis_bg_traits.h"
 
+#include "dd/types/spatial_reference_system.h"
+#include "dd/cache/dictionary_client.h"
+#include "sql_class.h" // THD
+
 // Boost.Geometry
 #include <boost/geometry/geometry.hpp>
 #include <boost/geometry/index/rtree.hpp>
@@ -54,6 +58,41 @@
 #define GIS_ZERO 0.00000000001
 
 extern bool simplify_multi_geometry(String *str, String *result_buffer);
+
+
+class Srs_fetcher
+{
+private:
+  THD *m_thd;
+  dd::cache::Dictionary_client *m_ddc;
+  dd::cache::Dictionary_client::Auto_releaser m_releaser;
+
+  /**
+    Take an MDL lock on an SRID.
+
+    @param[in] srid Spatial reference system ID
+
+    @retval false Success.
+    @retval true Locking failed. An error has already been flagged.
+  */
+  bool lock(Geometry::srid_t srid);
+
+public:
+  Srs_fetcher(THD *thd)
+    :m_thd(thd), m_ddc(m_thd->dd_client()), m_releaser(m_ddc)
+  {}
+
+  /**
+    Acquire an SRS from the data dictionary.
+
+    @param[in] srid Spatial reference system ID
+    @param[out] srs The spatial reference system
+
+    @retval false Success.
+    @retval true Locking failed. An error has already been flagged.
+  */
+  bool acquire(Geometry::srid_t srid, const dd::Spatial_reference_system **srs);
+};
 
 
 /**

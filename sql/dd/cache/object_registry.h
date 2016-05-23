@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "dd/types/event.h"                   // Event
 #include "dd/types/routine.h"                 // Routine
 #include "dd/types/schema.h"                  // Schema
+#include "dd/types/spatial_reference_system.h"// Spatial_reference_system
 #include "dd/types/tablespace.h"              // Tablespace
 
 namespace dd {
@@ -56,6 +57,7 @@ private:
   Local_multi_map<Event>          m_event_map;
   Local_multi_map<Routine>        m_routine_map;
   Local_multi_map<Schema>         m_schema_map;
+  Local_multi_map<Spatial_reference_system> m_spatial_reference_system_map;
   Local_multi_map<Tablespace>     m_tablespace_map;
 
 
@@ -111,6 +113,14 @@ private:
   const Local_multi_map<Schema>
     *m_map(Type_selector<Schema>) const
   { return &m_schema_map; }
+
+  Local_multi_map<Spatial_reference_system>
+    *m_map(Type_selector<Spatial_reference_system>)
+  { return &m_spatial_reference_system_map; }
+
+  const Local_multi_map<Spatial_reference_system>
+    *m_map(Type_selector<Spatial_reference_system>) const
+  { return &m_spatial_reference_system_map; }
 
   Local_multi_map<Tablespace>
     *m_map(Type_selector<Tablespace>)
