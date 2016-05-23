@@ -41,12 +41,4 @@
                             // schema_table_store_record
 #include "my_global.h"
 
-
-/* get pointer to Diagnostics Area for statement from THD */
-static inline
-Diagnostics_area* thd_stmt_da(THD* thd)
-{
-  return thd->get_stmt_da();
-}
-
 #endif
