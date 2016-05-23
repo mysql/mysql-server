@@ -2562,7 +2562,20 @@ class Ndb_schema_event_handler {
                     "my_errno: %d",
                     schema->db, schema->name, schema->query,
                     schema->node_id, my_errno());
-    thd_print_warning_list(thd, "NDB Binlog");
+
+    // Print thd's list of warnings to error log
+    {
+      Diagnostics_area::Sql_condition_iterator
+          it(thd->get_stmt_da()->sql_conditions());
+
+      const Sql_condition *err;
+      while ((err= it++))
+      {
+        sql_print_warning("NDB Binlog: (%d)%s",
+                          err->mysql_errno(),
+                          err->message_text());
+      }
+    }
   }
 
 

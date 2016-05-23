@@ -51,23 +51,6 @@ Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb)
 }
 
 
-void
-thd_print_warning_list(THD* thd, const char* prefix)
-{
-  Diagnostics_area::Sql_condition_iterator
-   it(thd->get_stmt_da()->sql_conditions());
-
-  const Sql_condition *err;
-  while ((err= it++))
-  {
-    sql_print_warning("%s: (%d)%s",
-                      prefix,
-                      err->mysql_errno(),
-                      err->message_text());
-  }
-}
-
-
 bool
 applying_binlog(const THD* thd)
 {
