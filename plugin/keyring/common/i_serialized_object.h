@@ -13,26 +13,44 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef MYSQL_I_KEYS_CONTAINER_H
-#define MYSQL_I_KEYS_CONTAINER_H
+#ifndef MYSQL_I_SERIALIZED_OBJECT_H
+#define MYSQL_I_SERIALIZED_OBJECT_H
 
+#include <my_global.h>
 #include "i_keyring_key.h"
-#include "i_keyring_io.h"
 
-namespace keyring {
-
-class IKeys_container : public Keyring_alloc
+namespace keyring
 {
-public:
-  virtual my_bool init(IKeyring_io* keyring_io, std::string keyring_storage_url)= 0;
-  virtual my_bool store_key(IKeyring_io *keyring_io, IKey *key)= 0;
-  virtual IKey* fetch_key(IKey *key)= 0;
-  virtual my_bool remove_key(IKeyring_io *keyring_io, IKey *key)= 0;
-  virtual std::string get_keyring_storage_url()= 0;
+  enum Key_operation
+  {
+    STORE_KEY,
+    REMOVE_KEY,
+    NONE
+  };
 
-  virtual ~IKeys_container() {};
-};
+  class ISerialized_object
+  {
+  public:
+    ISerialized_object() : key_operation(NONE)
+    {}
 
-}//namespace keyring
+    virtual my_bool get_next_key(IKey **key)= 0;
+    virtual my_bool has_next_key()= 0;
+    virtual Key_operation get_key_operation()
+    {
+      return key_operation;
+    }
+    virtual void set_key_operation(Key_operation key_operation)
+    {
+      this->key_operation= key_operation;
+    }
 
-#endif //MYSQL_I_KEYS_CONTAINER_H
+    virtual ~ISerialized_object()
+    {}
+
+  protected:
+    Key_operation key_operation;
+  };
+} //namespace keyring
+
+#endif //MYSQL_I_SERIALIZED_OBJECT_H

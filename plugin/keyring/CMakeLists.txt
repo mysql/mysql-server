@@ -14,13 +14,16 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 INCLUDE_DIRECTORIES(${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/common)
 
 MYSQL_ADD_PLUGIN(keyring_file
-                 keyring_key.cc
+                 common/keyring_key.cc
+                 common/keys_container.cc
+                 common/keyring_impl.cc
                  keyring.cc
-                 keys_container.cc
+                 hash_to_buffer_serializer.cc
                  buffered_file_io.cc
-                 keyring_impl.cc
+                 buffer.cc
                  MODULE_ONLY
                  MODULE_OUTPUT_NAME "keyring_file")
 
