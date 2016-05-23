@@ -463,7 +463,7 @@ public:
   virtual bool contextualize(Parse_context *pc)
   {
     if (super::contextualize(pc))
-      return false;
+      return true;
     value= pc->select->nest_last_join(pc->thd);
     return value == NULL;
   }
