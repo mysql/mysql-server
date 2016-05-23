@@ -56,4 +56,10 @@ thd_print_warning_list(THD* thd, const char* prefix);
 bool
 applying_binlog(const THD* thd);
 
+
+/*
+  Return the THD's unmasked server id
+*/
+uint32 thd_unmasked_server_id(const THD* thd);
+
 #endif

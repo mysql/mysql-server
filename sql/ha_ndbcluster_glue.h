@@ -41,14 +41,6 @@
                             // schema_table_store_record
 #include "my_global.h"
 
-static inline
-uint32 thd_unmasked_server_id(const THD* thd)
-{
-  const uint32 unmasked_server_id = thd->unmasked_server_id;
-  assert(thd->server_id == (thd->unmasked_server_id & opt_server_id_mask));
-  return unmasked_server_id;
-}
-
 
 /* get pointer to Diagnostics Area for statement from THD */
 static inline
