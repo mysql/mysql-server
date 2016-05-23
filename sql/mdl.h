@@ -497,9 +497,13 @@ public:
   uint m_src_line;
 
 public:
-  static void *operator new(size_t size, MEM_ROOT *mem_root) throw ()
+  static void *operator new(size_t size, MEM_ROOT *mem_root,
+                            const std::nothrow_t &arg= std::nothrow) throw ()
   { return alloc_root(mem_root, size); }
-  static void operator delete(void *ptr, MEM_ROOT *mem_root) {}
+
+  static void operator delete(void *ptr, MEM_ROOT *mem_root,
+                              const std::nothrow_t &arg) throw ()
+  {}
 
   void init_with_source(MDL_key::enum_mdl_namespace namespace_arg,
             const char *db_arg, const char *name_arg,

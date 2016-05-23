@@ -770,10 +770,14 @@ protected:
 public:
   static void *operator new(size_t size) throw ()
   { return sql_alloc(size); }
-  static void *operator new(size_t size, MEM_ROOT *mem_root) throw ()
+  static void *operator new(size_t size, MEM_ROOT *mem_root,
+                            const std::nothrow_t &arg= std::nothrow) throw ()
   { return alloc_root(mem_root, size); }
+
   static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
-  static void operator delete(void *ptr, MEM_ROOT *mem_root) {}
+  static void operator delete(void *ptr, MEM_ROOT *mem_root,
+                              const std::nothrow_t &arg) throw ()
+  {}
 
   enum Type {INVALID_ITEM= 0,
              FIELD_ITEM, FUNC_ITEM, SUM_FUNC_ITEM, STRING_ITEM,
@@ -4979,7 +4983,7 @@ public:
            ((walk & WALK_POSTFIX) && (this->*processor)(args));
   }
 
-  bool check_gcol_depend_default_processor(uchar *arg)
+  bool check_gcol_depend_default_processor(uchar *arg_uchar)
   { return true; }
 
   Item *transform(Item_transformer transformer, uchar *args);

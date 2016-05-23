@@ -602,7 +602,7 @@ public:
   virtual bool send_text(Protocol *protocol)= 0;
 };
 
-class Field: public Proto_field
+class Field: public Proto_field, public Sql_alloc
 {
   Field(const Item &);				/* Prevent use of these */
   void operator=(Field &);
@@ -617,18 +617,6 @@ public:
   {
     return auto_flags & ON_UPDATE_NOW;
   }
-
-  /* To do: inherit Sql_alloc and get these for free */
-  static void *operator new(size_t size) throw ()
-  { return sql_alloc(size); }
-  static void *operator new(size_t size, MEM_ROOT *mem_root) throw () {
-    return alloc_root(mem_root, size);
-  }
-  static void operator delete(void *ptr, MEM_ROOT *mem_root)
-  { DBUG_ASSERT(false); /* never called */ }
-
-  static void operator delete(void *ptr_arg, size_t size) throw()
-  { TRASH(ptr_arg, size); }
 
   uchar		*ptr;			// Position to field in record
 

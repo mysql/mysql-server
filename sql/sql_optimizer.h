@@ -613,12 +613,12 @@ public:
 
     @returns false if success, true if error
   */
-  bool alloc_ref_item_slice(THD *thd, uint sliceno)
+  bool alloc_ref_item_slice(THD *thd_arg, uint sliceno)
   {
     DBUG_ASSERT(sliceno > 0 && sliceno < 5 &&
                 ref_items[sliceno].is_null());
     size_t count= ref_items[0].size();
-    Item **slice= pointer_cast<Item **>(thd->alloc(sizeof(Item *) * count));
+    Item **slice= pointer_cast<Item **>(thd_arg->alloc(sizeof(Item *) * count));
     if (slice == NULL)
       return true;
     ref_items[sliceno]= Ref_item_array(slice, count);
