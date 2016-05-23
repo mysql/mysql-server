@@ -20,6 +20,7 @@
 #include "sql_class.h"
 #include "key_spec.h"
 #include "my_dbug.h"
+#include "ndb_log.h"
 #include "mysql/service_thd_alloc.h"
 #include "ndb_table_guard.h"
 #include "template_utils.h"
@@ -288,7 +289,7 @@ class Fk_util
     }
 
     // Print info to log
-    sql_print_information("NDB FK: %s", msg);
+    ndb_log_info("%s", msg);
   }
 
 
@@ -303,7 +304,7 @@ class Fk_util
     push_warning(m_thd, Sql_condition::SL_WARNING, ER_CANNOT_ADD_FOREIGN, msg);
 
     // Print warning to log
-    sql_print_warning("NDB FK: %s", msg);
+    ndb_log_warning("%s", msg);
   }
 
 
@@ -329,7 +330,7 @@ class Fk_util
                           ER_CANNOT_ADD_FOREIGN, "Ndb error: %s", ndb_msg);
     }
     // Print error to log
-    sql_print_error("NDB FK: %s, Ndb error: %s", msg, ndb_msg);
+    ndb_log_error("%s, Ndb error: %s", msg, ndb_msg);
   }
 
 

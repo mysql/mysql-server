@@ -22,6 +22,8 @@
 #include "ndb_table_guard.h"
 #include "mysqld.h"   // lower_case_table_names
 
+#include "log.h"            // sql_print_*
+
 extern st_ndb_slave_state g_ndb_slave_state;
 
 #include "ndb_mi.h"

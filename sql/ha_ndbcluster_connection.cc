@@ -29,6 +29,8 @@
 #include "util/Vector.hpp"
 #include "mysqld.h"         // server_id, connection_events_loop_aborted 
 
+#include "log.h"            // sql_print_*
+
 Ndb* g_ndb= NULL;
 Ndb_cluster_connection* g_ndb_cluster_connection= NULL;
 static Ndb_cluster_connection **g_pool= NULL;

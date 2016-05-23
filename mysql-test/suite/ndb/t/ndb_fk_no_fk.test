@@ -179,7 +179,7 @@ drop table t1, t2;
 
 # Suppress the warning this test case generates
 --disable_query_log ONCE
-call mtr.add_suppression("NDB FK: .* have all the referenced columns");
+call mtr.add_suppression("NDB: .* have all the referenced columns");
 
 create table t1 (
   pk int not null primary key,
@@ -206,7 +206,7 @@ drop table t1, t2;
 
 # Suppress the warning this test case generates
 --disable_query_log ONCE
-call mtr.add_suppression("NDB FK: .* no matching index could be found");
+call mtr.add_suppression("NDB: .* no matching index could be found");
 
 create table t1 (
   pk int not null primary key,

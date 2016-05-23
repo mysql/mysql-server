@@ -24,6 +24,7 @@
 #include "ndb_table_guard.h"
 #include "ndb_share.h"
 #include "mysql/service_my_snprintf.h"
+#include "mysqld.h"                    // system_charset_info
 
 Ndb_rep_tab_key::Ndb_rep_tab_key(const char* _db,
                                  const char* _table_name,

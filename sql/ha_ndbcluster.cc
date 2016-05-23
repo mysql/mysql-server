@@ -79,6 +79,7 @@
 #include "auth_common.h"    // wild_case_compare
 #include "sql_table.h"      // build_table_filename,
                             // tablename_to_filename
+#include "log.h"            // sql_print_error
 
 using std::min;
 using std::max;

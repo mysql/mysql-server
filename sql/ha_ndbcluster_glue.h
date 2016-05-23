@@ -19,6 +19,5 @@
 #define HA_NDBCLUSTER_GLUE_H
 
 #include "sql_base.h"       // close_cached_tables
-#include "log.h"            // sql_print_error
 
 #endif

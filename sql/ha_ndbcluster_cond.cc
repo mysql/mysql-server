@@ -27,6 +27,7 @@
 
 #include "item_cmpfunc.h"   // Item_func_like etc.
 #include "current_thd.h"
+#include "log.h"            // sql_print_error
 
 // Typedefs for long names 
 typedef NdbDictionary::Column NDBCOL;

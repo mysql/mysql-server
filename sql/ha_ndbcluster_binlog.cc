@@ -47,6 +47,7 @@
                             // tablename_to_filename
 #include "mysqld.h"         // global_system_variables table_alias_charset ...
 #include "derror.h"         // ER_THD
+#include "log.h"            // sql_print_*
 
 extern my_bool opt_ndb_log_orig;
 extern my_bool opt_ndb_log_bin;

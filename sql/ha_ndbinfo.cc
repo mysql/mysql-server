@@ -20,6 +20,7 @@
 #include "ha_ndbinfo.h"
 #include "my_dbug.h"
 #include "ndb_tdc.h"
+#include "ndb_log.h"
 
 #include "sql_table.h"      // build_table_filename
 #include "sql_class.h"
@@ -722,7 +723,7 @@ ha_ndbinfo::unpack_record(uchar *dst_row)
       }
 
       default:
-        sql_print_error("Found unexpected field type %u", field->type());
+        ndb_log_error("Found unexpected field type %u", field->type());
         break;
       }
 
@@ -822,13 +823,13 @@ ndbinfo_init(void *plugin)
                           opt_ndbinfo_dbname, opt_ndbinfo_table_prefix);
   if (!g_ndbinfo)
   {
-    sql_print_error("Failed to create NdbInfo");
+    ndb_log_error("Failed to create NdbInfo");
     DBUG_RETURN(1);
   }
 
   if (!g_ndbinfo->init())
   {
-    sql_print_error("Failed to init NdbInfo");
+    ndb_log_error("Failed to init NdbInfo");
 
     delete g_ndbinfo;
     g_ndbinfo = NULL;
