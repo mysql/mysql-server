@@ -57,12 +57,6 @@ ulonglong thd_options(const THD * thd)
   return thd->variables.option_bits;
 }
 
-/* set the "command" member of thd */
-static inline
-void thd_set_command(THD* thd, enum enum_server_command command)
-{
-  thd->set_command(command);
-}
 
 /* get pointer to Diagnostics Area for statement from THD */
 static inline

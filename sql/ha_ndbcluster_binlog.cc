@@ -654,7 +654,7 @@ ndb_create_thd(char * stackptr)
   }
 
   thd->init_query_mem_roots();
-  thd_set_command(thd, COM_DAEMON);
+  thd->set_command(COM_DAEMON);
   thd->system_thread= SYSTEM_THREAD_NDBCLUSTER_BINLOG;
   thd->get_protocol_classic()->set_client_capabilities(0);
   thd->lex->start_transaction_opt= 0;
@@ -4290,7 +4290,7 @@ class Ndb_binlog_index_table_util
     new_thd->set_new_thread_id();
     new_thd->thread_stack = (char*)&new_thd;
     new_thd->store_globals();
-    thd_set_command(new_thd, COM_DAEMON);
+    new_thd->set_command(COM_DAEMON);
     new_thd->system_thread = SYSTEM_THREAD_NDBCLUSTER_BINLOG;
     new_thd->get_protocol_classic()->set_client_capabilities(0);
     new_thd->security_context()->skip_grants();
@@ -6521,7 +6521,7 @@ Ndb_binlog_thread::do_run()
     DBUG_VOID_RETURN;
   }
 
-  thd_set_command(thd, COM_DAEMON);
+  thd->set_command(COM_DAEMON);
   thd->system_thread= SYSTEM_THREAD_NDBCLUSTER_BINLOG;
   thd->get_protocol_classic()->set_client_capabilities(0);
   thd->security_context()->skip_grants();
