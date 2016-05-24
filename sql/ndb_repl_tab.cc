@@ -18,7 +18,6 @@
 #include "ha_ndbcluster_tables.h"
 #include "ndb_repl_tab.h"
 
-#include "ha_ndbcluster_glue.h"
 #include "mf_wcomp.h"
 #include "ndb_table_guard.h"
 #include "ndb_share.h"

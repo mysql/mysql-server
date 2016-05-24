@@ -35,7 +35,6 @@
 #include "ha_ndbcluster_binlog.h"
 #include "ha_ndbcluster_cond.h"
 #include "ha_ndbcluster_connection.h"
-#include "ha_ndbcluster_glue.h"
 #include "ha_ndbcluster_push.h"
 #include "ha_ndbcluster_tables.h"
 #include "m_ctype.h"

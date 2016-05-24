@@ -17,7 +17,6 @@
 
 #include "ndb_mi.h"
 
-#include "ha_ndbcluster_glue.h"
 #include "my_dbug.h"
 #include "rpl_mi.h"
 #include "rpl_msr.h"

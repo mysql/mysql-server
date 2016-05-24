@@ -19,7 +19,6 @@
 
 #include <mysql/psi/mysql_thread.h>
 
-#include "ha_ndbcluster_glue.h"
 #include "sql_class.h"
 #include "kernel/ndb_limits.h"
 #include "my_dbug.h"

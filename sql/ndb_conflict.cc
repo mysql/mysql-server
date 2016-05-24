@@ -15,7 +15,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ha_ndbcluster_glue.h"
 #include "my_dbug.h"
 #include "my_global.h" /* For config defines */
 #include "ndb_binlog_extra_row_info.h"

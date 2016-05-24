@@ -16,7 +16,6 @@
 */
 
 #include "ha_ndbcluster.h"
-#include "ha_ndbcluster_glue.h"
 #include "sql_class.h"
 #include "key_spec.h"
 #include "my_dbug.h"

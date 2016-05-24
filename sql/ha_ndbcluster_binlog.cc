@@ -23,7 +23,6 @@
 #include "ha_ndbcluster.h"
 #include "ha_ndbcluster_binlog.h"
 #include "ha_ndbcluster_connection.h"
-#include "ha_ndbcluster_glue.h"
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "mysqld_thd_manager.h"  // Global_THD_manager
