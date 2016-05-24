@@ -16,7 +16,6 @@
 */
 
 #include "../storage/ndb/src/ndbapi/NdbInfo.hpp"
-#include "ha_ndbcluster_glue.h"
 #include "ha_ndbinfo.h"
 #include "my_dbug.h"
 #include "ndb_tdc.h"
@@ -26,6 +25,8 @@
 #include "sql_class.h"
 #include "current_thd.h"
 #include "derror.h"         // ER_THD
+
+#include <mysql/plugin.h>
 
 static MYSQL_THDVAR_UINT(
   max_rows,                          /* name */
