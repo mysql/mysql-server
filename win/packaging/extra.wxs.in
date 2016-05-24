@@ -900,5 +900,8 @@
        'Setting the ALLUSERS property is not allowed because [ProductName] is a per-machine application. Setup will now exit.'>
       <![CDATA[ALLUSERS = "1"]]>
     </Condition>
+	<Condition Message='This application is only supported on Windows Vista, Windows Server 2008, or higher.'>
+      <![CDATA[Installed OR (VersionNT >= 600)]]>
+    </Condition>
   </Fragment>
 </Wix>
