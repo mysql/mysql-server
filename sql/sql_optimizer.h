@@ -608,7 +608,7 @@ public:
   /**
     Allocate a ref_item slice, assume that slice size is in ref_items[0]
 
-    @param thd      thread handler
+    @param thd_arg  thread handler
     @param sliceno  The slice number to allocate in JOIN::ref_items
 
     @returns false if success, true if error
