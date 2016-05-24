@@ -17,7 +17,6 @@
 
 #include <mysql/psi/mysql_thread.h>
 
-#include "NdbSleep.h"
 #include "binlog.h"
 #include "dd/types/abstract_table.h"
 #include "dd_table_share.h"
@@ -38,6 +37,8 @@
 #include "ndb_log.h"
 #include "ndbapi/NdbDictionary.hpp"
 #include "ndbapi/ndb_cluster_connection.hpp"
+#include "ndb_sleep.h"
+
 #include "rpl_filter.h"
 #include "rpl_injector.h"
 #include "rpl_slave.h"
@@ -1322,7 +1323,7 @@ int find_all_databases(THD *thd, Thd_ndb* thd_ndb)
         sql_print_warning("NDB: ndbcluster_find_all_databases retry: %u - %s",
                           ndb_error.code,
                           ndb_error.message);
-        do_retry_sleep(retry_sleep);
+        ndb_retry_sleep(retry_sleep);
         continue; // retry
       }
     }
@@ -1485,7 +1486,7 @@ setup(void)
   DBUG_EXECUTE_IF("ndb_binlog_setup_slow",
   {
     sql_print_information("ndb_binlog_setup: 'ndb_binlog_setup_slow' -> sleep");
-    NdbSleep_SecSleep(10);
+    ndb_milli_sleep(10*1000); // seconds * 1000
     sql_print_information("ndb_binlog_setup <- sleep");
   });
 
@@ -1856,7 +1857,7 @@ int ndbcluster_log_schema_op(THD *thd,
        * coordinated by this node. Thus causing a mixup betweeen these,
        * and the schema distribution getting totally out of synch.
        */
-      NdbSleep_MilliSleep(50);
+      ndb_milli_sleep(50);
     });
   }
 
@@ -2036,7 +2037,7 @@ err:
       {
         if (trans)
           ndb->closeTransaction(trans);
-        do_retry_sleep(retry_sleep);
+        ndb_retry_sleep(retry_sleep);
         continue; // retry
       }
     }
@@ -2832,7 +2833,7 @@ class Ndb_schema_event_handler {
         {
           if (trans)
             ndb->closeTransaction(trans);
-          do_retry_sleep(retry_sleep);
+          ndb_retry_sleep(retry_sleep);
           continue; // retry
         }
       }
@@ -3075,7 +3076,7 @@ class Ndb_schema_event_handler {
       NDB_SCHEMA_OBJECT *p= ndb_get_schema_object(key, false);
       if (p == NULL)
       {
-        NdbSleep_MilliSleep(10);
+        ndb_milli_sleep(10);
       }
       else
       {
@@ -5168,7 +5169,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
   {
     if (retry_sleep > 0)
     {
-      do_retry_sleep(retry_sleep);
+      ndb_retry_sleep(retry_sleep);
     }
     Mutex_guard injector_mutex_g(injector_event_mutex);
     Ndb *ndb= injector_ndb;
@@ -6724,7 +6725,7 @@ restart_cluster_failure:
                               "waiting for ndbcluster to start...");
         goto err;
       }
-      NdbSleep_MilliSleep(1000);
+      ndb_milli_sleep(1000);
     } //while (!ndb_binlog_setup())
 
     DBUG_ASSERT(ndbcluster_hton->slot != ~(uint)0);
@@ -6912,7 +6913,7 @@ restart_cluster_failure:
          * these two pollEvents, which can result in reading a
          * 'schema_gci > gci'. (Likely due to mutex locking)
          */
-        NdbSleep_MilliSleep(50);
+        ndb_milli_sleep(50);
       });
   
       Uint64 schema_epoch= 0;
@@ -7016,7 +7017,7 @@ restart_cluster_failure:
             if (!ndb_binlog_is_ready)
             {
 	      sql_print_information("NDB Binlog: Just lost schema connection, hanging around");
-              NdbSleep_SecSleep(10);
+              ndb_milli_sleep(10*1000); // seconds * 1000
               /* There could be a race where client side reconnect before we 
                * are able to detect 's_ndb->getEventOperation() == NULL'.
                * Thus, we never restart the binlog thread as supposed to.

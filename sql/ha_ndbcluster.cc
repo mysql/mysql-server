@@ -72,6 +72,7 @@
 #include "mysqld.h"         // global_system_variables table_alias_charset ...
 #include "current_thd.h"
 #include "derror.h"         // ER_THD
+#include "ndb_sleep.h"
 
 #ifndef DBUG_OFF
 #include "sql_test.h"       // print_where
@@ -5503,7 +5504,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
 	if (--retries && !thd->killed &&
 	    ndb->getNdbError().status == NdbError::TemporaryError)
 	{
-	  do_retry_sleep(retry_sleep);
+          ndb_retry_sleep(retry_sleep);
 	  continue;
 	}
 	ERR_RETURN(ndb->getNdbError());
@@ -9993,7 +9994,7 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
             if (--retries && !thd->killed &&
                 ndb->getNdbError().status == NdbError::TemporaryError)
             {
-              do_retry_sleep(retry_sleep);
+              ndb_retry_sleep(retry_sleep);
               continue;
             }
             const NdbError err= ndb->getNdbError();
@@ -12738,7 +12739,7 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
       if (--retries && !thd->killed &&
           ndb->getNdbError().status == NdbError::TemporaryError)
       {
-        do_retry_sleep(retry_sleep);
+        ndb_retry_sleep(retry_sleep);
         continue;
       }
       const NdbError err= ndb->getNdbError();
@@ -13053,7 +13054,7 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
   {
     if (thd->killed)
       DBUG_RETURN(-1);
-    my_sleep(1000*delay);
+    ndb_milli_sleep(delay);
   }
   if (result == -1 || th.close() == -1)
   {
@@ -13084,7 +13085,7 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
         {
           if (thd->killed)
             DBUG_RETURN(-1);
-          my_sleep(1000*delay);        
+          ndb_milli_sleep(delay);
         }
         if (result == -1 || ih.close() == -1)
         {
@@ -13106,7 +13107,7 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
         {
           if (thd->killed)
             DBUG_RETURN(-1);
-          my_sleep(1000*delay);
+          ndb_milli_sleep(delay);
         }
         if (result == -1 || ih.close() == -1)
         {
@@ -15876,7 +15877,7 @@ retry:
     if (error.status == NdbError::TemporaryError &&
         retries-- && !thd->killed)
     {
-      do_retry_sleep(retry_sleep);
+      ndb_retry_sleep(retry_sleep);
       continue;
     }
     break;
