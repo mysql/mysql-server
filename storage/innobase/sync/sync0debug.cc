@@ -584,7 +584,7 @@ LatchDebug::crash(
 		get_level_name(latched->m_level);
 
 	ib::error()
-		<< "Thread " << static_cast<size_t>(os_thread_get_curr_id())
+		<< "Thread " << os_thread_get_curr_id()
 		<< " already owns a latch "
 		<< sync_latch_get_name(latch->m_id) << " at level"
 		<< " " << latched->m_level << " (" << latch_level_name

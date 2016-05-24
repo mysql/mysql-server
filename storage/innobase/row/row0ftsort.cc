@@ -44,7 +44,7 @@ Created 10/13/2010 Jimmy Yang
 		b[N] = row_merge_read_rec(				\
 			block[N], buf[N], b[N], index,			\
 			fd[N], &foffs[N], &mrec[N], offsets[N]);	\
-		if (!b[N]) {				\
+		if (UNIV_UNLIKELY(!b[N])) {				\
 			if (mrec[N]) {					\
 				goto exit;				\
 			}						\

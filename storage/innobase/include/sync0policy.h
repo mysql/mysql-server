@@ -105,7 +105,7 @@ public:
 
 			msg << m_mutex->policy().to_string();
 
-			if (static_cast<size_t>(m_thread_id) != ULINT_UNDEFINED) {
+			if (m_thread_id != os_thread_id_t(ULINT_UNDEFINED)) {
 
 				msg << " addr: " << m_mutex
 				    << " acquired: " << locked_from().c_str();

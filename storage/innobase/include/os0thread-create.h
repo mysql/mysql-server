@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -56,8 +56,7 @@ os_thread_close()
 		ib::warn()
 			<< "Some ("
 			<< os_thread_count.load(std::memory_order_relaxed)
-			<< ") "
-			<< " threads are still active";
+			<< ") threads are still active";
 	}
 }
 
@@ -80,7 +79,7 @@ public:
 	@param[in]	pfs_key		Performance schema key */
 	explicit Runnable(mysql_pfs_key_t pfs_key) : m_pfs_key(pfs_key) { }
 #else
-	Runnable() { }
+	Runnable(mysql_pfs_key_t) { }
 #endif /* UNIV_PFS_THREAD */
 
 public:
@@ -148,10 +147,9 @@ private:
 #endif /* UNIV_PFS_THREAD */
 };
 
-#ifdef UNIV_PFS_THREAD
-/** Creae a detached thread, without args
+/** Create a detached thread, without args
 Note: Captures the local arguments by value [=].
-@para[in]	f		Callable
+@param[in]	f		Callable
 @param[in]	k		PFS thread key */
 #define CREATE_THREAD0(f,k)						\
 do {									\
@@ -165,9 +163,9 @@ do {									\
 	t.detach();							\
 } while (0);
 
-/** Creae a detached thread.
+/** Create a detached thread.
 Note: Captures the local arguments by value [=].
-@para[in]	f		Callable
+@param[in]	f		Callable
 @param[in]	k		PFS thread key */
 #define CREATE_THREAD(f,k,...)						\
 do {									\
@@ -180,37 +178,6 @@ do {									\
 	std::thread	t(std::move(task));				\
 	t.detach();							\
 } while (0);
-#else /* UNIV_PFS_THREAD */
-/** Creae a detached thread, without args
-Note: Captures the local arguments by value [=].
-@para[in]	f		Callable */
-#define CREATE_THREAD0(f,k)						\
-do {									\
-	std::packaged_task<void()> task([=]()				\
-	{								\
-		Runnable	runnable{};				\
-		runnable.run(f);					\
-	});								\
-	/* Note: This throws an exception on failure */			\
-	std::thread	t(std::move(task));				\
-	t.detach();							\
-} while (0);
-
-/** Creae a detached thread.
-Note: Captures the local arguments by value [=].
-@para[in]	f		Callable */
-#define CREATE_THREAD(f,k,...)						\
-do {									\
-	std::packaged_task<void()> task([=]()				\
-	{								\
-		Runnable	runnable{};				\
-		runnable.run(f, __VA_ARGS__);				\
-	});								\
-	/* Note: This throws an exception on failure */			\
-	std::thread	t(std::move(task));				\
-	t.detach();							\
-} while (0);
-#endif /* UNIV_PFS_THREAD */
 
 #endif /* !os0thread_create_h */
 

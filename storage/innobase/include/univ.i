@@ -563,12 +563,10 @@ functions. */
 
 #ifdef _WIN32
 typedef ulint os_thread_ret_t;
-# define OS_THREAD_DUMMY_RETURN		return(0)
 # define OS_PATH_SEPARATOR		'\\'
 # define OS_PATH_SEPARATOR_ALT		'/'
 #else
 typedef void* os_thread_ret_t;
-# define OS_THREAD_DUMMY_RETURN		return(NULL)
 # define OS_PATH_SEPARATOR		'/'
 # define OS_PATH_SEPARATOR_ALT		'\\'
 #endif /* _WIN32 */

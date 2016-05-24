@@ -412,8 +412,8 @@ ib_mutex_t	srv_misc_tmpfile_mutex;
 /** Temporary file for miscellanous diagnostic output */
 FILE*	srv_misc_tmpfile;
 
-static ulint	srv_main_thread_process_no	= 0;
-static ulint	srv_main_thread_id		= 0;
+static ulint		srv_main_thread_process_no	= 0;
+static os_thread_id_t	srv_main_thread_id		= 0;
 
 /* The following counts are used by the srv_master_thread. */
 
@@ -1265,13 +1265,14 @@ srv_printf_innodb_monitor(
 			n_reserved);
 	}
 
-	fprintf(file,
-		"Process ID=" ULINTPF
-		", Main thread ID=" ULINTPF
-		", state: %s\n",
-		srv_main_thread_process_no,
-		srv_main_thread_id,
-		srv_main_thread_op_info);
+	std::ostringstream msg;
+
+	msg	<< "Process ID=" << srv_main_thread_process_no
+		<< ", Main thread ID=" << srv_main_thread_id
+		<< " , state" <<  srv_main_thread_op_info;
+
+	fprintf(file, "%s\n", msg.str().c_str());
+
 	fprintf(file,
 		"Number of rows inserted " ULINTPF
 		", updated " ULINTPF
@@ -1595,11 +1596,6 @@ srv_error_monitor_thread()
 	ut_ad(!srv_read_only_mode);
 
 	old_lsn = srv_start_lsn;
-
-#ifdef UNIV_DEBUG_THREAD_CREATION
-	ib::info() << "Error monitor thread starts, id "
-		<< static_cast<size_t>(os_thread_get_curr_id());
-#endif /* UNIV_DEBUG_THREAD_CREATION */
 
 	srv_error_monitor_active = TRUE;
 
@@ -2236,13 +2232,8 @@ srv_master_thread()
 
 	ut_ad(!srv_read_only_mode);
 
-#ifdef UNIV_DEBUG_THREAD_CREATION
-	ib::info() << "Master thread starts, id "
-		<< static_cast<size_t>(os_thread_get_curr_id());
-#endif /* UNIV_DEBUG_THREAD_CREATION */
-
 	srv_main_thread_process_no = os_proc_get_number();
-	srv_main_thread_id = static_cast<size_t>(os_thread_get_curr_id());
+	srv_main_thread_id = os_thread_get_curr_id();
 
 	slot = srv_reserve_slot(SRV_MASTER);
 	ut_a(slot == srv_sys->sys_threads);
@@ -2366,11 +2357,6 @@ srv_worker_thread()
 
 	THD*	thd = create_thd(false, true, true, srv_worker_thread_key);
 
-#ifdef UNIV_DEBUG_THREAD_CREATION
-	ib::info() << "Worker thread starting, id "
-		<< static_cast<size_t>(os_thread_get_curr_id());
-#endif /* UNIV_DEBUG_THREAD_CREATION */
-
 	slot = srv_reserve_slot(SRV_WORKER);
 
 	ut_a(srv_n_purge_threads > 1);
@@ -2411,11 +2397,6 @@ srv_worker_thread()
 	ut_a(srv_shutdown_state > SRV_SHUTDOWN_NONE);
 
 	rw_lock_x_unlock(&purge_sys->latch);
-
-#ifdef UNIV_DEBUG_THREAD_CREATION
-	ib::info() << "Purge worker thread exiting, id "
-		<< static_cast<size_t>(os_thread_get_curr_id());
-#endif /* UNIV_DEBUG_THREAD_CREATION */
 
 	destroy_thd(thd);
 }
@@ -2631,11 +2612,6 @@ srv_purge_coordinator_thread()
 
 	rw_lock_x_unlock(&purge_sys->latch);
 
-#ifdef UNIV_DEBUG_THREAD_CREATION
-	ib::info() << "Purge coordinator thread created, id "
-		<< static_cast<size_t>(os_thread_get_curr_id());
-#endif /* UNIV_DEBUG_THREAD_CREATION */
-
 	slot = srv_reserve_slot(SRV_PURGE);
 
 	ulint	rseg_history_len = trx_sys->rseg_history_len;
@@ -2714,11 +2690,6 @@ srv_purge_coordinator_thread()
 	purge_sys->running = false;
 
 	rw_lock_x_unlock(&purge_sys->latch);
-
-#ifdef UNIV_DEBUG_THREAD_CREATION
-	ib::info() << "Purge coordinator exiting, id "
-		<< static_cast<size_t>(os_thread_get_curr_id());
-#endif /* UNIV_DEBUG_THREAD_CREATION */
 
 	/* Ensure that all the worker threads quit. */
 	if (srv_n_purge_threads > 1) {

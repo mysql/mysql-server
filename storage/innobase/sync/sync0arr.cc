@@ -573,7 +573,7 @@ sync_array_cell_print(
 			fprintf(file,
 				"a writer (thread id %lu) has"
 				" reserved it in mode %s",
-				(ulong) static_cast<size_t>(rwlock->writer_thread),
+				reinterpret_cast<ulong>(rwlock->writer_thread),
 				writer == RW_LOCK_X ? " exclusive\n"
 				: writer == RW_LOCK_SX ? " SX\n"
 				: " wait exclusive\n");

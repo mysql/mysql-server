@@ -426,7 +426,7 @@ lock_sys_create(
 	ulint	lock_sys_sz;
 
 	lock_sys_sz = sizeof(*lock_sys)
-                    + srv_max_n_threads * sizeof(srv_slot_t);
+                + srv_max_n_threads * sizeof(srv_slot_t);
 
 	lock_sys = static_cast<lock_sys_t*>(ut_zalloc_nokey(lock_sys_sz));
 

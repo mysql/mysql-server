@@ -836,11 +836,6 @@ recv_writer_thread()
 {
 	ut_ad(!srv_read_only_mode);
 
-#ifdef UNIV_DEBUG_THREAD_CREATION
-	ib::info() << "recv_writer thread running, id "
-		<< std::this_thread::native_handle;
-#endif /* UNIV_DEBUG_THREAD_CREATION */
-
 	/* The code flow is as follows:
 	Step 1: In recv_recovery_from_checkpoint_start().
 	Step 2: This recv_writer thread is started.

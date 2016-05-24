@@ -3120,11 +3120,6 @@ buf_flush_page_cleaner_coordinator()
 	ulint	last_activity = srv_get_activity_count();
 	ulint	last_pages = 0;
 
-#ifdef UNIV_DEBUG_THREAD_CREATION
-	ib::info() << "page_cleaner thread running, id "
-		<< static_cast<size_t>(os_thread_get_curr_id());
-#endif /* UNIV_DEBUG_THREAD_CREATION */
-
 #ifdef UNIV_LINUX
 	/* linux might be able to set different setting for each thread.
 	worth to try to set high priority for page cleaner threads */

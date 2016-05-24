@@ -167,7 +167,7 @@ lock_wait_table_reserve_slot(
 		}
 	}
 
-	ib::error() << "There appear to be " << srv_max_n_threads<< " user"
+	ib::error() << "There appear to be " << srv_max_n_threads << " user"
 		" threads currently waiting inside InnoDB, which is the upper"
 		" limit. Cannot continue operation. Before aborting, we print"
 		" a list of waiting threads.";
