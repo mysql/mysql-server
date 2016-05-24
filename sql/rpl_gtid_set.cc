@@ -480,12 +480,6 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
     *anonymous= false;
 
   SKIP_WHITESPACE();
-  if (*s == '+')
-  {
-    m_appendable= true;
-    s++;
-  }
-  SKIP_WHITESPACE();
   if (*s == 0)
   {
     DBUG_PRINT("info", ("'%s' is empty", text));
@@ -623,9 +617,6 @@ bool Gtid_set::is_valid(const char *text)
 
   const char *s= text;
 
-  SKIP_WHITESPACE();
-  if (*s == '+')
-    s++;
   SKIP_WHITESPACE();
   do
   {

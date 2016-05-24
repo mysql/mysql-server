@@ -5804,37 +5804,22 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
   enum_return_status ret;
   Gtid_set gtid_set(global_sid_map, var->save_result.string_value.str,
                     &ret, global_sid_lock);
-
-  if (!gtid_set.is_appendable())
-  {
-    if (!gtid_state->get_executed_gtids()->is_subset(&gtid_set))
-    {
-      my_error(ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS, MYF(0),
-               "the being assigned value must include the former value of the variable "
-               "in plain assignment");
-      error= true;
-      goto end;
-    }
-    DBUG_ASSERT(gtid_state->get_lost_gtids()->is_subset(&gtid_set));
-    /*
-      Reduce the being assigned set to the intersect part which will
-      be used further.
-    */
-    gtid_set.remove_gtid_set(gtid_state->get_executed_gtids());
-  }
   if (ret != RETURN_STATUS_OK)
   {
+    global_sid_lock->unlock();
     error= true;
     goto end;
   }
   ret= gtid_state->add_lost_gtids(&gtid_set);
   if (ret != RETURN_STATUS_OK)
   {
+    global_sid_lock->unlock();
     error= true;
     goto end;
   }
   gtid_state->get_executed_gtids()->to_string(&current_gtid_executed);
   gtid_state->get_lost_gtids()->to_string(&current_gtid_purged);
+  global_sid_lock->unlock();
 
   // Log messages saying that GTID_PURGED and GTID_EXECUTED were changed.
   sql_print_information(ER_DEFAULT(ER_GTID_PURGED_WAS_CHANGED),
@@ -5843,7 +5828,6 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
                         previous_gtid_executed, current_gtid_executed);
 
 end:
-  global_sid_lock->unlock();
   my_free(previous_gtid_executed);
   my_free(previous_gtid_purged);
   my_free(current_gtid_executed);

@@ -1097,8 +1097,7 @@ public:
   */
   Gtid_set(Sid_map *sid_map, Checkable_rwlock *sid_lock= NULL);
   /**
-    Constructs a new Gtid_set that contains the groups in the given
-    string, in the same format as add_gtid_text(char *).
+    Constructs a new Gtid_set that contains the groups in the given string, in the same format as add_gtid_text(char *).
 
     @param sid_map The Sid_map to use for SIDs.
     @param text The text to parse.
@@ -1107,6 +1106,7 @@ public:
     @param sid_lock Read/write lock to protect changes in the number
     of SIDs with. This may be NULL if such changes do not need to be
     protected.
+
     If sid_lock != NULL, then the read lock on sid_lock must be held
     before calling this function. If the array is grown, sid_lock is
     temporarily upgraded to a write lock and then degraded again;
@@ -1215,7 +1215,7 @@ public:
     Adds the set of GTIDs represented by the given string to this Gtid_set.
 
     The string must have the format of a comma-separated list of zero
-    or more of the following items:
+    or more of the following:
 
        XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX(:NUMBER+(-NUMBER)?)*
        | ANONYMOUS
@@ -1226,10 +1226,6 @@ public:
        The start of an interval must be greater than 0. The end of an
        interval may be 0, but any interval that has an endpoint that
        is smaller than the start is discarded.
-
-    The string can start with an optional '+' appender qualifier
-    which triggers @c executed_gtids and @c lost_gtids set examination
-    on the matter of disjointness with the one being added.
 
     If sid_lock != NULL, then the read lock on sid_lock must be held
     before calling this function. If a new sidno is added so that the
@@ -1703,10 +1699,6 @@ public:
     encode() function.
   */
   size_t get_encoded_length() const;
-  /**
-    Returns true when the set is marked as appendable, false otherwise.
-  */
-  bool is_appendable() const { return m_appendable; }
 
 private:
   /**
@@ -1962,12 +1954,7 @@ private:
   */
   int n_chunks;
 #endif
-  /**
-    The set is marked with true bool value when its textual
-    presentation contains the '+' as the first non-whitespace character.
-    The property is checked by methods like Gtid_state::add_lost_gtids().
-  */
-  bool m_appendable;
+
   /// Used by unit tests that need to access private members.
 #ifdef FRIEND_OF_GTID_SET
   friend FRIEND_OF_GTID_SET;
@@ -2786,8 +2773,6 @@ public:
   /**
     Adds the given Gtid_set to lost_gtids and executed_gtids.
     lost_gtids must be a subset of executed_gtids.
-    purged_gtid and executed_gtid sets are appened with the argument set
-    provided the latter is disjoint with gtid_executed owned_gtids.
 
     Requires that the caller holds global_sid_lock.wrlock.
 
