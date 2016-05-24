@@ -21,9 +21,9 @@
 
 #include "ha_ndbcluster_cond.h"
 
-#include "ha_ndbcluster_glue.h"
 #include "my_dbug.h"
-
+#include "item.h"           // Item
+#include "item_func.h"      // Item_func
 #include "item_cmpfunc.h"   // Item_func_like etc.
 #include "current_thd.h"
 #include "log.h"            // sql_print_error
