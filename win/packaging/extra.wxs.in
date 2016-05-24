@@ -66,6 +66,7 @@
     <CustomAction Id="LaunchUrl" BinaryKey="WixCA" DllEntry="WixShellExec"  Execute="immediate" Return="check" Impersonate="yes" />
 
 
+
     <!-- 
       User interface dialogs 
      -->
@@ -463,7 +464,7 @@
            Key='SOFTWARE\@MANUFACTURER@\@CPACK_WIX_PACKAGE_NAME@'
            Name='DATADIR' Value='[DATADIR]' Type='string' KeyPath='yes'/>
         <CreateFolder>
-          <util:PermissionEx User="[LogonUser]" GenericAll="yes" />
+          <util:PermissionEx User="[LogonUser]" Domain="[USER_DOMAIN]" GenericAll="yes" />
           <util:PermissionEx User="NetworkService" GenericAll="yes" />
         </CreateFolder>
       </Component>
@@ -851,6 +852,7 @@
     <Property Id="ARPSYSTEMCOMPONENT" Value="1" Secure="yes" />
     <Property Id="ARPINSTALLLOCATION" Secure="yes"/>
     <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLDIR]" After="InstallValidate"  Sequence="execute"/>
+    <SetProperty Id="USER_DOMAIN" Value="[%USERDOMAIN]" After="LaunchConditions" Sequence="first" />
     <Feature Id='ARPRegistryEntries'
           Title='Add or remove program entries'
           Description='Add or remove program entries'
