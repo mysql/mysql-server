@@ -24,6 +24,7 @@
 #include "mysql/plugin.h"    // SHOW_VAR
 #include "ndbapi/NdbDictionary.hpp"
 #include "ndbapi/NdbTransaction.hpp"
+
 #include "ndb_conflict_trans.h"
 #include "sql_const.h"       // MAX_REF_PARTS
 

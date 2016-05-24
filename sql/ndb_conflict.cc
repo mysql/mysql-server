@@ -14,6 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
+
 #include "ha_ndbcluster_glue.h"
 #include "my_dbug.h"
 #include "my_global.h" /* For config defines */
@@ -21,6 +22,8 @@
 #include "ndb_conflict.h"
 #include "ndb_table_guard.h"
 #include "mysqld.h"   // lower_case_table_names
+
+#include "my_base.h"   // HA_ERR_ROWS_EVENT_APPLY
 
 #include "log.h"            // sql_print_*
 
