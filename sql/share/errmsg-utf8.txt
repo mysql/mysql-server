@@ -7803,6 +7803,9 @@ ER_COMPONENTS_UNLOAD_DUPLICATE_IN_GROUP
   eng "The component with specified URN: '%.192s' was specified in group more than once."
   pol "Komponent z podanym URN: '%.192s' został podany w grupie więcej niż raz."
 
+ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS
+  eng "@@GLOBAL.GTID_PURGED cannot be changed: %s"
+
 #
 #  End of 5.8 error messages.
 #
