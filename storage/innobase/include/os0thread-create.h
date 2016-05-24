@@ -37,22 +37,6 @@ extern ulint	srv_max_n_threads;
 /** Number of threads active. */
 extern	std::atomic_int	os_thread_count;
 
-#if defined(HAVE_PSI_INTERFACE) && defined(UNIV_PFS_THREAD)
-/* This macro register the current thread and its key
-with performance schema */
-#define pfs_register_thread(key)				\
-do {								\
-	struct PSI_thread* psi = PSI_THREAD_CALL(new_thread)(key, NULL, 0);\
-	PSI_THREAD_CALL(set_thread_os_id)(psi);			\
-	PSI_THREAD_CALL(set_thread)(psi);			\
-} while (0)
-
-/* This macro delist the current thread from performance schema */
-#define pfs_delete_thread()					\
-do {								\
-	PSI_THREAD_CALL(delete_current_thread)();		\
-} while (0)
-#endif /* HAVE_PSI_INTERFACE  && UNIV_PFS_THREAD */
 
 /** Initializes OS thread management data structures. */
 inline
@@ -86,25 +70,41 @@ os_thread_any_active()
 	return(os_thread_count.load(std::memory_order_relaxed) > 0);
 }
 
-class Runnable {
+/** Wrapper for a callable, it will count the number of registered
+Runnable instances and will register the thread executing the callable
+with the PFS and the Server threading infrastructure. */
+class Runnable{
 public:
 #ifdef UNIV_PFS_THREAD
 	/** Constructor for the Runnable object.
-	@param[in]	pfs_key		This is a conditional compile. */
+	@param[in]	pfs_key		Performance schema key */
 	explicit Runnable(mysql_pfs_key_t pfs_key) : m_pfs_key(pfs_key) { }
 #else
 	Runnable() { }
 #endif /* UNIV_PFS_THREAD */
 
 public:
+	/** Method to execute the callable */
 	template<typename F, typename ... Args>
 	void run(F&& f, Args&& ... args)
 	{
-#ifdef UNIV_DEBUG_THREAD_CREATION
-	ib::info()
-		<< "Thread start, id "
-		<< std::this_thread::native_handle;
-#endif /* UNIV_DEBUG_THREAD_CREATION */
+		preamble();
+
+		using return_type = typename std::result_of<F(Args ...)>::type;
+
+		auto	task = std::make_shared<
+			std::packaged_task<return_type()>>(
+				std::bind(std::forward<F>(f),
+					  std::forward<Args>(args) ...));
+
+		(*task)();
+
+		epilogue();
+	}
+private:
+	/** Register the thread with the server */
+	void preamble()
+	{
 		my_thread_init();
 
 #ifdef UNIV_PFS_THREAD
@@ -116,13 +116,6 @@ public:
 		PSI_THREAD_CALL(set_thread)(psi);
 #endif /* UNIV_PFS_THREAD */
 
-		using return_type = typename std::result_of<F(Args ...)>::type;
-
-		auto	task = std::make_shared<
-			std::packaged_task<return_type()>>(
-				std::bind(std::forward<F>(f),
-					  std::forward<Args>(args) ...));
-
 		std::atomic_thread_fence(std::memory_order_release);;
 
 		int	old;
@@ -130,10 +123,14 @@ public:
 		old = os_thread_count.fetch_add(1, std::memory_order_relaxed);
 
 		ut_a(old <= static_cast<int>(srv_max_n_threads) - 1);
+	}
 
-		(*task)();
-
+	/** Deregister the thread */
+	void epilogue()
+	{
 		std::atomic_thread_fence(std::memory_order_release);;
+
+		int	old;
 
 		old = os_thread_count.fetch_sub(1, std::memory_order_relaxed);
 		ut_a(old > 0);
@@ -141,16 +138,9 @@ public:
 		my_thread_end();
 
 #ifdef UNIV_PFS_THREAD
-		pfs_delete_thread();
+		PSI_THREAD_CALL(delete_current_thread)();
 #endif /* UNIV_PFS_THREAD */
-
-#ifdef UNIV_DEBUG_THREAD_CREATION
-		ib::info()
-			<< "Thread exit, id "
-			<< static_cast<size_t>(os_thread_get_curr_id());
-#endif /* UNIV_DEBUG_THREAD_CREATION */
 	}
-
 private:
 #ifdef UNIV_PFS_THREAD
 	/** Performance schema key */
@@ -205,6 +195,7 @@ do {									\
 	std::thread	t(std::move(task));				\
 	t.detach();							\
 } while (0);
+
 /** Creae a detached thread.
 Note: Captures the local arguments by value [=].
 @para[in]	f		Callable */
