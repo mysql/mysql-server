@@ -119,9 +119,9 @@ ut_print_timestamp(
 /*===============*/
 	FILE*  file) /*!< in: file where to print */
 {
-	ulint thread_id = 0;
+	ulonglong	thread_id;
 
-	thread_id = static_cast<size_t>(os_thread_get_curr_id());
+	thread_id = static_cast<ulonglong>(os_thread_get_curr_id());
 
 #ifdef _WIN32
 	SYSTEMTIME cal_tm;
@@ -135,7 +135,7 @@ ut_print_timestamp(
 		(int) cal_tm.wHour,
 		(int) cal_tm.wMinute,
 		(int) cal_tm.wSecond,
-		static_cast<ulonglong>(thread_id));
+		thread_id);
 #else
 	struct tm* cal_tm_ptr;
 	time_t	   tm;
@@ -144,7 +144,7 @@ ut_print_timestamp(
 	time(&tm);
 	localtime_r(&tm, &cal_tm);
 	cal_tm_ptr = &cal_tm;
-	fprintf(file, "%d-%02d-%02d %02d:%02d:%02d %#lx",
+	fprintf(file, "%d-%02d-%02d %02d:%02d:%02d %#llx",
 		cal_tm_ptr->tm_year + 1900,
 		cal_tm_ptr->tm_mon + 1,
 		cal_tm_ptr->tm_mday,
@@ -152,7 +152,7 @@ ut_print_timestamp(
 		cal_tm_ptr->tm_min,
 		cal_tm_ptr->tm_sec,
 		thread_id);
-#endif
+#endif /* _WIN32 */
 }
 
 /**********************************************************//**

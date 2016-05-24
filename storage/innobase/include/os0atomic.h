@@ -153,9 +153,9 @@ compare to, new_val is the value to swap in. */
 			static_cast<LONGLONG>(old_val)) \
 	 == static_cast<LONGLONG>(old_val))
 
-/* windows thread objects can always be passed to windows atomic functions */
-# define os_compare_and_swap_thread_id(ptr, old_val, new_val) \
-	(win_cmp_and_xchg_dword(ptr, new_val, old_val) == old_val)
+/* Windows thread HANDLEs are of type PVOID */
+# define os_compare_and_swap_thread_id(ptr, old_val, new_val)	\
+	(InterlockedCompareExchangePointer(p, new_val,old_val) == old_val)
 
 # define INNODB_RW_LOCKS_USE_ATOMICS
 # define IB_ATOMICS_STARTUP_MSG \
