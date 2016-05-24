@@ -22,7 +22,6 @@
 #include "dd/types/event.h"                   // Event
 #include "dd/types/routine.h"                 // Routine
 #include "dd/types/schema.h"                  // Schema
-#include "dd/types/spatial_reference_system.h"// Spatial_reference_system
 #include "dd/types/tablespace.h"              // Tablespace
 
 namespace dd {
@@ -93,7 +92,6 @@ template class Local_multi_map<Collation>;
 template class Local_multi_map<Event>;
 template class Local_multi_map<Routine>;
 template class Local_multi_map<Schema>;
-template class Local_multi_map<Spatial_reference_system>;
 template class Local_multi_map<Tablespace>;
 
 } // namespace cache

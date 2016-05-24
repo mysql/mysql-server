@@ -240,36 +240,6 @@ template void Shared_dictionary_cache::put<Schema>(
     Cache_element<Schema>**);
 
 template bool Shared_dictionary_cache::
-  get<Spatial_reference_system::id_key_type, Spatial_reference_system>(
-    THD *thd, const Spatial_reference_system::id_key_type&,
-    Cache_element<Spatial_reference_system>**);
-template bool Shared_dictionary_cache::
-  get<Spatial_reference_system::name_key_type, Spatial_reference_system>(
-    THD *thd, const Spatial_reference_system::name_key_type&,
-    Cache_element<Spatial_reference_system>**);
-template bool Shared_dictionary_cache::
-  get<Spatial_reference_system::aux_key_type, Spatial_reference_system>(
-    THD *thd, const Spatial_reference_system::aux_key_type&,
-    Cache_element<Spatial_reference_system>**);
-template bool Shared_dictionary_cache::
-  get_uncached<Spatial_reference_system::id_key_type, Spatial_reference_system>(
-    THD *thd, const Spatial_reference_system::id_key_type&,
-    enum_tx_isolation, const Spatial_reference_system**) const;
-template bool Shared_dictionary_cache::
-  get_uncached<Spatial_reference_system::name_key_type,
-               Spatial_reference_system>(
-    THD *thd, const Spatial_reference_system::name_key_type&,
-    enum_tx_isolation, const Spatial_reference_system**) const;
-template bool Shared_dictionary_cache::
-  get_uncached<Spatial_reference_system::aux_key_type,
-               Spatial_reference_system>(
-    THD *thd, const Spatial_reference_system::aux_key_type&,
-    enum_tx_isolation, const Spatial_reference_system**) const;
-template void Shared_dictionary_cache::put<Spatial_reference_system>(
-    const Spatial_reference_system*,
-    Cache_element<Spatial_reference_system>**);
-
-template bool Shared_dictionary_cache::
   get<Tablespace::id_key_type, Tablespace>(
     THD *thd, const Tablespace::id_key_type&,
     Cache_element<Tablespace>**);

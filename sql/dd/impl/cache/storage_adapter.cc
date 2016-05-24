@@ -25,7 +25,6 @@
 #include "dd/types/function.h"                // Routine, Function
 #include "dd/types/procedure.h"               // Procedure
 #include "dd/types/schema.h"                  // Schema
-#include "dd/types/spatial_reference_system.h"// Spatial_reference_system
 #include "dd/types/table.h"                   // Table
 #include "dd/types/tablespace.h"              // Tablespace
 #include "dd/types/view.h"                    // View
@@ -265,21 +264,6 @@ template bool Storage_adapter::get<Schema::aux_key_type, Schema>
         enum_tx_isolation, const Schema **);
 template bool Storage_adapter::drop(THD *, const Schema*);
 template bool Storage_adapter::store(THD *, Schema*);
-
-template bool Storage_adapter::get<Spatial_reference_system::id_key_type,
-                                   Spatial_reference_system>
-       (THD *, const Spatial_reference_system::id_key_type &,
-        enum_tx_isolation, const Spatial_reference_system **);
-template bool Storage_adapter::get<Spatial_reference_system::name_key_type,
-                                   Spatial_reference_system>
-       (THD *, const Spatial_reference_system::name_key_type &,
-        enum_tx_isolation, const Spatial_reference_system **);
-template bool Storage_adapter::get<Spatial_reference_system::aux_key_type,
-                                   Spatial_reference_system>
-       (THD *, const Spatial_reference_system::aux_key_type &,
-        enum_tx_isolation, const Spatial_reference_system **);
-template bool Storage_adapter::drop(THD *, const Spatial_reference_system*);
-template bool Storage_adapter::store(THD *, Spatial_reference_system*);
 
 template bool Storage_adapter::get<Tablespace::id_key_type, Tablespace>
        (THD *, const Tablespace::id_key_type &,

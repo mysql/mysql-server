@@ -33,7 +33,6 @@
 #include "dd/impl/tables/parameter_type_elements.h"  // Parameter_type_elements
 #include "dd/impl/tables/routines.h"                 // Routines
 #include "dd/impl/tables/schemata.h"                 // Schemata
-#include "dd/impl/tables/spatial_reference_systems.h"// Spatial_reference_systems
 #include "dd/impl/tables/table_partition_values.h"   // Table_partition_values
 #include "dd/impl/tables/table_partitions.h"         // Table_partitions
 #include "dd/impl/tables/tables.h"                   // Tables
@@ -68,7 +67,6 @@ void System_tables::init()
   register_system_table<Tablespace_files>();
   register_system_table<Catalogs>();
   register_system_table<Schemata>();
-  register_system_table<Spatial_reference_systems>();
   register_system_table<Tables>();
   register_system_table<View_table_usage>();
   register_system_table<Columns>();

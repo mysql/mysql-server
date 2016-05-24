@@ -112,17 +112,6 @@ ADD_CUSTOM_COMMAND(
 )
 
 ADD_CUSTOM_COMMAND(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_tables_data_fix.h
-  COMMAND comp_sql
-  mysql_system_tables_data_fix
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_data_fix.sql
-  sql_commands_system_tables_data_fix.h
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-  DEPENDS comp_sql
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_data_fix.sql
-)
-
-ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_tables.h
   COMMAND comp_sql
   mysql_system_tables
@@ -151,7 +140,6 @@ IF(NOT WITHOUT_SERVER)
     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_data.h
     ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_tables.h
     ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_help_data.h
-    ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_tables_data_fix.h
   )
 ENDIF()
 

@@ -25,7 +25,6 @@
 #include "dd/types/event.h"                 // Event
 #include "dd/types/routine.h"               // Routine
 #include "dd/types/schema.h"                // Schema
-#include "dd/types/spatial_reference_system.h" // Spatial_reference_system
 #include "dd/types/table.h"                 // Table
 #include "dd/types/tablespace.h"            // Tablespace
 
@@ -49,13 +48,11 @@ namespace cache {
 class Shared_dictionary_cache
 {
 private:
-  // We have 223 collations, 41 character sets and 4535 spatial
-  // reference systems after initializing the server, as of MySQL
-  // 5.8.0.
+  // We have 223 collations and 41 character sets after initializing
+  // the server, as of MySQL 5.8.0.
   static const size_t collation_capacity= 256;
   static const size_t charset_capacity= 64;
   static const size_t event_capacity= 256;
-  static const size_t spatial_reference_system_capacity= 256;
 
   Shared_multi_map<Abstract_table> m_abstract_table_map;
   Shared_multi_map<Charset>        m_charset_map;
@@ -63,7 +60,6 @@ private:
   Shared_multi_map<Event>          m_event_map;
   Shared_multi_map<Routine>        m_routine_map;
   Shared_multi_map<Schema>         m_schema_map;
-  Shared_multi_map<Spatial_reference_system> m_spatial_reference_system_map;
   Shared_multi_map<Tablespace>     m_tablespace_map;
 
   template <typename T> struct Type_selector { }; // Dummy type to use for
@@ -86,9 +82,6 @@ private:
   { return &m_routine_map; }
   Shared_multi_map<Schema>         *m_map(Type_selector<Schema>)
   { return &m_schema_map; }
-  Shared_multi_map<Spatial_reference_system> *
-    m_map(Type_selector<Spatial_reference_system>)
-  { return &m_spatial_reference_system_map; }
   Shared_multi_map<Tablespace>     *m_map(Type_selector<Tablespace>)
   { return &m_tablespace_map; }
 
@@ -101,9 +94,6 @@ private:
   { return &m_collation_map; }
   const Shared_multi_map<Schema>         *m_map(Type_selector<Schema>) const
   { return &m_schema_map; }
-  const Shared_multi_map<Spatial_reference_system> *
-    m_map(Type_selector<Spatial_reference_system>) const
-  { return &m_spatial_reference_system_map; }
   const Shared_multi_map<Tablespace>     *m_map(Type_selector<Tablespace>) const
   { return &m_tablespace_map; }
 
@@ -156,8 +146,6 @@ public:
     instance()->m_map<Event>()->set_capacity(event_capacity);
     instance()->m_map<Routine>()->set_capacity(stored_program_def_size);
     instance()->m_map<Schema>()->set_capacity(schema_def_size);
-    instance()->m_map<Spatial_reference_system>()->
-      set_capacity(spatial_reference_system_capacity);
     instance()->m_map<Tablespace>()->set_capacity(tablespace_def_size);
   }
 
@@ -171,7 +159,6 @@ public:
     instance()->m_map<Event>()->shutdown();
     instance()->m_map<Routine>()->shutdown();
     instance()->m_map<Schema>()->shutdown();
-    instance()->m_map<Spatial_reference_system>()->shutdown();
     instance()->m_map<Tablespace>()->shutdown();
   }
 

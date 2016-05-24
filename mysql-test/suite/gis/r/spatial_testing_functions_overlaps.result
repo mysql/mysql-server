@@ -1992,28 +1992,18 @@ MBROVERLAPS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0))
 SELECT MBROVERLAPS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
 MBROVERLAPS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100))
 0
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 100. Calculations in function mbroverlaps will be done in SRID 0.
 SELECT MBROVERLAPS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
 MBROVERLAPS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000))
 0
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 20000. Calculations in function mbroverlaps will be done in SRID 0.
 SELECT MBROVERLAPS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
 MBROVERLAPS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456))
 0
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 123456. Calculations in function mbroverlaps will be done in SRID 0.
 SELECT MBROVERLAPS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
 MBROVERLAPS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575))
 0
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 1048575. Calculations in function mbroverlaps will be done in SRID 0.
 SELECT MBROVERLAPS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
 MBROVERLAPS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295))
 0
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 4294967295. Calculations in function mbroverlaps will be done in SRID 0.
 SELECT MBROVERLAPS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT MBROVERLAPS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
@@ -2029,28 +2019,18 @@ ST_OVERLAPS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0))
 SELECT ST_OVERLAPS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
 ST_OVERLAPS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100))
 0
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 100. Calculations in function st_overlaps will be done in SRID 0.
 SELECT ST_OVERLAPS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
 ST_OVERLAPS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000))
 0
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 20000. Calculations in function st_overlaps will be done in SRID 0.
 SELECT ST_OVERLAPS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
 ST_OVERLAPS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456))
 0
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 123456. Calculations in function st_overlaps will be done in SRID 0.
 SELECT ST_OVERLAPS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
 ST_OVERLAPS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575))
 0
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 1048575. Calculations in function st_overlaps will be done in SRID 0.
 SELECT ST_OVERLAPS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
 ST_OVERLAPS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295))
 0
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 4294967295. Calculations in function st_overlaps will be done in SRID 0.
 SELECT ST_OVERLAPS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_OVERLAPS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
@@ -3147,101 +3127,3 @@ MBROVERLAPS(a.g, b.g)
 DROP TABLE t1;
 DROP TABLE gis_geometrycollection;
 DROP TABLE gis_geometrycollection_2;
-#
-# WL#8579 Spatial Reference Systems
-#
-# SRID 0 (should pass)
-SELECT ST_OVERLAPS(
-ST_GEOMFROMTEXT('POINT(0 0)', 0),
-ST_GEOMFROMTEXT('POINT(0 0)', 0)
-);
-ST_OVERLAPS(
-ST_GEOMFROMTEXT('POINT(0 0)', 0),
-ST_GEOMFROMTEXT('POINT(0 0)', 0)
-)
-0
-SELECT MBROVERLAPS(
-ST_GEOMFROMTEXT('POINT(0 0)', 0),
-ST_GEOMFROMTEXT('POINT(0 0)', 0)
-);
-MBROVERLAPS(
-ST_GEOMFROMTEXT('POINT(0 0)', 0),
-ST_GEOMFROMTEXT('POINT(0 0)', 0)
-)
-0
-# Projected SRS (should pass)
-SELECT ST_OVERLAPS(
-ST_GEOMFROMTEXT('POINT(0 0)', 2000),
-ST_GEOMFROMTEXT('POINT(0 0)', 2000)
-);
-ST_OVERLAPS(
-ST_GEOMFROMTEXT('POINT(0 0)', 2000),
-ST_GEOMFROMTEXT('POINT(0 0)', 2000)
-)
-0
-SELECT MBROVERLAPS(
-ST_GEOMFROMTEXT('POINT(0 0)', 2000),
-ST_GEOMFROMTEXT('POINT(0 0)', 2000)
-);
-MBROVERLAPS(
-ST_GEOMFROMTEXT('POINT(0 0)', 2000),
-ST_GEOMFROMTEXT('POINT(0 0)', 2000)
-)
-0
-# Geographic SRS (should pass)
-SELECT ST_OVERLAPS(
-ST_GEOMFROMTEXT('POINT(0 0)', 4326),
-ST_GEOMFROMTEXT('POINT(0 0)', 4326)
-);
-ST_OVERLAPS(
-ST_GEOMFROMTEXT('POINT(0 0)', 4326),
-ST_GEOMFROMTEXT('POINT(0 0)', 4326)
-)
-0
-SELECT MBROVERLAPS(
-ST_GEOMFROMTEXT('POINT(0 0)', 4326),
-ST_GEOMFROMTEXT('POINT(0 0)', 4326)
-);
-MBROVERLAPS(
-ST_GEOMFROMTEXT('POINT(0 0)', 4326),
-ST_GEOMFROMTEXT('POINT(0 0)', 4326)
-)
-0
-# Undefined SRS (should pass with warning)
-SELECT ST_OVERLAPS(
-ST_GEOMFROMTEXT('POINT(0 0)', 20000000),
-ST_GEOMFROMTEXT('POINT(0 0)', 20000000)
-);
-ST_OVERLAPS(
-ST_GEOMFROMTEXT('POINT(0 0)', 20000000),
-ST_GEOMFROMTEXT('POINT(0 0)', 20000000)
-)
-0
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 20000000. Calculations in function st_overlaps will be done in SRID 0.
-SELECT MBROVERLAPS(
-ST_GEOMFROMTEXT('POINT(0 0)', 20000000),
-ST_GEOMFROMTEXT('POINT(0 0)', 20000000)
-);
-MBROVERLAPS(
-ST_GEOMFROMTEXT('POINT(0 0)', 20000000),
-ST_GEOMFROMTEXT('POINT(0 0)', 20000000)
-)
-0
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 20000000. Calculations in function mbroverlaps will be done in SRID 0.
-# Unparseable SRS definition (should fail)
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (20000001, 1, 'TEST20000001', 'Foo', 20000001, 'FOOBAR', '');
-SELECT ST_OVERLAPS(
-ST_GEOMFROMTEXT('POINT(0 0)', 20000001),
-ST_GEOMFROMTEXT('POINT(0 0)', 20000001)
-);
-ERROR SR002: Can't parse the spatial reference system definition of SRID 20000001.
-SELECT MBROVERLAPS(
-ST_GEOMFROMTEXT('POINT(0 0)', 20000001),
-ST_GEOMFROMTEXT('POINT(0 0)', 20000001)
-);
-ERROR SR002: Can't parse the spatial reference system definition of SRID 20000001.
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 20000001;

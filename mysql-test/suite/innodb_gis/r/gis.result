@@ -1322,8 +1322,6 @@ FROM named_places
 WHERE name = 'Goose Island';
 ST_AsText(ST_Envelope(boundary))
 POLYGON((59 13,67 13,67 18,59 18,59 13))
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_envelope will be done in SRID 0.
 # Conformance Item T15
 SELECT ST_X(position)
 FROM bridges
@@ -1354,8 +1352,6 @@ FROM road_segments
 WHERE fid = 106;
 ST_Length(centerline)
 26
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_length will be done in SRID 0.
 # Conformance Item T22
 SELECT ST_NumPoints(centerline)
 FROM road_segments
@@ -1374,16 +1370,12 @@ FROM named_places
 WHERE name = 'Goose Island';
 ST_AsText(ST_Centroid(boundary))
 POINT(63 15.5)
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_centroid will be done in SRID 0.
 # Conformance Item T26
 SELECT ST_Area(boundary)
 FROM named_places
 WHERE name = 'Goose Island';
 ST_Area(boundary)
 40
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_area will be done in SRID 0.
 # Conformance Item T27
 SELECT ST_AsText(ST_ExteriorRing(shore))
 FROM lakes
@@ -1426,24 +1418,18 @@ FROM divided_routes
 WHERE name = 'Route 75';
 ST_Length(centerlines)
 96
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_length will be done in SRID 0.
 # Conformance Item T34
 SELECT ST_AsText(ST_Centroid(shores))
 FROM ponds
 WHERE fid = 120;
 ST_AsText(ST_Centroid(shores))
 POINT(25 42)
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_centroid will be done in SRID 0.
 # Conformance Item T36
 SELECT ST_Area(shores)
 FROM ponds
 WHERE fid = 120;
 ST_Area(shores)
 8
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_area will be done in SRID 0.
 # Conformance Item T37
 SELECT ST_Equals(boundary,
 ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',101))
@@ -1452,8 +1438,6 @@ WHERE name = 'Goose Island';
 ST_Equals(boundary,
 ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',101))
 1
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_equals will be done in SRID 0.
 # Conformance Item T38
 SELECT ST_Disjoint(centerlines, boundary)
 FROM divided_routes, named_places
@@ -1461,8 +1445,6 @@ WHERE divided_routes.name = 'Route 75'
 AND named_places.name = 'Ashton';
 ST_Disjoint(centerlines, boundary)
 1
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_disjoint will be done in SRID 0.
 # Conformance Item T39
 SELECT ST_Touches(centerline, shore)
 FROM streams, lakes
@@ -1470,8 +1452,6 @@ WHERE streams.name = 'Cam Stream'
 AND lakes.name = 'Blue Lake';
 ST_Touches(centerline, shore)
 1
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_touches will be done in SRID 0.
 # Conformance Item T42
 SELECT ST_Crosses(road_segments.centerline, divided_routes.centerlines)
 FROM road_segments, divided_routes
@@ -1479,8 +1459,6 @@ WHERE road_segments.fid = 102
 AND divided_routes.name = 'Route 75';
 ST_Crosses(road_segments.centerline, divided_routes.centerlines)
 1
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_crosses will be done in SRID 0.
 # Conformance Item T43
 SELECT ST_Intersects(road_segments.centerline, divided_routes.centerlines)
 FROM road_segments, divided_routes
@@ -1488,8 +1466,6 @@ WHERE road_segments.fid = 102
 AND divided_routes.name = 'Route 75';
 ST_Intersects(road_segments.centerline, divided_routes.centerlines)
 1
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_intersects will be done in SRID 0.
 # Conformance Item T44
 SELECT ST_Contains(forests.boundary, named_places.boundary)
 FROM forests, named_places
@@ -1497,8 +1473,6 @@ WHERE forests.name = 'Green Forest'
 AND named_places.name = 'Ashton';
 ST_Contains(forests.boundary, named_places.boundary)
 0
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_contains will be done in SRID 0.
 # Conformance Item T46
 SELECT ST_Distance(position, boundary)
 FROM bridges, named_places
@@ -1506,8 +1480,6 @@ WHERE bridges.name = 'Cam Bridge'
 AND named_places.name = 'Ashton';
 ST_Distance(position, boundary)
 12
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_distance will be done in SRID 0.
 # Conformance Item T48
 SELECT ST_AsText(ST_Difference(named_places.boundary, forests.boundary))
 FROM named_places, forests
@@ -1515,16 +1487,12 @@ WHERE named_places.name = 'Ashton'
 AND forests.name = 'Green Forest';
 ST_AsText(ST_Difference(named_places.boundary, forests.boundary))
 POLYGON((84 42,84 48,62 48,56 34,84 42))
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_difference will be done in SRID 0.
 SELECT ST_AsText(ST_Union(shore, boundary))
 FROM lakes, named_places
 WHERE lakes.name = 'Blue Lake'
 AND named_places.name = 'Goose Island';
 ST_AsText(ST_Union(shore, boundary))
 POLYGON((52 18,48 6,73 9,66 23,52 18))
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_union will be done in SRID 0.
 # Conformance Item T50
 SELECT ST_AsText(ST_SymDifference(shore, boundary))
 FROM lakes, named_places
@@ -1532,19 +1500,12 @@ WHERE lakes.name = 'Blue Lake'
 AND named_places.name = 'Ashton';
 ST_AsText(ST_SymDifference(shore, boundary))
 MULTIPOLYGON(((52 18,48 6,73 9,66 23,52 18),(59 18,67 18,67 13,59 13,59 18)),((62 48,56 34,56 30,84 30,84 48,62 48)))
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_symdifference will be done in SRID 0.
 # Conformance Item T51
 SELECT count(*)
 FROM buildings, bridges
 WHERE ST_Contains(ST_Buffer(bridges.position, 15.0), buildings.footprint) = 1;
 count(*)
 1
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_buffer will be done in SRID 0.
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_contains will be done in SRID 0.
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_buffer will be done in SRID 0.
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_contains will be done in SRID 0.
 DROP DATABASE gis_ogs;
 #
 # Bug#13362660 ASSERTION `FIELD_POS < FIELD_COUNT' FAILED. IN PROTOCOL_TEXT::STORE

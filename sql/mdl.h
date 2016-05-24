@@ -338,7 +338,6 @@ public:
      - COMMIT is for enabling the global read lock to block commits.
      - USER_LEVEL_LOCK is for user-level locks.
      - LOCKING_SERVICE is for the name plugin RW-lock service
-     - SRID is for spatial reference systems
     Note that although there isn't metadata locking on triggers,
     it's necessary to have a separate namespace for them since
     MDL_key is also used outside of the MDL subsystem.
@@ -356,7 +355,6 @@ public:
                             COMMIT,
                             USER_LEVEL_LOCK,
                             LOCKING_SERVICE,
-                            SRID,
                             /* This should be the last ! */
                             NAMESPACE_END };
 

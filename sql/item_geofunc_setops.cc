@@ -23,10 +23,6 @@
 #include "my_config.h"
 #include "current_thd.h"
 #include "item_geofunc_internal.h"
-#include "derror.h"                            // ER_THD
-#include "sql_class.h"                         // THD
-#include "dd/types/spatial_reference_system.h"
-#include "dd/cache/dictionary_client.h"
 
 #include <set>
 
@@ -3099,23 +3095,6 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
   str_value_arg->set_charset(&my_charset_bin);
   str_value_arg->length(0);
 
-  if (g1->get_srid() != 0)
-  {
-    Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(g1->get_srid(), &srs))
-      DBUG_RETURN(error_str()); // Error has already been flagged.
-
-    if (srs == nullptr)
-    {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
-                          g1->get_srid(),
-                          func_name());
-    }
-  }
 
   /*
     Catch all exceptions to make sure no exception can be thrown out of
