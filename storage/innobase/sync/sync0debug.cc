@@ -120,7 +120,7 @@ struct LatchDebug {
 			const os_thread_id_t& rhs) const
 			UNIV_NOTHROW
 		{
-			return(static_cast<size_t>(lhs) < static_cast<size_t>(rhs));
+			return((uint64_t) lhs < (uint64_t) rhs);
 		}
 	};
 
