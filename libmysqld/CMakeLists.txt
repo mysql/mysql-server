@@ -108,8 +108,12 @@ ADD_DEPENDENCIES(sql_embedded GenError GenServerSource)
 # On Unix, it is libmysqld.a
 IF(WIN32)
   SET(MYSQLSERVER_OUTPUT_NAME mysqlserver)
+  SET(COMPONENT_MYSQLSERVER "Embedded")
+  SET(COMPONENT_LIBMYSQLD "Embedded")
 ELSE()
   SET(MYSQLSERVER_OUTPUT_NAME mysqld)
+  SET(COMPONENT_MYSQLSERVER "Development")
+  SET(COMPONENT_LIBMYSQLD "Server")
 ENDIF()
 
 
@@ -134,9 +138,9 @@ FOREACH(LIB ${LIBS})
 ENDFOREACH()
 
 MERGE_LIBRARIES(mysqlserver STATIC ${EMBEDDED_LIBS} 
-  OUTPUT_NAME ${MYSQLSERVER_OUTPUT_NAME} COMPONENT Development)
+  OUTPUT_NAME ${MYSQLSERVER_OUTPUT_NAME} COMPONENT ${COMPONENT_MYSQLSERVER})
 
-INSTALL(FILES embedded_priv.h DESTINATION ${INSTALL_INCLUDEDIR}/private COMPONENT Development)
+INSTALL(FILES embedded_priv.h DESTINATION ${INSTALL_INCLUDEDIR}/private COMPONENT  ${COMPONENT_MYSQLSERVER})
 
 # Visual Studio users need debug  static library 
 IF(MSVC)
@@ -163,7 +167,7 @@ ENDFOREACH()
 
 IF(NOT DISABLE_SHARED)
   MERGE_LIBRARIES(libmysqld SHARED mysqlserver EXPORTS ${EMBEDDED_API}
-    COMPONENT Server) 
+    COMPONENT  ${COMPONENT_LIBMYSQLD})
   IF(UNIX)
     # Name the shared library, handle versioning (provides same api as client
     # library hence the same version)
