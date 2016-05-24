@@ -1530,18 +1530,28 @@ ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0))
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
 ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100))
 15
+Warnings:
+Warning	3519	There's no spatial reference system with SRID 100. Calculations in function st_distance will be done in SRID 0.
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
 ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000))
 15
+Warnings:
+Warning	3519	There's no spatial reference system with SRID 20000. Calculations in function st_distance will be done in SRID 0.
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
 ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456))
 15
+Warnings:
+Warning	3519	There's no spatial reference system with SRID 123456. Calculations in function st_distance will be done in SRID 0.
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
 ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575))
 15
+Warnings:
+Warning	3519	There's no spatial reference system with SRID 1048575. Calculations in function st_distance will be done in SRID 0.
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
 ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295))
 15
+Warnings:
+Warning	3519	There's no spatial reference system with SRID 4294967295. Calculations in function st_distance will be done in SRID 0.
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
@@ -1644,3 +1654,58 @@ ERROR 42000: Incorrect parameter count in the call to native function 'ST_DISTAN
 # Clean up
 DROP TABLE gis_geometrycollection;
 DROP TABLE gis_geometrycollection_2;
+#
+# WL#8579 Spatial Reference Systems
+#
+# SRID 0 (should pass)
+SELECT ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+);
+ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+)
+0
+# Projected SRS (should pass)
+SELECT ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+);
+ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+)
+0
+# Geographic SRS (should pass)
+SELECT ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+);
+ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+)
+0
+# Undefined SRS (should pass with warning)
+SELECT ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 13000000),
+ST_GEOMFROMTEXT('POINT(0 0)', 13000000)
+);
+ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 13000000),
+ST_GEOMFROMTEXT('POINT(0 0)', 13000000)
+)
+0
+Warnings:
+Warning	3519	There's no spatial reference system with SRID 13000000. Calculations in function st_distance will be done in SRID 0.
+# Unparseable SRS definition (should fail)
+INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
+organization, organization_coordsys_id, definition, description)
+VALUES (13000001, 1, 'TEST13000001', 'Foo', 13000001, 'FOOBAR', '');
+SELECT ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 13000001),
+ST_GEOMFROMTEXT('POINT(0 0)', 13000001)
+);
+ERROR SR002: Can't parse the spatial reference system definition of SRID 13000001.
+DELETE FROM mysql.st_spatial_reference_systems WHERE id = 13000001;

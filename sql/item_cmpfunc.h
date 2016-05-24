@@ -273,7 +273,7 @@ public:
 
 
 class Item_cache;
-#define UNKNOWN ((my_bool)-1)
+static const my_bool UNKNOWN= static_cast<my_bool>(-1);
 
 
 /*

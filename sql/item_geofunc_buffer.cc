@@ -28,6 +28,9 @@
 
 #include "item_geofunc_internal.h"
 #include "gis_bg_traits.h"
+#include "derror.h"                            // ER_THD
+#include "dd/types/spatial_reference_system.h"
+#include "dd/cache/dictionary_client.h"
 
 
 static const char *const buffer_strategy_names []=
@@ -382,6 +385,24 @@ String *Item_func_buffer::val_str(String *str_value_arg)
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     DBUG_RETURN(error_str());
+  }
+
+  if (geom->get_srid() != 0)
+  {
+    Srs_fetcher fetcher(current_thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    if (fetcher.acquire(geom->get_srid(), &srs))
+      DBUG_RETURN(error_str()); // Error has already been flagged.
+
+    if (srs == nullptr)
+    {
+      push_warning_printf(current_thd,
+                          Sql_condition::SL_WARNING,
+                          ER_WARN_SRS_NOT_FOUND,
+                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
+                          geom->get_srid(),
+                          func_name());
+    }
   }
 
   /*
