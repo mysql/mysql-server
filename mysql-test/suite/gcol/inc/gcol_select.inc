@@ -74,6 +74,7 @@ eval $s;
 eval explain $s;
 
 --echo # select_type=PRIMARY, type=range,ref
+--sorted_result
 let $s = select * from t1 where c in (select c from t3 where c between -2 and -1);
 eval $s;
 eval explain $s;
