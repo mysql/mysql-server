@@ -2551,12 +2551,16 @@ Ndb_index_stat_thread::do_run()
   for (;;)
   {
     native_mutex_lock(&LOCK_client_waiting);
-    if (client_waiting == false) {
-      int ret= native_cond_timedwait(&COND_client_waiting,
-                                     &LOCK_client_waiting,
-                                     &abstime);
-      DBUG_PRINT("index_stat", ("loop: %s",
-                                ret == ETIMEDOUT ? "timed out" : "wake up"));
+    if (client_waiting == false)
+    {
+      const int ret=
+          native_cond_timedwait(&COND_client_waiting,
+                                &LOCK_client_waiting,
+                                &abstime);
+      if (ret == ETIMEDOUT)
+        DBUG_PRINT("index_stat", ("loop: timed out"));
+      else
+        DBUG_PRINT("index_stat", ("loop: wake up"));
     }
     client_waiting= false;
     native_mutex_unlock(&LOCK_client_waiting);
