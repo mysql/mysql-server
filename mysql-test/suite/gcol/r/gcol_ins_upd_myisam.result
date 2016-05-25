@@ -52,7 +52,7 @@ a	b	c
 # INSERT INTO tbl_name (<normal+gcols>) VALUES... NULL is specified against gcols
 insert into t1 (a,b) values (1,null), (2,null);
 ERROR HY000: The value specified for generated column 'b' in table 't1' is not allowed.
-select * from t1 order by a;
+select * from t1;
 a	b	c
 delete from t1;
 select * from t1;
@@ -61,7 +61,7 @@ a	b	c
 # against gcols
 insert into t1 (a,b) values (1,3), (2,4);
 ERROR HY000: The value specified for generated column 'b' in table 't1' is not allowed.
-select * from t1 order by a;
+select * from t1;
 a	b	c
 delete from t1;
 select * from t1;
@@ -75,7 +75,7 @@ c int generated always as (-a) stored);
 insert into t1 values (1,default,default);
 insert into t1 values (1,default,default) 
 on duplicate key update a=2, b=default;
-select a,b,c from t1 order by a;
+select a,b,c from t1;
 a	b	c
 2	-2	-2
 delete from t1 where b in (1,2);
@@ -91,7 +91,7 @@ c int generated always as (-a) stored unique);
 insert into t1 values (1,default,default);
 insert into t1 values (1,default,default) 
 on duplicate key update a=2, b=default;
-select a,b,c from t1 order by a;
+select a,b,c from t1;
 a	b	c
 2	-2	-2
 # CREATE new_table ... LIKE old_table
@@ -100,7 +100,7 @@ create table t2 like t1;
 insert into t2 select * from t1;
 ERROR HY000: The value specified for generated column 'b' in table 't2' is not allowed.
 insert into t2(a) select a from t1;
-select * from t2 order by a;
+select * from t2;
 a	b	c
 2	-2	-2
 drop table t2;
@@ -183,7 +183,7 @@ a	b	c
 1	-1	-1
 2	-2	-2
 delete from t1;
-select * from t1 order by a;
+select * from t1;
 a	b	c
 drop table t1;
 # INDEX created on gcol 
@@ -255,7 +255,7 @@ a	b	c
 5	-5	-5
 6	-6	-6
 delete from t1 where c between -6 and 0;
-select * from t1 order by a;
+select * from t1;
 a	b	c
 # INDEX created on gcol 
 # UPDATE tbl_name SET non-gcol=expr 

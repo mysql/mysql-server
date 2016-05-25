@@ -24,13 +24,13 @@ create table t1 (a int, b int generated always as (a+1) virtual not null);
 --error 1048
 insert into t1(a) values(null);
 insert into t1(a) values(1);
-select * from t1 order by a;
+select * from t1;
 drop table t1;
 create table t1 (a int, b int generated always as (a+1) stored not null);
 --error 1048
 insert into t1(a) values(null);
 insert into t1(a) values(1);
-select * from t1 order by a;
+select * from t1;
 drop table t1;
 create table t1 (a int);
 alter table t1 add column b int generated always as (a+1) virtual not null;
@@ -78,7 +78,8 @@ create table t1 (a int, b int generated always as (a+1) virtual key);
 }
 create table t1 (a int, b int generated always as (a+1) stored key);
 insert into t1 (a) values (3),(1),(2);
-select * from t1 order by b;
+--sorted_result
+select * from t1;
 drop table t1;
 if ($support_virtual_index)
 {
@@ -192,11 +193,14 @@ drop table t1;
 --echo Test generated columns referencing other generated columns
 create table t1 (a int unique, b int generated always as(-a) virtual, c int generated always as (b + 1) virtual);
 insert into t1 (a) values (1), (2);
-select * from t1 order by c;
+--sorted_result
+select * from t1;
 insert into t1(a) values (1) on duplicate key update a=3;
-select * from t1 order by a;
+--sorted_result
+select * from t1;
 update t1 set a=4 where a=2;
-select * from t1 order by a;
+--sorted_result
+select * from t1;
 drop table t1;
 
 --error ER_GENERATED_COLUMN_NON_PRIOR

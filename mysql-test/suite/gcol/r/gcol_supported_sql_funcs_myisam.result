@@ -2520,18 +2520,18 @@ drop table t1;
 set sql_warnings = 0;
 # TIMEDIFF()
 set sql_warnings = 1;
-create table t1 (a datetime, b datetime, c bigint generated always as (timediff(a,b)) virtual);
+create table t1 (a datetime, b datetime, c time generated always as (timediff(a,b)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
   `b` datetime DEFAULT NULL,
-  `c` bigint(20) GENERATED ALWAYS AS (timediff(`a`,`b`)) VIRTUAL
+  `c` time GENERATED ALWAYS AS (timediff(`a`,`b`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('2008-12-31 23:59:59.000001','2008-12-30 01:01:01.000002',default);
 select * from t1;
 a	b	c
-2008-12-31 23:59:59	2008-12-30 01:01:01	465858
+2008-12-31 23:59:59	2008-12-30 01:01:01	46:58:58
 drop table t1;
 set sql_warnings = 0;
 # TIMESTAMP()

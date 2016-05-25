@@ -535,8 +535,15 @@ GROUP BY field1 HAVING field1 = 91
 ORDER BY field1, alias1.col_date_key, field1 ASC, field1 DESC,
 alias1.col_time_key ASC, field1;
 field1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 't'
+Warning	1292	Truncated incorrect DOUBLE value: 'm'
+Warning	1292	Truncated incorrect DOUBLE value: 'd'
 DROP TABLE cc;
 SET sql_mode=@save_old_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # Bug#20797941: WL8149:ASSERTION !TABLE ||
 #  (!TABLE->READ_SET || BITMAP_IS_SET(TABLE->READ_SET
@@ -584,7 +591,7 @@ ALGORITHM=INPLACE;
 Got one of the listed errors
 ALTER TABLE t1 CHANGE h i INT AS (a) VIRTUAL, WITHOUT VALIDATION,
 ALGORITHM=INPLACE;
-Got one of the listed errors
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 ALTER TABLE t1 ADD COLUMN b SMALLINT AS (a) VIRTUAL, WITH VALIDATION,
 ALGORITHM=INPLACE, LOCK=NONE;
 Got one of the listed errors
@@ -597,15 +604,15 @@ Got one of the listed errors
 Shouldn't fail on Innodb
 ALTER TABLE t1 ADD COLUMN e SMALLINT AS (a) VIRTUAL, WITHOUT VALIDATION,
 ALGORITHM=INPLACE, LOCK=NONE;
-Got one of the listed errors
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 Shouldn't fail on Innodb
 ALTER TABLE t1 ADD COLUMN f SMALLINT AS (a) VIRTUAL, WITHOUT VALIDATION,
 ALGORITHM=INPLACE, LOCK=SHARED;
-Got one of the listed errors
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 Shouldn't fail on Innodb
 ALTER TABLE t1 ADD COLUMN g SMALLINT AS (a) VIRTUAL, WITHOUT VALIDATION,
 ALGORITHM=INPLACE, LOCK=EXCLUSIVE;
-Got one of the listed errors
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 DROP TABLE t1;
 #
 # Bug#21980430 GCOLS: CRASHING
