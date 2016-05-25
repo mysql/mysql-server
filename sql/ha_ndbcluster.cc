@@ -16279,13 +16279,16 @@ Ndb_util_thread::do_run()
   for (;;)
   {
     pthread_mutex_lock(&LOCK);
-    if (!is_stop_requested())
-      pthread_cond_timedwait(&COND,
-                             &LOCK,
-                             &abstime);
-    if (is_stop_requested()) /* Stopping thread */
+    // Normal behaviour is to wait until timeout expired
+    // before doing next loop. May also be woken up
+    // by do_wakeup() when component is requested to stop
+    pthread_cond_timedwait(&COND,
+                           &LOCK,
+                           &abstime);
+    if (is_stop_requested())
       goto ndb_util_thread_end;
     pthread_mutex_unlock(&LOCK);
+
 #ifdef NDB_EXTRA_DEBUG_UTIL_THREAD
     DBUG_PRINT("ndb_util_thread", ("Started, cache_check_time: %lu",
                                    opt_ndb_cache_check_time));

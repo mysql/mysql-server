@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011-2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011-2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -122,8 +122,14 @@ Ndb_component::stop()
     m_thread_state= TS_STOPPING;
   }
 
-  // Give subclass a call, should wake itself up to quickly detect the stop
+  // Give subclass a call, should wake itself up to quickly
+  // detect the stop.
+  // Unlock the mutex first to avoid deadlock betewen
+  // is_stop_requested() and do_wakeup() due to different
+  // mutex lock order
+  pthread_mutex_unlock(&m_start_stop_mutex);
   do_wakeup();
+  pthread_mutex_lock(&m_start_stop_mutex);
 
   if (m_thread_state == TS_STOPPING)
   {
