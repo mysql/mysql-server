@@ -44,6 +44,7 @@ NULLABLE	varchar(3)	NO
 INDEX_TYPE	varchar(16)	NO			
 COMMENT	varchar(16)	YES		NULL	
 INDEX_COMMENT	varchar(1024)	NO			
+IS_VISIBLE	varchar(3)	YES		NULL	
 SHOW CREATE TABLE information_schema.STATISTICS;
 Table	Create Table
 STATISTICS	CREATE TEMPORARY TABLE `STATISTICS` (
@@ -62,7 +63,8 @@ STATISTICS	CREATE TEMPORARY TABLE `STATISTICS` (
   `NULLABLE` varchar(3) NOT NULL DEFAULT '',
   `INDEX_TYPE` varchar(16) NOT NULL DEFAULT '',
   `COMMENT` varchar(16) DEFAULT NULL,
-  `INDEX_COMMENT` varchar(1024) NOT NULL DEFAULT ''
+  `INDEX_COMMENT` varchar(1024) NOT NULL DEFAULT '',
+  `IS_VISIBLE` varchar(3) DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SHOW COLUMNS FROM information_schema.STATISTICS;
 Field	Type	Null	Key	Default	Extra
@@ -82,6 +84,7 @@ NULLABLE	varchar(3)	NO
 INDEX_TYPE	varchar(16)	NO			
 COMMENT	varchar(16)	YES		NULL	
 INDEX_COMMENT	varchar(1024)	NO			
+IS_VISIBLE	varchar(3)	YES		NULL	
 SELECT table_catalog, table_schema, table_name, index_schema, index_name
 FROM information_schema.statistics WHERE table_catalog IS NOT NULL AND
 table_name != 'ndb_binlog_index';
@@ -188,17 +191,17 @@ ENGINE = InnoDB;
 SELECT * FROM information_schema.statistics
 WHERE table_schema LIKE 'db_datadict%'
 ORDER BY table_schema,table_name,index_name,seq_in_index,column_name;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT
-def	db_datadict	t1	1	db_datadict	f2_ind	1	f2	A	0	NULL	NULL	YES	BTREE		
-def	db_datadict	t1	0	db_datadict	PRIMARY	1	f1	A	0	NULL	NULL		BTREE		
-def	db_datadict	t2	1	db_datadict	f2_ind	1	f2	A	0	NULL	NULL	YES	BTREE		
-def	db_datadict	t2	0	db_datadict	PRIMARY	1	f1	A	0	NULL	NULL		BTREE		
-def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	1	f2	A	0	NULL	NULL	YES	BTREE		
-def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	2	f1	A	0	NULL	NULL		BTREE		
-def	db_datadict_2	t3	0	db_datadict_2	f5	1	f5	A	0	NULL	NULL	YES	BTREE		
-def	db_datadict_2	t3	0	db_datadict_2	PRIMARY	1	f1	A	0	NULL	NULL		BTREE		
-def	db_datadict_2	t4	1	db_datadict_2	f2_ind	1	f2	A	0	NULL	NULL	YES	BTREE		
-def	db_datadict_2	t4	0	db_datadict_2	PRIMARY	1	f1	A	0	NULL	NULL		BTREE		
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
+def	db_datadict	t1	1	db_datadict	f2_ind	1	f2	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict	t1	0	db_datadict	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
+def	db_datadict	t2	1	db_datadict	f2_ind	1	f2	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict	t2	0	db_datadict	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
+def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	1	f2	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	2	f1	A	0	NULL	NULL		BTREE			YES
+def	db_datadict_2	t3	0	db_datadict_2	f5	1	f5	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict_2	t3	0	db_datadict_2	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
+def	db_datadict_2	t4	1	db_datadict_2	f2_ind	1	f2	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict_2	t4	0	db_datadict_2	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
@@ -209,7 +212,7 @@ GRANT USAGE ON *.* TO 'testuser2'@'localhost'
 SELECT * FROM information_schema.statistics
 WHERE table_schema LIKE 'db_datadict%'
 ORDER BY table_schema,table_name,index_name,seq_in_index,column_name;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
@@ -219,7 +222,7 @@ ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'mysql'
 SELECT * FROM information_schema.statistics
 WHERE table_schema LIKE 'db_datadict%'
 ORDER BY table_schema,table_name,index_name,seq_in_index,column_name;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
 SHOW GRANTS FOR 'testuser1'@'localhost';
 ERROR 42000: Access denied for user 'testuser2'@'localhost' to database 'mysql'
 SHOW GRANTS FOR 'testuser2'@'localhost';
@@ -231,17 +234,17 @@ GRANT SELECT(f1,f5) ON db_datadict_2.t3 TO 'testuser1'@'localhost';
 SELECT * FROM information_schema.statistics
 WHERE table_schema LIKE 'db_datadict%'
 ORDER BY table_schema,table_name,index_name,seq_in_index,column_name;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT
-def	db_datadict	t1	1	db_datadict	f2_ind	1	f2	A	0	NULL	NULL	YES	BTREE		
-def	db_datadict	t1	0	db_datadict	PRIMARY	1	f1	A	0	NULL	NULL		BTREE		
-def	db_datadict	t2	1	db_datadict	f2_ind	1	f2	A	0	NULL	NULL	YES	BTREE		
-def	db_datadict	t2	0	db_datadict	PRIMARY	1	f1	A	0	NULL	NULL		BTREE		
-def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	1	f2	A	0	NULL	NULL	YES	BTREE		
-def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	2	f1	A	0	NULL	NULL		BTREE		
-def	db_datadict_2	t3	0	db_datadict_2	f5	1	f5	A	0	NULL	NULL	YES	BTREE		
-def	db_datadict_2	t3	0	db_datadict_2	PRIMARY	1	f1	A	0	NULL	NULL		BTREE		
-def	db_datadict_2	t4	1	db_datadict_2	f2_ind	1	f2	A	0	NULL	NULL	YES	BTREE		
-def	db_datadict_2	t4	0	db_datadict_2	PRIMARY	1	f1	A	0	NULL	NULL		BTREE		
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
+def	db_datadict	t1	1	db_datadict	f2_ind	1	f2	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict	t1	0	db_datadict	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
+def	db_datadict	t2	1	db_datadict	f2_ind	1	f2	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict	t2	0	db_datadict	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
+def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	1	f2	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	2	f1	A	0	NULL	NULL		BTREE			YES
+def	db_datadict_2	t3	0	db_datadict_2	f5	1	f5	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict_2	t3	0	db_datadict_2	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
+def	db_datadict_2	t4	1	db_datadict_2	f2_ind	1	f2	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict_2	t4	0	db_datadict_2	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT SELECT (f5, f1) ON `db_datadict_2`.`t3` TO 'testuser1'@'localhost'
@@ -254,13 +257,13 @@ GRANT USAGE ON *.* TO 'testuser2'@'localhost'
 SELECT * FROM information_schema.statistics
 WHERE table_schema LIKE 'db_datadict%'
 ORDER BY table_schema,table_name,index_name,seq_in_index,column_name;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT
-def	db_datadict	t1	1	db_datadict	f2_ind	1	f2	A	0	NULL	NULL	YES	BTREE		
-def	db_datadict	t1	0	db_datadict	PRIMARY	1	f1	A	0	NULL	NULL		BTREE		
-def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	1	f2	A	0	NULL	NULL	YES	BTREE		
-def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	2	f1	A	0	NULL	NULL		BTREE		
-def	db_datadict_2	t3	0	db_datadict_2	f5	1	f5	A	0	NULL	NULL	YES	BTREE		
-def	db_datadict_2	t3	0	db_datadict_2	PRIMARY	1	f1	A	0	NULL	NULL		BTREE		
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
+def	db_datadict	t1	1	db_datadict	f2_ind	1	f2	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict	t1	0	db_datadict	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
+def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	1	f2	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	2	f1	A	0	NULL	NULL		BTREE			YES
+def	db_datadict_2	t3	0	db_datadict_2	f5	1	f5	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict_2	t3	0	db_datadict_2	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT SELECT (f5, f1) ON `db_datadict_2`.`t3` TO 'testuser1'@'localhost'
@@ -272,7 +275,7 @@ ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'mysql'
 SELECT * FROM information_schema.statistics
 WHERE table_schema LIKE 'db_datadict%'
 ORDER BY table_schema,table_name,index_name,seq_in_index,column_name;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
 SHOW GRANTS FOR 'testuser1'@'localhost';
 ERROR 42000: Access denied for user 'testuser2'@'localhost' to database 'mysql'
 SHOW GRANTS FOR 'testuser2'@'localhost';
@@ -288,11 +291,11 @@ GRANT USAGE ON *.* TO 'testuser1'@'localhost'
 SELECT * FROM information_schema.statistics
 WHERE table_schema LIKE 'db_datadict%'
 ORDER BY table_schema,table_name,index_name,seq_in_index,column_name;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT
-def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	1	f2	A	0	NULL	NULL	YES	BTREE		
-def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	2	f1	A	0	NULL	NULL		BTREE		
-def	db_datadict_2	t3	0	db_datadict_2	f5	1	f5	A	0	NULL	NULL	YES	BTREE		
-def	db_datadict_2	t3	0	db_datadict_2	PRIMARY	1	f1	A	0	NULL	NULL		BTREE		
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
+def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	1	f2	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict_2	t3	1	db_datadict_2	f2f1_ind	2	f1	A	0	NULL	NULL		BTREE			YES
+def	db_datadict_2	t3	0	db_datadict_2	f5	1	f5	A	0	NULL	NULL	YES	BTREE			YES
+def	db_datadict_2	t3	0	db_datadict_2	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT SELECT (f5, f1) ON `db_datadict_2`.`t3` TO 'testuser1'@'localhost'
@@ -322,9 +325,9 @@ ALTER TABLE test.t1_1 ADD PRIMARY KEY (f1,f3);
 SELECT * FROM information_schema.statistics
 WHERE table_name LIKE 't1_%'
 ORDER BY table_schema,table_name,index_name,seq_in_index,column_name;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT
-def	test	t1_1	0	test	PRIMARY	1	f1	A	0	NULL	NULL		BTREE		
-def	test	t1_1	0	test	PRIMARY	2	f3	A	0	NULL	NULL		BTREE		
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
+def	test	t1_1	0	test	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
+def	test	t1_1	0	test	PRIMARY	2	f3	A	0	NULL	NULL		BTREE			YES
 ALTER TABLE test.t1_1 DROP PRIMARY KEY;
 SELECT table_name FROM information_schema.statistics
 WHERE table_name LIKE 't1_%';
@@ -332,8 +335,8 @@ table_name
 ALTER TABLE test.t1_1 ADD PRIMARY KEY (f1);
 SELECT * FROM information_schema.statistics
 WHERE table_name LIKE 't1_%';
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT
-def	test	t1_1	0	test	PRIMARY	1	f1	A	0	NULL	NULL		BTREE		
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
+def	test	t1_1	0	test	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
 ALTER TABLE test.t1_1 ADD INDEX (f4);
 CREATE        INDEX f3_f1     ON test.t1_1 (f3,f1);
 CREATE UNIQUE INDEX f4x_uni   ON test.t1_1 (f4x);
@@ -347,14 +350,14 @@ CREATE        INDEX f2_prefix ON test.t1_1 (f2(20));
 SELECT * FROM information_schema.statistics
 WHERE table_name LIKE 't1_%' AND index_name <> 'PRIMARY'
 ORDER BY table_schema,table_name,index_name,seq_in_index,column_name;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT
-def	test	t1_1	1	test	f2_prefix	1	f2	A	0	20	NULL	YES	BTREE		
-def	test	t1_1	1	test	f3_f1	1	f3	A	0	NULL	NULL		BTREE		
-def	test	t1_1	1	test	f3_f1	2	f1	A	0	NULL	NULL		BTREE		
-def	test	t1_1	1	test	f4	1	f4	A	0	NULL	NULL	YES	BTREE		
-def	test	t1_1	0	test	f4x_uni	1	f4x	A	0	NULL	NULL	YES	BTREE		
-def	test	t1_1	1	test	not_null	1	f3x	A	0	NULL	NULL	YES	BTREE		
-def	test	t1_2	1	test	f2_hash	1	f2	A	0	NULL	NULL	YES	BTREE		
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
+def	test	t1_1	1	test	f2_prefix	1	f2	A	0	20	NULL	YES	BTREE			YES
+def	test	t1_1	1	test	f3_f1	1	f3	A	0	NULL	NULL		BTREE			YES
+def	test	t1_1	1	test	f3_f1	2	f1	A	0	NULL	NULL		BTREE			YES
+def	test	t1_1	1	test	f4	1	f4	A	0	NULL	NULL	YES	BTREE			YES
+def	test	t1_1	0	test	f4x_uni	1	f4x	A	0	NULL	NULL	YES	BTREE			YES
+def	test	t1_1	1	test	not_null	1	f3x	A	0	NULL	NULL	YES	BTREE			YES
+def	test	t1_2	1	test	f2_hash	1	f2	A	0	NULL	NULL	YES	BTREE			YES
 DROP TABLE test.t1_2;
 SELECT DISTINCT table_name FROM information_schema.statistics
 WHERE table_name = 't1_1';

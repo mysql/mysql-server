@@ -145,6 +145,10 @@ public:
   virtual bool is_algorithm_explicit() const = 0;
   virtual void set_algorithm_explicit(bool alg_expl) = 0;
 
+  virtual bool is_visible() const = 0;
+  virtual void set_visible(bool is_visible) = 0;
+
+
   /////////////////////////////////////////////////////////////////////////
   // Index-element collection.
   /////////////////////////////////////////////////////////////////////////

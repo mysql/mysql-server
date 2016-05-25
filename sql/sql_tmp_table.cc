@@ -1110,6 +1110,7 @@ update_hidden:
     using_unique_constraint= true;
   keyinfo= param->keyinfo;
   keyinfo->table= table;
+  keyinfo->is_visible= true;
 
   if (group)
   {

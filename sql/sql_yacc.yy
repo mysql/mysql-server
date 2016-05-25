@@ -1112,6 +1112,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 */
 
 %token  JSON_UNQUOTED_SEPARATOR_SYM   /* MYSQL */
+%token  INVISIBLE_SYM
+%token  VISIBLE_SYM
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -1548,12 +1550,13 @@ END_OF_INPUT
 %type <index_option> index_option common_index_option fulltext_index_option
           spatial_index_option alter_algorithm_option alter_lock_option
 
-
 %type <index_type> index_type_clause
 
 %type <inline_index_definition> table_constraint_def
 
 %type <index_name_and_type> index_name_and_type
+
+%type <visibility> visibility
 
 %%
 
@@ -7393,6 +7396,10 @@ common_index_option:
           {
             $$= NEW_PTN PT_index_comment(to_lex_cstring($2));
           }
+        | visibility
+          {
+            $$= NEW_PTN PT_index_visibility($1);
+          }
         ;
 
 /*
@@ -7421,6 +7428,11 @@ index_name_and_type:
 index_type_clause:
           USING index_type    { $$= NEW_PTN PT_index_type($2); }
         | TYPE_SYM index_type { $$= NEW_PTN PT_index_type($2); }
+        ;
+
+visibility:
+          VISIBLE_SYM { $$= true; }
+        | INVISIBLE_SYM { $$= false; }
         ;
 
 index_type:
@@ -8239,6 +8251,15 @@ alter_list_item:
               MYSQL_YYABORT;
             lex->alter_info.alter_list.push_back(ac);
             lex->alter_info.flags|= Alter_info::ALTER_CHANGE_COLUMN_DEFAULT;
+          }
+        | ALTER INDEX_SYM ident visibility
+          {
+            LEX *lex= Lex;
+            auto ac= new Alter_index_visibility($3.str, $4);
+            if (ac == NULL)
+              MYSQL_YYABORT;
+            lex->alter_info.alter_index_visibility_list.push_back(ac);
+            lex->alter_info.flags|= Alter_info::ALTER_INDEX_VISIBILITY;
           }
         | ALTER opt_column field_ident DROP DEFAULT
           {
@@ -13459,6 +13480,7 @@ keyword:
         | HELP_SYM              {}
         | HOST_SYM              {}
         | INSTALL_SYM           {}
+        | INVISIBLE_SYM         {}
         | LANGUAGE_SYM          {}
         | NO_SYM                {}
         | OPEN_SYM              {}
@@ -13485,6 +13507,7 @@ keyword:
         | START_SYM             {}
         | STOP_SYM              {}
         | TRUNCATE_SYM          {}
+        | VISIBLE_SYM           {}
         | UNICODE_SYM           {}
         | UNINSTALL_SYM         {}
         | WRAPPER_SYM           {}

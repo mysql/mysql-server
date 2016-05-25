@@ -2254,6 +2254,7 @@ typedef PT_index_option<ulong, &KEY_CREATE_INFO::block_size> PT_block_size;
 typedef PT_index_option<LEX_CSTRING, &KEY_CREATE_INFO::comment> PT_index_comment;
 typedef PT_index_option<LEX_CSTRING, &KEY_CREATE_INFO::parser_name>
 PT_fulltext_index_parser_name;
+typedef PT_index_option<bool, &KEY_CREATE_INFO::is_visible> PT_index_visibility;
 
 
 /**

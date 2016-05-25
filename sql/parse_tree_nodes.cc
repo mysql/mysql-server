@@ -1206,8 +1206,15 @@ bool PT_inline_index_definition::contextualize(Parse_context *pc)
 {
   Index_options empty_lock_and_algorithm_options;
   empty_lock_and_algorithm_options.init(pc->thd->mem_root);
-  return setup_index(m_keytype, m_name, m_type, m_columns, m_options,
-                     empty_lock_and_algorithm_options, pc);
+  if (setup_index(m_keytype, m_name, m_type, m_columns, m_options,
+                  empty_lock_and_algorithm_options, pc))
+    return true;
+
+  if (m_keytype == KEYTYPE_PRIMARY &&
+      !pc->thd->lex->key_create_info.is_visible)
+    my_error(ER_PK_INDEX_CANT_BE_INVISIBLE, MYF(0));
+
+  return false;
 }
 
 

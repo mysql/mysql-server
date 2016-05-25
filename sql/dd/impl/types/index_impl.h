@@ -191,6 +191,10 @@ public:
   virtual void set_algorithm_explicit(bool alg_expl)
   { m_is_algorithm_explicit= alg_expl; }
 
+  virtual bool is_visible() const { return m_is_visible; }
+
+  virtual void set_visible(bool is_visible) { m_is_visible= is_visible; }
+
   /////////////////////////////////////////////////////////////////////////
   // Index-element collection
   /////////////////////////////////////////////////////////////////////////
@@ -241,6 +245,7 @@ private:
   Index::enum_index_type m_type;
   Index::enum_index_algorithm m_algorithm;
   bool m_is_algorithm_explicit;
+  bool m_is_visible;
 
   std::string m_engine;
 

@@ -7737,6 +7737,9 @@ ER_SRS_NOT_CARTESIAN 22S00
 ER_SRS_NOT_CARTESIAN_UNDEFINED SR001
   eng "Function %s is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID %u, which has not been defined."
 
+ER_PK_INDEX_CANT_BE_INVISIBLE
+  eng "A primary key index cannot be invisible"
+
 #
 #  End of 5.8 error messages.
 #

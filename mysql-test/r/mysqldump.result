@@ -16,7 +16,7 @@ INSERT INTO t1 VALUES (1), (2);
 <database name="test">
 	<table_structure name="t1">
 		<field Field="a" Type="int(11)" Null="YES" Key="MUL" Extra="" Comment="" />
-		<key Table="t1" Non_unique="1" Key_name="a" Seq_in_index="1" Column_name="a" Collation="A" Cardinality="filtered" Null="YES" Index_type="BTREE" Comment="" Index_comment="" />
+		<key Table="t1" Non_unique="1" Key_name="a" Seq_in_index="1" Column_name="a" Collation="A" Cardinality="filtered" Null="YES" Index_type="BTREE" Comment="" Index_comment="" Visible="YES" />
 	</table_structure>
 	<table_data name="t1">
 	<row>
@@ -5487,3 +5487,27 @@ COUNT(*)
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 COUNT(*)
 47
+#
+# WL#8697: Invisible Indexes
+# Test of mysqldump.
+#
+CREATE TABLE test.t1 (
+a INT,
+b INT,
+c INT,
+INDEX (a) VISIBLE,
+INDEX (b) INVISIBLE,
+INDEX (c)
+);
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  KEY `a` (`a`),
+  KEY `b` (`b`) /*!50800 INVISIBLE */,
+  KEY `c` (`c`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE test.t1;

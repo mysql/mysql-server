@@ -63,6 +63,7 @@ typedef struct st_key_create_information
   ulong block_size;
   LEX_CSTRING parser_name;
   LEX_CSTRING comment;
+  bool is_visible;
 } KEY_CREATE_INFO;
 
 extern KEY_CREATE_INFO default_key_create_info;

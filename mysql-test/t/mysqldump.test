@@ -2644,3 +2644,21 @@ SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 --remove_file $MYSQLTEST_VARDIR/tmp/bug21549860.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/sys.sql
+
+--echo #
+--echo # WL#8697: Invisible Indexes
+--echo # Test of mysqldump.
+--echo #
+
+CREATE TABLE test.t1 (
+  a INT,
+  b INT,
+  c INT,
+  INDEX (a) VISIBLE,
+  INDEX (b) INVISIBLE,
+  INDEX (c)
+);
+
+--exec $MYSQL_DUMP --compact test t1
+
+DROP TABLE test.t1;
