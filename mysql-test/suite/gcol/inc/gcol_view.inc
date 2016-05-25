@@ -81,7 +81,7 @@ create table t1 (a int not null,
                  c int generated always as (-a) stored);
 insert into t1 (a) values (1), (2), (3), (4);
 create view v1 as select b+1 from t1 order by 1 desc limit 2;
-select * from v1 order by 1 desc;
+select * from v1;
 --replace_column 10 X
 explain select * from v1;
 drop view v1;

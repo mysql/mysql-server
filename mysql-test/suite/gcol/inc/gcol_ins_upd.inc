@@ -70,7 +70,7 @@ select * from t1;
 --echo # INSERT INTO tbl_name (<normal+gcols>) VALUES... NULL is specified against gcols
 --error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
 insert into t1 (a,b) values (1,null), (2,null);
-select * from t1 order by a;
+select * from t1;
 delete from t1;
 select * from t1;
 
@@ -78,7 +78,7 @@ select * from t1;
 --echo # against gcols
 --error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
 insert into t1 (a,b) values (1,3), (2,4);
-select * from t1 order by a;
+select * from t1;
 delete from t1;
 select * from t1;
 drop table t1;
@@ -89,7 +89,7 @@ eval $create2;
 insert into t1 values (1,default,default);
 insert into t1 values (1,default,default) 
        on duplicate key update a=2, b=default;
-select a,b,c from t1 order by a;
+select a,b,c from t1;
 delete from t1 where b in (1,2);
 select * from t1;
 drop table t1;
@@ -100,7 +100,7 @@ eval $create3;
 insert into t1 values (1,default,default);
 insert into t1 values (1,default,default) 
        on duplicate key update a=2, b=default;
-select a,b,c from t1 order by a;
+select a,b,c from t1;
 
 --echo # CREATE new_table ... LIKE old_table
 --echo # INSERT INTO new_table SELECT * from old_table
@@ -108,7 +108,7 @@ create table t2 like t1;
 --error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
 insert into t2 select * from t1;
 insert into t2(a) select a from t1;
-select * from t2 order by a;
+select * from t2;
 drop table t2;
 
 --echo # CREATE new_table ... LIKE old_table INSERT INTO new_table (<non-gcols>, <gcols>) 
@@ -160,7 +160,7 @@ select * from t1 order by a;
 update t1 set c=3 where b=-2;
 select * from t1 order by a;
 delete from t1;
-select * from t1 order by a;
+select * from t1;
 drop table t1;
 
 --echo # INDEX created on gcol 
@@ -201,7 +201,7 @@ update t1 set a=6 where c between -1 and 0
           order by c;
 select * from t1 order by a;
 delete from t1 where c between -6 and 0;
-select * from t1 order by a;
+select * from t1;
 
 --echo # INDEX created on gcol 
 --echo # UPDATE tbl_name SET non-gcol=expr 

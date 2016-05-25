@@ -1043,7 +1043,7 @@ let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo # TIMEDIFF()
-let $cols = a datetime, b datetime, c bigint generated always as (timediff(a,b)) virtual;
+let $cols = a datetime, b datetime, c time generated always as (timediff(a,b)) virtual;
 let $values1 = '2008-12-31 23:59:59.000001','2008-12-30 01:01:01.000002',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
@@ -1178,14 +1178,12 @@ let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo # ENCODE(), DECODE()
---disable_warnings
 let $cols = a varchar(1024), b varchar(1024) generated always as (decode(encode(a,'abc'),'abc')) virtual;
 let $values1 = 'MySQL',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo # DEFAULT()
---enable_warnings
 let $cols = a varchar(1024) default 'aaa', b varchar(1024) generated always as (ifnull(a,default(a))) virtual;
 let $values1 = 'any value',default;
 let $rows = 1;
@@ -1216,14 +1214,12 @@ let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo # PASSWORD()
---disable_warnings
 let $cols = a varchar(1024), b varchar(1024) generated always as (password(a)) virtual;
 let $values1 = 'badpwd',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo # SHA1()
---enable_warnings
 let $cols = a varchar(1024), b varchar(1024) generated always as (sha1(a)) virtual;
 let $values1 = 'abc',default;
 let $rows = 1;
