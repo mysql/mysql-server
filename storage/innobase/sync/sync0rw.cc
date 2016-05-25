@@ -1231,7 +1231,7 @@ rw_lock_debug_print(
 	ulint	rwt = info->lock_type;
 
 	fprintf(f, "Locked: thread %lu file %s line %lu  ",
-		static_cast<ulong>(info->thread_id),
+		reinterpret_cast<ulong>(info->thread_id),
 		sync_basename(info->file_name),
 		static_cast<ulong>(info->line));
 
