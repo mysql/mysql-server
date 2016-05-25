@@ -7445,14 +7445,6 @@ int Field_string::do_save_field_metadata(uchar *metadata_ptr)
 }
 
 
-uint Field_string::packed_col_length(const uchar *data_ptr, uint length)
-{
-  if (length > 255)
-    return uint2korr(data_ptr)+2;
-  return (uint) *data_ptr + 1;
-}
-
-
 uint Field_string::max_packed_col_length()
 {
   const uint max_length= pack_length();
@@ -7515,8 +7507,6 @@ Field *Field_string::new_field(MEM_ROOT *root, TABLE *new_table,
   VARCHAR, in which case field_length for this may be 1 but the length_bytes
   is 2.
 ****************************************************************************/
-
-const uint Field_varstring::MAX_SIZE= UINT_MAX16;
 
 /**
    Save the field metadata for varstring fields.
@@ -7846,14 +7836,6 @@ Field_varstring::unpack(uchar *to, const uchar *from,
 }
 
 
-uint Field_varstring::packed_col_length(const uchar *data_ptr, uint length)
-{
-  if (length > 255)
-    return uint2korr(data_ptr)+2;
-  return (uint) *data_ptr + 1;
-}
-
-
 size_t Field_varstring::get_key_image(uchar *buff, size_t length, imagetype type)
 {
   /*
@@ -8071,36 +8053,6 @@ uint32 Field_blob::get_length(const uchar *pos, uint packlength_arg, bool low_by
   }
   /* When expanding this, see also MAX_FIELD_BLOBLENGTH. */
   return 0;					// Impossible
-}
-
-
-/**
-  Put a blob length field into a record buffer.
-
-  Depending on the maximum length of a blob, its length field is
-  put into 1 to 4 bytes. This is a property of the blob object,
-  described by 'packlength'.
-
-  @param pos                 Pointer into the record buffer.
-  @param length              The length value to put.
-*/
-
-void Field_blob::put_length(uchar *pos, uint32 length)
-{
-  switch (packlength) {
-  case 1:
-    *pos= (char) length;
-    break;
-  case 2:
-    int2store(pos, length);
-    break;
-  case 3:
-    int3store(pos, length);
-    break;
-  case 4:
-    int4store(pos, length);
-    break;
-  }
 }
 
 
@@ -8592,14 +8544,6 @@ const uchar *Field_blob::unpack(uchar *to,
 #endif
   DBUG_RETURN(from + master_packlength + length);
 }
-
-uint Field_blob::packed_col_length(const uchar *data_ptr, uint length)
-{
-  if (length > 255)
-    return uint2korr(data_ptr)+2;
-  return (uint) *data_ptr + 1;
-}
-
 
 uint Field_blob::max_packed_col_length()
 {

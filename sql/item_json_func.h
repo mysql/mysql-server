@@ -646,7 +646,6 @@ class Item_func_json_search :public Item_json_func
 {
   String m_doc_value;
   String m_one_or_all_value;
-  String m_search_string_value;
   enum_one_or_all_type m_cached_ooa;
   String m_escape;
 

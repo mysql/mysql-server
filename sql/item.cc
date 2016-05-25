@@ -59,135 +59,6 @@ static inline bool select_alias_referencable(enum_parsing_context place)
           place == CTX_HAVING || place == CTX_ORDER_BY);
 }
 
-/****************************************************************************/
-
-/* Hybrid_type_traits {_real} */
-
-void Hybrid_type_traits::fix_length_and_dec(Item *item, Item *arg) const
-{
-  item->decimals= NOT_FIXED_DEC;
-  item->max_length= item->float_length(arg->decimals);
-}
-
-static const Hybrid_type_traits real_traits_instance;
-
-const Hybrid_type_traits *Hybrid_type_traits::instance()
-{
-  return &real_traits_instance;
-}
-
-
-my_decimal *
-Hybrid_type_traits::val_decimal(Hybrid_type *val, my_decimal *to) const
-{
-  double2my_decimal(E_DEC_FATAL_ERROR, val->real, val->dec_buf);
-  return val->dec_buf;
-}
-
-
-String *
-Hybrid_type_traits::val_str(Hybrid_type *val, String *to, uint8 decimals) const
-{
-  to->set_real(val->real, decimals, &my_charset_bin);
-  return to;
-}
-
-/* Hybrid_type_traits_decimal */
-static const Hybrid_type_traits_decimal decimal_traits_instance;
-
-const Hybrid_type_traits_decimal *Hybrid_type_traits_decimal::instance()
-{
-  return &decimal_traits_instance;
-}
-
-
-void
-Hybrid_type_traits_decimal::fix_length_and_dec(Item *item, Item *arg) const
-{
-  item->decimals= arg->decimals;
-  item->max_length= min<uint32>(arg->max_length + DECIMAL_LONGLONG_DIGITS,
-                                DECIMAL_MAX_STR_LENGTH);
-}
-
-
-void Hybrid_type_traits_decimal::set_zero(Hybrid_type *val) const
-{
-  my_decimal_set_zero(&val->dec_buf[0]);
-  val->used_dec_buf_no= 0;
-}
-
-
-void Hybrid_type_traits_decimal::add(Hybrid_type *val, Field *f) const
-{
-  my_decimal_add(E_DEC_FATAL_ERROR,
-                 &val->dec_buf[val->used_dec_buf_no ^ 1],
-                 &val->dec_buf[val->used_dec_buf_no],
-                 f->val_decimal(&val->dec_buf[2]));
-  val->used_dec_buf_no^= 1;
-}
-
-
-/**
-  @todo
-  what is '4' for scale?
-*/
-void Hybrid_type_traits_decimal::div(Hybrid_type *val, ulonglong u) const
-{
-  int2my_decimal(E_DEC_FATAL_ERROR, u, TRUE, &val->dec_buf[2]);
-  /* XXX: what is '4' for scale? */
-  my_decimal_div(E_DEC_FATAL_ERROR,
-                 &val->dec_buf[val->used_dec_buf_no ^ 1],
-                 &val->dec_buf[val->used_dec_buf_no],
-                 &val->dec_buf[2], 4);
-  val->used_dec_buf_no^= 1;
-}
-
-
-longlong
-Hybrid_type_traits_decimal::val_int(Hybrid_type *val, bool unsigned_flag) const
-{
-  longlong result;
-  my_decimal2int(E_DEC_FATAL_ERROR, &val->dec_buf[val->used_dec_buf_no],
-                 unsigned_flag, &result);
-  return result;
-}
-
-
-double
-Hybrid_type_traits_decimal::val_real(Hybrid_type *val) const
-{
-  my_decimal2double(E_DEC_FATAL_ERROR, &val->dec_buf[val->used_dec_buf_no],
-                    &val->real);
-  return val->real;
-}
-
-
-String *
-Hybrid_type_traits_decimal::val_str(Hybrid_type *val, String *to,
-                                    uint8 decimals) const
-{
-  my_decimal_round(E_DEC_FATAL_ERROR, &val->dec_buf[val->used_dec_buf_no],
-                   decimals, FALSE, &val->dec_buf[2]);
-  my_decimal2string(E_DEC_FATAL_ERROR, &val->dec_buf[2], 0, 0, 0, to);
-  return to;
-}
-
-/* Hybrid_type_traits_integer */
-static const Hybrid_type_traits_integer integer_traits_instance;
-
-const Hybrid_type_traits_integer *Hybrid_type_traits_integer::instance()
-{
-  return &integer_traits_instance;
-}
-
-void
-Hybrid_type_traits_integer::fix_length_and_dec(Item *item, Item *arg) const
-{
-  item->decimals= 0;
-  item->max_length= MY_INT64_NUM_DECIMAL_DIGITS;
-  item->unsigned_flag= 0;
-}
-
 /*****************************************************************************
 ** Item functions
 *****************************************************************************/
@@ -6704,23 +6575,6 @@ Item_null::save_in_field_inner(Field *field, bool no_conversions)
 }
 
 
-/**
-  Store null in field.
-
-  @param field		Field where we want to store NULL
-
-  @retval
-    0	 OK
-  @retval
-    1	 Field doesn't support NULL values
-*/
-
-type_conversion_status Item_null::save_safe_in_field(Field *field)
-{
-  return set_field_to_null(field);
-}
-
-
 type_conversion_status
 Item::save_in_field(Field *field, bool no_conversions)
 {
@@ -7760,25 +7614,6 @@ Item* Item::cache_const_expr_transformer(uchar *arg)
     return cache;
   }
   return this;
-}
-
-
-bool Item_field::item_field_by_name_analyzer(uchar **arg)
-{
-  const char *name= reinterpret_cast<char*>(*arg);
-  
-  if (strcmp(field_name, name) == 0)
-    return true;
-  else
-    return false;
-}
-
-
-Item* Item_field::item_field_by_name_transformer(uchar *arg)
-{
-  Item *item= reinterpret_cast<Item*>(arg);
-  item->item_name= item_name;
-  return item;
 }
 
 

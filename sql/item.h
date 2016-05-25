@@ -357,123 +357,6 @@ public:
 };
 
 
-
-/*************************************************************************/
-/*
-  A framework to easily handle different return types for hybrid items
-  (hybrid item is an item whose operand can be of any type, e.g. integer,
-  real, decimal).
-*/
-
-struct Hybrid_type_traits;
-
-struct Hybrid_type
-{
-  longlong integer;
-
-  double real;
-  /*
-    Use two decimal buffers interchangeably to speed up += operation
-    which has no native support in decimal library.
-    Hybrid_type+= arg is implemented as dec_buf[1]= dec_buf[0] + arg.
-    The third decimal is used as a handy temporary storage.
-  */
-  my_decimal dec_buf[3];
-  int used_dec_buf_no;
-
-  /*
-    Traits moved to a separate class to
-      a) be able to easily change object traits in runtime
-      b) they work as a differentiator for the union above
-  */
-  const Hybrid_type_traits *traits;
-
-  Hybrid_type() {}
-  /* XXX: add traits->copy() when needed */
-  Hybrid_type(const Hybrid_type &rhs) :traits(rhs.traits) {}
-};
-
-
-/* Hybryd_type_traits interface + default implementation for REAL_RESULT */
-
-struct Hybrid_type_traits
-{
-  virtual Item_result type() const { return REAL_RESULT; }
-
-  virtual void
-  fix_length_and_dec(Item *item, Item *arg) const;
-
-  /* Hybrid_type operations. */
-  virtual void set_zero(Hybrid_type *val) const { val->real= 0.0; }
-  virtual void add(Hybrid_type *val, Field *f) const
-  { val->real+= f->val_real(); }
-  virtual void div(Hybrid_type *val, ulonglong u) const
-  { val->real/= ulonglong2double(u); }
-
-  virtual longlong val_int(Hybrid_type *val, bool unsigned_flag) const
-  { return (longlong) rint(val->real); }
-  virtual double val_real(Hybrid_type *val) const { return val->real; }
-  virtual my_decimal *val_decimal(Hybrid_type *val, my_decimal *buf) const;
-  virtual String *val_str(Hybrid_type *val, String *buf, uint8 decimals) const;
-  static const Hybrid_type_traits *instance();
-  Hybrid_type_traits() {}
-  virtual ~Hybrid_type_traits() {}
-};
-
-
-struct Hybrid_type_traits_decimal: public Hybrid_type_traits
-{
-  virtual Item_result type() const { return DECIMAL_RESULT; }
-
-  virtual void
-  fix_length_and_dec(Item *arg, Item *item) const;
-
-  /* Hybrid_type operations. */
-  virtual void set_zero(Hybrid_type *val) const;
-  virtual void add(Hybrid_type *val, Field *f) const;
-  virtual void div(Hybrid_type *val, ulonglong u) const;
-
-  virtual longlong val_int(Hybrid_type *val, bool unsigned_flag) const;
-  virtual double val_real(Hybrid_type *val) const;
-  virtual my_decimal *val_decimal(Hybrid_type *val, my_decimal *buf) const
-  { return &val->dec_buf[val->used_dec_buf_no]; }
-  virtual String *val_str(Hybrid_type *val, String *buf, uint8 decimals) const;
-  static const Hybrid_type_traits_decimal *instance();
-  Hybrid_type_traits_decimal() {};
-};
-
-
-struct Hybrid_type_traits_integer: public Hybrid_type_traits
-{
-  virtual Item_result type() const { return INT_RESULT; }
-
-  virtual void
-  fix_length_and_dec(Item *arg, Item *item) const;
-
-  /* Hybrid_type operations. */
-  virtual void set_zero(Hybrid_type *val) const
-  { val->integer= 0; }
-  virtual void add(Hybrid_type *val, Field *f) const
-  { val->integer+= f->val_int(); }
-  virtual void div(Hybrid_type *val, ulonglong u) const
-  { val->integer/= (longlong) u; }
-
-  virtual longlong val_int(Hybrid_type *val, bool unsigned_flag) const
-  { return val->integer; }
-  virtual double val_real(Hybrid_type *val) const
-  { return (double) val->integer; }
-  virtual my_decimal *val_decimal(Hybrid_type *val, my_decimal *buf) const
-  {
-    int2my_decimal(E_DEC_FATAL_ERROR, val->integer, 0, &val->dec_buf[2]);
-    return &val->dec_buf[2];
-  }
-  virtual String *val_str(Hybrid_type *val, String *buf, uint8 decimals) const
-  { buf->set(val->integer, &my_charset_bin); return buf;}
-  static const Hybrid_type_traits_integer *instance();
-  Hybrid_type_traits_integer() {};
-};
-
-
 /*
   Instances of Name_resolution_context store the information necesary for
   name resolution of Items and other context analysis of a query made in
@@ -967,9 +850,6 @@ public:
   virtual void save_org_in_field(Field *field)
   { save_in_field(field, true); }
 
-  virtual type_conversion_status save_safe_in_field(Field *field)
-  { return save_in_field(field, true); }
-
   virtual bool send(Protocol *protocol, String *str);
   bool evaluate(THD *thd, String *str);
   virtual bool eq(const Item *, bool binary_cmp) const;
@@ -1339,39 +1219,6 @@ protected:
   {
     null_value= maybe_null;
     return false;
-  }
-
-
-  /**
-    Get the value to return from val_decimal() in case of errors.
-
-    @see Item::error_bool
-
-    The expected pattern is to use the buffer given as parameter to
-    val_decimal:
-    @verbatim
-      my_decimal *Item_foo::val_decimal(my_decimal *decimal_buffer)
-      {
-        ...
-        if (<error condition>)
-        {
-          my_error(...)
-          return error_decimal(decimal_buffer);
-        }
-        ...
-      }
-    @endverbatim
-
-    @param decimal_buffer Buffer used for returning value.
-
-    @return The value val_decimal() should return.
-  */
-  my_decimal *error_decimal(my_decimal *decimal_buffer)
-  {
-    if (!maybe_null)
-      my_decimal_set_zero(decimal_buffer);
-    null_value= maybe_null;
-    return null_value ? NULL : decimal_buffer;
   }
 
 
@@ -1747,7 +1594,6 @@ public:
   */
   virtual bool intro_version(uchar *int_arg) { return false; }
 
-  virtual bool remove_fixed(uchar * arg) { fixed= 0; return false; }
   virtual bool cleanup_processor(uchar *arg);
   virtual bool collect_item_field_processor(uchar * arg) { return 0; }
 
@@ -1776,7 +1622,6 @@ public:
   virtual bool remove_column_from_bitmap(uchar *arg) { return false; }
   virtual bool find_item_in_field_list_processor(uchar *arg) { return false; }
   virtual bool change_context_processor(uchar *context) { return false; }
-  virtual bool reset_query_id_processor(uchar *query_id_arg) { return false; }
   virtual bool find_item_processor(uchar *arg) { return this == (void *) arg; }
   /**
     Mark underlying field in read or write map of a table.
@@ -1856,27 +1701,6 @@ public:
   virtual bool cache_const_expr_analyzer(uchar **arg);
   virtual Item* cache_const_expr_transformer(uchar *arg);
 
-  /**
-     Analyzer for finding Item_field by name
-     
-     @param arg  Field name to search for
-     
-     @return TRUE Go deeper in item tree.  (Found Item or not an Item_field)
-     @return FALSE Don't go deeper in item tree. (Item_field with other name)
-  */
-  virtual bool item_field_by_name_analyzer(uchar **arg) { return true; };
-
-  /**
-     Simple transformer that returns the argument if this is an Item_field.
-     The new item will inherit it's name to maintain aliases.
-
-     @param arg Item to replace Item_field
-
-     @return argument if this is an Item_field
-     @return this otherwise.
-  */
-  virtual Item* item_field_by_name_transformer(uchar *arg) { return this; }
-
   virtual bool equality_substitution_analyzer(uchar **arg) { return false; }
 
   virtual Item* equality_substitution_transformer(uchar *arg) { return this; }
@@ -1951,21 +1775,6 @@ public:
     timezone-dependent expressions in a (sub)partitioning function.
   */
   virtual bool check_valid_arguments_processor(uchar *arg) { return false; }
-
-  /**
-    Find a function of a given type.
-    This function can be used (together with Item::walk()) to find functions
-    in an item tree fragment.
-
-    @param   arg     the function type to search (enum Item_func::Functype)
-    @return
-      @retval TRUE   the function type we're searching for is found
-      @retval FALSE  the function type wasn't found
-  */
-  virtual bool find_function_processor (uchar *arg)
-  {
-    return FALSE;
-  }
 
  /**
    Check if an expression/function is allowed for a virtual column
@@ -2820,7 +2629,7 @@ public:
     return field->get_time(ltime);
   }
   void make_field(Send_field *tmp_field);
-  CHARSET_INFO *charset_for_protocol(void) const
+  const CHARSET_INFO *charset_for_protocol(void) const
   { return (CHARSET_INFO *)field->charset_for_protocol(); }
 };
 
@@ -2960,8 +2769,6 @@ public:
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
   int fix_outer_field(THD *thd, Field **field, Item **reference);
   virtual Item *update_value_transformer(uchar *select_arg);
-  virtual bool item_field_by_name_analyzer(uchar **arg);
-  virtual Item* item_field_by_name_transformer(uchar *arg);
   virtual void print(String *str, enum_query_type query_type);
   bool is_outer_field() const
   {
@@ -3093,7 +2900,6 @@ public:
     return true;
   }
   bool val_json(Json_wrapper *wr);
-  type_conversion_status save_safe_in_field(Field *field);
   bool send(Protocol *protocol, String *str);
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const   { return MYSQL_TYPE_NULL; }
@@ -5588,11 +5394,6 @@ public:
 
 
 class SELECT_LEX;
-void mark_select_range_as_dependent(THD *thd,
-                                    SELECT_LEX *last_select,
-                                    SELECT_LEX *current_sel,
-                                    Field *found_field, Item *found_item,
-                                    Item_ident *resolved_item);
 
 extern Cached_item *new_Cached_item(THD *thd, Item *item,
                                     bool use_result_field);

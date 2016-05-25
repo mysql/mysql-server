@@ -77,11 +77,6 @@ public:
   {}
 
   bool set_compare_func(Item_result_field *owner, Item_result type);
-  bool set_compare_func(Item_result_field *owner_arg)
-  {
-    return set_compare_func(owner_arg, item_cmp_type((*a)->result_type(),
-                                                     (*b)->result_type()));
-  }
   bool set_cmp_func(Item_result_field *owner_arg,
                     Item **a1, Item **a2,
                     Item_result type);
@@ -2303,8 +2298,6 @@ inline Item *and_conds(Item *a, Item *b)
   return new Item_cond_and(a, b);
 }
 
-
-Item *and_expressions(Item *a, Item *b, Item **org_item);
 
 longlong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
                             Item *warn_item, bool *is_null);
