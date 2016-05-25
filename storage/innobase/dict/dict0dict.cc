@@ -606,16 +606,16 @@ dict_table_has_column(
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	if (col_nr < col_max
-	    && innobase_strcasecmp(
-		col_name, dict_table_get_col_name(table, col_nr)) == 0) {
+		&& innobase_strcasecmp(
+			col_name, dict_table_get_col_name(table, col_nr)) == 0) {
 		return(col_nr);
 	}
 
 	/** The order of column may changed, check it with other columns */
 	for (ulint i = 0; i < col_max; i++) {
 		if (i != col_nr
-		    && innobase_strcasecmp(
-			col_name, dict_table_get_col_name(table, i)) == 0) {
+			&& innobase_strcasecmp(
+				col_name, dict_table_get_col_name(table, i)) == 0) {
 
 			return(i);
 		}
@@ -6413,185 +6413,6 @@ dict_table_check_for_dup_indexes(
 	} while (index1);
 }
 #endif /* UNIV_DEBUG */
-
-/** Auxiliary macro used inside dict_table_schema_check(). */
-#define CREATE_TYPES_NAMES() \
-	dtype_sql_name((unsigned) req_schema->columns[i].mtype, \
-		       (unsigned) req_schema->columns[i].prtype_mask, \
-		       (unsigned) req_schema->columns[i].len, \
-		       req_type, sizeof(req_type)); \
-	dtype_sql_name(table->cols[j].mtype, \
-		       table->cols[j].prtype, \
-		       table->cols[j].len, \
-		       actual_type, sizeof(actual_type))
-
-/*********************************************************************//**
-Checks whether a table exists and whether it has the given structure.
-The table must have the same number of columns with the same names and
-types. The order of the columns does not matter.
-The caller must own the dictionary mutex.
-dict_table_schema_check() @{
-@return DB_SUCCESS if the table exists and contains the necessary columns */
-dberr_t
-dict_table_schema_check(
-/*====================*/
-	dict_table_schema_t*	req_schema,	/*!< in/out: required table
-						schema */
-	char*			errstr,		/*!< out: human readable error
-						message if != DB_SUCCESS is
-						returned */
-	size_t			errstr_sz)	/*!< in: errstr size */
-{
-	char		buf[MAX_FULL_NAME_LEN];
-	char		req_type[64];
-	char		actual_type[64];
-	dict_table_t*	table;
-	ulint		i;
-
-	ut_ad(mutex_own(&dict_sys->mutex));
-
-	table = dict_table_get_low(req_schema->table_name);
-
-	if (table == NULL) {
-		/* no such table */
-
-		snprintf(errstr, errstr_sz,
-			    "Table %s not found.",
-			    ut_format_name(req_schema->table_name,
-					   buf, sizeof(buf)));
-
-		return(DB_TABLE_NOT_FOUND);
-	}
-
-	if (table->ibd_file_missing) {
-		/* missing tablespace */
-
-		snprintf(errstr, errstr_sz,
-			    "Tablespace for table %s is missing.",
-			    ut_format_name(req_schema->table_name,
-					   buf, sizeof(buf)));
-
-		return(DB_TABLE_NOT_FOUND);
-	}
-
-	ulint n_sys_cols = dict_table_get_n_sys_cols(table);
-	if ((ulint) table->n_def - n_sys_cols != req_schema->n_cols) {
-		/* the table has a different number of columns than required */
-		snprintf(errstr, errstr_sz,
-			    "%s has " ULINTPF " columns but should have "
-			    ULINTPF ".",
-			    ut_format_name(req_schema->table_name,
-					   buf, sizeof(buf)),
-			    table->n_def - n_sys_cols,
-			    req_schema->n_cols);
-
-		return(DB_ERROR);
-	}
-
-	/* For each column from req_schema->columns[] search
-	whether it is present in table->cols[].
-	The following algorithm is O(n_cols^2), but is optimized to
-	be O(n_cols) if the columns are in the same order in both arrays. */
-
-	for (i = 0; i < req_schema->n_cols; i++) {
-		ulint	j = dict_table_has_column(
-			table, req_schema->columns[i].name, i);
-
-		if (j == table->n_def) {
-
-			snprintf(errstr, errstr_sz,
-				    "required column %s"
-				    " not found in table %s.",
-				    req_schema->columns[i].name,
-				    ut_format_name(
-					    req_schema->table_name,
-					    buf, sizeof(buf)));
-
-			return(DB_ERROR);
-		}
-
-		/* we found a column with the same name on j'th position,
-		compare column types and flags */
-
-		/* check length for exact match */
-		if (req_schema->columns[i].len != table->cols[j].len) {
-
-			CREATE_TYPES_NAMES();
-
-			snprintf(errstr, errstr_sz,
-				    "Column %s in table %s is %s"
-				    " but should be %s (length mismatch).",
-				    req_schema->columns[i].name,
-				    ut_format_name(req_schema->table_name,
-						   buf, sizeof(buf)),
-				    actual_type, req_type);
-
-			return(DB_ERROR);
-		}
-
-		/* check mtype for exact match */
-		if (req_schema->columns[i].mtype != table->cols[j].mtype) {
-
-			CREATE_TYPES_NAMES();
-
-			snprintf(errstr, errstr_sz,
-				    "Column %s in table %s is %s"
-				    " but should be %s (type mismatch).",
-				    req_schema->columns[i].name,
-				    ut_format_name(req_schema->table_name,
-						   buf, sizeof(buf)),
-				    actual_type, req_type);
-
-			return(DB_ERROR);
-		}
-
-		/* check whether required prtype mask is set */
-		if (req_schema->columns[i].prtype_mask != 0
-		    && (table->cols[j].prtype
-			& req_schema->columns[i].prtype_mask)
-		       != req_schema->columns[i].prtype_mask) {
-
-			CREATE_TYPES_NAMES();
-
-			snprintf(errstr, errstr_sz,
-				    "Column %s in table %s is %s"
-				    " but should be %s (flags mismatch).",
-				    req_schema->columns[i].name,
-				    ut_format_name(req_schema->table_name,
-						   buf, sizeof(buf)),
-				    actual_type, req_type);
-
-			return(DB_ERROR);
-		}
-	}
-
-	if (req_schema->n_foreign != table->foreign_set.size()) {
-		snprintf(
-			errstr, errstr_sz,
-			"Table %s has " ULINTPF " foreign key(s) pointing"
-			" to other tables, but it must have " ULINTPF ".",
-			ut_format_name(req_schema->table_name,
-				       buf, sizeof(buf)),
-			static_cast<ulint>(table->foreign_set.size()),
-			req_schema->n_foreign);
-		return(DB_ERROR);
-	}
-
-	if (req_schema->n_referenced != table->referenced_set.size()) {
-		snprintf(
-			errstr, errstr_sz,
-			"There are " ULINTPF " foreign key(s) pointing to %s, "
-			"but there must be " ULINTPF ".",
-			static_cast<ulint>(table->referenced_set.size()),
-			ut_format_name(req_schema->table_name,
-				       buf, sizeof(buf)),
-			req_schema->n_referenced);
-		return(DB_ERROR);
-	}
-
-	return(DB_SUCCESS);
-}
-/* @} */
 
 /** Converts a database and table name from filesystem encoding (e.g.
 "@code d@i1b/a@q1b@1Kc @endcode", same format as used in  dict_table_t::name)
