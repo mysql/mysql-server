@@ -38,7 +38,7 @@ public:
   { }
 
 public:
-  virtual Object_id id() const
+  virtual Object_id id() const override
   { return m_id; }
 
   /* non-virtual */ void set_id(Object_id id)
@@ -48,31 +48,31 @@ public:
   }
 
   /* purecov: begin deadcode */
-  virtual bool is_persistent() const
+  virtual bool is_persistent() const override
   { return (m_id != INVALID_OBJECT_ID); }
   /* purecov: end */
 
-  virtual const std::string &name() const
+  virtual const std::string &name() const override
   { return m_name; }
 
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const std::string &name) override
   { m_name= name; }
 
-  virtual Object_key *create_primary_key() const;
+  virtual Object_key *create_primary_key() const override;
 
-  virtual bool has_new_primary_key() const
+  virtual bool has_new_primary_key() const override
   { return m_has_new_primary_key; }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
+  virtual Weak_object_impl *impl() override
   { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
+  virtual const Weak_object_impl *impl() const override
   { return Weak_object_impl::impl(); }
 
 protected:
-  virtual void set_primary_key_value(const Raw_new_record &r);
+  virtual void set_primary_key_value(const Raw_new_record &r) override;
 
-  virtual void fix_has_new_primary_key()
+  virtual void fix_has_new_primary_key() override
   { m_has_new_primary_key= (m_id == INVALID_OBJECT_ID); }
 
   void restore_id(const Raw_record &r, int field_idx);

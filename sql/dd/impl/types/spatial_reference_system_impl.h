@@ -149,17 +149,17 @@ public:
   { m_description= description; }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
+  virtual Weak_object_impl *impl() override
   { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
+  virtual const Weak_object_impl *impl() const override
   { return Weak_object_impl::impl(); }
-  virtual Object_id id() const
+  virtual Object_id id() const override
   { return Entity_object_impl::id(); }
-  virtual bool is_persistent() const
+  virtual bool is_persistent() const override
   { return Entity_object_impl::is_persistent(); }
-  virtual const std::string &name() const
+  virtual const std::string &name() const override
   { return Entity_object_impl::name(); }
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const std::string &name) override
   { Entity_object_impl::set_name(name); }
 
 public:
