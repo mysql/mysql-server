@@ -92,6 +92,8 @@ mysql/server_cost	7	33	PRIMARY	5	3	1	50
 mysql/slave_master_info	28	33	PRIMARY	5	3	1	50
 mysql/slave_relay_log_info	12	33	PRIMARY	5	3	1	50
 mysql/slave_worker_info	16	33	PRIMARY	5	3	2	50
+mysql/st_spatial_reference_systems	12	33	PRIMARY	5	3	1	50
+mysql/st_spatial_reference_systems	12	33	catalog_id	6	2	2	50
 mysql/tables	33	33	PRIMARY	5	3	1	50
 mysql/tables	33	33	schema_id	6	2	2	50
 mysql/tables	33	33	engine	8	2	2	50
