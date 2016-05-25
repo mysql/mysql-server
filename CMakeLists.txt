@@ -248,6 +248,8 @@ MACRO (MY_CHECK_C_COMPILER_FLAG FLAG RESULT)
     FAIL_REGEX "unrecognized .*option"
     FAIL_REGEX "ignoring unknown option"
     FAIL_REGEX "[Ww]arning: [Oo]ption"
+    FAIL_REGEX "error: visibility"
+    FAIL_REGEX "warning: visibility"
     )
   SET(CMAKE_REQUIRED_FLAGS "${SAVE_CMAKE_REQUIRED_FLAGS}")
 ENDMACRO()
@@ -262,6 +264,8 @@ MACRO (MY_CHECK_CXX_COMPILER_FLAG FLAG RESULT)
     FAIL_REGEX "unrecognized .*option"
     FAIL_REGEX "ignoring unknown option"
     FAIL_REGEX "[Ww]arning: [Oo]ption"
+    FAIL_REGEX "error: visibility"
+    FAIL_REGEX "warning: visibility"
     )
   SET(CMAKE_REQUIRED_FLAGS "${SAVE_CMAKE_REQUIRED_FLAGS}")
 ENDMACRO()
