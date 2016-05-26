@@ -22,7 +22,7 @@
 #include <algorithm>
 
 KEY_CREATE_INFO default_key_create_info=
-  { HA_KEY_ALG_SE_SPECIFIC, false, 0, {NullS, 0}, {NullS, 0} };
+  { HA_KEY_ALG_SE_SPECIFIC, false, 0, {NullS, 0}, {NullS, 0}, true };
 
 bool Key_part_spec::operator==(const Key_part_spec& other) const
 {

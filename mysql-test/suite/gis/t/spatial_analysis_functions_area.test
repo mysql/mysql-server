@@ -374,3 +374,29 @@ SELECT ST_AREA(0x010400000002000000010100000000000000000000);
 
 --echo # Clean up
 DROP TABLE gis_geometrycollection;
+
+--echo #
+--echo # WL#8579 Spatial Reference Systems
+--echo #
+
+--echo # SRID 0 (should pass)
+SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 0));
+
+--echo # Projected SRS (should pass)
+SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 2000));
+
+--echo # Geographic SRS (should pass)
+SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
+
+--echo # Undefined SRS (should pass with warning)
+# Assume SRID 5000000 is undefined
+SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 5000000));
+
+--echo # Unparseable SRS definition (should fail)
+# Assume SRID 5000001 is undefined
+INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
+organization, organization_coordsys_id, definition, description)
+VALUES (5000001, 1, 'TEST5000001', 'Foo', 5000001, 'FOOBAR', '');
+--error ER_SRS_PARSE_ERROR
+SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 5000001));
+DELETE FROM mysql.st_spatial_reference_systems WHERE id = 5000001;

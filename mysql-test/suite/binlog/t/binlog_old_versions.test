@@ -57,21 +57,6 @@ SELECT COUNT(*) FROM t3;
 DROP TABLE t1, t2, t3;
 
 
---echo ==== Read binlog from version 4.1 ====
-
-# In this version, neither row-based binlogging nor Xid events
-# existed, so the binlog was generated without the "row-based tests"
-# part and the "get xid event" part, and it does not create table t2.
-
-# Read binlog.
---exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/binlog_old_version_4_1.000001 | $MYSQL --local-infile=1
-# Show result.
-SELECT * FROM t1 ORDER BY a;
-SELECT COUNT(*) FROM t3;
-# Reset.
-DROP TABLE t1, t3;
-
-
 --echo *** wl#2540 Replication events checksum is not yet defined 
 --echo *** its born-version. One that is temporarily chosen conflicts with 
 --echo *** the version in the following pre-recorded binlogs

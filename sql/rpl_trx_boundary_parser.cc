@@ -218,12 +218,8 @@ Transaction_boundary_parser::get_event_boundary_type(
     case binary_log::PREVIOUS_GTIDS_LOG_EVENT:
     case binary_log::START_EVENT_V3:
     case binary_log::STOP_EVENT:
-    case binary_log::LOAD_EVENT:
     case binary_log::SLAVE_EVENT:
-    case binary_log::CREATE_FILE_EVENT:
     case binary_log::DELETE_FILE_EVENT:
-    case binary_log::NEW_LOAD_EVENT:
-    case binary_log::EXEC_LOAD_EVENT:
     case binary_log::INCIDENT_EVENT:
     case binary_log::TRANSACTION_CONTEXT_EVENT:
       boundary_type= EVENT_BOUNDARY_TYPE_IGNORE;

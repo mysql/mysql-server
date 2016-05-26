@@ -3207,16 +3207,7 @@ Item_variance_field::Item_variance_field(Item_sum_variance *item)
   field=item->result_field;
   maybe_null=1;
   sample= item->sample;
-  prec_increment= item->prec_increment;
-  if ((hybrid_type= item->hybrid_type) == DECIMAL_RESULT)
-  {
-    f_scale0= item->f_scale0;
-    f_precision0= item->f_precision0;
-    dec_bin_size0= item->dec_bin_size0;
-    f_scale1= item->f_scale1;
-    f_precision1= item->f_precision1;
-    dec_bin_size1= item->dec_bin_size1;
-  }
+  hybrid_type= item->hybrid_type;
 }
 
 

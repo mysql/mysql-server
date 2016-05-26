@@ -338,6 +338,7 @@ public:
      - COMMIT is for enabling the global read lock to block commits.
      - USER_LEVEL_LOCK is for user-level locks.
      - LOCKING_SERVICE is for the name plugin RW-lock service
+     - SRID is for spatial reference systems
     Note that although there isn't metadata locking on triggers,
     it's necessary to have a separate namespace for them since
     MDL_key is also used outside of the MDL subsystem.
@@ -355,6 +356,7 @@ public:
                             COMMIT,
                             USER_LEVEL_LOCK,
                             LOCKING_SERVICE,
+                            SRID,
                             /* This should be the last ! */
                             NAMESPACE_END };
 
@@ -495,9 +497,13 @@ public:
   uint m_src_line;
 
 public:
-  static void *operator new(size_t size, MEM_ROOT *mem_root) throw ()
+  static void *operator new(size_t size, MEM_ROOT *mem_root,
+                            const std::nothrow_t &arg= std::nothrow) throw ()
   { return alloc_root(mem_root, size); }
-  static void operator delete(void *ptr, MEM_ROOT *mem_root) {}
+
+  static void operator delete(void *ptr, MEM_ROOT *mem_root,
+                              const std::nothrow_t &arg) throw ()
+  {}
 
   void init_with_source(MDL_key::enum_mdl_namespace namespace_arg,
             const char *db_arg, const char *name_arg,

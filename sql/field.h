@@ -602,7 +602,7 @@ public:
   virtual bool send_text(Protocol *protocol)= 0;
 };
 
-class Field: public Proto_field
+class Field: public Proto_field, public Sql_alloc
 {
   Field(const Item &);				/* Prevent use of these */
   void operator=(Field &);
@@ -617,18 +617,6 @@ public:
   {
     return auto_flags & ON_UPDATE_NOW;
   }
-
-  /* To do: inherit Sql_alloc and get these for free */
-  static void *operator new(size_t size) throw ()
-  { return sql_alloc(size); }
-  static void *operator new(size_t size, MEM_ROOT *mem_root) throw () {
-    return alloc_root(mem_root, size);
-  }
-  static void operator delete(void *ptr, MEM_ROOT *mem_root)
-  { DBUG_ASSERT(false); /* never called */ }
-
-  static void operator delete(void *ptr_arg, size_t size) throw()
-  { TRASH(ptr_arg, size); }
 
   uchar		*ptr;			// Position to field in record
 
@@ -1032,20 +1020,6 @@ public:
   */
   virtual void store_timestamp(const timeval *tm) { DBUG_ASSERT(false); }
 
-  /**
-     Interface for legacy code. Newer code uses the store_timestamp(const
-     timeval*) interface.
-
-     @param sec A TIMESTAMP value in the my_time_t format.
-  */
-  void store_timestamp(my_time_t sec)
-  {
-    struct timeval tm;
-    tm.tv_sec= sec;
-    tm.tv_usec= 0;
-    store_timestamp(&tm);
-  }
-
   virtual void set_default()
   {
     if (has_insert_default_function())
@@ -1424,9 +1398,6 @@ public:
     DBUG_RETURN(result);
   }
 
-  virtual uint packed_col_length(const uchar *to, uint length)
-  { return length;}
-
   /**
     This is a wrapper around pack_length() used by filesort() to determine
     how many bytes we need for packing "addon fields".
@@ -1612,8 +1583,6 @@ public:
 */
   virtual bool is_updatable() const { return FALSE; }
 
-  friend int cre_myisam(char * name, TABLE *form, uint options,
-			ulonglong auto_increment_value);
   friend class Copy_field;
   friend class Item_avg_field;
   friend class Item_std_field;
@@ -2995,7 +2964,6 @@ protected:
   my_time_flags_t date_flags(const THD *thd);
   void store_timestamp_internal(const struct timeval *tm);
 public:
-  static const int PACK_LENGTH= 8;
   /**
     Field_timestampf constructor
     @param ptr_arg           See Field definition
@@ -3533,10 +3501,6 @@ public:
   bool compatible_field_size(uint field_metadata, Relay_log_info *rli,
                              uint16 mflags, int *order_var);
   uint row_pack_length() const { return field_length; }
-  int pack_cmp(const uchar *a,const uchar *b,uint key_length,
-               my_bool insert_or_update);
-  int pack_cmp(const uchar *b,uint key_length,my_bool insert_or_update);
-  uint packed_col_length(const uchar *to, uint length);
   uint max_packed_col_length();
   enum_field_types real_type() const { return MYSQL_TYPE_STRING; }
   bool has_charset(void) const
@@ -3559,11 +3523,6 @@ private:
 
 class Field_varstring :public Field_longstr {
 public:
-  /*
-    The maximum space available in a Field_varstring, in bytes. See
-    length_bytes.
-  */
-  static const uint MAX_SIZE;
   /* Store number of bytes used to store length (1 or 2) */
   uint32 length_bytes;
   Field_varstring(uchar *ptr_arg,
@@ -3629,7 +3588,6 @@ public:
   int cmp_binary(const uchar *a,const uchar *b, uint32 max_length=~0L);
   int key_cmp(const uchar *,const uchar*);
   int key_cmp(const uchar *str, uint length);
-  uint packed_col_length(const uchar *to, uint length);
 
   uint32 data_length(uint row_offset= 0);
   enum_field_types real_type() const { return MYSQL_TYPE_VARCHAR; }
@@ -3816,7 +3774,6 @@ public:
   uint32 get_length(const uchar *ptr, uint packlength, bool low_byte_first);
   uint32 get_length(const uchar *ptr_arg)
   { return get_length(ptr_arg, this->packlength, table->s->db_low_byte_first); }
-  void put_length(uchar *pos, uint32 length);
   inline void get_ptr(uchar **str)
     {
       memcpy(str, ptr+packlength, sizeof(uchar*));
@@ -3869,7 +3826,6 @@ public:
                       uint max_length, bool low_byte_first);
   virtual const uchar *unpack(uchar *to, const uchar *from,
                               uint param_data, bool low_byte_first);
-  uint packed_col_length(const uchar *col_ptr, uint length);
   uint max_packed_col_length();
   void mem_free()
   {
@@ -3877,7 +3833,6 @@ public:
     value.mem_free();
     old_value.mem_free();
   }
-  inline void clear_temporary() { memset(&value, 0, sizeof(value)); }
   friend type_conversion_status field_conv(Field *to,Field *from);
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
@@ -3885,8 +3840,6 @@ public:
   uint32 char_length();
   bool copy_blob_value(MEM_ROOT *mem_root);
   uint is_equal(const Create_field *new_field);
-  inline bool in_read_set() { return bitmap_is_set(table->read_set, field_index); }
-  inline bool in_write_set() { return bitmap_is_set(table->write_set, field_index); }
   virtual bool is_text_key_type() const { return binary() ? false : true; }
 
   /**
@@ -4186,7 +4139,7 @@ public:
   bool eq_def(Field *field);
   bool has_charset(void) const { return TRUE; }
   /* enum and set are sorted as integers */
-  CHARSET_INFO *sort_charset(void) const { return &my_charset_bin; }
+  const CHARSET_INFO *sort_charset(void) const { return &my_charset_bin; }
   Field_enum *clone(MEM_ROOT *mem_root) const {
     DBUG_ASSERT(real_type() == MYSQL_TYPE_ENUM);
     return new (mem_root) Field_enum(*this);

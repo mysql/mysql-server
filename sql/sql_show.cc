@@ -2098,6 +2098,9 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
       append_unescaped(packet, key_info->comment.str, 
                        key_info->comment.length);
     }
+
+    if (!key_info->is_visible)
+      packet->append(STRING_WITH_LEN(" /*!50800 INVISIBLE */"));
   }
 }
 
@@ -6237,9 +6240,9 @@ err:
 
 
 static int get_schema_stat_record(THD *thd, TABLE_LIST *tables,
-				  TABLE *table, bool res,
-				  LEX_STRING *db_name,
-				  LEX_STRING *table_name)
+                                  TABLE *table, bool res,
+                                  LEX_STRING *db_name,
+                                  LEX_STRING *table_name)
 {
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_stat_record");
@@ -6351,11 +6354,18 @@ static int get_schema_stat_record(THD *thd, TABLE_LIST *tables,
         else
           table->field[14]->store("", 0, cs);
         table->field[14]->set_notnull();
+
         DBUG_ASSERT(MY_TEST(key_info->flags & HA_USES_COMMENT) ==
                    (key_info->comment.length > 0));
         if (key_info->flags & HA_USES_COMMENT)
-          table->field[15]->store(key_info->comment.str, 
+          table->field[15]->store(key_info->comment.str,
                                   key_info->comment.length, cs);
+
+        // is_visible column
+        const char *is_visible= key_info->is_visible ? "YES" : "NO";
+        table->field[16]->store(is_visible, strlen(is_visible), cs);
+        table->field[16]->set_notnull();
+
         if (schema_table_store_record(thd, table))
           DBUG_RETURN(1);
       }
@@ -8767,6 +8777,7 @@ ST_FIELD_INFO stat_fields_info[]=
   {"COMMENT", 16, MYSQL_TYPE_STRING, 0, 1, "Comment", OPEN_FRM_ONLY},
   {"INDEX_COMMENT", INDEX_COMMENT_MAXLEN, MYSQL_TYPE_STRING, 0, 0, 
    "Index_comment", OPEN_FRM_ONLY},
+  {"IS_VISIBLE", 3, MYSQL_TYPE_STRING, 0, 1, "Visible", OPEN_FULL_TABLE},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
 

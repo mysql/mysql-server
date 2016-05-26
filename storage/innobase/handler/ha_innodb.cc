@@ -11436,6 +11436,7 @@ static const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("tablespace_files", 2),
 	INNODB_DD_TABLE("catalogs", 2),
 	INNODB_DD_TABLE("schemata", 3),
+	INNODB_DD_TABLE("st_spatial_reference_systems", 2),
 	INNODB_DD_TABLE("tables", 6),
 	INNODB_DD_TABLE("view_table_usage", 2),
 	INNODB_DD_TABLE("columns", 4),

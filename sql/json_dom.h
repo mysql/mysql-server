@@ -167,18 +167,6 @@ public:
   void operator delete(void *ptr, const std::nothrow_t&) throw();
 
   /**
-    Placement new.
-  */
-  void *operator new(size_t size, void *ptr) throw() { return ptr; }
-
-  /**
-    Placement delete.
-  */
-  /* purecov: begin deadcode */
-  void operator delete(void *ptr1, void *ptr2) throw() {}
-  /* purecov: end */
-
-  /**
     Get the parent dom to which this dom is attached.
 
     @return the parent dom.
@@ -1121,10 +1109,14 @@ public:
   using Sql_alloc::operator delete;
 
   /** Placement new. */
-  void *operator new(size_t size, void *ptr) throw() { return ptr; }
+  void *operator new(size_t size, void *ptr,
+                     const std::nothrow_t &arg= std::nothrow) throw()
+  { return ptr; }
 
   /** Placement delete. */
-  void operator delete(void *ptr1, void *ptr2) throw() {}
+  void operator delete(void *ptr1, void *ptr2,
+                       const std::nothrow_t &arg) throw ()
+  {}
 
   /**
     Wrap the supplied DOM value (no copy taken). The wrapper takes
@@ -1593,7 +1585,7 @@ public:
     static_assert(std::is_base_of<Json_scalar, T>::value, "Not a Json_scalar");
     static_assert(sizeof(T) <= sizeof(m_buffer), "Buffer is too small");
     clear();
-    new (&m_buffer) T(std::forward<Args>(args)...);
+    ::new (&m_buffer) T(std::forward<Args>(args)...);
     m_assigned= true;
   }
 };

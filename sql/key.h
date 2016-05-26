@@ -150,7 +150,15 @@ private:
     should be removed and only this should be used.
   */
   rec_per_key_t *rec_per_key_float;
+
 public:
+
+  /**
+    True if this index is visible to the query optimizer. The optimizer may
+    only use visible indexes.
+  */
+  bool is_visible;
+
   union {
     int  bdb_return_if_eq;
   } handler;

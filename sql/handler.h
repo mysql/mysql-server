@@ -1858,6 +1858,9 @@ public:
   /** Size of index_rename_buffer array. */
   uint index_rename_count;
 
+  /** Size of index_rename_buffer array. */
+  uint index_altered_visibility_count;
+
   /**
     Array of KEY_PAIR objects describing indexes being renamed.
     For each index renamed it contains object with KEY_PAIR::old_key
@@ -1867,6 +1870,7 @@ public:
     index in key_info_buffer member.
   */
   KEY_PAIR  *index_rename_buffer;
+  KEY_PAIR  *index_altered_visibility_buffer;
 
   /**
      Context information to allow handlers to keep context between in-place
@@ -1931,6 +1935,7 @@ public:
     index_add_count(0),
     index_add_buffer(NULL),
     index_rename_count(0),
+    index_altered_visibility_count(0),
     index_rename_buffer(NULL),
     handler_ctx(NULL),
     group_commit_ctx(NULL),
@@ -1965,6 +1970,17 @@ public:
     key_pair->new_key= new_key;
     DBUG_PRINT("info", ("index renamed: '%s' to '%s'",
                         old_key->name, new_key->name));
+  }
+
+  void add_altered_index_visibility(KEY *old_key, KEY *new_key)
+  {
+    KEY_PAIR *key_pair= index_altered_visibility_buffer +
+      index_altered_visibility_count++;
+    key_pair->old_key= old_key;
+    key_pair->new_key= new_key;
+    DBUG_PRINT("info", ("index had visibility altered: %i to %i",
+                        old_key->is_visible,
+                        new_key->is_visible));
   }
 
   /**

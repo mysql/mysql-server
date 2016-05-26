@@ -515,7 +515,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if (mysql_bin_log.is_open())
   {
     lf_info.thd = thd;
-    lf_info.wrote_create_file = 0;
+    lf_info.logged_data_file = 0;
     lf_info.last_pos_in_file = HA_POS_ERROR;
     lf_info.log_delayed= transactional_table;
     read_info.set_io_cache_arg((void*) &lf_info);
@@ -628,7 +628,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	*/
 	read_info.end_io_cache();
 	/* If the file was not empty, wrote_create_file is true */
-	if (lf_info.wrote_create_file)
+	if (lf_info.logged_data_file)
 	{
           int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
 
@@ -683,7 +683,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
         wrong), when read_info is destroyed.
       */
       read_info.end_io_cache();
-      if (lf_info.wrote_create_file)
+      if (lf_info.logged_data_file)
       {
         int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
         error= write_execute_load_query_log_event(thd, ex,
@@ -720,7 +720,6 @@ err:
 
 
 #ifndef EMBEDDED_LIBRARY
-
 /* Not a very useful function; just to avoid duplication of code */
 static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
                                                const char* db_arg,  /* table's database */
@@ -730,20 +729,13 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
                                                bool transactional_table,
                                                int errcode)
 {
-  char                *load_data_query,
-                      *end,
-                      *fname_start,
-                      *fname_end,
-                      *p= NULL;
-  size_t               pl= 0;
-  List<Item>           fv;
-  Item                *item;
-  String              *str;
-  String               pfield, pfields;
-  int                  n;
   const char          *tbl= table_name_arg;
   const char          *tdb= (thd->db().str != NULL ? thd->db().str : db_arg);
+  const String        *query= NULL;
   String              string_buf;
+  size_t              fname_start= 0;
+  size_t              fname_end= 0;
+
   if (thd->db().str == NULL || strcmp(db_arg, thd->db().str))
   {
     /*
@@ -758,88 +750,23 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   append_identifier(thd, &string_buf, table_name_arg,
                     strlen(table_name_arg));
   tbl= string_buf.c_ptr_safe();
-  Load_log_event       lle(thd, ex, tdb, tbl, fv, is_concurrent,
-                           duplicates, thd->lex->is_ignore(),
-                           transactional_table);
-
-  /*
-    force in a LOCAL if there was one in the original.
-  */
-  if (thd->lex->local_file)
-    lle.set_fname_outside_temp_buf(ex->file_name, strlen(ex->file_name));
-
-  /*
-    prepare fields-list and SET if needed; print_query won't do that for us.
-  */
-  if (!thd->lex->load_field_list.is_empty())
-  {
-    List_iterator<Item> li(thd->lex->load_field_list);
-
-    pfields.append(" (");
-    n= 0;
-
-    while ((item= li++))
-    {
-      if (n++)
-        pfields.append(", ");
-      if (item->type() == Item::FIELD_ITEM ||
-                 item->type() == Item::REF_ITEM)
-        append_identifier(thd, &pfields, item->item_name.ptr(),
-                          strlen(item->item_name.ptr()));
-      else
-        item->print(&pfields, QT_ORDINARY);
-    }
-    pfields.append(")");
-  }
-
-  if (!thd->lex->load_update_list.is_empty())
-  {
-    List_iterator<Item> lu(thd->lex->load_update_list);
-    List_iterator<String> ls(thd->lex->load_set_str_list);
-
-    pfields.append(" SET ");
-    n= 0;
-
-    while ((item= lu++))
-    {
-      str= ls++;
-      if (n++)
-        pfields.append(", ");
-      append_identifier(thd, &pfields, item->item_name.ptr(),
-                        strlen(item->item_name.ptr()));
-      // Extract exact Item value
-      str->copy();
-      pfields.append(str->ptr());
-      str->mem_free();
-    }
-    /*
-      Clear the SET string list once the SET command is reconstructed
-      as we donot require the list anymore.
-    */
-    thd->lex->load_set_str_list.empty();
-  }
-
-  p= pfields.c_ptr_safe();
-  pl= strlen(p);
-
-  if (!(load_data_query= (char *)thd->alloc(lle.get_query_buffer_length() + 1 + pl)))
-    return TRUE;
-
-  lle.print_query(FALSE, ex->cs ? ex->cs->csname : NULL,
-                  load_data_query, &end,
-                  &fname_start, &fname_end);
-
-  strcpy(end, p);
-  end += pl;
+  Load_query_generator gen(thd, ex, tdb, tbl, is_concurrent,
+                           duplicates == DUP_REPLACE, thd->lex->is_ignore());
+  query= gen.generate(&fname_start, &fname_end);
 
   Execute_load_query_log_event
-    e(thd, load_data_query, end-load_data_query,
-      static_cast<uint>(fname_start - load_data_query - 1),
-      static_cast<uint>(fname_end - load_data_query),
+    e(thd, query->ptr(), query->length(), fname_start, fname_end,
       (duplicates == DUP_REPLACE) ? binary_log::LOAD_DUP_REPLACE :
       (thd->lex->is_ignore() ? binary_log::LOAD_DUP_IGNORE :
                                binary_log::LOAD_DUP_ERROR),
       transactional_table, FALSE, FALSE, errcode);
+
+  /*
+    Clear the SET string list once query is generated.
+    as we donot require the list anymore.
+  */
+  thd->lex->load_set_str_list.empty();
+
   return mysql_bin_log.write_event(&e);
 }
 

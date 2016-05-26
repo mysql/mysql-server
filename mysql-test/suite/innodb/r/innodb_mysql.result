@@ -2667,6 +2667,7 @@ Null
 Index_type	BTREE
 Comment	
 Index_comment	
+Visible	YES
 Table	t1
 Non_unique	0
 Key_name	k
@@ -2680,6 +2681,7 @@ Null
 Index_type	BTREE
 Comment	
 Index_comment	
+Visible	YES
 DROP TABLE t1;
 #
 # Bug #53334: wrong result for outer join with impossible ON condition

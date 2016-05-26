@@ -226,7 +226,6 @@ public:
   */
   void set_arguments(List<Item> &list, bool context_free);
   inline uint argument_count() const { return arg_count; }
-  inline void remove_arguments() { arg_count=0; }
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
                       List<Item> &fields);
   virtual void print(String *str, enum_query_type query_type);
@@ -344,13 +343,6 @@ public:
                 Item_transformer transformer, uchar *arg_t);
   void traverse_cond(Cond_traverser traverser,
                      void * arg, traverse_order order);
-  inline double fix_result(double value)
-  {
-    if (std::isfinite(value))
-      return value;
-    null_value=1;
-    return 0.0;
-  }
   inline void raise_numeric_overflow(const char *type_name)
   {
     char buf[256];
@@ -466,10 +458,6 @@ public:
     return has_timestamp_args();
   }
 
-  virtual bool find_function_processor (uchar *arg)
-  {
-    return functype() == *(Functype *) arg;
-  }
   virtual Item *gc_subst_transformer(uchar *arg);
 
   /**
@@ -2295,10 +2283,6 @@ class user_var_entry
   */
   void assert_locked() const;
 
-  /**
-    Currently selected catalog.
-  */
-  LEX_CSTRING m_catalog;
 public:
   user_var_entry() {}                         /* Remove gcc warning */
 

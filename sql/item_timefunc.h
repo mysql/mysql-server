@@ -558,7 +558,7 @@ public:
   {
     return STRING_RESULT;
   }
-  CHARSET_INFO *charset_for_protocol() const
+  const CHARSET_INFO *charset_for_protocol() const
   {
     return &my_charset_bin;
   }

@@ -257,18 +257,12 @@ enum Log_event_type
   STOP_EVENT= 3,
   ROTATE_EVENT= 4,
   INTVAR_EVENT= 5,
-  LOAD_EVENT= 6,
+
   SLAVE_EVENT= 7,
-  CREATE_FILE_EVENT= 8,
+
   APPEND_BLOCK_EVENT= 9,
-  EXEC_LOAD_EVENT= 10,
   DELETE_FILE_EVENT= 11,
-  /**
-    NEW_LOAD_EVENT is like LOAD_EVENT except that it has a longer
-    sql_ex, allowing multibyte TERMINATED BY etc; both types share the
-    same class (Load_event)
-  */
-  NEW_LOAD_EVENT= 12,
+
   RAND_EVENT= 13,
   USER_VAR_EVENT= 14,
   FORMAT_DESCRIPTION_EVENT= 15,
@@ -754,16 +748,12 @@ public:
     // where 5.0 differs: 2 for length of N-bytes vars.
     QUERY_HEADER_LEN=(QUERY_HEADER_MINIMAL_LEN + 2),
     STOP_HEADER_LEN= 0,
-    LOAD_HEADER_LEN= (4 + 4 + 4 + 1 +1 + 4),
     START_V3_HEADER_LEN= (2 + ST_SERVER_VER_LEN + 4),
     // this is FROZEN (the Rotate post-header is frozen)
     ROTATE_HEADER_LEN= 8,
     INTVAR_HEADER_LEN= 0,
-    CREATE_FILE_HEADER_LEN= 4,
     APPEND_BLOCK_HEADER_LEN= 4,
-    EXEC_LOAD_HEADER_LEN= 4,
     DELETE_FILE_HEADER_LEN= 4,
-    NEW_LOAD_HEADER_LEN= LOAD_HEADER_LEN,
     RAND_HEADER_LEN= 0,
     USER_VAR_HEADER_LEN= 0,
     FORMAT_DESCRIPTION_HEADER_LEN= (START_V3_HEADER_LEN + 1 + LOG_EVENT_TYPES),

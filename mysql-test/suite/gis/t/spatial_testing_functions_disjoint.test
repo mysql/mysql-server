@@ -1555,3 +1555,65 @@ SELECT MBRDISJOINT(a.g, b.g) FROM t1 AS a JOIN t1 AS b;
 DROP TABLE t1;
 DROP TABLE gis_geometrycollection;
 DROP TABLE gis_geometrycollection_2;
+
+--echo #
+--echo # WL#8579 Spatial Reference Systems
+--echo #
+
+--echo # SRID 0 (should pass)
+SELECT ST_DISJOINT(
+  ST_GEOMFROMTEXT('POINT(0 0)', 0),
+  ST_GEOMFROMTEXT('POINT(0 0)', 0)
+);
+SELECT MBRDISJOINT(
+  ST_GEOMFROMTEXT('POINT(0 0)', 0),
+  ST_GEOMFROMTEXT('POINT(0 0)', 0)
+);
+
+--echo # Projected SRS (should pass)
+SELECT ST_DISJOINT(
+  ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+  ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+);
+SELECT MBRDISJOINT(
+  ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+  ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+);
+
+--echo # Geographic SRS (should pass)
+SELECT ST_DISJOINT(
+  ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+  ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+);
+SELECT MBRDISJOINT(
+  ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+  ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+);
+
+--echo # Undefined SRS (should pass with warning)
+# Assume SRID 12000000 is undefined
+SELECT ST_DISJOINT(
+  ST_GEOMFROMTEXT('POINT(0 0)', 12000000),
+  ST_GEOMFROMTEXT('POINT(0 0)', 12000000)
+);
+SELECT MBRDISJOINT(
+  ST_GEOMFROMTEXT('POINT(0 0)', 12000000),
+  ST_GEOMFROMTEXT('POINT(0 0)', 12000000)
+);
+
+--echo # Unparseable SRS definition (should fail)
+# Assume SRID 12000001 is undefined
+INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
+organization, organization_coordsys_id, definition, description)
+VALUES (12000001, 1, 'TEST12000001', 'Foo', 12000001, 'FOOBAR', '');
+--error ER_SRS_PARSE_ERROR
+SELECT ST_DISJOINT(
+  ST_GEOMFROMTEXT('POINT(0 0)', 12000001),
+  ST_GEOMFROMTEXT('POINT(0 0)', 12000001)
+);
+--error ER_SRS_PARSE_ERROR
+SELECT MBRDISJOINT(
+  ST_GEOMFROMTEXT('POINT(0 0)', 12000001),
+  ST_GEOMFROMTEXT('POINT(0 0)', 12000001)
+);
+DELETE FROM mysql.st_spatial_reference_systems WHERE id = 12000001;

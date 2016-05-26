@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -847,9 +847,9 @@ public:
 #ifndef HAVE_MYSYS
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
-  const char* get_value_type_string(enum Value_type type) const
+  const char* get_value_type_string(enum Value_type type_arg) const
   {
-    switch(type)
+    switch(type_arg)
     {
       case STRING_TYPE:return "String";
       case REAL_TYPE:return "Real";

@@ -392,7 +392,7 @@ Trans_delegate::prepare_table_info(THD* thd,
 
     table_info.number_of_primary_keys= primary_keys;
 
-    table_info.transactional_table= open_tables->file->has_transactions();
+    table_info.db_type= open_tables->s->db_type()->db_type;
 
     table_info_holder.push_back(table_info);
   }
@@ -418,8 +418,8 @@ Trans_delegate::prepare_table_info(THD* thd,
                                 = (*table_info_holder_it).number_of_primary_keys;
       table_info_list[table].table_name
                                 = (*table_info_holder_it).table_name;
-      table_info_list[table].transactional_table
-                                = (*table_info_holder_it).transactional_table;
+      table_info_list[table].db_type
+                                = (*table_info_holder_it).db_type;
     }
   }
 

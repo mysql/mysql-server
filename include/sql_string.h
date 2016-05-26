@@ -190,7 +190,8 @@ public:
      m_alloced_length(static_cast<uint32>(str.m_alloced_length)),
      m_is_alloced(false)
   { }
-  static void *operator new(size_t size, MEM_ROOT *mem_root) throw ()
+  static void *operator new(size_t size, MEM_ROOT *mem_root,
+                            const std::nothrow_t &arg= std::nothrow) throw ()
   { return alloc_root(mem_root, size); }
   static void operator delete(void *ptr_arg, size_t size)
   {
@@ -198,8 +199,11 @@ public:
     (void) size;
     TRASH(ptr_arg, size);
   }
-  static void operator delete(void *, MEM_ROOT *)
+
+  static void operator delete(void *, MEM_ROOT *,
+                              const std::nothrow_t &arg) throw ()
   { /* never called */ }
+
   ~String() { mem_free(); }
 
   void set_charset(const CHARSET_INFO *charset_arg)

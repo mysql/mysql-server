@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,10 @@
 #include "current_thd.h"
 #include "item_geofunc_internal.h"
 #include "item_geofunc_relchecks_bgwrap.h"
+#include "derror.h"                            // ER_THD
+#include "sql_class.h"                         // THD
+#include "dd/types/spatial_reference_system.h"
+#include "dd/cache/dictionary_client.h"
 
 #include <set>
 
@@ -89,6 +93,24 @@ longlong Item_func_spatial_mbr_rel::val_int()
              g1->get_srid(), g2->get_srid());
     null_value= true;
     return 0;
+  }
+
+  if (g1->get_srid() != 0)
+  {
+    Srs_fetcher fetcher(current_thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    if (fetcher.acquire(g1->get_srid(), &srs))
+      return error_int(); // Error has already been flagged.
+
+    if (srs == nullptr)
+    {
+      push_warning_printf(current_thd,
+                          Sql_condition::SL_WARNING,
+                          ER_WARN_SRS_NOT_FOUND,
+                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
+                          g1->get_srid(),
+                          func_name());
+    }
   }
 
   int ret= 0;
@@ -212,6 +234,24 @@ longlong Item_func_spatial_rel::val_int()
              g1->get_srid(), g2->get_srid());
     tres= error_int();
     goto exit;
+  }
+
+  if (g1->get_srid() != 0)
+  {
+    Srs_fetcher fetcher(current_thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    if (fetcher.acquire(g1->get_srid(), &srs))
+      DBUG_RETURN(error_int()); // Error has already been flagged.
+
+    if (srs == nullptr)
+    {
+      push_warning_printf(current_thd,
+                          Sql_condition::SL_WARNING,
+                          ER_WARN_SRS_NOT_FOUND,
+                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
+                          g1->get_srid(),
+                          func_name());
+    }
   }
 
   /*

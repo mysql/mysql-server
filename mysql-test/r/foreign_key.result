@@ -74,10 +74,10 @@ Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 # The FULLTEXT index cannot be used and the generated key must be kept
 ALTER TABLE t1 ADD CONSTRAINT fi_a FOREIGN KEY(a) REFERENCES ti2(a);
 SHOW INDEXES FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	1	b	1	b	A	0	32	NULL		SPATIAL		
-t1	1	fi_a	1	a	A	0	NULL	NULL	YES	BTREE		
-t1	1	a	1	a	NULL	0	NULL	NULL	YES	FULLTEXT		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	1	b	1	b	A	0	32	NULL		SPATIAL			YES
+t1	1	fi_a	1	a	A	0	NULL	NULL	YES	BTREE			YES
+t1	1	a	1	a	NULL	0	NULL	NULL	YES	FULLTEXT			YES
 # Attempt to add a foreign key on column with SPATIAL index.
 # The SPATIAL index cannot be used so this becomes an attempt at
 # creating a foreign key on a GEOMETRY column which is not supported

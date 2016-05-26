@@ -7702,7 +7702,7 @@ ER_INVALID_DD_OBJECT_NAME
   eng "Dictionary object name '%s' is invalid. (%.192s)"
 
 ER_TABLESPACE_MISSING_WITH_NAME
-   eng "Tablespace %-.192s doesn't exist."
+  eng "Tablespace %-.192s doesn't exist."
 
 ER_TOO_LONG_ROUTINE_COMMENT
   eng "Comment for routine '%-.64s' is too long (max = %lu)"
@@ -7721,6 +7721,24 @@ ER_WARN_UNSUPPORTED_HINT
 
 ER_UNEXPECTED_GEOMETRY_TYPE 22S01
   eng "%.64s value is a geometry of unexpected type %.64s in %.64s."
+
+ER_SRS_PARSE_ERROR SR002
+  eng "Can't parse the spatial reference system definition of SRID %u."
+
+ER_SRS_PROJ_PARAMETER_MISSING SR003
+  eng "The spatial reference system definition for SRID %u does not specify the mandatory %s (EPSG %u) projection parameter."
+
+ER_WARN_SRS_NOT_FOUND 01000
+  eng "There's no spatial reference system with SRID %u. Calculations in function %s will be done in SRID 0."
+
+ER_SRS_NOT_CARTESIAN 22S00
+  eng "Function %s is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID %u, which is not Cartesian."
+
+ER_SRS_NOT_CARTESIAN_UNDEFINED SR001
+  eng "Function %s is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID %u, which has not been defined."
+
+ER_PK_INDEX_CANT_BE_INVISIBLE
+  eng "A primary key index cannot be invisible"
 
 #
 #  End of 5.8 error messages.

@@ -51,6 +51,7 @@ public:
     FIELD_TYPE,
     FIELD_ALGORITHM,
     FIELD_IS_ALGORITHM_EXPLICIT,
+    FIELD_IS_VISIBLE,
     FIELD_IS_GENERATED,
     FIELD_HIDDEN,
     FIELD_ORDINAL_POSITION,
@@ -97,6 +98,9 @@ public:
     m_target_def.add_field(FIELD_IS_ALGORITHM_EXPLICIT,
                            "FIELD_IS_ALGORITHM_EXPLICIT",
                            "is_algorithm_explicit BOOL NOT NULL");
+    m_target_def.add_field(FIELD_IS_VISIBLE,
+                           "FIELD_IS_VISIBLE",
+                           "is_visible BOOL NOT NULL");
     m_target_def.add_field(FIELD_IS_GENERATED,
                            "FIELD_IS_GENERATED",
                            "is_generated BOOL NOT NULL");
