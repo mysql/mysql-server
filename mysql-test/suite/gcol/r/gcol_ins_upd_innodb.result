@@ -32,7 +32,7 @@ select * from t1;
 a	b	c
 # INSERT INTO tbl_name (<non_gcol_list>) VALUES...
 insert into t1 (a) values (1), (2);
-select * from t1;
+select * from t1 order by a;
 a	b	c
 1	-1	-1
 2	-2	-2
@@ -42,7 +42,7 @@ a	b	c
 # INSERT INTO tbl_name (<normal+gcols>) VALUES... DEFAULT is specified 
 # against gcols
 insert into t1 (a,b) values (1,default), (2,default);
-select * from t1;
+select * from t1 order by a;
 a	b	c
 1	-1	-1
 2	-2	-2
@@ -100,7 +100,7 @@ create table t2 like t1;
 insert into t2 select * from t1;
 ERROR HY000: The value specified for generated column 'b' in table 't2' is not allowed.
 insert into t2(a) select a from t1;
-select * from t1;
+select * from t2;
 a	b	c
 2	-2	-2
 drop table t2;
@@ -115,10 +115,10 @@ create table t2 like t1;
 insert into t2 (a,b) select a,b from t1;
 ERROR HY000: The value specified for generated column 'b' in table 't2' is not allowed.
 insert into t2 (a) select a from t1;
-select * from t2;
+select * from t2 order by a;
 a	b	c
-2	-2	-2
 1	-1	-1
+2	-2	-2
 drop table t2;
 drop table t1;
 #
@@ -129,12 +129,12 @@ create table t1 (a int,
 b int generated always as (-a) virtual,
 c int generated always as (-a) stored);
 insert into t1 (a) values (1), (2);
-select * from t1;
+select * from t1 order by a;
 a	b	c
 1	-1	-1
 2	-2	-2
 update t1 set a=3 where a=2;
-select * from t1;
+select * from t1 order by a;
 a	b	c
 1	-1	-1
 3	-3	-3
@@ -143,13 +143,13 @@ select * from t1;
 a	b	c
 # UPDATE tbl_name SET gcol=expr WHERE non-gcol=expr
 insert into t1 (a) values (1), (2);
-select * from t1;
+select * from t1 order by a;
 a	b	c
 1	-1	-1
 2	-2	-2
 update t1 set c=3 where a=2;
 ERROR HY000: The value specified for generated column 'c' in table 't1' is not allowed.
-select * from t1;
+select * from t1 order by a;
 a	b	c
 1	-1	-1
 2	-2	-2
@@ -158,12 +158,12 @@ select * from t1;
 a	b	c
 # UPDATE tbl_name SET non-gcol=expr WHERE gcol=expr
 insert into t1 (a) values (1), (2);
-select * from t1;
+select * from t1 order by a;
 a	b	c
 1	-1	-1
 2	-2	-2
 update t1 set a=3 where b=-2;
-select * from t1;
+select * from t1 order by a;
 a	b	c
 1	-1	-1
 3	-3	-3
@@ -172,13 +172,13 @@ select * from t1;
 a	b	c
 # UPDATE tbl_name SET gcol=expr WHERE gcol=expr
 insert into t1 (a) values (1), (2);
-select * from t1;
+select * from t1 order by a;
 a	b	c
 1	-1	-1
 2	-2	-2
 update t1 set c=3 where b=-2;
 ERROR HY000: The value specified for generated column 'c' in table 't1' is not allowed.
-select * from t1;
+select * from t1 order by a;
 a	b	c
 1	-1	-1
 2	-2	-2
@@ -192,7 +192,7 @@ create table t1 (a int,
 b int generated always as (-a) virtual,
 c int generated always as (-a) stored unique);
 insert into t1 (a) values (1), (2);
-select * from t1;
+select * from t1 order by a;
 a	b	c
 1	-1	-1
 2	-2	-2
@@ -207,12 +207,12 @@ a	b	c
 # INDEX created on gcol 
 # UPDATE tbl_name SET non-gcol=expr WHERE gcol=between const1 and const2
 insert into t1 (a) values (1), (2);
-select * from t1;
+select * from t1 order by a;
 a	b	c
 1	-1	-1
 2	-2	-2
 update t1 set a=3 where c between -3 and -2;
-select * from t1;
+select * from t1 order by a;
 a	b	c
 1	-1	-1
 3	-3	-3
@@ -222,12 +222,12 @@ a	b	c
 # No INDEX created on gcol 
 # UPDATE tbl_name SET non-gcol=expr WHERE gcol=between const1 and const2
 insert into t1 (a) values (1), (2);
-select * from t1;
+select * from t1 order by a;
 a	b	c
 1	-1	-1
 2	-2	-2
 update t1 set a=3 where b between -3 and -2;
-select * from t1;
+select * from t1 order by a;
 a	b	c
 1	-1	-1
 3	-3	-3
@@ -238,7 +238,7 @@ a	b	c
 # UPDATE tbl_name SET non-gcol=expr 
 # WHERE gcol=between const1 and const2 ORDER BY gcol
 insert into t1 (a) values (1), (2), (3), (4), (5);
-select * from t1;
+select * from t1 order by a;
 a	b	c
 1	-1	-1
 2	-2	-2
@@ -247,13 +247,13 @@ a	b	c
 5	-5	-5
 update t1 set a=6 where c between -1 and 0
 order by c;
-select * from t1;
+select * from t1 order by a;
 a	b	c
-6	-6	-6
 2	-2	-2
 3	-3	-3
 4	-4	-4
 5	-5	-5
+6	-6	-6
 delete from t1 where c between -6 and 0;
 select * from t1;
 a	b	c
@@ -261,7 +261,7 @@ a	b	c
 # UPDATE tbl_name SET non-gcol=expr 
 # WHERE gcol=between const1 and const2 ORDER BY gcol LIMIT 2
 insert into t1 (a) values (1), (2), (3), (4), (5);
-select * from t1;
+select * from t1 order by a;
 a	b	c
 1	-1	-1
 2	-2	-2
@@ -270,26 +270,26 @@ a	b	c
 5	-5	-5
 update t1 set a=6 where c between -1 and 0
 order by c limit 2;
-select * from t1;
+select * from t1 order by a;
 a	b	c
-6	-6	-6
 2	-2	-2
 3	-3	-3
 4	-4	-4
 5	-5	-5
-delete from t1 where c between -2 and 0 order by c;
-select * from t1;
-a	b	c
 6	-6	-6
+delete from t1 where c between -2 and 0 order by c;
+select * from t1 order by a;
+a	b	c
 3	-3	-3
 4	-4	-4
 5	-5	-5
+6	-6	-6
 delete from t1;
 # INDEX created on gcol 
 # UPDATE tbl_name SET non-gcol=expr
 # WHERE indexed gcol=between const1 and const2 and non-indexed gcol=const3
 insert into t1 (a) values (1), (2), (3), (4), (5);
-select * from t1;
+select * from t1 order by a;
 a	b	c
 1	-1	-1
 2	-2	-2
@@ -297,20 +297,20 @@ a	b	c
 4	-4	-4
 5	-5	-5
 update t1 set a=6 where (c between -2 and 0) and (b=-1);
-select * from t1;
+select * from t1 order by a;
 a	b	c
-6	-6	-6
 2	-2	-2
 3	-3	-3
 4	-4	-4
 5	-5	-5
+6	-6	-6
 delete from t1;
 # INDEX created on gcol 
 # UPDATE tbl_name SET non-gcol=expr
 # WHERE indexed gcol=between const1 and const2 and non-indexed gcol=const3
 # ORDER BY indexed gcol
 insert into t1 (a) values (1), (2), (3), (4), (5);
-select * from t1;
+select * from t1 order by a;
 a	b	c
 1	-1	-1
 2	-2	-2
@@ -318,13 +318,13 @@ a	b	c
 4	-4	-4
 5	-5	-5
 update t1 set a=6 where (c between -2 and 0) and (b=-1) order by c;
-select * from t1;
+select * from t1 order by a;
 a	b	c
-6	-6	-6
 2	-2	-2
 3	-3	-3
 4	-4	-4
 5	-5	-5
+6	-6	-6
 delete from t1;
 drop table t1;
 #
@@ -333,17 +333,17 @@ create table t2 (a int primary key, name varchar(10));
 create table t1 (a int primary key, b int generated always as (a % 10) stored);
 insert into t2 values (1, 'value1'), (2,'value2'), (3,'value3');
 insert into t1 (a) values (1),(2),(3);
-select * from t1;
+select * from t1 order by a;
 a	b
 1	1
 2	2
 3	3
-select * from t2;
+select * from t2 order by a;
 a	name
 1	value1
 2	value2
 3	value3
-select t1.a, t1.b, t2.name from t1,t2 where t1.b=t2.a;
+select t1.a, t1.b, t2.name from t1,t2 where t1.b=t2.a order by t1.a;
 a	b	name
 1	1	value1
 2	2	value2
@@ -399,12 +399,12 @@ b int generated always as (-a) virtual,
 c int generated always as (-a) stored unique,
 d varchar(16));
 insert into t1 (a,d) values (1,'a'), (2,'b');
-select * from t1;
+select * from t1 order by a;
 a	b	c	d
 1	-1	-1	a
 2	-2	-2	b
 replace t1 (a,d) values (1,'c');
-select * from t1;
+select * from t1 order by a;
 a	b	c	d
 1	-1	-1	c
 2	-2	-2	b

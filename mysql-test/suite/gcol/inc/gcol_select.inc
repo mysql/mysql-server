@@ -69,10 +69,12 @@ eval explain $s;
 
 --echo # select_type=PRIMARY, type=index,ALL
 let $s = select * from t1 where b in (select c from t3);
+--sorted_result
 eval $s;
 eval explain $s;
 
 --echo # select_type=PRIMARY, type=range,ref
+--sorted_result
 let $s = select * from t1 where c in (select c from t3 where c between -2 and -1);
 eval $s;
 eval explain $s;
@@ -80,11 +82,13 @@ eval explain $s;
 --echo # select_type=UNION, type=system
 --echo # select_type=UNION RESULT, type=<union1,2>
 let $s = select * from t1 union select * from t2;
+--sorted_result
 eval $s;
 eval explain $s;
 
 --echo # select_type=DERIVED, type=system
 let $s = select * from (select a,b,c from t1) as t11;
+--sorted_result
 eval $s;
 eval explain $s;
 
@@ -116,21 +120,25 @@ eval explain $s;
 --echo ###
 --echo # SELECT * FROM tbl_name WHERE <gcol expr>
 let $s = select * from t3 where c >= -2;
+--sorted_result
 eval $s;
 eval explain $s;
 
 --echo # SELECT * FROM tbl_name WHERE <non-gcol expr>
 let $s = select * from t3 where a between 1 and 2;
+--sorted_result
 eval $s;
 eval explain $s;
 
 --echo # SELECT * FROM tbl_name WHERE <non-indexed gcol expr>
 let $s = select * from t3 where b between -2 and -1;
+--sorted_result
 eval $s;
 eval explain $s;
 
 --echo # SELECT * FROM tbl_name WHERE <indexed gcol expr>
 let $s = select * from t3 where c between -2 and -1;
+--sorted_result
 eval $s;
 eval explain $s;
 
@@ -769,6 +777,12 @@ INSERT INTO cc (
 (1, '2008-01-23', '11:14:24.032949', '2004-10-02 20:31:15.022553', 't');
 SET @save_old_sql_mode= @@sql_mode;
 SET sql_mode="";
+
+# Warnings arrive in unpredictable order with NDB and cannot be sorted
+if ($testing_ndb)
+{
+--disable_warnings
+}
 SELECT DISTINCT alias1.col_varchar_key AS field1
 FROM ( cc AS alias1 STRAIGHT_JOIN
       (( cc AS alias2 STRAIGHT_JOIN cc AS alias3 ON
@@ -781,6 +795,10 @@ ORDER BY field1, alias1.col_date_key, field1 ASC, field1 DESC,
         alias1.col_time_key ASC, field1;
 DROP TABLE cc;
 SET sql_mode=@save_old_sql_mode;
+if ($testing_ndb)
+{
+--enable_warnings
+}
 
 --echo #
 --echo # Bug#20797941: WL8149:ASSERTION !TABLE ||
@@ -833,12 +851,14 @@ DROP TABLE t2, t3;
 --echo #
 --echo # Bug#21317507:GC: STORED COLUMN REJECTED, BUT VIRTUAL IS ACCEPTED
 --echo #
+# TODO: Figure out appropriate NDB tests here
 let $innodb_engine = `SELECT @@session.default_storage_engine='innodb'`;
+let $myisam_engine = `SELECT @@session.default_storage_engine='MyISAM'`;
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES(2147483647);
 --error 1221
 ALTER TABLE t1 ADD INDEX idx(a), WITH VALIDATION;
-if (!$innodb_engine)
+if ($myisam_engine)
 {
   --echo Should fail and column shouldn't be added
   --error 1264
@@ -882,7 +902,7 @@ DROP TABLE t1;
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES(2147483647);
 ALTER TABLE t1 ADD COLUMN h INT AS (a) VIRTUAL, WITHOUT VALIDATION;
---error 1845
+--error 1845, 1846
 ALTER TABLE t1 CHANGE h i INT AS (a) VIRTUAL, WITH VALIDATION,
   ALGORITHM=INPLACE;
 if ($innodb_engine)
@@ -890,23 +910,23 @@ if ($innodb_engine)
 ALTER TABLE t1 CHANGE h i INT AS (a) VIRTUAL, WITHOUT VALIDATION,
   ALGORITHM=INPLACE;
 }
-if (!$innodb_engine)
+if ($myisam_engine)
 {
 --error 1845
 ALTER TABLE t1 CHANGE h i INT AS (a) VIRTUAL, WITHOUT VALIDATION,
   ALGORITHM=INPLACE;
 }
---error 1845
+--error 1845, 1846
 ALTER TABLE t1 ADD COLUMN b SMALLINT AS (a) VIRTUAL, WITH VALIDATION,
   ALGORITHM=INPLACE, LOCK=NONE;
---error 1845
+--error 1845, 1846
 ALTER TABLE t1 ADD COLUMN c SMALLINT AS (a) VIRTUAL, WITH VALIDATION,
   ALGORITHM=INPLACE, LOCK=SHARED;
---error 1845
+--error 1845, 1846
 ALTER TABLE t1 ADD COLUMN d SMALLINT AS (a) VIRTUAL, WITH VALIDATION,
   ALGORITHM=INPLACE, LOCK=EXCLUSIVE;
 --echo Shouldn't fail on Innodb
-if (!$innodb_engine)
+if ($myisam_engine)
 {
   --error 1845
   ALTER TABLE t1 ADD COLUMN e SMALLINT AS (a) VIRTUAL, WITHOUT VALIDATION,
@@ -988,6 +1008,7 @@ SELECT * FROM t1
 WHERE i1 > 41 AND i1 <= 43;
 
 eval EXPLAIN $query1;
+--sorted_result
 eval $query1;
 
 if ($support_virtual_index)
@@ -1002,6 +1023,7 @@ SELECT * FROM t1
 WHERE v1 > 41 AND v1 <= 43;
 
 eval EXPLAIN $query2;
+--sorted_result
 eval $query2;
 
 DROP TABLE t0, t1;
@@ -1083,6 +1105,7 @@ WHERE ( t3.pk IN
 AND t1.i1 <= t3.i2_key;
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 --echo #
@@ -1109,6 +1132,7 @@ WHERE ( t3.pk IN
 AND t1.i1 <= t3.i2_key;
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 --echo #
@@ -1136,6 +1160,7 @@ WHERE ( t3.pk IN
 AND t1.i1 <= t3.i2_key;
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 --echo #
@@ -1173,6 +1198,7 @@ WHERE ( t3.pk IN
 AND t1.i1 <= t3.i2_key;
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 --echo #
@@ -1209,6 +1235,7 @@ WHERE ( t3.pk IN
 AND t1.i1 <= t3.i2_key;
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2, t3, t4;
