@@ -78,6 +78,7 @@ create table t1 (a int, b int generated always as (a+1) virtual key);
 }
 create table t1 (a int, b int generated always as (a+1) stored key);
 insert into t1 (a) values (3),(1),(2);
+--sorted_result
 select * from t1;
 drop table t1;
 if ($support_virtual_index)
@@ -87,7 +88,7 @@ create table t1 (a int, b int generated always as (a+1) virtual primary key);
 }
 create table t1 (a int, b int generated always as (a+1) stored primary key);
 insert into t1 (a) values (3),(1),(2);
-select * from t1;
+select * from t1 order by b;
 drop table t1;
 create table t1 (a int);
 if ($support_virtual_index)
@@ -121,14 +122,14 @@ describe t1;
 insert into t1 (a) values (1);
 select * from t1;
 insert into t1 values (2,default);
-select a,b from t1;
+select a,b from t1 order by a;
 create table t2 like t1;
 show create table t2;
 describe t2;
 insert into t2 (a) values (1);
 select * from t2;
 insert into t2 values (2,default);
-select a,b from t2;
+select a,b from t2 order by a;
 drop table t2;
 drop table t1;
 
@@ -138,7 +139,7 @@ describe t1;
 insert into t1 (a) values (1);
 select * from t1;
 insert into t1 values (2,default);
-select a,b from t1;
+select a,b from t1 order by a;
 drop table t1;
 
 
@@ -192,10 +193,13 @@ drop table t1;
 --echo Test generated columns referencing other generated columns
 create table t1 (a int unique, b int generated always as(-a) virtual, c int generated always as (b + 1) virtual);
 insert into t1 (a) values (1), (2);
+--sorted_result
 select * from t1;
 insert into t1(a) values (1) on duplicate key update a=3;
+--sorted_result
 select * from t1;
 update t1 set a=4 where a=2;
+--sorted_result
 select * from t1;
 drop table t1;
 
@@ -210,8 +214,8 @@ CREATE TABLE t1 (pk INTEGER AUTO_INCREMENT, col_int_nokey INTEGER GENERATED ALWA
 create table t1 (a int, b int generated always as(-a) virtual, c int generated always as (b + 1) stored);
 insert into t1(a) values(1),(2);
 create table tt as select * from t1;
-select * from t1;
-select * from tt;
+select * from t1 order by a;
+select * from tt order by a;
 drop table t1,tt;
 
 if (!$support_virtual_index)
@@ -246,15 +250,15 @@ CREATE TABLE t1(a int, b int as (a + 1),
             c varchar(12) as ("aaaabb") stored, d blob as (c));
 INSERT INTO t1(a) VALUES(1),(3);
 SHOW CREATE TABLE t1;
-SELECT * FROM t1;
+SELECT * FROM t1 order by a;
 CREATE TABLE t2 LIKE t1;
 SHOW CREATE TABLE t2;
 CREATE TABLE t3 AS SELECT * FROM t1;
 SHOW CREATE TABLE t3;
-SELECT * FROM t3;
+SELECT * FROM t3 order by a;
 CREATE TABLE t4 AS SELECT b,c,d FROM t1;
 SHOW CREATE TABLE t4;
-SELECT * FROM t4;
+SELECT * FROM t4 order by b;
 DROP TABLE t1,t2,t3,t4;
 
 --echo # Bug#21025003:WL8149:ASSERTION `CTX->NUM_TO_DROP_FK
@@ -332,6 +336,7 @@ CREATE TABLE t2(a int, b int as (1 NOT IN (SELECT 1 FROM t1 WHERE not_exist_col)
 CREATE TABLE t2(a int, b int as (1 NOT IN (SELECT 1 FROM dual)));
 DROP TABLE t1;
 
+if(! $testing_ndb) {
 --echo # Bug#21142905: PARTITIONED GENERATED COLS -
 --echo #  !TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET
 --echo # 
@@ -344,6 +349,7 @@ d int generated always as (b+a) virtual
 INSERT INTO t1(a) VALUES(0);
 DELETE FROM t1 WHERE c=1;
 DROP TABLE t1;
+}
 
 --echo # Bug #20709487: COLLATE OPTION NOT ACCEPTED IN GENERATED COLUMN
 --echo #                DEFINITION
@@ -376,16 +382,18 @@ CREATE TABLE t1 (c CHAR(10) CHARSET latin1 COLLATE latin1_bin,
                  c_ci CHAR(10) CHARSET latin1 COLLATE latin1_general_ci GENERATED ALWAYS AS (c),
                  c_cs CHAR(10) CHARSET latin1 COLLATE latin1_general_cs GENERATED ALWAYS AS (c));
 
-INSERT INTO t1 (c) VALUES ('a'), ('A');
+INSERT INTO t1 (c) VALUES ('a'), ('A'), ('b');
 
 SELECT * FROM t1 ORDER BY c;
-SELECT * FROM t1 ORDER BY c_ci;
+SELECT * FROM t1 ORDER BY c_ci, c;
 SELECT * FROM t1 ORDER BY c_cs;
 
+--sorted_result
 SELECT c, c_ci REGEXP 'A', c_cs REGEXP 'A' FROM t1;
 
 DROP TABLE t1;
 
+if(! $testing_ndb) {
 --echo # Bug #21469535: VALGRIND ERROR (CONDITIONAL JUMP) WHEN INSERT
 --echo #                ROWS INTO A PARTITIONED TABLE
 --echo #
@@ -403,6 +411,7 @@ PARTITION BY RANGE (store_id) (
 
 INSERT INTO t1 VALUES(1, 2, default);
 DROP TABLE t1;
+}
 
 --echo # Bug#21465626:ASSERT/CRASH ON DROPPING/ADDING VIRTUAL COLUMN
 CREATE TABLE t (a int(11), b int(11),
@@ -468,15 +477,15 @@ CREATE TABLE t1(
 INSERT INTO t1(col1, col2, col3) VALUES
  (1, 10, 100), (2, 20, 200);
 
-SELECT * FROM t1;
+SELECT * FROM t1 order by col1;
 
 # Change expression of a virtual generated column
 ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 * col3) VIRTUAL;
-SELECT * FROM t1;
+SELECT * FROM t1 order by col1;
 
 # Change expression of a stored generated column
 ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 / col3) STORED;
-SELECT * FROM t1;
+SELECT * FROM t1 order by col1;
 
 ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 + col3) VIRTUAL;
 ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 - col3) STORED;
@@ -491,14 +500,14 @@ if ($support_virtual_index)
 {
 # Change expression of a virtual generated column, with index
 ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 * col3) VIRTUAL;
-SELECT * FROM t1;
-SELECT vgc1 FROM t1;
+SELECT * FROM t1 order by col1;
+SELECT vgc1 FROM t1 order by vgc1;
 }
 
 # Change expression of a stored generated column, with index
 ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 / col3) STORED;
-SELECT * FROM t1;
-SELECT sgc1 FROM t1;
+SELECT * FROM t1 order by col1;
+SELECT sgc1 FROM t1 order by sgc1;
 
 if ($support_virtual_index)
 {
@@ -524,12 +533,12 @@ ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 / col3) VIRTUAL;
 ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 / col3) STORED;
 
 ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 * col3) VIRTUAL;
-SELECT * FROM t1;
-SELECT vgc1 FROM t1;
+SELECT * FROM t1 order by col1;
+SELECT vgc1 FROM t1 order by col1;
 
 ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 * col3) STORED;
-SELECT * FROM t1;
-SELECT sgc1 FROM t1;
+SELECT * FROM t1 order by col1;
+SELECT sgc1 FROM t1 order by sgc1;
 
 # Change virtual generated column to become stored
 --error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
@@ -541,11 +550,11 @@ ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 / col3) VIRTUAL;
 
 # Change base column to become stored generated column:
 ALTER TABLE t1 MODIFY COLUMN col4 INTEGER AS (col1 + col2 + col3) STORED;
-SELECT * FROM t1;
+SELECT * FROM t1 order by col1;
 
 # Change stored generated column to become base column:
 ALTER TABLE t1 MODIFY COLUMN col4 INTEGER;
-SELECT * FROM t1;
+SELECT * FROM t1 order by col1;
 
 DROP TABLE t1;
 
@@ -566,12 +575,12 @@ CREATE TABLE t1 (
 );
 INSERT INTO t1(a, b) values(1, 'bbbb'), (2, 'cc');
 SHOW CREATE TABLE t1;
-SELECT * FROM t1;
+SELECT * FROM t1 order by a;
 
 SET sql_mode= '';
 FLUSH TABLE t1;
 SHOW CREATE TABLE t1;
-SELECT * FROM t1;
+SELECT * FROM t1 order by a;
 DELETE FROM t1 where a= 2;
 
 SET sql_mode= @sql_mode_save;

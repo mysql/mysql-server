@@ -56,7 +56,7 @@ select * from t1;
 
 --echo # INSERT INTO tbl_name (<non_gcol_list>) VALUES...
 insert into t1 (a) values (1), (2);
-select * from t1;
+select * from t1 order by a;
 delete from t1;
 select * from t1;
 
@@ -109,7 +109,7 @@ create table t2 like t1;
 --error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
 insert into t2 select * from t1;
 insert into t2(a) select a from t1;
-select * from t1;
+select * from t2;
 drop table t2;
 
 --echo # CREATE new_table ... LIKE old_table INSERT INTO new_table (<non-gcols>, <gcols>) 
@@ -120,7 +120,7 @@ create table t2 like t1;
 --error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
 insert into t2 (a,b) select a,b from t1;
 insert into t2 (a) select a from t1;
-select * from t2;
+select * from t2 order by a;
 drop table t2;
 drop table t1;
 
@@ -131,9 +131,9 @@ drop table t1;
 --echo # UPDATE tbl_name SET non-gcol=expr WHERE non-gcol=expr
 eval $create1;
 insert into t1 (a) values (1), (2);
-select * from t1;
+select * from t1 order by a;
 update t1 set a=3 where a=2;
-select * from t1;
+select * from t1 order by a;
 delete from t1;
 select * from t1;
 
@@ -174,7 +174,7 @@ drop table t1;
 --echo # UPDATE tbl_name SET non-gcol=expr WHERE gcol=const
 eval $create3;
 insert into t1 (a) values (1), (2);
-select * from t1;
+select * from t1 order by a;
 update t1 set a=3 where c=-2;
 select * from t1;
 delete from t1;
@@ -220,13 +220,13 @@ select * from t1;
 --echo # UPDATE tbl_name SET non-gcol=expr 
 --echo # WHERE gcol=between const1 and const2 ORDER BY gcol LIMIT 2
 insert into t1 (a) values (1), (2), (3), (4), (5);
-select * from t1;
+select * from t1 order by a;
 update t1 set a=6 where c between -1 and 0
           order by c limit 2;
 --sorted_result
 select * from t1;
 delete from t1 where c between -2 and 0 order by c;
-select * from t1;
+select * from t1 order by a;
 delete from t1;
 
 --echo # INDEX created on gcol 
@@ -262,9 +262,9 @@ if ($innodb_engine)
   create table t1 (a int primary key, b int generated always as (a % 10) stored);
   insert into t2 values (1, 'value1'), (2,'value2'), (3,'value3');
   insert into t1 (a) values (1),(2),(3);
-  select * from t1;
-  select * from t2;
-  select t1.a, t1.b, t2.name from t1,t2 where t1.b=t2.a;
+  select * from t1 order by a;
+  select * from t2 order by a;
+  select t1.a, t1.b, t2.name from t1,t2 where t1.b=t2.a order by t1.a;
 
   --echo #  - ON UPDATE RESTRICT
   alter table t1 add foreign key (b) references t2(a) on update restrict;
@@ -302,9 +302,9 @@ if ($innodb_engine)
 --echo # REPLACE tbl_name (non-gcols) VALUES (non-gcols);
 eval $create4;
 insert into t1 (a,d) values (1,'a'), (2,'b');
-select * from t1;
+select * from t1 order by a;
 replace t1 (a,d) values (1,'c');
-select * from t1;
+select * from t1 order by a;
 delete from t1;
 select * from t1;
 
