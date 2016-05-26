@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #### t/events_bugs.test
 #
 # Last change:
@@ -1284,8 +1279,14 @@ END
 
 delimiter ;|
 
+# Added wait condition based on the on the information_schema.events
+# table, when an event has been executed , the details will be stored
+# into above schema table
+
 --echo # Wait until at least one instance of event is executed.
-let $wait_condition= SELECT COUNT(*) FROM table_bug12546938;
+let $wait_timeout= 10;
+let $wait_condition= SELECT COUNT(*) > 0 FROM information_schema.events
+                     WHERE event_name='event_Bug12546938' AND last_executed IS NOT NULL;
 --source include/wait_condition.inc
 
 --echo # Check that only one instance of our event was executed.
