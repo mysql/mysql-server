@@ -156,6 +156,15 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
 {
   DBUG_ENTER("mysql_create_db");
 
+  // Reject creation of the system schema except for system threads.
+  if (!thd->is_dd_system_thread() &&
+      dd::get_dictionary()->is_dd_schema_name(db) &&
+      !(create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS))
+  {
+    my_error(ER_NO_SYSTEM_SCHEMA_ACCESS, MYF(0), db);
+    DBUG_RETURN(true);
+  }
+
   /*
     When creating the schema, we must lock the schema name without case (for
     correct MDL locking) when l_c_t_n == 2.
@@ -317,6 +326,14 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
 {
   DBUG_ENTER("mysql_alter_db");
 
+  // Reject altering the system schema except for system threads.
+  if (!thd->is_dd_system_thread() &&
+      dd::get_dictionary()->is_dd_schema_name(db))
+  {
+    my_error(ER_NO_SYSTEM_SCHEMA_ACCESS, MYF(0), db);
+    DBUG_RETURN(true);
+  }
+
   if (lock_schema_name(thd, db))
     DBUG_RETURN(true);
 
@@ -401,6 +418,14 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
   TABLE_LIST *table;
   Drop_table_error_handler err_handler;
   DBUG_ENTER("mysql_rm_db");
+
+  // Reject dropping the system schema except for system threads.
+  if (!thd->is_dd_system_thread() &&
+      dd::get_dictionary()->is_dd_schema_name(std::string(db.str)))
+  {
+    my_error(ER_NO_SYSTEM_SCHEMA_ACCESS, MYF(0), db.str);
+    DBUG_RETURN(true);
+  }
 
   if (lock_schema_name(thd, db.str))
     DBUG_RETURN(true);

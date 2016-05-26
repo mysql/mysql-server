@@ -7,7 +7,11 @@
 # definitions of the DD tables need to be updated to match
 # the old test results."
 
+--source include/have_debug.inc
+
 use mysql;
+
+SET SESSION debug= '+d,skip_dd_table_access_check';
 
 # The DD database id
 let $dd_schema_id= `SELECT id FROM schemata
@@ -75,3 +79,5 @@ eval SELECT * FROM indexes
 eval SELECT * FROM index_column_usage
   WHERE index_id IN ($dd_index_ids)
   ORDER BY index_id, column_id;
+
+SET SESSION debug= '-d,skip_dd_table_access_check';

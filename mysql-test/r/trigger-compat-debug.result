@@ -13,10 +13,12 @@ CREATE DEFINER=`root`@`localhost` TRIGGER tr12 AFTER INSERT ON t1 FOR EACH ROW S
 CREATE DEFINER=`root`@`localhost` TRIGGER tr13 BEFORE DELETE ON t1 FOR EACH ROW SET @a=1;
 CREATE DEFINER=`root`@`localhost` TRIGGER tr14 AFTER DELETE ON t1 FOR EACH ROW SET @a=1;
 CREATE DEFINER=`root`@`localhost` TRIGGER tr15 BEFORE UPDATE ON t1 FOR EACH ROW SET @a=1;
+SET SESSION debug= '+d,skip_dd_table_access_check';
 UPDATE mysql.triggers SET action_statement = 'DELETE FROM t1 a USING t1 a' WHERE name = 'tr13';
 UPDATE mysql.triggers SET action_statement = 'DELETE FROM non_existing_table'  WHERE name = 'tr14';
 UPDATE mysql.triggers SET action_statement = 'DELETE FROM non_existing_table a USING non_existing_table a' WHERE name = 'tr15';
 COMMIT;
+SET SESSION debug= '-d,skip_dd_table_access_check';
 "Now we restart the server"
 # restart
 # We will get parse errors for most DDL and DML statements when the table

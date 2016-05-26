@@ -2102,6 +2102,9 @@ static bool create_dd_system_table(THD *thd,
   // Create dd::Table object.
   dd::Table *tab_obj= const_cast<dd::Schema *>(system_schema)->create_table(thd);
 
+  // Set to be hidden if appropriate.
+  tab_obj->set_hidden(dd_table.hidden());
+
   if (fill_dd_table_from_create_info(thd, tab_obj, table_name,
                                      create_info, create_fields,
                                      keyinfo, keys, Alter_info::ENABLE,

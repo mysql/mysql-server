@@ -70,6 +70,8 @@ public:
     Check if the given schema name is 'mysql', which where
     the DD tables are stored.
 
+    @param schema_name    Schema name to check.
+
     @returns true - If schema_name is 'mysql'
     @returns false - If schema_name is not 'mysql'
   */
@@ -78,11 +80,33 @@ public:
   /**
     Check if given table name is a dictionary table name.
 
+    @param schema_name    Schema name to check.
+    @param table_name     Table name to check.
+
     @returns true -  If given table name is a dictionary table.
     @returns false - If table name is not a dictionary table.
   */
   virtual bool is_dd_table_name(const std::string &schema_name,
                                 const std::string &table_name) const = 0;
+
+  /**
+    Check if given table name can be accessed by the given thread type.
+
+    @param is_dd_internal_thread    'true' if this is a DD internal
+                                    thread.
+    @param is_ddl_statement         'true' if this is a DDL statement.
+    @param schema_name              Schema name to check.
+    @param schema_length            Length of schema name to check.
+    @param table_name               Table name to check.
+
+    @returns true -  If given table name is accessible by the thread type.
+    @returns false - If table name is not accessible.
+  */
+  virtual bool is_dd_table_access_allowed(bool is_dd_internal_thread,
+                                          bool is_ddl_statement,
+                                          const char *schema_name,
+                                          size_t schema_length,
+                                          const char *table_name) const= 0;
 
   /**
     Check if given table name is a system view name.

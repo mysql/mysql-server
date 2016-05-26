@@ -74,12 +74,6 @@ innodb.partition                       WL6378_ALTER_PARTITION_TABLESPACE
 // TEST COMMENTED IN-LINE WITHIN .test FILES
 ///////////////////////////////////////////////////////////////////
 
-/* LOW
-  Direct modification of system tables which will be disallowed.
-  Revisit after WL6391
-*/
-i_main.plugin_auth                     WL6378_MODIFIES_SYSTEM_TABLE
-
 /*
   Allow dump/restore of innodb_index_stats and innodb_table_stats.
   See Bug#22655287

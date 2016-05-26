@@ -118,12 +118,14 @@ SET DEBUG= '-d, fail_while_dropping_dd_object';
 --echo #       will be addressed in WL#7743.
 --error ER_DB_DROP_EXISTS
 DROP SCHEMA s1;
+SET SESSION debug= '+d,skip_dd_table_access_check';
 SELECT COUNT(*) FROM mysql.schemata WHERE name LIKE 's1';
 
 --echo # To get out of this, create a directory, then drop.
 --mkdir $MYSQLD_DATADIR/s1
 DROP SCHEMA s1;
 SELECT COUNT(*) FROM mysql.schemata WHERE name LIKE 's1';
+SET SESSION debug= '-d,skip_dd_table_access_check';
 
 --echo ###################################################################
 --echo #
@@ -252,6 +254,7 @@ SET DEBUG= '-d, fail_while_dropping_dd_object';
 --echo #       ts1 in mysql.tablespaces.
 --error ER_DROP_FILEGROUP_FAILED
 DROP TABLESPACE ts1;
+SET SESSION debug= '+d,skip_dd_table_access_check';
 SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
 
 --echo # To get around this, recreate the tablespace, which will fail,
@@ -260,6 +263,7 @@ SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
 DROP TABLESPACE ts1;
 SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
+SET SESSION debug= '-d,skip_dd_table_access_check';
 
 --echo ###################################################################
 

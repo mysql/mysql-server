@@ -75,8 +75,11 @@ public:
   const P property() const
   { return m_property; }
 
+  const P *property_ptr() const
+  { return &m_property; }
+
 #ifndef DBUG_OFF
-  void dump()
+  void dump() const
   {
     fprintf(stderr, "Key= '%s.%s', property= '%s'\n",
             m_key.first.c_str(), m_key.second.c_str(),
@@ -123,7 +126,7 @@ private:
 
 public:
   // Externally available iteration is based on the order of inserts.
-  typedef typename Entity_list_type::iterator Iterator;
+  typedef typename Entity_list_type::const_iterator Const_iterator;
 
 
   /**
@@ -179,32 +182,64 @@ public:
 
 
   /**
-    Find an element in the registry.
+    Find an element entity in the registry.
 
     This method creates a key based on the submitted parameters, and
     looks up in the member map. If the key is found, the object pointed
-    to by the wrapper is returned, otherwise, NULL is returned.
+    to by the wrapper is returned, otherwise, nullptr is returned.
 
     @param schema_name   Schema containing the entity searched for.
     @param entity_name   Name  of the entity searched for.
-    @retval              NULL if not found, otherwise, the entity
+    @retval              nullptr if not found, otherwise, the entity
                          object pointed to by the wrapper element.
   */
 
-  const T *find(const std::string &schema_name, const std::string &entity_name)
+  const T *find_entity(const std::string &schema_name,
+                       const std::string &entity_name) const
   {
     // Create a new key. This is only used for lookup, so it is allocated
     // on the stack.
     K key(schema_name, entity_name);
 
     // Lookup in the map based on the key.
-    typename Entity_map_type::iterator element_it= m_entity_map.find(key);
+    typename Entity_map_type::const_iterator element_it= m_entity_map.find(key);
 
-    // Return NULL if not found, otherwise, return a pointer to the entity.
+    // Return nullptr if not found, otherwise, return a pointer to the entity.
     if (element_it == m_entity_map.end())
-      return NULL;
+      return nullptr;
 
     return element_it->second->entity();
+  }
+
+
+  /**
+    Find the property of an element in the registry.
+
+    This method creates a key based on the submitted parameters, and
+    looks up in the member map. If the key is found, the property
+    associated with the key is returned, otherwise, nullptr is returned.
+
+    @param schema_name   Schema containing the entity searched for.
+    @param entity_name   Name  of the entity searched for.
+    @retval              nullptr if not found, otherwise, the a pointer to
+                         the property associated with the key.
+  */
+
+  const P *find_property(const std::string &schema_name,
+                         const std::string &entity_name) const
+  {
+    // Create a new key. This is only used for lookup, so it is allocated
+    // on the stack.
+    K key(schema_name, entity_name);
+
+    // Lookup in the map based on the key.
+    typename Entity_map_type::const_iterator element_it= m_entity_map.find(key);
+
+    // Return nullptr if not found, otherwise, return a pointer to the property.
+    if (element_it == m_entity_map.end())
+      return nullptr;
+
+    return element_it->second->property_ptr();
   }
 
 
@@ -215,7 +250,7 @@ public:
             or end() if the vector is empty.
   */
 
-  Iterator begin()
+  Const_iterator begin() const
   { return m_entity_list.begin(); }
 
 
@@ -230,9 +265,9 @@ public:
                      with the submitted property, or end().
   */
 
-  Iterator begin(P property)
+  Const_iterator begin(P property) const
   {
-    Iterator it= begin();
+    Const_iterator it= begin();
     while (it != end())
     {
       if ((*it)->property() == property)
@@ -251,7 +286,7 @@ public:
             element in the vector.
   */
 
-  Iterator end()
+  Const_iterator end() const
   { return m_entity_list.end(); }
 
 
@@ -262,7 +297,7 @@ public:
     @retval         Iterator referring to the next element in the vector.
   */
 
-  Iterator next(Iterator current)
+  Const_iterator next(Const_iterator current) const
   {
     if (current == end())
       return current;
@@ -283,7 +318,7 @@ public:
                      with the submitted property.
   */
 
-  Iterator next(Iterator current, P property)
+  Const_iterator next(Const_iterator current, P property) const
   {
     if (current == end())
       return current;
@@ -296,10 +331,10 @@ public:
   }
 
 #ifndef DBUG_OFF
-  void dump()
+  void dump() const
   {
     // List the entities in the order they were inserted.
-    for (Iterator it= begin(); it != end(); ++it)
+    for (Const_iterator it= begin(); it != end(); ++it)
       (*it)->dump();
   }
 #endif
@@ -349,7 +384,7 @@ private:
 
 public:
   // The ordered iterator type must be public.
-  typedef System_table_registry_type::Iterator Iterator;
+  typedef System_table_registry_type::Const_iterator Const_iterator;
 
   static System_tables *instance();
 
@@ -362,24 +397,29 @@ public:
   { m_registry.add(schema_name, table_name, type, table); }
 
   // Find a system table by delegation to the wrapped registry.
-  const Object_table *find(const std::string &schema_name,
-                           const std::string &table_name)
-  { return m_registry.find(schema_name, table_name); }
+  const Object_table *find_table(const std::string &schema_name,
+                           const std::string &table_name) const
+  { return m_registry.find_entity(schema_name, table_name); }
 
-  Iterator begin()
+  // Find a system table by delegation to the wrapped registry.
+  const Types *find_type(const std::string &schema_name,
+                         const std::string &table_name) const
+  { return m_registry.find_property(schema_name, table_name); }
+
+  Const_iterator begin() const
   { return m_registry.begin(); }
 
-  Iterator begin(Types type)
+  Const_iterator begin(Types type) const
   { return m_registry.begin(type); }
 
-  Iterator end()
+  Const_iterator end() const
   { return m_registry.end(); }
 
-  Iterator next(Iterator current, Types type)
+  Const_iterator next(Const_iterator current, Types type) const
   { return m_registry.next(current, type); }
 
 #ifndef DBUG_OFF
-  void dump()
+  void dump() const
   { m_registry.dump(); }
 #endif
 };
@@ -430,7 +470,7 @@ private:
 
 public:
   // The ordered iterator type must be public.
-  typedef System_view_registry_type::Iterator Iterator;
+  typedef System_view_registry_type::Const_iterator Const_iterator;
 
   static System_views *instance();
 
@@ -447,23 +487,23 @@ public:
 
   // Find a system view by delegation to the wrapped registry.
   const System_view *find(const std::string &schema_name,
-                          const std::string &view_name)
-  { return m_registry.find(schema_name, view_name); }
+                          const std::string &view_name) const
+  { return m_registry.find_entity(schema_name, view_name); }
 
-  Iterator begin()
+  Const_iterator begin() const
   { return m_registry.begin(); }
 
-  Iterator begin(Types type)
+  Const_iterator begin(Types type) const
   { return m_registry.begin(type); }
 
-  Iterator end()
+  Const_iterator end() const
   { return m_registry.end(); }
 
-  Iterator next(Iterator current, Types type)
+  Const_iterator next(Const_iterator current, Types type) const
   { return m_registry.next(current, type); }
 
 #ifndef DBUG_OFF
-  void dump()
+  void dump() const
   { m_registry.dump(); }
 #endif
 };
@@ -518,7 +558,7 @@ private:
 
 public:
   // The ordered iterator type must be public.
-  typedef System_tablespace_registry_type::Iterator Iterator;
+  typedef System_tablespace_registry_type::Const_iterator Const_iterator;
 
   static System_tablespaces *instance();
 
@@ -530,23 +570,23 @@ public:
   }
 
   // Find a system tablespace by delegation to the wrapped registry.
-  const System_tablespace *find(const std::string &tablespace_name)
-  { return m_registry.find("", tablespace_name); }
+  const System_tablespace *find(const std::string &tablespace_name) const
+  { return m_registry.find_entity("", tablespace_name); }
 
-  Iterator begin()
+  Const_iterator begin() const
   { return m_registry.begin(); }
 
-  Iterator begin(Types type)
+  Const_iterator begin(Types type) const
   { return m_registry.begin(type); }
 
-  Iterator end()
+  Const_iterator end() const
   { return m_registry.end(); }
 
-  Iterator next(Iterator current, Types type)
+  Const_iterator next(Const_iterator current, Types type) const
   { return m_registry.next(current, type); }
 
 #ifndef DBUG_OFF
-  void dump()
+  void dump() const
   { m_registry.dump(); }
 #endif
 };

@@ -3,7 +3,12 @@
 # supported in embedded server. So, this test should not be run on embedded
 # server.
 
--- source include/not_embedded.inc
+--source include/not_embedded.inc
+
+# Need debug server do enable updating mysql.triggers. The stuff before that
+# section in the test below is in a --disable_parsing/--enable_parsing block,
+# so we can require debug for the entire test without splitting it.
+--source include/have_debug.inc
 
 --disable_parsing
 # Since in the new DD the column mysql.trigger.definer is defined as NOT NULL
@@ -208,10 +213,12 @@ CREATE DEFINER=`root`@`localhost` TRIGGER tr13 BEFORE DELETE ON t1 FOR EACH ROW 
 CREATE DEFINER=`root`@`localhost` TRIGGER tr14 AFTER DELETE ON t1 FOR EACH ROW SET @a=1;
 CREATE DEFINER=`root`@`localhost` TRIGGER tr15 BEFORE UPDATE ON t1 FOR EACH ROW SET @a=1;
 
+SET SESSION debug= '+d,skip_dd_table_access_check';
 UPDATE mysql.triggers SET action_statement = 'DELETE FROM t1 a USING t1 a' WHERE name = 'tr13';
 UPDATE mysql.triggers SET action_statement = 'DELETE FROM non_existing_table'  WHERE name = 'tr14';
 UPDATE mysql.triggers SET action_statement = 'DELETE FROM non_existing_table a USING non_existing_table a' WHERE name = 'tr15';
 COMMIT;
+SET SESSION debug= '-d,skip_dd_table_access_check';
 --echo "Now we restart the server"
 --source include/restart_mysqld.inc
 

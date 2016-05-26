@@ -75,6 +75,9 @@
 #include "table_cache.h"      // table_cache_manager
 #include "transaction.h"      // trans_rollback_implicit
 
+#include "dd/dd.h"            // get_dictionary
+#include "dd/dictionary.h"    // is_dd_table_access_allowed
+
 #include <algorithm>
 #include <sstream>
 using std::max;
@@ -5693,6 +5696,34 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
     ptr->derived_key_list.empty();
     derived_table_count++;
   }
+
+  // Check access to DD tables. We must allow CHECK and ALTER TABLE
+  // for the DDSE tables, since this is expected by the upgrade
+  // client. We must also allow DDL access for the initialize thread,
+  // since this thread is creating the I_S views.
+  const dd::Dictionary *dictionary= dd::get_dictionary();
+  if (dictionary && !dictionary->is_dd_table_access_allowed(
+             thd->is_dd_system_thread() || thd->is_initialize_system_thread(),
+             ptr->mdl_request.is_ddl_or_lock_tables_lock_request() &&
+               lex->sql_command != SQLCOM_CHECK &&
+               lex->sql_command != SQLCOM_ALTER_TABLE,
+             ptr->db, ptr->db_length, ptr->table_name))
+  {
+    // TODO: Allow access to 'st_spatial_reference_systems' until
+    // dedicated DDL statements for adding reference systems are
+    // implemented.
+    //  We must allow creation of the system views even for non-system
+    // threads since this is expected by the mysql_upgrade utility.
+    if (!(lex->sql_command == SQLCOM_CREATE_VIEW &&
+          dd::get_dictionary()->is_system_view_name(
+                                  lex->query_tables->db,
+                                  lex->query_tables->table_name)) &&
+        strcmp(ptr->table_name, "st_spatial_reference_systems"))
+    {
+      my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0), ptr->db, ptr->table_name);
+    }
+  }
+
   DBUG_RETURN(ptr);
 }
 

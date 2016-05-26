@@ -2,6 +2,9 @@
 --source include/have_innodb.inc
 --source include/not_embedded.inc
 
+# Allow system table access.
+SET GLOBAL debug= '+d,skip_dd_table_access_check';
+
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
 --enable_connect_log
@@ -228,3 +231,6 @@ DROP VIEW not_system_view;
 # gone so execution of other tests won't be affected by their presence.
 --disable_connect_log
 --source include/wait_until_count_sessions.inc
+
+# Reset system table access.
+SET GLOBAL debug= '-d,skip_dd_table_access_check';

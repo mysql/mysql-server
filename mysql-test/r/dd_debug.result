@@ -80,6 +80,7 @@ SET DEBUG= '-d, fail_while_dropping_dd_object';
 #       will be addressed in WL#7743.
 DROP SCHEMA s1;
 ERROR HY000: Can't drop database 's1'; database doesn't exist
+SET SESSION debug= '+d,skip_dd_table_access_check';
 SELECT COUNT(*) FROM mysql.schemata WHERE name LIKE 's1';
 COUNT(*)
 1
@@ -88,6 +89,7 @@ DROP SCHEMA s1;
 SELECT COUNT(*) FROM mysql.schemata WHERE name LIKE 's1';
 COUNT(*)
 0
+SET SESSION debug= '-d,skip_dd_table_access_check';
 ###################################################################
 #
 # 2. Tables
@@ -184,6 +186,7 @@ SET DEBUG= '-d, fail_while_dropping_dd_object';
 #       ts1 in mysql.tablespaces.
 DROP TABLESPACE ts1;
 ERROR HY000: Failed to drop TABLESPACE ts1
+SET SESSION debug= '+d,skip_dd_table_access_check';
 SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
 COUNT(*)
 1
@@ -195,4 +198,5 @@ DROP TABLESPACE ts1;
 SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
 COUNT(*)
 0
+SET SESSION debug= '-d,skip_dd_table_access_check';
 ###################################################################

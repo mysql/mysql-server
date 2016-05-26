@@ -1571,10 +1571,16 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                           'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="0";;'
+                                          'MYSQL_AUDIT_GENERAL_ERROR;;;'
+                                          'MYSQL_AUDIT_GENERAL_ERROR;;;'
+                                          'MYSQL_AUDIT_GENERAL_ERROR;;;'
+                                          'MYSQL_AUDIT_GENERAL_ERROR;;;'
+                                          'MYSQL_AUDIT_GENERAL_ERROR;;;'
                                           'MYSQL_AUDIT_QUERY_STATUS_END;sql_command_id="0";;'
                                           'MYSQL_AUDIT_GENERAL_RESULT;;;'
                                           'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                           'MYSQL_AUDIT_COMMAND_END;command_id="$command_end_id";';
+
 --disable_result_log
 SELECT * FROM INFORMATION_SCHEMA.TABLES;
 --enable_result_log

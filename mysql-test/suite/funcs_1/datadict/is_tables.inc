@@ -389,7 +389,6 @@ DROP TABLE test.t1_my_tablex;
 #
 # Check a VIEW
 CREATE VIEW test.t1_my_tablex AS SELECT 1;
-select * from mysql.table_stats where table_name='t1_my_tablex';
 ANALYZE TABLE test.t1_my_tablex;
 --vertical_results
 --replace_column 15 "#CRT"

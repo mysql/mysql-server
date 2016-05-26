@@ -1,4 +1,5 @@
 use mysql;
+SET SESSION debug= '+d,skip_dd_table_access_check';
 #
 # Subset of definitions from tables, not including
 # timestamps, partitioning, view definitions and
@@ -100,18 +101,18 @@ id	table_id	name	ordinal_position	type	is_nullable	is_zerofill	is_unsigned	char_
 20	5	file_name	3	MYSQL_TYPE_VARCHAR	0	0	0	765	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 21	5	se_private_data	4	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 22	6	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	NULL
-23	6	name	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
+23	6	name	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 24	6	created	3	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	CURRENT_TIMESTAMP	0		0	interval_count=0;	NULL
 25	6	last_altered	4	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	NULL	0		0	interval_count=0;	NULL
 26	7	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	NULL
 27	7	catalog_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-28	7	name	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
+28	7	name	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 29	7	default_collation_id	4	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 30	7	created	5	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	CURRENT_TIMESTAMP	0		0	interval_count=0;	NULL
 31	7	last_altered	6	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	NULL	0		0	interval_count=0;	NULL
 41	9	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	NULL
 42	9	schema_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-43	9	name	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
+43	9	name	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 44	9	type	4	MYSQL_TYPE_ENUM	0	0	0	33	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=3;	NULL
 45	9	engine	5	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	NULL
 46	9	mysql_version_id	6	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
@@ -141,9 +142,9 @@ id	table_id	name	ordinal_position	type	is_nullable	is_zerofill	is_unsigned	char_
 70	9	view_client_collation_id	30	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 71	9	view_connection_collation_id	31	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 72	10	view_id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-73	10	table_catalog	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
-74	10	table_schema	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
-75	10	table_name	4	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
+73	10	table_catalog	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
+74	10	table_schema	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
+75	10	table_name	4	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 80	12	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	NULL
 81	12	table_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 82	12	name	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
@@ -204,9 +205,9 @@ id	table_id	name	ordinal_position	type	is_nullable	is_zerofill	is_unsigned	char_
 137	16	match_option	6	MYSQL_TYPE_ENUM	0	0	0	21	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=3;	NULL
 138	16	update_rule	7	MYSQL_TYPE_ENUM	0	0	0	33	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=5;	NULL
 139	16	delete_rule	8	MYSQL_TYPE_ENUM	0	0	0	33	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=5;	NULL
-140	16	referenced_table_catalog	9	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
-141	16	referenced_table_schema	10	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
-142	16	referenced_table_name	11	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
+140	16	referenced_table_catalog	9	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
+141	16	referenced_table_schema	10	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
+142	16	referenced_table_name	11	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 143	17	foreign_key_id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 144	17	ordinal_position	2	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 145	17	column_id	3	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
@@ -446,3 +447,4 @@ index_id	ordinal_position	column_id	length	order	hidden
 81	1	281	8	ASC	0
 82	1	282	192	ASC	0
 83	1	283	8	ASC	0
+SET SESSION debug= '-d,skip_dd_table_access_check';

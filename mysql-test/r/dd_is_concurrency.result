@@ -1,3 +1,4 @@
+SET GLOBAL debug= '+d,skip_dd_table_access_check';
 use test;
 CREATE VIEW not_system_view AS
 SELECT name as table_name, mysql_version_id FROM mysql.tables;
@@ -129,3 +130,4 @@ connection con1;
 disconnect con1;
 connection default;
 DROP VIEW not_system_view;
+SET GLOBAL debug= '-d,skip_dd_table_access_check';

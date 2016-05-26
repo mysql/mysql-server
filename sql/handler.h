@@ -1059,19 +1059,6 @@ typedef int (*make_pushed_join_t)(handlerton *hton, THD* thd,
                                   const AQP::Join_plan* plan);
 
 /**
-  List of all system tables specific to the SE.
-  Array element would look like below,
-   { "<database_name>", "<system table name>" },
-  The last element MUST be,
-   { (const char*)NULL, (const char*)NULL }
-
-  @see ha_example_system_tables in ha_example.cc
-
-  This interface is optional, so every SE need not implement it.
-*/
-typedef const char* (*system_database_t)();
-
-/**
   Check if the given db.tablename is a system table for this SE.
 
   @param db                         Database name to check.
@@ -1574,7 +1561,6 @@ struct handlerton
   find_files_t find_files;
   table_exists_in_engine_t table_exists_in_engine;
   make_pushed_join_t make_pushed_join;
-  system_database_t system_database;
   is_supported_system_table_t is_supported_system_table;
 
   /*

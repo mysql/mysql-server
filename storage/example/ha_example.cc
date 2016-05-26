@@ -99,7 +99,6 @@ static handler *example_create_handler(handlerton *hton,
 handlerton *example_hton;
 
 /* Interface to mysqld, to check system tables supported by SE */
-static const char* example_system_database();
 static bool example_is_supported_system_table(const char *db,
                                       const char *table_name,
                                       bool is_sql_layer_system_table);
@@ -118,7 +117,6 @@ static int example_init_func(void *p)
   example_hton->state=                     SHOW_OPTION_YES;
   example_hton->create=                    example_create_handler;
   example_hton->flags=                     HTON_CAN_RECREATE;
-  example_hton->system_database=   example_system_database;
   example_hton->is_supported_system_table= example_is_supported_system_table;
 
   DBUG_RETURN(0);
@@ -165,17 +163,6 @@ ha_example::ha_example(handlerton *hton, TABLE_SHARE *table_arg)
   :handler(hton, table_arg)
 {}
 
-
-/*
-  Following handler function provides access to
-  system database specific to SE. This interface
-  is optional, so every SE need not implement it.
-*/
-const char* ha_example_system_database= NULL;
-const char* example_system_database()
-{
-  return ha_example_system_database;
-}
 
 /*
   List of all system tables specific to the SE.

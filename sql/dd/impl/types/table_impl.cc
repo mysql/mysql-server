@@ -374,18 +374,6 @@ bool Table_impl::store_attributes(Raw_record *r)
   //   - Store NULL in default subpartitioning if not set.
   //
 
-  /*
-    This is a temporary hack until WL#6391. Basically these
-    tables are being marked during bootstrap, and hence I_S does
-    not list them. But later during a ALTER TABLE or during
-    upgrade on these table, the hidden flag is lost. Hidding
-    metadata table is mostly solved in WL#6391.
-  */
-  if (schema_id() == (Object_id) 1 &&
-      m_hidden == false &&
-      !name().compare("character_sets"))
-    m_hidden= true;
-
   // Store field values
   return
     Abstract_table_impl::store_attributes(r) ||

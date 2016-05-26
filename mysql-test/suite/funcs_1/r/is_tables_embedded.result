@@ -365,8 +365,6 @@ Is current CREATE_TIME bigger than for the old dropped table?
 1
 DROP TABLE test.t1_my_tablex;
 CREATE VIEW test.t1_my_tablex AS SELECT 1;
-select * from mysql.table_stats where table_name='t1_my_tablex';
-schema_name	table_name	table_rows	avg_row_length	data_length	max_data_length	index_length	data_free	auto_increment	checksum	update_time	check_time
 ANALYZE TABLE test.t1_my_tablex;
 Table	Op	Msg_type	Msg_text
 test.t1_my_tablex	analyze	Error	'test.t1_my_tablex' is not BASE TABLE

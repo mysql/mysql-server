@@ -1,0 +1,356 @@
+#
+# WL#6391: Hide DD tables.
+#
+# Prohibit access to the DD tables from user submitted
+# SQL statements, but allow DD initialization to execute
+# such statements.
+#
+# TODO: Add test of DD tablespace. This depends on
+#       WL#7141, where this functionality is implemented.
+#
+# DD schema DDL
+DROP SCHEMA mysql;
+ERROR HY000: Access to system schema 'mysql' is rejected.
+CREATE SCHEMA mysql;
+ERROR HY000: Access to system schema 'mysql' is rejected.
+ALTER SCHEMA mysql DEFAULT COLLATE utf8_general_ci;
+ERROR HY000: Access to system schema 'mysql' is rejected.
+USE mysql;
+CREATE TABLE t (pk BIGINT UNSIGNED PRIMARY KEY);
+#
+# DD table access in LOAD statements.
+#
+LOAD DATA INFILE 'no_such_file' INTO TABLE mysql.version;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+#
+# DD table access in HANDLER statements.
+#
+HANDLER mysql.version OPEN;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+#
+# DD table visibility in I_S.
+#
+# A SELECT statement will not fail, since the table names are submitted as strings in WHERE clauses.
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'mysql.version' AND TABLE_SCHEMA = 'mysql';
+COUNT(*)
+0
+# A SHOW statement will fail because the table name is interpreted as a table name, not as a string.
+SHOW CREATE TABLE mysql.version;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+#
+# DD table access in DDL.
+#
+DROP TABLE mysql.version;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+CREATE TABLE mysql.version (i INTEGER);
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+CREATE TABLE new_tab LIKE mysql.version;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+ALTER TABLE mysql.version ADD COLUMN (new_col INTEGER);
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+TRUNCATE TABLE mysql.version;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+RENAME TABLE mysql.version TO new_tab;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+RENAME TABLE t TO mysql.version;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+#
+# DD table access in DML.
+#
+SELECT * from mysql.version;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+SELECT * from t WHERE t.pk = (SELECT COUNT(*) FROM mysql.version);
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+DELETE FROM mysql.version;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+UPDATE mysql.version SET id= 0 WHERE ID= 1;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+INSERT INTO mysql.version VALUES (1);
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+#
+# DD table access from views.
+#
+CREATE VIEW new_view AS SELECT * FROM mysql.version;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+#
+# DD table access from stored programs.
+#
+CREATE PROCEDURE dd_access() SELECT * FROM mysql.version;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+CREATE FUNCTION dd_access() RETURNS INTEGER RETURN (SELECT COUNT(*) FROM mysql.version);
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+#
+# DD table access from prepared statements (the '?' placeholders cannot be used for meta data).
+#
+PREPARE ps FROM 'DROP TABLE mysql.version';;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+PREPARE ps FROM 'SELECT * FROM mysql.version';;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+#
+# DD table access from triggers
+#
+CREATE TRIGGER trg BEFORE INSERT ON mysql.version FOR EACH ROW SET @count = @count + 1;;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+#
+# DD table access from foreign keys
+#
+ALTER TABLE t ADD CONSTRAINT FOREIGN KEY (pk) REFERENCES mysql.version (id);;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+#
+# DD table access in LOAD statements.
+#
+LOAD DATA INFILE 'no_such_file' INTO TABLE version;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+#
+# DD table access in HANDLER statements.
+#
+HANDLER version OPEN;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+#
+# DD table visibility in I_S.
+#
+# A SELECT statement will not fail, since the table names are submitted as strings in WHERE clauses.
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'version' AND TABLE_SCHEMA = 'mysql';
+COUNT(*)
+0
+# A SHOW statement will fail because the table name is interpreted as a table name, not as a string.
+SHOW CREATE TABLE version;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+#
+# DD table access in DDL.
+#
+DROP TABLE version;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+CREATE TABLE version (i INTEGER);
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+CREATE TABLE new_tab LIKE version;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+ALTER TABLE version ADD COLUMN (new_col INTEGER);
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+TRUNCATE TABLE version;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+RENAME TABLE version TO new_tab;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+RENAME TABLE t TO version;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+#
+# DD table access in DML.
+#
+SELECT * from version;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+SELECT * from t WHERE t.pk = (SELECT COUNT(*) FROM version);
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+DELETE FROM version;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+UPDATE version SET id= 0 WHERE ID= 1;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+INSERT INTO version VALUES (1);
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+#
+# DD table access from views.
+#
+CREATE VIEW new_view AS SELECT * FROM version;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+#
+# DD table access from stored programs.
+#
+CREATE PROCEDURE dd_access() SELECT * FROM version;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+CREATE FUNCTION dd_access() RETURNS INTEGER RETURN (SELECT COUNT(*) FROM version);
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+#
+# DD table access from prepared statements (the '?' placeholders cannot be used for meta data).
+#
+PREPARE ps FROM 'DROP TABLE version';;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+PREPARE ps FROM 'SELECT * FROM version';;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+#
+# DD table access from triggers
+#
+CREATE TRIGGER trg BEFORE INSERT ON version FOR EACH ROW SET @count = @count + 1;;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+#
+# DD table access from foreign keys
+#
+ALTER TABLE t ADD CONSTRAINT FOREIGN KEY (pk) REFERENCES version (id);;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+#
+# DD table access in LOAD statements.
+#
+LOAD DATA INFILE 'no_such_file' INTO TABLE mysql.indexes;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+#
+# DD table access in HANDLER statements.
+#
+HANDLER mysql.indexes OPEN;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+#
+# DD table visibility in I_S.
+#
+# A SELECT statement will not fail, since the table names are submitted as strings in WHERE clauses.
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'mysql.indexes' AND TABLE_SCHEMA = 'mysql';
+COUNT(*)
+0
+# A SHOW statement will fail because the table name is interpreted as a table name, not as a string.
+SHOW CREATE TABLE mysql.indexes;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+#
+# DD table access in DDL.
+#
+DROP TABLE mysql.indexes;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+CREATE TABLE mysql.indexes (i INTEGER);
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+CREATE TABLE new_tab LIKE mysql.indexes;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+ALTER TABLE mysql.indexes ADD COLUMN (new_col INTEGER);
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+TRUNCATE TABLE mysql.indexes;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+RENAME TABLE mysql.indexes TO new_tab;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+RENAME TABLE t TO mysql.indexes;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+#
+# DD table access in DML.
+#
+SELECT * from mysql.indexes;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+SELECT * from t WHERE t.pk = (SELECT COUNT(*) FROM mysql.indexes);
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+DELETE FROM mysql.indexes;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+UPDATE mysql.indexes SET id= 0 WHERE ID= 1;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+INSERT INTO mysql.indexes VALUES (1);
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+#
+# DD table access from views.
+#
+CREATE VIEW new_view AS SELECT * FROM mysql.indexes;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+#
+# DD table access from stored programs.
+#
+CREATE PROCEDURE dd_access() SELECT * FROM mysql.indexes;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+CREATE FUNCTION dd_access() RETURNS INTEGER RETURN (SELECT COUNT(*) FROM mysql.indexes);
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+#
+# DD table access from prepared statements (the '?' placeholders cannot be used for meta data).
+#
+PREPARE ps FROM 'DROP TABLE mysql.indexes';;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+PREPARE ps FROM 'SELECT * FROM mysql.indexes';;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+#
+# DD table access from triggers
+#
+CREATE TRIGGER trg BEFORE INSERT ON mysql.indexes FOR EACH ROW SET @count = @count + 1;;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+#
+# DD table access from foreign keys
+#
+ALTER TABLE t ADD CONSTRAINT FOREIGN KEY (pk) REFERENCES mysql.indexes (id);;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+#
+# DD table access in LOAD statements.
+#
+LOAD DATA INFILE 'no_such_file' INTO TABLE indexes;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+#
+# DD table access in HANDLER statements.
+#
+HANDLER indexes OPEN;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+#
+# DD table visibility in I_S.
+#
+# A SELECT statement will not fail, since the table names are submitted as strings in WHERE clauses.
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'indexes' AND TABLE_SCHEMA = 'mysql';
+COUNT(*)
+0
+# A SHOW statement will fail because the table name is interpreted as a table name, not as a string.
+SHOW CREATE TABLE indexes;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+#
+# DD table access in DDL.
+#
+DROP TABLE indexes;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+CREATE TABLE indexes (i INTEGER);
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+CREATE TABLE new_tab LIKE indexes;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+ALTER TABLE indexes ADD COLUMN (new_col INTEGER);
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+TRUNCATE TABLE indexes;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+RENAME TABLE indexes TO new_tab;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+RENAME TABLE t TO indexes;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+#
+# DD table access in DML.
+#
+SELECT * from indexes;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+SELECT * from t WHERE t.pk = (SELECT COUNT(*) FROM indexes);
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+DELETE FROM indexes;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+UPDATE indexes SET id= 0 WHERE ID= 1;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+INSERT INTO indexes VALUES (1);
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+#
+# DD table access from views.
+#
+CREATE VIEW new_view AS SELECT * FROM indexes;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+#
+# DD table access from stored programs.
+#
+CREATE PROCEDURE dd_access() SELECT * FROM indexes;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+CREATE FUNCTION dd_access() RETURNS INTEGER RETURN (SELECT COUNT(*) FROM indexes);
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+#
+# DD table access from prepared statements (the '?' placeholders cannot be used for meta data).
+#
+PREPARE ps FROM 'DROP TABLE indexes';;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+PREPARE ps FROM 'SELECT * FROM indexes';;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+#
+# DD table access from triggers
+#
+CREATE TRIGGER trg BEFORE INSERT ON indexes FOR EACH ROW SET @count = @count + 1;;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+#
+# DD table access from foreign keys
+#
+ALTER TABLE t ADD CONSTRAINT FOREIGN KEY (pk) REFERENCES indexes (id);;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+DROP TABLE t;
+# Check that we may query and update mysql.innodb_index_stats.
+SELECT stat_description FROM mysql.innodb_index_stats LIMIT 1;
+stat_description
+database_name
+UPDATE mysql.innodb_index_stats SET stat_description='Updated';
+SELECT stat_description FROM mysql.innodb_index_stats LIMIT 1;
+stat_description
+Updated
+# Check that we may not DROP mysql.innodb_index_stats.
+DROP TABLE mysql.innodb_index_stats;
+ERROR HY000: Access to system table 'mysql.innodb_index_stats' is rejected.
+# But ALTER and CHECK is allowed.
+ALTER TABLE mysql.innodb_index_stats COMMENT 'Altered';
+SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='innodb_index_stats';
+TABLE_NAME	TABLE_COMMENT
+innodb_index_stats	Altered
+# Test CHECK TABLE mysql.innodb_index_stats.
+CHECK TABLE mysql.innodb_index_stats;
+Table	Op	Msg_type	Msg_text
+mysql.innodb_index_stats	check	status	OK

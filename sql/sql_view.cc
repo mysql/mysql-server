@@ -18,6 +18,7 @@
 #include "auth_common.h"    // CREATE_VIEW_ACL
 #include "binlog.h"         // mysql_bin_log
 #include "dd_sql_view.h"    // update_referencing_views_metadata
+#include "error_handler.h"  // Internal_error_handler
 #include "derror.h"         // ER_THD
 #include "mysqld.h"         // stage_end reg_ext key_file_frm
 #include "opt_trace.h"      // opt_trace_disable_if_no_view_access
@@ -1222,6 +1223,26 @@ bool open_and_read_view(THD *thd, TABLE_SHARE *share,
 
 
 /**
+  This internal handler is used to trap ER_NO_SYSTEM_TABLE_ACCESS.
+*/
+class DD_table_access_error_handler : public Internal_error_handler
+{
+public:
+  DD_table_access_error_handler()
+  {}
+
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    return (sql_errno == ER_NO_SYSTEM_TABLE_ACCESS);
+  }
+};
+
+
+/**
   Parse a view definition.
 
   @param[in]  thd                 Thread handler
@@ -1351,8 +1372,25 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
   if (thd->m_digest != NULL)
     thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
+  /*
+    Push error handler allowing DD table access. Creating views referring
+    to DD tables is rejected except for the I_S views. Thus, when parsing
+    a view, if the view refers to a DD table, the view must be an I_S view.
+    Pushing the custom error handler only for I_S views anyway.
+  */
+  DD_table_access_error_handler dd_access_handler;
+  bool is_system_view=
+      dd::get_dictionary()->is_system_view_name(view_ref->db,
+                                                view_ref->table_name);
+
+  if (is_system_view)
+    thd->push_internal_handler(&dd_access_handler);
+
   // Parse the query text of the view
   result= parse_sql(thd, &parser_state, view_ref->view_creation_ctx);
+
+  if (is_system_view)
+    thd->pop_internal_handler();
 
   // Restore environment
   if ((old_lex->sql_command == SQLCOM_SHOW_FIELDS) ||

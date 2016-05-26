@@ -18,6 +18,10 @@
 #include "derror.h"      // ER_THD
 #include "field.h"       // Create_field
 #include "mysqld.h"      // system_charset_info
+#include "sql_class.h"   // THD
+
+#include "dd/dd.h"         // dd::get_dictionary
+#include "dd/dictionary.h" // dd::Dictionary::check_dd...
 
 #include <algorithm>
 
@@ -80,9 +84,29 @@ bool foreign_key_prefix(const Key_spec *a, const Key_spec *b)
 
 bool Foreign_key_spec::validate(THD *thd, List<Create_field> &table_fields) const
 {
+  DBUG_ENTER("Foreign_key_spec::validate");
+
+  // Reject FKs to inaccessible DD tables. Use current schema unless
+  // defined explicitly.
+  const char *db_str= ref_db.str;
+  size_t db_length= ref_db.length;
+  if (db_str == nullptr)
+  {
+    db_str= thd->db().str;
+    db_length= thd->db().length;
+  }
+
+  const dd::Dictionary *dictionary= dd::get_dictionary();
+  if (dictionary && !dictionary->is_dd_table_access_allowed(
+                               thd->is_dd_system_thread(),
+                               true, db_str, db_length, ref_table.str))
+  {
+    my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0), db_str, ref_table.str);
+    DBUG_RETURN(true);
+  }
+
   Create_field  *sql_field;
   List_iterator<Create_field> it(table_fields);
-  DBUG_ENTER("Foreign_key_spec::validate");
   if (ref_columns.size() != columns.size())
   {
     my_error(ER_WRONG_FK_DEF, MYF(0),

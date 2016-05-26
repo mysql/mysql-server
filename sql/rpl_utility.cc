@@ -32,6 +32,10 @@
 #include "sql_tmp_table.h"               // create_virtual_tmp_table
 #include "template_utils.h"
 #include "rpl_slave.h"
+
+#include "dd/dd.h"                       // get_dictionary
+#include "dd/dictionary.h"               // is_dd_table_access_allowed
+
 #include <algorithm>
 
 using std::min;
@@ -583,10 +587,12 @@ can_convert_field_to(Field *field,
 
 
 /**
-  Is the definition compatible with a table?
+  Is the definition compatible with a table when it does not belong to
+  the data dictionary?
 
-  This function will compare the master table with an existing table
-  on the slave and see if they are compatible with respect to the
+  This function first finds out whether the table belongs to the data
+  dictionary. When not, it will compare the master table with an existing
+  table on the slave and see if they are compatible with respect to the
   current settings of @c SLAVE_TYPE_CONVERSIONS.
 
   If the tables are compatible and conversions are required, @c
@@ -604,13 +610,35 @@ can_convert_field_to(Field *field,
   @param [out] conv_table_var Virtual temporary table for performing conversions, if necessary.
 
   @retval true Master table is compatible with slave table.
-  @retval false Master table is not compatible with slave table.
+  @retval false When the table belongs to the data dictionary or
+                master table is not compatible with slave table.
 */
 bool
 table_def::compatible_with(THD *thd, Relay_log_info *rli,
                            TABLE *table, TABLE **conv_table_var)
   const
 {
+  /*
+    Prohibit replication into dictionary internal tables. We know this is
+    not DDL (which will be replicated as statements, and rejected by the
+    corresponding check for SQL statements), thus 'false' in the call below.
+    Also sserting that this is not a DD system thread.
+  */
+  DBUG_ASSERT(!thd->is_dd_system_thread());
+  const dd::Dictionary *dictionary= dd::get_dictionary();
+  if (dictionary && !dictionary->is_dd_table_access_allowed(false, false,
+                                                  table->s->db.str,
+                                                  table->s->db.length,
+                                                  table->s->table_name.str))
+  {
+    DBUG_PRINT("debug", ("Access to dictionary table %s.%s is prohibited",
+                         table->s->db.str, table->s->table_name.str));
+    rli->report(ERROR_LEVEL, ER_NO_SYSTEM_TABLE_ACCESS,
+                ER_THD(thd, ER_NO_SYSTEM_TABLE_ACCESS),
+                table->s->db.str, table->s->table_name.str);
+    return false;
+  }
+
   /*
     We only check the initial columns for the tables.
   */

@@ -381,7 +381,7 @@ bool create_schema(THD *thd)
 bool create_tables(THD *thd)
 {
   // Iterate over DD tables, create tables.
-  System_tables::Iterator it= System_tables::instance()->begin();
+  System_tables::Const_iterator it= System_tables::instance()->begin();
 
   // Make sure the version table is the first element.
 #ifndef DBUG_OFF
@@ -436,7 +436,7 @@ bool acquire_exclusive_mdl(THD *thd)
   mdl_requests.push_front(&tablespace_request);
 
   // Prepare MDL requests for all tables names.
-  for (System_tables::Iterator it= System_tables::instance()->begin();
+  for (System_tables::Const_iterator it= System_tables::instance()->begin();
        it != System_tables::instance()->end(); ++it)
   {
     MDL_request *table_request= new (thd->mem_root) MDL_request;
@@ -520,7 +520,7 @@ bool store_meta_data(THD *thd)
     INVALID and doing an update. This will both store the object persistently
     and update the cached object.
   */
-  for (System_tables::Iterator it= System_tables::instance()->begin();
+  for (System_tables::Const_iterator it= System_tables::instance()->begin();
        it != System_tables::instance()->end(); ++it)
   {
     const dd::Table *sys_table= nullptr;
@@ -539,16 +539,6 @@ bool store_meta_data(THD *thd)
 #endif
     // We must set the ID to INVALID to enable storing the object.
     sys_table_clone->set_id(INVALID_OBJECT_ID);
-
-  /*
-    This is a temporary hack until WL#6391. Basically these
-    tables are being marked during bootstrap, and hence I_S does
-    not list them. But we should not hide innodb_*_stats tables.
-    Hidding metadata table is mostly solved in WL#6391.
-  */
-    if (sys_table_clone->name().compare("innodb_table_stats") &&
-        sys_table_clone->name().compare("innodb_index_stats"))
-      sys_table_clone->set_hidden(true);
     if (thd->dd_client()->update(&sys_table,
                                  static_cast<Table*>(sys_table_clone.get())))
       return end_transaction(thd, true);
@@ -561,7 +551,7 @@ bool store_meta_data(THD *thd)
     has already been stored above, so we iterate only over the tablespaces
     with property PREDEFINED_DDSE.
   */
-  for (System_tablespaces::Iterator it= System_tablespaces::instance()->begin(
+  for (System_tablespaces::Const_iterator it= System_tablespaces::instance()->begin(
          System_tablespaces::PREDEFINED_DDSE);
        it != System_tablespaces::instance()->end();
        it= System_tablespaces::instance()->next(it,
@@ -615,7 +605,7 @@ bool read_meta_data(THD *thd)
     for all objects in one step without acquisition interleaved.
   */
   std::vector<const Table*> sys_tables;
-  for (System_tables::Iterator it= System_tables::instance()->begin();
+  for (System_tables::Const_iterator it= System_tables::instance()->begin();
        it != System_tables::instance()->end(); ++it)
   {
     const dd::Table *table= nullptr;
@@ -711,7 +701,7 @@ bool read_meta_data(THD *thd)
     tablespace has already been refreshed above, so we iterate only over the
     tablespaces with property PREDEFINED_DDSE.
   */
-  for (System_tablespaces::Iterator it= System_tablespaces::instance()->begin(
+  for (System_tablespaces::Const_iterator it= System_tablespaces::instance()->begin(
          System_tablespaces::PREDEFINED_DDSE);
        it != System_tablespaces::instance()->end();
        it= System_tablespaces::instance()->next(it,
@@ -744,7 +734,7 @@ bool populate_tables(THD *thd)
 {
   // Iterate over DD tables, populate tables.
   bool error= false;
-  for (System_tables::Iterator it= System_tables::instance()->begin();
+  for (System_tables::Const_iterator it= System_tables::instance()->begin();
        it != System_tables::instance()->end(); ++it)
   {
     // Retrieve list of SQL statements to execute.
@@ -778,7 +768,7 @@ bool populate_tables(THD *thd)
 bool add_cyclic_foreign_keys(THD *thd)
 {
   // Iterate over DD tables, add foreign keys.
-  for (System_tables::Iterator it= System_tables::instance()->begin();
+  for (System_tables::Const_iterator it= System_tables::instance()->begin();
        it != System_tables::instance()->end(); ++it)
   {
     const Object_table_definition *table_def=
@@ -786,6 +776,18 @@ bool add_cyclic_foreign_keys(THD *thd)
     if (table_def == nullptr ||
         execute_query(thd, table_def->build_ddl_add_cyclic_foreign_keys()))
       return true;
+
+    // Acquire the table object, maintain table hiding.
+    const dd::Table *table= nullptr;
+    if (thd->dd_client()->acquire(std::string(MYSQL_SCHEMA_NAME.str),
+                                  (*it)->entity()->name(), &table))
+      return true;
+    std::unique_ptr<Table_impl> table_clone(
+            dynamic_cast<Table_impl*>(table->clone()));
+    table_clone->set_hidden((*it)->entity()->hidden());
+    if (thd->dd_client()->store(static_cast<Table*>(table_clone.get())))
+      return end_transaction(thd, true);
+    end_transaction(thd, false);
   }
 
   return false;
@@ -846,7 +848,7 @@ bool repopulate_charsets_and_collations(THD *thd)
 bool verify_objects_sticky(THD *thd)
 {
   // Get the DD tables and verify that they are sticky.
-  for (System_tables::Iterator it= System_tables::instance()->begin();
+  for (System_tables::Const_iterator it= System_tables::instance()->begin();
        it != System_tables::instance()->end(); ++it)
   {
     const Table *table= nullptr;
@@ -880,7 +882,7 @@ bool verify_objects_sticky(THD *thd)
     return end_transaction(thd, true);
 
   // Get the predefined tablespaces and verify that they are sticky.
-  for (System_tablespaces::Iterator it= System_tablespaces::instance()->begin();
+  for (System_tablespaces::Const_iterator it= System_tablespaces::instance()->begin();
        it != System_tablespaces::instance()->end(); ++it)
   {
     const dd::Tablespace *tablespace= nullptr;

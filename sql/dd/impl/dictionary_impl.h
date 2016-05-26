@@ -87,6 +87,12 @@ public:
                                const std::string &table_name) const
   { return (get_dd_table(schema_name, table_name) != NULL); }
 
+  virtual bool is_dd_table_access_allowed(bool is_dd_internal_thread,
+                                          bool is_ddl_statement,
+                                          const char *schema_name,
+                                          size_t schema_length,
+                                          const char *table_name) const;
+
   virtual bool is_system_view_name(const std::string &schema_name,
                                    const std::string &table_name) const;
 

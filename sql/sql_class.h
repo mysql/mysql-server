@@ -2032,25 +2032,34 @@ public:
   enum enum_thread_type system_thread;
 
   // Check if this THD belongs to a system thread.
-  inline bool is_system_thread()
+  bool is_system_thread() const
   { return system_thread != NON_SYSTEM_THREAD; }
 
   // Check if this THD belongs to a dd bootstrap system thread.
   // For now we also count the thread (or rather THD) that is used
   // during DDL log recovery as a DD system thread as we do not
   // need to take MDL locks during this phase either.
-  inline bool is_dd_system_thread()
+  bool is_dd_system_thread() const
   {
     return system_thread == SYSTEM_THREAD_DD_INITIALIZE ||
            system_thread == SYSTEM_THREAD_DD_RESTART ||
            system_thread == SYSTEM_THREAD_DDL_LOG_RECOVERY;
   }
 
-  // Check if this THD belongs to a bootstrap system thread.
-  inline bool is_bootstrap_system_thread()
+  // Check if this THD belongs to the initialize system thread. The
+  // initialize thread executes statements that are compiled into the
+  // server.
+  bool is_initialize_system_thread() const
+  {
+    return system_thread == SYSTEM_THREAD_SERVER_INITIALIZE;
+  }
+
+  // Check if this THD belongs to a bootstrap system thread. Note that
+  // this thread type may execute statements submitted by the user.
+  bool is_bootstrap_system_thread() const
   {
     return is_dd_system_thread() ||
-           system_thread == SYSTEM_THREAD_SERVER_INITIALIZE ||
+           is_initialize_system_thread() ||
            system_thread == SYSTEM_THREAD_INIT_FILE;
   }
 

@@ -131,7 +131,56 @@ const Object_table *Dictionary_impl::get_dd_table(
   if (!is_dd_schema_name(schema_name))
     return NULL;
 
-  return System_tables::instance()->find(schema_name, table_name);
+  return System_tables::instance()->find_table(schema_name, table_name);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+bool Dictionary_impl::is_dd_table_access_allowed(
+  bool is_dd_internal_thread,
+  bool is_ddl_statement,
+  const char *schema_name,
+  size_t schema_length,
+  const char *table_name) const
+{
+  /*
+    From WL#6391, we have the following matrix describing access:
+
+    ---------+---------------------+
+             | Dictionary internal |
+    ---------+----------+----------+
+             |   DDL    |   DML    |
+    ---------+-----+----+-----+----+
+             | IN  | EX | IN  | EX |
+    ---------+-----+----+-----+----+
+    Inert    |  X          X       |
+    Core     |  X          X       |
+    Second   |  X          X       |
+    Support  |  X          X    X  |
+    ---------+---------------------+
+
+    For performance reasons, we first check the schema
+    name to shortcut the evaluation. If the table is not in
+    the 'mysql' schema, we don't need any further checks. Same for
+    checking for internal threads - an internal thread has full
+    access. We also allow access if the appropriate debug flag
+    is set.
+  */
+  if (schema_length != MYSQL_SCHEMA_NAME.length ||
+      strncmp(schema_name, MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length) ||
+      is_dd_internal_thread ||
+      DBUG_EVALUATE_IF("skip_dd_table_access_check", true, false))
+    return true;
+
+  // Now we need to get the table type.
+  const std::string schema_str(schema_name);
+  const std::string table_str(table_name);
+  const System_tables::Types *table_type= System_tables::instance()->
+                               find_type(schema_str, table_str);
+
+  // Access allowed for external DD tables and for DML on DDSE tables.
+  return (table_type == nullptr ||
+          (*table_type == System_tables::Types::DDSE && !is_ddl_statement));
 }
 
 ///////////////////////////////////////////////////////////////////////////

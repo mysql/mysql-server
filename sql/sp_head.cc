@@ -41,6 +41,9 @@
 #include "mysql/psi/mysql_sp.h"
 #include "mysql/psi/mysql_error.h"
 
+#include "dd/dd.h"             // get_dictionary
+#include "dd/dictionary.h"     // is_dd_table_access_allowed
+
 /**
   @page stored_programs Stored Programs
 
@@ -3367,6 +3370,18 @@ bool sp_head::merge_table_list(THD *thd,
   for (; table ; table= table->next_global)
     if (!table->is_derived() && !table->schema_table)
     {
+      /* Fail if this is an inaccessible DD table. */
+      const dd::Dictionary *dictionary= dd::get_dictionary();
+      if (dictionary && !dictionary->is_dd_table_access_allowed(
+                 thd->is_dd_system_thread(),
+                 table->mdl_request.is_ddl_or_lock_tables_lock_request(),
+                 table->db, table->db_length, table->table_name))
+      {
+        my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0), table->db,
+                 table->table_name);
+        return true;
+      }
+
       /*
         Structure of key for the multi-set is "db\0table\0alias\0".
         Since "alias" part can have arbitrary length we use String
