@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -78,7 +78,7 @@ typedef struct st_group_replication_member_stats_callbacks
   void (*set_transactions_in_queue)(void* const context, unsigned long long int value);
   void (*set_transactions_certified)(void* const context, unsigned long long int value);
   void (*set_transactions_conflicts_detected)(void* const context, unsigned long long int value);
-  void (*set_transactions_in_validation)(void* const context, unsigned long long int value);
+  void (*set_transactions_rows_in_validation)(void* const context, unsigned long long int value);
 } GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS;
 
 struct st_mysql_group_replication
