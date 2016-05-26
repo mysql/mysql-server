@@ -1,4 +1,4 @@
-# Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,3 +30,4 @@ STRING(REGEX REPLACE "-Werror( |$)" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 ADD_EXECUTABLE(yassl-t yassl-t.cc)
 TARGET_LINK_LIBRARIES(yassl-t gunit_small sqlgunitlib strings dbug regex)
 TARGET_LINK_LIBRARIES(yassl-t ${LIBSOCKET})
+ADD_TEST(yassl yassl-t)
