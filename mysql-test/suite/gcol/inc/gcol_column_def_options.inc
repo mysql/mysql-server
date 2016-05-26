@@ -332,6 +332,7 @@ CREATE TABLE t2(a int, b int as (1 NOT IN (SELECT 1 FROM t1 WHERE not_exist_col)
 CREATE TABLE t2(a int, b int as (1 NOT IN (SELECT 1 FROM dual)));
 DROP TABLE t1;
 
+if(! $testing_ndb) {
 --echo # Bug#21142905: PARTITIONED GENERATED COLS -
 --echo #  !TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET
 --echo # 
@@ -344,6 +345,7 @@ d int generated always as (b+a) virtual
 INSERT INTO t1(a) VALUES(0);
 DELETE FROM t1 WHERE c=1;
 DROP TABLE t1;
+}
 
 --echo # Bug #20709487: COLLATE OPTION NOT ACCEPTED IN GENERATED COLUMN
 --echo #                DEFINITION
@@ -386,6 +388,7 @@ SELECT c, c_ci REGEXP 'A', c_cs REGEXP 'A' FROM t1;
 
 DROP TABLE t1;
 
+if(! $testing_ndb) {
 --echo # Bug #21469535: VALGRIND ERROR (CONDITIONAL JUMP) WHEN INSERT
 --echo #                ROWS INTO A PARTITIONED TABLE
 --echo #
@@ -403,6 +406,7 @@ PARTITION BY RANGE (store_id) (
 
 INSERT INTO t1 VALUES(1, 2, default);
 DROP TABLE t1;
+}
 
 --echo # Bug#21465626:ASSERT/CRASH ON DROPPING/ADDING VIRTUAL COLUMN
 CREATE TABLE t (a int(11), b int(11),

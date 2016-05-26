@@ -88,7 +88,7 @@ create table t1 (a datetime, b datetime generated always as (utc_time()) virtual
 create table t1 (a datetime, b datetime generated always as (utc_timestamp()) virtual);
 
 --echo # MATCH()
-if (!$skip_full_text_checks)
+if (!$skip_full_text_check)
 {
   -- error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
   create table t1 (a varchar(32), b bool generated always as (match a against ('sample text')) virtual);

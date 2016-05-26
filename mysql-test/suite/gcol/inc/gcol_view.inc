@@ -32,12 +32,14 @@ select is_updatable from information_schema.views where table_name='v1';
 explain select d,e from v1;
 create algorithm=temptable view v2 (d,e) as select abs(b), abs(c) from t1;
 show create view v2;
+--sorted_result
 select d,e from v2;
 --replace_column 10 X
 explain select d,e from v2;
 
 # VIEW on VIEW test
 create view v3 (d,e) as select d*2, e*2 from v1;
+--sorted_result
 select * from v3;
 --replace_column 10 X
 explain select * from v3;
@@ -56,6 +58,7 @@ create view v1 as select distinct b from t1;
 select * from v1;
 --replace_column 10 X
 explain select * from v1;
+--sorted_result
 select * from t1;
 drop view v1;
 create view v1 as select distinct c from t1;
@@ -74,11 +77,12 @@ create table t1 (a int not null,
                  c int generated always as (-a) stored);
 insert into t1 (a) values (1), (2), (3), (4);
 create view v1 as select b+1 from t1 order by 1 desc limit 2;
-select * from v1;
+select * from v1 order by 1 desc;
 --replace_column 10 X
 explain select * from v1;
 drop view v1;
 create view v1 as select c+1 from t1 order by 1 desc limit 2;
+--sorted_result
 select * from v1;
 --replace_column 10 X
 explain select * from v1;
@@ -97,8 +101,8 @@ insert into t1 (a,b) values (10,2), (20,3), (30,4), (40,5), (50,10);
 create view v1 (a,e,f,g) as select a, b+1,c+1,d+1 from t1;
 # updatable field of updateable view
 update v1 set a=a+e;
-select * from v1;
-select * from t1;
+select * from v1 order by a;
+select * from t1 order by a;
 delete from v1;
 select * from v1;
 select * from t1;
