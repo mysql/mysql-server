@@ -207,6 +207,7 @@ connection con1;
 set @@version_tokens_session= "token100=def;;;      token2  =   abc    ;;;;;";
 --error ER_VTOKEN_PLUGIN_TOKEN_NOT_FOUND
 create table t1 (c1 int);
+disconnect con1;
 
 -- echo
 -- echo # Connection: default
