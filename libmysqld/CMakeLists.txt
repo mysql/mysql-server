@@ -183,6 +183,16 @@ IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_SYSTEM_NAME MATCHES "SunOS")
   ENDIF()
 ENDIF()
 
+# Boost.Spirit causes a warning about placement new on GCC 6. Expected
+# to be fixed upstream by https://github.com/boostorg/function/pull/9.
+MY_CHECK_CXX_COMPILER_FLAG("-Wplacement-new" HAVE_PLACEMENT_NEW_WARNING)
+IF(HAVE_PLACEMENT_NEW_WARNING)
+  ADD_COMPILE_FLAGS(
+    ../sql/gis/srs/wkt_parser.cc
+    COMPILE_FLAGS "-Wno-placement-new"
+  )
+ENDIF()
+
 # Boost source use auto_ptr, deprecated in C++11
 MY_CHECK_CXX_COMPILER_FLAG("-Wdeprecated-declarations"
                            HAVE_DEPRECATED_DECLARATIONS)
