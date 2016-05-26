@@ -110,7 +110,7 @@ ut_align_down(
 
 	ut_ad(sizeof(void*) == sizeof(ulint));
 
-	return((void*)((((ulint) ptr)) & ~(align_no - 1)));
+	return((void*)(((ulint) ptr) & ~(align_no - 1)));
 }
 
 /*********************************************************//**
