@@ -31,9 +31,9 @@ insert into t1 values (1.0001,default);
 insert into t1 values (0,default);
 select * from t1;
 a	b
+0	1.570796
 1	0
 1.0001	NULL
-0	1.570796
 drop table t1;
 set sql_warnings = 0;
 # ASIN()
@@ -118,8 +118,8 @@ insert into t1 values (1.23,default);
 insert into t1 values (-1.23,default);
 select * from t1;
 a	b
-1.23	2
 -1.23	-1
+1.23	2
 drop table t1;
 set sql_warnings = 0;
 # CONV()
@@ -139,10 +139,10 @@ insert into t1 values (-17,10,-18,default);
 insert into t1 values (10+'10'+'10'+0xa,10,10,default);
 select * from t1;
 a	b	c	d
-a	16	2	1010
-6e	18	8	172
 -17	10	-18	-H
 40	10	10	40
+6e	18	8	172
+a	16	2	1010
 drop table t1;
 set sql_warnings = 0;
 # COS()
@@ -178,12 +178,12 @@ drop table t1;
 set sql_warnings = 0;
 # CRC32()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b long generated always as (crc32(a)) virtual);
+create table t1 (a varchar(10), b bigint generated always as (crc32(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` mediumtext GENERATED ALWAYS AS (crc32(`a`)) VIRTUAL
+  `b` bigint(20) GENERATED ALWAYS AS (crc32(`a`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('MySQL',default);
 insert into t1 values ('mysql',default);
@@ -206,8 +206,8 @@ insert into t1 values (format(PI(),6),default);
 insert into t1 values (format(PI()/2,6),default);
 select * from t1;
 a	b
-3.141593	180.00002
 1.570796	89.999981
+3.141593	180.00002
 drop table t1;
 set sql_warnings = 0;
 # /
@@ -239,26 +239,26 @@ insert into t1 values (-2,default);
 insert into t1 values (0,default);
 select * from t1;
 a	b
-2	7.389056
 -2	0.135335
 0	1
+2	7.389056
 drop table t1;
 set sql_warnings = 0;
 # FLOOR()
 set sql_warnings = 1;
-create table t1 (a double, b long generated always as (floor(a)) virtual);
+create table t1 (a double, b bigint generated always as (floor(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` double DEFAULT NULL,
-  `b` mediumtext GENERATED ALWAYS AS (floor(`a`)) VIRTUAL
+  `b` bigint(20) GENERATED ALWAYS AS (floor(`a`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values (1.23,default);
 insert into t1 values (-1.23,default);
 select * from t1;
 a	b
-1.23	1
 -1.23	-2
+1.23	1
 drop table t1;
 set sql_warnings = 0;
 # LN()
@@ -292,8 +292,8 @@ insert into t1 values (10,100,default);
 insert into t1 values (1,100,default);
 select * from t1;
 a	b	c
-2	65536	16
 10	100	2
+2	65536	16
 drop table t1;
 set sql_warnings = 0;
 set sql_warnings = 1;
@@ -341,8 +341,8 @@ insert into t1 values (100,default);
 insert into t1 values (-100,default);
 select * from t1;
 a	b
-2	0.30103
 100	2
+2	0.30103
 drop table t1;
 set sql_warnings = 0;
 # -
@@ -505,8 +505,8 @@ insert into t1 values (1.298,0,default);
 insert into t1 values (23.298,-1,default);
 select * from t1;
 a	b	c
-1.298	1	1
 1.298	0	1
+1.298	1	1
 23.298	-1	20
 drop table t1;
 set sql_warnings = 0;
@@ -558,9 +558,9 @@ insert into t1 values (20,default);
 insert into t1 values (-16,default);
 select * from t1;
 a	b
-4	2
-20	4.472136
 -16	NULL
+20	4.472136
+4	2
 drop table t1;
 set sql_warnings = 0;
 # TAN()
@@ -633,8 +633,8 @@ insert into t1 values (1,default);
 insert into t1 values (-1,default);
 select * from t1;
 a	b
-1	-1
 -1	1
+1	-1
 drop table t1;
 set sql_warnings = 0;
 #
@@ -676,12 +676,12 @@ drop table t1;
 set sql_warnings = 0;
 # BIT_LENGTH()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b long generated always as (bit_length(a)) virtual);
+create table t1 (a varchar(10), b bigint generated always as (bit_length(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` mediumtext GENERATED ALWAYS AS (bit_length(`a`)) VIRTUAL
+  `b` bigint(20) GENERATED ALWAYS AS (bit_length(`a`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('text',default);
 select * from t1;
@@ -691,12 +691,12 @@ drop table t1;
 set sql_warnings = 0;
 # CHAR_LENGTH()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b long generated always as (char_length(a)) virtual);
+create table t1 (a varchar(10), b bigint generated always as (char_length(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` mediumtext GENERATED ALWAYS AS (char_length(`a`)) VIRTUAL
+  `b` bigint(20) GENERATED ALWAYS AS (char_length(`a`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('text',default);
 select * from t1;
@@ -722,12 +722,12 @@ drop table t1;
 set sql_warnings = 0;
 # CHARACTER_LENGTH()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b long generated always as (character_length(a)) virtual);
+create table t1 (a varchar(10), b bigint generated always as (character_length(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` mediumtext GENERATED ALWAYS AS (char_length(`a`)) VIRTUAL
+  `b` bigint(20) GENERATED ALWAYS AS (char_length(`a`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('text',default);
 select * from t1;
@@ -1020,8 +1020,8 @@ insert into t1 values ('MySQL',default);
 insert into t1 values ('M',default);
 select * from t1;
 a	b
-MySQL	MySQ
 M	   M
+MySQL	MySQ
 drop table t1;
 set sql_warnings = 0;
 # LTRIM()
@@ -1126,12 +1126,12 @@ drop table t1;
 set sql_warnings = 0;
 # ORD()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b long generated always as (ord(a)) virtual);
+create table t1 (a varchar(10), b bigint generated always as (ord(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` mediumtext GENERATED ALWAYS AS (ord(`a`)) VIRTUAL
+  `b` bigint(20) GENERATED ALWAYS AS (ord(`a`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('2',default);
 select * from t1;
@@ -1606,8 +1606,8 @@ insert into t1 values ('11',default);
 insert into t1 values (1,default);
 select * from t1;
 a	b
-11	11
 1	1
+11	11
 drop table t1;
 set sql_warnings = 0;
 # &
@@ -1623,8 +1623,8 @@ insert into t1 values (1,default);
 insert into t1 values (0,default);
 select * from t1;
 a	b
-1	1
 0	0
+1	1
 drop table t1;
 set sql_warnings = 0;
 # ~
@@ -1655,8 +1655,8 @@ insert into t1 values (0,default);
 insert into t1 values (2,default);
 select * from t1;
 a	b
-1	5
 0	5
+1	5
 2	7
 drop table t1;
 set sql_warnings = 0;
@@ -1674,8 +1674,8 @@ insert into t1 values (0,default);
 insert into t1 values (2,default);
 select * from t1;
 a	b
-1	4
 0	5
+1	4
 2	7
 drop table t1;
 set sql_warnings = 0;
@@ -1712,8 +1712,8 @@ insert into t1 values (1,NULL,default);
 select * from t1;
 a	b	c
 1	1	1
-NULL	NULL	1
 1	NULL	0
+NULL	NULL	1
 drop table t1;
 set sql_warnings = 0;
 # =
@@ -1730,8 +1730,8 @@ insert into t1 values ('a','b',default);
 insert into t1 values ('a','a',default);
 select * from t1;
 a	b	c
-a	b	0
 a	a	1
+a	b	0
 drop table t1;
 set sql_warnings = 0;
 # >=
@@ -1748,8 +1748,8 @@ insert into t1 values ('a','b',default);
 insert into t1 values ('a','a',default);
 select * from t1;
 a	b	c
-a	b	0
 a	a	1
+a	b	0
 drop table t1;
 set sql_warnings = 0;
 # >
@@ -1766,8 +1766,8 @@ insert into t1 values ('a','b',default);
 insert into t1 values ('a','a',default);
 select * from t1;
 a	b	c
-a	b	0
 a	a	0
+a	b	0
 drop table t1;
 set sql_warnings = 0;
 # IS NOT NULL
@@ -1948,8 +1948,8 @@ insert into t1 values (8,default);
 insert into t1 values (3,default);
 select * from t1;
 a	b
-8	2
 3	0
+8	2
 drop table t1;
 set sql_warnings = 0;
 # XOR
@@ -2081,12 +2081,12 @@ drop table t1;
 set sql_warnings = 0;
 # DATEDIFF()
 set sql_warnings = 1;
-create table t1 (a datetime, b long generated always as (datediff(a,'2000-01-01')) virtual);
+create table t1 (a datetime, b bigint generated always as (datediff(a,'2000-01-01')) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` mediumtext GENERATED ALWAYS AS ((to_days(`a`) - to_days('2000-01-01'))) VIRTUAL
+  `b` bigint(20) GENERATED ALWAYS AS ((to_days(`a`) - to_days('2000-01-01'))) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('2008-08-31',default);
 select * from t1;
@@ -2186,11 +2186,11 @@ drop table t1;
 set sql_warnings = 0;
 # FROM_DAYS()
 set sql_warnings = 1;
-create table t1 (a long, b datetime generated always as (from_days(a)) virtual);
+create table t1 (a bigint, b datetime generated always as (from_days(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` mediumtext,
+  `a` bigint(20) DEFAULT NULL,
   `b` datetime GENERATED ALWAYS AS (from_days(`a`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values (730669,default);
@@ -2201,11 +2201,11 @@ drop table t1;
 set sql_warnings = 0;
 # FROM_UNIXTIME()
 set sql_warnings = 1;
-create table t1 (a long, b datetime generated always as (from_unixtime(a)) virtual);
+create table t1 (a bigint, b datetime generated always as (from_unixtime(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` mediumtext,
+  `a` bigint(20) DEFAULT NULL,
   `b` datetime GENERATED ALWAYS AS (from_unixtime(`a`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values (1196440219,default);
@@ -2231,12 +2231,12 @@ drop table t1;
 set sql_warnings = 0;
 # HOUR()
 set sql_warnings = 1;
-create table t1 (a time, b long generated always as (hour(a)) virtual);
+create table t1 (a time, b bigint generated always as (hour(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` time DEFAULT NULL,
-  `b` mediumtext GENERATED ALWAYS AS (hour(`a`)) VIRTUAL
+  `b` bigint(20) GENERATED ALWAYS AS (hour(`a`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('10:05:03',default);
 select * from t1;
@@ -2292,12 +2292,12 @@ drop table t1;
 set sql_warnings = 0;
 # MICROSECOND()
 set sql_warnings = 1;
-create table t1 (a datetime, b long generated always as (microsecond(a)) virtual);
+create table t1 (a datetime, b bigint generated always as (microsecond(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` mediumtext GENERATED ALWAYS AS (microsecond(`a`)) VIRTUAL
+  `b` bigint(20) GENERATED ALWAYS AS (microsecond(`a`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('2009-12-31 12:00:00.123456',default);
 insert into t1 values ('2009-12-31 23:59:59.000010',default);
@@ -2400,11 +2400,11 @@ drop table t1;
 set sql_warnings = 0;
 # SEC_TO_TIME()
 set sql_warnings = 1;
-create table t1 (a long, b time generated always as (sec_to_time(a)) virtual);
+create table t1 (a bigint, b time generated always as (sec_to_time(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` mediumtext,
+  `a` bigint(20) DEFAULT NULL,
   `b` time GENERATED ALWAYS AS (sec_to_time(`a`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values (2378,default);
@@ -2490,12 +2490,12 @@ drop table t1;
 set sql_warnings = 0;
 # TIME_TO_SEC()
 set sql_warnings = 1;
-create table t1 (a time, b long generated always as (time_to_sec(a)) virtual);
+create table t1 (a time, b bigint generated always as (time_to_sec(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` time DEFAULT NULL,
-  `b` mediumtext GENERATED ALWAYS AS (time_to_sec(`a`)) VIRTUAL
+  `b` bigint(20) GENERATED ALWAYS AS (time_to_sec(`a`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('22:23:00',default);
 select * from t1;
@@ -2520,13 +2520,13 @@ drop table t1;
 set sql_warnings = 0;
 # TIMEDIFF()
 set sql_warnings = 1;
-create table t1 (a datetime, b datetime, c long generated always as (timediff(a,b)) virtual);
+create table t1 (a datetime, b datetime, c time generated always as (timediff(a,b)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
   `b` datetime DEFAULT NULL,
-  `c` mediumtext GENERATED ALWAYS AS (timediff(`a`,`b`)) VIRTUAL
+  `c` time GENERATED ALWAYS AS (timediff(`a`,`b`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('2008-12-31 23:59:59.000001','2008-12-30 01:01:01.000002',default);
 select * from t1;
@@ -2566,12 +2566,12 @@ drop table t1;
 set sql_warnings = 0;
 # TIMESTAMPDIFF()
 set sql_warnings = 1;
-create table t1 (a timestamp, c long generated always as (timestampdiff(MONTH, a, a)) virtual);
+create table t1 (a timestamp, c bigint generated always as (timestampdiff(MONTH, a, a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `c` mediumtext GENERATED ALWAYS AS (timestampdiff(MONTH,`a`,`a`)) VIRTUAL
+  `c` bigint(20) GENERATED ALWAYS AS (timestampdiff(MONTH,`a`,`a`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('2003-02-01',default);
 select * from t1;
@@ -2581,12 +2581,12 @@ drop table t1;
 set sql_warnings = 0;
 # TO_DAYS()
 set sql_warnings = 1;
-create table t1 (a datetime, b long generated always as (to_days(a)) virtual);
+create table t1 (a datetime, b bigint generated always as (to_days(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` mediumtext GENERATED ALWAYS AS (to_days(`a`)) VIRTUAL
+  `b` bigint(20) GENERATED ALWAYS AS (to_days(`a`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('2007-10-07',default);
 select * from t1;
@@ -2678,36 +2678,36 @@ set sql_warnings = 0;
 #
 # CAST()
 set sql_warnings = 1;
-create table t1 (a int, b long generated always as (cast(a as unsigned)) virtual);
+create table t1 (a int, b bigint unsigned generated always as (cast(a as unsigned)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` mediumtext GENERATED ALWAYS AS (cast(`a` as unsigned)) VIRTUAL
+  `b` bigint(20) unsigned GENERATED ALWAYS AS (cast(`a` as unsigned)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values (1,default);
 insert into t1 values (-1,default);
 select * from t1;
 a	b
-1	1
 -1	18446744073709551615
+1	1
 drop table t1;
 set sql_warnings = 0;
 # Convert()
 set sql_warnings = 1;
-create table t1 (a int, b long generated always as (convert(a,unsigned)) virtual);
+create table t1 (a int, b bigint unsigned generated always as (convert(a,unsigned)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` mediumtext GENERATED ALWAYS AS (cast(`a` as unsigned)) VIRTUAL
+  `b` bigint(20) unsigned GENERATED ALWAYS AS (cast(`a` as unsigned)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values (1,default);
 insert into t1 values (-1,default);
 select * from t1;
 a	b
-1	1
 -1	18446744073709551615
+1	1
 drop table t1;
 set sql_warnings = 0;
 #
@@ -2838,9 +2838,9 @@ Warning	1287	'DECODE' is deprecated and will be removed in a future release. Ple
 select * from t1;
 a	b
 MySQL	MySQL
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
 Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
+Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
+Warnings:
 drop table t1;
 set sql_warnings = 0;
 # DEFAULT()
@@ -2916,9 +2916,9 @@ Warnings:
 Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
 select * from t1;
 a	b
-badpwd	*AAB3E285149C0135D51A520E1940DD3263DC008C
-Warnings:
 Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
+Warnings:
+badpwd	*AAB3E285149C0135D51A520E1940DD3263DC008C
 drop table t1;
 set sql_warnings = 0;
 # SHA1()
