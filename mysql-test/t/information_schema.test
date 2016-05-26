@@ -1,3 +1,7 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
 # Running test with show_compatibility_56=ON to retain I_S compatibility until it is permanently removed.
 select @@global.show_compatibility_56 into @show_compatibility_56_save;
 set @@global.show_compatibility_56=ON;
@@ -83,7 +87,7 @@ select * from information_schema.STATISTICS where TABLE_SCHEMA = "mysqltest";
 show keys from t3 where Key_name = "a_data";
 
 show tables like 't%';
---replace_column 6 # 7 # 8 # 9 # 12 # 13 #
+--replace_column 8 # 12 # 13 #
 show table status;
 show full columns from t3 like "a%";
 show full columns from mysql.db like "Insert%";
@@ -716,7 +720,7 @@ drop table t1;
 CREATE TABLE t1 (a int);
 CREATE TABLE t2 (b int);
 
---replace_column 7 # 8 # 12 # 13 #
+--replace_column 8 # 12 # 13 #
 SHOW TABLE STATUS FROM test
   WHERE name IN ( SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
                     WHERE TABLE_SCHEMA='test' AND TABLE_TYPE='BASE TABLE');

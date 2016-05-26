@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 #
 # Test of update statement that uses many tables.
 #
@@ -277,14 +282,11 @@ select * from t1;
 
 # ref key
 update t1,t2 set t1.b=t1.b+10 where t1.b=2;
---sorted_result
 select * from t1;
 
 # Range key (in t1)
 update t1,t2 set t1.b=t1.b+2,t2.b=t1.b+10 where t1.b between 3 and 5 and t2.a=t1.a-100;
---sorted_result
 select * from t1;
---sorted_result
 select * from t2;
 
 # test for non-updating table which is also used in sub-select

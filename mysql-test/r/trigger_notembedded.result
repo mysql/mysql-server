@@ -104,6 +104,7 @@ SELECT * FROM t1;
 num_value
 1
 2
+3
 SELECT * FROM t2;
 user_str
 mysqltest_dfn@localhost
@@ -296,6 +297,7 @@ INSERT INTO t1 VALUES('line1');
 ERROR 42000: SELECT command denied to user 'mysqltest_u1'@'localhost' for column 'col' in table 't1'
 SELECT * FROM t1;
 col
+line1
 SELECT @mysqltest_var;
 @mysqltest_var
 NULL
@@ -307,6 +309,7 @@ INSERT INTO t3 VALUES('t3_line1');
 ERROR 42000: SELECT command denied to user 'mysqltest_u1'@'localhost' for column 'col' in table 't3'
 SELECT * FROM t3;
 col
+t3_line1
 SELECT @mysqltest_var;
 @mysqltest_var
 NULL
@@ -328,6 +331,7 @@ GRANT SELECT(col) ON mysqltest_db1.t4 TO mysqltest_u1@localhost;
 INSERT INTO t1 VALUES('line3');
 SELECT * FROM t1;
 col
+line1
 line3
 SELECT @mysqltest_var;
 @mysqltest_var
@@ -340,6 +344,7 @@ t2_trg_before_insert
 INSERT INTO t3 VALUES('t3_line2');
 SELECT * FROM t3;
 col
+t3_line1
 t3_line2
 SELECT @mysqltest_var;
 @mysqltest_var

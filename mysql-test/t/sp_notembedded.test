@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 # Can't test with embedded server
 -- source include/not_embedded.inc
 # Disable concurrent inserts to avoid test failures
@@ -293,10 +298,7 @@ drop table if exists t1;
 drop procedure if exists p1;
 --enable_warnings
 
-# MyISAM acquires table level lock. The locking functionality is
-# different in InnoDB. Hence it is a Myisam specific testcase
-
-create table t1 (value varchar(15)) engine=Myisam;
+create table t1 (value varchar(15));
 create procedure p1() update t1 set value='updated' where value='old';
 
 # load the procedure into sp cache and execute once

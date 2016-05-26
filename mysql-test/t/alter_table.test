@@ -1,10 +1,11 @@
-# Columns prefix length is 3072,hence page size 16k
---source include/have_innodb_16k.inc
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
 
 #
-# Test of alter table syntax
+# Test of alter table
 #
-
 --disable_warnings
 drop table if exists t1,t2;
 drop database if exists mysqltest;
@@ -37,7 +38,7 @@ alter table t1 order by bandid,payoutid;
 select * from t1;
 drop table t1;
 
-# Check that pack_keys and dynamic length rows are not forced.
+# Check that pack_keys and dynamic length rows are not forced. 
 
 CREATE TABLE t1 (
 GROUP_ID int(10) unsigned DEFAULT '0' NOT NULL,
@@ -69,16 +70,16 @@ CREATE TABLE t1 (
   user_id int(11) unsigned NOT NULL default '0',
   status enum('new','old') NOT NULL default 'new',
   PRIMARY KEY (id)
-) ENGINE=InnoDB;
+) ENGINE=MyISAM;
 
 ALTER TABLE t1 ORDER BY t1.id, t1.status, t1.type_id, t1.user_id, t1.body;
 DROP TABLE t1;
 
 #
-# Alter table add new column
+# The following combination found a hang-bug in MyISAM
 #
 
-CREATE TABLE t1 (AnamneseId int(10) unsigned NOT NULL auto_increment,B BLOB,PRIMARY KEY (AnamneseId)) engine=innodb;
+CREATE TABLE t1 (AnamneseId int(10) unsigned NOT NULL auto_increment,B BLOB,PRIMARY KEY (AnamneseId)) engine=myisam;
 insert into t1 values (null,"hello");
 LOCK TABLES t1 WRITE;
 ALTER TABLE t1 ADD Column new_col int not null;
@@ -97,7 +98,7 @@ select * from t1;
 drop table t1;
 
 #
-# Bug #2628: 'alter table t1 rename mysqltest.t1' silently drops mysqltest.t1
+# Bug #2628: 'alter table t1 rename mysqltest.t1' silently drops mysqltest.t1 
 # if it exists
 #
 create table t1 (name char(15));
@@ -114,12 +115,16 @@ select * from mysqltest.t1;
 drop table t1;
 drop database mysqltest;
 
+#
+# ALTER TABLE ... ENABLE/DISABLE KEYS
+
 create table t1 (n1 int not null, n2 int, n3 int, n4 float,
                 unique(n1),
                 key (n1, n2, n3, n4),
                 key (n2, n3, n4, n1),
                 key (n3, n4, n1, n2),
                 key (n4, n1, n2, n3) );
+alter table t1 disable keys;
 show keys from t1;
 #let $1=10000;
 let $1=10;
@@ -128,8 +133,7 @@ while ($1)
  eval insert into t1 values($1,RAND()*1000,RAND()*1000,RAND());
  dec $1;
 }
-
---replace_column 7 #
+alter table t1 enable keys;
 show keys from t1;
 drop table t1;
 
@@ -159,20 +163,20 @@ show keys from t1;
 drop table t1;
 
 #
-# Test locked tables
+# Test ALTER TABLE ENABLE/DISABLE keys when things are locked
 #
 
 CREATE TABLE t1 (
   Host varchar(16) binary NOT NULL default '',
   User varchar(16) binary NOT NULL default '',
   PRIMARY KEY  (Host,User)
-) ENGINE=InnoDB;
+) ENGINE=MyISAM;
 
-
+ALTER TABLE t1 DISABLE KEYS;
 LOCK TABLES t1 WRITE;
 INSERT INTO t1 VALUES ('localhost','root'),('localhost',''),('games','monty');
---replace_column 4 # 5 # 7 #
 SHOW INDEX FROM t1;
+ALTER TABLE t1 ENABLE KEYS;
 UNLOCK TABLES;
 CHECK TABLES t1;
 DROP TABLE t1;
@@ -186,13 +190,14 @@ CREATE TABLE t1 (
   User varchar(16) binary NOT NULL default '',
   PRIMARY KEY  (Host,User),
   KEY  (Host)
-) ENGINE=InnoDB;
+) ENGINE=MyISAM;
 
---replace_column 4 # 5 # 7 #
+ALTER TABLE t1 DISABLE KEYS;
 SHOW INDEX FROM t1;
 LOCK TABLES t1 WRITE;
 INSERT INTO t1 VALUES ('localhost','root'),('localhost','');
---replace_column 4 # 5 # 7 #
+SHOW INDEX FROM t1;
+ALTER TABLE t1 ENABLE KEYS;
 SHOW INDEX FROM t1;
 UNLOCK TABLES;
 CHECK TABLES t1;
@@ -205,17 +210,17 @@ select * from t2;
 DROP TABLE t2;
 
 #
-# Test locking
+# Test disable keys with locking
 #
 CREATE TABLE t1 (
   Host varchar(16) binary NOT NULL default '',
   User varchar(16) binary NOT NULL default '',
   PRIMARY KEY  (Host,User),
   KEY  (Host)
-) ENGINE=InnoDB;
+) ENGINE=MyISAM;
 
 LOCK TABLES t1 WRITE;
---replace_column 4 # 5 # 7 #
+ALTER TABLE t1 DISABLE KEYS;
 SHOW INDEX FROM t1;
 DROP TABLE t1;
 
@@ -233,22 +238,20 @@ drop table t1;
 # BUG#6236 - ALTER TABLE MODIFY should set implicit NOT NULL on PK columns
 #
 drop table if exists t1, t2;
-create table t1 ( a varchar(10) not null primary key ) engine=innodb;
+create table t1 ( a varchar(10) not null primary key ) engine=myisam;
 create table t2 ( a varchar(10) not null primary key ) engine=merge union=(t1);
 flush tables;
 alter table t1 modify a varchar(10);
---error ER_WRONG_MRG_TABLE
 show create table t2;
 flush tables;
 alter table t1 modify a varchar(10) not null;
---error ER_WRONG_MRG_TABLE
 show create table t2;
 drop table if exists t1, t2;
 
 # The following is also part of bug #6236 (CREATE TABLE didn't properly count
 # not null columns for primary keys)
 
-create table t1 (a int, b int, c int, d int, e int, f int, g int, h int,i int, primary key (a,b,c,d,e,f,g,i,h)) engine=InnoDB;
+create table t1 (a int, b int, c int, d int, e int, f int, g int, h int,i int, primary key (a,b,c,d,e,f,g,i,h)) engine=MyISAM;
 insert into t1 (a) values(1);
 --replace_column 7 X 8 X 9 X 10 X 11 X 12 X 13 X 14 X
 show table status like 't1';
@@ -256,7 +259,7 @@ alter table t1 modify a int;
 --replace_column 7 X 8 X 9 X 10 X 11 X 12 X 13 X 14 X
 show table status like 't1';
 drop table t1;
-create table t1 (a int not null, b int not null, c int not null, d int not null, e int not null, f int not null, g int not null, h int not null,i int not null, primary key (a,b,c,d,e,f,g,i,h)) engine=InnoDB;
+create table t1 (a int not null, b int not null, c int not null, d int not null, e int not null, f int not null, g int not null, h int not null,i int not null, primary key (a,b,c,d,e,f,g,i,h)) engine=MyISAM;
 insert into t1 (a) values(1);
 --replace_column 7 X 8 X 9 X 10 X 11 X 12 X 13 X 14 X
 show table status like 't1';
@@ -268,7 +271,7 @@ drop table t1;
 #
 set names koi8r;
 create table t1 (a char(10) character set koi8r);
-insert into t1 values ('√î√Ö√ì√î');
+insert into t1 values ('‘≈”‘');
 select a,hex(a) from t1;
 alter table t1 change a a char(10) character set cp1251;
 select a,hex(a) from t1;
@@ -305,7 +308,7 @@ drop table t1;
 # Bug#2821
 # Test that table CHARACTER SET does not affect blobs
 #
-create table t1 (myblob longblob,mytext longtext)
+create table t1 (myblob longblob,mytext longtext) 
 default charset latin1 collate latin1_general_cs;
 show create table t1;
 alter table t1 character set latin2;
@@ -332,13 +335,23 @@ alter table t1 drop key a;
 drop table t1;
 
 #
+# BUG 12207 alter table ... discard table space on MyISAM table causes ERROR 2013 (HY000)
+#
+# Some platforms (Mac OS X, Windows) will send the error message using small letters.
+CREATE TABLE T12207(a int) ENGINE=MYISAM;
+--replace_result t12207 T12207
+--error ER_ILLEGAL_HA
+ALTER TABLE T12207 DISCARD TABLESPACE;
+DROP TABLE T12207;
+
+#
 # Bug #6479  ALTER TABLE ... changing charset fails for TEXT columns
 #
 # The column's character set was changed but the actual data was not
 # modified. In other words, the values were reinterpreted
 # as UTF8 instead of being converted.
 create table t1 (a text) character set koi8r;
-insert into t1 values (_koi8r'√î√Ö√ì√î');
+insert into t1 values (_koi8r'‘≈”‘');
 select hex(a) from t1;
 alter table t1 convert to character set cp1251;
 select hex(a) from t1;
@@ -363,24 +376,30 @@ drop table t1;
 #
 --disable_warnings
 drop table if exists t1;
-
+--enable_warnings
 create table t1 (a int, key(a));
 show indexes from t1;
 --echo "this used not to disable the index"
---replace_regex /#sql-[0-9a-f_0-9a-f]*/#sql<temporary>/
 alter table t1 modify a int, disable keys;
 show indexes from t1;
 
---replace_regex /#sql-[0-9a-f_0-9a-f]*/#sql<temporary>/
+alter table t1 enable keys;
+show indexes from t1;
+
 alter table t1 modify a bigint, disable keys;
 show indexes from t1;
 
---replace_regex /#sql-[0-9a-f_0-9a-f]*/#sql<temporary>/
+alter table t1 enable keys;
+show indexes from t1;
+
 alter table t1 add b char(10), disable keys;
 show indexes from t1;
 
---replace_regex /#sql-[0-9a-f_0-9a-f]*/#sql<temporary>/
 alter table t1 add c decimal(10,2), enable keys;
+show indexes from t1;
+
+--echo "this however did"
+alter table t1 disable keys;
 show indexes from t1;
 
 desc t1;
@@ -394,17 +413,17 @@ drop table t1;
 --echo "Now will test with one unique index"
 create table t1(a int, b char(10), unique(a));
 show indexes from t1;
+alter table t1 disable keys;
+show indexes from t1;
+alter table t1 enable keys;
 
 --echo "If no copy on noop change, this won't touch the data file"
 --echo "Unique index, no change"
-
---replace_regex /#sql-[0-9a-f_0-9a-f]*/#sql<temporary>/
 alter table t1 modify a int, disable keys;
 show indexes from t1;
 
 --echo "Change the type implying data copy"
 --echo "Unique index, no change"
---replace_regex /#sql-[0-9a-f_0-9a-f]*/#sql<temporary>/
 alter table t1 modify a bigint, disable keys;
 show indexes from t1;
 
@@ -419,16 +438,20 @@ drop table t1;
 --echo "Now will test with one unique and one non-unique index"
 create table t1(a int, b char(10), unique(a), key(b));
 show indexes from t1;
+alter table t1 disable keys;
+show indexes from t1;
+alter table t1 enable keys;
+
 
 --echo "If no copy on noop change, this won't touch the data file"
 --echo "The non-unique index will be disabled"
---replace_regex /#sql-[0-9a-f_0-9a-f]*/#sql<temporary>/
 alter table t1 modify a int, disable keys;
+show indexes from t1;
+alter table t1 enable keys;
 show indexes from t1;
 
 --echo "Change the type implying data copy"
 --echo "The non-unique index will be disabled"
---replace_regex /#sql-[0-9a-f_0-9a-f]*/#sql<temporary>/
 alter table t1 modify a bigint, disable keys;
 show indexes from t1;
 
@@ -440,8 +463,6 @@ alter table t1 modify a int;
 show indexes from t1;
 
 drop table t1;
-
---enable_warnings
 
 
 #
@@ -476,6 +497,17 @@ use test;
 drop table t1;
 
 #
+# BUG#23404 - ROW_FORMAT=FIXED option is lost is an index is added to the
+# table
+#
+CREATE TABLE t1(a INT) ROW_FORMAT=FIXED;
+CREATE INDEX i1 ON t1(a);
+SHOW CREATE TABLE t1;
+DROP INDEX i1 ON t1;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+#
 # Bug#24219 - ALTER TABLE ... RENAME TO ... , DISABLE KEYS leads to crash
 #
 --disable_warnings
@@ -492,8 +524,6 @@ ALTER TABLE bug24219 RENAME TO bug24219_2, DISABLE KEYS;
 SHOW INDEX FROM bug24219_2;
 
 DROP TABLE bug24219_2;
-
---enable_warnings
 
 #
 # Bug#24562 (ALTER TABLE ... ORDER BY ... with complex expression asserts)
@@ -585,8 +615,8 @@ select * from t1;
 # Set auto increment to 50
 alter table t1 auto_increment = 50;
 
-# Alter to innodb
-alter table t1 engine = innodb;
+# Alter to myisam
+alter table t1 engine = myisam;
 
 # This insert should get id 50
 insert into t1 values (null);
@@ -597,6 +627,26 @@ alter table t1 engine = heap;
 insert into t1 values (null);
 select * from t1;
 
+drop table t1;
+
+#
+# Bug#27507: Wrong DATETIME value was allowed by ALTER TABLE in the
+#            NO_ZERO_DATE mode.
+#
+set sql_mode= default;
+create table t1(f1 int);
+alter table t1 add column f2 datetime not null, add column f21 date not null;
+insert into t1 values(1,'2000-01-01','2000-01-01');
+--error 1292
+alter table t1 add column f3 datetime not null;
+--error 1292
+alter table t1 add column f3 date not null;
+--error 1292
+alter table t1 add column f4 datetime not null default '2002-02-02',
+  add column f41 date not null;
+alter table t1 add column f4 datetime not null default '2002-02-02',
+  add column f41 date not null default '2002-02-02';
+select * from t1;
 drop table t1;
 
 #
@@ -630,9 +680,9 @@ drop table t1;
 # Bug#6073 "ALTER table minor glich": ALTER TABLE complains that an index
 # without # prefix is not allowed for TEXT columns, while index
 # is defined with prefix.
-#
+# 
 create table t1 (t varchar(255) default null, key t (t(80)))
-engine=innodb default charset=latin1;
+engine=myisam default charset=latin1;
 alter table t1 change t t text;
 drop table t1;
 
@@ -714,7 +764,7 @@ drop table t1;
 #
 # Extended test coverage for ALTER TABLE behaviour under LOCK TABLES
 # It should be consistent across all platforms and for all engines
-# (Before 5.1 this was not true as behavior was different between
+# (Before 5.1 this was not true as behavior was different between 
 # Unix/Windows and transactional/non-transactional tables).
 # See also innodb_mysql.test
 #
@@ -833,7 +883,7 @@ DESCRIBE t1;
 
 SHOW INDEXES FROM t1;
 
-INSERT INTO t1 VALUES (1, "edno"), (1, "edno"), (2, "dve"), (3, "tri"), (5, "pet");
+INSERT INTO t1 VALUES (1, "edno"), (1, "edno"), (2, "dve"), (3, "tri"), (5, "pet"); 
 --echo "Non-copy data change - new frm, but old data and index files"
 ALTER TABLE t1
   CHANGE int_field unsigned_int_field INTEGER UNSIGNED NOT NULL,
@@ -938,7 +988,7 @@ drop table t1;
 #
 # Bug #23113: Different behavior on altering ENUM fields between 5.0 and 5.1
 #
-CREATE TABLE t1(a INT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE t1(a INT AUTO_INCREMENT PRIMARY KEY, 
   b ENUM('a', 'b', 'c') NOT NULL);
 INSERT INTO t1 (b) VALUES ('a'), ('c'), ('b'), ('b'), ('a');
 ALTER TABLE t1 MODIFY b ENUM('a', 'z', 'b', 'c') NOT NULL;
@@ -996,7 +1046,7 @@ DROP TABLE t1;
 #
 
 CREATE TABLE t1 (f1 TIMESTAMP NULL DEFAULT NULL,
-                 f2 INT(11) DEFAULT NULL) ENGINE=INNODB DEFAULT CHARSET=utf8;
+                 f2 INT(11) DEFAULT NULL) ENGINE=MYISAM DEFAULT CHARSET=utf8;
 
 INSERT INTO t1 VALUES (NULL, NULL), ("2009-10-09 11:46:19", 2);
 
@@ -1008,7 +1058,7 @@ DROP TABLE t1;
 
 
 --echo #
---echo # Bug #31145: ALTER TABLE DROP COLUMN, ADD COLUMN crashes (linux)
+--echo # Bug #31145: ALTER TABLE DROP COLUMN, ADD COLUMN crashes (linux) 
 --echo #   or freezes (win) the server
 --echo #
 
@@ -1028,7 +1078,7 @@ drop table if exists t1;
 --echo # Use MyISAM engine as the fact that InnoDB doesn't support
 --echo # in-place ALTER TABLE in cases when columns are being renamed
 --echo # hides some bugs.
-create table t1 (i int, j int) engine=innodb;
+create table t1 (i int, j int) engine=myisam;
 insert into t1 value (1, 2);
 --echo # First, test for original problem described in the bug report.
 select * from t1;
@@ -1050,10 +1100,10 @@ drop table t1;
 #
 # Bug #31031 ALTER TABLE regression in 5.0
 #
-#  The ALTER TABLE operation failed with
+#  The ALTER TABLE operation failed with 
 #  ERROR 1089 (HY000): Incorrect sub part key; ...
 #
-CREATE TABLE t1(c CHAR(10),
+CREATE TABLE t1(c CHAR(10), 
   i INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY);
 INSERT INTO t1 VALUES('a',2),('b',4),('c',6);
 ALTER TABLE t1
@@ -1064,7 +1114,7 @@ DROP TABLE t1;
 
 
 #
-# Bug#50542 5.5.x doesn't check length of key prefixes:
+# Bug#50542 5.5.x doesn't check length of key prefixes: 
 #           corruption and crash results
 #
 # This case is related to Bug#31031 (above)
@@ -1131,6 +1181,25 @@ CREATE TABLE db1.t1 (bar TINYTEXT, KEY (bar(100)));
 ALTER TABLE db1.t1 ADD baz INT;
 
 DROP DATABASE db1;
+
+
+--echo # Additional coverage for refactoring which is made as part
+--echo # of fix for bug #27480 "Extend CREATE TEMPORARY TABLES privilege
+--echo # to allow temp table operations".
+--echo #
+--echo # At some point the below test case failed on assertion.
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TEMPORARY TABLE t1 (i int) ENGINE=MyISAM;
+
+--error ER_ILLEGAL_HA
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+DROP TABLE t1;
+
 
 --echo #
 --echo # Bug#11938039 RE-EXECUTION OF FRM-ONLY ALTER TABLE WITH RENAME
@@ -1474,7 +1543,7 @@ DROP TABLE ti3;
 --echo #    ER_ILLEGAL_HA error at some point during work on this WL.
 --echo #
 
-CREATE TABLE tm1(i INT DEFAULT 1) engine=InnODB;
+CREATE TABLE tm1(i INT DEFAULT 1) engine=MyISAM;
 ALTER TABLE tm1 ADD INDEX ii1(i), ALTER COLUMN i DROP DEFAULT;
 DROP TABLE tm1;
 
@@ -1546,14 +1615,14 @@ show create table t1;
 
 --echo # 1.b) It should be impossible to rename index that doesn't
 --echo #      exists, dropped or added within the same ALTER TABLE.
---error ER_KEY_DOES_NOT_EXITS
+--error ER_KEY_DOES_NOT_EXITS 
 alter table t1 rename key d to e;
 show create table t1;
---error ER_KEY_DOES_NOT_EXITS
+--error ER_KEY_DOES_NOT_EXITS 
 alter table t1 drop key c, rename key c to d;
 show create table t1;
---error ER_KEY_DOES_NOT_EXITS
-alter table t1 add key d(j), rename key d to e;
+--error ER_KEY_DOES_NOT_EXITS 
+alter table t1 add key d(j), rename key d to e; 
 show create table t1;
 
 --echo # 1.c) It should be impossible to rename index to a name
@@ -1635,8 +1704,8 @@ drop table t2;
 --echo #    various storage engines and using different ALTER
 --echo #    algorithm.
 --echo #
---echo # 3.a) Test coverage for simple storage engines (InnoDB/Heap).
-create table t1 (i int, key k(i)) engine=innodb;
+--echo # 3.a) Test coverage for simple storage engines (MyISAM/Heap).
+create table t1 (i int, key k(i)) engine=myisam;
 insert into t1 values (1);
 create table t2 (i int, key k(i)) engine=memory;
 insert into t2 values (1);
@@ -1665,7 +1734,8 @@ alter table t2 algorithm=inplace, rename key kkkk to k, alter column i set defau
 show create table t1;
 show create table t2;
 --echo # Combining with non-inplace operation results in the whole ALTER
---echo # becoming non-inplace.
+--echo # becoming non-inplace. 
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
 alter table t1 algorithm=inplace, rename key k to kk, add column j int;
 --error ER_ALTER_OPERATION_NOT_SUPPORTED
 alter table t2 algorithm=inplace, rename key k to kk, add column j int;
@@ -1747,7 +1817,7 @@ CREATE TABLE t1 (i INT) ENGINE=InnoDB;
 --echo #
 --echo # 1) Check that ALTER TABLE ... IMPORT/DISCARD TABLESPACE on
 --echo #    base table acquire X lock (when not under LOCK TABLES).
---echo #
+--echo # 
 
 connect(con1, localhost, root);
 --echo # Acquire S lock on table 't1'.
@@ -1828,7 +1898,7 @@ DROP TEMPORARY TABLE t1;
 --echo #
 --echo # 3) Check that ALTER TABLE ... IMPORT/DISCARD TABLESPACE on
 --echo #    base table under LOCK TABLES acquire X lock.
---echo #
+--echo # 
 
 connection con2;
 LOCK TABLES t1 WRITE;
@@ -1953,21 +2023,21 @@ CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'old comment');
 SHOW INDEX FROM t1;
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'new comment';
 SHOW INDEX FROM t1;
-DROP TABLE t1;
+DROP TABLE t1; 
 
 
 --echo #
 --echo # Bug#19635706
---echo # Verify that it is possible to add a unique key to a not-NULL POINT
+--echo # Verify that it is possible to add a unique key to a not-NULL POINT 
 --echo # column and that this key is promoted to primary key
---echo #
+--echo # 
 
 CREATE TABLE t1(a INT NOT NULL, b POINT NOT NULL) ENGINE=INNODB;
 SHOW CREATE TABLE t1;
 ALTER TABLE t1 ADD UNIQUE INDEX (b);
 
---echo # Note that SHOW CREATE TABLE does not list b as a primary key,
---echo # even though it was promoted. This appears to be the case also
+--echo # Note that SHOW CREATE TABLE does not list b as a primary key, 
+--echo # even though it was promoted. This appears to be the case also 
 --echo # for other column types.
 SHOW CREATE TABLE t1;
 
@@ -1975,21 +2045,21 @@ ALTER TABLE t1 ADD UNIQUE INDEX (a);
 SHOW CREATE TABLE t1;
 
 --echo # Verify that the expected indices have been created by Innodb
-SELECT T.NAME AS TABLE_NAME, I.NAME AS INDEX_NAME,
-       CASE I.TYPE
-            WHEN 0 THEN 'Secondary'
-            WHEN 1 THEN 'Clustered'
-            WHEN 2 THEN 'Unique'
-            WHEN 3 THEN 'Primary'
-            WHEN 32 THEN 'Full text'
-            WHEN 64 THEN 'Spatial'
-            ELSE 'Unknown'
-       END AS INDEX_TYPE,
-       F.NAME AS FIELD_NAME, F.POS AS FIELD_POS FROM
-              INFORMATION_SCHEMA.INNODB_SYS_TABLES AS T JOIN
-              INFORMATION_SCHEMA.INNODB_SYS_INDEXES AS I JOIN
-              INFORMATION_SCHEMA.INNODB_SYS_FIELDS AS F
-              ON I.INDEX_ID = F.INDEX_ID AND I.TABLE_ID = T.TABLE_ID
+SELECT T.NAME AS TABLE_NAME, I.NAME AS INDEX_NAME, 
+       CASE I.TYPE 
+            WHEN 0 THEN 'Secondary' 
+            WHEN 1 THEN 'Clustered' 
+            WHEN 2 THEN 'Unique' 
+            WHEN 3 THEN 'Primary' 
+            WHEN 32 THEN 'Full text' 
+            WHEN 64 THEN 'Spatial' 
+            ELSE 'Unknown' 
+       END AS INDEX_TYPE, 
+       F.NAME AS FIELD_NAME, F.POS AS FIELD_POS FROM 
+              INFORMATION_SCHEMA.INNODB_SYS_TABLES AS T JOIN 
+              INFORMATION_SCHEMA.INNODB_SYS_INDEXES AS I JOIN 
+              INFORMATION_SCHEMA.INNODB_SYS_FIELDS AS F 
+              ON I.INDEX_ID = F.INDEX_ID AND I.TABLE_ID = T.TABLE_ID 
        WHERE T.NAME = 'test/t1';
 
 DROP TABLE t1;
@@ -2049,7 +2119,7 @@ ALGORITHM= INPLACE;
 SHOW INDEX FROM t1;
 DROP TABLE t1;
 
-CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'test') ENGINE= InnoDB;
+CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'test') ENGINE= MyISAM;
 SHOW INDEX FROM t1;
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1), ALGORITHM=INPLACE;
 SHOW INDEX FROM t1;
@@ -2063,7 +2133,7 @@ SHOW INDEX FROM t1;
 DROP TABLE t1;
 
 # Alter the comment, but keep the same comment length
-CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'old comment') ENGINE=InnoDB;
+CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'old comment') ENGINE=MyISAM;
 SHOW INDEX FROM t1;
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'new comment',
 ALGORITHM= INPLACE;
@@ -2081,7 +2151,7 @@ SHOW INDEX FROM t1;
 SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
 DROP TABLE t1;
 
-CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'MERGE_THRESHOLD=40')
+CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'MERGE_THRESHOLD=40') 
 ENGINE=INNODB;
 SHOW INDEX FROM t1;
 SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
@@ -2184,7 +2254,7 @@ DROP TABLE t1;
 --echo # BUG#20106837: ALTER TABLE WHICH DROPS AND ADDS THE SAME FULLTEXT
 --echo #               INDEX IS NOT INPLACE/FAST.
 
-CREATE TABLE t1(fld1 varchar(200), FULLTEXT(fld1)) ENGINE=InnoDB;
+CREATE TABLE t1(fld1 varchar(200), FULLTEXT(fld1)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES('ABCD');
 
 --enable_info
@@ -2216,6 +2286,12 @@ DROP TABLE t1;
 --echo # Bug#20146455: FIND_KEY_CI RETURNS NULL, CAUSES CRASH IN
 --echo #               FILL_ALTER_INPLACE_INFO
 --echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT,
+                 FOREIGN KEY (b) REFERENCES t1(a)) ENGINE= MyISAM;
+ALTER TABLE t1 RENAME INDEX b TO w, ADD FOREIGN KEY (b) REFERENCES t1(a);
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
 
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT,
                  FOREIGN KEY (b) REFERENCES t1(a)) ENGINE= InnoDB;
