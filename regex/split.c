@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#define BUFFSIZE 512
 
 /*
  - split - divide a string into fields, like awk split()
@@ -159,11 +160,11 @@ char *argv[];
 
 	if (argc > 4)
 		for (n = atoi(argv[3]); n > 0; n--) {
-			(void) strcpy(buf, argv[1]);
+			(void) strncpy(buf, argv[1],BUFFSIZE);
 		}
 	else if (argc > 3)
 		for (n = atoi(argv[3]); n > 0; n--) {
-			(void) strcpy(buf, argv[1]);
+			(void) strncpy(buf, argv[1],BUFFSIZE);
 			(void) split(buf, fields, MNF, argv[2]);
 		}
 	else if (argc > 2)
