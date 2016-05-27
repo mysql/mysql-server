@@ -433,7 +433,7 @@ get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
     {
       Field *field= table->field[i];
       NdbValue value= value_array[i];
-      if (! (field->flags & BLOB_FLAG))
+      if (! (field->flags & BLOB_FLAG && field->stored_in_db))
         continue;
       if (value.blob == NULL)
       {
@@ -2131,9 +2131,9 @@ end:
 /*
   ndb_handle_schema_change
 
-  Used when an even has been receieved telling that the table has been
+  Used when an event has been receieved telling that the table has been
   dropped or connection to cluster has failed. Function checks if the
-  table need to be removed from any of the many places where it's
+  table needs to be removed from any of the many places where it's
   referenced or cached, finally the EventOperation is dropped and
   the event_data structure is released.
 
@@ -5160,7 +5160,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
       op->mergeEvents(TRUE); // currently not inherited from event
 
     const uint n_columns= ndbtab->getNoOfColumns();
-    const uint n_fields= table->s->fields;
+    const uint n_stored_fields= table->s->stored_fields;
     const uint val_length= sizeof(NdbValue) * n_columns;
 
     /*
@@ -5178,13 +5178,14 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
       DBUG_RETURN(-1);
     }
 
+    Ndb_table_map map(table);
     for (uint j= 0; j < n_columns; j++)
     {
       const char *col_name= ndbtab->getColumn(j)->getName();
       NdbValue attr0, attr1;
-      if (j < n_fields)
+      if (j < n_stored_fields)
       {
-        Field *f= table->field[j];
+        Field *f= table->field[map.get_field_for_column(j)];
         if (is_ndb_compatible_type(f))
         {
           DBUG_PRINT("info", ("%s compatible", col_name));
@@ -5486,7 +5487,10 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value,
   for ( ; field;
        p_field++, value++, field= *p_field)
   {
-    field->set_notnull(row_offset);       
+    if(field->is_virtual_gcol())
+      continue;
+
+    field->set_notnull(row_offset);
     if ((*value).ptr)
     {
       if (!(field->flags & BLOB_FLAG))
@@ -6614,6 +6618,7 @@ restart_cluster_failure:
   // Defer call of THD::init_for_query until after mysqld_server_started
   // to ensure that the parts of MySQL Server it uses has been created
   thd->init_for_queries();
+  lex_start(thd);
 
   log_verbose(1, "Check for incidents");
 
