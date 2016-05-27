@@ -381,8 +381,10 @@ static void print_result()
               prev_alter[0]= 0;
             }
             else
+            {
               strncpy(prev_alter, alter_txt, MAX_ALTER_STR_SIZE-1);
               prev_alter[MAX_ALTER_STR_SIZE-1]= 0;
+            }
           }
         }
       }
