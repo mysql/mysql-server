@@ -9703,7 +9703,8 @@ ha_innobase::ft_init_ext(
 	const byte*	q = reinterpret_cast<const byte*>(
 		const_cast<char*>(query));
 
-	dberr_t	error = fts_query(trx, index, flags, q, query_len, &result);
+	dberr_t	error = fts_query(trx, index, flags, q, query_len, &result,
+				  m_prebuilt->m_fts_limit);
 
 	if (error != DB_SUCCESS) {
 		my_error(convert_error_code_to_mysql(error, 0, NULL), MYF(0));
@@ -9737,6 +9738,12 @@ ha_innobase::ft_init_ext_with_hints(
 	Ft_hints*		hints)		/* in: hints  */
 {
 	/* TODO Implement function properly working with FT hint. */
+	if (hints->get_flags() & FT_NO_RANKING) {
+		m_prebuilt->m_fts_limit = hints->get_limit();
+	} else {
+		m_prebuilt->m_fts_limit = ULONG_UNDEFINED;
+	}
+
 	return(ft_init_ext(hints->get_flags(), keynr, key));
 }
 

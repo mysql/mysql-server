@@ -866,6 +866,9 @@ struct row_prebuilt_t {
 
 	/** The MySQL table object */
 	TABLE*		m_mysql_table;
+
+	/** limit value to avoid fts result overflow */
+	ulonglong	m_fts_limit;
 };
 
 /** Callback for row_mysql_sys_index_iterate() */
