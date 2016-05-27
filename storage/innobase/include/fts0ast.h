@@ -195,6 +195,13 @@ fts_ast_state_free(
 /*===============*/
 	fts_ast_state_t*state);			/*!< in: state instance
 						to free */
+/** Check only union operation involved in the node
+@param[in]	node	ast node to check
+@return true if the node contains only union else false. */
+bool
+fts_ast_node_check_union(
+	fts_ast_node_t*	node);
+
 /******************************************************************//**
 Traverse the AST - in-order traversal.
 @return DB_SUCCESS if all went well */
