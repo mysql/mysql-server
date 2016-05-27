@@ -161,7 +161,7 @@ static const TABLE_FIELD_TYPE field_types[]=
     {NULL, 0}
   },
   {
-    {C_STRING_WITH_LEN("COUNT_TRANSACTIONS_VALIDATING")},
+    {C_STRING_WITH_LEN("COUNT_TRANSACTIONS_ROWS_VALIDATING")},
     {C_STRING_WITH_LEN("bigint")},
     {NULL, 0}
   },
