@@ -1598,10 +1598,10 @@ ha_ndbcluster::get_buffer(Thd_ndb *thd_ndb, uint size)
 uchar *
 ha_ndbcluster::copy_row_to_buffer(Thd_ndb *thd_ndb, const uchar *record)
 {
-  uchar *row= get_buffer(thd_ndb, table->s->reclength);
+  uchar *row= get_buffer(thd_ndb, table->s->stored_rec_length);
   if (unlikely(!row))
     return NULL;
-  memcpy(row, record, table->s->reclength);
+  memcpy(row, record, table->s->stored_rec_length);
   return row;
 }
 
@@ -1731,7 +1731,7 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
   for (uint i= 0; i < ha->table->s->fields; i++)
   {
     Field *field= ha->table->field[i];
-    if (! (field->flags & BLOB_FLAG))
+    if (! ((field->flags & BLOB_FLAG) && field->stored_in_db))
       continue;
     NdbValue value= ha->m_value[i];
     if (value.blob == NULL)
@@ -1814,7 +1814,7 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
     for (uint i= 0; i < ha->table->s->fields; i++)
     {
       Field *field= ha->table->field[i];
-      if (! (field->flags & BLOB_FLAG))
+      if (! ((field->flags & BLOB_FLAG) && field->stored_in_db))
         continue;
       NdbValue value= ha->m_value[i];
       if (value.blob == NULL)
@@ -1866,14 +1866,14 @@ ha_ndbcluster::get_blob_values(const NdbOperation *ndb_op, uchar *dst_record,
   for (i= 0; i < table_share->fields; i++) 
   {
     Field *field= table->field[i];
-    if (!(field->flags & BLOB_FLAG))
+    if (! ((field->flags & BLOB_FLAG) && field->stored_in_db))
       continue;
 
     DBUG_PRINT("info", ("fieldnr=%d", i));
     NdbBlob *ndb_blob;
     if (bitmap_is_set(bitmap, i))
     {
-      if ((ndb_blob= ndb_op->getBlobHandle(i)) == NULL ||
+      if ((ndb_blob= m_table_map->getBlobHandle(ndb_op, i)) == NULL ||
           ndb_blob->setActiveHook(g_get_ndb_blobs_value, this) != 0)
         DBUG_RETURN(1);
       m_blob_expected_count_per_row++;
@@ -1913,8 +1913,10 @@ ha_ndbcluster::set_blob_values(const NdbOperation *ndb_op,
     if (bitmap && !bitmap_is_set(bitmap, field_no))
       continue;
     Field *field= table->field[field_no];
+    if(field->is_virtual_gcol())
+      continue;
 
-    NdbBlob *ndb_blob= ndb_op->getBlobHandle(field_no);
+    NdbBlob *ndb_blob= m_table_map->getBlobHandle(ndb_op, field_no);
     if (ndb_blob == NULL)
       ERR_RETURN(ndb_op->getNdbError());
     if (field->is_real_null(row_offset))
@@ -1981,7 +1983,8 @@ bool ha_ndbcluster::uses_blob_value(const MY_BITMAP *bitmap) const
   blob_index_end= blob_index + table_share->blob_fields;
   do
   {
-    if (bitmap_is_set(bitmap, table->field[*blob_index]->field_index))
+    Field *field= table->field[*blob_index];
+    if (bitmap_is_set(bitmap, field->field_index) && ! field->is_virtual_gcol())
       return TRUE;
   } while (++blob_index != blob_index_end);
   return FALSE;
@@ -2042,7 +2045,10 @@ int ha_ndbcluster::check_default_values(const NDBTAB* ndbtab)
     for (uint f=0; f < table_share->fields; f++)
     {
       Field* field= table->field[f]; // Use Field struct from MySQLD table rep
-      const NdbDictionary::Column* ndbCol= ndbtab->getColumn(field->field_index); 
+      if(! field->stored_in_db)
+        continue;
+
+      const NdbDictionary::Column* ndbCol= m_table_map->getColumn(field->field_index);
 
       if ((! (field->flags & (PRI_KEY_FLAG |
                               NO_DEFAULT_VALUE_FLAG))) &&
@@ -2177,6 +2183,9 @@ int ha_ndbcluster::get_metadata(THD *thd, const char *path)
   }
   my_free(data);
   my_free(pack_data);
+
+  // Create field to column map when table is opened
+  m_table_map = new Ndb_table_map(table, tab);
 
   /* Now check that any Ndb native defaults are aligned 
      with MySQLD defaults
@@ -2481,9 +2490,11 @@ static void
 ndb_set_record_specification(uint field_no,
                              NdbDictionary::RecordSpecification *spec,
                              const TABLE *table,
-                             const NdbDictionary::Table *ndb_table)
+                             const NdbDictionary::Column *ndb_column)
 {
-  spec->column= ndb_table->getColumn(field_no);
+  DBUG_ENTER("ndb_set_record_specification");
+  DBUG_ASSERT(ndb_column);
+  spec->column= ndb_column;
   spec->offset= Uint32(table->field[field_no]->ptr - table->record[0]);
   if (table->field[field_no]->real_maybe_null())
   {
@@ -2516,6 +2527,13 @@ ndb_set_record_specification(uint field_no,
     spec->column_flags |=
         NdbDictionary::RecordSpecification::BitColMapsNullBitOnly;
   }
+  DBUG_PRINT("info",
+             ("%s.%s field: %d, col: %d, offset: %d, null bit: %d",
+             table->s->table_name.str, ndb_column->getName(),
+             field_no, ndb_column->getColumnNo(),
+             spec->offset,
+             (8 * spec->nullbit_byte_offset) + spec->nullbit_bit_in_byte));
+  DBUG_VOID_RETURN;
 }
 
 int
@@ -2524,14 +2542,19 @@ ha_ndbcluster::add_table_ndb_record(NDBDICT *dict)
   DBUG_ENTER("ha_ndbcluster::add_table_ndb_record()");
   NdbDictionary::RecordSpecification spec[NDB_MAX_ATTRIBUTES_IN_TABLE + 2];
   NdbRecord *rec;
-  uint i;
+  uint fieldId, colId;
 
-  for (i= 0; i < table_share->fields; i++)
+  for (fieldId= 0, colId= 0; fieldId < table_share->fields; fieldId++)
   {
-    ndb_set_record_specification(i, &spec[i], table, m_table);
+    if(table->field[fieldId]->stored_in_db)
+    {
+      ndb_set_record_specification(fieldId, &spec[colId], table,
+                                   m_table->getColumn(colId));
+      colId++;
+    }
   }
 
-  rec= dict->createRecord(m_table, spec, i, sizeof(spec[0]),
+  rec= dict->createRecord(m_table, spec, colId, sizeof(spec[0]),
                           NdbDictionary::RecMysqldBitfield |
                           NdbDictionary::RecPerColumnFlags);
   if (! rec)
@@ -2549,7 +2572,7 @@ ha_ndbcluster::add_hidden_pk_ndb_record(NDBDICT *dict)
   NdbDictionary::RecordSpecification spec[1];
   NdbRecord *rec;
 
-  spec[0].column= m_table->getColumn(table_share->fields);
+  spec[0].column= m_table->getColumn(m_table_map->get_hidden_key_column());
   spec[0].offset= 0;
   spec[0].nullbit_byte_offset= 0;
   spec[0].nullbit_bit_in_byte= 0;
@@ -2573,8 +2596,7 @@ ha_ndbcluster::add_index_ndb_record(NDBDICT *dict, KEY *key_info, uint index_no)
   for (uint i= 0; i < key_info->user_defined_key_parts; i++)
   {
     KEY_PART_INFO *kp= &key_info->key_part[i];
-
-    spec[i].column= m_table->getColumn(kp->fieldnr - 1);
+    spec[i].column= m_table_map->getColumn(kp->fieldnr - 1);
     if (! spec[i].column)
       ERR_RETURN(dict->getNdbError());
     if (kp->null_bit)
@@ -3626,8 +3648,8 @@ int ha_ndbcluster::fetch_next_pushed()
   {
     DBUG_ASSERT(m_next_row!=NULL);
     DBUG_PRINT("info", ("One more record found"));    
-    table->status= 0;
-    unpack_record(table->record[0], m_next_row);
+    unpack_record_and_set_generated_fields(table, table->record[0],
+                                           m_next_row);
 //  m_thd_ndb->m_pushed_reads++;
 //  DBUG_RETURN(0)
   }
@@ -3667,7 +3689,7 @@ ha_ndbcluster::index_read_pushed(uchar *buf, const uchar *key,
   if (unlikely(!check_is_pushed()))
   {
     int res= index_read_map(buf, key, keypart_map, HA_READ_KEY_EXACT);
-    if (!res && table->vfield)
+    if (!res && table->has_virtual_gcol())
       res= update_generated_read_fields(buf, table);
     DBUG_RETURN(res);
   }
@@ -3679,8 +3701,7 @@ ha_ndbcluster::index_read_pushed(uchar *buf, const uchar *key,
   if (result == NdbQuery::NextResult_gotRow)
   {
     DBUG_ASSERT(m_next_row!=NULL);
-    unpack_record(buf, m_next_row);
-    table->status= 0;
+    unpack_record_and_set_generated_fields(table, buf, m_next_row);
     m_thd_ndb->m_pushed_reads++;
   }
   else
@@ -3710,7 +3731,7 @@ int ha_ndbcluster::index_next_pushed(uchar *buf)
   if (unlikely(!check_is_pushed()))
   {
     int res= index_next(buf);
-    if (!res && table->vfield)
+    if (!res && table->has_virtual_gcol())
       res= update_generated_read_fields(buf, table);
     DBUG_RETURN(res);
   }
@@ -3933,7 +3954,8 @@ ha_ndbcluster::pk_unique_index_read_key(uint idx, const uchar *key, uchar *buf,
 
   op= m_thd_ndb->trans->readTuple(key_rec, (const char *)key, m_ndb_record,
                                   (char *)buf, lm,
-                                  (uchar *)(table->read_set->bitmap), poptions,
+                                  m_table_map->get_column_mask(table->read_set),
+                                  poptions,
                                   sizeof(NdbOperation::OperationOptions));
 
   if (uses_blob_value(table->read_set) &&
@@ -4277,7 +4299,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
       ERR_RETURN(code.getNdbError());
 
     if (!(op= trans->scanIndex(key_rec, row_rec, lm,
-                               (uchar *)(table->read_set->bitmap),
+                               m_table_map->get_column_mask(table->read_set),
                                pbound,
                                &options,
                                sizeof(NdbScanOperation::ScanOptions))))
@@ -4307,14 +4329,15 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
 
 static
 int
-guess_scan_flags(NdbOperation::LockMode lm,
+guess_scan_flags(NdbOperation::LockMode lm, Ndb_table_map * table_map,
 		 const NDBTAB* tab, const MY_BITMAP* readset)
 {
   int flags= 0;
   flags|= (lm == NdbOperation::LM_Read) ? NdbScanOperation::SF_KeyInfo : 0;
   if (tab->checkColumns(0, 0) & 2)
   {
-    int ret = tab->checkColumns(readset->bitmap, no_bytes_in_map(readset));
+    const Uint32 * colmap = (const Uint32 *) table_map->get_column_mask(readset);
+    int ret = tab->checkColumns(colmap, no_bytes_in_map(readset));
     
     if (ret & 2)
     { // If disk columns...use disk scan
@@ -4393,7 +4416,7 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
   NdbScanOperation::ScanOptions options;
   options.optionsPresent = (NdbScanOperation::ScanOptions::SO_SCANFLAGS |
                             NdbScanOperation::ScanOptions::SO_PARALLEL);
-  options.scan_flags = guess_scan_flags(lm, m_table, table->read_set);
+  options.scan_flags = guess_scan_flags(lm, m_table_map, m_table, table->read_set);
   options.parallel= DEFAULT_PARALLELISM;
 
   if (use_set_part_id) {
@@ -4448,9 +4471,8 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
                                                 start_key, end_key))
         ERR_RETURN(code.getNdbError());
     }
-
     if (!(op= trans->scanTable(m_ndb_record, lm,
-                               (uchar *)(table->read_set->bitmap),
+                               m_table_map->get_column_mask(table->read_set),
                                &options, sizeof(NdbScanOperation::ScanOptions))))
       ERR_RETURN(trans->getNdbError());
 
@@ -5666,7 +5688,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
         unchanged columns
       */
       user_cols_written_bitmap= table->write_set;
-      mask= (uchar *)(user_cols_written_bitmap->bitmap);
+      mask= m_table_map->get_column_mask(user_cols_written_bitmap);
     }
     else
     {
@@ -5723,8 +5745,9 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
           bitmap_set_bit(user_cols_written_bitmap, field->field_index);
         }
       }
-
-      mask= (uchar *)(user_cols_written_bitmap->bitmap);
+      /* Finally, translate the whole bitmap from MySQL field numbers 
+         to NDB column numbers */
+      mask= m_table_map->get_column_mask(user_cols_written_bitmap);
     }
     else
     {
@@ -6368,7 +6391,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   */
   bitmap_copy(&m_bitmap, table->write_set);
   bitmap_subtract(&m_bitmap, m_pk_bitmap_p);
-  uchar *mask= (uchar *)(m_bitmap.bitmap);
+  uchar *mask= m_table_map->get_column_mask(& m_bitmap);
   DBUG_ASSERT(!pk_update);
 
   NdbOperation::OperationOptions *poptions = NULL;
@@ -6919,7 +6942,7 @@ void ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
   for (uint i= 0; i < table_share->fields; i++) 
   {
     Field *field= table->field[i];
-    if (bitmap_is_set(table->read_set, i))
+    if (bitmap_is_set(table->read_set, i) && field->stored_in_db)
     {
       if (field->type() == MYSQL_TYPE_BIT)
       {
@@ -6996,10 +7019,22 @@ void ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
           field->move_field_offset(-src_offset);
         /* No action needed for a NULL field. */
       }
-    }
-  }
+    }  // if(bitmap_is_set...
+  }  // for(...
 }
 
+void ha_ndbcluster::unpack_record_and_set_generated_fields(
+  TABLE *table,
+  uchar *dst_row,
+  const uchar *src_row)
+{
+  unpack_record(dst_row, src_row);
+  if(table->has_virtual_gcol())
+  {
+    update_generated_read_fields(dst_row, table);
+  }
+  table->status= 0;
+}
 
 /**
   Get the default value of the field from default_values of the table.
@@ -7007,6 +7042,7 @@ void ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
 static void get_default_value(void *def_val, Field *field)
 {
   DBUG_ASSERT(field != NULL);
+  DBUG_ASSERT(field->stored_in_db);
 
   my_ptrdiff_t src_offset= field->table->default_values_offset();
 
@@ -7611,7 +7647,7 @@ void ha_ndbcluster::position(const uchar *record)
     else
       key_length= ref_length;
 #ifndef DBUG_OFF
-    int hidden_no= table->s->fields;
+    int hidden_no= table->s->stored_fields;
     const NDBTAB *tab= m_table;  
     const NDBCOL *hidden_col= tab->getColumn(hidden_no);
     DBUG_ASSERT(hidden_col->getPrimaryKey() && 
@@ -9529,6 +9565,7 @@ create_ndb_column(THD *thd,
   DBUG_ENTER("create_ndb_column");
   NDBCOL::StorageType type= NDBCOL::StorageTypeMemory;
   char buf[MAX_ATTR_DEFAULT_VALUE_SIZE];
+  assert(field->stored_in_db);
   // Set name
   if (col.setName(field->field_name))
   {
@@ -10172,9 +10209,9 @@ extern bool ndb_fk_util_truncate_allowed(THD* thd,
   when creating partitioned tables
 */
 static int
-create_table_set_up_partition_info(HA_CREATE_INFO* create_info,
-                                   partition_info *part_info,
-                                   NdbDictionary::Table&);
+create_table_set_up_partition_info(partition_info *part_info,
+                                   NdbDictionary::Table&,
+                                   Ndb_table_map &);
 static int
 create_table_set_range_data(const partition_info* part_info,
                             NdbDictionary::Table&);
@@ -10469,6 +10506,9 @@ int ha_ndbcluster::create(const char *name,
 
   DBUG_ENTER("ha_ndbcluster::create");
   DBUG_PRINT("enter", ("name: %s", name));
+
+  /* Use SQL form to create a map from stored field number to column number */
+  Ndb_table_map table_map(form);
 
   /*
     Don't allow CREATE TEMPORARY TABLE, it's not allowed since there is
@@ -10974,24 +11014,27 @@ int ha_ndbcluster::create(const char *name,
   for (i= 0; i < form->s->fields; i++) 
   {
     Field *field= form->field[i];
-    DBUG_PRINT("info", ("name: %s, type: %u, pack_length: %d",
+    DBUG_PRINT("info", ("name: %s, type: %u, pack_length: %d, stored: %d",
                         field->field_name, field->real_type(),
-                        field->pack_length()));
-    set_my_errno(create_ndb_column(thd, col, field, create_info));
-    if (my_errno())
-      goto abort;
-
-    if (!use_disk &&
-        col.getStorageType() == NDBCOL::StorageTypeDisk)
-      use_disk= TRUE;
-
-    if (tab.addColumn(col))
+                        field->pack_length(), field->stored_in_db));
+    if(field->stored_in_db)
     {
-      set_my_errno(errno);
-      goto abort;
+      set_my_errno(create_ndb_column(thd, col, field, create_info));
+      if (my_errno())
+        goto abort;
+
+      if (!use_disk &&
+          col.getStorageType() == NDBCOL::StorageTypeDisk)
+        use_disk= TRUE;
+
+      if (tab.addColumn(col))
+      {
+        set_my_errno(errno);
+        goto abort;
+      }
+      if (col.getPrimaryKey())
+        pk_length += (field->pack_length() + 3) / 4;
     }
-    if (col.getPrimaryKey())
-      pk_length += (field->pack_length() + 3) / 4;
   }
 
   tmp_restore_column_map(form->read_set, old_map);
@@ -11044,8 +11087,8 @@ int ha_ndbcluster::create(const char *name,
         result= HA_ERR_UNSUPPORTED;
         goto abort_return;
       }
-      tab.getColumn(key_part->fieldnr-1)->setStorageType(
-                             NdbDictionary::Column::StorageTypeMemory);
+      table_map.getColumn(tab, key_part->fieldnr-1)->setStorageType(
+        NdbDictionary::Column::StorageTypeMemory);
     }
   }
 
@@ -11075,6 +11118,9 @@ int ha_ndbcluster::create(const char *name,
   // Make sure that blob tables don't have too big part size
   for (i= 0; i < form->s->fields; i++) 
   {
+    if(! form->field[i]->stored_in_db)
+      continue;
+
     /**
      * The extra +7 concists
      * 2 - words from pk in blob table
@@ -11090,7 +11136,7 @@ int ha_ndbcluster::create(const char *name,
     case MYSQL_TYPE_LONG_BLOB: 
     case MYSQL_TYPE_JSON:
     {
-      NdbDictionary::Column * column= tab.getColumn(i);
+      NdbDictionary::Column * column= table_map.getColumn(tab, i);
       unsigned size= pk_length + (column->getPartSize()+3)/4 + 7;
       unsigned ndb_max= OLD_NDB_MAX_TUPLE_SIZE_IN_WORDS;
       if (column->getPartSize() > (int)(4 * ndb_max))
@@ -11131,9 +11177,8 @@ int ha_ndbcluster::create(const char *name,
   }
 
   // Check partition info
-  set_my_errno(create_table_set_up_partition_info(create_info,
-                                                  form->part_info,
-                                                  tab));
+  set_my_errno(create_table_set_up_partition_info(form->part_info,
+                                                  tab, table_map));
   if (my_errno())
     goto abort;
 
@@ -12515,6 +12560,7 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
 
 ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   handler(hton, table_arg),
+  m_table_map(NULL),
   m_thd_ndb(NULL),
   m_active_cursor(NULL),
   m_table(NULL),
@@ -13009,6 +13055,11 @@ void ha_ndbcluster::local_close(THD *thd, bool release_metadata_flag)
     ndb= thd ? check_ndb_in_thd(thd) : g_ndb;
     release_metadata(thd, ndb);
   }
+
+  //  Release field to column map when table is closed
+  delete m_table_map;
+  m_table_map = NULL;
+
   DBUG_VOID_RETURN;
 }
 
@@ -14443,6 +14494,7 @@ ulonglong ha_ndbcluster::table_flags(void) const
     HA_BINLOG_ROW_CAPABLE |
     HA_HAS_RECORDS |
     HA_READ_BEFORE_WRITE_REMOVAL |
+    HA_GENERATED_COLUMNS |
     0;
 
   /*
@@ -16291,7 +16343,7 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
           (m_index[active_index].ndb_record_key,
            m_ndb_record, 
            lm,
-           (uchar *)(table->read_set->bitmap),
+           m_table_map->get_column_mask(table->read_set),
            NULL, /* All bounds specified below */
            &options,
            sizeof(NdbScanOperation::ScanOptions));
@@ -16584,7 +16636,11 @@ int ha_ndbcluster::multi_range_read_next(char **range_info)
           *range_info= multi_range_get_custom(multi_range_buffer,
                                               expected_range_no);
           memcpy(table->record[0], multi_range_row(row_buf),
-                 table_share->reclength);
+                 table_share->stored_rec_length);
+          if(table->has_gcol())
+          {
+            update_generated_read_fields(table->record[0], table);
+          }
           DBUG_RETURN(0);
 
         case enum_ordered_range:
@@ -16628,8 +16684,8 @@ int ha_ndbcluster::multi_range_read_next(char **range_info)
               *range_info= multi_range_get_custom(multi_range_buffer,
                                                   current_range_no);
               /* Copy out data from the new row. */
-              unpack_record(table->record[0], m_next_row);
-              table->status= 0;
+              unpack_record_and_set_generated_fields(table, table->record[0],
+                                                     m_next_row);
               /*
                 Mark that we have used this row, so we need to fetch a new
                 one on the next call.
@@ -16948,11 +17004,10 @@ ha_ndbcluster::create_pushed_join(const NdbQueryParamValue* keyFieldParams, uint
     handler->m_pushed_operation= op;
 
     // Bind to result buffers
-    const NdbRecord* const resultRec= handler->m_ndb_record;
     int res= op->setResultRowRef(
-                        resultRec,
+                        handler->m_ndb_record,
                         handler->_m_next_row,
-                        (uchar *)(tab->read_set->bitmap));
+                        handler->m_table_map->get_column_mask(tab->read_set));
     if (unlikely(res))
       ERR_RETURN(query->getNdbError());
     
@@ -17700,9 +17755,9 @@ create_table_set_list_data(const partition_info *part_info,
 */
 
 static int
-create_table_set_up_partition_info(HA_CREATE_INFO* create_info,
-                                   partition_info *part_info,
-                                   NdbDictionary::Table& ndbtab)
+create_table_set_up_partition_info(partition_info *part_info,
+                                   NdbDictionary::Table& ndbtab,
+                                   Ndb_table_map & colIdMap)
 {
   DBUG_ENTER("create_table_set_up_partition_info");
 
@@ -17716,7 +17771,8 @@ create_table_set_up_partition_info(HA_CREATE_INFO* create_info,
 
     for (uint i= 0; i < part_info->part_field_list.elements; i++)
     {
-      NDBCOL *col= ndbtab.getColumn(fields[i]->field_index);
+      DBUG_ASSERT(fields[i]->stored_in_db);
+      NDBCOL *col= colIdMap.getColumn(ndbtab, fields[i]->field_index);
       DBUG_PRINT("info",("setting dist key on %s", col->getName()));
       col->setPartitionKey(TRUE);
     }
@@ -17952,7 +18008,8 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
     Alter_inplace_info::DROP_INDEX |
     Alter_inplace_info::ADD_UNIQUE_INDEX |
     Alter_inplace_info::DROP_UNIQUE_INDEX |
-    Alter_inplace_info::ADD_COLUMN |
+    Alter_inplace_info::ADD_STORED_BASE_COLUMN |
+    Alter_inplace_info::ADD_VIRTUAL_COLUMN |
     Alter_inplace_info::ALTER_COLUMN_DEFAULT |
     Alter_inplace_info::ALTER_COLUMN_STORAGE_TYPE |
     Alter_inplace_info::ALTER_COLUMN_COLUMN_FORMAT |
@@ -17966,7 +18023,8 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
   const Alter_inplace_info::HA_ALTER_FLAGS not_supported= ~supported;
 
   Alter_inplace_info::HA_ALTER_FLAGS add_column=
-    Alter_inplace_info::ADD_COLUMN;
+    Alter_inplace_info::ADD_VIRTUAL_COLUMN |
+    Alter_inplace_info::ADD_STORED_BASE_COLUMN;
 
   const Alter_inplace_info::HA_ALTER_FLAGS adding=
     Alter_inplace_info::ADD_INDEX |
@@ -18047,7 +18105,7 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
   }
 
   if (alter_flags & Alter_inplace_info::ALTER_COLUMN_DEFAULT &&
-      !(alter_flags & Alter_inplace_info::ADD_COLUMN))
+      !(alter_flags & Alter_inplace_info::ADD_STORED_BASE_COLUMN))
   {
     DBUG_RETURN(inplace_unsupported(ha_alter_info,
                                     "Altering default value is not supported"));
@@ -18066,7 +18124,7 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
                                     "Detected unsupported change"));
   }
 
-  if (alter_flags & Alter_inplace_info::ADD_COLUMN ||
+  if (alter_flags & Alter_inplace_info::ADD_STORED_BASE_COLUMN ||
       alter_flags & Alter_inplace_info::ADD_PARTITION ||
       alter_flags & Alter_inplace_info::ALTER_TABLE_REORG ||
       max_rows_changed ||
@@ -18078,7 +18136,7 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
      NdbDictionary::Table new_tab= *old_tab;
 
      result= HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
-     if (alter_flags & Alter_inplace_info::ADD_COLUMN)
+     if (alter_flags & Alter_inplace_info::ADD_STORED_BASE_COLUMN)
      {
        NDBCOL col;
 
@@ -18119,6 +18177,11 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
        for (uint i= table->s->fields; i < altered_table->s->fields; i++)
        {
          Field *field= altered_table->field[i];
+         if(field->is_virtual_gcol())
+         {
+           DBUG_PRINT("info", ("Field %s is VIRTUAL; not adding.", field->field_name));
+           continue;
+         }
          DBUG_PRINT("info", ("Found new field %s", field->field_name));
          DBUG_PRINT("info", ("storage_type %i, column_format %i",
                              (uint) field->field_storage_type(),
@@ -18250,7 +18313,9 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
   for (uint i= 0; i < table->s->fields; i++)
   {
     Field *field= table->field[i];
-    const NDBCOL *col= m_table->getColumn(i);
+    if(field->is_virtual_gcol())
+      continue;
+    const NDBCOL *col= m_table_map->getColumn(i);
 
     NDBCOL new_col;
     create_ndb_column(0, new_col, field, create_info);
@@ -18671,7 +18736,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
     }
   }
 
-  if (alter_flags &  Alter_inplace_info::ADD_COLUMN)
+  if (alter_flags &  Alter_inplace_info::ADD_STORED_BASE_COLUMN)
   {
      NDBCOL col;
 
@@ -18679,6 +18744,8 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
      for (i= table->s->fields; i < altered_table->s->fields; i++)
      {
        Field *field= altered_table->field[i];
+       if(! field->stored_in_db)
+         continue;
        DBUG_PRINT("info", ("Found new field %s", field->field_name));
        set_my_errno(create_ndb_column(thd, col, field, create_info,
                                       COLUMN_FORMAT_TYPE_DYNAMIC));

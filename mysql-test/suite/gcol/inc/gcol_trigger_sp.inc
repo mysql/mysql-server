@@ -63,10 +63,12 @@ select * from t1;
 select * from t2;
 
 insert into t1 (a) values (10);
+--sorted_result
 select * from t1;
 select * from t2;
 
 insert into t1 (a) values (600);
+--sorted_result
 select * from t1;
 --replace_column 1 <timestamp>
 select * from t2;
@@ -103,7 +105,9 @@ delete from t1;
 
 call p1();
 
+--sorted_result
 select * from t2;
+--sorted_result
 select * from t1;
 
 drop table t1,t2;

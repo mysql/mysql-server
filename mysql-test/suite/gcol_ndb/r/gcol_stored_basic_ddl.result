@@ -1,0 +1,28 @@
+create table t (i int not null primary key) engine='ndbcluster';
+insert into t values(1), (2), (3);
+alter table t add j int generated always as (10+i) stored;
+select * from t order by i;
+i	j
+1	11
+2	12
+3	13
+insert into t(i) values (4), (5);
+select * from t order by i;
+i	j
+1	11
+2	12
+3	13
+4	14
+5	15
+select * from t where j = 14;
+i	j
+4	14
+alter table t drop j;
+select * from t order by i;
+i
+1
+2
+3
+4
+5
+drop table t;

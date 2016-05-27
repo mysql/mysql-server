@@ -82,9 +82,9 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 # select_type=PRIMARY, type=index,ALL
 select * from t1 where b in (select c from t3);
 a	b	c
+1	-1	-1
+1	-1	-1
 2	-2	-2
-1	-1	-1
-1	-1	-1
 3	-3	-3
 explain select * from t1 where b in (select c from t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -95,9 +95,9 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 # select_type=PRIMARY, type=range,ref
 select * from t1 where c in (select c from t3 where c between -2 and -1);
 a	b	c
+1	-1	-1
+1	-1	-1
 2	-2	-2
-1	-1	-1
-1	-1	-1
 explain select * from t1 where c in (select c from t3 where c between -2 and -1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	range	c	c	5	NULL	1	100.00	Using where; Using index
@@ -108,8 +108,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 # select_type=UNION RESULT, type=<union1,2>
 select * from t1 union select * from t2;
 a	b	c
-2	-2	-2
 1	-1	-1
+2	-2	-2
 3	-3	-3
 NULL	NULL	NULL
 explain select * from t1 union select * from t2;
@@ -122,9 +122,9 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 # select_type=DERIVED, type=system
 select * from (select a,b,c from t1) as t11;
 a	b	c
+1	-1	-1
+1	-1	-1
 2	-2	-2
-1	-1	-1
-1	-1	-1
 3	-3	-3
 NULL	NULL	NULL
 explain select * from (select a,b,c from t1) as t11;
@@ -178,8 +178,8 @@ Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`c`) AS `count(distin
 # SELECT * FROM tbl_name WHERE <gcol expr>
 select * from t3 where c >= -2;
 a	b	c
-2	-2	-2
 1	-1	-1
+2	-2	-2
 explain select * from t3 where c >= -2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	range	c	c	5	NULL	2	100.00	Using index condition
@@ -198,8 +198,8 @@ Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`t
 # SELECT * FROM tbl_name WHERE <non-indexed gcol expr>
 select * from t3 where b between -2 and -1;
 a	b	c
-2	-2	-2
 1	-1	-1
+2	-2	-2
 explain select * from t3 where b between -2 and -1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
@@ -208,8 +208,8 @@ Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`t
 # SELECT * FROM tbl_name WHERE <indexed gcol expr>
 select * from t3 where c between -2 and -1;
 a	b	c
-2	-2	-2
 1	-1	-1
+2	-2	-2
 explain select * from t3 where c between -2 and -1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	range	c	c	5	NULL	1	100.00	Using index condition
@@ -588,19 +588,19 @@ INSERT INTO t1 VALUES(2147483647);
 ALTER TABLE t1 ADD COLUMN h INT AS (a) VIRTUAL, WITHOUT VALIDATION;
 ALTER TABLE t1 CHANGE h i INT AS (a) VIRTUAL, WITH VALIDATION,
 ALGORITHM=INPLACE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+Got one of the listed errors
 ALTER TABLE t1 CHANGE h i INT AS (a) VIRTUAL, WITHOUT VALIDATION,
 ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 ALTER TABLE t1 ADD COLUMN b SMALLINT AS (a) VIRTUAL, WITH VALIDATION,
 ALGORITHM=INPLACE, LOCK=NONE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+Got one of the listed errors
 ALTER TABLE t1 ADD COLUMN c SMALLINT AS (a) VIRTUAL, WITH VALIDATION,
 ALGORITHM=INPLACE, LOCK=SHARED;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+Got one of the listed errors
 ALTER TABLE t1 ADD COLUMN d SMALLINT AS (a) VIRTUAL, WITH VALIDATION,
 ALGORITHM=INPLACE, LOCK=EXCLUSIVE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+Got one of the listed errors
 Shouldn't fail on Innodb
 ALTER TABLE t1 ADD COLUMN e SMALLINT AS (a) VIRTUAL, WITHOUT VALIDATION,
 ALGORITHM=INPLACE, LOCK=NONE;
@@ -665,25 +665,25 @@ Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1
 SELECT * FROM t1
 WHERE i1 > 41 AND i1 <= 43;
 pk	i1	i2	v1	v2
-42	42	42	43	1
 142	42	42	43	1
-242	42	42	43	1
-342	42	42	43	1
-442	42	42	43	1
-542	42	42	43	1
-642	42	42	43	1
-742	42	42	43	1
-43	43	43	44	1
 143	43	43	44	1
-842	42	42	43	1
-942	42	42	43	1
+242	42	42	43	1
 243	43	43	44	1
+342	42	42	43	1
 343	43	43	44	1
+42	42	42	43	1
+43	43	43	44	1
+442	42	42	43	1
 443	43	43	44	1
+542	42	42	43	1
 543	43	43	44	1
+642	42	42	43	1
 643	43	43	44	1
+742	42	42	43	1
 743	43	43	44	1
+842	42	42	43	1
 843	43	43	44	1
+942	42	42	43	1
 943	43	43	44	1
 EXPLAIN SELECT * FROM t1
 WHERE v1 > 41 AND v1 <= 43;
@@ -694,14 +694,14 @@ Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1
 SELECT * FROM t1
 WHERE v1 > 41 AND v1 <= 43;
 pk	i1	i2	v1	v2
-41	41	41	42	1
-42	42	42	43	1
 141	41	41	42	1
 142	42	42	43	1
 241	41	41	42	1
 242	42	42	43	1
 341	41	41	42	1
 342	42	42	43	1
+41	41	41	42	1
+42	42	42	43	1
 441	41	41	42	1
 442	42	42	43	1
 541	41	41	42	1
@@ -785,31 +785,31 @@ WHERE t4.c1 < 'o'
 ) 
 AND t1.i1 <= t3.i2_key;
 c1	i1
-t	2
 c	2
-i	2
-t	2
-g	2
-t	9
-c	9
-i	9
-t	9
-g	9
-t	7
-c	7
-i	7
-t	7
-g	7
-t	5
 c	5
-i	5
-t	5
-g	5
-t	7
 c	7
-i	7
-t	7
+c	7
+c	9
+g	2
+g	5
 g	7
+g	7
+g	9
+i	2
+i	5
+i	7
+i	7
+i	9
+t	2
+t	2
+t	5
+t	5
+t	7
+t	7
+t	7
+t	7
+t	9
+t	9
 #
 # Test 2: Two alternative covering indexes for the range scan
 #
@@ -841,31 +841,31 @@ WHERE t4.c1 < 'o'
 ) 
 AND t1.i1 <= t3.i2_key;
 c1	i1
-t	2
 c	2
-i	2
-t	2
-g	2
-t	9
-c	9
-i	9
-t	9
-g	9
-t	7
-c	7
-i	7
-t	7
-g	7
-t	5
 c	5
-i	5
-t	5
-g	5
-t	7
 c	7
-i	7
-t	7
+c	7
+c	9
+g	2
+g	5
 g	7
+g	7
+g	9
+i	2
+i	5
+i	7
+i	7
+i	9
+t	2
+t	2
+t	5
+t	5
+t	7
+t	7
+t	7
+t	7
+t	9
+t	9
 #
 # Test 3: One covering index including the base column for the virtual
 #         column
@@ -898,31 +898,31 @@ WHERE t4.c1 < 'o'
 ) 
 AND t1.i1 <= t3.i2_key;
 c1	i1
-t	2
 c	2
-i	2
-t	2
-g	2
-t	9
-c	9
-i	9
-t	9
-g	9
-t	7
-c	7
-i	7
-t	7
-g	7
-t	5
 c	5
-i	5
-t	5
-g	5
-t	7
 c	7
-i	7
-t	7
+c	7
+c	9
+g	2
+g	5
 g	7
+g	7
+g	9
+i	2
+i	5
+i	7
+i	7
+i	9
+t	2
+t	2
+t	5
+t	5
+t	7
+t	7
+t	7
+t	7
+t	9
+t	9
 #
 # Test 4: One non-covering index
 #
@@ -963,31 +963,31 @@ WHERE t4.c1 < 'o'
 ) 
 AND t1.i1 <= t3.i2_key;
 c1	i1	i1
-t	2	1
 c	2	48
-i	2	48
-t	2	48
-g	2	48
-t	9	1
-c	9	48
-i	9	48
-t	9	48
-g	9	48
-t	7	1
-c	7	48
-i	7	48
-t	7	48
-g	7	48
-t	5	1
 c	5	48
-i	5	48
-t	5	48
-g	5	48
-t	7	1
 c	7	48
-i	7	48
-t	7	48
+c	7	48
+c	9	48
+g	2	48
+g	5	48
 g	7	48
+g	7	48
+g	9	48
+i	2	48
+i	5	48
+i	7	48
+i	7	48
+i	9	48
+t	2	1
+t	2	48
+t	5	1
+t	5	48
+t	7	1
+t	7	1
+t	7	48
+t	7	48
+t	9	1
+t	9	48
 #
 # Test 5: Test where the added primary key to secondary indexes is
 #         used after it has been included in the join buffer
@@ -1021,31 +1021,31 @@ WHERE t4.c1 < 'o' and t4.i1 < (t2.i1 + 1)
 ) 
 AND t1.i1 <= t3.i2_key;
 c1	i1
-t	2
 c	2
-i	2
-t	2
-g	2
-t	9
-c	9
-i	9
-t	9
-g	9
-t	7
-c	7
-i	7
-t	7
-g	7
-t	5
 c	5
-i	5
-t	5
-g	5
-t	7
 c	7
-i	7
-t	7
+c	7
+c	9
+g	2
+g	5
 g	7
+g	7
+g	9
+i	2
+i	5
+i	7
+i	7
+i	9
+t	2
+t	2
+t	5
+t	5
+t	7
+t	7
+t	7
+t	7
+t	9
+t	9
 DROP TABLE t1, t2, t3, t4;
 SET optimizer_switch='derived_merge=default';
 DROP VIEW  IF EXISTS v1,v2;
