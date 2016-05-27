@@ -83,7 +83,9 @@ public:
 #endif /* UNIV_PFS_THREAD */
 
 public:
-	/** Method to execute the callable */
+	/** Method to execute the callable
+	@param[in]	F		Callable object
+	@param[in]	args		Variable number of args to F */
 	template<typename F, typename ... Args>
 	void run(F&& f, Args&& ... args)
 	{
@@ -91,12 +93,11 @@ public:
 
 		using return_type = typename std::result_of<F(Args ...)>::type;
 
-		auto	task = std::make_shared<
-			std::packaged_task<return_type()>>(
-				std::bind(std::forward<F>(f),
-					  std::forward<Args>(args) ...));
+		std::packaged_task<return_type()> task(
+			std::bind(std::forward<F>(f),
+				  std::forward<Args>(args) ...));
 
-		(*task)();
+		task();
 
 		epilogue();
 	}
