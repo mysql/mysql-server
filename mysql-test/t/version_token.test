@@ -255,7 +255,8 @@ CONNECTION vtcon1;
 --reap
 disconnect vtcon1;
 disconnect vtcon2;
-connection vtcon3;
+disconnect vtcon3;
+connection default;
 
 
 -- echo
