@@ -1031,9 +1031,9 @@ row_fts_start_psort(fts_psort_t* psort_info)
 
 		psort_info[i].psort_id = i;
 
-		CREATE_THREAD(
-			fts_parallel_tokenization_thread,
+		create_thread(
 			fts_parallel_tokenization_thread_key,
+			fts_parallel_tokenization_thread,
 			&psort_info[i]);
 	}
 }
@@ -1066,9 +1066,9 @@ row_fts_start_parallel_merge(fts_psort_t* merge_info)
 		merge_info[i].psort_id = i;
 		merge_info[i].child_status = 0;
 
-                CREATE_THREAD(
-                        fts_parallel_merge_thread,
+                create_thread(
                         fts_parallel_merge_thread_key,
+                        fts_parallel_merge_thread,
                         &merge_info[i]);
 	}
 }

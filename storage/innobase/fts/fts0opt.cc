@@ -3152,9 +3152,9 @@ fts_optimize_init(void)
 	ut_a(fts_optimize_wq != NULL);
 	last_check_sync_time = ut_time();
 
-	CREATE_THREAD(
-		fts_optimize_thread,
+	create_thread(
 		fts_optimize_thread_key,
+		fts_optimize_thread,
 		fts_optimize_wq);
 }
 

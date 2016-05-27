@@ -69,6 +69,7 @@ unittest/gunit/innodb/CMakeLists.txt */
 
 #include "sync0policy.h" /* needed by ib0mutex.h, which is not self contained */
 #include "os0thread.h" /* os_thread_*() */
+#include "os0thread-create.h" /* os_thread_*() */
 #include "srv0conc.h" /* srv_max_n_threads */
 #include "sync0debug.h" /* sync_check_init(), sync_check_close() */
 #include "ut0dbg.h" /* ut_chrono_t */
@@ -78,8 +79,6 @@ unittest/gunit/innodb/CMakeLists.txt */
 
 /* Key for thread local counter variable for random backoff for spinlocks*/
 extern thread_local_key_t ut_rnd_ulint_counter_key;
-
-extern SysMutex	thread_mutex;
 
 namespace innodb_lock_free_hash_unittest {
 
@@ -395,14 +394,14 @@ public:
 		srv_max_n_threads = 1024;
 
 		sync_check_init();
-		os_thread_init();
+		os_thread_open();
 	}
 
 	static
 	void
 	TearDownTestCase()
 	{
-		os_thread_free();
+		os_thread_close();
 		sync_check_close();
 	}
 };
@@ -503,6 +502,7 @@ to insert by each thread.
 @param[in]	n_threads		number of threads to start. Overall
 the hash will be filled with n_common + n_threads * n_priv_per_thread tuples
 @param[in]	thread_func		function to fire up as a new thread */
+template <typename F>
 static
 void
 run_multi_threaded(
@@ -511,7 +511,7 @@ run_multi_threaded(
 	size_t			n_common,
 	size_t			n_priv_per_thread,
 	size_t			n_threads,
-	os_thread_func_t	thread_func)
+	F			thread_func)
 {
 #ifdef HAVE_UT_CHRONO_T
 	ut_chrono_t		chrono(label);
@@ -541,17 +541,13 @@ run_multi_threaded(
 		params[i].n_common = n_common;
 		params[i].n_priv_per_thread = n_priv_per_thread;
 
-		os_thread_create(thread_func, &params[i], NULL);
+		create_thread(0, thread_func, &params[i]);
 	}
 
 	/* Wait for all threads to exit. */
-	mutex_enter(&thread_mutex);
-	while (os_thread_count > 0) {
-		mutex_exit(&thread_mutex);
+	while (os_thread_count.load(std::memory_order_relaxed) > 0) {
 		os_thread_sleep(100000 /* 0.1 sec */);
-		mutex_enter(&thread_mutex);
 	}
-	mutex_exit(&thread_mutex);
 
 	hash_check_inserted(hash, n_common, 0);
 
@@ -570,12 +566,9 @@ run_multi_threaded(
 The inc()/dec() performed on the common keys will net to 0 when this thread
 ends. It also inserts some tuples with keys that are unique to this thread.
 @param[in]	arg	thread arguments */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(thread_0r100w)(
-	void*	arg)
+void
+thread_0r100w(const thread_params_t* p)
 {
-	const thread_params_t*	p = static_cast<const thread_params_t*>(arg);
 	const uint64_t		key_extra_bits = p->thread_id << 32;
 
 	hash_insert(p->hash, p->n_priv_per_thread, key_extra_bits);
@@ -621,10 +614,6 @@ DECLARE_THREAD(thread_0r100w)(
 	hash_delete(p->hash, p->n_priv_per_thread, key_extra_bits);
 
 	hash_check_deleted(p->hash, p->n_priv_per_thread, key_extra_bits);
-
-	os_thread_exit();
-
-	OS_THREAD_DUMMY_RETURN;
 }
 
 TEST_F(ut0lock_free_hash, multi_threaded_0r100w)
@@ -635,7 +624,7 @@ TEST_F(ut0lock_free_hash, multi_threaded_0r100w)
 		4096 /* n_common */,
 		256 /* n_priv_per_thread */,
 		64 /* n_threads */,
-		reinterpret_cast<os_thread_func_t>(thread_0r100w) /* thr func */
+		thread_0r100w /* thr func */
 	);
 }
 
@@ -647,7 +636,7 @@ TEST_F(ut0lock_free_hash, multi_threaded_0r100w_few_keys)
 		16 /* n_common */,
 		0 /* n_priv_per_thread */,
 		64 /* n_threads */,
-		reinterpret_cast<os_thread_func_t>(thread_0r100w) /* thr func */
+		thread_0r100w /* thr func */
 	);
 }
 
@@ -659,7 +648,7 @@ TEST_F(ut0lock_free_hash, multi_threaded_0r100w_grow)
 		4096 /* n_common */,
 		256 /* n_priv_per_thread */,
 		64, /* n_threads */
-		reinterpret_cast<os_thread_func_t>(thread_0r100w) /* thr func */
+		thread_0r100w /* thr func */
 	);
 }
 
@@ -668,12 +657,9 @@ TEST_F(ut0lock_free_hash, multi_threaded_0r100w_grow)
 this thread ends. It also inserts some tuples with keys that are unique to
 this thread.
 @param[in]	arg	thread arguments */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(thread_50r50w)(
-	void*	arg)
+void
+thread_50r50w(const thread_params_t* p)
 {
-	const thread_params_t*	p = static_cast<const thread_params_t*>(arg);
 	const uint64_t		key_extra_bits = p->thread_id << 32;
 
 	hash_insert(p->hash, p->n_priv_per_thread, key_extra_bits);
@@ -728,10 +714,6 @@ DECLARE_THREAD(thread_50r50w)(
 	hash_delete(p->hash, p->n_priv_per_thread, key_extra_bits);
 
 	hash_check_deleted(p->hash, p->n_priv_per_thread, key_extra_bits);
-
-	os_thread_exit();
-
-	OS_THREAD_DUMMY_RETURN;
 }
 
 TEST_F(ut0lock_free_hash, multi_threaded_50r50w)
@@ -742,18 +724,15 @@ TEST_F(ut0lock_free_hash, multi_threaded_50r50w)
 		4096 /* n_common */,
 		256 /* n_priv_per_thread */,
 		64 /* n_threads */,
-		reinterpret_cast<os_thread_func_t>(thread_50r50w) /* thr func */
+		thread_50r50w /* thr func */
 	);
 }
 
 /** Hammer a commmon hash with get()s, 100% reads.
 @param[in]	arg	thread arguments */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(thread_100r0w)(
-	void*	arg)
+void
+thread_100r0w(const thread_params_t* p)
 {
-	const thread_params_t*	p = static_cast<const thread_params_t*>(arg);
 	const uint64_t		key_extra_bits = p->thread_id << 32;
 
 	hash_insert(p->hash, p->n_priv_per_thread, key_extra_bits);
@@ -803,10 +782,6 @@ DECLARE_THREAD(thread_100r0w)(
 	hash_delete(p->hash, p->n_priv_per_thread, key_extra_bits);
 
 	hash_check_deleted(p->hash, p->n_priv_per_thread, key_extra_bits);
-
-	os_thread_exit();
-
-	OS_THREAD_DUMMY_RETURN;
 }
 
 TEST_F(ut0lock_free_hash, multi_threaded_100r0w)
@@ -817,7 +792,7 @@ TEST_F(ut0lock_free_hash, multi_threaded_100r0w)
 		4096 /* n_common */,
 		256 /* n_priv_per_thread */,
 		64 /* n_threads */,
-		reinterpret_cast<os_thread_func_t>(thread_100r0w) /* thr func */
+		thread_100r0w /* thr func */
 	);
 }
 

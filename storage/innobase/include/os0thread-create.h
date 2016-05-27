@@ -26,10 +26,11 @@ Created 2016-May-17 Sunny Bains
 #ifndef os0thread_create_h
 #define os0thread_create_h
 
-#include <my_thread.h>
 #include "univ.i"
 #include "os0thread.h"
-#include <future>
+
+#include <my_thread.h>
+#include <atomic>
 
 /** Maximum number of threads inside InnoDB */
 extern ulint	srv_max_n_threads;
@@ -72,7 +73,7 @@ os_thread_any_active()
 /** Wrapper for a callable, it will count the number of registered
 Runnable instances and will register the thread executing the callable
 with the PFS and the Server threading infrastructure. */
-class Runnable{
+class Runnable {
 public:
 #ifdef UNIV_PFS_THREAD
 	/** Constructor for the Runnable object.
@@ -87,7 +88,7 @@ public:
 	@param[in]	F		Callable object
 	@param[in]	args		Variable number of args to F */
 	template<typename F, typename ... Args>
-	void run(F&& f, Args&& ... args)
+	void operator()(F&& f, Args&& ... args)
 	{
 		preamble();
 
@@ -145,37 +146,19 @@ private:
 #endif /* UNIV_PFS_THREAD */
 };
 
-/** Create a detached thread, without args
-Note: Captures the local arguments by value [=].
-@param[in]	f		Callable
-@param[in]	k		PFS thread key */
-#define CREATE_THREAD0(f,k)						\
-do {									\
-	std::packaged_task<void()> task([=]()				\
-	{								\
-		Runnable	runnable{k};				\
-		runnable.run(f);					\
-	});								\
-	/* Note: This throws an exception on failure */			\
-	std::thread	t(std::move(task));				\
-	t.detach();							\
-} while (0);
+/** Create a detached thread
+@param[in]	pfs_key		Performance schema thread key
+@param[in]	f		Callable instance
+@param[in]	args		zero or more args */
+template<typename F, typename ... Args>
+void
+create_thread(mysql_pfs_key_t pfs_key, F&& f, Args&& ... args)
+{
+	Runnable	runnable(pfs_key);
+	std::thread	t(runnable, f, args ...);
 
-/** Create a detached thread.
-Note: Captures the local arguments by value [=].
-@param[in]	f		Callable
-@param[in]	k		PFS thread key */
-#define CREATE_THREAD(f,k,...)						\
-do {									\
-	std::packaged_task<void()> task([=]()				\
-	{								\
-		Runnable	runnable{k};				\
-		runnable.run(f, __VA_ARGS__);				\
-	});								\
-	/* Note: This throws an exception on failure */			\
-	std::thread	t(std::move(task));				\
-	t.detach();							\
-} while (0);
+	t.detach();
+}
 
 #endif /* !os0thread_create_h */
 
