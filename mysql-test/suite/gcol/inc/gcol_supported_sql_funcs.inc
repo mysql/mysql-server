@@ -41,7 +41,6 @@ if ($rows)
   eval insert into t1 values ($values4);
   dec $rows;
 }
---sorted_result
 select * from t1;
 drop table t1;
 set sql_warnings = 0;
