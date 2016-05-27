@@ -79,7 +79,7 @@ public:
 	@param[in]	pfs_key		Performance schema key */
 	explicit Runnable(mysql_pfs_key_t pfs_key) : m_pfs_key(pfs_key) { }
 #else
-	Runnable(mysql_pfs_key_t) { }
+	explicit Runnable(mysql_pfs_key_t) { }
 #endif /* UNIV_PFS_THREAD */
 
 public:
@@ -91,11 +91,8 @@ public:
 	{
 		preamble();
 
-		using return_type = typename std::result_of<F(Args ...)>::type;
-
-		std::packaged_task<return_type()> task(
-			std::bind(std::forward<F>(f),
-				  std::forward<Args>(args) ...));
+		auto task = std::bind(
+			std::forward<F>(f), std::forward<Args>(args) ...);
 
 		task();
 
@@ -144,7 +141,7 @@ private:
 private:
 #ifdef UNIV_PFS_THREAD
 	/** Performance schema key */
-	mysql_pfs_key_t		m_pfs_key;
+	const mysql_pfs_key_t		m_pfs_key;
 #endif /* UNIV_PFS_THREAD */
 };
 
