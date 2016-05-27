@@ -5304,6 +5304,14 @@ sub check_warnings ($) {
     my $proc= My::SafeProcess->wait_any_timeout($timeout);
     mtr_report("Got $proc");
 
+    # Delete the 'check-warnings.log' file generated after
+    # check-warnings.test run is completed
+    my $check_warnings_log_file= "$opt_vardir/tmp/check-warnings.log";
+    if (-e $check_warnings_log_file)
+    {
+      unlink($check_warnings_log_file)
+    }
+
     if ( delete $started{$proc->pid()} ) {
       # One check warning process returned
       my $res= $proc->exit_status();
