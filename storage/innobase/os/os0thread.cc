@@ -42,7 +42,7 @@ os_thread_id_t
 os_thread_get_curr_id()
 {
 #ifdef _WIN32
-        return(::GetCurrentThread());
+        return(reinterpret_cast<os_thread_id_t>(::GetCurrentThreadId()));
 #else
         return(::pthread_self());
 #endif /* _WIN32 */
