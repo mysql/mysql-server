@@ -9246,53 +9246,52 @@ DROP TABLE t;
 #
 # Basic tests for inlined JSON path
 #
-CREATE TABLE t1(f1 JSON);
-Warnings:
-Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
-INSERT INTO t1 VALUES('{"a":1}'),('{"a":3}'),('{"a":2}');
-INSERT INTO t1 VALUES('{"a":11, "b":3}'),('{"a":33, "b":1}'),('{"a":22,"b":2}');
+CREATE TABLE t1(autopk int primary key auto_increment, f1 JSON);
+INSERT INTO t1(f1) VALUES
+('{"a":1}'),
+('{"a":3}'),
+('{"a":2}'),
+('{"a":11, "b":3}'),
+('{"a":33, "b":1}'),
+('{"a":22,"b":2}');
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-SELECT f1->"$.a" FROM t1 order by f1;
+SELECT f1->"$.a" FROM t1 order by autopk;
 f1->"$.a"
-2
-3
 1
-22
+3
+2
+11
 33
-11
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
-EXPLAIN SELECT f1->"$.a" FROM t1 order by f1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	6	100.00	Using filesort
-Warnings:
-Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`f1`,'$.a') AS `f1->"$.a"` from `test`.`t1` order by `test`.`t1`.`f1`
-SELECT f1->"$.a" FROM t1 WHERE f1->"$.b" > 1 order by f1;
-f1->"$.a"
 22
-11
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
-EXPLAIN SELECT f1->"$.a" FROM t1 WHERE f1->"$.b" > 1 order by f1;
+EXPLAIN SELECT f1->"$.a" FROM t1 order by autopk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using filesort
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	PRIMARY	4	NULL	6	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`f1`,'$.a') AS `f1->"$.a"` from `test`.`t1` where (json_extract(`test`.`t1`.`f1`,'$.b') > 1) order by `test`.`t1`.`f1`
-SELECT f1->"$.a", f1->"$.b" FROM t1 ORDER BY f1->"$.b";
+Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`f1`,'$.a') AS `f1->"$.a"` from `test`.`t1` order by `test`.`t1`.`autopk`
+SELECT f1->"$.a" FROM t1 WHERE f1->"$.b" > 1 order by autopk;
+f1->"$.a"
+11
+22
+EXPLAIN SELECT f1->"$.a" FROM t1 WHERE f1->"$.b" > 1 order by autopk;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	PRIMARY	4	NULL	6	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`f1`,'$.a') AS `f1->"$.a"` from `test`.`t1` where (json_extract(`test`.`t1`.`f1`,'$.b') > 1) order by `test`.`t1`.`autopk`
+SELECT f1->"$.a", f1->"$.b" FROM t1 ORDER BY autopk;
 f1->"$.a"	f1->"$.b"
 1	NULL
 3	NULL
 2	NULL
+11	3
 33	1
 22	2
-11	3
-EXPLAIN SELECT f1->"$.a", f1->"$.b" FROM t1 ORDER BY f1->"$.b";
+EXPLAIN SELECT f1->"$.a", f1->"$.b" FROM t1 ORDER BY autopk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	6	100.00	Using filesort
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	PRIMARY	4	NULL	6	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`f1`,'$.a') AS `f1->"$.a"`,json_extract(`test`.`t1`.`f1`,'$.b') AS `f1->"$.b"` from `test`.`t1` order by json_extract(`test`.`t1`.`f1`,'$.b')
+Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`f1`,'$.a') AS `f1->"$.a"`,json_extract(`test`.`t1`.`f1`,'$.b') AS `f1->"$.b"` from `test`.`t1` order by `test`.`t1`.`autopk`
 SELECT MAX(f1->"$.a"), f1->"$.b" FROM t1 GROUP BY f1->"$.b";
 MAX(f1->"$.a")	f1->"$.b"
 3	NULL
@@ -9305,31 +9304,34 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select max(json_extract(`test`.`t1`.`f1`,'$.a')) AS `MAX(f1->"$.a")`,json_extract(`test`.`t1`.`f1`,'$.b') AS `f1->"$.b"` from `test`.`t1` group by json_extract(`test`.`t1`.`f1`,'$.b')
 SELECT JSON_OBJECT("c",f1->"$.b") AS f2
-FROM t1 HAVING JSON_TYPE(f2->"$.c") <> 'NULL' ORDER BY f1->"$.b";
+FROM t1 HAVING JSON_TYPE(f2->"$.c") <> 'NULL' ORDER BY autopk;
 f2
+{"c": 3}
 {"c": 1}
 {"c": 2}
-{"c": 3}
 EXPLAIN
-SELECT JSON_OBJECT("c",f1->"$.b") AS f2 FROM t1 HAVING JSON_TYPE(f2->"$.c") <> 'NULL' order by f1;
+SELECT JSON_OBJECT("c",f1->"$.b") AS f2 FROM t1 HAVING JSON_TYPE(f2->"$.c") <> 'NULL' order by autopk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using filesort
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	PRIMARY	4	NULL	6	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select json_object('c',json_extract(`test`.`t1`.`f1`,'$.b')) AS `f2` from `test`.`t1` having (json_type(json_extract(`f2`,'$.c')) <> 'NULL') order by `test`.`t1`.`f1`
+Note	1003	/* select#1 */ select json_object('c',json_extract(`test`.`t1`.`f1`,'$.b')) AS `f2` from `test`.`t1` having (json_type(json_extract(`f2`,'$.c')) <> 'NULL') order by `test`.`t1`.`autopk`
 Test unquoting operator
-INSERT INTO t1 VALUES('{"t":"a"}'),('{"t":"b"}'),('{"t":"c"}');
+INSERT INTO t1(f1) VALUES
+('{"t":"a"}'),
+('{"t":"b"}'),
+('{"t":"c"}');
 Returned values should be quoted
-SELECT f1->"$.t" FROM t1 WHERE f1->"$.t" <> 'NULL';
+SELECT f1->"$.t" FROM t1 WHERE f1->"$.t" <> 'NULL' order by autopk;
 f1->"$.t"
-"b"
 "a"
+"b"
 "c"
 Returned values should be unquoted
-SELECT f1->>"$.t" FROM t1 WHERE f1->>"$.t" <> 'NULL';
+SELECT f1->>"$.t" FROM t1 WHERE f1->>"$.t" <> 'NULL' order by autopk;
 f1->>"$.t"
-c
 a
 b
+c
 EXPLAIN SELECT f1->>"$.t" FROM t1 WHERE f1->>"$.t" <> 'NULL';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
@@ -9345,7 +9347,8 @@ SELECT f1->>"!@#" FROM t1;
 ERROR 42000: Invalid JSON path expression. The error is around character position 1.
 SELECT COUNT(*)->>"$.t" FROM t1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '->>"$.t" FROM t1' at line 1
-INSERT INTO t1 VALUES('[ { "a": 1 }, { "a": 2 } ]'),
+INSERT INTO t1(f1) VALUES
+('[ { "a": 1 }, { "a": 2 } ]'),
 ('{ "a" : "foo", "b" : [ true, { "c" : 123, "c" : 456 } ] }'),
 ('{ "a" : "foo", "b" : [ true, { "c" : "123" } ] }'),
 ('{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }');
@@ -9353,26 +9356,26 @@ SELECT
 f1->>"$**.b",
 cast(json_unquote(json_extract(f1,"$**.b")) as char),
 cast(f1->>"$**.b" as char) <=> cast(json_unquote(json_extract(f1,"$**.b")) as char)
-FROM t1;
+FROM t1 order by autopk;
 f1->>"$**.b"	cast(json_unquote(json_extract(f1,"$**.b")) as char)	cast(f1->>"$**.b" as char) <=> cast(json_unquote(json_extract(f1,"$**.b")) as char)
 NULL	NULL	1
 NULL	NULL	1
+NULL	NULL	1
+[3]	[3]	1
 [1]	[1]	1
 [2]	[2]	1
 NULL	NULL	1
 NULL	NULL	1
-[[true, {"c": 123}]]	[[true, {"c": 123}]]	1
-[[true, {"c": 123}]]	[[true, {"c": 123}]]	1
 NULL	NULL	1
+NULL	NULL	1
+[[true, {"c": 123}]]	[[true, {"c": 123}]]	1
 [[true, {"c": "123"}]]	[[true, {"c": "123"}]]	1
-NULL	NULL	1
-[3]	[3]	1
-NULL	NULL	1
+[[true, {"c": 123}]]	[[true, {"c": 123}]]	1
 SELECT
 f1->>"$.c",
 cast(json_unquote(json_extract(f1,"$.c")) as char),
 cast(f1->>"$.c"  as char) <=> cast(json_unquote(json_extract(f1,"$.c")) as char)
-FROM t1;
+FROM t1 order by autopk;
 f1->>"$.c"	cast(json_unquote(json_extract(f1,"$.c")) as char)	cast(f1->>"$.c"  as char) <=> cast(json_unquote(json_extract(f1,"$.c")) as char)
 NULL	NULL	1
 NULL	NULL	1
@@ -9392,7 +9395,7 @@ f1->>'$.b[1].c',
 cast(json_unquote(json_extract(f1,'$.b[1].c')) as char),
 cast(f1->>'$.b[1].c' as
 char)<=>cast(json_unquote(json_extract(f1,'$.b[1].c')) as char)
-FROM t1;
+FROM t1 order by autopk;
 f1->>'$.b[1].c'	cast(json_unquote(json_extract(f1,'$.b[1].c')) as char)	cast(f1->>'$.b[1].c' as
 char)<=>cast(json_unquote(json_extract(f1,'$.b[1].c')) as char)
 NULL	NULL	1
@@ -9401,40 +9404,40 @@ NULL	NULL	1
 NULL	NULL	1
 NULL	NULL	1
 NULL	NULL	1
+NULL	NULL	1
+NULL	NULL	1
+NULL	NULL	1
+NULL	NULL	1
 123	123	1
-NULL	NULL	1
-NULL	NULL	1
-NULL	NULL	1
 123	123	1
 123	123	1
-NULL	NULL	1
-SELECT 
+SELECT
 f1->'$.b[1].c',
 cast(json_extract(f1,'$.b[1].c') as char),
 cast(f1->'$.b[1].c' as char)
 <=>cast(json_extract(f1,'$.b[1].c') as char)
-FROM t1;
+FROM t1 order by autopk;
 f1->'$.b[1].c'	cast(json_extract(f1,'$.b[1].c') as char)	cast(f1->'$.b[1].c' as char)
 <=>cast(json_extract(f1,'$.b[1].c') as char)
+NULL	NULL	1
+NULL	NULL	1
+NULL	NULL	1
+NULL	NULL	1
+NULL	NULL	1
+NULL	NULL	1
+NULL	NULL	1
+NULL	NULL	1
+NULL	NULL	1
+NULL	NULL	1
+123	123	1
 "123"	"123"	1
-NULL	NULL	1
-NULL	NULL	1
-NULL	NULL	1
 123	123	1
-123	123	1
-NULL	NULL	1
-NULL	NULL	1
-NULL	NULL	1
-NULL	NULL	1
-NULL	NULL	1
-NULL	NULL	1
-NULL	NULL	1
 SELECT
 f1->>'$.b[1]',
 cast(json_unquote(json_extract(f1,'$.b[1]')) as char),
 cast(f1->>'$.b[1]' as char) <=>
 cast(json_unquote(json_extract(f1,'$.b[1]')) as char)
-FROM t1;
+FROM t1 order by autopk;
 f1->>'$.b[1]'	cast(json_unquote(json_extract(f1,'$.b[1]')) as char)	cast(f1->>'$.b[1]' as char) <=>
 cast(json_unquote(json_extract(f1,'$.b[1]')) as char)
 NULL	NULL	1
@@ -9443,143 +9446,143 @@ NULL	NULL	1
 NULL	NULL	1
 NULL	NULL	1
 NULL	NULL	1
-{"c": 123}	{"c": 123}	1
-{"c": 123}	{"c": 123}	1
 NULL	NULL	1
 NULL	NULL	1
+NULL	NULL	1
+NULL	NULL	1
+{"c": 123}	{"c": 123}	1
 {"c": "123"}	{"c": "123"}	1
-NULL	NULL	1
-NULL	NULL	1
-SELECT 
+{"c": 123}	{"c": 123}	1
+SELECT
 f1->>'$[0][0]',
 cast(json_unquote(json_extract(f1,'$[0][0]')) as char),
 cast(f1->>'$[0][0]' as char) <=>
 cast(json_unquote(json_extract(f1,'$[0][0]')) as char)
-FROM t1;
+FROM t1 order by autopk;
 f1->>'$[0][0]'	cast(json_unquote(json_extract(f1,'$[0][0]')) as char)	cast(f1->>'$[0][0]' as char) <=>
 cast(json_unquote(json_extract(f1,'$[0][0]')) as char)
-{"a": "foo", "b": [true, {"c": 123}]}	{"a": "foo", "b": [true, {"c": 123}]}	1
-{"a": "foo", "b": [true, {"c": 123}]}	{"a": "foo", "b": [true, {"c": 123}]}	1
-{"t": "b"}	{"t": "b"}	1
-{"a": "foo", "b": [true, {"c": "123"}]}	{"a": "foo", "b": [true, {"c": "123"}]}	1
-{"t": "a"}	{"t": "a"}	1
-{"a": 11, "b": 3}	{"a": 11, "b": 3}	1
 {"a": 1}	{"a": 1}	1
-{"t": "c"}	{"t": "c"}	1
 {"a": 3}	{"a": 3}	1
+{"a": 2}	{"a": 2}	1
+{"a": 11, "b": 3}	{"a": 11, "b": 3}	1
 {"a": 33, "b": 1}	{"a": 33, "b": 1}	1
 {"a": 22, "b": 2}	{"a": 22, "b": 2}	1
-{"a": 2}	{"a": 2}	1
+{"t": "a"}	{"t": "a"}	1
+{"t": "b"}	{"t": "b"}	1
+{"t": "c"}	{"t": "c"}	1
 {"a": 1}	{"a": 1}	1
+{"a": "foo", "b": [true, {"c": 123}]}	{"a": "foo", "b": [true, {"c": 123}]}	1
+{"a": "foo", "b": [true, {"c": "123"}]}	{"a": "foo", "b": [true, {"c": "123"}]}	1
+{"a": "foo", "b": [true, {"c": 123}]}	{"a": "foo", "b": [true, {"c": 123}]}	1
 SELECT
 f1->>'$**[0]',
 cast(json_unquote(json_extract(f1,'$**[0]')) as char),
 cast(f1->>'$**[0]' as char) <=>
 cast(json_unquote(json_extract(f1,'$**[0]')) as char)
-FROM t1;
+FROM t1 order by autopk;
 f1->>'$**[0]'	cast(json_unquote(json_extract(f1,'$**[0]')) as char)	cast(f1->>'$**[0]' as char) <=>
 cast(json_unquote(json_extract(f1,'$**[0]')) as char)
-[{"t": "c"}, "c"]	[{"t": "c"}, "c"]	1
-[{"a": 3}, 3]	[{"a": 3}, 3]	1
-[{"a": "foo", "b": [true, {"c": "123"}]}, "foo", true, {"c": "123"}, "123"]	[{"a": "foo", "b": [true, {"c": "123"}]}, "foo", true, {"c": "123"}, "123"]	1
-[{"t": "a"}, "a"]	[{"t": "a"}, "a"]	1
-[{"a": 11, "b": 3}, 11, 3]	[{"a": 11, "b": 3}, 11, 3]	1
 [{"a": 1}, 1]	[{"a": 1}, 1]	1
-[{"a": "foo", "b": [true, {"c": 123}]}, "foo", true, {"c": 123}, 123]	[{"a": "foo", "b": [true, {"c": 123}]}, "foo", true, {"c": 123}, 123]	1
-[{"a": "foo", "b": [true, {"c": 123}]}, "foo", true, {"c": 123}, 123]	[{"a": "foo", "b": [true, {"c": 123}]}, "foo", true, {"c": 123}, 123]	1
-[{"t": "b"}, "b"]	[{"t": "b"}, "b"]	1
+[{"a": 3}, 3]	[{"a": 3}, 3]	1
+[{"a": 2}, 2]	[{"a": 2}, 2]	1
+[{"a": 11, "b": 3}, 11, 3]	[{"a": 11, "b": 3}, 11, 3]	1
 [{"a": 33, "b": 1}, 33, 1]	[{"a": 33, "b": 1}, 33, 1]	1
 [{"a": 22, "b": 2}, 22, 2]	[{"a": 22, "b": 2}, 22, 2]	1
-[{"a": 2}, 2]	[{"a": 2}, 2]	1
+[{"t": "a"}, "a"]	[{"t": "a"}, "a"]	1
+[{"t": "b"}, "b"]	[{"t": "b"}, "b"]	1
+[{"t": "c"}, "c"]	[{"t": "c"}, "c"]	1
 [{"a": 1}, 1, {"a": 2}, 2]	[{"a": 1}, 1, {"a": 2}, 2]	1
+[{"a": "foo", "b": [true, {"c": 123}]}, "foo", true, {"c": 123}, 123]	[{"a": "foo", "b": [true, {"c": 123}]}, "foo", true, {"c": 123}, 123]	1
+[{"a": "foo", "b": [true, {"c": "123"}]}, "foo", true, {"c": "123"}, "123"]	[{"a": "foo", "b": [true, {"c": "123"}]}, "foo", true, {"c": "123"}, "123"]	1
+[{"a": "foo", "b": [true, {"c": 123}]}, "foo", true, {"c": 123}, 123]	[{"a": "foo", "b": [true, {"c": 123}]}, "foo", true, {"c": 123}, 123]	1
 SELECT
 f1->> '$.a[0]',
 cast(json_unquote(json_extract(f1, '$.a[0]')) as char),
 cast(f1->> '$.a[0]' as char) <=> cast(json_unquote(json_extract(f1,
 '$.a[0]')) as char)
-FROM t1;
+FROM t1 order by autopk;
 f1->> '$.a[0]'	cast(json_unquote(json_extract(f1, '$.a[0]')) as char)	cast(f1->> '$.a[0]' as char) <=> cast(json_unquote(json_extract(f1,
 '$.a[0]')) as char)
-foo	foo	1
-foo	foo	1
-NULL	NULL	1
-foo	foo	1
-NULL	NULL	1
-11	11	1
 1	1	1
+3	3	1
+2	2	1
+11	11	1
 33	33	1
 22	22	1
-2	2	1
 NULL	NULL	1
 NULL	NULL	1
-3	3	1
+NULL	NULL	1
+NULL	NULL	1
+foo	foo	1
+foo	foo	1
+foo	foo	1
 SELECT
 f1->>'$[0].a[0]',
 cast(json_unquote(json_extract(f1,'$[0].a[0]')) as char),
 cast(f1->>'$[0].a[0]' as char) <=>
 cast(json_unquote(json_extract(f1,'$[0].a[0]')) as char)
-FROM t1;
+FROM t1 order by autopk;
 f1->>'$[0].a[0]'	cast(json_unquote(json_extract(f1,'$[0].a[0]')) as char)	cast(f1->>'$[0].a[0]' as char) <=>
 cast(json_unquote(json_extract(f1,'$[0].a[0]')) as char)
-NULL	NULL	1
+1	1	1
 3	3	1
+2	2	1
+11	11	1
 33	33	1
 22	22	1
-2	2	1
-1	1	1
-1	1	1
-foo	foo	1
 NULL	NULL	1
-11	11	1
-foo	foo	1
-foo	foo	1
 NULL	NULL	1
+NULL	NULL	1
+1	1	1
+foo	foo	1
+foo	foo	1
+foo	foo	1
 SELECT
 f1->>'$**.a',
 cast(json_unquote(json_extract(f1,'$**.a')) as char),
 cast(f1->>'$**.a' as char) <=> cast(json_unquote(json_extract(f1,'$**.a')) as char)
-FROM t1;
+FROM t1 order by autopk;
 f1->>'$**.a'	cast(json_unquote(json_extract(f1,'$**.a')) as char)	cast(f1->>'$**.a' as char) <=> cast(json_unquote(json_extract(f1,'$**.a')) as char)
-["foo"]	["foo"]	1
-NULL	NULL	1
-[11]	[11]	1
 [1]	[1]	1
-["foo"]	["foo"]	1
-["foo"]	["foo"]	1
-NULL	NULL	1
+[3]	[3]	1
+[2]	[2]	1
+[11]	[11]	1
 [33]	[33]	1
 [22]	[22]	1
-[2]	[2]	1
-[1, 2]	[1, 2]	1
 NULL	NULL	1
-[3]	[3]	1
+NULL	NULL	1
+NULL	NULL	1
+[1, 2]	[1, 2]	1
+["foo"]	["foo"]	1
+["foo"]	["foo"]	1
+["foo"]	["foo"]	1
 SELECT
 f1->>'$[0][0][0].a',
 cast(json_unquote(json_extract(f1,'$[0][0][0].a')) as char),
 cast(f1->>'$[0][0][0].a' as char) <=>
 cast(json_unquote(json_extract(f1,'$[0][0][0].a')) as char)
-FROM t1;
+FROM t1 order by autopk;
 f1->>'$[0][0][0].a'	cast(json_unquote(json_extract(f1,'$[0][0][0].a')) as char)	cast(f1->>'$[0][0][0].a' as char) <=>
 cast(json_unquote(json_extract(f1,'$[0][0][0].a')) as char)
+1	1	1
+3	3	1
+2	2	1
+11	11	1
 33	33	1
 22	22	1
-2	2	1
+NULL	NULL	1
+NULL	NULL	1
+NULL	NULL	1
 1	1	1
 foo	foo	1
 foo	foo	1
-NULL	NULL	1
 foo	foo	1
-NULL	NULL	1
-11	11	1
-1	1	1
-NULL	NULL	1
-3	3	1
 SELECT
 f1->>'$[*].b',
 cast(json_unquote(json_extract(f1,'$[*].b')) as char),
 cast(f1->>'$[*].b' as char) <=>
 cast(json_unquote(json_extract(f1,'$[*].b')) as char)
-FROM t1;
+FROM t1 order by autopk;
 f1->>'$[*].b'	cast(json_unquote(json_extract(f1,'$[*].b')) as char)	cast(f1->>'$[*].b' as char) <=>
 cast(json_unquote(json_extract(f1,'$[*].b')) as char)
 NULL	NULL	1
@@ -9600,19 +9603,19 @@ f1->>'$[*].a',
 cast(json_unquote(json_extract(f1,'$[*].a')) as char),
 cast(f1->>'$[*].a' as char) <=>
 cast(json_unquote(json_extract(f1,'$[*].a')) as char)
-FROM t1;
+FROM t1 order by autopk;
 f1->>'$[*].a'	cast(json_unquote(json_extract(f1,'$[*].a')) as char)	cast(f1->>'$[*].a' as char) <=>
 cast(json_unquote(json_extract(f1,'$[*].a')) as char)
 NULL	NULL	1
 NULL	NULL	1
 NULL	NULL	1
+NULL	NULL	1
+NULL	NULL	1
+NULL	NULL	1
+NULL	NULL	1
+NULL	NULL	1
+NULL	NULL	1
 [1, 2]	[1, 2]	1
-NULL	NULL	1
-NULL	NULL	1
-NULL	NULL	1
-NULL	NULL	1
-NULL	NULL	1
-NULL	NULL	1
 NULL	NULL	1
 NULL	NULL	1
 NULL	NULL	1
