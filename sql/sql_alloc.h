@@ -1,6 +1,6 @@
 #ifndef SQL_ALLOC_INCLUDED
 #define SQL_ALLOC_INCLUDED
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,14 +33,20 @@ public:
   {
     return sql_alloc(size);
   }
-  static void *operator new[](size_t size, MEM_ROOT *mem_root) throw ()
+  static void *operator new[](size_t size, MEM_ROOT *mem_root,
+                              const std::nothrow_t &arg= std::nothrow) throw ()
   { return alloc_root(mem_root, size); }
-  static void *operator new(size_t size, MEM_ROOT *mem_root) throw ()
+
+  static void *operator new(size_t size, MEM_ROOT *mem_root,
+                            const std::nothrow_t &arg= std::nothrow) throw ()
   { return alloc_root(mem_root, size); }
+
   static void operator delete(void *ptr, size_t size) { TRASH(ptr, size); }
-  static void operator delete(void *ptr, MEM_ROOT *mem_root)
+  static void operator delete(void *ptr, MEM_ROOT *mem_root,
+                              const std::nothrow_t &arg) throw ()
   { /* never called */ }
-  static void operator delete[](void *ptr, MEM_ROOT *mem_root)
+  static void operator delete[](void *ptr, MEM_ROOT *mem_root,
+                                const std::nothrow_t &arg) throw ()
   { /* never called */ }
   static void operator delete[](void *ptr, size_t size) { TRASH(ptr, size); }
 

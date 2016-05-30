@@ -4341,6 +4341,47 @@ Create_func_geometry_from_text::create_native(THD *thd, LEX_STRING name,
 {
   Item *func= NULL;
   int arg_count= 0;
+  Item_func_geometry_from_text::Functype functype=
+    Item_func_geometry_from_text::Functype::GEOMFROMTEXT;
+
+  if (!native_strncasecmp("st_geomcollfromtext", name.str, name.length))
+    functype= Item_func_geometry_from_text::Functype::GEOMCOLLFROMTEXT;
+  else if (!native_strncasecmp("st_geomcollfromtxt", name.str, name.length))
+    functype= Item_func_geometry_from_text::Functype::GEOMCOLLFROMTXT;
+  else if (!native_strncasecmp("st_geometrycollectionfromtext", name.str,
+                              name.length))
+    functype=
+      Item_func_geometry_from_text::Functype::GEOMETRYCOLLECTIONFROMTEXT;
+  else if (!native_strncasecmp("st_geometryfromtext", name.str, name.length))
+    functype= Item_func_geometry_from_text::Functype::GEOMETRYFROMTEXT;
+  else if (!native_strncasecmp("st_geomfromtext", name.str, name.length))
+    functype= Item_func_geometry_from_text::Functype::GEOMFROMTEXT;
+  else if (!native_strncasecmp("st_linefromtext", name.str, name.length))
+    functype= Item_func_geometry_from_text::Functype::LINEFROMTEXT;
+  else if (!native_strncasecmp("st_linestringfromtext", name.str, name.length))
+    functype= Item_func_geometry_from_text::Functype::LINESTRINGFROMTEXT;
+  else if (!native_strncasecmp("st_mlinefromtext", name.str, name.length))
+    functype= Item_func_geometry_from_text::Functype::MLINEFROMTEXT;
+  else if (!native_strncasecmp("st_mpointfromtext", name.str, name.length))
+    functype= Item_func_geometry_from_text::Functype::MPOINTFROMTEXT;
+  else if (!native_strncasecmp("st_mpolyfromtext", name.str, name.length))
+    functype= Item_func_geometry_from_text::Functype::MPOLYFROMTEXT;
+  else if (!native_strncasecmp("st_multilinestringfromtext", name.str,
+                              name.length))
+    functype= Item_func_geometry_from_text::Functype::MULTILINESTRINGFROMTEXT;
+  else if (!native_strncasecmp("st_multipointfromtext", name.str, name.length))
+    functype= Item_func_geometry_from_text::Functype::MULTIPOINTFROMTEXT;
+  else if (!native_strncasecmp("st_multipolygonfromtext", name.str,
+                               name.length))
+    functype= Item_func_geometry_from_text::Functype::MULTIPOLYGONFROMTEXT;
+  else if (!native_strncasecmp("st_pointfromtext", name.str, name.length))
+    functype= Item_func_geometry_from_text::Functype::POINTFROMTEXT;
+  else if (!native_strncasecmp("st_polyfromtext", name.str, name.length))
+    functype= Item_func_geometry_from_text::Functype::POLYFROMTEXT;
+  else if (!native_strncasecmp("st_polygonfromtext", name.str, name.length))
+    functype= Item_func_geometry_from_text::Functype::POLYGONFROMTEXT;
+  else
+    DBUG_ASSERT(false);
 
   if (item_list != NULL)
     arg_count= item_list->elements();
@@ -4348,23 +4389,26 @@ Create_func_geometry_from_text::create_native(THD *thd, LEX_STRING name,
   POS pos;
   switch (arg_count) {
   case 1:
-  {
-    Item *param_1= item_list->pop_front();
-    func= new (thd->mem_root) Item_func_geometry_from_text(pos, param_1);
-    break;
-  }
+    {
+      Item *param_1= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_geometry_from_text(pos, param_1,
+                                                             functype);
+      break;
+    }
   case 2:
-  {
-    Item *param_1= item_list->pop_front();
-    Item *param_2= item_list->pop_front();
-    func= new (thd->mem_root) Item_func_geometry_from_text(pos, param_1, param_2);
-    break;
-  }
+    {
+      Item *param_1= item_list->pop_front();
+      Item *param_2= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_geometry_from_text(pos, param_1,
+                                                             param_2,
+                                                             functype);
+      break;
+    }
   default:
-  {
-    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
-    break;
-  }
+    {
+      my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+      break;
+    }
   }
 
   return func;
@@ -4379,6 +4423,43 @@ Create_func_geometry_from_wkb::create_native(THD *thd, LEX_STRING name,
 {
   Item *func= NULL;
   int arg_count= 0;
+  Item_func_geometry_from_wkb::Functype functype=
+    Item_func_geometry_from_wkb::Functype::GEOMFROMWKB;
+
+  if (!native_strncasecmp("st_geomcollfromwkb", name.str, name.length))
+    functype= Item_func_geometry_from_wkb::Functype::GEOMCOLLFROMWKB;
+  else if (!native_strncasecmp("st_geometrycollectionfromwkb", name.str,
+                               name.length))
+    functype= Item_func_geometry_from_wkb::Functype::GEOMETRYCOLLECTIONFROMWKB;
+  else if (!native_strncasecmp("st_geometryfromwkb", name.str, name.length))
+    functype= Item_func_geometry_from_wkb::Functype::GEOMETRYFROMWKB;
+  else if (!native_strncasecmp("st_geomfromwkb", name.str, name.length))
+    functype= Item_func_geometry_from_wkb::Functype::GEOMFROMWKB;
+  else if (!native_strncasecmp("st_linefromwkb", name.str, name.length))
+    functype= Item_func_geometry_from_wkb::Functype::LINEFROMWKB;
+  else if (!native_strncasecmp("st_linestringfromwkb", name.str, name.length))
+    functype= Item_func_geometry_from_wkb::Functype::LINESTRINGFROMWKB;
+  else if (!native_strncasecmp("st_mlinefromwkb", name.str, name.length))
+    functype= Item_func_geometry_from_wkb::Functype::MLINEFROMWKB;
+  else if (!native_strncasecmp("st_mpointfromwkb", name.str, name.length))
+    functype= Item_func_geometry_from_wkb::Functype::MPOINTFROMWKB;
+  else if (!native_strncasecmp("st_mpolyfromwkb", name.str, name.length))
+    functype= Item_func_geometry_from_wkb::Functype::MPOLYFROMWKB;
+  else if (!native_strncasecmp("st_multilinestringfromwkb", name.str,
+                               name.length))
+    functype= Item_func_geometry_from_wkb::Functype::MULTILINESTRINGFROMWKB;
+  else if (!native_strncasecmp("st_multipointfromwkb", name.str, name.length))
+    functype= Item_func_geometry_from_wkb::Functype::MULTIPOINTFROMWKB;
+  else if (!native_strncasecmp("st_multipolygonfromwkb", name.str, name.length))
+    functype= Item_func_geometry_from_wkb::Functype::MULTIPOLYGONFROMWKB;
+  else if (!native_strncasecmp("st_pointfromwkb", name.str, name.length))
+    functype= Item_func_geometry_from_wkb::Functype::POINTFROMWKB;
+  else if (!native_strncasecmp("st_polyfromwkb", name.str, name.length))
+    functype= Item_func_geometry_from_wkb::Functype::POLYFROMWKB;
+  else if (!native_strncasecmp("st_polygonfromwkb", name.str, name.length))
+    functype= Item_func_geometry_from_wkb::Functype::POLYGONFROMWKB;
+  else
+    DBUG_ASSERT(false);
 
   if (item_list != NULL)
     arg_count= item_list->elements();
@@ -4386,23 +4467,26 @@ Create_func_geometry_from_wkb::create_native(THD *thd, LEX_STRING name,
   POS pos;
   switch (arg_count) {
   case 1:
-  {
-    Item *param_1= item_list->pop_front();
-    func= new (thd->mem_root) Item_func_geometry_from_wkb(pos, param_1);
-    break;
-  }
+    {
+      Item *param_1= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_geometry_from_wkb(pos, param_1,
+                                                            functype);
+      break;
+    }
   case 2:
-  {
-    Item *param_1= item_list->pop_front();
-    Item *param_2= item_list->pop_front();
-    func= new (thd->mem_root) Item_func_geometry_from_wkb(pos, param_1, param_2);
-    break;
-  }
+    {
+      Item *param_1= item_list->pop_front();
+      Item *param_2= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_geometry_from_wkb(pos, param_1,
+                                                            param_2,
+                                                            functype);
+      break;
+    }
   default:
-  {
-    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
-    break;
-  }
+    {
+      my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+      break;
+    }
   }
 
   return func;

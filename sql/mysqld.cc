@@ -374,6 +374,7 @@
 #include <process.h>
 #endif
 
+#include "sql_thd_internal_api.h"       // create_thd, destroy_thd
 #ifndef EMBEDDED_LIBRARY
 #include "srv_session.h"
 #endif
@@ -1379,9 +1380,18 @@ static void close_connections(void)
   sql_print_information("Forcefully disconnecting %d remaining clients",
                         static_cast<int>(thd_manager->get_thd_count()));
 
+  /*
+    Need to have a current_thd for the shutdown thread since
+    close_connections() can result in a call to the audit plugins.
+    And these may need the current thd set in order to check for
+    stack overflow due to recursive audit events.
+
+    See event_class_dispatch() for more details.
+  */
+  THD *shutdown_thd= create_thd(false, true, true, PSI_NOT_INSTRUMENTED);
   Call_close_conn call_close_conn(true);
   thd_manager->do_for_all_thd(&call_close_conn);
-
+  destroy_thd(shutdown_thd);
   /*
     All threads have now been aborted. Stop event scheduler thread
     after aborting all client connections, otherwise user may
@@ -8317,7 +8327,7 @@ static char *get_relative_path(const char *path)
     @retval FALSE The path isn't secure
 */
 
-bool is_secure_file_path(char *path)
+bool is_secure_file_path(const char *path)
 {
   char buff1[FN_REFLEN], buff2[FN_REFLEN];
   size_t opt_secure_file_priv_len;

@@ -1112,6 +1112,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 */
 
 %token  JSON_UNQUOTED_SEPARATOR_SYM   /* MYSQL */
+%token  INVISIBLE_SYM
+%token  VISIBLE_SYM
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -1548,12 +1550,13 @@ END_OF_INPUT
 %type <index_option> index_option common_index_option fulltext_index_option
           spatial_index_option alter_algorithm_option alter_lock_option
 
-
 %type <index_type> index_type_clause
 
 %type <inline_index_definition> table_constraint_def
 
 %type <index_name_and_type> index_name_and_type
+
+%type <visibility> visibility
 
 %%
 
@@ -2621,7 +2624,7 @@ sp_name:
           ident '.' ident
           {
             if (!$1.str ||
-                (check_and_convert_db_name(&$1, FALSE) != IDENT_NAME_OK))
+                (check_and_convert_db_name(&$1, false) != Ident_name_check::OK))
               MYSQL_YYABORT;
             if (sp_check_name(&$3))
             {
@@ -7393,6 +7396,10 @@ common_index_option:
           {
             $$= NEW_PTN PT_index_comment(to_lex_cstring($2));
           }
+        | visibility
+          {
+            $$= NEW_PTN PT_index_visibility($1);
+          }
         ;
 
 /*
@@ -7421,6 +7428,11 @@ index_name_and_type:
 index_type_clause:
           USING index_type    { $$= NEW_PTN PT_index_type($2); }
         | TYPE_SYM index_type { $$= NEW_PTN PT_index_type($2); }
+        ;
+
+visibility:
+          VISIBLE_SYM { $$= true; }
+        | INVISIBLE_SYM { $$= false; }
         ;
 
 index_type:
@@ -8240,6 +8252,15 @@ alter_list_item:
             lex->alter_info.alter_list.push_back(ac);
             lex->alter_info.flags|= Alter_info::ALTER_CHANGE_COLUMN_DEFAULT;
           }
+        | ALTER INDEX_SYM ident visibility
+          {
+            LEX *lex= Lex;
+            auto ac= new Alter_index_visibility($3.str, $4);
+            if (ac == NULL)
+              MYSQL_YYABORT;
+            lex->alter_info.alter_index_visibility_list.push_back(ac);
+            lex->alter_info.flags|= Alter_info::ALTER_INDEX_VISIBILITY;
+          }
         | ALTER opt_column field_ident DROP DEFAULT
           {
             LEX *lex=Lex;
@@ -8259,21 +8280,22 @@ alter_list_item:
             {
               MYSQL_YYABORT;
             }
-            enum_ident_name_check ident_check_status=
+            Ident_name_check ident_check_status=
               check_table_name($3->table.str,$3->table.length);
-            if (ident_check_status == IDENT_NAME_WRONG)
+            if (ident_check_status == Ident_name_check::WRONG)
             {
               my_error(ER_WRONG_TABLE_NAME, MYF(0), $3->table.str);
               MYSQL_YYABORT;
             }
-            else if (ident_check_status == IDENT_NAME_TOO_LONG)
+            else if (ident_check_status == Ident_name_check::TOO_LONG)
             {
               my_error(ER_TOO_LONG_IDENT, MYF(0), $3->table.str);
               MYSQL_YYABORT;
             }
             LEX_STRING db_str= to_lex_string($3->db);
             if (db_str.str &&
-                (check_and_convert_db_name(&db_str, FALSE) != IDENT_NAME_OK))
+                (check_and_convert_db_name(&db_str, false) !=
+                 Ident_name_check::OK))
               MYSQL_YYABORT;
             lex->name.str= const_cast<char*>($3->table.str);
             lex->name.length= $3->table.length;
@@ -11317,7 +11339,7 @@ drop:
             LEX *lex= thd->lex;
             sp_name *spname;
             if ($4.str &&
-                (check_and_convert_db_name(&$4, FALSE) != IDENT_NAME_OK))
+                (check_and_convert_db_name(&$4, false) != Ident_name_check::OK))
                MYSQL_YYABORT;
             if (sp_check_name(&$6))
                MYSQL_YYABORT;
@@ -13459,6 +13481,7 @@ keyword:
         | HELP_SYM              {}
         | HOST_SYM              {}
         | INSTALL_SYM           {}
+        | INVISIBLE_SYM         {}
         | LANGUAGE_SYM          {}
         | NO_SYM                {}
         | OPEN_SYM              {}
@@ -13485,6 +13508,7 @@ keyword:
         | START_SYM             {}
         | STOP_SYM              {}
         | TRUNCATE_SYM          {}
+        | VISIBLE_SYM           {}
         | UNICODE_SYM           {}
         | UNINSTALL_SYM         {}
         | WRAPPER_SYM           {}

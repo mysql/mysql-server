@@ -106,6 +106,8 @@ SET(LIBMYSQLD_BOOST_SOURCES
   ../sql/debug_sync.cc
   ../sql/handler.cc
   ../sql/geometry_rtree.cc
+  ../sql/gis/srs/srs.cc
+  ../sql/gis/srs/wkt_parser.cc
   ../sql/item_geofunc.cc
   ../sql/item_geofunc_buffer.cc
   ../sql/item_geofunc_internal.cc
@@ -159,6 +161,36 @@ IF(HAVE_UNDEF)
     ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
     ${LIBMYSQLD_BOOST_SOURCES}
     COMPILE_FLAGS "-Wno-undef")
+ENDIF()
+
+# Boost source compares signed and unsigned integer expressions
+MY_CHECK_CXX_COMPILER_FLAG("-Wsign-compare" HAVE_SIGN_COMPARE)
+IF(HAVE_SIGN_COMPARE)
+  ADD_COMPILE_FLAGS(
+    ../sql/gis/srs/wkt_parser.cc
+    COMPILE_FLAGS "-Wno-sign-compare"
+  )
+ENDIF()
+
+# Set -O1 on Solaris x86 to avoid exhausting virtual memory when
+# compiling
+IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_SYSTEM_NAME MATCHES "SunOS")
+  IF(CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
+    ADD_COMPILE_FLAGS(
+      ../sql/gis/srs/wkt_parser.cc
+      COMPILE_FLAGS "-O1"
+    )
+  ENDIF()
+ENDIF()
+
+# Boost.Spirit causes a warning about placement new on GCC 6. Expected
+# to be fixed upstream by https://github.com/boostorg/function/pull/9.
+MY_CHECK_CXX_COMPILER_FLAG("-Wplacement-new" HAVE_PLACEMENT_NEW_WARNING)
+IF(HAVE_PLACEMENT_NEW_WARNING)
+  ADD_COMPILE_FLAGS(
+    ../sql/gis/srs/wkt_parser.cc
+    COMPILE_FLAGS "-Wno-placement-new"
+  )
 ENDIF()
 
 # Boost source use auto_ptr, deprecated in C++11

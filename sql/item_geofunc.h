@@ -207,34 +207,113 @@ public:
 
 class Item_func_geometry_from_text: public Item_geometry_func
 {
-  typedef Item_geometry_func super;
 public:
-  Item_func_geometry_from_text(const POS &pos, Item *a)
-    :Item_geometry_func(pos, a)
+  enum class Functype
+  {
+    GEOMCOLLFROMTEXT,
+    GEOMCOLLFROMTXT,
+    GEOMETRYCOLLECTIONFROMTEXT,
+    GEOMETRYFROMTEXT,
+    GEOMFROMTEXT,
+    LINEFROMTEXT,
+    LINESTRINGFROMTEXT,
+    MLINEFROMTEXT,
+    MPOINTFROMTEXT,
+    MPOLYFROMTEXT,
+    MULTILINESTRINGFROMTEXT,
+    MULTIPOINTFROMTEXT,
+    MULTIPOLYGONFROMTEXT,
+    POINTFROMTEXT,
+    POLYFROMTEXT,
+    POLYGONFROMTEXT
+  };
+
+private:
+  typedef Item_geometry_func super;
+  Functype m_functype;
+  /**
+    Get the type of geometry that this Item can return.
+
+    @return The geometry type
+  */
+  Geometry::wkbType allowed_wkb_type() const;
+  /**
+    Check if a geometry type is a valid return type for this Item.
+
+    @param type The type to check
+
+    @retval true The geometry type is allowed
+    @retval false The geometry type is not allowed
+  */
+  bool is_allowed_wkb_type(Geometry::wkbType type) const;
+
+public:
+  Item_func_geometry_from_text(const POS &pos, Item *a, Functype functype)
+    :Item_geometry_func(pos, a), m_functype(functype)
   {}
-  Item_func_geometry_from_text(const POS &pos, Item *a, Item *srid)
-    :Item_geometry_func(pos, a, srid)
+  Item_func_geometry_from_text(const POS &pos, Item *a, Item *srid,
+                               Functype functype)
+    :Item_geometry_func(pos, a, srid), m_functype(functype)
   {}
 
   virtual bool itemize(Parse_context *pc, Item **res);
-  const char *func_name() const { return "st_geometryfromtext"; }
+  const char *func_name() const;
   String *val_str(String *);
 };
 
 class Item_func_geometry_from_wkb: public Item_geometry_func
 {
+public:
+  enum class Functype
+  {
+    GEOMCOLLFROMWKB,
+    GEOMETRYCOLLECTIONFROMWKB,
+    GEOMETRYFROMWKB,
+    GEOMFROMWKB,
+    LINEFROMWKB,
+    LINESTRINGFROMWKB,
+    MLINEFROMWKB,
+    MPOINTFROMWKB,
+    MPOLYFROMWKB,
+    MULTILINESTRINGFROMWKB,
+    MULTIPOINTFROMWKB,
+    MULTIPOLYGONFROMWKB,
+    POINTFROMWKB,
+    POLYFROMWKB,
+    POLYGONFROMWKB
+  };
+
+private:
   typedef Item_geometry_func super;
   String tmp_value;
+  Functype m_functype;
+  /**
+    Get the type of geometry that this Item can return.
+
+    @return The geometry type
+  */
+  Geometry::wkbType allowed_wkb_type() const;
+  /**
+    Check if a geometry type is a valid return type for this Item.
+
+    @param type The type to check
+
+    @retval true The geometry type is allowed
+    @retval false The geometry type is not allowed
+  */
+  bool is_allowed_wkb_type(Geometry::wkbType type) const;
+
 public:
-  Item_func_geometry_from_wkb(const POS &pos, Item *a)
-    : Item_geometry_func(pos, a)
-  {}
-  Item_func_geometry_from_wkb(const POS &pos, Item *a, Item *srid):
-    Item_geometry_func(pos, a, srid)
-  {}
+  Item_func_geometry_from_wkb(const POS &pos, Item *a, Functype functype)
+    : Item_geometry_func(pos, a), m_functype(functype)
+  { }
+  Item_func_geometry_from_wkb(const POS &pos, Item *a, Item *srid,
+                              Functype functype)
+    : Item_geometry_func(pos, a, srid), m_functype(functype)
+  { }
 
   virtual bool itemize(Parse_context *pc, Item **res);
-  const char *func_name() const { return "st_geometryfromwkb"; }
+  const char *func_name() const;
   String *val_str(String *);
 };
 

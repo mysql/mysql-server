@@ -1052,8 +1052,11 @@ buf_pool_set_sizes(void)
 		buf_pool = buf_pool_from_array(i);
 		curr_size += buf_pool->curr_pool_size;
 	}
-
-	srv_buf_pool_curr_size = curr_size;
+	if (srv_buf_pool_curr_size == 0) {
+		srv_buf_pool_curr_size = curr_size;
+	} else {
+		srv_buf_pool_curr_size = srv_buf_pool_size;
+	}
 	srv_buf_pool_old_size = srv_buf_pool_size;
 	srv_buf_pool_base_size = srv_buf_pool_size;
 	os_wmb;
@@ -4699,7 +4702,6 @@ buf_page_create(
 
 	/* The block must be put to the LRU list */
 	buf_LRU_add_block(&block->page, FALSE);
-	mutex_exit(&buf_pool->LRU_list_mutex);
 
 	buf_block_buf_fix_inc(block, __FILE__, __LINE__);
 	os_atomic_increment_ulint(&buf_pool->stat.n_pages_created, 1);
@@ -4708,14 +4710,17 @@ buf_page_create(
 		void*	data;
 
 		/* Prevent race conditions during buf_buddy_alloc(),
-		which may release and reacquire buf_pool->mutex,
+		which may release and reacquire buf_pool->LRU_list_mutex,
 		by IO-fixing and X-latching the block. */
 
 		buf_page_set_io_fix(&block->page, BUF_IO_READ);
 		rw_lock_x_lock(&block->lock);
 
+		mutex_exit(&buf_pool->LRU_list_mutex);
 		buf_page_mutex_exit(block);
+
 		data = buf_buddy_alloc(buf_pool, page_size.physical());
+
 		mutex_enter(&buf_pool->LRU_list_mutex);
 		buf_page_mutex_enter(block);
 		block->page.zip.data = (page_zip_t*) data;
@@ -4727,11 +4732,12 @@ buf_page_create(
 		block->page.zip.data is set. */
 		ut_ad(buf_page_belongs_to_unzip_LRU(&block->page));
 		buf_unzip_LRU_add_block(block, FALSE);
-		mutex_exit(&buf_pool->LRU_list_mutex);
 
 		buf_page_set_io_fix(&block->page, BUF_IO_NONE);
 		rw_lock_x_unlock(&block->lock);
 	}
+
+	mutex_exit(&buf_pool->LRU_list_mutex);
 
 	mtr_memo_push(mtr, block, MTR_MEMO_BUF_FIX);
 

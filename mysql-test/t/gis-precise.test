@@ -176,7 +176,7 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 select st_difference((convert(st_polygonfromwkb(linestring(point(1,1))) using gb18030)),
                      st_geomcollfromwkb(point(1,1)));
 SET sql_mode = default;
-select ST_astext(ST_mpointfromwkb(st_intersection(linestring(point(-59,82),point(32,29)), point(2,-5)))) as result;
+select ST_astext(ST_geomfromwkb(st_intersection(linestring(point(-59,82),point(32,29)), point(2,-5)))) as result;
 
 SELECT ST_AsText(ST_Symdifference(ST_GeomFromText('POLYGON((5 0,15 25,25 0,15 5,5 0))'),ST_GeomFromText('POLYGON((5 0,15 25,25 0,15 5,5 0))')));
 SELECT st_equals(ST_GeomFromWKB(ST_AsWKB(Polygon(Linestring(Point(0, 0),Point(1, 0),Point(1, 1),Point(0, 1), Point(0, 0))))),
@@ -828,13 +828,13 @@ SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(0
 --echo #
 --echo # Bug #20135389  ST_MAKEENVELOPE() RETURNS SAME SET OF SRID VALUES IN THE ERROR MESSAGE
 --echo #
---error ER_WRONG_ARGUMENTS
+--error ER_GIS_DIFFERENT_SRIDS
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 4236),
                                  ST_GEOMFROMTEXT('POINT(0 0)', 0)));
---error ER_WRONG_ARGUMENTS
+--error ER_GIS_DIFFERENT_SRIDS
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 1),
                                  ST_GEOMFROMTEXT('POINT(0 0)', 0)));
---error ER_WRONG_ARGUMENTS
+--error ER_GIS_DIFFERENT_SRIDS
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 0),
                                  ST_GEOMFROMTEXT('POINT(0 0)', 100)));
 
@@ -1035,9 +1035,9 @@ SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(0 0)'),
 --echo #
 --error ER_DATA_OUT_OF_RANGE
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', -1));
---error ER_WRONG_ARGUMENTS
+--error ER_SRS_NOT_CARTESIAN_UNDEFINED
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 1));
---error ER_WRONG_ARGUMENTS
+--error ER_SRS_NOT_CARTESIAN_UNDEFINED
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 1000));
 
 --echo #

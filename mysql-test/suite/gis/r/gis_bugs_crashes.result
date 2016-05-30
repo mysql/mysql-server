@@ -2,7 +2,7 @@
 # BUG#18900932 : ERROR MESSAGE ISN'T SENT TO CLIENT WHEN SERVER REPORTS ONE
 ######################################################################################################
 SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,5 5, 0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((4 4,6 4,8 4,4 4))'));
 ERROR 22023: Invalid GIS data provided to function st_area.
 ######################################################################################################
@@ -132,14 +132,14 @@ POINT(-0 0)
 # BUG#19142227 : ENVELOPE() SPATIAL ANALYSIS FUNCTION ACCEPTS INVALID POLYGONS AS THE ARGUMENT
 ######################################################################################################
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((0 0,5 5))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((0 0,5 5,10 10, 0 0))')));
 ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((0 0,5 5,10 10, 0 0))')))
 POLYGON((0 0,10 0,10 10,0 10,0 0))
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5)),((1 1,1 1,1 1,1 1)))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 ######################################################################################################
 # BUG#19154955 : ST_GEOHASH() FUNCTION RETURNS BINARY DATA INSTEAD OF TEXT WITH A CHARSET
 ######################################################################################################
@@ -237,9 +237,9 @@ ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Membe
 # BUG#19351967 : CENTROID() AND COVEXHULL() ACCEPTS GEOMETRYCOLLECTION CONTAINING INVALID POLYGON
 ######################################################################################################
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0)))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,5 5,10 10)))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 ######################################################################################################
 # BUG#19498377 : ST_GEOMFROMGEOJSON() FUNCTION ACCEPTS INVALID GEOJSON VALUE
 ######################################################################################################
@@ -1186,6 +1186,10 @@ ST_GEOMFROMTEXT(
                                'MULTIPOINT(+.6 +.0,6 -1,6 -1032.34324,0 -2.9,6 0),'
                   
 1
+Warnings:
+Warning	3519	There's no spatial reference system with SRID 10. Calculations in function st_union will be done in SRID 0.
+Warning	3519	There's no spatial reference system with SRID 10. Calculations in function st_union will be done in SRID 0.
+Warning	3519	There's no spatial reference system with SRID 10. Calculations in function mbrcontains will be done in SRID 0.
 SELECT ST_INTERSECTS(ST_SYMDIFFERENCE(
 ST_GEOMFROMTEXT(
 'MULTIPOINT(1 0,8.5 0,5 1,8.3 4,7 -5.0)'),
@@ -1203,7 +1207,7 @@ ST_GEOMFROMTEXT(
                                            '(1 4,4 0,0 2,6.9 6,2.232432 -.8,7 3,1 4)))')),
 ST_UNION(ST_GEOMFROMTEXT('MULTILINESTRING((-.5 9,1 1,1 6,6 6),(6 -.5,6 -.2,6 9,2 4),(4 7),(8 7,5 5,9 3,8 -.3))'),
 ST_GEOMFROMTEXT('POINT()')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_TOUCHES(ST_INTERSECTION(
 ST_GEOMFROMTEXT(
 'POLYGON((6 9,0 0,10.0002 -6,6 9),'
@@ -1239,6 +1243,10 @@ ST_GEOMFROMTEXT(
                                'MULTIPOINT(+.6 +.0,6 -1,6 -1032.34324,0 -2.9,6 0),'
                   
 1
+Warnings:
+Warning	3519	There's no spatial reference system with SRID 10. Calculations in function st_union will be done in SRID 0.
+Warning	3519	There's no spatial reference system with SRID 10. Calculations in function st_union will be done in SRID 0.
+Warning	3519	There's no spatial reference system with SRID 10. Calculations in function mbrcontains will be done in SRID 0.
 SELECT ST_CONTAINS(ST_UNION(
 ST_GEOMFROMWKB(
 GEOMETRYCOLLECTION(
@@ -1319,6 +1327,8 @@ ST_GEOMFROMTEXT(
 ST_INTERSECTION(
 ST_GEOMFROMTEXT('
 NULL
+Warnings:
+Warning	3519	There's no spatial reference system with SRID 10. Calculations in function st_symdifference will be done in SRID 0.
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(
 'MULTIPOINT(189.7654 2)'),
 ST_GEOMFROMWKB(
@@ -1375,7 +1385,7 @@ ST_GEOMFROMTEXT(
                                               '(2 4,6 2,1 7,-2.7 5,0 4,-3.4 3,3 8,2 4),'
                                               '(8 0,189.7654 10.0002,9 1.1,1 0,6 -2.6,4 10.0002,1 8,8 0))'))),
 ST_GEOMFROMTEXT('LINESTRING(6 1)')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_INTERSECTS(ST_SYMDIFFERENCE(
 ST_GEOMFROMTEXT(
 'MULTIPOINT(1 0,8.5 0,5 1,8.3 4,7 -5.0)'),
@@ -1392,10 +1402,10 @@ ST_UNION(
 ST_GEOMFROMTEXT(
 'MULTILINESTRING((-.5 9,1 1,1 6,6 6),(6 -.5,6 -.2,6 9,2 4),(4 7),(8 7,5 5,9 3,8 -.3))'),
 ST_GEOMFROMTEXT('POINT()')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_INTERSECTS(ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('MULTIPOLYGON(((4 4,9 10.0002,4 4),(5 0,2 6,5 0)))'))),
 ST_GEOMFROMWKB(MULTIPOINT(POINT(8,9))));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(10 10)')));
 ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(10 10)')))
 POINT(10 10)
@@ -1537,13 +1547,13 @@ ERROR 22023: Invalid GIS data provided to function st_disjoint.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))'), ST_GEOMFROMTEXT('POLYGON((0 0,0 4,0 8,0 0))')));
 ERROR 22023: Invalid GIS data provided to function st_disjoint.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((0 0))'), ST_GEOMFROMTEXT('POINT(0 0)')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POLYGON((0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((0 0))'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))'), ST_GEOMFROMTEXT('POLYGON((0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,0 8,0 0)))'), ST_GEOMFROMTEXT('POINT(0 0)')));
 ERROR 22023: Invalid GIS data provided to function st_disjoint.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,0 8,0 0)))')));
@@ -1608,12 +1618,12 @@ SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOLYGON(((2 -6,10 -4,1 8,
                                                               '((-3 1,-7 2,3 -6,-1 2,3 8,-5 9,-10 9,9 9,4 4,-2 2,-5 8, -3 1)))'),
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
                                                        'LINESTRING(-9 -6,7 -3,0 -5,-4 -9,-5 7,-7 7,8 -4,0 0,-5 2,2 8,1 -8,-5 3,-3 -9,-8 -2)')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
                                                        'LINESTRING(-9 -6,7 -3,0 -5,-4 -9,-5 7,-7 7,8 -4,0 0,-5 2,2 8,1 -8,-5 3,-3 -9,-8 -2)'),
 ST_GEOMFROMTEXT('MULTIPOLYGON(((2 -6,10 -4,1 8, 2 -6)),'
                                                               '((-3 1,-7 2,3 -6,-1 2,3 8,-5 9,-10 9,9 9,4 4,-2 2,-5 8, -3 1)))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('MULTIPOLYGON(((7 0,-0.7654 0,-.3 -0.7654,-3 -2,0 7,8 3,7 0)))'))),
 ST_GEOMFROMWKB(POLYGON(LINESTRING(POINT(4,9), POINT(0,2), POINT(-9.9,5), POINT(2.3,6), POINT(5,4), POINT(4,9)),
 LINESTRING(POINT(3,2), POINT(5,-.3), POINT(3,2)),
@@ -1769,7 +1779,7 @@ SELECT ST_ASTEXT(
 ST_INTERSECTION(
 ST_GEOMFROMTEXT('MULTIPOLYGON(((2 9,-2 9,-3 -5)),((-10 6,1 6,3 -4,-1 6)))'),
 ST_GEOMFROMTEXT('MULTIPOINT(8 -2,-2 -5,9 -9,-4 -10,-9 -4,10 -3,9 10,-1 -5,-3 3)')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(
 ST_SYMDIFFERENCE(
 ST_GEOMFROMTEXT('MULTIPOLYGON(((-2 3,3 2,-7 4,-8 -4,-8 8,4 3,-10 -4,0 6,-4 7,-9 3,-6 0,-1 -8,-5 -3,2 -6,-7 -7, -2 3)),'
@@ -1789,11 +1799,11 @@ SELECT ST_ASTEXT(
 ST_INTERSECTION(
 ST_GEOMFROMTEXT('MULTILINESTRING((3 -.7),(4 -1032.34324),(2 1,8 7),(7 5,-4 8,2.2 8,2 8,6 7))'),
 ST_GEOMFROMTEXT('POLYGON((5 2,+.1 0,5 2))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(
 ST_INTERSECTION(
 ST_GEOMFROMTEXT('POLYGON((5 3,6 7,-2.0 4,0 1,7 -0,5 3),(5 6,9 5,5 6))',10),ST_GEOMFROMTEXT('POINT(8 9)',10)));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(
 ST_UNION(
 ST_GEOMFROMWKB(POLYGON(LINESTRING(POINT(9,0),POINT(7,1),POINT(9,0)))),
@@ -1842,7 +1852,7 @@ LINESTRING(POINT(3,5),POINT(3,9),POINT(-2.5,-3.9),POINT(9,8),POINT(5,0),POINT(3,
 ERROR 22023: Invalid GIS data provided to function polygon.
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('MULTILINESTRING((5 7,0.8 2,9 3,5 7),(5 3,-3 1))'))),
 ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('POLYGON((1 5,+.8 -0.7654,1 5))')))));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(
 ST_SYMDIFFERENCE(
 ST_GEOMFROMTEXT('POLYGON((0 4,-8 -1,1 9,0 4))'),
@@ -1871,7 +1881,7 @@ ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('POLYGON((1 3,+.5 -1032.34324,1 3))')),1
 ST_GEOMFROMWKB(GEOMETRYCOLLECTION(POINT(2,.1),
 LINESTRING(POINT(4,7),POINT(3,5),POINT(-5.1,7),POINT(5,-3.6)),
 LINESTRING(POINT(6,3),POINT(5,3),POINT(0,1),POINT(8,7))),10)));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(
 ST_INTERSECTION(
 ST_GEOMFROMWKB(
@@ -1906,7 +1916,7 @@ POLYGON(
 LINESTRING(POINT(6,4),POINT(-3.0,1),POINT(5,8),POINT(8,4),POINT(3,7),POINT(8,9),POINT(5,6),POINT(6,4)),
 LINESTRING(POINT(5,5),POINT(2,0),POINT(1.3,9),POINT(+.2,9),POINT(6,6),POINT(.5,9),POINT(7,0),
 POINT(9,-.9),POINT(9,4),POINT(3,1),POINT(4,7),POINT(9,0),POINT(-.5,4),POINT(3,1),POINT(5,5)))),10)));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 ######################################################################################################
 # BUG#20445979 : ASSERTION `RESULT->LENGTH() == 0' FAILED
 ######################################################################################################
@@ -1931,7 +1941,7 @@ ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
                                               'POINT(9 +.7),'
                                               'LINESTRING(189.7654 2, 4 -1032.34324, 9 0, 9 8),'
                                               'POLYGON((1 1, 0 +.0, 2 4, 7 9,9 -3, 3 -0.7654, 10.0002 7, 8 -1032.34324, 1 1)))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 ######################################################################################################
 # BUG#20445765 : ASSERTION `MLS != __NULL' FAILED
 ######################################################################################################
@@ -2426,38 +2436,38 @@ ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))'))
 # BUG#20135389 : ST_MAKEENVELOPE() RETURNS SAME SET OF SRID VALUES IN THE ERROR MESSAGE
 ######################################################################################################
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 4236), ST_GEOMFROMTEXT('POINT(0 0)', 0)));
-ERROR HY000: Incorrect arguments to st_makeenvelope
+ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 4236 and 0, which should have been identical.
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 1), ST_GEOMFROMTEXT('POINT(0 0)', 0)));
-ERROR HY000: Incorrect arguments to st_makeenvelope
+ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 1 and 0, which should have been identical.
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 0), ST_GEOMFROMTEXT('POINT(0 0)', 100)));
-ERROR HY000: Incorrect arguments to st_makeenvelope
+ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 0 and 100, which should have been identical.
 ######################################################################################################
 # BUG#20406722 : ST_ISVALID() DOES NOT PRINT THE FUNCTION NAME IN THE ERROR MESSAGE
 ######################################################################################################
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', -1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 1));
-ERROR HY000: Incorrect arguments to st_isvalid
+ERROR SR001: Function st_isvalid is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 1, which has not been defined.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 1000));
-ERROR HY000: Incorrect arguments to st_isvalid
+ERROR SR001: Function st_isvalid is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 1000, which has not been defined.
 ######################################################################################################
 # BUG#20406850 : WL#8034 : CRASH WITH ST_ISVAID() IN ITEM_FUNC_ISVALID::VAL_INT FUNCTION
 ######################################################################################################
 SET @star_center= 'POINT(15 10)';
 SET @star_all_points= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_center,-1024));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_all_points,-1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 ######################################################################################################
 # BUG#20414966 : WL#8034 : CRASH WITH ST_VAIDATE() IN ITEM_FUNC_VALIDATE::VAL_STR
 ######################################################################################################
 SET @star_center= 'POINT(15 10)';
 SET @star_all_points= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
 SELECT ST_VALIDATE(ST_GEOMFROMTEXT(@star_center,-1024));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_VALIDATE(ST_GEOMFROMTEXT(@star_all_points,-1));
-ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 ######################################################################################################
 # BUG#20430521 : WL#8034 : CRASH WITH ST_SIMPLIFY() IN ITEM_FUNC_SIMPLIFY::VAL_STR
 ######################################################################################################
@@ -2537,12 +2547,12 @@ SELECT ST_AREA(ST_BUFFER(ST_GEOMFROMTEXT('LINESTRING(1 1,1 1)'), 1)) > 0;
 ST_AREA(ST_BUFFER(ST_GEOMFROMTEXT('LINESTRING(1 1,1 1)'), 1)) > 0
 1
 SELECT ST_AREA(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON(1 1,1 1,1 1,1 1)'), 1)) > 0;
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('LINESTRING(1 1,1 1)'), 1));
 ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('LINESTRING(1 1,1 1)'), 1))
 POLYGON((2 1,1.9807 1.1950,1.9238 1.3826,1.8314 1.5555,1.7071 1.7071,1.5555 1.8314,1.3826 1.9238,1.1950 1.9807,1.0000 2,0.8049 1.9807,0.6173 1.9238,0.4444 1.8314,0.2928 1.7071,0.1685 1.5555,0.0761 1.3826,0.0192 1.1950,0 1.0000,0.0192 0.8049,0.0761 0.6173,0.1685 0.4444,0.2928 0.2928,0.4444 0.1685,0.6173 0.0761,0.8049 0.0192,1 0,1.1950 0.0192,1.3826 0.0761,1.5555 0.1685,1.7071 0.2928,1.8314 0.4444,1.9238 0.6173,1.9807 0.8049,2 1))
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON(1 1,1 1,1 1,1 1)'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 # Scenario 3
 SELECT ST_AREA(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0, 0 8, 8 8, 8 10, -10 10, -10 0, 0 0))'), 1)) > 0;
 ST_AREA(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0, 0 8, 8 8, 8 10, -10 10, -10 0, 0 0))'), 1)) > 0
@@ -2656,7 +2666,7 @@ MULTIPOLYGON(((6 13,4.5 13.8660,4.5 12.1339,6 13)),((10 -10,8.5 -9.1339,8.5 -10.
 SELECT ST_DISJOINT(
 ST_GEOMFROMTEXT('LINESTRING(-2305843009213693956 4611686018427387906, -33 -92, 78 83)'),
 ST_GEOMFROMTEXT('MULTILINESTRING((20 100, 31 -97, -46 57, -20 -4),(-71,-4))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISJOINT(
 ST_GEOMFROMTEXT('LINESTRING(-2305843009213693956 4611686018427387906, -33 -92, 78 83)'),
 ST_GEOMFROMTEXT('LINESTRING(20 100, 31 -97, -46 57, -20 -4)'));
@@ -6690,7 +6700,7 @@ multipoint( point(1,1),point(1,1),point(1,1),point(1,1), point(1,1),point(1,1),p
 st_intersection(
 multilinestring( linestring(point(2,4),point(10,1)) ),
 linestring(point(1,1),point(1e+308,1) ) )));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 #####################################################################################################
 # BUG#21872795 ST_OVERLAPS(POLYGON, POLYGON) RETURNS WRONG RESULT
 #####################################################################################################

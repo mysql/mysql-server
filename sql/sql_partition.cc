@@ -8376,7 +8376,8 @@ bool set_up_table_before_create(THD *thd,
   }
   if (part_elem->tablespace_name != NULL)
   {
-    if (check_tablespace_name(part_elem->tablespace_name) != IDENT_NAME_OK)
+    if (check_tablespace_name(part_elem->tablespace_name) !=
+        Ident_name_check::OK)
     {
 	    DBUG_RETURN(true);
     }

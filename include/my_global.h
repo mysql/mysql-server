@@ -905,4 +905,12 @@ typedef mode_t MY_MODE;
 #define DEFAULT_SSL_SERVER_CERT "server-cert.pem"
 #define DEFAULT_SSL_SERVER_KEY  "server-key.pem"
 
+#ifdef __cplusplus
+/*
+  Define rapidjson::SizeType to be std::size_t. See
+  extra/rapidjson/include/rapidjson/rapidjson.h for more details.
+*/
+namespace rapidjson { typedef ::std::size_t SizeType; }
+#endif
+
 #endif  // MY_GLOBAL_INCLUDED

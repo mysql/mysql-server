@@ -459,13 +459,6 @@ public:
   
   Item_func_not_all *upper_item; // point on NOT/NOP before ALL/SOME subquery
 
-  /* 
-    Location of the subquery predicate. It is either
-     - pointer to join nest if the subquery predicate is in the ON expression
-     - (TABLE_LIST*)1 if the predicate is in the WHERE.
-  */
-  TABLE_LIST *expr_join_nest;
-
 private:
   PT_subquery *pt_subselect;
 
@@ -840,6 +833,5 @@ public:
   virtual enum_engine_type engine_type() const { return HASH_SJ_ENGINE; }
   
   const QEP_TAB *get_qep_tab() const { return tab; }
-  Item *get_cond_for_explain() const { return cond; }
 };
 #endif /* ITEM_SUBSELECT_INCLUDED */

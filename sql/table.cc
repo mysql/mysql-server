@@ -1750,31 +1750,6 @@ void free_blob_buffers_and_reset(TABLE *table, uint32 size)
 }
 
 
-/*
-  Read string from a file with malloc
-
-  NOTES:
-    We add an \0 at end of the read string to make reading of C strings easier
-*/
-
-int read_string(File file, uchar**to, size_t length)
-{
-  DBUG_ENTER("read_string");
-
-  my_free(*to);
-  if (!(*to= (uchar*) my_malloc(key_memory_frm_string,
-                                length+1,MYF(MY_WME))) ||
-      mysql_file_read(file, *to, length, MYF(MY_NABP)))
-  {
-     my_free(*to);                            /* purecov: inspected */
-    *to= 0;                                   /* purecov: inspected */
-    DBUG_RETURN(1);                           /* purecov: inspected */
-  }
-  *((char*) *to+length)= '\0';
-  DBUG_RETURN (0);
-} /* read_string */
-
-
 	/* error message when opening a table defintion */
 
 static void open_table_error(THD *thd, TABLE_SHARE *share,
@@ -1999,35 +1974,37 @@ char *get_field(MEM_ROOT *mem, Field *field)
   @note If lower_case_table_names is true and preserve_lettercase
   is false then database is converted to lower case
 
-  @retval  IDENT_NAME_OK        Identifier name is Ok (Success)
-  @retval  IDENT_NAME_WRONG     Identifier name is Wrong (ER_WRONG_TABLE_NAME)
-  @retval  IDENT_NAME_TOO_LONG  Identifier name is too long if it is greater
-                                than 64 characters (ER_TOO_LONG_IDENT)
+  @retval  Ident_name_check::OK        Identifier name is Ok (Success)
+  @retval  Ident_name_check::WRONG     Identifier name is Wrong
+                                       (ER_WRONG_TABLE_NAME)
+  @retval  Ident_name_check::TOO_LONG  Identifier name is too long if it is
+                                       greater than 64 characters
+                                       (ER_TOO_LONG_IDENT)
 
-  @note In case of IDENT_NAME_WRONG and IDENT_NAME_TOO_LONG, this
-  function reports an error (my_error)
+  @note In case of Ident_name_check::WRONG and Ident_name_check::TOO_LONG, this
+        function reports an error (my_error)
 */
 
-enum_ident_name_check check_and_convert_db_name(LEX_STRING *org_name,
-                                                bool preserve_lettercase)
+Ident_name_check check_and_convert_db_name(LEX_STRING *org_name,
+                                           bool preserve_lettercase)
 {
   char *name= org_name->str;
   size_t name_length= org_name->length;
-  enum_ident_name_check ident_check_status;
+  Ident_name_check ident_check_status;
 
   if (!name_length || name_length > NAME_LEN)
   {
     my_error(ER_WRONG_DB_NAME, MYF(0), org_name->str);
-    return IDENT_NAME_WRONG;
+    return Ident_name_check::WRONG;
   }
 
   if (!preserve_lettercase && lower_case_table_names && name != any_db)
     my_casedn_str(files_charset_info, name);
 
   ident_check_status= check_table_name(name, name_length);
-  if (ident_check_status == IDENT_NAME_WRONG)
+  if (ident_check_status == Ident_name_check::WRONG)
     my_error(ER_WRONG_DB_NAME, MYF(0), org_name->str);
-  else if (ident_check_status == IDENT_NAME_TOO_LONG)
+  else if (ident_check_status == Ident_name_check::TOO_LONG)
     my_error(ER_TOO_LONG_IDENT, MYF(0), org_name->str);
   return ident_check_status;
 }
@@ -2040,21 +2017,23 @@ enum_ident_name_check check_and_convert_db_name(LEX_STRING *org_name,
   @param name                  Table name
   @param length                Length of table name
 
-  @retval  IDENT_NAME_OK        Identifier name is Ok (Success)
-  @retval  IDENT_NAME_WRONG     Identifier name is Wrong (ER_WRONG_TABLE_NAME)
-  @retval  IDENT_NAME_TOO_LONG  Identifier name is too long if it is greater
-                                than 64 characters (ER_TOO_LONG_IDENT)
+  @retval  Ident_name_check::OK        Identifier name is Ok (Success)
+  @retval  Ident_name_check::WRONG     Identifier name is Wrong
+                                       (ER_WRONG_TABLE_NAME)
+  @retval  Ident_name_check::TOO_LONG  Identifier name is too long if it is
+                                       greater than 64 characters
+                                       (ER_TOO_LONG_IDENT)
 
   @note Reporting error to the user is the responsiblity of the caller.
 */
 
-enum_ident_name_check check_table_name(const char *name, size_t length)
+Ident_name_check check_table_name(const char *name, size_t length)
 {
   // name length in symbols
   size_t name_length= 0;
   const char *end= name+length;
   if (!length || length > NAME_LEN)
-    return IDENT_NAME_WRONG;
+    return Ident_name_check::WRONG;
   bool last_char_is_space= FALSE;
 
   while (name != end)
@@ -2074,10 +2053,10 @@ enum_ident_name_check check_table_name(const char *name, size_t length)
     name_length++;
   }
   if (last_char_is_space)
-   return IDENT_NAME_WRONG;
+   return Ident_name_check::WRONG;
   else if (name_length > NAME_CHAR_LEN)
-   return IDENT_NAME_TOO_LONG;
-  return IDENT_NAME_OK;
+   return Ident_name_check::TOO_LONG;
+  return Ident_name_check::OK;
 }
 
 
@@ -4729,18 +4708,6 @@ bool TABLE::is_field_used_by_generated_columns(uint field_index)
   return false;
 }
 
-
-bool TABLE::has_virtual_gcol() const
-{
-  if (vfield == NULL)
-    return false;
-  for (Field **gc= vfield; *gc; gc++)
-  {
-    if (!(*gc)->stored_in_db)
-      return true;
-  }
-  return false;
-}
 
 /**
   Cleanup this table for re-execution.

@@ -16,8 +16,9 @@
 #ifndef SQL_TABLESPACE_INCLUDED
 #define SQL_TABLESPACE_INCLUDED
 
-#include "table.h"                              // enum_ident_name_check
+#include "my_global.h"                          // Always first include file.
 
+enum class Ident_name_check;
 class THD;
 class st_alter_tablespace;
 
@@ -34,17 +35,18 @@ class st_alter_tablespace;
         The only checks are for identifier length, both in terms of
         number of characters and number of bytes.
 
-  @retval  IDENT_NAME_OK        Identifier name is ok (Success)
-  @retval  IDENT_NAME_WRONG     Identifier name is wrong, if length == 0
-                                (ER_WRONG_TABLESPACE_NAME)
-  @retval  IDENT_NAME_TOO_LONG  Identifier name is too long if it is greater
-                                than 64 characters (ER_TOO_LONG_IDENT)
+  @retval  Ident_name_check::OK       Identifier name is ok (Success)
+  @retval  Ident_name_check::WRONG    Identifier name is wrong, if length == 0
+                                      (ER_WRONG_TABLESPACE_NAME)
+  @retval  Ident_name_check::TOO_LONG Identifier name is too long if it is
+                                      greater than 64 characters
+                                      (ER_TOO_LONG_IDENT)
 
-  @note In case of IDENT_NAME_TOO_LONG or IDENT_NAME_WRONG, the function
-        reports an error (using my_error()).
+  @note In case of Ident_name_check::TOO_LONG or Ident_name_check::WRONG, the
+        function reports an error (using my_error()).
 */
 
-enum_ident_name_check check_tablespace_name(const char *tablespace_name);
+Ident_name_check check_tablespace_name(const char *tablespace_name);
 
 bool mysql_alter_tablespace(THD* thd, st_alter_tablespace *ts_info);
 

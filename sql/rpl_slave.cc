@@ -198,7 +198,6 @@ enum enum_slave_apply_event_and_update_pos_retval
 
 
 static int process_io_rotate(Master_info* mi, Rotate_log_event* rev);
-static int process_io_create_file(Master_info* mi, Create_file_log_event* cev);
 static bool wait_for_relay_log_space(Relay_log_info* rli);
 static inline bool io_slave_killed(THD* thd,Master_info* mi);
 static inline bool is_autocommit_off_and_infotables(THD* thd);
@@ -7486,118 +7485,6 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   return 0;                             // Avoid compiler warnings
 }
 
-
-/*
-  process_io_create_file()
-*/
-
-static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
-{
-  int error = 1;
-  ulong num_bytes;
-  bool cev_not_written;
-  THD *thd = mi->info_thd;
-  NET *net = &mi->mysql->net;
-  DBUG_ENTER("process_io_create_file");
-
-  mysql_mutex_assert_owner(&mi->data_lock);
-
-  if (unlikely(!cev->is_valid()))
-    DBUG_RETURN(1);
-
-  if (!rpl_filter->db_ok(cev->db))
-  {
-    skip_load_data_infile(net);
-    DBUG_RETURN(0);
-  }
-  DBUG_ASSERT(cev->inited_from_old);
-  thd->file_id = cev->file_id = mi->file_id++;
-  thd->server_id = cev->server_id;
-  cev_not_written = 1;
-
-  if (unlikely(net_request_file(net,cev->fname)))
-  {
-    sql_print_error("Slave I/O: failed requesting download of '%s'",
-                    cev->fname);
-    goto err;
-  }
-
-  /*
-    This dummy block is so we could instantiate Append_block_log_event
-    once and then modify it slightly instead of doing it multiple times
-    in the loop
-  */
-  {
-    Append_block_log_event aev(thd,0,0,0,0);
-
-    for (;;)
-    {
-      if (unlikely((num_bytes=my_net_read(net)) == packet_error))
-      {
-        sql_print_error("Network read error downloading '%s' from master",
-                        cev->fname);
-        goto err;
-      }
-      if (unlikely(!num_bytes)) /* eof */
-      {
-	/* 3.23 master wants it */
-        net_write_command(net, 0, (uchar*) "", 0, (uchar*) "", 0);
-        /*
-          If we wrote Create_file_log_event, then we need to write
-          Execute_load_log_event. If we did not write Create_file_log_event,
-          then this is an empty file and we can just do as if the LOAD DATA
-          INFILE had not existed, i.e. write nothing.
-        */
-        if (unlikely(cev_not_written))
-          break;
-        Execute_load_log_event xev(thd,0,0);
-        xev.common_header->log_pos = cev->common_header->log_pos;
-        if (unlikely(mi->rli->relay_log.append_event(&xev, mi) != 0))
-        {
-          mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
-                     ER_THD(thd, ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
-                     "error writing Exec_load event to relay log");
-          goto err;
-        }
-        mi->rli->relay_log.harvest_bytes_written(&mi->rli->log_space_total);
-        break;
-      }
-      if (unlikely(cev_not_written))
-      {
-        cev->block = net->read_pos;
-        cev->block_len = num_bytes;
-        if (unlikely(mi->rli->relay_log.append_event(cev, mi) != 0))
-        {
-          mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
-                     ER_THD(thd, ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
-                     "error writing Create_file event to relay log");
-          goto err;
-        }
-        cev_not_written=0;
-        mi->rli->relay_log.harvest_bytes_written(&mi->rli->log_space_total);
-      }
-      else
-      {
-        aev.block = net->read_pos;
-        aev.block_len = num_bytes;
-        aev.common_header->log_pos= cev->common_header->log_pos;
-        if (unlikely(mi->rli->relay_log.append_event(&aev, mi) != 0))
-        {
-          mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
-                     ER_THD(thd, ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
-                     "error writing Append_block event to relay log");
-          goto err;
-        }
-        mi->rli->relay_log.harvest_bytes_written(&mi->rli->log_space_total);
-      }
-    }
-  }
-  error=0;
-err:
-  DBUG_RETURN(error);
-}
-
-
 /**
   Used by the slave IO thread when it receives a rotate event from the
   master.
@@ -7682,31 +7569,6 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
   mysql_mutex_assert_owner(&mi->data_lock);
 
   /*
-    If we get Load event, we need to pass a non-reusable buffer
-    to read_log_event, so we do a trick
-  */
-  if (buf[EVENT_TYPE_OFFSET] == binary_log::LOAD_EVENT)
-  {
-    if (unlikely(!(tmp_buf=(char*)my_malloc(key_memory_binlog_ver_1_event,
-                                            event_len+1,MYF(MY_WME)))))
-    {
-      mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                 ER_THD(current_thd, ER_SLAVE_FATAL_ERROR), "Memory allocation failed");
-      DBUG_RETURN(1);
-    }
-    memcpy(tmp_buf,buf,event_len);
-    /*
-      Create_file constructor wants a 0 as last char of buffer, this 0 will
-      serve as the string-termination char for the file's name (which is at the
-      end of the buffer)
-      We must increment event_len, otherwise the event constructor will not see
-      this end 0, which leads to segfault.
-    */
-    tmp_buf[event_len++]=0;
-    int4store(tmp_buf+EVENT_LEN_OFFSET, event_len);
-    buf = (const char*)tmp_buf;
-  }
-  /*
     This will transform LOAD_EVENT into CREATE_FILE_EVENT, ask the master to
     send the loaded file, and write it to the relay log in the form of
     Append_block/Exec_load (the SQL thread needs the data, as that thread is not
@@ -7738,25 +7600,6 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
     }
     inc_pos= 0;
     break;
-  case binary_log::CREATE_FILE_EVENT:
-    /*
-      Yes it's possible to have CREATE_FILE_EVENT here, even if we're in
-      queue_old_event() which is for 3.23 events which don't comprise
-      CREATE_FILE_EVENT. This is because read_log_event() above has just
-      transformed LOAD_EVENT into CREATE_FILE_EVENT.
-    */
-  {
-    /* We come here when and only when tmp_buf != 0 */
-    DBUG_ASSERT(tmp_buf != 0);
-    inc_pos=event_len;
-    ev->common_header->log_pos+= inc_pos;
-    int error = process_io_create_file(mi,(Create_file_log_event*)ev);
-    delete ev;
-    mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
-    DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
-    my_free(tmp_buf);
-    DBUG_RETURN(error);
-  }
   default:
     inc_pos= event_len;
     break;
@@ -10442,7 +10285,13 @@ static int change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
     strmake(mi->host, lex_mi->host, sizeof(mi->host)-1);
   if (lex_mi->bind_addr)
     strmake(mi->bind_addr, lex_mi->bind_addr, sizeof(mi->bind_addr)-1);
-  if (lex_mi->port)
+  /*
+    Setting channel's port number explicitly to '0' should be allowed.
+    Eg: 'group_replication_recovery' channel (*after recovery is done*)
+    or 'group_replication_applier' channel wants to set the port number
+    to '0' as there is no actual network usage on these channels.
+  */
+  if (lex_mi->port || lex_mi->port_opt == LEX_MASTER_INFO::LEX_MI_ENABLE)
     mi->port = lex_mi->port;
   if (lex_mi->connect_retry)
     mi->connect_retry = lex_mi->connect_retry;
@@ -11049,7 +10898,7 @@ int add_new_channel(Master_info** mi, const char* channel,
   DBUG_ENTER("add_new_channel");
 
   int error= 0;
-  enum_ident_name_check ident_check_status;
+  Ident_name_check ident_check_status;
 
   /*
     Refuse to create a new channel if the repositories does not support this.
@@ -11087,9 +10936,9 @@ int add_new_channel(Master_info** mi, const char* channel,
     ident_check_status= check_table_name(channel, strlen(channel));
   }
   else
-    ident_check_status= IDENT_NAME_WRONG;
+    ident_check_status= Ident_name_check::WRONG;
 
-  if (ident_check_status != IDENT_NAME_OK)
+  if (ident_check_status != Ident_name_check::OK)
   {
     error= ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG;
     my_error(ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG, MYF(0));

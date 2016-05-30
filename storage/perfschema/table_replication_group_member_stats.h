@@ -58,7 +58,7 @@ struct st_row_group_member_stats {
   ulonglong trx_in_queue;
   ulonglong trx_checked;
   ulonglong trx_conflicts;
-  ulonglong trx_validating;
+  ulonglong trx_rows_validating;
   char *trx_committed;
   size_t trx_committed_length;
   char last_cert_trx[Gtid::MAX_TEXT_LENGTH+1];

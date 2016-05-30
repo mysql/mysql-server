@@ -31,6 +31,7 @@
 #include "dd/types/function.h"               // Function
 #include "dd/types/procedure.h"              // Procedure
 #include "dd/types/schema.h"                 // Schema
+#include "dd/types/spatial_reference_system.h" // Spatial_reference_system
 #include "dd/types/table.h"                  // Table
 #include "dd/types/tablespace.h"             // Tablespace
 #include "dd/types/view.h"                   // View
@@ -44,6 +45,7 @@
 #include "dd/impl/tables/events.h"           // create_name_key()
 #include "dd/impl/tables/routines.h"         // create_name_key()
 #include "dd/impl/tables/schemata.h"         // create_name_key()
+#include "dd/impl/tables/spatial_reference_systems.h" // create_name_key()
 #include "dd/impl/tables/tables.h"           // create_name_key()
 #include "dd/impl/tables/tablespaces.h"      // create_name_key()
 #include "dd/impl/tables/table_partitions.h" // get_partition_table_id()
@@ -287,6 +289,38 @@ private:
 
 
   /**
+    Private helper function for asserting MDL for spatial reference systems.
+
+    @param   thd          Thread context.
+    @param   srs          Spatial reference system object.
+    @param   lock_type    Weakest lock type accepted.
+
+    @return true if we have the required lock, otherwise false.
+  */
+
+  static bool is_locked(THD *thd, const dd::Spatial_reference_system *srs,
+                        enum_mdl_type lock_type)
+  {
+    if (!srs)
+      return true;
+
+    // Check that the SRID is within the legal range to make sure we
+    // don't overflow id_str below. The ID is unsigned, so we only
+    // need to check the upper bound.
+    DBUG_ASSERT(srs->id() <= UINT_MAX32);
+
+    char id_str[11]; // uint32 => max 10 digits + \0
+    int10_to_str(static_cast<long>(srs->id()), id_str, 10);
+
+    return thd->mdl_context.owns_equal_or_stronger_lock(
+                              MDL_key::SRID,
+                              "",
+                              id_str,
+                              lock_type);
+  }
+
+
+  /**
     Private helper function for asserting MDL for tablespaces.
 
     @note We need to retrieve the schema name, since this is required
@@ -326,6 +360,15 @@ public:
     return thd->is_dd_system_thread() ||
            is_locked(thd, table, MDL_EXCLUSIVE);
   }
+
+  // Reading a spatial reference system object should be governed by MDL_SHARED.
+  static bool is_read_locked(THD *thd, const dd::Spatial_reference_system *srs)
+  { return thd->is_dd_system_thread() || is_locked(thd, srs, MDL_SHARED); }
+
+  // Writing a spatial reference system  object should be governed by
+  // MDL_EXCLUSIVE.
+  static bool is_write_locked(THD *thd, const dd::Spatial_reference_system *srs)
+  { return !mysqld_server_started || is_locked(thd, srs, MDL_EXCLUSIVE); }
 
   // No MDL namespace for character sets.
   static bool is_read_locked(THD*, const dd::Charset*)
@@ -480,6 +523,7 @@ Dictionary_client::Auto_releaser::~Auto_releaser()
   m_client->release<Collation>(&m_release_registry);
   m_client->release<Event>(&m_release_registry);
   m_client->release<Routine>(&m_release_registry);
+  m_client->release<Spatial_reference_system>(&m_release_registry);
 
   // Restore the client's previous releaser.
   m_client->m_current_releaser= m_prev;
@@ -618,7 +662,8 @@ size_t Dictionary_client::release(Object_registry *registry)
           release<Charset>(registry) +
           release<Collation>(registry) +
           release<Event>(registry) +
-          release<Routine>(registry);
+          release<Routine>(registry) +
+          release<Spatial_reference_system>(registry);
 }
 
 
@@ -1903,6 +1948,25 @@ template bool Dictionary_client::update(const Schema**, Schema*, bool);
 template void Dictionary_client::set_sticky(const Schema*, bool);
 template bool Dictionary_client::is_sticky(const Schema*) const;
 template void Dictionary_client::dump<Schema>() const;
+
+template bool Dictionary_client::acquire(Object_id,
+                                         const Spatial_reference_system**);
+template bool Dictionary_client::acquire_uncached(
+    Object_id,
+    const Spatial_reference_system**);
+template bool Dictionary_client::acquire_uncached(
+    const std::string&,
+    const Spatial_reference_system**);
+template bool Dictionary_client::drop(const Spatial_reference_system*);
+template bool Dictionary_client::store(Spatial_reference_system*);
+template void Dictionary_client::add_and_reset_id(Spatial_reference_system*);
+template bool Dictionary_client::update(const Spatial_reference_system**,
+                                        Spatial_reference_system*, bool);
+template void Dictionary_client::set_sticky(const Spatial_reference_system*,
+                                            bool);
+template bool Dictionary_client::is_sticky(const Spatial_reference_system*)
+    const;
+template void Dictionary_client::dump<Spatial_reference_system>() const;
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   const Table**);

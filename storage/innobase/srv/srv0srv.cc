@@ -245,7 +245,7 @@ ulint	srv_buf_pool_old_size	= 0;
 /** Current size as scaling factor for the other components */
 ulint	srv_buf_pool_base_size	= 0;
 /** Current size in bytes */
-ulint	srv_buf_pool_curr_size	= 0;
+long long	srv_buf_pool_curr_size	= 0;
 /** Dump this % of each buffer pool during BP dump */
 ulong	srv_buf_pool_dump_pct;
 /** Lock table size in bytes */

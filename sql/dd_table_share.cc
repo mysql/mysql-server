@@ -1198,6 +1198,9 @@ static bool fill_index_from_dd(TABLE_SHARE *share, const dd::Index *idx_obj,
   keyinfo->algorithm= dd_get_old_index_algorithm_type(idx_obj->algorithm());
   keyinfo->is_algorithm_explicit= idx_obj->is_algorithm_explicit();
 
+  // Visibility
+  keyinfo->is_visible= idx_obj->is_visible();
+
   // user defined key parts
   keyinfo->user_defined_key_parts= 0;
   for (const dd::Index_element *idx_ele : idx_obj->elements())
@@ -1332,6 +1335,7 @@ static bool fill_indexes_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
 
   DBUG_ASSERT(share->keys == 0 && share->key_parts == 0);
 
+  share->keys_in_use.clear_all();
   for (const dd::Index *idx_obj : tab_obj->indexes())
   {
     // Skip hidden indexes
@@ -1347,6 +1351,8 @@ static bool fill_indexes_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
         key_parts++;
     }
     share->key_parts+= key_parts;
+    if (idx_obj->is_visible())
+      share->keys_in_use.set_bit(idx_obj->ordinal_position() - 1);
 
     // Primary key (or candidate key replacing it) is always first if exists.
     // If such key doesn't exist (e.g. there are no unique keys in the table)
@@ -1356,7 +1362,6 @@ static bool fill_indexes_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
   }
 
   share->keys_for_keyread.init(0);
-  share->keys_in_use.init(share->keys);
 
   // Allocate and fill KEY objects.
   if (share->keys)

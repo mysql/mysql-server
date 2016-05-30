@@ -5318,6 +5318,7 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
   key_info->key_part=               *key_part_info;
   key_info->usable_key_parts=       key_number;
   key_info->is_algorithm_explicit=  false;
+  key_info->is_visible= key->key_create_info.is_visible;
 
   /*
     Make SPATIAL to be RTREE by default
@@ -5450,6 +5451,48 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_RETURN(true);
   }
   DBUG_RETURN(false);
+}
+
+
+/**
+  Primary/unique key check. Checks that:
+
+  - If the storage engine requires it, that there is an index that is
+    candidate for promotion.
+
+  - If such a promotion occurs, checks that the candidate index is not
+    declared invisible.
+
+  @param file The storage engine handler.
+  @param key_info_buffer All indexes in the table.
+  @param key_count Number of indexes.
+
+  @retval false OK.
+  @retval true An error occured and my_error() was called.
+*/
+
+static bool check_promoted_index(const handler *file,
+                                 const KEY *key_info_buffer,
+                                 uint key_count)
+{
+  bool has_unique_key= false;
+  const KEY *end= key_info_buffer + key_count;
+  for (const KEY *k= key_info_buffer; k < end && !has_unique_key; ++k)
+    if (!(k->flags & HA_NULL_PART_KEY) && (k->flags & HA_NOSAME))
+    {
+      has_unique_key= true;
+      if (!k->is_visible)
+      {
+        my_error(ER_PK_INDEX_CANT_BE_INVISIBLE, MYF(0));
+        return true;
+      }
+    }
+  if (!has_unique_key && (file->ha_table_flags() & HA_REQUIRE_PRIMARY_KEY))
+  {
+    my_error(ER_REQUIRES_PRIMARY_KEY, MYF(0));
+    return true;
+  }
+  return false;
 }
 
 
@@ -5686,24 +5729,8 @@ static bool mysql_prepare_create_table(THD *thd,
       DBUG_RETURN(true);
   }
 
-  /*
-    Primary/unique key check.
-  */
-  if (file->ha_table_flags() & HA_REQUIRE_PRIMARY_KEY)
-  {
-    bool unique_key= false;
-    for (const KEY *k= *key_info_buffer;
-         k != *key_info_buffer + *key_count; k++)
-    {
-      if (!(k->flags & HA_NULL_PART_KEY))
-        unique_key= true;
-    }
-    if (!unique_key && !primary_key)
-    {
-      my_error(ER_REQUIRES_PRIMARY_KEY, MYF(0));
-      DBUG_RETURN(true);
-    }
-  }
+  if (!primary_key && check_promoted_index(file, *key_info_buffer, *key_count))
+    DBUG_RETURN(true);
 
   /*
     Any auto increment columns not found during prepare_key?
@@ -7697,7 +7724,10 @@ static bool fill_alter_inplace_info(THD *thd,
                              alter_info->key_list.size())) ||
       ! (ha_alter_info->index_rename_buffer=
           (KEY_PAIR*) thd->alloc(sizeof(KEY_PAIR) *
-                                 alter_info->alter_rename_key_list.size())))
+                                 alter_info->alter_rename_key_list.size())) ||
+      !(ha_alter_info->index_altered_visibility_buffer=
+        (KEY_PAIR*) thd->alloc(sizeof(KEY_PAIR) *
+        alter_info->alter_index_visibility_list.size())))
     DBUG_RETURN(true);
 
   /* First we setup ha_alter_flags based on what was detected by parser. */
@@ -8016,6 +8046,24 @@ static bool fill_alter_inplace_info(THD *thd,
       /* Key was modified. */
       ha_alter_info->add_modified_key(table_key, new_key);
     }
+  }
+
+  for (const Alter_index_visibility *alter_index_visibility :
+         alter_info->alter_index_visibility_list)
+  {
+    const char *name= alter_index_visibility->name();
+    table_key= find_key_ci(name, table->key_info, table_key_end);
+    new_key= find_key_ci(name, ha_alter_info->key_info_buffer, new_key_end);
+
+    if (new_key == NULL)
+    {
+      my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), name, table->s->table_name.str);
+      DBUG_RETURN(true);
+    }
+
+    new_key->is_visible= alter_index_visibility->is_visible();
+    ha_alter_info->handler_flags|= Alter_inplace_info::RENAME_INDEX;
+    ha_alter_info->add_altered_index_visibility(table_key, new_key);
   }
 
   /*
@@ -9319,6 +9367,16 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   */
   Prealloced_array<const Alter_rename_key*, 1>
     rename_key_list(alter_info->alter_rename_key_list);
+
+  /*
+    This is how we check that all indexes to be altered are name-resolved: We
+    make a copy of the list from the alter_info, and remove all the indexes
+    that are found in the table. Later we check that there is nothing left in
+    the list. This is obviously just a copy-paste of what is done for renamed
+    indexes.
+  */
+  Prealloced_array<const Alter_index_visibility*, 1>
+    index_visibility_list(alter_info->alter_index_visibility_list);
   List_iterator<Create_field> def_it(alter_info->create_list);
   List_iterator<Create_field> find_it(new_create_list);
   List_iterator<Create_field> field_it(new_create_list);
@@ -9715,9 +9773,11 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     }
     if (key_parts.elements)
     {
-      KEY_CREATE_INFO key_create_info;
+      KEY_CREATE_INFO key_create_info=
+        { HA_KEY_ALG_SE_SPECIFIC, false, 0, {NullS, 0}, {NullS, 0},
+          key_info->is_visible };
+
       keytype key_type;
-      memset(&key_create_info, 0, sizeof(key_create_info));
 
       /* If this index is to stay in the table check if it has to be renamed. */
       for (size_t rename_idx= 0; rename_idx < rename_key_list.size(); rename_idx++)
@@ -9752,6 +9812,14 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
         }
       }
 
+      // Erase all alter operations that operate on this index.
+      for (auto it= index_visibility_list.begin();
+           it < index_visibility_list.end();)
+        if (my_strcasecmp(system_charset_info, key_name, (*it)->name()) == 0)
+          index_visibility_list.erase(it);
+        else
+          ++it;
+
       if (key_info->is_algorithm_explicit)
       {
         key_create_info.algorithm= key_info->algorithm;
@@ -9778,6 +9846,22 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
           to_lex_cstring(*plugin_name(key_info->parser));
       if (key_info->flags & HA_USES_COMMENT)
         key_create_info.comment= key_info->comment;
+
+      for (const Alter_index_visibility *alter_index_visibility :
+             alter_info->alter_index_visibility_list)
+      {
+        const char *name= alter_index_visibility->name();
+        if (my_strcasecmp(system_charset_info, key_name, name) == 0)
+        {
+          if (table->s->primary_key <= MAX_KEY &&
+              table->key_info + table->s->primary_key == key_info)
+          {
+            my_error(ER_PK_INDEX_CANT_BE_INVISIBLE, MYF(0));
+            goto err;
+          }
+          key_create_info.is_visible= alter_index_visibility->is_visible();
+        }
+      }
 
       if (key_info->flags & HA_SPATIAL)
         key_type= KEYTYPE_SPATIAL;
@@ -9840,6 +9924,14 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
              table->s->table_name.str);
     goto err;
   }
+  if (index_visibility_list.size() > 0)
+  {
+    my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), index_visibility_list[0]->name(),
+             table->s->table_name.str);
+    goto err;
+  }
+
+
 
   if (!create_info->comment.str)
   {
@@ -10473,7 +10565,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   */
   if (create_info->tablespace)
   {
-    if (check_tablespace_name(create_info->tablespace) != IDENT_NAME_OK)
+    if (check_tablespace_name(create_info->tablespace) != Ident_name_check::OK)
       DBUG_RETURN(true);
 
     if (!thd->make_lex_string(&table_list->target_tablespace_name,

@@ -1015,11 +1015,7 @@ class Item_sum_variance;
 class Item_variance_field :public Item_sum_num_field
 {
 protected:
-  uint f_precision0, f_scale0;
-  uint f_precision1, f_scale1;
-  uint dec_bin_size0, dec_bin_size1;
   uint sample;
-  uint prec_increment;
 public:
   Item_variance_field(Item_sum_variance *item);
   enum Type type() const {return FIELD_VARIANCE_ITEM; }
@@ -1059,7 +1055,6 @@ class Item_sum_variance : public Item_sum_num
 
 public:
   Item_result hybrid_type;
-  int cur_dec;
   double recurrence_m, recurrence_s;    /* Used in recurrence relation. */
   ulonglong count;
   uint f_precision0, f_scale0;
@@ -1362,7 +1357,6 @@ public:
     return check_sum_func(thd, ref);
   }
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }
-  virtual bool have_field_update(void) const { return 0; }
 
   void clear();
   bool add();

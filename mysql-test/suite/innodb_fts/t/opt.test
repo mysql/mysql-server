@@ -1043,3 +1043,34 @@ UPDATE t1 SET f1 =
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug#22679209: FULL-TEXT QUERIES WITH ADDITIONAL SECONDARY INDEX
+--echo #               GIVES NULL OR ZERO ROWS
+--echo #
+
+CREATE TABLE t1 (
+f1 INTEGER,
+title varchar(255),
+body mediumtext,
+KEY f1 (f1),
+FULLTEXT KEY title (title),
+FULLTEXT KEY body (body)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES
+(1, 'Insert into table', 'insert into table select from'),
+(1, 'Delete from table', 'insert into table select from'),
+(1, 'Update',            'perform update'),
+(2, 'Insert into table', 'insert into table select from'),
+( 2, 'Delete from table', 'some body text here'),
+( 2, 'Update',            'perform update'),
+( 3, 'Insert into table', 'insert into table select from'),
+( 3, 'Delete from table', 'some body text here');
+
+SELECT f1 FROM t1 WHERE f1=1 AND
+(MATCH (title) AGAINST ('table' IN BOOLEAN MODE) OR
+MATCH (body) AGAINST ('table' IN BOOLEAN MODE));
+
+DROP TABLE t1;
+
+--echo # End of test for Bug#22679209

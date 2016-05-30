@@ -25,6 +25,7 @@
 #include "dd/types/event.h"                  // Event
 #include "dd/types/routine.h"                // Routine
 #include "dd/types/schema.h"                 // Schema
+#include "dd/types/spatial_reference_system.h" // Spatial_reference_system
 #include "dd/types/tablespace.h"             // Tablespace
 
 namespace dd {
@@ -613,6 +614,39 @@ template void Shared_multi_map<Schema>::
   put<Schema::aux_key_type>
     (const Schema::aux_key_type*, const Schema*,
       Cache_element<Schema> **);
+
+template class Shared_multi_map<Spatial_reference_system>;
+template bool Shared_multi_map<Spatial_reference_system>::
+  get<const Spatial_reference_system*>
+    (const Spatial_reference_system* const&,
+     Cache_element<Spatial_reference_system> **);
+template bool Shared_multi_map<Spatial_reference_system>::
+  get<Spatial_reference_system::id_key_type>
+    (const Spatial_reference_system::id_key_type&,
+     Cache_element<Spatial_reference_system> **);
+template bool Shared_multi_map<Spatial_reference_system>::
+  get<Spatial_reference_system::name_key_type>
+    (const Spatial_reference_system::name_key_type&,
+     Cache_element<Spatial_reference_system> **);
+template bool Shared_multi_map<Spatial_reference_system>::
+  get<Spatial_reference_system::aux_key_type>
+    (const Spatial_reference_system::aux_key_type&,
+     Cache_element<Spatial_reference_system> **);
+template void Shared_multi_map<Spatial_reference_system>::
+  put<Spatial_reference_system::id_key_type>
+    (const Spatial_reference_system::id_key_type*,
+     const Spatial_reference_system*,
+     Cache_element<Spatial_reference_system> **);
+template void Shared_multi_map<Spatial_reference_system>::
+  put<Spatial_reference_system::name_key_type>
+    (const Spatial_reference_system::name_key_type*,
+     const Spatial_reference_system*,
+     Cache_element<Spatial_reference_system> **);
+template void Shared_multi_map<Spatial_reference_system>::
+  put<Spatial_reference_system::aux_key_type>
+    (const Spatial_reference_system::aux_key_type*,
+     const Spatial_reference_system*,
+     Cache_element<Spatial_reference_system> **);
 
 template class Shared_multi_map<Tablespace>;
 template bool Shared_multi_map<Tablespace>::

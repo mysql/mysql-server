@@ -125,12 +125,12 @@ static void set_transactions_conflicts_detected(void* const context,
   row->trx_conflicts= value;
 }
 
-static void set_transactions_in_validation(void* const context,
-                                           unsigned long long int value)
+static void set_transactions_rows_in_validation(void* const context,
+                                                unsigned long long int value)
 {
   struct st_row_group_member_stats* row=
       static_cast<struct st_row_group_member_stats*>(context);
-  row->trx_validating= value;
+  row->trx_rows_validating= value;
 }
 
 #endif /* HAVE_REPLICATION */
@@ -170,7 +170,7 @@ static const TABLE_FIELD_TYPE field_types[]=
     {NULL, 0}
   },
   {
-    {C_STRING_WITH_LEN("COUNT_TRANSACTIONS_VALIDATING")},
+    {C_STRING_WITH_LEN("COUNT_TRANSACTIONS_ROWS_VALIDATING")},
     {C_STRING_WITH_LEN("bigint")},
     {NULL, 0}
   },
@@ -297,7 +297,7 @@ void table_replication_group_member_stats::make_row()
   m_row.trx_in_queue= 0;
   m_row.trx_checked= 0;
   m_row.trx_conflicts= 0;
-  m_row.trx_validating= 0;
+  m_row.trx_rows_validating= 0;
 
   // Set callbacks on GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS.
   const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS callbacks=
@@ -311,7 +311,7 @@ void table_replication_group_member_stats::make_row()
     &set_transactions_in_queue,
     &set_transactions_certified,
     &set_transactions_conflicts_detected,
-    &set_transactions_in_validation,
+    &set_transactions_rows_in_validation,
   };
 
   // Query plugin and let callbacks do their job.
@@ -369,7 +369,7 @@ int table_replication_group_member_stats::read_row_values(TABLE *table,
         set_field_ulonglong(f, m_row.trx_conflicts);
         break;
       case 6: /** certification_db_size */
-        set_field_ulonglong(f, m_row.trx_validating);
+        set_field_ulonglong(f, m_row.trx_rows_validating);
         break;
       case 7: /** stable_set */
         set_field_longtext_utf8(f, m_row.trx_committed,

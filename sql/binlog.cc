@@ -2912,7 +2912,7 @@ int log_loaded_block(IO_CACHE* file)
        block_len -= min(block_len, max_event_size))
   {
     lf_info->last_pos_in_file= my_b_get_pos_in_file(file);
-    if (lf_info->wrote_create_file)
+    if (lf_info->logged_data_file)
     {
       Append_block_log_event a(lf_info->thd, lf_info->thd->db().str, buffer,
                                min(block_len, max_event_size),
@@ -2928,7 +2928,7 @@ int log_loaded_block(IO_CACHE* file)
                                    lf_info->log_delayed);
       if (mysql_bin_log.write_event(&b))
         DBUG_RETURN(1);
-      lf_info->wrote_create_file= 1;
+      lf_info->logged_data_file= 1;
     }
   }
   DBUG_RETURN(0);

@@ -82,7 +82,7 @@ typedef Bitmap<((MAX_INDEXES+7)/8*8)> Key_map; /* Used for finding keys */
 void kill_mysql(void);
 #endif
 void refresh_status(THD *thd);
-bool is_secure_file_path(char *path);
+bool is_secure_file_path(const char *path);
 ulong sql_rnd_with_mutex();
 
 struct System_status_var* get_thd_status_var(THD *thd);
@@ -416,7 +416,6 @@ extern PSI_thread_key key_thread_handle_manager;
 extern PSI_thread_key key_thread_one_connection;
 extern PSI_thread_key key_thread_compress_gtid_table;
 extern PSI_thread_key key_thread_parser_service;
-extern PSI_thread_key key_thread_background;
 
 extern PSI_file_key key_file_binlog;
 extern PSI_file_key key_file_binlog_index;

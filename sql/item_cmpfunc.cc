@@ -6215,48 +6215,6 @@ longlong Item_cond_or::val_int()
   return 0;
 }
 
-/**
-  Create an AND expression from two expressions.
-
-  @param a	expression or NULL
-  @param b    	expression.
-  @param org_item	Don't modify a if a == *org_item.
-                        If a == NULL, org_item is set to point at b,
-                        to ensure that future calls will not modify b.
-
-  @note
-    This will not modify item pointed to by org_item or b
-    The idea is that one can call this in a loop and create and
-    'and' over all items without modifying any of the original items.
-
-  @retval
-    NULL	Error
-  @retval
-    Item
-*/
-
-Item *and_expressions(Item *a, Item *b, Item **org_item)
-{
-  if (!a)
-    return (*org_item= b);
-  if (a == *org_item)
-  {
-    Item_cond *res;
-    if ((res= new Item_cond_and(a, b)))
-    {
-      res->set_used_tables(a->used_tables() | b->used_tables());
-      res->set_not_null_tables(a->not_null_tables() | b->not_null_tables());
-    }
-    return res;
-  }
-  if (((Item_cond_and*) a)->add(b))
-    return 0;
-  ((Item_cond_and*) a)->set_used_tables(a->used_tables() | b->used_tables());
-  ((Item_cond_and*) a)->set_not_null_tables(a->not_null_tables() |
-                                            b->not_null_tables());
-  return a;
-}
-
 float Item_func_isnull::get_filtering_effect(table_map filter_for_table,
                                              table_map read_tables,
                                              const MY_BITMAP *fields_to_ignore,

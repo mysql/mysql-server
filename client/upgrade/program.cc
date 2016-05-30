@@ -27,6 +27,7 @@
 #include "my_default.h"
 #include "check/mysqlcheck.h"
 #include "../scripts/mysql_fix_privilege_tables_sql.c"
+#include "../scripts/sql_commands_system_tables_data_fix.h"
 #include "../scripts/sql_commands_sys_schema.h"
 
 #include "base/abstract_connection_program.h"
@@ -207,6 +208,11 @@ public:
       After that, run mysqlcheck on all tables.
     */
     if (this->run_sql_fix_privilege_tables() != 0)
+    {
+      return EXIT_UPGRADING_QUERIES_ERROR;
+    }
+
+    if (this->run_commands_system_tables_data_fix() != 0)
     {
       return EXIT_UPGRADING_QUERIES_ERROR;
     }
@@ -599,6 +605,42 @@ private:
       this->m_temporary_verbose= (*(query_ptr+1) != NULL
         && strcmp(*(query_ptr+1), "SHOW WARNINGS;\n") == 0);
 
+      result= runner.run_query(*query_ptr);
+      if (!this->m_ignore_errors && result != 0)
+      {
+        return result;
+      }
+    }
+
+    return 0;
+  }
+
+  /**
+    Update system table data
+
+    @retval 0 Success
+    @retval non-zero Error
+  */
+  int run_commands_system_tables_data_fix()
+  {
+    const char **query_ptr;
+    int result;
+
+    Mysql_query_runner runner(*this->m_query_runner);
+    Instance_callback<int64, const Mysql_query_runner::Row&, Program>
+      result_cb(this, &Program::result_callback);
+    Instance_callback<int64, const Message_data&, Program>
+      message_cb(this, &Program::fix_privilage_tables_error);
+
+    runner.add_result_callback(&result_cb);
+    runner.add_message_callback(&message_cb);
+
+    this->print_verbose_message("Upgrading system table data.");
+
+    for (query_ptr= &mysql_system_tables_data_fix[0];
+         *query_ptr != NULL;
+         query_ptr++)
+    {
       result= runner.run_query(*query_ptr);
       if (!this->m_ignore_errors && result != 0)
       {

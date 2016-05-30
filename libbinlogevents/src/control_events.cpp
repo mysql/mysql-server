@@ -115,17 +115,17 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
       STOP_HEADER_LEN,
       ROTATE_HEADER_LEN,
       INTVAR_HEADER_LEN,
-      LOAD_HEADER_LEN,
+      0,
       /*
         Unused because the code for Slave log event was removed.
         (15th Oct. 2010)
       */
       0,
-      CREATE_FILE_HEADER_LEN,
+      0,
       APPEND_BLOCK_HEADER_LEN,
-      EXEC_LOAD_HEADER_LEN,
+      0,
       DELETE_FILE_HEADER_LEN,
-      NEW_LOAD_HEADER_LEN,
+      0,
       RAND_HEADER_LEN,
       USER_VAR_HEADER_LEN,
       FORMAT_DESCRIPTION_HEADER_LEN,
@@ -200,17 +200,17 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
       STOP_HEADER_LEN,
       uint8_t(binlog_ver == 1 ? 0 : ROTATE_HEADER_LEN),
       INTVAR_HEADER_LEN,
-      LOAD_HEADER_LEN,
+      0,
       /*
        Unused because the code for Slave log event was removed.
        (15th Oct. 2010)
       */
       0,
-      CREATE_FILE_HEADER_LEN,
+      0,
       APPEND_BLOCK_HEADER_LEN,
-      EXEC_LOAD_HEADER_LEN,
+      0,
       DELETE_FILE_HEADER_LEN,
-      NEW_LOAD_HEADER_LEN,
+      0,
       RAND_HEADER_LEN,
       USER_VAR_HEADER_LEN
     };
@@ -433,10 +433,8 @@ Format_description_event(const char* buf, unsigned int event_len,
     static const uint8_t perm[EVENT_TYPE_PERMUTATION_NUM]=
       {
         UNKNOWN_EVENT, START_EVENT_V3, QUERY_EVENT, STOP_EVENT, ROTATE_EVENT,
-        INTVAR_EVENT, LOAD_EVENT, SLAVE_EVENT, CREATE_FILE_EVENT,
-        APPEND_BLOCK_EVENT, EXEC_LOAD_EVENT, DELETE_FILE_EVENT,
-        NEW_LOAD_EVENT,
-        RAND_EVENT, USER_VAR_EVENT,
+        INTVAR_EVENT, 0, SLAVE_EVENT, 0, APPEND_BLOCK_EVENT, 0,
+        DELETE_FILE_EVENT, 0, RAND_EVENT, USER_VAR_EVENT,
         FORMAT_DESCRIPTION_EVENT,
         TABLE_MAP_EVENT,
         XID_EVENT,

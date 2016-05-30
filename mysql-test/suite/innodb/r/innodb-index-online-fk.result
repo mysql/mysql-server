@@ -44,6 +44,7 @@ mysql/routines_ibfk_4	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_5	mysql/routines	mysql/collations	1	0
 mysql/schemata_ibfk_1	mysql/schemata	mysql/catalogs	1	0
 mysql/schemata_ibfk_2	mysql/schemata	mysql/collations	1	0
+mysql/st_spatial_reference_systems_ibfk_1	mysql/st_spatial_reference_systems	mysql/catalogs	1	0
 mysql/tablespace_files_ibfk_1	mysql/tablespace_files	mysql/tablespaces	1	0
 mysql/tables_ibfk_1	mysql/tables	mysql/schemata	1	0
 mysql/tables_ibfk_2	mysql/tables	mysql/collations	1	0
@@ -90,6 +91,7 @@ mysql/routines_ibfk_4	connection_collation_id	id	0
 mysql/routines_ibfk_5	schema_collation_id	id	0
 mysql/schemata_ibfk_1	catalog_id	id	0
 mysql/schemata_ibfk_2	default_collation_id	id	0
+mysql/st_spatial_reference_systems_ibfk_1	catalog_id	id	0
 mysql/tablespace_files_ibfk_1	tablespace_id	id	0
 mysql/tables_ibfk_1	schema_id	id	0
 mysql/tables_ibfk_2	collation_id	id	0
@@ -170,6 +172,7 @@ mysql/routines_ibfk_4	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_5	mysql/routines	mysql/collations	1	0
 mysql/schemata_ibfk_1	mysql/schemata	mysql/catalogs	1	0
 mysql/schemata_ibfk_2	mysql/schemata	mysql/collations	1	0
+mysql/st_spatial_reference_systems_ibfk_1	mysql/st_spatial_reference_systems	mysql/catalogs	1	0
 mysql/tablespace_files_ibfk_1	mysql/tablespace_files	mysql/tablespaces	1	0
 mysql/tables_ibfk_1	mysql/tables	mysql/schemata	1	0
 mysql/tables_ibfk_2	mysql/tables	mysql/collations	1	0
@@ -219,6 +222,7 @@ mysql/routines_ibfk_4	connection_collation_id	id	0
 mysql/routines_ibfk_5	schema_collation_id	id	0
 mysql/schemata_ibfk_1	catalog_id	id	0
 mysql/schemata_ibfk_2	default_collation_id	id	0
+mysql/st_spatial_reference_systems_ibfk_1	catalog_id	id	0
 mysql/tablespace_files_ibfk_1	tablespace_id	id	0
 mysql/tables_ibfk_1	schema_id	id	0
 mysql/tables_ibfk_2	collation_id	id	0
@@ -298,6 +302,7 @@ mysql/routines_ibfk_4	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_5	mysql/routines	mysql/collations	1	0
 mysql/schemata_ibfk_1	mysql/schemata	mysql/catalogs	1	0
 mysql/schemata_ibfk_2	mysql/schemata	mysql/collations	1	0
+mysql/st_spatial_reference_systems_ibfk_1	mysql/st_spatial_reference_systems	mysql/catalogs	1	0
 mysql/tablespace_files_ibfk_1	mysql/tablespace_files	mysql/tablespaces	1	0
 mysql/tables_ibfk_1	mysql/tables	mysql/schemata	1	0
 mysql/tables_ibfk_2	mysql/tables	mysql/collations	1	0
@@ -348,6 +353,7 @@ mysql/routines_ibfk_4	connection_collation_id	id	0
 mysql/routines_ibfk_5	schema_collation_id	id	0
 mysql/schemata_ibfk_1	catalog_id	id	0
 mysql/schemata_ibfk_2	default_collation_id	id	0
+mysql/st_spatial_reference_systems_ibfk_1	catalog_id	id	0
 mysql/tablespace_files_ibfk_1	tablespace_id	id	0
 mysql/tables_ibfk_1	schema_id	id	0
 mysql/tables_ibfk_2	collation_id	id	0
@@ -415,6 +421,7 @@ mysql/servers
 mysql/slave_master_info
 mysql/slave_relay_log_info
 mysql/slave_worker_info
+mysql/st_spatial_reference_systems
 mysql/table_partition_values
 mysql/table_partitions
 mysql/tables
@@ -482,6 +489,7 @@ mysql/routines_ibfk_4	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_5	mysql/routines	mysql/collations	1	0
 mysql/schemata_ibfk_1	mysql/schemata	mysql/catalogs	1	0
 mysql/schemata_ibfk_2	mysql/schemata	mysql/collations	1	0
+mysql/st_spatial_reference_systems_ibfk_1	mysql/st_spatial_reference_systems	mysql/catalogs	1	0
 mysql/tablespace_files_ibfk_1	mysql/tablespace_files	mysql/tablespaces	1	0
 mysql/tables_ibfk_1	mysql/tables	mysql/schemata	1	0
 mysql/tables_ibfk_2	mysql/tables	mysql/collations	1	0
@@ -532,6 +540,7 @@ mysql/routines_ibfk_4	connection_collation_id	id	0
 mysql/routines_ibfk_5	schema_collation_id	id	0
 mysql/schemata_ibfk_1	catalog_id	id	0
 mysql/schemata_ibfk_2	default_collation_id	id	0
+mysql/st_spatial_reference_systems_ibfk_1	catalog_id	id	0
 mysql/tablespace_files_ibfk_1	tablespace_id	id	0
 mysql/tables_ibfk_1	schema_id	id	0
 mysql/tables_ibfk_2	collation_id	id	0
@@ -601,6 +610,7 @@ mysql/routines_ibfk_4	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_5	mysql/routines	mysql/collations	1	0
 mysql/schemata_ibfk_1	mysql/schemata	mysql/catalogs	1	0
 mysql/schemata_ibfk_2	mysql/schemata	mysql/collations	1	0
+mysql/st_spatial_reference_systems_ibfk_1	mysql/st_spatial_reference_systems	mysql/catalogs	1	0
 mysql/tablespace_files_ibfk_1	mysql/tablespace_files	mysql/tablespaces	1	0
 mysql/tables_ibfk_1	mysql/tables	mysql/schemata	1	0
 mysql/tables_ibfk_2	mysql/tables	mysql/collations	1	0
@@ -651,6 +661,7 @@ mysql/routines_ibfk_4	connection_collation_id	id	0
 mysql/routines_ibfk_5	schema_collation_id	id	0
 mysql/schemata_ibfk_1	catalog_id	id	0
 mysql/schemata_ibfk_2	default_collation_id	id	0
+mysql/st_spatial_reference_systems_ibfk_1	catalog_id	id	0
 mysql/tablespace_files_ibfk_1	tablespace_id	id	0
 mysql/tables_ibfk_1	schema_id	id	0
 mysql/tables_ibfk_2	collation_id	id	0
@@ -722,6 +733,7 @@ mysql/routines_ibfk_4	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_5	mysql/routines	mysql/collations	1	0
 mysql/schemata_ibfk_1	mysql/schemata	mysql/catalogs	1	0
 mysql/schemata_ibfk_2	mysql/schemata	mysql/collations	1	0
+mysql/st_spatial_reference_systems_ibfk_1	mysql/st_spatial_reference_systems	mysql/catalogs	1	0
 mysql/tablespace_files_ibfk_1	mysql/tablespace_files	mysql/tablespaces	1	0
 mysql/tables_ibfk_1	mysql/tables	mysql/schemata	1	0
 mysql/tables_ibfk_2	mysql/tables	mysql/collations	1	0
@@ -774,6 +786,7 @@ mysql/routines_ibfk_4	connection_collation_id	id	0
 mysql/routines_ibfk_5	schema_collation_id	id	0
 mysql/schemata_ibfk_1	catalog_id	id	0
 mysql/schemata_ibfk_2	default_collation_id	id	0
+mysql/st_spatial_reference_systems_ibfk_1	catalog_id	id	0
 mysql/tablespace_files_ibfk_1	tablespace_id	id	0
 mysql/tables_ibfk_1	schema_id	id	0
 mysql/tables_ibfk_2	collation_id	id	0
@@ -853,6 +866,7 @@ mysql/routines_ibfk_4	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_5	mysql/routines	mysql/collations	1	0
 mysql/schemata_ibfk_1	mysql/schemata	mysql/catalogs	1	0
 mysql/schemata_ibfk_2	mysql/schemata	mysql/collations	1	0
+mysql/st_spatial_reference_systems_ibfk_1	mysql/st_spatial_reference_systems	mysql/catalogs	1	0
 mysql/tablespace_files_ibfk_1	mysql/tablespace_files	mysql/tablespaces	1	0
 mysql/tables_ibfk_1	mysql/tables	mysql/schemata	1	0
 mysql/tables_ibfk_2	mysql/tables	mysql/collations	1	0
@@ -899,6 +913,7 @@ mysql/routines_ibfk_4	connection_collation_id	id	0
 mysql/routines_ibfk_5	schema_collation_id	id	0
 mysql/schemata_ibfk_1	catalog_id	id	0
 mysql/schemata_ibfk_2	default_collation_id	id	0
+mysql/st_spatial_reference_systems_ibfk_1	catalog_id	id	0
 mysql/tablespace_files_ibfk_1	tablespace_id	id	0
 mysql/tables_ibfk_1	schema_id	id	0
 mysql/tables_ibfk_2	collation_id	id	0
@@ -980,6 +995,7 @@ mysql/routines_ibfk_4	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_5	mysql/routines	mysql/collations	1	0
 mysql/schemata_ibfk_1	mysql/schemata	mysql/catalogs	1	0
 mysql/schemata_ibfk_2	mysql/schemata	mysql/collations	1	0
+mysql/st_spatial_reference_systems_ibfk_1	mysql/st_spatial_reference_systems	mysql/catalogs	1	0
 mysql/tablespace_files_ibfk_1	mysql/tablespace_files	mysql/tablespaces	1	0
 mysql/tables_ibfk_1	mysql/tables	mysql/schemata	1	0
 mysql/tables_ibfk_2	mysql/tables	mysql/collations	1	0
@@ -1025,6 +1041,7 @@ mysql/routines_ibfk_4	connection_collation_id	id	0
 mysql/routines_ibfk_5	schema_collation_id	id	0
 mysql/schemata_ibfk_1	catalog_id	id	0
 mysql/schemata_ibfk_2	default_collation_id	id	0
+mysql/st_spatial_reference_systems_ibfk_1	catalog_id	id	0
 mysql/tablespace_files_ibfk_1	tablespace_id	id	0
 mysql/tables_ibfk_1	schema_id	id	0
 mysql/tables_ibfk_2	collation_id	id	0
@@ -1083,6 +1100,7 @@ mysql/servers
 mysql/slave_master_info
 mysql/slave_relay_log_info
 mysql/slave_worker_info
+mysql/st_spatial_reference_systems
 mysql/table_partition_values
 mysql/table_partitions
 mysql/tables
@@ -1136,6 +1154,7 @@ mysql/routines_ibfk_4	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_5	mysql/routines	mysql/collations	1	0
 mysql/schemata_ibfk_1	mysql/schemata	mysql/catalogs	1	0
 mysql/schemata_ibfk_2	mysql/schemata	mysql/collations	1	0
+mysql/st_spatial_reference_systems_ibfk_1	mysql/st_spatial_reference_systems	mysql/catalogs	1	0
 mysql/tablespace_files_ibfk_1	mysql/tablespace_files	mysql/tablespaces	1	0
 mysql/tables_ibfk_1	mysql/tables	mysql/schemata	1	0
 mysql/tables_ibfk_2	mysql/tables	mysql/collations	1	0
@@ -1182,6 +1201,7 @@ mysql/routines_ibfk_4	connection_collation_id	id	0
 mysql/routines_ibfk_5	schema_collation_id	id	0
 mysql/schemata_ibfk_1	catalog_id	id	0
 mysql/schemata_ibfk_2	default_collation_id	id	0
+mysql/st_spatial_reference_systems_ibfk_1	catalog_id	id	0
 mysql/tablespace_files_ibfk_1	tablespace_id	id	0
 mysql/tables_ibfk_1	schema_id	id	0
 mysql/tables_ibfk_2	collation_id	id	0
@@ -1241,6 +1261,7 @@ mysql/servers
 mysql/slave_master_info
 mysql/slave_relay_log_info
 mysql/slave_worker_info
+mysql/st_spatial_reference_systems
 mysql/table_partition_values
 mysql/table_partitions
 mysql/tables
@@ -1305,6 +1326,7 @@ mysql/routines_ibfk_4	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_5	mysql/routines	mysql/collations	1	0
 mysql/schemata_ibfk_1	mysql/schemata	mysql/catalogs	1	0
 mysql/schemata_ibfk_2	mysql/schemata	mysql/collations	1	0
+mysql/st_spatial_reference_systems_ibfk_1	mysql/st_spatial_reference_systems	mysql/catalogs	1	0
 mysql/tablespace_files_ibfk_1	mysql/tablespace_files	mysql/tablespaces	1	0
 mysql/tables_ibfk_1	mysql/tables	mysql/schemata	1	0
 mysql/tables_ibfk_2	mysql/tables	mysql/collations	1	0
@@ -1351,6 +1373,7 @@ mysql/routines_ibfk_4	connection_collation_id	id	0
 mysql/routines_ibfk_5	schema_collation_id	id	0
 mysql/schemata_ibfk_1	catalog_id	id	0
 mysql/schemata_ibfk_2	default_collation_id	id	0
+mysql/st_spatial_reference_systems_ibfk_1	catalog_id	id	0
 mysql/tablespace_files_ibfk_1	tablespace_id	id	0
 mysql/tables_ibfk_1	schema_id	id	0
 mysql/tables_ibfk_2	collation_id	id	0
@@ -1410,6 +1433,7 @@ mysql/servers
 mysql/slave_master_info
 mysql/slave_relay_log_info
 mysql/slave_worker_info
+mysql/st_spatial_reference_systems
 mysql/table_partition_values
 mysql/table_partitions
 mysql/tables
@@ -1474,6 +1498,7 @@ mysql/routines_ibfk_4	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_5	mysql/routines	mysql/collations	1	0
 mysql/schemata_ibfk_1	mysql/schemata	mysql/catalogs	1	0
 mysql/schemata_ibfk_2	mysql/schemata	mysql/collations	1	0
+mysql/st_spatial_reference_systems_ibfk_1	mysql/st_spatial_reference_systems	mysql/catalogs	1	0
 mysql/tablespace_files_ibfk_1	mysql/tablespace_files	mysql/tablespaces	1	0
 mysql/tables_ibfk_1	mysql/tables	mysql/schemata	1	0
 mysql/tables_ibfk_2	mysql/tables	mysql/collations	1	0
@@ -1520,6 +1545,7 @@ mysql/routines_ibfk_4	connection_collation_id	id	0
 mysql/routines_ibfk_5	schema_collation_id	id	0
 mysql/schemata_ibfk_1	catalog_id	id	0
 mysql/schemata_ibfk_2	default_collation_id	id	0
+mysql/st_spatial_reference_systems_ibfk_1	catalog_id	id	0
 mysql/tablespace_files_ibfk_1	tablespace_id	id	0
 mysql/tables_ibfk_1	schema_id	id	0
 mysql/tables_ibfk_2	collation_id	id	0
@@ -1579,6 +1605,7 @@ mysql/servers
 mysql/slave_master_info
 mysql/slave_relay_log_info
 mysql/slave_worker_info
+mysql/st_spatial_reference_systems
 mysql/table_partition_values
 mysql/table_partitions
 mysql/tables
@@ -1669,6 +1696,7 @@ mysql/routines_ibfk_4	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_5	mysql/routines	mysql/collations	1	0
 mysql/schemata_ibfk_1	mysql/schemata	mysql/catalogs	1	0
 mysql/schemata_ibfk_2	mysql/schemata	mysql/collations	1	0
+mysql/st_spatial_reference_systems_ibfk_1	mysql/st_spatial_reference_systems	mysql/catalogs	1	0
 mysql/tablespace_files_ibfk_1	mysql/tablespace_files	mysql/tablespaces	1	0
 mysql/tables_ibfk_1	mysql/tables	mysql/schemata	1	0
 mysql/tables_ibfk_2	mysql/tables	mysql/collations	1	0
@@ -1716,6 +1744,7 @@ mysql/routines_ibfk_4	connection_collation_id	id	0
 mysql/routines_ibfk_5	schema_collation_id	id	0
 mysql/schemata_ibfk_1	catalog_id	id	0
 mysql/schemata_ibfk_2	default_collation_id	id	0
+mysql/st_spatial_reference_systems_ibfk_1	catalog_id	id	0
 mysql/tablespace_files_ibfk_1	tablespace_id	id	0
 mysql/tables_ibfk_1	schema_id	id	0
 mysql/tables_ibfk_2	collation_id	id	0
@@ -1780,6 +1809,7 @@ mysql/routines_ibfk_4	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_5	mysql/routines	mysql/collations	1	0
 mysql/schemata_ibfk_1	mysql/schemata	mysql/catalogs	1	0
 mysql/schemata_ibfk_2	mysql/schemata	mysql/collations	1	0
+mysql/st_spatial_reference_systems_ibfk_1	mysql/st_spatial_reference_systems	mysql/catalogs	1	0
 mysql/tablespace_files_ibfk_1	mysql/tablespace_files	mysql/tablespaces	1	0
 mysql/tables_ibfk_1	mysql/tables	mysql/schemata	1	0
 mysql/tables_ibfk_2	mysql/tables	mysql/collations	1	0
@@ -1827,6 +1857,7 @@ mysql/routines_ibfk_4	connection_collation_id	id	0
 mysql/routines_ibfk_5	schema_collation_id	id	0
 mysql/schemata_ibfk_1	catalog_id	id	0
 mysql/schemata_ibfk_2	default_collation_id	id	0
+mysql/st_spatial_reference_systems_ibfk_1	catalog_id	id	0
 mysql/tablespace_files_ibfk_1	tablespace_id	id	0
 mysql/tables_ibfk_1	schema_id	id	0
 mysql/tables_ibfk_2	collation_id	id	0
@@ -1894,6 +1925,7 @@ mysql/routines_ibfk_4	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_5	mysql/routines	mysql/collations	1	0
 mysql/schemata_ibfk_1	mysql/schemata	mysql/catalogs	1	0
 mysql/schemata_ibfk_2	mysql/schemata	mysql/collations	1	0
+mysql/st_spatial_reference_systems_ibfk_1	mysql/st_spatial_reference_systems	mysql/catalogs	1	0
 mysql/tablespace_files_ibfk_1	mysql/tablespace_files	mysql/tablespaces	1	0
 mysql/tables_ibfk_1	mysql/tables	mysql/schemata	1	0
 mysql/tables_ibfk_2	mysql/tables	mysql/collations	1	0
@@ -1944,6 +1976,7 @@ mysql/routines_ibfk_4	connection_collation_id	id	0
 mysql/routines_ibfk_5	schema_collation_id	id	0
 mysql/schemata_ibfk_1	catalog_id	id	0
 mysql/schemata_ibfk_2	default_collation_id	id	0
+mysql/st_spatial_reference_systems_ibfk_1	catalog_id	id	0
 mysql/tablespace_files_ibfk_1	tablespace_id	id	0
 mysql/tables_ibfk_1	schema_id	id	0
 mysql/tables_ibfk_2	collation_id	id	0
@@ -2011,6 +2044,7 @@ mysql/routines_ibfk_4	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_5	mysql/routines	mysql/collations	1	0
 mysql/schemata_ibfk_1	mysql/schemata	mysql/catalogs	1	0
 mysql/schemata_ibfk_2	mysql/schemata	mysql/collations	1	0
+mysql/st_spatial_reference_systems_ibfk_1	mysql/st_spatial_reference_systems	mysql/catalogs	1	0
 mysql/tablespace_files_ibfk_1	mysql/tablespace_files	mysql/tablespaces	1	0
 mysql/tables_ibfk_1	mysql/tables	mysql/schemata	1	0
 mysql/tables_ibfk_2	mysql/tables	mysql/collations	1	0
@@ -2056,6 +2090,7 @@ mysql/routines_ibfk_4	connection_collation_id	id	0
 mysql/routines_ibfk_5	schema_collation_id	id	0
 mysql/schemata_ibfk_1	catalog_id	id	0
 mysql/schemata_ibfk_2	default_collation_id	id	0
+mysql/st_spatial_reference_systems_ibfk_1	catalog_id	id	0
 mysql/tablespace_files_ibfk_1	tablespace_id	id	0
 mysql/tables_ibfk_1	schema_id	id	0
 mysql/tables_ibfk_2	collation_id	id	0
@@ -2119,6 +2154,7 @@ mysql/routines_ibfk_4	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_5	mysql/routines	mysql/collations	1	0
 mysql/schemata_ibfk_1	mysql/schemata	mysql/catalogs	1	0
 mysql/schemata_ibfk_2	mysql/schemata	mysql/collations	1	0
+mysql/st_spatial_reference_systems_ibfk_1	mysql/st_spatial_reference_systems	mysql/catalogs	1	0
 mysql/tablespace_files_ibfk_1	mysql/tablespace_files	mysql/tablespaces	1	0
 mysql/tables_ibfk_1	mysql/tables	mysql/schemata	1	0
 mysql/tables_ibfk_2	mysql/tables	mysql/collations	1	0
@@ -2167,6 +2203,7 @@ mysql/routines_ibfk_4	connection_collation_id	id	0
 mysql/routines_ibfk_5	schema_collation_id	id	0
 mysql/schemata_ibfk_1	catalog_id	id	0
 mysql/schemata_ibfk_2	default_collation_id	id	0
+mysql/st_spatial_reference_systems_ibfk_1	catalog_id	id	0
 mysql/tablespace_files_ibfk_1	tablespace_id	id	0
 mysql/tables_ibfk_1	schema_id	id	0
 mysql/tables_ibfk_2	collation_id	id	0
@@ -2238,6 +2275,7 @@ mysql/routines_ibfk_4	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_5	mysql/routines	mysql/collations	1	0
 mysql/schemata_ibfk_1	mysql/schemata	mysql/catalogs	1	0
 mysql/schemata_ibfk_2	mysql/schemata	mysql/collations	1	0
+mysql/st_spatial_reference_systems_ibfk_1	mysql/st_spatial_reference_systems	mysql/catalogs	1	0
 mysql/tablespace_files_ibfk_1	mysql/tablespace_files	mysql/tablespaces	1	0
 mysql/tables_ibfk_1	mysql/tables	mysql/schemata	1	0
 mysql/tables_ibfk_2	mysql/tables	mysql/collations	1	0
@@ -2285,6 +2323,7 @@ mysql/routines_ibfk_4	connection_collation_id	id	0
 mysql/routines_ibfk_5	schema_collation_id	id	0
 mysql/schemata_ibfk_1	catalog_id	id	0
 mysql/schemata_ibfk_2	default_collation_id	id	0
+mysql/st_spatial_reference_systems_ibfk_1	catalog_id	id	0
 mysql/tablespace_files_ibfk_1	tablespace_id	id	0
 mysql/tables_ibfk_1	schema_id	id	0
 mysql/tables_ibfk_2	collation_id	id	0

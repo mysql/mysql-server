@@ -68,6 +68,26 @@ public:
 };
 
 
+/// An ALTER INDEX operation that changes the visibility of an index.
+class Alter_index_visibility: public Sql_alloc {
+public:
+  Alter_index_visibility(const char *name, bool is_visible) :
+    m_name(name), m_is_visible(is_visible)
+  {
+    assert(name != NULL);
+  }
+
+  const char *name() const { return m_name; }
+
+  /// The visibility after the operation is performed.
+  bool is_visible() const { return m_is_visible; }
+
+private:
+  const char *m_name;
+  bool m_is_visible;
+};
+
+
 /**
   Class which instances represent RENAME INDEX clauses in
   ALTER TABLE statement.
@@ -194,6 +214,9 @@ public:
   // Set for importing the tablespace
   static const uint ALTER_IMPORT_TABLESPACE     = 1L << 28;
 
+  /// Means that the visibility of an index is changed.
+  static const uint ALTER_INDEX_VISIBILITY      = 1L << 29;
+
   enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 
   /**
@@ -260,9 +283,15 @@ public:
   // Columns for ALTER_COLUMN_CHANGE_DEFAULT.
   Prealloced_array<const Alter_column*, 1>     alter_list;
   // List of keys, used by both CREATE and ALTER TABLE.
+
   Prealloced_array<const Key_spec*, 1>         key_list;
   // Keys to be renamed.
   Prealloced_array<const Alter_rename_key*, 1> alter_rename_key_list;
+
+  /// Indexes whose visibilities are to be changed.
+  Prealloced_array<const Alter_index_visibility*, 1>
+  alter_index_visibility_list;
+
   // List of columns, used by both CREATE and ALTER TABLE.
   List<Create_field>            create_list;
   // Type of ALTER TABLE operation.
@@ -288,6 +317,7 @@ public:
     alter_list(PSI_INSTRUMENT_ME),
     key_list(PSI_INSTRUMENT_ME),
     alter_rename_key_list(PSI_INSTRUMENT_ME),
+    alter_index_visibility_list(PSI_INSTRUMENT_ME),
     flags(0),
     keys_onoff(LEAVE_AS_IS),
     num_parts(0),
@@ -302,6 +332,7 @@ public:
     alter_list.clear();
     key_list.clear();
     alter_rename_key_list.clear();
+    alter_index_visibility_list.clear();
     create_list.empty();
     flags= 0;
     keys_onoff= LEAVE_AS_IS;

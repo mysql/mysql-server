@@ -3084,7 +3084,7 @@ sha1('P'),
 )
 )
 );
-ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+ERROR 22003: SRID value is out of range in 'st_linefromwkb'
 SET @@global.max_allowed_packet:= @tmp_max;
 #
 # End of 5.5 tests

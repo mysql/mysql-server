@@ -13,44 +13,20 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-/* drop and alter of tablespaces */
-
 #include "sql_tablespace.h"
 
-#include "my_global.h"
 #include "derror.h"                             // ER_THD
 #include "lock.h"                               // lock_tablespace_name
-#include "sql_table.h"                          // write_bin_log
 #include "sql_class.h"                          // THD
+#include "sql_table.h"                          // write_bin_log
+#include "table.h"                              // ident_name_check
 
 #include "dd/dd_tablespace.h"                   // dd::create_tablespace
 #include "dd/cache/dictionary_client.h"         // dd::Dictionary_client
 #include "dd/types/tablespace_file.h"           // dd::Tablespace_file
 
 
-/**
-  Check if tablespace name is valid
-
-  @param tablespace_name        Name of the tablespace
-
-  @note Tablespace names are not reflected in the file system, so
-        character case conversion or consideration is not relevant.
-
-  @note Checking for path characters or ending space is not done.
-        The only checks are for identifier length, both in terms of
-        number of characters and number of bytes.
-
-  @retval  IDENT_NAME_OK        Identifier name is ok (Success)
-  @retval  IDENT_NAME_WRONG     Identifier name is wrong, if length == 0
-*                               (ER_WRONG_TABLESPACE_NAME)
-  @retval  IDENT_NAME_TOO_LONG  Identifier name is too long if it is greater
-                                than 64 characters (ER_TOO_LONG_IDENT)
-
-  @note In case of IDENT_NAME_TOO_LONG or IDENT_NAME_WRONG, the function
-        reports an error (using my_error()).
-*/
-
-enum_ident_name_check check_tablespace_name(const char *tablespace_name)
+Ident_name_check check_tablespace_name(const char *tablespace_name)
 {
   size_t name_length= 0;                       ///< Length as number of bytes
   size_t name_length_symbols= 0;               ///< Length as number of symbols
@@ -59,7 +35,7 @@ enum_ident_name_check check_tablespace_name(const char *tablespace_name)
   if (!tablespace_name || (name_length= strlen(tablespace_name)) == 0)
   {
     my_error(ER_WRONG_TABLESPACE_NAME, MYF(0), tablespace_name);
-    return IDENT_NAME_WRONG;
+    return Ident_name_check::WRONG;
   }
 
   // If we do not have too many bytes, we must check the number of symbols,
@@ -85,10 +61,10 @@ enum_ident_name_check check_tablespace_name(const char *tablespace_name)
   if (name_length_symbols > NAME_CHAR_LEN || name_length > NAME_LEN)
   {
     my_error(ER_TOO_LONG_IDENT, MYF(0), tablespace_name);
-    return IDENT_NAME_TOO_LONG;
+    return Ident_name_check::TOO_LONG;
   }
 
-  return IDENT_NAME_OK;
+  return Ident_name_check::OK;
 }
 
 
@@ -122,6 +98,7 @@ static bool is_tablespace_command(ts_command_type ts_cmd_type)
     return false;
   }
 }
+
 
 bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
 {
@@ -157,9 +134,10 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
   }
 
   // If this is a tablespace related command, check the tablespace name
-  // and acquire and MDL X lock on it.
+  // and acquire and MDL X lock on it. Also validate the data file path.
   if (is_tablespace_command(ts_info->ts_cmd_type) &&
-      (check_tablespace_name(ts_info->tablespace_name) != IDENT_NAME_OK ||
+      (check_tablespace_name(ts_info->tablespace_name) !=
+       Ident_name_check::OK ||
        lock_tablespace_name(thd, ts_info->tablespace_name)))
     DBUG_RETURN(true);
 
@@ -281,7 +259,7 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
       switch (error)
       {
       case 1:
-        DBUG_RETURN(1);
+        DBUG_RETURN(true);
       case HA_ADMIN_NOT_IMPLEMENTED:
         cmd_type = 1 + static_cast<uint>(ts_info->ts_cmd_type);
         my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), sql_syntax[cmd_type]);

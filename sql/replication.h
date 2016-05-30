@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,7 +48,8 @@ enum Trans_flags {
 typedef struct Trans_table_info {
   const char* table_name;
   uint number_of_primary_keys;
-  bool transactional_table;
+  /// The db_type of the storage engine used by the table
+  int db_type;
 } Trans_table_info;
 
 /**
@@ -68,6 +69,7 @@ typedef struct Trans_table_info {
 typedef struct Trans_context_info {
   bool  binlog_enabled;
   ulong gtid_mode;               //enum values in enum_gtid_mode
+  bool log_slave_updates;
   ulong binlog_checksum_options; //enum values in enum enum_binlog_checksum_alg
   ulong binlog_format;           //enum values in enum enum_binlog_format
   // enum values in enum_transaction_write_set_hashing_algorithm
@@ -136,7 +138,7 @@ typedef struct Trans_param {
 /**
    Transaction observer parameter initialization.
 */
-#define TRANS_PARAM_ZERO { 0, 0, 0, 0, 0, 0, {0, 0, 0}, 0, 0, 0, 0, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0} }
+#define TRANS_PARAM_ZERO { 0, 0, 0, 0, 0, 0, {0, 0, 0}, 0, 0, 0, 0, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0} }
 
 typedef int (*before_dml_t)(Trans_param *param, int& out_val);
 

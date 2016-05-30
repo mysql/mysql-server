@@ -284,21 +284,20 @@ static void win_init_time()
 
   DBUG_ASSERT(sizeof(LARGE_INTEGER) == sizeof(query_performance_frequency));
 
-  if (QueryPerformanceFrequency((LARGE_INTEGER *)&query_performance_frequency) == 0)
-    query_performance_frequency= 0;
-  else
-  {
-    GetSystemTimeAsFileTime(&ft);
-    li.LowPart=  ft.dwLowDateTime;
-    li.HighPart= ft.dwHighDateTime;
-    query_performance_offset= li.QuadPart-OFFSET_TO_EPOC;
-    QueryPerformanceCounter(&t_cnt);
-    query_performance_offset-= (t_cnt.QuadPart /
-                                query_performance_frequency * MS +
-                                t_cnt.QuadPart %
-                                query_performance_frequency * MS /
-                                query_performance_frequency);
-  }
+  QueryPerformanceFrequency((LARGE_INTEGER *)&query_performance_frequency);
+
+  GetSystemTimeAsFileTime(&ft);
+  li.LowPart=  ft.dwLowDateTime;
+  li.HighPart= ft.dwHighDateTime;
+  query_performance_offset= li.QuadPart-OFFSET_TO_EPOC;
+  QueryPerformanceCounter(&t_cnt);
+  query_performance_offset-= (t_cnt.QuadPart /
+                              query_performance_frequency * MS +
+                              t_cnt.QuadPart %
+                              query_performance_frequency * MS /
+                              query_performance_frequency);
+
+  query_performance_offset_micros = query_performance_offset / 10;
 }
 
 

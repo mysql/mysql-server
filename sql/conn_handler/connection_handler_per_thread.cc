@@ -298,7 +298,6 @@ static void *handle_connection(void *arg)
     {
       while (thd_connection_alive(thd))
       {
-        mysql_audit_release(thd);
         if (do_command(thd))
           break;
       }

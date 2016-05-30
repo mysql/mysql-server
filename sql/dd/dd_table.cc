@@ -621,6 +621,7 @@ static void fill_dd_indexes_from_keyinfo(dd::Table *tab_obj,
 
     idx_obj->set_algorithm(dd_get_new_index_algorithm_type(key->algorithm));
     idx_obj->set_algorithm_explicit(key->is_algorithm_explicit);
+    idx_obj->set_visible(key->is_visible);
 
     idx_obj->set_type(dd_get_new_index_type(key));
 
@@ -633,6 +634,7 @@ static void fill_dd_indexes_from_keyinfo(dd::Table *tab_obj,
                                        key->comment.length));
 
     idx_obj->set_engine(tab_obj->engine());
+    idx_obj->set_visible(key->is_visible);
 
     //
     // Set options

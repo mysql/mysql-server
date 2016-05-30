@@ -8538,11 +8538,6 @@ bool handler::my_prepare_gcolumn_template(THD *thd,
                                           my_gcolumn_template_callback_t myc,
                                           void* ib_table)
 {
-  /*
-    This is a background thread, so we can re-initialize the main LEX, its
-    current content is not important.
-  */
-  DBUG_ASSERT(thd->system_thread == SYSTEM_THREAD_BACKGROUND);
   char path[FN_REFLEN + 1];
   bool was_truncated;
   build_table_filename(path, sizeof(path) - 1 - reg_ext_length,
@@ -8602,7 +8597,6 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd,
                                              const MY_BITMAP *const fields,
                                              uchar *record)
 {
-  DBUG_ASSERT(thd->system_thread == SYSTEM_THREAD_BACKGROUND);
   bool retval= true;
   lex_start(thd);
 

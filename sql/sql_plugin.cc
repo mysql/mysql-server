@@ -438,10 +438,16 @@ public:
   */
   const char *orig_pluginvar_name;
 
-  static void *operator new(size_t size, MEM_ROOT *mem_root)
+  static void *operator new(size_t size, MEM_ROOT *mem_root,
+                            const std::nothrow_t &arg= std::nothrow) throw ()
   { return alloc_root(mem_root, size); }
+
   static void operator delete(void *ptr_arg,size_t size)
   { TRASH(ptr_arg, size); }
+
+  static void operator delete(void *ptr, MEM_ROOT *mem_root,
+                              const std::nothrow_t &arg) throw ()
+  { /* never called */ }
 
   sys_var_pluginvar(sys_var_chain *chain, const char *name_arg,
                     st_mysql_sys_var *plugin_var_arg)
@@ -4427,6 +4433,9 @@ bool Sql_cmd_install_plugin::execute(THD *thd)
   bool st= mysql_install_plugin(thd, &m_comment, &m_ident);
   if (!st)
     my_ok(thd);
+#ifndef EMBEDDED_LIBRARY
+  mysql_audit_release(thd);
+#endif
   return st;
 }
 
@@ -4436,5 +4445,8 @@ bool Sql_cmd_uninstall_plugin::execute(THD *thd)
   bool st= mysql_uninstall_plugin(thd, &m_comment);
   if (!st)
     my_ok(thd);
+#ifndef EMBEDDED_LIBRARY
+  mysql_audit_release(thd);
+#endif
   return st;
 }

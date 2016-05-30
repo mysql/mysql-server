@@ -1762,6 +1762,7 @@ user	MyISAM
 Checking if update is needed.
 Checking server version.
 Running queries to upgrade MySQL server.
+Upgrading system table data.
 Checking system database.
 mysql.column_stats                                 OK
 mysql.columns_priv                                 OK

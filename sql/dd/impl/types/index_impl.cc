@@ -65,6 +65,7 @@ Index_impl::Index_impl()
   m_type(IT_MULTIPLE),
   m_algorithm(IA_BTREE),
   m_is_algorithm_explicit(false),
+  m_is_visible(true),
   m_table(NULL),
   m_elements(),
   m_tablespace_id(INVALID_OBJECT_ID)
@@ -214,6 +215,7 @@ bool Index_impl::restore_attributes(const Raw_record &r)
   m_type= (enum_index_type) r.read_int(Indexes::FIELD_TYPE);
   m_algorithm= (enum_index_algorithm) r.read_int(Indexes::FIELD_ALGORITHM);
   m_is_algorithm_explicit= r.read_bool(Indexes::FIELD_IS_ALGORITHM_EXPLICIT);
+  m_is_visible= r.read_bool(Indexes::FIELD_IS_VISIBLE);
 
   m_tablespace_id= r.read_ref_id(Indexes::FIELD_TABLESPACE_ID);
 
@@ -244,6 +246,7 @@ bool Index_impl::store_attributes(Raw_record *r)
          r->store(Indexes::FIELD_TYPE, m_type) ||
          r->store(Indexes::FIELD_ALGORITHM, m_algorithm) ||
          r->store(Indexes::FIELD_IS_ALGORITHM_EXPLICIT, m_is_algorithm_explicit) ||
+         r->store(Indexes::FIELD_IS_VISIBLE, m_is_visible) ||
          r->store(Indexes::FIELD_IS_GENERATED, m_is_generated) ||
          r->store(Indexes::FIELD_HIDDEN, m_hidden) ||
          r->store(Indexes::FIELD_ORDINAL_POSITION, m_ordinal_position) ||
@@ -255,7 +258,7 @@ bool Index_impl::store_attributes(Raw_record *r)
 }
 
 ///////////////////////////////////////////////////////////////////////////
-static_assert(Indexes::FIELD_ENGINE==13,
+static_assert(Indexes::FIELD_ENGINE == 14,
               "Indexes definition has changed, review (de)ser memfuns!");
 void
 Index_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
@@ -327,6 +330,7 @@ void Index_impl::debug_print(std::string &outb) const
     << "m_type: " << m_type << "; "
     << "m_algorithm: " << m_algorithm << "; "
     << "m_is_algorithm_explicit: " << m_is_algorithm_explicit << "; "
+    << "m_is_visible: " << m_is_visible << "; "
     << "m_is_generated: " << m_is_generated << "; "
     << "m_comment: " << m_comment << "; "
     << "m_hidden: " << m_hidden << "; "
@@ -374,6 +378,7 @@ Index_impl::Index_impl(const Index_impl &src, Table_impl *parent)
                       parse_properties(src.m_se_private_data->raw_string())),
     m_type(src.m_type), m_algorithm(src.m_algorithm),
     m_is_algorithm_explicit(src.m_is_algorithm_explicit),
+    m_is_visible(src.m_is_visible),
     m_engine(src.m_engine),
     m_table(parent),
     m_elements(),

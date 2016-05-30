@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,9 +32,9 @@
 
   @remark For windows platforms we need the frequency value of
           the CPU. This is initialized in my_init.c through
-          QueryPerformanceFrequency(). If the Windows platform
-          doesn't support QueryPerformanceFrequency(), zero is
-          returned.
+          QueryPerformanceFrequency(). On the versions of Windows supported
+          by MySQL 5.7 onwwards QueryPerformanceFrequency() is guaranteed to 
+          return a non-zero value.
 
   @retval current high-resolution time.
 */
@@ -47,14 +47,10 @@ extern "C" ulonglong my_getsystime()
   return (ulonglong)tp.tv_sec*10000000+(ulonglong)tp.tv_nsec/100;
 #elif defined(_WIN32)
   LARGE_INTEGER t_cnt;
-  if (query_performance_frequency)
-  {
-    QueryPerformanceCounter(&t_cnt);
-    return ((t_cnt.QuadPart / query_performance_frequency * 10000000) +
-            ((t_cnt.QuadPart % query_performance_frequency) * 10000000 /
-             query_performance_frequency) + query_performance_offset);
-  }
-  return 0;
+  QueryPerformanceCounter(&t_cnt);
+  return ((t_cnt.QuadPart / query_performance_frequency * 10000000) +
+          ((t_cnt.QuadPart % query_performance_frequency) * 10000000 /
+            query_performance_frequency) + query_performance_offset);
 #else
   /* TODO: check for other possibilities for hi-res timestamping */
   struct timeval tv;
@@ -90,28 +86,24 @@ time_t my_time(myf flags)
 }
 
 
-#ifdef _WIN32
-#define OFFSET_TO_EPOCH 116444736000000000ULL
-#endif
-
 /**
   Return time in microseconds.
 
   @remark This function is to be used to measure performance in
-          micro seconds. As it's not defined whats the start time
-          for the clock, this function us only useful to measure
-          time between two moments.
+          micro seconds. Note that this value will be affected by NTP on Linux,
+          and is subject to drift of approx 1 second per day on Windows. 
 
-  @retval Value in microseconds from some undefined point in time.
+  @retval Number of microseconds since the Epoch, 1970-01-01 00:00:00 +0000 (UTC)
 */
 
 ulonglong my_micro_time()
 {
 #ifdef _WIN32
-  ulonglong newtime;
-  GetSystemTimeAsFileTime((FILETIME*)&newtime);
-  newtime-= OFFSET_TO_EPOCH;
-  return (newtime/10);
+  LARGE_INTEGER t_cnt;
+  QueryPerformanceCounter(&t_cnt);
+  return ((t_cnt.QuadPart / query_performance_frequency * 1000000) +
+    ((t_cnt.QuadPart % query_performance_frequency) * 1000000 /
+      query_performance_frequency) + query_performance_offset_micros);
 #else
   ulonglong newtime;
   struct timeval t;
@@ -124,4 +116,3 @@ ulonglong my_micro_time()
   return newtime;
 #endif
 }
-

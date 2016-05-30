@@ -349,8 +349,8 @@ typedef struct st_lex_master_info
     changed variable or if it should be left at old value
    */
   enum {LEX_MI_UNCHANGED= 0, LEX_MI_DISABLE, LEX_MI_ENABLE}
-    ssl, ssl_verify_server_cert, heartbeat_opt, repl_ignore_server_ids_opt, 
-    retry_count_opt, auto_position;
+    ssl, ssl_verify_server_cert, heartbeat_opt, repl_ignore_server_ids_opt,
+    retry_count_opt, auto_position, port_opt;
   char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
   char *ssl_crl, *ssl_crlpath, *tls_version;
   char *relay_log_name;
@@ -1302,15 +1302,6 @@ public:
   */
   void cleanup_all_joins();
 
-  /* 
-   Add a index hint to the tagged list of hints. The type and clause of the
-   hint will be the current ones (set by set_index_hint()) 
-  */
-  bool add_index_hint (THD *thd, char *str, uint length);
-
-  /* make a list to hold index hints */
-  void alloc_index_hints (THD *thd);
-
   /// Return true if this query block is part of a UNION
   bool is_part_of_union() const { return master_unit()->is_union(); }
 
@@ -1790,6 +1781,7 @@ union YYSTYPE {
   class PT_base_index_option *index_option;
   Mem_root_array_YY<PT_base_index_option *> index_options;
   PT_base_index_option *index_type;
+  bool visibility;
 };
 
 #endif
@@ -3732,13 +3724,15 @@ struct st_lex_local: public LEX
   {
     return sql_alloc(size);
   }
-  static void *operator new(size_t size, MEM_ROOT *mem_root) throw()
+  static void *operator new(size_t size, MEM_ROOT *mem_root,
+                            const std::nothrow_t &arg= std::nothrow) throw ()
   {
     return alloc_root(mem_root, size);
   }
   static void operator delete(void *ptr,size_t size)
   { TRASH(ptr, size); }
-  static void operator delete(void *ptr, MEM_ROOT *mem_root)
+  static void operator delete(void *ptr, MEM_ROOT *mem_root,
+                              const std::nothrow_t &arg) throw ()
   { /* Never called */ }
 };
 

@@ -104,9 +104,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_it_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_it_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -154,8 +154,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -225,9 +225,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_it_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_it_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -275,8 +275,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -346,9 +346,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_it2_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_it2_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -396,8 +396,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -467,9 +467,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_is_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_is_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -517,8 +517,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -588,9 +588,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_is_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_is_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -638,8 +638,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -709,9 +709,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_is4_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_is4_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -769,8 +769,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -840,9 +840,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_im_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_im_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -890,8 +890,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -961,9 +961,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_im_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_im_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -1011,8 +1011,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -1082,9 +1082,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_im7_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_im7_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -1142,8 +1142,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -1213,9 +1213,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_i_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_i_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -1263,8 +1263,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -1334,9 +1334,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_i_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_i_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -1384,8 +1384,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -1455,9 +1455,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_i6_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_i6_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -1515,8 +1515,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -1586,9 +1586,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_ib_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_ib_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -1636,8 +1636,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -1707,9 +1707,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_ib_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_ib_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -1757,8 +1757,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -1828,9 +1828,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_ib13_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_ib13_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -1888,8 +1888,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -1959,9 +1959,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_ib22_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_ib22_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -2009,8 +2009,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -2080,9 +2080,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_fr_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_fr_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -2130,8 +2130,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -2201,9 +2201,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_fr_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_fr_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -2251,8 +2251,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -2322,9 +2322,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_f_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_f_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -2372,8 +2372,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -2443,9 +2443,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_f_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_f_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -2493,8 +2493,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -2564,9 +2564,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_fd_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_fd_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -2614,8 +2614,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -2685,9 +2685,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_fd_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_fd_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -2735,8 +2735,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -2806,9 +2806,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_fd7_4_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_fd7_4_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -2866,8 +2866,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -2937,9 +2937,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_xd_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_xd_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -2987,8 +2987,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -3058,9 +3058,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_xd10_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_xd10_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -3118,8 +3118,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -3189,9 +3189,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_xd8_2_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_xd8_2_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -3249,8 +3249,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -3320,9 +3320,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_xn_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_xn_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -3370,8 +3370,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -3441,9 +3441,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_xn10_2_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_xn10_2_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -3501,8 +3501,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -3572,9 +3572,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_xn5_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_xn5_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -3632,8 +3632,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -3703,9 +3703,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_d_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_d_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -3753,8 +3753,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -3824,9 +3824,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_dt_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_dt_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -3874,8 +3874,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -3945,9 +3945,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_dt2_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_dt2_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -4005,8 +4005,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -4076,9 +4076,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_ds_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_ds_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -4126,8 +4126,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -4197,9 +4197,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_ds6_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_ds6_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -4257,8 +4257,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -4328,9 +4328,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_dd_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_dd_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -4378,8 +4378,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -4449,9 +4449,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_dd6_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_dd6_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -4499,8 +4499,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -4570,9 +4570,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_dy_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_dy_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -4620,8 +4620,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -4695,8 +4695,8 @@ Mysqlx.Error {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -4756,8 +4756,8 @@ Mysqlx.Error {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -4831,8 +4831,8 @@ Mysqlx.Error {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -4892,8 +4892,8 @@ Mysqlx.Error {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -4963,9 +4963,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_t_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_t_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -5013,8 +5013,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -5084,9 +5084,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_bt50_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	50	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_bt50_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	50	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -5144,8 +5144,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -5215,9 +5215,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	ix	1	$ix_t30_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	30	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	ix	1	$ix_t30_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	30	null		BTREE			YES
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
@@ -5275,8 +5275,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 Create index on two fields
 send Mysqlx.Sql.StmtExecute {
@@ -5372,10 +5372,10 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	two_field_index	1	$ix_t10_r_0AD3DA5237EEE3DFC9BAFF8E7071211F65E9713C	A	0	10	null		BTREE		
-table1	0	two_field_index	2	$ix_i_r_B8701A5C0B839D9E3336ED0BD89272C2666E1C74	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	two_field_index	1	$ix_t10_r_0AD3DA5237EEE3DFC9BAFF8E7071211F65E9713C	A	0	10	null		BTREE			YES
+table1	0	two_field_index	2	$ix_i_r_B8701A5C0B839D9E3336ED0BD89272C2666E1C74	A	0	null	null		BTREE			YES
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -5413,8 +5413,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 Create two indexes using the same field
 send Mysqlx.Sql.StmtExecute {
@@ -5577,11 +5577,11 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	index1	1	$ix_i_r_391E85E134E06EE3BB933293E26546D764D922BD	A	0	null	null		BTREE		
-table1	0	index1	2	$ix_i_r_EF67772F9C09859F0E6CC3208EDA759461EA79E2	A	0	null	null		BTREE		
-table1	0	index2	1	$ix_i_r_EF67772F9C09859F0E6CC3208EDA759461EA79E2	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	index1	1	$ix_i_r_391E85E134E06EE3BB933293E26546D764D922BD	A	0	null	null		BTREE			YES
+table1	0	index1	2	$ix_i_r_EF67772F9C09859F0E6CC3208EDA759461EA79E2	A	0	null	null		BTREE			YES
+table1	0	index2	1	$ix_i_r_EF67772F9C09859F0E6CC3208EDA759461EA79E2	A	0	null	null		BTREE			YES
 0 rows affected
 Drop the first of the indexes, it should keep the shared column
 send Mysqlx.Sql.StmtExecute {
@@ -5620,9 +5620,9 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	0	index2	1	$ix_i_r_EF67772F9C09859F0E6CC3208EDA759461EA79E2	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	0	index2	1	$ix_i_r_EF67772F9C09859F0E6CC3208EDA759461EA79E2	A	0	null	null		BTREE			YES
 0 rows affected
 Drop the second of the indexes, the column should be gone
 send Mysqlx.Sql.StmtExecute {
@@ -5661,8 +5661,8 @@ Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 Error scenarios when dropping the index
 send Mysqlx.Sql.StmtExecute {
@@ -5854,8 +5854,8 @@ Mysqlx.Error {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 RUN ALTER TABLE xplugintest.table1 ADD PRIMARY KEY(_id)
 
@@ -5896,12 +5896,12 @@ table1	CREATE TABLE `table1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	PRIMARY	1	_id	A	0	null	null		BTREE		
-table1	0	_id	1	_id	A	0	null	null		BTREE		
-table1	1	fulltext_idx_1	1	SUBJECT	A	0	100	null	YES	BTREE		
-table1	1	fulltext_idx_2	1	SUBJECT	A	0	100	null	YES	BTREE		
-table1	1	fulltext_idx_3	1	book	A	0	100	null	YES	BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
+table1	1	fulltext_idx_1	1	SUBJECT	A	0	100	null	YES	BTREE			YES
+table1	1	fulltext_idx_2	1	SUBJECT	A	0	100	null	YES	BTREE			YES
+table1	1	fulltext_idx_3	1	book	A	0	100	null	YES	BTREE			YES
 0 rows affected
 drop primary index
 send Mysqlx.Sql.StmtExecute {
@@ -6072,8 +6072,8 @@ RUN ALTER TABLE xplugintest.table1 DROP COLUMN subject
 0 rows affected
 Records: 0  Duplicates: 0  Warnings: 0
 RUN SHOW INDEX FROM xplugintest.table1
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table1	0	_id	1	_id	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table1	0	_id	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
 RUN CREATE TABLE xplugintest.table2 (
 ID          TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -6174,8 +6174,8 @@ send Mysqlx.Sql.StmtExecute {
 0 rows affected
 Records: 0  Duplicates: 0  Warnings: 0
 RUN SHOW INDEX FROM xplugintest.table2
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-table2	0	PRIMARY	1	ID	A	0	null	null		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+table2	0	PRIMARY	1	ID	A	0	null	null		BTREE			YES
 0 rows affected
 RUN DROP DATABASE IF EXISTS xplugintest
 
