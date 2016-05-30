@@ -1018,41 +1018,6 @@ innobase_check_fk_option(
 	return(true);
 }
 
-/** Check whether the foreign key options is legit
-@param[in]	foreign		foreign key
-@return true if it is */
-static MY_ATTRIBUTE((warn_unused_result))
-bool
-innobase_check_v_base_col(
-	const dict_foreign_t*	foreign)
-{
-	ulint	type = foreign->type;
-
-	type &= ~(DICT_FOREIGN_ON_DELETE_NO_ACTION
-		  | DICT_FOREIGN_ON_UPDATE_NO_ACTION);
-
-
-	if (type != 0) {
-
-		for (ulint i = 0; i < foreign->n_fields; i++) {
-			if (dict_foreign_has_col_as_base_col(
-				    foreign->foreign_col_names[i],
-				    foreign->foreign_table)) {
-				return(false);
-			}
-
-			/* Check if the fk column is in any virtual index */
-			if (dict_foreign_has_col_in_v_index(
-				foreign->foreign_col_names[i],
-				foreign->foreign_table)) {
-				return(false);
-			}
-		}
-	}
-
-	return(true);
-}
-
 /*************************************************************//**
 Set foreign key options
 @return true if successfully set */
@@ -1518,11 +1483,6 @@ innobase_get_foreign_key_info(
 		if (innobase_check_fk_stored(
 			add_fk[num_fk], table, s_cols)) {
 			my_error(ER_CANNOT_ADD_FOREIGN_BASE_COL_STORED, MYF(0));
-			goto err_exit;
-		}
-
-		if (!innobase_check_v_base_col(add_fk[num_fk])) {
-			my_error(ER_CANNOT_ADD_FOREIGN_BASE_COL_VIRTUAL, MYF(0));
 			goto err_exit;
 		}
 
@@ -8482,7 +8442,12 @@ foreign_fail:
 
 				rename_indexes_in_cache(ctx, ha_alter_info);
 			}
+
 		}
+
+		dict_mem_table_free_foreign_vcol_set(ctx->new_table);
+		dict_mem_table_fill_foreign_vcol_set(ctx->new_table);
+
 		DBUG_INJECT_CRASH("ib_commit_inplace_crash",
 				  crash_inject_count++);
 	}
