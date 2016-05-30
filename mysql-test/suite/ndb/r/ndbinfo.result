@@ -73,9 +73,11 @@ table_id	table_name	comment
 26	cpustat_1sec	Thread CPU stats at 1 second intervals
 27	cpustat_20sec	Thread CPU stats at 20 seconds intervals
 28	cpustat	Thread CPU stats for last second
+29	frag_locks	Per fragment lock information
+30	acc_operations	ACC operation info
 SELECT COUNT(*) FROM ndb$tables;
 COUNT(*)
-29
+31
 SELECT * FROM ndb$tables WHERE table_id = 2;
 table_id	table_name	comment
 2	test	for testing
@@ -104,6 +106,8 @@ table_id	table_name	comment
 26	cpustat_1sec	Thread CPU stats at 1 second intervals
 27	cpustat_20sec	Thread CPU stats at 20 seconds intervals
 28	cpustat	Thread CPU stats for last second
+29	frag_locks	Per fragment lock information
+30	acc_operations	ACC operation info
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
 table_id	table_name	comment
 SELECT COUNT(*) FROM ndb$tables t, ndb$columns c
@@ -123,6 +127,7 @@ table_id
 2
 SELECT table_id, table_name FROM ndb$tables ORDER BY table_name;
 table_id	table_name
+30	acc_operations
 1	columns
 23	config_values
 8	counters
@@ -134,6 +139,7 @@ table_id	table_name
 10	diskpagebuffer
 19	disk_write_speed_aggregate
 18	disk_write_speed_base
+29	frag_locks
 17	frag_mem_use
 20	frag_operations
 6	logbuffers
@@ -216,6 +222,8 @@ table_id
 26
 27
 28
+29
+30
 
 TRUNCATE ndb$tables;
 ERROR HY000: Table 'ndb$tables' is read only
