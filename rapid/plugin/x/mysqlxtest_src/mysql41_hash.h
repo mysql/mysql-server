@@ -24,9 +24,17 @@
 
 #define MYSQL41_HASH_SIZE 20 /* Hash size in bytes */
 
-void compute_mysql41_hash(uint8 *digest, const char *buf, size_t len);
+void compute_mysql41_hash(uint8 *digest, const char *buf, size_t len)
+#if defined(HAVE_VISIBILITY_HIDDEN)
+  MY_ATTRIBUTE((visibility("hidden")))
+#endif
+;
 void compute_mysql41_hash_multi(uint8 *digest, const char *buf1, int len1,
-                             const char *buf2, int len2);
+                             const char *buf2, int len2)
+#if defined(HAVE_VISIBILITY_HIDDEN)
+  MY_ATTRIBUTE((visibility("hidden")))
+#endif
+;
 
 
 #endif /* MYSQL41_HASH_INCLUDED */
