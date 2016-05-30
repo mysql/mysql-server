@@ -4602,10 +4602,6 @@ loop:
 			return(DB_NO_FK_ON_S_BASE_COL);
 		}
 
-		if (dict_foreigns_has_v_base_col(local_fk_set, table)) {
-			return(DB_NO_FK_ON_V_BASE_COL);
-		}
-
 		/**********************************************************/
 		/* The following call adds the foreign key constraints
 		to the data dictionary system tables on disk */
@@ -4621,6 +4617,7 @@ loop:
 				      local_fk_set.end(),
 				      dict_foreign_add_to_referenced_table());
 			local_fk_set.clear();
+			dict_mem_table_fill_foreign_vcol_set(table);
 		}
 		return(error);
 	}

@@ -1016,8 +1016,3 @@ innobase_build_v_templ_callback(
 the table virtual columns' template */
 typedef void (*my_gcolumn_templatecallback_t)(const TABLE*, void*);
 
-/** Get the computed value by supplying the base column values.
-@param[in,out]  table   the table whose virtual column template to be built */
-void
-innobase_init_vc_templ(
-        dict_table_t*   table);

@@ -2127,55 +2127,6 @@ dict_foreigns_has_s_base_col(
 	return(false);
 }
 
-/** Check if a foreign constraint is on columns served as based columns
-of some virtual column, or the column is part of virtual index (index
-that contains virtual column). This is to prevent creating SET NULL or
-CASCADE constraint on such columns
-@param[in]	local_fk_set	set of foreign key objects, to be added to
-the dictionary tables
-@param[in]	table		table to which the foreign key objects in
-local_fk_set belong to
-@return true if yes, otherwise, false */
-bool
-dict_foreigns_has_v_base_col(
-	const dict_foreign_set&	local_fk_set,
-	const dict_table_t*	table)
-{
-	dict_foreign_t*	foreign;
-
-	for (dict_foreign_set::const_iterator it = local_fk_set.begin();
-	     it != local_fk_set.end();
-	     ++it) {
-
-		foreign = *it;
-		ulint	type = foreign->type;
-
-		type &= ~(DICT_FOREIGN_ON_DELETE_NO_ACTION
-			  | DICT_FOREIGN_ON_UPDATE_NO_ACTION);
-
-		if (type == 0) {
-			continue;
-		}
-
-		for (ulint i = 0; i < foreign->n_fields; i++) {
-			/* Check if the constraint is on a column that
-			is a base column of some virtual column */
-			if (dict_foreign_has_col_as_base_col(
-				    foreign->foreign_col_names[i], table)) {
-				return(true);
-			}
-
-			/* Check if the column is part of a virtual index (
-			index contains virtual columns) */
-			if (dict_foreign_has_col_in_v_index(
-				foreign->foreign_col_names[i], table)) {
-				return(true);
-			}
-		}
-	}
-	return(false);
-}
-
 /** Check if a column is in foreign constraint with CASCADE properties or
 SET NULL
 @param[in]	table		table
@@ -2210,29 +2161,6 @@ dict_foreigns_has_this_col(
 			}
 		}
 	}
-	return(false);
-}
-
-/** Check if a virtual column could have base columns in foreign constraints,
-this is to prevent creating virtual index on such column
-@param[in]	table	table
-@param[in]	v_col_n	virtual column number for the virtual column to check
-@return true if the virtual column could have base columns in constraint */
-bool
-dict_table_has_base_in_foreign(
-	const dict_table_t*	table,
-	ulint			v_col_n)
-{
-	const dict_v_col_t*	v_col = dict_table_get_nth_v_col(table, v_col_n);
-
-	for (ulint j = 0; j < v_col->num_base; j++) {
-		if (dict_foreigns_has_this_col(
-			    table, dict_table_get_col_name(
-				    table, v_col->base_col[j]->ind))) {
-			return(true);
-		}
-	}
-
 	return(false);
 }
 

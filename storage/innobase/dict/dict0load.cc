@@ -3095,6 +3095,8 @@ err_exit:
 			dict_table_remove_from_cache(table);
 			table = NULL;
 		} else {
+			dict_mem_table_free_foreign_vcol_set(table);
+			dict_mem_table_fill_foreign_vcol_set(table);
 			table->fk_max_recusive_level = 0;
 		}
 	} else {

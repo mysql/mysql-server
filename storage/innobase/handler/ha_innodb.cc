@@ -1998,7 +1998,6 @@ convert_error_code_to_mysql(
 	case DB_ROW_IS_REFERENCED:
 		return(HA_ERR_ROW_IS_REFERENCED);
 
-	case DB_NO_FK_ON_V_BASE_COL:
 	case DB_NO_FK_ON_S_BASE_COL:
 	case DB_CANNOT_ADD_CONSTRAINT:
 	case DB_CHILD_NO_INDEX:
@@ -12504,17 +12503,6 @@ create_table_info_t::create_table()
 				" table where referencing columns appear"
 				" as the first columns.\n", m_table_name);
 			break;
-		case DB_NO_FK_ON_V_BASE_COL:
-			push_warning_printf(
-				m_thd, Sql_condition::SL_WARNING,
-				HA_ERR_CANNOT_ADD_FOREIGN,
-				"Create table '%s' with foreign key constraint"
-				" failed. Cannot add foreign key constraint"
-				" placed on the base column of indexed"
-				" virtual column, or constraint placed"
-				" on columns being part of virtual index.\n",
-				m_table_name);
-			break;
 		case DB_NO_FK_ON_S_BASE_COL:
 			push_warning_printf(
 				m_thd, Sql_condition::SL_WARNING,
@@ -20529,7 +20517,7 @@ innobase_index_cond(
 
 
 /** Get the computed value by supplying the base column values.
-@param[in,out]	table	the table whose virtual column template to be built */
+@param[in,out]	table	table whose virtual column template to be built */
 void
 innobase_init_vc_templ(
 	dict_table_t*	table)
@@ -20585,8 +20573,88 @@ innobase_init_vc_templ(
 		&innobase_build_v_templ_callback,
 		static_cast<void*>(table));
 	ut_ad(!ret);
-	table->vc_templ_purge = true;
 	mutex_exit(&dict_sys->mutex);
+}
+
+/** Change dbname and table name in table->vc_templ.
+@param[in,out]	table	table whose virtual column template
+dbname and tbname to be renamed. */
+void
+innobase_rename_vc_templ(
+	dict_table_t*	table)
+{
+	char	dbname[MAX_DATABASE_NAME_LEN + 1];
+	char	tbname[MAX_DATABASE_NAME_LEN + 1];
+	char*	name = table->name.m_name;
+	ulint	dbnamelen = dict_get_db_name_len(name);
+	ulint	tbnamelen = strlen(name) - dbnamelen - 1;
+	char	t_dbname[MAX_DATABASE_NAME_LEN + 1];
+	char	t_tbname[MAX_TABLE_NAME_LEN + 1];
+
+	strncpy(dbname, name, dbnamelen);
+	dbname[dbnamelen] = 0;
+	strncpy(tbname, name + dbnamelen + 1, tbnamelen);
+	tbname[tbnamelen] =0;
+
+	/* For partition table, remove the partition name and use the
+	"main" table name to build the template */
+#ifdef _WIN32
+	char*	is_part = strstr(tbname, "#p#");
+#else
+	char*	is_part = strstr(tbname, "#P#");
+#endif /* _WIN32 */
+
+	if (is_part != NULL) {
+		*is_part = '\0';
+		tbnamelen = is_part - tbname;
+	}
+
+	dbnamelen = filename_to_tablename(dbname, t_dbname,
+					 MAX_DATABASE_NAME_LEN + 1);
+	tbnamelen = filename_to_tablename(tbname, t_tbname,
+					  MAX_TABLE_NAME_LEN + 1);
+
+	table->vc_templ->db_name = t_dbname;
+	table->vc_templ->tb_name = t_tbname;
+}
+
+/** Get the updated parent field value from the update vector for the
+given col_no.
+@param[in]	foreign		foreign key information
+@param[in]	update		updated parent vector.
+@param[in]	col_no		column position of the table
+@return updated field from the parent update vector, else NULL */
+static
+dfield_t*
+innobase_get_field_from_update_vector(
+	dict_foreign_t*		foreign,
+	upd_t*			update,
+	ulint			col_no)
+{
+
+	dict_table_t*	parent_table = foreign->referenced_table;
+	dict_index_t*	parent_index = foreign->referenced_index;
+	ulint		parent_field_no;
+	ulint		parent_col_no;
+
+	for (ulint i = 0; i < foreign->n_fields; i++) {
+
+		parent_col_no = dict_index_get_nth_col_no(parent_index, i);
+		parent_field_no = dict_table_get_nth_col_pos(
+			parent_table, parent_col_no);
+
+		for (ulint j = 0; j < update->n_fields; j++) {
+			upd_field_t*	parent_ufield
+				= &update->fields[j];
+
+			if (parent_ufield->field_no == parent_field_no
+			    && parent_col_no == col_no) {
+				return(&parent_ufield->new_val);
+			}
+		}
+	}
+
+	return (NULL);
 }
 
 /** Get the computed value by supplying the base column values.
@@ -20600,6 +20668,8 @@ innobase_init_vc_templ(
 @param[in,out]	mysql_table	mysql table object
 @param[in]	old_table	during ALTER TABLE, this is the old table
 				or NULL.
+@param[in]	parent_update	update vector for the parent row
+@param[in]	foreign		foreign key information
 @return the field filled with computed value, or NULL if just want
 to store the value in passed in "my_rec" */
 dfield_t*
@@ -20612,7 +20682,9 @@ innobase_get_computed_value(
 	const dict_field_t*	ifield,
 	THD*			thd,
 	TABLE*			mysql_table,
-	const dict_table_t*	old_table)
+	const dict_table_t*	old_table,
+	upd_t*			parent_update,
+	dict_foreign_t*		foreign)
 {
 	byte		rec_buf1[REC_VERSION_56_MAX_INDEX_COL_LEN];
 	byte		rec_buf2[REC_VERSION_56_MAX_INDEX_COL_LEN];
@@ -20651,13 +20723,20 @@ innobase_get_computed_value(
 
 	for (ulint i = 0; i < col->num_base; i++) {
 		dict_col_t*			base_col = col->base_col[i];
-		const dfield_t*			row_field;
+		const dfield_t*			row_field = NULL;
 		ulint				col_no = base_col->ind;
 		const mysql_row_templ_t*	templ
 			= index->table->vc_templ->vtempl[col_no];
 		const byte*			data;
 
-		row_field = dtuple_get_nth_field(row, col_no);
+		if (parent_update != NULL) {
+			row_field = innobase_get_field_from_update_vector(
+					foreign, parent_update, col_no);
+		}
+
+		if (row_field == NULL) {
+			row_field = dtuple_get_nth_field(row, col_no);
+		}
 
 		data = static_cast<const byte*>(row_field->data);
 		len = row_field->len;
