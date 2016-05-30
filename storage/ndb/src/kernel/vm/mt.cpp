@@ -5610,6 +5610,7 @@ add_thr_map(Uint32 main, Uint32 instance, Uint32 thr_no)
   ctx.jamBuffer = &thr_ptr->m_jam;
   ctx.watchDogCounter = &thr_ptr->m_watchdog_counter;
   ctx.sectionPoolCache = &thr_ptr->m_sectionPoolCache;
+  ctx.pHighResTimer = &thr_ptr->m_curr_ticks;
   b->assignToThread(ctx);
 
   /* Create entry mapping block to thread. */
