@@ -147,18 +147,6 @@ Ndb_local_connection::execute_query_iso(MYSQL_LEX_STRING sql_text,
   assert(!m_thd->get_transaction()->has_modified_non_trans_table(
     Transaction_ctx::STMT));
 
-#if 0
-  /*
-    Saves pseudo_thread_id and assign a "random" thread id from
-    the global "thread_id" variable without taking a lock
-    This looks like a copy and paste bug from some THD:: function
-    should probably be assigned thd->thread_id, if the pseudo_thread_id
-    need to be changed at all..
-  */
-  ulong save_thd_thread_id= m_thd->variables.pseudo_thread_id;
-  m_thd->variables.pseudo_thread_id = thread_id;
-#endif
-
   /* Turn off binlogging */
   ulonglong save_thd_options= m_thd->variables.option_bits;
   assert(sizeof(save_thd_options) == sizeof(m_thd->variables.option_bits));
@@ -170,9 +158,6 @@ Ndb_local_connection::execute_query_iso(MYSQL_LEX_STRING sql_text,
 
   /* Restore THD settings */
   m_thd->variables.option_bits= save_thd_options;
-#if 0
-  m_thd->variables.pseudo_thread_id = save_thd_thread_id;
-#endif
   m_thd->status_var= save_thd_status_var;
 
   return result;
