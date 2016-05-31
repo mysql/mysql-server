@@ -17,8 +17,6 @@
 # We cannot run on embedded server because we use multiple sessions.
 --source include/not_embedded.inc
 
---source include/have_query_cache.inc
-
 # The file with expected results fits only to a run with "--ps-protocol".
 if (`SELECT $SP_PROTOCOL + $CURSOR_PROTOCOL + $VIEW_PROTOCOL > 0
         OR $PS_PROTOCOL = 0`)

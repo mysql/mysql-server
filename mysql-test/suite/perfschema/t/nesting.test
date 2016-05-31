@@ -1,6 +1,7 @@
 # Test to check the proper nesting of events
 
-## To skip the test with QC enabled till BUG#14830950 is fixed.
+#With QC enabled additional code paths are activated which will change
+#performance schema output.
 -- source include/have_QC_Disabled.inc
 
 --source include/not_embedded.inc
