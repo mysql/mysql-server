@@ -1445,6 +1445,7 @@ static bool fill_indexes_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
       KEY* keyinfo= &share->key_info[key_nr];
       keyinfo->key_part= key_part;
       keyinfo->set_rec_per_key_array(rec_per_key, rec_per_key_float);
+      keyinfo->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
 
       fill_index_elements_from_dd(share,
                                   index_at_pos[key_nr],
