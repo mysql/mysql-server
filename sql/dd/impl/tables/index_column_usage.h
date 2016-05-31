@@ -30,11 +30,7 @@ namespace tables {
 class Index_column_usage : public Object_table_impl
 {
 public:
-  static const Index_column_usage &instance()
-  {
-    static Index_column_usage *s_instance= new Index_column_usage();
-    return *s_instance;
-  }
+  static const Index_column_usage &instance();
 
   static const std::string &table_name()
   {

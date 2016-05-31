@@ -30,11 +30,7 @@ namespace tables {
 class Foreign_keys : public Object_table_impl
 {
 public:
-  static const Foreign_keys &instance()
-  {
-    static Foreign_keys *s_instance= new Foreign_keys();
-    return *s_instance;
-  }
+  static const Foreign_keys &instance();
 
   static const std::string &table_name()
   {

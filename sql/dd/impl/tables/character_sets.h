@@ -29,11 +29,7 @@ namespace tables {
 class Character_sets : public Dictionary_object_table_impl
 {
 public:
-  static const Character_sets &instance()
-  {
-    static Character_sets *s_instance= new Character_sets();
-    return *s_instance;
-  }
+  static const Character_sets &instance();
 
   static const std::string &table_name()
   {

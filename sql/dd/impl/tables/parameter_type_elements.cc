@@ -21,6 +21,12 @@ namespace dd {
 namespace tables {
 
 
+const Parameter_type_elements &Parameter_type_elements::instance()
+{
+  static Parameter_type_elements *s_instance= new Parameter_type_elements();
+  return *s_instance;
+}
+
 Parameter_type_elements::Parameter_type_elements()
 {
   m_target_def.table_name(table_name());

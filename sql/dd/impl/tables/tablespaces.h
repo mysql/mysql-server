@@ -29,11 +29,7 @@ namespace tables {
 class Tablespaces : public Dictionary_object_table_impl
 {
 public:
-  static const Tablespaces &instance()
-  {
-    static Tablespaces *s_instance= new Tablespaces();
-    return *s_instance;
-  }
+  static const Tablespaces &instance();
 
   static const std::string &table_name()
   {

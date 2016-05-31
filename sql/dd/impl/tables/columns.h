@@ -30,11 +30,7 @@ namespace tables {
 class Columns : public Object_table_impl
 {
 public:
-  static const Columns &instance()
-  {
-    static Columns *s_instance= new Columns();
-    return *s_instance;
-  }
+  static const Columns &instance();
 
   static const std::string &table_name()
   {

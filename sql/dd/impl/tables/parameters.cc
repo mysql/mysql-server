@@ -20,6 +20,12 @@
 namespace dd {
 namespace tables {
 
+const Parameters &Parameters::instance()
+{
+  static Parameters *s_instance= new Parameters();
+  return *s_instance;
+}
+
 Parameters::Parameters()
 {
   m_target_def.table_name(table_name());

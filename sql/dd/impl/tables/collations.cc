@@ -24,6 +24,12 @@
 namespace dd {
 namespace tables {
 
+const Collations &Collations::instance()
+{
+  static Collations *s_instance= new Collations();
+  return *s_instance;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 // The table is populated when the server is started, unless it is

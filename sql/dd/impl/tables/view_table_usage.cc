@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,12 @@
 
 namespace dd {
 namespace tables {
+
+const View_table_usage &View_table_usage::instance()
+{
+  static View_table_usage *s_instance= new (std::nothrow) View_table_usage();
+  return *s_instance;
+}
 
 ///////////////////////////////////////////////////////////////////////////
 

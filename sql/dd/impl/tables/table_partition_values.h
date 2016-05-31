@@ -30,11 +30,7 @@ namespace tables {
 class Table_partition_values : public Object_table_impl
 {
 public:
-  static const Table_partition_values &instance()
-  {
-    static Table_partition_values *s_instance= new Table_partition_values();
-    return *s_instance;
-  }
+  static const Table_partition_values &instance();
 
   static const std::string &table_name()
   {

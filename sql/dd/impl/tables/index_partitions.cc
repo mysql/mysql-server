@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,12 @@
 
 namespace dd {
 namespace tables {
+
+const Index_partitions &Index_partitions::instance()
+{
+  static Index_partitions *s_instance= new Index_partitions();
+  return *s_instance;
+}
 
 ///////////////////////////////////////////////////////////////////////////
 

@@ -20,6 +20,13 @@
 namespace dd {
 namespace tables {
 
+const Spatial_reference_systems & Spatial_reference_systems::instance()
+{
+  static Spatial_reference_systems *s_instance=
+    new Spatial_reference_systems();
+  return *s_instance;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 Spatial_reference_systems::Spatial_reference_systems()

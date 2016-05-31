@@ -29,11 +29,7 @@ namespace tables {
 class Collations : public Dictionary_object_table_impl
 {
 public:
-  static const Collations &instance()
-  {
-    static Collations *s_instance= new Collations();
-    return *s_instance;
-  }
+  static const Collations &instance();
 
   static const std::string &table_name()
   {
