@@ -42,6 +42,7 @@ struct st_opt_hint_info opt_hint_info[]=
   {"QB_NAME", false, false},
   {"SEMIJOIN", false, false},
   {"SUBQUERY", false, false},
+  {"MERGE", true, true},
   {0, 0, 0}
 };
 
@@ -206,19 +207,18 @@ PT_hint *Opt_hints_qb::get_complex_hints(opt_hints_enum type)
 }
 
 
-Opt_hints_table *Opt_hints_qb::adjust_table_hints(TABLE *table,
-                                                  const char *alias)
+Opt_hints_table *Opt_hints_qb::adjust_table_hints(TABLE_LIST *tr)
 {
-  const LEX_CSTRING str= { alias, strlen(alias) };
+  const LEX_CSTRING str= { tr->alias, strlen(tr->alias) };
   Opt_hints_table *tab=
     static_cast<Opt_hints_table *>(find_by_name(&str, table_alias_charset));
 
-  table->pos_in_table_list->opt_hints_qb= this;
+  tr->opt_hints_qb= this;
 
   if (!tab)                            // Tables not found
     return NULL;
 
-  tab->adjust_key_hints(table);
+  tab->adjust_key_hints(tr);
   return tab;
 }
 
@@ -273,7 +273,7 @@ Opt_hints_qb::subquery_strategy() const
 }
 
 
-void Opt_hints_table::adjust_key_hints(TABLE *table)
+void Opt_hints_table::adjust_key_hints(TABLE_LIST *tr)
 {
   set_resolved();
   if (child_array_ptr()->size() == 0)  // No key level hints
@@ -289,6 +289,10 @@ void Opt_hints_table::adjust_key_hints(TABLE *table)
   if (keyinfo_array.size())
     return;
 
+  if (tr->is_view_or_derived())
+    return; // Names of keys are not known for derived tables
+
+  TABLE *table= tr->table;
   keyinfo_array.resize(table->s->keys, NULL);
 
   for (Opt_hints** hint= child_array_ptr()->begin();
@@ -363,11 +367,11 @@ static bool get_hint_state(Opt_hints *hint,
 }
 
 
-bool hint_key_state(const THD *thd, const TABLE *table,
+bool hint_key_state(const THD *thd, const TABLE_LIST *table,
                     uint keyno, opt_hints_enum type_arg,
                     uint optimizer_switch)
 {
-  Opt_hints_table *table_hints= table->pos_in_table_list->opt_hints_table;
+  Opt_hints_table *table_hints= table->opt_hints_table;
 
   /* Parent should always be initialized */
   if (table_hints && keyno != MAX_KEY)
@@ -383,11 +387,10 @@ bool hint_key_state(const THD *thd, const TABLE *table,
 }
 
 
-bool hint_table_state(const THD *thd, const TABLE *table,
+bool hint_table_state(const THD *thd, const TABLE_LIST *table_list,
                       opt_hints_enum type_arg,
                       uint optimizer_switch)
 {
-  TABLE_LIST *table_list= table->pos_in_table_list;
   if (table_list->opt_hints_qb)
   {
     bool ret_val= false;

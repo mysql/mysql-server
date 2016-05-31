@@ -2948,7 +2948,7 @@ int test_quick_select(THD *thd, Key_map keys_to_use,
           continue;
         }
 
-        if (hint_key_state(thd, head, idx, NO_RANGE_HINT_ENUM, 0))
+        if (hint_key_state(thd, head->pos_in_table_list, idx, NO_RANGE_HINT_ENUM, 0))
         {
           trace_idx_details.add("usable", false).
             add_alnum("cause", "no_range_optimization hint");

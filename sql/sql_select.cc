@@ -1762,7 +1762,7 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab,
   if (condition() &&
       tbl->file->index_flags(keyno, 0, 1) &
       HA_DO_INDEX_COND_PUSHDOWN &&
-      hint_key_state(join_->thd, tbl, keyno, ICP_HINT_ENUM,
+      hint_key_state(join_->thd, table_ref, keyno, ICP_HINT_ENUM,
                      OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN) &&
       join_->thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
       join_->thd->lex->sql_command != SQLCOM_DELETE_MULTI &&

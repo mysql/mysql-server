@@ -6522,7 +6522,7 @@ int DsMrr_impl::dsmrr_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param,
   DBUG_ENTER("DsMrr_impl::dsmrr_init");
   THD *const thd= table->in_use;                // current THD
 
-  if (!hint_key_state(thd, table, h->active_index,
+  if (!hint_key_state(thd, table->pos_in_table_list, h->active_index,
                       MRR_HINT_ENUM, OPTIMIZER_SWITCH_MRR) ||
       mode & (HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED)) // DS-MRR doesn't sort
   {
@@ -6980,12 +6980,12 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
 {
   bool res;
   THD *thd= current_thd;
-
-  const bool mrr_on= hint_key_state(thd, table, keyno, MRR_HINT_ENUM,
+  TABLE_LIST *tl= table->pos_in_table_list;
+  const bool mrr_on= hint_key_state(thd, tl, keyno, MRR_HINT_ENUM,
                                     OPTIMIZER_SWITCH_MRR);
   const bool force_dsmrr_by_hints=
-    hint_key_state(thd, table, keyno, MRR_HINT_ENUM, 0) ||
-    hint_table_state(thd, table, BKA_HINT_ENUM, 0);
+    hint_key_state(thd, tl, keyno, MRR_HINT_ENUM, 0) ||
+    hint_table_state(thd, tl, BKA_HINT_ENUM, 0);
 
   if (!(mrr_on || force_dsmrr_by_hints) ||
       *flags & (HA_MRR_INDEX_ONLY | HA_MRR_SORTED) || // Unsupported by DS-MRR

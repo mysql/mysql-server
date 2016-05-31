@@ -941,7 +941,7 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
   */
   disable_jbuf= disable_jbuf ||
     idx == join->const_tables ||                                     // 1
-    !hint_table_state(join->thd, tab->table_ref->table,              // 2
+    !hint_table_state(join->thd, tab->table_ref,                     // 2
                       BNL_HINT_ENUM, OPTIMIZER_SWITCH_BNL);
 
   DBUG_ENTER("Optimize_table_order::best_access_path");
