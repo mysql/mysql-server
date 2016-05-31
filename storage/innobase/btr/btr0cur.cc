@@ -5084,10 +5084,15 @@ btr_cur_compress_if_useful(
 
 	if (dict_index_is_spatial(cursor->index)) {
 		const page_t*   page = btr_cur_get_page(cursor);
+		const trx_t*	trx = NULL;
+
+		if (cursor->rtr_info->thr != NULL) {
+			trx = thr_get_trx(cursor->rtr_info->thr);
+		}
 
 		/* Check whether page lock prevents the compression */
-		if (!lock_test_prdt_page_lock(
-			page_get_space_id(page), page_get_page_no(page))) {
+		if (!lock_test_prdt_page_lock(trx, page_get_space_id(page),
+					      page_get_page_no(page))) {
 			return(false);
 		}
 	}

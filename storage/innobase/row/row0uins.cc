@@ -220,9 +220,9 @@ row_undo_ins_remove_sec_low(
 
 	if (dict_index_is_spatial(index)) {
 		if (mode & BTR_MODIFY_LEAF) {
-			btr_pcur_get_btr_cur(&pcur)->thr = thr;
 			mode |= BTR_RTREE_DELETE_MARK;
 		}
+		btr_pcur_get_btr_cur(&pcur)->thr = thr;
 		mode |= BTR_RTREE_UNDO_INS;
 	}
 
