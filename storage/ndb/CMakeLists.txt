@@ -209,6 +209,8 @@ ELSE()
      CMAKE_BUILD_TYPE MATCHES "Debug")
     MESSAGE(STATUS "Building NDB test programs for \"-devbld\" debug build")
     SET(WITH_NDB_TEST ON)
+    MESSAGE(STATUS "Building NdbApi examples for \"-devbld\" debug build")
+    SET(WITH_NDBAPI_EXAMPLES ON)
   ENDIF()
 ENDIF()
 
