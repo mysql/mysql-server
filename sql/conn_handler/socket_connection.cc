@@ -924,7 +924,7 @@ Channel_info* Mysqld_socket_listener::listen_for_connection_event()
 #ifdef __APPLE__
   if (mysql_socket_getfd(connect_sock) >= FD_SETSIZE)
   {
-    sql_print_warning("File Descriptor %d exceedeed FD_SETSIZE=%d",
+    sql_print_warning("File Descriptor %d exceeded FD_SETSIZE=%d",
                       mysql_socket_getfd(connect_sock), FD_SETSIZE);
     connection_errors_internal++;
     (void) mysql_socket_close(connect_sock);
