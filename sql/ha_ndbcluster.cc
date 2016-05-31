@@ -17226,11 +17226,6 @@ Ndb_util_thread::do_run()
       goto ndb_util_thread_end;
     mysql_mutex_unlock(&LOCK);
 
-#ifdef NDB_EXTRA_DEBUG_UTIL_THREAD
-    DBUG_PRINT("ndb_util_thread", ("Started, cache_check_time: %lu",
-                                   opt_ndb_cache_check_time));
-#endif
-
     /*
       Check if the Ndb object in thd_ndb is still valid(it will be
       invalid if connection to cluster has been lost) and recycle
