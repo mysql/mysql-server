@@ -325,7 +325,7 @@ select * from test.t1 where a=2 lock in share mode;
 a	b	c
 2	2	2
 Expect 3 locks held on primary, only one is holder
-select * from ndbinfo.ordered_locks order by detail;
+select * from ndbinfo.ordered_locks order by detail, op;
 mode	state	detail	op	waiting
 S	H		READ	0
 S	H		READ	0
@@ -344,7 +344,7 @@ a	b	c
 2	2	2
 Expect 3 locks held on primary, only one is holder
 Holder is Shared, others are Xclusive
-select * from ndbinfo.ordered_locks order by detail;
+select * from ndbinfo.ordered_locks order by detail, op;
 mode	state	detail	op	waiting
 X	H		READ	0
 X	H		READ	0
@@ -362,7 +362,7 @@ select * from test.t1 where a=2 for update;
 a	b	c
 2	2	2
 Expect 3 locks held on primary, only one is holder
-select * from ndbinfo.ordered_locks order by detail;
+select * from ndbinfo.ordered_locks order by detail, op;
 mode	state	detail	op	waiting
 X	H		READ	0
 X	H		READ	0
@@ -374,7 +374,7 @@ select * from test.t1 where a > 4 lock in share mode;
 select * from test.t1 where a > 4 lock in share mode;
 select * from test.t1 where a > 4 lock in share mode;
 Expect 3 locks held on 1 row, only one is holder
-select * from ndbinfo.ordered_locks order by detail;
+select * from ndbinfo.ordered_locks order by detail, op;
 mode	state	detail	op	waiting
 S	H		READ	0
 S	H		READ	0
@@ -387,7 +387,7 @@ select * from test.t1 where a > 4 for update;
 select * from test.t1 where a > 4 lock in share mode;
 Expect 3 locks held on 1 row, only one is holder
 Holder is shared
-select * from ndbinfo.ordered_locks order by detail;
+select * from ndbinfo.ordered_locks order by detail, op;
 mode	state	detail	op	waiting
 X	H		READ	0
 X	H		READ	0
@@ -399,7 +399,7 @@ select * from test.t1 where a > 4 for update;
 select * from test.t1 where a > 4 for update;
 select * from test.t1 where a > 4 for update;
 Expect 3 locks held on 1 row, only one is holder
-select * from ndbinfo.ordered_locks order by detail;
+select * from ndbinfo.ordered_locks order by detail, op;
 mode	state	detail	op	waiting
 X	H		READ	0
 X	H		READ	0
@@ -411,22 +411,22 @@ select * from test.t1 where a=2 lock in share mode;
 update test.t1 set b=20 where a=2;
 Expect 1 Primary S Read + 1 per replica EX Update
 S is holder on primary replica, EX on Backup
-select * from ndbinfo.ordered_locks order by detail;
+select * from ndbinfo.ordered_locks order by detail, op;
 mode	state	detail	op	waiting
 X	H		UPDATE	0
-X	H	*	UPDATE	0
 S	H	*	READ	0
+X	H	*	UPDATE	0
 rollback;
 ReadEx-Update PK
 begin;
 select * from test.t1 where a=2 for update;
 update test.t1 set b=20 where a=2;
 Expect 1 Primary EX Read + 1 per replica EX Update
-select * from ndbinfo.ordered_locks order by detail;
+select * from ndbinfo.ordered_locks order by detail, op;
 mode	state	detail	op	waiting
 X	H		UPDATE	0
-X	H	*	UPDATE	0
 X	H	*	READ	0
+X	H	*	UPDATE	0
 rollback;
 ReadSh-Delete PK
 begin;
@@ -434,7 +434,7 @@ select * from test.t1 where a=2 lock in share mode;
 delete from test.t1 where a=2;
 Expect 1 Primary S Read + 1 per replica EX Delete
 S is holder on primary replica, EX on Backup
-select * from ndbinfo.ordered_locks order by detail;
+select * from ndbinfo.ordered_locks order by detail, op;
 mode	state	detail	op	waiting
 X	H		DELETE	0
 X	H	*	DELETE	0
@@ -445,7 +445,7 @@ begin;
 select * from test.t1 where a=2 for update;
 delete from test.t1 where a=2;
 Expect 1 Primary EX Read + 1 per replica EX Delete
-select * from ndbinfo.ordered_locks order by detail;
+select * from ndbinfo.ordered_locks order by detail, op;
 mode	state	detail	op	waiting
 X	H		DELETE	0
 X	H	*	DELETE	0
@@ -456,7 +456,7 @@ begin;
 insert into test.t1 values (6,6,6);
 update test.t1 set b=60 where a=6;
 Expect 2 locks per replica, held by Insert
-select * from ndbinfo.ordered_locks order by detail;
+select * from ndbinfo.ordered_locks order by detail, op;
 mode	state	detail	op	waiting
 X	H		UPDATE	0
 X	H		UPDATE	0
@@ -468,7 +468,7 @@ begin;
 insert into test.t1 values (6,6,6);
 delete from test.t1 where a=6;
 Expect 2 locks per replica, held by Insert
-select * from ndbinfo.ordered_locks order by detail;
+select * from ndbinfo.ordered_locks order by detail, op;
 mode	state	detail	op	waiting
 X	H		DELETE	0
 X	H		DELETE	0
@@ -480,7 +480,7 @@ begin;
 update test.t1 set b=45 where a=3;
 update test.t1 set b=46 where a=3;
 Expect 2 locks per replica
-select * from ndbinfo.ordered_locks order by detail;
+select * from ndbinfo.ordered_locks order by detail, op;
 mode	state	detail	op	waiting
 X	H		UPDATE	0
 X	H		UPDATE	0
@@ -492,7 +492,7 @@ begin;
 update test.t1 set b=45 where a=3;
 delete from test.t1 where a=3;
 Expect 2 locks per replica held by Update
-select * from ndbinfo.ordered_locks order by detail;
+select * from ndbinfo.ordered_locks order by detail, op;
 mode	state	detail	op	waiting
 X	H		DELETE	0
 X	H		DELETE	0
@@ -504,7 +504,7 @@ begin;
 delete from test.t1 where a=4;
 insert into test.t1 values (4,44,44);
 Expect 2 locks per replica held by Delete
-select * from ndbinfo.ordered_locks order by detail;
+select * from ndbinfo.ordered_locks order by detail, op;
 mode	state	detail	op	waiting
 X	H		INSERT	0
 X	H		INSERT	0
@@ -558,7 +558,7 @@ select * from test.t1 where a=1 lock in share mode;
 a	b	c
 1	1	1
 Expect 3 row locks taken, one is owner
-select * from ndbinfo.ordered_locks order by detail;
+select * from ndbinfo.ordered_locks order by detail, op;
 mode	state	detail	op	waiting
 S	H		READ	0
 S	H		READ	0
@@ -582,7 +582,7 @@ begin;
 select * from test.t1 where a=1 for update;;
 Expect : X waiting for SH lock
 2 transactions
-select * from ndbinfo.ordered_locks order by detail;
+select * from ndbinfo.ordered_locks order by detail, op;
 mode	state	detail	op	waiting
 X	W		READ	1
 S	H	*	READ	0
@@ -602,7 +602,7 @@ begin;
 select * from test.t1 where a=1 lock in share mode;;
 Expect : SH waiting for X lock
 2 transactions
-select * from ndbinfo.ordered_locks order by detail;
+select * from ndbinfo.ordered_locks order by detail, op;
 mode	state	detail	op	waiting
 S	W		READ	1
 X	H	*	READ	0
@@ -622,7 +622,7 @@ begin;
 select * from test.t1 where a=1 for update;;
 Expect : X waiting for X lock
 2 transactions
-select * from ndbinfo.ordered_locks order by detail;
+select * from ndbinfo.ordered_locks order by detail, op;
 mode	state	detail	op	waiting
 X	W		READ	1
 X	H	*	READ	0
@@ -640,7 +640,7 @@ begin;
 select * from test.t1 where a=7 lock in share mode;;
 Expect : S waiting for X lock
 2 transactions
-select * from ndbinfo.ordered_locks order by detail;
+select * from ndbinfo.ordered_locks order by detail, op;
 mode	state	detail	op	waiting
 S	W		READ	1
 X	H	*	INSERT	0
@@ -658,7 +658,7 @@ begin;
 select * from test.t1 where a=5 lock in share mode;;
 Expect : S waiting for X lock
 2 transactions
-select * from ndbinfo.ordered_locks order by detail;
+select * from ndbinfo.ordered_locks order by detail, op;
 mode	state	detail	op	waiting
 S	W		READ	1
 X	H	*	UPDATE	0
@@ -679,7 +679,7 @@ begin;
 update test.t1 set b=55 where a=5;;
 Expect : X waiting for S lock
 2 transactions
-select * from ndbinfo.ordered_locks order by detail;
+select * from ndbinfo.ordered_locks order by detail, op;
 mode	state	detail	op	waiting
 X	W		UPDATE	1
 S	H	*	READ	0
@@ -695,7 +695,7 @@ begin;
 select * from test.t1 where a=5 lock in share mode;;
 Expect : S waiting for X lock
 2 transactions
-select * from ndbinfo.ordered_locks order by detail;
+select * from ndbinfo.ordered_locks order by detail, op;
 mode	state	detail	op	waiting
 S	W		READ	1
 X	H	*	DELETE	0
@@ -716,7 +716,7 @@ begin;
 delete from test.t1 where a=5;;
 Expect : X waiting for S lock
 2 transactions
-select * from ndbinfo.ordered_locks order by detail;
+select * from ndbinfo.ordered_locks order by detail, op;
 mode	state	detail	op	waiting
 X	W		DELETE	1
 S	H	*	READ	0
@@ -736,7 +736,7 @@ Expect : 5-1 X locks from scan
 1   X lock waiting from scan
 1   S lock held by read
 2 transactions
-select * from ndbinfo.ordered_locks order by detail,mode;
+select * from ndbinfo.ordered_locks order by detail, mode, op;
 mode	state	detail	op	waiting
 X	W		SCAN	1
 S	H	*	READ	0
@@ -766,7 +766,7 @@ Expect : 5-1 S locks from scan
 1   S lock waiting from scan
 1   X lock held by read
 2 transactions
-select * from ndbinfo.ordered_locks order by detail,mode;
+select * from ndbinfo.ordered_locks order by detail, mode, op;
 mode	state	detail	op	waiting
 S	W		SCAN	1
 S	H	*	SCAN	0
@@ -800,7 +800,7 @@ select * from test.t1 where a=5 for update;;
 2 shared locks on row
 1 ex read waiting
 2 transactions
-select * from ndbinfo.ordered_locks order by detail,mode;
+select * from ndbinfo.ordered_locks order by detail, mode, op;
 mode	state	detail	op	waiting
 S	H		READ	0
 X	W		READ	1
@@ -823,7 +823,7 @@ begin;
 select a,b,length(c) from test.t1 where a=1;
 a	b	length(c)
 1	1	900
-select * from ndbinfo.ordered_locks order by detail,mode;
+select * from ndbinfo.ordered_locks order by detail, mode, op;
 mode	state	detail	op	waiting
 rollback;
 Show PK SH lock
@@ -832,7 +832,7 @@ select a,b,length(c) from test.t1 where a=1 lock in share mode;
 a	b	length(c)
 1	1	900
 Expect Shared lock on main table row only
-select * from ndbinfo.ordered_locks order by detail,mode;
+select * from ndbinfo.ordered_locks order by detail, mode, op;
 mode	state	detail	op	waiting
 S	H	*	READ	0
 rollback;
@@ -842,7 +842,7 @@ select a,b,length(c) from test.t1 where a=1 for update;
 a	b	length(c)
 1	1	900
 Expect Exclusive lock on main table row only
-select * from ndbinfo.ordered_locks order by detail,mode;
+select * from ndbinfo.ordered_locks order by detail, mode, op;
 mode	state	detail	op	waiting
 X	H	*	READ	0
 rollback;
@@ -850,7 +850,7 @@ Show insert locks
 begin;
 insert into test.t1 values (2,2,repeat('TSG', 300));
 Expect Exclusive locks on all replicas of main + part row
-select * from ndbinfo.ordered_locks order by detail,mode;
+select * from ndbinfo.ordered_locks order by detail, mode, op;
 mode	state	detail	op	waiting
 X	H		UPDATE	0
 X	H		UPDATE	0
