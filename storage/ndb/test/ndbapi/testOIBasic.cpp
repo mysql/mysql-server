@@ -610,6 +610,14 @@ operator<<(NdbOut& out, const Chs& chs)
 static Chs* cslist[maxcsnumber];
 
 static void
+initcslist()
+{
+  for (uint i = 0; i < maxcsnumber; i++) {
+    cslist[i] = 0;
+  }
+}
+
+static void
 resetcslist()
 {
   for (uint i = 0; i < maxcsnumber; i++) {
@@ -647,6 +655,7 @@ getcs(Par par)
       }
     }
   }
+  ndbout << "Use charset: " << cs->name << endl;
   if (cslist[cs->number] == 0)
     cslist[cs->number] = new Chs(cs);
   return cslist[cs->number];
@@ -1227,6 +1236,7 @@ struct Con {
   ~Con() {
     if (m_tx != 0)
       closeTransaction();
+    delete m_scanfilter;
   }
   int connect();
   void connect(const Con& con);
@@ -2729,6 +2739,7 @@ void
 Set::reset()
 {
   for (uint i = 0; i < m_rows; i++) {
+    delete m_row[i];
     m_row[i] = 0;
   }
 }
@@ -2860,11 +2871,16 @@ Set::setrow(uint i, const Row* src, bool force)
 {
   require(i < m_rows);
   if (m_row[i] != 0)
+  {
     if (!force)
       return -1;
+    delete m_row[i];
+    m_row[i] = 0;
+  }
   
   Row* newRow= new Row(src->m_tab);
   newRow->copy(*src, true);
+  m_row[i] = newRow;
   return 0;
 }
 
@@ -3294,6 +3310,9 @@ BSet::BSet(const Tab& tab, const ITab& itab) :
 
 BSet::~BSet()
 {
+  for (uint i = 0; i < m_alloc; i++) {
+    delete m_bval[i];
+  }
   delete [] m_bval;
 }
 
@@ -3941,7 +3960,7 @@ scanreadindex(Par par, const ITab& itab, BSet& bset, bool calc)
     }
     uint i = (uint)-1;
     CHK(set2.getkey(par, &i) == 0);
-    CHK(set2.putval(i, par.m_dups, n) == 0);
+    CHK(set2.putval(i, par.m_dups, n) == 0);  //OJA
     LL4("key " << i << " row " << n << " " << *set2.m_row[i]);
     n++;
   }
@@ -5094,6 +5113,7 @@ enum TMode { ST = 1, MT = 2 };
 extern "C" { static void* runthread(void* arg); }
 
 struct Thr {
+  const char* m_name;
   enum State { Wait, Start, Stop, Exit };
   State m_state;
   Par m_par;
@@ -5131,6 +5151,7 @@ struct Thr {
 };
 
 Thr::Thr(Par par, uint n) :
+  m_name(0),
   m_state(Wait),
   m_par(par),
   m_thread(0),
@@ -5143,7 +5164,7 @@ Thr::Thr(Par par, uint n) :
   m_par.m_no = n;
   char buf[10];
   sprintf(buf, "thr%03u", par.m_no);
-  const char* name = strcpy(new char[10], buf);
+  m_name = strcpy(new char[10], buf);
   // mutex
   m_mutex = NdbMutex_Create();
   m_cond = NdbCondition_Create();
@@ -5151,7 +5172,7 @@ Thr::Thr(Par par, uint n) :
   // run
   const uint stacksize = 256 * 1024;
   const NDB_THREAD_PRIO prio = NDB_THREAD_PRIO_LOW;
-  m_thread = NdbThread_Create(runthread, (void**)this, stacksize, name, prio);
+  m_thread = NdbThread_Create(runthread, (void**)this, stacksize, m_name, prio);
 }
 
 Thr::~Thr()
@@ -5168,6 +5189,7 @@ Thr::~Thr()
     NdbMutex_Destroy(m_mutex);
     m_mutex = 0;
   }
+  delete [] m_name;
 }
 
 static void*
@@ -5830,6 +5852,7 @@ static const char* g_progname = "testOIBasic";
 int
 main(int argc,  char** argv)
 {
+  initcslist();
   ndb_init();
   uint i;
   ndbout << g_progname;
@@ -6037,6 +6060,17 @@ main(int argc,  char** argv)
     g_ncc = 0;
   }
 // ok
+  if (tablist)
+  {
+    for (uint i = 0; i < tabcount; i++) {
+      delete tablist[i];
+    }
+    delete tablist;
+  }
+  for (uint i = 0; i < maxcsnumber; i++) {
+    delete cslist[i];
+  }
+  ndb_end(0);
   return NDBT_ProgramExit(NDBT_OK);
 failed:
   return NDBT_ProgramExit(NDBT_FAILED);
