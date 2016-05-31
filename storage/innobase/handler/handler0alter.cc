@@ -6051,6 +6051,72 @@ found_col:
 			    add_fts_doc_id_idx));
 }
 
+/** Check that the column is part of a virtual index(index contains
+virtual column) in the table
+@param[in]	table		Table containing column
+@param[in]	col		column to be checked
+@return true if this column is indexed with other virtual columns */
+static
+bool
+dict_col_in_v_indexes(
+	dict_table_t*	table,
+	dict_col_t*	col)
+{
+	for (dict_index_t* index = dict_table_get_next_index(
+		dict_table_get_first_index(table)); index != NULL;
+		index = dict_table_get_next_index(index)) {
+		if (!dict_index_has_virtual(index)) {
+			continue;
+		}
+		for (ulint k = 0; k < index->n_fields; k++) {
+			dict_field_t*   field
+				= dict_index_get_nth_field(index, k);
+			if (field->col->ind == col->ind) {
+				return(true);
+			}
+		}
+	}
+
+	return(false);
+}
+
+/* Check whether a columnn length change alter operation requires
+to rebuild the template.
+@param[in]	altered_table	TABLE object for new version of table.
+@param[in]	ha_alter_info	Structure describing changes to be done
+				by ALTER TABLE and holding data used
+				during in-place alter.
+@param[in]	table		table being altered
+@return TRUE if needs rebuild. */
+static
+bool
+alter_templ_needs_rebuild(
+	TABLE*                  altered_table,
+	Alter_inplace_info*     ha_alter_info,
+	dict_table_t*		table)
+{
+        ulint	i = 0;
+        List_iterator_fast<Create_field>  cf_it(
+                ha_alter_info->alter_info->create_list);
+
+	for (Field** fp = altered_table->field; *fp; fp++, i++) {
+		cf_it.rewind();
+		while (const Create_field* cf = cf_it++) {
+			for (ulint j=0; j < table->n_cols; j++) {
+				dict_col_t* cols
+                                   = dict_table_get_nth_col(table, j);
+				if (cf->length > cols->len
+				    && dict_col_in_v_indexes(table, cols)) {
+					return(true);
+				}
+			}
+		}
+	}
+
+	return(false);
+}
+
+
 /** Alter the table structure in-place with operations
 specified using Alter_inplace_info.
 The level of concurrency allowed during this operation depends
@@ -6075,8 +6141,7 @@ ha_innobase::inplace_alter_table(
 	dict_vcol_templ_t*	s_templ = NULL;
 	dict_vcol_templ_t*	old_templ = NULL;
 	struct TABLE*		eval_table = altered_table;
-
-
+	bool			rebuild_templ = false;
 	DBUG_ENTER("inplace_alter_table");
 	DBUG_ASSERT(!srv_read_only_mode);
 
@@ -6124,8 +6189,17 @@ ok_exit:
 	that carries translation information between MySQL TABLE and InnoDB
 	table, which indicates the virtual columns and their base columns
 	info. This is used to do the computation callback, so that the
-	data in base columns can be extracted send to server */
-	if (ctx->need_rebuild() && ctx->new_table->n_v_cols > 0) {
+	data in base columns can be extracted send to server.
+	If the Column length changes and it is a part of virtual
+	index then we need to rebuild the template. */
+	rebuild_templ
+	     = ctx->need_rebuild()
+	       || ((ha_alter_info->handler_flags
+		& Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH)
+		&& alter_templ_needs_rebuild(
+		   altered_table, ha_alter_info, ctx->new_table));
+
+	if ((ctx->new_table->n_v_cols > 0) && rebuild_templ) {
 		s_templ = UT_NEW_NOKEY(dict_vcol_templ_t());
 		s_templ->vtempl = NULL;
 
@@ -6179,7 +6253,8 @@ ok_exit:
 		ctx->m_stage, add_v, eval_table);
 
 	if (s_templ) {
-		ut_ad(ctx->need_rebuild() || ctx->num_to_add_vcol > 0);
+		ut_ad(ctx->need_rebuild() || ctx->num_to_add_vcol > 0
+		      || rebuild_templ);
 		dict_free_vc_templ(s_templ);
 		UT_DELETE(s_templ);
 
