@@ -521,8 +521,14 @@ create view frag_ops as select
   sum(tot_scan_bytes_returned) as tot_scan_bytes_returned, 
   sum(tot_scan_prog_bytes) as tot_scan_prog_bytes,
   sum(tot_scan_bound_bytes) as tot_scan_bound_bytes,
-  sum(tot_scan_inst_exec) as tot_scan_inst_exec, 
-  sum(conc_frag_scans) as conc_frag_scans,
+  sum(tot_scan_inst_exec) as tot_scan_inst_exec,
+  # Ignore concurrent frag_scans, as all tests below expect them to be 0
+  # but this is not stable as LCP scans are counted as concurrent
+  # frag scans while they are running (but not counted as tot_frag_scans
+  # when they complete).
+  # Arguably it is useful to see a live LCP scan, and this test has no
+  # use for conc_frag_scans!=0, so avoid looking at it for determinism
+  #sum(conc_frag_scans) as conc_frag_scans,
   sum(conc_qd_frag_scans) as conc_qd_frag_scans, 
   sum(tot_commits) as tot_commits
   from ndbinfo.operations_per_fragment

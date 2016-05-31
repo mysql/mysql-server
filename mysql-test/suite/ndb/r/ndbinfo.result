@@ -895,8 +895,14 @@ create view frag_ops as select
   sum(tot_scan_bytes_returned) as tot_scan_bytes_returned, 
   sum(tot_scan_prog_bytes) as tot_scan_prog_bytes,
   sum(tot_scan_bound_bytes) as tot_scan_bound_bytes,
-  sum(tot_scan_inst_exec) as tot_scan_inst_exec, 
-  sum(conc_frag_scans) as conc_frag_scans,
+  sum(tot_scan_inst_exec) as tot_scan_inst_exec,
+  # Ignore concurrent frag_scans, as all tests below expect them to be 0
+  # but this is not stable as LCP scans are counted as concurrent
+  # frag scans while they are running (but not counted as tot_frag_scans
+  # when they complete).
+  # Arguably it is useful to see a live LCP scan, and this test has no
+  # use for conc_frag_scans!=0, so avoid looking at it for determinism
+  #sum(conc_frag_scans) as conc_frag_scans,
   sum(conc_qd_frag_scans) as conc_qd_frag_scans, 
   sum(tot_commits) as tot_commits
   from ndbinfo.operations_per_fragment
@@ -962,7 +968,6 @@ tot_scan_bytes_returned	0
 tot_scan_prog_bytes	64
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	0
-conc_frag_scans	0
 conc_qd_frag_scans	0
 tot_commits	400
 fq_name	ndbinfo/def/NDB$BLOB_
@@ -987,7 +992,6 @@ tot_scan_bytes_returned	0
 tot_scan_prog_bytes	0
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	0
-conc_frag_scans	0
 conc_qd_frag_scans	0
 tot_commits	200
 fq_name	PRIMARY
@@ -1012,7 +1016,6 @@ tot_scan_bytes_returned	0
 tot_scan_prog_bytes	0
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	0
-conc_frag_scans	0
 conc_qd_frag_scans	0
 tot_commits	0
 fq_name	ix1$unique
@@ -1037,7 +1040,6 @@ tot_scan_bytes_returned	0
 tot_scan_prog_bytes	0
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	0
-conc_frag_scans	0
 conc_qd_frag_scans	0
 tot_commits	200
 fq_name	ndbinfo/def/t2
@@ -1062,7 +1064,6 @@ tot_scan_bytes_returned	0
 tot_scan_prog_bytes	32
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	0
-conc_frag_scans	0
 conc_qd_frag_scans	0
 tot_commits	6
 explain select count(*) from t1 where d<10;
@@ -1135,7 +1136,6 @@ tot_scan_bytes_returned	7116
 tot_scan_prog_bytes	288
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	305
-conc_frag_scans	0
 conc_qd_frag_scans	0
 tot_commits	450
 fq_name	ndbinfo/def/NDB$BLOB_
@@ -1160,7 +1160,6 @@ tot_scan_bytes_returned	0
 tot_scan_prog_bytes	0
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	0
-conc_frag_scans	0
 conc_qd_frag_scans	0
 tot_commits	246
 fq_name	PRIMARY
@@ -1185,7 +1184,6 @@ tot_scan_bytes_returned	588
 tot_scan_prog_bytes	768
 tot_scan_bound_bytes	9888
 tot_scan_inst_exec	58
-conc_frag_scans	0
 conc_qd_frag_scans	0
 tot_commits	0
 fq_name	ix1$unique
@@ -1210,7 +1208,6 @@ tot_scan_bytes_returned	0
 tot_scan_prog_bytes	0
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	0
-conc_frag_scans	0
 conc_qd_frag_scans	0
 tot_commits	250
 fq_name	ndbinfo/def/t2
@@ -1235,7 +1232,6 @@ tot_scan_bytes_returned	0
 tot_scan_prog_bytes	32
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	0
-conc_frag_scans	0
 conc_qd_frag_scans	0
 tot_commits	6
 explain select count(*)
