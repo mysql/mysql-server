@@ -122,8 +122,14 @@ Ndb_component::stop()
     m_thread_state= TS_STOPPING;
   }
 
-  // Give subclass a call, should wake itself up to quickly detect the stop
+  // Give subclass a call, should wake itself up to quickly
+  // detect the stop.
+  // Unlock the mutex first to avoid deadlock betewen
+  // is_stop_requested() and do_wakeup() due to different
+  // mutex lock order
+  mysql_mutex_unlock(&m_start_stop_mutex);
   do_wakeup();
+  mysql_mutex_lock(&m_start_stop_mutex);
 
   if (m_thread_state == TS_STOPPING)
   {
