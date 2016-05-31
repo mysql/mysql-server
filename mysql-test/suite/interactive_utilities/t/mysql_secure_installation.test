@@ -27,13 +27,13 @@ my $i;
 # mysql_secure_installation into a function with the values no.
 sub after_commands()
 {
-   $texp[$i]->expect(15,' -re ',[ 'anonymous users' => sub {
+   $texp[$i]->expect(15,' -re ',[ 'Remove anonymous users?' => sub {
 $texp[$i]->send("n\n");}]);
-   $texp[$i]->expect(15,' -re ',[ 'root login' => sub {
+   $texp[$i]->expect(15,' -re ',[ 'Disallow root login remotely?' => sub {
 $texp[$i]->send("n\n");}]);
-   $texp[$i]->expect(15,' -re ',[ 'test database' => sub {
+   $texp[$i]->expect(15,' -re ',[ 'Remove test database and access to it?' => sub {
 $texp[$i]->send("n\n");}]);
-   $texp[$i]->expect(15,' -re ',[ 'Reload' => sub { $texp[$i]->send("n\n");}]);
+   $texp[$i]->expect(15,' -re ',[ 'Reload privilege tables now?' => sub { $texp[$i]->send("n\n");}]);
    print "Execution number $i was successful\n";
 }
 
@@ -48,13 +48,13 @@ sub initial_commands()
 # mysql_secure_installation into a function with the values yes.
 sub after_effects()
 {
-   $texp[$i]->expect(15,' -re ',[ 'anonymous users' => sub {
+   $texp[$i]->expect(15,' -re ',[ 'Remove anonymous users?' => sub {
 $texp[$i]->send("y\n");}]);
-   $texp[$i]->expect(15,' -re ',[ 'root login' => sub {
+   $texp[$i]->expect(15,' -re ',[ 'Disallow root login remotely?' => sub {
 $texp[$i]->send("y\n");}]);
-   $texp[$i]->expect(15,' -re ',[ 'test database' => sub {
+   $texp[$i]->expect(15,' -re ',[ 'Remove test database and access to it?' => sub {
 $texp[$i]->send("y\n");}]);
-   $texp[$i]->expect(15,' -re ',[ 'Reload' => sub { $texp[$i]->send("y\n");}]);
+   $texp[$i]->expect(15,' -re ',[ 'Reload privilege tables now?' => sub { $texp[$i]->send("y\n");}]);
    print "Execution number $i was successful\n";
 }
 
@@ -150,11 +150,9 @@ UNINSTALL PLUGIN validate_password;
 # Restoring the server to the state prior to this test.
 SET PASSWORD for root@localhost = '';
 CREATE DATABASE test;
-INSERT INTO mysql.user SELECT LOWER(@@hostname),'root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',NULL,NULL,'N';
 REPLACE INTO mysql.user VALUES ('localhost','root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',NULL,NULL,'N');
 REPLACE INTO mysql.user VALUES ('localhost','mysql.sys','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE','N',NULL,NULL,'Y');
 INSERT INTO mysql.db VALUES ('%','test','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y','Y');
-INSERT INTO mysql.db VALUES ('%','test\_%','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y','Y');
 UPDATE mysql.user SET password_last_changed=@plc, authentication_string=@auth_str, plugin= @plugin where user='root';
 UPDATE mysql.user SET password_last_changed=@sys_plc, authentication_string=@sys_auth_str, plugin= @sys_plugin where user='mysql.sys';
 FLUSH PRIVILEGES;
