@@ -3233,6 +3233,13 @@ btr_lift_page_up(
 	}
 
 	if (!dict_table_is_locking_disabled(index->table)) {
+		/* Free predicate page locks on the block */
+		if (dict_index_is_spatial(index)) {
+			lock_mutex_enter();
+			lock_prdt_page_free_from_discard(
+				block, lock_sys->prdt_page_hash);
+			lock_mutex_exit();
+		}
 		lock_update_copy_and_discard(father_block, block);
 	}
 
@@ -3459,6 +3466,11 @@ retry:
 				goto retry;
 			}
 
+			/* Set rtr_info for cursor2, since it is
+			necessary in recursive page merge. */
+			cursor2.rtr_info = cursor->rtr_info;
+			cursor2.tree_height = cursor->tree_height;
+
 			offsets2 = rec_get_offsets(
 				btr_cur_get_rec(&cursor2), index,
 				NULL, ULINT_UNDEFINED, &heap);
@@ -3517,6 +3529,8 @@ retry:
 
 			/* No GAP lock needs to be worrying about */
 			lock_mutex_enter();
+			lock_prdt_page_free_from_discard(
+				block, lock_sys->prdt_page_hash);
 			lock_rec_free_all_from_discard_page(block);
 			lock_mutex_exit();
 		} else {
@@ -3554,6 +3568,11 @@ retry:
 				merge_block, heap)) {
 				goto err_exit;
 			}
+
+			/* Set rtr_info for cursor2, since it is
+			necessary in recursive page merge. */
+			cursor2.rtr_info = cursor->rtr_info;
+			cursor2.tree_height = cursor->tree_height;
 		} else {
 			btr_page_get_father(index, merge_block, mtr, &cursor2);
 		}
@@ -3667,6 +3686,8 @@ retry:
 							 block, index, mtr);
 			}
 			lock_mutex_enter();
+			lock_prdt_page_free_from_discard(
+				block, lock_sys->prdt_page_hash);
 			lock_rec_free_all_from_discard_page(block);
 			lock_mutex_exit();
 		} else {

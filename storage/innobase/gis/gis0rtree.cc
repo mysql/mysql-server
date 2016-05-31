@@ -725,8 +725,6 @@ rtr_adjust_upper_level(
 		node_ptr_upper, &rec, &dummy_big_rec, 0, NULL, mtr);
 
 	if (err == DB_FAIL) {
-		ut_ad(!cursor.rtr_info);
-
 		cursor.rtr_info = sea_cur->rtr_info;
 		cursor.tree_height = sea_cur->tree_height;
 
