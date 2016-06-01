@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,19 +30,13 @@ Created Mar 16, 2015 Vasil Dimov
 
 #include "univ.i"
 
-#include <boost/atomic.hpp>
+#include <atomic>
 #include <list>
 
 #include "os0numa.h" /* os_numa_*() */
 #include "ut0mutex.h" /* ib_mutex_t */
 #include "ut0new.h" /* UT_NEW*(), UT_DELETE*() */
 #include "ut0rnd.h" /* ut_fold_ull() */
-
-/* Enable this to implement a stats gathering inside ut_lock_free_hash_t.
-It causes significant performance slowdown. */
-#if 0
-#define UT_HASH_IMPLEMENT_PRINT_STATS
-#endif
 
 /** An interface class to a basic hash table, that ut_lock_free_hash_t is. */
 class ut_hash_interface_t {
@@ -130,12 +124,12 @@ public:
 			m_cnt_size = 256;
 		}
 
-		m_cnt = UT_NEW_ARRAY(boost::atomic_int64_t*, m_cnt_size,
+		m_cnt = UT_NEW_ARRAY(std::atomic<int64_t>*, m_cnt_size,
 				     mem_key_ut_lock_free_hash_t);
 
 		for (size_t i = 0; i < m_cnt_size; i++) {
 
-			const size_t	s = sizeof(boost::atomic_int64_t);
+			const size_t	s = sizeof(std::atomic<int64_t>);
 			void*		mem;
 
 			if (m_numa_available) {
@@ -150,25 +144,23 @@ public:
 
 			ut_a(mem != NULL);
 
-			m_cnt[i] = new (mem) boost::atomic_int64_t;
+			m_cnt[i] = new (mem) std::atomic<int64_t>;
 
-			m_cnt[i]->store(0, boost::memory_order_relaxed);
+			m_cnt[i]->store(0, std::memory_order_relaxed);
 		}
 	}
 
 	/** Destructor. */
 	~ut_lock_free_cnt_t()
 	{
-		/* Needed in order to be able to explicitly call the
-		destructor of boost::atomic_int64_t below. */
-		using namespace boost;
+		using namespace std;
 
 		for (size_t i = 0; i < m_cnt_size; i++) {
-			m_cnt[i]->~atomic_int64_t();
+			m_cnt[i]->~atomic<int64_t>();
 
 			if (m_numa_available) {
 				os_numa_free(m_cnt[i],
-					     sizeof(boost::atomic_int64_t));
+					     sizeof(std::atomic<int64_t>));
 			} else {
 				ut_free(m_cnt[i]);
 			}
@@ -183,7 +175,7 @@ public:
 	{
 		const size_t	i = n_cnt_index();
 
-		m_cnt[i]->fetch_add(1, boost::memory_order_relaxed);
+		m_cnt[i]->fetch_add(1, std::memory_order_relaxed);
 	}
 
 	/** Decrement the counter. */
@@ -192,7 +184,7 @@ public:
 	{
 		const size_t	i = n_cnt_index();
 
-		m_cnt[i]->fetch_sub(1, boost::memory_order_relaxed);
+		m_cnt[i]->fetch_sub(1, std::memory_order_relaxed);
 	}
 
 	/** Get the value of the counter.
@@ -203,7 +195,7 @@ public:
 		int64_t	ret = 0;
 
 		for (size_t i = 0; i < m_cnt_size; i++) {
-			ret += m_cnt[i]->load(boost::memory_order_relaxed);
+			ret += m_cnt[i]->load(std::memory_order_relaxed);
 		}
 
 		return(ret);
@@ -237,7 +229,7 @@ private:
 
 	/** The sum of all the counters in m_cnt[] designates the overall
 	count. */
-	boost::atomic_int64_t**	m_cnt;
+	std::atomic<int64_t>**	m_cnt;
 	size_t			m_cnt_size;
 };
 
@@ -308,7 +300,7 @@ public:
 		if (!m_next.compare_exchange_strong(
 				expected,
 				new_arr,
-				boost::memory_order_relaxed)) {
+				std::memory_order_relaxed)) {
 			/* Somebody just did that. */
 			UT_DELETE(new_arr);
 
@@ -342,9 +334,9 @@ public:
 	{
 		m_n_ref.inc();
 
-		boost::atomic_thread_fence(boost::memory_order_acq_rel);
+		std::atomic_thread_fence(std::memory_order_acq_rel);
 
-		if (m_pending_free.load(boost::memory_order_acquire)) {
+		if (m_pending_free.load(std::memory_order_acquire)) {
 			/* Don't allow access if freeing is pending. Ie if
 			another thread is waiting for readers to go away
 			before it can free the m_base's member of this
@@ -360,7 +352,7 @@ public:
 	void
 	end_access()
 	{
-		boost::atomic_thread_fence(boost::memory_order_release);
+		std::atomic_thread_fence(std::memory_order_release);
 
 		m_n_ref.dec();
 	}
@@ -372,7 +364,7 @@ public:
 	{
 		int64_t	ret = m_n_ref.get();
 
-		boost::atomic_thread_fence(boost::memory_order_acq_rel);
+		std::atomic_thread_fence(std::memory_order_acq_rel);
 
 		return(ret);
 	}
@@ -385,12 +377,12 @@ public:
 
 	/** Indicate whether some thread is waiting for readers to go away
 	before it can free the memory occupied by the m_base member. */
-	boost::atomic_bool	m_pending_free;
+	std::atomic_bool	m_pending_free;
 
 	/** Pointer to the next node if any or NULL. This begins its life
 	as NULL and is only changed once to some real value. Never changed
 	to another value after that. */
-	boost::atomic<next_t>	m_next;
+	std::atomic<next_t>	m_next;
 
 private:
 	/** Count the number of deleted elements. The value returned could
@@ -407,7 +399,7 @@ private:
 		for (size_t i = 0; i < m_n_base_elements; i++) {
 
 			const int64_t	val = m_base[i].m_val.load(
-				boost::memory_order_relaxed);
+				std::memory_order_relaxed);
 
 			if (val == deleted_val) {
 				ret++;
@@ -503,7 +495,7 @@ public:
 		m_data.store(
 			UT_NEW(arr_node_t(initial_size),
 			       mem_key_ut_lock_free_hash_t),
-			boost::memory_order_relaxed);
+			std::memory_order_relaxed);
 
 		mutex_create(LATCH_ID_LOCK_FREE_HASH, &m_optimize_latch);
 
@@ -517,11 +509,11 @@ public:
 	{
 		mutex_destroy(&m_optimize_latch);
 
-		arr_node_t*	arr = m_data.load(boost::memory_order_relaxed);
+		arr_node_t*	arr = m_data.load(std::memory_order_relaxed);
 
 		do {
 			arr_node_t*	next = arr->m_next.load(
-				boost::memory_order_relaxed);
+				std::memory_order_relaxed);
 
 			UT_DELETE(arr);
 
@@ -545,7 +537,7 @@ public:
 		ut_ad(key != UNUSED);
 		ut_ad(key != AVOID);
 
-		arr_node_t*	arr = m_data.load(boost::memory_order_relaxed);
+		arr_node_t*	arr = m_data.load(std::memory_order_relaxed);
 
 		for (;;) {
 			const key_val_t*	tuple = get_tuple(key, &arr);
@@ -561,7 +553,7 @@ public:
 			NOT_FOUND below which is fine. */
 
 			int64_t	v = tuple->m_val.load(
-				boost::memory_order_relaxed);
+				std::memory_order_relaxed);
 
 			if (v == DELETED) {
 				arr->end_access();
@@ -581,10 +573,10 @@ public:
 			common execution path m_val is not GOTO_NEXT_ARRAY and
 			we return earlier, only using the cheaper
 			memory_order_relaxed. */
-			boost::atomic_thread_fence(boost::memory_order_acquire);
+			std::atomic_thread_fence(std::memory_order_acquire);
 
 			arr_node_t*	next = arr->m_next.load(
-				boost::memory_order_relaxed);
+				std::memory_order_relaxed);
 
 			ut_a(next != NULL);
 
@@ -617,7 +609,7 @@ public:
 		ut_ad(val != GOTO_NEXT_ARRAY);
 
 		insert_or_update(key, val, false,
-				 m_data.load(boost::memory_order_relaxed));
+				 m_data.load(std::memory_order_relaxed));
 	}
 
 	/** Delete a (key, val) pair from the hash.
@@ -645,7 +637,7 @@ public:
 		ut_ad(key != UNUSED);
 		ut_ad(key != AVOID);
 
-		arr_node_t*	arr = m_data.load(boost::memory_order_relaxed);
+		arr_node_t*	arr = m_data.load(std::memory_order_relaxed);
 
 		for (;;) {
 			key_val_t*	tuple = get_tuple(key, &arr);
@@ -656,7 +648,7 @@ public:
 			}
 
 			int64_t	v = tuple->m_val.load(
-				boost::memory_order_relaxed);
+				std::memory_order_relaxed);
 
 			for (;;) {
 				if (v == GOTO_NEXT_ARRAY) {
@@ -666,7 +658,7 @@ public:
 				if (tuple->m_val.compare_exchange_strong(
 						v,
 						DELETED,
-						boost::memory_order_relaxed)) {
+						std::memory_order_relaxed)) {
 
 					arr->end_access();
 					return;
@@ -688,10 +680,10 @@ public:
 			common execution path m_val is not GOTO_NEXT_ARRAY and
 			we return earlier, only using the cheaper
 			memory_order_relaxed. */
-			boost::atomic_thread_fence(boost::memory_order_acquire);
+			std::atomic_thread_fence(std::memory_order_acquire);
 
 			arr_node_t*	next = arr->m_next.load(
-				boost::memory_order_relaxed);
+				std::memory_order_relaxed);
 
 			ut_a(next != NULL);
 
@@ -724,7 +716,7 @@ public:
 		ut_ad(key != AVOID);
 
 		insert_or_update(key, 1, true,
-				 m_data.load(boost::memory_order_relaxed));
+				 m_data.load(std::memory_order_relaxed));
 	}
 
 	/** Decrement the value of a given key with 1 or insert a new tuple
@@ -742,7 +734,7 @@ public:
 		ut_ad(key != AVOID);
 
 		insert_or_update(key, -1, true,
-				 m_data.load(boost::memory_order_relaxed));
+				 m_data.load(std::memory_order_relaxed));
 	}
 
 #ifdef UT_HASH_IMPLEMENT_PRINT_STATS
@@ -796,10 +788,10 @@ private:
 		}
 
 		/** Key. */
-		boost::atomic_uint64_t	m_key;
+		std::atomic<uint64_t>	m_key;
 
 		/** Value. */
-		boost::atomic_int64_t	m_val;
+		std::atomic<int64_t>	m_val;
 	};
 
 	/** An array node in the hash. The hash table consists of a linked
@@ -859,7 +851,7 @@ private:
 			key_val_t*	cur_tuple = &arr[cur_pos];
 
 			const uint64_t	cur_key = cur_tuple->m_key.load(
-				boost::memory_order_relaxed);
+				std::memory_order_relaxed);
 
 			if (cur_key == key) {
 				return(cur_tuple);
@@ -886,7 +878,7 @@ private:
 			while (!(*arr)->begin_access()) {
 				/* The array has been garbaged, restart
 				the search from the beginning. */
-				*arr = m_data.load(boost::memory_order_relaxed);
+				*arr = m_data.load(std::memory_order_relaxed);
 			}
 
 			key_val_t*	t = get_tuple_from_array(
@@ -901,7 +893,7 @@ private:
 			}
 
 			arr_node_t*	next = (*arr)->m_next.load(
-				boost::memory_order_relaxed);
+				std::memory_order_relaxed);
 
 			(*arr)->end_access();
 
@@ -947,7 +939,7 @@ private:
 			key_val_t*	cur_tuple = &arr[cur_pos];
 
 			const uint64_t	cur_key = cur_tuple->m_key.load(
-				boost::memory_order_relaxed);
+				std::memory_order_relaxed);
 
 			if (cur_key == key) {
 				return(cur_tuple);
@@ -958,7 +950,7 @@ private:
 				if (cur_tuple->m_key.compare_exchange_strong(
 						expected,
 						key,
-						boost::memory_order_relaxed)) {
+						std::memory_order_relaxed)) {
 					return(cur_tuple);
 				}
 
@@ -995,18 +987,18 @@ private:
 			key_val_t*	t = &src_arr->m_base[i];
 
 			uint64_t	k = t->m_key.load(
-				boost::memory_order_relaxed);
+				std::memory_order_relaxed);
 
 			/* Prevent further inserts into empty cells. */
 			if (k == UNUSED
 			    && t->m_key.compare_exchange_strong(
 				    k,
 				    AVOID,
-				    boost::memory_order_relaxed)) {
+				    std::memory_order_relaxed)) {
 				continue;
 			}
 
-			int64_t	v = t->m_val.load(boost::memory_order_relaxed);
+			int64_t	v = t->m_val.load(std::memory_order_relaxed);
 
 			/* Insert (k, v) into the destination array. We know
 			that nobody else will try this concurrently with this
@@ -1039,8 +1031,8 @@ private:
 				next arrays (ie that insert_or_update() has
 				completed and that its effects are visible to
 				other threads). */
-				boost::atomic_thread_fence(
-					boost::memory_order_release);
+				std::atomic_thread_fence(
+					std::memory_order_release);
 
 				/* Now that we know (k, v) is present in some
 				of the next arrays, try to CAS the tuple
@@ -1050,7 +1042,7 @@ private:
 				if (t->m_val.compare_exchange_strong(
 						v,
 						GOTO_NEXT_ARRAY,
-						boost::memory_order_relaxed)) {
+						std::memory_order_relaxed)) {
 					break;
 				}
 
@@ -1078,7 +1070,7 @@ private:
 		int64_t		val_to_set,
 		bool		is_delta)
 	{
-		int64_t	cur_val = t->m_val.load(boost::memory_order_relaxed);
+		int64_t	cur_val = t->m_val.load(std::memory_order_relaxed);
 
 		for (;;) {
 			if (cur_val == GOTO_NEXT_ARRAY) {
@@ -1104,7 +1096,7 @@ private:
 			if (t->m_val.compare_exchange_strong(
 					cur_val,
 					new_val,
-					boost::memory_order_relaxed)) {
+					std::memory_order_relaxed)) {
 				return(true);
 			}
 
@@ -1128,10 +1120,10 @@ private:
 
 		for (;;) {
 			arr_node_t*	arr = m_data.load(
-				boost::memory_order_relaxed);
+				std::memory_order_relaxed);
 
 			arr_node_t*	next = arr->m_next.load(
-				boost::memory_order_relaxed);
+				std::memory_order_relaxed);
 
 			if (next == NULL) {
 				break;
@@ -1145,7 +1137,7 @@ private:
 			copy_to_another_array(arr, next);
 
 			arr->m_pending_free.store(
-				true, boost::memory_order_release);
+				true, std::memory_order_release);
 
 			arr_node_t*	expected = arr;
 
@@ -1154,7 +1146,7 @@ private:
 			ut_a(m_data.compare_exchange_strong(
 					expected,
 					next,
-					boost::memory_order_relaxed));
+					std::memory_order_relaxed));
 
 			/* Spin/wait for all threads to stop looking at
 			this array. If at some point this turns out to be
@@ -1213,7 +1205,7 @@ private:
 				/* The array has been garbaged, try the next
 				one. */
 				arr = arr->m_next.load(
-					boost::memory_order_relaxed);
+					std::memory_order_relaxed);
 			}
 
 			key_val_t*	t = insert_or_get_position_in_array(
@@ -1234,7 +1226,7 @@ private:
 			}
 
 			arr_node_t*	next = arr->m_next.load(
-				boost::memory_order_relaxed);
+				std::memory_order_relaxed);
 
 			if (next != NULL) {
 				arr->end_access();
@@ -1243,8 +1235,8 @@ private:
 				(the reads from the next array in particular)
 				to be reordered before the m_next.load()
 				above. */
-				boost::atomic_thread_fence(
-					boost::memory_order_acquire);
+				std::atomic_thread_fence(
+					std::memory_order_acquire);
 				continue;
 			}
 
@@ -1267,7 +1259,7 @@ private:
 	}
 
 	/** Storage for the (key, val) tuples. */
-	boost::atomic<arr_node_t*>	m_data;
+	std::atomic<arr_node_t*>	m_data;
 
 	typedef ut_allocator<arr_node_t*>		hollow_alloc_t;
 	typedef std::list<arr_node_t*, hollow_alloc_t>	hollow_t;
@@ -1300,18 +1292,10 @@ private:
 	skew, but has almost no performance impact. */
 
 	/** Number of searches performed in this hash. */
-#if 0
-	mutable uint64_t		m_n_search;
-#else
-	mutable boost::atomic_uint64_t	m_n_search;
-#endif
+	mutable std::atomic<uint64_t>	m_n_search;
 
 	/** Number of elements processed for all searches. */
-#if 0
-	mutable uint64_t		m_n_search_iterations;
-#else
-	mutable boost::atomic_uint64_t	m_n_search_iterations;
-#endif
+	mutable std::atomic<uint64_t>	m_n_search_iterations;
 #endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
 };
 
