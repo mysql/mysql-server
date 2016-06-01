@@ -18,10 +18,6 @@
 #ifndef HA_NDBCLUSTER_GLUE_H
 #define HA_NDBCLUSTER_GLUE_H
 
-#ifndef MYSQL_SERVER
-#define MYSQL_SERVER
-#endif
-
 #include "sql_table.h"      // build_table_filename,
                             // tablename_to_filename,
                             // filename_to_tablename

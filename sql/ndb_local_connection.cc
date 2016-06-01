@@ -15,10 +15,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef MYSQL_SERVER
-#define MYSQL_SERVER
-#endif
-
 #include "my_global.h"
 #include "ndb_local_connection.h"
 #include "sql_class.h"
