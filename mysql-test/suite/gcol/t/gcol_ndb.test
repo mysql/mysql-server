@@ -1,3 +1,13 @@
+
+
+##   *** NOTE wl#9048 ***
+##
+##   wl#9048 adds gcol support to NDB, removes this test,
+##   and replaces it with a new suite gcol_ndb.
+##
+##   This test (and its result) should not be merged into a cluster source tree.
+
+
 ################################################################################
 # t/gcol_ndb.test                                                              #
 #                                                                              #
