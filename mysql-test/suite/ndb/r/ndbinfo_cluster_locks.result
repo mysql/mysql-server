@@ -736,14 +736,14 @@ Expect : 5-1 X locks from scan
 1   X lock waiting from scan
 1   S lock held by read
 2 transactions
-select * from ndbinfo.ordered_locks order by detail, mode, op;
-mode	state	detail	op	waiting
-X	W		SCAN	1
-S	H	*	READ	0
-X	H	*	SCAN	0
-X	H	*	SCAN	0
-X	H	*	SCAN	0
-X	H	*	SCAN	0
+select mode, state, detail, waiting from ndbinfo.ordered_locks order by detail, mode, op;
+mode	state	detail	waiting
+X	W		1
+S	H	*	0
+X	H	*	0
+X	H	*	0
+X	H	*	0
+X	H	*	0
 select count(distinct transid) from ndbinfo.cluster_locks;
 count(distinct transid)
 2
@@ -766,14 +766,14 @@ Expect : 5-1 S locks from scan
 1   S lock waiting from scan
 1   X lock held by read
 2 transactions
-select * from ndbinfo.ordered_locks order by detail, mode, op;
-mode	state	detail	op	waiting
-S	W		SCAN	1
-S	H	*	SCAN	0
-S	H	*	SCAN	0
-S	H	*	SCAN	0
-S	H	*	SCAN	0
-X	H	*	READ	0
+select mode, state, detail, waiting from ndbinfo.ordered_locks order by detail, mode, op;
+mode	state	detail	waiting
+S	W		1
+S	H	*	0
+S	H	*	0
+S	H	*	0
+S	H	*	0
+X	H	*	0
 select count(distinct transid) from ndbinfo.cluster_locks;
 count(distinct transid)
 2

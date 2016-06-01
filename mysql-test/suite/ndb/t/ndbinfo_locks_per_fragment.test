@@ -232,6 +232,7 @@ select * from test.t1 where a=1 lock in share mode;
 --connection default
 --source ndbinfo_show_locks_delta.inc
 --source ndbinfo_init_frag_lock_count.inc
+--source ndb_disable_trans_timeout.inc
 
 --connection con2
 --echo Attempt to get an exclusive lock from a separate 
@@ -421,6 +422,8 @@ rollback;
 --source ndbinfo_show_locks_delta.inc
 --echo ****************************************************
 
+--source ndb_enable_trans_timeout.inc
+
 --echo *******************
 --echo Lock claim failures
 --echo *******************
@@ -602,6 +605,8 @@ insert into test.t1 values (1,1,1);
 
 --echo Existing row is deleted, other transaction waiting
 --echo for lock...
+
+--source ndb_disable_trans_timeout.inc
 
 --connection con1
 --echo Prepare a delete on a row
@@ -842,6 +847,8 @@ rollback;
 --source ndbinfo_show_locks_delta.inc
 --echo ****************************************************
 
+--source ndb_enable_trans_timeout.inc
+
 --echo ****************************************************
 --echo Show elapsed time added to totals
 --echo ****************************************************
@@ -878,6 +885,8 @@ eval select ($elapsed_ok_after - $elapsed_ok_before) > 0 as ok_millis,
 --echo Ok wait case
 --echo ****************************************************
 
+--source ndb_disable_trans_timeout.inc
+
 --echo Expect > 0 ok_millis, 0 fail_millis
 --disable_query_log
 --disable_result_log
@@ -899,23 +908,12 @@ while (!$success)
   --send select * from test.t1 where a=2 for update;
   
   --connection default
-  # Sleep here is intended to be :
-  # 1.  Enough for some lock wait time to be measured
-  # 2.  Not so long as to cause lock timeout.
-  # Depending on delays :
-  #    1.  Could be problematic, hence the retries
-  #        If its too short, it could be extended,
-  #        even linearly per iteration
-  #    2.  Could be problematic.  If so, recommend
-  #        an error insert to disable timeout 
-  #        detection
-  #
-  --sleep 0.2
+  # Sleep here is intended to be enough for some lock wait time 
+  # to be measured
+  --sleep 2
   --connection con1
   rollback;
   --connection con2
-  # Might get timeout on slow test systems
-  --error 0,ER_LOCK_WAIT_TIMEOUT
   --reap
   rollback;
 
@@ -935,6 +933,7 @@ eval select @ok_millis:=($elapsed_ok_after - $elapsed_ok_before) > 0 as ok_milli
             @fail_millis:=($elapsed_fail_after - $elapsed_fail_before) > 0 as fail_millis;
 --enable_query_log
 
+--source ndb_enable_trans_timeout.inc
 
 drop table test.t1;
 delete from current;

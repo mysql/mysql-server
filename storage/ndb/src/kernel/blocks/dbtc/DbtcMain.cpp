@@ -15162,6 +15162,17 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     if(signal->getLength() > 1){
       set_timeout_value(signal->theData[1]);
     }
+    else
+    {
+      /* Reset to configured value */
+      const ndb_mgm_configuration_iterator * p = 
+        m_ctx.m_config.getOwnConfigIterator();
+      ndbrequire(p != 0);
+      
+      Uint32 val = 3000;
+      ndb_mgm_get_int_parameter(p, CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT, &val);
+      set_timeout_value(val);
+    }
   }
 
   if (dumpState->args[0] == DumpStateOrd::TcSetApplTransactionTimeout){
