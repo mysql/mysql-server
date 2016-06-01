@@ -68,10 +68,12 @@ select b from v1;
 select v1.b from v1;
 
 # view with different algorithms (explain output differs)
+--replace_column 10 # 11 #
 explain extended select c from v1;
 create algorithm=temptable view v2 (c) as select b+1 from t1;
 show create view v2;
 select c from v2;
+--replace_column 10 # 11 #
 explain extended select c from v2;
 
 # try to use underlying table fields in VIEW creation process
@@ -84,15 +86,19 @@ create view v3 (c) as select b+1 from v1;
 # VIEW on VIEW test with mixing different algorithms on different order
 create view v3 (c) as select c+1 from v1;
 select c from v3;
+--replace_column 10 # 11 #
 explain extended select c from v3;
 create algorithm=temptable view v4 (c) as select c+1 from v2;
 select c from v4;
+--replace_column 10 # 11 #
 explain extended select c from v4;
 create view v5 (c) as select c+1 from v2;
 select c from v5;
+--replace_column 10 # 11 #
 explain extended select c from v5;
 create algorithm=temptable view v6 (c) as select c+1 from v1;
 select c from v6;
+--replace_column 10 # 11 #
 explain extended select c from v6;
 
 # show table/table status test
@@ -180,6 +186,7 @@ create table t1 (a int);
 insert into t1 values (1), (2), (3), (1), (2), (3);
 create view v1 as select distinct a from t1;
 select * from v1;
+--replace_column 10 # 11 #
 explain select * from v1;
 select * from t1;
 drop view v1;
@@ -220,6 +227,7 @@ create table t1 (a int);
 insert into t1 values (1), (2), (3), (4);
 create view v1 as select a+1 from t1 order by 1 desc limit 2;
 select * from v1;
+--replace_column 10 # 11 #
 explain select * from v1;
 drop view v1;
 drop table t1;
@@ -3423,10 +3431,13 @@ CREATE TABLE t1 (a INT); INSERT INTO t1 VALUES (1),(2),(3);
 CREATE VIEW v1 AS SELECT a FROM t1 ORDER BY a;
 
 SELECT * FROM t1 UNION SELECT * FROM v1;
+--replace_column 10 # 11 #
 EXPLAIN SELECT * FROM t1 UNION SELECT * FROM v1;
 SELECT * FROM v1 UNION SELECT * FROM t1;
+--replace_column 10 # 11 #
 EXPLAIN SELECT * FROM v1 UNION SELECT * FROM t1;
 SELECT * FROM t1 UNION SELECT * FROM v1 ORDER BY a;
+--replace_column 10 # 11 #
 EXPLAIN SELECT * FROM t1 UNION SELECT * FROM v1 ORDER BY a;
 
 DROP VIEW v1;
@@ -3549,12 +3560,15 @@ CREATE VIEW v1 AS SELECT a, b+1 as b FROM t1;
 
 
 SELECT b, SUM(a) FROM v1 WHERE b=3 GROUP BY b;
+--replace_column 10 # 11 #
 EXPLAIN SELECT b, SUM(a) FROM v1 WHERE b=3 GROUP BY b;
 
 SELECT a, SUM(b) FROM v1 WHERE b=3 GROUP BY a;
+--replace_column 10 # 11 #
 EXPLAIN SELECT a, SUM(b) FROM v1 WHERE b=3 GROUP BY a;
 
 SELECT a, SUM(b) FROM v1 WHERE a=1 GROUP BY a;
+--replace_column 10 # 11 #
 EXPLAIN SELECT a, SUM(b) FROM v1 WHERE a=1 GROUP BY a;
 
 DROP VIEW v1;
@@ -4719,7 +4733,9 @@ SELECT * FROM $derived;
 
 eval $qv;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -4740,7 +4756,9 @@ SELECT * FROM $derived;
 
 eval $qv;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -4761,7 +4779,9 @@ SELECT * FROM $derived;
 
 eval $qv;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -4782,7 +4802,9 @@ SELECT * FROM $derived;
 
 eval $qv;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -4803,7 +4825,9 @@ SELECT * FROM $derived;
 
 eval $qv;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -4824,7 +4848,9 @@ SELECT * FROM $derived;
 
 eval $qv;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -4968,8 +4994,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -4985,8 +5014,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -5004,6 +5036,7 @@ eval $qv;
 eval $qva;
 --error ER_SUBQUERY_NO_1_ROW
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qva;
 
 DROP VIEW v1;
@@ -5019,8 +5052,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -5036,8 +5072,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -5053,8 +5092,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -5070,8 +5112,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -5087,8 +5132,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -5104,8 +5152,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -5121,8 +5172,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -5137,7 +5191,9 @@ eval CREATE VIEW v1 AS $q;
 
 eval $qv;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -5151,8 +5207,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -5167,7 +5226,9 @@ eval CREATE VIEW v1 AS $q;
 
 eval $qv;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -5181,8 +5242,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -5199,8 +5263,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -5217,8 +5284,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;

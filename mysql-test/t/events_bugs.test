@@ -1284,8 +1284,7 @@ delimiter ;|
 # into above schema table
 
 --echo # Wait until at least one instance of event is executed.
-let $wait_timeout= 10;
-let $wait_condition= SELECT COUNT(*) > 0 FROM information_schema.events
+let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.events
                      WHERE event_name='event_Bug12546938' AND last_executed IS NOT NULL;
 --source include/wait_condition.inc
 
