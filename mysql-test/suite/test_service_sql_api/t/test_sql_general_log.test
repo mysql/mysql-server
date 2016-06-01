@@ -80,17 +80,17 @@ remove_file $MYSQLD_DATADIR/test_sql_2_sessions.log;
 --echo ##########################################
 --echo # Check general log file
 --echo ##########################################
-CREATE TABLE t1 (c1 TEXT,c2 TEXT);
+CREATE TABLE t1 (c1 TEXT, c2 TEXT, c3 TEXT);
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --disable_warnings
 eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/log/test_sql_general.log' INTO TABLE t1;
 --enable_warnings
 
-SELECT c2 FROM t1 WHERE c2 LIKE '%FROM test.t_int%';
-SELECT c2 FROM t1 WHERE c2 LIKE '%FROM test.t_bigint%';
+SELECT c3 FROM t1 WHERE c3 LIKE '%FROM test.t_int%';
+SELECT c3 FROM t1 WHERE c3 LIKE '%FROM test.t_bigint%';
 
-SELECT count(*) FROM t1 WHERE c1 LIKE '%Connect%';
-SELECT count(*) FROM t1 WHERE c1 LIKE '%Quit%';
+SELECT count(*) FROM t1 WHERE c2 LIKE '%Connect%';
+SELECT count(*) FROM t1 WHERE c2 LIKE '%Quit%';
 
 SELECT argument FROM mysql.general_log WHERE command_type = 'Query' AND 
                                       (argument LIKE '%FROM test.t_int%' OR
