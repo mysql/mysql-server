@@ -1198,6 +1198,66 @@ void server_components_initialized()
   mysql_mutex_unlock(&LOCK_server_started);
 }
 
+/**
+  Initializes component infrastructure by bootstrapping core component
+  subsystem.
+
+  @return Status of performed operation
+  @retval false success
+  @retval true failure
+*/
+static bool component_infrastructure_init()
+{
+  if (mysql_services_bootstrap(NULL))
+  {
+    sql_print_error("Failed to bootstrap components infrastructure.\n");
+    return true;
+  }
+
+  return false;
+}
+/**
+  Initializes MySQL Server component infrastructure part by initialize of
+  dynamic loader persistence.
+
+  @return Status of performed operation
+  @retval false success
+  @retval true failure
+*/
+static bool mysql_component_infrastructure_init()
+{
+  /* We need a temporary THD during boot */
+  Auto_THD thd;
+
+  if (persistent_dynamic_loader_init(thd.thd))
+  {
+    sql_print_error("Failed to bootstrap persistent components loader.\n");
+    return true;
+  }
+  return false;
+}
+
+/**
+  De-initializes Component infrastructure by de-initialization of the MySQL
+  Server services (persistent dynamic loader) followed by de-initailization of
+  the core Components infrostructure.
+
+  @return Status of performed operation
+  @retval false success
+  @retval true failure
+*/
+static bool component_infrastructure_deinit()
+{
+  persistent_dynamic_loader_deinit();
+
+  if (mysql_services_shutdown())
+  {
+    sql_print_error("Failed to shutdown components infrastructure.\n");
+    return true;
+  }
+
+  return false;
+}
 
 #ifndef EMBEDDED_LIBRARY
 /**
@@ -1728,6 +1788,13 @@ void clean_up(bool print_message)
 #endif
   free_list(opt_early_plugin_load_list_ptr);
   free_list(opt_plugin_load_list_ptr);
+
+  /*
+    Is this the best place for components deinit? It may be changed when new
+    dependencies are discovered, possibly being divided into separate points
+    where all dependencies are still ok.
+  */
+  component_infrastructure_deinit();
 
   if (THR_THD_initialized)
   {
@@ -4711,67 +4778,6 @@ static void set_super_read_only_post_init()
   opt_super_readonly= super_read_only;
 }
 
-/**
-  Initializes component infrastructure by bootstrapping core component
-  subsystem.
-
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
-static bool component_infrastructure_init()
-{
-  if (mysql_services_bootstrap(NULL))
-  {
-    sql_print_error("Failed to bootstrap components infrastructure.\n");
-    return true;
-  }
-
-  return false;
-}
-/**
-  Initializes MySQL Server component infrastructure part by initialize of
-  dynamic loader persistence.
-
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
-static bool mysql_component_infrastructure_init()
-{
-  /* We need a temporary THD during boot */
-  Auto_THD thd;
-
-  if (persistent_dynamic_loader_init(thd.thd))
-  {
-    sql_print_error("Failed to bootstrap persistent components loader.\n");
-    return true;
-  }
-  return false;
-}
-
-/**
-  De-initializes Component infrastructure by de-initialization of the MySQL
-  Server services (persistent dynamic loader) followed by de-initailization of
-  the core Components infrostructure.
-
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
-static bool component_infrastructure_deinit()
-{
-  persistent_dynamic_loader_deinit();
-
-  if (mysql_services_shutdown())
-  {
-    sql_print_error("Failed to shutdown components infrastructure.\n");
-    return true;
-  }
-
-  return false;
-}
-
 #ifdef _WIN32
 int win_main(int argc, char **argv)
 #else
@@ -5589,8 +5595,6 @@ int mysqld_main(int argc, char **argv)
   mysql_audit_notify(MYSQL_AUDIT_SERVER_SHUTDOWN_SHUTDOWN,
                      MYSQL_AUDIT_SERVER_SHUTDOWN_REASON_SHUTDOWN,
                      MYSQLD_SUCCESS_EXIT);
-
-  component_infrastructure_deinit();
 
   terminate_compress_gtid_table_thread();
   /*

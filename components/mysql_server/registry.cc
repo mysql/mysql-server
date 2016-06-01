@@ -85,8 +85,7 @@ void mysql_registry_imp::deinit()
 */
 rwlock_scoped_lock mysql_registry_imp::lock_registry_for_write()
 {
-  return std::move(
-    rwlock_scoped_lock(&LOCK_registry, false, __FILE__, __LINE__));
+  return rwlock_scoped_lock(&LOCK_registry, false, __FILE__, __LINE__);
 }
 
 /**
