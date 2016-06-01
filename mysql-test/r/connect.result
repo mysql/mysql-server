@@ -3,6 +3,7 @@ show tables where Tables_in_mysql != 'ndb_binlog_index';
 Tables_in_mysql
 column_stats
 columns_priv
+component
 db
 engine_cost
 func
@@ -45,6 +46,7 @@ show tables where Tables_in_mysql != 'ndb_binlog_index';
 Tables_in_mysql
 column_stats
 columns_priv
+component
 db
 engine_cost
 func

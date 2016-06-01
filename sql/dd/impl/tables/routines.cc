@@ -26,6 +26,12 @@
 namespace dd {
 namespace tables {
 
+const Routines &Routines::instance()
+{
+  static Routines *s_instance= new Routines();
+  return *s_instance;
+}
+
 Routines::Routines()
 {
   m_target_def.table_name(table_name());

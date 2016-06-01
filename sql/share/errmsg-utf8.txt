@@ -7702,7 +7702,7 @@ ER_INVALID_DD_OBJECT_NAME
   eng "Dictionary object name '%s' is invalid. (%.192s)"
 
 ER_TABLESPACE_MISSING_WITH_NAME
-  eng "Tablespace %-.192s doesn't exist."
+   eng "Tablespace %-.192s doesn't exist."
 
 ER_TOO_LONG_ROUTINE_COMMENT
   eng "Comment for routine '%-.64s' is too long (max = %lu)"
@@ -7739,6 +7739,69 @@ ER_SRS_NOT_CARTESIAN_UNDEFINED SR001
 
 ER_PK_INDEX_CANT_BE_INVISIBLE
   eng "A primary key index cannot be invisible"
+
+ER_COMPONENTS_NO_SCHEME
+  eng "Cannot find schema in specified URN: '%.192s'."
+  pol "Nie można znaleźć rodzaju zasobu w podanym URN: '%.192s'."
+
+ER_COMPONENTS_NO_SCHEME_SERVICE
+  eng "Cannot acquire scheme load service implementation for schema '%.192s' in specified URN: '%.192s'."
+  pol "Nie można znaleźć implementacji usługi ładującej rodzaj zasobu dla zasobu '%.192s' w podanym URN: '%.192s'."
+
+ER_COMPONENTS_CANT_LOAD
+  eng "Cannot load component from specified URN: '%.192s'."
+  pol "Nie można wczytać komponentu pod podanym URN: '%.192s'."
+
+ER_COMPONENTS_CANT_ACQUIRE_SERVICE_IMPLEMENTATION
+  eng "Cannot acquire specified service implementation: '%.192s'."
+  pol "Nie można pozyskać podanej implementacji usługi: '%.192s'."
+
+ER_COMPONENTS_CANT_SATISFY_DEPENDENCY
+  eng "Cannot satisfy dependency for service '%.192s' required by component '%.192s'."
+  pol "Nie można spełnić zależności w postaci usługi '%.192s' wymaganej przez komponent '%.192s'."
+
+ER_COMPONENTS_LOAD_CANT_REGISTER_SERVICE_IMPLEMENTATION
+  eng "Cannot register service implementation '%.192s' provided by component '%.192s'."
+  pol "Nie można wpisać implementacji usługi '%.192s' dostarczanej przez komponent '%.192s'."
+
+ER_COMPONENTS_LOAD_CANT_INITIALIZE
+  eng "Initialization method provided by component '%.192s' failed."
+  pol "Metoda inicjalizująca dostarczona przez komponent '%.192s' nie zakończyła się z powodzeniem."
+
+ER_COMPONENTS_UNLOAD_NOT_LOADED
+  eng "Component specified by URN '%.192s' to unload have not been loaded before."
+  pol "Komponent podany do odłączenia przez URN '%.192s' nie był wcześniej załadowany."
+
+ER_COMPONENTS_UNLOAD_CANT_DEINITIALIZE
+  eng "De-initialization method provided by component '%.192s' failed."
+  pol "Metoda de-inicjalizująca dostarczona przez komponent '%.192s' nie zakończyła się z powodzeniem."
+
+ER_COMPONENTS_CANT_RELEASE_SERVICE
+  eng "Release of previously acquired service implementation failed."
+  pol "Zwolnienie wcześniej pozyskanej implementacji usługi nie powiodło się."
+
+ER_COMPONENTS_UNLOAD_CANT_UNREGISTER_SERVICE
+  eng "Unregistration of service implementation '%.192s' provided by component '%.192s' performed failed during unloading of the component."
+  pol "Wyrejstrowanie implementacji usługi '%.192s' dostarczonej przez komponent '%.192s' wykonywane podczas odłączania komponentu nie zakończyła się z powodzeniem."
+
+ER_COMPONENTS_CANT_UNLOAD
+  eng "Cannot unload component from specified URN: '%.192s'."
+  pol "Nie można odłączyć komponentu pod podanym URN: '%.192s'."
+
+ER_WARN_UNLOAD_THE_NOT_PERSISTED
+  eng "The Persistent Dynamic Loader was used to unload a component '%.192s', but it was not used to load that component before."
+  pol "Persistent Dynamic Loader został użyty do odłączenia komponentu '%.192s', który nie był przez niego wcześniej wczytany."
+
+ER_COMPONENT_TABLE_INCORRECT
+  eng "The mysql.component table is missing or has an incorrect definition."
+  pol "Tabela mysql.component nie istnieje lub ma nieodpowiednią definicję."
+
+ER_COMPONENT_MANIPULATE_ROW_FAILED
+  eng "Failed to manipulate component '%.192s' persistence data. Error code %d from storage engine."
+
+ER_COMPONENTS_UNLOAD_DUPLICATE_IN_GROUP
+  eng "The component with specified URN: '%.192s' was specified in group more than once."
+  pol "Komponent z podanym URN: '%.192s' został podany w grupie więcej niż raz."
 
 ER_TOO_LONG_TABLESPACE_COMMENT
   eng "Comment for tablespace '%-.64s' is too long (max = %lu)"

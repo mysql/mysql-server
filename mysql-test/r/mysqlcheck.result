@@ -5,6 +5,7 @@ mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
+mysql.component                                    OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
 mysql.func                                         OK
@@ -42,6 +43,9 @@ mysql.column_stats
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.columns_priv
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.component
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.db
@@ -130,6 +134,7 @@ note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
+mysql.component                                    OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
 mysql.func                                         OK
@@ -164,6 +169,9 @@ mysql.column_stats
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.columns_priv
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.component
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.db

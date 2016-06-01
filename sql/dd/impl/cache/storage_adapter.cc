@@ -43,6 +43,13 @@ namespace dd {
 namespace cache {
 
 #ifndef DBUG_OFF
+
+Storage_adapter* Storage_adapter::fake_instance()
+{
+  static Storage_adapter s_fake_storage;
+  return &s_fake_storage;
+}
+
 bool Storage_adapter::s_use_fake_storage= false;
 #endif
 

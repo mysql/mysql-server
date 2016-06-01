@@ -16,6 +16,9 @@ def	mysql	column_stats	column_name	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	
 def	mysql	column_stats	database_name	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)	PRI		select,insert,update,references		
 def	mysql	column_stats	histogram	4	NULL	NO	json	NULL	NULL	NULL	NULL	NULL	NULL	NULL	json			select,insert,update,references		
 def	mysql	column_stats	table_name	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)	PRI		select,insert,update,references		
+def	mysql	component	component_group_id	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references		
+def	mysql	component	component_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned	PRI	auto_increment	select,insert,update,references		
+def	mysql	component	component_urn	3	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_general_ci	text			select,insert,update,references		
 def	mysql	db	Alter_priv	13	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references		
 def	mysql	db	Alter_routine_priv	19	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references		
 def	mysql	db	Create_priv	8	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references		
@@ -341,6 +344,9 @@ NULL	mysql	columns_priv	Timestamp	timestamp	NULL	NULL	NULL	NULL	timestamp
 3.0000	mysql	column_stats	table_name	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	mysql	column_stats	column_name	varchar	64	192	utf8	utf8_bin	varchar(64)
 NULL	mysql	column_stats	histogram	json	NULL	NULL	NULL	NULL	json
+NULL	mysql	component	component_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	mysql	component	component_group_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
+1.0000	mysql	component	component_urn	text	65535	65535	utf8	utf8_general_ci	text
 3.0000	mysql	db	Host	char	60	180	utf8	utf8_bin	char(60)
 3.0000	mysql	db	Db	char	64	192	utf8	utf8_bin	char(64)
 3.0000	mysql	db	User	char	32	96	utf8	utf8_bin	char(32)

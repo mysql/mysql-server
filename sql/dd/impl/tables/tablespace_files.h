@@ -30,11 +30,7 @@ namespace tables {
 class Tablespace_files : public Object_table_impl
 {
 public:
-  static const Tablespace_files &instance()
-  {
-    static Tablespace_files *s_instance= new Tablespace_files();
-    return *s_instance;
-  }
+  static const Tablespace_files &instance();
 
   static const std::string &table_name()
   {

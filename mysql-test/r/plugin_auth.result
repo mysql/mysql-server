@@ -411,6 +411,7 @@ ALTER TABLE mysql.user MODIFY authentication_string TEXT NOT NULL;
 Run mysql_upgrade on a 5.5.10 external authentication column layout
 mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
+mysql.component                                    OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
 mysql.func                                         OK

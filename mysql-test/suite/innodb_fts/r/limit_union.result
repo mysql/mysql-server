@@ -12,6 +12,7 @@ INSERT INTO articles (title,body) VALUES
 ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
 ('MySQL vs. YourSQL','In the following database comparison ...'),
 ('MySQL Security','When configured properly, MySQL ...');
+SET GLOBAL query_cache_size=0;
 # Query involves Ranking
 SELECT * FROM articles
 WHERE MATCH (title,body)
@@ -79,6 +80,7 @@ SELECT * FROM articles
 WHERE MATCH (title,body)
 AGAINST ('"MySQL request"@3' IN BOOLEAN MODE) limit 1;
 id	title	body
+7	MySQL Tutorial	request doc@oraclehelp.com ...
 # Without optimization
 SET DEBUG = '+d,fts_union_limit_off';
 SELECT * FROM articles
@@ -120,5 +122,33 @@ id	title	body
 3	Optimizing MySQL	In this tutorial we will show ...
 4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
 5	MySQL vs. YourSQL	In the following database comparison ...
+SET DEBUG = '-d,fts_union_limit_off';
+# wild card search
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('ru*' IN BOOLEAN MODE) limit 1;
+id	title	body
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+# Without optimization
+SET DEBUG = '+d,fts_union_limit_off';
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('ru*' IN BOOLEAN MODE) limit 1;
+id	title	body
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+SET DEBUG = '-d,fts_union_limit_off';
+# phrase search
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('"request support"' IN BOOLEAN MODE) limit 1;
+id	title	body
+8	MySQL Tutorial	request support@oraclehelp.com ...
+# Without optimization
+SET DEBUG = '+d,fts_union_limit_off';
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('"request support"' IN BOOLEAN MODE) limit 1;
+id	title	body
+8	MySQL Tutorial	request support@oraclehelp.com ...
 SET DEBUG = '-d,fts_union_limit_off';
 DROP TABLE articles;

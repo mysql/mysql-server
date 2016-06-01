@@ -30,11 +30,7 @@ namespace tables {
 class Routines : public Dictionary_object_table_impl
 {
 public:
-  static const Routines &instance()
-  {
-    static Routines *s_instance= new Routines();
-    return *s_instance;
-  }
+  static const Routines &instance();
 
   static const std::string &table_name()
   {

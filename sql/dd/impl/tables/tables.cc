@@ -25,6 +25,12 @@
 namespace dd {
 namespace tables {
 
+const Tables &Tables::instance()
+{
+  static Tables *s_instance= new Tables();
+  return *s_instance;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 Dictionary_object *Tables::create_dictionary_object(

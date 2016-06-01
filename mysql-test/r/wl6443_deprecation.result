@@ -111,6 +111,7 @@ insert into mysql.host values(1);
 mysql_upgrade: (non fatal) [WARNING] 1642: Table mysql.host is not empty. It is deprecated and will be removed in a future release.
 mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
+mysql.component                                    OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
 mysql.func                                         OK
@@ -151,6 +152,7 @@ count(*)
 2
 mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
+mysql.component                                    OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
 mysql.func                                         OK
@@ -186,6 +188,7 @@ drop view mysql.host;
 drop user 'wl6443_u1'@'10.10.10.1';
 mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
+mysql.component                                    OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
 mysql.func                                         OK

@@ -26,7 +26,6 @@
 #                                                                              #
 ################################################################################
 
---source include/have_query_cache.inc
 --source include/load_sysvars.inc
 
 --echo # Start of query_cache_size tests.

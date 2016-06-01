@@ -15,11 +15,11 @@
 
 #include "sql_audit.h"
 
+#include "auto_thd.h"                           // Auto_THD
 #include "current_thd.h"
 #include "log.h"
 #include "error_handler.h"                      // Internal_error_handler
 #include "mysqld.h"                             // sql_statement_names
-#include "sql_class.h"                          // THD
 #include "sql_thd_internal_api.h"               // create_thd / destroy_thd
 #include "sql_plugin.h"                         // my_plugin_foreach
 #include "sql_rewrite.h"                        // mysql_rewrite_query
@@ -148,55 +148,6 @@ private:
 
   /** Handler has been activated. */
   const bool m_active;
-};
-
-/**
-  Self destroying THD.
-*/
-class Auto_THD : public Internal_error_handler
-{
-public:
-  /**
-    Create THD object and initialize internal variables.
-  */
-  Auto_THD() :
-    thd(create_thd(false, true, false, 0))
-  {
-    thd->push_internal_handler(this);
-  }
-
-  /**
-    Deinitialize THD.
-  */
-  virtual ~Auto_THD()
-  {
-    thd->pop_internal_handler();
-    destroy_thd(thd);
-  }
-
-  /**
-    Error handler that prints error message on to the error log.
-
-    @param thd       Current THD.
-    @param sql_errno Error id.
-    @param sqlstate  State of the SQL error.
-    @param level     Error level.
-    @param msg       Message to be reported.
-
-    @return This function always return false.
-  */
-  virtual bool handle_condition(THD *thd MY_ATTRIBUTE((unused)),
-            uint sql_errno MY_ATTRIBUTE((unused)),
-            const char* sqlstate MY_ATTRIBUTE((unused)),
-            Sql_condition::enum_severity_level *level MY_ATTRIBUTE((unused)),
-            const char* msg)
-  {
-    sql_print_error("%s", msg);
-    return false;
-  }
-
-  /** Thd associated with the object. */
-  THD *thd;
 };
 
 struct st_mysql_event_generic

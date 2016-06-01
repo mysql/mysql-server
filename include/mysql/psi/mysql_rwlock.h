@@ -181,8 +181,12 @@ typedef struct st_mysql_prlock mysql_prlock_t;
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
   #define mysql_rwlock_rdlock(RW) \
     inline_mysql_rwlock_rdlock(RW, __FILE__, __LINE__)
+  #define mysql_rwlock_rdlock_indirect(RW, file, line) \
+    inline_mysql_rwlock_rdlock(RW, file, line)
 #else
   #define mysql_rwlock_rdlock(RW) \
+    inline_mysql_rwlock_rdlock(RW)
+  #define mysql_rwlock_rdlock_indirect(RW, file, line) \
     inline_mysql_rwlock_rdlock(RW)
 #endif
 
@@ -209,8 +213,12 @@ typedef struct st_mysql_prlock mysql_prlock_t;
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
   #define mysql_rwlock_wrlock(RW) \
     inline_mysql_rwlock_wrlock(RW, __FILE__, __LINE__)
+  #define mysql_rwlock_wrlock_indirect(RW, file, line) \
+    inline_mysql_rwlock_wrlock(RW, file, line)
 #else
   #define mysql_rwlock_wrlock(RW) \
+    inline_mysql_rwlock_wrlock(RW)
+  #define mysql_rwlock_wrlock_indirect(RW, file, line) \
     inline_mysql_rwlock_wrlock(RW)
 #endif
 

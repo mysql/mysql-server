@@ -716,7 +716,7 @@ bool check_global_access(THD *thd, ulong want_access);
 #endif
 
 /* sql_user_table */
-void close_acl_tables(THD *thd);
+void commit_and_close_mysql_tables(THD *thd);
 
 #ifndef EMBEDDED_LIBRARY
 typedef enum ssl_artifacts_status

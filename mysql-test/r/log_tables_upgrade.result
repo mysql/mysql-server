@@ -11,6 +11,7 @@ RENAME TABLE general_log TO renamed_general_log;
 RENAME TABLE test.bug49823 TO general_log;
 mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
+mysql.component                                    OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
 mysql.func                                         OK

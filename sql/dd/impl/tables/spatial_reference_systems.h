@@ -31,12 +31,7 @@ namespace tables {
 class Spatial_reference_systems : public Dictionary_object_table_impl
 {
 public:
-  static const Spatial_reference_systems &instance()
-  {
-    static Spatial_reference_systems *s_instance=
-      new Spatial_reference_systems();
-    return *s_instance;
-  }
+  static const Spatial_reference_systems &instance();
 
   static const std::string &table_name()
   {

@@ -1,9 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
-
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t9,`t1a``b`,v1,v2,v3,v4,v5,v6;
 drop view if exists t1,t2,`t1a``b`,v1,v2,v3,v4,v5,v6;
@@ -74,10 +68,12 @@ select b from v1;
 select v1.b from v1;
 
 # view with different algorithms (explain output differs)
+--replace_column 10 # 11 #
 explain extended select c from v1;
 create algorithm=temptable view v2 (c) as select b+1 from t1;
 show create view v2;
 select c from v2;
+--replace_column 10 # 11 #
 explain extended select c from v2;
 
 # try to use underlying table fields in VIEW creation process
@@ -90,21 +86,25 @@ create view v3 (c) as select b+1 from v1;
 # VIEW on VIEW test with mixing different algorithms on different order
 create view v3 (c) as select c+1 from v1;
 select c from v3;
+--replace_column 10 # 11 #
 explain extended select c from v3;
 create algorithm=temptable view v4 (c) as select c+1 from v2;
 select c from v4;
+--replace_column 10 # 11 #
 explain extended select c from v4;
 create view v5 (c) as select c+1 from v2;
 select c from v5;
+--replace_column 10 # 11 #
 explain extended select c from v5;
 create algorithm=temptable view v6 (c) as select c+1 from v1;
 select c from v6;
+--replace_column 10 # 11 #
 explain extended select c from v6;
 
 # show table/table status test
 show tables;
 show full tables;
---replace_column 8 # 12 # 13 #
+--replace_column 6 # 7 # 8 # 12 # 13 #
 show table status;
 
 drop view v1,v2,v3,v4,v5,v6;
@@ -186,6 +186,7 @@ create table t1 (a int);
 insert into t1 values (1), (2), (3), (1), (2), (3);
 create view v1 as select distinct a from t1;
 select * from v1;
+--replace_column 10 # 11 #
 explain select * from v1;
 select * from t1;
 drop view v1;
@@ -226,6 +227,7 @@ create table t1 (a int);
 insert into t1 values (1), (2), (3), (4);
 create view v1 as select a+1 from t1 order by 1 desc limit 2;
 select * from v1;
+--replace_column 10 # 11 #
 explain select * from v1;
 drop view v1;
 drop table t1;
@@ -294,6 +296,7 @@ insert into t1 values (1,20), (2,30), (3,40), (4,50), (5,100);
 create view v1 (c) as select b from t1 where a<3;
 # simple select and explaint to be sure that it is MERGE
 select * from v1;
+--replace_column 10 #
 explain extended select * from v1;
 # update test
 update v1 set c=c+1;
@@ -386,6 +389,7 @@ insert into v5 values (-60,4,30);
 insert into v1 values (-60,4,30);
 insert into v1 (z,y,x) values (50,6,-100);
 insert into v2 values (5,40);
+--sorted_result
 select * from t1;
 drop table t1;
 drop view v1,v2,v3,v4,v5;
@@ -414,6 +418,7 @@ insert into v5 select c, b, a from t2;
 insert into v1 select c, b, a from t2;
 insert into v1 (z,y,x) select a+20,b+2,-100 from t2;
 insert into v2 select b+1, a+10 from t2;
+--sorted_result
 select * from t1;
 drop table t1, t2;
 drop view v1,v2,v3,v4,v5;
@@ -760,7 +765,7 @@ create view v1 as select x1() from t1;
 drop function x1;
 -- error ER_VIEW_INVALID
 select * from v1;
---replace_column 8 # 12 # 13 #
+--replace_column 6 # 7 # 8 # 12 # 13 #
 show table status;
 drop view v1;
 drop table t1;
@@ -1252,7 +1257,9 @@ drop table t1;
 # LOAD DATA with view and CHECK OPTION
 #
 # fixed length fields
-create table t1 (a int, b char(10));
+# Following scenario is to test the functionality of MyISAM
+
+create table t1 (a int, b char(10)) engine=Myisam;
 create view v1 as select * from t1 where a != 0 with check option;
 -- error ER_VIEW_CHECK_FAILED
 load data infile '../../std_data/loaddata3.dat' into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
@@ -1266,6 +1273,36 @@ drop view v1;
 drop table t1;
 # variable length fields
 create table t1 (a text, b text);
+create view v1 as select * from t1 where a <> 'Field A' with check option;
+-- error ER_VIEW_CHECK_FAILED
+load data infile '../../std_data/loaddata2.dat' into table v1 fields terminated by ',' enclosed by '''';
+select concat('|',a,'|'), concat('|',b,'|') from t1;
+select concat('|',a,'|'), concat('|',b,'|') from v1;
+delete from t1;
+load data infile '../../std_data/loaddata2.dat' ignore into table v1 fields terminated by ',' enclosed by '''';
+select concat('|',a,'|'), concat('|',b,'|') from t1;
+select concat('|',a,'|'), concat('|',b,'|') from v1;
+drop view v1;
+drop table t1;
+
+# Following scenario is to test the functionality of InnoDB
+
+create table t1 (a int, b char(10)) ;
+create view v1 as select * from t1 where a != 0 with check option;
+-- error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+load data infile '../../std_data/loaddata3.dat' into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
+select * from t1;
+select * from v1;
+delete from t1;
+load data infile '../../std_data/loaddata3.dat' ignore into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
+--sorted_result
+select * from t1;
+--sorted_result
+select * from v1;
+drop view v1;
+drop table t1;
+# variable length fields
+create table t1 (a text, b text) ;
 create view v1 as select * from t1 where a <> 'Field A' with check option;
 -- error ER_VIEW_CHECK_FAILED
 load data infile '../../std_data/loaddata2.dat' into table v1 fields terminated by ',' enclosed by '''';
@@ -1343,6 +1380,7 @@ insert into t2 values (1), (3);
 # legal view for update
 create view v3 (a,b) as select t1.a as a, t2.a as b from t1, t2;
 update v3 set a= 10 where a=1;
+--sorted_result
 select * from t1;
 select * from t2;
 # view without primary key
@@ -1372,8 +1410,11 @@ drop tables t1,t2;
 #
 # inserting/deleting join view
 #
-create table t1 (a int, primary key (a), b int);
-create table t2 (a int, primary key (a), b int);
+
+# Following scenario is to test the functionality of MyISAM
+
+create table t1 (a int, primary key (a), b int) engine=myisam;
+create table t2 (a int, primary key (a), b int) engine=myisam;
 insert into t2 values (1000, 2000);
 create view v3 (a,b) as select t1.a as a, t2.a as b from t1, t2;
 # inserting into join view without field list
@@ -1392,7 +1433,61 @@ insert into v3(b) values (10);
 insert into v3(a) select a from t2;
 insert into v3(b) select b from t2;
 insert into v3(a) values (1) on duplicate key update a=a+10000+VALUES(a);
+select * from t1 ;
+select * from t2 ;
+# try delete from join view
+-- error ER_VIEW_DELETE_MERGE_VIEW
+delete from v3;
+-- error ER_VIEW_DELETE_MERGE_VIEW
+delete v3,t1 from v3,t1;
+-- error ER_VIEW_DELETE_MERGE_VIEW
+delete t1,v3 from t1,v3;
+# delete from t1 just to reduce result set size
+delete from t1;
+# prepare statement with insert join view
+prepare stmt1 from "insert into v3(a) values (?);";
+set @a= 100;
+execute stmt1 using @a;
+set @a= 300;
+execute stmt1 using @a;
+deallocate prepare stmt1;
+prepare stmt1 from "insert into v3(a) select ?;";
+set @a= 101;
+execute stmt1 using @a;
+set @a= 301;
+execute stmt1 using @a;
+deallocate prepare stmt1;
+select * from v3 ;
+
+drop view v3;
+drop tables t1,t2;
+
+# Following scenario is to test the functionality of InnoDB
+
+create table t1 (a int, primary key (a), b int);
+create table t2 (a int, primary key (a), b int);
+insert into t2 values (1000, 2000);
+create view v3 (a,b) as select t1.a as a, t2.a as b from t1, t2;
+# inserting into join view without field list
+-- error ER_VIEW_NO_INSERT_FIELD_LIST
+insert into v3 values (1,2);
+-- error ER_VIEW_NO_INSERT_FIELD_LIST
+insert into v3 select * from t2;
+# inserting in several tables of join view
+-- error ER_VIEW_MULTIUPDATE
+insert into v3(a,b) values (1,2);
+-- error ER_VIEW_MULTIUPDATE
+insert into v3(a,b) select * from t2;
+# correct inserts into join view
+insert into v3(a) values (1);
+insert into v3(b) values (10);
+insert into v3(a) select a from t2;
+--error ER_BAD_NULL_ERROR
+insert into v3(b) select b from t2;
+insert into v3(a) values (1) on duplicate key update a=a+10000+VALUES(a);
+--sorted_result
 select * from t1;
+--sorted_result
 select * from t2;
 # try delete from join view
 -- error ER_VIEW_DELETE_MERGE_VIEW
@@ -1416,6 +1511,7 @@ execute stmt1 using @a;
 set @a= 301;
 execute stmt1 using @a;
 deallocate prepare stmt1;
+--sorted_result
 select * from v3;
 
 drop view v3;
@@ -3335,10 +3431,13 @@ CREATE TABLE t1 (a INT); INSERT INTO t1 VALUES (1),(2),(3);
 CREATE VIEW v1 AS SELECT a FROM t1 ORDER BY a;
 
 SELECT * FROM t1 UNION SELECT * FROM v1;
+--replace_column 10 # 11 #
 EXPLAIN SELECT * FROM t1 UNION SELECT * FROM v1;
 SELECT * FROM v1 UNION SELECT * FROM t1;
+--replace_column 10 # 11 #
 EXPLAIN SELECT * FROM v1 UNION SELECT * FROM t1;
 SELECT * FROM t1 UNION SELECT * FROM v1 ORDER BY a;
+--replace_column 10 # 11 #
 EXPLAIN SELECT * FROM t1 UNION SELECT * FROM v1 ORDER BY a;
 
 DROP VIEW v1;
@@ -3461,12 +3560,15 @@ CREATE VIEW v1 AS SELECT a, b+1 as b FROM t1;
 
 
 SELECT b, SUM(a) FROM v1 WHERE b=3 GROUP BY b;
+--replace_column 10 # 11 #
 EXPLAIN SELECT b, SUM(a) FROM v1 WHERE b=3 GROUP BY b;
 
 SELECT a, SUM(b) FROM v1 WHERE b=3 GROUP BY a;
+--replace_column 10 # 11 #
 EXPLAIN SELECT a, SUM(b) FROM v1 WHERE b=3 GROUP BY a;
 
 SELECT a, SUM(b) FROM v1 WHERE a=1 GROUP BY a;
+--replace_column 10 # 11 #
 EXPLAIN SELECT a, SUM(b) FROM v1 WHERE a=1 GROUP BY a;
 
 DROP VIEW v1;
@@ -3568,12 +3670,15 @@ CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT, b INT NOT NULL DEFAULT 0,
 INSERT INTO t1 VALUES (),(),(),(),(),(),(),(),(),(),(),(),(),(),();
 CREATE VIEW v1 AS SELECT * FROM t1 FORCE KEY (PRIMARY,b) ORDER BY a;
 SHOW CREATE VIEW v1;
+--replace_column 10 #
 EXPLAIN SELECT * FROM v1;
 CREATE VIEW v2 AS SELECT * FROM t1 USE KEY () ORDER BY a;
 SHOW CREATE VIEW v2;
+--replace_column 10 #
 EXPLAIN SELECT * FROM v2;
 CREATE VIEW v3 AS SELECT * FROM t1 IGNORE KEY (b) ORDER BY a;
 SHOW CREATE VIEW v3;
+--replace_column 10 #
 EXPLAIN SELECT * FROM v3;
 
 DROP VIEW v1;
@@ -4145,6 +4250,7 @@ DROP PROCEDURE p1;
 disconnect con2;
 disconnect con3;
 
+# Tables are created using MyISAM since this is test for a bug that is specific to MyISAM.
 
 --echo #
 --echo # Bug#11757397 49437: CANNOT DO SHOW FIELDS FOR BIG VIEW 
@@ -4162,7 +4268,7 @@ while ($colnum)
   let $str= a$colnum int, $str;
   dec $colnum;
 }
---eval CREATE TABLE t1 ($str)
+--eval CREATE TABLE t1 ($str) ENGINE=MyiSAM
 
 let $colnum= 1500;
 let $str= b text;
@@ -4171,7 +4277,7 @@ while ($colnum)
   let $str= b$colnum int, $str;
   dec $colnum;
 }
---eval CREATE TABLE t2 ($str)
+--eval CREATE TABLE t2 ($str) ENGINE=MyiSAM
 
 let $colnum= 1500;
 let $str= c text;
@@ -4180,7 +4286,7 @@ while ($colnum)
   let $str= c$colnum int, $str;
   dec $colnum;
 }
---eval CREATE TABLE t3 ($str)
+--eval CREATE TABLE t3 ($str) ENGINE=MyiSAM
  
 # New behavior
 --error ER_TOO_MANY_FIELDS
@@ -4627,7 +4733,9 @@ SELECT * FROM $derived;
 
 eval $qv;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -4648,7 +4756,9 @@ SELECT * FROM $derived;
 
 eval $qv;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -4669,7 +4779,9 @@ SELECT * FROM $derived;
 
 eval $qv;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -4690,7 +4802,9 @@ SELECT * FROM $derived;
 
 eval $qv;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -4711,7 +4825,9 @@ SELECT * FROM $derived;
 
 eval $qv;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -4732,7 +4848,9 @@ SELECT * FROM $derived;
 
 eval $qv;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -4876,8 +4994,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -4893,8 +5014,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -4912,6 +5036,7 @@ eval $qv;
 eval $qva;
 --error ER_SUBQUERY_NO_1_ROW
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qva;
 
 DROP VIEW v1;
@@ -4927,8 +5052,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -4944,8 +5072,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -4961,8 +5092,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -4978,8 +5112,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -4995,8 +5132,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -5012,8 +5152,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -5029,8 +5172,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -5045,7 +5191,9 @@ eval CREATE VIEW v1 AS $q;
 
 eval $qv;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -5059,8 +5207,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -5075,7 +5226,9 @@ eval CREATE VIEW v1 AS $q;
 
 eval $qv;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -5089,8 +5242,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -5107,8 +5263,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;
@@ -5125,8 +5284,11 @@ eval CREATE VIEW v1 AS $q;
 eval $qv;
 eval $qva;
 eval $q;
+--replace_column 10 # 11 #
 eval explain $qv;
+--replace_column 10 # 11 #
 eval explain $qva;
+--replace_column 10 # 11 #
 eval explain $q;
 
 DROP VIEW v1;

@@ -351,11 +351,7 @@ public:
   // The ordered iterator type must be public.
   typedef System_table_registry_type::Iterator Iterator;
 
-  static System_tables *instance()
-  {
-    static System_tables s_instance;
-    return &s_instance;
-  }
+  static System_tables *instance();
 
   // Add predefined system tables.
   void init();
@@ -436,11 +432,7 @@ public:
   // The ordered iterator type must be public.
   typedef System_view_registry_type::Iterator Iterator;
 
-  static System_views *instance()
-  {
-    static System_views s_instance;
-    return &s_instance;
-  }
+  static System_views *instance();
 
   // Add predefined system views.
   void init();
@@ -528,11 +520,7 @@ public:
   // The ordered iterator type must be public.
   typedef System_tablespace_registry_type::Iterator Iterator;
 
-  static System_tablespaces *instance()
-  {
-    static System_tablespaces s_instance;
-    return &s_instance;
-  }
+  static System_tablespaces *instance();
 
   // Add a new system tablespace by delegation to the wrapped registry.
   void add(const std::string &tablespace_name, Types type)

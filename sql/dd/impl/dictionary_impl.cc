@@ -35,6 +35,11 @@ namespace dd {
 
 Dictionary_impl *Dictionary_impl::s_instance= NULL;
 
+Dictionary_impl *Dictionary_impl::instance()
+{
+  return s_instance;
+}
+
 Object_id Dictionary_impl::DEFAULT_CATALOG_ID= 1;
 const std::string Dictionary_impl::DEFAULT_CATALOG_NAME("def");
 

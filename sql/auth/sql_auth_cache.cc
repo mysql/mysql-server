@@ -2075,7 +2075,7 @@ bool check_engine_type_for_acl_table(THD *thd)
   if (!result)
   {
     check_acl_tables(tables, false);
-    close_acl_tables(thd);
+    commit_and_close_mysql_tables(thd);
   }
 
   return result;
@@ -2164,7 +2164,7 @@ my_bool acl_reload(THD *thd)
       sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
                       thd->get_stmt_da()->message_text());
     }
-    close_acl_tables(thd);
+    commit_and_close_mysql_tables(thd);
     DBUG_RETURN(true);
   }
 
@@ -2210,7 +2210,7 @@ my_bool acl_reload(THD *thd)
   if (old_initialized)
     mysql_mutex_unlock(&acl_cache->lock);
 
-  close_acl_tables(thd);
+  commit_and_close_mysql_tables(thd);
 
   DEBUG_SYNC(thd, "after_acl_reload");
   DBUG_RETURN(return_val);
@@ -2728,7 +2728,7 @@ my_bool grant_reload(THD *thd)
   LOCK_grant.wrunlock();
 
 end:
-  close_acl_tables(thd);
+  commit_and_close_mysql_tables(thd);
   DBUG_RETURN(return_val);
 }
 

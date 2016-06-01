@@ -47,12 +47,14 @@ buf_buddy_alloc_low(
 @param[in]	buf		block to be freed, must not be pointed to
 				by the buffer pool
 @param[in]	i		index of buf_pool->zip_free[],
-				or BUF_BUDDY_SIZES */
+				or BUF_BUDDY_SIZES
+@param[in]	has_zip_free	whether has zip_free_mutex */
 void
 buf_buddy_free_low(
 	buf_pool_t*	buf_pool,
 	void*		buf,
-	ulint		i);
+	ulint		i,
+	bool		has_zip_free);
 
 /**********************************************************************//**
 Get the index of buf_pool->zip_free[] for a given block size.
@@ -113,7 +115,7 @@ buf_buddy_free(
 	ut_ad(size >= UNIV_ZIP_SIZE_MIN);
 	ut_ad(size <= UNIV_PAGE_SIZE);
 
-	buf_buddy_free_low(buf_pool, buf, buf_buddy_get_slot(size));
+	buf_buddy_free_low(buf_pool, buf, buf_buddy_get_slot(size), false);
 }
 
 #ifdef UNIV_MATERIALIZE

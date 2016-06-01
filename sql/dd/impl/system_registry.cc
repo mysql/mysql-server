@@ -58,6 +58,27 @@ void register_system_table()
 }
 
 namespace dd {
+
+System_tables * System_tables::instance()
+{
+  static System_tables s_instance;
+  return &s_instance;
+}
+
+System_views * System_views::instance()
+{
+  static System_views s_instance;
+  return &s_instance;
+}
+
+System_tablespaces * System_tablespaces::instance()
+{
+  static System_tablespaces s_instance;
+  return &s_instance;
+}
+
+
+
 void System_tables::init()
 {
   // Order is dictated by the foreign key constraints
