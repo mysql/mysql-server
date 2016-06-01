@@ -429,6 +429,8 @@ rollback;
 --echo Contention
 --echo **********
 
+--source ndb_disable_trans_timeout.inc
+
 --echo PK SH vs PK EX
 --connection con1
 begin;
@@ -622,7 +624,9 @@ let $wait_condition=
 --echo          1   X lock waiting from scan
 --echo          1   S lock held by read
 --echo 2 transactions
-select * from ndbinfo.ordered_locks order by detail, mode, op;
+# Ignore op type, as SCAN vs READ depends on when takeover occurs
+# which depends on timing, batching + distribution
+select mode, state, detail, waiting from ndbinfo.ordered_locks order by detail, mode, op;
 select count(distinct transid) from ndbinfo.cluster_locks;
 --connection con1
 rollback;
@@ -646,7 +650,9 @@ let $wait_condition=
 --echo          1   S lock waiting from scan
 --echo          1   X lock held by read
 --echo 2 transactions
-select * from ndbinfo.ordered_locks order by detail, mode, op;
+# Ignore op type, as SCAN vs READ depends on when takeover occurs
+# which depends on timing, batching + distribution
+select mode, state, detail, waiting from ndbinfo.ordered_locks order by detail, mode, op;
 select count(distinct transid) from ndbinfo.cluster_locks;
 --connection con1
 rollback;
@@ -681,6 +687,8 @@ rollback;
 --connection con1
 --reap
 rollback;
+
+--source ndb_enable_trans_timeout.inc
 
 drop table test.t1;
 
@@ -735,6 +743,8 @@ delete from test.t1 where a=1;
 select * from ndbinfo.ordered_locks order by detail,op;
 rollback;
 
+--source ndb_disable_trans_timeout.inc
+
 --echo Show CR takes a lock transiently
 --connection con1
 --echo Take exclusive lock
@@ -755,6 +765,8 @@ rollback;
 --connection con2
 --reap;
 rollback;
+
+--source ndb_enable_trans_timeout.inc
 
 --connection default
 drop table test.t1;
@@ -808,6 +820,8 @@ select * from ndbinfo.ordered_locks order by detail,op;
 select count(distinct tableid) from ndbinfo.cluster_locks;
 rollback;
 
+--source ndb_disable_trans_timeout.inc
+
 --echo Show PK update vs UK update
 --connection con1
 begin;
@@ -831,6 +845,9 @@ rollback;
 --reap
 rollback;
 --connection default
+
+--source ndb_enable_trans_timeout.inc
+
 drop table test.t1;
 
 --echo ********
@@ -838,6 +855,8 @@ drop table test.t1;
 --echo ********
 create table test.t1 (a int primary key, b int) engine=ndb;
 insert into test.t1 values (1,1), (2,2);
+
+--source ndb_disable_trans_timeout.inc
 
 --connection con1
 begin;
@@ -907,6 +926,10 @@ drop view unique_2_way_deadlocks;
 drop view 2_way_deadlocks_found;
 drop view second_level_dependencies;
 drop view transaction_dependencies;
+
+# Need transaction timeouts to get us out
+# of deadlock!
+--source ndb_enable_trans_timeout.inc
 
 --disable_result_log
 --connection con1
