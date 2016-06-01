@@ -3628,15 +3628,16 @@ row_add_table_to_background_drop_list(
 	return(TRUE);
 }
 
-/*********************************************************************//**
-Reassigns the table identifier of a table.
+/** Reassigns the table identifier of a table.
+@param[in,out]	table	table
+@param[in,out]	trx	transaction
+@param[out]	new_id	new table id
 @return error code or DB_SUCCESS */
 dberr_t
 row_mysql_table_id_reassign(
-/*========================*/
-	dict_table_t*	table,	/*!< in/out: table */
-	trx_t*		trx,	/*!< in/out: transaction */
-	table_id_t*	new_id)	/*!< out: new table id */
+	dict_table_t*	table,
+	trx_t*		trx,
+	table_id_t*	new_id)
 {
 	dberr_t		err;
 	pars_info_t*	info	= pars_info_create();
@@ -3658,6 +3659,8 @@ row_mysql_table_id_reassign(
 		"UPDATE SYS_COLUMNS SET TABLE_ID = :new_id\n"
 		" WHERE TABLE_ID = :old_id;\n"
 		"UPDATE SYS_INDEXES SET TABLE_ID = :new_id\n"
+		" WHERE TABLE_ID = :old_id;\n"
+		"UPDATE SYS_VIRTUAL SET TABLE_ID = :new_id\n"
 		" WHERE TABLE_ID = :old_id;\n"
 		"END;\n", FALSE, trx);
 
