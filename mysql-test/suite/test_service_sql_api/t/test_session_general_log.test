@@ -37,14 +37,14 @@ remove_file $MYSQLD_DATADIR/test_session_in_thd.log;
 --echo ##########################################
 --echo # Check general log file
 --echo ##########################################
-CREATE TABLE t1 (c1 TEXT);
+CREATE TABLE t1 (c1 TEXT, c2 TEXT);
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --disable_warnings
 eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/log/test_session_general.log' INTO TABLE t1;
 --enable_warnings
 
-SELECT count(c1) FROM t1 WHERE c1 LIKE '%Connect%';
-SELECT count(c1) FROM t1 WHERE c1 LIKE '%Quit%';
+SELECT count(c1) FROM t1 WHERE c2 LIKE '%Connect%';
+SELECT count(c1) FROM t1 WHERE c2 LIKE '%Quit%';
 SELECT count(*) FROM mysql.general_log WHERE command_type IN ('Connect','Quit');
 
 --echo ##########################################
