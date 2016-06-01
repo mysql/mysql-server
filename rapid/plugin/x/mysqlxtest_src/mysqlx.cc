@@ -71,7 +71,7 @@ namespace mysqlx {
 #ifdef WIN32
 #pragma warning(push, 0)
 #endif
-#include <boost/asio.hpp>
+#include <boost/asio/error.hpp>
 #ifdef WIN32
 #pragma warning(pop)
 #endif
