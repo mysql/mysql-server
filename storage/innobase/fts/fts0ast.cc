@@ -556,9 +556,11 @@ fts_ast_node_check_union(
 
 	} else if (node->type == FTS_AST_OPER
 		   && (node->oper == FTS_IGNORE
-		       || node->oper == FTS_EXIST
-		       || node->oper == FTS_DISTANCE)) {
+		       || node->oper == FTS_EXIST)) {
 
+		return(false);
+	} else if (node->type == FTS_AST_TEXT) {
+		/* Distance or phrase search query. */
 		return(false);
 	}
 

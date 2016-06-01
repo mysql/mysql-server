@@ -17,6 +17,9 @@ INSERT INTO articles (title,body) VALUES
 	('MySQL vs. YourSQL','In the following database comparison ...'),
 	('MySQL Security','When configured properly, MySQL ...');
 
+let $default_cache_size = `select @@query_cache_size`;
+SET GLOBAL query_cache_size=0;
+
 --echo # Query involves Ranking
 SELECT * FROM articles
 	WHERE MATCH (title,body)
@@ -110,4 +113,31 @@ SELECT * FROM articles
 	AGAINST ('MySQL' in boolean mode) limit 4 offset 2;
 SET DEBUG = '-d,fts_union_limit_off';
 
+--echo # wild card search
+SELECT * FROM articles
+	WHERE MATCH (title,body)
+	AGAINST ('ru*' IN BOOLEAN MODE) limit 1;
+
+--echo # Without optimization
+SET DEBUG = '+d,fts_union_limit_off';
+SELECT * FROM articles
+	WHERE MATCH (title,body)
+	AGAINST ('ru*' IN BOOLEAN MODE) limit 1;
+SET DEBUG = '-d,fts_union_limit_off';
+
+--echo # phrase search
+SELECT * FROM articles
+	WHERE MATCH (title,body)
+	AGAINST ('"request support"' IN BOOLEAN MODE) limit 1;
+
+--echo # Without optimization
+SET DEBUG = '+d,fts_union_limit_off';
+SELECT * FROM articles
+	WHERE MATCH (title,body)
+	AGAINST ('"request support"' IN BOOLEAN MODE) limit 1;
+SET DEBUG = '-d,fts_union_limit_off';
+
 DROP TABLE articles;
+--disable_query_log
+--eval SET GLOBAL query_cache_size = $default_cache_size
+--enable_query_log
