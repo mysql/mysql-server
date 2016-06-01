@@ -547,3 +547,11 @@ COPY_OPENSSL_DLLS(copy_openssl_gunit)
 
 ADD_SUBDIRECTORY(innodb)
 ADD_SUBDIRECTORY(keyring)
+
+## Add tests for all components.
+FILE(GLOB dirs_components ${CMAKE_CURRENT_SOURCE_DIR}/components/*)
+FOREACH(dir ${dirs_components})
+  IF (EXISTS ${dir}/CMakeLists.txt)
+    ADD_SUBDIRECTORY(${dir})
+  ENDIF()
+ENDFOREACH()

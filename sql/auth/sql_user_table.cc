@@ -155,6 +155,44 @@ const TABLE_FIELD_DEF
   mysql_db_table_def= {MYSQL_DB_FIELD_COUNT, mysql_db_table_fields};
 
 
+/**
+  A helper function to commit statement transaction and close
+  ACL tables after reading some data from them as part of FLUSH
+  PRIVILEGES statement or during server initialization.
+
+  @note We assume that we have only read from the tables so commit
+        can't fail. @sa close_mysql_tables().
+
+  @note This function also rollbacks the transaction if rollback was
+        requested (e.g. as result of deadlock).
+*/
+void commit_and_close_mysql_tables(THD *thd)
+{
+  /* Transaction rollback request by SE is unlikely. Still we handle it. */
+  if (thd->transaction_rollback_request)
+  {
+    trans_rollback_stmt(thd);
+    trans_rollback_implicit(thd);
+  }
+  else
+  {
+#ifndef DBUG_OFF
+    bool res=
+#endif
+      /*
+        In @@autocommit=0 mode we have both statement and multi-statement
+        transactions started here. Since we don't want storage engine locks
+        to stay around after metadata locks are released by
+        close_mysql_tables() we need to do implicit commit here.
+      */
+      trans_commit_stmt(thd) || trans_commit_implicit(thd);
+    DBUG_ASSERT(res == false);
+  }
+
+  close_mysql_tables(thd);
+}
+
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 
@@ -196,45 +234,6 @@ ulong get_access(TABLE *form, uint fieldnr, uint *next_field)
   if (next_field)
     *next_field=fieldnr;
   return access_bits;
-}
-
-
-/**
-  A helper function to commit statement transaction and close
-  ACL tables after reading some data from them as part of FLUSH
-  PRIVILEGES statement or during server initialization.
-
-  @note We assume that we have only read from the tables so commit
-        can't fail. @sa close_mysql_tables().
-
-  @note This function also rollbacks the transaction if rollback was
-        requested (e.g. as result of deadlock).
-*/
-
-void close_acl_tables(THD *thd)
-{
-  /* Transaction rollback request by SE is unlikely. Still we handle it. */
-  if (thd->transaction_rollback_request)
-  {
-    trans_rollback_stmt(thd);
-    trans_rollback_implicit(thd);
-  }
-  else
-  {
-#ifndef DBUG_OFF
-    bool res=
-#endif
-      /*
-        In @@autocommit=0 mode we have both statement and multi-statement
-        transactions started here. Since we don't want storage engine locks
-        to stay around after metadata locks are released by
-        close_mysql_tables() we need to do implicit commit here.
-      */
-      trans_commit_stmt(thd) || trans_commit_implicit(thd);
-    DBUG_ASSERT(res == false);
-  }
-
-  close_mysql_tables(thd);
 }
 
 

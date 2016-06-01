@@ -78,6 +78,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "item_geofunc.h"
 #include "item_json_func.h"
 #include "sql_plugin.h"                      // plugin_is_ready
+#include "sql_component.h"
 #include "parse_tree_hints.h"
 #include "derror.h"
 
@@ -1114,6 +1115,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  JSON_UNQUOTED_SEPARATOR_SYM   /* MYSQL */
 %token  INVISIBLE_SYM
 %token  VISIBLE_SYM
+%token  COMPONENT_SYM                 /* MYSQL */
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -1153,6 +1155,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem ident_or_empty
         opt_constraint constraint opt_ident TEXT_STRING_sys_nonewline
         filter_wild_db_table_string
+
+%type <lex_str_list> TEXT_STRING_sys_list
 
 %type <lex_str_ptr>
         opt_table_alias
@@ -13559,6 +13563,7 @@ keyword_sp:
         | COMMITTED_SYM            {}
         | COMPACT_SYM              {}
         | COMPLETION_SYM           {}
+        | COMPONENT_SYM            {}
         | COMPRESSED_SYM           {}
         | COMPRESSION_SYM          {}
         | ENCRYPTION_SYM           {}
@@ -15548,6 +15553,12 @@ install:
             lex->sql_command= SQLCOM_INSTALL_PLUGIN;
             lex->m_sql_cmd= new Sql_cmd_install_plugin($3, $5);
           }
+        | INSTALL_SYM COMPONENT_SYM TEXT_STRING_sys_list
+          {
+            LEX *lex= Lex;
+            lex->sql_command= SQLCOM_INSTALL_COMPONENT;
+            lex->m_sql_cmd= new Sql_cmd_install_component($3);
+          }
         ;
 
 uninstall:
@@ -15556,6 +15567,27 @@ uninstall:
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_UNINSTALL_PLUGIN;
             lex->m_sql_cmd= new Sql_cmd_uninstall_plugin($3);
+          }
+       | UNINSTALL_SYM COMPONENT_SYM TEXT_STRING_sys_list
+          {
+            LEX *lex= Lex;
+            lex->sql_command= SQLCOM_UNINSTALL_COMPONENT;
+            lex->m_sql_cmd= new Sql_cmd_uninstall_component($3);
+          }
+        ;
+
+TEXT_STRING_sys_list:
+          TEXT_STRING_sys
+          {
+            $$.init(YYTHD->mem_root);
+            if ($$.push_back($1))
+              MYSQL_YYABORT; // OOM
+          }
+        | TEXT_STRING_sys_list ',' TEXT_STRING_sys
+          {
+            $$= $1;
+            if ($$.push_back($3))
+              MYSQL_YYABORT; // OOM
           }
         ;
 

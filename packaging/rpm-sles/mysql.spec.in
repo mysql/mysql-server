@@ -806,6 +806,9 @@ fi
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_example_component1.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_example_component2.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_example_component3.so
 %attr(644, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 %attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_services.so
@@ -837,6 +840,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_security_context.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component1.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component2.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component3.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/replication_observers_example_plugin.so
@@ -888,6 +894,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
+* Fri Apr 29 2016 Marcin Babij <marcin.babij@oracle.com> - 5.8.0-1
+- Add example component to test package
+
 * Wed May 04 2016 Georgi Kodinov <georgi.kodinov@oracle.com> - 5.8.0-1
 - Add test_udf_services.so plugin
 - Add keyring_udf.so plugin to server subpackage

@@ -1,14 +1,14 @@
 # Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
-# 
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
@@ -837,6 +837,7 @@ WARN_LOGFILE           = doxyerror.log
 ## but list plugins explicitely
 
 INPUT                  = ./client \
+                         ./components \
                          ./dbug \
                          ./include \
                          ./libbinlogevents \
@@ -2181,7 +2182,8 @@ PREDEFINED             = WITH_PERFSCHEMA_STORAGE_ENGINE \
                          __attribute__(X)= \
                          MY_ATTRIBUTE(X)= \
                          UNIV_DEBUG \
-                         UNIV_NOTHROW
+                         UNIV_NOTHROW \
+                         __cplusplus
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then this
 # tag can be used to specify a list of macro names that should be expanded. The
@@ -2192,7 +2194,20 @@ PREDEFINED             = WITH_PERFSCHEMA_STORAGE_ENGINE \
 
 EXPAND_AS_DEFINED      = C_MODE_START \
                          C_MODE_END \
-                         ATTRIB_USED_ONLY_IN_DEBUG
+                         ATTRIB_USED_ONLY_IN_DEBUG \
+                         DECLARE_COMPONENT \
+                         END_DECLARE_COMPONENT \
+                         BEGIN_SERVICE_DEFINITION \
+                         END_SERVICE_DEFINITION \
+                         SERVICE_TYPE \
+                         SERVICE_TYPE_NO_CONST \
+                         DEFINE_SERVICE_HANDLE \
+                         BEGIN_SERVICE_IMPLEMENTATION \
+                         END_SERVICE_IMPLEMENTATION \
+                         DEFINE_METHOD \
+                         DEFINE_BOOL_METHOD \
+                         DECLARE_METHOD \
+                         DECLARE_BOOL_METHOD
 
 # If the SKIP_FUNCTION_MACROS tag is set to YES then doxygen's preprocessor will
 # remove all references to function-like macros that are alone on a line, have

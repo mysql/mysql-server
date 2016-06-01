@@ -158,6 +158,7 @@ SET(SQL_SHARED_SOURCES
   auth/password_policy_service.cc
   auth/sql_security_ctx.cc
   auth/service_security_context.cc
+  auto_thd.cc
   keyring_service.cc
   ssl_wrapper_service.cc
   bootstrap.cc
@@ -168,6 +169,7 @@ SET(SQL_SHARED_SOURCES
   debug_sync.cc
   default_values.cc
   derror.cc
+  persistent_dynamic_loader.cc
   error_handler.cc
   field.cc
   field_conv.cc 
@@ -247,6 +249,7 @@ SET(SQL_SHARED_SOURCES
   rpl_transaction_write_set_ctx.cc
   rpl_write_set_handler.cc
   rules_table_service.cc
+  rwlock_scoped_lock.cc
   sdi_utils.cc
   session_tracker.cc
   set_var.cc 
@@ -268,6 +271,7 @@ SET(SQL_SHARED_SOURCES
   sql_initialize.cc
   sql_cache.cc
   sql_class.cc
+  sql_component.cc
   sql_connect.cc
   sql_crypt.cc
   sql_cursor.cc
@@ -412,6 +416,7 @@ SET(SQL_BOOST_SOURCES
   item_json_func.cc
   spatial.cc
 )
+SET(SQL_EXPORTED_BOOST_SOURCES ${SQL_BOOST_SOURCES} PARENT_SCOPE)
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
@@ -522,9 +527,8 @@ ADD_DEPENDENCIES(sql GenBootstrapPriv)
 ADD_DEPENDENCIES(sql GenSysSchema)
 DTRACE_INSTRUMENT(sql)
 TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
-  mysys mysys_ssl dbug strings vio regex binlogevents_static
-  ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
-  ${SSL_LIBRARIES})
+  ${MYSQLD_STATIC_COMPONENT_LIBS}  mysys mysys_ssl dbug strings vio regex
+  binlogevents_static  ${LIBWRAP} ${LIBCRYPT} ${LIBDL} ${SSL_LIBRARIES})
 
 #
 # On Windows platform we compile in the clinet-side Windows Native Authentication
@@ -553,7 +557,7 @@ ADD_DEPENDENCIES(rpl GenError)
 ADD_CONVENIENCE_LIBRARY(master ${MASTER_SOURCE})
 ADD_DEPENDENCIES(master GenError)
 SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
-		  rpl_info_handler.cc rpl_info_file.cc
+                  rpl_info_handler.cc rpl_info_file.cc
                   rpl_info_table.cc rpl_info_values.cc rpl_info.cc
                   rpl_info_factory.cc rpl_info_table_access.cc dynamic_ids.cc
                   rpl_rli_pdb.cc rpl_info_dummy.cc rpl_mts_submode.cc
@@ -636,7 +640,7 @@ ENDIF()
 # On Solaris, some extra effort is required in order to get dtrace probes
 # from static libraries
 DTRACE_INSTRUMENT_STATIC_LIBS(mysqld 
- "sql;mysys;mysys_ssl;${MYSQLD_STATIC_PLUGIN_LIBS}")
+ "sql;mysys;mysys_ssl;${MYSQLD_STATIC_PLUGIN_LIBS};${MYSQLD_STATIC_COMPONENT_LIBS}")
  
 
 SET(WITH_MYSQLD_LDFLAGS "" CACHE STRING "Additional linker flags for mysqld")

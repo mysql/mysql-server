@@ -384,4 +384,6 @@
 /* For default value of --early_plugin_load */
 #cmakedefine DEFAULT_EARLY_PLUGIN_LOAD @DEFAULT_EARLY_PLUGIN_LOAD@
 
+#define SO_EXT "@CMAKE_SHARED_MODULE_SUFFIX@"
+
 #endif

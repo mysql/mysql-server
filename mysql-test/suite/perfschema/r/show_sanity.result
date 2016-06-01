@@ -529,7 +529,9 @@ where show_mode = "5.7"
     and source = "P_S.GLOBAL_STATUS")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.6	I_S.GLOBAL_STATUS	COM_INSTALL_COMPONENT
 5.6	I_S.GLOBAL_STATUS	COM_SHUTDOWN
+5.6	I_S.GLOBAL_STATUS	COM_UNINSTALL_COMPONENT
 
 ================================================================================
 TEST 8

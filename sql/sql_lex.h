@@ -1781,6 +1781,7 @@ union YYSTYPE {
   class PT_base_index_option *index_option;
   Mem_root_array_YY<PT_base_index_option *> index_options;
   PT_base_index_option *index_type;
+  Mem_root_array_YY<LEX_STRING> lex_str_list;
   bool visibility;
 };
 

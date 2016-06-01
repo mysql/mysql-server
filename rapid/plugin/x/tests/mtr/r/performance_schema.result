@@ -205,3 +205,8 @@ EVENT_NAME
 UNINSTALL PLUGIN mysqlx;
 update performance_schema.setup_instruments set ENABLED='YES'
 where NAME rlike '^wait/synch/(cond|mutex)/mysqlx/(lock_list_access|scheduler_dynamic_worker_pending)$';
+# Check if any classes are not lost, this may happen if they are already
+# just on the limit
+SELECT * FROM performance_schema.global_status
+WHERE variable_name LIKE '%_LOST' AND variable_value > 0;
+VARIABLE_NAME	VARIABLE_VALUE
