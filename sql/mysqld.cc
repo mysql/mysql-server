@@ -1198,6 +1198,8 @@ void server_components_initialized()
   mysql_mutex_unlock(&LOCK_server_started);
 }
 
+#ifndef EMBEDDED_LIBRARY
+
 /**
   Initializes component infrastructure by bootstrapping core component
   subsystem.
@@ -1259,7 +1261,6 @@ static bool component_infrastructure_deinit()
   return false;
 }
 
-#ifndef EMBEDDED_LIBRARY
 /**
   Block and wait until server components have been initialized.
 */
@@ -1789,12 +1790,14 @@ void clean_up(bool print_message)
   free_list(opt_early_plugin_load_list_ptr);
   free_list(opt_plugin_load_list_ptr);
 
+#ifndef EMBEDDED_LIBRARY
   /*
     Is this the best place for components deinit? It may be changed when new
     dependencies are discovered, possibly being divided into separate points
     where all dependencies are still ok.
   */
   component_infrastructure_deinit();
+#endif
 
   if (THR_THD_initialized)
   {
@@ -5074,6 +5077,7 @@ int mysqld_main(int argc, char **argv)
 
   init_error_log();
 
+#ifndef EMBEDDED_LIBRARY
   /*
     Initialize Components core subsystem early on, once we have PSI, which it
     use. This part doesn't use any more MySQL-specific functionalities but
@@ -5081,6 +5085,7 @@ int mysqld_main(int argc, char **argv)
   */
   if (component_infrastructure_init())
     unireg_abort(MYSQLD_ABORT_EXIT);
+#endif
 
   /* Initialize audit interface globals. Audit plugins are inited later. */
   mysql_audit_initialize();
