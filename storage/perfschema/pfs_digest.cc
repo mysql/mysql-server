@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -204,9 +204,8 @@ find_or_create_digest(PFS_thread *thread,
   */
   PFS_digest_key hash_key;
   memset(& hash_key, 0, sizeof(hash_key));
-  /* Compute MD5 Hash of the tokens received. */
-  compute_digest_md5(digest_storage, hash_key.m_md5);
-  memcpy((void*)& digest_storage->m_md5, &hash_key.m_md5, MD5_HASH_SIZE);
+  /* Copy MD5 Hash of the tokens received. */
+  memcpy(&hash_key.m_md5, digest_storage->m_md5, MD5_HASH_SIZE);
   /* Add the current schema to the key */
   hash_key.m_schema_name_length= schema_name_length;
   if (schema_name_length > 0)

@@ -5468,17 +5468,6 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       pfs->m_timer_end= timer_end;
       pfs->m_end_event_id= thread->m_event_id;
 
-      if (digest_storage != NULL)
-      {
-        /*
-          The following columns in events_statement_current:
-          - DIGEST,
-          - DIGEST_TEXT
-          are computed from the digest storage.
-        */
-        pfs->m_digest_storage.copy(digest_storage);
-      }
-
       pfs_program= reinterpret_cast<PFS_program*>(state->m_parent_sp_share);
       pfs_prepared_stmt= reinterpret_cast<PFS_prepared_stmt*>(state->m_parent_prepared_stmt);
 
@@ -6336,17 +6325,46 @@ pfs_digest_start_v1(PSI_statement_locker *locker)
 
 void pfs_digest_end_v1(PSI_digest_locker *locker, const sql_digest_storage *digest)
 {
-  PSI_statement_locker_state *statement_state;
-  statement_state= reinterpret_cast<PSI_statement_locker_state*> (locker);
-  DBUG_ASSERT(statement_state != NULL);
+  PSI_statement_locker_state *state;
+  state= reinterpret_cast<PSI_statement_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
   DBUG_ASSERT(digest != NULL);
 
-  if (statement_state->m_discarded)
+  if (state->m_discarded)
     return;
 
-  if (statement_state->m_flags & STATE_FLAG_DIGEST)
+  if (state->m_flags & STATE_FLAG_DIGEST)
   {
-    statement_state->m_digest= digest;
+    /* TODO: pfs_digest_end_v1() has side effects here, to document better */
+    sql_digest_storage *update_digest= const_cast<sql_digest_storage*> (digest);
+
+    /* Compute MD5 Hash of the tokens received. */
+    compute_digest_md5(digest, update_digest->m_md5);
+
+    state->m_digest= digest;
+
+    uint req_flags= STATE_FLAG_THREAD | STATE_FLAG_EVENT;
+
+    if ((state->m_flags & req_flags) == req_flags)
+    {
+      PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
+      DBUG_ASSERT(thread != NULL);
+      PFS_events_statements *pfs= reinterpret_cast<PFS_events_statements*> (state->m_statement);
+      DBUG_ASSERT(pfs != NULL);
+
+      pfs_dirty_state dirty_state;
+      thread->m_stmt_lock.allocated_to_dirty(& dirty_state);
+
+      /*
+        The following columns in events_statement_current:
+        - DIGEST,
+        - DIGEST_TEXT
+        are computed from the digest storage.
+      */
+      pfs->m_digest_storage.copy(digest);
+
+      thread->m_stmt_lock.dirty_to_allocated(& dirty_state);
+    }
   }
 }
 
