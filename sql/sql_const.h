@@ -147,7 +147,7 @@
 
 #define STACK_MIN_SIZE_FOR_OPEN 1024*80
 
-#if defined(__sparcv9) && defined( __SUNPRO_CC)
+#if defined( __SUNPRO_CC)
 #define STACK_BUFF_ALLOC        352*2   ///< For stack overrun checks
 #else
 #define STACK_BUFF_ALLOC        352     ///< For stack overrun checks
