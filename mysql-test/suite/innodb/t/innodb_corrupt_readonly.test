@@ -9,6 +9,7 @@
 
 --disable_query_log
 call mtr.add_suppression("Flagged corruption of.* in table .* in CHECK TABLE");
+call mtr.add_suppression("Skip re-populating collations and*");
 --enable_query_log
 
 set names utf8;
