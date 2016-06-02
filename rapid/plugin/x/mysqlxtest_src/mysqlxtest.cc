@@ -97,6 +97,10 @@ static std::list<Stack_frame> script_stack;
 static std::map<std::string, std::string> variables;
 static std::list<std::string> variables_to_unreplace;
 
+static void ignore_traces_from_libraries(enum loglevel ll, const char *format, va_list args)
+{
+}
+
 static void replace_all(std::string &input, const std::string &to_find, const std::string &change_to)
 {
   size_t position = input.find(to_find);
@@ -3099,9 +3103,11 @@ static Program_mode get_mode_function(const My_command_line_options &opt)
   }
 }
 
+
 int main(int argc, char **argv)
 {
   MY_INIT(argv[0]);
+  local_message_hook = ignore_traces_from_libraries;
 
   OPT_expect_error = new Expected_error();
   My_command_line_options options(argc, argv);
