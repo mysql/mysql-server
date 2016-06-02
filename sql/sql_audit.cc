@@ -20,6 +20,7 @@
 #include "log.h"
 #include "error_handler.h"                      // Internal_error_handler
 #include "mysqld.h"                             // sql_statement_names
+#include "sql_class.h"                          // THD
 #include "sql_thd_internal_api.h"               // create_thd / destroy_thd
 #include "sql_plugin.h"                         // my_plugin_foreach
 #include "sql_rewrite.h"                        // mysql_rewrite_query

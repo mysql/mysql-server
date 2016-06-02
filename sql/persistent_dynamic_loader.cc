@@ -236,7 +236,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void* thdp)
         &component_urn_str);
 
       std::string component_urn(
-        component_urn_str.c_ptr(), component_urn_str.length());
+        component_urn_str.ptr(), component_urn_str.length());
 
       mysql_persistent_dynamic_loader_imp::group_id= std::max(
         mysql_persistent_dynamic_loader_imp::group_id.load(),

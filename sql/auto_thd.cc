@@ -50,10 +50,10 @@ Auto_THD::~Auto_THD()
   @return This function always return false.
 */
 bool Auto_THD::handle_condition(THD *thd MY_ATTRIBUTE((unused)),
-            uint sql_errno MY_ATTRIBUTE((unused)),
-            const char* sqlstate MY_ATTRIBUTE((unused)),
-            Sql_condition::enum_severity_level *level MY_ATTRIBUTE((unused)),
-    const char* msg)
+  uint sql_errno MY_ATTRIBUTE((unused)),
+  const char* sqlstate MY_ATTRIBUTE((unused)),
+  Sql_condition::enum_severity_level *level MY_ATTRIBUTE((unused)),
+  const char* msg)
 {
   sql_print_error("%s", msg);
   return false;

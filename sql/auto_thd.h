@@ -13,8 +13,10 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
+#ifndef AUTO_THD_H
+#define AUTO_THD_H
+
 #include "error_handler.h"
-#include "sql_class.h"                // THD
 
 /**
   Self destroying THD.
@@ -43,12 +45,14 @@ public:
 
     @return This function always return false.
   */
-  virtual bool handle_condition(THD *thd MY_ATTRIBUTE((unused)),
-            uint sql_errno MY_ATTRIBUTE((unused)),
-            const char* sqlstate MY_ATTRIBUTE((unused)),
-            Sql_condition::enum_severity_level *level MY_ATTRIBUTE((unused)),
+  virtual bool handle_condition(class THD* thd MY_ATTRIBUTE((unused)),
+    uint sql_errno MY_ATTRIBUTE((unused)),
+    const char* sqlstate MY_ATTRIBUTE((unused)),
+    Sql_condition::enum_severity_level* level MY_ATTRIBUTE((unused)),
     const char* msg);
 
   /** Thd associated with the object. */
-  THD *thd;
+  class THD* thd;
 };
+
+#endif // AUTO_THD_H
