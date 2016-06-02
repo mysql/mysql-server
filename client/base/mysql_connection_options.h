@@ -58,13 +58,9 @@ public:
 
 private:
     Nullable<std::string> m_ssl_mode_string;
-    bool m_ssl;
-    bool m_ssl_verify_server_cert;
 
     void ca_option_callback(char *argument);
     void mode_option_callback(char *argument);
-    void use_ssl_option_callback(char *argument);
-    void ssl_verify_server_cert_callback(char *argument);
   };
  
 public:
