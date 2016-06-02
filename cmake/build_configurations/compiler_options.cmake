@@ -100,8 +100,8 @@ IF(UNIX)
         "What C++ library to use. The server needs stlport4. It is possible to build the client libraries with -DWITHOUT_SERVER=1 -DSUNPRO_CXX_LIBRARY=Cstd")
 
       IF(CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-        SET(COMMON_C_FLAGS                   "-g -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic")
-        SET(COMMON_CXX_FLAGS                 "-g0 -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic")
+        SET(COMMON_C_FLAGS                   "-g -mt -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic")
+        SET(COMMON_CXX_FLAGS                 "-g0 -mt -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic")
         # We have to specify "-xO1" for DEBUG flags here,
         # see http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=6879978
         SET(CMAKE_C_FLAGS_DEBUG              "-xO1 ${COMMON_C_FLAGS}")
