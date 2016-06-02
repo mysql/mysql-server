@@ -30,6 +30,7 @@
 
 /* Global Thread counter */
 uint counter;
+pthread_mutex_t init_mutex;
 pthread_mutex_t counter_mutex;
 pthread_cond_t count_threshhold;
 
@@ -417,8 +418,13 @@ static MYSQL *db_connect(char *host, char *database,
   MYSQL *mysql;
   if (verbose)
     fprintf(stdout, "Connecting to %s\n", host ? host : "localhost");
+  pthread_mutex_lock(&init_mutex);
   if (!(mysql= mysql_init(NULL)))
+  {
+    pthread_mutex_unlock(&init_mutex);
     return 0;
+  }
+  pthread_mutex_unlock(&init_mutex);
   if (opt_compress)
     mysql_options(mysql,MYSQL_OPT_COMPRESS,NullS);
   if (opt_local_file)
@@ -623,6 +629,7 @@ int main(int argc, char **argv)
     pthread_attr_setdetachstate(&attr,
                                 PTHREAD_CREATE_JOINABLE);
 
+    pthread_mutex_init(&init_mutex, NULL);
     pthread_mutex_init(&counter_mutex, NULL);
     pthread_cond_init(&count_threshhold, NULL);
 
@@ -677,6 +684,7 @@ int main(int argc, char **argv)
       pthread_cond_timedwait(&count_threshhold, &counter_mutex, &abstime);
     }
     pthread_mutex_unlock(&counter_mutex);
+    pthread_mutex_destroy(&init_mutex);
     pthread_mutex_destroy(&counter_mutex);
     pthread_cond_destroy(&count_threshhold);
     pthread_attr_destroy(&attr);
