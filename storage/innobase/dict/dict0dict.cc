@@ -5801,6 +5801,13 @@ dict_set_corrupted(
 		goto func_exit;
 	}
 
+	/* If this is read only mode, do not update SYS_INDEXES, just
+	mark it as corrupted in memory */
+	if (srv_read_only_mode) {
+		index->type |= DICT_CORRUPT;
+		goto func_exit;
+	}
+
 	heap = mem_heap_create(sizeof(dtuple_t) + 2 * (sizeof(dfield_t)
 			       + sizeof(que_fork_t) + sizeof(upd_node_t)
 			       + sizeof(upd_t) + 12));
