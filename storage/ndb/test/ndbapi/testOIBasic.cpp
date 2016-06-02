@@ -43,7 +43,6 @@ struct Opt {
   uint m_batch;
   const char* m_bound;
   const char* m_case;
-  bool m_collsp;
   bool m_cont;
   bool m_core;
   const char* m_csname;
@@ -75,7 +74,6 @@ struct Opt {
     m_batch(32),
     m_bound("01234"),
     m_case(0),
-    m_collsp(false),
     m_cont(false),
     m_core(false),
     m_csname("random"),
@@ -120,7 +118,6 @@ printhelp()
     << "  -batch N      pk operations in batch [" << d.m_batch << "]" << endl
     << "  -bound xyz    use only these bound types 0-4 [" << d.m_bound << "]" << endl
     << "  -case abc     only given test cases (letters a-z)" << endl
-    << "  -collsp       use strnncollsp instead of strnxfrm" << endl
     << "  -cont         on error continue to next test case [" << d.m_cont << "]" << endl
     << "  -core         core dump on error [" << d.m_core << "]" << endl
     << "  -csname S     charset or collation [" << d.m_csname << "]" << endl
@@ -2165,21 +2162,8 @@ Val::cmpchars(const Par& par, const uchar* buf1, uint len1, const uchar* buf2, u
   const Col& col = m_col;
   const Chs* chs = col.m_chs;
   CHARSET_INFO* cs = chs->m_cs;
-  int k;
-  if (!par.m_collsp) {
-    // make strxfrm pad both to same length
-    uint len = maxxmulsize * col.m_bytelength;
-    uchar *x1 = new uchar [chs->m_xmul * len];
-    uchar *x2 = new uchar [chs->m_xmul * len];
-    int n1 = NdbSqlUtil::strnxfrm_bug7284(cs, x1, chs->m_xmul * len, buf1, len1);
-    int n2 = NdbSqlUtil::strnxfrm_bug7284(cs, x2, chs->m_xmul * len, buf2, len2);
-    require(n1 != -1 && n1 == n2);
-    k = memcmp(x1, x2, n1);
-    delete [] x1;
-    delete [] x2;
-  } else {
-    k = (*cs->coll->strnncollsp)(cs, buf1, len1, buf2, len2, false);
-  }
+  // Use character set collation-dependent compare function
+  const int k = (*cs->coll->strnncollsp)(cs, buf1, len1, buf2, len2, false);
   return k < 0 ? -1 : k > 0 ? +1 : 0;
 }
 
@@ -2656,7 +2640,7 @@ operator<<(NdbOut& out, const Row& row)
 
 struct Set {
   const Tab& m_tab;
-  uint m_rows;
+  const uint m_rows;
   Row** m_row;
   uint* m_rowkey; // maps row number (from 0) in scan to tuple key
   Row* m_keyrow;
@@ -2706,9 +2690,8 @@ private:
 // construct
 
 Set::Set(const Tab& tab, uint rows) :
-  m_tab(tab)
+  m_tab(tab), m_rows(rows)
 {
-  m_rows = rows;
   m_row = new Row* [m_rows];
   for (uint i = 0; i < m_rows; i++) {
     m_row[i] = 0;
@@ -3994,10 +3977,10 @@ scanreadindexmrr(Par par, const ITab& itab, int numBsets)
   Set** actualResults;
   uint* setSizes;
 
-  CHK((boundSets= (BSet**) malloc(numBsets * sizeof(BSet*))) != 0);
-  CHK((expectedResults= (Set**) malloc(numBsets * sizeof(Set*))) != 0);
-  CHK((actualResults= (Set**) malloc(numBsets * sizeof(Set*))) != 0);
-  CHK((setSizes= (uint*) malloc(numBsets * sizeof(uint))) != 0);
+  boundSets=       new BSet* [numBsets];
+  expectedResults= new Set* [numBsets];
+  actualResults=   new Set* [numBsets];
+  setSizes=        new uint[numBsets];
 
   for (int n=0; n < numBsets; n++)
   {
@@ -4062,8 +4045,8 @@ scanreadindexmrr(Par par, const ITab& itab, int numBsets)
     CHK((uint) rowNum < set2.m_rows);
     actualResults[rangeNum]->m_row[i]= set2.m_row[i];
     actualResults[rangeNum]->m_rowkey[rowNum]= i;
-    set2.m_row[i]= 0;
     LL4("range " << rangeNum << " key " << i << " row " << rowNum << " " << *set2.m_row[i]);
+    set2.m_row[i]= 0;
     rows_received++;
   }
   con.closeTransaction();
@@ -4094,11 +4077,10 @@ scanreadindexmrr(Par par, const ITab& itab, int numBsets)
     delete expectedResults[n];
     delete actualResults[n];
   }
-
-  free(boundSets);
-  free(expectedResults);
-  free(actualResults);
-  free(setSizes);
+  delete [] boundSets;
+  delete [] expectedResults;
+  delete [] actualResults;
+  delete [] setSizes;
 
   LL3("scanreadindexmrr " << itab.m_name << " done rows=" << rows_received);
   return 0;
@@ -5889,10 +5871,6 @@ main(int argc,  char** argv)
         g_opt.m_case = strdup(argv[0]);
         continue;
       }
-    }
-    if (strcmp(arg, "-collsp") == 0) {
-      g_opt.m_collsp = true;
-      continue;
     }
     if (strcmp(arg, "-cont") == 0) {
       g_opt.m_cont = true;
