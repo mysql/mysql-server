@@ -459,11 +459,11 @@ ngs::Error_code Admin_command_handler::create_collection(Session &session, Sql_d
 
   Query_string_builder qb;
 
-  qb.put("CREATE TABLE ").quote_identifier(schema).dot().quote_identifier(name).put(" (");
-  qb.put("doc JSON,");
-  // XXX once merged, change it so column is created as VIRTUAL, so that InnoDB won't automatically turn this into a PK
-  qb.put("_id VARCHAR(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED NOT NULL UNIQUE");
-  qb.put(") CHARSET utf8mb4 ENGINE=InnoDB;");
+  qb.put("CREATE TABLE ")
+      .quote_identifier(schema).dot().quote_identifier(name)
+      .put(" (doc JSON,"
+           "_id VARCHAR(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY"
+           ") CHARSET utf8mb4 ENGINE=InnoDB;");
 
   Sql_data_context::Result_info info;
   const std::string &tmp(qb.get());

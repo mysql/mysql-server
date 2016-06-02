@@ -523,11 +523,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 1061
-  msg: "Duplicate key name \'_id\'"
-  sql_state: "42000"
+Mysqlx.Sql.StmtExecuteOk {
 }
 
 send Mysqlx.Sql.StmtExecute {
