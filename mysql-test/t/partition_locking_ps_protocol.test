@@ -3,11 +3,7 @@
 # under --ps.
 #
 
-if (`SELECT $PS_PROTOCOL = 0`)
-{
-  --skip Test requires ps-protocol enabled.
-}
-
+--source include/have_ps_protocol.inc
 --source include/have_innodb.inc
 --source include/have_partition.inc
 

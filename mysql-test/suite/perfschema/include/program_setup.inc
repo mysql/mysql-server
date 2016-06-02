@@ -2,6 +2,7 @@
 # SET-UP - Creation of various non-nested stored programs 
 #
 
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 
 --echo # SET-UP 
