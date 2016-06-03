@@ -2091,6 +2091,17 @@ static void check_result()
   DBUG_ASSERT(result_file_name);
   DBUG_PRINT("enter", ("result_file_name: %s", result_file_name));
 
+  /*
+    Removing the unnecessary warning messages generated
+    on GCOV platform.
+  */
+#ifdef HAVE_GCOV
+  char cmd[256];
+  strcpy(cmd, "sed -i '/gcda:Merge mismatch for function/d' ");
+  strcat(cmd, log_file.file_name());
+  system(cmd);
+#endif
+
   switch (compare_files(log_file.file_name(), result_file_name)) {
   case RESULT_OK:
     break; /* ok */
