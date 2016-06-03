@@ -15,12 +15,7 @@
 
 # If we are building client-only (-DWITHOUT_SERVER=ON) with Solaris Studio,
 # we skip building the mysqlpump tool. The server, and mysqlpump, will be built
-# using gcc. If we *are* building mysqlpump with Solaris Studio, we need to
-# work around a know bug: For some complicated class hierarchies that have
-# empty virtual base classes, the compiler generates incorrect vtables.
-#
-# To locate empty virtual base classes, CC has an undocumented Qoption:
-#    -Qoption ccfe -xwarn_empty_vbase
+# using gcc.
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/dump
@@ -30,8 +25,6 @@ IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
   IF (WITHOUT_SERVER)
     MESSAGE(STATUS "Not building mysqlpump")
     RETURN()
-  ELSE()
-    ADD_DEFINITIONS(-DEMPTY_VBASE_BUG)
   ENDIF()
 ENDIF()
 
