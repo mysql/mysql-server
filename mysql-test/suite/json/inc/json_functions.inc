@@ -3190,27 +3190,136 @@ DROP TABLE t;
 --echo #
 --echo # Basic tests for inlined JSON path
 --echo #
-CREATE TABLE t1(f1 JSON);
-INSERT INTO t1 VALUES('{"a":1}'),('{"a":3}'),('{"a":2}');
-INSERT INTO t1 VALUES('{"a":11, "b":3}'),('{"a":33, "b":1}'),('{"a":22,"b":2}');
+CREATE TABLE t1(autopk int primary key auto_increment, f1 JSON);
+INSERT INTO t1(f1) VALUES
+  ('{"a":1}'),
+  ('{"a":3}'),
+  ('{"a":2}'),
+  ('{"a":11, "b":3}'),
+  ('{"a":33, "b":1}'),
+  ('{"a":22,"b":2}');
 ANALYZE TABLE t1;
 
-SELECT f1->"$.a" FROM t1 order by f1;
-EXPLAIN SELECT f1->"$.a" FROM t1 order by f1;
+SELECT f1->"$.a" FROM t1 order by autopk;
+EXPLAIN SELECT f1->"$.a" FROM t1 order by autopk;
 
-SELECT f1->"$.a" FROM t1 WHERE f1->"$.b" > 1 order by f1;
-EXPLAIN SELECT f1->"$.a" FROM t1 WHERE f1->"$.b" > 1 order by f1;
+SELECT f1->"$.a" FROM t1 WHERE f1->"$.b" > 1 order by autopk;
+EXPLAIN SELECT f1->"$.a" FROM t1 WHERE f1->"$.b" > 1 order by autopk;
 
-SELECT f1->"$.a", f1->"$.b" FROM t1 ORDER BY f1->"$.b";
-EXPLAIN SELECT f1->"$.a", f1->"$.b" FROM t1 ORDER BY f1->"$.b";
+SELECT f1->"$.a", f1->"$.b" FROM t1 ORDER BY autopk;
+EXPLAIN SELECT f1->"$.a", f1->"$.b" FROM t1 ORDER BY autopk;
 
 SELECT MAX(f1->"$.a"), f1->"$.b" FROM t1 GROUP BY f1->"$.b";
 EXPLAIN SELECT MAX(f1->"$.a"), f1->"$.b" FROM t1 GROUP BY f1->"$.b";
 
 SELECT JSON_OBJECT("c",f1->"$.b") AS f2
-  FROM t1 HAVING JSON_TYPE(f2->"$.c") <> 'NULL' ORDER BY f1->"$.b";
+  FROM t1 HAVING JSON_TYPE(f2->"$.c") <> 'NULL' ORDER BY autopk;
 EXPLAIN
-  SELECT JSON_OBJECT("c",f1->"$.b") AS f2 FROM t1 HAVING JSON_TYPE(f2->"$.c") <> 'NULL' order by f1;
+  SELECT JSON_OBJECT("c",f1->"$.b") AS f2 FROM t1 HAVING JSON_TYPE(f2->"$.c") <> 'NULL' order by autopk;
+
+--echo Test unquoting operator
+INSERT INTO t1(f1) VALUES
+  ('{"t":"a"}'),
+  ('{"t":"b"}'),
+  ('{"t":"c"}');
+--echo Returned values should be quoted
+SELECT f1->"$.t" FROM t1 WHERE f1->"$.t" <> 'NULL' order by autopk;
+--echo Returned values should be unquoted
+SELECT f1->>"$.t" FROM t1 WHERE f1->>"$.t" <> 'NULL' order by autopk;
+EXPLAIN SELECT f1->>"$.t" FROM t1 WHERE f1->>"$.t" <> 'NULL';
+
+--error ER_PARSE_ERROR
+SELECT f1->>NULL FROM t1;
+--error ER_INVALID_JSON_PATH
+SELECT f1 ->> "NULL" FROM t1;
+--error ER_INVALID_JSON_PATH
+SELECT f1->>"NULL" FROM t1;
+--error ER_INVALID_JSON_PATH
+SELECT f1->>"!@#" FROM t1;
+--error ER_PARSE_ERROR
+SELECT COUNT(*)->>"$.t" FROM t1;
+
+INSERT INTO t1(f1) VALUES
+  ('[ { "a": 1 }, { "a": 2 } ]'),
+  ('{ "a" : "foo", "b" : [ true, { "c" : 123, "c" : 456 } ] }'),
+  ('{ "a" : "foo", "b" : [ true, { "c" : "123" } ] }'),
+  ('{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }');
+
+SELECT
+  f1->>"$**.b",
+  cast(json_unquote(json_extract(f1,"$**.b")) as char),
+  cast(f1->>"$**.b" as char) <=> cast(json_unquote(json_extract(f1,"$**.b")) as char)
+  FROM t1 order by autopk;
+SELECT
+  f1->>"$.c",
+  cast(json_unquote(json_extract(f1,"$.c")) as char),
+  cast(f1->>"$.c"  as char) <=> cast(json_unquote(json_extract(f1,"$.c")) as char)
+  FROM t1 order by autopk;
+SELECT
+  f1->>'$.b[1].c',
+  cast(json_unquote(json_extract(f1,'$.b[1].c')) as char),
+  cast(f1->>'$.b[1].c' as
+  char)<=>cast(json_unquote(json_extract(f1,'$.b[1].c')) as char)
+  FROM t1 order by autopk;
+SELECT
+  f1->'$.b[1].c',
+  cast(json_extract(f1,'$.b[1].c') as char),
+  cast(f1->'$.b[1].c' as char)
+  <=>cast(json_extract(f1,'$.b[1].c') as char)
+  FROM t1 order by autopk;
+SELECT
+  f1->>'$.b[1]',
+  cast(json_unquote(json_extract(f1,'$.b[1]')) as char),
+  cast(f1->>'$.b[1]' as char) <=>
+  cast(json_unquote(json_extract(f1,'$.b[1]')) as char)
+  FROM t1 order by autopk;
+SELECT
+  f1->>'$[0][0]',
+  cast(json_unquote(json_extract(f1,'$[0][0]')) as char),
+  cast(f1->>'$[0][0]' as char) <=>
+  cast(json_unquote(json_extract(f1,'$[0][0]')) as char)
+  FROM t1 order by autopk;
+SELECT
+  f1->>'$**[0]',
+  cast(json_unquote(json_extract(f1,'$**[0]')) as char),
+  cast(f1->>'$**[0]' as char) <=>
+  cast(json_unquote(json_extract(f1,'$**[0]')) as char)
+  FROM t1 order by autopk;
+SELECT
+  f1->> '$.a[0]',
+  cast(json_unquote(json_extract(f1, '$.a[0]')) as char),
+  cast(f1->> '$.a[0]' as char) <=> cast(json_unquote(json_extract(f1,
+  '$.a[0]')) as char)
+  FROM t1 order by autopk;
+SELECT
+  f1->>'$[0].a[0]',
+  cast(json_unquote(json_extract(f1,'$[0].a[0]')) as char),
+  cast(f1->>'$[0].a[0]' as char) <=>
+  cast(json_unquote(json_extract(f1,'$[0].a[0]')) as char)
+  FROM t1 order by autopk;
+SELECT
+  f1->>'$**.a',
+  cast(json_unquote(json_extract(f1,'$**.a')) as char),
+  cast(f1->>'$**.a' as char) <=> cast(json_unquote(json_extract(f1,'$**.a')) as char)
+  FROM t1 order by autopk;
+SELECT
+  f1->>'$[0][0][0].a',
+  cast(json_unquote(json_extract(f1,'$[0][0][0].a')) as char),
+  cast(f1->>'$[0][0][0].a' as char) <=>
+  cast(json_unquote(json_extract(f1,'$[0][0][0].a')) as char)
+  FROM t1 order by autopk;
+SELECT
+  f1->>'$[*].b',
+  cast(json_unquote(json_extract(f1,'$[*].b')) as char),
+  cast(f1->>'$[*].b' as char) <=>
+  cast(json_unquote(json_extract(f1,'$[*].b')) as char)
+  FROM t1 order by autopk;
+SELECT
+  f1->>'$[*].a',
+  cast(json_unquote(json_extract(f1,'$[*].a')) as char),
+  cast(f1->>'$[*].a' as char) <=>
+  cast(json_unquote(json_extract(f1,'$[*].a')) as char)
+  FROM t1 order by autopk;
 
 DROP TABLE t1;
 

@@ -1,11 +1,13 @@
 # Tests for PERFORMANCE_SCHEMA
 # Verify that statistics aggregated by different criteria are consistent.
 
-## To skip the test with QC enabled till BUG#14830950 is fixed.
--- source include/have_QC_Disabled.inc
+#With QC enabled additional code paths are activated which will change 
+#performance schema output.
+--source include/have_QC_Disabled.inc 
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 
 --echo "General cleanup"

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -610,6 +610,16 @@ static void benchmark_test()
 
 int main()
 {
+#ifdef _WIN32
+  /*
+  Initialization is required on Windows prior to using my_getsystime.
+  */
+  if (my_init())
+  {
+    printf("Error in my_init\n");
+    return -1;
+  }
+#endif
   int i, add= 1;
   for (i= 1; i < 1024; i+=add, add++)
   {

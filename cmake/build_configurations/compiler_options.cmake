@@ -15,6 +15,7 @@
 
 INCLUDE(CheckCCompilerFlag)
 INCLUDE(CheckCXXCompilerFlag)
+INCLUDE(cmake/floating_point.cmake)
 
 IF(SIZEOF_VOIDP EQUAL 4)
   SET(32BIT 1)
@@ -33,6 +34,10 @@ IF(UNIX)
     IF(WITH_VALGRIND)
       SET(COMMON_C_FLAGS             "-fno-inline ${COMMON_C_FLAGS}")
     ENDIF()
+    # Disable optimizations that change floating point results
+    IF(HAVE_C_FLOATING_POINT_OPTIMIZATION_PROBLEMS)
+      SET(COMMON_C_FLAGS "${COMMON_C_FLAGS} -fno-expensive-optimizations")
+    ENDIF()
     SET(CMAKE_C_FLAGS_DEBUG          "${COMMON_C_FLAGS}")
     SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_C_FLAGS}")
   ENDIF()
@@ -41,6 +46,10 @@ IF(UNIX)
     # Disable inline optimizations for valgrind testing to avoid false positives
     IF(WITH_VALGRIND)
       SET(COMMON_CXX_FLAGS             "-fno-inline ${COMMON_CXX_FLAGS}")
+    ENDIF()
+    # Disable optimizations that change floating point results
+    IF(HAVE_CXX_FLOATING_POINT_OPTIMIZATION_PROBLEMS)
+      SET(COMMON_CXX_FLAGS "${COMMON_CXX_FLAGS} -fno-expensive-optimizations")
     ENDIF()
     SET(CMAKE_CXX_FLAGS_DEBUG          "${COMMON_CXX_FLAGS}")
     SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_CXX_FLAGS}")
@@ -89,8 +98,8 @@ IF(UNIX)
       SET(CMAKE_CXX_FLAGS_RELEASE           "${CMAKE_CXX_FLAGS_RELEASE} -std=c++11")
 
       IF(CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-        SET(COMMON_C_FLAGS                   "-g -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic")
-        SET(COMMON_CXX_FLAGS                 "-g0 -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic ${COMMON_CXX_FLAGS}")
+        SET(COMMON_C_FLAGS                   "-g -mt -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic")
+        SET(COMMON_CXX_FLAGS                 "-g0 -mt -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic ${COMMON_CXX_FLAGS}")
         # We have to specify "-xO1" for DEBUG flags here,
         # see http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=6879978
         SET(CMAKE_C_FLAGS_DEBUG              "-xO1 ${COMMON_C_FLAGS}")

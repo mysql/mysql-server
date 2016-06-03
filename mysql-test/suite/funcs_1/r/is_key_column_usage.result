@@ -84,6 +84,7 @@ def	mysql	PRIMARY	def	mysql	columns_priv	Db
 def	mysql	PRIMARY	def	mysql	columns_priv	User
 def	mysql	PRIMARY	def	mysql	columns_priv	Table_name
 def	mysql	PRIMARY	def	mysql	columns_priv	Column_name
+def	mysql	PRIMARY	def	mysql	component	component_id
 def	mysql	PRIMARY	def	mysql	db	Host
 def	mysql	PRIMARY	def	mysql	db	Db
 def	mysql	PRIMARY	def	mysql	db	User

@@ -5327,12 +5327,7 @@ public:
   bool val_json(Json_wrapper *wr);
   longlong val_int();
   String *val_str(String *str);
-  Item_result result_type() const
-  {
-    if (!example)
-      return STRING_RESULT; // override default int
-    return Field::result_merge_type(example->field_type());
-  }
+  Item_result result_type() const { return STRING_RESULT; }
 
   double val_real();
   my_decimal *val_decimal(my_decimal *val);

@@ -1229,7 +1229,8 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
     in this case to be sure.
   */
 
-  if (check_and_convert_db_name(&new_db_file_name, FALSE) != IDENT_NAME_OK)
+  if (check_and_convert_db_name(&new_db_file_name, false) !=
+      Ident_name_check::OK)
   {
     my_free(new_db_file_name.str);
 

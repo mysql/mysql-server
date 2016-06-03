@@ -38,11 +38,7 @@ public:
   uint default_dd_version(THD*) const
   { return 0; }
 
-  static const Version &instance()
-  {
-    static Version *s_instance= new Version();
-    return *s_instance;
-  }
+  static const Version &instance();
 
   static const std::string &table_name()
   {

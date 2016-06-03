@@ -349,8 +349,8 @@ typedef struct st_lex_master_info
     changed variable or if it should be left at old value
    */
   enum {LEX_MI_UNCHANGED= 0, LEX_MI_DISABLE, LEX_MI_ENABLE}
-    ssl, ssl_verify_server_cert, heartbeat_opt, repl_ignore_server_ids_opt, 
-    retry_count_opt, auto_position;
+    ssl, ssl_verify_server_cert, heartbeat_opt, repl_ignore_server_ids_opt,
+    retry_count_opt, auto_position, port_opt;
   char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
   char *ssl_crl, *ssl_crlpath, *tls_version;
   char *relay_log_name;
@@ -1781,6 +1781,7 @@ union YYSTYPE {
   class PT_base_index_option *index_option;
   Mem_root_array_YY<PT_base_index_option *> index_options;
   PT_base_index_option *index_type;
+  Mem_root_array_YY<LEX_STRING> lex_str_list;
   bool visibility;
 };
 

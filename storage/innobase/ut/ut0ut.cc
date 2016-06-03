@@ -648,13 +648,6 @@ ut_strerr(
 	case DB_NO_FK_ON_S_BASE_COL:
 		return("Cannot add foreign key on the base column "
 		       "of stored column");
-	case DB_NO_FK_ON_V_BASE_COL:
-		return("Cannot add foreign key on the base column "
-		       "of indexed virtual column");
-	case DB_NO_VIRTUAL_INDEX_ON_FK:
-		return("Cannot create index on virtual column whose base "
-		       "column has foreign constraint");
-
 	case DB_COMPUTE_VALUE_FAILED:
 		return("Compute generated column failed");
 

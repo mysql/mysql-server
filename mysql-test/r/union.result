@@ -602,33 +602,33 @@ a	b
 4	4
 explain (select * from t1 where a=1 and b=10) union (select straight_join t1.a,t2.a from t1,t2 where t1.a=t2.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	UNION	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
-2	UNION	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	Using index
-NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	Impossible WHERE noticed after reading const tables
+2	UNION	t1	NULL	index	PRIMARY	b	5	NULL	#	100.00	Using index
+2	UNION	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	#	100.00	Using index
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Warnings:
 Note	1003	(/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where 0) union (/* select#2 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`))
 explain (select * from t1 where a=1) union (select * from t1 where b=1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
-2	UNION	t1	NULL	ref	b	b	5	const	1	100.00	NULL
+2	UNION	t1	NULL	ref	b	b	5	const	1	100.00	Using index
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	(/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where 1) union (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 1))
 drop table t1,t2;
-create table t1 (   id int not null auto_increment, primary key (id)   ,user_name text );
-create table t2 (    id int not null auto_increment, primary key (id)   ,group_name text );
-create table t3 (    id int not null auto_increment, primary key (id)   ,user_id int   ,index user_idx (user_id)   ,foreign key (user_id) references users(id)   ,group_id int   ,index group_idx (group_id)   ,foreign key (group_id) references groups(id) );
-insert into t1 (user_name) values ('Tester');
-insert into t2 (group_name) values ('Group A');
-insert into t2 (group_name) values ('Group B');
+create table groups (id int not null auto_increment, primary key (id) ,user_name text );
+create table users (id int not null auto_increment, primary key (id) ,group_name text );
+create table t3 (id int not null auto_increment, primary key (id),user_id int,index user_idx (user_id),foreign key (user_id) references users(id),group_id int,index group_idx (group_id),foreign key (group_id) references groups(id) );
+insert into groups (user_name) values ('Tester');
+insert into users (group_name) values ('Group A');
+insert into users (group_name) values ('Group B');
 insert into t3 (user_id, group_id) values (1,1);
-select 1 'is_in_group', a.user_name, c.group_name, b.id from t1 a, t3 b, t2 c where a.id = b.user_id and b.group_id = c.id UNION  select 0 'is_in_group', a.user_name, c.group_name, null from t1 a, t2 c;
+select 1 'is_in_group', a.user_name, c.group_name, b.id from groups a, t3 b, users c where a.id = b.user_id and b.group_id = c.id UNION  select 0 'is_in_group', a.user_name, c.group_name, null from groups a, users c;
 is_in_group	user_name	group_name	id
 1	Tester	Group A	1
 0	Tester	Group A	NULL
 0	Tester	Group B	NULL
-drop table t1, t2, t3;
+drop table t3, users, groups;
 create table t1 (mat_id MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, matintnum CHAR(6) NOT NULL, test MEDIUMINT UNSIGNED NULL);
 create table t2 (mat_id MEDIUMINT UNSIGNED NOT NULL, pla_id MEDIUMINT UNSIGNED NOT NULL);
 insert into t1 values (NULL, 'a', 1), (NULL, 'b', 2), (NULL, 'c', 3), (NULL, 'd', 4), (NULL, 'e', 5), (NULL, 'f', 6), (NULL, 'g', 7), (NULL, 'h', 8), (NULL, 'i', 9);
@@ -652,7 +652,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(2) NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT 12 as a UNION select "aa" as a;
 select * from t1;
@@ -663,7 +663,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(2) NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT 12 as a UNION select 12.2 as a;
 select * from t1;
@@ -674,7 +674,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` decimal(3,1) NOT NULL DEFAULT '0.0'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t2 (it1 tinyint, it2 tinyint not null, i int not null, ib bigint, f float, d double, y year, da date, dt datetime, sc char(10), sv varchar(10), b blob, tx text);
 insert into t2 values (NULL, 1, 3, 4, 1.5, 2.5, 1972, '1972-10-22', '1972-10-22 11:50', 'testc', 'testv', 'tetetetetest', 'teeeeeeeeeeeest');
@@ -687,7 +687,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `it2` tinyint(4) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT it2 from t2 UNION select i from t2;
 select * from t1;
@@ -698,7 +698,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `it2` int(11) NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT i from t2 UNION select f from t2;
 select * from t1;
@@ -709,7 +709,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` double DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT f from t2 UNION select d from t2;
 select * from t1;
@@ -720,7 +720,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f` double DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT ib from t2 UNION select f from t2;
 select * from t1;
@@ -731,7 +731,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `ib` double DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT ib from t2 UNION select d from t2;
 select * from t1;
@@ -742,7 +742,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `ib` double DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT f from t2 UNION select y from t2;
 select * from t1;
@@ -753,7 +753,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f` float DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT f from t2 UNION select da from t2;
 select * from t1;
@@ -764,7 +764,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f` varchar(12) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT y from t2 UNION select da from t2;
 select * from t1;
@@ -775,7 +775,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `y` varchar(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT y from t2 UNION select dt from t2;
 select * from t1;
@@ -786,7 +786,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `y` varchar(19) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT da from t2 UNION select dt from t2;
 select * from t1;
@@ -797,7 +797,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `da` datetime DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT dt from t2 UNION select trim(sc) from t2;
 select trim(dt) from t1;
@@ -808,7 +808,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `dt` varchar(19) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT dt from t2 UNION select sv from t2;
 select * from t1;
@@ -819,7 +819,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `dt` varchar(19) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT sc from t2 UNION select sv from t2;
 select * from t1;
@@ -830,7 +830,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `sc` varchar(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT dt from t2 UNION select b from t2;
 select * from t1;
@@ -841,7 +841,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `dt` blob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT sv from t2 UNION select b from t2;
 select * from t1;
@@ -852,7 +852,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `sv` blob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT i from t2 UNION select d from t2 UNION select b from t2;
 select * from t1;
@@ -864,7 +864,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` blob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT sv from t2 UNION select tx from t2;
 select * from t1;
@@ -875,7 +875,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `sv` text
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT b from t2 UNION select tx from t2;
 select * from t1;
@@ -886,7 +886,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `b` blob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1,t2;
 create table t1 select 1 union select -1;
 select * from t1;
@@ -897,7 +897,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `1` bigint(20) NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 select _latin1"test" union select _latin2"testt" ;
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE) and (latin2_general_ci,COERCIBLE) for operation 'UNION'
@@ -906,7 +906,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `test` varchar(5) CHARACTER SET latin2 NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (s char(200));
 insert into t1 values (repeat("1",200));
@@ -1154,7 +1154,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `test` varchar(4) NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 select count(*) from t1;
 count(*)
 1
@@ -1167,7 +1167,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `_latin1'test' collate latin1_bin` varchar(4) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 select count(*) from t1;
 count(*)
 3
@@ -1180,7 +1180,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `test` varchar(4) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 select count(*) from t1;
 count(*)
 3
@@ -1193,7 +1193,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `test` varchar(4) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 select count(*) from t1;
 count(*)
 3
@@ -1212,7 +1212,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a collate latin1_german1_ci` varchar(1) CHARACTER SET latin1 COLLATE latin1_german1_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 as
 (select a from t2) union
@@ -1221,7 +1221,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(1) CHARACTER SET latin1 COLLATE latin1_german1_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 as
 (select a from t2) union
@@ -1231,7 +1231,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(1) CHARACTER SET latin1 COLLATE latin1_german1_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 drop table t2;
 create table t1(a1 int, f1 char(10));
@@ -1318,7 +1318,7 @@ t1	CREATE TABLE `t1` (
   `a` enum('ä','ö','ü') CHARACTER SET utf8 NOT NULL DEFAULT 'ü',
   `b` enum('one','two') CHARACTER SET utf8 DEFAULT NULL,
   `c` enum('one','two') DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('ä', 'one', 'one'), ('ö', 'two', 'one'), ('ü', NULL, NULL);
 create table t2 select NULL union select a from t1;
 show columns from t2;
@@ -1368,8 +1368,8 @@ description	f1
 XXXXXXXXXXXXXXXXXXXX	0.000000000000000000000000
 YYYYYYYYYYYYYYYYYYYY	0.000000000000000000000000
 drop table t1;
-create table t1 (a varchar(5));
-create table t2 select * from t1 union select 'abcdefghijkl';
+create table t1 (a varchar(5)) engine=myisam;
+create table t2 engine=myisam select * from t1 union select 'abcdefghijkl';
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -1385,6 +1385,24 @@ t2	CREATE TABLE `t2` (
   `a` varchar(12) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED
 drop table t1,t2;
+create table t1 (a varchar(5));
+create table t2 select * from t1 union select 'abcdefghijkl';
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` varchar(12) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+select row_format from information_schema.TABLES where table_schema="test" and table_name="t2";
+row_format
+Dynamic
+alter table t2 ROW_FORMAT=fixed;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'ROW_TYPE'
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` varchar(12) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t1,t2;
 CREATE TABLE t1 (a mediumtext);
 CREATE TABLE t2 (b varchar(20));
 INSERT INTO t1 VALUES ('a'),('b');
@@ -1397,7 +1415,7 @@ show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `left(a,100000000)` mediumtext
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop tables t1,t2,t3;
 CREATE TABLE t1 (a longtext);
 CREATE TABLE t2 (b varchar(20));
@@ -1411,7 +1429,7 @@ show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `left(a,100000000)` longtext
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop tables t1,t2,t3;
 SELECT @tmp_max:= @@global.max_allowed_packet;
 @tmp_max:= @@global.max_allowed_packet
@@ -1427,7 +1445,7 @@ SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` longtext
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLES t1,t3;
 CREATE TABLE t1 (a tinytext);
 INSERT INTO t1 VALUES ('a');
@@ -1436,7 +1454,7 @@ SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` varchar(510) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLES t1,t3;
 CREATE TABLE t1 (a mediumtext);
 INSERT INTO t1 VALUES ('a');
@@ -1445,7 +1463,7 @@ SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` longtext
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLES t1,t3;
 CREATE TABLE t1 (a tinyblob);
 INSERT INTO t1 VALUES ('a');
@@ -1454,7 +1472,7 @@ SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` varbinary(510) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLES t1,t2,t3;
 SET @@global.max_allowed_packet:= @tmp_max;
 create table t1 ( id int not null auto_increment, primary key (id), col1 int);
@@ -1492,7 +1510,7 @@ t2	CREATE TABLE `t2` (
   `f6` varchar(1) CHARACTER SET utf8 DEFAULT NULL,
   `f7` text,
   `f8` mediumtext CHARACTER SET utf8
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1, t2;
 SET sql_mode = default;
 (select avg(1)) union (select avg(1)) union (select avg(1)) union
@@ -1658,12 +1676,12 @@ UNION
 SELECT a FROM t1
 ORDER BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select NULL AS `a` from `test`.`t1` union /* select#2 */ select NULL AS `a` from `test`.`t1` order by `a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `a`
 DROP TABLE t1;
 End of 5.0 tests
 #
@@ -2702,3 +2720,56 @@ SELECT NULL UNION SELECT POINT(1,1);
 NULL
 NULL
              ð?      ð?
+#
+# Bug#22602381 FOUND_ROWS() IS NOT WORKING AS EXPECTED WITHOUT
+#              SQL_CALC_FOUND_ROWS
+#
+CREATE TABLE t1(c1 INT);
+INSERT INTO t1 VALUES(1),(2),(3);
+(SELECT c1 FROM t1) UNION ALL
+(SELECT c1 FROM t1) LIMIT 2;
+c1
+1
+2
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+2
+(SELECT SQL_CALC_FOUND_ROWS c1 FROM t1) UNION ALL
+(SELECT c1 FROM t1) LIMIT 2;
+c1
+1
+2
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+6
+(SELECT c1 FROM t1 LIMIT 1) UNION ALL
+(SELECT c1 FROM t1 LIMIT 3) LIMIT 2;
+c1
+1
+1
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+2
+(SELECT c1 FROM t1 LIMIT 1) UNION ALL
+(SELECT c1 FROM t1 LIMIT 1) LIMIT 3;
+c1
+1
+1
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+2
+(SELECT c1 FROM t1 LIMIT 3) UNION ALL
+(SELECT c1 FROM t1 LIMIT 3) LIMIT 1 OFFSET 4;
+c1
+2
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+5
+(SELECT c1 FROM t1 LIMIT 1) UNION ALL
+(SELECT c1 FROM t1 LIMIT 1) LIMIT 1 OFFSET 2;
+c1
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+2
+DROP TABLE t1;
+#End of test for Bug#22602381

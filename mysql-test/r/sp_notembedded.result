@@ -229,7 +229,7 @@ drop procedure 15298_1;
 drop procedure 15298_2;
 drop table if exists t1;
 drop procedure if exists p1;
-create table t1 (value varchar(15));
+create table t1 (value varchar(15)) engine=Myisam;
 create procedure p1() update t1 set value='updated' where value='old';
 call p1();
 insert into t1 (value) values ("old");

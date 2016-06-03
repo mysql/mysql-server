@@ -78,7 +78,7 @@
 
   See #DYNAMIC_ARRAY, #LIST, #I_P_List, #HASH, #LF_HASH.
 
-  @subsection infra_basic_syncho Synchonization
+  @subsection infra_basic_syncho Synchronization
 
   See #native_mutex_t, #native_rw_lock_t, #native_cond_t.
 
@@ -234,6 +234,14 @@
   separate binaries.
 
   To learn how to create these user defined functions see @subpage page_ext_udf
+
+  @section extending_component Components
+
+  The MySQL Server 8.0 introduces Components that will be used for
+  "componentization" as a replacement for the old MySQL plugin system for new
+  plug-in development.
+
+  See @subpage PAGE_COMPONENTS.
 */
 
 
@@ -278,6 +286,7 @@
 #include "sql_common.h"                 // mysql_client_plugin_init
 
 #include "auth_common.h"                // grant_init
+#include "auto_thd.h"                   // Auto_THD
 #include "binlog.h"                     // mysql_bin_log
 #include "bootstrap.h"                  // bootstrap
 #include "connection_acceptor.h"        // Connection_acceptor
@@ -381,6 +390,9 @@
 
 #include "dd/dd.h"                      // dd::shutdown
 #include "dd/dd_kill_immunizer.h"       // dd::DD_kill_immunizer
+
+#include <mysql/components/my_service.h>  // my_service<>
+#include "../components/mysql_server/server_component.h"
 
 using std::min;
 using std::max;
@@ -572,7 +584,7 @@ static char *default_collation_name;
 char *default_storage_engine;
 char *default_tmp_storage_engine;
 /**
-   Use to mark which engine should be choosen to create internal
+   Use to mark which engine should be chosen to create internal
    temp table
  */
 ulong internal_tmp_disk_storage_engine;
@@ -935,7 +947,7 @@ mysql_mutex_t LOCK_sql_rand;
 mysql_mutex_t LOCK_prepared_stmt_count;
 
 /*
- The below two locks are introudced as guards (second mutex) for
+ The below two locks are introduced as guards (second mutex) for
   the global variables sql_slave_skip_counter and slave_net_timeout
   respectively. See fix_slave_skip_counter/fix_slave_net_timeout
   for more details
@@ -1186,8 +1198,69 @@ void server_components_initialized()
   mysql_mutex_unlock(&LOCK_server_started);
 }
 
-
 #ifndef EMBEDDED_LIBRARY
+
+/**
+  Initializes component infrastructure by bootstrapping core component
+  subsystem.
+
+  @return Status of performed operation
+  @retval false success
+  @retval true failure
+*/
+static bool component_infrastructure_init()
+{
+  if (mysql_services_bootstrap(NULL))
+  {
+    sql_print_error("Failed to bootstrap components infrastructure.\n");
+    return true;
+  }
+
+  return false;
+}
+/**
+  Initializes MySQL Server component infrastructure part by initialize of
+  dynamic loader persistence.
+
+  @return Status of performed operation
+  @retval false success
+  @retval true failure
+*/
+static bool mysql_component_infrastructure_init()
+{
+  /* We need a temporary THD during boot */
+  Auto_THD thd;
+
+  if (persistent_dynamic_loader_init(thd.thd))
+  {
+    sql_print_error("Failed to bootstrap persistent components loader.\n");
+    return true;
+  }
+  return false;
+}
+
+/**
+  De-initializes Component infrastructure by de-initialization of the MySQL
+  Server services (persistent dynamic loader) followed by de-initailization of
+  the core Components infrostructure.
+
+  @return Status of performed operation
+  @retval false success
+  @retval true failure
+*/
+static bool component_infrastructure_deinit()
+{
+  persistent_dynamic_loader_deinit();
+
+  if (mysql_services_shutdown())
+  {
+    sql_print_error("Failed to shutdown components infrastructure.\n");
+    return true;
+  }
+
+  return false;
+}
+
 /**
   Block and wait until server components have been initialized.
 */
@@ -1716,6 +1789,15 @@ void clean_up(bool print_message)
 #endif
   free_list(opt_early_plugin_load_list_ptr);
   free_list(opt_plugin_load_list_ptr);
+
+#ifndef EMBEDDED_LIBRARY
+  /*
+    Is this the best place for components deinit? It may be changed when new
+    dependencies are discovered, possibly being divided into separate points
+    where all dependencies are still ok.
+  */
+  component_infrastructure_deinit();
+#endif
 
   if (THR_THD_initialized)
   {
@@ -2729,6 +2811,7 @@ SHOW_VAR com_status_vars[]= {
   {"help",                 (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_HELP]),                       SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"insert",               (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_INSERT]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"insert_select",        (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_INSERT_SELECT]),              SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"install_component",    (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_INSTALL_COMPONENT]),          SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"install_plugin",       (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_INSTALL_PLUGIN]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"kill",                 (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_KILL]),                       SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"load",                 (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_LOAD]),                       SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -2808,6 +2891,7 @@ SHOW_VAR com_status_vars[]= {
   {"stmt_reset",           (char*) offsetof(System_status_var, com_stmt_reset),                                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"stmt_send_long_data",  (char*) offsetof(System_status_var, com_stmt_send_long_data),                            SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"truncate",             (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_TRUNCATE]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"uninstall_component",  (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_UNINSTALL_COMPONENT]),        SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"uninstall_plugin",     (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_UNINSTALL_PLUGIN]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"unlock_tables",        (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_UNLOCK_TABLES]),              SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"update",               (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_UPDATE]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -4993,6 +5077,16 @@ int mysqld_main(int argc, char **argv)
 
   init_error_log();
 
+#ifndef EMBEDDED_LIBRARY
+  /*
+    Initialize Components core subsystem early on, once we have PSI, which it
+    use. This part doesn't use any more MySQL-specific functionalities but
+    error logging and PFS.
+  */
+  if (component_infrastructure_init())
+    unireg_abort(MYSQLD_ABORT_EXIT);
+#endif
+
   /* Initialize audit interface globals. Audit plugins are inited later. */
   mysql_audit_initialize();
 
@@ -5341,9 +5435,17 @@ int mysqld_main(int argc, char **argv)
   if (!opt_initialize)
     reload_optimizer_cost_constants();
 
-  if (mysql_rm_tmp_tables() || acl_init(opt_noacl) ||
-      my_tz_init((THD *)0, default_tz_name, opt_initialize) ||
-      grant_init(opt_noacl))
+  if (
+    /*
+      Read components table to restore previously installed components. This
+      requires read access to mysql.component table. Possibly this is not
+      optimal place, if you find any earlies possible, please move it there and
+      document requirements and by what means they are provided.
+    */
+    (!opt_initialize && mysql_component_infrastructure_init())
+    || mysql_rm_tmp_tables() || acl_init(opt_noacl)
+    || my_tz_init((THD *)0, default_tz_name, opt_initialize)
+    || grant_init(opt_noacl))
   {
     set_connection_events_loop_aborted(true);
 
@@ -8327,7 +8429,7 @@ static char *get_relative_path(const char *path)
     @retval FALSE The path isn't secure
 */
 
-bool is_secure_file_path(char *path)
+bool is_secure_file_path(const char *path)
 {
   char buff1[FN_REFLEN], buff2[FN_REFLEN];
   size_t opt_secure_file_priv_len;

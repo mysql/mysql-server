@@ -30,11 +30,7 @@ namespace tables {
 class Foreign_keys : public Object_table_impl
 {
 public:
-  static const Foreign_keys &instance()
-  {
-    static Foreign_keys *s_instance= new Foreign_keys();
-    return *s_instance;
-  }
+  static const Foreign_keys &instance();
 
   static const std::string &table_name()
   {
@@ -59,78 +55,7 @@ public:
   };
 
 public:
-  Foreign_keys()
-  {
-    m_target_def.table_name(table_name());
-    m_target_def.dd_version(1);
-
-    m_target_def.add_field(FIELD_ID,
-                           "FIELD_ID",
-                           "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
-    m_target_def.add_field(FIELD_SCHEMA_ID,
-                           "FIELD_SCHEMA_ID",
-                           "schema_id BIGINT UNSIGNED NOT NULL");
-    m_target_def.add_field(FIELD_TABLE_ID,
-                           "FIELD_TABLE_ID",
-                           "table_id BIGINT UNSIGNED NOT NULL");
-    m_target_def.add_field(FIELD_NAME,
-                           "FIELD_NAME",
-                           "name VARCHAR(64) NOT NULL COLLATE utf8_general_ci");
-    m_target_def.add_field(FIELD_UNIQUE_CONSTRAINT_ID,
-                           "FIELD_UNIQUE_CONSTRAINT_ID",
-                           "unique_constraint_id BIGINT UNSIGNED NOT NULL");
-    m_target_def.add_field(FIELD_MATCH_OPTION,
-                           "FIELD_MATCH_OPTION",
-                           "match_option ENUM('NONE', 'PARTIAL', 'FULL') "
-                           "NOT NULL");
-    m_target_def.add_field(FIELD_UPDATE_RULE,
-                           "FIELD_UPDATE_RULE",
-                           "update_rule ENUM(\n"
-                           "  'NO ACTION', 'RESTRICT',\n"
-                           "  'CASCADE', 'SET NULL',\n"
-                           "  'SET DEFAULT'\n"
-                           ") NOT NULL");
-    m_target_def.add_field(FIELD_DELETE_RULE,
-                           "FIELD_DELETE_RULE",
-                           "delete_rule ENUM(\n"
-                           "  'NO ACTION', 'RESTRICT',\n"
-                           "  'CASCADE', 'SET NULL',\n"
-                           "  'SET DEFAULT'\n"
-                           ") NOT NULL");
-    m_target_def.add_field(FIELD_REFERENCED_CATALOG,
-                           "FIELD_REFERENCED_CATALOG",
-                           "referenced_table_catalog "
-                           "VARCHAR(64) NOT NULL COLLATE " +
-                           std::string(Object_table_definition_impl::
-                                         fs_name_collation()->name));
-    m_target_def.add_field(FIELD_REFERENCED_SCHEMA,
-                           "FIELD_REFERENCED_SCHEMA",
-                           "referenced_table_schema "
-                           "VARCHAR(64) NOT NULL COLLATE " +
-                           std::string(Object_table_definition_impl::
-                                         fs_name_collation()->name));
-    m_target_def.add_field(FIELD_REFERENCED_TABLE,
-                           "FIELD_REFERENCED_TABLE",
-                           "referenced_table_name "
-                           "VARCHAR(64) NOT NULL COLLATE " +
-                           std::string(Object_table_definition_impl::
-                                         fs_name_collation()->name));
-
-    m_target_def.add_index("PRIMARY KEY (id)");
-    m_target_def.add_index("UNIQUE KEY (schema_id, name)");
-    m_target_def.add_index("UNIQUE KEY (table_id, name)");
-
-    m_target_def.add_foreign_key("FOREIGN KEY (schema_id) REFERENCES "
-                                 "schemata(id)");
-    m_target_def.add_foreign_key("FOREIGN KEY (unique_constraint_id) "
-                                 "REFERENCES indexes(id)");
-
-    m_target_def.add_option("ENGINE=INNODB DEFAULT");
-    m_target_def.add_option("CHARSET=utf8");
-    m_target_def.add_option("COLLATE=utf8_bin");
-    m_target_def.add_option("ROW_FORMAT=DYNAMIC");
-    m_target_def.add_option("STATS_PERSISTENT=0");
-  }
+  Foreign_keys();
 
   virtual const std::string &name() const
   { return Foreign_keys::table_name(); }

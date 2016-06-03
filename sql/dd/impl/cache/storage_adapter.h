@@ -66,11 +66,7 @@ private:
   ~Storage_adapter()
   { mysql_mutex_destroy(&m_lock); }
 
-  static Storage_adapter *fake_instance()
-  {
-    static Storage_adapter s_fake_storage;
-    return &s_fake_storage;
-  }
+  static Storage_adapter *fake_instance();
 
   // Fake get for unit testing.
   template <typename K, typename T>

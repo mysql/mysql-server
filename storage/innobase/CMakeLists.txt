@@ -157,33 +157,21 @@ IF(WITH_INNODB)
   SET(WITH_INNOBASE_STORAGE_ENGINE TRUE)
 ENDIF()
 
-SET(INNODB_BOOST_ATOMICS_SOURCES
-  btr/btr0btr.cc
-  buf/buf0buf.cc
-  buf/buf0lru.cc
-  handler/ha_innodb.cc
-  handler/i_s.cc)
-
-# ut0lock_free_hash.h uses boost::atomics
-# Solaris Studio generates dependencies on
-# boost::atomics::detail::lockpool::scoped_lock::scoped_lock
-IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
-  LIST(APPEND INNOBASE_SOURCES
-    ${BOOST_SOURCES_DIR}/libs/atomic/src/lockpool.cpp)
-  LIST(APPEND INNODB_BOOST_ATOMICS_SOURCES
-    ${BOOST_SOURCES_DIR}/libs/atomic/src/lockpool.cpp)
-ENDIF()
-
 ADD_LIBRARY(innodb_zipdecompress STATIC ${INNOBASE_ZIP_DECOMPRESS_SOURCES})
 SET_TARGET_PROPERTIES(innodb_zipdecompress PROPERTIES
   COMPILE_DEFINITIONS "UNIV_LIBRARY")
 ADD_DEPENDENCIES(innodb_zipdecompress GenError)
 
+UNSET(NUMA_LIBRARY)
+IF(HAVE_LIBNUMA)
+  SET(NUMA_LIBRARY "numa")
+ENDIF()
+
 MYSQL_ADD_PLUGIN(innobase
   ${INNOBASE_SOURCES} ${INNOBASE_ZIP_DECOMPRESS_SOURCES} STORAGE_ENGINE
   MANDATORY
   MODULE_OUTPUT_NAME ha_innodb
-  LINK_LIBRARIES ${ZLIB_LIBRARY} ${LZ4_LIBRARY})
+  LINK_LIBRARIES ${ZLIB_LIBRARY} ${LZ4_LIBRARY} ${NUMA_LIBRARY})
 
 IF(WITH_INNOBASE_STORAGE_ENGINE)
   ADD_DEPENDENCIES(innobase GenError)
@@ -211,14 +199,6 @@ IF(HAVE_LOGICAL_OP)
   )
 ENDIF()
 
-# Boost atomics triggers bogus warning in GCC, see
-# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=61489
-MY_CHECK_CXX_COMPILER_FLAG("-Wmissing-field-initializers" HAVE_MISSING_FIELD_INITIALIZERS)
-IF(HAVE_MISSING_FIELD_INITIALIZERS)
-  ADD_COMPILE_FLAGS(${INNODB_BOOST_ATOMICS_SOURCES}
-    COMPILE_FLAGS "-Wno-missing-field-initializers")
-ENDIF()
-
 # A GCC bug causes crash when compiling these files on ARM64 with -O1+
 # Compile them with -O0 as a workaround until the GCC bug is fixed.
 IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
@@ -231,8 +211,3 @@ IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
     COMPILE_FLAGS "-O0"
   )
 ENDIF()
-
-ADD_COMPILE_FLAGS(
-  ${INNODB_BOOST_ATOMICS_SOURCES}
-  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
-)

@@ -26,6 +26,10 @@
 #include "compilerutils.h"
 #include <boost/algorithm/string.hpp>
 
+#define CONTENT_TYPE_GEOMETRY 0x0001
+#define CONTENT_TYPE_JSON 0x0002
+#define CONTENT_TYPE_XML 0x0002
+
 using namespace mysqlx;
 
 Schema::Schema(boost::shared_ptr<Session> conn, const std::string &name_)
@@ -208,6 +212,10 @@ Mysqlx::Datatypes::Scalar* Collection_Statement::convert_document_value(const Do
       break;
     case DocumentValue::TDocument:
     case DocumentValue::TArray:
+      my_scalar->set_type(Mysqlx::Datatypes::Scalar::V_OCTETS);
+      my_scalar->mutable_v_octets()->set_content_type(CONTENT_TYPE_JSON);
+      my_scalar->mutable_v_octets()->set_value(column_value);
+      break;
     case DocumentValue::TExpression:
     case DocumentValue::TNull:
       throw std::logic_error("Only scalar values supported on this conversion");
@@ -277,7 +285,7 @@ Find_Limit &Find_Sort::sort(const std::vector<std::string> &sortFields)
 Find_Sort &Find_Having::having(const std::string &searchCondition)
 {
   if (!searchCondition.empty())
-    m_find->set_allocated_grouping_criteria(parser::parse_collection_filter(searchCondition));
+    m_find->set_allocated_grouping_criteria(parser::parse_collection_filter(searchCondition, &m_placeholders));
 
   return *this;
 }
@@ -352,11 +360,27 @@ boost::shared_ptr<Result> Add_Base::execute()
 
   SessionRef session(m_coll->schema()->session());
 
-  boost::shared_ptr<Result> result(session->connection()->execute_insert(*m_insert));
+  boost::shared_ptr<Result> result;
+  if (m_insert->mutable_row()->size())
+  {
+    result = session->connection()->execute_insert(*m_insert);
+    result->wait();
+  }
+  else
+    result = session->connection()->new_empty_result();
 
-  result->wait();
+  result->setLastDocumentIDs(m_last_document_ids);
+  m_last_document_ids.clear();
 
   return result;
+}
+
+AddStatement::AddStatement(boost::shared_ptr<Collection> coll)
+  : Add_Base(coll)
+{
+  m_insert->mutable_collection()->set_schema(coll->schema()->name());
+  m_insert->mutable_collection()->set_name(coll->name());
+  m_insert->set_data_model(Mysqlx::Crud::DOCUMENT);
 }
 
 AddStatement::AddStatement(boost::shared_ptr<Collection> coll, const Document &doc)
@@ -370,35 +394,32 @@ AddStatement::AddStatement(boost::shared_ptr<Collection> coll, const Document &d
 
 AddStatement &AddStatement::add(const Document &doc)
 {
-  if (doc.is_expression())
-  {
-    // Caller should have already validated that the expression
-    // generates a valid Object
     ::mysqlx::Expr_parser parser(doc.str(), true, false, &m_placeholders);
-
     Mysqlx::Expr::Expr *expr_obj = parser.expr();
 
-    // If the document contains an ID it means it has to be added into the document
-    if (!doc.id().empty())
+  if (expr_obj->type() == Mysqlx::Expr::Expr_Type_OBJECT)
     {
-      ::mysqlx::Expr_parser id_parser("\"" + doc.id() + "\"");
-      Mysqlx::Expr::Object_ObjectField *field = expr_obj->mutable_object()->add_fld();
-      field->set_key("_id");
-      field->set_allocated_value(id_parser.expr());
+    bool found = false;
+    int size = expr_obj->object().fld_size();
+    int index = 0;
+    while (index < size && !found)
+    {
+      found = expr_obj->object().fld(index).key() == "_id";
+
+      // The document ID is stored as literal-octests
+      if (found &&
+          expr_obj->object().fld(index).value().has_literal() &&
+          expr_obj->object().fld(index).value().literal().has_v_octets())
+        m_last_document_ids.push_back(expr_obj->object().fld(index).value().literal().v_octets().value());
+      else
+        throw std::logic_error("missing document _id");
+
+      index++;
     }
 
     m_insert->mutable_row()->Add()->mutable_field()->AddAllocated(expr_obj);
   }
-  else
-  {
-    Mysqlx::Datatypes::Scalar *value = new Mysqlx::Datatypes::Scalar();
-    value->set_type(Mysqlx::Datatypes::Scalar::V_OCTETS);
-    value->mutable_v_octets()->set_value(doc.str());
 
-    Mysqlx::Expr::Expr *expr(m_insert->mutable_row()->Add()->mutable_field()->Add());
-    expr->set_type(Mysqlx::Expr::Expr::LITERAL);
-    expr->set_allocated_literal(value);
-  }
   return *this;
 }
 
@@ -547,7 +568,7 @@ Modify_Operation &Modify_Operation::set_operation(int type, const std::string &p
         value->type() == DocumentValue::TArray)
     {
       DocumentValue expression(*value);
-      Expr_parser parser(expression, true);
+      Expr_parser parser(expression, true, false, &m_placeholders);
       operation->set_allocated_value(parser.expr());
     }
     else
@@ -828,7 +849,7 @@ Update_Set &Update_Set::set(const std::string &field, const std::string& express
 
   operation->set_operation(Mysqlx::Crud::UpdateOperation::SET);
 
-  Expr_parser parser(expression);
+  Expr_parser parser(expression, false, false, &m_placeholders);
   operation->set_allocated_value(parser.expr());
 
   return *this;
@@ -902,7 +923,7 @@ Select_Limit &Select_OrderBy::orderBy(const std::vector<std::string> &sortFields
 Select_OrderBy &Select_Having::having(const std::string &searchCondition)
 {
   if (!searchCondition.empty())
-    m_find->set_allocated_grouping_criteria(parser::parse_table_filter(searchCondition));
+    m_find->set_allocated_grouping_criteria(parser::parse_table_filter(searchCondition, &m_placeholders));
 
   return *this;
 }
@@ -985,11 +1006,20 @@ Insert_Values &Insert_Values::values(const std::vector<TableValue> &row_data)
 
   for (index = row_data.begin(); index != end; index++)
   {
+    if (index->type() == TableValue::TExpression)
+    {
+      TableValue expression(*index);
+      Expr_parser parser(expression, false, false, &m_placeholders);
+      row->mutable_field()->AddAllocated(parser.expr());
+    }
+    else
+    {
     Mysqlx::Expr::Expr* expr = new Mysqlx::Expr::Expr();
     expr->set_type(Mysqlx::Expr::Expr::LITERAL);
     Mysqlx::Datatypes::Scalar* scalar = convert_table_value(*index);
     expr->set_allocated_literal(scalar);
     row->mutable_field()->AddAllocated(expr);
+  }
   }
 
   return *this;

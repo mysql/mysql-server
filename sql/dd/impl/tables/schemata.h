@@ -31,11 +31,7 @@ namespace tables {
 class Schemata : public Dictionary_object_table_impl
 {
 public:
-  static const Schemata &instance()
-  {
-    static Schemata *s_instance= new Schemata();
-    return *s_instance;
-  }
+  static const Schemata &instance();
 
   static const std::string &table_name()
   {

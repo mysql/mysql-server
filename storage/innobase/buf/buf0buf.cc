@@ -66,7 +66,7 @@ Created 11/5/1995 Heikki Tuuri
 #include <map>
 #include <sstream>
 
-#if defined(HAVE_LIBNUMA) && defined(WITH_NUMA)
+#ifdef HAVE_LIBNUMA
 #include <numa.h>
 #include <numaif.h>
 
@@ -107,7 +107,7 @@ struct set_numa_interleave_t
 #define NUMA_MEMPOLICY_INTERLEAVE_IN_SCOPE set_numa_interleave_t scoped_numa
 #else
 #define NUMA_MEMPOLICY_INTERLEAVE_IN_SCOPE
-#endif /* HAVE_LIBNUMA && WITH_NUMA */
+#endif /* HAVE_LIBNUMA */
 
 /*
 		IMPLEMENTATION OF THE BUFFER POOL
@@ -862,7 +862,7 @@ buf_chunk_init(
 		return(NULL);
 	}
 
-#if defined(HAVE_LIBNUMA) && defined(WITH_NUMA)
+#ifdef HAVE_LIBNUMA
 	if (srv_numa_interleave) {
 		int	st = mbind(chunk->mem, chunk->mem_size(),
 				   MPOL_INTERLEAVE,
@@ -875,7 +875,7 @@ buf_chunk_init(
 				" (error: " << strerror(errno) << ").";
 		}
 	}
-#endif /* HAVE_LIBNUMA && WITH_NUMA */
+#endif /* HAVE_LIBNUMA */
 
 	/* Allocate the block descriptors from
 	the start of the memory block. */

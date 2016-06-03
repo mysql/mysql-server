@@ -54,8 +54,7 @@ public:
   static bool init(bool install);
   static bool shutdown();
 
-  static Dictionary_impl *instance()
-  { return s_instance; }
+  static Dictionary_impl *instance();
 
 private:
   Dictionary_impl()

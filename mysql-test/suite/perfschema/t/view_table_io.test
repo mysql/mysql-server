@@ -3,7 +3,8 @@
 #       base table used within the view shows up whereas
 #       the view itself never shows up.
 
-## To skip the test with QC enabled till BUG#14830950 is fixed.
+#With QC enabled additional code paths are activated which will change
+#performance schema output.
 -- source include/have_QC_Disabled.inc
 
 --source include/not_embedded.inc

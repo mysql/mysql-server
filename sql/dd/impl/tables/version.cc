@@ -23,6 +23,12 @@
 namespace dd {
 namespace tables {
 
+const Version &Version::instance()
+{
+  static Version *s_instance= new Version();
+  return *s_instance;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 uint Version::get_actual_dd_version(THD *thd) const

@@ -22,13 +22,6 @@
   {"ssl-mode", OPT_SSL_MODE,
    "SSL connection mode.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"ssl", OPT_SSL_SSL,
-   "Deprecated. Use --ssl-mode instead.",
-   &opt_use_ssl_arg, &opt_use_ssl_arg, 0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
-  {"ssl-verify-server-cert", OPT_SSL_VERIFY_SERVER_CERT,
-   "Deprecated. Use --ssl-mode=VERIFY_IDENTITY instead.",
-   &opt_ssl_verify_server_cert_arg, &opt_ssl_verify_server_cert_arg,
-    0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
   {"ssl", OPT_SSL_SSL,
    "If set to ON, this option enforces that SSL is established before client "

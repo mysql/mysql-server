@@ -30,11 +30,7 @@ namespace tables {
 class Index_partitions : public Object_table_impl
 {
 public:
-  static const Index_partitions &instance()
-  {
-    static Index_partitions *s_instance= new Index_partitions();
-    return *s_instance;
-  }
+  static const Index_partitions &instance();
 
   static const std::string &table_name()
   {

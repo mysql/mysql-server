@@ -3,10 +3,7 @@
 #
 #
 
-if (`SELECT $PS_PROTOCOL = 0`)
-{
-  --skip Test requires ps-protocol enabled.
-}
+--source include/have_ps_protocol.inc
 #
 # Bug#15130:CREATE .. SELECT was denied to use advantages of the
 # SQL_BIG_RESULT.

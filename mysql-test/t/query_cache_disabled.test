@@ -1,5 +1,3 @@
-
--- source include/have_query_cache.inc
 #
 # Bug#38551 query cache can still consume [very little] cpu time even when it is off.
 #

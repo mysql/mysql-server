@@ -20,6 +20,12 @@
 namespace dd {
 namespace tables {
 
+const Foreign_key_column_usage &Foreign_key_column_usage::instance()
+{
+  static Foreign_key_column_usage *s_instance= new Foreign_key_column_usage();
+  return *s_instance;
+}
+
 // Foreign keys not supported in the Global DD yet
 /* purecov: begin deadcode */
 ///////////////////////////////////////////////////////////////////////////

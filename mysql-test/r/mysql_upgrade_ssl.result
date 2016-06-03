@@ -3,6 +3,7 @@
 #
 mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
+mysql.component                                    OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
 mysql.func                                         OK
@@ -62,6 +63,7 @@ FLUSH PRIVILEGES;
 mysql_upgrade: [Warning] Using a password on the command line interface can be insecure.
 mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
+mysql.component                                    OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
 mysql.func                                         OK

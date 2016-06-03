@@ -30,11 +30,7 @@ namespace tables {
 class Foreign_key_column_usage : public Object_table_impl
 {
 public:
-  static const Foreign_key_column_usage &instance()
-  {
-    static Foreign_key_column_usage *s_instance= new Foreign_key_column_usage();
-    return *s_instance;
-  }
+  static const Foreign_key_column_usage &instance();
 
   static const std::string &table_name()
   {

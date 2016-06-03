@@ -28,6 +28,9 @@ usr/share/man/man1/mysqltest_embedded.1
 # plugins
 usr/lib/mysql/plugin/auth.so
 usr/lib/mysql/plugin/auth_test_plugin.so
+usr/lib/mysql/plugin/component_example_component1.so
+usr/lib/mysql/plugin/component_example_component2.so
+usr/lib/mysql/plugin/component_example_component3.so
 usr/lib/mysql/plugin/daemon_example.ini
 usr/lib/mysql/plugin/ha_example.so
 usr/lib/mysql/plugin/libdaemon_example.so
@@ -61,6 +64,9 @@ usr/lib/mysql/plugin/test_udf_services.so
 usr/lib/mysql/plugin/test_security_context.so
 usr/lib/mysql/plugin/debug/auth.so
 usr/lib/mysql/plugin/debug/auth_test_plugin.so
+usr/lib/mysql/plugin/debug/component_example_component1.so
+usr/lib/mysql/plugin/debug/component_example_component2.so
+usr/lib/mysql/plugin/debug/component_example_component3.so
 usr/lib/mysql/plugin/debug/daemon_example.ini
 usr/lib/mysql/plugin/debug/ha_example.so
 usr/lib/mysql/plugin/debug/libdaemon_example.so

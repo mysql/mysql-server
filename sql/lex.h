@@ -137,6 +137,7 @@ static const SYMBOL symbols[] = {
   { SYM("COMMITTED",                COMMITTED_SYM)},
   { SYM("COMPACT",                  COMPACT_SYM)},
   { SYM("COMPLETION",               COMPLETION_SYM)},
+  { SYM("COMPONENT",                COMPONENT_SYM)},
   { SYM("COMPRESSION",              COMPRESSION_SYM)},
   { SYM("COMPRESSED",               COMPRESSED_SYM)},
   { SYM("ENCRYPTION",               ENCRYPTION_SYM)},

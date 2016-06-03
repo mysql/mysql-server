@@ -1,5 +1,4 @@
-/*
-   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +27,7 @@
 #include "mysqld.h"              // current_thd
 #include "sql_parse.h"           // dispatch_command()
 #include "sql_thd_internal_api.h" // thd_set_thread_stack
+#include "rwlock_scoped_lock.h"
 #include "mutex_lock.h"
 #include "conn_handler/connection_handler_manager.h"
 #include "sql_plugin.h"
@@ -48,58 +48,6 @@ extern void thd_clear_errors(THD *thd);
 static thread_local_key_t THR_stack_start_address;
 static thread_local_key_t THR_srv_session_thread;
 static bool srv_session_THRs_initialized= false;
-
-
-/**
-  A simple wrapper around a RW lock:
-  Grabs the lock in the CTOR, releases it in the DTOR.
-  The lock may be NULL, in which case this is a no-op.
-
-  Based on Mutex_lock from include/mutex_lock.h
-*/
-class Auto_rw_lock_read
-{
-public:
-  explicit Auto_rw_lock_read(mysql_rwlock_t *lock) : rw_lock(NULL)
-  {
-    if (lock && 0 == mysql_rwlock_rdlock(lock))
-      rw_lock = lock;
-  }
-
-  ~Auto_rw_lock_read()
-  {
-    if (rw_lock)
-      mysql_rwlock_unlock(rw_lock);
-  }
-private:
-  mysql_rwlock_t *rw_lock;
-
-  Auto_rw_lock_read(const Auto_rw_lock_read&);         /* Not copyable. */
-  void operator=(const Auto_rw_lock_read&);            /* Not assignable. */
-};
-
-
-class Auto_rw_lock_write
-{
-public:
-  explicit Auto_rw_lock_write(mysql_rwlock_t *lock) : rw_lock(NULL)
-  {
-    if (lock && 0 == mysql_rwlock_wrlock(lock))
-      rw_lock = lock;
-  }
-
-  ~Auto_rw_lock_write()
-  {
-    if (rw_lock)
-      mysql_rwlock_unlock(rw_lock);
-  }
-private:
-  mysql_rwlock_t *rw_lock;
-
-  Auto_rw_lock_write(const Auto_rw_lock_write&);        /* Non-copyable */
-  void operator=(const Auto_rw_lock_write&);            /* Non-assignable */
-};
-
 
 class Thread_to_plugin_map
 {
@@ -388,7 +336,7 @@ public:
   */
   Srv_session* find(const THD* key)
   {
-    Auto_rw_lock_read lock(&LOCK_collection);
+    rwlock_scoped_lock lock(&LOCK_collection, false, __FILE__, __LINE__);
 
     std::map<const THD*, map_value_t>::iterator it= collection.find(key);
     return (it != collection.end())? it->second.second : NULL;
@@ -407,7 +355,7 @@ public:
   */
   bool add(const THD* key, const void *plugin, Srv_session *session)
   {
-    Auto_rw_lock_write lock(&LOCK_collection);
+    rwlock_scoped_lock lock(&LOCK_collection, true, __FILE__, __LINE__);
     try
     {
       collection[key]= std::make_pair(plugin, session);
@@ -430,7 +378,7 @@ public:
   */
   bool remove(const THD* key)
   {
-    Auto_rw_lock_write lock(&LOCK_collection);
+    rwlock_scoped_lock lock(&LOCK_collection, true, __FILE__, __LINE__);
     /*
       If we use erase with the key directly an exception could be thrown. The
       find method never throws. erase() with iterator as parameter also never
@@ -454,7 +402,7 @@ public:
     removed= 0;
 
     {
-      Auto_rw_lock_write lock(&LOCK_collection);
+      rwlock_scoped_lock lock(&LOCK_collection, true, __FILE__, __LINE__);
 
       for (std::map<const THD*, map_value_t>::iterator it= collection.begin();
            it != collection.end();
@@ -490,7 +438,7 @@ public:
   */
   bool clear()
   {
-    Auto_rw_lock_write lock(&LOCK_collection);
+    rwlock_scoped_lock lock(&LOCK_collection, true, __FILE__, __LINE__);
     collection.clear();
     return false;
   }
@@ -500,7 +448,7 @@ public:
   */
   unsigned int size()
   {
-    Auto_rw_lock_read lock(&LOCK_collection);
+    rwlock_scoped_lock lock(&LOCK_collection, false, __FILE__, __LINE__);
     return collection.size();
   }
 };

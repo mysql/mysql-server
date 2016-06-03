@@ -30,11 +30,7 @@ namespace tables {
 class Parameter_type_elements : public Object_table_impl
 {
 public:
-  static const Parameter_type_elements &instance()
-  {
-    static Parameter_type_elements *s_instance= new Parameter_type_elements();
-    return *s_instance;
-  }
+  static const Parameter_type_elements &instance();
 
   static const std::string &table_name()
   {

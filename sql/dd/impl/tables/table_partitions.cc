@@ -23,6 +23,12 @@
 namespace dd {
 namespace tables {
 
+const Table_partitions &Table_partitions::instance()
+{
+  static Table_partitions *s_instance= new Table_partitions();
+  return *s_instance;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 Object_key *Table_partitions::create_key_by_table_id(Object_id table_id)

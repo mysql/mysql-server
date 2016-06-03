@@ -261,6 +261,7 @@ INCLUDE(mysql_version)
 INCLUDE(libutils)
 INCLUDE(dtrace)
 INCLUDE(plugin)
+INCLUDE(component)
 INCLUDE(install_macros)
 INCLUDE(install_layout)
 INCLUDE(mysql_add_executable)
@@ -305,6 +306,8 @@ MACRO (MY_CHECK_C_COMPILER_FLAG FLAG RESULT)
     FAIL_REGEX "unrecognized .*option"
     FAIL_REGEX "ignoring unknown option"
     FAIL_REGEX "[Ww]arning: [Oo]ption"
+    FAIL_REGEX "error: visibility"
+    FAIL_REGEX "warning: visibility"
     )
   SET(CMAKE_REQUIRED_FLAGS "${SAVE_CMAKE_REQUIRED_FLAGS}")
 ENDMACRO()
@@ -319,6 +322,8 @@ MACRO (MY_CHECK_CXX_COMPILER_FLAG FLAG RESULT)
     FAIL_REGEX "unrecognized .*option"
     FAIL_REGEX "ignoring unknown option"
     FAIL_REGEX "[Ww]arning: [Oo]ption"
+    FAIL_REGEX "error: visibility"
+    FAIL_REGEX "warning: visibility"
     )
   SET(CMAKE_REQUIRED_FLAGS "${SAVE_CMAKE_REQUIRED_FLAGS}")
 ENDMACRO()
@@ -598,10 +603,6 @@ ADD_SUBDIRECTORY(libbinlogevents)
 ADD_SUBDIRECTORY(libbinlogstandalone)
 
 IF(WITH_UNIT_TESTS)
-  ADD_SUBDIRECTORY(unittest)
-  ADD_SUBDIRECTORY(unittest/examples)
-  ADD_SUBDIRECTORY(unittest/mytap)
-  ADD_SUBDIRECTORY(unittest/mytap/t)
   # Visual Studio 11 needs this extra flag in order to compile gmock.
   IF(WIN32)
     ADD_DEFINITIONS( /D _VARIADIC_MAX=10 )
@@ -610,11 +611,19 @@ IF(WITH_UNIT_TESTS)
   IF(HAVE_LLVM_LIBCPP)
     ADD_DEFINITIONS(-DGTEST_USE_OWN_TR1_TUPLE=1)
   ENDIF()
-  ADD_SUBDIRECTORY(unittest/gunit)
-  
+
+  ADD_SUBDIRECTORY(unittest)
+  ADD_SUBDIRECTORY(unittest/examples)
+  ADD_SUBDIRECTORY(unittest/mytap)
+  ADD_SUBDIRECTORY(unittest/mytap/t)
   IF(WITH_RAPID AND EXISTS ${CMAKE_SOURCE_DIR}/rapid/unittest/gunit)
     ADD_SUBDIRECTORY(rapid/unittest/gunit)
   ENDIF()
+ENDIF()
+
+IF(NOT WITHOUT_SERVER)
+  SET (MYSQLD_STATIC_COMPONENT_LIBS "" CACHE INTERNAL "")
+  CONFIGURE_COMPONENTS()
 ENDIF()
 
 ADD_SUBDIRECTORY(extra)

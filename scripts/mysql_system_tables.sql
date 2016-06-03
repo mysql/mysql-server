@@ -146,6 +146,8 @@ SET @cmd="CREATE TABLE IF NOT EXISTS ndb_binlog_index (
   next_file VARCHAR(255) NOT NULL,
   PRIMARY KEY(epoch, orig_server_id, orig_epoch)) ENGINE=MYISAM";
 
+CREATE TABLE IF NOT EXISTS component ( component_id int unsigned NOT NULL AUTO_INCREMENT, component_group_id int unsigned NOT NULL, component_urn text NOT NULL, PRIMARY KEY (component_id)) engine=INNODB DEFAULT CHARSET=utf8 COMMENT 'Components';
+
 SET @str = IF(@have_ndb = 1, @cmd, 'SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;

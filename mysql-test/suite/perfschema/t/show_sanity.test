@@ -111,6 +111,7 @@
 ################################################################################
 --source include/have_perfschema.inc
 --source include/not_embedded.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 
 create table test.sanity(
@@ -956,6 +957,7 @@ insert into test.sanity values
   ("JUNK: COM COUNTER", "I_S.SESSION_STATUS", "COM_HELP"),
   ("JUNK: COM COUNTER", "I_S.SESSION_STATUS", "COM_INSERT"),
   ("JUNK: COM COUNTER", "I_S.SESSION_STATUS", "COM_INSERT_SELECT"),
+  ("JUNK: COM COUNTER", "I_S.SESSION_STATUS", "COM_INSTALL_COMPONENT"),
   ("JUNK: COM COUNTER", "I_S.SESSION_STATUS", "COM_INSTALL_PLUGIN"),
   ("JUNK: COM COUNTER", "I_S.SESSION_STATUS", "COM_KILL"),
   ("JUNK: COM COUNTER", "I_S.SESSION_STATUS", "COM_LOAD"),
@@ -1033,6 +1035,7 @@ insert into test.sanity values
   ("JUNK: COM COUNTER", "I_S.SESSION_STATUS", "COM_STMT_RESET"),
   ("JUNK: COM COUNTER", "I_S.SESSION_STATUS", "COM_STMT_SEND_LONG_DATA"),
   ("JUNK: COM COUNTER", "I_S.SESSION_STATUS", "COM_TRUNCATE"),
+  ("JUNK: COM COUNTER", "I_S.SESSION_STATUS", "COM_UNINSTALL_COMPONENT"),
   ("JUNK: COM COUNTER", "I_S.SESSION_STATUS", "COM_UNINSTALL_PLUGIN"),
   ("JUNK: COM COUNTER", "I_S.SESSION_STATUS", "COM_UNLOCK_TABLES"),
   ("JUNK: COM COUNTER", "I_S.SESSION_STATUS", "COM_UPDATE"),

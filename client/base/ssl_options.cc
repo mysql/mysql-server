@@ -57,22 +57,6 @@ void Mysql_connection_options::Ssl_options::create_options()
       "Certificate revocation list path.");
   this->create_new_option(&::opt_tls_version, "tls-version",
       "TLS version to use.");
-
-#ifdef MYSQL_CLIENT
-  this->create_new_option(&this->m_ssl, "ssl",
-                          "Deprecated. Use ssl-mode instead.")
-    ->add_callback(new Instance_callback<void, char*,
-                   Mysql_connection_options::Ssl_options>(
-                     this, &Mysql_connection_options::Ssl_options::use_ssl_option_callback));
-
-  this->create_new_option(&this->m_ssl_verify_server_cert, "ssl-verify-server-cert",
-                          "Deprecated. Use ssl-mode=VERIFY_IDENTITY instead.")
-    ->add_callback(new Instance_callback<void, char*,
-                   Mysql_connection_options::Ssl_options>(
-                     this,
-                     &Mysql_connection_options::Ssl_options::ssl_verify_server_cert_callback));
-
-#endif
 #endif /* HAVE_OPENSSL */
 }
 
@@ -97,30 +81,4 @@ void Mysql_connection_options::Ssl_options::apply_for_connection(
   MYSQL* connection)
 {
   SSL_SET_OPTIONS(connection);
-}
-
-
-void Mysql_connection_options::Ssl_options::use_ssl_option_callback(
-  char *argument MY_ATTRIBUTE((unused)))
-{
-  CLIENT_WARN_DEPRECATED("--ssl", "--ssl-mode");
-  if (!opt_use_ssl_arg)
-    opt_ssl_mode= SSL_MODE_DISABLED;
-  else if (opt_ssl_mode < SSL_MODE_REQUIRED)
-    opt_ssl_mode= SSL_MODE_REQUIRED;
-}
-
-
-void Mysql_connection_options::Ssl_options::ssl_verify_server_cert_callback(
-  char *argument MY_ATTRIBUTE((unused)))
-{
-  CLIENT_WARN_DEPRECATED("--ssl-verify-server-cert",
-                         "--ssl-mode=VERIFY_IDENTITY");
-  if (!opt_ssl_verify_server_cert_arg)
-  {
-    if (opt_ssl_mode >= SSL_MODE_VERIFY_IDENTITY)
-      opt_ssl_mode= SSL_MODE_VERIFY_CA;
-  }
-  else
-    opt_ssl_mode= SSL_MODE_VERIFY_IDENTITY;
 }

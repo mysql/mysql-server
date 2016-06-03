@@ -28,24 +28,6 @@
                                       opt->name);
       ssl_mode_set_explicitly= TRUE;
       break;
-    case OPT_SSL_SSL:
-      CLIENT_WARN_DEPRECATED("--ssl", "--ssl-mode");
-      if (!opt_use_ssl_arg)
-        opt_ssl_mode= SSL_MODE_DISABLED;
-      else if (opt_ssl_mode < SSL_MODE_REQUIRED)
-        opt_ssl_mode= SSL_MODE_REQUIRED;
-      break;
-    case OPT_SSL_VERIFY_SERVER_CERT:
-      CLIENT_WARN_DEPRECATED("--ssl-verify-server-cert",
-                             "--ssl-mode=VERIFY_IDENTITY");
-      if (!opt_ssl_verify_server_cert_arg)
-      {
-        if (opt_ssl_mode >= SSL_MODE_VERIFY_IDENTITY)
-          opt_ssl_mode= SSL_MODE_VERIFY_CA;
-      }
-      else
-        opt_ssl_mode= SSL_MODE_VERIFY_IDENTITY;
-      break;
     case OPT_SSL_CA:
     case OPT_SSL_CAPATH:
       /* Don't change ssl-mode if set explicitly. */ 

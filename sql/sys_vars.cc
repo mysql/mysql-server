@@ -2543,8 +2543,16 @@ static Sys_var_ulong Sys_net_buffer_length(
 static bool fix_net_read_timeout(sys_var *self, THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
+  {
+    // net_buffer_length is a specific property for the classic protocols
+    if (!thd->is_classic_protocol())
+    {
+      my_error(ER_PLUGGABLE_PROTOCOL_COMMAND_NOT_SUPPORTED, MYF(0));
+      return true;
+    }
     my_net_set_read_timeout(thd->get_protocol_classic()->get_net(),
                             thd->variables.net_read_timeout);
+  }
   return false;
 }
 static Sys_var_ulong Sys_net_read_timeout(
@@ -2559,8 +2567,16 @@ static Sys_var_ulong Sys_net_read_timeout(
 static bool fix_net_write_timeout(sys_var *self, THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
+  {
+    // net_read_timeout is a specific property for the classic protocols
+    if (!thd->is_classic_protocol())
+    {
+      my_error(ER_PLUGGABLE_PROTOCOL_COMMAND_NOT_SUPPORTED, MYF(0));
+      return true;
+    }
     my_net_set_write_timeout(thd->get_protocol_classic()->get_net(),
                              thd->variables.net_write_timeout);
+  }
   return false;
 }
 static Sys_var_ulong Sys_net_write_timeout(
@@ -2575,8 +2591,16 @@ static Sys_var_ulong Sys_net_write_timeout(
 static bool fix_net_retry_count(sys_var *self, THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
+  {
+    // net_write_timeout is a specific property for the classic protocols
+    if (!thd->is_classic_protocol())
+    {
+      my_error(ER_PLUGGABLE_PROTOCOL_COMMAND_NOT_SUPPORTED, MYF(0));
+      return true;
+    }
     thd->get_protocol_classic()->get_net()->retry_count=
       thd->variables.net_retry_count;
+  }
   return false;
 }
 static Sys_var_ulong Sys_net_retry_count(

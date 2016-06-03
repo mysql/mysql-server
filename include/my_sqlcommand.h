@@ -176,6 +176,8 @@ enum enum_sql_command {
   SQLCOM_SHUTDOWN,
   SQLCOM_SET_PASSWORD,
   SQLCOM_ALTER_INSTANCE,
+  SQLCOM_INSTALL_COMPONENT,
+  SQLCOM_UNINSTALL_COMPONENT,
   /* This should be the last !!! */
   SQLCOM_END
 };

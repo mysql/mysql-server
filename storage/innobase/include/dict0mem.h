@@ -398,6 +398,27 @@ dict_mem_referenced_table_name_lookup_set(
 	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
 	ibool		do_alloc);	/*!< in: is an alloc needed */
 
+/** Fills the dependent virtual columns in a set.
+Reason for being dependent are
+1) FK can be present on base column of virtual columns
+2) FK can be present on column which is a part of virtual index
+@param[in,out]	foreign	foreign key information. */
+void
+dict_mem_foreign_fill_vcol_set(
+	dict_foreign_t*	foreign);
+
+/** Fill virtual columns set in each fk constraint present in the table.
+@param[in,out]	table	innodb table object. */
+void
+dict_mem_table_fill_foreign_vcol_set(
+        dict_table_t*	table);
+
+/** Free the vcol_set from all foreign key constraint on the table.
+@param[in,out]	table	innodb table object. */
+void
+dict_mem_table_free_foreign_vcol_set(
+	dict_table_t*	table);
+
 /** Create a temporary tablename like "#sql-ibtid-inc" where
   tid = the Table ID
   inc = a randomly initialized number that is incremented for each file
@@ -964,6 +985,11 @@ enum online_index_status {
 	ONLINE_INDEX_ABORTED_DROPPED
 };
 
+/** Set to store the virtual columns which are affected by Foreign
+key constraint. */
+typedef std::set<dict_v_col_t*, std::less<dict_v_col_t*>,
+		ut_allocator<dict_v_col_t*> >		dict_vcol_set;
+
 /** Data structure for a foreign key constraint; an example:
 FOREIGN KEY (A, B) REFERENCES TABLE2 (C, D).  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_foreign_create(). */
@@ -999,6 +1025,9 @@ struct dict_foreign_t{
 					does not generate new indexes
 					implicitly */
 	dict_index_t*	referenced_index;/*!< referenced index */
+
+	dict_vcol_set*	v_cols;		/*!< set of virtual columns affected
+					by foreign key constraint. */
 };
 
 std::ostream&
@@ -1131,6 +1160,10 @@ dict_foreign_free(
 /*==============*/
 	dict_foreign_t*	foreign)	/*!< in, own: foreign key struct */
 {
+	if (foreign->v_cols != NULL) {
+		UT_DELETE(foreign->v_cols);
+	}
+
 	mem_heap_free(foreign->heap);
 }
 
@@ -1678,10 +1711,7 @@ public:
 	columns */
 	dict_vcol_templ_t*			vc_templ;
 
-	/** whether above vc_templ comes from purge allocation */
-	bool					vc_templ_purge;
-
-		/** encryption key, it's only for export/import */
+	/** encryption key, it's only for export/import */
 	byte*					encryption_key;
 
 	/** encryption iv, it's only for export/import */

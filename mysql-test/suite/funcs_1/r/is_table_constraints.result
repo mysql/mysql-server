@@ -60,6 +60,7 @@ table_name != 'ndb_binlog_index';
 constraint_catalog	constraint_schema	constraint_name	table_schema	table_name
 def	mysql	PRIMARY	mysql	column_stats
 def	mysql	PRIMARY	mysql	columns_priv
+def	mysql	PRIMARY	mysql	component
 def	mysql	PRIMARY	mysql	db
 def	mysql	PRIMARY	mysql	engine_cost
 def	mysql	PRIMARY	mysql	func

@@ -24,6 +24,12 @@
 namespace dd {
 namespace tables {
 
+const Character_sets &Character_sets::instance()
+{
+  static Character_sets *s_instance= new Character_sets();
+  return *s_instance;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 // The table is populated when the server is started, unless it is

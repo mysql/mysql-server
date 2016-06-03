@@ -1,11 +1,8 @@
 --source include/have_optimizer_trace.inc
 --source include/have_64bit.inc
 
-if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL
-            + $VIEW_PROTOCOL > 0`)
-{
-   --skip Need normal protocol
-}
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
 
 SET optimizer_trace_max_mem_size=1048576; # 1MB
 SET end_markers_in_json=off;

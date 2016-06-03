@@ -29,11 +29,7 @@ namespace tables {
 class Events : public Dictionary_object_table_impl
 {
 public:
-  static const Events &instance()
-  {
-    static Events *s_instance= new Events();
-    return *s_instance;
-  }
+  static const Events &instance();
 
   static const std::string &table_name()
   {

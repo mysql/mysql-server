@@ -394,6 +394,7 @@ mysql/column_stats
 mysql/column_type_elements
 mysql/columns
 mysql/columns_priv
+mysql/component
 mysql/db
 mysql/engine_cost
 mysql/events
@@ -1073,6 +1074,7 @@ mysql/column_stats
 mysql/column_type_elements
 mysql/columns
 mysql/columns_priv
+mysql/component
 mysql/db
 mysql/engine_cost
 mysql/events
@@ -1234,6 +1236,7 @@ mysql/column_stats
 mysql/column_type_elements
 mysql/columns
 mysql/columns_priv
+mysql/component
 mysql/db
 mysql/engine_cost
 mysql/events
@@ -1406,6 +1409,7 @@ mysql/column_stats
 mysql/column_type_elements
 mysql/columns
 mysql/columns_priv
+mysql/component
 mysql/db
 mysql/engine_cost
 mysql/events
@@ -1578,6 +1582,7 @@ mysql/column_stats
 mysql/column_type_elements
 mysql/columns
 mysql/columns_priv
+mysql/component
 mysql/db
 mysql/engine_cost
 mysql/events

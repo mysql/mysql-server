@@ -25,11 +25,7 @@
 --source include/have_innodb.inc
 --source include/have_example_plugin.inc
 --source include/have_log_bin.inc
-
-if (`SELECT $PS_PROTOCOL = 1`)
-{
-  --skip Not with ps-protocol
-}
+--source include/no_ps_protocol.inc
 
 SET @old_binlog_format= @@global.binlog_format;
 --replace_regex /\.dll/.so/

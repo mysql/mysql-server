@@ -30,11 +30,7 @@ namespace tables {
 class Parameters : public Object_table_impl
 {
 public:
-  static const Parameters &instance()
-  {
-    static Parameters *s_instance= new Parameters();
-    return *s_instance;
-  }
+  static const Parameters &instance();
 
   static const std::string &table_name()
   {

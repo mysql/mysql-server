@@ -30,11 +30,7 @@ namespace tables {
 class View_table_usage : public Object_table_impl
 {
 public:
-  static const View_table_usage &instance()
-  {
-    static View_table_usage *s_instance= new (std::nothrow) View_table_usage();
-    return *s_instance;
-  }
+  static const View_table_usage &instance();
 
   static const std::string &table_name()
   {

@@ -512,6 +512,9 @@ ENDIF()
 
 SET(CMAKE_EXTRA_INCLUDE_FILES)
 
+# Support for tagging symbols with __attribute__((visibility("hidden")))
+MY_CHECK_CXX_COMPILER_FLAG("-fvisibility=hidden" HAVE_VISIBILITY_HIDDEN)
+
 #
 # Code tests
 #
@@ -784,4 +787,38 @@ SET(CMAKE_EXTRA_INCLUDE_FILES)
 CHECK_TYPE_SIZE("socklen_t" SIZEOF_SOCKLEN_T)
 IF(SIZEOF_SOCKLEN_T)
   SET(HAVE_SOCKLEN_T 1)
+ENDIF()
+
+CHECK_INCLUDE_FILES(numa.h HAVE_NUMA_H)
+CHECK_INCLUDE_FILES(numaif.h HAVE_NUMAIF_H)
+
+IF(HAVE_NUMA_H AND HAVE_NUMAIF_H)
+  OPTION(WITH_NUMA "Explicitly set NUMA memory allocation policy" ON)
+ELSE()
+  OPTION(WITH_NUMA "Explicitly set NUMA memory allocation policy" OFF)
+ENDIF()
+
+IF(WITH_NUMA AND HAVE_NUMA_H AND HAVE_NUMAIF_H)
+    SET(SAVE_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
+    SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} numa)
+    CHECK_C_SOURCE_COMPILES(
+    "
+    #include <numa.h>
+    #include <numaif.h>
+    int main()
+    {
+       struct bitmask *all_nodes= numa_all_nodes_ptr;
+       set_mempolicy(MPOL_DEFAULT, 0, 0);
+       return all_nodes != NULL;
+    }"
+    HAVE_LIBNUMA)
+    SET(CMAKE_REQUIRED_LIBRARIES ${SAVE_CMAKE_REQUIRED_LIBRARIES})
+ELSE()
+    SET(HAVE_LIBNUMA 0)
+ENDIF()
+
+IF(WITH_NUMA AND NOT HAVE_LIBNUMA)
+  # Forget it in cache, abort the build.
+  UNSET(WITH_NUMA CACHE)
+  MESSAGE(FATAL_ERROR "Could not find numa headers/libraries")
 ENDIF()

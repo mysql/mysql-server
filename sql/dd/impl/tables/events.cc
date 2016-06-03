@@ -24,6 +24,13 @@
 
 namespace dd {
 namespace tables {
+
+const Events &Events::instance()
+{
+  static Events *s_instance= new Events();
+  return *s_instance;
+}
+
 Events::Events()
 {
   m_target_def.table_name(table_name());

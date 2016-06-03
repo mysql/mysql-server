@@ -10285,7 +10285,13 @@ static int change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
     strmake(mi->host, lex_mi->host, sizeof(mi->host)-1);
   if (lex_mi->bind_addr)
     strmake(mi->bind_addr, lex_mi->bind_addr, sizeof(mi->bind_addr)-1);
-  if (lex_mi->port)
+  /*
+    Setting channel's port number explicitly to '0' should be allowed.
+    Eg: 'group_replication_recovery' channel (*after recovery is done*)
+    or 'group_replication_applier' channel wants to set the port number
+    to '0' as there is no actual network usage on these channels.
+  */
+  if (lex_mi->port || lex_mi->port_opt == LEX_MASTER_INFO::LEX_MI_ENABLE)
     mi->port = lex_mi->port;
   if (lex_mi->connect_retry)
     mi->connect_retry = lex_mi->connect_retry;
@@ -10892,7 +10898,7 @@ int add_new_channel(Master_info** mi, const char* channel,
   DBUG_ENTER("add_new_channel");
 
   int error= 0;
-  enum_ident_name_check ident_check_status;
+  Ident_name_check ident_check_status;
 
   /*
     Refuse to create a new channel if the repositories does not support this.
@@ -10930,9 +10936,9 @@ int add_new_channel(Master_info** mi, const char* channel,
     ident_check_status= check_table_name(channel, strlen(channel));
   }
   else
-    ident_check_status= IDENT_NAME_WRONG;
+    ident_check_status= Ident_name_check::WRONG;
 
-  if (ident_check_status != IDENT_NAME_OK)
+  if (ident_check_status != Ident_name_check::OK)
   {
     error= ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG;
     my_error(ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG, MYF(0));

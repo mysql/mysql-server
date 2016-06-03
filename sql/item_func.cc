@@ -8134,14 +8134,20 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     */
     if (doc_id_field)
       update_table_read_set(doc_id_field);
-    /*
-      Prevent index only accces by non-FTS index if table does not have
-      FTS_DOC_ID column, find_relevance does not work properly without
-      FTS_DOC_ID value. Decision for FTS index about index only access
-      is made later by JOIN::fts_index_access() function.
-    */
     else
+    {
+      /* read_set needs to be updated for MATCH arguments */
+      for (uint i= 0; i < arg_count; i++)
+        update_table_read_set(((Item_field*)args[i])->field);
+      /*
+        Prevent index only accces by non-FTS index if table does not have
+        FTS_DOC_ID column, find_relevance does not work properly without
+        FTS_DOC_ID value. Decision for FTS index about index only access
+        is made later by JOIN::fts_index_access() function.
+      */
       table->covering_keys.clear_all();
+    }
+
   }
   else
   {
@@ -8718,9 +8724,10 @@ bool Item_func_sp::val_json(Json_wrapper *result)
   if (sp_result_field->type() == MYSQL_TYPE_JSON)
   {
     if (execute())
-    {
       return true;
-    }
+
+    if (null_value)
+      return false;
 
     Field_json *json_value= down_cast<Field_json *>(sp_result_field);
     return json_value->val_json(result);
@@ -8768,10 +8775,9 @@ Item_func_sp::execute()
   }
 
   /* Check that the field (the value) is not NULL. */
-
   null_value= sp_result_field->is_null();
 
-  return null_value;
+  return false;
 }
 
 

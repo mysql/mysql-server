@@ -4501,7 +4501,8 @@ bool check_fk_parent_table_access(THD *thd,
 
       // Check if tablename is valid or not.
       DBUG_ASSERT(table_name.str != NULL);
-      if (check_table_name(table_name.str, table_name.length))
+      if (check_table_name(table_name.str, table_name.length) !=
+          Ident_name_check::OK)
       {
         my_error(ER_WRONG_TABLE_NAME, MYF(0), table_name.str);
         return true;
@@ -4515,7 +4516,9 @@ bool check_fk_parent_table_access(THD *thd,
         db_name.length= fk_key->ref_db.length;
 
         // Check if database name is valid or not.
-        if (fk_key->ref_db.str && check_and_convert_db_name(&db_name, false))
+        if (fk_key->ref_db.str &&
+            (check_and_convert_db_name(&db_name, false) !=
+             Ident_name_check::OK))
           return true;
       }
       else if (thd->lex->copy_db_to(&db_name.str, &db_name.length))

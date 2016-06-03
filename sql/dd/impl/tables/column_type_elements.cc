@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,12 @@
 
 namespace dd {
 namespace tables {
+
+const Column_type_elements &Column_type_elements::instance()
+{
+  static Column_type_elements *s_instance= new Column_type_elements();
+  return *s_instance;
+}
 
 ///////////////////////////////////////////////////////////////////////////
 

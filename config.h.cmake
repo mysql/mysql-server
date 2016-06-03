@@ -177,6 +177,9 @@
 #cmakedefine HAVE_ULONG 1
 #cmakedefine HAVE_U_INT32_T 1
 
+/* Support for tagging symbols with __attribute__((visibility("hidden"))) */
+#cmakedefine HAVE_VISIBILITY_HIDDEN 1
+
 /* Code tests*/
 #cmakedefine STACK_DIRECTION @STACK_DIRECTION@
 #cmakedefine TIME_WITH_SYS_TIME 1
@@ -380,5 +383,7 @@
 
 /* For default value of --early_plugin_load */
 #cmakedefine DEFAULT_EARLY_PLUGIN_LOAD @DEFAULT_EARLY_PLUGIN_LOAD@
+
+#define SO_EXT "@CMAKE_SHARED_MODULE_SUFFIX@"
 
 #endif

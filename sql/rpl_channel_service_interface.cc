@@ -257,6 +257,12 @@ int channel_create(const char* channel,
   lex_mi= new st_lex_master_info();
   lex_mi->channel= channel;
   lex_mi->host= channel_info->hostname;
+  /*
+    'group_replication_recovery' channel (*after recovery is done*)
+    or 'group_replication_applier' channel wants to set the port number
+    to '0' as there is no actual network usage on these channels.
+  */
+  lex_mi->port_opt= LEX_MASTER_INFO::LEX_MI_ENABLE;
   lex_mi->port= channel_info->port;
   lex_mi->user= channel_info->user;
   lex_mi->password= channel_info->password;

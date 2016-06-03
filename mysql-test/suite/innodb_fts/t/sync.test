@@ -140,4 +140,25 @@ SELECT * FROM t1 WHERE MATCH(title) AGAINST ('mysql database');
 
 DROP TABLE t1;
 
+--echo # Case 4: Test sync commit & rollback in background
+CREATE TABLE t1(
+        id INT AUTO_INCREMENT,
+        title VARCHAR(100),
+        FULLTEXT(title),
+        PRIMARY KEY(id)) ENGINE=InnoDB;
+
+SET SESSION debug="+d,fts_instrument_sync";
+
+INSERT INTO t1(title) VALUES('database');
+
+SET GLOBAL debug="+d,fts_instrument_sync,fts_instrument_sync_interrupted";
+
+INSERT INTO t1(title) VALUES('mysql');
+
+SET GLOBAL debug="-d,fts_instrument_sync,fts_instrument_sync_interrupted";
+
+SELECT * FROM t1 WHERE MATCH(title) AGAINST ('mysql database');
+
+DROP TABLE t1;
+
 --source include/wait_until_count_sessions.inc

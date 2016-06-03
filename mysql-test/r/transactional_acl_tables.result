@@ -1767,6 +1767,7 @@ Checking system database.
 mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.columns_priv_bak                             OK
+mysql.component                                    OK
 mysql.db                                           OK
 mysql.db_bak                                       OK
 mysql.engine_cost                                  OK

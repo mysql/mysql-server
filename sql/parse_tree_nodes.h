@@ -17,6 +17,7 @@
 #define PARSE_TREE_NODES_INCLUDED
 
 #include "my_global.h"
+#include "my_bit.h"                  // is_single_bit
 #include "parse_tree_helpers.h"      // PT_item_list
 #include "parse_tree_hints.h"
 #include "sp_head.h"                 // sp_head
@@ -329,13 +330,6 @@ private:
 };
 
 
-#ifdef __GNUC__
-#define IS_SINGLE_FLAG(X) (__builtin_popcount(X) == 1)
-#else
-#define IS_SINGLE_FLAG(X) true
-#endif // __GNUC__
-
-
 class PT_joined_table : public PT_table_reference
 {
   typedef PT_table_reference super;
@@ -359,11 +353,11 @@ public:
     tab2_node(tab2_node_arg),
     tr1(NULL), tr2(NULL)
   {
-    compile_time_assert(IS_SINGLE_FLAG(JTT_INNER));
-    compile_time_assert(IS_SINGLE_FLAG(JTT_STRAIGHT));
-    compile_time_assert(IS_SINGLE_FLAG(JTT_NATURAL));
-    compile_time_assert(IS_SINGLE_FLAG(JTT_LEFT));
-    compile_time_assert(IS_SINGLE_FLAG(JTT_RIGHT));
+    static_assert(is_single_bit(JTT_INNER), "not a single bit");
+    static_assert(is_single_bit(JTT_STRAIGHT), "not a single bit");
+    static_assert(is_single_bit(JTT_NATURAL), "not a single bit");
+    static_assert(is_single_bit(JTT_LEFT), "not a single bit");
+    static_assert(is_single_bit(JTT_RIGHT), "not a single bit");
 
     DBUG_ASSERT(type == JTT_INNER ||
                 type == JTT_STRAIGHT_INNER ||

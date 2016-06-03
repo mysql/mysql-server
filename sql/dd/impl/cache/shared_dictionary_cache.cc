@@ -23,6 +23,43 @@ namespace dd {
 namespace cache {
 
 
+Shared_dictionary_cache *Shared_dictionary_cache::instance()
+{
+  static Shared_dictionary_cache s_cache;
+  return &s_cache;
+}
+
+void Shared_dictionary_cache::init()
+{
+  instance()->m_map<Collation>()->set_capacity(collation_capacity);
+  instance()->m_map<Charset>()->set_capacity(charset_capacity);
+
+  // Set capacity to have room for all connections to leave an element
+  // unused in the cache to avoid frequent cache misses while e.g.
+  // opening a table.
+  instance()->m_map<Abstract_table>()->set_capacity(max_connections);
+  instance()->m_map<Event>()->set_capacity(event_capacity);
+  instance()->m_map<Routine>()->set_capacity(stored_program_def_size);
+  instance()->m_map<Schema>()->set_capacity(schema_def_size);
+  instance()->m_map<Spatial_reference_system>()->
+    set_capacity(spatial_reference_system_capacity);
+  instance()->m_map<Tablespace>()->set_capacity(tablespace_def_size);
+}
+
+
+void Shared_dictionary_cache::shutdown()
+{
+  instance()->m_map<Abstract_table>()->shutdown();
+  instance()->m_map<Collation>()->shutdown();
+  instance()->m_map<Charset>()->shutdown();
+  instance()->m_map<Event>()->shutdown();
+  instance()->m_map<Routine>()->shutdown();
+  instance()->m_map<Schema>()->shutdown();
+  instance()->m_map<Spatial_reference_system>()->shutdown();
+  instance()->m_map<Tablespace>()->shutdown();
+}
+
+
 // Get an element from the cache, given the key.
 template <typename K, typename T>
 bool Shared_dictionary_cache::get(THD *thd, const K &key,

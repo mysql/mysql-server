@@ -677,12 +677,14 @@ buf_buddy_relocate(
 @param[in]	buf		block to be freed, must not be pointed to
 				by the buffer pool
 @param[in]	i		index of buf_pool->zip_free[],
-				or BUF_BUDDY_SIZES */
+				or BUF_BUDDY_SIZES
+@param[in]	has_zip_free	whether has zip_free_mutex */
 void
 buf_buddy_free_low(
 	buf_pool_t*	buf_pool,
 	void*		buf,
-	ulint		i)
+	ulint		i,
+	bool		has_zip_free)
 {
 	buf_buddy_free_t*	buddy;
 
@@ -690,15 +692,20 @@ buf_buddy_free_low(
 	ut_ad(i <= BUF_BUDDY_SIZES);
 	ut_ad(i >= buf_buddy_get_slot(UNIV_ZIP_SIZE_MIN));
 
-	mutex_enter(&buf_pool->zip_free_mutex);
+	if (!has_zip_free) {
+		mutex_enter(&buf_pool->zip_free_mutex);
+	}
 
+	ut_ad(mutex_own(&buf_pool->zip_free_mutex));
 	ut_ad(buf_pool->buddy_stat[i].used > 0);
 	os_atomic_decrement_ulint(&buf_pool->buddy_stat[i].used, 1);
 recombine:
 	UNIV_MEM_ASSERT_AND_ALLOC(buf, BUF_BUDDY_LOW << i);
 
 	if (i == BUF_BUDDY_SIZES) {
-		mutex_exit(&buf_pool->zip_free_mutex);
+		if (!has_zip_free) {
+			mutex_exit(&buf_pool->zip_free_mutex);
+		}
 		buf_buddy_block_free(buf_pool, buf);
 		return;
 	}
@@ -767,7 +774,9 @@ func_exit:
 	buf_buddy_add_to_free(buf_pool,
 			      reinterpret_cast<buf_buddy_free_t*>(buf),
 			      i);
-	mutex_exit(&buf_pool->zip_free_mutex);
+	if (!has_zip_free) {
+		mutex_exit(&buf_pool->zip_free_mutex);
+	}
 }
 
 /** Try to reallocate a block.
@@ -820,13 +829,13 @@ buf_buddy_realloc(
 	if (buf_buddy_relocate(buf_pool, buf, block, i, true)) {
 		mutex_exit(&buf_pool->zip_free_mutex);
 		/* succeeded */
-		buf_buddy_free_low(buf_pool, buf, i);
+		buf_buddy_free_low(buf_pool, buf, i, false);
 		return(true);
 	}
 
 	/* failed */
 	mutex_exit(&buf_pool->zip_free_mutex);
-	buf_buddy_free_low(buf_pool, block, i);
+	buf_buddy_free_low(buf_pool, block, i, false);
 
 	return(false);
 }
@@ -885,7 +894,7 @@ buf_buddy_condense_free(
 				os_atomic_increment_ulint(
 					&buf_pool->buddy_stat[i].used, 1);
 
-				buf_buddy_free_low(buf_pool, buf, i);
+				buf_buddy_free_low(buf_pool, buf, i, true);
 			}
 
 			buf = next;

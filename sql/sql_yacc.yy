@@ -78,6 +78,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "item_geofunc.h"
 #include "item_json_func.h"
 #include "sql_plugin.h"                      // plugin_is_ready
+#include "sql_component.h"
 #include "parse_tree_hints.h"
 #include "derror.h"
 
@@ -1114,6 +1115,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  JSON_UNQUOTED_SEPARATOR_SYM   /* MYSQL */
 %token  INVISIBLE_SYM
 %token  VISIBLE_SYM
+%token  COMPONENT_SYM                 /* MYSQL */
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -1153,6 +1155,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem ident_or_empty
         opt_constraint constraint opt_ident TEXT_STRING_sys_nonewline
         filter_wild_db_table_string
+
+%type <lex_str_list> TEXT_STRING_sys_list
 
 %type <lex_str_ptr>
         opt_table_alias
@@ -2624,7 +2628,7 @@ sp_name:
           ident '.' ident
           {
             if (!$1.str ||
-                (check_and_convert_db_name(&$1, FALSE) != IDENT_NAME_OK))
+                (check_and_convert_db_name(&$1, false) != Ident_name_check::OK))
               MYSQL_YYABORT;
             if (sp_check_name(&$3))
             {
@@ -8280,21 +8284,22 @@ alter_list_item:
             {
               MYSQL_YYABORT;
             }
-            enum_ident_name_check ident_check_status=
+            Ident_name_check ident_check_status=
               check_table_name($3->table.str,$3->table.length);
-            if (ident_check_status == IDENT_NAME_WRONG)
+            if (ident_check_status == Ident_name_check::WRONG)
             {
               my_error(ER_WRONG_TABLE_NAME, MYF(0), $3->table.str);
               MYSQL_YYABORT;
             }
-            else if (ident_check_status == IDENT_NAME_TOO_LONG)
+            else if (ident_check_status == Ident_name_check::TOO_LONG)
             {
               my_error(ER_TOO_LONG_IDENT, MYF(0), $3->table.str);
               MYSQL_YYABORT;
             }
             LEX_STRING db_str= to_lex_string($3->db);
             if (db_str.str &&
-                (check_and_convert_db_name(&db_str, FALSE) != IDENT_NAME_OK))
+                (check_and_convert_db_name(&db_str, false) !=
+                 Ident_name_check::OK))
               MYSQL_YYABORT;
             lex->name.str= const_cast<char*>($3->table.str);
             lex->name.length= $3->table.length;
@@ -11338,7 +11343,7 @@ drop:
             LEX *lex= thd->lex;
             sp_name *spname;
             if ($4.str &&
-                (check_and_convert_db_name(&$4, FALSE) != IDENT_NAME_OK))
+                (check_and_convert_db_name(&$4, false) != Ident_name_check::OK))
                MYSQL_YYABORT;
             if (sp_check_name(&$6))
                MYSQL_YYABORT;
@@ -13558,6 +13563,7 @@ keyword_sp:
         | COMMITTED_SYM            {}
         | COMPACT_SYM              {}
         | COMPLETION_SYM           {}
+        | COMPONENT_SYM            {}
         | COMPRESSED_SYM           {}
         | COMPRESSION_SYM          {}
         | ENCRYPTION_SYM           {}
@@ -15547,6 +15553,12 @@ install:
             lex->sql_command= SQLCOM_INSTALL_PLUGIN;
             lex->m_sql_cmd= new Sql_cmd_install_plugin($3, $5);
           }
+        | INSTALL_SYM COMPONENT_SYM TEXT_STRING_sys_list
+          {
+            LEX *lex= Lex;
+            lex->sql_command= SQLCOM_INSTALL_COMPONENT;
+            lex->m_sql_cmd= new Sql_cmd_install_component($3);
+          }
         ;
 
 uninstall:
@@ -15555,6 +15567,27 @@ uninstall:
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_UNINSTALL_PLUGIN;
             lex->m_sql_cmd= new Sql_cmd_uninstall_plugin($3);
+          }
+       | UNINSTALL_SYM COMPONENT_SYM TEXT_STRING_sys_list
+          {
+            LEX *lex= Lex;
+            lex->sql_command= SQLCOM_UNINSTALL_COMPONENT;
+            lex->m_sql_cmd= new Sql_cmd_uninstall_component($3);
+          }
+        ;
+
+TEXT_STRING_sys_list:
+          TEXT_STRING_sys
+          {
+            $$.init(YYTHD->mem_root);
+            if ($$.push_back($1))
+              MYSQL_YYABORT; // OOM
+          }
+        | TEXT_STRING_sys_list ',' TEXT_STRING_sys
+          {
+            $$= $1;
+            if ($$.push_back($3))
+              MYSQL_YYABORT; // OOM
           }
         ;
 

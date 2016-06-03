@@ -1792,15 +1792,15 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
           num_parts_not_set++;
           part_elem->engine_type= default_engine_type;
         }
-        enum_ident_name_check ident_check_status=
+        Ident_name_check ident_check_status=
           check_table_name(part_elem->partition_name,
                            strlen(part_elem->partition_name));
-        if (ident_check_status == IDENT_NAME_WRONG)
+        if (ident_check_status == Ident_name_check::WRONG)
         {
           my_error(ER_WRONG_PARTITION_NAME, MYF(0));
           goto end;
         }
-        else if (ident_check_status == IDENT_NAME_TOO_LONG)
+        else if (ident_check_status == Ident_name_check::TOO_LONG)
         {
           my_error(ER_TOO_LONG_IDENT, MYF(0));
           goto end;
@@ -1818,15 +1818,15 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
         {
           sub_elem= sub_it++;
           warn_if_dir_in_part_elem(thd, sub_elem);
-          enum_ident_name_check ident_check_status=
+          Ident_name_check ident_check_status=
             check_table_name(sub_elem->partition_name,
                              strlen(sub_elem->partition_name));
-          if (ident_check_status == IDENT_NAME_WRONG)
+          if (ident_check_status == Ident_name_check::WRONG)
           {
             my_error(ER_WRONG_PARTITION_NAME, MYF(0));
             goto end;
           }
-          else if (ident_check_status == IDENT_NAME_TOO_LONG)
+          else if (ident_check_status == Ident_name_check::TOO_LONG)
           {
             my_error(ER_TOO_LONG_IDENT, MYF(0));
             goto end;
@@ -3314,7 +3314,8 @@ bool check_partition_tablespace_names(partition_info *part_info)
   {
     // Check tablespace names from partition elements, if used.
     if (part_elem->tablespace_name &&
-        check_tablespace_name(part_elem->tablespace_name))
+        (check_tablespace_name(part_elem->tablespace_name) !=
+         Ident_name_check::OK))
       return true;
 
     // Traverse through all subpartitions.
@@ -3324,7 +3325,8 @@ bool check_partition_tablespace_names(partition_info *part_info)
     {
       // Add tablespace name from sub-partition elements, if used.
       if (sub_elem->tablespace_name &&
-          check_tablespace_name(sub_elem->tablespace_name))
+          check_tablespace_name(sub_elem->tablespace_name) !=
+          Ident_name_check::OK)
         return true;
     }
   }

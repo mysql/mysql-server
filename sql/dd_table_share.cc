@@ -1335,7 +1335,6 @@ static bool fill_indexes_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
 
   DBUG_ASSERT(share->keys == 0 && share->key_parts == 0);
 
-  share->keys_in_use.clear_all();
   for (const dd::Index *idx_obj : tab_obj->indexes())
   {
     // Skip hidden indexes
@@ -1351,8 +1350,6 @@ static bool fill_indexes_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
         key_parts++;
     }
     share->key_parts+= key_parts;
-    if (idx_obj->is_visible())
-      share->keys_in_use.set_bit(idx_obj->ordinal_position() - 1);
 
     // Primary key (or candidate key replacing it) is always first if exists.
     // If such key doesn't exist (e.g. there are no unique keys in the table)
@@ -1362,6 +1359,7 @@ static bool fill_indexes_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
   }
 
   share->keys_for_keyread.init(0);
+  share->keys_in_use.init();
 
   // Allocate and fill KEY objects.
   if (share->keys)
@@ -1434,6 +1432,9 @@ static bool fill_indexes_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
 
       index_at_pos[key_nr]= idx_obj;
 
+      if (idx_obj->is_visible())
+        share->keys_in_use.set_bit(key_nr);
+
       key_nr++;
     }
 
@@ -1445,6 +1446,7 @@ static bool fill_indexes_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
       KEY* keyinfo= &share->key_info[key_nr];
       keyinfo->key_part= key_part;
       keyinfo->set_rec_per_key_array(rec_per_key, rec_per_key_float);
+      keyinfo->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
 
       fill_index_elements_from_dd(share,
                                   index_at_pos[key_nr],
