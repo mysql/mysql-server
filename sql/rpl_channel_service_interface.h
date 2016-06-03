@@ -283,7 +283,8 @@ int channel_queue_packet(const char* channel, const char* buf, unsigned long len
     @retval REPLICATION_THREAD_WAIT_TIMEOUT_ERROR     A timeout occurred
     @retval REPLICATION_THREAD_WAIT_NO_INFO_ERROR     An error occurred
 */
-int channel_wait_until_apply_queue_applied(char* channel, long long timeout);
+int channel_wait_until_apply_queue_applied(const char* channel,
+                                           long long timeout);
 
 /**
   Checks if the applier, and its workers when parallel applier is
@@ -297,7 +298,7 @@ int channel_wait_until_apply_queue_applied(char* channel, long long timeout);
     @retval  0  Applier is not waiting
     @retval  1  Applier is waiting
 */
-int channel_is_applier_waiting(char* channel);
+int channel_is_applier_waiting(const char* channel);
 
 /**
   Checks if the applier thread, and its workers when parallel applier is
@@ -332,5 +333,20 @@ int channel_flush(const char* channel);
     @retval != 0   Error on queue
 */
 int initialize_channel_service_interface();
+
+/**
+  Returns the receiver thread retrieved GTID set in string format.
+
+  @param      channel        The channel name.
+  @param[out] retrieved_set  Pointer to pointer to string. The function will
+                             set it to point to a newly allocated buffer, or
+                             NULL on out of memory.
+
+  @return the operation status
+    @retval 0    OK
+    @retval !=0  Error on retrieval
+*/
+int channel_get_retrieved_gtid_set(const char* channel,
+                                   char** retrieved_set);
 
 #endif //RPL_SERVICE_INTERFACE_INCLUDE
