@@ -418,13 +418,19 @@ static MYSQL *db_connect(char *host, char *database,
   MYSQL *mysql;
   if (verbose)
     fprintf(stdout, "Connecting to %s\n", host ? host : "localhost");
-  pthread_mutex_lock(&init_mutex);
-  if (!(mysql= mysql_init(NULL)))
+  if (opt_use_threads && !lock_tables)
   {
+    pthread_mutex_lock(&init_mutex);
+    if (!(mysql= mysql_init(NULL)))
+    {
+      pthread_mutex_unlock(&init_mutex);
+      return 0;
+    }
     pthread_mutex_unlock(&init_mutex);
-    return 0;
   }
-  pthread_mutex_unlock(&init_mutex);
+  else
+    if (!(mysql= mysql_init(NULL)))
+      return 0;
   if (opt_compress)
     mysql_options(mysql,MYSQL_OPT_COMPRESS,NullS);
   if (opt_local_file)
