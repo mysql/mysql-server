@@ -391,6 +391,22 @@ struct view {
     "SELECT node_id, config_param, config_value "
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>config_values`"
   },
+  { "cpustat_50ms",
+    "SELECT * "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>cpustat_50ms`"
+  },
+  { "cpustat_1sec",
+    "SELECT * "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>cpustat_1sec`"
+  },
+  { "cpustat_20sec",
+    "SELECT * "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>cpustat_20sec`"
+  },
+  { "cpustat",
+    "SELECT * "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>cpustat`"
+  },
   {
     "locks_per_fragment",
     "SELECT name.fq_name, parent_name.fq_name AS parent_fq_name, "
