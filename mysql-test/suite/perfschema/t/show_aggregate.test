@@ -10,6 +10,7 @@
 #Running this test with show_compatibility_56=ON set in the opt file until Bug#21847100 is fixed.
 --source include/have_perfschema.inc
 --source include/not_embedded.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 
 --enable_connect_log

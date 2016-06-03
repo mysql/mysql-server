@@ -5543,12 +5543,6 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
                                               static_cast<const char*>(arg),
                                               MYF(MY_WME));
     break;
-  case MYSQL_OPT_SSL_VERIFY_SERVER_CERT:
-    if (*(my_bool*) arg)
-      mysql->options.client_flag|= CLIENT_SSL_VERIFY_SERVER_CERT;
-    else
-      mysql->options.client_flag&= ~CLIENT_SSL_VERIFY_SERVER_CERT;
-    break;
   case MYSQL_PLUGIN_DIR:
     EXTENSION_SET_STRING(&mysql->options, plugin_dir,
                          static_cast<const char*>(arg));
@@ -5619,12 +5613,6 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     if ((mysql->options.extension->ssl_ctx_flags=
            process_tls_version(mysql->options.extension->tls_version)) == -1)
       DBUG_RETURN(1);
-#endif
-    break;
-  case MYSQL_OPT_SSL_ENFORCE:
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-    ENSURE_EXTENSIONS_PRESENT(&mysql->options);
-    mysql->options.extension->ssl_mode= SSL_MODE_REQUIRED;
 #endif
     break;
   case MYSQL_OPT_SSL_MODE:
@@ -5732,7 +5720,6 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     MYSQL_OPT_COMPRESS, MYSQL_OPT_LOCAL_INFILE, MYSQL_OPT_USE_REMOTE_CONNECTION,
     MYSQL_OPT_USE_EMBEDDED_CONNECTION, MYSQL_OPT_GUESS_CONNECTION,
     MYSQL_SECURE_AUTH, MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
-    MYSQL_OPT_SSL_VERIFY_SERVER_CERT, MYSQL_OPT_SSL_ENFORCE,
     MYSQL_ENABLE_CLEARTEXT_PLUGIN, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS
 
   const char *
@@ -5831,15 +5818,6 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
     break;
   case MYSQL_OPT_BIND:
     *((char **)arg)= mysql->options.ci.bind_address;
-    break;
-  case MYSQL_OPT_SSL_VERIFY_SERVER_CERT:               /* Deprecated. */
-    *((my_bool *)arg) = (mysql->options.client_flag &
-                         CLIENT_SSL_VERIFY_SERVER_CERT) ? TRUE : FALSE;
-    break;
-  case MYSQL_OPT_SSL_ENFORCE:                          /* Deprecated. */
-    *((my_bool *) arg)= (mysql->options.extension &&
-                         mysql->options.extension->ssl_mode >= SSL_MODE_REQUIRED) ?
-                        TRUE : FALSE;
     break;
   case MYSQL_OPT_SSL_MODE:
     *((uint *) arg)= mysql->options.extension ?

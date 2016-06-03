@@ -151,6 +151,8 @@ namespace mysqlx
 
     void set_trace_protocol(bool flag) { m_trace_packets = flag; }
 
+    boost::shared_ptr<Result> new_empty_result();
+
   private:
     void perform_close();
     void dispatch_notice(Mysqlx::Notice::Frame *frame);

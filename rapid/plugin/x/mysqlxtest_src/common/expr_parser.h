@@ -39,6 +39,7 @@
 #pragma warning (disable : 4018 4996)
 #endif
 
+#include "tokenizer.h"
 #include "ngs_common/protocol_protobuf.h"
 
 #if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
@@ -49,106 +50,6 @@
 
 namespace mysqlx
 {
-  class Token
-  {
-  public:
-    enum TokenType
-    {
-      NOT = 1,
-      AND = 2,
-      OR = 3,
-      XOR = 4,
-      IS = 5,
-      LPAREN = 6,
-      RPAREN = 7,
-      LSQBRACKET = 8,
-      RSQBRACKET = 9,
-      BETWEEN = 10,
-      TRUE_ = 11,
-      T_NULL = 12,
-      FALSE_ = 13,
-      IN_ = 14,
-      LIKE = 15,
-      INTERVAL = 16,
-      REGEXP = 17,
-      ESCAPE = 18,
-      IDENT = 19,
-      LSTRING = 20,
-      LNUM = 21,
-      DOT = 22,
-      //AT = 23,
-      COMMA = 24,
-      EQ = 25,
-      NE = 26,
-      GT = 27,
-      GE = 28,
-      LT = 29,
-      LE = 30,
-      BITAND = 31,
-      BITOR = 32,
-      BITXOR = 33,
-      LSHIFT = 34,
-      RSHIFT = 35,
-      PLUS = 36,
-      MINUS = 37,
-      MUL = 38,
-      DIV = 39,
-      HEX = 40,
-      BIN = 41,
-      NEG = 42,
-      BANG = 43,
-      MICROSECOND = 44,
-      SECOND = 45,
-      MINUTE = 46,
-      HOUR = 47,
-      DAY = 48,
-      WEEK = 49,
-      MONTH = 50,
-      QUARTER = 51,
-      YEAR = 52,
-      PLACEHOLDER = 53,
-      DOUBLESTAR = 54,
-      MOD = 55,
-      AS = 56,
-      ASC = 57,
-      DESC = 58,
-      CAST = 59,
-      CHARACTER = 60,
-      SET = 61,
-      CHARSET = 62,
-      ASCII = 63,
-      UNICODE = 64,
-      BYTE = 65,
-      BINARY = 66,
-      CHAR = 67,
-      NCHAR = 68,
-      DATE = 69,
-      DATETIME = 70,
-      TIME = 71,
-      DECIMAL = 72,
-      SIGNED = 73,
-      UNSIGNED = 74,
-      INTEGER = 75,  // 'integer' keyword
-      LINTEGER = 76, // integer number
-      DOLLAR = 77,
-      JSON = 78,
-      COLON = 79,
-      LCURLY = 80,
-      RCURLY = 81,
-      ARROW = 82,
-      QUOTE = 83
-    };
-
-    Token(Token::TokenType type, const std::string& text, size_t cur_pos);
-    // TODO: it is better if this one returns a pointer (std::string*)
-    const std::string& get_text() const;
-    TokenType get_type() const;
-    size_t get_pos() const { return _pos; }
-  private:
-    TokenType _type;
-    std::string _text;
-    size_t _pos;
-  };
 
   class Expr_builder
   {
@@ -160,63 +61,6 @@ namespace mysqlx
     static Mysqlx::Datatypes::Scalar* build_bool_scalar(bool b);
     static Mysqlx::Expr::Expr* build_literal_expr(Mysqlx::Datatypes::Scalar* sc);
     static Mysqlx::Expr::Expr* build_unary_op(const std::string& name, Mysqlx::Expr::Expr* param);
-  };
-
-  class Tokenizer
-  {
-  public:
-    Tokenizer(const std::string& input);
-
-    typedef std::vector<Token> tokens_t;
-
-    bool next_char_is(tokens_t::size_type i, int tok);
-    void assert_cur_token(Token::TokenType type);
-    bool cur_token_type_is(Token::TokenType type);
-    bool next_token_type(Token::TokenType type);
-    bool pos_token_type_is(tokens_t::size_type pos, Token::TokenType type);
-    const std::string& consume_token(Token::TokenType type);
-    const Token& peek_token();
-    void unget_token();
-    void inc_pos_token();
-    size_t get_token_pos();
-    const Token& consume_any_token();
-    void assert_tok_position();
-    bool tokens_available();
-    bool is_interval_units_type();
-    bool is_type_within_set(const std::set<Token::TokenType>& types);
-
-    std::vector<Token>::const_iterator begin() const { return _tokens.begin(); }
-    std::vector<Token>::const_iterator end() const { return _tokens.end(); }
-
-    void get_tokens();
-    const std::string& get_input() { return _input; }
-
-  protected:
-    std::vector<Token> _tokens;
-    std::string _input;
-    tokens_t::size_type _pos;
-
-  public:
-
-    struct Cmp_icase
-    {
-      bool operator()(const std::string& lhs, const std::string& rhs) const;
-    };
-
-    struct Maps
-    {
-    public:
-      typedef std::map<std::string, Token::TokenType, Cmp_icase> reserved_words_t;
-      reserved_words_t reserved_words;
-      std::set<Token::TokenType> interval_units;
-      std::map<std::string, std::string, Cmp_icase> operator_names;
-      std::map<std::string, std::string, Cmp_icase> unary_operator_names;
-
-      Maps();
-    };
-
-  public:
-    static Maps map;
   };
 
   class Expr_parser
@@ -252,6 +96,48 @@ namespace mysqlx
     std::vector<Token>::const_iterator end() const { return _tokenizer.end(); }
 
   protected:
+
+    struct operator_list
+    {
+      std::set<Token::TokenType> mul_div_expr_types;
+      std::set<Token::TokenType> add_sub_expr_types;
+      std::set<Token::TokenType> shift_expr_types;
+      std::set<Token::TokenType> bit_expr_types;
+      std::set<Token::TokenType> comp_expr_types;
+      std::set<Token::TokenType> and_expr_types;
+      std::set<Token::TokenType> or_expr_types;
+
+      operator_list()
+      {
+        mul_div_expr_types.insert(Token::MUL);
+        mul_div_expr_types.insert(Token::DIV);
+        mul_div_expr_types.insert(Token::MOD);
+
+        add_sub_expr_types.insert(Token::PLUS);
+        add_sub_expr_types.insert(Token::MINUS);
+
+        shift_expr_types.insert(Token::LSHIFT);
+        shift_expr_types.insert(Token::RSHIFT);
+
+        bit_expr_types.insert(Token::BITAND);
+        bit_expr_types.insert(Token::BITOR);
+        bit_expr_types.insert(Token::BITXOR);
+
+        comp_expr_types.insert(Token::GE);
+        comp_expr_types.insert(Token::GT);
+        comp_expr_types.insert(Token::LE);
+        comp_expr_types.insert(Token::LT);
+        comp_expr_types.insert(Token::EQ);
+        comp_expr_types.insert(Token::NE);
+
+        and_expr_types.insert(Token::AND);
+
+        or_expr_types.insert(Token::OR);
+      }
+    };
+
+    static operator_list _ops;
+
     // json
     void json_key_value(Mysqlx::Expr::Object* obj);
     Mysqlx::Expr::Expr* json_doc();
@@ -293,14 +179,6 @@ namespace mysqlx
     static std::string order_list_to_string(google::protobuf::RepeatedPtrField< ::Mysqlx::Crud::Order> columns);
 
     static void replace(std::string& target, const std::string& old_val, const std::string& new_val);
-  };
-
-  class Parser_error : public std::runtime_error
-  {
-  public:
-    Parser_error(const std::string& msg) : std::runtime_error(msg)
-    {
-    }
   };
 };
 

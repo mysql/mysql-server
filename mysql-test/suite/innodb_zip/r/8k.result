@@ -35,6 +35,7 @@ mysql/columns	28	33	collation_id	8	0	1	50
 mysql/columns_priv	10	33	PRIMARY	5	3	5	50
 mysql/column_stats	7	33	PRIMARY	5	3	3	50
 mysql/column_type_elements	6	33	PRIMARY	5	3	2	50
+mysql/component	6	33	PRIMARY	5	3	1	50
 mysql/db	25	33	PRIMARY	5	3	3	50
 mysql/db	25	33	User	6	0	1	50
 mysql/engine_cost	9	33	PRIMARY	5	3	3	50

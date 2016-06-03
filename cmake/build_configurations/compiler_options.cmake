@@ -98,8 +98,8 @@ IF(UNIX)
       SET(CMAKE_CXX_FLAGS_RELEASE           "${CMAKE_CXX_FLAGS_RELEASE} -std=c++11")
 
       IF(CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-        SET(COMMON_C_FLAGS                   "-g -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic")
-        SET(COMMON_CXX_FLAGS                 "-g0 -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic ${COMMON_CXX_FLAGS}")
+        SET(COMMON_C_FLAGS                   "-g -mt -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic")
+        SET(COMMON_CXX_FLAGS                 "-g0 -mt -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic ${COMMON_CXX_FLAGS}")
         # We have to specify "-xO1" for DEBUG flags here,
         # see http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=6879978
         SET(CMAKE_C_FLAGS_DEBUG              "-xO1 ${COMMON_C_FLAGS}")

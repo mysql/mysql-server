@@ -3000,35 +3000,36 @@ public:
 
   longlong val_int()
   {
-    if (execute())
+    if (execute() || null_value)
       return (longlong) 0;
     return sp_result_field->val_int();
   }
 
   double val_real()
   {
-    if (execute())
+    if (execute() || null_value)
       return 0.0;
     return sp_result_field->val_real();
   }
 
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
-    if (execute())
+    if (execute() || null_value)
       return true;
     return sp_result_field->get_date(ltime, fuzzydate);
   }
 
   bool get_time(MYSQL_TIME *ltime)
   {
-    if (execute())
+    if (execute() || null_value)
       return true;
+
     return sp_result_field->get_time(ltime);
   }
 
   my_decimal *val_decimal(my_decimal *dec_buf)
   {
-    if (execute())
+    if (execute() || null_value)
       return NULL;
     return sp_result_field->val_decimal(dec_buf);
   }
@@ -3039,7 +3040,7 @@ public:
     char buff[20];
     buf.set(buff, 20, str->charset());
     buf.length(0);
-    if (execute())
+    if (execute() || null_value)
       return NULL;
     /*
       result_field will set buf pointing to internal buffer

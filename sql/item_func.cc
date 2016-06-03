@@ -8724,9 +8724,10 @@ bool Item_func_sp::val_json(Json_wrapper *result)
   if (sp_result_field->type() == MYSQL_TYPE_JSON)
   {
     if (execute())
-    {
       return true;
-    }
+
+    if (null_value)
+      return false;
 
     Field_json *json_value= down_cast<Field_json *>(sp_result_field);
     return json_value->val_json(result);
@@ -8774,10 +8775,9 @@ Item_func_sp::execute()
   }
 
   /* Check that the field (the value) is not NULL. */
-
   null_value= sp_result_field->is_null();
 
-  return null_value;
+  return false;
 }
 
 

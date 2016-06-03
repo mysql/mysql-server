@@ -42,8 +42,6 @@ static char *opt_ssl_crl     = 0;
 static char *opt_ssl_crlpath = 0;
 static char *opt_tls_version = 0;
 static my_bool ssl_mode_set_explicitly= FALSE;
-static my_bool opt_use_ssl_arg= TRUE;
-static my_bool opt_ssl_verify_server_cert_arg= FALSE;
 
 static void set_client_ssl_options(MYSQL *mysql)
 {

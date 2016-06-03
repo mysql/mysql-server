@@ -5,11 +5,8 @@
 
 # --ps-protocol gives different trace where view
 # has already been materialized
-if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL
-            + $VIEW_PROTOCOL > 0`)
-{
-   --skip Need normal protocol
-}
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
 
 set @@session.end_markers_in_json=on;
 set @@session.optimizer_trace="enabled=on";

@@ -31,8 +31,8 @@ SELECT sql_text, digest
 FROM performance_schema.events_statements_history
 WHERE sql_text LIKE 'SELECT %';
 sql_text	digest
-SELECT 'original'	NULL
 SELECT load_rewrite_rules() INTO message_text	NULL
+SELECT 'original'	NULL
 UPDATE performance_schema.setup_consumers
 SET enabled = @original_setting
 WHERE NAME = 'statements_digest';

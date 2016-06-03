@@ -80,6 +80,7 @@ Index_impl::Index_impl(Table_impl *table)
   m_type(IT_MULTIPLE),
   m_algorithm(IA_BTREE),
   m_is_algorithm_explicit(false),
+  m_is_visible(true),
   m_table(table),
   m_elements(),
   m_tablespace_id(INVALID_OBJECT_ID)
@@ -276,6 +277,7 @@ Index_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
   write_enum(w, m_type, STRING_WITH_LEN("type"));
   write_enum(w, m_algorithm, STRING_WITH_LEN("algorithm"));
   write(w, m_is_algorithm_explicit, STRING_WITH_LEN("is_algorithm_explicit"));
+  write(w, m_is_visible, STRING_WITH_LEN("is_visible"));
   write(w, m_engine, STRING_WITH_LEN("engine"));
 
   serialize_each(wctx, w, m_elements, STRING_WITH_LEN("elements"));
@@ -301,6 +303,7 @@ Index_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
   read_enum(&m_type, val, "type");
   read_enum(&m_algorithm, val, "algorithm");
   read(&m_is_algorithm_explicit, val, "is_algorithm_explicit");
+  read(&m_is_visible, val, "is_visible");
   read(&m_engine, val, "engine");
 
   deserialize_each(rctx, [this] () { return add_element(nullptr); },

@@ -24,6 +24,7 @@
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 
 --disable_query_log

@@ -40,15 +40,15 @@ a
 insert into t1 (a) values (10);
 select * from t1;
 a	b	c
-200	20	20
 100	10	10
+200	20	20
 select * from t2;
 a
 insert into t1 (a) values (600);
 select * from t1;
 a	b	c
-200	20	20
 100	10	10
+200	20	20
 500	50	50
 select * from t2;
 a

@@ -1,11 +1,8 @@
 #Start server with MyISAM
 --source include/force_myisam_default.inc
 
-if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL
-            + $VIEW_PROTOCOL > 0`)
-{
-   --skip Need normal protocol
-}
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
 
 # The main testing script
 --source suite/opt_trace/include/subquery.inc

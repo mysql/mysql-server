@@ -224,6 +224,7 @@ SET(REPLACE_OPTIONS
 
 # Note sequence of -W options here, most specific first.
 SET(REPLACE_REGEX_OPTIONS
+  "-W0,-stdhdrs_not_idempotent"
   "-Wp,[-=_A-Za-z0-9]*"
   "-Werror=[-A-Za-z]*"
   "-W[-A-Za-z]*"

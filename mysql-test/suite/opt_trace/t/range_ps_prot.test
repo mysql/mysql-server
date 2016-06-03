@@ -1,10 +1,9 @@
 #Start server with MyISAM
 --source include/force_myisam_default.inc
-if (`SELECT $SP_PROTOCOL + $CURSOR_PROTOCOL + $VIEW_PROTOCOL > 0
-        OR $PS_PROTOCOL = 0`)
-{
-   --skip Need ps-protocol
-}
+--source include/have_ps_protocol.inc
+--source include/no_sp_protocol.inc
+--source include/no_view_protocol.inc
+--source include/no_cursor_protocol.inc
 
 # The main testing script
 --source suite/opt_trace/include/range.inc

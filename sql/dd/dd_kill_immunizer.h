@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,6 +12,9 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+#ifndef DD_KILL_IMMUNIZER_INCLUDED
+#define DD_KILL_IMMUNIZER_INCLUDED
 
 #include "mutex_lock.h"                        // Mutex_lock
 
@@ -107,4 +110,5 @@ private:
   THD::killed_state m_saved_killed_state;
 };
 
-}// namespace dd
+} // namespace dd
+#endif // DD_KILL_IMMUNIZER_INCLUDED

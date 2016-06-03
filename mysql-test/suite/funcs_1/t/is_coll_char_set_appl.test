@@ -9,10 +9,8 @@
 #                   Create this script based on older scripts and new code.
 #
 
-if (`SELECT VERSION() LIKE '%embedded%'`)
-{
-   --skip Bug#37456 funcs_1: Several tests crash when used with embedded server
-}
+# Bug#37456 funcs_1: Several tests crash when used with embedded server
+--source include/not_embedded.inc
 
 let $is_table = COLLATION_CHARACTER_SET_APPLICABILITY;
 

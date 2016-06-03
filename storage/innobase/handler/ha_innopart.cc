@@ -455,6 +455,10 @@ Ha_innopart_share::close_table_parts()
 
 	m_tot_parts = 0;
 	m_index_count = 0;
+
+	/* All table partitions have been closed, autoinc initialization
+	should be done again. */
+	auto_inc_initialized = false;
 }
 
 /** Get index.
@@ -3216,7 +3220,8 @@ ha_innopart::truncate_partition_low(dd::Table *table_def)
 	if (table->found_next_number_field != NULL) {
 		lock_auto_increment();
 		m_part_share->next_auto_inc_val= 0;
-		m_part_share->auto_inc_initialized= false;
+		DBUG_EXECUTE_IF("partition_truncate_no_reset",
+				m_part_share->auto_inc_initialized = true;);
 		unlock_auto_increment();
 	}
 
