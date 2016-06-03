@@ -1174,24 +1174,6 @@ uchar Protocol_classic::get_error()
 }
 
 
-uint Protocol_classic::get_last_errno()
-{
-  return m_thd->net.last_errno;
-}
-
-
-void Protocol_classic::set_last_errno(uint err)
-{
-  m_thd->net.last_errno= err;
-}
-
-
-char *Protocol_classic::get_last_error()
-{
-  return m_thd->net.last_error;
-}
-
-
 void Protocol_classic::wipe_net()
 {
   memset(&m_thd->net, 0, sizeof(m_thd->net));

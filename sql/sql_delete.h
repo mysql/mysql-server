@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,6 @@ class Unique;
 struct TABLE_LIST;
 
 bool mysql_prepare_delete(THD *thd);
-bool mysql_delete(THD *thd, ha_rows rows);
 int mysql_multi_delete_prepare(THD *thd, uint *table_count);
 
 class Query_result_delete :public Query_result_interceptor

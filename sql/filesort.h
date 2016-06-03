@@ -66,8 +66,6 @@ public:
                                  Field **ptabfield,
                                  uint sortlength, uint *plength,
                                  uint *ppackable_length);
-private:
-  void cleanup();
 };
 
 bool filesort(THD *thd, Filesort *fsort, bool sort_positions,

@@ -4052,8 +4052,6 @@ fill_schema_table_by_open(THD *thd, MEM_ROOT *mem_root,
     Let us set fake sql_command so views won't try to merge
     themselves into main statement. If we don't do this,
     SELECT * from information_schema.xxxx will cause problems.
-    SQLCOM_SHOW_FIELDS is used because it satisfies
-    'only_view_structure()'.
   */
   lex->sql_command= SQLCOM_SHOW_FIELDS;
 

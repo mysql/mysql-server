@@ -203,8 +203,6 @@ public:
   bool store(THD *thd, String &buf);
   void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name);
   bool is_state_changed(THD*);
-  void ensure_enabled(THD *thd)
-  {}
 };
 
 
