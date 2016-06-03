@@ -48,7 +48,7 @@
 %endif
 
 %if 0%{?rhel} == 7
-%global compatver             5.6.25
+%global compatver             5.6.31
 %global compatlib             18
 %global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.6/mysql-%{compatver}.tar.gz
 %endif
@@ -93,7 +93,6 @@ Source7:        %{compatsrc}
 Source10:       http://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
-Patch0:         mysql-5.7-libmysqlclient-symbols.patch
 %{?el6:BuildRequires:  devtoolset-3-gcc}
 %{?el6:BuildRequires:  devtoolset-3-gcc-c++}
 BuildRequires:  cmake >= 2.8.2
@@ -404,8 +403,6 @@ the embedded version of the MySQL server.
 %else
 %setup -q -T -a 0 -a 10 -c -n %{src_dir}
 %endif # 0%{?compatlib}
-pushd mysql-%{compatver}
-%{?el7:%patch0 -p1}
 
 %build
 # Fail quickly and obviously if user tries to build as root
@@ -461,6 +458,7 @@ fi
     -DINSTALL_LIBDIR="%{_lib}/mysql" \
     -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
     -DINSTALL_SQLBENCHDIR=share \
+    -DWITH_SYMVER16=1 \
     -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
     -DFEATURE_SET="%{feature_set}" \
     -DWITH_EMBEDDED_SERVER=1 \
@@ -1019,6 +1017,7 @@ fi
 
 %changelog
 * Fri Jun 03 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.8.0-0.1
+- Updated compatver to 5.6.31
 - Add example component to test package
 - Add test_udf_services.so plugin
 - Add keyring_udf.so plugin to server subpackage
