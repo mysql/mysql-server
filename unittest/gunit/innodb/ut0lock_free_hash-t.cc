@@ -541,7 +541,7 @@ run_multi_threaded(
 		params[i].n_common = n_common;
 		params[i].n_priv_per_thread = n_priv_per_thread;
 
-		create_thread(0, thread_func, &params[i]);
+		os_thread_create(0, thread_func, &params[i]);
 	}
 
 	/* Wait for all threads to exit. */

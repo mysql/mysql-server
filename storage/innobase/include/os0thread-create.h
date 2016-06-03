@@ -154,7 +154,7 @@ private:
 @param[in]	args		zero or more args */
 template<typename F, typename ... Args>
 void
-create_thread(mysql_pfs_key_t pfs_key, F&& f, Args&& ... args)
+os_thread_create(mysql_pfs_key_t pfs_key, F&& f, Args&& ... args)
 {
 	Runnable	runnable(pfs_key);
 	std::thread	t(runnable, f, args ...);

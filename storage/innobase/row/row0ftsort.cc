@@ -1031,7 +1031,7 @@ row_fts_start_psort(fts_psort_t* psort_info)
 
 		psort_info[i].psort_id = i;
 
-		create_thread(
+		os_thread_create(
 			fts_parallel_tokenization_thread_key,
 			fts_parallel_tokenization_thread,
 			&psort_info[i]);
@@ -1066,7 +1066,7 @@ row_fts_start_parallel_merge(fts_psort_t* merge_info)
 		merge_info[i].psort_id = i;
 		merge_info[i].child_status = 0;
 
-                create_thread(
+                os_thread_create(
                         fts_parallel_merge_thread_key,
                         fts_parallel_merge_thread,
                         &merge_info[i]);

@@ -1564,19 +1564,19 @@ srv_start(
 
 		if (t < start) {
 			if (t == 0) {
-		                create_thread(
+		                os_thread_create(
 					io_ibuf_thread_key,
                                         io_handler_thread,
                                         t);
 			} else {
 				ut_ad(t == 1);
-		                create_thread(
+		                os_thread_create(
                                         io_log_thread_key,
                                         io_handler_thread, t);
 			}
 		} else if (t >= start && t < (start + srv_n_read_io_threads)) {
 
-		        create_thread(
+		        os_thread_create(
                                 io_read_thread_key,
                                 io_handler_thread, t);
 
@@ -1584,11 +1584,11 @@ srv_start(
 			   && t < (start + srv_n_read_io_threads
 				   + srv_n_write_io_threads)) {
 
-		        create_thread(
+		        os_thread_create(
                                 io_write_thread_key,
                                 io_handler_thread, t);
 		} else {
-		        create_thread(
+		        os_thread_create(
                                 io_handler_thread_key,
                                 io_handler_thread, t);
 		}
@@ -1598,13 +1598,13 @@ srv_start(
 	intrinsic table operations. */
 	buf_flush_page_cleaner_init();
 
-	create_thread(
+	os_thread_create(
 		buf_flush_page_cleaner_coordinator_key,
 		buf_flush_page_cleaner_coordinator);
 
 	for (size_t i = 1; i < srv_n_page_cleaners; ++i) {
 
-		create_thread(
+		os_thread_create(
 			buf_flush_page_cleaner_worker_key,
 			buf_flush_page_cleaner_worker);
 	}
@@ -2081,17 +2081,17 @@ files_checked:
 
 		/* Create the thread which watches the timeouts
 		for lock waits */
-		create_thread(
+		os_thread_create(
 			srv_lock_timeout_thread_key,
 			lock_wait_timeout_thread);
 
 		/* Create the thread which warns of long semaphore waits */
-		create_thread(
+		os_thread_create(
 			srv_error_monitor_thread_key,
 			srv_error_monitor_thread);
 
 		/* Create the thread which prints InnoDB monitor info */
-		create_thread(
+		os_thread_create(
 			srv_monitor_thread_key,
 			srv_monitor_thread);
 
@@ -2288,7 +2288,7 @@ srv_dict_recover_on_restart()
 void
 srv_start_threads()
 {
-	create_thread(buf_resize_thread_key, buf_resize_thread);
+	os_thread_create(buf_resize_thread_key, buf_resize_thread);
 
 	if (srv_read_only_mode) {
 		purge_sys->state = PURGE_STATE_DISABLED;
@@ -2301,7 +2301,7 @@ srv_start_threads()
 		not in committed nor in XA PREPARE state. */
 		trx_rollback_or_clean_is_active = true;
 
-		create_thread(
+		os_thread_create(
 			trx_recovery_rollback_thread_key,
 			trx_recovery_rollback_thread);
 	}
@@ -2309,21 +2309,21 @@ srv_start_threads()
 	/* Create the master thread which does purge and other utility
 	operations */
 
-	create_thread(srv_master_thread_key, srv_master_thread);
+	os_thread_create(srv_master_thread_key, srv_master_thread);
 
 
 	srv_start_state_set(SRV_START_STATE_MASTER);
 
 	if (srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
 
-		create_thread(
+		os_thread_create(
 			srv_purge_thread_key,
 			srv_purge_coordinator_thread);
 
 		/* We've already created the purge coordinator thread above. */
 		for (ulong i = 1; i < srv_n_purge_threads; ++i) {
 
-			create_thread(
+			os_thread_create(
 				srv_worker_thread_key,
 				srv_worker_thread);
 		}
@@ -2345,11 +2345,11 @@ srv_start_threads()
 	}
 
 	/* Create the buffer pool dump/load thread */
-	create_thread(buf_dump_thread_key, buf_dump_thread);
+	os_thread_create(buf_dump_thread_key, buf_dump_thread);
 
 
 	/* Create the dict stats gathering thread */
-	create_thread(dict_stats_thread_key, dict_stats_thread);
+	os_thread_create(dict_stats_thread_key, dict_stats_thread);
 
 
 	/* Create the thread that will optimize the FTS sub-system. */

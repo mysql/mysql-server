@@ -3921,7 +3921,7 @@ recv_init_crash_recovery_spaces()
 	if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
 		/* Spawn the background thread to flush dirty pages
 		from the buffer pools. */
-		create_thread(
+		os_thread_create(
 			recv_writer_thread_key,
 			recv_writer_thread);
 	}
