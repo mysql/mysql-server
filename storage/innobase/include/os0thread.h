@@ -41,8 +41,7 @@ os_thread_get_curr_id();
 /** Return the thread handle. The purpose of this function is to cast the
 native handle to an integer type for consistency
 @return the current thread ID cast to an uint64_t */
-#define os_thread_handle()						\
-	reinterpret_cast<uint64_t>(os_thread_get_curr_id())
+#define os_thread_handle()	((uint64_t) (os_thread_get_curr_id()))
 
 /** Compares two thread ids for equality.
 @param[in]	lhs	OS thread or thread id
@@ -57,7 +56,7 @@ do {									\
 } while(false)
 
 /** The thread sleeps at least the time given in microseconds.
-@param[in]	tm		time in microseconds */
+@param[in]	usecs		time in microseconds */
 #define os_thread_sleep(usecs)						\
 do {									\
 	std::this_thread::sleep_for(std::chrono::microseconds(usecs));  \

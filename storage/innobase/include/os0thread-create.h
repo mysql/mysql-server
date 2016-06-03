@@ -80,12 +80,14 @@ public:
 	@param[in]	pfs_key		Performance schema key */
 	explicit Runnable(mysql_pfs_key_t pfs_key) : m_pfs_key(pfs_key) { }
 #else
+	/** Constructor for the Runnable object.
+	@param[in]	pfs_key		Performance schema key (ignored) */
 	explicit Runnable(mysql_pfs_key_t) { }
 #endif /* UNIV_PFS_THREAD */
 
 public:
 	/** Method to execute the callable
-	@param[in]	F		Callable object
+	@param[in]	f		Callable object
 	@param[in]	args		Variable number of args to F */
 	template<typename F, typename ... Args>
 	void operator()(F&& f, Args&& ... args)
