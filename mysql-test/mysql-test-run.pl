@@ -237,12 +237,16 @@ our $opt_lldb;
 our $opt_client_gdb;
 our $opt_client_lldb;
 my $opt_boot_gdb;
+our $opt_dbx;
+our $opt_client_dbx;
+my $opt_boot_dbx;
 our $opt_ddd;
 our $opt_client_ddd;
 my $opt_boot_ddd;
 our $opt_manual_gdb;
 our $opt_manual_boot_gdb;
 our $opt_manual_lldb;
+our $opt_manual_dbx;
 our $opt_manual_ddd;
 our $opt_manual_debug;
 our $opt_debugger;
@@ -1188,7 +1192,11 @@ sub command_line_setup {
              'client-ddd'               => \$opt_client_ddd,
              'manual-ddd'               => \$opt_manual_ddd,
 	     'boot-ddd'                 => \$opt_boot_ddd,
+             'dbx'                      => \$opt_dbx,
+	     'client-dbx'               => \$opt_client_dbx,
+	     'manual-dbx'               => \$opt_manual_dbx,
 	     'debugger=s'               => \$opt_debugger,
+	     'boot-dbx'                 => \$opt_boot_dbx,
 	     'client-debugger=s'        => \$opt_client_debugger,
              'strace-server'            => \$opt_strace_server,
              'strace-client'            => \$opt_strace_client,
@@ -1651,6 +1659,12 @@ sub command_line_setup {
       $opt_ddd= undef;
     }
 
+    if ($opt_dbx) {
+      mtr_warning("Silently converting --dbx to --client-dbx in embedded mode");
+      $opt_client_dbx= $opt_dbx;
+      $opt_dbx= undef;
+    }
+
     if ($opt_debugger)
     {
       mtr_warning("Silently converting --debugger to --client-debugger in embedded mode");
@@ -1659,8 +1673,8 @@ sub command_line_setup {
     }
 
     if ( $opt_gdb || $opt_ddd || $opt_manual_gdb || $opt_manual_lldb || 
-         $opt_manual_ddd || $opt_manual_debug || $opt_debugger || 
-         $opt_lldb || $opt_manual_boot_gdb )
+         $opt_manual_ddd || $opt_manual_debug || $opt_debugger || $opt_dbx || 
+         $opt_lldb || $opt_manual_dbx || $opt_manual_boot_gdb )
     {
       mtr_error("You need to use the client debug options for the",
 		"embedded server. Ex: --client-gdb");
@@ -1688,8 +1702,8 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   if ( $opt_gdb || $opt_client_gdb || $opt_ddd || $opt_client_ddd || 
        $opt_manual_gdb || $opt_manual_lldb || $opt_manual_ddd || 
-       $opt_manual_debug || $opt_debugger || $opt_client_debugger || 
-       $opt_manual_boot_gdb )
+       $opt_manual_debug || $opt_dbx || $opt_client_dbx || $opt_manual_dbx || 
+       $opt_debugger || $opt_client_debugger || $opt_manual_boot_gdb )
   {
     # Indicate that we are using debugger
     $glob_debugger= 1;
@@ -3917,6 +3931,10 @@ sub mysql_install_db {
     gdb_arguments(\$args, \$exe_mysqld_bootstrap, $mysqld->name(),
 		  $bootstrap_sql_file);
   }
+  if ($opt_boot_dbx) {
+    dbx_arguments(\$args, \$exe_mysqld_bootstrap, $mysqld->name(),
+		  $bootstrap_sql_file);
+  }
   if ($opt_boot_ddd) {
     ddd_arguments(\$args, \$exe_mysqld_bootstrap, $mysqld->name(),
 		  $bootstrap_sql_file);
@@ -4580,7 +4598,7 @@ sub run_testcase ($) {
       }
     }
     if ($opt_manual_gdb || $opt_manual_lldb || $opt_manual_ddd ||
-        $opt_manual_debug)
+        $opt_manual_debug || $opt_manual_dbx)
     {
       # The configuration has been set up and user has been prompted for
       # how to start the servers manually in the requested deugger.
@@ -5879,6 +5897,9 @@ sub mysqld_start ($$) {
   {
     ddd_arguments(\$args, \$exe, $mysqld->name());
   }
+  elsif ( $opt_dbx || $opt_manual_dbx ) {
+    dbx_arguments(\$args, \$exe, $mysqld->name());
+  }
   elsif ( $opt_debugger )
   {
     debugger_arguments(\$args, \$exe, $mysqld->name());
@@ -6669,6 +6690,9 @@ sub start_mysqltest ($) {
   {
     ddd_arguments(\$args, \$exe, "client");
   }
+  if ( $opt_client_dbx ) {
+    dbx_arguments(\$args, \$exe, "client");
+  }
   elsif ( $opt_client_debugger )
   {
     debugger_arguments(\$args, \$exe, "client");
@@ -6844,6 +6868,49 @@ sub ddd_arguments {
   mtr_add_arg($$args, "--command=$gdb_init_file");
   mtr_add_arg($$args, "$save_exe");
 }
+
+
+#
+# Modify the exe and args so that program is run in dbx in xterm
+#
+sub dbx_arguments {
+  my $args= shift;
+  my $exe=  shift;
+  my $type= shift;
+  my $input= shift;
+
+  # Put $args into a single string
+  my $str= join " ", @$$args;
+  my $runline= $input ? "run $str < $input" : "run $str";
+
+  if ( $opt_manual_dbx ) {
+    print "\nTo start dbx for $type, type in another window:\n";
+    print "cd $glob_mysql_test_dir; dbx -c \"stop in main; " .
+          "$runline\" $$exe\n";
+
+    # Indicate the exe should not be started
+    $$exe= undef;
+    return;
+  }
+
+  $$args= [];
+  mtr_add_arg($$args, "-title");
+  mtr_add_arg($$args, "$type");
+  mtr_add_arg($$args, "-e");
+
+  if ( $exe_libtool ) {
+    mtr_add_arg($$args, $exe_libtool);
+    mtr_add_arg($$args, "--mode=execute");
+  }
+
+  mtr_add_arg($$args, "dbx");
+  mtr_add_arg($$args, "-c");
+  mtr_add_arg($$args, "stop in main; $runline");
+  mtr_add_arg($$args, "$$exe");
+
+  $$exe= "xterm";
+}
+
 
 #
 # Modify the exe and args so that program is run in the selected debugger
@@ -7265,14 +7332,17 @@ Options to run test on running server
 
 Options for debugging the product
 
+  boot-dbx              Start bootstrap server in dbx
   boot-ddd              Start bootstrap server in ddd
   boot-gdb              Start bootstrap server in gdb
   manual-boot-gdb       Let user manually start mysqld in gdb, during
                         initialize process
+  client-dbx            Start mysqltest client in dbx
   client-ddd            Start mysqltest client in ddd
   client-debugger=NAME  Start mysqltest in the selected debugger
   client-gdb            Start mysqltest client in gdb
   client-lldb           Start mysqltest client in lldb
+  dbx                   Start the mysqld(s) in dbx
   ddd                   Start the mysqld(s) in ddd
   debug                 Dump trace output for all servers and client programs
   debug-common          Same as debug, but sets 'd' debug flags to
@@ -7289,6 +7359,8 @@ Options for debugging the product
   manual-gdb            Let user manually start mysqld in gdb, before running
                         test(s)
   manual-ddd            Let user manually start mysqld in ddd, before running
+                        test(s)
+  manual-dbx            Let user manually start mysqld in dbx, before running
                         test(s)
   manual-lldb           Let user manually start mysqld in lldb, before running 
                         test(s)

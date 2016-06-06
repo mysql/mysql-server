@@ -90,6 +90,49 @@ EOF
   return 1;
 }
 
+
+sub _dbx {
+  my ($core_name)= @_;
+
+  print "\nTrying 'dbx' to get a backtrace\n";
+
+  return unless -f $core_name;
+
+  # Find out name of binary that generated core
+  `echo | dbx - '$core_name' 2>&1` =~
+    /Corefile specified executable: "([^"]+)"/;
+  my $binary= $1 or return;
+
+  $binary= _verify_binpath ($binary, $core_name) or return;
+
+  # Find all threads
+  my @thr_ids = `echo threads | dbx '$binary' '$core_name' 2>&1` =~ /t@\d+/g;
+
+  # Create tempfile containing dbx commands
+  my ($tmp, $tmp_name) = tempfile();
+  foreach my $thread (@thr_ids) {
+    print $tmp "where $thread\n";
+  }
+  print $tmp "exit\n";
+  close $tmp or die "Error closing $tmp_name: $!";
+
+  # Run dbx
+  my $dbx_output=
+    `cat '$tmp_name' | dbx '$binary' '$core_name' 2>&1`;
+
+  unlink $tmp_name or die "Error removing $tmp_name: $!";
+
+  return if $? >> 8;
+  return unless $dbx_output;
+
+  resfile_print <<EOF .  $dbx_output . "\n";
+Output from dbx follows. Stack trace is printed for all threads in order,
+above this you should see info about which thread was the failing one.
+----------------------------
+EOF
+  return 1;
+}
+
 # The 'cdb debug' prints are added to pinpoint the location of a hang
 # which could not be reproduced manually. Will be removed later.
 
@@ -240,12 +283,14 @@ sub show {
     return;
   }
   
-  # Invoke gdb on the core to evaluate
+  # We try dbx first; gdb itself may coredump if run on a Sun Studio
+  # compiled binary on Solaris.
 
   my @debuggers =
     (
+     \&_dbx,
      \&_gdb,
-     # .. list any more debuggers if required, here
+     # TODO...
    );
 
   # Try debuggers until one succeeds
