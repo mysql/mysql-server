@@ -141,7 +141,6 @@
 #include "item_cmpfunc.h"               // arg_cmp_func
 #include "item_strfunc.h"               // Item_func_uuid
 #include "handler.h"
-#include "sql_thd_internal_api.h"       // create_thd, destroy_thd
 
 #ifndef EMBEDDED_LIBRARY
 #include "srv_session.h"
@@ -974,7 +973,12 @@ public:
       sql_print_warning(ER_DEFAULT(ER_FORCING_CLOSE),my_progname,
                         closing_thd->thread_id(),
                         (main_sctx_user.length ? main_sctx_user.str : ""));
-      close_connection(closing_thd, 0, is_server_shutdown);
+      /*
+        Do not generate MYSQL_AUDIT_CONNECTION_DISCONNECT event, when closing
+        thread close sessions. Each session will generate DISCONNECT event by
+        itself.
+      */
+      close_connection(closing_thd, 0, is_server_shutdown, false);
     }
   }
 private:
@@ -1044,18 +1048,8 @@ static void close_connections(void)
   sql_print_information("Forcefully disconnecting %d remaining clients",
                         static_cast<int>(thd_manager->get_thd_count()));
 
-  /*
-    Need to have a current_thd for the shutdown thread since
-    close_connections() can result in a call to the audit plugins.
-    And these may need the current thd set in order to check for
-    stack overflow due to recursive audit events.
-
-    See event_class_dispatch() for more details.
-  */
-  THD *shutdown_thd= create_thd(false, true, true, PSI_NOT_INSTRUMENTED);
   Call_close_conn call_close_conn(true);
   thd_manager->do_for_all_thd(&call_close_conn);
-  destroy_thd(shutdown_thd);
   /*
     All threads have now been aborted. Stop event scheduler thread
     after aborting all client connections, otherwise user may
