@@ -1034,29 +1034,6 @@ bool Item_field::find_item_in_field_list_processor(uchar *arg)
 }
 
 
-/**
-  Mark field in read or write map of a table.
-
-  @param arg Struct that tells which map to update and how
-           table If = NULL, update map of any table
-                 If <> NULL, update map only if field is from this table
-           mark  How to mark current column
-*/
-
-bool Item_field::mark_field_in_map(uchar *arg)
-{
-  Mark_field *mark_field= (Mark_field *)arg;
-  TABLE *table= mark_field->table;
-  if (table != NULL && table != field->table)
-    return false;
-
-  table= field->table;
-  table->mark_column_used(table->in_use, field, mark_field->mark);
-
-  return false;
-}
-
-
 bool Item_field::check_gcol_func_processor(uchar *int_arg)
 {
   int *args= reinterpret_cast<int *>(int_arg);
