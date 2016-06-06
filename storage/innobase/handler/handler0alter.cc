@@ -6214,6 +6214,11 @@ ok_exit:
 		   altered_table, ha_alter_info, ctx->new_table));
 
 	if ((ctx->new_table->n_v_cols > 0) && rebuild_templ) {
+		/* Save the templ if isn't NULL so as to restore the
+		original state in case of alter operation failures. */
+		if (ctx->new_table->vc_templ != NULL && !ctx->need_rebuild()) {
+			old_templ = ctx->new_table->vc_templ;
+		}
 		s_templ = UT_NEW_NOKEY(dict_vcol_templ_t());
 		s_templ->vtempl = NULL;
 
