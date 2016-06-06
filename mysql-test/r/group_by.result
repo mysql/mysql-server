@@ -3273,3 +3273,41 @@ Warnings:
 Note	1276	Field or reference 'test.t1.f2' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select min(`test`.`t1`.`f3`) AS `MIN(t1.f3 )` from `test`.`t1` where (`test`.`t1`.`f3` >= 'q')
 DROP TABLE t1,t2;
+#
+# Bug#22275357 ORDER BY DOES NOT WORK CORRECTLY WITH GROUPED AVG()
+#              VALUES EXTRACTED FROM JSON
+#
+CREATE TABLE t(txt TEXT, i INT);
+INSERT INTO t VALUES ('a', 2), ('b', 8), ('b', 0), ('c', 2);
+SELECT txt, AVG(i) a FROM t GROUP BY txt ORDER BY a, txt;
+txt	a
+a	2.0000
+c	2.0000
+b	4.0000
+SELECT txt, VAR_POP(i) v FROM t GROUP BY txt ORDER BY v, txt;
+txt	v
+a	0
+c	0
+b	16
+SELECT txt, STDDEV_POP(i) s FROM t GROUP BY txt ORDER BY s, txt;
+txt	s
+a	0
+c	0
+b	4
+SELECT SQL_BUFFER_RESULT txt, AVG(i) a FROM t GROUP BY txt ORDER BY a, txt;
+txt	a
+a	2.0000
+c	2.0000
+b	4.0000
+SELECT SQL_BUFFER_RESULT txt, VAR_POP(i) v FROM t GROUP BY txt ORDER BY v, txt;
+txt	v
+a	0
+c	0
+b	16
+SELECT SQL_BUFFER_RESULT txt, STDDEV_POP(i) s FROM t
+GROUP BY txt ORDER BY s, txt;
+txt	s
+a	0
+c	0
+b	4
+DROP TABLE t;
