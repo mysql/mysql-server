@@ -134,6 +134,42 @@ bool String::mem_realloc(size_t alloc_length, bool force_on_heap)
   return false;
 }
 
+/*
+  Helper function for @see mem_realloc_exp.
+ */
+inline size_t String::next_realloc_exp_size(size_t sz)
+{
+  const size_t len= ALIGN_SIZE(sz + 1);
+  const size_t ret=
+    (m_is_alloced && m_alloced_length < len) ? sz + (m_length / 4) : sz;
+  return ret;
+}
+
+/**
+  This function is used by the various append() member functions, to ensure
+  that append() has amortized constant cost. Once we have started to allocate
+  buffer on the heap, we increase the buffer size exponentially, rather
+  than linearly.
+
+  @param alloc_length The requested string size in characters, excluding any
+                      null terminator.
+
+  @retval false Either the copy operation is complete or, if the size of the
+  new buffer is smaller than the currently allocated buffer (if one exists),
+  no allocation occured.
+
+  @retval true An error occured when attempting to allocate memory.
+
+  @see mem_realloc.
+ */
+bool String::mem_realloc_exp(size_t alloc_length)
+{
+  if (mem_realloc(next_realloc_exp_size(alloc_length)))
+    return true;
+  m_ptr[alloc_length]= '\0';
+  return false;
+}
+
 
 bool String::set_int(longlong num, bool unsigned_flag, const CHARSET_INFO *cs)
 {
@@ -467,7 +503,7 @@ bool String::append(const String &s)
     DBUG_ASSERT(!this->uses_buffer_owned_by(&s));
     DBUG_ASSERT(!s.uses_buffer_owned_by(this));
 
-    if (mem_realloc(m_length+s.length()))
+    if (mem_realloc_exp((m_length + s.length())))
       return true;
     memcpy(m_ptr + m_length,s.ptr(), s.length());
     m_length+=s.length();
@@ -503,7 +539,7 @@ bool String::append(const char *s, size_t arg_length)
   /*
     For an ASCII compatinble string we can just append.
   */
-  if (mem_realloc(m_length + arg_length))
+  if (mem_realloc_exp(m_length + arg_length))
     return true;
   memcpy(m_ptr + m_length, s, arg_length);
   m_length+= arg_length;
@@ -526,7 +562,7 @@ bool String::append(const char *s)
 */
 bool String::append_ulonglong(ulonglong val)
 {
-  if (mem_realloc(m_length + MAX_BIGINT_WIDTH + 2))
+  if (mem_realloc_exp(m_length + MAX_BIGINT_WIDTH + 2))
     return true;
   char *end= longlong10_to_str(val, m_ptr + m_length, 10);
   m_length= end - m_ptr;
@@ -564,7 +600,7 @@ bool String::append(const char *s, size_t arg_length, const CHARSET_INFO *cs)
       DBUG_ASSERT(m_charset->mbminlen > offset);
       offset= m_charset->mbminlen - offset; // How many characters to pad
       add_length= arg_length + offset;
-      if (mem_realloc(m_length + add_length))
+      if (mem_realloc_exp(m_length + add_length))
         return true;
       memset(m_ptr + m_length, 0, offset);
       memcpy(m_ptr + m_length + offset, s, arg_length);
@@ -574,14 +610,14 @@ bool String::append(const char *s, size_t arg_length, const CHARSET_INFO *cs)
 
     add_length= arg_length / cs->mbminlen * m_charset->mbmaxlen;
     uint dummy_errors;
-    if (mem_realloc(m_length + add_length))
+    if (mem_realloc_exp(m_length + add_length))
       return true;
     m_length+= copy_and_convert(m_ptr + m_length, add_length, m_charset,
                                 s, arg_length, cs, &dummy_errors);
   }
   else
   {
-    if (mem_realloc(m_length + arg_length))
+    if (mem_realloc_exp(m_length + arg_length))
       return true;
     memcpy(m_ptr + m_length, s, arg_length);
     m_length+= arg_length;
