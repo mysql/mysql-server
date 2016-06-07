@@ -4380,13 +4380,11 @@ fts_sync_index(
 }
 
 /** Check if index cache has been synced completely
-@param[in,out]	sync		sync state
 @param[in,out]	index_cache	index cache
 @return true if index is synced, otherwise false. */
 static
 bool
 fts_sync_index_check(
-	fts_sync_t*		sync,
 	fts_index_cache_t*	index_cache)
 {
 	const ib_rbt_node_t*	rbt_node;
@@ -4409,14 +4407,36 @@ fts_sync_index_check(
 	return(true);
 }
 
-/*********************************************************************//**
-Commit the SYNC, change state of processed doc ids etc.
+/** Reset synced flag in index cache when rollback
+@param[in,out]	index_cache	index cache */
+static
+void
+fts_sync_index_reset(
+	fts_index_cache_t*	index_cache)
+{
+	const ib_rbt_node_t*	rbt_node;
+
+	for (rbt_node = rbt_first(index_cache->words);
+	     rbt_node != NULL;
+	     rbt_node = rbt_next(index_cache->words, rbt_node)) {
+
+		fts_tokenizer_word_t*	word;
+		word = rbt_value(fts_tokenizer_word_t, rbt_node);
+
+		fts_node_t*	fts_node;
+		fts_node = static_cast<fts_node_t*>(ib_vector_last(word->nodes));
+
+		fts_node->synced = false;
+	}
+}
+
+/** Commit the SYNC, change state of processed doc ids etc.
+@param[in,out]	sync	sync state
 @return DB_SUCCESS if all OK */
 static  MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 fts_sync_commit(
-/*============*/
-	fts_sync_t*	sync)			/*!< in: sync state */
+	fts_sync_t*	sync)
 {
 	dberr_t		error;
 	trx_t*		trx = sync->trx;
@@ -4492,6 +4512,10 @@ fts_sync_rollback(
 
 		index_cache = static_cast<fts_index_cache_t*>(
 			ib_vector_get(cache->indexes, i));
+
+		/* Reset synced flag so nodes will not be skipped
+		in the next sync, see fts_sync_write_words(). */
+		fts_sync_index_reset(index_cache);
 
 		for (j = 0; fts_index_selector[j].value; ++j) {
 
@@ -4612,7 +4636,7 @@ begin_sync:
 			ib_vector_get(cache->indexes, i));
 
 		if (index_cache->index->to_be_dropped
-		    || fts_sync_index_check(sync, index_cache)) {
+		    || fts_sync_index_check(index_cache)) {
 			continue;
 		}
 
@@ -4627,6 +4651,7 @@ end_sync:
 	}
 
 	rw_lock_x_lock(&cache->lock);
+	sync->interrupted = false;
 	sync->in_progress = false;
 	os_event_set(sync->event);
 	rw_lock_x_unlock(&cache->lock);
