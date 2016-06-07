@@ -2075,6 +2075,20 @@ acl_log_connect(const char *user,
   }
 }
 
+/*
+  Assign priv_user and priv_host fields of the Security_context.
+
+  @param sctx Security context, which priv_user and priv_host fields are
+              updated.
+  @param user Authenticated user data.
+*/
+inline void
+assign_priv_user_host(Security_context *sctx, ACL_USER *user)
+{
+  sctx->assign_priv_user(user->user, user->user ? strlen(user->user) : 0);
+  sctx->assign_priv_host(user->host.get_host(), user->host.get_host_len());
+}
+
 /**
   Perform the handshake, authorize the client and update thd sctx variables.
 
@@ -2207,6 +2221,15 @@ acl_authenticate(THD *thd, enum_server_command command)
     res= CR_ERROR;
   }
 
+  /*
+    Assign account user/host data to the current THD. This information is used
+    when the authentication fails after this point and we call audit api
+    notification event. Client user/host connects to the existing account is
+    easily distinguished from other connects.
+  */
+  if (mpvio.can_authenticate())
+    assign_priv_user_host(sctx, const_cast<ACL_USER *>(acl_user));
+
   if (res > CR_OK && mpvio.status != MPVIO_EXT::SUCCESS)
   {
     Host_errors errors;
@@ -2307,11 +2330,7 @@ acl_authenticate(THD *thd, enum_server_command command)
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
     sctx->set_master_access(acl_user->access);
-    sctx->assign_priv_user(acl_user->user, acl_user->user ?
-                                           strlen(acl_user->user) : 0);
-    sctx->assign_priv_host(acl_user->host.get_host(),
-                           acl_user->host.get_host() ?
-                           strlen(acl_user->host.get_host()) : 0);
+    assign_priv_user_host(sctx, const_cast<ACL_USER *>(acl_user));
 
     if (!(sctx->check_access(SUPER_ACL)) && !thd->is_error())
     {
