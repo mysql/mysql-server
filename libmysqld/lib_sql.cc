@@ -500,6 +500,12 @@ int init_embedded_server(int argc, char **argv, char **groups)
   char fake_name[]= "fake_name";
   my_bool acl_error;
 
+  /*
+    Pre-initialize PFS early, so background threads created by
+    InnoDB can safely use related thread specific variables.
+  */
+  pre_initialize_performance_schema();
+
   if (my_thread_init())
     return 1;
 
@@ -623,7 +629,6 @@ int init_embedded_server(int argc, char **argv, char **groups)
     - SHOW SESSION VARIABLES
     - SHOW GLOBAL VARIABLES
   */
-  pre_initialize_performance_schema();
   if (! opt_initialize)
   {
     set_embedded_performance_schema_param(& pfs_param);
