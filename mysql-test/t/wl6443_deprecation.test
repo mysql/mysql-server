@@ -82,6 +82,9 @@ perl;
   my $count_warnings= $count_warnings;
   print "Deprecation warning count : $count_warnings\n";
   close(FILE);
+  # Truncate the log file so that repititions of the test don't pick up deprecation warnings from previous runs
+  open(FILE,">$logf") or die("Unable to open $logf for truncation $!\n");
+  close(FILE);
 EOF
 
 -- source include/mysql_upgrade_preparation.inc
