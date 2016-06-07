@@ -75,8 +75,8 @@ Release the purge
 commit;
 Purge done
 Now we should have no rows in the first file
-select count(*)=0 from mysql.ndb_binlog_index where File=@file1;
-count(*)=0
+select @result:=count(*)=0 from mysql.ndb_binlog_index where File=@file1;
+@result:=count(*)=0
 1
 Now we still should see rows in the next file
 select count(*)>0 from mysql.ndb_binlog_index where File=@file2;
