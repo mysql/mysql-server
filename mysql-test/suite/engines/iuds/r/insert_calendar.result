@@ -3595,10 +3595,14 @@ ERROR 23000: Duplicate entry '1983-09-07' for key 'c2'
 INSERT INTO t3(c1,c2) VALUES(19830907,830907) /* Row with c1=19830907,c2=830907 exists */;
 ERROR 23000: Duplicate entry '1983-09-07-1983-09-07' for key 'idx'
 INSERT IGNORE INTO t1(c1,c2) VALUES('20070525','20070527') /* doesn't throw error */;
+Warnings:
+Warning	1062	Duplicate entry '2007-05-25' for key 'PRIMARY'
 INSERT IGNORE INTO t2(c1,c2) VALUES(19830907,830907) /* doesn't throw error */;
 Warnings:
 Warning	1062	Duplicate entry '1983-09-07-1983-09-07' for key 'PRIMARY'
 INSERT IGNORE INTO t1(c1,c2) VALUES(19840905,830907) /* doesn't throw error */;
+Warnings:
+Warning	1062	Duplicate entry '1983-09-07' for key 'c2'
 INSERT IGNORE INTO t3(c1,c2) VALUES(19830907,830907) /* doesn't throw error */;
 Warnings:
 Warning	1062	Duplicate entry '1983-09-07-1983-09-07' for key 'idx'
@@ -13235,10 +13239,14 @@ ERROR 23000: Duplicate entry '1983-09-07 00:00:00' for key 'c2'
 INSERT INTO t3(c1,c2) VALUES(19830907,830907) /* Row with c1=19830907,c2=830907 exists */;
 ERROR 23000: Duplicate entry '1983-09-07 00:00:00-1983-09-07 00:00:00' for key 'idx'
 INSERT IGNORE INTO t1(c1,c2) VALUES('20070525','20070527') /* doesn't throw error */;
+Warnings:
+Warning	1062	Duplicate entry '2007-05-25 00:00:00' for key 'PRIMARY'
 INSERT IGNORE INTO t2(c1,c2) VALUES(19830907,830907) /* doesn't throw error */;
 Warnings:
 Warning	1062	Duplicate entry '1983-09-07 00:00:00-1983-09-07 00:00:00' for key 'PRIMARY'
 INSERT IGNORE INTO t1(c1,c2) VALUES(19840905,830907) /* doesn't throw error */;
+Warnings:
+Warning	1062	Duplicate entry '1983-09-07 00:00:00' for key 'c2'
 INSERT IGNORE INTO t3(c1,c2) VALUES(19830907,830907) /* doesn't throw error */;
 Warnings:
 Warning	1062	Duplicate entry '1983-09-07 00:00:00-1983-09-07 00:00:00' for key 'idx'
@@ -22839,10 +22847,14 @@ ERROR 23000: Duplicate entry '1983-09-07 00:00:00' for key 'c2'
 INSERT INTO t3(c1,c2) VALUES(19830907,830907) /* Row with c1=19830907,c2=830907 exists */;
 ERROR 23000: Duplicate entry '1983-09-07 00:00:00-1983-09-07 00:00:00' for key 'idx'
 INSERT IGNORE INTO t1(c1,c2) VALUES('20070525','20070527') /* doesn't throw error */;
+Warnings:
+Warning	1062	Duplicate entry '2007-05-25 00:00:00' for key 'PRIMARY'
 INSERT IGNORE INTO t2(c1,c2) VALUES(19830907,830907) /* doesn't throw error */;
 Warnings:
 Warning	1062	Duplicate entry '1983-09-07 00:00:00-1983-09-07 00:00:00' for key 'PRIMARY'
 INSERT IGNORE INTO t1(c1,c2) VALUES(19840905,830907) /* doesn't throw error */;
+Warnings:
+Warning	1062	Duplicate entry '1983-09-07 00:00:00' for key 'c2'
 INSERT IGNORE INTO t3(c1,c2) VALUES(19830907,830907) /* doesn't throw error */;
 Warnings:
 Warning	1062	Duplicate entry '1983-09-07 00:00:00-1983-09-07 00:00:00' for key 'idx'
