@@ -34,10 +34,6 @@ TABLE_ID	NAME	FLAG	N_COLS	SPACE	ROW_FORMAT	ZIP_PAGE_SIZE	SPACE_TYPE
 45	mysql/servers	33	12	31	Dynamic	0	Single
 46	mysql/tables_priv	33	11	32	Dynamic	0	Single
 47	mysql/columns_priv	33	10	33	Dynamic	0	Single
-48	mysql/help_topic	33	9	34	Dynamic	0	Single
-49	mysql/help_category	33	7	35	Dynamic	0	Single
-50	mysql/help_relation	33	5	36	Dynamic	0	Single
-51	mysql/help_keyword	33	5	37	Dynamic	0	Single
 52	mysql/time_zone_name	33	5	38	Dynamic	0	Single
 53	mysql/time_zone	33	5	39	Dynamic	0	Single
 54	mysql/time_zone_transition	33	6	40	Dynamic	0	Single
@@ -401,20 +397,6 @@ table_id	pos	mtype	prtype	len	name
 47	4	13	5439998	192	Column_name
 47	5	3	525575	4	Timestamp
 47	6	6	1022	1	Column_priv
-48	0	6	1795	4	help_topic_id
-48	1	13	2163198	192	name
-48	2	6	1794	2	help_category_id
-48	3	5	2163196	10	description
-48	4	5	2163196	10	example
-48	5	5	2163196	10	url
-49	0	6	1794	2	help_category_id
-49	1	13	2163198	192	name
-49	2	6	1538	2	parent_category_id
-49	3	5	2163196	10	url
-50	0	6	1795	4	help_topic_id
-50	1	6	1795	4	help_keyword_id
-51	0	6	1795	4	help_keyword_id
-51	1	13	2163198	192	name
 52	0	13	2163198	192	Name
 52	1	6	1795	4	Time_zone_id
 53	0	6	1795	4	Time_zone_id
@@ -555,13 +537,6 @@ index_id	table_id	type	n_fields	space	name
 100	46	3	4	32	PRIMARY
 101	46	0	1	32	Grantor
 102	47	3	5	33	PRIMARY
-103	48	3	1	34	PRIMARY
-104	48	2	1	34	name
-105	49	3	1	35	PRIMARY
-106	49	2	1	35	name
-107	50	3	2	36	PRIMARY
-108	51	3	1	37	PRIMARY
-109	51	2	1	37	name
 110	52	3	1	38	PRIMARY
 111	53	3	1	39	PRIMARY
 112	54	3	2	40	PRIMARY
