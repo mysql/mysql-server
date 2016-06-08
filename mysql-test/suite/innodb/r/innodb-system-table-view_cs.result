@@ -552,7 +552,8 @@ index_id	table_id	type	n_fields	space	name
 125	66	3	4	52	PRIMARY
 126	66	0	1	52	Grantor
 SELECT index_id,pos,name FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS
-WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'id', 'host', 'port', 'variable')
+WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'id', 'host', 'port', 'variable',
+'name', 'help_topic_id', 'help_keyword_id', 'help_category_id')
 ORDER BY index_id, pos;
 index_id	pos	name
 12	0	FOR_NAME
@@ -564,21 +565,14 @@ index_id	pos	name
 17	1	POS
 17	2	BASE_POS
 18	0	version
-20	0	name
-22	0	name
 23	0	character_set_id
-25	0	name
 26	0	tablespace_id
 26	1	ordinal_position
 27	0	file_name
-29	0	name
 31	0	catalog_id
-31	1	name
 32	0	default_collation_id
 34	0	catalog_id
-34	1	name
 36	0	schema_id
-36	1	name
 37	0	engine
 37	1	se_private_id
 38	0	engine
@@ -590,12 +584,10 @@ index_id	pos	name
 42	0	table_catalog
 42	1	table_schema
 44	0	table_id
-44	1	name
 45	0	table_id
 45	1	ordinal_position
 46	0	collation_id
 48	0	table_id
-48	1	name
 49	0	tablespace_id
 50	0	index_id
 50	1	ordinal_position
@@ -606,9 +598,7 @@ index_id	pos	name
 53	0	column_id
 53	1	element_index
 55	0	schema_id
-55	1	name
 56	0	table_id
-56	1	name
 57	0	unique_constraint_id
 58	0	foreign_key_id
 58	1	column_id
@@ -617,7 +607,6 @@ index_id	pos	name
 59	1	ordinal_position
 60	0	column_id
 62	0	table_id
-62	1	name
 63	0	table_id
 63	1	level
 63	2	number
@@ -633,13 +622,11 @@ index_id	pos	name
 69	0	index_id
 70	0	tablespace_id
 72	0	schema_id
-72	1	name
 73	0	client_collation_id
 74	0	connection_collation_id
 75	0	schema_collation_id
 77	0	schema_id
 77	1	type
-77	2	name
 78	0	result_collation_id
 79	0	client_collation_id
 80	0	connection_collation_id
@@ -651,7 +638,6 @@ index_id	pos	name
 85	1	element_index
 88	0	default_collation_id
 90	0	schema_id
-90	1	name
 91	0	table_id
 91	1	event_type
 91	2	action_timing
@@ -663,7 +649,6 @@ index_id	pos	name
 95	2	User
 96	0	User
 97	1	User
-98	0	name
 99	0	Server_name
 100	1	Db
 100	2	User
@@ -671,15 +656,6 @@ index_id	pos	name
 102	1	Db
 102	2	User
 102	4	Column_name
-103	0	help_topic_id
-104	0	name
-105	0	help_category_id
-106	0	name
-107	0	help_keyword_id
-107	1	help_topic_id
-108	0	help_keyword_id
-109	0	name
-110	0	Name
 111	0	Time_zone_id
 112	0	Time_zone_id
 112	1	Transition_time

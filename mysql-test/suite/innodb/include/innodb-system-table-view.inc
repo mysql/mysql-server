@@ -43,7 +43,8 @@ LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 --enable_query_log
 
 SELECT index_id,pos,name FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS
-       WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'id', 'host', 'port', 'variable')
+       WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'id', 'host', 'port', 'variable',
+       	                  'name', 'help_topic_id', 'help_keyword_id', 'help_category_id')
        ORDER BY index_id, pos;
 
 --sorted_result
