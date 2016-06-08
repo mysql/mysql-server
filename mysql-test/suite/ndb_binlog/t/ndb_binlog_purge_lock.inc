@@ -110,7 +110,29 @@ connection con2;
 
 connection con4;
 --echo Now we should have no rows in the first file
-select count(*)=0 from mysql.ndb_binlog_index where File=@file1;
+select @result:=count(*)=0 from mysql.ndb_binlog_index where File=@file1;
+
+# Debugging windows failures...
+let $result=query_get_value(select @result as r, r, 1);
+
+if (!$result)
+{
+  --echo Unexpected rows in first file, dumping context
+  select * from mysql.ndb_binlog_index;
+  select @file1;
+  select @file2;
+  --connection con1
+  select * from my_ndb_binlog_index;
+  --echo Master log file $master_log_file
+  --echo Master log file2 $master_log_file2
+  SHOW BINARY LOGS;
+  --echo If Binary log entry exists following
+  --echo should succeed, else fail
+  --eval PURGE BINARY LOGS TO '$master_log_file2'
+  select * from mysql.ndb_binlog_index;
+}
+# /Debugging windows failures...
+
 --echo Now we still should see rows in the next file
 select count(*)>0 from mysql.ndb_binlog_index where File=@file2;
 
