@@ -430,7 +430,7 @@ public:
 
     Uint32 fragmentCountType;
     Uint32 fragmentCount;
-    Uint32 realFragmentCount;
+    Uint32 partitionCount;
     Uint32 m_tablespace_id;
 
     /** List of indexes attached to table */

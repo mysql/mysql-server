@@ -52,7 +52,7 @@ private:
   Uint32 primaryTableId;  // use same fragmentation as this table if not RNIL
   Uint32 map_ptr_i;
   Uint32 fragmentCountType;
-  Uint32 realFragmentCount;
+  Uint32 partitionCount;
 };
 
 class CreateFragmentationRef {

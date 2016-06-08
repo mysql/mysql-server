@@ -670,7 +670,7 @@ NdbTableImpl::init(){
   m_keyLenInWords= 0;
   m_fragmentCountType = NdbDictionary::Object::FragmentCount_OnePerLDMPerNode;
   m_fragmentCount= 0;
-  m_realFragmentCount = 0;
+  m_partitionCount = 0;
   m_index= NULL;
   m_indexType= NdbDictionary::Object::TypeUndefined;
   m_noOfKeys= 0;
@@ -1018,7 +1018,7 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_maxLoadFactor = org.m_maxLoadFactor;
   m_keyLenInWords = org.m_keyLenInWords;
   m_fragmentCount = org.m_fragmentCount;
-  m_realFragmentCount = org.m_fragmentCount;
+  m_partitionCount = org.m_fragmentCount;
   m_fragmentCountType = org.m_fragmentCountType;
   m_single_user_mode = org.m_single_user_mode;
   m_extra_row_gci_bits = org.m_extra_row_gci_bits;
@@ -1220,9 +1220,9 @@ Uint32 NdbTableImpl::getFragmentCount() const
   return m_fragmentCount;
 }
 
-Uint32 NdbTableImpl::getRealFragmentCount() const
+Uint32 NdbTableImpl::getPartitionCount() const
 {
-  return m_realFragmentCount;
+  return m_partitionCount;
 }
 
 int NdbTableImpl::setFrm(const void* data, Uint32 len)
@@ -3017,7 +3017,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   impl->m_fragmentCountType =
     (NdbDictionary::Object::FragmentCountType)tableDesc->FragmentCountType;
   impl->m_read_backup = tableDesc->ReadBackupFlag == 0 ? false : true;
-  impl->m_realFragmentCount = tableDesc->RealFragmentCount;
+  impl->m_partitionCount = tableDesc->PartitionCount;
   impl->m_fully_replicated =
     tableDesc->FullyReplicatedFlag == 0 ? false : true;
 
@@ -3933,7 +3933,7 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
 
   tmpTab->FragmentCountType = (Uint32)impl.m_fragmentCountType;
   tmpTab->FragmentCount= impl.m_fragmentCount;
-  tmpTab->RealFragmentCount = impl.m_realFragmentCount;
+  tmpTab->PartitionCount = impl.m_partitionCount;
   tmpTab->TableLoggedFlag = impl.m_logging;
   tmpTab->TableTemporaryFlag = impl.m_temporary;
   tmpTab->RowGCIFlag = impl.m_row_gci;

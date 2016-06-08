@@ -19597,7 +19597,7 @@ bool ha_ndbcluster::get_num_parts(const char *name, uint *num_parts)
     Ndb_table_guard ndbtab_g(dict= ndb->getDictionary(), m_tabname);
     if (!ndbtab_g.get_table())
       ERR_BREAK(dict->getNdbError(), err);
-    *num_parts= ndbtab_g.get_table()->getRealFragmentCount();
+    *num_parts= ndbtab_g.get_table()->getPartitionCount();
     DBUG_RETURN(FALSE);
   }
 

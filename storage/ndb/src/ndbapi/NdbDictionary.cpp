@@ -763,9 +763,9 @@ NdbDictionary::Table::getFragmentCount() const
 }
 
 Uint32
-NdbDictionary::Table::getRealFragmentCount() const
+NdbDictionary::Table::getPartitionCount() const
 {
-  return m_impl.getRealFragmentCount();
+  return m_impl.getPartitionCount();
 }
 
 void
@@ -1083,7 +1083,7 @@ NdbDictionary::Table::getPartitionId(Uint32 hashValue) const
        * The new startTransaction interface goes to any node
        * for fully replicated tables.
        */
-      Uint32 realCnt = m_impl.m_realFragmentCount;
+      Uint32 realCnt = m_impl.m_partitionCount;
       assert(realCnt != 0);
       assert(realCnt <= m_impl.m_hash_map.size());
       return m_impl.m_hash_map[hashValue % realCnt];
@@ -4355,7 +4355,7 @@ NdbOut& operator <<(class NdbOut&, NdbDictionary::Table const& tab)
   ndbout << "Row GCI: " << tab.getRowGCIIndicator() << endl;
   ndbout << "SingleUserMode: " << (Uint32) tab.getSingleUserMode() << endl;
   ndbout << "ForceVarPart: " << tab.getForceVarPart() << endl;
-  ndbout << "RealFragmentCount: " << tab.getRealFragmentCount() << endl;
+  ndbout << "PartitionCount: " << tab.getPartitionCount() << endl;
   ndbout << "FragmentCount: " << tab.getFragmentCount() << endl;
   ndbout << "FragmentCountType: " << tab.getFragmentCountTypeString() << endl;
   ndbout << "ExtraRowGciBits: " << tab.getExtraRowGciBits() << endl;
