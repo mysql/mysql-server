@@ -5269,7 +5269,7 @@ ER_NONUPDATEABLE_COLUMN
         ger "Feld '%-.192s' ist nicht aktualisierbar"
         rus "Столбец '%-.192s' не обновляемый"
         ukr "Стовбець '%-.192s' не може бути зминений"
-# Unused since MySQL 5.8.0
+# Unused since MySQL 8.0.0
 ER_VIEW_SELECT_DERIVED_UNUSED
         eng "View's SELECT contains a subquery in the FROM clause"
         ger "SELECT der View enthält eine Subquery in der FROM-Klausel"
@@ -7598,7 +7598,7 @@ ER_CAPACITY_EXCEEDED
 ER_CAPACITY_EXCEEDED_IN_RANGE_OPTIMIZER
   eng "Range optimization was not done for this query."
 
-# This error code is needed only for 5.7, not used in 5.8+
+# This error code is needed only for 5.7, not used in 8.0+
 ER_TABLE_NEEDS_UPG_PART
   eng "Partitioning upgrade required. Please dump/reload to fix it or do: ALTER TABLE `%-.192s`.`%-.192s` UPGRADE PARTITIONING"
 
@@ -7807,5 +7807,5 @@ ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS
   eng "@@GLOBAL.GTID_PURGED cannot be changed: %s"
 
 #
-#  End of 5.8 error messages.
+#  End of 8.0 error messages.
 #

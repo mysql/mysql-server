@@ -189,7 +189,7 @@ int PFS_system_variable_cache::do_materialize_global(void)
         so that a clean interface is exposed to (upgraded and modified) applications.
 
         The assert below will fail once SQL_LOG_BIN really is defined
-        as SESSION_ONLY (in 5.8), so that this special case can be removed.
+        as SESSION_ONLY (in 8.0), so that this special case can be removed.
       */
       DBUG_ASSERT(value->scope() == sys_var::SESSION);
       continue;

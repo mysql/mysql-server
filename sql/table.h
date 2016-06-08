@@ -321,7 +321,7 @@ struct GRANT_INFO
      @brief the set of privileges that the current user needs to fulfil in
      order to carry out the requested operation. Used in debug build to
      ensure individual column privileges are assigned consistently.
-     @todo remove this member in 5.8.
+     @todo remove this member in 8.0.
    */
   ulong want_privilege;
 #endif

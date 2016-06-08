@@ -434,7 +434,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
    To make DIGESTS stable, it is desirable to avoid changing token values.
 
    In practice, this means adding new tokens at the end of the list,
-   in the current release section (5.8),
+   in the current release section (8.0),
    instead of adding them in the middle of the list.
 
    Failing to comply with instructions below will trigger build failure,
@@ -443,7 +443,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
    3) Instructions to add a new token:
 
    Add the new token at the end of the list,
-   in the MySQL 5.8 section.
+   in the MySQL 8.0 section.
 
    4) Instructions to remove an old token:
 
@@ -1109,7 +1109,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  ZEROFILL
 
 /*
-   Tokens from MySQL 5.8
+   Tokens from MySQL 8.0
 */
 
 %token  JSON_UNQUOTED_SEPARATOR_SYM   /* MYSQL */
