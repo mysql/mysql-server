@@ -46,7 +46,7 @@ static mysql_mutex_t LOCK_checkpoint;
 static mysql_cond_t  COND_checkpoint;
 /** @brief control structure for checkpoint background thread */
 static MA_SERVICE_THREAD_CONTROL checkpoint_control=
-  {THREAD_DEAD, FALSE, &LOCK_checkpoint, &COND_checkpoint};
+  {0, FALSE, FALSE, &LOCK_checkpoint, &COND_checkpoint};
 /* is ulong like pagecache->blocks_changed */
 static ulong pages_to_flush_before_next_checkpoint;
 static PAGECACHE_FILE *dfiles, /**< data files to flush in background */
@@ -326,7 +326,6 @@ end:
 
 int ma_checkpoint_init(ulong interval)
 {
-  pthread_t th;
   int res= 0;
   DBUG_ENTER("ma_checkpoint_init");
   if (ma_service_thread_control_init(&checkpoint_control))
@@ -334,14 +333,14 @@ int ma_checkpoint_init(ulong interval)
   else if (interval > 0)
   {
     compile_time_assert(sizeof(void *) >= sizeof(ulong));
-    if (!(res= mysql_thread_create(key_thread_checkpoint,
-                                   &th, NULL, ma_checkpoint_background,
-                                   (void *)interval)))
-    {
-      /* thread lives, will have to be killed */
-      checkpoint_control.status= THREAD_RUNNING;
-    }
+    if ((res= mysql_thread_create(key_thread_checkpoint,
+                                  &checkpoint_control.thread, NULL,
+                                  ma_checkpoint_background,
+                                  (void*) interval)))
+      checkpoint_control.killed= TRUE;
   }
+  else
+    checkpoint_control.killed= TRUE;
   DBUG_RETURN(res);
 }
 
@@ -717,7 +716,6 @@ pthread_handler_t ma_checkpoint_background(void *arg)
     DBUG_EXECUTE_IF("maria_checkpoint_indirect", level= CHECKPOINT_INDIRECT;);
     ma_checkpoint_execute(level, FALSE);
   }
-  my_service_thread_signal_end(&checkpoint_control);
   my_thread_end();
   return 0;
 }

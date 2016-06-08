@@ -16,12 +16,10 @@
 
 #include <my_pthread.h>
 
-enum ma_service_thread_state {THREAD_RUNNING, THREAD_DYING, THREAD_DEAD};
-
 typedef struct st_ma_service_thread_control
 {
-  /** 'kill' flag for the background thread */
-  enum ma_service_thread_state status;
+  pthread_t thread;
+  my_bool killed;
   /** if thread module was inited or not */
   my_bool inited;
   /** for killing the background thread */
@@ -35,4 +33,3 @@ int ma_service_thread_control_init(MA_SERVICE_THREAD_CONTROL *control);
 void ma_service_thread_control_end(MA_SERVICE_THREAD_CONTROL *control);
 my_bool my_service_thread_sleep(MA_SERVICE_THREAD_CONTROL *control,
                                 ulonglong sleep_time);
-void my_service_thread_signal_end(MA_SERVICE_THREAD_CONTROL *control);

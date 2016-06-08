@@ -33,7 +33,7 @@ int ma_service_thread_control_init(MA_SERVICE_THREAD_CONTROL *control)
   DBUG_ENTER("ma_service_thread_control_init");
   DBUG_PRINT("init", ("control 0x%lx", (ulong) control));
   control->inited= TRUE;
-  control->status= THREAD_DEAD; /* not yet born == dead */
+  control->killed= FALSE;
   res= (mysql_mutex_init(key_SERVICE_THREAD_CONTROL_lock,
                          control->LOCK_control, MY_MUTEX_INIT_SLOW) ||
         mysql_cond_init(key_SERVICE_THREAD_CONTROL_cond,
@@ -60,20 +60,17 @@ void ma_service_thread_control_end(MA_SERVICE_THREAD_CONTROL *control)
   DBUG_PRINT("init", ("control 0x%lx", (ulong) control));
   DBUG_ASSERT(control->inited);
   mysql_mutex_lock(control->LOCK_control);
-  if (control->status != THREAD_DEAD) /* thread was started OK */
+  if (!control->killed)
   {
     DBUG_PRINT("info",("killing Maria background thread"));
-    control->status= THREAD_DYING; /* kill it */
-    do /* and wait for it to be dead */
-    {
-      /* wake it up if it was in a sleep */
-      mysql_cond_broadcast(control->COND_control);
-      DBUG_PRINT("info",("waiting for Maria background thread to die"));
-      mysql_cond_wait(control->COND_control, control->LOCK_control);
-    }
-    while (control->status != THREAD_DEAD);
+    control->killed= TRUE; /* kill it */
+    mysql_cond_broadcast(control->COND_control);
+    mysql_mutex_unlock(control->LOCK_control);
+    DBUG_PRINT("info", ("waiting for Maria background thread to die"));
+    pthread_join(control->thread, NULL);
   }
-  mysql_mutex_unlock(control->LOCK_control);
+  else
+    mysql_mutex_unlock(control->LOCK_control);
   mysql_mutex_destroy(control->LOCK_control);
   mysql_cond_destroy(control->COND_control);
   control->inited= FALSE;
@@ -100,7 +97,7 @@ my_bool my_service_thread_sleep(MA_SERVICE_THREAD_CONTROL *control,
   DBUG_ENTER("my_service_thread_sleep");
   DBUG_PRINT("init", ("control 0x%lx", (ulong) control));
   mysql_mutex_lock(control->LOCK_control);
-  if (control->status == THREAD_DYING)
+  if (control->killed)
   {
     mysql_mutex_unlock(control->LOCK_control);
     DBUG_RETURN(TRUE);
@@ -119,34 +116,8 @@ my_bool my_service_thread_sleep(MA_SERVICE_THREAD_CONTROL *control,
                            control->LOCK_control, &abstime);
   }
 #endif
-  if (control->status == THREAD_DYING)
+  if (control->killed)
     res= TRUE;
   mysql_mutex_unlock(control->LOCK_control);
   DBUG_RETURN(res);
-}
-
-
-/**
-  inform about thread exiting
-
-  @param control        control block
-*/
-
-void my_service_thread_signal_end(MA_SERVICE_THREAD_CONTROL *control)
-{
-  DBUG_ENTER("my_service_thread_signal_end");
-  DBUG_PRINT("init", ("control 0x%lx", (ulong) control));
-  mysql_mutex_lock(control->LOCK_control);
-  control->status = THREAD_DEAD; /* indicate that we are dead */
-  /*
-    wake up ma_service_thread_control_end which may be waiting for
-    our death
-  */
-  mysql_cond_broadcast(control->COND_control);
-  /*
-    broadcast was inside unlock because ma_service_thread_control_end
-    destroys mutex
-  */
-  mysql_mutex_unlock(control->LOCK_control);
-  DBUG_VOID_RETURN;
 }

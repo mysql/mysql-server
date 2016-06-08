@@ -54,7 +54,7 @@ static mysql_mutex_t LOCK_soft_sync;
 static mysql_cond_t  COND_soft_sync;
 /** @brief control structure for checkpoint background thread */
 static MA_SERVICE_THREAD_CONTROL soft_sync_control=
-  {THREAD_DEAD, FALSE, &LOCK_soft_sync, &COND_soft_sync};
+  {0, FALSE, FALSE, &LOCK_soft_sync, &COND_soft_sync};
 
 
 /* transaction log file descriptor */
@@ -8819,7 +8819,6 @@ ma_soft_sync_background( void *arg __attribute__((unused)))
       if (my_service_thread_sleep(&soft_sync_control, sleep))
         break;
     }
-    my_service_thread_signal_end(&soft_sync_control);
     my_thread_end();
     DBUG_RETURN(0);
   }
@@ -8832,7 +8831,6 @@ ma_soft_sync_background( void *arg __attribute__((unused)))
 
 int translog_soft_sync_start(void)
 {
-  pthread_t th;
   int res= 0;
   uint32 min, max;
   DBUG_ENTER("translog_soft_sync_start");
@@ -8847,9 +8845,10 @@ int translog_soft_sync_start(void)
   soft_need_sync= 1;
 
   if (!(res= ma_service_thread_control_init(&soft_sync_control)))
-    if (!(res= mysql_thread_create(key_thread_soft_sync,
-                                   &th, NULL, ma_soft_sync_background, NULL)))
-      soft_sync_control.status= THREAD_RUNNING;
+    if ((res= mysql_thread_create(key_thread_soft_sync,
+                                  &soft_sync_control.thread, NULL,
+                                  ma_soft_sync_background, NULL)))
+      soft_sync_control.killed= TRUE;
   DBUG_RETURN(res);
 }
 

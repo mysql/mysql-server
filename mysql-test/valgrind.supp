@@ -19,36 +19,6 @@
 # Suppress some common (not fatal) errors in system libraries found by valgrind
 #
 
-#
-# Pthread doesn't free all thread specific memory before program exists
-#
-{
-   pthread allocate_tls memory loss
-   Memcheck:Leak
-   fun:calloc
-   fun:_dl_allocate_tls
-   fun:allocate_stack
-   fun:pthread_create*
-}
-
-{
-   pthread allocate_tls memory loss
-   Memcheck:Leak
-   fun:calloc
-   fun:_dl_allocate_tls
-   fun:pthread_create*
-
-}
-
-{
-   pthread allocate_tls memory loss
-   Memcheck:Leak
-   fun:calloc
-   obj:/lib*/ld*.so
-   fun:_dl_allocate_tls
-   fun:pthread_create*
-}
-
 {
    pthead_exit memory loss 1
    Memcheck:Leak
@@ -87,34 +57,6 @@
    fun:calloc
    fun:_dl_new_object
    fun:_dl_map_object_from_fd
-}
-
-{
-   pthread allocate_dtv memory loss
-   Memcheck:Leak
-   fun:calloc
-   fun:allocate_dtv
-   fun:_dl_allocate_tls_storage
-   fun:__GI__dl_allocate_tls
-   fun:pthread_create
-}
-
-{
-   pthread allocate_dtv memory loss second
-   Memcheck:Leak
-   fun:calloc
-   fun:allocate_dtv
-   fun:_dl_allocate_tls
-   fun:pthread_create*
-}
-
-{
-   pthread memalign memory loss
-   Memcheck:Leak
-   fun:memalign
-   fun:_dl_allocate_tls_storage
-   fun:__GI__dl_allocate_tls
-   fun:pthread_create
 }
 
 {
@@ -970,18 +912,6 @@
    fun:__pthread_unwind
    fun:pthread_exit
    fun:nptl_pthread_exit_hack_handler
-}
-
-#
-# Pthread doesn't free all thread specific memory before program exists
-#
-{
-   pthread allocate_tls memory loss in 2.6.1.
-   Memcheck:Leak 
-   fun:calloc
-   obj:*/ld-*.so
-   fun:_dl_allocate_tls
-   fun:pthread_create*
 }
 
 {
