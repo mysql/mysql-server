@@ -160,7 +160,7 @@ public:
   const char * getName() const;
   void setFragmentCount(Uint32 count);
   Uint32 getFragmentCount() const;
-  Uint32 getRealFragmentCount() const;
+  Uint32 getPartitionCount() const;
   int setFrm(const void* data, Uint32 len);
   const void * getFrmData() const;
   Uint32 getFrmLength() const;
@@ -238,7 +238,7 @@ public:
   int m_minLoadFactor;
   int m_maxLoadFactor;
   Uint16 m_keyLenInWords;
-  Uint16 m_realFragmentCount;
+  Uint16 m_partitionCount;
   Uint16 m_fragmentCount;
   NdbDictionary::Object::FragmentCountType m_fragmentCountType;
   Uint8 m_single_user_mode;
