@@ -304,7 +304,8 @@ int Trans_delegate::before_commit(THD *thd, bool all,
                                   ulonglong cache_log_max_size)
 {
   DBUG_ENTER("Trans_delegate::before_commit");
-  Trans_param param= TRANS_PARAM_ZERO;
+  Trans_param param;
+  TRANS_PARAM_ZERO(param);
   param.server_id= thd->server_id;
   param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id();
@@ -424,12 +425,16 @@ void prepare_transaction_context(THD* thd, Trans_context_info& ctx_info)
   //Extracting the session value of transaction_write_set_extraction
   ctx_info.transaction_write_set_extraction=
     thd->variables.transaction_write_set_extraction;
+
+  //Extracting transaction isolation level
+  ctx_info.tx_isolation= thd->tx_isolation;
 }
 
 int Trans_delegate::before_dml(THD* thd, int& result)
 {
   DBUG_ENTER("Trans_delegate::before_dml");
-  Trans_param param= TRANS_PARAM_ZERO;
+  Trans_param param;
+  TRANS_PARAM_ZERO(param);
 
   param.server_id= thd->server_id;
   param.server_uuid= server_uuid;
@@ -449,7 +454,8 @@ int Trans_delegate::before_dml(THD* thd, int& result)
 int Trans_delegate::before_rollback(THD *thd, bool all)
 {
   DBUG_ENTER("Trans_delegate::before_rollback");
-  Trans_param param= TRANS_PARAM_ZERO;
+  Trans_param param;
+  TRANS_PARAM_ZERO(param);
   param.server_id= thd->server_id;
   param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id();
@@ -467,7 +473,8 @@ int Trans_delegate::before_rollback(THD *thd, bool all)
 int Trans_delegate::after_commit(THD *thd, bool all)
 {
   DBUG_ENTER("Trans_delegate::after_commit");
-  Trans_param param= TRANS_PARAM_ZERO;
+  Trans_param param;
+  TRANS_PARAM_ZERO(param);
   param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id();
 
@@ -490,7 +497,8 @@ int Trans_delegate::after_commit(THD *thd, bool all)
 int Trans_delegate::after_rollback(THD *thd, bool all)
 {
   DBUG_ENTER("Trans_delegate::after_rollback");
-  Trans_param param= TRANS_PARAM_ZERO;
+  Trans_param param;
+  TRANS_PARAM_ZERO(param);
   param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id();
 
