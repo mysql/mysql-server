@@ -2409,7 +2409,6 @@ no_db_name:
 A wrapper function of innobase_convert_name(), convert a table or
 index name to the MySQL system_charset_info (UTF-8) and quote it if needed.
 @return	pointer to the end of buf */
-static inline
 void
 innobase_format_name(
 /*==================*/
@@ -9859,6 +9858,36 @@ ha_innobase::check(
 		DBUG_RETURN(HA_ADMIN_CORRUPT);
 	}
 
+	if (prebuilt->table->corrupted) {
+		char	index_name[MAX_FULL_NAME_LEN + 1];
+		/* If some previous operation has marked the table as
+		corrupted in memory, and has not propagated such to
+		clustered index, we will do so here */
+		index = dict_table_get_first_index(prebuilt->table);
+
+		if (!dict_index_is_corrupted(index)) {
+			row_mysql_lock_data_dictionary(prebuilt->trx);
+			dict_set_corrupted(index);
+			row_mysql_unlock_data_dictionary(prebuilt->trx);
+		}
+
+		innobase_format_name(index_name, sizeof index_name,
+			index->name, TRUE);
+
+		push_warning_printf(thd,
+				    MYSQL_ERROR::WARN_LEVEL_WARN,
+				    HA_ERR_INDEX_CORRUPT,
+				    "InnoDB: Index %s is marked as"
+				    " corrupted",
+				    index_name);
+
+		/* Now that the table is already marked as corrupted,
+		there is no need to check any index of this table */
+		prebuilt->trx->op_info = "";
+
+		DBUG_RETURN(HA_ADMIN_CORRUPT);
+	}
+
 	prebuilt->trx->op_info = "checking table";
 
 	old_isolation_level = prebuilt->trx->isolation_level;
@@ -9934,6 +9963,15 @@ ha_innobase::check(
 
 		prebuilt->index_usable = row_merge_is_index_usable(
 			prebuilt->trx, prebuilt->index);
+
+		DBUG_EXECUTE_IF(
+			"dict_set_index_corrupted",
+			if (!dict_index_is_clust(index)) {
+				prebuilt->index_usable = FALSE;
+				row_mysql_lock_data_dictionary(prebuilt->trx);
+				dict_set_corrupted(index);
+				row_mysql_unlock_data_dictionary(prebuilt->trx);
+			});
 
 		if (UNIV_UNLIKELY(!prebuilt->index_usable)) {
 			innobase_format_name(

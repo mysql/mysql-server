@@ -655,6 +655,19 @@ public:
 	~ha_innobase_add_index() {}
 };
 
+
+/*****************************************************************//**
+A wrapper function of innobase_convert_name(), convert a table or
+index name to the MySQL system_charset_info (UTF-8) and quote it if needed.
+@return	pointer to the end of buf */
+void
+innobase_format_name(
+/*==================*/
+	char*		buf,	/*!< out: buffer for converted identifier */
+	ulint		buflen,	/*!< in: length of buf, in bytes */
+	const char*	name,	/*!< in: index or table name to format */
+	ibool		is_index_name); /*!< in: index name */
+
 /*******************************************************************//**
 Create indexes.
 @return	0 or error number */
@@ -718,6 +731,28 @@ ha_innobase::add_index(
 
 	if (indexed_table->tablespace_discarded) {
 		DBUG_RETURN(-1);
+	}
+
+	/* Check if any of the existing indexes are marked as corruption,
+	and if they are, refuse adding more indexes. */
+	for (dict_index_t* check_index = dict_table_get_first_index(indexed_table);
+	     check_index != NULL;
+	     check_index = dict_table_get_next_index(check_index)) {
+
+		if (dict_index_is_corrupted(check_index)) {
+			char	index_name[MAX_FULL_NAME_LEN + 1];
+
+			innobase_format_name(index_name, sizeof index_name,
+				check_index->name, TRUE);
+
+			push_warning_printf(user_thd,
+				    MYSQL_ERROR::WARN_LEVEL_WARN,
+				    HA_ERR_INDEX_CORRUPT,
+				    "InnoDB: Index %s is marked as"
+				    " corrupted",
+				    index_name);
+			DBUG_RETURN(HA_ERR_INDEX_CORRUPT);
+		}
 	}
 
 	/* Check that index keys are sensible */
