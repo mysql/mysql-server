@@ -19,6 +19,7 @@
 #include "my_global.h"
 #include "my_thread_local.h"          // my_thread_id
 #include "mysql/psi/mysql_thread.h"   // mysql_mutex_t
+#include "handler.h"                  // enum_tx_isolation
 
 typedef struct st_mysql MYSQL;
 typedef struct st_io_cache IO_CACHE;
@@ -79,6 +80,7 @@ typedef struct Trans_context_info {
   // enum values in enum_mts_parallel_type
   ulong parallel_applier_type;
   ulong parallel_applier_workers;
+  enum_tx_isolation tx_isolation;  // enum values in enum_tx_isolation
 } Trans_context_info;
 
 /**
@@ -138,7 +140,7 @@ typedef struct Trans_param {
 /**
    Transaction observer parameter initialization.
 */
-#define TRANS_PARAM_ZERO { 0, 0, 0, 0, 0, 0, {0, 0, 0}, 0, 0, 0, 0, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0} }
+#define TRANS_PARAM_ZERO(trans_param_obj) memset(&trans_param_obj, 0, sizeof(Trans_param));
 
 /**
    Observes and extends transaction execution
