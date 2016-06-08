@@ -163,11 +163,8 @@ IF(MSVC)
    INSTALL_DEBUG_TARGET(mysys DESTINATION ${INSTALL_LIBDIR}/debug)
 ENDIF()
 
-MY_CHECK_CXX_COMPILER_FLAG("-Wdeprecated-declarations" HAVE_DEPREC_CONST)
-
-IF(CMAKE_GENERATOR MATCHES "Xcode" AND HAVE_DEPREC_CONST)
+IF(CMAKE_GENERATOR MATCHES "Xcode")
   INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-  ADD_COMPILE_FLAGS(
-    stacktrace.c
-    COMPILE_FLAGS -Wno-deprecated-declarations)
+  ADD_COMPILE_FLAGS(stacktrace.cc
+                    COMPILE_FLAGS "-Wno-deprecated-declarations")
 ENDIF()

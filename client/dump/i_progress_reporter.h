@@ -26,9 +26,6 @@ class I_progress_watcher;
 
 class I_progress_reporter
 {
-#if defined(EMPTY_VBASE_BUG)
-  char dummy;
-#endif
 public:
   virtual ~I_progress_reporter();
 

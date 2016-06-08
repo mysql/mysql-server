@@ -63,7 +63,7 @@ fts_write_object_id(
 	/* As above, but this is only for those tables failing to rename. */
 	if (!hex_format) {
 #ifdef _WIN32
-		// FIXME: Use ut_snprintf(), so does following one.
+		// FIXME: Use snprintf(), so does following one.
 		return(sprintf(str, "%016llu", id));
 #else /* _WIN32 */
 		return(sprintf(str, "%016" PRIu64, id));

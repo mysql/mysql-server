@@ -37,8 +37,6 @@
 typedef struct st_mysql_time MYSQL_TIME;
 
 #define DECIMAL_LONGLONG_DIGITS 22
-#define DECIMAL_LONG_DIGITS 10
-#define DECIMAL_LONG3_DIGITS 8
 
 /** maximum length of buffer in our big digits (uint32). */
 #define DECIMAL_BUFF_LENGTH 9
@@ -278,14 +276,6 @@ int my_decimal_string_length(const my_decimal *d)
 {
   /* length of string representation including terminating '\0' */
   return decimal_string_size(d);
-}
-
-
-inline
-int my_decimal_max_length(const my_decimal *d)
-{
-  /* -1 because we do not count \0 */
-  return decimal_string_size(d) - 1;
 }
 
 

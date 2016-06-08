@@ -26,6 +26,8 @@
 #include <sys/utsname.h>
 #endif
 
+typedef struct st_Vio Vio;
+
 PSI_thread_key KEY_thread_x_worker = PSI_NOT_INSTRUMENTED;
 PSI_thread_key KEY_thread_x_acceptor = PSI_NOT_INSTRUMENTED;
 
@@ -63,9 +65,6 @@ int unregister_server_state_observer(Server_state_observer *observer, void *p)
 {
   return 0;
 }
-
-struct st_Vio;
-typedef struct st_Vio Vio;
 
 extern "C"
 void ssl_wrapper_version(Vio *vio, char *version, const size_t version_size)

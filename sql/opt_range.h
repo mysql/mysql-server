@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -944,7 +944,6 @@ public:
   bool add_range(SEL_ARG *sel_range);
   void update_key_stat();
   void adjust_prefix_ranges();
-  bool alloc_buffers();
   int init();
   void need_sorted_output() { /* always do it */ }
   int reset();

@@ -6204,6 +6204,11 @@ ok_exit:
 		   altered_table, ha_alter_info, ctx->new_table));
 
 	if ((ctx->new_table->n_v_cols > 0) && rebuild_templ) {
+		/* Save the templ if isn't NULL so as to restore the
+		original state in case of alter operation failures. */
+		if (ctx->new_table->vc_templ != NULL && !ctx->need_rebuild()) {
+			old_templ = ctx->new_table->vc_templ;
+		}
 		s_templ = UT_NEW_NOKEY(dict_vcol_templ_t());
 		s_templ->vtempl = NULL;
 
@@ -8095,7 +8100,7 @@ alter_stats_rebuild(
 # define DBUG_INJECT_CRASH(prefix, count)			\
 do {								\
 	char buf[32];						\
-	ut_snprintf(buf, sizeof buf, prefix "_%u", count);	\
+	snprintf(buf, sizeof buf, prefix "_%u", count);	\
 	DBUG_EXECUTE_IF(buf, DBUG_SUICIDE(););			\
 } while (0)
 #else
@@ -8339,7 +8344,7 @@ ha_innobase::commit_inplace_alter_table(
 			/* Generate a dynamic dbug text. */
 			char buf[32];
 
-			ut_snprintf(buf, sizeof buf,
+			snprintf(buf, sizeof buf,
 				    "ib_commit_inplace_fail_%u",
 				    failure_inject_count++);
 

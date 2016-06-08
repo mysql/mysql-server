@@ -3182,3 +3182,63 @@ while($i) {
     EOF
   }
 }
+
+--echo #
+--echo # Bug#23035906 : MTR: MYSQLTEST PARSES QUOTES IN SQL COMMENTS LITERALLY LEADING TO EOL JUNK ERROR
+--echo #
+
+SELECT 100 + /* Shouldn't fail */ 1 AS result;
+SELECT 100 /* Shouldn't fail */ + 1 AS result;
+
+SELECT 100 +
+/*
+Shouldn't
+fail
+*/
+1 AS result;
+
+SELECT 100
+/*
+Shouldn't
+fail
+*/
++ 1 AS result;
+
+SELECT 100 /* shouldn't / fail */ + 1 AS result;
+SELECT 100 /* shouldn't * fail */ + 1 AS result;
+SELECT 100 /* shouldn't /* fail */ + 1 AS result;
+SELECT 100 /* shouldn't /* fail */ + 1 AS res1, 'ABC' AS res2;
+
+SELECT 100 + /* "shouldnt fail */ 1 AS result;
+SELECT 100 + /* "shouldn't fail" */ 1 AS result;
+SELECT 100 + /* `shouldn't fail */ 1 AS result;
+SELECT 100 + /* `shouldn't fail` */ 1 AS result;
+SELECT 100 + /*  + shouldn't fail */ 1 AS result;
+SELECT 100 + /*  ! shouldn't fail */ 1 AS result;
+SELECT 1 /*!,"\'" */;
+
+SELECT 100 + /***/ 1 AS result;
+SELECT 100 + /**'*/ 1 AS result;
+SELECT 100 + /*/*/ 1 AS result;
+SELECT 100 + /*/'*/ 1 AS result;
+
+--error ER_PARSE_ERROR
+SELECT 100 + /* should */ fail */ 1 AS result;
+--error ER_PARSE_ERROR
+SELECT 100 + /* shoul'd */ fail */ 1 AS result;
+
+CREATE TABLE t1(a INT PRIMARY KEY);
+INSERT INTO t1 values (1),(5),(10) /* doesn't throw error */;
+SELECT * FROM t1 /* shouldn't throw error */;
+DROP TABLE t1;
+
+# Variant of C style comment(/*! ... */)
+# Server should be able to parse the code inside the comment
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO;
+
+# Should create a temporary table
+CREATE /*! TEMPORARY */ TABLE t1 /* shouldn't fail */ (a INT);
+
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO;
+SHOW CREATE TABLE t1;
+DROP TEMPORARY TABLE t1;

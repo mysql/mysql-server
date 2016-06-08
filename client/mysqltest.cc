@@ -6547,6 +6547,7 @@ static int read_line(char *buf, int size)
   char c, last_quote= 0, last_char= 0;
   char *p= buf, *buf_end= buf + size - 1;
   int skip_char= 0;
+  int query_comment= 0, query_comment_start= 0, query_comment_end= 0;
   my_bool have_slash= FALSE;
   
   enum {R_NORMAL, R_Q, R_SLASH_IN_Q,
@@ -6626,6 +6627,36 @@ static int read_line(char *buf, int size)
 	  state= R_Q;
 	}
       }
+      else if (c == '/')
+      {
+        if ((query_comment_start == 0) && (query_comment == 0))
+          query_comment_start= 1;
+        else if (query_comment_end == 1)
+        {
+          query_comment= 0;
+          query_comment_end= 0;
+        }
+      }
+      else if (c == '*')
+      {
+        if ((query_comment == 1) && (query_comment_end == 0))
+          query_comment_end= 1;
+        else if (query_comment_start == 1)
+          query_comment= 1;
+      }
+      else if ((c == '+') || (c == '!'))
+      {
+        if ((query_comment_start == 1) && (query_comment == 1))
+        {
+          query_comment_start= 0;
+          query_comment= 0;
+        }
+      }
+      else if (query_comment_start == 1)
+        query_comment_start= 0;
+      else if (query_comment_end == 1)
+        query_comment_end= 0;
+
       have_slash= (c == '\\');
       break;
 
@@ -6698,6 +6729,8 @@ static int read_line(char *buf, int size)
 	state= R_NORMAL;
       else if (c == '\\')
 	state= R_SLASH_IN_Q;
+      else if (query_comment)
+        state= R_NORMAL;
       break;
 
     case R_SLASH_IN_Q:

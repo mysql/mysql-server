@@ -10284,12 +10284,12 @@ create_table_info_t::create_table_def()
 
 		if (dict_table_is_intrinsic(table) && field->orig_table) {
 
-			ut_snprintf(field_name, sizeof(field_name),
+			snprintf(field_name, sizeof(field_name),
 				    "%s_%s_%lu", field->orig_table->alias,
 				    field->field_name, i);
 
 		} else {
-			ut_snprintf(field_name, sizeof(field_name),
+			snprintf(field_name, sizeof(field_name),
 				    "%s", field->field_name);
 		}
 
@@ -16621,13 +16621,13 @@ ShowStatus::to_string(
 		int	name_len;
 		char	name_buf[IO_SIZE];
 
-		name_len = ut_snprintf(
+		name_len = snprintf(
 			name_buf, sizeof(name_buf), "%s", it->m_name.c_str());
 
 		int	status_len;
 		char	status_buf[IO_SIZE];
 
-		status_len = ut_snprintf(
+		status_len = snprintf(
 			status_buf, sizeof(status_buf),
 			"spins=%lu,waits=%lu,calls=" TRX_ID_FMT,
 			static_cast<ulong>(it->m_spins),
@@ -16714,7 +16714,7 @@ innodb_show_rwlock_status(
 			continue;
 		}
 
-		buf1len = ut_snprintf(
+		buf1len = snprintf(
 			buf1, sizeof buf1, "rwlock: %s:%lu",
 			innobase_basename(rw_lock->cfile_name),
 			static_cast<ulong>(rw_lock->cline));
@@ -16722,7 +16722,7 @@ innodb_show_rwlock_status(
 		int		buf2len;
 		char		buf2[IO_SIZE];
 
-		buf2len = ut_snprintf(
+		buf2len = snprintf(
 			buf2, sizeof buf2, "waits=%lu",
 			static_cast<ulong>(rw_lock->count_os_wait));
 
@@ -16742,7 +16742,7 @@ innodb_show_rwlock_status(
 		int		buf1len;
 		char		buf1[IO_SIZE];
 
-		buf1len = ut_snprintf(
+		buf1len = snprintf(
 			buf1, sizeof buf1, "sum rwlock: %s:%lu",
 			innobase_basename(block_rwlock->cfile_name),
 			static_cast<ulong>(block_rwlock->cline));
@@ -16750,7 +16750,7 @@ innodb_show_rwlock_status(
 		int		buf2len;
 		char		buf2[IO_SIZE];
 
-		buf2len = ut_snprintf(
+		buf2len = snprintf(
 			buf2, sizeof buf2, "waits=%lu",
 			static_cast<ulong>(block_rwlock_oswait_count));
 
@@ -17385,7 +17385,7 @@ ha_innobase::get_foreign_dup_key(
 	child_table_name[len] = '\0';
 
 	/* copy index name */
-	ut_snprintf(child_key_name, child_key_name_len, "%s",
+	snprintf(child_key_name, child_key_name_len, "%s",
 		    err_index->name());
 
 	return(true);
@@ -17971,7 +17971,7 @@ innodb_buffer_pool_size_update(
 {
 	longlong	in_val = *static_cast<const longlong*>(save);
 
-	ut_snprintf(export_vars.innodb_buffer_pool_resize_status,
+	snprintf(export_vars.innodb_buffer_pool_resize_status,
 	        sizeof(export_vars.innodb_buffer_pool_resize_status),
 		"Requested to resize buffer pool.");
 

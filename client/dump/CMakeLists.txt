@@ -15,12 +15,7 @@
 
 # If we are building client-only (-DWITHOUT_SERVER=ON) with Solaris Studio,
 # we skip building the mysqlpump tool. The server, and mysqlpump, will be built
-# using gcc. If we *are* building mysqlpump with Solaris Studio, we need to
-# work around a know bug: For some complicated class hierarchies that have
-# empty virtual base classes, the compiler generates incorrect vtables.
-#
-# To locate empty virtual base classes, CC has an undocumented Qoption:
-#    -Qoption ccfe -xwarn_empty_vbase
+# using gcc.
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/dump
@@ -30,8 +25,6 @@ IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
   IF (WITHOUT_SERVER)
     MESSAGE(STATUS "Not building mysqlpump")
     RETURN()
-  ELSE()
-    ADD_DEFINITIONS(-DEMPTY_VBASE_BUG)
   ENDIF()
 ENDIF()
 
@@ -194,46 +187,42 @@ SET(MYSQLPUMP_BOOST_SOURCES
   table.cc
 )
 
-# Boost source has unused local typedefs.
-MY_CHECK_CXX_COMPILER_FLAG("-Wunused-local-typedefs" HAVE_UNUSED_TYPEDEFS)
-IF(HAVE_UNUSED_TYPEDEFS)
+#
+# Disabling of various compiler warnings for GCC/Clang
+#
+
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  # Common for all versions of GCC/Clang
+
+  # Boost source use undefined symbols in #if checks
   ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES}
-    COMPILE_FLAGS "-Wno-unused-local-typedefs")
-ENDIF()
-
-# Boost source use undefined symbols in #if checks
-MY_CHECK_CXX_COMPILER_FLAG("-Wundef" HAVE_UNDEF)
-IF(HAVE_UNDEF)
-  ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES} COMPILE_FLAGS "-Wno-undef")
-ENDIF()
-
-# Boost source use logical '&&' with non-zero constant
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-logical-op" HAVE_NO_LOGICAL_OP)
-IF(HAVE_NO_LOGICAL_OP)
-  ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES} COMPILE_FLAGS "-Wno-logical-op")
-ENDIF()
-
-# Boost source use auto_ptr, deprecated in C++11
-MY_CHECK_CXX_COMPILER_FLAG("-Wdeprecated-declarations"
-                           HAVE_DEPRECATED_DECLARATIONS)
-IF(HAVE_DEPRECATED_DECLARATIONS)
+                    COMPILE_FLAGS "-Wno-undef")
+  ADD_COMPILE_FLAGS(${BOOST_LIB_SOURCES}
+                    COMPILE_FLAGS "-Wno-undef")
+  # Boost source use auto_ptr, deprecated in C++11
   ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES}
                     COMPILE_FLAGS "-Wno-deprecated-declarations")
-ENDIF()
-
-# Boost atomics triggers bogus warning in GCC, see
-# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=61489
-MY_CHECK_CXX_COMPILER_FLAG("-Wmissing-field-initializers" HAVE_MISSING_FIELD_INITIALIZERS)
-IF(HAVE_MISSING_FIELD_INITIALIZERS)
+  # Boost atomics triggers bogus warning in GCC, see
+  # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=61489
   ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES}
-    COMPILE_FLAGS "-Wno-missing-field-initializers")
-ENDIF()
+                    COMPILE_FLAGS "-Wno-missing-field-initializers")
+  
+  # Only for some versions of GCC/Clang
 
-# Boost uses undefined macros in #if
-MY_CHECK_CXX_COMPILER_FLAG("-Wundef" HAVE_UNDEF)
-IF(HAVE_UNDEF)
-  ADD_COMPILE_FLAGS(${BOOST_LIB_SOURCES}
-    COMPILE_FLAGS "-Wno-undef")
+  MY_CHECK_CXX_COMPILER_FLAG("-Wunused-local-typedefs" HAVE_UNUSED_TYPEDEFS)
+  IF(HAVE_UNUSED_TYPEDEFS)
+    # Boost source has unused local typedefs.
+    ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES}
+                      COMPILE_FLAGS "-Wno-unused-local-typedefs")
+  ENDIF()
+  
+  MY_CHECK_CXX_COMPILER_FLAG("-Wlogical-op" HAVE_LOGICAL_OP)
+  IF(HAVE_LOGICAL_OP)
+    # Boost source has logical && with non-zero constant
+    ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES}
+                      COMPILE_FLAGS "-Wno-logical-op")
+  ENDIF()
+
 ENDIF()
 
 ADD_COMPILE_FLAGS(

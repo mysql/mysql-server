@@ -165,7 +165,6 @@ bool serialize(const Json_dom *dom, String *dest);
 class Value
 {
 public:
-  static Value parse(const char *data, size_t len);
   enum enum_type : uint8
   {
     OBJECT, ARRAY, STRING, INT, UINT, DOUBLE,

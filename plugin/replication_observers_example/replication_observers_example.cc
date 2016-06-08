@@ -794,6 +794,14 @@ int test_channel_service_interface_io_thread()
   DBUG_ASSERT(*thread_id > 0);
   my_free(thread_id);
 
+  //Get the I/O thread retrieved GTID set
+  char *retrieved_gtid_set;
+  error= channel_get_retrieved_gtid_set(interface_channel,
+                                        &retrieved_gtid_set);
+  DBUG_ASSERT(!error);
+  DBUG_ASSERT(strlen(retrieved_gtid_set) > 0);
+  my_free(retrieved_gtid_set);
+
   //Check that the applier thread is waiting for events to be queued.
   int is_waiting= channel_is_applier_waiting(interface_channel);
   DBUG_ASSERT(is_waiting == 1);

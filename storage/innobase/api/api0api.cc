@@ -3936,7 +3936,7 @@ ib_memc_sdi_get_keys(
 	for (dd::sdi_container::iterator it =
 		ib_vector.sdi_vector->m_vec.begin();
 		it != ib_vector.sdi_vector->m_vec.end(); it++) {
-		bytes_printed = ut_snprintf(
+		bytes_printed = snprintf(
 			ptr,
 			list_buf_len - cur_len,
 			"%llu:%u|", it->id, it->type);

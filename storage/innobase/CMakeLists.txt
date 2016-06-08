@@ -191,13 +191,13 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
 ENDIF()
 
 # Generated code with logical-op warnings
-MY_CHECK_CXX_COMPILER_FLAG("-Wlogical-op" HAVE_LOGICAL_OP)
-IF(HAVE_LOGICAL_OP)
-  INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-  ADD_COMPILE_FLAGS(
-    fts/fts0pars.cc
-    COMPILE_FLAGS "-Wno-logical-op"
-  )
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  MY_CHECK_CXX_COMPILER_FLAG("-Wlogical-op" HAVE_LOGICAL_OP)
+  IF(HAVE_LOGICAL_OP)
+    INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+    ADD_COMPILE_FLAGS(fts/fts0pars.cc
+                      COMPILE_FLAGS "-Wno-logical-op")
+  ENDIF()
 ENDIF()
 
 # A GCC bug causes crash when compiling these files on ARM64 with -O1+

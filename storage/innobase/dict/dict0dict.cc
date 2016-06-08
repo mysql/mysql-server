@@ -6455,7 +6455,7 @@ dict_table_schema_check(
 	if (table == NULL) {
 		/* no such table */
 
-		ut_snprintf(errstr, errstr_sz,
+		snprintf(errstr, errstr_sz,
 			    "Table %s not found.",
 			    ut_format_name(req_schema->table_name,
 					   buf, sizeof(buf)));
@@ -6466,7 +6466,7 @@ dict_table_schema_check(
 	if (table->ibd_file_missing) {
 		/* missing tablespace */
 
-		ut_snprintf(errstr, errstr_sz,
+		snprintf(errstr, errstr_sz,
 			    "Tablespace for table %s is missing.",
 			    ut_format_name(req_schema->table_name,
 					   buf, sizeof(buf)));
@@ -6477,7 +6477,7 @@ dict_table_schema_check(
 	ulint n_sys_cols = dict_table_get_n_sys_cols(table);
 	if ((ulint) table->n_def - n_sys_cols != req_schema->n_cols) {
 		/* the table has a different number of columns than required */
-		ut_snprintf(errstr, errstr_sz,
+		snprintf(errstr, errstr_sz,
 			    "%s has %lu columns but should have %lu.",
 			    ut_format_name(req_schema->table_name,
 					   buf, sizeof(buf)),
@@ -6498,7 +6498,7 @@ dict_table_schema_check(
 
 		if (j == table->n_def) {
 
-			ut_snprintf(errstr, errstr_sz,
+			snprintf(errstr, errstr_sz,
 				    "required column %s"
 				    " not found in table %s.",
 				    req_schema->columns[i].name,
@@ -6517,7 +6517,7 @@ dict_table_schema_check(
 
 			CREATE_TYPES_NAMES();
 
-			ut_snprintf(errstr, errstr_sz,
+			snprintf(errstr, errstr_sz,
 				    "Column %s in table %s is %s"
 				    " but should be %s (length mismatch).",
 				    req_schema->columns[i].name,
@@ -6533,7 +6533,7 @@ dict_table_schema_check(
 
 			CREATE_TYPES_NAMES();
 
-			ut_snprintf(errstr, errstr_sz,
+			snprintf(errstr, errstr_sz,
 				    "Column %s in table %s is %s"
 				    " but should be %s (type mismatch).",
 				    req_schema->columns[i].name,
@@ -6552,7 +6552,7 @@ dict_table_schema_check(
 
 			CREATE_TYPES_NAMES();
 
-			ut_snprintf(errstr, errstr_sz,
+			snprintf(errstr, errstr_sz,
 				    "Column %s in table %s is %s"
 				    " but should be %s (flags mismatch).",
 				    req_schema->columns[i].name,
@@ -6565,7 +6565,7 @@ dict_table_schema_check(
 	}
 
 	if (req_schema->n_foreign != table->foreign_set.size()) {
-		ut_snprintf(
+		snprintf(
 			errstr, errstr_sz,
 			"Table %s has " ULINTPF " foreign key(s) pointing"
 			" to other tables, but it must have %lu.",
@@ -6577,7 +6577,7 @@ dict_table_schema_check(
 	}
 
 	if (req_schema->n_referenced != table->referenced_set.size()) {
-		ut_snprintf(
+		snprintf(
 			errstr, errstr_sz,
 			"There are " ULINTPF " foreign key(s) pointing to %s, "
 			"but there must be %lu.",
@@ -6653,7 +6653,7 @@ dict_fs2utf8(
 		&errors);
 
 	if (errors != 0) {
-		ut_snprintf(table_utf8, table_utf8_size, "%s", table);
+		snprintf(table_utf8, table_utf8_size, "%s", table);
 	}
 }
 

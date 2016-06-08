@@ -718,9 +718,6 @@ public:
   /// Include a query expression below a query block.
   void include_down(LEX *lex, SELECT_LEX *outer);
 
-  /// Include a chain of query expressions below a query block.
-  void include_chain(LEX *lex, SELECT_LEX *outer);
-
   /// Exclude this unit and immediately contained select_lex objects
   void exclude_level();
 
@@ -786,7 +783,6 @@ class SELECT_LEX: public Sql_alloc
 public:
   Item  *where_cond() const { return m_where_cond; }
   void   set_where_cond(Item *cond) { m_where_cond= cond; }
-  Item **where_cond_ref() { return &m_where_cond; }
   Item  *having_cond() const { return m_having_cond; }
   void   set_having_cond(Item *cond) { m_having_cond= cond; }
 
@@ -1161,6 +1157,8 @@ public:
   /**
     @return true if this query block is implicitly grouped and returns exactly
     one row, which happens when it does not have a HAVING clause.
+
+    @remark This function is currently unused.
   */
   bool is_single_grouped() const
   {
@@ -1205,7 +1203,6 @@ public:
   uint get_in_sum_expr() const { return in_sum_expr; }
 
   bool add_item_to_list(THD *thd, Item *item);
-  void add_group_to_list(ORDER *order);
   bool add_ftfunc_to_list(Item_func_match *func);
   void add_order_to_list(ORDER *order);
   TABLE_LIST* add_table_to_list(THD *thd, Table_ident *table,
@@ -1630,14 +1627,12 @@ union YYSTYPE {
   int  num;
   ulong ulong_num;
   ulonglong ulonglong_number;
-  longlong longlong_number;
   LEX_STRING lex_str;
   LEX_STRING *lex_str_ptr;
   LEX_SYMBOL symbol;
   Table_ident *table;
   char *simple_string;
   Item *item;
-  Item_num *item_num;
   List<Item> *item_list;
   List<String> *string_list;
   String *string;
@@ -1666,7 +1661,6 @@ union YYSTYPE {
     const char *dec;
   } precision;
   struct Cast_type cast_type;
-  enum Item_udftype udf_type;
   const CHARSET_INFO *charset;
   thr_lock_type lock_type;
   interval_type interval, interval_time_st;
@@ -1678,7 +1672,6 @@ union YYSTYPE {
   sp_name *spname;
   LEX *lex;
   sp_head *sphead;
-  struct p_elem_val *p_elem_value;
   enum index_hint_type index_hint;
   enum enum_filetype filetype;
   enum fk_option m_fk_option;
@@ -1772,7 +1765,6 @@ union YYSTYPE {
   enum alter_instance_action_enum alter_instance_action;
   class PT_index_definition_stmt *index_definition_stmt;
   class PT_table_constraint_def *inline_index_definition;
-  Key_spec *index_definition;
   List<Key_part_spec> *index_column_list;
   struct {
     LEX_STRING name;
@@ -2213,17 +2205,6 @@ public:
   inline uint32 get_stmt_unsafe_flags() const {
     DBUG_ENTER("get_stmt_unsafe_flags");
     DBUG_RETURN(binlog_stmt_flags & BINLOG_STMT_UNSAFE_ALL_FLAGS);
-  }
-
-  /**
-    Mark the current statement as safe; i.e., clear all bits in
-    binlog_stmt_flags that correspond to elements of
-    enum_binlog_stmt_unsafe.
-  */
-  inline void clear_stmt_unsafe() {
-    DBUG_ENTER("clear_stmt_unsafe");
-    binlog_stmt_flags&= ~BINLOG_STMT_UNSAFE_ALL_FLAGS;
-    DBUG_VOID_RETURN;
   }
 
   /**
@@ -3297,7 +3278,6 @@ public:
   sp_name *spname;
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
   bool all_privileges;
-  bool proxy_priv;
   bool contains_plaintext_password;
   enum_keep_diagnostics keep_diagnostics;
 
@@ -3475,7 +3455,6 @@ public:
 
   bool can_use_merged();
   bool can_not_use_merged();
-  bool only_view_structure();
   bool need_correct_ident();
   /*
     Is this update command where 'WHITH CHECK OPTION' clause is important

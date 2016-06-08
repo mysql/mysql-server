@@ -2633,12 +2633,6 @@ bool SELECT_LEX::add_item_to_list(THD *thd, Item *item)
 }
 
 
-void SELECT_LEX::add_group_to_list(ORDER *order)
-{
-  add_to_list(group_list, order);
-}
-
-
 bool SELECT_LEX::add_ftfunc_to_list(Item_func_match *func)
 {
   return !func || ftfunc_list->push_back(func); // end of memory?
@@ -3589,34 +3583,6 @@ bool LEX::can_not_use_merged()
 }
 
 /*
-  Detect that we need only table structure of derived table/view
-
-  SYNOPSIS
-    only_view_structure()
-
-  RETURN
-    TRUE yes, we need only structure
-    FALSE no, we need data
-*/
-
-bool LEX::only_view_structure()
-{
-  switch (sql_command) {
-  case SQLCOM_SHOW_CREATE:
-  case SQLCOM_SHOW_TABLES:
-  case SQLCOM_SHOW_FIELDS:
-  case SQLCOM_REVOKE_ALL:
-  case SQLCOM_REVOKE:
-  case SQLCOM_GRANT:
-  case SQLCOM_CREATE_VIEW:
-    return TRUE;
-  default:
-    return FALSE;
-  }
-}
-
-
-/*
   Should Items_ident be printed correctly
 
   SYNOPSIS
@@ -3728,32 +3694,6 @@ void SELECT_LEX_UNIT::include_down(LEX *lex, SELECT_LEX *outer)
   master= outer;
 
   renumber_selects(lex);
-}
-
-
-/**
-  Include a complete chain of query expressions below a query block.
-
-  @param lex:   Containing LEX object
-  @param outer: The query block that the chain is included below.
-
-  @note
-    "this" is pointer to the first query expression in the chain.
-*/
-void SELECT_LEX_UNIT::include_chain(LEX *lex, SELECT_LEX *outer)
-{
-  SELECT_LEX_UNIT *last_unit= this; // Initialization needed for gcc
-  for (SELECT_LEX_UNIT *unit= this; unit != NULL; unit= unit->next)
-  {
-    unit->master= outer; // Link to the outer query block
-    unit->renumber_selects(lex);
-    last_unit= unit;
-  }
-
-  if ((last_unit->next= outer->slave))
-    last_unit->next->prev= &last_unit->next;
-  prev= &outer->slave;
-  outer->slave= this;
 }
 
 

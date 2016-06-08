@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -166,7 +166,6 @@ private:
   void invalidate_table(THD *thd, TABLE_LIST *table);
   void invalidate_table(THD *thd, TABLE *table);
   void invalidate_table(THD *thd, const uchar *key, size_t key_length);
-  void invalidate_table(THD *thd, Query_cache_block *table_block);
   void invalidate_query_block_list(Query_cache_block_table *list_root);
 
   TABLE_COUNTER_TYPE

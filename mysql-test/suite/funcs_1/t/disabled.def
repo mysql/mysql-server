@@ -9,10 +9,10 @@
 #  Don't use any TAB characters for whitespace.
 #
 ##############################################################################
-is_key_column_usage_embedded : Bug#37456 funcs_1: Several tests crash when used with embedded server
-is_tables_embedded : Bug#37456 funcs_1: Several tests crash when used with embedded server
-is_triggers_embedded : Bug#37456 funcs_1: Several tests crash when used with embedded server
-is_routines_embedded : Bug#37456 funcs_1: Several tests crash when used with embedded server
-is_schemata_embedded : Bug#37456 funcs_1: Several tests crash when used with embedded server
-is_views_embedded : Bug#37456 funcs_1: Several tests crash when used with embedded server
-is_key_column_usage_embedded : Bug#37456 funcs_1: Several tests crash when used with embedded server
+is_key_column_usage_embedded : Bug#11748823 : 2016-06-07 : Mohit :  Test crashes when used with embedded server
+is_tables_embedded : Bug#11748823 : 2016-06-07 : Mohit : Test crashes when used with embedded server
+is_triggers_embedded : Bug#11748823 : 2016-06-07 : Mohit : Test crashes when used with embedded server
+is_routines_embedded : Bug#11748823 : 2016-06-07 : Mohit : Test crashes when used with embedded server
+is_schemata_embedded : Bug#11748823 : 2016-06-07 : Mohit : Test crashes when used with embedded server
+is_views_embedded : Bug#11748823 : 2016-06-07 : Mohit : Test crashes when used with embedded server
+is_key_column_usage_embedded : Bug#11748823 : 2016-06-07 : Mohit : Test crashes when used with embedded server

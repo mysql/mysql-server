@@ -215,13 +215,18 @@ public:
   void length(size_t len) { m_length= len; }
   bool is_empty() const { return (m_length == 0); }
   void mark_as_const() { m_alloced_length= 0;}
+  /* Returns a pointer to data, may not include NULL terminating character. */
   const char *ptr() const { return m_ptr; }
   char *c_ptr()
   {
     DBUG_ASSERT(!m_is_alloced || !m_ptr || !m_alloced_length ||
                 (m_alloced_length >= (m_length + 1)));
 
-    if (!m_ptr || m_ptr[m_length])		/* Should be safe */
+    /*
+      Should be safe, but in case valgrind complains on this line, it means
+      there is a misuse of c_ptr(). Please prefer <ptr(), length()> instead.
+    */
+    if (!m_ptr || m_ptr[m_length])
       (void) mem_realloc(m_length);
     return m_ptr;
   }
