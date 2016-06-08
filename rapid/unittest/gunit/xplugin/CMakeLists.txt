@@ -64,6 +64,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
   ${PROJECT_SOURCE_DIR}/sql
   ${PROJECT_SOURCE_DIR}/include/mysql
+  ${ZLIB_INCLUDE_DIR}
 )
 
 FILE(
