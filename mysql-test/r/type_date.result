@@ -442,6 +442,7 @@ select 1 from t1 as t1_0 inner join t1 as t2 on (t1_0.a <=> now()) join t1 on 1;
 drop table t1;
 #
 # MDEV-9521 Least function returns 0000-00-00 for null date columns instead of null
+# MDEV-9972 Least function retuns date in date time format
 #
 CREATE TABLE t1 (
 id BIGINT NOT NULL,
@@ -465,9 +466,9 @@ LEAST(IFNULL(t2.date_fin, IFNULL(t1.date_fin, NULL)),
 IFNULL(t1.date_fin, IFNULL(t2.date_fin, NULL))) AS date_fin
 FROM t1 LEFT JOIN t2 ON (t1.id=t2.id);
 id	date_debut	date_fin
-1	2016-01-01	2016-01-31 00:00:00
-2	2016-02-01	2016-01-28 00:00:00
-3	2016-03-01	2016-03-31 00:00:00
+1	2016-01-01	2016-01-31
+2	2016-02-01	2016-01-28
+3	2016-03-01	2016-03-31
 4	2016-04-01	NULL
 DROP TABLE t1,t2;
 SELECT

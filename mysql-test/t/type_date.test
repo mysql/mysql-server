@@ -388,6 +388,7 @@ drop table t1;
 
 --echo #
 --echo # MDEV-9521 Least function returns 0000-00-00 for null date columns instead of null
+--echo # MDEV-9972 Least function retuns date in date time format
 --echo #
 CREATE TABLE t1 (
   id BIGINT NOT NULL,

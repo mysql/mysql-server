@@ -2939,12 +2939,13 @@ bool Item_func_min_max::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
   }
   unpack_time(min_max, ltime);
 
-  if (compare_as_dates->field_type() == MYSQL_TYPE_DATE)
+  enum_field_types ftype= compare_as_dates->field_type();
+  if (ftype == MYSQL_TYPE_DATE || ftype == MYSQL_TYPE_NEWDATE)
   {
     ltime->time_type= MYSQL_TIMESTAMP_DATE;
     ltime->hour= ltime->minute= ltime->second= ltime->second_part= 0;
   }
-  else if (compare_as_dates->field_type() == MYSQL_TYPE_TIME)
+  else if (ftype == MYSQL_TYPE_TIME)
   {
     ltime->time_type= MYSQL_TIMESTAMP_TIME;
     ltime->hour+= (ltime->month * 32 + ltime->day) * 24;
