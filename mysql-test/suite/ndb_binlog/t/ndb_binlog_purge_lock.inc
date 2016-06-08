@@ -123,6 +123,13 @@ if (!$result)
   select @file2;
   --connection con1
   select * from my_ndb_binlog_index;
+  --echo Master log file $master_log_file
+  --echo Master log file2 $master_log_file2
+  SHOW BINARY LOGS;
+  --echo If Binary log entry exists following
+  --echo should succeed, else fail
+  --eval PURGE BINARY LOGS TO '$master_log_file2'
+  select * from mysql.ndb_binlog_index;
 }
 # /Debugging windows failures...
 
