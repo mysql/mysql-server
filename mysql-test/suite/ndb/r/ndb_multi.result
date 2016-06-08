@@ -342,3 +342,16 @@ drop database db;
 # Check that the pariticipant has dropped the DATABASE
 use db;
 ERROR 42000: Unknown database 'db'
+CREATE DATABASE tmp_db;
+Let server2 create the table tmp_db.t1 in the background.
+CREATE TABLE tmp_db.t1 (k int primary key) ENGINE NDB;
+Attempt to recreate 'tmp_db', expect 'EXISTS' failure - Not MDL deadlocks
+CREATE DATABASE IF NOT EXISTS tmp_db;
+Warnings:
+Note	1007	Can't create database 'tmp_db'; database exists
+Wait for server2 table creation to complete.
+Select count(*) from tmp_db.t1;
+count(*)
+0
+DROP TABLE tmp_db.t1;
+DROP DATABASE tmp_db;
