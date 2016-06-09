@@ -191,7 +191,7 @@ my_bool net_realloc(NET *net, size_t length)
 */
 
 void net_clear(NET *net,
-               my_bool check_buffer __attribute__((unused)))
+               my_bool check_buffer MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("net_clear");
 
@@ -238,7 +238,7 @@ my_bool net_flush(NET *net)
 */
 
 static my_bool
-net_should_retry(NET *net, uint *retry_count __attribute__((unused)))
+net_should_retry(NET *net, uint *retry_count MY_ATTRIBUTE((unused)))
 {
   my_bool retry;
 
@@ -1047,6 +1047,20 @@ void my_net_set_write_timeout(NET *net, uint timeout)
   DBUG_VOID_RETURN;
 }
 
+#if defined(EXPORT_SYMVER16)
+#ifndef EMBEDDED_LIBRARY
+C_MODE_START
+
+// Hack to provide Fedora symbols
+
+my_bool mysql_net_realloc(NET *net, size_t length)
+{
+  return net_realloc(net, length);
+}
+
+C_MODE_END
+#endif
+#endif  // EXPORT_SYMVER16
 
 #ifndef MCP_BUG22389653
 void my_net_set_retry_count(NET *net, uint retry_count)
@@ -1059,3 +1073,4 @@ void my_net_set_retry_count(NET *net, uint retry_count)
   DBUG_VOID_RETURN;
 }
 #endif
+

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -77,7 +77,8 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    cur_log_fd(-1), relay_log(&sync_relaylog_period),
    is_relay_log_recovery(is_slave_recovery),
    save_temporary_tables(0),
-   cur_log_old_open_count(0), group_relay_log_pos(0), event_relay_log_pos(0),
+   cur_log_old_open_count(0), error_on_rli_init_info(false),
+   group_relay_log_pos(0), event_relay_log_pos(0),
    group_master_log_pos(0),
    gtid_set(global_sid_map, global_sid_lock),
    log_space_total(0), ignore_log_space_limit(0),
@@ -100,7 +101,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    mts_group_status(MTS_NOT_IN_GROUP), reported_unsafe_warning(false),
    rli_description_event(NULL),
    sql_delay(0), sql_delay_end(0), m_flags(0), row_stmt_start_timestamp(0),
-   long_find_row_note_printed(false), error_on_rli_init_info(false)
+   long_find_row_note_printed(false)
 {
   DBUG_ENTER("Relay_log_info::Relay_log_info");
 
@@ -1343,9 +1344,7 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
     break;
 
   case UNTIL_SQL_AFTER_MTS_GAPS:
-#ifndef DBUG_OFF
   case UNTIL_DONE:
-#endif
     /*
       TODO: this condition is actually post-execution or post-scheduling
             so the proper place to check it before SQL thread goes
@@ -1360,9 +1359,7 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
                             "UNTIL SQL_AFTER_MTS_GAPS as it has "
                             "processed all gap transactions left from "
                             "the previous slave session.");
-#ifndef DBUG_OFF
       until_condition= UNTIL_DONE;
-#endif
       DBUG_RETURN(true);
     }
     else
@@ -1920,7 +1917,11 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
     goto err;
   }
 
-  is_relay_log_recovery= FALSE;
+  /*
+    In case of MTS the recovery is deferred until the end of global_init_info.
+  */
+  if (!mi->rli->mts_recovery_group_cnt)
+    is_relay_log_recovery= FALSE;
   DBUG_RETURN(error);
 
 err:

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1243,7 +1243,7 @@ bool event_checksum_test(uchar *event_buf, ulong event_len, uint8 alg)
 static uchar*
 hash_slave_rows_get_key(const uchar *record,
                         size_t *length,
-                        my_bool not_used __attribute__((unused)))
+                        my_bool not_used MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("get_key");
 

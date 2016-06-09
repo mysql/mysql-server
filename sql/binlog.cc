@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -8585,7 +8585,7 @@ template <class RowsEventT> Rows_log_event*
 THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
                                        size_t needed,
                                        bool is_transactional,
-				       RowsEventT *hint __attribute__((unused)),
+				       RowsEventT *hint MY_ATTRIBUTE((unused)),
                                        const uchar* extra_row_info)
 {
   DBUG_ENTER("binlog_prepare_pending_rows_event");

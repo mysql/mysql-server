@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -67,7 +67,8 @@ dtuple_coll_cmp(
 	ulint	n_fields;
 	ulint	i;
 
-	ut_ad(tuple1 && tuple2);
+	ut_ad(tuple1 != NULL);
+	ut_ad(tuple2 != NULL);
 	ut_ad(tuple1->magic_n == DATA_TUPLE_MAGIC_N);
 	ut_ad(tuple2->magic_n == DATA_TUPLE_MAGIC_N);
 	ut_ad(dtuple_check_typed(tuple1));
@@ -715,7 +716,7 @@ UNIV_INTERN
 void
 dtuple_convert_back_big_rec(
 /*========================*/
-	dict_index_t*	index __attribute__((unused)),	/*!< in: index */
+	dict_index_t*	index MY_ATTRIBUTE((unused)),	/*!< in: index */
 	dtuple_t*	entry,	/*!< in: entry whose data was put to vector */
 	big_rec_t*	vector)	/*!< in, own: big rec vector; it is
 				freed in this function */

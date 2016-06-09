@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,25 +34,25 @@
 using std::min;
 using std::max;
 
-int sortcmp2(void* cmp_arg __attribute__((unused)),
+int sortcmp2(void* cmp_arg MY_ATTRIBUTE((unused)),
 	     const String *a,const String *b)
 {
   return sortcmp(a,b,a->charset());
 }
 
-int compare_double2(void* cmp_arg __attribute__((unused)),
+int compare_double2(void* cmp_arg MY_ATTRIBUTE((unused)),
 		    const double *s, const double *t)
 {
   return compare_double(s,t);
 }
 
-int compare_longlong2(void* cmp_arg __attribute__((unused)),
+int compare_longlong2(void* cmp_arg MY_ATTRIBUTE((unused)),
 		      const longlong *s, const longlong *t)
 {
   return compare_longlong(s,t);
 }
 
-int compare_ulonglong2(void* cmp_arg __attribute__((unused)),
+int compare_ulonglong2(void* cmp_arg MY_ATTRIBUTE((unused)),
 		       const ulonglong *s, const ulonglong *t)
 {
   return compare_ulonglong(s,t);
@@ -835,7 +835,7 @@ void field_str::get_opt_type(String *answer, ha_rows total_rows)
 
 
 void field_real::get_opt_type(String *answer,
-			      ha_rows total_rows __attribute__((unused)))
+			      ha_rows total_rows MY_ATTRIBUTE((unused)))
 {
   char buff[MAX_FIELD_WIDTH];
 
@@ -888,7 +888,7 @@ void field_real::get_opt_type(String *answer,
 
 
 void field_longlong::get_opt_type(String *answer,
-				  ha_rows total_rows __attribute__((unused)))
+				  ha_rows total_rows MY_ATTRIBUTE((unused)))
 {
   char buff[MAX_FIELD_WIDTH];
 
@@ -919,7 +919,7 @@ void field_longlong::get_opt_type(String *answer,
 
 
 void field_ulonglong::get_opt_type(String *answer,
-				   ha_rows total_rows __attribute__((unused)))
+				   ha_rows total_rows MY_ATTRIBUTE((unused)))
 {
   char buff[MAX_FIELD_WIDTH];
 
@@ -944,7 +944,7 @@ void field_ulonglong::get_opt_type(String *answer,
 
 
 void field_decimal::get_opt_type(String *answer,
-                                 ha_rows total_rows __attribute__((unused)))
+                                 ha_rows total_rows MY_ATTRIBUTE((unused)))
 {
   my_decimal zero;
   char buff[MAX_FIELD_WIDTH];
@@ -1022,7 +1022,7 @@ String *field_decimal::std(String *s, ha_rows rows)
 
 
 int collect_string(String *element,
-		   element_count count __attribute__((unused)),
+		   element_count count MY_ATTRIBUTE((unused)),
 		   TREE_INFO *info)
 {
   if (info->found)
@@ -1037,7 +1037,7 @@ int collect_string(String *element,
 } // collect_string
 
 
-int collect_real(double *element, element_count count __attribute__((unused)),
+int collect_real(double *element, element_count count MY_ATTRIBUTE((unused)),
 		 TREE_INFO *info)
 {
   char buff[MAX_FIELD_WIDTH];
@@ -1078,7 +1078,7 @@ int collect_decimal(uchar *element, element_count count,
 
 
 int collect_longlong(longlong *element,
-		     element_count count __attribute__((unused)),
+		     element_count count MY_ATTRIBUTE((unused)),
 		     TREE_INFO *info)
 {
   char buff[MAX_FIELD_WIDTH];
@@ -1097,7 +1097,7 @@ int collect_longlong(longlong *element,
 
 
 int collect_ulonglong(ulonglong *element,
-		      element_count count __attribute__((unused)),
+		      element_count count MY_ATTRIBUTE((unused)),
 		      TREE_INFO *info)
 {
   char buff[MAX_FIELD_WIDTH];

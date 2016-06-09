@@ -295,7 +295,7 @@ static int yy_start = 0;	/* start state number */
 static int yy_did_buffer_switch_on_eof;
 
 void yyrestart (FILE *input_file  );
-__attribute__((unused)) static void yy_switch_to_buffer (YY_BUFFER_STATE new_buffer  );
+MY_ATTRIBUTE((unused)) static void yy_switch_to_buffer (YY_BUFFER_STATE new_buffer  );
 static YY_BUFFER_STATE yy_create_buffer (FILE *file,int size  );
 void yy_delete_buffer (YY_BUFFER_STATE b  );
 void yy_flush_buffer (YY_BUFFER_STATE b  );
@@ -916,7 +916,7 @@ char *yytext;
 #line 1 "pars0lex.l"
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1027,7 +1027,7 @@ static int yy_init_globals (void );
 /* Accessor methods to globals.
    These are made visible to non-reentrant scanners for convenience. */
 
-__attribute__((unused)) static int yylex_destroy (void );
+MY_ATTRIBUTE((unused)) static int yylex_destroy (void );
 
 int yyget_debug (void );
 
@@ -2664,7 +2664,7 @@ static int yy_get_next_buffer (void)
  * @param new_buffer The new input buffer.
  *
  */
-    __attribute__((unused)) static void yy_switch_to_buffer  (YY_BUFFER_STATE  new_buffer )
+    MY_ATTRIBUTE((unused)) static void yy_switch_to_buffer  (YY_BUFFER_STATE  new_buffer )
 {
 
 	/* TODO. We should be able to replace this entire function body
@@ -3042,7 +3042,7 @@ static int yy_init_globals (void)
 }
 
 /* yylex_destroy is for both reentrant and non-reentrant scanners. */
-__attribute__((unused)) static int yylex_destroy  (void)
+MY_ATTRIBUTE((unused)) static int yylex_destroy  (void)
 {
 
     /* Pop the buffer stack, destroying each element. */

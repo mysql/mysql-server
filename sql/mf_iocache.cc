@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ extern "C" {
 
 
 int _my_b_net_read(register IO_CACHE *info, uchar *Buffer,
-		   size_t Count __attribute__((unused)))
+		   size_t Count MY_ATTRIBUTE((unused)))
 {
   ulong read_length;
   NET *net= &(current_thd)->net;

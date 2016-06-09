@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 
 C_MODE_START
 
-#define NNN __attribute__((unused))
+#define NNN MY_ATTRIBUTE((unused))
 
 static void register_mutex_noop(const char *category NNN,
                                 PSI_mutex_info *info NNN,
@@ -637,9 +637,9 @@ digest_end_noop(PSI_digest_locker *locker NNN,
 }
 
 static int
-set_thread_connect_attrs_noop(const char *buffer __attribute__((unused)),
-                             uint length  __attribute__((unused)),
-                             const void *from_cs __attribute__((unused)))
+set_thread_connect_attrs_noop(const char *buffer MY_ATTRIBUTE((unused)),
+                             uint length  MY_ATTRIBUTE((unused)),
+                             const void *from_cs MY_ATTRIBUTE((unused)))
 {
   return 0;
 }

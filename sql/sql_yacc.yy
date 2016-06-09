@@ -113,18 +113,18 @@ int yylex(void *yylval, void *yythd);
 <pre>
   yyerrlab1:
   #if defined (__GNUC_MINOR__) && 2093 <= (__GNUC__ * 1000 + __GNUC_MINOR__)
-    __attribute__ ((__unused__))
+    MY_ATTRIBUTE ((__unused__))
   #endif
 </pre>
-  This usage of __attribute__ is illegal, so we remove it.
+  This usage of MY_ATTRIBUTE is illegal, so we remove it.
   See the following references for details:
   http://lists.gnu.org/archive/html/bug-bison/2004-02/msg00014.html
   http://gcc.gnu.org/bugzilla/show_bug.cgi?id=14273
 */
 
 #if defined (__GNUC_MINOR__) && 2093 <= (__GNUC__ * 1000 + __GNUC_MINOR__)
-#undef __attribute__
-#define __attribute__(X)
+#undef MY_ATTRIBUTE
+#define MY_ATTRIBUTE(X)
 #endif
 
 

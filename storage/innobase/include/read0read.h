@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -82,7 +82,7 @@ read_view_sees_trx_id(
 /*==================*/
 	const read_view_t*	view,	/*!< in: read view */
 	trx_id_t		trx_id)	/*!< in: trx id */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 /*********************************************************************//**
 Prints a read view to stderr. */
 UNIV_INTERN

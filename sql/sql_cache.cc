@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, 2015, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -729,7 +729,7 @@ inline Query_cache_block_table * Query_cache_block::table(TABLE_COUNTER_TYPE n)
 extern "C"
 {
 uchar *query_cache_table_get_key(const uchar *record, size_t *length,
-				my_bool not_used __attribute__((unused)))
+				my_bool not_used MY_ATTRIBUTE((unused)))
 {
   Query_cache_block* table_block = (Query_cache_block*) record;
   *length = (table_block->used - table_block->headers_len() -

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -509,7 +509,7 @@ UNIV_INTERN
 void
 srv_normalize_path_for_win(
 /*=======================*/
-	char*	str __attribute__((unused)))	/*!< in/out: null-terminated
+	char*	str MY_ATTRIBUTE((unused)))	/*!< in/out: null-terminated
 						character string */
 {
 #ifdef __WIN__
@@ -526,7 +526,7 @@ srv_normalize_path_for_win(
 /*********************************************************************//**
 Creates a log file.
 @return	DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 create_log_file(
 /*============*/
@@ -733,7 +733,7 @@ create_log_files_rename(
 /*********************************************************************//**
 Opens a log file.
 @return	DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 open_log_file(
 /*==========*/
@@ -761,7 +761,7 @@ open_log_file(
 /*********************************************************************//**
 Creates or opens database data files and closes them.
 @return	DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 open_or_create_data_files(
 /*======================*/

@@ -2,7 +2,7 @@
  * Copyright (c)  2000
  * SWsoft  company
  *
- * Modifications copyright (c) 2001, 2015. Oracle and/or its affiliates.
+ * Modifications copyright (c) 2001, 2016. Oracle and/or its affiliates.
  * All rights reserved.
  *
  * This material is provided "as is", with absolutely no warranty expressed
@@ -213,8 +213,8 @@ static void emb_flush_use_result(MYSQL *mysql, my_bool)
 */
 
 static MYSQL_DATA *
-emb_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields __attribute__((unused)),
-	      unsigned int fields __attribute__((unused)))
+emb_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields MY_ATTRIBUTE((unused)),
+	      unsigned int fields MY_ATTRIBUTE((unused)))
 {
   MYSQL_DATA *result= ((THD*)mysql->thd)->cur_data;
   ((THD*)mysql->thd)->cur_data= 0;
@@ -1426,7 +1426,7 @@ bool Protocol::net_store_data(const uchar *from, size_t length)
 #define vsnprintf _vsnprintf
 #endif
 
-int vprint_msg_to_log(enum loglevel level __attribute__((unused)),
+int vprint_msg_to_log(enum loglevel level MY_ATTRIBUTE((unused)),
                        const char *format, va_list argsi)
 {
   my_vsnprintf(mysql_server_last_error, sizeof(mysql_server_last_error),

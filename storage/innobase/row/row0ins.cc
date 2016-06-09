@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -224,7 +224,7 @@ Does an insert operation by updating a delete-marked existing record
 in the index. This situation can occur if the delete-marked record is
 kept in the index for consistent reads.
 @return	DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_ins_sec_index_entry_by_modify(
 /*==============================*/
@@ -319,7 +319,7 @@ Does an insert operation by delete unmarking and updating a delete marked
 existing record in the index. This situation can occur if the delete marked
 record is kept in the index for consistent reads.
 @return	DB_SUCCESS, DB_FAIL, or error code */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_ins_clust_index_entry_by_modify(
 /*================================*/
@@ -427,7 +427,7 @@ row_ins_cascade_ancestor_updates_table(
 Returns the number of ancestor UPDATE or DELETE nodes of a
 cascaded update/delete node.
 @return	number of ancestors */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 ulint
 row_ins_cascade_n_ancestors(
 /*========================*/
@@ -453,7 +453,7 @@ a cascaded update.
 can also be 0 if no foreign key fields changed; the returned value is
 ULINT_UNDEFINED if the column type in the child table is too short to
 fit the new value in the parent table: that means the update fails */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 ulint
 row_ins_cascade_calc_update_vec(
 /*============================*/
@@ -926,7 +926,7 @@ Perform referential actions or checks when a parent row is deleted or updated
 and the constraint had an ON DELETE or ON UPDATE condition which was not
 RESTRICT.
 @return	DB_SUCCESS, DB_LOCK_WAIT, or error code */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_ins_foreign_check_on_constraint(
 /*================================*/
@@ -1747,7 +1747,7 @@ Otherwise does searches to the indexes of referenced tables and
 sets shared locks which lock either the success or the failure of
 a constraint.
 @return	DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_ins_check_foreign_constraints(
 /*==============================*/
@@ -1888,7 +1888,7 @@ Scans a unique non-clustered index at a given index entry to determine
 whether a uniqueness violation has occurred for the key value of the entry.
 Set shared locks on possible duplicate records.
 @return	DB_SUCCESS, DB_DUPLICATE_KEY, or DB_LOCK_WAIT */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_ins_scan_sec_index_for_duplicate(
 /*=================================*/
@@ -2030,7 +2030,7 @@ end_scan:
 @retval DB_SUCCESS_LOCKED_REC	when rec is an exact match of entry or
 a newer version of entry (the entry should not be inserted)
 @retval DB_DUPLICATE_KEY	when entry is a duplicate of rec */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_ins_duplicate_online(
 /*=====================*/
@@ -2071,7 +2071,7 @@ row_ins_duplicate_online(
 @retval DB_SUCCESS_LOCKED_REC	when rec is an exact match of entry or
 a newer version of entry (the entry should not be inserted)
 @retval DB_DUPLICATE_KEY	when entry is a duplicate of rec */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_ins_duplicate_error_in_clust_online(
 /*====================================*/
@@ -2114,7 +2114,7 @@ for a clustered index!
 record
 @retval DB_SUCCESS_LOCKED_REC if an exact match of the record was found
 in online table rebuild (flags & (BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG)) */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_ins_duplicate_error_in_clust(
 /*=============================*/
@@ -2532,7 +2532,7 @@ func_exit:
 /***************************************************************//**
 Starts a mini-transaction and checks if the index will be dropped.
 @return true if the index is to be dropped */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 bool
 row_ins_sec_mtr_start_and_check_if_aborted(
 /*=======================================*/
@@ -2973,7 +2973,7 @@ row_ins_index_entry(
 /***********************************************************//**
 Sets the values of the dtuple fields in entry from the values of appropriate
 columns in row. */
-static __attribute__((nonnull))
+static MY_ATTRIBUTE((nonnull))
 void
 row_ins_index_entry_set_vals(
 /*=========================*/
@@ -3026,7 +3026,7 @@ row_ins_index_entry_set_vals(
 Inserts a single index entry to the table.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_ins_index_entry_step(
 /*=====================*/
@@ -3149,7 +3149,7 @@ row_ins_get_row_from_select(
 Inserts a row to a table.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_ins(
 /*====*/

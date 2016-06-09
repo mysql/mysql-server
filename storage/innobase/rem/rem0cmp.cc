@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -75,7 +75,7 @@ cmp_debug_dtuple_rec_with_match(
 				completely  matched fields; when function
 				returns, contains the value for current
 				comparison */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 #endif /* UNIV_DEBUG */
 /*************************************************************//**
 This function is used to compare two data fields for which the data type
@@ -659,7 +659,10 @@ cmp_dtuple_rec_with_match_low(
 					in current field */
 	int		ret;		/* return value */
 
-	ut_ad(dtuple && rec && matched_fields && matched_bytes);
+	ut_ad(dtuple != NULL);
+	ut_ad(rec != NULL);
+	ut_ad(matched_fields != NULL);
+	ut_ad(matched_bytes != NULL);
 	ut_ad(dtuple_check_typed(dtuple));
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 
@@ -920,7 +923,7 @@ Compare two physical record fields.
 @retval 1 if rec1 field is greater than rec2
 @retval -1 if rec1 field is less than rec2
 @retval 0 if rec1 field equals to rec2 */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 int
 cmp_rec_rec_simple_field(
 /*=====================*/
@@ -1139,7 +1142,9 @@ cmp_rec_rec_with_match(
 	int		ret = 0;	/* return value */
 	ulint		comp;
 
-	ut_ad(rec1 && rec2 && index);
+	ut_ad(rec1 != NULL);
+	ut_ad(rec2 != NULL);
+	ut_ad(index != NULL);
 	ut_ad(rec_offs_validate(rec1, index, offsets1));
 	ut_ad(rec_offs_validate(rec2, index, offsets2));
 	ut_ad(rec_offs_comp(offsets1) == rec_offs_comp(offsets2));
@@ -1375,7 +1380,9 @@ cmp_debug_dtuple_rec_with_match(
 	int		ret;		/* return value */
 	ulint		cur_field;	/* current field number */
 
-	ut_ad(dtuple && rec && matched_fields);
+	ut_ad(dtuple != NULL);
+	ut_ad(rec != NULL);
+	ut_ad(matched_fields != NULL);
 	ut_ad(dtuple_check_typed(dtuple));
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 

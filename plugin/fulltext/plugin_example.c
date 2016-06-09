@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,9 +17,7 @@
 #include <ctype.h>
 #include <mysql/plugin.h>
 
-#if !defined(__attribute__) && (defined(__cplusplus) || !defined(__GNUC__)  || __GNUC__ == 2 && __GNUC_MINOR__ < 8)
-#define __attribute__(A)
-#endif
+#include "my_attribute.h"
 
 static long number_of_calls= 0; /* for SHOW STATUS, see below */
 
@@ -62,7 +60,7 @@ static long number_of_calls= 0; /* for SHOW STATUS, see below */
     1                    failure (cannot happen)
 */
 
-static int simple_parser_plugin_init(void *arg __attribute__((unused)))
+static int simple_parser_plugin_init(void *arg MY_ATTRIBUTE((unused)))
 {
   return(0);
 }
@@ -81,7 +79,7 @@ static int simple_parser_plugin_init(void *arg __attribute__((unused)))
 
 */
 
-static int simple_parser_plugin_deinit(void *arg __attribute__((unused)))
+static int simple_parser_plugin_deinit(void *arg MY_ATTRIBUTE((unused)))
 {
   return(0);
 }
@@ -102,7 +100,7 @@ static int simple_parser_plugin_deinit(void *arg __attribute__((unused)))
 */
 
 static int simple_parser_init(MYSQL_FTPARSER_PARAM *param
-                              __attribute__((unused)))
+                              MY_ATTRIBUTE((unused)))
 {
   return(0);
 }
@@ -123,7 +121,7 @@ static int simple_parser_init(MYSQL_FTPARSER_PARAM *param
 */
 
 static int simple_parser_deinit(MYSQL_FTPARSER_PARAM *param
-                                __attribute__((unused)))
+                                MY_ATTRIBUTE((unused)))
 {
   return(0);
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -357,8 +357,8 @@ static int add_collation(CHARSET_INFO *cs)
   Be silent by default: no warnings on the client side.
 */
 static void
-default_reporter(enum loglevel level  __attribute__ ((unused)),
-                 const char *format  __attribute__ ((unused)),
+default_reporter(enum loglevel level  MY_ATTRIBUTE ((unused)),
+                 const char *format  MY_ATTRIBUTE ((unused)),
                  ...)
 {
 }
@@ -1040,3 +1040,22 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
   *to= 0;
   return overflow ? (ulong)~0 : (ulong) (to - to_start);
 }
+
+#if defined(EXPORT_SYMVER16)
+#ifndef EMBEDDED_LIBRARY
+
+// Hack to provide Fedora symbols
+
+CHARSET_INFO *mysql_get_charset(uint cs_number, myf flags)
+{
+  return get_charset(cs_number, flags);
+}
+
+
+CHARSET_INFO * mysql_get_charset_by_csname(const char *cs_name, uint cs_flags, myf flags)
+{
+  return get_charset_by_csname(cs_name, cs_flags, flags);
+}
+
+#endif
+#endif  /* EXPORT_SYMVER16 */

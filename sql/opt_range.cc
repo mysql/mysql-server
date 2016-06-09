@@ -13030,9 +13030,16 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void)
   }
   if (quick_prefix_select && quick_prefix_select->reset())
     DBUG_RETURN(1);
+
   result= head->file->ha_index_last(record);
-  if (result == HA_ERR_END_OF_FILE)
-    DBUG_RETURN(0);
+  if (result != 0)
+  {
+    if (result == HA_ERR_END_OF_FILE)
+      DBUG_RETURN(0);
+    else
+      DBUG_RETURN(result);
+  }
+
   /* Save the prefix of the last group. */
   key_copy(last_prefix, record, index_info, group_prefix_len);
 

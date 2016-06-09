@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -86,7 +86,7 @@ static void merge_server_struct(FOREIGN_SERVER *from, FOREIGN_SERVER *to);
 
 
 static uchar *servers_cache_get_key(FOREIGN_SERVER *server, size_t *length,
-			       my_bool not_used __attribute__((unused)))
+			       my_bool not_used MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("servers_cache_get_key");
   DBUG_PRINT("info", ("server_name_length %d server_name %s",

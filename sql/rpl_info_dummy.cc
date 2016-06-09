@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@ Rpl_info_dummy::Rpl_info_dummy(const int nparam)
 {
 }
 
-int Rpl_info_dummy::do_init_info(uint instance __attribute__((unused)))
+int Rpl_info_dummy::do_init_info(uint instance MY_ATTRIBUTE((unused)))
 {
   return 0;
 }
@@ -51,13 +51,13 @@ enum_return_check Rpl_info_dummy::do_check_info()
   return REPOSITORY_DOES_NOT_EXIST;
 }
 
-enum_return_check Rpl_info_dummy::do_check_info(uint instance __attribute__((unused)))
+enum_return_check Rpl_info_dummy::do_check_info(uint instance MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(!abort);
   return REPOSITORY_DOES_NOT_EXIST;
 }
 
-int Rpl_info_dummy::do_flush_info(const bool force __attribute__((unused)))
+int Rpl_info_dummy::do_flush_info(const bool force MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(!abort);
   return 0;
@@ -85,105 +85,105 @@ uint Rpl_info_dummy::do_get_rpl_info_type()
   return INFO_REPOSITORY_DUMMY;
 }
 
-bool Rpl_info_dummy::do_set_info(const int pos __attribute__((unused)),
-                                const char *value __attribute__((unused)))
+bool Rpl_info_dummy::do_set_info(const int pos MY_ATTRIBUTE((unused)),
+                                const char *value MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(!abort);
 
   return FALSE;
 }
 
-bool Rpl_info_dummy::do_set_info(const int pos __attribute__((unused)),
-                                const uchar *value __attribute__((unused)),
-                                const size_t size __attribute__((unused)))
+bool Rpl_info_dummy::do_set_info(const int pos MY_ATTRIBUTE((unused)),
+                                const uchar *value MY_ATTRIBUTE((unused)),
+                                const size_t size MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(!abort);
 
   return FALSE;
 }
 
-bool Rpl_info_dummy::do_set_info(const int pos __attribute__((unused)),
-                                const ulong value __attribute__((unused)))
+bool Rpl_info_dummy::do_set_info(const int pos MY_ATTRIBUTE((unused)),
+                                const ulong value MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(!abort);
 
   return FALSE;
 }
 
-bool Rpl_info_dummy::do_set_info(const int pos __attribute__((unused)),
-                                const int value __attribute__((unused)))
+bool Rpl_info_dummy::do_set_info(const int pos MY_ATTRIBUTE((unused)),
+                                const int value MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(!abort);
 
   return FALSE;
 }
 
-bool Rpl_info_dummy::do_set_info(const int pos __attribute__((unused)),
-                                const float value __attribute__((unused)))
+bool Rpl_info_dummy::do_set_info(const int pos MY_ATTRIBUTE((unused)),
+                                const float value MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(!abort);
 
   return FALSE;
 }
 
-bool Rpl_info_dummy::do_set_info(const int pos __attribute__((unused)),
-                                const Dynamic_ids *value __attribute__((unused)))
+bool Rpl_info_dummy::do_set_info(const int pos MY_ATTRIBUTE((unused)),
+                                const Dynamic_ids *value MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(!abort);
 
   return FALSE;
 }
 
-bool Rpl_info_dummy::do_get_info(const int pos __attribute__((unused)),
-                                char *value __attribute__((unused)),
-                                const size_t size __attribute__((unused)),
-                                const char *default_value __attribute__((unused)))
+bool Rpl_info_dummy::do_get_info(const int pos MY_ATTRIBUTE((unused)),
+                                char *value MY_ATTRIBUTE((unused)),
+                                const size_t size MY_ATTRIBUTE((unused)),
+                                const char *default_value MY_ATTRIBUTE((unused)))
 {
     DBUG_ASSERT(!abort);
 
   return FALSE;
 }
 
-bool Rpl_info_dummy::do_get_info(const int pos __attribute__((unused)),
-                                uchar *value __attribute__((unused)),
-                                const size_t size __attribute__((unused)),
-                                const uchar *default_value __attribute__((unused)))
+bool Rpl_info_dummy::do_get_info(const int pos MY_ATTRIBUTE((unused)),
+                                uchar *value MY_ATTRIBUTE((unused)),
+                                const size_t size MY_ATTRIBUTE((unused)),
+                                const uchar *default_value MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(!abort);
 
   return FALSE;
 }
 
-bool Rpl_info_dummy::do_get_info(const int pos __attribute__((unused)),
-                                ulong *value __attribute__((unused)),
-                                const ulong default_value __attribute__((unused)))
+bool Rpl_info_dummy::do_get_info(const int pos MY_ATTRIBUTE((unused)),
+                                ulong *value MY_ATTRIBUTE((unused)),
+                                const ulong default_value MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(!abort);
 
   return FALSE;
 }
 
-bool Rpl_info_dummy::do_get_info(const int pos __attribute__((unused)),
-                                int *value __attribute__((unused)),
-                                const int default_value __attribute__((unused)))
+bool Rpl_info_dummy::do_get_info(const int pos MY_ATTRIBUTE((unused)),
+                                int *value MY_ATTRIBUTE((unused)),
+                                const int default_value MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(!abort);
 
   return FALSE;
 }
 
-bool Rpl_info_dummy::do_get_info(const int pos __attribute__((unused)),
-                                float *value __attribute__((unused)),
-                                const float default_value __attribute__((unused)))
+bool Rpl_info_dummy::do_get_info(const int pos MY_ATTRIBUTE((unused)),
+                                float *value MY_ATTRIBUTE((unused)),
+                                const float default_value MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(!abort);
 
   return FALSE;
 }
 
-bool Rpl_info_dummy::do_get_info(const int pos __attribute__((unused)),
-                                Dynamic_ids *value __attribute__((unused)),
-                                const Dynamic_ids *default_value __attribute__((unused)))
+bool Rpl_info_dummy::do_get_info(const int pos MY_ATTRIBUTE((unused)),
+                                Dynamic_ids *value MY_ATTRIBUTE((unused)),
+                                const Dynamic_ids *default_value MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(!abort);
 

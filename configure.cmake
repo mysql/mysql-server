@@ -67,17 +67,27 @@ SET(SIGNAL_WITH_VIO_SHUTDOWN 1)
 
 # The default C++ library for SunPro is really old, and not standards compliant.
 # http://www.oracle.com/technetwork/server-storage/solaris10/cmp-stlport-libcstd-142559.html
-# Use stlport rather than Rogue Wave.
+# Use stlport rather than Rogue Wave,
+#   unless otherwise specified on command line.
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
   IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
-    IF(SUNPRO_CXX_LIBRARY)
-      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -library=${SUNPRO_CXX_LIBRARY}")
-      IF(SUNPRO_CXX_LIBRARY STREQUAL "stdcxx4")
-        ADD_DEFINITIONS(-D__MATHERR_RENAME_EXCEPTION)
-        SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -template=extdef")
-      ENDIF()
+    IF(CMAKE_CXX_FLAGS MATCHES "-std=")
+      ADD_DEFINITIONS(-D__MATHERR_RENAME_EXCEPTION)
+      SET(CMAKE_SHARED_LIBRARY_C_FLAGS
+        "${CMAKE_SHARED_LIBRARY_C_FLAGS} -lc")
+      SET(CMAKE_SHARED_LIBRARY_CXX_FLAGS
+        "${CMAKE_SHARED_LIBRARY_CXX_FLAGS} -lstdc++ -lgcc_s -lCrunG3 -lc")
+      SET(QUOTED_CMAKE_CXX_LINK_FLAGS "-lstdc++ -lgcc_s -lCrunG3 -lc")
     ELSE()
-      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -library=stlport4")
+      IF(SUNPRO_CXX_LIBRARY)
+        SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -library=${SUNPRO_CXX_LIBRARY}")
+        IF(SUNPRO_CXX_LIBRARY STREQUAL "stdcxx4")
+          ADD_DEFINITIONS(-D__MATHERR_RENAME_EXCEPTION)
+          SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -template=extdef")
+        ENDIF()
+      ELSE()
+        SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -library=stlport4")
+      ENDIF()
     ENDIF()
   ENDIF()
 ENDIF()

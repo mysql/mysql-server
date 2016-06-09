@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1902,7 +1902,7 @@ Item_func_now::save_in_field(Field *to, bool no_conversions)
     time zone. Defines time zone (local) used for whole SYSDATE function.
 */
 bool Item_func_sysdate_local::get_date(MYSQL_TIME *now_time,
-                                       uint fuzzy_date __attribute__((unused)))
+                                       uint fuzzy_date MY_ATTRIBUTE((unused)))
 {
   THD *thd= current_thd;
   ulonglong tmp= my_micro_time();
@@ -2138,7 +2138,7 @@ void Item_func_from_unixtime::fix_length_and_dec()
 
 
 bool Item_func_from_unixtime::get_date(MYSQL_TIME *ltime,
-				       uint fuzzy_date __attribute__((unused)))
+				       uint fuzzy_date MY_ATTRIBUTE((unused)))
 {
   lldiv_t lld;
   if (decimals)
@@ -2177,7 +2177,7 @@ void Item_func_convert_tz::fix_length_and_dec()
 
 
 bool Item_func_convert_tz::get_date(MYSQL_TIME *ltime,
-                                    uint fuzzy_date __attribute__((unused)))
+                                    uint fuzzy_date MY_ATTRIBUTE((unused)))
 {
   my_time_t my_time_tmp;
   String str;
