@@ -7928,10 +7928,45 @@ static bool mysql_inplace_alter_table(THD *thd,
     break;
   }
 
-  if (table->file->ha_prepare_inplace_alter_table(altered_table,
-                                                  ha_alter_info))
   {
-    goto rollback;
+    /*
+      TODO/FIXME: The below is temporary workaround until WL#7743 is
+      implemented.
+
+      The problem is that INPLACE algorithm implementation in InnoDB might
+      choose different real row format than would have been choosen for
+      COPY case. Since dd::Table object which includes information about
+      real row format was created before point where we make a choice
+      between INPLACE and COPY it needs to be updated to reflect correct
+      row format in case when INPLACE algorithm has been chosen. We allow
+      InnoDB to do this by passing dd::Table object for new table version
+      to handler::ha_prepare_inplace_alter_table() similarly to how it will
+      be done after WL#7743 is implemented.
+    */
+    dd::Schema_MDL_locker mdl_locker(thd);
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Table *new_dd_tab= nullptr;
+    if (mdl_locker.ensure_locked(alter_ctx->new_db) ||
+        thd->dd_client()->acquire(alter_ctx->new_db, alter_ctx->tmp_name,
+                                  &new_dd_tab))
+      goto cleanup;
+
+    std::unique_ptr<dd::Table> altered_table_def(new_dd_tab->clone());
+
+    if (table->file->ha_prepare_inplace_alter_table(altered_table,
+                                                    ha_alter_info,
+                                                    altered_table_def.get()))
+    {
+      goto rollback;
+    }
+
+    /*
+      Since this is temporary workaround we don't care about committing and
+      updating SDI here. This will happen anyway during further operations
+      on new table version in this statement.
+    */
+    if (thd->dd_client()->update(&new_dd_tab, altered_table_def.get()))
+      goto rollback;
   }
 
   /*

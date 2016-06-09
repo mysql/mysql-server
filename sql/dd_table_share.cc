@@ -509,6 +509,35 @@ static bool fill_tablespace_from_dd(THD *thd, TABLE_SHARE *share,
 }
 
 
+/**
+  Convert row format value used in DD to corresponding value in old
+  row_type enum.
+*/
+
+static row_type dd_get_old_row_format(dd::Table::enum_row_format new_format)
+{
+  switch (new_format)
+  {
+  case dd::Table::RF_FIXED:
+    return ROW_TYPE_FIXED;
+  case dd::Table::RF_DYNAMIC:
+    return ROW_TYPE_DYNAMIC;
+  case dd::Table::RF_COMPRESSED:
+    return ROW_TYPE_COMPRESSED;
+  case dd::Table::RF_REDUNDANT:
+    return ROW_TYPE_REDUNDANT;
+  case dd::Table::RF_COMPACT:
+    return ROW_TYPE_COMPACT;
+  case dd::Table::RF_PAGED:
+    return ROW_TYPE_PAGED;
+  default:
+    DBUG_ASSERT(0);
+    break;
+  }
+  return ROW_TYPE_FIXED;
+}
+
+
 /** Fill TABLE_SHARE from dd::Table object */
 static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share, const dd::Table *tab_obj)
 {
@@ -636,9 +665,18 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share, const dd::Table *ta
   }
   share->db_record_offset= 1;
 
-  // Row type
-  table_options->get_uint64("row_type", &option_value);
-  share->row_type= (row_type) option_value;
+  // Row type. First one really used by the storage engine.
+  share->real_row_type= dd_get_old_row_format(tab_obj->row_format());
+
+  // Then one which was explicitly specified by user for this table.
+  if (table_options->exists("row_type"))
+  {
+    table_options->get_uint64("row_type", &option_value);
+    share->row_type=
+      dd_get_old_row_format((dd::Table::enum_row_format)option_value);
+  }
+  else
+    share->row_type= ROW_TYPE_DEFAULT;
 
   // Stats_sample_pages
   table_options->get_uint32("stats_sample_pages",

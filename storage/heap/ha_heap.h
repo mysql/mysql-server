@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,7 +41,8 @@ public:
   virtual bool is_index_algorithm_supported(enum ha_key_alg key_alg) const
   { return key_alg == HA_KEY_ALG_BTREE || key_alg == HA_KEY_ALG_HASH; }
   /* Rows also use a fixed-size format */
-  enum row_type get_row_type() const { return ROW_TYPE_FIXED; }
+  enum row_type get_real_row_type(const HA_CREATE_INFO *create_info) const
+  { return ROW_TYPE_FIXED; }
   ulonglong table_flags() const
   {
     return (HA_FAST_KEY_READ | HA_NO_BLOBS | HA_NULL_IN_KEY |

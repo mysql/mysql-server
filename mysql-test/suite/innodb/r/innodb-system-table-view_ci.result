@@ -12,7 +12,7 @@ TABLE_ID	NAME	FLAG	N_COLS	SPACE	ROW_FORMAT	ZIP_PAGE_SIZE	SPACE_TYPE
 21	mysql/catalogs	33	7	7	Dynamic	0	Single
 22	mysql/schemata	33	9	8	Dynamic	0	Single
 23	mysql/st_spatial_reference_systems	33	12	9	Dynamic	0	Single
-24	mysql/tables	33	33	10	Dynamic	0	Single
+24	mysql/tables	33	34	10	Dynamic	0	Single
 25	mysql/view_table_usage	33	7	11	Dynamic	0	Single
 26	mysql/columns	33	28	12	Dynamic	0	Single
 27	mysql/indexes	33	18	13	Dynamic	0	Single
@@ -109,30 +109,31 @@ table_id	pos	mtype	prtype	len	name
 24	3	6	1022	1	type
 24	4	12	5439759	192	engine
 24	5	6	1795	4	mysql_version_id
-24	6	6	1544	8	collation_id
-24	7	12	5443855	6144	comment
-24	8	6	1281	1	hidden
-24	9	5	4130044	11	options
-24	10	5	5439740	11	se_private_data
-24	11	6	1544	8	se_private_id
-24	12	6	1544	8	tablespace_id
-24	13	6	766	1	partition_type
-24	14	12	5443599	6144	partition_expression
-24	15	6	766	1	default_partitioning
-24	16	6	766	1	subpartition_type
-24	17	12	5443599	6144	subpartition_expression
-24	18	6	766	1	default_subpartitioning
-24	19	3	525575	4	created
-24	20	3	525575	4	last_altered
-24	21	5	4130044	12	view_definition
-24	22	5	5439740	12	view_definition_utf8
-24	23	6	766	1	view_check_option
-24	24	6	766	1	view_is_updatable
-24	25	6	766	1	view_algorithm
-24	26	6	766	1	view_security_type
-24	27	12	5443599	279	view_definer
-24	28	6	1544	8	view_client_collation_id
-24	29	6	1544	8	view_connection_collation_id
+24	6	6	766	1	row_format
+24	7	6	1544	8	collation_id
+24	8	12	5443855	6144	comment
+24	9	6	1281	1	hidden
+24	10	5	4130044	11	options
+24	11	5	5439740	11	se_private_data
+24	12	6	1544	8	se_private_id
+24	13	6	1544	8	tablespace_id
+24	14	6	766	1	partition_type
+24	15	12	5443599	6144	partition_expression
+24	16	6	766	1	default_partitioning
+24	17	6	766	1	subpartition_type
+24	18	12	5443599	6144	subpartition_expression
+24	19	6	766	1	default_subpartitioning
+24	20	3	525575	4	created
+24	21	3	525575	4	last_altered
+24	22	5	4130044	12	view_definition
+24	23	5	5439740	12	view_definition_utf8
+24	24	6	766	1	view_check_option
+24	25	6	766	1	view_is_updatable
+24	26	6	766	1	view_algorithm
+24	27	6	766	1	view_security_type
+24	28	12	5443599	279	view_definer
+24	29	6	1544	8	view_client_collation_id
+24	30	6	1544	8	view_connection_collation_id
 25	0	6	1800	8	view_id
 25	1	12	4981007	192	table_catalog
 25	2	12	4981007	192	table_schema
@@ -955,7 +956,7 @@ mysql/slave_worker_info	33	16
 mysql/st_spatial_reference_systems	33	12
 mysql/table_partition_values	33	8
 mysql/table_partitions	33	14
-mysql/tables	33	33
+mysql/tables	33	34
 mysql/tables_priv	33	11
 mysql/tablespace_files	33	7
 mysql/tablespaces	33	9

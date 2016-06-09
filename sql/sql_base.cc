@@ -67,6 +67,7 @@
 #include "mysql/psi/mysql_file.h"
 
 #include <algorithm>
+#include "mutex_lock.h"
 
 /**
   This internal handler is used to trap ER_NO_SUCH_TABLE and
@@ -3349,6 +3350,9 @@ share_found:
     if (error == 7)
       (void) ot_ctx->request_backoff_action(Open_table_context::OT_DISCOVER,
                                             table_list);
+    else if (error == 8)
+      (void) ot_ctx->request_backoff_action(Open_table_context::OT_FIX_ROW_TYPE,
+                                            table_list);
     else if (share->crashed)
       (void) ot_ctx->request_backoff_action(Open_table_context::OT_REPAIR,
                                             table_list);
@@ -4283,6 +4287,129 @@ end_unlock:
 }
 
 
+/**
+  Error handler class for supressing HA_ERR_ROW_FORMAT_CHANGED errors from SE.
+*/
+
+class Fix_row_type_error_handler : public Internal_error_handler
+{
+public:
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    return sql_errno == ER_GET_ERRNO &&
+           my_errno() == HA_ERR_ROW_FORMAT_CHANGED;
+  }
+};
+
+
+/**
+  Auxiliary routine for automatically updating row format for the table.
+*/
+
+static bool fix_row_type(THD *thd, TABLE_LIST *table_list)
+{
+  const char *cache_key;
+  size_t cache_key_length= get_table_def_key(table_list,
+                                             &cache_key);
+
+  my_hash_value_type hash_value= my_calc_hash(&table_def_cache,
+                                              (uchar*) cache_key,
+                                              cache_key_length);
+
+  thd->clear_error();
+
+  TABLE_SHARE *share;
+
+  {
+    /*
+      Hold LOCK_open until we can keep it and are likely to
+      release TABLE_SHARE on return.
+    */
+    Mutex_lock lock_open_guard(&LOCK_open);
+
+    No_such_table_error_handler no_such_table_handler;
+    thd->push_internal_handler(&no_such_table_handler);
+
+    share= get_table_share(thd, table_list, cache_key, cache_key_length,
+                           true, hash_value);
+
+    thd->pop_internal_handler();
+
+    if (!share)
+    {
+      /*
+        Somebody managed to drop table after we have performed back-off
+        before trying to fix row format for the table. Such situation is
+        quite unlikely but theoretically possible. Do not report error
+        (silence it using error handler), let the caller try to reopen
+        tables and handle missing table in appropriate way (e.g. ignore
+        this fact it if the table comes from prelocking list).
+      */
+      if (no_such_table_handler.safely_trapped_errors())
+        return false;
+
+      return true;
+    }
+
+    if (share->is_view)
+    {
+      /*
+        Somebody managed to replace our table with a view after we
+        have performed back-off before trying to fix row format for
+        the table. Such situation is quite unlikely but is OK.
+        Do not report error, let the caller try to reopen tables.
+      */
+      release_table_share(share);
+      return false;
+    }
+  }
+
+  /*
+    Silence expected HA_ERR_ROW_FORMAT_CHANGED errors.
+  */
+  Fix_row_type_error_handler err_handler;
+  thd->push_internal_handler(&err_handler);
+
+  TABLE tmp_table;
+  int error= open_table_from_share(thd, share, table_list->alias,
+                                   (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
+                                           HA_GET_INDEX | HA_TRY_READ_ONLY),
+                                   EXTRA_RECORD, ha_open_options, &tmp_table,
+                                   false);
+
+  thd->pop_internal_handler();
+
+  bool result;
+  if (error == 8)
+  {
+    result= dd::fix_row_type(thd, share);
+  }
+  else if (!error)
+  {
+    closefrm(&tmp_table, 0);
+    result= false;
+  }
+  else
+    result= true;
+
+  table_cache_manager.lock_all_and_tdc();
+  release_table_share(share);
+  /*
+    Remove the share from the table cache. So attempt to reopen table
+    will construct its new version with correct real_row_type value.
+  */
+  tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
+                   table_list->db, table_list->table_name,
+                   TRUE);
+  table_cache_manager.unlock_all_and_tdc();
+  return result;
+}
+
+
 /** Open_table_context */
 
 Open_table_context::Open_table_context(THD *thd, uint flags)
@@ -4312,7 +4439,7 @@ request_backoff_action(enum_open_table_action action_arg,
                        TABLE_LIST *table)
 {
   /*
-    A back off action may be one of three kinds:
+    A back off action may be one of four kinds:
 
     * We met a broken table that needs repair, or a table that
       is not present on this MySQL server and needs re-discovery.
@@ -4323,6 +4450,14 @@ request_backoff_action(enum_open_table_action action_arg,
       transaction that holds metadata locks for completed statements,
       we should keep these locks after discovery/repair.
       The action type in this case is OT_DISCOVER or OT_REPAIR.
+    * We met a table that has outdated value in ROW_FORMAT column
+      in the data-dictionary/value of TABLE_SHARE::real_row_type
+      attribute, which need to be updated. To update the
+      data-dictionary we not only need to acquire X lock on the
+      table, but also need to commit the transaction. If there
+      is an ongoing transaction (and some metadata locks acquired)
+      we cannot proceed and report an error. The action type for
+      this case is OT_FIX_ROW_TYPE.
     * Our attempt to acquire an MDL lock lead to a deadlock,
       detected by the MDL deadlock detector. The current
       session was chosen a victim. If this is a multi-statement
@@ -4362,7 +4497,8 @@ request_backoff_action(enum_open_table_action action_arg,
       keep tables open between statements and a livelock
       is not possible.
   */
-  if (action_arg == OT_BACKOFF_AND_RETRY && m_has_locks)
+  if ((action_arg == OT_BACKOFF_AND_RETRY ||
+       action_arg == OT_FIX_ROW_TYPE) && m_has_locks)
   {
     my_error(ER_LOCK_DEADLOCK, MYF(0));
     m_thd->mark_transaction_to_rollback(true);
@@ -4374,7 +4510,8 @@ request_backoff_action(enum_open_table_action action_arg,
   */
   if (table)
   {
-    DBUG_ASSERT(action_arg == OT_DISCOVER || action_arg == OT_REPAIR);
+    DBUG_ASSERT(action_arg == OT_DISCOVER || action_arg == OT_REPAIR ||
+                action_arg == OT_FIX_ROW_TYPE);
     m_failed_table= (TABLE_LIST*) m_thd->alloc(sizeof(TABLE_LIST));
     if (m_failed_table == NULL)
       return TRUE;
@@ -4439,7 +4576,8 @@ recover_from_failed_open()
     ER_WARN_I_S_SKIPPED_TABLE which will be converted to a warning
     later.
    */
-  if ((m_action == OT_REPAIR || m_action == OT_DISCOVER)
+  if ((m_action == OT_REPAIR || m_action == OT_DISCOVER ||
+       m_action == OT_FIX_ROW_TYPE)
       && (m_flags & MYSQL_OPEN_FAIL_ON_MDL_CONFLICT))
   {
     my_error(ER_WARN_I_S_SKIPPED_TABLE, MYF(0),
@@ -4499,6 +4637,36 @@ recover_from_failed_open()
           in current transaction.
         */
         m_thd->mdl_context.rollback_to_savepoint(start_of_statement_svp());
+        break;
+      }
+    case OT_FIX_ROW_TYPE:
+      {
+        /*
+          Since we are going to commit changes to the data-dictionary there
+          should not be any ongoing transaction.
+          We already have checked that the connection holds no metadata locks
+          earlier.
+          Still there can be transaction started by START TRANSACTION, which
+          we don't have right to implicitly finish (even more interesting case
+          is START TRANSACTION WITH CONSISTENT SNAPSHOT). Hence explicit check
+          for active transaction.
+        */
+        DBUG_ASSERT(! m_thd->mdl_context.has_locks());
+
+        if (m_thd->in_active_multi_stmt_transaction())
+        {
+          my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+          result= true;
+          break;
+        }
+
+        if ((result= lock_table_names(m_thd, m_failed_table, NULL,
+                                      get_timeout(), 0)))
+          break;
+
+        result= fix_row_type(m_thd, m_failed_table);
+
+        m_thd->mdl_context.release_transactional_locks();
         break;
       }
     default:

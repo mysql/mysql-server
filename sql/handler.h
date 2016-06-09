@@ -462,7 +462,7 @@ enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 		ROW_TYPE_DYNAMIC, ROW_TYPE_COMPRESSED,
 		ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT,
                 /** Unused. Reserved for future versions. */
-                ROW_TYPE_PAGE };
+                ROW_TYPE_PAGED };
 
 enum enum_binlog_func {
   BFN_RESET_LOGS=        1,
@@ -3139,10 +3139,16 @@ public:
   { return stats.records+EXTRA_RECORDS; }
 
   /**
-    Get the row type from the storage engine.  If this method returns
-    ROW_TYPE_NOT_USED, the information in HA_CREATE_INFO should be used.
+    Get real row type for the table created based on one specified by user,
+    CREATE TABLE options and SE capabilities.
   */
-  virtual enum row_type get_row_type() const { return ROW_TYPE_NOT_USED; }
+  virtual enum row_type get_real_row_type(const HA_CREATE_INFO *create_info) const
+  {
+    return (create_info->table_options & HA_OPTION_COMPRESS_RECORD) ?
+           ROW_TYPE_COMPRESSED :
+           ((create_info->table_options & HA_OPTION_PACK_RECORD) ?
+             ROW_TYPE_DYNAMIC : ROW_TYPE_FIXED);
+  }
 
   /**
     Get default key algorithm for SE. It is used when user has not provided
@@ -3818,7 +3824,8 @@ public:
     @see prepare_inplace_alter_table()
  */
  bool ha_prepare_inplace_alter_table(TABLE *altered_table,
-                                     Alter_inplace_info *ha_alter_info);
+                                     Alter_inplace_info *ha_alter_info,
+                                     dd::Table *new_dd_tab);
 
 
  /**
@@ -3877,12 +3884,18 @@ protected:
     @param    ha_alter_info     Structure describing changes to be done
                                 by ALTER TABLE and holding data used
                                 during in-place alter.
+    @param    new_dd_tab        dd::Table object representing new version
+                                of the table. This parameter is a temporary
+                                workaround until WL#7743 is implemented.
+                                See comment when calling this method from
+                                sql_table.cc for details.
 
     @retval   true              Error
     @retval   false             Success
  */
  virtual bool prepare_inplace_alter_table(TABLE *altered_table,
-                                          Alter_inplace_info *ha_alter_info)
+                                          Alter_inplace_info *ha_alter_info,
+                                          dd::Table *new_dd_tab)
  { return false; }
 
 

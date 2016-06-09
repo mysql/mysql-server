@@ -259,7 +259,8 @@ public:
 	bool
 	prepare_inplace_alter_table(
 		TABLE*			altered_table,
-		Alter_inplace_info*	ha_alter_info);
+		Alter_inplace_info*	ha_alter_info,
+		dd::Table		*new_dd_tab);
 
 	/** Alter the table structure in-place.
 	Alter the table structure in-place with operations

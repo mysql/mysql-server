@@ -676,9 +676,6 @@ public:
   /* The name of the table type that will be used for display purposes */
   virtual const char *table_type() const;
 
-  /* The name of the row type used for the underlying tables. */
-  virtual enum row_type get_row_type() const;
-
   /*
      Handler specific error messages
   */
@@ -919,6 +916,12 @@ public:
   virtual bool is_index_algorithm_supported(enum ha_key_alg key_alg) const;
 
   /*
+    The real row type used for the underlying tables (as opposed to one
+    specified by user explicitly through ROW_FORMAT option).
+  */
+  virtual enum row_type get_real_row_type(const HA_CREATE_INFO *create_info) const;
+
+  /*
     -------------------------------------------------------------------------
     MODULE compare records
     -------------------------------------------------------------------------
@@ -1046,7 +1049,8 @@ public:
       check_if_supported_inplace_alter(TABLE *altered_table,
                                        Alter_inplace_info *ha_alter_info);
     virtual bool prepare_inplace_alter_table(TABLE *altered_table,
-                                             Alter_inplace_info *ha_alter_info);
+                                             Alter_inplace_info *ha_alter_info,
+                                             dd::Table *new_dd_tab);
     virtual bool inplace_alter_table(TABLE *altered_table,
                                      Alter_inplace_info *ha_alter_info);
     virtual bool commit_inplace_alter_table(TABLE *altered_table,

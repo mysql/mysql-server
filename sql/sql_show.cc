@@ -5159,15 +5159,11 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
                                   HA_STATUS_AUTO)) != 0)
         goto err;
 
-      enum row_type row_type = file->get_row_type();
-      switch (row_type) {
+      switch (share->real_row_type) {
       case ROW_TYPE_NOT_USED:
       case ROW_TYPE_DEFAULT:
-        tmp_buff= ((share->db_options_in_use &
-                    HA_OPTION_COMPRESS_RECORD) ? "Compressed" :
-                   (share->db_options_in_use & HA_OPTION_PACK_RECORD) ?
-                   "Dynamic" : "Fixed");
-        break;
+        DBUG_ASSERT(0);
+        // Fall-through.
       case ROW_TYPE_FIXED:
         tmp_buff= "Fixed";
         break;
@@ -5183,7 +5179,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
       case ROW_TYPE_COMPACT:
         tmp_buff= "Compact";
         break;
-      case ROW_TYPE_PAGE:
+      case ROW_TYPE_PAGED:
         tmp_buff= "Paged";
         break;
       }

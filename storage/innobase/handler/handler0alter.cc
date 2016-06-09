@@ -60,6 +60,8 @@ Smart ALTER TABLE
 #include "partition_info.h"
 #include "ha_innopart.h"
 
+#include "dd/types/table.h"           // dd::Table
+
 /** TRUE if we don't have DDTableBuffer in the system tablespace,
 this should be due to we run the server against old data files.
 Please do NOT change this when server is running.
@@ -5331,6 +5333,9 @@ This will be invoked before inplace_alter_table().
 @param altered_table TABLE object for new version of table.
 @param ha_alter_info Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
+@param new_dd_tab    dd::Table object representing new version
+of the table. This parameter is a temporary workaround until
+WL#7743 is implemented.
 
 @retval true Failure
 @retval false Success
@@ -5340,7 +5345,8 @@ bool
 ha_innobase::prepare_inplace_alter_table(
 /*=====================================*/
 	TABLE*			altered_table,
-	Alter_inplace_info*	ha_alter_info)
+	Alter_inplace_info*	ha_alter_info,
+	dd::Table		*new_dd_tab)
 {
 	dict_index_t**	drop_index = NULL;	/*!< Index to be dropped */
 	ulint		n_drop_index;	/*!< Number of indexes to drop */
@@ -5535,6 +5541,26 @@ check_if_ok_to_rename:
 
 	if (!info.innobase_table_flags()) {
 		goto err_exit_no_heap;
+	}
+
+	/* Above we might have choosen real row format which is different
+	than one that would have been choosen for ALTER TABLE .. ALGORITHM=COPY
+	case. Since dd::Table object which includes information about real row
+	format was created before point where we make a choice between INPLACE
+	and COPY it needs to be updated to reflect correct row format. */
+	switch (dict_tf_get_rec_format(info.flags())) {
+	case REC_FORMAT_REDUNDANT:
+		new_dd_tab->set_row_format(dd::Table::RF_REDUNDANT);
+		break;
+	case REC_FORMAT_COMPACT:
+		new_dd_tab->set_row_format(dd::Table::RF_COMPACT);
+		break;
+	case REC_FORMAT_COMPRESSED:
+		new_dd_tab->set_row_format(dd::Table::RF_COMPRESSED);
+		break;
+	case REC_FORMAT_DYNAMIC:
+		new_dd_tab->set_row_format(dd::Table::RF_DYNAMIC);
+		break;
 	}
 
 	max_col_len = DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(info.flags());
@@ -9000,7 +9026,8 @@ by ALTER TABLE and holding data used during in-place alter.
 bool
 ha_innopart::prepare_inplace_alter_table(
 	TABLE*			altered_table,
-	Alter_inplace_info*	ha_alter_info)
+	Alter_inplace_info*	ha_alter_info,
+	dd::Table		*new_dd_tab)
 {
 	THD* thd;
 	ha_innopart_inplace_ctx* ctx_parts;
@@ -9077,7 +9104,8 @@ ha_innopart::prepare_inplace_alter_table(
 			m_prebuilt->table->data_dir_path;
 
 		res = ha_innobase::prepare_inplace_alter_table(altered_table,
-							ha_alter_info);
+							ha_alter_info,
+							new_dd_tab);
 		update_partition(i);
 		ctx_parts->ctx_array[i] = ha_alter_info->handler_ctx;
 		if (res) {

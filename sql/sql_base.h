@@ -461,7 +461,8 @@ public:
     OT_BACKOFF_AND_RETRY,
     OT_REOPEN_TABLES,
     OT_DISCOVER,
-    OT_REPAIR
+    OT_REPAIR,
+    OT_FIX_ROW_TYPE
   };
   Open_table_context(THD *thd, uint flags);
 
@@ -513,9 +514,9 @@ private:
   /* THD for which tables are opened. */
   THD *m_thd;
   /**
-    For OT_DISCOVER and OT_REPAIR actions, the table list element for
-    the table which definition should be re-discovered or which
-    should be repaired.
+    For OT_DISCOVER, OT_REPAIR and OT_FIX_ROW_TYPE actions, the table list
+    element for the table which definition should be re-discovered/updated
+    or which should be repaired.
   */
   TABLE_LIST *m_failed_table;
   MDL_savepoint m_start_of_statement_svp;
