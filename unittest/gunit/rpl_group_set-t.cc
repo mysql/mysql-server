@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -472,9 +472,9 @@ TEST_F(GroupTest, Group_containers)
   push_errtext();                                                       \
   for (int method_i= 0, combination_i= 0; method_i < MAX_METHOD; method_i++) { \
     for (int sid_map_i= 0; sid_map_i < MAX_SID_MAP; sid_map_i++, combination_i++) { \
-      Gtid_set &gtid_set __attribute__((unused))=                       \
+      Gtid_set &gtid_set MY_ATTRIBUTE((unused))=                       \
         containers[combination_i]->gtid_set;                            \
-      Sid_map *&sid_map __attribute__((unused))=                        \
+      Sid_map *&sid_map MY_ATTRIBUTE((unused))=                        \
         sid_maps[sid_map_i];                                            \
       append_errtext(__LINE__,                                          \
                      "sid_map_i=%d method_i=%d combination_i=%d",       \
@@ -489,13 +489,13 @@ TEST_F(GroupTest, Group_containers)
     for (int end_i= 0; end_i < MAX_END; end_i++) {                      \
       for (int empty_i= 0; empty_i < MAX_EMPTY; empty_i++) {            \
         for (int anon_i= 0; anon_i < MAX_ANON; anon_i++, combination_i++) { \
-          Gtid_set &gtid_set __attribute__((unused))=                   \
+          Gtid_set &gtid_set MY_ATTRIBUTE((unused))=                   \
             containers[combination_i]->gtid_set;                        \
-          Group_cache &stmt_cache __attribute__((unused))=              \
+          Group_cache &stmt_cache MY_ATTRIBUTE((unused))=              \
             containers[combination_i]->stmt_cache;                      \
-          Group_cache &trx_cache __attribute__((unused))=               \
+          Group_cache &trx_cache MY_ATTRIBUTE((unused))=               \
             containers[combination_i]->trx_cache;                       \
-          Group_log_state &group_log_state __attribute__((unused))=     \
+          Group_log_state &group_log_state MY_ATTRIBUTE((unused))=     \
             containers[combination_i]->group_log_state;                 \
           append_errtext(__LINE__,                                      \
                          "type_i=%d end_i=%d empty_i=%d "               \

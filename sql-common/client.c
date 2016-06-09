@@ -1128,6 +1128,22 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
     } while(0)
 #endif
 
+static char *set_ssl_option_unpack_path(struct st_mysql_options *options,
+                                        const char *arg)
+{
+  char *opt_var= NULL;
+  if (arg)
+  {
+    char *buff= (char *)my_malloc(FN_REFLEN + 1, MYF(MY_WME));
+    unpack_filename(buff, (char *)arg);
+    opt_var= my_strdup(buff, MYF(MY_WME));
+    options->use_ssl= 1;
+    my_free(buff);
+  }
+  return opt_var;
+}
+
+
 void mysql_read_default_options(struct st_mysql_options *options,
 				const char *filename,const char *group)
 {
@@ -1725,12 +1741,12 @@ mysql_init(MYSQL *mysql)
 #define strdup_if_not_null(A) (A) == 0 ? 0 : my_strdup((A),MYF(MY_WME))
 
 my_bool STDCALL
-mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
-	      const char *key __attribute__((unused)),
-	      const char *cert __attribute__((unused)),
-	      const char *ca __attribute__((unused)),
-	      const char *capath __attribute__((unused)),
-	      const char *cipher __attribute__((unused)))
+mysql_ssl_set(MYSQL *mysql MY_ATTRIBUTE((unused)) ,
+	      const char *key MY_ATTRIBUTE((unused)),
+	      const char *cert MY_ATTRIBUTE((unused)),
+	      const char *ca MY_ATTRIBUTE((unused)),
+	      const char *capath MY_ATTRIBUTE((unused)),
+	      const char *cipher MY_ATTRIBUTE((unused)))
 {
   my_bool result= 0;
   DBUG_ENTER("mysql_ssl_set");
@@ -1755,7 +1771,7 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 
 static void
-mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
+mysql_ssl_free(MYSQL *mysql MY_ATTRIBUTE((unused)))
 {
   struct st_VioSSLFd *ssl_fd= (struct st_VioSSLFd*) mysql->connector_fd;
   DBUG_ENTER("mysql_ssl_free");
@@ -1801,7 +1817,7 @@ mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
 */
 
 const char * STDCALL
-mysql_get_ssl_cipher(MYSQL *mysql __attribute__((unused)))
+mysql_get_ssl_cipher(MYSQL *mysql MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("mysql_get_ssl_cipher");
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
@@ -4069,8 +4085,8 @@ static void mysql_prune_stmt_list(MYSQL *mysql)
     should also be reflected there.
 */
 
-void mysql_detach_stmt_list(LIST **stmt_list __attribute__((unused)),
-                            const char *func_name __attribute__((unused)))
+void mysql_detach_stmt_list(LIST **stmt_list MY_ATTRIBUTE((unused)),
+                            const char *func_name MY_ATTRIBUTE((unused)))
 {
 #ifdef MYSQL_CLIENT
   /* Reset connection handle in all prepared statements. */
@@ -4480,17 +4496,43 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
   case MYSQL_DEFAULT_AUTH:
     EXTENSION_SET_STRING(&mysql->options, default_auth, arg);
     break;
-  case MYSQL_OPT_SSL_KEY:      SET_SSL_OPTION(ssl_key, arg);     break;
-  case MYSQL_OPT_SSL_CERT:     SET_SSL_OPTION(ssl_cert, arg);    break;
-  case MYSQL_OPT_SSL_CA:       SET_SSL_OPTION(ssl_ca, arg);      break;
-  case MYSQL_OPT_SSL_CAPATH:   SET_SSL_OPTION(ssl_capath, arg);  break;
+  case MYSQL_OPT_SSL_KEY:
+    if (mysql->options.ssl_key)
+      my_free(mysql->options.ssl_key);
+    mysql->options.ssl_key= set_ssl_option_unpack_path(&mysql->options, arg);
+    break;
+  case MYSQL_OPT_SSL_CERT:
+    if (mysql->options.ssl_cert)
+      my_free(mysql->options.ssl_cert);
+    mysql->options.ssl_cert= set_ssl_option_unpack_path(&mysql->options, arg);
+    break;
+  case MYSQL_OPT_SSL_CA:
+    if (mysql->options.ssl_ca)
+      my_free(mysql->options.ssl_ca);
+    mysql->options.ssl_ca= set_ssl_option_unpack_path(&mysql->options, arg);
+    break;
+  case MYSQL_OPT_SSL_CAPATH:
+    if (mysql->options.ssl_capath)
+      my_free(mysql->options.ssl_capath);
+    mysql->options.ssl_capath= set_ssl_option_unpack_path(&mysql->options, arg);
+    break;
   case MYSQL_OPT_SSL_CIPHER:   SET_SSL_OPTION(ssl_cipher, arg);  break;
-  case MYSQL_OPT_SSL_CRL:      EXTENSION_SET_SSL_STRING(&mysql->options,
-                                                        ssl_crl, arg);
-                               break;
-  case MYSQL_OPT_SSL_CRLPATH:  EXTENSION_SET_SSL_STRING(&mysql->options,
-                                                        ssl_crlpath, arg);
-                               break;
+  case MYSQL_OPT_SSL_CRL:
+    if (mysql->options.extension)
+      my_free(mysql->options.extension->ssl_crl);
+    else
+      ALLOCATE_EXTENSIONS(&mysql->options);
+    mysql->options.extension->ssl_crl=
+                   set_ssl_option_unpack_path(&mysql->options, arg);
+    break;
+  case MYSQL_OPT_SSL_CRLPATH:
+    if (mysql->options.extension)
+      my_free(mysql->options.extension->ssl_crlpath);
+    else
+      ALLOCATE_EXTENSIONS(&mysql->options);
+    mysql->options.extension->ssl_crlpath=
+                   set_ssl_option_unpack_path(&mysql->options, arg);
+    break;
   case MYSQL_SERVER_PUBLIC_KEY:
     EXTENSION_SET_STRING(&mysql->options, server_public_key_path, arg);
     break;
@@ -4556,7 +4598,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
 */
 uchar *
 get_attr_key(LEX_STRING *part, size_t *length,
-             my_bool not_used __attribute__((unused)))
+             my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= part[0].length;
   return (uchar *) part[0].str;
@@ -4917,3 +4959,138 @@ static int clear_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 
   return res ? CR_ERROR : CR_OK;
 }
+
+#if defined(EXPORT_SYMVER16)
+#ifndef EMBEDDED_LIBRARY
+
+// Hack to provide both libmysqlclient_16 and libmysqlclient_18 symbol versions
+
+#define SYM_16(_exportedsym) __asm__(".symver symver16_" #_exportedsym "," #_exportedsym "@libmysqlclient_16")
+
+void STDCALL symver16_mysql_close(MYSQL *mysql)
+{
+  return mysql_close(mysql);
+}
+SYM_16(mysql_close);
+
+
+uint STDCALL symver16_mysql_errno(MYSQL *mysql)
+{
+  return mysql_errno(mysql);
+}
+SYM_16(mysql_errno);
+
+
+const char * STDCALL symver16_mysql_error(MYSQL *mysql)
+{
+  return mysql_error(mysql);
+}
+SYM_16(mysql_error);
+
+
+ulong * STDCALL symver16_mysql_fetch_lengths(MYSQL_RES *res)
+{
+  return mysql_fetch_lengths(res);
+}
+SYM_16(mysql_fetch_lengths);
+
+
+MYSQL_ROW STDCALL symver16_mysql_fetch_row(MYSQL_RES *res)
+{
+  return mysql_fetch_row(res);
+}
+SYM_16(mysql_fetch_row);
+
+
+void STDCALL symver16_mysql_free_result(MYSQL_RES *result)
+{
+  return mysql_free_result(result);
+}
+SYM_16(mysql_free_result);
+
+
+ulong STDCALL symver16_mysql_get_server_version(MYSQL *mysql)
+{
+  return mysql_get_server_version(mysql);
+}
+SYM_16(mysql_get_server_version);
+
+
+const char * STDCALL symver16_mysql_get_ssl_cipher(MYSQL *mysql __attribute__((unused)))
+{
+  return mysql_get_ssl_cipher(mysql);
+}
+SYM_16(mysql_get_ssl_cipher);
+
+
+MYSQL * STDCALL symver16_mysql_init(MYSQL *mysql)
+{
+  return mysql_init(mysql);
+}
+SYM_16(mysql_init);
+
+
+unsigned int STDCALL symver16_mysql_num_fields(MYSQL_RES *res)
+{
+  return mysql_num_fields(res);
+}
+SYM_16(mysql_num_fields);
+
+
+my_ulonglong STDCALL symver16_mysql_num_rows(MYSQL_RES *res)
+{
+  return mysql_num_rows(res);
+}
+SYM_16(mysql_num_rows);
+
+
+int STDCALL symver16_mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
+{
+  return mysql_options(mysql, option, arg);
+}
+SYM_16(mysql_options);
+
+
+int STDCALL symver16_mysql_real_query(MYSQL *mysql, const char *query, ulong length)
+{
+  return mysql_real_query(mysql, query, length);
+}
+SYM_16(mysql_real_query);
+
+
+int STDCALL symver16_mysql_select_db(MYSQL *mysql, const char *db)
+{
+  return mysql_select_db(mysql, db);
+}
+SYM_16(mysql_select_db);
+
+
+int STDCALL symver16_mysql_send_query(MYSQL* mysql, const char* query, ulong length)
+{
+  return mysql_send_query(mysql, query, length);
+}
+SYM_16(mysql_send_query);
+
+
+int STDCALL symver16_mysql_set_character_set(MYSQL *mysql, const char *cs_name)
+{
+  return mysql_set_character_set(mysql, cs_name);
+}
+SYM_16(mysql_set_character_set);
+
+
+my_bool STDCALL symver16_mysql_ssl_set(MYSQL *mysql __attribute__((unused)), const char *key __attribute__((unused)), const char *cert __attribute__((unused)), const char *ca __attribute__((unused)), const char *capath __attribute__((unused)), const char *cipher __attribute__((unused)))
+{
+  return mysql_ssl_set(mysql, key, cert, ca, capath, cipher);
+}
+SYM_16(mysql_ssl_set);
+
+
+MYSQL_RES * STDCALL symver16_mysql_store_result(MYSQL *mysql)
+{
+  return mysql_store_result(mysql);
+}
+SYM_16(mysql_store_result);
+
+#endif
+#endif  /* EXPORT_SYMVER16 */

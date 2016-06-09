@@ -1,7 +1,7 @@
 #ifndef ATOMIC_NOLOCK_INCLUDED
 #define ATOMIC_NOLOCK_INCLUDED
 
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved. reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved. reserved.
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -44,7 +44,7 @@
   Type not used so minimal size (emptry struct has different size between C
   and C++, zero-length array is gcc-specific).
 */
-typedef char my_atomic_rwlock_t __attribute__ ((unused));
+typedef char my_atomic_rwlock_t MY_ATTRIBUTE ((unused));
 #define my_atomic_rwlock_destroy(name)
 #define my_atomic_rwlock_init(name)
 #define my_atomic_rwlock_rdlock(name)

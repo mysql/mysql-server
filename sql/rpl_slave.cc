@@ -607,6 +607,51 @@ err:
   master_log_pos and master_log_name. Eventually, the old
   relay logs will be purged by the normal purge mechanism.
 
+  When GTID's are enabled the "Retrieved GTID" set should be cleared
+  so that partial read events are discarded and they are
+  fetched once again
+
+  @param mi    pointer to Master_info instance
+*/
+static void recover_relay_log(Master_info *mi)
+{
+  Relay_log_info *rli=mi->rli;
+  // Set Receiver Thread's positions as per the recovered Applier Thread.
+  mi->set_master_log_pos(max<ulonglong>(BIN_LOG_HEADER_SIZE,
+                                        rli->get_group_master_log_pos()));
+  mi->set_master_log_name(rli->get_group_master_log_name());
+
+  sql_print_warning("Recovery from master pos %ld and file %s. "
+                    "Previous relay log pos and relay log file had "
+                    "been set to %lld, %s respectively.",
+                    (ulong) mi->get_master_log_pos(), mi->get_master_log_name(),
+                    rli->get_group_relay_log_pos(), rli->get_group_relay_log_name());
+
+  // Start with a fresh relay log.
+  rli->set_group_relay_log_name(rli->relay_log.get_log_fname());
+  rli->set_event_relay_log_name(rli->relay_log.get_log_fname());
+  rli->set_group_relay_log_pos(BIN_LOG_HEADER_SIZE);
+  rli->set_event_relay_log_pos(BIN_LOG_HEADER_SIZE);
+  /*
+    Clear the retrieved GTID set so that events that are written partially
+    will be fetched again.
+  */
+  if (gtid_mode == GTID_MODE_ON)
+  {
+    global_sid_lock->wrlock();
+    (const_cast<Gtid_set *>(rli->get_gtid_set()))->clear();
+    global_sid_lock->unlock();
+  }
+}
+
+
+/*
+  Updates the master info based on the information stored in the
+  relay info and ignores relay logs previously retrieved by the IO
+  thread, which thus starts fetching again based on to the
+  master_log_pos and master_log_name. Eventually, the old
+  relay logs will be purged by the normal purge mechanism.
+
   There can be a special case where rli->group_master_log_name and
   rli->group_master_log_pos are not intialized, as the sql thread was never
   started at all. In those cases all the existing relay logs are parsed
@@ -665,14 +710,7 @@ int init_recovery(Master_info* mi, const char** errmsg)
         rli->clear_mts_recovery_groups();
       }
       else
-      {
-        error= 1;
-        sql_print_error("--relay-log-recovery cannot be executed when the slave "
-                        "was stopped with an error or killed in MTS mode; "
-                        "consider using RESET SLAVE or restart the server "
-                        "with --relay-log-recovery = 0 followed by "
-                        "START SLAVE UNTIL SQL_AFTER_MTS_GAPS");
-      }
+        DBUG_RETURN(error);
     }
   }
 
@@ -694,30 +732,112 @@ int init_recovery(Master_info* mi, const char** errmsg)
       if (error)
         DBUG_RETURN(error);
     }
-    mi->set_master_log_pos(max<ulonglong>(BIN_LOG_HEADER_SIZE,
-                                               rli->get_group_master_log_pos()));
-    mi->set_master_log_name(rli->get_group_master_log_name());
+    recover_relay_log(mi);
+  }
+  DBUG_RETURN(error);
+}
 
-    sql_print_warning("Recovery from master pos %ld and file %s. "
-                      "Previous relay log pos and relay log file had "
-                      "been set to %lld, %s respectively.",
-                      (ulong) mi->get_master_log_pos(), mi->get_master_log_name(),
-                      rli->get_group_relay_log_pos(), rli->get_group_relay_log_name());
+/*
+  Relay log recovery in the case of MTS, is handled by the following function.
+  Gaps in MTS execution are filled using implicit execution of
+  START SLAVE UNTIL SQL_AFTER_MTS_GAPS call. Once slave reaches a consistent
+  gapless state receiver thread's positions are initialized to applier thread's
+  positions and the old relay logs are discarded. This completes the recovery
+  process.
 
-    rli->set_group_relay_log_name(rli->relay_log.get_log_fname());
-    rli->set_event_relay_log_name(rli->relay_log.get_log_fname());
-    rli->set_group_relay_log_pos(BIN_LOG_HEADER_SIZE);
-    rli->set_event_relay_log_pos(BIN_LOG_HEADER_SIZE);
+  @param mi    pointer to Master_info instance.
+
+  @retval 0 success
+  @retval 1 error
+*/
+static inline int fill_mts_gaps_and_recover(Master_info* mi)
+{
+  DBUG_ENTER("fill_mts_gaps_and_recover");
+  Relay_log_info *rli= mi->rli;
+  int recovery_error= 0;
+  rli->is_relay_log_recovery= FALSE;
+  rli->until_condition= Relay_log_info::UNTIL_SQL_AFTER_MTS_GAPS;
+  rli->opt_slave_parallel_workers= rli->recovery_parallel_workers;
+  sql_print_information("MTS recovery: starting coordinator thread to fill MTS "
+                        "gaps.");
+  recovery_error= start_slave_thread(
+#ifdef HAVE_PSI_INTERFACE
+                                     key_thread_slave_sql,
+#endif
+                                     handle_slave_sql, &rli->run_lock,
+                                     &rli->run_lock,
+                                     &rli->start_cond,
+                                     &rli->slave_running,
+                                     &rli->slave_run_id,
+                                     mi);
+
+  if (recovery_error)
+  {
+    sql_print_warning("MTS recovery: failed to start the coordinator "
+                      "thread. Check the error log for additional"
+                      " details.");
+    goto err;
+  }
+  mysql_mutex_lock(&rli->run_lock);
+  mysql_cond_wait(&rli->stop_cond, &rli->run_lock);
+  mysql_mutex_unlock(&rli->run_lock);
+  if (rli->until_condition != Relay_log_info::UNTIL_DONE)
+  {
+    sql_print_warning("MTS recovery: automatic recovery failed. Either the "
+                      "slave server had stopped due to an error during an "
+                      "earlier session or relay logs are corrupted."
+                      "Fix the cause of the slave side error and restart the "
+                      "slave server or consider using RESET SLAVE.");
+    goto err;
   }
 
   /*
-    Clear the retrieved GTID set so that events that are written partially
-    will be fetched again.
-    */
-  global_sid_lock->wrlock();
-  (const_cast<Gtid_set *>(rli->get_gtid_set()))->clear();
-  global_sid_lock->unlock();
-  DBUG_RETURN(error);
+    We need a mutex while we are changing master info parameters to
+    keep other threads from reading bogus info
+  */
+  mysql_mutex_lock(&mi->data_lock);
+  mysql_mutex_lock(&rli->data_lock);
+  recover_relay_log(mi);
+
+  const char* msg;
+  if (rli->init_relay_log_pos(rli->get_group_relay_log_name(),
+                              rli->get_group_relay_log_pos(),
+                              false/*need_data_lock=false*/,
+                              &msg, 0))
+  {
+    char llbuf[22];
+    sql_print_error("Failed to open the relay log '%s' (relay_log_pos %s).",
+                    rli->get_group_relay_log_name(),
+                    llstr(rli->get_group_relay_log_pos(), llbuf));
+
+    recovery_error=1;
+    mysql_mutex_unlock(&mi->data_lock);
+    mysql_mutex_unlock(&rli->data_lock);
+    goto err;
+  }
+  if (mi->flush_info(true) || rli->flush_info(true))
+  {
+    recovery_error= 1;
+    mysql_mutex_unlock(&mi->data_lock);
+    mysql_mutex_unlock(&rli->data_lock);
+    goto err;
+  }
+  rli->inited=1;
+  rli->error_on_rli_init_info= false;
+  mysql_mutex_unlock(&mi->data_lock);
+  mysql_mutex_unlock(&rli->data_lock);
+  sql_print_information("MTS recovery: completed successfully.\n");
+  DBUG_RETURN(recovery_error);
+err:
+  /*
+    If recovery failed means we failed to initialize rli object in the case
+    of MTS. We should not allow the START SLAVE command to work as we do in
+    the case of STS. i.e if init_recovery call fails then we set inited=0.
+  */
+  rli->end_info();
+  rli->inited=0;
+  rli->error_on_rli_init_info= true;
+  DBUG_RETURN(recovery_error);
 }
 
 int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
@@ -758,7 +878,10 @@ int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
   */
   check_return= mi->check_info();
   if (check_return == ERROR_CHECKING_REPOSITORY)
+  {
+    init_error= 1;
     goto end;
+  }
 
   if (!(ignore_if_no_info && check_return == REPOSITORY_DOES_NOT_EXIST))
   {
@@ -768,7 +891,10 @@ int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
 
   check_return= mi->rli->check_info();
   if (check_return == ERROR_CHECKING_REPOSITORY)
+  {
+    init_error= 1;
     goto end;
+  }
   if (!(ignore_if_no_info && check_return == REPOSITORY_DOES_NOT_EXIST))
   {
     if (((thread_mask & SLAVE_SQL) != 0 || !(mi->rli->inited))
@@ -790,7 +916,20 @@ end:
 
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
-  DBUG_RETURN(check_return == ERROR_CHECKING_REPOSITORY || init_error);
+
+  /*
+    Handling MTS Relay-log recovery after successful initialization of mi and
+    rli objects.
+
+    MTS Relay-log recovery is handled by SSUG command. In order to start the
+    slave applier thread rli needs to be inited and mi->rli->data_lock should
+    be in released state. Hence we do the MTS recovery at this point of time
+    where both conditions are satisfied.
+  */
+  if (!init_error && mi->rli->is_relay_log_recovery
+      && mi->rli->mts_recovery_group_cnt)
+    init_error= fill_mts_gaps_and_recover(mi);
+  DBUG_RETURN(init_error);
 }
 
 void end_info(Master_info* mi)
@@ -1245,7 +1384,7 @@ terminate_slave_thread(THD *thd,
 
   while (*slave_running)                        // Should always be true
   {
-    int error __attribute__((unused));
+    int error MY_ATTRIBUTE((unused));
     DBUG_PRINT("loop", ("killing slave thread"));
 
     mysql_mutex_lock(&thd->LOCK_thd_data);
@@ -1255,7 +1394,7 @@ terminate_slave_thread(THD *thd,
       EINVAL: invalid signal number (can't happen)
       ESRCH: thread already killed (can happen, should be ignored)
     */
-    int err __attribute__((unused))= pthread_kill(thd->real_id, thr_client_alarm);
+    int err MY_ATTRIBUTE((unused))= pthread_kill(thd->real_id, thr_client_alarm);
     DBUG_ASSERT(err != EINVAL);
 #endif
     thd->awake(THD::NOT_KILLED);
@@ -3029,11 +3168,9 @@ bool show_slave_status(THD* thd, Master_info* mi)
       break;
     case Relay_log_info::UNTIL_SQL_AFTER_MTS_GAPS:
       until_type= "SQL_AFTER_MTS_GAPS";
-#ifndef DBUG_OFF
     case Relay_log_info::UNTIL_DONE:
       until_type= "DONE";
       break;
-#endif
     default:
       DBUG_ASSERT(0);
     }
@@ -4003,10 +4140,9 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
                                 rli->get_group_relay_log_pos(),
                                 rli->get_group_master_log_name(),
                                 rli->get_group_master_log_pos());
-#ifndef DBUG_OFF
-          /* 
+          /*
              Few tests wait for UNTIL_SQL_AFTER_MTS_GAPS completion.
-             Due to exisiting convention the status won't change 
+             Due to exisiting convention the status won't change
              prior to slave restarts.
              So making of UNTIL_SQL_AFTER_MTS_GAPS completion isdone here,
              and only in the debug build to make the test to catch the change
@@ -4016,7 +4152,6 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
           {
             rli->until_condition= Relay_log_info::UNTIL_DONE;
           }
-#endif
           // reset the Worker tables to remove last slave session time info
           if ((error= rli->mts_finalize_recovery()))
           {
@@ -7514,9 +7649,9 @@ static IO_CACHE *reopen_relay_log(Relay_log_info *rli, const char **errmsg)
 
 /**
   Reads next event from the relay log.  Should be called from the
-  slave IO thread.
+  slave SQL thread.
 
-  @param rli Relay_log_info structure for the slave IO thread.
+  @param rli Relay_log_info structure for the slave SQL thread.
 
   @return The event read, or NULL on error.  If an error occurs, the
   error is reported through the sql_print_information() or
@@ -7561,7 +7696,8 @@ static Log_event* next_event(Relay_log_info* rli)
         We just have a read only log that nobody else will be updating.
     */
     bool hot_log;
-    if ((hot_log = (cur_log != &rli->cache_buf)))
+    if ((hot_log = (cur_log != &rli->cache_buf)) ||
+        DBUG_EVALUATE_IF("force_sql_thread_error", 1, 0))
     {
       DBUG_ASSERT(rli->cur_log_fd == -1); // foreign descriptor
       mysql_mutex_lock(log_lock);
@@ -7570,7 +7706,8 @@ static Log_event* next_event(Relay_log_info* rli)
         Reading xxx_file_id is safe because the log will only
         be rotated when we hold relay_log.LOCK_log
       */
-      if (rli->relay_log.get_open_count() != rli->cur_log_old_open_count)
+      if (rli->relay_log.get_open_count() != rli->cur_log_old_open_count &&
+          DBUG_EVALUATE_IF("force_sql_thread_error", 0, 1))
       {
         // The master has switched to a new log file; Reopen the old log file
         cur_log=reopen_relay_log(rli, &errmsg);
@@ -7585,8 +7722,13 @@ static Log_event* next_event(Relay_log_info* rli)
       error during a write by the slave I/O thread may have closed it), we
       have to test it.
     */
-    if (!my_b_inited(cur_log))
+    if (!my_b_inited(cur_log) ||
+        DBUG_EVALUATE_IF("force_sql_thread_error", 1, 0))
+    {
+      if (hot_log)
+        mysql_mutex_unlock(log_lock);
       goto err;
+    }
 #ifndef DBUG_OFF
     {
       DBUG_PRINT("info", ("assertion skip %lu file pos %lu event relay log pos %lu file %s\n",

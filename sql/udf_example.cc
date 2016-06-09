@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -227,7 +227,7 @@ my_bool metaphon_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 ****************************************************************************/
 
 
-void metaphon_deinit(UDF_INIT *initid __attribute__((unused)))
+void metaphon_deinit(UDF_INIT *initid MY_ATTRIBUTE((unused)))
 {
 }
 
@@ -273,9 +273,9 @@ static char codes[26] =  {
 #define NOGHTOF(x)  (codes[(x) - 'A'] & 16)	/* BDH */
 
 
-char *metaphon(UDF_INIT *initid __attribute__((unused)),
+char *metaphon(UDF_INIT *initid MY_ATTRIBUTE((unused)),
                UDF_ARGS *args, char *result, unsigned long *length,
-               char *is_null, char *error __attribute__((unused)))
+               char *is_null, char *error MY_ATTRIBUTE((unused)))
 {
   const char *word=args->args[0];
   const char *w_end;
@@ -550,8 +550,8 @@ my_bool myfunc_double_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 }
 
 
-double myfunc_double(UDF_INIT *initid __attribute__((unused)), UDF_ARGS *args,
-                     char *is_null, char *error __attribute__((unused)))
+double myfunc_double(UDF_INIT *initid MY_ATTRIBUTE((unused)), UDF_ARGS *args,
+                     char *is_null, char *error MY_ATTRIBUTE((unused)))
 {
   unsigned long val = 0;
   unsigned long v = 0;
@@ -589,9 +589,9 @@ double myfunc_double(UDF_INIT *initid __attribute__((unused)), UDF_ARGS *args,
 
 /* This function returns the sum of all arguments */
 
-longlong myfunc_int(UDF_INIT *initid __attribute__((unused)), UDF_ARGS *args,
-                    char *is_null __attribute__((unused)),
-                    char *error __attribute__((unused)))
+longlong myfunc_int(UDF_INIT *initid MY_ATTRIBUTE((unused)), UDF_ARGS *args,
+                    char *is_null MY_ATTRIBUTE((unused)),
+                    char *error MY_ATTRIBUTE((unused)))
 {
   longlong val = 0;
   uint i;
@@ -621,9 +621,9 @@ longlong myfunc_int(UDF_INIT *initid __attribute__((unused)), UDF_ARGS *args,
   At least one of _init/_deinit is needed unless the server is started
   with --allow_suspicious_udfs.
 */
-my_bool myfunc_int_init(UDF_INIT *initid __attribute__((unused)),
-                        UDF_ARGS *args __attribute__((unused)),
-                        char *message __attribute__((unused)))
+my_bool myfunc_int_init(UDF_INIT *initid MY_ATTRIBUTE((unused)),
+                        UDF_ARGS *args MY_ATTRIBUTE((unused)),
+                        char *message MY_ATTRIBUTE((unused)))
 {
   return 0;
 }
@@ -663,9 +663,9 @@ void sequence_deinit(UDF_INIT *initid)
     free(initid->ptr);
 }
 
-longlong sequence(UDF_INIT *initid __attribute__((unused)), UDF_ARGS *args,
-                  char *is_null __attribute__((unused)),
-                  char *error __attribute__((unused)))
+longlong sequence(UDF_INIT *initid MY_ATTRIBUTE((unused)), UDF_ARGS *args,
+                  char *is_null MY_ATTRIBUTE((unused)),
+                  char *error MY_ATTRIBUTE((unused)))
 {
   ulonglong val=0;
   if (args->arg_count)
@@ -727,16 +727,16 @@ my_bool lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
   return 0;
 }
 
-void lookup_deinit(UDF_INIT *initid __attribute__((unused)))
+void lookup_deinit(UDF_INIT *initid MY_ATTRIBUTE((unused)))
 {
 #if !defined(HAVE_GETHOSTBYADDR_R) || !defined(HAVE_SOLARIS_STYLE_GETHOST)
   (void) pthread_mutex_destroy(&LOCK_hostname);
 #endif
 }
 
-char *lookup(UDF_INIT *initid __attribute__((unused)), UDF_ARGS *args,
+char *lookup(UDF_INIT *initid MY_ATTRIBUTE((unused)), UDF_ARGS *args,
              char *result, unsigned long *res_length, char *null_value,
-             char *error __attribute__((unused)))
+             char *error MY_ATTRIBUTE((unused)))
 {
   uint length;
   char name_buff[256];
@@ -807,16 +807,16 @@ my_bool reverse_lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
   return 0;
 }
 
-void reverse_lookup_deinit(UDF_INIT *initid __attribute__((unused)))
+void reverse_lookup_deinit(UDF_INIT *initid MY_ATTRIBUTE((unused)))
 {
 #if !defined(HAVE_GETHOSTBYADDR_R) || !defined(HAVE_SOLARIS_STYLE_GETHOST)
   (void) pthread_mutex_destroy(&LOCK_hostname);
 #endif
 }
 
-char *reverse_lookup(UDF_INIT *initid __attribute__((unused)), UDF_ARGS *args,
+char *reverse_lookup(UDF_INIT *initid MY_ATTRIBUTE((unused)), UDF_ARGS *args,
                      char *result, unsigned long *res_length,
-                     char *null_value, char *error __attribute__((unused)))
+                     char *null_value, char *error MY_ATTRIBUTE((unused)))
 {
 #if defined(HAVE_GETHOSTBYADDR_R) && defined(HAVE_SOLARIS_STYLE_GETHOST)
   char name_buff[256];
@@ -970,8 +970,8 @@ avgcost_reset(UDF_INIT* initid, UDF_ARGS* args, char* is_null, char* message)
 /* This is needed to get things to work in MySQL 4.1.1 and above */
 
 void
-avgcost_clear(UDF_INIT* initid, char* is_null __attribute__((unused)),
-              char* message __attribute__((unused)))
+avgcost_clear(UDF_INIT* initid, char* is_null MY_ATTRIBUTE((unused)),
+              char* message MY_ATTRIBUTE((unused)))
 {
   struct avgcost_data* data = (struct avgcost_data*)initid->ptr;
   data->totalprice=	0.0;
@@ -982,8 +982,8 @@ avgcost_clear(UDF_INIT* initid, char* is_null __attribute__((unused)),
 
 void
 avgcost_add(UDF_INIT* initid, UDF_ARGS* args,
-            char* is_null __attribute__((unused)),
-            char* message __attribute__((unused)))
+            char* is_null MY_ATTRIBUTE((unused)),
+            char* message MY_ATTRIBUTE((unused)))
 {
   if (args->args[0] && args->args[1])
   {
@@ -1029,8 +1029,8 @@ avgcost_add(UDF_INIT* initid, UDF_ARGS* args,
 
 
 double
-avgcost( UDF_INIT* initid, UDF_ARGS* args __attribute__((unused)),
-         char* is_null, char* error __attribute__((unused)))
+avgcost( UDF_INIT* initid, UDF_ARGS* args MY_ATTRIBUTE((unused)),
+         char* is_null, char* error MY_ATTRIBUTE((unused)))
 {
   struct avgcost_data* data = (struct avgcost_data*)initid->ptr;
   if (!data->count || !data->totalquantity)
@@ -1063,10 +1063,10 @@ my_bool myfunc_argument_name_init(UDF_INIT *initid, UDF_ARGS *args,
   return 0;
 }
 
-char *myfunc_argument_name(UDF_INIT *initid __attribute__((unused)),
+char *myfunc_argument_name(UDF_INIT *initid MY_ATTRIBUTE((unused)),
                            UDF_ARGS *args, char *result,
                            unsigned long *length, char *null_value,
-                           char *error __attribute__((unused)))
+                           char *error MY_ATTRIBUTE((unused)))
 {
   if (!args->attributes[0])
   {
@@ -1094,9 +1094,9 @@ my_bool is_const_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
   return 0;
 }
 
-char * is_const(UDF_INIT *initid, UDF_ARGS *args __attribute__((unused)),
+char * is_const(UDF_INIT *initid, UDF_ARGS *args MY_ATTRIBUTE((unused)),
                 char *result, unsigned long *length,
-                char *is_null, char *error __attribute__((unused)))
+                char *is_null, char *error MY_ATTRIBUTE((unused)))
 {
   if (initid->ptr != 0) {
     sprintf(result, "const");
@@ -1135,9 +1135,9 @@ my_bool check_const_len_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 }
 
 extern "C"
-char * check_const_len(UDF_INIT *initid, UDF_ARGS *args __attribute__((unused)),
+char * check_const_len(UDF_INIT *initid, UDF_ARGS *args MY_ATTRIBUTE((unused)),
                 char *result, unsigned long *length,
-                char *is_null, char *error __attribute__((unused)))
+                char *is_null, char *error MY_ATTRIBUTE((unused)))
 {
   strmov(result, initid->ptr);
   *length= (uint) strlen(result);
@@ -1183,8 +1183,8 @@ void my_median_deinit(UDF_INIT* initid)
 }
 
 void my_median_add(UDF_INIT* initid, UDF_ARGS* args,
-                   char* is_null __attribute__((unused)),
-                   char* message __attribute__((unused)))
+                   char* is_null MY_ATTRIBUTE((unused)),
+                   char* message MY_ATTRIBUTE((unused)))
 {
   My_median_data *data=
     static_cast<My_median_data*>(static_cast<void*>(initid->ptr));
@@ -1197,8 +1197,8 @@ void my_median_add(UDF_INIT* initid, UDF_ARGS* args,
 }
 
 void my_median_clear(UDF_INIT* initid, UDF_ARGS* args,
-                     char* is_null __attribute__((unused)),
-                     char* message __attribute__((unused)))
+                     char* is_null MY_ATTRIBUTE((unused)),
+                     char* message MY_ATTRIBUTE((unused)))
 {
   My_median_data *data=
     static_cast<My_median_data*>(static_cast<void*>(initid->ptr));
@@ -1207,7 +1207,7 @@ void my_median_clear(UDF_INIT* initid, UDF_ARGS* args,
 
 longlong my_median(UDF_INIT* initid, UDF_ARGS* args,
                    char* is_null,
-                   char* message __attribute__((unused)))
+                   char* message MY_ATTRIBUTE((unused)))
 {
   My_median_data *data=
     static_cast<My_median_data*>(static_cast<void*>(initid->ptr));

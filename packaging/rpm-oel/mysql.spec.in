@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -102,7 +102,6 @@ Source7:        %{compatsrc}
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
 Patch0:         mysql-5.6.16-mysql-install.patch
-Patch1:         mysql-5.6-libmysqlclient-symbols.patch
 BuildRequires:  cmake
 BuildRequires:  perl
 %{?el7:BuildRequires: perl(Time::HiRes)}
@@ -439,7 +438,6 @@ package has been split into several subpackages.
 %endif # 0%{?compatlib}
 pushd %{src_dir}
 %patch0 -p1
-%{?el7:%patch1 -p1}
 
 %build
 # Fail quickly and obviously if user tries to build as root
@@ -511,6 +509,7 @@ mkdir debug
            -DINSTALL_SQLBENCHDIR=share \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
+           %{?el7:-DWITH_SYMVER16=1} \
            -DWITH_EMBEDDED_SERVER=1 \
            -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
            %{?ssl_option} \
@@ -536,6 +535,7 @@ mkdir release
            -DINSTALL_SQLBENCHDIR=share \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
+           %{?el7:-DWITH_SYMVER16=1} \
            -DWITH_EMBEDDED_SERVER=1 \
            -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
            %{?ssl_option} \
@@ -765,12 +765,14 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
 %attr(644, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 %attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_server.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
@@ -949,6 +951,9 @@ fi
 %endif
 
 %changelog
+* Mon Mar 14 2016 Georgi Kodinov <georgi.kodinov@oracle.com> - 5.6.31-1
+- Add test_udf_services.so plugin
+
 * Tue Sep 29 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.28-1
 - Added conflicts to mysql-connector-c-shared dependencies
 

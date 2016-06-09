@@ -257,3 +257,31 @@ WHERE MATCH (title,body)
 AGAINST ('"more test proximity"' IN BOOLEAN MODE);
 id	title	body
 drop table articles;
+#
+# Bug #22679185	INVALID INNODB FTS DOC ID DURING INSERT
+#
+create table t1 (f1 int not null primary key, f2 varchar(100),
+FTS_DOC_ID bigint(20) unsigned not null,
+unique key `FTS_DOC_ID_INDEX` (`FTS_DOC_ID`),
+fulltext key (f2))engine=innodb;
+insert into t1 values(1, "This is the first record", 20000);
+insert into t1 values(2, "This is the second record", 40000);
+select FTS_DOC_ID from t1;
+FTS_DOC_ID
+20000
+40000
+drop table t1;
+create table t1 (f1 int not null primary key, f2 varchar(100),
+FTS_DOC_ID bigint(20) unsigned not null auto_increment,
+unique key `FTS_DOC_ID_INDEX` (`FTS_DOC_ID`),
+fulltext key (f2))engine=innodb, auto_increment=100000;
+set auto_increment_increment = 65535;
+insert into t1(f1, f2) values(1, "This is the first record");
+insert into t1(f1, f2) values(2, "This is the second record");
+insert into t1(f1, f2) values(3, "This is the third record");
+select FTS_DOC_ID from t1;
+FTS_DOC_ID
+131071
+196606
+262141
+drop table t1;

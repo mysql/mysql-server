@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -207,7 +207,7 @@ void
 mtr_start(
 /*======*/
 	mtr_t*	mtr)	/*!< out: mini-transaction */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /***************************************************************//**
 Commits a mini-transaction. */
 UNIV_INTERN
@@ -215,7 +215,7 @@ void
 mtr_commit(
 /*=======*/
 	mtr_t*	mtr)	/*!< in/out: mini-transaction */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /**********************************************************//**
 Sets and returns a savepoint in mtr.
 @return	savepoint */
@@ -308,7 +308,7 @@ mtr_memo_release(
 	mtr_t*	mtr,	/*!< in/out: mini-transaction */
 	void*	object,	/*!< in: object */
 	ulint	type)	/*!< in: object type: MTR_MEMO_S_LOCK, ... */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 #ifdef UNIV_DEBUG
 # ifndef UNIV_HOTBACKUP
 /**********************************************************//**
@@ -321,7 +321,7 @@ mtr_memo_contains(
 	mtr_t*		mtr,	/*!< in: mtr */
 	const void*	object,	/*!< in: object to search */
 	ulint		type)	/*!< in: type of object */
-	__attribute__((warn_unused_result, nonnull));
+	MY_ATTRIBUTE((warn_unused_result, nonnull));
 
 /**********************************************************//**
 Checks if memo contains the given page.

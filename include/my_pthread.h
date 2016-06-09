@@ -860,7 +860,7 @@ struct st_my_thread_var
 #endif
 };
 
-extern struct st_my_thread_var *_my_thread_var(void) __attribute__ ((const));
+extern struct st_my_thread_var *_my_thread_var(void) MY_ATTRIBUTE ((const));
 extern int set_mysys_var(struct st_my_thread_var *mysys_var);
 extern void **my_thread_var_dbug();
 extern uint my_thread_end_wait_time;

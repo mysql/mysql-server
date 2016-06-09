@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,7 +75,7 @@ client_thread(	void*	arg)
 }
 
 int
-main(int argc __attribute__((unused)), char** argv)
+main(int argc MY_ATTRIBUTE((unused)), char** argv)
 {
 	char	server_key[] = "../SSL/server-key.pem",
 		server_cert[] = "../SSL/server-cert.pem";

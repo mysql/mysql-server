@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -390,7 +390,7 @@ error:
 
 
 int my_fstat(File Filedes, MY_STAT *stat_area,
-             myf MyFlags __attribute__((unused)))
+             myf MyFlags MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("my_fstat");
   DBUG_PRINT("my",("fd: %d  MyFlags: %d", Filedes, MyFlags));

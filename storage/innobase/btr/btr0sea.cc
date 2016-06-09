@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -473,7 +473,7 @@ btr_search_update_block_hash_info(
 /*==============================*/
 	btr_search_t*	info,	/*!< in: search info */
 	buf_block_t*	block,	/*!< in: buffer block */
-	btr_cur_t*	cursor __attribute__((unused)))
+	btr_cur_t*	cursor MY_ATTRIBUTE((unused)))
 				/*!< in: cursor */
 {
 #ifdef UNIV_SYNC_DEBUG

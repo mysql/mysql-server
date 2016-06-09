@@ -230,9 +230,6 @@ bool Item::val_bool()
 */
 String *Item::val_str_ascii(String *str)
 {
-  if (!(collation.collation->state & MY_CS_NONASCII))
-    return val_str(str);
-  
   DBUG_ASSERT(str != &str_value);
   
   uint errors;
@@ -240,11 +237,15 @@ String *Item::val_str_ascii(String *str)
   if (!res)
     return 0;
   
-  if ((null_value= str->copy(res->ptr(), res->length(),
-                             collation.collation, &my_charset_latin1,
-                             &errors)))
-    return 0;
-  
+  if (!(res->charset()->state & MY_CS_NONASCII))
+    str= res;
+  else
+  {
+    if ((null_value= str->copy(res->ptr(), res->length(), collation.collation,
+                               &my_charset_latin1, &errors)))
+      return 0;
+  }
+
   return str;
 }
 
@@ -2914,11 +2915,24 @@ table_map Item_field::used_tables() const
 }
 
 
-table_map Item_field::resolved_used_tables() const
+bool Item_field::used_tables_for_level(uchar *arg)
 {
-  if (field->table->const_table)
-    return 0;					// const item
-  return field->table->map;
+  // Used by resolver only, so can never reach a "const" table.
+  DBUG_ASSERT(!field->orig_table->const_table);
+  TABLE_LIST *tr= field->orig_table->pos_in_table_list;
+  Used_tables *const ut= (Used_tables *)(arg);
+
+  /*
+    When the qualifying query for the field (table_ref->select_lex) is the
+    same level as the requested level, add the table's map. When the qualifying
+    query for the field is outer relative to the requested level, add an outer
+    reference.
+  */
+  if (ut->select == tr->select_lex)
+    ut->used_tables|= tr->table->map;
+  else if (ut->select->nest_level > tr->select_lex->nest_level)
+    ut->used_tables|= OUTER_REF_TABLE_BIT;
+  return false;
 }
 
 void Item_ident::fix_after_pullout(st_select_lex *parent_select,
@@ -2993,7 +3007,9 @@ void Item_ident::fix_after_pullout(st_select_lex *parent_select,
     */
     Item_subselect *subq_predicate= child_select->master_unit()->item;
 
-    subq_predicate->used_tables_cache|= this->resolved_used_tables();
+    Used_tables ut(depended_from);
+    (void) walk(&Item::used_tables_for_level, true, (uchar *)(&ut));
+    subq_predicate->used_tables_cache|= ut.used_tables;
     subq_predicate->const_item_cache&= this->const_item();
   }
 }
@@ -3412,8 +3428,8 @@ Item *Item_null::safe_charset_converter(const CHARSET_INFO *tocs)
 
 static void
 default_set_param_func(Item_param *param,
-                       uchar **pos __attribute__((unused)),
-                       ulong len __attribute__((unused)))
+                       uchar **pos MY_ATTRIBUTE((unused)),
+                       ulong len MY_ATTRIBUTE((unused)))
 {
   param->set_null();
 }
@@ -4724,8 +4740,10 @@ void mark_select_range_as_dependent(THD *thd,
     if (found_field == view_ref_found)
     {
       Item::Type type= found_item->type();
-      prev_subselect_item->used_tables_cache|=
-        found_item->used_tables();
+      Used_tables ut(last_select);
+      (void) found_item->walk(&Item::used_tables_for_level, true,
+                              (uchar *)(&ut));
+      prev_subselect_item->used_tables_cache|= ut.used_tables;
       dependent= ((type == Item::REF_ITEM || type == Item::FIELD_ITEM) ?
                   (Item_ident*) found_item :
                   0);
@@ -5170,8 +5188,10 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
         else
         {
           Item::Type ref_type= (*reference)->type();
-          prev_subselect_item->used_tables_cache|=
-            (*reference)->used_tables();
+          Used_tables ut(select);
+          (void) (*reference)->walk(&Item::used_tables_for_level, true,
+                                    (uchar *)(&ut));
+          prev_subselect_item->used_tables_cache|= ut.used_tables;
           prev_subselect_item->const_item_cache&=
             (*reference)->const_item();
           mark_as_dependent(thd, last_checked_context->select_lex,

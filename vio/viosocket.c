@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -29,7 +29,7 @@
 # include <sys/filio.h>
 #endif
 
-int vio_errno(Vio *vio __attribute__((unused)))
+int vio_errno(Vio *vio MY_ATTRIBUTE((unused)))
 {
   /* These transport types are not Winsock based. */
 #ifdef _WIN32
@@ -247,8 +247,8 @@ static int vio_set_blocking(Vio *vio, my_bool status)
 
 
 int vio_socket_timeout(Vio *vio,
-                       uint which __attribute__((unused)),
-                       my_bool old_mode __attribute__((unused)))
+                       uint which MY_ATTRIBUTE((unused)),
+                       my_bool old_mode MY_ATTRIBUTE((unused)))
 {
   int ret= 0;
   DBUG_ENTER("vio_socket_timeout");
@@ -314,7 +314,7 @@ int vio_socket_timeout(Vio *vio,
 }
 
 
-int vio_fastsend(Vio * vio __attribute__((unused)))
+int vio_fastsend(Vio * vio MY_ATTRIBUTE((unused)))
 {
   int r=0;
   DBUG_ENTER("vio_fastsend");
@@ -735,7 +735,7 @@ static my_bool socket_peek_read(Vio *vio, uint *bytes)
 int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
 {
   int ret;
-  short revents __attribute__((unused)) = 0;
+  short revents MY_ATTRIBUTE((unused)) = 0;
   struct pollfd pfd;
   my_socket sd= mysql_socket_getfd(vio->mysql_socket);
   MYSQL_SOCKET_WAIT_VARIABLES(locker, state) /* no ';' */

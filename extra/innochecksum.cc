@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -235,8 +235,8 @@ extern "C" my_bool
 innochecksum_get_one_option(
 /*========================*/
   int optid,
-  const struct my_option *opt __attribute__((unused)),
-  char *argument __attribute__((unused)))
+  const struct my_option *opt MY_ATTRIBUTE((unused)),
+  char *argument MY_ATTRIBUTE((unused)))
 {
   switch (optid) {
   case 'd':

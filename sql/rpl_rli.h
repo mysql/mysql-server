@@ -187,6 +187,13 @@ public:
   uint32 cur_log_old_open_count;
 
   /*
+    If on init_info() call error_on_rli_init_info is true that means
+    that previous call to init_info() terminated with an error, RESET
+    SLAVE must be executed and the problem fixed manually.
+   */
+  bool error_on_rli_init_info;
+
+  /*
     Let's call a group (of events) :
       - a transaction
       or
@@ -314,10 +321,7 @@ public:
    */
   enum {UNTIL_NONE= 0, UNTIL_MASTER_POS, UNTIL_RELAY_POS,
         UNTIL_SQL_BEFORE_GTIDS, UNTIL_SQL_AFTER_GTIDS,
-        UNTIL_SQL_AFTER_MTS_GAPS
-#ifndef DBUG_OFF
-        , UNTIL_DONE
-#endif
+        UNTIL_SQL_AFTER_MTS_GAPS, UNTIL_DONE
 }
     until_condition;
   char until_log_name[FN_REFLEN];
@@ -979,12 +983,6 @@ private:
   time_t row_stmt_start_timestamp;
   bool long_find_row_note_printed;
 
-  /*
-    If on init_info() call error_on_rli_init_info is true that means
-    that previous call to init_info() terminated with an error, RESET
-    SLAVE must be executed and the problem fixed manually.
-   */
-  bool error_on_rli_init_info;
 };
 
 bool mysql_show_relaylog_events(THD* thd);

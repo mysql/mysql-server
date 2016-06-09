@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1490,7 +1490,7 @@ public:
 
 extern "C" uchar *
 my_tz_names_get_key(Tz_names_entry *entry, size_t *length,
-                    my_bool not_used __attribute__((unused)))
+                    my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= entry->name.length();
   return (uchar*) entry->name.ptr();
@@ -1499,7 +1499,7 @@ my_tz_names_get_key(Tz_names_entry *entry, size_t *length,
 extern "C" uchar *
 my_offset_tzs_get_key(Time_zone_offset *entry,
                       size_t *length,
-                      my_bool not_used __attribute__((unused)))
+                      my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= sizeof(long);
   return (uchar*) &entry->offset;

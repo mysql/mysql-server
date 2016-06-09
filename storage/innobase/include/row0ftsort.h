@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -187,7 +187,7 @@ row_fts_psort_info_init(
 					instantiated */
 	fts_psort_t**		merge)	/*!< out: parallel merge info
 					to be instantiated */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /********************************************************************//**
 Clean up and deallocate FTS parallel sort structures, and close
 temparary merge sort files */
@@ -275,5 +275,5 @@ row_fts_merge_insert(
 	fts_psort_t*	psort_info,	/*!< parallel sort info */
 	ulint		id)		/* !< in: which auxiliary table's data
 					to insert to */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 #endif /* row0ftsort_h */
