@@ -4514,5 +4514,15 @@ id	insert(0x3a, 1, 0, d)
 2	public data:
 DROP TABLE t1;
 #
+# Bug#22888420 CONCAT_WS: ASSERTION FAILED: !S.USES_BUFFER_OWNED_BY(THIS)
+#
+do concat('a',concat_ws('a', 0x2859, 'a' ,
+trim(period_add('a',1) from (1&''))
+)
+);
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: 'a'
+#
 # End of 5.6 tests
 #

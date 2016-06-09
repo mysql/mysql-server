@@ -5535,7 +5535,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
           */
           create_info->used_fields|= HA_CREATE_USED_ENGINE;
 
-          int result __attribute__((unused))=
+          int result MY_ATTRIBUTE((unused))=
             store_create_info(thd, table, &query,
                               create_info, TRUE /* show_database */);
 

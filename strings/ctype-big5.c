@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -872,7 +872,7 @@ static int my_strnncoll_big5_internal(const uchar **a_res,
 
 /* Compare strings */
 
-static int my_strnncoll_big5(const CHARSET_INFO *cs __attribute__((unused)), 
+static int my_strnncoll_big5(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), 
 			     const uchar *a, size_t a_length,
                              const uchar *b, size_t b_length,
                              my_bool b_is_prefix)
@@ -885,7 +885,7 @@ static int my_strnncoll_big5(const CHARSET_INFO *cs __attribute__((unused)),
 
 /* compare strings, ignore end space */
 
-static int my_strnncollsp_big5(const CHARSET_INFO* cs __attribute__((unused)),
+static int my_strnncollsp_big5(const CHARSET_INFO* cs MY_ATTRIBUTE((unused)),
 			       const uchar *a, size_t a_length, 
 			       const uchar *b, size_t b_length,
                                my_bool diff_if_only_endspace_difference)
@@ -957,14 +957,14 @@ my_strnxfrm_big5(const CHARSET_INFO *cs,
 }
 
 
-static uint ismbchar_big5(const CHARSET_INFO *cs __attribute__((unused)),
+static uint ismbchar_big5(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                          const char* p, const char *e)
 {
   return (isbig5head(*(p)) && (e)-(p)>1 && isbig5tail(*((p)+1))? 2: 0);
 }
 
 
-static uint mbcharlen_big5(const CHARSET_INFO *cs __attribute__((unused)),
+static uint mbcharlen_big5(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                            uint c)
 {
   return (isbig5head(c)? 2 : 1);
@@ -6742,7 +6742,7 @@ static int func_uni_big5_onechar(int code){
 
 
 static int
-my_wc_mb_big5(const CHARSET_INFO *cs __attribute__((unused)),
+my_wc_mb_big5(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 	      my_wc_t wc, uchar *s, uchar *e)
 {
 
@@ -6771,7 +6771,7 @@ my_wc_mb_big5(const CHARSET_INFO *cs __attribute__((unused)),
 
 
 static int 
-my_mb_wc_big5(const CHARSET_INFO *cs __attribute__((unused)),
+my_mb_wc_big5(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 	      my_wc_t *pwc,const uchar *s,const uchar *e)
 {
 
@@ -6801,7 +6801,7 @@ my_mb_wc_big5(const CHARSET_INFO *cs __attribute__((unused)),
   CP950 and HKSCS additional characters are also accepted.
 */
 static
-size_t my_well_formed_len_big5(const CHARSET_INFO *cs __attribute__((unused)),
+size_t my_well_formed_len_big5(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                const char *b, const char *e,
                                size_t pos, int *error)
 {

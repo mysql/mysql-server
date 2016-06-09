@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -266,7 +266,7 @@ lock_rec_expl_exist_on_page(
 /*========================*/
 	ulint	space,	/*!< in: space id */
 	ulint	page_no)/*!< in: page number */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Checks if locks of other transactions prevent an immediate insert of
 a record. If they do, first tests if the query thread should anyway
@@ -289,7 +289,7 @@ lock_rec_insert_check_and_lock(
 				inserted record maybe should inherit
 				LOCK_GAP type locks from the successor
 				record */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 /*********************************************************************//**
 Checks if locks of other transactions prevent an immediate modify (update,
 delete mark, or delete unmark) of a clustered index record. If they do,
@@ -310,7 +310,7 @@ lock_clust_rec_modify_check_and_lock(
 	dict_index_t*		index,	/*!< in: clustered index */
 	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
 	que_thr_t*		thr)	/*!< in: query thread */
-	__attribute__((warn_unused_result, nonnull));
+	MY_ATTRIBUTE((warn_unused_result, nonnull));
 /*********************************************************************//**
 Checks if locks of other transactions prevent an immediate modify
 (delete mark or delete unmark) of a secondary index record.
@@ -331,7 +331,7 @@ lock_sec_rec_modify_check_and_lock(
 	que_thr_t*	thr,	/*!< in: query thread
 				(can be NULL if BTR_NO_LOCKING_FLAG) */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
-	__attribute__((warn_unused_result, nonnull(2,3,4,6)));
+	MY_ATTRIBUTE((warn_unused_result, nonnull(2,3,4,6)));
 /*********************************************************************//**
 Like lock_clust_rec_read_check_and_lock(), but reads a
 secondary index record.
@@ -418,7 +418,7 @@ lock_clust_rec_read_check_and_lock_alt(
 	ulint			gap_mode,/*!< in: LOCK_ORDINARY, LOCK_GAP, or
 					LOCK_REC_NOT_GAP */
 	que_thr_t*		thr)	/*!< in: query thread */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 /*********************************************************************//**
 Checks that a record is seen in a consistent read.
 @return true if sees, or false if an earlier version of the record
@@ -450,7 +450,7 @@ lock_sec_rec_cons_read_sees(
 					should be read or passed over
 					by a read cursor */
 	const read_view_t*	view)	/*!< in: consistent read view */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 /*********************************************************************//**
 Locks the specified database table in the mode given. If the lock cannot
 be granted immediately, the query thread is put to wait.
@@ -465,7 +465,7 @@ lock_table(
 				in dictionary cache */
 	enum lock_mode	mode,	/*!< in: lock mode */
 	que_thr_t*	thr)	/*!< in: query thread */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 /*********************************************************************//**
 Creates a table IX lock object for a resurrected transaction. */
 UNIV_INTERN
@@ -520,7 +520,7 @@ lock_rec_fold(
 /*==========*/
 	ulint	space,	/*!< in: space */
 	ulint	page_no)/*!< in: page number */
-	__attribute__((const));
+	MY_ATTRIBUTE((const));
 /*********************************************************************//**
 Calculates the hash value of a page file address: used in inserting or
 searching for a lock in the hash table.
@@ -570,7 +570,7 @@ lock_is_table_exclusive(
 /*====================*/
 	const dict_table_t*	table,	/*!< in: table */
 	const trx_t*		trx)	/*!< in: transaction */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /*********************************************************************//**
 Checks if a lock request lock1 has to wait for request lock2.
 @return	TRUE if lock1 has to wait for lock2 to be removed */
@@ -594,7 +594,7 @@ lock_report_trx_id_insanity(
 	dict_index_t*	index,		/*!< in: index */
 	const ulint*	offsets,	/*!< in: rec_get_offsets(rec, index) */
 	trx_id_t	max_trx_id)	/*!< in: trx_sys_get_max_trx_id() */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /*********************************************************************//**
 Prints info of a table lock. */
 UNIV_INTERN
@@ -621,7 +621,7 @@ lock_print_info_summary(
 /*====================*/
 	FILE*	file,	/*!< in: file where to print */
 	ibool   nowait)	/*!< in: whether to wait for the lock mutex */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 /*********************************************************************//**
 Prints info of locks for each transaction. This function assumes that the
 caller holds the lock mutex and more importantly it will release the lock
@@ -641,7 +641,7 @@ ulint
 lock_number_of_rows_locked(
 /*=======================*/
 	const trx_lock_t*	trx_lock)	/*!< in: transaction locks */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 
 /*******************************************************************//**
 Gets the type of a lock. Non-inline version for using outside of the
@@ -799,7 +799,7 @@ dberr_t
 lock_trx_handle_wait(
 /*=================*/
 	trx_t*	trx)	/*!< in/out: trx lock state */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /*********************************************************************//**
 Get the number of locks on a table.
 @return number of locks */
@@ -808,7 +808,7 @@ ulint
 lock_table_get_n_locks(
 /*===================*/
 	const dict_table_t*	table)	/*!< in: table */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
 Checks that a transaction id is sensible, i.e., not in the future.
@@ -821,7 +821,7 @@ lock_check_trx_id_sanity(
 	const rec_t*	rec,		/*!< in: user record */
 	dict_index_t*	index,		/*!< in: index */
 	const ulint*	offsets)	/*!< in: rec_get_offsets(rec, index) */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 /*******************************************************************//**
 Check if the transaction holds any locks on the sys tables
 or its records.
@@ -831,7 +831,7 @@ const lock_t*
 lock_trx_has_sys_table_locks(
 /*=========================*/
 	const trx_t*	trx)	/*!< in: transaction to check */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /*******************************************************************//**
 Check if the transaction holds an exclusive lock on a record.
@@ -844,7 +844,7 @@ lock_trx_has_rec_x_lock(
 	const dict_table_t*	table,	/*!< in: table to check */
 	const buf_block_t*	block,	/*!< in: buffer block of the record */
 	ulint			heap_no)/*!< in: record heap number */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 #endif /* UNIV_DEBUG */
 
 /** Lock modes and types */

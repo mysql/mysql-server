@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -629,7 +629,7 @@ static  mysql_cond_t slave_worker_hash_cond;
 
 
 extern "C" uchar *get_key(const uchar *record, size_t *length,
-                          my_bool not_used __attribute__((unused)))
+                          my_bool not_used MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("get_key");
 
@@ -1490,7 +1490,7 @@ ulong Slave_committed_queue::move_queue_head(DYNAMIC_ARRAY *ws)
     Slave_worker *w_i;
     Slave_job_group *ptr_g, g;
     char grl_name[FN_REFLEN];
-    ulong ind __attribute__((unused));
+    ulong ind MY_ATTRIBUTE((unused));
 
 #ifndef DBUG_OFF
     if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0) &&

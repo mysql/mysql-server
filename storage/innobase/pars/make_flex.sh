@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+# Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -33,15 +33,15 @@ sed -e '
 s/'"$TMPFILE"'/'"$OUTFILE"'/;
 s/\(int offset = \)\((yy_c_buf_p) - (yytext_ptr)\);/\1(int)(\2);/;
 s/\(void yy\(restart\|_\(delete\|flush\)_buffer\)\)/static \1/;
-s/\(void yy_switch_to_buffer\)/__attribute__((unused)) static \1/;
-s/\(void yy\(push\|pop\)_buffer_state\)/__attribute__((unused)) static \1/;
+s/\(void yy_switch_to_buffer\)/MY_ATTRIBUTE((unused)) static \1/;
+s/\(void yy\(push\|pop\)_buffer_state\)/MY_ATTRIBUTE((unused)) static \1/;
 s/\(YY_BUFFER_STATE yy_create_buffer\)/static \1/;
-s/\(\(int\|void\) yy[gs]et_\)/__attribute__((unused)) static \1/;
+s/\(\(int\|void\) yy[gs]et_\)/MY_ATTRIBUTE((unused)) static \1/;
 s/\(void \*\?yy\(\(re\)\?alloc\|free\)\)/static \1/;
 s/\(extern \)\?\(int yy\(leng\|lineno\|_flex_debug\)\)/static \2/;
-s/\(int yylex_destroy\)/__attribute__((unused)) static \1/;
+s/\(int yylex_destroy\)/MY_ATTRIBUTE((unused)) static \1/;
 s/\(extern \)\?\(int yylex \)/UNIV_INTERN \2/;
-s/^\(\(FILE\|char\) *\* *yyget\)/__attribute__((unused)) static \1/;
+s/^\(\(FILE\|char\) *\* *yyget\)/MY_ATTRIBUTE((unused)) static \1/;
 s/^\(extern \)\?\(\(FILE\|char\) *\* *yy\)/static \2/;
 ' < $TMPFILE >> $OUTFILE
 

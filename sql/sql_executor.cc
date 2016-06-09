@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -484,7 +484,7 @@ init_tmptable_sum_functions(Item_sum **func_ptr)
 
 static void
 update_tmptable_sum_func(Item_sum **func_ptr,
-			 TABLE *tmp_table __attribute__((unused)))
+			 TABLE *tmp_table MY_ATTRIBUTE((unused)))
 {
   Item_sum *func;
   while ((func= *(func_ptr++)))
@@ -2256,7 +2256,7 @@ join_read_last_key(JOIN_TAB *tab)
 
 	/* ARGSUSED */
 static int
-join_no_more_records(READ_RECORD *info __attribute__((unused)))
+join_no_more_records(READ_RECORD *info MY_ATTRIBUTE((unused)))
 {
   return -1;
 }
@@ -2858,7 +2858,7 @@ end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
 
 	/* ARGSUSED */
 enum_nested_loop_state
-end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
+end_send_group(JOIN *join, JOIN_TAB *join_tab MY_ATTRIBUTE((unused)),
 	       bool end_of_records)
 {
   int idx= -1;
@@ -3856,7 +3856,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
   Item *pos;
   List_iterator_fast<Item> li(all_fields);
   Copy_field *copy= NULL;
-  Copy_field *copy_start __attribute__((unused));
+  Copy_field *copy_start MY_ATTRIBUTE((unused));
   res_selected_fields.empty();
   res_all_fields.empty();
   List_iterator_fast<Item> itr(res_all_fields);

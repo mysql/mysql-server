@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -658,10 +658,10 @@ int my_wildcmp_mb_bin(const CHARSET_INFO *cs,
                       const char *wildstr,const char *wildend,
                       int escape, int w_one, int w_many);
 
-int my_strcasecmp_mb_bin(const CHARSET_INFO * cs __attribute__((unused)),
+int my_strcasecmp_mb_bin(const CHARSET_INFO * cs MY_ATTRIBUTE((unused)),
                          const char *s, const char *t);
 
-void my_hash_sort_mb_bin(const CHARSET_INFO *cs __attribute__((unused)),
+void my_hash_sort_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                          const uchar *key, size_t len,ulong *nr1, ulong *nr2);
 
 size_t my_strnxfrm_mb(const CHARSET_INFO *,

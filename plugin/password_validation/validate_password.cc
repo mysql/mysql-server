@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,12 +24,12 @@
 
 
 /*  
-  __attribute__(A) needs to be defined for Windows else complier
+  MY_ATTRIBUTE(A) needs to be defined for Windows else complier
   do not recognise it. Argument in plugin_init and plugin_deinit
   Used in other plugins as well.
 */
-#if !defined(__attribute__) && (defined(__cplusplus) || !defined(__GNUC__)  || __GNUC__ == 2 && __GNUC_MINOR__ < 8)
-#define __attribute__(A)
+#if !defined(MY_ATTRIBUTE) && (defined(__cplusplus) || !defined(__GNUC__)  || __GNUC__ == 2 && __GNUC_MINOR__ < 8)
+#define MY_ATTRIBUTE(A)
 #endif
 
 #define MAX_DICTIONARY_FILE_LENGTH    1024 * 1024
@@ -367,7 +367,7 @@ static int validate_password_init(MYSQL_PLUGIN plugin_info)
   It empty the std::set and returns 0
 */
 
-static int validate_password_deinit(void *arg __attribute__((unused)))
+static int validate_password_deinit(void *arg MY_ATTRIBUTE((unused)))
 {
   free_dictionary_file();
   mysql_rwlock_destroy(&LOCK_dict_file);
@@ -380,8 +380,8 @@ static int validate_password_deinit(void *arg __attribute__((unused)))
   the cache and re-load the new dictionary file.
 */
 static void
-dictionary_update(MYSQL_THD thd __attribute__((unused)),
-                  struct st_mysql_sys_var *var __attribute__((unused)),
+dictionary_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
+                  struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
                   void *var_ptr, const void *save)
 {
   *(const char**)var_ptr= *(const char**)save;
@@ -396,8 +396,8 @@ dictionary_update(MYSQL_THD thd __attribute__((unused)),
   4. validate_password_special_char_count
 */
 static void
-length_update(MYSQL_THD thd __attribute__((unused)),
-              struct st_mysql_sys_var *var __attribute__((unused)),
+length_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
+              struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
               void *var_ptr, const void *save)
 {
   int new_validate_password_length;

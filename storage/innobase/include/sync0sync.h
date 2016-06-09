@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -400,7 +400,7 @@ ibool
 mutex_own(
 /*======*/
 	const ib_mutex_t*	mutex)	/*!< in: mutex */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 #endif /* UNIV_DEBUG */
 #ifdef UNIV_SYNC_DEBUG
 /******************************************************************//**
@@ -415,7 +415,7 @@ sync_thread_add_level(
 	ulint	level,	/*!< in: level in the latching order; if
 			SYNC_LEVEL_VARYING, nothing is done */
 	ibool	relock)	/*!< in: TRUE if re-entering an x-lock */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /******************************************************************//**
 Removes a latch from the thread level array if it is found there.
 @return TRUE if found in the array; it is no error if the latch is
@@ -445,7 +445,7 @@ sync_thread_levels_nonempty_gen(
 /*============================*/
 	ibool	dict_mutex_allowed)	/*!< in: TRUE if dictionary mutex is
 					allowed to be owned by the thread */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /******************************************************************//**
 Checks if the level array for the current thread is empty,
 except for data dictionary latches. */
@@ -462,7 +462,7 @@ sync_thread_levels_nonempty_trx(
 	ibool	has_search_latch)
 				/*!< in: TRUE if and only if the thread
 				is supposed to hold btr_search_latch */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************************//**
 Gets the debug information for a reserved mutex. */

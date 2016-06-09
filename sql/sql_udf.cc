@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -94,7 +94,7 @@ static char *init_syms(udf_func *tmp, char *nm)
 
 
 extern "C" uchar* get_hash_key(const uchar *buff, size_t *length,
-			      my_bool not_used __attribute__((unused)))
+			      my_bool not_used MY_ATTRIBUTE((unused)))
 {
   udf_func *udf=(udf_func*) buff;
   *length=(uint) udf->name.length;

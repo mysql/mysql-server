@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -159,8 +159,8 @@ int my_sync_dir(const char *dir_name, myf my_flags)
 
 #else /* NEED_EXPLICIT_SYNC_DIR */
 
-int my_sync_dir(const char *dir_name __attribute__((unused)),
-                myf my_flags __attribute__((unused)))
+int my_sync_dir(const char *dir_name MY_ATTRIBUTE((unused)),
+                myf my_flags MY_ATTRIBUTE((unused)))
 {
   return 0;
 }
@@ -192,8 +192,8 @@ int my_sync_dir_by_file(const char *file_name, myf my_flags)
 
 #else /* NEED_EXPLICIT_SYNC_DIR */
 
-int my_sync_dir_by_file(const char *file_name __attribute__((unused)),
-                        myf my_flags __attribute__((unused)))
+int my_sync_dir_by_file(const char *file_name MY_ATTRIBUTE((unused)),
+                        myf my_flags MY_ATTRIBUTE((unused)))
 {
   return 0;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,10 +26,10 @@
 #include "sql_plugin.h"                         // st_plugin_int
 
 /*
-  Disable __attribute__() on non-gcc compilers.
+  Disable MY_ATTRIBUTE() on non-gcc compilers.
 */
-#if !defined(__attribute__) && !defined(__GNUC__)
-#define __attribute__(A)
+#if !defined(MY_ATTRIBUTE) && !defined(__GNUC__)
+#define MY_ATTRIBUTE(A)
 #endif
 
 

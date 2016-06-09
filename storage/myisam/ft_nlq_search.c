@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,7 +51,7 @@ typedef struct st_ft_superdoc
     double   tmp_weight;
 } FT_SUPERDOC;
 
-static int FT_SUPERDOC_cmp(void* cmp_arg __attribute__((unused)),
+static int FT_SUPERDOC_cmp(void* cmp_arg MY_ATTRIBUTE((unused)),
 			   FT_SUPERDOC *p1, FT_SUPERDOC *p2)
 {
   if (p1->doc.dpos < p2->doc.dpos)
@@ -189,7 +189,7 @@ do_skip:
 
 
 static int walk_and_copy(FT_SUPERDOC *from,
-			 uint32 count __attribute__((unused)), FT_DOC **to)
+			 uint32 count MY_ATTRIBUTE((unused)), FT_DOC **to)
 {
   DBUG_ENTER("walk_and_copy");
   from->doc.weight+=from->tmp_weight*from->word_ptr->weight;
@@ -200,7 +200,7 @@ static int walk_and_copy(FT_SUPERDOC *from,
 }
 
 static int walk_and_push(FT_SUPERDOC *from,
-			 uint32 count __attribute__((unused)), QUEUE *best)
+			 uint32 count MY_ATTRIBUTE((unused)), QUEUE *best)
 {
   DBUG_ENTER("walk_and_copy");
   from->doc.weight+=from->tmp_weight*from->word_ptr->weight;
@@ -210,7 +210,7 @@ static int walk_and_push(FT_SUPERDOC *from,
 }
 
 
-static int FT_DOC_cmp(void *unused __attribute__((unused)),
+static int FT_DOC_cmp(void *unused MY_ATTRIBUTE((unused)),
                       FT_DOC *a, FT_DOC *b)
 {
   double c= b->weight - a->weight;
@@ -345,8 +345,8 @@ int ft_nlq_read_next(FT_INFO *handler, char *record)
 
 
 float ft_nlq_find_relevance(FT_INFO *handler,
-			    uchar *record __attribute__((unused)),
-			    uint length __attribute__((unused)))
+			    uchar *record MY_ATTRIBUTE((unused)),
+			    uint length MY_ATTRIBUTE((unused)))
 {
   int a,b,c;
   FT_DOC  *docs=handler->doc;

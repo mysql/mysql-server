@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,9 +60,9 @@ static void *alarm_handler(void *arg);
 #define reschedule_alarms() pthread_kill(alarm_thread,THR_SERVER_ALARM)
 #endif
 
-static sig_handler thread_alarm(int sig __attribute__((unused)));
+static sig_handler thread_alarm(int sig MY_ATTRIBUTE((unused)));
 
-static int compare_ulong(void *not_used __attribute__((unused)),
+static int compare_ulong(void *not_used MY_ATTRIBUTE((unused)),
 			 uchar *a_ptr,uchar* b_ptr)
 {
   ulong a=*((ulong*) a_ptr),b= *((ulong*) b_ptr);
@@ -274,7 +274,7 @@ void thr_end_alarm(thr_alarm_t *alarmed)
   every second.
 */
 
-sig_handler process_alarm(int sig __attribute__((unused)))
+sig_handler process_alarm(int sig MY_ATTRIBUTE((unused)))
 {
   sigset_t old_mask;
 /*
@@ -304,7 +304,7 @@ sig_handler process_alarm(int sig __attribute__((unused)))
 }
 
 
-static sig_handler process_alarm_part2(int sig __attribute__((unused)))
+static sig_handler process_alarm_part2(int sig MY_ATTRIBUTE((unused)))
 {
   ALARM *alarm_data;
   DBUG_ENTER("process_alarm");
@@ -492,7 +492,7 @@ void thr_alarm_info(ALARM_INFO *info)
 */
 
 
-static sig_handler thread_alarm(int sig __attribute__((unused)))
+static sig_handler thread_alarm(int sig MY_ATTRIBUTE((unused)))
 {
 #ifdef MAIN
   printf("thread_alarm\n"); fflush(stdout);
@@ -511,7 +511,7 @@ static sig_handler thread_alarm(int sig __attribute__((unused)))
 /* set up a alarm thread with uses 'sleep' to sleep between alarms */
 
 #ifdef USE_ALARM_THREAD
-static void *alarm_handler(void *arg __attribute__((unused)))
+static void *alarm_handler(void *arg MY_ATTRIBUTE((unused)))
 {
   int error;
   struct timespec abstime;
@@ -580,7 +580,7 @@ void thr_alarm_kill(my_thread_id thread_id)
   /* Can't do this yet */
 }
 
-sig_handler process_alarm(int sig __attribute__((unused)))
+sig_handler process_alarm(int sig MY_ATTRIBUTE((unused)))
 {
   /* Can't do this yet */
 }
@@ -774,7 +774,7 @@ static sig_handler print_signal_warning(int sig)
 #endif /* USE_ONE_SIGNAL_HAND */
 
 
-static void *signal_hand(void *arg __attribute__((unused)))
+static void *signal_hand(void *arg MY_ATTRIBUTE((unused)))
 {
   sigset_t set;
   int sig,error,err_count=0;;
@@ -842,7 +842,7 @@ static void *signal_hand(void *arg __attribute__((unused)))
 }
 
 
-int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
+int main(int argc MY_ATTRIBUTE((unused)),char **argv MY_ATTRIBUTE((unused)))
 {
   pthread_t tid;
   pthread_attr_t thr_attr;
@@ -931,7 +931,7 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
 
 #else /* !defined(DONT_USE_ALARM_THREAD) */
 
-int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
+int main(int argc MY_ATTRIBUTE((unused)),char **argv MY_ATTRIBUTE((unused)))
 {
   printf("thr_alarm disabled with DONT_USE_THR_ALARM\n");
   exit(1);

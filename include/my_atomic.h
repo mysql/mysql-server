@@ -1,7 +1,7 @@
 #ifndef MY_ATOMIC_INCLUDED
 #define MY_ATOMIC_INCLUDED
 
-/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -121,11 +121,11 @@
         typedef union {                                         \
           int  ## S  i;                                         \
           uint ## S  u;                                         \
-        } U_ ## S   __attribute__ ((transparent_union));        \
+        } U_ ## S   MY_ATTRIBUTE ((transparent_union));        \
         typedef union {                                         \
           int  ## S volatile *i;                                \
           uint ## S volatile *u;                                \
-        } Uv_ ## S   __attribute__ ((transparent_union));
+        } Uv_ ## S   MY_ATTRIBUTE ((transparent_union));
 #define uintptr intptr
 make_transparent_unions(8)
 make_transparent_unions(16)
