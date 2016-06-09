@@ -18,3 +18,4 @@ ndb_disconnect_ddl        : Bug#31853 flaky testcase...
 ndb_dbug_lock : SEAGULL gsl locking order
 ndb_insert : Bug#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 ndb_row_count : Bug#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
+ndb_full_index_memory : Bug #23304519	7.5.2: ROWS DELETION BRINGS DOWN THE ENTIRE CLUSTER WITH AN ASSERTION
