@@ -5350,16 +5350,12 @@ void Dbacc::insertLockOwnersList(const OperationrecPtr& insOperPtr) const
 void Dbacc::allocOverflowPage()
 {
   tresult = 0;
-  if (cfreepages.isEmpty())
-  {
-    jam();  
-    zpagesize_error("Dbacc::allocOverflowPage");
-    tresult = ZPAGESIZE_ERROR;
-    return;
-  }//if
   Page8Ptr spPageptr;
   seizePage(spPageptr);
-  ndbrequire(tresult <= ZLIMIT_OF_ERROR);
+  if (tresult > ZLIMIT_OF_ERROR)
+  {
+    return;
+  }
   {
     LocalContainerPageList sparselist(*this, fragrecptr.p->sparsepages);
     sparselist.addLast(spPageptr);
