@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #ifndef BYTEORDER_INCLUDED
 #define BYTEORDER_INCLUDED
 
+#include "my_compiler.h"
 #include "binlog_config.h"
 #include <stdint.h>
 #ifndef STANDALONE_BINLOG
@@ -120,12 +121,9 @@ uint64_t inline le64toh(uint64_t x)
 }
 #endif
 
-#if defined(_WIN32)
-#define __attribute__(x)
-#endif
 #define do_compile_time_assert(X)                                              \
   do                                                                        \
   {                                                                         \
-    typedef char do_compile_time_assert[(X) ? 1 : -1] __attribute__((unused)); \
+    typedef char do_compile_time_assert[(X) ? 1 : -1] MY_ATTRIBUTE((unused)); \
   } while(0)
 #endif // BYTEORDER_INCLUDED

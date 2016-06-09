@@ -254,7 +254,6 @@ public:
     EXPECT_CALL(mock_client, server()).WillRepeatedly(Return(mock_server.get()));
   }
 
-  boost::asio::io_service                     io_service;
   boost::shared_ptr<StrictMock<Mock_server> > mock_server;
 
   StrictMock<Mock_connection>        mock_connection;
@@ -322,7 +321,7 @@ TEST_F(CapabilityHanderAuthMechTestSuite, get_returnAuthMethodsFromServer_always
 
   for(std::size_t i = 0; i < names.size(); ++i)
   {
-    const Any &a = any.array().value(i);
+    const Any &a = any.array().value(static_cast<int>(i));
 
     ASSERT_EQ(Any::SCALAR, a.type());
     ASSERT_EQ(Scalar::V_STRING, a.scalar().type());

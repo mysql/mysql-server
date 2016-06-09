@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -730,23 +730,27 @@ void test_init_disabled()
   socket_class_A= find_socket_class(socket_key_A);
   ok(socket_class_A != NULL, "socket class A");
 
-  /* Pretend thread T-1 is running, and disabled, with thread_instrumentation */
+  /*
+    Pretend thread T-1 is running, and disabled, with thread_instrumentation.
+    Disabled instruments are still created so they can be enabled later.
+  */
+
   /* ------------------------------------------------------------------------ */
 
   psi->set_thread(thread_1);
   setup_thread(thread_1, false);
 
-  /* disabled M-A + disabled T-1: no instrumentation */
+  /* disabled M-A + disabled T-1: instrumentation */
 
   mutex_class_A->m_enabled= false;
   mutex_A1= psi->init_mutex(mutex_key_A, NULL);
-  ok(mutex_A1 == NULL, "mutex_A1 not instrumented");
+  ok(mutex_A1 != NULL, "mutex_A1 disabled, instrumented");
 
   /* enabled M-A + disabled T-1: instrumentation (for later) */
 
   mutex_class_A->m_enabled= true;
   mutex_A1= psi->init_mutex(mutex_key_A, NULL);
-  ok(mutex_A1 != NULL, "mutex_A1 instrumented");
+  ok(mutex_A1 != NULL, "mutex_A1 enabled, instrumented");
 
   /* broken key + disabled T-1: no instrumentation */
 
@@ -760,13 +764,13 @@ void test_init_disabled()
 
   rwlock_class_A->m_enabled= false;
   rwlock_A1= psi->init_rwlock(rwlock_key_A, NULL);
-  ok(rwlock_A1 == NULL, "rwlock_A1 not instrumented");
+  ok(rwlock_A1 != NULL, "rwlock_A1 disabled, instrumented");
 
   /* enabled RW-A + disabled T-1: instrumentation (for later) */
 
   rwlock_class_A->m_enabled= true;
   rwlock_A1= psi->init_rwlock(rwlock_key_A, NULL);
-  ok(rwlock_A1 != NULL, "rwlock_A1 instrumented");
+  ok(rwlock_A1 != NULL, "rwlock_A1 enabled, instrumented");
 
   /* broken key + disabled T-1: no instrumentation */
 
@@ -780,13 +784,13 @@ void test_init_disabled()
 
   cond_class_A->m_enabled= false;
   cond_A1= psi->init_cond(cond_key_A, NULL);
-  ok(cond_A1 == NULL, "cond_A1 not instrumented");
+  ok(cond_A1 != NULL, "cond_A1 disabled, instrumented");
 
   /* enabled C-A + disabled T-1: instrumentation (for later) */
 
   cond_class_A->m_enabled= true;
   cond_A1= psi->init_cond(cond_key_A, NULL);
-  ok(cond_A1 != NULL, "cond_A1 instrumented");
+  ok(cond_A1 != NULL, "cond_A1 enabled, instrumented");
 
   /* broken key + disabled T-1: no instrumentation */
 
@@ -815,22 +819,22 @@ void test_init_disabled()
   file_class_A->m_enabled= true;
   psi->create_file(0, "foo", (File) 12);
   file_A1= lookup_file_by_name("foo");
-  ok(file_A1 == NULL, "not instrumented");
+  ok(file_A1 == NULL, "file_A1 not instrumented");
   psi->create_file(99, "foo", (File) 12);
   file_A1= lookup_file_by_name("foo");
-  ok(file_A1 == NULL, "not instrumented");
+  ok(file_A1 == NULL, "file_A1 not instrumented");
 
   /* disabled S-A + disabled T-1: no instrumentation */
 
   socket_class_A->m_enabled= false;
   socket_A1= psi->init_socket(socket_key_A, NULL, NULL, 0);
-  ok(socket_A1 == NULL, "socket_A1 not instrumented");
+  ok(socket_A1 != NULL, "socket_A1 disabled, instrumented");
 
   /* enabled S-A + disabled T-1: instrumentation (for later) */
 
   socket_class_A->m_enabled= true;
   socket_A1= psi->init_socket(socket_key_A, NULL, NULL, 0);
-  ok(socket_A1 != NULL, "socket_A1 instrumented");
+  ok(socket_A1 != NULL, "socket_A1 enabled, instrumented");
 
   /* broken key + disabled T-1: no instrumentation */
 
@@ -849,85 +853,85 @@ void test_init_disabled()
 
   mutex_class_A->m_enabled= false;
   mutex_A1= psi->init_mutex(mutex_key_A, NULL);
-  ok(mutex_A1 == NULL, "not instrumented");
+  ok(mutex_A1 != NULL, "mutex_A1 disabled, instrumented");
 
   /* enabled M-A + enabled T-1: instrumentation */
 
   mutex_class_A->m_enabled= true;
   mutex_A1= psi->init_mutex(mutex_key_A, NULL);
-  ok(mutex_A1 != NULL, "instrumented");
+  ok(mutex_A1 != NULL, "mutex_A1 enabled, instrumented");
   psi->destroy_mutex(mutex_A1);
 
   /* broken key + enabled T-1: no instrumentation */
 
   mutex_class_A->m_enabled= true;
   mutex_A1= psi->init_mutex(0, NULL);
-  ok(mutex_A1 == NULL, "not instrumented");
+  ok(mutex_A1 == NULL, "mutex_A1 not instrumented");
   mutex_A1= psi->init_mutex(99, NULL);
-  ok(mutex_A1 == NULL, "not instrumented");
+  ok(mutex_A1 == NULL, "mutex_A1 not instrumented");
 
   /* disabled RW-A + enabled T-1: no instrumentation */
 
   rwlock_class_A->m_enabled= false;
   rwlock_A1= psi->init_rwlock(rwlock_key_A, NULL);
-  ok(rwlock_A1 == NULL, "not instrumented");
+  ok(rwlock_A1 != NULL, "rwlock_A1 disabled, instrumented");
 
   /* enabled RW-A + enabled T-1: instrumentation */
 
   rwlock_class_A->m_enabled= true;
   rwlock_A1= psi->init_rwlock(rwlock_key_A, NULL);
-  ok(rwlock_A1 != NULL, "instrumented");
+  ok(rwlock_A1 != NULL, "rwlock_A1 enabled, instrumented");
   psi->destroy_rwlock(rwlock_A1);
 
   /* broken key + enabled T-1: no instrumentation */
 
   rwlock_class_A->m_enabled= true;
   rwlock_A1= psi->init_rwlock(0, NULL);
-  ok(rwlock_A1 == NULL, "not instrumented");
+  ok(rwlock_A1 == NULL, "rwlock_A1 not instrumented");
   rwlock_A1= psi->init_rwlock(99, NULL);
-  ok(rwlock_A1 == NULL, "not instrumented");
+  ok(rwlock_A1 == NULL, "rwlock_A1 not instrumented");
 
   /* disabled C-A + enabled T-1: no instrumentation */
 
   cond_class_A->m_enabled= false;
   cond_A1= psi->init_cond(cond_key_A, NULL);
-  ok(cond_A1 == NULL, "not instrumented");
+  ok(cond_A1 != NULL, "cond_A1 disabled, instrumented");
 
   /* enabled C-A + enabled T-1: instrumentation */
 
   cond_class_A->m_enabled= true;
   cond_A1= psi->init_cond(cond_key_A, NULL);
-  ok(cond_A1 != NULL, "instrumented");
+  ok(cond_A1 != NULL, "cond_A1 enabled, instrumented");
   psi->destroy_cond(cond_A1);
 
   /* broken key + enabled T-1: no instrumentation */
 
   cond_class_A->m_enabled= true;
   cond_A1= psi->init_cond(0, NULL);
-  ok(cond_A1 == NULL, "not instrumented");
+  ok(cond_A1 == NULL, "cond_A1 not instrumented");
   cond_A1= psi->init_cond(99, NULL);
-  ok(cond_A1 == NULL, "not instrumented");
+  ok(cond_A1 == NULL, "cond_A1 not instrumented");
 
   /* disabled F-A + enabled T-1: no instrumentation */
 
   file_class_A->m_enabled= false;
   psi->create_file(file_key_A, "foo", (File) 12);
   file_A1= lookup_file_by_name("foo");
-  ok(file_A1 == NULL, "not instrumented");
+  ok(file_A1 == NULL, "file_A1 not instrumented");
 
   /* enabled F-A + open failed + enabled T-1: no instrumentation */
 
   file_class_A->m_enabled= true;
   psi->create_file(file_key_A, "foo", (File) -1);
   file_A1= lookup_file_by_name("foo");
-  ok(file_A1 == NULL, "not instrumented");
+  ok(file_A1 == NULL, "file_A1 not instrumented");
 
   /* enabled F-A + out-of-descriptors + enabled T-1: no instrumentation */
 
   file_class_A->m_enabled= true;
   psi->create_file(file_key_A, "foo", (File) 65000);
   file_A1= lookup_file_by_name("foo");
-  ok(file_A1 == NULL, "not instrumented");
+  ok(file_A1 == NULL, "file_A1 not instrumented");
   ok(file_handle_lost == 1, "lost a file handle");
   file_handle_lost= 0;
 
@@ -951,22 +955,22 @@ void test_init_disabled()
   /* disabled S-A + enabled T-1: no instrumentation */
 
   socket_class_A->m_enabled= false;
-  ok(socket_A1 == NULL, "not instrumented");
+  ok(socket_A1 == NULL, "socket_A1 not instrumented");
 
   /* enabled S-A + enabled T-1: instrumentation */
 
   socket_class_A->m_enabled= true;
   socket_A1= psi->init_socket(socket_key_A, NULL, NULL, 0);
-  ok(socket_A1 != NULL, "instrumented");
+  ok(socket_A1 != NULL, "socket_A1 instrumented");
   psi->destroy_socket(socket_A1);
 
   /* broken key + enabled T-1: no instrumentation */
 
   socket_class_A->m_enabled= true;
   socket_A1= psi->init_socket(0, NULL, NULL, 0);
-  ok(socket_A1 == NULL, "not instrumented");
+  ok(socket_A1 == NULL, "socket_A1 not instrumented");
   socket_A1= psi->init_socket(99, NULL, NULL, 0);
-  ok(socket_A1 == NULL, "not instrumented");
+  ok(socket_A1 == NULL, "socket_A1 not instrumented");
 
   /* Pretend the running thread is not instrumented */
   /* ---------------------------------------------- */
@@ -977,13 +981,13 @@ void test_init_disabled()
 
   mutex_class_A->m_enabled= false;
   mutex_A1= psi->init_mutex(mutex_key_A, NULL);
-  ok(mutex_A1 == NULL, "mutex_A1 not instrumented");
+  ok(mutex_A1 != NULL, "mutex_A1 disabled, instrumented");
 
   /* enabled M-A + unknown thread: instrumentation (for later) */
 
   mutex_class_A->m_enabled= true;
   mutex_A1= psi->init_mutex(mutex_key_A, NULL);
-  ok(mutex_A1 != NULL, "mutex_A1 instrumented");
+  ok(mutex_A1 != NULL, "mutex_A1 enabled, instrumented");
 
   /* broken key + unknown thread: no instrumentation */
 
@@ -997,13 +1001,13 @@ void test_init_disabled()
 
   rwlock_class_A->m_enabled= false;
   rwlock_A1= psi->init_rwlock(rwlock_key_A, NULL);
-  ok(rwlock_A1 == NULL, "rwlock_A1 not instrumented");
+  ok(rwlock_A1 != NULL, "rwlock_A1 disabled, instrumented");
 
   /* enabled RW-A + unknown thread: instrumentation (for later) */
 
   rwlock_class_A->m_enabled= true;
   rwlock_A1= psi->init_rwlock(rwlock_key_A, NULL);
-  ok(rwlock_A1 != NULL, "rwlock_A1 instrumented");
+  ok(rwlock_A1 != NULL, "rwlock_A1 enabled, instrumented");
 
   /* broken key + unknown thread: no instrumentation */
 
@@ -1017,13 +1021,13 @@ void test_init_disabled()
 
   cond_class_A->m_enabled= false;
   cond_A1= psi->init_cond(cond_key_A, NULL);
-  ok(cond_A1 == NULL, "cond_A1 not instrumented");
+  ok(cond_A1 != NULL, "cond_A1 disabled, instrumented");
 
   /* enabled C-A + unknown thread: instrumentation (for later) */
 
   cond_class_A->m_enabled= true;
   cond_A1= psi->init_cond(cond_key_A, NULL);
-  ok(cond_A1 != NULL, "cond_A1 instrumented");
+  ok(cond_A1 != NULL, "cond_A1 enabled, instrumented");
 
   /* broken key + unknown thread: no instrumentation */
 
@@ -1038,14 +1042,14 @@ void test_init_disabled()
   file_class_A->m_enabled= false;
   psi->create_file(file_key_A, "foo", (File) 12);
   file_A1= lookup_file_by_name("foo");
-  ok(file_A1 == NULL, "not instrumented");
+  ok(file_A1 == NULL, "file_A1 not instrumented");
 
   /* enabled F-A + unknown thread: no instrumentation */
 
   file_class_A->m_enabled= true;
   psi->create_file(file_key_A, "foo", (File) 12);
   file_A1= lookup_file_by_name("foo");
-  ok(file_A1 == NULL, "not instrumented");
+  ok(file_A1 == NULL, "file_A1 not instrumented");
 
   /* broken key + unknown thread: no instrumentation */
 
@@ -1061,13 +1065,13 @@ void test_init_disabled()
 
   socket_class_A->m_enabled= false;
   socket_A1= psi->init_socket(socket_key_A, NULL, NULL, 0);
-  ok(socket_A1 == NULL, "socket_A1 not instrumented");
+  ok(socket_A1 != NULL, "socket_A1 disabled, instrumented");
 
   /* enabled S-A + unknown thread: instrumentation (for later) */
 
   socket_class_A->m_enabled= true;
   socket_A1= psi->init_socket(socket_key_A, NULL, NULL, 0);
-  ok(socket_A1 != NULL, "socket_A1 instrumented");
+  ok(socket_A1 != NULL, "socket_A1 enabled, instrumented");
 
   /* broken key + unknown thread: no instrumentation */
 

@@ -12,6 +12,7 @@ set @save_master_verify_checksum = @@global.master_verify_checksum;
 set @@global.binlog_cache_size = 4096;
 set @@global.binlog_checksum = CRC32;
 set @@global.master_verify_checksum = 1;
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 include/start_slave.inc
 flush status;

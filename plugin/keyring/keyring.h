@@ -48,9 +48,9 @@ void keyring_init_psi_keys(void);
 
 my_bool init_keyring_locks();
 
-void update_keyring_file_data(MYSQL_THD thd  __attribute__((unused)),
-                              struct st_mysql_sys_var *var  __attribute__((unused)),
-                              void *var_ptr __attribute__((unused)),
+void update_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
+                              struct st_mysql_sys_var *var  MY_ATTRIBUTE((unused)),
+                              void *var_ptr MY_ATTRIBUTE((unused)),
                               const void *save_ptr);
 
 my_bool mysql_key_fetch(boost::movelib::unique_ptr<IKey> key_to_fetch, char **key_type,

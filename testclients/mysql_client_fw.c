@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -197,26 +197,26 @@ static void die(const char *file, int line, const char *expr)
 #define mytest_r(x) if ((x)) {myerror(NULL);DIE_UNLESS(FALSE);}
 
 /* Silence unused function warnings for some of the static functions. */
-static int cmp_double(double *a, double *b) __attribute__((unused));
+static int cmp_double(double *a, double *b) MY_ATTRIBUTE((unused));
 static void verify_col_data(const char *table, const char *col,
-                            const char *exp_data) __attribute__((unused));
+                            const char *exp_data) MY_ATTRIBUTE((unused));
 static void do_verify_prepare_field(MYSQL_RES *result, unsigned int no,
                                     const char *name, const char *org_name,
                                     enum enum_field_types type,
                                     const char *table, const char *org_table,
                                     const char *db, unsigned long length,
                                     const char *def, const char *file,
-                                    int line) __attribute__((unused));
+                                    int line) MY_ATTRIBUTE((unused));
 static void verify_st_affected_rows(MYSQL_STMT *stmt,
-                                    ulonglong exp_count) __attribute__((unused));
-static void verify_affected_rows(ulonglong exp_count) __attribute__((unused));
+                                    ulonglong exp_count) MY_ATTRIBUTE((unused));
+static void verify_affected_rows(ulonglong exp_count) MY_ATTRIBUTE((unused));
 static void verify_field_count(MYSQL_RES *result,
-                               uint exp_count) __attribute__((unused));
+                               uint exp_count) MY_ATTRIBUTE((unused));
 #ifndef EMBEDDED_LIBRARY
 static void execute_prepare_query(const char *query,
-                                  ulonglong exp_count) __attribute__((unused));
+                                  ulonglong exp_count) MY_ATTRIBUTE((unused));
 #endif
-static my_bool thread_query(const char *query) __attribute__((unused));
+static my_bool thread_query(const char *query) MY_ATTRIBUTE((unused));
 
 
 /* A workaround for Sun Forte 5.6 on Solaris x86 */
@@ -1285,7 +1285,7 @@ static struct my_tests_st *get_my_tests();  /* To be defined in main .c file */
 static struct my_tests_st *my_testlist= 0;
 
 static my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 char *argument)
 {
  switch (optid) {

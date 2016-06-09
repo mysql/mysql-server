@@ -125,6 +125,11 @@ public:
     std::cout << "Usage: " << get_name() <<" [OPTIONS]" << std::endl;
   }
 
+  int get_error_code()
+  {
+    return 0;
+  }
+
   /**
     Error codes:
     EXIT_INIT_ERROR - Initialization error.
@@ -484,8 +489,6 @@ public:
 
     /* Create a file indicating upgrade has been performed */
     this->create_mysql_upgrade_info_file();
-
-    mysql_close(this->m_mysql_connection);
 
     return 0;
   }

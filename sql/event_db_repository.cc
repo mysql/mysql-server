@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,7 +57,7 @@ const TABLE_FIELD_TYPE event_table_fields[ET_FIELD_COUNT] =
   },
   {
     { C_STRING_WITH_LEN("definer") },
-    { C_STRING_WITH_LEN("char(77)") },
+    { C_STRING_WITH_LEN("char(93)") },
     { C_STRING_WITH_LEN("utf8") }
   },
   {
@@ -168,15 +168,44 @@ static const TABLE_FIELD_DEF
 
 class Event_db_intact : public Table_check_intact
 {
+private:
+  bool silence_error;
+public:
+  Event_db_intact() : silence_error(FALSE) {}
+  my_bool check_event_table(TABLE *table);
+
 protected:
   void report_error(uint, const char *fmt, ...)
   {
+    if(silence_error == TRUE)
+      return;
+
     va_list args;
     va_start(args, fmt);
     error_log_print(ERROR_LEVEL, fmt, args);
     va_end(args);
   }
 };
+
+my_bool Event_db_intact::check_event_table(TABLE *table)
+{
+  silence_error= TRUE;
+  my_bool error= check(table, &event_table_def);
+  silence_error= FALSE;
+  if (!error)
+    return FALSE;
+
+  //This could have failed because of definer column being 77 characters long
+  uint32 original_definer_length= table->field[3]->field_length;
+  table->field[3]->field_length= (USERNAME_CHAR_LENGTH + HOSTNAME_LENGTH + 1) *
+                                 table->field[3]->charset()->mbmaxlen;
+
+  error= check(table, &event_table_def);
+
+  table->field[3]->field_length= original_definer_length;
+
+  return error;
+}
 
 /** In case of an error, a message is printed to the error log. */
 static Event_db_intact table_intact;
@@ -231,7 +260,17 @@ mysql_event_fill_row(THD *thd,
 
   if (fields[f_num= ET_FIELD_DEFINER]->
                               store(et->definer.str, et->definer.length, scs))
+  {
+    if(fields[ET_FIELD_DEFINER]->field_length <
+        (USERNAME_CHAR_LENGTH + HOSTNAME_LENGTH + 1) *
+        table->field[3]->charset()->mbmaxlen)
+    {
+      my_error(ER_USER_COLUMN_OLD_LENGTH, MYF(0),
+               fields[ET_FIELD_DEFINER]->field_name);
+      DBUG_RETURN(TRUE);
+    }
     goto err_truncate;
+  }
 
   if (fields[f_num= ET_FIELD_DB]->store(et->dbname.str, et->dbname.length, scs))
     goto err_truncate;
@@ -561,7 +600,7 @@ Event_db_repository::fill_schema_events(THD *thd, TABLE_LIST *i_s_table,
     DBUG_RETURN(TRUE);
   }
  
-  if (table_intact.check(event_table.table, &event_table_def))
+  if (table_intact.check_event_table(event_table.table))
   {
     close_nontrans_system_tables(thd, &open_tables_backup);
     my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
@@ -626,7 +665,7 @@ Event_db_repository::open_event_table(THD *thd, enum thr_lock_type lock_type,
   *table= tables.table;
   tables.table->use_all_columns();
 
-  if (table_intact.check(*table, &event_table_def))
+  if (table_intact.check_event_table(*table))
   {
     close_thread_tables(thd);
     my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
@@ -1100,7 +1139,7 @@ Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname,
   if (!(ret= open_nontrans_system_tables_for_read(thd, &event_table,
                                                   &open_tables_backup)))
   {
-    if (table_intact.check(event_table.table, &event_table_def))
+    if (table_intact.check_event_table(event_table.table))
     {
       close_nontrans_system_tables(thd, &open_tables_backup);
       my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
@@ -1258,7 +1297,7 @@ Event_db_repository::check_system_tables(THD *thd)
   }
   else
   {
-    if (table_intact.check(tables.table, &event_table_def))
+    if(table_intact.check_event_table(tables.table))
       ret= 1;
     close_mysql_tables(thd);
   }

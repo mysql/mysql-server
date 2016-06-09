@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -111,6 +111,15 @@ static int pfs_done_func(void *p)
   DBUG_RETURN(0);
 }
 
+static int show_func_mutex_instances_lost(THD *thd, SHOW_VAR *var, char *buff)
+{
+  var->type= SHOW_LONG;
+  var->value= buff;
+  long *value= reinterpret_cast<long*>(buff);
+  *value= global_mutex_container.get_lost_counter();
+  return 0;
+}
+
 static struct st_mysql_show_var pfs_status_vars[]=
 {
   {"Performance_schema_mutex_classes_lost",
@@ -128,7 +137,7 @@ static struct st_mysql_show_var pfs_status_vars[]=
   {"Performance_schema_memory_classes_lost",
     (char*) &memory_class_lost, SHOW_LONG_NOFLUSH, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_mutex_instances_lost",
-    (char*) &global_mutex_container.m_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
+    (char*) &show_func_mutex_instances_lost, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_rwlock_instances_lost",
     (char*) &global_rwlock_container.m_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_cond_instances_lost",

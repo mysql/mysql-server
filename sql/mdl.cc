@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -110,7 +110,7 @@ void MDL_key::init_psi_keys()
 {
   int i;
   int count;
-  PSI_stage_info *info __attribute__((unused));
+  PSI_stage_info *info MY_ATTRIBUTE((unused));
 
   count= array_elements(MDL_key::m_namespace_to_wait_state_name);
   for (i= 0; i<count; i++)
@@ -1053,7 +1053,7 @@ extern "C"
 {
 static uchar *
 mdl_locks_key(const uchar *record, size_t *length,
-              my_bool not_used __attribute__((unused)))
+              my_bool not_used MY_ATTRIBUTE((unused)))
 {
   MDL_lock *lock=(MDL_lock*) record;
   *length= lock->key.length();

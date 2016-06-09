@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -83,6 +83,10 @@ public:
    Prints program invocation message.
   */
   virtual void short_usage()= 0;
+  /**
+   Return error code
+  */
+  virtual int get_error_code()= 0;
 
 protected:
   Abstract_program();
@@ -108,7 +112,7 @@ private:
     If we have anonymous functions or binding this should be removed.
   */
   static my_bool callback_option_parsed(int optid,
-    const struct my_option *opt __attribute__((unused)),
+    const struct my_option *opt MY_ATTRIBUTE((unused)),
     char *argument);
 
   Options::Debug_options m_debug_options;

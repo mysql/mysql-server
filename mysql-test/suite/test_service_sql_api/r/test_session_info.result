@@ -383,7 +383,7 @@ Thread handler id IS equal to session id returned by srv_session_info_get_sessio
 
 SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,role,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  6
 name  type  processlist_id  processlist_user  processlist_host  processlist_db  processlist_command  processlist_state  processlist_info  role  instrumented  history  connection_type  
-thread/sql/daemon_plugin  FOREGROUND  6  [NULL]  [NULL]  [NULL]  Query  Sending data  SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,role,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  6  [NULL]  YES  YES  Plugin  
+thread/test_service_sql/session_info  FOREGROUND  6  root  localhost  [NULL]  Query  Sending data  SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,role,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  6  [NULL]  YES  YES  Plugin  
 
 num_cols      : 13
 nb rows       : 1
@@ -393,7 +393,7 @@ warn count    : 0
 
 SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,role,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  7
 name  type  processlist_id  processlist_user  processlist_host  processlist_db  processlist_command  processlist_state  processlist_info  role  instrumented  history  connection_type  
-thread/sql/daemon_plugin  FOREGROUND  7  [NULL]  [NULL]  [NULL]  Query  Sending data  SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,role,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  7  [NULL]  YES  YES  Plugin  
+thread/test_service_sql/session_info  FOREGROUND  7  root  localhost  [NULL]  Query  Sending data  SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,role,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  7  [NULL]  YES  YES  Plugin  
 
 num_cols      : 13
 nb rows       : 1

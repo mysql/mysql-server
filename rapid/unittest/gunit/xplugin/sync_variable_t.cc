@@ -62,12 +62,12 @@ public:
 
   void run_thread_set()
   {
-    thread_create(0, &m_thr, NULL, &start_routine_set, this);
+    thread_create(0, &m_thr, &start_routine_set, this);
   }
 
   void run_thread_set_and_expect()
   {
-    thread_create(0, &m_thr, NULL, &start_routine_set_and_expect, this);
+    thread_create(0, &m_thr, &start_routine_set_and_expect, this);
   }
 
   void join_thread()

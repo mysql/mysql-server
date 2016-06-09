@@ -78,7 +78,7 @@
     </InstallUISequence>
  
     <!-- Find previous installation -->
-    <Property Id="INSTALLDIR">
+    <Property Id="GETINSTALLDIR">
       <RegistrySearch Id="FindInstallLocation"
           Root="HKLM"
           @Win64@
@@ -86,6 +86,10 @@
           Name="InstallLocation"
           Type="raw" />
     </Property>
+    <CustomAction Id="SetInstall"    Property="INSTALLDIR" Value="[GETINSTALLDIR]" />
+    <InstallUISequence>
+       <Custom Action="SetInstall"    After="AppSearch">Installed</Custom>
+    </InstallUISequence>
     <Property Id="OLDERVERSION"> 
       <RegistrySearch Id="FindOlderVersion"
         Root="HKLM"

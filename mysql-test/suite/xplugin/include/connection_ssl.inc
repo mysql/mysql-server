@@ -293,7 +293,12 @@ ALTER USER user4_mysqlx@localhost ACCOUNT UNLOCK;
 
 --exec $MYSQLXTEST -u user5_mysqlx --password='auth_string' --ssl-cipher='DHE-RSA-AES256-SHA' --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
 
+--exec $MYSQLXTEST -u user5_mysqlx --password='auth_string' --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
+
 --exec $MYSQLXTEST -u user6_mysqlx --password='dwh@#ghd' --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-cipher='DHE-RSA-AES256-SHA' --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
+
+--error 1
+--exec $MYSQLXTEST -u user6_mysqlx --password='dwh@#ghd' --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
 
 --error 1
 --exec $MYSQLXTEST -u user7_mysqlx --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
@@ -302,6 +307,10 @@ ALTER USER user4_mysqlx@localhost ACCOUNT UNLOCK;
 --exec $MYSQLXTEST -u user7_mysqlx --ssl-cipher="DHE-RSA-AES256-SHA" --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
 
 --exec $MYSQLXTEST -u user7_mysqlx --ssl-cipher="AES256-SHA"         --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
+
+--echo Cert needed
+--error 1
+--exec $MYSQLXTEST -u user7_mysqlx --ssl-cipher="AES256-SHA"         --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
 
 --replace_regex /4294967295/-1/ /18446744073709551615/-1/
 SHOW GLOBAL STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$';

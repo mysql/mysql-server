@@ -69,7 +69,7 @@ static  HANDLE hEventLog= NULL;                  // global
      0 Success
     -1 Error
 */
-int my_syslog(const CHARSET_INFO *cs __attribute__((unused)),
+int my_syslog(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
               enum loglevel level,
               const char *msg)
 {

@@ -2175,6 +2175,13 @@ Warnings:
 Warning	1292	Truncated incorrect time value: '-t'
 DROP TABLE t;
 #
+# Bug#22839915 UNINTIALIZED VALUE IN DECIMAL_ROUND
+#               WITH DECIMAL CONVERSIONS
+#
+select maketime(1,1.1,1);
+maketime(1,1.1,1)
+01:01:01
+#
 # Bug#21462523 RETURNED VALUE OVERFLOWS DECIMAL DATA TYPE
 #
 CREATE TABLE t1
@@ -2194,3 +2201,13 @@ SELECT DISTINCT q1.f1 / 3 FROM (SELECT SUM(f1) AS f1 FROM t2  ) q1;
 q1.f1 / 3
 94.0000
 DROP TABLE t1, t2;
+#
+# Bug#22883278 UNINITIALIZED SIGN:DECIMAL_CMP WHEN DIVIDING BY
+#              RESULT OF FAILED LEAST()
+SELECT -1 DIV LEAST(1,JSON_INSERT(1, '$[1]','','',''));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_insert; a JSON string or JSON type is required.
+SELECT -1 DIV LEAST(1, JSON_EXTRACT('1', '$.abc'));
+-1 DIV LEAST(1, JSON_EXTRACT('1', '$.abc'))
+NULL
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the LEAST and GREATEST operators'

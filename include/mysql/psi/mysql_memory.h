@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -46,9 +46,9 @@ static inline void inline_mysql_memory_register(
   PSI_memory_info *info,
   int count)
 #else
-  const char *category __attribute__((unused)),
-  void *info __attribute__((unused)),
-  int count __attribute__((unused)))
+  const char *category MY_ATTRIBUTE((unused)),
+  void *info MY_ATTRIBUTE((unused)),
+  int count MY_ATTRIBUTE((unused)))
 #endif
 {
 #ifdef HAVE_PSI_MEMORY_INTERFACE

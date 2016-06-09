@@ -599,7 +599,7 @@ IF(WITH_UNIT_TESTS)
   ENDIF()
   ADD_SUBDIRECTORY(unittest/gunit)
   
-  IF(WITH_RAPID AND EXISTS rapid/unittest/gunit)
+  IF(WITH_RAPID AND EXISTS ${CMAKE_SOURCE_DIR}/rapid/unittest/gunit)
     ADD_SUBDIRECTORY(rapid/unittest/gunit)
   ENDIF()
 ENDIF()

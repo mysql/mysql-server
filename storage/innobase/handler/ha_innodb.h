@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,10 +26,14 @@ extern const char innobase_index_reserve_name[];
 to explicitly create a file_per_table tablespace for the table. */
 extern const char reserved_file_per_table_space_name[];
 
-/* "innodb_system" tablespace name is reserved by InnoDB for the system tablespace
-which uses space_id 0 and stores extra types of system pages like UNDO
-and doublewrite. */
+/* "innodb_system" tablespace name is reserved by InnoDB for the
+system tablespace which uses space_id 0 and stores extra types of
+system pages like UNDO and doublewrite. */
 extern const char reserved_system_space_name[];
+
+/* "innodb_temporary" tablespace name is reserved by InnoDB for the
+predefined shared temporary tablespace. */
+extern const char reserved_temporary_space_name[];
 
 /* Structure defines translation table between mysql index and InnoDB
 index structures */
@@ -614,7 +618,7 @@ innobase_index_name_is_reserved(
 						created */
 	ulint			num_of_keys)	/*!< in: Number of indexes to
 						be created. */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 extern const char reserved_file_per_table_space_name[];
 
@@ -631,18 +635,37 @@ tablespace_is_file_per_table(
 			       reserved_file_per_table_space_name)));
 }
 
-/** Check if table will be put in an existing shared general tablespace.
+/** Check if table will be explicitly put in an existing shared general
+or system tablespace.
 @param[in]	create_info	Metadata for the table to create.
-@return true if the table will use an existing shared general tablespace. */
+@return true if the table will use a shared general or system tablespace. */
 UNIV_INLINE
 bool
 tablespace_is_shared_space(
-	const HA_CREATE_INFO*	create_info)
+const HA_CREATE_INFO*	create_info)
 {
 	return(create_info->tablespace != NULL
-	       && create_info->tablespace[0] != '\0'
-	       && (0 != strcmp(create_info->tablespace,
-			       reserved_file_per_table_space_name)));
+		&& create_info->tablespace[0] != '\0'
+		&& (0 != strcmp(create_info->tablespace,
+		reserved_file_per_table_space_name)));
+}
+
+/** Check if table will be explicitly put in a general tablespace.
+@param[in]	create_info	Metadata for the table to create.
+@return true if the table will use a general tablespace. */
+UNIV_INLINE
+bool
+tablespace_is_general_space(
+const HA_CREATE_INFO*	create_info)
+{
+	return(create_info->tablespace != NULL
+		&& create_info->tablespace[0] != '\0'
+		&& (0 != strcmp(create_info->tablespace,
+				reserved_file_per_table_space_name))
+		&& (0 != strcmp(create_info->tablespace,
+				reserved_temporary_space_name))
+		&& (0 != strcmp(create_info->tablespace,
+				reserved_system_space_name)));
 }
 
 /** Parse hint for table and its indexes, and update the information
@@ -710,8 +733,11 @@ public:
 	/** Validate TABLESPACE option. */
 	bool create_option_tablespace_is_valid();
 
+	/** Validate COMPRESSION option. */
+	bool create_option_compression_is_valid();
+
 	/** Prepare to create a table. */
-	int prepare_create_table(const char*		name);
+	int prepare_create_table(const char* name);
 
 	void allocate_trx();
 
@@ -860,7 +886,7 @@ innobase_fts_load_stopword(
 	dict_table_t*	table,		/*!< in: Table has the FTS */
 	trx_t*		trx,		/*!< in: transaction */
 	THD*		thd)		/*!< in: current thread */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Some defines for innobase_fts_check_doc_id_index() return value */
 enum fts_doc_id_index_enum {
@@ -880,7 +906,7 @@ innobase_fts_check_doc_id_index(
 						that is being altered */
 	ulint*			fts_doc_col_no)	/*!< out: The column number for
 						Doc ID */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /**
 Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
@@ -891,7 +917,7 @@ fts_doc_id_index_enum
 innobase_fts_check_doc_id_index_in_def(
 	ulint		n_key,		/*!< in: Number of keys */
 	const KEY*	key_info)	/*!< in: Key definitions */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /**
 @return version of the extended FTS API */

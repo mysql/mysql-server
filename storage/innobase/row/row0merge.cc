@@ -272,7 +272,7 @@ or NULL if fd, block will be used instead
 ALTER TABLE. If not NULL stage->begin_phase_insert() will be called initially
 and then stage->inc() will be called for each record that is processed.
 @return DB_SUCCESS or error number */
-static	__attribute__((warn_unused_result))
+static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_merge_insert_index_tuples(
 	trx_id_t		trx_id,
@@ -286,7 +286,7 @@ row_merge_insert_index_tuples(
 
 /******************************************************//**
 Encode an index record. */
-static __attribute__((nonnull))
+static MY_ATTRIBUTE((nonnull))
 void
 row_merge_buf_encode(
 /*=================*/
@@ -323,7 +323,7 @@ row_merge_buf_encode(
 /******************************************************//**
 Allocate a sort buffer.
 @return own: sort buffer */
-static __attribute__((malloc, nonnull))
+static MY_ATTRIBUTE((malloc, nonnull))
 row_merge_buf_t*
 row_merge_buf_create_low(
 /*=====================*/
@@ -587,7 +587,7 @@ row_merge_buf_add(
 				row_field = innobase_get_computed_value(
 					row, v_col, clust_index,
 					v_heap, NULL, ifield, trx->mysql_thd,
-					my_table);
+					my_table, old_table);
 
 				if (row_field == NULL) {
 					*err = DB_COMPUTE_VALUE_FAILED;
@@ -712,7 +712,8 @@ row_merge_buf_add(
 					len = dfield_get_len(field);
 				}
 			}
-		} else {
+		} else if (!dict_col_is_virtual(col)) {
+			/* Only non-virtual column are stored externally */
 			const byte*	buf = row_ext_lookup(ext, col_no,
 							     &len);
 			if (UNIV_LIKELY_NULL(buf)) {
@@ -855,7 +856,7 @@ row_merge_dup_report(
 Compare two tuples.
 @return positive, 0, negative if a is greater, equal, less, than b,
 respectively */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 int
 row_merge_tuple_cmp(
 /*================*/
@@ -935,7 +936,7 @@ respectively */
 
 /**********************************************************************//**
 Merge sort the tuple buffer in main memory. */
-static __attribute__((nonnull(4,5)))
+static MY_ATTRIBUTE((nonnull(4,5)))
 void
 row_merge_tuple_sort(
 /*=================*/
@@ -1442,7 +1443,7 @@ row_merge_write_eof(
 @param[in,out]	tmpfd	temporary file handle
 @param[in]	path	location for creating temporary file
 @return file descriptor, or -1 on failure */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 int
 row_merge_tmpfile_if_needed(
 	int*		tmpfd,
@@ -1463,7 +1464,7 @@ row_merge_tmpfile_if_needed(
 @param[in]	nrec	number of records in the file
 @param[in]	path	location for creating temporary file
 @return file descriptor, or -1 on failure */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 int
 row_merge_file_create_if_needed(
 	merge_file_t*	file,
@@ -1633,7 +1634,7 @@ stage->inc() will be called for each page read.
 @param[in]	eval_table	mysql table used to evaluate virtual column
 				value, see innobase_get_computed_value().
 @return DB_SUCCESS or error */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_merge_read_clustered_index(
 	trx_t*			trx,
@@ -2695,7 +2696,7 @@ wait_again:
 ALTER TABLE. If not NULL stage->inc() will be called for each record
 processed.
 @return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_merge_blocks(
 	const row_merge_dup_t*	dup,
@@ -2800,7 +2801,7 @@ done1:
 ALTER TABLE. If not NULL stage->inc() will be called for each record
 processed.
 @return TRUE on success, FALSE on failure */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 ibool
 row_merge_blocks_copy(
 	const dict_index_t*	index,
@@ -3164,7 +3165,7 @@ or NULL if fd, block will be used instead
 ALTER TABLE. If not NULL stage->begin_phase_insert() will be called initially
 and then stage->inc() will be called for each record that is processed.
 @return DB_SUCCESS or error number */
-static	__attribute__((warn_unused_result))
+static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_merge_insert_index_tuples(
 	trx_id_t		trx_id,
@@ -4062,7 +4063,7 @@ row_merge_rename_tables_dict(
 @param[in,out]	index	index
 @param[in]	add_v	new virtual columns added along with add index call
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_merge_create_index_graph(
 	trx_t*			trx,

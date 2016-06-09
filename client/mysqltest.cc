@@ -609,16 +609,16 @@ struct st_replace *glob_replace= 0;
 void replace_strings_append(struct st_replace *rep, DYNAMIC_STRING* ds,
                             const char *from, size_t len);
 
-static void cleanup_and_exit(int exit_code) __attribute__((noreturn));
+static void cleanup_and_exit(int exit_code) MY_ATTRIBUTE((noreturn));
 
 void die(const char *fmt, ...)
-  __attribute__((format(printf, 1, 2))) __attribute__((noreturn));
+  MY_ATTRIBUTE((format(printf, 1, 2))) MY_ATTRIBUTE((noreturn));
 void abort_not_supported_test(const char *fmt, ...)
-  __attribute__((format(printf, 1, 2))) __attribute__((noreturn));
+  MY_ATTRIBUTE((format(printf, 1, 2))) MY_ATTRIBUTE((noreturn));
 void verbose_msg(const char *fmt, ...)
-  __attribute__((format(printf, 1, 2)));
+  MY_ATTRIBUTE((format(printf, 1, 2)));
 void log_msg(const char *fmt, ...)
-  __attribute__((format(printf, 1, 2)));
+  MY_ATTRIBUTE((format(printf, 1, 2)));
 
 VAR* var_from_env(const char *, const char *);
 VAR* var_init(VAR* v, const char *name, size_t name_len, const char *val,
@@ -722,7 +722,7 @@ public:
 
   void flush()
   {
-    if (m_file && m_file != stdout)
+    if (m_file)
     {
       if (fflush(m_file))
         die("Failed to flush '%s', errno: %d", m_file_name, errno);
@@ -2203,7 +2203,7 @@ static void strip_parentheses(struct st_command *command)
 C_MODE_START
 
 static uchar *get_var_key(const uchar* var, size_t *len,
-                          my_bool __attribute__((unused)) t)
+                          my_bool MY_ATTRIBUTE((unused)) t)
 {
   char* key;
   key = ((VAR*)var)->name;
@@ -3583,6 +3583,63 @@ void do_copy_file(struct st_command *command)
 
 /*
   SYNOPSIS
+  move_file_by_copy_delete
+  from  path of source
+  to    path of destination
+
+  DESCRIPTION
+  Move <from_file> to <to_file>
+  Auxiliary function for copying <from_file> to <to_file> followed by
+  deleting <to_file>.
+*/
+
+static int move_file_by_copy_delete(const char *from, const char *to)
+{
+  int error_copy,error_delete;
+  error_copy= (my_copy(from,to,
+                  MYF(MY_HOLD_ORIGINAL_MODES)) != 0);
+  /*
+    Some anti-virus programs hold access to files for a short time
+    even after the application/server quit. During testing, sleep
+    5 seconds and then retry once more to avoid spurious test failures.
+    Also on slow/loaded machines the file system may need to catch up.
+  */
+  if (error_copy)
+  {
+    my_sleep(5 * 1000 * 1000);
+    error_copy= (my_copy(from,to,
+                  MYF(MY_HOLD_ORIGINAL_MODES)) != 0);
+  }
+  if (error_copy)
+  {
+    return error_copy;
+  }
+
+  error_delete= my_delete(from, MYF(0)) != 0;
+  /*
+    Some anti-virus programs hold access to files for a short time
+    even after the application/server quit. During testing, sleep
+    5 seconds and then retry once more to avoid spurious test failures.
+    Also on slow/loaded machines the file system may need to catch up.
+  */
+  if (error_delete)
+  {
+    my_sleep(5 * 1000 * 1000);
+    error_delete= my_delete(from, MYF(0)) != 0;
+  }
+  /*
+    If deleting the source file fails, rollback by deleting the
+    redundant copy at the destinatiion.
+  */
+  if (error_delete)
+  {
+    my_delete(to, MYF(0));
+  }
+  return error_delete;
+}
+
+/*
+  SYNOPSIS
   do_move_file
   command	command handle
 
@@ -3611,16 +3668,30 @@ void do_move_file(struct st_command *command)
   error= (my_rename(ds_from_file.str, ds_to_file.str,
                     MYF(0)) != 0);
   /*
-    Some anti-virus programs hold access to files for a short time
-    even after the application/server quit. During testing, sleep
-    5 seconds and then retry once more to avoid spurious test failures.
-    Also on slow/loaded machines the file system may need to catch up.
+    Use my_copy() followed by my_delete() for moving a file instead of
+    my_rename() when my_errno is EXDEV. This is because my_rename() fails
+    with the error "Invalid cross-device link" while moving a file between
+    locations having different filesystems in some operating systems.
   */
-  if (error)
+  if (error && (my_errno() == EXDEV))
   {
+    error= move_file_by_copy_delete(ds_from_file.str, ds_to_file.str);
+  }
+  else if (error)
+  {
+    /*
+      Some anti-virus programs hold access to files for a short time
+      even after the application/server quit. During testing, sleep
+      5 seconds and then retry once more to avoid spurious test failures.
+      Also on slow/loaded machines the file system may need to catch up.
+    */
     my_sleep(5 * 1000 * 1000);
     error= (my_rename(ds_from_file.str, ds_to_file.str,
                       MYF(0)) != 0);
+    if (error && (my_errno() == EXDEV))
+    {
+      error= move_file_by_copy_delete(ds_from_file.str, ds_to_file.str);
+    }
   }
   handle_command_error(command, error);
   dynstr_free(&ds_from_file);
@@ -4434,7 +4505,7 @@ int do_echo(struct st_command *command)
 }
 
 
-void do_wait_for_slave_to_stop(struct st_command *c __attribute__((unused)))
+void do_wait_for_slave_to_stop(struct st_command *c MY_ATTRIBUTE((unused)))
 {
   static int SLAVE_POLL_INTERVAL= 300000;
   MYSQL* mysql = &cur_con->mysql;
@@ -8822,7 +8893,7 @@ void update_expected_errors(struct st_command* command)
 
 */
 
-void mark_progress(struct st_command* command __attribute__((unused)),
+void mark_progress(struct st_command* command MY_ATTRIBUTE((unused)),
                    int line)
 {
   static ulonglong progress_start= 0; // < Beware
@@ -9901,7 +9972,7 @@ typedef struct st_replace_found {
 
 void replace_strings_append(REPLACE *rep, DYNAMIC_STRING* ds,
                             const char *str,
-                            size_t len __attribute__((unused)))
+                            size_t len MY_ATTRIBUTE((unused)))
 {
   REPLACE *rep_pos;
   REPLACE_STRING *rep_str;

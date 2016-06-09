@@ -41,8 +41,7 @@
 #include "ngs/log.h"
 
 #undef ERROR // Needed to avoid conflict with ERROR in mysqlx.pb.h
-#include "mysqlx.pb.h"
-#include "mysqlx_connection.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 
 #include "mysql/service_my_snprintf.h"
 
@@ -222,7 +221,7 @@ void Client::disconnect_and_trigger_close()
 void Client::on_network_error(int error)
 {
   if (error == 0)
-    log_debug("%s: EOF (state %i)", client_id(), m_state.load());
+    log_debug("%s: peer disconnected (state %i)", client_id(), m_state.load());
   else
     log_debug("%s: network error %i (state %i)", client_id(), error, m_state.load());
   if (m_close_reason == Not_closing && m_state != Client_closing && error != 0)
@@ -425,7 +424,7 @@ Request_unique_ptr Client::read_one_message(Error_code &ret_error)
     return Request_unique_ptr();
   }
 
-  m_protocol_monitor.on_receive(nread);
+  m_protocol_monitor.on_receive(static_cast<long>(nread));
 
 #ifdef WORDS_BIGENDIAN
   std::swap(buffer[0], buffer[3]);
@@ -454,7 +453,7 @@ Request_unique_ptr Client::read_one_message(Error_code &ret_error)
     nread = m_connection->read(&msgbuffer[0], msg_size-1);
     if (nread == 0) // EOF
     {
-      log_info("%s: EOF reading message body", client_id());
+      log_info("%s: peer disconnected while reading message body", client_id());
       on_network_error(0);
       return Request_unique_ptr();
     }
@@ -467,7 +466,7 @@ Request_unique_ptr Client::read_one_message(Error_code &ret_error)
       on_network_error(err);
       return Request_unique_ptr();
     }
-    m_protocol_monitor.on_receive(nread);
+    m_protocol_monitor.on_receive(static_cast<long>(nread));
 
     ret_error = m_decoder.parse(*request);
     return boost::move(request);

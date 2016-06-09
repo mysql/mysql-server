@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -913,7 +913,7 @@ void ReplSemiSyncMaster::set_wait_no_slave(const void *val)
   }
   else
   {
-    if (!is_on())
+    if (!is_on() && getMasterEnabled())
       force_switch_on();
   }
   unlock();

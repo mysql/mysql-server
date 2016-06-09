@@ -1,7 +1,7 @@
 #ifndef MY_COMPILER_INCLUDED
 #define MY_COMPILER_INCLUDED
 
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -153,15 +153,16 @@ struct my_aligned_storage
 #endif /* __cplusplus */
 
 /*
-  Disable __attribute__ for Sun Studio and Visual Studio.
+  Disable MY_ATTRIBUTE for Sun Studio and Visual Studio.
   Note that Sun Studio supports some __attribute__ variants,
   but not format or unused which we use quite a lot.
-
-  Sic: We should not (re-)define identifiers that begin with
-  an underscore followed by an uppercase letter or another underscore.
 */
-#if defined __SUNPRO_C || defined __SUNPRO_CC || defined _MSC_VER
-# define __attribute__(A)
+#ifndef MY_ATTRIBUTE
+#if defined(__GNUC__)
+#  define MY_ATTRIBUTE(A) __attribute__(A)
+#else
+#  define MY_ATTRIBUTE(A)
+#endif
 #endif
 
 #ifndef __has_attribute

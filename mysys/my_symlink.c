@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -108,7 +108,7 @@ int my_symlink(const char *content, const char *linkname, myf MyFlags)
 #endif
 
 
-int my_is_symlink(const char *filename __attribute__((unused)))
+int my_is_symlink(const char *filename MY_ATTRIBUTE((unused)))
 {
 #if defined (HAVE_LSTAT) && defined (S_ISLNK)
   struct stat stat_buff;

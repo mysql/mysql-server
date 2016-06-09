@@ -65,6 +65,8 @@ public:
 
   void set_chain(Chain_data*);
 
+  bool call_completion_callback_at_end();
+  
 private:
   /**
     Chain in which current processing item is processed.

@@ -24,7 +24,7 @@
 
 #include <list>
 
-#include "mysqlx_expect.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 
 namespace xpl
 {

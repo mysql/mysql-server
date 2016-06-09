@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,19 +48,6 @@ Mysql_connection_options::Mysql_connection_options(Abstract_program *program)
   }
 
   this->add_provider(&this->m_ssl_options_provider);
-}
-
-Mysql_connection_options::~Mysql_connection_options()
-{
-  my_boost::mutex::scoped_lock lock(m_connection_mutex);
-  for (vector<MYSQL*>::iterator it= this->m_allocated_connections.begin();
-    it != this->m_allocated_connections.end(); it++)
-  {
-    if (*it)
-    {
-      mysql_close(*it);
-    }
-  }
 }
 
 void Mysql_connection_options::create_options()
@@ -129,13 +116,7 @@ void Mysql_connection_options::create_options()
 
 MYSQL* Mysql_connection_options::create_connection()
 {
-  MYSQL *connection = new MYSQL;
-
-  {
-  my_boost::mutex::scoped_lock lock(m_connection_mutex);
-  this->m_allocated_connections.push_back(connection);
-  }
-  mysql_init(connection);
+  MYSQL *connection= mysql_init(NULL);
   if (this->m_compress)
     mysql_options(connection, MYSQL_OPT_COMPRESS, NullS);
 
@@ -184,6 +165,7 @@ MYSQL* Mysql_connection_options::create_connection()
     this->get_null_or_string(this->m_mysql_unix_port), 0))
   {
     this->db_error(connection, "while connecting to the MySQL server");
+    mysql_close(connection);
     return NULL;
   }
 
@@ -218,14 +200,14 @@ const char* Mysql_connection_options::get_null_or_string(
 
 #ifdef _WIN32
 void Mysql_connection_options::pipe_protocol_callback(
-  char* not_used __attribute__((unused)))
+  char* not_used MY_ATTRIBUTE((unused)))
 {
   this->m_protocol= MYSQL_PROTOCOL_PIPE;
 }
 #endif
 
 void Mysql_connection_options::protocol_callback(
-  char* not_used __attribute__((unused)))
+  char* not_used MY_ATTRIBUTE((unused)))
 {
   this->m_protocol=
     find_type_or_exit(this->m_protocol_string.value().c_str(),
@@ -233,7 +215,7 @@ void Mysql_connection_options::protocol_callback(
 }
 
 void Mysql_connection_options::secure_auth_callback(
-  char* not_used __attribute__((unused)))
+  char* not_used MY_ATTRIBUTE((unused)))
 {
   /* --secure-auth is a zombie option. */
   if (!this->m_secure_auth)

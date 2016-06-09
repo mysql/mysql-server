@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -953,7 +953,7 @@ Mts_submode_logical_clock::get_free_worker(Relay_log_info *rli)
 int
 Mts_submode_logical_clock::
    wait_for_workers_to_finish(Relay_log_info *rli,
-                              __attribute__((unused)) Slave_worker * ignore)
+                              MY_ATTRIBUTE((unused)) Slave_worker * ignore)
 {
   PSI_stage_info *old_stage= 0;
   THD *thd= rli->info_thd;

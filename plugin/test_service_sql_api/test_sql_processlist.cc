@@ -111,8 +111,8 @@ struct st_plugin_ctx
 
   uint server_status;
   uint warn_count;
-  ulonglong affected_rows;
-  ulonglong last_insert_id;
+  uint affected_rows;
+  uint last_insert_id;
   char message[1024];
 
   uint sql_errno;
@@ -277,7 +277,7 @@ static int sql_get_integer(void * ctx, longlong value)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer), "%lld", value);
+  size_t len= my_snprintf(buffer, sizeof(buffer), "%d", value);
 
   strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col]= len;
@@ -659,8 +659,8 @@ static void test_sql(void *p)
   session_1= srv_session_open(NULL,plugin_ctx);
   if (!session_1)
     my_plugin_log_message(&p, MY_ERROR_LEVEL, "open session_1 failed.");
-
-  switch_user(session_1, user_privileged);
+  else
+    switch_user(session_1, user_privileged);
 
   WRITE_STR("-----------------------------------------------------------------\n");
   WRITE_STR("Session 1 : \n");
@@ -672,8 +672,8 @@ static void test_sql(void *p)
   session_2= srv_session_open(NULL,plugin_ctx);
   if (!session_2)
     my_plugin_log_message(&p, MY_ERROR_LEVEL, "open session_2 failed.");
-
-  switch_user(session_2, user_privileged);
+  else
+    switch_user(session_2, user_privileged);
 
   WRITE_STR("-----------------------------------------------------------------\n");
   WRITE_STR("Session 1 : \n");

@@ -130,3 +130,91 @@ CREATE TABLE `ibstd_08` (
 ALTER TABLE ibstd_08  ADD COLUMN nc07006 BIGINT  AUTO_INCREMENT NOT NULL  , ADD KEY auto_nc07006(nc07006);
 
 DROP TABLE ibstd_08;
+
+--echo #
+--echo # Bug 22899305 - GCOLS: FAILING ASSERTION: !(COL->PRTYPE & 256)
+--echo # AND SEGFAULT
+--echo #
+set sql_mode="";
+create table t (a int) engine=innodb;
+create table s (
+b int generated always as (1) virtual,
+c int,
+d int generated always as (1) virtual not null,
+key (d)
+) engine=innodb;
+
+insert into t(a) values ((select d from s for update));
+insert into s(c) values ('');
+
+SET sql_mode = default;
+drop table if exists t,s;
+
+--echo #
+--echo # Bug 23014521 - GCOL:INNODB: FAILING ASSERTION: !IS_V
+--echo #
+CREATE TABLE t1 (
+     col1 int(11) NOT NULL,
+     col2 int(11) DEFAULT NULL,
+     col3 int(11) NOT NULL,
+     col4 int(11) DEFAULT NULL,
+     col5 int(11) GENERATED ALWAYS AS ((col1 % col4)) VIRTUAL,
+     col6 int(11) GENERATED ALWAYS AS ((col2 - col4)) VIRTUAL,
+     col5x int(11) GENERATED ALWAYS AS ((col3 / col2)) VIRTUAL,
+     col6b varchar(20) GENERATED ALWAYS AS (col2) VIRTUAL,
+     col6x int(11) GENERATED ALWAYS AS ((col2 % col1)) VIRTUAL,
+     col7 int(11) GENERATED ALWAYS AS ((col6x + col5x)) VIRTUAL,
+     col8 int(11) GENERATED ALWAYS AS ((col5x / col5)) VIRTUAL,
+     col7x int(11) GENERATED ALWAYS AS ((col5x + col5)) VIRTUAL,
+     col8x int(11) GENERATED ALWAYS AS ((col5 / col5x)) VIRTUAL,
+     col9 text,
+     col2b varchar(20) GENERATED ALWAYS AS (col4) VIRTUAL,
+     col8a int(11) GENERATED ALWAYS AS (col2) VIRTUAL,
+     col4b varchar(20) GENERATED ALWAYS AS (col4) VIRTUAL,
+     col1c int(11) GENERATED ALWAYS AS ((col2 * col1)) VIRTUAL,
+     extra int(11) DEFAULT NULL,
+     col5c int(11) GENERATED ALWAYS AS ((col1 / col1)) VIRTUAL,
+     col6a bigint(20) GENERATED ALWAYS AS ((col3 / col1)) VIRTUAL,
+     col1a varchar(20) GENERATED ALWAYS AS (col6) VIRTUAL,
+     col6c int(11) GENERATED ALWAYS AS ((col2 % col2)) VIRTUAL,
+     col7c bigint(20) GENERATED ALWAYS AS ((col2 / col1)) VIRTUAL,
+     col2c int(11) GENERATED ALWAYS AS ((col5 % col5)) VIRTUAL,
+     col1b int(11) GENERATED ALWAYS AS ((col1 / col2)) VIRTUAL,
+     col3b bigint(20) GENERATED ALWAYS AS ((col6x % col6)) VIRTUAL,
+     UNIQUE KEY idx7 (col1,col3,col2),
+     UNIQUE KEY uidx (col9(10)),
+     KEY idx15 (col9(10) DESC,col2 DESC),
+     KEY idx10 (col9(10) DESC,col1 DESC),
+     KEY idx11 (col6x DESC),
+     KEY idx6 (col9(10) DESC,col7 DESC),
+     KEY idx14 (col6 DESC)
+   ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+# Cannot add virtual column along with create FULLTEXT index with
+# adding a hidden FTS_DOC_ID column (which require a table rebuild)
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ADD COLUMN col7a INT GENERATED ALWAYS AS (col5x % col6x)
+VIRTUAL, ADD FULLTEXT KEY ftidx ( col9 ), algorithm=inplace;
+
+# This will add a hidden FTS_DOC_ID column
+CREATE FULLTEXT INDEX idx ON t1(col9);
+
+# Since there is no table rebuild needed, now the alter would be sucessful
+ALTER TABLE t1 ADD COLUMN col7a INT GENERATED ALWAYS AS (col5x % col6x)
+VIRTUAL, ADD FULLTEXT KEY ftidx ( col9 ), algorithm=inplace;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+	col1 int(11) NOT NULL,
+	col2 int(11) DEFAULT NULL,
+	col3 int(11) NOT NULL,
+	col4 int(11) DEFAULT NULL);
+
+# This secondary key idx will be coverted to a new Primary Key, thus a table
+# rebuild. It is blocked since there is an adding of virtual columns
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ADD COLUMN col7a INT GENERATED ALWAYS AS (col1 % col2)
+VIRTUAL, ADD UNIQUE index idx (col1), algorithm=inplace;
+
+DROP TABLE t1;

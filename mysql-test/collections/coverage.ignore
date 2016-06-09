@@ -1,0 +1,7 @@
+# This file lists directories or files to ignore when reporting
+# coverage %. An extra step will remove them from the coverage data.
+# You may list individual files or (more typically) directories.
+# Do not use shell wildcards and such, they will not work.
+
+rapid/plugin/x/mysqlxtest_src
+rapid/unittest/gunit/xplugin

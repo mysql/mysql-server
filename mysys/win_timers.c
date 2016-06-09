@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ HANDLE timer_queue= 0;
           expires.
 */
 static void CALLBACK
-timer_callback_function(PVOID timer_data, BOOLEAN timer_or_wait_fired __attribute__((unused)))
+timer_callback_function(PVOID timer_data, BOOLEAN timer_or_wait_fired MY_ATTRIBUTE((unused)))
 {
   my_timer_t *timer= (my_timer_t *)timer_data;
   DBUG_ASSERT(timer != NULL);
@@ -58,7 +58,7 @@ timer_callback_function(PVOID timer_data, BOOLEAN timer_or_wait_fired __attribut
   @param arg  Unused.
 */
 static void*
-timer_notify_thread_func(void *arg __attribute__((unused)))
+timer_notify_thread_func(void *arg MY_ATTRIBUTE((unused)))
 {
   DWORD bytes_transferred;
   ULONG_PTR compl_key;

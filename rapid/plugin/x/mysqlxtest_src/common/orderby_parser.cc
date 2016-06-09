@@ -18,7 +18,7 @@
 */
 
 #include "orderby_parser.h"
-#include "mysqlx_crud.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 
 #include <boost/format.hpp>
 #include <boost/lexical_cast.hpp>

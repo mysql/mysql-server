@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -180,6 +180,7 @@ my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
   proxy_user  MYSQL_LEX_CSTRING *  the proxy user used in authenticating
 
   privilege_super   my_svc_bool *  1 if the user account has supper privilege, 0 otherwise
+  privilege_execute my_svc_bool *  1 if the user account has execute privilege, 0 otherwise
 
   @param[in]  ctx   The handle of the security context to read from
   @param[in]  name  The option name to read
@@ -222,9 +223,18 @@ my_svc_bool security_context_get_option(MYSQL_SECURITY_CONTEXT ctx,
       {
         *((MYSQL_LEX_CSTRING *) inout_pvalue)= ctx->proxy_user();
       }
+      else if (!strcmp(name, "external_user"))
+      {
+        *((MYSQL_LEX_CSTRING *) inout_pvalue)= ctx->external_user();
+      }
       else if (!strcmp(name, "privilege_super"))
       {
         bool checked= ctx->check_access(SUPER_ACL);
+        *((my_svc_bool *) inout_pvalue)= checked ? MY_SVC_TRUE : MY_SVC_FALSE;
+      }
+      else if (!strcmp(name, "privilege_execute"))
+      {
+        bool checked= ctx->check_access(EXECUTE_ACL);
         *((my_svc_bool *) inout_pvalue)= checked ? MY_SVC_TRUE : MY_SVC_FALSE;
       }
       else
@@ -250,6 +260,7 @@ my_svc_bool security_context_get_option(MYSQL_SECURITY_CONTEXT ctx,
   proxy_user  MYSQL_LEX_CSTRING *  the proxy user used in authenticating
 
   privilege_super   my_svc_bool *  1 if the user account has supper privilege, 0 otherwise
+  privilege_execute my_svc_bool *  1 if the user account has execute privilege, 0 otherwise
 
   @param[in]  ctx   The handle of the security context to set into
   @param[in]  name  The option name to set
@@ -300,6 +311,14 @@ my_svc_bool security_context_set_option(MYSQL_SECURITY_CONTEXT ctx,
       else
         ctx->set_master_access(ctx->master_access() & !(SUPER_ACL));
 
+    }
+    else if (!strcmp(name, "privilege_execute"))
+    {
+      my_svc_bool value= *(my_svc_bool *) pvalue;
+      if (value)
+        ctx->set_master_access(ctx->master_access() | EXECUTE_ACL);
+      else
+        ctx->set_master_access(ctx->master_access() & !(EXECUTE_ACL));
     }
     else
       return MY_SVC_TRUE; /** invalid option */

@@ -1727,7 +1727,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
 
 void Log_event::print_header(IO_CACHE* file,
                              PRINT_EVENT_INFO* print_event_info,
-                             bool is_more __attribute__((unused)))
+                             bool is_more MY_ATTRIBUTE((unused)))
 {
   char llbuff[22];
   my_off_t hexdump_from= print_event_info->hexdump_from;
@@ -6595,6 +6595,7 @@ int Intvar_log_event::do_apply_event(Relay_log_info const *rli)
   switch (type) {
   case LAST_INSERT_ID_EVENT:
     thd->first_successful_insert_id_in_prev_stmt= val;
+    thd->substitute_null_with_insert_id= TRUE;
     break;
   case INSERT_ID_EVENT:
     thd->force_one_auto_inc_interval(val);
@@ -10650,9 +10651,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     /*
       When the open and locking succeeded, we check all tables to
       ensure that they still have the correct type.
-
-      We can use a down cast here since we know that every table added
-      to the tables_to_lock is a RPL_TABLE_LIST.
     */
 
     {
@@ -10671,10 +10669,37 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         NOTE: The base tables are added here are removed when 
               close_thread_tables is called.
        */
-      RPL_TABLE_LIST *ptr= rli->tables_to_lock;
-      for (uint i= 0 ; ptr && (i < rli->tables_to_lock_count);
-           ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_global), i++)
+      TABLE_LIST *table_list_ptr= rli->tables_to_lock;
+      for (uint i=0 ; table_list_ptr && (i < rli->tables_to_lock_count);
+           table_list_ptr= table_list_ptr->next_global, i++)
       {
+        /*
+          Below if condition takes care of skipping base tables that
+          make up the MERGE table (which are added by open_tables()
+          call). They are added next to the merge table in the list.
+          For eg: If RPL_TABLE_LIST is t3->t1->t2 (where t1 and t2
+          are base tables for merge table 't3'), open_tables will modify
+          the list by adding t1 and t2 again immediately after t3 in the
+          list (*not at the end of the list*). New table_to_lock list will
+          look like t3->t1'->t2'->t1->t2 (where t1' and t2' are TABLE_LIST
+          objects added by open_tables() call). There is no flag(or logic) in
+          open_tables() that can skip adding these base tables to the list.
+          So the logic here should take care of skipping them.
+
+          tables_to_lock_count logic will take care of skipping base tables
+          that are added at the end of the list.
+          For eg: If RPL_TABLE_LIST is t1->t2->t3, open_tables will modify
+          the list into t1->t2->t3->t1'->t2'. t1' and t2' will be skipped
+          because tables_to_lock_count logic in this for loop.
+        */
+        if (table_list_ptr->parent_l)
+          continue;
+        /*
+          We can use a down cast here since we know that every table added
+          to the tables_to_lock is a RPL_TABLE_LIST (or child table which is
+          skipped above).
+        */
+        RPL_TABLE_LIST *ptr= static_cast<RPL_TABLE_LIST*>(table_list_ptr);
         DBUG_ASSERT(ptr->m_tabledef_valid);
         TABLE *conv_table;
         if (!ptr->m_tabledef.compatible_with(thd, const_cast<Relay_log_info*>(rli),
@@ -10715,7 +10740,15 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
      */
     TABLE_LIST *ptr= rli->tables_to_lock;
     for (uint i=0 ;  ptr && (i < rli->tables_to_lock_count); ptr= ptr->next_global, i++)
+    {
+      /*
+        Please see comment in above 'for' loop to know the reason
+        for this if condition
+      */
+      if (ptr->parent_l)
+        continue;
       const_cast<Relay_log_info*>(rli)->m_table_map.set_table(ptr->table_id, ptr->table);
+    }
 
     query_cache.invalidate_locked_for_write(rli->tables_to_lock);
   }
@@ -13241,26 +13274,16 @@ Transaction_context_log_event(const char *server_uuid_arg,
   sid_map= new Sid_map(NULL);
   snapshot_version= new Gtid_set(sid_map);
 
-  global_sid_lock->wrlock();
   /*
-    Copy global_sid_map to a local copy to avoid that all
-    certification operations on top of this snapshot version do
-    require that global_sid_lock is acquired.
+    Copy global_sid_map to a local copy to avoid the acquisition
+    of the global_sid_lock for operations on top of this snapshot
+    version.
+    The Sid_map and Gtid_executed must be read under the protection
+    of MYSQL_BIN_LOG.LOCK_commit to avoid race conditions between
+    ordered commits in the storage engine and gtid_state update.
   */
-  enum_return_status return_status= global_sid_map->copy(sid_map);
-  if (return_status != RETURN_STATUS_OK)
-  {
-    global_sid_lock->unlock();
+  if (mysql_bin_log.get_gtid_executed(sid_map, snapshot_version))
     goto err;
-  }
-
-  return_status= snapshot_version->add_gtid_set(gtid_state->get_executed_gtids());
-  if (return_status != RETURN_STATUS_OK)
-  {
-    global_sid_lock->unlock();
-    goto err;
-  }
-  global_sid_lock->unlock();
 
   server_uuid= my_strdup(key_memory_log_event, server_uuid_arg, MYF(MY_WME));
   if (server_uuid == NULL)

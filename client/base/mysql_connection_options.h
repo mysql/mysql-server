@@ -74,7 +74,6 @@ public:
     @param program Pointer to main program class.
    */
   Mysql_connection_options(Abstract_program *program);
-  ~Mysql_connection_options();
 
   /**
     Creates all options that will be provided.
@@ -111,19 +110,13 @@ private:
    */
   void db_error(MYSQL* connection, const char* when);
 #ifdef _WIN32
-  void pipe_protocol_callback(char* not_used __attribute__((unused)));
+  void pipe_protocol_callback(char* not_used MY_ATTRIBUTE((unused)));
 #endif
-  void protocol_callback(char* not_used __attribute__((unused)));
-  void secure_auth_callback(char* argument __attribute__((unused)));
+  void protocol_callback(char* not_used MY_ATTRIBUTE((unused)));
+  void secure_auth_callback(char* argument MY_ATTRIBUTE((unused)));
 
   static bool mysql_inited;
 
-  /*
-   List of created connections. As we don't have memory management for
-   C structs we must clear it by options provider destruction.
-   */
-  std::vector<MYSQL*> m_allocated_connections;
-  my_boost::mutex m_connection_mutex;
   Ssl_options m_ssl_options_provider;
   Abstract_program *m_program;
   Nullable<std::string> m_protocol_string;

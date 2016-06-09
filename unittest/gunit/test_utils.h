@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ inline int native_compare(size_t *length, unsigned char **a, unsigned char **b)
   return memcmp(*a, *b, *length);
 }
 
-inline qsort2_cmp get_ptr_compare(size_t size __attribute__((unused)))
+inline qsort2_cmp get_ptr_compare(size_t size MY_ATTRIBUTE((unused)))
 {
   return (qsort2_cmp) native_compare;
 }

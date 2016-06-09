@@ -323,7 +323,7 @@ DECLARE_THREAD(io_handler_thread)(
 /*********************************************************************//**
 Creates a log file.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 create_log_file(
 /*============*/
@@ -520,7 +520,7 @@ create_log_files_rename(
 /*********************************************************************//**
 Opens a log file.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 open_log_file(
 /*==========*/
@@ -2288,7 +2288,8 @@ files_checked:
 		server could crash in middle of key rotation. Some tablespace
 		didn't complete key rotation. Here, we will resume the
 		rotation. */
-		if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
+		if (!srv_read_only_mode
+		    && srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
 			fil_encryption_rotate();
 		}
 

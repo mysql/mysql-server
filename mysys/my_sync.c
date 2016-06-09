@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -134,8 +134,8 @@ int my_sync(File fd, myf my_flags)
 static const char cur_dir_name[]= {FN_CURLIB, 0};
 #endif
 
-int my_sync_dir(const char *dir_name __attribute__((unused)),
-                myf my_flags __attribute__((unused)))
+int my_sync_dir(const char *dir_name MY_ATTRIBUTE((unused)),
+                myf my_flags MY_ATTRIBUTE((unused)))
 {
 /*
   Only Linux is known to need an explicit sync of the directory to make sure a
@@ -181,8 +181,8 @@ int my_sync_dir(const char *dir_name __attribute__((unused)),
     0 if ok, !=0 if error
 */
 
-int my_sync_dir_by_file(const char *file_name __attribute__((unused)),
-                        myf my_flags __attribute__((unused)))
+int my_sync_dir_by_file(const char *file_name MY_ATTRIBUTE((unused)),
+                        myf my_flags MY_ATTRIBUTE((unused)))
 {
 #ifdef __linux__
   char dir_name[FN_REFLEN];

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -89,7 +89,8 @@ void decrease_user_connections(USER_CONN *uc);
 void release_user_connection(THD *thd);
 bool thd_init_client_charset(THD *thd, uint cs_number);
 bool thd_prepare_connection(THD *thd);
-void close_connection(THD *thd, uint sql_errno= 0, bool server_shutdown= false);
+void close_connection(THD *thd, uint sql_errno= 0,
+                      bool server_shutdown= false, bool generate_event= true);
 bool thd_connection_alive(THD *thd);
 void end_connection(THD *thd);
 int get_or_create_user_conn(THD *thd, const char *user,

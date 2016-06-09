@@ -15,12 +15,11 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <google/protobuf/text_format.h>
 #include "statement_builder.h"
 #include "query_string_builder.h"
 #include "mysqld_error.h"
 #include "expr_generator.h"
-#include "mysqlx_crud.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 
 #include <gtest/gtest.h>
 

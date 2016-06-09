@@ -2842,7 +2842,6 @@ strings/test_decimal
 support-files/*.ini
 support-files/MacOSX/Description.plist
 support-files/MacOSX/Info.plist
-support-files/MacOSX/ReadMe.txt
 support-files/MacOSX/StartupParameters.plist
 support-files/MacOSX/postflight
 support-files/MacOSX/postinstall

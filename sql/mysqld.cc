@@ -141,6 +141,7 @@
 #include "item_cmpfunc.h"               // arg_cmp_func
 #include "item_strfunc.h"               // Item_func_uuid
 #include "handler.h"
+#include "sql_thd_internal_api.h"       // create_thd, destroy_thd
 
 #ifndef EMBEDDED_LIBRARY
 #include "srv_session.h"
@@ -877,7 +878,7 @@ static bool pid_file_created= false;
 static void usage(void);
 static void clean_up_mutexes(void);
 static void create_pid_file();
-static void mysqld_exit(int exit_code) __attribute__((noreturn));
+static void mysqld_exit(int exit_code) MY_ATTRIBUTE((noreturn));
 static void delete_pid_file(myf flags);
 #endif
 
@@ -1043,9 +1044,18 @@ static void close_connections(void)
   sql_print_information("Forcefully disconnecting %d remaining clients",
                         static_cast<int>(thd_manager->get_thd_count()));
 
+  /*
+    Need to have a current_thd for the shutdown thread since
+    close_connections() can result in a call to the audit plugins.
+    And these may need the current thd set in order to check for
+    stack overflow due to recursive audit events.
+
+    See event_class_dispatch() for more details.
+  */
+  THD *shutdown_thd= create_thd(false, true, true, PSI_NOT_INSTRUMENTED);
   Call_close_conn call_close_conn(true);
   thd_manager->do_for_all_thd(&call_close_conn);
-
+  destroy_thd(shutdown_thd);
   /*
     All threads have now been aborted. Stop event scheduler thread
     after aborting all client connections, otherwise user may
@@ -1932,7 +1942,7 @@ void my_init_signals()
 #else // !_WIN32
 
 extern "C" {
-static void empty_signal_handler(int sig __attribute__((unused)))
+static void empty_signal_handler(int sig MY_ATTRIBUTE((unused)))
 { }
 }
 
@@ -2058,7 +2068,7 @@ static void start_signal_handler()
 
 /** This thread handles SIGTERM, SIGQUIT and SIGHUP signals. */
 /* ARGSUSED */
-extern "C" void *signal_hand(void *arg __attribute__((unused)))
+extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused)))
 {
   my_thread_init();
 
@@ -2215,7 +2225,8 @@ void my_message_sql(uint error, const char *str, myf MyFlags)
   }
 
 #ifndef EMBEDDED_LIBRARY
-  mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_ERROR, error, str);
+  if (error != ER_STACK_OVERRUN_NEED_MORE)
+    mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_ERROR, error, str);
 #endif
 
   if (thd)
@@ -4934,13 +4945,14 @@ int mysqld_main(int argc, char **argv)
   */
   set_super_read_only_post_init();
 
-  (void) RUN_HOOK(server_state, before_handle_connection, (NULL));
-
   DBUG_PRINT("info", ("Block, listening for incoming connections"));
 
   (void)MYSQL_SET_STAGE(0 ,__FILE__, __LINE__);
 
   server_operational_state= SERVER_OPERATING;
+
+  (void) RUN_HOOK(server_state, before_handle_connection, (NULL));
+
 #if defined(_WIN32)
   setup_conn_event_handler_threads();
 #else
@@ -7046,7 +7058,7 @@ static int mysql_init_variables(void)
 
 my_bool
 mysqld_get_one_option(int optid,
-                      const struct my_option *opt __attribute__((unused)),
+                      const struct my_option *opt MY_ATTRIBUTE((unused)),
                       char *argument)
 {
   switch(optid) {
@@ -8466,9 +8478,9 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_status, "LOCK_status", PSI_FLAG_GLOBAL},
   { &key_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
   { &key_LOCK_table_share, "LOCK_table_share", PSI_FLAG_GLOBAL},
-  { &key_LOCK_thd_data, "THD::LOCK_thd_data", 0},
-  { &key_LOCK_thd_query, "THD::LOCK_thd_query", 0},
-  { &key_LOCK_thd_sysvar, "THD::LOCK_thd_sysvar", 0},
+  { &key_LOCK_thd_data, "THD::LOCK_thd_data", PSI_FLAG_VOLATILITY_SESSION},
+  { &key_LOCK_thd_query, "THD::LOCK_thd_query", PSI_FLAG_VOLATILITY_SESSION},
+  { &key_LOCK_thd_sysvar, "THD::LOCK_thd_sysvar", PSI_FLAG_VOLATILITY_SESSION},
   { &key_LOCK_user_conn, "LOCK_user_conn", PSI_FLAG_GLOBAL},
   { &key_LOCK_uuid_generator, "LOCK_uuid_generator", PSI_FLAG_GLOBAL},
   { &key_LOCK_sql_rand, "LOCK_sql_rand", PSI_FLAG_GLOBAL},
@@ -8492,10 +8504,10 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_error_messages, "LOCK_error_messages", PSI_FLAG_GLOBAL},
   { &key_LOCK_log_throttle_qni, "LOCK_log_throttle_qni", PSI_FLAG_GLOBAL},
   { &key_gtid_ensure_index_mutex, "Gtid_state", PSI_FLAG_GLOBAL},
-  { &key_LOCK_query_plan, "THD::LOCK_query_plan", 0},
+  { &key_LOCK_query_plan, "THD::LOCK_query_plan", PSI_FLAG_VOLATILITY_SESSION},
   { &key_LOCK_cost_const, "Cost_constant_cache::LOCK_cost_const",
     PSI_FLAG_GLOBAL},  
-  { &key_LOCK_current_cond, "THD::LOCK_current_cond", 0},
+  { &key_LOCK_current_cond, "THD::LOCK_current_cond", PSI_FLAG_VOLATILITY_SESSION},
   { &key_mts_temp_table_LOCK, "key_mts_temp_table_LOCK", 0},
   { &key_LOCK_reset_gtid_table, "LOCK_reset_gtid_table", PSI_FLAG_GLOBAL},
   { &key_LOCK_compress_gtid_table, "LOCK_compress_gtid_table", PSI_FLAG_GLOBAL},
@@ -8619,7 +8631,6 @@ static PSI_cond_info all_server_conds[]=
 PSI_thread_key key_thread_bootstrap, key_thread_handle_manager, key_thread_main,
   key_thread_one_connection, key_thread_signal_hand,
   key_thread_compress_gtid_table, key_thread_parser_service;
-PSI_thread_key key_thread_daemon_plugin;
 PSI_thread_key key_thread_timer_notifier;
 
 static PSI_thread_info all_server_threads[]=
@@ -8638,7 +8649,6 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_signal_hand, "signal_handler", PSI_FLAG_GLOBAL},
   { &key_thread_compress_gtid_table, "compress_gtid_table", PSI_FLAG_GLOBAL},
   { &key_thread_parser_service, "parser_service", PSI_FLAG_GLOBAL},
-  { &key_thread_daemon_plugin, "daemon_plugin", PSI_FLAG_GLOBAL}
 };
 
 PSI_file_key key_file_map;

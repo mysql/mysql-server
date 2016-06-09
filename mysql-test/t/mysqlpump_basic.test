@@ -350,21 +350,6 @@ DROP DATABASE db3_basic;
 DROP DATABASE db4_basic;
 
 #echo
-#echo Bug #21628662 MYSQLPUMP SHOULD EXIT FOR ALL INCOMPATIBLE
-#echo                OPTION COMBINATIONS
-#echo
-
-# default parallelism > 1
---error 1
---exec $MYSQL_PUMP --add-locks
---error 1
---exec $MYSQL_PUMP --add-locks --parallel-schemas=1:db1
-
-# parallel schema threads > 1
---error 1
---exec $MYSQL_PUMP --add-locks --parallel-schemas=5:db1 --default-parallelism=0
-
-#echo
 #echo Bug #21644479 MYSQLPUMP DECOMPRESSION UTILITIES NOT BUILT
 #echo
 
@@ -496,3 +481,58 @@ USE bug22505474;
 SELECT * FROM t1;
 SELECT * FROM `v 1`;
 DROP DATABASE bug22505474;
+
+#echo
+#echo Bug #22726732 MYSQLPUMP OUTPUT FAILS TO LOAD BECAUSE IT MISSES A KEY STATEMENT
+#echo
+
+CREATE DATABASE bug22726732;
+USE bug22726732;
+CREATE TABLE `part1_hash` (
+   `id` int(11) NOT NULL,
+   `fname` varchar(30) DEFAULT NULL,
+   `lname` varchar(30) DEFAULT NULL,
+   `hired` date NOT NULL DEFAULT '1970-01-01',
+   `store_id` int(11) DEFAULT NULL,
+   KEY `id` (`id`)
+ ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+ PARTITION BY HASH (MONTH(hired)) PARTITIONS 2;
+
+CREATE TABLE `part2_hash` (
+    `firstname` VARCHAR(25) NOT NULL,
+    `lastname` VARCHAR(25) NOT NULL,
+    `username` VARCHAR(16) NOT NULL,
+    `email` VARCHAR(35),
+    `joined` DATE NOT NULL
+)
+PARTITION BY RANGE( YEAR(joined) ) (
+    PARTITION p0 VALUES LESS THAN (1960),
+    PARTITION p1 VALUES LESS THAN (1970),
+    PARTITION p2 VALUES LESS THAN (1980),
+    PARTITION p3 VALUES LESS THAN (1990),
+    PARTITION p4 VALUES LESS THAN MAXVALUE
+);
+
+CREATE TABLE `part3_hash` (
+    `id` INT NOT NULL,
+    `fname` VARCHAR(30),
+    `lname` VARCHAR(30),
+    `hired` DATE NOT NULL DEFAULT '1970-01-01',
+    `separated` DATE NOT NULL DEFAULT '9999-12-31',
+    `job_code` INT,
+    `store_id` INT
+)
+PARTITION BY LIST(store_id) (
+    PARTITION pNorth VALUES IN (3,5,6,9,17),
+    PARTITION pEast VALUES IN (1,2,10,11,19,20),
+    PARTITION pWest VALUES IN (4,12,13,14,18),
+    PARTITION pCentral VALUES IN (7,8,15,16)
+);
+SHOW TABLES;
+--exec $MYSQL_PUMP --databases bug22726732 > $MYSQLTEST_VARDIR/tmp/bug22726732.sql
+DROP DATABASE bug22726732;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug22726732.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/bug22726732.sql
+USE bug22726732;
+SHOW TABLES;
+DROP DATABASE bug22726732;

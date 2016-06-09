@@ -237,7 +237,7 @@ GRANT_INFO::GRANT_INFO()
 /* Get column name from column hash */
 
 static uchar *get_field_name(Field **buff, size_t *length,
-                             my_bool not_used __attribute__((unused)))
+                             my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= strlen((*buff)->field_name);
   return (uchar*) (*buff)->field_name;
@@ -4661,7 +4661,7 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   /* Tables may be reused in a sub statement. */
   DBUG_ASSERT(!file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
   
-  bool error __attribute__((unused))= refix_gc_items(thd);
+  bool error MY_ATTRIBUTE((unused))= refix_gc_items(thd);
   DBUG_ASSERT(!error);
 }
 
@@ -4676,6 +4676,18 @@ bool TABLE::refix_gc_items(THD *thd)
       DBUG_ASSERT(vfield->gcol_info && vfield->gcol_info->expr_item);
       if (!vfield->gcol_info->expr_item->fixed)
       {
+        bool res= false;
+        /**
+          We should keep all the newly-created Items during fixing fields
+          in the same life span as the ones created parsing the generated
+          expression string.
+        */
+        Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
+        Query_arena backup_arena;
+        Query_arena gcol_arena(&vfield->table->mem_root,
+                               Query_arena::STMT_CONVENTIONAL_EXECUTION);
+        thd->set_n_backup_active_arena(&gcol_arena, &backup_arena);
+        thd->stmt_arena= &gcol_arena;
         /* 
           Temporarily disable privileges check; already done when first fixed,
           and then based on definer's (owner's) rights: this thread has
@@ -4685,11 +4697,23 @@ bool TABLE::refix_gc_items(THD *thd)
         thd->want_privilege= 0;
 
         if (fix_fields_gcol_func(thd, vfield))
-          return true;
-        
+          res= true;
+
+        thd->stmt_arena= backup_stmt_arena_ptr;
+        thd->restore_active_arena(&gcol_arena, &backup_arena);
         // Restore any privileges check
         thd->want_privilege= sav_want_priv;
         get_fields_in_item_tree= FALSE;
+
+        /* error occurs */
+        if (res)
+          return res;
+
+        // We need append the new items to orignal item lists
+        Item *item= vfield->gcol_info->item_free_list;
+        while(item->next)
+          item= item->next;
+        item->next= gcol_arena.free_list;
       }
     }
   }
@@ -7611,6 +7635,9 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index)
     if (!vfield->stored_in_db &&
         bitmap_is_set(table->read_set, vfield->field_index))
     {
+      if (vfield->type() == MYSQL_TYPE_BLOB)
+        (down_cast<Field_blob*>(vfield))->need_to_keep_old_value();
+
       error= vfield->gcol_info->expr_item->save_in_field(vfield, 0);
       DBUG_PRINT("info", ("field '%s' - updated", vfield->field_name));
       if (error && !table->in_use->is_error())

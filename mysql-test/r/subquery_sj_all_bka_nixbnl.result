@@ -12365,5 +12365,38 @@ execute stmt;
          where (cc.i in (select cc_alias.i from cc)))
 1
 drop table cc;
+#
+# Bug #22305361: QUERY WITH MATERIALIZED TABLE RETURNS INCORRECT
+#                RESULTS IN 5.6
+#
+CREATE TABLE t(a INT,b INT);
+INSERT INTO t VALUES (1,0),(1,0),(1,0),(1,0),(1,1);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN extended SELECT *
+FROM t AS t1
+WHERE t1.a IN (SELECT t2.a
+FROM t AS t2
+WHERE CONCAT(t2.a,'') NOT IN (SELECT t3.a
+FROM t AS t3
+WHERE t3.b=1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+1	PRIMARY	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t1.a	1	100.00	NULL
+2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+3	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
+Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t` `t1` semi join (`test`.`t` `t2`) where ((`<subquery2>`.`a` = `test`.`t1`.`a`) and (not(<in_optimizer>(concat(`test`.`t2`.`a`,''),<exists>(/* select#3 */ select 1 from `test`.`t` `t3` where ((`test`.`t3`.`b` = 1) and <if>(outer_field_is_not_null, ((<cache>(concat(`test`.`t2`.`a`,'')) = `test`.`t3`.`a`) or isnull(`test`.`t3`.`a`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`a`), true))))))
+SELECT *
+FROM t AS t1
+WHERE t1.a IN (SELECT t2.a
+FROM t AS t2
+WHERE CONCAT(t2.a,'') NOT IN (SELECT t3.a
+FROM t AS t3
+WHERE t3.b=1));
+a	b
+DROP TABLE t;
 set optimizer_switch=default;
 set optimizer_switch=default;

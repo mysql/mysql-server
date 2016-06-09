@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 static int volatile my_have_got_alarm= 0;
 static uint my_time_to_wait_for_lock= 2; /* In seconds */
 
-void my_set_alarm_variable(int signo __attribute__((unused)))
+void my_set_alarm_variable(int signo MY_ATTRIBUTE((unused)))
 {
   my_have_got_alarm= 1;			/* Tell program that time expired */
 }

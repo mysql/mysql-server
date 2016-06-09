@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -182,13 +182,13 @@ static const uchar sort_order_sjis[]=
                        (0x80<=(c) && (c)<=0xfc))
 
 
-static uint ismbchar_sjis(const CHARSET_INFO *cs __attribute__((unused)),
+static uint ismbchar_sjis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 			 const char* p, const char *e)
 {
   return (issjishead((uchar) *p) && (e-p)>1 && issjistail((uchar)p[1]) ? 2: 0);
 }
 
-static uint mbcharlen_sjis(const CHARSET_INFO *cs __attribute__((unused)),
+static uint mbcharlen_sjis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                            uint c)
 {
   return (issjishead((uchar) c) ? 2 : 1);
@@ -1112,7 +1112,7 @@ static int my_strnncoll_sjis_internal(const CHARSET_INFO *cs,
 }
 
 
-static int my_strnncoll_sjis(const CHARSET_INFO *cs __attribute__((unused)),
+static int my_strnncoll_sjis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                              const uchar *a, size_t a_length, 
                              const uchar *b, size_t b_length,
                              my_bool b_is_prefix)
@@ -1124,7 +1124,7 @@ static int my_strnncoll_sjis(const CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-static int my_strnncollsp_sjis(const CHARSET_INFO *cs __attribute__((unused)),
+static int my_strnncollsp_sjis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 			       const uchar *a, size_t a_length, 
 			       const uchar *b, size_t b_length,
                                my_bool diff_if_only_endspace_difference)
@@ -33968,7 +33968,7 @@ static const uint16 unicode_to_sjis[65536]=
   @retval   MY_CS_ILSEQ    If a wrong byte sequence was found
 */
 static int
-my_mb_wc_sjis(const CHARSET_INFO *cs  __attribute__((unused)),
+my_mb_wc_sjis(const CHARSET_INFO *cs  MY_ATTRIBUTE((unused)),
 	      my_wc_t *pwc, const uchar *s, const uchar *e){
   int hi;
 
@@ -34012,7 +34012,7 @@ my_mb_wc_sjis(const CHARSET_INFO *cs  __attribute__((unused)),
   @retval   MY_CS_ILUNI    If the Unicode character does not exist in SJIS
 */
 static int
-my_wc_mb_sjis(const CHARSET_INFO *cs __attribute__((unused)),
+my_wc_mb_sjis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 	      my_wc_t wc, uchar *s, uchar *e)
 {
   int code;
@@ -34061,7 +34061,7 @@ mb:
 
 
 static
-size_t my_numcells_sjis(const CHARSET_INFO *cs __attribute__((unused)),
+size_t my_numcells_sjis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                       const char *str, const char *str_end)
 {
   size_t clen;
@@ -34094,7 +34094,7 @@ size_t my_numcells_sjis(const CHARSET_INFO *cs __attribute__((unused)),
   CP932 additional characters are also accepted.
 */
 static
-size_t my_well_formed_len_sjis(const CHARSET_INFO *cs __attribute__((unused)),
+size_t my_well_formed_len_sjis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                const char *b, const char *e,
                                size_t pos, int *error)
 {

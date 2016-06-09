@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -68,6 +68,14 @@ extern "C" {
   be created by a thread and destroyed by another thread.
 */
 #define PSI_FLAG_TRANSFER (1 << 5)
+
+/**
+  Volatility flag.
+  This flag indicate that an instrumented object
+  has a volatility (life cycle) comparable
+  to the volatility of a session.
+*/
+#define PSI_FLAG_VOLATILITY_SESSION (1 << 6)
 
 #ifdef HAVE_PSI_INTERFACE
 

@@ -294,7 +294,7 @@ void Row_builder::add_decimal_field(const decimal_t * value)
   mysqlx::Decimal dec(str_buf);
   std::string dec_bytes = dec.to_bytes();
 
-  m_out_stream->WriteVarint32(dec_bytes.length());
+  m_out_stream->WriteVarint32(static_cast<google::protobuf::uint32>(dec_bytes.length()));
   m_out_stream->WriteString(dec_bytes);
 }
 
@@ -306,7 +306,7 @@ void Row_builder::add_decimal_field(const char * const value, size_t length)
   mysqlx::Decimal dec(dec_str);
   std::string dec_bytes = dec.to_bytes();
 
-  m_out_stream->WriteVarint32(dec_bytes.length());
+  m_out_stream->WriteVarint32(static_cast<google::protobuf::uint32>(dec_bytes.length()));
   m_out_stream->WriteString(dec_bytes);
 }
 
@@ -389,7 +389,7 @@ void Row_builder::add_time_field(const MYSQL_TIME * value, uint decimals)
 {
   ADD_FIELD_HEADER();
 
-  m_out_stream->WriteVarint32(get_time_size(value) + 1); // +1 for sign
+  m_out_stream->WriteVarint32(static_cast<google::protobuf::uint32>(get_time_size(value) + 1)); // +1 for sign
 
   /*sign*/
   google::protobuf::uint8 neg = (value->neg) ? 0x01 : 0x00;
@@ -405,7 +405,7 @@ void Row_builder::add_datetime_field(const MYSQL_TIME * value, uint decimals)
   google::protobuf::uint32 size = CodedOutputStream::VarintSize64(value->year)
     + CodedOutputStream::VarintSize64(value->month)
     + CodedOutputStream::VarintSize64(value->day)
-    + get_time_size(value);
+    + static_cast<int>(get_time_size(value));
 
   m_out_stream->WriteVarint32(size);
 
@@ -421,9 +421,9 @@ void Row_builder::add_string_field(const char * const value, size_t length,
 {
   ADD_FIELD_HEADER();
 
-  m_out_stream->WriteVarint32(length + 1); // 1 byte for thre trailing '\0'
+  m_out_stream->WriteVarint32(static_cast<google::protobuf::uint32>(length + 1)); // 1 byte for thre trailing '\0'
 
-  m_out_stream->WriteRaw(value, length);
+  m_out_stream->WriteRaw(value, static_cast<int>(length));
   char zero = '\0';
   m_out_stream->WriteRaw(&zero, 1);
 }
@@ -450,7 +450,7 @@ void Row_builder::add_set_field(const char * const value, size_t length,
     comma = std::strchr(p_value, ',');
     if (comma != NULL)
     {
-      elem_len = comma - p_value;
+      elem_len = static_cast<unsigned int>(comma - p_value);
       set_vals.push_back(std::string(p_value, elem_len));
       p_value = comma + 1;
     }
@@ -459,7 +459,7 @@ void Row_builder::add_set_field(const char * const value, size_t length,
   // still sth left to store
   if ((size_t)(p_value - value) < length)
   {
-    elem_len = length - (p_value - value);
+    elem_len = static_cast<unsigned int>(length - (p_value - value));
     set_vals.push_back(std::string(p_value, elem_len));
   }
 
@@ -468,7 +468,7 @@ void Row_builder::add_set_field(const char * const value, size_t length,
   for (size_t i = 0; i < set_vals.size(); ++i)
   {
     size += CodedOutputStream::VarintSize64(set_vals[i].length());
-    size += set_vals[i].length();
+    size += static_cast<google::protobuf::uint32>(set_vals[i].length());
   }
 
   // write total size to the buffer

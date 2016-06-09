@@ -389,6 +389,12 @@ CREATE TABLE t_zip8k_in_8k_from_1k TABLESPACE s_8k KEY_BLOCK_SIZE=8 AS (SELECT *
 CREATE TABLE t_red_in_16k_from_1k TABLESPACE s_16k ROW_FORMAT=redundant AS (SELECT * FROM t_zip1k_in_1k);
 CREATE TABLE t_com_in_16k_from_1k TABLESPACE s_16k ROW_FORMAT=compact AS (SELECT * FROM t_zip1k_in_1k);
 CREATE TABLE t_dyn_in_16k_from_1k TABLESPACE s_16k ROW_FORMAT=dynamic AS (SELECT * FROM t_zip1k_in_1k);
+#
+# Create a tablespace that will be deleted while the engine is not
+# running to show that it can still be dropped.
+#
+CREATE TABLESPACE s_missing ADD DATAFILE 'delete_me.ibd';
+CREATE TABLE t_missing (a int) TABLESPACE=s_missing;
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 s_1k	General	DEFAULT	1024	Compressed	MYSQLD_DATADIR/s_1k.ibd
@@ -396,6 +402,7 @@ s_2k	General	DEFAULT	2048	Compressed	MYSQLD_DATADIR/s_2k.ibd
 s_4k	General	DEFAULT	4096	Compressed	MYSQLD_DATADIR/s_4k.ibd
 s_8k	General	DEFAULT	8192	Compressed	MYSQLD_DATADIR/s_8k.ibd
 s_16k	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_16k.ibd
+s_missing	General	DEFAULT	0	Any	MYSQLD_DATADIR/delete_me.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s_1k	TABLESPACE	InnoDB	NORMAL	s_1k	MYSQLD_DATADIR/s_1k.ibd
@@ -403,6 +410,7 @@ s_2k	TABLESPACE	InnoDB	NORMAL	s_2k	MYSQLD_DATADIR/s_2k.ibd
 s_4k	TABLESPACE	InnoDB	NORMAL	s_4k	MYSQLD_DATADIR/s_4k.ibd
 s_8k	TABLESPACE	InnoDB	NORMAL	s_8k	MYSQLD_DATADIR/s_8k.ibd
 s_16k	TABLESPACE	InnoDB	NORMAL	s_16k	MYSQLD_DATADIR/s_16k.ibd
+s_missing	TABLESPACE	InnoDB	NORMAL	s_missing	MYSQLD_DATADIR/delete_me.ibd
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_com_in_16k	s_16k	129	5	Compact	0	General
@@ -413,6 +421,7 @@ test/t_dyn_in_16k	s_16k	161	5	Dynamic	0	General
 test/t_dyn_in_16k_as	s_16k	161	5	Dynamic	0	General
 test/t_dyn_in_16k_from_1k	s_16k	161	5	Dynamic	0	General
 test/t_dyn_in_16k_like	s_16k	161	5	Dynamic	0	General
+test/t_missing	s_missing	161	4	Dynamic	0	General
 test/t_red_in_16k	s_16k	128	5	Redundant	0	General
 test/t_red_in_16k_as	s_16k	128	5	Redundant	0	General
 test/t_red_in_16k_from_1k	s_16k	128	5	Redundant	0	General
@@ -433,6 +442,7 @@ test/t_zip8k_in_8k_as	s_8k	169	5	Compressed	8192	General
 test/t_zip8k_in_8k_from_1k	s_8k	169	5	Compressed	8192	General
 test/t_zip8k_in_8k_like	s_8k	169	5	Compressed	8192	General
 # Directory of MYSQLD_DATADIR/
+delete_me.ibd
 s_16k.ibd
 s_1k.ibd
 s_2k.ibd
@@ -440,9 +450,12 @@ s_4k.ibd
 s_8k.ibd
 # Directory of MYSQLD_DATADIR/test/
 #
-# Restart the server and make sure that everything is OK.
-#
+# Stop the server.
+# Delete a general tablespace datafile.
 # restart
+# Make sure that the missing tablespace can be dropped and
+# everything else is OK.
+#
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 s_1k	General	DEFAULT	1024	Compressed	MYSQLD_DATADIR/s_1k.ibd
@@ -450,6 +463,7 @@ s_2k	General	DEFAULT	2048	Compressed	MYSQLD_DATADIR/s_2k.ibd
 s_4k	General	DEFAULT	4096	Compressed	MYSQLD_DATADIR/s_4k.ibd
 s_8k	General	DEFAULT	8192	Compressed	MYSQLD_DATADIR/s_8k.ibd
 s_16k	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_16k.ibd
+s_missing	General	DEFAULT	0	Any	MYSQLD_DATADIR/delete_me.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s_1k	TABLESPACE	InnoDB	NORMAL	s_1k	MYSQLD_DATADIR/s_1k.ibd
@@ -467,6 +481,7 @@ test/t_dyn_in_16k	s_16k	161	5	Dynamic	0	General
 test/t_dyn_in_16k_as	s_16k	161	5	Dynamic	0	General
 test/t_dyn_in_16k_from_1k	s_16k	161	5	Dynamic	0	General
 test/t_dyn_in_16k_like	s_16k	161	5	Dynamic	0	General
+test/t_missing	s_missing	161	4	Dynamic	0	General
 test/t_red_in_16k	s_16k	128	5	Redundant	0	General
 test/t_red_in_16k_as	s_16k	128	5	Redundant	0	General
 test/t_red_in_16k_from_1k	s_16k	128	5	Redundant	0	General
@@ -496,6 +511,14 @@ s_8k.ibd
 #
 # Clean-up tables we no longer need
 #
+DROP TABLESPACE s_missing;
+ERROR HY000: Failed to drop TABLESPACE s_missing
+SHOW WARNINGS;
+Level	Code	Message
+Error	1529	Failed to drop TABLESPACE s_missing
+Error	3120	Tablespace `s_missing` is not empty.
+DROP TABLE t_missing;
+DROP TABLESPACE s_missing;
 DROP TABLE t_zip1k_in_1k_like;
 DROP TABLE t_zip2k_in_2k_like;
 DROP TABLE t_zip4k_in_4k_like;

@@ -238,21 +238,21 @@ bool Item::val_bool()
 */
 String *Item::val_str_ascii(String *str)
 {
-  if (!(collation.collation->state & MY_CS_NONASCII))
-    return val_str(str);
-  
   DBUG_ASSERT(str != &str_value);
   
   uint errors;
   String *res= val_str(&str_value);
   if (!res)
     return 0;
-  
-  if ((null_value= str->copy(res->ptr(), res->length(),
-                             collation.collation, &my_charset_latin1,
-                             &errors)))
-    return 0;
-  
+
+  if (!(res->charset()->state & MY_CS_NONASCII))
+    str= res;
+  else
+  {
+    if ((null_value= str->copy(res->ptr(), res->length(), collation.collation,
+                               &my_charset_latin1, &errors)))
+      return 0;
+  }
   return str;
 }
 
@@ -3715,8 +3715,8 @@ Item *Item_null::safe_charset_converter(const CHARSET_INFO *tocs)
 
 static void
 default_set_param_func(Item_param *param,
-                       uchar **pos __attribute__((unused)),
-                       ulong len __attribute__((unused)))
+                       uchar **pos MY_ATTRIBUTE((unused)),
+                       ulong len MY_ATTRIBUTE((unused)))
 {
   param->set_null();
 }
@@ -5981,7 +5981,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
   {
     TABLE *table= field->table;
     MY_BITMAP *current_bitmap;
-    MY_BITMAP *other_bitmap __attribute__((unused));
+    MY_BITMAP *other_bitmap MY_ATTRIBUTE((unused));
     if (thd->mark_used_columns == MARK_COLUMNS_READ)
     {
       current_bitmap= table->read_set;

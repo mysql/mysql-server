@@ -25,7 +25,7 @@
 #include "decimal.h"
 #include "mysql_com.h"
 #include "ngs/protocol/message_builder.h"
-#include <google/protobuf/io/coded_stream.h>
+#include "ngs_common/protocol_protobuf.h"
 #include <string>
 #include <set>
 

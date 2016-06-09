@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -295,7 +295,7 @@ PFS_mutex* create_mutex(PFS_mutex_class *klass, const void *identity)
   PFS_mutex *pfs;
   pfs_dirty_state dirty_state;
 
-  pfs= global_mutex_container.allocate(& dirty_state);
+  pfs= global_mutex_container.allocate(& dirty_state, klass->m_volatility);
   if (pfs != NULL)
   {
     pfs->m_identity= identity;

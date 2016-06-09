@@ -5,11 +5,13 @@
 --echo # Bug #22306581	VALGRIND FAILURE IN INNODB.TEMPORARY_TABLE
 --echo #
 
---error ER_UNSUPPORTED_EXTENSION
+--error ER_ILLEGAL_HA
 create temporary table t (i int) COMPRESSION = "ZLIB" ENGINE = InnoDB;
+SHOW WARNINGS;
 
---error ER_UNSUPPORTED_EXTENSION
+--error ER_ILLEGAL_HA
 create table t1(i INT) COMPRESSION="ZLIB" ENGINE=InnoDB TABLESPACE=innodb_system;
+SHOW WARNINGS;
 
 SET DEBUG ='+d, simulate_max_char_col';
 --error 1030

@@ -369,7 +369,7 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
 }
 #else
 static bool send_prep_stmt(Prepared_statement *stmt,
-                           uint columns __attribute__((unused)))
+                           uint columns MY_ATTRIBUTE((unused)))
 {
   THD *thd= stmt->thd;
 
@@ -3271,14 +3271,19 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
   invoke_pre_parse_rewrite_plugins(thd);
   thd->m_parser_state = NULL;
 
-  error= parse_sql(thd, &parser_state, NULL) ||
-    thd->is_error() ||
-    init_param_array(this);
+  error= thd->is_error();
 
   if (!error)
-  { // We've just created the statement maybe there is a rewrite
-    invoke_post_parse_rewrite_plugins(thd, true);
-    error= init_param_array(this);
+  {
+    error = parse_sql(thd, &parser_state, NULL) ||
+            thd->is_error() ||
+            init_param_array(this);
+
+    if (!error)
+    { // We've just created the statement maybe there is a rewrite
+      invoke_post_parse_rewrite_plugins(thd, true);
+      error = init_param_array(this);
+    }
   }
 
   lex->set_trg_event_type_for_tables();
@@ -4393,7 +4398,7 @@ bool Protocol_local::store(const char *str, size_t length,
 /* Store MYSQL_TIME (in binary format) */
 
 bool Protocol_local::store(MYSQL_TIME *time,
-                           uint precision __attribute__((unused)))
+                           uint precision MY_ATTRIBUTE((unused)))
 {
   return store_column(time, sizeof(MYSQL_TIME));
 }
@@ -4410,7 +4415,7 @@ bool Protocol_local::store_date(MYSQL_TIME *time)
 /** Store MYSQL_TIME (in binary format) */
 
 bool Protocol_local::store_time(MYSQL_TIME *time,
-                                uint precision __attribute__((unused)))
+                                uint precision MY_ATTRIBUTE((unused)))
 {
   return store_column(time, sizeof(MYSQL_TIME));
 }

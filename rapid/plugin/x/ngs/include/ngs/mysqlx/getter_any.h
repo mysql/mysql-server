@@ -25,7 +25,7 @@
 #include <vector>
 #include <sstream>
 
-#include "mysqlx_connection.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 #include "ngs/ngs_error.h"
 #include "ngs/error_code.h"
 

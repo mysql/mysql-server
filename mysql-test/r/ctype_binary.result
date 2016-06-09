@@ -2906,7 +2906,7 @@ SELECT inet6_ntoa(inet_ntoa('1'));
 inet6_ntoa(inet_ntoa('1'))
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '0.0.0.1' for function inet6_ntoa
+Warning	1411	Incorrect string value: 'inet_ntoa('1')' for function inet6_ntoa
 #
 # Bug#14040277 UNINITIALIZED VALUE REFERENCED IN STR_TO_IPV6
 #
@@ -2914,13 +2914,13 @@ SELECT inet6_aton(soundex('a'));
 inet6_aton(soundex('a'))
 NULL
 Warnings:
-Warning	1411	Incorrect string value: 'A000' for function inet6_aton
+Warning	1411	Incorrect string value: 'soundex('a')' for function inet6_aton
 #
 # Bug#19047425 UNINITIALISED VALUE IN STR_TO_IPV6
 #
 do is_ipv4_mapped(inet6_aton(convert(_ascii "a:" using binary)));
 Warnings:
-Warning	1411	Incorrect string value: 'a:' for function inet6_aton
+Warning	1411	Incorrect string value: 'convert(_ascii'a:' using binary)' for function inet6_aton
 #
 # End of 5.6 tests
 #
