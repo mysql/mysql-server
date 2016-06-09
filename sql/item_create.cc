@@ -1679,6 +1679,7 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "JSON_CONTAINS_PATH", SQL_FN_V_THD(Item_func_json_contains_path, 3, MAX_ARGLIST_SIZE) },
   { "JSON_LENGTH", SQL_FN_V_THD(Item_func_json_length, 1, 2) },
   { "JSON_DEPTH", SQL_FN(Item_func_json_depth, 1) },
+  { "JSON_PRETTY", SQL_FN(Item_func_json_pretty, 1) },
   { "JSON_TYPE", SQL_FN(Item_func_json_type, 1) },
   { "JSON_KEYS", SQL_FN_V_THD(Item_func_json_keys, 1, 2) },
   { "JSON_EXTRACT", SQL_FN_V_THD(Item_func_json_extract, 2, MAX_ARGLIST_SIZE) },
