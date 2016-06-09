@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -96,7 +96,7 @@ ulint
 ut_fold_ull(
 /*========*/
 	ib_uint64_t	d)	/*!< in: 64-bit integer */
-	__attribute__((const));
+	MY_ATTRIBUTE((const));
 /*************************************************************//**
 Folds a character string ending in the null character.
 @return	folded value */
@@ -105,7 +105,7 @@ ulint
 ut_fold_string(
 /*===========*/
 	const char*	str)	/*!< in: null-terminated string */
-	__attribute__((pure));
+	MY_ATTRIBUTE((pure));
 /***********************************************************//**
 Looks for a prime number slightly greater than the given argument.
 The prime is chosen so that it is not near any power of 2.
@@ -115,7 +115,7 @@ ulint
 ut_find_prime(
 /*==========*/
 	ulint	n)	/*!< in: positive number > 100 */
-	__attribute__((const));
+	MY_ATTRIBUTE((const));
 
 #endif /* !UNIV_INNOCHECKSUM */
 
@@ -128,7 +128,7 @@ ut_fold_ulint_pair(
 /*===============*/
 	ulint	n1,	/*!< in: ulint */
 	ulint	n2)	/*!< in: ulint */
-	__attribute__((const));
+	MY_ATTRIBUTE((const));
 /*************************************************************//**
 Folds a binary string.
 @return	folded value */
@@ -138,7 +138,7 @@ ut_fold_binary(
 /*===========*/
 	const byte*	str,	/*!< in: string of bytes */
 	ulint		len)	/*!< in: length */
-	__attribute__((pure));
+	MY_ATTRIBUTE((pure));
 
 
 #ifndef UNIV_NONINL

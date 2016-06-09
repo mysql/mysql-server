@@ -1,4 +1,4 @@
-/*  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -207,8 +207,8 @@ typedef char *(*mysql_authentication_dialog_ask_t)(struct st_mysql *mysql,
 
 static mysql_authentication_dialog_ask_t ask;
 
-static char *builtin_ask(MYSQL *mysql __attribute__((unused)),
-                         int type __attribute__((unused)),
+static char *builtin_ask(MYSQL *mysql MY_ATTRIBUTE((unused)),
+                         int type MY_ATTRIBUTE((unused)),
                          const char *prompt,
                          char *buf, int buf_len)
 {
@@ -309,10 +309,10 @@ static int perform_dialog(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
   or fall back to the default implementation.
 */
 
-static int init_dialog(char *unused1   __attribute__((unused)), 
-                       size_t unused2  __attribute__((unused)), 
-                       int unused3     __attribute__((unused)), 
-                       va_list unused4 __attribute__((unused)))
+static int init_dialog(char *unused1   MY_ATTRIBUTE((unused)), 
+                       size_t unused2  MY_ATTRIBUTE((unused)), 
+                       int unused3     MY_ATTRIBUTE((unused)), 
+                       va_list unused4 MY_ATTRIBUTE((unused)))
 {
   void *sym= dlsym(RTLD_DEFAULT, "mysql_authentication_dialog_ask");
   ask= sym ? (mysql_authentication_dialog_ask_t) sym : builtin_ask;

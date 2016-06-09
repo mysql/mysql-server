@@ -6603,3 +6603,80 @@ set @@optimizer_switch=@old_opt_switch;
 # New tests go here.
 
 --echo # End of 5.6 tests
+
+--echo # Bug#21139722: Assertion failed: !(used_tables() & ((table_map) 1) ...
+
+CREATE TABLE t1(a INTEGER) engine=innodb;
+CREATE TABLE t2(b INTEGER) engine=innodb;
+
+let $query=
+SELECT 1
+FROM (SELECT 1 IN (SELECT 1
+                   FROM t1
+                   WHERE (SELECT 1 FROM t2 HAVING b) NOT IN (SELECT 1 FROM t2)
+                  )
+      FROM t2
+     ) AS z;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+# A test case containing two outer references from different query blocks
+# Debugging is needed to inspect correct transformation, unfortunately.
+
+CREATE TABLE t1(a INTEGER) engine=innodb;
+
+let $query=
+SELECT (SELECT a
+        FROM t1 AS t2
+        WHERE a IN (SELECT t1.a+t2.a
+                    FROM t1 AS t3))
+FROM t1 AS t1;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1;
+
+--echo # End of test for Bug#21139722
+
+--echo #
+--echo # Bug#21139402 ASSERTION FAILED: LENGTH > 0 && KEYPARTS != 0, CRASH IN JOIN::OPTIMIZE_KEYUSE
+--echo #
+
+CREATE TABLE t1 (a INT, b INT, PRIMARY KEY(a));
+CREATE TABLE t2 (c INT PRIMARY KEY);
+let $query=
+SELECT 1
+FROM t1
+WHERE 1 IN (SELECT (c IS NULL) IN (SELECT a
+                                   FROM t1
+                                   WHERE b)
+            FROM t2);
+eval EXPLAIN $query;
+eval $query;
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug #22305361: QUERY WITH MATERIALIZED TABLE RETURNS INCORRECT
+--echo #                RESULTS IN 5.6
+--echo #
+
+CREATE TABLE t(a INT,b INT);
+INSERT INTO t VALUES (1,0),(1,0),(1,0),(1,0),(1,1);
+
+let query=
+SELECT *
+FROM t AS t1
+WHERE t1.a IN (SELECT t2.a
+               FROM t AS t2
+               WHERE CONCAT(t2.a,'') NOT IN (SELECT t3.a
+                                             FROM t AS t3
+                                             WHERE t3.b=1));
+
+eval EXPLAIN extended $query;
+eval $query;
+
+DROP TABLE t;

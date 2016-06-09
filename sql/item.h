@@ -143,6 +143,19 @@ public:
     }
   }
 };
+/**
+  Class used as argument to Item::walk() together with used_tables_for_level()
+*/
+class Used_tables
+{
+public:
+  explicit Used_tables(st_select_lex *select) :
+  select(select), used_tables(0)
+  {}
+
+  st_select_lex *const select;           ///< Level for which data is accumulated
+  table_map used_tables;              ///< Accumulated used tables data
+};
 
 /*************************************************************************/
 
@@ -1192,23 +1205,6 @@ public:
 
   /* bit map of tables used by item */
   virtual table_map used_tables() const { return (table_map) 0L; }
-  /**
-    Return used table information for the level this item is resolved on.
-     - For fields, this returns the table the item is resolved from.
-     - For all other items, this behaves like used_tables().
-
-    @note: Use this function with caution. External calls to this function
-           should only be made for class objects derived from Item_ident.
-           Item::resolved_used_tables is for internal use only, in order to
-           process fields underlying a view column reference.
-  */
-  virtual table_map resolved_used_tables() const
-  {
-    // As this is the level this item was resolved on, it cannot be outer:
-    DBUG_ASSERT(!(used_tables() & OUTER_REF_TABLE_BIT));
-
-    return used_tables();
-  }
   /*
     Return table map of tables that can't be NULL tables (tables that are
     used in a context where if they would contain a NULL row generated
@@ -1440,6 +1436,21 @@ public:
   virtual bool reset_query_id_processor(uchar *query_id_arg) { return 0; }
   virtual bool find_item_processor(uchar *arg) { return this == (void *) arg; }
   virtual bool register_field_in_read_map(uchar *arg) { return 0; }
+/**
+    Return used table information for the specified query block (level).
+    For a field that is resolved from this query block, return the table number.
+    For a field that is resolved from a query block outer to the specified one,
+    return OUTER_REF_TABLE_BIT
+
+    @param[in,out] arg pointer to an instance of class Used_tables, which is
+                       constructed with the query block as argument.
+                       The used tables information is accumulated in the field
+                       used_tables in this class.
+
+    @note This function is used to update used tables information after
+          merging a query block (a subquery) with its parent.
+  */
+  virtual bool used_tables_for_level(uchar *arg) { return false; }
   virtual bool inform_item_in_cond_of_tab(uchar *join_tab_index) { return false; }
   /**
      Clean up after removing the item from the item tree.
@@ -2243,7 +2254,6 @@ public:
   type_conversion_status save_in_field(Field *field,bool no_conversions);
   void save_org_in_field(Field *field);
   table_map used_tables() const;
-  virtual table_map resolved_used_tables() const;
   enum Item_result result_type () const
   {
     return field->result_type();
@@ -2278,6 +2288,7 @@ public:
   bool add_field_to_set_processor(uchar * arg);
   bool remove_column_from_bitmap(uchar * arg);
   bool find_item_in_field_list_processor(uchar *arg);
+  bool used_tables_for_level(uchar *arg);
   bool register_field_in_read_map(uchar *arg);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   void cleanup();
@@ -3245,9 +3256,6 @@ public:
       (*ref)->update_used_tables(); 
   }
 
-  virtual table_map resolved_used_tables() const
-  { return (*ref)->resolved_used_tables(); }
-
   table_map not_null_tables() const
   {
     /*
@@ -4190,11 +4198,6 @@ public:
   }
 
   void set_used_tables(table_map map) { used_table_map= map; }
-
-  virtual table_map resolved_used_tables() const
-  {
-    return example ? example->resolved_used_tables() : used_table_map;
-  }
 
   virtual bool allocate(uint i) { return 0; }
   virtual bool setup(Item *item)

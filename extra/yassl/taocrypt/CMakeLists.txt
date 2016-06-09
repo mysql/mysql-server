@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -12,6 +12,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/mySTL
                     ${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/include)
@@ -28,6 +30,14 @@ SET(TAOCRYPT_SOURCES		src/aes.cpp src/aestables.cpp src/algebra.cpp src/arc4.cpp
 				include/md2.hpp include/md5.hpp include/misc.hpp include/modarith.hpp include/modes.hpp
 				include/random.hpp include/ripemd.hpp include/rsa.hpp include/sha.hpp
 				include/rabbit.hpp include/hc128.hpp)
+
+# Segfaults with SIGILL at high optimization levels in:
+# ModularArithmetic::SimultaneousExponentiate
+IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+  IF(CMAKE_CXX_FLAGS MATCHES "-std=")
+    ADD_COMPILE_FLAGS(src/integer.cpp COMPILE_FLAGS "-xO1")
+  ENDIF()
+ENDIF()
 
 IF(HAVE_EXPLICIT_TEMPLATE_INSTANTIATION)
   SET(TAOCRYPT_SOURCES ${TAOCRYPT_SOURCES} src/template_instnt.cpp)

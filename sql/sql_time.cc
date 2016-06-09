@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1187,7 +1187,7 @@ const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
   @param OUT str  String to conver to
   @param dec      Number of fractional digits.
 */
-void make_time(const DATE_TIME_FORMAT *format __attribute__((unused)),
+void make_time(const DATE_TIME_FORMAT *format MY_ATTRIBUTE((unused)),
                const MYSQL_TIME *l_time, String *str, uint dec)
 {
   uint length= (uint) my_time_to_str(l_time, (char*) str->ptr(), dec);
@@ -1202,7 +1202,7 @@ void make_time(const DATE_TIME_FORMAT *format __attribute__((unused)),
   @param l_time   DATE value
   @param OUT str  String to conver to
 */
-void make_date(const DATE_TIME_FORMAT *format __attribute__((unused)),
+void make_date(const DATE_TIME_FORMAT *format MY_ATTRIBUTE((unused)),
                const MYSQL_TIME *l_time, String *str)
 {
   uint length= (uint) my_date_to_str(l_time, (char*) str->ptr());
@@ -1218,7 +1218,7 @@ void make_date(const DATE_TIME_FORMAT *format __attribute__((unused)),
   @param OUT str  String to conver to
   @param dec      Number of fractional digits.
 */
-void make_datetime(const DATE_TIME_FORMAT *format __attribute__((unused)),
+void make_datetime(const DATE_TIME_FORMAT *format MY_ATTRIBUTE((unused)),
                    const MYSQL_TIME *l_time, String *str, uint dec)
 {
   uint length= (uint) my_datetime_to_str(l_time, (char*) str->ptr(), dec);

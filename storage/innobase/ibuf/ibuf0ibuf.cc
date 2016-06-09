@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -657,7 +657,7 @@ byte*
 ibuf_parse_bitmap_init(
 /*===================*/
 	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr __attribute__((unused)), /*!< in: buffer end */
+	byte*		end_ptr MY_ATTRIBUTE((unused)), /*!< in: buffer end */
 	buf_block_t*	block,	/*!< in: block or NULL */
 	mtr_t*		mtr)	/*!< in: mtr or NULL */
 {
@@ -2494,7 +2494,7 @@ ibuf_get_merge_page_nos_func(
 /*******************************************************************//**
 Get the matching records for space id.
 @return	current rec or NULL */
-static	__attribute__((nonnull, warn_unused_result))
+static	MY_ATTRIBUTE((nonnull, warn_unused_result))
 const rec_t*
 ibuf_get_user_rec(
 /*===============*/
@@ -2516,7 +2516,7 @@ ibuf_get_user_rec(
 Reads page numbers for a space id from an ibuf tree.
 @return a lower limit for the combined volume of records which will be
 merged */
-static	__attribute__((nonnull, warn_unused_result))
+static	MY_ATTRIBUTE((nonnull, warn_unused_result))
 ulint
 ibuf_get_merge_pages(
 /*=================*/
@@ -2624,40 +2624,22 @@ ibuf_merge_pages(
 }
 
 /*********************************************************************//**
-Get the table instance from the table id.
-@return table instance */
-static __attribute__((warn_unused_result))
-dict_table_t*
-ibuf_get_table(
-/*===========*/
-	table_id_t	table_id)	/*!< in: valid table id */
-{
-	rw_lock_s_lock_func(&dict_operation_lock, 0, __FILE__, __LINE__);
-
-	dict_table_t*	table = dict_table_open_on_id(
-		table_id, FALSE, DICT_TABLE_OP_NORMAL);
-
-	rw_lock_s_unlock_gen(&dict_operation_lock, 0);
-
-	return(table);
-}
-
-/*********************************************************************//**
-Contracts insert buffer trees by reading pages to the buffer pool.
-@return a lower limit for the combined size in bytes of entries which
-will be merged from ibuf trees to the pages read, 0 if ibuf is
-empty */
-static
+Contracts insert buffer trees by reading pages referring to space_id
+to the buffer pool.
+@returns number of pages merged.*/
+UNIV_INTERN
 ulint
 ibuf_merge_space(
 /*=============*/
-	ulint		space,	/*!< in: tablespace id to merge */
-	ulint*		n_pages)/*!< out: number of pages to which merged */
+	ulint		space)	/*!< in: tablespace id to merge */
 {
 	mtr_t		mtr;
 	btr_pcur_t	pcur;
 	mem_heap_t*	heap = mem_heap_create(512);
 	dtuple_t*	tuple = ibuf_search_tuple_build(space, 0, heap);
+	ulint		n_pages = 0;
+
+	ut_ad(space < SRV_LOG_SPACE_FIRST_ID);
 
 	ibuf_mtr_start(&mtr);
 
@@ -2689,50 +2671,47 @@ ibuf_merge_space(
 	} else {
 
 		sum_sizes = ibuf_get_merge_pages(
-			&pcur, space, IBUF_MAX_N_PAGES_MERGED,
-			&pages[0], &spaces[0], &versions[0], n_pages,
-			&mtr);
+				&pcur, space, IBUF_MAX_N_PAGES_MERGED,
+				&pages[0], &spaces[0], &versions[0], &n_pages,
+				&mtr);
+		ib_logf(IB_LOG_LEVEL_INFO,"\n Size of pages merged %lu"
+                        ,sum_sizes);
 
-		++sum_sizes;
 	}
 
 	ibuf_mtr_commit(&mtr);
 
 	btr_pcur_close(&pcur);
 
-	if (sum_sizes > 0) {
-
-		ut_a(*n_pages > 0 || sum_sizes == 1);
+	if (n_pages > 0) {
 
 #ifdef UNIV_DEBUG
-		ut_ad(*n_pages <= UT_ARR_SIZE(pages));
+		ut_ad(n_pages <= UT_ARR_SIZE(pages));
 
-		for (ulint i = 0; i < *n_pages; ++i) {
+		for (ulint i = 0; i < n_pages; ++i) {
 			ut_ad(spaces[i] == space);
 			ut_ad(i == 0 || versions[i] == versions[i - 1]);
 		}
 #endif /* UNIV_DEBUG */
 
 		buf_read_ibuf_merge_pages(
-			true, spaces, versions, pages, *n_pages);
+			true, spaces, versions, pages, n_pages);
 	}
 
-	return(sum_sizes);
+	return(n_pages);
 }
 
-/*********************************************************************//**
-Contracts insert buffer trees by reading pages to the buffer pool.
+/** Contract the change buffer by reading pages to the buffer pool.
+@param[out]	n_pages		number of pages merged
+@param[in]	sync		whether the caller waits for
+the issued reads to complete
 @return a lower limit for the combined size in bytes of entries which
 will be merged from ibuf trees to the pages read, 0 if ibuf is
 empty */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 ulint
 ibuf_merge(
 /*=======*/
-	table_id_t	table_id,	/*!< in: if merge should be
-					done only for a specific
-					table, for all tables this
-					should be 0 */
 	ulint*		n_pages,	/*!< out: number of pages to
 					which merged */
 	bool		sync)		/*!< in: TRUE if the caller
@@ -2740,8 +2719,6 @@ ibuf_merge(
 					read with the highest
 					tablespace address to complete */
 {
-	dict_table_t*	table;
-
 	*n_pages = 0;
 
 	/* We perform a dirty read of ibuf->empty, without latching
@@ -2755,55 +2732,45 @@ ibuf_merge(
 	} else if (ibuf_debug) {
 		return(0);
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
-	} else if (table_id == 0) {
+	} else {
 		return(ibuf_merge_pages(n_pages, sync));
-	} else if ((table = ibuf_get_table(table_id)) == 0) {
-		/* Table has been dropped. */
-		return(0);
 	}
-
-	ulint	volume = ibuf_merge_space(table->space, n_pages);
-
-	dict_table_close(table, FALSE, FALSE);
-
-	return(volume);
 }
 
-/*********************************************************************//**
-Contracts insert buffer trees by reading pages to the buffer pool.
+/** Contract the change buffer by reading pages to the buffer pool.
+@param[in]	sync	whether the caller waits for
+the issued reads to complete
 @return a lower limit for the combined size in bytes of entries which
-will be merged from ibuf trees to the pages read, 0 if ibuf is
-empty */
+will be merged from ibuf trees to the pages read, 0 if ibuf is empty */
 static
 ulint
 ibuf_contract(
 /*==========*/
-	ibool	sync)	/*!< in: TRUE if the caller wants to wait for the
+	bool	sync)	/*!< in: TRUE if the caller wants to wait for the
 			issued read with the highest tablespace address
 			to complete */
 {
 	ulint	n_pages;
 
-	return(ibuf_merge(0, &n_pages, sync));
+	return(ibuf_merge_pages(&n_pages, sync));
 }
 
-/*********************************************************************//**
-Contracts insert buffer trees by reading pages to the buffer pool.
+/** Contract the change buffer by reading pages to the buffer pool.
+@param[in]	full		If true, do a full contraction based
+on PCT_IO(100). If false, the size of contract batch is determined
+based on the current size of the change buffer.
 @return a lower limit for the combined size in bytes of entries which
 will be merged from ibuf trees to the pages read, 0 if ibuf is
 empty */
 UNIV_INTERN
 ulint
-ibuf_contract_in_background(
-/*========================*/
-	table_id_t	table_id,	/*!< in: if merge should be done only
-					for a specific table, for all tables
-					this should be 0 */
-	ibool		full)		/*!< in: TRUE if the caller wants to
-					do a full contract based on PCT_IO(100).
-					If FALSE then the size of contract
-					batch is determined based on the
-					current size of the ibuf tree. */
+ibuf_merge_in_background(
+/*=====================*/
+	bool	full)	/*!< in: TRUE if the caller wants to
+			do a full contract based on PCT_IO(100).
+			If FALSE then the size of contract
+			batch is determined based on the
+			current size of the ibuf tree. */
 {
 	ulint	sum_bytes	= 0;
 	ulint	sum_pages	= 0;
@@ -2811,7 +2778,7 @@ ibuf_contract_in_background(
 	ulint	n_pages;
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
-	if (srv_ibuf_disable_background_merge && table_id == 0) {
+	if (srv_ibuf_disable_background_merge) {
 		return(0);
 	}
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
@@ -2840,7 +2807,7 @@ ibuf_contract_in_background(
 	while (sum_pages < n_pages) {
 		ulint	n_bytes;
 
-		n_bytes = ibuf_merge(table_id, &n_pag2, FALSE);
+		n_bytes = ibuf_merge(&n_pag2, false);
 
 		if (n_bytes == 0) {
 			return(sum_bytes);
@@ -3444,7 +3411,7 @@ ibuf_get_entry_counter_func(
 Buffer an operation in the insert/delete buffer, instead of doing it
 directly to the disk page, if this is possible.
 @return	DB_SUCCESS, DB_STRONG_FAIL or other error */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 ibuf_insert_low(
 /*============*/
@@ -3511,8 +3478,7 @@ ibuf_insert_low(
 #ifdef UNIV_IBUF_DEBUG
 		fputs("Ibuf too big\n", stderr);
 #endif
-		/* Use synchronous contract (== TRUE) */
-		ibuf_contract(TRUE);
+		ibuf_contract(true);
 
 		return(DB_STRONG_FAIL);
 	}
@@ -3935,7 +3901,7 @@ skip_watch:
 During merge, inserts to an index page a secondary index entry extracted
 from the insert buffer.
 @return	newly inserted record */
-static __attribute__((nonnull))
+static MY_ATTRIBUTE((nonnull))
 rec_t*
 ibuf_insert_to_index_page_low(
 /*==========================*/
@@ -4366,7 +4332,7 @@ ibuf_delete(
 /*********************************************************************//**
 Restores insert buffer tree cursor position
 @return	TRUE if the position was restored; FALSE if not */
-static __attribute__((nonnull))
+static MY_ATTRIBUTE((nonnull))
 ibool
 ibuf_restore_pos(
 /*=============*/
@@ -4421,7 +4387,7 @@ Deletes from ibuf the record on which pcur is positioned. If we have to
 resort to a pessimistic delete, this function commits mtr and closes
 the cursor.
 @return	TRUE if mtr was committed and pcur closed in this operation */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 ibool
 ibuf_delete_rec(
 /*============*/

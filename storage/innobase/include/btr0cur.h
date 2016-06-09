@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -186,7 +186,7 @@ btr_cur_open_at_index_side_func(
 	const char*	file,		/*!< in: file name */
 	ulint		line,		/*!< in: line where called */
 	mtr_t*		mtr)		/*!< in/out: mini-transaction */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 #define btr_cur_open_at_index_side(f,i,l,c,lv,m)			\
 	btr_cur_open_at_index_side_func(f,i,l,c,lv,__FILE__,__LINE__,m)
 /**********************************************************************//**
@@ -235,7 +235,7 @@ btr_cur_optimistic_insert(
 				compressed tablespace, the caller must
 				mtr_commit(mtr) before latching
 				any further pages */
-	__attribute__((nonnull(2,3,4,5,6,7,10), warn_unused_result));
+	MY_ATTRIBUTE((nonnull(2,3,4,5,6,7,10), warn_unused_result));
 /*************************************************************//**
 Performs an insert on a page of an index tree. It is assumed that mtr
 holds an x-latch on the tree and on the cursor page. If the insert is
@@ -266,7 +266,7 @@ btr_cur_pessimistic_insert(
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	que_thr_t*	thr,	/*!< in: query thread or NULL */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
-	__attribute__((nonnull(2,3,4,5,6,7,10), warn_unused_result));
+	MY_ATTRIBUTE((nonnull(2,3,4,5,6,7,10), warn_unused_result));
 /*************************************************************//**
 See if there is enough place in the page modification log to log
 an update-in-place.
@@ -293,7 +293,7 @@ btr_cur_update_alloc_zip_func(
 	bool		create,	/*!< in: true=delete-and-insert,
 				false=update-in-place */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 #ifdef UNIV_DEBUG
 # define btr_cur_update_alloc_zip(page_zip,cursor,index,offsets,len,cr,mtr) \
 	btr_cur_update_alloc_zip_func(page_zip,cursor,index,offsets,len,cr,mtr)
@@ -325,7 +325,7 @@ btr_cur_update_in_place(
 				is a secondary index, the caller must
 				mtr_commit(mtr) before latching any
 				further pages */
-	__attribute__((warn_unused_result, nonnull));
+	MY_ATTRIBUTE((warn_unused_result, nonnull));
 /***********************************************************//**
 Writes a redo log record of updating a record in-place. */
 UNIV_INTERN
@@ -339,7 +339,7 @@ btr_cur_update_in_place_log(
 	trx_id_t	trx_id,		/*!< in: transaction id */
 	roll_ptr_t	roll_ptr,	/*!< in: roll ptr */
 	mtr_t*		mtr)		/*!< in: mtr */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /*************************************************************//**
 Tries to update a record on a page in an index tree. It is assumed that mtr
 holds an x-latch on the page. The operation does not succeed if there is too
@@ -371,7 +371,7 @@ btr_cur_optimistic_update(
 				is a secondary index, the caller must
 				mtr_commit(mtr) before latching any
 				further pages */
-	__attribute__((warn_unused_result, nonnull));
+	MY_ATTRIBUTE((warn_unused_result, nonnull));
 /*************************************************************//**
 Performs an update of a record on a page of a tree. It is assumed
 that mtr holds an x-latch on the tree and on the cursor page. If the
@@ -405,7 +405,7 @@ btr_cur_pessimistic_update(
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction; must be committed
 				before latching any further pages */
-	__attribute__((warn_unused_result, nonnull));
+	MY_ATTRIBUTE((warn_unused_result, nonnull));
 /***********************************************************//**
 Marks a clustered index record deleted. Writes an undo log record to
 undo log on this delete marking. Writes in the trx id field the id
@@ -422,7 +422,7 @@ btr_cur_del_mark_set_clust_rec(
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec) */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 /***********************************************************//**
 Sets a secondary index record delete mark to TRUE or FALSE.
 @return	DB_SUCCESS, DB_LOCK_WAIT, or error number */
@@ -435,7 +435,7 @@ btr_cur_del_mark_set_sec_rec(
 	ibool		val,	/*!< in: value to set */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 /*************************************************************//**
 Tries to compress a page of the tree if it seems useful. It is assumed
 that mtr holds an x-latch on the tree and on the cursor page. To avoid
@@ -453,7 +453,7 @@ btr_cur_compress_if_useful(
 	ibool		adjust,	/*!< in: TRUE if should adjust the
 				cursor position even if compression occurs */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /*******************************************************//**
 Removes the record on which the tree cursor is positioned. It is assumed
 that the mtr has an x-latch on the page where the cursor is positioned,
@@ -474,7 +474,7 @@ btr_cur_optimistic_delete_func(
 				TRUE on a leaf page of a secondary
 				index, the mtr must be committed
 				before latching any further pages */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 # ifdef UNIV_DEBUG
 #  define btr_cur_optimistic_delete(cursor, flags, mtr)		\
 	btr_cur_optimistic_delete_func(cursor, flags, mtr)
@@ -510,7 +510,7 @@ btr_cur_pessimistic_delete(
 	ulint		flags,	/*!< in: BTR_CREATE_FLAG or 0 */
 	enum trx_rb_ctx	rb_ctx,	/*!< in: rollback context */
 	mtr_t*		mtr)	/*!< in: mtr */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Parses a redo log record of updating a record in-place.
@@ -603,7 +603,7 @@ btr_cur_disown_inherited_fields(
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
 	const upd_t*	update,	/*!< in: update vector */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
-	__attribute__((nonnull(2,3,4,5,6)));
+	MY_ATTRIBUTE((nonnull(2,3,4,5,6)));
 
 /** Operation code for btr_store_big_rec_extern_fields(). */
 enum blob_op {
@@ -623,7 +623,7 @@ ibool
 btr_blob_op_is_update(
 /*==================*/
 	enum blob_op	op)	/*!< in: operation */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /*******************************************************************//**
 Stores the fields in big_rec_vec to the tablespace and puts pointers to
@@ -648,7 +648,7 @@ btr_store_big_rec_extern_fields(
 	mtr_t*		btr_mtr,	/*!< in: mtr containing the
 					latches to the clustered index */
 	enum blob_op	op)		/*! in: operation code */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 
 /*******************************************************************//**
 Frees the space in an externally stored field to the file space
@@ -742,7 +742,7 @@ btr_push_update_extern_fields(
 	dtuple_t*	tuple,	/*!< in/out: data tuple */
 	const upd_t*	update,	/*!< in: update vector */
 	mem_heap_t*	heap)	/*!< in: memory heap */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /***********************************************************//**
 Sets a secondary index record's delete mark to the given value. This
 function is only used by the insert buffer merge mechanism. */

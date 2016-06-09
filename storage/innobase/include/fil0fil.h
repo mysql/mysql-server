@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -233,7 +233,7 @@ fil_node_create(
 	ulint		id,	/*!< in: space id where to append */
 	ibool		is_raw)	/*!< in: TRUE if a raw device or
 				a raw disk partition */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 #ifdef UNIV_LOG_ARCHIVE
 /****************************************************************//**
 Drops files from the start of a file space, so that its size is cut by
@@ -400,7 +400,7 @@ fil_read_first_page(
 						lsn values in data files */
 	lsn_t*		max_flushed_lsn)	/*!< out: max of flushed
 						lsn values in data files */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*******************************************************************//**
 Increments the count of pending operation, if space is not being deleted.
 @return	TRUE if being deleted, and operation should be skipped */
@@ -488,7 +488,7 @@ dberr_t
 fil_discard_tablespace(
 /*===================*/
 	ulint	id)	/*!< in: space id */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 
 /** Test if a tablespace file can be renamed to a new filepath by checking
@@ -597,7 +597,7 @@ fil_create_new_single_table_tablespace(
 	ulint		size)		/*!< in: the initial size of the
 					tablespace file in pages,
 					must be >= FIL_IBD_FILE_INITIAL_SIZE */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
 Tries to open a single-table tablespace and optionally checks the space id is
@@ -631,7 +631,7 @@ fil_open_single_table_tablespace(
 	const char*	tablename,	/*!< in: table name in the
 					databasename/tablename format */
 	const char*	filepath)	/*!< in: tablespace filepath */
-	__attribute__((nonnull(5), warn_unused_result));
+	MY_ATTRIBUTE((nonnull(5), warn_unused_result));
 
 #endif /* !UNIV_HOTBACKUP */
 /********************************************************************//**
@@ -780,7 +780,7 @@ fil_io(
 				appropriately aligned */
 	void*	message)	/*!< in: message for aio handler if non-sync
 				aio used, else ignored */
-	__attribute__((nonnull(8)));
+	MY_ATTRIBUTE((nonnull(8)));
 /**********************************************************************//**
 Waits for an aio operation to complete. This function is used to write the
 handler for completed requests. The aio array of pending requests is divided
@@ -975,7 +975,7 @@ fil_tablespace_iterate(
 	dict_table_t*		table,
 	ulint			n_io_buffers,
 	PageCallback&		callback)
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 
 /*******************************************************************//**
 Checks if a single-table tablespace for a given table name exists in the
@@ -999,7 +999,7 @@ fil_get_space_names(
 /*================*/
 	space_name_list_t&	space_name_list)
 				/*!< in/out: Vector for collecting the names. */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Generate redo log for swapping two .ibd files
 @param[in]	old_table	old table
@@ -1014,7 +1014,7 @@ fil_mtr_rename_log(
 	const dict_table_t*	new_table,
 	const char*		tmp_name,
 	mtr_t*			mtr)
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 
 /*******************************************************************//**
 Finds the given page_no of the given space id from the double write buffer,

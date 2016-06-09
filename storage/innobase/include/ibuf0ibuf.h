@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -118,7 +118,7 @@ void
 ibuf_mtr_start(
 /*===========*/
 	mtr_t*	mtr)	/*!< out: mini-transaction */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /***************************************************************//**
 Commits an insert buffer mini-transaction. */
 UNIV_INLINE
@@ -126,7 +126,7 @@ void
 ibuf_mtr_commit(
 /*============*/
 	mtr_t*	mtr)	/*!< in/out: mini-transaction */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /*********************************************************************//**
 Initializes an ibuf bitmap page. */
 UNIV_INTERN
@@ -252,7 +252,7 @@ ibool
 ibuf_inside(
 /*========*/
 	const mtr_t*	mtr)	/*!< in: mini-transaction */
-	__attribute__((nonnull, pure));
+	MY_ATTRIBUTE((nonnull, pure));
 /***********************************************************************//**
 Checks if a page address is an ibuf bitmap page (level 3 page) address.
 @return	TRUE if a bitmap page */
@@ -285,7 +285,7 @@ ibuf_page_low(
 				is not one of the fixed address ibuf
 				pages, or NULL, in which case a new
 				transaction is created. */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 #ifdef UNIV_DEBUG
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of
 pages.  Must not be called when recv_no_ibuf_operations==TRUE.
@@ -364,23 +364,31 @@ void
 ibuf_delete_for_discarded_space(
 /*============================*/
 	ulint	space);	/*!< in: space id */
-/*********************************************************************//**
-Contracts insert buffer trees by reading pages to the buffer pool.
+/** Contract the change buffer by reading pages to the buffer pool.
+@param[in]	full		If true, do a full contraction based
+on PCT_IO(100). If false, the size of contract batch is determined
+based on the current size of the change buffer.
 @return a lower limit for the combined size in bytes of entries which
 will be merged from ibuf trees to the pages read, 0 if ibuf is
 empty */
 UNIV_INTERN
 ulint
-ibuf_contract_in_background(
-/*========================*/
-	table_id_t	table_id,	/*!< in: if merge should be done only
-					for a specific table, for all tables
-					this should be 0 */
-	ibool		full);		/*!< in: TRUE if the caller wants to
-					do a full contract based on PCT_IO(100).
-					If FALSE then the size of contract
-					batch is determined based on the
-					current size of the ibuf tree. */
+ibuf_merge_in_background(
+	bool	full);	/*!< in: TRUE if the caller wants to
+			do a full contract based on PCT_IO(100).
+			If FALSE then the size of contract
+			batch is determined based on the
+			current size of the ibuf tree. */
+
+/** Contracts insert buffer trees by reading pages referring to space_id
+to the buffer pool.
+@returns number of pages merged.*/
+UNIV_INTERN
+ulint
+ibuf_merge_space(
+/*=============*/
+	ulint	space);	/*!< in: space id */
+
 #endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Parses a redo log record of an ibuf bitmap page init.
@@ -445,7 +453,7 @@ ibuf_check_bitmap_on_import(
 /*========================*/
 	const trx_t*	trx,		/*!< in: transaction */
 	ulint		space_id)	/*!< in: tablespace identifier */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 
 #define IBUF_HEADER_PAGE_NO	FSP_IBUF_HEADER_PAGE_NO
 #define IBUF_TREE_ROOT_PAGE_NO	FSP_IBUF_TREE_ROOT_PAGE_NO

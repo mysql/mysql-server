@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -170,7 +170,7 @@ ulonglong my_micro_time_and_time(time_t *time_arg)
   @retval current time.
 */
 
-time_t my_time_possible_from_micro(ulonglong microtime __attribute__((unused)))
+time_t my_time_possible_from_micro(ulonglong microtime MY_ATTRIBUTE((unused)))
 {
 #ifdef _WIN32
   time_t t;

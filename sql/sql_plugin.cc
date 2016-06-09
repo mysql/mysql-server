@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -528,8 +528,9 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     if ((sym= dlsym(plugin_dl.handle, list_of_services[i].name)))
     {
       uint ver= (uint)(intptr)*(void**)sym;
-      if (ver > list_of_services[i].version ||
-        (ver >> 8) < (list_of_services[i].version >> 8))
+      if ((*(void**)sym) != list_of_services[i].service && /* already replaced */
+          (ver > list_of_services[i].version ||
+           (ver >> 8) < (list_of_services[i].version >> 8)))
       {
         char buf[MYSQL_ERRMSG_SIZE];
         my_snprintf(buf, sizeof(buf),
@@ -1215,7 +1216,7 @@ extern "C" uchar *get_bookmark_hash_key(const uchar *, size_t *, my_bool);
 
 
 uchar *get_plugin_hash_key(const uchar *buff, size_t *length,
-                           my_bool not_used __attribute__((unused)))
+                           my_bool not_used MY_ATTRIBUTE((unused)))
 {
   struct st_plugin_int *plugin= (st_plugin_int *)buff;
   *length= (uint)plugin->name.length;
@@ -1224,7 +1225,7 @@ uchar *get_plugin_hash_key(const uchar *buff, size_t *length,
 
 
 uchar *get_bookmark_hash_key(const uchar *buff, size_t *length,
-                             my_bool not_used __attribute__((unused)))
+                             my_bool not_used MY_ATTRIBUTE((unused)))
 {
   struct st_bookmark *var= (st_bookmark *)buff;
   *length= var->name_len + 1;
@@ -3395,7 +3396,7 @@ static void plugin_opt_set_limits(struct my_option *options,
 extern "C" my_bool get_one_plugin_option(int optid, const struct my_option *,
                                          char *);
 
-my_bool get_one_plugin_option(int optid __attribute__((unused)),
+my_bool get_one_plugin_option(int optid MY_ATTRIBUTE((unused)),
                               const struct my_option *opt,
                               char *argument)
 {
@@ -3716,7 +3717,7 @@ static my_option *construct_help_options(MEM_ROOT *mem_root,
 
 static my_bool check_if_option_is_deprecated(int optid,
                                              const struct my_option *opt,
-                                             char *argument __attribute__((unused)))
+                                             char *argument MY_ATTRIBUTE((unused)))
 {
   if (optid == -1)
   {
@@ -3766,7 +3767,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
   LEX_STRING plugin_name;
   char *varname;
   int error;
-  sys_var *v __attribute__((unused));
+  sys_var *v MY_ATTRIBUTE((unused));
   struct st_bookmark *var;
   uint len, count= EXTRA_OPTIONS;
   DBUG_ENTER("test_plugin_options");

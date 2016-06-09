@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -145,8 +145,8 @@ static int add_collation(CHARSET_INFO *cs)
 
 
 static void
-default_reporter(enum loglevel level  __attribute__ ((unused)),
-                 const char *format  __attribute__ ((unused)),
+default_reporter(enum loglevel level  MY_ATTRIBUTE ((unused)),
+                 const char *format  MY_ATTRIBUTE ((unused)),
                  ...)
 {
 }
@@ -271,7 +271,7 @@ static void
 fprint_copyright(FILE *file)
 {
   fprintf(file,
-"/* Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.\n"
+"/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.\n"
 "\n"
 "   This program is free software; you can redistribute it and/or modify\n"
 "   it under the terms of the GNU General Public License as published by\n"
@@ -290,7 +290,7 @@ fprint_copyright(FILE *file)
 
 
 int
-main(int argc, char **argv  __attribute__((unused)))
+main(int argc, char **argv  MY_ATTRIBUTE((unused)))
 {
   CHARSET_INFO  ncs;
   CHARSET_INFO  *cs;

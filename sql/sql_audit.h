@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@ extern void mysql_audit_acquire_plugins(THD *thd, uint event_class);
 #ifndef EMBEDDED_LIBRARY
 extern void mysql_audit_notify(THD *thd, uint event_class,
                                uint event_subtype, ...);
-bool is_any_audit_plugin_active(THD *thd __attribute__((unused)));
+bool is_any_audit_plugin_active(THD *thd MY_ATTRIBUTE((unused)));
 #else
 #define mysql_audit_notify(...)
 #endif

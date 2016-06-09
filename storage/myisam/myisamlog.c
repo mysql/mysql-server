@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -695,7 +695,7 @@ static int read_string(IO_CACHE *file, register uchar* *to, register uint length
 }				/* read_string */
 
 
-static int file_info_compare(void* cmp_arg __attribute__((unused)),
+static int file_info_compare(void* cmp_arg MY_ATTRIBUTE((unused)),
 			     void *a, void *b)
 {
   long lint;
@@ -709,7 +709,7 @@ static int file_info_compare(void* cmp_arg __attribute__((unused)),
 	/* ARGSUSED */
 
 static int test_if_open (struct file_info *key,
-			 element_count count __attribute__((unused)),
+			 element_count count MY_ATTRIBUTE((unused)),
 			 struct test_if_open_param *param)
 {
   if (!strcmp(key->name,param->name) && key->id > param->max_id)
@@ -737,7 +737,7 @@ static void fix_blob_pointers(MI_INFO *info, uchar *record)
 	/* ARGSUSED */
 
 static int test_when_accessed (struct file_info *key,
-			       element_count count __attribute__((unused)),
+			       element_count count MY_ATTRIBUTE((unused)),
 			       struct st_access_param *access_param)
 {
   if (key->accessed < access_param->min_accessed && ! key->closed)
