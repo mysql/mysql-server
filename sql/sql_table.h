@@ -201,8 +201,7 @@ bool mysql_checksum_table(THD* thd, TABLE_LIST* table_list,
 bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
                     my_bool drop_temporary);
 int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
-                            bool drop_temporary, bool drop_view,
-                            bool log_query);
+                            bool drop_temporary, bool drop_database);
 bool quick_rm_table(THD *thd, handlerton *base, const char *db,
                     const char *table_name, uint flags);
 bool prepare_sp_create_field(THD *thd,

@@ -485,7 +485,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
 
   thd->push_internal_handler(&err_handler);
   if (!(tables &&
-        (error= mysql_rm_table_no_locks(thd, tables, true, false, true, true))))
+        (error= mysql_rm_table_no_locks(thd, tables, true, false, true))))
   {
     /*
       We temporarily disable the binary log while dropping SPs
