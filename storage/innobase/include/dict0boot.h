@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -95,7 +95,7 @@ started. This function is also called when the data dictionary is created.
 dberr_t
 dict_boot(void)
 /*===========*/
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /*****************************************************************//**
 Creates and initializes the data dictionary at the server bootstrap.
@@ -103,7 +103,7 @@ Creates and initializes the data dictionary at the server bootstrap.
 dberr_t
 dict_create(void)
 /*=============*/
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /*********************************************************************//**
 Check if a table id belongs to  system table.
@@ -113,7 +113,7 @@ bool
 dict_is_sys_table(
 /*==============*/
 	table_id_t	id)		/*!< in: table id to check */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /* Space id and page no where the dictionary header resides */
 #define	DICT_HDR_SPACE		0	/* the SYSTEM tablespace */

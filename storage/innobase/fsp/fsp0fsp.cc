@@ -67,7 +67,7 @@ fsp_free_extent(
 /********************************************************************//**
 Marks a page used. The page must reside within the extents of the given
 segment. */
-static __attribute__((nonnull))
+static MY_ATTRIBUTE((nonnull))
 void
 fseg_mark_page_used(
 /*================*/
@@ -145,7 +145,7 @@ fseg_alloc_free_page_low(
 	, ibool			has_done_reservation
 #endif /* UNIV_DEBUG */
 )
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Gets a pointer to the space header and x-locks its page.
 @param[in]	id		space id
@@ -561,7 +561,7 @@ xdes_init(
 the same as the tablespace header
 @return pointer to the extent descriptor, NULL if the page does not
 exist in the space or if the offset exceeds free limit */
-UNIV_INLINE __attribute__((warn_unused_result))
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result))
 xdes_t*
 xdes_get_descriptor_with_space_hdr(
 	fsp_header_t*	sp_header,
@@ -803,7 +803,7 @@ byte*
 fsp_parse_init_file_page(
 /*=====================*/
 	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr __attribute__((unused)), /*!< in: buffer end */
+	byte*		end_ptr MY_ATTRIBUTE((unused)), /*!< in: buffer end */
 	buf_block_t*	block)	/*!< in: block or NULL */
 {
 	ut_ad(ptr != NULL);
@@ -1405,7 +1405,7 @@ data file.
 @param[in,out]	header	tablespace header
 @param[in,out]	mtr	mini-transaction
 @return true if success */
-static UNIV_COLD __attribute__((warn_unused_result))
+static UNIV_COLD MY_ATTRIBUTE((warn_unused_result))
 bool
 fsp_try_extend_data_file_with_pages(
 	fil_space_t*	space,
@@ -1437,7 +1437,7 @@ fsp_try_extend_data_file_with_pages(
 @param[in,out]	header	tablespace header
 @param[in,out]	mtr	mini-transaction
 @return whether the tablespace was extended */
-static UNIV_COLD __attribute__((nonnull))
+static UNIV_COLD MY_ATTRIBUTE((nonnull))
 ulint
 fsp_try_extend_data_file(
 	fil_space_t*	space,
@@ -1802,7 +1802,7 @@ fsp_alloc_free_extent(
 
 /**********************************************************************//**
 Allocates a single free page from a space. */
-static __attribute__((nonnull))
+static MY_ATTRIBUTE((nonnull))
 void
 fsp_alloc_from_free_frag(
 /*=====================*/
@@ -1912,7 +1912,7 @@ initialized (may be the same as mtr)
 @retval block	rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
 (init_mtr == mtr, or the page was not previously freed in mtr)
 @retval block	(not allocated or initialized) otherwise */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 buf_block_t*
 fsp_alloc_free_page(
 	ulint			space,
@@ -2463,7 +2463,7 @@ fseg_get_nth_frag_page_no(
 /*======================*/
 	fseg_inode_t*	inode,	/*!< in: segment inode */
 	ulint		n,	/*!< in: slot index */
-	mtr_t*		mtr __attribute__((unused)))
+	mtr_t*		mtr MY_ATTRIBUTE((unused)))
 				/*!< in/out: mini-transaction */
 {
 	ut_ad(inode && mtr);
@@ -3506,7 +3506,7 @@ fsp_get_available_space_in_free_extents(
 /********************************************************************//**
 Marks a page used. The page must reside within the extents of the given
 segment. */
-static __attribute__((nonnull))
+static MY_ATTRIBUTE((nonnull))
 void
 fseg_mark_page_used(
 /*================*/
@@ -3749,7 +3749,7 @@ fseg_page_is_free(
 
 /**********************************************************************//**
 Frees an extent of a segment to the space free list. */
-static __attribute__((nonnull))
+static MY_ATTRIBUTE((nonnull))
 void
 fseg_free_extent(
 /*=============*/

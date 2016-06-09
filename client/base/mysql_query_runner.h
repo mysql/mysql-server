@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,6 +51,8 @@ public:
     Copy constructor.
    */
   Mysql_query_runner(const Mysql_query_runner& source);
+
+  ~Mysql_query_runner();
   /**
     Adds new callback to be called on every result row of query.
     If callback return value other than 0 then query execution, passing
@@ -213,6 +215,12 @@ private:
     executed in specified time moment.
    */
   my_boost::atomic<bool>* m_is_processing;
+
+  /**
+    Indicates if this is original runner or a copy. In case of original the
+    cleanup is performed on destruction.
+  */
+  bool m_is_original_runner;
 
   MYSQL* m_connection;
 };

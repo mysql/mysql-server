@@ -21,7 +21,7 @@
 
 #include "xpl_log.h"
 #include "ngs/protocol/row_builder.h"
-#include "mysqlx_resultset.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 #include "ngs_common/protocol_const.h"
 
 #include "decimal.h"
@@ -30,7 +30,7 @@
 
 using namespace xpl;
 
-Streaming_command_delegate::Streaming_command_delegate(ngs::Protocol_encoder &proto)
+Streaming_command_delegate::Streaming_command_delegate(ngs::Protocol_encoder *proto)
 : m_proto(proto),
   m_sent_result(false),
   m_compact_metadata(false)
@@ -204,10 +204,11 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
   }
   DBUG_ASSERT(xtype != (Mysqlx::Resultset::ColumnMetaData::FieldType)0);
 
+  DBUG_ASSERT(m_proto != NULL);
   if (compact_metadata())
-    m_proto.send_column_metadata(xcollation, xtype, field->decimals, xflags, field->length, ctype);
+    m_proto->send_column_metadata(xcollation, xtype, field->decimals, xflags, field->length, ctype);
   else
-    m_proto.send_column_metadata("def", field->db_name,
+    m_proto->send_column_metadata("def", field->db_name,
       field->table_name, field->org_table_name,
       field->col_name, field->org_col_name,
       xcollation, xtype, field->decimals, xflags, field->length, ctype);
@@ -226,15 +227,17 @@ int Streaming_command_delegate::end_result_metadata(uint server_status,
 
 int Streaming_command_delegate::start_row()
 {
+  DBUG_ASSERT(m_proto != NULL);
   if (!m_streaming_metadata)
-    m_proto.start_row();
+    m_proto->start_row();
   return false;
 }
 
 int Streaming_command_delegate::end_row()
 {
+  DBUG_ASSERT(m_proto != NULL);
   if (!m_streaming_metadata)
-    m_proto.send_row();
+    m_proto->send_row();
   return false;
 }
 
@@ -242,7 +245,8 @@ void Streaming_command_delegate::abort_row()
 {
   // Called when a resultset is being sent but an error occurs
   // For example, select 1, password('') while validate_password is ON;
-  m_proto.abort_row();
+  DBUG_ASSERT(m_proto != NULL);
+  m_proto->abort_row();
 }
 
 ulong Streaming_command_delegate::get_client_capabilities()
@@ -253,74 +257,82 @@ ulong Streaming_command_delegate::get_client_capabilities()
 /****** Getting data ******/
 int Streaming_command_delegate::get_null()
 {
-  m_proto.row_builder().add_null_field();
+  DBUG_ASSERT(m_proto != NULL);
+  m_proto->row_builder().add_null_field();
 
   return false;
 }
 
 int Streaming_command_delegate::get_integer(longlong value)
 {
-  my_bool unsigned_flag = (m_field_types[m_proto.row_builder().get_num_fields()].flags & UNSIGNED_FLAG) != 0;
+  DBUG_ASSERT(m_proto != NULL);
+  my_bool unsigned_flag = (m_field_types[m_proto->row_builder().get_num_fields()].flags & UNSIGNED_FLAG) != 0;
 
   return get_longlong(value, unsigned_flag);
 }
 
 int Streaming_command_delegate::get_longlong(longlong value, uint unsigned_flag)
 {
+  DBUG_ASSERT(m_proto != NULL);
   // This is a hack to workaround server bugs similar to #77787:
   // Sometimes, server will not report a column to be UNSIGNED in the metadata, but will
   // send the data as unsigned anyway. That will cause the client to receive messed up
   // data because signed ints use zigzag encoding, while the client will not be expecting that.
   // So we add some bug-compatibility code here, so that if column metadata reports column
   // to be SIGNED, we will force the data to actually be SIGNED.
-  if (unsigned_flag && (m_field_types[m_proto.row_builder().get_num_fields()].flags & UNSIGNED_FLAG) == 0)
+  if (unsigned_flag && (m_field_types[m_proto->row_builder().get_num_fields()].flags & UNSIGNED_FLAG) == 0)
     unsigned_flag = 0;
 
   // This is a hack to workaround server bug that causes wrong values being sent
   // for TINYINT UNSIGNED type, can be removed when it is fixed.
-  if (unsigned_flag && (m_field_types[m_proto.row_builder().get_num_fields()].type == MYSQL_TYPE_TINY))
+  if (unsigned_flag && (m_field_types[m_proto->row_builder().get_num_fields()].type == MYSQL_TYPE_TINY))
   {
     value &= 0xff;
   }
 
-  m_proto.row_builder().add_longlong_field(value, unsigned_flag);
+  m_proto->row_builder().add_longlong_field(value, unsigned_flag);
 
   return false;
 }
 
 int Streaming_command_delegate::get_decimal(const decimal_t * value)
 {
-  m_proto.row_builder().add_decimal_field(value);
+  DBUG_ASSERT(m_proto != NULL);
+  m_proto->row_builder().add_decimal_field(value);
 
   return false;
 }
 
 int Streaming_command_delegate::get_double(double value, uint32 decimals)
 {
-  if (m_field_types[m_proto.row_builder().get_num_fields()].type == MYSQL_TYPE_FLOAT)
-    m_proto.row_builder().add_float_field(static_cast<float>(value));
+  DBUG_ASSERT(m_proto != NULL);
+  if (m_field_types[m_proto->row_builder().get_num_fields()].type == MYSQL_TYPE_FLOAT)
+    m_proto->row_builder().add_float_field(static_cast<float>(value));
   else
-    m_proto.row_builder().add_double_field(value);
+    m_proto->row_builder().add_double_field(value);
   return false;
 }
 
 int Streaming_command_delegate::get_date(const MYSQL_TIME * value)
 {
-  m_proto.row_builder().add_date_field(value);
+  DBUG_ASSERT(m_proto != NULL);
+  m_proto->row_builder().add_date_field(value);
 
   return false;
 }
 
 int Streaming_command_delegate::get_time(const MYSQL_TIME * value, uint decimals)
 {
-  m_proto.row_builder().add_time_field(value, decimals);
+  DBUG_ASSERT(m_proto != NULL);
+  m_proto->row_builder().add_time_field(value, decimals);
 
   return false;
 }
 
 int Streaming_command_delegate::get_datetime(const MYSQL_TIME * value, uint decimals)
 {
-  m_proto.row_builder().add_datetime_field(value, decimals);
+  DBUG_ASSERT(m_proto != NULL);
+  m_proto->row_builder().add_datetime_field(value, decimals);
 
   return false;
 }
@@ -328,29 +340,30 @@ int Streaming_command_delegate::get_datetime(const MYSQL_TIME * value, uint deci
 int Streaming_command_delegate::get_string(const char * const value, size_t length,
                                                const CHARSET_INFO * const valuecs)
 {
-  enum_field_types type = m_field_types[m_proto.row_builder().get_num_fields()].type;
-  unsigned int flags = m_field_types[m_proto.row_builder().get_num_fields()].flags;
+  DBUG_ASSERT(m_proto != NULL);
+  enum_field_types type = m_field_types[m_proto->row_builder().get_num_fields()].type;
+  unsigned int flags = m_field_types[m_proto->row_builder().get_num_fields()].flags;
 
   switch (type)
   {
   case MYSQL_TYPE_NEWDECIMAL:
-    m_proto.row_builder().add_decimal_field(value, length);
+    m_proto->row_builder().add_decimal_field(value, length);
     break;
   case MYSQL_TYPE_SET:
-    m_proto.row_builder().add_set_field(value, length, valuecs);
+    m_proto->row_builder().add_set_field(value, length, valuecs);
     break;
   case MYSQL_TYPE_BIT:
-    m_proto.row_builder().add_bit_field(value, length, valuecs);
+    m_proto->row_builder().add_bit_field(value, length, valuecs);
     break;
   case MYSQL_TYPE_STRING:
     if (flags & SET_FLAG)
     {
-      m_proto.row_builder().add_set_field(value, length, valuecs);
+      m_proto->row_builder().add_set_field(value, length, valuecs);
       break;
     }
     /* fall through */
   default:
-    m_proto.row_builder().add_string_field(value, length, valuecs);
+    m_proto->row_builder().add_string_field(value, length, valuecs);
     break;
   }
   return false;
@@ -361,12 +374,13 @@ void Streaming_command_delegate::handle_ok(uint server_status, uint statement_wa
                        ulonglong affected_rows, ulonglong last_insert_id,
                        const char * const message)
 {
+  DBUG_ASSERT(m_proto != NULL);
   if (m_sent_result)
   {
     if (server_status & SERVER_MORE_RESULTS_EXISTS)
-      m_proto.send_result_fetch_done_more_results();
+      m_proto->send_result_fetch_done_more_results();
     else
-      m_proto.send_result_fetch_done();
+      m_proto->send_result_fetch_done();
   }
   Command_delegate::handle_ok(server_status, statement_warn_count, affected_rows, last_insert_id, message);
 }

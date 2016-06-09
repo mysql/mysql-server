@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,8 +51,8 @@ public:
   virtual void print_usage();
 
 private:
-  void help_callback(char* argument __attribute__((unused)));
-  void version_callback(char* argument __attribute__((unused)));
+  void help_callback(char* argument MY_ATTRIBUTE((unused)));
+  void version_callback(char* argument MY_ATTRIBUTE((unused)));
 
   void print_version_line();
 

@@ -17,7 +17,7 @@
  * 02110-1301  USA
  */
 
-#ifdef WIN32
+#if !defined(MYSQL_DYNAMIC_PLUGIN) && defined(WIN32) && !defined(XPLUGIN_UNIT_TESTS)
 // Needed for importing PERFORMANCE_SCHEMA plugin API.
 #define MYSQL_DYNAMIC_PLUGIN 1
 #endif // WIN32
@@ -33,7 +33,7 @@
 #include "ngs/ngs_error.h"
 
 #undef ERROR // Needed to avoid conflict with ERROR in mysqlx.pb.h
-#include "mysqlx.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 
 using namespace ngs;
 

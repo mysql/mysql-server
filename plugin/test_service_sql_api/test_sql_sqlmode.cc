@@ -154,8 +154,8 @@ struct st_plugin_ctx
 
   uint server_status;
   uint warn_count;
-  ulonglong affected_rows;
-  ulonglong last_insert_id;
+  uint affected_rows;
+  uint last_insert_id;
   char message[1024];
 
   uint sql_errno;
@@ -321,7 +321,7 @@ static int sql_get_integer(void * ctx, longlong value)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer), "%lld", value);
+  size_t len= my_snprintf(buffer, sizeof(buffer), "%d", value);
 
   strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col]= len;

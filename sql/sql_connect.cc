@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -341,7 +341,7 @@ void release_user_connection(THD *thd)
 */
 
 extern "C" uchar *get_key_conn(user_conn *buff, size_t *length,
-            my_bool not_used __attribute__((unused)))
+            my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= buff->len;
   return (uchar*) buff->user;
@@ -760,6 +760,9 @@ static bool login_connection(THD *thd)
 void end_connection(THD *thd)
 {
   NET *net= thd->get_protocol_classic()->get_net();
+
+  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_DISCONNECT), 0);
+
   plugin_thdvar_cleanup(thd, thd->m_enable_plugins);
 
   /*
@@ -888,12 +891,15 @@ bool thd_prepare_connection(THD *thd)
 
   @param thd        Thread handle.
   @param sql_errno  The error code to send before disconnect.
+  @param server_shutdown Argument passed to the THD's disconnect method.
+  @param generate_event  Generate Audit API disconnect event.
 
   @note
     For the connection that is doing shutdown, this is called twice
 */
 
-void close_connection(THD *thd, uint sql_errno, bool server_shutdown)
+void close_connection(THD *thd, uint sql_errno,
+                      bool server_shutdown, bool generate_event)
 {
   DBUG_ENTER("close_connection");
 
@@ -909,8 +915,11 @@ void close_connection(THD *thd, uint sql_errno, bool server_shutdown)
     sleep(0); /* Workaround to avoid tailcall optimisation */
   }
 
-  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_DISCONNECT),
-                     sql_errno);
+  if (generate_event)
+    mysql_audit_notify(thd,
+                       AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_DISCONNECT),
+                       sql_errno);
+
   DBUG_VOID_RETURN;
 }
 

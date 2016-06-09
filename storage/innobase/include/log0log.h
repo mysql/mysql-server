@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -165,7 +165,7 @@ log_init(void);
 /******************************************************************//**
 Inits a log group to the log system.
 @return true if success, false if not */
-__attribute__((warn_unused_result))
+MY_ATTRIBUTE((warn_unused_result))
 bool
 log_group_init(
 /*===========*/
@@ -577,7 +577,9 @@ typedef ib_mutex_t	FlushOrderMutex;
 
 /** Log group consists of a number of log files, each of the same size; a log
 group is implemented as a space in the sense of the module fil0fil.
-The fields are protected by log_sys->mutex. */
+Currently, this is only protected by log_sys->mutex. However, in the case
+of log_write_up_to(), we will access some members only with the protection
+of log_sys->write_mutex, which should affect nothing for now. */
 struct log_group_t{
 	/** log group identifier (always 0) */
 	ulint				id;
@@ -619,10 +621,12 @@ struct log_t{
 					same memory cache line */
 	lsn_t		lsn;		/*!< log sequence number */
 	ulint		buf_free;	/*!< first free offset within the log
-					buffer */
+					buffer in use */
 #ifndef UNIV_HOTBACKUP
 	char		pad2[CACHE_LINE_SIZE];/*!< Padding */
 	LogSysMutex	mutex;		/*!< mutex protecting the log */
+	LogSysMutex	write_mutex;	/*!< mutex protecting writing to log
+					file and accessing to log_group_t */
 	char		pad3[CACHE_LINE_SIZE];/*!< Padding */
 	FlushOrderMutex	log_flush_order_mutex;/*!< mutex to serialize access to
 					the flush list when we are putting
@@ -633,12 +637,22 @@ struct log_t{
 					insertions in the flush_list happen
 					in the LSN order. */
 #endif /* !UNIV_HOTBACKUP */
-	byte*		buf_ptr;	/* unaligned log buffer */
-	byte*		buf;		/*!< log buffer */
-	ulint		buf_size;	/*!< log buffer size in bytes */
+	byte*		buf_ptr;	/*!< unaligned log buffer, which should
+					be of double of buf_size */
+	byte*		buf;		/*!< log buffer currently in use;
+					this could point to either the first
+					half of the aligned(buf_ptr) or the
+					second half in turns, so that log
+					write/flush to disk don't block
+					concurrent mtrs which will write
+					log to this buffer */
+	bool		first_in_use;	/*!< true if buf points to the first
+					half of the aligned(buf_ptr), false
+					if the second half */
+	ulint		buf_size;	/*!< log buffer size of each in bytes */
 	ulint		max_buf_free;	/*!< recommended maximum value of
-					buf_free, after which the buffer is
-					flushed */
+					buf_free for the buffer in use, after
+					which the buffer is flushed */
 	bool		check_flush_or_checkpoint;
 					/*!< this is set when there may
 					be need to flush the log buffer, or
@@ -664,11 +678,6 @@ struct log_t{
 	volatile bool	is_extending;	/*!< this is set to true during extend
 					the log buffer size */
 	lsn_t		write_lsn;	/*!< last written lsn */
-	ulint		write_end_offset;/*!< the data in buffer has
-					been written up to this offset
-					when the current write ends:
-					this field will then be copied
-					to buf_next_to_write */
 	lsn_t		current_flush_lsn;/*!< end lsn for the current running
 					write + flush operation */
 	lsn_t		flushed_to_disk_lsn;
@@ -763,11 +772,32 @@ struct log_t{
 /** Test if log sys mutex is owned. */
 #define log_mutex_own() mutex_own(&log_sys->mutex)
 
+/** Test if log sys write mutex is owned. */
+#define log_write_mutex_own() mutex_own(&log_sys->write_mutex)
+
 /** Acquire the log sys mutex. */
 #define log_mutex_enter() mutex_enter(&log_sys->mutex)
 
+/** Acquire the log sys write mutex. */
+#define log_write_mutex_enter() mutex_enter(&log_sys->write_mutex)
+
+/** Acquire all the log sys mutexes. */
+#define log_mutex_enter_all() do {		\
+	mutex_enter(&log_sys->write_mutex);	\
+	mutex_enter(&log_sys->mutex);		\
+} while (0)
+
 /** Release the log sys mutex. */
 #define log_mutex_exit() mutex_exit(&log_sys->mutex)
+
+/** Release the log sys write mutex.*/
+#define log_write_mutex_exit() mutex_exit(&log_sys->write_mutex)
+
+/** Release all the log sys mutexes. */
+#define log_mutex_exit_all() do {		\
+	mutex_exit(&log_sys->mutex);		\
+	mutex_exit(&log_sys->write_mutex);	\
+} while (0)
 
 /** Calculate the offset of an lsn within a log group.
 @param[in]	lsn	log sequence number

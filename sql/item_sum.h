@@ -1,7 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1391,7 +1391,7 @@ int group_concat_key_cmp_with_distinct(const void* arg, const void* key1,
 int group_concat_key_cmp_with_order(const void* arg, const void* key1,
                                     const void* key2);
 int dump_leaf_key(void* key_arg,
-                  element_count count __attribute__((unused)),
+                  element_count count MY_ATTRIBUTE((unused)),
                   void* item_arg);
 C_MODE_END
 
@@ -1439,7 +1439,7 @@ class Item_func_group_concat : public Item_sum
                                              const void* key1,
 					     const void* key2);
   friend int dump_leaf_key(void* key_arg,
-                           element_count count __attribute__((unused)),
+                           element_count count MY_ATTRIBUTE((unused)),
 			   void* item_arg);
 
 public:

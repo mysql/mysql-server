@@ -36,7 +36,7 @@ namespace xpl
   class Streaming_command_delegate : public Command_delegate
   {
   public:
-    Streaming_command_delegate(ngs::Protocol_encoder &proto);
+    Streaming_command_delegate(ngs::Protocol_encoder *proto);
     virtual ~Streaming_command_delegate();
 
     void set_compact_metadata(bool flag) { m_compact_metadata = flag; }
@@ -72,7 +72,7 @@ namespace xpl
 
     virtual enum cs_text_or_binary representation() const { return CS_BINARY_REPRESENTATION; }
   private:
-    ngs::Protocol_encoder &m_proto;
+    ngs::Protocol_encoder *m_proto;
     const CHARSET_INFO *m_resultcs;
     bool m_sent_result;
     bool m_compact_metadata;

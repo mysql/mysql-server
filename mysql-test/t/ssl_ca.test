@@ -1,0 +1,36 @@
+--source include/have_ssl.inc
+--source include/not_embedded.inc
+
+--echo #
+--echo # Bug#21920657: SSL-CA FAILS SILENTLY IF THE PATH CANNOT BE FOUND
+--echo #
+
+--echo # try to connect with wrong '--ssl-ca' path : should fail
+--error 1
+--exec $MYSQL --ssl-ca=$MYSQL_TEST_DIR/std_data/wrong-crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem test -e "SHOW STATUS LIKE 'Ssl_cipher'" 2>&1
+
+--echo # try to connect with correct '--ssl-ca' path : should connect
+--replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--exec $MYSQL --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem test -e "SHOW STATUS LIKE 'Ssl_cipher'"
+
+--echo #
+--echo # Bug#21920678: SSL-CA DOES NOT ACCEPT ~USER TILDE HOME DIRECTORY
+--echo #               PATH SUBSTITUTION
+--echo #
+
+--let $mysql_test_dir_path= `SELECT REPLACE('$MYSQL_TEST_DIR', '$HOME', '~')`
+
+--echo # try to connect with '--ssl-ca' option using tilde home directoy
+--echo # path substitution : should connect
+--replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--exec $MYSQL --ssl-ca=$mysql_test_dir_path/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem test -e "SHOW STATUS LIKE 'Ssl_cipher'"
+
+--echo # try to connect with '--ssl-key' option using tilde home directoy
+--echo # path substitution : should connect
+--replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--exec $MYSQL --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$mysql_test_dir_path/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem test -e "SHOW STATUS LIKE 'Ssl_cipher'"
+
+--echo # try to connect with '--ssl-cert' option using tilde home directoy
+--echo # path substitution : should connect
+--replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--exec $MYSQL --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$mysql_test_dir_path/std_data/crl-client-cert.pem test -e "SHOW STATUS LIKE 'Ssl_cipher'"

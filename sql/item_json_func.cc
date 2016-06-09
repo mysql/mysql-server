@@ -1287,11 +1287,15 @@ my_decimal *Item_json_func::val_decimal(my_decimal *decimal_value)
   Json_wrapper wr;
 
   if (val_json(&wr))
+  {
+    my_decimal_set_zero(decimal_value);
     return decimal_value;
-
+  }
   if (null_value)
+  {
+    my_decimal_set_zero(decimal_value);
     return decimal_value;
-
+  }
   return wr.coerce_decimal(decimal_value, func_name());
 }
 

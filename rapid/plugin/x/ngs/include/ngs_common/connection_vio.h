@@ -49,7 +49,7 @@ public:
   Connection_vio(Ssl_context &ssl_context, my_socket socket);
   virtual ~Connection_vio();
 
-  int         get_socket_id();
+  my_socket get_socket_id();
   virtual IOptions_session_ptr options();
 
   ssize_t read(char *buffer, const std::size_t buffer_size);

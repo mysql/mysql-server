@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -215,7 +215,7 @@ void Global_THD_manager::release_thread_id(my_thread_id thread_id)
   if (thread_id == reserved_thread_id)
     return; // Some temporary THDs are never given a proper ID.
   Mutex_lock lock(&LOCK_thread_ids);
-  const size_t num_erased __attribute__((unused))=
+  const size_t num_erased MY_ATTRIBUTE((unused))=
     thread_ids.erase_unique(thread_id);
   // Assert if the ID was not found in the list.
   DBUG_ASSERT(1 == num_erased);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -940,7 +940,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
     char ip_buffer[HOST_ENTRY_KEY_SIZE];
 
     {
-      bool err_status __attribute__((unused));
+      bool err_status MY_ATTRIBUTE((unused));
       err_status=
         vio_get_normalized_ip_string(addr_info->ai_addr, addr_info->ai_addrlen,
                                      ip_buffer, sizeof (ip_buffer));

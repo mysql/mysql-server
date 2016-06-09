@@ -1,6 +1,8 @@
 --source include/not_embedded.inc
 --source include/have_audit_log_plugin.inc
 
+call mtr.add_suppression("Plugin audit_log reported");
+
 --echo ##########################################
 --echo # Run plugin
 --echo ##########################################

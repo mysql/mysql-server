@@ -87,7 +87,6 @@ static void kill_completion_handler(void *ctx, unsigned int sql_errno, const cha
 
 bool Sql_data_context::kill()
 {
-  // we have to use COM_KILL in a new session here, because there's no public API for killing sessions
   if (srv_session_server_is_available())
   {
     log_debug("sqlsession init (for kill): %p [%i]", m_mysql_session, m_mysql_session ? srv_session_info_get_session_id(m_mysql_session) : -1);
@@ -108,9 +107,14 @@ bool Sql_data_context::kill()
         else
         {
           COM_DATA data;
-          data.com_kill.id= static_cast<unsigned long>(mysql_session_id());
           Callback_command_delegate deleg;
-          if (!command_service_run_command(session, COM_PROCESS_KILL, &data,
+          Query_string_builder qb;
+          qb.put("KILL ").put(mysql_session_id());
+
+          data.com_query.query = (char*)qb.get().c_str();
+          data.com_query.length = static_cast<unsigned int>(qb.get().length());
+
+          if (!command_service_run_command(session, COM_QUERY, &data,
                                            mysqld::get_charset_utf8mb4_general_ci(), deleg.callbacks(),
                                            deleg.representation(), &deleg))
           {
@@ -191,7 +195,7 @@ ngs::Error_code Sql_data_context::query_user(const char *user, const char *host,
   std::string query = user_verification.get_sql(user, host);
 
   data.com_query.query = (char*)query.c_str();
-  data.com_query.length = query.length();
+  data.com_query.length = static_cast<unsigned int>(query.length());
 
   log_debug("login query: %s", data.com_query.query);
   if (command_service_run_command(m_mysql_session, COM_QUERY, &data, mysqld::get_charset_utf8mb4_general_ci(),
@@ -263,7 +267,7 @@ ngs::Error_code Sql_data_context::authenticate(const char *user, const char *hos
       COM_DATA data;
 
       data.com_init_db.db_name = m_db;
-      data.com_init_db.length = strlen(m_db);
+      data.com_init_db.length = static_cast<unsigned long>(strlen(m_db));
 
       m_callback_delegate.reset();
       if (command_service_run_command(m_mysql_session, COM_INIT_DB, &data, mysqld::get_charset_utf8mb4_general_ci(),
@@ -342,25 +346,11 @@ ngs::Error_code Sql_data_context::switch_to_user(const char *username, const cha
 
 ngs::Error_code Sql_data_context::execute_kill_sql_session(uint64_t mysql_session_id)
 {
-  COM_DATA data;
+  Query_string_builder qb;
+  qb.put("KILL ").put(mysql_session_id);
+  Sql_data_context::Result_info r_info;
 
-  data.com_kill.id= static_cast<unsigned long>(mysql_session_id);
-  Callback_command_delegate deleg;
-  if (command_service_run_command(m_mysql_session, COM_PROCESS_KILL, &data,
-                                  mysqld::get_charset_utf8mb4_general_ci(), deleg.callbacks(),
-                                  deleg.representation(), &deleg))
-  {
-    log_debug("Error running process_kill: %s %i", m_last_sql_error.c_str(), m_last_sql_errno);
-    return ngs::Error(m_last_sql_errno, "%s", m_last_sql_error.c_str());
-  }
-
-  if (m_last_sql_errno != 0)
-    log_info("running process_kill: %s %i", m_last_sql_error.c_str(), m_last_sql_errno);
-
-  if (is_killed())
-    throw ngs::Fatal(ER_QUERY_INTERRUPTED, "Query execution was interrupted");
-
-  return ngs::Success();
+  return execute_sql_no_result(qb.get(), r_info);
 }
 
 
@@ -373,7 +363,7 @@ ngs::Error_code Sql_data_context::execute_sql(Command_delegate &deleg,
   COM_DATA data;
 
   data.com_query.query = sql;
-  data.com_query.length = length;
+  data.com_query.length = static_cast<unsigned int>(length);
 
   deleg.reset();
 
@@ -390,7 +380,7 @@ ngs::Error_code Sql_data_context::execute_sql(Command_delegate &deleg,
     // we run a command to check just in case... (some commands are still allowed in expired password mode)
     Callback_command_delegate d;
     data.com_query.query = "select 1";
-    data.com_query.length = strlen(data.com_query.query);
+    data.com_query.length = static_cast<unsigned int>(strlen(data.com_query.query));
     if (false == command_service_run_command(m_mysql_session, COM_QUERY, &data, mysqld::get_charset_utf8mb4_general_ci(),
                                              d.callbacks(), d.representation(), &d) && !d.get_error())
     {

@@ -26,6 +26,19 @@ xpl::Sql_data_result::Sql_data_result(Sql_data_context &context)
 }
 
 
+void xpl::Sql_data_result::disable_binlog()
+{
+  // save original value of binary logging
+  query("SET @MYSQLX_OLD_LOG_BIN=@@SQL_LOG_BIN");
+  // disable binary logging
+  query("SET SESSION SQL_LOG_BIN=0;");
+}
+
+void xpl::Sql_data_result::restore_binlog()
+{
+  query("SET SESSION SQL_LOG_BIN=@MYSQLX_OLD_LOG_BIN;");
+}
+
 void xpl::Sql_data_result::query(const std::string &query)
 {
   m_result_set.clear();

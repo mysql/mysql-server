@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -123,9 +123,9 @@ static bool is_blank_string(char *input)
 }
 
 
-static uchar *version_token_get_key(const char *entry __attribute__((unused)),
-                                    size_t *length __attribute__((unused)),
-	    	                    my_bool not_used __attribute__((unused)));
+static uchar *version_token_get_key(const char *entry MY_ATTRIBUTE((unused)),
+                                    size_t *length MY_ATTRIBUTE((unused)),
+	    	                    my_bool not_used MY_ATTRIBUTE((unused)));
 
 static void set_vtoken_string_length()
 {
@@ -492,7 +492,7 @@ static struct st_mysql_audit version_token_descriptor=
 
 
 /** Plugin init. */
-static int version_tokens_init(void *arg __attribute__((unused)))
+static int version_tokens_init(void *arg MY_ATTRIBUTE((unused)))
 {
 #ifdef HAVE_PSI_INTERFACE
   // Initialize psi keys.
@@ -513,7 +513,7 @@ static int version_tokens_init(void *arg __attribute__((unused)))
 }
 
 /** Plugin deinit. */
-static int version_tokens_deinit(void *arg __attribute__((unused)))
+static int version_tokens_deinit(void *arg MY_ATTRIBUTE((unused)))
 {
   mysql_rwlock_wrlock(&LOCK_vtoken_hash);
   if (version_tokens_hash.records)
@@ -1060,7 +1060,7 @@ long long version_tokens_unlock(UDF_INIT *initid, UDF_ARGS *args,
 
 
 static uchar *version_token_get_key(const char *entry, size_t *length,
-		                    my_bool not_used __attribute__((unused)))
+		                    my_bool not_used MY_ATTRIBUTE((unused)))
 {
   char *key;
   key= (((version_token_st *) entry)->token_name).str;

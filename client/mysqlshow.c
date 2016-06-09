@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,9 +55,9 @@ static int list_tables(MYSQL *mysql,const char *db,const char *table);
 static int list_table_status(MYSQL *mysql,const char *db,const char *table);
 static int list_fields(MYSQL *mysql,const char *db,const char *table,
 		       const char *field);
-static void print_header(const char *header,uint head_length,...);
-static void print_row(const char *header,uint head_length,...);
-static void print_trailer(uint length,...);
+static void print_header(const char *header,size_t head_length,...);
+static void print_row(const char *header,size_t head_length,...);
+static void print_trailer(size_t length,...);
 static void print_res_header(MYSQL_RES *result);
 static void print_res_top(MYSQL_RES *result);
 static void print_res_row(MYSQL_RES *result,MYSQL_ROW cur);
@@ -317,7 +317,7 @@ are shown.");
 
 
 static my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument)
 {
   switch(optid) {
@@ -411,7 +411,8 @@ static int
 list_dbs(MYSQL *mysql,const char *wild)
 {
   const char *header;
-  uint length, counter = 0;
+  size_t length = 0;
+  uint counter = 0;
   ulong rowcount = 0L;
   char tables[NAME_LEN+1], rows[NAME_LEN+1];
   char query[NAME_LEN + 100];
@@ -449,7 +450,7 @@ list_dbs(MYSQL *mysql,const char *wild)
     printf("Wildcard: %s\n",wild);
 
   header="Databases";
-  length=(uint) strlen(header);
+  length= strlen(header);
   field=mysql_fetch_field(result);
   if (length < field->max_length)
     length=field->max_length;
@@ -537,7 +538,8 @@ static int
 list_tables(MYSQL *mysql,const char *db,const char *table)
 {
   const char *header;
-  uint head_length, counter = 0;
+  size_t head_length;
+  uint counter = 0;
   char query[NAME_LEN + 100], rows[NAME_LEN], fields[16];
   MYSQL_FIELD *field;
   MYSQL_RES *result;
@@ -575,7 +577,7 @@ list_tables(MYSQL *mysql,const char *db,const char *table)
   putchar('\n');
 
   header="Tables";
-  head_length=(uint) strlen(header);
+  head_length= strlen(header);
   field=mysql_fetch_field(result);
   if (head_length < field->max_length)
     head_length=field->max_length;
@@ -805,10 +807,10 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
 *****************************************************************************/
 
 static void
-print_header(const char *header,uint head_length,...)
+print_header(const char *header,size_t head_length,...)
 {
   va_list args;
-  uint length,i,str_length,pre_space;
+  size_t length,i,str_length,pre_space;
   const char *field;
 
   va_start(args,head_length);
@@ -831,10 +833,10 @@ print_header(const char *header,uint head_length,...)
   putchar('|');
   for (;;)
   {
-    str_length=(uint) strlen(field);
+    str_length= strlen(field);
     if (str_length > length)
       str_length=length+1;
-    pre_space=(uint) (((int) length-(int) str_length)/2)+1;
+    pre_space= ((length- str_length)/2)+1;
     for (i=0 ; i < pre_space ; i++)
       putchar(' ');
     for (i = 0 ; i < str_length ; i++)
@@ -868,11 +870,11 @@ print_header(const char *header,uint head_length,...)
 
 
 static void
-print_row(const char *header,uint head_length,...)
+print_row(const char *header,size_t head_length,...)
 {
   va_list args;
   const char *field;
-  uint i,length,field_length;
+  size_t i,length,field_length;
 
   va_start(args,head_length);
   field=header; length=head_length;
@@ -881,7 +883,7 @@ print_row(const char *header,uint head_length,...)
     putchar('|');
     putchar(' ');
     fputs(field,stdout);
-    field_length=(uint) strlen(field);
+    field_length= strlen(field);
     for (i=field_length ; i <= length ; i++)
       putchar(' ');
     if (!(field=va_arg(args,char *)))
@@ -895,10 +897,10 @@ print_row(const char *header,uint head_length,...)
 
 
 static void
-print_trailer(uint head_length,...)
+print_trailer(size_t head_length,...)
 {
   va_list args;
-  uint length,i;
+  size_t length,i;
 
   va_start(args,head_length);
   length=head_length;
@@ -941,7 +943,7 @@ static void print_res_top(MYSQL_RES *result)
   mysql_field_seek(result,0);
   while((field = mysql_fetch_field(result)))
   {
-    if ((length=(uint) strlen(field->name)) > field->max_length)
+    if ((length= strlen(field->name)) > field->max_length)
       field->max_length=length;
     else
       length=field->max_length;

@@ -31,6 +31,9 @@ class Sql_data_result
 public:
   Sql_data_result(Sql_data_context &context);
 
+  void disable_binlog();
+  void restore_binlog();
+
   void query(const std::string &query);
 
   void get_next_field(long &value);

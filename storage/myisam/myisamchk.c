@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -480,7 +480,7 @@ TYPELIB myisam_stats_method_typelib= {
 
 static my_bool
 get_one_option(int optid,
-	       const struct my_option *opt __attribute__((unused)),
+	       const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument)
 {
   switch (optid) {
@@ -1714,7 +1714,7 @@ err:
 
 static int not_killed= 0;
 
-volatile int *killed_ptr(MI_CHECK *param __attribute__((unused)))
+volatile int *killed_ptr(MI_CHECK *param MY_ATTRIBUTE((unused)))
 {
   return &not_killed;			/* always NULL */
 }
@@ -1722,7 +1722,7 @@ volatile int *killed_ptr(MI_CHECK *param __attribute__((unused)))
 	/* print warnings and errors */
 	/* VARARGS */
 
-void mi_check_print_info(MI_CHECK *param __attribute__((unused)),
+void mi_check_print_info(MI_CHECK *param MY_ATTRIBUTE((unused)),
 			 const char *fmt,...)
 {
   va_list args;

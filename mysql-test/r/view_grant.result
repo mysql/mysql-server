@@ -2690,3 +2690,16 @@ ERROR HY000: String 'user_name_len_33_0123456789012345' is too long for user nam
 DROP DATABASE test1;
 DROP USER user_name_len_22_01234@localhost;
 DROP USER user_name_len_32_012345678901234@localhost;
+#
+# WL#9262: All system tables should support 32 character length user names
+#
+#Create user with max length (max username length + max hostname length)
+CREATE USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+CREATE TABLE silly_one (ID INT);
+CREATE DEFINER=user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char VIEW silly_view AS SELECT * FROM silly_one;
+SELECT DEFINER FROM information_schema.VIEWS WHERE TABLE_NAME='silly_view';
+DEFINER
+user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+DROP USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+DROP VIEW silly_view;
+DROP TABLE silly_one;

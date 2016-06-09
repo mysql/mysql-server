@@ -38,7 +38,7 @@ public:
   virtual my_bool flush_to_backup()= 0;
   virtual my_bool flush_to_keyring(IKey *key = NULL, Flush_operation operation= STORE_KEY)= 0;
   virtual my_bool operator<< (const IKey* key)= 0;
-  virtual my_bool operator>> (IKey* key)= 0;
+  virtual my_bool operator>> (IKey **key)= 0;
 
   virtual ~IKeyring_io() {}
 };

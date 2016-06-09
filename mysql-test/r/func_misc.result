@@ -9,12 +9,12 @@ select inet_ntoa(inet_aton("255.255.255.255.255.255.255.255"));
 inet_ntoa(inet_aton("255.255.255.255.255.255.255.255"))
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '255.255.255.255.255.255.255.255' for function inet_aton
+Warning	1411	Incorrect string value: ''255.255.255.255.255.255.255.255'' for function inet_aton
 select inet_aton("255.255.255.255.255"),inet_aton("255.255.1.255"),inet_aton("0.1.255");
 inet_aton("255.255.255.255.255")	inet_aton("255.255.1.255")	inet_aton("0.1.255")
 NULL	4294902271	65791
 Warnings:
-Warning	1411	Incorrect string value: '255.255.255.255.255' for function inet_aton
+Warning	1411	Incorrect string value: ''255.255.255.255.255'' for function inet_aton
 select inet_ntoa(1099511627775),inet_ntoa(4294902271),inet_ntoa(511);
 inet_ntoa(1099511627775)	inet_ntoa(4294902271)	inet_ntoa(511)
 NULL	255.255.1.255	0.0.1.255
@@ -33,17 +33,17 @@ select inet_aton("122.256");
 inet_aton("122.256")
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '122.256' for function inet_aton
+Warning	1411	Incorrect string value: ''122.256'' for function inet_aton
 select inet_aton("122.226.");
 inet_aton("122.226.")
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '122.226.' for function inet_aton
+Warning	1411	Incorrect string value: ''122.226.'' for function inet_aton
 select inet_aton("");
 inet_aton("")
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '' for function inet_aton
+Warning	1411	Incorrect string value: '''' for function inet_aton
 explain extended select inet_aton("122.256"),inet_aton("122.226."),inet_aton("");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -302,9 +302,9 @@ select min(a) from t1 group by inet_ntoa(a);
 min(a)
 -2
 Warnings:
-Warning	1411	Incorrect integer value: '-1' for function inet_ntoa
-Warning	1411	Incorrect integer value: '-1' for function inet_ntoa
-Warning	1411	Incorrect integer value: '-2' for function inet_ntoa
+Warning	1411	Incorrect integer value: '`test`.`t1`.`a`' for function inet_ntoa
+Warning	1411	Incorrect integer value: '`test`.`t1`.`a`' for function inet_ntoa
+Warning	1411	Incorrect integer value: '`test`.`t1`.`a`' for function inet_ntoa
 drop table t1;
 SELECT NAME_CONST('var', 'value') COLLATE latin1_general_cs;
 NAME_CONST('var', 'value') COLLATE latin1_general_cs
@@ -430,152 +430,152 @@ SELECT INET6_ATON(str_to_date('2014,2,28 09', '%Y,%m,%d %h')) IS NULL;
 INET6_ATON(str_to_date('2014,2,28 09', '%Y,%m,%d %h')) IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '2014-02-28 09:00:00' for function inet6_aton
+Warning	1411	Incorrect string value: 'str_to_date('2014,2,28 09','%Y,%m,%d %h')' for function inet6_aton
 SELECT INET6_ATON('1.2.3') IS NULL;
 INET6_ATON('1.2.3') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '1.2.3' for function inet6_aton
+Warning	1411	Incorrect string value: ''1.2.3'' for function inet6_aton
 SELECT INET6_ATON('1.2.3.') IS NULL;
 INET6_ATON('1.2.3.') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '1.2.3.' for function inet6_aton
+Warning	1411	Incorrect string value: ''1.2.3.'' for function inet6_aton
 SELECT INET6_ATON('1..3.4') IS NULL;
 INET6_ATON('1..3.4') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '1..3.4' for function inet6_aton
+Warning	1411	Incorrect string value: ''1..3.4'' for function inet6_aton
 SELECT INET6_ATON('-1.2.3.4') IS NULL;
 INET6_ATON('-1.2.3.4') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '-1.2.3.4' for function inet6_aton
+Warning	1411	Incorrect string value: ''-1.2.3.4'' for function inet6_aton
 SELECT INET6_ATON('1.2.3.256') IS NULL;
 INET6_ATON('1.2.3.256') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '1.2.3.256' for function inet6_aton
+Warning	1411	Incorrect string value: ''1.2.3.256'' for function inet6_aton
 SELECT INET6_ATON('1.2.3.4.5') IS NULL;
 INET6_ATON('1.2.3.4.5') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '1.2.3.4.5' for function inet6_aton
+Warning	1411	Incorrect string value: ''1.2.3.4.5'' for function inet6_aton
 SELECT INET6_ATON('0001.2.3.4') IS NULL;
 INET6_ATON('0001.2.3.4') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '0001.2.3.4' for function inet6_aton
+Warning	1411	Incorrect string value: ''0001.2.3.4'' for function inet6_aton
 SELECT INET6_ATON('0x1.2.3.4') IS NULL;
 INET6_ATON('0x1.2.3.4') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '0x1.2.3.4' for function inet6_aton
+Warning	1411	Incorrect string value: ''0x1.2.3.4'' for function inet6_aton
 SELECT INET6_ATON('a.2.3.4') IS NULL;
 INET6_ATON('a.2.3.4') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: 'a.2.3.4' for function inet6_aton
+Warning	1411	Incorrect string value: ''a.2.3.4'' for function inet6_aton
 SELECT INET6_ATON('1.2.3.4:80') IS NULL;
 INET6_ATON('1.2.3.4:80') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '1.2.3.4:80' for function inet6_aton
+Warning	1411	Incorrect string value: ''1.2.3.4:80'' for function inet6_aton
 SELECT INET6_ATON('1.2.3.4/32') IS NULL;
 INET6_ATON('1.2.3.4/32') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '1.2.3.4/32' for function inet6_aton
+Warning	1411	Incorrect string value: ''1.2.3.4/32'' for function inet6_aton
 SELECT INET6_ATON('mysql.com') IS NULL;
 INET6_ATON('mysql.com') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: 'mysql.com' for function inet6_aton
+Warning	1411	Incorrect string value: ''mysql.com'' for function inet6_aton
 SELECT INET6_ATON(':::') IS NULL;
 INET6_ATON(':::') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: ':::' for function inet6_aton
+Warning	1411	Incorrect string value: '':::'' for function inet6_aton
 SELECT INET6_ATON(':1:2:3') IS NULL;
 INET6_ATON(':1:2:3') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: ':1:2:3' for function inet6_aton
+Warning	1411	Incorrect string value: '':1:2:3'' for function inet6_aton
 SELECT INET6_ATON('1:2:3:') IS NULL;
 INET6_ATON('1:2:3:') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '1:2:3:' for function inet6_aton
+Warning	1411	Incorrect string value: ''1:2:3:'' for function inet6_aton
 SELECT INET6_ATON(':1::2:3') IS NULL;
 INET6_ATON(':1::2:3') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: ':1::2:3' for function inet6_aton
+Warning	1411	Incorrect string value: '':1::2:3'' for function inet6_aton
 SELECT INET6_ATON('1::2:3:') IS NULL;
 INET6_ATON('1::2:3:') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '1::2:3:' for function inet6_aton
+Warning	1411	Incorrect string value: ''1::2:3:'' for function inet6_aton
 SELECT INET6_ATON('::00001') IS NULL;
 INET6_ATON('::00001') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '::00001' for function inet6_aton
+Warning	1411	Incorrect string value: ''::00001'' for function inet6_aton
 SELECT INET6_ATON('::00001:2') IS NULL;
 INET6_ATON('::00001:2') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '::00001:2' for function inet6_aton
+Warning	1411	Incorrect string value: ''::00001:2'' for function inet6_aton
 SELECT INET6_ATON('::12345') IS NULL;
 INET6_ATON('::12345') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '::12345' for function inet6_aton
+Warning	1411	Incorrect string value: ''::12345'' for function inet6_aton
 SELECT INET6_ATON('1020::3040::5060') IS NULL;
 INET6_ATON('1020::3040::5060') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '1020::3040::5060' for function inet6_aton
+Warning	1411	Incorrect string value: ''1020::3040::5060'' for function inet6_aton
 SELECT INET6_ATON('::ABCZ') IS NULL;
 INET6_ATON('::ABCZ') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '::ABCZ' for function inet6_aton
+Warning	1411	Incorrect string value: ''::ABCZ'' for function inet6_aton
 SELECT INET6_ATON('::0x1.2.3.4') IS NULL;
 INET6_ATON('::0x1.2.3.4') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '::0x1.2.3.4' for function inet6_aton
+Warning	1411	Incorrect string value: ''::0x1.2.3.4'' for function inet6_aton
 SELECT INET6_ATON('::1.0x2.3.4') IS NULL;
 INET6_ATON('::1.0x2.3.4') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '::1.0x2.3.4' for function inet6_aton
+Warning	1411	Incorrect string value: ''::1.0x2.3.4'' for function inet6_aton
 SELECT INET6_ATON('::a.b.c.d') IS NULL;
 INET6_ATON('::a.b.c.d') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '::a.b.c.d' for function inet6_aton
+Warning	1411	Incorrect string value: ''::a.b.c.d'' for function inet6_aton
 SELECT INET6_ATON('::FFFF:0x1.2.3.4') IS NULL;
 INET6_ATON('::FFFF:0x1.2.3.4') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '::FFFF:0x1.2.3.4' for function inet6_aton
+Warning	1411	Incorrect string value: ''::FFFF:0x1.2.3.4'' for function inet6_aton
 SELECT INET6_ATON('::FFFF:1.0x2.3.4') IS NULL;
 INET6_ATON('::FFFF:1.0x2.3.4') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '::FFFF:1.0x2.3.4' for function inet6_aton
+Warning	1411	Incorrect string value: ''::FFFF:1.0x2.3.4'' for function inet6_aton
 SELECT INET6_ATON('::FFFF:a.b.c.d') IS NULL;
 INET6_ATON('::FFFF:a.b.c.d') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '::FFFF:a.b.c.d' for function inet6_aton
+Warning	1411	Incorrect string value: ''::FFFF:a.b.c.d'' for function inet6_aton
 SELECT INET6_ATON('::1.2.3.4:ABCD') IS NULL;
 INET6_ATON('::1.2.3.4:ABCD') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: '::1.2.3.4:ABCD' for function inet6_aton
+Warning	1411	Incorrect string value: ''::1.2.3.4:ABCD'' for function inet6_aton
 # NOTE: such addresses are supported because getaddrinfo() supports them.
 # This is just to record the current behaviour.
 SELECT HEX(INET6_ATON('::ABCD:1.2.3.4'));
@@ -745,12 +745,12 @@ SELECT INET6_NTOA(str_to_date('2014,2,28 09', '%Y,%m,%d %h'));
 INET6_NTOA(str_to_date('2014,2,28 09', '%Y,%m,%d %h'))
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '2014-02-28 09:00:00' for function inet6_ntoa
+Warning	1411	Incorrect string value: 'str_to_date('2014,2,28 09','%Y,%m,%d %h')' for function inet6_ntoa
 SELECT INET6_NTOA(UNHEX('C0A801'));
 INET6_NTOA(UNHEX('C0A801'))
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '\xC0\xA8\x01' for function inet6_ntoa
+Warning	1411	Incorrect string value: 'unhex('C0A801')' for function inet6_ntoa
 SELECT INET6_NTOA(UNHEX('C0A80102'));
 INET6_NTOA(UNHEX('C0A80102'))
 192.168.1.2
@@ -758,12 +758,12 @@ SELECT INET6_NTOA(UNHEX('C0A8010203'));
 INET6_NTOA(UNHEX('C0A8010203'))
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '\xC0\xA8\x01\x02\x03' for function inet6_ntoa
+Warning	1411	Incorrect string value: 'unhex('C0A8010203')' for function inet6_ntoa
 SELECT INET6_NTOA(UNHEX('0102030405060708090A0B0C0D0E0F'));
 INET6_NTOA(UNHEX('0102030405060708090A0B0C0D0E0F'))
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F' for function inet6_ntoa
+Warning	1411	Incorrect string value: 'unhex('0102030405060708090A0B0C0D0E0F')' for function inet6_ntoa
 SELECT INET6_NTOA(UNHEX('0102030405060708090A0B0C0D0E0F10'));
 INET6_NTOA(UNHEX('0102030405060708090A0B0C0D0E0F10'))
 102:304:506:708:90a:b0c:d0e:f10
@@ -771,17 +771,17 @@ SELECT INET6_NTOA(UNHEX('0102030405060708090A0B0C0D0E0F1011'));
 INET6_NTOA(UNHEX('0102030405060708090A0B0C0D0E0F1011'))
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11' for function inet6_ntoa
+Warning	1411	Incorrect string value: 'unhex('0102030405060708090A0B0C0D0E0F1011')' for function inet6_ntoa
 SELECT INET6_NTOA('1234'), INET6_NTOA(BINARY('1234'));
 INET6_NTOA('1234')	INET6_NTOA(BINARY('1234'))
 NULL	49.50.51.52
 Warnings:
-Warning	1411	Incorrect string value: '1234' for function inet6_ntoa
+Warning	1411	Incorrect string value: ''1234'' for function inet6_ntoa
 SELECT INET6_NTOA('0123456789abcdef'), INET6_NTOA(BINARY('0123456789abcdef'));
 INET6_NTOA('0123456789abcdef')	INET6_NTOA(BINARY('0123456789abcdef'))
 NULL	3031:3233:3435:3637:3839:6162:6364:6566
 Warnings:
-Warning	1411	Incorrect string value: '0123456789abcdef' for function inet6_ntoa
+Warning	1411	Incorrect string value: ''0123456789abcdef'' for function inet6_ntoa
 
 # -- Checking double-conversion...
 
@@ -915,12 +915,12 @@ SELECT HEX(INET_ATON('192.168.0x8.2'));
 HEX(INET_ATON('192.168.0x8.2'))
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '192.168.0x8.2' for function inet_aton
+Warning	1411	Incorrect string value: ''192.168.0x8.2'' for function inet_aton
 SELECT HEX(INET6_ATON('192.168.0x8.2'));
 HEX(INET6_ATON('192.168.0x8.2'))
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '192.168.0x8.2' for function inet6_aton
+Warning	1411	Incorrect string value: ''192.168.0x8.2'' for function inet6_aton
 SELECT HEX(INET_ATON('1.2.255'));
 HEX(INET_ATON('1.2.255'))
 10200FF
@@ -928,17 +928,17 @@ SELECT HEX(INET6_ATON('1.2.255'));
 HEX(INET6_ATON('1.2.255'))
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '1.2.255' for function inet6_aton
+Warning	1411	Incorrect string value: ''1.2.255'' for function inet6_aton
 SELECT HEX(INET_ATON('1.2.256'));
 HEX(INET_ATON('1.2.256'))
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '1.2.256' for function inet_aton
+Warning	1411	Incorrect string value: ''1.2.256'' for function inet_aton
 SELECT HEX(INET6_ATON('1.2.256'));
 HEX(INET6_ATON('1.2.256'))
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '1.2.256' for function inet6_aton
+Warning	1411	Incorrect string value: ''1.2.256'' for function inet6_aton
 SELECT HEX(INET_ATON('1.0002.3.4'));
 HEX(INET_ATON('1.0002.3.4'))
 1020304
@@ -946,17 +946,17 @@ SELECT HEX(INET6_ATON('1.0002.3.4'));
 HEX(INET6_ATON('1.0002.3.4'))
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '1.0002.3.4' for function inet6_aton
+Warning	1411	Incorrect string value: ''1.0002.3.4'' for function inet6_aton
 SELECT HEX(INET_ATON('1.2.3.4.5'));
 HEX(INET_ATON('1.2.3.4.5'))
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '1.2.3.4.5' for function inet_aton
+Warning	1411	Incorrect string value: ''1.2.3.4.5'' for function inet_aton
 SELECT HEX(INET6_ATON('1.2.3.4.5'));
 HEX(INET6_ATON('1.2.3.4.5'))
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '1.2.3.4.5' for function inet6_aton
+Warning	1411	Incorrect string value: ''1.2.3.4.5'' for function inet6_aton
 
 # -- Checking mix of INET- and INET6- functions...
 
@@ -1090,28 +1090,28 @@ INET6_NTOA(ip)	HEX(ip)	LENGTH(ip)
 DELETE FROM t2;
 INSERT INTO t2 VALUES (INET6_ATON('1.0002.3.4'));
 Warnings:
-Warning	1411	Incorrect string value: '1.0002.3.4' for function inet6_aton
+Warning	1411	Incorrect string value: ''1.0002.3.4'' for function inet6_aton
 INSERT INTO t2 VALUES (INET6_ATON('1.2.255'));
 Warnings:
-Warning	1411	Incorrect string value: '1.2.255' for function inet6_aton
+Warning	1411	Incorrect string value: ''1.2.255'' for function inet6_aton
 INSERT INTO t2 VALUES (INET6_ATON('1.2.256'));
 Warnings:
-Warning	1411	Incorrect string value: '1.2.256' for function inet6_aton
+Warning	1411	Incorrect string value: ''1.2.256'' for function inet6_aton
 INSERT INTO t2 VALUES (INET6_ATON('192.168.0x8.2'));
 Warnings:
-Warning	1411	Incorrect string value: '192.168.0x8.2' for function inet6_aton
+Warning	1411	Incorrect string value: ''192.168.0x8.2'' for function inet6_aton
 INSERT INTO t2 VALUES (inet_aton("122.256"));
 Warnings:
-Warning	1411	Incorrect string value: '122.256' for function inet_aton
+Warning	1411	Incorrect string value: ''122.256'' for function inet_aton
 INSERT INTO t2 VALUES (inet_aton("122.226."));
 Warnings:
-Warning	1411	Incorrect string value: '122.226.' for function inet_aton
+Warning	1411	Incorrect string value: ''122.226.'' for function inet_aton
 INSERT INTO t2 VALUES (inet_aton(""));
 Warnings:
-Warning	1411	Incorrect string value: '' for function inet_aton
+Warning	1411	Incorrect string value: '''' for function inet_aton
 INSERT INTO t2 VALUES (UNHEX('Z0Q80F02'));
 Warnings:
-Warning	1411	Incorrect string value: 'Z0Q80F02' for function unhex
+Warning	1411	Incorrect string value: ''Z0Q80F02'' for function unhex
 SELECT INET6_NTOA(ip), HEX(ip), LENGTH(ip) FROM t2;
 INET6_NTOA(ip)	HEX(ip)	LENGTH(ip)
 NULL	NULL	NULL
@@ -1126,22 +1126,22 @@ DELETE FROM t2;
 
 SET sql_mode = default;
 INSERT INTO t2 VALUES (INET6_ATON('1.0002.3.4'));
-ERROR HY000: Incorrect string value: '1.0002.3.4' for function inet6_aton
+ERROR HY000: Incorrect string value: ''1.0002.3.4'' for function inet6_aton
 INSERT INTO t2 VALUES (INET6_ATON('1.2.255'));
-ERROR HY000: Incorrect string value: '1.2.255' for function inet6_aton
+ERROR HY000: Incorrect string value: ''1.2.255'' for function inet6_aton
 INSERT INTO t2 VALUES (INET6_ATON('1.2.256'));
-ERROR HY000: Incorrect string value: '1.2.256' for function inet6_aton
+ERROR HY000: Incorrect string value: ''1.2.256'' for function inet6_aton
 INSERT INTO t2 VALUES (INET6_ATON('192.168.0x8.2'));
-ERROR HY000: Incorrect string value: '192.168.0x8.2' for function inet6_aton
+ERROR HY000: Incorrect string value: ''192.168.0x8.2'' for function inet6_aton
 INSERT INTO t2 VALUES (inet_aton("122.256"));
-ERROR HY000: Incorrect string value: '122.256' for function inet_aton
+ERROR HY000: Incorrect string value: ''122.256'' for function inet_aton
 INSERT INTO t2 VALUES (inet_aton("122.226."));
-ERROR HY000: Incorrect string value: '122.226.' for function inet_aton
+ERROR HY000: Incorrect string value: ''122.226.'' for function inet_aton
 INSERT INTO t2 VALUES (inet_aton(""));
-ERROR HY000: Incorrect string value: '' for function inet_aton
+ERROR HY000: Incorrect string value: '''' for function inet_aton
 
 INSERT INTO t2 VALUES (UNHEX('Z0Q80F02'));
-ERROR HY000: Incorrect string value: 'Z0Q80F02' for function unhex
+ERROR HY000: Incorrect string value: ''Z0Q80F02'' for function unhex
 SELECT INET6_NTOA(ip), HEX(ip), LENGTH(ip) FROM t2;
 INET6_NTOA(ip)	HEX(ip)	LENGTH(ip)
 DROP TABLE t1;
@@ -1153,12 +1153,12 @@ select inet_aton("0.255.255.255.255");
 inet_aton("0.255.255.255.255")
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '0.255.255.255.255' for function inet_aton
+Warning	1411	Incorrect string value: ''0.255.255.255.255'' for function inet_aton
 select inet_aton("255.255.255.2551");
 inet_aton("255.255.255.2551")
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '255.255.255.2551' for function inet_aton
+Warning	1411	Incorrect string value: ''255.255.255.2551'' for function inet_aton
 
 # -- Done.
 

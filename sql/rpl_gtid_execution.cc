@@ -420,6 +420,7 @@ bool gtid_reacquire_ownership_if_anonymous(THD *thd)
   - SHOW
   - SELECT
   - DO
+  - An empty statement because of a skipped version comment
   That means it is guaranteed not to cause any changes in the
   database.
 */
@@ -434,8 +435,9 @@ static bool is_stmt_innocent(const THD *thd)
     (sql_command == SQLCOM_SET_OPTION) && !lex->is_set_password_sql;
   bool is_select= (sql_command == SQLCOM_SELECT);
   bool is_do= (sql_command == SQLCOM_DO);
+  bool is_empty= (sql_command == SQLCOM_EMPTY_QUERY);
   return
-    (is_set || is_select || is_do || is_show) &&
+    (is_set || is_select || is_do || is_show || is_empty) &&
     !lex->uses_stored_routines();
 }
 

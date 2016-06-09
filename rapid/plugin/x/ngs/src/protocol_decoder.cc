@@ -15,12 +15,10 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 // 02110-1301  USA
 
-#include <google/protobuf/io/coded_stream.h>
 #include "ngs/protocol_decoder.h"
 #include "ngs/log.h"
 #include "ngs/ngs_error.h"
-
-#include "mysqlx.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 
 
 using namespace ngs;
@@ -107,9 +105,10 @@ Error_code Message_decoder::parse(Request &request)
   {
     std::string &buffer(request.buffer());
     // feed the data to the command (up to the specified boundary)
-    google::protobuf::io::CodedInputStream stream(reinterpret_cast<const uint8_t*>(buffer.data()), buffer.length());
+    google::protobuf::io::CodedInputStream stream(reinterpret_cast<const uint8_t*>(buffer.data()),
+                                                  static_cast<int>(buffer.length()));
     // variable 'mysqlx_max_allowed_packet' has been checked when buffer was filling by data
-    stream.SetTotalBytesLimit(buffer.length(), -1 /*no warnings*/);
+    stream.SetTotalBytesLimit(static_cast<int>(buffer.length()), -1 /*no warnings*/);
     message->ParseFromCodedStream(&stream);
 
     if (!message->IsInitialized())

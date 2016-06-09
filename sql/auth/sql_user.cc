@@ -1474,9 +1474,15 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
     my_error(ER_CANNOT_USER, MYF(0), "DROP USER", wrong_users.c_ptr_safe());
 
   if (some_users_deleted || if_exists)
-    result |= write_bin_log(thd, FALSE, thd->query().str, thd->query().length,
-                            transactional_tables);
-
+  {
+    int ret= commit_owned_gtid_by_partial_command(thd);
+    if (ret == 1)
+      result |= write_bin_log(thd, FALSE, thd->query().str,
+                              thd->query().length,
+                              transactional_tables);
+    else if (ret == -1)
+      result |= -1;
+  }
   lock.unlock();
 
   result|=

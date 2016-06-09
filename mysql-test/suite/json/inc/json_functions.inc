@@ -3211,6 +3211,105 @@ SELECT JSON_OBJECT("c",f1->"$.b") AS f2
   FROM t1 HAVING JSON_TYPE(f2->"$.c") <> 'NULL' ORDER BY f1->"$.b";
 EXPLAIN
   SELECT JSON_OBJECT("c",f1->"$.b") AS f2 FROM t1 HAVING JSON_TYPE(f2->"$.c") <> 'NULL' order by f1;
+--echo Test unquoting operator
+INSERT INTO t1 VALUES('{"t":"a"}'),('{"t":"b"}'),('{"t":"c"}');
+--echo Returned values should be quoted
+SELECT f1->"$.t" FROM t1 WHERE f1->"$.t" <> 'NULL';
+--echo Returned values should be unquoted
+SELECT f1->>"$.t" FROM t1 WHERE f1->>"$.t" <> 'NULL';
+EXPLAIN SELECT f1->>"$.t" FROM t1 WHERE f1->>"$.t" <> 'NULL';
+
+--error ER_PARSE_ERROR
+SELECT f1->>NULL FROM t1;
+--error ER_INVALID_JSON_PATH
+SELECT f1 ->> "NULL" FROM t1;
+--error ER_INVALID_JSON_PATH
+SELECT f1->>"NULL" FROM t1;
+--error ER_INVALID_JSON_PATH
+SELECT f1->>"!@#" FROM t1;
+--error ER_PARSE_ERROR
+SELECT COUNT(*)->>"$.t" FROM t1;
+
+INSERT INTO t1 VALUES('[ { "a": 1 }, { "a": 2 } ]'),
+  ('{ "a" : "foo", "b" : [ true, { "c" : 123, "c" : 456 } ] }'),
+  ('{ "a" : "foo", "b" : [ true, { "c" : "123" } ] }'),
+  ('{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }');
+
+SELECT
+  f1->>"$**.b",
+  cast(json_unquote(json_extract(f1,"$**.b")) as char),
+  cast(f1->>"$**.b" as char) <=> cast(json_unquote(json_extract(f1,"$**.b")) as char)
+  FROM t1;
+SELECT
+  f1->>"$.c",
+  cast(json_unquote(json_extract(f1,"$.c")) as char),
+  cast(f1->>"$.c"  as char) <=> cast(json_unquote(json_extract(f1,"$.c")) as char)
+  FROM t1;
+SELECT
+  f1->>'$.b[1].c',
+  cast(json_unquote(json_extract(f1,'$.b[1].c')) as char),
+  cast(f1->>'$.b[1].c' as
+  char)<=>cast(json_unquote(json_extract(f1,'$.b[1].c')) as char)
+  FROM t1;
+SELECT 
+  f1->'$.b[1].c',
+  cast(json_extract(f1,'$.b[1].c') as char),
+  cast(f1->'$.b[1].c' as char)
+  <=>cast(json_extract(f1,'$.b[1].c') as char)
+  FROM t1;
+SELECT
+  f1->>'$.b[1]',
+  cast(json_unquote(json_extract(f1,'$.b[1]')) as char),
+  cast(f1->>'$.b[1]' as char) <=>
+  cast(json_unquote(json_extract(f1,'$.b[1]')) as char)
+  FROM t1;
+SELECT 
+  f1->>'$[0][0]',
+  cast(json_unquote(json_extract(f1,'$[0][0]')) as char),
+  cast(f1->>'$[0][0]' as char) <=>
+  cast(json_unquote(json_extract(f1,'$[0][0]')) as char)
+  FROM t1;
+SELECT
+  f1->>'$**[0]',
+  cast(json_unquote(json_extract(f1,'$**[0]')) as char),
+  cast(f1->>'$**[0]' as char) <=>
+  cast(json_unquote(json_extract(f1,'$**[0]')) as char)
+  FROM t1;
+SELECT
+  f1->> '$.a[0]',
+  cast(json_unquote(json_extract(f1, '$.a[0]')) as char),
+  cast(f1->> '$.a[0]' as char) <=> cast(json_unquote(json_extract(f1,
+  '$.a[0]')) as char)
+  FROM t1;
+SELECT
+  f1->>'$[0].a[0]',
+  cast(json_unquote(json_extract(f1,'$[0].a[0]')) as char),
+  cast(f1->>'$[0].a[0]' as char) <=>
+  cast(json_unquote(json_extract(f1,'$[0].a[0]')) as char)
+  FROM t1;
+SELECT
+  f1->>'$**.a',
+  cast(json_unquote(json_extract(f1,'$**.a')) as char),
+  cast(f1->>'$**.a' as char) <=> cast(json_unquote(json_extract(f1,'$**.a')) as char)
+  FROM t1;
+SELECT
+  f1->>'$[0][0][0].a',
+  cast(json_unquote(json_extract(f1,'$[0][0][0].a')) as char),
+  cast(f1->>'$[0][0][0].a' as char) <=>
+  cast(json_unquote(json_extract(f1,'$[0][0][0].a')) as char)
+  FROM t1;
+SELECT
+  f1->>'$[*].b',
+  cast(json_unquote(json_extract(f1,'$[*].b')) as char),
+  cast(f1->>'$[*].b' as char) <=>
+  cast(json_unquote(json_extract(f1,'$[*].b')) as char)
+  FROM t1;
+SELECT
+  f1->>'$[*].a',
+  cast(json_unquote(json_extract(f1,'$[*].a')) as char),
+  cast(f1->>'$[*].a' as char) <=>
+  cast(json_unquote(json_extract(f1,'$[*].a')) as char)
+  FROM t1;
 
 DROP TABLE t1;
 

@@ -22,7 +22,9 @@ get_option () {
     local section=$1
     local option=$2
     local default=$3
-    ret=$(@bindir@/my_print_defaults $section | grep '^--'${option}'=' | cut -d= -f2- | tail -n 1)
+    local instance=$4
+    ret=$(@bindir@/my_print_defaults  ${instance:+--defaults-group-suffix=@$instance} $section | \
+	      grep '^--'${option}'=' | cut -d= -f2- | tail -n 1)
     [ -z "$ret" ] && ret=$default
     echo $ret
 }
@@ -43,8 +45,10 @@ install_validate_password_sql_file () {
 
 install_db () {
     # Note: something different than datadir=/var/lib/mysql requires SELinux policy changes (in enforcing mode)
-    datadir=$(get_option mysqld datadir "@MYSQL_DATADIR@")
-    log=$(get_option mysqld log-error /var/log/mysqld.log)
+
+    local instance=$1
+    datadir=$(get_option mysqld datadir "/var/lib/mysql${instance+:-$instance}" $instance)
+    log=$(get_option mysqld log-error "/var/log/mysql${instance:+-$instance}.log" $instance)
 
     # Restore log, dir, perms and SELinux contexts
 
@@ -70,7 +74,8 @@ install_db () {
 
     # Create initial db and install validate_password plugin
     initfile="$(install_validate_password_sql_file)"
-    @libexecdir@/mysqld --initialize --datadir="$datadir" --user=@MYSQLD_USER@ --init-file="$initfile"
+    @libexecdir@/mysqld ${instance:+--defaults-group-suffix=@$instance} --initialize \
+		     --datadir="$datadir" --user=@MYSQLD_USER@ --init-file="$initfile"
     rm -f "$initfile"
 
     # Generate certs if needed
@@ -79,6 +84,7 @@ install_db () {
     fi
     exit 0
 }
-install_db
+
+install_db $1
 
 exit 0

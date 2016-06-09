@@ -196,6 +196,27 @@ ERROR 42000: Version token token100 not found.
 select 1;
 1
 1
+# Tests related to locking
+# Connection: vtcon1 
+SELECT version_tokens_set("a=aa;b=bb;c=cc");
+version_tokens_set("a=aa;b=bb;c=cc")
+3 version tokens set.
+set @@version_tokens_session= "a=aa";
+SELECT sleep(6); # sleep for 6 seconds in background.;
+# Connection: vtcon2
+SELECT version_tokens_lock_exclusive("b",20);
+version_tokens_lock_exclusive("b",20)
+1
+# Connection: vtcon3
+SELECT version_tokens_lock_exclusive("a",20);
+version_tokens_lock_exclusive("a",20)
+1
+SELECT version_tokens_unlock();
+version_tokens_unlock()
+1
+# Connection: vtcon1
+sleep(6)
+0
 
 UNINSTALL PLUGIN version_tokens;
 Warnings:

@@ -39,7 +39,7 @@ namespace im
     {
       for (size_t i = 0; i < no_of_pages; i++)
       {
-        page_del.push_back(boost::shared_ptr<Page>(new Page(page_size)));
+        page_del.push_back(boost::shared_ptr<Page>(new Page(static_cast<uint32_t>(page_size))));
         ob.push_back(page_del.back().get());
       }
     }
@@ -173,7 +173,7 @@ namespace im
           EXPECT_EQ('>', d[0]);
           first++;
         }
-        total += size;
+        total += static_cast<int>(size);
         if (total == 300000)
         {
           EXPECT_EQ('<', d[size-1]);

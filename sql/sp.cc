@@ -117,7 +117,7 @@ TABLE_FIELD_TYPE proc_table_fields[MYSQL_PROC_FIELD_COUNT] =
   },
   {
     { C_STRING_WITH_LEN("definer") },
-    { C_STRING_WITH_LEN("char(77)") },
+    { C_STRING_WITH_LEN("char(93)") },
     { C_STRING_WITH_LEN("utf8") }
   },
   {
@@ -353,9 +353,11 @@ class Proc_table_intact : public Table_check_intact
 {
 private:
   bool m_print_once;
+  bool silence_error;
 
 public:
-  Proc_table_intact() : m_print_once(TRUE) {}
+  Proc_table_intact() : m_print_once(TRUE), silence_error(FALSE) {}
+  my_bool check_proc_table(TABLE *table);
 
 protected:
   void report_error(uint code, const char *fmt, ...);
@@ -371,6 +373,9 @@ void Proc_table_intact::report_error(uint code, const char *fmt, ...)
 {
   va_list args;
   char buf[512];
+
+  if(silence_error == TRUE)
+    return;
 
   va_start(args, fmt);
   my_vsnprintf(buf, sizeof(buf), fmt, args);
@@ -388,6 +393,26 @@ void Proc_table_intact::report_error(uint code, const char *fmt, ...)
   }
 };
 
+my_bool Proc_table_intact::check_proc_table(TABLE *table)
+{
+  silence_error= TRUE;
+  my_bool error= check(table, &proc_table_def);
+  silence_error= FALSE;
+  if (!error)
+    return FALSE;
+
+  //This could have failed because of definer column being 77 characters long
+  uint32 original_definer_length= table->field[MYSQL_PROC_FIELD_DEFINER]->field_length;
+  table->field[MYSQL_PROC_FIELD_DEFINER]->field_length=
+    (USERNAME_CHAR_LENGTH + HOSTNAME_LENGTH + 1) *
+    table->field[MYSQL_PROC_FIELD_DEFINER]->charset()->mbmaxlen;
+
+  error= check(table, &proc_table_def);
+
+  table->field[MYSQL_PROC_FIELD_DEFINER]->field_length= original_definer_length;
+
+  return error;
+}
 
 /** Single instance used to control printing to the error log. */
 static Proc_table_intact proc_table_intact;
@@ -425,7 +450,7 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup)
     goto err;
   }
 
-  if (!proc_table_intact.check(table.table, &proc_table_def))
+  if(!proc_table_intact.check_proc_table(table.table))
     DBUG_RETURN(table.table);
 
 err:
@@ -460,7 +485,7 @@ static TABLE *open_proc_table_for_update(THD *thd)
   if (!(table= open_system_table_for_update(thd, &table_list)))
     DBUG_RETURN(NULL);
 
-  if (!proc_table_intact.check(table, &proc_table_def))
+  if(!proc_table_intact.check_proc_table(table))
     DBUG_RETURN(table);
 
   close_thread_tables(thd);
@@ -1134,9 +1159,10 @@ bool sp_create_routine(THD *thd, sp_head *sp)
       table->field[MYSQL_PROC_FIELD_BODY]->
         store(sp->m_body.str, sp->m_body.length, system_charset_info);
 
-    store_failed= store_failed ||
-      table->field[MYSQL_PROC_FIELD_DEFINER]->
+    bool store_definer_failed= table->field[MYSQL_PROC_FIELD_DEFINER]->
         store(definer, strlen(definer), system_charset_info);
+
+    store_failed= store_failed || store_definer_failed;
 
     Item_func_now_local::store_in(table->field[MYSQL_PROC_FIELD_CREATED]);
     Item_func_now_local::store_in(table->field[MYSQL_PROC_FIELD_MODIFIED]);
@@ -1203,7 +1229,16 @@ bool sp_create_routine(THD *thd, sp_head *sp)
       table->field[MYSQL_PROC_FIELD_BODY_UTF8]->store(
         sp->m_body_utf8.str, sp->m_body_utf8.length, system_charset_info);
 
-    if (store_failed)
+    if (store_definer_failed &&
+        table->field[MYSQL_PROC_FIELD_DEFINER]->field_length <
+          (USERNAME_CHAR_LENGTH + HOSTNAME_LENGTH + 1) *
+          table->field[MYSQL_PROC_FIELD_DEFINER]->charset()->mbmaxlen)
+    {
+      my_error(ER_USER_COLUMN_OLD_LENGTH, MYF(0),
+               table->field[MYSQL_PROC_FIELD_DEFINER]->field_name);
+      goto done;
+    }
+    else if (store_failed)
     {
       my_error(ER_CANT_CREATE_SROUTINE, MYF(0), sp->m_name.str);
       goto done;
@@ -2603,8 +2638,9 @@ uint sp_get_flags_for_command(LEX *lex)
 
 bool sp_check_name(LEX_STRING *ident)
 {
-  if (!ident || !ident->str || !ident->str[0] ||
-      ident->str[ident->length-1] == ' ')
+  DBUG_ASSERT(ident != NULL && ident->str != NULL);
+
+  if (!ident->str[0] || ident->str[ident->length-1] == ' ')
   {
     my_error(ER_SP_WRONG_NAME, MYF(0), ident->str);
     return true;

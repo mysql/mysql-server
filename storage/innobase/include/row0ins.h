@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -52,7 +52,7 @@ row_ins_check_foreign_constraint(
 				table, else the referenced table */
 	dtuple_t*	entry,	/*!< in: index entry for index */
 	que_thr_t*	thr)	/*!< in: query thread */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 /*********************************************************************//**
 Creates an insert node struct.
 @return own: insert node struct */
@@ -97,7 +97,7 @@ row_ins_clust_index_entry_low(
 	bool		dup_chk_only)
 				/*!< in: if true, just do duplicate check
 				and return. don't execute actual insert. */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /***************************************************************//**
 Tries to insert an entry into a secondary index. If a record with exactly the
@@ -125,7 +125,7 @@ row_ins_sec_index_entry_low(
 	bool		dup_chk_only)
 				/*!< in: if true, just do duplicate check
 				and return. don't execute actual insert. */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /** Sets the values of the dtuple fields in entry from the values of appropriate
 columns in row.
 @param[in]	index	index handler
@@ -154,7 +154,7 @@ row_ins_index_entry_big_rec_func(
 	const void*		thd,	/*!< in: connection, or NULL */
 #endif /* DBUG_OFF */
 	ulint			line)	/*!< in: line number of caller */
-	__attribute__((nonnull(1,2,3,4,5,6), warn_unused_result));
+	MY_ATTRIBUTE((nonnull(1,2,3,4,5,6), warn_unused_result));
 #ifdef DBUG_OFF
 # define row_ins_index_entry_big_rec(e,big,ofs,heap,index,thd,file,line) \
 	row_ins_index_entry_big_rec_func(e,big,ofs,heap,index,file,line)
@@ -178,7 +178,7 @@ row_ins_clust_index_entry(
 	bool		dup_chk_only)
 				/*!< in: if true, just do duplicate check
 				and return. don't execute actual insert. */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /***************************************************************//**
 Inserts an entry into a secondary index. Tries first optimistic,
 then pessimistic descent down the tree. If the entry matches enough
@@ -194,7 +194,7 @@ row_ins_sec_index_entry(
 	bool		dup_chk_only)
 				/*!< in: if true, just do duplicate check
 				and return. don't execute actual insert. */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /***********************************************************//**
 Inserts a row to a table. This is a high-level function used in
 SQL execution graphs.

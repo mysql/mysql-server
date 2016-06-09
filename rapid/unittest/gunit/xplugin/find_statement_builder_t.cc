@@ -19,10 +19,9 @@
 #include "query_string_builder.h"
 #include "mysqld_error.h"
 #include "expr_generator.h"
-#include "mysqlx_crud.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 
 #include <gtest/gtest.h>
-#include <google/protobuf/text_format.h>
 
 namespace xpl
 {
@@ -67,7 +66,7 @@ namespace
 {
 void operator<< (::google::protobuf::Message &msg, const std::string& txt)
 {
-  ::google::protobuf::TextFormat::ParseFromString(txt, &msg);
+  ASSERT_TRUE(::google::protobuf::TextFormat::ParseFromString(txt, &msg));
 }
 } // namespace
 
@@ -313,7 +312,36 @@ TEST_F(Find_statement_builder_test, add_statement_table)
 }
 
 
-TEST_F(Find_statement_builder_test, add_statement_document)
+TEST_F(Find_statement_builder_test, add_statement_document_no_grouping)
+{
+  msg <<
+      "collection {name: 'xtable' schema: 'xschema'}"
+      "data_model: DOCUMENT "
+      "projection {source {type: IDENT identifier {document_path {type: MEMBER "
+      "                                                             value: 'alpha'}}}"
+      "            alias: 'zeta'} "
+      "criteria {type: OPERATOR "
+      "          operator {name: '>' "
+      "                    param {type: IDENT identifier {document_path {type: MEMBER "
+      "                                                                  value: 'delta'}}}"
+      "                    param {type: LITERAL literal"
+      "                                                {type: V_DOUBLE"
+      "                                             v_double: 1.0}}}}"
+      "order {expr {type: IDENT identifier {document_path {type: MEMBER "
+      "                                                     value: 'gamma'}}}"
+      "       direction: DESC}";
+  builder.set_document_model();
+  ASSERT_NO_THROW(builder.add_statement());
+  EXPECT_EQ(
+      "SELECT JSON_OBJECT('zeta', JSON_EXTRACT(doc,'$.alpha')) AS doc "
+      "FROM `xschema`.`xtable` "
+      "WHERE (JSON_EXTRACT(doc,'$.delta') > 1) "
+      "ORDER BY JSON_EXTRACT(doc,'$.gamma') DESC",
+      query.get());
+}
+
+
+TEST_F(Find_statement_builder_test, add_statement_document_with_grouping)
 {
   msg <<
       "collection {name: 'xtable' schema: 'xschema'}"
@@ -343,16 +371,55 @@ TEST_F(Find_statement_builder_test, add_statement_document)
   builder.set_document_model();
   ASSERT_NO_THROW(builder.add_statement());
   EXPECT_EQ(
-      "SELECT JSON_OBJECT('zeta', JSON_EXTRACT(doc,'$.alpha')) AS doc "
+      "SELECT JSON_OBJECT('zeta', `_DERIVED_TABLE_`.`zeta`) AS doc FROM ("
+      "SELECT JSON_EXTRACT(doc,'$.alpha') AS `zeta` "
       "FROM `xschema`.`xtable` "
       "WHERE (JSON_EXTRACT(doc,'$.delta') > 1) "
       "GROUP BY JSON_EXTRACT(doc,'$.beta') "
       "HAVING (JSON_EXTRACT(doc,'$.lambda') < 2) "
-      "ORDER BY JSON_EXTRACT(doc,'$.gamma') DESC",
+      "ORDER BY JSON_EXTRACT(doc,'$.gamma') DESC"
+      ") AS `_DERIVED_TABLE_`",
       query.get());
+}
+
+
+TEST_F(Find_statement_builder_test, add_statement_document_with_more_grouping)
+{
+  msg <<
+      "collection {name: 'xtable' schema: 'xschema'}"
+      "data_model: DOCUMENT "
+      "projection {source {type: IDENT identifier {document_path {type: MEMBER "
+      "                                                             value: 'alpha'}}}"
+      "            alias: 'zeta'} "
+      "projection {source {type: IDENT identifier {document_path {type: MEMBER "
+      "                                                             value: 'gama'}}}"
+      "            alias: 'ksi'} "
+      "grouping {type: IDENT identifier {document_path {type: MEMBER "
+      "                                                  value: 'beta'}}}"
+      "grouping {type: IDENT identifier {document_path {type: MEMBER "
+      "                                                  value: 'theta'}}}";
+  builder.set_document_model();
+  ASSERT_NO_THROW(builder.add_statement());
+  EXPECT_EQ(
+      "SELECT JSON_OBJECT('zeta', `_DERIVED_TABLE_`.`zeta`,'ksi', `_DERIVED_TABLE_`.`ksi`) AS doc FROM ("
+      "SELECT JSON_EXTRACT(doc,'$.alpha') AS `zeta`,JSON_EXTRACT(doc,'$.gama') AS `ksi` "
+      "FROM `xschema`.`xtable` "
+      "GROUP BY JSON_EXTRACT(doc,'$.beta'),JSON_EXTRACT(doc,'$.theta')"
+      ") AS `_DERIVED_TABLE_`",
+      query.get());
+}
+
+
+TEST_F(Find_statement_builder_test, add_statement_document_with_grouping_no_projection)
+{
+  msg <<
+      "collection {name: 'xtable' schema: 'xschema'}"
+      "data_model: DOCUMENT "
+      "grouping {type: IDENT identifier {document_path {type: MEMBER "
+      "                                                  value: 'beta'}}}";
+  builder.set_document_model();
+  EXPECT_THROW(builder.add_statement(), ngs::Error_code);
 }
 
 } // namespace test
 } // namespace xpl
-
-

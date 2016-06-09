@@ -123,7 +123,6 @@ ALTER TABLE tables_priv
   MODIFY Db char(64) NOT NULL default '',
   MODIFY User char(32) NOT NULL default '',
   MODIFY Table_name char(64) NOT NULL default '',
-  MODIFY Grantor char(77) NOT NULL default '',
   ENGINE=MyISAM,
   CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 
@@ -135,6 +134,9 @@ ALTER TABLE tables_priv
                         'Create View','Show view','Trigger')
     COLLATE utf8_general_ci DEFAULT '' NOT NULL,
   COMMENT='Table privileges';
+
+ALTER TABLE tables_priv
+  MODIFY Grantor char(93) NOT NULL default '';
 
 #
 # columns_priv
@@ -196,6 +198,12 @@ ADD max_questions int(11) NOT NULL DEFAULT 0 AFTER x509_subject,
 ADD max_updates   int(11) unsigned NOT NULL DEFAULT 0 AFTER max_questions,
 ADD max_connections int(11) unsigned NOT NULL DEFAULT 0 AFTER max_updates;
 
+#
+# Update proxies_priv definition.
+#
+ALTER TABLE proxies_priv MODIFY User char(32) binary DEFAULT '' NOT NULL;
+ALTER TABLE proxies_priv MODIFY Proxied_user char(32) binary DEFAULT '' NOT NULL;
+ALTER TABLE proxies_priv MODIFY Grantor char(93) DEFAULT '' NOT NULL;
 
 #
 #  Add Create_tmp_table_priv and Lock_tables_priv to db
@@ -412,6 +420,8 @@ ALTER TABLE procs_priv
 ALTER TABLE procs_priv
   MODIFY Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER Proc_priv;
 
+ALTER TABLE procs_priv
+  MODIFY Grantor char(93) DEFAULT '' NOT NULL;
 #
 # proc
 #
@@ -469,7 +479,7 @@ ALTER TABLE proc CONVERT TO CHARACTER SET utf8;
 ALTER TABLE proc  MODIFY db
                          char(64) collate utf8_bin DEFAULT '' NOT NULL,
                   MODIFY definer
-                         char(77) collate utf8_bin DEFAULT '' NOT NULL,
+                         char(93) collate utf8_bin DEFAULT '' NOT NULL,
                   MODIFY comment
                          text collate utf8_bin DEFAULT '' NOT NULL;
 
@@ -613,6 +623,7 @@ ALTER TABLE event ADD body_utf8 longblob DEFAULT NULL
                       AFTER db_collation;
 ALTER TABLE event MODIFY body_utf8 longblob DEFAULT NULL;
 
+ALTER TABLE event MODIFY definer char(93) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '';
 
 #
 # TRIGGER privilege

@@ -1714,6 +1714,14 @@ EVENT-ORDER-ABORT
 ###########
 SET @@null_audit_event_order_check_exact = <expected_check_exact>;
 SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;ABORT_RET';
+SELECT 1;
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_PARSE_PREPARSE';1).
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+SET @@null_audit_event_order_check_exact = <expected_check_exact>;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";;'
                                           'MYSQL_AUDIT_PARSE_PREPARSE;;;'
                                           'MYSQL_AUDIT_PARSE_POSTPARSE;;ABORT_RET';
 SELECT 1;

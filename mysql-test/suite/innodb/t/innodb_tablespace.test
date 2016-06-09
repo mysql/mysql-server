@@ -411,3 +411,14 @@ DROP TABLE emp;
 EVAL SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
 --enable_query_log
 
+--echo #
+--echo # Bug#22899690  FAILING ASSERT: FIL_SPACE_GET(TABLE->SPACE) !=__NULL
+--echo # IN ROW0QUIESCE.CC LINE 724
+--echo #
+CREATE TABLE t1(c1 CHAR (1));
+ALTER TABLE t1 DISCARD TABLESPACE;
+--error ER_TABLESPACE_DISCARDED
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+DROP TABLE t1;
+

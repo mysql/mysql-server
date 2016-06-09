@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -47,7 +47,8 @@ public:
     I_connection_provider* connection_provider,
     Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
     message_handler, Simple_id_generator* object_id_generator,
-    Mysqldump_tool_chain_maker_options* options);
+    Mysqldump_tool_chain_maker_options* options,
+    Mysql::Tools::Base::Abstract_program* program);
 
   ~Mysqldump_tool_chain_maker();
 
@@ -59,11 +60,14 @@ public:
 private:
   void mysql_thread_callback(bool is_starting);
 
+  void stop_queues();
+
   Mysqldump_tool_chain_maker_options* m_options;
 
   Mysql_object_reader* m_main_object_reader;
   std::map<int, Object_queue*> m_object_queues;
   std::vector<I_chain_element*> m_all_created_elements;
+  Mysql::Tools::Base::Abstract_program* m_program;
 };
 
 }

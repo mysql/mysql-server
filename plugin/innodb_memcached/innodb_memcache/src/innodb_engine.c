@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -1929,6 +1929,9 @@ search_done:
 						&col_value->value_int,
 						col_value->value_len,
 						col_value->is_unsigned);
+
+                                        assert(int_len <= conn_data->mul_col_buf_len);
+
 					memcpy(c_value, int_buf, int_len);
 					c_value += int_len;
 				} else {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -62,7 +62,7 @@ static long number_of_calls= 0; /* for SHOW STATUS, see below */
     1                    failure (cannot happen)
 */
 
-static int simple_parser_plugin_init(void *arg __attribute__((unused)))
+static int simple_parser_plugin_init(void *arg MY_ATTRIBUTE((unused)))
 {
   return(0);
 }
@@ -81,7 +81,7 @@ static int simple_parser_plugin_init(void *arg __attribute__((unused)))
 
 */
 
-static int simple_parser_plugin_deinit(void *arg __attribute__((unused)))
+static int simple_parser_plugin_deinit(void *arg MY_ATTRIBUTE((unused)))
 {
   return(0);
 }
@@ -102,7 +102,7 @@ static int simple_parser_plugin_deinit(void *arg __attribute__((unused)))
 */
 
 static int simple_parser_init(MYSQL_FTPARSER_PARAM *param
-                              __attribute__((unused)))
+                              MY_ATTRIBUTE((unused)))
 {
   return(0);
 }
@@ -123,7 +123,7 @@ static int simple_parser_init(MYSQL_FTPARSER_PARAM *param
 */
 
 static int simple_parser_deinit(MYSQL_FTPARSER_PARAM *param
-                                __attribute__((unused)))
+                                MY_ATTRIBUTE((unused)))
 {
   return(0);
 }

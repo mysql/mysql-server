@@ -623,7 +623,7 @@ update_mbr:
 
 /**************************************************************//**
 Update parent page's MBR and Predicate lock information during a split */
-static __attribute__((nonnull))
+static MY_ATTRIBUTE((nonnull))
 void
 rtr_adjust_upper_level(
 /*===================*/
@@ -1687,36 +1687,6 @@ rtr_merge_mbr_changed(
 		mbr++;
 	}
 
-	if (!changed) {
-		rec_t*	rec1;
-		rec_t*	rec2;
-		ulint*	offsets1;
-		ulint*	offsets2;
-		mem_heap_t*	heap;
-
-		heap = mem_heap_create(100);
-
-		rec1 = page_rec_get_next(
-			page_get_infimum_rec(
-				buf_block_get_frame(merge_block)));
-
-		offsets1 = rec_get_offsets(
-			rec1, index, NULL, ULINT_UNDEFINED, &heap);
-
-		rec2 = page_rec_get_next(
-			page_get_infimum_rec(
-				buf_block_get_frame(block)));
-		offsets2 = rec_get_offsets(
-			rec2, index, NULL, ULINT_UNDEFINED, &heap);
-
-		/* Check any primary key fields have been changed */
-		if (cmp_rec_rec(rec1, rec2, offsets1, offsets2, index) != 0) {
-			changed = true;
-		}
-
-		mem_heap_free(heap);
-	}
-
 	return(changed);
 }
 
@@ -1885,7 +1855,7 @@ rtr_estimate_n_rows_in_range(
 
 	/* Read mbr from tuple. */
 	const dfield_t*	dtuple_field;
-	ulint		dtuple_f_len __attribute__((unused));
+	ulint		dtuple_f_len MY_ATTRIBUTE((unused));
 	rtr_mbr_t	range_mbr;
 	double		range_area;
 	byte*		range_mbr_ptr;

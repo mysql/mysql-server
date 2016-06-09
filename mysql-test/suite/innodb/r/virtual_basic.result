@@ -1598,3 +1598,27 @@ d longblob generated always as (c) virtual
 select d in(select d from t)from t group by d;
 d in(select d from t)
 drop table t;
+#
+# BUG#23052231 - ASSERTION FAILURE: ROW0MERGE.CC:2100:ADD_AUTOINC
+# < DICT_TABLE_GET_N_USER_COLS
+#
+CREATE TABLE `t` (
+`a` int(11) NOT NULL,
+`d` int(11) NOT NULL,
+`b` varchar(198) NOT NULL,
+`c` char(177) DEFAULT NULL,
+`vadcol` int(11) GENERATED ALWAYS AS ((`a` + length(`d`))) STORED,
+`vbcol` char(2) GENERATED ALWAYS AS (substr(`b`,2,2)) VIRTUAL,
+`vbidxcol` char(3) GENERATED ALWAYS AS (substr(`b`,1,3)) VIRTUAL,
+PRIMARY KEY (`b`(10),`a`,`d`),
+KEY `d` (`d`),
+KEY `a` (`a`),
+KEY `c_renamed` (`c`(99),`b`(35)),
+KEY `b` (`b`(5),`c`(10),`a`),
+KEY `vbidxcol` (`vbidxcol`),
+KEY `a_2` (`a`,`vbidxcol`),
+KEY `vbidxcol_2` (`vbidxcol`,`d`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t values (11, 1, "11", "aa", default, default, default);
+ALTER TABLE t ADD COLUMN nc01128 BIGINT  AUTO_INCREMENT NOT NULL, ADD KEY auto_nc01128(nc01128);
+DROP TABLE t;

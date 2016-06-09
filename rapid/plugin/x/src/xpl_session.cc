@@ -28,14 +28,14 @@
 #include "ngs/scheduler.h"
 #include "notices.h"
 #include "ngs/ngs_error.h"
-#include "mysqlx.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 
 #include <iostream>
 
 
 xpl::Session::Session(ngs::Client &client, ngs::Protocol_encoder *proto, Session_id session_id)
 : ngs::Session(client, proto, session_id),
-  m_sql(new Sql_data_context(*proto)),
+  m_sql(new Sql_data_context(proto)),
   m_crud_handler(NULL),
   m_was_authenticated(false)
 {

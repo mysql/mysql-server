@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include "lf.h"
 
 struct PFS_global_param;
+class PFS_opaque_container_page;
 
 /* WL#988 Roles Not implemented yet */
 #define ROLENAME_LENGTH 64
@@ -71,6 +72,8 @@ struct PFS_ALIGNED PFS_setup_actor
   bool m_enabled;
   /** HISTORY flag. */
   bool m_history;
+  /** Container page. */
+  PFS_opaque_container_page *m_page;
 };
 
 int init_setup_actor(const PFS_global_param *param);
