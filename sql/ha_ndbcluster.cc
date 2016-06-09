@@ -17559,7 +17559,7 @@ enum_alter_inplace_result
   {
     /* Check that row format didn't change */
     if (create_info->used_fields & HA_CREATE_USED_AUTO &&
-        get_row_type() != create_info->row_type)
+        table->s->real_row_type != create_info->row_type)
     {
       DBUG_PRINT("info", ("Row format changed"));
       DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
@@ -17571,7 +17571,8 @@ enum_alter_inplace_result
 
 bool
 ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
-                                              Alter_inplace_info *ha_alter_info)
+                                           Alter_inplace_info *ha_alter_info,
+                                           dd::Table *new_dd_tab)
 {
   int error= 0;
   uint i;
