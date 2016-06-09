@@ -234,7 +234,7 @@ mysqltest: At line 2: Spurious text after `query` expression
 mysqltest: At line 1: Missing argument(s) to 'error'
 mysqltest: At line 1: Missing argument(s) to 'error'
 mysqltest: At line 1: The sqlstate definition must start with an uppercase S
-mysqltest: At line 1: The error name definition must start with an uppercase E
+mysqltest: At line 1: The error name definition must start with an uppercase E or C
 mysqltest: At line 1: Invalid argument to error: '9eeeee' - the errno may only consist of digits[0-9]
 mysqltest: At line 1: Invalid argument to error: '1sssss' - the errno may only consist of digits[0-9]
 mysqltest: At line 1: The sqlstate must be exactly 5 chars long
@@ -1216,3 +1216,11 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TEMPORARY TABLE t1;
+#
+# Bug#21048973 : SUPPORT "--ERROR CR_..." FOR COMMUNICATION RELATED ERRORS
+#
+SELECT 1 AS res;
+res
+1
+SELECT 1 AS res;
+ERROR HY000: MySQL server has gone away

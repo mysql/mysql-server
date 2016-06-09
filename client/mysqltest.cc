@@ -2669,6 +2669,7 @@ static st_error global_error_names[] =
   { "<No error>", (uint)-1, "" },
 #ifndef IN_DOXYGEN
 #include <mysqld_ername.h>
+#include <mysqlclient_ername.h>
 #endif /* IN_DOXYGEN */
   { 0, 0, 0 }
 };
@@ -5391,7 +5392,11 @@ static void do_get_errcodes(struct st_command *command)
     {
       die("The sqlstate definition must start with an uppercase S");
     }
-    else if (*p == 'E')
+    /*
+      Code to handle --error <error_string>
+      Checking for both server error names as well as client error names.
+    */
+    else if (*p == 'E' || *p == 'C')
     {
       /* Error name string */
 
@@ -5400,9 +5405,9 @@ static void do_get_errcodes(struct st_command *command)
       to->type= ERR_ERRNO;
       DBUG_PRINT("info", ("ERR_ERRNO: %d", to->code.errnum));
     }
-    else if (*p == 'e')
+    else if (*p == 'e' || *p == 'c')
     {
-      die("The error name definition must start with an uppercase E");
+      die("The error name definition must start with an uppercase E or C");
     }
     else
     {
