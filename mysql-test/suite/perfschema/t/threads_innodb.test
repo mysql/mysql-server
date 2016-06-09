@@ -14,7 +14,7 @@
 # We suppress here duplicates rows with the goal to avoid that the test fails
 # in case some defaults are changed.
 SELECT name, type, processlist_user, processlist_host, processlist_db,
-       processlist_command, processlist_time, processlist_state, processlist_info,
+       processlist_command, processlist_state, processlist_info,
        parent_thread_id, role, instrumented
 FROM performance_schema.threads
 WHERE name LIKE 'thread/innodb/%'
