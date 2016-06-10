@@ -5830,5 +5830,44 @@ OCTET_LENGTH(a)	a
 255	ＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡ
 DROP TABLE t1;
 #
+# MDEV-8402 Bug#77473 Bug#21317406 TRUNCATED DATA WITH SUBQUERY & UTF8
+#
+#
+SET NAMES utf8;
+SELECT length(rpad(_utf8 0xD0B1, 65536, _utf8 0xD0B2)) AS data;
+data
+131072
+SELECT length(data) AS len FROM (
+SELECT rpad(_utf8 0xD0B1, 65536, _utf8 0xD0B2) AS data
+) AS sub;
+len
+131072
+SELECT length(rpad(_utf8 0xD0B1, 65535, _utf8 0xD0B2)) AS data;
+data
+131070
+SELECT length(data) AS len FROM (
+SELECT rpad(_utf8 0xD0B1, 65535, _utf8 0xD0B2) AS data
+) AS sub;
+len
+131070
+SELECT length(data) AS len FROM (SELECT REPEAT('ä', 36766) AS data) AS sub;
+len
+73532
+SELECT length(data) AS len FROM (SELECT REPEAT('ä', 36767) AS data) AS sub;
+len
+73534
+SELECT length(data) AS len FROM (SELECT REPEAT('ä', 36778) AS data) AS sub;
+len
+73556
+SELECT length(data) AS len FROM (SELECT REPEAT('ä', 65535) AS data) AS sub;
+len
+131070
+SELECT length(data) AS len FROM (SELECT REPEAT('ä', 65536) AS data) AS sub;
+len
+131072
+SELECT length(data) AS len FROM (SELECT REPEAT('ä', 65537) AS data) AS sub;
+len
+131074
+#
 # End of 5.5 tests
 #

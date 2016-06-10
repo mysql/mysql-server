@@ -1839,6 +1839,26 @@ DROP TABLE t1;
 
 
 --echo #
+--echo # MDEV-8402 Bug#77473 Bug#21317406 TRUNCATED DATA WITH SUBQUERY & UTF8
+--echo #
+--echo #
+
+SET NAMES utf8mb4;
+SELECT length(repeat(_utf8mb4 0xE29883, 21844)) AS data;
+SELECT length(data) AS len
+FROM ( SELECT repeat(_utf8mb4 0xE29883, 21844) AS data ) AS sub;
+
+SELECT length(repeat(_utf8mb4 0xE29883, 21846)) AS data;
+SELECT length(data) AS len
+FROM ( SELECT repeat(_utf8mb4 0xE29883, 21846) AS data ) AS sub;
+
+SELECT LENGTH(data) AS len FROM (SELECT REPEAT('☃', 21844) AS data ) AS sub;
+SELECT LENGTH(data) AS len FROM (SELECT REPEAT('☃', 21845) AS data ) AS sub;
+SELECT LENGTH(data) AS len FROM (SELECT REPEAT('☃', 21846) AS data ) AS sub;
+SELECT LENGTH(data) AS len FROM (SELECT REPEAT('☃', 65535) AS data ) AS sub;
+SELECT LENGTH(data) AS len FROM (SELECT REPEAT('☃', 65536) AS data ) AS sub;
+
+--echo #
 --echo # End of 5.5 tests
 --echo #
 
