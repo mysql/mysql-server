@@ -5143,33 +5143,6 @@ uint8 ha_partition::table_cache_type()
                 MODULE print messages
 ****************************************************************************/
 
-enum row_type ha_partition::get_row_type() const
-{
-  uint i;
-  enum row_type type;
-  DBUG_ENTER("ha_partition::get_row_type");
-
-  i= m_part_info->get_first_used_partition();
-  DBUG_ASSERT(i < m_tot_parts);
-  if (i >= m_tot_parts)
-    DBUG_RETURN(ROW_TYPE_NOT_USED);
-
-  type= m_file[i]->get_row_type();
-  DBUG_PRINT("info", ("partition %u, row_type: %d", i, type));
-
-  for (i= bitmap_get_next_set(&m_part_info->lock_partitions, i);
-       i < m_tot_parts;
-       i= bitmap_get_next_set(&m_part_info->lock_partitions, i))
-  {
-    enum row_type part_type= m_file[i]->get_row_type();
-    DBUG_PRINT("info", ("partition %u, row_type: %d", i, type));
-    if (part_type != type)
-      DBUG_RETURN(ROW_TYPE_NOT_USED);
-  }
-
-  DBUG_RETURN(type);
-}
-
 void ha_partition::print_error(int error, myf errflag)
 {
   DBUG_ENTER("ha_partition::print_error");
@@ -5633,6 +5606,11 @@ bool ha_partition::is_index_algorithm_supported(enum ha_key_alg key_alg) const
 {
   // We can do this since we only support a single engine type.
   return m_file[0]->is_index_algorithm_supported(key_alg);
+}
+
+enum row_type ha_partition::get_real_row_type(const HA_CREATE_INFO *create_info) const
+{
+  return m_file[0]->get_real_row_type(create_info);
 }
 
 /****************************************************************************

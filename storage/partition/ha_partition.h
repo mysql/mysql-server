@@ -684,9 +684,6 @@ public:
   /* The name of the table type that will be used for display purposes */
   virtual const char *table_type() const;
 
-  /* The name of the row type used for the underlying tables. */
-  virtual enum row_type get_row_type() const;
-
   /*
      Handler specific error messages
   */
@@ -925,6 +922,12 @@ public:
   virtual enum ha_key_alg get_default_index_algorithm() const;
   /* Check if SE supports specific key algorithm. */
   virtual bool is_index_algorithm_supported(enum ha_key_alg key_alg) const;
+
+  /*
+    The real row type used for the underlying tables (as opposed to one
+    specified by user explicitly through ROW_FORMAT option).
+  */
+  virtual enum row_type get_real_row_type(const HA_CREATE_INFO *create_info) const;
 
   /*
     -------------------------------------------------------------------------

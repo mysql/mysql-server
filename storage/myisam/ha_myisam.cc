@@ -819,6 +819,18 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked,
 
   if (!table->s->tmp_table) /* No need to perform a check for tmp table */
   {
+    /*
+      If the data dictionary and SQL-layer have outdated information
+      about whether table is compressed or not, ask them to retrieve
+      correct row format from the storage engine and store it in DD.
+    */
+    if ((table->s->real_row_type != ROW_TYPE_COMPRESSED) !=
+        !(file->s->options & HA_OPTION_COMPRESS_RECORD))
+    {
+      table->s->db_options_in_use= file->s->options;
+      set_my_errno(HA_ERR_ROW_FORMAT_CHANGED);
+      goto err;
+    }
     set_my_errno(table2myisam(table, &keyinfo, &recinfo, &recs));
     if (my_errno())
     {

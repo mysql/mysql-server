@@ -33,6 +33,21 @@ IF(NOT CMAKE_CROSSCOMPILING)
  TARGET_LINK_LIBRARIES(comp_err mysys mysys_ssl)
 ENDIF()
 
+ADD_EXECUTABLE(comp_client_err
+  comp_client_err.cc ${CMAKE_SOURCE_DIR}/libmysql/errmsg.c)
+TARGET_LINK_LIBRARIES(comp_client_err mysys mysys_ssl)
+
+ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/include/mysqlclient_ername.h
+  COMMAND comp_client_err
+  --in_file=${PROJECT_SOURCE_DIR}/include/errmsg.h
+  --out_file=${PROJECT_BINARY_DIR}/include/mysqlclient_ername.h
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/comp_client_err.cc)
+
+ADD_CUSTOM_TARGET(GenClientError
+                  ALL
+                  DEPENDS ${PROJECT_BINARY_DIR}/include/mysqlclient_ername.h)
+
+
 IF (BUILD_BUNDLED_LZ4)
   ADD_CONVENIENCE_LIBRARY(lz4_lib
     lz4/lz4.c

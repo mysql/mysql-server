@@ -21,6 +21,11 @@ LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 # it was before the patch that adds this comment.
 --let $table_stats_id = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/innodb_table_stats'`
 --let $index_stats_id = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/innodb_index_stats'`
+# Help tables are unstable between developers' sandboxes and PushBuild
+--let $help_table_1   = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/help_topic'`
+--let $help_table_2   = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/help_category'`
+--let $help_table_3   = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/help_keyword'`
+--let $help_table_4   = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/help_relation'`
 --let $rep_table_1 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_master_info'`
 --let $rep_table_2 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_relay_log_info'`
 --let $rep_table_3 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_worker_info'`
@@ -28,17 +33,18 @@ LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 --let $sys_config = `SELECT IFNULL((SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'sys/sys_config'), 0)`
 
 --disable_query_log
---eval SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3, $sys_config) ORDER BY table_id;
+--eval SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $help_table_1, $help_table_2, $help_table_3, $help_table_4, $rep_table_1, $rep_table_2, $rep_table_3, $sys_config) ORDER BY table_id;
 
---eval SELECT table_id,pos,mtype,prtype,len,name FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3, $sys_config) ORDER BY table_id, pos;
+--eval SELECT table_id,pos,mtype,prtype,len,name FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $help_table_1, $help_table_2, $help_table_3, $help_table_4, $rep_table_1, $rep_table_2, $rep_table_3, $sys_config) ORDER BY table_id, pos;
 
 # The SELECT * version of the query below has been moved to innodb_4k,
 # innodb_8k & innodb_16k since the root page number changes with page size.
---eval SELECT index_id,table_id,type,n_fields,space,name FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3, $sys_config) ORDER BY index_id;
+--eval SELECT index_id,table_id,type,n_fields,space,name FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $help_table_1, $help_table_2, $help_table_3, $help_table_4, $rep_table_1, $rep_table_2, $rep_table_3, $sys_config) ORDER BY index_id;
 --enable_query_log
 
 SELECT index_id,pos,name FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS
-       WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'id', 'host', 'port', 'variable')
+       WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'id', 'host', 'port', 'variable',
+       	                  'name', 'help_topic_id', 'help_keyword_id', 'help_category_id')
        ORDER BY index_id, pos;
 
 --sorted_result

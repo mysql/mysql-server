@@ -1241,6 +1241,37 @@ static bool fill_dd_partition_from_create_info(THD *thd,
 }
 
 
+/**
+  Convert old row type value to corresponding value in new row format enum
+  used by DD framework.
+*/
+
+static Table::enum_row_format dd_get_new_row_format(row_type old_format)
+{
+  switch (old_format)
+  {
+  case ROW_TYPE_FIXED:
+    return Table::RF_FIXED;
+  case ROW_TYPE_DYNAMIC:
+    return Table::RF_DYNAMIC;
+  case ROW_TYPE_COMPRESSED:
+    return Table::RF_COMPRESSED;
+  case ROW_TYPE_REDUNDANT:
+    return Table::RF_REDUNDANT;
+  case ROW_TYPE_COMPACT:
+    return Table::RF_COMPACT;
+  case ROW_TYPE_PAGED:
+    return Table::RF_PAGED;
+  case ROW_TYPE_NOT_USED:
+  case ROW_TYPE_DEFAULT:
+  default:
+    DBUG_ASSERT(0);
+    break;
+  }
+  return Table::RF_FIXED;
+}
+
+
 /** Fill dd::Table object from mysql_prepare_create_table() output. */
 static bool fill_dd_table_from_create_info(THD *thd,
                                            dd::Table *tab_obj,
@@ -1365,7 +1396,14 @@ static bool fill_dd_table_from_create_info(THD *thd,
 
   table_options->set_uint32("avg_row_length", create_info->avg_row_length);
 
-  table_options->set_uint32("row_type", create_info->row_type);
+  // ROW_FORMAT which was explicitly specified by user (if any).
+  if (create_info->row_type != ROW_TYPE_DEFAULT)
+    table_options->set_uint32("row_type",
+                              dd_get_new_row_format(create_info->row_type));
+
+  // ROW_FORMAT which is really used for the table by SE (perhaps implicitly).
+  tab_obj->set_row_format(dd_get_new_row_format(
+                            file->get_real_row_type(create_info)));
 
   table_options->set_uint32("stats_sample_pages",
                      create_info->stats_sample_pages & 0xffff);
@@ -2141,6 +2179,74 @@ std::unique_ptr<T> acquire_uncached_uncommitted_table(THD *thd,
   }
 
   return std::unique_ptr<T>(const_cast<T*>(object));
+}
+
+
+bool fix_row_type(THD *thd, TABLE_SHARE *share)
+{
+  Disable_autocommit_guard autocommit_guard(thd);
+  dd::Schema_MDL_locker mdl_locker(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Schema *sch= nullptr;
+  std::unique_ptr<dd::Table> new_table_def;
+
+  // There should be an exclusive metadata lock on the table
+  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+              share->db.str, share->table_name.str, MDL_EXCLUSIVE));
+
+  if (mdl_locker.ensure_locked(share->db.str) ||
+      thd->dd_client()->acquire<dd::Schema>(share->db.str, &sch))
+    return true;
+
+  if (!sch)
+  {
+    DBUG_ASSERT(0);
+    my_error(ER_BAD_DB_ERROR, MYF(0), share->db.str);
+    return true;
+  }
+
+  {
+    /* We need to release old table definition before invalidating cache. */
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Table *old_table_def= nullptr;
+
+    if (thd->dd_client()->acquire(share->db.str, share->table_name.str,
+                                  &old_table_def))
+      return true;
+
+    if (!old_table_def)
+    {
+      DBUG_ASSERT(0);
+      my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
+      return true;
+    }
+
+    new_table_def= std::unique_ptr<dd::Table>(old_table_def->clone());
+  }
+
+  HA_CREATE_INFO create_info;
+  create_info.row_type= share->row_type;
+  create_info.table_options= share->db_options_in_use;
+
+  handler *file= get_new_handler(share, share->m_part_info != NULL,
+                                 thd->mem_root, share->db_type());
+  if (!file)
+    return true;
+
+  row_type correct_row_type= file->get_real_row_type(&create_info);
+  new_table_def->set_row_format(dd_get_new_row_format(correct_row_type));
+
+  delete file;
+
+  if (thd->dd_client()->update_uncached_and_invalidate(new_table_def.get()) ||
+      store_sdi(thd, new_table_def.get(), sch))
+  {
+    trans_rollback_stmt(thd);
+    trans_rollback(thd);
+    return true;
+  }
+
+  return trans_commit_stmt(thd) || trans_commit(thd);
 }
 
 } // namespace dd

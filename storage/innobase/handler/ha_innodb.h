@@ -73,9 +73,7 @@ public:
 	ha_innobase(handlerton* hton, TABLE_SHARE* table_arg);
 	~ha_innobase();
 
-	/** Get the row type from the storage engine.  If this method returns
-	ROW_TYPE_NOT_USED, the information in HA_CREATE_INFO should be used. */
-	row_type get_row_type() const;
+	row_type get_real_row_type(const HA_CREATE_INFO *create_info) const;
 
 	const char* table_type() const;
 

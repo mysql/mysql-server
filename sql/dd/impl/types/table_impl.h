@@ -99,6 +99,16 @@ public:
   { m_engine= engine; }
 
   /////////////////////////////////////////////////////////////////////////
+  // row_format
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual enum_row_format row_format() const
+  { return m_row_format; }
+
+  virtual void set_row_format(enum_row_format row_format)
+  { m_row_format= row_format; }
+
+  /////////////////////////////////////////////////////////////////////////
   // comment
   /////////////////////////////////////////////////////////////////////////
 
@@ -313,6 +323,7 @@ private:
   std::string m_engine;
   std::string m_comment;
   std::unique_ptr<Properties> m_se_private_data;
+  enum_row_format m_row_format;
 
   // - Partitioning related fields.
 

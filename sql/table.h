@@ -645,7 +645,15 @@ struct TABLE_SHARE
     // DBUG_ASSERT(db_plugin);
     return db_plugin ? plugin_data<handlerton*>(db_plugin) : NULL;
   }
-  enum row_type row_type;		/* How rows are stored */
+  /**
+    Value of ROW_FORMAT option for the table as provided by user.
+    Can be different from the real row format used by the storage
+    engine. ROW_TYPE_DEFAULT value indicates that no explicit
+    ROW_FORMAT was specified for the table. @sa real_row_type.
+  */
+  enum row_type row_type;
+  /** Real row format used for the table by the storage engine. */
+  enum row_type real_row_type;
   enum tmp_table_type tmp_table;
 
   uint ref_count;                       /* How many TABLE objects uses this */

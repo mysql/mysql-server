@@ -173,3 +173,42 @@ CREATE TABLE db1.t1(c1 INT) ENGINE=MyISAM;
 let $MYSQLD_DATADIR = `SELECT @@datadir`;
 --exec $MYISAMPACK -b -f $MYSQLD_DATADIR/db1/t1
 DROP DATABASE db1;
+
+
+--echo #
+--echo # Test coverage for myisampack/myisamchk --unpack interaction with
+--echo # the data dictionary.
+--echo #
+--echo # The first DML statement which accesses table after it was
+--echo # compressed/uncompressed triggers data-dictionary update which
+--echo # synchronizes ROW_FORMAT for the table stored in the data dictionary
+--echo # and in the MyISAM files.
+--echo #
+
+CREATE TABLE t1(a CHAR(4)) ENGINE=MYISAM;
+SELECT row_format, table_comment FROM information_schema.tables
+  WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+INSERT INTO t1 VALUES('aaaa'),('bbbb'),('cccc');
+FLUSH TABLE t1;
+--echo # Compressing table t1.
+let $MYSQLD_DATADIR= `select @@datadir`;
+--exec $MYISAMPACK -sf $MYSQLD_DATADIR/test/t1
+--echo # ROW_FORMAT in DD is invalid/outdated here.
+SELECT row_format, table_comment FROM information_schema.tables
+  WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+--echo # The below statement should cause ROW_FORMAT update.
+SELECT COUNT(*) FROM t1;
+SELECT row_format, table_comment FROM information_schema.tables
+  WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+FLUSH TABLE t1;
+--echo # Uncompressing table t1.
+--exec $MYISAMCHK -s --unpack $MYSQLD_DATADIR/test/t1
+--echo # ROW_FORMAT in DD is invalid/outdated here.
+SELECT row_format, table_comment FROM information_schema.tables
+  WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+--echo # The below statement should cause ROW_FORMAT update.
+SELECT COUNT(*) FROM t1;
+SELECT row_format, table_comment FROM information_schema.tables
+  WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+DROP TABLE t1;
+

@@ -46,6 +46,7 @@ insert into t1 select * from t1;
 flush tables;
 optimize table t1;
 Table	Op	Msg_type	Msg_text
+test.t1	optimize	Error	Got error 202 - 'Row format changed in storage engine' from storage engine
 test.t1	optimize	Error	Table 't1' is read only
 test.t1	optimize	status	Operation failed
 repair table t1;
@@ -63,6 +64,8 @@ FLUSH TABLE t1;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1024
+Warnings:
+Error	1030	Got error 202 - 'Row format changed in storage engine' from storage engine
 DROP TABLE t1;
 #
 # Bug #43973 - backup_myisam.test fails on 6.0-bugteam
@@ -84,6 +87,8 @@ FLUSH TABLE mysql_db1.t1;
 SELECT COUNT(*) FROM mysql_db1.t1 WHERE c2 < 5;
 COUNT(*)
 128
+Warnings:
+Error	1030	Got error 202 - 'Row format changed in storage engine' from storage engine
 DROP DATABASE mysql_db1;
 #
 # BUG#11761180 - 53646: MYISAMPACK CORRUPTS TABLES WITH FULLTEXT INDEXES
@@ -93,6 +98,7 @@ INSERT INTO t1 VALUES('aaaa'),('bbbb'),('cccc');
 FLUSH TABLE t1;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
+test.t1	check	Error	Got error 202 - 'Row format changed in storage engine' from storage engine
 test.t1	check	status	OK
 SELECT * FROM t1 WHERE MATCH(a) AGAINST('aaaa' IN BOOLEAN MODE);
 a
@@ -110,6 +116,7 @@ FLUSH TABLE t1;
 # Fixing index (repair by sort)
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
+test.t1	check	Error	Got error 202 - 'Row format changed in storage engine' from storage engine
 test.t1	check	status	OK
 FLUSH TABLE t1;
 # Fixing index (repair with keycache)
@@ -124,3 +131,57 @@ DROP TABLE t1;
 CREATE DATABASE db1;
 CREATE TABLE db1.t1(c1 INT) ENGINE=MyISAM;
 DROP DATABASE db1;
+#
+# Test coverage for myisampack/myisamchk --unpack interaction with
+# the data dictionary.
+#
+# The first DML statement which accesses table after it was
+# compressed/uncompressed triggers data-dictionary update which
+# synchronizes ROW_FORMAT for the table stored in the data dictionary
+# and in the MyISAM files.
+#
+CREATE TABLE t1(a CHAR(4)) ENGINE=MYISAM;
+SELECT row_format, table_comment FROM information_schema.tables
+WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+row_format	table_comment
+Fixed	
+INSERT INTO t1 VALUES('aaaa'),('bbbb'),('cccc');
+FLUSH TABLE t1;
+# Compressing table t1.
+# ROW_FORMAT in DD is invalid/outdated here.
+SELECT row_format, table_comment FROM information_schema.tables
+WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+row_format	table_comment
+NULL	Got error 202 - 'Row format changed in storage engine' from storage engine
+Warnings:
+Warning	1030	Got error 202 - 'Row format changed in storage engine' from storage engine
+# The below statement should cause ROW_FORMAT update.
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+3
+Warnings:
+Error	1030	Got error 202 - 'Row format changed in storage engine' from storage engine
+SELECT row_format, table_comment FROM information_schema.tables
+WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+row_format	table_comment
+Compressed	
+FLUSH TABLE t1;
+# Uncompressing table t1.
+# ROW_FORMAT in DD is invalid/outdated here.
+SELECT row_format, table_comment FROM information_schema.tables
+WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+row_format	table_comment
+NULL	Got error 202 - 'Row format changed in storage engine' from storage engine
+Warnings:
+Warning	1030	Got error 202 - 'Row format changed in storage engine' from storage engine
+# The below statement should cause ROW_FORMAT update.
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+3
+Warnings:
+Error	1030	Got error 202 - 'Row format changed in storage engine' from storage engine
+SELECT row_format, table_comment FROM information_schema.tables
+WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+row_format	table_comment
+Fixed	
+DROP TABLE t1;

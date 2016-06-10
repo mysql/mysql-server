@@ -189,17 +189,13 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
                                 table_create_info.auto_increment_value;
 
   /* Check compatible row_types and set create_info accordingly. */
+  if (part_table->s->real_row_type != table->s->real_row_type)
   {
-    enum row_type part_row_type= part_table->file->get_row_type();
-    enum row_type table_row_type= table->file->get_row_type();
-    if (part_row_type != table_row_type)
-    {
-      my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
-               "ROW_FORMAT");
-      DBUG_RETURN(true);
-    }
-    part_create_info.row_type= table->s->row_type;
+    my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
+             "ROW_FORMAT");
+    DBUG_RETURN(true);
   }
+  part_create_info.row_type= table->s->row_type;
 
   /*
     NOTE: ha_blackhole does not support check_if_compatible_data,

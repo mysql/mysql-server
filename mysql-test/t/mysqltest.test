@@ -3242,3 +3242,17 @@ CREATE /*! TEMPORARY */ TABLE t1 /* shouldn't fail */ (a INT);
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO;
 SHOW CREATE TABLE t1;
 DROP TEMPORARY TABLE t1;
+
+--echo #
+--echo # Bug#21048973 : SUPPORT "--ERROR CR_..." FOR COMMUNICATION RELATED ERRORS
+--echo #
+
+connect (con1, localhost, root,,);
+SELECT 1 AS res;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+--error CR_SERVER_GONE_ERROR
+SELECT 1 AS res;
+
+connection default;

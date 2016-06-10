@@ -58,6 +58,7 @@ Table_impl::Table_impl()
  :m_hidden(false),
   m_se_private_id((ulonglong)-1),
   m_se_private_data(new Properties_impl()),
+  m_row_format(RF_FIXED),
   m_partition_type(PT_NONE),
   m_default_partitioning(DP_NONE),
   m_subpartition_type(ST_NONE),
@@ -222,6 +223,7 @@ bool Table_impl::restore_attributes(const Raw_record &r)
 
   m_hidden=          r.read_bool(Tables::FIELD_HIDDEN);
   m_comment=         r.read_str(Tables::FIELD_COMMENT);
+  m_row_format=      (enum_row_format) r.read_int(Tables::FIELD_ROW_FORMAT);
 
   // Partitioning related fields (NULL -> enum value 0!)
 
@@ -291,6 +293,7 @@ bool Table_impl::store_attributes(Raw_record *r)
     r->store(Tables::FIELD_SE_PRIVATE_ID,
              m_se_private_id,
              m_se_private_id == (ulonglong) -1) ||
+    r->store(Tables::FIELD_ROW_FORMAT, m_row_format) ||
     r->store_ref_id(Tables::FIELD_TABLESPACE_ID, m_tablespace_id) ||
     r->store(Tables::FIELD_PARTITION_TYPE,
              m_partition_type,
@@ -324,6 +327,7 @@ Table_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
   write(w, m_engine, STRING_WITH_LEN("engine"));
   write(w, m_comment, STRING_WITH_LEN("comment"));
   write_properties(w, m_se_private_data, STRING_WITH_LEN("se_private_data"));
+  write_enum(w, m_row_format, STRING_WITH_LEN("row_format"));
   write_enum(w, m_partition_type, STRING_WITH_LEN("partition_type"));
   write(w, m_partition_expression, STRING_WITH_LEN("partition_expression"));
   write_enum(w, m_default_partitioning, STRING_WITH_LEN("default_partitioning"));
@@ -350,6 +354,7 @@ Table_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
   read(&m_engine, val, "engine");
   read(&m_comment, val, "comment");
   read_properties(&m_se_private_data, val, "se_private_data");
+  read_enum(&m_row_format, val, "row_format");
   read_enum(&m_partition_type, val, "partition_type");
   read(&m_partition_expression, val, "partition_expression");
   read_enum(&m_default_partitioning, val, "default_partitioning");
@@ -397,6 +402,7 @@ void Table_impl::debug_print(std::string &outb) const
     << "m_hidden: " << m_hidden << "; "
     << "m_se_private_data " << m_se_private_data->raw_string() << "; "
     << "m_se_private_id: {OID: " << m_se_private_id << "}; "
+    << "m_row_format: " << m_row_format << "; "
     << "m_tablespace: {OID: " << m_tablespace_id << "}; "
     << "m_partition_type " << m_partition_type << "; "
     << "m_default_partitioning " << m_default_partitioning << "; "
@@ -587,6 +593,7 @@ Table_impl::Table_impl(const Table_impl &src)
     m_comment(src.m_comment),
     m_se_private_data(Properties_impl::
                       parse_properties(src.m_se_private_data->raw_string())),
+    m_row_format(src.m_row_format),
     m_partition_type(src.m_partition_type),
     m_partition_expression(src.m_partition_expression),
     m_default_partitioning(src.m_default_partitioning),

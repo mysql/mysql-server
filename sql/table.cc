@@ -1209,6 +1209,7 @@ parse_err:
   @retval 2 Error (see open_table_error)
   @retval 4    Error (see open_table_error)
   @retval 7    Table definition has changed in engine
+  @retval 8    Table row format has changed in engine
 */
 
 int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
@@ -1610,6 +1611,8 @@ partition_err:
           error_reported= TRUE;
           if (ha_err == HA_ERR_TABLE_DEF_CHANGED)
             error= 7;
+          else if (ha_err == HA_ERR_ROW_FORMAT_CHANGED)
+            error= 8;
           break;
       }
       goto err;                                 /* purecov: inspected */
@@ -1762,6 +1765,7 @@ static void open_table_error(THD *thd, TABLE_SHARE *share,
   DBUG_ENTER("open_table_error");
 
   switch (error) {
+  case 8:
   case 7:
   case 1:
     switch (db_errno) {

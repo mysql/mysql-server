@@ -54,6 +54,16 @@ public:
   { };
 
 public:
+  enum enum_row_format
+  {
+    RF_FIXED= 1,
+    RF_DYNAMIC,
+    RF_COMPRESSED,
+    RF_REDUNDANT,
+    RF_COMPACT,
+    RF_PAGED
+  };
+
   /* Keep in sync with subpartition type for forward compatibility.*/
   enum enum_partition_type
   {
@@ -113,6 +123,12 @@ public:
 
   virtual const std::string &engine() const = 0;
   virtual void set_engine(const std::string &engine) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // row_format
+  /////////////////////////////////////////////////////////////////////////
+  virtual enum_row_format row_format() const = 0;
+  virtual void set_row_format(enum_row_format row_format) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // comment

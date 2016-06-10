@@ -288,5 +288,19 @@ std::unique_ptr<T> acquire_uncached_uncommitted_table(THD *thd,
                                                       const char *schema_name,
                                                       const char *name);
 
+/**
+  Update real row format for the table in the data-dictionary with
+  value from the storage engine.
+
+  @pre There must be an exclusive MDL lock on the table.
+
+  @param[in]    thd         Thread context.
+  @param[in]    share       TABLE_SHARE for the table.
+
+  @retval       false       Success
+  @retval       true        Error
+*/
+bool fix_row_type(THD *thd, TABLE_SHARE *share);
+
 } // namespace dd
 #endif // DD_TABLE_INCLUDED

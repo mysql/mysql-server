@@ -159,8 +159,8 @@ public:
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
   void start_bulk_insert(ha_rows rows);
   int end_bulk_insert();
-  enum row_type get_row_type() const 
-  { 
+  enum row_type get_real_row_type(const HA_CREATE_INFO *create_info) const
+  {
     return ROW_TYPE_COMPRESSED;
   }
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
