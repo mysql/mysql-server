@@ -194,8 +194,7 @@ count(*)
 drop procedure populate_t1;
 drop procedure populate_t1_small;
 drop procedure populate_t1_small2;
-drop table t1;
-drop table t2;
+drop temporary table t1,t2;
 create temporary table t1
 (keyc int, c1 char(100), c2 char(100),
 primary key(keyc), index sec_index(c1)
@@ -210,7 +209,7 @@ create temporary table t2
 (keyc int, c1 char(100), c2 char(100),
 primary key(keyc), index sec_index(c1)
 ) engine = innodb key_block_size = 8;
-set innodb_strict_mode=default;
+set innodb_strict_mode=on;
 create procedure populate_t1()
 begin
 declare i int default 1;
@@ -399,9 +398,7 @@ count(*)
 drop procedure populate_t1;
 drop procedure populate_t1_small;
 drop procedure populate_t1_small2;
-drop table t1;
-drop table t2;
-set global innodb_file_per_table = 0;
+drop temporary table t1, t2;
 create temporary table t1
 (keyc int, c1 char(100), c2 char(100),
 primary key(keyc), index sec_index(c1)
@@ -598,6 +595,3 @@ count(*)
 drop procedure populate_t1;
 drop procedure populate_t1_small;
 drop procedure populate_t1_small2;
-drop table t1;
-drop table t2;
-set global innodb_file_per_table = 1;

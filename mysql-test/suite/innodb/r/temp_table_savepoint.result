@@ -1,10 +1,10 @@
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create procedure populate_tables()
 begin
 declare n int default 20;
 declare inner_loop int default 100;
-set global innodb_file_per_table=on;
 create temporary table t1(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
@@ -15,7 +15,7 @@ c7 varchar(2000) not null,
 c8 datetime,
 c9 decimal(6,3),
 primary key (c1),
-index (c3,c4(50),c5(50)), 
+index (c3,c4(50),c5(50)),
 index (c2))
 engine=innodb row_format=redundant;
 create temporary table t2(c1 int not null,
@@ -91,7 +91,7 @@ update t2 set c1 = c1 + 1000 where c1 > 10;
 update t4 set c1 = c1 + 1000 where c1 > 10;
 update t5 set c1 = c1 + 1000 where c1 > 10;
 rollback;
-end if;     
+end if;
 start transaction;
 insert into t1 values(n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
 repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
@@ -157,7 +157,7 @@ rollback to a;
 commit;
 commit;
 rollback;
-set n = n - 1; 
+set n = n - 1;
 end while;
 end|
 #---client 1 : dml operation ---"
@@ -460,7 +460,7 @@ count(*)
 select count(*) from temp_1;
 count(*)
 20
-alter table temp_1 add column c10 int default 99 , 
+alter table temp_1 add column c10 int default 99 ,
 add column c11 varchar(100) default 'test';
 alter table temp_1 add primary key (c1);
 insert into temp_1 (c1,c2,c3,c4,c5,c6,c7,c8,c9) values (-1,-1,'a','a','a','a','a',now(),100.55);
@@ -470,7 +470,7 @@ c1	c2	c3	c4	c5	c6	c7	c9	c10	c11
 select count(*) from temp_1 where c10 = 99 and c11 like 'test';
 count(*)
 21
-insert into temp_1 (c1,c2,c3,c4,c5,c6,c7,c8,c9) values (-1,-1,'a','a','a','a','a',now(),100.55) 
+insert into temp_1 (c1,c2,c3,c4,c5,c6,c7,c8,c9) values (-1,-1,'a','a','a','a','a',now(),100.55)
 on duplicate  key update c1=-2,c2=-2;
 select c1,c2,c3,c4,c5,c6,c7,c9,c10,c11 from temp_1 where c1 < 0;
 c1	c2	c3	c4	c5	c6	c7	c9	c10	c11
