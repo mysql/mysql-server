@@ -1701,6 +1701,7 @@ Field_str::Field_str(uchar *ptr_arg,uint32 len_arg, uchar *null_ptr_arg,
   if (charset_arg->state & MY_CS_BINSORT)
     flags|=BINARY_FLAG;
   field_derivation= DERIVATION_IMPLICIT;
+  field_repertoire= my_charset_repertoire(charset_arg);
 }
 
 

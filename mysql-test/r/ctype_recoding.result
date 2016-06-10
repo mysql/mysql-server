@@ -277,9 +277,40 @@ CREATE TABLE t1 ( a VARCHAR(1) );
 INSERT INTO t1 VALUES ('m'),('n');
 CREATE VIEW v1 AS SELECT 'w' ;
 SELECT * FROM t1 WHERE a < ALL ( SELECT * FROM v1 );
-ERROR HY000: Illegal mix of collations (utf8_general_ci,COERCIBLE) and (latin1_swedish_ci,IMPLICIT) for operation '<='
+a
+m
+n
 drop view v1;
 drop table t1;
 SET character_set_connection = default;
 SET optimizer_switch= default;
 #End of 5.3 tests
+#
+# Start of 5.5 tests
+#
+#
+# MDEV-10181 Illegal mix of collation for a field and an ASCII string as a view field
+#
+SET NAMES utf8;
+CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET latin1);
+INSERT INTO t1 VALUES ('A'),('a'),('B'),('b');
+CREATE VIEW v1 AS SELECT 'a';
+SELECT * FROM v1,t1 where t1.a=v1.a;
+a	a
+a	A
+a	a
+DROP VIEW v1;
+DROP TABLE t1;
+SET NAMES utf8;
+CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET latin1);
+INSERT INTO t1 VALUES ('a'),('b'),('c');
+CREATE VIEW v1 AS SELECT 'a' AS a UNION SELECT 'b';
+SELECT * FROM v1,t1 WHERE t1.a=v1.a;
+a	a
+a	a
+b	b
+DROP VIEW v1;
+DROP TABLE t1;
+#
+# End of 5.5 tests
+#

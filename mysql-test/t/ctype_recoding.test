@@ -220,7 +220,6 @@ SET character_set_connection = utf8;
 CREATE TABLE t1 ( a VARCHAR(1) );
 INSERT INTO t1 VALUES ('m'),('n');
 CREATE VIEW v1 AS SELECT 'w' ;
---error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT * FROM t1 WHERE a < ALL ( SELECT * FROM v1 );
 drop view v1;
 drop table t1;
@@ -228,3 +227,30 @@ SET character_set_connection = default;
 SET optimizer_switch= default;
 
 --echo #End of 5.3 tests
+
+--echo #
+--echo # Start of 5.5 tests
+--echo #
+
+--echo #
+--echo # MDEV-10181 Illegal mix of collation for a field and an ASCII string as a view field
+--echo #
+SET NAMES utf8;
+CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET latin1);
+INSERT INTO t1 VALUES ('A'),('a'),('B'),('b');
+CREATE VIEW v1 AS SELECT 'a';
+SELECT * FROM v1,t1 where t1.a=v1.a;
+DROP VIEW v1;
+DROP TABLE t1;
+
+SET NAMES utf8;
+CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET latin1);
+INSERT INTO t1 VALUES ('a'),('b'),('c');
+CREATE VIEW v1 AS SELECT 'a' AS a UNION SELECT 'b';
+SELECT * FROM v1,t1 WHERE t1.a=v1.a;
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo #
+--echo # End of 5.5 tests
+--echo #
