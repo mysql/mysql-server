@@ -50,7 +50,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   switch(optid) {
   case 'V':
     printf("%s version %s by Jani Tolonen\n", progname, VER);
-    exit(-1);
+    exit(0);
   case 'I':
   case '?':
     usage();
