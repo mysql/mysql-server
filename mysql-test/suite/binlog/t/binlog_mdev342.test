@@ -44,8 +44,7 @@ connection con1;
 --error 2006,2013
 reap;
 
---remove_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 restart-binlog_mdev342.test
 EOF
 

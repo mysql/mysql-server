@@ -53,8 +53,7 @@ EOF
   --replace_result $datadir <DATADIR>
   --copy_file $datadir/test/t1.ibd $datadir/test/t1.ibd.save
 
-  --remove_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-  --write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+  --append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 restart
 EOF
 

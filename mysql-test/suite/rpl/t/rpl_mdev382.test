@@ -209,8 +209,7 @@ EOF
 
 --shutdown_server 30
 
---remove_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 restart-rpl_mdev382.test
 EOF
 
