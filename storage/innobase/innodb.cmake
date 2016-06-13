@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -36,10 +36,6 @@ IF(UNIX)
     IF(HAVE_LIBAIO_H AND HAVE_LIBAIO)
       ADD_DEFINITIONS(-DLINUX_NATIVE_AIO=1)
       LINK_LIBRARIES(aio)
-    ENDIF()
-
-    IF(HAVE_LIBNUMA)
-      LINK_LIBRARIES(numa)
     ENDIF()
 
   ELSEIF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
