@@ -523,8 +523,12 @@ a
 #
 # Bug #16102788: INDETERMINATE BEHAVIOR DUE TO EMPTY OPTION VALUES
 #
-mysql: [ERROR] mysql: Empty value for 'port' specified
-mysql: [ERROR] mysql: Empty value for 'port' specified
+mysql: [Warning] mysql: Empty value for 'port' specified. Will throw an error in future versions
+1
+1
+mysql: [Warning] mysql: Empty value for 'port' specified. Will throw an error in future versions
+1
+1
 #
 # Bug #21464621: MYSQL CLI SHOULD SUGGEST CONNECT-EXPIRED-PASSWORD WHEN ERROR 1862 OCCURS
 #

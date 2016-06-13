@@ -635,13 +635,10 @@ EOF
 --echo #
 --echo # Bug #16102788: INDETERMINATE BEHAVIOR DUE TO EMPTY OPTION VALUES
 --echo #
-
---replace_regex /mysql: .ERROR. [^ ]*: Empty value for 'port' specified/mysql: [ERROR] mysql: Empty value for 'port' specified/
---error 5
+--replace_regex /mysql: .Warning. [^ ]*: Empty value for 'port' specified. Will throw an error in future versions/mysql: [Warning] mysql: Empty value for 'port' specified. Will throw an error in future versions/
 --exec $MYSQL --port= -e "SELECT 1" 2>&1
 
---replace_regex /mysql: .ERROR. [^ ]*: Empty value for 'port' specified/mysql: [ERROR] mysql: Empty value for 'port' specified/
---error 5
+--replace_regex /mysql: .Warning. [^ ]*: Empty value for 'port' specified. Will throw an error in future versions/mysql: [Warning] mysql: Empty value for 'port' specified. Will throw an error in future versions/
 --exec $MYSQL -P "" -e "SELECT 1" 2>&1
 
 --echo #

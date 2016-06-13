@@ -741,10 +741,19 @@ static int setval(const struct my_option *opts, void *value, char *argument,
       )
      )
   {
-    my_getopt_error_reporter(ERROR_LEVEL,
+    if (strncmp(opts->name, "port", 10) == 0)
+    {
+        my_getopt_error_reporter(WARNING_LEVEL,
+                             "%s: Empty value for '%s' specified. Will throw an error in future versions",
+                             my_progname, opts->name);
+    }
+    else
+    {
+        my_getopt_error_reporter(ERROR_LEVEL,
                              "%s: Empty value for '%s' specified",
                              my_progname, opts->name);
-    return EXIT_ARGUMENT_REQUIRED;
+        return EXIT_ARGUMENT_REQUIRED;
+    }
   }
 
   if (value)
