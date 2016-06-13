@@ -190,7 +190,8 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
   }
   if (memavl < MIN_SORT_BUFFER)
   {
-    mi_check_print_error(info->sort_info->param,"MyISAM sort buffer too small"); /* purecov: tested */
+    mi_check_print_error(info->sort_info->param,
+              "MyISAM sort buffer too small"); /* purecov: tested */
     my_errno= ENOMEM;                           /* purecov: tested */
     goto err;                                   /* purecov: tested */
   }
@@ -331,8 +332,6 @@ static my_bool thr_find_all_keys_exec(MI_SORT_PARAM *sort_param)
 
   my_bool error= FALSE;
   if (sort_param->sort_info->got_error)
-    error= TRUE;
-  if (error)
     DBUG_RETURN(error);
 
   set_sort_param_read_write(sort_param);
@@ -368,9 +367,7 @@ static my_bool thr_find_all_keys_exec(MI_SORT_PARAM *sort_param)
             keys < (uint) maxbuffer)
         {
           mi_check_print_error(sort_param->sort_info->param,
-              "myisam_sort_buffer_size is too small. Current "
-              "myisam_sort_buffer_size: %llu  rows: %llu  sort_length: %u",
-              sort_param->sortbuff_size, (ulonglong) idx, sort_length);
+              "myisam_sort_buffer_size is too small");
           DBUG_RETURN(TRUE);
         }
       }
@@ -398,9 +395,7 @@ static my_bool thr_find_all_keys_exec(MI_SORT_PARAM *sort_param)
   {
     /* purecov: begin inspected */
     mi_check_print_error(sort_param->sort_info->param,
-        "myisam_sort_buffer_size is too small. Current "
-        "myisam_sort_buffer_size: %llu  rows: %llu  sort_length: %u",
-        sort_param->sortbuff_size, (ulonglong) idx, sort_length);
+        "myisam_sort_buffer_size is too small");
     my_errno= ENOMEM;
     goto err;
     /* purecov: end inspected */

@@ -377,7 +377,7 @@ static my_bool _ma_thr_find_all_keys_exec(MARIA_SORT_PARAM* sort_param)
             keys < maxbuffer)
         {
           _ma_check_print_error(sort_param->sort_info->param,
-                                "aria_sort_buffer_size is too small");
+                                "aria_sort_buffer_size is too small.");
           goto err;
         }
       }
@@ -407,11 +407,7 @@ static my_bool _ma_thr_find_all_keys_exec(MARIA_SORT_PARAM* sort_param)
   {
     /* purecov: begin inspected */
     _ma_check_print_error(sort_param->sort_info->param,
-                          "aria_sort_buffer_size is too small. Current "
-                          "aria_sort_buffer_size: %llu  rows: %llu  "
-                          "sort_length: %u",
-                          (ulonglong) sort_param->sortbuff_size,
-                          (ulonglong) idx, sort_length);
+                          "aria_sort_buffer_size is too small.");
     my_errno= ENOMEM;
     goto err;
     /* purecov: end inspected */
