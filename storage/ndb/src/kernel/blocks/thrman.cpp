@@ -790,7 +790,7 @@ Thrman::measure_cpu_usage(Signal *signal)
   {
     jam();
     check_20sec = true;
-    c_next_1sec_measure.first(measurePtr);
+    c_next_20sec_measure.first(measurePtr);
     calculate_measurement(measurePtr,
                           &curr_rusage,
                           &m_last_20sec_rusage,
