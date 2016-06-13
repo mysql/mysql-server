@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -149,10 +149,15 @@ IF(WITH_INNODB)
   SET(WITH_INNOBASE_STORAGE_ENGINE TRUE)
 ENDIF()
 
+UNSET(NUMA_LIBRARY)
+IF(HAVE_LIBNUMA)
+  SET(NUMA_LIBRARY "numa")
+ENDIF()
+
 MYSQL_ADD_PLUGIN(innobase ${INNOBASE_SOURCES} STORAGE_ENGINE
   MANDATORY
   MODULE_OUTPUT_NAME ha_innodb
-  LINK_LIBRARIES ${ZLIB_LIBRARY} ${LZ4_LIBRARY})
+  LINK_LIBRARIES ${ZLIB_LIBRARY} ${LZ4_LIBRARY} ${NUMA_LIBRARY})
 
 IF(WITH_INNOBASE_STORAGE_ENGINE)
   ADD_DEPENDENCIES(innobase GenError)
