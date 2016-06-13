@@ -1276,15 +1276,19 @@ TAPTEST(mt_thr_config)
         "main,ldm={},ldm",
         "main,ldm={},ldm,tc",
         "main,ldm={},ldm,tc,tc",
+        "", /* Empty string valid- also default value */
+        " \t",
         0
       };
 
     const char * fail [] =
       {
         "ldm={cpubind=1,tc={cpubind=2}", /* Missing } */
-        "" /* Empty string not allowed */
         "ldm,ldm,ldm", /* 3 LDM's not allowed */
         "ldm,ldm,", /* Parse error, ending , */
+        "ldm={count=4,}", /* No parameter after comma*/
+        "ldm= {count = 3, }", /* No parameter after comma*/
+        "ldm , ldm , ", /* No parameter after comma*/
         "ldb,ldm", /* ldb non-existent thread type */
         "ldm={cpubind= 1 , cpuset=2 },ldm", /* Cannot cpubind and cpuset */
         "ldm={count=4,cpubind=1-3},ldm", /* 4 LDMs need 4 CPUs */
