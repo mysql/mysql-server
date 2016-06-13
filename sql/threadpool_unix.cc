@@ -166,6 +166,7 @@ struct pool_timer_t
   volatile uint64 next_timeout_check;
   int  tick_interval;
   bool shutdown;
+  pthread_t timer_thread_id;
 };
 
 static pool_timer_t pool_timer;
@@ -603,12 +604,12 @@ void check_stall(thread_group_t *thread_group)
 
 static void start_timer(pool_timer_t* timer)
 {
-  pthread_t thread_id;
   DBUG_ENTER("start_timer");
   mysql_mutex_init(key_timer_mutex,&timer->mutex, NULL);
   mysql_cond_init(key_timer_cond, &timer->cond, NULL);
   timer->shutdown = false;
-  mysql_thread_create(key_timer_thread,&thread_id, NULL, timer_thread, timer);
+  mysql_thread_create(key_timer_thread, &timer->timer_thread_id, NULL,
+                      timer_thread, timer);
   DBUG_VOID_RETURN;
 }
 
@@ -620,6 +621,7 @@ static void stop_timer(pool_timer_t *timer)
   timer->shutdown = true;
   mysql_cond_signal(&timer->cond);
   mysql_mutex_unlock(&timer->mutex);
+  pthread_join(timer->timer_thread_id, NULL);
   DBUG_VOID_RETURN;
 }
 
