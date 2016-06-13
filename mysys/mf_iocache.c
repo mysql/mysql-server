@@ -1874,6 +1874,7 @@ void die(const char* fmt, ...)
   fprintf(stderr,"Error:");
   vfprintf(stderr, fmt,va_args);
   fprintf(stderr,", errno=%d\n", errno);
+  va_end(va_args);
   exit(1);
 }
 
