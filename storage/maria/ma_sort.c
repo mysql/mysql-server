@@ -519,7 +519,7 @@ int _ma_thr_write_keys(MARIA_SORT_PARAM *sort_param)
 {
   MARIA_SORT_INFO *sort_info=sort_param->sort_info;
   HA_CHECK *param=sort_info->param;
-  ulong UNINIT_VAR(length), keys;
+  size_t UNINIT_VAR(length), keys;
   double *rec_per_key_part= param->new_rec_per_key_part;
   int got_error=sort_info->got_error;
   uint i;

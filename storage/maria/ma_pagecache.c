@@ -500,8 +500,8 @@ static void test_key_cache(PAGECACHE *pagecache,
                            const char *where, my_bool lock);
 #endif
 
-#define PAGECACHE_HASH(p, f, pos) (((ulong) (pos) +                          \
-                                    (ulong) (f).file) & (p->hash_entries-1))
+#define PAGECACHE_HASH(p, f, pos) (((size_t) (pos) +                          \
+                                    (size_t) (f).file) & (p->hash_entries-1))
 #define FILE_HASH(f) ((uint) (f).file & (PAGECACHE_CHANGED_BLOCKS_HASH - 1))
 
 #define DEFAULT_PAGECACHE_DEBUG_LOG  "pagecache_debug.log"
@@ -639,10 +639,10 @@ static my_bool pagecache_fwrite(PAGECACHE *pagecache,
   {
     char buff[80];
     uint len= my_sprintf(buff,
-                         (buff, "fwrite: fd: %d  id: %u  page: %lu",
+                         (buff, "fwrite: fd: %d  id: %u  page: %llu",
                           filedesc->file,
                           _ma_file_callback_to_id(filedesc->callback_data),
-                          (ulong) pageno));
+                          pageno));
     (void) translog_log_debug_info(0, LOGREC_DEBUG_INFO_QUERY,
                                    (uchar*) buff, len);
   }
@@ -741,11 +741,11 @@ static inline uint next_power(uint value)
 
 */
 
-ulong init_pagecache(PAGECACHE *pagecache, size_t use_mem,
+size_t init_pagecache(PAGECACHE *pagecache, size_t use_mem,
                      uint division_limit, uint age_threshold,
                      uint block_size, myf my_readwrite_flags)
 {
-  ulong blocks, hash_links, length;
+  size_t blocks, hash_links, length;
   int error;
   DBUG_ENTER("init_pagecache");
   DBUG_ASSERT(block_size >= 512);
@@ -782,10 +782,10 @@ ulong init_pagecache(PAGECACHE *pagecache, size_t use_mem,
   DBUG_PRINT("info", ("block_size: %u", block_size));
   DBUG_ASSERT(((uint)(1 << pagecache->shift)) == block_size);
 
-  blocks= (ulong) (use_mem / (sizeof(PAGECACHE_BLOCK_LINK) +
+  blocks= use_mem / (sizeof(PAGECACHE_BLOCK_LINK) +
                               2 * sizeof(PAGECACHE_HASH_LINK) +
                               sizeof(PAGECACHE_HASH_LINK*) *
-                              5/4 + block_size));
+                              5/4 + block_size);
   /*
     We need to support page cache with just one block to be able to do
     scanning of rows-in-block files
@@ -816,7 +816,7 @@ ulong init_pagecache(PAGECACHE *pagecache, size_t use_mem,
       blocks--;
     /* Allocate memory for cache page buffers */
     if ((pagecache->block_mem=
-         my_large_malloc((ulong) blocks * pagecache->block_size,
+      my_large_malloc(blocks * pagecache->block_size,
                          MYF(MY_WME))))
     {
       /*
@@ -824,7 +824,7 @@ ulong init_pagecache(PAGECACHE *pagecache, size_t use_mem,
         For each block 2 hash links are allocated
       */
       if ((pagecache->block_root=
-           (PAGECACHE_BLOCK_LINK*) my_malloc((size_t) length, MYF(0))))
+           (PAGECACHE_BLOCK_LINK*) my_malloc(length, MYF(0))))
         break;
       my_large_free(pagecache->block_mem);
       pagecache->block_mem= 0;
@@ -832,7 +832,7 @@ ulong init_pagecache(PAGECACHE *pagecache, size_t use_mem,
     blocks= blocks / 4*3;
   }
   pagecache->blocks_unused= blocks;
-  pagecache->disk_blocks= (long) blocks;
+  pagecache->disk_blocks= blocks;
   pagecache->hash_links= hash_links;
   pagecache->hash_root=
     (PAGECACHE_HASH_LINK**) ((char*) pagecache->block_root +
@@ -887,7 +887,7 @@ ulong init_pagecache(PAGECACHE *pagecache, size_t use_mem,
         PAGECACHE_CHANGED_BLOCKS_HASH);
 
   pagecache->blocks= pagecache->disk_blocks > 0 ? pagecache->disk_blocks : 0;
-  DBUG_RETURN((ulong) pagecache->disk_blocks);
+  DBUG_RETURN((size_t)pagecache->disk_blocks);
 
 err:
   error= my_errno;
@@ -978,11 +978,11 @@ static int flush_all_key_blocks(PAGECACHE *pagecache)
      So we disable it for now.
 */
 #if NOT_USED /* keep disabled until code is fixed see above !! */
-ulong resize_pagecache(PAGECACHE *pagecache,
+size_t resize_pagecache(PAGECACHE *pagecache,
                        size_t use_mem, uint division_limit,
                        uint age_threshold)
 {
-  ulong blocks;
+  size_t blocks;
   struct st_my_thread_var *thread;
   WQUEUE *wqueue;
 
@@ -1379,7 +1379,7 @@ static void link_block(PAGECACHE *pagecache, PAGECACHE_BLOCK_LINK *block,
                       ("linked block: %u:%1u  status: %x  #requests: %u  #available: %u",
                        PCBLOCK_NUMBER(pagecache, block), at_end, block->status,
                        block->requests, pagecache->blocks_available));
-  KEYCACHE_DBUG_ASSERT((ulong) pagecache->blocks_available <=
+  KEYCACHE_DBUG_ASSERT(pagecache->blocks_available <=
                        pagecache->blocks_used);
 #endif
   DBUG_VOID_RETURN;
@@ -2018,7 +2018,7 @@ restart:
           /* There are some never used blocks, take first of them */
           block= &pagecache->block_root[pagecache->blocks_used];
           block->buffer= ADD_TO_PTR(pagecache->block_mem,
-                                    ((ulong) pagecache->blocks_used*
+                                    (pagecache->blocks_used*
                                      pagecache->block_size),
                                     uchar*);
           pagecache->blocks_used++;
@@ -4870,7 +4870,7 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
                                                   LSN *min_rec_lsn)
 {
   my_bool error= 0;
-  ulong stored_list_size= 0;
+  size_t stored_list_size= 0;
   uint file_hash;
   char *ptr;
   LSN minimum_rec_lsn= LSN_MAX;

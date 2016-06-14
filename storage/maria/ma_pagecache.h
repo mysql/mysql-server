@@ -117,20 +117,20 @@ typedef struct st_pagecache_hash_link PAGECACHE_HASH_LINK;
 typedef struct st_pagecache
 {
   size_t mem_size;               /* specified size of the cache memory       */
-  ulong min_warm_blocks;         /* min number of warm blocks;               */
-  ulong age_threshold;           /* age threshold for hot blocks             */
+  size_t min_warm_blocks;        /* min number of warm blocks;               */
+  size_t age_threshold;          /* age threshold for hot blocks             */
   ulonglong time;                /* total number of block link operations    */
-  ulong hash_entries;            /* max number of entries in the hash table  */
-  long hash_links;               /* max number of hash links                 */
-  long hash_links_used;   /* number of hash links taken from free links pool */
-  long disk_blocks;              /* max number of blocks in the cache        */
-  ulong blocks_used;           /* maximum number of concurrently used blocks */
-  ulong blocks_unused;           /* number of currently unused blocks        */
-  ulong blocks_changed;          /* number of currently dirty blocks         */
-  ulong warm_blocks;             /* number of blocks in warm sub-chain       */
-  ulong cnt_for_resize_op;       /* counter to block resize operation        */
-  ulong blocks_available;     /* number of blocks available in the LRU chain */
-  long blocks;                   /* max number of blocks in the cache        */
+  size_t hash_entries;           /* max number of entries in the hash table  */
+  ssize_t hash_links;            /* max number of hash links                 */
+  ssize_t hash_links_used;       /* number of hash links taken from free links pool */
+  ssize_t disk_blocks;           /* max number of blocks in the cache        */
+  size_t blocks_used;            /* maximum number of concurrently used blocks */
+  size_t blocks_unused;          /* number of currently unused blocks        */
+  size_t blocks_changed;         /* number of currently dirty blocks         */
+  size_t warm_blocks;            /* number of blocks in warm sub-chain       */
+  size_t cnt_for_resize_op;      /* counter to block resize operation        */
+  size_t blocks_available;       /* number of blocks available in the LRU chain */
+  ssize_t blocks;                /* max number of blocks in the cache        */
   uint32 block_size;             /* size of the page buffer of a cache block */
   PAGECACHE_HASH_LINK **hash_root;/* arr. of entries into hash table buckets */
   PAGECACHE_HASH_LINK *hash_link_root;/* memory for hash table links         */
@@ -155,12 +155,12 @@ typedef struct st_pagecache
   */
 
   ulonglong param_buff_size;    /* size the memory allocated for the cache  */
-  ulong param_block_size;       /* size of the blocks in the key cache      */
-  ulong param_division_limit;   /* min. percentage of warm blocks           */
-  ulong param_age_threshold;    /* determines when hot block is downgraded  */
+  size_t param_block_size;       /* size of the blocks in the key cache      */
+  size_t param_division_limit;   /* min. percentage of warm blocks           */
+  size_t param_age_threshold;    /* determines when hot block is downgraded  */
 
   /* Statistics variables. These are reset in reset_pagecache_counters().    */
-  ulong global_blocks_changed;	/* number of currently dirty blocks          */
+  size_t global_blocks_changed;	/* number of currently dirty blocks          */
   ulonglong global_cache_w_requests;/* number of write requests (write hits) */
   ulonglong global_cache_write;     /* number of writes from cache to files  */
   ulonglong global_cache_r_requests;/* number of read requests (read hits)   */
@@ -193,10 +193,10 @@ typedef enum pagecache_flush_filter_result
 /* The default key cache */
 extern PAGECACHE dflt_pagecache_var, *dflt_pagecache;
 
-extern ulong init_pagecache(PAGECACHE *pagecache, size_t use_mem,
+extern size_t init_pagecache(PAGECACHE *pagecache, size_t use_mem,
                             uint division_limit, uint age_threshold,
                             uint block_size, myf my_read_flags);
-extern ulong resize_pagecache(PAGECACHE *pagecache,
+extern size_t resize_pagecache(PAGECACHE *pagecache,
                               size_t use_mem, uint division_limit,
                               uint age_threshold);
 extern void change_pagecache_param(PAGECACHE *pagecache, uint division_limit,
