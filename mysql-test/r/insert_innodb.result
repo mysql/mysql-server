@@ -28,3 +28,18 @@ ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`
 UPDATE t1, t2 SET t1.fld1= t1.fld1 + 3;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fld2`) REFERENCES `t1` (`fld1`))
 DROP TABLE t2, t1;
+#
+# BUG#22037930: INSERT IGNORE FAILS TO IGNORE FOREIGN
+#               KEY CONSTRAINT
+CREATE TABLE t1 (fld1 INT PRIMARY KEY) ENGINE= INNODB;
+CREATE TABLE t2 (fld1 VARCHAR(10), fld2 INT NOT NULL,
+CONSTRAINT fk FOREIGN KEY (fld2) REFERENCES t1(fld1)) ENGINE= INNODB;
+# Without patch, reports incorrect error.
+INSERT INTO t2 VALUES('abc', 2) ON DUPLICATE KEY UPDATE fld1= 'def';
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk` FOREIGN KEY (`fld2`) REFERENCES `t1` (`fld1`))
+REPLACE INTO t2 VALUES('abc', 2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk` FOREIGN KEY (`fld2`) REFERENCES `t1` (`fld1`))
+INSERT IGNORE INTO t2 VALUES('abc', 2) ON DUPLICATE KEY UPDATE fld1= 'def';
+Warnings:
+Warning	1452	Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk` FOREIGN KEY (`fld2`) REFERENCES `t1` (`fld1`))
+DROP TABLE t2, t1;

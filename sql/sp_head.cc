@@ -1,6 +1,6 @@
 /*
-   Copyright (c) 2002, 2013, Oracle and/or its affiliates.
-   Copyright (c) 2011, 2013, Monty Program Ab
+   Copyright (c) 2002, 2016, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -480,8 +480,10 @@ sp_name::init_qname(THD *thd)
 bool
 check_routine_name(LEX_STRING *ident)
 {
-  if (!ident || !ident->str || !ident->str[0] ||
-      ident->str[ident->length-1] == ' ')
+  DBUG_ASSERT(ident);
+  DBUG_ASSERT(ident->str);
+
+  if (!ident->str[0] || ident->str[ident->length-1] == ' ')
   {
     my_error(ER_SP_WRONG_NAME, MYF(0), ident->str);
     return TRUE;

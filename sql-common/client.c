@@ -1197,6 +1197,20 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
       my_free((OPTS)->extension->X);                             \
     EXTENSION_SET(OPTS, X, my_strdup((STR), MYF(MY_WME)));
 
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+static char *set_ssl_option_unpack_path(const char *arg)
+{
+  char *opt_var= NULL;
+  if (arg)
+  {
+    char buff[FN_REFLEN + 1];
+    unpack_filename(buff, (char *)arg);
+    opt_var= my_strdup(buff, MYF(MY_WME));
+  }
+  return opt_var;
+}
+#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
+
 void mysql_read_default_options(struct st_mysql_options *options,
 				const char *filename,const char *group)
 {
@@ -1796,10 +1810,10 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
   my_free(mysql->options.ssl_ca);
   my_free(mysql->options.ssl_capath);
   my_free(mysql->options.ssl_cipher);
-  mysql->options.ssl_key=    strdup_if_not_null(key);
-  mysql->options.ssl_cert=   strdup_if_not_null(cert);
-  mysql->options.ssl_ca=     strdup_if_not_null(ca);
-  mysql->options.ssl_capath= strdup_if_not_null(capath);
+  mysql->options.ssl_key=    set_ssl_option_unpack_path(key);
+  mysql->options.ssl_cert=   set_ssl_option_unpack_path(cert);
+  mysql->options.ssl_ca=     set_ssl_option_unpack_path(ca);
+  mysql->options.ssl_capath= set_ssl_option_unpack_path(capath);
   mysql->options.ssl_cipher= strdup_if_not_null(cipher);
   mysql->options.use_ssl= TRUE;
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
