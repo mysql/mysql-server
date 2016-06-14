@@ -1452,32 +1452,35 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
       return (BIN_NUM);
 
     case MY_LEX_CMP_OP:			// Incomplete comparison operator
+      lip->next_state= MY_LEX_START;	// Allow signed numbers
       if (state_map[(uchar) lip->yyPeek()] == MY_LEX_CMP_OP ||
           state_map[(uchar) lip->yyPeek()] == MY_LEX_LONG_CMP_OP)
-        lip->yySkip();
-      if ((tokval = find_keyword(lip, lip->yyLength() + 1, 0)))
       {
-	lip->next_state= MY_LEX_START;	// Allow signed numbers
-	return(tokval);
+        lip->yySkip();
+        if ((tokval= find_keyword(lip, 2, 0)))
+          return(tokval);
+        lip->yyUnget();
       }
-      state = MY_LEX_CHAR;		// Something fishy found
-      break;
+      return(c);
 
     case MY_LEX_LONG_CMP_OP:		// Incomplete comparison operator
+      lip->next_state= MY_LEX_START;
       if (state_map[(uchar) lip->yyPeek()] == MY_LEX_CMP_OP ||
           state_map[(uchar) lip->yyPeek()] == MY_LEX_LONG_CMP_OP)
       {
         lip->yySkip();
         if (state_map[(uchar) lip->yyPeek()] == MY_LEX_CMP_OP)
+        {
           lip->yySkip();
+          if ((tokval= find_keyword(lip, 3, 0)))
+            return(tokval);
+          lip->yyUnget();
+        }
+        if ((tokval= find_keyword(lip, 2, 0)))
+          return(tokval);
+        lip->yyUnget();
       }
-      if ((tokval = find_keyword(lip, lip->yyLength() + 1, 0)))
-      {
-	lip->next_state= MY_LEX_START;	// Found long op
-	return(tokval);
-      }
-      state = MY_LEX_CHAR;		// Something fishy found
-      break;
+      return(c);
 
     case MY_LEX_BOOL:
       if (c != lip->yyPeek())

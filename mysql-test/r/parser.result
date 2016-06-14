@@ -643,3 +643,23 @@ CREATE TRIGGER trigger1 BEFORE INSERT ON t1 FOR EACH ROW
 SET default_storage_engine = NEW.INNODB;
 ERROR 42S22: Unknown column 'INNODB' in 'NEW'
 DROP TABLE t1;
+select 0==0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '=0' at line 1
+select 1=!0,  1 = ! 0;
+1=!0	1 = ! 0
+1	1
+select !!0,     ! ! 0;
+!!0	! ! 0
+0	0
+select 2>!0,  2 > ! 0;
+2>!0	2 > ! 0
+1	1
+select 0<=!0, 0 <= !0;
+0<=!0	0 <= !0
+1	1
+select 1<<!0, 1 << !0;
+1<<!0	1 << !0
+2	2
+select 0<!0,  0 < ! 0;
+0<!0	0 < ! 0
+1	1
