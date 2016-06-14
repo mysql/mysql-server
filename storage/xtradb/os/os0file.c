@@ -472,6 +472,43 @@ PIMAGE_TLS_CALLBACK p_thread_callback_base = win_tls_thread_exit;
 #endif /*_WIN32 */
 
 /***********************************************************************//**
+For an EINVAL I/O error, prints a diagnostic message if innodb_flush_method
+== ALL_O_DIRECT.
+@return TRUE if the diagnostic message was printed
+@return FALSE if the diagnostic message does not apply */
+static
+ibool
+os_diagnose_all_o_direct_einval(
+/*============================*/
+	ulint err)	/*!< in: C error code */
+{
+	if ((err == EINVAL)
+	    && (srv_unix_file_flush_method == SRV_UNIX_ALL_O_DIRECT)) {
+		fprintf(stderr,
+			"InnoDB: The error might be caused by redo log I/O "
+			"not satisfying innodb_flush_method=ALL_O_DIRECT "
+			"requirements by the underlying file system.\n");
+		if (srv_log_block_size != 512)
+			fprintf(stderr,
+				"InnoDB: This might be caused by an "
+				"incompatible non-default "
+				"innodb_log_block_size value %lu.\n",
+				srv_log_block_size);
+		fprintf(stderr,
+			"InnoDB: Please file a bug at "
+			"https://bugs.percona.com and include this error "
+			"message, my.cnf settings, and information about the "
+			"file system where the redo log resides.\n");
+		fprintf(stderr,
+			"InnoDB: A possible workaround is to change "
+			"innodb_flush_method value to something else "
+			"than ALL_O_DIRECT.\n");
+		return(TRUE);
+	}
+	return(FALSE);
+}
+
+/***********************************************************************//**
 Retrieves the last error number if an error occurs in a file io function.
 The number should be retrieved before any other OS calls (because they may
 overwrite the error number). If the number is not known to this program,
@@ -596,7 +633,7 @@ os_file_get_last_error(
 				"InnoDB: The error means mysqld does not have"
 				" the access rights to\n"
 				"InnoDB: the directory.\n");
-		} else {
+		} else if (!os_diagnose_all_o_direct_einval(err)) {
 			if (strerror((int)err) != NULL) {
 				fprintf(stderr,
 					"InnoDB: Error number %lu"
@@ -2622,6 +2659,9 @@ os_file_pwrite(
 	/* Handle partial writes and signal interruptions correctly */
 	for (ret = 0; ret < (ssize_t) n; ) {
 		n_written = pwrite(file, buf, (ssize_t)n - ret, offs);
+		DBUG_EXECUTE_IF("xb_simulate_all_o_direct_write_failure",
+				n_written = -1;
+				errno = EINVAL;);
 		if (n_written >= 0) {
 			ret += n_written;
 			offs += n_written;
@@ -2786,6 +2826,10 @@ try_again:
 
 try_again:
 	ret = os_file_pread(file, buf, n, offset, offset_high, trx);
+
+	DBUG_EXECUTE_IF("xb_simulate_all_o_direct_read_failure",
+			ret = -1;
+			errno = EINVAL;);
 
 	if ((ulint)ret == n) {
 
@@ -3083,6 +3127,8 @@ retry:
 			" are described at\n"
 			"InnoDB: "
 			REFMAN "operating-system-error-codes.html\n");
+
+		os_diagnose_all_o_direct_einval(errno);
 
 		os_has_said_disk_full = TRUE;
 	}

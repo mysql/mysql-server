@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -41,7 +41,6 @@ Created 9/6/1995 Heikki Tuuri
     || defined _M_X64 || defined __WIN__
 
 #define IB_STRONG_MEMORY_MODEL
-#undef HAVE_IB_GCC_ATOMIC_TEST_AND_SET // Quick-and-dirty fix for bug 1519094
 
 #endif /* __i386__ || __x86_64__ || _M_IX86 || M_X64 || __WIN__ */
 
@@ -369,28 +368,7 @@ Returns the old value of *ptr, atomically sets *ptr to new_val */
 # define os_atomic_test_and_set_byte_acquire(ptr, new_val) \
 	__sync_lock_test_and_set(ptr, (byte) new_val)
 
-# if defined(HAVE_IB_GCC_ATOMIC_TEST_AND_SET)
-
-/** Do an atomic test-and-set.
-@param[in,out]	ptr		Memory location to set to non-zero
-@return the previous value */
-static inline
-lock_word_t
-os_atomic_test_and_set(volatile lock_word_t* ptr)
-{
-       return(__atomic_test_and_set(ptr, __ATOMIC_ACQUIRE));
-}
-
-/** Do an atomic clear.
-@param[in,out]	ptr		Memory location to set to zero */
-static inline
-void
-os_atomic_clear(volatile lock_word_t* ptr)
-{
-	__atomic_clear(ptr, __ATOMIC_RELEASE);
-}
-
-# elif defined(IB_STRONG_MEMORY_MODEL)
+# if defined(IB_STRONG_MEMORY_MODEL)
 
 /** Do an atomic test and set.
 @param[in,out]	ptr		Memory location to set to non-zero
@@ -417,6 +395,27 @@ lock_word_t
 os_atomic_clear(volatile lock_word_t* ptr)
 {
 	return(__sync_lock_test_and_set(ptr, 0));
+}
+
+# elif defined(HAVE_IB_GCC_ATOMIC_TEST_AND_SET)
+
+/** Do an atomic test-and-set.
+@param[in,out]	ptr		Memory location to set to non-zero
+@return the previous value */
+static inline
+lock_word_t
+os_atomic_test_and_set(volatile lock_word_t* ptr)
+{
+       return(__atomic_test_and_set(ptr, __ATOMIC_ACQUIRE));
+}
+
+/** Do an atomic clear.
+@param[in,out]	ptr		Memory location to set to zero */
+static inline
+void
+os_atomic_clear(volatile lock_word_t* ptr)
+{
+	__atomic_clear(ptr, __ATOMIC_RELEASE);
 }
 
 # else
