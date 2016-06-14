@@ -785,7 +785,7 @@ static int toku_recover_xcommit (struct logtype_xcommit *l, RECOVER_ENV renv) {
     assert(txn!=NULL);
 
     // commit the transaction
-    toku_txn_progress_extra extra = { time(NULL), l->lsn, "commit", l->xid };
+    toku_txn_progress_extra extra = { time(NULL), l->lsn, "commit", l->xid, 0 };
     int r = toku_txn_commit_with_lsn(txn, true, l->lsn, toku_recover_txn_progress, &extra);
     assert(r == 0);
 
@@ -828,7 +828,7 @@ static int toku_recover_xabort (struct logtype_xabort *l, RECOVER_ENV renv) {
     assert(txn!=NULL);
 
     // abort the transaction
-    toku_txn_progress_extra extra = { time(NULL), l->lsn, "abort", l->xid };
+    toku_txn_progress_extra extra = { time(NULL), l->lsn, "abort", l->xid, 0 };
     r = toku_txn_abort_with_lsn(txn, l->lsn, toku_recover_txn_progress, &extra);
     assert(r == 0);
 
@@ -1363,7 +1363,7 @@ static void recover_abort_live_txn(TOKUTXN txn) {
     // sanity check that the recursive call successfully NULLs out txn->child
     invariant(txn->child == NULL);
     // abort the transaction
-    toku_txn_progress_extra extra = { time(NULL), ZERO_LSN, "abort live", txn->txnid };
+    toku_txn_progress_extra extra = { time(NULL), ZERO_LSN, "abort live", txn->txnid, 0 };
     int r = toku_txn_abort_txn(txn, toku_recover_txn_progress, &extra);
     assert(r == 0);
     

@@ -125,16 +125,6 @@ typedef struct toku_mutex_aligned {
     toku_mutex_t aligned_mutex __attribute__((__aligned__(64)));
 } toku_mutex_aligned_t;
 
-// Different OSes implement mutexes as different amounts of nested structs.
-// C++ will fill out all missing values with zeroes if you provide at least one zero, but it needs the right amount of nesting.
-#if defined(__FreeBSD__)
-# define ZERO_MUTEX_INITIALIZER {0}
-#elif defined(__APPLE__)
-# define ZERO_MUTEX_INITIALIZER {{0}}
-#else // __linux__, at least
-# define ZERO_MUTEX_INITIALIZER {{{0}}}
-#endif
-
 #if TOKU_PTHREAD_DEBUG
 # define TOKU_MUTEX_INITIALIZER { .pmutex = PTHREAD_MUTEX_INITIALIZER, .owner = 0, .locked = false, .valid = true }
 #else
@@ -276,15 +266,6 @@ typedef struct toku_cond {
     pthread_cond_t pcond;
 } toku_cond_t;
 
-// Different OSes implement mutexes as different amounts of nested structs.
-// C++ will fill out all missing values with zeroes if you provide at least one zero, but it needs the right amount of nesting.
-#if defined(__FreeBSD__)
-# define ZERO_COND_INITIALIZER {0}
-#elif defined(__APPLE__)
-# define ZERO_COND_INITIALIZER {{0}}
-#else // __linux__, at least
-# define ZERO_COND_INITIALIZER {{{0}}}
-#endif
 #define TOKU_COND_INITIALIZER {PTHREAD_COND_INITIALIZER}
 
 static inline void

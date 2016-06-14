@@ -1825,7 +1825,7 @@ static int run_workers(
 {
     int r;
     const struct perf_formatter *perf_formatter = &perf_formatters[cli_args->perf_output_format];
-    toku_mutex_t mutex = ZERO_MUTEX_INITIALIZER;
+    toku_mutex_t mutex = TOKU_MUTEX_INITIALIZER;
     toku_mutex_init(&mutex, nullptr);
     struct rwlock rwlock;
     rwlock_init(&rwlock);

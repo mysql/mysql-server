@@ -643,7 +643,7 @@ serialize_and_compress_in_parallel(FTNODE node,
         struct serialize_compress_work work[npartitions];
         workset_lock(&ws);
         for (int i = 0; i < npartitions; i++) {
-            work[i] = (struct serialize_compress_work) { .base = {{NULL}},
+            work[i] = (struct serialize_compress_work) { .base = {{NULL, NULL}},
                                                          .node = node,
                                                          .i = i,
                                                          .compression_method = compression_method,
