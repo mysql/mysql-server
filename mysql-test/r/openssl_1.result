@@ -198,8 +198,6 @@ Ssl_cipher	DHE-RSA-AES256-SHA
 Variable_name	Value
 Ssl_cipher	EDH-RSA-DES-CBC3-SHA
 Variable_name	Value
-Ssl_cipher	EDH-RSA-DES-CBC-SHA
-Variable_name	Value
 Ssl_cipher	RC4-SHA
 select 'is still running; no cipher request crashed the server' as result from dual;
 result
