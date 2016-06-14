@@ -18,7 +18,7 @@
 --echo #               PATH SUBSTITUTION
 --echo #
 
---let $mysql_test_dir_path= `SELECT REPLACE('=$MYSQL_TEST_DIR', '=$HOME', '=~')`
+--let $mysql_test_dir_path= `SELECT IF(LENGTH('$HOME'), REPLACE('=$MYSQL_TEST_DIR', '=$HOME', '=~'), '=$MYSQL_TEST_DIR')`
 
 --echo # try to connect with '--ssl-ca' option using tilde home directoy
 --echo # path substitution : should connect
