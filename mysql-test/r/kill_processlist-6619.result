@@ -6,5 +6,5 @@ SHOW PROCESSLIST;
 ERROR 70100: Query execution was interrupted
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info	Progress
-#	root	#	test	Sleep	#	#	NULL	0.000
-#	root	#	test	Query	#	#	SHOW PROCESSLIST	0.000
+#	root	#	test	#	#	#	#	0.000
+#	root	#	test	#	#	#	#	0.000
