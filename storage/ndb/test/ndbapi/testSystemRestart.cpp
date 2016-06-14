@@ -1695,14 +1695,31 @@ int runSR_DD_1(NDBT_Context* ctx, NDBT_Step* step)
       ndbout << "Crashing cluster" << endl;
       ctx->setProperty("StopAbort", 1000 + rand() % (3000 - 1000));
     }
-    Uint64 end = NdbTick_CurrentMillisecond() + 4000;
+    const NDB_TICKS start = NdbTick_getCurrentTicks();
     Uint32 row = startFrom;
     do {
       ndbout << "Loading from " << row << " to " << row + 1000 << endl;
       if (hugoTrans.loadTableStartFrom(pNdb, row, 1000) != 0)
 	break;
       row += 1000;
-    } while (NdbTick_CurrentMillisecond() < end);
+
+      /**
+       * As table space is a (fixed) limited resource on our
+       * test rigs, we cant allow a fast test client to fill tables at
+       * an unlimited speed. Limit to 10.000 row inserts/sec.
+       */ 
+      const NDB_TICKS now = NdbTick_getCurrentTicks();
+      const Uint64 elapsed_ms = NdbTick_Elapsed(start, now).milliSec();
+      if (elapsed_ms >= 4000)
+        break;
+
+      const Uint64 time_goal = (row-startFrom)/10;
+      if (elapsed_ms < time_goal)
+      {
+        //We are inserting too fast, take a break.
+        NdbSleep_MilliSleep(time_goal-elapsed_ms);
+      }
+    } while (true); //Will break out
 
     if (!all)
     {
@@ -1715,9 +1732,13 @@ int runSR_DD_1(NDBT_Context* ctx, NDBT_Step* step)
     {
       ndbout << "Waiting for cluster to restart" << endl;
     }
+    ndbout << "Waiting for cluster to come up in 'NO_START' state" << endl;
     CHECK(restarter.waitClusterNoStart() == 0);
+    ndbout << "Allow cluster to start up" << endl;
     CHECK(restarter.startAll() == 0);
+    ndbout << "Waiting for cluster to reach 'STARTED' state" << endl;
     CHECK(restarter.waitClusterStarted() == 0);
+    ndbout << "Waiting for cluster to become 'ready'" << endl;
     CHECK(pNdb->waitUntilReady() == 0);
 
     ndbout << "Starting backup..." << flush;
@@ -1797,14 +1818,34 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
       ctx->setProperty("StopAbort", 3000 + rand() % (10000 - 3000));
     }
 
-    Uint64 end = NdbTick_CurrentMillisecond() + 11000;
+    Uint32 total_rows = 0;
+    const NDB_TICKS start = NdbTick_getCurrentTicks();
     do {
       if (hugoTrans.loadTable(pNdb, rows) != 0)
 	break;
       
       if (hugoTrans.clearTable(pNdb, NdbScanOperation::SF_TupScan, rows) != 0)
 	break;
-    } while (NdbTick_CurrentMillisecond() < end);
+
+      total_rows += rows;
+
+      /**
+       * As redo/undo log is a (fixed) limited resource on our
+       * test rigs, we cant allow a fast test client to create such logs at
+       * an unlimited speed. Limit to 10.000 row inserts+deletes/sec.
+       */ 
+      const NDB_TICKS now = NdbTick_getCurrentTicks();
+      const Uint64 elapsed_ms = NdbTick_Elapsed(start, now).milliSec();
+      if (elapsed_ms >= 11000)
+        break;
+
+      const Uint64 time_goal = total_rows/10;
+      if (elapsed_ms < time_goal)
+      {
+        //We are inserting too fast, take a break.
+        NdbSleep_MilliSleep(time_goal-elapsed_ms);
+      }
+    } while (true); //Will break out
     
     if (!all)
     {
@@ -1818,9 +1859,13 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
       ndbout << "Waiting for cluster to restart" << endl;
     }
 
+    ndbout << "Waiting for cluster to come up in 'NO_START' state" << endl;
     CHECK(restarter.waitClusterNoStart() == 0);
+    ndbout << "Allow cluster to start up" << endl;
     CHECK(restarter.startAll() == 0);
+    ndbout << "Waiting for cluster to reach 'STARTED' state" << endl;
     CHECK(restarter.waitClusterStarted() == 0);
+    ndbout << "Waiting for cluster to become 'ready'" << endl;
     CHECK(pNdb->waitUntilReady() == 0);
 
     if (error)
@@ -1910,7 +1955,7 @@ int runSR_DD_3(NDBT_Context* ctx, NDBT_Step* step)
     }
 
     int deletedrows[100];
-    Uint64 end = NdbTick_CurrentMillisecond() + 13000;
+    const NDB_TICKS start = NdbTick_getCurrentTicks();
     do {
       Uint32 cnt = 0;
       for (; cnt<NDB_ARRAY_SIZE(deletedrows); cnt++)
@@ -1946,7 +1991,7 @@ int runSR_DD_3(NDBT_Context* ctx, NDBT_Step* step)
       if (hugoTrans.scanUpdateRecords(pNdb, NdbScanOperation::SF_TupScan,0)!=0
           && !hugoTrans.getRetryMaxReached())
 	break;
-    } while (NdbTick_CurrentMillisecond() < end);
+    } while (NdbTick_Elapsed(start, NdbTick_getCurrentTicks()).milliSec() < 13000);
 
     if (!all)
     {
@@ -1960,9 +2005,13 @@ int runSR_DD_3(NDBT_Context* ctx, NDBT_Step* step)
       ndbout << "Waiting for cluster to restart" << endl;
     }
 
+    ndbout << "Waiting for cluster to come up in 'NO_START' state" << endl;
     CHECK(restarter.waitClusterNoStart() == 0);
+    ndbout << "Allow cluster to start up" << endl;
     CHECK(restarter.startAll() == 0);
+    ndbout << "Waiting for cluster to reach 'STARTED' state" << endl;
     CHECK(restarter.waitClusterStarted() == 0);
+    ndbout << "Waiting for cluster to become 'ready'" << endl;
     CHK_NDB_READY(pNdb);
     if (error)
     {
@@ -2185,7 +2234,7 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(res.restartAll(false, true, true) == 0);
     CHECK(res.waitClusterNoStart() == 0);
     CHECK(res.startAll() == 0);
-    Uint64 now = NdbTick_CurrentMillisecond();
+    const NDB_TICKS start = NdbTick_getCurrentTicks();
     /**
      * running transaction while cluster is down...
      * causes *lots* of printouts...redirect to /dev/null
@@ -2198,7 +2247,8 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
     do
     {
       hugoTrans.scanUpdateRecords(pNdb, 0);
-    } while (NdbTick_CurrentMillisecond() < (now + 30000));
+    } while (NdbTick_Elapsed(start, NdbTick_getCurrentTicks()).milliSec() < 30000);
+
     g_err.m_out = save[0];
     CHECK(res.waitClusterStarted() == 0);
     CHECK(pNdb->waitUntilReady() == 0);
