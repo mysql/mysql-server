@@ -23890,20 +23890,22 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
   case CheckNodeGroups::GetDefaultFragments:
     jamNoBlock();
     ok = true;
-    sd->output = getFragmentCount(sd->partitionBalance, sd->extraNodeGroups);
+    sd->output = getFragmentCount(sd->partitionBalance,
+                                  cnoOfNodeGroups + sd->extraNodeGroups,
+                                  cnoReplicas,
+                                  getFragmentsPerNode());
     break;
   case CheckNodeGroups::GetDefaultFragmentsFullyReplicated:
     jamNoBlock();
     switch(sd->partitionBalance)
     {
     case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
-      ok = true;
-      sd->output = getFragmentsPerNode();
-      break;
     case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
       ok = true;
-      sd->output = 1;
-      break;
+      sd->output = getFragmentCount(sd->partitionBalance,
+                                    1,
+                                    cnoReplicas,
+                                    getFragmentsPerNode());
     }
     break;
   }
@@ -23915,26 +23917,27 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
 }//Dbdih::execCHECKNODEGROUPSREQ()
 
 Uint32
-Dbdih::getFragmentCount(Uint32 partitionBalance, Uint32 extraNodeGroups)
+Dbdih::getFragmentCount(Uint32 partitionBalance,
+                        Uint32 numOfNodeGroups,
+                        Uint32 numOfReplicas,
+                        Uint32 numOfLDMs) const
 {
-  /**
-   * this is actually MIN(#ldm) for each node in cluster
-   */
-  Uint32 ldms = getFragmentsPerNode();
-  Uint32 nodeGroups = cnoOfNodeGroups + extraNodeGroups;
-
-  switch(partitionBalance) {
+  switch (partitionBalance)
+  {
   case NDB_PARTITION_BALANCE_FOR_RP_BY_LDM:
-    return nodeGroups * cnoReplicas * ldms;
+    return numOfNodeGroups * numOfReplicas * numOfLDMs;
   case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
-    return nodeGroups * ldms;
+    return numOfNodeGroups * numOfLDMs;
   case NDB_PARTITION_BALANCE_FOR_RP_BY_NODE:
-    return nodeGroups * cnoReplicas;
+    return numOfNodeGroups * numOfReplicas;
   case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
-    return nodeGroups;
+    return numOfNodeGroups;
+
+  case NDB_PARTITION_BALANCE_SPECIFIC:
+  default:
+    ndbrequire(false);
+    return 0;
   }
-  ndbrequire(false);
-  return 0;
 }
 
 void
