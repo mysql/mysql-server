@@ -799,6 +799,9 @@ struct {
   {NdbDictionary::Object::PartitionBalance_ForRPByNode,      "FOR_RP_BY_NODE"},
   {NdbDictionary::Object::PartitionBalance_ForRAByLDM,       "FOR_RA_BY_LDM"},
   {NdbDictionary::Object::PartitionBalance_ForRAByNode,      "FOR_RA_BY_NODE"},
+  {NdbDictionary::Object::PartitionBalance_ForRAByLDMx2,     "FOR_RA_BY_LDM_X_2"},
+  {NdbDictionary::Object::PartitionBalance_ForRAByLDMx3,     "FOR_RA_BY_LDM_X_3"},
+  {NdbDictionary::Object::PartitionBalance_ForRAByLDMx4,     "FOR_RA_BY_LDM_X_4"},
 };
 
 NdbDictionary::Object::PartitionBalance

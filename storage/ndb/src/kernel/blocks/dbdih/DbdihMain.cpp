@@ -23932,6 +23932,12 @@ Dbdih::getFragmentCount(Uint32 partitionBalance,
     return numOfNodeGroups * numOfReplicas;
   case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
     return numOfNodeGroups;
+  case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_2:
+    return numOfNodeGroups * numOfLDMs * 2;
+  case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_3:
+    return numOfNodeGroups * numOfLDMs * 3;
+  case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4:
+    return numOfNodeGroups * numOfLDMs * 4;
 
   case NDB_PARTITION_BALANCE_SPECIFIC:
   default:

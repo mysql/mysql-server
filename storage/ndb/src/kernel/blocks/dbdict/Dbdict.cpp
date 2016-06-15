@@ -5744,6 +5744,15 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
           case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
             pb_str = " PB_RPNG";
             break;
+          case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_2:
+            pb_str = " PB_RAL2";
+            break;
+          case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_3:
+            pb_str = " PB_RAL3";
+            break;
+          case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4:
+            pb_str = " PB_RAL4";
+            break;
           default:
             ndbrequire(false);
         }

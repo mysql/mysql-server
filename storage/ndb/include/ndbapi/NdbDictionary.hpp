@@ -191,6 +191,13 @@ public:
       PartitionBalance_ForRPByLDM = NDB_PARTITION_BALANCE_FOR_RP_BY_LDM,
 
       /**
+       * Use X fragment per LDM per nodegroup
+       */
+      PartitionBalance_ForRAByLDMx2 = NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_2,
+      PartitionBalance_ForRAByLDMx3 = NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_3,
+      PartitionBalance_ForRAByLDMx4 = NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4,
+
+      /**
        * Use one fragment per LDM per nodegroup
        */
       PartitionBalance_ForRAByLDM =
