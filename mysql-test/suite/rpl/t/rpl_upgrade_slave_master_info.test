@@ -95,7 +95,9 @@ CREATE TABLE `slave_master_info` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Master Information';
 
 --echo # Running mysql_upgrade to update slave_master_info table
+--disable_result_log
 --exec $MYSQL_UPGRADE --skip-verbose --skip-sys-schema --force 2>&1
+--enable_result_log
 
 --let $rpl_server_number= 1
 --source include/rpl_restart_server.inc
