@@ -82,7 +82,8 @@ static lsn_t lsn_avg_rate = 0;
 static lsn_t buf_flush_sync_lsn = 0;
 
 #ifdef UNIV_PFS_THREAD
-mysql_pfs_key_t page_cleaner_thread_key;
+mysql_pfs_key_t	page_flush_thread_key;
+mysql_pfs_key_t	page_flush_coordinator_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
 /** Event to synchronise with the flushing. */
@@ -196,6 +197,18 @@ in thrashing. */
 #define BUF_LRU_MIN_LEN		256
 
 /* @} */
+
+/** Thread tasked with flushing dirty pages from the buffer pools.
+As of now we'll have only one coordinator.
+@param[in]	n_page_cleaners	Number of page cleaner threads to create */
+static
+void
+buf_flush_page_coordinator_thread(size_t n_page_cleaners);
+
+/** Worker thread of page_cleaner. */
+static
+void
+buf_flush_page_cleaner_thread();
 
 /******************************************************************//**
 Increases flush_list size in bytes with the page size in inline function */
@@ -2718,11 +2731,10 @@ pc_sleep_if_needed(
 	return(OS_SYNC_TIME_EXCEEDED);
 }
 
-/******************************************************************//**
-Initialize page_cleaner. */
+/** Initialize page_cleaner.
+@param[in]	n_page_cleaners	Number of page cleaner threads to create */
 void
-buf_flush_page_cleaner_init(void)
-/*=============================*/
+buf_flush_page_cleaner_init(size_t n_page_cleaners)
 {
 	ut_ad(page_cleaner == NULL);
 
@@ -2743,6 +2755,17 @@ buf_flush_page_cleaner_init(void)
 	ut_d(page_cleaner->n_disabled_debug = 0);
 
 	page_cleaner->is_running = true;
+
+	os_thread_create(
+		page_flush_coordinator_thread_key,
+		buf_flush_page_coordinator_thread,
+		n_page_cleaners);
+
+	/* Make sure page cleaner is active. */
+
+	while (!buf_page_cleaner_is_active) {
+		os_thread_sleep(10000);
+	}
 }
 
 /**
@@ -3110,10 +3133,12 @@ buf_flush_page_cleaner_disabled_debug_update(
 }
 #endif /* UNIV_DEBUG */
 
-/** page_cleaner thread tasked with flushing dirty pages from the buffer
-pools. As of now we'll have only one coordinator. */
+/** Thread tasked with flushing dirty pages from the buffer pools.
+As of now we'll have only one coordinator.
+@param[in]	n_page_cleaners	Number of page cleaner threads to create */
+static
 void
-buf_flush_page_cleaner_coordinator()
+buf_flush_page_coordinator_thread(size_t n_page_cleaners)
 {
 	ulint	next_loop_time = ut_time_ms() + 1000;
 	ulint	n_flushed = 0;
@@ -3136,6 +3161,16 @@ buf_flush_page_cleaner_coordinator()
 #endif /* UNIV_LINUX */
 
 	buf_page_cleaner_is_active = true;
+
+	/* We start from 1 because the coordinator thread is part of the
+	same set */
+
+	for (size_t i = 1; i < n_page_cleaners; ++i) {
+
+		os_thread_create(
+			page_flush_thread_key,
+			buf_flush_page_cleaner_thread);
+	}
 
 	while (!srv_read_only_mode
 	       && srv_shutdown_state == SRV_SHUTDOWN_NONE
@@ -3464,11 +3499,12 @@ thread_exit:
 }
 
 /** Worker thread of page_cleaner. */
+static
 void
-buf_flush_page_cleaner_worker()
+buf_flush_page_cleaner_thread()
 {
 	mutex_enter(&page_cleaner->mutex);
-	page_cleaner->n_workers++;
+	++page_cleaner->n_workers;
 	mutex_exit(&page_cleaner->mutex);
 
 #ifdef UNIV_LINUX
@@ -3482,7 +3518,7 @@ buf_flush_page_cleaner_worker()
 	}
 #endif /* UNIV_LINUX */
 
-	while (true) {
+	for (;;) {
 		os_event_wait(page_cleaner->is_requested);
 
 		ut_d(buf_flush_page_cleaner_disabled_loop());
@@ -3495,7 +3531,7 @@ buf_flush_page_cleaner_worker()
 	}
 
 	mutex_enter(&page_cleaner->mutex);
-	page_cleaner->n_workers--;
+	--page_cleaner->n_workers;
 	mutex_exit(&page_cleaner->mutex);
 }
 

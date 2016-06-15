@@ -228,18 +228,10 @@ buf_flush_page_cleaner_disabled_debug_update(
 	const void*			save);
 #endif /* UNIV_DEBUG */
 
-/** page_cleaner thread tasked with flushing dirty pages from the buffer
-pools. As of now we'll have only one coordinator of this thread. */
+/** Initialize page_cleaner.
+@param[in]	n_page_cleaners	Number of page cleaner threads to create */
 void
-buf_flush_page_cleaner_coordinator();
-
-/** Worker thread of page_cleaner. */
-void
-buf_flush_page_cleaner_worker();
-
-/** Initialize page_cleaner. */
-void
-buf_flush_page_cleaner_init();
+buf_flush_page_cleaner_init(size_t n_page_cleaners);
 
 /** Wait for any possible LRU flushes that are in progress to end. */
 void
