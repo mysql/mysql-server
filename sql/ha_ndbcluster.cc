@@ -10142,6 +10142,41 @@ adjusted_frag_count(Ndb* ndb,
   return (reported_frags < requested_frags);
 }
 
+static const NdbDictionary::Object::PartitionBalance g_default_partition_balance =
+  NdbDictionary::Object::PartitionBalance_ForRPByLDM;
+
+/**
+ * Default for tables with no read of backup is one per ldm per
+ * node to ensure that we don't get imbalanced loads on the
+ * different nodes and ldms in the cluster. For tables with
+ * read backup there will be much smaller difference on usage
+ * of the fragments, so here we only have one fragment per node
+ * group and per ldm to avoid splitting the table into too many
+ * parts.
+ *
+ * We won't do this for ALTER TABLE table algorithm=copy
+ * since the end result of an ALTER TABLE should not
+ * change by the algorithm. Also it makes no sense to
+ * change the table fragmentation silently.
+ */
+static const NdbDictionary::Object::PartitionBalance g_default_partition_balance_RB =
+  NdbDictionary::Object::PartitionBalance_ForRPByLDM;
+
+/**
+ * For Fully replicated tables we use
+ * PartitionBalance_ForRAByLDM as default setting.
+ * This means that we will have one partition in each LDM
+ * and that there is one copy in each data node although
+ * technically each node group will have its own set of
+ * partitions, these partitions are maintained using
+ * the Fully replicated triggers. This means that all writes
+ * always start in the main node group for the table. When
+ * the update has acquired all locks it will use a trigger
+ * mechanism to spread to all other nodes in the cluster.
+ */
+static const NdbDictionary::Object::PartitionBalance g_default_partition_balance_FR =
+  NdbDictionary::Object::PartitionBalance_ForRAByLDM;
+
 static
 bool
 parsePartitionBalance(THD *thd,
@@ -10151,32 +10186,10 @@ parsePartitionBalance(THD *thd,
   if (mod->m_found == false)
     return false; // OK
 
-  NdbDictionary::Object::PartitionBalance ret;
-  if (mod->m_val_str.len == (sizeof("FOR_RP_BY_LDM") - 1) &&
-           strncmp(mod->m_val_str.str, "FOR_RP_BY_LDM",
-                   (sizeof("FOR_RP_BY_LDM") - 1)) == 0)
-  {
-    ret = NdbDictionary::Object::PartitionBalance_ForRPByLDM;
-  }
-  else if (mod->m_val_str.len == (sizeof("FOR_RA_BY_LDM") - 1) &&
-           strncmp(mod->m_val_str.str, "FOR_RA_BY_LDM",
-                   (sizeof("FOR_RA_BY_LDM") - 1)) == 0)
-  {
-    ret = NdbDictionary::Object::PartitionBalance_ForRAByLDM;
-  }
-  else if (mod->m_val_str.len == (sizeof("FOR_RP_BY_NODE") - 1) &&
-           strncmp(mod->m_val_str.str, "FOR_RP_BY_NODE",
-                   (sizeof("FOR_RP_BY_NODE") - 1)) == 0)
-  {
-    ret = NdbDictionary::Object::PartitionBalance_ForRPByNode;
-  }
-  else if (mod->m_val_str.len == (sizeof("FOR_RA_BY_NODE") - 1) &&
-           strncmp(mod->m_val_str.str, "FOR_RA_BY_NODE",
-                   (sizeof("FOR_RA_BY_NODE") - 1)) == 0)
-  {
-    ret = NdbDictionary::Object::PartitionBalance_ForRAByNode;
-  }
-  else
+  NdbDictionary::Object::PartitionBalance ret =
+    NdbDictionary::Table::getPartitionBalance(mod->m_val_str.str);
+
+  if (ret == 0)
   {
     DBUG_PRINT("info", ("PartitionBalance: %s not supported",
                         mod->m_val_str.str));
@@ -10264,7 +10277,7 @@ void ha_ndbcluster::append_create_info(String *packet)
    * property already set in the comment string.
    */
   NdbDictionary::Object::PartitionBalance comment_part_bal =
-    NdbDictionary::Object::PartitionBalance_ForRPByLDM;
+    g_default_partition_balance;
 
   bool comment_part_bal_set = false;
   bool comment_logged_table_set = false;
@@ -10402,52 +10415,37 @@ void ha_ndbcluster::append_create_info(String *packet)
        * string and hasn't changed this property in this comment string.
        * In this case the table property will stay, so we print this in
        * the SHOW CREATE TABLE comment string.
-       *
-       * The default partition balance differs for tables with
-       * READ_BACKUP flag set. It is rather one per ldm per node group
-       * to avoid having too many fragments.
        */
-      switch (part_bal)
+
+      /**
+       * The default partition balance need not be visible in comment.
+       *
+       * The default partition balance is different whether table is
+       * READ_BACKUP or FULLY_REPLICATED or not.
+       */
+      const NdbDictionary::Object::PartitionBalance default_partition_balance =
+        tab->getFullyReplicated() ? g_default_partition_balance_FR :
+        read_backup ? g_default_partition_balance_RB :
+        g_default_partition_balance;
+
+      if (part_bal != default_partition_balance)
       {
-        case NdbDictionary::Object::PartitionBalance_ForRPByLDM:
-          break;
-        case NdbDictionary::Object::PartitionBalance_ForRAByLDM:
+        const char * pbname = NdbDictionary::Table::getPartitionBalanceString(part_bal);
+        if (pbname != NULL)
         {
+          char msg[200];
+          snprintf(msg,
+                   sizeof(msg),
+                   "Table property is PARTITION_BALANCE=%s but not in comment",
+                   pbname);
           push_warning_printf(thd, Sql_condition::SL_WARNING,
-            ER_GET_ERRMSG,
-            ER(ER_GET_ERRMSG),
-            4503,
-            "Table property is "
-            "PARTITION_BALANCE=FOR_RA_BY_LDM"
-            " but not in comment",
-            "NDB");
-          break;
+                              ER_GET_ERRMSG,
+                              ER(ER_GET_ERRMSG),
+                              4503,
+                              msg,
+                              "NDB");
         }
-        case NdbDictionary::Object::PartitionBalance_ForRPByNode:
-        {
-          push_warning_printf(thd, Sql_condition::SL_WARNING,
-            ER_GET_ERRMSG,
-            ER(ER_GET_ERRMSG),
-            4503,
-            "Table property is "
-            "PARTITION_BALANCE=FOR_RP_BY_NODE"
-            " but not in comment",
-            "NDB");
-          break;
-        }
-        case NdbDictionary::Object::PartitionBalance_ForRAByNode:
-        {
-          push_warning_printf(thd, Sql_condition::SL_WARNING,
-            ER_GET_ERRMSG,
-            ER(ER_GET_ERRMSG),
-            4503,
-            "Table property is "
-            "PARTITION_BALANCE=FOR_RA_BY_NODE"
-            " but not in comment",
-            "NDB");
-          break;
-        }
-        default:
+        else
         {
           assert(false);
           /**
@@ -10684,7 +10682,7 @@ int ha_ndbcluster::create(const char *name,
   const NDB_Modifier * mod_fully_replicated =
     table_modifiers.get("FULLY_REPLICATED");
   NdbDictionary::Object::PartitionBalance part_bal =
-    NdbDictionary::Object::PartitionBalance_ForRPByLDM;
+    g_default_partition_balance;
   if (parsePartitionBalance(thd /* for pushing warning */,
                              mod_frags,
                              &part_bal) == false)
@@ -10887,19 +10885,7 @@ int ha_ndbcluster::create(const char *name,
       {
         if (!mod_frags->m_found)
         {
-          /**
-           * For Fully replicated tables we use
-           * PartitionBalance_ForRAByLDM as default setting.
-           * This means that we will have one partition in each LDM
-           * and that there is one copy in each data node although
-           * technically each node group will have its own set of
-           * partitions, these partitions are maintained using
-           * the Fully replicated triggers. This means that all writes
-           * always start in the main node group for the table. When
-           * the update has acquired all locks it will use a trigger
-           * mechanism to spread to all other nodes in the cluster.
-           */
-          part_bal = NdbDictionary::Object::PartitionBalance_ForRAByLDM;
+          part_bal = g_default_partition_balance_FR;
         }
         else
         {
@@ -18486,7 +18472,7 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
     table_modifiers.get("FULLY_REPLICATED");
 
   NdbDictionary::Object::PartitionBalance fct =
-    NdbDictionary::Object::PartitionBalance_ForRPByLDM;
+    g_default_partition_balance;
   if (parsePartitionBalance(thd /* for pushing warning */,
                              mod_frags, &fct) == false)
   {
