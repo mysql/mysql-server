@@ -1964,19 +1964,19 @@ NdbDictionary::HashMap::getObjectId() const {
 
 int
 NdbDictionary::Dictionary::getDefaultHashMap(NdbDictionary::HashMap& dst,
-                                             Uint32 fragments)
+                                             Uint32 partitionCount)
 {
-  return getDefaultHashMap(dst, m_impl.getDefaultHashmapSize(), fragments);
+  return getDefaultHashMap(dst, m_impl.getDefaultHashmapSize(), partitionCount);
 }
 
 int
 NdbDictionary::Dictionary::getDefaultHashMap(NdbDictionary::HashMap& dst,
                                              Uint32 buckets,
-                                             Uint32 fragments)
+                                             Uint32 partitionCount)
 {
   BaseString tmp;
   tmp.assfmt("DEFAULT-HASHMAP-%u-%u",
-             buckets, fragments);
+             buckets, partitionCount);
 
   return getHashMap(dst, tmp.c_str());
 }
@@ -2004,26 +2004,26 @@ NdbDictionary::Dictionary::getHashMap(NdbDictionary::HashMap& dst,
 
 int
 NdbDictionary::Dictionary::initDefaultHashMap(NdbDictionary::HashMap& dst,
-                                              Uint32 fragments)
+                                              Uint32 partitionCount)
 {
-  return initDefaultHashMap(dst, m_impl.getDefaultHashmapSize(), fragments);
+  return initDefaultHashMap(dst, m_impl.getDefaultHashmapSize(), partitionCount);
 }
 
 int
 NdbDictionary::Dictionary::initDefaultHashMap(NdbDictionary::HashMap& dst,
                                               Uint32 buckets,
-                                              Uint32 fragments)
+                                              Uint32 partitionCount)
 {
   BaseString tmp;
   tmp.assfmt("DEFAULT-HASHMAP-%u-%u",
-             buckets, fragments);
+             buckets, partitionCount);
 
   dst.setName(tmp.c_str());
 
   Vector<Uint32> map;
   for (Uint32 i = 0; i < buckets; i++)
   {
-    map.push_back(i % fragments);
+    map.push_back(i % partitionCount);
   }
 
   dst.setMap(map.getBase(), map.size());

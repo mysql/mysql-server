@@ -771,7 +771,7 @@ public:
   int create_hashmap(const NdbHashMapImpl&,
                      NdbDictObjectImpl*,
                      Uint32 flags,
-                     Uint32 fragmentCount);
+                     Uint32 partitionBalance_Count);
   int get_hashmap(NdbHashMapImpl&, Uint32 id);
   int get_hashmap(NdbHashMapImpl&, const char * name);
 

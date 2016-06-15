@@ -2671,15 +2671,15 @@ public:
     /**
      * Get default HashMap
      */
-    int getDefaultHashMap(HashMap& dst, Uint32 fragments);
-    int getDefaultHashMap(HashMap& dst, Uint32 buckets, Uint32 fragments);
+    int getDefaultHashMap(HashMap& dst, Uint32 partitionCount);
+    int getDefaultHashMap(HashMap& dst, Uint32 buckets, Uint32 partitionCount);
 
 
     /**
      * Init a default HashMap
      */
-    int initDefaultHashMap(HashMap& dst, Uint32 fragments);
-    int initDefaultHashMap(HashMap& dst, Uint32 buckets, Uint32 fragments);
+    int initDefaultHashMap(HashMap& dst, Uint32 partitionCount);
+    int initDefaultHashMap(HashMap& dst, Uint32 buckets, Uint32 partitionCount);
 
     /**
      * create (or retreive) a HashMap suitable for alter
