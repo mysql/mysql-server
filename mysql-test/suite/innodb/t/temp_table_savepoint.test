@@ -1,11 +1,10 @@
 --source include/have_innodb.inc
---source include/have_innodb_max_16k.inc
 --source include/no_valgrind_without_big.inc
 
 ####################################################################
 # TC to test temp-table DML optimization changes for correctness   #
 # Sceanrio covered in single testcase :                            #
-# - Tables with row format(redundant,compressed,dynamic,compact    #
+# - Tables with row format(redundant,dynamic,compact)              #
 # - Table with primary,composite,prefix,secondary index            #
 # - Insert/delete/update with transactioons                        #
 # - Transaction with commit,rollback,savepoint statements          #
@@ -14,7 +13,7 @@
 # - Inserting data using                                           #
 #   - Insert into .. , Load data infile..,insert ignore            #
 #   - Insert into .. on duplicate update                           #
-# - Check basic delete and upadte [ignore]                         #
+# - Check basic delete and update [ignore]                         #
 # - Check constraints like duplicate key,default value             #
 # - Alter add column , add primary key                             #
 # - with prepare and execute statement                             #
@@ -28,22 +27,16 @@ if (`SELECT COUNT(*) = 0 FROM performance_schema.global_status WHERE LOWER(varia
 }
 --enable_warnings
 
-
-# Save initial values of server variable
---disable_query_log
-let $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
---enable_query_log
 
-# Create procedure to perform 
+# Create procedure to perform
 # 1. Create temp table with row types , index , sufficent data types
-# 2. Perform DML with transaction 
+# 2. Perform DML with transaction
 delimiter |;
 create procedure populate_tables()
    begin
    declare n int default 20;
    declare inner_loop int default 100;
-   set global innodb_file_per_table=on;
 
    create temporary table t1(c1 int not null,
    c2 int not null,
@@ -55,7 +48,7 @@ create procedure populate_tables()
    c8 datetime,
    c9 decimal(6,3),
    primary key (c1),
-   index (c3,c4(50),c5(50)), 
+   index (c3,c4(50),c5(50)),
    index (c2))
    engine=innodb row_format=redundant;
 
@@ -138,7 +131,7 @@ create procedure populate_tables()
         update t4 set c1 = c1 + 1000 where c1 > 10;
         update t5 set c1 = c1 + 1000 where c1 > 10;
         rollback;
-     end if;     
+     end if;
 
      start transaction;
      insert into t1 values(n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
@@ -210,7 +203,7 @@ create procedure populate_tables()
      commit;
      commit;
      rollback;
-     set n = n - 1; 
+     set n = n - 1;
      end while;
 end|
 delimiter ;|
@@ -222,18 +215,12 @@ connect (con2,localhost,root,,);
 --echo #---client 1 : dml operation ---"
 connection con1;
 -- disable_query_log
-eval set global innodb_file_per_table=$innodb_file_per_table_orig;
--- enable_query_log
--- disable_query_log
 # call procedure
 --send call populate_tables();
 -- enable_query_log
 
 --echo #---client 2 : dml operation ---"
 connection con2;
--- disable_query_log
-eval set global innodb_file_per_table=$innodb_file_per_table_orig;
--- enable_query_log
 -- disable_query_log
 # call procedure
 --send call populate_tables();
@@ -327,7 +314,7 @@ select count(*) from t2 where c1 = 140;
 select count(*) from t4 where c1 = 140;
 select count(*) from t5 where c1 = 140;
 
-# Load data infile 
+# Load data infile
 --echo "running select * into outfile <file> from t1 ;
 --disable_query_log
 eval select * into outfile "$MYSQLTEST_VARDIR/tmp/t1.outfile" from t1;
@@ -342,14 +329,14 @@ eval load data infile '$MYSQLTEST_VARDIR/tmp/t1.outfile' into table temp_1;
 select count(*) from temp_1;
 
 # Alter table to add column and primary key
-alter table temp_1 add column c10 int default 99 , 
+alter table temp_1 add column c10 int default 99 ,
 add column c11 varchar(100) default 'test';
 alter table temp_1 add primary key (c1);
 insert into temp_1 (c1,c2,c3,c4,c5,c6,c7,c8,c9) values (-1,-1,'a','a','a','a','a',now(),100.55);
 select c1,c2,c3,c4,c5,c6,c7,c9,c10,c11 from temp_1 where c1 < 0;
 select count(*) from temp_1 where c10 = 99 and c11 like 'test';
 # insert on duplicate key update
-insert into temp_1 (c1,c2,c3,c4,c5,c6,c7,c8,c9) values (-1,-1,'a','a','a','a','a',now(),100.55) 
+insert into temp_1 (c1,c2,c3,c4,c5,c6,c7,c8,c9) values (-1,-1,'a','a','a','a','a',now(),100.55)
 on duplicate  key update c1=-2,c2=-2;
 select c1,c2,c3,c4,c5,c6,c7,c9,c10,c11 from temp_1 where c1 < 0;
 
@@ -410,9 +397,3 @@ drop prepare stm_2;
 drop table prep_1;
 
 --remove_file $MYSQLTEST_VARDIR/tmp/t1.outfile
-
--- disable_query_log
-eval set global innodb_file_per_table=$innodb_file_per_table_orig;
-SET sql_mode = default;
--- enable_query_log
-

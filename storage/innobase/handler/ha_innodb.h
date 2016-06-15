@@ -73,9 +73,7 @@ public:
 	ha_innobase(handlerton* hton, TABLE_SHARE* table_arg);
 	~ha_innobase();
 
-	/** Get the row type from the storage engine.  If this method returns
-	ROW_TYPE_NOT_USED, the information in HA_CREATE_INFO should be used. */
-	row_type get_row_type() const;
+	row_type get_real_row_type(const HA_CREATE_INFO *create_info) const;
 
 	const char* table_type() const;
 
@@ -348,13 +346,16 @@ public:
 	@param altered_table TABLE object for new version of table.
 	@param ha_alter_info Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
+	@param new_dd_tab dd::Table object for the new version of
+	the table. To be adjusted by this call.
 
 	@retval true Failure
 	@retval false Success
 	*/
 	bool prepare_inplace_alter_table(
 		TABLE*			altered_table,
-		Alter_inplace_info*	ha_alter_info);
+		Alter_inplace_info*	ha_alter_info,
+		dd::Table		*new_dd_tab);
 
 	/** Alter the table structure in-place with operations
 	specified using HA_ALTER_FLAGS and Alter_inplace_information.

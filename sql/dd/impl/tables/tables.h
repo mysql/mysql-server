@@ -49,6 +49,7 @@ public:
     FIELD_TYPE,
     FIELD_ENGINE,
     FIELD_MYSQL_VERSION_ID,
+    FIELD_ROW_FORMAT,
     FIELD_COLLATION_ID,
     FIELD_COMMENT,
     FIELD_HIDDEN,
@@ -102,6 +103,10 @@ public:
     m_target_def.add_field(FIELD_MYSQL_VERSION_ID,
                            "FIELD_MYSQL_VERSION_ID",
                            "mysql_version_id INT UNSIGNED NOT NULL");
+    m_target_def.add_field(FIELD_ROW_FORMAT,
+                           "FIELD_ROW_FORMAT",
+                           "row_format ENUM('Fixed', 'Dynamic', 'Compressed',"
+                           "                'Redundant','Compact','Paged')");
     m_target_def.add_field(FIELD_COLLATION_ID,
                            "FIELD_COLLATION_ID",
                            "collation_id BIGINT UNSIGNED");

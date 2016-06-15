@@ -5,7 +5,7 @@ let $per_table=`select @@innodb_file_per_table`;
 SET @save_innodb_stats_on_metadata=@@global.innodb_stats_on_metadata;
 
 
---let $query_i_s = SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql' AND table_schema != 'sys' AND table_schema != 'PERFORMANCE_SCHEMA';
+--let $query_i_s = SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql' AND table_schema != 'sys' AND table_schema != 'PERFORMANCE_SCHEMA' AND table_schema != 'information_schema';
 
 set session innodb_strict_mode=0;
 set global innodb_file_per_table=off;

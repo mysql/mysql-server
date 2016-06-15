@@ -1479,12 +1479,6 @@ public:
     return binlog_accessed_db_names;
   }
 
-  /*
-     MTS: resetter of binlog_accessed_db_names list normally
-     at the end of the query execution
-  */
-  void clear_binlog_accessed_db_names() { binlog_accessed_db_names= NULL; }
-
   /* MTS: method inserts a new unique name into binlog_updated_dbs */
   void add_to_binlog_accessed_dbs(const char *db);
 
@@ -2274,7 +2268,6 @@ public:
     each thread that is using LOG_INFO needs to adjust the pointer to it
   */
   LOG_INFO*  current_linfo;
-  NET*       slave_net;			// network connection from slave -> m.
   /* Used by the sys_var class to store temporary values */
   union
   {
@@ -4066,11 +4059,6 @@ inline bool add_item_to_list(THD *thd, Item *item)
 inline void add_order_to_list(THD *thd, ORDER *order)
 {
   thd->lex->select_lex->add_order_to_list(order);
-}
-
-inline void add_group_to_list(THD *thd, ORDER *order)
-{
-  thd->lex->select_lex->add_group_to_list(order);
 }
 
 /*************************************************************************/

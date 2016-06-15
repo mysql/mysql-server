@@ -399,24 +399,6 @@ public:
 
 
 /**
-  Argument for Item::explain_subquery_checker()
-
-  Just a tuple of (destination, type) to pass as a single argument.
-  See a commentary for Item_subselect::explain_subquery_checker
-*/
-
-struct Explain_subquery_marker
-{
-  class qep_row *destination; ///< hosting TABLE/JOIN_TAB
-  enum_parsing_context type; ///< CTX_WHERE/CTX_HAVING/CTX_ORDER_BY/CTX_GROUP_BY
-
-  Explain_subquery_marker(qep_row *destination_arg,
-                          enum_parsing_context type_arg)
-  : destination(destination_arg), type(type_arg)
-  {}
-};
-
-/**
   Enumeration of ORDER BY, GROUP BY and DISTINCT clauses for array indexing
 
   See Explain_format_flags::sorts

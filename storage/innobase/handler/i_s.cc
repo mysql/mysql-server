@@ -604,7 +604,7 @@ fill_innodb_trx_from_cache(
 				cache, I_S_INNODB_TRX, i);
 
 		/* trx_id */
-		ut_snprintf(trx_id, sizeof(trx_id), TRX_ID_FMT, row->trx_id);
+		snprintf(trx_id, sizeof(trx_id), TRX_ID_FMT, row->trx_id);
 		OK(field_store_string(fields[IDX_TRX_ID], trx_id));
 
 		/* trx_state */
@@ -941,7 +941,7 @@ fill_innodb_locks_from_cache(
 				      lock_id));
 
 		/* lock_trx_id */
-		ut_snprintf(lock_trx_id, sizeof(lock_trx_id),
+		snprintf(lock_trx_id, sizeof(lock_trx_id),
 			    TRX_ID_FMT, row->lock_trx_id);
 		OK(field_store_string(fields[IDX_LOCK_TRX_ID], lock_trx_id));
 
@@ -1146,7 +1146,7 @@ fill_innodb_lock_waits_from_cache(
 				cache, I_S_INNODB_LOCK_WAITS, i);
 
 		/* requesting_trx_id */
-		ut_snprintf(requesting_trx_id, sizeof(requesting_trx_id),
+		snprintf(requesting_trx_id, sizeof(requesting_trx_id),
 			    TRX_ID_FMT, row->requested_lock_row->lock_trx_id);
 		OK(field_store_string(fields[IDX_REQUESTING_TRX_ID],
 				      requesting_trx_id));
@@ -1160,7 +1160,7 @@ fill_innodb_lock_waits_from_cache(
 				   sizeof(requested_lock_id))));
 
 		/* blocking_trx_id */
-		ut_snprintf(blocking_trx_id, sizeof(blocking_trx_id),
+		snprintf(blocking_trx_id, sizeof(blocking_trx_id),
 			    TRX_ID_FMT, row->blocking_lock_row->lock_trx_id);
 		OK(field_store_string(fields[IDX_BLOCKING_TRX_ID],
 				      blocking_trx_id));
@@ -1773,7 +1773,7 @@ i_s_cmp_per_index_fill_low(
 					       index->name);
 		} else {
 			/* index not found */
-			ut_snprintf(name, sizeof(name),
+			snprintf(name, sizeof(name),
 				    "index_id:" IB_ID_FMT,
 				    iter->first.m_index_id);
 			field_store_string(fields[IDX_DATABASE_NAME],
@@ -3005,6 +3005,10 @@ i_s_fts_deleted_generic_fill(
 
 	if (!user_table) {
 		DBUG_RETURN(0);
+	} else if (!dict_table_has_fts_index(user_table)) {
+		dict_table_close(user_table, FALSE, FALSE);
+
+		DBUG_RETURN(0);
 	}
 
 	trx = trx_allocate_for_background();
@@ -3412,6 +3416,12 @@ i_s_fts_index_cache_fill(
 		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
+		DBUG_RETURN(0);
+	}
+
+	if (user_table->fts == NULL || user_table->fts->cache == NULL) {
+		dict_table_close(user_table, FALSE, FALSE);
+
 		DBUG_RETURN(0);
 	}
 
@@ -8858,7 +8868,7 @@ i_s_files_table_fill(
 			the user must match the space_id to i_s_table.space
 			in order find the single table that is in it or the
 			schema it belongs to. */
-			ut_snprintf(
+			snprintf(
 				file_per_table_name,
 				sizeof(file_per_table_name),
 				"innodb_file_per_table_" ULINTPF,

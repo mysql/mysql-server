@@ -348,7 +348,6 @@ public:
 
 
 /* optional things, have_* variables */
-extern SHOW_COMP_OPTION have_ndbcluster, have_partitioning;
 extern SHOW_COMP_OPTION have_profiling;
 
 extern SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen;

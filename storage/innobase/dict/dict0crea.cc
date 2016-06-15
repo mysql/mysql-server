@@ -2531,7 +2531,7 @@ dict_sdi_create_idx_in_mem(
 	digits of copy_num (10) + 1 */
 	char		table_name[28];
 	mem_heap_t*	heap = mem_heap_create(DICT_HEAP_SIZE);
-	ut_snprintf(table_name, sizeof(table_name), "SDI_" ULINTPF "_" UINT32PF,
+	snprintf(table_name, sizeof(table_name), "SDI_" ULINTPF "_" UINT32PF,
 		    space, copy_num);
 
 	dict_table_t*	table = dict_mem_table_create(
@@ -2556,7 +2556,7 @@ dict_sdi_create_idx_in_mem(
 
 	/* 16 =	14(CLUST_IND_SDI_) + 1 (copy_num 0 or 1) + 1 */
 	char	index_name[16];
-	ut_snprintf(index_name, sizeof(index_name), "CLUST_IND_SDI_" UINT32PF,
+	snprintf(index_name, sizeof(index_name), "CLUST_IND_SDI_" UINT32PF,
 		    copy_num);
 
 	dict_index_t*	temp_index = dict_mem_index_create(

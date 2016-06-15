@@ -617,6 +617,22 @@ static void register_hidden_field(TABLE *table,
   field->field_index= 0;
 }
 
+
+/**
+  Helper function which evaluates correct TABLE_SHARE::real_row_type
+  for the temporary table.
+*/
+static void set_real_row_type(TABLE *table)
+{
+  HA_CREATE_INFO create_info;
+  create_info.row_type= table->s->row_type;
+  create_info.options|= HA_LEX_CREATE_TMP_TABLE |
+                        HA_LEX_CREATE_INTERNAL_TMP_TABLE;
+  create_info.table_options= table->s->db_create_options;
+  table->s->real_row_type= table->file->get_real_row_type(&create_info);
+}
+
+
 /**
   Create a temp table according to a field list.
 
@@ -1520,6 +1536,9 @@ update_hidden:
   if (thd->is_fatal_error)				// If end of memory
     goto err;					 /* purecov: inspected */
   share->db_record_offset= 1;
+
+  set_real_row_type(table);
+
   if (!param->skip_create_table)
   {
     if (instantiate_tmp_table(table, param->keyinfo, param->start_recinfo,
@@ -1904,6 +1923,9 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   if (thd->is_fatal_error)				// If end of memory
     goto err;
   share->db_record_offset= 1;
+
+  set_real_row_type(table);
+
   if (instantiate_tmp_table(table, table->key_info, start_recinfo, &recinfo,
                             0, 0, &thd->opt_trace))
     goto err;
@@ -2516,6 +2538,10 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
     delete new_table.file;
     DBUG_RETURN(1);
   }
+
+  /* Fix row type which might have changed with SE change. */
+  set_real_row_type(&new_table);
+
   save_proc_info=thd->proc_info;
   THD_STAGE_INFO(thd, stage_converting_heap_to_ondisk);
 

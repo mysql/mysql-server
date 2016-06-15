@@ -211,7 +211,7 @@ buf_dump_generate_path(
 {
 	char	buf[FN_REFLEN];
 
-	ut_snprintf(buf, sizeof(buf), "%s%c%s", get_buf_dump_dir(),
+	snprintf(buf, sizeof(buf), "%s%c%s", get_buf_dump_dir(),
 		    OS_PATH_SEPARATOR, srv_buf_dump_filename);
 
 	os_file_type_t	type;
@@ -238,11 +238,11 @@ buf_dump_generate_path(
 		if (srv_data_home_full[strlen(srv_data_home_full) - 1]
 		    == OS_PATH_SEPARATOR) {
 
-			ut_snprintf(path, path_size, "%s%s",
+			snprintf(path, path_size, "%s%s",
 				    srv_data_home_full,
 				    srv_buf_dump_filename);
 		} else {
-			ut_snprintf(path, path_size, "%s%c%s",
+			snprintf(path, path_size, "%s%c%s",
 				    srv_data_home_full,
 				    OS_PATH_SEPARATOR,
 				    srv_buf_dump_filename);
@@ -272,7 +272,7 @@ buf_dump(
 
 	buf_dump_generate_path(full_filename, sizeof(full_filename));
 
-	ut_snprintf(tmp_filename, sizeof(tmp_filename),
+	snprintf(tmp_filename, sizeof(tmp_filename),
 		    "%s.incomplete", full_filename);
 
 	buf_dump_status(STATUS_INFO, "Dumping buffer pool(s) to %s",

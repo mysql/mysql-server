@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5119,33 +5119,6 @@ uint8 ha_partition::table_cache_type()
                 MODULE print messages
 ****************************************************************************/
 
-enum row_type ha_partition::get_row_type() const
-{
-  uint i;
-  enum row_type type;
-  DBUG_ENTER("ha_partition::get_row_type");
-
-  i= m_part_info->get_first_used_partition();
-  DBUG_ASSERT(i < m_tot_parts);
-  if (i >= m_tot_parts)
-    DBUG_RETURN(ROW_TYPE_NOT_USED);
-
-  type= m_file[i]->get_row_type();
-  DBUG_PRINT("info", ("partition %u, row_type: %d", i, type));
-
-  for (i= bitmap_get_next_set(&m_part_info->lock_partitions, i);
-       i < m_tot_parts;
-       i= bitmap_get_next_set(&m_part_info->lock_partitions, i))
-  {
-    enum row_type part_type= m_file[i]->get_row_type();
-    DBUG_PRINT("info", ("partition %u, row_type: %d", i, type));
-    if (part_type != type)
-      DBUG_RETURN(ROW_TYPE_NOT_USED);
-  }
-
-  DBUG_RETURN(type);
-}
-
 void ha_partition::print_error(int error, myf errflag)
 {
   DBUG_ENTER("ha_partition::print_error");
@@ -5349,7 +5322,8 @@ ha_partition::check_if_supported_inplace_alter(TABLE *altered_table,
 
 
 bool ha_partition::prepare_inplace_alter_table(TABLE *altered_table,
-                                               Alter_inplace_info *ha_alter_info)
+                                               Alter_inplace_info *ha_alter_info,
+                                               dd::Table *new_dd_tab)
 {
   uint index= 0;
   bool error= false;
@@ -5371,7 +5345,8 @@ bool ha_partition::prepare_inplace_alter_table(TABLE *altered_table,
   {
     ha_alter_info->handler_ctx= part_inplace_ctx->handler_ctx_array[index];
     if (m_file[index]->ha_prepare_inplace_alter_table(altered_table,
-                                                      ha_alter_info))
+                                                      ha_alter_info,
+                                                      new_dd_tab))
       error= true;
     part_inplace_ctx->handler_ctx_array[index]= ha_alter_info->handler_ctx;
   }
@@ -5598,6 +5573,11 @@ bool ha_partition::is_index_algorithm_supported(enum ha_key_alg key_alg) const
 {
   // We can do this since we only support a single engine type.
   return m_file[0]->is_index_algorithm_supported(key_alg);
+}
+
+enum row_type ha_partition::get_real_row_type(const HA_CREATE_INFO *create_info) const
+{
+  return m_file[0]->get_real_row_type(create_info);
 }
 
 /****************************************************************************

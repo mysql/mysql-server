@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_CLASSIC_INCLUDED
 #define PROTOCOL_CLASSIC_INCLUDED
 
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -107,7 +107,6 @@ public:
   virtual bool create_command(COM_DATA *com_data,
                               enum_server_command cmd,
                               uchar *pkt, size_t length);
-  String *storage_packet() { return packet; }
   virtual bool flush();
   virtual void end_partial_result_set();
 
@@ -154,12 +153,6 @@ public:
   bool write(const uchar *ptr, size_t len);
   /* Return last error from NET */
   uchar get_error();
-  /* Return last errno from NET */
-  uint get_last_errno();
-  /* Set NET errno to handled by caller */
-  void set_last_errno(uint err);
-  /* Return last error string */
-  char *get_last_error();
   /* Set max allowed packet size */
   void set_max_packet_size(ulong max_packet_size);
   /* Return SSL descriptor, if any */

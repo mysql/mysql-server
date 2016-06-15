@@ -5234,29 +5234,91 @@ innobase_sdi_get_num_copies(
 ** InnoDB database tables
 *****************************************************************************/
 
-/** Get the record format from the data dictionary.
-@return one of ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT,
-ROW_TYPE_COMPRESSED, ROW_TYPE_DYNAMIC */
-
-enum row_type
-ha_innobase::get_row_type() const
+/** The requested compressed page size (key_block_size)
+is given in kilobytes. If it is a valid number, store
+that value as the number of log2 shifts from 512 in
+zip_ssize. Zero means it is not compressed. */
+static ulint get_zip_shift_size(ulint key_block_size)
 {
-	if (m_prebuilt && m_prebuilt->table) {
-		const ulint	flags = m_prebuilt->table->flags;
+	ulint		zssize;	/* Zip Shift Size */
+	ulint		kbsize;	/* Key Block Size */
+	const ulint	zip_ssize_max =
+				ut_min(static_cast<ulint>(UNIV_PAGE_SSIZE_MAX),
+				static_cast<ulint>(PAGE_ZIP_SSIZE_MAX));
+	for (zssize = kbsize = 1;
+	     zssize <= zip_ssize_max;
+	     zssize++, kbsize <<= 1) {
+		if (kbsize == key_block_size) {
+			return(zssize);
+		}
+	}
+	return(0);
+}
 
-		switch (dict_tf_get_rec_format(flags)) {
-		case REC_FORMAT_REDUNDANT:
+/** Get real row type for the table created based on one specified by user,
+CREATE TABLE options and SE capabilities.
+
+@note The current code in this method is redundant with/copy of code from
+create_table_info_t::innobase_table_flags(). This is temporary workaround
+until WL#7743/7141 are implemented. In future this method will always
+return ROW_TYPE_DYNAMIC (which is suitable for intrisinc temporary tables)
+and rely on adjusting row format in table definition at ha_innobase::create()
+or ha_innobase::prepare_inplace_alter_table() time.
+*/
+enum row_type
+ha_innobase::get_real_row_type(const HA_CREATE_INFO *create_info) const
+{
+	const bool	is_temp
+		= create_info->options & HA_LEX_CREATE_TMP_TABLE;
+	row_type rt = create_info->row_type;
+
+	if (is_temp
+	    && (create_info->options & HA_LEX_CREATE_INTERNAL_TMP_TABLE)) {
+		return(ROW_TYPE_DYNAMIC);
+	}
+
+	if (rt == ROW_TYPE_DEFAULT
+	    && create_info->key_block_size
+	    && get_zip_shift_size(create_info->key_block_size)
+	    && !is_temp
+	    && (srv_file_per_table
+		|| tablespace_is_shared_space(create_info))) {
+		rt = ROW_TYPE_COMPRESSED;
+	}
+
+
+	switch (rt) {
+	case ROW_TYPE_REDUNDANT:
+	case ROW_TYPE_DYNAMIC:
+	case ROW_TYPE_COMPACT:
+		return(rt);
+	case ROW_TYPE_COMPRESSED:
+		if (!is_temp
+		    && (srv_file_per_table
+			|| tablespace_is_shared_space(create_info))) {
+			return(rt);
+		}
+		else {
+			return(ROW_TYPE_DYNAMIC);
+		}
+	case ROW_TYPE_NOT_USED:
+	case ROW_TYPE_FIXED:
+	case ROW_TYPE_PAGED:
+		return(ROW_TYPE_DYNAMIC);
+	case ROW_TYPE_DEFAULT:
+	default:
+		switch (innodb_default_row_format) {
+		case DEFAULT_ROW_FORMAT_REDUNDANT:
 			return(ROW_TYPE_REDUNDANT);
-		case REC_FORMAT_COMPACT:
+		case DEFAULT_ROW_FORMAT_COMPACT:
 			return(ROW_TYPE_COMPACT);
-		case REC_FORMAT_COMPRESSED:
-			return(ROW_TYPE_COMPRESSED);
-		case REC_FORMAT_DYNAMIC:
+		case DEFAULT_ROW_FORMAT_DYNAMIC:
+			return(ROW_TYPE_DYNAMIC);
+		default:
+			ut_ad(0);
 			return(ROW_TYPE_DYNAMIC);
 		}
 	}
-	ut_ad(0);
-	return(ROW_TYPE_NOT_USED);
 }
 
 /****************************************************************//**
@@ -10282,12 +10344,12 @@ create_table_info_t::create_table_def()
 
 		if (dict_table_is_intrinsic(table) && field->orig_table) {
 
-			ut_snprintf(field_name, sizeof(field_name),
+			snprintf(field_name, sizeof(field_name),
 				    "%s_%s_%lu", field->orig_table->alias,
 				    field->field_name, i);
 
 		} else {
-			ut_snprintf(field_name, sizeof(field_name),
+			snprintf(field_name, sizeof(field_name),
 				    "%s", field->field_name);
 		}
 
@@ -10887,7 +10949,7 @@ get_row_format_name(
 		return("DEFAULT");
 	case ROW_TYPE_FIXED:
 		return("FIXED");
-	case ROW_TYPE_PAGE:
+	case ROW_TYPE_PAGED:
 	case ROW_TYPE_NOT_USED:
 		break;
 	}
@@ -11312,7 +11374,7 @@ create_table_info_t::create_options_are_invalid()
 	case ROW_TYPE_DEFAULT:
 		break;
 	case ROW_TYPE_FIXED:
-	case ROW_TYPE_PAGE:
+	case ROW_TYPE_PAGED:
 	case ROW_TYPE_NOT_USED:
 		push_warning(
 			m_thd, Sql_condition::SL_WARNING,
@@ -11515,8 +11577,8 @@ innobase_dict_init(
 		"  sum_of_other_index_sizes BIGINT UNSIGNED NOT NULL, \n"
 		"  PRIMARY KEY (database_name, table_name) \n",
 		/* Options */
-		" ENGINE=INNODB DEFAULT "
-		"CHARSET=utf8 COLLATE=utf8_bin "
+		" ENGINE=INNODB ROW_FORMAT=DYNAMIC "
+                "DEFAULT CHARSET=utf8 COLLATE=utf8_bin "
 		"STATS_PERSISTENT=0");
 
 	static Plugin_table innodb_index_stats(
@@ -11541,8 +11603,8 @@ innobase_dict_init(
 		"  PRIMARY KEY (database_name, table_name, "
 			"index_name, stat_name) \n",
 		/* Options */
-		" ENGINE=INNODB DEFAULT "
-		"CHARSET=utf8 COLLATE=utf8_bin "
+		" ENGINE=INNODB ROW_FORMAT=DYNAMIC "
+                "DEFAULT CHARSET=utf8 COLLATE=utf8_bin "
 		"STATS_PERSISTENT=0");
 
 	tables->push_back(&innodb_table_stats);
@@ -11785,20 +11847,7 @@ index_bad:
 			" for TEMPORARY TABLE.");
 		zip_allowed = false;
 	} else if (m_create_info->key_block_size > 0) {
-		/* The requested compressed page size (key_block_size)
-		is given in kilobytes. If it is a valid number, store
-		that value as the number of log2 shifts from 512 in
-		zip_ssize. Zero means it is not compressed. */
-		ulint	zssize;		/* Zip Shift Size */
-		ulint	kbsize;		/* Key Block Size */
-		for (zssize = kbsize = 1;
-		     zssize <= zip_ssize_max;
-		     zssize++, kbsize <<= 1) {
-			if (kbsize == m_create_info->key_block_size) {
-				zip_ssize = zssize;
-				break;
-			}
-		}
+		zip_ssize= get_zip_shift_size(m_create_info->key_block_size);
 
 		/* Make sure compressed row format is allowed. */
 		if (is_temp) {
@@ -11818,7 +11867,7 @@ index_bad:
 		}
 
 		if (!zip_allowed
-		    || zssize > zip_ssize_max) {
+		    || (!zip_ssize && m_create_info->key_block_size)) {
 			push_warning_printf(
 				m_thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
@@ -11906,7 +11955,7 @@ index_bad:
 		/* fall through to set row_type = DYNAMIC */
 	case ROW_TYPE_NOT_USED:
 	case ROW_TYPE_FIXED:
-	case ROW_TYPE_PAGE:
+	case ROW_TYPE_PAGED:
 		push_warning(
 			m_thd, Sql_condition::SL_WARNING,
 			ER_ILLEGAL_HA_CREATE_OPTION,
@@ -16599,13 +16648,13 @@ ShowStatus::to_string(
 		int	name_len;
 		char	name_buf[IO_SIZE];
 
-		name_len = ut_snprintf(
+		name_len = snprintf(
 			name_buf, sizeof(name_buf), "%s", it->m_name.c_str());
 
 		int	status_len;
 		char	status_buf[IO_SIZE];
 
-		status_len = ut_snprintf(
+		status_len = snprintf(
 			status_buf, sizeof(status_buf),
 			"spins=%lu,waits=%lu,calls=" TRX_ID_FMT,
 			static_cast<ulong>(it->m_spins),
@@ -16692,7 +16741,7 @@ innodb_show_rwlock_status(
 			continue;
 		}
 
-		buf1len = ut_snprintf(
+		buf1len = snprintf(
 			buf1, sizeof buf1, "rwlock: %s:%lu",
 			innobase_basename(rw_lock->cfile_name),
 			static_cast<ulong>(rw_lock->cline));
@@ -16700,7 +16749,7 @@ innodb_show_rwlock_status(
 		int		buf2len;
 		char		buf2[IO_SIZE];
 
-		buf2len = ut_snprintf(
+		buf2len = snprintf(
 			buf2, sizeof buf2, "waits=%lu",
 			static_cast<ulong>(rw_lock->count_os_wait));
 
@@ -16720,7 +16769,7 @@ innodb_show_rwlock_status(
 		int		buf1len;
 		char		buf1[IO_SIZE];
 
-		buf1len = ut_snprintf(
+		buf1len = snprintf(
 			buf1, sizeof buf1, "sum rwlock: %s:%lu",
 			innobase_basename(block_rwlock->cfile_name),
 			static_cast<ulong>(block_rwlock->cline));
@@ -16728,7 +16777,7 @@ innodb_show_rwlock_status(
 		int		buf2len;
 		char		buf2[IO_SIZE];
 
-		buf2len = ut_snprintf(
+		buf2len = snprintf(
 			buf2, sizeof buf2, "waits=%lu",
 			static_cast<ulong>(block_rwlock_oswait_count));
 
@@ -17363,7 +17412,7 @@ ha_innobase::get_foreign_dup_key(
 	child_table_name[len] = '\0';
 
 	/* copy index name */
-	ut_snprintf(child_key_name, child_key_name_len, "%s",
+	snprintf(child_key_name, child_key_name_len, "%s",
 		    err_index->name());
 
 	return(true);
@@ -17747,7 +17796,7 @@ ha_innobase::check_if_incompatible_data(
 
 	/* Check that row format didn't change */
 	if ((info->used_fields & HA_CREATE_USED_ROW_FORMAT)
-	    && info->row_type != get_row_type()) {
+	    && info->row_type != table->s->real_row_type) {
 
 		return(COMPATIBLE_DATA_NO);
 	}
@@ -17949,7 +17998,7 @@ innodb_buffer_pool_size_update(
 {
 	longlong	in_val = *static_cast<const longlong*>(save);
 
-	ut_snprintf(export_vars.innodb_buffer_pool_resize_status,
+	snprintf(export_vars.innodb_buffer_pool_resize_status,
 	        sizeof(export_vars.innodb_buffer_pool_resize_status),
 		"Requested to resize buffer pool.");
 

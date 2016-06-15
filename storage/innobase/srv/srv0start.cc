@@ -585,7 +585,7 @@ srv_undo_tablespace_open(
 	dberr_t		err	= DB_ERROR;
 	char		undo_name[sizeof "innodb_undo000"];
 
-	ut_snprintf(undo_name, sizeof(undo_name),
+	snprintf(undo_name, sizeof(undo_name),
 		   "innodb_undo%03u", static_cast<unsigned>(space_id));
 
 	if (!srv_file_check_mode(name)) {
@@ -703,7 +703,7 @@ srv_undo_tablespaces_init(
 	for (i = 0; create_new_db && i < n_conf_tablespaces; ++i) {
 		char	name[OS_FILE_MAX_PATH];
 
-		ut_snprintf(
+		snprintf(
 			name, sizeof(name),
 			"%s%cundo%03lu",
 			srv_undo_dir, OS_PATH_SEPARATOR, i + 1);
@@ -744,7 +744,7 @@ srv_undo_tablespaces_init(
 
 				char	name[OS_FILE_MAX_PATH];
 
-				ut_snprintf(name, sizeof(name),
+				snprintf(name, sizeof(name),
 					    "%s%cundo%03lu",
 					    srv_undo_dir, OS_PATH_SEPARATOR,
 					    undo_tablespace_ids[i]);
@@ -784,7 +784,7 @@ srv_undo_tablespaces_init(
 	for (i = 0; i < n_undo_tablespaces; ++i) {
 		char	name[OS_FILE_MAX_PATH];
 
-		ut_snprintf(
+		snprintf(
 			name, sizeof(name),
 			"%s%cundo%03lu",
 			srv_undo_dir, OS_PATH_SEPARATOR,
@@ -822,7 +822,7 @@ srv_undo_tablespaces_init(
 	for (i = prev_space_id + 1; i < TRX_SYS_N_RSEGS; ++i) {
 		char	name[OS_FILE_MAX_PATH];
 
-		ut_snprintf(
+		snprintf(
 			name, sizeof(name),
 			"%s%cundo%03lu", srv_undo_dir, OS_PATH_SEPARATOR, i);
 

@@ -320,6 +320,18 @@ public:
   */
   static uint get_channel_field_num();
 
+  /**
+     Returns an array with the expected column names of the primary key
+     fields of the table repository.
+  */
+  static const char **get_table_pk_field_names();
+
+  /**
+     Returns an array with the expected column numbers of the primary key
+     fields of the table repository.
+  */
+  static const uint *get_table_pk_field_indexes();
+
   bool is_auto_position()
   {
     return auto_position;

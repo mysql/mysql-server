@@ -28,8 +28,13 @@ MACRO(MY_ADD_CXX_WARNING_FLAG WARNING_FLAG)
   ENDIF()
 ENDMACRO()
 
+#
+# Common flags for all versions/compilers
+#
+
 # Common warning flags for GCC, G++, Clang and Clang++
-SET(MY_WARNING_FLAGS "-Wall -Wextra -Wformat-security -Wvla")
+SET(MY_WARNING_FLAGS
+    "-Wall -Wextra -Wformat-security -Wvla -Wmissing-format-attribute -Wundef")
 
 # Common warning flags for GCC and Clang
 SET(MY_C_WARNING_FLAGS
@@ -39,19 +44,24 @@ SET(MY_C_WARNING_FLAGS
 SET(MY_CXX_WARNING_FLAGS
     "${MY_WARNING_FLAGS} -Woverloaded-virtual -Wno-unused-parameter")
 
-# Extra flags not supported on all versions
-MY_ADD_C_WARNING_FLAG("Wmissing-format-attribute")
-MY_ADD_CXX_WARNING_FLAG("Wmissing-format-attribute")
-# Only for C++ as C code has some macro usage that is difficult to avoid
-MY_ADD_CXX_WARNING_FLAG("Wlogical-op")
-MY_ADD_C_WARNING_FLAG("Wundef")
-MY_ADD_CXX_WARNING_FLAG("Wundef")
+#
+# Extra flags not supported on all versions/compilers
+#
 
-# Turn on extra Clang warnings in maintainer mode
-IF(CMAKE_C_COMPILER_ID MATCHES "Clang" AND MYSQL_MAINTAINER_MODE)
-  MY_ADD_C_WARNING_FLAG("Wconditional-uninitialized")
-  MY_ADD_C_WARNING_FLAG("Wextra-semi")
-  MY_ADD_C_WARNING_FLAG("Wmissing-noreturn")
+# Only for C++ as C code has some macro usage that is difficult to avoid
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  MY_ADD_CXX_WARNING_FLAG("Wlogical-op")
+ENDIF()
+
+# Extra warning flags for Clang
+IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
+  SET(MY_C_WARNING_FLAGS
+      "${MY_C_WARNING_FLAGS} -Wconditional-uninitialized")
+  SET(MY_C_WARNING_FLAGS
+      "${MY_C_WARNING_FLAGS} -Wextra-semi")
+  SET(MY_C_WARNING_FLAGS
+      "${MY_C_WARNING_FLAGS} -Wmissing-noreturn")
+
   MY_ADD_C_WARNING_FLAG("Wunreachable-code-break")
   MY_ADD_C_WARNING_FLAG("Wunreachable-code-return")
 # Other possible options that give warnings:
@@ -65,16 +75,18 @@ ENDIF()
   
 # Extra warning flags for Clang++
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  # Disable a few default Clang++ warnings
   SET(MY_CXX_WARNING_FLAGS
       "${MY_CXX_WARNING_FLAGS} -Wno-null-conversion -Wno-unused-private-field")
 
-  # Turn on extra Clang++ warnings in maintainer mode
-  IF(MYSQL_MAINTAINER_MODE)
-    MY_ADD_CXX_WARNING_FLAG("Wconditional-uninitialized")
-    MY_ADD_CXX_WARNING_FLAG("Wheader-hygiene")
-    MY_ADD_CXX_WARNING_FLAG("Wnon-virtual-dtor")
-    MY_ADD_CXX_WARNING_FLAG("Wundefined-reinterpret-cast")
-  ENDIF()
+  SET(MY_CXX_WARNING_FLAGS
+      "${MY_CXX_WARNING_FLAGS} -Wconditional-uninitialized")
+  SET(MY_CXX_WARNING_FLAGS
+      "${MY_CXX_WARNING_FLAGS} -Wheader-hygiene")
+  SET(MY_CXX_WARNING_FLAGS
+      "${MY_CXX_WARNING_FLAGS} -Wnon-virtual-dtor")
+  SET(MY_CXX_WARNING_FLAGS
+      "${MY_CXX_WARNING_FLAGS} -Wundefined-reinterpret-cast")
 # Other possible options that give warnings:
 # -Wold-style-cast -Wc++11-long-long -Wconversion -Wsign-conversion -Wcast-align
 # -Wmissing-prototypes -Wdocumentation -Wweak-vtables -Wdocumentation-unknown-command

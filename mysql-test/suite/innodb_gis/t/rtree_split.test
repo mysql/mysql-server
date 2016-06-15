@@ -7,6 +7,7 @@
 --source include/have_innodb.inc
 --source include/big_test.inc
 --source include/not_valgrind.inc
+--source include/have_debug.inc
 
 # Create table with R-tree index.
 create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
@@ -26,10 +27,13 @@ insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
 
+#Check second round spliting.
+SET SESSION debug="+d, rtr_page_need_second_split";
 insert into t1 select * from t1;
-insert into t1 select * from t1;
-insert into t1 select * from t1;
+SET SESSION debug="-d, rtr_page_need_second_split";
 
 delete from t1;
 

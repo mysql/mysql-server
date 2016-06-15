@@ -360,7 +360,8 @@ bool Rpl_info_factory::reset_workers(Relay_log_info *rli)
 
   if (Rpl_info_table::do_reset_info(Slave_worker::get_number_worker_fields(),
                                     MYSQL_SCHEMA_NAME.str, WORKER_INFO_NAME.str,
-                                    rli->channel, Slave_worker::LINE_FOR_CHANNEL))
+                                    rli->channel,
+                                    Slave_worker::get_channel_field_index()))
     goto err;
 
   error= false;
@@ -520,6 +521,8 @@ void Rpl_info_factory::init_repository_metadata()
   rli_table_data.n_fields= Relay_log_info::get_number_info_rli_fields();
   rli_table_data.schema= MYSQL_SCHEMA_NAME.str;
   rli_table_data.name= RLI_INFO_NAME.str;
+  rli_table_data.n_pk_fields= 0;
+  rli_table_data.pk_field_indexes= NULL;
   rli_file_data.n_fields= Relay_log_info::get_number_info_rli_fields();
   my_stpcpy(rli_file_data.name, relay_log_info_file);
   my_stpcpy(rli_file_data.pattern, relay_log_info_file);
@@ -528,6 +531,8 @@ void Rpl_info_factory::init_repository_metadata()
   mi_table_data.n_fields= Master_info::get_number_info_mi_fields();
   mi_table_data.schema= MYSQL_SCHEMA_NAME.str;
   mi_table_data.name= MI_INFO_NAME.str;
+  mi_table_data.n_pk_fields= 1;
+  mi_table_data.pk_field_indexes= Master_info::get_table_pk_field_indexes();
   mi_file_data.n_fields= Master_info::get_number_info_mi_fields();
   my_stpcpy(mi_file_data.name, master_info_file);
   my_stpcpy(mi_file_data.pattern, master_info_file);
@@ -536,6 +541,9 @@ void Rpl_info_factory::init_repository_metadata()
   worker_table_data.n_fields= Slave_worker::get_number_worker_fields();
   worker_table_data.schema= MYSQL_SCHEMA_NAME.str;
   worker_table_data.name= WORKER_INFO_NAME.str;
+  worker_table_data.n_pk_fields= 2;
+  worker_table_data.pk_field_indexes=
+    Slave_worker::get_table_pk_field_indexes();
   worker_file_data.n_fields= Slave_worker::get_number_worker_fields();
   build_worker_info_name(worker_file_data.name,
                          relay_log_info_file_dirpart,
@@ -880,14 +888,18 @@ bool Rpl_info_factory::init_repositories(const struct_table_data table_data,
       if (handler_src &&
           !(*handler_src= new Rpl_info_table(table_data.n_fields,
                                              table_data.schema,
-                                             table_data.name)))
+                                             table_data.name,
+                                             table_data.n_pk_fields,
+                                             table_data.pk_field_indexes)))
         goto err;
     break;
 
     case INFO_REPOSITORY_TABLE:
       if (!(*handler_dest= new Rpl_info_table(table_data.n_fields,
                                               table_data.schema,
-                                              table_data.name)))
+                                              table_data.name,
+                                              table_data.n_pk_fields,
+                                              table_data.pk_field_indexes)))
         goto err;
       if (handler_src &&
           !(*handler_src= new Rpl_info_file(file_data.n_fields,
@@ -1403,7 +1415,9 @@ Rpl_info_factory::create_channel_list_from_mi_table(std::vector<const char*> &ch
 
 
   if(!(info= new Rpl_info_table(mi_table_data.n_fields,
-                                mi_table_data.schema, mi_table_data.name)))
+                                mi_table_data.schema, mi_table_data.name,
+                                mi_table_data.n_pk_fields,
+                                mi_table_data.pk_field_indexes)))
     DBUG_RETURN(true);
 
   thd= info->access->create_thd();
@@ -1427,6 +1441,15 @@ Rpl_info_factory::create_channel_list_from_mi_table(std::vector<const char*> &ch
   /* Do ha_handler random init for full scanning */
   if ((error= table->file->ha_rnd_init(true)))
     DBUG_RETURN(true);
+
+  /* Ensure that the table pk (Channel_name) is at the correct position */
+  if (info->verify_table_primary_key_fields(table))
+  {
+    sql_print_error("Slave: Failed to create a channel from master info "
+                    "table repository.");
+    error= -1;
+    goto err;
+  }
 
   /*
     Load all the values in record[0] for each row
@@ -1469,5 +1492,5 @@ err:
   thd->variables.sql_mode= saved_mode;
   info->access->drop_thd(thd);
   delete info;
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(error != HA_ERR_END_OF_FILE && error != 0);
 }

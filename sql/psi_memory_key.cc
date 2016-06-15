@@ -140,8 +140,6 @@ PSI_memory_key key_memory_show_slave_status_io_gtid_set;
 PSI_memory_key key_memory_sp_head_call_root;
 PSI_memory_key key_memory_sp_head_execute_root;
 PSI_memory_key key_memory_sp_head_main_root;
-PSI_memory_key key_memory_st_mysql_plugin;
-PSI_memory_key key_memory_st_mysql_plugin_dl;
 PSI_memory_key key_memory_table_mapping_root;
 PSI_memory_key key_memory_table_share;
 PSI_memory_key key_memory_table_triggers_list;

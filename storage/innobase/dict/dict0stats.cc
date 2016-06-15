@@ -2365,11 +2365,11 @@ dict_stats_save(
 			char	stat_description[1024];
 			ulint	j;
 
-			ut_snprintf(stat_name, sizeof(stat_name),
+			snprintf(stat_name, sizeof(stat_name),
 				    "n_diff_pfx%02lu", i + 1);
 
 			/* craft a string that contains the column names */
-			ut_snprintf(stat_description,
+			snprintf(stat_description,
 				    sizeof(stat_description),
 				    "%s", index->fields[0].name());
 			for (j = 1; j <= i; j++) {
@@ -2377,7 +2377,7 @@ dict_stats_save(
 
 				len = strlen(stat_description);
 
-				ut_snprintf(stat_description + len,
+				snprintf(stat_description + len,
 					    sizeof(stat_description) - len,
 					    ",%s", index->fields[j].name());
 			}
@@ -3155,7 +3155,7 @@ dict_stats_drop_index(
 	}
 
 	if (ret != DB_SUCCESS) {
-		ut_snprintf(errstr, errstr_sz,
+		snprintf(errstr, errstr_sz,
 			    "Unable to delete statistics for index %s"
 			    " from %s%s: %s. They can be deleted later using"
 			    " DELETE FROM %s WHERE"
@@ -3301,7 +3301,7 @@ dict_stats_drop_table(
 
 	if (ret != DB_SUCCESS) {
 
-		ut_snprintf(errstr, errstr_sz,
+		snprintf(errstr, errstr_sz,
 			    "Unable to delete statistics for table %s.%s: %s."
 			    " They can be deleted later using"
 
@@ -3484,7 +3484,7 @@ dict_stats_rename_table(
 		 && n_attempts < 5);
 
 	if (ret != DB_SUCCESS) {
-		ut_snprintf(errstr, errstr_sz,
+		snprintf(errstr, errstr_sz,
 			    "Unable to rename statistics from"
 			    " %s.%s to %s.%s in %s: %s."
 			    " They can be renamed later using"
@@ -3543,7 +3543,7 @@ dict_stats_rename_table(
 	rw_lock_x_unlock(dict_operation_lock);
 
 	if (ret != DB_SUCCESS) {
-		ut_snprintf(errstr, errstr_sz,
+		snprintf(errstr, errstr_sz,
 			    "Unable to rename statistics from"
 			    " %s.%s to %s.%s in %s: %s."
 			    " They can be renamed later using"

@@ -140,36 +140,56 @@ IF(WIN32 AND CMAKE_SIZEOF_VOID_P MATCHES 8)
   ENDFOREACH()
 ENDIF()
 
-# Boost source has unused local typedefs.
-MY_CHECK_CXX_COMPILER_FLAG("-Wunused-local-typedefs" HAVE_UNUSED_TYPEDEFS)
-IF(HAVE_UNUSED_TYPEDEFS)
+#
+# Disabling of various compiler warnings for GCC/Clang
+#
+
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  # Common for all versions of GCC/Clang
+
+  # Bison output and Boost source use undefined symbols in #if checks
+  ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+                    ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
+                    ${LIBMYSQLD_BOOST_SOURCES}
+                    COMPILE_FLAGS "-Wno-undef")
+  # Boost source compares signed and unsigned integer expressions
+  ADD_COMPILE_FLAGS(../sql/gis/srs/wkt_parser.cc
+                    COMPILE_FLAGS "-Wno-sign-compare")
+  # Boost source use auto_ptr, deprecated in C++11
   ADD_COMPILE_FLAGS(${LIBMYSQLD_BOOST_SOURCES}
-    COMPILE_FLAGS "-Wno-unused-local-typedefs")
-ENDIF()
+                    COMPILE_FLAGS "-Wno-deprecated-declarations")
 
-# Boost source has logical && with non-zero constant
-MY_CHECK_CXX_COMPILER_FLAG("-Wlogical-op" HAVE_LOGICAL_OP)
-IF(HAVE_LOGICAL_OP)
-  ADD_COMPILE_FLAGS(${LIBMYSQLD_BOOST_SOURCES} COMPILE_FLAGS "-Wno-logical-op")
-ENDIF()
+  # Only for some versions of GCC/Clang
 
-# Bison output and Boost source use undefined symbols in #if checks
-MY_CHECK_CXX_COMPILER_FLAG("-Wundef" HAVE_UNDEF)
-IF(HAVE_UNDEF)
-  ADD_COMPILE_FLAGS(${LIBMYSQLD_BOOST_SOURCES}
-    ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
-    ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
-    ${LIBMYSQLD_BOOST_SOURCES}
-    COMPILE_FLAGS "-Wno-undef")
-ENDIF()
+  MY_CHECK_CXX_COMPILER_FLAG("-Wunused-local-typedefs" HAVE_UNUSED_TYPEDEFS)
+  IF(HAVE_UNUSED_TYPEDEFS)
+    # Boost source has unused local typedefs.
+    ADD_COMPILE_FLAGS(${LIBMYSQLD_BOOST_SOURCES}
+                      COMPILE_FLAGS "-Wno-unused-local-typedefs")
+  ENDIF()
+  
+  MY_CHECK_CXX_COMPILER_FLAG("-Wlogical-op" HAVE_LOGICAL_OP)
+  IF(HAVE_LOGICAL_OP)
+    # Boost source has logical && with non-zero constant
+    ADD_COMPILE_FLAGS(${LIBMYSQLD_BOOST_SOURCES}
+                      COMPILE_FLAGS "-Wno-logical-op")
+  ENDIF()
 
-# Boost source compares signed and unsigned integer expressions
-MY_CHECK_CXX_COMPILER_FLAG("-Wsign-compare" HAVE_SIGN_COMPARE)
-IF(HAVE_SIGN_COMPARE)
-  ADD_COMPILE_FLAGS(
-    ../sql/gis/srs/wkt_parser.cc
-    COMPILE_FLAGS "-Wno-sign-compare"
-  )
+  MY_CHECK_CXX_COMPILER_FLAG("-Wplacement-new" HAVE_PLACEMENT_NEW_WARNING)
+  IF(HAVE_PLACEMENT_NEW_WARNING)
+    # Boost.Spirit causes a warning about placement new on GCC 6. Expected
+    # to be fixed upstream by https://github.com/boostorg/function/pull/9.
+    ADD_COMPILE_FLAGS(../sql/gis/srs/wkt_parser.cc
+                      COMPILE_FLAGS "-Wno-placement-new")
+  ENDIF()
+
+  MY_CHECK_CXX_COMPILER_FLAG("-Wmisleading-indentation"
+                             HAVE_MISLEADING_INDENTATION)
+  IF(HAVE_MISLEADING_INDENTATION)
+    # Boost source has misleading indentation
+    ADD_COMPILE_FLAGS(${LIBMYSQLD_BOOST_SOURCES}
+                      COMPILE_FLAGS "-Wno-misleading-indentation")
+  ENDIF()
 ENDIF()
 
 # Set -O1 on Solaris x86 to avoid exhausting virtual memory when
@@ -181,32 +201,6 @@ IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_SYSTEM_NAME MATCHES "SunOS")
       COMPILE_FLAGS "-O1"
     )
   ENDIF()
-ENDIF()
-
-# Boost.Spirit causes a warning about placement new on GCC 6. Expected
-# to be fixed upstream by https://github.com/boostorg/function/pull/9.
-MY_CHECK_CXX_COMPILER_FLAG("-Wplacement-new" HAVE_PLACEMENT_NEW_WARNING)
-IF(HAVE_PLACEMENT_NEW_WARNING)
-  ADD_COMPILE_FLAGS(
-    ../sql/gis/srs/wkt_parser.cc
-    COMPILE_FLAGS "-Wno-placement-new"
-  )
-ENDIF()
-
-# Boost source use auto_ptr, deprecated in C++11
-MY_CHECK_CXX_COMPILER_FLAG("-Wdeprecated-declarations"
-                           HAVE_DEPRECATED_DECLARATIONS)
-IF(HAVE_DEPRECATED_DECLARATIONS)
-  ADD_COMPILE_FLAGS(${LIBMYSQLD_BOOST_SOURCES}
-                    COMPILE_FLAGS "-Wno-deprecated-declarations")
-ENDIF()
-
-# Boost source has misleading indentation
-MY_CHECK_CXX_COMPILER_FLAG("-Wmisleading-indentation"
-                           HAVE_MISLEADING_INDENTATION)
-IF(HAVE_MISLEADING_INDENTATION)
-  ADD_COMPILE_FLAGS(${LIBMYSQLD_BOOST_SOURCES}
-                    COMPILE_FLAGS "-Wno-misleading-indentation")
 ENDIF()
 
 # Handle out-of-source build from source package with possibly broken 

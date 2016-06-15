@@ -309,6 +309,7 @@ a	b
 update t1,t2 set t1.b=t1.b+10 where t1.b=2;
 select * from t1;
 a	b
+201	1
 102	12
 103	3
 104	4
@@ -317,10 +318,10 @@ a	b
 107	7
 108	8
 109	9
-201	1
 update t1,t2 set t1.b=t1.b+2,t2.b=t1.b+10 where t1.b between 3 and 5 and t2.a=t1.a-100;
 select * from t1;
 a	b
+201	1
 102	12
 103	5
 104	6
@@ -329,7 +330,6 @@ a	b
 107	7
 108	8
 109	9
-201	1
 select * from t2;
 a	b
 1	1
@@ -658,7 +658,7 @@ delete t3.* from t2,t3 where t2.a=t3.a;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 select count(*) from t1 /* must be 1 */;
 count(*)
-0
+1
 select count(*) from t3 /* must be 1 */;
 count(*)
 1
@@ -707,7 +707,7 @@ CREATE TABLE t1 (f1 DATE);
 INSERT INTO t1 VALUES('2001-01-01');
 UPDATE IGNORE (SELECT 1 FROM t1 WHERE f1 = (SELECT f1() FROM t1)) x, t1 SET f1 = 1;
 Warnings:
-Warning	1292	Incorrect date value: '1' for column 'f1' at row 2
+Warning	1292	Truncated incorrect datetime value: '1'
 DROP FUNCTION f1;
 DROP TABLE t1;
 set @@optimizer_switch=@optimizer_switch_saved;

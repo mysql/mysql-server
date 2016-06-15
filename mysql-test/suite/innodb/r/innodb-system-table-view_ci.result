@@ -12,7 +12,7 @@ TABLE_ID	NAME	FLAG	N_COLS	SPACE	ROW_FORMAT	ZIP_PAGE_SIZE	SPACE_TYPE
 21	mysql/catalogs	33	7	7	Dynamic	0	Single
 22	mysql/schemata	33	9	8	Dynamic	0	Single
 23	mysql/st_spatial_reference_systems	33	12	9	Dynamic	0	Single
-24	mysql/tables	33	33	10	Dynamic	0	Single
+24	mysql/tables	33	34	10	Dynamic	0	Single
 25	mysql/view_table_usage	33	7	11	Dynamic	0	Single
 26	mysql/columns	33	28	12	Dynamic	0	Single
 27	mysql/indexes	33	18	13	Dynamic	0	Single
@@ -34,10 +34,6 @@ TABLE_ID	NAME	FLAG	N_COLS	SPACE	ROW_FORMAT	ZIP_PAGE_SIZE	SPACE_TYPE
 45	mysql/servers	33	12	31	Dynamic	0	Single
 46	mysql/tables_priv	33	11	32	Dynamic	0	Single
 47	mysql/columns_priv	33	10	33	Dynamic	0	Single
-48	mysql/help_topic	33	9	34	Dynamic	0	Single
-49	mysql/help_category	33	7	35	Dynamic	0	Single
-50	mysql/help_relation	33	5	36	Dynamic	0	Single
-51	mysql/help_keyword	33	5	37	Dynamic	0	Single
 52	mysql/time_zone_name	33	5	38	Dynamic	0	Single
 53	mysql/time_zone	33	5	39	Dynamic	0	Single
 54	mysql/time_zone_transition	33	6	40	Dynamic	0	Single
@@ -113,30 +109,31 @@ table_id	pos	mtype	prtype	len	name
 24	3	6	1022	1	type
 24	4	12	5439759	192	engine
 24	5	6	1795	4	mysql_version_id
-24	6	6	1544	8	collation_id
-24	7	12	5443855	6144	comment
-24	8	6	1281	1	hidden
-24	9	5	4130044	11	options
-24	10	5	5439740	11	se_private_data
-24	11	6	1544	8	se_private_id
-24	12	6	1544	8	tablespace_id
-24	13	6	766	1	partition_type
-24	14	12	5443599	6144	partition_expression
-24	15	6	766	1	default_partitioning
-24	16	6	766	1	subpartition_type
-24	17	12	5443599	6144	subpartition_expression
-24	18	6	766	1	default_subpartitioning
-24	19	3	525575	4	created
-24	20	3	525575	4	last_altered
-24	21	5	4130044	12	view_definition
-24	22	5	5439740	12	view_definition_utf8
-24	23	6	766	1	view_check_option
-24	24	6	766	1	view_is_updatable
-24	25	6	766	1	view_algorithm
-24	26	6	766	1	view_security_type
-24	27	12	5443599	279	view_definer
-24	28	6	1544	8	view_client_collation_id
-24	29	6	1544	8	view_connection_collation_id
+24	6	6	766	1	row_format
+24	7	6	1544	8	collation_id
+24	8	12	5443855	6144	comment
+24	9	6	1281	1	hidden
+24	10	5	4130044	11	options
+24	11	5	5439740	11	se_private_data
+24	12	6	1544	8	se_private_id
+24	13	6	1544	8	tablespace_id
+24	14	6	766	1	partition_type
+24	15	12	5443599	6144	partition_expression
+24	16	6	766	1	default_partitioning
+24	17	6	766	1	subpartition_type
+24	18	12	5443599	6144	subpartition_expression
+24	19	6	766	1	default_subpartitioning
+24	20	3	525575	4	created
+24	21	3	525575	4	last_altered
+24	22	5	4130044	12	view_definition
+24	23	5	5439740	12	view_definition_utf8
+24	24	6	766	1	view_check_option
+24	25	6	766	1	view_is_updatable
+24	26	6	766	1	view_algorithm
+24	27	6	766	1	view_security_type
+24	28	12	5443599	279	view_definer
+24	29	6	1544	8	view_client_collation_id
+24	30	6	1544	8	view_connection_collation_id
 25	0	6	1800	8	view_id
 25	1	12	4981007	192	table_catalog
 25	2	12	4981007	192	table_schema
@@ -401,20 +398,6 @@ table_id	pos	mtype	prtype	len	name
 47	4	13	5439998	192	Column_name
 47	5	3	525575	4	Timestamp
 47	6	6	1022	1	Column_priv
-48	0	6	1795	4	help_topic_id
-48	1	13	2163198	192	name
-48	2	6	1794	2	help_category_id
-48	3	5	2163196	10	description
-48	4	5	2163196	10	example
-48	5	5	2163196	10	url
-49	0	6	1794	2	help_category_id
-49	1	13	2163198	192	name
-49	2	6	1538	2	parent_category_id
-49	3	5	2163196	10	url
-50	0	6	1795	4	help_topic_id
-50	1	6	1795	4	help_keyword_id
-51	0	6	1795	4	help_keyword_id
-51	1	13	2163198	192	name
 52	0	13	2163198	192	Name
 52	1	6	1795	4	Time_zone_id
 53	0	6	1795	4	Time_zone_id
@@ -555,13 +538,6 @@ index_id	table_id	type	n_fields	space	name
 100	46	3	4	32	PRIMARY
 101	46	0	1	32	Grantor
 102	47	3	5	33	PRIMARY
-103	48	3	1	34	PRIMARY
-104	48	2	1	34	name
-105	49	3	1	35	PRIMARY
-106	49	2	1	35	name
-107	50	3	2	36	PRIMARY
-108	51	3	1	37	PRIMARY
-109	51	2	1	37	name
 110	52	3	1	38	PRIMARY
 111	53	3	1	39	PRIMARY
 112	54	3	2	40	PRIMARY
@@ -577,7 +553,8 @@ index_id	table_id	type	n_fields	space	name
 125	66	3	4	52	PRIMARY
 126	66	0	1	52	Grantor
 SELECT index_id,pos,name FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS
-WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'id', 'host', 'port', 'variable')
+WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'id', 'host', 'port', 'variable',
+'name', 'help_topic_id', 'help_keyword_id', 'help_category_id')
 ORDER BY index_id, pos;
 index_id	pos	name
 12	0	FOR_NAME
@@ -589,21 +566,14 @@ index_id	pos	name
 17	1	POS
 17	2	BASE_POS
 18	0	version
-20	0	name
-22	0	name
 23	0	character_set_id
-25	0	name
 26	0	tablespace_id
 26	1	ordinal_position
 27	0	file_name
-29	0	name
 31	0	catalog_id
-31	1	name
 32	0	default_collation_id
 34	0	catalog_id
-34	1	name
 36	0	schema_id
-36	1	name
 37	0	engine
 37	1	se_private_id
 38	0	engine
@@ -615,12 +585,10 @@ index_id	pos	name
 42	0	table_catalog
 42	1	table_schema
 44	0	table_id
-44	1	name
 45	0	table_id
 45	1	ordinal_position
 46	0	collation_id
 48	0	table_id
-48	1	name
 49	0	tablespace_id
 50	0	index_id
 50	1	ordinal_position
@@ -631,9 +599,7 @@ index_id	pos	name
 53	0	column_id
 53	1	element_index
 55	0	schema_id
-55	1	name
 56	0	table_id
-56	1	name
 57	0	unique_constraint_id
 58	0	foreign_key_id
 58	1	column_id
@@ -642,7 +608,6 @@ index_id	pos	name
 59	1	ordinal_position
 60	0	column_id
 62	0	table_id
-62	1	name
 63	0	table_id
 63	1	level
 63	2	number
@@ -658,13 +623,11 @@ index_id	pos	name
 69	0	index_id
 70	0	tablespace_id
 72	0	schema_id
-72	1	name
 73	0	client_collation_id
 74	0	connection_collation_id
 75	0	schema_collation_id
 77	0	schema_id
 77	1	type
-77	2	name
 78	0	result_collation_id
 79	0	client_collation_id
 80	0	connection_collation_id
@@ -676,7 +639,6 @@ index_id	pos	name
 85	1	element_index
 88	0	default_collation_id
 90	0	schema_id
-90	1	name
 91	0	table_id
 91	1	event_type
 91	2	action_timing
@@ -688,7 +650,6 @@ index_id	pos	name
 95	2	User
 96	0	User
 97	1	User
-98	0	name
 99	0	Server_name
 100	1	Db
 100	2	User
@@ -696,15 +657,6 @@ index_id	pos	name
 102	1	Db
 102	2	User
 102	4	Column_name
-103	0	help_topic_id
-104	0	name
-105	0	help_category_id
-106	0	name
-107	0	help_keyword_id
-107	1	help_topic_id
-108	0	help_keyword_id
-109	0	name
-110	0	Name
 111	0	Time_zone_id
 112	0	Time_zone_id
 112	1	Transition_time
@@ -1004,7 +956,7 @@ mysql/slave_worker_info	33	16
 mysql/st_spatial_reference_systems	33	12
 mysql/table_partition_values	33	8
 mysql/table_partitions	33	14
-mysql/tables	33	33
+mysql/tables	33	34
 mysql/tables_priv	33	11
 mysql/tablespace_files	33	7
 mysql/tablespaces	33	9

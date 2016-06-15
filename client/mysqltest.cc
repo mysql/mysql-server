@@ -2091,6 +2091,17 @@ static void check_result()
   DBUG_ASSERT(result_file_name);
   DBUG_PRINT("enter", ("result_file_name: %s", result_file_name));
 
+  /*
+    Removing the unnecessary warning messages generated
+    on GCOV platform.
+  */
+#ifdef HAVE_GCOV
+  char cmd[256];
+  strcpy(cmd, "sed -i '/gcda:Merge mismatch for function/d' ");
+  strcat(cmd, log_file.file_name());
+  system(cmd);
+#endif
+
   switch (compare_files(log_file.file_name(), result_file_name)) {
   case RESULT_OK:
     break; /* ok */
@@ -2658,6 +2669,7 @@ static st_error global_error_names[] =
   { "<No error>", (uint)-1, "" },
 #ifndef IN_DOXYGEN
 #include <mysqld_ername.h>
+#include <mysqlclient_ername.h>
 #endif /* IN_DOXYGEN */
   { 0, 0, 0 }
 };
@@ -5380,7 +5392,11 @@ static void do_get_errcodes(struct st_command *command)
     {
       die("The sqlstate definition must start with an uppercase S");
     }
-    else if (*p == 'E')
+    /*
+      Code to handle --error <error_string>
+      Checking for both server error names as well as client error names.
+    */
+    else if (*p == 'E' || *p == 'C')
     {
       /* Error name string */
 
@@ -5389,9 +5405,9 @@ static void do_get_errcodes(struct st_command *command)
       to->type= ERR_ERRNO;
       DBUG_PRINT("info", ("ERR_ERRNO: %d", to->code.errnum));
     }
-    else if (*p == 'e')
+    else if (*p == 'e' || *p == 'c')
     {
-      die("The error name definition must start with an uppercase E");
+      die("The error name definition must start with an uppercase E or C");
     }
     else
     {
@@ -6536,6 +6552,7 @@ static int read_line(char *buf, int size)
   char c, last_quote= 0, last_char= 0;
   char *p= buf, *buf_end= buf + size - 1;
   int skip_char= 0;
+  int query_comment= 0, query_comment_start= 0, query_comment_end= 0;
   my_bool have_slash= FALSE;
   
   enum {R_NORMAL, R_Q, R_SLASH_IN_Q,
@@ -6615,6 +6632,36 @@ static int read_line(char *buf, int size)
 	  state= R_Q;
 	}
       }
+      else if (c == '/')
+      {
+        if ((query_comment_start == 0) && (query_comment == 0))
+          query_comment_start= 1;
+        else if (query_comment_end == 1)
+        {
+          query_comment= 0;
+          query_comment_end= 0;
+        }
+      }
+      else if (c == '*')
+      {
+        if ((query_comment == 1) && (query_comment_end == 0))
+          query_comment_end= 1;
+        else if (query_comment_start == 1)
+          query_comment= 1;
+      }
+      else if ((c == '+') || (c == '!'))
+      {
+        if ((query_comment_start == 1) && (query_comment == 1))
+        {
+          query_comment_start= 0;
+          query_comment= 0;
+        }
+      }
+      else if (query_comment_start == 1)
+        query_comment_start= 0;
+      else if (query_comment_end == 1)
+        query_comment_end= 0;
+
       have_slash= (c == '\\');
       break;
 
@@ -6687,6 +6734,8 @@ static int read_line(char *buf, int size)
 	state= R_NORMAL;
       else if (c == '\\')
 	state= R_SLASH_IN_Q;
+      else if (query_comment)
+        state= R_NORMAL;
       break;
 
     case R_SLASH_IN_Q:

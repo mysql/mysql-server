@@ -414,33 +414,6 @@ public:
   { return (is_database_changed() || new_name != table_name); };
 
   /**
-     @return filename (including .frm) for the new table.
-  */
-  const char *get_new_filename() const
-  {
-    DBUG_ASSERT(!tmp_table);
-    return new_filename;
-  }
-
-  /**
-     @return path to the original table.
-  */
-  const char *get_path() const
-  {
-    DBUG_ASSERT(!tmp_table);
-    return path;
-  }
-
-  /**
-     @return path to the new table.
-  */
-  const char *get_new_path() const
-  {
-    DBUG_ASSERT(!tmp_table);
-    return new_path;
-  }
-
-  /**
      @return path to the temporary table created during ALTER TABLE.
   */
   const char *get_tmp_path() const

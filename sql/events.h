@@ -115,8 +115,6 @@ public:
 
   static void init_mutexes();
 
-  static void destroy_mutexes();
-
   static bool create_event(THD *thd, Event_parse_data *parse_data,
                            bool if_exists);
 

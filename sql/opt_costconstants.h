@@ -2,7 +2,7 @@
 #define OPT_COSTCONSTANTS_INCLUDED
 
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -558,11 +558,6 @@ private:
 
   /// Reference counter for this set of cost constants.
   unsigned int m_ref_counter;
-
-#if !defined(DBUG_OFF)
-  /// Version number for this cost constant set. Not used. Will likely remove
-  unsigned int version_no;
-#endif
 };
 
 #endif /* OPT_COSTCONSTANTS_INCLUDEDED */

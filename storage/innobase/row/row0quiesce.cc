@@ -511,7 +511,7 @@ row_quiesce_write_cfg(
 
 			char	msg[BUFSIZ];
 
-			ut_snprintf(msg, sizeof(msg), "%s flush() failed",
+			snprintf(msg, sizeof(msg), "%s flush() failed",
 				    name);
 
 			ib_senderrf(
@@ -522,7 +522,7 @@ row_quiesce_write_cfg(
 		if (fclose(file) != 0) {
 			char	msg[BUFSIZ];
 
-			ut_snprintf(msg, sizeof(msg), "%s flose() failed",
+			snprintf(msg, sizeof(msg), "%s flose() failed",
 				    name);
 
 			ib_senderrf(
@@ -705,7 +705,7 @@ row_quiesce_write_cfp(
 
 			char	msg[BUFSIZ];
 
-			ut_snprintf(msg, sizeof(msg), "%s flush() failed",
+			snprintf(msg, sizeof(msg), "%s flush() failed",
 				    name);
 
 			ib_senderrf(
@@ -718,7 +718,7 @@ row_quiesce_write_cfp(
 		if (fclose(file) != 0) {
 			char	msg[BUFSIZ];
 
-			ut_snprintf(msg, sizeof(msg), "%s flose() failed",
+			snprintf(msg, sizeof(msg), "%s flose() failed",
 				    name);
 
 			ib_senderrf(
