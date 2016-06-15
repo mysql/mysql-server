@@ -47,6 +47,7 @@ if (!$rpl_debug)
   --disable_query_log
 }
 
+--let $_for_channel_clause=
 if ($rpl_channel_name != '')
 {
   --let $_for_channel_clause= FOR CHANNEL  '$rpl_channel_name'
