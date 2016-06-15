@@ -2682,7 +2682,10 @@ private:
   // MT LQH
   Uint32 c_fragments_per_node_;
   Uint32 getFragmentsPerNode();
-  Uint32 getFragmentCount(Uint32 partitionBalance, Uint32 extraNodeGroups);
+  Uint32 getFragmentCount(Uint32 partitionBalance,
+                          Uint32 numOfNodeGroups,
+                          Uint32 numOfReplicas,
+                          Uint32 numOfLDMs) const;
   /**
    * dihGetInstanceKey
    *
