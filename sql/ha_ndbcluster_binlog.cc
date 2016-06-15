@@ -377,11 +377,7 @@ ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share)
   shadow_table->column_bitmaps_set_no_signal(&shadow_table->s->all_set,
                                              &shadow_table->s->all_set);
 
-  if (shadow_table->s->primary_key == MAX_KEY)
-   share->flags|= NSF_HIDDEN_PK;
-
-  if (shadow_table->s->blob_fields != 0)
-    share->flags|= NSF_BLOB_FLAG;
+  share->set_binlog_flags_for_table(shadow_table);
 
 #ifndef DBUG_OFF
   dbug_print_table("table", shadow_table);
@@ -400,17 +396,7 @@ int ndbcluster_binlog_init_share(THD *thd, NDB_SHARE *share, TABLE *_table)
 
   if (!share->need_events(ndb_binlog_running))
   {
-    if (_table)
-    {
-      if (_table->s->primary_key == MAX_KEY)
-        share->flags|= NSF_HIDDEN_PK;
-      if (_table->s->blob_fields != 0)
-        share->flags|= NSF_BLOB_FLAG;
-    }
-    else
-    {
-      share->flags|= NSF_NO_BINLOG;
-    }
+    share->set_binlog_flags_for_table(_table);
     DBUG_RETURN(0);
   }
 
@@ -5485,8 +5471,7 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value,
   /*
     Set null flag(s)
   */
-  for ( ; field;
-       p_field++, value++, field= *p_field)
+  for ( ; field; p_field++, field= *p_field)
   {
     if(field->is_virtual_gcol())
       continue;
@@ -5557,6 +5542,7 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value,
         }
         else
         {
+          DBUG_ASSERT(!strcmp((*value).rec->getColumn()->getName(), field->field_name));
           DBUG_PRINT("info",("[%u] SET",
                              (*value).rec->getColumn()->getColumnNo()));
           DBUG_DUMP("info", (const uchar*) field->ptr, field->pack_length());
@@ -5565,18 +5551,18 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value,
       else
       {
         NdbBlob *ndb_blob= (*value).blob;
-        uint col_no= field->field_index;
+        const uint field_no= field->field_index;
         int isNull;
         ndb_blob->getDefined(isNull);
         if (isNull == 1)
         {
-          DBUG_PRINT("info",("[%u] NULL", col_no));
+          DBUG_PRINT("info",("[%u] NULL", field_no));
           field->set_null(row_offset);
         }
         else if (isNull == -1)
         {
-          DBUG_PRINT("info",("[%u] UNDEFINED", col_no));
-          bitmap_clear_bit(defined, col_no);
+          DBUG_PRINT("info",("[%u] UNDEFINED", field_no));
+          bitmap_clear_bit(defined, field_no);
         }
         else
         {
@@ -5587,12 +5573,13 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value,
           field_blob->get_ptr(&ptr, row_offset);
           uint32 len= field_blob->get_length(row_offset);
           DBUG_PRINT("info",("[%u] SET ptr: 0x%lx  len: %u",
-                             col_no, (long) ptr, len));
+                             field_no, (long) ptr, len));
 #endif
         }
-      }
-    }
-  }
+      } // else
+    } // if ((*value).ptr)
+    value++;  // this field was not virtual
+  } // for()
   dbug_tmp_restore_column_map(table->write_set, old_map);
   DBUG_VOID_RETURN;
 }
@@ -5833,7 +5820,7 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
         MY_BITMAP b;
         uint32 bitbuf[128 / (sizeof(uint32) * 8)];
         bitmap_init(&b, bitbuf, n_fields, FALSE);
-        bitmap_set_all(&b);
+        bitmap_copy(&b, & (share->stored_columns));
         ndb_unpack_record(table, event_data->ndb_value[0], &b, table->record[0]);
         ndb_apply_status_server_id= (uint)((Field_long *)table->field[0])->val_int();
         ndb_apply_status_epoch= ((Field_longlong *)table->field[1])->val_int();
@@ -5996,7 +5983,7 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
   uint32 bitbuf[128 / (sizeof(uint32) * 8)];
   const bool own_buffer = n_fields <= sizeof(bitbuf) * 8;
   bitmap_init(&b, own_buffer ? bitbuf : NULL, n_fields, FALSE); 
-  bitmap_set_all(&b);
+  bitmap_copy(&b, & (share->stored_columns));
 
   /*
    row data is already in table->record[0]

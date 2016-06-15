@@ -124,6 +124,7 @@ inline NdbBlob * Ndb_table_map::getBlobHandle(const NdbOperation *ndb_op,
 
 inline uint Ndb_table_map::get_hidden_key_column() const
 {
+  DBUG_ASSERT(m_hidden_pk);
   // The hidden primary key is just after the final stored, visible column
   return m_stored_fields;
 }
