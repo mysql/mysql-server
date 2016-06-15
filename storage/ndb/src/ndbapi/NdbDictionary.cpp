@@ -783,20 +783,48 @@ NdbDictionary::Table::getPartitionBalance() const
 const char*
 NdbDictionary::Table::getPartitionBalanceString() const
 {
-  switch (m_impl.m_partitionBalance)
+  const char* name = getPartitionBalanceString(m_impl.m_partitionBalance);
+  if (name == NULL)
+    return "unknown";
+  return name;
+}
+
+static
+struct {
+  NdbDictionary::Object::PartitionBalance value;
+  const char * name;
+} partitionBalanceNames[] = {
+  {NdbDictionary::Object::PartitionBalance_Specific,         "SPECIFIC"},
+  {NdbDictionary::Object::PartitionBalance_ForRPByLDM,       "FOR_RP_BY_LDM"},
+  {NdbDictionary::Object::PartitionBalance_ForRPByNode,      "FOR_RP_BY_NODE"},
+  {NdbDictionary::Object::PartitionBalance_ForRAByLDM,       "FOR_RA_BY_LDM"},
+  {NdbDictionary::Object::PartitionBalance_ForRAByNode,      "FOR_RA_BY_NODE"},
+};
+
+NdbDictionary::Object::PartitionBalance
+NdbDictionary::Table::getPartitionBalance(const char str[])
+{
+  for (unsigned i = 0; i < NDB_ARRAY_SIZE(partitionBalanceNames) ; i++)
   {
-    case PartitionBalance_Specific:
-      return "SPECIFIC";
-    case PartitionBalance_ForRPByLDM:
-      return "FOR_RP_BY_LDM";
-    case PartitionBalance_ForRAByLDM:
-      return "FOR_RA_BY_LDM";
-    case PartitionBalance_ForRPByNode:
-      return "FOR_RP_BY_NODE";
-    case PartitionBalance_ForRAByNode:
-      return "FOR_RA_BY_NODE";
+    if (strcmp(partitionBalanceNames[i].name, str) == 0)
+    {
+      return partitionBalanceNames[i].value;
+    }
   }
-  return "unknown";
+  return NdbDictionary::Object::PartitionBalance(0); /* No matching partition balance */
+}
+
+const char*
+NdbDictionary::Table::getPartitionBalanceString(PartitionBalance partition_balance)
+{
+  for (unsigned i = 0; i < NDB_ARRAY_SIZE(partitionBalanceNames) ; i++)
+  {
+    if (partitionBalanceNames[i].value == partition_balance)
+    {
+      return partitionBalanceNames[i].name;
+    }
+  }
+  return NULL;
 }
 
 int

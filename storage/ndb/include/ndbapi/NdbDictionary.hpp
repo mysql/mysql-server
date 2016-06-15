@@ -938,11 +938,13 @@ public:
      * Get partition balance
      */
     NdbDictionary::Object::PartitionBalance getPartitionBalance() const;
+    static NdbDictionary::Object::PartitionBalance getPartitionBalance(const char str[]);
 
     /**
      * Get partition balance string
      */
     const char* getPartitionBalanceString() const;
+    static const char* getPartitionBalanceString(PartitionBalance partition_balance);
 
     /**
      * Set fragmentation type
