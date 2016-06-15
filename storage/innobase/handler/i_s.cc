@@ -3005,6 +3005,10 @@ i_s_fts_deleted_generic_fill(
 
 	if (!user_table) {
 		DBUG_RETURN(0);
+	} else if (!dict_table_has_fts_index(user_table)) {
+		dict_table_close(user_table, FALSE, FALSE);
+
+		DBUG_RETURN(0);
 	}
 
 	trx = trx_allocate_for_background();
@@ -3412,6 +3416,12 @@ i_s_fts_index_cache_fill(
 		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
+		DBUG_RETURN(0);
+	}
+
+	if (user_table->fts == NULL || user_table->fts->cache == NULL) {
+		dict_table_close(user_table, FALSE, FALSE);
+
 		DBUG_RETURN(0);
 	}
 
