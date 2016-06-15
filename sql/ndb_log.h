@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,16 +30,16 @@ unsigned ndb_log_get_verbose_level(void);
   "NDB <prefix>" if one of the prefix functions are used
 */
 void ndb_log_info(const char* fmt, ...)
-  __attribute__((format(printf, 1, 2)));
+  MY_ATTRIBUTE((format(printf, 1, 2)));
 
 void ndb_log_warning(const char* fmt, ...)
-  __attribute__((format(printf, 1, 2)));
+  MY_ATTRIBUTE((format(printf, 1, 2)));
 
 void ndb_log_error(const char* fmt, ...)
-  __attribute__((format(printf, 1, 2)));
+  MY_ATTRIBUTE((format(printf, 1, 2)));
 
 void ndb_log_verbose(unsigned verbose_level, const char* fmt, ...)
-  __attribute__((format(printf, 2, 3)));
+  MY_ATTRIBUTE((format(printf, 2, 3)));
 
 enum ndb_log_loglevel {
    NDB_LOG_ERROR_LEVEL=       0,
