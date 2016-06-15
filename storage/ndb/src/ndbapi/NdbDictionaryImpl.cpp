@@ -1018,7 +1018,7 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_maxLoadFactor = org.m_maxLoadFactor;
   m_keyLenInWords = org.m_keyLenInWords;
   m_fragmentCount = org.m_fragmentCount;
-  m_partitionCount = org.m_fragmentCount;
+  m_partitionCount = org.m_partitionCount;
   m_fragmentCountType = org.m_fragmentCountType;
   m_single_user_mode = org.m_single_user_mode;
   m_extra_row_gci_bits = org.m_extra_row_gci_bits;
