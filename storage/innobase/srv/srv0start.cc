@@ -756,7 +756,7 @@ srv_undo_tablespaces_init(
 
 		snprintf(
 			name, sizeof(name),
-			"%s%cundo%03lu",
+			"%s%cundo%03" ULINTPFS,
 			srv_undo_dir, OS_PATH_SEPARATOR, i + 1);
 
 		/* Undo space ids start from 1. */
@@ -796,7 +796,7 @@ srv_undo_tablespaces_init(
 				char	name[OS_FILE_MAX_PATH];
 
 				snprintf(name, sizeof(name),
-					    "%s%cundo%03lu",
+					    "%s%cundo%03" ULINTPFS,
 					    srv_undo_dir, OS_PATH_SEPARATOR,
 					    undo_tablespace_ids[i]);
 
@@ -837,7 +837,7 @@ srv_undo_tablespaces_init(
 
 		snprintf(
 			name, sizeof(name),
-			"%s%cundo%03lu",
+			"%s%cundo%03" ULINTPFS,
 			srv_undo_dir, OS_PATH_SEPARATOR,
 			undo_tablespace_ids[i]);
 
@@ -874,8 +874,8 @@ srv_undo_tablespaces_init(
 		char	name[OS_FILE_MAX_PATH];
 
 		snprintf(
-			name, sizeof(name),
-			"%s%cundo%03lu", srv_undo_dir, OS_PATH_SEPARATOR, i);
+			name, sizeof(name), "%s%cundo%03" ULINTPFS,
+			srv_undo_dir, OS_PATH_SEPARATOR, i);
 
 		/* Undo space ids start from 1. */
 		err = srv_undo_tablespace_open(name, i);

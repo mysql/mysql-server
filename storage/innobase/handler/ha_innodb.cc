@@ -10344,7 +10344,7 @@ create_table_info_t::create_table_def()
 		if (dict_table_is_intrinsic(table) && field->orig_table) {
 
 			snprintf(field_name, sizeof(field_name),
-				    "%s_%s_%lu", field->orig_table->alias,
+				    "%s_%s_" ULINTPF, field->orig_table->alias,
 				    field->field_name, i);
 
 		} else {

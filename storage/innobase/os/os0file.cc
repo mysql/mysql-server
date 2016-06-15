@@ -8065,7 +8065,7 @@ Encryption::create_master_key(byte** master_key)
 
 	/* Generate new master key */
 	snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
-		    "%s-%s-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
+		    "%s-%s-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
 		    uuid, master_key_id + 1);
 
 	/* We call key ring API to generate master key here. */
@@ -8107,14 +8107,14 @@ Encryption::get_master_key(ulint master_key_id,
 
 	if (srv_uuid != NULL) {
 		snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
-			    "%s-%s-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
+			    "%s-%s-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
 			    srv_uuid, master_key_id);
 	} else {
 		/* For compitable with 5.7.11, we need to get master key with
 		server id. */
 		memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
 		snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
-			    "%s-%lu-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
+			    "%s-%lu-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
 			    server_id, master_key_id);
 	}
 
@@ -8201,7 +8201,7 @@ Encryption::get_master_key(ulint* master_key_id,
 		*master_key_id = Encryption::master_key_id;
 
 		snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
-			    "%s-%s-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
+			    "%s-%s-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
 			    uuid, *master_key_id);
 
 		/* We call key ring API to get master key here. */
@@ -8219,7 +8219,7 @@ Encryption::get_master_key(ulint* master_key_id,
 			memset(key_name, 0,
 			       ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
 			snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
-				    "%s-%lu-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
+				    "%s-%lu-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
 				    server_id, *master_key_id);
 
 			ret = my_key_fetch(key_name, &key_type, NULL,

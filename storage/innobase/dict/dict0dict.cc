@@ -6478,7 +6478,8 @@ dict_table_schema_check(
 	if ((ulint) table->n_def - n_sys_cols != req_schema->n_cols) {
 		/* the table has a different number of columns than required */
 		snprintf(errstr, errstr_sz,
-			    "%s has %lu columns but should have %lu.",
+			    "%s has " ULINTPF " columns but should have "
+			    ULINTPF ".",
 			    ut_format_name(req_schema->table_name,
 					   buf, sizeof(buf)),
 			    table->n_def - n_sys_cols,
@@ -6568,7 +6569,7 @@ dict_table_schema_check(
 		snprintf(
 			errstr, errstr_sz,
 			"Table %s has " ULINTPF " foreign key(s) pointing"
-			" to other tables, but it must have %lu.",
+			" to other tables, but it must have " ULINTPF ".",
 			ut_format_name(req_schema->table_name,
 				       buf, sizeof(buf)),
 			static_cast<ulint>(table->foreign_set.size()),
@@ -6580,7 +6581,7 @@ dict_table_schema_check(
 		snprintf(
 			errstr, errstr_sz,
 			"There are " ULINTPF " foreign key(s) pointing to %s, "
-			"but there must be %lu.",
+			"but there must be " ULINTPF ".",
 			static_cast<ulint>(table->referenced_set.size()),
 			ut_format_name(req_schema->table_name,
 				       buf, sizeof(buf)),
