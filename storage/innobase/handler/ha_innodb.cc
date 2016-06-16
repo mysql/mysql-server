@@ -3544,6 +3544,7 @@ static bool innobase_is_supported_system_table(const char *db,
 {
 	static const char* supported_system_tables[]= { "columns_priv",
 							"db",
+							"func",
 							"help_topic",
 							"help_category",
 							"help_relation",

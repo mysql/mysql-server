@@ -400,6 +400,7 @@ mysql/engine_cost
 mysql/events
 mysql/foreign_key_column_usage
 mysql/foreign_keys
+mysql/func
 mysql/gtid_executed
 mysql/help_category
 mysql/help_keyword
@@ -1080,6 +1081,7 @@ mysql/engine_cost
 mysql/events
 mysql/foreign_key_column_usage
 mysql/foreign_keys
+mysql/func
 mysql/gtid_executed
 mysql/help_category
 mysql/help_keyword
@@ -1242,6 +1244,7 @@ mysql/engine_cost
 mysql/events
 mysql/foreign_key_column_usage
 mysql/foreign_keys
+mysql/func
 mysql/gtid_executed
 mysql/help_category
 mysql/help_keyword
@@ -1415,6 +1418,7 @@ mysql/engine_cost
 mysql/events
 mysql/foreign_key_column_usage
 mysql/foreign_keys
+mysql/func
 mysql/gtid_executed
 mysql/help_category
 mysql/help_keyword
@@ -1588,6 +1592,7 @@ mysql/engine_cost
 mysql/events
 mysql/foreign_key_column_usage
 mysql/foreign_keys
+mysql/func
 mysql/gtid_executed
 mysql/help_category
 mysql/help_keyword

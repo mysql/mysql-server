@@ -1715,9 +1715,7 @@ void clean_up(bool print_message)
   lex_free();       /* Free some memory */
   item_create_cleanup();
   if (!opt_noacl)
-  {
-    udf_free();
-  }
+    udf_deinit();
   table_def_start_shutdown();
   plugin_shutdown();
   gtid_server_cleanup(); // after plugin_shutdown

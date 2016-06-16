@@ -744,7 +744,7 @@ ALTER TABLE help_topic MODIFY url TEXT NOT NULL;
 -- time_zone, time_zone_leap_second, time_zone_name, time_zone_transition,
 -- time_zone_transition_type, columns_priv, db, procs_priv, proxies_priv,
 -- tables_priv, user.
-
+ALTER TABLE func ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE help_topic ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE help_category ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE help_relation ENGINE=InnoDB STATS_PERSISTENT=0;
