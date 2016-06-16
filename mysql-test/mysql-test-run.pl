@@ -1803,7 +1803,7 @@ sub set_build_thread_ports($) {
     $build_thread = 300;	# Start attempts from here
     my $build_thread_upper = $build_thread + ($opt_parallel > 1500
                                               ? 3000
-                                              : 2 * $opt_parallel);
+                                              : 2 * $opt_parallel) + 300;
     while (! $found_free)
     {
       $build_thread= mtr_get_unique_id($build_thread, $build_thread_upper);
