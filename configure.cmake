@@ -242,10 +242,11 @@ IF(UNIX)
   ENDIF()
   MY_SEARCH_LIBS(timer_create rt LIBRT)
   MY_SEARCH_LIBS(atomic_thread_fence atomic LIBATOMIC)
+  MY_SEARCH_LIBS(backtrace execinfo LIBEXECINFO)
 
   SET(CMAKE_REQUIRED_LIBRARIES 
     ${LIBM} ${LIBNSL} ${LIBBIND} ${LIBCRYPT} ${LIBSOCKET} ${LIBDL}
-    ${CMAKE_THREAD_LIBS_INIT} ${LIBRT} ${LIBATOMIC}
+    ${CMAKE_THREAD_LIBS_INIT} ${LIBRT} ${LIBATOMIC} ${LIBEXECINFO}
   )
   # Need explicit pthread for gcc -fsanitize=address
   IF(CMAKE_C_FLAGS MATCHES "-fsanitize=")
@@ -608,14 +609,6 @@ CHECK_CXX_SOURCE_COMPILES("
   }"
   HAVE_ABI_CXA_DEMANGLE)
 ENDIF()
-
-CHECK_C_SOURCE_COMPILES("
-  int main(int argc, char **argv) 
-  {
-    extern char *__bss_start;
-    return __bss_start ? 1 : 0;
-  }"
-HAVE_BSS_START)
 
 CHECK_C_SOURCE_COMPILES("
 int main()

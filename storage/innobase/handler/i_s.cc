@@ -2998,8 +2998,6 @@ i_s_fts_deleted_generic_fill(
 		DBUG_RETURN(0);
 	}
 
-	deleted = fts_doc_ids_create();
-
 	user_table = dict_table_open_on_name(
 		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
@@ -3010,6 +3008,8 @@ i_s_fts_deleted_generic_fill(
 
 		DBUG_RETURN(0);
 	}
+
+	deleted = fts_doc_ids_create();
 
 	trx = trx_allocate_for_background();
 	trx->op_info = "Select for FTS DELETE TABLE";

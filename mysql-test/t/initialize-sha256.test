@@ -1,8 +1,8 @@
 --source include/big_test.inc
 --source include/not_embedded.inc
 --source include/have_no_undo_tablespaces.inc
---source include/have_ssl.inc
---source include/have_sha256_rsa_auth.inc
+--source include/have_ssl_communication.inc
+--source include/have_openssl.inc
 
 
 let BASEDIR= `select @@basedir`;
