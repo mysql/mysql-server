@@ -144,11 +144,11 @@ Provides:       MySQL-server-advanced = %{version}-%{release}
 Obsoletes:      MySQL-server-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-server < %{version}-%{release}
 Requires:       mysql-commercial-client >= %{min}
-Requires:       mysql-commercial-common >= %{min}
+Requires:       mysql-commercial-common = %{version}-%{release}
 %else
 Provides:       MySQL-server = %{version}-%{release}
 Requires:       mysql-community-client >= %{min}
-Requires:       mysql-community-common >= %{min}
+Requires:       mysql-community-common = %{version}-%{release}
 %endif
 Obsoletes:      mysql-community-bench < 5.7.8
 Obsoletes:      community-mysql-bench
@@ -305,10 +305,10 @@ Group:          Applications/Databases
 Provides:       MySQL-embedded-advanced = %{version}-%{release}
 Obsoletes:      MySQL-embedded-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-embedded < %{version}-%{release}
-Requires:       mysql-commercial-common >= %{min}
+Requires:       mysql-commercial-common = %{version}-%{release}
 %else
 Provides:       MySQL-embedded = %{version}-%{release}
-Requires:       mysql-community-common >= %{min}
+Requires:       mysql-community-common = %{version}-%{release}
 %endif
 Obsoletes:      mariadb-embedded
 Obsoletes:      MySQL-embedded < %{version}-%{release}

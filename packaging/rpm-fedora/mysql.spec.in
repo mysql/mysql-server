@@ -122,10 +122,10 @@ Requires:       mecab-ipadic
 Obsoletes:      mysql-commercial-bench < 5.7.8
 Obsoletes:      mysql-community-server < %{version}-%{release}
 Requires:       mysql-commercial-client%{?_isa} >= %{min}
-Requires:       mysql-commercial-common%{?_isa} >= %{min}
+Requires:       mysql-commercial-common%{?_isa} = %{version}-%{release}
 %else
 Requires:       mysql-community-client%{?_isa} >= %{min}
-Requires:       mysql-community-common%{?_isa} >= %{min}
+Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
 %endif
 Obsoletes:      mysql-community-bench < 5.7.8
 Obsoletes:      community-mysql-bench
@@ -284,9 +284,9 @@ Summary:        MySQL embedded library
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-embedded < %{version}-%{release}
-Requires:       mysql-commercial-common%{?_isa} >= %{min}
+Requires:       mysql-commercial-common%{?_isa} = %{version}-%{release}
 %else
-Requires:       mysql-community-common%{?_isa} >= %{min}
+Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
 %endif
 Obsoletes:      mariadb-embedded
 Obsoletes:      community-mysql-embedded < %{version}-%{release}
