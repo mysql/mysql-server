@@ -335,7 +335,7 @@ err:
 
 static my_bool _ma_thr_find_all_keys_exec(MARIA_SORT_PARAM* sort_param)
 {
-  my_bool error= FALSE;
+  int error= 0;
   ulonglong memavl, old_memavl;
   uint UNINIT_VAR(keys), idx;
   uint sort_length;

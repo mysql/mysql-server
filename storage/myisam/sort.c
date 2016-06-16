@@ -326,12 +326,12 @@ static my_bool thr_find_all_keys_exec(MI_SORT_PARAM *sort_param)
   uint sort_length;
   uint maxbuffer;
   uchar **sort_keys= NULL;
-  my_bool error= FALSE;
+  int error= 0;
   DBUG_ENTER("thr_find_all_keys");
   DBUG_PRINT("enter", ("master: %d", sort_param->master));
 
   if (sort_param->sort_info->got_error)
-    DBUG_RETURN(error);
+    DBUG_RETURN(TRUE);
 
   set_sort_param_read_write(sort_param);
 
