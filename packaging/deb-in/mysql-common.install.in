@@ -14,12 +14,12 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 # configuration file and script
+debian/extra/conf.d  etc/mysql/
 debian/extra/my.cnf.fallback etc/mysql/
-debian/extra/mysql.conf.cnf  etc/mysql/conf.d/mysql.cnf
 
+usr/share/mysql/docs/ChangeLog
 usr/share/mysql/docs/INFO_SRC
 usr/share/mysql/docs/INFO_BIN
-usr/share/mysql/docs/ChangeLog
 # charsets
 usr/share/mysql/charsets/*.xml
 usr/share/mysql/charsets/README
