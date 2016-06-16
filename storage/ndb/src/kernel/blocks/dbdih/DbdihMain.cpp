@@ -12351,7 +12351,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
   bool use_specific_fragment_count = false;
   const Uint32 defaultFragments =
     getFragmentsPerNode() * cnoOfNodeGroups * cnoReplicas;
-  const Uint32 maxFragments = MAX_FRAG_PER_LQH * defaultFragments;
+  const Uint32 maxFragments =
+    MAX_FRAG_PER_LQH * getFragmentsPerNode() * cnoOfNodeGroups;
 
   if (flags != CreateFragmentationReq::RI_GET_FRAGMENTATION)
   {
