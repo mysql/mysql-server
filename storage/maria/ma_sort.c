@@ -335,15 +335,14 @@ err:
 
 static my_bool _ma_thr_find_all_keys_exec(MARIA_SORT_PARAM* sort_param)
 {
-  DBUG_ENTER("_ma_thr_find_all_keys");
-  DBUG_PRINT("enter", ("master: %d", sort_param->master));
-
   my_bool error= FALSE;
   ulonglong memavl, old_memavl;
   uint UNINIT_VAR(keys), idx;
   uint sort_length;
   uint maxbuffer;
   uchar **sort_keys= NULL;
+  DBUG_ENTER("_ma_thr_find_all_keys");
+  DBUG_PRINT("enter", ("master: %d", sort_param->master));
 
   if (sort_param->sort_info->got_error)
     DBUG_RETURN(TRUE);

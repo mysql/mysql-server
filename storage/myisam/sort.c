@@ -321,16 +321,15 @@ static ha_rows find_all_keys(MI_SORT_PARAM *info, uint keys,
 
 static my_bool thr_find_all_keys_exec(MI_SORT_PARAM *sort_param)
 {
-  DBUG_ENTER("thr_find_all_keys");
-  DBUG_PRINT("enter", ("master: %d", sort_param->master));
-
   ulonglong memavl, old_memavl;
   uint UNINIT_VAR(keys), idx;
   uint sort_length;
   uint maxbuffer;
   uchar **sort_keys= NULL;
-
   my_bool error= FALSE;
+  DBUG_ENTER("thr_find_all_keys");
+  DBUG_PRINT("enter", ("master: %d", sort_param->master));
+
   if (sort_param->sort_info->got_error)
     DBUG_RETURN(error);
 
