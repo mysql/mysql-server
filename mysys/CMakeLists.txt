@@ -137,7 +137,7 @@ ENDIF()
 
 ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES})
 TARGET_LINK_LIBRARIES(mysys dbug strings ${ZLIB_LIBRARY} 
- ${LIBNSL} ${LIBM} ${LIBRT})
+ ${LIBNSL} ${LIBM} ${LIBRT} ${LIBEXECINFO})
 DTRACE_INSTRUMENT(mysys)
 
 # Need explicit pthread for gcc -fsanitize=address
@@ -161,10 +161,4 @@ TARGET_LINK_LIBRARIES(base64_test mysys)
 
 IF(MSVC)
    INSTALL_DEBUG_TARGET(mysys DESTINATION ${INSTALL_LIBDIR}/debug)
-ENDIF()
-
-IF(CMAKE_GENERATOR MATCHES "Xcode")
-  INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-  ADD_COMPILE_FLAGS(stacktrace.cc
-                    COMPILE_FLAGS "-Wno-deprecated-declarations")
 ENDIF()
