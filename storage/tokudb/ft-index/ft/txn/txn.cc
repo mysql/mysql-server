@@ -336,16 +336,25 @@ static txn_child_manager tcm;
         .xa_xid = {0, 0, 0, {}},
         .progress_poll_fun = NULL,
         .progress_poll_fun_extra = NULL,
-        .txn_lock = TOKU_MUTEX_INITIALIZER,
+        .txn_lock = {}, // Needs to be set to 0 after initialization.
+                        // See:
+                        // https://llvm.org/bugs/show_bug.cgi?id=21689
+                        // and MDEV-10229
         .open_fts = open_fts,
         .roll_info = roll_info,
-        .state_lock = TOKU_MUTEX_INITIALIZER,
-        .state_cond = TOKU_COND_INITIALIZER,
+        .state_lock = {}, // Needs to be set to 0.
+        .state_cond = {}, // Needs to be set to 0.
         .state = TOKUTXN_LIVE,
         .num_pin = 0,
         .client_id = 0,
         .start_time = time(NULL),
     };
+
+    // We initialize the locks afterwards, but to prevent undefined behaviour
+    // we zero-out the structures containing them.
+    ZERO_STRUCT(new_txn.txn_lock);
+    ZERO_STRUCT(new_txn.state_lock);
+    ZERO_STRUCT(new_txn.state_cond);
 
     TOKUTXN result = NULL;
     XMEMDUP(result, &new_txn);
