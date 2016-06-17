@@ -850,7 +850,6 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
-=======
 * Thu Jun 05 2016 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.0-0.1
 - Change the version number to 8.0.0
 - Add manual page for ibd2sdi utility
