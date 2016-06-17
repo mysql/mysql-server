@@ -782,9 +782,9 @@ Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from
 Warnings:
 SELECT a, b FROM t WHERE 1 = (b OR a);
 a	b
-1	1
-1	0
 0	1
+1	0
+1	1
 DROP TABLE t;
 #
 # Bug#21854241: QUERY USING JSON_EXTRACT() RETURNS WRONG RESULT

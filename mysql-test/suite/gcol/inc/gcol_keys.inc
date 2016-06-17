@@ -745,6 +745,7 @@ EXPLAIN SELECT a, b FROM t WHERE 1 = (b AND a);
 SELECT a, b FROM t WHERE 1 = (b AND a);
 --sorted_result
 EXPLAIN SELECT a, b FROM t WHERE 1 = (b OR a);
+--sorted_result
 SELECT a, b FROM t WHERE 1 = (b OR a);
 DROP TABLE t;
 
