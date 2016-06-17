@@ -5623,7 +5623,12 @@ sub report_failure_and_restart ($) {
 	if ($tinfo->{logfile} !~ /\n/)
 	{
 	  # Show how far it got before suddenly failing
-	  $tinfo->{comment}.= "mysqltest failed but provided no output\n";
+          # Avoid MTR printing the following error message on
+          # windows for test timeout failures.
+          if (!$tinfo->{'timeout'} and !IS_WINDOWS)
+          {
+            $tinfo->{comment}.= "mysqltest failed but provided no output\n";
+          }
 	  my $log_file_name= $opt_vardir."/log/".$tinfo->{shortname}.".log";
 	  if (-e $log_file_name) {
 	    $tinfo->{comment}.=
