@@ -64,13 +64,32 @@ IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
 
   MY_ADD_C_WARNING_FLAG("Wunreachable-code-break")
   MY_ADD_C_WARNING_FLAG("Wunreachable-code-return")
-# Other possible options that give warnings:
-# -Wcast-align -Wsign-conversion -Wcast-qual -Wreserved-id-macro
-# -Wdocumentation-unknown-command -Wpadded -Wconversion -Wshorten-64-to-32
-# -Wmissing-prototypes -Wused-but-marked-unused -Wmissing-variable-declarations
-# -Wdocumentation -Wunreachable-code -Wunused-macros -Wformat-nonliteral
-# -Wbad-function-cast -Wcovered-switch-default -Wfloat-equal -Wshadow -Wswitch-enum
-# -Wdisabled-macro-expansion -Wpacked -Wpedantic
+  # Other possible options that give warnings (Clang 3.8):
+  # -Wcast-align
+  # -Wcast-qual
+  # -Wconversion
+  # -Wcovered-switch-default
+  # -Wdisabled-macro-expansion
+  # -Wdocumentation-deprecated-sync
+  # -Wdocumentation-pedantic
+  # -Wdocumentation-unknown-command
+  # -Wdouble-promotion
+  # -Wempty-translation-unit
+  # -Wfloat-equal
+  # -Wformat-nonlitera
+  # -Wformat-pedantic
+  # -Wmissing-prototypes
+  # -Wmissing-variable-declarations
+  # -Wpadded
+  # -Wpedantic
+  # -Wreserved-id-macro
+  # -Wshadow
+  # -Wshorten-64-to-32
+  # -Wsign-conversion
+  # -Wswitch-enum
+  # -Wunreachable-code
+  # -Wunused-macros
+  # -Wused-but-marked-unused
 ENDIF()    
   
 # Extra warning flags for Clang++
@@ -87,17 +106,50 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       "${MY_CXX_WARNING_FLAGS} -Wnon-virtual-dtor")
   SET(MY_CXX_WARNING_FLAGS
       "${MY_CXX_WARNING_FLAGS} -Wundefined-reinterpret-cast")
-# Other possible options that give warnings:
-# -Wold-style-cast -Wc++11-long-long -Wconversion -Wsign-conversion -Wcast-align
-# -Wmissing-prototypes -Wdocumentation -Wweak-vtables -Wdocumentation-unknown-command
-# -Wreserved-id-macro -Wpadded -Wused-but-marked-unused -Wshadow -Wunreachable-code-return
-# -Wunused-macros -Wmissing-variable-declarations -Wswitch-enum
-# -Wextra-semi -Wfloat-equal -Wmissing-noreturn -Wcovered-switch-default
-# -Wunreachable-code-break -Wglobal-constructors -Wc99-extensions -Wshift-sign-overflow
-# -Wformat-nonliteral -Wexit-time-destructors -Wpedantic
-# -Wunreachable-code-loop-increment -Wdisabled-macro-expansion -Wunreachable-code
-# -Wabstract-vbase-init -Wclass-varargs -Wover-aligned -Wunused-exception-parameter
-# -Wunused-member-function
+  # Other possible options that give warnings (Clang 3.8):
+  # -Wabstract-vbase-init
+  # -Wc++98-compat-pedantic
+  # -Wcast-align
+  # -Wconversion
+  # -Wcovered-switch-default
+  # -Wdeprecated
+  # -Wdisabled-macro-expansion
+  # -Wdocumentation
+  # -Wdocumentation-pedantic
+  # -Wdocumentation-unknown-command
+  # -Wdouble-promotion
+  # -Wexit-time-destructors
+  # -Wextended-offsetof
+  # -Wextra-semi
+  # -Wfloat-equal
+  # -Wformat-nonliteral
+  # -Wformat-pedantic
+  # -Wglobal-constructors
+  # -Wgnu-anonymous-struct
+  # -Wimplicit-fallthrough
+  # -Wkeyword-macro
+  # -Wmissing-noreturn
+  # -Wmissing-prototypes
+  # -Wmissing-variable-declarations
+  # -Wnested-anon-types
+  # -Wnewline-eof
+  # -Wold-style-cast
+  # -Wpadded
+  # -Wpedantic
+  # -Wreserved-id-macro
+  # -Wshadow
+  # -Wshift-sign-overflow
+  # -Wsign-conversion
+  # -Wswitch-enum
+  # -Wunreachable-code
+  # -Wunreachable-code-break
+  # -Wunreachable-code-return
+  # -Wunused-exception-parameter
+  # -Wunused-macros
+  # -Wunused-member-function
+  # -Wused-but-marked-unused
+  # -Wweak-template-vtables
+  # -Wweak-vtables
 ENDIF()
 
 # Turn on Werror (warning => error) when using maintainer mode.
