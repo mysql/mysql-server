@@ -766,7 +766,7 @@ struct os_file_stat_t {
 	os_offset_t	size;			/*!< file size in bytes */
 	os_offset_t	alloc_size;		/*!< Allocated size for
 						sparse files in bytes */
-	size_t		block_size;		/*!< Block size to use for IO
+	uint32_t	block_size;		/*!< Block size to use for IO
 						in bytes*/
 	time_t		ctime;			/*!< creation time */
 	time_t		mtime;			/*!< modification time */

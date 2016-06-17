@@ -4935,7 +4935,7 @@ os_file_get_status_win32(
 		little benefit from compression out of the box. */
 
 		stat_info->block_size = (stat_info->block_size <= 4096)
-			?  stat_info->block_size * 16 : ULINT_UNDEFINED;
+			?  stat_info->block_size * 16 : ULINT32_UNDEFINED;
 	} else {
 		stat_info->type = OS_FILE_TYPE_UNKNOWN;
 	}
