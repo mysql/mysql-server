@@ -396,6 +396,7 @@ public:
 
 class PARAM;
 class SEL_ARG;
+class SEL_ROOT;
 
 
 typedef Prealloced_array<QUICK_RANGE*, 16> Quick_ranges;
@@ -440,7 +441,7 @@ protected:
                              uchar *min_key, uint min_key_flag,
                              uchar *max_key, uint max_key_flag);
   friend QUICK_RANGE_SELECT *get_quick_select(PARAM*,uint idx,
-                                              SEL_ARG *key_tree,
+                                              SEL_ROOT *key_tree,
                                               uint mrr_flags,
                                               uint mrr_buf_size,
                                               MEM_ROOT *alloc);
