@@ -331,6 +331,7 @@
 #include "mysqld_thd_manager.h"         // Global_THD_manager
 #include "options_mysqld.h"             // OPT_THREAD_CACHE_SIZE
 #include "opt_costconstantcache.h"      // delete_optimizer_cost_module
+#include "opt_range.h"                  // range_optimizer_init
 #include "parse_file.h"                 // File_parser_dummy_hook
 #include "persisted_variable.h"         // Persisted_variables_cache
 #include "psi_memory_key.h"             // key_memory_MYSQL_RELAY_LOG_index
@@ -1740,6 +1741,7 @@ void clean_up(bool print_message)
 #endif
   query_cache.destroy(NULL);
   hostname_cache_free();
+  range_optimizer_free();
   item_func_sleep_free();
   lex_free();       /* Free some memory */
   item_create_cleanup();
@@ -3366,6 +3368,7 @@ int init_common_variables()
   if (item_create_init())
     return 1;
   item_init();
+  range_optimizer_init();
 #ifndef EMBEDDED_LIBRARY
   my_regex_init(&my_charset_latin1, check_enough_stack_size);
   my_string_stack_guard= check_enough_stack_size;
