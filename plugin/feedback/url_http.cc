@@ -190,6 +190,7 @@ int Url_http::send(const char* data, size_t data_length)
       break;
 
     closesocket(fd);
+    fd= INVALID_SOCKET;
   }
 
   freeaddrinfo(addrs);
