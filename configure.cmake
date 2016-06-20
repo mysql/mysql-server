@@ -598,7 +598,7 @@ ENDIF()
   
 INCLUDE (CheckIncludeFileCXX)
 CHECK_INCLUDE_FILE_CXX(cxxabi.h HAVE_CXXABI_H)
-IF(CMAKE_COMPILER_IS_GNUCXX AND HAVE_CXXABI_H)
+IF(HAVE_CXXABI_H)
 CHECK_CXX_SOURCE_COMPILES("
  #include <cxxabi.h>
  int main(int argc, char **argv) 

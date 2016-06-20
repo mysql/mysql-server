@@ -189,32 +189,57 @@ my_demangle(const char *mangled_name MY_ATTRIBUTE((unused)),
   return NULL;
 }
 
+
+static bool my_demangle_symbol(char *line)
+{
+  char *demangled= NULL;
+#ifdef __APPLE__ // OS X formatting of stacktraces is different from Linux
+  char *begin= strstr(line, "_Z");
+  char *end= begin ? strchr(begin, ' ') : NULL;
+
+  if (begin && end)
+  {
+    begin[-1]= '\0';
+    *end= '\0';
+    int status;
+    demangled= my_demangle(begin, &status);
+    if (!demangled || status)
+    {
+      demangled= NULL;
+      begin[-1]= '_';
+      *end= ' ';
+    }
+  }
+  if (demangled)
+    my_safe_printf_stderr("%s %s %s\n", line, demangled, end+1);
+#else // !__APPLE__
+  char *begin= strchr(line, '(');
+  char *end= begin ? strchr(begin, '+') : NULL;
+
+  if (begin && end)
+  {
+    *begin++= *end++= '\0';
+    int status;
+    demangled= my_demangle(begin, &status);
+    if (!demangled || status)
+    {
+      demangled= NULL;
+      begin[-1]= '(';
+      end[-1]= '+';
+    }
+  }
+  if (demangled)
+    my_safe_printf_stderr("%s(%s+%s\n", line, demangled, end);
+#endif // !__APPLE__
+  return (demangled == NULL);
+}
+
+
 static void my_demangle_symbols(char **addrs, int n)
 {
-  int status, i;
-  char *begin, *end, *demangled;
-
-  for (i= 0; i < n; i++)
+  for (int i= 0; i < n; i++)
   {
-    demangled= NULL;
-    begin= strchr(addrs[i], '(');
-    end= begin ? strchr(begin, '+') : NULL;
-
-    if (begin && end)
-    {
-      *begin++= *end++= '\0';
-      demangled= my_demangle(begin, &status);
-      if (!demangled || status)
-      {
-        demangled= NULL;
-        begin[-1]= '(';
-        end[-1]= '+';
-      }
-    }
-
-    if (demangled)
-      my_safe_printf_stderr("%s(%s+%s\n", addrs[i], demangled, end);
-    else
+    if (my_demangle_symbol(addrs[i])) // demangling failed
       my_safe_printf_stderr("%s\n", addrs[i]);
   }
 }
