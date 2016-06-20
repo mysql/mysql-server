@@ -102,11 +102,6 @@ public:
   */
   virtual const Json_path_leg *get_leg_at(const size_t index) const =0;
 
-  /**
-    Return true if the path contains an ellipsis token
-  */
-  virtual bool contains_ellipsis() const =0;
-
 };
 
 /*
@@ -284,11 +279,6 @@ public:
   */
   bool contains_wildcard_or_ellipsis() const;
 
-  /**
-    Return true if the path contains an ellipsis token
-  */
-  bool contains_ellipsis() const;
-
   /** Turn into a human-readable string. */
   bool to_string(String *buf) const;
 
@@ -355,11 +345,6 @@ public:
     Resets this to an empty path with no legs.
   */
   void clear();
-
-  /**
-    Return true if the path contains an ellipsis token
-  */
-  bool contains_ellipsis() const;
 
 };
 

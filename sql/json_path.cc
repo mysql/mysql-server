@@ -33,6 +33,7 @@
 
 #include <m_ctype.h>
 
+#include <algorithm>                            // any_of
 #include <cwctype>
 #include <memory>                               // unique_ptr
 #include <string>
@@ -166,20 +167,6 @@ void Json_path_clone::clear()
 }
 
 
-bool Json_path_clone::contains_ellipsis() const
-{
-  for (Path_leg_pointers::const_iterator iter= m_path_legs.begin();
-       iter != m_path_legs.end(); ++iter)
-  {
-    const Json_path_leg *path_leg= *iter;
-    if (path_leg->get_type() == jpl_ellipsis)
-      return true;
-  }
-
-  return false;
-}
-
-
 // Json_path
 
 Json_path::Json_path()
@@ -268,21 +255,8 @@ static inline bool is_wildcard_or_ellipsis(const Json_path_leg &leg)
 
 bool Json_path::contains_wildcard_or_ellipsis() const
 {
-  return std::find_if(m_path_legs.begin(), m_path_legs.end(),
-                      is_wildcard_or_ellipsis) != m_path_legs.end();
-}
-
-
-static inline bool is_ellipsis(const Json_path_leg &leg)
-{
-  return leg.get_type() == jpl_ellipsis;
-}
-
-
-bool Json_path::contains_ellipsis() const
-{
-  return std::find_if(m_path_legs.begin(), m_path_legs.end(),
-                      is_ellipsis) != m_path_legs.end();
+  return std::any_of(m_path_legs.begin(), m_path_legs.end(),
+                     is_wildcard_or_ellipsis);
 }
 
 
@@ -374,7 +348,7 @@ const char *Json_path::parse_path(const bool begins_with_column_id,
   }
 
   // a path may not end with an ellipsis
-  if (m_path_legs.size() > 0 && is_ellipsis(m_path_legs.back()))
+  if (m_path_legs.size() > 0 && m_path_legs.back().get_type() == jpl_ellipsis)
   {
     *status= false;
   }
