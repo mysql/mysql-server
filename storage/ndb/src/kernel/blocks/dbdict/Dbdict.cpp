@@ -852,6 +852,11 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
   w.add(DictTabInfo::FullyReplicatedFlag,
         !!(tablePtr.p->m_bits & TableRecord::TR_FullyReplicated));
 
+  D("packTableIntoPages: tableId: " << tablePtr.p->tableId
+    << " tablePtr.i = " << tablePtr.i << " tableVersion = "
+    << tablePtr.p->tableVersion << " m_bits = " << hex
+    << tablePtr.p->m_bits);
+
   w.add(DictTabInfo::MinLoadFactor, tablePtr.p->minLoadFactor);
   w.add(DictTabInfo::MaxLoadFactor, tablePtr.p->maxLoadFactor);
   w.add(DictTabInfo::TableKValue, tablePtr.p->kValue);
@@ -5770,6 +5775,11 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
   tablePtr.p->m_bits |=
     (c_tableDesc.FullyReplicatedFlag ? TableRecord::TR_FullyReplicated : 0);
 
+  D("handleTabInfoInit: tableId = " << tablePtr.p->tableId
+    << " tabPtr.i = " << tablePtr.i << " tableVersion = "
+    << tablePtr.p->tableVersion << " m_bits = " << hex
+    << tablePtr.p->m_bits);
+
   tablePtr.p->minLoadFactor = c_tableDesc.MinLoadFactor;
   tablePtr.p->maxLoadFactor = c_tableDesc.MaxLoadFactor;
   tablePtr.p->fragmentType = (DictTabInfo::FragmentType)c_tableDesc.FragmentType;
@@ -9360,6 +9370,7 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
     *(const AlterTableReq*)signal->getDataPtr();
   const AlterTableReq* req = &req_copy;
 
+  D("ALTER_TABLE_REQ: changeMask: " << hex << req->changeMask);
   ErrorInfo error;
   do {
     SchemaOpPtr op_ptr;
@@ -10858,6 +10869,16 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
       Uint32 save_rfc = tablePtr.p->partitionCount;
       tablePtr.p->partitionCount = newTablePtr.p->partitionCount;
       newTablePtr.p->partitionCount = save_rfc;
+    }
+    if (AlterTableReq::getReadBackupFlag(changeMask))
+    {
+      jam();
+      Uint32 save_old = (tablePtr.p->m_bits & TableRecord::TR_ReadBackup);
+      Uint32 save_new = (newTablePtr.p->m_bits & TableRecord::TR_ReadBackup);
+      tablePtr.p->m_bits &= (~(TableRecord::TR_ReadBackup));
+      newTablePtr.p->m_bits &= (~(TableRecord::TR_ReadBackup));
+      tablePtr.p->m_bits |= save_new;
+      newTablePtr.p->m_bits |= save_old;
     }
   }
 
@@ -32299,6 +32320,7 @@ Dbdict::sendTransClientReply(Signal* signal, SchemaTransPtr trans_ptr)
   if (trans_ptr.p->m_clientState == TransClient::EndReq) {
     if (!hasError(trans_ptr.p->m_error)) {
       jam();
+      D("SCHEMA_TRANS_END_CONF");
       SchemaTransEndConf* conf =
         (SchemaTransEndConf*)signal->getDataPtrSend();
       conf->senderRef = reference();

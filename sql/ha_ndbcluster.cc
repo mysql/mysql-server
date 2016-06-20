@@ -18538,16 +18538,6 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
                "READ_BACKUP not supported by current data node versions");
       DBUG_RETURN(true);
     }
-    if (mod_read_backup->m_val_bool != new_tab->getReadBackupFlag())
-    {
-      /**
-       * Alter Table inplace of ReadBackup not yet supported.
-       */
-      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
-               ndbcluster_hton_name,
-               "Cannot alter read backup inplace");
-      DBUG_RETURN(true);
-    }
     if (old_tab->getFullyReplicated() &&
         (!mod_read_backup->m_val_bool))
     {

@@ -366,9 +366,6 @@ where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name like '%unique' order by node_id, fragment_num, block_instance;
 
---error 1478
-alter table t1 algorithm=inplace,
-  comment="NDB_TABLE=READ_BACKUP=0";
 alter table t1 algorithm=inplace,
   comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
 show create table t1;
@@ -392,4 +389,13 @@ create table t1 (a bigint primary key) engine ndb
 partition by key();
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
+drop table t1;
+
+create table t1 (a bigint primary key) engine ndb
+comment="NDB_TABLE=READ_BACKUP=0"
+partition by key();
+alter table t1 algorithm=inplace, comment="NDB_TABLE=READ_BACKUP=1";
+alter table t1 algorithm=inplace, comment="NDB_TABLE=READ_BACKUP=1";
+alter table t1 algorithm=inplace, comment="NDB_TABLE=READ_BACKUP=0";
+alter table t1 algorithm=inplace, comment="NDB_TABLE=READ_BACKUP=0";
 drop table t1;
