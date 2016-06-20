@@ -40,6 +40,7 @@ Created April 08, 2011 Vasil Dimov
 #include "srv0start.h"
 #include "sync0rw.h"
 #include "ut0byte.h"
+#include "os0thread-create.h"
 
 #include <algorithm>
 
@@ -747,23 +748,13 @@ buf_load_abort()
 	buf_load_abort_flag = TRUE;
 }
 
-/*****************************************************************//**
-This is the main thread for buffer pool dump/load. It waits for an
+/** This is the main thread for buffer pool dump/load. It waits for an
 event and when waked up either performs a dump or load and sleeps
-again.
-@return this function does not return, it calls os_thread_exit() */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(buf_dump_thread)(
-/*============================*/
-	void*	arg MY_ATTRIBUTE((unused)))	/*!< in: a dummy parameter
-						required by os_thread_create */
+again. */
+void
+buf_dump_thread()
 {
 	ut_ad(!srv_read_only_mode);
-
-#ifdef UNIV_PFS_THREAD
-	pfs_register_thread(buf_dump_thread_key);
-#endif /* UNIV_PFS_THREAD */
 
 	srv_buf_dump_thread_active = TRUE;
 
@@ -797,10 +788,4 @@ DECLARE_THREAD(buf_dump_thread)(
 	}
 
 	srv_buf_dump_thread_active = FALSE;
-
-	/* We count the number of threads in os_thread_exit(). A created
-	thread should always use that to exit and not use return() to exit. */
-	os_thread_exit();
-
-	OS_THREAD_DUMMY_RETURN;
 }

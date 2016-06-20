@@ -47,6 +47,7 @@ Created 9/20/1997 Heikki Tuuri
 #include "trx0rec.h"
 #include "fil0fil.h"
 #include "ut0new.h"
+#include "os0thread-create.h"
 #ifndef UNIV_HOTBACKUP
 # include "buf0rea.h"
 # include "srv0srv.h"
@@ -827,28 +828,13 @@ recv_sys_var_init(void)
 	recv_max_page_lsn = 0;
 }
 
-/******************************************************************//**
-recv_writer thread tasked with flushing dirty pages from the buffer
-pools.
-@return a dummy parameter */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(recv_writer_thread)(
-/*===============================*/
-	void*	arg MY_ATTRIBUTE((unused)))
-			/*!< in: a dummy parameter required by
-			os_thread_create */
+/** recv_writer thread tasked with flushing dirty pages from the buffer
+pools. */
+static
+void
+recv_writer_thread()
 {
 	ut_ad(!srv_read_only_mode);
-
-#ifdef UNIV_PFS_THREAD
-	pfs_register_thread(recv_writer_thread_key);
-#endif /* UNIV_PFS_THREAD */
-
-#ifdef UNIV_DEBUG_THREAD_CREATION
-	ib::info() << "recv_writer thread running, id "
-		<< os_thread_pf(os_thread_get_curr_id());
-#endif /* UNIV_DEBUG_THREAD_CREATION */
 
 	/* The code flow is as follows:
 	Step 1: In recv_recovery_from_checkpoint_start().
@@ -862,12 +848,12 @@ DECLARE_THREAD(recv_writer_thread)(
 	becomes active only after step 4 and hence the assert in
 	step 5 fails.  So mark this thread active only if necessary. */
 	mutex_enter(&recv_sys->writer_mutex);
+
 	if (recv_recovery_on) {
 		recv_writer_thread_active = true;
 	} else {
 		mutex_exit(&recv_sys->writer_mutex);
-		os_thread_exit();
-		ut_error;
+		return;
 	}
 	mutex_exit(&recv_sys->writer_mutex);
 
@@ -892,13 +878,6 @@ DECLARE_THREAD(recv_writer_thread)(
 	}
 
 	recv_writer_thread_active = false;
-
-	/* We count the number of threads in os_thread_exit().
-	A created thread should always use that to exit and not
-	use return() to exit. */
-	os_thread_exit();
-
-	OS_THREAD_DUMMY_RETURN;
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -3942,7 +3921,9 @@ recv_init_crash_recovery_spaces()
 	if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
 		/* Spawn the background thread to flush dirty pages
 		from the buffer pools. */
-		os_thread_create(recv_writer_thread, 0, 0);
+		os_thread_create(
+			recv_writer_thread_key,
+			recv_writer_thread);
 	}
 
 	return(DB_SUCCESS);

@@ -29,6 +29,7 @@ Created Apr 25, 2012 Vasil Dimov
 #include "row0mysql.h"
 #include "srv0start.h"
 #include "ut0new.h"
+#include "os0thread-create.h"
 
 #include <vector>
 
@@ -389,25 +390,13 @@ dict_stats_disabled_debug_update(
 }
 #endif /* UNIV_DEBUG */
 
-/*****************************************************************//**
-This is the thread for background stats gathering. It pops tables, from
+/** This is the thread for background stats gathering. It pops tables, from
 the auto recalc list and proceeds them, eventually recalculating their
-statistics.
-@return this function does not return, it calls os_thread_exit() */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(dict_stats_thread)(
-/*==============================*/
-	void*	arg MY_ATTRIBUTE((unused)))	/*!< in: a dummy parameter
-						required by os_thread_create */
+statistics. */
+void
+dict_stats_thread()
 {
 	ut_a(!srv_read_only_mode);
-
-	my_thread_init();
-
-#ifdef UNIV_PFS_THREAD
-	pfs_register_thread(dict_stats_thread_key);
-#endif /* UNIV_PFS_THREAD */
 
 	srv_dict_stats_thread_active = true;
 
@@ -444,13 +433,6 @@ DECLARE_THREAD(dict_stats_thread)(
 	srv_dict_stats_thread_active = false;
 
 	os_event_set(dict_stats_shutdown_event);
-	my_thread_end();
-
-	/* We count the number of threads in os_thread_exit(). A created
-	thread should always use that to exit instead of return(). */
-	os_thread_exit();
-
-	OS_THREAD_DUMMY_RETURN;
 }
 
 /** Shutdown the dict stats thread. */

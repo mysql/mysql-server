@@ -446,41 +446,31 @@ extern struct export_var_t export_vars;
 /** Global counters */
 extern srv_stats_t	srv_stats;
 
-extern mysql_pfs_key_t	srv_worker_thread_key;
-extern mysql_pfs_key_t	srv_purge_thread_key;
+/* Keys to register InnoDB threads with performance schema */
 
 # ifdef UNIV_PFS_THREAD
-/* Keys to register InnoDB threads with performance schema */
 extern mysql_pfs_key_t	buf_dump_thread_key;
+extern mysql_pfs_key_t	buf_resize_thread_key;
 extern mysql_pfs_key_t	dict_stats_thread_key;
+extern mysql_pfs_key_t	fts_optimize_thread_key;
+extern mysql_pfs_key_t	fts_parallel_merge_thread_key;
+extern mysql_pfs_key_t	fts_parallel_tokenization_thread_key;
 extern mysql_pfs_key_t	io_handler_thread_key;
 extern mysql_pfs_key_t	io_ibuf_thread_key;
 extern mysql_pfs_key_t	io_log_thread_key;
 extern mysql_pfs_key_t	io_read_thread_key;
 extern mysql_pfs_key_t	io_write_thread_key;
-extern mysql_pfs_key_t	page_cleaner_thread_key;
+extern mysql_pfs_key_t	page_flush_coordinator_thread_key;
+extern mysql_pfs_key_t	page_flush_thread_key;
 extern mysql_pfs_key_t	recv_writer_thread_key;
 extern mysql_pfs_key_t	srv_error_monitor_thread_key;
 extern mysql_pfs_key_t	srv_lock_timeout_thread_key;
 extern mysql_pfs_key_t	srv_master_thread_key;
 extern mysql_pfs_key_t	srv_monitor_thread_key;
-extern mysql_pfs_key_t	trx_rollback_clean_thread_key;
-
-/* This macro register the current thread and its key with performance
-schema */
-#  define pfs_register_thread(key)			\
-do {								\
-	struct PSI_thread* psi = PSI_THREAD_CALL(new_thread)(key, NULL, 0);\
-	PSI_THREAD_CALL(set_thread_os_id)(psi);			\
-	PSI_THREAD_CALL(set_thread)(psi);			\
-} while (0)
-
-/* This macro delist the current thread from performance schema */
-#  define pfs_delete_thread()				\
-do {								\
-	PSI_THREAD_CALL(delete_current_thread)();		\
-} while (0)
-# endif /* UNIV_PFS_THREAD */
+extern mysql_pfs_key_t	srv_purge_thread_key;
+extern mysql_pfs_key_t	srv_worker_thread_key;
+extern mysql_pfs_key_t	trx_recovery_rollback_thread_key;
+#endif /* UNIV_PFS_THREAD */
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
 /** Performance schema stage event for monitoring ALTER TABLE progress
@@ -707,54 +697,26 @@ srv_que_task_enqueue_low(
 /*=====================*/
 	que_thr_t*	thr);	/*!< in: query thread */
 
-extern "C" {
+/** A thread which prints the info output by various InnoDB monitors. */
+void
+srv_monitor_thread();
 
-/*********************************************************************//**
-A thread which prints the info output by various InnoDB monitors.
-@return a dummy parameter */
-os_thread_ret_t
-DECLARE_THREAD(srv_monitor_thread)(
-/*===============================*/
-	void*	arg);	/*!< in: a dummy parameter required by
-			os_thread_create */
+/** A thread which prints warnings about semaphore waits which have lasted
+too long. These can be used to track bugs which cause hangs. */
+void
+srv_error_monitor_thread();
 
-/*********************************************************************//**
-The master thread controlling the server.
-@return a dummy parameter */
-os_thread_ret_t
-DECLARE_THREAD(srv_master_thread)(
-/*==============================*/
-	void*	arg);	/*!< in: a dummy parameter required by
-			os_thread_create */
+/** The master thread controlling the server. */
+void
+srv_master_thread();
 
-/*************************************************************************
-A thread which prints warnings about semaphore waits which have lasted
-too long. These can be used to track bugs which cause hangs.
-@return a dummy parameter */
-os_thread_ret_t
-DECLARE_THREAD(srv_error_monitor_thread)(
-/*=====================================*/
-	void*	arg);	/*!< in: a dummy parameter required by
-			os_thread_create */
+/** Purge coordinator thread that schedules the purge tasks. */
+void
+srv_purge_coordinator_thread();
 
-/*********************************************************************//**
-Purge coordinator thread that schedules the purge tasks.
-@return a dummy parameter */
-os_thread_ret_t
-DECLARE_THREAD(srv_purge_coordinator_thread)(
-/*=========================================*/
-	void*	arg MY_ATTRIBUTE((unused)));	/*!< in: a dummy parameter
-						required by os_thread_create */
-
-/*********************************************************************//**
-Worker thread that reads tasks from the work queue and executes them.
-@return a dummy parameter */
-os_thread_ret_t
-DECLARE_THREAD(srv_worker_thread)(
-/*==============================*/
-	void*	arg MY_ATTRIBUTE((unused)));	/*!< in: a dummy parameter
-						required by os_thread_create */
-} /* extern "C" */
+/** Worker thread that reads tasks from the work queue and executes them. */
+void
+srv_worker_thread();
 
 /**********************************************************************//**
 Get count of tasks in the queue.

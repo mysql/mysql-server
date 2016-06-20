@@ -89,10 +89,16 @@ support cross-platform development and expose comonly used SQL names. */
 
 # include <my_global.h>
 # include <my_thread.h>
-
-#  include <m_string.h>
-#  include <mysqld_error.h>
+# include <m_string.h>
+# include <mysqld_error.h>
 #endif /* !UNIV_HOTBACKUP  */
+
+#ifdef HAVE_PSI_INTERFACE
+
+/** Define for performance schema registration key */
+using mysql_pfs_key_t = unsigned int;
+
+#endif /* HAVE_PFS_INTERFACE */
 
 /* Include <sys/stat.h> to get S_I... macros defined for os0file.cc */
 #include <sys/stat.h>
@@ -561,15 +567,13 @@ functions. */
 
 #ifdef _WIN32
 typedef ulint os_thread_ret_t;
-# define OS_THREAD_DUMMY_RETURN		return(0)
 # define OS_PATH_SEPARATOR		'\\'
 # define OS_PATH_SEPARATOR_ALT		'/'
 #else
 typedef void* os_thread_ret_t;
-# define OS_THREAD_DUMMY_RETURN		return(NULL)
 # define OS_PATH_SEPARATOR		'/'
 # define OS_PATH_SEPARATOR_ALT		'\\'
-#endif
+#endif /* _WIN32 */
 
 #include <stdio.h>
 #include "db0err.h"

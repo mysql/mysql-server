@@ -493,7 +493,7 @@ sync_array_cell_print(
 	fprintf(file,
 		"--Thread %lu has waited at %s line %lu"
 		" for %.2f seconds the semaphore:\n",
-		(ulong) os_thread_pf(cell->thread_id),
+		(ulong) cell->thread_id,
 		innobase_basename(cell->file), (ulong) cell->line,
 		difftime(time(NULL), cell->reservation_time));
 
@@ -573,7 +573,7 @@ sync_array_cell_print(
 			fprintf(file,
 				"a writer (thread id %lu) has"
 				" reserved it in mode %s",
-				(ulong) os_thread_pf(rwlock->writer_thread),
+				(ulong) rwlock->writer_thread,
 				writer == RW_LOCK_X ? " exclusive\n"
 				: writer == RW_LOCK_SX ? " SX\n"
 				: " wait exclusive\n");
@@ -752,7 +752,7 @@ sync_array_detect_deadlock(
 
 				ib::info()
 					<< "Mutex " << mutex << " owned by"
-					" thread " << os_thread_pf(thread)
+					" thread " << thread
 					<< " file " << name << " line "
 					<< policy.get_enter_line();
 
@@ -799,7 +799,7 @@ sync_array_detect_deadlock(
 
 				ib::info()
 					<< "Mutex " << mutex << " owned by"
-					" thread " << os_thread_pf(thread)
+					" thread " << thread
 					<< " file " << name << " line "
 					<< policy.get_enter_line();
 

@@ -73,20 +73,15 @@ trx_rollback_or_clean_recovered(
 /*============================*/
 	ibool	all);	/*!< in: FALSE=roll back dictionary transactions;
 			TRUE=roll back all non-PREPARED transactions */
-/*******************************************************************//**
-Rollback or clean up any incomplete transactions which were
+
+/** Rollback or clean up any incomplete transactions which were
 encountered in crash recovery.  If the transaction already was
 committed, then we clean up a possible insert undo log. If the
 transaction was not yet committed, then we roll it back.
-Note: this is done in a background thread.
-@return a dummy parameter */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(trx_rollback_or_clean_all_recovered)(
-/*================================================*/
-	void*	arg MY_ATTRIBUTE((unused)));
-			/*!< in: a dummy parameter required by
-			os_thread_create */
+Note: this is done in a background thread. */
+void
+trx_recovery_rollback_thread();
+
 /*********************************************************************//**
 Creates a rollback command node struct.
 @return own: rollback node struct */

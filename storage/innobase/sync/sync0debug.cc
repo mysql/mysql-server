@@ -120,7 +120,7 @@ struct LatchDebug {
 			const os_thread_id_t& rhs) const
 			UNIV_NOTHROW
 		{
-			return(os_thread_pf(lhs) < os_thread_pf(rhs));
+			return((uint64_t) lhs < (uint64_t) rhs);
 		}
 	};
 
@@ -584,7 +584,7 @@ LatchDebug::crash(
 		get_level_name(latched->m_level);
 
 	ib::error()
-		<< "Thread " << os_thread_pf(os_thread_get_curr_id())
+		<< "Thread " << os_thread_get_curr_id()
 		<< " already owns a latch "
 		<< sync_latch_get_name(latch->m_id) << " at level"
 		<< " " << latched->m_level << " (" << latch_level_name
@@ -1837,7 +1837,7 @@ sync_check_init()
 
 	ut_d(LatchDebug::init());
 
-	sync_array_init(OS_THREAD_MAX_N);
+	sync_array_init(srv_max_n_threads);
 }
 
 /** Frees the resources in InnoDB's own synchronization data structures. Use
