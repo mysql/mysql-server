@@ -20870,6 +20870,16 @@ Dbtc::time_track_complete_scan_frag(
 {
   HostRecordPtr hostPtr;
   /* Scan frag operations are recorded on the DB node */
+  if (!NdbTick_IsValid(scanFragPtr->m_start_ticks))
+  {
+    /**
+     * We can come here immediately after a conf message with a closed
+     * message. So essentially we can get two SCAN_FRAGCONF after each
+     * other without sending any SCAN_NEXTREQ in between.
+     */
+    jam();
+    return;
+  }
   Uint32 pos =
     time_track_calculate_histogram_position(scanFragPtr->m_start_ticks);
   Uint32 dbNodeId = refToNode(scanFragPtr->lqhBlockref);
