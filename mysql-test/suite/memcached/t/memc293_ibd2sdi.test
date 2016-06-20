@@ -119,7 +119,7 @@ let MEMCACHED_TABLE_MAPPING = desc_t3;
 
 ## header contains version/platform information
 --replace_result $IBD2SDI IBD2SDI
---replace_regex /; Ver 5.*$//
+--replace_regex /; Ver 8.*$//
 --error 1
 --exec $IBD2SDI 2>&1
 

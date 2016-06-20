@@ -9,7 +9,7 @@
 # --innodb-force-recovery=6 (skip the entire redo log)
 # valid header, valid checkpoint 1, all-zero (invalid) checkpoint 2, invalid block number
 # --innodb-force-recovery=6 (skip the entire redo log)
-# valid 5.8.0 header, valid checkpoint 1, all-zero (invalid) checkpoint 2, invalid block checksum
+# valid 8.0.0 header, valid checkpoint 1, all-zero (invalid) checkpoint 2, invalid block checksum
 # --innodb-force-recovery=6 (skip the entire redo log)
 # valid 5.7.9 header, valid checkpoint 1, no matching MLOG_CHECKSUM
 # --innodb-force-recovery=6 (skip the entire redo log)

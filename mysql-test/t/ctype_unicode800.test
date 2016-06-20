@@ -6,7 +6,7 @@ DROP TABLE IF EXISTS t1;
 --enable_warnings
 
 --echo #
---echo # Start of 5.8 tests
+--echo # Start of 8.0 tests
 --echo #
 
 --echo #
@@ -100,5 +100,5 @@ SELECT a = b FROM t1;
 DROP TABLE t1;
 
 --echo #
---echo # End of 5.8 tests
+--echo # End of 8.0 tests
 --echo #

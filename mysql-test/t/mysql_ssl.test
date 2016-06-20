@@ -29,7 +29,7 @@
 --error 2
 --exec $MYSQL --ssl-verify-server-cert
 
---echo End of 5.8 tests
+--echo End of 8.0 tests
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

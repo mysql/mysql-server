@@ -42,7 +42,7 @@
 
   This is done to ensure stability in digest computed values.
 
-  As of now (5.8.0), the mapping looks like this:
+  As of now (8.0.0), the mapping looks like this:
   - [0 .. 255] character terminal tokens.
   - [256 .. 907] non terminal tokens from sql_yacc.yy
   - [908 .. 999] reserved for sql_yacc.yy new tokens
@@ -334,7 +334,7 @@ static void compute_tokens()
   tok_hint_comment_close= max_token_seen++;
   set_token(tok_hint_comment_close, HINT_COMMENT_TERMINATOR);
 
-  /* New in 5.8 */
+  /* New in 8.0 */
 
   tok_in_generic_value_expression= max_token_seen++;
   set_token(tok_in_generic_value_expression, "IN (...)");

@@ -30,7 +30,7 @@
 
   For other sections, only links are provided, as a starting point into the component.
 
-  For the user manual, see http://dev.mysql.com/doc/refman/5.8/en/
+  For the user manual, see http://dev.mysql.com/doc/refman/8.0/en/
 
   For the internals manual, see https://dev.mysql.com/doc/internals/en/index.html
 */
@@ -44,7 +44,7 @@
 
   @section start_source Build from source
 
-  See https://dev.mysql.com/doc/refman/5.8/en/source-installation.html
+  See https://dev.mysql.com/doc/refman/8.0/en/source-installation.html
 
   @section start_debug Debugging
 
@@ -625,15 +625,15 @@ my_thread_handle shutdown_thr_handle;
 uint host_cache_size;
 ulong log_error_verbosity= 3; // have a non-zero value during early start-up
 
-#if MYSQL_VERSION_ID >= 50801
-#error "show_compatibility_56 is to be removed in MySQL 5.8"
+#if MYSQL_VERSION_ID >= 80001
+#error "show_compatibility_56 is to be removed in MySQL 8.0"
 #else
 /*
   Default value TRUE for the EMBEDDED_LIBRARY,
   default value from Sys_show_compatibility_56 otherwise.
 */
 my_bool show_compatibility_56= TRUE;
-#endif /* MYSQL_VERSION_ID >= 50800 */
+#endif /* MYSQL_VERSION_ID >= 80001 */
 
 #if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
 ulong slow_start_timeout;
