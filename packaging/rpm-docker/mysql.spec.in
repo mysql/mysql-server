@@ -17,6 +17,8 @@
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
 
+%global milestone    dmr
+
 # Pass path to mecab lib
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
@@ -30,7 +32,7 @@
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community Server - Debug (GPL)}
 %{!?src_base:                    %global src_base mysql}
 
-%global src_dir               %{src_base}-%{version}
+%global src_dir               %{src_base}-%{version}%{?milestone:-%{milestone}}
 
 %if 0%{?commercial}
 %global license_files_server  %{src_dir}/LICENSE.mysql
@@ -44,7 +46,7 @@ Name:           mysql-%{product_suffix}-minimal
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @MYSQL_NO_DASH_VERSION@
-Release:        1%{?commercial:.1}%{?dist}
+Release:        0.1%{?milestone:.%{milestone}}%{?commercial:.1}%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
@@ -307,6 +309,9 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Mon Jun 20 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.0-0.1
+- Change the version number to 8.0.0
+
 * Mon Apr 04 2016 Georgi Kodinov <georgi.kodinov@oracle.com> - 5.7.13-1
 - Add test_udf_services.so plugin
 - Add keyring_udf.so plugin to server subpackage
