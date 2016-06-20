@@ -132,6 +132,10 @@
 #define DISABLE_PSI_PS
 #endif
 
+#ifndef DISABLE_PSI_ERROR
+#define DISABLE_PSI_ERROR
+#endif
+
 #ifndef DISABLE_PSI_IDLE
 #define DISABLE_PSI_IDLE
 #endif
@@ -179,6 +183,7 @@
   @sa DISABLE_PSI_STATEMENT_DIGEST
   @sa DISABLE_PSI_SOCKET
   @sa DISABLE_PSI_MEMORY
+  @sa DISABLE_PSI_ERROR
   @sa DISABLE_PSI_IDLE
   @sa DISABLE_PSI_METADATA
   @sa DISABLE_PSI_TRANSACTION
@@ -320,6 +325,16 @@
 #ifndef DISABLE_PSI_MEMORY
 #define HAVE_PSI_MEMORY_INTERFACE
 #endif /* DISABLE_PSI_MEMORY */
+
+/**
+  @def DISABLE_PSI_ERROR
+  Compiling option to disable the error instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+
+#ifndef DISABLE_PSI_ERROR
+#define HAVE_PSI_ERROR_INTERFACE
+#endif /* DISABLE_PSI_ERROR */
 
 /**
   @def DISABLE_PSI_IDLE

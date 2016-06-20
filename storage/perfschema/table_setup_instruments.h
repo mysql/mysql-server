@@ -58,7 +58,8 @@ struct pos_setup_instruments : public PFS_double_index
   static const uint VIEW_BUILTIN_MEMORY= 12;
   static const uint VIEW_MEMORY= 13;
   static const uint VIEW_METADATA= 14;
-  static const uint LAST_VIEW= 14;
+  static const uint VIEW_ERROR=15;
+  static const uint LAST_VIEW= 15;
 
   pos_setup_instruments()
     : PFS_double_index(FIRST_VIEW, 1)

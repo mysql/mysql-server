@@ -150,12 +150,16 @@ typedef struct
   const char *name;
   uint        code;
   const char *text;
+  /* SQLSTATE */
+  const char *odbc_state;
+  const char *jdbc_state;
+  uint error_index;
 } st_error;
 
 static st_error global_error_names[] =
 {
 #include <mysqld_ername.h>
-  { 0, 0, 0 }
+  { 0, 0, 0, 0, 0, 0 }
 };
 
 /**

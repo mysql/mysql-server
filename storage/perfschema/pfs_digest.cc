@@ -38,7 +38,7 @@
 size_t digest_max= 0;
 ulong digest_lost= 0;
 
-/** EVENTS_STATEMENTS_HISTORY_LONG circular buffer. */
+/** EVENTS_STATEMENTS_SUMMARY_BY_DIGEST buffer. */
 PFS_statements_digest_stat *statements_digest_stat_array= NULL;
 static unsigned char *statements_digest_token_array= NULL;
 /** Consumer flag for table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST. */

@@ -1079,10 +1079,62 @@ static bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 228:
+      name= "events_error_summary_by_thread_by_error.size";
+      size= sizeof(PFS_error_stat);
+      break;
+    case 229:
+      name= "events_error_summary_by_thread_by_error.count";
+      size= global_thread_container.get_row_count() * error_class_max;
+      break;
+    case 230:
+      name= "events_error_summary_by_thread_by_error.memory";
+      size= global_thread_container.get_row_count() * error_class_max * sizeof(PFS_error_stat);
+      total_memory+= size;
+      break;
+    case 231:
+      name= "events_error_summary_by_account_by_error.size";
+      size= sizeof(PFS_error_stat);
+      break;
+    case 232:
+      name= "events_error_summary_by_account_by_error.count";
+      size= global_account_container.get_row_count() * error_class_max;
+      break;
+    case 233:
+      name= "events_error_summary_by_account_by_error.memory";
+      size= global_account_container.get_row_count() * error_class_max * sizeof(PFS_error_stat);
+      total_memory+= size;
+      break;
+    case 234:
+      name= "events_error_summary_by_user_by_error.size";
+      size= sizeof(PFS_error_stat);
+      break;
+    case 235:
+      name= "events_error_summary_by_user_by_error.count";
+      size= global_user_container.get_row_count() * error_class_max;
+      break;
+    case 236:
+      name= "events_error_summary_by_user_by_error.memory";
+      size= global_user_container.get_row_count() * error_class_max * sizeof(PFS_error_stat);
+      total_memory+= size;
+      break;
+    case 237:
+      name= "events_error_summary_by_host_by_error.size";
+      size= sizeof(PFS_error_stat);
+      break;
+    case 238:
+      name= "events_error_summary_by_host_by_error.count";
+      size= global_host_container.get_row_count() * error_class_max;
+      break;
+    case 239:
+      name= "events_error_summary_by_host_by_error.memory";
+      size= global_host_container.get_row_count() * error_class_max * sizeof(PFS_error_stat);
+      total_memory+= size;
+      break;
+    case 240:
       name= "(pfs_buffer_scalable_container).count";
       size= builtin_memory_scalable_buffer.m_stat.m_alloc_count - builtin_memory_scalable_buffer.m_stat.m_free_count;
       break;
-    case 229:
+    case 241:
       name= "(pfs_buffer_scalable_container).memory";
       size= builtin_memory_scalable_buffer.m_stat.m_alloc_size - builtin_memory_scalable_buffer.m_stat.m_free_size;
       total_memory+= size;
@@ -1091,7 +1143,7 @@ static bool pfs_show_status(handlerton *hton, THD *thd,
       This case must be last,
       for aggregation in total_memory.
     */
-    case 230:
+    case 242:
       name= "performance_schema.memory";
       size= total_memory;
       break;

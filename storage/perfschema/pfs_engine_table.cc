@@ -73,6 +73,12 @@
 #include "table_ets_by_account_by_event_name.h"
 #include "table_ets_global_by_event_name.h"
 
+#include "table_ees_by_user_by_error.h"
+#include "table_ees_by_host_by_error.h"
+#include "table_ees_by_account_by_error.h"
+#include "table_ees_by_thread_by_error.h"
+#include "table_ees_global_by_error.h"
+
 #include "table_users.h"
 #include "table_accounts.h"
 #include "table_hosts.h"
@@ -595,6 +601,12 @@ static PFS_engine_table_share *all_shares[]=
   &table_ets_by_user_by_event_name::m_share,
   &table_ets_by_host_by_event_name::m_share,
   &table_ets_global_by_event_name::m_share,
+
+  &table_ees_by_user_by_error::m_share,
+  &table_ees_by_host_by_error::m_share,
+  &table_ees_by_account_by_error::m_share,
+  &table_ees_by_thread_by_error::m_share,
+  &table_ees_global_by_error::m_share,
 
   &table_users::m_share,
   &table_accounts::m_share,

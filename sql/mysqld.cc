@@ -348,6 +348,7 @@
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #include <pfs_idle_provider.h>
+#include "mysql/psi/mysql_error.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 #ifdef _WIN32
@@ -4894,7 +4895,8 @@ int mysqld_main(int argc, char **argv)
                                             & psi_stage_hook,
                                             & psi_statement_hook,
                                             & psi_transaction_hook,
-                                            & psi_memory_hook);
+                                            & psi_memory_hook,
+                                            & psi_error_hook);
       if ((pfs_rc != 0) && pfs_param.m_enabled)
       {
         pfs_param.m_enabled= false;
@@ -5047,6 +5049,16 @@ int mysqld_main(int argc, char **argv)
     if (service != NULL)
     {
       set_psi_memory_service(service);
+    }
+  }
+
+  if (psi_error_hook != NULL)
+  {
+    PSI_error_service_t *service;
+    service= (PSI_error_service_t*) psi_error_hook->get_interface(PSI_CURRENT_ERROR_VERSION);
+    if (service != NULL)
+    {
+      set_psi_error_service(service);
     }
   }
 

@@ -64,7 +64,6 @@ ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/include/mysqld_error.h
                     --out-dir=${PROJECT_BINARY_DIR}/sql/share/
                     --header_file=${PROJECT_BINARY_DIR}/include/mysqld_error.h 
                     --name_file=${PROJECT_BINARY_DIR}/include/mysqld_ername.h
-                    --state_file=${PROJECT_BINARY_DIR}/include/sql_state.h
                     --in_file=${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt
                    DEPENDS ${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt
                    ${CMAKE_CURRENT_SOURCE_DIR}/comp_err.cc)

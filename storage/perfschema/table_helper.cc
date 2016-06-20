@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include "pfs_instr.h"
 #include "pfs_program.h"
 #include "field.h"
+#include "pfs_error.h"
 
 int PFS_host_row::make_row(PFS_host *pfs)
 {
@@ -497,6 +498,63 @@ void PFS_transaction_stat_row::set_field(uint index, Field *f)
       m_read_only_row.set_field(index-10, f);
       break;
     default:
+      DBUG_ASSERT(false);
+      break;
+  }
+}
+
+void PFS_error_stat_row::set_field(uint index, Field *f, server_error *temp_error)
+{
+  switch (index)
+  {
+    case 0: /* ERROR NUMBER */
+      if (temp_error)
+        PFS_engine_table::set_field_long(f, temp_error->mysql_errno);
+      else /* NULL ROW */
+        f->set_null();
+      break;
+    case 1: /* ERROR NAME */
+      if (temp_error)
+        PFS_engine_table::set_field_varchar_utf8(f, temp_error->name,
+                                                 strlen(temp_error->name));
+      else /* NULL ROW */
+        f->set_null();
+      break;
+    case 2: /* SQLSTATE */
+      if (temp_error)
+        PFS_engine_table::set_field_varchar_utf8(f, temp_error->odbc_state,
+                                                 strlen(temp_error->odbc_state));
+      else /* NULL ROW */
+        f->set_null();
+      break;
+    case 3: /* SUM_ERROR_RAISED */
+      PFS_engine_table::set_field_ulonglong(f, m_count);
+      break;
+    case 4: /* SUM_ERROR_HANDLED */
+      PFS_engine_table::set_field_ulonglong(f, m_handled_count);
+      break;
+    case 5: /* FIRST_SEEN */
+      if (m_first_seen != 0)
+      {
+        PFS_engine_table::set_field_timestamp(f, m_first_seen);
+      }
+      else
+      {
+        f->set_null();
+      }
+      break;
+    case 6: /* LAST_SEEN */
+      if (m_last_seen != 0)
+      {
+        PFS_engine_table::set_field_timestamp(f, m_last_seen);
+      }
+      else
+      {
+        f->set_null();
+      }
+      break;
+    default:
+      /* It should never be reached */
       DBUG_ASSERT(false);
       break;
   }

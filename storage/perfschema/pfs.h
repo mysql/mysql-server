@@ -45,6 +45,7 @@ extern struct PSI_stage_bootstrap pfs_stage_bootstrap;
 extern struct PSI_statement_bootstrap pfs_statement_bootstrap;
 extern struct PSI_transaction_bootstrap pfs_transaction_bootstrap;
 extern struct PSI_memory_bootstrap pfs_memory_bootstrap;
+extern struct PSI_error_bootstrap pfs_error_bootstrap;
 
 /** Performance schema Thread Local Storage key.  */
 extern thread_local_key_t THR_PFS;

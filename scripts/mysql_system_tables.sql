@@ -1927,6 +1927,106 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
+-- TABLE EVENTS_ERRORS_SUMMARY_BY_ACCOUNT_BY_ERROR
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_errors_summary_by_account_by_error("
+  "USER CHAR(32) collate utf8_bin default null,"
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "ERROR_NUMBER INTEGER,"
+  "ERROR_NAME VARCHAR(64),"
+  "SQL_STATE VARCHAR(5),"
+  "SUM_ERROR_RAISED  BIGINT unsigned not null,"
+  "SUM_ERROR_HANDLED BIGINT unsigned not null,"
+  "FIRST_SEEN TIMESTAMP(0) null default 0,"
+  "LAST_SEEN TIMESTAMP(0) null default 0"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+----
+---- TABLE EVENTS_ERRORS_SUMMARY_BY_HOST_BY_ERROR
+----
+
+SET @cmd="CREATE TABLE performance_schema.events_errors_summary_by_host_by_error("
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "ERROR_NUMBER INTEGER,"
+  "ERROR_NAME VARCHAR(64),"
+  "SQL_STATE VARCHAR(5),"
+  "SUM_ERROR_RAISED  BIGINT unsigned not null,"
+  "SUM_ERROR_HANDLED BIGINT unsigned not null,"
+  "FIRST_SEEN TIMESTAMP(0) null default 0,"
+  "LAST_SEEN TIMESTAMP(0) null default 0"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+----
+---- TABLE EVENTS_ERRORS_SUMMARY_BY_USER_BY_ERROR
+----
+
+SET @cmd="CREATE TABLE performance_schema.events_errors_summary_by_user_by_error("
+  "USER CHAR(32) collate utf8_bin default null,"
+  "ERROR_NUMBER INTEGER,"
+  "ERROR_NAME VARCHAR(64),"
+  "SQL_STATE VARCHAR(5),"
+  "SUM_ERROR_RAISED  BIGINT unsigned not null,"
+  "SUM_ERROR_HANDLED BIGINT unsigned not null,"
+  "FIRST_SEEN TIMESTAMP(0) null default 0,"
+  "LAST_SEEN TIMESTAMP(0) null default 0"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_ERRORS_SUMMARY_BY_THREAD_BY_ERROR
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_errors_summary_by_thread_by_error("
+  "THREAD_ID BIGINT unsigned not null,"
+  "ERROR_NUMBER INTEGER,"
+  "ERROR_NAME VARCHAR(64),"
+  "SQL_STATE VARCHAR(5),"
+  "SUM_ERROR_RAISED  BIGINT unsigned not null,"
+  "SUM_ERROR_HANDLED BIGINT unsigned not null,"
+  "FIRST_SEEN TIMESTAMP(0) null default 0,"
+  "LAST_SEEN TIMESTAMP(0) null default 0"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_ERRORS_SUMMARY_GLOBAL_BY_ERROR
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_errors_summary_global_by_error("
+  "ERROR_NUMBER INTEGER,"
+  "ERROR_NAME VARCHAR(64),"
+  "SQL_STATE VARCHAR(5),"
+  "SUM_ERROR_RAISED  BIGINT unsigned not null,"
+  "SUM_ERROR_HANDLED BIGINT unsigned not null,"
+  "FIRST_SEEN TIMESTAMP(0) null default 0,"
+  "LAST_SEEN TIMESTAMP(0) null default 0"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
 -- TABLE HOSTS
 --
 

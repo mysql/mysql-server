@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "sp_pcontext.h"       // sp_condition_value
 #include "sp_rcontext.h"       // sp_rcontext
 #include "sql_class.h"         // THD
+#include "mysql/psi/mysql_error.h"
 
 
 /*
@@ -437,7 +438,9 @@ bool Sql_cmd_signal::execute(THD *thd)
                                               cond.severity(),
                                               cond.message_text());
   if (raised)
+  {
     raised->copy_opt_attributes(&cond);
+  }
 
   if (cond.severity() == Sql_condition::SL_WARNING)
   {
@@ -502,7 +505,9 @@ bool Sql_cmd_resignal::execute(THD *thd)
                                    signaled_err.severity(),
                                    signaled_err.message_text());
       if (raised)
+      {
         raised->copy_opt_attributes(&signaled_err);
+      }
     }
   }
   else // RESIGNAL modifying an existing condition.
@@ -523,6 +528,7 @@ bool Sql_cmd_resignal::execute(THD *thd)
                              raised->message_text(),
                              raised->returned_sqlstate());
     }
+    MYSQL_LOG_ERROR(raised->mysql_errno(), PSI_ERROR_OPERATION_RAISED);
   }
 
   // RESIGNAL should not resignal SL_NOTE

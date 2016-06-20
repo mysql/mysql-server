@@ -206,6 +206,7 @@ void PFS_host::aggregate(bool alive)
   aggregate_stages();
   aggregate_statements();
   aggregate_transactions();
+  aggregate_errors();
   aggregate_memory(alive);
   aggregate_status();
   aggregate_stats();
@@ -254,6 +255,19 @@ void PFS_host::aggregate_transactions()
   */
   aggregate_all_transactions(write_instr_class_transactions_stats(),
                              &global_transaction_stat);
+}
+
+void PFS_host::aggregate_errors()
+{
+  if (read_instr_class_errors_stats() == NULL)
+    return;
+
+  /*
+    Aggregate EVENTS_ERRORS_SUMMARY_BY_HOST_BY_ERROR to:
+    -  EVENTS_ERRORS_SUMMARY_GLOBAL_BY_ERROR
+  */
+  aggregate_all_errors(write_instr_class_errors_stats(),
+                       &global_error_stat);
 }
 
 void PFS_host::aggregate_memory(bool alive)

@@ -25,6 +25,7 @@
 #include "pfs_lock.h"
 #include "pfs_stat.h"
 #include "pfs_column_types.h"
+#include "mysqld_error.h"
 
 struct TABLE_SHARE;
 
@@ -94,7 +95,8 @@ enum PFS_class_type
   PFS_CLASS_IDLE=       12,
   PFS_CLASS_MEMORY=     13,
   PFS_CLASS_METADATA=   14,
-  PFS_CLASS_LAST=       PFS_CLASS_METADATA,
+  PFS_CLASS_ERROR=      15,
+  PFS_CLASS_LAST=       PFS_CLASS_ERROR,
   PFS_CLASS_MAX=        PFS_CLASS_LAST + 1
 };
 
@@ -393,6 +395,8 @@ extern PFS_table_lock_stat global_table_lock_stat;
 extern PFS_single_stat global_metadata_stat;
 /** Statistics for the transaction instrument. */
 extern PFS_transaction_stat global_transaction_stat;
+/** Statistics for the error instrument. */
+extern PFS_error_stat global_error_stat;
 
 inline uint sanitize_index_count(uint count)
 {
@@ -411,6 +415,8 @@ inline uint sanitize_index_count(uint count)
 /** Transaction events are not wait events .*/
 #define GLOBAL_TRANSACTION_INDEX 0
 
+#define GLOBAL_ERROR_INDEX 0
+
 /**
   Instrument controlling all table io.
   This instrument is used with table SETUP_OBJECTS.
@@ -428,7 +434,20 @@ extern PFS_instr_class global_table_lock_class;
 */
 extern PFS_instr_class global_idle_class;
 
+/**
+  Instrument controlling all metadata locks.
+*/
 extern PFS_instr_class global_metadata_class;
+
+/** Instrumentation metadata for an error. */
+struct PFS_ALIGNED PFS_error_class : public PFS_instr_class
+{
+};
+/**
+  Instrument controlling all server errors.
+*/
+extern PFS_error_class global_error_class;
+
 
 struct PFS_file;
 
@@ -580,6 +599,8 @@ PFS_instr_class *find_idle_class(uint index);
 PFS_instr_class *sanitize_idle_class(PFS_instr_class *unsafe);
 PFS_instr_class *find_metadata_class(uint index);
 PFS_instr_class *sanitize_metadata_class(PFS_instr_class *unsafe);
+PFS_error_class *find_error_class(uint index);
+PFS_error_class *sanitize_error_class(PFS_instr_class *unsafe);
 PFS_transaction_class *find_transaction_class(uint index);
 PFS_transaction_class *sanitize_transaction_class(PFS_transaction_class *unsafe);
 
@@ -613,6 +634,7 @@ extern ulong socket_class_max;
 extern ulong socket_class_lost;
 extern ulong memory_class_max;
 extern ulong memory_class_lost;
+extern ulong error_class_max;
 
 /* Exposing the data directly, for iterators. */
 

@@ -718,6 +718,8 @@ The following options may be given as the first argument:
  --performance-schema-digests-size=# 
  Size of the statement digest. Use 0 to disable, -1 for
  automated sizing.
+ --performance-schema-error-size=# 
+ Number of server errors instrumented.
  --performance-schema-events-stages-history-long-size=# 
  Number of rows in EVENTS_STAGES_HISTORY_LONG. Use 0 to
  disable, -1 for automated sizing.
@@ -1437,6 +1439,7 @@ performance-schema-consumer-global-instrumentation TRUE
 performance-schema-consumer-statements-digest TRUE
 performance-schema-consumer-thread-instrumentation TRUE
 performance-schema-digests-size -1
+performance-schema-error-size 1028
 performance-schema-events-stages-history-long-size -1
 performance-schema-events-stages-history-size -1
 performance-schema-events-statements-history-long-size -1

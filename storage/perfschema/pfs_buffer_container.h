@@ -1488,6 +1488,7 @@ public:
   PFS_stage_stat *m_instr_class_stages_array;
   PFS_statement_stat *m_instr_class_statements_array;
   PFS_transaction_stat *m_instr_class_transactions_array;
+  PFS_error_stat *m_instr_class_errors_array;
   PFS_memory_stat *m_instr_class_memory_array;
 };
 
@@ -1519,6 +1520,7 @@ public:
   PFS_stage_stat *m_instr_class_stages_array;
   PFS_statement_stat *m_instr_class_statements_array;
   PFS_transaction_stat *m_instr_class_transactions_array;
+  PFS_error_stat *m_instr_class_errors_array;
   PFS_memory_stat *m_instr_class_memory_array;
 };
 
@@ -1550,6 +1552,7 @@ public:
   PFS_stage_stat *m_instr_class_stages_array;
   PFS_statement_stat *m_instr_class_statements_array;
   PFS_transaction_stat *m_instr_class_transactions_array;
+  PFS_error_stat *m_instr_class_errors_array;
   PFS_memory_stat *m_instr_class_memory_array;
 
   PFS_events_waits *m_waits_history_array;
@@ -1593,6 +1596,7 @@ public:
   PFS_stage_stat *m_instr_class_stages_array;
   PFS_statement_stat *m_instr_class_statements_array;
   PFS_transaction_stat *m_instr_class_transactions_array;
+  PFS_error_stat *m_instr_class_errors_array;
   PFS_memory_stat *m_instr_class_memory_array;
 };
 

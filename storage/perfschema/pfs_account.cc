@@ -249,6 +249,7 @@ void PFS_account::aggregate(bool alive, PFS_user *safe_user, PFS_host *safe_host
   aggregate_stages(safe_user, safe_host);
   aggregate_statements(safe_user, safe_host);
   aggregate_transactions(safe_user, safe_host);
+  aggregate_errors(safe_user, safe_host);
   aggregate_memory(alive, safe_user, safe_host);
   aggregate_status(safe_user, safe_host);
   aggregate_stats(safe_user, safe_host);
@@ -456,6 +457,59 @@ void PFS_account::aggregate_transactions(PFS_user *safe_user, PFS_host *safe_hos
   */
   aggregate_all_transactions(write_instr_class_transactions_stats(),
                              &global_transaction_stat);
+  return;
+}
+
+void PFS_account::aggregate_errors(PFS_user *safe_user, PFS_host *safe_host)
+{
+  if (read_instr_class_errors_stats() == NULL)
+    return;
+
+  if (likely(safe_user != NULL && safe_host != NULL))
+  {
+    /*
+      Aggregate EVENTS_ERRORS_SUMMARY_BY_ACCOUNT_BY_ERROR to:
+      -  EVENTS_ERRORS_SUMMARY_BY_USER_BY_ERROR
+      -  EVENTS_ERRORS_SUMMARY_BY_HOST_BY_ERROR
+      in parallel.
+    */
+    aggregate_all_errors(write_instr_class_errors_stats(),
+                         safe_user->write_instr_class_errors_stats(),
+                         safe_host->write_instr_class_errors_stats());
+    return;
+  }
+
+  if (safe_user != NULL)
+  {
+    /*
+      Aggregate EVENTS_ERRORS_SUMMARY_BY_ACCOUNT_BY_ERROR to:
+      -  EVENTS_ERRORS_SUMMARY_BY_USER_BY_ERROR
+      -  EVENTS_ERRORS_SUMMARY_GLOBAL_BY_ERROR
+      in parallel.
+    */
+    aggregate_all_errors(write_instr_class_errors_stats(),
+                         safe_user->write_instr_class_errors_stats(),
+                         &global_error_stat);
+    return;
+  }
+
+  if (safe_host != NULL)
+  {
+    /*
+      Aggregate EVENTS_ERRORS_SUMMARY_BY_ACCOUNT_BY_ERROR to:
+      -  EVENTS_ERRORS_SUMMARY_BY_HOST_BY_ERROR
+    */
+    aggregate_all_errors(write_instr_class_errors_stats(),
+                         safe_host->write_instr_class_errors_stats());
+    return;
+  }
+
+  /*
+    Aggregate EVENTS_ERRORS_SUMMARY_BY_ACCOUNT_BY_ERROR to:
+    -  EVENTS_ERRORS_SUMMARY_GLOBAL_BY_ERROR
+  */
+  aggregate_all_errors(write_instr_class_errors_stats(),
+                       &global_error_stat);
   return;
 }
 

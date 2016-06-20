@@ -45,3 +45,5 @@
 
 --loose-performance_schema_max_program_instances=0
 --loose-performance_schema_max_statement_stack=1
+
+--loose-performance_schema_error_size=0

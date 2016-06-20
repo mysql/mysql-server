@@ -1253,6 +1253,65 @@ void PFS_connection_all_transaction_visitor::visit_thread(PFS_thread *pfs)
 }
 #endif
 
+PFS_connection_error_visitor
+::PFS_connection_error_visitor(PFS_error_class *klass, int error_index) : m_error_index(error_index)
+{
+  m_index= klass->m_event_name_index;
+  m_stat.reset();
+}
+
+PFS_connection_error_visitor::~PFS_connection_error_visitor()
+{}
+
+void PFS_connection_error_visitor::visit_global()
+{
+  m_stat.aggregate(global_error_stat.get_stat(m_error_index));
+}
+
+void PFS_connection_error_visitor::visit_host(PFS_host *pfs)
+{
+  const PFS_error_stat *event_name_array;
+  event_name_array= pfs->read_instr_class_errors_stats();
+
+  if(event_name_array == NULL)
+    return;
+
+  m_stat.aggregate(event_name_array->get_stat(m_error_index));
+}
+
+void PFS_connection_error_visitor::visit_user(PFS_user *pfs)
+{
+  const PFS_error_stat *event_name_array;
+  event_name_array= pfs->read_instr_class_errors_stats();
+
+  if(event_name_array == NULL)
+    return;
+
+  m_stat.aggregate(event_name_array->get_stat(m_error_index));
+}
+
+void PFS_connection_error_visitor::visit_account(PFS_account *pfs)
+{
+  const PFS_error_stat *event_name_array;
+  event_name_array= pfs->read_instr_class_errors_stats();
+  
+  if(event_name_array == NULL)
+    return;
+
+  m_stat.aggregate(event_name_array->get_stat(m_error_index));
+}
+
+void PFS_connection_error_visitor::visit_thread(PFS_thread *pfs)
+{
+  const PFS_error_stat *event_name_array;
+  event_name_array= pfs->read_instr_class_errors_stats();
+
+  if(event_name_array == NULL)
+    return;
+
+  m_stat.aggregate(event_name_array->get_stat(m_error_index));
+}
+
 PFS_connection_stat_visitor::PFS_connection_stat_visitor()
 {}
 

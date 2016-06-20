@@ -645,6 +645,14 @@ static Sys_var_long Sys_pfs_max_sql_text_length(
        DEFAULT(1024),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
+static Sys_var_long Sys_pfs_error_size(
+       "performance_schema_error_size",
+       "Number of server errors instrumented.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_error_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024 * 1024),
+       DEFAULT(PFS_MAX_SERVER_ERRORS),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
 #endif /* EMBEDDED_LIBRARY */
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
@@ -3922,14 +3930,14 @@ bool Sys_var_enforce_gtid_consistency::global_update(THD *thd, set_var *var)
     {
       if (new_mode == GTID_CONSISTENCY_MODE_ON)
       {
-        my_error(ER_CANT_SET_ENFORCE_GTID_CONSISTENCY_ON_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS, MYF(0));
+        my_error(ER_CANT_ENFORCE_GTID_CONSISTENCY_WITH_ONGOING_GTID_VIOLATING_TX, MYF(0));
         goto err;
       }
       else
       {
         push_warning(thd, Sql_condition::SL_WARNING,
-                     ER_SET_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS,
-                     ER_THD(thd, ER_SET_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS));
+                     ER_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TX,
+                     ER_THD(thd, ER_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TX));
       }
     }
   }

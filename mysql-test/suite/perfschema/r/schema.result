@@ -9,6 +9,11 @@ show tables;
 Tables_in_performance_schema
 accounts
 cond_instances
+events_errors_summary_by_account_by_error
+events_errors_summary_by_host_by_error
+events_errors_summary_by_thread_by_error
+events_errors_summary_by_user_by_error
+events_errors_summary_global_by_error
 events_stages_current
 events_stages_history
 events_stages_history_long

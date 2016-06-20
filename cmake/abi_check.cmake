@@ -78,6 +78,9 @@ IF(CMAKE_COMPILER_IS_GNUCC AND RUN_ABI_CHECK)
     ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_memory_v0.h
     ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_memory_v1.h
     ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_memory_v2.h
+    ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_error_v0.h
+    ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_error_v1.h
+    ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_error_v2.h
     ${CMAKE_SOURCE_DIR}/include/mysql/client_plugin.h
     ${CMAKE_SOURCE_DIR}/include/mysql/plugin_auth.h
     ${CMAKE_SOURCE_DIR}/include/mysql/services.h

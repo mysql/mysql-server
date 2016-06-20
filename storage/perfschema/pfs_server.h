@@ -34,6 +34,7 @@
 #include "mysql/psi/psi_statement.h"
 #include "mysql/psi/psi_transaction.h"
 #include "mysql/psi/psi_memory.h"
+#include "mysql/psi/psi_error.h"
 
 #ifdef HAVE_PSI_INTERFACE
 
@@ -69,6 +70,10 @@
 #endif
 #ifndef PFS_MAX_MEMORY_CLASS
   #define PFS_MAX_MEMORY_CLASS 320
+#endif
+
+#ifndef PFS_MAX_SERVER_ERRORS
+  #define PFS_MAX_SERVER_ERRORS ((total_error_count - obsolete_error_count) + 1)
 #endif
 
 /** Sizing hints, from the server configuration. */
@@ -255,6 +260,9 @@ struct PFS_global_param
   long m_max_digest_length;
   ulong m_max_sql_text_length;
 
+  /** Maximum number of error instrumented */
+  ulong m_error_sizing;
+
   /** Sizing hints, for auto tuning. */
   PFS_sizing_hints m_hints;
 };
@@ -298,6 +306,7 @@ void set_embedded_performance_schema_param(PFS_global_param *param);
   @param [out] statement_bootstrap Statement instrumentation service bootstrap
   @param [out] transaction_bootstrap Transaction instrumentation service bootstrap
   @param [out] memory_bootstrap Memory instrumentation service bootstrap
+  @param [out] error_bootstrap Error instrumentation service bootstrap
   @returns
     @retval 0 success
 */
@@ -315,7 +324,8 @@ initialize_performance_schema(PFS_global_param *param,
   PSI_stage_bootstrap ** stage_bootstrap,
   PSI_statement_bootstrap ** statement_bootstrap,
   PSI_transaction_bootstrap ** transaction_bootstrap,
-  PSI_memory_bootstrap ** memory_bootstrap);
+  PSI_memory_bootstrap ** memory_bootstrap,
+  PSI_error_bootstrap ** error_bootstrap);
 
 void pfs_automated_sizing(PFS_global_param *param);
 

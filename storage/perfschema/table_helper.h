@@ -533,6 +533,29 @@ struct PFS_transaction_stat_row
   void set_field(uint index, Field *f);
 };
 
+/** Row fragment for error statistics columns. */
+struct PFS_error_stat_row
+{
+  ulonglong m_count;
+  ulonglong m_handled_count;
+  uint m_error_index;
+  ulonglong m_first_seen;
+  ulonglong m_last_seen;
+
+  /** Build a row from a memory buffer. */
+  inline void set(const PFS_error_single_stat *stat, uint error_index)
+  {
+    m_count= stat->m_count;
+    m_handled_count= stat->m_handled_count;
+    m_error_index= error_index;
+    m_first_seen= stat->m_first_seen;
+    m_last_seen= stat->m_last_seen;
+  }
+
+  /** Set a table field from the row. */
+  void set_field(uint index, Field *f, server_error *temp_error);
+};
+
 /** Row fragment for connection statistics. */
 struct PFS_connection_stat_row
 {

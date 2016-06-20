@@ -55,6 +55,7 @@
 #include "mysql/psi/psi_table.h"        /* PSI_table_service_t */
 #include "mysql/psi/psi_mdl.h"          /* PSI_mdl_service_t */
 #include "mysql/psi/psi_idle.h"         /* PSI_idle_service_t */
+#include "mysql/psi/psi_error.h"        /* PSI_error_service_t */
 
 C_MODE_START
 
@@ -1014,6 +1015,8 @@ extern MYSQL_PLUGIN_IMPORT struct PSI_transaction_bootstrap *psi_transaction_hoo
 extern void set_psi_transaction_service(PSI_transaction_service_t *psi);
 extern MYSQL_PLUGIN_IMPORT struct PSI_memory_bootstrap *psi_memory_hook;
 extern void set_psi_memory_service(PSI_memory_service_t *psi);
+extern MYSQL_PLUGIN_IMPORT struct PSI_error_bootstrap *psi_error_hook;
+extern void set_psi_error_service(PSI_error_service_t *psi);
 #endif /* HAVE_PSI_INTERFACE */
 
 struct st_mysql_file;

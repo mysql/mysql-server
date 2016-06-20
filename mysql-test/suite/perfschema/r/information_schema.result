@@ -4,6 +4,11 @@ where TABLE_SCHEMA='performance_schema';
 TABLE_SCHEMA	lower(TABLE_NAME)	TABLE_CATALOG
 performance_schema	accounts	def
 performance_schema	cond_instances	def
+performance_schema	events_errors_summary_by_account_by_error	def
+performance_schema	events_errors_summary_by_host_by_error	def
+performance_schema	events_errors_summary_by_thread_by_error	def
+performance_schema	events_errors_summary_by_user_by_error	def
+performance_schema	events_errors_summary_global_by_error	def
 performance_schema	events_stages_current	def
 performance_schema	events_stages_history	def
 performance_schema	events_stages_history_long	def
@@ -95,6 +100,11 @@ where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	TABLE_TYPE	ENGINE
 accounts	BASE TABLE	PERFORMANCE_SCHEMA
 cond_instances	BASE TABLE	PERFORMANCE_SCHEMA
+events_errors_summary_by_account_by_error	BASE TABLE	PERFORMANCE_SCHEMA
+events_errors_summary_by_host_by_error	BASE TABLE	PERFORMANCE_SCHEMA
+events_errors_summary_by_thread_by_error	BASE TABLE	PERFORMANCE_SCHEMA
+events_errors_summary_by_user_by_error	BASE TABLE	PERFORMANCE_SCHEMA
+events_errors_summary_global_by_error	BASE TABLE	PERFORMANCE_SCHEMA
 events_stages_current	BASE TABLE	PERFORMANCE_SCHEMA
 events_stages_history	BASE TABLE	PERFORMANCE_SCHEMA
 events_stages_history_long	BASE TABLE	PERFORMANCE_SCHEMA
@@ -186,6 +196,11 @@ where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	VERSION	ROW_FORMAT
 accounts	10	Fixed
 cond_instances	10	Dynamic
+events_errors_summary_by_account_by_error	10	Dynamic
+events_errors_summary_by_host_by_error	10	Dynamic
+events_errors_summary_by_thread_by_error	10	Dynamic
+events_errors_summary_by_user_by_error	10	Dynamic
+events_errors_summary_global_by_error	10	Dynamic
 events_stages_current	10	Dynamic
 events_stages_history	10	Dynamic
 events_stages_history_long	10	Dynamic
@@ -278,6 +293,11 @@ lower(TABLE_NAME) not regexp '^variables|variables$|^status|session_status|globa
 lower(TABLE_NAME)	AVG_ROW_LENGTH
 accounts	0
 cond_instances	0
+events_errors_summary_by_account_by_error	0
+events_errors_summary_by_host_by_error	0
+events_errors_summary_by_thread_by_error	0
+events_errors_summary_by_user_by_error	0
+events_errors_summary_global_by_error	0
 events_stages_current	0
 events_stages_history	0
 events_stages_history_long	0
@@ -374,6 +394,11 @@ where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	DATA_LENGTH	MAX_DATA_LENGTH
 accounts	0	0
 cond_instances	0	0
+events_errors_summary_by_account_by_error	0	0
+events_errors_summary_by_host_by_error	0	0
+events_errors_summary_by_thread_by_error	0	0
+events_errors_summary_by_user_by_error	0	0
+events_errors_summary_global_by_error	0	0
 events_stages_current	0	0
 events_stages_history	0	0
 events_stages_history_long	0	0
@@ -465,6 +490,11 @@ where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT
 accounts	0	0	NULL
 cond_instances	0	0	NULL
+events_errors_summary_by_account_by_error	0	0	NULL
+events_errors_summary_by_host_by_error	0	0	NULL
+events_errors_summary_by_thread_by_error	0	0	NULL
+events_errors_summary_by_user_by_error	0	0	NULL
+events_errors_summary_global_by_error	0	0	NULL
 events_stages_current	0	0	NULL
 events_stages_history	0	0	NULL
 events_stages_history_long	0	0	NULL
@@ -556,6 +586,11 @@ where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	CREATE_TIME	UPDATE_TIME	CHECK_TIME
 accounts	NULL	NULL	NULL
 cond_instances	NULL	NULL	NULL
+events_errors_summary_by_account_by_error	NULL	NULL	NULL
+events_errors_summary_by_host_by_error	NULL	NULL	NULL
+events_errors_summary_by_thread_by_error	NULL	NULL	NULL
+events_errors_summary_by_user_by_error	NULL	NULL	NULL
+events_errors_summary_global_by_error	NULL	NULL	NULL
 events_stages_current	NULL	NULL	NULL
 events_stages_history	NULL	NULL	NULL
 events_stages_history_long	NULL	NULL	NULL
@@ -647,6 +682,11 @@ where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	TABLE_COLLATION	CHECKSUM
 accounts	utf8_general_ci	NULL
 cond_instances	utf8_general_ci	NULL
+events_errors_summary_by_account_by_error	utf8_general_ci	NULL
+events_errors_summary_by_host_by_error	utf8_general_ci	NULL
+events_errors_summary_by_thread_by_error	utf8_general_ci	NULL
+events_errors_summary_by_user_by_error	utf8_general_ci	NULL
+events_errors_summary_global_by_error	utf8_general_ci	NULL
 events_stages_current	utf8_general_ci	NULL
 events_stages_history	utf8_general_ci	NULL
 events_stages_history_long	utf8_general_ci	NULL
@@ -738,6 +778,11 @@ where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	CREATE_OPTIONS
 accounts	
 cond_instances	
+events_errors_summary_by_account_by_error	
+events_errors_summary_by_host_by_error	
+events_errors_summary_by_thread_by_error	
+events_errors_summary_by_user_by_error	
+events_errors_summary_global_by_error	
 events_stages_current	
 events_stages_history	
 events_stages_history_long	
@@ -829,6 +874,11 @@ where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	TABLE_COMMENT
 accounts	
 cond_instances	
+events_errors_summary_by_account_by_error	
+events_errors_summary_by_host_by_error	
+events_errors_summary_by_thread_by_error	
+events_errors_summary_by_user_by_error	
+events_errors_summary_global_by_error	
 events_stages_current	
 events_stages_history	
 events_stages_history_long	

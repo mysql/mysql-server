@@ -63,6 +63,13 @@ void PFS_connection_slice::reset_transactions_stats()
     stat->reset();
 }
 
+void PFS_connection_slice::reset_errors_stats()
+{
+  PFS_error_stat *stat=  &m_instr_class_errors_stats[GLOBAL_ERROR_INDEX];
+  if (stat)
+    stat->reset();
+}
+
 void PFS_connection_slice::rebase_memory_stats()
 {
   PFS_memory_stat *stat= m_instr_class_memory_stats;

@@ -312,6 +312,7 @@
 #cmakedefine DISABLE_PSI_SP 1
 #cmakedefine DISABLE_PSI_PS 1
 #cmakedefine DISABLE_PSI_IDLE 1
+#cmakedefine DISABLE_PSI_ERROR 1
 #cmakedefine DISABLE_PSI_STATEMENT_DIGEST 1
 #cmakedefine DISABLE_PSI_METADATA 1
 #cmakedefine DISABLE_PSI_MEMORY 1

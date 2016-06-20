@@ -269,9 +269,6 @@ end
 $
 delimiter ;$
 
-# Check the configuration is ok
-show global variables like "performance_schema%";
-
 call check_instrument("wait/synch/mutex/");
 call check_instrument("wait/synch/rwlock/");
 call check_instrument("wait/synch/sxlock/");

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -60,17 +60,20 @@ extern PFS_builtin_memory_class builtin_memory_account_waits;
 extern PFS_builtin_memory_class builtin_memory_account_stages;
 extern PFS_builtin_memory_class builtin_memory_account_statements;
 extern PFS_builtin_memory_class builtin_memory_account_transactions;
+extern PFS_builtin_memory_class builtin_memory_account_errors;
 extern PFS_builtin_memory_class builtin_memory_account_memory;
 
 extern PFS_builtin_memory_class builtin_memory_global_stages;
 extern PFS_builtin_memory_class builtin_memory_global_statements;
 extern PFS_builtin_memory_class builtin_memory_global_memory;
+extern PFS_builtin_memory_class builtin_memory_global_errors;
 
 extern PFS_builtin_memory_class builtin_memory_host;
 extern PFS_builtin_memory_class builtin_memory_host_waits;
 extern PFS_builtin_memory_class builtin_memory_host_stages;
 extern PFS_builtin_memory_class builtin_memory_host_statements;
 extern PFS_builtin_memory_class builtin_memory_host_transactions;
+extern PFS_builtin_memory_class builtin_memory_host_errors;
 extern PFS_builtin_memory_class builtin_memory_host_memory;
 
 extern PFS_builtin_memory_class builtin_memory_thread;
@@ -78,6 +81,7 @@ extern PFS_builtin_memory_class builtin_memory_thread_waits;
 extern PFS_builtin_memory_class builtin_memory_thread_stages;
 extern PFS_builtin_memory_class builtin_memory_thread_statements;
 extern PFS_builtin_memory_class builtin_memory_thread_transactions;
+extern PFS_builtin_memory_class builtin_memory_thread_errors;
 extern PFS_builtin_memory_class builtin_memory_thread_memory;
 
 extern PFS_builtin_memory_class builtin_memory_thread_waits_history;
@@ -96,6 +100,7 @@ extern PFS_builtin_memory_class builtin_memory_user_waits;
 extern PFS_builtin_memory_class builtin_memory_user_stages;
 extern PFS_builtin_memory_class builtin_memory_user_statements;
 extern PFS_builtin_memory_class builtin_memory_user_transactions;
+extern PFS_builtin_memory_class builtin_memory_user_errors;
 extern PFS_builtin_memory_class builtin_memory_user_memory;
 
 extern PFS_builtin_memory_class builtin_memory_mutex_class;
