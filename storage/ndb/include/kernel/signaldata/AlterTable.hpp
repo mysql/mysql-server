@@ -51,6 +51,7 @@ struct AlterTableReq {
   a = Add attribute
   f = Add fragment(s)
   r = Reorg fragment(s)
+  R = Changed Read Backup flag
 
            1111111111222222222233
  01234567890123456789012345678901
@@ -70,6 +71,7 @@ struct AlterTableReq {
 #define REORG_SUMA_ENABLE (11)
 #define REORG_SUMA_FILTER (12)
 #define FRAGMENT_COUNT_TYPE_SHIFT (13)
+#define READ_BACKUP_SHIFT (14)
 
  /**
    * Getters and setters
@@ -102,6 +104,8 @@ struct AlterTableReq {
   static void setReorgSumaFilterFlag(UintR &  changeMask, Uint32 tsFlg);
   static void setFragmentCountTypeFlag(UintR & changeMask, Uint32 tsFlg);
   static Uint8 getFragmentCountTypeFlag(const UintR & changeMask);
+  static void setReadBackupFlag(UintR & changeMask, Uint32 tsFlg);
+  static Uint8 getReadBackupFlag(const UintR & changeMask);
 
   static bool getReorgSubOp(const UintR & changeMask){
     return
@@ -279,6 +283,18 @@ inline
 void
 AlterTableReq::setFragmentCountTypeFlag(UintR & changeMask, Uint32 fctFlag){
   changeMask |= (fctFlag << FRAGMENT_COUNT_TYPE_SHIFT);
+}
+
+inline
+Uint8
+AlterTableReq::getReadBackupFlag(const UintR & changeMask){
+  return (Uint8)((changeMask >> READ_BACKUP_SHIFT) & 1);
+}
+
+inline
+void
+AlterTableReq::setReadBackupFlag(UintR & changeMask, Uint32 rbFlag){
+  changeMask |= (rbFlag << READ_BACKUP_SHIFT);
 }
 
 struct AlterTableConf {

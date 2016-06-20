@@ -1023,8 +1023,8 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_single_user_mode = org.m_single_user_mode;
   m_extra_row_gci_bits = org.m_extra_row_gci_bits;
   m_extra_row_author_bits = org.m_extra_row_author_bits;
-
-  DBUG_PRINT("info", ("m_logging: %u", m_logging));
+  m_read_backup = org.m_read_backup;
+  m_fully_replicated = org.m_fully_replicated;
 
   if (m_index != 0)
     delete m_index;
@@ -1051,11 +1051,15 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_tablespace_id= org.m_tablespace_id;
   m_tablespace_version = org.m_tablespace_version;
   m_storageType = org.m_storageType;
-  m_read_backup = org.m_read_backup;
-  m_fully_replicated = org.m_fully_replicated;
 
   m_hash_map_id = org.m_hash_map_id;
   m_hash_map_version = org.m_hash_map_version;
+
+  DBUG_PRINT("info", ("m_logging: %u, m_read_backup %u"
+                      " tableVersion: %u",
+                      m_logging,
+                      m_read_backup,
+                      m_version));
 
   DBUG_RETURN(0);
 }
@@ -3022,9 +3026,12 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     tableDesc->FullyReplicatedFlag == 0 ? false : true;
 
 
-  DBUG_PRINT("info", ("m_logging: %u, fragmentCountType: %d",
+  DBUG_PRINT("info", ("m_logging: %u, fragmentCountType: %d"
+                      " m_read_backup %u, tableVersion: %u",
                       impl->m_logging,
-                      impl->m_fragmentCountType));
+                      impl->m_fragmentCountType,
+                      impl->m_read_backup,
+                      impl->m_version));
 
   impl->m_indexType = (NdbDictionary::Object::Type)
     getApiConstant(tableDesc->TableType,
@@ -3673,7 +3680,6 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
      sz < old_sz ||
      impl.m_extra_row_gci_bits != old_impl.m_extra_row_gci_bits ||
      impl.m_extra_row_author_bits != old_impl.m_extra_row_author_bits ||
-     impl.m_read_backup != old_impl.m_read_backup ||
      impl.m_fully_replicated != old_impl.m_fully_replicated)
 
   {
@@ -3774,6 +3780,19 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
     {
       goto invalid_alter_table;
     }
+  }
+  if (impl.m_read_backup != old_impl.m_read_backup)
+  {
+    /* Change the read backup flag inplace */
+    DBUG_PRINT("info", ("Set Change ReadBackup Flag, old: %u, new: %u",
+                       old_impl.m_read_backup,
+                       impl.m_read_backup));
+    AlterTableReq::setReadBackupFlag(change_mask, true);
+  }
+  else
+  {
+    DBUG_PRINT("info", ("No ReadBackup change, val: %u",
+                        impl.m_read_backup));
   }
 
   /*
@@ -4157,6 +4176,7 @@ NdbDictInterface::sendAlterTable(const NdbTableImpl &impl,
   req->tableId = impl.m_id;
   req->tableVersion = impl.m_version;
   req->changeMask = change_mask;
+  DBUG_PRINT("info", ("sendAlterTable: changeMask: %x", change_mask));
 
   int errCodes[] = { AlterTableRef::NotMaster, AlterTableRef::Busy, 0 };
 
