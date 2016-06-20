@@ -350,3 +350,8 @@ create table t1(a int);
 --exec $MYSQL_CHECK --process-views --check-upgrade --auto-repair test
 drop view v1;
 drop table t1;
+
+create table `#mysql50#t1``1` (a int) engine=myisam;
+--exec $MYSQL_CHECK --fix-table-names --databases test
+show tables;
+drop table `t1``1`;

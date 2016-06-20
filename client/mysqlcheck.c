@@ -756,7 +756,7 @@ static int fix_table_storage_name(const char *name)
 
   if (strncmp(name, "#mysql50#", 9))
     DBUG_RETURN(1);
-  my_snprintf(qbuf, sizeof(qbuf), "RENAME TABLE `%s` TO `%s`",
+  my_snprintf(qbuf, sizeof(qbuf), "RENAME TABLE %`s TO %`s",
               name, name + 9);
 
   rc= run_query(qbuf);
@@ -773,7 +773,7 @@ static int fix_database_storage_name(const char *name)
 
   if (strncmp(name, "#mysql50#", 9))
     DBUG_RETURN(1);
-  my_snprintf(qbuf, sizeof(qbuf), "ALTER DATABASE `%s` UPGRADE DATA DIRECTORY "
+  my_snprintf(qbuf, sizeof(qbuf), "ALTER DATABASE %`s UPGRADE DATA DIRECTORY "
               "NAME", name);
   rc= run_query(qbuf);
   if (verbose)

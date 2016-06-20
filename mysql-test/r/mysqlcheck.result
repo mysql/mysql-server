@@ -339,3 +339,8 @@ Repairing views
 test.v1                                            OK
 drop view v1;
 drop table t1;
+create table `#mysql50#t1``1` (a int) engine=myisam;
+show tables;
+Tables_in_test
+t1`1
+drop table `t1``1`;
