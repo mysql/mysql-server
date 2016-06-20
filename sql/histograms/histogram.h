@@ -182,6 +182,9 @@ public:
   Histogram(MEM_ROOT *mem_root, std::string db_name, std::string tbl_name,
             std::string col_name, enum_histogram_type type);
 
+  /// Destructor.
+  virtual ~Histogram() {}
+
   /**
     @return name of the database this histogram represents
   */

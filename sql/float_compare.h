@@ -114,7 +114,8 @@ public:
     @return  true if the two values are considered to be almost equal
   */
   template <class T>
-  static bool almost_equal(T val1, T val2, int max_ulp_diff= 4)
+  static bool almost_equal(T val1, T val2,
+                           decltype(get_ulp_diff(val1, val2)) max_ulp_diff= 4)
   {
     /*
       According to IEEE standard, any comparison involving a NaN must return
