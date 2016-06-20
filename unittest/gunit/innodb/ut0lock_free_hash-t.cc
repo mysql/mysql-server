@@ -565,7 +565,7 @@ run_multi_threaded(
 /** Hammer a common hash with inc(), dec() and set(), 100% writes.
 The inc()/dec() performed on the common keys will net to 0 when this thread
 ends. It also inserts some tuples with keys that are unique to this thread.
-@param[in]	arg	thread arguments */
+@param[in]	p	thread arguments */
 void
 thread_0r100w(const thread_params_t* p)
 {
@@ -656,7 +656,7 @@ TEST_F(ut0lock_free_hash, multi_threaded_0r100w_grow)
 50% writes. The inc()/dec() performed on the common keys will net to 0 when
 this thread ends. It also inserts some tuples with keys that are unique to
 this thread.
-@param[in]	arg	thread arguments */
+@param[in]	p	thread arguments */
 void
 thread_50r50w(const thread_params_t* p)
 {
@@ -729,7 +729,7 @@ TEST_F(ut0lock_free_hash, multi_threaded_50r50w)
 }
 
 /** Hammer a commmon hash with get()s, 100% reads.
-@param[in]	arg	thread arguments */
+@param[in]	p	thread arguments */
 void
 thread_100r0w(const thread_params_t* p)
 {

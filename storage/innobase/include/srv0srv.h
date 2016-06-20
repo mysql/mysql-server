@@ -449,27 +449,27 @@ extern srv_stats_t	srv_stats;
 /* Keys to register InnoDB threads with performance schema */
 
 # ifdef UNIV_PFS_THREAD
-extern mysql_pfs_key_t	srv_worker_thread_key;
-extern mysql_pfs_key_t	srv_purge_thread_key;
 extern mysql_pfs_key_t	buf_dump_thread_key;
+extern mysql_pfs_key_t	buf_resize_thread_key;
 extern mysql_pfs_key_t	dict_stats_thread_key;
+extern mysql_pfs_key_t	fts_optimize_thread_key;
+extern mysql_pfs_key_t	fts_parallel_merge_thread_key;
+extern mysql_pfs_key_t	fts_parallel_tokenization_thread_key;
 extern mysql_pfs_key_t	io_handler_thread_key;
 extern mysql_pfs_key_t	io_ibuf_thread_key;
 extern mysql_pfs_key_t	io_log_thread_key;
 extern mysql_pfs_key_t	io_read_thread_key;
 extern mysql_pfs_key_t	io_write_thread_key;
-extern mysql_pfs_key_t	buf_resize_thread_key;
-extern mysql_pfs_key_t	fts_optimize_thread_key;
-extern mysql_pfs_key_t	fts_parallel_merge_thread_key;
-extern mysql_pfs_key_t	fts_parallel_tokenization_thread_key;
+extern mysql_pfs_key_t	page_flush_coordinator_thread_key;
+extern mysql_pfs_key_t	page_flush_thread_key;
 extern mysql_pfs_key_t	recv_writer_thread_key;
 extern mysql_pfs_key_t	srv_error_monitor_thread_key;
 extern mysql_pfs_key_t	srv_lock_timeout_thread_key;
 extern mysql_pfs_key_t	srv_master_thread_key;
 extern mysql_pfs_key_t	srv_monitor_thread_key;
+extern mysql_pfs_key_t	srv_purge_thread_key;
+extern mysql_pfs_key_t	srv_worker_thread_key;
 extern mysql_pfs_key_t	trx_recovery_rollback_thread_key;
-extern mysql_pfs_key_t	page_flush_thread_key;
-extern mysql_pfs_key_t	page_flush_coordinator_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef HAVE_PSI_STAGE_INTERFACE

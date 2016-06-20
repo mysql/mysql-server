@@ -1269,7 +1269,7 @@ srv_printf_innodb_monitor(
 
 	msg	<< "Process ID=" << srv_main_thread_process_no
 		<< ", Main thread ID=" << srv_main_thread_id
-		<< " , state" <<  srv_main_thread_op_info;
+		<< " , state=" <<  srv_main_thread_op_info;
 
 	fprintf(file, "%s\n", msg.str().c_str());
 
@@ -1576,7 +1576,7 @@ exit_func:
 	srv_monitor_active = FALSE;
 }
 
-/*** A thread which prints warnings about semaphore waits which have lasted
+/** A thread which prints warnings about semaphore waits which have lasted
 too long. These can be used to track bugs which cause hangs. */
 void
 srv_error_monitor_thread()
@@ -2697,7 +2697,6 @@ srv_purge_coordinator_thread()
 	}
 
 	destroy_thd(thd);
-	my_thread_end();
 }
 
 /**********************************************************************//**

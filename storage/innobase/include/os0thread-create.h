@@ -47,20 +47,6 @@ os_thread_open()
 	/* No op */
 }
 
-/** Frees OS thread management data structures. */
-inline
-void
-os_thread_close()
-{
-	if (os_thread_count.load(std::memory_order_relaxed) != 0) {
-
-		ib::warn()
-			<< "Some ("
-			<< os_thread_count.load(std::memory_order_relaxed)
-			<< ") threads are still active";
-	}
-}
-
 /** Check if there are threads active.
 @return true if the thread count > 0. */
 inline
@@ -68,6 +54,20 @@ bool
 os_thread_any_active()
 {
 	return(os_thread_count.load(std::memory_order_relaxed) > 0);
+}
+
+/** Frees OS thread management data structures. */
+inline
+void
+os_thread_close()
+{
+	if (os_thread_any_active()) {
+
+		ib::warn()
+			<< "Some ("
+			<< os_thread_count.load(std::memory_order_relaxed)
+			<< ") threads are still active";
+	}
 }
 
 /** Wrapper for a callable, it will count the number of registered
@@ -116,7 +116,7 @@ private:
 		PSI_THREAD_CALL(set_thread)(psi);
 #endif /* UNIV_PFS_THREAD */
 
-		std::atomic_thread_fence(std::memory_order_release);;
+		std::atomic_thread_fence(std::memory_order_release);
 
 		int	old;
 
@@ -128,7 +128,7 @@ private:
 	/** Deregister the thread */
 	void epilogue()
 	{
-		std::atomic_thread_fence(std::memory_order_release);;
+		std::atomic_thread_fence(std::memory_order_release);
 
 		int	old;
 
