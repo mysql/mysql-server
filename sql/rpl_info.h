@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include "mysql_com.h"            // NAME_LEN
 #include "rpl_info_handler.h"     // Rpl_info_handler
 #include "rpl_reporting.h"        // Slave_reporting_capability
+#include "atomic_class.h"         // Atomic_int32
 
 
 #define  CHANNEL_NAME_LENGTH NAME_LEN
@@ -199,5 +200,9 @@ private:
 
   Rpl_info(const Rpl_info& info);
   Rpl_info& operator=(const Rpl_info& info);
+
+public:
+  /* True when the thread is still running, but started the stop procedure */
+  Atomic_int32 is_stopping;
 };
 #endif /* RPL_INFO_H */
