@@ -25,9 +25,14 @@ WantedBy=multi-user.target
 [Service]
 User=mysql
 Group=mysql
+Type=forking
 PermissionsStartOnly=true
+PIDFile=/var/run/mysqld/mysqld.pid
 @DEB_SERVICE_SERVER_EXECPRE@
-ExecStart=/usr/bin/mysqld_safe
-@DEB_SERVICE_SERVER_EXECPOST@
+ExecStart=/usr/sbin/mysqld --daemonize --pid-file=/var/run/mysqld/mysqld.pid
 TimeoutSec=600
+LimitNOFILE = 5000
 Restart=on-failure
+RestartPreventExitStatus=1
+RuntimeDirectory=mysqld
+RuntimeDirectoryMode=755

@@ -21,22 +21,24 @@ Description: MySQL Server meta package depending on latest version
 Package: mysql-@DEB_PRODUCTNAME@-server
 Architecture: any
 Pre-depends: debconf (>= 0.2.17), adduser
-Depends: mysql-common (= ${binary:Version}), perl, psmisc,
+Depends: mysql-common (= ${binary:Version}), mysql-client (= ${binary:Version}), perl, psmisc,
  ${shlibs:Depends}, ${misc:Depends}
-Recommends: mysql-client (= ${binary:Version})
+Breaks: mysql-common (<< 5.7.14)
 Conflicts: mysql,
  mysql-server-5.0, mysql-server-core-5.0,
  mysql-server-5.1, mysql-server-core-5.1,
  mysql-server-5.5, mysql-server-core-5.5,
  mysql-server-5.6, mysql-server-core-5.6,
- mysql-commercial-server
+ mysql-server-5.7, mysql-server-core-5.7,
+ mysql-@DEB_NOTPRODUCTNAME@-server
 Replaces: mysql,
  mysql-server-5.0, mysql-server-core-5.0,
  mysql-server-5.1, mysql-server-core-5.1,
  mysql-server-5.5, mysql-server-core-5.5,
  mysql-server-5.6, mysql-server-core-5.6,
- mysql-commercial-server,
- mysql-@DEB_PRODUCTNAME@-client
+ mysql-server-5.7, mysql-server-core-5.7,
+ mysql-@DEB_NOTPRODUCTNAME@-server,
+ mysql-common (<< 5.7.14)
 Provides: virtual-mysql-server, virtual-mysql-server-core
 Description: MySQL Server
  The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -61,18 +63,23 @@ Package: mysql-@DEB_PRODUCTNAME@-client
 Architecture: any
 Depends: mysql-common (= ${binary:Version}),
  ${shlibs:Depends}, ${misc:Depends}
+Breaks: mysql-common (<< 5.7.14), libmysqlclient-dev (<< 5.7.14)
 Conflicts: mysql,
  mysql-client-5.0, mysql-client-core-5.0,
  mysql-client-5.1, mysql-client-core-5.1,
  mysql-client-5.5, mysql-client-core-5.5,
  mysql-client-5.6, mysql-client-core-5.6,
- mysql-commercial-client
+ mysql-client-5.7, mysql-client-core-5.7,
+ mysql-@DEB_NOTPRODUCTNAME@-client
 Replaces: mysql,
  mysql-client-5.0, mysql-client-core-5.0,
  mysql-client-5.1, mysql-client-core-5.1,
  mysql-client-5.5, mysql-client-core-5.5,
  mysql-client-5.6, mysql-client-core-5.6,
- mysql-commercial-client
+ mysql-client-5.7, mysql-client-core-5.7,
+ mysql-@DEB_NOTPRODUCTNAME@-client,
+ mysql-common (<< 5.7.14),
+ libmysqlclient-dev (<< 5.7.14)
 Provides: virtual-mysql-client, virtual-mysql-client-core
 Description: MySQL Client
  The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -104,11 +111,16 @@ Multi-Arch: foreign
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Conflicts: mysql, mysql-server-5.6, mysql-server-core-5.6,
  mysql-client-5.6, mysql-client-core-5.6,
- mariadb-server-5.5, percona-xtradb-cluster-common-5.5
+ mysql-server-5.7, mysql-server-core-5.7,
+ mysql-client-5.7, mysql-client-core-5.7,
+ mariadb-server-5.5, percona-xtradb-cluster-common-5.5,
+ mysql-common (<< 5.7.14)
 Replaces: mysql, mysql-server-5.5, mysql-server-core-5.5, libmysqlclient-dev,
  mysql-server-5.6, mysql-server-core-5.6,
- mariadb-server-5.5, percona-xtradb-cluster-common-5.5
-Provides: mysql-common, mysql-common-5.6
+ mysql-server-5.7, mysql-server-core-5.7,
+ mariadb-server-5.5, percona-xtradb-cluster-common-5.5,
+ mysql-common (<< 5.7.14)
+Provides: mysql-common
 Description: MySQL Common
  The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
  and robust SQL (Structured Query Language) database server. MySQL Server
@@ -122,7 +134,8 @@ Architecture: any
 Section: libdevel
 Depends: libmysqlclient21 (= ${binary:Version}),
  ${shlibs:Depends}, ${misc:Depends}
-Replaces: mysql-client-5.6, mysql-client-core-5.6
+Replaces: mysql-client-5.6, mysql-client-core-5.6,
+ mysql-client-5.7, mysql-client-core-5.7
 Description: MySQL development headers
  The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
  and robust SQL (Structured Query Language) database server. MySQL Server
@@ -159,9 +172,11 @@ Architecture: any
 Depends: mysql-@DEB_PRODUCTNAME@-server (= ${binary:Version}),
  mysql-@DEB_PRODUCTNAME@-client (= ${binary:Version}), python,
  libmysqlclient-dev, ${shlibs:Depends}, ${misc:Depends}
+Breaks: mysql-@DEB_PRODUCTNAME@-server (<< 5.7.14),
+ mysql-@DEB_PRODUCTNAME@-client (<< 5.7.14)
 Conflicts: mysql,
  mysql-testsuite-5.0, mysql-testsuite-5.1, mysql-testsuite-5.5,
- mysql-testsuite-5.6, mysql-commercial-test
+ mysql-testsuite-5.6, mysql-testsuite-5.7, mysql-@DEB_NOTPRODUCTNAME@-test
 Description: MySQL Test Run MTR - The MySQL testsuite
  The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
  and robust SQL (Structured Query Language) database server. MySQL Server

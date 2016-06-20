@@ -27,12 +27,15 @@ IF (NOT DEFINED DEB_CODENAME)
 ENDIF()
 # Commercial or community
 IF (DEB_PRODUCT STREQUAL "commercial")
-  SET (DEB_COPYRIGHT_UPSTREAMNAME "MySQL Commercial Server 8.0")
+  SET (DEB_COPYRIGHT_UPSTREAMNAME "MySQL Commercial Server ${MYSQL_BASE_VERSION}")
   SET (DEB_PRODUCTNAME "commercial")
   SET (DEB_PRODUCTNAMEC "Commercial")
+  SET (DEB_NOTPRODUCTNAME "community")
   SET (DEB_LICENSENAME "Advanced")
   SET (DEB_INSTALL_LICENSEFILE "LICENSE.mysql")
   SET (DEB_SERVERVERSION "${VERSION}+commercial-1")
+  # List of plugins that are only in commercial packages
+  # Plugins that are in both community and commercial should NOT be added here
   SET (DEB_INCLUDE_BINARIES_EXTRA
 "
 debian/extra/audit_log-plugin
@@ -60,16 +63,18 @@ usr/lib/mysql/plugin/debug/firewall.so
   SET (DEB_REMOVEPATTERN "gpl.in")
 ELSE()
   SET (DEB_PRODUCT "community")
-  SET (DEB_COPYRIGHT_UPSTREAMNAME "MySQL Server 8.0")
+  SET (DEB_COPYRIGHT_UPSTREAMNAME "MySQL Server ${MYSQL_BASE_VERSION}")
   SET (DEB_PRODUCTNAME "community")
   SET (DEB_PRODUCTNAMEC "Community")
+  SET (DEB_NOTPRODUCTNAME "commercial")
   SET (DEB_LICENSENAME "GPL")
   SET (DEB_INSTALL_LICENSEFILE "COPYING")
   SET (DEB_SERVERVERSION "${VERSION}-1")
   SET (DEB_REMOVEPATTERN "com.in")
 ENDIF()
 
-# Platform specifics
+# Platform specifics. The differences are generally only distro version
+# and whether or not systemd and/or apparmor are available
 IF (DEB_CODENAME STREQUAL "wheezy")
   SET (DEB_PLATFORMRELEASE "debian7")
   SET (DEB_CONTROL_BDEPS "")
@@ -82,7 +87,6 @@ IF (DEB_CODENAME STREQUAL "wheezy")
   SET (DEB_INSTALL_SERVER_SYSTEMD "")
   SET (DEB_INSTALL_SERVER_APPARMOR "")
   SET (DEB_SERVICE_SERVER_EXECPRE "")
-  SET (DEB_SERVICE_SERVER_EXECPOST "")
   SET (DEB_INIT_APPARMOR "")
 ELSEIF(DEB_CODENAME STREQUAL "jessie")
   SET (DEB_PLATFORMRELEASE "debian8")
@@ -98,8 +102,6 @@ ELSEIF(DEB_CODENAME STREQUAL "jessie")
   SET (DEB_INSTALL_SERVER_APPARMOR "")
   SET (DEB_SERVICE_SERVER_EXECPRE
     "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
-  SET (DEB_SERVICE_SERVER_EXECPOST
-    "ExecStartPost=/usr/share/mysql/mysql-systemd-start post")
   SET (DEB_INIT_APPARMOR "")
 ELSEIF(DEB_CODENAME STREQUAL "precise")
   SET (DEB_PLATFORMRELEASE "ubuntu12.04")
@@ -115,7 +117,6 @@ ELSEIF(DEB_CODENAME STREQUAL "precise")
   SET (DEB_INSTALL_SERVER_SYSTEMD "")
   SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
   SET (DEB_SERVICE_SERVER_EXECPRE "")
-  SET (DEB_SERVICE_SERVER_EXECPOST "")
   SET (DEB_INIT_APPARMOR "/lib/init/apparmor-profile-load usr.sbin.mysqld")
 ELSEIF(DEB_CODENAME STREQUAL "trusty")
   SET (DEB_PLATFORMRELEASE "ubuntu14.04")
@@ -131,7 +132,6 @@ ELSEIF(DEB_CODENAME STREQUAL "trusty")
   SET (DEB_INSTALL_SERVER_SYSTEMD "")
   SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
   SET (DEB_SERVICE_SERVER_EXECPRE "")
-  SET (DEB_SERVICE_SERVER_EXECPOST "")
   SET (DEB_INIT_APPARMOR "/lib/init/apparmor-profile-load usr.sbin.mysqld")
 ELSEIF(DEB_CODENAME STREQUAL "wily")
   SET (DEB_PLATFORMRELEASE "ubuntu15.10")
@@ -149,8 +149,6 @@ ELSEIF(DEB_CODENAME STREQUAL "wily")
   SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
   SET (DEB_SERVICE_SERVER_EXECPRE
     "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
-  SET (DEB_SERVICE_SERVER_EXECPOST
-    "ExecStartPost=/usr/share/mysql/mysql-systemd-start post")
   SET (DEB_INIT_APPARMOR "/lib/init/apparmor-profile-load usr.sbin.mysqld")
 ELSEIF(DEB_CODENAME STREQUAL "xenial")
   SET (DEB_PLATFORMRELEASE "ubuntu16.04")
@@ -168,23 +166,25 @@ ELSEIF(DEB_CODENAME STREQUAL "xenial")
   SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
   SET (DEB_SERVICE_SERVER_EXECPRE
     "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
-  SET (DEB_SERVICE_SERVER_EXECPOST
-    "ExecStartPost=/usr/share/mysql/mysql-systemd-start post")
-  SET (DEB_INIT_APPARMOR "/lib/init/apparmor-profile-load usr.sbin.mysqld")
+  SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
 ELSE()
   MESSAGE(STATUS
     "Skipping deb packaging on unsupported platform ${DEB_CODENAME}.")
   RETURN()
 ENDIF()
 
+# All files are configured and copied to the debian/ directory, which is used 
+# by debuild to make the packages
 SET (DEB_ROOT ${CMAKE_SOURCE_DIR}/packaging/deb-in)
 FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/debian)
 FILE(GLOB_RECURSE SOURCEFILES RELATIVE "${DEB_ROOT}" "${DEB_ROOT}/*")
+# Skip the copyright file from the "other" product type
 LIST(REMOVE_ITEM SOURCEFILES "copyright.${DEB_REMOVEPATTERN}")
 LIST(REMOVE_ITEM SOURCEFILES "CMakeLists.txt")
 FOREACH (SOURCEFILE ${SOURCEFILES})
   STRING(REGEX REPLACE "-packagesource-" "-${DEB_PRODUCTNAME}-"
     TMPFILE ${SOURCEFILE})
+  # Strip away the input file endings from the destination filenames
   STRING(REGEX REPLACE ".in$" "" TMPFILE ${TMPFILE})
   STRING(REGEX REPLACE ".gpl$" "" TMPFILE ${TMPFILE})
   STRING(REGEX REPLACE ".com$" "" DESTFILE ${TMPFILE})
