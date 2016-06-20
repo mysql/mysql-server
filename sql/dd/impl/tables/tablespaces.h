@@ -19,9 +19,9 @@
 #include "my_global.h"
 
 #include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
-#include "dd/impl/types/tablespace_impl.h"              // dd::Tablespace_impl
 
 namespace dd {
+class Global_name_key;
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
@@ -49,45 +49,12 @@ public:
   };
 
 public:
-  Tablespaces()
-  {
-    m_target_def.table_name(table_name());
-    m_target_def.dd_version(1);
-
-    m_target_def.add_field(FIELD_ID,
-                           "FIELD_ID",
-                           "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
-    m_target_def.add_field(FIELD_NAME,
-                           "FIELD_NAME",
-                           "name VARCHAR(255) NOT NULL COLLATE utf8_bin");
-    m_target_def.add_field(FIELD_OPTIONS,
-                           "FIELD_OPTIONS",
-                           "options MEDIUMTEXT");
-    m_target_def.add_field(FIELD_SE_PRIVATE_DATA,
-                           "FIELD_SE_PRIVATE_DATA",
-                           "se_private_data MEDIUMTEXT");
-    m_target_def.add_field(FIELD_COMMENT,
-                           "FIELD_COMMENT",
-                           "comment VARCHAR(2048) NOT NULL");
-    m_target_def.add_field(FIELD_ENGINE,
-                           "FIELD_ENGINE",
-                           "engine VARCHAR(64) NOT NULL");
-
-    m_target_def.add_index("PRIMARY KEY(id)");
-    m_target_def.add_index("UNIQUE KEY(name)");
-
-    m_target_def.add_option("ENGINE=INNODB");
-    m_target_def.add_option("DEFAULT CHARSET=utf8");
-    m_target_def.add_option("COLLATE=utf8_bin");
-    m_target_def.add_option("ROW_FORMAT=DYNAMIC");
-    m_target_def.add_option("STATS_PERSISTENT=0");
-  }
+  Tablespaces();
 
   virtual const std::string &name() const
   { return Tablespaces::table_name(); }
 
-  virtual Dictionary_object *create_dictionary_object(const Raw_record &) const
-  { return new (std::nothrow) Tablespace_impl(); }
+  virtual Dictionary_object *create_dictionary_object(const Raw_record &) const;
 
 public:
   static bool update_object_key(Global_name_key *key,

@@ -28,6 +28,39 @@ const Index_partitions &Index_partitions::instance()
 
 ///////////////////////////////////////////////////////////////////////////
 
+Index_partitions::Index_partitions()
+{
+  m_target_def.table_name(table_name());
+  m_target_def.dd_version(1);
+
+  m_target_def.add_field(FIELD_PARTITION_ID,
+                         "FIELD_PARTITION_ID",
+                         "partition_id BIGINT UNSIGNED NOT NULL");
+  m_target_def.add_field(FIELD_INDEX_ID,
+                         "FIELD_INDEX_ID",
+                         "index_id BIGINT UNSIGNED NOT NULL");
+  m_target_def.add_field(FIELD_OPTIONS,
+                         "FIELD_OPTIONS",
+                         "options MEDIUMTEXT");
+  m_target_def.add_field(FIELD_SE_PRIVATE_DATA,
+                         "FIELD_SE_PRIVATE_DATA",
+                         "se_private_data MEDIUMTEXT");
+  m_target_def.add_field(FIELD_TABLESPACE_ID,
+                         "FIELD_TABLESPACE_ID",
+                         "tablespace_id BIGINT UNSIGNED");
+
+  m_target_def.add_index("PRIMARY KEY(partition_id, index_id)");
+
+  m_target_def.add_foreign_key("FOREIGN KEY (partition_id) REFERENCES "
+                               "table_partitions(id)");
+  m_target_def.add_foreign_key("FOREIGN KEY (index_id) REFERENCES "
+                               "indexes(id)");
+  m_target_def.add_foreign_key("FOREIGN KEY (tablespace_id) REFERENCES "
+                               "tablespaces(id)");
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 Object_key *Index_partitions::create_key_by_partition_id(
                                     Object_id partition_id)
 {

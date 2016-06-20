@@ -15,8 +15,9 @@
 
 #include "dd/impl/tables/tablespaces.h"
 
-#include "dd/properties.h"             // Needed for destructor
-#include "dd/impl/raw/object_keys.h"   // dd::Global_name_key
+#include "dd/properties.h"                 // Needed for destructor
+#include "dd/impl/raw/object_keys.h"       // dd::Global_name_key
+#include "dd/impl/types/tablespace_impl.h" // dd::Tablespace_impl
 
 namespace dd {
 namespace tables {
@@ -25,6 +26,44 @@ const Tablespaces &Tablespaces::instance()
 {
   static Tablespaces *s_instance= new Tablespaces();
   return *s_instance;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+Tablespaces::Tablespaces()
+{
+  m_target_def.table_name(table_name());
+  m_target_def.dd_version(1);
+
+  m_target_def.add_field(FIELD_ID,
+                         "FIELD_ID",
+                         "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
+  m_target_def.add_field(FIELD_NAME,
+                         "FIELD_NAME",
+                         "name VARCHAR(255) NOT NULL COLLATE utf8_bin");
+  m_target_def.add_field(FIELD_OPTIONS,
+                         "FIELD_OPTIONS",
+                         "options MEDIUMTEXT");
+  m_target_def.add_field(FIELD_SE_PRIVATE_DATA,
+                         "FIELD_SE_PRIVATE_DATA",
+                         "se_private_data MEDIUMTEXT");
+  m_target_def.add_field(FIELD_COMMENT,
+                         "FIELD_COMMENT",
+                         "comment VARCHAR(2048) NOT NULL");
+  m_target_def.add_field(FIELD_ENGINE,
+                         "FIELD_ENGINE",
+                         "engine VARCHAR(64) NOT NULL");
+
+  m_target_def.add_index("PRIMARY KEY(id)");
+  m_target_def.add_index("UNIQUE KEY(name)");
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+Dictionary_object*
+Tablespaces::create_dictionary_object(const Raw_record &) const
+{
+  return new (std::nothrow) Tablespace_impl();
 }
 
 ///////////////////////////////////////////////////////////////////////////

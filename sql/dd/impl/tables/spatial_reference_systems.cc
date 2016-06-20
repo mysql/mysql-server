@@ -15,7 +15,8 @@
 
 #include "dd/impl/tables/spatial_reference_systems.h"
 
-#include "dd/impl/raw/object_keys.h"  // Parent_id_range_key
+#include "dd/impl/raw/object_keys.h"                    // Parent_id_range_key
+#include "dd/impl/types/spatial_reference_system_impl.h"// dd::Spatial_refere...
 
 namespace dd {
 namespace tables {
@@ -42,7 +43,7 @@ Spatial_reference_systems::Spatial_reference_systems()
   m_target_def.add_field(FIELD_NAME,
                          "FIELD_NAME",
                          "name CHARACTER VARYING(256)\n"
-                         "NOT NULL");
+                         "NOT NULL COLLATE utf8_general_ci");
   m_target_def.add_field(FIELD_LAST_ALTERED,
                          "FIELD_LAST_ALTERED",
                          "last_altered TIMESTAMP NOT NULL\n"
@@ -71,13 +72,16 @@ Spatial_reference_systems::Spatial_reference_systems()
 
   m_target_def.add_foreign_key("FOREIGN KEY (catalog_id) REFERENCES \
                                   catalogs(id)");
-
-  m_target_def.add_option("ENGINE=INNODB");
-  m_target_def.add_option("DEFAULT CHARSET=utf8");
-  m_target_def.add_option("COLLATE=utf8_general_ci");
-  m_target_def.add_option("STATS_PERSISTENT=0");
 }
 
+
+///////////////////////////////////////////////////////////////////////////
+
+Dictionary_object*
+Spatial_reference_systems::create_dictionary_object(const Raw_record &) const
+{
+  return new (std::nothrow) Spatial_reference_system_impl();
+}
 
 ///////////////////////////////////////////////////////////////////////////
 

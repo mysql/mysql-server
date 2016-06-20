@@ -20,6 +20,7 @@
 #include "dd/dd.h"                                // dd::create_object
 #include "dd/cache/dictionary_client.h"           // dd::cache::Dictionary_...
 #include "dd/impl/raw/object_keys.h"              // Global_name_key
+#include "dd/impl/types/collation_impl.h"         // dd::Collation_impl
 
 namespace dd {
 namespace tables {
@@ -28,6 +29,36 @@ const Collations &Collations::instance()
 {
   static Collations *s_instance= new Collations();
   return *s_instance;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+Collations::Collations()
+{
+  m_target_def.table_name(table_name());
+  m_target_def.dd_version(1);
+
+  m_target_def.add_field(FIELD_ID,
+                         "FIELD_ID",
+                         "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
+  m_target_def.add_field(FIELD_NAME,
+                         "FIELD_NAME",
+                         "name VARCHAR(64) NOT NULL COLLATE utf8_general_ci");
+  m_target_def.add_field(FIELD_CHARACTER_SET_ID,
+                         "FIELD_CHARACTER_SET_ID",
+                         "character_set_id BIGINT UNSIGNED NOT NULL");
+  m_target_def.add_field(FIELD_IS_COMPILED,
+                         "FIELD_IS_COMPILED",
+                         "is_compiled BOOL NOT NULL");
+  m_target_def.add_field(FIELD_SORT_LENGTH,
+                         "FIELD_SORT_LENGTH",
+                         "sort_length INT UNSIGNED NOT NULL");
+
+  m_target_def.add_index("PRIMARY KEY(id)");
+  m_target_def.add_index("UNIQUE KEY(name)");
+
+  m_target_def.add_foreign_key("FOREIGN KEY (character_set_id) REFERENCES "
+                               "character_sets(id)");
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -125,6 +156,14 @@ bool Collations::populate(THD *thd) const
   delete_container_pointers(prev_coll);
 
   return error;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+Dictionary_object*
+Collations::create_dictionary_object(const Raw_record &) const
+{
+  return new (std::nothrow) Collation_impl();
 }
 
 ///////////////////////////////////////////////////////////////////////////

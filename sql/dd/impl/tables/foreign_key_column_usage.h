@@ -48,40 +48,7 @@ public:
   };
 
 public:
-  Foreign_key_column_usage()
-  {
-    m_target_def.table_name(table_name());
-    m_target_def.dd_version(1);
-
-    m_target_def.add_field(FIELD_FOREIGN_KEY_ID,
-                           "FIELD_FOREIGN_KEY_ID",
-                           "foreign_key_id BIGINT UNSIGNED NOT NULL");
-    m_target_def.add_field(FIELD_ORDINAL_POSITION,
-                           "FIELD_ORDINAL_POSITION",
-                           "ordinal_position INT UNSIGNED NOT NULL");
-    m_target_def.add_field(FIELD_COLUMN_ID,
-                           "FIELD_COLUMN_ID",
-                           "column_id BIGINT UNSIGNED NOT NULL");
-    m_target_def.add_field(FIELD_REFERENCED_COLUMN_NAME,
-                           "FIELD_REFERENCED_COLUMN_NAME",
-                           "referenced_column_name VARCHAR(64) NOT NULL "
-                           "COLLATE utf8_tolower_ci");
-
-    m_target_def.add_index("UNIQUE KEY(foreign_key_id, column_id, "
-                           "referenced_column_name)");
-    m_target_def.add_index("UNIQUE KEY(foreign_key_id, ordinal_position)");
-
-    m_target_def.add_foreign_key("FOREIGN KEY (foreign_key_id) REFERENCES "
-                                 "foreign_keys(id)");
-    m_target_def.add_foreign_key("FOREIGN KEY (column_id) REFERENCES "
-                                 "columns(id)");
-
-    m_target_def.add_option("ENGINE=INNODB");
-    m_target_def.add_option("DEFAULT CHARSET=utf8");
-    m_target_def.add_option("COLLATE=utf8_bin");
-    m_target_def.add_option("ROW_FORMAT=DYNAMIC");
-    m_target_def.add_option("STATS_PERSISTENT=0");
-  }
+  Foreign_key_column_usage();
 
   virtual const std::string &name() const
   { return Foreign_key_column_usage::table_name(); }

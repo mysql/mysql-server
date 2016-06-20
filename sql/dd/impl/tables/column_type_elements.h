@@ -19,7 +19,7 @@
 #include "my_global.h"
 
 #include "dd/object_id.h"                    // dd::Object_id
-#include "dd/impl/types/object_table_impl.h" // dd::Object_table_impl 
+#include "dd/impl/types/object_table_impl.h" // dd::Object_table_impl
 
 namespace dd {
   class Object_key;
@@ -47,34 +47,7 @@ public:
   };
 
 public:
-  Column_type_elements()
-  {
-    m_target_def.table_name(table_name());
-    m_target_def.dd_version(1);
-
-    m_target_def.add_field(FIELD_COLUMN_ID,
-                           "FIELD_COLUMN_ID",
-                           "column_id BIGINT UNSIGNED NOT NULL");
-    m_target_def.add_field(FIELD_INDEX,
-                           "FIELD_INDEX",
-                           "element_index INT UNSIGNED NOT NULL");
-    m_target_def.add_field(FIELD_NAME,
-                           "FIELD_NAME",
-                           "name VARBINARY(255) NOT NULL");
-
-    m_target_def.add_index("PRIMARY KEY(column_id, element_index)");
-    // We may have multiple similar element names. Do we plan to deprecate it?
-    // m_target_def.add_index("UNIQUE KEY(column_id, name)");
-
-    m_target_def.add_foreign_key("FOREIGN KEY (column_id) REFERENCES "
-                                 "columns(id)");
-
-    m_target_def.add_option("ENGINE=INNODB");
-    m_target_def.add_option("DEFAULT CHARSET=utf8");
-    m_target_def.add_option("COLLATE=utf8_bin");
-    m_target_def.add_option("ROW_FORMAT=DYNAMIC");
-    m_target_def.add_option("STATS_PERSISTENT=0");
-  }
+  Column_type_elements();
 
   virtual const std::string &name() const
   { return Column_type_elements::table_name(); }

@@ -21,13 +21,12 @@
 class THD;
 
 namespace dd {
-
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
 // The version of the current DD schema
-#define TARGET_DD_VERSION 1
+static const uint TARGET_DD_VERSION= 1;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -53,29 +52,7 @@ public:
   };
 
 public:
-  Version()
-  {
-    m_target_def.table_name(table_name());
-    m_target_def.dd_version(0);
-
-    m_target_def.add_field(FIELD_VERSION,
-                           "FIELD_VERSION",
-                           "version INT UNSIGNED NOT NULL");
-
-    m_target_def.add_option("ENGINE=INNODB");
-    m_target_def.add_option("DEFAULT CHARSET=utf8");
-    m_target_def.add_option("COLLATE=utf8_bin");
-    m_target_def.add_option("ROW_FORMAT=DYNAMIC");
-    m_target_def.add_option("STATS_PERSISTENT=0");
-
-    m_target_def.add_index("PRIMARY KEY(version)");
-
-    // Insert the target dictionary version
-    std::stringstream ss;
-    ss << get_target_dd_version();
-    m_target_def.add_populate_statement("INSERT INTO version (version)"
-                                          "VALUES (" + ss.str() + ")");
-  }
+  Version();
 
   virtual const std::string &name() const
   { return Version::table_name(); }

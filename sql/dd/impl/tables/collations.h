@@ -18,10 +18,10 @@
 
 #include "my_global.h"
 
-#include "dd/impl/types/collation_impl.h"
 #include "dd/impl/types/dictionary_object_table_impl.h"
 
 namespace dd {
+class Global_name_key;
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
@@ -47,47 +47,14 @@ public:
   };
 
 public:
-  Collations()
-  {
-    m_target_def.table_name(table_name());
-    m_target_def.dd_version(1);
-
-    m_target_def.add_field(FIELD_ID,
-                           "FIELD_ID",
-                           "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
-    m_target_def.add_field(FIELD_NAME,
-                           "FIELD_NAME",
-                           "name VARCHAR(64) NOT NULL COLLATE utf8_general_ci");
-    m_target_def.add_field(FIELD_CHARACTER_SET_ID,
-                           "FIELD_CHARACTER_SET_ID",
-                           "character_set_id BIGINT UNSIGNED NOT NULL");
-    m_target_def.add_field(FIELD_IS_COMPILED,
-                           "FIELD_IS_COMPILED",
-                           "is_compiled BOOL NOT NULL");
-    m_target_def.add_field(FIELD_SORT_LENGTH,
-                           "FIELD_SORT_LENGTH",
-                           "sort_length INT UNSIGNED NOT NULL");
-
-    m_target_def.add_index("PRIMARY KEY(id)");
-    m_target_def.add_index("UNIQUE KEY(name)");
-
-    m_target_def.add_foreign_key("FOREIGN KEY (character_set_id) REFERENCES "
-                                 "character_sets(id)");
-
-    m_target_def.add_option("ENGINE=INNODB");
-    m_target_def.add_option("DEFAULT CHARSET=utf8");
-    m_target_def.add_option("COLLATE=utf8_bin");
-    m_target_def.add_option("ROW_FORMAT=DYNAMIC");
-    m_target_def.add_option("STATS_PERSISTENT=0");
-  }
+  Collations();
 
   virtual bool populate(THD *thd) const;
 
   virtual const std::string &name() const
   { return Collations::table_name(); }
 
-  virtual Dictionary_object *create_dictionary_object(const Raw_record &) const
-  { return new (std::nothrow) Collation_impl(); }
+  virtual Dictionary_object *create_dictionary_object(const Raw_record &) const;
 
 public:
   static bool update_object_key(Global_name_key *key,

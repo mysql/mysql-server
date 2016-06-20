@@ -28,6 +28,31 @@ const Column_type_elements &Column_type_elements::instance()
 
 ///////////////////////////////////////////////////////////////////////////
 
+Column_type_elements::Column_type_elements()
+{
+  m_target_def.table_name(table_name());
+  m_target_def.dd_version(1);
+
+  m_target_def.add_field(FIELD_COLUMN_ID,
+                         "FIELD_COLUMN_ID",
+                         "column_id BIGINT UNSIGNED NOT NULL");
+  m_target_def.add_field(FIELD_INDEX,
+                         "FIELD_INDEX",
+                         "element_index INT UNSIGNED NOT NULL");
+  m_target_def.add_field(FIELD_NAME,
+                         "FIELD_NAME",
+                         "name VARBINARY(255) NOT NULL");
+
+  m_target_def.add_index("PRIMARY KEY(column_id, element_index)");
+  // We may have multiple similar element names. Do we plan to deprecate it?
+  // m_target_def.add_index("UNIQUE KEY(column_id, name)");
+
+  m_target_def.add_foreign_key("FOREIGN KEY (column_id) REFERENCES "
+                               "columns(id)");
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 Object_key *Column_type_elements::create_key_by_column_id(
   Object_id column_id)
 {

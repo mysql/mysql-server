@@ -19,7 +19,6 @@
 #include "my_global.h"
 
 #include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
-#include "dd/impl/types/spatial_reference_system_impl.h"// dd::Spatial_refere...
 
 #include <string>
 
@@ -57,8 +56,7 @@ public:
   virtual const std::string &name() const
   { return Spatial_reference_systems::table_name(); }
 
-  virtual Dictionary_object *create_dictionary_object(const Raw_record &) const
-  { return new (std::nothrow) Spatial_reference_system_impl(); }
+  virtual Dictionary_object *create_dictionary_object(const Raw_record &) const;
 
   static bool update_object_key(Item_name_key *key,
                                 Object_id catalog_id,

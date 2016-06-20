@@ -31,6 +31,26 @@ const Version &Version::instance()
 
 ///////////////////////////////////////////////////////////////////////////
 
+Version::Version()
+{
+  m_target_def.table_name(table_name());
+  m_target_def.dd_version(0);
+
+  m_target_def.add_field(FIELD_VERSION,
+                         "FIELD_VERSION",
+                         "version INT UNSIGNED NOT NULL");
+
+  m_target_def.add_index("PRIMARY KEY(version)");
+
+  // Insert the target dictionary version
+  std::stringstream ss;
+  ss << get_target_dd_version();
+  m_target_def.add_populate_statement("INSERT INTO version (version)"
+                                      "VALUES (" + ss.str() + ")");
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 uint Version::get_actual_dd_version(THD *thd) const
 {
   // Start a DD transaction to get the version number.

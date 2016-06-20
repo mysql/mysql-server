@@ -56,62 +56,7 @@ public:
   };
 
 public:
-  Table_partitions()
-  {
-    m_target_def.table_name(table_name());
-    m_target_def.dd_version(1);
-
-    m_target_def.add_field(FIELD_ID,
-                           "FIELD_ID",
-                           "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
-    m_target_def.add_field(FIELD_TABLE_ID,
-                           "FIELD_TABLE_ID",
-                           "table_id BIGINT UNSIGNED NOT NULL");
-    m_target_def.add_field(FIELD_LEVEL,
-                           "FIELD_LEVEL",
-                           "level TINYINT UNSIGNED NOT NULL");
-    m_target_def.add_field(FIELD_NUMBER,
-                           "FIELD_NUMBER",
-                           "number SMALLINT UNSIGNED NOT NULL");
-    m_target_def.add_field(FIELD_NAME,
-                           "FIELD_NAME",
-                           "name VARCHAR(64) NOT NULL COLLATE utf8_tolower_ci");
-    m_target_def.add_field(FIELD_ENGINE,
-                           "FIELD_ENGINE",
-                           "engine VARCHAR(64) NOT NULL");
-    m_target_def.add_field(FIELD_COMMENT,
-                           "FIELD_COMMENT",
-                           "comment VARCHAR(2048) NOT NULL");
-    m_target_def.add_field(FIELD_OPTIONS,
-                           "FIELD_OPTIONS",
-                           "options MEDIUMTEXT");
-    m_target_def.add_field(FIELD_SE_PRIVATE_DATA,
-                           "FIELD_SE_PRIVATE_DATA",
-                           "se_private_data MEDIUMTEXT");
-    m_target_def.add_field(FIELD_SE_PRIVATE_ID,
-                           "FIELD_SE_PRIVATE_ID",
-                           "se_private_id BIGINT UNSIGNED");
-    m_target_def.add_field(FIELD_TABLESPACE_ID,
-                           "FIELD_TABLESPACE_ID",
-                           "tablespace_id BIGINT UNSIGNED");
-
-    m_target_def.add_index("PRIMARY KEY(id)");
-    m_target_def.add_index("UNIQUE KEY(table_id, name)");
-    m_target_def.add_index("UNIQUE KEY(table_id, level, number)");
-    m_target_def.add_index("UNIQUE KEY(engine, se_private_id)");
-    m_target_def.add_index("KEY(engine)");
-
-    m_target_def.add_foreign_key("FOREIGN KEY (table_id) REFERENCES "
-                                 "tables(id)");
-    m_target_def.add_foreign_key("FOREIGN KEY (tablespace_id) REFERENCES "
-                                 "tablespaces(id)");
-
-    m_target_def.add_option("ENGINE=INNODB");
-    m_target_def.add_option("DEFAULT CHARSET=utf8");
-    m_target_def.add_option("COLLATE=utf8_bin");
-    m_target_def.add_option("ROW_FORMAT=DYNAMIC");
-    m_target_def.add_option("STATS_PERSISTENT=0");
-  }
+  Table_partitions();
 
   virtual const std::string &name() const
   { return Table_partitions::table_name(); }
