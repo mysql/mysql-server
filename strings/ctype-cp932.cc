@@ -34813,6 +34813,7 @@ CHARSET_INFO my_charset_cp932_japanese_ci=
     "cp932_japanese_ci",	/* name */
     "",			/* comment    */
     NULL,		/* tailoring */
+    NULL,		/* coll_param */
     ctype_cp932,
     to_lower_cp932,
     to_upper_cp932,
@@ -34847,6 +34848,7 @@ CHARSET_INFO my_charset_cp932_bin=
     "cp932_bin",		/* name */
     "",			/* comment    */
     NULL,		/* tailoring */
+    NULL,		/* coll_param */
     ctype_cp932,
     to_lower_cp932,
     to_upper_cp932,

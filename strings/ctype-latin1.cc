@@ -429,6 +429,7 @@ CHARSET_INFO my_charset_latin1=
     "latin1_swedish_ci",		/* name      */
     "",					/* comment   */
     NULL,				/* tailoring */
+    NULL,		                /* coll_param */
     ctype_latin1,
     to_lower_latin1,
     to_upper_latin1,
@@ -739,6 +740,7 @@ CHARSET_INFO my_charset_latin1_german2_ci=
   "latin1_german2_ci",			/* name      */
   "",					/* comment   */
   NULL,					/* tailoring */
+  NULL,		                        /* coll_param */
   ctype_latin1,
   to_lower_latin1,
   to_upper_latin1,
@@ -774,6 +776,7 @@ CHARSET_INFO my_charset_latin1_bin=
   "latin1_bin",				/* name      */
   "",					/* comment   */
   NULL,					/* tailoring */
+  NULL,					/* coll_param */
   ctype_latin1,
   to_lower_latin1,
   to_upper_latin1,

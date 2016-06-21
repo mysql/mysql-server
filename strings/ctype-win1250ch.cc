@@ -686,6 +686,7 @@ CHARSET_INFO my_charset_cp1250_czech_ci =
   "cp1250_czech_cs",                          /* name      */
   "",                                         /* comment   */
   NULL,                                       /* tailoring */
+  NULL,                                       /* coll_param */
   ctype_win1250ch,
   to_lower_win1250ch,
   to_upper_win1250ch,

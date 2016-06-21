@@ -1,0 +1,3 @@
+--source suite/collations/include/unicode.inc
+select hex(convert(uc using utf32)), name from unicode where category in ('Lu','Ll','Lt') order by uc  collate utf8mb4_is_800_ci_ai, cp;
+drop table if exists unicode;

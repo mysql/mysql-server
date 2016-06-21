@@ -10816,6 +10816,7 @@ CHARSET_INFO my_charset_gbk_chinese_ci=
     "gbk_chinese_ci",	/* name */
     "",			/* comment    */
     NULL,		/* tailoring */
+    NULL,		/* coll_param */
     ctype_gbk,
     to_lower_gbk,
     to_upper_gbk,
@@ -10850,6 +10851,7 @@ CHARSET_INFO my_charset_gbk_bin=
     "gbk_bin",		/* name */
     "",			/* comment    */
     NULL,		/* tailoring */
+    NULL,		/* coll_param */
     ctype_gbk,
     to_lower_gbk,
     to_upper_gbk,

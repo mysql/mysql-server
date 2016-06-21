@@ -22,6 +22,7 @@
 #define _m_ctype_h
 
 #include "my_global.h"                          /* uint16, uchar */
+#include "str_uca_type.h"
 
 #ifdef	__cplusplus
 extern "C" {
@@ -78,7 +79,7 @@ extern MY_UNICASE_INFO my_unicase_unicode520;
 extern MY_UNICASE_INFO my_unicase_unicode800;
 
 #define MY_UCA_MAX_CONTRACTION 6
-#define MY_UCA_MAX_WEIGHT_SIZE 24
+#define MY_UCA_MAX_WEIGHT_SIZE 25
 #define MY_UCA_WEIGHT_LEVELS   1
 
 typedef struct my_contraction_t
@@ -377,7 +378,6 @@ extern MY_CHARSET_HANDLER my_charset_8bit_handler;
 extern MY_CHARSET_HANDLER my_charset_ascii_handler;
 extern MY_CHARSET_HANDLER my_charset_ucs2_handler;
 
-
 /* See strings/CHARSET_INFO.txt about information on this structure  */
 typedef struct charset_info_st
 {
@@ -389,6 +389,7 @@ typedef struct charset_info_st
   const char *name;
   const char *comment;
   const char *tailoring;
+  struct Coll_param *coll_param;
   const uchar *ctype;
   const uchar *to_lower;
   const uchar *to_upper;

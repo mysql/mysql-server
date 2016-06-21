@@ -1683,6 +1683,7 @@ CHARSET_INFO my_charset_utf16_general_ci=
   "utf16_general_ci",  /* name         */
   "UTF-16 Unicode",    /* comment      */
   NULL,                /* tailoring    */
+  NULL,               /* coll_param   */
   NULL,                /* ctype        */
   NULL,                /* to_lower     */
   NULL,                /* to_upper     */
@@ -1718,6 +1719,7 @@ CHARSET_INFO my_charset_utf16_bin=
   "utf16_bin",         /* name         */
   "UTF-16 Unicode",    /* comment      */
   NULL,                /* tailoring    */
+  NULL,               /* coll_param   */
   NULL,                /* ctype        */
   NULL,                /* to_lower     */
   NULL,                /* to_upper     */
@@ -1855,6 +1857,7 @@ CHARSET_INFO my_charset_utf16le_general_ci=
   "utf16le_general_ci",/* name         */
   "UTF-16LE Unicode",  /* comment      */
   NULL,                /* tailoring    */
+  NULL,               /* coll_param   */
   NULL,                /* ctype        */
   NULL,                /* to_lower     */
   NULL,                /* to_upper     */
@@ -1890,6 +1893,7 @@ CHARSET_INFO my_charset_utf16le_bin=
   "utf16le_bin",       /* name         */
   "UTF-16LE Unicode",  /* comment      */
   NULL,                /* tailoring    */
+  NULL,               /* coll_param   */
   NULL,                /* ctype        */
   NULL,                /* to_lower     */
   NULL,                /* to_upper     */
@@ -2798,6 +2802,7 @@ CHARSET_INFO my_charset_utf32_general_ci=
   "utf32_general_ci",  /* name         */
   "UTF-32 Unicode",    /* comment      */
   NULL,                /* tailoring    */
+  NULL,               /* coll_param   */
   NULL,                /* ctype        */
   NULL,                /* to_lower     */
   NULL,                /* to_upper     */
@@ -2833,6 +2838,7 @@ CHARSET_INFO my_charset_utf32_bin=
   "utf32_bin",         /* name         */
   "UTF-32 Unicode",    /* comment      */
   NULL,                /* tailoring    */
+  NULL,               /* coll_param   */
   NULL,                /* ctype        */
   NULL,                /* to_lower     */
   NULL,                /* to_upper     */
@@ -3422,6 +3428,7 @@ CHARSET_INFO my_charset_ucs2_general_ci=
     "ucs2_general_ci",	/* name         */
     "",			/* comment      */
     NULL,		/* tailoring    */
+    NULL,               /* coll_param   */
     ctype_ucs2,		/* ctype        */
     to_lower_ucs2,	/* to_lower     */
     to_upper_ucs2,	/* to_upper     */
@@ -3457,6 +3464,7 @@ CHARSET_INFO my_charset_ucs2_general_mysql500_ci=
   "ucs2_general_mysql500_ci",                      /* name             */
   "",                                              /* comment          */
   NULL,                                            /* tailoring        */
+  NULL,                                            /* coll_param       */
   ctype_ucs2,                                      /* ctype            */
   to_lower_ucs2,                                   /* to_lower         */
   to_upper_ucs2,                                   /* to_upper         */
@@ -3492,6 +3500,7 @@ CHARSET_INFO my_charset_ucs2_bin=
     "ucs2_bin",		/* name         */
     "",			/* comment      */
     NULL,		/* tailoring    */
+    NULL,               /* coll_param   */
     ctype_ucs2,		/* ctype        */
     to_lower_ucs2,	/* to_lower     */
     to_upper_ucs2,	/* to_upper     */
