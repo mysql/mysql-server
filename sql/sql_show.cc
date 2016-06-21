@@ -8129,6 +8129,34 @@ bool get_schema_tables_result(JOIN *join,
       else
         table_list->table->file->stats.records= 0;
 
+      /* To be removed after 5.7 */
+      if (is_infoschema_db(table_list->db, table_list->db_length))
+      {
+        static LEX_STRING INNODB_LOCKS= {C_STRING_WITH_LEN("INNODB_LOCKS")};
+        static LEX_STRING INNODB_LOCK_WAITS= {C_STRING_WITH_LEN("INNODB_LOCK_WAITS")};
+
+        if (my_strcasecmp(system_charset_info,
+                          table_list->schema_table_name,
+                          INNODB_LOCKS.str) == 0)
+        {
+          /* Deprecated in 5.7 */
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
+                              ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                              ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                              "INFORMATION_SCHEMA.INNODB_LOCKS");
+        }
+        else if (my_strcasecmp(system_charset_info,
+                               table_list->schema_table_name,
+                               INNODB_LOCK_WAITS.str) == 0)
+        {
+          /* Deprecated in 5.7 */
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
+                              ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                              ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                              "INFORMATION_SCHEMA.INNODB_LOCK_WAITS");
+        }
+      }
+
       if (do_fill_table(thd, table_list, tab))
       {
         result= 1;
