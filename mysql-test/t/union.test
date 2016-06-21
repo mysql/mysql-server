@@ -59,17 +59,14 @@ explain select 1 union select a,b from t1 union select 1;
 --error 1222
 explain select a,b from t1 union select 1 limit 0;
 
---error ER_PARSE_ERROR
+--error 1221
 select a,b from t1 into outfile 'skr' union select a,b from t2;
 
---error ER_PARSE_ERROR
+--error 1221
 select a,b from t1 order by a union select a,b from t2;
 
---error ER_PARSE_ERROR
+--error 1221
 insert into t3 select a from t1 order by a union select a from t2;
-
---error ER_PARSE_ERROR
-INSERT INTO t3 SELECT a FROM t1 LIMIT 1 UNION SELECT a FROM t2;
 
 --error 1222
 create table t3 select a,b from t1 union select a from t2;
@@ -246,7 +243,7 @@ SELECT COUNT(*) FROM (
 select found_rows();
 
 # In these case found_rows() should work
---error ER_PARSE_ERROR
+--error ER_WRONG_USAGE
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION all SELECT * FROM t2 LIMIT 2;
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 LIMIT 1) UNION all SELECT * FROM t2) q;
@@ -266,19 +263,19 @@ SELECT COUNT(*) FROM (
 SELECT                     * FROM t1 UNION SELECT * FROM t2) q;
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 100;
 select found_rows();
---error ER_PARSE_ERROR
+--error ER_WRONG_USAGE
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 100 UNION SELECT * FROM t2;
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 LIMIT 100) UNION SELECT * FROM t2) q;
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 100) UNION SELECT * FROM t2;
 select found_rows();
---error ER_PARSE_ERROR
+--error ER_WRONG_USAGE
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION SELECT * FROM t2;
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 LIMIT 1) UNION SELECT * FROM t2) q;
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1) UNION SELECT * FROM t2;
 select found_rows();
---error ER_PARSE_ERROR
+--error ER_WRONG_USAGE
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION SELECT * FROM t2 LIMIT 2;
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 LIMIT 1) UNION SELECT * FROM t2) q;
@@ -288,7 +285,7 @@ SELECT COUNT(*) FROM (
 SELECT                     * FROM t1 UNION SELECT * FROM t2) q;
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 2,2;
 select found_rows();
---error ER_PARSE_ERROR
+--error ER_WRONG_USAGE
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 limit 2,2 UNION SELECT * FROM t2;
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 limit 2,2) UNION SELECT * FROM t2) q;
@@ -305,8 +302,6 @@ SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a desc LIMIT 1;
 
 create temporary table t1 select a from t1 union select a from t2;
 drop temporary table t1;
-create temporary table temp1 select a from t1 union select a from t2;
-drop temporary table temp1;
 --error ER_TABLE_EXISTS_ERROR
 create table t1 select a from t1 union select a from t2;
 --error ER_TABLENAME_NOT_ALLOWED_HERE
@@ -978,11 +973,11 @@ DROP TABLE t1;
 #
 # Bug#23345: Wrongly allowed INTO in a non-last select of a UNION.
 #
---error ER_WRONG_USAGE
+--error 1221
 (select 1 into @var) union (select 1);
 (select 1) union (select 1 into @var);
 select @var;
---error ER_TOO_MANY_ROWS
+--error 1172
 (select 2) union (select 1 into @var);
 
 #
@@ -1019,7 +1014,7 @@ SELECT a,1 FROM t1
 UNION 
 (SELECT b, COUNT(*) FROM t2 GROUP BY b WITH ROLLUP ORDER BY a);
 
---error ER_PARSE_ERROR
+--error ER_WRONG_USAGE
 SELECT a,1 FROM t1
 UNION ALL
 SELECT b, COUNT(*) FROM t2 GROUP BY b WITH ROLLUP ORDER BY a
@@ -1898,3 +1893,39 @@ DROP TABLE t1, t2;
 --echo #
 
 SELECT NULL UNION SELECT POINT(1,1);
+
+--echo #
+--echo # Bug#22602381 FOUND_ROWS() IS NOT WORKING AS EXPECTED WITHOUT
+--echo #              SQL_CALC_FOUND_ROWS
+--echo #
+
+CREATE TABLE t1(c1 INT);
+INSERT INTO t1 VALUES(1),(2),(3);
+
+(SELECT c1 FROM t1) UNION ALL
+(SELECT c1 FROM t1) LIMIT 2;
+SELECT FOUND_ROWS();
+
+(SELECT SQL_CALC_FOUND_ROWS c1 FROM t1) UNION ALL
+(SELECT c1 FROM t1) LIMIT 2;
+SELECT FOUND_ROWS();
+
+(SELECT c1 FROM t1 LIMIT 1) UNION ALL
+(SELECT c1 FROM t1 LIMIT 3) LIMIT 2;
+SELECT FOUND_ROWS();
+
+(SELECT c1 FROM t1 LIMIT 1) UNION ALL
+(SELECT c1 FROM t1 LIMIT 1) LIMIT 3;
+SELECT FOUND_ROWS();
+
+(SELECT c1 FROM t1 LIMIT 3) UNION ALL
+(SELECT c1 FROM t1 LIMIT 3) LIMIT 1 OFFSET 4;
+SELECT FOUND_ROWS();
+
+(SELECT c1 FROM t1 LIMIT 1) UNION ALL
+(SELECT c1 FROM t1 LIMIT 1) LIMIT 1 OFFSET 2;
+SELECT FOUND_ROWS();
+
+DROP TABLE t1;
+
+--echo #End of test for Bug#22602381

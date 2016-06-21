@@ -144,13 +144,11 @@ ERROR 21000: The used SELECT statements have a different number of columns
 explain select a,b from t1 union select 1 limit 0;
 ERROR 21000: The used SELECT statements have a different number of columns
 select a,b from t1 into outfile 'skr' union select a,b from t2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'union select a,b from t2' at line 1
+ERROR HY000: Incorrect usage of UNION and INTO
 select a,b from t1 order by a union select a,b from t2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'union select a,b from t2' at line 1
+ERROR HY000: Incorrect usage of UNION and ORDER BY
 insert into t3 select a from t1 order by a union select a from t2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'union select a from t2' at line 1
-INSERT INTO t3 SELECT a FROM t1 LIMIT 1 UNION SELECT a FROM t2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT a FROM t2' at line 1
+ERROR HY000: Incorrect usage of UNION and ORDER BY
 create table t3 select a,b from t1 union select a from t2;
 ERROR 21000: The used SELECT statements have a different number of columns
 select a,b from t1 union select a from t2;
@@ -396,7 +394,7 @@ select found_rows();
 found_rows()
 4
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION all SELECT * FROM t2 LIMIT 2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION all SELECT * FROM t2 LIMIT 2' at line 1
+ERROR HY000: Incorrect usage of UNION and LIMIT
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 LIMIT 1) UNION all SELECT * FROM t2) q;
 COUNT(*)
@@ -445,7 +443,7 @@ select found_rows();
 found_rows()
 5
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 100 UNION SELECT * FROM t2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT * FROM t2' at line 1
+ERROR HY000: Incorrect usage of UNION and LIMIT
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 LIMIT 100) UNION SELECT * FROM t2) q;
 COUNT(*)
@@ -461,7 +459,7 @@ select found_rows();
 found_rows()
 5
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION SELECT * FROM t2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT * FROM t2' at line 1
+ERROR HY000: Incorrect usage of UNION and LIMIT
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 LIMIT 1) UNION SELECT * FROM t2) q;
 COUNT(*)
@@ -476,7 +474,7 @@ select found_rows();
 found_rows()
 4
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION SELECT * FROM t2 LIMIT 2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT * FROM t2 LIMIT 2' at line 1
+ERROR HY000: Incorrect usage of UNION and LIMIT
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 LIMIT 1) UNION SELECT * FROM t2) q;
 COUNT(*)
@@ -500,7 +498,7 @@ select found_rows();
 found_rows()
 5
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 limit 2,2 UNION SELECT * FROM t2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT * FROM t2' at line 1
+ERROR HY000: Incorrect usage of UNION and LIMIT
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 limit 2,2) UNION SELECT * FROM t2) q;
 COUNT(*)
@@ -526,12 +524,10 @@ a
 ERROR 42000: Incorrect usage/placement of 'SQL_CALC_FOUND_ROWS'
 create temporary table t1 select a from t1 union select a from t2;
 drop temporary table t1;
-create temporary table temp1 select a from t1 union select a from t2;
-drop temporary table temp1;
 create table t1 select a from t1 union select a from t2;
 ERROR 42S01: Table 't1' already exists
 select a from t1 union select a from t2 order by t2.a;
-ERROR 42000: Table 't2' from one of the SELECTs cannot be used in global ORDER clause
+ERROR 42000: Table 't2' from one of the SELECTs cannot be used in field list
 drop table t1,t2;
 select length(version()) > 1 as `*` UNION select 2;
 *
@@ -1612,8 +1608,7 @@ UNION ALL
 SELECT b, COUNT(*) FROM t2 GROUP BY b WITH ROLLUP ORDER BY a
 UNION
 SELECT 1,1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION
-SELECT 1,1' at line 4
+ERROR HY000: Incorrect usage of UNION and ORDER BY
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1), (2), (3);
@@ -2095,7 +2090,7 @@ UNION
 SELECT 2
 ORDER BY t1.a) AS x
 FROM t1;
-ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER clause
+ERROR 42000: Table 't1' from one of the SELECTs cannot be used in field list
 # Subquery, ORDER BY contains set function with outer reference
 SELECT (SELECT 1 AS foo
 UNION
@@ -2109,7 +2104,7 @@ UNION
 SELECT 2
 ORDER BY COUNT(t1.a)) AS x
 FROM t1;
-ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER clause
+ERROR 42000: Table 't1' from one of the SELECTs cannot be used in field list
 # Subquery, ORDER BY contains set function
 SELECT (SELECT 1 AS foo
 UNION
@@ -2702,3 +2697,56 @@ SELECT NULL UNION SELECT POINT(1,1);
 NULL
 NULL
              ð?      ð?
+#
+# Bug#22602381 FOUND_ROWS() IS NOT WORKING AS EXPECTED WITHOUT
+#              SQL_CALC_FOUND_ROWS
+#
+CREATE TABLE t1(c1 INT);
+INSERT INTO t1 VALUES(1),(2),(3);
+(SELECT c1 FROM t1) UNION ALL
+(SELECT c1 FROM t1) LIMIT 2;
+c1
+1
+2
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+2
+(SELECT SQL_CALC_FOUND_ROWS c1 FROM t1) UNION ALL
+(SELECT c1 FROM t1) LIMIT 2;
+c1
+1
+2
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+6
+(SELECT c1 FROM t1 LIMIT 1) UNION ALL
+(SELECT c1 FROM t1 LIMIT 3) LIMIT 2;
+c1
+1
+1
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+2
+(SELECT c1 FROM t1 LIMIT 1) UNION ALL
+(SELECT c1 FROM t1 LIMIT 1) LIMIT 3;
+c1
+1
+1
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+2
+(SELECT c1 FROM t1 LIMIT 3) UNION ALL
+(SELECT c1 FROM t1 LIMIT 3) LIMIT 1 OFFSET 4;
+c1
+2
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+5
+(SELECT c1 FROM t1 LIMIT 1) UNION ALL
+(SELECT c1 FROM t1 LIMIT 1) LIMIT 1 OFFSET 2;
+c1
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+2
+DROP TABLE t1;
+#End of test for Bug#22602381
