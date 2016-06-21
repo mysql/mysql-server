@@ -7,7 +7,6 @@
 # Test at con1: Sess Repeatable Read   con2 : Sess Read Committed
 # *****************************************************************
 --source include/have_innodb.inc
---source include/have_geometry.inc
 --source include/not_embedded.inc
 
 # Test Repeatable Read & Read committed at Global, Session levels
