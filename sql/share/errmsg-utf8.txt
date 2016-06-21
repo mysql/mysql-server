@@ -5939,12 +5939,12 @@ OBSOLETE_ER_EVENT_NEITHER_M_EXPR_NOR_M_AT
         ger "Kein DATETIME-Ausdruck angegeben"
 
 # OBSOLETE, USE ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
-OBSOLETE_ER_OBSOLETE_COL_COUNT_DOESNT_MATCH_CORRUPTED
+OBSOLETE_ER_COL_COUNT_DOESNT_MATCH_CORRUPTED
         eng "Column count of mysql.%s is wrong. Expected %d, found %d. The table is probably corrupted"
         ger "Spaltenanzahl von mysql.%s falsch. %d erwartet, aber %d gefunden. Tabelle ist wahrscheinlich beschädigt"
 
 # OBSOLETE, USE ER_CANNOT_LOAD_FROM_TABLE_V2
-OBSOLETE_ER_OBSOLETE_CANNOT_LOAD_FROM_TABLE
+OBSOLETE_ER_CANNOT_LOAD_FROM_TABLE
         eng "Cannot load from mysql.%s. The table is probably corrupted"
         ger "Kann mysql.%s nicht einlesen. Tabelle ist wahrscheinlich beschädigt"
 
