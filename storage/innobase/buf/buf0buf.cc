@@ -2798,6 +2798,9 @@ buf_pool_watch_unset(
 	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, page_id);
 	rw_lock_x_lock(hash_lock);
 
+	/* page_hash can be changed. */
+	hash_lock = buf_page_hash_lock_x_confirm(hash_lock, buf_pool, page_id);
+
 	/* The page must exist because buf_pool_watch_set()
 	increments buf_fix_count. */
 	bpage = buf_page_hash_get_low(buf_pool, page_id);
@@ -4900,10 +4903,11 @@ buf_read_page_handle_error(
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 	const ibool	uncompressed = (buf_page_get_state(bpage)
 					== BUF_BLOCK_FILE_PAGE);
-	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, bpage->id);
 
 	/* First unfix and release lock on the bpage */
 	mutex_enter(&buf_pool->LRU_list_mutex);
+
+	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, bpage->id);
 
 	rw_lock_x_lock(hash_lock);
 
