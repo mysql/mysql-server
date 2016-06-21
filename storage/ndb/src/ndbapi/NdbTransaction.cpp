@@ -1248,7 +1248,7 @@ NdbTransaction::release(){
   theMagicNumber = 0xFE11DC;
   theInUseState = false;
 #ifdef VM_TRACE
-  if (theListState != NotInList) {
+  if (theListState != NotInList && theListState != InPreparedList) {
     theNdb->printState("release %lx", (long)this);
     abort();
   }
@@ -1290,8 +1290,6 @@ NdbTransaction::releaseOperations()
   theFirstExecOpInList = NULL;
   theLastOpInList = NULL;
   theLastExecOpInList = NULL;
-  theScanningOp = NULL;
-  m_scanningQuery = NULL;
   m_theFirstScanOperation = NULL;
   m_theLastScanOperation = NULL;
   m_firstExecutedScanOp = NULL;

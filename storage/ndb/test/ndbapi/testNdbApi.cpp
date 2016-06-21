@@ -6701,6 +6701,166 @@ runDropIndexesOnI3(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+static void unusedCallback(int, NdbTransaction*, void*)
+{}
+
+/**
+ * Test that Ndb::closeTransaction() and/or Ndb-d'tor is
+ * able to do propper cleanup of NdbTransactions which
+ * are in some 'incomplete' states:
+ *  - Transactions being closed before executed.
+ *  - Transactions being closed without, or only partially
+ *    defined operations.
+ *  - Transactions being closed with prepared async operations
+ *    not yet executed.
+ *  - Ndb instance destructed with NdbTransactions still open
+ *    or in 'incomplete' states as described above.
+ *
+ * Pass verification is no unexpected errors being returned,
+ * no asserts hit (Normally found in Ndb::free_list's), and
+ * no datanode crashed. (All of these used to be a problem!)
+ */
+int runTestNoExecute(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  const NdbDictionary::Table* pTab = ctx->getTab();
+
+  {
+    Ndb ndb(&ctx->m_cluster_connection, "TEST_DB");
+  }
+  {
+    Ndb ndb(&ctx->m_cluster_connection, "TEST_DB");
+    if (ndb.init()){
+      NDB_ERR(ndb.getNdbError());
+      return NDBT_FAILED;
+    }
+  }
+
+  Ndb* pNdb = NULL;
+  NdbConnection* pCon = NULL;
+  for (int i = 0; i < 1000; i++)
+  {
+    if (pNdb == NULL)
+    {
+      pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
+      if (pNdb == NULL){
+        ndbout << "pNdb == NULL" << endl;      
+        return NDBT_FAILED;  
+      }
+      if (pNdb->init()){
+        NDB_ERR(pNdb->getNdbError());
+        delete pNdb;
+        return NDBT_FAILED;
+      }
+    }
+    pCon = pNdb->startTransaction();
+    if (pCon == NULL){
+      NDB_ERR(pNdb->getNdbError());
+      delete pNdb;
+      return NDBT_FAILED;
+    }
+
+    const int testcase = ((i >> 2) % 10);
+    switch (testcase)
+    {
+      case 0:   //Do nothing
+        break;
+ 
+      case 1:
+      case 2:
+      case 3:
+      case 4:
+      case 5:
+      {
+        NdbOperation *pOp = pCon->getNdbOperation(pTab->getName());
+        if (pOp == NULL){
+          NDB_ERR(pCon->getNdbError());
+          delete pNdb;
+          return NDBT_FAILED;
+        }
+        if (testcase == 1)
+          break;
+
+        if (pOp->readTuple() != 0){
+          NDB_ERR(pOp->getNdbError());
+          delete pNdb;
+          return NDBT_FAILED;
+        }
+        if (testcase == 2)
+          break;
+
+        if (pOp->getLockHandle() == NULL){
+          NDB_ERR(pOp->getNdbError());
+          delete pNdb;
+          return NDBT_FAILED;
+        }
+        if (testcase == 3)
+          break;
+
+        pCon->executeAsynchPrepare(NdbTransaction::Commit, &unusedCallback, NULL);
+        if (testcase == 4)
+          break;
+
+        pNdb->sendPollNdb(0, 0);
+        break;
+      }
+
+      case 6:
+      case 7:
+      case 8:
+      case 9:
+      {
+        NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
+        if (pOp == NULL){
+          NDB_ERR(pCon->getNdbError());
+          delete pNdb;
+          return NDBT_FAILED;
+        }
+        if (testcase == 6)
+          break;
+
+        if (pOp->readTuples() != 0){
+          NDB_ERR(pOp->getNdbError());
+          delete pNdb;
+          return NDBT_FAILED;
+        }
+        if (testcase == 7)
+          break;
+
+        if (pOp->getValue(pTab->getColumn(1)->getName()) == NULL){
+          NDB_ERR(pOp->getNdbError());
+          delete pNdb;
+          return NDBT_FAILED;
+        }
+        if (testcase == 8)
+          break;
+
+        if (pCon->execute(Commit) != 0){
+          NDB_ERR(pCon->getNdbError());
+          delete pNdb;
+          return NDBT_FAILED;
+        }
+        break;
+      }
+    }
+
+    if ((i >> 0) & 0x01)
+    {
+      pNdb->closeTransaction(pCon);
+      pCon = NULL;
+    }
+    if ((i >> 1) & 0x01)
+    {
+      delete pNdb;
+      pNdb = NULL;
+      pCon = NULL;
+    }
+  }
+  delete pNdb;
+
+  return result;
+}
+
+
 NDBT_TESTSUITE(testNdbApi);
 TESTCASE("MaxNdb", 
 	 "Create Ndb objects until no more can be created\n"){ 
@@ -7038,6 +7198,11 @@ TESTCASE("GetNdbIndexOperationParallelDroppingTest",
   STEP(runDropIndexesOnI3);
   VERIFIER(runCheckAllNodesStarted);
   FINALIZER(runClearTable)
+}
+TESTCASE("CloseBeforeExecute", 
+	 "Check that objects allocated within a Ndb/NdbTransaction " \
+         "is released even if Txn is not executed"){ 
+  INITIALIZER(runTestNoExecute);
 }
 
 NDBT_TESTSUITE_END(testNdbApi);
