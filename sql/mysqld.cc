@@ -963,6 +963,7 @@ mysql_mutex_t LOCK_des_key_file;
 mysql_rwlock_t LOCK_sys_init_connect, LOCK_sys_init_slave;
 mysql_rwlock_t LOCK_system_variables_hash;
 my_thread_handle signal_thread_id;
+sigset_t mysqld_signal_mask;
 my_thread_attr_t connection_attrib;
 mysql_mutex_t LOCK_server_started;
 mysql_cond_t COND_server_started;
@@ -2424,23 +2425,22 @@ void my_init_signals()
   (void) sigaction(SIGTERM, &sa, NULL);
   (void) sigaction(SIGHUP, &sa, NULL);
 
-  sigset_t set;
-  (void) sigemptyset(&set);
+  (void) sigemptyset(&mysqld_signal_mask);
   /*
     Block SIGQUIT, SIGHUP and SIGTERM.
     The signal handler thread does sigwait() on these.
   */
-  (void) sigaddset(&set, SIGQUIT);
-  (void) sigaddset(&set, SIGHUP);
-  (void) sigaddset(&set, SIGTERM);
-  (void) sigaddset(&set, SIGTSTP);
+  (void) sigaddset(&mysqld_signal_mask, SIGQUIT);
+  (void) sigaddset(&mysqld_signal_mask, SIGHUP);
+  (void) sigaddset(&mysqld_signal_mask, SIGTERM);
+  (void) sigaddset(&mysqld_signal_mask, SIGTSTP);
   /*
     Block SIGINT unless debugging to prevent Ctrl+C from causing
     unclean shutdown of the server.
   */
   if (!(test_flags & TEST_SIGINT))
-    (void) sigaddset(&set, SIGINT);
-  pthread_sigmask(SIG_SETMASK, &set, NULL);
+    (void) sigaddset(&mysqld_signal_mask, SIGINT);
+  pthread_sigmask(SIG_SETMASK, &mysqld_signal_mask, NULL);
   DBUG_VOID_RETURN;
 }
 

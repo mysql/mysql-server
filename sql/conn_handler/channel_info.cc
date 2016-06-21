@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2015 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -69,7 +69,7 @@ void Channel_info::send_error_and_close_channel(uint errorcode,
     }
     if (vio_tmp != NULL)
     {
-      vio_tmp->inactive= TRUE; // channel is already closed.
+      vio_tmp->inactive= true; // channel is already closed.
       vio_delete(vio_tmp);
     }
   }

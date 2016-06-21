@@ -1608,7 +1608,7 @@ public:
   Global_read_lock global_read_lock;
   Field      *dup_field;
 
-  Vio* active_vio;
+  Vio* active_vio= { nullptr };
 
   /*
     This is to track items changed during execution of a prepared

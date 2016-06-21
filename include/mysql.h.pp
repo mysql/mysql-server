@@ -83,10 +83,8 @@ enum SERVER_STATUS_flags_enum
   SERVER_STATUS_IN_TRANS_READONLY= 8192,
   SERVER_SESSION_STATE_CHANGED= (1UL << 14)
 };
-struct st_vio;
-typedef struct st_vio Vio;
 typedef struct st_net {
-  Vio *vio;
+  void *vio;
   unsigned char *buff,*buff_end,*write_pos,*read_pos;
   my_socket fd;
   unsigned long remain_in_buf,length, buf_length, where_b;
@@ -141,7 +139,7 @@ enum enum_session_state_type
   SESSION_TRACK_TRANSACTION_CHARACTERISTICS,
   SESSION_TRACK_TRANSACTION_STATE
 };
-my_bool my_net_init(NET *net, Vio* vio);
+my_bool my_net_init(NET *net, void *vio);
 void my_net_local_init(NET *net);
 void net_end(NET *net);
 void net_clear(NET *net, my_bool check_buffer);

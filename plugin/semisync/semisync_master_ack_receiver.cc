@@ -130,9 +130,9 @@ bool Ack_receiver::add_slave(THD *thd)
   function_enter(kWho);
 
   slave.thd= thd;
-  slave.vio= *thd->get_protocol_classic()->get_vio();
-  slave.vio.mysql_socket.m_psi= NULL;
-  slave.vio.read_timeout= 1;
+  slave.vio= thd->get_protocol_classic()->get_vio();
+  slave.vio->mysql_socket.m_psi= NULL;
+  slave.vio->read_timeout= 1;
 
   /* push_back() may throw an exception */
   try
@@ -284,7 +284,7 @@ void Ack_receiver::run()
         ulong len;
 
         net_clear(&net, 0);
-        net.vio= &m_slaves[i].vio;
+        net.vio= m_slaves[i].vio;
 
         len= my_net_read(&net);
         if (likely(len != packet_error))

@@ -418,12 +418,23 @@ vio_was_timeout(Vio *vio)
 }
 
 
+#ifdef USE_PPOLL_IN_VIO
+static void vio_wait_until_woken(Vio *vio)
+{
+  while (vio->poll_shutdown_flag.test_and_set())
+  {
+    // Wait until the vio is woken up from poll.
+  }
+}
+#endif
+
+
 int vio_shutdown(Vio * vio)
 {
   int r=0;
   DBUG_ENTER("vio_shutdown");
 
- if (vio->inactive == FALSE)
+ if (vio->inactive == false)
   {
     DBUG_ASSERT(vio->type ==  VIO_TYPE_TCPIP ||
       vio->type == VIO_TYPE_SOCKET ||
@@ -432,6 +443,19 @@ int vio_shutdown(Vio * vio)
     DBUG_ASSERT(mysql_socket_getfd(vio->mysql_socket) >= 0);
     if (mysql_socket_shutdown(vio->mysql_socket, SHUT_RDWR))
       r= -1;
+
+#ifdef USE_PPOLL_IN_VIO
+    if (vio->thread_id != 0 &&
+        vio->poll_shutdown_flag.test_and_set())
+    {
+      // Send signal to wake up from poll.
+      if (pthread_kill(vio->thread_id, SIGUSR1) == 0)
+        vio_wait_until_woken(vio);
+      else
+        perror("Error in pthread_kill");
+    }
+#endif
+
     if (mysql_socket_close(vio->mysql_socket))
       r= -1;
   }
@@ -440,21 +464,33 @@ int vio_shutdown(Vio * vio)
     DBUG_PRINT("vio_error", ("close() failed, error: %d",socket_errno));
     /* FIXME: error handling (not critical for MySQL) */
   }
-  vio->inactive= TRUE;
+  vio->inactive= true;
   vio->mysql_socket= MYSQL_INVALID_SOCKET;
   DBUG_RETURN(r);
 }
 
 
-const char *vio_description(Vio * vio)
+void vio_description(Vio *vio, char *buf)
 {
-  if (!vio->desc[0])
+  switch (vio->type)
   {
-    my_snprintf(vio->desc, VIO_DESCRIPTION_SIZE,
-                (vio->type == VIO_TYPE_SOCKET ? "socket (%d)" : "TCP/IP (%d)"),
+  case VIO_TYPE_SOCKET:
+    my_snprintf(buf, VIO_DESCRIPTION_SIZE, "socket (%d)",
                 mysql_socket_getfd(vio->mysql_socket));
+    break;
+#ifdef _WIN32
+  case VIO_TYPE_NAMEDPIPE:
+    my_stpcpy(buf, "named pipe");
+    break;
+  case VIO_TYPE_SHARED_MEMORY:
+    my_stpcpy(buf, "shared memory");
+    break;
+#endif
+  default:
+    my_snprintf(buf, VIO_DESCRIPTION_SIZE, "TCP/IP (%d)",
+                mysql_socket_getfd(vio->mysql_socket));
+    break;
   }
-  return vio->desc;
 }
 
 enum enum_vio_type vio_type(Vio* vio)
@@ -787,16 +823,31 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
 
   MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket, PSI_SOCKET_SELECT, 0);
 
+#ifdef USE_PPOLL_IN_VIO
+  // Check if shutdown is in progress, if so return -1
+  if (vio->poll_shutdown_flag.test_and_set())
+    DBUG_RETURN(-1);
+  timespec ts= {timeout / 1000, (timeout % 1000) * 1000000};
+#endif
+
   /*
     Wait for the I/O event and return early in case of
     error or timeout.
   */
   do
   {
+#ifdef USE_PPOLL_IN_VIO
+    ret= ppoll(&pfd, 1, &ts, &vio->signal_mask);
+#else
     ret= poll(&pfd, 1, timeout);
+#endif
   }
   while (ret < 0 && vio_should_retry(vio)
                  && (retry_count++ < vio->retry_count));
+
+#ifdef USE_PPOLL_IN_VIO
+  vio->poll_shutdown_flag.clear();
+#endif
 
   switch (ret)
   {

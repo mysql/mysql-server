@@ -951,9 +951,10 @@ bool do_command(THD *thd)
   {
     if (classic)
     {
+      char desc[VIO_DESCRIPTION_SIZE];
+      vio_description(net->vio, desc);
       DBUG_PRINT("info",("Got error %d reading command from socket %s",
-                         net->error,
-                         vio_description(net->vio)));
+                         net->error, desc));
     }
     else
     {
@@ -988,8 +989,10 @@ bool do_command(THD *thd)
     goto out;
   }
 
+  char desc[VIO_DESCRIPTION_SIZE];
+  vio_description(net->vio, desc);
   DBUG_PRINT("info",("Command on %s = %d (%s)",
-                     vio_description(net->vio), command,
+                     desc, command,
                      command_name[command].str));
 
   DBUG_PRINT("info", ("packet: '%*.s'; command: %d",

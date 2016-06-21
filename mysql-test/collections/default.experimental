@@ -18,8 +18,6 @@ perfschema.transaction_nested_events     # Bug#17752288 2013-12-17 agopi Fails s
 main.ssl-big @windows                    # Bug#18200216 2014-03-14 horst Fails too often in daily in PB2.
 rpl_gtid.rpl_gtid_stress_failover             # Bug#20630589  2015-03-19 agopi Originally made experimental due to bug#16409537 which was closed as not reproducible.
 
-binlog.binlog_xa_prepared_disconnect     # Bug#19502202 2015-12-02 erlend experimental while waiting for a fix
-main.xa_prepared_binlog_off              # Bug#19502202 2015-12-02 erlend experimental while waiting for a fix
 main.user_var				 # Bug#21907546 2015-12-11 erlend experimental to reduce noise
 main.locking_service			 # Bug#22304322 2015-12-11 erlend experimental to reduce noise
 main.partition_pruning			 # Bug#20597049 2015-12-11 erlend experimental to reduce noise

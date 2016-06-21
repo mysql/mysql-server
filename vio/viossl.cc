@@ -304,7 +304,7 @@ void vio_ssl_delete(Vio *vio)
   if (!vio)
     return; /* It must be safe to delete null pointer */
 
-  if (vio->inactive == FALSE)
+  if (vio->inactive == false)
     vio_ssl_shutdown(vio); /* Still open, close connection first */
 
   if (vio->ssl_arg)
@@ -497,7 +497,8 @@ int sslaccept(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
               unsigned long *ssl_errno_holder)
 {
   DBUG_ENTER("sslaccept");
-  DBUG_RETURN(ssl_do(ptr, vio, timeout, SSL_accept, ssl_errno_holder));
+  int ret= ssl_do(ptr, vio, timeout, SSL_accept, ssl_errno_holder);
+  DBUG_RETURN(ret);
 }
 
 
@@ -505,7 +506,8 @@ int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
                unsigned long *ssl_errno_holder)
 {
   DBUG_ENTER("sslconnect");
-  DBUG_RETURN(ssl_do(ptr, vio, timeout, SSL_connect, ssl_errno_holder));
+  int ret= ssl_do(ptr, vio, timeout, SSL_connect, ssl_errno_holder);
+  DBUG_RETURN(ret);
 }
 
 

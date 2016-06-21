@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -160,7 +160,7 @@ void vio_delete_shared_memory(Vio *vio)
   if (!vio)
     DBUG_VOID_RETURN;
 
-  if (vio->inactive == FALSE)
+  if (vio->inactive == false)
     vio->vioshutdown(vio);
 
   /*
@@ -207,7 +207,7 @@ void vio_delete_shared_memory(Vio *vio)
 int vio_shutdown_shared_memory(Vio * vio)
 {
   DBUG_ENTER("vio_shutdown_shared_memory");
-  if (vio->inactive == FALSE)
+  if (vio->inactive == false)
   {
     /*
       Set event_conn_closed for notification of both client and server that
@@ -216,7 +216,7 @@ int vio_shutdown_shared_memory(Vio * vio)
     SetEvent(vio->event_conn_closed);
   }
 
-  vio->inactive= TRUE;
+  vio->inactive= true;
   vio->mysql_socket= MYSQL_INVALID_SOCKET;
 
   DBUG_RETURN(0);

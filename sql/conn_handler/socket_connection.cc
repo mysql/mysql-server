@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -58,9 +58,16 @@ class Channel_info_local_socket : public Channel_info
 protected:
   virtual Vio* create_and_init_vio() const
   {
-    return mysql_socket_vio_new(m_connect_sock, VIO_TYPE_SOCKET, VIO_LOCALHOST);
+    Vio *vio= mysql_socket_vio_new(m_connect_sock, VIO_TYPE_SOCKET, VIO_LOCALHOST);
+#ifdef USE_PPOLL_IN_VIO
+    if (vio != nullptr)
+    {
+      vio->thread_id= my_thread_self();
+      vio->signal_mask= mysqld_signal_mask;
+    }
+#endif
+    return vio;
   }
-
 public:
   /**
     Constructor that sets the connect socket.
@@ -111,7 +118,15 @@ class Channel_info_tcpip_socket : public Channel_info
 protected:
   virtual Vio* create_and_init_vio() const
   {
-    return mysql_socket_vio_new(m_connect_sock, VIO_TYPE_TCPIP, 0);
+    Vio *vio= mysql_socket_vio_new(m_connect_sock, VIO_TYPE_TCPIP, 0);
+#ifdef USE_PPOLL_IN_VIO
+    if (vio != nullptr)
+    {
+      vio->thread_id= my_thread_self();
+      vio->signal_mask= mysqld_signal_mask;
+    }
+#endif
+    return vio;
   }
 
 public:

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -110,7 +110,7 @@ int vio_shutdown_pipe(Vio *vio)
   DisconnectNamedPipe(vio->hPipe);
   ret= CloseHandle(vio->hPipe);
 
-  vio->inactive= TRUE;
+  vio->inactive= true;
   vio->hPipe= NULL;
   vio->mysql_socket= MYSQL_INVALID_SOCKET;
 

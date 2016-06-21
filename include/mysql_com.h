@@ -749,9 +749,13 @@ enum SERVER_STATUS_flags_enum
 */
 #define ONLY_KILL_QUERY         1
 
-
-struct st_vio;					/* Only C */
+#ifdef __cplusplus
+struct st_vio;
 typedef struct st_vio Vio;
+#define MYSQL_VIO Vio*
+#else
+#define MYSQL_VIO void*
+#endif
 
 #define MAX_TINYINT_WIDTH       3       /**< Max width for a TINY w.o. sign */
 #define MAX_SMALLINT_WIDTH      5       /**< Max width for a SHORT w.o. sign */
@@ -762,7 +766,7 @@ typedef struct st_vio Vio;
 #define MAX_BLOB_WIDTH		16777216	/**< Default width for blob */
 
 typedef struct st_net {
-  Vio *vio;
+  MYSQL_VIO vio;
   unsigned char *buff,*buff_end,*write_pos,*read_pos;
   my_socket fd;					/* For Perl DBI/dbd */
   /**
@@ -937,7 +941,7 @@ enum enum_session_state_type
 extern "C" {
 #endif
 
-my_bool	my_net_init(NET *net, Vio* vio);
+my_bool	my_net_init(NET *net, MYSQL_VIO vio);
 void my_net_local_init(NET *net);
 void net_end(NET *net);
 void net_clear(NET *net, my_bool check_buffer);
