@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -119,7 +119,7 @@ static void free_resources()
 }
 my_bool
 my_arguments_get_one_option(int optid,
-                            const struct my_option *opt __attribute__((unused)),
+                            const struct my_option *opt MY_ATTRIBUTE((unused)),
                             char *argument)
 {
   switch(optid){
@@ -261,7 +261,7 @@ void execute_query_with_message(const char *query, const char *opt_message)
 */
 bool execute_query(const char **query, size_t length)
 {
-  if (!mysql_real_query(&mysql, (const char *) *query, length))
+  if (!mysql_real_query(&mysql, (const char *) *query, (ulong)length))
     return FALSE;
   else if (mysql_errno(&mysql) == CR_SERVER_GONE_ERROR)
   {
@@ -374,7 +374,8 @@ int install_password_validation_plugin()
 	                       MYF(MY_WME));
       end= my_stpcpy(query, "SET GLOBAL validate_password_policy = ");
       *end++ = '\'';
-      end+= mysql_real_escape_string_quote(&mysql, end, strength, strength_length, '\'');
+      end+= mysql_real_escape_string_quote(&mysql, end, strength,
+                                           (ulong)strength_length, '\'');
       *end++ = '\'';
       if (!execute_query((const char **) &query,(unsigned int) (end-query)))
 	DBUG_PRINT("info", ("query success!"));
@@ -407,7 +408,8 @@ void estimate_password_strength(char *password_string)
                            MYF(MY_WME));
   end= my_stpcpy(query, "SELECT validate_password_strength(");
   *end++ = '\'';
-  end+= mysql_real_escape_string_quote(&mysql, end, password_string, password_length, '\'');
+  end+= mysql_real_escape_string_quote(&mysql, end, password_string,
+                                       (ulong)password_length, '\'');
   *end++ = '\'';
   *end++ = ')';
   if (!execute_query((const char **) &query,(unsigned int) (end-query)))
@@ -444,9 +446,10 @@ my_bool mysql_set_password(MYSQL *mysql, char *password)
   query= (char *)my_malloc(PSI_NOT_INSTRUMENTED, password_len+50, MYF(MY_WME));
   end= my_stpmov(query, "SET PASSWORD=");
   *end++ = '\'';
-  end+= mysql_real_escape_string_quote(mysql, end, password, password_len, '\'');
+  end+= mysql_real_escape_string_quote(mysql, end, password,
+                                       (ulong)password_len, '\'');
   *end++ = '\'';
-  if (mysql_real_query(mysql, query, (unsigned int) (end - query)))
+  if (mysql_real_query(mysql, query, (ulong) (end - query)))
   {
     my_free(query);
     return FALSE;
@@ -478,7 +481,7 @@ my_bool mysql_expire_password(MYSQL *mysql)
 {
   char sql[]= "UPDATE mysql.user SET password_expired= 'Y'";
   size_t sql_len= strlen(sql);
-  if (mysql_real_query(mysql, sql, sql_len))
+  if (mysql_real_query(mysql, sql, (ulong)sql_len))
     return FALSE;
 
   return TRUE;
@@ -552,7 +555,8 @@ static void set_opt_user_password(int plugin_set)
 	                       (pass_length*2 + tmp)*sizeof(char), MYF(MY_WME));
       end= my_stpcpy(query, "SET PASSWORD=");
       *end++ = '\'';
-      end+= mysql_real_escape_string_quote(&mysql, end, password1, pass_length, '\'');
+      end+= mysql_real_escape_string_quote(&mysql, end, password1,
+                                           (ulong)pass_length, '\'');
       *end++ = '\'';
       my_free(password1);
       my_free(password2);
@@ -709,11 +713,13 @@ void drop_users(MYSQL_RES *result)
 	                     sizeof(char), MYF(MY_WME));
     end= my_stpcpy(query, "DROP USER ");
     *end++ = '\'';
-    end+= mysql_real_escape_string_quote(&mysql, end, user_tmp, user_length, '\'');
+    end+= mysql_real_escape_string_quote(&mysql, end, user_tmp,
+                                         (ulong)user_length, '\'');
     *end++ = '\'';
     *end++ = '@';
     *end++ = '\'';
-    end+= mysql_real_escape_string_quote(&mysql, end, host_tmp, host_length, '\'');
+    end+= mysql_real_escape_string_quote(&mysql, end, host_tmp,
+                                         (ulong)host_length, '\'');
     *end++ = '\'';
     if (!execute_query((const char **) &query, (unsigned int) (end-query)))
       DBUG_PRINT("info", ("query success!"));

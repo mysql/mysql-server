@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -113,7 +113,7 @@ upd_get_field_by_field_no(
 	const upd_t*	update,	/*!< in: update vector */
 	ulint		no,	/*!< in: field_no */
 	bool		is_virtual) /*!< in: if it is a virtual column */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Writes into the redo log the values of trx id and roll ptr and enough info
 to determine their positions within a clustered index record.
@@ -190,7 +190,7 @@ bool
 row_upd_changes_disowned_external(
 /*==============================*/
 	const upd_t*	update)	/*!< in: update vector */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Replaces the new column values stored in the update vector to the
@@ -221,7 +221,7 @@ row_upd_build_sec_rec_difference_binary(
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
 	const dtuple_t*	entry,	/*!< in: entry to insert */
 	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
-	__attribute__((warn_unused_result, nonnull));
+	MY_ATTRIBUTE((warn_unused_result, nonnull));
 /** Builds an update vector from those fields, excluding the roll ptr and
 trx id fields, which in an index entry differ from a record that has
 the equal ordering fields. NOTE: we compare the fields as binary strings!
@@ -248,7 +248,7 @@ row_upd_build_difference_binary(
 	trx_t*		trx,
 	mem_heap_t*	heap,
 	TABLE*		mysql_table)
-	__attribute__((nonnull(1,2,3,7), warn_unused_result));
+	MY_ATTRIBUTE((nonnull(1,2,3,7), warn_unused_result));
 /***********************************************************//**
 Replaces the new column values stored in the update vector to the index entry
 given. */
@@ -270,7 +270,7 @@ row_upd_index_replace_new_col_vals_index_pos(
 				does not work for non-clustered indexes. */
 	mem_heap_t*	heap)	/*!< in: memory heap for allocating and
 				copying the new values */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /***********************************************************//**
 Replaces the new column values stored in the update vector to the index entry
 given. */
@@ -288,7 +288,7 @@ row_upd_index_replace_new_col_vals(
 				an upd_field is the clustered index position */
 	mem_heap_t*	heap)	/*!< in: memory heap for allocating and
 				copying the new values */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /***********************************************************//**
 Replaces the new column values stored in the update vector. */
 void
@@ -347,7 +347,7 @@ row_upd_changes_ord_field_binary_func(
 				stored columns in the old row */
 	ulint		flag)	/*!< in: ROW_BUILD_NORMAL,
 				ROW_BUILD_FOR_PURGE or ROW_BUILD_FOR_UNDO */
-	__attribute__((nonnull(1,2), warn_unused_result));
+	MY_ATTRIBUTE((nonnull(1,2), warn_unused_result));
 #ifdef UNIV_DEBUG
 # define row_upd_changes_ord_field_binary(index,update,thr,row,ext)	\
 	row_upd_changes_ord_field_binary_func(index,update,thr,row,ext,0)
@@ -372,7 +372,7 @@ row_upd_changes_doc_id(
 /*===================*/
 	dict_table_t*	table,		/*!< in: table */
 	upd_field_t*	upd_field)	/*!< in: field to check */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 /***********************************************************//**
 Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
@@ -446,7 +446,9 @@ struct upd_field_t{
 					the clustered index, but in updating
 					a secondary index record in btr0cur.cc
 					this is the position in the secondary
-					index */
+					index. If this field is a virtual
+					column, then field_no represents
+					the nth virtual	column in the table */
 #ifndef UNIV_HOTBACKUP
 	unsigned	orig_len:16;	/*!< original length of the locally
 					stored part of an externally stored

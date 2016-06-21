@@ -32,14 +32,7 @@
 #pragma warning (disable : 4018 4996)
 #endif
 
-#include "mysqlx.pb.h"
-#include "mysqlx_connection.pb.h"
-#include "mysqlx_crud.pb.h"
-#include "mysqlx_datatypes.pb.h"
-#include "mysqlx_expr.pb.h"
-#include "mysqlx_expect.pb.h"
-#include "mysqlx_session.pb.h"
-#include "mysqlx_sql.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 #include <boost/enable_shared_from_this.hpp>
 
 #if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
@@ -114,7 +107,7 @@ namespace mysqlx
 
     Message *recv_raw(int &mid);
     Message *recv_payload(const int mid, const std::size_t msglen);
-    Message *recv_raw_with_deadline(int &mid, const std::size_t deadline_miliseconds);
+    Message *recv_raw_with_deadline(int &mid, const int deadline_milliseconds);
 
     boost::shared_ptr<Result> recv_result();
 

@@ -1391,7 +1391,7 @@ Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 delete from t1 order by (inet_ntoa(a)) desc limit 10;
 Warnings:
-Warning	1411	Incorrect integer value: '4294967296' for function inet_ntoa
+Warning	1411	Incorrect integer value: '`test`.`t1`.`a`' for function inet_ntoa
 SET SQL_MODE=@orig_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
@@ -2437,35 +2437,35 @@ SELECT UNHEX('G');
 UNHEX('G')
 NULL
 Warnings:
-Warning	1411	Incorrect string value: 'G' for function unhex
+Warning	1411	Incorrect string value: ''G'' for function unhex
 SELECT UNHEX('G') IS NULL;
 UNHEX('G') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: 'G' for function unhex
+Warning	1411	Incorrect string value: ''G'' for function unhex
 DO UNHEX(-1);
 Warnings:
-Warning	1411	Incorrect string value: '-1' for function unhex
+Warning	1411	Incorrect string value: '-(1)' for function unhex
 SHOW warnings;
 Level	Code	Message
-Warning	1411	Incorrect string value: '-1' for function unhex
+Warning	1411	Incorrect string value: '-(1)' for function unhex
 DO UNHEX(-182680438);
 Warnings:
-Warning	1411	Incorrect string value: '-182680438' for function unhex
+Warning	1411	Incorrect string value: '-(182680438)' for function unhex
 SHOW warnings;
 Level	Code	Message
-Warning	1411	Incorrect string value: '-182680438' for function unhex
+Warning	1411	Incorrect string value: '-(182680438)' for function unhex
 DO UNHEX(-2251799813685249);
 Warnings:
-Warning	1411	Incorrect string value: '-2251799813685249' for function unhex
+Warning	1411	Incorrect string value: '-(2251799813685249)' for function unhex
 SHOW warnings;
 Level	Code	Message
-Warning	1411	Incorrect string value: '-2251799813685249' for function unhex
+Warning	1411	Incorrect string value: '-(2251799813685249)' for function unhex
 select unhex('5078-04-25');
 unhex('5078-04-25')
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '5078-04-25' for function unhex
+Warning	1411	Incorrect string value: ''5078-04-25'' for function unhex
 SELECT INSERT('abc', 3, 3, '1234');
 INSERT('abc', 3, 3, '1234')
 ab1234
@@ -4696,6 +4696,16 @@ insert(a,1,1,1)
 1978-01-03 00:00:00.00000
 1000-01-02 00:00:00.00000
 DROP TABLE t1;
+#
+# Bug#22888420 CONCAT_WS: ASSERTION FAILED: !S.USES_BUFFER_OWNED_BY(THIS)
+#
+do concat('a',concat_ws('a', 0x2859, 'a' ,
+trim(period_add('a',1) from (1&''))
+)
+);
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: 'a'
 #
 # End of 5.6 tests
 #

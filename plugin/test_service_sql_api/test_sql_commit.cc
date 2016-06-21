@@ -110,8 +110,8 @@ struct st_plugin_ctx
 
   uint server_status;
   uint warn_count;
-  ulonglong affected_rows;
-  ulonglong last_insert_id;
+  uint affected_rows;
+  uint last_insert_id;
 
   char message[1024];
 
@@ -264,7 +264,7 @@ static int sql_get_integer(void * ctx, longlong value)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer), "%lld", value);
+  size_t len= my_snprintf(buffer, sizeof(buffer), "%d", value);
 
   strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col]= len;
@@ -787,13 +787,13 @@ static void test_sql(void *p)
 
   WRITE_STR("[srv_session_open]\n");
   MYSQL_SESSION session= srv_session_open(NULL, NULL);
-  switch_user(session, user_privileged);
 
   if (!session)
   {
     my_plugin_log_message(&p, MY_ERROR_LEVEL, "srv_session_open failed.");
-    DBUG_VOID_RETURN;
   }
+  else
+    switch_user(session, user_privileged);
 
   test_selects(session, p);
 

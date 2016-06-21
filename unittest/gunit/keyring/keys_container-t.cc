@@ -647,26 +647,26 @@ namespace keyring__keys_container_unittest
     MOCK_METHOD1(reserve_buffer, void(size_t memory_size));
     MOCK_METHOD0(flush_to_backup, my_bool());
 
-//    virtual my_bool flush_to_keyring(const IKey *key = NULL)= 0;
     MOCK_METHOD2(flush_to_keyring, my_bool(IKey *key, Flush_operation operation));
     MOCK_METHOD1(operator_out, my_bool(const IKey* key));
-    MOCK_METHOD1(operator_in, my_bool(IKey* key));
+    MOCK_METHOD1(operator_in, my_bool(IKey **key));
     MOCK_METHOD0(close, my_bool());
 
 
     virtual my_bool operator<< (const IKey* key) { return operator_out(key); }
-    virtual my_bool operator>> (IKey* key) {
+    virtual my_bool operator>> (IKey **key) {
+      *key= new Key(); //will be deleted by keys_container
       if (load_key_from_buffer_on_call_number >= 0 && load_key_from_buffer_on_call_number == operator_in_call_counter)
       {
         size_t number_of_bytes_read= 0;
-        key->load_from_buffer(buffer, &number_of_bytes_read, buffer_size);
+        (*key)->load_from_buffer(buffer, &number_of_bytes_read, buffer_size);
         assert (number_of_bytes_read == buffer_size); //there was only one key in buffer so the whole key should have been read
       }
       operator_in_call_counter++;
       if (set_invalid_key_in_operator_in)
       {
         std::string invalid_key_type("ZZZ");
-        key->set_key_type(&invalid_key_type);
+        (*key)->set_key_type(&invalid_key_type);
       }
       return operator_in(key);
     }
@@ -886,6 +886,23 @@ namespace keyring__keys_container_unittest
         .WillOnce(Return(1));
       //backup file remains
     }
+
+    EXPECT_EQ(keys_container->store_key(keyring_io, sample_key), 1);
+    ASSERT_TRUE(keys_container->get_number_of_keys() == 0);
+    delete logger;
+    delete keyring_io;
+    delete sample_key;
+  }
+
+  TEST_F(Keys_container_with_mocked_io_test, ErrorFromIOFlushWhileOpenningIOForKeyStore)
+  {
+    keyring_io= new Mock_keyring_io();
+    ILogger *logger= new Mock_logger();
+    keys_container= new Keys_container(logger);
+    expect_calls_on_init();
+    EXPECT_EQ(keys_container->init(keyring_io, file_name), 0);
+
+    EXPECT_CALL(*keyring_io, open(Pointee(StrEq(file_name)))).WillOnce(Return(1));
 
     EXPECT_EQ(keys_container->store_key(keyring_io, sample_key), 1);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 0);

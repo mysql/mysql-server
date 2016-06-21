@@ -11911,7 +11911,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
   const Uint32 map_ptr_i = req->map_ptr_i;
   const Uint32 flags = req->requestInfo;
   const Uint32 fragmentCountType = req->fragmentCountType;
-  const Uint32 realFragmentCount = req->realFragmentCount;
+  const Uint32 partitionCount = req->partitionCount;
 
   Uint32 err = 0;
   bool use_specific_fragment_count = false;
@@ -12136,7 +12136,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
        * fragments are all stored in Node Group 0 with increasing LDM number.
        * If we only have one fragment per Node Group then no changes are
        * needed for this. We discover fully replicated tables through the
-       * fact that noOfFragments != realFragmentCount. This actually only
+       * fact that noOfFragments != partitionCount. This actually only
        * differs with fully replicated tables that are created with more
        * than one node group. One node group will however work with the
        * traditional algorithm since it then becomes the same.
@@ -12199,7 +12199,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         {
           jam();
           if (NGPtr.i == 0 ||
-              (noOfFragments != realFragmentCount))
+              (noOfFragments != partitionCount))
           {
             /** Fully replicated table with one fragment per LDM first
              * distributed over all LDMs before moving to the next
@@ -12226,7 +12226,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         /**
          * Next node group for next fragment
          */
-        if (noOfFragments == realFragmentCount ||
+        if (noOfFragments == partitionCount ||
             use_specific_fragment_count ||
             ((logPart + 1) == globalData.ndbLogParts))
         {
@@ -12675,8 +12675,8 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   if ((tabPtr.p->m_flags & TabRecord::TF_FULLY_REPLICATED) == 0)
   {
     jam();
-    D("realFragmentCount for normal table set to = " << noFragments);
-    tabPtr.p->realFragmentCount = noFragments;
+    D("partitionCount for normal table set to = " << noFragments);
+    tabPtr.p->partitionCount = noFragments;
   }
   tabPtr.p->noOfBackups = noReplicas - 1;
   tabPtr.p->totalfragments = noFragments;
@@ -12699,14 +12699,14 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   }//if
   
   Uint32 logTotalFragments = 1;
-  ndbrequire(tabPtr.p->realFragmentCount < (1 << 16));
-  while (logTotalFragments <= tabPtr.p->realFragmentCount) {
+  ndbrequire(tabPtr.p->partitionCount < (1 << 16));
+  while (logTotalFragments <= tabPtr.p->partitionCount) {
     jam();
     logTotalFragments <<= 1;
   }
   logTotalFragments >>= 1;
   tabPtr.p->mask = logTotalFragments - 1;
-  tabPtr.p->hashpointer = tabPtr.p->realFragmentCount - logTotalFragments;
+  tabPtr.p->hashpointer = tabPtr.p->partitionCount - logTotalFragments;
   allocFragments(tabPtr.p->totalfragments, tabPtr);  
 
   if (tabPtr.p->method == TabRecord::HASH_MAP)
@@ -12853,7 +12853,7 @@ Dbdih::sendAddFragreq(Signal* signal,
     req->startGci = SYSFILE->newestRestorableGCI;
     req->logPartId = fragPtr.p->m_log_part_id;
     req->changeMask = 0;
-    req->partitionId = fragId % tabPtr.p->realFragmentCount;
+    req->partitionId = fragId % tabPtr.p->partitionCount;
 
     if (connectPtr.p->connectState == ConnectRecord::ALTER_TABLE)
     {
@@ -13333,7 +13333,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
 
     connectPtr.p->m_alter.m_totalfragments = tabPtr.p->totalfragments;
     connectPtr.p->m_alter.m_org_totalfragments = tabPtr.p->totalfragments;
-    connectPtr.p->m_alter.m_realFragmentCount = tabPtr.p->realFragmentCount;
+    connectPtr.p->m_alter.m_partitionCount = tabPtr.p->partitionCount;
     connectPtr.p->m_alter.m_changeMask = req->changeMask;
     connectPtr.p->m_alter.m_new_map_ptr_i = req->new_map_ptr_i;
     connectPtr.p->userpointer = senderData;
@@ -14418,7 +14418,7 @@ loop:
        */
       thrjam(jambuf);
       g_hash_map.getPtr(ptr, map_ptr_i);
-      fragId = ptr.p->m_map[hashValue % tabPtr.p->realFragmentCount];
+      fragId = ptr.p->m_map[hashValue % tabPtr.p->partitionCount];
       if (anyNode == 2)
       {
         thrjam(jambuf);
@@ -14445,7 +14445,7 @@ loop:
   else if (tabPtr.p->method == TabRecord::NORMAL_HASH)
   {
     thrjam(jambuf);
-    fragId= hashValue % tabPtr.p->realFragmentCount;
+    fragId= hashValue % tabPtr.p->partitionCount;
   }
   else
   {
@@ -14676,7 +14676,7 @@ Dbdih::start_scan_on_table(TabRecordPtr tabPtr,
    * To avoid having to protect this code with both mutex and RCU code
    * we ensure that the mutex is also held anytime we update the
    * m_map_ptr_i, totalfragments, noOfBackups, m_scan_reorg_flag
-   * and realFragmentCount.
+   * and partitionCount.
    */
   NdbMutex_Lock(&tabPtr.p->theMutex);
 
@@ -14703,11 +14703,11 @@ Dbdih::start_scan_on_table(TabRecordPtr tabPtr,
      * 1 or the number of LDMs dependent on which fragment count type
      * the table was created with.
      *
-     * realFragmentCount works also for other tables. We always scan
+     * partitionCount works also for other tables. We always scan
      * the real fragments when scanning all fragments and those
      * are always the first fragments in the interface to DIH.
      */
-    conf->fragmentCount = tabPtr.p->realFragmentCount;
+    conf->fragmentCount = tabPtr.p->partitionCount;
 
     conf->noOfBackups = tabPtr.p->noOfBackups;
     conf->scanCookie = tabPtr.p->m_map_ptr_i;
@@ -14780,9 +14780,9 @@ Dbdih::prepare_add_table(TabRecordPtr tabPtr,
   {
     jam();
     tabPtr.p->m_flags |= TabRecord::TF_FULLY_REPLICATED;
-    tabPtr.p->realFragmentCount = req->realFragmentCount;
-    D("fully replicated, realFragmentCount = " <<
-      tabPtr.p->realFragmentCount);
+    tabPtr.p->partitionCount = req->partitionCount;
+    D("fully replicated, partitionCount = " <<
+      tabPtr.p->partitionCount);
   }
   else if (req->primaryTableId != RNIL)
   {
@@ -14791,14 +14791,14 @@ Dbdih::prepare_add_table(TabRecordPtr tabPtr,
     primTabPtr.i = req->primaryTableId;
     ptrCheckGuard(primTabPtr, ctabFileSize, tabRecord);
     tabPtr.p->m_flags |= (primTabPtr.p->m_flags&TabRecord::TF_FULLY_REPLICATED);
-    tabPtr.p->realFragmentCount = primTabPtr.p->realFragmentCount;
+    tabPtr.p->partitionCount = primTabPtr.p->partitionCount;
     D("Non-primary, m_flags: " << tabPtr.p->m_flags <<
-      " realFragmentCount: " << tabPtr.p->realFragmentCount);
+      " partitionCount: " << tabPtr.p->partitionCount);
   }
   else
   {
     jam();
-    tabPtr.p->realFragmentCount = req->realFragmentCount;
+    tabPtr.p->partitionCount = req->partitionCount;
   }
 
   if (tabPtr.p->tabStatus == TabRecord::TS_ACTIVE)
@@ -14885,7 +14885,7 @@ Dbdih::start_add_fragments_in_new_table(TabRecordPtr tabPtr,
   if ((tabPtr.p->m_flags & TabRecord::TF_FULLY_REPLICATED) == 0)
   {
     jam();
-    connectPtr.p->m_alter.m_realFragmentCount = tabPtr.p->totalfragments;
+    connectPtr.p->m_alter.m_partitionCount = tabPtr.p->totalfragments;
   }
   /* Don't make the new fragments available just yet. */
   tabPtr.p->totalfragments = save;
@@ -14984,7 +14984,7 @@ Dbdih::make_new_table_read_and_writeable(TabRecordPtr tabPtr,
   NdbMutex_Lock(&tabPtr.p->theMutex);
   DIH_TAB_WRITE_LOCK(tabPtr.p);
   tabPtr.p->totalfragments = connectPtr.p->m_alter.m_totalfragments;
-  tabPtr.p->realFragmentCount = connectPtr.p->m_alter.m_realFragmentCount;
+  tabPtr.p->partitionCount = connectPtr.p->m_alter.m_partitionCount;
   if (AlterTableReq::getReorgFragFlag(connectPtr.p->m_alter.m_changeMask))
   {
     jam();
@@ -22622,7 +22622,7 @@ void Dbdih::initTable(TabRecordPtr tabPtr)
   tabPtr.p->schemaVersion = (Uint32)-1;
   tabPtr.p->tabRemoveNode = RNIL;
   tabPtr.p->totalfragments = (Uint32)-1;
-  tabPtr.p->realFragmentCount = (Uint32)-1;
+  tabPtr.p->partitionCount = (Uint32)-1;
   tabPtr.p->connectrec = RNIL;
   tabPtr.p->tabFile[0] = RNIL;
   tabPtr.p->tabFile[1] = RNIL;

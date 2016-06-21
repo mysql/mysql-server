@@ -246,7 +246,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
 }
 
 
-static void do_skip(Copy_field *copy __attribute__((unused)))
+static void do_skip(Copy_field *copy MY_ATTRIBUTE((unused)))
 {
 }
 

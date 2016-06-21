@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -179,7 +179,7 @@ ut_new_boot()
 	for (size_t i = 0; i < n_auto; i++) {
 
 		const std::pair<mem_keys_auto_t::iterator, bool>	ret
-			__attribute__((unused))
+			MY_ATTRIBUTE((unused))
 			= mem_keys_auto.insert(
 			mem_keys_auto_t::value_type(auto_event_names[i],
 						    &auto_event_keys[i]));

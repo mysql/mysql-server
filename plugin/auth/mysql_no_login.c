@@ -1,4 +1,4 @@
-/*  Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -32,30 +32,30 @@
 #include <stdlib.h>
 
 static int mysql_no_login(
-    MYSQL_PLUGIN_VIO *vio __attribute__((unused)),
-    MYSQL_SERVER_AUTH_INFO *info __attribute__((unused)))
+    MYSQL_PLUGIN_VIO *vio MY_ATTRIBUTE((unused)),
+    MYSQL_SERVER_AUTH_INFO *info MY_ATTRIBUTE((unused)))
 {
   return CR_ERROR;
 }
 
-int generate_auth_string_hash(char *outbuf __attribute__((unused)),
+int generate_auth_string_hash(char *outbuf MY_ATTRIBUTE((unused)),
                               unsigned int *buflen,
-                              const char *inbuf __attribute__((unused)),
-                              unsigned int inbuflen __attribute__((unused)))
+                              const char *inbuf MY_ATTRIBUTE((unused)),
+                              unsigned int inbuflen MY_ATTRIBUTE((unused)))
 {
   *buflen= 0;
   return 0;
 }
 
-int validate_auth_string_hash(char* const inbuf  __attribute__((unused)),
-                              unsigned int buflen  __attribute__((unused)))
+int validate_auth_string_hash(char* const inbuf  MY_ATTRIBUTE((unused)),
+                              unsigned int buflen  MY_ATTRIBUTE((unused)))
 {
   return 0;
 }
 
-int set_salt(const char* password __attribute__((unused)),
-             unsigned int password_len __attribute__((unused)),
-             unsigned char* salt __attribute__((unused)),
+int set_salt(const char* password MY_ATTRIBUTE((unused)),
+             unsigned int password_len MY_ATTRIBUTE((unused)),
+             unsigned char* salt MY_ATTRIBUTE((unused)),
              unsigned char* salt_len)
 {
   *salt_len= 0;

@@ -422,7 +422,7 @@ that the caller has made the reservation for free extents!
 @retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
 (init_mtr == mtr, or the page was not previously freed in mtr)
 @retval block (not allocated or initialized) otherwise */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 buf_block_t*
 btr_page_alloc_low(
 /*===============*/
@@ -911,7 +911,7 @@ btr_free_root_invalidate(
 @param[in,out]	mtr		mini-transaction
 @return root block, to invoke btr_free_but_not_root() and btr_free_root()
 @retval NULL if the page is no longer a matching B-tree page */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 buf_block_t*
 btr_free_root_check(
 	const page_id_t&	page_id,
@@ -1456,7 +1456,7 @@ IBUF_BITMAP_FREE is unaffected by reorganization.
 
 @retval true if the operation was successful
 @retval false if it is a compressed page, and recompression failed */
-static __attribute__((nonnull))
+static MY_ATTRIBUTE((nonnull))
 bool
 btr_page_reorganize_block(
 /*======================*/
@@ -1997,7 +1997,7 @@ func_exit:
 Returns TRUE if the insert fits on the appropriate half-page with the
 chosen split_rec.
 @return true if fits */
-static __attribute__((nonnull(1,3,4,6), warn_unused_result))
+static MY_ATTRIBUTE((nonnull(1,3,4,6), warn_unused_result))
 bool
 btr_page_insert_fits(
 /*=================*/
@@ -2171,7 +2171,7 @@ btr_insert_on_non_leaf_level_func(
 /**************************************************************//**
 Attaches the halves of an index page on the appropriate level in an
 index tree. */
-static __attribute__((nonnull))
+static MY_ATTRIBUTE((nonnull))
 void
 btr_attach_half_pages(
 /*==================*/
@@ -2328,7 +2328,7 @@ btr_attach_half_pages(
 /*************************************************************//**
 Determine if a tuple is smaller than any record on the page.
 @return TRUE if smaller */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 bool
 btr_page_tuple_smaller(
 /*===================*/
@@ -3631,6 +3631,8 @@ retry:
 		/* For rtree, we need to update father's mbr. */
 		if (dict_index_is_spatial(index)) {
 			ulint*	offsets2;
+			ulint	rec_info;
+
 			offsets2 = rec_get_offsets(
 				btr_cur_get_rec(&cursor2),
 				index, NULL, ULINT_UNDEFINED, &heap);
@@ -3639,11 +3641,31 @@ retry:
 				btr_cur_get_rec(&cursor2), offsets2)
 				== right_page_no);
 
-			rtr_merge_and_update_mbr(&father_cursor,
-						 &cursor2,
-						 offsets, offsets2,
-						 merge_page, merge_block,
-						 block, index, mtr);
+			rec_info = rec_get_info_bits(
+				btr_cur_get_rec(&father_cursor),
+				rec_offs_comp(offsets));
+			if (rec_info & REC_INFO_MIN_REC_FLAG) {
+				/* When the father node ptr is minimal rec,
+				we will keep it and delete the node ptr of
+				merge page. */
+				rtr_merge_and_update_mbr(&father_cursor,
+							 &cursor2,
+							 offsets, offsets2,
+							 merge_page,
+							 merge_block,
+							 block, index, mtr);
+			} else {
+				/* Otherwise, we will keep the node ptr of
+				merge page and delete the father node ptr.
+				This is for keeping the rec order in upper
+				level. */
+				rtr_merge_and_update_mbr(&cursor2,
+							 &father_cursor,
+							 offsets2, offsets,
+							 merge_page,
+							 merge_block,
+							 block, index, mtr);
+			}
 			lock_mutex_enter();
 			lock_rec_free_all_from_discard_page(block);
 			lock_mutex_exit();

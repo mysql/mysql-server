@@ -39,9 +39,7 @@
 #pragma warning (disable : 4018 4996)
 #endif
 
-#include "mysqlx_datatypes.pb.h"
-#include "mysqlx_expr.pb.h"
-#include "mysqlx_crud.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 
 #if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
 #pragma GCC diagnostic pop
@@ -141,15 +139,15 @@ namespace mysqlx
       QUOTE = 83
     };
 
-    Token(Token::TokenType type, const std::string& text, int cur_pos);
+    Token(Token::TokenType type, const std::string& text, size_t cur_pos);
     // TODO: it is better if this one returns a pointer (std::string*)
     const std::string& get_text() const;
     TokenType get_type() const;
-    int get_pos() const { return _pos; }
+    size_t get_pos() const { return _pos; }
   private:
     TokenType _type;
     std::string _text;
-    int _pos;
+    size_t _pos;
   };
 
   class Expr_builder
@@ -180,7 +178,7 @@ namespace mysqlx
     const Token& peek_token();
     void unget_token();
     void inc_pos_token();
-    int get_token_pos();
+    size_t get_token_pos();
     const Token& consume_any_token();
     void assert_tok_position();
     bool tokens_available();

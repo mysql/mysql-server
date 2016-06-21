@@ -87,7 +87,7 @@ extern "C" uchar* dboptions_get_key(my_dbopt_t *opt, size_t *length,
                                     my_bool not_used);
 
 uchar* dboptions_get_key(my_dbopt_t *opt, size_t *length,
-                         my_bool not_used __attribute__((unused)))
+                         my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= opt->name_length;
   return (uchar*) opt->name;

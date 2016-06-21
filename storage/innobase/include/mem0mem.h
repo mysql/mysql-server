@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -207,7 +207,7 @@ mem_heap_is_top(
 	mem_heap_t*	heap,
 	const void*	buf,
 	ulint		buf_sz)
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /*****************************************************************//**
 Allocate a new chunk of memory from a memory heap, possibly discarding
@@ -345,7 +345,7 @@ mem_heap_printf(
 /*============*/
 	mem_heap_t*	heap,	/*!< in: memory heap */
 	const char*	format,	/*!< in: format string */
-	...) __attribute__ ((format (printf, 2, 3)));
+	...) MY_ATTRIBUTE ((format (printf, 2, 3)));
 
 /** Checks that an object is a memory heap (or a block of it)
 @param[in]	heap	Memory heap to check */

@@ -1792,9 +1792,12 @@ error_exit:
 			}
 
 			/* Difference between Doc IDs are restricted within
-			4 bytes integer. See fts_get_encoded_len() */
+			4 bytes integer. See fts_get_encoded_len(). Consecutive
+			doc_ids difference should not exceed
+			FTS_DOC_ID_MAX_STEP value. */
 
-			if (doc_id - next_doc_id >= FTS_DOC_ID_MAX_STEP) {
+			if (next_doc_id > 1
+			    && doc_id - next_doc_id >= FTS_DOC_ID_MAX_STEP) {
 				 ib::error() << "Doc ID " << doc_id
 					<< " is too big. Its difference with"
 					" largest used Doc ID "
@@ -3064,28 +3067,38 @@ err_exit:
 			/* We must delete the link file. */
 			RemoteDatafile::delete_link_file(table->name.m_name);
 
-		} else if (compression != NULL) {
+		} else if (compression != NULL && compression[0] != '\0') {
 
-			ut_ad(!is_shared_tablespace(table->space));
+			ut_ad(!dict_table_in_shared_tablespace(table));
 
 			ut_ad(Compression::validate(compression) == DB_SUCCESS);
 
-			err = fil_set_compression(table->space, compression);
+			err = fil_set_compression(table, compression);
 
-			/* The tablespace must be found and we have already
-			done the check for the system tablespace and the
-			temporary tablespace. Compression must be a valid
-			and supported algorithm. */
+			switch (err) {
+			case DB_SUCCESS:
+				break;
+			case DB_NOT_FOUND:
+			case DB_UNSUPPORTED:
+			case DB_IO_NO_PUNCH_HOLE_FS:
+				/* Return these errors */
+				break;
+			case DB_IO_NO_PUNCH_HOLE_TABLESPACE:
+				/* Page Compression will not be used. */
+				err = DB_SUCCESS;
+				break;
+			default:
+				ut_error;
+			}
 
-			/* However, we can check for file system punch hole
-			support only after creating the tablespace. On Windows
+			/* We can check for file system punch hole support
+                        only after creating the tablespace. On Windows
 			we can query that information but not on Linux. */
-
 			ut_ad(err == DB_SUCCESS
-			      || err == DB_IO_NO_PUNCH_HOLE_FS);
+				|| err == DB_IO_NO_PUNCH_HOLE_FS);
 
-                        /* In non-strict mode we ignore dodgy compression
-                        settings. */
+			/* In non-strict mode we ignore dodgy compression
+			settings. */
 		}
 	}
 
@@ -3115,7 +3128,7 @@ err_exit:
 
 		break;
 
-        case DB_UNSUPPORTED:
+	case DB_UNSUPPORTED:
 	case DB_TOO_MANY_CONCURRENT_TRXS:
 		/* We already have .ibd file here. it should be deleted. */
 
@@ -4916,7 +4929,7 @@ row_mysql_drop_temp_tables(void)
 Drop all foreign keys in a database, see Bug#18942.
 Called at the end of row_drop_database_for_mysql().
 @return error code or DB_SUCCESS */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 drop_all_foreign_keys_in_db(
 /*========================*/
@@ -5129,7 +5142,7 @@ loop:
 Checks if a table name contains the string "/#sql" which denotes temporary
 tables in MySQL.
 @return true if temporary table */
-__attribute__((warn_unused_result))
+MY_ATTRIBUTE((warn_unused_result))
 bool
 row_is_mysql_tmp_table_name(
 /*========================*/
@@ -5143,7 +5156,7 @@ row_is_mysql_tmp_table_name(
 /****************************************************************//**
 Delete a single constraint.
 @return error code or DB_SUCCESS */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_delete_constraint_low(
 /*======================*/
@@ -5166,7 +5179,7 @@ row_delete_constraint_low(
 /****************************************************************//**
 Delete a single constraint.
 @return error code or DB_SUCCESS */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_delete_constraint(
 /*==================*/

@@ -174,7 +174,7 @@ NOTE that this function will temporarily commit mtr and lose the
 pcur position!
 
 @return DB_SUCCESS or an error code */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_upd_check_references_constraints(
 /*=================================*/
@@ -554,7 +554,7 @@ row_upd_write_sys_vals_to_log(
 	roll_ptr_t	roll_ptr,/*!< in: roll ptr of the undo log record */
 	byte*		log_ptr,/*!< pointer to a buffer of size > 20 opened
 				in mlog */
-	mtr_t*		mtr __attribute__((unused))) /*!< in: mtr */
+	mtr_t*		mtr MY_ATTRIBUTE((unused))) /*!< in: mtr */
 {
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(mtr);
@@ -965,7 +965,7 @@ row_upd_build_difference_binary(
 
 			dfield_t*	vfield = innobase_get_computed_value(
 				update->old_vrow, col, index,
-				&v_heap, heap, NULL, thd, mysql_table);
+				&v_heap, heap, NULL, thd, mysql_table, NULL);
 
 			if (!dfield_data_is_binary_equal(
 				dfield, vfield->len,
@@ -1298,7 +1298,16 @@ row_upd_replace_vcol(
 		/* If there is no index on the column, do not bother for
 		value update */
 		if (!col->m_col.ord_part) {
-			continue;
+			dict_index_t*	clust_index
+				= dict_table_get_first_index(table);
+
+			/* Skip the column if there is no online alter
+			table in progress or it is not being indexed
+			in new table */
+			if (!dict_index_is_online_ddl(clust_index)
+			    || !row_log_col_is_indexed(clust_index, col_no)) {
+				continue;
+			}
 		}
 
 		dfield = dtuple_get_nth_v_field(row, col_no);
@@ -1971,7 +1980,7 @@ row_upd_store_v_row(
 					innobase_get_computed_value(
 						node->row, col, index,
 						&heap, node->heap, NULL,
-						thd, mysql_table);
+						thd, mysql_table, NULL);
 				}
 			}
 		}
@@ -2073,7 +2082,7 @@ srv_mbr_print(const byte* data)
 Updates a secondary index entry of a row.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_upd_sec_index_entry(
 /*====================*/
@@ -2304,7 +2313,7 @@ Updates the secondary index record if it is changed in the row update or
 deletes it if this is a delete.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_upd_sec_step(
 /*=============*/
@@ -2422,7 +2431,7 @@ fields of the clustered index record change. This should be quite rare in
 database applications.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_upd_clust_rec_by_insert(
 /*========================*/
@@ -2549,7 +2558,7 @@ Updates a clustered index record of a row when the ordering fields do
 not change.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_upd_clust_rec(
 /*==============*/
@@ -2696,7 +2705,7 @@ func_exit:
 /***********************************************************//**
 Delete marks a clustered index record.
 @return DB_SUCCESS if operation successfully completed, else error code */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_upd_del_mark_clust_rec(
 /*=======================*/
@@ -2750,7 +2759,7 @@ row_upd_del_mark_clust_rec(
 Updates the clustered index record.
 @return DB_SUCCESS if operation successfully completed, DB_LOCK_WAIT
 in case of a lock wait, else error code */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_upd_clust_step(
 /*===============*/

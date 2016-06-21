@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -174,7 +174,7 @@ public:
 	@param[in]	is_temp	whether this is a temporary tablespace
 	@return DB_SUCCESS or error code */
 	dberr_t open_or_create(bool is_temp)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Delete all the data files. */
 	void delete_files();

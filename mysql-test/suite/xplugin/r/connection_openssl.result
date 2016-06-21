@@ -813,7 +813,7 @@ SSL/TLS
 0 rows affected
 RUN SELECT USER()
 USER()
-user6_mysqlx@localhost
+user5_mysqlx@localhost
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
 Variable_name	Value
@@ -835,6 +835,36 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+RUN SELECT USER()
+USER()
+user6_mysqlx@localhost
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
+Variable_name	Value
+Mysqlx_ssl_accepts	11
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
+Variable_name	Value
+Mysqlx_ssl_finished_accepts	11
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
+Variable_name	Value
+Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+in main, line 0:ERROR: Current account requires TLS to be activate. (code 1045)
+not ok
 in main, line 0:ERROR: Current account requires TLS to be activate. (code 1045)
 not ok
 in main, line 0:ERROR: Current user cipher isn't allowed. (code 1045)
@@ -852,11 +882,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	12
+Mysqlx_ssl_accepts	14
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	12
+Mysqlx_ssl_finished_accepts	14
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -866,6 +896,9 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+Cert needed
+in main, line 0:ERROR: Current account requires TLS to be activate. (code 1045)
+not ok
 SHOW GLOBAL STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$';
 Variable_name	Value
 Mysqlx_ssl_cipher_list	

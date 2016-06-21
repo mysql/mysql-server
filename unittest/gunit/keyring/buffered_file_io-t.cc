@@ -69,11 +69,11 @@ namespace keyring_buffered_file_io_unittest
     my_bool retVal= 1;
     retVal= buffered_io.init(&file_name);
     EXPECT_EQ(retVal, 0);
-    Key empty_key;
+    IKey *empty_key= NULL;
     //The keyring file is new so no keys should be available
     retVal= buffered_io >> &empty_key;
     EXPECT_EQ(retVal, 0);
-    ASSERT_TRUE(empty_key.get_key_signature()->empty() == TRUE);
+    ASSERT_TRUE(empty_key == NULL);
     remove(file_name.c_str());
   }
 
@@ -97,16 +97,16 @@ namespace keyring_buffered_file_io_unittest
 
     Buffered_file_io *buffered_io_2= new Buffered_file_io(logger);
     buffered_io_2->init(&file_name);
-    Key empty_key;
+    IKey *empty_key= NULL;
     retVal= *buffered_io_2 >> &empty_key;
     EXPECT_EQ(retVal, 1);
     EXPECT_STREQ("Robert_add_keyRoberts_add_key_type",
-                 empty_key.get_key_signature()->c_str());
+                 empty_key->get_key_signature()->c_str());
     EXPECT_EQ(strlen("Robert_add_keyRoberts_add_key_type"),
-              empty_key.get_key_signature()->length());
+              empty_key->get_key_signature()->length());
 
-    uchar* empty_key_data= empty_key.get_key_data();
-    size_t empty_key_data_size= empty_key.get_key_data_size();
+    uchar* empty_key_data= empty_key->get_key_data();
+    size_t empty_key_data_size= empty_key->get_key_data_size();
     EXPECT_EQ(empty_key_data_size, sample_key_data.length()+1);
     retVal= memcmp(empty_key_data, sample_key_data.c_str(), empty_key_data_size);
     EXPECT_EQ(retVal, 0);
@@ -141,28 +141,28 @@ namespace keyring_buffered_file_io_unittest
     Buffered_file_io *buffered_io_2= new Buffered_file_io(logger);
     buffered_io_2->init(&file_name);
 
-    Key empty_key_1;
+    IKey *empty_key_1= NULL;
     retVal= *buffered_io_2 >> &empty_key_1;
     EXPECT_EQ(retVal, 1);
     EXPECT_STREQ("Robert_add_key1Roberts_add_key1_type",
-                 empty_key_1.get_key_signature()->c_str());
+                 empty_key_1->get_key_signature()->c_str());
     EXPECT_EQ(strlen("Robert_add_key1Roberts_add_key1_type"),
-              empty_key_1.get_key_signature()->length());
-    uchar* empty_key_1_data= empty_key_1.get_key_data();
-    size_t empty_key_1_data_size= empty_key_1.get_key_data_size();
+              empty_key_1->get_key_signature()->length());
+    uchar* empty_key_1_data= empty_key_1->get_key_data();
+    size_t empty_key_1_data_size= empty_key_1->get_key_data_size();
     EXPECT_EQ(empty_key_1_data_size, sample_key_data1.length()+1);
     retVal= memcmp(empty_key_1_data, sample_key_data1.c_str(), empty_key_1_data_size);
     EXPECT_EQ(retVal, 0);
 
-    Key empty_key_2;
+    IKey *empty_key_2= NULL;
     retVal= *buffered_io_2 >> &empty_key_2;
     EXPECT_EQ(retVal, 1);
     EXPECT_STREQ("Robert_add_key2Roberts_add_key2_type",
-                 empty_key_2.get_key_signature()->c_str());
+                 empty_key_2->get_key_signature()->c_str());
     EXPECT_EQ(strlen("Robert_add_key2Roberts_add_key2_type"),
-              empty_key_2.get_key_signature()->length());
-    uchar* empty_key_2_data= empty_key_2.get_key_data();
-    size_t empty_key_2_data_size= empty_key_2.get_key_data_size();
+              empty_key_2->get_key_signature()->length());
+    uchar* empty_key_2_data= empty_key_2->get_key_data();
+    size_t empty_key_2_data_size= empty_key_2->get_key_data_size();
     EXPECT_EQ(empty_key_2_data_size, sample_key_data2.length()+1);
     retVal= memcmp(empty_key_2_data, sample_key_data2.c_str(), empty_key_2_data_size);
     EXPECT_EQ(retVal, 0);

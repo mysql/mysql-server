@@ -17,7 +17,7 @@
  * 02110-1301  USA
  */
 #include <mysql/plugin.h>
-#include <google/protobuf/stubs/common.h>
+#include "ngs_common/protocol_protobuf.h"
 #include "replication.h"
 #include "xpl_log.h"
 #include "xpl_replication_observer.h"

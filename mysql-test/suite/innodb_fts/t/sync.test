@@ -7,6 +7,7 @@
 --source include/not_valgrind.inc
 --source include/not_embedded.inc
 --source include/not_crashrep.inc
+--source include/not_log_bin.inc
 --source include/count_sessions.inc
 
 connect (con1,localhost,root,,);

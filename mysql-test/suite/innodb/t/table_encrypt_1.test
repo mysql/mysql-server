@@ -5,6 +5,7 @@
 --source include/have_innodb.inc
 --source include/not_embedded.inc
 --source include/have_innodb_max_16k.inc
+--source include/have_debug.inc
 #let $KEYRING_PLUGIN = 'keyring_file.so';
 
 # Create a table with encryption, should fail since keyring is not
@@ -92,6 +93,10 @@ INSERT INTO t1 select * from t1;
 
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
+--disable_query_log
+SET DEBUG='+d,os_block_cache_busy';
+--enable_query_log
+
 # Restart without key ring to check the encrypted table can't be open.
 -- source include/restart_mysqld.inc
 
@@ -106,6 +111,10 @@ SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
+
+--disable_query_log
+SET DEBUG='-d,os_block_cache_busy';
+--enable_query_log
 
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
@@ -149,6 +158,18 @@ ALTER TABLE t1 ENCRYPTION="N", algorithm=copy;
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
 DROP TABLE t1;
+
+CREATE TABLE t1 (c1 int) ENCRYPTION='N';
+
+--error ER_INVALID_ENCRYPTION_OPTION
+ALTER TABLE t1 ENCRYPTION='P',algorithm=copy;
+
+ALTER TABLE t1 ADD KEY k1 (c1) ,algorithm=inplace;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ENCRYPTION='Y',algorithm=inplace;
+
+drop table t1;
 
 # Test compression + encryption.
 --disable_warnings

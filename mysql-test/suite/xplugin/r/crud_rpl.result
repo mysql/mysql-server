@@ -165,6 +165,55 @@ doc	_id	$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7
 {"id": "1", "_id": "1", "name": "Omar Bras"}	1	Omar Bras
 {"id": "2", "_id": "2", "name": "Omar Mex"}	2	Omar Mex
 0 rows affected
+Update decimal value with a corner value plus 1
+send Mysqlx.Crud.Update {
+  collection {
+    name: "table2"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 2
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\"Omar Argentina\""
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
 RUN SHOW CREATE TABLE xplugintest.table2
 Table	Create Table
 table2	CREATE TABLE `table2` (
@@ -178,22 +227,50 @@ table2	CREATE TABLE `table2` (
 RUN SELECT JSON_EXTRACT(doc,'$.name') FROM xplugintest.table2
 JSON_EXTRACT(doc,'$.name')
 "Omar Bras"
-"Omar Mex"
+"\"Omar Argentina\""
 0 rows affected
 RUN SELECT * FROM xplugintest.table2
 doc	_id	$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7
 {"id": "1", "_id": "1", "name": "Omar Bras"}	1	Omar Bras
-{"id": "2", "_id": "2", "name": "Omar Mex"}	2	Omar Mex
+{"id": "2", "_id": "2", "name": "\"Omar Argentina\""}	2	"Omar Argentina"
 0 rows affected
+Delete with == operator
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "table2"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 2
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
 RUN SELECT JSON_EXTRACT(doc,'$.name') FROM xplugintest.table2
 JSON_EXTRACT(doc,'$.name')
 "Omar Bras"
-"Omar Mex"
 0 rows affected
 RUN SELECT * FROM xplugintest.table2
 doc	_id	$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7
 {"id": "1", "_id": "1", "name": "Omar Bras"}	1	Omar Bras
-{"id": "2", "_id": "2", "name": "Omar Mex"}	2	Omar Mex
 0 rows affected
 send Mysqlx.Crud.Insert {
   collection {
@@ -239,7 +316,6 @@ Got expected error: Document contains a field value that is not unique but requi
 RUN SELECT * FROM xplugintest.table2
 doc	_id	$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7
 {"id": "1", "_id": "1", "name": "Omar Bras"}	1	Omar Bras
-{"id": "2", "_id": "2", "name": "Omar Mex"}	2	Omar Mex
 {"id": "3", "_id": "3", "name": "Omar Peru"}	3	Omar Peru
 0 rows affected
 RUN INSERT INTO xplugintest.table1 VALUES (1,'{"a":["x", "y"]}'), (2,'{"b":["x", "y"]}')
@@ -282,7 +358,6 @@ table2	CREATE TABLE `table2` (
 SELECT * FROM xplugintest.table2;
 doc	_id	$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7
 {"id": "1", "_id": "1", "name": "Omar Bras"}	1	Omar Bras
-{"id": "2", "_id": "2", "name": "Omar Mex"}	2	Omar Mex
 {"id": "3", "_id": "3", "name": "Omar Peru"}	3	Omar Peru
 SELECT * FROM xplugintest.table1;
 _id	doc
@@ -294,6 +369,6 @@ Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JS
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 DROP DATABASE IF EXISTS xplugintest;
+UNINSTALL PLUGIN mysqlx;
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc
-UNINSTALL PLUGIN mysqlx;

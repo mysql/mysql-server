@@ -17,7 +17,7 @@
  * 02110-1301  USA
  */
 
-#ifdef WIN32
+#if !defined(MYSQL_DYNAMIC_PLUGIN) && defined(WIN32) && !defined(XPLUGIN_UNIT_TESTS)
 // Needed for importing PERFORMANCE_SCHEMA plugin API.
 #define MYSQL_DYNAMIC_PLUGIN 1
 #endif // WIN32
@@ -81,7 +81,7 @@ bool Server::setup_accept()
     return false;
   }
 
-  event_set(&m_tcp_event, m_tcp_socket, EV_READ|EV_PERSIST, &Server::on_accept, this);
+  event_set(&m_tcp_event, static_cast<int>(m_tcp_socket), EV_READ|EV_PERSIST, &Server::on_accept, this);
   event_base_set(m_evbase, &m_tcp_event);
 
   event_add(&m_tcp_event, NULL);
@@ -169,7 +169,7 @@ NOTE: This method may only be called from the same thread as the event loop.
 void Server::add_timer(std::size_t delay_ms, boost::function<bool ()> callback)
 {
   Timer_data *data = new Timer_data();
-  data->tv.tv_sec = delay_ms / 1000;
+  data->tv.tv_sec = static_cast<long>(delay_ms / 1000);
   data->tv.tv_usec = (delay_ms % 1000) * 1000;
   data->callback = callback;
   data->self = this;
@@ -270,7 +270,7 @@ void Server::wait_for_clients_closure()
   {
     if (0 == --num_of_retries)
     {
-      const unsigned int num_of_clients = m_client_list.size();
+      const unsigned int num_of_clients = static_cast<unsigned int>(m_client_list.size());
 
       log_error("Detected %u/%u hanging client", num_of_clients, ngs::Client::num_of_instances.load());
       break;
@@ -480,13 +480,13 @@ Client_list::~Client_list()
 {
 }
 
-void Client_list::add(boost::shared_ptr<Client> client)
+void Client_list::add(Client_ptr client)
 {
   RWLock_writelock guard(m_clients_lock);
   m_clients.push_back(client);
 }
 
-void Client_list::remove(boost::shared_ptr<Client> client)
+void Client_list::remove(Client_ptr client)
 {
   RWLock_writelock guard(m_clients_lock);
   m_clients.remove(client);

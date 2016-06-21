@@ -817,7 +817,7 @@ dict_get_first_path(
 @retval NULL if no dictionary entry was found. */
 static
 char*
-dict_get_space_name(
+dict_space_get_name(
 	ulint		space_id,
 	mem_heap_t*	callers_heap)
 {
@@ -1125,7 +1125,7 @@ dict_sys_tablespaces_rec_read(
 		rec, DICT_FLD__SYS_TABLESPACES__NAME, &len);
 	if (len == 0 || len == UNIV_SQL_NULL) {
 		ib::error() << "Wrong field length in SYS_TABLESPACES.NAME: "
-		<< len;
+			<< len;
 		return(false);
 	}
 	strncpy(name, reinterpret_cast<const char*>(field), NAME_LEN);
@@ -1135,7 +1135,7 @@ dict_sys_tablespaces_rec_read(
 		rec, DICT_FLD__SYS_TABLESPACES__FLAGS, &len);
 	if (len != 4) {
 		ib::error() << "Wrong field length in SYS_TABLESPACES.FLAGS: "
-		<< len;
+			<< len;
 		return(false);
 	}
 	*flags = mach_read_from_4(field);
@@ -1411,10 +1411,10 @@ dict_check_sys_tables(
 		and the tablespace_name are the same.
 		Some hidden tables like FTS AUX tables may not be found in
 		the dictionary since they can always be found in the default
-		location. If so, then dict_get_space_name() will return NULL,
+		location. If so, then dict_space_get_name() will return NULL,
 		the space name must be the table_name, and the filepath can be
 		discovered in the default location.*/
-		char*	shared_space_name = dict_get_space_name(space_id, NULL);
+		char*	shared_space_name = dict_space_get_name(space_id, NULL);
 		space_name = shared_space_name == NULL
 			? table_name.m_name
 			: shared_space_name;
@@ -2382,7 +2382,7 @@ Loads definitions for table indexes. Adds them to the data dictionary
 cache.
 @return DB_SUCCESS if ok, DB_CORRUPTION if corruption of dictionary
 table or DB_UNSUPPORTED if table has unknown index type */
-static __attribute__((nonnull))
+static MY_ATTRIBUTE((nonnull))
 dberr_t
 dict_load_indexes(
 /*==============*/
@@ -2820,7 +2820,7 @@ dict_get_and_save_space_name(
 			dict_mutex_enter_for_mysql();
 		}
 
-		table->tablespace = dict_get_space_name(
+		table->tablespace = dict_space_get_name(
 			table->space, table->heap);
 
 		if (!dict_mutex_own) {
@@ -2920,7 +2920,7 @@ dict_load_tablespace(
 	if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
 		if (srv_sys_tablespaces_open) {
 			shared_space_name =
-				dict_get_space_name(table->space, NULL);
+				dict_space_get_name(table->space, NULL);
 
 		} else {
 			/* Make the temporary tablespace name. */
@@ -3244,6 +3244,7 @@ func_exit:
 			/* the table->fts could be created in dict_load_column
 			when a user defined FTS_DOC_ID is present, but no
 			FTS */
+			fts_optimize_remove_table(table);
 			fts_free(table);
 		} else {
 			fts_optimize_add_table(table);
@@ -3308,14 +3309,13 @@ dict_load_table_on_id(
 	btr_pcur_open_on_user_rec(sys_table_ids, tuple, PAGE_CUR_GE,
 				  BTR_SEARCH_LEAF, &pcur, &mtr);
 
-check_rec:
 	rec = btr_pcur_get_rec(&pcur);
 
 	if (page_rec_is_user_rec(rec)) {
 		/*---------------------------------------------------*/
 		/* Now we have the record in the secondary index
 		containing the table ID and NAME */
-
+check_rec:
 		field = rec_get_nth_field_old(
 			rec, DICT_FLD__SYS_TABLE_IDS__ID, &len);
 		ut_ad(len == 8);
@@ -3325,12 +3325,14 @@ check_rec:
 			if (rec_get_deleted_flag(rec, 0)) {
 				/* Until purge has completed, there
 				may be delete-marked duplicate records
-				for the same SYS_TABLES.ID.
-				Due to Bug #60049, some delete-marked
-				records may survive the purge forever. */
-				if (btr_pcur_move_to_next(&pcur, &mtr)) {
+				for the same SYS_TABLES.ID, but different
+				SYS_TABLES.NAME. */
+				while (btr_pcur_move_to_next(&pcur, &mtr)) {
+					rec = btr_pcur_get_rec(&pcur);
 
-					goto check_rec;
+					if (page_rec_is_user_rec(rec)) {
+						goto check_rec;
+					}
 				}
 			} else {
 				/* Now we get the table name from the record */
@@ -3499,7 +3501,7 @@ dict_load_foreign_cols(
 Loads a foreign key constraint to the dictionary cache. If the referenced
 table is not yet loaded, it is added in the output parameter (fk_tables).
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull(1), warn_unused_result))
+static MY_ATTRIBUTE((nonnull(1), warn_unused_result))
 dberr_t
 dict_load_foreign(
 /*==============*/

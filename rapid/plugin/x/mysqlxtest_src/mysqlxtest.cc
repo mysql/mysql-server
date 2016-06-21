@@ -17,15 +17,11 @@
  * 02110-1301  USA
  */
 
-#include <google/protobuf/text_format.h>
+#include "ngs_common/protocol_protobuf.h"
 #include "mysqlx.h"
 #include "mysqlx_crud.h"
 #include "mysqlx_connection.h"
 #include "ngs_common/protocol_const.h"
-
-#include <google/protobuf/dynamic_message.h>
-#include <google/protobuf/io/zero_copy_stream.h>
-#include <google/protobuf/io/tokenizer.h>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/hex.hpp>
@@ -55,8 +51,9 @@
 #include <algorithm>
 
 const char CMD_ARG_SEPARATOR = '\t';
-
+const char * const mysqlxtest_version = "1.0";
 #include <mysql/service_my_snprintf.h>
+#include <mysql.h>
 
 #ifdef _MSC_VER
 #  pragma push_macro("ERROR")
@@ -595,7 +592,7 @@ static std::string message_to_bindump(const mysqlx::Message &message)
   message.SerializeToString(&out);
 
   res.resize(5);
-  *(uint32_t*)res.data() = out.size() + 1;
+  *(uint32_t*)res.data() = static_cast<uint32_t>(out.size() + 1);
 
 #ifdef WORDS_BIGENDIAN
   std::swap(res[0], res[3]);
@@ -1543,7 +1540,11 @@ private:
   {
     std::string s = args;
     std::string user, pass, db, name;
+
+    replace_variables(s);
+
     std::string::size_type p = s.find(CMD_ARG_SEPARATOR);
+
     if (p != std::string::npos)
     {
       name = s.substr(0, p);
@@ -2629,6 +2630,12 @@ public:
   mysqlx::Ssl_config ssl;
   bool        daemon;
 
+  void print_version()
+  {
+    printf("%s  Ver %s Distrib %s, for %s (%s)\n", my_progname, mysqlxtest_version,
+        MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+  }
+
   void print_help()
   {
     std::cout << "mysqlxtest <options>\n";
@@ -2657,6 +2664,7 @@ public:
     std::cout << "--daemon              Work as a daemon (unix only)\n";
     std::cout << "--help                Show command line help\n";
     std::cout << "--help-commands       Show help for input commands\n";
+    std::cout << "-V, --version         Show version of mysqlxtest\n";
     std::cout << "\nOnly one option that changes run mode is allowed.\n";
   }
 
@@ -2829,7 +2837,7 @@ public:
         cap_expired_password = true;
       else if (check_arg(argv, i, "--quiet", "-q"))
         OPT_quiet = true;
-      else if (check_arg(argv, i, "--verbose", "-v"))
+      else if (check_arg(argv, i, "--verbose", NULL))
         OPT_verbose = true;
       else if (check_arg(argv, i, "--daemon", NULL))
         daemon = true;
@@ -2845,6 +2853,11 @@ public:
       else if (check_arg(argv, i, "--help-commands", "--help-commands"))
       {
         print_help_commands();
+        exit_code = 1;
+      }
+      else if (check_arg(argv, i, "--version", "-V"))
+      {
+        print_version();
         exit_code = 1;
       }
       else if (exit_code == 0)
@@ -3081,6 +3094,8 @@ static Program_mode get_mode_function(const My_command_line_options &opt)
 
 int main(int argc, char **argv)
 {
+  MY_INIT(argv[0]);
+
   OPT_expect_error = new Expected_error();
   My_command_line_options options(argc, argv);
 
@@ -3096,10 +3111,9 @@ int main(int argc, char **argv)
   Program_mode  mode  = get_mode_function(options);
 
 #ifdef WIN32
-  WSADATA wsaData;
-  if (WSAStartup(MAKEWORD(1, 1), &wsaData) != 0)
+  if (!have_tcpip)
   {
-    std::cerr << "WSAStartup failed\n";
+    std::cerr << "OS doesn't have tcpip\n";
     return 1;
   }
 #endif
@@ -3121,6 +3135,7 @@ int main(int argc, char **argv)
   }
 
   vio_end();
+  my_end(0);
   return result;
 }
 

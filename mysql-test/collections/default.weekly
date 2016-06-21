@@ -85,4 +85,4 @@ perl mysql-test-run.pl --vardir=var-innodb-zip-log1_level1_8k --force --big-test
 
 
 # Run all tests under the suite interactive_utilities
-perl mysql-test-run.pl --force --timer  --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=interactive_tests  --vardir=interactive-tests  --suite=interactive_utilities
+perl mysql-test-run.pl --force --timer  --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=interactive_tests  --vardir=var-interactive  --suite=interactive_utilities

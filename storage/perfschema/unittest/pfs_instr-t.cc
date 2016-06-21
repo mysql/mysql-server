@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -97,6 +97,27 @@ void test_no_instances()
   PFS_table *table;
   PFS_global_param param;
 
+  dummy_mutex_class.m_event_name_index = 0;
+  dummy_mutex_class.m_flags = 0;
+  dummy_mutex_class.m_enabled = true;
+  dummy_mutex_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
+  dummy_rwlock_class.m_event_name_index = 1;
+  dummy_rwlock_class.m_flags = 0;
+  dummy_rwlock_class.m_enabled = true;
+  dummy_rwlock_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
+  dummy_cond_class.m_event_name_index = 2;
+  dummy_cond_class.m_flags = 0;
+  dummy_cond_class.m_enabled = true;
+  dummy_cond_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
+  dummy_file_class.m_event_name_index = 3;
+  dummy_file_class.m_flags = 0;
+  dummy_file_class.m_enabled = true;
+  dummy_file_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
+  dummy_socket_class.m_event_name_index = 4;
+  dummy_socket_class.m_flags = 0;
+  dummy_socket_class.m_enabled = true;
+  dummy_socket_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
+
   memset(& param, 0xFF, sizeof(param));
   param.m_enabled= true;
   param.m_mutex_class_sizing= 1;
@@ -143,10 +164,10 @@ void test_no_instances()
 
   mutex= create_mutex(& dummy_mutex_class, NULL);
   ok(mutex == NULL, "no mutex");
-  ok(global_mutex_container.m_lost == 1, "lost 1");
+  ok(global_mutex_container.get_lost_counter() == 1, "lost 1");
   mutex= create_mutex(& dummy_mutex_class, NULL);
   ok(mutex == NULL, "no mutex");
-  ok(global_mutex_container.m_lost == 2, "lost 2");
+  ok(global_mutex_container.get_lost_counter() == 2, "lost 2");
 
   rwlock= create_rwlock(& dummy_rwlock_class, NULL);
   ok(rwlock == NULL, "no rwlock");
@@ -291,35 +312,40 @@ void test_with_instances()
   dummy_mutex_class.m_event_name_index= 0;
   dummy_mutex_class.m_flags= 0;
   dummy_mutex_class.m_enabled= true;
+  dummy_mutex_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
   dummy_rwlock_class.m_event_name_index= 1;
   dummy_rwlock_class.m_flags= 0;
   dummy_rwlock_class.m_enabled= true;
+  dummy_rwlock_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
   dummy_cond_class.m_event_name_index= 2;
   dummy_cond_class.m_flags= 0;
   dummy_cond_class.m_enabled= true;
+  dummy_cond_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
   dummy_file_class.m_event_name_index= 3;
   dummy_file_class.m_flags= 0;
   dummy_file_class.m_enabled= true;
+  dummy_file_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
   dummy_socket_class.m_event_name_index= 4;
   dummy_socket_class.m_flags= 0;
   dummy_socket_class.m_enabled= true;
+  dummy_socket_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
 
   dummy_table_share.m_enabled= true;
   dummy_table_share.m_timed= true;
 
   mutex_1= create_mutex(& dummy_mutex_class, NULL);
   ok(mutex_1 != NULL, "mutex");
-  ok(global_mutex_container.m_lost == 0, "not lost");
+  ok(global_mutex_container.get_lost_counter() == 0, "not lost");
   mutex_2= create_mutex(& dummy_mutex_class, NULL);
   ok(mutex_2 != NULL, "mutex");
-  ok(global_mutex_container.m_lost == 0, "not lost");
+  ok(global_mutex_container.get_lost_counter() == 0, "not lost");
   mutex_2= create_mutex(& dummy_mutex_class, NULL);
   ok(mutex_2 == NULL, "no mutex");
-  ok(global_mutex_container.m_lost == 1, "lost 1");
+  ok(global_mutex_container.get_lost_counter() == 1, "lost 1");
   destroy_mutex(mutex_1);
   mutex_2= create_mutex(& dummy_mutex_class, NULL);
   ok(mutex_2 != NULL, "mutex");
-  ok(global_mutex_container.m_lost == 1, "no new loss");
+  ok(global_mutex_container.get_lost_counter() == 1, "no new loss");
 
   rwlock_1= create_rwlock(& dummy_rwlock_class, NULL);
   ok(rwlock_1 != NULL, "rwlock");

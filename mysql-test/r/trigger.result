@@ -2628,4 +2628,19 @@ SELECT * FROM t2;
 after_update
 DROP TRIGGER post_update_t1;
 DROP TABLE t1,t2,t3;
+#
+# WL#9262: All system tables should support 32 character length user names
+#
+CREATE USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+CREATE TABLE test.silly_one (ID INT);
+CREATE DEFINER=user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char TRIGGER test.silly_trigger BEFORE INSERT ON test.silly_one FOR EACH ROW SET @x=1;
+SHOW TRIGGERS FROM test LIKE 'silly_one';
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+silly_trigger	INSERT	silly_one	SET @x=1	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT DEFINER FROM information_schema.triggers WHERE TRIGGER_NAME='silly_trigger';
+DEFINER
+user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+DROP USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+DROP TRIGGER test.silly_trigger;
+DROP TABLE test.silly_one;
 End of 5.7 tests.

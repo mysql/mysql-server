@@ -1257,7 +1257,7 @@ typedef struct st_thd_ndb_share {
 } THD_NDB_SHARE;
 static
 uchar *thd_ndb_share_get_key(THD_NDB_SHARE *thd_ndb_share, size_t *length,
-                            my_bool not_used __attribute__((unused)))
+                            my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= sizeof(thd_ndb_share->key);
   return (uchar*) &thd_ndb_share->key;
@@ -13272,7 +13272,7 @@ int ndbcluster_table_exists_in_engine(handlerton *hton, THD* thd,
 
 
 extern "C" uchar* tables_get_key(const char *entry, size_t *length,
-                                my_bool not_used __attribute__((unused)))
+                                my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= strlen(entry);
   return (uchar*) entry;
@@ -18540,16 +18540,6 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
                "READ_BACKUP not supported by current data node versions");
       DBUG_RETURN(true);
     }
-    if (mod_read_backup->m_val_bool != new_tab->getReadBackupFlag())
-    {
-      /**
-       * Alter Table inplace of ReadBackup not yet supported.
-       */
-      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
-               ndbcluster_hton_name,
-               "Cannot alter read backup inplace");
-      DBUG_RETURN(true);
-    }
     if (old_tab->getFullyReplicated() &&
         (!mod_read_backup->m_val_bool))
     {
@@ -19599,7 +19589,7 @@ bool ha_ndbcluster::get_num_parts(const char *name, uint *num_parts)
     Ndb_table_guard ndbtab_g(dict= ndb->getDictionary(), m_tabname);
     if (!ndbtab_g.get_table())
       ERR_BREAK(dict->getNdbError(), err);
-    *num_parts= ndbtab_g.get_table()->getRealFragmentCount();
+    *num_parts= ndbtab_g.get_table()->getPartitionCount();
     DBUG_RETURN(FALSE);
   }
 

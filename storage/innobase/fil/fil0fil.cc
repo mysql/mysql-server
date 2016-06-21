@@ -629,7 +629,19 @@ fil_node_create_low(
 
 	node->block_size = stat_info.block_size;
 
-	if (!(IORequest::is_punch_hole_supported() && punch_hole)
+	/* In this debugging mode, we can overcome the limitation of some
+	OSes like Windows that support Punch Hole but have a hole size
+	effectively too large.  By setting the block size to be half the
+	page size, we can bypass one of the checks that would normally
+	turn Page Compression off.  This execution mode allows compression
+	to be tested even when full punch hole support is not available. */
+	DBUG_EXECUTE_IF("ignore_punch_hole",
+		node->block_size = ut_min(stat_info.block_size,
+					  static_cast<size_t>(UNIV_PAGE_SIZE / 2));
+	);
+
+	if (!IORequest::is_punch_hole_supported()
+	    || !punch_hole
 	    || node->block_size >= srv_page_size) {
 
 		fil_no_punch_hole(node);
@@ -7106,18 +7118,26 @@ fil_no_punch_hole(fil_node_t* node)
 	node->punch_hole = false;
 }
 
-/** Set the compression type for the tablespace
-@param[in] space		Space ID of tablespace for which to set
-@param[in] algorithm		Text representation of the algorithm
+/** Set the compression type for the tablespace of a table
+@param[in]	table		The table that should be compressed
+@param[in]	algorithm	Text representation of the algorithm
 @return DB_SUCCESS or error code */
 dberr_t
 fil_set_compression(
-	ulint		space_id,
+	dict_table_t*	table,
 	const char*	algorithm)
 {
-	ut_ad(!is_system_or_undo_tablespace(space_id));
+	ut_ad(table != NULL);
 
-	if (is_shared_tablespace(space_id)) {
+	/* We don't support Page Compression for the system tablespace,
+	the temporary tablespace, or any general tablespace because
+	COMPRESSION is set by TABLE DDL, not TABLESPACE DDL. There is
+	no other technical reason.  Also, do not use it for missing
+	tables or tables with compressed row_format. */
+	if (table->ibd_file_missing
+	    || !DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_FILE_PER_TABLE)
+	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY)
+	    || page_size_t(table->flags).is_compressed()) {
 
 		return(DB_IO_NO_PUNCH_HOLE_TABLESPACE);
 	}
@@ -7130,17 +7150,20 @@ fil_set_compression(
 #ifndef UNIV_DEBUG
 		compression.m_type = Compression::NONE;
 #else
-		compression.m_type = static_cast<Compression::Type>(
-			srv_debug_compress);
-
-		switch (compression.m_type) {
+		/* This is a Debug tool for setting compression on all
+		compressible tables not otherwise specified. */
+		switch (srv_debug_compress) {
 		case Compression::LZ4:
-		case Compression::NONE:
 		case Compression::ZLIB:
+		case Compression::NONE:
+
+			compression.m_type =
+				static_cast<Compression::Type>(
+					srv_debug_compress);
 			break;
 
 		default:
-			ut_error;
+			compression.m_type = Compression::NONE;
 		}
 
 #endif /* UNIV_DEBUG */
@@ -7150,31 +7173,25 @@ fil_set_compression(
 	} else {
 
 		err = Compression::check(algorithm, &compression);
-
-		ut_ad(err == DB_SUCCESS || err == DB_UNSUPPORTED);
 	}
 
-	fil_space_t*	space = fil_space_get(space_id);
+	fil_space_t*	space = fil_space_get(table->space);
 
 	if (space == NULL) {
+		return(DB_NOT_FOUND);
+	}
 
-		err = DB_NOT_FOUND;
+	space->compression_type = compression.m_type;
 
-	} else {
+	if (space->compression_type != Compression::NONE) {
 
-		space->compression_type = compression.m_type;
+		const fil_node_t* node;
 
-		if (space->compression_type != Compression::NONE
-		    && err == DB_SUCCESS) {
+		node = UT_LIST_GET_FIRST(space->chain);
 
-			const fil_node_t* node;
+		if (!node->punch_hole) {
 
-			node = UT_LIST_GET_FIRST(space->chain);
-
-			if (!node->punch_hole) {
-
-				return(DB_IO_NO_PUNCH_HOLE_FS);
-			}
+			return(DB_IO_NO_PUNCH_HOLE_FS);
 		}
 	}
 
@@ -7208,7 +7225,7 @@ fil_set_encryption(
 {
 	ut_ad(!is_system_or_undo_tablespace(space_id));
 
-	if (is_shared_tablespace(space_id)) {
+	if (is_system_tablespace(space_id)) {
 		return(DB_IO_NO_ENCRYPT_TABLESPACE);
 	}
 

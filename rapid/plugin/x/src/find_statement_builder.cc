@@ -16,7 +16,7 @@
  */
 
 #include "find_statement_builder.h"
-#include "mysqlx_crud.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 #include "xpl_error.h"
 
 
@@ -28,14 +28,42 @@ xpl::Find_statement_builder::Find_statement_builder(const Find &msg, Query_strin
 
 void xpl::Find_statement_builder::add_statement() const
 {
+  if (!m_is_relational && m_msg.grouping_size() > 0)
+    add_document_statement_with_grouping();
+  else
+    add_statement_common(&Find_statement_builder::add_projection);
+}
+
+
+void xpl::Find_statement_builder::add_statement_common(const Projection_adder &projection_adder) const
+{
   m_builder.put("SELECT ");
-  add_projection(m_msg.projection());
+  (this->*projection_adder)(m_msg.projection());
   m_builder.put(" FROM ");
   add_table(m_msg.collection());
   add_filter(m_msg.criteria());
   add_grouping(m_msg.grouping(), m_msg.grouping_criteria());
   add_order(m_msg.order());
   add_limit(m_msg.limit(), false);
+}
+
+
+namespace
+{
+const char* const DERIVED_TABLE_NAME = "`_DERIVED_TABLE_`";
+}
+
+
+void xpl::Find_statement_builder::add_document_statement_with_grouping() const
+{
+  if (m_msg.projection_size() == 0)
+    throw ngs::Error_code(ER_X_BAD_PROJECTION, "Invalid empty projection list for grouping");
+
+  m_builder.put("SELECT ");
+  add_document_object(m_msg.projection(), &Find_statement_builder::add_document_primary_projection_item);
+  m_builder.put(" FROM (");
+  add_statement_common(&Find_statement_builder::add_table_projection);
+  m_builder.put(") AS ").put(DERIVED_TABLE_NAME);
 }
 
 
@@ -78,20 +106,35 @@ void xpl::Find_statement_builder::add_document_projection(const Projection_list 
     return;
   }
 
-  m_builder.put("JSON_OBJECT(").
-      put_list(projection, boost::bind(&Find_statement_builder::add_document_projection_item, this, _1)).
-      put(") AS doc");
+  add_document_object(projection, &Find_statement_builder::add_document_projection_item);
+}
+
+
+void xpl::Find_statement_builder::add_document_object(const Projection_list &projection,
+                                                      const Object_item_adder &adder) const
+{
+  m_builder.put("JSON_OBJECT(")
+      .put_list(projection, boost::bind(adder, this, _1))
+      .put(") AS doc");
 }
 
 
 void xpl::Find_statement_builder::add_document_projection_item(const Projection &item) const
 {
-  //TODO: if the source expression contains a *, then the fields in the original doc should be merged with the projected ones
-  //TODO: when target_alias is nested documents
   if (!item.has_alias())
     throw ngs::Error_code(ER_X_PROJ_BAD_KEY_NAME, "Invalid projection target name");
 
   m_builder.put_quote(item.alias()).put(", ").gen(item.source());
+}
+
+
+void xpl::Find_statement_builder::add_document_primary_projection_item(const Projection &item) const
+{
+  if (!item.has_alias())
+    throw ngs::Error_code(ER_X_PROJ_BAD_KEY_NAME, "Invalid projection target name");
+
+  m_builder.put_quote(item.alias()).put(", ")
+      .put(DERIVED_TABLE_NAME).dot().put_identifier(item.alias());
 }
 
 

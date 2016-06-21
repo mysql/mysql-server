@@ -178,7 +178,7 @@ public:
       struct {
         Uint32 m_changeMask;
         Uint32 m_totalfragments;
-        Uint32 m_realFragmentCount;
+        Uint32 m_partitionCount;
         Uint32 m_org_totalfragments;
         Uint32 m_new_map_ptr_i;
       } m_alter;
@@ -709,10 +709,10 @@ public:
     Uint32 schemaTransId;
     Uint32 totalfragments;
     /**
-     * realFragmentCount differs from totalfragments for fully replicated
+     * partitionCount differs from totalfragments for fully replicated
      * tables.
      */
-    Uint32 realFragmentCount;
+    Uint32 partitionCount;
     union {
       Uint32 mask;
       Uint32 m_map_ptr_i;
@@ -774,7 +774,7 @@ public:
      * metadata parts. It also protects the combination of tabStatus
      * schemaTransId checked for in execDIH_SCAN_TAB_REQ(...).
      *
-     * Given that DIH_SCAN_TAB_REQ also reads totalfragments, realFragmentCount
+     * Given that DIH_SCAN_TAB_REQ also reads totalfragments, partitionCount
      * m_map_ptr_i, noOfBackups, m_scan_reorg_flag we protect those variables
      * as well with this mutex. These variables are also protected by the
      * above NdbSeqLock to ensure that execDIGETNODESREQ can execute

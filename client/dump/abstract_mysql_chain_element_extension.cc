@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -49,8 +49,10 @@ I_connection_provider*
 
 uint64 Abstract_mysql_chain_element_extension::get_server_version()
 {
-  return mysql_get_server_version(
-    this->get_runner()->get_low_level_connection());
+  Mysql::Tools::Base::Mysql_query_runner* runner= this->get_runner();
+  ulong version= mysql_get_server_version(runner->get_low_level_connection());
+  delete runner;
+  return version;
 }
 
 std::string Abstract_mysql_chain_element_extension::get_server_version_string()
@@ -130,10 +132,12 @@ std::string Abstract_mysql_chain_element_extension::quote_name(
 {
   char buff[MAX_NAME_LEN * 2 + 3]= { 0 };
   const char* name_str= name.c_str();
+  Mysql::Tools::Base::Mysql_query_runner* runner= this->get_runner();
   buff[0]= '`';
-  int len= mysql_real_escape_string_quote(this->get_runner()
-         ->get_low_level_connection(), buff+1, name_str, name.size(), '`');
+  int len= mysql_real_escape_string_quote(runner->get_low_level_connection(),
+              buff+1, name_str, (ulong)name.size(), '`');
   buff[len+1]= '`';
+  delete runner;
   return std::string(buff);
 }
 

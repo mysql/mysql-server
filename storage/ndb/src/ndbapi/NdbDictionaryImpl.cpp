@@ -670,7 +670,7 @@ NdbTableImpl::init(){
   m_keyLenInWords= 0;
   m_fragmentCountType = NdbDictionary::Object::FragmentCount_OnePerLDMPerNode;
   m_fragmentCount= 0;
-  m_realFragmentCount = 0;
+  m_partitionCount = 0;
   m_index= NULL;
   m_indexType= NdbDictionary::Object::TypeUndefined;
   m_noOfKeys= 0;
@@ -1018,13 +1018,13 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_maxLoadFactor = org.m_maxLoadFactor;
   m_keyLenInWords = org.m_keyLenInWords;
   m_fragmentCount = org.m_fragmentCount;
-  m_realFragmentCount = org.m_fragmentCount;
+  m_partitionCount = org.m_fragmentCount;
   m_fragmentCountType = org.m_fragmentCountType;
   m_single_user_mode = org.m_single_user_mode;
   m_extra_row_gci_bits = org.m_extra_row_gci_bits;
   m_extra_row_author_bits = org.m_extra_row_author_bits;
-
-  DBUG_PRINT("info", ("m_logging: %u", m_logging));
+  m_read_backup = org.m_read_backup;
+  m_fully_replicated = org.m_fully_replicated;
 
   if (m_index != 0)
     delete m_index;
@@ -1051,11 +1051,15 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_tablespace_id= org.m_tablespace_id;
   m_tablespace_version = org.m_tablespace_version;
   m_storageType = org.m_storageType;
-  m_read_backup = org.m_read_backup;
-  m_fully_replicated = org.m_fully_replicated;
 
   m_hash_map_id = org.m_hash_map_id;
   m_hash_map_version = org.m_hash_map_version;
+
+  DBUG_PRINT("info", ("m_logging: %u, m_read_backup %u"
+                      " tableVersion: %u",
+                      m_logging,
+                      m_read_backup,
+                      m_version));
 
   DBUG_RETURN(0);
 }
@@ -1220,9 +1224,9 @@ Uint32 NdbTableImpl::getFragmentCount() const
   return m_fragmentCount;
 }
 
-Uint32 NdbTableImpl::getRealFragmentCount() const
+Uint32 NdbTableImpl::getPartitionCount() const
 {
-  return m_realFragmentCount;
+  return m_partitionCount;
 }
 
 int NdbTableImpl::setFrm(const void* data, Uint32 len)
@@ -3017,14 +3021,17 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   impl->m_fragmentCountType =
     (NdbDictionary::Object::FragmentCountType)tableDesc->FragmentCountType;
   impl->m_read_backup = tableDesc->ReadBackupFlag == 0 ? false : true;
-  impl->m_realFragmentCount = tableDesc->RealFragmentCount;
+  impl->m_partitionCount = tableDesc->PartitionCount;
   impl->m_fully_replicated =
     tableDesc->FullyReplicatedFlag == 0 ? false : true;
 
 
-  DBUG_PRINT("info", ("m_logging: %u, fragmentCountType: %d",
+  DBUG_PRINT("info", ("m_logging: %u, fragmentCountType: %d"
+                      " m_read_backup %u, tableVersion: %u",
                       impl->m_logging,
-                      impl->m_fragmentCountType));
+                      impl->m_fragmentCountType,
+                      impl->m_read_backup,
+                      impl->m_version));
 
   impl->m_indexType = (NdbDictionary::Object::Type)
     getApiConstant(tableDesc->TableType,
@@ -3673,7 +3680,6 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
      sz < old_sz ||
      impl.m_extra_row_gci_bits != old_impl.m_extra_row_gci_bits ||
      impl.m_extra_row_author_bits != old_impl.m_extra_row_author_bits ||
-     impl.m_read_backup != old_impl.m_read_backup ||
      impl.m_fully_replicated != old_impl.m_fully_replicated)
 
   {
@@ -3774,6 +3780,19 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
     {
       goto invalid_alter_table;
     }
+  }
+  if (impl.m_read_backup != old_impl.m_read_backup)
+  {
+    /* Change the read backup flag inplace */
+    DBUG_PRINT("info", ("Set Change ReadBackup Flag, old: %u, new: %u",
+                       old_impl.m_read_backup,
+                       impl.m_read_backup));
+    AlterTableReq::setReadBackupFlag(change_mask, true);
+  }
+  else
+  {
+    DBUG_PRINT("info", ("No ReadBackup change, val: %u",
+                        impl.m_read_backup));
   }
 
   /*
@@ -3933,7 +3952,7 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
 
   tmpTab->FragmentCountType = (Uint32)impl.m_fragmentCountType;
   tmpTab->FragmentCount= impl.m_fragmentCount;
-  tmpTab->RealFragmentCount = impl.m_realFragmentCount;
+  tmpTab->PartitionCount = impl.m_partitionCount;
   tmpTab->TableLoggedFlag = impl.m_logging;
   tmpTab->TableTemporaryFlag = impl.m_temporary;
   tmpTab->RowGCIFlag = impl.m_row_gci;
@@ -4157,6 +4176,7 @@ NdbDictInterface::sendAlterTable(const NdbTableImpl &impl,
   req->tableId = impl.m_id;
   req->tableVersion = impl.m_version;
   req->changeMask = change_mask;
+  DBUG_PRINT("info", ("sendAlterTable: changeMask: %x", change_mask));
 
   int errCodes[] = { AlterTableRef::NotMaster, AlterTableRef::Busy, 0 };
 

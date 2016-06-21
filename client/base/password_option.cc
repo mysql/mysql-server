@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,6 +61,9 @@ void Password_option::password_callback(char* argument)
   }
   else
   {
-    *this->m_destination_value = Nullable<string>(::get_tty_password(NULL));
+    char *password= ::get_tty_password(NULL);
+    *this->m_destination_value = Nullable<string>(password);
+    my_free(password);
+
   }
 }

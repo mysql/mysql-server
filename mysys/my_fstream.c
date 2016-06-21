@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -152,7 +152,7 @@ size_t my_fwrite(FILE *stream, const uchar *Buffer, size_t Count, myf MyFlags)
 /* Seek to position in file */
 
 my_off_t my_fseek(FILE *stream, my_off_t pos, int whence,
-		  myf MyFlags __attribute__((unused)))
+		  myf MyFlags MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("my_fseek");
   DBUG_PRINT("my",("stream: 0x%lx  pos: %lu  whence: %d  MyFlags: %d",
@@ -164,7 +164,7 @@ my_off_t my_fseek(FILE *stream, my_off_t pos, int whence,
 
 /* Tell current position of file */
 
-my_off_t my_ftell(FILE *stream, myf MyFlags __attribute__((unused)))
+my_off_t my_ftell(FILE *stream, myf MyFlags MY_ATTRIBUTE((unused)))
 {
   off_t pos;
   DBUG_ENTER("my_ftell");

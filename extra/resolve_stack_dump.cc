@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,7 +51,7 @@ static char* dump_fname = 0, *sym_fname = 0;
 static std::vector<sym_entry> sym_table;
 static FILE* fp_dump, *fp_sym = 0, *fp_out; 
 static void die(const char* fmt, ...)
-  __attribute__((noreturn)) __attribute__((format(printf, 1, 2)));
+  MY_ATTRIBUTE((noreturn)) MY_ATTRIBUTE((format(printf, 1, 2)));
 
 static struct my_option my_long_options[] =
 {
@@ -107,8 +107,8 @@ static void die(const char* fmt, ...)
 
 
 static my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
-	       char *argument __attribute__((unused)))
+get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
+	       char *argument MY_ATTRIBUTE((unused)))
 {
   switch(optid) {
   case 'V':

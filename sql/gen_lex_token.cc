@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -148,6 +148,7 @@ void compute_tokens()
   set_token(UNDERSCORE_CHARSET, "(_charset)");
   set_token(END_OF_INPUT, "");
   set_token(JSON_SEPARATOR_SYM, "->");
+  set_token(JSON_UNQUOTED_SEPARATOR_SYM, "->>");
 
   /*
     Values.

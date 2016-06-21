@@ -105,7 +105,7 @@ SELECT variable_value FROM information_schema.global_status WHERE
 variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
 or by:
 SHOW STATUS LIKE 'innodb_buffer_pool_dump_status'; */
-static __attribute__((nonnull, format(printf, 2, 3)))
+static MY_ATTRIBUTE((nonnull, format(printf, 2, 3)))
 void
 buf_dump_status(
 /*============*/
@@ -148,7 +148,7 @@ SELECT variable_value FROM information_schema.global_status WHERE
 variable_name = 'INNODB_BUFFER_POOL_LOAD_STATUS';
 or by:
 SHOW STATUS LIKE 'innodb_buffer_pool_load_status'; */
-static __attribute__((nonnull, format(printf, 2, 3)))
+static MY_ATTRIBUTE((nonnull, format(printf, 2, 3)))
 void
 buf_load_status(
 /*============*/
@@ -553,8 +553,17 @@ buf_load()
 		dump_n = total_buffer_pools_pages;
 	}
 
-	dump = static_cast<buf_dump_t*>(ut_malloc_nokey(dump_n
-							* sizeof(*dump)));
+	if(dump_n != 0) {
+		dump = static_cast<buf_dump_t*>(ut_malloc_nokey(
+				dump_n * sizeof(*dump)));
+	} else {
+		fclose(f);
+		ut_sprintf_timestamp(now);
+		buf_load_status(STATUS_INFO,
+				"Buffer pool(s) load completed at %s"
+				" (%s was empty)", now, full_filename);
+		return;
+	}
 
 	if (dump == NULL) {
 		fclose(f);
@@ -749,7 +758,7 @@ extern "C"
 os_thread_ret_t
 DECLARE_THREAD(buf_dump_thread)(
 /*============================*/
-	void*	arg __attribute__((unused)))	/*!< in: a dummy parameter
+	void*	arg MY_ATTRIBUTE((unused)))	/*!< in: a dummy parameter
 						required by os_thread_create */
 {
 	ut_ad(!srv_read_only_mode);

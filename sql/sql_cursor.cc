@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,7 +46,7 @@ public:
 
   int send_result_set_metadata(THD *thd, List<Item> &send_result_set_metadata);
   virtual bool is_open() const { return table != 0; }
-  virtual int open(JOIN *join __attribute__((unused)));
+  virtual int open(JOIN *join MY_ATTRIBUTE((unused)));
   virtual bool fetch(ulong num_rows);
   virtual void close();
   virtual ~Materialized_cursor();
@@ -277,7 +277,7 @@ end:
 }
 
 
-int Materialized_cursor::open(JOIN *join __attribute__((unused)))
+int Materialized_cursor::open(JOIN *join MY_ATTRIBUTE((unused)))
 {
   THD *thd= fake_unit.thd;
   int rc;

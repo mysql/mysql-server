@@ -440,7 +440,7 @@ UNIV_INLINE
 ulint
 dict_table_get_n_sys_cols(
 /*======================*/
-	const dict_table_t*	table __attribute__((unused)))	/*!< in: table */
+	const dict_table_t*	table MY_ATTRIBUTE((unused)))	/*!< in: table */
 {
 	ut_ad(table);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
@@ -1691,6 +1691,18 @@ dict_table_is_intrinsic(
 	return(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_INTRINSIC));
 }
 
+/** Check if the table is in a shared tablespace (System or General).
+@param[in]	id	Space ID to check
+@return true if id is a shared tablespace, false if not. */
+UNIV_INLINE
+bool
+dict_table_in_shared_tablespace(
+	const dict_table_t*	table)
+{
+	return(is_system_tablespace(table->space)
+		|| DICT_TF_HAS_SHARED_SPACE(table->flags));
+}
+
 /** Check whether locking is disabled for this table.
 Currently this is done for intrinsic table as their visibility is limited
 to the connection only.
@@ -1902,6 +1914,7 @@ dict_free_vc_templ(
 				ut_free(vc_templ->vtempl[i]);
 			}
 		}
+		ut_free(vc_templ->default_rec);
 		ut_free(vc_templ->vtempl);
 		vc_templ->vtempl = NULL;
 	}

@@ -2055,7 +2055,7 @@ static bool fix_syslog(sys_var *self, THD *thd, enum_var_type type)
 
 static bool check_syslog_tag(sys_var *self, THD *THD, set_var *var)
 {
-  return ((var->value != NULL) &&
+  return ((var->save_result.string_value.str != NULL) &&
           (strchr(var->save_result.string_value.str, FN_LIBCHAR) != NULL));
 }
 
@@ -2607,8 +2607,8 @@ static Sys_var_mybool Sys_old_alter_table(
        "old_alter_table", "Use old, non-optimized alter table",
        SESSION_VAR(old_alter_table), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
-static bool old_passwords_check(sys_var *self  __attribute__((unused)),
-                                THD *thd  __attribute__((unused)),
+static bool old_passwords_check(sys_var *self  MY_ATTRIBUTE((unused)),
+                                THD *thd  MY_ATTRIBUTE((unused)),
                                 set_var *var)
 {
   push_deprecated_warn_no_replacement(current_thd, "old_passwords");
@@ -4421,6 +4421,7 @@ static bool update_last_insert_id(THD *thd, set_var *var)
   }
   thd->first_successful_insert_id_in_prev_stmt=
     var->save_result.ulonglong_value;
+  thd->substitute_null_with_insert_id= TRUE;
   return false;
 }
 static ulonglong read_last_insert_id(THD *thd)

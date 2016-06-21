@@ -160,7 +160,7 @@ public:
     ReadBackupFlag     = 158,
 
     FullyReplicatedFlag= 159,
-    RealFragmentCount  = 160,
+    PartitionCount  = 160,
     /**
      * Needed for NR
      */
@@ -421,7 +421,7 @@ public:
     Uint32 ReadBackupFlag;
     Uint32 FullyReplicatedFlag;
     Uint32 FullyReplicatedTriggerId;
-    Uint32 RealFragmentCount;
+    Uint32 PartitionCount;
 
     Table() {}
     void init();

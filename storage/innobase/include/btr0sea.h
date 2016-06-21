@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -65,7 +65,7 @@ btr_search_t*
 btr_search_get_info(
 /*================*/
 	dict_index_t*	index)	/*!< in: index */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 
 /** Creates and initializes a search info struct.
 @param[in]	heap		heap where created.

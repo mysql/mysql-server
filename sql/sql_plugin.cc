@@ -584,8 +584,9 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     if ((sym= dlsym(plugin_dl.handle, list_of_services[i].name)))
     {
       uint ver= (uint)(intptr)*(void**)sym;
-      if (ver > list_of_services[i].version ||
-        (ver >> 8) < (list_of_services[i].version >> 8))
+      if ((*(void**)sym) != list_of_services[i].service && /* already replaced */
+          (ver > list_of_services[i].version ||
+           (ver >> 8) < (list_of_services[i].version >> 8)))
       {
         char buf[MYSQL_ERRMSG_SIZE];
         my_snprintf(buf, sizeof(buf),
@@ -1114,7 +1115,7 @@ static void intern_plugin_unlock(LEX *lex, plugin_ref plugin)
       could be unlocked faster - optimizing for LIFO semantics.
     */
     plugin_ref *iter= lex->plugins.end() - 1;
-    bool found_it __attribute__((unused)) = false;
+    bool found_it MY_ATTRIBUTE((unused)) = false;
     for (; iter >= lex->plugins.begin() - 1; --iter)
     {
       if (plugin == *iter)
@@ -1254,7 +1255,7 @@ extern "C" uchar *get_bookmark_hash_key(const uchar *, size_t *, my_bool);
 
 
 uchar *get_plugin_hash_key(const uchar *buff, size_t *length,
-                           my_bool not_used __attribute__((unused)))
+                           my_bool not_used MY_ATTRIBUTE((unused)))
 {
   st_plugin_int *plugin= (st_plugin_int *)buff;
   *length= (uint)plugin->name.length;
@@ -1263,7 +1264,7 @@ uchar *get_plugin_hash_key(const uchar *buff, size_t *length,
 
 
 uchar *get_bookmark_hash_key(const uchar *buff, size_t *length,
-                             my_bool not_used __attribute__((unused)))
+                             my_bool not_used MY_ATTRIBUTE((unused)))
 {
   st_bookmark *var= (st_bookmark *)buff;
   *length= var->name_len + 1;
@@ -1402,6 +1403,10 @@ int plugin_init(int *argc, char **argv, int flags)
   st_plugin_int tmp, *plugin_ptr;
   MEM_ROOT tmp_root;
   bool mandatory= true;
+
+  I_List_iterator<i_string> iter(opt_early_plugin_load_list);
+  i_string *item;
+
   DBUG_ENTER("plugin_init");
 
   if (initialized)
@@ -1442,27 +1447,21 @@ int plugin_init(int *argc, char **argv, int flags)
       goto err;
   }
 
-  /* --early-plugin-load will not work with --initialize */
-  if (!opt_bootstrap)
+
+  /*
+    First, register early plugins
+  */
+  while (NULL != (item= iter++))
+    plugin_load_list(&tmp_root, argc, argv, item->ptr);
+
+  if (!(flags & PLUGIN_INIT_SKIP_INITIALIZATION))
   {
-
-    /*
-      First, register early plugins
-    */
-    I_List_iterator<i_string> iter(opt_early_plugin_load_list);
-    i_string *item;
-    while (NULL != (item= iter++))
-      plugin_load_list(&tmp_root, argc, argv, item->ptr);
-
-    if (!(flags & PLUGIN_INIT_SKIP_INITIALIZATION))
-    {
-      if (plugin_init_initialize_and_reap())
-        goto err;
-    }
-
-    free_root(&tmp_root, MYF(0));
-    init_alloc_root(key_memory_plugin_init_tmp, &tmp_root, 4096, 4096);
+    if (plugin_init_initialize_and_reap())
+      goto err;
   }
+
+  free_root(&tmp_root, MYF(0));
+  init_alloc_root(key_memory_plugin_init_tmp, &tmp_root, 4096, 4096);
 
   mysql_mutex_lock(&LOCK_plugin);
 
@@ -3629,7 +3628,7 @@ static void plugin_opt_set_limits(struct my_option *options,
 extern "C" my_bool get_one_plugin_option(int optid, const struct my_option *,
                                          char *);
 
-my_bool get_one_plugin_option(int optid __attribute__((unused)),
+my_bool get_one_plugin_option(int optid MY_ATTRIBUTE((unused)),
                               const struct my_option *opt,
                               char *argument)
 {
@@ -3950,7 +3949,7 @@ static my_option *construct_help_options(MEM_ROOT *mem_root,
 
 static my_bool check_if_option_is_deprecated(int optid,
                                              const struct my_option *opt,
-                                             char *argument __attribute__((unused)))
+                                             char *argument MY_ATTRIBUTE((unused)))
 {
   if (optid == -1)
   {
@@ -3994,7 +3993,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
   LEX_STRING plugin_name;
   char *varname;
   int error;
-  sys_var *v __attribute__((unused));
+  sys_var *v MY_ATTRIBUTE((unused));
   st_bookmark *var;
   size_t len;
   uint count= EXTRA_OPTIONS;

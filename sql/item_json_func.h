@@ -1,7 +1,7 @@
 #ifndef ITEM_JSON_FUNC_INCLUDED
 #define ITEM_JSON_FUNC_INCLUDED
 
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -778,6 +778,10 @@ class Item_func_json_unquote :public Item_str_func
   String m_value;
 public:
   Item_func_json_unquote(const POS &pos, PT_item_list *a)
+    : Item_str_func(pos, a)
+  {}
+
+  Item_func_json_unquote(const POS &pos, Item *a)
     : Item_str_func(pos, a)
   {}
 

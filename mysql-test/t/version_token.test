@@ -215,8 +215,61 @@ connection default;
 --echo # Next statement goes through as it is from a different connection.
 select 1;
 
+--echo # Tests related to locking
+CONNECT (vtcon1, localhost, root,,);
+CONNECT (vtcon2, localhost, root,,);
+CONNECT (vtcon3, localhost, root,,);
+
+-- echo # Connection: vtcon1 
+CONNECTION vtcon1;
+SELECT version_tokens_set("a=aa;b=bb;c=cc");
+set @@version_tokens_session= "a=aa";
+--let $t1_vtcon1 = `SELECT sysdate()`
+--send SELECT sleep(6); # sleep for 6 seconds in background.
+
+-- echo # Connection: vtcon2
+CONNECTION vtcon2;
+--let $t1_vtcon2 = `SELECT sysdate()`
+SELECT version_tokens_lock_exclusive("b",20);
+--let $t2_vtcon2 = `SELECT sysdate()`
+--let $t3_vtcon2 = `SELECT time_format(timediff("$t2_vtcon2","$t1_vtcon2"),'%S')`
+if ($t3_vtcon2 >= "03") {
+--echo vtcon2 - Time difference should not be there or very close to max 3 seconds because no waiting time required to acquire lock on b
+}
+
+-- echo # Connection: vtcon3
+CONNECTION vtcon3;
+let $wait_condition= SELECT COUNT(*) > 0 FROM information_schema.processlist
+                     WHERE info like '%select sleep%' AND state='User sleep';
+source include/wait_condition.inc;
+SELECT version_tokens_lock_exclusive("a",20);
+--let $t2_vtcon3 = `SELECT sysdate()`
+--let $t3_vtcon3 = `SELECT time_format(timediff("$t2_vtcon3","$t1_vtcon1"),'%S')`
+if ($t3_vtcon3 < "05") {
+--echo vtcon2 - Time difference should be not less than 5 seconds, waited till lock on a is released by vtcon1. Actual wait time is : $t3_vtcon3
+}
+SELECT version_tokens_unlock();
+-- echo # Connection: vtcon1
+CONNECTION vtcon1;
+--reap
+disconnect vtcon1;
+disconnect vtcon2;
+connection vtcon3;
+
+
 -- echo
 UNINSTALL PLUGIN version_tokens;
+--disable_result_log
+--disable_query_log 
+let $mysql_errno = 0;
+while ($mysql_errno != 1123)
+{
+  --error 0,1123
+  SELECT version_tokens_set("token1=abc;token2=def");
+  --sleep 0.1
+} 
+--enable_query_log
+--enable_result_log 
 
 -- echo
 -- echo # The UDFs fail as the plugin is uninstalled.

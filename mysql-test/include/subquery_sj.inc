@@ -7119,3 +7119,26 @@ prepare stmt from
 execute stmt;
 execute stmt;
 drop table cc;
+
+--echo #
+--echo # Bug #22305361: QUERY WITH MATERIALIZED TABLE RETURNS INCORRECT
+--echo #                RESULTS IN 5.6
+--echo #
+
+CREATE TABLE t(a INT,b INT);
+INSERT INTO t VALUES (1,0),(1,0),(1,0),(1,0),(1,1);
+
+let query=
+SELECT *
+FROM t AS t1
+WHERE t1.a IN (SELECT t2.a
+               FROM t AS t2
+               WHERE CONCAT(t2.a,'') NOT IN (SELECT t3.a
+                                             FROM t AS t3
+                                             WHERE t3.b=1));
+
+ANALYZE TABLE t;
+eval EXPLAIN extended $query;
+eval $query;
+
+DROP TABLE t;

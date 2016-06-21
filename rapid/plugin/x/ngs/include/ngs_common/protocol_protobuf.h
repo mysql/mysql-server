@@ -22,11 +22,18 @@
 #pragma warning(push, 0)
 #endif // WIN32
 
-#include "mysqlx.pb.h"
-
+#include <google/protobuf/message.h>
+#include <google/protobuf/repeated_field.h>
+#include <google/protobuf/text_format.h>
 #include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/io/tokenizer.h>
+#include <google/protobuf/io/zero_copy_stream.h>
 #include <google/protobuf/wire_format_lite.h>
 #include <google/protobuf/wire_format_lite_inl.h>
+#include <google/protobuf/dynamic_message.h>
+
+
+#include "mysqlx.pb.h"
 
 #ifdef WIN32
 #pragma warning(pop)

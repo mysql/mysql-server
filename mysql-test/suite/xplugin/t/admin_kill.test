@@ -136,7 +136,7 @@ drop user unpriv@localhost;
 -->endsql
 EOF
 
---replace_regex /([a-z]*.+localhost[ 	]+)[0-9]+/\1$SESSION/
+--replace_regex /([a-z]*.+localhost[ 	]+)[0-9]+/\1$SESSION/ /You are not owner of thread [0-9]+/You are not owner of thread/
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/admin_kill.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/admin_kill.tmp
 

@@ -315,7 +315,10 @@ runJoin(NDBT_Context* ctx, NDBT_Step* step){
     addMask(ctx, (1 << stepNo), "Running");
   }
   g_info << endl;
-  restarter.insertErrorInAllNodes(0);
+  if (inject_err)
+  {
+    restarter.insertErrorInAllNodes(0);
+  }
   return NDBT_OK;
 }
 

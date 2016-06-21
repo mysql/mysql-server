@@ -18,12 +18,8 @@
  */
 
 #include "mysqlx/mysql.h"
-
-#include ""
 #include "mysqld_error.h"
-
-#include <boost/asio.hpp>
-#include <google/protobuf/message.h>
+#include "ngs_common/protocol_protobuf.h"
 
 class Mysqlx_test_connector;
 

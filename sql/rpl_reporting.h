@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,7 +61,7 @@ public:
                         printf() format.
   */
   virtual void report(loglevel level, int err_code, const char *msg, ...) const
-    __attribute__((format(printf, 4, 5)));
+    MY_ATTRIBUTE((format(printf, 4, 5)));
   void va_report(loglevel level, int err_code, const char *prefix_msg,
                  const char *msg, va_list v_args) const;
 

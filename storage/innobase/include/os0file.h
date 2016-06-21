@@ -229,32 +229,32 @@ struct Compression {
 	@param[in]	page		Page contents
 	@return true if it is a compressed page */
 	static bool is_compressed_page(const byte* page)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
         /** Check wether the compression algorithm is supported.
         @param[in]      algorithm       Compression algorithm to check
         @param[out]     type            The type that algorithm maps to
         @return DB_SUCCESS or error code */
 	static dberr_t check(const char* algorithm, Compression* type)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
         /** Validate the algorithm string.
         @param[in]      algorithm       Compression algorithm to check
         @return DB_SUCCESS or error code */
 	static dberr_t validate(const char* algorithm)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
         /** Convert to a "string".
         @param[in]      type            The compression type
         @return the string representation */
         static const char* to_string(Type type)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
         /** Convert the meta data to a std::string.
         @param[in]      meta		Page Meta data
         @return the string representation */
         static std::string to_string(const meta_t& meta)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Deserizlise the page header compression meta-data
 	@param[in]	header		Pointer to the page header
@@ -267,7 +267,7 @@ struct Compression {
         @param[in]      algorithm       Compression algorithm to check
         @return true if no algorithm requested */
 	static bool is_none(const char* algorithm)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Decompress the page data contents. Page type must be
 	FIL_PAGE_COMPRESSED, if not then the source contents are
@@ -284,7 +284,7 @@ struct Compression {
 		byte*		src,
 		byte*		dst,
 		ulint		dst_len)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Compression type */
 	Type		m_type;
@@ -387,32 +387,32 @@ struct Encryption {
 	@param[in]	page	page which need to check
 	@return true if it is a encrypted page */
 	static bool is_encrypted_page(const byte* page)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Check the encryption option and set it
 	@param[in]	option		encryption option
 	@param[in/out]	encryption	The encryption type
 	@return DB_SUCCESS or DB_UNSUPPORTED */
 	dberr_t set_algorithm(const char* option, Encryption* type)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
         /** Validate the algorithm string.
         @param[in]      algorithm       Encryption algorithm to check
         @return DB_SUCCESS or error code */
 	static dberr_t validate(const char* algorithm)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
         /** Convert to a "string".
         @param[in]      type            The encryption type
         @return the string representation */
         static const char* to_string(Type type)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
         /** Check if the string is "empty" or "none".
         @param[in]      algorithm       Encryption algorithm to check
         @return true if no algorithm requested */
 	static bool is_none(const char* algorithm)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
         /** Generate random encryption value for key and iv.
         @param[in,out]	value	Encryption value */
@@ -453,7 +453,7 @@ struct Encryption {
 		ulint			src_len,
 		byte*			dst,
 		ulint*			dst_len)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Decrypt the page data contents. Page type must be
 	FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,
@@ -472,7 +472,7 @@ struct Encryption {
 		ulint			src_len,
 		byte*			dst,
 		ulint			dst_len)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Encrypt type */
 	Type			m_type;
@@ -552,7 +552,8 @@ public:
 		:
 		m_block_size(UNIV_SECTOR_SIZE),
 		m_type(READ),
-		m_compression()
+		m_compression(),
+		m_encryption()
 	{
 		/* No op */
 	}
@@ -564,7 +565,8 @@ public:
 		:
 		m_block_size(UNIV_SECTOR_SIZE),
 		m_type(static_cast<uint16_t>(type)),
-		m_compression()
+		m_compression(),
+		m_encryption()
 	{
 		if (is_log()) {
 			disable_compression();
@@ -580,42 +582,42 @@ public:
 
 	/** @return true if ignore missing flag is set */
 	static bool ignore_missing(ulint type)
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return((type & IGNORE_MISSING) == IGNORE_MISSING);
 	}
 
 	/** @return true if it is a read request */
 	bool is_read() const
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return((m_type & READ) == READ);
 	}
 
 	/** @return true if it is a write request */
 	bool is_write() const
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return((m_type & WRITE) == WRITE);
 	}
 
 	/** @return true if it is a redo log write */
 	bool is_log() const
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return((m_type & LOG) == LOG);
 	}
 
 	/** @return true if the simulated AIO thread should be woken up */
 	bool is_wake() const
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return((m_type & DO_NOT_WAKE) == 0);
 	}
 
 	/** @return true if partial read warning disabled */
 	bool is_partial_io_warning_disabled() const
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return((m_type & DISABLE_PARTIAL_IO_WARNINGS)
 		       == DISABLE_PARTIAL_IO_WARNINGS);
@@ -629,21 +631,21 @@ public:
 
 	/** @return true if missing files should be ignored */
 	bool ignore_missing() const
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(ignore_missing(m_type));
 	}
 
 	/** @return true if punch hole should be used */
 	bool punch_hole() const
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return((m_type & PUNCH_HOLE) == PUNCH_HOLE);
 	}
 
 	/** @return true if the read should be validated */
 	bool validate() const
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		ut_a(is_read() ^ is_write());
 
@@ -672,7 +674,7 @@ public:
 
 	/** @return the block size to use for IO */
 	ulint block_size() const
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(m_block_size);
 	}
@@ -715,21 +717,21 @@ public:
 	/** Get the compression algorithm.
 	@return the compression algorithm */
 	Compression compression_algorithm() const
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(m_compression);
 	}
 
 	/** @return true if the page should be compressed */
 	bool is_compressed() const
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(compression_algorithm().m_type != Compression::NONE);
 	}
 
 	/** @return true if the page read should not be transformed. */
 	bool is_compression_enabled() const
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return((m_type & NO_COMPRESSION) == 0);
 	}
@@ -767,14 +769,14 @@ public:
 	/** Get the encryption algorithm.
 	@return the encryption algorithm */
 	Encryption encryption_algorithm() const
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(m_encryption);
 	}
 
 	/** @return true if the page should be encrypted. */
 	bool is_encrypted() const
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(m_encryption.m_type != Encryption::NONE);
 	}
@@ -796,7 +798,7 @@ public:
 
 	/** @return true if the request is from the dblwr recovery */
 	bool is_dblwr_recover() const
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return((m_type & DBLWR_RECOVER) == DBLWR_RECOVER);
 	}
@@ -804,6 +806,14 @@ public:
 	/** @return true if punch hole is supported */
 	static bool is_punch_hole_supported()
 	{
+
+		/* In this debugging mode, we act as if punch hole is supported,
+		and then skip any calls to actually punch a hole here.
+		In this way, Transparent Page Compression is still being tested. */
+		DBUG_EXECUTE_IF("ignore_punch_hole",
+			return(true);
+		);
+
 #if defined(HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE) || defined(_WIN32)
 		return(true);
 #else
@@ -1002,7 +1012,7 @@ os_file_create_simple_no_error_handling_func(
 	ulint		access_type,
 	bool		read_only,
 	bool*		success)
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Tries to disable OS caching on an opened file descriptor.
 @param[in]	fd		file descriptor to alter
@@ -1040,7 +1050,7 @@ os_file_create_func(
 	ulint		type,
 	bool		read_only,
 	bool*		success)
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Deletes a file. The file has to be closed before calling this.
 @param[in]	name		file path as a null-terminated string
@@ -1235,7 +1245,7 @@ pfs_os_file_create_simple_func(
 	bool*		success,
 	const char*	src_file,
 	ulint		src_line)
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** NOTE! Please use the corresponding macro
 os_file_create_simple_no_error_handling(), not directly this function!
@@ -1266,7 +1276,7 @@ pfs_os_file_create_simple_no_error_handling_func(
 	bool*		success,
 	const char*	src_file,
 	ulint		src_line)
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** NOTE! Please use the corresponding macro os_file_create(), not directly
 this function!
@@ -1300,7 +1310,7 @@ pfs_os_file_create_func(
 	bool*		success,
 	const char*	src_file,
 	ulint		src_line)
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** NOTE! Please use the corresponding macro os_file_close(), not directly
 this function!
@@ -1564,7 +1574,7 @@ os_file_close_no_error_handling(os_file_t file);
 os_file_size_t
 os_file_get_size(
 	const char*	filename)
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Gets a file size.
 @param[in]	file		handle to a file
@@ -1572,7 +1582,7 @@ os_file_get_size(
 os_offset_t
 os_file_get_size(
 	os_file_t	file)
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Write the specified number of zeros to a newly created file.
 @param[in]	name		name of the file or path as a null-terminated
@@ -1587,7 +1597,7 @@ os_file_set_size(
 	os_file_t	file,
 	os_offset_t	size,
 	bool		read_only)
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Truncates a file at its current position.
 @param[in/out]	file	file to be truncated
@@ -1644,7 +1654,7 @@ os_file_read_func(
 	void*		buf,
 	os_offset_t	offset,
 	ulint		n)
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Rewind file to its start, read at most size - 1 bytes from it to str, and
 NUL-terminate str. All errors are silently ignored. This function is
@@ -1677,7 +1687,7 @@ os_file_read_no_error_handling_func(
 	os_offset_t	offset,
 	ulint		n,
 	ulint*		o)
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** NOTE! Use the corresponding macro os_file_write(), not directly this
 function!
@@ -1696,7 +1706,7 @@ os_file_write_func(
 	const void*	buf,
 	os_offset_t	offset,
 	ulint		n)
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Check the existence and type of the given file.
 @param[in]	path		pathname of the file
@@ -1934,7 +1944,7 @@ os_file_punch_hole(
 	os_file_t	fh,
 	os_offset_t	off,
 	os_offset_t	len)
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Check if the file system supports sparse files.
 
@@ -1951,7 +1961,7 @@ bool
 os_is_sparse_file_supported(
 	const char*	path,
 	os_file_t	fh)
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Decompress the page data contents. Page type must be FIL_PAGE_COMPRESSED, if
 not then the source contents are left unchanged and DB_SUCCESS is returned.
@@ -1968,7 +1978,7 @@ os_file_decompress_page(
 	byte*		src,
 	byte*		dst,
 	ulint		dst_len)
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Normalizes a directory path for the current OS:
 On Windows, we convert '/' to '\', else we convert '\' to '/'.

@@ -320,7 +320,7 @@ dict_mem_table_add_col(
 	ulint		mtype,	/*!< in: main datatype */
 	ulint		prtype,	/*!< in: precise type */
 	ulint		len)	/*!< in: precision */
-	__attribute__((nonnull(1)));
+	MY_ATTRIBUTE((nonnull(1)));
 /** Adds a virtual column definition to a table.
 @param[in,out]	table		table
 @param[in]	heap		temporary memory heap, or NULL. It is
@@ -1250,7 +1250,7 @@ struct dict_vcol_templ_t {
 	ulint			rec_len;
 
 	/** default column value if any */
-	const byte*		default_rec;
+	byte*			default_rec;
 };
 
 /* This flag is for sync SQL DDL and memcached DML.

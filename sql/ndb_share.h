@@ -60,6 +60,7 @@ struct Ndb_statistics {
 
 
 struct NDB_SHARE {
+  MY_BITMAP stored_columns;
   NDB_SHARE_STATE state;
   THR_LOCK lock;
   mysql_mutex_t mutex;
@@ -86,7 +87,7 @@ struct NDB_SHARE {
   static void destroy(NDB_SHARE* share);
 
   class Ndb_event_data* get_event_data_ptr() const;
-
+  void set_binlog_flags_for_table(struct TABLE *);
   void print(const char* where, FILE* file = stderr) const;
 
   /*

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,6 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#ifndef UNITTEST_OBJECT_FILTER_PARSER
 #include "object_filter.h"
 #include "pattern_matcher.h"
 #include "database.h"
@@ -24,8 +25,75 @@
 #include "mysql_function.h"
 #include "trigger.h"
 #include "privilege.h"
+#endif
 #include <boost/algorithm/string.hpp>
+#include <boost/tokenizer.hpp>
 
+
+std::string parse_inclusion_string(
+  std::string val,
+  std::vector<std::pair<std::string, std::string> >& list,
+  bool allow_schema,
+  bool is_user_object)
+{
+  try
+  {
+    typedef boost::tokenizer<boost::escaped_list_separator<char> > tokenizer_t;
+    typedef boost::tokenizer<boost::escaped_list_separator<char> >::iterator
+      titerator_t;
+    typedef boost::escaped_list_separator<char> separator_t;
+
+    const separator_t sep_csl('\\', ',', '\"');
+    const separator_t sep_user('\\', '@', '\"');
+    const separator_t sep_object('\\', '.', '\'');
+    const separator_t *sep= is_user_object ? &sep_user : &sep_object;
+
+    tokenizer_t outer_tok(val, sep_csl);
+    for (titerator_t it= outer_tok.begin(); it != outer_tok.end(); it++)
+    {
+      std::string elt= *it;
+      boost::trim(elt);
+      tokenizer_t itok(elt, *sep);
+      std::vector<std::string> object_parts;
+      for (titerator_t iit= itok.begin(); iit != itok.end(); iit++)
+      {
+        std::string s= *iit;
+        boost::trim(s);
+        if (s.length() == 0)
+          return "empty object element specified (\"" + *it + "\")";
+        if (is_user_object)
+          object_parts.push_back(("'" + s + "'"));
+        else
+          object_parts.push_back(s);
+      }
+
+      if (object_parts.size() == 1)
+      {
+        if (is_user_object)
+          list.push_back(std::make_pair(object_parts[0], "%"));
+        else
+          list.push_back(std::make_pair("%", object_parts[0]));
+      }
+      else if (object_parts.size() == 2 && (allow_schema || is_user_object))
+      {
+        list.push_back(std::make_pair(object_parts[0], object_parts[1]));
+      }
+      else
+        return "Invalid object name specified (\"" + *it + "\")";
+    }
+  }
+  catch (std::exception const &ex)
+  {
+    return ex.what();
+  }
+  catch (...)
+  {
+    return "unknown exception";
+  }
+  return "";
+}
+
+#ifndef UNITTEST_OBJECT_FILTER_PARSER
 using namespace Mysql::Tools::Dump;
 
 void Object_filter::process_object_inclusion_string(
@@ -33,47 +101,17 @@ void Object_filter::process_object_inclusion_string(
   bool allow_schema/*= true*/,
   bool is_user_object)
 {
-  std::vector<std::string> objects_list;
-  boost::split(objects_list, m_include_tmp_string.value(),
-    boost::is_any_of(","), boost::token_compress_on);
-
-  for (std::vector<std::string>::iterator it= objects_list.begin();
-    it != objects_list.end(); ++it)
-  {
-    std::vector<std::string> object_parts;
-    if (is_user_object)
-    {
-      boost::split(object_parts, *it,
-        boost::is_any_of("@"), boost::token_compress_on);
-
-      object_parts[0] = ("'" + object_parts[0] + "'");
-      if (object_parts.size() == 2)
-        object_parts[1] = ("'" + object_parts[1] + "'");
-    }
-    else
-    {
-      boost::split(object_parts, *it,
-        boost::is_any_of("."), boost::token_compress_on);
-    }
-    if (object_parts.size() == 1)
-    {
-      if (is_user_object)
-        list.push_back(std::make_pair(object_parts[0], "%"));
-      else
-        list.push_back(std::make_pair("%", object_parts[0]));
-    }
-    else if (object_parts.size() == 2 && (allow_schema || is_user_object))
-    {
-      list.push_back(std::make_pair(object_parts[0], object_parts[1]));
-    }
-    else
-      m_program->error(
-      Mysql::Tools::Base::Message_data(1,
-      "Invalid object name specified to --include-<type> or "
-      "--exclude-<type> option: \"" + *it + "\".",
-      Mysql::Tools::Base::Message_type_error));
-  }
+  std::string err;
+  err= parse_inclusion_string(m_include_tmp_string.value(),
+                              list, allow_schema, is_user_object);
+  if (err.length() > 0)
+    m_program->error(
+      Mysql::Tools::Base::Message_data(1, "Failed to parse --include -<type> or"
+                                       "--exclude-<type> argument \"" +
+                                       m_include_tmp_string.value() + "\": " + err,
+                                       Mysql::Tools::Base::Message_type_error));
 }
+
 
 void Object_filter::exclude_events_callback(char*)
 {
@@ -358,3 +396,4 @@ void Object_filter::create_options()
 Object_filter::Object_filter(Mysql::Tools::Base::Abstract_program* program)
   : m_program(program)
 {}
+#endif /* UNITTEST_OBJECT_FILTER_PARSER */

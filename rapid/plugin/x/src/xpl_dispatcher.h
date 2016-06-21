@@ -21,9 +21,7 @@
 #ifndef _XPL_DISPATCHER_H_
 #define _XPL_DISPATCHER_H_
 
-#include "mysqlx_connection.pb.h"
-#include "mysqlx_sql.pb.h"
-#include "mysqlx_crud.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 
 #include "ngs/protocol_encoder.h"
 

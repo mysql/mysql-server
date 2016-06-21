@@ -848,63 +848,11 @@ function getCreateCommands() {
                     path: datadir + "mysql" + dirSep,
                     name: null
                 });
-
-                // Mysqlds on Windows need a tmpdir and an install.sql
-                if (mcc.util.isWin(host.getValue("uname"))) {
-
-                    var installDir = mcc.util.unixPath(
-                            getEffectiveInstalldir(host));
-                    var installSep = mcc.util.dirSep(installDir);
-
-                    createDirCommands.push({
-                        host: host.getValue("name"),
-                        path: datadir + "tmp" + dirSep,
-                        name: "install.sql",
-                        msg: "use mysql;\n",
-                        overwrite: true
-                    });
-                    createDirCommands.push({
-                        cmd: "appendFileReq",
-                        host: host.getValue("name"),
-                        sourcePath: installDir + "share" + installSep,
-                        sourceName: "mysql_system_tables.sql",
-                        destinationPath: datadir + "tmp" + dirSep,
-                        destinationName: "install.sql"
-                    });
-                    createDirCommands.push({
-                        cmd: "appendFileReq",
-                        host: host.getValue("name"),
-                        sourcePath: installDir + "share" + installSep,
-                        sourceName: "mysql_system_tables_data.sql",
-                        destinationPath: datadir + "tmp" + dirSep,
-                        destinationName: "install.sql"
-                    });
-                    createDirCommands.push({
-                        cmd: "appendFileReq",
-                        host: host.getValue("name"),
-                        sourcePath: installDir + "share" + installSep,
-                        sourceName: "fill_help_tables.sql",
-                        destinationPath: datadir + "tmp" + dirSep,
-                        destinationName: "install.sql"
-                    });
-					createDirCommands.push({
-                        host: host.getValue("name"),
-                        path: datadir + "tmp" + dirSep,
-                        name: "mysql_install_db.bat",
-                        msg: "\""+installDir+installSep+"bin"+installSep+"mysqld.exe\" --lc-messages-dir=\""+installDir+installSep+"share\" --initialize-insecure --basedir=\""+
-                            installDir+"\" --datadir=\""+datadir+dirSep+"data"+
-                            "\" --loose-skip-ndbcluster --max_allowed_packet=8M  --net_buffer_length=16K < \""+
-                            datadir+dirSep+"tmp"+dirSep+"install.sql\"\n",
-                        overwrite: true
-                    });
-                } else {
-                    // Non-win mysqlds also need data/tmp
-                    createDirCommands.push({
-                        host: host.getValue("name"),
-                        path: datadir + "tmp" + dirSep,
-                        name: null
-                    });
-                }
+                createDirCommands.push({
+                    host: host.getValue("name"),
+                    path: datadir + "tmp" + dirSep,
+                    name: null
+                });
             }
         }
     }
@@ -1066,40 +1014,22 @@ function getStartProcessCommands(process) {
         };
 
         var isDoneFunction = function () { return mcc.gui.getStatii(nodeid) == "CONNECTED"; };
+
+        if (isFirstStart(nodeid)) { 
+        // First start of mysqld
+           var fsc = new ProcessCommand(
+                     host, 
+                     basedir,
+                     "mysqld"+(isWin?".exe":""));
+           fsc.addopt("--defaults-file", datadir+"my.cnf");
+           fsc.addopt("--initialize-insecure");
+           fsc.progTitle = "Initializing (insecure) node "+ nodeid +" ("+ptype+")";
+           scmds.unshift(fsc);
+        }
       
-        // With FreeSSHd (native windows) we need to run install_db command
         // inside cmd.exe for redirect of stdin (FIXME: not sure if that 
         // will work on Cygwin
-        if (isWin) {
-            var langdir = basedir + "share";
-            var tmpdir = datadir_ + "tmp";
-
-            if (isFirstStart(nodeid)) {
-               // Initialize the mysqld
-                          var midb = new ProcessCommand(host, tmpdir, "mysql_install_db.bat");
-                          midb.progTitle = "Initializing (insecure) node "+ nodeid +" ("+ptype+")";
-                          scmds.unshift(midb);
-            }
-			
-            var ic = new ProcessCommand(host, "C:\\Windows\\System32", "cmd.exe");
-            delete ic.msg.file.autoComplete; // Don't want ac for cmd.exe
-            ic.addopt("/C");
-            ic.addopt(basedir+"bin\\mysqld.exe");
-
-            ic.addopt("--lc-messages-dir", mcc.util.unixPath(langdir));
-            ic.addopt("--basedir", mcc.util.unixPath(basedir));
-            ic.addopt("--datadir", datadir+"\data");
-            ic.addopt("--tmpdir", mcc.util.unixPath(tmpdir));
-            ic.addopt("--log-warnings", "0");
-            ic.addopt("--loose-skip-ndbcluster");
-            ic.addopt("--max_allowed_packet","8M");
-            ic.addopt("--net_buffer_length","16K");
-
-            ic.addopt("<");
-            ic.addopt(tmpdir + "\\install.sql");
-            ic.progTitle = "Running mysqld --bootstrap for node "+nodeid;
-            //scmds.unshift(ic);
-
+        if (isWin) {		
             sc.addopt("--install");
             sc.addopt("N"+nodeid);
             sc.addopt("--defaults-file", datadir+"my.cnf");
@@ -1116,18 +1046,6 @@ function getStartProcessCommands(process) {
             scmds.push(ss);
         } 
         else {
-            
-            if (isFirstStart(nodeid)) {
-               // First start of mysqld 
-               var ic = new ProcessCommand(host, basedir, "mysqld");
-               ic.addopt("--no-defaults");
-               ic.addopt("--initialize-insecure");
-               ic.addopt("--datadir", datadir+"data");
-               ic.addopt("--basedir", basedir);
-               ic.progTitle = "Initializing (insecure) node "+ nodeid +" ("+ptype+")";
-               scmds.unshift(ic);
-            }
-
             sc.addopt("--defaults-file", datadir+"my.cnf");
             // Invoking mysqld does not return
             sc.msg.procCtrl.waitForCompletion = false;
@@ -1161,7 +1079,8 @@ function getStopProcessCommands(process) {
 
     var stopCommands = [];
     if (ptype == "ndb_mgmd") {
-        var sc = new ProcessCommand(host, basedir, "ndb_mgm"+(isWin?".exe":""));
+        var sc = new ProcessCommand(host, basedir, "ndb_mgm"+(isWin?".exe":"")); 
+
         sc.addopt("--ndb-connectstring", getConnectstring());
         sc.addopt("--execute", "shutdown");
         sc.progTitle = "Running ndb_mgm -e shutdown to take down cluster";

@@ -927,7 +927,7 @@ public:
      * Get real fragment count, no setter, is set by NDB, always
      * equal to getFragmentCount except for fully replicated tables.
      */
-    Uint32 getRealFragmentCount() const;
+    Uint32 getPartitionCount() const;
 
     /**
      * Set fragment count using cluster agnostics defines

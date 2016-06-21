@@ -25,8 +25,6 @@
 #include "xpl_session.h"
 #include "sql_data_context.h"
 
-#include <boost/asio/io_service.hpp>
-
 
 namespace ngs
 {
@@ -125,7 +123,7 @@ class Mock_sql_data_context : public xpl::Sql_data_context
 {
 public:
   Mock_sql_data_context(ngs::Protocol_encoder *p=0)
-  : xpl::Sql_data_context(*p)
+  : xpl::Sql_data_context(p)
   {
   }
 

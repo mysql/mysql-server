@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -462,7 +462,7 @@ public:
     @param  n number of elements.
     @retval true if out-of-memory, false otherwise.
   */
-  __attribute__((warn_unused_result))
+  MY_ATTRIBUTE((warn_unused_result))
   bool reserve(size_type n)
   {
     DBUG_ASSERT(n <= m_container.max_size());
