@@ -35,7 +35,7 @@ Name:          Ndb.cpp
 #include <NdbTick.h>
 
 /****************************************************************************
-void connect();
+void doConnect();
 
 Connect to any node which has no connection at the moment.
 ****************************************************************************/
@@ -294,7 +294,7 @@ found_middle:
 }//Ndb::getConnectedNdbTransaction()
 
 /*****************************************************************************
-disconnect();
+void doDisconnect();
 
 Remark:        Disconnect all connections to the database. 
 *****************************************************************************/
@@ -305,6 +305,36 @@ Ndb::doDisconnect()
   NdbTransaction* tNdbCon;
   CHECK_STATUS_MACRO_VOID;
 
+  /**
+   * Clean up active NdbTransactions by releasing all NdbOperations,
+   * ScanOperations, and NdbQuery owned by it. Release of
+   * Scan- and QueryOperations will also close any open cursors
+   * still remaining. Thus, any 'buddy transactions' connected to
+   * such scan operations, will also be closed, *and removed* from
+   * theTransactionList.
+   */
+  tNdbCon = theTransactionList;
+  while (tNdbCon != NULL) {
+    tNdbCon->releaseOperations();
+    tNdbCon->releaseLockHandles();
+    tNdbCon = tNdbCon->theNext;
+  }//while
+
+  /**
+   * Disconnect and release all NdbTransactions in,
+   * the now cleaned up, theTransactionList.
+   */
+  tNdbCon = theTransactionList;
+  while (tNdbCon != NULL) {
+    NdbTransaction* tmpNdbCon = tNdbCon;
+    tNdbCon = tNdbCon->theNext;
+    releaseConnectToNdb(tmpNdbCon);
+  }//while
+
+  /**
+   * Transactions in theConnectionArray[] are idle, and thus in a 
+   * known 'clean' state already. Disconnect and release right away.
+   */
   Uint32 tNoOfDbNodes = theImpl->theNoOfDBnodes;
   Uint8 *theDBnodes= theImpl->theDBnodes;
   DBUG_PRINT("info", ("theNoOfDBnodes=%d", tNoOfDbNodes));
@@ -318,14 +348,8 @@ Ndb::doDisconnect()
       releaseConnectToNdb(tmpNdbCon);
     }//while
   }//for
-  tNdbCon = theTransactionList;
-  while (tNdbCon != NULL) {
-    NdbTransaction* tmpNdbCon = tNdbCon;
-    tNdbCon = tNdbCon->theNext;
-    releaseConnectToNdb(tmpNdbCon);
-  }//while
   DBUG_VOID_RETURN;
-}//Ndb::disconnect()
+}//Ndb::doDisconnect()
 
 /*****************************************************************************
 int waitUntilReady(int timeout);

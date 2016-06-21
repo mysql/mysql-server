@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1373,19 +1373,6 @@ Uint32 NdbTransaction::getBuddyConPtr()
 
 /******************************************************************************
 NdbTransaction* next();
-
-inline
-void
-NdbTransaction::setBuddyConPtr(Uint32 aBuddyConPtr)
-{
-  theBuddyConPtr = aBuddyConPtr;
-}
-
-inline
-Uint32 NdbTransaction::getBuddyConPtr()
-{
-  return theBuddyConPtr;
-}
 
 Return Value:	Return  next pointer to NdbTransaction object.
 Remark:         Get the next pointer. 
