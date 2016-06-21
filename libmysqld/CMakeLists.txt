@@ -78,9 +78,7 @@ SET(SQL_EMBEDDED_SOURCES
   ../libbinlogevents/src/binary_log_funcs.cpp
   ../libbinlogevents/src/uuid.cpp
   ../sql/binlog.cc 
-  ../sql/event_parse_data.cc
   ../sql/log_event.cc
-  ../sql/mysqld_thd_manager.cc
   ../sql/rpl_filter.cc
   ../sql/rpl_injector.cc
   ../sql/rpl_record.cc

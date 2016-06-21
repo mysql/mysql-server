@@ -2404,7 +2404,7 @@ event_tail:
 
             lex->stmt_definition_begin= @1.cpp.start;
             lex->create_info.options= $2;
-            if (!(lex->event_parse_data= Event_parse_data::new_instance(thd)))
+            if (!(lex->event_parse_data= new (thd->mem_root) Event_parse_data()))
               MYSQL_YYABORT;
             lex->event_parse_data->identifier= $3;
             lex->event_parse_data->on_completion=
@@ -7631,7 +7631,7 @@ alter:
               Event_parse_data.
             */
 
-            if (!(Lex->event_parse_data= Event_parse_data::new_instance(YYTHD)))
+            if (!(Lex->event_parse_data= new (YYTHD->mem_root) Event_parse_data()))
               MYSQL_YYABORT;
             Lex->event_parse_data->identifier= $4;
 

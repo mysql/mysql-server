@@ -25,50 +25,12 @@
 
 
 /*
-  Returns a new instance
-
-  SYNOPSIS
-    Event_parse_data::new_instance()
-
-  RETURN VALUE
-    Address or NULL in case of error
-
-  NOTE
-    Created on THD's mem_root
-*/
-
-Event_parse_data *
-Event_parse_data::new_instance(THD *thd)
-{
-  return new (thd->mem_root) Event_parse_data;
-}
-
-
-/*
   Constructor
 
   SYNOPSIS
     Event_parse_data::Event_parse_data()
 */
 
-Event_parse_data::Event_parse_data()
-  :on_completion(Event_parse_data::ON_COMPLETION_DEFAULT),
-  status(Event_parse_data::ENABLED), status_changed(false),
-  do_not_create(false), body_changed(false),
-  item_starts(NULL), item_ends(NULL), item_execute_at(NULL),
-  starts_null(true), ends_null(true), execute_at_null(true),
-  item_expression(NULL), expression(0)
-{
-  DBUG_ENTER("Event_parse_data::Event_parse_data");
-
-  /* Actually in the parser STARTS is always set */
-  starts= ends= execute_at= 0;
-
-  comment.str= NULL;
-  comment.length= 0;
-
-  DBUG_VOID_RETURN;
-}
 
 
 /*
