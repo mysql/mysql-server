@@ -938,7 +938,7 @@ mci_get_cas(
 {
 	static uint64_t cas_id = 0;
 
-#if defined(HAVE_GCC_ATOMIC_BUILTINS)
+#if defined(HAVE_GCC_SYNC_BUILTINS)
 	return(__sync_add_and_fetch(&cas_id, 1));
 #else
 	pthread_mutex_lock(&eng->cas_mutex);

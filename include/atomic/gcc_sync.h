@@ -1,7 +1,7 @@
-#ifndef ATOMIC_GCC_BUILTINS_INCLUDED
-#define ATOMIC_GCC_BUILTINS_INCLUDED
+#ifndef GCC_SYNC_INCLUDED
+#define GCC_SYNC_INCLUDED
 
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,8 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+/* Old GCC __sync builtins introduced in GCC 4.1 */
 
 static inline int my_atomic_cas32(int32 volatile *a, int32 *cmp, int32 set)
 {
@@ -101,4 +103,4 @@ static inline void my_atomic_storeptr(void * volatile *a, void *v)
   (void) __sync_lock_test_and_set(a, v);
 }
 
-#endif /* ATOMIC_GCC_BUILTINS_INCLUDED */
+#endif /* GCC_SYNC_INCLUDED */
