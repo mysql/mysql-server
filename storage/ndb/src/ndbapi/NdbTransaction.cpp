@@ -1527,8 +1527,7 @@ NdbTransaction::checkSchemaObjects(const NdbTableImpl *tab,
 
 
 /*****************************************************************************
-NdbOperation* getNdbOperation(const NdbTableImpl* tab, NdbOperation* aNextOp,
-                              bool useRec)
+NdbOperation* getNdbOperation(const NdbTableImpl* tab, NdbOperation* aNextOp)
 
 Return Value    Return a pointer to a NdbOperation object if getNdbOperation 
                 was succesful.
@@ -1550,16 +1549,16 @@ NdbTransaction::getNdbOperation(const NdbTableImpl * tab,
     setErrorCode(4607);
     return NULL;
   }
+  if (!checkSchemaObjects(tab))
+  {
+    setErrorCode(1231);
+    return NULL;
+  }
   
   tOp = theNdb->getOperation();
   if (tOp == NULL)
     goto getNdbOp_error1;
 
-  if (!checkSchemaObjects(tab))
-  {
-    setErrorCode(1231);
-    return NULL;
-  } 
   if (aNextOp == NULL) {
     if (theLastOpInList != NULL) {
        theLastOpInList->next(tOp);
@@ -1670,12 +1669,12 @@ NdbTransaction::getNdbIndexScanOperation(const NdbIndexImpl* index,
   if (theCommitStatus == Started){
     const NdbTableImpl * indexTable = index->getIndexTable();
     if (indexTable != 0){
-      NdbIndexScanOperation* tOp = getNdbScanOperation(indexTable);
       if (!checkSchemaObjects(table, index))
       {
         setErrorCode(1231);
         return NULL;
       } 
+      NdbIndexScanOperation* tOp = getNdbScanOperation(indexTable);
       if(tOp)
       {
 	tOp->m_currentTable = table;
@@ -1738,15 +1737,16 @@ NdbTransaction::getNdbScanOperation(const NdbTableImpl * tab)
 { 
   NdbIndexScanOperation* tOp;
   
-  tOp = theNdb->getScanOperation();
-  if (tOp == NULL)
-    goto getNdbOp_error1;
   if (!checkSchemaObjects(tab))
   {
     setErrorCode(1231);
     return NULL;
   } 
   
+  tOp = theNdb->getScanOperation();
+  if (tOp == NULL)
+    goto getNdbOp_error1;
+
   if (tOp->init(tab, this) != -1) {
     define_scan_op(tOp);
     // Mark that this NdbIndexScanOperation is used as NdbScanOperation
@@ -1870,15 +1870,15 @@ NdbTransaction::getNdbIndexOperation(const NdbIndexImpl * anIndex,
 { 
   NdbIndexOperation* tOp;
   
-  tOp = theNdb->getIndexOperation();
-  if (tOp == NULL)
-    goto getNdbOp_error1;
-
   if (!checkSchemaObjects(aTable, anIndex))
   {
     setErrorCode(1231);
     return NULL;
   } 
+  tOp = theNdb->getIndexOperation();
+  if (tOp == NULL)
+    goto getNdbOp_error1;
+
   if (aNextOp == NULL) {
     if (theLastOpInList != NULL) {
        theLastOpInList->next(tOp);
