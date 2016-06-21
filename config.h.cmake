@@ -663,5 +663,6 @@
 
 #cmakedefine CPU_LEVEL1_DCACHE_LINESIZE @CPU_LEVEL1_DCACHE_LINESIZE@
 #cmakedefine HAVE_LIBNUMA 1
+#cmakedefine WITH_NUMA 1
 
 #endif

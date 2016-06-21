@@ -53,10 +53,10 @@ Created 11/5/1995 Heikki Tuuri
 #include "page0zip.h"
 #include "srv0mon.h"
 #include "buf0checksum.h"
-#ifdef HAVE_LIBNUMA
+#ifdef HAVE_LIBNUMA && defined(WITH_NUMA) && !defined(UNIV_INNOCHECKSUM)
 #include <numa.h>
 #include <numaif.h>
-#endif // HAVE_LIBNUMA
+#endif // HAVE_LIBNUMA && WITH_NUMA
 
 /*
 		IMPLEMENTATION OF THE BUFFER POOL
