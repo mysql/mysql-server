@@ -313,8 +313,6 @@ DROP TABLE t1;
 # Bug#20566243: ERROR WHILE DOING CREATE TABLE T1 SELECT (QUERY ON GC COLUMNS)
 CREATE TABLE t1(a int, b int as (a + 1),
 c varchar(12) as ("aaaabb") stored, d blob as (c));
-Warnings:
-Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 INSERT INTO t1(a) VALUES(1),(3);
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -329,8 +327,6 @@ a	b	c	d
 1	2	aaaabb	aaaabb
 3	4	aaaabb	aaaabb
 CREATE TABLE t2 LIKE t1;
-Warnings:
-Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -525,8 +521,8 @@ c	int(11)	NULL	YES		NULL	STORED GENERATED	#
 INSERT INTO t1 (a) VALUES (NULL), (1);
 SELECT * FROM t1;
 a	b	c
-NULL	NULL	NULL
 1	-1	0
+NULL	NULL	NULL
 DROP TABLE t1;
 # Bug#21854004: GCOLS:INNODB: FAILING ASSERTION: I < TABLE->N_DEF
 CREATE TABLE t1(
@@ -602,6 +598,46 @@ SELECT * FROM t1 order by col1;
 col1	col2	col3	col4	vgc1	sgc1
 1	10	100	111	1000	1000
 2	20	200	222	4000	4000
+DROP TABLE t1;
+#
+# Bug#22680839: DEFAULT IS NOT DETERMINISTIC AND SHOULD NOT BE
+#               ALLOWED IN GENERATED COLUMNS
+#
+# Test 1: ALTER DEFAULT
+#
+CREATE TABLE t1(a INT PRIMARY KEY DEFAULT 5,
+b INT AS (1 + DEFAULT(a)) STORED,
+c INT AS (1 + DEFAULT(a)) VIRTUAL);
+INSERT INTO t1 VALUES ();
+ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7, ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7;
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 MODIFY COLUMN a INT DEFAULT 8;
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 CHANGE COLUMN a a DOUBLE DEFAULT 5;
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
+DROP TABLE t1;
+# Test 2: ALTER DEFAULT + ADD GCOL
+#
+CREATE TABLE t1(a INT PRIMARY KEY DEFAULT 5);
+INSERT INTO t1 VALUES();
+ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7,
+ADD COLUMN b INT AS (1 + DEFAULT(a)) STORED,
+ALGORITHM = INPLACE;
+Got one of the listed errors
+ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7,
+ADD COLUMN c INT AS (1 + DEFAULT(a)) VIRTUAL,
+ALGORITHM = INPLACE;
+Got one of the listed errors
+ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7,
+ADD COLUMN b INT AS (1 + DEFAULT(a)) STORED,
+ADD COLUMN c INT AS (1 + DEFAULT(a)) VIRTUAL;
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
 DROP TABLE t1;
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;

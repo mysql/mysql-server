@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -452,7 +452,7 @@ lock_prdt_add_to_queue(
 
 	RecLock	rec_lock(index, block, PRDT_HEAPNO, type_mode);
 
-	return(rec_lock.create(trx, caller_owns_trx_mutex, prdt));
+	return(rec_lock.create(trx, caller_owns_trx_mutex, true, prdt));
 }
 
 /*********************************************************************//**
@@ -838,7 +838,7 @@ lock_prdt_lock(
 
 		RecLock	rec_lock(index, block, PRDT_HEAPNO, prdt_mode);
 
-		lock = rec_lock.create(trx, false);
+		lock = rec_lock.create(trx, false, true);
 
 		status = LOCK_REC_SUCCESS_CREATED;
 
@@ -954,7 +954,7 @@ lock_place_prdt_page_lock(
 		RecID	rec_id(space, page_no, PRDT_HEAPNO);
 		RecLock	rec_lock(index, rec_id, mode);
 
-		rec_lock.create(trx, false);
+		rec_lock.create(trx, false, true);
 
 #ifdef PRDT_DIAG
 		printf("GIS_DIAGNOSTIC: page lock %d\n", (int) page_no);

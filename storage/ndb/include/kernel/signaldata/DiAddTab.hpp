@@ -52,7 +52,7 @@ private:
   Uint32 schemaTransId;
   Uint32 hashMapPtrI;
   Uint32 fullyReplicated;
-  Uint32 realFragmentCount;
+  Uint32 partitionCount;
 };
 
 class DiAddTabRef {

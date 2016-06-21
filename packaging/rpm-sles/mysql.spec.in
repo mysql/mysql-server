@@ -71,6 +71,8 @@
 %{?sles12:                %global systemd 1}
 %{!?_tmpfilesdir:         %global _tmpfilesdir /usr/lib/tmpfiles.d}
 
+%global min                   5.7.9
+
 Name:           mysql-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
@@ -92,7 +94,7 @@ BuildRequires:  libnuma-devel
 BuildRequires:  ncurses-devel
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
-%{?sles11:BuildRequires: gcc47 gcc47-c++}
+%{?sles11:BuildRequires: gcc48 gcc48-c++}
 %if 0%{?systemd}
 BuildRequires:  systemd
 BuildRequires:  pkgconfig(systemd)
@@ -141,12 +143,12 @@ Obsoletes:      mysql-commercial-bench < 5.7.8
 Provides:       MySQL-server-advanced = %{version}-%{release}
 Obsoletes:      MySQL-server-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-server < %{version}-%{release}
-Requires:       mysql-commercial-client = %{version}-%{release}
-Requires:       mysql-commercial-common = %{version}-%{release}
+Requires:       mysql-commercial-client >= %{min}
+Requires:       mysql-commercial-common >= %{min}
 %else
 Provides:       MySQL-server = %{version}-%{release}
-Requires:       mysql-community-client = %{version}-%{release}
-Requires:       mysql-community-common = %{version}-%{release}
+Requires:       mysql-community-client >= %{min}
+Requires:       mysql-community-common >= %{min}
 %endif
 Obsoletes:      mysql-community-bench < 5.7.8
 Obsoletes:      community-mysql-bench
@@ -198,10 +200,10 @@ Group:          Applications/Databases
 Provides:       MySQL-client-advanced = %{version}-%{release}
 Obsoletes:      MySQL-client-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-client < %{version}-%{release}
-Requires:       mysql-commercial-libs = %{version}-%{release}
+Requires:       mysql-commercial-libs >= %{min}
 %else
 Provides:       MySQL-client = %{version}-%{release}
-Requires:       mysql-community-libs = %{version}-%{release}
+Requires:       mysql-community-libs >= %{min}
 %endif
 Obsoletes:      MySQL-client < %{version}-%{release}
 Provides:       mysql-client = %{version}-%{release}
@@ -233,10 +235,10 @@ Group:          Applications/Databases
 Provides:       MySQL-test-advanced = %{version}-%{release}
 Obsoletes:      MySQL-test-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-test < %{version}-%{release}
-Requires:       mysql-commercial-server = %{version}-%{release}
+Requires:       mysql-commercial-server >= %{min}
 %else
 Provides:       MySQL-test = %{version}-%{release}
-Requires:       mysql-community-server = %{version}-%{release}
+Requires:       mysql-community-server >= %{min}
 %endif
 Obsoletes:      MySQL-test < %{version}-%{release}
 Obsoletes:      mysql-test < %{version}-%{release}
@@ -255,10 +257,10 @@ Group:          Applications/Databases
 Provides:       MySQL-devel-advanced = %{version}-%{release}
 Obsoletes:      MySQL-devel-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-devel < %{version}-%{release}
-Requires:       mysql-commercial-libs = %{version}-%{release}
+Requires:       mysql-commercial-libs >= %{min}
 %else
 Provides:       MySQL-devel = %{version}-%{release}
-Requires:       mysql-community-libs = %{version}-%{release}
+Requires:       mysql-community-libs >= %{min}
 %endif
 Obsoletes:      MySQL-devel < %{version}-%{release}
 Obsoletes:      mysql-devel < %{version}-%{release}
@@ -279,10 +281,10 @@ Group:          Applications/Databases
 Provides:       MySQL-shared-advanced = %{version}-%{release}
 Obsoletes:      MySQL-shared-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-libs < %{version}-%{release}
-Requires:       mysql-commercial-common = %{version}-%{release}
+Requires:       mysql-commercial-common >= %{min}
 %else
 Provides:       MySQL-shared = %{version}-%{release}
-Requires:       mysql-community-common = %{version}-%{release}
+Requires:       mysql-community-common >= %{min}
 %endif
 Obsoletes:      MySQL-shared < %{version}-%{release}
 Obsoletes:      mysql-libs < %{version}-%{release}
@@ -303,10 +305,10 @@ Group:          Applications/Databases
 Provides:       MySQL-embedded-advanced = %{version}-%{release}
 Obsoletes:      MySQL-embedded-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-embedded < %{version}-%{release}
-Requires:       mysql-commercial-common = %{version}-%{release}
+Requires:       mysql-commercial-common >= %{min}
 %else
 Provides:       MySQL-embedded = %{version}-%{release}
-Requires:       mysql-community-common = %{version}-%{release}
+Requires:       mysql-community-common >= %{min}
 %endif
 Obsoletes:      mariadb-embedded
 Obsoletes:      MySQL-embedded < %{version}-%{release}
@@ -330,11 +332,11 @@ Summary:        Development header files and libraries for MySQL as an embeddabl
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-embedded-devel < %{version}-%{release}
-Requires:       mysql-commercial-devel = %{version}-%{release}
-Requires:       mysql-commercial-embedded = %{version}-%{release}
+Requires:       mysql-commercial-devel >= %{min}
+Requires:       mysql-commercial-embedded >= %{min}
 %else
-Requires:       mysql-community-devel = %{version}-%{release}
-Requires:       mysql-community-embedded = %{version}-%{release}
+Requires:       mysql-community-devel >= %{min}
+Requires:       mysql-community-embedded >= %{min}
 %endif
 Obsoletes:      mariadb-embedded-devel
 Obsoletes:      mysql-embedded-devel < %{version}-%{release}
@@ -359,8 +361,8 @@ if [ "x$(id -u)" = "x0" ] ; then
 fi
 %endif
 
-%{?sles11:export CC=/usr/bin/gcc-4.7}
-%{?sles11:export CXX=/usr/bin/g++-4.7}
+%{?sles11:export CC=/usr/bin/gcc-4.8}
+%{?sles11:export CXX=/usr/bin/g++-4.8}
 
 # Build debug versions of mysqld and libmysqld.a
 mkdir debug
@@ -467,6 +469,7 @@ rm -rf %{buildroot}%{_datadir}/mysql/mysql.server
 rm -rf %{buildroot}%{_datadir}/mysql/mysqld_multi.server
 rm -rf %{buildroot}%{_bindir}/mysql_embedded
 rm -f %{buildroot}%{_datadir}/mysql/win_install_firewall.sql 
+rm -f %{buildroot}%{_datadir}/mysql/audit_log_filter_win_install.sql
 
 # Remove upcoming man pages, to avoid breakage when they materialize
 # Keep this comment as a placeholder for future cases
@@ -506,6 +509,7 @@ rm -r $(readlink var) var
 datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p | tail -n 1')
 /bin/chmod 0751 "$datadir"
 /bin/touch /var/log/mysql/mysqld.log
+/bin/chown mysql:mysql /var/log/mysql/mysqld.log >/dev/null 2>&1 || :
 %if 0%{?systemd}
 %service_add_post mysql.service
 /usr/bin/systemd-tmpfiles --create %{_tmpfilesdir}/mysql.conf >/dev/null 2>&1 || :
@@ -560,8 +564,13 @@ fi
 %attr(644, root, root) %{_mandir}/man1/myisamlog.1*
 %attr(644, root, root) %{_mandir}/man1/myisampack.1*
 %attr(644, root, root) %{_mandir}/man8/mysqld.8*
+%if 0%{?systemd}
+%exclude %{_mandir}/man1/mysqld_multi.1*
+%exclude %{_mandir}/man1/mysqld_safe.1*
+%else
 %attr(644, root, root) %{_mandir}/man1/mysqld_multi.1*
 %attr(644, root, root) %{_mandir}/man1/mysqld_safe.1*
+%endif
 %attr(644, root, root) %{_mandir}/man1/mysqldumpslow.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_install_db.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_plugin.1*
@@ -615,6 +624,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_file.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libmemcached.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/locking_service.so
@@ -632,6 +642,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_file.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libmemcached.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/locking_service.so
@@ -651,8 +662,10 @@ fi
 %endif
 %if 0%{?commercial}
 %attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
+%attr(644, root, root) %{_datadir}/mysql/audit_log_filter_linux_install.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
@@ -660,6 +673,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_okv.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
@@ -679,6 +693,7 @@ fi
 %attr(644, root, root) %{_datadir}/mysql/magic
 %if 0%{?systemd}
 %attr(644, root, root) %{_unitdir}/mysql.service
+%attr(644, root, root) %{_unitdir}/mysql@.service
 %attr(644, root, root) %{_tmpfilesdir}/mysql.conf
 %else
 %attr(755, root, root) %{_sysconfdir}/init.d/mysql
@@ -792,6 +807,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
 %attr(644, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 %attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/replication_observers_example_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_framework.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_services.so
@@ -821,6 +837,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/replication_observers_example_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_framework.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_services.so
@@ -870,6 +887,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
+* Mon Apr 04 2016 Georgi Kodinov <georgi.kodinov@oracle.com> - 5.7.13-1
+- Add test_udf_services.so plugin
+- Add keyring_udf.so plugin to server subpackage
+
 * Fri Feb 5 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.12-1
 - Add keyring_okv.so plugin to commercial server subpackage
 

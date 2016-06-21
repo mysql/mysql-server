@@ -1774,8 +1774,8 @@ int ha_myisam::index_last(uchar *buf)
 }
 
 int ha_myisam::index_next_same(uchar *buf,
-			       const uchar *key __attribute__((unused)),
-			       uint length __attribute__((unused)))
+			       const uchar *key MY_ATTRIBUTE((unused)),
+			       uint length MY_ATTRIBUTE((unused)))
 {
   int error;
   DBUG_ASSERT(inited==INDEX);

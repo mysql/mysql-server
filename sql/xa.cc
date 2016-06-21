@@ -979,7 +979,7 @@ extern "C" void transaction_free_hash(void *);
 */
 
 extern "C" uchar *transaction_get_hash_key(const uchar *ptr, size_t *length,
-                                           my_bool not_used __attribute__((unused)))
+                                           my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= ((Transaction_ctx*)ptr)->xid_state()->get_xid()->key_length();
   return ((Transaction_ctx*)ptr)->xid_state()->get_xid()->key();

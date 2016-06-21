@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -112,7 +112,12 @@ I_object_reader* Mysqldump_tool_chain_maker::create_chain(
     m_main_object_reader->register_data_formatter(formatter);
     m_all_created_elements.push_back(m_main_object_reader);
   }
-  if (m_options->m_default_parallelism == 0)
+  /*
+    run as a single process only if default parallelism is set to 0 and
+    parallel schemas is not set
+  */
+  if (m_options->m_default_parallelism == 0 &&
+      m_options->get_parallel_schemas_thread_count() == 0)
   {
     return m_main_object_reader;
   }
@@ -132,12 +137,21 @@ I_object_reader* Mysqldump_tool_chain_maker::create_chain(
     this->get_message_handler(), this->get_object_id_generator(),
     m_options->get_object_queue_threads_count(object_queue_id),
     new Mysql::Instance_callback<void, bool, Mysqldump_tool_chain_maker>(
-      this, &Mysqldump_tool_chain_maker::mysql_thread_callback));
+      this, &Mysqldump_tool_chain_maker::mysql_thread_callback), m_program);
   this->register_progress_watchers_in_child(queue);
   queue->register_object_reader(m_main_object_reader);
   m_all_created_elements.push_back(queue);
   m_object_queues.insert(std::make_pair(object_queue_id, queue));
   return queue;
+}
+
+void Mysqldump_tool_chain_maker::stop_queues()
+{
+  std::map<int, Object_queue*>::const_iterator iter;
+  for (iter = m_object_queues.begin(); iter != m_object_queues.end(); iter++)
+  {
+    iter->second->stop_queue();
+  }
 }
 
 void Mysqldump_tool_chain_maker::mysql_thread_callback(bool is_starting)
@@ -162,11 +176,13 @@ Mysqldump_tool_chain_maker::Mysqldump_tool_chain_maker(
   I_connection_provider* connection_provider,
   Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
     message_handler, Simple_id_generator* object_id_generator,
-  Mysqldump_tool_chain_maker_options* options)
+  Mysqldump_tool_chain_maker_options* options,
+  Mysql::Tools::Base::Abstract_program* program)
   : Abstract_chain_element(message_handler, object_id_generator),
   Abstract_mysql_chain_element_extension(
     connection_provider, message_handler,
     options->m_mysql_chain_element_options),
   m_options(options),
-  m_main_object_reader(NULL)
+  m_main_object_reader(NULL),
+  m_program(program)
 {}

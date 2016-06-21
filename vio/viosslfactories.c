@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -256,8 +256,8 @@ static openssl_lock_t *openssl_stdlocks;
   as we are using our own locking mechanism.
 */
 static void openssl_lock(int mode, openssl_lock_t *lock,
-                         const char *file __attribute__((unused)),
-                         int line __attribute__((unused)))
+                         const char *file MY_ATTRIBUTE((unused)),
+                         int line MY_ATTRIBUTE((unused)))
 {
   int err;
   char const *what;
@@ -299,8 +299,8 @@ static void openssl_lock(int mode, openssl_lock_t *lock,
 }
 
 static void openssl_lock_function(int mode, int n,
-                                  const char *file __attribute__((unused)),
-                                  int line __attribute__((unused)))
+                                  const char *file MY_ATTRIBUTE((unused)),
+                                  int line MY_ATTRIBUTE((unused)))
 {
   if (n < 0 || n > CRYPTO_num_locks())
   {
@@ -316,8 +316,8 @@ static void openssl_lock_function(int mode, int n,
 }
 
 static openssl_lock_t *openssl_dynlock_create(const char *file
-                                              __attribute__((unused)),
-                                              int line __attribute__((unused)))
+                                              MY_ATTRIBUTE((unused)),
+                                              int line MY_ATTRIBUTE((unused)))
 {
   openssl_lock_t *lock;
 
@@ -336,8 +336,8 @@ static openssl_lock_t *openssl_dynlock_create(const char *file
 
 
 static void openssl_dynlock_destroy(openssl_lock_t *lock,
-                                    const char *file __attribute__((unused)),
-                                    int line __attribute__((unused)))
+                                    const char *file MY_ATTRIBUTE((unused)),
+                                    int line MY_ATTRIBUTE((unused)))
 {
   DBUG_PRINT("info", ("openssl_dynlock_destroy: %s:%d", file, line));
 
@@ -564,7 +564,7 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
   }
 
   /* Load certs from the trusted ca */
-  if (SSL_CTX_load_verify_locations(ssl_fd->ssl_context, ca_file, ca_path) == 0)
+  if (SSL_CTX_load_verify_locations(ssl_fd->ssl_context, ca_file, ca_path) <= 0)
   {
     DBUG_PRINT("warning", ("SSL_CTX_load_verify_locations failed"));
     if (ca_file || ca_path)

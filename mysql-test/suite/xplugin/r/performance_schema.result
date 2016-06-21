@@ -2,8 +2,8 @@ install plugin mysqlx soname "mysqlx.so";
 call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
 
-7 rows affected
-Rows matched: 7  Changed: 0  Warnings: 0
+6 rows affected
+Rows matched: 6  Changed: 0  Warnings: 0
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
@@ -22,27 +22,26 @@ Rows matched: 3  Changed: 0  Warnings: 0
 0 rows affected
 name
 thread/mysqlx/acceptor_network
+thread/mysqlx/worker
 0 rows affected
 name
 wait/synch/mutex/mysqlx/lock_list_access
-wait/synch/mutex/mysqlx/scheduler_dynamic_post
-wait/synch/mutex/mysqlx/scheduler_dynamic_task_pending
 wait/synch/mutex/mysqlx/scheduler_dynamic_thread_exit
+wait/synch/mutex/mysqlx/scheduler_dynamic_worker_pending
 0 rows affected
 name
-wait/synch/cond/mysqlx/scheduler_dynamic_task_pending
 wait/synch/cond/mysqlx/scheduler_dynamic_thread_exit
+wait/synch/cond/mysqlx/scheduler_dynamic_worker_pending
 0 rows affected
 name
 wait/synch/rwlock/mysqlx/client_list_clients
 0 rows affected
 NAME	ENABLED	TIMED
 wait/synch/mutex/mysqlx/lock_list_access	NO	NO
-wait/synch/mutex/mysqlx/scheduler_dynamic_task_pending	NO	NO
+wait/synch/mutex/mysqlx/scheduler_dynamic_worker_pending	NO	NO
 wait/synch/mutex/mysqlx/scheduler_dynamic_thread_exit	YES	NO
-wait/synch/mutex/mysqlx/scheduler_dynamic_post	YES	NO
 wait/synch/rwlock/mysqlx/client_list_clients	YES	NO
-wait/synch/cond/mysqlx/scheduler_dynamic_task_pending	NO	NO
+wait/synch/cond/mysqlx/scheduler_dynamic_worker_pending	NO	NO
 wait/synch/cond/mysqlx/scheduler_dynamic_thread_exit	YES	NO
 0 rows affected
 
@@ -170,16 +169,16 @@ Got expected error: SELECT, LOCK TABLES command denied to user 'root'@'localhost
 0 rows affected
 name
 thread/mysqlx/acceptor_network
+thread/mysqlx/worker
 command ok
 name
 wait/synch/mutex/mysqlx/lock_list_access
-wait/synch/mutex/mysqlx/scheduler_dynamic_post
-wait/synch/mutex/mysqlx/scheduler_dynamic_task_pending
 wait/synch/mutex/mysqlx/scheduler_dynamic_thread_exit
+wait/synch/mutex/mysqlx/scheduler_dynamic_worker_pending
 command ok
 name
-wait/synch/cond/mysqlx/scheduler_dynamic_task_pending
 wait/synch/cond/mysqlx/scheduler_dynamic_thread_exit
+wait/synch/cond/mysqlx/scheduler_dynamic_worker_pending
 command ok
 name
 wait/synch/rwlock/mysqlx/client_list_clients
@@ -205,4 +204,4 @@ where EVENT_NAME rlike '^wait/synch/(cond|mutex)/mysqlx/(queue|client_session|ob
 EVENT_NAME
 UNINSTALL PLUGIN mysqlx;
 update performance_schema.setup_instruments set ENABLED='YES'
-where NAME rlike '^wait/synch/(cond|mutex)/mysqlx/(lock_list_access|scheduler_dynamic_task_pending)$';
+where NAME rlike '^wait/synch/(cond|mutex)/mysqlx/(lock_list_access|scheduler_dynamic_worker_pending)$';

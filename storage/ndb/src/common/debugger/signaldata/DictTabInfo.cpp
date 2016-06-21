@@ -79,7 +79,7 @@ DictTabInfo::TableMapping[] = {
   DTIMAP(Table, ExtraRowAuthorBits, ExtraRowAuthorBits),
   DTIMAP(Table, ReadBackupFlag, ReadBackupFlag),
   DTIMAP(Table, FullyReplicatedFlag, FullyReplicatedFlag),
-  DTIMAP(Table, RealFragmentCount, RealFragmentCount),
+  DTIMAP(Table, PartitionCount, PartitionCount),
   DTIMAP(Table, FullyReplicatedTriggerId, FullyReplicatedTriggerId),
   DTIBREAK(AttributeName)
 };
@@ -172,7 +172,7 @@ DictTabInfo::Table::init(){
   memset(TablespaceData, 0, sizeof(TablespaceData));
   FragmentCountType = NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE;
   FragmentCount = 0;
-  RealFragmentCount = 0;
+  PartitionCount = 0;
   TablespaceId = RNIL;
   TablespaceVersion = ~0;
   MaxRowsLow = 0;
@@ -201,7 +201,7 @@ DictTabInfo::Table::init(){
   ReadBackupFlag = 0;
   FullyReplicatedFlag = 0;
   FullyReplicatedTriggerId = RNIL;
-  RealFragmentCount = 0;
+  PartitionCount = 0;
 }
 
 void

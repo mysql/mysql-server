@@ -1161,6 +1161,7 @@ public:
       ,TR_USER_DEFINED_PARTITIONING = 1 << 4
       ,TR_READ_BACKUP = (1 << 5)
       ,TR_FULLY_REPLICATED = (1<<6)
+      ,TR_DELAY_COMMIT = (1 << 7)
     };
     Uint8 get_enabled()     const { return (m_flags & TR_ENABLED)      != 0; }
     Uint8 get_dropping()    const { return (m_flags & TR_DROPPING)     != 0; }
@@ -1627,6 +1628,7 @@ private:
   void timeOutLoopStartFragLab(Signal* signal, Uint32 TscanConPtr);
   int  releaseAndAbort(Signal* signal);
 
+  void scan_for_read_backup(Signal *, Uint32, Uint32, Uint32);
   void releaseMarker(ApiConnectRecord * const regApiPtr);
 
   Uint32 get_transid_fail_bucket(Uint32 transid1);

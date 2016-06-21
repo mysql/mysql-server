@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -404,7 +404,7 @@ static int validate_password_init(MYSQL_PLUGIN plugin_info)
   It empty the std::set and returns 0
 */
 
-static int validate_password_deinit(void *arg __attribute__((unused)))
+static int validate_password_deinit(void *arg MY_ATTRIBUTE((unused)))
 {
   free_dictionary_file();
   mysql_rwlock_destroy(&LOCK_dict_file);
@@ -417,8 +417,8 @@ static int validate_password_deinit(void *arg __attribute__((unused)))
   the cache and re-load the new dictionary file.
 */
 static void
-dictionary_update(MYSQL_THD thd __attribute__((unused)),
-                  struct st_mysql_sys_var *var __attribute__((unused)),
+dictionary_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
+                  struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
                   void *var_ptr, const void *save)
 {
   *(const char**)var_ptr= *(const char**)save;
@@ -433,8 +433,8 @@ dictionary_update(MYSQL_THD thd __attribute__((unused)),
   4. validate_password_special_char_count
 */
 static void
-length_update(MYSQL_THD thd __attribute__((unused)),
-              struct st_mysql_sys_var *var __attribute__((unused)),
+length_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
+              struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
               void *var_ptr, const void *save)
 {
   /* check if there is an actual change */

@@ -22,7 +22,7 @@ root@localhost
 DROP USER testuser1@'::1';
 SET @nip= inet_aton('::1');
 Warnings:
-Warning	1411	Incorrect string value: '::1' for function inet_aton
+Warning	1411	Incorrect string value: ''::1'' for function inet_aton
 CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
 INSERT INTO t1 VALUES (@nip,@nip,@nip,@nip,@nip,@nip);
 SELECT inet_ntoa(c1) FROM t1;
@@ -80,7 +80,7 @@ SELECT inet6_ntoa(c2) FROM t1;
 inet6_ntoa(c2)
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '' for function inet6_ntoa
+Warning	1411	Incorrect string value: '`test`.`t1`.`c2`' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c2 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c2 AS BINARY(16)))
 ::1
@@ -94,7 +94,7 @@ SELECT inet6_ntoa(c4) FROM t1;
 inet6_ntoa(c4)
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '' for function inet6_ntoa
+Warning	1411	Incorrect string value: '`test`.`t1`.`c4`' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c4 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c4 AS BINARY(16)))
 ::1
@@ -102,7 +102,7 @@ SELECT inet6_ntoa(c5) FROM t1;
 inet6_ntoa(c5)
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '' for function inet6_ntoa
+Warning	1411	Incorrect string value: '`test`.`t1`.`c5`' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c5 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c5 AS BINARY(16)))
 ::1
@@ -110,7 +110,7 @@ SELECT inet6_ntoa(c6) FROM t1;
 inet6_ntoa(c6)
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '0' for function inet6_ntoa
+Warning	1411	Incorrect string value: '`test`.`t1`.`c6`' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c6 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c6 AS BINARY(16)))
 3000::
@@ -202,7 +202,7 @@ SELECT inet6_ntoa(c2) FROM t1;
 inet6_ntoa(c2)
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '' for function inet6_ntoa
+Warning	1411	Incorrect string value: '`test`.`t1`.`c2`' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c2 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c2 AS BINARY(16)))
 7f00:1::
@@ -216,7 +216,7 @@ SELECT inet6_ntoa(c4) FROM t1;
 inet6_ntoa(c4)
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '' for function inet6_ntoa
+Warning	1411	Incorrect string value: '`test`.`t1`.`c4`' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c4 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c4 AS BINARY(16)))
 7f00:1::
@@ -224,7 +224,7 @@ SELECT inet6_ntoa(c5) FROM t1;
 inet6_ntoa(c5)
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '' for function inet6_ntoa
+Warning	1411	Incorrect string value: '`test`.`t1`.`c5`' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c5 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c5 AS BINARY(16)))
 7f00:1::
@@ -232,7 +232,7 @@ SELECT inet6_ntoa(c6) FROM t1;
 inet6_ntoa(c6)
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '0' for function inet6_ntoa
+Warning	1411	Incorrect string value: '`test`.`t1`.`c6`' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c6 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c6 AS BINARY(16)))
 3000::
@@ -265,7 +265,7 @@ root@localhost
 DROP USER testuser1@'0000:0000:0000:0000:0000:0000:0000:0001';
 SET @nip= inet_aton('0000:0000:0000:0000:0000:0000:0000:0001');
 Warnings:
-Warning	1411	Incorrect string value: '0000:0000:0000:0000:0000:0000:0000:0001' for function inet_aton
+Warning	1411	Incorrect string value: ''0000:0000:0000:0000:0000:0000:0000:0001'' for function inet_aton
 CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
 INSERT INTO t1 VALUES (@nip,@nip,@nip,@nip,@nip,@nip);
 SELECT inet_ntoa(c1) FROM t1;
@@ -323,7 +323,7 @@ SELECT inet6_ntoa(c2) FROM t1;
 inet6_ntoa(c2)
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '' for function inet6_ntoa
+Warning	1411	Incorrect string value: '`test`.`t1`.`c2`' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c2 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c2 AS BINARY(16)))
 ::1
@@ -337,7 +337,7 @@ SELECT inet6_ntoa(c4) FROM t1;
 inet6_ntoa(c4)
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '' for function inet6_ntoa
+Warning	1411	Incorrect string value: '`test`.`t1`.`c4`' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c4 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c4 AS BINARY(16)))
 ::1
@@ -345,7 +345,7 @@ SELECT inet6_ntoa(c5) FROM t1;
 inet6_ntoa(c5)
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '' for function inet6_ntoa
+Warning	1411	Incorrect string value: '`test`.`t1`.`c5`' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c5 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c5 AS BINARY(16)))
 ::1
@@ -353,7 +353,7 @@ SELECT inet6_ntoa(c6) FROM t1;
 inet6_ntoa(c6)
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '0' for function inet6_ntoa
+Warning	1411	Incorrect string value: '`test`.`t1`.`c6`' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c6 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c6 AS BINARY(16)))
 3000::
@@ -385,7 +385,7 @@ root@localhost
 DROP USER testuser1@'0:0:0:0:0:0:0:1';
 SET @nip= inet_aton('0:0:0:0:0:0:0:1');
 Warnings:
-Warning	1411	Incorrect string value: '0:0:0:0:0:0:0:1' for function inet_aton
+Warning	1411	Incorrect string value: ''0:0:0:0:0:0:0:1'' for function inet_aton
 CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
 INSERT INTO t1 VALUES (@nip,@nip,@nip,@nip,@nip,@nip);
 SELECT inet_ntoa(c1) FROM t1;
@@ -443,7 +443,7 @@ SELECT inet6_ntoa(c2) FROM t1;
 inet6_ntoa(c2)
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '' for function inet6_ntoa
+Warning	1411	Incorrect string value: '`test`.`t1`.`c2`' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c2 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c2 AS BINARY(16)))
 ::1
@@ -457,7 +457,7 @@ SELECT inet6_ntoa(c4) FROM t1;
 inet6_ntoa(c4)
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '' for function inet6_ntoa
+Warning	1411	Incorrect string value: '`test`.`t1`.`c4`' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c4 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c4 AS BINARY(16)))
 ::1
@@ -465,7 +465,7 @@ SELECT inet6_ntoa(c5) FROM t1;
 inet6_ntoa(c5)
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '' for function inet6_ntoa
+Warning	1411	Incorrect string value: '`test`.`t1`.`c5`' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c5 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c5 AS BINARY(16)))
 ::1
@@ -473,7 +473,7 @@ SELECT inet6_ntoa(c6) FROM t1;
 inet6_ntoa(c6)
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '0' for function inet6_ntoa
+Warning	1411	Incorrect string value: '`test`.`t1`.`c6`' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c6 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c6 AS BINARY(16)))
 3000::

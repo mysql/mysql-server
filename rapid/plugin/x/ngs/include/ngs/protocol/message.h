@@ -21,7 +21,7 @@
 #define _NGS_MESSAGE_H_
 
 #include "ngs/memory.h"
-#include <google/protobuf/message.h>
+#include "ngs_common/protocol_protobuf.h"
 
 namespace ngs
 {

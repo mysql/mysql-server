@@ -61,7 +61,8 @@ Query_event::Query_event(const char* query_arg, const char* catalog_arg,
   time_zone_len(0), lc_time_names_number(number),
   charset_database_number(0),
   table_map_for_update(table_map_for_update_arg),
-  master_data_written(0), mts_accessed_dbs(0)
+  master_data_written(0), explicit_defaults_ts(TERNARY_UNSET),
+  mts_accessed_dbs(0)
 {
 }
 

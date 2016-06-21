@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -145,7 +145,7 @@ ut_pair_cmp(
 	ulint	a_l,
 	ulint	b_h,
 	ulint	b_l)
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /*************************************************************//**
 Calculates fast the remainder of n/m when m is a power of two.
@@ -196,7 +196,7 @@ ulint
 ut_2_power_up(
 /*==========*/
 	ulint	n)	/*!< in: number != 0 */
-	__attribute__((const));
+	MY_ATTRIBUTE((const));
 
 /** Determine how many bytes (groups of 8 bits) are needed to
 store the given number of bits.
@@ -286,7 +286,7 @@ void
 ut_print_timestamp(
 /*===============*/
 	FILE*	file)	/*!< in: file where to print */
-	UNIV_COLD __attribute__((nonnull));
+	UNIV_COLD MY_ATTRIBUTE((nonnull));
 
 #ifndef UNIV_INNOCHECKSUM
 
@@ -339,7 +339,7 @@ ut_print_buf_hex(
 	std::ostream&	o,	/*!< in/out: output stream */
 	const void*	buf,	/*!< in: memory buffer */
 	ulint		len)	/*!< in: length of the buffer */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /*************************************************************//**
 Prints the contents of a memory buffer in hex and ascii. */
 void
@@ -348,7 +348,7 @@ ut_print_buf(
 	std::ostream&	o,	/*!< in/out: output stream */
 	const void*	buf,	/*!< in: memory buffer */
 	ulint		len)	/*!< in: length of the buffer */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 
 #ifndef UNIV_HOTBACKUP
 /* Forward declaration of transaction handle */

@@ -67,23 +67,25 @@ Mysqlx.Crud.Insert {
   data_model: DOCUMENT
   row {
     field {
-    type: LITERAL
-    literal {
+      type: LITERAL
+      literal {
         type: V_STRING
         v_string {
           value: "\n{\n         \"_id\": \"1\",\n         \"name\": \"Omar Bras\", \"id\": \"1\"\n}"
         }
+      }
     }
-  }}
+  }
   row {
     field {
-    type: LITERAL
-    literal {
+      type: LITERAL
+      literal {
         type: V_STRING
         v_string {
           value: "\n{\n         \"_id\": \"2\",\n         \"name\": \"Omar Mex\", \"id\": \"2\"\n}"
         }
-    }}
+      }
+    }
   }
 }
 -->recvresult
@@ -162,52 +164,50 @@ SHOW CREATE TABLE xplugintest.table2;
 SELECT * FROM xplugintest.table2;
 -->endsql
 
-# Following fragment was disabled because of Bug #22241015 
-#-->echo Update decimal value with a corner value plus 1
-#Mysqlx.Crud.Update {
-#  collection {
-#    name: "table2"
-#    schema: "xplugintest"
-#  }
-#  data_model: DOCUMENT
-#  criteria {
-#    type: OPERATOR
-#    operator {
-#      name: "=="
-#      param {
-#        type: IDENT identifier { name: "_id" }
-#      }
-#      param {
-#        type: LITERAL
-#        literal {
-#               type: V_SINT
-#               v_signed_int: 2
-#        }
-#      }
-#    }
-#  }
-#  operation {
-#    source {
-#      document_path {
-#        type: MEMBER
-#        value: "name"
-#      }
-#    }
-#    operation: ITEM_SET
-#    value {
-#      type: LITERAL
-#      literal {
-#          type: V_STRING
-#          v_string {
-#            value: "\"Omar Argentina\""
-#          }
-#      }
-#    }
-#  }
-#
-#
-#}
-#-->recvresult
+
+-->echo Update decimal value with a corner value plus 1
+Mysqlx.Crud.Update {
+  collection {
+    name: "table2"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT identifier { name: "_id" }
+      }
+      param {
+        type: LITERAL
+        literal {
+               type: V_SINT
+               v_signed_int: 2
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+          type: V_STRING
+          v_string {
+            value: "\"Omar Argentina\""
+          }
+      }
+    }
+  }
+}
+-->recvresult
 
 
 -->sql
@@ -216,33 +216,31 @@ SELECT JSON_EXTRACT(doc,'$.name') FROM xplugintest.table2;
 SELECT * FROM xplugintest.table2;
 -->endsql
 
-# Bug #22082762
-#-->echo Delete with == operator
-#Mysqlx.Crud.Delete {
-#  collection {
-#    name: "table2"
-#    schema: "xplugintest"
-#  }
-#  data_model: DOCUMENT
-#  criteria {
-#    type: OPERATOR
-#    operator {
-#      name: "=="
-#      param {
-#        type: IDENT identifier { name: "_id" }
-#      }
-#      param {
-#        type: LITERAL
-#        literal {
-#                type: V_SINT
-#                v_signed_int: 2
-#              }
-#         }
-#      }
-#   }
-#}
-#-- Mysqlx.Sql.StmtExecuteOk
-#-->recvresult
+-->echo Delete with == operator
+Mysqlx.Crud.Delete {
+  collection {
+    name: "table2"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT identifier { name: "_id" }
+      }
+      param {
+        type: LITERAL
+        literal {
+                type: V_SINT
+                v_signed_int: 2
+              }
+         }
+      }
+   }
+}
+-->recvresult
 
 -->sql
 SELECT JSON_EXTRACT(doc,'$.name') FROM xplugintest.table2;
@@ -258,14 +256,15 @@ Mysqlx.Crud.Insert {
   data_model: DOCUMENT
   row {
     field {
-    type: LITERAL
-    literal {
+      type: LITERAL
+      literal {
         type: V_STRING
         v_string {
           value: "\n{\n         \"_id\": \"3\",\n         \"name\": \"Omar Peru\", \"id\": \"3\"\n}"
         }
+      }
     }
-  }}
+  }
 }
 -->recvresult
 
@@ -278,14 +277,15 @@ Mysqlx.Crud.Insert {
   data_model: DOCUMENT
   row {
     field {
-    type: LITERAL
-    literal {
+      type: LITERAL
+      literal {
         type: V_STRING
         v_string {
           value: "\n{\n         \"_id\": \"1\",\n         \"name\": \"Omar Colombia\", \"id\": \"3\"\n}"
         }
+      }
     }
-  }}
+  }
 }
 # Error
 -->expecterror 5116
@@ -309,6 +309,8 @@ SELECT * FROM xplugintest.table1 ;
 
 EOF
 
+
+
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
 
@@ -328,9 +330,9 @@ SELECT * FROM xplugintest.table1;
 DROP DATABASE IF EXISTS xplugintest;
 ## Postamble
 
+UNINSTALL PLUGIN mysqlx;
+
 --source include/wait_until_count_sessions.inc
 --source include/sync_slave_sql_with_master.inc
 --source include/rpl_end.inc
-
-UNINSTALL PLUGIN mysqlx;
 

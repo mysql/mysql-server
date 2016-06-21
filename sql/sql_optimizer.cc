@@ -3224,8 +3224,8 @@ public:
   {
     return sql_alloc(size);
   }
-  static void operator delete(void *ptr __attribute__((unused)),
-                              size_t size __attribute__((unused)))
+  static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
+                              size_t size MY_ATTRIBUTE((unused)))
   { TRASH(ptr, size); }
 
   Item *and_level;

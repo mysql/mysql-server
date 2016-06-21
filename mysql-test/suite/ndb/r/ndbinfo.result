@@ -568,59 +568,6 @@ thr_no	int(10) unsigned	YES		NULL
 thread_name	varchar(256)	YES		NULL	
 thread_description	varchar(256)	YES		NULL	
 
-desc cpustat_50ms;
-Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-thr_no	int(10) unsigned	YES		NULL	
-OS_user_time	int(10) unsigned	YES		NULL	
-OS_system_time	int(10) unsigned	YES		NULL	
-OS_idle_time	int(10) unsigned	YES		NULL	
-exec_time	int(10) unsigned	YES		NULL	
-sleep_time	int(10) unsigned	YES		NULL	
-spin_time	int(10) unsigned	YES		NULL	
-send_time	int(10) unsigned	YES		NULL	
-buffer_full_time	int(10) unsigned	YES		NULL	
-elapsed_time	int(10) unsigned	YES		NULL	
-desc cpustat_1sec;
-Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-thr_no	int(10) unsigned	YES		NULL	
-OS_user_time	int(10) unsigned	YES		NULL	
-OS_system_time	int(10) unsigned	YES		NULL	
-OS_idle_time	int(10) unsigned	YES		NULL	
-exec_time	int(10) unsigned	YES		NULL	
-sleep_time	int(10) unsigned	YES		NULL	
-spin_time	int(10) unsigned	YES		NULL	
-send_time	int(10) unsigned	YES		NULL	
-buffer_full_time	int(10) unsigned	YES		NULL	
-elapsed_time	int(10) unsigned	YES		NULL	
-desc cpustat_20sec;
-Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-thr_no	int(10) unsigned	YES		NULL	
-OS_user_time	int(10) unsigned	YES		NULL	
-OS_system_time	int(10) unsigned	YES		NULL	
-OS_idle_time	int(10) unsigned	YES		NULL	
-exec_time	int(10) unsigned	YES		NULL	
-sleep_time	int(10) unsigned	YES		NULL	
-spin_time	int(10) unsigned	YES		NULL	
-send_time	int(10) unsigned	YES		NULL	
-buffer_full_time	int(10) unsigned	YES		NULL	
-elapsed_time	int(10) unsigned	YES		NULL	
-desc cpustat;
-Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-thr_no	int(10) unsigned	YES		NULL	
-OS_user	int(10) unsigned	YES		NULL	
-OS_system	int(10) unsigned	YES		NULL	
-OS_idle	int(10) unsigned	YES		NULL	
-thread_exec	int(10) unsigned	YES		NULL	
-thread_sleeping	int(10) unsigned	YES		NULL	
-thread_spinning	int(10) unsigned	YES		NULL	
-thread_send	int(10) unsigned	YES		NULL	
-thread_buffer_full	int(10) unsigned	YES		NULL	
-elapsed_time	int(10) unsigned	YES		NULL	
-
 desc cluster_transactions;
 Field	Type	Null	Key	Default	Extra
 node_id	int(10) unsigned	YES		NULL	

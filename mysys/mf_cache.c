@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
 	  if we crash.
 	*/
 
-static my_bool cache_remove_open_tmp(IO_CACHE *cache __attribute__((unused)),
+static my_bool cache_remove_open_tmp(IO_CACHE *cache MY_ATTRIBUTE((unused)),
 				     const char *name)
 {
 #if O_TEMPORARY == 0

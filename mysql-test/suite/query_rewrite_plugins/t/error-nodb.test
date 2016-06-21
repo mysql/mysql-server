@@ -1,0 +1,14 @@
+--echo #
+--echo # Loads the plugin when there is no query_rewrite database
+--echo #
+
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+
+SET sql_mode = 'PIPES_AS_CONCAT';
+CALL mtr.add_suppression("Plugin rewriter reported: " ||
+                         "'Wrong column count or names when loading rules.'");
+
+--replace_regex /\.so|\.dll/.xxx/
+eval INSTALL PLUGIN rewriter SONAME '$REWRITER';
+UNINSTALL PLUGIN rewriter;
+SET sql_mode = DEFAULT;

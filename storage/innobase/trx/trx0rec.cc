@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1001,7 +1001,31 @@ trx_undo_page_report_modify(
 			return(0);
 		}
 
-		ptr += mach_write_compressed(ptr, upd_get_n_fields(update));
+		ulint	n_updated = upd_get_n_fields(update);
+
+		/* If this is an online update while an inplace alter table
+		is in progress and the table has virtual column, we will
+		need to double check if there are any non-indexed columns
+		being registered in update vector in case they will be indexed
+		in new table */
+		if (dict_index_is_online_ddl(index)
+		    && index->table->n_v_cols > 0) {
+			for (i = 0; i < upd_get_n_fields(update); i++) {
+				upd_field_t*	fld = upd_get_nth_field(
+					update, i);
+				ulint		pos = fld->field_no;
+
+				/* These columns must not have an index
+				on them */
+				if (upd_fld_is_virtual_col(fld)
+				    && dict_table_get_nth_v_col(
+					table, pos)->v_indexes->empty()) {
+					n_updated--;
+				}
+			}
+		}
+
+		ptr += mach_write_compressed(ptr, n_updated);
 
 		for (i = 0; i < upd_get_n_fields(update); i++) {
 			upd_field_t*	fld = upd_get_nth_field(update, i);
@@ -1017,8 +1041,17 @@ trx_undo_page_report_modify(
 				return(0);
 			}
 
-			/* add REC_MAX_N_FIELDS to mark this is a virtaul col */
 			if (is_virtual) {
+				/* Skip the non-indexed column, during
+				an online alter table */
+				if (dict_index_is_online_ddl(index)
+				    && dict_table_get_nth_v_col(
+					table, pos)->v_indexes->empty()) {
+					continue;
+				}
+
+				/* add REC_MAX_N_FIELDS to mark this
+				is a virtual col */
 				pos += REC_MAX_N_FIELDS;
 			}
 
@@ -1750,7 +1783,7 @@ trx_undo_rec_get_partial_row(
 /***********************************************************************//**
 Erases the unused undo log page end.
 @return TRUE if the page contained something, FALSE if it was empty */
-static __attribute__((nonnull))
+static MY_ATTRIBUTE((nonnull))
 ibool
 trx_undo_erase_page_end(
 /*====================*/
@@ -1775,7 +1808,7 @@ byte*
 trx_undo_parse_erase_page_end(
 /*==========================*/
 	byte*	ptr,	/*!< in: buffer */
-	byte*	end_ptr __attribute__((unused)), /*!< in: buffer end */
+	byte*	end_ptr MY_ATTRIBUTE((unused)), /*!< in: buffer end */
 	page_t*	page,	/*!< in: page or NULL */
 	mtr_t*	mtr)	/*!< in: mtr or NULL */
 {
@@ -2109,7 +2142,7 @@ Copies an undo record to heap.
 truncated and we cannot fetch the old version
 @retval false if the undo log record is available
 NOTE: the caller must have latches on the clustered index page. */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 bool
 trx_undo_get_undo_rec(
 /*==================*/
@@ -2138,7 +2171,7 @@ trx_undo_get_undo_rec(
 #ifdef UNIV_DEBUG
 #define ATTRIB_USED_ONLY_IN_DEBUG
 #else /* UNIV_DEBUG */
-#define ATTRIB_USED_ONLY_IN_DEBUG	__attribute__((unused))
+#define ATTRIB_USED_ONLY_IN_DEBUG	MY_ATTRIBUTE((unused))
 #endif /* UNIV_DEBUG */
 
 /*******************************************************************//**

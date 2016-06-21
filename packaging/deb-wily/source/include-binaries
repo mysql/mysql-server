@@ -59,7 +59,9 @@ debian/extra/rewriter-plugin
 debian/extra/rewrite_example-plugin
 debian/extra/semisync_master-plugin
 debian/extra/semisync_slave-plugin
+debian/extra/test_udf_services-plugin
 debian/extra/test_security_context-plugin
 debian/extra/validate_password-plugin
 debian/extra/version_token-plugin
 debian/extra/keyring_file-plugin
+debian/extra/keyring_udf-plugin

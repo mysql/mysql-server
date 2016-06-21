@@ -550,7 +550,7 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-RealFragmentCount: 8
+PartitionCount: 8
 FragmentCount: 8
 FragmentCountType: ONE_PER_LDM_PER_NODE
 ExtraRowGciBits: 0
@@ -652,9 +652,6 @@ node_id	fragment_num	block_instance
 2	2	3
 2	3	4
 alter table t1 algorithm=inplace,
-comment="NDB_TABLE=READ_BACKUP=0";
-ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'Cannot alter read backup inplace'
-alter table t1 algorithm=inplace,
 comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
 show create table t1;
 Table	Create Table
@@ -744,5 +741,13 @@ node_id	fragment_num	block_instance
 2	1	2
 2	2	3
 2	3	4
+drop table t1;
+create table t1 (a bigint primary key) engine ndb
+comment="NDB_TABLE=READ_BACKUP=0"
+partition by key();
+alter table t1 algorithm=inplace, comment="NDB_TABLE=READ_BACKUP=1";
+alter table t1 algorithm=inplace, comment="NDB_TABLE=READ_BACKUP=1";
+alter table t1 algorithm=inplace, comment="NDB_TABLE=READ_BACKUP=0";
+alter table t1 algorithm=inplace, comment="NDB_TABLE=READ_BACKUP=0";
 drop table t1;
 set @@global.ndb_read_backup = @save_ndb_read_backup;

@@ -317,6 +317,23 @@ $DDIR=$ENV{"DDIR"};
 rmtree([ "$DDIR" ]);
 EOF
 
+
+--echo #
+--echo # Bug#22777039 - MYSQLD --INITIALIZE DOES NOT SUPPORT THE KEYRING_FILE_DATA OPTION
+--echo #
+--exec $MYSQLD $extra_args --datadir=$DDIR --initialize --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/keyring $KEYRING_PLUGIN_OPT > $MYSQLD_LOG 2>&1
+
+--echo # delete temp keyring file
+remove_file $MYSQL_TMP_DIR/keyring;
+
+--echo # delete datadir
+--perl
+use File::Path 'rmtree';
+$DDIR=$ENV{"DDIR"};
+rmtree([ "$DDIR" ]);
+EOF
+
+
 --echo #
 --echo # Cleanup
 --echo #

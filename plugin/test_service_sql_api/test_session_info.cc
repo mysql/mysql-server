@@ -118,8 +118,8 @@ struct st_plugin_ctx
 
   uint server_status;
   uint warn_count;
-  ulonglong affected_rows;
-  ulonglong last_insert_id;
+  uint affected_rows;
+  uint last_insert_id;
   char message[1024];
 
   uint sql_errno;
@@ -283,7 +283,7 @@ static int sql_get_integer(void * ctx, longlong value)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer), "%lld", value);
+  size_t len= my_snprintf(buffer, sizeof(buffer), "%d", value);
 
   strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col]= len;
@@ -669,16 +669,16 @@ static void test_sql(void *p)
   session_1= srv_session_open(NULL,plugin_ctx);
   if (!session_1)
     my_plugin_log_message(&p, MY_ERROR_LEVEL, "Opening Session 1 failed");
-
-  switch_user(session_1, user_privileged);
+  else
+    switch_user(session_1, user_privileged);
 
   /* Opening session 2 */
   WRITE_STR("Opening Session 2\n");
   session_2= srv_session_open(NULL,plugin_ctx);
   if (!session_2)
     my_plugin_log_message(&p, MY_ERROR_LEVEL, "Opening Session 2 failed");
-
-  switch_user(session_2, user_privileged);
+  else
+    switch_user(session_2, user_privileged);
 
   /* srv_session_info_get_thd and srv_session_info_get_session_id*/
   /* Session 1 */
@@ -1000,6 +1000,12 @@ static void create_log_file(const char * log_name)
   outfile= my_open(filename, O_CREAT|O_RDWR, MYF(0));
 }
 
+#ifdef HAVE_PSI_INTERFACE
+static PSI_thread_key key_thread_session_info = PSI_NOT_INSTRUMENTED;
+static PSI_thread_info session_info_threads[] = {
+  { &key_thread_session_info, "session_info", 0 }
+};
+#endif // HAVE_PSI_INTERFACE
 
 static void test_in_spawned_thread(void *p, void (*test_function)(void *))
 {
@@ -1014,7 +1020,7 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *))
   context.test_function= test_function;
 
   /* now create the thread and call test_session within the thread. */
-  if (my_thread_create(&(context.thread), &attr, test_sql_threaded_wrapper, &context) != 0)
+  if (mysql_thread_create(key_thread_session_info, &(context.thread), &attr, test_sql_threaded_wrapper, &context) != 0)
     my_plugin_log_message(&p, MY_ERROR_LEVEL, "Could not create test session thread");
   else
     my_thread_join(&context.thread, NULL);
@@ -1027,6 +1033,12 @@ static int test_sql_service_plugin_init(void *p)
   my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "Installation.");
 
   create_log_file(log_filename);
+
+#ifdef HAVE_PSI_INTERFACE
+  const char * const category = "test_service_sql";
+
+  mysql_thread_register(category, session_info_threads, array_elements(session_info_threads));
+#endif // HAVE_PSI_INTERFACE
 
   WRITE_SEP();
   WRITE_STR("Test in a server thread\n");

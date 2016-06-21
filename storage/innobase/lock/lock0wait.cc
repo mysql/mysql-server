@@ -477,7 +477,7 @@ extern "C"
 os_thread_ret_t
 DECLARE_THREAD(lock_wait_timeout_thread)(
 /*=====================================*/
-	void*	arg __attribute__((unused)))
+	void*	arg MY_ATTRIBUTE((unused)))
 			/* in: a dummy parameter required by
 			os_thread_create */
 {

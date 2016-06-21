@@ -48,7 +48,7 @@ namespace ngs
 
     typedef boost::function<void()> Task;
 
-    Scheduler_dynamic(const char* name);
+    Scheduler_dynamic(const char* name, PSI_thread_key thread_key = PSI_NOT_INSTRUMENTED);
     virtual ~Scheduler_dynamic();
 
     virtual void launch();
@@ -60,7 +60,7 @@ namespace ngs
     bool post_and_wait(const Task& task);
 
     virtual bool thread_init() { return true; }
-    virtual void thread_end() {}
+    virtual void thread_end();
 
     void set_monitor(Monitor *monitor);
 
@@ -138,14 +138,15 @@ namespace ngs
       return thread.thread == id;
     }
 
+    bool wait_if_idle_then_delete_worker(ulonglong &thread_waiting_started);
     int32 increase_workers_count();
     int32 decrease_workers_count();
     int32 increase_tasks_count();
     int32 decrease_tasks_count();
 
     const std::string m_name;
-    Mutex m_task_pending_mutex;
-    Cond m_task_pending_cond;
+    Mutex m_worker_pending_mutex;
+    Cond m_worker_pending_cond;
     Mutex m_thread_exit_mutex;
     Cond m_thread_exit_cond;
     Mutex m_post_mutex;
@@ -159,6 +160,7 @@ namespace ngs
     lock_list<Thread_t> m_threads;
     lock_list<my_thread_t> m_terminating_workers;
     boost::scoped_ptr<Monitor> m_monitor;
+    PSI_thread_key m_thread_key;
   };
 }
 

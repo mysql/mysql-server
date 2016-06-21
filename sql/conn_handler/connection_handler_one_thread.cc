@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -90,7 +90,7 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
     }
     end_connection(thd);
   }
-  close_connection(thd);
+  close_connection(thd, 0, false, false);
   thd->release_resources();
   thd_manager->remove_thd(thd);
   Connection_handler_manager::dec_connection_count();

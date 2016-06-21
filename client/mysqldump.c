@@ -89,7 +89,7 @@
 
 static void add_load_option(DYNAMIC_STRING *str, const char *option,
                              const char *option_value);
-static ulong find_set(TYPELIB *lib, const char *x, uint length,
+static ulong find_set(TYPELIB *lib, const char *x, size_t length,
                       char **err_pos, uint *err_len);
 static char *alloc_query_str(size_t size);
 
@@ -785,7 +785,7 @@ static void write_footer(FILE *sql_file)
 
 
 uchar* get_table_key(const char *entry, size_t *length,
-                     my_bool not_used __attribute__((unused)))
+                     my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= strlen(entry);
   return (uchar*) entry;
@@ -793,7 +793,7 @@ uchar* get_table_key(const char *entry, size_t *length,
 
 
 static my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
                char *argument)
 {
   switch (optid) {
@@ -910,7 +910,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       opt_set_charset= 0;
       opt_compatible_mode_str= argument;
       opt_compatible_mode= find_set(&compatible_mode_typelib,
-                                    argument, (uint) strlen(argument),
+                                    argument, strlen(argument),
                                     &err_ptr, &err_len);
       if (err_len)
       {
@@ -1236,8 +1236,8 @@ static int fetch_db_collation(const char *db_name,
       break;
     }
 
-    strncpy(db_cl_name, db_cl_row[0], db_cl_size);
-    db_cl_name[db_cl_size - 1]= 0; /* just in case. */
+    strncpy(db_cl_name, db_cl_row[0], db_cl_size-1);
+    db_cl_name[db_cl_size - 1]= 0;
 
   } while (FALSE);
 
@@ -1721,7 +1721,7 @@ static void dbDisconnect(char *host)
 } /* dbDisconnect */
 
 
-static void unescape(FILE *file,char *pos,uint length)
+static void unescape(FILE *file,char *pos, size_t length)
 {
   char *tmp;
   DBUG_ENTER("unescape");
@@ -1729,7 +1729,7 @@ static void unescape(FILE *file,char *pos,uint length)
                               length*2+1, MYF(MY_WME))))
     die(EX_MYSQLERR, "Couldn't allocate memory");
 
-  mysql_real_escape_string_quote(&mysql_connection, tmp, pos, length, '\'');
+  mysql_real_escape_string_quote(&mysql_connection, tmp, pos, (ulong)length, '\'');
   fputc('\'', file);
   fputs(tmp, file);
   fputc('\'', file);
@@ -2481,9 +2481,9 @@ static uint dump_routines_for_db(char *db)
             if the user has EXECUTE privilege he see routine names, but NOT the
             routine body of other routines that are not the creator of!
           */
-          DBUG_PRINT("info",("length of body for %s row[2] '%s' is %d",
+          DBUG_PRINT("info",("length of body for %s row[2] '%s' is %zu",
                              routine_name, row[2] ? row[2] : "(null)",
-                             row[2] ? (int) strlen(row[2]) : 0));
+                             row[2] ? strlen(row[2]) : 0));
           if (row[2] == NULL)
           {
             print_comment(sql_file, 1, "\n-- insufficient privileges to %s\n",
@@ -4488,7 +4488,7 @@ RETURN VALUES
   0        Success.
   1        Failure.
 */
-int init_dumping_views(char *qdatabase __attribute__((unused)))
+int init_dumping_views(char *qdatabase MY_ATTRIBUTE((unused)))
 {
     return 0;
 } /* init_dumping_views */
@@ -5138,29 +5138,45 @@ static int do_show_slave_status(MYSQL *mysql_con)
   }
   else
   {
+    const int n_master_host= 1;
+    const int n_master_port= 3;
+    const int n_master_log_file= 9;
+    const int n_master_log_pos= 21;
+    const int n_channel_name= 55;
     MYSQL_ROW row= mysql_fetch_row(slave);
-    if (row && row[9] && row[21])
+    /* Since 5.7 is is possible that SSS returns multiple channels */
+    while (row)
     {
-      /* SHOW MASTER STATUS reports file and position */
-      if (opt_comments)
-        fprintf(md_result_file,
-                "\n--\n-- Position to start replication or point-in-time "
-                "recovery from (the master of this slave)\n--\n\n");
-
-      fprintf(md_result_file, "%sCHANGE MASTER TO ", comment_prefix);
-
-      if (opt_include_master_host_port)
+      if (row[n_master_log_file] && row[n_master_log_pos])
       {
-        if (row[1])
-          fprintf(md_result_file, "MASTER_HOST='%s', ", row[1]);
-        if (row[3])
-          fprintf(md_result_file, "MASTER_PORT=%s, ", row[3]);
-      }
-      fprintf(md_result_file,
-              "MASTER_LOG_FILE='%s', MASTER_LOG_POS=%s;\n", row[9], row[21]);
+        /* SHOW MASTER STATUS reports file and position */
+        if (opt_comments)
+          fprintf(md_result_file,
+                  "\n--\n-- Position to start replication or point-in-time "
+                  "recovery from (the master of this slave)\n--\n\n");
 
-      check_io(md_result_file);
+        fprintf(md_result_file, "%sCHANGE MASTER TO ", comment_prefix);
+
+        if (opt_include_master_host_port)
+        {
+          if (row[n_master_host])
+            fprintf(md_result_file, "MASTER_HOST='%s', ", row[n_master_host]);
+          if (row[n_master_port])
+            fprintf(md_result_file, "MASTER_PORT=%s, ", row[n_master_port]);
+        }
+        fprintf(md_result_file,
+                "MASTER_LOG_FILE='%s', MASTER_LOG_POS=%s",
+                row[n_master_log_file], row[n_master_log_pos]);
+
+        /* Only print the FOR CHANNEL if there is more than one channel */
+        if (slave->row_count > 1)
+          fprintf(md_result_file, " FOR CHANNEL '%s'", row[n_channel_name]);
+
+        fprintf(md_result_file, ";\n");
+      }
+      row= mysql_fetch_row(slave);
     }
+    check_io(md_result_file);
     mysql_free_result(slave);
   }
   return 0;
@@ -5296,7 +5312,7 @@ static int start_transaction(MYSQL *mysql_con)
 }
 
 
-static ulong find_set(TYPELIB *lib, const char *x, uint length,
+static ulong find_set(TYPELIB *lib, const char *x, size_t length,
                       char **err_pos, uint *err_len)
 {
   const char *end= x + length;
@@ -5354,7 +5370,7 @@ static void print_value(FILE *file, MYSQL_RES  *result, MYSQL_ROW row,
         fputc(' ',file);
         fputs(prefix, file);
         if (string_value)
-          unescape(file,row[0],(uint) strlen(row[0]));
+          unescape(file,row[0], strlen(row[0]));
         else
           fputs(row[0], file);
         check_io(file);
@@ -6020,7 +6036,10 @@ int main(int argc, char **argv)
     if (flush_logs || opt_delete_master_logs)
     {
       if (mysql_refresh(mysql, REFRESH_LOG))
+      {
+        DB_error(mysql, "when doing refresh");
         goto err;
+      }
       verbose_msg("-- main : logs flushed successfully!\n");
     }
 

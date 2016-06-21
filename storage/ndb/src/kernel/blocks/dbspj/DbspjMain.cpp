@@ -32,6 +32,7 @@
 #include <signaldata/PrepDropTab.hpp>
 #include <signaldata/DropTab.hpp>
 #include <signaldata/AlterTab.hpp>
+#include <signaldata/AlterTable.hpp>
 #include <signaldata/DbspjErr.hpp>
 #include <Interpreter.hpp>
 #include <AttributeHeader.hpp>
@@ -379,6 +380,25 @@ Dbspj::execALTER_TAB_REQ(Signal* signal)
   case AlterTabReq::AlterTableCommit:
     jam();
     tablePtr.p->m_currentSchemaVersion = newTableVersion;
+    if (AlterTableReq::getReadBackupFlag(req->changeMask))
+    {
+      /**
+       * We simply swap the flag, the preparatory work for this
+       * change is done in DBTC.
+       */
+      if ((tablePtr.p->m_flags & TableRecord::TR_READ_BACKUP) != 0)
+      {
+        jam();
+        /* Reset Read Backup flag */
+        tablePtr.p->m_flags &= (~(TableRecord::TR_READ_BACKUP));
+      }
+      else
+      {
+        jam();
+        /* Set Read Backup flag */
+        tablePtr.p->m_flags |= TableRecord::TR_READ_BACKUP;
+      }
+    }
     break;
   default:
     ndbrequire(false);

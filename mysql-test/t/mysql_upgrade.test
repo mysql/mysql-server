@@ -612,8 +612,12 @@ DROP TABLE backup_user;
 
 --echo # First downgrade all tables with user name columnd to 5.6
 
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode= (SELECT replace(@@sql_mode,'NO_ZERO_DATE',''));
+
 ALTER TABLE mysql.tables_priv
-  MODIFY User char(16) NOT NULL default '';
+  MODIFY User char(16) NOT NULL default '',
+  MODIFY Grantor char(77) DEFAULT '' NOT NULL;
 ALTER TABLE mysql.columns_priv
   MODIFY User char(16) NOT NULL default '';
 ALTER TABLE mysql.user
@@ -621,7 +625,14 @@ ALTER TABLE mysql.user
 ALTER TABLE mysql.db
   MODIFY User char(16) NOT NULL default '';
 ALTER TABLE mysql.procs_priv
-  MODIFY User char(16) binary DEFAULT '' NOT NULL;
+  MODIFY User char(16) binary DEFAULT '' NOT NULL,
+  MODIFY Grantor char(77) DEFAULT '' NOT NULL;
+ALTER TABLE mysql.proc
+  MODIFY definer char(77) collate utf8_bin DEFAULT '' NOT NULL;
+ALTER TABLE mysql.event
+  MODIFY definer char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '';
+
+SET sql_mode= @orig_sql_mode;
 
 --echo #
 --echo # Downgrade performance_schema tables
@@ -1091,6 +1102,15 @@ SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
+
+--echo #
+--echo # Bug #21762656 AFTER RUNNING MYSQL_UPGRADE PROXIES_PRIV USER COLUMNS
+--echo # ARE NOT UPDATED TO 32
+--echo #
+
+ALTER TABLE mysql.proxies_priv MODIFY User char(16) binary DEFAULT '' NOT NULL;
+ALTER TABLE mysql.proxies_priv MODIFY Proxied_user char(16) binary DEFAULT '' NOT NULL;
+ALTER TABLE mysql.proxies_priv MODIFY Grantor char(77) DEFAULT '' NOT NULL;
 
 --echo # Tables with user name column downgraded to 5.6, now run mysql_upgrade
 

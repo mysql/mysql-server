@@ -214,8 +214,8 @@ static void emb_flush_use_result(MYSQL *mysql, my_bool)
 */
 
 static MYSQL_DATA *
-emb_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields __attribute__((unused)),
-	      unsigned int fields __attribute__((unused)))
+emb_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields MY_ATTRIBUTE((unused)),
+	      unsigned int fields MY_ATTRIBUTE((unused)))
 {
   MYSQL_DATA *result= ((THD*)mysql->thd)->cur_data;
   ((THD*)mysql->thd)->cur_data= 0;
@@ -1208,7 +1208,7 @@ bool
 net_send_ok(THD *thd,
             uint server_status, uint statement_warn_count,
             ulonglong affected_rows, ulonglong id, const char *message,
-            bool eof_identifier __attribute__((unused)))
+            bool eof_identifier MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("emb_net_send_ok");
   MYSQL_DATA *data;
@@ -1423,7 +1423,7 @@ bool Protocol_classic::net_store_data(const uchar *from, size_t length)
 }
 
 
-void error_log_print(enum loglevel level __attribute__((unused)),
+void error_log_print(enum loglevel level MY_ATTRIBUTE((unused)),
                      const char *format, va_list argsi)
 {
   my_vsnprintf(mysql_server_last_error, sizeof(mysql_server_last_error),

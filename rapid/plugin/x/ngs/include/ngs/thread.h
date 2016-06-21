@@ -23,7 +23,7 @@
 #ifdef NGS_STANDALONE
 # include <pthread.h>
 #else
-# if  !defined(MYSQL_DYNAMIC_PLUGIN) && defined(_WIN32)
+# if  !defined(MYSQL_DYNAMIC_PLUGIN) && defined(_WIN32) && !defined(XPLUGIN_UNIT_TESTS)
 #   define MYSQL_DYNAMIC_PLUGIN 1
 # endif
 # include <my_thread.h>
@@ -46,8 +46,7 @@ namespace ngs
   typedef my_start_routine Start_routine_t;
 #endif
 
-  void thread_create(PSI_thread_key key, Thread_t *thread,
-                     const Thread_attr_t *attr,
+  void thread_create(PSI_thread_key key, Thread_t *hread,
                      Start_routine_t func, void *arg);
   int thread_join(Thread_t *thread, void *   *ret);
 

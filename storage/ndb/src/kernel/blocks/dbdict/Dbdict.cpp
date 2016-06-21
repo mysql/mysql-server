@@ -852,6 +852,11 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
   w.add(DictTabInfo::FullyReplicatedFlag,
         !!(tablePtr.p->m_bits & TableRecord::TR_FullyReplicated));
 
+  D("packTableIntoPages: tableId: " << tablePtr.p->tableId
+    << " tablePtr.i = " << tablePtr.i << " tableVersion = "
+    << tablePtr.p->tableVersion << " m_bits = " << hex
+    << tablePtr.p->m_bits);
+
   w.add(DictTabInfo::MinLoadFactor, tablePtr.p->minLoadFactor);
   w.add(DictTabInfo::MaxLoadFactor, tablePtr.p->maxLoadFactor);
   w.add(DictTabInfo::TableKValue, tablePtr.p->kValue);
@@ -870,7 +875,7 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
   w.add(DictTabInfo::TableStorageType, tablePtr.p->storageType);
   w.add(DictTabInfo::ExtraRowGCIBits, tablePtr.p->m_extra_row_gci_bits);
   w.add(DictTabInfo::ExtraRowAuthorBits, tablePtr.p->m_extra_row_author_bits);
-  w.add(DictTabInfo::RealFragmentCount, tablePtr.p->realFragmentCount);
+  w.add(DictTabInfo::PartitionCount, tablePtr.p->partitionCount);
   w.add(DictTabInfo::FullyReplicatedTriggerId,
         tablePtr.p->fullyReplicatedTriggerId);
 
@@ -2619,7 +2624,7 @@ void Dbdict::initialiseTableRecord(TableRecordPtr tablePtr, Uint32 tableId)
   tablePtr.p->noOfNullAttr = 0;
   tablePtr.p->fragmentCountType = NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE;
   tablePtr.p->fragmentCount = 0;
-  tablePtr.p->realFragmentCount = 0;
+  tablePtr.p->partitionCount = 0;
   /*
     tablePtr.p->lh3PageIndexBits = 0;
     tablePtr.p->lh3DistrBits = 0;
@@ -5770,6 +5775,11 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
   tablePtr.p->m_bits |=
     (c_tableDesc.FullyReplicatedFlag ? TableRecord::TR_FullyReplicated : 0);
 
+  D("handleTabInfoInit: tableId = " << tablePtr.p->tableId
+    << " tabPtr.i = " << tablePtr.i << " tableVersion = "
+    << tablePtr.p->tableVersion << " m_bits = " << hex
+    << tablePtr.p->m_bits);
+
   tablePtr.p->minLoadFactor = c_tableDesc.MinLoadFactor;
   tablePtr.p->maxLoadFactor = c_tableDesc.MaxLoadFactor;
   tablePtr.p->fragmentType = (DictTabInfo::FragmentType)c_tableDesc.FragmentType;
@@ -5791,7 +5801,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
   tablePtr.p->m_extra_row_gci_bits = c_tableDesc.ExtraRowGCIBits;
   tablePtr.p->m_extra_row_author_bits = c_tableDesc.ExtraRowAuthorBits;
   /**
-   * RealFragmentCount sent from API is ignored. This is only needed to
+   * PartitionCount sent from API is ignored. This is only needed to
    * communicate with API on the number of real fragments for fully
    * replicated tables. For tables that are not fully replicated it is
    * simply equal to fragmentCount. For fully replicated tables it is
@@ -5800,7 +5810,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
   const bool restart = c_startPhase < 7;
   if (restart)
   {
-    tablePtr.p->realFragmentCount = c_tableDesc.RealFragmentCount;
+    tablePtr.p->partitionCount = c_tableDesc.PartitionCount;
   }
 
   tabRequire(tablePtr.p->noOfAttributes <= MAX_ATTRIBUTES_IN_TABLE,
@@ -5993,12 +6003,12 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
           jam();
           if (!restart)
           {
-            tablePtr.p->realFragmentCount =
+            tablePtr.p->partitionCount =
               get_default_fragments_fully_replicated(signal,
                                        tablePtr.p->fragmentCountType);
           }
-          D("Fully replicated table, realFragmentCount: " <<
-            tablePtr.p->realFragmentCount <<
+          D("Fully replicated table, partitionCount: " <<
+            tablePtr.p->partitionCount <<
             " fragmentCountType = " <<
             getFragmentCountTypeString(tablePtr.p->fragmentCountType));
           break;
@@ -6017,8 +6027,8 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
           D("Creating fully replicated table failed. " <<
             "Error Code " << parseP->errorCode <<
             " Line: " << parseP->errorLine <<
-            " realFragmentCount: " <<
-            tablePtr.p->realFragmentCount <<
+            " partitionCount: " <<
+            tablePtr.p->partitionCount <<
             " fragmentCountType = " <<
             getFragmentCountTypeString(tablePtr.p->fragmentCountType));
           break;
@@ -6038,12 +6048,12 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
        * so can check immediately after returning from this function in
        * alterTable_parse.
        */
-      tablePtr.p->realFragmentCount = tablePtr.p->fragmentCount;
+      tablePtr.p->partitionCount = tablePtr.p->fragmentCount;
     }
   }
   D("handleTabInfoInit: tableId = " << tablePtr.i <<
     "fragmentCount = " << tablePtr.p->fragmentCount <<
-    " realFragmentCount = " << tablePtr.p->realFragmentCount <<
+    " partitionCount = " << tablePtr.p->partitionCount <<
     " fragmentCountType = " <<
       getFragmentCountTypeString(tablePtr.p->fragmentCountType));
 
@@ -6685,7 +6695,7 @@ Dbdict::get_fragmentation(Signal* signal, Uint32 tableId)
   req->primaryTableId = tableId;
   req->requestInfo = CreateFragmentationReq::RI_GET_FRAGMENTATION;
   req->fragmentCountType = 0; /* Ignored for get_fragmentation */
-  req->realFragmentCount = 0; /* Ignored for get_fragmentation */
+  req->partitionCount = 0; /* Ignored for get_fragmentation */
   EXECUTE_DIRECT(DBDICT, GSN_CREATE_FRAGMENTATION_REQ, signal,
                  CreateFragmentationReq::SignalLength);
 
@@ -6759,7 +6769,7 @@ Dbdict::create_fragmentation(Signal* signal,
      */
     tabPtr.p->primaryTableId = RNIL;
   }
-  frag_req->realFragmentCount = tabPtr.p->realFragmentCount;
+  frag_req->partitionCount = tabPtr.p->partitionCount;
 
   EXECUTE_DIRECT(DBDICT, GSN_CREATE_FRAGMENTATION_REQ, signal,
                  CreateFragmentationReq::SignalLength);
@@ -6890,16 +6900,16 @@ Dbdict::createTable_parse(Signal* signal, bool master,
       if ((tabPtr.p->m_bits & TableRecord::TR_FullyReplicated) == 0)
       {
         jam();
-        tabPtr.p->realFragmentCount = tabPtr.p->fragmentCount;
+        tabPtr.p->partitionCount = tabPtr.p->fragmentCount;
       }
       /**
-       * At this point it should not be possible for realFragmentCount
+       * At this point it should not be possible for partitionCount
        * to be 0 anymore.
        */
-      ndbrequire(tabPtr.p->realFragmentCount != 0);
+      ndbrequire(tabPtr.p->partitionCount != 0);
       D("3: tableId = " << tabPtr.i <<
         "fragmentCount = " << tabPtr.p->fragmentCount <<
-        " realFragmentCount = " << tabPtr.p->realFragmentCount);
+        " partitionCount = " << tabPtr.p->partitionCount);
     }
 
     // dump table record back into DictTabInfo
@@ -6973,7 +6983,7 @@ Dbdict::createTable_parse(Signal* signal, bool master,
     }
 
     TableRecordPtr tabPtr = parseRecord.tablePtr;
-    ndbrequire(tabPtr.p->realFragmentCount != 0);
+    ndbrequire(tabPtr.p->partitionCount != 0);
 
     // link operation to object seized in handleTabInfoInit
     {
@@ -7624,7 +7634,7 @@ Dbdict::createTab_dih(Signal* signal, SchemaOpPtr op_ptr)
     jam();
     req->fullyReplicated =
       ((tabPtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0);
-    req->realFragmentCount = tabPtr.p->realFragmentCount;
+    req->partitionCount = tabPtr.p->partitionCount;
   }
   else
   {
@@ -7633,7 +7643,7 @@ Dbdict::createTab_dih(Signal* signal, SchemaOpPtr op_ptr)
     ndbrequire(find_object(primTabPtr, tabPtr.p->primaryTableId));
     req->fullyReplicated =
       ((primTabPtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0);
-    req->realFragmentCount = primTabPtr.p->realFragmentCount;
+    req->partitionCount = primTabPtr.p->partitionCount;
   }
 
   if (tabPtr.p->hashMapObjectId != RNIL)
@@ -9360,6 +9370,7 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
     *(const AlterTableReq*)signal->getDataPtr();
   const AlterTableReq* req = &req_copy;
 
+  D("ALTER_TABLE_REQ: changeMask: " << hex << req->changeMask);
   ErrorInfo error;
   do {
     SchemaOpPtr op_ptr;
@@ -9491,7 +9502,7 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
     alterTabPtr.p->m_newTablePtrI = newTablePtr.i;
     alterTabPtr.p->m_newTable_realObjectId = newTablePtr.p->tableId;
     newTablePtr.p->tableId = impl_req->tableId; // set correct table id...(not the temporary)
-    ndbrequire(newTablePtr.p->realFragmentCount != 0);
+    ndbrequire(newTablePtr.p->partitionCount != 0);
   }
 
 
@@ -10364,7 +10375,7 @@ Dbdict::alterTable_toCopyData(Signal* signal, SchemaOpPtr op_ptr)
   req->requestType = 0;
   req->srcTableId = impl_req->tableId;
   req->dstTableId = impl_req->tableId;
-  req->srcFragments = tablePtr.p->realFragmentCount;
+  req->srcFragments = tablePtr.p->partitionCount;
 
   D("COPY_DATA_REQ: srcTableId: " << req->srcTableId <<
     " dstTableId: " << req->dstTableId <<
@@ -10855,9 +10866,19 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
       tablePtr.p->fragmentCountType = newTablePtr.p->fragmentCountType;
       newTablePtr.p->fragmentCountType = save_fctype;
 
-      Uint32 save_rfc = tablePtr.p->realFragmentCount;
-      tablePtr.p->realFragmentCount = newTablePtr.p->realFragmentCount;
-      newTablePtr.p->realFragmentCount = save_rfc;
+      Uint32 save_rfc = tablePtr.p->partitionCount;
+      tablePtr.p->partitionCount = newTablePtr.p->partitionCount;
+      newTablePtr.p->partitionCount = save_rfc;
+    }
+    if (AlterTableReq::getReadBackupFlag(changeMask))
+    {
+      jam();
+      Uint32 save_old = (tablePtr.p->m_bits & TableRecord::TR_ReadBackup);
+      Uint32 save_new = (newTablePtr.p->m_bits & TableRecord::TR_ReadBackup);
+      tablePtr.p->m_bits &= (~(TableRecord::TR_ReadBackup));
+      newTablePtr.p->m_bits &= (~(TableRecord::TR_ReadBackup));
+      tablePtr.p->m_bits |= save_new;
+      newTablePtr.p->m_bits |= save_old;
     }
   }
 
@@ -14129,7 +14150,7 @@ Dbdict::set_index_stat_frag(Signal* signal, TableRecordPtr indexPtr)
     if ((tablePtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0)
     {
       jam();
-      noOfFragments = tablePtr.p->realFragmentCount;
+      noOfFragments = tablePtr.p->partitionCount;
     }
   }
 
@@ -15986,7 +16007,7 @@ Dbdict::indexStat_parse(Signal* signal, bool master,
     if ((tablePtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0)
     {
       jam();
-      impl_req->fragCount = tablePtr.p->realFragmentCount;
+      impl_req->fragCount = tablePtr.p->partitionCount;
     }
   }
 
@@ -32299,6 +32320,7 @@ Dbdict::sendTransClientReply(Signal* signal, SchemaTransPtr trans_ptr)
   if (trans_ptr.p->m_clientState == TransClient::EndReq) {
     if (!hasError(trans_ptr.p->m_error)) {
       jam();
+      D("SCHEMA_TRANS_END_CONF");
       SchemaTransEndConf* conf =
         (SchemaTransEndConf*)signal->getDataPtrSend();
       conf->senderRef = reference();

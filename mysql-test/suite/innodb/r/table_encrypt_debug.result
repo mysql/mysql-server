@@ -1,9 +1,3 @@
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded");
-call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
-call mtr.add_suppression("does not exist in the InnoDB internal data dictionary though MySQL is trying to drop it");
-call mtr.add_suppression("Cannot open table tde_db/.* from the internal data dictionary of InnoDB");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table `tde_db`.`t1` is set as discarded");
 DROP DATABASE IF EXISTS tde_db;
 CREATE DATABASE tde_db;
 USE tde_db;
@@ -119,8 +113,8 @@ ALTER TABLE tde_db.t1 IMPORT TABLESPACE;
 ERROR HY000: Lost connection to MySQL server during query
 SET SESSION debug="-d,ib_crash_during_decrypt_page";
 INSERT INTO tde_db.t1 VALUES(11, "lllll");
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Tablespace has been discarded for table 't1'
 SELECT * FROM tde_db.t1 ORDER BY c1 ;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Tablespace has been discarded for table 't1'
 DROP TABLE tde_db.t1;
 SET GLOBAL innodb_file_per_table=1;

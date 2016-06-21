@@ -2757,6 +2757,14 @@ err:
                                    error_code);
       }
     }
+    else if (error)
+    {
+      /*
+        We do not care the returned value, since it goes ahead
+        with error branch in any case.
+      */
+      (void) commit_owned_gtid_by_partial_command(thd);
+    }
   }
 
   if (!drop_temporary)
@@ -5844,7 +5852,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
           */
           create_info->used_fields|= HA_CREATE_USED_ENGINE;
 
-          int result __attribute__((unused))=
+          int result MY_ATTRIBUTE((unused))=
             store_create_info(thd, table, &query,
                               create_info, TRUE /* show_database */);
 
@@ -7186,6 +7194,26 @@ static bool is_inplace_alter_impossible(TABLE *table,
   */
   if (!table->s->mysql_version)
     DBUG_RETURN(true);
+
+  /*
+    If default value is changed and the table includes or will include
+    generated columns that depend on the DEFAULT function, we cannot
+    do the operation inplace as indexes or value of stored generated
+    columns might become invalid.
+  */
+  if ((alter_info->flags &
+       (Alter_info::ALTER_CHANGE_COLUMN_DEFAULT |
+        Alter_info::ALTER_CHANGE_COLUMN)) &&
+       table->has_gcol())
+  {
+    for (Field **vfield= table->vfield; *vfield; vfield++)
+    {
+      if ((*vfield)->gcol_info->expr_item->walk(
+           &Item::check_gcol_depend_default_processor,
+           Item::WALK_POSTFIX, NULL))
+        DBUG_RETURN(true);
+    }
+  }
 
   DBUG_RETURN(false);
 }

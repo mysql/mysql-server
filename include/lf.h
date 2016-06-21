@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -83,7 +83,7 @@ typedef struct st_lf_pins {
 #if defined(__GNUC__) && defined(MY_LF_EXTRA_DEBUG)
 #define LF_REQUIRE_PINS(N)                                      \
   static const char require_pins[LF_PINBOX_PINS-N]              \
-                             __attribute__ ((unused));          \
+                             MY_ATTRIBUTE ((unused));          \
   static const int LF_NUM_PINS_IN_THIS_FILE= N;
 #else
 #define LF_REQUIRE_PINS(N)

@@ -1744,6 +1744,24 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
     } while(0)
 #endif
 
+static char *set_ssl_option_unpack_path(struct st_mysql_options *options,
+                                        const char *arg, unsigned int mode)
+{
+  char *opt_var= NULL;
+  if (arg)
+  {
+    char *buff= (char *)my_malloc(key_memory_mysql_options, FN_REFLEN + 1,
+                                  MYF(MY_WME));
+    unpack_filename(buff, (char *)arg);
+    opt_var= my_strdup(key_memory_mysql_options, buff, MYF(MY_WME));
+    ENSURE_EXTENSIONS_PRESENT(options);
+    options->extension->ssl_mode= mode;
+    my_free(buff);
+  }
+  return opt_var;
+}
+
+
 void mysql_read_default_options(struct st_mysql_options *options,
 				const char *filename,const char *group)
 {
@@ -1872,6 +1890,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
           my_free(options->ssl_cipher);
           options->ssl_cipher= my_strdup(key_memory_mysql_options,
                                          opt_arg, MYF(MY_WME));
+          break;
         case OPT_tls_version:
           EXTENSION_SET_SSL_STRING(options, tls_version, opt_arg, SSL_MODE_PREFERRED);
           break;
@@ -2509,7 +2528,7 @@ mysql_init(MYSQL *mysql)
   of st_mysql_extension structure). 
 */
 
-MYSQL_EXTENSION* mysql_extension_init(MYSQL *mysql __attribute__((unused)))
+MYSQL_EXTENSION* mysql_extension_init(MYSQL *mysql MY_ATTRIBUTE((unused)))
 {
   MYSQL_EXTENSION *ext;
 
@@ -2539,12 +2558,12 @@ void mysql_extension_free(struct st_mysql_extension* ext)
 */
 
 my_bool STDCALL
-mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
-	      const char *key __attribute__((unused)),
-	      const char *cert __attribute__((unused)),
-	      const char *ca __attribute__((unused)),
-	      const char *capath __attribute__((unused)),
-	      const char *cipher __attribute__((unused)))
+mysql_ssl_set(MYSQL *mysql MY_ATTRIBUTE((unused)) ,
+	      const char *key MY_ATTRIBUTE((unused)),
+	      const char *cert MY_ATTRIBUTE((unused)),
+	      const char *ca MY_ATTRIBUTE((unused)),
+	      const char *capath MY_ATTRIBUTE((unused)),
+	      const char *cipher MY_ATTRIBUTE((unused)))
 {
   my_bool result= 0;
   DBUG_ENTER("mysql_ssl_set");
@@ -2569,7 +2588,7 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 
 static void
-mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
+mysql_ssl_free(MYSQL *mysql MY_ATTRIBUTE((unused)))
 {
   struct st_VioSSLFd *ssl_fd= (struct st_VioSSLFd*) mysql->connector_fd;
   DBUG_ENTER("mysql_ssl_free");
@@ -2618,7 +2637,7 @@ mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
 */
 
 const char * STDCALL
-mysql_get_ssl_cipher(MYSQL *mysql __attribute__((unused)))
+mysql_get_ssl_cipher(MYSQL *mysql MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("mysql_get_ssl_cipher");
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
@@ -3393,7 +3412,7 @@ error:
 */
 static char *
 mysql_fill_packet_header(MYSQL *mysql, char *buff,
-                         size_t buff_size  __attribute__((unused)))
+                         size_t buff_size  MY_ATTRIBUTE((unused)))
 {
   NET *net= &mysql->net;
   char *end;
@@ -5072,8 +5091,8 @@ static void mysql_prune_stmt_list(MYSQL *mysql)
     should also be reflected there.
 */
 
-void mysql_detach_stmt_list(LIST **stmt_list __attribute__((unused)),
-                            const char *func_name __attribute__((unused)))
+void mysql_detach_stmt_list(LIST **stmt_list MY_ATTRIBUTE((unused)),
+                            const char *func_name MY_ATTRIBUTE((unused)))
 {
 #ifdef MYSQL_CLIENT
   /* Reset connection handle in all prepared statements. */
@@ -5502,27 +5521,49 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     EXTENSION_SET_STRING(&mysql->options, default_auth, arg);
     break;
   case MYSQL_OPT_SSL_KEY:
-    SET_SSL_OPTION(ssl_key, arg, SSL_MODE_PREFERRED);
+    if (mysql->options.ssl_key)
+      my_free(mysql->options.ssl_key);
+    mysql->options.ssl_key= set_ssl_option_unpack_path(&mysql->options, arg,
+                                                       SSL_MODE_PREFERRED);
     break;
   case MYSQL_OPT_SSL_CERT:
-    SET_SSL_OPTION(ssl_cert, arg, SSL_MODE_PREFERRED);
+    if (mysql->options.ssl_cert)
+      my_free(mysql->options.ssl_cert);
+    mysql->options.ssl_cert= set_ssl_option_unpack_path(&mysql->options, arg,
+                                                        SSL_MODE_PREFERRED);
     break;
   case MYSQL_OPT_SSL_CA:
-    SET_SSL_OPTION(ssl_ca, arg, SSL_MODE_VERIFY_CA);
+    if (mysql->options.ssl_ca)
+      my_free(mysql->options.ssl_ca);
+    mysql->options.ssl_ca= set_ssl_option_unpack_path(&mysql->options, arg,
+                                                      SSL_MODE_VERIFY_CA);
     break;
   case MYSQL_OPT_SSL_CAPATH:
-    SET_SSL_OPTION(ssl_capath, arg, SSL_MODE_VERIFY_CA);
+    if (mysql->options.ssl_capath)
+      my_free(mysql->options.ssl_capath);
+    mysql->options.ssl_capath= set_ssl_option_unpack_path(&mysql->options, arg,
+                                                          SSL_MODE_VERIFY_CA);
     break;
   case MYSQL_OPT_SSL_CIPHER:
     SET_SSL_OPTION(ssl_cipher, arg, SSL_MODE_PREFERRED);
     break;
   case MYSQL_OPT_SSL_CRL:
-    EXTENSION_SET_SSL_STRING(&mysql->options, ssl_crl, arg,
-                             SSL_MODE_PREFERRED);
+    if (mysql->options.extension)
+      my_free(mysql->options.extension->ssl_crl);
+    else
+      ALLOCATE_EXTENSIONS(&mysql->options);
+    mysql->options.extension->ssl_crl=
+                   set_ssl_option_unpack_path(&mysql->options, arg,
+                                              SSL_MODE_PREFERRED);
     break;
   case MYSQL_OPT_SSL_CRLPATH:
-    EXTENSION_SET_SSL_STRING(&mysql->options, ssl_crlpath, arg,
-                             SSL_MODE_PREFERRED);
+    if (mysql->options.extension)
+      my_free(mysql->options.extension->ssl_crlpath);
+    else
+      ALLOCATE_EXTENSIONS(&mysql->options);
+    mysql->options.extension->ssl_crlpath=
+                   set_ssl_option_unpack_path(&mysql->options, arg,
+                                              SSL_MODE_PREFERRED);
     break;
   case MYSQL_OPT_TLS_VERSION:
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
@@ -5833,7 +5874,7 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
 */
 uchar *
 get_attr_key(LEX_STRING *part, size_t *length,
-             my_bool not_used __attribute__((unused)))
+             my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= part[0].length;
   return (uchar *) part[0].str;

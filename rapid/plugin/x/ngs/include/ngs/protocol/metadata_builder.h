@@ -21,7 +21,7 @@
 #define _NGS_METADATA_BUILDER_H_
 
 #include "m_ctype.h"
-#include <google/protobuf/io/coded_stream.h>
+#include "ngs_common/protocol_protobuf.h"
 #include <string>
 #include <set>
 

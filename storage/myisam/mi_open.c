@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1221,7 +1221,7 @@ exist a dup()-like call that would give us two different file descriptors.
 *************************************************************************/
 
 int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, const char *org_name,
-                     File file_to_dup __attribute__((unused)))
+                     File file_to_dup MY_ATTRIBUTE((unused)))
 {
   char *data_name= share->data_file_name;
   char real_data_name[FN_REFLEN];

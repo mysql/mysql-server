@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,7 +72,7 @@ void Debug_options::create_options()
 }
 
 
-void Debug_options::debug_option_callback(char *argument __attribute__((unused)))
+void Debug_options::debug_option_callback(char *argument MY_ATTRIBUTE((unused)))
 {
   if (this->m_dbug_option.has_value())
   {

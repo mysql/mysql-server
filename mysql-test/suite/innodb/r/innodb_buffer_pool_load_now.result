@@ -42,3 +42,7 @@ variable_value
 Buffer pool(s) load completed at TIMESTAMP_NOW
 DROP TABLE ib_bp_test;
 SET GLOBAL innodb_buffer_pool_dump_pct=default;
+#
+# Bug#21371070 [ERROR] INNODB: CANNOT ALLOCATE 0 BYTES: SUCCESS
+#
+SET GLOBAL innodb_buffer_pool_load_now = ON;

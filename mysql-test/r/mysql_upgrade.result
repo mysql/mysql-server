@@ -1900,8 +1900,13 @@ DROP TABLE backup_user;
 # WL#2284: Increase the length of a user name
 #
 # First downgrade all tables with user name columnd to 5.6
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode= (SELECT replace(@@sql_mode,'NO_ZERO_DATE',''));
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 ALTER TABLE mysql.tables_priv
-MODIFY User char(16) NOT NULL default '';
+MODIFY User char(16) NOT NULL default '',
+MODIFY Grantor char(77) DEFAULT '' NOT NULL;
 ALTER TABLE mysql.columns_priv
 MODIFY User char(16) NOT NULL default '';
 ALTER TABLE mysql.user
@@ -1909,7 +1914,13 @@ MODIFY User char(16) NOT NULL default '';
 ALTER TABLE mysql.db
 MODIFY User char(16) NOT NULL default '';
 ALTER TABLE mysql.procs_priv
-MODIFY User char(16) binary DEFAULT '' NOT NULL;
+MODIFY User char(16) binary DEFAULT '' NOT NULL,
+MODIFY Grantor char(77) DEFAULT '' NOT NULL;
+ALTER TABLE mysql.proc
+MODIFY definer char(77) collate utf8_bin DEFAULT '' NOT NULL;
+ALTER TABLE mysql.event
+MODIFY definer char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '';
+SET sql_mode= @orig_sql_mode;
 #
 # Downgrade performance_schema tables
 #
@@ -2301,6 +2312,13 @@ SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
+#
+# Bug #21762656 AFTER RUNNING MYSQL_UPGRADE PROXIES_PRIV USER COLUMNS
+# ARE NOT UPDATED TO 32
+#
+ALTER TABLE mysql.proxies_priv MODIFY User char(16) binary DEFAULT '' NOT NULL;
+ALTER TABLE mysql.proxies_priv MODIFY Proxied_user char(16) binary DEFAULT '' NOT NULL;
+ALTER TABLE mysql.proxies_priv MODIFY Grantor char(77) DEFAULT '' NOT NULL;
 # Tables with user name column downgraded to 5.6, now run mysql_upgrade
 mysql.columns_priv                                 OK
 mysql.db                                           OK
@@ -2641,7 +2659,7 @@ proc	CREATE TABLE `proc` (
   `param_list` blob NOT NULL,
   `returns` longblob NOT NULL,
   `body` longblob NOT NULL,
-  `definer` char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `definer` char(93) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
   `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH') NOT NULL DEFAULT '',

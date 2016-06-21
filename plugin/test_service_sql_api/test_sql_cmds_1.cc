@@ -94,8 +94,8 @@ struct Callback_data
 
   int server_status;
   uint warn_count;
-  ulonglong affected_rows;
-  ulonglong last_insert_id;
+  uint affected_rows;
+  uint last_insert_id;
   std::string message;
 
   int shutdown;
@@ -364,10 +364,9 @@ static void test_com_query(void *p)
   st_session= srv_session_open(NULL,plugin_ctx);
   if (!st_session) {
     my_plugin_log_message(&p, MY_ERROR_LEVEL, "srv_session_open failed.");
-    DBUG_VOID_RETURN;
   }
-
-  switch_user(st_session, user_privileged);
+  else
+    switch_user(st_session, user_privileged);
 
   WRITE_STR("-----------------------------------------------------------------\n");
   memset(&sql_str_value, 0, 64 * 64 * 256 * sizeof(char));
@@ -483,7 +482,8 @@ static int test_com_init_db(void *p)
 
   ENSURE_API_NOT_NULL(st_session = srv_session_open(NULL, p));
 
-  switch_user(st_session, user_privileged);
+  if (st_session)
+     switch_user(st_session, user_privileged);
   COM_DATA cmd;
 
   LEX_CSTRING db_name= srv_session_info_get_current_db(st_session);

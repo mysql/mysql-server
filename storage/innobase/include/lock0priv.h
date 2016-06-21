@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -719,11 +719,13 @@ public:
 	Create a lock for a transaction and initialise it.
 	@param[in, out] trx		Transaction requesting the new lock
 	@param[in] owns_trx_mutex	true if caller owns the trx_t::mutex
+	@param[in] add_to_hash		add the lock to hash table
 	@param[in] prdt			Predicate lock (optional)
 	@return new lock instance */
 	lock_t* create(
 		trx_t*		trx,
 		bool		owns_trx_mutex,
+		bool		add_to_hash,
 		const lock_prdt_t*
 				prdt = NULL);
 
@@ -749,19 +751,6 @@ public:
 		ulint		size);
 
 private:
-	/**
-	Enqueue a lock wait for a high priority transaction, jump the record
-	lock wait queue and if the transaction at the head of the queue is
-	itself waiting roll it back.
-	@param[in, out] wait_for	The lock that the joining
-					transaction is waiting for
-	@param[in] prdt			Predicate for the predicate lock
-	@return NULL if the lock was granted */
-	lock_t* enqueue_priority(
-		const lock_t*	wait_for,
-		const lock_prdt_t*
-				prdt);
-
 	/*
 	@return the record lock size in bytes */
 	size_t lock_size() const
@@ -779,25 +768,52 @@ private:
 	void mark_trx_for_rollback(trx_t* trx);
 
 	/**
-	Add the lock to the head of the record lock {space, page_no} wait
-	queue and the transaction's lock list. If the transactions holding
-	blocking locks are already marked for termination then they are not
-	added to the hit list.
-	@param[in, out] lock		Lock being requested
-	@param[in] wait_for		The blocking lock
-	@param[in] kill_trx		true if the transaction that m_trx
-					is waiting for should be killed */
-	void jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx);
+	Jump the queue for the record over all low priority transactions and
+	add the lock. If all current granted locks are compatible, grant the
+	lock. Otherwise, mark all granted transaction for asynchronous
+	rollback and add to hit list.
+	@param[in, out]	lock		Lock being requested
+	@param[in]	conflict_lock	First conflicting lock from the head
+	@return true if the lock is granted */
+	bool jump_queue(lock_t* lock, const lock_t* conflict_lock);
+
+	/** Find position in lock queue and add the high priority transaction
+	lock. Intention and GAP only locks can be granted even if there are
+	waiting locks in front of the queue. To add the High priority
+	transaction in a safe position we keep the following rule.
+
+	1. If the lock can be granted, add it before the first waiting lock
+	in the queue so that all currently waiting locks need to do conflict
+	check before getting granted.
+
+	2. If the lock has to wait, add it after the last granted lock or the
+	last waiting high priority transaction in the queue whichever is later.
+	This ensures that the transaction is granted only after doing conflict
+	check with all granted transactions.
+	@param[in]      lock            Lock being requested
+	@param[in]      conflict_lock   First conflicting lock from the head
+	@param[out]     high_priority   high priority transaction ahead in queue
+	@return true if the lock can be granted */
+	bool
+	lock_add_priority(
+		lock_t*		lock,
+		const lock_t*	conflict_lock,
+		bool*		high_priority);
+
+	/** Iterate over the granted locks and prepare the hit list for ASYNC Rollback.
+	If the transaction is waiting for some other lock then wake up with deadlock error.
+	Currently we don't mark following transactions for ASYNC Rollback.
+	1. Read only transactions
+	2. Background transactions
+	3. Other High priority transactions
+	@param[in]      lock            Lock being requested
+	@param[in]      conflict_lock   First conflicting lock from the head */
+	void make_trx_hit_list(lock_t* lock, const lock_t* conflict_lock);
 
 	/**
 	Setup the requesting transaction state for lock grant
 	@param[in,out] lock	Lock for which to change state */
 	void set_wait_state(lock_t* lock);
-
-	/**
-	Rollback the transaction that is blocking the requesting transaction
-	@param[in, out] lock	The blocking lock */
-	void rollback_blocking_trx(lock_t* lock) const;
 
 	/**
 	Add the lock to the record lock hash and the transaction's lock list
@@ -971,7 +987,7 @@ lock_clust_rec_some_has_impl(
 	const rec_t*		rec,	/*!< in: user record */
 	const dict_index_t*	index,	/*!< in: clustered index */
 	const ulint*		offsets)/*!< in: rec_get_offsets(rec, index) */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /*********************************************************************//**
 Gets the first or next record lock on a page.

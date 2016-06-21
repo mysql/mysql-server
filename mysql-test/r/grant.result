@@ -715,7 +715,7 @@ Host	char(60)	NO	PRI
 Db	char(64)	NO	PRI		
 User	char(32)	NO	PRI		
 Table_name	char(64)	NO	PRI		
-Grantor	char(77)	NO	MUL		
+Grantor	char(93)	NO	MUL		
 Timestamp	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
 Table_priv	set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger')	NO			
 Column_priv	set('Select','Insert','Update','References')	NO			
@@ -3009,3 +3009,17 @@ DROP USER user_name_len_32_012345678901234@localhost;
 DROP USER user_name_len_25_01234567@localhost;
 DROP TABLE t1;
 DROP PROCEDURE p1;
+CREATE USER user_name_len_22_01234@localhost;
+GRANT ALL PRIVILEGES ON *.* TO user_name_len_22_01234@localhost WITH GRANT OPTION;
+GRANT PROXY ON ''@'' TO user_name_len_22_01234@localhost WITH GRANT OPTION;
+CREATE USER user_name_len_32_012345678901234@localhost;
+GRANT SELECT ON *.* TO user_name_len_32_012345678901234@localhost;
+** Creating new proxy user **
+CREATE USER proxy_native_0123456789@localhost IDENTIFIED WITH mysql_native_password;
+GRANT PROXY ON user_name_len_32_012345678901234@localhost TO proxy_native_0123456789@localhost;
+SELECT USER, PROXIED_USER, GRANTOR FROM mysql.proxies_priv WHERE Proxied_host='localhost';
+USER	PROXIED_USER	GRANTOR
+proxy_native_0123456789	user_name_len_32_012345678901234	user_name_len_22_01234@localhost
+DROP USER user_name_len_22_01234@localhost;
+DROP USER user_name_len_32_012345678901234@localhost;
+DROP USER proxy_native_0123456789@localhost;

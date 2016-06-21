@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include "abstract_chain_element.h"
 #include "i_chain_maker.h"
 #include "i_dump_task.h"
+#include "base/abstract_program.h"
 
 namespace Mysql{
 namespace Tools{
@@ -36,10 +37,12 @@ public:
    */
   virtual void register_chain_maker(I_chain_maker* new_chain_maker);
 
+  ~Abstract_crawler();
 protected:
   Abstract_crawler(
     Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
-      message_handler, Simple_id_generator* object_id_generator);
+      message_handler, Simple_id_generator* object_id_generator,
+      Mysql::Tools::Base::Abstract_program* program);
   /**
     Routine for performing common work on each enumerated DB object.
    */
@@ -49,6 +52,7 @@ protected:
 
   bool need_callbacks_in_child();
 
+  Mysql::Tools::Base::Abstract_program* get_program();
 private:
   std::vector<I_chain_maker*> m_chain_makers;
   std::vector<I_dump_task*> m_dump_tasks_created;
@@ -56,6 +60,7 @@ private:
     Stores next chain ID to be used. Used as ID generator.
    */
   static my_boost::atomic_uint64_t next_chain_id;
+  Mysql::Tools::Base::Abstract_program* m_program;
 };
 
 }

@@ -21,10 +21,8 @@
 #define _ADMIN_CMD_HANDLER_H_
 
 #include <string>
-#include <google/protobuf/repeated_field.h>
-
 #include "ngs/protocol_encoder.h"
-#include "mysqlx_datatypes.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 
 namespace xpl
 {

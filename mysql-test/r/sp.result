@@ -7901,3 +7901,79 @@ specific_name like 'p%' and routine_schema=0;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '??@?? FUNCTION ?bug22222013?.?f1?() RETURNS int(11)
 RETURN NULL' at line 1
 DROP DATABASE bug22222013;
+SET NAMES default;
+#
+# WL#9262: All system tables should support 32 character length user names
+#
+#This should just work with username + hostname of length 93 as DEFINER
+CREATE USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+#For procedure
+CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char PROCEDURE test.proc_test() SELECT CURRENT_USER();
+#and for function
+CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char FUNCTION test.f_test() RETURNS INT RETURN 1;
+SHOW PROCEDURE STATUS LIKE 'proc_test';
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	proc_test	PROCEDURE	user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+DROP PROCEDURE test.proc_test;
+SHOW FUNCTION STATUS LIKE 'f_test';
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	f_test	FUNCTION	user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+DROP FUNCTION test.f_test;
+# Changing mysql.proc.definer column to char(77) - i.e. old layout (5.7.12)
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+ALTER TABLE mysql.proc
+MODIFY definer char(77) collate utf8_bin DEFAULT '' NOT NULL;
+SET sql_mode= @orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+#Now we make sure that username + hostname with length of 77 or less work with
+#this old db schema
+#This should just pass as the DEFINER length is 77 chars - so the same as mysql.proc.definer
+CREATE USER robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+#For procedure
+CREATE DEFINER=robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char PROCEDURE test.proc_test_1() SELECT CURRENT_USER();
+DROP PROCEDURE test.proc_test_1;
+#For function
+CREATE DEFINER=robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char FUNCTION test.f_test_1() RETURNS INT RETURN 1;
+DROP FUNCTION test.f_test_1;
+#Now definer is 93 char long so we should get error as mysql.proc.definer in old schema was only 77 char long
+#For procedure
+CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char PROCEDURE test.proc_test() SELECT CURRENT_USER();
+ERROR HY000: It seems that your db schema is old. The definer column is 77 characters long and should be 93 characters long. Please run mysql_upgrade.
+#For function
+CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char FUNCTION test.f_test_1() RETURNS INT RETURN 1;
+ERROR HY000: It seems that your db schema is old. The definer column is 77 characters long and should be 93 characters long. Please run mysql_upgrade.
+# Let us check with user name + hostname of length 78
+#For procedure
+CREATE DEFINER=robert_golebiowsk@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char PROCEDURE test.proc_test() SELECT CURRENT_USER();
+ERROR HY000: It seems that your db schema is old. The definer column is 77 characters long and should be 93 characters long. Please run mysql_upgrade.
+#For function
+CREATE DEFINER=robert_golebiowsk@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char FUNCTION test.f_test_1() RETURNS INT RETURN 1;
+ERROR HY000: It seems that your db schema is old. The definer column is 77 characters long and should be 93 characters long. Please run mysql_upgrade.
+# DEFINER with length longer than 93 characters should fail with old plain error staying that data is too long for username
+# as upgrading to 93 characters (with mysql_upgrade) will not help
+# Let us try with 94 characters long username
+CREATE DEFINER=user_name_robert_golebiowski12345@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char PROCEDURE test.proc_test() SELECT CURRENT_USER();
+ERROR HY000: String 'user_name_robert_golebiowski12345' is too long for user name (should be no longer than 32)
+CREATE DEFINER=user_name_robert_golebiowski12345@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char FUNCTION test.f_test_1() RETURNS INT RETURN 1;
+ERROR HY000: String 'user_name_robert_golebiowski12345' is too long for user name (should be no longer than 32)
+CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char1 PROCEDURE test.proc_test() SELECT CURRENT_USER();
+ERROR HY000: String 'oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char1' is too long for host name (should be no longer than 60)
+CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char1 FUNCTION test.f_test_1() RETURNS INT RETURN 1;
+ERROR HY000: String 'oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char1' is too long for host name (should be no longer than 60)
+#Cleanup
+DROP USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+DROP USER robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+Restore mysql.proc
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+ALTER TABLE mysql.proc
+MODIFY definer char(93) collate utf8_bin DEFAULT '' NOT NULL;
+SET sql_mode= @orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.

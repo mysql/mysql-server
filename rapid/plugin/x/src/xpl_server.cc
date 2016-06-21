@@ -17,7 +17,7 @@
  * 02110-1301  USA
  */
 
-#ifdef WIN32
+#if !defined(MYSQL_DYNAMIC_PLUGIN) && defined(WIN32) && !defined(XPLUGIN_UNIT_TESTS)
 // Needed for importing PERFORMANCE_SCHEMA plugin API.
 #define MYSQL_DYNAMIC_PLUGIN 1
 #endif // WIN32
@@ -49,7 +49,7 @@ class Session_scheduler : public ngs::Scheduler_dynamic
 {
 public:
   Session_scheduler(const char* name, void *plugin)
-  : ngs::Scheduler_dynamic(name), m_plugin_ptr(plugin)
+  : ngs::Scheduler_dynamic(name, KEY_thread_x_worker), m_plugin_ptr(plugin)
   {
   }
 
@@ -299,7 +299,7 @@ int xpl::Server::main(MYSQL_PLUGIN p)
     xpl::Plugin_system_variables::registry_callback(boost::bind(&Server::plugin_system_variables_changed, instance));
 
     thread_create(KEY_thread_x_acceptor, &instance->m_acceptor_thread,
-                  NULL, &Server::net_thread, instance);
+                  &Server::net_thread, instance);
 
     instance_rwl.unlock();
     my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL, "X plugin initialization successes");
@@ -464,11 +464,7 @@ void xpl::Server::create_mysqlx_user(Sql_data_context &context)
   {
     context.switch_to_local_user("root");
 
-    // save original value of binary logging
-    sql_result.query("SET @MYSQLX_OLD_LOG_BIN=@@SQL_LOG_BIN");
-
-    // disable binary logging, so this won't replicate
-    sql_result.query("SET SESSION SQL_LOG_BIN=0;");
+    sql_result.disable_binlog();
 
     // pwd doesn't matter because the account is locked
     sql_result.query("CREATE USER IF NOT EXISTS " MYSQLXSYS_ACCOUNT " IDENTIFIED WITH mysql_native_password AS '*7CF5CA9067EC647187EB99FCC27548FBE4839AE3' ACCOUNT LOCK;");
@@ -488,11 +484,11 @@ void xpl::Server::create_mysqlx_user(Sql_data_context &context)
     sql_result.query("GRANT SUPER ON *.* TO " MYSQLXSYS_ACCOUNT);
     sql_result.query("FLUSH PRIVILEGES;");
 
-    sql_result.query("SET SESSION SQL_LOG_BIN=@MYSQLX_OLD_LOG_BIN;");
+    sql_result.restore_binlog();
   }
   catch (const ngs::Error_code &error)
   {
-    sql_result.query("SET SESSION SQL_LOG_BIN=@MYSQLX_OLD_LOG_BIN;");
+    sql_result.restore_binlog();
 
     if (ER_MUST_CHANGE_PASSWORD != error.error)
       throw error;
@@ -553,7 +549,7 @@ bool xpl::Server::on_net_startup()
     if (server().is_running())
       return true;
 
-    Sql_data_context sql_context(*(ngs::Protocol_encoder*)NULL, true);
+    Sql_data_context sql_context(NULL, true);
 
     if (!sql_context.wait_api_ready(&is_exiting))
       throw ngs::Error_code(ER_X_SERVICE_ERROR, "Service isn't ready after pulling it few times");
@@ -655,7 +651,7 @@ void xpl::Server::on_net_shutdown()
   {
     try
     {
-      Sql_data_context sql_context(*(ngs::Protocol_encoder*)NULL, true);
+      Sql_data_context sql_context(NULL, true);
 
       if (!sql_context.init())
       {
@@ -663,10 +659,22 @@ void xpl::Server::on_net_shutdown()
 
         sql_context.switch_to_local_user("root");
 
-        if (!sql_context.is_acl_disabled())
-          sql_result.query("DROP USER " MYSQLXSYS_ACCOUNT);
-        else
-          log_warning("Internal account %s can't be removed because server is running without user privileges (\"skip-grant-tables\" switch)", MYSQLXSYS_ACCOUNT);
+        sql_result.disable_binlog();
+
+        try
+        {
+          if (!sql_context.is_acl_disabled())
+            sql_result.query("DROP USER " MYSQLXSYS_ACCOUNT);
+          else
+            log_warning("Internal account %s can't be removed because server is running without user privileges (\"skip-grant-tables\" switch)", MYSQLXSYS_ACCOUNT);
+
+          sql_result.restore_binlog();
+        }
+        catch (const ngs::Error_code &error)
+        {
+          sql_result.restore_binlog();
+          throw error;
+        }
 
         sql_context.detach();
       }

@@ -7,6 +7,7 @@ call mtr.add_suppression("Plugin mysqlx reported: 'DROP USER mysqlxsys@localhost
 call mtr.add_suppression("Plugin mysqlx reported: 'mysqlxsys@localhost account already exists but does not have the expected grants'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Authentication account could not be created, mysqlx plugin will be inaccessible.'");
 call mtr.add_suppression("Plugin mysqlx reported: '1.1: Unsuccessful login attempt");
+call mtr.add_suppression("Plugin mysqlx reported: '2.1: Unsuccessful login attempt: Unable to switch context to user mysqlxsys");
 call mtr.add_suppression("Plugin mysqlx reported: 'Delayed startup failed. Plugin is unable to accept connections.'");
 call mtr.add_suppression("Password for mysqlxsys@localhost account has been expired");
 call mtr.add_suppression("Can't setup mysqlxsys@localhost account - root password expired");
@@ -17,9 +18,10 @@ if(count(*)=0, 'OK', 'FAIL')
 OK
 Install plugin, ensure that account got created
 install plugin mysqlx soname "mysqlx.so";
-select sleep(1);
-sleep(1)
-0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
 select if(count(*)=1, 'OK', 'FAIL') from mysql.user where user='mysqlxsys' and host='localhost';
 if(count(*)=1, 'OK', 'FAIL')
 OK
@@ -34,9 +36,10 @@ if(count(*)=0, 'OK', 'FAIL')
 OK
 Delete our account by hand and try to login (should fail but not crash)
 install plugin mysqlx soname "mysqlx.so";
-select sleep(1);
-sleep(1)
-0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
 drop user mysqlxsys@localhost;
 in main, line 0:ERROR: Unable to switch context to user mysqlxsys (code 1045)
 not ok
@@ -80,9 +83,10 @@ if(count(*)=1, 'OK', 'FAIL')
 FAIL
 Expire our account and see what happens (login should fail)
 install plugin mysqlx soname "mysqlx.so";
-select sleep(1);
-sleep(1)
-0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
 alter user mysqlxsys@localhost password expire;
 in main, line 0:ERROR: Password for mysqlxsys@localhost account has been expired (code 1045)
 not ok

@@ -17,7 +17,7 @@
  * 02110-1301  USA
  */
 
-#include <google/protobuf/text_format.h> // has to come before boost includes, because of build issue in Solaris (unqualified map used, which clashes with some other map defined in Solaris headers)
+#include "ngs_common/protocol_protobuf.h" // has to come before boost includes, because of build issue in Solaris (unqualified map used, which clashes with some other map defined in Solaris headers)
 
 #include "ngs/protocol/buffer.h"
 #include "ngs/protocol/output_buffer.h"
@@ -29,9 +29,7 @@
 #include "ngs/protocol_monitor.h"
 
 #undef ERROR // Needed to avoid conflict with ERROR in mysqlx.pb.h
-#include "mysqlx.pb.h"
-#include "mysqlx_notice.pb.h"
-#include <google/protobuf/io/coded_stream.h>
+#include "ngs_common/protocol_protobuf.h"
 #include <boost/make_shared.hpp>
 
 #define LOG_DOMAIN "ngs.protocol"
@@ -341,7 +339,7 @@ bool Protocol_encoder::flush_buffer()
   }
   m_buffer->reset();
 
-  m_protocol_monitor->on_send(result);
+  m_protocol_monitor->on_send(static_cast<long>(result));
 
   return true;
 }

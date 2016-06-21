@@ -17,7 +17,7 @@
  * 02110-1301  USA
  */
 
-#ifdef WIN32
+#if !defined(MYSQL_DYNAMIC_PLUGIN) && defined(WIN32) && !defined(XPLUGIN_UNIT_TESTS)
 // Needed for importing PERFORMANCE_SCHEMA plugin API.
 #define MYSQL_DYNAMIC_PLUGIN 1
 #endif // WIN32
@@ -37,20 +37,20 @@ using namespace ngs;
 
 
 const uint64_t MILLI_TO_NANO = 1000000;
+const ulonglong TIME_VALUE_NOT_VALID = 0;
 
-
-Scheduler_dynamic::Scheduler_dynamic(const char* name)
+Scheduler_dynamic::Scheduler_dynamic(const char* name, PSI_thread_key thread_key)
 : m_name(name),
-  m_task_pending_mutex(KEY_mutex_x_scheduler_dynamic_task_pending),
-  m_task_pending_cond(KEY_cond_x_scheduler_dynamic_task_pending),
+  m_worker_pending_mutex(KEY_mutex_x_scheduler_dynamic_worker_pending),
+  m_worker_pending_cond(KEY_cond_x_scheduler_dynamic_worker_pending),
   m_thread_exit_mutex(KEY_mutex_x_scheduler_dynamic_thread_exit),
   m_thread_exit_cond(KEY_cond_x_scheduler_dynamic_thread_exit),
-  m_post_mutex(KEY_mutex_x_scheduler_dynamic_post),
   m_is_running(0),
   m_min_workers_count(1),
   m_workers_count(0),
   m_tasks_count(0),
-  m_idle_worker_timeout(60 * 1000)
+  m_idle_worker_timeout(60 * 1000),
+  m_thread_key(thread_key)
 {
 }
 
@@ -74,6 +74,8 @@ void Scheduler_dynamic::launch()
 
 void Scheduler_dynamic::create_min_num_workers()
 {
+  Mutex_lock lock(m_worker_pending_mutex);
+
   while (is_running() &&
          my_atomic_load32(&m_workers_count) < my_atomic_load32(&m_min_workers_count))
   {
@@ -104,7 +106,7 @@ unsigned int Scheduler_dynamic::set_num_workers(unsigned int n)
 void Scheduler_dynamic::set_idle_worker_timeout(unsigned long long milliseconds)
 {
   my_atomic_store64(&m_idle_worker_timeout, milliseconds);
-  m_task_pending_cond.broadcast(m_task_pending_mutex);
+  m_worker_pending_cond.broadcast(m_worker_pending_mutex);
 }
 
 
@@ -121,7 +123,7 @@ void Scheduler_dynamic::stop()
         delete task;
     }
 
-    m_task_pending_cond.broadcast(m_task_pending_mutex);
+    m_worker_pending_cond.broadcast(m_worker_pending_mutex);
 
     {
       Mutex_lock lock(m_thread_exit_mutex);
@@ -148,7 +150,7 @@ bool Scheduler_dynamic::post(Task* task)
     return false;
 
   {
-    Mutex_lock lock(m_post_mutex);
+    Mutex_lock lock(m_worker_pending_mutex);
 
     if (increase_tasks_count() >= my_atomic_load32(&m_workers_count))
     {
@@ -163,7 +165,7 @@ bool Scheduler_dynamic::post(Task* task)
   }
 
   while (m_tasks.push(task) == false) {}
-  m_task_pending_cond.signal(m_task_pending_mutex);
+  m_worker_pending_cond.signal(m_worker_pending_mutex);
 
   return true;
 }
@@ -214,20 +216,75 @@ void *Scheduler_dynamic::worker_proxy(void *data)
   return reinterpret_cast<Scheduler_dynamic*>(data)->worker();
 }
 
+void Scheduler_dynamic::thread_end()
+{
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_THREAD_CALL(delete_current_thread)();
+#endif
+}
+
+bool Scheduler_dynamic::wait_if_idle_then_delete_worker(ulonglong &thread_waiting_started)
+{
+  Mutex_lock lock(m_worker_pending_mutex);
+
+  if (TIME_VALUE_NOT_VALID == thread_waiting_started)
+  {
+    thread_waiting_started = my_timer_milliseconds();
+  }
+
+  if (!is_running())
+    return false;
+
+  if (!m_tasks.empty())
+    return false;
+
+  const int64 thread_waiting_for_delta_ms = my_timer_milliseconds() - thread_waiting_started;
+
+
+  if (thread_waiting_for_delta_ms < m_idle_worker_timeout)
+  {
+    // Some implementations may signal a condition variable without
+    // any reason. We need to write the time when the thread went to idle state
+    // state and monitor it!
+    const int result = m_worker_pending_cond.timed_wait(m_worker_pending_mutex,
+                                       (m_idle_worker_timeout - thread_waiting_for_delta_ms) *
+                                       MILLI_TO_NANO);
+
+    const bool timeout = ETIMEDOUT == result || ETIME == result;
+
+    if (!timeout)
+      return false;
+  }
+  else
+  {
+    // Lets invalidate the timeout, if the thread won't die
+    // in next iteration then we should reinitialize the start-of-idle value
+    thread_waiting_started = TIME_VALUE_NOT_VALID;
+  }
+
+  if (my_atomic_load32(&m_workers_count) >
+      my_atomic_load32(&m_min_workers_count))
+  {
+    decrease_workers_count();
+    return true;
+  }
+
+  return false;
+}
 
 void *Scheduler_dynamic::worker()
 {
-  bool worker_timed_out = false;
-
+  bool worker_active = true;
   if (thread_init())
   {
-    while (is_running() && worker_timed_out == false)
+    ulonglong thread_waiting_time = TIME_VALUE_NOT_VALID;
+    while (is_running())
     {
       bool task_available = false;
 
       try
       {
-        Task* task = NULL;
+        Task *task = NULL;
 
         while (is_running() &&
                m_tasks.empty() == false && task_available == false)
@@ -238,6 +295,7 @@ void *Scheduler_dynamic::worker()
         if (task_available && task)
         {
           Memory_new<Task>::Unique_ptr task_ptr(task);
+          thread_waiting_time = TIME_VALUE_NOT_VALID;
 
           (*task_ptr)();
         }
@@ -249,29 +307,27 @@ void *Scheduler_dynamic::worker()
       }
 
       if (task_available)
+      {
         decrease_tasks_count();
+      }
       else
       {
-        ulonglong wait_start = my_timer_milliseconds();
-        Mutex_lock lock(m_task_pending_mutex);
+        if (wait_if_idle_then_delete_worker(thread_waiting_time))
+        {
+          worker_active = false;
 
-        if (is_running())
-          m_task_pending_cond.timed_wait(m_task_pending_mutex,
-                                         my_atomic_load64(&m_idle_worker_timeout) * MILLI_TO_NANO);
-
-        if (my_atomic_load32(&m_workers_count) >
-            my_atomic_load32(&m_min_workers_count) &&
-            int64(my_timer_milliseconds() - wait_start) >=
-            my_atomic_load64(&m_idle_worker_timeout))
-          worker_timed_out = true;
+          break;
+        }
       }
     }
     thread_end();
   }
 
   {
-    Mutex_lock lock(m_thread_exit_mutex);
-    decrease_workers_count();
+    Mutex_lock lock_exit(m_thread_exit_mutex);
+    Mutex_lock lock_workers(m_worker_pending_mutex);
+    if (worker_active)
+      decrease_workers_count();
     m_thread_exit_cond.signal();
   }
 
@@ -293,19 +349,17 @@ void Scheduler_dynamic::join_terminating_workers()
   }
 }
 
-
 void Scheduler_dynamic::create_thread()
 {
   if (is_running())
   {
     Thread_t thread;
 
-    ngs::thread_create(0, &thread, NULL, worker_proxy, this);
+    ngs::thread_create(m_thread_key, &thread, worker_proxy, this);
     increase_workers_count();
     m_threads.push(thread);
   }
 }
-
 
 bool Scheduler_dynamic::is_running()
 {

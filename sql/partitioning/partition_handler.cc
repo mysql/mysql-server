@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -166,7 +166,7 @@ Partition_share::release_auto_inc_if_possible(THD *thd, TABLE_SHARE *table_share
 
 static uchar *get_part_name_from_def(PART_NAME_DEF *part,
                                      size_t *length,
-                                     my_bool not_used __attribute__((unused)))
+                                     my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= part->length;
   return part->partition_name;

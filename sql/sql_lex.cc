@@ -58,6 +58,9 @@ const LEX_STRING empty_lex_str= {(char *) "", 0};
 
   @note The order of the elements of this array must correspond to
   the order of elements in enum_binlog_stmt_unsafe.
+
+  Todo/fixme Bug#22860121 ER_BINLOG_UNSAFE_* FAMILY OF ERROR CODES IS UNUSED
+    suggests to turn ER_BINLOG_UNSAFE* to private consts/messages.
 */
 const int
 Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
@@ -1411,6 +1414,11 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
       {
         lip->yySkip();
         lip->next_state= MY_LEX_START;
+        if (lip->yyPeek() == '>')
+        {
+          lip->yySkip();
+          return JSON_UNQUOTED_SEPARATOR_SYM;
+        }
         return JSON_SEPARATOR_SYM;
       }
 
@@ -3450,6 +3458,9 @@ void Query_tables_list::reset_query_tables_list(bool init)
   lock_tables_state= LTS_NOT_LOCKED;
   table_count= 0;
   using_match= FALSE;
+
+  /* Check the max size of the enum to control new enum values definitions. */
+  compile_time_assert(BINLOG_STMT_UNSAFE_COUNT <= 32);
 }
 
 

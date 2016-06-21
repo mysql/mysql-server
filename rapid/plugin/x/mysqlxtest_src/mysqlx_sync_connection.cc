@@ -23,7 +23,13 @@
 #include <cassert>
 #include <boost/bind.hpp>
 #include <boost/make_shared.hpp>
+#ifdef WIN32
+#pragma warning(push, 0)
+#endif
 #include <boost/asio/error.hpp>
+#ifdef WIN32
+#pragma warning(pop)
+#endif
 #include "mysqlx_sync_connection.h"
 
 namespace mysqlx
@@ -58,7 +64,11 @@ Mysqlx_sync_connection::Mysqlx_sync_connection(const char *ssl_key,
 
   m_vioSslFd = new_VioSSLConnectorFd(ssl_key, ssl_cert, ssl_ca, ssl_ca_path, ssl_cipher, &m_ssl_init_error, NULL, NULL, ssl_ctx_flags);
 
-  m_ssl = ssl_key || ssl_cert;
+  m_ssl = NULL != ssl_key ||
+      NULL != ssl_cert ||
+      NULL != ssl_ca ||
+      NULL != ssl_ca_path ||
+      NULL != ssl_cipher;
 }
 
 Mysqlx_sync_connection::~Mysqlx_sync_connection()
@@ -87,7 +97,7 @@ error_code Mysqlx_sync_connection::connect(sockaddr_in *addr, const std::size_t 
       break;
 #endif
 
-    int res = ::connect(s, (const sockaddr*)addr, addr_size);
+    int res = ::connect(s, (const sockaddr*)addr, (socklen_t)addr_size);
     if (0 != res)
     {
 #ifdef WIN32
@@ -191,9 +201,9 @@ error_code Mysqlx_sync_connection::read(void *data_head, const std::size_t data_
   return error_code();
 }
 
-error_code Mysqlx_sync_connection::read_with_timeout(void *data, std::size_t &data_length, const std::size_t deadline_miliseconds)
+error_code Mysqlx_sync_connection::read_with_timeout(void *data, std::size_t &data_length, const int deadline_milliseconds)
 {
-  int result = vio_io_wait(m_vio, VIO_IO_EVENT_READ, deadline_miliseconds);
+  int result = vio_io_wait(m_vio, VIO_IO_EVENT_READ, deadline_milliseconds);
 
   if (-1 == result)
   {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -62,7 +62,7 @@ public:
 		Gets the number of used bytes in a block.
 		@return	number of bytes used */
 		ulint used() const
-			__attribute__((warn_unused_result))
+			MY_ATTRIBUTE((warn_unused_result))
 		{
 			return(static_cast<ulint>(m_used & ~DYN_BLOCK_FULL_FLAG));
 		}
@@ -71,7 +71,7 @@ public:
 		Gets pointer to the start of data.
 		@return	pointer to data */
 		byte* start()
-			__attribute__((warn_unused_result))
+			MY_ATTRIBUTE((warn_unused_result))
 		{
 			return(m_data);
 		}
@@ -79,7 +79,7 @@ public:
 		/**
 		@return start of data - non const version */
 		byte* begin()
-			__attribute__((warn_unused_result))
+			MY_ATTRIBUTE((warn_unused_result))
 		{
 			return(m_data);
 		}
@@ -87,7 +87,7 @@ public:
 		/**
 		@return end of used data - non const version */
 		byte* end()
-			__attribute__((warn_unused_result))
+			MY_ATTRIBUTE((warn_unused_result))
 		{
 			return(begin() + m_used);
 		}
@@ -95,7 +95,7 @@ public:
 		/**
 		@return start of data - const version */
 		const byte* begin() const
-			__attribute__((warn_unused_result))
+			MY_ATTRIBUTE((warn_unused_result))
 		{
 			return(m_data);
 		}
@@ -103,7 +103,7 @@ public:
 		/**
 		@return end of used data - const version */
 		const byte* end() const
-			__attribute__((warn_unused_result))
+			MY_ATTRIBUTE((warn_unused_result))
 		{
 			return(begin() + m_used);
 		}
@@ -216,7 +216,7 @@ public:
 	@param size	in bytes of the buffer; MUST be <= MAX_DATA_SIZE!
 	@return	pointer to the buffer */
 	byte* open(ulint size)
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		ut_ad(size > 0);
 		ut_ad(size <= MAX_DATA_SIZE);
@@ -319,7 +319,7 @@ public:
 	Returns the size of the total stored data.
 	@return	data size in bytes */
 	ulint size() const
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 #ifdef UNIV_DEBUG
 		ulint	total_size = 0;
@@ -375,7 +375,7 @@ public:
 	/**
 	@return the first block */
 	block_t* front()
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		ut_ad(UT_LIST_GET_LEN(m_list) > 0);
 		return(UT_LIST_GET_FIRST(m_list));
@@ -384,7 +384,7 @@ public:
 	/**
 	@return true if m_first_block block was not filled fully */
 	bool is_small() const
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(m_heap == NULL);
 	}

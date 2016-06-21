@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -356,10 +356,10 @@ NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL
 };
 
 static
-int my_mb_wc_latin1(const CHARSET_INFO *cs  __attribute__((unused)),
+int my_mb_wc_latin1(const CHARSET_INFO *cs  MY_ATTRIBUTE((unused)),
 		    my_wc_t *wc,
 		    const uchar *str,
-		    const uchar *end __attribute__((unused)))
+		    const uchar *end MY_ATTRIBUTE((unused)))
 {
   if (str >= end)
     return MY_CS_TOOSMALL;
@@ -369,10 +369,10 @@ int my_mb_wc_latin1(const CHARSET_INFO *cs  __attribute__((unused)),
 }
 
 static
-int my_wc_mb_latin1(const CHARSET_INFO *cs  __attribute__((unused)),
+int my_wc_mb_latin1(const CHARSET_INFO *cs  MY_ATTRIBUTE((unused)),
 		    my_wc_t wc,
 		    uchar *str,
-		    uchar *end __attribute__((unused)))
+		    uchar *end MY_ATTRIBUTE((unused)))
 {
   const uchar *pl;
 
@@ -548,7 +548,7 @@ static const uchar combo2map[]={
 
 
 static int my_strnncoll_latin1_de(const CHARSET_INFO *cs
-                                  __attribute__((unused)),
+                                  MY_ATTRIBUTE((unused)),
 				  const uchar *a, size_t a_length,
 				  const uchar *b, size_t b_length,
                                   my_bool b_is_prefix)
@@ -590,7 +590,7 @@ static int my_strnncoll_latin1_de(const CHARSET_INFO *cs
 
 
 static int my_strnncollsp_latin1_de(const CHARSET_INFO *cs
-                                    __attribute__((unused)),
+                                    MY_ATTRIBUTE((unused)),
 				    const uchar *a, size_t a_length,
 				    const uchar *b, size_t b_length,
                                     my_bool diff_if_only_endspace_difference)
@@ -684,7 +684,7 @@ my_strnxfrm_latin1_de(const CHARSET_INFO *cs,
 }
 
 
-void my_hash_sort_latin1_de(const CHARSET_INFO *cs __attribute__((unused)),
+void my_hash_sort_latin1_de(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 			    const uchar *key, size_t len,
 			    ulong *nr1, ulong *nr2)
 {

@@ -204,8 +204,7 @@ trx_rollback_low(
 	case TRX_STATE_NOT_STARTED:
 		trx->will_lock = 0;
 		ut_ad(trx->in_mysql_trx_list);
-		return(trx->state == TRX_STATE_NOT_STARTED
-		       ? DB_SUCCESS : DB_FORCED_ABORT);
+		return(DB_SUCCESS);
 
 	case TRX_STATE_ACTIVE:
 		ut_ad(trx->in_mysql_trx_list);
@@ -287,11 +286,6 @@ trx_rollback_for_mysql(
 
 		TrxInInnoDB	trx_in_innodb(trx, true);
 
-		if (trx_in_innodb.is_aborted()) {
-
-			return(DB_FORCED_ABORT);
-		}
-
 		return(trx_rollback_low(trx));
 	}
 }
@@ -314,8 +308,6 @@ trx_rollback_last_sql_stat_for_mysql(
 
 	switch (trx->state) {
 	case TRX_STATE_FORCED_ROLLBACK:
-		return(DB_FORCED_ABORT);
-
 	case TRX_STATE_NOT_STARTED:
 		return(DB_SUCCESS);
 
@@ -418,7 +410,7 @@ the row, these locks are naturally released in the rollback. Savepoints which
 were set after this savepoint are deleted.
 @return if no savepoint of the name found then DB_NO_SAVEPOINT,
 otherwise DB_SUCCESS */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 trx_rollback_to_savepoint_for_mysql_low(
 /*====================================*/
@@ -860,7 +852,7 @@ extern "C"
 os_thread_ret_t
 DECLARE_THREAD(trx_rollback_or_clean_all_recovered)(
 /*================================================*/
-	void*	arg __attribute__((unused)))
+	void*	arg MY_ATTRIBUTE((unused)))
 			/*!< in: a dummy parameter required by
 			os_thread_create */
 {

@@ -2716,5 +2716,28 @@ DROP USER user_name_len_25_01234567@localhost;
 
 DROP TABLE t1;
 DROP PROCEDURE p1;
+
+#
+# Bug#21762656 AFTER RUNNING MYSQL_UPGRADE PROXIES_PRIV USER COLUMNS ARE NOT UPDATED TO 32
+#
+
+CREATE USER user_name_len_22_01234@localhost;
+GRANT ALL PRIVILEGES ON *.* TO user_name_len_22_01234@localhost WITH GRANT OPTION;
+GRANT PROXY ON ''@'' TO user_name_len_22_01234@localhost WITH GRANT OPTION;
+CONNECT (conn_su,localhost,user_name_len_22_01234,,);
+
+CREATE USER user_name_len_32_012345678901234@localhost;
+GRANT SELECT ON *.* TO user_name_len_32_012345678901234@localhost;
+--echo ** Creating new proxy user **
+CREATE USER proxy_native_0123456789@localhost IDENTIFIED WITH mysql_native_password;
+GRANT PROXY ON user_name_len_32_012345678901234@localhost TO proxy_native_0123456789@localhost;
+SELECT USER, PROXIED_USER, GRANTOR FROM mysql.proxies_priv WHERE Proxied_host='localhost';
+
+connection default;
+disconnect conn_su;
+DROP USER user_name_len_22_01234@localhost;
+DROP USER user_name_len_32_012345678901234@localhost;
+DROP USER proxy_native_0123456789@localhost;
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
