@@ -192,6 +192,7 @@
 #cmakedefine HAVE_BUILTIN_EXPECT 1
 #cmakedefine HAVE_BUILTIN_STPCPY 1
 #cmakedefine HAVE_GCC_ATOMIC_BUILTINS 1
+#cmakedefine HAVE_GCC_SYNC_BUILTINS 1
 #cmakedefine HAVE_VALGRIND
 #cmakedefine HAVE_SYS_THREAD_SELFID 1
 #cmakedefine HAVE_SYS_GETTID 1

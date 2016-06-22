@@ -218,6 +218,8 @@ amount to decrement. There is no atomic substract function on Windows */
 Returns true if swapped, ptr is pointer to target, old_val is value to
 compare to, new_val is the value to swap in. */
 
+#if defined(HAVE_GCC_SYNC_BUILTINS)
+
 # define os_compare_and_swap(ptr, old_val, new_val) \
 	__sync_bool_compare_and_swap(ptr, old_val, new_val)
 
@@ -233,9 +235,55 @@ compare to, new_val is the value to swap in. */
 #  define os_compare_and_swap_uint64(ptr, old_val, new_val) \
 	os_compare_and_swap(ptr, old_val, new_val)
 
+#else
+
+UNIV_INLINE
+bool
+os_compare_and_swap_ulint(volatile ulint* ptr, ulint old_val, ulint new_val)
+{
+  return __atomic_compare_exchange_n(ptr, &old_val, new_val, 0,
+                                     __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+}
+
+UNIV_INLINE
+bool
+os_compare_and_swap_lint(volatile lint* ptr, lint old_val, lint new_val)
+{
+  return __atomic_compare_exchange_n(ptr, &old_val, new_val, 0,
+				     __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+}
+
+UNIV_INLINE
+bool
+os_compare_and_swap_uint32(volatile ib_uint32_t* ptr, ib_uint32_t old_val, ib_uint32_t new_val)
+{
+  return __atomic_compare_exchange_n(ptr, &old_val, new_val, 0,
+                                     __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+}
+
+UNIV_INLINE
+bool
+os_compare_and_swap_uint64(volatile ib_uint64_t* ptr, ib_uint64_t old_val, ib_uint64_t new_val)
+{
+  return __atomic_compare_exchange_n(ptr, &old_val, new_val, 0,
+                                     __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+}
+
+#endif /* HAVE_GCC_SYNC_BUILTINS */
+
 # ifdef HAVE_IB_ATOMIC_PTHREAD_T_GCC
+#if defined(HAVE_GCC_SYNC_BUILTINS)
 #  define os_compare_and_swap_thread_id(ptr, old_val, new_val) \
 	os_compare_and_swap(ptr, old_val, new_val)
+#else
+UNIV_INLINE
+bool
+os_compare_and_swap_thread_id(volatile os_thread_id_t* ptr, os_thread_id_t old_val, os_thread_id_t new_val)
+{
+  return __atomic_compare_exchange_n(ptr, &old_val, new_val, 0,
+                                     __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+}
+#endif /* HAVE_GCC_SYNC_BUILTINS */
 #  define INNODB_RW_LOCKS_USE_ATOMICS
 #  define IB_ATOMICS_STARTUP_MSG \
 	"Mutexes and rw_locks use GCC atomic builtins"
@@ -248,8 +296,13 @@ compare to, new_val is the value to swap in. */
 Returns the resulting value, ptr is pointer to target, amount is the
 amount of increment. */
 
+#if defined(HAVE_GCC_SYNC_BUILTINS)
 # define os_atomic_increment(ptr, amount) \
 	__sync_add_and_fetch(ptr, amount)
+#else
+# define os_atomic_increment(ptr, amount) \
+	__atomic_add_fetch(ptr, amount, __ATOMIC_SEQ_CST)
+#endif /* HAVE_GCC_SYNC_BUILTINS */
 
 # define os_atomic_increment_lint(ptr, amount) \
 	os_atomic_increment(ptr, amount)
@@ -266,8 +319,13 @@ amount of increment. */
 /* Returns the resulting value, ptr is pointer to target, amount is the
 amount to decrement. */
 
+#if defined(HAVE_GCC_SYNC_BUILTINS)
 # define os_atomic_decrement(ptr, amount) \
 	__sync_sub_and_fetch(ptr, amount)
+#else
+# define os_atomic_decrement(ptr, amount) \
+	__atomic_sub_fetch(ptr, amount, __ATOMIC_SEQ_CST)
+#endif /* HAVE_GCC_SYNC_BUILTINS */
 
 # define os_atomic_decrement_lint(ptr, amount) \
 	os_atomic_decrement(ptr, amount)
