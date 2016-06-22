@@ -439,7 +439,7 @@ struct st_trans_write_set
 {
   unsigned int m_flags;
   unsigned long write_set_size;
-  unsigned long* write_set;
+  unsigned long long* write_set;
 };
 typedef struct st_trans_write_set Transaction_write_set;
 extern struct transaction_write_set_service_st {

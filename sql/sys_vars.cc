@@ -59,6 +59,8 @@
 #include "sql_time.h"                    // global_date_format
 #include "table_cache.h"                 // Table_cache_manager
 #include "transaction.h"                 // trans_commit_stmt
+#include "rpl_write_set_handler.h"       // transaction_write_set_hashing_algorithms
+#include "rpl_group_replication.h"       // is_group_replication_running
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -1829,6 +1831,17 @@ static Sys_var_mybool Sys_log_bin(
 
 static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var)
 {
+#ifdef HAVE_REPLICATION
+  // Can't change the algorithm when group replication is enabled.
+  if (is_group_replication_running())
+  {
+    my_message(ER_GROUP_REPLICATION_RUNNING,
+               "The write set algorithm cannot be changed when Group replication"
+               " is running.", MYF(0));
+    return true;
+  }
+#endif
+
   if (var->type == OPT_GLOBAL &&
       global_system_variables.binlog_format != BINLOG_FORMAT_ROW)
   {
@@ -1862,9 +1875,6 @@ static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var)
   }
   return false;
 }
-
-static const char *transaction_write_set_hashing_algorithms[]=
-       {"OFF", "MURMUR32", 0};
 
 static Sys_var_enum Sys_extract_write_set(
        "transaction_write_set_extraction",
