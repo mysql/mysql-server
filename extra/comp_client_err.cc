@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
             return 1;
 
           fprintf(outfile, "%s, ", err);
-          fprintf(outfile, "\"%s\" },\n", ER_CLIENT(err_code));
+          fprintf(outfile, "\"%s\", 0, 0, 0},\n", ER_CLIENT(err_code));
         }
 
         count++;

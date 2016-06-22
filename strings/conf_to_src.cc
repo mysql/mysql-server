@@ -223,6 +223,7 @@ void dispcset(FILE *f,CHARSET_INFO *cs)
     fprintf(f,"  \"%s\",                     /* coll name     */\n",cs->name);
     fprintf(f,"  \"\",                       /* comment       */\n");
     fprintf(f,"  NULL,                       /* tailoring     */\n");
+    fprintf(f,"  NULL,                       /* coll_param    */\n");
     fprintf(f,"  ctype_%s,                   /* ctype         */\n",cs->name);
     fprintf(f,"  to_lower_%s,                /* lower         */\n",cs->name);
     fprintf(f,"  to_upper_%s,                /* upper         */\n",cs->name);

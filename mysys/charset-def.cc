@@ -151,7 +151,26 @@ extern CHARSET_INFO my_charset_utf8mb4_sinhala_uca_ci;
 extern CHARSET_INFO my_charset_utf8mb4_unicode_520_ci;
 extern CHARSET_INFO my_charset_utf8mb4_vietnamese_ci;
 extern CHARSET_INFO my_charset_utf8mb4_800_ci_ai;
-
+extern CHARSET_INFO my_charset_utf8mb4_de_phonebook_800_ci_ai;
+extern CHARSET_INFO my_charset_utf8mb4_is_800_ci_ai;
+extern CHARSET_INFO my_charset_utf8mb4_lv_800_ci_ai;
+extern CHARSET_INFO my_charset_utf8mb4_ro_800_ci_ai;
+extern CHARSET_INFO my_charset_utf8mb4_sl_800_ci_ai;
+extern CHARSET_INFO my_charset_utf8mb4_pl_800_ci_ai;
+extern CHARSET_INFO my_charset_utf8mb4_et_800_ci_ai;
+extern CHARSET_INFO my_charset_utf8mb4_es_800_ci_ai;
+extern CHARSET_INFO my_charset_utf8mb4_sv_800_ci_ai;
+extern CHARSET_INFO my_charset_utf8mb4_tr_800_ci_ai;
+extern CHARSET_INFO my_charset_utf8mb4_cs_800_ci_ai;
+extern CHARSET_INFO my_charset_utf8mb4_da_800_ci_ai;
+extern CHARSET_INFO my_charset_utf8mb4_lt_800_ci_ai;
+extern CHARSET_INFO my_charset_utf8mb4_sk_800_ci_ai;
+extern CHARSET_INFO my_charset_utf8mb4_es_traditional_800_ci_ai;
+extern CHARSET_INFO my_charset_utf8mb4_la_800_ci_ai;
+extern CHARSET_INFO my_charset_utf8mb4_eo_800_ci_ai;
+extern CHARSET_INFO my_charset_utf8mb4_hu_800_ci_ai;
+extern CHARSET_INFO my_charset_utf8mb4_hr_800_ci_ai;
+extern CHARSET_INFO my_charset_utf8mb4_vi_800_ci_ai;
 
 extern CHARSET_INFO my_charset_gb18030_unicode_520_ci;
 
@@ -286,7 +305,26 @@ my_bool init_compiled_charsets(myf flags MY_ATTRIBUTE((unused)))
   add_compiled_collation(&my_charset_utf8mb4_unicode_520_ci);
   add_compiled_collation(&my_charset_utf8mb4_vietnamese_ci);
   add_compiled_collation(&my_charset_utf8mb4_800_ci_ai);
-
+  add_compiled_collation(&my_charset_utf8mb4_de_phonebook_800_ci_ai);
+  add_compiled_collation(&my_charset_utf8mb4_is_800_ci_ai);
+  add_compiled_collation(&my_charset_utf8mb4_lv_800_ci_ai);
+  add_compiled_collation(&my_charset_utf8mb4_ro_800_ci_ai);
+  add_compiled_collation(&my_charset_utf8mb4_sl_800_ci_ai);
+  add_compiled_collation(&my_charset_utf8mb4_pl_800_ci_ai);
+  add_compiled_collation(&my_charset_utf8mb4_et_800_ci_ai);
+  add_compiled_collation(&my_charset_utf8mb4_es_800_ci_ai);
+  add_compiled_collation(&my_charset_utf8mb4_sv_800_ci_ai);
+  add_compiled_collation(&my_charset_utf8mb4_tr_800_ci_ai);
+  add_compiled_collation(&my_charset_utf8mb4_cs_800_ci_ai);
+  add_compiled_collation(&my_charset_utf8mb4_da_800_ci_ai);
+  add_compiled_collation(&my_charset_utf8mb4_lt_800_ci_ai);
+  add_compiled_collation(&my_charset_utf8mb4_sk_800_ci_ai);
+  add_compiled_collation(&my_charset_utf8mb4_es_traditional_800_ci_ai);
+  add_compiled_collation(&my_charset_utf8mb4_la_800_ci_ai);
+  add_compiled_collation(&my_charset_utf8mb4_eo_800_ci_ai);
+  add_compiled_collation(&my_charset_utf8mb4_hu_800_ci_ai);
+  add_compiled_collation(&my_charset_utf8mb4_hr_800_ci_ai);
+  add_compiled_collation(&my_charset_utf8mb4_vi_800_ci_ai);
 
   add_compiled_collation(&my_charset_utf16_general_ci);
   add_compiled_collation(&my_charset_utf16_bin);

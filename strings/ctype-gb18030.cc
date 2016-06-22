@@ -22507,6 +22507,7 @@ CHARSET_INFO my_charset_gb18030_chinese_ci=
   "gb18030_chinese_ci",           /* name          */
   "",                             /* comment       */
   NULL,                           /* tailoring     */
+  NULL,                           /* coll_param    */
   ctype_gb18030,                  /* ctype         */
   to_lower_gb18030,               /* lower         */
   to_upper_gb18030,               /* UPPER         */
@@ -22541,6 +22542,7 @@ CHARSET_INFO my_charset_gb18030_bin=
   "gb18030_bin",                  /* name          */
   "",                             /* comment       */
   NULL,                           /* tailoring     */
+  NULL,                           /* coll_param    */
   ctype_gb18030,                  /* ctype         */
   to_lower_gb18030,               /* lower         */
   to_upper_gb18030,               /* UPPER         */

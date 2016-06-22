@@ -1607,7 +1607,8 @@ trx_i_s_create_lock_id(
 	if (row->lock_space != ULINT_UNDEFINED) {
 		/* record lock */
 		res_len = snprintf(lock_id, lock_id_size,
-				      TRX_ID_FMT ":%lu:%lu:%lu",
+				      TRX_ID_FMT ":" ULINTPF ":"
+				      ULINTPF ":" ULINTPF,
 				      row->lock_trx_id, row->lock_space,
 				      row->lock_page, row->lock_rec);
 	} else {

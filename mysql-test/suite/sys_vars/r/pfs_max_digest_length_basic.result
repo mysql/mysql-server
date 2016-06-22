@@ -1,8 +1,8 @@
 select @@global.performance_schema_max_digest_length;
 @@global.performance_schema_max_digest_length
 123
-select @@session.max_digest_length;
-ERROR HY000: Variable 'max_digest_length' is a GLOBAL variable
+select @@session.performance_schema_max_digest_length;
+ERROR HY000: Variable 'performance_schema_max_digest_length' is a GLOBAL variable
 show global variables like 'performance_schema_max_digest_length';
 Variable_name	Value
 performance_schema_max_digest_length	123

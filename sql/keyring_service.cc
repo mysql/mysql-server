@@ -105,6 +105,12 @@ static my_bool key_generate(THD *thd, plugin_ref plugin, void *arg)
   return TRUE;
 }
 
+/**
+  Iterates over all active keyring plugins and calls the mysql_key_fetch API
+  for the first one found.
+
+  @sa st_mysql_keyring::mysql_key_fetch, mysql_keyring_service_st
+*/
 int my_key_fetch(const char *key_id, char **key_type, const char *user_id,
                  void **key, size_t *key_len)
 {
@@ -118,6 +124,13 @@ int my_key_fetch(const char *key_id, char **key_type, const char *user_id,
   return key_data.result;
 }
 
+
+/**
+  Iterates over all active keyring plugins calls the mysql_key_store API
+  for the first one found.
+
+  @sa st_mysql_keyring::mysql_key_store, mysql_keyring_service_st
+*/
 int my_key_store(const char *key_id, const char *key_type, const char *user_id,
                  const void *key, size_t key_len)
 {
@@ -131,6 +144,12 @@ int my_key_store(const char *key_id, const char *key_type, const char *user_id,
   return key_data.result;
 }
 
+/**
+  Iterates over all active keyring plugins and calls the mysql_key_remove API
+  for the first one found.
+
+  @sa st_mysql_keyring::mysql_key_remove, mysql_keyring_service_st
+*/
 int my_key_remove(const char *key_id, const char *user_id)
 {
   Key_data key_data;
@@ -140,6 +159,12 @@ int my_key_remove(const char *key_id, const char *user_id)
   return key_data.result;
 }
 
+/**
+  Iterates over all active keyring plugins and calls the mysql_key_generate API
+  for the first one found.
+
+  @sa st_mysql_keyring::mysql_key_generate, mysql_keyring_service_st
+*/
 int my_key_generate(const char *key_id, const char *key_type,
                     const char *user_id, size_t key_len)
 {

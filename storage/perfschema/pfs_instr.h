@@ -738,6 +738,12 @@ void aggregate_all_transactions(PFS_transaction_stat *from_array,
                                 PFS_transaction_stat *to_array_1,
                                 PFS_transaction_stat *to_array_2);
 
+void aggregate_all_errors(PFS_error_stat *from_array,
+                          PFS_error_stat *to_array);
+void aggregate_all_errors(PFS_error_stat *from_array,
+                          PFS_error_stat *to_array_1,
+                          PFS_error_stat *to_array_2);
+
 void aggregate_all_memory(bool alive,
                           PFS_memory_stat *from_array,
                           PFS_memory_stat *to_array);
@@ -766,7 +772,10 @@ void aggregate_thread_transactions(PFS_thread *thread,
                                    PFS_account *safe_account,
                                    PFS_user *safe_user,
                                    PFS_host *safe_host);
-
+void aggregate_thread_errors(PFS_thread *thread,
+                             PFS_account *safe_account,
+                             PFS_user *safe_user,
+                             PFS_host *safe_host);
 void aggregate_thread_memory(bool alive, PFS_thread *thread,
                              PFS_account *safe_account,
                              PFS_user *safe_user,

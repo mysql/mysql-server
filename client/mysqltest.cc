@@ -2662,16 +2662,20 @@ typedef struct
   const char *name;
   uint        code;
   const char *text;
+  /* SQLSTATE */
+  const char *odbc_state;
+  const char *jdbc_state;
+  uint error_index;
 } st_error;
 
 static st_error global_error_names[] =
 {
-  { "<No error>", (uint)-1, "" },
+  { "<No error>", (uint)-1, "", "", "", 0 },
 #ifndef IN_DOXYGEN
 #include <mysqld_ername.h>
 #include <mysqlclient_ername.h>
 #endif /* IN_DOXYGEN */
-  { 0, 0, 0 }
+  { 0, 0, 0, 0, 0, 0 }
 };
 
 uint get_errcode_from_name(char *, char *);

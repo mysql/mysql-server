@@ -553,3 +553,85 @@ a	b
 .*middle.*	a value in the middle of a string
 DROP FUNCTION my_cpp11_re_match;
 DROP TABLE t1;
+#
+# WL8980 - Move udf metatable table from MyISAM to InnoDB.
+#
+SET autocommit= 0;
+SET innodb_lock_wait_timeout= 1;
+
+# Connection: con1
+
+#######################################################
+# A.1. Checking lock-wait-timeout with CREATE USER
+#######################################################
+START TRANSACTION;
+INSERT INTO mysql.func(name, ret, dl, type) VALUES ('metaphon', 0, 'udf_example.so', 'function');
+
+# Connection: con1
+CREATE FUNCTION metaphon RETURNS STRING SONAME "udf_example.so";;
+
+# Connection: default
+ROLLBACK;
+
+# Connection: con1
+
+# Connection: default
+DROP FUNCTION metaphon;
+
+###############################################################
+# A.2. Checking lock-wait-timeout with DROP FUNCTION.
+###############################################################
+CREATE FUNCTION metaphon RETURNS STRING SONAME "udf_example.so";
+START TRANSACTION;
+SELECT name FROM mysql.func WHERE name ='metaphon' FOR UPDATE;
+name
+metaphon
+
+# Connection: con1
+DROP FUNCTION metaphon;
+
+# Connection: default
+ROLLBACK;
+
+# Connection: con1
+
+# Connection: default
+SELECT name FROM mysql.func WHERE name = 'metaphon';
+name
+
+##############################################################
+# B.1 Check that CREATE FUNCTION does implicit commit.
+##############################################################
+CREATE TABLE t1(a INT);
+START TRANSACTION;
+INSERT INTO t1 VALUES(1),(2),(3);
+CREATE FUNCTION metaphon RETURNS STRING SONAME "udf_example.so";
+
+# Connection: con1
+SELECT * FROM t1;
+a
+1
+2
+3
+SELECT * FROM mysql.func;
+name	ret	dl	type
+metaphon	0	udf_example.so	function
+
+# Connection: default
+ROLLBACK;
+SELECT * FROM mysql.func;
+name	ret	dl	type
+metaphon	0	udf_example.so	function
+DROP FUNCTION metaphon;
+DROP TABLE t1;
+
+######################################################################
+# C. Check that it is possible to ALTER storage engine for
+#    mysql.func to MyISAM.
+#    This is necessary for mysql_system_tables_fix_for_downgrade.sql
+#    to work.
+######################################################################
+ALTER TABLE mysql.func ENGINE = MYISAM;
+SELECT * FROM mysql.func;
+name	ret	dl	type
+ALTER TABLE mysql.func ENGINE = INNODB;

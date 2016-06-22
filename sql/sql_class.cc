@@ -61,6 +61,8 @@
 
 #include "mysql/psi/mysql_ps.h"
 
+#include "mysql/psi/mysql_error.h"
+
 using std::min;
 using std::max;
 
@@ -474,7 +476,7 @@ THD::THD(bool enable_plugins)
   m_release_resources_done= false;
   peer_port= 0;					// For SHOW PROCESSLIST
   get_transaction()->m_flags.enabled= true;
-  active_vio = 0;
+
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thd_query, &LOCK_thd_query, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thd_sysvar, &LOCK_thd_sysvar, MY_MUTEX_INIT_FAST);
@@ -748,6 +750,8 @@ Sql_condition* THD::raise_condition(uint sql_errno,
     msg= ER_THD(this, sql_errno);
   if (sqlstate == NULL)
    sqlstate= mysql_errno_to_sqlstate(sql_errno);
+
+  MYSQL_LOG_ERROR(sql_errno, PSI_ERROR_OPERATION_RAISED);
 
   if (handle_condition(sql_errno, sqlstate, &level, msg))
     DBUG_RETURN(NULL);

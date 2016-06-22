@@ -67308,6 +67308,7 @@ CHARSET_INFO my_charset_ujis_japanese_ci=
     "ujis_japanese_ci",	/* name         */
     "",			/* comment      */
     NULL,		/* tailoring    */
+    NULL,               /* coll_param   */
     ctype_ujis,
     to_lower_ujis,
     to_upper_ujis,
@@ -67343,6 +67344,7 @@ CHARSET_INFO my_charset_ujis_bin=
     "ujis_bin",		/* name         */
     "",			/* comment      */
     NULL,		/* tailoring    */
+    NULL,               /* coll_param   */
     ctype_ujis,
     to_lower_ujis,
     to_upper_ujis,

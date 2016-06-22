@@ -78,6 +78,7 @@ public:
   void aggregate_stages(PFS_user *safe_user, PFS_host *safe_host);
   void aggregate_statements(PFS_user *safe_user, PFS_host *safe_host);
   void aggregate_transactions(PFS_user *safe_user, PFS_host *safe_host);
+  void aggregate_errors(PFS_user *safe_user, PFS_host *safe_host);
   void aggregate_memory(bool alive, PFS_user *safe_user, PFS_host *safe_host);
   void aggregate_status(PFS_user *safe_user, PFS_host *safe_host);
   void aggregate_stats(PFS_user *safe_user, PFS_host *safe_host);

@@ -68,6 +68,7 @@ static void test_no_instruments()
   param.m_statement_stack_sizing= 0;
   param.m_memory_class_sizing= 0;
   param.m_metadata_lock_sizing= 0;
+  param.m_error_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -155,6 +156,7 @@ static void test_no_instances()
   param.m_statement_stack_sizing= 0;
   param.m_memory_class_sizing= 1;
   param.m_metadata_lock_sizing= 0;
+  param.m_error_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -302,6 +304,7 @@ static void test_with_instances()
   param.m_statement_stack_sizing= 0;
   param.m_memory_class_sizing= 1;
   param.m_metadata_lock_sizing= 0;
+  param.m_error_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);

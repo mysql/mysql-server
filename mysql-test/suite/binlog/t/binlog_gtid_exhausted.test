@@ -46,10 +46,22 @@ DROP TABLE t1;
 
 #Test case 2:
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
-# @@GLOBAL.GTID_PURGED can only be set when @@GLOBAL.GTID_EXECUTED is empty.
-# Hence execute RESET MASTER.
+# @@GLOBAL.GTID_PURGED can only be set when the new value
+# includes the old one and their set difference does not overlap with
+# @@GLOBAL.GTID_EXECUTED.
+# RESET MASTER empties the latter and the current purged set
+# to satisfy the above condition.
 RESET MASTER;
+
+# BUG#20470724 owes this check of no binlog rotation after SET
+--let $binlog_file_0= query_get_value(SHOW MASTER STATUS, File, 1)
 SET GLOBAL gtid_purged = CONCAT(@@GLOBAL.server_uuid, ':1-9223372036854775805');
+--let $binlog_file_1= query_get_value(SHOW MASTER STATUS, File, 1)
+
+--let $assert_cond = "$binlog_file_0" = "$binlog_file_1"
+--let $assert_text = Binlog file must not rotate after SET GTID_PURGED
+--source include/assert.inc
+
 INSERT INTO t1 VALUES (1);
 SET GLOBAL binlog_error_action=ABORT_SERVER;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect

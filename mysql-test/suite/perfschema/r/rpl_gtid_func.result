@@ -23,6 +23,7 @@ set enabled='YES', timed='NO';
 select * from performance_schema.setup_instruments
 where timed='NO' and name not like "memory/%";
 NAME	ENABLED	TIMED
+error	YES	NO
 select "This better be in the master" as in_master_digest;
 in_master_digest
 This better be in the master

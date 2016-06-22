@@ -42,6 +42,7 @@
 #include "pfs_program.h"
 #include "template_utils.h"
 #include "pfs_prepared_stmt.h"
+#include "pfs_error.h"
 
 PFS_global_param pfs_param;
 
@@ -108,7 +109,8 @@ initialize_performance_schema(PFS_global_param *param,
   PSI_stage_bootstrap ** stage_bootstrap,
   PSI_statement_bootstrap ** statement_bootstrap,
   PSI_transaction_bootstrap ** transaction_bootstrap,
-  PSI_memory_bootstrap ** memory_bootstrap)
+  PSI_memory_bootstrap ** memory_bootstrap,
+  PSI_error_bootstrap ** error_bootstrap)
 {
   *thread_bootstrap= NULL;
   *mutex_bootstrap= NULL;
@@ -123,6 +125,7 @@ initialize_performance_schema(PFS_global_param *param,
   *statement_bootstrap= NULL;
   *transaction_bootstrap= NULL;
   *memory_bootstrap= NULL;
+  *error_bootstrap= NULL;
 
   if (!THR_PFS_initialized)
   {
@@ -174,7 +177,8 @@ initialize_performance_schema(PFS_global_param *param,
       init_digest_hash(param) ||
       init_program(param) ||
       init_program_hash(param) ||
-      init_prepared_stmt(param))
+      init_prepared_stmt(param) ||
+      init_error(param))
   {
     /*
       The performance schema initialization failed.
@@ -240,6 +244,7 @@ initialize_performance_schema(PFS_global_param *param,
     *statement_bootstrap= & pfs_statement_bootstrap;
     *transaction_bootstrap= & pfs_transaction_bootstrap;
     *memory_bootstrap= & pfs_memory_bootstrap;
+    *error_bootstrap= & pfs_error_bootstrap;
   }
 
   return 0;
@@ -317,6 +322,7 @@ static void cleanup_performance_schema(void)
     find_XXX_class(key)
     will return PSI_NOT_INSTRUMENTED
   */
+  cleanup_error();
   cleanup_program();
   cleanup_prepared_stmt();
   cleanup_sync_class();
@@ -358,6 +364,7 @@ void shutdown_performance_schema(void)
   global_table_lock_class.m_enabled= false;
   global_idle_class.m_enabled= false;
   global_metadata_class.m_enabled= false;
+  global_error_class.m_enabled= false;
   global_transaction_class.m_enabled= false;
 
   cleanup_performance_schema();

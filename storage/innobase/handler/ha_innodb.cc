@@ -583,7 +583,7 @@ static PSI_thread_info	all_innodb_threads[] = {
 	PSI_KEY(io_log_thread),
 	PSI_KEY(io_read_thread),
 	PSI_KEY(io_write_thread),
-	PSI_KEY(page_cleaner_thread),
+	PSI_KEY(buf_resize_thread),
 	PSI_KEY(recv_writer_thread),
 	PSI_KEY(srv_error_monitor_thread),
 	PSI_KEY(srv_lock_timeout_thread),
@@ -591,7 +591,13 @@ static PSI_thread_info	all_innodb_threads[] = {
 	PSI_KEY(srv_monitor_thread),
 	PSI_KEY(srv_purge_thread),
 	PSI_KEY(srv_worker_thread),
-	PSI_KEY(trx_rollback_clean_thread),
+	PSI_KEY(trx_recovery_rollback_thread),
+	PSI_KEY(page_flush_thread),
+	PSI_KEY(page_flush_coordinator_thread),
+	PSI_KEY(fts_optimize_thread),
+	PSI_KEY(fts_parallel_merge_thread),
+	PSI_KEY(fts_parallel_tokenization_thread),
+	PSI_KEY(srv_lock_timeout_thread)
 };
 # endif /* UNIV_PFS_THREAD */
 
@@ -3540,6 +3546,7 @@ static bool innobase_is_supported_system_table(const char *db,
 {
 	static const char* supported_system_tables[]= { "columns_priv",
 							"db",
+							"func",
 							"help_topic",
 							"help_category",
 							"help_relation",
@@ -10347,7 +10354,7 @@ create_table_info_t::create_table_def()
 		if (dict_table_is_intrinsic(table) && field->orig_table) {
 
 			snprintf(field_name, sizeof(field_name),
-				    "%s_%s_%lu", field->orig_table->alias,
+				    "%s_%s_" ULINTPF, field->orig_table->alias,
 				    field->field_name, i);
 
 		} else {

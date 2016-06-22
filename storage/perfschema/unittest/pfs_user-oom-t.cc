@@ -44,6 +44,7 @@ static void test_oom()
   PSI_statement_bootstrap *statement_boot;
   PSI_transaction_bootstrap *transaction_boot;
   PSI_memory_bootstrap *memory_boot;
+  PSI_error_bootstrap *error_boot;
 
   memset(& param, 0xFF, sizeof(param));
   param.m_enabled= true;
@@ -85,6 +86,7 @@ static void test_oom()
   param.m_metadata_lock_sizing= 0;
   param.m_max_digest_length= 0;
   param.m_max_sql_text_length= 0;
+  param.m_error_sizing= 0;
 
   /* Setup */
 
@@ -97,7 +99,8 @@ static void test_oom()
                                     & cond_boot, & file_boot, & socket_boot,
                                     & table_boot, & mdl_boot, & idle_boot,
                                     & stage_boot, & statement_boot, & transaction_boot,
-                                    & memory_boot);
+                                    & memory_boot,
+                                    & error_boot);
   ok(rc == 0, "init ok");
   thread_service= (PSI_thread_service_t *)thread_boot->get_interface(PSI_THREAD_VERSION_1);
 

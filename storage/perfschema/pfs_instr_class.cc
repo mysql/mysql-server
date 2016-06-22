@@ -120,6 +120,13 @@ ulong memory_class_lost= 0;
 */
 ulong transaction_class_max= 0;
 
+/**
+  Number of error classes. Although there is only one error class,
+  this is kept for future use if there is more error classification required.
+  @sa global_error_class
+*/
+ulong error_class_max= 0;
+
 PFS_mutex_class *mutex_class_array= NULL;
 PFS_rwlock_class *rwlock_class_array= NULL;
 PFS_cond_class *cond_class_array= NULL;
@@ -140,10 +147,12 @@ PFS_ALIGNED PFS_table_io_stat global_table_io_stat;
 PFS_ALIGNED PFS_table_lock_stat global_table_lock_stat;
 PFS_ALIGNED PFS_single_stat global_metadata_stat;
 PFS_ALIGNED PFS_transaction_stat global_transaction_stat;
+PFS_ALIGNED PFS_error_stat global_error_stat;
 PFS_ALIGNED PFS_instr_class global_table_io_class;
 PFS_ALIGNED PFS_instr_class global_table_lock_class;
 PFS_ALIGNED PFS_instr_class global_idle_class;
 PFS_ALIGNED PFS_instr_class global_metadata_class;
+PFS_ALIGNED PFS_error_class global_error_class;
 PFS_ALIGNED PFS_transaction_class global_transaction_class;
 
 /** Class-timer map */
@@ -162,7 +171,8 @@ enum_timer_name *class_timers[] =
  &wait_timer,        /* PFS_CLASS_TABLE_LOCK */
  &idle_timer,        /* PFS_CLASS_IDLE */
  &wait_timer,        /* PFS_CLASS_METADATA */
- &wait_timer         /* PFS_CLASS_MEMORY */
+ &wait_timer,        /* PFS_CLASS_MEMORY */
+ &wait_timer         /* PFS_CLASS_ERROR */
 };
 
 /**
@@ -248,6 +258,16 @@ void register_global_classes()
   global_metadata_class.m_enabled= false; /* Disabled by default */
   global_metadata_class.m_timed= false;
   configure_instr_class(&global_metadata_class);
+
+  /* Error class */
+  init_instr_class(&global_error_class, "error", 5,
+                   0, PFS_CLASS_ERROR);
+  global_error_class.m_event_name_index= GLOBAL_ERROR_INDEX;
+  global_error_class.m_enabled= true; /* Enabled by default */
+  global_error_class.m_timer= NULL;
+  configure_instr_class(&global_error_class);
+  global_error_class.m_timed= false; /* Not applicable */
+  error_class_max= 1; /* only one error class as of now. */
 
   /* Transaction class */
   init_instr_class(&global_transaction_class, "transaction", 11,
@@ -1669,6 +1689,20 @@ PFS_instr_class *find_metadata_class(uint index)
 PFS_instr_class *sanitize_metadata_class(PFS_instr_class *unsafe)
 {
   if (likely(& global_metadata_class == unsafe))
+    return unsafe;
+  return NULL;
+}
+
+PFS_error_class *find_error_class(uint index)
+{
+  if (index == 1)
+    return & global_error_class;
+  return NULL;
+}
+
+PFS_error_class *sanitize_error_class(PFS_error_class *unsafe)
+{
+  if (likely(& global_error_class == unsafe))
     return unsafe;
   return NULL;
 }

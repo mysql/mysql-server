@@ -2198,6 +2198,7 @@ static Exit_status check_master_version()
     glob_description_event= new Format_description_log_event(3);
     break;
   case '5':
+  case '8':
     /*
       The server is soon going to send us its Format_description log
       event, unless it is a 5.0 server with 3.23 or 4.0 binlogs.

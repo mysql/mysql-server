@@ -652,6 +652,7 @@ extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
 
 extern char *opt_disabled_storage_engines;
 
+extern sigset_t mysqld_signal_mask;
 /* query_id */
 typedef int64 query_id_t;
 extern std::atomic<query_id_t> atomic_global_query_id;

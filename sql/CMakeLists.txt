@@ -181,6 +181,10 @@ SET(SQL_SHARED_SOURCES
   gis/srs/wkt_parser.cc
   gstream.cc
   handler.cc
+  histograms/equi_height.cc
+  histograms/equi_height_bucket.cc
+  histograms/histogram.cc
+  histograms/singleton.cc
   hostname.cc
   init.cc
   item.cc

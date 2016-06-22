@@ -645,6 +645,14 @@ static Sys_var_long Sys_pfs_max_sql_text_length(
        DEFAULT(1024),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
+static Sys_var_long Sys_pfs_error_size(
+       "performance_schema_error_size",
+       "Number of server errors instrumented.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_error_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024 * 1024),
+       DEFAULT(PFS_MAX_SERVER_ERRORS),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
 #endif /* EMBEDDED_LIBRARY */
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
@@ -3922,14 +3930,14 @@ bool Sys_var_enforce_gtid_consistency::global_update(THD *thd, set_var *var)
     {
       if (new_mode == GTID_CONSISTENCY_MODE_ON)
       {
-        my_error(ER_CANT_SET_ENFORCE_GTID_CONSISTENCY_ON_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS, MYF(0));
+        my_error(ER_CANT_ENFORCE_GTID_CONSISTENCY_WITH_ONGOING_GTID_VIOLATING_TX, MYF(0));
         goto err;
       }
       else
       {
         push_warning(thd, Sql_condition::SL_WARNING,
-                     ER_SET_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS,
-                     ER_THD(thd, ER_SET_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS));
+                     ER_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TX,
+                     ER_THD(thd, ER_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TX));
       }
     }
   }
@@ -5830,20 +5838,34 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
                     &ret, global_sid_lock);
   if (ret != RETURN_STATUS_OK)
   {
-    global_sid_lock->unlock();
     error= true;
     goto end;
+  }
+  if (!gtid_set.is_appendable())
+  {
+    if (!gtid_state->get_lost_gtids()->is_subset(&gtid_set))
+    {
+      my_error(ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS, MYF(0),
+               "the being assigned value must include the former value of the variable "
+               "in plain assignment");
+      error= true;
+      goto end;
+    }
+    DBUG_ASSERT(gtid_state->get_lost_gtids()->is_subset(&gtid_set));
+    /*
+      Reduce the being assigned set to the intersect part which will
+      be used further.
+    */
+    gtid_set.remove_gtid_set(gtid_state->get_lost_gtids());
   }
   ret= gtid_state->add_lost_gtids(&gtid_set);
   if (ret != RETURN_STATUS_OK)
   {
-    global_sid_lock->unlock();
     error= true;
     goto end;
   }
   gtid_state->get_executed_gtids()->to_string(&current_gtid_executed);
   gtid_state->get_lost_gtids()->to_string(&current_gtid_purged);
-  global_sid_lock->unlock();
 
   // Log messages saying that GTID_PURGED and GTID_EXECUTED were changed.
   sql_print_information(ER_DEFAULT(ER_GTID_PURGED_WAS_CHANGED),
@@ -5852,6 +5874,7 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
                         previous_gtid_executed, current_gtid_executed);
 
 end:
+  global_sid_lock->unlock();
   my_free(previous_gtid_executed);
   my_free(previous_gtid_purged);
   my_free(current_gtid_executed);

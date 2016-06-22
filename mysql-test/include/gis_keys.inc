@@ -1,4 +1,3 @@
---source include/have_geometry.inc
 
 #
 # Spatial objects with keys

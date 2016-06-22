@@ -1502,6 +1502,36 @@ void aggregate_all_transactions(PFS_transaction_stat *from_array,
   }
 }
 
+void aggregate_all_errors(PFS_error_stat *from_array,
+                          PFS_error_stat *to_array)
+{
+  DBUG_ASSERT(from_array != NULL);
+  DBUG_ASSERT(to_array != NULL);
+
+  if (from_array->count() > 0)
+  {
+    to_array->aggregate(from_array);
+    from_array->reset();
+  }
+}
+
+
+void aggregate_all_errors(PFS_error_stat *from_array,
+                          PFS_error_stat *to_array_1,
+                          PFS_error_stat *to_array_2)
+{
+  DBUG_ASSERT(from_array != NULL);
+  DBUG_ASSERT(to_array_1 != NULL);
+  DBUG_ASSERT(to_array_2 != NULL);
+
+  if (from_array->count() > 0)
+  {
+    to_array_1->aggregate(from_array);
+    to_array_2->aggregate(from_array);
+    from_array->reset();
+  }
+}
+
 void aggregate_all_memory(bool alive,
                           PFS_memory_stat *from_array,
                           PFS_memory_stat *to_array)
@@ -1636,6 +1666,10 @@ void aggregate_thread(PFS_thread *thread,
 
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
   aggregate_thread_transactions(thread, safe_account, safe_user, safe_host);
+#endif
+
+#ifdef HAVE_PSI_ERROR_INTERFACE
+  aggregate_thread_errors(thread, safe_account, safe_user, safe_host);
 #endif
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
@@ -1865,9 +1899,9 @@ void aggregate_thread_transactions(PFS_thread *thread,
   if ((safe_user != NULL) && (safe_host != NULL))
   {
     /*
-      Aggregate EVENTS_TRANSACTION_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
-      -  EVENTS_TRANSACTION_SUMMARY_BY_USER_BY_EVENT_NAME
-      -  EVENTS_TRANSACTION_SUMMARY_BY_HOST_BY_EVENT_NAME
+      Aggregate EVENTS_TRANSACTIONS_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
+      -  EVENTS_TRANSACTIONS_SUMMARY_BY_USER_BY_EVENT_NAME
+      -  EVENTS_TRANSACTIONS_SUMMARY_BY_HOST_BY_EVENT_NAME
       in parallel.
     */
     aggregate_all_transactions(thread->write_instr_class_transactions_stats(),
@@ -1909,6 +1943,72 @@ void aggregate_thread_transactions(PFS_thread *thread,
                              &global_transaction_stat);
 }
 
+void aggregate_thread_errors(PFS_thread *thread,
+                                   PFS_account *safe_account,
+                                   PFS_user *safe_user,
+                                   PFS_host *safe_host)
+{
+  if (thread->read_instr_class_errors_stats() == NULL)
+    return;
+
+  if (likely(safe_account != NULL))
+  {
+    /*
+      Aggregate EVENTS_ERRORS_SUMMARY_BY_THREAD_BY_ERROR
+      to EVENTS_ERRORS_SUMMARY_BY_ACCOUNT_BY_ERROR.
+    */
+    aggregate_all_errors(thread->write_instr_class_errors_stats(),
+                         safe_account->write_instr_class_errors_stats());
+
+    return;
+  }
+
+  if ((safe_user != NULL) && (safe_host != NULL))
+  {
+    /*
+      Aggregate EVENTS_ERRORS_SUMMARY_BY_THREAD_BY_ERROR to:
+      -  EVENTS_ERRORS_SUMMARY_BY_USER_BY_ERROR
+      -  EVENTS_ERRORS_SUMMARY_BY_HOST_BY_ERROR
+      in parallel.
+    */
+    aggregate_all_errors(thread->write_instr_class_errors_stats(),
+                         safe_user->write_instr_class_errors_stats(),
+                         safe_host->write_instr_class_errors_stats());
+    return;
+  }
+
+  if (safe_user != NULL)
+  {
+    /*
+      Aggregate EVENTS_ERRORS_SUMMARY_BY_THREAD_BY_ERROR to:
+      -  EVENTS_ERRORS_SUMMARY_BY_USER_BY_ERROR
+      -  EVENTS_ERRORS_SUMMARY_GLOBAL_BY_ERROR
+      in parallel.
+    */
+    aggregate_all_errors(thread->write_instr_class_errors_stats(),
+                         safe_user->write_instr_class_errors_stats(),
+                         &global_error_stat);
+    return;
+  }
+
+  if (safe_host != NULL)
+  {
+    /*
+      Aggregate EVENTS_ERRORS_SUMMARY_BY_THREAD_BY_ERROR
+      to EVENTS_ERRORS_SUMMARY_BY_HOST_BY_ERROR, directly.
+    */
+    aggregate_all_errors(thread->write_instr_class_errors_stats(),
+                         safe_host->write_instr_class_errors_stats());
+    return;
+  }
+
+  /*
+    Aggregate EVENTS_ERRORS_SUMMARY_BY_THREAD_BY_ERROR
+    to EVENTS_ERRORS_SUMMARY_GLOBAL_BY_ERROR.
+  */
+  aggregate_all_errors(thread->write_instr_class_errors_stats(),
+                       &global_error_stat);
+}
 void aggregate_thread_memory(bool alive, PFS_thread *thread,
                              PFS_account *safe_account,
                              PFS_user *safe_user,

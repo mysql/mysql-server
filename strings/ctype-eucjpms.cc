@@ -67570,6 +67570,7 @@ CHARSET_INFO my_charset_eucjpms_japanese_ci=
     "eucjpms_japanese_ci",	/* name         */
     "",			/* comment      */
     NULL,		/* tailoring    */
+    NULL,		/* coll_param   */
     ctype_eucjpms,
     to_lower_eucjpms,
     to_upper_eucjpms,
@@ -67605,6 +67606,7 @@ CHARSET_INFO my_charset_eucjpms_bin=
     "eucjpms_bin",		/* name         */
     "",			/* comment      */
     NULL,		/* tailoring    */
+    NULL,		/* coll_param   */
     ctype_eucjpms,
     to_lower_eucjpms,
     to_upper_eucjpms,

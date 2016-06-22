@@ -55,6 +55,11 @@ select * from performance_schema.memory_summary_by_host_by_event_name;
 select * from performance_schema.memory_summary_by_thread_by_event_name;
 select * from performance_schema.memory_summary_by_user_by_event_name;
 select * from performance_schema.memory_summary_global_by_event_name;
+select * from performance_schema.events_errors_summary_by_account_by_error;
+select * from performance_schema.events_errors_summary_by_host_by_error;
+select * from performance_schema.events_errors_summary_by_thread_by_error;
+select * from performance_schema.events_errors_summary_by_user_by_error;
+select * from performance_schema.events_errors_summary_global_by_error;
 select * from performance_schema.file_instances;
 select * from performance_schema.file_summary_by_event_name;
 select * from performance_schema.file_summary_by_instance;
@@ -102,9 +107,6 @@ select * from performance_schema.global_variables;
 select * from performance_schema.variables_by_thread;
 select * from performance_schema.session_variables;
 --enable_result_log
-
-# This has a stable output, printing the result:
-show global variables like "performance_schema%";
 
 # This has an unrepeatable output, it does depends too much on
 # - the platform hardware (sizeof structures, padding)

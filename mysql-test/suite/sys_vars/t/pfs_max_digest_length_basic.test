@@ -8,7 +8,7 @@
 select @@global.performance_schema_max_digest_length;
 
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-select @@session.max_digest_length;
+select @@session.performance_schema_max_digest_length;
 
 show global variables like 'performance_schema_max_digest_length';
 

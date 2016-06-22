@@ -117,7 +117,7 @@ func	CREATE TABLE `func` (
   `dl` char(128) COLLATE utf8_bin NOT NULL DEFAULT '',
   `type` enum('function','aggregate') CHARACTER SET utf8 NOT NULL,
   PRIMARY KEY (`name`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='User defined functions'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='User defined functions'
 show create table tables_priv;
 Table	Create Table
 tables_priv	CREATE TABLE `tables_priv` (

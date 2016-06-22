@@ -203,6 +203,7 @@ void PFS_user::aggregate(bool alive)
   aggregate_stages();
   aggregate_statements();
   aggregate_transactions();
+  aggregate_errors();
   aggregate_memory(alive);
   aggregate_status();
   aggregate_stats();
@@ -230,6 +231,12 @@ void PFS_user::aggregate_transactions()
 {
   /* No parent to aggregate to, clean the stats */
   reset_transactions_stats();
+}
+
+void PFS_user::aggregate_errors()
+{
+  /* No parent to aggregate to, clean the stats */
+  reset_errors_stats();
 }
 
 void PFS_user::aggregate_memory(bool alive)

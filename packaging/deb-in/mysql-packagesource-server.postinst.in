@@ -26,7 +26,12 @@ take_upstart_job_backup () {
 
 # Runs an arbitrary init sql file supplied in $1. Does not require login access
 run_init_sql() {
-	mysqld --user=mysql --init-file=$1 --socket=`mktemp -u` --pid-file=`mktemp -u` > /dev/null 2>&1
+	tmpdir=$(mktemp -d)
+	chown mysql:mysql "$tmpdir"
+	mysqld --user=mysql --init-file="$1" --socket="$tmpdir/mysqld.sock" --pid-file="$tmpdir/mysqld.pid" > /dev/null 2>&1
+	result=$?
+	rm -rf "$tmpdir"
+	return $result
 }
 
 # To avoid having hardcoded paths in the script, we do a search on the path, as suggested at:
@@ -58,8 +63,11 @@ case "$1" in
 	then
 
 		set -e
-
-		update-alternatives --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 200
+		# If the existing config file is a proper file, we back it up
+		if [ -f "/etc/mysql/my.cnf" ] && [ ! -L "/etc/mysql/my.cnf" ]; then
+			cp /etc/mysql/my.cnf /etc/mysql/my.cnf.bak
+		fi
+		update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 200
 
 		MYSQLDATA=/var/lib/mysql
 		MYSQLFILES=/var/lib/mysql-files
@@ -69,30 +77,31 @@ case "$1" in
 		if [ ! "$(ls -A ${MYSQLDATA})" ] && [ -d ${MYSQLFILES} ];
 		then
 			db_get mysql-@DEB_PRODUCTNAME@-server/root-pass && PASSWD=${RET}
+			db_set mysql-@DEB_PRODUCTNAME@-server/root-pass ""
+			db_set mysql-@DEB_PRODUCTNAME@-server/re-root-pass ""
+			SQL=$(mktemp --tmpdir=/var/lib/mysql-files/)
+			touch ${SQL}
+			chmod 600 ${SQL}
+			chown mysql:mysql ${SQL}
 			if [ ! -z "${PASSWD}" ];
 			then
-				SQL=/var/lib/mysql-files/SQL
-				touch ${SQL}
-				chmod 600 ${SQL}
-				chown mysql:mysql ${SQL}
-
-				db_set mysql-@DEB_PRODUCTNAME@-server/root-pass ""
-				db_set mysql-@DEB_PRODUCTNAME@-server/re-root-pass ""
 				cat << EOF > ${SQL}
 USE mysql;
-UPDATE user SET authentication_string=PASSWORD('${PASSWD}') WHERE user='root';
+ALTER user 'root'@'localhost' IDENTIFIED BY '${PASSWD}';
+SHUTDOWN;
 EOF
 				PASSWD=""
-				su - mysql -s /bin/bash -c "/usr/sbin/mysqld --initialize-insecure=on --init-file=${SQL} 2>&1 > /dev/null"
-				rm -f ${SQL}
 			else
-				su - mysql -s /bin/bash -c "/usr/sbin/mysqld --initialize-insecure=on 2>&1 > /dev/null"
-				su - mysql -s /bin/bash -c "/usr/sbin/mysqld --log_error_verbosity=2 2>&1 > /dev/null &"
-				while [ ! -e $(my_print_defaults mysqld | grep pid-file | cut -d= -f2) ]; do sleep 1; done
-				mysql -e "INSTALL PLUGIN auth_socket SONAME 'auth_socket.so'"
-				mysql -e "USE mysql; UPDATE user SET plugin='auth_socket' WHERE user='root'"
-				mysqladmin shutdown
+				cat << EOF > ${SQL}
+USE mysql;
+INSTALL PLUGIN auth_socket SONAME 'auth_socket.so';
+ALTER USER 'root'@'localhost' IDENTIFIED WITH 'auth_socket';
+SHUTDOWN;
+EOF
 			fi
+			mysqld --initialize-insecure --user=mysql > /dev/null
+			run_init_sql "$SQL"
+			rm -f "$SQL"
 		fi
 
 		set +e

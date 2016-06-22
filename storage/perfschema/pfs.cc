@@ -31,6 +31,7 @@
 #include "pfs_table_provider.h"
 #include "pfs_thread_provider.h"
 #include "pfs_transaction_provider.h"
+#include "pfs_error_provider.h"
 
 #include "mysql/psi/mysql_thread.h"
 #include "my_thread.h"
@@ -56,6 +57,7 @@
 #include "pfs_digest.h"
 #include "pfs_program.h"
 #include "pfs_prepared_stmt.h"
+#include "pfs_error.h"
 
 /*
   Exporting cmake compilation flags to doxygen,
@@ -76,6 +78,7 @@
 #define DISABLE_PSI_STATEMENT_DIGEST
 #define DISABLE_PSI_SOCKET
 #define DISABLE_PSI_MEMORY
+#define DISABLE_PSI_ERROR
 #define DISABLE_PSI_IDLE
 #define DISABLE_PSI_METADATA
 #define DISABLE_PSI_TRANSACTION
@@ -1347,17 +1350,66 @@ static inline int mysql_mutex_lock(...)
   - [2] #pfs_delete_thread_v1(), #aggregate_thread_memory()
   - [3] @c PFS_account::aggregate_memory()
   - [4] @c PFS_host::aggregate_memory()
-  - [A] EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
+  - [A] MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME,
         @c table_mems_by_thread_by_event_name::make_row()
-  - [B] EVENTS_STATEMENTS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME,
+  - [B] MEMORY_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME,
         @c table_mems_by_account_by_event_name::make_row()
-  - [C] EVENTS_STATEMENTS_SUMMARY_BY_USER_BY_EVENT_NAME,
+  - [C] MEMORY_SUMMARY_BY_USER_BY_EVENT_NAME,
         @c table_mems_by_user_by_event_name::make_row()
-  - [D] EVENTS_STATEMENTS_SUMMARY_BY_HOST_BY_EVENT_NAME,
+  - [D] MEMORY_SUMMARY_BY_HOST_BY_EVENT_NAME,
         @c table_mems_by_host_by_event_name::make_row()
-  - [E] EVENTS_STATEMENTS_SUMMARY_GLOBAL_BY_EVENT_NAME,
+  - [E] MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME,
         @c table_mems_global_by_event_name::make_row()
 
+@section IMPL_ERROR Implementation for error instruments
+
+  For errors, there are no tables that contains individual event data.
+
+  For errors, the tables that contains aggregated data are:
+  - EVENTS_ERRORS_SUMMARY_BY_ACCOUNT_BY_ERROR
+  - EVENTS_ERRORS_SUMMARY_BY_HOST_BY_ERROR
+  - EVENTS_ERRORS_SUMMARY_BY_THREAD_BY_ERROR
+  - EVENTS_ERRORS_SUMMARY_BY_USER_BY_ERROR
+  - EVENTS_ERRORS_SUMMARY_GLOBAL_BY_ERROR
+
+@verbatim
+  error_event(T, S)
+   |
+   | [1]
+   |
+1a |-> pfs_thread(T).event_name(S)            =====>> [A], [B], [C], [D], [E]
+   |    |
+   |    | [2]
+   |    |
+   | 2a |-> pfs_account(U, H).event_name(S)   =====>> [B], [C], [D], [E]
+   |    .    |
+   |    .    | [3-RESET]
+   |    .    |
+   | 2b .....+-> pfs_user(U).event_name(S)    =====>> [C]
+   |    .    |
+   | 2c .....+-> pfs_host(H).event_name(S)    =====>> [D], [E]
+   |    .    .    |
+   |    .    .    | [4-RESET]
+   | 2d .    .    |
+1b |----+----+----+-> global.event_name(S)    =====>> [E]
+
+@endverbatim
+
+  Implemented as:
+  - [1] #pfs_log_error_v1()
+  - [2] #pfs_delete_thread_v1(), #aggregate_thread_errors()
+  - [3] @c PFS_account::aggregate_errors()
+  - [4] @c PFS_host::aggregate_errors()
+  - [A] EVENTS_ERRORS_SUMMARY_BY_THREAD_BY_ERROR,
+        @c table_ees_by_thread_by_error::make_row()
+  - [B] EVENTS_ERRORS_SUMMARY_BY_ACCOUNT_BY_ERROR,
+        @c table_ees_by_account_by_error::make_row()
+  - [C] EVENTS_ERRORS_SUMMARY_BY_USER_BY_ERROR,
+        @c table_ees_by_user_by_error::make_row()
+  - [D] EVENTS_ERRORS_SUMMARY_BY_HOST_BY_ERROR,
+        @c table_ees_by_host_by_error::make_row()
+  - [E] EVENTS_ERRORS_SUMMARY_GLOBAL_BY_ERROR,
+        @c table_ees_global_by_error::make_row()
 */
 
 /**
@@ -7002,6 +7054,54 @@ pfs_end_metadata_wait_v1(PSI_metadata_locker *locker,
   }
 }
 
+void pfs_log_error_v1(uint error_num, PSI_error_operation error_operation)
+{
+  PFS_error_stat *stat;
+  uint error_stat_index;
+
+  DBUG_ASSERT(error_num != 0);
+ 
+  if (!flag_global_instrumentation)
+    return;
+
+  if (!global_error_class.m_enabled)
+    return;
+
+  if (!max_server_errors)
+    return;
+
+  if (flag_thread_instrumentation)
+  {
+    PFS_thread *pfs_thread= my_thread_get_THR_PFS();
+    if (unlikely(pfs_thread == NULL))
+      return;
+    if (!pfs_thread->m_enabled)
+      return;
+
+    /* Aggregate to EVENTS_ERRORS_SUMMARY_BY_THREAD_BY_ERROR */
+    stat= &pfs_thread->write_instr_class_errors_stats()[GLOBAL_ERROR_INDEX];
+  }
+  else
+  {
+    /* Aggregate to EVENTS_ERRORS_SUMMARY_GLOBAL_BY_ERROR */
+    stat= &global_error_stat;
+  }
+
+  /* Find the index of this particular error in array of error stats. */
+  error_stat_index= lookup_error_stat_index(error_num);
+
+  /*
+     If this error goes beyond max_server_errors, OR
+     If it's (RE)SIGNALED error with custom error number
+     collect its stats at NULL row.
+   */
+  if (error_stat_index >= max_server_errors)
+    error_stat_index= 0;
+
+  /* Aggregate to EVENTS_ERRORS_SUMMARY_..._BY_ERROR (counted) */
+  stat->aggregate_count(error_stat_index, error_operation);
+}
+
 /**
   Implementation of the instrumentation interface.
   @sa PSI_thread_service_v1
@@ -7190,6 +7290,11 @@ PSI_memory_service_v1 pfs_memory_service_v1=
   pfs_memory_free_v1
 };
 
+PSI_error_service_v1 pfs_error_service_v1=
+{
+  pfs_log_error_v1
+};
+
 static void* get_thread_interface(int version)
 {
   switch (version)
@@ -7333,6 +7438,17 @@ static void* get_memory_interface(int version)
   }
 }
 
+static void* get_error_interface(int version)
+{
+  switch (version)
+  {
+  case PSI_ERROR_VERSION_1:
+    return &pfs_error_service_v1;
+  default:
+    return NULL;
+  }
+}
+
 C_MODE_END
 
 struct PSI_thread_bootstrap pfs_thread_bootstrap=
@@ -7400,3 +7516,7 @@ struct PSI_memory_bootstrap pfs_memory_bootstrap=
   get_memory_interface
 };
 
+struct PSI_error_bootstrap pfs_error_bootstrap=
+{
+  get_error_interface
+};

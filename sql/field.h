@@ -699,7 +699,7 @@ public:
 
     @sa Field::enum_auto_flags for possible options.
 
-    @sa Field::utype and Field::unireg_check in pre-5.8 versions of server
+    @sa Field::utype and Field::unireg_check in pre-8.0 versions of server
         for historical perspective.
   */
   uchar         auto_flags;

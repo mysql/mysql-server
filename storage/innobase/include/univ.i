@@ -89,10 +89,16 @@ support cross-platform development and expose comonly used SQL names. */
 
 # include <my_global.h>
 # include <my_thread.h>
-
-#  include <m_string.h>
-#  include <mysqld_error.h>
+# include <m_string.h>
+# include <mysqld_error.h>
 #endif /* !UNIV_HOTBACKUP  */
+
+#ifdef HAVE_PSI_INTERFACE
+
+/** Define for performance schema registration key */
+using mysql_pfs_key_t = unsigned int;
+
+#endif /* HAVE_PFS_INTERFACE */
 
 /* Include <sys/stat.h> to get S_I... macros defined for os0file.cc */
 #include <sys/stat.h>
@@ -403,7 +409,9 @@ mysql_com.h if you are to use this macro. */
 /* Another basic type we use is unsigned long integer which should be equal to
 the word size of the machine, that is on a 32-bit platform 32 bits, and on a
 64-bit platform 64 bits. We also give the printf format for the type as a
-macro ULINTPF. */
+macro ULINTPF. We also give the printf format suffix (without '%') macro
+ULINTPFS, this one can be useful if we want to put something between % and
+lu/llu, like in %03lu. */
 
 #ifdef _WIN32
 /* Use the integer types and formatting strings defined in Visual Studio. */
@@ -426,12 +434,14 @@ typedef uint32_t ib_uint32_t;
 #ifdef _WIN64
 typedef unsigned __int64	ulint;
 typedef __int64			lint;
-# define ULINTPF		UINT64PF
+# define ULINTPFS		"llu"
 #else
 typedef unsigned long int	ulint;
 typedef long int		lint;
-# define ULINTPF		"%lu"
+# define ULINTPFS		"lu"
 #endif /* _WIN64 */
+
+#define ULINTPF			"%" ULINTPFS
 
 #ifndef _WIN32
 #if SIZEOF_LONG != SIZEOF_VOIDP
@@ -557,15 +567,13 @@ functions. */
 
 #ifdef _WIN32
 typedef ulint os_thread_ret_t;
-# define OS_THREAD_DUMMY_RETURN		return(0)
 # define OS_PATH_SEPARATOR		'\\'
 # define OS_PATH_SEPARATOR_ALT		'/'
 #else
 typedef void* os_thread_ret_t;
-# define OS_THREAD_DUMMY_RETURN		return(NULL)
 # define OS_PATH_SEPARATOR		'/'
 # define OS_PATH_SEPARATOR_ALT		'\\'
-#endif
+#endif /* _WIN32 */
 
 #include <stdio.h>
 #include "db0err.h"

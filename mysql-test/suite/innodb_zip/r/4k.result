@@ -51,6 +51,7 @@ mysql/foreign_keys	14	33	unique_constraint_id	9	0	1	50
 mysql/foreign_key_column_usage	7	33	foreign_key_id	5	3	3	50
 mysql/foreign_key_column_usage	7	33	foreign_key_id_2	6	2	2	50
 mysql/foreign_key_column_usage	7	33	column_id	8	0	1	50
+mysql/func	7	33	PRIMARY	5	3	1	50
 mysql/gtid_executed	6	33	PRIMARY	5	3	2	50
 mysql/help_category	7	33	PRIMARY	5	3	1	50
 mysql/help_category	7	33	name	6	2	1	50
@@ -95,12 +96,12 @@ mysql/slave_relay_log_info	12	33	PRIMARY	5	3	1	50
 mysql/slave_worker_info	16	33	PRIMARY	5	3	2	50
 mysql/st_spatial_reference_systems	12	33	PRIMARY	5	3	1	50
 mysql/st_spatial_reference_systems	12	33	catalog_id	6	2	2	50
-mysql/tables	33	33	PRIMARY	5	3	1	50
-mysql/tables	33	33	schema_id	6	2	2	50
-mysql/tables	33	33	engine	8	2	2	50
-mysql/tables	33	33	engine_2	9	0	1	50
-mysql/tables	33	33	collation_id	10	0	1	50
-mysql/tables	33	33	tablespace_id	12	0	1	50
+mysql/tables	34	33	PRIMARY	5	3	1	50
+mysql/tables	34	33	schema_id	6	2	2	50
+mysql/tables	34	33	engine	8	2	2	50
+mysql/tables	34	33	engine_2	9	0	1	50
+mysql/tables	34	33	collation_id	10	0	1	50
+mysql/tables	34	33	tablespace_id	12	0	1	50
 mysql/tablespaces	9	33	PRIMARY	5	3	1	50
 mysql/tablespaces	9	33	name	6	2	1	50
 mysql/tablespace_files	7	33	tablespace_id	5	3	2	50

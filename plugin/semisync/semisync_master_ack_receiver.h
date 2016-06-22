@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -104,9 +104,9 @@ private:
   struct Slave
   {
     THD *thd;
-    Vio vio;
+    Vio *vio;
 
-    my_socket sock_fd() { return vio.mysql_socket.fd; }
+    my_socket sock_fd() { return vio->mysql_socket.fd; }
     uint server_id() { return thd->server_id; }
   };
 

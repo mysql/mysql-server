@@ -106,6 +106,9 @@ case "$1" in
 		if [ ! -d ${MYSQLRUN} -a ! -L ${MYSQLRUN} ];
 		then
 			mkdir ${MYSQLRUN}
+		fi
+		if [ -d ${MYSQLRUN} ];
+		then
 			chown mysql:mysql ${MYSQLRUN}
 			chmod 755 ${MYSQLRUN}
 		fi

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -54,12 +54,6 @@ ulong	srv_adaptive_max_sleep_delay = 150000;
 
 ulong	srv_thread_sleep_delay	= 10000;
 
-
-/** We are prepared for a situation that we have this many threads waiting for
-a semaphore inside InnoDB. innobase_start_or_create_for_mysql() sets the
-value. */
-
-ulint	srv_max_n_threads	= 0;
 
 /** The following controls how many threads we let inside InnoDB concurrently:
 threads waiting for locks are not counted into the number because otherwise

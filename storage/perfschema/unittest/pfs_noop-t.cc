@@ -222,6 +222,9 @@ static void test_noop()
 
   psi_thread_service->set_thread_THD(NULL, NULL);
 
+  psi_error_service->log_error(0, PSI_ERROR_OPERATION_RAISED);
+  ok(true, "no error");
+
   ok(true, "all noop api called");
 }
 

@@ -1,0 +1,10 @@
+select * from INFORMATION_SCHEMA.INNODB_LOCKS
+where lock_table = "none";
+lock_id	lock_trx_id	lock_mode	lock_type	lock_table	lock_index	lock_space	lock_page	lock_rec	lock_data
+Warnings:
+Warning	1681	'INFORMATION_SCHEMA.INNODB_LOCKS' is deprecated and will be removed in a future release.
+select * from INFORMATION_SCHEMA.INNODB_LOCK_WAITS
+where requested_lock_id = "none";
+requesting_trx_id	requested_lock_id	blocking_trx_id	blocking_lock_id
+Warnings:
+Warning	1681	'INFORMATION_SCHEMA.INNODB_LOCK_WAITS' is deprecated and will be removed in a future release.

@@ -36,6 +36,7 @@
 #include "mysql/psi/psi_statement.h"
 #include "mysql/psi/psi_transaction.h"
 #include "mysql/psi/psi_memory.h"
+#include "mysql/psi/psi_error.h"
 
 C_MODE_START
 
@@ -1154,6 +1155,27 @@ void set_psi_transaction_service(PSI_transaction_service_t *psi)
 
 // ===========================================================================
 
+static void
+log_error_noop(unsigned int error_num NNN, PSI_error_operation error_operation NNN)
+{
+}
+
+
+static PSI_error_service_t psi_error_noop=
+{
+  log_error_noop
+};
+
+struct PSI_error_bootstrap *psi_error_hook= NULL;
+PSI_error_service_t *psi_error_service= & psi_error_noop;
+
+void set_psi_error_service(PSI_error_service_t *psi)
+{
+  psi_error_service= psi;
+}
+
+// ===========================================================================
+
 static void register_memory_noop(const char *category NNN,
                                  PSI_memory_info *info NNN,
                                  int count NNN)
@@ -1204,4 +1226,3 @@ void set_psi_memory_service(PSI_memory_service_t *psi)
 // ===========================================================================
 
 C_MODE_END
-

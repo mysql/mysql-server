@@ -17,26 +17,29 @@
 
 # Scripts to run by MySQL systemd service
 #
-# Needed argument: pre | post
+# Needed argument: pre
 #
 # pre mode  :  try to perform sanity check for configuration, log, data
-# post mode :  ping server until answer is received
 
 get_path () {
-	my_print_defaults mysqld | grep ${1} | cut -d= -f2 | tail -n1
+	my_print_defaults mysqld | grep "$1" | cut -d= -f2 | tail -n 1
 }
 
-pinger () {
-	while /bin/true ; do
-		sleep 1
-		mysqladmin ping >/dev/null 2>&1 && break
-	done
+# Runs an arbitrary init sql file supplied in $1. Does not require login access
+run_init_sql() {
+	tmpdir=$(mktemp -d)
+	chown mysql:mysql "$tmpdir"
+	mysqld --user=mysql --init-file="$1" --socket="$tmpdir/mysqld.sock" --pid-file="$tmpdir/mysqld.pid" > /dev/null 2>&1
+	result=$?
+	rm -rf "$tmpdir"
+	return $result
 }
 
 sanity () {
 	MYSQLRUN=/var/run/mysqld
-	MYSQLDATA=$(get_path datadir)
+	MYSQLDATA=/var/lib/mysql
 	MYSQLFILES=/var/lib/mysql-files
+	MYSQLKEYRING=/var/lib/mysql-keyring
 	MYSQLLOG=/var/log/mysql
 
 	if [ ! -d ${MYSQLDATA} -a ! -L ${MYSQLDATA} ];
@@ -53,14 +56,29 @@ sanity () {
 		chmod 770 ${MYSQLFILES}
 	fi
 
+	if [ ! -d ${MYSQLKEYRING} -a ! -L ${MYSQLKEYRING} ];
+	then
+		mkdir ${MYSQLKEYRING}
+		chown mysql:mysql ${MYSQLKEYRING}
+		chmod 750 ${MYSQLKEYRING}
+	fi
+
 	if [ ! "$(ls -A ${MYSQLDATA}/mysql)" ];
 	then
-		su - mysql -s /bin/bash -c "/usr/sbin/mysqld --initialize-insecure=on 2>&1 > /dev/null"
-		su - mysql -s /bin/bash -c "/usr/sbin/mysqld --log_error_verbosity=2 2>&1 > /dev/null &"
-		pinger
-		mysql -e "INSTALL PLUGIN auth_socket SONAME 'auth_socket.so'"
-		mysql -e "USE mysql; UPDATE user SET plugin='auth_socket' WHERE user='root'"
-		mysqladmin shutdown
+		SQL=$(mktemp --tmpdir=/var/lib/mysql-files/)
+		touch ${SQL}
+		chmod 600 ${SQL}
+		chown mysql:mysql ${SQL}
+
+		cat << EOF > ${SQL}
+USE mysql;
+INSTALL PLUGIN auth_socket SONAME 'auth_socket.so';
+ALTER USER 'root'@'localhost' IDENTIFIED WITH 'auth_socket';
+SHUTDOWN;
+EOF
+		mysqld --initialize-insecure --user=mysql > /dev/null
+		run_init_sql "$SQL"
+		rm -f "$SQL"
 	fi
 
 	if [ -x /usr/bin/mysql_ssl_rsa_setup -a ! -e "${MYSQLDATA}/server-key.pem" ];
@@ -78,14 +96,7 @@ sanity () {
 		chown mysql:adm ${MYSQLLOG}/error.log
 	fi
 
-	if [ ! -d "${MYSQLRUN}" -a ! -L "${MYSQLRUN}" ];
-	then
-		mkdir ${MYSQLRUN}
-		chown mysql:mysql ${MYSQLRUN}
-		chmod 755 ${MYSQLRUN}
-	fi
-
-	/lib/init/apparmor-profile-load usr.sbin.mysqld
+	@DEB_INIT_APPARMOR@
 
 	if [ ! -r /etc/mysql/my.cnf ]; then
 		echo "MySQL configuration not found at /etc/mysql/my.cnf. Please install one using update-alternatives."
@@ -95,5 +106,4 @@ sanity () {
 
 case $1 in
 	"pre")  sanity ;;
-	"post") pinger ;;
 esac

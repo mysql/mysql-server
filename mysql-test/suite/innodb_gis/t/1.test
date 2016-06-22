@@ -5,7 +5,6 @@
 # 2.MyiSam to Innodb where ever is required.
 # 3.Spatial index to Index as Innodb does not support 
 #***************************************************************** 
--- source include/have_geometry.inc
 
 SET default_storage_engine=InnoDB;
 SET innodb_strict_mode=OFF;

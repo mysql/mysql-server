@@ -29,6 +29,7 @@ struct PFS_single_stat;
 struct PFS_stage_stat;
 struct PFS_statement_stat;
 struct PFS_transaction_stat;
+struct PFS_error_stat;
 struct PFS_memory_stat;
 class PFS_opaque_container_page;
 
@@ -50,6 +51,7 @@ struct PFS_connection_slice
     m_has_stages_stats= false;
     m_has_statements_stats= false;
     m_has_transactions_stats= false;
+    m_has_errors_stats= false;
     m_has_memory_stats= false;
     reset_status_stats();
   }
@@ -62,6 +64,8 @@ struct PFS_connection_slice
   void reset_statements_stats();
   /** Reset all transactions statistics. */
   void reset_transactions_stats();
+  /** Reset all errors statistics. */
+  void reset_errors_stats();
   /** Reset all memory statistics. */
   void rebase_memory_stats();
   /** Reset all status variable statistics. */
@@ -162,6 +166,29 @@ struct PFS_connection_slice
     return m_instr_class_transactions_stats;
   }
 
+  void set_instr_class_errors_stats(PFS_error_stat *array)
+  {
+    m_has_errors_stats= false;
+    m_instr_class_errors_stats= array;
+  }
+
+  const PFS_error_stat* read_instr_class_errors_stats() const
+  {
+    if (! m_has_errors_stats)
+      return NULL;
+    return m_instr_class_errors_stats;
+  }
+
+  PFS_error_stat* write_instr_class_errors_stats()
+  {
+    if (! m_has_errors_stats)
+    {
+      reset_errors_stats();
+      m_has_errors_stats= true;
+    }
+    return m_instr_class_errors_stats;
+  }
+
   void set_instr_class_memory_stats(PFS_memory_stat *array)
   {
     m_has_memory_stats= false;
@@ -190,6 +217,7 @@ private:
   bool m_has_stages_stats;
   bool m_has_statements_stats;
   bool m_has_transactions_stats;
+  bool m_has_errors_stats;
   bool m_has_memory_stats;
 
   /**
@@ -223,6 +251,14 @@ private:
     Immutable, safe to use without internal lock.
   */
   PFS_transaction_stat *m_instr_class_transactions_stats;
+
+  /**
+    Per connection slice error aggregated statistics.
+    This member holds the data for the table
+    PERFORMANCE_SCHEMA.EVENTS_ERRORS_SUMMARY_BY_*_BY_ERROR.
+    Immutable, safe to use without internal lock.
+  */
+  PFS_error_stat *m_instr_class_errors_stats;
 
   /**
     Per connection slice memory aggregated statistics.

@@ -30,7 +30,7 @@
 
   For other sections, only links are provided, as a starting point into the component.
 
-  For the user manual, see http://dev.mysql.com/doc/refman/5.8/en/
+  For the user manual, see http://dev.mysql.com/doc/refman/8.0/en/
 
   For the internals manual, see https://dev.mysql.com/doc/internals/en/index.html
 */
@@ -44,7 +44,7 @@
 
   @section start_source Build from source
 
-  See https://dev.mysql.com/doc/refman/5.8/en/source-installation.html
+  See https://dev.mysql.com/doc/refman/8.0/en/source-installation.html
 
   @section start_debug Debugging
 
@@ -348,6 +348,7 @@
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #include <pfs_idle_provider.h>
+#include "mysql/psi/mysql_error.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 #ifdef _WIN32
@@ -606,6 +607,7 @@ bool server_id_supplied = false;
 bool opt_endinfo, using_udf_functions;
 my_bool locked_in_memory;
 bool opt_using_transactions;
+ulong opt_tc_log_size;
 int32 volatile connection_events_loop_aborted_flag;
 static enum_server_operational_state server_operational_state= SERVER_BOOTING;
 ulong log_warnings;
@@ -625,15 +627,15 @@ my_thread_handle shutdown_thr_handle;
 uint host_cache_size;
 ulong log_error_verbosity= 3; // have a non-zero value during early start-up
 
-#if MYSQL_VERSION_ID >= 50801
-#error "show_compatibility_56 is to be removed in MySQL 5.8"
+#if MYSQL_VERSION_ID >= 80001
+#error "show_compatibility_56 is to be removed in MySQL 8.0"
 #else
 /*
   Default value TRUE for the EMBEDDED_LIBRARY,
   default value from Sys_show_compatibility_56 otherwise.
 */
 my_bool show_compatibility_56= TRUE;
-#endif /* MYSQL_VERSION_ID >= 50800 */
+#endif /* MYSQL_VERSION_ID >= 80001 */
 
 #if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
 ulong slow_start_timeout;
@@ -961,6 +963,7 @@ mysql_mutex_t LOCK_des_key_file;
 mysql_rwlock_t LOCK_sys_init_connect, LOCK_sys_init_slave;
 mysql_rwlock_t LOCK_system_variables_hash;
 my_thread_handle signal_thread_id;
+sigset_t mysqld_signal_mask;
 my_thread_attr_t connection_attrib;
 mysql_mutex_t LOCK_server_started;
 mysql_cond_t COND_server_started;
@@ -1712,9 +1715,7 @@ void clean_up(bool print_message)
   lex_free();       /* Free some memory */
   item_create_cleanup();
   if (!opt_noacl)
-  {
-    udf_free();
-  }
+    udf_deinit();
   table_def_start_shutdown();
   plugin_shutdown();
   gtid_server_cleanup(); // after plugin_shutdown
@@ -2422,23 +2423,22 @@ void my_init_signals()
   (void) sigaction(SIGTERM, &sa, NULL);
   (void) sigaction(SIGHUP, &sa, NULL);
 
-  sigset_t set;
-  (void) sigemptyset(&set);
+  (void) sigemptyset(&mysqld_signal_mask);
   /*
     Block SIGQUIT, SIGHUP and SIGTERM.
     The signal handler thread does sigwait() on these.
   */
-  (void) sigaddset(&set, SIGQUIT);
-  (void) sigaddset(&set, SIGHUP);
-  (void) sigaddset(&set, SIGTERM);
-  (void) sigaddset(&set, SIGTSTP);
+  (void) sigaddset(&mysqld_signal_mask, SIGQUIT);
+  (void) sigaddset(&mysqld_signal_mask, SIGHUP);
+  (void) sigaddset(&mysqld_signal_mask, SIGTERM);
+  (void) sigaddset(&mysqld_signal_mask, SIGTSTP);
   /*
     Block SIGINT unless debugging to prevent Ctrl+C from causing
     unclean shutdown of the server.
   */
   if (!(test_flags & TEST_SIGINT))
-    (void) sigaddset(&set, SIGINT);
-  pthread_sigmask(SIG_SETMASK, &set, NULL);
+    (void) sigaddset(&mysqld_signal_mask, SIGINT);
+  pthread_sigmask(SIG_SETMASK, &mysqld_signal_mask, NULL);
   DBUG_VOID_RETURN;
 }
 
@@ -4894,7 +4894,8 @@ int mysqld_main(int argc, char **argv)
                                             & psi_stage_hook,
                                             & psi_statement_hook,
                                             & psi_transaction_hook,
-                                            & psi_memory_hook);
+                                            & psi_memory_hook,
+                                            & psi_error_hook);
       if ((pfs_rc != 0) && pfs_param.m_enabled)
       {
         pfs_param.m_enabled= false;
@@ -5047,6 +5048,16 @@ int mysqld_main(int argc, char **argv)
     if (service != NULL)
     {
       set_psi_memory_service(service);
+    }
+  }
+
+  if (psi_error_hook != NULL)
+  {
+    PSI_error_service_t *service;
+    service= (PSI_error_service_t*) psi_error_hook->get_interface(PSI_CURRENT_ERROR_VERSION);
+    if (service != NULL)
+    {
+      set_psi_error_service(service);
     }
   }
 
@@ -6258,8 +6269,9 @@ struct my_option my_long_options[]=
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"log-tc-size", 0, "Size of transaction coordinator log.",
    &opt_tc_log_size, &opt_tc_log_size, 0, GET_ULONG,
-   REQUIRED_ARG, TC_LOG_MIN_SIZE, TC_LOG_MIN_SIZE, ULONG_MAX, 0,
-   TC_LOG_PAGE_SIZE, 0},
+   REQUIRED_ARG, TC_LOG_MIN_PAGES * my_getpagesize(),
+   TC_LOG_MIN_PAGES * my_getpagesize(), ULONG_MAX, 0,
+   my_getpagesize(), 0},
   {"master-info-file", 0,
    "The location and name of the file that remembers the master and where "
    "the I/O replication thread is in the master's binlogs.",

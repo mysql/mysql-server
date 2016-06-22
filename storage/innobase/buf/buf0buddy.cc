@@ -587,6 +587,9 @@ buf_buddy_relocate(
 
 	rw_lock_x_lock(hash_lock);
 
+	/* page_hash can be changed. */
+	hash_lock = buf_page_hash_lock_x_confirm(hash_lock, buf_pool, page_id);
+
 	bpage = buf_page_hash_get_low(buf_pool, page_id);
 
 	if (!bpage || bpage->zip.data != src) {
@@ -604,6 +607,7 @@ buf_buddy_relocate(
 
 		/* It might be just uninitialized page.
 		We should search from LRU list also. */
+		mutex_enter(&buf_pool->LRU_list_mutex);
 
 		bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
 		while (bpage != NULL) {
@@ -615,6 +619,8 @@ buf_buddy_relocate(
 			}
 			bpage = UT_LIST_GET_NEXT(LRU, bpage);
 		}
+
+		mutex_exit(&buf_pool->LRU_list_mutex);
 
 		if (bpage == NULL) {
 			mutex_enter(&buf_pool->zip_free_mutex);

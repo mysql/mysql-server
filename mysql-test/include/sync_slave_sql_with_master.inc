@@ -11,7 +11,7 @@
 #
 # [--let $sync_slave_connection= <connection_name>]
 # [--let $use_gtids= 1]
-# [--let $rpl_channel_name= 1]
+# [--let $rpl_channel_name= NAME]
 # [--let $slave_timeout= NUMBER]
 # [--let $rpl_debug= 1]
 # [--let $wait_for_executed_gtid_set= 1]

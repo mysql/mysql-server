@@ -641,8 +641,9 @@ fil_node_create_low(
 	turn Page Compression off.  This execution mode allows compression
 	to be tested even when full punch hole support is not available. */
 	DBUG_EXECUTE_IF("ignore_punch_hole",
-		node->block_size = ut_min(stat_info.block_size,
-					  static_cast<size_t>(UNIV_PAGE_SIZE / 2));
+		node->block_size = ut_min(
+			static_cast<ulint>(stat_info.block_size),
+			UNIV_PAGE_SIZE / 2);
 	);
 
 	if (!IORequest::is_punch_hole_supported()

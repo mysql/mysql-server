@@ -47,9 +47,8 @@ pfs_column_values.h
 pfs_con_slice.h
 pfs_defaults.h
 pfs_digest.h
-pfs_program.h
-pfs_prepared_stmt.h
 pfs_engine_table.h
+pfs_error.h
 pfs_events.h
 pfs_events_stages.h
 pfs_events_statements.h
@@ -61,6 +60,8 @@ pfs_instr.h
 pfs_instr_class.h
 pfs_lock.h
 pfs_memory.h
+pfs_prepared_stmt.h
+pfs_program.h
 pfs_server.h
 pfs_setup_actor.h
 pfs_setup_object.h
@@ -90,6 +91,11 @@ table_ets_by_host_by_event_name.h
 table_ets_by_thread_by_event_name.h
 table_ets_by_user_by_event_name.h
 table_ets_global_by_event_name.h
+table_ees_by_account_by_error.h
+table_ees_by_host_by_error.h
+table_ees_by_user_by_error.h
+table_ees_by_thread_by_error.h
+table_ees_global_by_error.h
 table_events_stages.h
 table_events_statements.h
 table_events_transactions.h
@@ -166,9 +172,8 @@ pfs_column_values.cc
 pfs_con_slice.cc
 pfs_defaults.cc
 pfs_digest.cc
-pfs_program.cc
-pfs_prepared_stmt.cc
 pfs_engine_table.cc
+pfs_error.cc
 pfs_events_stages.cc
 pfs_events_statements.cc
 pfs_events_transactions.cc
@@ -178,6 +183,8 @@ pfs_host.cc
 pfs_instr.cc
 pfs_instr_class.cc
 pfs_memory.cc
+pfs_prepared_stmt.cc
+pfs_program.cc
 pfs_server.cc
 pfs_setup_actor.cc
 pfs_setup_object.cc
@@ -206,6 +213,11 @@ table_ets_by_host_by_event_name.cc
 table_ets_by_thread_by_event_name.cc
 table_ets_by_user_by_event_name.cc
 table_ets_global_by_event_name.cc
+table_ees_by_account_by_error.cc
+table_ees_by_host_by_error.cc
+table_ees_by_user_by_error.cc
+table_ees_by_thread_by_error.cc
+table_ees_global_by_error.cc
 table_events_stages.cc
 table_events_statements.cc
 table_events_transactions.cc

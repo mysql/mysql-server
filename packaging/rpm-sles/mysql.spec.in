@@ -72,7 +72,7 @@
 %{?sles12:                %global systemd 1}
 %{!?_tmpfilesdir:         %global _tmpfilesdir /usr/lib/tmpfiles.d}
 
-%global min                   5.8.0
+%global min                   8.0.0
 
 Name:           mysql-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
@@ -145,11 +145,11 @@ Provides:       MySQL-server-advanced = %{version}-%{release}
 Obsoletes:      MySQL-server-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-server < %{version}-%{release}
 Requires:       mysql-commercial-client >= %{min}
-Requires:       mysql-commercial-common >= %{min}
+Requires:       mysql-commercial-common = %{version}-%{release}
 %else
 Provides:       MySQL-server = %{version}-%{release}
 Requires:       mysql-community-client >= %{min}
-Requires:       mysql-community-common >= %{min}
+Requires:       mysql-community-common = %{version}-%{release}
 %endif
 Obsoletes:      mysql-community-bench < 5.7.8
 Obsoletes:      community-mysql-bench
@@ -306,10 +306,10 @@ Group:          Applications/Databases
 Provides:       MySQL-embedded-advanced = %{version}-%{release}
 Obsoletes:      MySQL-embedded-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-embedded < %{version}-%{release}
-Requires:       mysql-commercial-common >= %{min}
+Requires:       mysql-commercial-common = %{version}-%{release}
 %else
 Provides:       MySQL-embedded = %{version}-%{release}
-Requires:       mysql-community-common >= %{min}
+Requires:       mysql-community-common = %{version}-%{release}
 %endif
 Obsoletes:      mariadb-embedded
 Obsoletes:      MySQL-embedded < %{version}-%{release}
@@ -563,6 +563,7 @@ fi
 %doc release/Docs/INFO_BIN*
 %doc release/support-files/my-default.cnf
 %attr(644, root, root) %{_mandir}/man1/innochecksum.1*
+%attr(644, root, root) %{_mandir}/man1/ibd2sdi.1*
 %attr(644, root, root) %{_mandir}/man1/my_print_defaults.1*
 %attr(644, root, root) %{_mandir}/man1/myisam_ftdump.1*
 %attr(644, root, root) %{_mandir}/man1/myisamchk.1*
@@ -894,6 +895,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
+* Thu Jun 05 2016 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.0-0.1
+- Change the version number to 8.0.0
+- Add manual page for ibd2sdi utility
+
 * Fri Jun 03 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.8.0-0.1
 - Add example component to test package
 - Add test_udf_services.so plugin

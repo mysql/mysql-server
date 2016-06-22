@@ -34184,6 +34184,7 @@ CHARSET_INFO my_charset_sjis_japanese_ci=
     "sjis_japanese_ci",	/* name */
     "",			/* comment    */
     NULL,		/* tailoring */
+    NULL,		/* coll_param */
     ctype_sjis,
     to_lower_sjis,
     to_upper_sjis,
@@ -34218,6 +34219,7 @@ CHARSET_INFO my_charset_sjis_bin=
     "sjis_bin",		/* name */
     "",			/* comment    */
     NULL,		/* tailoring */
+    NULL,		/* coll_param */
     ctype_sjis,
     to_lower_sjis,
     to_upper_sjis,

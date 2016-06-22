@@ -73,7 +73,7 @@ class PFS_buffer_default_array
 public:
   typedef T value_type;
 
-  value_type *allocate(pfs_dirty_state *dirty_state, size_t max)
+  value_type *allocate(pfs_dirty_state *dirty_state)
   {
     size_t index;
     size_t monotonic;
@@ -84,11 +84,11 @@ public:
       return NULL;
 
     monotonic= PFS_atomic::add_u32(& m_monotonic.m_u32, 1);
-    monotonic_max= monotonic + max;
+    monotonic_max= monotonic + m_max;
 
-    do
+    while (monotonic < monotonic_max)
     {
-      index= monotonic % max;
+      index= monotonic % m_max;
       pfs= m_ptr + index;
 
       if (pfs->m_lock.free_to_dirty(dirty_state))
@@ -97,7 +97,6 @@ public:
       }
       monotonic= PFS_atomic::add_u32(& m_monotonic.m_u32, 1);
     }
-    while (monotonic < monotonic_max);
 
     m_full= true;
     return NULL;
@@ -109,9 +108,20 @@ public:
     m_full= false;
   }
 
+  T* get_first()
+  {
+    return m_ptr;
+  }
+
+  T* get_last()
+  {
+    return m_ptr + m_max;
+  }
+
   bool m_full;
   PFS_cacheline_uint32 m_monotonic;
   T * m_ptr;
+  size_t m_max;
   /** Container. */
   PFS_opaque_container *m_container;
 };
@@ -126,16 +136,16 @@ public:
     : m_builtin_class(klass)
   {}
 
-  int alloc_array(array_type *array, size_t size)
+  int alloc_array(array_type *array)
   {
     array->m_ptr= NULL;
     array->m_full= true;
     array->m_monotonic.m_u32= 0;
 
-    if (size > 0)
+    if (array->m_max > 0)
     {
       array->m_ptr= PFS_MALLOC_ARRAY(m_builtin_class,
-                                     size, sizeof(T), T, MYF(MY_ZEROFILL));
+                                     array->m_max, sizeof(T), T, MYF(MY_ZEROFILL));
       if (array->m_ptr == NULL)
         return 1;
       array->m_full= false;
@@ -143,10 +153,12 @@ public:
     return 0;
   }
 
-  void free_array(array_type *array, size_t size)
+  void free_array(array_type *array)
   {
+    DBUG_ASSERT(array->m_max > 0);
+
     PFS_FREE_ARRAY(m_builtin_class,
-                   size, sizeof(T), array->m_ptr);
+                   array->m_max, sizeof(T), array->m_ptr);
     array->m_ptr= NULL;
   }
 
@@ -174,6 +186,7 @@ public:
   {
     m_array.m_full= true;
     m_array.m_ptr= NULL;
+    m_array.m_max= 0;
     m_array.m_monotonic.m_u32= 0;
     m_lost= 0;
     m_max= 0;
@@ -184,10 +197,11 @@ public:
   {
     if (max_size > 0)
     {
-      int rc= m_allocator->alloc_array(& m_array, max_size);
+      m_array.m_max= max_size;
+      int rc= m_allocator->alloc_array(& m_array);
       if (rc != 0)
       {
-        m_allocator->free_array(& m_array, max_size);
+        m_allocator->free_array(& m_array);
         return 1;
       }
       m_max= max_size;
@@ -198,7 +212,7 @@ public:
 
   void cleanup()
   {
-    m_allocator->free_array(& m_array, m_max);
+    m_allocator->free_array(& m_array);
   }
 
   ulong get_row_count() const
@@ -247,8 +261,8 @@ public:
 
   void apply(function_type fct)
   {
-    value_type *pfs= m_array.m_ptr;
-    value_type *pfs_last= pfs + m_max;
+    value_type *pfs= m_array.get_first();
+    value_type *pfs_last= m_array.get_last();
 
     while (pfs < pfs_last)
     {
@@ -262,8 +276,8 @@ public:
 
   void apply_all(function_type fct)
   {
-    value_type *pfs= m_array.m_ptr;
-    value_type *pfs_last= pfs + m_max;
+    value_type *pfs= m_array.get_first();
+    value_type *pfs_last= m_array.get_last();
 
     while (pfs < pfs_last)
     {
@@ -274,8 +288,8 @@ public:
 
   void apply(processor_type & proc)
   {
-    value_type *pfs= m_array.m_ptr;
-    value_type *pfs_last= pfs + m_max;
+    value_type *pfs= m_array.get_first();
+    value_type *pfs_last= m_array.get_last();
 
     while (pfs < pfs_last)
     {
@@ -289,8 +303,8 @@ public:
 
   void apply_all(processor_type & proc)
   {
-    value_type *pfs= m_array.m_ptr;
-    value_type *pfs_last= pfs + m_max;
+    value_type *pfs= m_array.get_first();
+    value_type *pfs_last= m_array.get_last();
 
     while (pfs < pfs_last)
     {
@@ -327,8 +341,8 @@ public:
   value_type *sanitize(value_type *unsafe)
   {
     intptr offset;
-    value_type *pfs= m_array.m_ptr;
-    value_type *pfs_last= pfs + m_max;
+    value_type *pfs= m_array.get_first();
+    value_type *pfs_last= m_array.get_last();
 
     if ((pfs <= unsafe) &&
         (unsafe < pfs_last))
@@ -348,9 +362,9 @@ private:
   {
     DBUG_ASSERT(index <= m_max);
 
-    value_type *pfs_first= m_array.m_ptr;
+    value_type *pfs_first= m_array.get_first();
     value_type *pfs= pfs_first + index;
-    value_type *pfs_last= pfs_first + m_max;
+    value_type *pfs_last= m_array.get_last();
 
     while (pfs < pfs_last)
     {
@@ -462,6 +476,7 @@ public:
     }
 
     DBUG_ASSERT(m_max_page_count <= PFS_PAGE_COUNT);
+    DBUG_ASSERT(0 < m_last_page_size);
     DBUG_ASSERT(m_last_page_size <= PFS_PAGE_SIZE);
 
     native_mutex_init(& m_critical_section, NULL);
@@ -483,7 +498,7 @@ public:
       page= m_pages[i];
       if (page != NULL)
       {
-        m_allocator->free_array(page, PFS_PAGE_SIZE);
+        m_allocator->free_array(page);
         delete page;
         m_pages[i]= NULL;
       }
@@ -524,7 +539,6 @@ public:
     uint monotonic;
     uint monotonic_max;
     uint current_page_count;
-    uint page_logical_size;
     value_type *pfs;
     array_type *array;
 
@@ -558,8 +572,7 @@ public:
 
         if (array != NULL)
         {
-          page_logical_size= get_page_logical_size(index);
-          pfs= array->allocate(dirty_state, page_logical_size);
+          pfs= array->allocate(dirty_state);
           if (pfs != NULL)
           {
             /* Keep a pointer to the parent page, for deallocate(). */
@@ -645,10 +658,11 @@ public:
           array= new array_type();
           builtin_memory_scalable_buffer.count_alloc(sizeof (array_type));
 
-          int rc= m_allocator->alloc_array(array, PFS_PAGE_SIZE);
+          array->m_max= get_page_logical_size(current_page_count);
+          int rc= m_allocator->alloc_array(array);
           if (rc != 0)
           {
-            m_allocator->free_array(array, PFS_PAGE_SIZE);
+            m_allocator->free_array(array);
             delete array;
             builtin_memory_scalable_buffer.count_free(sizeof (array_type));
             m_lost++;
@@ -675,8 +689,7 @@ public:
       }
 
       DBUG_ASSERT(array != NULL);
-      page_logical_size= get_page_logical_size(current_page_count);
-      pfs= array->allocate(dirty_state, page_logical_size);
+      pfs= array->allocate(dirty_state);
       if (pfs != NULL)
       {
         /* Keep a pointer to the parent page, for deallocate(). */
@@ -752,8 +765,8 @@ public:
       page= m_pages[i];
       if (page != NULL)
       {
-        pfs= page->m_ptr;
-        pfs_last= pfs + PFS_PAGE_SIZE;
+        pfs= page->get_first();
+        pfs_last= page->get_last();
 
         while (pfs < pfs_last)
         {
@@ -779,8 +792,8 @@ public:
       page= m_pages[i];
       if (page != NULL)
       {
-        pfs= page->m_ptr;
-        pfs_last= pfs + PFS_PAGE_SIZE;
+        pfs= page->get_first();
+        pfs_last= page->get_last();
 
         while (pfs < pfs_last)
         {
@@ -803,8 +816,8 @@ public:
       page= m_pages[i];
       if (page != NULL)
       {
-        pfs= page->m_ptr;
-        pfs_last= pfs + PFS_PAGE_SIZE;
+        pfs= page->get_first();
+        pfs_last= page->get_last();
 
         while (pfs < pfs_last)
         {
@@ -830,8 +843,8 @@ public:
       page= m_pages[i];
       if (page != NULL)
       {
-        pfs= page->m_ptr;
-        pfs_last= pfs + PFS_PAGE_SIZE;
+        pfs= page->get_first();
+        pfs_last= page->get_last();
 
         while (pfs < pfs_last)
         {
@@ -851,6 +864,12 @@ public:
     if (page != NULL)
     {
       uint index_2= index % PFS_PAGE_SIZE;
+
+      if (index_2 >= page->m_max)
+      {
+        return NULL;
+      }
+
       value_type *pfs= page->m_ptr + index_2;
 
       if (pfs->m_lock.is_populated())
@@ -879,8 +898,15 @@ public:
       return NULL;
     }
 
-    *has_more= true;
     uint index_2= index % PFS_PAGE_SIZE;
+
+    if (index_2 >= page->m_max)
+    {
+      *has_more= false;
+      return NULL;
+    }
+
+    *has_more= true;
     value_type *pfs= page->m_ptr + index_2;
 
     if (pfs->m_lock.is_populated())
@@ -904,8 +930,8 @@ public:
       page= m_pages[i];
       if (page != NULL)
       {
-        pfs= page->m_ptr;
-        pfs_last= pfs + PFS_PAGE_SIZE;
+        pfs= page->get_first();
+        pfs_last= page->get_last();
 
         if ((pfs <= unsafe) &&
             (unsafe < pfs_last))
@@ -928,6 +954,7 @@ private:
   {
     if (page_index + 1 < m_max_page_count)
       return PFS_PAGE_SIZE;
+    DBUG_ASSERT(page_index + 1 == m_max_page_count);
     return m_last_page_size;
   }
 
@@ -942,7 +969,7 @@ private:
     value_type *pfs;
     value_type *pfs_last;
 
-    do
+    while (index_1 < PFS_PAGE_COUNT)
     {
       page= m_pages[index_1];
 
@@ -952,9 +979,9 @@ private:
         return NULL;
       }
 
-      pfs_first= page->m_ptr;
+      pfs_first= page->get_first();
       pfs= pfs_first + index_2;
-      pfs_last= pfs_first + PFS_PAGE_SIZE;
+      pfs_last= page->get_last();
 
       while (pfs < pfs_last)
       {
@@ -971,7 +998,6 @@ private:
       index_1++;
       index_2= 0;
     }
-    while (index_1 < PFS_PAGE_COUNT);
 
     index= static_cast<uint>(m_max);
     return NULL;
@@ -1280,7 +1306,7 @@ private:
     value_type *record= NULL;
     DBUG_ASSERT(partition_index < PFS_PARTITION_COUNT);
 
-    do
+    while (partition_index < PFS_PARTITION_COUNT)
     {
       sub_iterator_type sub_iterator= m_partitions[partition_index]->iterate(sub_index);
       record= sub_iterator.scan_next(found_sub_index);
@@ -1294,7 +1320,6 @@ private:
       partition_index++;
       sub_index= 0;
     }
-    while (partition_index < PFS_PARTITION_COUNT);
 
     *found_partition= PFS_PARTITION_COUNT;
     *found_sub_index= 0;
@@ -1369,7 +1394,7 @@ typedef PFS_cond_container::iterator_type PFS_cond_iterator;
 extern PFS_cond_container global_cond_container;
 
 #ifdef USE_SCALABLE
-typedef PFS_buffer_scalable_container<PFS_file, 1024, 1024> PFS_file_container;
+typedef PFS_buffer_scalable_container<PFS_file, 4 * 1024, 4 * 1024> PFS_file_container;
 #else
 typedef PFS_buffer_container<PFS_file> PFS_file_container;
 #endif
@@ -1417,7 +1442,7 @@ typedef PFS_table_container::iterator_type PFS_table_iterator;
 extern PFS_table_container global_table_container;
 
 #ifdef USE_SCALABLE
-typedef PFS_buffer_scalable_container<PFS_table_share, 1024, 1024> PFS_table_share_container;
+typedef PFS_buffer_scalable_container<PFS_table_share, 4 * 1024, 4 * 1024> PFS_table_share_container;
 #else
 typedef PFS_buffer_container<PFS_table_share> PFS_table_share_container;
 #endif
@@ -1425,7 +1450,7 @@ typedef PFS_table_share_container::iterator_type PFS_table_share_iterator;
 extern PFS_table_share_container global_table_share_container;
 
 #ifdef USE_SCALABLE
-typedef PFS_buffer_scalable_container<PFS_table_share_index, 1024, 1024> PFS_table_share_index_container;
+typedef PFS_buffer_scalable_container<PFS_table_share_index, 8 * 1024, 8 * 1024> PFS_table_share_index_container;
 #else
 typedef PFS_buffer_container<PFS_table_share_index> PFS_table_share_index_container;
 #endif
@@ -1433,7 +1458,7 @@ typedef PFS_table_share_index_container::iterator_type PFS_table_share_index_ite
 extern PFS_table_share_index_container global_table_share_index_container;
 
 #ifdef USE_SCALABLE
-typedef PFS_buffer_scalable_container<PFS_table_share_lock, 1024, 1024> PFS_table_share_lock_container;
+typedef PFS_buffer_scalable_container<PFS_table_share_lock, 4 * 1024, 4 * 1024> PFS_table_share_lock_container;
 #else
 typedef PFS_buffer_container<PFS_table_share_lock> PFS_table_share_lock_container;
 #endif
@@ -1463,14 +1488,15 @@ public:
   PFS_stage_stat *m_instr_class_stages_array;
   PFS_statement_stat *m_instr_class_statements_array;
   PFS_transaction_stat *m_instr_class_transactions_array;
+  PFS_error_stat *m_instr_class_errors_array;
   PFS_memory_stat *m_instr_class_memory_array;
 };
 
 class PFS_account_allocator
 {
 public:
-  int alloc_array(PFS_account_array *array, size_t size);
-  void free_array(PFS_account_array *array, size_t size);
+  int alloc_array(PFS_account_array *array);
+  void free_array(PFS_account_array *array);
 };
 
 #ifdef USE_SCALABLE
@@ -1494,14 +1520,15 @@ public:
   PFS_stage_stat *m_instr_class_stages_array;
   PFS_statement_stat *m_instr_class_statements_array;
   PFS_transaction_stat *m_instr_class_transactions_array;
+  PFS_error_stat *m_instr_class_errors_array;
   PFS_memory_stat *m_instr_class_memory_array;
 };
 
 class PFS_host_allocator
 {
 public:
-  int alloc_array(PFS_host_array *array, size_t size);
-  void free_array(PFS_host_array *array, size_t size);
+  int alloc_array(PFS_host_array *array);
+  void free_array(PFS_host_array *array);
 };
 
 #ifdef USE_SCALABLE
@@ -1525,6 +1552,7 @@ public:
   PFS_stage_stat *m_instr_class_stages_array;
   PFS_statement_stat *m_instr_class_statements_array;
   PFS_transaction_stat *m_instr_class_transactions_array;
+  PFS_error_stat *m_instr_class_errors_array;
   PFS_memory_stat *m_instr_class_memory_array;
 
   PFS_events_waits *m_waits_history_array;
@@ -1543,8 +1571,8 @@ public:
 class PFS_thread_allocator
 {
 public:
-  int alloc_array(PFS_thread_array *array, size_t size);
-  void free_array(PFS_thread_array *array, size_t size);
+  int alloc_array(PFS_thread_array *array);
+  void free_array(PFS_thread_array *array);
 };
 
 #ifdef USE_SCALABLE
@@ -1568,14 +1596,15 @@ public:
   PFS_stage_stat *m_instr_class_stages_array;
   PFS_statement_stat *m_instr_class_statements_array;
   PFS_transaction_stat *m_instr_class_transactions_array;
+  PFS_error_stat *m_instr_class_errors_array;
   PFS_memory_stat *m_instr_class_memory_array;
 };
 
 class PFS_user_allocator
 {
 public:
-  int alloc_array(PFS_user_array *array, size_t size);
-  void free_array(PFS_user_array *array, size_t size);
+  int alloc_array(PFS_user_array *array);
+  void free_array(PFS_user_array *array);
 };
 
 #ifdef USE_SCALABLE

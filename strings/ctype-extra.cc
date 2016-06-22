@@ -6489,6 +6489,7 @@ CHARSET_INFO compiled_charsets[] = {
   "dec8_swedish_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_dec8_swedish_ci,                   /* ctype         */
   to_lower_dec8_swedish_ci,                /* lower         */
   to_upper_dec8_swedish_ci,                /* upper         */
@@ -6522,6 +6523,7 @@ CHARSET_INFO compiled_charsets[] = {
   "cp850_general_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_cp850_general_ci,                   /* ctype         */
   to_lower_cp850_general_ci,                /* lower         */
   to_upper_cp850_general_ci,                /* upper         */
@@ -6555,6 +6557,7 @@ CHARSET_INFO compiled_charsets[] = {
   "latin1_german1_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_latin1_german1_ci,                   /* ctype         */
   to_lower_latin1_german1_ci,                /* lower         */
   to_upper_latin1_german1_ci,                /* upper         */
@@ -6588,6 +6591,7 @@ CHARSET_INFO compiled_charsets[] = {
   "hp8_english_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_hp8_english_ci,                   /* ctype         */
   to_lower_hp8_english_ci,                /* lower         */
   to_upper_hp8_english_ci,                /* upper         */
@@ -6621,6 +6625,7 @@ CHARSET_INFO compiled_charsets[] = {
   "koi8r_general_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_koi8r_general_ci,                   /* ctype         */
   to_lower_koi8r_general_ci,                /* lower         */
   to_upper_koi8r_general_ci,                /* upper         */
@@ -6654,6 +6659,7 @@ CHARSET_INFO compiled_charsets[] = {
   "latin2_general_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_latin2_general_ci,                   /* ctype         */
   to_lower_latin2_general_ci,                /* lower         */
   to_upper_latin2_general_ci,                /* upper         */
@@ -6687,6 +6693,7 @@ CHARSET_INFO compiled_charsets[] = {
   "swe7_swedish_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_swe7_swedish_ci,                   /* ctype         */
   to_lower_swe7_swedish_ci,                /* lower         */
   to_upper_swe7_swedish_ci,                /* upper         */
@@ -6720,6 +6727,7 @@ CHARSET_INFO compiled_charsets[] = {
   "ascii_general_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_ascii_general_ci,                   /* ctype         */
   to_lower_ascii_general_ci,                /* lower         */
   to_upper_ascii_general_ci,                /* upper         */
@@ -6753,6 +6761,7 @@ CHARSET_INFO compiled_charsets[] = {
   "cp1251_bulgarian_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_cp1251_bulgarian_ci,                   /* ctype         */
   to_lower_cp1251_bulgarian_ci,                /* lower         */
   to_upper_cp1251_bulgarian_ci,                /* upper         */
@@ -6786,6 +6795,7 @@ CHARSET_INFO compiled_charsets[] = {
   "latin1_danish_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_latin1_danish_ci,                   /* ctype         */
   to_lower_latin1_danish_ci,                /* lower         */
   to_upper_latin1_danish_ci,                /* upper         */
@@ -6819,6 +6829,7 @@ CHARSET_INFO compiled_charsets[] = {
   "hebrew_general_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_hebrew_general_ci,                   /* ctype         */
   to_lower_hebrew_general_ci,                /* lower         */
   to_upper_hebrew_general_ci,                /* upper         */
@@ -6852,6 +6863,7 @@ CHARSET_INFO compiled_charsets[] = {
   "latin7_estonian_cs",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_latin7_estonian_cs,                   /* ctype         */
   to_lower_latin7_estonian_cs,                /* lower         */
   to_upper_latin7_estonian_cs,                /* upper         */
@@ -6885,6 +6897,7 @@ CHARSET_INFO compiled_charsets[] = {
   "latin2_hungarian_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_latin2_hungarian_ci,                   /* ctype         */
   to_lower_latin2_hungarian_ci,                /* lower         */
   to_upper_latin2_hungarian_ci,                /* upper         */
@@ -6918,6 +6931,7 @@ CHARSET_INFO compiled_charsets[] = {
   "koi8u_general_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_koi8u_general_ci,                   /* ctype         */
   to_lower_koi8u_general_ci,                /* lower         */
   to_upper_koi8u_general_ci,                /* upper         */
@@ -6951,6 +6965,7 @@ CHARSET_INFO compiled_charsets[] = {
   "cp1251_ukrainian_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_cp1251_ukrainian_ci,                   /* ctype         */
   to_lower_cp1251_ukrainian_ci,                /* lower         */
   to_upper_cp1251_ukrainian_ci,                /* upper         */
@@ -6984,6 +6999,7 @@ CHARSET_INFO compiled_charsets[] = {
   "greek_general_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_greek_general_ci,                   /* ctype         */
   to_lower_greek_general_ci,                /* lower         */
   to_upper_greek_general_ci,                /* upper         */
@@ -7017,6 +7033,7 @@ CHARSET_INFO compiled_charsets[] = {
   "cp1250_general_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_cp1250_general_ci,                   /* ctype         */
   to_lower_cp1250_general_ci,                /* lower         */
   to_upper_cp1250_general_ci,                /* upper         */
@@ -7050,6 +7067,7 @@ CHARSET_INFO compiled_charsets[] = {
   "latin2_croatian_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_latin2_croatian_ci,                   /* ctype         */
   to_lower_latin2_croatian_ci,                /* lower         */
   to_upper_latin2_croatian_ci,                /* upper         */
@@ -7083,6 +7101,7 @@ CHARSET_INFO compiled_charsets[] = {
   "cp1257_lithuanian_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_cp1257_lithuanian_ci,                   /* ctype         */
   to_lower_cp1257_lithuanian_ci,                /* lower         */
   to_upper_cp1257_lithuanian_ci,                /* upper         */
@@ -7116,6 +7135,7 @@ CHARSET_INFO compiled_charsets[] = {
   "latin5_turkish_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_latin5_turkish_ci,                   /* ctype         */
   to_lower_latin5_turkish_ci,                /* lower         */
   to_upper_latin5_turkish_ci,                /* upper         */
@@ -7149,6 +7169,7 @@ CHARSET_INFO compiled_charsets[] = {
   "armscii8_general_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_armscii8_general_ci,                   /* ctype         */
   to_lower_armscii8_general_ci,                /* lower         */
   to_upper_armscii8_general_ci,                /* upper         */
@@ -7182,6 +7203,7 @@ CHARSET_INFO compiled_charsets[] = {
   "cp866_general_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_cp866_general_ci,                   /* ctype         */
   to_lower_cp866_general_ci,                /* lower         */
   to_upper_cp866_general_ci,                /* upper         */
@@ -7215,6 +7237,7 @@ CHARSET_INFO compiled_charsets[] = {
   "keybcs2_general_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_keybcs2_general_ci,                   /* ctype         */
   to_lower_keybcs2_general_ci,                /* lower         */
   to_upper_keybcs2_general_ci,                /* upper         */
@@ -7248,6 +7271,7 @@ CHARSET_INFO compiled_charsets[] = {
   "macce_general_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_macce_general_ci,                   /* ctype         */
   to_lower_macce_general_ci,                /* lower         */
   to_upper_macce_general_ci,                /* upper         */
@@ -7281,6 +7305,7 @@ CHARSET_INFO compiled_charsets[] = {
   "macroman_general_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_macroman_general_ci,                   /* ctype         */
   to_lower_macroman_general_ci,                /* lower         */
   to_upper_macroman_general_ci,                /* upper         */
@@ -7314,6 +7339,7 @@ CHARSET_INFO compiled_charsets[] = {
   "cp852_general_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_cp852_general_ci,                   /* ctype         */
   to_lower_cp852_general_ci,                /* lower         */
   to_upper_cp852_general_ci,                /* upper         */
@@ -7347,6 +7373,7 @@ CHARSET_INFO compiled_charsets[] = {
   "latin7_general_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_latin7_general_ci,                   /* ctype         */
   to_lower_latin7_general_ci,                /* lower         */
   to_upper_latin7_general_ci,                /* upper         */
@@ -7380,6 +7407,7 @@ CHARSET_INFO compiled_charsets[] = {
   "latin7_general_cs",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_latin7_general_cs,                   /* ctype         */
   to_lower_latin7_general_cs,                /* lower         */
   to_upper_latin7_general_cs,                /* upper         */
@@ -7413,6 +7441,7 @@ CHARSET_INFO compiled_charsets[] = {
   "macce_bin",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_macce_bin,                   /* ctype         */
   to_lower_macce_bin,                /* lower         */
   to_upper_macce_bin,                /* upper         */
@@ -7446,6 +7475,7 @@ CHARSET_INFO compiled_charsets[] = {
   "cp1250_croatian_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_cp1250_croatian_ci,                   /* ctype         */
   to_lower_cp1250_croatian_ci,                /* lower         */
   to_upper_cp1250_croatian_ci,                /* upper         */
@@ -7479,6 +7509,7 @@ CHARSET_INFO compiled_charsets[] = {
   "latin1_general_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_latin1_general_ci,                   /* ctype         */
   to_lower_latin1_general_ci,                /* lower         */
   to_upper_latin1_general_ci,                /* upper         */
@@ -7512,6 +7543,7 @@ CHARSET_INFO compiled_charsets[] = {
   "latin1_general_cs",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_latin1_general_cs,                   /* ctype         */
   to_lower_latin1_general_cs,                /* lower         */
   to_upper_latin1_general_cs,                /* upper         */
@@ -7545,6 +7577,7 @@ CHARSET_INFO compiled_charsets[] = {
   "cp1251_bin",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_cp1251_bin,                   /* ctype         */
   to_lower_cp1251_bin,                /* lower         */
   to_upper_cp1251_bin,                /* upper         */
@@ -7578,6 +7611,7 @@ CHARSET_INFO compiled_charsets[] = {
   "cp1251_general_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_cp1251_general_ci,                   /* ctype         */
   to_lower_cp1251_general_ci,                /* lower         */
   to_upper_cp1251_general_ci,                /* upper         */
@@ -7611,6 +7645,7 @@ CHARSET_INFO compiled_charsets[] = {
   "cp1251_general_cs",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_cp1251_general_cs,                   /* ctype         */
   to_lower_cp1251_general_cs,                /* lower         */
   to_upper_cp1251_general_cs,                /* upper         */
@@ -7644,6 +7679,7 @@ CHARSET_INFO compiled_charsets[] = {
   "macroman_bin",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_macroman_bin,                   /* ctype         */
   to_lower_macroman_bin,                /* lower         */
   to_upper_macroman_bin,                /* upper         */
@@ -7677,6 +7713,7 @@ CHARSET_INFO compiled_charsets[] = {
   "cp1256_general_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_cp1256_general_ci,                   /* ctype         */
   to_lower_cp1256_general_ci,                /* lower         */
   to_upper_cp1256_general_ci,                /* upper         */
@@ -7710,6 +7747,7 @@ CHARSET_INFO compiled_charsets[] = {
   "cp1257_bin",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_cp1257_bin,                   /* ctype         */
   to_lower_cp1257_bin,                /* lower         */
   to_upper_cp1257_bin,                /* upper         */
@@ -7743,6 +7781,7 @@ CHARSET_INFO compiled_charsets[] = {
   "cp1257_general_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_cp1257_general_ci,                   /* ctype         */
   to_lower_cp1257_general_ci,                /* lower         */
   to_upper_cp1257_general_ci,                /* upper         */
@@ -7776,6 +7815,7 @@ CHARSET_INFO compiled_charsets[] = {
   "armscii8_bin",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_armscii8_bin,                   /* ctype         */
   to_lower_armscii8_bin,                /* lower         */
   to_upper_armscii8_bin,                /* upper         */
@@ -7809,6 +7849,7 @@ CHARSET_INFO compiled_charsets[] = {
   "ascii_bin",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_ascii_bin,                   /* ctype         */
   to_lower_ascii_bin,                /* lower         */
   to_upper_ascii_bin,                /* upper         */
@@ -7842,6 +7883,7 @@ CHARSET_INFO compiled_charsets[] = {
   "cp1250_bin",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_cp1250_bin,                   /* ctype         */
   to_lower_cp1250_bin,                /* lower         */
   to_upper_cp1250_bin,                /* upper         */
@@ -7875,6 +7917,7 @@ CHARSET_INFO compiled_charsets[] = {
   "cp1256_bin",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_cp1256_bin,                   /* ctype         */
   to_lower_cp1256_bin,                /* lower         */
   to_upper_cp1256_bin,                /* upper         */
@@ -7908,6 +7951,7 @@ CHARSET_INFO compiled_charsets[] = {
   "cp866_bin",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_cp866_bin,                   /* ctype         */
   to_lower_cp866_bin,                /* lower         */
   to_upper_cp866_bin,                /* upper         */
@@ -7941,6 +7985,7 @@ CHARSET_INFO compiled_charsets[] = {
   "dec8_bin",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_dec8_bin,                   /* ctype         */
   to_lower_dec8_bin,                /* lower         */
   to_upper_dec8_bin,                /* upper         */
@@ -7974,6 +8019,7 @@ CHARSET_INFO compiled_charsets[] = {
   "greek_bin",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_greek_bin,                   /* ctype         */
   to_lower_greek_bin,                /* lower         */
   to_upper_greek_bin,                /* upper         */
@@ -8007,6 +8053,7 @@ CHARSET_INFO compiled_charsets[] = {
   "hebrew_bin",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_hebrew_bin,                   /* ctype         */
   to_lower_hebrew_bin,                /* lower         */
   to_upper_hebrew_bin,                /* upper         */
@@ -8040,6 +8087,7 @@ CHARSET_INFO compiled_charsets[] = {
   "hp8_bin",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_hp8_bin,                   /* ctype         */
   to_lower_hp8_bin,                /* lower         */
   to_upper_hp8_bin,                /* upper         */
@@ -8073,6 +8121,7 @@ CHARSET_INFO compiled_charsets[] = {
   "keybcs2_bin",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_keybcs2_bin,                   /* ctype         */
   to_lower_keybcs2_bin,                /* lower         */
   to_upper_keybcs2_bin,                /* upper         */
@@ -8106,6 +8155,7 @@ CHARSET_INFO compiled_charsets[] = {
   "koi8r_bin",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_koi8r_bin,                   /* ctype         */
   to_lower_koi8r_bin,                /* lower         */
   to_upper_koi8r_bin,                /* upper         */
@@ -8139,6 +8189,7 @@ CHARSET_INFO compiled_charsets[] = {
   "koi8u_bin",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_koi8u_bin,                   /* ctype         */
   to_lower_koi8u_bin,                /* lower         */
   to_upper_koi8u_bin,                /* upper         */
@@ -8172,6 +8223,7 @@ CHARSET_INFO compiled_charsets[] = {
   "latin2_bin",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_latin2_bin,                   /* ctype         */
   to_lower_latin2_bin,                /* lower         */
   to_upper_latin2_bin,                /* upper         */
@@ -8205,6 +8257,7 @@ CHARSET_INFO compiled_charsets[] = {
   "latin5_bin",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_latin5_bin,                   /* ctype         */
   to_lower_latin5_bin,                /* lower         */
   to_upper_latin5_bin,                /* upper         */
@@ -8238,6 +8291,7 @@ CHARSET_INFO compiled_charsets[] = {
   "latin7_bin",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_latin7_bin,                   /* ctype         */
   to_lower_latin7_bin,                /* lower         */
   to_upper_latin7_bin,                /* upper         */
@@ -8271,6 +8325,7 @@ CHARSET_INFO compiled_charsets[] = {
   "cp850_bin",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_cp850_bin,                   /* ctype         */
   to_lower_cp850_bin,                /* lower         */
   to_upper_cp850_bin,                /* upper         */
@@ -8304,6 +8359,7 @@ CHARSET_INFO compiled_charsets[] = {
   "cp852_bin",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_cp852_bin,                   /* ctype         */
   to_lower_cp852_bin,                /* lower         */
   to_upper_cp852_bin,                /* upper         */
@@ -8337,6 +8393,7 @@ CHARSET_INFO compiled_charsets[] = {
   "swe7_bin",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_swe7_bin,                   /* ctype         */
   to_lower_swe7_bin,                /* lower         */
   to_upper_swe7_bin,                /* upper         */
@@ -8370,6 +8427,7 @@ CHARSET_INFO compiled_charsets[] = {
   "geostd8_general_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_geostd8_general_ci,                   /* ctype         */
   to_lower_geostd8_general_ci,                /* lower         */
   to_upper_geostd8_general_ci,                /* upper         */
@@ -8403,6 +8461,7 @@ CHARSET_INFO compiled_charsets[] = {
   "geostd8_bin",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_geostd8_bin,                   /* ctype         */
   to_lower_geostd8_bin,                /* lower         */
   to_upper_geostd8_bin,                /* upper         */
@@ -8436,6 +8495,7 @@ CHARSET_INFO compiled_charsets[] = {
   "latin1_spanish_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_latin1_spanish_ci,                   /* ctype         */
   to_lower_latin1_spanish_ci,                /* lower         */
   to_upper_latin1_spanish_ci,                /* upper         */
@@ -8469,6 +8529,7 @@ CHARSET_INFO compiled_charsets[] = {
   "cp1250_polish_ci",                     /* coll name     */
   "",                       /* comment       */
   NULL,                       /* tailoring     */
+  NULL,                       /* coll_param    */
   ctype_cp1250_polish_ci,                   /* ctype         */
   to_lower_cp1250_polish_ci,                /* lower         */
   to_upper_cp1250_polish_ci,                /* upper         */
@@ -8502,6 +8563,7 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* coll name     */
   NULL,                       /* comment       */
   NULL,                       /* tailoging     */
+  NULL,                       /* coll_param    */
   NULL,                       /* ctype         */
   NULL,                       /* lower         */
   NULL,                       /* upper         */

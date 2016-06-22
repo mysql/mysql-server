@@ -30,7 +30,6 @@ mysql-@DEB_PRODUCTNAME@ (@DEB_SERVERVERSION@@DEB_PLATFORMRELEASE@) @DEB_CODENAME
 
   [ Lars Tangvald ]
   * Added keyring directory and plugin
-  * Added keyring_udf.so plugin to server
 
  -- Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>  Wed, 26 Aug 2015 15:20:12 +0530
 

@@ -1,6 +1,5 @@
 # Test needs myisam for some myisam specific testcases
 --source include/have_myisam.inc
--- source include/have_geometry.inc
 
 #
 # test of rtree (using with spatial data)

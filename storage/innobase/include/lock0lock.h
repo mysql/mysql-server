@@ -727,15 +727,9 @@ lock_table_has_locks(
 					held on records in this table or on the
 					table itself */
 
-/*********************************************************************//**
-A thread which wakes up threads whose lock wait may have lasted too long.
-@return a dummy parameter */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(lock_wait_timeout_thread)(
-/*=====================================*/
-	void*	arg);	/*!< in: a dummy parameter required by
-			os_thread_create */
+/** A thread which wakes up threads whose lock wait may have lasted too long. */
+void
+lock_wait_timeout_thread();
 
 /********************************************************************//**
 Releases a user OS thread waiting for a lock to be released, if the

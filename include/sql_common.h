@@ -189,7 +189,7 @@ void set_mysql_extended_error(MYSQL *mysql, int errcode, const char *sqlstate,
 
 /* client side of the pluggable authentication */
 struct st_plugin_vio_info;
-void mpvio_info(Vio *vio, struct st_plugin_vio_info *info);
+void mpvio_info(MYSQL_VIO vio, struct st_plugin_vio_info *info);
 int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
                     const char *data_plugin, const char *db);
 int mysql_client_plugin_init();

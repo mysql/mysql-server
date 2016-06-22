@@ -45,3 +45,7 @@ struct System_status_var* get_thd_status_var(THD *thd)
   return NULL;
 }
 
+unsigned int mysql_errno_to_sqlstate_index(unsigned int err)
+{
+  return 0;
+}

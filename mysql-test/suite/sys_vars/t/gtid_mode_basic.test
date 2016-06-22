@@ -110,6 +110,32 @@ set global gtid_mode = on_permissive;
 --error ER_CANT_SET_GTID_MODE
 set global gtid_mode = on;
 
+#
+# WL6591 Restore backup on existing GTID-aware server - make
+# GTID_PURGED settable always.
+# OWNED_GTIDs constraints: in-progress
+# transactions' gtids must not overlap with the assigned value.
+#
+RESET MASTER;
+--connect (con1,localhost,root,,,,)
+SET @@GTID_NEXT='11111111-1111-1111-1111-111111111111:1';
+BEGIN;
+
+--connection default
+--error ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS
+SET @@global.gtid_purged= '11111111-1111-1111-1111-111111111111:1-2';
+# --error 0
+SET @@global.gtid_purged= '11111111-1111-1111-1111-111111111111:2-2';
+--error ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS
+SET @@global.gtid_purged= '+11111111-1111-1111-1111-111111111111:1-1';
+# --error 0
+SET @@global.gtid_purged= '+11111111-1111-1111-1111-111111111111:3-3';
+SELECT @@global.gtid_purged;
+
+--connection con1
+ROLLBACK;
+
+--connection default
 
 # test gtid_mode changes with autocommit off
 

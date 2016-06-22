@@ -2366,7 +2366,7 @@ dict_stats_save(
 			ulint	j;
 
 			snprintf(stat_name, sizeof(stat_name),
-				    "n_diff_pfx%02lu", i + 1);
+				    "n_diff_pfx%02" ULINTPFS, i + 1);
 
 			/* craft a string that contains the column names */
 			snprintf(stat_description,

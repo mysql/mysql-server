@@ -3358,8 +3358,8 @@ innobase_check_gis_columns(
 	DBUG_ENTER("innobase_check_gis_columns");
 
 	for (uint key_num = 0;
-	     key_num < ha_alter_info->index_add_count;
-	     key_num++) {
+		key_num < ha_alter_info->index_add_count;
+		key_num++) {
 
 		const KEY&	key = ha_alter_info->key_info_buffer[
 			ha_alter_info->index_add_buffer[key_num]];

@@ -256,12 +256,14 @@ to it exist in any buffer pool list or hash table. Accessing pages by iterating
 over buffer pool chunks is not considered here. Furthermore, assert that no
 buffer pool locks except for LRU list mutex and page hash are held.
 @param[in]	bpage			pointer to a buffer pool page
-@param[in]	hold_block_mutex	flag whether holding block mutex */
+@param[in]	hold_block_mutex	flag whether holding block mutex
+@param[in]	hold_zip_free_mutex	flag whether holding zip free mutex */
 UNIV_INLINE
 bool
 buf_page_is_private(
 	const buf_page_t*	bpage,
-	bool			hold_block_mutex)
+	bool			hold_block_mutex,
+	bool			hold_zip_free_mutex)
 {
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 
@@ -274,7 +276,9 @@ buf_page_is_private(
 		ut_a(!mutex_own(buf_page_get_mutex(bpage)));
 	}
 	ut_a(!mutex_own(&buf_pool->free_list_mutex));
-	ut_a(!mutex_own(&buf_pool->zip_free_mutex));
+	if (!hold_zip_free_mutex) {
+		ut_a(!mutex_own(&buf_pool->zip_free_mutex));
+	}
 	ut_a(!mutex_own(&buf_pool->zip_hash_mutex));
 
 	return(true);
@@ -309,28 +313,19 @@ buf_page_set_state(
 		break;
 	case BUF_BLOCK_NOT_USED:
 		ut_a(state == BUF_BLOCK_READY_FOR_USE);
-		ut_a(!bpage->in_page_hash);
-		ut_a(!bpage->in_zip_hash);
-		ut_a(!bpage->in_flush_list);
-		ut_a(!bpage->in_free_list);
-		ut_a(!bpage->in_LRU_list);
-		ut_a(!mutex_own(buf_page_get_mutex(bpage)));
-		ut_a(!mutex_own(&buf_pool->free_list_mutex));
-		ut_a(!mutex_own(&buf_pool->zip_hash_mutex));
+		ut_a(buf_page_is_private(bpage, false, false));
 		break;
 	case BUF_BLOCK_READY_FOR_USE:
 		ut_a(state == BUF_BLOCK_MEMORY
 		     || state == BUF_BLOCK_FILE_PAGE
 		     || state == BUF_BLOCK_NOT_USED);
-		if (state == BUF_BLOCK_FILE_PAGE) {
-			ut_a(buf_page_is_private(bpage, true));
-		} else {
-			ut_a(buf_page_is_private(bpage, false));
-		}
+		ut_a(buf_page_is_private(bpage,
+					 state == BUF_BLOCK_FILE_PAGE,
+					 state == BUF_BLOCK_NOT_USED));
 		break;
 	case BUF_BLOCK_MEMORY:
 		ut_a(state == BUF_BLOCK_NOT_USED);
-		ut_a(buf_page_is_private(bpage, false));
+		ut_a(buf_page_is_private(bpage, false, true));
 		break;
 	case BUF_BLOCK_FILE_PAGE:
 		ut_a(state == BUF_BLOCK_NOT_USED

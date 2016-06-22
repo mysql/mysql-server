@@ -51,7 +51,7 @@ class Shared_dictionary_cache
 private:
   // We have 223 collations, 41 character sets and 4535 spatial
   // reference systems after initializing the server, as of MySQL
-  // 5.8.0.
+  // 8.0.0.
   static const size_t collation_capacity= 256;
   static const size_t charset_capacity= 64;
   static const size_t event_capacity= 256;

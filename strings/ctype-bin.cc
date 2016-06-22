@@ -574,6 +574,7 @@ CHARSET_INFO my_charset_bin =
     "binary",			/* name          */
     "",				/* comment       */
     NULL,			/* tailoring     */
+    NULL,			/* coll_param    */
     ctype_bin,			/* ctype         */
     bin_char_array,		/* to_lower      */
     bin_char_array,		/* to_upper      */

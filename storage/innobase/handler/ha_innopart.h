@@ -254,6 +254,8 @@ public:
 	@param[in]	altered_table	TABLE object for new version of table.
 	@param[in,out]	ha_alter_info	Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
+	@param[in,out]	new_dd_tab	dd::Table object for the new version of
+	the table. To be adjusted by this call.
 	@retval	true	Failure.
 	@retval	false	Success. */
 	bool

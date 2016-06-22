@@ -921,6 +921,7 @@ CHARSET_INFO my_charset_tis620_thai_ci=
     "tis620_thai_ci",	/* name      */
     "",			/* comment   */
     NULL,		/* tailoring */
+    NULL,		/* coll_param */
     ctype_tis620,
     to_lower_tis620,
     to_upper_tis620,
@@ -955,6 +956,7 @@ CHARSET_INFO my_charset_tis620_bin=
     "tis620_bin",	/* name      */
     "",			/* comment   */
     NULL,		/* tailoring */
+    NULL,		/* coll_param */
     ctype_tis620,
     to_lower_tis620,
     to_upper_tis620,

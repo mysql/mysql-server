@@ -188,7 +188,6 @@
 #cmakedefine HAVE_FAKE_PAUSE_INSTRUCTION 1
 #cmakedefine HAVE_HMT_PRIORITY_INSTRUCTION 1
 #cmakedefine HAVE_ABI_CXA_DEMANGLE 1
-#cmakedefine HAVE_BSS_START 1
 #cmakedefine HAVE_BUILTIN_UNREACHABLE 1
 #cmakedefine HAVE_BUILTIN_EXPECT 1
 #cmakedefine HAVE_BUILTIN_STPCPY 1
@@ -313,6 +312,7 @@
 #cmakedefine DISABLE_PSI_SP 1
 #cmakedefine DISABLE_PSI_PS 1
 #cmakedefine DISABLE_PSI_IDLE 1
+#cmakedefine DISABLE_PSI_ERROR 1
 #cmakedefine DISABLE_PSI_STATEMENT_DIGEST 1
 #cmakedefine DISABLE_PSI_METADATA 1
 #cmakedefine DISABLE_PSI_MEMORY 1

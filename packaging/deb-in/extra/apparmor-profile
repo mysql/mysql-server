@@ -18,7 +18,7 @@
   network tcp,
 
   /etc/hosts.allow r,
-  /etc/hosts.deny
+  /etc/hosts.deny r,
 
 # Allow config access
   /etc/mysql/** r,

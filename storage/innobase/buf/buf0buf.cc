@@ -61,6 +61,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "sync0sync.h"
 #include "buf0dump.h"
 #include "ut0new.h"
+#include "os0thread-create.h"
 #include <new>
 #include <map>
 #include <sstream>
@@ -2373,17 +2374,10 @@ calc_buf_pool_size:
 }
 
 /** This is the thread for resizing buffer pool. It waits for an event and
-when waked up either performs a resizing and sleeps again.
-@param[in]	arg	a dummy parameter required by os_thread_create.
-@return	this function does not return, calls os_thread_exit()
-*/
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(buf_resize_thread)(
-	void*	arg MY_ATTRIBUTE((unused)))
+when waked up either performs a resizing and sleeps again. */
+void
+buf_resize_thread()
 {
-	my_thread_init();
-
 	srv_buf_resize_thread_active = true;
 
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
@@ -2409,11 +2403,6 @@ DECLARE_THREAD(buf_resize_thread)(
 	}
 
 	srv_buf_resize_thread_active = false;
-
-	my_thread_end();
-	os_thread_exit();
-
-	OS_THREAD_DUMMY_RETURN;
 }
 
 /********************************************************************//**
@@ -2808,6 +2797,9 @@ buf_pool_watch_unset(
 
 	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, page_id);
 	rw_lock_x_lock(hash_lock);
+
+	/* page_hash can be changed. */
+	hash_lock = buf_page_hash_lock_x_confirm(hash_lock, buf_pool, page_id);
 
 	/* The page must exist because buf_pool_watch_set()
 	increments buf_fix_count. */
@@ -4911,10 +4903,11 @@ buf_read_page_handle_error(
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 	const ibool	uncompressed = (buf_page_get_state(bpage)
 					== BUF_BLOCK_FILE_PAGE);
-	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, bpage->id);
 
 	/* First unfix and release lock on the bpage */
 	mutex_enter(&buf_pool->LRU_list_mutex);
+
+	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, bpage->id);
 
 	rw_lock_x_lock(hash_lock);
 

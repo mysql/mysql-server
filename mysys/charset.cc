@@ -455,6 +455,12 @@ get_collation_name_alias(const char *name, char *buf, size_t bufsize)
     my_snprintf(buf, bufsize, "utf8_%s", name + 8);
     return buf;
   }
+  /* CLDR's tailoring data for Norwegian is same as Danish */
+  if (!native_strncasecmp(name, "utf8mb4_no_800_", 15))
+  {
+    my_snprintf(buf, bufsize, "utf8mb4_da_800_%s", name + 15);
+    return buf;
+  }
   return NULL;
 }
 

@@ -39,6 +39,7 @@
 #include <my_user.h>           // parse_user
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/mysql_sp.h"
+#include "mysql/psi/mysql_error.h"
 
 /**
   @page stored_programs Stored Programs
@@ -2433,10 +2434,19 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
       errors are not catchable by SQL handlers) or the connection has been
       killed during execution.
     */
+#ifdef HAVE_PSI_ERROR_INTERFACE
+    uint error_num= 0;
+    if (thd->is_error())
+      error_num= thd->get_stmt_da()->mysql_errno(); 
+#endif
     if (!thd->is_fatal_error && !thd->killed &&
         thd->sp_runtime_ctx->handle_sql_condition(thd, &ip, i))
     {
       err_status= FALSE;
+#ifdef HAVE_PSI_ERROR_INTERFACE
+      if (error_num)
+        MYSQL_LOG_ERROR(error_num, PSI_ERROR_OPERATION_HANDLED);
+#endif
     }
 
     /* Reset sp_rcontext::end_partial_result_set flag. */

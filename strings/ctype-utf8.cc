@@ -9602,6 +9602,7 @@ CHARSET_INFO my_charset_utf8_general_ci=
     "utf8_general_ci",  /* name         */
     "",                 /* comment      */
     NULL,               /* tailoring    */
+    NULL,               /* coll_param   */
     ctype_utf8,         /* ctype        */
     to_lower_utf8,      /* to_lower     */
     to_upper_utf8,      /* to_upper     */
@@ -9637,6 +9638,7 @@ CHARSET_INFO my_charset_utf8_tolower_ci=
     "utf8_tolower_ci",  /* name         */
     "",                 /* comment      */
     NULL,               /* tailoring    */
+    NULL,               /* coll_param   */
     ctype_utf8,         /* ctype        */
     to_lower_utf8,      /* to_lower     */
     to_upper_utf8,      /* to_upper     */
@@ -9672,6 +9674,7 @@ CHARSET_INFO my_charset_utf8_general_mysql500_ci=
   "utf8_general_mysql500_ci",                   /* name             */
   "",                                           /* comment          */
   NULL,                                         /* tailoring        */
+  NULL,                                         /* coll_param       */
   ctype_utf8,                                   /* ctype            */
   to_lower_utf8,                                /* to_lower         */
   to_upper_utf8,                                /* to_upper         */
@@ -9708,6 +9711,7 @@ CHARSET_INFO my_charset_utf8_bin=
     "utf8_bin",         /* name         */
     "",                 /* comment      */
     NULL,               /* tailoring    */
+    NULL,               /* coll_param   */
     ctype_utf8,         /* ctype        */
     to_lower_utf8,      /* to_lower     */
     to_upper_utf8,      /* to_upper     */
@@ -11013,6 +11017,7 @@ CHARSET_INFO my_charset_filename=
     "filename",         /* name         */
     "",                 /* comment      */
     NULL,               /* tailoring    */
+    NULL,               /* coll_param   */
     ctype_utf8,         /* ctype        */
     to_lower_utf8,      /* to_lower     */
     to_upper_utf8,      /* to_upper     */
@@ -11979,6 +11984,7 @@ CHARSET_INFO my_charset_utf8mb4_general_ci=
   MY_UTF8MB4_GENERAL_CI,/* name       */
   "UTF-8 Unicode",    /* comment      */
   NULL,               /* tailoring    */
+  NULL,               /* coll_param   */
   ctype_utf8mb4,      /* ctype        */
   to_lower_utf8mb4,   /* to_lower     */
   to_upper_utf8mb4,   /* to_upper     */
@@ -12015,6 +12021,7 @@ CHARSET_INFO my_charset_utf8mb4_bin=
   MY_UTF8MB4_BIN,     /* name         */
   "UTF-8 Unicode",    /* comment      */
   NULL,               /* tailoring    */
+  NULL,               /* coll_param   */
   ctype_utf8mb4,      /* ctype        */
   to_lower_utf8mb4,   /* to_lower     */
   to_upper_utf8mb4,   /* to_upper     */

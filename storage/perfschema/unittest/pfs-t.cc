@@ -89,6 +89,7 @@ static void test_bootstrap()
   PSI_statement_bootstrap *statement_boot;
   PSI_transaction_bootstrap *transaction_boot;
   PSI_memory_bootstrap *memory_boot;
+  PSI_error_bootstrap *error_boot;
   PFS_global_param param;
 
   diag("test_bootstrap");
@@ -133,6 +134,7 @@ static void test_bootstrap()
   param.m_metadata_lock_sizing= 0;
   param.m_max_digest_length= 0;
   param.m_max_sql_text_length= 0;
+  param.m_error_sizing= 0;
 
   param.m_hints.m_table_definition_cache = 100;
   param.m_hints.m_table_open_cache       = 100;
@@ -146,7 +148,8 @@ static void test_bootstrap()
                                 & cond_boot, & file_boot, & socket_boot,
                                 & table_boot, & mdl_boot, & idle_boot,
                                 & stage_boot, & statement_boot, & transaction_boot,
-                                & memory_boot);
+                                & memory_boot,
+                                & error_boot);
   ok(thread_boot != NULL, "thread_boot");
   ok(mutex_boot != NULL, "mutex_boot");
   ok(rwlock_boot != NULL, "rwlock_boot");
@@ -160,6 +163,7 @@ static void test_bootstrap()
   ok(statement_boot != NULL, "statement_boot");
   ok(transaction_boot != NULL, "transaction_boot");
   ok(memory_boot != NULL, "memory_boot");
+  ok(error_boot != NULL, "error_boot");
   ok(thread_boot->get_interface != NULL, "thread_boot->get_interface");
   ok(mutex_boot->get_interface != NULL, "mutex_boot->get_interface");
   ok(rwlock_boot->get_interface != NULL, "rwlock_boot->get_interface");
@@ -173,6 +177,7 @@ static void test_bootstrap()
   ok(statement_boot->get_interface != NULL, "statement_boot->get_interface");
   ok(transaction_boot->get_interface != NULL, "transaction_boot->get_interface");
   ok(memory_boot->get_interface != NULL, "memory_boot->get_interface");
+  ok(error_boot->get_interface != NULL, "error_boot->get_interface");
 
   psi= thread_boot->get_interface(0);
   ok(psi == NULL, "no thread version 0");
@@ -265,6 +270,13 @@ static void test_bootstrap()
   psi_2= memory_boot->get_interface(PSI_MEMORY_VERSION_2);
   ok(psi_2 == NULL, "memory version 2");
 
+  psi= error_boot->get_interface(0);
+  ok(psi == NULL, "no error version 0");
+  psi= error_boot->get_interface(PSI_ERROR_VERSION_1);
+  ok(psi != NULL, "error version 1");
+  psi_2= error_boot->get_interface(PSI_ERROR_VERSION_2);
+  ok(psi_2 == NULL, "error version 2");
+
   shutdown_performance_schema();
 }
 
@@ -283,7 +295,8 @@ static void load_perfschema(PSI_thread_service_t ** thread_service,
   PSI_stage_service_t ** stage_service,
   PSI_statement_service_t ** statement_service,
   PSI_transaction_service_t ** transaction_service,
-  PSI_memory_service_t ** memory_service)
+  PSI_memory_service_t ** memory_service,
+  PSI_error_service_t ** error_service)
 {
   PSI_thread_bootstrap *thread_boot;
   PSI_mutex_bootstrap *mutex_boot;
@@ -298,6 +311,7 @@ static void load_perfschema(PSI_thread_service_t ** thread_service,
   PSI_statement_bootstrap *statement_boot;
   PSI_transaction_bootstrap *transaction_boot;
   PSI_memory_bootstrap *memory_boot;
+  PSI_error_bootstrap *error_boot;
   PFS_global_param param;
 
   memset(& param, 0xFF, sizeof(param));
@@ -340,6 +354,7 @@ static void load_perfschema(PSI_thread_service_t ** thread_service,
   param.m_metadata_lock_sizing= 10;
   param.m_max_digest_length= 0;
   param.m_max_sql_text_length= 1000;
+  param.m_error_sizing= 0;
 
   param.m_hints.m_table_definition_cache = 100;
   param.m_hints.m_table_open_cache       = 100;
@@ -354,7 +369,8 @@ static void load_perfschema(PSI_thread_service_t ** thread_service,
                                 & cond_boot, & file_boot, & socket_boot,
                                 & table_boot, & mdl_boot, & idle_boot,
                                 & stage_boot, & statement_boot, & transaction_boot,
-                                & memory_boot);
+                                & memory_boot,
+                                & error_boot);
   *thread_service= (PSI_thread_service_t *)thread_boot->get_interface(PSI_THREAD_VERSION_1);
   *mutex_service= (PSI_mutex_service_t *)mutex_boot->get_interface(PSI_MUTEX_VERSION_1);
   *rwlock_service= (PSI_rwlock_service_t *)rwlock_boot->get_interface(PSI_RWLOCK_VERSION_1);
@@ -368,6 +384,7 @@ static void load_perfschema(PSI_thread_service_t ** thread_service,
   *statement_service= (PSI_statement_service_t *)statement_boot->get_interface(PSI_STATEMENT_VERSION_1);
   *transaction_service= (PSI_transaction_service_t *)transaction_boot->get_interface(PSI_TRANSACTION_VERSION_1);
   *memory_service= (PSI_memory_service_t *)memory_boot->get_interface(PSI_MEMORY_VERSION_1);
+  *error_service= (PSI_error_service_t *)error_boot->get_interface(PSI_ERROR_VERSION_1);
 
   /* Reset every consumer to a known state */
   flag_global_instrumentation= true;
@@ -389,6 +406,7 @@ static void test_bad_registration()
   PSI_statement_service_t *statement_service;
   PSI_transaction_service_t *transaction_service;
   PSI_memory_service_t *memory_service;
+  PSI_error_service_t *error_service;
 
   diag("test_bad_registration");
 
@@ -397,7 +415,8 @@ static void test_bad_registration()
                   & file_service, & socket_service,
                   & table_service, & mdl_service, & idle_service,
                   & stage_service, & statement_service, & transaction_service,
-                  & memory_service);
+                  & memory_service,
+                  & error_service);
 
   /*
     Test that length('wait/synch/mutex/' (17) + category + '/' (1)) < 32
@@ -839,6 +858,7 @@ static void test_init_disabled()
   PSI_statement_service_t *statement_service;
   PSI_transaction_service_t *transaction_service;
   PSI_memory_service_t *memory_service;
+  PSI_error_service_t *error_service;
 
   diag("test_init_disabled");
 
@@ -847,7 +867,8 @@ static void test_init_disabled()
                   & file_service, & socket_service,
                   & table_service, & mdl_service, & idle_service,
                   & stage_service, & statement_service, & transaction_service,
-                  & memory_service);
+                  & memory_service,
+                  & error_service);
 
   PSI_mutex_key mutex_key_A;
   PSI_mutex_info all_mutex[]=
@@ -1294,6 +1315,7 @@ static void test_locker_disabled()
   PSI_statement_service_t *statement_service;
   PSI_transaction_service_t *transaction_service;
   PSI_memory_service_t *memory_service;
+  PSI_error_service_t *error_service;
 
   diag("test_locker_disabled");
 
@@ -1302,7 +1324,8 @@ static void test_locker_disabled()
                   & file_service, & socket_service,
                   & table_service, & mdl_service, & idle_service,
                   & stage_service, & statement_service, & transaction_service,
-                  & memory_service);
+                  & memory_service,
+                  & error_service);
 
   PSI_mutex_key mutex_key_A;
   PSI_mutex_info all_mutex[]=
@@ -1646,6 +1669,7 @@ static void test_file_instrumentation_leak()
   PSI_statement_service_t *statement_service;
   PSI_transaction_service_t *transaction_service;
   PSI_memory_service_t *memory_service;
+  PSI_error_service_t *error_service;
 
   diag("test_file_instrumentation_leak");
 
@@ -1654,7 +1678,8 @@ static void test_file_instrumentation_leak()
                   & file_service, & socket_service,
                   & table_service, & mdl_service, & idle_service,
                   & stage_service, & statement_service, & transaction_service,
-                  & memory_service);
+                  & memory_service,
+                  & error_service);
 
   PSI_file_key file_key_A;
   PSI_file_key file_key_B;
@@ -1787,6 +1812,7 @@ static void test_event_name_index()
   PSI_statement_service_t *statement_service;
   PSI_transaction_service_t *transaction_service;
   PSI_memory_service_t *memory_service;
+  PSI_error_service_t *error_service;
   PSI_thread_bootstrap *thread_boot;
   PSI_mutex_bootstrap *mutex_boot;
   PSI_rwlock_bootstrap *rwlock_boot;
@@ -1800,6 +1826,7 @@ static void test_event_name_index()
   PSI_statement_bootstrap *statement_boot;
   PSI_transaction_bootstrap *transaction_boot;
   PSI_memory_bootstrap *memory_boot;
+  PSI_error_bootstrap *error_boot;
   PFS_global_param param;
 
   diag("test_event_name_index");
@@ -1842,6 +1869,7 @@ static void test_event_name_index()
   param.m_metadata_lock_sizing= 10;
   param.m_max_digest_length= 0;
   param.m_max_sql_text_length= 1000;
+  param.m_error_sizing= 0;
 
   param.m_mutex_sizing= 0;
   param.m_rwlock_sizing= 0;
@@ -1868,7 +1896,8 @@ static void test_event_name_index()
                                 & file_boot, & socket_boot,
                                 & table_boot, & mdl_boot, & idle_boot,
                                 & stage_boot, & statement_boot, & transaction_boot,
-                                & memory_boot);
+                                & memory_boot,
+                                & error_boot);
   ok(thread_boot != NULL, "thread_bootstrap");
   ok(mutex_boot != NULL, "mutex_bootstrap");
   ok(rwlock_boot != NULL, "rwlock_bootstrap");
@@ -1882,6 +1911,7 @@ static void test_event_name_index()
   ok(statement_boot != NULL, "statement_bootstrap");
   ok(transaction_boot != NULL, "transaction_bootstrap");
   ok(memory_boot != NULL, "memory_bootstrap");
+  ok(error_boot != NULL, "error_bootstrap");
   thread_service= (PSI_thread_service_t*) thread_boot->get_interface(PSI_THREAD_VERSION_1);
   ok(thread_service != NULL, "thread_service");
   mutex_service= (PSI_mutex_service_t*) mutex_boot->get_interface(PSI_MUTEX_VERSION_1);
@@ -1908,6 +1938,8 @@ static void test_event_name_index()
   ok(transaction_service != NULL, "transaction_service");
   memory_service= (PSI_memory_service_t*) memory_boot->get_interface(PSI_MEMORY_VERSION_1);
   ok(memory_service != NULL, "memory_service");
+  error_service= (PSI_error_service_t*) error_boot->get_interface(PSI_MEMORY_VERSION_1);
+  ok(error_service != NULL, "error_service");
 
   PFS_mutex_class *mutex_class;
   PSI_mutex_key dummy_mutex_key_1;
@@ -2016,6 +2048,7 @@ static void test_memory_instruments()
   PSI_statement_service_t *statement_service;
   PSI_transaction_service_t *transaction_service;
   PSI_memory_service_t *memory_service;
+  PSI_error_service_t *error_service;
   PSI_thread *owner;
 
   diag("test_memory_instruments");
@@ -2025,7 +2058,8 @@ static void test_memory_instruments()
                   & file_service, & socket_service,
                   & table_service, & mdl_service, & idle_service,
                   & stage_service, & statement_service, & transaction_service,
-                  & memory_service);
+                  & memory_service,
+                  & error_service);
 
   PSI_memory_key memory_key_A;
   PSI_memory_info all_memory[]=
@@ -2119,6 +2153,7 @@ static void test_leaks()
   PSI_statement_bootstrap *statement_boot;
   PSI_transaction_bootstrap *transaction_boot;
   PSI_memory_bootstrap *memory_boot;
+  PSI_error_bootstrap *error_boot;
   PFS_global_param param;
 
   /* Allocate everything, to make sure cleanup does not forget anything. */
@@ -2161,6 +2196,7 @@ static void test_leaks()
   param.m_statement_stack_sizing= 10;
   param.m_max_digest_length= 1000;
   param.m_max_sql_text_length= 1000;
+  param.m_error_sizing= 1000;
 
   param.m_hints.m_table_definition_cache = 100;
   param.m_hints.m_table_open_cache       = 100;
@@ -2174,7 +2210,8 @@ static void test_leaks()
                                 & file_boot, & socket_boot,
                                 & table_boot, & mdl_boot, & idle_boot,
                                 & stage_boot, & statement_boot, & transaction_boot,
-                                & memory_boot);
+                                & memory_boot,
+                                & error_boot);
   ok(thread_boot != NULL, "thread bootstrap");
   ok(mutex_boot != NULL, "mutex bootstrap");
   ok(rwlock_boot != NULL, "rwlock bootstrap");
@@ -2188,6 +2225,7 @@ static void test_leaks()
   ok(statement_boot != NULL, "statement bootstrap");
   ok(transaction_boot != NULL, "transaction bootstrap");
   ok(memory_boot != NULL, "memory bootstrap");
+  ok(error_boot != NULL, "error bootstrap");
   shutdown_performance_schema();
 
   /* Leaks will be reported with valgrind */

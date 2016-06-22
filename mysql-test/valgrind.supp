@@ -508,6 +508,14 @@
    fun:dlopen*
 }
 
+{
+   dlopen memory leak
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:_dlerror_run
+   fun:dlsym
+}
 #
 # Pthread doesn't free all thread specific memory before program exists
 #
