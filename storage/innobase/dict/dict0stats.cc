@@ -264,8 +264,8 @@ dict_stats_table_clone_create(
 /*==========================*/
 	const dict_table_t*	table)	/*!< in: table whose stats to copy */
 {
-	size_t		heap_size;
-	dict_index_t*	index;
+	size_t			heap_size;
+	const dict_index_t*	index;
 
 	/* Estimate the size needed for the table and all of its indexes */
 
@@ -273,9 +273,9 @@ dict_stats_table_clone_create(
 	heap_size += sizeof(dict_table_t);
 	heap_size += strlen(table->name.m_name) + 1;
 
-	for (index = dict_table_get_first_index(table);
+	for (index = table->first_index();
 	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
+	     index = index->next()) {
 
 		if (dict_stats_should_ignore_index(index)) {
 			continue;
@@ -320,9 +320,9 @@ dict_stats_table_clone_create(
 
 	UT_LIST_INIT(t->indexes, &dict_index_t::indexes);
 
-	for (index = dict_table_get_first_index(table);
+	for (index = table->first_index();
 	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
+	     index = index->next()) {
 
 		if (dict_stats_should_ignore_index(index)) {
 			continue;
@@ -444,9 +444,9 @@ dict_stats_empty_table(
 
 	dict_index_t*	index;
 
-	for (index = dict_table_get_first_index(table);
+	for (index = table->first_index();
 	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
+	     index = index->next()) {
 
 		if (index->type & DICT_FTS) {
 			continue;
@@ -528,9 +528,9 @@ dict_stats_assert_initialized(
 	UNIV_MEM_ASSERT_RW_ABORT(&table->stats_bg_flag,
 			   sizeof(table->stats_bg_flag));
 
-	for (dict_index_t* index = dict_table_get_first_index(table);
+	for (const dict_index_t* index = table->first_index();
 	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
+	     index = index->next()) {
 
 		if (!dict_stats_should_ignore_index(index)) {
 			dict_stats_assert_initialized_index(index);
@@ -563,14 +563,14 @@ dict_stats_copy(
 	dst->stat_modified_counter = src->stat_modified_counter;
 
 	dict_index_t*	dst_idx;
-	dict_index_t*	src_idx;
+	const dict_index_t*	src_idx;
 
-	for (dst_idx = dict_table_get_first_index(dst),
-	     src_idx = dict_table_get_first_index(src);
+	for (dst_idx = dst->first_index(),
+	     src_idx = src->first_index();
 	     dst_idx != NULL;
-	     dst_idx = dict_table_get_next_index(dst_idx),
+	     dst_idx = dst_idx->next(),
 	     (src_idx != NULL
-	      && (src_idx = dict_table_get_next_index(src_idx)))) {
+	      && (src_idx = src_idx->next()))) {
 
 		if (dict_stats_should_ignore_index(dst_idx)) {
 			continue;
@@ -579,9 +579,9 @@ dict_stats_copy(
 		ut_ad(!dict_index_is_ibuf(dst_idx));
 
 		if (!INDEX_EQ(src_idx, dst_idx)) {
-			for (src_idx = dict_table_get_first_index(src);
+			for (src_idx = src->first_index();
 			     src_idx != NULL;
-			     src_idx = dict_table_get_next_index(src_idx)) {
+			     src_idx = src_idx->next()) {
 
 				if (INDEX_EQ(src_idx, dst_idx)) {
 					break;
@@ -769,7 +769,7 @@ dict_stats_update_transient(
 	/* Find out the sizes of the indexes and how many different values
 	for the key they approximately have */
 
-	index = dict_table_get_first_index(table);
+	index = table->first_index();
 
 	if (dict_table_is_discarded(table)) {
 		/* Nothing to do. */
@@ -784,7 +784,7 @@ dict_stats_update_transient(
 		return;
 	}
 
-	for (; index != NULL; index = dict_table_get_next_index(index)) {
+	for (; index != NULL; index = index->next()) {
 
 		ut_ad(!dict_index_is_ibuf(index));
 
@@ -803,7 +803,7 @@ dict_stats_update_transient(
 		sum_of_index_sizes += index->stat_index_size;
 	}
 
-	index = dict_table_get_first_index(table);
+	index = table->first_index();
 
 	table->stat_n_rows = index->stat_n_diff_key_vals[
 		dict_index_get_n_unique(index) - 1];
@@ -2075,7 +2075,7 @@ dict_stats_update_persistent(
 
 	/* analyze the clustered index first */
 
-	index = dict_table_get_first_index(table);
+	index = table->first_index();
 
 	if (index == NULL
 	    || dict_index_is_corrupted(index)
@@ -2102,9 +2102,7 @@ dict_stats_update_persistent(
 
 	table->stat_sum_of_other_index_sizes = 0;
 
-	for (index = dict_table_get_next_index(index);
-	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
+	for (index = index->next(); index != NULL; index = index->next()) {
 
 		ut_ad(!dict_index_is_ibuf(index));
 
@@ -2334,9 +2332,9 @@ dict_stats_save(
 	stat_name). This is why below we sort the indexes by name and then
 	for each index, do the mods ordered by stat_name. */
 
-	for (index = dict_table_get_first_index(table);
+	for (index = table->first_index();
 	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
+	     index = index->next()) {
 
 		indexes[index->name] = index;
 	}
@@ -2573,9 +2571,9 @@ dict_stats_fetch_index_stats_step(
 			/* search for index in table's indexes whose name
 			matches data; the fetched index name is in data,
 			has no terminating '\0' and has length len */
-			for (index = dict_table_get_first_index(table);
+			for (index = table->first_index();
 			     index != NULL;
-			     index = dict_table_get_next_index(index)) {
+			     index = index->next()) {
 
 				if (index->is_committed()
 				    && strlen(index->name) == len

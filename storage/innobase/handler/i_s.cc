@@ -3867,8 +3867,8 @@ i_s_fts_index_table_fill(
 		DBUG_RETURN(0);
 	}
 
-	for (index = dict_table_get_first_index(user_table);
-	     index; index = dict_table_get_next_index(index)) {
+	for (index = user_table->first_index();
+	     index; index = index->next()) {
 		if (index->type & DICT_FTS) {
 			i_s_fts_index_table_fill_one_index(index, thd, tables);
 		}

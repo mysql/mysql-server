@@ -294,12 +294,12 @@ trx_undo_read_v_idx_low(
 
 	ut_ad(num_idx > 0);
 
-	dict_index_t*	clust_index = dict_table_get_first_index(table);
+	const dict_index_t*	clust_index = table->first_index();
 
 	for (ulint i = 0; i < num_idx; i++) {
 		space_index_t	id = mach_read_next_compressed(&ptr);
 		ulint		pos = mach_read_next_compressed(&ptr);
-		dict_index_t*	index = dict_table_get_next_index(clust_index);
+		const dict_index_t*	index = clust_index->next();
 
 		while (index != NULL) {
 			/* Return if we find a matching index.
@@ -315,7 +315,7 @@ trx_undo_read_v_idx_low(
 				return(old_ptr + len);
 			}
 
-			index = dict_table_get_next_index(index);
+			index = index->next();
 		}
 	}
 

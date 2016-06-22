@@ -862,7 +862,7 @@ ib_create_cursor_with_clust_index(
 	dict_table_t*	table,
 	trx_t*		trx)
 {
-	dict_index_t*	index = dict_table_get_first_index(table);
+	dict_index_t*	index = table->first_index();
 
 	return(ib_create_cursor(ib_crsr, table, index, trx));
 }
@@ -895,7 +895,7 @@ ib_cursor_open_index_using_name(
 	ut_a(table != NULL);
 
 	/* The first index is always the cluster index. */
-	index = dict_table_get_first_index(table);
+	index = table->first_index();
 
 	/* Traverse the user defined indexes. */
 	while (index != NULL) {
@@ -970,7 +970,7 @@ ib_cursor_open_table(
 	/* It can happen that another thread has created the table but
 	not the cluster index or it's a broken table definition. Refuse to
 	open if that's the case. */
-	if (table != NULL && dict_table_get_first_index(table) == NULL) {
+	if (table != NULL && table->first_index() == NULL) {
 		table = NULL;
 	}
 
@@ -1371,7 +1371,7 @@ ib_update_col(
 {
 	ulint		data_len;
 	dict_table_t*	table = cursor->prebuilt->table;
-	dict_index_t*	index = dict_table_get_first_index(table);
+	dict_index_t*	index = table->first_index();
 
 	data_len = dfield_get_len(dfield);
 
@@ -1630,7 +1630,7 @@ ib_delete_row(
 	upd_field_t*	upd_field;
 	ib_bool_t	page_format;
 	dict_table_t*	table = cursor->prebuilt->table;
-	dict_index_t*	index = dict_table_get_first_index(table);
+	dict_index_t*	index = table->first_index();
 
 	n_cols = dict_index_get_n_ordering_defined_by_user(index);
 	ib_tpl = ib_key_tuple_new(index, n_cols);
@@ -1692,7 +1692,7 @@ ib_cursor_delete_row(
 	ib_cursor_t*	cursor = (ib_cursor_t*) ib_crsr;
 	row_prebuilt_t*	prebuilt = cursor->prebuilt;
 
-	index = dict_table_get_first_index(prebuilt->index->table);
+	index = prebuilt->index->table->first_index();
 
 	/* Check whether this is a secondary index cursor */
 	if (index != prebuilt->index) {
@@ -2706,7 +2706,7 @@ ib_tuple_get_cluster_key(
 	ib_tuple_t*	src_tuple = (ib_tuple_t*) ib_src_tpl;
 	dict_index_t*	clust_index;
 
-	clust_index = dict_table_get_first_index(cursor->prebuilt->table);
+	clust_index = cursor->prebuilt->table->first_index();
 
 	/* We need to ensure that the src tuple belongs to the same table
 	as the open cursor and that it's not a tuple for a cluster index. */
@@ -2805,7 +2805,7 @@ ib_clust_search_tuple_create(
 	ib_cursor_t*	cursor = (ib_cursor_t*) ib_crsr;
 	dict_index_t*	index;
 
-	index = dict_table_get_first_index(cursor->prebuilt->table);
+	index = cursor->prebuilt->table->first_index();
 
 	n_cols = dict_index_get_n_ordering_defined_by_user(index);
 	return(ib_key_tuple_new(index, n_cols));
@@ -2823,7 +2823,7 @@ ib_clust_read_tuple_create(
 	ib_cursor_t*	cursor = (ib_cursor_t*) ib_crsr;
 	dict_index_t*	index;
 
-	index = dict_table_get_first_index(cursor->prebuilt->table);
+	index = cursor->prebuilt->table->first_index();
 
 	n_cols = dict_table_get_n_cols(cursor->prebuilt->table);
 	return(ib_row_tuple_new(index, n_cols));

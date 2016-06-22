@@ -599,8 +599,8 @@ row_merge_buf_add(
 		} else {
 			/* Use callback to get the virtual column value */
 			if (dict_col_is_virtual(col)) {
-				dict_index_t*	clust_index
-					= dict_table_get_first_index(new_table);
+				const dict_index_t*	clust_index
+					= new_table->first_index();
 
 				row_field = innobase_get_computed_value(
 					row, v_col, clust_index,
@@ -1660,7 +1660,7 @@ row_merge_read_clustered_index(
 	trx_t*			trx,
 	struct TABLE*		table,
 	const dict_table_t*	old_table,
-	const dict_table_t*	new_table,
+	dict_table_t*		new_table,
 	bool			online,
 	dict_index_t**		index,
 	dict_index_t*		fts_sort_idx,
@@ -1800,7 +1800,7 @@ row_merge_read_clustered_index(
 	/* Find the clustered index and create a persistent cursor
 	based on that. */
 
-	clust_index = dict_table_get_first_index(old_table);
+	clust_index = const_cast<dict_table_t*>(old_table)->first_index();
 
 	btr_pcur_open_at_index_side(
 		true, clust_index, BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
@@ -3311,8 +3311,7 @@ row_merge_insert_index_tuples(
 				mrec, index, offsets, &n_ext, tuple_heap);
 		}
 
-		dict_index_t*	old_index
-			= dict_table_get_first_index(old_table);
+		const dict_index_t*	old_index = old_table->first_index();
 
 		if (dict_index_is_clust(index)
 		    && dict_index_is_online_ddl(old_index)) {
@@ -3529,7 +3528,7 @@ row_merge_drop_indexes(
 	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
 	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
-	index = dict_table_get_first_index(table);
+	index = table->first_index();
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(dict_index_get_online_status(index) == ONLINE_INDEX_COMPLETE);
 
@@ -3552,7 +3551,7 @@ row_merge_drop_indexes(
 		prepare_inplace_alter_table() take care of dropping
 		the indexes. */
 
-		while ((index = dict_table_get_next_index(index)) != NULL) {
+		while ((index = index->next()) != NULL) {
 			ut_ad(!dict_index_is_clust(index));
 
 			switch (dict_index_get_online_status(index)) {
@@ -3648,11 +3647,11 @@ row_merge_drop_indexes(
 	ut_ad(table->def_trx_id <= trx->id);
 	table->def_trx_id = trx->id;
 
-	next_index = dict_table_get_next_index(index);
+	next_index = index->next();
 
 	while ((index = next_index) != NULL) {
 		/* read the next pointer before freeing the index */
-		next_index = dict_table_get_next_index(index);
+		next_index = index->next();
 
 		ut_ad(!dict_index_is_clust(index));
 
@@ -4681,9 +4680,9 @@ func_exit:
 
 		if (error == DB_SUCCESS && old_table != new_table) {
 			for (const dict_index_t* index
-				     = dict_table_get_first_index(new_table);
+				     = new_table->first_index();
 			     index != NULL;
-			     index = dict_table_get_next_index(index)) {
+			     index = index->next()) {
 				row_merge_write_redo(index);
 			}
 		}

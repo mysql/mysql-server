@@ -833,7 +833,7 @@ row_create_prebuilt(
 	search_tuple_n_fields = 2 * (dict_table_get_n_cols(table)
 				     + dict_table_get_n_v_cols(table));
 
-	clust_index = dict_table_get_first_index(table);
+	clust_index = table->first_index();
 
 	/* Make sure that search_tuple is long enough for clustered index */
 	ut_a(2 * dict_table_get_n_cols(table) >= clust_index->n_fields);
@@ -887,8 +887,8 @@ row_create_prebuilt(
 	the INT key parts in InnoDB format.We need two such buffers
 	since both start and end keys are used in records_in_range(). */
 
-	for (temp_index = dict_table_get_first_index(table); temp_index;
-	     temp_index = dict_table_get_next_index(temp_index)) {
+	for (temp_index = table->first_index(); temp_index;
+	     temp_index = temp_index->next()) {
 		DBUG_EXECUTE_IF("innodb_srch_key_buffer_max_value",
 			ut_a(temp_index->n_user_defined_cols
 						== MAX_REF_PARTS););
@@ -1532,7 +1532,7 @@ row_insert_for_mysql_using_cursor(
 	row_mysql_to_innobase(node->row, prebuilt, mysql_rec);
 
 	/* Step-3: Append row-id index is not unique. */
-	dict_index_t*	clust_index = dict_table_get_first_index(node->table);
+	dict_index_t*	clust_index = node->table->first_index();
 
 	if (!dict_index_is_unique(clust_index)) {
 		dict_sys_write_row_id(
@@ -1662,7 +1662,7 @@ row_insert_for_mysql_using_ins_graph(
 
 	DBUG_EXECUTE_IF("mark_table_corrupted", {
 		/* Mark the table corrupted for the clustered index */
-		dict_index_t*	index = dict_table_get_first_index(table);
+		dict_index_t*	index = table->first_index();
 		ut_ad(dict_index_is_clust(index));
 		dict_set_corrupted(index); });
 
@@ -2206,7 +2206,7 @@ row_update_for_mysql_using_cursor(
 	dfield_t*	trx_id_field;
 
 	/* Step-1: Update row-id column if table doesn't have unique index. */
-	if (!dict_index_is_unique(dict_table_get_first_index(table))) {
+	if (!dict_index_is_unique(table->first_index())) {
 		/* Update the row_id column. */
 		dfield_t*	row_id_field;
 
@@ -2311,7 +2311,7 @@ row_del_upd_for_mysql_using_cursor(
 	starting delete/update action as this can result in btree structure
 	to change. */
 	thr = que_fork_get_first_thr(prebuilt->upd_graph);
-	clust_index = dict_table_get_first_index(prebuilt->table);
+	clust_index = prebuilt->table->first_index();
 	clust_index->last_ins_cur->release();
 
 	/* Step-1: Select the appropriate cursor that will help build
@@ -2452,7 +2452,7 @@ row_update_for_mysql_using_upd_graph(
 		(mem_heap_ator.allocate(sizeof(upd_cascade_t)))
 		upd_cascade_t(deque_mem_heap_t(mem_heap_ator));
 
-	clust_index = dict_table_get_first_index(table);
+	clust_index = table->first_index();
 
 	if (prebuilt->pcur->btr_cur.index == clust_index) {
 		btr_pcur_copy_stored_position(node->pcur, prebuilt->pcur);
@@ -2715,7 +2715,7 @@ row_delete_all_rows(
 	ut_ad(dict_table_is_temporary(table));
 	/* Step-0: If there is cached insert position along with mtr
 	commit it before starting delete/update action. */
-	dict_table_get_first_index(table)->last_ins_cur->release();
+	table->first_index()->last_ins_cur->release();
 
 	bool			found;
 	const page_size_t	page_size(
@@ -2876,7 +2876,7 @@ row_table_got_default_clust_index(
 {
 	const dict_index_t*	clust_index;
 
-	clust_index = dict_table_get_first_index(table);
+	clust_index = table->first_index();
 
 	return(dict_index_get_nth_col(clust_index, 0)->mtype == DATA_SYS);
 }
@@ -4489,9 +4489,9 @@ row_drop_table_for_mysql(
 			heap,
 			UT_LIST_GET_LEN(table->indexes) * sizeof *page_no));
 
-	for (dict_index_t* index = dict_table_get_first_index(table);
+	for (dict_index_t* index = table->first_index();
 	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
+	     index = index->next()) {
 		rw_lock_x_lock(dict_index_get_lock(index));
 		/* Save the page numbers so that we can restore them
 		if the operation fails. */
@@ -4626,9 +4626,9 @@ row_drop_table_for_mysql(
 		}
 	} else {
 		page_no = page_nos;
-		for (dict_index_t* index = dict_table_get_first_index(table);
+		for (dict_index_t* index = table->first_index();
 		     index != NULL;
-		     index = dict_table_get_next_index(index)) {
+		     index = index->next()) {
 			dict_drop_temporary_table_index(index, *page_no++);
 		}
 		err = DB_SUCCESS;
@@ -4750,9 +4750,9 @@ row_drop_table_for_mysql(
 
 		page_no = page_nos;
 
-		for (dict_index_t* index = dict_table_get_first_index(table);
+		for (dict_index_t* index = table->first_index();
 		     index != NULL;
-		     index = dict_table_get_next_index(index)) {
+		     index = index->next()) {
 			rw_lock_x_lock(dict_index_get_lock(index));
 			ut_a(index->page == FIL_NULL);
 			index->page = *page_no++;

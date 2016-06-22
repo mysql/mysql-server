@@ -78,8 +78,8 @@ btr_search_info_create(mem_heap_t* heap);
 @return ref_count value. */
 ulint
 btr_search_info_get_ref_count(
-	btr_search_t*	info,
-	dict_index_t*	index);
+	const btr_search_t*	info,
+	const dict_index_t*	index);
 
 /** Updates the search info.
 @param[in]	index	index of the cursor

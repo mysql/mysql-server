@@ -359,7 +359,7 @@ close_table:
 	} else {
 		ut_ad(!node->table->skip_alter_undo);
 
-		clust_index = dict_table_get_first_index(node->table);
+		clust_index = node->table->first_index();
 
 		if (clust_index != NULL) {
 			ptr = trx_undo_rec_get_row_ref(
@@ -472,10 +472,10 @@ row_undo_ins(
 
 	/* Iterate over all the indexes and undo the insert.*/
 
-	node->index = dict_table_get_first_index(node->table);
+	node->index = node->table->first_index();
 	ut_ad(dict_index_is_clust(node->index));
 	/* Skip the clustered index (the first index) */
-	node->index = dict_table_get_next_index(node->index);
+	node->index = node->index->next();
 
 	dict_table_skip_corrupt_index(node->index);
 

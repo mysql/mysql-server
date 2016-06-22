@@ -297,7 +297,7 @@ row_search_on_row_ref(
 	btr_pcur_t*		pcur,	/*!< out: persistent cursor, which must
 					be closed by the caller */
 	ulint			mode,	/*!< in: BTR_MODIFY_LEAF, ... */
-	const dict_table_t*	table,	/*!< in: table */
+	dict_table_t*		table,	/*!< in: table */
 	const dtuple_t*		ref,	/*!< in: row reference */
 	mtr_t*			mtr)	/*!< in/out: mtr */
 	MY_ATTRIBUTE((warn_unused_result));

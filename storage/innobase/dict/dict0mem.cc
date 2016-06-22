@@ -250,9 +250,9 @@ dict_mem_table_col_rename_low(
 			full_len - (prefix_len + from_len));
 
 		/* Replace the field names in every index. */
-		for (dict_index_t* index = dict_table_get_first_index(table);
+		for (dict_index_t* index = table->first_index();
 		     index != NULL;
-		     index = dict_table_get_next_index(index)) {
+		     index = index->next()) {
 			ulint	n_fields = dict_index_get_n_fields(index);
 
 			for (ulint i = 0; i < n_fields; i++) {
@@ -508,10 +508,9 @@ dict_mem_fill_vcol_from_v_indexes(
 	dict_vcol_set**		v_cols)
 {
 	/* virtual column can't be Primary Key, so start with secondary index */
-	for (dict_index_t* index = dict_table_get_next_index(
-			dict_table_get_first_index(table));
+	for (const dict_index_t* index = table->first_index()->next();
 	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
+	     index = index->next()) {
 
 		if (!dict_index_has_virtual(index)) {
 			continue;

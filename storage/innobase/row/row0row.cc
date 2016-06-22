@@ -811,7 +811,7 @@ row_build_row_ref(
 
 	table = index->table;
 
-	clust_index = dict_table_get_first_index(table);
+	clust_index = table->first_index();
 
 	ref_len = dict_index_get_n_unique(clust_index);
 
@@ -901,7 +901,7 @@ row_build_row_ref_in_tuple(
 	ut_ad(!dict_index_is_clust(index));
 	ut_a(index->table);
 
-	clust_index = dict_table_get_first_index(index->table);
+	clust_index = index->table->first_index();
 	ut_ad(clust_index);
 
 	if (!offsets) {
@@ -969,7 +969,7 @@ row_search_on_row_ref(
 	btr_pcur_t*		pcur,	/*!< out: persistent cursor, which must
 					be closed by the caller */
 	ulint			mode,	/*!< in: BTR_MODIFY_LEAF, ... */
-	const dict_table_t*	table,	/*!< in: table */
+	dict_table_t*		table,	/*!< in: table */
 	const dtuple_t*		ref,	/*!< in: row reference */
 	mtr_t*			mtr)	/*!< in/out: mtr */
 {
@@ -979,7 +979,7 @@ row_search_on_row_ref(
 
 	ut_ad(dtuple_check_typed(ref));
 
-	index = dict_table_get_first_index(table);
+	index = table->first_index();
 
 	ut_a(dtuple_get_n_fields(ref) == dict_index_get_n_unique(index));
 
@@ -1038,7 +1038,7 @@ row_get_clust_rec(
 
 	btr_pcur_close(&pcur);
 
-	*clust_index = dict_table_get_first_index(table);
+	*clust_index = table->first_index();
 
 	return(clust_rec);
 }

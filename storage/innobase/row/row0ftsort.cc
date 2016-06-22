@@ -1601,7 +1601,7 @@ row_fts_merge_insert(
 					    DICT_ERR_IGNORE_NONE);
 	ut_ad(aux_table != NULL);
 	dict_table_close(aux_table, FALSE, FALSE);
-	aux_index = dict_table_get_first_index(aux_table);
+	aux_index = aux_table->first_index();
 
 	FlushObserver* observer;
 	observer = psort_info[0].psort_common->trx->flush_observer;

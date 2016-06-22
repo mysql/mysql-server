@@ -962,6 +962,25 @@ struct dict_index_t{
 		ut_ad(committed || !(type & DICT_CLUSTERED));
 		uncommitted = !committed;
 	}
+
+	/** Get the next index.
+	@return	next index
+	@retval	NULL	if this was the last index */
+	const dict_index_t* next() const
+	{
+		const dict_index_t* next = UT_LIST_GET_NEXT(indexes, this);
+		ut_ad(magic_n == DICT_INDEX_MAGIC_N);
+		return(next);
+	}
+	/** Get the next index.
+	@return	next index
+	@retval	NULL	if this was the last index */
+	dict_index_t* next()
+	{
+		return(const_cast<dict_index_t*>(
+			const_cast<const dict_index_t*>(this)->next()));
+	}
+
 #endif /* !UNIV_HOTBACKUP */
 };
 
@@ -1717,6 +1736,20 @@ public:
 	/** encryption iv, it's only for export/import */
 	byte*					encryption_iv;
 
+	/** @return the clustered index */
+	const dict_index_t* first_index() const
+	{
+		ut_ad(magic_n == DICT_TABLE_MAGIC_N);
+		const dict_index_t* first = UT_LIST_GET_FIRST(indexes);
+		return(first);
+	}
+	/** @return the clustered index */
+	dict_index_t* first_index()
+	{
+		return(const_cast<dict_index_t*>(
+			const_cast<const dict_table_t*>(this)
+			->first_index()));
+	}
 };
 
 /** Persistent dynamic metadata type, there should be 1 to 1

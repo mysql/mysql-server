@@ -1158,7 +1158,7 @@ innobase_find_fk_index(
 {
 	dict_index_t*	index;
 
-	index = dict_table_get_first_index(table);
+	index = table->first_index();
 
 	while (index != NULL) {
 		if (!(index->type & DICT_FTS)
@@ -1177,7 +1177,7 @@ innobase_find_fk_index(
 		}
 
 next_rec:
-		index = dict_table_get_next_index(index);
+		index = index->next();
 	}
 
 	return(NULL);
@@ -1797,8 +1797,8 @@ innobase_check_index_keys(
 
 		const dict_index_t* index;
 
-		for (index = dict_table_get_first_index(innodb_table);
-		     index; index = dict_table_get_next_index(index)) {
+		for (index = innodb_table->first_index();
+		     index; index = index->next()) {
 
 			if (index->is_committed()
 			    && !strcmp(key.name, index->name)) {
@@ -2233,8 +2233,7 @@ innobase_fts_check_doc_id_index(
 		return(FTS_NOT_EXIST_DOC_ID_INDEX);
 	}
 
-	for (index = dict_table_get_first_index(table);
-	     index; index = dict_table_get_next_index(index)) {
+	for (index = table->first_index(); index; index = index->next()) {
 
 		/* Check if there exists a unique index with the name of
 		FTS_DOC_ID_INDEX_NAME */
@@ -3030,9 +3029,9 @@ innobase_drop_fts_index_table(
 {
 	dberr_t		ret_err = DB_SUCCESS;
 
-	for (dict_index_t* index = dict_table_get_first_index(table);
+	for (dict_index_t* index = table->first_index();
 	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
+	     index = index->next()) {
 		if (index->type & DICT_FTS) {
 			dberr_t	err;
 
@@ -4664,10 +4663,9 @@ new_clustered_failed:
 	} else {
 		DBUG_ASSERT(!innobase_need_rebuild(ha_alter_info));
 
-		for (dict_index_t* index
-			     = dict_table_get_first_index(user_table);
+		for (dict_index_t* index = user_table->first_index();
 		     index != NULL;
-		     index = dict_table_get_next_index(index)) {
+		     index = index->next()) {
 			if (!index->to_be_dropped
 			    && dict_index_is_corrupted(index)) {
 				my_error(ER_CHECK_NO_SUCH_TABLE, MYF(0));
@@ -4774,10 +4772,8 @@ new_clustered_failed:
 			goto error_handling;);
 
 	if (new_clustered) {
-		dict_index_t*	clust_index = dict_table_get_first_index(
-			user_table);
-		dict_index_t*	new_clust_index = dict_table_get_first_index(
-			ctx->new_table);
+		dict_index_t*	clust_index = user_table->first_index();
+		dict_index_t*	new_clust_index = ctx->new_table->first_index();
 		ctx->skip_pk_sort = innobase_pk_order_preserved(
 			ctx->col_map, clust_index, new_clust_index);
 
@@ -4948,8 +4944,7 @@ error_handled:
 			/* Free the log for online table rebuild, if
 			one was allocated. */
 
-			dict_index_t* clust_index = dict_table_get_first_index(
-				user_table);
+			dict_index_t* clust_index = user_table->first_index();
 
 			rw_lock_x_lock(&clust_index->lock);
 
@@ -5378,9 +5373,9 @@ ha_innobase::prepare_inplace_alter_table(
 	MONITOR_ATOMIC_INC(MONITOR_PENDING_ALTER_TABLE);
 
 #ifdef UNIV_DEBUG
-	for (dict_index_t* index = dict_table_get_first_index(m_prebuilt->table);
+	for (dict_index_t* index = m_prebuilt->table->first_index();
 	     index;
-	     index = dict_table_get_next_index(index)) {
+	     index = index->next()) {
 		ut_ad(!index->to_be_dropped);
 	}
 #endif /* UNIV_DEBUG */
@@ -5604,10 +5599,9 @@ check_if_ok_to_rename:
 
 	/* Check existing index definitions for too-long column
 	prefixes as well, in case max_col_len shrunk. */
-	for (const dict_index_t* index
-		     = dict_table_get_first_index(indexed_table);
+	for (const dict_index_t* index = indexed_table->first_index();
 	     index;
-	     index = dict_table_get_next_index(index)) {
+	     index = index->next()) {
 		if (index->type & DICT_FTS) {
 			DBUG_ASSERT(index->type == DICT_FTS
 				    || dict_index_is_corrupted(index));
@@ -6088,9 +6082,8 @@ dict_col_in_v_indexes(
 	dict_table_t*	table,
 	dict_col_t*	col)
 {
-	for (dict_index_t* index = dict_table_get_next_index(
-		dict_table_get_first_index(table)); index != NULL;
-		index = dict_table_get_next_index(index)) {
+	for (dict_index_t* index = table->first_index()->next();
+		index != NULL; index = index->next()) {
 		if (!dict_index_has_virtual(index)) {
 			continue;
 		}
@@ -6196,7 +6189,7 @@ ok_exit:
 	DBUG_ASSERT(ctx->trx);
 	DBUG_ASSERT(ctx->prebuilt == m_prebuilt);
 
-	dict_index_t*	pk = dict_table_get_first_index(m_prebuilt->table);
+	dict_index_t*	pk = m_prebuilt->table->first_index();
 	ut_ad(pk != NULL);
 
 	/* For partitioned tables this could be already allocated from a
@@ -6375,7 +6368,7 @@ innobase_online_rebuild_log_free(
 /*=============================*/
 	dict_table_t*	table)
 {
-	dict_index_t* clust_index = dict_table_get_first_index(table);
+	dict_index_t* clust_index = table->first_index();
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
@@ -6416,8 +6409,8 @@ check_col_exists_in_indexes(
 		return(true);
 	}
 
-	for (dict_index_t* index = dict_table_get_first_index(table); index;
-	     index = dict_table_get_next_index(index)) {
+	for (const dict_index_t* index = table->first_index(); index;
+	     index = index->next()) {
 
 		if (index->to_be_dropped) {
 			continue;
@@ -6560,8 +6553,7 @@ rollback_inplace_alter_table(
 
 func_exit:
 #ifdef UNIV_DEBUG
-	dict_index_t* clust_index = dict_table_get_first_index(
-		prebuilt->table);
+	dict_index_t* clust_index = prebuilt->table->first_index();
 	DBUG_ASSERT(!clust_index->online_log);
 	DBUG_ASSERT(dict_index_get_online_status(clust_index)
 		    == ONLINE_INDEX_COMPLETE);
@@ -6734,10 +6726,9 @@ err_exit:
 
 	trx->op_info = "renaming column in SYS_FIELDS";
 
-	for (const dict_index_t* index = dict_table_get_first_index(
-		     user_table);
+	for (const dict_index_t* index = user_table->first_index();
 	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
+	     index = index->next()) {
 
 		for (ulint i = 0; i < dict_index_get_n_fields(index); i++) {
 			if (strcmp(dict_index_get_nth_field(index, i)->name,
@@ -7485,9 +7476,9 @@ commit_try_rebuild(
 		      & Alter_inplace_info::DROP_FOREIGN_KEY)
 		    || ctx->num_to_drop_fk > 0);
 
-	for (dict_index_t* index = dict_table_get_first_index(rebuilt_table);
+	for (dict_index_t* index = rebuilt_table->first_index();
 	     index;
-	     index = dict_table_get_next_index(index)) {
+	     index = index->next()) {
 		DBUG_ASSERT(dict_index_get_online_status(index)
 			    == ONLINE_INDEX_COMPLETE);
 		DBUG_ASSERT(index->is_committed());
@@ -8871,15 +8862,14 @@ foreign_fail:
 	the MDL downgrade. */
 
 #ifdef UNIV_DEBUG
-	dict_index_t* clust_index = dict_table_get_first_index(
-		ctx0->prebuilt->table);
+	dict_index_t* clust_index =  ctx0->prebuilt->table->first_index();
 	DBUG_ASSERT(!clust_index->online_log);
 	DBUG_ASSERT(dict_index_get_online_status(clust_index)
 		    == ONLINE_INDEX_COMPLETE);
 
 	for (dict_index_t* index = clust_index;
 	     index;
-	     index = dict_table_get_next_index(index)) {
+	     index = index->next()) {
 		DBUG_ASSERT(!index->to_be_dropped);
 	}
 #endif /* UNIV_DEBUG */

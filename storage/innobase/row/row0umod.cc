@@ -1141,7 +1141,7 @@ row_undo_mod_parse_undo_rec(
 
 	ut_ad(!node->table->skip_alter_undo);
 
-	clust_index = dict_table_get_first_index(node->table);
+	clust_index = node->table->first_index();
 
 	ptr = trx_undo_update_rec_get_sys_cols(ptr, &trx_id, &roll_ptr,
 					       &info_bits);
@@ -1204,10 +1204,10 @@ row_undo_mod(
 		return(DB_SUCCESS);
 	}
 
-	node->index = dict_table_get_first_index(node->table);
+	node->index = node->table->first_index();
 	ut_ad(dict_index_is_clust(node->index));
 	/* Skip the clustered index (the first index) */
-	node->index = dict_table_get_next_index(node->index);
+	node->index = node->index->next();
 
 	/* Skip all corrupted secondary index */
 	dict_table_skip_corrupt_index(node->index);

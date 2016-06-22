@@ -746,9 +746,9 @@ fts_in_dict_index(
 {
 	dict_index_t*	index;
 
-	for (index = dict_table_get_first_index(table);
+	for (index = table->first_index();
 	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
+	     index = index->next()) {
 
 		if (index == index_check) {
 			return(TRUE);
@@ -3551,7 +3551,7 @@ fts_add_doc_by_id(
 
 	heap = mem_heap_create(512);
 
-	clust_index = dict_table_get_first_index(table);
+	clust_index = table->first_index();
 	fts_id_index = table->fts_doc_id_index;
 
 	/* Check whether the index on FTS_DOC_ID is cluster index */
@@ -5563,7 +5563,7 @@ fts_update_doc_id(
 
 		ufield->new_val.len = sizeof(doc_id);
 
-		clust_index = dict_table_get_first_index(table);
+		clust_index = table->first_index();
 
 		ufield->field_no = dict_col_get_clust_pos(col, clust_index);
 		dict_col_copy_type(col, dfield_get_type(&ufield->new_val));
@@ -5586,8 +5586,8 @@ fts_update_doc_id(
 @param[in]	table	table with FTS indexes
 @param[in,out]	heap	memory heap where 'this' is stored */
 fts_t::fts_t(
-	const dict_table_t*	table,
-	mem_heap_t*		heap)
+	dict_table_t*	table,
+	mem_heap_t*	heap)
 	:
 	bg_threads(0),
 	fts_status(0),
@@ -7746,8 +7746,7 @@ fts_check_corrupt(
 			table_name, true, FALSE, DICT_ERR_IGNORE_NONE);
 
 		if (aux_table == NULL) {
-			dict_set_corrupted(
-				dict_table_get_first_index(base_table));
+			dict_set_corrupted(base_table->first_index());
 			ut_ad(dict_table_is_corrupted(base_table));
 			sane = false;
 			continue;
@@ -7761,8 +7760,7 @@ fts_check_corrupt(
 
 			/* Check if auxillary table needed for FTS is sane. */
 			if (aux_table_index->page == FIL_NULL) {
-				dict_set_corrupted(
-					dict_table_get_first_index(base_table));
+				dict_set_corrupted(base_table->first_index());
 				ut_ad(dict_table_is_corrupted(base_table));
 				sane = false;
 			}

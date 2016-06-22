@@ -570,7 +570,7 @@ opt_search_plan_for_table(
 
 	/* Calculate goodness for each index of the table */
 
-	index = dict_table_get_first_index(table);
+	index = table->first_index();
 	best_index = index; /* Eliminate compiler warning */
 	best_goodness = 0;
 
@@ -943,7 +943,7 @@ opt_find_all_cols(
 	/* Fill in the field_no fields in sym_node */
 
 	sym_node->field_nos[SYM_CLUST_FIELD_NO] = dict_index_get_nth_col_pos(
-		dict_table_get_first_index(index->table), sym_node->col_no);
+		index->table->first_index(), sym_node->col_no);
 	if (!dict_index_is_clust(index)) {
 
 		ut_a(plan);
@@ -1091,7 +1091,7 @@ opt_clust_access(
 
 	table = index->table;
 
-	clust_index = dict_table_get_first_index(table);
+	clust_index = table->first_index();
 
 	n_fields = dict_index_get_n_unique(clust_index);
 

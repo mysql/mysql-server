@@ -242,56 +242,6 @@ dict_col_get_index_pos(
 	return(ULINT_UNDEFINED);
 }
 
-#ifndef UNIV_HOTBACKUP
-#ifdef UNIV_DEBUG
-/********************************************************************//**
-Gets the first index on the table (the clustered index).
-@return index, NULL if none exists */
-UNIV_INLINE
-dict_index_t*
-dict_table_get_first_index(
-/*=======================*/
-	const dict_table_t*	table)	/*!< in: table */
-{
-	ut_ad(table);
-	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-
-	return(UT_LIST_GET_FIRST(((dict_table_t*) table)->indexes));
-}
-
-/********************************************************************//**
-Gets the last index on the table.
-@return index, NULL if none exists */
-UNIV_INLINE
-dict_index_t*
-dict_table_get_last_index(
-/*=======================*/
-	const dict_table_t*	table)	/*!< in: table */
-{
-	ut_ad(table);
-	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-
-	return(UT_LIST_GET_LAST((const_cast<dict_table_t*>(table))
-				->indexes));
-}
-
-/********************************************************************//**
-Gets the next index on the table.
-@return index, NULL if none left */
-UNIV_INLINE
-dict_index_t*
-dict_table_get_next_index(
-/*======================*/
-	const dict_index_t*	index)	/*!< in: index */
-{
-	ut_ad(index);
-	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-
-	return(UT_LIST_GET_NEXT(indexes, (dict_index_t*) index));
-}
-#endif /* UNIV_DEBUG */
-#endif /* !UNIV_HOTBACKUP */
-
 /********************************************************************//**
 Check whether the index is the clustered index.
 @return nonzero for clustered index, zero for other indexes */
@@ -1061,9 +1011,9 @@ dict_table_x_lock_indexes(
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	/* Loop through each index of the table and lock them */
-	for (index = dict_table_get_first_index(table);
+	for (index = table->first_index();
 	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
+	     index = index->next()) {
 		rw_lock_x_lock(dict_index_get_lock(index));
 	}
 }
@@ -1081,9 +1031,9 @@ dict_table_x_unlock_indexes(
 	ut_a(table);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
-	for (index = dict_table_get_first_index(table);
+	for (index = table->first_index();
 	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
+	     index = index->next()) {
 		rw_lock_x_unlock(dict_index_get_lock(index));
 	}
 }
@@ -1610,7 +1560,7 @@ dict_table_is_corrupted(
 {
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
-	dict_index_t*		index = dict_table_get_first_index(table);
+	const dict_index_t*	index = table->first_index();
 
 	/* If we can't get the index, it must be a table in a half created
         state, because we only load table with clustered index into memory.
@@ -1702,7 +1652,7 @@ bool
 dict_table_is_table_buffer(
 	const dict_table_t*	table)
 {
-	const dict_index_t*	index = dict_table_get_first_index(table);
+	const dict_index_t*	index = table->first_index();
 
 	return(index != NULL && index->id == DICT_TBL_BUFFER_ID);
 }
@@ -1791,7 +1741,7 @@ UNIV_INLINE
 dict_index_t*
 dict_table_get_index_on_first_col(
 /*==============================*/
-        const dict_table_t*     table,		/*!< in: table */
+        dict_table_t*           table,		/*!< in: table */
         ulint                   col_index)	/*!< in: position of column
 						in table */
 {
@@ -1799,8 +1749,8 @@ dict_table_get_index_on_first_col(
 
 	dict_col_t* column = dict_table_get_nth_col(table, col_index);
 
-	for (dict_index_t* index = dict_table_get_first_index(table);
-		index != NULL; index = dict_table_get_next_index(index)) {
+	for (dict_index_t* index = table->first_index();
+		index != NULL; index = index->next()) {
 
 		if (index->fields[0].col == column) {
 			return(index);
