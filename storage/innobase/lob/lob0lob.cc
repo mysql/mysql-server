@@ -1025,8 +1025,8 @@ Deleter::can_free() const
 static
 void
 btr_check_blob_fil_page_type(
-	ulint		space_id,
-	ulint		page_no,
+	space_id_t	space_id,
+	page_no_t	page_no,
 	const page_t*	page,
 	ibool		read)
 {
@@ -1076,7 +1076,7 @@ btr_blob_get_part_len(const byte* blob_header)
 @return page number or FIL_NULL if no more pages */
 static
 inline
-ulint
+page_no_t
 btr_blob_get_next_page_no(const byte* blob_header)
 {
 	return(mach_read_from_4(blob_header + BTR_BLOB_HDR_NEXT_PAGE_NO));

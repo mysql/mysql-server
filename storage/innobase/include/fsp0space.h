@@ -48,7 +48,7 @@ public:
 		:
 		m_files(),
 		m_name(),
-		m_space_id(ULINT_UNDEFINED),
+		m_space_id(SPACE_UNKNOWN),
 		m_path(),
 		m_flags(),
 		m_ignore_read_only(false)
@@ -60,7 +60,7 @@ public:
 	{
 		shutdown();
 		ut_ad(m_files.empty());
-		ut_ad(m_space_id == ULINT_UNDEFINED);
+		ut_ad(m_space_id == SPACE_UNKNOWN);
 		if (m_name != NULL) {
 			ut_free(m_name);
 			m_name = NULL;
@@ -119,15 +119,15 @@ public:
 
 	/** Set the space id of the tablespace
 	@param[in]	space_id	 tablespace ID to set */
-	void set_space_id(ulint space_id)
+	void set_space_id(space_id_t space_id)
 	{
-		ut_ad(m_space_id == ULINT_UNDEFINED);
+		ut_ad(m_space_id == SPACE_UNKNOWN);
 		m_space_id = space_id;
 	}
 
 	/** Get the space id of the tablespace
 	@return m_space_id space id of the tablespace */
-	ulint space_id()	const
+	space_id_t space_id()	const
 	{
 		return(m_space_id);
 	}
@@ -158,9 +158,9 @@ public:
 	void shutdown();
 
 	/** @return the sum of the file sizes of each Datafile */
-	ulint get_sum_of_sizes() const
+	page_no_t get_sum_of_sizes() const
 	{
-		ulint	sum = 0;
+		page_no_t	sum = 0;
 
 		for (files_t::const_iterator it = m_files.begin();
 		     it != m_files.end(); ++it) {
@@ -222,7 +222,7 @@ private:
 	char*		m_name;
 
 	/** Tablespace ID */
-	ulint		m_space_id;
+	space_id_t	m_space_id;
 
 	/** Path where tablespace files will reside, not including a filename.*/
 	char*		m_path;

@@ -4378,7 +4378,7 @@ prepare_inplace_alter_table_dict(
 		ulint		n_cols = 0;
 		ulint		n_v_cols = 0;
 		dtuple_t*	add_cols;
-		ulint		space_id = 0;
+		space_id_t	space_id = 0;
 		ulint		z = 0;
 
 		if (innobase_check_foreigns(
@@ -4430,7 +4430,7 @@ prepare_inplace_alter_table_dict(
 				ha_alter_info->create_info)) {
 			space_id = fil_space_get_id_by_name(
 				ha_alter_info->create_info->tablespace);
-			ut_a(space_id != ULINT_UNDEFINED);
+			ut_a(space_id != SPACE_UNKNOWN);
 		}
 
 		/* The initial space id 0 may be overridden later if this

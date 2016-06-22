@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -44,7 +44,7 @@ the terminating NUL character. */
 static const ulint TRX_ID_MAX_LEN = 17;
 
 /** Space id of the transaction system page (the system tablespace) */
-static const ulint TRX_SYS_SPACE = 0;
+static const space_id_t TRX_SYS_SPACE = 0;
 
 /** Page number of the transaction system page */
 #define TRX_SYS_PAGE_NO		FSP_TRX_SYS_PAGE_NO

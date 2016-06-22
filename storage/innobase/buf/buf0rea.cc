@@ -194,10 +194,10 @@ buf_read_ahead_random(
 	ulint		recent_blocks	= 0;
 	ulint		ibuf_mode;
 	ulint		count;
-	ulint		low, high;
+	page_no_t	low, high;
 	dberr_t		err;
-	ulint		i;
-	const ulint	buf_read_ahead_random_area
+	page_no_t	i;
+	const page_no_t	buf_read_ahead_random_area
 				= BUF_READ_AHEAD_AREA(buf_pool);
 
 	if (!srv_random_read_ahead) {
@@ -438,17 +438,17 @@ buf_read_ahead_linear(
 	buf_frame_t*	frame;
 	buf_page_t*	pred_bpage	= NULL;
 	unsigned	pred_bpage_is_accessed = 0;
-	ulint		pred_offset;
-	ulint		succ_offset;
+	page_no_t	pred_offset;
+	page_no_t	succ_offset;
 	int		asc_or_desc;
-	ulint		new_offset;
+	page_no_t	new_offset;
 	ulint		fail_count;
-	ulint		low, high;
+	page_no_t	low, high;
 	dberr_t		err;
-	ulint		i;
-	const ulint	buf_read_ahead_linear_area
+	page_no_t	i;
+	const page_no_t	buf_read_ahead_linear_area
 		= BUF_READ_AHEAD_AREA(buf_pool);
-	ulint		threshold;
+	page_no_t	threshold;
 
 	/* check if readahead is disabled */
 	if (!srv_read_ahead_threshold) {
@@ -521,8 +521,9 @@ buf_read_ahead_linear(
 
 	/* How many out of order accessed pages can we ignore
 	when working out the access pattern for linear readahead */
-	threshold = ut_min(static_cast<ulint>(64 - srv_read_ahead_threshold),
-			   BUF_READ_AHEAD_AREA(buf_pool));
+	threshold = std::min(static_cast<page_no_t>(
+				     64 - srv_read_ahead_threshold),
+			     BUF_READ_AHEAD_AREA(buf_pool));
 
 	fail_count = 0;
 
@@ -713,8 +714,8 @@ buf_read_ibuf_merge_pages(
 					for the highest address page
 					to get read in, before this
 					function returns */
-	const ulint*	space_ids,	/*!< in: array of space ids */
-	const ulint*	page_nos,	/*!< in: array of page numbers
+	const space_id_t*	space_ids,	/*!< in: array of space ids */
+	const page_no_t*	page_nos,	/*!< in: array of page numbers
 					to read, with the highest page
 					number the last in the
 					array */
@@ -782,10 +783,10 @@ highest page number the last in the array
 @param[in]	n_stored	number of page numbers in the array */
 void
 buf_read_recv_pages(
-	bool		sync,
-	ulint		space_id,
-	const ulint*	page_nos,
-	ulint		n_stored)
+	bool			sync,
+	space_id_t		space_id,
+	const page_no_t*	page_nos,
+	ulint			n_stored)
 {
 	ulint			count;
 	dberr_t			err;

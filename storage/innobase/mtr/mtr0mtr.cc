@@ -559,7 +559,7 @@ mtr_t::commit_checkpoint(lsn_t checkpoint_lsn)
 @param[in]	space	tablespace
 @return whether the mini-transaction is associated with the space */
 bool
-mtr_t::is_named_space(ulint space) const
+mtr_t::is_named_space(space_id_t space) const
 {
 	ut_ad(!m_impl.m_sys_space
 	      || m_impl.m_sys_space->id == TRX_SYS_SPACE);
@@ -601,7 +601,7 @@ mtr_t::is_named_space(ulint space) const
 @param[in]	space	undo tablespace
 @return whether the mini-transaction is associated with the undo */
 bool
-mtr_t::is_undo_space(ulint space) const
+mtr_t::is_undo_space(space_id_t space) const
 {
 	switch (get_log_mode()) {
 	case MTR_LOG_NONE:
@@ -628,7 +628,7 @@ NOTE: use mtr_x_lock_space().
 @param[in]	line		line number in file
 @return the tablespace object (never NULL) */
 fil_space_t*
-mtr_t::x_lock_space(ulint space_id, const char* file, ulint line)
+mtr_t::x_lock_space(space_id_t space_id, const char* file, ulint line)
 {
 	fil_space_t*	space;
 
@@ -675,7 +675,7 @@ mtr_t::lookup_sys_space()
 /** Look up an undo tablespace.
 @param[in]	space_id	tablespace ID */
 void
-mtr_t::lookup_undo_space(ulint space_id)
+mtr_t::lookup_undo_space(space_id_t space_id)
 {
 	ut_ad(space_id != TRX_SYS_SPACE);
 	ut_ad(m_impl.m_undo_space_id == space_id);
@@ -687,7 +687,7 @@ mtr_t::lookup_undo_space(ulint space_id)
 /** Look up a user tablespace.
 @param[in]	space_id	tablespace ID */
 void
-mtr_t::lookup_user_space(ulint space_id)
+mtr_t::lookup_user_space(space_id_t space_id)
 {
 	ut_ad(space_id != TRX_SYS_SPACE);
 	ut_ad(m_impl.m_user_space_id == space_id);
@@ -965,7 +965,7 @@ is being modified by the mini-transaction.
 @param[in]	space_id	tablespace identifier.
 @return tablespace, or NULL if not found */
 fil_space_t*
-mtr_t::space(ulint space_id) const
+mtr_t::space(space_id_t space_id) const
 {
 	fil_space_t*	space = m_impl.space(space_id);
 	if (space == NULL) {

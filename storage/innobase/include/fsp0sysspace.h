@@ -126,7 +126,7 @@ public:
 
 	/** Set the last file size.
 	@param[in]	size	the size to set */
-	void set_last_file_size(ulint size)
+	void set_last_file_size(page_no_t size)
 	{
 		ut_ad(!m_files.empty());
 		m_files.back().m_size = size;
@@ -134,7 +134,7 @@ public:
 
 	/** Get the number of pages in the last data file in the tablespace
 	@return the size of the last data file in the array */
-	ulint last_file_size() const
+	page_no_t last_file_size() const
 	{
 		ut_ad(!m_files.empty());
 		return(m_files.back().m_size);
@@ -142,7 +142,7 @@ public:
 
 	/**
 	@return the autoextend increment in pages. */
-	ulint get_autoextend_increment() const
+	page_no_t get_autoextend_increment() const
 	{
 		return(sys_tablespace_auto_extend_increment
 		       * ((1024 * 1024) / UNIV_PAGE_SIZE));
@@ -153,15 +153,16 @@ public:
 	Note: Only system tablespaces are required to be at least
 	1 megabyte.
 	@return the number of pages in the file. */
-	ulint get_pages_from_size(os_offset_t size)
+	page_no_t get_pages_from_size(os_offset_t size)
 	{
-		return (ulint)((size / (1024 * 1024))
-			       * ((1024 * 1024) / UNIV_PAGE_SIZE));
+		return static_cast<page_no_t>(
+			((size / (1024 * 1024))
+			* ((1024 * 1024) / UNIV_PAGE_SIZE)));
 	}
 
 	/**
 	@return next increment size */
-	ulint get_increment() const;
+	page_no_t get_increment() const;
 
 	/** Open or create the data files
 	@param[in]  is_temp		whether this is a temporary tablespace
@@ -170,10 +171,10 @@ public:
 	@param[out] flush_lsn		FIL_PAGE_FILE_FLUSH_LSN of first file
 	@return DB_SUCCESS or error code */
 	dberr_t open_or_create(
-		bool	is_temp,
-		bool	create_new_db,
-		ulint*	sum_new_sizes,
-		lsn_t*	flush_lsn)
+		bool		is_temp,
+		bool		create_new_db,
+		page_no_t*	sum_new_sizes,
+		lsn_t*		flush_lsn)
 		MY_ATTRIBUTE((warn_unused_result));
 
 private:
@@ -232,7 +233,7 @@ private:
 	Then return the number of pages in the file.
 	@param[in,out]	ptr	Pointer to a numeric string
 	@return the number of pages in the file. */
-	ulint parse_units(char*& ptr);
+	page_no_t parse_units(char*& ptr);
 
 	enum file_status_t {
 		FILE_STATUS_VOID = 0,		/** status not set */
@@ -261,7 +262,7 @@ private:
 
 	/** if != 0, this tells the max size auto-extending may increase the
 	last data file size */
-	ulint		m_last_file_size_max;
+	page_no_t	m_last_file_size_max;
 
 	/** If the following is true we do not allow
 	inserts etc. This protects the user from forgetting
@@ -288,8 +289,7 @@ extern SysTablespace srv_tmp_space;
 @return true if id is a system tablespace, false if not. */
 UNIV_INLINE
 bool
-is_system_tablespace(
-	ulint	id)
+is_system_tablespace(space_id_t id)
 {
 	return(id == srv_sys_space.space_id()
 	       || id == srv_tmp_space.space_id());
@@ -299,8 +299,7 @@ is_system_tablespace(
 @return true if shared-system or undo tablespace */
 UNIV_INLINE
 bool
-is_system_or_undo_tablespace(
-	ulint   id)
+is_system_or_undo_tablespace(space_id_t id)
 {
 	return(id == srv_sys_space.space_id()
 	       || id <= srv_undo_tablespaces_open);
@@ -310,8 +309,7 @@ is_system_or_undo_tablespace(
 @return true if predefined shared tablespace */
 UNIV_INLINE
 bool
-is_predefined_tablespace(
-	ulint   id)
+is_predefined_tablespace(space_id_t id)
 {
 	ut_ad(srv_sys_space.space_id() == TRX_SYS_SPACE);
 	ut_ad(TRX_SYS_SPACE == 0);

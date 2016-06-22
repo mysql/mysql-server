@@ -618,8 +618,8 @@ lock_prdt_update_parent(
         lock_prdt_t*	left_prdt,	/*!< in: MBR on the old page */
         lock_prdt_t*	right_prdt,	/*!< in: MBR on the new page */
 	lock_prdt_t*	parent_prdt,	/*!< in: original parent MBR */
-	ulint		space,		/*!< in: parent space id */
-	ulint		page_no)	/*!< in: parent page number */
+	space_id_t	space,		/*!< in: parent space id */
+	page_no_t	page_no)	/*!< in: parent page number */
 {
 	lock_t*		lock;
 
@@ -675,8 +675,8 @@ lock_prdt_update_split_low(
 	buf_block_t*	new_block,	/*!< in/out: the new half page */
 	lock_prdt_t*	prdt,		/*!< in: MBR on the old page */
 	lock_prdt_t*	new_prdt,	/*!< in: MBR on the new page */
-	ulint		space,		/*!< in: space id */
-	ulint		page_no,	/*!< in: page number */
+	space_id_t	space,		/*!< in: space id */
+	page_no_t	page_no,	/*!< in: page number */
 	ulint		type_mode)	/*!< in: LOCK_PREDICATE or
 					LOCK_PRDT_PAGE */
 {
@@ -752,8 +752,8 @@ lock_prdt_update_split(
 	buf_block_t*	new_block,	/*!< in/out: the new half page */
 	lock_prdt_t*	prdt,		/*!< in: MBR on the old page */
 	lock_prdt_t*	new_prdt,	/*!< in: MBR on the new page */
-	ulint		space,		/*!< in: space id */
-	ulint		page_no)	/*!< in: page number */
+	space_id_t	space,		/*!< in: space id */
+	page_no_t	page_no)	/*!< in: page number */
 {
 	lock_prdt_update_split_low(block, new_block, prdt, new_prdt,
 				   space, page_no, LOCK_PREDICATE);
@@ -905,8 +905,8 @@ Acquire a "Page" lock on a block
 dberr_t
 lock_place_prdt_page_lock(
 /*======================*/
-	ulint		space,		/*!< in: space for the page to lock */
-	ulint		page_no,	/*!< in: page number */
+	space_id_t	space,		/*!< in: space for the page to lock */
+	page_no_t	page_no,	/*!< in: page number */
 	dict_index_t*	index,		/*!< in: secondary index */
 	que_thr_t*	thr)		/*!< in: query thread */
 {
@@ -966,12 +966,13 @@ lock_place_prdt_page_lock(
 @param[in]	trx	trx to test the lock
 @param[in]	space	space id for the page
 @param[in]	page_no	page number
-@return	true if there is none */
+@retval	true	if there is no lock
+@retval	false	if some other trx holds a page lock */
 bool
 lock_test_prdt_page_lock(
-	const trx_t*    trx,
-	ulint           space,
-	ulint           page_no)
+	const trx_t*	trx,
+	space_id_t	space,
+	page_no_t	page_no)
 {
 	lock_t*		lock;
 
@@ -1030,10 +1031,10 @@ lock_prdt_page_free_from_discard(
 	const buf_block_t*      block,
 	hash_table_t*		lock_hash)
 {
-	lock_t*	lock;
-	lock_t*	next_lock;
-	ulint	space;
-	ulint	page_no;
+	lock_t*		lock;
+	lock_t*		next_lock;
+	space_id_t	space;
+	page_no_t	page_no;
 
 	ut_ad(lock_mutex_own());
 

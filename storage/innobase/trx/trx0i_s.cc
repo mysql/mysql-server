@@ -419,19 +419,19 @@ i_s_locks_row_validate(
 	ut_ad(row->lock_table != NULL);
 	ut_ad(row->lock_table_id != 0);
 
-	if (row->lock_space == ULINT_UNDEFINED) {
+	if (row->lock_space == SPACE_UNKNOWN) {
 		/* table lock */
 		ut_ad(!strcmp("TABLE", row->lock_type));
 		ut_ad(row->lock_index == NULL);
 		ut_ad(row->lock_data == NULL);
-		ut_ad(row->lock_page == ULINT_UNDEFINED);
+		ut_ad(row->lock_page == FIL_NULL);
 		ut_ad(row->lock_rec == ULINT_UNDEFINED);
 	} else {
 		/* record lock */
 		ut_ad(!strcmp("RECORD", row->lock_type));
 		ut_ad(row->lock_index != NULL);
 		/* row->lock_data == NULL if buf_page_try_get() == NULL */
-		ut_ad(row->lock_page != ULINT_UNDEFINED);
+		ut_ad(row->lock_page != FIL_NULL);
 		ut_ad(row->lock_rec != ULINT_UNDEFINED);
 	}
 
@@ -820,8 +820,8 @@ fill_locks_row(
 	case LOCK_TABLE:
 		row->lock_index = NULL;
 
-		row->lock_space = ULINT_UNDEFINED;
-		row->lock_page = ULINT_UNDEFINED;
+		row->lock_space = SPACE_UNKNOWN;
+		row->lock_page = FIL_NULL;
 		row->lock_rec = ULINT_UNDEFINED;
 
 		row->lock_data = NULL;
@@ -1604,19 +1604,19 @@ trx_i_s_create_lock_id(
 
 	/* please adjust TRX_I_S_LOCK_ID_MAX_LEN if you change this */
 
-	if (row->lock_space != ULINT_UNDEFINED) {
+	if (row->lock_space != SPACE_UNKNOWN) {
 		/* record lock */
 		res_len = snprintf(lock_id, lock_id_size,
-				      TRX_ID_FMT ":" ULINTPF ":"
-				      ULINTPF ":" ULINTPF,
-				      row->lock_trx_id, row->lock_space,
-				      row->lock_page, row->lock_rec);
+				TRX_ID_FMT ":" SPACE_ID_PF ":"
+				PAGE_NO_PF ":%lu",
+				row->lock_trx_id, row->lock_space,
+				row->lock_page, row->lock_rec);
 	} else {
 		/* table lock */
 		res_len = snprintf(lock_id, lock_id_size,
-				      TRX_ID_FMT":" UINT64PF,
-				      row->lock_trx_id,
-				      row->lock_table_id);
+				TRX_ID_FMT":" UINT64PF,
+				row->lock_trx_id,
+				row->lock_table_id);
 	}
 
 	/* the typecast is safe because snprintf(3) never returns

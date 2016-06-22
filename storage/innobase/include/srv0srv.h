@@ -245,7 +245,7 @@ extern my_bool	srv_undo_log_truncate;
 extern const ulong	srv_tmp_undo_logs;
 
 /** Default size of UNDO tablespace while it is created new. */
-extern const ulint	SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
+extern const page_no_t	SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
 
 extern char*	srv_log_group_home_dir;
 

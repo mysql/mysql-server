@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -272,7 +272,7 @@ mtr_t::sx_lock(rw_lock_t* lock, const char* file, ulint line)
 Reads 1 - 4 bytes from a file page buffered in the buffer pool.
 @return	value read */
 
-ulint
+uint32_t
 mtr_t::read_ulint(const byte* ptr, mlog_id_t type) const
 {
 	ut_ad(is_active());

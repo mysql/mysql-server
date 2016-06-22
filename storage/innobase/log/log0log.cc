@@ -831,10 +831,10 @@ MY_ATTRIBUTE((warn_unused_result))
 bool
 log_group_init(
 /*===========*/
-	ulint	id,			/*!< in: group id */
-	ulint	n_files,		/*!< in: number of log files */
-	lsn_t	file_size,		/*!< in: log file size in bytes */
-	ulint	space_id)		/*!< in: space id of the file space
+	ulint		id,		/*!< in: group id */
+	ulint		n_files,	/*!< in: number of log files */
+	lsn_t		file_size,	/*!< in: log file size in bytes */
+	space_id_t	space_id)	/*!< in: space id of the file space
 					which contains the log files of this
 					group */
 {
@@ -960,8 +960,9 @@ log_group_file_header_flush(
 
 	srv_stats.os_log_pending_writes.inc();
 
-	const ulint	page_no
-		= (ulint) (dest_offset / univ_page_size.physical());
+	const page_no_t	page_no
+		= static_cast<page_no_t>(
+			dest_offset / univ_page_size.physical());
 
 	fil_io(IORequestLogWrite, true,
 	       page_id_t(group->space_id, page_no),
@@ -1081,10 +1082,10 @@ loop:
 
 	srv_stats.os_log_pending_writes.inc();
 
-	ut_a(next_offset / UNIV_PAGE_SIZE <= ULINT_MAX);
+	ut_a(next_offset / UNIV_PAGE_SIZE <= PAGE_NO_MAX);
 
-	const ulint	page_no
-		= (ulint) (next_offset / univ_page_size.physical());
+	const page_no_t	page_no = static_cast<page_no_t>(
+		next_offset / univ_page_size.physical());
 
 	fil_io(IORequestLogWrite, true,
 	       page_id_t(group->space_id, page_no),
@@ -1665,9 +1666,11 @@ log_group_header_read(
 	MONITOR_INC(MONITOR_LOG_IO);
 
 	fil_io(IORequestLogRead, true,
-	       page_id_t(group->space_id, header / univ_page_size.physical()),
-	       univ_page_size, header % univ_page_size.physical(),
-	       OS_FILE_LOG_BLOCK_SIZE, log_sys->checkpoint_buf, NULL);
+		page_id_t(group->space_id, static_cast<page_no_t>(
+				header / univ_page_size.physical())),
+		univ_page_size,
+		static_cast<page_no_t>(header % univ_page_size.physical()),
+		OS_FILE_LOG_BLOCK_SIZE, log_sys->checkpoint_buf, NULL);
 }
 
 /** Write checkpoint info to the log header and invoke log_mutex_exit().
@@ -2002,10 +2005,10 @@ loop:
 
 	MONITOR_INC(MONITOR_LOG_IO);
 
-	ut_a(source_offset / UNIV_PAGE_SIZE <= ULINT_MAX);
+	ut_a(source_offset / UNIV_PAGE_SIZE <= PAGE_NO_MAX);
 
-	const ulint	page_no
-		= (ulint) (source_offset / univ_page_size.physical());
+	const page_no_t	page_no = static_cast<page_no_t>(
+		source_offset / univ_page_size.physical());
 
 	fil_io(IORequestLogRead, true,
 	       page_id_t(group->space_id, page_no),

@@ -191,8 +191,8 @@ UNIV_INLINE
 byte*
 mlog_write_initial_log_record_low(
 	mlog_id_t	type,
-	ulint		space_id,
-	ulint		page_no,
+	space_id_t	space_id,
+	page_no_t	page_no,
 	byte*		log_ptr,
 	mtr_t*		mtr);
 
@@ -240,8 +240,8 @@ mlog_parse_initial_log_record(
 	const byte*	ptr,	/*!< in: buffer */
 	const byte*	end_ptr,/*!< in: buffer end */
 	mlog_id_t*	type,	/*!< out: log record type: MLOG_1BYTE, ... */
-	ulint*		space,	/*!< out: space id */
-	ulint*		page_no);/*!< out: page number */
+	space_id_t*	space,	/*!< out: space id */
+	page_no_t*	page_no);/*!< out: page number */
 /********************************************************//**
 Parses a log record written by mlog_write_ulint or mlog_write_ull.
 @return parsed record end, NULL if not a complete record */

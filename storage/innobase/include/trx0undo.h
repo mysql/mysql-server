@@ -43,10 +43,10 @@ Created 3/26/1996 Heikki Tuuri
 UNIV_INLINE
 roll_ptr_t
 trx_undo_build_roll_ptr(
-	ibool	is_insert,
-	ulint	rseg_id,
-	ulint	page_no,
-	ulint	offset);
+	ibool		is_insert,
+	ulint		rseg_id,
+	page_no_t	page_no,
+	ulint		offset);
 
 /** Decodes a roll pointer.
 @param[in]	roll_ptr	roll pointer
@@ -60,7 +60,7 @@ trx_undo_decode_roll_ptr(
 	roll_ptr_t	roll_ptr,
 	ibool*		is_insert,
 	ulint*		rseg_id,
-	ulint*		page_no,
+	page_no_t*	page_no,
 	ulint*		offset);
 
 /***********************************************************************//**
@@ -139,7 +139,7 @@ UNIV_INLINE
 trx_undo_rec_t*
 trx_undo_page_get_prev_rec(
 	trx_undo_rec_t*	rec,
-	ulint		page_no,
+	page_no_t	page_no,
 	ulint		offset);
 
 /** Returns the next undo log record on the page in the specified log, or
@@ -152,7 +152,7 @@ UNIV_INLINE
 trx_undo_rec_t*
 trx_undo_page_get_next_rec(
 	trx_undo_rec_t*	rec,
-	ulint		page_no,
+	page_no_t	page_no,
 	ulint		offset);
 
 /** Returns the last undo record on the page in the specified undo log, or
@@ -164,9 +164,9 @@ NULL if none exists.
 UNIV_INLINE
 trx_undo_rec_t*
 trx_undo_page_get_last_rec(
-	page_t*	undo_page,
-	ulint	page_no,
-	ulint	offset);
+	page_t*		undo_page,
+	page_no_t	page_no,
+	ulint		offset);
 
 /** Returns the first undo record on the page in the specified undo log, or
 NULL if none exists.
@@ -177,9 +177,9 @@ NULL if none exists.
 UNIV_INLINE
 trx_undo_rec_t*
 trx_undo_page_get_first_rec(
-	page_t*	undo_page,
-	ulint	page_no,
-	ulint	offset);
+	page_t*		undo_page,
+	page_no_t	page_no,
+	ulint		offset);
 
 /***********************************************************************//**
 Gets the previous record in an undo log.
@@ -188,7 +188,7 @@ trx_undo_rec_t*
 trx_undo_get_prev_rec(
 /*==================*/
 	trx_undo_rec_t*	rec,	/*!< in: undo record */
-	ulint		page_no,/*!< in: undo log header page number */
+	page_no_t	page_no,/*!< in: undo log header page number */
 	ulint		offset,	/*!< in: undo log header offset on page */
 	bool		shared,	/*!< in: true=S-latch, false=X-latch */
 	mtr_t*		mtr);	/*!< in: mtr */
@@ -199,7 +199,7 @@ trx_undo_rec_t*
 trx_undo_get_next_rec(
 /*==================*/
 	trx_undo_rec_t*	rec,	/*!< in: undo record */
-	ulint		page_no,/*!< in: undo log header page number */
+	page_no_t	page_no,/*!< in: undo log header page number */
 	ulint		offset,	/*!< in: undo log header offset on page */
 	mtr_t*		mtr);	/*!< in: mtr */
 
@@ -213,9 +213,9 @@ trx_undo_get_next_rec(
 @return undo log record, the page latched, NULL if none */
 trx_undo_rec_t*
 trx_undo_get_first_rec(
-	ulint			space,
+	space_id_t		space,
 	const page_size_t&	page_size,
-	ulint			page_no,
+	page_no_t		page_no,
 	ulint			offset,
 	ulint			mode,
 	mtr_t*			mtr);
@@ -287,7 +287,7 @@ freed, but emptied, if all the records there are below the limit.
 void
 trx_undo_truncate_start(
 	trx_rseg_t*	rseg,
-	ulint		hdr_page_no,
+	page_no_t	hdr_page_no,
 	ulint		hdr_offset,
 	undo_no_t	limit);
 /********************************************************************//**
@@ -472,21 +472,21 @@ struct trx_undo_t {
 					id */
 	trx_rseg_t*	rseg;		/*!< rseg where the undo log belongs */
 	/*-----------------------------*/
-	ulint		space;		/*!< space id where the undo log
+	space_id_t	space;		/*!< space id where the undo log
 					placed */
 	page_size_t	page_size;
-	ulint		hdr_page_no;	/*!< page number of the header page in
+	page_no_t	hdr_page_no;	/*!< page number of the header page in
 					the undo log */
 	ulint		hdr_offset;	/*!< header offset of the undo log on
-				       	the page */
-	ulint		last_page_no;	/*!< page number of the last page in the
+					the page */
+	page_no_t	last_page_no;	/*!< page number of the last page in the
 					undo log; this may differ from
 					top_page_no during a rollback */
 	ulint		size;		/*!< current size in pages */
 	/*-----------------------------*/
 	ulint		empty;		/*!< TRUE if the stack of undo log
 					records is currently empty */
-	ulint		top_page_no;	/*!< page number where the latest undo
+	page_no_t	top_page_no;	/*!< page number where the latest undo
 					log record was catenated; during
 					rollback the page from which the latest
 					undo record was chosen */

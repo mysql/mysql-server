@@ -217,8 +217,8 @@ UNIV_INLINE
 byte*
 mlog_write_initial_log_record_low(
 	mlog_id_t	type,
-	ulint		space_id,
-	ulint		page_no,
+	space_id_t	space_id,
+	page_no_t	page_no,
 	byte*		log_ptr,
 	mtr_t*		mtr)
 {
@@ -258,8 +258,8 @@ mlog_write_initial_log_record_fast(
 	mtr_t*		mtr)	/*!< in/out: mtr */
 {
 	const byte*	page;
-	ulint		space;
-	ulint		offset;
+	space_id_t	space;
+	page_no_t	offset;
 
 	ut_ad(log_ptr);
 	ut_d(mtr->memo_modify_page(ptr));

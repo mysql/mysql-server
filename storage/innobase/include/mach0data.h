@@ -418,7 +418,7 @@ mach_write_ulonglong(
 @param[in]	type	MLOG_1BYTE, MLOG_2BYTES, or MLOG_4BYTES
 @return value read */
 UNIV_INLINE
-ulint
+uint32_t
 mach_read_ulint(
 	const byte*	ptr,
 	mlog_id_t	type)

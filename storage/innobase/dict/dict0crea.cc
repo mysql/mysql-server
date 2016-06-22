@@ -381,7 +381,7 @@ dict_build_tablespace(
 {
 	dberr_t		err	= DB_SUCCESS;
 	mtr_t		mtr;
-	ulint		space = 0;
+	space_id_t	space = 0;
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(tablespace);
@@ -390,7 +390,7 @@ dict_build_tablespace(
                          return(DB_OUT_OF_FILE_SPACE););
 	/* Get a new space id. */
 	dict_hdr_get_new_id(NULL, NULL, &space, NULL, false);
-	if (space == ULINT_UNDEFINED) {
+	if (space == SPACE_UNKNOWN) {
 		return(DB_ERROR);
 	}
 	tablespace->set_space_id(space);
@@ -450,7 +450,7 @@ dict_build_tablespace_for_table(
 {
 	dberr_t		err	= DB_SUCCESS;
 	mtr_t		mtr;
-	ulint		space = 0;
+	space_id_t	space = 0;
 	bool		needs_file_per_table;
 	char*		filepath;
 
@@ -479,13 +479,13 @@ dict_build_tablespace_for_table(
 
 		DBUG_EXECUTE_IF(
 			"ib_create_table_fail_out_of_space_ids",
-			space = ULINT_UNDEFINED;
+			space = SPACE_UNKNOWN;
 		);
 
-		if (space == ULINT_UNDEFINED) {
+		if (space == SPACE_UNKNOWN) {
 			return(DB_ERROR);
 		}
-		table->space = static_cast<unsigned int>(space);
+		table->space = space;
 
 		/* Determine the tablespace flags. */
 		bool	has_data_dir = DICT_TF_HAS_DATA_DIR(table->flags);
@@ -1096,8 +1096,8 @@ dict_drop_index_tree(
 {
 	const byte*	ptr;
 	ulint		len;
-	ulint		space;
-	ulint		root_page_no;
+	space_id_t	space;
+	page_no_t	root_page_no;
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_a(!dict_table_is_comp(dict_sys->sys_indexes));
@@ -1153,14 +1153,14 @@ dict_drop_index_tree(
 void
 dict_drop_temporary_table_index(
 	const dict_index_t*	index,
-	ulint			root_page_no)
+	page_no_t		root_page_no)
 {
 	ut_ad(mutex_own(&dict_sys->mutex)
 	      || dict_table_is_intrinsic(index->table));
 	ut_ad(dict_table_is_temporary(index->table));
 	ut_ad(index->page == FIL_NULL);
 
-	ulint			space = index->space;
+	space_id_t		space = index->space;
 	bool			found;
 	const page_size_t	page_size(fil_space_get_page_size(space,
 								  &found));
@@ -2356,7 +2356,7 @@ replacing what was there previously.
 @return error code or DB_SUCCESS */
 dberr_t
 dict_replace_tablespace_in_dictionary(
-	ulint		space_id,
+	space_id_t	space_id,
 	const char*	name,
 	ulint		flags,
 	const char*	path,
@@ -2428,7 +2428,7 @@ with a particular tablespace ID.
 
 dberr_t
 dict_delete_tablespace_and_datafiles(
-	ulint		space,
+	space_id_t	space,
 	trx_t*		trx)
 {
 	dberr_t		err = DB_SUCCESS;
@@ -2491,7 +2491,7 @@ dict_table_assign_new_id(
 @return in-memory index structure for tablespace dictionary or NULL */
 dict_index_t*
 dict_sdi_create_idx_in_mem(
-	ulint		space,
+	space_id_t	space,
 	uint32_t	copy_num,
 	bool		space_discarded,
 	ulint		in_flags)
@@ -2531,8 +2531,8 @@ dict_sdi_create_idx_in_mem(
 	digits of copy_num (10) + 1 */
 	char		table_name[28];
 	mem_heap_t*	heap = mem_heap_create(DICT_HEAP_SIZE);
-	snprintf(table_name, sizeof(table_name), "SDI_" ULINTPF "_" UINT32PF,
-		    space, copy_num);
+	snprintf(table_name, sizeof(table_name),
+		"SDI_" SPACE_ID_PF "_" UINT32PF, space, copy_num);
 
 	dict_table_t*	table = dict_mem_table_create(
 		table_name, space, 3, 0, table_flags, 0);
@@ -2572,7 +2572,7 @@ dict_sdi_create_idx_in_mem(
 	/* Disable AHI on SDI tables */
 	temp_index->disable_ahi = true;
 
-	ulint	index_root_page_num;
+	page_no_t	index_root_page_num;
 
 	/* TODO: Remove space_discarded parameter after WL#7412 */
 	/* When we do DISCARD TABLESPACE, there will be no fil_space_t
@@ -2589,7 +2589,7 @@ dict_sdi_create_idx_in_mem(
 		mtr_commit(&mtr);
 
 	} else {
-		index_root_page_num = ULINT_UNDEFINED;
+		index_root_page_num = FIL_NULL;
 	}
 
 	temp_index->id = dict_sdi_get_index_id(copy_num);

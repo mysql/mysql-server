@@ -186,10 +186,10 @@ struct file_name_t {
 
 /** Map of dirty tablespaces during recovery */
 typedef std::map<
-	ulint,
+	space_id_t,
 	file_name_t,
-	std::less<ulint>,
-	ut_allocator<std::pair<const ulint, file_name_t> > >	recv_spaces_t;
+	std::less<space_id_t>,
+	ut_allocator<std::pair<const space_id_t, file_name_t> > > recv_spaces_t;
 
 static recv_spaces_t	recv_spaces;
 
@@ -228,10 +228,10 @@ is_undo_tablespace_name(
 static
 void
 fil_name_process(
-	char*	name,
-	ulint	len,
-	ulint	space_id,
-	bool	deleted)
+	char*		name,
+	ulint		len,
+	space_id_t	space_id,
+	bool		deleted)
 {
 	ut_ad(space_id != TRX_SYS_SPACE);
 
@@ -394,8 +394,8 @@ byte*
 fil_name_parse(
 	byte*		ptr,
 	const byte*	end,
-	ulint		space_id,
-	ulint		first_page_no,
+	space_id_t	space_id,
+	page_no_t	first_page_no,
 	mlog_id_t	type,
 	bool		apply)
 {
@@ -1099,8 +1099,8 @@ recv_log_recover_5_7(lsn_t lsn)
 	const lsn_t	source_offset
 		= log_group_calc_lsn_offset(lsn, group);
 	log_mutex_exit();
-	const ulint	page_no
-		= (ulint) (source_offset / univ_page_size.physical());
+	const page_no_t	page_no
+		= (page_no_t) (source_offset / univ_page_size.physical());
 	byte*		buf = log_sys->buf;
 
 	static const char* NO_UPGRADE_RECOVERY_MSG =
@@ -1434,7 +1434,7 @@ byte*
 fil_write_encryption_parse(
 	byte*		ptr,
 	const byte*	end,
-	ulint		space_id)
+	space_id_t	space_id)
 {
 	fil_space_t*	space;
 	ulint		offset;
@@ -1550,8 +1550,8 @@ recv_parse_or_apply_log_rec_body(
 	mlog_id_t	type,
 	byte*		ptr,
 	byte*		end_ptr,
-	ulint		space_id,
-	ulint		page_no,
+	space_id_t	space_id,
+	page_no_t	page_no,
 	bool		apply,
 	buf_block_t*	block,
 	mtr_t*		mtr)
@@ -1760,7 +1760,7 @@ recv_parse_or_apply_log_rec_body(
 			ulint	offs = mach_read_from_2(old_ptr);
 			switch (offs) {
 				fil_space_t*	space;
-				ulint		val;
+				uint32_t	val;
 			default:
 				break;
 			case FSP_HEADER_OFFSET + FSP_SPACE_FLAGS:
@@ -2024,8 +2024,8 @@ UNIV_INLINE
 ulint
 recv_fold(
 /*======*/
-	ulint	space,	/*!< in: space */
-	ulint	page_no)/*!< in: page number */
+	space_id_t	space,	/*!< in: space */
+	page_no_t	page_no)/*!< in: page number */
 {
 	return(ut_fold_ulint_pair(space, page_no));
 }
@@ -2038,8 +2038,8 @@ UNIV_INLINE
 ulint
 recv_hash(
 /*======*/
-	ulint	space,	/*!< in: space */
-	ulint	page_no)/*!< in: page number */
+	space_id_t	space,	/*!< in: space */
+	page_no_t	page_no)/*!< in: page number */
 {
 	return(hash_calc_hash(recv_fold(space, page_no), recv_sys->addr_hash));
 }
@@ -2051,8 +2051,8 @@ static
 recv_addr_t*
 recv_get_fil_addr_struct(
 /*=====================*/
-	ulint	space,	/*!< in: space id */
-	ulint	page_no)/*!< in: page number */
+	space_id_t	space,	/*!< in: space id */
+	page_no_t	page_no)/*!< in: page number */
 {
 	recv_addr_t*	recv_addr;
 
@@ -2080,8 +2080,8 @@ void
 recv_add_to_hash_table(
 /*===================*/
 	mlog_id_t	type,		/*!< in: log record type */
-	ulint		space,		/*!< in: space id */
-	ulint		page_no,	/*!< in: page number */
+	space_id_t	space,		/*!< in: space id */
+	page_no_t	page_no,	/*!< in: page number */
 	byte*		body,		/*!< in: log record body */
 	byte*		rec_end,	/*!< in: log record end */
 	lsn_t		start_lsn,	/*!< in: start lsn of the mtr */
@@ -2439,8 +2439,8 @@ recv_read_in_area(
 	const page_id_t&	page_id)
 {
 	recv_addr_t* recv_addr;
-	ulint	page_nos[RECV_READ_AHEAD_AREA];
-	ulint	low_limit;
+	page_no_t	page_nos[RECV_READ_AHEAD_AREA];
+	page_no_t	low_limit;
 	ulint	n;
 
 	low_limit = page_id.page_no()
@@ -2448,7 +2448,7 @@ recv_read_in_area(
 
 	n = 0;
 
-	for (ulint page_no = low_limit;
+	for (page_no_t page_no = low_limit;
 	     page_no < low_limit + RECV_READ_AHEAD_AREA;
 	     page_no++) {
 
@@ -2814,8 +2814,8 @@ recv_parse_log_rec(
 	mlog_id_t*	type,
 	byte*		ptr,
 	byte*		end_ptr,
-	ulint*		space,
-	ulint*		page_no,
+	space_id_t*	space,
+	page_no_t*	page_no,
 	bool		apply,
 	byte**		body)
 {
@@ -2934,8 +2934,8 @@ bool
 recv_report_corrupt_log(
 	const byte*	ptr,
 	int		type,
-	ulint		space,
-	ulint		page_no)
+	space_id_t	space,
+	page_no_t	page_no)
 {
 	ib::error() <<
 		"############### CORRUPT LOG RECORD FOUND ##################";
@@ -3012,8 +3012,8 @@ recv_parse_log_recs(
 	lsn_t		new_recovered_lsn;
 	lsn_t		old_lsn;
 	mlog_id_t	type;
-	ulint		space;
-	ulint		page_no;
+	space_id_t	space;
+	page_no_t	page_no;
 	byte*		body;
 
 	ut_ad(log_mutex_own());
@@ -3154,8 +3154,7 @@ loop:
 		case MLOG_INDEX_LOAD:
 			DBUG_PRINT("ib_log",
 				   ("scan " LSN_PF ": log rec %s"
-				    " len " ULINTPF
-				    " page " ULINTPF ":" ULINTPF,
+				    " len " ULINTPF " " PAGE_ID_PF,
 				    old_lsn, get_mlog_string(type),
 				    len, space, page_no));
 		}
@@ -3211,8 +3210,7 @@ loop:
 
 			DBUG_PRINT("ib_log",
 				   ("scan " LSN_PF ": multi-log rec %s"
-				    " len " ULINTPF
-				    " page " ULINTPF ":" ULINTPF,
+				    " len " ULINTPF " " PAGE_ID_PF,
 				    recv_sys->recovered_lsn,
 				    get_mlog_string(type), len, space, page_no));
 		}
@@ -4436,7 +4434,7 @@ recv_reset_log_files_for_backup(
 @retval NULL if no page was found */
 
 const byte*
-recv_dblwr_t::find_page(ulint space_id, ulint page_no)
+recv_dblwr_t::find_page(space_id_t space_id, page_no_t page_no)
 {
 	typedef std::vector<const byte*, ut_allocator<const byte*> >
 		matches_t;

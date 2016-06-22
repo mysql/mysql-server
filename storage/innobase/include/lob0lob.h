@@ -208,7 +208,7 @@ public:
 
 	/** Read the page number from the blob reference.
 	@return the page number */
-	ulint page_no() const
+	page_no_t page_no() const
 	{
 		return(mach_read_from_4(m_ref + BTR_EXTERN_PAGE_NO));
 	}
@@ -593,7 +593,7 @@ public:
 
 	/** Get the page number of clustered index block.
 	@return the page number. */
-	ulint get_page_no() const
+	page_no_t get_page_no() const
 	{
 		return(page_get_page_no(buf_block_get_frame(m_block)));
 	}
@@ -772,7 +772,7 @@ public:
 
 	/** Determine the extent size (in pages) for the underlying table
 	@return extent size in pages */
-	ulint pages_in_extent() const
+	page_no_t pages_in_extent() const
 	{
 		return(dict_table_extent_size(table()));
 	}

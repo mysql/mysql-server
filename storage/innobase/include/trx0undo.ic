@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,10 +34,10 @@ UNIV_INLINE
 roll_ptr_t
 trx_undo_build_roll_ptr(
 /*====================*/
-	ibool	is_insert,	/*!< in: TRUE if insert undo log */
-	ulint	rseg_id,	/*!< in: rollback segment id */
-	ulint	page_no,	/*!< in: page number */
-	ulint	offset)		/*!< in: offset of the undo entry within page */
+	ibool		is_insert,	/*!< in: TRUE if insert undo log */
+	ulint		rseg_id,	/*!< in: rollback segment id */
+	page_no_t	page_no,	/*!< in: page number */
+	ulint		offset)		/*!< in: offset of the undo entry within page */
 {
 	roll_ptr_t	roll_ptr;
 #if DATA_ROLL_PTR_LEN != 7
@@ -63,7 +63,7 @@ trx_undo_decode_roll_ptr(
 	roll_ptr_t	roll_ptr,	/*!< in: roll pointer */
 	ibool*		is_insert,	/*!< out: TRUE if insert undo log */
 	ulint*		rseg_id,	/*!< out: rollback segment id */
-	ulint*		page_no,	/*!< out: page number */
+	page_no_t*	page_no,	/*!< out: page number */
 	ulint*		offset)		/*!< out: offset of the undo
 					entry within page */
 {
@@ -201,9 +201,9 @@ UNIV_INLINE
 ulint
 trx_undo_page_get_start(
 /*====================*/
-	page_t*	undo_page,/*!< in: undo log page */
-	ulint	page_no,/*!< in: undo log header page number */
-	ulint	offset)	/*!< in: undo log header offset on page */
+	page_t*		undo_page,/*!< in: undo log page */
+	page_no_t	page_no,/*!< in: undo log header page number */
+	ulint		offset)	/*!< in: undo log header offset on page */
 {
 	ulint	start;
 
@@ -226,9 +226,9 @@ UNIV_INLINE
 ulint
 trx_undo_page_get_end(
 /*==================*/
-	page_t*	undo_page,/*!< in: undo log page */
-	ulint	page_no,/*!< in: undo log header page number */
-	ulint	offset)	/*!< in: undo log header offset on page */
+	page_t*		undo_page,/*!< in: undo log page */
+	page_no_t	page_no,/*!< in: undo log header page number */
+	ulint		offset)	/*!< in: undo log header offset on page */
 {
 	trx_ulogf_t*	log_hdr;
 	ulint		end;
@@ -260,7 +260,7 @@ trx_undo_rec_t*
 trx_undo_page_get_prev_rec(
 /*=======================*/
 	trx_undo_rec_t*	rec,	/*!< in: undo log record */
-	ulint		page_no,/*!< in: undo log header page number */
+	page_no_t	page_no,/*!< in: undo log header page number */
 	ulint		offset)	/*!< in: undo log header offset on page */
 {
 	page_t*	undo_page;
@@ -287,7 +287,7 @@ trx_undo_rec_t*
 trx_undo_page_get_next_rec(
 /*=======================*/
 	trx_undo_rec_t*	rec,	/*!< in: undo log record */
-	ulint		page_no,/*!< in: undo log header page number */
+	page_no_t	page_no,/*!< in: undo log header page number */
 	ulint		offset)	/*!< in: undo log header offset on page */
 {
 	page_t*	undo_page;
@@ -316,9 +316,9 @@ UNIV_INLINE
 trx_undo_rec_t*
 trx_undo_page_get_last_rec(
 /*=======================*/
-	page_t*	undo_page,/*!< in: undo log page */
-	ulint	page_no,/*!< in: undo log header page number */
-	ulint	offset)	/*!< in: undo log header offset on page */
+	page_t*		undo_page,/*!< in: undo log page */
+	page_no_t	page_no,/*!< in: undo log header page number */
+	ulint		offset)	/*!< in: undo log header offset on page */
 {
 	ulint	start;
 	ulint	end;
@@ -342,9 +342,9 @@ UNIV_INLINE
 trx_undo_rec_t*
 trx_undo_page_get_first_rec(
 /*========================*/
-	page_t*	undo_page,/*!< in: undo log page */
-	ulint	page_no,/*!< in: undo log header page number */
-	ulint	offset)	/*!< in: undo log header offset on page */
+	page_t*		undo_page,/*!< in: undo log page */
+	page_no_t	page_no,/*!< in: undo log header page number */
+	ulint		offset)	/*!< in: undo log header offset on page */
 {
 	ulint	start;
 	ulint	end;

@@ -58,7 +58,7 @@ has completed? */
 void
 buf_LRU_flush_or_remove_pages(
 /*==========================*/
-	ulint		id,		/*!< in: space id */
+	space_id_t	id,		/*!< in: space id */
 	buf_remove_t	buf_remove,	/*!< in: remove or flush strategy */
 	const trx_t*	trx);		/*!< to check if the operation must
 					be interrupted */

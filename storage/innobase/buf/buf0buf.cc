@@ -1148,10 +1148,10 @@ buf_pool_init_instance(
 		} while (++chunk < buf_pool->chunks + buf_pool->n_chunks);
 
 		buf_pool->instance_no = instance_no;
-		buf_pool->read_ahead_area =
+		buf_pool->read_ahead_area = static_cast<page_no_t>(
 			ut_min(BUF_READ_AHEAD_PAGES,
 			       ut_2_power_up(buf_pool->curr_size /
-					     BUF_READ_AHEAD_PORTION));
+					     BUF_READ_AHEAD_PORTION)));
 		buf_pool->curr_pool_size = buf_pool->curr_size * UNIV_PAGE_SIZE;
 
 		buf_pool->old_size = buf_pool->curr_size;
@@ -1640,8 +1640,8 @@ buf_pool_withdraw_blocks(
 		/* reserve free_list length */
 		if (UT_LIST_GET_LEN(buf_pool->withdraw)
 		    < buf_pool->withdraw_target) {
-			ulint	scan_depth;
-			ulint	n_flushed = 0;
+			ulint		scan_depth;
+			ulint		n_flushed = 0;
 
 			/* cap scan_depth with current LRU size. */
 			scan_depth = ut_min(
@@ -2264,10 +2264,10 @@ calc_buf_pool_size:
 
 			ut_ad(UT_LIST_GET_LEN(buf_pool->withdraw) == 0);
 
-			buf_pool->read_ahead_area =
+			buf_pool->read_ahead_area = static_cast<page_no_t>(
 				ut_min(BUF_READ_AHEAD_PAGES,
 				       ut_2_power_up(buf_pool->curr_size /
-						      BUF_READ_AHEAD_PORTION));
+						      BUF_READ_AHEAD_PORTION)));
 			buf_pool->curr_pool_size
 				= buf_pool->curr_size * UNIV_PAGE_SIZE;
 			curr_size += buf_pool->curr_pool_size;
@@ -4965,10 +4965,10 @@ buf_page_io_complete(
 	ut_ad(io_type == BUF_IO_READ || io_type == BUF_IO_WRITE);
 
 	if (io_type == BUF_IO_READ) {
-		ulint	read_page_no;
-		ulint	read_space_id;
-		byte*	frame;
-		bool	compressed_page;
+		page_no_t	read_page_no;
+		space_id_t	read_space_id;
+		byte*		frame;
+		bool		compressed_page;
 
 		if (bpage->size.is_compressed()) {
 			frame = bpage->zip.data;

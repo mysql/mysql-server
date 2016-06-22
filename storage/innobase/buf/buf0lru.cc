@@ -230,9 +230,9 @@ particular space id.
 static
 void
 buf_LRU_drop_page_hash_batch(
-	ulint			space_id,
+	space_id_t		space_id,
 	const page_size_t&	page_size,
-	const ulint*		arr,
+	const page_no_t*	arr,
 	ulint			count)
 {
 	ut_ad(count <= BUF_LRU_DROP_SEARCH_SIZE);
@@ -261,10 +261,11 @@ static
 void
 buf_LRU_drop_page_hash_for_tablespace(
 	buf_pool_t*	buf_pool,
-	ulint		id)
+	space_id_t	space_id)
 {
 	bool			found;
-	const page_size_t	page_size(fil_space_get_page_size(id, &found));
+	const page_size_t	page_size(
+		fil_space_get_page_size(space_id, &found));
 
 	if (!found) {
 		/* Somehow, the tablespace does not exist.  Nothing to drop. */
@@ -272,8 +273,8 @@ buf_LRU_drop_page_hash_for_tablespace(
 		return;
 	}
 
-	ulint*	page_arr = static_cast<ulint*>(ut_malloc_nokey(
-			sizeof(ulint) * BUF_LRU_DROP_SEARCH_SIZE));
+	page_no_t*	page_arr = static_cast<page_no_t*>(
+		ut_malloc_nokey(sizeof(page_no_t) * BUF_LRU_DROP_SEARCH_SIZE));
 
 	ulint	num_entries = 0;
 
@@ -289,7 +290,7 @@ scan_again:
 		ut_a(buf_page_in_file(bpage));
 
 		if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE
-		    || bpage->id.space() != id
+		    || bpage->id.space() != space_id
 		    || bpage->io_fix != BUF_IO_NONE) {
 			/* Compressed pages are never hashed.
 			Skip blocks of other tablespaces.
@@ -331,7 +332,7 @@ next_page:
 		mutex_exit(&buf_pool->LRU_list_mutex);
 
 		buf_LRU_drop_page_hash_batch(
-			id, page_size, page_arr, num_entries);
+			space_id, page_size, page_arr, num_entries);
 
 		num_entries = 0;
 
@@ -362,7 +363,8 @@ next_page:
 	mutex_exit(&buf_pool->LRU_list_mutex);
 
 	/* Drop any remaining batch of search hashed pages. */
-	buf_LRU_drop_page_hash_batch(id, page_size, page_arr, num_entries);
+	buf_LRU_drop_page_hash_batch(
+		space_id, page_size, page_arr, num_entries);
 	ut_free(page_arr);
 }
 
@@ -587,7 +589,7 @@ static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 buf_flush_or_remove_pages(
 	buf_pool_t*	buf_pool,
-	ulint		id,
+	space_id_t	id,
 	FlushObserver*	observer,
 	bool		flush,
 	const trx_t*	trx)
@@ -710,7 +712,7 @@ static
 void
 buf_flush_dirty_pages(
 	buf_pool_t*	buf_pool,
-	ulint		id,
+	space_id_t	id,
 	FlushObserver*	observer,
 	bool		flush,
 	const trx_t*	trx)
@@ -903,7 +905,7 @@ void
 buf_LRU_remove_pages(
 /*=================*/
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
-	ulint		id,		/*!< in: space id */
+	space_id_t	id,		/*!< in: space id */
 	buf_remove_t	buf_remove,	/*!< in: remove or flush strategy */
 	const trx_t*	trx)		/*!< to check if the operation must
 					be interrupted */
@@ -941,7 +943,7 @@ has completed? */
 void
 buf_LRU_flush_or_remove_pages(
 /*==========================*/
-	ulint		id,		/*!< in: space id */
+	space_id_t	id,		/*!< in: space id */
 	buf_remove_t	buf_remove,	/*!< in: remove or flush strategy */
 	const trx_t*	trx)		/*!< to check if the operation must
 					be interrupted */

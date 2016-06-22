@@ -1894,7 +1894,7 @@ trx_undo_report_row_operation(
 {
 	trx_t*		trx;
 	trx_undo_t*	undo;
-	ulint		page_no;
+	page_no_t	page_no;
 	buf_block_t*	undo_block;
 	trx_undo_ptr_t*	undo_ptr;
 	mtr_t		mtr;
@@ -2153,7 +2153,7 @@ trx_undo_get_undo_rec_low(
 {
 	trx_undo_rec_t*	undo_rec;
 	ulint		rseg_id;
-	ulint		page_no;
+	page_no_t	page_no;
 	ulint		offset;
 	const page_t*	undo_page;
 	trx_rseg_t*	rseg;

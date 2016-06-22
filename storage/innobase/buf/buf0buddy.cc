@@ -551,8 +551,8 @@ buf_buddy_relocate(
 {
 	buf_page_t*	bpage;
 	const ulint	size = BUF_BUDDY_LOW << i;
-	ulint		space;
-	ulint		offset;
+	space_id_t	space;
+	page_no_t	offset;
 
 	ut_ad(mutex_own(&buf_pool->zip_free_mutex));
 	ut_ad(!mutex_own(&buf_pool->zip_mutex));

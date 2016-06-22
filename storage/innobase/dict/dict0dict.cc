@@ -1131,7 +1131,7 @@ dict_table_open_on_id(
 	} else if (dict_table_is_sdi(table_id)) {
 
 		/* The table is SDI table */
-		ulint	        space_id = dict_sdi_get_space_id(table_id);
+		space_id_t	space_id = dict_sdi_get_space_id(table_id);
 		uint32_t	copy_num = dict_sdi_get_copy_num(table_id);
 
 		/* Create in-memory table oject for SDI table */
@@ -2624,7 +2624,7 @@ dberr_t
 dict_index_add_to_cache(
 	dict_table_t*	table,
 	dict_index_t*	index,
-	ulint		page_no,
+	page_no_t	page_no,
 	ibool		strict)
 {
 	return(dict_index_add_to_cache_w_vcol(
@@ -2648,7 +2648,7 @@ dict_index_add_to_cache_w_vcol(
 	dict_table_t*		table,
 	dict_index_t*		index,
 	const dict_add_v_col_t* add_v,
-	ulint			page_no,
+	page_no_t		page_no,
 	ibool			strict)
 {
 	dict_index_t*	new_index;
@@ -5263,7 +5263,7 @@ dict_index_build_node_ptr(
 	const dict_index_t*	index,	/*!< in: index */
 	const rec_t*		rec,	/*!< in: record for which to build node
 					pointer */
-	ulint			page_no,/*!< in: page number to put in node
+	page_no_t		page_no,/*!< in: page number to put in node
 					pointer */
 	mem_heap_t*		heap,	/*!< in: memory heap where pointer
 					created */
@@ -6977,8 +6977,7 @@ dict_tf_to_row_format_string(
 @param[in]	space_id	Tablespace ID to search for.
 @return true if tablespace is empty. */
 bool
-dict_space_is_empty(
-	ulint	space_id)
+dict_space_is_empty(space_id_t space_id)
 {
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
@@ -7016,7 +7015,7 @@ dict_space_is_empty(
 /** Find the space_id for the given name in sys_tablespaces.
 @param[in]	name	Tablespace name to search for.
 @return the tablespace ID. */
-ulint
+space_id_t
 dict_space_get_id(
 	const char*	name)
 {
@@ -7024,7 +7023,7 @@ dict_space_get_id(
 	const rec_t*	rec;
 	mtr_t		mtr;
 	ulint		name_len = strlen(name);
-	ulint		id = ULINT_UNDEFINED;
+	space_id_t	id = SPACE_UNKNOWN;
 
 	rw_lock_x_lock(dict_operation_lock);
 	mutex_enter(&dict_sys->mutex);
@@ -7067,7 +7066,7 @@ dict_space_get_id(
 @param[in]	table	the table whose extent size is being
 			calculated.
 @return extent size in pages (256, 128 or 64) */
-ulint
+page_no_t
 dict_table_extent_size(
 	const dict_table_t*	table)
 {
@@ -7076,7 +7075,7 @@ dict_table_extent_size(
 	const ulint	mb_4 = 4 * mb_1;
 
 	page_size_t	page_size = dict_table_page_size(table);
-	ulint	pages_in_extent = FSP_EXTENT_SIZE;
+	page_no_t	pages_in_extent = FSP_EXTENT_SIZE;
 
 	if (page_size.is_compressed()) {
 
@@ -7647,7 +7646,7 @@ CorruptedIndexPersister::read(
 	}
 
 	for (ulint i = 0; i < num; ++i) {
-		ulint		space_id = mach_read_from_4(buffer);
+		space_id_t	space_id = mach_read_from_4(buffer);
 		space_index_t	index_id = mach_read_from_8(buffer + 4);
 		metadata.add_corrupted_index(index_id_t(space_id, index_id));
 
@@ -7920,7 +7919,7 @@ use only in IMPORT/EXPORT as of now. */
 @return dict_index_t structure or NULL*/
 dict_index_t*
 dict_sdi_get_index(
-	ulint		tablespace_id,
+	space_id_t	tablespace_id,
 	uint32_t	copy_num)
 {
 	ut_ad(copy_num < MAX_SDI_COPIES);
@@ -7944,7 +7943,7 @@ dict_sdi_get_index(
 @return dict_table_t structure */
 dict_table_t*
 dict_sdi_get_table(
-	ulint		tablespace_id,
+	space_id_t	tablespace_id,
 	uint32_t	copy_num,
 	bool	dict_locked)
 {
@@ -7967,7 +7966,7 @@ the SDI table object for the table_id on demand. */
 @param[in]	dict_locked	true if dict_sys mutex acquired */
 void
 dict_sdi_remove_from_cache(
-	ulint		space_id,
+	space_id_t	space_id,
 	dict_table_t**	sdi_tables,
 	bool		dict_locked)
 {

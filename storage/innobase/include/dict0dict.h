@@ -58,7 +58,7 @@ in tablespace because we only have limited space in Page 0 & 1 to
 store the SDI Index root page numbers */
 const ulint	MAX_SDI_COPIES	= 2;
 /** Space id of system tablespace */
-const ulint	SYSTEM_TABLE_SPACE = TRX_SYS_SPACE;
+const space_id_t	SYSTEM_TABLE_SPACE = TRX_SYS_SPACE;
 
 /********************************************************************//**
 Get the database name length in a table name.
@@ -1054,7 +1054,7 @@ MY_ATTRIBUTE((const));
 @param[in]	table	the table whose extent size is being
 			calculated.
 @return extent size in pages (256, 128 or 64) */
-ulint
+page_no_t
 dict_table_extent_size(
 	const dict_table_t*	table);
 
@@ -1166,7 +1166,7 @@ dict_index_add_to_cache(
 	dict_table_t*	table,	/*!< in: table on which the index is */
 	dict_index_t*	index,	/*!< in, own: index; NOTE! The index memory
 				object is freed in this function! */
-	ulint		page_no,/*!< in: root page number of the index */
+	page_no_t	page_no,/*!< in: root page number of the index */
 	ibool		strict)	/*!< in: TRUE=refuse to create the index
 				if records could be too big to fit in
 				an B-tree page */
@@ -1189,7 +1189,7 @@ dict_index_add_to_cache_w_vcol(
 	dict_table_t*		table,
 	dict_index_t*		index,
 	const dict_add_v_col_t* add_v,
-	ulint			page_no,
+	page_no_t			page_no,
 	ibool			strict)
 	MY_ATTRIBUTE((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
@@ -1440,7 +1440,7 @@ dict_index_build_node_ptr(
 	const dict_index_t*	index,	/*!< in: index */
 	const rec_t*		rec,	/*!< in: record for which to build node
 					pointer */
-	ulint			page_no,/*!< in: page number to put in node
+	page_no_t		page_no,/*!< in: page number to put in node
 					pointer */
 	mem_heap_t*		heap,	/*!< in: memory heap where pointer
 					created */
@@ -1477,7 +1477,7 @@ dict_index_build_data_tuple(
 Gets the space id of the root of the index tree.
 @return space id */
 UNIV_INLINE
-ulint
+space_id_t
 dict_index_get_space(
 /*=================*/
 	const dict_index_t*	index)	/*!< in: index */
@@ -1490,13 +1490,13 @@ UNIV_INLINE
 void
 dict_index_set_space(
 	dict_index_t*	index,
-	ulint		space);
+	space_id_t	space);
 
 /*********************************************************************//**
 Gets the page number of the root of the index tree.
 @return page number */
 UNIV_INLINE
-ulint
+page_no_t
 dict_index_get_page(
 /*================*/
 	const dict_index_t*	tree)	/*!< in: index */
@@ -2209,12 +2209,12 @@ dict_table_decode_n_col(
 @return true if tablespace is empty. */
 bool
 dict_space_is_empty(
-	ulint	space_id);
+	space_id_t	space_id);
 
 /** Find the space_id for the given name in sys_tablespaces.
 @param[in]	name	Tablespace name to search for.
 @return the tablespace ID. */
-ulint
+space_id_t
 dict_space_get_id(
 	const char*	name);
 
@@ -2249,7 +2249,7 @@ dict_table_have_virtual_index(
 @return dict_index_t structure or NULL*/
 dict_index_t*
 dict_sdi_get_index(
-	ulint		tablespace_id,
+	space_id_t	tablespace_id,
 	uint32_t	copy_num);
 
 /** Retrieve in-memory table object for SDI table.
@@ -2259,7 +2259,7 @@ dict_sdi_get_index(
 @return dict_table_t structure */
 dict_table_t*
 dict_sdi_get_table(
-	ulint		tablespace_id,
+	space_id_t	tablespace_id,
 	uint32_t	copy_num,
 	bool		dict_locked);
 
@@ -2269,7 +2269,7 @@ dict_sdi_get_table(
 @param[in]	dict_locked	true if dict_sys mutex acquired */
 void
 dict_sdi_remove_from_cache(
-	ulint		space_id,
+	space_id_t	space_id,
 	dict_table_t**	sdi_tables,
 	bool		dict_locked);
 

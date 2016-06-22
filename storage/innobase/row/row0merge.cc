@@ -1966,7 +1966,7 @@ end_of_index:
 					goto write_buffers;
 				}
 			} else {
-				ulint		next_page_no;
+				page_no_t	next_page_no;
 				buf_block_t*	block;
 
 				next_page_no = btr_page_get_next(

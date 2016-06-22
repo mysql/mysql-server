@@ -1273,7 +1273,7 @@ dict_process_sys_tablespaces(
 /*=========================*/
 	mem_heap_t*	heap,		/*!< in/out: heap memory */
 	const rec_t*	rec,		/*!< in: current SYS_TABLESPACES rec */
-	ulint*		space,		/*!< out: space id */
+	space_id_t*	space,		/*!< out: space id */
 	const char**	name,		/*!< out: tablespace name */
 	ulint*		flags)		/*!< out: tablespace flags */
 {
@@ -1281,7 +1281,7 @@ dict_process_sys_tablespaces(
 	const byte*	field;
 
 	/* Initialize the output values */
-	*space = ULINT_UNDEFINED;
+	*space = SPACE_UNKNOWN;
 	*name = NULL;
 	*flags = ULINT_UNDEFINED;
 
@@ -1473,7 +1473,7 @@ dict_get_first_path(
 static
 char*
 dict_space_get_name(
-	ulint		space_id,
+	space_id_t	space_id,
 	mem_heap_t*	callers_heap)
 {
 	mtr_t		mtr;
@@ -1570,7 +1570,7 @@ the given space_id using an independent transaction.
 @return DB_SUCCESS if OK, dberr_t if the insert failed */
 dberr_t
 dict_replace_tablespace_and_filepath(
-	ulint		space_id,
+	space_id_t	space_id,
 	const char*	name,
 	const char*	filepath,
 	ulint		fsp_flags)
@@ -1703,7 +1703,7 @@ static
 bool
 dict_sys_tablespaces_rec_read(
 	const rec_t*	rec,
-	ulint*		id,
+	space_id_t*	id,
 	char*		name,
 	ulint*		flags)
 {
@@ -1747,11 +1747,11 @@ If it is valid, add it to the file_system list.
 @param[in]	validate	true when the previous shutdown was not clean
 @return the highest space ID found. */
 UNIV_INLINE
-ulint
+space_id_t
 dict_check_sys_tablespaces(
 	bool		validate)
 {
-	ulint		max_space_id = 0;
+	space_id_t	max_space_id = 0;
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
 	mtr_t		mtr;
@@ -1772,9 +1772,9 @@ dict_check_sys_tablespaces(
 	     rec != NULL;
 	     rec = dict_getnext_system(&pcur, &mtr))
 	{
-		char	space_name[NAME_LEN];
-		ulint	space_id = 0;
-		ulint	fsp_flags;
+		char		space_name[NAME_LEN];
+		space_id_t	space_id = 0;
+		ulint		fsp_flags;
 
 		if (!dict_sys_tablespaces_rec_read(rec, &space_id,
 						   space_name, &fsp_flags)) {
@@ -1838,7 +1838,7 @@ dict_sys_tables_rec_read(
 	const rec_t*		rec,
 	const table_name_t&	table_name,
 	table_id_t*		table_id,
-	ulint*			space_id,
+	space_id_t*		space_id,
 	ulint*			n_cols,
 	ulint*			flags,
 	ulint*			flags2)
@@ -1913,11 +1913,11 @@ the REDO log occurred.
 @param[in]	validate	Whether to do validation on the table.
 @return the highest space ID found. */
 UNIV_INLINE
-ulint
+space_id_t
 dict_check_sys_tables(
 	bool		validate)
 {
-	ulint		max_space_id = 0;
+	space_id_t	max_space_id = 0;
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
 	mtr_t		mtr;
@@ -1946,7 +1946,7 @@ dict_check_sys_tables(
 		char*		space_name;
 		table_name_t	table_name;
 		table_id_t	table_id;
-		ulint		space_id;
+		space_id_t	space_id;
 		ulint		n_cols;
 		ulint		flags;
 		ulint		flags2;
@@ -2078,7 +2078,7 @@ dict_check_tablespaces_and_store_max_id(
 
 	/* Initialize the max space_id from sys header */
 	mtr_start(&mtr);
-	ulint	max_space_id = mtr_read_ulint(
+	space_id_t	max_space_id = mtr_read_ulint(
 		dict_hdr_get(&mtr) + DICT_HDR_MAX_SPACE_ID,
 		MLOG_4BYTES, &mtr);
 	mtr_commit(&mtr);
@@ -2086,12 +2086,12 @@ dict_check_tablespaces_and_store_max_id(
 	fil_set_max_space_id_if_bigger(max_space_id);
 
 	/* Open all general tablespaces found in SYS_TABLESPACES. */
-	ulint	max1 = dict_check_sys_tablespaces(validate);
+	space_id_t	max1 = dict_check_sys_tablespaces(validate);
 
 	/* Open all tablespaces referenced in SYS_TABLES.
 	This will update SYS_TABLESPACES and SYS_DATAFILES if it
 	finds any file-per-table tablespaces not already there. */
-	ulint	max2 = dict_check_sys_tables(validate);
+	space_id_t	max2 = dict_check_sys_tables(validate);
 
 	/* Store the max space_id found */
 	max_space_id = ut_max(max1, max2);
@@ -2545,7 +2545,7 @@ dict_load_table_low(
 	dict_table_t**	table)
 {
 	table_id_t	table_id;
-	ulint		space_id;
+	space_id_t	space_id;
 	ulint		n_cols;
 	ulint		t_num;
 	ulint		flags;

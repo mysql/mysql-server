@@ -166,8 +166,8 @@ btr_cur_latch_leaves(
 	mtr_t*			mtr)
 {
 	ulint		mode;
-	ulint		left_page_no;
-	ulint		right_page_no;
+	page_no_t	left_page_no;
+	page_no_t	right_page_no;
 	buf_block_t*	get_block;
 	page_t*		page = buf_block_get_frame(block);
 	bool		spatial;
@@ -342,7 +342,7 @@ btr_cur_optimistic_latch_leaves(
 	mtr_t*		mtr)
 {
 	ulint		mode;
-	ulint		left_page_no;
+	page_no_t	left_page_no;
 
 	switch (*latch_mode) {
 	case BTR_SEARCH_LEAF:
@@ -943,7 +943,7 @@ btr_cur_search_to_nth_level(
 
 	page_cursor = btr_cur_get_page_cur(cursor);
 
-	const ulint		space = dict_index_get_space(index);
+	const space_id_t	space = dict_index_get_space(index);
 	const page_size_t	page_size(dict_table_page_size(index->table));
 
 	/* Start with the root page. */
@@ -1106,7 +1106,7 @@ retry_page_get:
 
 	if (retrying_for_search_prev && height != 0) {
 		/* also latch left sibling */
-		ulint		left_page_no;
+		page_no_t	left_page_no;
 		buf_block_t*	get_block;
 
 		ut_ad(rw_latch == RW_NO_LATCH);
@@ -1745,7 +1745,7 @@ need_opposite_intention:
 						my_node_ptr, index, offsets,
 						ULINT_UNDEFINED, &heap);
 
-					ulint	my_page_no
+					page_no_t my_page_no
 					= btr_node_ptr_get_child_page_no(
 						my_node_ptr, offsets);
 
@@ -1952,10 +1952,10 @@ btr_cur_search_to_nth_level_with_no_latch(
 
 	page_cursor = btr_cur_get_page_cur(cursor);
 
-        const ulint		space = dict_index_get_space(index);
-        const page_size_t	page_size(dict_table_page_size(index->table));
-        /* Start with the root page. */
-        page_id_t		page_id(space, dict_index_get_page(index));
+	const space_id_t	space = dict_index_get_space(index);
+	const page_size_t	page_size(dict_table_page_size(index->table));
+	/* Start with the root page. */
+	page_id_t		page_id(space, dict_index_get_page(index));
 
 	up_match = 0;
 	low_match = 0;
@@ -2942,8 +2942,8 @@ btr_cur_prefetch_siblings(
 
 	ut_ad(page_is_leaf(page));
 
-	ulint left_page_no = fil_page_get_prev(page);
-	ulint right_page_no = fil_page_get_next(page);
+	page_no_t left_page_no = fil_page_get_prev(page);
+	page_no_t right_page_no = fil_page_get_next(page);
 
 	if (left_page_no != FIL_NULL) {
 		buf_read_page_background(
@@ -4149,7 +4149,7 @@ btr_cur_pess_upd_restore_supremum(
 		return;
 	}
 
-	const ulint	prev_page_no = btr_page_get_prev(page, mtr);
+	const page_no_t	prev_page_no = btr_page_get_prev(page, mtr);
 
 	const page_id_t	page_id(block->page.id.space(), prev_page_no);
 

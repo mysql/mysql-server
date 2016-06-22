@@ -43,7 +43,7 @@ PageBulk::init()
 	buf_block_t*	new_block;
 	page_t*		new_page;
 	page_zip_des_t*	new_page_zip;
-	ulint		new_page_no;
+	page_no_t	new_page_no;
 
 	ut_ad(m_heap == NULL);
 	m_heap = mem_heap_create(1000);
@@ -480,8 +480,7 @@ PageBulk::copyOut(
 /** Set next page
 @param[in]	next_page_no	next page no */
 void
-PageBulk::setNext(
-	ulint		next_page_no)
+PageBulk::setNext(page_no_t next_page_no)
 {
 	btr_page_set_next(m_page, NULL, next_page_no, m_mtr);
 }
@@ -489,8 +488,7 @@ PageBulk::setNext(
 /** Set previous page
 @param[in]	prev_page_no	previous page no */
 void
-PageBulk::setPrev(
-	ulint		prev_page_no)
+PageBulk::setPrev(page_no_t prev_page_no)
 {
 	btr_page_set_prev(m_page, NULL, prev_page_no, m_mtr);
 }
@@ -914,7 +912,7 @@ if no error occurs.
 dberr_t
 BtrBulk::finish(dberr_t	err)
 {
-	ulint		last_page_no = FIL_NULL;
+	page_no_t	last_page_no = FIL_NULL;
 
 	ut_ad(!dict_table_is_temporary(m_index->table));
 
@@ -952,7 +950,7 @@ BtrBulk::finish(dberr_t	err)
 		page_id_t	page_id(dict_index_get_space(m_index),
 					last_page_no);
 		page_size_t	page_size(dict_table_page_size(m_index->table));
-		ulint		root_page_no = dict_index_get_page(m_index);
+		page_no_t	root_page_no = dict_index_get_page(m_index);
 		PageBulk	root_page_bulk(m_index, m_trx_id,
 					       root_page_no, m_root_level,
 					       m_flush_observer);

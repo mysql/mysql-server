@@ -271,7 +271,7 @@ btr_page_get_level_low(
 Gets the next index page number.
 @return next page number */
 UNIV_INLINE
-ulint
+page_no_t
 btr_page_get_next(
 /*==============*/
 	const page_t*	page,	/*!< in: index page */
@@ -281,7 +281,7 @@ btr_page_get_next(
 Gets the previous index page number.
 @return prev page number */
 UNIV_INLINE
-ulint
+page_no_t
 btr_page_get_prev(
 /*==============*/
 	const page_t*	page,	/*!< in: index page */
@@ -307,7 +307,7 @@ the child page number. In other words offsets must have been retrieved
 with rec_get_offsets(n_fields=ULINT_UNDEFINED).
 @return child node address */
 UNIV_INLINE
-ulint
+page_no_t
 btr_node_ptr_get_child_page_no(
 /*===========================*/
 	const rec_t*	rec,	/*!< in: node pointer record */
@@ -325,7 +325,7 @@ btr_node_ptr_get_child_page_no(
 ulint
 btr_create(
 	ulint			type,
-	ulint			space,
+	space_id_t		space,
 	const page_size_t&	page_size,
 	space_index_t		index_id,
 	dict_index_t*		index,
@@ -604,7 +604,7 @@ buf_block_t*
 btr_page_alloc(
 /*===========*/
 	dict_index_t*	index,		/*!< in: index tree */
-	ulint		hint_page_no,	/*!< in: hint of a good page */
+	page_no_t	hint_page_no,	/*!< in: hint of a good page */
 	byte		file_direction,	/*!< in: direction where a possible
 					page split is made */
 	ulint		level,		/*!< in: level where the page is placed
@@ -702,8 +702,8 @@ btr_validate_index(
 @return DB_SUCCESS on success, else DB_ERROR on failure */
 dberr_t
 btr_sdi_create_indexes(
-	ulint	space_id,
-	bool	dict_locked);
+	space_id_t	space_id,
+	bool		dict_locked);
 
 #define BTR_N_LEAF_PAGES	1
 #define BTR_TOTAL_SIZE		2

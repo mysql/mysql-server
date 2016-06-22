@@ -251,8 +251,8 @@ Determines if there are explicit record locks on a page.
 lock_t*
 lock_rec_expl_exist_on_page(
 /*========================*/
-	ulint	space,	/*!< in: space id */
-	ulint	page_no)/*!< in: page number */
+	space_id_t	space,	/*!< in: space id */
+	page_no_t	page_no)/*!< in: page number */
 	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Checks if locks of other transactions prevent an immediate insert of
@@ -533,8 +533,8 @@ UNIV_INLINE
 ulint
 lock_rec_fold(
 /*==========*/
-	ulint	space,	/*!< in: space */
-	ulint	page_no)/*!< in: page number */
+	space_id_t	space,	/*!< in: space */
+	page_no_t	page_no)/*!< in: page number */
 	MY_ATTRIBUTE((const));
 
 /** Calculates the hash value of a page file address: used in inserting or
@@ -545,8 +545,8 @@ searching for a lock in the hash table.
 UNIV_INLINE
 ulint
 lock_rec_hash(
-	ulint	space,
-	ulint	page_no);
+	space_id_t	space,
+	page_no_t	page_no);
 
 /*************************************************************//**
 Get the lock hash table */
@@ -705,7 +705,7 @@ lock_rec_get_index_name(
 /*******************************************************************//**
 For a record lock, gets the tablespace number on which the lock is.
 @return tablespace number */
-ulint
+space_id_t
 lock_rec_get_space_id(
 /*==================*/
 	const lock_t*	lock);	/*!< in: lock */
@@ -713,7 +713,7 @@ lock_rec_get_space_id(
 /*******************************************************************//**
 For a record lock, gets the page number on which the lock is.
 @return page number */
-ulint
+page_no_t
 lock_rec_get_page_no(
 /*=================*/
 	const lock_t*	lock);	/*!< in: lock */

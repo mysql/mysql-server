@@ -135,7 +135,7 @@ rtr_index_build_node_ptr(
 	const rtr_mbr_t*	mbr,	/*!< in: mbr of lower page */
 	const rec_t*		rec,	/*!< in: record for which to build node
 					pointer */
-	ulint			page_no,/*!< in: page number to put in node
+	page_no_t		page_no,/*!< in: page number to put in node
 					pointer */
 	mem_heap_t*		heap,	/*!< in: memory heap where pointer
 					created */
@@ -294,13 +294,13 @@ rtr_update_mbr_field(
 	rec_t*		child_rec;
 	ulint		up_match = 0;
 	ulint		low_match = 0;
-	ulint		child;
+	page_no_t	child;
 	ulint		level;
 	ulint		rec_info;
 	page_zip_des_t*	page_zip;
 	bool		ins_suc = true;
 	ulint		cur2_pos = 0;
-	ulint		del_page_no = 0;
+	page_no_t		del_page_no = 0;
 	ulint*		offsets2;
 
 	rec = btr_cur_get_rec(cursor);
@@ -608,7 +608,7 @@ update_mbr:
 	}
 
 #ifdef UNIV_DEBUG
-	ulint	left_page_no = btr_page_get_prev(page, mtr);
+	page_no_t	left_page_no = btr_page_get_prev(page, mtr);
 
 	if (left_page_no == FIL_NULL) {
 
@@ -641,8 +641,8 @@ rtr_adjust_upper_level(
 {
 	page_t*		page;
 	page_t*		new_page;
-	ulint		page_no;
-	ulint		new_page_no;
+	page_no_t	page_no;
+	page_no_t	new_page_no;
 	page_zip_des_t*	page_zip;
 	page_zip_des_t*	new_page_zip;
 	dict_index_t*	index = sea_cur->index;
@@ -651,9 +651,9 @@ rtr_adjust_upper_level(
 	mem_heap_t*	heap;
 	ulint		level;
 	dtuple_t*	node_ptr_upper;
-	ulint		prev_page_no;
-	ulint		next_page_no;
-	ulint		space;
+	page_no_t	prev_page_no;
+	page_no_t	next_page_no;
+	space_id_t	space;
 	page_cur_t*	page_cursor;
 	rtr_mbr_t	parent_mbr;
 	lock_prdt_t	prdt;
@@ -1002,9 +1002,9 @@ rtr_page_split_and_insert(
 	buf_block_t*		block;
 	page_t*			page;
 	page_t*			new_page;
-	ulint			page_no;
+	page_no_t		page_no;
 	byte			direction;
-	ulint			hint_page_no;
+	page_no_t		hint_page_no;
 	buf_block_t*		new_block;
 	page_zip_des_t*		page_zip;
 	page_zip_des_t*		new_page_zip;
@@ -1784,7 +1784,7 @@ rtr_check_same_block(
 	mem_heap_t*	heap)	/*!< in: memory heap */
 
 {
-	ulint		page_no = childb->page.id.page_no();
+	page_no_t	page_no = childb->page.id.page_no();
 	ulint*		offsets;
 	rec_t*		rec = page_rec_get_next(page_get_infimum_rec(
 				buf_block_get_frame(parentb)));

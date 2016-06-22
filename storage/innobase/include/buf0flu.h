@@ -135,9 +135,9 @@ instance. false if another batch of same type was already running in
 at least one of the buffer pool instance */
 bool
 buf_flush_lists(
-	ulint			min_n,
-	lsn_t			lsn_limit,
-	ulint*			n_processed);
+	ulint		min_n,
+	lsn_t		lsn_limit,
+	ulint*		n_processed);
 
 /** This function picks up a single page from the tail of the LRU
 list, flushes it (if it is dirty), removes it from page_hash and LRU
@@ -297,7 +297,7 @@ ulint
 buf_pool_get_dirty_pages_count(
 /*===========================*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool */
-	ulint		id,		/*!< in: space id to check */
+	space_id_t	id,		/*!< in: space id to check */
 	FlushObserver*	observer);	/*!< in: flush observer to check */
 
 /*******************************************************************//**
@@ -327,7 +327,7 @@ public:
 	@param[in]	stage		performance schema accounting object,
 	used by ALTER TABLE. It is passed to log_preflush_pool_modified_pages()
 	for accounting. */
-	FlushObserver(ulint space_id, trx_t* trx, ut_stage_alter_t* stage);
+	FlushObserver(space_id_t space_id, trx_t* trx, ut_stage_alter_t* stage);
 
 	/** Deconstructor */
 	~FlushObserver();
@@ -371,7 +371,7 @@ public:
 		buf_page_t*	bpage);
 private:
 	/** Table space id */
-	ulint			m_space_id;
+	space_id_t		m_space_id;
 
 	/** Trx instance */
 	trx_t*			m_trx;

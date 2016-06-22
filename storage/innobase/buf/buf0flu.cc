@@ -1363,9 +1363,9 @@ buf_flush_try_neighbors(
 	ulint			n_flushed,
 	ulint			n_to_flush)
 {
-	ulint		i;
-	ulint		low;
-	ulint		high;
+	page_no_t	i;
+	page_no_t	low;
+	page_no_t	high;
 	ulint		count = 0;
 	buf_pool_t*	buf_pool = buf_pool_get(page_id);
 
@@ -1384,14 +1384,15 @@ buf_flush_try_neighbors(
 		neighborhoods of this size, and flushed along with the
 		original page. */
 
-		ulint	buf_flush_area;
+		page_no_t	buf_flush_area;
 
-		buf_flush_area	= ut_min(
+		buf_flush_area = std::min(
 			BUF_READ_AHEAD_AREA(buf_pool),
-			buf_pool->curr_size / 16);
+			static_cast<page_no_t>(buf_pool->curr_size / 16));
 
 		low = (page_id.page_no() / buf_flush_area) * buf_flush_area;
-		high = (page_id.page_no() / buf_flush_area + 1) * buf_flush_area;
+		high = (page_id.page_no() / buf_flush_area + 1)
+			* buf_flush_area;
 
 		if (srv_flush_neighbors == 1) {
 			/* adjust 'low' and 'high' to limit
@@ -1429,7 +1430,7 @@ buf_flush_try_neighbors(
 		}
 	}
 
-	const ulint	space_size = fil_space_get_size(page_id.space());
+	const page_no_t space_size = fil_space_get_size(page_id.space());
 	if (high > space_size) {
 		high = space_size;
 	}
@@ -1438,7 +1439,7 @@ buf_flush_try_neighbors(
 			      page_id.space(),
 			      (unsigned) low, (unsigned) high));
 
-	for (ulint i = low; i < high; i++) {
+	for (i = low; i < high; i++) {
 		buf_page_t*	bpage;
 		rw_lock_t*	hash_lock;
 		BPageMutex*	block_mutex;
@@ -2071,11 +2072,11 @@ passed back to caller. Ignored if NULL
 @retval false	if another batch of same type was already running. */
 bool
 buf_flush_do_batch(
-	buf_pool_t*		buf_pool,
-	buf_flush_t		type,
-	ulint			min_n,
-	lsn_t			lsn_limit,
-	ulint*			n_processed)
+	buf_pool_t*	buf_pool,
+	buf_flush_t	type,
+	ulint		min_n,
+	lsn_t		lsn_limit,
+	ulint*		n_processed)
 {
 	ut_ad(type == BUF_FLUSH_LRU || type == BUF_FLUSH_LIST);
 
@@ -3674,7 +3675,7 @@ ulint
 buf_pool_get_dirty_pages_count(
 /*===========================*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool */
-	ulint		id,		/*!< in: space id to check */
+	space_id_t	id,		/*!< in: space id to check */
 	FlushObserver*	observer)	/*!< in: flush observer to check */
 
 {
@@ -3713,7 +3714,7 @@ static
 ulint
 buf_flush_get_dirty_pages_count(
 /*============================*/
-	ulint		id,		/*!< in: space id to check */
+	space_id_t	id,		/*!< in: space id to check */
 	FlushObserver*	observer)	/*!< in: flush observer to check */
 {
 	ulint		count = 0;
@@ -3736,7 +3737,7 @@ buf_flush_get_dirty_pages_count(
 used by ALTER TABLE. It is passed to log_preflush_pool_modified_pages()
 for accounting. */
 FlushObserver::FlushObserver(
-	ulint			space_id,
+	space_id_t		space_id,
 	trx_t*			trx,
 	ut_stage_alter_t*	stage)
 	:

@@ -296,7 +296,8 @@ Datafile::set_name(const char*	name)
 		m_name = static_cast<char*>(
 			ut_malloc_nokey(strlen(general_space_name) + 20));
 
-		sprintf(m_name, "%s_" ULINTPF, general_space_name, m_space_id);
+		sprintf(m_name, "%s_" SPACE_ID_PF, general_space_name,
+			m_space_id);
 	}
 }
 
@@ -390,7 +391,7 @@ in order for this function to validate it.
 m_is_valid is also set true on success, else false. */
 dberr_t
 Datafile::validate_to_dd(
-	ulint		space_id,
+	space_id_t	space_id,
 	ulint		flags,
 	bool		for_import)
 {
@@ -580,7 +581,7 @@ Datafile::validate_first_page(lsn_t*	flush_lsn,
 		/* First page must be number 0 */
 		error_txt = "Header page contains inconsistent data";
 
-	} else if (m_space_id == ULINT_UNDEFINED) {
+	} else if (m_space_id == SPACE_UNKNOWN) {
 
 		/* The space_id can be most anything, except -1. */
 		error_txt = "A bad Space ID was found";
@@ -706,10 +707,10 @@ Datafile::find_space_id()
 
 		/* map[space_id] = count of pages */
 		typedef std::map<
+			space_id_t,
 			ulint,
-			ulint,
-			std::less<ulint>,
-			ut_allocator<std::pair<const ulint, ulint> > >
+			std::less<space_id_t>,
+			ut_allocator<std::pair<const space_id_t, ulint> > >
 			Pages;
 
 		Pages	verify;
@@ -808,7 +809,7 @@ Datafile::find_space_id()
 
 			if (noncompressed_ok || compressed_ok) {
 
-				ulint	space_id = mach_read_from_4(page
+				space_id_t space_id = mach_read_from_4(page
 					+ FIL_PAGE_SPACE_ID);
 
 				if (space_id > 0) {
@@ -865,8 +866,7 @@ and copies it to the corresponding .ibd file.
 @param[in]	restore_page_no		Page number to restore
 @return DB_SUCCESS if page was restored from doublewrite, else DB_ERROR */
 dberr_t
-Datafile::restore_from_doublewrite(
-	ulint	restore_page_no)
+Datafile::restore_from_doublewrite(page_no_t restore_page_no)
 {
 	/* Find if double write buffer contains page_no of given space id. */
 	const byte*	page = recv_sys->dblwr.find_page(

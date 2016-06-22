@@ -59,7 +59,7 @@ void
 rtr_adjust_parent_path(
 /*===================*/
 	rtr_info_t*	rtr_info,	/* R-Tree info struct */
-	ulint		page_no)	/* page number to look for */
+	page_no_t	page_no)	/* page number to look for */
 {
 	while (!rtr_info->parent_path->empty()) {
 		if (rtr_info->parent_path->back().child_no == page_no) {
@@ -98,7 +98,7 @@ rtr_pcur_getnext_from_path(
 {
 	dict_index_t*	index = btr_cur->index;
 	bool		found = false;
-	ulint		space = dict_index_get_space(index);
+	space_id_t	space = dict_index_get_space(index);
 	page_cur_t*	page_cursor;
 	ulint		level = 0;
 	node_visit_t	next_rec;
@@ -293,7 +293,7 @@ rtr_pcur_getnext_from_path(
 		Note that we have SX lock on index->lock, there
 		should not be any split/shrink happening here */
 		if (page_ssn > path_ssn) {
-			ulint next_page_no = btr_page_get_next(page, mtr);
+			page_no_t next_page_no = btr_page_get_next(page, mtr);
 			rtr_non_leaf_stack_push(
 				rtr_info->path, next_page_no, path_ssn,
 				level, 0, NULL, 0);
@@ -528,7 +528,7 @@ rtr_compare_cursor_rec(
 /*===================*/
 	dict_index_t*	index,		/*!< in: index */
 	btr_cur_t*	cursor,		/*!< in: Cursor to check */
-	ulint		page_no,	/*!< in: desired child page number */
+	page_no_t	page_no,	/*!< in: desired child page number */
 	mem_heap_t**	heap)		/*!< in: memory heap */
 {
 	const rec_t*	rec;
@@ -675,7 +675,7 @@ rtr_page_get_father_node_ptr(
 	rec_t*		user_rec;
 	rec_t*		node_ptr;
 	ulint		level;
-	ulint		page_no;
+	page_no_t	page_no;
 	dict_index_t*	index;
 	rtr_mbr_t	mbr;
 
@@ -713,7 +713,7 @@ rtr_page_get_father_node_ptr(
 	offsets = rec_get_offsets(node_ptr, index, offsets,
 				  ULINT_UNDEFINED, &heap);
 
-	ulint	child_page = btr_node_ptr_get_child_page_no(node_ptr, offsets);
+	page_no_t	child_page = btr_node_ptr_get_child_page_no(node_ptr, offsets);
 
 	if (child_page != page_no) {
 		const rec_t*	print_rec;
@@ -825,7 +825,7 @@ rtr_get_father_node(
 	btr_cur_t*	sea_cur,/*!< in: search cursor */
 	btr_cur_t*	btr_cur,/*!< in/out: tree cursor; the cursor page is
 				s- or x-latched, but see also above! */
-	ulint		page_no,/*!< Current page no */
+	page_no_t	page_no,/*!< Current page no */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	mem_heap_t*	heap = NULL;
@@ -1139,7 +1139,7 @@ void
 rtr_rebuild_path(
 /*=============*/
 	rtr_info_t*	rtr_info,	/*!< in: RTree search info */
-	ulint		page_no)	/*!< in: need to free rtr_info itself */
+	page_no_t	page_no)	/*!< in: need to free rtr_info itself */
 {
 	rtr_node_path_t*		new_path
 		= UT_NEW_NOKEY(rtr_node_path_t());
@@ -1208,7 +1208,7 @@ rtr_check_discard_page(
 				the root page */
 	buf_block_t*	block)	/*!< in: block of page to be discarded */
 {
-	ulint			pageno = block->page.id.page_no();
+	page_no_t		pageno = block->page.id.page_no();
 	rtr_info_t*		rtr_info;
 	rtr_info_active::iterator	it;
 
@@ -1349,11 +1349,11 @@ rtr_cur_restore_position(
 	const page_t*	page;
 	page_cur_t*	page_cursor;
 	node_visit_t*	node = rtr_get_parent_node(btr_cur, level, false);
-	ulint		space = dict_index_get_space(index);
+	space_id_t	space = dict_index_get_space(index);
 	node_seq_t	path_ssn = node->seq_no;
 	page_size_t	page_size = dict_table_page_size(index->table);
 
-	ulint		page_no = node->page_no;
+	page_no_t	page_no = node->page_no;
 
 	heap = mem_heap_create(256);
 
@@ -1511,14 +1511,14 @@ rtr_non_leaf_insert_stack_push(
 	dict_index_t*		index,	/*!< in: index descriptor */
 	rtr_node_path_t*	path,	/*!< in/out: search path */
 	ulint			level,	/*!< in: index page level */
-	ulint			child_no,/*!< in: child page no */
+	page_no_t		child_no,/*!< in: child page no */
 	const buf_block_t*	block,	/*!< in: block of the page */
 	const rec_t*		rec,	/*!< in: positioned record */
 	double			mbr_inc)/*!< in: MBR needs to be enlarged */
 {
 	node_seq_t	new_seq;
 	btr_pcur_t*	my_cursor;
-	ulint		page_no = block->page.id.page_no();
+	page_no_t	page_no = block->page.id.page_no();
 
 	my_cursor = static_cast<btr_pcur_t*>(
 		ut_malloc_nokey(sizeof(*my_cursor)));
@@ -1676,7 +1676,7 @@ rtr_cur_search_with_match(
 	const rec_t*	last_match_rec = NULL;
 	ulint		level;
 	bool		match_init = false;
-	ulint		space = block->page.id.space();
+	space_id_t	space = block->page.id.space();
 	page_cur_mode_t	orig_mode = mode;
 	const rec_t*	first_rec = NULL;
 
@@ -1817,7 +1817,7 @@ rtr_cur_search_with_match(
 			rtr_info->matches for leaf nodes */
 			if (rtr_info && mode != PAGE_CUR_RTREE_INSERT) {
 				if (!is_leaf) {
-					ulint		page_no;
+					page_no_t	page_no;
 					node_seq_t	new_seq;
 					bool		is_loc;
 
@@ -1905,7 +1905,7 @@ rtr_cur_search_with_match(
 				then we select the record that result in
 				least increased area */
 				if (mode == PAGE_CUR_RTREE_INSERT) {
-					ulint	child_no;
+					page_no_t child_no;
 					ut_ad(least_inc < DBL_MAX);
 					offsets = rec_get_offsets(
 						best_rec, index,
@@ -1980,7 +1980,7 @@ rtr_cur_search_with_match(
 	} else {
 
 		if (mode == PAGE_CUR_RTREE_INSERT) {
-			ulint	child_no;
+			page_no_t child_no;
 			ut_ad(!last_match_rec && rec);
 
 			offsets = rec_get_offsets(
@@ -2004,7 +2004,7 @@ rtr_cur_search_with_match(
 	the path stack */
 	if (!is_leaf && (!page_rec_is_supremum(rec) || found)
 	    && mode != PAGE_CUR_RTREE_INSERT) {
-		ulint		page_no;
+		page_no_t	page_no;
 
 		offsets = rec_get_offsets(rec, index, offsets,
 					  ULINT_UNDEFINED, &heap);

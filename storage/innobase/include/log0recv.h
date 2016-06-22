@@ -271,7 +271,7 @@ struct recv_dblwr_t {
 	@param[in]	page_no		page number
 	@return	page frame
 	@retval NULL if no page was found */
-	const byte* find_page(ulint space_id, ulint page_no);
+	const byte* find_page(space_id_t space_id, page_no_t page_no);
 
 	typedef std::list<const byte*, ut_allocator<const byte*> >	list;
 

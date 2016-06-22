@@ -3806,15 +3806,14 @@ innodb_init_params()
 
 	srv_log_file_size /= UNIV_PAGE_SIZE;
 
-	if (srv_n_log_files * srv_log_file_size >= ULINT_MAX) {
-		/* fil_io() takes ulint as an argument and we are passing
-		(next_offset / UNIV_PAGE_SIZE) to it in log_group_write_buf().
-		So (next_offset / UNIV_PAGE_SIZE) must be less than ULINT_MAX.
-		So next_offset must be < ULINT_MAX * UNIV_PAGE_SIZE. This
-		means that we are limited to ULINT_MAX * UNIV_PAGE_SIZE which
-		is 64 TB on 32 bit systems. */
+	if (srv_n_log_files * srv_log_file_size >= PAGE_NO_MAX) {
+		/* fil_io() is used for IO to log files and it takes page_id_t
+		as an argument which uses page_no_t. So any page number must
+		be < PAGE_NO_MAX. This means that a redo log file size is
+		limited to PAGE_NO_MAX * UNIV_PAGE_SIZE which is 64 TB with
+		16k page size. */
 		ib::error() << "Combined size of log files must be < "
-			<< ULINT_MAX / 1073741824 * UNIV_PAGE_SIZE << " GB";
+			<< PAGE_NO_MAX / 1073741824 * UNIV_PAGE_SIZE << " GB";
 
 		DBUG_RETURN(HA_ERR_INITIALIZATION);
 	}
@@ -10240,7 +10239,7 @@ create_table_info_t::create_table_def()
 	ibool		has_doc_id_col = FALSE;
 	mem_heap_t*	heap;
 	ulint		num_v = 0;
-	ulint		space_id = 0;
+	space_id_t	space_id = 0;
 	ulint		actual_n_cols;
 
 	DBUG_ENTER("create_table_def");
@@ -11073,10 +11072,10 @@ create_table_info_t::create_option_tablespace_is_valid()
 	}
 
 	/* Look up the tablespace name in the fil_system. */
-	ulint	space_id = fil_space_get_id_by_name(
+	space_id_t	space_id = fil_space_get_id_by_name(
 		m_create_info->tablespace);
 
-	if (space_id == ULINT_UNDEFINED) {
+	if (space_id == SPACE_UNKNOWN) {
 		my_printf_error(ER_TABLESPACE_MISSING,
 			"InnoDB: A general tablespace named"
 			" `%s` cannot be found.", MYF(0),
@@ -13316,7 +13315,7 @@ validate_create_tablespace_info(
 	THD*			thd,
 	st_alter_tablespace*	alter_info)
 {
-	ulint	space_id;
+	space_id_t	space_id;
 
 	/* The parser ensures that these fields are provided. */
 	ut_a(alter_info->tablespace_name);
@@ -13333,7 +13332,7 @@ validate_create_tablespace_info(
 
 	/* Make sure the tablespace is not already open. */
 	space_id = fil_space_get_id_by_name(alter_info->tablespace_name);
-	if (space_id != ULINT_UNDEFINED) {
+	if (space_id != SPACE_UNKNOWN) {
 		my_printf_error(ER_TABLESPACE_EXISTS,
 				"InnoDB: A tablespace named `%s`"
 				" already exists.", MYF(0),
@@ -13564,7 +13563,7 @@ innobase_drop_tablespace(
 	trx_t*		trx;
 	dberr_t		err;
 	int		error = 0;
-	ulint		space_id;
+	space_id_t	space_id;
 
 	DBUG_ENTER("innobase_drop_tablespace");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
@@ -13580,10 +13579,10 @@ innobase_drop_tablespace(
 
 	/* Be sure that this tablespace is known and valid. */
 	space_id = fil_space_get_id_by_name(alter_info->tablespace_name);
-	if (space_id == ULINT_UNDEFINED) {
+	if (space_id == SPACE_UNKNOWN) {
 
 		space_id = dict_space_get_id(alter_info->tablespace_name);
-		if (space_id == ULINT_UNDEFINED) {
+		if (space_id == SPACE_UNKNOWN) {
 			DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
 		}
 

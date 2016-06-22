@@ -115,7 +115,7 @@ file copy.
 @param[in]	mtr		mtr
 @return space id */
 UNIV_INLINE
-ulint
+space_id_t
 trx_sysf_rseg_get_space(
 	trx_sysf_t*	sys_header,
 	ulint		i,
@@ -128,7 +128,7 @@ file copy.
 @param[in]	mtr		mtr
 @return page number, FIL_NULL if slot unused */
 UNIV_INLINE
-ulint
+page_no_t
 trx_sysf_rseg_get_page_no(
 	trx_sysf_t*	sys_header,
 	ulint		i,
@@ -145,7 +145,7 @@ void
 trx_sysf_rseg_set_space(
 	trx_sysf_t*	sys_header,
 	ulint		i,
-	ulint		space,
+	space_id_t	space,
 	mtr_t*		mtr);
 
 /** Sets the page number of the nth rollback segment slot in the trx system
@@ -160,7 +160,7 @@ void
 trx_sysf_rseg_set_page_no(
 	trx_sysf_t*	sys_header,
 	ulint		i,
-	ulint		page_no,
+	page_no_t	page_no,
 	mtr_t*		mtr);
 
 /*****************************************************************//**

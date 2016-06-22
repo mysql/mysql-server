@@ -47,7 +47,7 @@ doublewrite buffer */
 ibool
 buf_dblwr_page_inside(
 /*==================*/
-	ulint	page_no)	/*!< in: page number */
+	page_no_t	page_no)	/*!< in: page number */
 {
 	if (buf_dblwr == NULL) {
 
@@ -170,12 +170,12 @@ buf_dblwr_create(void)
 {
 	buf_block_t*	block2;
 	buf_block_t*	new_block;
-	byte*	doublewrite;
-	byte*	fseg_header;
-	ulint	page_no;
-	ulint	prev_page_no;
-	ulint	i;
-	mtr_t	mtr;
+	byte*		doublewrite;
+	byte*		fseg_header;
+	page_no_t	page_no;
+	page_no_t	prev_page_no;
+	ulint		i;
+	mtr_t		mtr;
 
 	if (buf_dblwr) {
 		/* Already inited */
@@ -351,9 +351,9 @@ buf_dblwr_init_or_load_pages(
 {
 	byte*		buf;
 	byte*		page;
-	ulint		block1;
-	ulint		block2;
-	ulint		space_id;
+	page_no_t	block1;
+	page_no_t	block2;
+	space_id_t	space_id;
 	byte*		read_buf;
 	byte*		doublewrite;
 	byte*		unaligned_read_buf;
@@ -462,9 +462,9 @@ buf_dblwr_init_or_load_pages(
 
 	page = buf;
 
-	for (ulint i = 0; i < TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 2; i++) {
+	for (page_no_t i = 0; i < TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 2; i++) {
 		if (reset_space_ids) {
-			ulint source_page_no;
+			page_no_t source_page_no;
 
 			space_id = 0;
 			mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
@@ -524,7 +524,7 @@ buf_dblwr_init_or_load_pages(
 void
 buf_dblwr_process(void)
 {
-	ulint		page_no_dblwr	= 0;
+	page_no_t	page_no_dblwr	= 0;
 	byte*		read_buf;
 	byte*		unaligned_read_buf;
 	recv_dblwr_t&	recv_dblwr	= recv_sys->dblwr;
@@ -540,8 +540,8 @@ buf_dblwr_process(void)
 	     ++i, ++page_no_dblwr) {
 
 		const byte*	page		= *i;
-		ulint		page_no		= page_get_page_no(page);
-		ulint		space_id	= page_get_space_id(page);
+		page_no_t	page_no		= page_get_page_no(page);
+		space_id_t	space_id	= page_get_space_id(page);
 
 		fil_space_t*	space = fil_space_get(space_id);
 
@@ -1168,9 +1168,9 @@ buf_dblwr_write_single_page(
 	bool		sync)	/*!< in: true if sync IO requested */
 {
 	ulint		n_slots;
-	ulint		size;
-	ulint		offset;
-	ulint		i;
+	page_no_t	size;
+	page_no_t	offset;
+	page_no_t	i;
 
 	ut_a(buf_page_in_file(bpage));
 	ut_a(srv_use_doublewrite_buf);

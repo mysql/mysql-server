@@ -630,8 +630,8 @@ namespace undo {
 	@param[in]	log_file_name	name of the log file
 	@return DB_SUCCESS or error code */
 	dberr_t populate_log_file_name(
-		ulint	space_id,
-		char*&	log_file_name)
+		space_id_t	space_id,
+		char*&		log_file_name)
 	{
 		ulint log_file_name_sz =
 			strlen(srv_log_group_home_dir) + 22 + 1 /* NUL */
@@ -667,7 +667,7 @@ namespace undo {
 	/** Create the truncate log file.
 	@param[in]	space_id	id of the undo tablespace to truncate.
 	@return DB_SUCCESS or error code. */
-	dberr_t init(ulint space_id)
+	dberr_t init(space_id_t space_id)
 	{
 		dberr_t		err;
 		char*		log_file_name;
@@ -724,8 +724,7 @@ namespace undo {
 	the link to the file even after unlink action is successfull and
 	ref-count = 0.
 	@param[in]	space_id	id of the undo tablespace to truncate.*/
-	void done(
-		ulint	space_id)
+	void done(space_id_t space_id)
 	{
 		dberr_t		err;
 		char*		log_file_name;
@@ -786,8 +785,7 @@ namespace undo {
 	/** Check if TRUNCATE_DDL_LOG file exist.
 	@param[in]	space_id	id of the undo tablespace.
 	@return true if exist else false. */
-	bool is_log_present(
-		ulint	space_id)
+	bool is_log_present(space_id_t space_id)
 	{
 		dberr_t		err;
 		char*		log_file_name;
@@ -909,7 +907,7 @@ trx_purge_mark_undo_for_truncate(
 
 	/* Avoid bias selection and so start the scan from immediate next
 	of last selected UNDO tablespace for truncate. */
-	ulint space_id = undo_trunc->get_scan_start();
+	space_id_t space_id = undo_trunc->get_scan_start();
 
 	for (ulint i = 1; i <= srv_undo_tablespaces_active; i++) {
 
@@ -1200,7 +1198,7 @@ trx_purge_truncate_history(
 	if (limit->trx_no >= view->low_limit_no()) {
 		limit->trx_no = view->low_limit_no();
 		limit->undo_no = 0;
-		limit->undo_rseg_space = ULINT_UNDEFINED;
+		limit->undo_rseg_space = SPACE_UNKNOWN;
 	}
 
 	ut_ad(limit->trx_no <= purge_sys->view.low_limit_no());
@@ -1257,7 +1255,7 @@ trx_purge_rseg_get_next_history_log(
 
 	purge_sys->iter.trx_no = rseg->last_trx_no + 1;
 	purge_sys->iter.undo_no = 0;
-	purge_sys->iter.undo_rseg_space = ULINT_UNDEFINED;
+	purge_sys->iter.undo_rseg_space = SPACE_UNKNOWN;
 	purge_sys->next_stored = FALSE;
 
 	mtr_start(&mtr);
@@ -1359,9 +1357,9 @@ trx_purge_read_undo_rec(
 	const page_size_t&	page_size)
 {
 	ulint		offset;
-	ulint		page_no;
+	page_no_t	page_no;
 	ib_uint64_t	undo_no;
-	ulint		undo_rseg_space;
+	space_id_t	undo_rseg_space;
 
 	purge_sys->hdr_offset = purge_sys->rseg->last_offset;
 	page_no = purge_sys->hdr_page_no = purge_sys->rseg->last_page_no;
@@ -1386,14 +1384,14 @@ trx_purge_read_undo_rec(
 		} else {
 			offset = 0;
 			undo_no = 0;
-			undo_rseg_space = ULINT_UNDEFINED;
+			undo_rseg_space = SPACE_UNKNOWN;
 		}
 
 		mtr_commit(&mtr);
 	} else {
 		offset = 0;
 		undo_no = 0;
-		undo_rseg_space = ULINT_UNDEFINED;
+		undo_rseg_space = SPACE_UNKNOWN;
 	}
 
 	purge_sys->offset = offset;
@@ -1443,8 +1441,8 @@ trx_purge_get_next_rec(
 	page_t*		undo_page;
 	page_t*		page;
 	ulint		offset;
-	ulint		page_no;
-	ulint		space;
+	page_no_t	page_no;
+	space_id_t	space;
 	mtr_t		mtr;
 
 	ut_ad(purge_sys->next_stored);
