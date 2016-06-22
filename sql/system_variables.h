@@ -54,7 +54,8 @@ enum enum_binlog_row_image {
 
 // Values for transaction_write_set_extraction sysvar
 enum enum_transaction_write_set_hashing_algorithm { HASH_ALGORITHM_OFF= 0,
-                                                    HASH_ALGORITHM_MURMUR32= 1 };
+                                                    HASH_ALGORITHM_MURMUR32= 1,
+                                                    HASH_ALGORITHM_XXHASH64= 2 };
 
 // Values for session_track_gtids sysvar
 enum enum_session_track_gtids {
