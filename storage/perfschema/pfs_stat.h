@@ -642,7 +642,7 @@ struct PFS_error_stat
   ulonglong count(void)
   {
     ulonglong total= 0;
-    for (uint i= 0; i < max_server_errors; i++)
+    for (uint i= 0; i < max_server_errors+1; i++)
       total+= m_stat[i].count();
     return total;
   }
@@ -676,25 +676,37 @@ struct PFS_error_stat
 
   inline void reset()
   {
-    for (uint i= 0; i < max_server_errors; i++)
+    if (m_stat == NULL)
+      return;
+
+    for (uint i= 0; i < max_server_errors+1; i++)
       m_stat[i].reset();
   }
 
   inline void aggregate_count(int error_index, int error_operation)
   {
+    if (m_stat == NULL)
+      return;
+
     PFS_error_single_stat *stat= &m_stat[error_index];
     stat->aggregate_count(error_operation);
   }
 
   inline void aggregate(const PFS_error_single_stat *stat, uint error_index)
   {
+    if (m_stat == NULL)
+      return;
+
     DBUG_ASSERT(error_index <= max_server_errors);
     m_stat[error_index].aggregate(stat);
   }
 
   inline void aggregate(const PFS_error_stat *stat)
   {
-    for (uint i= 0; i < max_server_errors; i++)
+    if (m_stat == NULL)
+      return;
+
+    for (uint i= 0; i < max_server_errors+1; i++)
       m_stat[i].aggregate(&stat->m_stat[i]);
   }
 };

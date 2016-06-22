@@ -226,7 +226,6 @@ initialize_performance_schema(PFS_global_param *param,
     flag_statements_digest= false;
   }
 
-  global_error_stat.init(& builtin_memory_global_errors);
   pfs_initialized= true;
 
   if (param->m_enabled)

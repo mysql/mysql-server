@@ -56,6 +56,9 @@ int init_error(const PFS_global_param *param)
   /* Set the number of errors to be instrumented */
   max_server_errors= param->m_error_sizing;
 
+  /* initialize global stats for errors */
+  global_error_stat.init(& builtin_memory_global_errors);
+
   /* Initialize error index mapping */
   for (int i=0 ; i<total_error_count+1 ; i++)
   {
@@ -68,7 +71,8 @@ int init_error(const PFS_global_param *param)
 
 void cleanup_error()
 {
-  //TODO : any cleanup required ??? 
+  /* cleanup global stats for errors */
+  global_error_stat.cleanup(& builtin_memory_global_errors);
 }
 
 /** Reset table EVENTS_ERRORS_SUMMARY_BY_THREAD_BY_ERROR data. */
