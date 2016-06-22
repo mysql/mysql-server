@@ -2702,7 +2702,8 @@ void acl_update_user(const char *user, const char *host,
         if (password_life.update_password_expired_column ||
             what_is_set & PLUGIN_ATTR)
           acl_user->password_expired= password_life.update_password_expired_column;
-        if (!password_life.update_password_expired_column)
+        if (!password_life.update_password_expired_column &&
+            password_life.update_password_expired_fields)
         {
           if (!password_life.use_default_password_lifetime)
           {
