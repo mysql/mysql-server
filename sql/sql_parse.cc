@@ -3264,6 +3264,25 @@ end_with_restore_list:
     if (check_global_access(thd, SUPER_ACL))
       goto error;
 
+    /*
+      If the client thread has locked tables, a deadlock is possible.
+      Assume that
+      - the client thread does LOCK TABLE t READ.
+      - then the client thread does START GROUP_REPLICATION.
+           -try to make the server in super ready only mode
+           -acquire MDL lock ownership which will be waiting for
+            LOCK on table t to be released.
+      To prevent that, refuse START GROUP_REPLICATION if the
+      client thread has locked tables
+    */
+    if (thd->locked_tables_mode ||
+        thd->in_active_multi_stmt_transaction() || thd->in_sub_stmt)
+    {
+      my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
+                 ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+      goto error;
+    }
+
     res= group_replication_start();
 
     //To reduce server dependency, server errors are not used here
@@ -3297,6 +3316,19 @@ end_with_restore_list:
   {
     if (check_global_access(thd, SUPER_ACL))
       goto error;
+
+    /*
+      Please see explanation @SQLCOM_SLAVE_STOP case
+      to know the reason for thd->locked_tables_mode in
+      the below if condition.
+    */
+    if (thd->locked_tables_mode ||
+        thd->in_active_multi_stmt_transaction() || thd->in_sub_stmt)
+    {
+      my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
+                 ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+      goto error;
+    }
 
     res= group_replication_stop();
     if (res == 1) //GROUP_REPLICATION_CONFIGURATION_ERROR
