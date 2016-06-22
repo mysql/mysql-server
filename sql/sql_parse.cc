@@ -3279,7 +3279,7 @@ end_with_restore_list:
         thd->in_active_multi_stmt_transaction() || thd->in_sub_stmt)
     {
       my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
-                 ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+                 ER_DEFAULT(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
       goto error;
     }
 
@@ -3326,7 +3326,7 @@ end_with_restore_list:
         thd->in_active_multi_stmt_transaction() || thd->in_sub_stmt)
     {
       my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
-                 ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+                 ER_DEFAULT(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
       goto error;
     }
 
