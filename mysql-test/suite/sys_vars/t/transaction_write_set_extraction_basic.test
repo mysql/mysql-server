@@ -7,7 +7,7 @@
 # Access Type: Dynamic                                                                  #
 # Data Type: enum                                                                       #
 # Default Value: OFF                                                                    #
-# Allowed value: OFF / MURMUR32 or  0 / 1                                               #
+# Allowed value: OFF / MURMUR32 / XXHASH64 or  0 / 1 / 2                                #
 #                                                                                       #
 # Description: Test Cases of Dynamic System Variable transaction_write_set_extraction   #
 #              that checks the behavior of this variable in the following ways          #
@@ -21,6 +21,9 @@
 #                                                                                       #
 # 2. The new server option transaction_write_set_extraction can only be set             #
 #    when the binlog format is ROW and fails with other binlog formats.                 #
+#                                                                                       #
+# Note: This var cannot be set also when Group Replication is running.                  #
+#       This test is done in the group replication suite                                #
 #                                                                                       #
 #########################################################################################
 
@@ -58,6 +61,12 @@ SELECT @@global.transaction_write_set_extraction;
 SET global transaction_write_set_extraction= 1;
 SELECT @@global.transaction_write_set_extraction;
 
+SET global transaction_write_set_extraction='XXHASH64';
+SELECT @@global.transaction_write_set_extraction;
+
+SET global transaction_write_set_extraction= 2;
+SELECT @@global.transaction_write_set_extraction;
+
 # SESSION SETTINGS
 SELECT @@session.transaction_write_set_extraction;
 
@@ -77,6 +86,12 @@ SELECT @@session.transaction_write_set_extraction;
 SET session transaction_write_set_extraction=1;
 SELECT @@session.transaction_write_set_extraction;
 
+SET session transaction_write_set_extraction='XXHASH64';
+SELECT @@session.transaction_write_set_extraction;
+
+SET session transaction_write_set_extraction=2;
+SELECT @@session.transaction_write_set_extraction;
+
 # checking that setting variable to a non existing value raises error
 # INVALID SESSION SETTINGS
 --error ER_WRONG_VALUE_FOR_VAR
@@ -84,7 +99,7 @@ SET session transaction_write_set_extraction='ABC';
 SELECT @@session.transaction_write_set_extraction;
 
 --error ER_WRONG_VALUE_FOR_VAR
-SET session transaction_write_set_extraction= 2;
+SET session transaction_write_set_extraction= 3;
 SELECT @@session.transaction_write_set_extraction;
 
 --error ER_WRONG_VALUE_FOR_VAR

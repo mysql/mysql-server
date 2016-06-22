@@ -90,7 +90,8 @@ enum enum_rbr_exec_mode { RBR_EXEC_MODE_STRICT,
                           RBR_EXEC_MODE_IDEMPOTENT,
                           RBR_EXEC_MODE_LAST_BIT };
 enum enum_transaction_write_set_hashing_algorithm { HASH_ALGORITHM_OFF= 0,
-                                                    HASH_ALGORITHM_MURMUR32= 1 };
+                                                    HASH_ALGORITHM_MURMUR32= 1,
+                                                    HASH_ALGORITHM_XXHASH64= 2};
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED,
