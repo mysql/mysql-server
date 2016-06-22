@@ -430,7 +430,7 @@ account_locked	N
 
 SHOW CREATE USER u6@localhost;
 CREATE USER for u6@localhost
-CREATE USER 'u6'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<non-deterministic-password-hash>' REQUIRE X509 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u6'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<non-deterministic-password-hash>' REQUIRE X509 PASSWORD EXPIRE NEVER ACCOUNT UNLOCK
 SELECT USER();
 USER()
 u6@localhost
@@ -548,7 +548,7 @@ account_locked	N
 
 SHOW CREATE USER u9@localhost;
 CREATE USER for u9@localhost
-CREATE USER 'u9'@'localhost' IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u9'@'localhost' IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' PASSWORD EXPIRE NEVER ACCOUNT UNLOCK
 SELECT USER();
 USER()
 u9@localhost

@@ -2029,6 +2029,12 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
       }
     }
   }
+  DBUG_EXECUTE_IF("force_password_interval_expire",
+                  {
+                    if (!acl_user->use_default_password_lifetime &&
+                        acl_user->password_lifetime)
+                      password_time_expired= true;
+                  });
   return password_time_expired;
 }
 
