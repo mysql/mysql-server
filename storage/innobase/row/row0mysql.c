@@ -1987,7 +1987,7 @@ err_exit:
 
 		if (dict_table_get_low(table->name, DICT_ERR_IGNORE_NONE)) {
 
-			row_drop_table_for_mysql(table->name, trx, FALSE);
+			row_drop_table_for_mysql(table->name, trx, FALSE, TRUE);
 			trx_commit_for_mysql(trx);
 		} else {
 			dict_mem_table_free(table);
@@ -2117,7 +2117,7 @@ error_handling:
 
 		trx_general_rollback_for_mysql(trx, NULL);
 
-		row_drop_table_for_mysql(table_name, trx, FALSE);
+		row_drop_table_for_mysql(table_name, trx, FALSE, TRUE);
 
 		trx_commit_for_mysql(trx);
 
@@ -2187,7 +2187,7 @@ row_table_add_foreign_constraints(
 
 		trx_general_rollback_for_mysql(trx, NULL);
 
-		row_drop_table_for_mysql(name, trx, FALSE);
+		row_drop_table_for_mysql(name, trx, FALSE, TRUE);
 
 		trx_commit_for_mysql(trx);
 
@@ -2228,7 +2228,7 @@ row_drop_table_for_mysql_in_background(
 
 	/* Try to drop the table in InnoDB */
 
-	error = row_drop_table_for_mysql(name, trx, FALSE);
+	error = row_drop_table_for_mysql(name, trx, FALSE, FALSE);
 
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
@@ -3078,7 +3078,10 @@ row_drop_table_for_mysql(
 /*=====================*/
 	const char*	name,	/*!< in: table name */
 	trx_t*		trx,	/*!< in: transaction handle */
-	ibool		drop_db)/*!< in: TRUE=dropping whole database */
+	ibool		drop_db,/*!< in: TRUE=dropping whole database */
+	ibool		create_failed) /*!<in: TRUE=create table failed
+				       because e.g. foreign key column
+				       type mismatch. */
 {
 	dict_foreign_t*	foreign;
 	dict_table_t*	table;
@@ -3193,7 +3196,11 @@ check_next_foreign:
 		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 
-	if (foreign && trx->check_foreigns
+	/* We should allow dropping a referenced table if creating
+	that referenced table has failed for some reason. For example
+	if referenced table is created but it column types that are
+	referenced do not match. */
+	if (foreign && trx->check_foreigns && !create_failed
 	    && !(drop_db && dict_tables_have_same_db(
 			 name, foreign->foreign_table_name_lookup))) {
 		FILE*	ef	= dict_foreign_err_file;
@@ -3578,7 +3585,7 @@ row_mysql_drop_temp_tables(void)
 		table = dict_load_table(table_name, TRUE, DICT_ERR_IGNORE_NONE);
 
 		if (table) {
-			row_drop_table_for_mysql(table_name, trx, FALSE);
+			row_drop_table_for_mysql(table_name, trx, FALSE, FALSE);
 			trx_commit_for_mysql(trx);
 		}
 
@@ -3708,7 +3715,7 @@ loop:
 			goto loop;
 		}
 
-		err = row_drop_table_for_mysql(table_name, trx, TRUE);
+		err = row_drop_table_for_mysql(table_name, trx, TRUE, FALSE);
 		trx_commit_for_mysql(trx);
 
 		if (err != DB_SUCCESS) {

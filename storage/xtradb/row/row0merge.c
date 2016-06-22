@@ -2747,7 +2747,7 @@ row_merge_drop_table(
 	/* There must be no open transactions on the table. */
 	ut_a(table->n_mysql_handles_opened == 0);
 
-	return(row_drop_table_for_mysql(table->name, trx, FALSE));
+	return(row_drop_table_for_mysql(table->name, trx, FALSE, FALSE));
 }
 
 /*********************************************************************//**
