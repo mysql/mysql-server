@@ -55,6 +55,16 @@ USE xtest
 -->stmtadmin list_objects	{"pattern":"fa%"}
 -->recvresult
 
+
+-->stmtsql ALTER TABLE xtest.books ADD COLUMN (nothing INT)
+-->recvresult
+
+-->stmtsql show columns from xtest.books
+-->recvresult
+
+-->stmtadmin list_objects	{"pattern":"books"}
+-->recvresult
+
 EOF
 
 --exec $MYSQLXTEST -uroot --password='' --file=$xtest_file 2>&1

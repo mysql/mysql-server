@@ -60,65 +60,13 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "name"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: ""
-  collation: 0
-  fractional_digits: 0
-  length: 0
-  flags: 0
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "type"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: ""
-  collation: 0
-  fractional_digits: 0
-  length: 0
-  flags: 0
-}
-
-Mysqlx.Resultset.Row {
-  field: "fakecoll\000"
-  field: "VIEW\000"
-}
-
-Mysqlx.Resultset.Row {
-  field: "mytable\000"
-  field: "TABLE\000"
-}
-
-Mysqlx.Resultset.Row {
-  field: "mytable2\000"
-  field: "TABLE\000"
-}
-
-Mysqlx.Resultset.Row {
-  field: "myview\000"
-  field: "VIEW\000"
-}
-
-Mysqlx.Resultset.Row {
-  field: "books\000"
-  field: "COLLECTION\000"
-}
-
-Mysqlx.Resultset.FetchDone {
-}
-
-Mysqlx.Sql.StmtExecuteOk {
-}
-
+name	type
+books	COLLECTION
+fakecoll	VIEW
+mytable	TABLE
+mytable2	TABLE
+myview	VIEW
+command ok
 send Mysqlx.Sql.StmtExecute {
   stmt: "list_objects"
   args {
@@ -133,13 +81,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 1049
-  msg: "Unknown database \'invalid\'"
-  sql_state: "42000"
-}
-
+Got expected error: Unknown database 'invalid' (code 1049)
 send Mysqlx.Sql.StmtExecute {
   stmt: "list_objects"
   args {
@@ -163,50 +105,10 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "name"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: ""
-  collation: 0
-  fractional_digits: 0
-  length: 0
-  flags: 0
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "type"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: ""
-  collation: 0
-  fractional_digits: 0
-  length: 0
-  flags: 0
-}
-
-Mysqlx.Resultset.Row {
-  field: "mytable\000"
-  field: "TABLE\000"
-}
-
-Mysqlx.Resultset.Row {
-  field: "mytable2\000"
-  field: "TABLE\000"
-}
-
-Mysqlx.Resultset.FetchDone {
-}
-
-Mysqlx.Sql.StmtExecuteOk {
-}
-
+name	type
+mytable	TABLE
+mytable2	TABLE
+command ok
 send Mysqlx.Sql.StmtExecute {
   stmt: "list_objects"
   args {
@@ -230,109 +132,57 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "name"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: ""
-  collation: 0
-  fractional_digits: 0
-  length: 0
-  flags: 0
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "type"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: ""
-  collation: 0
-  fractional_digits: 0
-  length: 0
-  flags: 0
-}
-
-Mysqlx.Resultset.FetchDone {
-}
-
-Mysqlx.Sql.StmtExecuteOk {
-}
-
+name	type
+command ok
 send Mysqlx.Sql.StmtExecute {
   stmt: "list_objects"
   namespace: "xplugin"
 }
 
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "name"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: ""
-  collation: 0
-  fractional_digits: 0
-  length: 0
-  flags: 0
+name	type
+books	COLLECTION
+fakecoll	VIEW
+mytable	TABLE
+mytable2	TABLE
+myview	VIEW
+command ok
+
+0 rows affected
+Records: 0  Duplicates: 0  Warnings: 0
+Field	Type	Null	Key	Default	Extra
+doc	json	YES		null	
+_id	varchar(32)	NO	PRI	null	STORED GENERATED
+nothing	int(11)	YES		null	
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_objects"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xtest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "books"
+      }
+    }
+  }
+  namespace: "xplugin"
 }
 
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "type"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: ""
-  collation: 0
-  fractional_digits: 0
-  length: 0
-  flags: 0
-}
-
-Mysqlx.Resultset.Row {
-  field: "fakecoll\000"
-  field: "VIEW\000"
-}
-
-Mysqlx.Resultset.Row {
-  field: "mytable\000"
-  field: "TABLE\000"
-}
-
-Mysqlx.Resultset.Row {
-  field: "mytable2\000"
-  field: "TABLE\000"
-}
-
-Mysqlx.Resultset.Row {
-  field: "myview\000"
-  field: "VIEW\000"
-}
-
-Mysqlx.Resultset.Row {
-  field: "books\000"
-  field: "COLLECTION\000"
-}
-
-Mysqlx.Resultset.FetchDone {
-}
-
-Mysqlx.Sql.StmtExecuteOk {
-}
-
-RUN drop schema if exists xtest
-
-5 rows affected
+name	type
+books	TABLE
+command ok
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+drop schema if exists xtest;
 uninstall plugin mysqlx;
