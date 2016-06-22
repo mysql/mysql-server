@@ -35,7 +35,9 @@ void Dbdih::initData()
                  ZCREATE_REPLICA_FILE_SIZE);
 
   nodeGroupRecord = (NodeGroupRecord*)
-    allocRecord("NodeGroupRecord", sizeof(NodeGroupRecord), MAX_NDB_NODES);
+    allocRecord("NodeGroupRecord",
+                sizeof(NodeGroupRecord),
+                MAX_NDB_NODE_GROUPS);
 
   nodeRecord = (NodeRecord*)
     allocRecord("NodeRecord", sizeof(NodeRecord), MAX_NDB_NODES);
@@ -361,8 +363,9 @@ Dbdih::Dbdih(Block_context& ctx):
   nodeGroupRecord = 0;
   nodeRecord = 0;
   c_nextNodeGroup = 0;
+  memset(c_next_replica_node, 0, sizeof(c_next_replica_node));
   c_fragments_per_node_ = 0;
-  bzero(c_node_groups, sizeof(c_node_groups));
+  memset(c_node_groups, 0, sizeof(c_node_groups));
   if (globalData.ndbMtTcThreads == 0)
   {
     c_diverify_queue_cnt = 1;
@@ -409,7 +412,7 @@ Dbdih::~Dbdih()
                 ZCREATE_REPLICA_FILE_SIZE);
   
   deallocRecord((void **)&nodeGroupRecord, "NodeGroupRecord", 
-                sizeof(NodeGroupRecord), MAX_NDB_NODES);
+                sizeof(NodeGroupRecord), MAX_NDB_NODE_GROUPS);
   
   deallocRecord((void **)&nodeRecord, "NodeRecord", 
                 sizeof(NodeRecord), MAX_NDB_NODES);

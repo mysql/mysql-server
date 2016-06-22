@@ -1780,9 +1780,11 @@ private:
   Uint32 cfragstoreFileSize;
   RSS_OP_SNAPSHOT(cremainingfrags);
 
-  Uint32 c_nextNodeGroup;
   NodeGroupRecord *nodeGroupRecord;
   RSS_OP_SNAPSHOT(cnghash);
+
+  Uint32 c_nextNodeGroup;
+  Uint16 c_next_replica_node[MAX_NDB_NODE_GROUPS][NDBMT_MAX_WORKER_INSTANCES];
 
   NodeRecord *nodeRecord;
 
@@ -2414,7 +2416,7 @@ private:
    * Available nodegroups (ids) (length == cnoOfNodeGroups)
    *   use to support nodegroups 2,4,6 (not just consequtive nodegroup ids)
    */
-  Uint32 c_node_groups[MAX_NDB_NODES];
+  Uint32 c_node_groups[MAX_NDB_NODE_GROUPS];
   Uint32 cnoOfNodeGroups;
   Uint32 crestartGci;      /* VALUE OF GCI WHEN SYSTEM RESTARTED OR STARTED */
   
