@@ -114,6 +114,7 @@ drop table t2;
 --echo # CREATE new_table ... LIKE old_table INSERT INTO new_table (<non-gcols>, <gcols>) 
 --echo # SELECT <non-gcols>, <gcols> from old_table
 insert into t1 values (1,default,default);
+--sorted_result
 select * from t1;
 create table t2 like t1;
 --error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
