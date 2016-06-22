@@ -3214,12 +3214,15 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     {
       regApiPtr->m_flags |= ApiConnectRecord::TF_DISABLE_FK_CONSTRAINTS;
     }
+    regCachePtr->m_read_committed_base =
+                              TcKeyReq::getReadCommittedBaseFlag(Treqinfo);
   }
   else
   {
     TkeyLength = TcKeyReq::getKeyLength(Treqinfo);
     TattrLen= TcKeyReq::getAttrinfoLen(tcKeyReq->attrLen);
     titcLenAiInTckeyreq = TcKeyReq::getAIInTcKeyReq(Treqinfo);
+    regCachePtr->m_read_committed_base = 0;
   }
 
   regCachePtr->keylen = TkeyLength;
@@ -3269,11 +3272,15 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   Uint8 TInterpretedFlag    = TcKeyReq::getInterpretedFlag(Treqinfo);
   Uint8 TDistrKeyFlag       = TcKeyReq::getDistributionKeyFlag(Treqinfo);
   Uint8 TNoDiskFlag         = TcKeyReq::getNoDiskFlag(Treqinfo);
+
+  regTcPtr->dirtyOp  = TDirtyFlag;
+  regTcPtr->opSimple = TSimpleFlag;
+  regCachePtr->opExec   = TInterpretedFlag;
+  regCachePtr->distributionKeyIndicator = TDistrKeyFlag;
+  regCachePtr->m_no_disk_flag = TNoDiskFlag;
+
   Uint8 TexecuteFlag        = TexecFlag;
   Uint8 Treorg              = TcKeyReq::getReorgFlag(Treqinfo);
-  const Uint8 TViaSPJFlag   = TcKeyReq::getViaSPJFlag(Treqinfo);
-  const Uint8 Tqueue        = TcKeyReq::getQueueOnRedoProblemFlag(Treqinfo);
-
   if (Treorg)
   {
     if (TOperationType == ZWRITE)
@@ -3286,11 +3293,9 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     }
   }
   
-  regTcPtr->dirtyOp  = TDirtyFlag;
-  regTcPtr->opSimple = TSimpleFlag;
-  regCachePtr->opExec   = TInterpretedFlag;
-  regCachePtr->distributionKeyIndicator = TDistrKeyFlag;
-  regCachePtr->m_no_disk_flag = TNoDiskFlag;
+  const Uint8 TViaSPJFlag   = TcKeyReq::getViaSPJFlag(Treqinfo);
+  const Uint8 Tqueue        = TcKeyReq::getQueueOnRedoProblemFlag(Treqinfo);
+
   regCachePtr->viaSPJFlag = TViaSPJFlag;
   regCachePtr->m_op_queue = Tqueue;
 
@@ -3807,13 +3812,18 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
     regTcPtr->m_special_op_flags &= ~TcConnectRecord::SOF_REORG_MOVING;
     /**
      * Allow reading from backup replica...if
-     * 1) Simple-read, since this will wait in lock queue for any pending commit/complete
+     * 1) Simple-read, since this will wait in lock queue for any pending
+     *    commit/complete
      * 2) Simple/CommittedRead if TreadBackup-table property is set
-     *    (since transactions updating such table will wait with sending API commit until
-     *     complete-phase has been run)
+     *    (since transactions updating such table will wait with sending API
+     *    commit until complete-phase has been run)
+     * 3) Locking reads that have signalled that they have had their locks
+     *    upgraded due to being read of a base table of BLOB table or
+     *    reads of unique key for Committed reads.
      */
     if ((TopSimple != 0 && TopDirty == 0) ||
-        (TreadBackup != 0 && (TopSimple != 0 || TopDirty != 0)))
+        (TreadBackup != 0 && (TopSimple != 0 || TopDirty != 0)) ||
+        (TreadBackup != 0 && regCachePtr->m_read_committed_base))
     {
       jam();
       /*-------------------------------------------------------------*/
@@ -12262,6 +12272,7 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   }
 
   scanptr.p->scanRequestInfo = tmp;
+  scanptr.p->m_read_committed_base = ScanTabReq::getReadCommittedBaseFlag(ri);
   scanptr.p->scanStoredProcId = scanTabReq->storedProcId;
   scanptr.p->scanState = ScanRecord::RUNNING;
   scanptr.p->m_queued_count = 0;
@@ -12951,11 +12962,16 @@ bool Dbtc::startFragScanLab(Signal* signal,
    * release locks on all replicas before reporting the commit to the
    * application. This means that we are safe to also read from backups
    * for committed reads. We avoid doing it for locking reads to avoid
-   * unnecessary deadlock scenarios.
+   * unnecessary deadlock scenarios. We do it however for those
+   * operations that have flagged that the base is committed read.
+   * Base operations on BLOB tables upgrade locks in this fashion and
+   * they are safe to read from backup replicas without causing
+   * more deadlocks than otherwise would happen.
    */
   Uint32 TreadBackup = (tabPtr.p->m_flags & TableRecord::TR_READ_BACKUP);
   if (TreadBackup &&
-      ScanFragReq::getReadCommittedFlag(scanptr.p->scanRequestInfo))
+      (ScanFragReq::getReadCommittedFlag(scanptr.p->scanRequestInfo) ||
+       scanptr.p->m_read_committed_base))
   {
     jam();
     /* Primary not counted in DIGETNODES signal */
