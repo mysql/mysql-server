@@ -3831,6 +3831,7 @@ my_is_inheritance_of_origin(const my_wc_t (&origin_dec)[MY_UCA_MAX_CONTRACTION],
                               from character in tailoring rule.
   @param[in, out] dec_codes   The list of combining marks decomposed from
                               character in decomposition list.
+  @param[in, out] mark_ind    The index of last combining marks in dec_codes.
   @return 1       Error adding new rules
           0       Add rules successfully
 */
