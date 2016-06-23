@@ -12,7 +12,7 @@ eval create function keyring_key_remove returns integer soname '$KEYRING_UDF';
 eval create function keyring_key_generate returns integer soname '$KEYRING_UDF';
 
 --replace_regex /\.dll/.so/
-select * from mysql.func where name like '%keyring%';
+select * from mysql.func where name like '%keyring%' order by name;
 
 --error ER_CANT_INITIALIZE_UDF
 select keyring_key_generate('Rob_AES_128','AES',16);
