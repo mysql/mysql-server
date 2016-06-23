@@ -179,19 +179,19 @@ FLUSH PRIVILEGES;
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (testuser1, localhost, testuser1, , db_datadict);
 --replace_column 24 "YYYY-MM-DD hh:mm:ss" 25 "YYYY-MM-DD hh:mm:ss"
-SELECT * FROM information_schema.routines;
+SELECT * FROM information_schema.routines where routine_schema like 'db_datadict%';
 
 --echo # Establish connection testuser2 (user=testuser2)
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (testuser2, localhost, testuser2, , db_datadict);
 --replace_column 24 "YYYY-MM-DD hh:mm:ss" 25 "YYYY-MM-DD hh:mm:ss"
-SELECT * FROM information_schema.routines;
+SELECT * FROM information_schema.routines where routine_schema like 'db_datadict%';
 
 --echo # Establish connection testuser3 (user=testuser3)
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (testuser3, localhost, testuser3, , test);
 --replace_column 24 "YYYY-MM-DD hh:mm:ss" 25 "YYYY-MM-DD hh:mm:ss"
-SELECT * FROM information_schema.routines;
+SELECT * FROM information_schema.routines where routine_schema like 'db_datadict%';
 
 # Cleanup
 --echo # Switch to connection default and close connections testuser1,testuser2,testuser3
