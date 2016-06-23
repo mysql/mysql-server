@@ -46,6 +46,11 @@ public:
     init_alloc_root(PSI_NOT_INSTRUMENTED, &m_mem_root, 256, 0);
   }
 
+  ~Mem_root_wrapper()
+  {
+    free_root(&m_mem_root, MYF(0));
+  }
+
   MEM_ROOT &mem_root() { return m_mem_root; }
 };
 
@@ -251,8 +256,6 @@ public:
     date_values.clear();
     time_values.clear();
     blob_values.clear();
-
-    free_root(&mem_root.mem_root(), MYF(0));
   }
 };
 
@@ -2653,7 +2656,7 @@ TEST_F(HistogramsTest, MultiByteStrings)
 TEST_F(HistogramsTest, AutoSelectHistogramOOM)
 {
   MEM_ROOT oom_mem_root;
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &oom_mem_root, 128, 0);
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &oom_mem_root, 32, 0);
 
   {
     value_map_type<longlong>
@@ -2664,8 +2667,18 @@ TEST_F(HistogramsTest, AutoSelectHistogramOOM)
     values.insert(std::make_pair(3LL, 10));
     values.insert(std::make_pair(4LL, 10));
 
-    // Restrict the maximum capacity of the MEM_ROOT so it cannot grow anymore.
-    oom_mem_root.max_capacity= oom_mem_root.allocated_size;
+    /*
+      Restrict the maximum capacity of the MEM_ROOT so it cannot grow anymore.
+      We do however add four extra bytes, due to std::vector with
+      Memroot_allocator on Windows. The constructor
+
+        "explicit vector( const Allocator& alloc );"
+
+      is on windows defined with _NOEXCEPT. It will however try to allocate one
+      single byte during construction. So be sure to have at least one byte
+      available on the supplied MEM_ROOT.
+    */
+    oom_mem_root.max_capacity= oom_mem_root.allocated_size + 4;
 
     Histogram *histogram;
     histogram= build_histogram(&oom_mem_root, values, 0, 1U, "db1", "tbl1",
