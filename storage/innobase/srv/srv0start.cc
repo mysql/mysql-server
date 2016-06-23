@@ -1554,9 +1554,9 @@ srv_start(bool create_new_db)
 
 	/* Create i/o-handler threads: */
 
-        /* For read only mode, we don't need ibuf and log I/O thread.
-        Please see innobase_start_or_create_for_mysql() */
-        ulint	start = (srv_read_only_mode) ? 0 : 2;
+	/* For read only mode, we don't need ibuf and log I/O thread.
+	Please see innobase_start_or_create_for_mysql() */
+	ulint	start = (srv_read_only_mode) ? 0 : 2;
 
 	for (ulint t = 0; t < srv_n_file_io_threads; ++t) {
 
@@ -1564,31 +1564,31 @@ srv_start(bool create_new_db)
 			if (t == 0) {
 		                os_thread_create(
 					io_ibuf_thread_key,
-                                        io_handler_thread,
-                                        t);
+					io_handler_thread,
+					t);
 			} else {
 				ut_ad(t == 1);
 		                os_thread_create(
-                                        io_log_thread_key,
-                                        io_handler_thread, t);
+					io_log_thread_key,
+					io_handler_thread, t);
 			}
 		} else if (t >= start && t < (start + srv_n_read_io_threads)) {
 
 		        os_thread_create(
-                                io_read_thread_key,
-                                io_handler_thread, t);
+				io_read_thread_key,
+				io_handler_thread, t);
 
 		} else if (t >= (start + srv_n_read_io_threads)
 			   && t < (start + srv_n_read_io_threads
 				   + srv_n_write_io_threads)) {
 
 		        os_thread_create(
-                                io_write_thread_key,
-                                io_handler_thread, t);
+				io_write_thread_key,
+				io_handler_thread, t);
 		} else {
 		        os_thread_create(
-                                io_handler_thread_key,
-                                io_handler_thread, t);
+				io_handler_thread_key,
+				io_handler_thread, t);
 		}
 	}
 
