@@ -88,6 +88,7 @@ static void handle_bootstrap_impl(THD *thd)
   File_command_iterator file_iter(bootstrap_file, mysql_file_fgets_fn);
   Compiled_in_command_iterator comp_iter;
   bool has_binlog_option= thd->variables.option_bits & OPTION_BIN_LOG;
+  int query_source, last_query_source= -1;
 
   thd->thread_stack= (char*) &thd;
   thd->security_context()->assign_user(STRING_WITH_LEN("boot"));
@@ -113,7 +114,6 @@ static void handle_bootstrap_impl(THD *thd)
   {
     int error= 0;
     int rc;
-    int query_source, last_query_source= -1;
 
     rc= Command_iterator::current_iterator->next(query, &error, &query_source);
 
@@ -133,6 +133,12 @@ static void handle_bootstrap_impl(THD *thd)
         thd->variables.option_bits&= ~OPTION_BIN_LOG;
         break;
       case QUERY_SOURCE_FILE:
+        /*
+          Some compiled script might have disable binary logging session
+          variable during compiled scripts. Enabling it again as it was
+          enabled before applying the compiled statements.
+        */
+        thd->variables.sql_log_bin= true;
         thd->variables.option_bits|= OPTION_BIN_LOG;
         break;
       default:
@@ -222,16 +228,29 @@ static void handle_bootstrap_impl(THD *thd)
 
     free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
     thd->get_transaction()->free_memory(MYF(MY_KEEP_PREALLOC));
+
+    /*
+      If the last statement has enabled the session binary logging while
+      processing queries that are compiled and must not be binary logged,
+      we must disable binary logging again.
+    */
+    if (last_query_source == QUERY_SOURCE_COMPILED &&
+        thd->variables.option_bits & OPTION_BIN_LOG)
+      thd->variables.option_bits&= ~OPTION_BIN_LOG;
+
   }
 
   Command_iterator::current_iterator->end();
 
   /*
-    We should re-enable SQL_LOG_BIN session if it was enabled during
-    bootstrap/initialization.
+    We should re-enable SQL_LOG_BIN session if it was enabled by default
+    but disabled during bootstrap/initialization.
   */
   if (has_binlog_option)
+  {
+    thd->variables.sql_log_bin= true;
     thd->variables.option_bits|= OPTION_BIN_LOG;
+  }
 
   DBUG_VOID_RETURN;
 }
