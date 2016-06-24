@@ -40,6 +40,7 @@
 #include "uca800_data.h"
 
 #include <algorithm>
+#include <iterator>
 
 MY_UCA_INFO my_uca_v400=
 {
