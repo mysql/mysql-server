@@ -1154,7 +1154,7 @@ int find_all_databases(THD *thd, Thd_ndb* thd_ndb)
 
   Thd_ndb::Options_guard thd_ndb_options(thd_ndb);
   thd_ndb_options.set(Thd_ndb::NO_LOG_SCHEMA_OP);
-  thd_ndb_options.set(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT);
+  thd_ndb_options.set(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK);
   while (1)
   {
     char db_buffer[FN_REFLEN];
@@ -3278,7 +3278,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
 
     Ndb_local_schema::Table tab(m_thd, schema->db, schema->name);
     if (tab.is_local_table())
@@ -3370,7 +3370,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
 
     Ndb_local_schema::Table from(m_thd, schema->db, schema->name);
     if (from.is_local_table())
@@ -3448,7 +3448,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
 
     if (check_if_local_tables_in_db(schema->db))
     {
@@ -3554,7 +3554,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
 
     const int no_print_error[1]= {0};
     run_query(m_thd, schema->query,
@@ -3578,7 +3578,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
 
     const int no_print_error[1]= {0};
     run_query(m_thd, schema->query,
@@ -3607,7 +3607,7 @@ class Ndb_schema_event_handler {
                             get_schema_type_name(schema->type));
 
     // Participant never takes GSL
-    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
 
     const int no_print_error[1]= {0};
     char *cmd= (char *) "flush privileges";
@@ -6702,7 +6702,7 @@ restart_cluster_failure:
       Prevent schema dist participant from (implicitly)
       taking GSL lock as part of taking MDL lock
     */
-    thd_ndb->set_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT);
+    thd_ndb->set_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK);
 
     thd->query_id= 0; // to keep valgrind quiet
   }

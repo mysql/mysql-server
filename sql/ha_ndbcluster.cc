@@ -1304,8 +1304,6 @@ Thd_ndb::Thd_ndb(THD* thd) :
 
 Thd_ndb::~Thd_ndb()
 {
-  DBUG_ASSERT(global_schema_lock_count == 0);
-
   if (opt_ndb_extra_logging > 1)
   {
     /*
@@ -10619,7 +10617,7 @@ int ha_ndbcluster::create(const char *name,
 
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
 
-  if (!(thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT) ||
+  if (!(thd_ndb->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK) ||
         thd_ndb->has_required_global_schema_lock("ha_ndbcluster::create")))
   {
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
