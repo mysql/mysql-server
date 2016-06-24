@@ -86,10 +86,10 @@ b Int NOT NULL AT=FIXED ST=MEMORY DYNAMIC
 c Int NULL AT=FIXED ST=MEMORY DYNAMIC
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
-b(b, a) - OrderedIndex
-a$unique(a, b) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
 a(a, b) - OrderedIndex
+a$unique(a, b) - UniqueHashIndex
+b(b, a) - OrderedIndex
 
 NDBT_ProgramExit: 0 - OK
 
@@ -122,10 +122,10 @@ b Int NOT NULL AT=FIXED ST=MEMORY DYNAMIC
 c Int NULL AT=FIXED ST=MEMORY DYNAMIC
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
-a(a, b) - OrderedIndex
-b(b, a) - OrderedIndex
-a$unique(a, b) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
+a(a, b) - OrderedIndex
+a$unique(a, b) - UniqueHashIndex
+b(b, a) - OrderedIndex
 
 NDBT_ProgramExit: 0 - OK
 

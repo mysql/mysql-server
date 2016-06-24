@@ -242,7 +242,7 @@ let $t4_part_count_now = query_get_value(select count(*) as Value from informati
 eval select $t1_part_count_now - $t1_part_count_start as t1_added;
 --echo partitions added to t2 (expect 4)
 eval select $t2_part_count_now - $t2_part_count_start as t2_added;
---echo partitions added to t3 (expect 2)
+--echo partitions added to t3 (expect 4)
 eval select $t3_part_count_now - $t3_part_count_start as t3_added;
 --echo partitions added to t4 (expect 0)
 eval select $t4_part_count_now - $t4_part_count_start as t4_added;
