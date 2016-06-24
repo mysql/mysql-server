@@ -15126,6 +15126,7 @@ NDB_SHARE::create(const char* key, TABLE* table)
   share->op= 0;
   share->new_op= 0;
   share->event_data= 0;
+  share->stored_columns.bitmap= 0;
 
   if (ndbcluster_binlog_init_share(current_thd, share, table))
   {
