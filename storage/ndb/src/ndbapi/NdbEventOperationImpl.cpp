@@ -1361,6 +1361,7 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_highest_sub_gcp_complete_GCI(0),
   m_latest_poll_GCI(),
   m_latest_consumed_epoch(0),
+  m_buffered_epochs(0),
   m_failure_detected(false),
   m_prevent_nodegroup_change(true),
   m_mutex(NULL),
@@ -1506,10 +1507,15 @@ void NdbEventBuffer::consume_all()   //Need m_mutex locked
 {
   m_current_data = NULL;
 
+  // Check the total #buffered epochs is consistent with the queues
+  assert(m_buffered_epochs == count_buffered_epochs());
+
   // Drop all buffered epochs with event data
   m_complete_data.clear();
   m_event_queue.clear();
- 
+
+  m_buffered_epochs = 0;
+
   /* Clean up deleted event_op and memory blocks which expired.
    * In case we consume across a failure event, include the
    * (now monotonic) GCIs across the restart.
@@ -1612,12 +1618,37 @@ NdbEventBuffer::is_exceptional_epoch(EventBufData *data)
   DBUG_RETURN_EVENT(false);
 }
 
+#ifndef NDEBUG
+Uint32
+NdbEventBuffer::count_buffered_epochs() const  //Need m_mutex locked
+{
+  Uint32 total_buffered_epochs = 0;
+  EpochData *epoch = m_complete_data.first_epoch();
+  while (epoch)
+  {
+    total_buffered_epochs++;
+    epoch = epoch->m_next;
+  }
+
+  epoch = m_event_queue.first_epoch();
+  while (epoch)
+  {
+    total_buffered_epochs++;
+    epoch = epoch->m_next;
+  }
+  return total_buffered_epochs;
+}
+#endif
+
 void
 NdbEventBuffer::remove_consumed_epoch_data(MonotonicEpoch consumedGci)
 {
   EpochData *epoch = m_event_queue.first_epoch();
   while (epoch && epoch->m_gci <= consumedGci)
   {
+    assert(m_buffered_epochs > 0);
+    m_buffered_epochs--;
+
     epoch = m_event_queue.next_epoch();
   }
 }
@@ -2363,6 +2394,7 @@ NdbEventBuffer::complete_bucket(Gci_container* bucket)
   if (completed_epoch != NULL)
   {
     m_complete_data.append(completed_epoch);
+    m_buffered_epochs++;
   }
 
   bucket->clear();
@@ -4256,16 +4288,16 @@ NdbEventBuffer::reportStatus(ReportReason reason)
       goto send_report;
     }
   }
-  /*
+
   if (m_gci_slip_thresh &&
-      (m_latestGCI - m_latest_consumed_epoch >= m_gci_slip_thresh) &&
+      (m_buffered_epochs >= m_gci_slip_thresh) &&
       NdbTick_Elapsed(m_last_log_time, NdbTick_getCurrentTicks()).milliSec() >= 1000)
   {
     m_last_log_time = NdbTick_getCurrentTicks();
     reason = BUFFERED_EPOCHS_OVER_THRESHOLD;
     goto send_report;
   }
-  */
+
   return;
 
 send_report:
