@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,6 +61,12 @@ Uint32 *redoLogPage;
 
 unsigned NO_MBYTE_IN_FILE = 16;
 
+inline void ndb_end_and_exit(int exitcode)
+{
+  ndb_end(0);
+  exit(exitcode);
+}
+
 NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read a redo log file", 16384) { 
   ndb_init();
   Int32 wordIndex = 0;
@@ -82,7 +88,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
   f = fopen(fileName, "rb");
   if(!f){
     perror("Error: open file");
-    exit(RETURN_ERROR);
+    ndb_end_and_exit(RETURN_ERROR);
   }
 
   {
@@ -98,7 +104,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
   Uint32 tmpFileOffset = startAtMbyte * PAGESIZE * NO_PAGES_IN_MBYTE * sizeof(Uint32);
   if (fseek(f, tmpFileOffset, FROM_BEGINNING)) {
     perror("Error: Move in file");
-    exit(RETURN_ERROR);
+    ndb_end_and_exit(RETURN_ERROR);
   }
 
   redoLogPage = new Uint32[PAGESIZE*NO_PAGES_IN_MBYTE];
@@ -355,7 +361,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
   }//for
   fclose(f);
   delete [] redoLogPage;
-  exit(RETURN_OK);
+  ndb_end_and_exit(RETURN_OK);
 }
 
 static
@@ -472,5 +478,5 @@ void doExit() {
   ndbout << "Error in redoLogReader(). Exiting!" << endl;
   if (f) fclose(f);
   delete [] redoLogPage;
-  exit(RETURN_ERROR);
+  ndb_end_and_exit(RETURN_ERROR);
 }
