@@ -41,7 +41,7 @@ typedef unsigned long uint32;
 # error Neither int or long is of 4 bytes width
 #endif
 
-#if defined WITH_INNODB_MEMCACHED && defined UNIV_DEBUG
+#if defined(WITH_INNODB_MEMCACHED) && !defined(DBUG_OFF)
 # define UNIV_MEMCACHED_SDI
 #endif
 
