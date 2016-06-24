@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -189,6 +189,7 @@ JNI_OnLoad(JavaVM * jvm, void * reserved)
     int stat = ndb_init();
     if (stat != 0) {
         PRINT_ERROR_CODE("ndb_init() returned: ", stat);
+        ndb_end(0);
         return JNI_ERR;
     }
     VERBOSE("... initialized the NDBAPI resources");

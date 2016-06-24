@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,12 @@ static bool print_page(int page_no)
   return false;
 }
 
+inline void ndb_end_and_exit(int exitcode)
+{
+  ndb_end(0);
+  exit(exitcode);
+}
+
 int g_verbosity = 1;
 unsigned g_page_size = File_formats::NDB_PAGE_SIZE;
 int (* g_print_page)(int count, void*, Uint32 sz) = print_zero_page;
@@ -64,7 +70,7 @@ int main(int argc, char ** argv)
 	    !strcmp(argv[i], "--help"))
     {
       print_usage(argv[0]);
-     return 0;
+      ndb_end_and_exit(0);
     }
     
     file_given_in_arg = true;
@@ -100,9 +106,9 @@ int main(int argc, char ** argv)
   }
   if(!file_given_in_arg){
     ndbout << "Filename not given" << endl;
-    return 1;
+    ndb_end_and_exit(1);
   }
-  return 0;
+  ndb_end_and_exit(0);
 }
 
 void

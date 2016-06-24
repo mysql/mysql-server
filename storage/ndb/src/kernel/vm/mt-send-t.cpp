@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -236,6 +236,11 @@ struct Test
     waiting_stop = 0;
     mutex = 0;
     cond = 0;
+  }
+
+  ~Test() {
+    NdbMutex_Destroy(mutex);
+    NdbCondition_Destroy(cond);
   }
 
   void init() {
