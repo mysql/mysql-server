@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,33 +30,43 @@ void usage(const char * prg){
   
 }
 
+inline void ndb_end_and_exit(int exitcode)
+{
+  ndb_end(0);
+  exit(exitcode);
+}
+
 NDB_COMMAND(mkconfig, 
 	    "mkconfig", "mkconfig", 
 	    "Make a binary configuration from a config file", 16384){ 
   ndb_init();
   if(argc < 3){
     usage(argv[0]);
-    return 0;
+    ndb_end_and_exit(0);
   }
   
   InitConfigFileParser parser;
   Config* _cp;
 
   if ((_cp = parser.parseConfig(argv[1])) == 0)
-    return false;
+  {
+    ndb_end_and_exit(0);
+  }
 
   ConfigValues* cp = &_cp->m_configValues->m_config;
   Uint32 sz = cp->getPackedSize();
   UtilBuffer buf;
   if(!cp->pack(buf))
-    return -1;
-  
+  {
+    ndb_end_and_exit(-1);
+  }
+
   FILE * f = fopen(argv[2], "w");
   if(fwrite(buf.get_data(), 1, buf.length(), f) != sz){
     fclose(f);
     unlink(argv[2]);
-    return -1;
+    ndb_end_and_exit(-1);
   }
   fclose(f);
-  return 0;
+  ndb_end_and_exit(0);
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -685,6 +685,7 @@ Ndb_move_data::copy_blob_to_array(const Attr& attr1, const Attr& attr2)
     {
       char* data1 = &op.buf1[0];
       Uint32 length1 = attr2.data_size;
+      require(length1 <= (unsigned)op.buflen); // avoid buffer overflow
       CHK2(bh1->readData(data1, length1) == 0, (bh1->getNdbError()));
       // pass also real length to detect truncation
       CHK1(copy_data_to_array(data1, attr2, length1, data_length) == 0);
