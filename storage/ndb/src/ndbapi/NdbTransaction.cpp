@@ -1543,8 +1543,6 @@ NdbOperation*
 NdbTransaction::getNdbOperation(const NdbTableImpl * tab,
                                 NdbOperation* aNextOp)
 { 
-  NdbOperation* tOp;
-
   if (theScanningOp != NULL || m_scanningQuery != NULL){
     setErrorCode(4607);
     return NULL;
@@ -1555,7 +1553,7 @@ NdbTransaction::getNdbOperation(const NdbTableImpl * tab,
     return NULL;
   }
   
-  tOp = theNdb->getOperation();
+  NdbOperation* tOp = theNdb->getOperation();
   if (tOp == NULL)
     goto getNdbOp_error1;
 
@@ -1735,15 +1733,13 @@ Remark:         Get an operation from NdbScanOperation object idlelist and get t
 NdbIndexScanOperation*
 NdbTransaction::getNdbScanOperation(const NdbTableImpl * tab)
 { 
-  NdbIndexScanOperation* tOp;
-  
   if (!checkSchemaObjects(tab))
   {
     setErrorCode(1231);
     return NULL;
   } 
   
-  tOp = theNdb->getScanOperation();
+  NdbIndexScanOperation* tOp = theNdb->getScanOperation();
   if (tOp == NULL)
     goto getNdbOp_error1;
 
@@ -1868,14 +1864,12 @@ NdbTransaction::getNdbIndexOperation(const NdbIndexImpl * anIndex,
                                      const NdbTableImpl * aTable,
                                      NdbOperation* aNextOp)
 { 
-  NdbIndexOperation* tOp;
-  
   if (!checkSchemaObjects(aTable, anIndex))
   {
     setErrorCode(1231);
     return NULL;
   } 
-  tOp = theNdb->getIndexOperation();
+  NdbIndexOperation* tOp = theNdb->getIndexOperation();
   if (tOp == NULL)
     goto getNdbOp_error1;
 
