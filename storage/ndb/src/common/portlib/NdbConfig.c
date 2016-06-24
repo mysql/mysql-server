@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -91,6 +91,7 @@ char *get_prefix_buf(int len, int node_id)
   tmp_buf[sizeof(tmp_buf)-1]= 0;
 
   buf= NdbConfig_AllocHomePath(len+(int)strlen(tmp_buf));
+  require(len > 0); // avoid buffer overflow
   strcat(buf, tmp_buf);
   return buf;
 }
