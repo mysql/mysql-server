@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -149,6 +149,9 @@ NdbOperation::doSendKeyReq(int aNodeId,
   {
     /* Send signal as short request - either for backwards
      * compatibility or testing
+     *
+     * This means that Read Committed Base flag will be
+     * overwritten and thus ignored.
      */
     Uint32 sigCount = 1;
     Uint32 keyInfoLen  = secs[0].sz;
@@ -495,9 +498,11 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   tcKeyReq->setDisableFkConstraints(tReqInfo, tDisableFk);
 
   OperationType tOperationType = theOperationType;
+  Uint8 tReadCommittedBase = theReadCommittedBaseIndicator;
   Uint8 abortOption = (ao == DefaultAbortOption) ? (Uint8) m_abortOption : (Uint8) ao;
 
   tcKeyReq->setDirtyFlag(tReqInfo, tDirtyIndicator);
+  tcKeyReq->setReadCommittedBaseFlag(tReqInfo, tReadCommittedBase);
   tcKeyReq->setOperationType(tReqInfo, tOperationType);
   tcKeyReq->setKeyLength(tReqInfo, 0); // Not needed
   tcKeyReq->setViaSPJFlag(tReqInfo, 0);
@@ -1421,19 +1426,21 @@ NdbOperation::prepareSendNdbRecord(AbortOption ao)
   m_abortOption= theSimpleIndicator && theOperationType==ReadRequest ?
     (Uint8) AO_IgnoreError : (Uint8) abortOption;
 
-  Uint8 tQueable = (m_flags & OF_QUEUEABLE) != 0;
-  Uint8 tDeferred = (m_flags & OF_DEFERRED_CONSTRAINTS) != 0;
-  Uint8 tDisableFk = (m_flags & OF_DISABLE_FK) != 0;
-
   TcKeyReq::setAbortOption(tcKeyReq->requestInfo, m_abortOption);
   TcKeyReq::setCommitFlag(tcKeyReq->requestInfo, theCommitIndicator);
   TcKeyReq::setStartFlag(tcKeyReq->requestInfo, theStartIndicator);
   TcKeyReq::setSimpleFlag(tcKeyReq->requestInfo, theSimpleIndicator);
   TcKeyReq::setDirtyFlag(tcKeyReq->requestInfo, theDirtyIndicator);
 
+  Uint8 tQueable = (m_flags & OF_QUEUEABLE) != 0;
+  Uint8 tDeferred = (m_flags & OF_DEFERRED_CONSTRAINTS) != 0;
+  Uint8 tDisableFk = (m_flags & OF_DISABLE_FK) != 0;
+  Uint8 tReadCommittedBase = theReadCommittedBaseIndicator;
+
   TcKeyReq::setQueueOnRedoProblemFlag(tcKeyReq->requestInfo, tQueable);
   TcKeyReq::setDeferredConstraints(tcKeyReq->requestInfo, tDeferred);
   TcKeyReq::setDisableFkConstraints(tcKeyReq->requestInfo, tDisableFk);
+  TcKeyReq::setReadCommittedBaseFlag(tcKeyReq->requestInfo,tReadCommittedBase);
 
   theStatus= WaitResponse;
   theReceiver.prepareSend();

@@ -2661,6 +2661,7 @@ NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
                           const NdbOperation::OperationOptions *opts,
                           Uint32 sizeOfOptions)
 {
+  bool upgraded_lock = false;
   /* Check that the NdbRecord specifies the full primary key. */
   if (!(key_rec->flags & NdbRecord::RecHasAllKeys))
   {
@@ -2671,7 +2672,10 @@ NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
   /* It appears that unique index operations do no support readCommitted. */
   if (key_rec->flags & NdbRecord::RecIsIndex &&
       lock_mode == NdbOperation::LM_CommittedRead)
+  {
     lock_mode= NdbOperation::LM_Read;
+    upgraded_lock = true;
+  }
 
   NdbOperation::OperationType opType=
     (lock_mode == NdbOperation::LM_Exclusive ?
@@ -2685,6 +2689,10 @@ NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
   if (!op)
     return NULL;
 
+  if (upgraded_lock)
+  {
+    op->setReadCommittedBase();
+  }
   if (op->theLockMode == NdbOperation::LM_CommittedRead)
   {
     op->theDirtyIndicator= 1;

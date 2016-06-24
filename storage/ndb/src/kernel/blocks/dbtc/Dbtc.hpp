@@ -1077,7 +1077,8 @@ public:
        * EXECUTION MODE OF OPERATION                    
        * 0 = NORMAL EXECUTION, 1 = INTERPRETED EXECUTION
        */
-      Uint8  opExec;     
+      Uint8  opExec;
+      Uint8  m_read_committed_base;
     
       /* Use of Long signals */
       Uint8  isLongTcKeyReq;   /* Incoming TcKeyReq used long signal */
@@ -1428,6 +1429,7 @@ public:
      * Send opcount/total len as different words
      */
     bool m_4word_conf;
+    bool m_read_committed_base;
 
     /**
      *

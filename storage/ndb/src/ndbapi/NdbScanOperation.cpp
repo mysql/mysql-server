@@ -1557,6 +1557,7 @@ NdbScanOperation::setReadLockMode(LockMode lockMode)
   ScanTabReq::setLockMode(reqInfo, lockExcl);
   ScanTabReq::setHoldLockFlag(reqInfo, lockHoldMode);
   ScanTabReq::setReadCommittedFlag(reqInfo, readCommitted);
+  ScanTabReq::setReadCommittedBaseFlag(reqInfo, theReadCommittedBaseIndicator);
   req->requestInfo= reqInfo;
 }
 

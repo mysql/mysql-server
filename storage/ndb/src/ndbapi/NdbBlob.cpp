@@ -2149,6 +2149,7 @@ NdbBlob::atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
       {
         assert(! theNdbOp->m_blob_lock_upgraded);
         theNdbOp->setReadLockMode(NdbOperation::LM_Read);
+        theNdbOp->setReadCommittedBase();
         theNdbOp->m_blob_lock_upgraded = true;
 
         if (!isIndexOp())
@@ -2222,6 +2223,7 @@ NdbBlob::atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
         assert(! theNdbOp->m_blob_lock_upgraded);
         sop->m_savedLockModeOldApi= NdbOperation::LM_Read;
         theNdbOp->m_blob_lock_upgraded = true;
+        theNdbOp->setReadCommittedBase();
       }
     }
     else
@@ -2236,6 +2238,7 @@ NdbBlob::atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
         assert(! theNdbOp->m_blob_lock_upgraded);
         sop->setReadLockMode(NdbOperation::LM_Read);
         theNdbOp->m_blob_lock_upgraded = true;
+        theNdbOp->setReadCommittedBase();
       }
     }
 
