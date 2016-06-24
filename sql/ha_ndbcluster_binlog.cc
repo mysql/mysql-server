@@ -439,7 +439,7 @@ get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
         if (loop == 1)
         {
           uchar *buf= buffer + offset;
-          uint32 len= 0xffffffff;  // Max uint32
+          uint32 len= buffer_size - offset;  // Size of buf
           if (ndb_blob->readData(buf, len) != 0)
             DBUG_RETURN(-1);
           DBUG_PRINT("info", ("[%u] offset: %u  buf: 0x%lx  len=%u  [ptrdiff=%d]",
@@ -457,7 +457,7 @@ get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
         uint32 len= 0;
         field_blob->set_ptr_offset(ptrdiff, len, buf);
         DBUG_PRINT("info", ("[%u] isNull=%d", i, isNull));
-        }
+      }
     }
     if (loop == 0 && offset > buffer_size)
     {

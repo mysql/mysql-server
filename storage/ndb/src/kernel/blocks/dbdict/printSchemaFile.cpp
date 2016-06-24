@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -98,6 +98,12 @@ print_head(const char * filename, const SchemaFile * sf)
   }
 
   return retcode;
+}
+
+inline void ndb_end_and_exit(int exitcode)
+{
+  ndb_end(0);
+  exit(exitcode);
 }
 
 inline
@@ -227,7 +233,7 @@ NDB_COMMAND(printSchemafile,
       transok = true;
     if (strchr(argv[1], 'h') != 0 || strchr(argv[1], '?') != 0) {
       usage();
-      return 0;
+      ndb_end_and_exit(0);
     }
     argc--, argv++;
   }
@@ -304,5 +310,5 @@ NDB_COMMAND(printSchemafile,
   }
 
   delete [] prevbuf;
-  return exitcode;
+  ndb_end_and_exit(exitcode);
 }

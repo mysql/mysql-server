@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,6 +48,12 @@ usage()
 {
   printf("%s: pack and dump *.frm as C arrays\n", my_progname);
   ndb_usage(short_usage_sub, load_default_groups, my_long_options);
+}
+
+inline void ndb_end_and_exit(int exitcode)
+{
+  ndb_end(0);
+  exit(exitcode);
 }
 
 static void
@@ -162,14 +169,17 @@ main(int argc, char** argv)
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
   ret = handle_options(&argc, &argv, my_long_options, ndb_std_get_one_option);
  if (ret != 0)
-    return NDBT_WRONGARGS;
-
+ {
+   ndb_end_and_exit(NDBT_WRONGARGS);
+ }
   for (int i = 0; i < argc; i++)
   {
     ret = dofile(argv[i]);
     if (ret != 0)
-      return NDBT_FAILED;
+    {
+      ndb_end_and_exit(NDBT_FAILED);
+    }
   }
 
-  return NDBT_OK;
+  ndb_end_and_exit(NDBT_OK);
 }
