@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,12 @@
 #include <NdbOut.hpp>
 
 #define JAM_FILE_ID 358
+
+inline void ndb_end_and_exit(int exitcode)
+{
+  ndb_end(0);
+  exit(exitcode);
+}
 
 void 
 usage(const char * prg){
@@ -216,7 +222,7 @@ NDB_COMMAND(printSysfile,
   ndb_init();
   if(argc != 2){
     usage(argv[0]);
-    return 0;
+    ndb_end_and_exit(0);
   }
 
   for (int i = 1; i<argc; i++)
@@ -260,5 +266,5 @@ NDB_COMMAND(printSysfile,
     delete [] buf;
     continue;
   }
-  return 0;
+  ndb_end_and_exit(0);
 }
