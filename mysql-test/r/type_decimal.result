@@ -221,7 +221,6 @@ drop  table t1;
 create table t1 (a decimal(10,2) unsigned);
 insert into t1 values ("0.0"),("-0.0"),("+0.0"),("01.0"),("+01.0"),("-01.0");
 Warnings:
-Warning	1264	Out of range value for column 'a' at row 2
 Warning	1264	Out of range value for column 'a' at row 6
 insert into t1 values ("-.1"),("+.1"),(".1");
 Warnings:
@@ -280,7 +279,6 @@ drop  table t1;
 create table t1 (a decimal(10,2) zerofill);
 insert into t1 values ("0.0"),("-0.0"),("+0.0"),("01.0"),("+01.0"),("-01.0");
 Warnings:
-Warning	1264	Out of range value for column 'a' at row 2
 Warning	1264	Out of range value for column 'a' at row 6
 insert into t1 values ("-.1"),("+.1"),(".1");
 Warnings:
@@ -1012,6 +1010,9 @@ SELECT COLUMN_NAME, DATA_TYPE, COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE
 COLUMN_NAME	DATA_TYPE	COLUMN_TYPE
 a	decimal	decimal(10,2)/*old*/
 DROP TABLE t1dec102;
+select cast('-0.0' as decimal(5,1)) < 0;
+cast('-0.0' as decimal(5,1)) < 0
+0
 #
 # End of 5.5 tests
 #

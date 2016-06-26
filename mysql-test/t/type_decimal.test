@@ -604,6 +604,11 @@ SHOW COLUMNS FROM t1dec102;
 SELECT COLUMN_NAME, DATA_TYPE, COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='t1dec102';
 DROP TABLE t1dec102;
 
+#
+# MDEV-10552 equality operation on cast of the value "-0.0" to decimal not working
+#
+select cast('-0.0' as decimal(5,1)) < 0;
+
 --echo #
 --echo # End of 5.5 tests
 --echo #
