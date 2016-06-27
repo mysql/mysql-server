@@ -133,6 +133,7 @@
 
 #include <algorithm>
 #include <cmath>                 // std::log2
+#include <queue>
 #include <set>
 
 using std::min;
@@ -7393,6 +7394,55 @@ impossible_cond:
   return true;
 }
 
+
+#ifndef DBUG_OFF
+
+/**
+  Debugging function to print out a SEL_ROOT and everything it points to,
+  recursively. Used only when tracking bugs in the range optimizer
+  (for printf debugging); will not normally have any calls to it.
+ */
+static void
+debug_print_tree(SEL_ARG *origin) MY_ATTRIBUTE((unused));
+
+static void
+debug_print_tree(SEL_ARG *origin)
+{
+  if (!origin)
+    return;
+
+  std::set<SEL_ARG *> seen;
+  std::queue<SEL_ARG *> to_print;
+
+  to_print.push(origin);
+  while (!to_print.empty()) {
+    SEL_ARG *key= to_print.front();
+    to_print.pop();
+    if (seen.count(key))
+      continue;
+
+    printf("Printing %p:\n", key);
+    for (SEL_ARG *arg= key->first(); arg; arg= arg->next)
+    {
+      printf("  %p (next_key_part=%p)  ", arg, arg->next_key_part);
+      if (arg->next_key_part)
+        to_print.push(arg->next_key_part);
+
+      String tmp;
+      tmp.length(0);
+      KEY_PART_INFO fake_key_part;
+      fake_key_part.field = arg->field;
+      fake_key_part.length = 0;
+      append_range(&tmp, &fake_key_part,
+                   arg->min_value, arg->max_value,
+                   arg->min_flag | arg->max_flag);
+      printf("%s\n", tmp.ptr());
+    }
+    printf("\n");
+  }
+}
+
+#endif  // !defined(DBUG_OFF)
 
 static SEL_ARG *
 get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
@@ -14960,8 +15010,8 @@ static inline void print_tree(String *out,
     else
       DBUG_PRINT("info",
                  ("sel_tree: %p, type=%d, %s->keys[%u(%u)]: %s",
-                  tree->keys[i], tree->keys[i]->type, tree_name, i, 
-                  real_key_nr, range_result.ptr()));
+                  tree->keys[i], static_cast<int>(tree->keys[i]->type),
+                  tree_name, i, real_key_nr, range_result.ptr()));
   }
 }
 
