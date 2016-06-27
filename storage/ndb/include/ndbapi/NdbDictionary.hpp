@@ -1011,12 +1011,15 @@ public:
     int setFrm(const void* data, Uint32 len);
 
     /**
-     * Set fragmentation
+     * Set fragmentation, maps each fragment to specific nodegroup.
      *   One Uint32 per fragment, containing nodegroup of fragment
      *   nodegroups[0] - correspondce to fragment 0
      *
-     * Note: This calls also modifies <em>setFragmentCount</em>
+     * Only used if FragmentType is one of DistrKeyHash, DistrKeyLin, or,
+     * UserDefined.
      *
+     * For other FragmentType it should be called with nodegroups NULL and
+     * cnt 0.
      */
     int setFragmentData(const Uint32 * nodegroups, Uint32 cnt);
 

@@ -1172,10 +1172,10 @@ Dbdict::execCREATE_FRAGMENTATION_REQ(Signal* signal)
   if (te->m_tableState != SchemaFile::SF_CREATE)
   {
     jam();
-    if (req->requestInfo == 0)
+    if (req->requestInfo == CreateFragmentationReq::RI_CREATE_FRAGMENTATION)
     {
       jam();
-      req->requestInfo |= CreateFragmentationReq::RI_GET_FRAGMENTATION;
+      req->requestInfo = CreateFragmentationReq::RI_GET_FRAGMENTATION;
     }
     EXECUTE_DIRECT(DBDIH, GSN_CREATE_FRAGMENTATION_REQ, signal,
                    CreateFragmentationReq::SignalLength);
@@ -2660,7 +2660,7 @@ void Dbdict::initialiseTableRecord(TableRecordPtr tablePtr, Uint32 tableId)
   tablePtr.p->gciTableCreated = 0;
   tablePtr.p->noOfAttributes = ZNIL;
   tablePtr.p->noOfNullAttr = 0;
-  tablePtr.p->fragmentCountType = NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE;
+  tablePtr.p->fragmentCountType = NDB_DEFAULT_FRAGMENT_COUNT_TYPE;
   tablePtr.p->fragmentCount = 0;
   tablePtr.p->partitionCount = 0;
   /*
@@ -5896,7 +5896,10 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
     if (fragments == 0)
     {
       jam();
-      tablePtr.p->fragmentCount = fragments = get_default_fragments(signal);
+      tablePtr.p->fragmentCount = fragments =
+        get_default_fragments(signal,
+                              tablePtr.p->fragmentCountType,
+                              0);
     }
 
     tabRequire(fragments <= MAX_NDB_PARTITIONS,
@@ -6913,8 +6916,12 @@ Dbdict::createTable_parse(Signal* signal, bool master,
 
     // create fragmentation via DIH (no changes in DIH)
     Uint16* frag_data = (Uint16*)(signal->getDataPtr()+25);
-    Uint32 err = create_fragmentation(signal, tabPtr,
-                                      c_fragData, c_fragDataLen / 2);
+    Uint32 err = create_fragmentation(
+                     signal,
+                     tabPtr,
+                     c_fragData,
+                     c_fragDataLen / 2,
+                     CreateFragmentationReq::RI_CREATE_FRAGMENTATION);
     if (err)
     {
       jam();
@@ -9760,7 +9767,8 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
        * verify that fragment count is not decreasing.
        */
       Uint32 cnt0 = get_default_fragments(signal,
-                                          newTablePtr.p->fragmentCountType);
+                                          newTablePtr.p->fragmentCountType,
+                                          0);
       if (newTablePtr.p->fragmentCount > cnt0)
       {
         jam();
@@ -9821,7 +9829,7 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
       }
       c_fragDataLen = 2 * newTablePtr.p->fragmentCount;
       Uint32 save1 = newTablePtr.p->primaryTableId;
-      Uint32 flags = 0;
+      Uint32 flags = CreateFragmentationReq::RI_CREATE_FRAGMENTATION;
       if (save1 == RNIL)
       {
         /**
@@ -9829,11 +9837,13 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
          *   signal that this is a add-partitions
          *   by setting primaryTableId to "original" table and setting flag
          */
-        flags = CreateFragmentationReq::RI_ADD_PARTITION;
+        flags = CreateFragmentationReq::RI_ADD_FRAGMENTS;
         newTablePtr.p->primaryTableId = tablePtr.p->tableId;
       }
-      err = create_fragmentation(signal, newTablePtr,
-                                 c_fragData, c_fragDataLen / 2,
+      err = create_fragmentation(signal,
+                                 newTablePtr,
+                                 c_fragData,
+                                 c_fragDataLen / 2,
                                  flags);
       newTablePtr.p->primaryTableId = save1;
 
@@ -25415,9 +25425,29 @@ Dbdict::createNodegroup_subOps(Signal* signal, SchemaOpPtr op_ptr)
      *   and still continue transaction
      *   but that i dont know how
      */
+
+    /**
+     * Creating a hashmap suitable for default.
+     *
+     * If default fragment count type for read backup is changed to not be the
+     * same as default for normal tables, a default hashmap for read backup
+     * tables must be created too.
+     *
+     * For fully replicated tables the hashmap will be created if needed by
+     * ndbapi.
+     *
+     * And unique indexes on tables using user defined partitioning can not be
+     * fully replicated, so no need to create a hashmap for that case either.
+     */
+
+    /**
+     */
+    NDB_STATIC_ASSERT(NDB_DEFAULT_FRAGMENT_COUNT_TYPE ==
+                        NDB_DEFAULT_FRAGMENT_COUNT_TYPE_READ_BACKUP);
+
     Uint32 buckets = c_default_hashmap_size;
     Uint32 fragments = get_default_fragments(signal,
-                                             NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE,
+                                             NDB_DEFAULT_FRAGMENT_COUNT_TYPE,
                                              1);
     char buf[MAX_TAB_NAME_SIZE+1];
     BaseString::snprintf(buf, sizeof(buf), "DEFAULT-HASHMAP-%u-%u",
@@ -33232,14 +33262,16 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
        * and later.
        */
       jam();
-      fragmentCountType = NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE;
+      fragmentCountType = NDB_DEFAULT_FRAGMENT_COUNT_TYPE;
       /* Fall through */
     case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE:
     case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP:
     case NDB_FRAGMENT_COUNT_ONE_PER_NODE:
     case NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP:
       jam();
-      fragments = get_default_fragments(signal, fragmentCountType);
+      fragments = get_default_fragments(signal,
+                                        fragmentCountType,
+                                        0);
       break;
     default:
       fragments = impl_req->fragments;
