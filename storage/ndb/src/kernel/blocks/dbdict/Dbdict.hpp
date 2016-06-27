@@ -1006,9 +1006,11 @@ private:
   void execALTER_TABLE_REQ(Signal* signal);
 
   Uint32 get_fragmentation(Signal*, Uint32 tableId);
-  Uint32 create_fragmentation(Signal* signal, TableRecordPtr,
-                              const Uint16*, Uint32 cnt,
-                              Uint32 flags = 0);
+  Uint32 create_fragmentation(Signal* signal,
+                              TableRecordPtr,
+                              const Uint16*,
+                              Uint32 cnt,
+                              Uint32 flags);
   void execCREATE_FRAGMENTATION_REQ(Signal*);
   void execCREATE_FRAGMENTATION_REF(Signal*);
   void execCREATE_FRAGMENTATION_CONF(Signal*);
@@ -4781,9 +4783,8 @@ public:
   NdbNodeBitmask c_sub_startstop_lock;
 
   Uint32 get_default_fragments(Signal*,
-                               Uint32 fragmentCountType =
-                                 NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE,
-                               Uint32 extra_nodegroups = 0);
+                               Uint32 fragmentCountType,
+                               Uint32 extra_nodegroups);
   Uint32 get_default_fragments_fully_replicated(Signal *signal,
                                                 Uint32 fragmentCountType);
   void wait_gcp(Signal* signal, SchemaOpPtr op_ptr, Uint32 flags);

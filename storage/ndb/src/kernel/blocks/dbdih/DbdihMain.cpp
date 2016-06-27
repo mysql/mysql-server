@@ -12210,6 +12210,128 @@ Dbdih::init_next_replica_node(
   }
 }
 
+/**
+ * CREATE_FRAGMENTATION_REQ
+ *
+ * CREATE_FRAGMENTATION_REQ returns a FRAGMENTATION structure, a.k.a.
+ * ReplicaData in Ndbapi.
+ *
+ * The FRAGMENTATION structure contains a mapping from fragment id to log part
+ * id and a node id for each fragment replica, the first node id is for primary
+ * replica.
+ *
+ * FRAGMENTATION contains of an array of Uint16 values:
+ *
+ * 0: #replicas
+ * 1: #fragments
+ * 2 + fragmentId*(1 + #replicas) + 0: log part id
+ * 2 + fragmentId*(1 + #replicas) + 1: primary replica node id
+ * 2 + fragmentId*(1 + #replicas) + 2: backup replica node id
+ * ...
+ *
+ * CREATE_FRAGMENTATION_REQ supports three request types selected by setting
+ * requestInfo in signal.
+ *
+ * requestInfo             | Description
+ * ------------------------+----------------------------------------------
+ * RI_CREATE_FRAGMENTATION | Create a new fragmentation.
+ * RI_ADD_FRAGMENTS        | Adjust a fragmentation by adding fragments.
+ * RI_GET_FRAGMENTATION    | Return the current fragmentation for a table.
+ *
+ * == Common parameters for all request types ==
+ *
+ *   senderRef - Used if response should be sent by signal, only used in old
+ *       versions before and including 5.0.96, otherwise it must be zero.  New
+ *       uses of GSN_CREATE_FRAGMENTATION_REQ must be executed using
+ *       EXECUTE_DIRECT.
+ *
+ *   senderData - Used if senderRef is non-zero.
+ *
+ *   Fragmentation is returned in theData[25..] and caller must ensure theData
+ *   is big enough for storing the fragmentation.
+ *
+ * == Values for unused parameters ==
+ *
+ *   senderRef         = 0
+ *   senderData        = RNIL
+ *   requestInfo  Must be set!
+ *   fragmentationType = 0
+ *   fragmentCountType = 0
+ *   primaryTableId    = RNIL
+ *   noOfFragments     = 0
+ *   partitionCount    = 0
+ *   map_ptr_i         = RNIL
+ *
+ * == Create fragmentation (requestInfo RI_CREATE_FRAGMENTATION) ==
+ *
+ *   noOfFragments - Used by some fragmentation types, see fragmentationType
+ *       below.
+ *
+ *   partitionCount - Must be same as noOfFragments, unless fragmentation is
+ *       for a fully replicated table.  For fully replicated tables
+ *       noOfFragments must be a multiple of partitionCount.
+ *
+ *   fragmentationType - Specifies how table is partitioned into fragments.
+ *       Since MySQL Cluster 7.0 server only uses UserDefined and
+ *       HashMapPartition.  Other types can occur from restoring old Ndb
+ *       backups, or using Ndbapi directly.
+ *
+ *         AllNodesSmallTable - noOfFragments is set to 1 per LDM.
+ *
+ *         AllNodesMediumTable - noOfFragments is set to 2 per LDM.
+ *
+ *         AllNodesLargeTable - noOfFragments is set to 4 per LDM.
+ *
+ *         SingleFragment - noOfFragments is set to one.
+ *
+ *         DistrKeyHash
+ *         DistrKeyLin
+ *           If noOfFragments is zero, noOfFragments is set to 1 per LDM.
+ *           FragmentData from theData[25..] is used if noOfFragments from
+ *           signal is non-zero.
+ *
+ *         UserDefined - noOfFragment must be non zero.  FragmentData from
+ *             theData[25..] is used.
+ *
+ *         HashMapPartition - Hashmap to use is given by map_ptr_i which must
+ *             be set (not RNIL).  If noOfFragment is set it must be same as
+ *             the hashmaps partition count (m_fragments).  If noOfFragment is
+ *             zero it is set to the hashmaps partition count.
+ *             Note, the latter is wrong for fully replicated tables in that
+ *             case it is partitionCount that should be equal to the hashmaps
+ *             partition count.
+ *
+ *   fragmentCountType - Determines how the number of fragments depends on
+ *       cluster configuration such as number of replicas, number of
+ *       nodegroups, and, number of LDM per node.  The parameter is only used
+ *       for HashMapPartition.
+ *
+ *   FragmentData theData[25..] - An array of Uint16 mapping each fragment to
+ *       a nodegroup.  NDB_UNDEF_NODEGROUP is used to mark that no specific
+ *       nodegroup is wanted for fragment.
+ *
+ * == Adjust fragmentation by adding fragments (requestInfo RI_ADD_PARTITION) ==
+ *
+ *   primaryTableId - Id of table fragmentation to adjust, must not be RNIL.
+ *
+ *   noOfFragments - New fragment count must be set (non zero).  Old fragment
+ *       count is taken from old fragmentation for table.
+ *
+ *   partitionCount - New partition count.  For non fully replicated tables
+ *       partitionCount must be same as noOfFrgments.  For fully replicated
+ *       tables partitionCount must be the same as the old partitionCount.
+ *
+ *   map_ptr_i - Is not used from signal but taken from old fragmentation.
+ *
+ *   fragmentationType - Must be HashMapPartition or DistrKeyOrderedIndex.
+ *
+ * == Get fragmentation (requestInfo RI_GET_FRAGMENTATION) ==
+ *
+ *   primaryTableId - Id of table whic fragmentation to return, must not be RNIL.
+ *
+ * No other parameters are used from signal (except for the common parameters).
+ *
+ */
 void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
 {
   jamEntry();
@@ -12225,7 +12347,6 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
   const Uint32 flags = req->requestInfo;
   const Uint32 fragmentCountType = req->fragmentCountType;
   const Uint32 partitionCount = req->partitionCount;
-
   Uint32 err = 0;
   bool use_specific_fragment_count = false;
   const Uint32 defaultFragments =
@@ -12671,12 +12792,12 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           }
         }
       }
-      if (flags & CreateFragmentationReq::RI_GET_FRAGMENTATION)
+      if (flags == CreateFragmentationReq::RI_GET_FRAGMENTATION)
       {
         jam();
         noOfFragments = primTabPtr.p->totalfragments;
       }
-      else if (flags & CreateFragmentationReq::RI_ADD_PARTITION)
+      else if (flags == CreateFragmentationReq::RI_ADD_FRAGMENTS)
       {
         jam();
         ndbrequire(fragType == DictTabInfo::HashMapPartition ||
@@ -12866,6 +12987,10 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
 
     if(senderRef != 0)
     {
+      /**
+       * Only possible serving old client with lower version than 7.0.4
+       * (WL#3600)
+       */
       jam();
       LinearSectionPtr ptr[3];
       ptr[0].p = (Uint32*)&fragments[0];
