@@ -264,5 +264,5 @@ eval SET $collation_variable = eucjpms_japanese_ci;
 eval SELECT $collation_variable;
 eval SET $collation_variable = eucjpms_bin;
 eval SELECT $collation_variable;
-eval SET $collation_variable = utf8mb4_800_ci_ai;
+eval SET $collation_variable = utf8mb4_800_ai_ci;
 eval SELECT $collation_variable;

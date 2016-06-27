@@ -8810,12 +8810,12 @@ MY_UCA_INFO my_uca_v800=
 
 
 #define MY_CS_UTF8MB4_UCA_800_FLAGS (MY_CS_UTF8MB4_UCA_FLAGS|MY_CS_UCA_800)
-CHARSET_INFO my_charset_utf8mb4_800_ci_ai=
+CHARSET_INFO my_charset_utf8mb4_800_ai_ci=
 {
   255, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_800_ci_ai",/* name */
+  MY_UTF8MB4 "_800_ai_ci",/* name */
   "",                 /* comment      */
   NULL,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -8845,12 +8845,12 @@ CHARSET_INFO my_charset_utf8mb4_800_ci_ai=
   &my_collation_uca_800_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_de_phonebook_800_ci_ai=
+CHARSET_INFO my_charset_utf8mb4_de_phonebook_800_ai_ci=
 {
   256, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_de_phonebook_800_ci_ai",/* name */
+  MY_UTF8MB4 "_de_phonebook_800_ai_ci",/* name */
   "",                 /* comment      */
   de_phonebook_cldr_29,/* tailoring    */
   NULL,               /* coll_param   */
@@ -8880,12 +8880,12 @@ CHARSET_INFO my_charset_utf8mb4_de_phonebook_800_ci_ai=
   &my_collation_uca_800_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_is_800_ci_ai=
+CHARSET_INFO my_charset_utf8mb4_is_800_ai_ci=
 {
   257, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_is_800_ci_ai",/* name */
+  MY_UTF8MB4 "_is_800_ai_ci",/* name */
   "",                 /* comment      */
   is_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -8915,12 +8915,12 @@ CHARSET_INFO my_charset_utf8mb4_is_800_ci_ai=
   &my_collation_uca_800_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_lv_800_ci_ai=
+CHARSET_INFO my_charset_utf8mb4_lv_800_ai_ci=
 {
   258, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_lv_800_ci_ai",/* name */
+  MY_UTF8MB4 "_lv_800_ai_ci",/* name */
   "",                 /* comment      */
   lv_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -8950,12 +8950,12 @@ CHARSET_INFO my_charset_utf8mb4_lv_800_ci_ai=
   &my_collation_uca_800_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_ro_800_ci_ai=
+CHARSET_INFO my_charset_utf8mb4_ro_800_ai_ci=
 {
   259, 0, 0,          /* number       */
   MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_ro_800_ci_ai",/* name */
+  MY_UTF8MB4 "_ro_800_ai_ci",/* name */
   "",                 /* comment      */
   ro_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -8985,12 +8985,12 @@ CHARSET_INFO my_charset_utf8mb4_ro_800_ci_ai=
   &my_collation_uca_800_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_sl_800_ci_ai=
+CHARSET_INFO my_charset_utf8mb4_sl_800_ai_ci=
 {
   260, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_sl_800_ci_ai",/* name */
+  MY_UTF8MB4 "_sl_800_ai_ci",/* name */
   "",                 /* comment      */
   sl_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -9020,12 +9020,12 @@ CHARSET_INFO my_charset_utf8mb4_sl_800_ci_ai=
   &my_collation_uca_800_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_pl_800_ci_ai=
+CHARSET_INFO my_charset_utf8mb4_pl_800_ai_ci=
 {
   261, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_pl_800_ci_ai",/* name */
+  MY_UTF8MB4 "_pl_800_ai_ci",/* name */
   "",                 /* comment      */
   pl_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -9055,12 +9055,12 @@ CHARSET_INFO my_charset_utf8mb4_pl_800_ci_ai=
   &my_collation_uca_800_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_et_800_ci_ai=
+CHARSET_INFO my_charset_utf8mb4_et_800_ai_ci=
 {
   262, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_et_800_ci_ai",/* name */
+  MY_UTF8MB4 "_et_800_ai_ci",/* name */
   "",                 /* comment      */
   et_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -9090,12 +9090,12 @@ CHARSET_INFO my_charset_utf8mb4_et_800_ci_ai=
   &my_collation_uca_800_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_es_800_ci_ai=
+CHARSET_INFO my_charset_utf8mb4_es_800_ai_ci=
 {
   263, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_es_800_ci_ai",/* name */
+  MY_UTF8MB4 "_es_800_ai_ci",/* name */
   "",                 /* comment      */
   spanish,            /* tailoring    */
   NULL,               /* coll_param   */
@@ -9125,12 +9125,12 @@ CHARSET_INFO my_charset_utf8mb4_es_800_ci_ai=
   &my_collation_uca_800_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_sv_800_ci_ai=
+CHARSET_INFO my_charset_utf8mb4_sv_800_ai_ci=
 {
   264, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_sv_800_ci_ai",/* name */
+  MY_UTF8MB4 "_sv_800_ai_ci",/* name */
   "",                 /* comment      */
   sv_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -9160,12 +9160,12 @@ CHARSET_INFO my_charset_utf8mb4_sv_800_ci_ai=
   &my_collation_uca_800_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_tr_800_ci_ai=
+CHARSET_INFO my_charset_utf8mb4_tr_800_ai_ci=
 {
   265, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_tr_800_ci_ai",/* name */
+  MY_UTF8MB4 "_tr_800_ai_ci",/* name */
   "",                 /* comment      */
   tr_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -9195,12 +9195,12 @@ CHARSET_INFO my_charset_utf8mb4_tr_800_ci_ai=
   &my_collation_uca_800_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_cs_800_ci_ai=
+CHARSET_INFO my_charset_utf8mb4_cs_800_ai_ci=
 {
   266, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_cs_800_ci_ai",/* name */
+  MY_UTF8MB4 "_cs_800_ai_ci",/* name */
   "",                 /* comment      */
   cs_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -9230,12 +9230,12 @@ CHARSET_INFO my_charset_utf8mb4_cs_800_ci_ai=
   &my_collation_uca_800_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_da_800_ci_ai=
+CHARSET_INFO my_charset_utf8mb4_da_800_ai_ci=
 {
   267, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_da_800_ci_ai",/* name */
+  MY_UTF8MB4 "_da_800_ai_ci",/* name */
   "",                 /* comment      */
   da_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -9265,12 +9265,12 @@ CHARSET_INFO my_charset_utf8mb4_da_800_ci_ai=
   &my_collation_uca_800_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_lt_800_ci_ai=
+CHARSET_INFO my_charset_utf8mb4_lt_800_ai_ci=
 {
   268, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_lt_800_ci_ai",/* name */
+  MY_UTF8MB4 "_lt_800_ai_ci",/* name */
   "",                 /* comment      */
   lt_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -9300,12 +9300,12 @@ CHARSET_INFO my_charset_utf8mb4_lt_800_ci_ai=
   &my_collation_uca_800_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_sk_800_ci_ai=
+CHARSET_INFO my_charset_utf8mb4_sk_800_ai_ci=
 {
   269, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_sk_800_ci_ai",/* name */
+  MY_UTF8MB4 "_sk_800_ai_ci",/* name */
   "",                 /* comment      */
   sk_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -9335,12 +9335,12 @@ CHARSET_INFO my_charset_utf8mb4_sk_800_ci_ai=
   &my_collation_uca_800_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_es_traditional_800_ci_ai=
+CHARSET_INFO my_charset_utf8mb4_es_traditional_800_ai_ci=
 {
   270, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_es_traditional_800_ci_ai",/* name */
+  MY_UTF8MB4 "_es_traditional_800_ai_ci",/* name */
   "",                 /* comment      */
   es_traditional_cldr_29,/* tailoring    */
   NULL,               /* coll_param   */
@@ -9370,12 +9370,12 @@ CHARSET_INFO my_charset_utf8mb4_es_traditional_800_ci_ai=
   &my_collation_uca_800_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_la_800_ci_ai=
+CHARSET_INFO my_charset_utf8mb4_la_800_ai_ci=
 {
   271, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_la_800_ci_ai",/* name */
+  MY_UTF8MB4 "_la_800_ai_ci",/* name */
   "",                 /* comment      */
   roman,              /* tailoring    */
   NULL,               /* coll_param   */
@@ -9406,12 +9406,12 @@ CHARSET_INFO my_charset_utf8mb4_la_800_ci_ai=
 };
 
 #if 0
-CHARSET_INFO my_charset_utf8mb4_fa_800_ci_ai=
+CHARSET_INFO my_charset_utf8mb4_fa_800_ai_ci=
 {
   272, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_fa_800_ci_ai",/* name */
+  MY_UTF8MB4 "_fa_800_ai_ci",/* name */
   "",                 /* comment      */
   fa_cldr_29,         /* tailoring    */
   &fa_coll_param,     /* coll_param   */
@@ -9442,12 +9442,12 @@ CHARSET_INFO my_charset_utf8mb4_fa_800_ci_ai=
 };
 #endif
 
-CHARSET_INFO my_charset_utf8mb4_eo_800_ci_ai=
+CHARSET_INFO my_charset_utf8mb4_eo_800_ai_ci=
 {
   273, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_eo_800_ci_ai",/* name */
+  MY_UTF8MB4 "_eo_800_ai_ci",/* name */
   "",                 /* comment      */
   esperanto,          /* tailoring    */
   NULL,               /* coll_param   */
@@ -9477,12 +9477,12 @@ CHARSET_INFO my_charset_utf8mb4_eo_800_ci_ai=
   &my_collation_uca_800_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_hu_800_ci_ai=
+CHARSET_INFO my_charset_utf8mb4_hu_800_ai_ci=
 {
   274, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_hu_800_ci_ai",/* name */
+  MY_UTF8MB4 "_hu_800_ai_ci",/* name */
   "",                 /* comment      */
   hu_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -9512,12 +9512,12 @@ CHARSET_INFO my_charset_utf8mb4_hu_800_ci_ai=
   &my_collation_uca_800_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_hr_800_ci_ai=
+CHARSET_INFO my_charset_utf8mb4_hr_800_ai_ci=
 {
   275, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_hr_800_ci_ai",/* name */
+  MY_UTF8MB4 "_hr_800_ai_ci",/* name */
   "",                 /* comment      */
   hr_cldr_29,         /* tailoring    */
   &hr_coll_param,     /* coll_param   */
@@ -9548,12 +9548,12 @@ CHARSET_INFO my_charset_utf8mb4_hr_800_ci_ai=
 };
 
 #if 0
-CHARSET_INFO my_charset_utf8mb4_si_800_ci_ai=
+CHARSET_INFO my_charset_utf8mb4_si_800_ai_ci=
 {
   276, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_si_800_ci_ai",/* name */
+  MY_UTF8MB4 "_si_800_ai_ci",/* name */
   "",                 /* comment      */
   si_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -9584,12 +9584,12 @@ CHARSET_INFO my_charset_utf8mb4_si_800_ci_ai=
 };
 #endif
 
-CHARSET_INFO my_charset_utf8mb4_vi_800_ci_ai=
+CHARSET_INFO my_charset_utf8mb4_vi_800_ai_ci=
 {
   277, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_vi_800_ci_ai",/* name */
+  MY_UTF8MB4 "_vi_800_ai_ci",/* name */
   "",                 /* comment      */
   vi_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */

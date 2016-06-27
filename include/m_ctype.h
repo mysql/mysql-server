@@ -469,7 +469,7 @@ extern CHARSET_INFO my_charset_utf8_general_mysql500_ci;
 extern CHARSET_INFO my_charset_utf8mb4_bin;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_utf8mb4_general_ci;
 extern CHARSET_INFO my_charset_utf8mb4_unicode_ci;
-extern CHARSET_INFO my_charset_utf8mb4_800_ci_ai;
+extern CHARSET_INFO my_charset_utf8mb4_800_ai_ci;
 #define MY_UTF8MB3                 "utf8"
 #define MY_UTF8MB4                 "utf8mb4"
 
