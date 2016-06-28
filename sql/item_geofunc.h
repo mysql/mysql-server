@@ -1385,11 +1385,20 @@ public:
 };
 
 
-class Item_func_srid: public Item_int_func
+/**
+  Implements the one-parameter ST_SRID observer function. If used with a
+  valid geometry, it returns the SRID of the geometry object. Ex:
+
+  SELECT ST_SRID(geometry_column) FROM t1;
+
+  will return the SRIDs of the geometries in geometry_column
+  in table t1.
+*/
+class Item_func_get_srid: public Item_int_func
 {
   String value;
 public:
-  Item_func_srid(const POS &pos, Item *a): Item_int_func(pos, a) {}
+  Item_func_get_srid(const POS &pos, Item *a): Item_int_func(pos, a) {}
   longlong val_int();
   const char *func_name() const { return "st_srid"; }
   virtual bool resolve_type(THD *thd)
@@ -1398,6 +1407,25 @@ public:
     maybe_null= true;
     return false;
   }
+};
+
+
+/**
+  Updates the SRID of a geometry object without changing its content.
+  This extends the ST_SRID function to two parameters: a geometry and an
+  SRID. Can be used as follows:
+
+  UPDATE t1 SET geometry_column=ST_SRID(geometry_column, 4326);
+
+  This will update all geometries in geometry_column to have SRID 4326.
+*/
+class Item_func_set_srid: public Item_geometry_func
+{
+public:
+  Item_func_set_srid(const POS &pos, Item *a, Item *b)
+                     : Item_geometry_func(pos, a, b){};
+  String *val_str(String *str);
+  const char *func_name() const {return "st_srid"; }
 };
 
 
@@ -1449,6 +1477,5 @@ public:
     return is_spherical_equatorial ? "st_distance_sphere" : "st_distance";
   }
 };
-
 
 #endif /*ITEM_GEOFUNC_INCLUDED*/

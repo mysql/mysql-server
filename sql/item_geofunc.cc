@@ -5625,7 +5625,7 @@ double Item_func_glength::val_real()
   return res;
 }
 
-longlong Item_func_srid::val_int()
+longlong Item_func_get_srid::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   String *swkb= args[0]->val_str(&value);
@@ -5641,6 +5641,60 @@ longlong Item_func_srid::val_int()
   }
 
   return (longlong) (uint4korr(swkb->ptr()));
+}
+
+
+String *Item_func_set_srid::val_str(String *str)
+{
+  String *geometry_str= args[0]->val_str(str);
+
+  Geometry::srid_t srid= 0;
+  // Check that the SRID-argument is within range.
+  if (validate_srid_arg(args[1], &srid, &null_value, func_name()))
+  {
+    return error_str();
+  }
+
+  null_value|= args[0]->null_value; 
+
+  // Check if either argument is null.
+  if (null_value)
+  {
+    DBUG_ASSERT(maybe_null);
+    return nullptr;
+  }
+  if (str->copy(*geometry_str))
+  {
+    return error_str();
+  }
+
+  Geometry_buffer buffer1;
+  // Assume invalid geometry if construction fails.
+  if (!(Geometry::construct(&buffer1, str)))
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  if (srid != 0)
+  {
+    Srs_fetcher fetcher(current_thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    if (fetcher.acquire(srid, &srs))
+    {
+      return error_str();
+    }
+
+    if (srs == nullptr)
+    {
+      my_error(ER_SRS_NOT_FOUND, MYF(0), srid);
+      return error_str();
+    }
+  }
+
+  str->write_at_position(0, srid);
+
+  return str;
 }
 
 

@@ -7828,6 +7828,10 @@ ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS
 
 ER_CANNOT_LOCK_USER_MANAGEMENT_CACHES
   eng "Can not lock user management caches for processing."
+
+ER_SRS_NOT_FOUND SR001
+  eng "There's no spatial reference system with SRID %u."
+
 #
 #  End of 8.0 error messages.
 #

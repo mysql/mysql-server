@@ -2767,11 +2767,11 @@ protected:
   virtual ~Create_func_simplify() {}
 };
 
-
-class Create_func_srid : public Create_func_arg1
+class Create_func_srid : public Create_native_func
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
 
   static Create_func_srid s_singleton;
 
@@ -6316,11 +6316,41 @@ Create_func_sqrt::create(THD *thd, Item *arg1)
 Create_func_srid Create_func_srid::s_singleton;
 
 Item*
-Create_func_srid::create(THD *thd, Item *arg1)
+Create_func_srid::create_native(THD *thd, LEX_STRING name,
+                                PT_item_list *item_list)
 {
-  return new (thd->mem_root) Item_func_srid(POS(), arg1);
-}
+  Item *func= nullptr;
+  int arg_count= 0;
 
+  if (item_list != nullptr)
+  {
+    arg_count= item_list->elements();
+  }
+
+  switch (arg_count)
+  {
+  case 1:
+    {
+      Item *param_1= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_get_srid(POS(), param_1);
+      break;
+    }
+  case 2:
+    {
+      Item *param_1= item_list->pop_front();
+      Item *param_2= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_set_srid(POS(), param_1, param_2);
+      break;
+    }
+  default:
+    {
+      my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+      break;
+    }
+  }
+
+  return func;
+}
 
 Create_func_startpoint Create_func_startpoint::s_singleton;
 
