@@ -1,0 +1,6 @@
+
+# This is a wrapper for binlog.test so that the same test case can be used 
+# For both statement and row based bin logs 9/19/2005 [jbm]
+
+-- source include/have_binlog_format_row.inc
+-- source extra/binlog_tests/binlog_cache_stat.test

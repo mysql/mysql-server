@@ -1,0 +1,67 @@
+# ==== Purpose ====
+#
+# Verify that gtid_state->update_gtids_impl does not take
+# global_sid_lock before gtid_mode_lock. It once did, and this could
+# lead to a deadlock with a concurrent SET GTID_MODE.
+#
+# Note: if we implement on-the-fly lock order validation with
+# assertions in the server, we can remove this test.
+#
+# ==== Implementation ====
+#
+# 1. server_1 starts to execute an INSERT. It pauses before it takes
+#    global_sid_lock in gtid_state->update_gtids_impl (sync point
+#    'update_gtid_state_before_global_sid_lock). It signals to default
+#    that it has reached this point (signal 'before_global_sid_lock').
+#
+# 2. default receives 'before_global_sid_lock'.
+#
+# 3. server_1_1 starts to execute SET GTID_MODE. It takes
+#    gtid_mode_lock. Then it pauses before it takes global_sid_lock
+#    (sync point 'after_log_file_name_initialized').  At the same time
+#    it signals server_1 to continue (signal 'have_gtid_mode_lock').
+#
+# 4. server_1 unpauses. Then it takes global_sid_lock. Then it signals
+#    to server_1_1 to continue (signal 'have_global_sid_lock' from
+#    sync point 'update_gtid_state_after_global_sid_lock').
+#
+# 5. server_1 continues; it holds global_sid_lock and tries to acquire
+#    gtid_mode_lock.
+#
+# 6. server_1_1 continues; it holds gtid_mode_lock and tries to acquire
+#    global_sid_lock.
+
+--source include/big_test.inc
+--source include/have_debug_sync.inc
+# One binlog_format is enough.
+--source include/have_binlog_format_statement.inc
+# One gtid_mode is enough.
+--let $rpl_topology= none
+--source include/rpl_init.inc
+
+CREATE TABLE t1 (a INT);
+
+--connection server_1
+#  1. wait before global_sid_lock in update_gtids_impl.
+SET @@SESSION.DEBUG_SYNC = 'update_gtid_state_before_global_sid_lock SIGNAL before_global_sid_lock WAIT_FOR have_gtid_mode_lock';
+#  4. once released, take global_sid_lock, signal SET GTID_MODE to continue.
+#  5. continue into the deadlock.
+SET @@SESSION.DEBUG_SYNC = 'update_gtid_state_after_global_sid_lock SIGNAL have_global_sid_lock';
+SET @@SESSION.GTID_NEXT= 'ANONYMOUS';
+send INSERT INTO t1 VALUES (1);
+
+#  2. wait for INSERT to be just before the global_sid_lock.
+--connection default
+SET @@SESSION.DEBUG_SYNC = 'now WAIT_FOR before_global_sid_lock';
+
+--connection server_1_1
+#  3. wait when holding gtid_mode_lock, before takeing global_sid_lock.
+#  6. once the INSERT has taken global_sid_lock, unpause and hit the deadlock
+SET @@SESSION.DEBUG_SYNC= 'after_log_file_name_initialized SIGNAL have_gtid_mode_lock WAIT_FOR have_global_sid_lock';
+SET @@GLOBAL.GTID_MODE = OFF_PERMISSIVE;
+
+--connection server_1
+--reap
+
+SET @@GLOBAL.GTID_MODE = OFF;
+DROP TABLE t1;
