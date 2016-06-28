@@ -2708,6 +2708,7 @@ public:
     std::cout << "--ssl-ca_path         CA directory\n";
     std::cout << "--ssl-cert            X509 cert in PEM format\n";
     std::cout << "--ssl-cipher          SSL cipher to use\n";
+    std::cout << "--tls-version         TLS version to use\n";
     std::cout << "--connect-expired-password Allow expired password\n";
     std::cout << "--quiet               Don't print out messages sent\n";
     std::cout << "--fatal-errors=<0|1>  Mysqlxtest is started with ignoring or stopping on fatal error\n";
@@ -2865,6 +2866,8 @@ public:
         ssl.cert = value;
       else if (check_arg_with_value(argv, i, "--ssl-cipher", NULL, value))
         ssl.cipher = value;
+      else if (check_arg_with_value(argv, i, "--tls-version", NULL, value))
+        ssl.tls_version = value;
       else if (check_arg_with_value(argv, i, "--host", "-h", value))
         host = value;
       else if (check_arg_with_value(argv, i, "--user", "-u", value))

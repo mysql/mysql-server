@@ -564,7 +564,7 @@ bool xpl::Server::on_net_startup()
 
     Sql_data_result sql_result(sql_context);
     sql_result.query("SELECT @@skip_name_resolve, @@have_ssl='YES', @@ssl_key, @@ssl_ca,"
-                     "@@ssl_capath, @@ssl_cert, @@ssl_cipher, @@ssl_crl, @@ssl_crlpath;");
+                     "@@ssl_capath, @@ssl_cert, @@ssl_cipher, @@ssl_crl, @@ssl_crlpath, @@tls_version;");
 
     sql_context.detach();
 
@@ -572,8 +572,7 @@ bool xpl::Server::on_net_startup()
     bool mysqld_have_ssl = false;
     bool skip_networking = false;
     bool skip_name_resolve = false;
-
-    skip_networking = false;
+    char *tls_version = NULL;
     sql_result.get_next_field(skip_name_resolve);
     sql_result.get_next_field(mysqld_have_ssl);
     sql_result.get_next_field(ssl_config.ssl_key);
@@ -583,6 +582,7 @@ bool xpl::Server::on_net_startup()
     sql_result.get_next_field(ssl_config.ssl_cipher);
     sql_result.get_next_field(ssl_config.ssl_crl);
     sql_result.get_next_field(ssl_config.ssl_crlpath);
+    sql_result.get_next_field(tls_version);
 
     instance->start_verify_server_state_timer();
 
@@ -601,7 +601,7 @@ bool xpl::Server::on_net_startup()
       const char *crl = ssl_config.ssl_crl;
       const char *crlpath = ssl_config.ssl_crlpath;
 #endif
-      ssl_ctx->setup("TLSv1", // SSL version
+      ssl_ctx->setup(tls_version,
                      ssl_config.ssl_key,
                      ssl_config.ssl_ca,
                      ssl_config.ssl_capath,
