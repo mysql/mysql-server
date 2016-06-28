@@ -7992,12 +7992,12 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Sql.StmtExecuteOk {
-}
 
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 RUN show status like 'Mysqlx%notice%'
 Variable_name	Value
-Mysqlx_notice_other_sent	1233
+Mysqlx_notice_other_sent	1234
 Mysqlx_notice_warning_sent	547
 Mysqlx_stmt_disable_notices	0
 Mysqlx_stmt_enable_notices	1
@@ -8009,7 +8009,7 @@ Mysqlx.Ok {
 ok
 show status like 'Mysqlx%notice%';
 Variable_name	Value
-Mysqlx_notice_other_sent	1234
+Mysqlx_notice_other_sent	1235
 Mysqlx_notice_warning_sent	547
 Mysqlx_stmt_disable_notices	0
 Mysqlx_stmt_enable_notices	1
@@ -8434,7 +8434,7 @@ Mysqlx.Ok {
 ok
 show status like 'Mysqlx%notice%';
 Variable_name	Value
-Mysqlx_notice_other_sent	1305
+Mysqlx_notice_other_sent	1306
 Mysqlx_notice_warning_sent	547
 Mysqlx_stmt_disable_notices	0
 Mysqlx_stmt_enable_notices	1
@@ -8454,9 +8454,9 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Sql.StmtExecuteOk {
-}
 
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 Try enable account_expired
 send Mysqlx.Sql.StmtExecute {
   stmt: "enable_notices"
@@ -8531,7 +8531,7 @@ Mysqlx.Sql.StmtExecuteOk {
 
 RUN show status like 'Mysqlx%notice%'
 Variable_name	Value
-Mysqlx_notice_other_sent	1
+Mysqlx_notice_other_sent	2
 Mysqlx_notice_warning_sent	0
 Mysqlx_stmt_disable_notices	0
 Mysqlx_stmt_enable_notices	5
@@ -8543,7 +8543,7 @@ Mysqlx.Ok {
 ok
 show status like 'Mysqlx%notice%';
 Variable_name	Value
-Mysqlx_notice_other_sent	1307
+Mysqlx_notice_other_sent	1309
 Mysqlx_notice_warning_sent	547
 Mysqlx_stmt_disable_notices	0
 Mysqlx_stmt_enable_notices	6
@@ -8564,9 +8564,9 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Sql.StmtExecuteOk {
-}
 
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 Try enable account_expired
 send Mysqlx.Sql.StmtExecute {
   stmt: "enable_notices"
@@ -8641,7 +8641,7 @@ Mysqlx.Sql.StmtExecuteOk {
 
 RUN show status like 'Mysqlx%notice%'
 Variable_name	Value
-Mysqlx_notice_other_sent	1
+Mysqlx_notice_other_sent	2
 Mysqlx_notice_warning_sent	0
 Mysqlx_stmt_disable_notices	0
 Mysqlx_stmt_enable_notices	5
@@ -8653,7 +8653,7 @@ Mysqlx.Ok {
 ok
 show status like 'Mysqlx%notice%';
 Variable_name	Value
-Mysqlx_notice_other_sent	1309
+Mysqlx_notice_other_sent	1312
 Mysqlx_notice_warning_sent	547
 Mysqlx_stmt_disable_notices	0
 Mysqlx_stmt_enable_notices	11
@@ -8709,9 +8709,9 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Sql.StmtExecuteOk {
-}
 
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 send Mysqlx.Sql.StmtExecute {
   stmt: "list_notices"
   namespace: "xplugin"
@@ -8778,7 +8778,7 @@ Mysqlx.Sql.StmtExecuteOk {
 
 RUN show status like 'Mysqlx%notice%'
 Variable_name	Value
-Mysqlx_notice_other_sent	1
+Mysqlx_notice_other_sent	2
 Mysqlx_notice_warning_sent	0
 Mysqlx_stmt_disable_notices	0
 Mysqlx_stmt_enable_notices	1
@@ -8790,7 +8790,7 @@ Mysqlx.Ok {
 ok
 show status like 'Mysqlx%notice%';
 Variable_name	Value
-Mysqlx_notice_other_sent	1311
+Mysqlx_notice_other_sent	1315
 Mysqlx_notice_warning_sent	547
 Mysqlx_stmt_disable_notices	0
 Mysqlx_stmt_enable_notices	12
@@ -8948,13 +8948,13 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Sql.StmtExecuteOk {
-}
 
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 expect Mysqlx_notice_other_sent=8,Mysqlx_notice_warning_sent=3,Mysqlx_stmt_disable_notices=1
 RUN show status like 'Mysqlx%notice%'
 Variable_name	Value
-Mysqlx_notice_other_sent	11
+Mysqlx_notice_other_sent	12
 Mysqlx_notice_warning_sent	3
 Mysqlx_stmt_disable_notices	1
 Mysqlx_stmt_enable_notices	0
@@ -9042,7 +9042,7 @@ Mysqlx.Sql.StmtExecuteOk {
 expect Mysqlx_notice_other_sent=8,Mysqlx_notice_warning_sent=3,Mysqlx_stmt_disable_notices=1
 RUN show status like 'Mysqlx%notice%'
 Variable_name	Value
-Mysqlx_notice_other_sent	13
+Mysqlx_notice_other_sent	14
 Mysqlx_notice_warning_sent	3
 Mysqlx_stmt_disable_notices	1
 Mysqlx_stmt_enable_notices	0
@@ -9087,7 +9087,7 @@ Mysqlx.Sql.StmtExecuteOk {
 expect Mysqlx_notice_other_sent=8,Mysqlx_notice_warning_sent=3,Mysqlx_stmt_disable_notices=1,Mysqlx_stmt_enable_notices=1
 RUN show status like 'Mysqlx%notice%'
 Variable_name	Value
-Mysqlx_notice_other_sent	14
+Mysqlx_notice_other_sent	15
 Mysqlx_notice_warning_sent	3
 Mysqlx_stmt_disable_notices	1
 Mysqlx_stmt_enable_notices	2
@@ -9161,7 +9161,7 @@ Mysqlx.Sql.StmtExecuteOk {
 expect Mysqlx_notice_other_sent=8,Mysqlx_notice_warning_sent=3,Mysqlx_stmt_disable_notices=1,Mysqlx_stmt_enable_notices=1
 RUN show status like 'Mysqlx%notice%'
 Variable_name	Value
-Mysqlx_notice_other_sent	15
+Mysqlx_notice_other_sent	16
 Mysqlx_notice_warning_sent	3
 Mysqlx_stmt_disable_notices	1
 Mysqlx_stmt_enable_notices	2
@@ -9235,7 +9235,7 @@ Mysqlx.Sql.StmtExecuteOk {
 expect Mysqlx_notice_other_sent=8,Mysqlx_notice_warning_sent=3,Mysqlx_stmt_disable_notices=1,Mysqlx_stmt_enable_notices=1
 RUN show status like 'Mysqlx%notice%'
 Variable_name	Value
-Mysqlx_notice_other_sent	16
+Mysqlx_notice_other_sent	17
 Mysqlx_notice_warning_sent	3
 Mysqlx_stmt_disable_notices	1
 Mysqlx_stmt_enable_notices	2
@@ -9247,7 +9247,7 @@ Mysqlx.Ok {
 ok
 show status like 'Mysqlx%notice%';
 Variable_name	Value
-Mysqlx_notice_other_sent	1328
+Mysqlx_notice_other_sent	1333
 Mysqlx_notice_warning_sent	550
 Mysqlx_stmt_disable_notices	1
 Mysqlx_stmt_enable_notices	14

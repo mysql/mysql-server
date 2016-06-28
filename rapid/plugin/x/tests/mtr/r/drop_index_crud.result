@@ -32,9 +32,9 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Sql.StmtExecuteOk {
-}
 
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 Create and drop indexes of different types on single fields
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -5857,9 +5857,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
 0 rows affected
-RUN ALTER TABLE xplugintest.table1 ADD PRIMARY KEY(_id)
-While executing ALTER TABLE xplugintest.table1 ADD PRIMARY KEY(_id):
-in main, line 1174:ERROR: Multiple primary key defined (code 1068)
 RUN ALTER TABLE xplugintest.table1 ADD SUBJECT text GENERATED ALWAYS AS (json_extract( doc, '$.subject' )) STORED
 
 0 rows affected

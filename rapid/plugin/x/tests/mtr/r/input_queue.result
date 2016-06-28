@@ -56,6 +56,7 @@ send Mysqlx.Sql.StmtExecute {
 
 
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 closing session test1
 Mysqlx.Ok {
   msg: "bye!"
@@ -107,6 +108,7 @@ send Mysqlx.Sql.StmtExecute {
 
 
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 closing session test2
 Mysqlx.Ok {
   msg: "bye!"
@@ -153,6 +155,7 @@ send Mysqlx.Sql.StmtExecute {
 
 
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 closing session test3
 Mysqlx.Ok {
   msg: "bye!"
@@ -199,6 +202,7 @@ send Mysqlx.Sql.StmtExecute {
 
 
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 closing session test4
 Mysqlx.Ok {
   msg: "bye!"
@@ -251,6 +255,7 @@ send Mysqlx.Sql.StmtExecute {
 
 
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 closing session test5
 Mysqlx.Ok {
   msg: "bye!"
@@ -280,6 +285,7 @@ send Mysqlx.Sql.StmtExecute {
 
 
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 closing session test6
 Mysqlx.Ok {
   msg: "bye!"

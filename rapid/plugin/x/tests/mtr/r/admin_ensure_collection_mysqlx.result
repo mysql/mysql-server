@@ -1,0 +1,183 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
+
+command ok
+Got expected error (code 0)
+Tables_in_xtest
+books
+0 rows affected
+Got expected error: Table 'books' already exists (code 1050)
+Tables_in_xtest
+books
+0 rows affected
+
+command ok
+Got expected error (code 0)
+Tables_in_xtest
+books
+0 rows affected
+
+command ok
+
+command ok
+Got expected error (code 0)
+Tables_in_xtest
+books
+0 rows affected
+
+command ok
+
+command ok
+Got expected error (code 0)
+Tables_in_xtest
+books
+0 rows affected
+
+0 rows affected
+Records: 0  Duplicates: 0  Warnings: 0
+Got expected error: Table 'xtest.books' exists but is not a collection (code 5156)
+Tables_in_xtest
+books
+0 rows affected
+
+0 rows affected
+
+command ok
+Got expected error (code 0)
+Tables_in_xtest
+books
+0 rows affected
+
+0 rows affected
+
+command ok
+Got expected error (code 0)
+Tables_in_xtest
+books
+0 rows affected
+
+0 rows affected
+Records: 0  Duplicates: 0  Warnings: 0
+Got expected error: Table 'xtest.books' exists but is not a collection (code 5156)
+Tables_in_xtest
+books
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+Got expected error: Table 'xtest.books' exists but is not a collection (code 5156)
+Tables_in_xtest
+books
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+Got expected error: Table 'xtest.books' exists but is not a collection (code 5156)
+Tables_in_xtest
+books
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+Got expected error: Table 'xtest.books' exists but is not a collection (code 5156)
+Tables_in_xtest
+books
+0 rows affected
+Got expected error: Unknown database 'nowhere' (code 1049)
+Tables_in_xtest
+books
+0 rows affected
+
+0 rows affected
+Got expected error: No database selected (code 1046)
+Tables_in_xtest
+0 rows affected
+
+0 rows affected
+
+command ok
+Got expected error (code 0)
+Tables_in_xtest
+books
+0 rows affected
+
+0 rows affected
+connecting...
+active session is now 'temp'
+
+0 rows affected
+
+command ok
+Got expected error (code 0)
+Tables_in_xtest
+books
+0 rows affected
+Field	Type	Null	Key	Default	Extra
+it_is_not_collection	int(11)	YES		null	
+0 rows affected
+closing session temp
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+Field	Type	Null	Key	Default	Extra
+doc	json	YES		null	
+_id	varchar(32)	NO	PRI	null	STORED GENERATED
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+connecting...
+active session is now 'unable_to_create'
+Got expected error: CREATE command denied to user 'unpriv'@'localhost' for table 'books' (code 1142)
+Tables_in_xtest
+0 rows affected
+closing session unable_to_create
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+connecting...
+active session is now 'lock'
+Got expected error: Table 'xtest.books' exists but is not a collection (code 5156)
+Tables_in_xtest
+books
+0 rows affected
+closing session lock
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+SHOW STATUS like 'Mysqlx_stmt_create_collection';
+Variable_name	Value
+Mysqlx_stmt_create_collection	3
+SHOW STATUS like 'Mysqlx_stmt_ensure_collection';
+Variable_name	Value
+Mysqlx_stmt_ensure_collection	15
+SHOW STATUS like 'Mysqlx_stmt_execute_mysqlx';
+Variable_name	Value
+Mysqlx_stmt_execute_mysqlx	20
+DROP SCHEMA IF EXISTS xtest;
+UNINSTALL PLUGIN mysqlx;

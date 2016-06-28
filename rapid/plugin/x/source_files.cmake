@@ -75,6 +75,7 @@ SET(xplugin_HDRS
   "${MYSQLX_PROJECT_DIR}/src/delete_statement_builder.h"
   "${MYSQLX_PROJECT_DIR}/src/notices.h"
   "${MYSQLX_PROJECT_DIR}/src/cap_handles_expired_passwords.h"
+  "${MYSQLX_PROJECT_DIR}/src/xpl_regex.h"
   ${ngs_HDRS}
 )
 
@@ -109,6 +110,7 @@ SET(xplugin_SRC
   "${MYSQLX_PROJECT_DIR}/src/delete_statement_builder.cc"
   "${MYSQLX_PROJECT_DIR}/src/insert_statement_builder.cc"
   "${MYSQLX_PROJECT_DIR}/src/notices.cc"
-  ${ngs_SRC}
+  "${MYSQLX_PROJECT_DIR}/src/xpl_regex.cc"
+  ${ngs_SRC} 
 )
 
