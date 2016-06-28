@@ -308,6 +308,7 @@ my @valgrind_args;
 my $opt_valgrind_path;
 my $valgrind_reports= 0;
 my $opt_callgrind;
+my $opt_valgrind_tool;
 my %mysqld_logs;
 my $opt_debug_sync_timeout= 600; # Default timeout for WAIT_FOR actions.
 my $daemonize_mysqld= 0;
@@ -1181,6 +1182,7 @@ sub command_line_setup {
 	     },
              'valgrind-option=s'        => \@valgrind_args,
              'valgrind-path=s'          => \$opt_valgrind_path,
+	     'valgrind-tool=s'          => \$opt_valgrind_tool,
 	     'callgrind'                => \$opt_callgrind,
 	     'debug-sync-timeout=i'     => \$opt_debug_sync_timeout,
 
@@ -1768,7 +1770,19 @@ sub command_line_setup {
     $opt_valgrind= 1;
   }
 
-  if ( $opt_callgrind )
+  if ( $opt_valgrind_tool )
+  {
+    mtr_report("Turning on valgrind with tool $opt_valgrind_tool for mysqld(s)");
+    $opt_valgrind= 1;
+    $opt_valgrind_mysqld= 1;
+    if ( $opt_callgrind )
+    {
+       mtr_error("--callgrind incompatible with --valgrind-tool.",
+                 "Use at most one of these options");
+    }
+  }
+
+  if ( $opt_callgrind && !$opt_valgrind_tool )
   {
     mtr_report("Turning on valgrind with callgrind for mysqld(s)");
     $opt_valgrind= 1;
@@ -6832,7 +6846,11 @@ sub valgrind_arguments {
   my $args= shift;
   my $exe=  shift;
 
-  if ( $opt_callgrind)
+  if ( $opt_valgrind_tool)
+  {
+    mtr_add_arg($args, "--tool=$opt_valgrind_tool");
+  }
+  elsif ( $opt_callgrind)
   {
     mtr_add_arg($args, "--tool=callgrind");
     mtr_add_arg($args, "--base=$opt_vardir/log");
@@ -7213,6 +7231,8 @@ Options for valgrind
   valgrind-option=ARGS  Option to give valgrind, replaces default option(s),
                         can be specified more then once
   valgrind-path=<EXE>   Path to the valgrind executable
+  valgrind-tool=<TOOL>  Use valgrind --tool=<TOOL> instead of memcheck (or
+                        callgrind).
   callgrind             Instruct valgrind to use callgrind
 
 Misc options
