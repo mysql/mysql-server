@@ -63,7 +63,7 @@ public:
   Mysqlx_sync_connection(const char *ssl_key = NULL,
                          const char *ssl_ca = NULL, const char *ssl_ca_path = NULL,
                          const char *ssl_cert = NULL, const char *ssl_cipher = NULL,
-                         const std::size_t timeout = 0l);
+                         const char *tls_version = NULL, const std::size_t timeout = 0l);
 
   ~Mysqlx_sync_connection();
 

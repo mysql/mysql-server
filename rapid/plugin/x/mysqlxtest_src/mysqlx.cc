@@ -222,7 +222,7 @@ boost::shared_ptr<Session> mysqlx::openSession(const std::string &host, int port
 
 Connection::Connection(const Ssl_config &ssl_config, const std::size_t timeout, const bool dont_wait_for_disconnect)
 : m_sync_connection(ssl_config.key, ssl_config.ca, ssl_config.ca_path,
-                    ssl_config.cert, ssl_config.cipher, timeout),
+                    ssl_config.cert, ssl_config.cipher, ssl_config.tls_version, timeout),
   m_client_id(0),
   m_trace_packets(false), m_closed(true),
   m_dont_wait_for_disconnect(dont_wait_for_disconnect)
