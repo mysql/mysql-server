@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2976,14 +2976,17 @@ MgmtSrvr::dumpState(int nodeId, const char* args)
   Uint32 args_array[25];
   Uint32 numArgs = 0;
 
-  char buf[10];  
+  const int BufSz = 12; /* 32 bit signed = 10 digits + sign + trailing \0 */
+  char buf[BufSz];  
   int b  = 0;
-  memset(buf, 0, 10);
+  memset(buf, 0, BufSz);
   for (size_t i = 0; i <= strlen(args); i++){
     if (args[i] == ' ' || args[i] == 0){
+      assert(b < BufSz);
+      assert(buf[b] == 0);
       args_array[numArgs] = atoi(buf);
       numArgs++;
-      memset(buf, 0, 10);
+      memset(buf, 0, BufSz);
       b = 0;
     } else {
       buf[b] = args[i];
