@@ -1,5 +1,0 @@
-flush logs;
-
---- Pass : Shutdown time is less than baseline shutdown time ---
-
---- Pass : Startup time is less than baseline startup time ---
