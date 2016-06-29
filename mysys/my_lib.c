@@ -20,33 +20,10 @@
 #include	<m_string.h>
 #include	<my_dir.h>	/* Structs used by my_dir,includes sys/types */
 #include	"mysys_err.h"
-#if defined(HAVE_DIRENT_H)
+#if !defined(_WIN32)
 # include <dirent.h>
-# define NAMLEN(dirent) strlen((dirent)->d_name)
-#else
-# define dirent direct
-# define NAMLEN(dirent) (dirent)->d_namlen
-# if defined(HAVE_SYS_NDIR_H)
-#  include <sys/ndir.h>
 # endif
-# if defined(HAVE_SYS_DIR_H)
-#  include <sys/dir.h>
-# endif
-# if defined(HAVE_NDIR_H)
-#  include <ndir.h>
-# endif
-# if defined(_WIN32)
-# ifdef __BORLANDC__
-# include <dir.h>
-# endif
-# endif
-#endif
 
-#if defined(HAVE_READDIR_R)
-#define READDIR(A,B,C) ((errno=readdir_r(A,B,&C)) != 0 || !C)
-#else
-#define READDIR(A,B,C) (!(C=readdir(A)))
-#endif
 
 /*
   We are assuming that directory we are reading is either has less than 
@@ -88,6 +65,8 @@ static int comp_names(struct fileinfo *a, struct fileinfo *b)
 
 #if !defined(_WIN32)
 
+static char* directory_file_name(char *dst, const char *src);
+
 MY_DIR	*my_dir(const char *path, myf MyFlags)
 {
   char          *buffer;
@@ -96,16 +75,11 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   DYNAMIC_ARRAY *dir_entries_storage;
   MEM_ROOT      *names_storage;
   DIR		*dirp;
-  struct dirent *dp;
   char		tmp_path[FN_REFLEN + 2], *tmp_file;
-  char	dirent_tmp[sizeof(struct dirent)+_POSIX_PATH_MAX+1];
+  const struct dirent *dp;
 
   DBUG_ENTER("my_dir");
   DBUG_PRINT("my",("path: '%s' MyFlags: %d",path,MyFlags));
-
-#if !defined(HAVE_READDIR_R)
-  mysql_mutex_lock(&THR_LOCK_open);
-#endif
 
   dirp = opendir(directory_file_name(tmp_path,(char *) path));
 #if defined(__amiga__)
@@ -135,9 +109,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
 
   tmp_file=strend(tmp_path);
 
-  dp= (struct dirent*) dirent_tmp;
-  
-  while (!(READDIR(dirp,(struct dirent*) dirent_tmp,dp)))
+  for (dp= readdir(dirp) ; dp; dp= readdir(dirp))
   {
     if (!(finfo.name= strdup_root(names_storage, dp->d_name)))
       goto error;
@@ -162,9 +134,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   }
 
   (void) closedir(dirp);
-#if !defined(HAVE_READDIR_R)
-  mysql_mutex_unlock(&THR_LOCK_open);
-#endif
+
   result->dir_entry= (FILEINFO *)dir_entries_storage->buffer;
   result->number_off_files= dir_entries_storage->elements;
   
@@ -174,9 +144,6 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   DBUG_RETURN(result);
 
  error:
-#if !defined(HAVE_READDIR_R)
-  mysql_mutex_unlock(&THR_LOCK_open);
-#endif
   my_errno=errno;
   if (dirp)
     (void) closedir(dirp);
@@ -198,7 +165,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
  * Returns pointer to dst;
  */
 
-char * directory_file_name (char * dst, const char *src)
+static char* directory_file_name(char *dst, const char *src)
 {
   /* Process as Unix format: just remove test the final slash. */
   char *end;
