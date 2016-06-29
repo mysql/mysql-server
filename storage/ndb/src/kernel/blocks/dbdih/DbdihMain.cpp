@@ -9748,6 +9748,35 @@ bool Dbdih::check_if_empty_lcp_needed(void)
     ptrCheckGuard(specNodePtr, MAX_NDB_NODES, nodeRecord);
     specNodePtr.i = specNodePtr.p->nextNode;
   } while (specNodePtr.i != RNIL);
+
+  /* Check amongst the dying, should be at least one */
+  specNodePtr.i = cfirstDeadNode;
+  do
+  {
+    jam();
+    ptrCheckGuard(specNodePtr, MAX_NDB_NODES, nodeRecord);
+    switch (specNodePtr.p->nodeStatus)
+    {
+    case NodeRecord::DIED_NOW:
+      jam();
+    case NodeRecord::DYING:
+      jam();
+      if (getNodeInfo(specNodePtr.i).m_version < NDBD_EMPTY_LCP_NOT_NEEDED)
+      {
+        jam();
+        return true;
+      }
+      break;
+    case NodeRecord::DEAD:
+      jam();
+      break;
+    default:
+      jamLine(specNodePtr.p->nodeStatus);
+      ndbrequire(false);
+    }
+    specNodePtr.i = specNodePtr.p->nextNode;
+  } while (specNodePtr.i != RNIL);
+
   return false;
 }
 
