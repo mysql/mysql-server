@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -286,14 +286,8 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
                           (ptr_rows_data + common_header_len -
                           (const unsigned char *) buf);
 
-  row.reserve(data_size + 1);
-  for (unsigned long i= 0; i < data_size + 1; i++)
-  {
-    row.push_back(*ptr_rows_data);
-    ptr_rows_data++;
-  }
-  BAPI_ASSERT( row.size() == data_size + 1);
-  return;
+  row.assign(ptr_rows_data, ptr_rows_data + data_size + 1);
+  BAPI_ASSERT(row.size() == data_size + 1);
 }
 
 Rows_event::~Rows_event()
