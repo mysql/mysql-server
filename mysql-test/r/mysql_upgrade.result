@@ -931,7 +931,7 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
-The sys schema is already up to date (version 1.5.0).
+The sys schema is already up to date (version 1.5.1).
 Checking databases.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
@@ -1309,6 +1309,7 @@ ps_thread_account
 ps_thread_id
 ps_thread_stack
 ps_thread_trx_info
+quote_identifier
 sys_get_config
 version_major
 version_minor
