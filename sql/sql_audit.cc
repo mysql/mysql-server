@@ -415,8 +415,8 @@ int mysql_audit_notify(THD *thd, mysql_event_parse_subclass_t subclass,
 */
 inline bool generate_table_access_event(TABLE_LIST *table)
 {
-  /* Discard views. */
-  if (table->is_view())
+  /* Discard views or derived tables. */
+  if (table->is_view_or_derived())
     return false;
 
   /* TRUNCATE query on Storage Engine supporting HTON_CAN_RECREATE flag. */
