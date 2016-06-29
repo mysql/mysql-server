@@ -1815,7 +1815,7 @@ page_cur_insert_rec_zip(
 			page, 1);
 
 	/* 2. Try to find suitable space from page memory management */
-	if (!page_zip_available(page_zip, dict_index_is_clust(index),
+	if (!page_zip_available(page_zip, index->is_clustered(),
 				rec_size, 1)
 	    || reorg_before_insert) {
 		/* The values can change dynamically. */
@@ -1844,7 +1844,7 @@ page_cur_insert_rec_zip(
 			ut_ad(!page_header_get_ptr(page, PAGE_FREE));
 
 			if (page_zip_available(
-				    page_zip, dict_index_is_clust(index),
+				    page_zip, index->is_clustered(),
 				    rec_size, 1)) {
 				goto use_heap;
 			}
@@ -1863,7 +1863,7 @@ page_cur_insert_rec_zip(
 			ut_ad(!page_header_get_ptr(page, PAGE_FREE));
 
 			if (page_zip_available(
-				    page_zip, dict_index_is_clust(index),
+				    page_zip, index->is_clustered(),
 				    rec_size, 1)) {
 				/* After reorganizing, there is space
 				available. */
@@ -2037,7 +2037,7 @@ too_small:
 				       - REC_NODE_PTR_SIZE, 0,
 				       REC_NODE_PTR_SIZE);
 			}
-		} else if (dict_index_is_clust(index)) {
+		} else if (index->is_clustered()) {
 			/* Zero out the DB_TRX_ID and DB_ROLL_PTR
 			columns of free_rec, in case it will not be
 			overwritten by insert_rec. */
@@ -2085,7 +2085,7 @@ use_heap:
 			return(NULL);
 		}
 
-		page_zip_dir_add_slot(page_zip, dict_index_is_clust(index));
+		page_zip_dir_add_slot(page_zip, index->is_clustered());
 	}
 
 	/* 3. Create the record */

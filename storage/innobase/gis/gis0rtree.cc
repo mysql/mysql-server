@@ -1042,7 +1042,7 @@ func_start:
 					MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK));
 	ut_ad(!dict_index_is_online_ddl(cursor->index)
 	      || (flags & BTR_CREATE_FLAG)
-	      || dict_index_is_clust(cursor->index));
+	      || cursor->index->is_clustered());
 	ut_ad(rw_lock_own_flagged(dict_index_get_lock(cursor->index),
 				  RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
 
@@ -1300,7 +1300,7 @@ after_insert:
 	 again. */
 	if (!rec) {
 		/* We play safe and reset the free bits for new_page */
-		if (!dict_index_is_clust(cursor->index)
+		if (!cursor->index->is_clustered()
 		    && !dict_table_is_temporary(cursor->index->table)) {
 			ibuf_reset_free_bits(new_block);
 			ibuf_reset_free_bits(block);

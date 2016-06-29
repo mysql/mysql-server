@@ -820,15 +820,15 @@ zlib_done:
 
 	if (UNIV_UNLIKELY
 	    (page_zip_get_trailer_len(page_zip,
-				      dict_index_is_clust(index))
+				      index->is_clustered())
 	     + page_zip->m_end >= page_zip_get_size(page_zip))) {
 		page_zip_fail(("page_zip_decompress_node_ptrs:"
 			       " %lu + %lu >= %lu, %lu\n",
 			       (ulong) page_zip_get_trailer_len(
-				       page_zip, dict_index_is_clust(index)),
+				       page_zip, index->is_clustered()),
 			       (ulong) page_zip->m_end,
 			       (ulong) page_zip_get_size(page_zip),
-			       (ulong) dict_index_is_clust(index)));
+			       (ulong) index->is_clustered()));
 		return(FALSE);
 	}
 
@@ -871,7 +871,7 @@ page_zip_decompress_sec(
 		| PAGE_HEAP_NO_USER_LOW << REC_HEAP_NO_SHIFT;
 	ulint	slot;
 
-	ut_a(!dict_index_is_clust(index));
+	ut_a(!index->is_clustered());
 
 	/* Subtract the space reserved for uncompressed data. */
 	d_stream->avail_in -= static_cast<uint>(
@@ -1221,7 +1221,7 @@ page_zip_decompress_clust(
 	const byte*	storage;
 	const byte*	externs;
 
-	ut_a(dict_index_is_clust(index));
+	ut_a(index->is_clustered());
 
 	/* Subtract the space reserved for uncompressed data. */
 	d_stream->avail_in -= static_cast<uInt>(n_dense)

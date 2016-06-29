@@ -1376,7 +1376,7 @@ row_explicit_rollback(
 		btr_cur_get_rec(&cursor), index, offsets_,
 		ULINT_UNDEFINED, &heap);
 
-	if (dict_index_is_clust(index)) {
+	if (index->is_clustered()) {
 		err = btr_cur_del_mark_set_clust_rec(
 			flags, btr_cur_get_block(&cursor),
 			btr_cur_get_rec(&cursor), index,
@@ -1558,7 +1558,7 @@ row_insert_for_mysql_using_cursor(
 			break;
 		}
 
-		if (dict_index_is_clust(index)) {
+		if (index->is_clustered()) {
 			err = row_ins_clust_index_entry(
 				node->index, node->entry, thr, 0, false);
 		} else {
@@ -1663,10 +1663,10 @@ row_insert_for_mysql_using_ins_graph(
 	DBUG_EXECUTE_IF("mark_table_corrupted", {
 		/* Mark the table corrupted for the clustered index */
 		dict_index_t*	index = table->first_index();
-		ut_ad(dict_index_is_clust(index));
+		ut_ad(index->is_clustered());
 		dict_set_corrupted(index); });
 
-	if (dict_table_is_corrupted(table)) {
+	if (table->is_corrupted()) {
 
 		ib::error() << "Table " << table->name << " is corrupt.";
 		return(DB_TABLE_CORRUPT);
@@ -2235,7 +2235,7 @@ row_update_for_mysql_using_cursor(
 		entry = row_build_index_entry(
 			node->upd_row, node->upd_ext, index, heap);
 
-		if (dict_index_is_clust(index)) {
+		if (index->is_clustered()) {
 			if (!dict_index_is_auto_gen_clust(index)) {
 				err = row_ins_clust_index_entry(
 					index, entry, thr,
@@ -2262,7 +2262,7 @@ row_update_for_mysql_using_cursor(
 		entry = row_build_index_entry(
 			node->upd_row, node->upd_ext, index, heap);
 
-		if (dict_index_is_clust(index)) {
+		if (index->is_clustered()) {
 			err = row_ins_clust_index_entry(
 				index, entry, thr,
 				node->upd_ext ? node->upd_ext->n_ext : 0,
@@ -2807,7 +2807,7 @@ row_unlock_for_mysql(
 			index = btr_pcur_get_btr_cur(clust_pcur)->index;
 		}
 
-		if (!dict_index_is_clust(index)) {
+		if (!index->is_clustered()) {
 			/* This is not a clustered index record.  We
 			do not know how to unlock the record. */
 			goto no_unlock;
@@ -5630,7 +5630,7 @@ row_scan_index_for_mysql(
 	/* Don't support RTree Leaf level scan */
 	ut_ad(!dict_index_is_spatial(index));
 
-	if (dict_index_is_clust(index)) {
+	if (index->is_clustered()) {
 		/* The clustered index of a table is always available.
 		During online ALTER TABLE that rebuilds the table, the
 		clustered index in the old table will have

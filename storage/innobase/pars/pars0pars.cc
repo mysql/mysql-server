@@ -1241,7 +1241,7 @@ pars_update_statement(
 
 	plan->no_prefetch = TRUE;
 
-	if (!dict_index_is_clust(plan->index)) {
+	if (!plan->index->is_clustered()) {
 
 		plan->must_get_clust = TRUE;
 

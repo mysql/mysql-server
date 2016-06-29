@@ -141,7 +141,7 @@ PageBulk::init()
 	ut_ad(m_is_comp == !!page_is_comp(new_page));
 	m_free_space = page_get_free_space_of_empty(m_is_comp);
 
-	if (innobase_fill_factor == 100 && dict_index_is_clust(m_index)) {
+	if (innobase_fill_factor == 100 && m_index->is_clustered()) {
 		/* Keep default behavior compatible with 5.6 */
 		m_reserved_space = dict_index_get_space_reserve();
 	} else {
@@ -312,7 +312,7 @@ PageBulk::commit(
 		ut_ad(page_validate(m_page, m_index));
 
 		/* Set no free space left and no buffered changes in ibuf. */
-		if (!dict_index_is_clust(m_index)
+		if (!m_index->is_clustered()
 		    && !dict_table_is_temporary(m_index->table)
 		    && page_is_leaf(m_page)) {
 			ibuf_set_bitmap_for_bulk_load(
@@ -876,7 +876,7 @@ BtrBulk::insert(
 	page_bulk->insert(rec, offsets);
 
 	if (big_rec != NULL) {
-		ut_ad(dict_index_is_clust(m_index));
+		ut_ad(m_index->is_clustered());
 		ut_ad(page_bulk->getLevel() == 0);
 		ut_ad(page_bulk == m_page_bulks->at(0));
 

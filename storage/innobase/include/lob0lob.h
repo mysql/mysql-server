@@ -1677,7 +1677,7 @@ public:
 	/** Constructor */
 	Deleter(DeleteContext&	ctx): m_ctx(ctx)
 	{
-		ut_ad(dict_index_is_clust(ctx.index()));
+		ut_ad(ctx.index()->is_clustered());
 		ut_ad(mtr_memo_contains_flagged(
 				ctx.get_mtr(),
 				dict_index_get_lock(ctx.index()),

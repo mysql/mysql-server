@@ -1147,7 +1147,7 @@ row_vers_build_for_consistent_read(
 	byte*		buf;
 	dberr_t		err;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
 	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));
@@ -1259,7 +1259,7 @@ row_vers_build_for_semi_consistent_read(
 	byte*		buf;
 	trx_id_t	rec_trx_id	= 0;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
 	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));

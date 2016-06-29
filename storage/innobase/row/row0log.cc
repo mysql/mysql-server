@@ -288,7 +288,7 @@ row_log_online_op(
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_S)
 	      || rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 
-	if (dict_index_is_corrupted(index)) {
+	if (index->is_corrupted()) {
 		return;
 	}
 
@@ -412,7 +412,7 @@ row_log_table_get_error(
 	const dict_index_t*	index)	/*!< in: clustered index of a table
 					that is being rebuilt online */
 {
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(dict_index_is_online_ddl(index));
 	return(index->online_log->error);
 }
@@ -564,7 +564,7 @@ row_log_table_delete(
 	const dtuple_t*	old_pk;
 	row_ext_t*	ext = NULL;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(rec_offs_n_fields(offsets) == dict_index_get_n_fields(index));
 	ut_ad(rec_offs_size(offsets) <= sizeof index->online_log->tail.buf);
@@ -572,7 +572,7 @@ row_log_table_delete(
 			&index->lock,
 			RW_LOCK_FLAG_S | RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
 
-	if (dict_index_is_corrupted(index)
+	if (index->is_corrupted()
 	    || !dict_index_is_online_ddl(index)
 	    || index->online_log->error != DB_SUCCESS) {
 		return;
@@ -581,7 +581,7 @@ row_log_table_delete(
 	dict_table_t* new_table = index->online_log->table;
 	dict_index_t* new_index = new_table->first_index();
 
-	ut_ad(dict_index_is_clust(new_index));
+	ut_ad(new_index->is_clustered());
 	ut_ad(!dict_index_is_online_ddl(new_index));
 
 	/* Create the tuple PRIMARY KEY,DB_TRX_ID,DB_ROLL_PTR in new_table. */
@@ -768,7 +768,7 @@ row_log_table_low_redundant(
 	ut_ad(dict_index_get_n_fields(index) == rec_get_n_fields_old(rec));
 	ut_ad(dict_tf2_is_valid(index->table->flags, index->table->flags2));
 	ut_ad(!dict_table_is_comp(index->table));  /* redundant row format */
-	ut_ad(dict_index_is_clust(new_index));
+	ut_ad(new_index->is_clustered());
 
 	heap = mem_heap_create(DTUPLE_EST_ALLOC(index->n_fields));
 	tuple = dtuple_create_with_vcol(heap, index->n_fields, num_v);
@@ -924,8 +924,8 @@ row_log_table_low(
 
 	new_index = index->online_log->table->first_index();
 
-	ut_ad(dict_index_is_clust(index));
-	ut_ad(dict_index_is_clust(new_index));
+	ut_ad(index->is_clustered());
+	ut_ad(new_index->is_clustered());
 	ut_ad(!dict_index_is_online_ddl(new_index));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(rec_offs_n_fields(offsets) == dict_index_get_n_fields(index));
@@ -937,7 +937,7 @@ row_log_table_low(
 	ut_ad(page_is_leaf(page_align(rec)));
 	ut_ad(!page_is_comp(page_align(rec)) == !rec_offs_comp(offsets));
 
-	if (dict_index_is_corrupted(index)
+	if (index->is_corrupted()
 	    || !dict_index_is_online_ddl(index)
 	    || index->online_log->error != DB_SUCCESS) {
 		return;
@@ -1173,7 +1173,7 @@ row_log_table_get_pk(
 	dtuple_t*	tuple	= NULL;
 	row_log_t*	log	= index->online_log;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(dict_index_is_online_ddl(index));
 	ut_ad(!dict_index_is_sdi(index));
 	ut_ad(!offsets || rec_offs_validate(rec, index, offsets));
@@ -1370,7 +1370,7 @@ row_log_table_blob_free(
 	dict_index_t*	index,	/*!< in/out: clustered index, X-latched */
 	page_no_t	page_no)/*!< in: starting page number of the BLOB */
 {
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(dict_index_is_online_ddl(index));
 	ut_ad(rw_lock_own_flagged(
 			&index->lock,
@@ -1414,7 +1414,7 @@ row_log_table_blob_alloc(
 	dict_index_t*	index,	/*!< in/out: clustered index, X-latched */
 	page_no_t	page_no)/*!< in: starting page number of the BLOB */
 {
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(dict_index_is_online_ddl(index));
 
 	ut_ad(rw_lock_own_flagged(
@@ -1759,7 +1759,7 @@ row_log_table_apply_delete_low(
 	dtuple_t*	row;
 	dict_index_t*	index	= btr_pcur_get_btr_cur(pcur)->index;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 
 	DBUG_PRINT("ib_alter_table",
 		   ("delete table " IB_ID_FMT "(index " IB_ID_FMT "): %s",
@@ -2375,7 +2375,7 @@ row_log_table_apply_op(
 	row_ext_t*	ext;
 	ulint		ext_size;
 
-	ut_ad(dict_index_is_clust(dup->index));
+	ut_ad(dup->index->is_clustered());
 	ut_ad(dup->index->table != log->table);
 	ut_ad(log->head.total <= log->tail.total);
 
@@ -2770,7 +2770,7 @@ row_log_table_apply_ops(
 		dict_table_get_sys_col(new_table, DATA_TRX_ID), new_index);
 	trx_t*		trx		= thr_get_trx(thr);
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(dict_index_is_online_ddl(index));
 	ut_ad(trx->mysql_thd);
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
@@ -2801,7 +2801,7 @@ next_block:
 		goto interrupted;
 	}
 
-	if (dict_index_is_corrupted(index)) {
+	if (index->is_corrupted()) {
 		error = DB_INDEX_CORRUPT;
 		goto func_exit;
 	}
@@ -3156,7 +3156,7 @@ row_log_allocate(
 	DBUG_ENTER("row_log_allocate");
 
 	ut_ad(!dict_index_is_online_ddl(index));
-	ut_ad(dict_index_is_clust(index) == !!table);
+	ut_ad(index->is_clustered() == !!table);
 	ut_ad(!table || index->table != table);
 	ut_ad(same_pk || table);
 	ut_ad(!table || col_map);
@@ -3257,12 +3257,12 @@ row_log_apply_op_low(
 	btr_cur_t	cursor;
 	ulint*		offsets = NULL;
 
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X)
 	      == has_index_lock);
 
-	ut_ad(!dict_index_is_corrupted(index));
+	ut_ad(!index->is_corrupted());
 	ut_ad(trx_id != 0 || op == ROW_OP_DELETE);
 
 	DBUG_PRINT("ib_create_index",
@@ -3502,12 +3502,12 @@ row_log_apply_op(
 	trx_id_t	trx_id;
 
 	/* Online index creation is only used for secondary indexes. */
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X)
 	      == has_index_lock);
 
-	if (dict_index_is_corrupted(index)) {
+	if (index->is_corrupted()) {
 		*error = DB_INDEX_CORRUPT;
 		return(NULL);
 	}
@@ -3644,7 +3644,7 @@ next_block:
 		goto func_exit;
 	}
 
-	if (dict_index_is_corrupted(index)) {
+	if (index->is_corrupted()) {
 		error = DB_INDEX_CORRUPT;
 		goto func_exit;
 	}
@@ -3926,7 +3926,7 @@ row_log_apply(
 	DBUG_ENTER("row_log_apply");
 
 	ut_ad(dict_index_is_online_ddl(index));
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 
 	stage->begin_phase_log_index();
 
@@ -3934,7 +3934,7 @@ row_log_apply(
 
 	rw_lock_x_lock(dict_index_get_lock(index));
 
-	if (!dict_table_is_corrupted(index->table)) {
+	if (!index->table->is_corrupted()) {
 		error = row_log_apply_ops(trx, index, &dup, stage);
 	} else {
 		error = DB_SUCCESS;

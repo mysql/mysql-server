@@ -3194,8 +3194,8 @@ innobase_pk_order_preserved(
 		= dict_index_get_n_ordering_defined_by_user(
 			new_clust_index);
 
-	ut_ad(dict_index_is_clust(old_clust_index));
-	ut_ad(dict_index_is_clust(new_clust_index));
+	ut_ad(old_clust_index->is_clustered());
+	ut_ad(new_clust_index->is_clustered());
 	ut_ad(old_clust_index->table != new_clust_index->table);
 	ut_ad(col_map != NULL);
 
@@ -4667,7 +4667,7 @@ new_clustered_failed:
 		     index != NULL;
 		     index = index->next()) {
 			if (!index->to_be_dropped
-			    && dict_index_is_corrupted(index)) {
+			    && index->is_corrupted()) {
 				my_error(ER_CHECK_NO_SUCH_TABLE, MYF(0));
 				goto error_handled;
 			}
@@ -5399,7 +5399,7 @@ ha_innobase::prepare_inplace_alter_table(
 
 	indexed_table = m_prebuilt->table;
 
-	if (dict_table_is_corrupted(indexed_table)) {
+	if (indexed_table->is_corrupted()) {
 		/* The clustered index is corrupted. */
 		my_error(ER_CHECK_NO_SUCH_TABLE, MYF(0));
 		DBUG_RETURN(true);
@@ -5604,7 +5604,7 @@ check_if_ok_to_rename:
 	     index = index->next()) {
 		if (index->type & DICT_FTS) {
 			DBUG_ASSERT(index->type == DICT_FTS
-				    || dict_index_is_corrupted(index));
+				    || index->is_corrupted());
 
 			/* We need to drop any corrupted fts indexes
 			before we add a new fts index. */
@@ -5732,7 +5732,7 @@ found_fk:
 					" with name %s", key->name);
 			} else {
 				ut_ad(!index->to_be_dropped);
-				if (!dict_index_is_clust(index)) {
+				if (!index->is_clustered()) {
 					drop_index[n_drop_index++] = index;
 				} else {
 					drop_primary = index;
@@ -7482,7 +7482,7 @@ commit_try_rebuild(
 		DBUG_ASSERT(dict_index_get_online_status(index)
 			    == ONLINE_INDEX_COMPLETE);
 		DBUG_ASSERT(index->is_committed());
-		if (dict_index_is_corrupted(index)) {
+		if (index->is_corrupted()) {
 			my_error(ER_INDEX_CORRUPT, MYF(0), index->name());
 			DBUG_RETURN(true);
 		}
@@ -7725,7 +7725,7 @@ commit_try_norebuild(
 		DBUG_ASSERT(dict_index_get_online_status(index)
 			    == ONLINE_INDEX_COMPLETE);
 		DBUG_ASSERT(!index->is_committed());
-		if (dict_index_is_corrupted(index)) {
+		if (index->is_corrupted()) {
 			/* Report a duplicate key
 			error for the index that was
 			flagged corrupted, most likely
@@ -7936,7 +7936,7 @@ commit_cache_norebuild(
 			if (index->type & DICT_FTS) {
 				DBUG_ASSERT(
 					index->type == DICT_FTS
-					|| dict_index_is_corrupted(index));
+					|| index->is_corrupted());
 				DBUG_ASSERT(index->table->fts);
 				fts_drop_index(index->table, index, trx);
 			}

@@ -590,8 +590,7 @@ rec_init_offsets_comp_ordinary(
 					offs += len & 0x3fff;
 					if (UNIV_UNLIKELY(len
 							  & 0x4000)) {
-						ut_ad(dict_index_is_clust
-						      (index));
+						ut_ad(index->is_clustered());
 						any_ext = REC_OFFS_EXTERNAL;
 						len = offs
 							| REC_OFFS_EXTERNAL;

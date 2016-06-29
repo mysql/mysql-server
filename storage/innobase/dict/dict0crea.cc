@@ -874,7 +874,7 @@ dict_build_index_def_step(
 	node->table = table;
 
 	ut_ad((UT_LIST_GET_LEN(table->indexes) > 0)
-	      || dict_index_is_clust(index));
+	      || index->is_clustered());
 
 	dict_hdr_get_new_id(NULL, &index->id, NULL, table, false);
 
@@ -914,7 +914,7 @@ dict_build_index_def(
 	}
 
 	ut_ad((UT_LIST_GET_LEN(table->indexes) > 0)
-	      || dict_index_is_clust(index));
+	      || index->is_clustered());
 
 	if (!dict_table_is_intrinsic(table)) {
 		dict_hdr_get_new_id(NULL, &index->id, NULL, table, false);

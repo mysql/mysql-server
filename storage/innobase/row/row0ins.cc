@@ -258,7 +258,7 @@ row_ins_sec_index_entry_by_modify(
 
 	rec = btr_cur_get_rec(cursor);
 
-	ut_ad(!dict_index_is_clust(cursor->index));
+	ut_ad(!cursor->index->is_clustered());
 	ut_ad(rec_offs_validate(rec, cursor->index, *offsets));
 	ut_ad(!entry->info_bits);
 
@@ -352,7 +352,7 @@ row_ins_clust_index_entry_by_modify(
 	dberr_t		err;
 	btr_cur_t*	cursor	= btr_pcur_get_btr_cur(pcur);
 	TABLE*		mysql_table = NULL;
-	ut_ad(dict_index_is_clust(cursor->index));
+	ut_ad(cursor->index->is_clustered());
 
 	rec = btr_cur_get_rec(cursor);
 
@@ -1196,7 +1196,7 @@ row_ins_foreign_check_on_constraint(
 
 	tmp_heap = mem_heap_create(256);
 
-	if (dict_index_is_clust(index)) {
+	if (index->is_clustered()) {
 		/* pcur is already positioned in the clustered index of
 		the child table */
 
@@ -1494,7 +1494,7 @@ row_ins_set_shared_rec_lock(
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
-	if (dict_index_is_clust(index)) {
+	if (index->is_clustered()) {
 		err = lock_clust_rec_read_check_and_lock(
 			0, block, rec, index, offsets, LOCK_S, type, thr);
 	} else {
@@ -1525,7 +1525,7 @@ row_ins_set_exclusive_rec_lock(
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
-	if (dict_index_is_clust(index)) {
+	if (index->is_clustered()) {
 		err = lock_clust_rec_read_check_and_lock(
 			0, block, rec, index, offsets, LOCK_X, type, thr);
 	} else {
@@ -1988,7 +1988,7 @@ row_ins_dupl_error_with_rec(
 	/* In a unique secondary index we allow equal key values if they
 	contain SQL NULLs */
 
-	if (!dict_index_is_clust(index) && !index->nulls_equal) {
+	if (!index->is_clustered() && !index->nulls_equal) {
 
 		for (i = 0; i < n_unique; i++) {
 			if (dfield_is_null(dtuple_get_nth_field(entry, i))) {
@@ -2253,7 +2253,7 @@ row_ins_duplicate_error_in_clust(
 
 	UT_NOT_USED(mtr);
 
-	ut_ad(dict_index_is_clust(cursor->index));
+	ut_ad(cursor->index->is_clustered());
 
 	/* NOTE: For unique non-clustered indexes there may be any number
 	of delete marked records with the same value for the non-clustered
@@ -2439,7 +2439,7 @@ row_ins_index_entry_big_rec_func(
 	rec_t*		rec;
 	dberr_t		error;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 
 	DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern_latch");
 
@@ -2522,7 +2522,7 @@ row_ins_clust_index_entry_low(
 
 	DBUG_ENTER("row_ins_clust_index_entry_low");
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(!dict_index_is_unique(index)
 	      || n_uniq == dict_index_get_n_unique(index));
 	ut_ad(!n_uniq || n_uniq == dict_index_get_n_unique(index));
@@ -2781,7 +2781,7 @@ row_ins_sorted_clust_index_entry(
 	DBUG_ENTER("row_ins_sorted_clust_index_entry");
 
 	ut_ad(index->last_ins_cur != NULL);
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(dict_table_is_intrinsic(index->table));
 	ut_ad(dict_index_is_auto_gen_clust(index));
 
@@ -2903,7 +2903,7 @@ row_ins_sec_mtr_start_and_check_if_aborted(
 	bool		check,
 	ulint		search_mode)
 {
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 	ut_ad(mtr->is_named_space(index->space));
 
 	const mtr_log_t	log_mode = mtr->get_log_mode();
@@ -2982,7 +2982,7 @@ row_ins_sec_index_entry_low(
 	rec_offs_init(offsets_);
 	rtr_info_t	rtr_info;
 
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 	ut_ad(mode == BTR_MODIFY_LEAF || mode == BTR_MODIFY_TREE);
 
 	cursor.thr = thr;
@@ -3497,7 +3497,7 @@ row_ins_index_entry(
 			DBUG_SET("-d,row_ins_index_entry_timeout");
 			return(DB_LOCK_WAIT);});
 
-	if (dict_index_is_clust(index)) {
+	if (index->is_clustered()) {
 		return(row_ins_clust_index_entry(index, entry, thr, 0, false));
 	} else {
 		return(row_ins_sec_index_entry(index, entry, thr, false));
@@ -3615,7 +3615,7 @@ row_ins_index_entry_set_vals(
 
 		dfield_set_data(field, dfield_get_data(row_field), len);
 		if (dfield_is_ext(row_field)) {
-			ut_ad(dict_index_is_clust(index));
+			ut_ad(index->is_clustered());
 			dfield_set_ext(field);
 		}
 	}
@@ -3846,7 +3846,7 @@ row_ins(
 			node->index = NULL; node->entry = NULL; break;);
 
 		/* Skip corrupted secondary index and its entry */
-		while (node->index && dict_index_is_corrupted(node->index)) {
+		while (node->index && node->index->is_corrupted()) {
 
 			node->index = node->index->next();
 			node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry);

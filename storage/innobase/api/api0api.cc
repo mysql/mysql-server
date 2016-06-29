@@ -1528,7 +1528,7 @@ ib_execute_update_query_graph(
 
 	node = q_proc->node.upd;
 
-	ut_a(dict_index_is_clust(pcur->btr_cur.index));
+	ut_a(pcur->btr_cur.index->is_clustered());
 	btr_pcur_copy_stored_position(node->pcur, pcur);
 
 	ut_a(node->pcur->rel_pos == BTR_PCUR_ON);
@@ -1583,7 +1583,7 @@ ib_cursor_update_row(
 	const ib_tuple_t*old_tuple = (const ib_tuple_t*) ib_old_tpl;
 	const ib_tuple_t*new_tuple = (const ib_tuple_t*) ib_new_tpl;
 
-	if (dict_index_is_clust(prebuilt->index)) {
+	if (prebuilt->index->is_clustered()) {
 		pcur = cursor->prebuilt->pcur;
 	} else if (prebuilt->need_to_access_clustered) {
 		pcur = cursor->prebuilt->clust_pcur;

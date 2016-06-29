@@ -845,7 +845,7 @@ private:
 	{
 		ut_ad(lock_mutex_own());
 		ut_ad(!srv_read_only_mode);
-		ut_ad(dict_index_is_clust(m_index)
+		ut_ad(m_index->is_clustered()
 		      || !dict_index_is_online_ddl(m_index));
 		ut_ad(m_thr == NULL || m_trx == thr_get_trx(m_thr));
 

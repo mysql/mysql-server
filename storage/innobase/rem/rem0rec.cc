@@ -312,7 +312,7 @@ rec_get_converted_size_comp_prefix_low(
 
 	/* At the time being, only temp file record could possible
 	store virtual columns */
-	ut_ad(!v_entry || (dict_index_is_clust(index) && temp));
+	ut_ad(!v_entry || (index->is_clustered() && temp));
 	n_v_fields = v_entry ? dtuple_get_n_v_fields(v_entry) : 0;
 
 	extra_size = temp
@@ -1777,7 +1777,7 @@ rec_get_trx_id(
 	ut_ad(fil_page_index_page_check(page));
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
 	      == index->id);
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(trx_id_col > 0);
 	ut_ad(trx_id_col != ULINT_UNDEFINED);
 

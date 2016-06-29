@@ -534,7 +534,7 @@ dtuple_convert_big_rec(
 	ulint		local_len;
 	ulint		local_prefix_len;
 
-	if (!dict_index_is_clust(index)) {
+	if (!index->is_clustered()) {
 		return(NULL);
 	}
 

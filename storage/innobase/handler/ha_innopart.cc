@@ -1212,7 +1212,7 @@ share_error:
 			for (uint i = 0; i < table->s->keys; i++) {
 				dict_index_t*	index;
 				index = innopart_get_index(0, i);
-				if (dict_index_is_clust(index)) {
+				if (index->is_clustered()) {
 					ref_length =
 						 table->key_info[i].key_length;
 				}
@@ -2036,7 +2036,7 @@ ha_innopart::change_active_index(
 							   m_prebuilt->index);
 
 	if (UNIV_UNLIKELY(!m_prebuilt->index_usable)) {
-		if (dict_index_is_corrupted(m_prebuilt->index)) {
+		if (m_prebuilt->index->is_corrupted()) {
 			char table_name[MAX_FULL_NAME_LEN + 1];
 
 			innobase_format_name(
@@ -3345,7 +3345,7 @@ ha_innopart::records_in_range(
 	Necessary message should have been printed in innopart_get_index(). */
 	if (index == NULL
 	    || dict_table_is_discarded(m_prebuilt->table)
-	    || dict_index_is_corrupted(index)
+	    || index->is_corrupted()
 	    || !row_merge_is_index_usable(m_prebuilt->trx, index)) {
 
 		n_rows = HA_POS_ERROR;

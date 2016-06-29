@@ -3361,7 +3361,7 @@ ibuf_insert_low(
 	mtr_t		mtr;
 	mtr_t		bitmap_mtr;
 
-	ut_a(!dict_index_is_clust(index));
+	ut_a(!index->is_clustered());
 	ut_ad(!dict_index_is_spatial(index));
 	ut_ad(dtuple_check_typed(entry));
 	ut_ad(!no_counter || op == IBUF_OP_INSERT);
@@ -3694,7 +3694,7 @@ ibuf_insert(
 	ut_ad(dtuple_check_typed(entry));
 	ut_ad(page_id.space() != srv_tmp_space.space_id());
 
-	ut_a(!dict_index_is_clust(index));
+	ut_a(!index->is_clustered());
 
 	no_counter = use <= IBUF_USE_INSERT;
 

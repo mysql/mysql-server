@@ -471,7 +471,7 @@ trx_undo_page_report_insert(
 	byte*		ptr;
 	ulint		i;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
 			       + TRX_UNDO_PAGE_TYPE) == TRX_UNDO_INSERT);
 
@@ -642,7 +642,7 @@ trx_undo_rec_get_row_ref(
 	ulint		i;
 
 	ut_ad(index && ptr && ref && heap);
-	ut_a(dict_index_is_clust(index));
+	ut_a(index->is_clustered());
 
 	ref_len = dict_index_get_n_unique(index);
 
@@ -681,7 +681,7 @@ trx_undo_rec_skip_row_ref(
 	ulint	i;
 
 	ut_ad(index && ptr);
-	ut_a(dict_index_is_clust(index));
+	ut_a(index->is_clustered());
 
 	ref_len = dict_index_get_n_unique(index);
 
@@ -913,7 +913,7 @@ trx_undo_page_report_modify(
 				+ BTR_EXTERN_FIELD_REF_SIZE];
 	bool		first_v_col = true;
 
-	ut_a(dict_index_is_clust(index));
+	ut_a(index->is_clustered());
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
 			       + TRX_UNDO_PAGE_TYPE) == TRX_UNDO_UPDATE);
@@ -1493,7 +1493,7 @@ trx_undo_update_rec_get_update(
 	bool		is_undo_log = true;
 	ulint		n_skip_field = 0;
 
-	ut_a(dict_index_is_clust(index));
+	ut_a(index->is_clustered());
 
 	if (type != TRX_UNDO_DEL_MARK_REC) {
 		n_fields = mach_read_next_compressed(&ptr);
@@ -1683,7 +1683,7 @@ trx_undo_rec_get_partial_row(
 	ut_ad(ptr);
 	ut_ad(row);
 	ut_ad(heap);
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 
 	*row = dtuple_create_with_vcol(
 		heap, dict_table_get_n_cols(index->table),
@@ -1903,7 +1903,7 @@ trx_undo_report_row_operation(
 	int		loop_count	= 0;
 #endif /* UNIV_DEBUG */
 
-	ut_a(dict_index_is_clust(index));
+	ut_a(index->is_clustered());
 	ut_ad(!rec || rec_offs_validate(rec, index, offsets));
 
 	if (flags & BTR_NO_UNDO_LOG_FLAG) {
@@ -2281,7 +2281,7 @@ trx_undo_prev_version_build(
 	      || mtr_memo_contains_page(index_mtr, index_rec,
 					MTR_MEMO_PAGE_X_FIX));
 	ut_ad(rec_offs_validate(rec, index, offsets));
-	ut_a(dict_index_is_clust(index));
+	ut_a(index->is_clustered());
 
 	roll_ptr = row_get_rec_roll_ptr(rec, index, offsets);
 

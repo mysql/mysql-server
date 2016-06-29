@@ -446,7 +446,7 @@ lock_prdt_add_to_queue(
 {
 	ut_ad(lock_mutex_own());
 	ut_ad(caller_owns_trx_mutex == trx_mutex_own(trx));
-	ut_ad(!dict_index_is_clust(index) && !dict_index_is_online_ddl(index));
+	ut_ad(!index->is_clustered() && !dict_index_is_online_ddl(index));
 	ut_ad(type_mode & (LOCK_PREDICATE | LOCK_PRDT_PAGE));
 
 #ifdef UNIV_DEBUG
@@ -525,7 +525,7 @@ lock_prdt_insert_check_and_lock(
 	}
 
 	ut_ad(!dict_table_is_temporary(index->table));
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 
 	trx_t*	trx = thr_get_trx(thr);
 
@@ -812,7 +812,7 @@ lock_prdt_lock(
 		return(DB_SUCCESS);
 	}
 
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 	ut_ad(!dict_index_is_online_ddl(index));
 	ut_ad(type_mode & (LOCK_PREDICATE | LOCK_PRDT_PAGE));
 
@@ -913,7 +913,7 @@ lock_place_prdt_page_lock(
 	ut_ad(thr != NULL);
 	ut_ad(!srv_read_only_mode);
 
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 	ut_ad(!dict_index_is_online_ddl(index));
 
 	/* Another transaction cannot have an implicit lock on the record,

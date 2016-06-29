@@ -320,7 +320,7 @@ dict_stats_process_entry_from_recalc_pool()
 	}
 
 	/* Check whether table is corrupted */
-	if (dict_table_is_corrupted(table)) {
+	if (table->is_corrupted()) {
 		dict_table_close(table, TRUE, FALSE);
 		mutex_exit(&dict_sys->mutex);
 		return;

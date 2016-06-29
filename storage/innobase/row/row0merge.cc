@@ -718,7 +718,7 @@ row_merge_buf_add(
 			ut_ad(!(col->prtype & DATA_NOT_NULL));
 			continue;
 		} else if (!ext) {
-		} else if (dict_index_is_clust(index)) {
+		} else if (index->is_clustered()) {
 			/* Flag externally stored fields. */
 			const byte*	buf = row_ext_lookup(ext, col_no,
 							     &len);
@@ -1542,7 +1542,7 @@ row_mtuple_cmp(
 	const mtuple_t*		current_mtuple,
 	row_merge_dup_t*	dup)
 {
-	ut_ad(dict_index_is_clust(dup->index));
+	ut_ad(dup->index->is_clustered());
 	const ulint	n_unique = dict_index_get_n_unique(dup->index);
 
 	return(row_merge_tuple_cmp(
@@ -1732,7 +1732,7 @@ row_merge_read_clustered_index(
 
 	const char*	path = thd_innodb_tmpdir(trx->mysql_thd);
 
-	ut_ad(!skip_pk_sort || dict_index_is_clust(index[0]));
+	ut_ad(!skip_pk_sort || index[0]->is_clustered());
 	/* There is no previous tuple yet. */
 	prev_mtuple.fields = NULL;
 
@@ -2153,7 +2153,7 @@ write_buffers:
 
 		ulint	s_idx_cnt = 0;
 		bool	skip_sort = skip_pk_sort
-			&& dict_index_is_clust(merge_buf[0]->index);
+			&& merge_buf[0]->index->is_clustered();
 
 		for (ulint i = 0; i < n_index; i++, skip_sort = false) {
 			row_merge_buf_t*	buf	= merge_buf[i];
@@ -2225,7 +2225,7 @@ write_buffers:
 						&buf->tuples[buf->n_tuples - 1];
 
 					ut_ad(i == 0);
-					ut_ad(dict_index_is_clust(merge_buf[0]->index));
+					ut_ad(merge_buf[0]->index->is_clustered());
 					/* Detect duplicates by comparing the
 					current record with previous record.
 					When temp file is not used, records
@@ -2269,8 +2269,8 @@ write_buffers:
 			Sort them and write to disk if temp file is used
 			or insert into index if temp file is not used. */
 			ut_ad(old_table == new_table
-			      ? !dict_index_is_clust(buf->index)
-			      : (i == 0) == dict_index_is_clust(buf->index));
+			      ? !buf->index->is_clustered()
+			      : (i == 0) == buf->index->is_clustered());
 
 			/* We have enough data tuples to form a block.
 			Sort them (if !skip_sort) and write to disk. */
@@ -2468,7 +2468,7 @@ write_buffers:
 					/* Ensure that duplicates in the
 					clustered index will be detected before
 					inserting secondary index records. */
-					if (dict_index_is_clust(buf->index)) {
+					if (buf->index->is_clustered()) {
 						clust_temp_file = true;
 					}
 
@@ -3313,7 +3313,7 @@ row_merge_insert_index_tuples(
 
 		const dict_index_t*	old_index = old_table->first_index();
 
-		if (dict_index_is_clust(index)
+		if (index->is_clustered()
 		    && dict_index_is_online_ddl(old_index)) {
 			error = row_log_table_get_error(old_index);
 			if (error != DB_SUCCESS) {
@@ -3324,7 +3324,7 @@ row_merge_insert_index_tuples(
 		if (!n_ext) {
 			/* There are no externally stored columns. */
 		} else {
-			ut_ad(dict_index_is_clust(index));
+			ut_ad(index->is_clustered());
 			/* Off-page columns can be fetched safely
 			when concurrent modifications to the table
 			are disabled. (Purge can process delete-marked
@@ -3529,7 +3529,7 @@ row_merge_drop_indexes(
 	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
 	index = table->first_index();
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(dict_index_get_online_status(index) == ONLINE_INDEX_COMPLETE);
 
 	/* the caller should have an open handle to the table */
@@ -3552,7 +3552,7 @@ row_merge_drop_indexes(
 		the indexes. */
 
 		while ((index = index->next()) != NULL) {
-			ut_ad(!dict_index_is_clust(index));
+			ut_ad(!index->is_clustered());
 
 			switch (dict_index_get_online_status(index)) {
 			case ONLINE_INDEX_ABORTED_DROPPED:
@@ -3653,7 +3653,7 @@ row_merge_drop_indexes(
 		/* read the next pointer before freeing the index */
 		next_index = index->next();
 
-		ut_ad(!dict_index_is_clust(index));
+		ut_ad(!index->is_clustered());
 
 		if (!index->is_committed()) {
 			/* If it is FTS index, drop from table->fts
@@ -4231,13 +4231,13 @@ row_merge_is_index_usable(
 	const trx_t*		trx,	/*!< in: transaction */
 	const dict_index_t*	index)	/*!< in: index to check */
 {
-	if (!dict_index_is_clust(index)
+	if (!index->is_clustered()
 	    && dict_index_is_online_ddl(index)) {
 		/* Indexes that are being created are not useable. */
 		return(FALSE);
 	}
 
-	return(!dict_index_is_corrupted(index)
+	return(!index->is_corrupted()
 	       && (dict_table_is_temporary(index->table)
 		   || index->trx_id == 0
 		   || !MVCC::is_view_active(trx->read_view)
@@ -4626,7 +4626,7 @@ func_exit:
 		for (i = 0; i < n_indexes; i++) {
 			ut_ad(!(indexes[i]->type & DICT_FTS));
 			ut_ad(!indexes[i]->is_committed());
-			ut_ad(!dict_index_is_clust(indexes[i]));
+			ut_ad(!indexes[i]->is_clustered());
 
 			/* Completed indexes should be dropped as
 			well, and indexes whose creation was aborted

@@ -981,6 +981,26 @@ struct dict_index_t{
 			const_cast<const dict_index_t*>(this)->next()));
 	}
 
+	/** Check whether the index is corrupted.
+	@param[in]	index	index object
+	@return true if index is corrupted, otherwise false */
+	bool is_corrupted() const
+	{
+		ut_ad(magic_n == DICT_INDEX_MAGIC_N);
+
+		return(type & DICT_CORRUPT);
+	}
+
+	/* Check whether the index is the clustered index
+	@return nonzero for clustered index, zero for other indexes */
+
+	bool is_clustered() const
+	{
+		ut_ad(magic_n == DICT_INDEX_MAGIC_N);
+
+		return(type & DICT_CLUSTERED);
+	}
+
 #endif /* !UNIV_HOTBACKUP */
 };
 
@@ -1749,6 +1769,24 @@ public:
 		return(const_cast<dict_index_t*>(
 			const_cast<const dict_table_t*>(this)
 			->first_index()));
+	}
+
+	/** Check whether the table is corrupted.
+	@param[in]	table	table object
+	@return true if the table is corrupted, otherwise false */
+	bool is_corrupted() const
+	{
+		ut_ad(magic_n == DICT_TABLE_MAGIC_N);
+
+		const dict_index_t*	index = first_index();
+
+		/* It is possible that this table is only half created, in which case
+		the clustered index may be NULL.  If the clustered index is corrupted,
+		the table is corrupt.  We do not consider the table corrupt if only
+		a secondary index is corrupt. */
+		ut_ad(index == NULL || index->is_clustered());
+
+		return(index != NULL && index->type & DICT_CORRUPT);
 	}
 };
 

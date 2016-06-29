@@ -274,6 +274,6 @@ void
 page_zip_dir_add_slot(
 /*==================*/
 	page_zip_des_t*	page_zip,	/*!< in/out: compressed page */
-	ulint		is_clustered);	/*!< in: nonzero for clustered index,
+	bool		is_clustered);	/*!< in: nonzero for clustered index,
 					zero for others */
 #endif

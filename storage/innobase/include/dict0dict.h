@@ -701,7 +701,7 @@ dict_foreign_qualify_index(
 
 /* Skip corrupted index */
 #define dict_table_skip_corrupt_index(index)			\
-	while (index && dict_index_is_corrupted(index)) {	\
+	while (index && index->is_corrupted()) {	\
 		index = index->next();				\
 	}
 
@@ -711,16 +711,6 @@ do {								\
 	index = index->next();					\
 	dict_table_skip_corrupt_index(index);			\
 } while (0)
-
-/********************************************************************//**
-Check whether the index is the clustered index.
-@return nonzero for clustered index, zero for other indexes */
-UNIV_INLINE
-ulint
-dict_index_is_clust(
-/*================*/
-	const dict_index_t*	index)	/*!< in: index */
-	MY_ATTRIBUTE((warn_unused_result));
 
 /** Check if index is auto-generated clustered index.
 @param[in]	index	index
@@ -1786,24 +1776,6 @@ Closes the data dictionary module. */
 void
 dict_close(void);
 /*============*/
-#ifndef UNIV_HOTBACKUP
-/** Check whether the table is corrupted.
-@param[in]	table	table object
-@return true if the table is corrupted, otherwise false */
-UNIV_INLINE
-bool
-dict_table_is_corrupted(
-	const dict_table_t*	table);
-
-/** Check whether the index is corrupted.
-@param[in]	index	index object
-@return true if index is corrupted, otherwise false */
-UNIV_INLINE
-bool
-dict_index_is_corrupted(
-	const dict_index_t*	index);
-
-#endif /* !UNIV_HOTBACKUP */
 
 /** Wrapper for the system table used to buffer the persistent dynamic
 metadata.

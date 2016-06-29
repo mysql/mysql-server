@@ -672,7 +672,7 @@ btr_store_big_rec_extern_fields(
 	ut_ad(mtr_is_block_fix(
 		btr_mtr, rec_block, MTR_MEMO_PAGE_X_FIX, index->table));
 	ut_ad(buf_block_get_frame(rec_block) == page_align(rec));
-	ut_a(dict_index_is_clust(index));
+	ut_a(index->is_clustered());
 
 	ut_a(dict_table_page_size(index->table)
 		.equals_to(rec_block->page.size));

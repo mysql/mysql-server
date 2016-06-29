@@ -490,7 +490,7 @@ row_sel_fetch_columns(
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
-	if (dict_index_is_clust(index)) {
+	if (index->is_clustered()) {
 		index_type = SYM_CLUST_FIELD_NO;
 	} else {
 		index_type = SYM_SEC_FIELD_NO;
@@ -1237,7 +1237,7 @@ sel_set_rec_lock(
 		}
 	}
 
-	if (dict_index_is_clust(index)) {
+	if (index->is_clustered()) {
 		err = lock_clust_rec_read_check_and_lock(
 			0, block, rec, index, offsets,
 			static_cast<lock_mode>(mode), type, thr);
@@ -1506,7 +1506,7 @@ row_sel_try_search_shortcut(
 
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-	if (dict_index_is_clust(index)) {
+	if (index->is_clustered()) {
 		if (!lock_clust_rec_cons_read_sees(rec, index, offsets,
 						   node->read_view)) {
 			ret = SEL_RETRY;
@@ -1898,7 +1898,7 @@ skip_lock:
 		/* This is a non-locking consistent read: if necessary, fetch
 		a previous version of the record */
 
-		if (dict_index_is_clust(index)) {
+		if (index->is_clustered()) {
 
 			if (!lock_clust_rec_cons_read_sees(
 					rec, index, offsets, node->read_view)) {
@@ -3106,7 +3106,7 @@ row_sel_store_mysql_rec(
 	DBUG_ENTER("row_sel_store_mysql_rec");
 
 	ut_ad(rec_clust || index == prebuilt->index);
-	ut_ad(!rec_clust || dict_index_is_clust(index));
+	ut_ad(!rec_clust || index->is_clustered());
 
 	if (UNIV_LIKELY_NULL(prebuilt->blob_heap)) {
 		row_mysql_prebuilt_free_blob_heap(prebuilt);
@@ -3115,7 +3115,7 @@ row_sel_store_mysql_rec(
 	for (i = 0; i < prebuilt->n_template; i++) {
 		const mysql_row_templ_t*templ = &prebuilt->mysql_template[i];
 
-		if (templ->is_virtual && dict_index_is_clust(index)) {
+		if (templ->is_virtual && index->is_clustered()) {
 
 			/* Skip virtual columns if it is not a covered
 			search or virtual key read is not requested. */
@@ -3199,7 +3199,7 @@ row_sel_store_mysql_rec(
 	if secondary index is used then FTS_DOC_ID column should be part
 	of this index. */
 	if (dict_table_has_fts_index(prebuilt->table)) {
-		if (dict_index_is_clust(index)
+		if (index->is_clustered()
 		    || prebuilt->fts_doc_id_in_read_set) {
 			prebuilt->fts_doc_id = fts_get_doc_id_from_rec(
 				prebuilt->table, rec, index, NULL);
@@ -3833,7 +3833,7 @@ row_sel_try_search_shortcut_for_mysql(
 	trx_t*		trx		= prebuilt->trx;
 	const rec_t*	rec;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(!prebuilt->templ_contains_blob);
 
 	btr_pcur_open_with_no_init(index, search_tuple, PAGE_CUR_GE,
@@ -3943,11 +3943,11 @@ row_search_idx_cond_check(
 		If this is a secondary index record, we must defer
 		this until we have fetched the clustered index record. */
 		if (!prebuilt->need_to_access_clustered
-		    || dict_index_is_clust(prebuilt->index)) {
+		    || prebuilt->index->is_clustered()) {
 			if (!row_sel_store_mysql_rec(
 				    mysql_rec, prebuilt, rec, NULL, FALSE,
 				    prebuilt->index, offsets)) {
-				ut_ad(dict_index_is_clust(prebuilt->index));
+				ut_ad(prebuilt->index->is_clustered());
 				return(ICP_NO_MATCH);
 			}
 		}
@@ -4426,7 +4426,7 @@ row_search_mvcc(
 
 		DBUG_RETURN(DB_MISSING_HISTORY);
 
-	} else if (dict_index_is_corrupted(prebuilt->index)) {
+	} else if (prebuilt->index->is_corrupted()) {
 
 		DBUG_RETURN(DB_CORRUPTION);
 	}
@@ -4539,7 +4539,7 @@ row_search_mvcc(
 	    && dict_index_is_unique(index)
 	    && dtuple_get_n_fields(search_tuple)
 	    == dict_index_get_n_unique(index)
-	    && (dict_index_is_clust(index)
+	    && (index->is_clustered()
 		|| !dtuple_contains_null(search_tuple))) {
 
 		/* Note above that a UNIQUE secondary index can contain many
@@ -4585,7 +4585,7 @@ row_search_mvcc(
 	if (UNIV_UNLIKELY(direction == 0)
 	    && unique_search
 	    && btr_search_enabled
-	    && dict_index_is_clust(index)
+	    && index->is_clustered()
 	    && !prebuilt->templ_contains_blob
 	    && !prebuilt->used_in_HANDLER
 	    && (prebuilt->mysql_row_len < UNIV_PAGE_SIZE / 8)
@@ -5299,7 +5299,7 @@ no_gap_lock:
 			is necessary, because we can only get the undo
 			information via the clustered index record. */
 
-			ut_ad(!dict_index_is_clust(index));
+			ut_ad(!index->is_clustered());
 
 			if (!srv_read_only_mode
 			    && !lock_sec_rec_cons_read_sees(
@@ -5636,7 +5636,7 @@ requires_clust_rec:
 
 idx_cond_failed:
 	if (!unique_search
-	    || !dict_index_is_clust(index)
+	    || !index->is_clustered()
 	    || direction != 0
 	    || prebuilt->select_lock_type != LOCK_NONE
 	    || prebuilt->used_in_HANDLER

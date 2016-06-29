@@ -4513,7 +4513,7 @@ fts_sync_table(
 	ut_ad(table->fts);
 
 	if (!dict_table_is_discarded(table) && table->fts->cache
-	    && !dict_table_is_corrupted(table)) {
+	    && !table->is_corrupted()) {
 		err = fts_sync(table->fts->cache->sync,
 			       unlock_cache, wait, has_dict);
 	}
@@ -6614,7 +6614,7 @@ fts_check_corrupt_index(
 		if (index->id == aux_table->index_id) {
 			ut_ad(index->type & DICT_FTS);
 			dict_table_close(table, true, false);
-			return(dict_index_is_corrupted(index));
+			return(index->is_corrupted());
 		}
 	}
 
@@ -7747,7 +7747,7 @@ fts_check_corrupt(
 
 		if (aux_table == NULL) {
 			dict_set_corrupted(base_table->first_index());
-			ut_ad(dict_table_is_corrupted(base_table));
+			ut_ad(base_table->is_corrupted());
 			sane = false;
 			continue;
 		}
@@ -7761,7 +7761,7 @@ fts_check_corrupt(
 			/* Check if auxillary table needed for FTS is sane. */
 			if (aux_table_index->page == FIL_NULL) {
 				dict_set_corrupted(base_table->first_index());
-				ut_ad(dict_table_is_corrupted(base_table));
+				ut_ad(base_table->is_corrupted());
 				sane = false;
 			}
 		}

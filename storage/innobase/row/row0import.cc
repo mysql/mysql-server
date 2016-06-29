@@ -2344,9 +2344,9 @@ row_import_adjust_root_pages_of_secondary_indexes(
 
 	/* Adjust the root pages of the secondary indexes only. */
 	while ((index = index->next()) != NULL) {
-		ut_a(!dict_index_is_clust(index));
+		ut_a(!index->is_clustered());
 
-		if (!dict_index_is_corrupted(index)
+		if (!index->is_corrupted()
 		    && index->space != FIL_NULL
 		    && index->page != FIL_NULL) {
 
@@ -2444,7 +2444,7 @@ row_import_set_sys_max_row_id(
 	dict_index_t*		index;
 
 	index = table->first_index();
-	ut_a(dict_index_is_clust(index));
+	ut_a(index->is_clustered());
 
 	mtr_start(&mtr);
 
@@ -4019,7 +4019,7 @@ row_import_for_mysql(
 
 	dict_index_t*	index = table->first_index();
 
-	if (!dict_index_is_clust(index)) {
+	if (!index->is_clustered()) {
 		return(row_import_error(prebuilt, trx, DB_CORRUPTION));
 	}
 

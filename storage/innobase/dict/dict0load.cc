@@ -2425,7 +2425,7 @@ dict_load_indexes(
 		ut_ad(index);
 
 		/* Check whether the index is corrupted */
-		if (dict_index_is_corrupted(index)) {
+		if (index->is_corrupted()) {
 
 			ib::error() << "Index " << index->name
 				<< " of table " << table->name
@@ -2433,7 +2433,7 @@ dict_load_indexes(
 
 			if (!srv_load_corrupted
 			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)
-			    && dict_index_is_clust(index)) {
+			    && index->is_clustered()) {
 				dict_mem_index_free(index);
 
 				error = DB_INDEX_CORRUPT;
@@ -2471,7 +2471,7 @@ dict_load_indexes(
 			error = DB_UNSUPPORTED;
 			dict_mem_index_free(index);
 			goto func_exit;
-		} else if (!dict_index_is_clust(index)
+		} else if (!index->is_clustered()
 			   && NULL == table->first_index()) {
 
 			ib::error() << "Trying to load index " << index->name
@@ -2482,7 +2482,7 @@ dict_load_indexes(
 			error = DB_CORRUPTION;
 			goto func_exit;
 		} else if (dict_is_sys_table(table->id)
-			   && (dict_index_is_clust(index)
+			   && (index->is_clustered()
 			       || ((table == dict_sys->sys_tables)
 				   && !strcmp("ID_IND", index->name)))) {
 
@@ -3027,7 +3027,7 @@ err_exit:
 	/* Re-check like we do in dict_load_indexes() */
 	if (!srv_load_corrupted
 	    && !(index_load_err & DICT_ERR_IGNORE_CORRUPT)
-	    && dict_table_is_corrupted(table)) {
+	    && table->is_corrupted()) {
 		err = DB_INDEX_CORRUPT;
 	}
 
@@ -3108,7 +3108,7 @@ err_exit:
 
 		if (!srv_force_recovery
 		    || !index
-		    || !dict_index_is_clust(index)) {
+		    || !index->is_clustered()) {
 
 			dict_table_remove_from_cache(table);
 			table = NULL;
@@ -3122,7 +3122,7 @@ func_exit:
 	ut_ad(!table
 	      || ignore_err != DICT_ERR_IGNORE_NONE
 	      || table->ibd_file_missing
-	      || !dict_table_is_corrupted(table));
+	      || !table->is_corrupted());
 
 	if (table && table->fts) {
 		if (!(dict_table_has_fts_index(table)
@@ -3181,7 +3181,7 @@ dict_load_table_on_id(
 	sys_tables = dict_sys->sys_tables;
 	sys_table_ids = sys_tables->first_index()->next();
 	ut_ad(!dict_table_is_comp(sys_tables));
-	ut_ad(!dict_index_is_clust(sys_table_ids));
+	ut_ad(!sys_table_ids->is_clustered());
 	heap = mem_heap_create(256);
 
 	tuple  = dtuple_create(heap, 1);
@@ -3635,7 +3635,7 @@ dict_load_foreigns(
 	SYS_FOREIGN */
 
 	sec_index = sys_foreign->first_index()->next();
-	ut_ad(!dict_index_is_clust(sec_index));
+	ut_ad(!sec_index->is_clustered());
 start_load:
 
 	tuple = dtuple_create_from_mem(tuple_buf, sizeof(tuple_buf), 1, 0);

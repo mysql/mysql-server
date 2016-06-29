@@ -974,7 +974,7 @@ dict_index_get_nth_col_or_prefix_pos(
 		col = dict_table_get_nth_col(index->table, n);
 	}
 
-	if (dict_index_is_clust(index)) {
+	if (index->is_clustered()) {
 
 		return(dict_col_get_clust_pos(col, index));
 	}
@@ -1014,7 +1014,7 @@ dict_index_contains_col_or_prefix(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	if (dict_index_is_clust(index)) {
+	if (index->is_clustered()) {
 
 		return(TRUE);
 	}
@@ -1333,7 +1333,7 @@ dict_table_open_on_name(
 
 	if (table != NULL) {
 		if (ignore_err == DICT_ERR_IGNORE_NONE
-		    && dict_table_is_corrupted(table)) {
+		    && table->is_corrupted()) {
 			/* Make life easy for drop table. */
 			dict_table_prevent_eviction(table);
 
@@ -2557,7 +2557,7 @@ dict_index_too_big_for_tree(
 				field_max_size = field->prefix_len;
 			}
 		} else if (field_max_size > BTR_EXTERN_LOCAL_STORED_MAX_SIZE
-			   && dict_index_is_clust(new_index)) {
+			   && new_index->is_clustered()) {
 
 			/* In the worst case, we have a locally stored
 			column of BTR_EXTERN_LOCAL_STORED_MAX_SIZE bytes.
@@ -2660,7 +2660,7 @@ dict_index_add_to_cache_w_vcol(
 	ut_ad(!dict_index_is_ibuf(index));
 
 	ut_d(mem_heap_validate(index->heap));
-	ut_a(!dict_index_is_clust(index)
+	ut_a(!index->is_clustered()
 	     || UT_LIST_GET_LEN(table->indexes) == 0);
 
 	if (!dict_index_find_cols(table, index, add_v)) {
@@ -2674,7 +2674,7 @@ dict_index_add_to_cache_w_vcol(
 
 	if (index->type == DICT_FTS) {
 		new_index = dict_index_build_internal_fts(table, index);
-	} else if (dict_index_is_clust(index)) {
+	} else if (index->is_clustered()) {
 		new_index = dict_index_build_internal_clust(table, index);
 	} else {
 		new_index = dict_index_build_internal_non_clust(table, index);
@@ -3193,7 +3193,7 @@ dict_index_build_internal_clust(
 	ibool*		indexed;
 
 	ut_ad(table && index);
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(!dict_index_is_ibuf(index));
 
 	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
@@ -3360,7 +3360,7 @@ dict_index_build_internal_non_clust(
 	ibool*		indexed;
 
 	ut_ad(table && index);
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
@@ -3369,7 +3369,7 @@ dict_index_build_internal_non_clust(
 	clust_index = UT_LIST_GET_FIRST(table->indexes);
 
 	ut_ad(clust_index);
-	ut_ad(dict_index_is_clust(clust_index));
+	ut_ad(clust_index->is_clustered());
 	ut_ad(!dict_index_is_ibuf(clust_index));
 
 	/* Create a new index */
@@ -5685,7 +5685,7 @@ dict_init_dynamic_metadata(
 	     index != NULL;
 	     index = index->next()) {
 
-		if (dict_index_is_corrupted(index)) {
+		if (index->is_corrupted()) {
 			metadata->add_corrupted_index(
 				index_id_t(index->space, index->id));
 		}
@@ -5734,7 +5734,7 @@ dict_table_apply_dynamic_metadata(
 		if (index != NULL) {
 			ut_ad(index->space == index_id.m_space_id);
 
-			if (!dict_index_is_corrupted(index)) {
+			if (!index->is_corrupted()) {
 				index->type |= DICT_CORRUPT;
 				get_dirty = true;
 			}
@@ -6377,7 +6377,7 @@ dict_table_check_for_dup_indexes(
 
 	do {
 		if (!index1->is_committed()) {
-			ut_a(!dict_index_is_clust(index1));
+			ut_a(!index1->is_clustered());
 
 			switch (check) {
 			case CHECK_ALL_COMPLETE:

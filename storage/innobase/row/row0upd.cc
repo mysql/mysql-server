@@ -361,7 +361,7 @@ row_upd_index_entry_sys_field(
 	byte*		field;
 	ulint		pos;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 
 	pos = dict_index_get_sys_col_pos(index, type);
 
@@ -558,7 +558,7 @@ row_upd_write_sys_vals_to_log(
 				in mlog */
 	mtr_t*		mtr MY_ATTRIBUTE((unused))) /*!< in: mtr */
 {
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(mtr);
 
 	log_ptr += mach_write_compressed(log_ptr,
@@ -795,7 +795,7 @@ row_upd_build_sec_rec_difference_binary(
 	ulint		i;
 
 	/* This function is used only for a secondary index */
-	ut_a(!dict_index_is_clust(index));
+	ut_a(!index->is_clustered());
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(rec_offs_n_fields(offsets) == dtuple_get_n_fields(entry));
 	ut_ad(!rec_offs_any_extern(offsets));
@@ -880,7 +880,7 @@ row_upd_build_difference_binary(
 	rec_offs_init(offsets_);
 
 	/* This function is used only for a clustered index */
-	ut_a(dict_index_is_clust(index));
+	ut_a(index->is_clustered());
 	ut_ad(!index->table->skip_alter_undo);
 
 	update = upd_create(n_fld + n_v_fld, heap);
@@ -1457,7 +1457,7 @@ row_upd_replace(
 	ut_ad(row);
 	ut_ad(ext);
 	ut_ad(index);
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(update);
 	ut_ad(heap);
 	ut_ad(update->validate());
@@ -1744,7 +1744,7 @@ row_upd_changes_ord_field_binary_func(
 			dfield_len = dfield_get_len(dfield);
 			ut_a(dfield_len > BTR_EXTERN_FIELD_REF_SIZE);
 			dfield_len -= BTR_EXTERN_FIELD_REF_SIZE;
-			ut_a(dict_index_is_clust(index)
+			ut_a(index->is_clustered()
 			     || ind_field->prefix_len <= dfield_len);
 
 			buf = static_cast<byte*>(dfield_get_data(dfield));
@@ -2374,7 +2374,7 @@ row_upd_sec_step(
 {
 	ut_ad((node->state == UPD_NODE_UPDATE_ALL_SEC)
 	      || (node->state == UPD_NODE_UPDATE_SOME_SEC));
-	ut_ad(!dict_index_is_clust(node->index));
+	ut_ad(!node->index->is_clustered());
 
 	if (node->state == UPD_NODE_UPDATE_ALL_SEC
 	    || row_upd_changes_ord_field_binary(node->index, node->update,
@@ -2504,7 +2504,7 @@ row_upd_clust_rec_by_insert(
 	ulint*		offsets			= NULL;
 
 	ut_ad(node);
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 
 	trx = thr_get_trx(thr);
 	table = node->table;
@@ -2729,7 +2729,7 @@ row_upd_clust_rec(
 	AutoIncLogMtr	autoinc_mtr(mtr);
 
 	ut_ad(node);
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(!thr_get_trx(thr)->in_rollback);
 
 	pcur = node->pcur;
@@ -2884,7 +2884,7 @@ row_upd_del_mark_clust_rec(
 	dberr_t		err;
 
 	ut_ad(node);
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(node->is_delete);
 
 	pcur = node->pcur;

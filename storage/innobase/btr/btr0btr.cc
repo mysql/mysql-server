@@ -299,7 +299,7 @@ btr_root_adjust_on_import(
 
 		err = DB_CORRUPTION;
 
-	} else if (dict_index_is_clust(index)) {
+	} else if (index->is_clustered()) {
 		bool	page_is_compact_format;
 
 		page_is_compact_format = page_is_comp(page) > 0;
@@ -1223,7 +1223,7 @@ void
 btr_truncate(
 	const dict_index_t*	index)
 {
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(index->next() == NULL);
 
 	page_no_t		root_page_no	= index->page;
@@ -1286,7 +1286,7 @@ void
 btr_truncate_recover(
 	const dict_index_t*	index)
 {
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(index->next() == NULL);
 
 	page_no_t		root_page_no = index->page;
@@ -1855,7 +1855,7 @@ btr_root_raise_and_insert(
 
 	/* We play safe and reset the free bits for the new page */
 
-	if (!dict_index_is_clust(index)
+	if (!index->is_clustered()
 	    && !dict_table_is_temporary(index->table)) {
 		ibuf_reset_free_bits(new_block);
 	}
@@ -2536,7 +2536,7 @@ btr_insert_into_right_sibling(
 	if (rec == NULL) {
 		if (is_leaf
 		    && next_block->page.size.is_compressed()
-		    && !dict_index_is_clust(cursor->index)
+		    && !cursor->index->is_clustered()
 		    && !dict_table_is_temporary(cursor->index->table)) {
 			/* Reset the IBUF_BITMAP_FREE bits, because
 			page_cur_tuple_insert() will have attempted page
@@ -2578,7 +2578,7 @@ btr_insert_into_right_sibling(
 	ut_ad(rec_offs_validate(rec, cursor->index, *offsets));
 
 	if (is_leaf
-	    && !dict_index_is_clust(cursor->index)
+	    && !cursor->index->is_clustered()
 	    && !dict_table_is_temporary(cursor->index->table)) {
 		/* Update the free bits of the B-tree page in the
 		insert buffer bitmap. */
@@ -2662,7 +2662,7 @@ func_start:
 	      || dict_table_is_intrinsic(cursor->index->table));
 	ut_ad(!dict_index_is_online_ddl(cursor->index)
 	      || (flags & BTR_CREATE_FLAG)
-	      || dict_index_is_clust(cursor->index));
+	      || cursor->index->is_clustered());
 	ut_ad(rw_lock_own_flagged(dict_index_get_lock(cursor->index),
 				  RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX)
 	      || dict_table_is_intrinsic(cursor->index->table));
@@ -2973,7 +2973,7 @@ insert_empty:
 		start of the function for a new split */
 insert_failed:
 		/* We play safe and reset the free bits for new_page */
-		if (!dict_index_is_clust(cursor->index)
+		if (!cursor->index->is_clustered()
 		    && !dict_table_is_temporary(cursor->index->table)) {
 			ibuf_reset_free_bits(new_block);
 			ibuf_reset_free_bits(block);
@@ -2991,7 +2991,7 @@ func_exit:
 	/* Insert fit on the page: update the free bits for the
 	left and right pages in the same mtr */
 
-	if (!dict_index_is_clust(cursor->index)
+	if (!cursor->index->is_clustered()
 	    && !dict_table_is_temporary(cursor->index->table)
 	    && page_is_leaf(page)) {
 
@@ -3365,7 +3365,7 @@ btr_lift_page_up(
 	btr_page_free(index, block, mtr);
 
 	/* We play it safe and reset the free bits for the father */
-	if (!dict_index_is_clust(index)
+	if (!index->is_clustered()
 	    && !dict_table_is_temporary(index->table)) {
 		ibuf_reset_free_bits(father_block);
 	}
@@ -3810,7 +3810,7 @@ retry:
 		}
 	}
 
-	if (!dict_index_is_clust(index)
+	if (!index->is_clustered()
 	    && !dict_table_is_temporary(index->table)
 	    && page_is_leaf(merge_page)) {
 		/* Update the free bits of the B-tree page in the
@@ -3898,7 +3898,7 @@ err_exit:
 	if (page_size.is_compressed()
 	    && merge_page
 	    && page_is_leaf(merge_page)
-	    && !dict_index_is_clust(index)) {
+	    && !index->is_clustered()) {
 
 		ibuf_reset_free_bits(merge_block);
 	}
@@ -3978,7 +3978,7 @@ btr_discard_only_page_on_level(
 	btr_page_empty(block, buf_block_get_page_zip(block), index, 0, mtr);
 	ut_ad(page_is_leaf(buf_block_get_frame(block)));
 
-	if (!dict_index_is_clust(index)
+	if (!index->is_clustered()
 	    && !dict_table_is_temporary(index->table)) {
 		/* We play it safe and reset the free bits for the root */
 		ibuf_reset_free_bits(block);

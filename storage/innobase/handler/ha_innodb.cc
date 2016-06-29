@@ -6519,7 +6519,7 @@ ha_innobase::open(const char* name, int, uint)
 			for (uint i = 0; i < table->s->keys; i++) {
 				dict_index_t*	index;
 				index = innobase_get_index(i);
-				if (dict_index_is_clust(index)) {
+				if (index->is_clustered()) {
 					ref_length =
 						 table->key_info[i].key_length;
 				}
@@ -7287,7 +7287,7 @@ build_template_field(
 						col, clust_index);
 		ut_a(templ->clust_rec_field_no != ULINT_UNDEFINED);
 
-		if (dict_index_is_clust(index)) {
+		if (index->is_clustered()) {
 			templ->rec_field_no = templ->clust_rec_field_no;
 		} else {
 			templ->rec_field_no = dict_index_get_nth_col_pos(
@@ -7295,7 +7295,7 @@ build_template_field(
 		}
 	} else {
 		templ->clust_rec_field_no = v_no;
-		if (dict_index_is_clust(index)) {
+		if (index->is_clustered()) {
 			templ->rec_field_no = templ->clust_rec_field_no;
 		} else {
 			templ->rec_field_no
@@ -7332,7 +7332,7 @@ build_template_field(
 	templ->mbmaxlen = dict_col_get_mbmaxlen(col);
 	templ->is_unsigned = col->prtype & DATA_UNSIGNED;
 
-	if (!dict_index_is_clust(index)
+	if (!index->is_clustered()
 	    && templ->rec_field_no == ULINT_UNDEFINED) {
 		prebuilt->need_to_access_clustered = TRUE;
 	}
@@ -7424,7 +7424,7 @@ ha_innobase::build_template(
 
 	/* Either m_prebuilt->index should be a secondary index, or it
 	should be the clustered index. */
-	ut_ad(dict_index_is_clust(index) == (index == clust_index));
+	ut_ad(index->is_clustered() == (index == clust_index));
 
 	/* Below we check column by column if we need to access
 	the clustered index. */
@@ -7527,7 +7527,7 @@ ha_innobase::build_template(
 							i - num_v);
 				}
 
-				if (dict_index_is_clust(m_prebuilt->index)) {
+				if (m_prebuilt->index->is_clustered()) {
 					ut_ad(templ->icp_rec_field_no
 					      != ULINT_UNDEFINED);
 					/* If the primary key includes
@@ -7575,7 +7575,7 @@ ha_innobase::build_template(
 				we were unable to use an accurate condition
 				for end_range in the "if" condition above,
 				and the following assertion would fail.
-				ut_ad(!dict_index_is_clust(m_prebuilt->index)
+				ut_ad(!(m_prebuilt->index->is_clustered())
 				      || templ->rec_field_no
 				      < m_prebuilt->index->n_uniq);
 				*/
@@ -8992,13 +8992,13 @@ ha_innobase::index_read(
 
 	dict_index_t*	index = m_prebuilt->index;
 
-	if (index == NULL || dict_index_is_corrupted(index)) {
+	if (index == NULL || index->is_corrupted()) {
 		m_prebuilt->index_usable = FALSE;
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
 	if (!m_prebuilt->index_usable) {
-		DBUG_RETURN(dict_index_is_corrupted(index)
+		DBUG_RETURN(index->is_corrupted()
 			    ? HA_ERR_INDEX_CORRUPT
 			    : HA_ERR_TABLE_DEF_CHANGED);
 	}
@@ -9262,16 +9262,15 @@ ha_innobase::change_active_index(
 		m_prebuilt->trx, m_prebuilt->index);
 
 	if (!m_prebuilt->index_usable) {
-		if (dict_index_is_corrupted(m_prebuilt->index)) {
+		if (m_prebuilt->index->is_corrupted()) {
 			char	table_name[MAX_FULL_NAME_LEN + 1];
 
 			innobase_format_name(
 				table_name, sizeof table_name,
 				m_prebuilt->index->table->name.m_name);
 
-			if (dict_index_is_clust(m_prebuilt->index)) {
-				ut_ad(dict_table_is_corrupted(
-					m_prebuilt->table));
+			if (m_prebuilt->index->is_clustered()) {
+				ut_ad(m_prebuilt->table->is_corrupted());
 				push_warning_printf(
 					m_user_thd, Sql_condition::SL_WARNING,
 					HA_ERR_TABLE_CORRUPT,
@@ -14019,7 +14018,7 @@ ha_innobase::records(
 		*num_rows = HA_POS_ERROR;
 		DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
 
-	} else if (dict_table_is_corrupted(m_prebuilt->table)) {
+	} else if (m_prebuilt->table->is_corrupted()) {
 		ib_errf(m_user_thd, IB_LOG_LEVEL_WARN,
 			ER_INNODB_INDEX_CORRUPT,
 			"Table '%s' is corrupt.",
@@ -14035,7 +14034,7 @@ ha_innobase::records(
 
 	dict_index_t*	index = m_prebuilt->table->first_index();
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 
 	m_prebuilt->index_usable = row_merge_is_index_usable(
 		m_prebuilt->trx, index);
@@ -14132,7 +14131,7 @@ ha_innobase::records_in_range(
 		n_rows = HA_POS_ERROR;
 		goto func_exit;
 	}
-	if (dict_index_is_corrupted(index)) {
+	if (index->is_corrupted()) {
 		n_rows = HA_ERR_INDEX_CORRUPT;
 		goto func_exit;
 	}
@@ -14989,7 +14988,7 @@ ha_innobase::enable_indexes(
 
 			/* InnoDB being clustered index we can't disable/enable
 			clustered index itself. */
-			if (dict_index_is_clust(index)) {
+			if (index->is_clustered()) {
 				continue;
 			}
 
@@ -15022,7 +15021,7 @@ ha_innobase::disable_indexes(
 
 			/* InnoDB being clustered index we can't disable/enable
 			clustered index itself. */
-			if (dict_index_is_clust(index)) {
+			if (index->is_clustered()) {
 				continue;
 			}
 
@@ -15148,7 +15147,7 @@ ha_innobase::check(
 
 	m_prebuilt->trx->op_info = "checking table";
 
-	if (dict_table_is_corrupted(m_prebuilt->table)) {
+	if (m_prebuilt->table->is_corrupted()) {
 		/* Now that the table is already marked as corrupted,
 		there is no need to check any index of this table */
 		m_prebuilt->trx->op_info = "";
@@ -15167,7 +15166,7 @@ ha_innobase::check(
 	REPEATABLE READ here */
 	m_prebuilt->trx->isolation_level = TRX_ISO_REPEATABLE_READ;
 
-	ut_ad(!dict_table_is_corrupted(m_prebuilt->table));
+	ut_ad(!m_prebuilt->table->is_corrupted());
 
 	for (index = m_prebuilt->table->first_index();
 	     index != NULL;
@@ -15178,7 +15177,7 @@ ha_innobase::check(
 		}
 
 		if (!(check_opt->flags & T_QUICK)
-		    && !dict_index_is_corrupted(index)) {
+		    && !index->is_corrupted()) {
 			/* Enlarge the fatal lock wait timeout during
 			CHECK TABLE. */
 			os_atomic_increment_ulint(
@@ -15217,7 +15216,7 @@ ha_innobase::check(
 			m_prebuilt->trx, m_prebuilt->index);
 
 		if (!m_prebuilt->index_usable) {
-			if (dict_index_is_corrupted(m_prebuilt->index)) {
+			if (m_prebuilt->index->is_corrupted()) {
 				push_warning_printf(
 					m_user_thd,
 					Sql_condition::SL_WARNING,
@@ -15257,13 +15256,13 @@ ha_innobase::check(
 
 		DBUG_EXECUTE_IF(
 			"dict_set_clust_index_corrupted",
-			if (dict_index_is_clust(index)) {
+			if (index->is_clustered()) {
 				ret = DB_CORRUPTION;
 			});
 
 		DBUG_EXECUTE_IF(
 			"dict_set_index_corrupted",
-			if (!dict_index_is_clust(index)) {
+			if (!index->is_clustered()) {
 				ret = DB_CORRUPTION;
 			});
 

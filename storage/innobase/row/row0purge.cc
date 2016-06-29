@@ -261,7 +261,7 @@ row_purge_poss_sec(
 	bool	can_delete;
 	mtr_t	mtr;
 
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 	mtr_start(&mtr);
 
 	can_delete = !row_purge_reposition_pcur(BTR_SEARCH_LEAF, node, &mtr)
@@ -928,7 +928,7 @@ try_again:
 	clust_index = node->table->first_index();
 
 	if (clust_index == NULL
-	    || dict_index_is_corrupted(clust_index)) {
+	    || clust_index->is_corrupted()) {
 		/* The table was corrupt in the data dictionary.
 		dict_set_corrupted() works on an index, and
 		we do not have an index to call it with. */
