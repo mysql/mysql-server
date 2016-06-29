@@ -453,17 +453,12 @@ trx_rseg_array_init(
 	trx_rseg_create_instance(purge_queue);
 }
 
-/********************************************************************
-Get the number of unique rollback tablespaces in use except space id 0.
+/** Get the number of unique rollback tablespaces in use except space id 0.
 The last space id will be the sentinel value SPACE_UNKNOWN. The array
-will be sorted on space id. Note: space_ids should have have space for
-TRX_SYS_N_RSEGS + 1 elements.
+will be sorted on space id.
 @return number of unique rollback tablespaces in use. */
 ulint
-trx_rseg_get_n_undo_tablespaces(
-/*============================*/
-	space_id_t*		space_ids)	/*!< out: array of space ids of
-					UNDO tablespaces */
+trx_rseg_get_n_undo_tablespaces()
 {
 	ulint		i;
 	mtr_t		mtr;
@@ -487,11 +482,14 @@ trx_rseg_get_n_undo_tablespaces(
 		space = trx_sysf_rseg_get_space(sys_header, i, &mtr);
 
 		if (space != 0) {
-			ulint	j;
 			ibool	found = FALSE;
 
-			for (j = 0; j < n_undo_tablespaces; ++j) {
-				if (space_ids[j] == space) {
+			for (std::vector<space_id_t>::iterator	it
+				= srv_undo_tablespace_ids.begin();
+			     it != srv_undo_tablespace_ids.end();
+			     it++) {
+
+				if (*it == space) {
 					found = TRUE;
 					break;
 				}
@@ -499,7 +497,8 @@ trx_rseg_get_n_undo_tablespaces(
 
 			if (!found) {
 				ut_a(n_undo_tablespaces <= i);
-				space_ids[n_undo_tablespaces++] = space;
+				n_undo_tablespaces++;
+				srv_undo_tablespace_ids.push_back(space);
 			}
 		}
 	}
@@ -508,10 +507,9 @@ trx_rseg_get_n_undo_tablespaces(
 
 	ut_a(n_undo_tablespaces <= TRX_SYS_N_RSEGS);
 
-	space_ids[n_undo_tablespaces] = SPACE_UNKNOWN;
-
 	if (n_undo_tablespaces > 0) {
-		std::sort(space_ids, space_ids + n_undo_tablespaces);
+		std::sort(srv_undo_tablespace_ids.begin(),
+			  srv_undo_tablespace_ids.end());
 	}
 
 	return(n_undo_tablespaces);
