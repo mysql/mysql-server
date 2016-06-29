@@ -1106,73 +1106,25 @@ ngs::Error_code xpl::Admin_command_handler::list_notices(Command_arguments &args
 
 namespace
 {
-
-xpl::Callback_command_delegate::Row_data *begin_list_objects_row(xpl::Callback_command_delegate::Row_data *row,
-                                                                 ngs::Protocol_encoder &proto, bool *header_sent)
+ngs::Error_code is_schema_selected_and_exists(xpl::Sql_data_context &da, const std::string &schema)
 {
-  row->clear();
+  xpl::Query_string_builder qb;
+  qb.put("SHOW TABLES");
+  if (!schema.empty())
+    qb.put(" FROM ").quote_identifier(schema);
 
-  if (!*header_sent)
-  {
-    // name | type
-    proto.send_column_metadata("", "", "", "", "name", "", 0, Mysqlx::Resultset::ColumnMetaData::BYTES, 0, 0, 0);
-    proto.send_column_metadata("", "", "", "", "type", "", 0, Mysqlx::Resultset::ColumnMetaData::BYTES, 0, 0, 0);
-
-    *header_sent = true;
-  }
-
-  return row;
+  xpl::Sql_data_context::Result_info info;
+  return da.execute_sql_no_result(qb.get(), info);
 }
 
 
-bool end_list_collections_row(xpl::Callback_command_delegate::Row_data *row,
-                              std::set<std::string> *collection_names)
-{
-  xpl::Callback_command_delegate::Field_value *field(row->fields.at(0));
-
-  if (field)
-    collection_names->insert(*field->value.v_string);
-
-  return true;
-}
-
-
-bool end_list_tables_row(xpl::Callback_command_delegate::Row_data *row, ngs::Protocol_encoder &proto,
-                         std::set<std::string> *collection_names)
-{
-  xpl::Callback_command_delegate::Field_value *name_field(row->fields.at(0));
-  xpl::Callback_command_delegate::Field_value *type_field(row->fields.at(1));
-
-  if (name_field && type_field)
-  {
-    std::string name(*name_field->value.v_string);
-    std::string type(*type_field->value.v_string);
-    bool is_collection = false;
-    std::set<std::string>::iterator iter;
-    if ((iter = collection_names->find(name)) != collection_names->end())
-    {
-      if (type == "VIEW")
-        collection_names->erase(iter);
-      else
-        is_collection = true;
-    }
-
-    if (!is_collection)
-    {
-      proto.start_row();
-
-      std::string type_str(type == "BASE TABLE" ? "TABLE" : "VIEW");
-
-      proto.row_builder().add_string_field(name.c_str(), name.length(), NULL);
-      proto.row_builder().add_string_field(type_str.c_str(), type_str.length(), NULL);
-
-      proto.send_row();
-    }
-  }
-
-  return true;
-}
-
+const char* const COUNT_DOC = "COUNT(CASE WHEN (column_name = 'doc' "
+                              "AND data_type = 'json') THEN 1 ELSE NULL END)";
+const char* const COUNT_ID = "COUNT(CASE WHEN (column_name = '_id' "
+                             "AND generation_expression = 'json_unquote(json_extract(`doc`,''$._id''))') THEN 1 ELSE NULL END)";
+const char* const COUNT_GEN = "COUNT(CASE WHEN (column_name != '_id' "
+                              "AND generation_expression RLIKE '^(json_unquote[[.(.]])?json_extract[[.(.]]`doc`,"
+                              "''[[.$.]]([[...]][^[:space:][...]]+)+''[[.).]]{1,2}$') THEN 1 ELSE NULL END)";
 } // namespace
 
 
@@ -1185,7 +1137,6 @@ ngs::Error_code xpl::Admin_command_handler::list_objects(Command_arguments &args
 {
   m_session.update_status<&Common_status_variables::inc_stmt_list_objects>();
 
-  Query_string_builder qb;
   std::string schema, pattern;
   ngs::Error_code error = args
       .string_arg("schema", schema, true)
@@ -1193,60 +1144,29 @@ ngs::Error_code xpl::Admin_command_handler::list_objects(Command_arguments &args
   if (error)
     return error;
 
-  qb.put("SELECT table_name, COUNT(table_name) c FROM information_schema.columns WHERE"
-      " ((column_name = 'doc' and data_type = 'json') OR"
-      " (column_name = '_id' and generation_expression = 'json_unquote(json_extract(`doc`,''$._id''))')) AND table_schema = ");
+  error = is_schema_selected_and_exists(m_da, schema);
+  if (error)
+    return error;
+
+  Query_string_builder qb;
+  qb.put("SELECT C.table_name AS name, "
+    "IF(ANY_VALUE(T.table_type)='VIEW', 'VIEW', "
+    "IF(COUNT(*) = ").put(COUNT_DOC).put(" + ").put(COUNT_ID).put(" + ").put(COUNT_GEN).put(", 'COLLECTION', 'TABLE')) AS type "
+    "FROM information_schema.columns AS C LEFT JOIN information_schema.tables AS T USING (table_name)"
+    "WHERE C.table_schema = ");
   if (schema.empty())
     qb.put("schema()");
   else
     qb.quote_string(schema);
-
   if (!pattern.empty())
-    qb.put("AND table_name LIKE ").quote_string(pattern);
-  qb.put(" GROUP BY table_name HAVING c = 2;");
+    qb.put(" AND C.table_name LIKE ").quote_string(pattern);
+  qb.put(" GROUP BY C.table_name ORDER BY C.table_name");
 
   Sql_data_context::Result_info info;
-  Callback_command_delegate::Row_data row;
-  bool header_sent = false;
-
-  std::set<std::string> collection_names;
-  error = m_da.execute_sql_and_process_results(qb.get(),
-                                               boost::bind(begin_list_objects_row, &row, boost::ref(m_da.proto()), &header_sent),
-                                               boost::bind(end_list_collections_row, _1, &collection_names),
-                                               info);
+  error = m_da.execute_sql_and_stream_results(qb.get(), false, info);
   if (error)
     return error;
 
-  qb.clear();
-  if (schema.empty())
-    qb.put("SHOW FULL TABLES");
-  else
-    qb.put("SHOW FULL TABLES FROM ").quote_identifier(schema);
-  if (!pattern.empty())
-    qb.put(" LIKE ").quote_string(pattern);
-
-  error = m_da.execute_sql_and_process_results(qb.get(),
-                                               boost::bind(begin_list_objects_row, &row, boost::ref(m_da.proto()), &header_sent),
-                                               boost::bind(end_list_tables_row, _1, boost::ref(m_da.proto()), &collection_names),
-                                               info);
-  if (error)
-    return error;
-
-  for (std::set<std::string>::const_iterator col = collection_names.begin(); col != collection_names.end(); ++col)
-  {
-    m_da.proto().start_row();
-
-    m_da.proto().row_builder().add_string_field(col->c_str(), col->length(), NULL);
-    m_da.proto().row_builder().add_string_field("COLLECTION", strlen("COLLECTION"), NULL);
-
-    m_da.proto().send_row();
-  }
-
-  // send metadata for the case of empty resultset
-  if (!header_sent)
-    begin_list_objects_row(&row, m_da.proto(), &header_sent);
-
-  m_da.proto().send_result_fetch_done();
   m_da.proto().send_exec_ok();
   return ngs::Success();
 }
@@ -1257,12 +1177,8 @@ namespace
 bool is_collection(xpl::Sql_data_context &da, const std::string &schema, const std::string &name)
 {
   xpl::Query_string_builder qb;
-  qb.put(
-      "SELECT COUNT(*) AS cnt,"
-      "COUNT(CASE WHEN (column_name = 'doc' AND data_type = 'json') THEN 1 ELSE NULL END) AS doc,"
-      "COUNT(CASE WHEN (column_name = '_id' AND generation_expression = 'json_unquote(json_extract(`doc`,''$._id''))') THEN 1 ELSE NULL END) AS id,"
-      "COUNT(CASE WHEN (column_name != '_id' AND generation_expression "
-      "RLIKE '^(json_unquote[[.(.]])?json_extract[[.(.]]`doc`,''[[.$.]]([[...]][^[:space:][...]]+)+''[[.).]]{1,2}$') THEN 1 ELSE NULL END) AS gen "
+  qb.put("SELECT COUNT(*) AS cnt,")
+    .put(COUNT_DOC).put(" AS doc,").put(COUNT_ID).put(" AS id,").put(COUNT_GEN).put(" AS gen "
       "FROM information_schema.columns "
       "WHERE table_name = ").quote_string(name).put(" AND table_schema = ");
   if (schema.empty())

@@ -13,6 +13,7 @@ create table mytable (a int);
 create table mytable2 (a int, doc json);
 create view myview as select 1;
 -->endsql
+
 Mysqlx.Sql.StmtExecute {
   stmt: "create_collection"
   args {
@@ -35,7 +36,6 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
-## expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -55,7 +55,7 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvresult
 
 Mysqlx.Sql.StmtExecute {
   stmt: "list_objects"
@@ -70,8 +70,8 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
-## expect Error
--->recv
+-->expecterror 1049
+-->recvresult
 
 Mysqlx.Sql.StmtExecute {
   stmt: "list_objects"
@@ -95,7 +95,7 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvresult
 
 ## empty resultset
 Mysqlx.Sql.StmtExecute {
@@ -120,25 +120,52 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvresult
 
 ## list objects in current database 
 Mysqlx.Sql.StmtExecute {
   stmt: "list_objects"
-
   namespace: "xplugin"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvresult
 
 
-## Cleanup
--->sql
-drop schema if exists xtest;
--->endsql
+-->stmtsql ALTER TABLE xtest.books ADD COLUMN (nothing INT)
+-->recvresult
+
+
+-->stmtsql show columns from xtest.books
+-->recvresult
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_objects"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xtest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "books"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recvresult
+
 EOF
 
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/admin_list_objects.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/admin_list_objects.tmp
 
 ## Postamble
+drop schema if exists xtest;
 uninstall plugin mysqlx;
