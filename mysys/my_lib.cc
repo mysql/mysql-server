@@ -336,34 +336,27 @@ int my_fstat(File Filedes, MY_STAT *stat_area)
 
 MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf my_flags)
 {
-  const int m_used= (stat_area == NULL);
   DBUG_ENTER("my_stat");
+  DBUG_ASSERT(stat_area != nullptr);
   DBUG_PRINT("my", ("path: '%s'  stat_area: %p  MyFlags: %d", path,
                     stat_area, my_flags));
 
-  if (m_used)
-    if (!(stat_area= (MY_STAT *) my_malloc(key_memory_MY_STAT,
-                                           sizeof(MY_STAT), my_flags)))
-      goto error;
 #ifndef _WIN32
-    if (! stat((char *) path, (struct stat *) stat_area) )
-      DBUG_RETURN(stat_area);
+  if (! stat(path, stat_area))
+    DBUG_RETURN(stat_area);
 #else
-    if (! my_win_stat(path, stat_area) )
-      DBUG_RETURN(stat_area);
+  if (! my_win_stat(path, stat_area))
+    DBUG_RETURN(stat_area);
 #endif
+
   DBUG_PRINT("error",("Got errno: %d from stat", errno));
   set_my_errno(errno);
-  if (m_used)					/* Free if new area */
-    my_free(stat_area);
 
-error:
   if (my_flags & (MY_FAE+MY_WME))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     my_error(EE_STAT, MYF(0), path,
              my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
-    DBUG_RETURN((MY_STAT *) NULL);
   }
-  DBUG_RETURN((MY_STAT *) NULL);
+  DBUG_RETURN(nullptr);
 } /* my_stat */

@@ -81,7 +81,6 @@ extern PSI_memory_key key_memory_pack_frm;
 extern PSI_memory_key key_memory_my_err_head;
 extern PSI_memory_key key_memory_my_file_info;
 extern PSI_memory_key key_memory_MY_DIR;
-extern PSI_memory_key key_memory_MY_STAT;
 extern PSI_memory_key key_memory_QUEUE;
 extern PSI_memory_key key_memory_DYNAMIC_STRING;
 extern PSI_memory_key key_memory_TREE;

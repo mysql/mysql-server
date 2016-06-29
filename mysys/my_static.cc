@@ -37,7 +37,6 @@ PSI_memory_key key_memory_my_err_head;
 PSI_memory_key key_memory_my_file_info;
 PSI_memory_key key_memory_max_alloca;
 PSI_memory_key key_memory_MY_DIR;
-PSI_memory_key key_memory_MY_STAT;
 PSI_memory_key key_memory_MY_TMPDIR_full_list;
 PSI_memory_key key_memory_QUEUE;
 PSI_memory_key key_memory_DYNAMIC_STRING;
