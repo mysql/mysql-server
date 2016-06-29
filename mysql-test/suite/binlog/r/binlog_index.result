@@ -392,4 +392,5 @@ DROP TABLE t1;
 # Test case11: Ends
 SET SESSION debug="";
 SET GLOBAL binlog_error_action= ABORT_SERVER;
+RESET MASTER;
 End of tests
