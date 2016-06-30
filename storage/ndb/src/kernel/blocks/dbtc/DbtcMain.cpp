@@ -3863,6 +3863,12 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
 
     if (regTcPtr->tcNodedata[0] == getOwnNodeId())
       c_counters.clocalReadCount++;
+#ifdef ERROR_INSERT
+    else if (ERROR_INSERTED(8083))
+    {
+      ndbrequire(false);  // Only node-local reads
+    }
+#endif
   }
   else if (Toperation == ZUNLOCK)
   {
@@ -12985,6 +12991,12 @@ bool Dbtc::startFragScanLab(Signal* signal,
         break;
       }
     }
+  }
+
+  if (ERROR_INSERTED(8083) &&
+      nodeId != ownNodeId)
+  {
+    ndbrequire(false);  // Only node-local reads 
   }
   
   apiConnectptr.i = scanptr.p->scanApiRec;
