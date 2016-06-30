@@ -607,7 +607,12 @@ buf_buddy_relocate(
 
 		/* It might be just uninitialized page.
 		We should search from LRU list also. */
-		mutex_enter(&buf_pool->LRU_list_mutex);
+
+		/* force is true only when buffer pool resizing,
+		in which we hold LRU_list_mutex already, see
+		buf_pool_withdraw_blocks(). */
+		ut_ad(force);
+		ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 
 		bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
 		while (bpage != NULL) {
@@ -619,8 +624,6 @@ buf_buddy_relocate(
 			}
 			bpage = UT_LIST_GET_NEXT(LRU, bpage);
 		}
-
-		mutex_exit(&buf_pool->LRU_list_mutex);
 
 		if (bpage == NULL) {
 			mutex_enter(&buf_pool->zip_free_mutex);
