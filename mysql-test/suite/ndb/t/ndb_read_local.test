@@ -1,5 +1,5 @@
 -- source include/have_ndb.inc
--- source include/have_debug.inc  # Error insert
+-- source include/have_ndb_debug.inc
 
 
 --let $KEYS=40

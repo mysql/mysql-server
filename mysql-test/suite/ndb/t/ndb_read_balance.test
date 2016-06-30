@@ -1,6 +1,6 @@
 -- source include/have_ndb.inc
 
---let $KEYS=30
+--let $KEYS=40
 --let $TEST_STEP=5
 
 # Classic table
