@@ -153,7 +153,7 @@ connection default;
 let $wait_timeout= 10;
 let $wait_condition=
 SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
-WHERE DB = 'information_schema' AND COMMAND = 'Sleep' AND USER = 'ddicttestuser1';
+WHERE DB = 'information_schema' AND COMMAND = 'Sleep' AND USER = 'ddicttestuser1' AND state='';
 --source include/wait_condition.inc
 --replace_result ENGINE=MyISAM "" ENGINE=Aria "" " PAGE_CHECKSUM=1" "" " PAGE_CHECKSUM=0" ""
 eval SHOW CREATE TABLE $table;
