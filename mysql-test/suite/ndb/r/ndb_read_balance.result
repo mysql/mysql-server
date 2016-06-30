@@ -4,7 +4,7 @@
 *******************************************************
 ndb_read_balance.inc
 Table comment : NDB_TABLE=READ_BACKUP=0,FULLY_REPLICATED=0
-Keys : 30
+Keys : 40
 Test_step : 5
 Expect : Classic distribution, always PRIMARY
 *******************************************************
@@ -24,6 +24,42 @@ select distinct obj_type, fragment_type from min_baseline_diff_type order by obj
 obj_type	fragment_type
 TABLE	PRIMARY
 Test a number of scenarios to show read routing
+
+****
+Row with key : 40
+
+Hinted PK read, no lock
+obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
+TABLE	PRIMARY	1	0	0	0	0	0
+
+Unhinted PK read, shared lock
+obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
+TABLE	PRIMARY	1	0	0	0	0	0
+
+Unhinted PK read, exclusive lock
+obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
+TABLE	PRIMARY	1	0	0	0	0	0
+UI reads disabled due to  
+Bug #23702848 NDB : READBACKUP BEHAVIOUR WITH UNIQUE INDEXES
+This results in fluctuating results
+
+****
+Row with key : 35
+
+Hinted PK read, no lock
+obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
+TABLE	PRIMARY	1	0	0	0	0	0
+
+Unhinted PK read, shared lock
+obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
+TABLE	PRIMARY	1	0	0	0	0	0
+
+Unhinted PK read, exclusive lock
+obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
+TABLE	PRIMARY	1	0	0	0	0	0
+UI reads disabled due to  
+Bug #23702848 NDB : READBACKUP BEHAVIOUR WITH UNIQUE INDEXES
+This results in fluctuating results
 
 ****
 Row with key : 30
@@ -167,7 +203,7 @@ TABLE	PRIMARY
 *******************************************************
 ndb_read_balance.inc
 Table comment : NDB_TABLE=READ_BACKUP=1,FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE
-Keys : 30
+Keys : 40
 Test_step : 5
 Expect : Read Backup, Mix of Primary + Backup, except where locks are used
 *******************************************************
@@ -188,6 +224,42 @@ obj_type	fragment_type
 TABLE	BACKUP
 TABLE	PRIMARY
 Test a number of scenarios to show read routing
+
+****
+Row with key : 40
+
+Hinted PK read, no lock
+obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
+TABLE	PRIMARY	1	0	0	0	0	0
+
+Unhinted PK read, shared lock
+obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
+TABLE	PRIMARY	1	0	0	0	0	0
+
+Unhinted PK read, exclusive lock
+obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
+TABLE	PRIMARY	1	0	0	0	0	0
+UI reads disabled due to  
+Bug #23702848 NDB : READBACKUP BEHAVIOUR WITH UNIQUE INDEXES
+This results in fluctuating results
+
+****
+Row with key : 35
+
+Hinted PK read, no lock
+obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
+TABLE	PRIMARY	1	0	0	0	0	0
+
+Unhinted PK read, shared lock
+obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
+TABLE	PRIMARY	1	0	0	0	0	0
+
+Unhinted PK read, exclusive lock
+obj_type	fragment_type	key_reads	key_inserts	key_writes	key_updates	key_deletes	frag_scans
+TABLE	PRIMARY	1	0	0	0	0	0
+UI reads disabled due to  
+Bug #23702848 NDB : READBACKUP BEHAVIOUR WITH UNIQUE INDEXES
+This results in fluctuating results
 
 ****
 Row with key : 30

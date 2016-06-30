@@ -30,6 +30,27 @@ while ($idx)
 --echo Check that all fragments are in-use, else raise key count
 select count(1) from ndbinfo.memory_per_fragment where fq_name='test/def/t1' and fixed_elem_count=0;
 
+# Debug Solaris failure
+#   Some empty fragments remain
+--disable_query_log
+--disable_result_log
+select @ef:=count(1) from ndbinfo.memory_per_fragment where fq_name='test/def/t1' and fixed_elem_count=0;
+let $empty_frags=query_get_value(select @ef as ef, ef, 1);
+
+if ($empty_frags)
+{
+  --enable_query_log
+  --enable_result_log
+  select * from ndbinfo.memory_per_fragment where fq_name='test/def/t1';
+  select * from test.t1;
+  --disable_result_log
+  --disable_query_log
+}
+
+--enable_query_log
+--enable_result_log
+# /Debug Solaris failure
+
 
 --echo Build fragment identity table
 --disable_query_log
