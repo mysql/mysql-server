@@ -209,7 +209,7 @@ dict_stats_deinit(
 
 	for (index = table->first_index();
 	     index != NULL;
-	     index = index->next) {
+	     index = index->next()) {
 
 		ulint	n_uniq = dict_index_get_n_unique(index);
 
