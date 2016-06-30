@@ -710,6 +710,8 @@ static const SYMBOL symbols[] = {
   { SYM_FN("DATE_SUB",              DATE_SUB_INTERVAL)},
   { SYM_FN("EXTRACT",               EXTRACT_SYM)},
   { SYM_FN("GROUP_CONCAT",          GROUP_CONCAT_SYM)},
+  { SYM_FN("JSON_OBJECTAGG",        JSON_OBJECTAGG)},
+  { SYM_FN("JSON_ARRAYAGG",         JSON_ARRAYAGG)},
   { SYM_FN("MAX",                   MAX_SYM)},
   { SYM_FN("MID",                   SUBSTRING)}, /* unireg function */
   { SYM_FN("MIN",                   MIN_SYM)},

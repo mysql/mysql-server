@@ -1146,4 +1146,80 @@ Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JS
 [Connection Master]
 DROP TABLE t1, t2, t3, t4, t5;
 include/sync_slave_sql_with_master.inc
+#
+# WL#7987: JSON AGGREGATION FUNCTIONS
+#
+# Create tables of various data types
+CREATE TABLE data_table (pkey INT PRIMARY KEY AUTO_INCREMENT,
+txt TEXT, vcol VARCHAR(20), num INT,
+gcol INT AS (num * 2) VIRTUAL);
+CREATE TABLE json_data (nkey INT PRIMARY KEY AUTO_INCREMENT, jcol JSON);
+# Insert values into the tables using the aggregation functions
+INSERT INTO data_table(txt, vcol, num) VALUES ('ailemac', 'namor', 15),
+('nielk', 'uciov', 12),
+('nuicarc', 'ierdna', 13),
+('ihcseruj', 'elisav', 14),
+('qweasdas', 'jugcvb', 16);
+INSERT INTO json_data(jcol) SELECT JSON_OBJECTAGG(pkey, gcol) FROM data_table;
+INSERT INTO json_data(jcol) SELECT JSON_ARRAYAGG(txt) FROM data_table;
+INSERT INTO json_data(jcol) SELECT JSON_ARRAYAGG(gcol) FROM data_table;
+INSERT INTO json_data(jcol) SELECT JSON_OBJECTAGG(num , vcol) FROM data_table;
+INSERT INTO json_data(jcol) SELECT JSON_OBJECTAGG(pkey , txt) FROM data_table;
+INSERT INTO json_data(jcol) SELECT JSON_ARRAYAGG(pkey) FROM data_table;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether tables were created on the slave
+SELECT * FROM json_data;
+nkey	jcol
+1	{"1": 30, "2": 24, "3": 26, "4": 28, "5": 32}
+2	["ailemac", "nielk", "nuicarc", "ihcseruj", "qweasdas"]
+3	[30, 24, 26, 28, 32]
+4	{"12": "uciov", "13": "ierdna", "14": "elisav", "15": "namor", "16": "jugcvb"}
+5	{"1": "ailemac", "2": "nielk", "3": "nuicarc", "4": "ihcseruj", "5": "qweasdas"}
+6	[1, 2, 3, 4, 5]
+SELECT JSON_OBJECTAGG(t1.pkey, t2.jcol) FROM data_table AS t1, json_data AS t2;
+JSON_OBJECTAGG(t1.pkey, t2.jcol)
+{"1": {"1": 30, "2": 24, "3": 26, "4": 28, "5": 32}, "2": {"1": 30, "2": 24, "3": 26, "4": 28, "5": 32}, "3": {"1": 30, "2": 24, "3": 26, "4": 28, "5": 32}, "4": {"1": 30, "2": 24, "3": 26, "4": 28, "5": 32}, "5": {"1": 30, "2": 24, "3": 26, "4": 28, "5": 32}}
+SELECT JSON_ARRAYAGG(jcol) FROM json_data;
+JSON_ARRAYAGG(jcol)
+[{"1": 30, "2": 24, "3": 26, "4": 28, "5": 32}, ["ailemac", "nielk", "nuicarc", "ihcseruj", "qweasdas"], [30, 24, 26, 28, 32], {"12": "uciov", "13": "ierdna", "14": "elisav", "15": "namor", "16": "jugcvb"}, {"1": "ailemac", "2": "nielk", "3": "nuicarc", "4": "ihcseruj", "5": "qweasdas"}, [1, 2, 3, 4, 5]]
+include/diff_tables.inc [master:json_data, slave:json_data]
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+[Connection Master]
+# Update values in the table
+UPDATE json_data SET jcol= (SELECT JSON_ARRAYAGG(vcol) FROM data_table) WHERE nkey = 1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM json_data WHERE nkey = 1;
+nkey	jcol
+1	["namor", "uciov", "ierdna", "elisav", "jugcvb"]
+include/diff_tables.inc [master:json_data, slave:json_data]
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+[Connection Master]
+# Delete values from the table
+DELETE FROM json_data WHERE jcol  = (SELECT JSON_ARRAYAGG(pkey) FROM data_table);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM json_data;
+nkey	jcol
+1	["namor", "uciov", "ierdna", "elisav", "jugcvb"]
+2	["ailemac", "nielk", "nuicarc", "ihcseruj", "qweasdas"]
+3	[30, 24, 26, 28, 32]
+4	{"12": "uciov", "13": "ierdna", "14": "elisav", "15": "namor", "16": "jugcvb"}
+5	{"1": "ailemac", "2": "nielk", "3": "nuicarc", "4": "ihcseruj", "5": "qweasdas"}
+include/diff_tables.inc [master:json_data, slave:json_data]
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+[Connection Master]
+DROP TABLE data_table;
+DROP TABLE json_data;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc
