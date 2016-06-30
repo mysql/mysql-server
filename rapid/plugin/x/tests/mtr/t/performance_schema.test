@@ -2,7 +2,7 @@
 
 ## Preamble
 --source include/not_embedded.inc
---source include/have_perfschema.inc
+--source ../include/have_performance_schema_threads.inc
 
 --source ../include/xplugin_preamble.inc
 
