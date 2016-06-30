@@ -1574,6 +1574,21 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                      'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;<IGNORE>;;'
                                      'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;<IGNORE>;;'
                                      'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;<IGNORE>;;'
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;<IGNORE>;;'
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;<IGNORE>;;'
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;<IGNORE>;;'
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;<IGNORE>;;'
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;<IGNORE>;;'
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;<IGNORE>;;'
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;<IGNORE>;;'
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;<IGNORE>;;'
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;<IGNORE>;;'
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;<IGNORE>;;'
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;<IGNORE>;;'
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;<IGNORE>;;'
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;<IGNORE>;;'
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;<IGNORE>;;'
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;<IGNORE>;;'
                                      'MYSQL_AUDIT_QUERY_STATUS_END;sql_command_id="0";';
 --disable_result_log
 SELECT * FROM INFORMATION_SCHEMA.TABLES;
