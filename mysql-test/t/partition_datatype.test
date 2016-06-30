@@ -6,7 +6,6 @@
 # Partitions: crash if varchar length > 65530
 # BUG#48164 limited size to 3072 bytes
 #
--- source include/have_partition.inc
 -- source include/have_innodb.inc
 
 --disable_warnings
@@ -227,7 +226,7 @@ create table t1 (a varchar(65535)) partition by key (a);
 #
 # Bug#34358: error in key_restore for bitfields with uneven bits
 #
-create table t1 (a bit(27), primary key (a)) engine=myisam
+create table t1 (a bit(27), primary key (a))
 partition by hash (a)
 (partition p0, partition p1, partition p2);
 show create table t1;
@@ -240,11 +239,9 @@ drop table t1;
 --echo #            by partition pruning
 SET @old_time_zone= @@session.time_zone;
 SET @@session.time_zone = 'UTC';
---echo # Using MyISAM to get stable values on TABLE_ROWS in I_S.PARTITIONS
 CREATE TABLE t1
 (a TIMESTAMP NULL,
- tz varchar(16))
-ENGINE = MyISAM;
+ tz varchar(16));
 CREATE TABLE t2 LIKE t1;
 ALTER TABLE t2 PARTITION BY RANGE (UNIX_TIMESTAMP(a))
 (PARTITION `p0` VALUES LESS THAN (0),
@@ -324,6 +321,14 @@ INSERT INTO t1 VALUES ('2011-10-30 03:00:01', 'Moscow');
 SET @@session.time_zone = 'UTC';
 
 INSERT INTO t2 SELECT * FROM t1;
+
+# Do ANALYZE to get predictable results from I_S and EXPLAIN.
+--disable_query_log
+--disable_result_log
+ANALYZE TABLE t1; 
+ANALYZE TABLE t2; 
+--enable_result_log
+--enable_query_log
 
 SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
 WHERE TABLE_NAME = 't2';

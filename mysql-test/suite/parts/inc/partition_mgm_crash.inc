@@ -27,7 +27,6 @@ let $crash_statement= ALTER TABLE `t1/a\b#2` ADD PARTITION
 --eval $insert_statement
 --echo # State before statement
 --replace_result #p# #P# #sp# #SP#
---replace_regex /_[0-9]+\.SDI/_XXX.SDI/
 --list_files $DATADIR/test
 SHOW CREATE TABLE `t1/a\b#2`;
 --sorted_result
@@ -35,7 +34,6 @@ SELECT * FROM `t1/a\b#2`;
 --eval $crash_statement
 --echo # State after statement
 --replace_result #p# #P# #sp# #SP#
---replace_regex /_[0-9]+\.SDI/_XXX.SDI/
 --list_files $DATADIR/test
 SHOW CREATE TABLE `t1/a\b#2`;
 --sorted_result
@@ -60,14 +58,12 @@ let $crash_statement= ALTER TABLE `t1/a\b#2` REORGANIZE PARTITION p10 INTO
 --eval $insert_statement
 --echo # State before statement
 --replace_result #p# #P# #sp# #SP#
---replace_regex /_[0-9]+\.SDI/_XXX.SDI/
 --list_files $DATADIR/test
 SHOW CREATE TABLE `t1/a\b#2`;
 --sorted_result
 SELECT * FROM `t1/a\b#2`;
 --eval $crash_statement
 --echo # State after statement
---replace_regex /_[0-9]+\.SDI/_XXX.SDI/
 --replace_result #p# #P# #sp# #SP#
 --list_files $DATADIR/test
 SHOW CREATE TABLE `t1/a\b#2`;

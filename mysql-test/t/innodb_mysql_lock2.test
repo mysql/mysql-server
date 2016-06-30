@@ -8,7 +8,6 @@
 # this bug was encountered.
 --source include/force_binlog_format_statement.inc
 # Original test case for bug#51263 needs partitioning.
---source include/have_partition.inc
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
 

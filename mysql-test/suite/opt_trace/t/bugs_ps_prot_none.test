@@ -25,4 +25,5 @@ if (`select locate('mrr', @@optimizer_switch) > 0`)
 --source include/no_cursor_protocol.inc
 --source include/have_ps_protocol.inc
 
+--let $support_native_partitioning= 0
 --source suite/opt_trace/include/bugs.inc

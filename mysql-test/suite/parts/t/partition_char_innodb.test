@@ -28,9 +28,6 @@
 ##### Options, for debugging support #####
 let $debug= 0;
 
-# The server must support partitioning.
---source include/have_partition.inc
-
 #------------------------------------------------------------------------------#
 # Engine specific settings and requirements
 

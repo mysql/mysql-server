@@ -2,7 +2,6 @@
 # Tests for the new column list partitioning introduced in second
 # version for partitioning.
 #
---source include/have_partition.inc
 
 --disable_warnings
 drop table if exists t1;

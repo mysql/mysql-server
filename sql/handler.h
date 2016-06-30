@@ -147,7 +147,13 @@ enum enum_alter_inplace_result {
 
 #define HA_NO_TRANSACTIONS     (1 << 0) /* Doesn't support transactions */
 #define HA_PARTIAL_COLUMN_READ (1 << 1) /* read may not return all columns */
-#define HA_TABLE_SCAN_ON_INDEX (1 << 2) /* No separate data/index file */
+/*
+  Used to avoid scanning full tables on an index. If this flag is set then
+  the handler always has a primary key (hidden if not defined) and this
+  index is used for scanning rather than a full table scan in all
+  situations. No separate data/index file.
+*/
+#define HA_TABLE_SCAN_ON_INDEX (1 << 2)
 /*
   The following should be set if the following is not true when scanning
   a table with rnd_next()
@@ -155,13 +161,25 @@ enum enum_alter_inplace_result {
   - Row positions are 'table->s->db_record_offset' apart
   If this flag is not set, filesort will do a position() call for each matched
   row to be able to find the row later.
-*/
+
+  This flag is set for handlers that cannot guarantee that the rows are
+  returned according to incremental positions (0, 1, 2, 3...).
+  This also means that rnd_next() should return HA_ERR_RECORD_DELETED
+  if it finds a deleted row.
+ */
 #define HA_REC_NOT_IN_SEQ      (1 << 3)
+
+/*
+  Can the storage engine handle spatial data.
+  Used to check that no spatial attributes are declared unless
+  the storage engine is capable of handling it.
+*/
 #define HA_CAN_GEOMETRY        (1 << 4)
 /*
   Reading keys in random order is as fast as reading keys in sort order
   (Used in records.cc to decide if we should use a record cache and by
-  filesort to decide if we should sort key + data or key + pointer-to-row
+  filesort to decide if we should sort key + data or key + pointer-to-row.
+  For further explanation see intro to init_read_record.
 */
 #define HA_FAST_KEY_READ       (1 << 5)
 /*
@@ -169,19 +187,46 @@ enum enum_alter_inplace_result {
   and on update read all keys that changes
 */
 #define HA_REQUIRES_KEY_COLUMNS_FOR_DELETE (1 << 6)
-#define HA_NULL_IN_KEY         (1 << 7) /* One can have keys with NULL */
-#define HA_DUPLICATE_POS       (1 << 8)    /* position() gives dup row */
+/*
+  Is NULL values allowed in indexes.
+  If this is not allowed then it is not possible to use an index on a
+  NULLable field.
+*/
+#define HA_NULL_IN_KEY         (1 << 7)
+/*
+  Tells that we can the position for the conflicting duplicate key
+  record is stored in table->file->dupp_ref. (insert uses rnd_pos() on
+  this to find the duplicated row)
+*/
+#define HA_DUPLICATE_POS       (1 << 8)
 #define HA_NO_BLOBS            (1 << 9) /* Doesn't support blobs */
+/*
+  Is the storage engine capable of defining an index of a prefix on
+  a BLOB attribute.
+*/
 #define HA_CAN_INDEX_BLOBS     (1 << 10)
-#define HA_AUTO_PART_KEY       (1 << 11) /* auto-increment in multi-part key */
-#define HA_REQUIRE_PRIMARY_KEY (1 << 12) /* .. and can't create a hidden one */
-#define HA_STATS_RECORDS_IS_EXACT (1 << 13) /* stats.records is exact */
+/*
+  Auto increment fields can be part of a multi-part key. For second part
+  auto-increment keys, the auto_incrementing is done in handler.cc
+*/
+#define HA_AUTO_PART_KEY       (1 << 11)
+/*
+  Can't define a table without primary key (and cannot handle a table
+  with hidden primary key)
+*/
+#define HA_REQUIRE_PRIMARY_KEY (1 << 12)
+/*
+  Does the counter of records after the info call specify an exact
+  value or not. If it does this flag is set.
+*/
+#define HA_STATS_RECORDS_IS_EXACT (1 << 13)
 /// Not in use.
 #define HA_UNUSED  (1 << 14)
 /*
-  If we get the primary key columns for free when we do an index read
-  (usually, it also implies that HA_PRIMARY_KEY_REQUIRED_FOR_POSITION
-  flag is set).
+  This parameter is set when the handler will also return the primary key
+  when doing read-only-key on another index, i.e., if we get the primary
+  key columns for free when we do an index read (usually, it also implies
+  that HA_PRIMARY_KEY_REQUIRED_FOR_POSITION flag is set).
 */
 #define HA_PRIMARY_KEY_IN_READ_INDEX (1 << 15)
 /*
@@ -190,24 +235,52 @@ enum enum_alter_inplace_result {
   Without primary key, we can't call position().
   If not set, the position is returned as the current rows position
   regardless of what argument is given.
-*/ 
-#define HA_PRIMARY_KEY_REQUIRED_FOR_POSITION (1 << 16) 
+*/
+#define HA_PRIMARY_KEY_REQUIRED_FOR_POSITION (1 << 16)
 #define HA_CAN_RTREEKEYS       (1 << 17)
+/*
+  Seems to be an old MyISAM feature that is no longer used. No handler
+  has it defined but it is checked in init_read_record. Further investigation
+  needed.
+*/
 #define HA_NOT_DELETE_WITH_CACHE (1 << 18)
 /*
   The following is we need to a primary key to delete (and update) a row.
   If there is no primary key, all columns needs to be read on update and delete
 */
 #define HA_PRIMARY_KEY_REQUIRED_FOR_DELETE (1 << 19)
+/*
+  Indexes on prefixes of character fields are not allowed.
+*/
 #define HA_NO_PREFIX_CHAR_KEYS (1 << 20)
+/*
+  Does the storage engine support fulltext indexes.
+*/
 #define HA_CAN_FULLTEXT        (1 << 21)
+/*
+  Can the HANDLER interface in the MySQL API be used towards this
+  storage engine.
+*/
 #define HA_CAN_SQL_HANDLER     (1 << 22)
+/*
+  Set if the storage engine does not support auto increment fields.
+*/
 #define HA_NO_AUTO_INCREMENT   (1 << 23)
+/*
+  Supports CHECKSUM option in CREATE TABLE (MyISAM feature).
+*/
 #define HA_HAS_CHECKSUM        (1 << 24)
-/* Table data are stored in separate files (for lower_case_table_names) */
+/*
+  Table data are stored in separate files (for lower_case_table_names).
+  Should file names always be in lower case (used by engines that map
+  table names to file names.
+*/
 #define HA_FILE_BASED	       (1 << 26)
 #define HA_NO_VARCHAR	       (1 << 27)
-#define HA_CAN_BIT_FIELD       (1 << 28) /* supports bit fields */
+/*
+  Is the storage engine capable of handling bit fields.
+*/
+#define HA_CAN_BIT_FIELD       (1 << 28)
 #define HA_ANY_INDEX_MAY_BE_UNIQUE (1 << 30)
 #define HA_NO_COPY_ON_ALTER    (1LL << 31)
 #define HA_HAS_RECORDS	       (1LL << 32) /* records() gives exact count*/
@@ -311,7 +384,7 @@ enum enum_alter_inplace_result {
 #define HA_CAN_EXPORT                 (1LL << 41)
 
 /*
-  The handler don't want accesses to this table to 
+  The handler don't want accesses to this table to
   be const-table optimized
 */
 #define HA_BLOCK_CONST_TABLE          (1LL << 42)
@@ -352,18 +425,59 @@ enum enum_alter_inplace_result {
 */
 #define HA_CAN_INDEX_VIRTUAL_GENERATED_COLUMN (1LL << 47)
 
-/* bits in index_flags(index_number) for what you can do with index */
+/*
+  Bits in index_flags(index_number) for what you can do with index.
+  If you do not implement indexes, just return zero here.
+*/
+/*
+  Does the index support read next, this is assumed in the server
+  code and never checked so all indexes must support this.
+  Note that the handler can be used even if it doesn't have any index.
+*/
 #define HA_READ_NEXT            1       /* TODO really use this flag */
-#define HA_READ_PREV            2       /* supports ::index_prev */
-#define HA_READ_ORDER           4       /* index_next/prev follow sort order */
-#define HA_READ_RANGE           8       /* can find all records in a range */
-#define HA_ONLY_WHOLE_INDEX	16	/* Can't use part key searches */
-#define HA_KEYREAD_ONLY         64	/* Support HA_EXTRA_KEYREAD */
+/*
+  Can the index be used to scan backwards (supports ::index_prev).
+*/
+#define HA_READ_PREV            2
+/*
+  Can the index deliver its record in index order. Typically true for
+  all ordered indexes and not true for hash indexes. Used to set keymap
+  part_of_sortkey.
+  This keymap is only used to find indexes usable for resolving an ORDER BY
+  in the query. Thus in most cases index_read will work just fine without
+  order in result production. When this flag is set it is however safe to
+  order all output started by index_read since most engines do this. With
+  read_multi_range calls there is a specific flag setting order or not
+  order so in those cases ordering of index output can be avoided.
+*/
+#define HA_READ_ORDER           4
+/*
+  Specify whether index can handle ranges, typically true for all
+  ordered indexes and not true for hash indexes.
+  Used by optimiser to check if ranges (as key >= 5) can be optimised
+  by index.
+*/
+#define HA_READ_RANGE           8
+/*
+  Can't use part key searches. This is typically true for hash indexes
+  and typically not true for ordered indexes.
+*/
+#define HA_ONLY_WHOLE_INDEX	16
+/*
+  Does the storage engine support index-only scans on this index.
+  Enables use of HA_EXTRA_KEYREAD and HA_EXTRA_NO_KEYREAD
+  Used to set Key_map keys_for_keyread and to check in optimiser for
+  index-only scans.  When doing a read under HA_EXTRA_KEYREAD the handler
+  only have to fill in the columns the key covers. If
+  HA_PRIMARY_KEY_IN_READ_INDEX is set then also the PRIMARY KEY columns
+  must be updated in the row.
+*/
+#define HA_KEYREAD_ONLY         64
 /*
   Index scan will not return records in rowid order. Not guaranteed to be
   set for unordered (e.g. HASH) indexes.
 */
-#define HA_KEY_SCAN_NOT_ROR     128 
+#define HA_KEY_SCAN_NOT_ROR     128
 #define HA_DO_INDEX_COND_PUSHDOWN  256 /* Supports Index Condition Pushdown */
 
 /* operations for disable/enable indexes */
@@ -444,7 +558,7 @@ enum legacy_db_type
   DB_TYPE_EXAMPLE_DB, DB_TYPE_ARCHIVE_DB, DB_TYPE_CSV_DB,
   DB_TYPE_FEDERATED_DB,
   DB_TYPE_BLACKHOLE_DB,
-  DB_TYPE_PARTITION_DB,
+  DB_TYPE_PARTITION_DB, // No longer used.
   DB_TYPE_BINLOG,
   DB_TYPE_SOLID,
   DB_TYPE_PBXT,
@@ -2530,6 +2644,348 @@ public:
 
   If a blob column has NULL value, then its length and blob data pointer
   must be set to 0.
+
+
+  Overview of main modules of the handler API
+  ===========================================
+  The overview below was copied from the storage/partition/ha_partition.h when
+  support for non-native partitioning was removed.
+
+  -------------------------------------------------------------------------
+  MODULE create/delete handler object
+  -------------------------------------------------------------------------
+  Object create/delete method. Normally called when a table object
+  exists.
+
+  -------------------------------------------------------------------------
+  MODULE meta data changes
+  -------------------------------------------------------------------------
+  Meta data routines to CREATE, DROP, RENAME table are often used at
+  ALTER TABLE (update_create_info used from ALTER TABLE and SHOW ..).
+
+  create_handler_files is called before opening a new handler object
+  to call create. It is used to create any local handler object needed
+  when opening the object.
+
+  Methods:
+    delete_table()
+    rename_table()
+    create()
+    create_handler_files()
+    update_create_info()
+
+  -------------------------------------------------------------------------
+  MODULE open/close object
+  -------------------------------------------------------------------------
+  Open and close handler object to ensure all underlying files and
+  objects allocated and deallocated for query handling is handled
+  properly.
+
+  A handler object is opened as part of its initialisation and before
+  being used for normal queries (not before meta-data changes always.
+  If the object was opened it will also be closed before being deleted.
+
+  Methods:
+    open()
+    close()
+
+  -------------------------------------------------------------------------
+  MODULE start/end statement
+  -------------------------------------------------------------------------
+  This module contains methods that are used to understand start/end of
+  statements, transaction boundaries, and aid for proper concurrency
+  control.
+
+  Methods:
+    store_lock()
+    external_lock()
+    start_stmt()
+    lock_count()
+    unlock_row()
+    was_semi_consistent_read()
+    try_semi_consistent_read()
+
+  -------------------------------------------------------------------------
+  MODULE change record
+  -------------------------------------------------------------------------
+  This part of the handler interface is used to change the records
+  after INSERT, DELETE, UPDATE, REPLACE method calls but also other
+  special meta-data operations as ALTER TABLE, LOAD DATA, TRUNCATE.
+
+  These methods are used for insert (write_row), update (update_row)
+  and delete (delete_row). All methods to change data always work on
+  one row at a time. update_row and delete_row also contains the old
+  row.
+  delete_all_rows will delete all rows in the table in one call as a
+  special optimization for DELETE from table;
+
+  Bulk inserts are supported if all underlying handlers support it.
+  start_bulk_insert and end_bulk_insert is called before and after a
+  number of calls to write_row.
+
+  Methods:
+    write_row()
+    update_row()
+    delete_row()
+    delete_all_rows()
+    start_bulk_insert()
+    end_bulk_insert()
+
+  -------------------------------------------------------------------------
+  MODULE full table scan
+  -------------------------------------------------------------------------
+  This module is used for the most basic access method for any table
+  handler. This is to fetch all data through a full table scan. No
+  indexes are needed to implement this part.
+  It contains one method to start the scan (rnd_init) that can also be
+  called multiple times (typical in a nested loop join). Then proceeding
+  to the next record (rnd_next) and closing the scan (rnd_end).
+  To remember a record for later access there is a method (position)
+  and there is a method used to retrieve the record based on the stored
+  position.
+  The position can be a file position, a primary key, a ROWID dependent
+  on the handler below.
+
+  Methods:
+
+    rnd_init()
+    rnd_end()
+    rnd_next()
+    rnd_pos()
+    rnd_pos_by_record()
+    position()
+
+  -------------------------------------------------------------------------
+  MODULE index scan
+  -------------------------------------------------------------------------
+  This part of the handler interface is used to perform access through
+  indexes. The interface is defined as a scan interface but the handler
+  can also use key lookup if the index is a unique index or a primary
+  key index.
+  Index scans are mostly useful for SELECT queries but are an important
+  part also of UPDATE, DELETE, REPLACE and CREATE TABLE table AS SELECT
+  and so forth.
+  Naturally an index is needed for an index scan and indexes can either
+  be ordered, hash based. Some ordered indexes can return data in order
+  but not necessarily all of them.
+  There are many flags that define the behavior of indexes in the
+  various handlers. These methods are found in the optimizer module.
+
+  index_read is called to start a scan of an index. The find_flag defines
+  the semantics of the scan. These flags are defined in
+  include/my_base.h
+  index_read_idx is the same but also initializes index before calling doing
+  the same thing as index_read. Thus it is similar to index_init followed
+  by index_read. This is also how we implement it.
+
+  index_read/index_read_idx does also return the first row. Thus for
+  key lookups, the index_read will be the only call to the handler in
+  the index scan.
+
+  index_init initializes an index before using it and index_end does
+  any end processing needed.
+
+  Methods:
+    index_read_map()
+    index_init()
+    index_end()
+    index_read_idx_map()
+    index_next()
+    index_prev()
+    index_first()
+    index_last()
+    index_next_same()
+    index_read_last_map()
+    read_range_first()
+    read_range_next()
+
+  -------------------------------------------------------------------------
+  MODULE information calls
+  -------------------------------------------------------------------------
+  This calls are used to inform the handler of specifics of the ongoing
+  scans and other actions. Most of these are used for optimisation
+  purposes.
+
+  Methods:
+    info()
+    get_dynamic_partition_info
+    extra()
+    extra_opt()
+    reset()
+
+  -------------------------------------------------------------------------
+  MODULE optimizer support
+  -------------------------------------------------------------------------
+  NOTE:
+  One important part of the public handler interface that is not depicted in
+  the methods is the attribute records which is defined in the base class.
+  This is looked upon directly and is set by calling info(HA_STATUS_INFO) ?
+
+  Methods:
+    min_rows_for_estimate()
+    get_biggest_used_partition()
+    keys_to_use_for_scanning()
+    scan_time()
+    read_time()
+    records_in_range()
+    estimate_rows_upper_bound()
+    table_cache_type()
+    records()
+
+  -------------------------------------------------------------------------
+  MODULE print messages
+  -------------------------------------------------------------------------
+  This module contains various methods that returns text messages for
+  table types, index type and error messages.
+
+  Methods:
+    table_type()
+    get_row_type()
+    print_error()
+    get_error_message()
+
+  -------------------------------------------------------------------------
+  MODULE handler characteristics
+  -------------------------------------------------------------------------
+  This module contains a number of methods defining limitations and
+  characteristics of the handler (see also documentation regarding the
+  individual flags).
+
+  Methods:
+    table_flags()
+    index_flags()
+    min_of_the_max_uint()
+    max_supported_record_length()
+    max_supported_keys()
+    max_supported_key_parts()
+    max_supported_key_length()
+    max_supported_key_part_length()
+    low_byte_first()
+    extra_rec_buf_length()
+    min_record_length(uint options)
+    primary_key_is_clustered()
+    ha_key_alg get_default_index_algorithm()
+    is_index_algorithm_supported()
+
+  -------------------------------------------------------------------------
+  MODULE compare records
+  -------------------------------------------------------------------------
+  cmp_ref checks if two references are the same. For most handlers this is
+  a simple memcmp of the reference. However some handlers use primary key
+  as reference and this can be the same even if memcmp says they are
+  different. This is due to character sets and end spaces and so forth.
+
+  Methods:
+    cmp_ref()
+
+  -------------------------------------------------------------------------
+  MODULE auto increment
+  -------------------------------------------------------------------------
+  This module is used to handle the support of auto increments.
+
+  This variable in the handler is used as part of the handler interface
+  It is maintained by the parent handler object and should not be
+  touched by child handler objects (see handler.cc for its use).
+
+  Methods:
+    get_auto_increment()
+    release_auto_increment()
+
+  -------------------------------------------------------------------------
+  MODULE initialize handler for HANDLER call
+  -------------------------------------------------------------------------
+  This method is a special InnoDB method called before a HANDLER query.
+
+  Methods:
+    init_table_handle_for_HANDLER()
+
+  -------------------------------------------------------------------------
+  MODULE foreign key support
+  -------------------------------------------------------------------------
+  The following methods are used to implement foreign keys as supported by
+  InnoDB and NDB.
+  get_foreign_key_create_info is used by SHOW CREATE TABLE to get a textual
+  description of how the CREATE TABLE part to define FOREIGN KEY's is done.
+  free_foreign_key_create_info is used to free the memory area that provided
+  this description.
+  can_switch_engines checks if it is ok to switch to a new engine based on
+  the foreign key info in the table.
+
+  Methods:
+    get_parent_foreign_key_list()
+    get_foreign_key_create_info()
+    free_foreign_key_create_info()
+    get_foreign_key_list()
+    referenced_by_foreign_key()
+    can_switch_engines()
+
+  -------------------------------------------------------------------------
+  MODULE fulltext index
+  -------------------------------------------------------------------------
+  Fulltext index support.
+
+  Methods:
+    ft_init_ext_with_hints()
+    ft_init()
+    ft_init_ext()
+    ft_read()
+
+  -------------------------------------------------------------------------
+  MODULE in-place ALTER TABLE
+  -------------------------------------------------------------------------
+  Methods for in-place ALTER TABLE support (implemented by InnoDB and NDB).
+
+  Methods:
+    check_if_supported_inplace_alter()
+    prepare_inplace_alter_table()
+    inplace_alter_table()
+    commit_inplace_alter_table()
+    notify_table_changed()
+
+  -------------------------------------------------------------------------
+  MODULE tablespace support
+  -------------------------------------------------------------------------
+  Methods:
+    discard_or_import_tablespace()
+
+  -------------------------------------------------------------------------
+  MODULE administrative DDL
+  -------------------------------------------------------------------------
+  Methods:
+    optimize()
+    analyze()
+    check()
+    repair()
+    check_and_repair()
+    auto_repair()
+    is_crashed()
+    check_for_upgrade()
+    checksum()
+    assign_to_keycache()
+
+  -------------------------------------------------------------------------
+  MODULE enable/disable indexes
+  -------------------------------------------------------------------------
+  Enable/Disable Indexes are only supported by HEAP and MyISAM.
+
+  Methods:
+    disable_indexes()
+    enable_indexes()
+    indexes_are_disabled()
+
+  -------------------------------------------------------------------------
+  MODULE append_create_info
+  -------------------------------------------------------------------------
+  Only used by MyISAM MERGE tables.
+
+  Methods:
+    append_create_info()
+
+  -------------------------------------------------------------------------
+  MODULE partitioning specific handler API
+  -------------------------------------------------------------------------
+  Methods:
+    get_partition_handler()
 */
 
 class handler :public Sql_alloc
@@ -2886,6 +3342,17 @@ public:
                                    char *child_key_name,
                                    uint child_key_name_len)
   { DBUG_ASSERT(false); return(false); }
+
+
+  /**
+    Change the internal TABLE_SHARE pointer.
+
+    @param table_arg    TABLE object
+    @param share        New share to use
+
+    @note Is used in error handling in ha_delete_table.
+  */
+
   virtual void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
   {
     table= table_arg;
@@ -3037,6 +3504,16 @@ public:
                                     HANDLER_BUFFER *buf);
   virtual int multi_range_read_next(char **range_info);
 
+
+  /**
+    Get keys to use for scanning.
+
+    This method is used to derive whether an index can be used for
+    index-only scanning when performing an ORDER BY query.
+    Only called from one place in sql_select.cc
+
+    @return Key_map of keys usable for scanning
+  */
 
   virtual const Key_map *keys_to_use_for_scanning() { return &key_map_empty; }
   bool has_transactions()
@@ -3245,6 +3722,11 @@ protected:
   virtual int index_read_idx_map(uchar * buf, uint index, const uchar * key,
                                  key_part_map keypart_map,
                                  enum ha_rkey_function find_flag);
+
+  /*
+    These methods are used to jump to next or previous entry in the index
+    scan. There are also methods to jump to first and last entry.
+  */
   /// @see index_read_map().
   virtual int index_next(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
@@ -3316,6 +3798,23 @@ public:
       return ha_rnd_pos(record, ref);
     }
   virtual int read_first_row(uchar *buf, uint primary_key);
+
+
+  /**
+    Find number of records in a range.
+
+    Given a starting key, and an ending key estimate the number of rows that
+    will exist between the two. max_key may be empty which in case determine
+    if start_key matches any rows. Used by optimizer to calculate cost of
+    using a particular index.
+
+    @param inx      Index number
+    @param min_key  Start of range
+    @param max_key  End of range
+
+    @return Number of rows in range.
+  */
+
   virtual ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key)
     { return (ha_rows) 10; }
   /*
@@ -3325,7 +3824,36 @@ public:
     Otherwise it set ref to the current row.
   */
   virtual void position(const uchar *record)=0;
-  virtual int info(uint)=0; // see my_base.h for full description
+
+
+  /**
+    General method to gather info from handler
+
+    ::info() is used to return information to the optimizer.
+    SHOW also makes use of this data Another note, if your handler
+    doesn't proved exact record count, you will probably want to
+    have the following in your code:
+    if (records < 2)
+      records = 2;
+    The reason is that the server will optimize for cases of only a single
+    record. If in a table scan you don't know the number of records
+    it will probably be better to set records to two so you can return
+    as many records as you need.
+
+    Along with records a few more variables you may wish to set are:
+      records
+      deleted
+      data_file_length
+      index_file_length
+      delete_length
+      check_time
+    Take a look at the public variables in handler.h for more information.
+    See also my_base.h for a full description.
+
+    @param   flag          Specifies what info is requested
+  */
+
+  virtual int info(uint flag)=0;
   virtual uint32 calculate_key_hash_value(Field **field_array)
   { DBUG_ASSERT(0); return 0; }
   virtual int extra(enum ha_extra_function operation)
@@ -3368,7 +3896,30 @@ public:
     the last committed row value under the cursor.
   */
   virtual void try_semi_consistent_read(bool) {}
+
+  /**
+    Unlock last accessed row.
+
+    Record currently processed was not in the result set of the statement
+    and is thus unlocked. Used for UPDATE and DELETE queries.
+  */
+
   virtual void unlock_row() {}
+
+
+  /**
+    Start a statement when table is locked
+
+    This method is called instead of external lock when the table is locked
+    before the statement is executed.
+
+    @param thd                  Thread object.
+    @param lock_type            Type of external lock.
+
+    @retval   >0                 Error code.
+    @retval    0                 Success.
+  */
+
   virtual int start_stmt(THD *thd, thr_lock_type lock_type) {return 0;}
   virtual void get_auto_increment(ulonglong offset, ulonglong increment,
                                   ulonglong nb_desired_values,
@@ -3395,6 +3946,18 @@ public:
       insert_id_for_cur_row;
   }
 
+
+  /**
+    Update create info as part of ALTER TABLE.
+
+    Forward this handler call to the storage engine foreach
+    partition handler.  The data_file_name for each partition may
+    need to be reset if the tablespace was moved.  Use a dummy
+    HA_CREATE_INFO structure and transfer necessary data.
+
+    @param    create_info         Create info from ALTER TABLE.
+  */
+
   virtual void update_create_info(HA_CREATE_INFO *create_info) {}
   int check_old_types();
   virtual int assign_to_keycache(THD* thd, HA_CHECK_OPT* check_opt)
@@ -3402,6 +3965,14 @@ public:
   virtual int preload_keys(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   /* end of the list of admin commands */
+
+
+  /**
+    Check if indexes are disabled.
+
+    @retval   0                         Indexes are enabled.
+    @retval   != 0                      Indexes are disabled.
+  */
 
   virtual int indexes_are_disabled(void) {return 0;}
   virtual void append_create_info(String *packet) {}
@@ -3514,7 +4085,25 @@ public:
 
   virtual bool low_byte_first() const { return 1; }
   virtual ha_checksum checksum() const { return 0; }
+
+
+  /**
+    Check if the table is crashed.
+
+    @retval TRUE  Crashed
+    @retval FALSE Not crashed
+  */
+
   virtual bool is_crashed() const  { return 0; }
+
+
+  /**
+    Check if the table can be automatically repaired.
+
+    @retval TRUE  Can be auto repaired
+    @retval FALSE Cannot be auto repaired
+  */
+
   virtual bool auto_repair() const { return 0; }
 
 
@@ -3525,9 +4114,21 @@ public:
 
 
   /**
+    Get number of lock objects returned in store_lock.
+
+    Returns the number of store locks needed in call to store lock.
+    We return number of partitions we will lock multiplied with number of
+    locks needed by each partition. Assists the above functions in allocating
+    sufficient space for lock structures.
+
+    @returns Number of locks returned in call to store_lock.
+
     @note lock_count() can return > 1 if the table is MERGE or partitioned.
   */
+
   virtual uint lock_count(void) const { return 1; }
+
+
   /**
     Is not invoked for non-transactional temporary tables.
 
@@ -3540,6 +4141,24 @@ public:
     @note If the table is MERGE, store_lock() can return less locks
     than lock_count() claimed. This can happen when the MERGE children
     are not attached when this is called from another thread.
+
+    The idea with handler::store_lock() is the following:
+
+    The statement decided which locks we should need for the table
+    for updates/deletes/inserts we get WRITE locks, for SELECT... we get
+    read locks.
+
+    Before adding the lock into the table lock handler (see thr_lock.c)
+    mysqld calls store lock with the requested locks.  Store lock can now
+    modify a write lock to a read lock (or some other lock), ignore the
+    lock (if we don't want to use MySQL table locks at all) or add locks
+    for many tables (like we do when we are using a MERGE handler).
+
+    In some exceptional cases MySQL may send a request for a TL_IGNORE;
+    This means that we are requesting the same lock as last time and this
+    should also be ignored.
+
+    Called from lock.cc by get_lock_data().
   */
   virtual THR_LOCK_DATA **store_lock(THD *thd,
 				     THR_LOCK_DATA **to,
@@ -3599,10 +4218,23 @@ public:
  */
 
  virtual bool primary_key_is_clustered() const { return false; }
- virtual int cmp_ref(const uchar *ref1, const uchar *ref2) const
- {
-   return memcmp(ref1, ref2, ref_length);
- }
+
+
+  /**
+    Compare two positions.
+
+    @param   ref1                   First position.
+    @param   ref2                   Second position.
+
+    @retval  <0                     ref1 < ref2.
+    @retval  0                      Equal.
+    @retval  >0                     ref1 > ref2.
+  */
+
+  virtual int cmp_ref(const uchar *ref1, const uchar *ref2) const
+  {
+    return memcmp(ref1, ref2, ref_length);
+  }
 
  /*
    Condition pushdown to storage engines
@@ -4003,10 +4635,23 @@ protected:
     provide useful functionality.
   */
   virtual int rename_table(const char *from, const char *to);
+
+
   /**
-    Delete a table in the engine. Called for base as well as temporary
-    tables.
+    Delete a table.
+
+    Used to delete a table. By the time delete_table() has been called all
+    opened references to this table will have been closed (and your globally
+    shared references released. The variable name will just be the name of
+    the table. You will need to remove any files you have created at this
+    point. Called for base as well as temporary tables.
+
+    @param    name             Full path of table name.
+
+    @retval   >0               Error.
+    @retval    0               Success.
   */
+
   virtual int delete_table(const char *name);
 private:
   /* Private helpers */
@@ -4098,6 +4743,17 @@ private:
     in MyISAM, which would call @c fcntl to set/clear an advisory
     lock on the data file in this method.
 
+    Originally this method was used to set locks on file level to enable
+    several MySQL Servers to work on the same data. For transactional
+    engines it has been "abused" to also mean start and end of statements
+    to enable proper rollback of statements and transactions. When LOCK
+    TABLES has been issued the start_stmt method takes over the role of
+    indicating start of statement but in this case there is no end of
+    statement indicator(?).
+
+    Called from lock.cc by lock_external() and unlock_external(). Also called
+    from sql_table.cc by copy_data_between_tables().
+
     @param   thd          the current thread
     @param   lock_type    F_RDLCK, F_WRLCK, F_UNLCK
 
@@ -4161,7 +4817,12 @@ public:
     return HA_ERR_WRONG_COMMAND;
   }
   /**
-    This is called to delete all rows in a table
+    Delete all rows in a table.
+
+    This is called both for cases of truncate and for cases where the
+    optimizer realizes that all rows will be removed as a result of an
+    SQL statement.
+
     If the handler don't support this, then this function will
     return HA_ERR_WRONG_COMMAND and MySQL will delete the rows one
     by one.
@@ -4195,8 +4856,43 @@ public:
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   virtual int analyze(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
+
+
+  /**
+    @brief Check and repair the table if necessary.
+
+    @param thd    Thread object
+
+    @retval TRUE  Error/Not supported
+    @retval FALSE Success
+
+    @note Called if open_table_from_share fails and is_crashed().
+  */
+
   virtual bool check_and_repair(THD *thd) { return TRUE; }
+
+
+  /**
+    Disable indexes for a while.
+
+    @param    mode                      Mode.
+
+    @retval   0                         Success.
+    @retval   != 0                      Error.
+  */
+
   virtual int disable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
+
+
+  /**
+    Enable indexes again.
+
+    @param    mode                      Mode.
+
+    @retval   0                         Success.
+    @retval   != 0                      Error.
+  */
+
   virtual int enable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
   virtual int discard_or_import_tablespace(my_bool discard)
   {
@@ -4415,11 +5111,6 @@ static inline bool ha_storage_engine_is_enabled(const handlerton *db_type)
 {
   return (db_type && db_type->create) ?
          (db_type->state == SHOW_OPTION_YES) : FALSE;
-}
-
-static inline bool is_ha_partition_handlerton(const handlerton *db_type)
-{
-  return (db_type->db_type == DB_TYPE_PARTITION_DB);
 }
 
 /* basic stuff */

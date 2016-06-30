@@ -26,13 +26,11 @@ if ($do_file_tests)
 {
   let $ls_file= $MYSQLD_DATADIR/test/tmp2;
   # List the files belonging to the table t1
-  --replace_regex /_[0-9]+\.SDI/_XXX.SDI/
   --replace_result $MYSQLTEST_VARDIR \$MYSQLTEST_VARDIR #p# #P# #sp# #SP#
   --list_files_write_file $ls_file $MYSQLD_DATADIR/test t1*
   --chmod 0644 $ls_file
   if ($with_directories)
   {
-    --replace_regex /_[0-9]+\.SDI/_XXX.SDI/
     --replace_result $MYSQLTEST_VARDIR \$MYSQLTEST_VARDIR #p# #P# #sp# #SP#
     --list_files_append_file $ls_file $MYSQLTEST_VARDIR/tmp t1*
   }

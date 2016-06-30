@@ -7,7 +7,6 @@
 --source include/not_embedded.inc
 
 --source include/have_innodb.inc
---source include/have_partition.inc
 
 # Test take time to run due to max partitions
 --source include/big_test.inc

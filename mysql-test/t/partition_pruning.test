@@ -7,7 +7,6 @@
 --source include/not_log_bin.inc
 
 --source include/no_valgrind_without_big.inc
---source include/have_partition.inc
 let $verify_without_partitions=0;
 
 --echo #

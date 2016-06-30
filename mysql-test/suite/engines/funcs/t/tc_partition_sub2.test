@@ -1,5 +1,9 @@
 --disable_warnings
 let $ENGINE=`select variable_value from performance_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
+if ($ENGINE == "MyISAM")
+{
+  skip MyISAM does not support native partitioning;
+}
 --enable_warnings
 
 --disable_warnings

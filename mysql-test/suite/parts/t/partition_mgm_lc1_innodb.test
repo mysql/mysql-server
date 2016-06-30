@@ -10,9 +10,6 @@
 # Original Date: 2008-06-27                                                    #
 ################################################################################
 
-# The server must support partitioning.
---source include/have_partition.inc
-
 #
 # NOTE: PLEASE DO NOT ADD NOT INNODB SPECIFIC TESTCASES HERE !
 #       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN

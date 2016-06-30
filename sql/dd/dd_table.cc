@@ -1940,30 +1940,11 @@ bool table_storage_engine(THD *thd, const TABLE_LIST *table_list,
   }
 
   *hton= plugin_data<handlerton*>(tmp_plugin);
-  DBUG_ASSERT(*hton);
-
-  /*
-    In DD tables, real storage engine name is stored for the tables.
-    So if real storage engine does *not* support partitioning then
-    using "ha_partition" storage engine.
-  */
-  if (table->partition_type() != dd::Table::PT_NONE &&
-      !(*hton)->partition_flags)
-  {
-    tmp_plugin= ha_resolve_by_name_raw(thd, std::string("partition"));
-    if (!tmp_plugin)
-    {
-      /*
-        In cases when partitioning SE is disabled we need to produce custom
-        error message.
-      */
-      my_error(ER_FEATURE_NOT_AVAILABLE, MYF(0), "partitioning",
-               "--skip-partition", "-DWITH_PARTITION_STORAGE_ENGINE=1");
-      DBUG_RETURN(true);
-    }
-    *hton= plugin_data<handlerton*>(tmp_plugin);
-  }
   DBUG_ASSERT(*hton && ha_storage_engine_is_enabled(*hton));
+
+  // For a partitioned table, the SE must support partitioning natively.
+  DBUG_ASSERT(table->partition_type() == dd::Table::PT_NONE ||
+              (*hton)->partition_flags);
 
   DBUG_RETURN(false);
 }

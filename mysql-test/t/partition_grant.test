@@ -1,4 +1,3 @@
--- source include/have_partition.inc
 # Grant tests not performed with embedded server
 -- source include/not_embedded.inc
 

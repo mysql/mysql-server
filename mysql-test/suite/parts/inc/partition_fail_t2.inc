@@ -8,7 +8,6 @@ SELECT * FROM t2;
 --eval $create_statement
 --eval $insert_statement
 --echo # State before failure
---replace_regex /_[0-9]+\.SDI/_XXX.SDI/
 --replace_result #p# #P#
 --list_files $DATADIR/test
 SHOW CREATE TABLE `t1/a\b#2`;
@@ -20,7 +19,6 @@ SELECT * FROM `t1/a\b#2`;
 --eval $fail_statement
 --enable_abort_on_error
 --echo # State after failure
---replace_regex /_[0-9]+\.SDI/_XXX.SDI/
 --replace_result #p# #P#
 --list_files $DATADIR/test
 SHOW CREATE TABLE `t1/a\b#2`;

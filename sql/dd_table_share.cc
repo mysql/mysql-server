@@ -541,69 +541,40 @@ static row_type dd_get_old_row_format(dd::Table::enum_row_format new_format)
 /** Fill TABLE_SHARE from dd::Table object */
 static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share, const dd::Table *tab_obj)
 {
-  uint64 option_value;
-  bool bool_opt;
-
-  //
-  // Read other table options
-  //
-
-  dd::Properties *table_options= const_cast<dd::Properties*>
-    (&tab_obj->options());
-
   // Read table engine type
   plugin_ref tmp_plugin= ha_resolve_by_name_raw(thd, tab_obj->engine());
   if (tmp_plugin)
   {
+#ifndef DBUG_OFF
     handlerton *hton= plugin_data<handlerton *>(tmp_plugin);
-    DBUG_ASSERT(hton);
-    DBUG_ASSERT((strcmp(tab_obj->engine().c_str(), "partition") == 0) ||
-                !ha_check_storage_engine_flag(hton, HTON_NOT_USER_SELECTABLE));
+#endif
 
-    /*
-      In DD tables, real storage engine name is stored for the tables.
-      So if real storage engine does *not* support partitioning then
-      using "ha_partition" storage engine.
-    */
-    if (tab_obj->partition_type() != dd::Table::PT_NONE &&
-        !hton->partition_flags)
-    {
-      tmp_plugin= ha_resolve_by_name_raw(thd, std::string("partition"));
-      if (!tmp_plugin)
-      {
-        /*
-          In cases when partitioning SE is disabled we need to produce custom
-          error message.
-        */
-        my_error(ER_FEATURE_NOT_AVAILABLE, MYF(0), "partitioning",
-                 "--skip-partition", "-DWITH_PARTITION_STORAGE_ENGINE=1");
-        return true;
-      }
-
-      hton= plugin_data<handlerton *>(tmp_plugin);
-    }
     DBUG_ASSERT(hton && ha_storage_engine_is_enabled(hton));
+    DBUG_ASSERT(!ha_check_storage_engine_flag(hton, HTON_NOT_USER_SELECTABLE));
+
+    // For a partitioned table, the SE must support partitioning natively.
+    DBUG_ASSERT(tab_obj->partition_type() == dd::Table::PT_NONE ||
+                hton->partition_flags);
 
     plugin_unlock(NULL, share->db_plugin);
     share->db_plugin= my_plugin_lock(NULL, &tmp_plugin);
   }
   else
   {
-    /*
-      In cases when partitioning SE is disabled we need to produce custom
-      error message.
-    */
-    if (strcmp(tab_obj->engine().c_str(), "partition") == 0)
-      my_error(ER_FEATURE_NOT_AVAILABLE, MYF(0), "partitioning",
-               "--skip-partition", "-DWITH_PARTITION_STORAGE_ENGINE=1");
-    else
-      my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), tab_obj->engine().c_str());
+    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), tab_obj->engine().c_str());
     return true;
   }
 
-  /* Set temporarily a good value for db_low_byte_first */
+  // Set temporarily a good value for db_low_byte_first.
   DBUG_ASSERT(ha_legacy_type(share->db_type()) != DB_TYPE_ISAM);
   share->db_low_byte_first= true;
+
+  // Read other table options
+  dd::Properties *table_options= const_cast<dd::Properties*>
+    (&tab_obj->options());
+
+  uint64 option_value;
+  bool bool_opt;
 
   // Max rows
   if (table_options->exists("max_rows"))

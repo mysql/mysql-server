@@ -46,7 +46,16 @@ template <class T> class List;
   Removed HA_CAN_PARTITION (1 << 0) since if handlerton::partition_flags
   is set, then it implies that it have partitioning support.
 */
+/*
+  Set if the handler can update fields that are part of the partition
+  function.
+*/
 #define HA_CAN_UPDATE_PARTITION_KEY (1 << 1)
+/*
+  Set if the handler can handle unique indexes where the fields of the
+  unique key are not part of the fields of the partition function. Thus
+  a unique key can be set on all fields.
+*/
 #define HA_CAN_PARTITION_UNIQUE (1 << 2)
 /* If the engine will use auto partitioning even when not defined. */
 #define HA_USE_AUTO_PARTITION (1 << 3)

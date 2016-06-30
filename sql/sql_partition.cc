@@ -4593,7 +4593,6 @@ bool mysql_unpack_partition(THD *thd,
     part_info->default_engine_type= default_db_type;
   DBUG_ASSERT(part_info->default_engine_type == default_db_type);
   DBUG_ASSERT(part_info->default_engine_type->db_type != DB_TYPE_UNKNOWN);
-  DBUG_ASSERT(!is_ha_partition_handlerton(part_info->default_engine_type));
 
   {
   /*
@@ -4746,8 +4745,6 @@ static bool check_native_partitioned(HA_CREATE_INFO *create_info,bool *ret_val,
     if (thd->lex->sql_command != SQLCOM_CREATE_TABLE)
     {
       table_engine_set= TRUE;
-      DBUG_ASSERT(engine_type &&
-                  !is_ha_partition_handlerton(engine_type));
     }
   }
   DBUG_PRINT("info", ("engine_type = %s, table_engine_set = %u",
@@ -4966,16 +4963,6 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
   DBUG_ENTER("prep_alter_part_table");
   DBUG_ASSERT(new_part_info);
 
-  /* Foreign keys are not supported by ha_partition, waits for WL#148 */
-  if (is_ha_partition_handlerton(table->file->ht) &&
-      table->part_info &&
-      (alter_info->flags & Alter_info::ADD_FOREIGN_KEY ||
-       alter_info->flags & Alter_info::DROP_FOREIGN_KEY))
-  {
-    DBUG_ASSERT(table->part_info);
-    my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
-    DBUG_RETURN(TRUE);
-  }
   /* Remove partitioning on a not partitioned table is not possible */
   if (!table->part_info && (alter_info->flags &
                             Alter_info::ALTER_REMOVE_PARTITIONING))
@@ -5981,8 +5968,6 @@ the generated partition syntax in a correct manner.
         else
           part_info->default_engine_type= create_info->db_type;
       }
-      DBUG_ASSERT(part_info->default_engine_type &&
-                  !is_ha_partition_handlerton(part_info->default_engine_type));
       if (check_native_partitioned(create_info, &is_native_partitioned,
                                    part_info, thd))
       {
@@ -5990,16 +5975,8 @@ the generated partition syntax in a correct manner.
       }
       if (!is_native_partitioned)
       {
-        DBUG_ASSERT(create_info->db_type);
-        LEX_CSTRING name= { "partition", 9 };
-        plugin_ref plugin= ha_resolve_by_name_raw(thd, name);
-        if (!plugin)
-        {
-          my_error(ER_FEATURE_NOT_AVAILABLE, MYF(0), "partitioning",
-                   "--skip-partition", "-DWITH_PARTITION_STORAGE_ENGINE=1");
-          goto err;
-        }
-        create_info->db_type= plugin_data<handlerton*>(plugin);
+        my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "native partitioning");
+        goto err;
       }
     }
   }

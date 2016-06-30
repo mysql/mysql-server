@@ -2,7 +2,6 @@
 # Simple test for the erroneos statements using the
 # partition storage engine
 #
--- source include/have_partition.inc
 # This test needs MyISAM for some sub tests
 --source include/have_myisam.inc
 

@@ -337,18 +337,25 @@ CREATE TABLE t2(a int, b int as (1 NOT IN (SELECT 1 FROM dual)));
 DROP TABLE t1;
 
 if(! $testing_ndb) {
---echo # Bug#21142905: PARTITIONED GENERATED COLS -
---echo #  !TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET
---echo # 
-CREATE TABLE t1 (
-a int,
-b int generated always as (a) virtual,
-c int generated always as (b+a) virtual,
-d int generated always as (b+a) virtual
-) PARTITION BY LINEAR HASH (b);
-INSERT INTO t1(a) VALUES(0);
-DELETE FROM t1 WHERE c=1;
-DROP TABLE t1;
+  --echo # Bug#21142905: PARTITIONED GENERATED COLS -
+  --echo #  !TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET
+  --echo # 
+  if ($support_native_partitioning)
+  {
+    CREATE TABLE t1 (
+    a int,
+    b int generated always as (a) virtual,
+    c int generated always as (b+a) virtual,
+    d int generated always as (b+a) virtual
+    ) PARTITION BY LINEAR HASH (b);
+    INSERT INTO t1(a) VALUES(0);
+    DELETE FROM t1 WHERE c=1;
+    DROP TABLE t1;
+  }
+  if (!$support_native_partitioning)
+  {
+   --echo "Skipped since this engine does not support native partitioning.
+  }
 }
 
 --echo # Bug #20709487: COLLATE OPTION NOT ACCEPTED IN GENERATED COLUMN
@@ -394,23 +401,30 @@ SELECT c, c_ci REGEXP 'A', c_cs REGEXP 'A' FROM t1;
 DROP TABLE t1;
 
 if(! $testing_ndb) {
---echo # Bug #21469535: VALGRIND ERROR (CONDITIONAL JUMP) WHEN INSERT
---echo #                ROWS INTO A PARTITIONED TABLE
---echo #
-CREATE TABLE t1 (
-    id INT NOT NULL,
-    store_id INT NOT NULL,
-    x INT GENERATED ALWAYS AS (id + store_id)
-)
-PARTITION BY RANGE (store_id) (
-    PARTITION p0 VALUES LESS THAN (6),
-    PARTITION p1 VALUES LESS THAN (11),
-    PARTITION p2 VALUES LESS THAN (16),
-    PARTITION p3 VALUES LESS THAN (21)
-);
+  --echo # Bug #21469535: VALGRIND ERROR (CONDITIONAL JUMP) WHEN INSERT
+  --echo #                ROWS INTO A PARTITIONED TABLE
+  --echo #
+  if ($support_native_partitioning)
+  {
+    CREATE TABLE t1 (
+        id INT NOT NULL,
+        store_id INT NOT NULL,
+        x INT GENERATED ALWAYS AS (id + store_id)
+    )
+    PARTITION BY RANGE (store_id) (
+        PARTITION p0 VALUES LESS THAN (6),
+        PARTITION p1 VALUES LESS THAN (11),
+        PARTITION p2 VALUES LESS THAN (16),
+        PARTITION p3 VALUES LESS THAN (21)
+    );
 
-INSERT INTO t1 VALUES(1, 2, default);
-DROP TABLE t1;
+    INSERT INTO t1 VALUES(1, 2, default);
+    DROP TABLE t1;
+  }
+  if (!$support_native_partitioning)
+  {
+    --echo "Skipped since this engine does not support native partitioning.
+  }
 }
 
 --echo # Bug#21465626:ASSERT/CRASH ON DROPPING/ADDING VIRTUAL COLUMN

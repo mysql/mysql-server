@@ -3,6 +3,7 @@
 # Verify ddl_log in case of crashing.
 call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
 call mtr.add_suppression('InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles!');
+call mtr.add_suppression('\\[ERROR\\] InnoDB: Table');
 SET SESSION debug="+d,exchange_partition_abort_1";
 CREATE TABLE t2 (a INT, b VARCHAR(64));
 INSERT INTO t2 VALUES (5, "Original from table t2"), (6, "Original from table t2"), (7, "Original from table t2"), (8, "Original from table t2");
@@ -11,7 +12,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -23,24 +24,18 @@ CREATE TABLE `t1/a\b#2` (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO `t1/a\b#2` VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before crash
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -58,34 +53,22 @@ a	b
 ALTER TABLE `t1/a\b#2` EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 # State after crash recovery
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -106,7 +89,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -123,7 +106,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -135,24 +118,18 @@ CREATE TABLE `t1/a\b#2` (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO `t1/a\b#2` VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before crash
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -170,34 +147,22 @@ a	b
 ALTER TABLE `t1/a\b#2` EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 # State after crash recovery
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -218,7 +183,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -235,7 +200,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -247,24 +212,18 @@ CREATE TABLE `t1/a\b#2` (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO `t1/a\b#2` VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before crash
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -282,34 +241,22 @@ a	b
 ALTER TABLE `t1/a\b#2` EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 # State after crash recovery
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -330,7 +277,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -347,7 +294,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -359,24 +306,18 @@ CREATE TABLE `t1/a\b#2` (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO `t1/a\b#2` VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before crash
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -394,34 +335,22 @@ a	b
 ALTER TABLE `t1/a\b#2` EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
-#sql-tmp.MYD
-#sql-tmp.MYI
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2_XXX.SDI
+#sql-tmp.ibd
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
 # State after crash recovery
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -442,7 +371,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -459,7 +388,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -471,24 +400,18 @@ CREATE TABLE `t1/a\b#2` (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO `t1/a\b#2` VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before crash
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -506,34 +429,22 @@ a	b
 ALTER TABLE `t1/a\b#2` EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
-#sql-tmp.MYD
-#sql-tmp.MYI
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2_XXX.SDI
+#sql-tmp.ibd
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
 # State after crash recovery
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -554,7 +465,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -571,7 +482,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -583,24 +494,18 @@ CREATE TABLE `t1/a\b#2` (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO `t1/a\b#2` VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before crash
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -618,34 +523,22 @@ a	b
 ALTER TABLE `t1/a\b#2` EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
-#sql-tmp.MYD
-#sql-tmp.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+#sql-tmp.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 # State after crash recovery
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -666,7 +559,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -683,7 +576,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -695,24 +588,18 @@ CREATE TABLE `t1/a\b#2` (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO `t1/a\b#2` VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before crash
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -730,34 +617,22 @@ a	b
 ALTER TABLE `t1/a\b#2` EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
-#sql-tmp.MYD
-#sql-tmp.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+#sql-tmp.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 # State after crash recovery
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -778,7 +653,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -795,7 +670,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -807,24 +682,18 @@ CREATE TABLE `t1/a\b#2` (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO `t1/a\b#2` VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before crash
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -842,34 +711,22 @@ a	b
 ALTER TABLE `t1/a\b#2` EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 # State after crash recovery
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -890,7 +747,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -907,7 +764,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -919,24 +776,18 @@ CREATE TABLE `t1/a\b#2` (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO `t1/a\b#2` VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before crash
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -954,34 +805,22 @@ a	b
 ALTER TABLE `t1/a\b#2` EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 # State after crash recovery
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 11	Original from partition p1
@@ -1002,7 +841,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 1	Original from partition p0
@@ -1019,7 +858,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -1031,24 +870,18 @@ CREATE TABLE `t1/a\b#2` (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO `t1/a\b#2` VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before failure
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -1066,24 +899,18 @@ a	b
 ALTER TABLE `t1/a\b#2` EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Error in DDL log
 # State after failure
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -1104,7 +931,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -1121,7 +948,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -1133,24 +960,18 @@ CREATE TABLE `t1/a\b#2` (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO `t1/a\b#2` VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before failure
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -1168,24 +989,18 @@ a	b
 ALTER TABLE `t1/a\b#2` EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Error in DDL log
 # State after failure
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -1206,7 +1021,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -1223,7 +1038,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -1235,24 +1050,18 @@ CREATE TABLE `t1/a\b#2` (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO `t1/a\b#2` VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before failure
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -1270,24 +1079,18 @@ a	b
 ALTER TABLE `t1/a\b#2` EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Error on rename of './test/t2' to './test/#sqlx-nnnn_nnnn' (errno: 0 - n/a)
 # State after failure
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -1308,7 +1111,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -1325,7 +1128,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -1337,24 +1140,18 @@ CREATE TABLE `t1/a\b#2` (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO `t1/a\b#2` VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before failure
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -1372,24 +1169,18 @@ a	b
 ALTER TABLE `t1/a\b#2` EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Error in DDL log
 # State after failure
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -1410,7 +1201,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -1427,7 +1218,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -1439,24 +1230,18 @@ CREATE TABLE `t1/a\b#2` (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO `t1/a\b#2` VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before failure
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -1474,24 +1259,18 @@ a	b
 ALTER TABLE `t1/a\b#2` EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Error on rename of './test/t1@002fa@005cb@00232#P#p0' to './test/t2' (errno: 0 - n/a)
 # State after failure
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -1512,7 +1291,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -1529,7 +1308,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -1541,24 +1320,18 @@ CREATE TABLE `t1/a\b#2` (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO `t1/a\b#2` VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before failure
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -1576,24 +1349,18 @@ a	b
 ALTER TABLE `t1/a\b#2` EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Error in DDL log
 # State after failure
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -1614,7 +1381,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -1631,7 +1398,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -1643,24 +1410,18 @@ CREATE TABLE `t1/a\b#2` (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO `t1/a\b#2` VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before failure
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -1678,24 +1439,18 @@ a	b
 ALTER TABLE `t1/a\b#2` EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Error on rename of './test/#sqlx-nnnn_nnnn' to './test/t1@002fa@005cb@00232#P#p0' (errno: 0 - n/a)
 # State after failure
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -1716,7 +1471,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -1733,7 +1488,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -1745,24 +1500,18 @@ CREATE TABLE `t1/a\b#2` (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO `t1/a\b#2` VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before failure
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -1780,24 +1529,18 @@ a	b
 ALTER TABLE `t1/a\b#2` EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Error in DDL log
 # State after failure
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -1818,7 +1561,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -1835,7 +1578,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 5	Original from table t2
@@ -1847,24 +1590,18 @@ CREATE TABLE `t1/a\b#2` (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO `t1/a\b#2` VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before failure
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 1	Original from partition p0
@@ -1882,24 +1619,18 @@ a	b
 ALTER TABLE `t1/a\b#2` EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Error in DDL log
 # State after failure
-t1@002fa@005cb@00232#P#p0.MYD
-t1@002fa@005cb@00232#P#p0.MYI
-t1@002fa@005cb@00232#P#p1.MYD
-t1@002fa@005cb@00232#P#p1.MYI
-t1@002fa@005cb@00232.par
-t1@002fa@005cb@00232_XXX.SDI
-t2.MYD
-t2.MYI
-t2_XXX.SDI
+t1@002fa@005cb@00232#P#p0.ibd
+t1@002fa@005cb@00232#P#p1.ibd
+t2.ibd
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM `t1/a\b#2`;
 a	b
 11	Original from partition p1
@@ -1920,7 +1651,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 a	b
 1	Original from partition p0

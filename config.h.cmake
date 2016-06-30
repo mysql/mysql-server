@@ -291,11 +291,6 @@
 #cmakedefine MYSQL_DEFAULT_COLLATION_NAME "@MYSQL_DEFAULT_COLLATION_NAME@"
 
 /*
- * Feature set
- */
-#cmakedefine WITH_PARTITION_STORAGE_ENGINE 1
-
-/*
  * Performance schema
  */
 #cmakedefine WITH_PERFSCHEMA_STORAGE_ENGINE 1

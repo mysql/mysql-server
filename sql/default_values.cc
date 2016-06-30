@@ -324,9 +324,7 @@ bool prepare_default_value_buffer_and_table_share(THD *thd,
   // well as extra record length.
   handler *file= NULL;
   handlerton *engine= share->db_type();
-  if (engine->db_type == DB_TYPE_PARTITION_DB)
-    engine= plugin_data<handlerton *>(ha_resolve_by_name_raw(thd,
-                                                             table.engine()));
+
   if (!(file= get_new_handler(NULL, thd->mem_root, engine)))
   {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),

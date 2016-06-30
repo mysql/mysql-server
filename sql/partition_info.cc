@@ -1216,7 +1216,6 @@ bool partition_info::check_engine_mix(handlerton *engine_type,
   }
   DBUG_PRINT("info", ("out: engine_type = %s",
                        ha_resolve_storage_engine_name(engine_type)));
-  DBUG_ASSERT(!is_ha_partition_handlerton(engine_type));
   DBUG_RETURN(FALSE);
 error:
   /*
@@ -1666,7 +1665,6 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
   bool result= TRUE, table_engine_set;
   char *same_name;
   DBUG_ENTER("partition_info::check_partition_info");
-  DBUG_ASSERT(!is_ha_partition_handlerton(table_engine));
 
   DBUG_PRINT("info", ("default table_engine = %s",
                       ha_resolve_storage_engine_name(table_engine)));
@@ -1743,12 +1741,6 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
   {
     table_engine_set= TRUE;
     table_engine= info->db_type;
-    /* if partition hton, use thd->lex->create_info */
-    if (is_ha_partition_handlerton(table_engine))
-    {
-      table_engine= thd->lex->create_info.db_type;
-    }
-    DBUG_ASSERT(!is_ha_partition_handlerton(table_engine));
     DBUG_PRINT("info", ("Using table_engine = %s",
                         ha_resolve_storage_engine_name(table_engine)));
   }
@@ -1760,8 +1752,6 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
       table_engine_set= TRUE;
       DBUG_PRINT("info", ("No create, table_engine = %s",
                           ha_resolve_storage_engine_name(table_engine)));
-      DBUG_ASSERT(table_engine &&
-                  !is_ha_partition_handlerton(table_engine));
     }
   }
 
@@ -1887,8 +1877,8 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
     goto end;
   }
 
-  DBUG_ASSERT(table_engine == default_engine_type &&
-              !is_ha_partition_handlerton(table_engine));
+  DBUG_ASSERT(table_engine == default_engine_type);
+
   if (eng_type)
     *eng_type= table_engine;
 

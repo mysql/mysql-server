@@ -1,3 +1,10 @@
+--disable_warnings
+let $ENGINE=`select variable_value from performance_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
+if ($ENGINE == "MyISAM")
+{
+  skip MyISAM does not support native partitioning;
+}
+
 SET innodb_strict_mode=OFF;
 mkdir $MYSQLTEST_VARDIR/tmp/tc_partition_list_directory;
 mkdir $MYSQLTEST_VARDIR/tmp/tc_partition_list_directory/p1999;

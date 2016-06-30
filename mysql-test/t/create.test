@@ -1832,16 +1832,18 @@ DROP DATABASE db_created_with_mkdir_and_an_unrelated_file_in_data_directory;
 CREATE TABLE t1 (id INT) INDEX DIRECTORY = 'a#######################################################b#######################################################################################b#####################################################################################b######################################################################################b######################################################################################b#############################################################################################################';
 --error ER_PATH_LENGTH
 CREATE TABLE t2 (id INT NOT NULL, name VARCHAR(30))
-ENGINE = MYISAM
+ENGINE = InnoDB
 PARTITION BY RANGE (id) (
 PARTITION p0 VALUES LESS THAN (10) INDEX DIRECTORY = 'a#######################################################b#######################################################################################b#####################################################################################b######################################################################################b######################################################################################b#############################################################################################################'
 );
 
 --error ER_WRONG_VALUE
 CREATE TABLE t3 (id INT) INDEX DIRECTORY = 'test';
---error ER_WRONG_VALUE
+
+# The statememnt fails differently with embedded and non-embedded server.
+--error ER_WRONG_VALUE, ER_ILLEGAL_HA
 CREATE TABLE t4 (id INT NOT NULL, name VARCHAR(30))
-ENGINE = MYISAM
+ENGINE = InnoDB
 PARTITION BY RANGE (id) (
 PARTITION p0 VALUES LESS THAN (10) INDEX DIRECTORY = 'test'
 );

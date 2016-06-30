@@ -6,7 +6,6 @@
 # See innodb.innodb-restart for tablespace migration tests.
 #
 --source include/have_innodb.inc
---source include/have_partition.inc
 SET default_storage_engine=InnoDB;
 LET $MYSQLD_DATADIR = `select @@datadir`;
 LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;

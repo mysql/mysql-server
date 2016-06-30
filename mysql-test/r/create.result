@@ -1888,7 +1888,7 @@ ERROR HY000: Can't drop database 'db_created_with_mkdir_and_an_unrelated_file_in
 CREATE TABLE t1 (id INT) INDEX DIRECTORY = 'a#######################################################b#######################################################################################b#####################################################################################b######################################################################################b######################################################################################b#############################################################################################################';
 ERROR HY000: The path specified for INDEX DIRECTORY is too long.
 CREATE TABLE t2 (id INT NOT NULL, name VARCHAR(30))
-ENGINE = MYISAM
+ENGINE = InnoDB
 PARTITION BY RANGE (id) (
 PARTITION p0 VALUES LESS THAN (10) INDEX DIRECTORY = 'a#######################################################b#######################################################################################b#####################################################################################b######################################################################################b######################################################################################b#############################################################################################################'
 );
@@ -1896,8 +1896,8 @@ ERROR HY000: The path specified for INDEX DIRECTORY is too long.
 CREATE TABLE t3 (id INT) INDEX DIRECTORY = 'test';
 ERROR HY000: Incorrect path value: 'test'
 CREATE TABLE t4 (id INT NOT NULL, name VARCHAR(30))
-ENGINE = MYISAM
+ENGINE = InnoDB
 PARTITION BY RANGE (id) (
 PARTITION p0 VALUES LESS THAN (10) INDEX DIRECTORY = 'test'
 );
-ERROR HY000: Incorrect path value: 'test'
+Got one of the listed errors
