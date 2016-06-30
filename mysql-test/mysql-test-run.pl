@@ -4152,6 +4152,9 @@ sub check_testcase($$)
   # Return immediately if no check proceess was started
   return 0 unless ( keys %started );
 
+  # Tests that force restart, should not do check-testcase
+  return 0 if restart_forced_by_test('force_restart');
+
   my $timeout= start_timer(check_timeout($tinfo));
 
   while (1){
