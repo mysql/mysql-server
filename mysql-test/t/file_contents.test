@@ -52,7 +52,6 @@ if ($dir_bin =~ m|/usr/|) {
 } else {
   # tar.gz package, Windows, or developer work (in git)
   $dir_docs = $dir_bin;
-  $dir_docs =~ s|/lib||;
   if(-d "$dir_docs/docs") {
     $dir_docs = "$dir_docs/docs"; # package
   } else {
