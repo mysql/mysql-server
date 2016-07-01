@@ -6,4 +6,5 @@ set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 
+--let $support_native_partitioning= 0
 --source suite/opt_trace/include/bugs.inc

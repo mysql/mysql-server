@@ -1,7 +1,6 @@
 #
 # Simple tests to verify truncate partition syntax
 #
---source include/have_partition.inc
 --disable_warnings
 drop table if exists t1, t2, t3, t4;
 --enable_warnings

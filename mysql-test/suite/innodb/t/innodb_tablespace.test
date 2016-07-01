@@ -5,7 +5,6 @@
 # See innodb.innodb-restart for tablespace migration tests.
 #
 --source include/have_innodb.inc
---source include/have_partition.inc
 SET default_storage_engine=InnoDB;
 
 --echo #

@@ -110,37 +110,310 @@ enum ha_storage_media {
 
 	/* The following is parameter to ha_extra() */
 
+/*
+  We divide the HA_EXTRA entries into the following categories:
+
+  1) Operations used by most handlers:
+     HA_EXTRA_KEYREAD
+     HA_EXTRA_NO_KEYREAD
+     HA_EXTRA_FLUSH
+     HA_EXTRA_PREPARE_FOR_RENAME
+     HA_EXTRA_FORCE_REOPEN
+
+  2) Operations used by some non-MyISAM handlers
+     HA_EXTRA_KEYREAD_PRESERVE_FIELDS
+     HA_EXTRA_IGNORE_DUP_KEY
+     HA_EXTRA_NO_IGNORE_DUP_KEY
+
+  3) Operations used only by MyISAM
+     HA_EXTRA_NORMAL
+     HA_EXTRA_QUICK
+     HA_EXTRA_CACHE
+     HA_EXTRA_NO_CACHE
+     HA_EXTRA_WRITE_CACHE
+     HA_EXTRA_PREPARE_FOR_UPDATE
+     HA_EXTRA_PREPARE_FOR_DROP
+     HA_EXTRA_READCHECK
+     HA_EXTRA_NO_READCHECK
+
+  4) Operations only used by temporary tables for query processing
+     HA_EXTRA_RESET_STATE
+     HA_EXTRA_NO_ROWS
+
+  5) Operations only used by MyISAM internally
+     HA_EXTRA_REINIT_CACHE
+     HA_EXTRA_FLUSH_CACHE
+     HA_EXTRA_NO_USER_CHANGE
+     HA_EXTRA_WAIT_LOCK
+     HA_EXTRA_WAIT_NOLOCK
+     HA_EXTRA_NO_KEYS
+     HA_EXTRA_KEYREAD_CHANGE_POS
+     HA_EXTRA_REMEMBER_POS
+     HA_EXTRA_RESTORE_POS
+     HA_EXTRA_PRELOAD_BUFFER_SIZE
+     HA_EXTRA_CHANGE_KEY_TO_DUP
+     HA_EXTRA_CHANGE_KEY_TO_UNIQUE
+
+  6) Operations not used at all
+     HA_EXTRA_KEY_CACHE
+     HA_EXTRA_NO_KEY_CACHE
+
+  7) Operations only used by federated tables for query processing
+     HA_EXTRA_INSERT_WITH_UPDATE
+
+  8) Operations only used by NDB
+     HA_EXTRA_DELETE_CANNOT_BATCH
+     HA_EXTRA_UPDATE_CANNOT_BATCH
+
+  9) Operations only used by MERGE
+     HA_EXTRA_ADD_CHILDREN_LIST
+     HA_EXTRA_ATTACH_CHILDREN
+     HA_EXTRA_IS_ATTACHED_CHILDREN
+     HA_EXTRA_DETACH_CHILDREN
+
+  10) Operations only used by InnoDB
+      HA_EXTRA_EXPORT
+
+  11) Operations only used by partitioning
+      HA_EXTRA_SECONDARY_SORT_ROWID
+
+  The individual entries are described in more detail below.
+*/
+
 enum ha_extra_function {
-  HA_EXTRA_NORMAL=0,			/* Optimize for space (def) */
-  HA_EXTRA_QUICK=1,			/* Optimize for speed */
+  /*
+    Optimize for space (def).
+    Only used in MyISAM to reset quick mode, not implemented by any other
+    handler. Quick mode is also reset in MyISAM by handler::reset().
+
+    It is called after completing a successful DELETE query if the QUICK
+    option is set.
+  */
+  HA_EXTRA_NORMAL=0,
+  /*
+    Optimize for speed.
+    When the user does DELETE QUICK FROM table where-clause; this extra
+    option is called before the delete query is performed and
+    HA_EXTRA_NORMAL is called after the delete query is completed.
+    Temporary tables used internally in MySQL always set this option
+
+    The meaning of quick mode is that when deleting in a B-tree no merging
+    of leafs is performed. This is a common method and many large DBMS's
+    actually only support this quick mode since it is very difficult to
+    merge leaves in a tree used by many threads concurrently.
+  */
+  HA_EXTRA_QUICK=1,
   HA_EXTRA_NOT_USED=2,
-  HA_EXTRA_CACHE=3,			/* Cache record in HA_rrnd() */
-  HA_EXTRA_NO_CACHE=4,			/* End caching of records (def) */
-  HA_EXTRA_NO_READCHECK=5,		/* No readcheck on update */
-  HA_EXTRA_READCHECK=6,			/* Use readcheck (def) */
-  HA_EXTRA_KEYREAD=7,			/* Read only key to database */
-  HA_EXTRA_NO_KEYREAD=8,		/* Normal read of records (def) */
-  HA_EXTRA_NO_USER_CHANGE=9,		/* No user is allowed to write */
+  /*
+    Cache record in HA_rrnd()
+
+    This flag is usually set with extra_opt along with a cache size.
+    The size of this buffer is set by the user variable
+    record_buffer_size. The value of this cache size is the amount of
+    data read from disk in each fetch when performing a table scan.
+    This means that before scanning a table it is normal to call
+    extra with HA_EXTRA_CACHE and when the scan is completed to call
+    HA_EXTRA_NO_CACHE to release the cache memory.
+
+    Some special care is taken when using this extra parameter since there
+    could be a write ongoing on the table in the same statement. In this
+    one has to take special care since there might be a WRITE CACHE as
+    well. HA_EXTRA_CACHE specifies using a READ CACHE and using
+    READ CACHE and WRITE CACHE at the same time is not possible.
+
+    Only MyISAM currently use this option.
+
+    It is set when doing full table scans using rr_sequential and
+    reset when completing such a scan with end_read_record
+    (resetting means calling extra with HA_EXTRA_NO_CACHE).
+
+    It is set in filesort.cc for MyISAM internal tables and it is set in
+    a multi-update where HA_EXTRA_CACHE is called on a temporary result
+    table and after that ha_rnd_init(0) on table to be updated
+    and immediately after that HA_EXTRA_NO_CACHE on table to be updated.
+
+    Apart from that it is always used from init_read_record but not when
+    used from UPDATE statements. It is not used from DELETE statements
+    with ORDER BY and LIMIT but it is used in normal scan loop in DELETE
+    statements. The reason here is that DELETE's in MyISAM doesn't move
+    existings data rows.
+
+    It is also set in copy_data_between_tables when scanning the old table
+    to copy over to the new table.
+    And it is set in join_init_read_record where quick objects are used
+    to perform a scan on the table. In this case the full table scan can
+    even be performed multiple times as part of the nested loop join.
+  */
+  HA_EXTRA_CACHE=3,
+  /*
+    End caching of records (def).
+    When performing a UNION SELECT HA_EXTRA_NO_CACHE is called from the
+    flush method in the Query_result_union class.
+    See HA_EXTRA_RESET_STATE for use in conjunction with delete_all_rows().
+  */
+  HA_EXTRA_NO_CACHE=4,
+  /*
+    Only one call to HA_EXTRA_NO_READCHECK from ha_open where it says that
+    this is not needed in SQL. The reason for this call is that MyISAM sets
+    the READ_CHECK_USED in the open call so the call is needed for MyISAM
+    to reset this feature.
+    The idea with this parameter was to inform of doing/not doing a read
+    check before applying an update. Since SQL always performs a read before
+    applying the update No Read Check is needed in MyISAM as well.
+
+    This is a cut from Docs/myisam.txt
+     Sometimes you might want to force an update without checking whether
+     another user has changed the record since you last read it. This is
+     somewhat dangerous, so it should ideally not be used. That can be
+     accomplished by wrapping the mi_update() call in two calls to mi_extra(),
+     using the flags HA_EXTRA_NO_READCHECK and HA_EXTRA_READCHECK.
+  */
+  HA_EXTRA_NO_READCHECK=5,
+  HA_EXTRA_READCHECK=6,
+  /*
+    These parameters are used to provide an optimisation hint to the handler.
+    If HA_EXTRA_KEYREAD is set it is enough to read the index fields, for
+    many handlers this means that the index-only scans can be used and it
+    is not necessary to use the real records to satisfy this part of the
+    query. Index-only scans is a very important optimisation for disk-based
+    indexes. For main-memory indexes most indexes contain a reference to the
+    record and thus KEYREAD only says that it is enough to read key fields.
+    HA_EXTRA_NO_KEYREAD disables this for the handler, also, handler::reset()
+    will disable this option.
+    The handler will set HA_KEYREAD_ONLY in its table flags to indicate this
+    feature is supported.
+  */
+  HA_EXTRA_KEYREAD=7,
+  HA_EXTRA_NO_KEYREAD=8,
+  /*
+    No user is allowed to write. Only used by MyISAM, never called.
+    Simulates lock_type as locked.
+  */
+  HA_EXTRA_NO_USER_CHANGE=9,
+  /*
+    These parameters are no longer used and could be removed.
+  */
   HA_EXTRA_KEY_CACHE=10,
   HA_EXTRA_NO_KEY_CACHE=11,
-  HA_EXTRA_WAIT_LOCK=12,		/* Wait until file is avalably (def) */
-  HA_EXTRA_NO_WAIT_LOCK=13,		/* If file is locked, return quickly */
-  HA_EXTRA_WRITE_CACHE=14,		/* Use write cache in ha_write() */
-  HA_EXTRA_FLUSH_CACHE=15,		/* flush write_record_cache */
-  HA_EXTRA_NO_KEYS=16,			/* Remove all update of keys */
+  /*
+    Only used by MyISAM, called from MyISAM handler but never from server
+    code on top of the handler.
+    Sets lock_wait on/off:
+      Wait until file is avalable (def).
+      If file is locked, return quickly.
+  */
+  HA_EXTRA_WAIT_LOCK=12,
+  HA_EXTRA_NO_WAIT_LOCK=13,
+  /*
+    Use write cache in ha_write().
+    See HA_EXTRA_NO_CACHE. Called from various places. It is mostly used when we
+    do INSERT ... SELECT
+  */
+  HA_EXTRA_WRITE_CACHE=14,
+  /*
+    Flush WRITE CACHE in MyISAM. It is only from one place in the code.
+    This is in sql_insert.cc where it is called if the table_flags doesn't
+    contain HA_DUPLICATE_POS. The only handler having the HA_DUPLICATE_POS
+    set is the MyISAM handler and so the only handler not receiving this
+    call is MyISAM.
+    Thus in effect this call is called but never used. Could be removed
+    from sql_insert.cc
+  */
+  HA_EXTRA_FLUSH_CACHE=15,
+  /*
+    Remove all update of keys. Only used by MyISAM, only used internally in
+    MyISAM handler, never called from server level.
+  */
+  HA_EXTRA_NO_KEYS=16,
   HA_EXTRA_KEYREAD_CHANGE_POS=17,	/* Keyread, but change pos */
 					/* xxxxchk -r must be used */
   HA_EXTRA_REMEMBER_POS=18,		/* Remember pos for next/prev */
   HA_EXTRA_RESTORE_POS=19,
-  HA_EXTRA_REINIT_CACHE=20,		/* init cache from current record */
-  HA_EXTRA_FORCE_REOPEN=21,		/* Datafile have changed on disk */
-  HA_EXTRA_FLUSH,			/* Flush tables to disk */
-  HA_EXTRA_NO_ROWS,			/* Don't write rows */
-  HA_EXTRA_RESET_STATE,			/* Reset positions */
-  HA_EXTRA_IGNORE_DUP_KEY,		/* Dup keys don't rollback everything*/
+  /*
+    This call reinitializes the READ CACHE if there is one. Otherwise,
+    the call is ignored.
+  */
+  HA_EXTRA_REINIT_CACHE=20,
+  /*
+    Only used by MyISAM and Archive, called when altering table,
+    closing tables to enforce a reopen of the table files.
+  */
+  HA_EXTRA_FORCE_REOPEN=21,
+  /*
+    Indication to flush tables to disk, is supposed to be used to
+    ensure disk based tables are flushed at end of query execution.
+    Currently is never used.
+  */
+  HA_EXTRA_FLUSH,
+  /*
+    Don't insert rows indication to HEAP and MyISAM, only used by temporary
+    tables used in query processing.
+  */
+  HA_EXTRA_NO_ROWS,
+  /*
+    This option is used by most handlers and it resets the handler state
+    to the same state as after an open call.
+
+    It is called from the reset method in the handler interface. There are
+    three instances where this is called.
+
+    1) After completing a INSERT ... SELECT ... query the handler for the
+       table inserted into is reset
+    2) It is called from close_thread_table which in turn is called from
+       close_thread_tables except in the case where the tables are locked
+       in which case ha_commit_stmt is called instead.
+       It is only called from here if refresh_version hasn't changed and the
+       table is not an old table when calling close_thread_table.
+       close_thread_tables is called from many places as a general clean up
+       function after completing a query.
+    3) It is called when deleting the QUICK_RANGE_SELECT object if the
+       QUICK_RANGE_SELECT object had its own handler object. It is called
+       immediatley before close of this local handler object.
+
+    If there is a READ CACHE it is reinit'ed. A cache is reinit'ed to
+    restart reading or to change type of cache between READ CACHE and
+    WRITE CACHE.
+
+    This extra function is always called immediately before calling
+    delete_all_rows on the handler for temporary tables.
+    There are cases however when HA_EXTRA_RESET_STATE isn't called in
+    a similar case for a temporary table in sql_union.cc and in two other
+    cases HA_EXTRA_NO_CACHE is called before and HA_EXTRA_WRITE_CACHE
+    called afterwards.
+    The case with HA_EXTRA_NO_CACHE and HA_EXTRA_WRITE_CACHE means
+    disable caching, delete all rows and enable WRITE CACHE. This is
+    used for temporary tables containing distinct sums and a
+    functional group.
+
+    The only case that delete_all_rows is called on non-temporary tables
+    is in sql_delete.cc when DELETE FROM table; is called by a user.
+    In this case no special extra calls are performed before or after this
+    call.
+  */
+  HA_EXTRA_RESET_STATE,
+  /*
+    Informs the handler that we will not stop the transaction if we get
+    duplicate key errors during insert/upate.
+    Always called in pair, triggered by INSERT IGNORE and other similar
+    SQL constructs.
+    Not used by MyISAM.
+  */
+  HA_EXTRA_IGNORE_DUP_KEY,
   HA_EXTRA_NO_IGNORE_DUP_KEY,
+  /*
+    Only used by MyISAM, called in preparation for a DROP TABLE.
+    It's used mostly by Windows that cannot handle dropping an open file.
+    On other platforms it has the same effect as HA_EXTRA_FORCE_REOPEN.
+  */
   HA_EXTRA_PREPARE_FOR_DROP,
-  HA_EXTRA_PREPARE_FOR_UPDATE,		/* Remove read cache if problems */
+  /*
+    Remove read cache if problems.
+    This is called as part of a multi-table update. When the table to be
+    updated is also scanned then this informs MyISAM handler to drop any
+    caches if dynamic records are used (fixed size records do not care
+    about this call).
+  */
+  HA_EXTRA_PREPARE_FOR_UPDATE,
   HA_EXTRA_PRELOAD_BUFFER_SIZE,         /* Set buffer size for preloading */
   /*
     On-the-fly switching between unique and non-unique key inserting.
@@ -148,9 +421,10 @@ enum ha_extra_function {
   HA_EXTRA_CHANGE_KEY_TO_UNIQUE,
   HA_EXTRA_CHANGE_KEY_TO_DUP,
   /*
-    When using HA_EXTRA_KEYREAD, overwrite only key member fields and keep 
+    When using HA_EXTRA_KEYREAD, overwrite only key member fields and keep
     other fields intact. When this is off (by default) InnoDB will use memcpy
     to overwrite entire row.
+    This is a strictly InnoDB feature that is more or less undocumented.
   */
   HA_EXTRA_KEYREAD_PRESERVE_FIELDS,
   HA_EXTRA_MMAP,
@@ -159,7 +433,7 @@ enum ha_extra_function {
     transaction and ignore that 'row'.  Needed for idempotency
     handling on the slave
 
-    Currently only used by NDB storage engine. Partition handler ignores flag.
+    Currently only used by NDB storage engine.
   */
   HA_EXTRA_IGNORE_NO_KEY,
   HA_EXTRA_NO_IGNORE_NO_KEY,
@@ -179,9 +453,9 @@ enum ha_extra_function {
   HA_EXTRA_WRITE_CANNOT_REPLACE,
   /*
     Inform handler that delete_row()/update_row() cannot batch deletes/updates
-    and should perform them immediately. This may be needed when table has 
+    and should perform them immediately. This may be needed when table has
     AFTER DELETE/UPDATE triggers which access to subject table.
-    These flags are reset by the handler::extra(HA_EXTRA_RESET) call.
+    These flags are reset by the handler::reset() call.
   */
   HA_EXTRA_DELETE_CANNOT_BATCH,
   HA_EXTRA_UPDATE_CANNOT_BATCH,
@@ -190,7 +464,12 @@ enum ha_extra_function {
     executed. This condition is unset by HA_EXTRA_NO_IGNORE_DUP_KEY.
   */
   HA_EXTRA_INSERT_WITH_UPDATE,
-  /* Inform handler that we will do a rename */
+  /*
+    Informs the handler we are about to attempt a rename of the table.
+    For handlers that have share open files (MyISAM key-file and
+    Archive writer) they must close the files before rename is possible
+    on Windows.
+  */
   HA_EXTRA_PREPARE_FOR_RENAME,
   /*
     Special actions for MERGE tables.
@@ -538,6 +817,35 @@ is the global server default. */
 /* update the time of the last modification (in handler::update_time) */
 #define HA_STATUS_TIME           4
 /*
+  Recalculate loads of constant variables. MyISAM also sets things
+  directly on the table share object.
+
+  Check whether this should be fixed since handlers should not
+  change things directly on the table object.
+
+  Monty comment: This should NOT be changed!  It's the handlers
+  responsibility to correct table->s->keys_xxxx information if keys
+  have been disabled.
+
+  The most important parameters set here is records per key on
+  all indexes. block_size and primar key ref_length.
+
+  For each index there is an array of rec_per_key.
+  As an example if we have an index with three attributes a,b and c
+  we will have an array of 3 rec_per_key.
+  rec_per_key[0] is an estimate of number of records divided by
+  number of unique values of the field a.
+  rec_per_key[1] is an estimate of the number of records divided
+  by the number of unique combinations of the fields a and b.
+  rec_per_key[2] is an estimate of the number of records divided
+  by the number of unique combinations of the fields a,b and c.
+
+  Many handlers only set the value of rec_per_key when all fields
+  are bound (rec_per_key[2] in the example above).
+
+  If the handler doesn't support statistics, it should set all of the
+  above to 0.
+
   update the 'constant' part of the info:
   handler::max_data_file_length, max_index_file_length, create_time
   sortkey, ref_length, block_size, data_file_name, index_file_name.
@@ -551,7 +859,8 @@ is the global server default. */
 */
 #define HA_STATUS_VARIABLE      16
 /*
-  get the information about the key that caused last duplicate value error
+  This flag is used to get index number of the unique index that
+  reported duplicate key.
   update handler::errkey and handler::dupp_ref
   see handler::get_dup_key()
 */

@@ -14,7 +14,6 @@
 # Change:                                                                      #
 ################################################################################
 
---source include/have_partition.inc
 
 --disable_warnings
 drop table if exists t1;

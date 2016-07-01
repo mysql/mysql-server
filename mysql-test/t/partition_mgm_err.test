@@ -6,7 +6,6 @@
 # Simple test for the erroneos create statements using the 
 # partition storage engine
 #
--- source include/have_partition.inc
 
 --disable_warnings
 drop table if exists t1;

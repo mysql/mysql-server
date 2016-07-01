@@ -2770,13 +2770,30 @@ PSI_table_share *handler::ha_table_share_psi(const TABLE_SHARE *share) const
   return share->m_psi;
 }
 
-/** @brief
-  Open database-handler.
 
-  IMPLEMENTATION
-    Try O_RDONLY if cannot open as O_RDWR
-    Don't wait for locks if not HA_OPEN_WAIT_IF_LOCKED is set
+/*
+  Open database handler object.
+
+  Used for opening tables. The name will be the name of the file.
+  A table is opened when it needs to be opened. For instance
+  when a request comes in for a select on the table (tables are not
+  open and closed for each request, they are cached).
+
+  The server opens all tables by calling ha_open() which then calls
+  the handler specific open().
+
+  Try O_RDONLY if cannot open as O_RDWR. Don't wait for locks if not
+  HA_OPEN_WAIT_IF_LOCKED is set
+
+  @param  [out] table_arg             Table structure.
+  @param        name                  Full path of table name.
+  @param        mode                  Open mode flags.
+  @param        test_if_locked        ?
+
+  @retval >0    Error.
+  @retval  0    Success.
 */
+
 int handler::ha_open(TABLE *table_arg, const char *name, int mode,
                      int test_if_locked, const dd::Table *dd_tab)
 {
@@ -2841,6 +2858,16 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
 
 /**
   Close handler.
+
+  Called from sql_base.cc, sql_select.cc, and table.cc.
+  In sql_select.cc it is only used to close up temporary tables or during
+  the process where a temporary table is converted over to being a
+  myisam table.
+  For sql_base.cc look at close_data_tables().
+
+  @return Operation status
+    @retval 0     Success
+    @retval != 0  Error (error code returned)
 */
 
 int handler::ha_close(void)
@@ -4584,6 +4611,8 @@ int handler::ha_repair(THD* thd, HA_CHECK_OPT* check_opt)
   Start bulk insert.
 
   Allow the handler to optimize for multiple row insert.
+
+  @note rows == 0 means we will probably insert many rows.
 
   @param rows  Estimated rows to insert
 */

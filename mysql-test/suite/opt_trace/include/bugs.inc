@@ -269,15 +269,21 @@ DROP TABLE t1;
 --echo #
 --echo # Bug #18346750 OPTIMIZER_TRACE & DBUG_PRINT CRASH IN ST_SELECT_LEX::PRINT
 --echo #
-
-CREATE TABLE t1 (a INT, PRIMARY KEY (a))
- PARTITION BY KEY (a) PARTITIONS 2;
-INSERT INTO t1 VALUES (1),(2);
---ERROR ER_SUBQUERY_NO_1_ROW
-SELECT  1 FROM t1 ,t1 w
- WHERE t1.a <=> (SELECT 22 FROM t1 GROUP BY (SELECT 1 FROM t1));
-SELECT TRACE LIKE "%select had some error%" FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-DROP TABLE t1;
+if ($support_native_partitioning)
+{
+  CREATE TABLE t1 (a INT, PRIMARY KEY (a))
+   PARTITION BY KEY (a) PARTITIONS 2;
+  INSERT INTO t1 VALUES (1),(2);
+  --ERROR ER_SUBQUERY_NO_1_ROW
+  SELECT  1 FROM t1 ,t1 w
+   WHERE t1.a <=> (SELECT 22 FROM t1 GROUP BY (SELECT 1 FROM t1));
+  SELECT TRACE LIKE "%select had some error%" FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+  DROP TABLE t1;
+}
+if (!$support_native_partitioning)
+{
+  --echo "Skipped since this engine does not support native partitioning.
+}
 
 --echo #
 --echo # Bug#18791851 CRASH IN ST_SELECT_LEX::PRINT WITH OPTIMIZER_TRACE ON SUBQUERY

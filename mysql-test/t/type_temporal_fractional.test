@@ -6753,7 +6753,7 @@ CREATE TABLE t1 (
   KEY col_timestamp_4_not_null_key (col_timestamp_4_not_null_key),
   KEY col_date_key (col_date_key),
   KEY col_time_3_not_null_key (col_time_3_not_null_key)
-) ENGINE=MEMORY /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
+) ENGINE=InnoDB /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
 INSERT INTO t1 VALUES (
   CURRENT_TIME(5),
   CURRENT_TIMESTAMP(4),

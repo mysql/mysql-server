@@ -10,7 +10,6 @@ eval SHOW CREATE TABLE t1;
 if ($ls)
 {
    let $MYSQLD_DATADIR= `select @@datadir`;
-   --replace_regex /_[0-9]+\.SDI/_XXX.SDI/
    --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR #p# #P# #sp# #SP#
    --list_files $MYSQLD_DATADIR/test t1*
 }

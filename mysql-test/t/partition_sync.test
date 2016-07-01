@@ -1,4 +1,3 @@
---source include/have_partition.inc
 --source include/have_debug.inc
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc

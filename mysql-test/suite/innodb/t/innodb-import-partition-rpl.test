@@ -1,7 +1,6 @@
 # Testcase for import/export partition table with replication for InnoDB
 # Only hash partition table is used for sanity check
 --source include/have_innodb.inc
---source include/have_partition.inc
 --source include/master-slave.inc
 
 --disable_warnings

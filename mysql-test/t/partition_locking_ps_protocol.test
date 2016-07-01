@@ -5,7 +5,6 @@
 
 --source include/have_ps_protocol.inc
 --source include/have_innodb.inc
---source include/have_partition.inc
 
 --echo #
 --echo # Test CREATE SELECT

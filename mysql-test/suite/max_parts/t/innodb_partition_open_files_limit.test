@@ -4,7 +4,6 @@
 #--source include/force_myisam_default.inc
 #--source include/have_myisam.inc
 --source include/not_windows.inc
---source include/have_partition.inc
 
 CALL mtr.add_suppression("innodb_open_files should not be greater than the open_files_limit.");
 CALL mtr.add_suppression("You must raise the value of innodb_open_files in my.cnf! Remember that InnoDB keeps all");

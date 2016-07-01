@@ -132,12 +132,13 @@ UPDATE t1, t2 SET t1.year = '1955' WHERE t1.name = 'FooBar';
 DROP TABLE t1, t2;
 #
 # Bug#55458: Partitioned MyISAM table gets crashed by multi-table update 
-#
+# After WL#8971, this test case is rewritten to use InnoDB in order to
+# keep some test coverage for multi update and partitioning.
 CREATE TABLE t1 (
 `id` int NOT NULL,
 `user_num` int DEFAULT NULL,
 PRIMARY KEY (`id`)
-) ENGINE=MyISAM CHARSET=latin1;
+) ENGINE=InnoDB CHARSET=latin1;
 INSERT INTO t1 VALUES (1,8601);
 INSERT INTO t1 VALUES (2,8601);
 INSERT INTO t1 VALUES (3,8601);
@@ -147,7 +148,7 @@ CREATE TABLE t2 (
 `user_num` int DEFAULT NULL,
 `name` varchar(64) NOT NULL,
 PRIMARY KEY (`id`)
-) ENGINE=MyISAM CHARSET=latin1
+) ENGINE=InnoDB CHARSET=latin1
 PARTITION BY HASH (id)
 PARTITIONS 2;
 INSERT INTO t2 VALUES (1,8601,'John');
@@ -348,13 +349,12 @@ CREATE TABLE t1 (a INT)
 ENGINE=NonExistentEngine
 PARTITION BY HASH (a);
 ERROR 42000: Unknown storage engine 'NonExistentEngine'
-CREATE TABLE t1 (a INT)
-ENGINE=Memory;
+CREATE TABLE t1 (a INT);
 ALTER TABLE t1 ENGINE=NonExistentEngine;
 ERROR 42000: Unknown storage engine 'NonExistentEngine'
 ALTER TABLE t1
 PARTITION BY HASH (a)
-(PARTITION p0 ENGINE=Memory,
+(PARTITION p0 ENGINE=InnoDB,
 PARTITION p1 ENGINE=NonExistentEngine);
 ERROR 42000: Unknown storage engine 'NonExistentEngine'
 ALTER TABLE t1 ENGINE=NonExistentEngine;
@@ -363,7 +363,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t1;
 SET sql_mode='';
 Warnings:
@@ -381,14 +381,13 @@ Warnings:
 Warning	1286	Unknown storage engine 'NonExistentEngine'
 Warning	1266	Using storage engine InnoDB for table 't1'
 DROP TABLE t1;
-CREATE TABLE t1 (a INT)
-ENGINE=Memory;
+CREATE TABLE t1 (a INT);
 ALTER TABLE t1 ENGINE=NonExistentEngine;
 Warnings:
 Warning	1286	Unknown storage engine 'NonExistentEngine'
 ALTER TABLE t1
 PARTITION BY HASH (a)
-(PARTITION p0 ENGINE=Memory,
+(PARTITION p0 ENGINE=InnoDB,
 PARTITION p1 ENGINE=NonExistentEngine);
 Warnings:
 Warning	1286	Unknown storage engine 'NonExistentEngine'
@@ -399,10 +398,10 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (a)
-(PARTITION p0 ENGINE = MEMORY,
- PARTITION p1 ENGINE = MEMORY) */
+(PARTITION p0 ENGINE = InnoDB,
+ PARTITION p1 ENGINE = InnoDB) */
 DROP TABLE t1;
 SET sql_mode=DEFAULT;
 CREATE TABLE t1 (a INT NOT NULL, KEY(a))
@@ -544,14 +543,9 @@ COUNT(*)
 SELECT SUM(c) FROM t1 WHERE b NOT IN ( 1,2,6,7,9,10,11 );
 SUM(c)
 400
-ALTER TABLE t1 ENGINE = Memory;
-SELECT COUNT(*) FROM t1 WHERE b NOT IN ( 1,2,6,7,9,10,11 );
-COUNT(*)
-24
-SELECT SUM(c) FROM t1 WHERE b NOT IN ( 1,2,6,7,9,10,11 );
-SUM(c)
-400
 ALTER TABLE t1 ADD INDEX b USING HASH (b);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SELECT COUNT(*) FROM t1 WHERE b NOT IN ( 1,2,6,7,9,10,11 );
 COUNT(*)
 24
@@ -798,10 +792,6 @@ a
 18446744073709551614
 drop table t1;
 create table t1 (a int)
-partition by key(a)
-(partition p0 engine = MEMORY);
-drop table t1;
-create table t1 (a int)
 partition by range (a)
 subpartition by key (a)
 (partition p0 values less than (1));
@@ -879,9 +869,9 @@ c int not null,
 primary key(a,b))
 partition by key (a)
 partitions 3
-(partition x1 engine myisam,
-partition x2 engine myisam,
-partition x3 engine myisam);
+(partition x1 engine innodb,
+partition x2 engine innodb,
+partition x3 engine innodb);
 drop table t1;
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
 CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd';
@@ -1068,7 +1058,7 @@ select * from t1 where a = 4;
 a	b
 4	4
 drop table t1;
-CREATE TABLE t1 (c1 INT, c2 INT, PRIMARY KEY USING BTREE (c1,c2)) ENGINE=MEMORY
+CREATE TABLE t1 (c1 INT, c2 INT, PRIMARY KEY USING BTREE (c1,c2))
 PARTITION BY KEY(c2,c1) PARTITIONS 4;
 INSERT INTO t1 VALUES (0,0),(1,1),(2,2),(3,3),(4,4),(5,5),(6,6);
 SELECT * FROM t1 WHERE c1 = 4;
@@ -1078,14 +1068,14 @@ DROP TABLE t1;
 CREATE TABLE t1 (a int)
 PARTITION BY LIST (a)
 PARTITIONS 1
-(PARTITION x1 VALUES IN (1) ENGINE=MEMORY);
+(PARTITION x1 VALUES IN (1) ENGINE=InnoDB);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (a)
-(PARTITION x1 VALUES IN (1) ENGINE = MEMORY) */
+(PARTITION x1 VALUES IN (1) ENGINE = InnoDB) */
 drop table t1;
 CREATE TABLE t1 (a int, unique(a))
 PARTITION BY LIST (a)
@@ -1203,13 +1193,14 @@ select * from t1 where f1 = 10;
 f1	f2
 10	1
 drop table t1;
-set session default_storage_engine= 'memory';
-create table t1 (f_int1 int(11) default null) engine = memory
+set @old_default_engine= @@session.default_storage_engine;
+set session default_storage_engine= 'innodb';
+create table t1 (f_int1 int(11) default null) engine = innodb
 partition by range (f_int1) subpartition by hash (f_int1)
 (partition part1 values less than (1000)
-(subpartition subpart11 engine = memory));
+(subpartition subpart11 engine = innodb));
 drop table t1;
-set session default_storage_engine='myisam';
+set session default_storage_engine= @old_default_engine;
 create table t1 (f_int1 integer, f_int2 integer, primary key (f_int1))
 partition by hash(f_int1) partitions 2;
 insert into t1 values (1,1),(2,2);
@@ -1221,95 +1212,73 @@ drop table t1;
 create table t1 (a int)
 partition by key(a)
 partitions 2
-(partition p0 engine=myisam, partition p1 engine=myisam);
+(partition p0 engine=innodb, partition p1 engine=innodb);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
-(PARTITION p0 ENGINE = MyISAM,
- PARTITION p1 ENGINE = MyISAM) */
+(PARTITION p0 ENGINE = InnoDB,
+ PARTITION p1 ENGINE = InnoDB) */
 alter table t1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
-(PARTITION p0 ENGINE = MyISAM,
- PARTITION p1 ENGINE = MyISAM) */
-alter table t1 engine=myisam;
+(PARTITION p0 ENGINE = InnoDB,
+ PARTITION p1 ENGINE = InnoDB) */
+alter table t1 engine=innodb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
-(PARTITION p0 ENGINE = MyISAM,
- PARTITION p1 ENGINE = MyISAM) */
-alter table t1 engine=heap;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a)
-(PARTITION p0 ENGINE = MEMORY,
- PARTITION p1 ENGINE = MEMORY) */
+(PARTITION p0 ENGINE = InnoDB,
+ PARTITION p1 ENGINE = InnoDB) */
 alter table t1 remove partitioning;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (a int)
-engine=myisam
+engine=innodb
 partition by key(a)
 partitions 2
-(partition p0 engine=myisam, partition p1 engine=myisam);
+(partition p0 engine=innodb, partition p1 engine=innodb);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
-(PARTITION p0 ENGINE = MyISAM,
- PARTITION p1 ENGINE = MyISAM) */
+(PARTITION p0 ENGINE = InnoDB,
+ PARTITION p1 ENGINE = InnoDB) */
 alter table t1 add column b int remove partitioning;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1
-engine=myisam
+engine=innodb
 partition by key(a)
-(partition p0 engine=myisam, partition p1);
+(partition p0 engine=innodb, partition p1);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
-(PARTITION p0 ENGINE = MyISAM,
- PARTITION p1 ENGINE = MyISAM) */
-alter table t1
-engine=heap
-partition by key(a)
-(partition p0, partition p1 engine=heap);
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a)
-(PARTITION p0 ENGINE = MEMORY,
- PARTITION p1 ENGINE = MEMORY) */
+(PARTITION p0 ENGINE = InnoDB,
+ PARTITION p1 ENGINE = InnoDB) */
 alter table t1 engine=myisam, add column c int remove partitioning;
 show create table t1;
 Table	Create Table
@@ -1319,7 +1288,7 @@ t1	CREATE TABLE `t1` (
   `c` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 alter table t1
-engine=heap
+engine=innodb
 partition by key (a)
 (partition p0, partition p1);
 show create table t1;
@@ -1328,10 +1297,10 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
-(PARTITION p0 ENGINE = MEMORY,
- PARTITION p1 ENGINE = MEMORY) */
+(PARTITION p0 ENGINE = InnoDB,
+ PARTITION p1 ENGINE = InnoDB) */
 alter table t1
 partition by key (a)
 (partition p0, partition p1);
@@ -1341,39 +1310,16 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
-(PARTITION p0 ENGINE = MEMORY,
- PARTITION p1 ENGINE = MEMORY) */
-alter table t1
-engine=heap
-partition by key (a)
-(partition p0, partition p1);
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a)
-(PARTITION p0 ENGINE = MEMORY,
- PARTITION p1 ENGINE = MEMORY) */
+(PARTITION p0 ENGINE = InnoDB,
+ PARTITION p1 ENGINE = InnoDB) */
 alter table t1
 partition by key(a)
-(partition p0, partition p1 engine=heap);
+(partition p0, partition p1 engine=innodb);
 alter table t1
 partition by key(a)
-(partition p0 engine=heap, partition p1);
-alter table t1
-engine=heap
-partition by key (a)
-(partition p0 engine=heap, partition p1 engine=myisam);
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
-alter table t1
-partition by key (a)
-(partition p0 engine=heap, partition p1 engine=myisam);
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
+(partition p0 engine=innodb, partition p1);
 drop table t1;
 CREATE TABLE t1 (
 f_int1 INTEGER, f_int2 INTEGER,
@@ -1455,11 +1401,11 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   KEY `a` (`a`,`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION x1 VALUES LESS THAN (0) TABLESPACE = `ts1` ENGINE = MyISAM,
- PARTITION x2 VALUES LESS THAN (10) TABLESPACE = `ts2` ENGINE = MyISAM,
- PARTITION x3 VALUES LESS THAN MAXVALUE TABLESPACE = `ts3` ENGINE = MyISAM) */
+(PARTITION x1 VALUES LESS THAN (0) TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION x2 VALUES LESS THAN (10) TABLESPACE = `ts2` ENGINE = InnoDB,
+ PARTITION x3 VALUES LESS THAN MAXVALUE TABLESPACE = `ts3` ENGINE = InnoDB) */
 drop table t1;
 DROP TABLESPACE ts1 ENGINE = InnoDB;
 DROP TABLESPACE ts2 ENGINE = InnoDB;
@@ -1516,23 +1462,23 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
 SUBPARTITION BY HASH (a)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB) */
 alter table t1 add partition (partition p1 values less than (200)
 (subpartition subpart21));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
 SUBPARTITION BY HASH (a)
 (PARTITION p0 VALUES LESS THAN (100)
- (SUBPARTITION p0sp0 ENGINE = MyISAM),
+ (SUBPARTITION p0sp0 ENGINE = InnoDB),
  PARTITION p1 VALUES LESS THAN (200)
- (SUBPARTITION subpart21 ENGINE = MyISAM)) */
+ (SUBPARTITION subpart21 ENGINE = InnoDB)) */
 drop table t1;
 create table t1 (a int)
 partition by key (a);
@@ -1540,17 +1486,17 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a) */
 alter table t1 add partition (partition p1);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
-(PARTITION p0 ENGINE = MyISAM,
- PARTITION p1 ENGINE = MyISAM) */
+(PARTITION p0 ENGINE = InnoDB,
+ PARTITION p1 ENGINE = InnoDB) */
 drop table t1;
 create table t1 (a int, b int)
 partition by range (a)
@@ -1633,10 +1579,10 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (a)
-(PARTITION p1 VALUES IN (1) ENGINE = MyISAM,
- PARTITION p2 VALUES IN (2) ENGINE = MyISAM) */
+(PARTITION p1 VALUES IN (1) ENGINE = InnoDB,
+ PARTITION p2 VALUES IN (2) ENGINE = InnoDB) */
 drop table t1;
 create table t1 (a int unsigned not null auto_increment primary key)
 partition by key(a);
@@ -1647,7 +1593,7 @@ t2	CREATE TABLE `t2` (
   `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `c` char(10) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='no comment'
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMMENT='no comment'
 /*!50100 PARTITION BY KEY (a) */
 drop table t2;
 create table t1 (f1 int) partition by hash (f1) as select 1;
@@ -1694,10 +1640,10 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 explain partitions select * from t1 where f1 is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p1	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select NULL AS `f1` from dual where isnull(NULL)
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where isnull(`test`.`t1`.`f1`)
 drop table t1;
 create table t1 (f1 integer) partition by list(f1)
 (partition p1 values in (1), partition p2 values in (null));
@@ -1761,10 +1707,10 @@ f1
 NULL
 explain partitions select * from t1 where f1 is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p2	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	p2	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select NULL AS `f1` from dual where isnull(NULL)
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where isnull(`test`.`t1`.`f1`)
 drop table t1;
 create table t1 (f1 int) partition by list(f1 div 2)
 (
@@ -1792,10 +1738,10 @@ f1
 NULL
 explain partitions select * from t1 where f1 is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p2	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	p2	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select NULL AS `f1` from dual where isnull(NULL)
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where isnull(`test`.`t1`.`f1`)
 drop table t1;
 create table t1 (a int) partition by LIST(a) (
 partition pn values in (NULL),
@@ -1830,14 +1776,14 @@ Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (isnull(`test`.`t1`.`a`) or (`test`.`t1`.`a` < 0) or (`test`.`t1`.`a` > 1))
 drop table t1;
 CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, name VARCHAR(20)) 
-ENGINE=MyISAM DEFAULT CHARSET=latin1
+DEFAULT CHARSET=latin1
 PARTITION BY RANGE(id)
-(PARTITION p0  VALUES LESS THAN (10) ENGINE = MyISAM,
-PARTITION p1 VALUES LESS THAN (20) ENGINE = MyISAM,
-PARTITION p2 VALUES LESS THAN (30) ENGINE = MyISAM);
+(PARTITION p0  VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (30));
 SHOW TABLE STATUS;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MyISAM	10	Dynamic	0	0	0	0	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Dynamic	0	0	0	0	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 DROP TABLE t1;
 create table t1 (a bigint unsigned)
 partition by list (a)
@@ -1873,9 +1819,9 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (NULL) ENGINE = MyISAM) */
+(PARTITION p0 VALUES IN (NULL) ENGINE = InnoDB) */
 DROP TABLE t1;
 CREATE TABLE t1 (a int)
 PARTITION BY RANGE(a)
@@ -1898,7 +1844,7 @@ s1
 2
 3
 drop table t1;
-create table t1 (a int) engine=memory
+create table t1 (a int)
 partition by key(a);
 insert into t1 values (1);
 create index inx1 on t1(a);
@@ -1929,44 +1875,49 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(1) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a) */
 drop table t1;
 CREATE TABLE t1 (a int) PARTITION BY KEY(a);
 INSERT into t1 values (1), (2);
 SHOW TABLE STATUS;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MyISAM	10	Fixed	2	7	14	0	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Dynamic	2	8192	16384	0	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 DELETE from t1 where a = 1;
 SHOW TABLE STATUS;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MyISAM	10	Fixed	1	14	14	0	0	7	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Dynamic	1	16384	16384	0	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 ALTER TABLE t1 OPTIMIZE PARTITION p0;
 Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
 test.t1	optimize	status	OK
 SHOW TABLE STATUS;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MyISAM	10	Fixed	1	7	7	0	1024	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Dynamic	1	16384	16384	0	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 DROP TABLE t1;
 CREATE TABLE t1 (a int, index(a)) PARTITION BY KEY(a);
 ALTER TABLE t1 DISABLE KEYS;
+Warnings:
+Note	1031	Table storage engine for 't1' doesn't have this option
 ALTER TABLE t1 ENABLE KEYS;
+Warnings:
+Note	1031	Table storage engine for 't1' doesn't have this option
 DROP TABLE t1;
 create table t1 (a int)
-engine=MEMORY
 partition by key (a);
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 drop table t1;
 drop procedure if exists mysqltest_1;
 create table t1 (a int)
@@ -2001,7 +1952,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bigint(20) unsigned NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 10 */
 insert into t1 values (18446744073709551615), (0xFFFFFFFFFFFFFFFE),
@@ -2037,7 +1988,7 @@ taken datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
 id int(11) NOT NULL DEFAULT '0',
 PRIMARY KEY (id,taken),
 KEY taken (taken)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) DEFAULT CHARSET=latin1;
 INSERT INTO t2 VALUES 
 ('2006-09-27 21:50:01',16421),
 ('2006-10-02 21:50:01',16421),
@@ -2052,7 +2003,7 @@ INSERT INTO t2 VALUES
 CREATE TABLE t1 (
 id int(8) NOT NULL,
 PRIMARY KEY (id)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) DEFAULT CHARSET=latin1;
 INSERT INTO t1 VALUES 
 (16421),
 (19092),
@@ -2062,7 +2013,7 @@ taken datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
 id int(11) NOT NULL DEFAULT '0',
 PRIMARY KEY (id,taken),
 KEY taken (taken)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 
+) DEFAULT CHARSET=latin1 
 PARTITION BY RANGE (to_days(taken)) 
 (
 PARTITION p01 VALUES LESS THAN (732920) , 
@@ -2088,7 +2039,7 @@ taken datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
 id int(11) NOT NULL DEFAULT '0',
 status varchar(20) NOT NULL DEFAULT '',
 PRIMARY KEY (id,taken)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) DEFAULT CHARSET=latin1
 PARTITION BY RANGE (to_days(taken))
 (
 PARTITION p15 VALUES LESS THAN (732950) ,
@@ -2105,7 +2056,7 @@ severity tinyint(4) NOT NULL DEFAULT '0',
 priority tinyint(4) NOT NULL DEFAULT '0',
 status varchar(20) DEFAULT NULL,
 alien tinyint(4) NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) DEFAULT CHARSET=latin1;
 INSERT INTO t2 VALUES
 (22589,1,1,'Need Feedback',0);
 SELECT t2.id FROM t2 WHERE t2.id IN (SELECT id FROM t1 WHERE status = 'Verified');
@@ -2122,19 +2073,19 @@ aaa	2
 drop table t1;
 create table t1 (s1 bigint) partition by list (s1) (partition p1 values in (-9223372036854775808));
 drop table t1;
-create table t1(a int auto_increment, b int, primary key (b, a)) 
+create table t1(a int auto_increment, b int, primary key (a, b)) 
 partition by hash(b) partitions 2;
 insert into t1 values (null, 1);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MyISAM	10	Fixed	1	9	9	0	0	0	1	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Dynamic	1	32768	32768	0	0	0	2	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 drop table t1;
 create table t1(a int auto_increment primary key)
 partition by key(a) partitions 2;
 insert into t1 values (null), (null), (null);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MyISAM	10	Fixed	3	7	21	0	0	0	4	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Dynamic	3	10922	32768	0	0	0	4	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 drop table t1;
 CREATE TABLE t1(a INT NOT NULL, b TINYBLOB, KEY(a))
 PARTITION BY RANGE(a) ( PARTITION p0 VALUES LESS THAN (32));
@@ -2167,10 +2118,10 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (b)
-(PARTITION p1 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p2 VALUES LESS THAN (20) ENGINE = MyISAM) */
+(PARTITION p1 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (20) ENGINE = InnoDB) */
 drop table t1, t2;
 create table t1
 (s1 timestamp on update current_timestamp, s2 int)
@@ -2210,6 +2161,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 ALTER TABLE t1 OPTIMIZE PARTITION p1;
 Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
 test.t1	optimize	status	OK
 DROP TABLE t1;
 CREATE TABLE t1 (s1 BIGINT UNSIGNED)
@@ -2307,13 +2259,13 @@ t1	CREATE TABLE `t1` (
   `id` mediumint(9) NOT NULL AUTO_INCREMENT,
   `user` char(25) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM AUTO_INCREMENT=16 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (id)
 SUBPARTITION BY HASH (id)
 SUBPARTITIONS 2
-(PARTITION pa1 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION pa2 VALUES LESS THAN (20) ENGINE = MyISAM,
- PARTITION pa11 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION pa1 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION pa2 VALUES LESS THAN (20) ENGINE = InnoDB,
+ PARTITION pa11 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 drop table t1;
 CREATE TABLE  t1 (
 `ID` bigint(20) NOT NULL AUTO_INCREMENT,
@@ -2358,7 +2310,6 @@ INSERT INTO t1 VALUES (NULL), (0), (1), (2);
 ERROR 22012: Division by 0
 SELECT * FROM t1;
 c1
-NULL
 DROP TABLE t1;
 SET SQL_MODE= @orig_sql_mode;
 create table t1 (s1 int) partition by hash(s1) partitions 2;
@@ -2509,7 +2460,7 @@ test.t1	analyze	status	OK
 EXPLAIN
 SELECT b, c FROM t1 WHERE b = 1 GROUP BY b, c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2	ref	bc	bc	5	const	20	100.00	Using where; Using index
+1	SIMPLE	t1	p0,p1,p2	ref	bc	bc	5	const	23	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`b` = 1) group by `test`.`t1`.`b`,`test`.`t1`.`c`
 DROP TABLE t1;
@@ -2658,13 +2609,13 @@ PARTITION c VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
 EXPLAIN PARTITIONS SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 15);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	a,b	range	c1	c1	5	NULL	11	100.00	Using where; Using index
+1	SIMPLE	t1	a,b	range	c1	c1	5	NULL	12	100.00	Using where; Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where ((`test`.`t1`.`c1` > 2) and (`test`.`t1`.`c1` < 15))
 EXPLAIN EXTENDED SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 15);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	a,b	range	c1	c1	5	NULL	11	100.00	Using where; Using index
+1	SIMPLE	t1	a,b	range	c1	c1	5	NULL	12	100.00	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where ((`test`.`t1`.`c1` > 2) and (`test`.`t1`.`c1` < 15))
@@ -2674,7 +2625,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "5.68"
+      "query_cost": "5.83"
     },
     "table": {
       "table_name": "t1",
@@ -2691,15 +2642,15 @@ EXPLAIN
         "c1"
       ],
       "key_length": "5",
-      "rows_examined_per_scan": 11,
-      "rows_produced_per_join": 11,
+      "rows_examined_per_scan": 12,
+      "rows_produced_per_join": 12,
       "filtered": "100.00",
       "using_index": true,
       "cost_info": {
-        "read_cost": "3.48",
-        "eval_cost": "2.20",
-        "prefix_cost": "5.68",
-        "data_read_per_join": "88"
+        "read_cost": "3.43",
+        "eval_cost": "2.40",
+        "prefix_cost": "5.83",
+        "data_read_per_join": "96"
       },
       "used_columns": [
         "c1"
@@ -2735,3 +2686,90 @@ PARTITION BY LINEAR KEY(a) PARTITIONS 2;
 SELECT 1 FROM t1 WHERE EXP(10000);
 ERROR 22003: DOUBLE value is out of range in 'exp(10000)'
 DROP TABLE t1;
+create table t1 (a int)
+partition by range (a)
+subpartition by hash (a)
+(partition p0 VALUES LESS THAN (1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/tmp'
+(SUBPARTITION subpart00, SUBPARTITION subpart01));
+# Checking if file exists before alter
+ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
+(partition p1 VALUES LESS THAN (1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/tmp'
+(SUBPARTITION subpart10, SUBPARTITION subpart11),
+partition p2 VALUES LESS THAN (2) DATA DIRECTORY = 'MYSQLTEST_VARDIR/tmp'
+(SUBPARTITION subpart20, SUBPARTITION subpart21));
+# Checking if file exists after alter
+drop table t1;
+set innodb_strict_mode=off;
+Warnings:
+Warning	1618	<INDEX DIRECTORY> option ignored
+set @org_mode=@@sql_mode;
+set @@sql_mode='NO_DIR_IN_CREATE';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+select @@sql_mode;
+@@sql_mode
+NO_DIR_IN_CREATE
+create table t1 (i int )
+partition by range (i)
+(
+partition p01 values less than (1000)
+data directory='/not/existing'
+  index directory='/not/existing'
+);
+Warnings:
+Warning	1618	<DATA DIRECTORY> option ignored
+Warning	1618	<INDEX DIRECTORY> option ignored
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (i)
+(PARTITION p01 VALUES LESS THAN (1000) ENGINE = InnoDB) */
+DROP TABLE t1, t2;
+set @@sql_mode=@org_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE t1(a INT)
+PARTITION BY KEY (a)
+(PARTITION p0 DATA DIRECTORY 'MYSQLD_DATADIR/test');
+ERROR HY000: Incorrect path value: 'MYSQLD_DATADIR/test'
+CREATE TABLE t1(a INT)
+PARTITION BY KEY (a)
+(PARTITION p0 INDEX DIRECTORY 'MYSQLD_DATADIR/test');
+ERROR HY000: Incorrect path value: 'MYSQLD_DATADIR/test'
+CREATE TABLE ts (id INT, purchased DATE)
+PARTITION BY RANGE(YEAR(purchased))
+SUBPARTITION BY HASH(TO_DAYS(purchased)) (
+PARTITION p0 VALUES LESS THAN (1990) (
+SUBPARTITION s0a
+DATA DIRECTORY = 'MYSQLD_DATADIR/test',
+SUBPARTITION s0b
+DATA DIRECTORY = 'MYSQLD_DATADIR/test'
+));
+ERROR HY000: Incorrect path value: 'MYSQLD_DATADIR/test'
+CREATE TABLE ts (id INT, purchased DATE)
+PARTITION BY RANGE(YEAR(purchased))
+SUBPARTITION BY HASH(TO_DAYS(purchased)) (
+PARTITION p0 VALUES LESS THAN (1990) (
+SUBPARTITION s0a
+INDEX DIRECTORY = 'MYSQLD_DATADIR/test',
+SUBPARTITION s0b
+INDEX DIRECTORY = 'MYSQLD_DATADIR/test'
+));
+ERROR HY000: Incorrect path value: 'MYSQLD_DATADIR/test'
+DROP TABLE IF EXISTS `example`;
+CREATE TABLE `example` (
+`ID_EXAMPLE` int(10) unsigned NOT NULL AUTO_INCREMENT,
+`DESCRIPTION` varchar(30) NOT NULL,
+`LEVEL` smallint(5) unsigned DEFAULT NULL,
+PRIMARY KEY (`ID_EXAMPLE`)
+)
+PARTITION BY HASH(ID_EXAMPLE)(
+PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/p0Data',
+PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/p1Data',
+PARTITION p2 DATA DIRECTORY = 'MYSQLTEST_VARDIR/p2Data',
+PARTITION p3 DATA DIRECTORY = 'MYSQLTEST_VARDIR/p3Data'
+);
+# Checking that InnoDB data files are in test db and data dir
+DROP TABLE example;

@@ -5271,11 +5271,6 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
   case KEYTYPE_FULLTEXT:
     if (!(file->ha_table_flags() & HA_CAN_FULLTEXT))
     {
-      if (is_ha_partition_handlerton(file->ht))
-      {
-        my_error(ER_FULLTEXT_NOT_SUPPORTED_WITH_PARTITIONING, MYF(0));
-        DBUG_RETURN(true);
-      }
       my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
       DBUG_RETURN(true);
     }
@@ -6082,7 +6077,6 @@ bool create_table_impl(THD *thd,
       this information in the default_db_type variable, it is either
       DB_TYPE_DEFAULT or the engine set in the ALTER TABLE command.
     */
-    handlerton *part_engine_type= create_info->db_type;
     char *part_syntax_buf;
     uint syntax_len;
     handlerton *engine_type;
@@ -6127,29 +6121,16 @@ bool create_table_impl(THD *thd,
       my_error(ER_PARTITION_NO_TEMPORARY, MYF(0));
       goto err;
     }
-    if (is_ha_partition_handlerton(part_engine_type) &&
-        part_info->default_engine_type)
+    if (create_info->used_fields & HA_CREATE_USED_ENGINE)
     {
-      /*
-        This only happens at ALTER TABLE.
-        default_engine_type was assigned from the engine set in the ALTER
-        TABLE command.
-      */
-      ;
+      part_info->default_engine_type= create_info->db_type;
     }
     else
     {
-      if (create_info->used_fields & HA_CREATE_USED_ENGINE)
+      if (part_info->default_engine_type == NULL)
       {
-        part_info->default_engine_type= create_info->db_type;
-      }
-      else
-      {
-        if (part_info->default_engine_type == NULL)
-        {
-          part_info->default_engine_type= ha_checktype(thd,
-                                          DB_TYPE_DEFAULT, 0, 0);
-        }
+        part_info->default_engine_type= ha_checktype(thd,
+                                                     DB_TYPE_DEFAULT, 0, 0);
       }
     }
     DBUG_PRINT("info", ("db_type = %s create_info->db_type = %s",
@@ -6181,79 +6162,13 @@ bool create_table_impl(THD *thd,
     }
     part_info->part_info_string= part_syntax_buf;
     part_info->part_info_len= syntax_len;
-    if (!engine_type->partition_flags ||
-        is_ha_partition_handlerton(create_info->db_type))
+    if (!engine_type->partition_flags)
     {
       /*
         The handler assigned to the table cannot handle partitioning.
-        Assign the partition handler as the handler of the table.
       */
-      DBUG_PRINT("info", ("db_type: %s",
-                        ha_resolve_storage_engine_name(create_info->db_type)));
-      LEX_CSTRING engine_name= {C_STRING_WITH_LEN("partition")};
-      plugin_ref plugin= ha_resolve_by_name_raw(thd, engine_name);
-      if (!plugin)
-      {
-        goto no_partitioning;
-      }
-      create_info->db_type= plugin_data<handlerton*>(plugin);
-      DBUG_ASSERT(create_info->db_type->flags & HTON_NOT_USER_SELECTABLE);
-      delete file;
-      if (!(file= get_new_handler(NULL, true, thd->mem_root, create_info->db_type)))
-      {
-        mem_alloc_error(sizeof(handler));
-        DBUG_RETURN(true);
-      }
-      if (file->ht != create_info->db_type)
-      {
-	DBUG_ASSERT(0);
-        goto no_partitioning;
-      }
-      Partition_handler *part_handler= file->get_partition_handler();
-      if (!part_handler)
-      {
-        DBUG_ASSERT(0);
-        goto no_partitioning;
-      }
-      part_handler->set_part_info(part_info, false);
-
-      /*
-        Re-run the initialize_partition after setting the part_info,
-        to create the partition's handlers.
-      */
-      if (part_handler->initialize_partition(thd->mem_root))
-        goto no_partitioning;
-      /* Re-read the table flags */
-      file->init();
-
-      /*
-        If we have default number of partitions or subpartitions we
-        might require to set-up the part_info object such that it
-        creates a proper .par file. The current part_info object is
-        only used to create the frm-file and .par-file.
-      */
-      if (part_info->use_default_num_partitions &&
-          part_info->num_parts &&
-          (int)part_info->num_parts !=
-          part_handler->get_default_num_partitions(create_info))
-      {
-        uint i;
-        List_iterator<partition_element> part_it(part_info->partitions);
-        part_it++;
-        DBUG_ASSERT(thd->lex->sql_command != SQLCOM_CREATE_TABLE);
-        for (i= 1; i < part_info->partitions.elements; i++)
-          (part_it++)->part_state= PART_TO_BE_DROPPED;
-      }
-      else if (part_info->is_sub_partitioned() &&
-               part_info->use_default_num_subpartitions &&
-               part_info->num_subparts &&
-               (int)part_info->num_subparts !=
-                 part_handler->get_default_num_partitions(create_info))
-      {
-        DBUG_ASSERT(thd->lex->sql_command != SQLCOM_CREATE_TABLE);
-        part_info->num_subparts=
-          part_handler->get_default_num_partitions(create_info);
-      }
+      my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "native partitioning");
+      goto err;
     }
     else if (create_info->db_type != engine_type)
     {
@@ -6271,24 +6186,6 @@ bool create_table_impl(THD *thd,
         DBUG_RETURN(TRUE);
       }
       create_info->db_type= engine_type;
-    }
-    /*
-      Unless table's storage engine supports partitioning natively
-      don't allow foreign keys on partitioned tables (they won't
-      work work even with InnoDB beneath of partitioning engine).
-      If storage engine handles partitioning natively (like NDB)
-      foreign keys support is possible, so we let the engine decide.
-    */
-    if (is_ha_partition_handlerton(create_info->db_type))
-    {
-      for (const Key_spec *key : alter_info->key_list)
-      {
-        if (key->type == KEYTYPE_FOREIGN)
-        {
-          my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
-          goto err;
-        }
-      }
     }
   }
 
@@ -6571,10 +6468,6 @@ warn:
                       ER_TABLE_EXISTS_ERROR,
                       ER_THD(thd, ER_TABLE_EXISTS_ERROR),
                       alias);
-  goto err;
-no_partitioning:
-  my_error(ER_FEATURE_NOT_AVAILABLE, MYF(0), "partitioning",
-           "--skip-partition", "-DWITH_PARTITION_STORAGE_ENGINE=1");
   goto err;
 }
 
@@ -9950,10 +9843,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     create_info->encrypt_type.str= table->s->encrypt_type.str;
     create_info->encrypt_type.length= table->s->encrypt_type.length;
   }
-
-  /* Do not pass the update_create_info through to each partition. */
-  if (table->file->ht->db_type == DB_TYPE_PARTITION_DB)
-	  create_info->data_file_name = (char*) -1;
 
   table->file->update_create_info(create_info);
   if ((create_info->table_options &

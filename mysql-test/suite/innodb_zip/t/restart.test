@@ -4,7 +4,6 @@
 
 --source include/have_innodb.inc
 --source include/have_innodb_max_16k.inc
---source include/have_partition.inc
 --source include/not_embedded.inc
 SET default_storage_engine=InnoDB;
 LET $MYSQLD_DATADIR = `select @@datadir`;

@@ -35,7 +35,6 @@ if ($do_file_tests)
 {
   # List the files belonging to the table t1
   let $ls_file= $MYSQLD_DATADIR/test/tmp2;
-  --replace_regex /_[0-9]+\.SDI/_XXX.SDI/
   --list_files_write_file $ls_file $MYSQLD_DATADIR/test t1*
   --chmod 0644 $ls_file
   if ($with_directories)

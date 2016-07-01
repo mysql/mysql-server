@@ -1,11 +1,10 @@
 # Author: Horst Hunger
 # Created: 2010-07-13
 
---source include/have_partition.inc
 
-let $engine_table= MYISAM;
-let $engine_part= MYISAM;
-let $engine_subpart= MYISAM;
+let $engine_table= INNODB;
+let $engine_part= INNODB;
+let $engine_subpart= INNODB;
 
 use test;
 
@@ -160,13 +159,20 @@ SELECT * FROM tsp_04;
 
 # 13) Exchanges with different table options.
 # IGNORE was removed in bug#57708.
---error ER_TABLES_DIFFERENT_METADATA
-ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
+
+# The alter statement below fails due to bug#23187557.
+#--error ER_TABLES_DIFFERENT_METADATA
+#ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
+
 #--error ER_TABLES_DIFFERENT_METADATA
 #ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10 IGNORE;
+
 SELECT TABLE_NAME, ROW_FORMAT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'test'
 AND TABLE_NAME IN ('tp', 't_100');
+# With innodb, the alter statement below fails due to different row formats.
+--error ER_PARTITION_EXCHANGE_DIFFERENT_OPTION
 ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t_100;
+
 #--error ER_TABLES_DIFFERENT_METADATA
 #ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t_100 IGNORE;
 --error ER_PARTITION_EXCHANGE_DIFFERENT_OPTION

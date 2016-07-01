@@ -8,7 +8,6 @@ set @@global.show_compatibility_56=ON;
 --source include/not_log_bin.inc
 
 --source include/have_innodb.inc
---source include/have_partition.inc
 # Different page sizes gives different query plans
 # results based on default 16k.
 --source include/have_innodb_16k.inc
@@ -97,39 +96,6 @@ FLUSH STATUS;
 UPDATE t2 SET b = CONCAT(b, ", UPDATED") WHERE a = 10;
 --source include/get_handler_status_counts.inc
 --echo # 1 read_key + 1 update + 1 commit
-
---echo #
---echo # Test of pruning with secondary column auto_inc INSERT
---echo #
-CREATE TABLE t3 (a INT, b INT AUTO_INCREMENT, PRIMARY KEY (a, b))
-ENGINE = MyISAM
-PARTITION BY HASH (a) PARTITIONS 5;
-SHOW CREATE TABLE t3;
-FLUSH STATUS;
-INSERT INTO t3 VALUES (1, 1);
---source include/get_handler_status_counts.inc
---echo # 4 locks (table + partition lock/unlock)
---echo # No commits, since MyISAM!
-FLUSH STATUS;
-INSERT INTO t3 VALUES (1, NULL);
---source include/get_handler_status_counts.inc
---echo # 4 locks (table + partition lock/unlock)
-SELECT @@sql_mode;
-SET @old_sql_mode = @@sql_mode;
-SET @@sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
-SELECT @@sql_mode;
-FLUSH STATUS;
-INSERT INTO t3 VALUES (1, 0);
---source include/get_handler_status_counts.inc
---echo # 4 locks (table + partition lock/unlock)
-SET @@sql_mode = @old_sql_mode;
-SELECT @@sql_mode;
-FLUSH STATUS;
-INSERT INTO t3 VALUES (1, 0);
---source include/get_handler_status_counts.inc
---echo # 4 locks (table + partition lock/unlock)
-SELECT * FROM t3;
-DROP TABLE t3;
 
 --echo #
 --echo # Test handling of INSERT INTO <table> VALUES (<all fields specified>)

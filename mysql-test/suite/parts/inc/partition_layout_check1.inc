@@ -37,7 +37,6 @@ if ($do_file_tests)
 {
   # List the files belonging to the table t1
   let $ls_file= $MYSQLD_DATADIR/test/tmp2;
-  --replace_regex /_[0-9]+\.SDI/_XXX.SDI/
   --list_files_write_file $ls_file $MYSQLD_DATADIR/test t1*
   --chmod 0644 $ls_file
   if ($with_directories)
@@ -62,7 +61,6 @@ eval INSERT INTO t0_definition SET state = 'old',
 
 # Print the create table statement into the protocol
 # Added the concat to avoid changing the result files
---replace_regex /_[0-9]+\.SDI/_XXX.SDI/
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR '\r' ''
 SELECT concat('SHOW CREATE TABLE t1;\nTable\tCreate Table\n',create_command,'\n') as `create_command` FROM t0_definition WHERE state = 'old';
 if ($do_file_tests)
@@ -71,7 +69,6 @@ if ($do_file_tests)
    if ($ls)
    {
       # Print the list of files into the protocol
-      --replace_regex /_[0-9]+\.SDI/_XXX.SDI/
       replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLTEST_VARDIR MYSQLTEST_VARDIR #p# #P# #sp# #SP# part_n part_N;
       SELECT file_list AS "unified filelist"
        FROM t0_definition WHERE state = 'old';

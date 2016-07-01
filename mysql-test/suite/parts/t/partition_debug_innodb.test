@@ -5,7 +5,6 @@
 --source include/big_test.inc
 --source include/have_debug.inc
 --source include/have_innodb.inc
---source include/have_partition.inc
 # Don't test this under valgrind, memory leaks will occur
 --source include/not_valgrind.inc
 # Crash tests don't work with embedded

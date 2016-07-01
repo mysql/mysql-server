@@ -404,15 +404,7 @@ DROP TABLE t1;
 # Bug#21142905: PARTITIONED GENERATED COLS -
 #  !TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET
 # 
-CREATE TABLE t1 (
-a int,
-b int generated always as (a) virtual,
-c int generated always as (b+a) virtual,
-d int generated always as (b+a) virtual
-) PARTITION BY LINEAR HASH (b);
-INSERT INTO t1(a) VALUES(0);
-DELETE FROM t1 WHERE c=1;
-DROP TABLE t1;
+"Skipped since this engine does not support native partitioning.
 # Bug #20709487: COLLATE OPTION NOT ACCEPTED IN GENERATED COLUMN
 #                DEFINITION
 #
@@ -473,19 +465,7 @@ DROP TABLE t1;
 # Bug #21469535: VALGRIND ERROR (CONDITIONAL JUMP) WHEN INSERT
 #                ROWS INTO A PARTITIONED TABLE
 #
-CREATE TABLE t1 (
-id INT NOT NULL,
-store_id INT NOT NULL,
-x INT GENERATED ALWAYS AS (id + store_id)
-)
-PARTITION BY RANGE (store_id) (
-PARTITION p0 VALUES LESS THAN (6),
-PARTITION p1 VALUES LESS THAN (11),
-PARTITION p2 VALUES LESS THAN (16),
-PARTITION p3 VALUES LESS THAN (21)
-);
-INSERT INTO t1 VALUES(1, 2, default);
-DROP TABLE t1;
+"Skipped since this engine does not support native partitioning.
 # Bug#21465626:ASSERT/CRASH ON DROPPING/ADDING VIRTUAL COLUMN
 CREATE TABLE t (a int(11), b int(11),
 c int(11) GENERATED ALWAYS AS (a+b) VIRTUAL,
