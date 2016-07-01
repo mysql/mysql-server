@@ -907,8 +907,14 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     // that they never have a problem with allocation of the operation record.
     // The remainder are allowed for use by the scan processes.
     /*-----------------------------------------------------------------------*/
+    /**
+     * We add an extra 150 operations, 100 of those are dedicated to DBUTIL
+     * interactions and LCP and Backup scans. The remaining 50 are
+     * non-dedicated things for local usage.
+     */
+#define EXTRA_LOCAL_OPERATIONS 150
     cfg.put(CFG_ACC_OP_RECS,
-	    (noOfLocalOperations + 50) + 
+	    (noOfLocalOperations + EXTRA_LOCAL_OPERATIONS) + 
 	    (noOfLocalScanRecords * noBatchSize) +
 	    NODE_RECOVERY_SCAN_OP_RECORDS);
     
@@ -959,7 +965,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    noOfMetaTables);
 
     cfg.put(CFG_LQH_TC_CONNECT, 
-	    noOfLocalOperations + 50);
+	    noOfLocalOperations + EXTRA_LOCAL_OPERATIONS);
     
     cfg.put(CFG_LQH_SCAN, 
 	    noOfLocalScanRecords);
@@ -1001,7 +1007,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    NO_OF_FRAG_PER_NODE * noOfMetaTables* noOfReplicas);
     
     cfg.put(CFG_TUP_OP_RECS, 
-	    noOfLocalOperations + 50);
+	    noOfLocalOperations + EXTRA_LOCAL_OPERATIONS);
     
     cfg.put(CFG_TUP_PAGE, 
 	    noOfDataPages);

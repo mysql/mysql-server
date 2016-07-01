@@ -2659,6 +2659,7 @@ DbUtil::execTCROLLBACKREP(Signal* signal){
     case 266:
     case 410:
     case 1204:
+    case 1217:
 #if 0
       ndbout_c("errCode: %d noOfRetries: %d -> retry", 
 	       errCode, transPtr.p->noOfRetries);
