@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -1941,7 +1941,7 @@ static inline void
 my_tosort_unicode(MY_UNICASE_INFO **uni_plane, my_wc_t *wc)
 {
   int page= *wc >> 8;
-  if (page < 256)
+  if (page < 256 && *wc <= MY_CS_MAX_CHAR)
   {
     if (uni_plane[page])
       *wc= uni_plane[page][*wc & 0xFF].sort;
@@ -5023,7 +5023,7 @@ static inline void
 my_tolower_utf8mb4(MY_UNICASE_INFO **uni_plane, my_wc_t *wc)
 {
   int page= *wc >> 8;
-  if (page < 256 && uni_plane[page])
+  if (page < 256 && *wc <= MY_CS_MAX_CHAR && uni_plane[page])
     *wc= uni_plane[page][*wc & 0xFF].tolower;
 }
 
@@ -5032,7 +5032,7 @@ static inline void
 my_toupper_utf8mb4(MY_UNICASE_INFO **uni_plane, my_wc_t *wc)
 {
   int page= *wc >> 8;
-  if (page < 256 && uni_plane[page])
+  if (page < 256 && *wc <= MY_CS_MAX_CHAR && uni_plane[page])
     *wc= uni_plane[page][*wc & 0xFF].toupper;
 }
 
