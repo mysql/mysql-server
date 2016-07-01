@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,11 +33,11 @@ extern "C" {
 #define MY_CS_TO_UPPER_TABLE_SIZE	256
 #define MY_CS_SORT_ORDER_TABLE_SIZE	256
 #define MY_CS_TO_UNI_TABLE_SIZE		256
-
 #define CHARSET_DIR	"charsets/"
 
 #define my_wc_t ulong
 
+#define MY_CS_MAX_CHAR 0xFFFF
 #define MY_CS_REPLACEMENT_CHARACTER 0xFFFD
 
 /*
