@@ -64,13 +64,13 @@ std::string ssl_init_error::message(int value) const
 Mysqlx_sync_connection::Mysqlx_sync_connection(const char *ssl_key,
                                                const char *ssl_ca, const char *ssl_ca_path,
                                                const char *ssl_cert, const char *ssl_cipher,
-                                               const std::size_t timeout)
+                                               const char *tls_version, const std::size_t timeout)
 : m_timeout(timeout),
   m_vio(NULL),
   m_ssl_acvtive(false),
   m_ssl_init_error(SSL_INITERR_NOERROR)
 {
-  long ssl_ctx_flags = process_tls_version("TLSv1");
+  long ssl_ctx_flags = process_tls_version(tls_version);
 
   m_vioSslFd = new_VioSSLConnectorFd(ssl_key, ssl_cert, ssl_ca, ssl_ca_path, ssl_cipher, &m_ssl_init_error, NULL, NULL, ssl_ctx_flags);
 
