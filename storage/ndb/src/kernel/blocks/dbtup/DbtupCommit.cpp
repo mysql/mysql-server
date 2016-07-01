@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -287,7 +287,7 @@ Dbtup::handle_lcp_keep_commit(const Local_key* rowid,
     setup_fixed_tuple_ref(req_struct, opPtrP, regTabPtr);
     setup_fixed_part(req_struct, opPtrP, regTabPtr);
     req_struct->m_tuple_ptr = dst;
-    expand_tuple(req_struct, sizes, org, regTabPtr, disk);
+    expand_tuple(req_struct, sizes, org, regTabPtr, disk, true);
     shrink_tuple(req_struct, sizes+2, regTabPtr, disk);
   }
   else
