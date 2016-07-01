@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,19 @@
 #ifndef RPL_WRITE_SET_HANDLER_INCLUDED
 #define RPL_WRITE_SET_HANDLER_INCLUDED
 
+extern const char *transaction_write_set_hashing_algorithms[];
+
 class THD;
 struct TABLE;
+
+/**
+  Function that returns the write set extraction algorithm name.
+
+  @param[in] algorithm  The algorithm value
+
+  @return the algorithm name
+*/
+const char* get_write_set_algorithm_string(unsigned int algorithm);
 
 /**
   Function to add the hash of the PKE to the transaction context object.

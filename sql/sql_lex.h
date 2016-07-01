@@ -671,6 +671,9 @@ public:
   /// @return true if query expression can be merged into an outer query
   bool is_mergeable() const;
 
+  /// @return true if query expression is recommended to be merged
+  bool merge_heuristic() const;
+
   /// @return the query block this query expression belongs to as subquery
   SELECT_LEX* outer_select() const { return master; }
 

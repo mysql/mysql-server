@@ -48,43 +48,7 @@ public:
   };
 
 public:
-  View_table_usage()
-  {
-    m_target_def.table_name(table_name());
-    m_target_def.dd_version(1);
-
-    m_target_def.add_field(FIELD_VIEW_ID,
-                           "FIELD_VIEW_ID",
-                           "view_id BIGINT UNSIGNED NOT NULL");
-    m_target_def.add_field(FIELD_TABLE_CATALOG,
-                           "FIELD_TABLE_CATALOG",
-                           "table_catalog VARCHAR(64) NOT NULL COLLATE " +
-                           std::string(Object_table_definition_impl::
-                                         fs_name_collation()->name));
-    m_target_def.add_field(FIELD_TABLE_SCHEMA,
-                           "FIELD_TABLE_SCHEMA",
-                           "table_schema VARCHAR(64) NOT NULL COLLATE " +
-                           std::string(Object_table_definition_impl::
-                                         fs_name_collation()->name));
-    m_target_def.add_field(FIELD_TABLE_NAME,
-                           "FIELD_TABLE_NAME",
-                           "table_name VARCHAR(64) NOT NULL COLLATE " +
-                           std::string(Object_table_definition_impl::
-                                         fs_name_collation()->name));
-
-    m_target_def.add_index("PRIMARY KEY(view_id, table_catalog, "
-                           "table_schema, table_name)");
-    m_target_def.add_index("KEY (table_catalog, table_schema, table_name)");
-
-    m_target_def.add_foreign_key("FOREIGN KEY (view_id) REFERENCES "
-                                 "tables(id)");
-
-    m_target_def.add_option("ENGINE=INNODB");
-    m_target_def.add_option("DEFAULT CHARSET=utf8");
-    m_target_def.add_option("COLLATE=utf8_bin");
-    m_target_def.add_option("ROW_FORMAT=DYNAMIC");
-    m_target_def.add_option("STATS_PERSISTENT=0");
-  }
+  View_table_usage();
 
   virtual const std::string &name() const
   { return View_table_usage::table_name(); }

@@ -330,9 +330,27 @@ if (!$mysql_errno)
 INSERT INTO information_schema.key_column_usage
 SELECT * FROM information_schema.key_column_usage;
 
---error ER_DBACCESS_DENIED_ERROR
+# Note:
+# 1. We can get different error messages here.
+# 2. We do not want to unify the individual messages to the far to unspecific
+#    'Got one of the listed errors'.
+let $my_error_message =
+##### The previous statement must fail ######
+# Server type  | expected error name      | expected error message
+# --------------------------------------------------------------------------------------------------------------------
+# not embedded | ER_DBACCESS_DENIED_ERROR | ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+# embedded     | ER_NON_UPDATABLE_TABLE   | ERROR HY000: The target table key_column_usage of the UPDATE is not updatable
+#              | or similar               |              or similar
+;
+--disable_abort_on_error
 UPDATE information_schema.key_column_usage
 SET  table_name = 'db1' WHERE constraint_name = 'primary';
+if (!$mysql_errno)
+{
+   --echo $my_error_message
+   exit;
+}
+--enable_abort_on_error
 
 --error ER_DBACCESS_DENIED_ERROR
 DELETE FROM information_schema.key_column_usage WHERE table_name = 't1';

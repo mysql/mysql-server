@@ -28,6 +28,47 @@ const Index_column_usage &Index_column_usage::instance()
 
 ///////////////////////////////////////////////////////////////////////////
 
+Index_column_usage::Index_column_usage()
+{
+  m_target_def.table_name(table_name());
+  m_target_def.dd_version(1);
+
+  m_target_def.add_field(FIELD_INDEX_ID,
+                         "FIELD_INDEX_ID",
+                         "index_id BIGINT UNSIGNED NOT NULL");
+  m_target_def.add_field(FIELD_ORDINAL_POSITION,
+                         "FIELD_ORDINAL_POSITION",
+                         "ordinal_position INT UNSIGNED NOT NULL");
+  m_target_def.add_field(FIELD_COLUMN_ID,
+                         "FIELD_COLUMN_ID",
+                         "column_id BIGINT UNSIGNED NOT NULL");
+  m_target_def.add_field(FIELD_LENGTH,
+                         "FIELD_LENGTH",
+                         "length INT UNSIGNED");
+  /*
+    TODO-WIKI6599.Task20: What value we are supposed to use for indexes which
+    don't support ordering? How this can be mapped to I_S?
+    Perhaps make it nullable?
+  */
+  m_target_def.add_field(FIELD_ORDER,
+                         "FIELD_ORDER",
+                         "`order` ENUM('ASC', 'DESC') "
+                         "NOT NULL");
+  m_target_def.add_field(FIELD_HIDDEN,
+                         "FIELD_HIDDEN",
+                         "hidden BOOL NOT NULL");
+
+  m_target_def.add_index("UNIQUE KEY (index_id, ordinal_position)");
+  m_target_def.add_index("UNIQUE KEY (index_id, column_id, hidden)");
+
+  m_target_def.add_foreign_key("FOREIGN KEY f1(index_id) REFERENCES "
+                               "indexes(id)");
+  m_target_def.add_foreign_key("FOREIGN KEY f2(column_id) REFERENCES "
+                               "columns(id)");
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 Object_key *Index_column_usage::create_key_by_index_id(
   Object_id index_id)
 {

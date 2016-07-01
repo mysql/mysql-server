@@ -1707,7 +1707,7 @@ PageConverter::PageConverter(
 	m_offsets = m_offsets_;
 	rec_offs_init(m_offsets_);
 
-	m_cluster_index = dict_table_get_first_index(m_cfg->m_table);
+	m_cluster_index = m_cfg->m_table->first_index();
 }
 
 /** Adjust the BLOB reference for a single column that is externally stored
@@ -2335,7 +2335,7 @@ row_import_adjust_root_pages_of_secondary_indexes(
 	dberr_t			err = DB_SUCCESS;
 
 	/* Skip the clustered index. */
-	index = dict_table_get_first_index(table);
+	index = table->first_index();
 
 	n_rows_in_table = cfg.get_n_rows(index->name);
 
@@ -2343,7 +2343,7 @@ row_import_adjust_root_pages_of_secondary_indexes(
 			n_rows_in_table++;);
 
 	/* Adjust the root pages of the secondary indexes only. */
-	while ((index = dict_table_get_next_index(index)) != NULL) {
+	while ((index = index->next()) != NULL) {
 		ut_a(!dict_index_is_clust(index));
 
 		if (!dict_index_is_corrupted(index)
@@ -2434,7 +2434,7 @@ row_import_set_sys_max_row_id(
 /*==========================*/
 	row_prebuilt_t*		prebuilt,	/*!< in/out: prebuilt from
 						handler */
-	const dict_table_t*	table)		/*!< in: table to import */
+	dict_table_t*		table)		/*!< in: table to import */
 {
 	dberr_t			err;
 	const rec_t*		rec;
@@ -2443,7 +2443,7 @@ row_import_set_sys_max_row_id(
 	row_id_t		row_id	= 0;
 	dict_index_t*		index;
 
-	index = dict_table_get_first_index(table);
+	index = table->first_index();
 	ut_a(dict_index_is_clust(index));
 
 	mtr_start(&mtr);
@@ -3521,9 +3521,9 @@ row_import_update_index_root(
 		mutex_enter(&dict_sys->mutex);
 	}
 
-	for (index = dict_table_get_first_index(table);
+	for (index = table->first_index();
 	     index != 0;
-	     index = dict_table_get_next_index(index)) {
+	     index = index->next()) {
 
 		pars_info_t*	info;
 		ib_uint32_t	page;
@@ -4017,7 +4017,7 @@ row_import_for_mysql(
 
 	/* The first index must always be the clustered index. */
 
-	dict_index_t*	index = dict_table_get_first_index(table);
+	dict_index_t*	index = table->first_index();
 
 	if (!dict_index_is_clust(index)) {
 		return(row_import_error(prebuilt, trx, DB_CORRUPTION));

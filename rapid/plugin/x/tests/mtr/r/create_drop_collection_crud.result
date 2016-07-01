@@ -46,6 +46,7 @@ send Mysqlx.Sql.StmtExecute {
 
 
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection"
   args {
@@ -490,13 +491,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 1142
-  msg: "CREATE command denied to user \'user1\'@\'localhost\' for table \'table1\'"
-  sql_state: "42000"
-}
-
+Got expected error: CREATE command denied to user 'user1'@'localhost' for table 'table1' (code 1142)
 RUN SHOW CREATE TABLE xplugintest_user_access.table1
 While executing SHOW CREATE TABLE xplugintest_user_access.table1:
 Got expected error: SHOW command denied to user 'user1'@'localhost' for table 'table1' (code 1142)
@@ -549,13 +544,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 5015
-  msg: "Invalid number of arguments, expected 2 but got 3"
-  sql_state: "HY000"
-}
-
+Got expected error: Invalid number of arguments, expected 2 but got 3 (code 5015)
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -583,13 +572,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "Invalid"
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 5162
-  msg: "Unknown namespace Invalid"
-  sql_state: "HY000"
-}
-
+Got expected error: Unknown namespace Invalid (code 5162)
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -617,13 +600,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 1049
-  msg: "Unknown database \'non_existing\'"
-  sql_state: "42000"
-}
-
+Got expected error: Unknown database 'non_existing' (code 1049)
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -648,13 +625,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 5016
-  msg: "Invalid type for argument \'name\' at #2 (should be string)"
-  sql_state: "HY000"
-}
-
+Got expected error: Invalid type for argument 'name' at #2 (should be string) (code 5016)
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -682,13 +653,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 5016
-  msg: "Invalid type for argument \'schema\' at #1 (should be string)"
-  sql_state: "HY000"
-}
-
+Got expected error: Invalid type for argument 'schema' at #1 (should be string) (code 5016)
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -716,13 +681,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 1050
-  msg: "Table \'table1\' already exists"
-  sql_state: "42S01"
-}
-
+Got expected error: Table 'table1' already exists (code 1050)
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -737,5 +696,6 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+DROP DATABASE xplugintest;
 DROP DATABASE xplugintest;
 UNINSTALL PLUGIN mysqlx;

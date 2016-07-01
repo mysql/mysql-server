@@ -35,6 +35,7 @@ send Mysqlx.Sql.StmtExecute {
 
 
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 send Mysqlx.Crud.Insert {
   collection {
     name: "dt"

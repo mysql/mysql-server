@@ -2004,10 +2004,9 @@ dict_foreign_has_col_in_v_index(
 	const dict_table_t*	table)
 {
 	/* virtual column can't be Primary Key, so start with secondary index */
-	for (dict_index_t* index = dict_table_get_next_index(
-		     dict_table_get_first_index(table));
+	for (const dict_index_t* index = table->first_index()->next();
 	     index;
-	     index = dict_table_get_next_index(index)) {
+	     index = index->next()) {
 
 		if (dict_index_has_virtual(index)) {
 			if (dict_index_has_col_by_name(fk_col_name, index)) {
@@ -2601,5 +2600,5 @@ dict_sdi_create_idx_in_mem(
 	ut_a(error == DB_SUCCESS);
 
 	mem_heap_free(heap);
-	return(dict_table_get_first_index(table));
+	return(table->first_index());
 }

@@ -1248,8 +1248,7 @@ row_upd_index_replace_new_col_vals(
 				copying the new values */
 {
 	ulint			i;
-	const dict_index_t*	clust_index
-		= dict_table_get_first_index(index->table);
+	const dict_index_t*	clust_index = index->table->first_index();
 	const page_size_t&	page_size = dict_table_page_size(index->table);
 
 	ut_ad(!index->table->skip_alter_undo);
@@ -1342,8 +1341,7 @@ row_upd_replace_vcol(
 		/* If there is no index on the column, do not bother for
 		value update */
 		if (!col->m_col.ord_part) {
-			dict_index_t*	clust_index
-				= dict_table_get_first_index(table);
+			const dict_index_t* clust_index = table->first_index();
 
 			/* Skip the column if there is no online alter
 			table in progress or it is not being indexed
@@ -1558,7 +1556,7 @@ row_upd_changes_ord_field_binary_func(
 
 	n_unique = dict_index_get_n_unique(index);
 
-	clust_index = dict_table_get_first_index(index->table);
+	clust_index = index->table->first_index();
 
 	for (i = 0; i < n_unique; i++) {
 
@@ -1779,11 +1777,11 @@ row_upd_changes_some_index_ord_field_binary(
 	const dict_table_t*	table,	/*!< in: table */
 	const upd_t*		update)	/*!< in: update vector for the row */
 {
-	upd_field_t*	upd_field;
-	dict_index_t*	index;
-	ulint		i;
+	upd_field_t*		upd_field;
+	const dict_index_t*	index;
+	ulint			i;
 
-	index = dict_table_get_first_index(table);
+	index = table->first_index();
 
 	for (i = 0; i < upd_get_n_fields(update); i++) {
 
@@ -1821,7 +1819,7 @@ row_upd_changes_doc_id(
 
 	ut_ad(!table->skip_alter_undo);
 
-	clust_index = dict_table_get_first_index(table);
+	clust_index = table->first_index();
 
 	/* Convert from index-specific column number to table-global
 	column number. */
@@ -1849,7 +1847,7 @@ row_upd_changes_fts_column(
 		col_no = upd_field->field_no;
 		return(dict_table_is_fts_column(fts->indexes, col_no, true));
 	} else {
-		clust_index = dict_table_get_first_index(table);
+		clust_index = table->first_index();
 
 		/* Convert from index-specific column number to table-global
 		column number. */
@@ -1882,7 +1880,7 @@ row_upd_changes_first_fields_binary(
 	ut_ad(n <= dict_index_get_n_fields(index));
 
 	n_upd_fields = upd_get_n_fields(update);
-	clust_index = dict_table_get_first_index(index->table);
+	clust_index = index->table->first_index();
 
 	for (i = 0; i < n; i++) {
 
@@ -1979,7 +1977,7 @@ row_upd_store_v_row(
 	TABLE*		mysql_table)
 {
 	mem_heap_t*	heap = NULL;
-	dict_index_t*	index = dict_table_get_first_index(node->table);
+	dict_index_t*	index = node->table->first_index();
 
 	for (ulint col_no = 0; col_no < dict_table_get_n_v_cols(node->table);
 	     col_no++) {
@@ -2070,7 +2068,7 @@ row_upd_store_row(
 		mem_heap_empty(node->heap);
 	}
 
-	clust_index = dict_table_get_first_index(node->table);
+	clust_index = node->table->first_index();
 
 	rec = btr_pcur_get_rec(node->pcur);
 
@@ -2684,7 +2682,7 @@ row_upd_check_autoinc_counter(
 	ib_uint64_t		old_counter;
 	const dict_index_t*	index;
 
-	index = dict_table_get_first_index(table);
+	index = table->first_index();
 
 	/* The autoinc field order in row is not the
 	same as in clustered index, we need to get
@@ -2941,7 +2939,7 @@ row_upd_clust_step(
 	trx_t*		trx = thr_get_trx(thr);
 	rec_offs_init(offsets_);
 
-	index = dict_table_get_first_index(node->table);
+	index = node->table->first_index();
 
 	referenced = row_upd_index_is_referenced(index, trx);
 
@@ -3052,7 +3050,7 @@ row_upd_clust_step(
 
 		if (err == DB_SUCCESS) {
 			node->state = UPD_NODE_UPDATE_ALL_SEC;
-			node->index = dict_table_get_next_index(index);
+			node->index = index->next();
 		}
 
 		goto exit_func;
@@ -3114,7 +3112,7 @@ row_upd_clust_step(
 		node->state = UPD_NODE_UPDATE_SOME_SEC;
 	}
 
-	node->index = dict_table_get_next_index(index);
+	node->index = index->next();
 
 exit_func:
 	if (heap) {
@@ -3208,7 +3206,7 @@ row_upd(
 			}
 		}
 
-		node->index = dict_table_get_next_index(node->index);
+		node->index = node->index->next();
 	} while (node->index != NULL);
 
 	ut_ad(err == DB_SUCCESS);

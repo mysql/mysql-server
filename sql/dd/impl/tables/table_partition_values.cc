@@ -36,6 +36,35 @@ const Table_partition_values &Table_partition_values::instance()
 
 ///////////////////////////////////////////////////////////////////////////
 
+Table_partition_values::Table_partition_values()
+{
+  m_target_def.table_name(table_name());
+  m_target_def.dd_version(1);
+
+  m_target_def.add_field(FIELD_PARTITION_ID,
+                         "FIELD_PARTITION_ID",
+                         "partition_id BIGINT UNSIGNED NOT NULL");
+  m_target_def.add_field(FIELD_LIST_NUM,
+                         "FIELD_LIST_NUM",
+                         "list_num TINYINT UNSIGNED NOT NULL");
+  m_target_def.add_field(FIELD_COLUMN_NUM,
+                         "FIELD_COLUMN_NUM",
+                         "column_num TINYINT UNSIGNED NOT NULL");
+  m_target_def.add_field(FIELD_VALUE_UTF8,
+                         "FIELD_VALUE_UTF8",
+                         "value_utf8 TEXT NULL");
+  m_target_def.add_field(FIELD_MAX_VALUE,
+                         "FIELD_MAX_VALUE",
+                         "max_value BOOL NOT NULL");
+
+  m_target_def.add_index("PRIMARY KEY(partition_id, list_num, column_num)");
+
+  m_target_def.add_foreign_key("FOREIGN KEY (partition_id) REFERENCES "
+                               "table_partitions(id)");
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 // Primary key (PK) class for TABLE_PARTITION_VALUES table.
 
 class Table_partition_values_pk : public Object_key

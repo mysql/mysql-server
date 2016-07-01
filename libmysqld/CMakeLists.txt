@@ -31,6 +31,7 @@ INCLUDE_DIRECTORIES(
   ${SSL_INCLUDE_DIRS}
   ${SSL_INTERNAL_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/sql/backup
+  ${LZ4_INCLUDE_DIR}
 )
 
 # We should generate these separately for libmysqld to avoid
@@ -78,9 +79,7 @@ SET(SQL_EMBEDDED_SOURCES
   ../libbinlogevents/src/binary_log_funcs.cpp
   ../libbinlogevents/src/uuid.cpp
   ../sql/binlog.cc 
-  ../sql/event_parse_data.cc
   ../sql/log_event.cc
-  ../sql/mysqld_thd_manager.cc
   ../sql/rpl_filter.cc
   ../sql/rpl_injector.cc
   ../sql/rpl_record.cc

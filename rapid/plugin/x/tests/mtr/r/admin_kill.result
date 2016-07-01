@@ -13,6 +13,7 @@ send Mysqlx.Sql.StmtExecute {
 client_id	user	host	sql_session
 1	root	localhost	$SESSION
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 connecting...
 active session is now 'aux'
 send Mysqlx.Sql.StmtExecute {
@@ -24,6 +25,7 @@ client_id	user	host	sql_session
 1	root	localhost	$SESSION
 2	root	localhost	$SESSION
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 switched to session default
 send Mysqlx.Sql.StmtExecute {
   stmt: "list_clients"
@@ -71,6 +73,7 @@ send Mysqlx.Sql.StmtExecute {
 client_id	user	host	sql_session
 3	unpriv	localhost	$SESSION
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 Try to kill a root session from unpriv
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"

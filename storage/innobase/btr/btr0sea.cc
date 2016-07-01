@@ -321,9 +321,9 @@ btr_search_disable_ref_count(
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 
-	for (index = dict_table_get_first_index(table);
+	for (index = table->first_index();
 	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
+	     index = index->next()) {
 
 		ut_ad(rw_lock_own(btr_get_search_latch(index), RW_LOCK_X));
 
@@ -443,8 +443,8 @@ btr_search_info_create(mem_heap_t* heap)
 @return ref_count value. */
 ulint
 btr_search_info_get_ref_count(
-	btr_search_t*	info,
-	dict_index_t*	index)
+	const btr_search_t*	info,
+	const dict_index_t*	index)
 {
 	ulint ret = 0;
 

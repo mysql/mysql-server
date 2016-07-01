@@ -35,6 +35,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "usr0sess.h"
 #include "fil0fil.h"
 #include "read0types.h"
+#include "srv0start.h"
 
 /** The global data structure coordinating a purge */
 extern trx_purge_t*	purge_sys;
@@ -196,12 +197,13 @@ namespace undo {
 			:
 			m_undo_for_trunc(SPACE_UNKNOWN),
 			m_rseg_for_trunc(),
-			m_scan_start(1),
 			m_purge_rseg_truncate_frequency(
 				static_cast<ulint>(
 				srv_purge_rseg_truncate_frequency))
 		{
-			/* Do Nothing. */
+			if (srv_undo_tablespace_ids.size() > 0) {
+				m_scan_start = srv_undo_tablespace_ids.begin();
+			}
 		}
 
 		/** Clear the cached rollback segment. Normally done
@@ -226,11 +228,17 @@ namespace undo {
 		{
 			m_undo_for_trunc = undo_id;
 
-			m_scan_start = (undo_id + 1)
-					% (srv_undo_tablespaces_active + 1);
-			if (m_scan_start == 0) {
-				/* Note: UNDO tablespace ids starts from 1. */
-				m_scan_start = 1;
+			/** Round robin way of selecting undo tablespaces
+			to track it for truncate operation. Once we reach
+			the end of list of undo tablespace id, move back
+			to first undo tablespace id. */
+
+			if ((undo_id + 1) >
+				srv_undo_tablespace_ids[
+					srv_undo_tablespaces_active - 1]) {
+				m_scan_start = srv_undo_tablespace_ids.begin();
+			} else {
+				m_scan_start++;
 			}
 
 			/* We found an UNDO-tablespace to truncate so set the
@@ -286,7 +294,7 @@ namespace undo {
 		@return	id of UNDO tablespace to start scanning from. */
 		space_id_t get_scan_start() const
 		{
-			return(m_scan_start);
+			return(*m_scan_start);
 		}
 
 		/** Check if the tablespace needs fix-up (based on presence of
@@ -365,9 +373,10 @@ namespace undo {
 		truncate. */
 		rseg_for_trunc_t	m_rseg_for_trunc;
 
-		/** Start scanning for UNDO tablespace from this space_id.
-		This is to avoid bias selection of one tablespace always. */
-		space_id_t		m_scan_start;
+		/** Start scanning for UNDO tablespace from this
+		vector iterator. This is to avoid bias selection
+		of one tablespace always. */
+		std::vector<space_id_t>::iterator	m_scan_start;
 
 		/** Rollback segment(s) purge frequency. This is local
 		value maintained along with global value. It is set to global

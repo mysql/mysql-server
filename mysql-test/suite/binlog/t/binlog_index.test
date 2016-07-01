@@ -479,4 +479,9 @@ DROP TABLE t1;
 
 eval SET SESSION debug="$old";
 eval SET GLOBAL binlog_error_action= $saved_binlog_error_action;
+
+# Reset Master deletes all binary log files listed in the index file, resets
+# the binary log index file to be empty and creates a new binary log file.
+RESET MASTER;
+
 --echo End of tests

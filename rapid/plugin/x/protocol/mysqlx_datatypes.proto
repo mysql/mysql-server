@@ -31,14 +31,14 @@ message Scalar {
     required bytes value = 1;
     optional uint64 collation = 2;
   };
- 
-// an opaque octet sequence, with an optional content_type
-// See ``Mysqlx.Resultset.ColumnMetadata`` for list of known values.
-message Octets {
-  required bytes value = 1;
-  optional uint32 content_type = 2;
-};
-  
+
+  // an opaque octet sequence, with an optional content_type
+  // See ``Mysqlx.Resultset.ColumnMetadata`` for list of known values.
+  message Octets {
+    required bytes value = 1;
+    optional uint32 content_type = 2;
+  };
+
   enum Type {
     V_SINT = 1;
     V_UINT = 2;

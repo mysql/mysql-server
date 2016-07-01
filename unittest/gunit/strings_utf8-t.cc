@@ -407,7 +407,7 @@ protected:
     // Save global settings.
     m_charset= system_charset_info;
 
-    system_charset_info= &my_charset_utf8mb4_800_ci_ai;
+    system_charset_info= &my_charset_utf8mb4_800_ai_ci;
   }
 
   virtual void TearDown()

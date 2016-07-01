@@ -84,3 +84,14 @@ jj
 not JSON
 {"A": "B"}
 DROP TABLE t1, t2, t3, t4;
+#
+# Bug#23535703: WRONG TABLE CHECKSUM ON TABLES WITH JSON COLUMNS
+#
+CREATE TABLE t(j JSON);
+Warnings:
+Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+INSERT INTO t VALUES ('[1,2,3]');
+CHECKSUM TABLE t EXTENDED;
+Table	Checksum
+test.t	3005741875
+DROP TABLE t;

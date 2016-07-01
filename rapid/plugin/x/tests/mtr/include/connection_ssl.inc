@@ -3,7 +3,10 @@
 # Modified : 19-08-2015 Lalit Choudhary
 
 --echo Preamble
+--source ../include/have_performance_schema_threads.inc
+
 --source ../include/xplugin_preamble.inc
+
 SET GLOBAL mysqlx_connect_timeout = 300;
 call mtr.add_suppression("Unsuccessful login attempt");
 

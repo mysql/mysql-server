@@ -256,7 +256,7 @@ hash index entries belonging to that table. This function tries to
 do that in batch. Note that this is a 'best effort' attempt and does
 not guarantee that ALL hash entries will be removed.
 @param[in]	buf_pool	buffer pool instance
-@param[in]	id		space id */
+@param[in]	space_id	space id */
 static
 void
 buf_LRU_drop_page_hash_for_tablespace(

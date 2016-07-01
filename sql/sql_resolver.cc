@@ -112,7 +112,8 @@ bool SELECT_LEX::prepare(THD *thd)
   is_item_list_lookup= true;
 
   /*
-    Determine whether immediate derived tables can be merged:
+    Determine whether it is suggested to merge immediate derived tables, based
+    on the placement of the query block:
       - DTs belonging to outermost query block: always
       - DTs belonging to first level subqueries: Yes if inside SELECT statement,
         no otherwise (including UPDATE and DELETE).
@@ -780,10 +781,6 @@ bool SELECT_LEX::setup_tables(THD *thd, TABLE_LIST *tables,
     }
     tr->set_tableno(tableno);
     leaf_table_count++;       // Count the input tables of the query
-    if (table == NULL)
-      continue;
-    table->pos_in_table_list= tr;
-    tr->reset();
 
     /*
       Only set hints on first execution.  Otherwise, hints will refer to
@@ -793,9 +790,13 @@ bool SELECT_LEX::setup_tables(THD *thd, TABLE_LIST *tables,
         opt_hints_qb &&                      // QB hints initialized
         !tr->opt_hints_table)                // Table hints are not adjusted yet
     {
-      tr->opt_hints_table= opt_hints_qb->adjust_table_hints(table, tr->alias);
+      tr->opt_hints_table= opt_hints_qb->adjust_table_hints(tr);
     }
 
+    if (table == NULL)
+      continue;
+    table->pos_in_table_list= tr;
+    tr->reset();
     if (tr->process_index_hints(table))
       DBUG_RETURN(true);
     if (table->part_info)     // Count number of partitioned tables
@@ -2294,12 +2295,27 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
            merging of views that are contained in other views if
            can_use_merged() returns false.
   */
-  // Check whether derived table is mergeable, and directives allow merging
-  if (!derived_unit->is_mergeable() ||
-      derived_table->algorithm == VIEW_ALGORITHM_TEMPTABLE ||
-      (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_DERIVED_MERGE) &&
-       derived_table->algorithm != VIEW_ALGORITHM_MERGE))
+  /*
+    Check whether derived table is mergeable, and directives allow merging;
+    priority order is:
+    - ALGORITHM says MERGE or TEMPTABLE
+    - hint specifies MERGE or NO_MERGE (=materialization)
+    - optimizer_switch's derived_merge is ON and heuristic suggests merge
+  */
+  if (derived_table->algorithm == VIEW_ALGORITHM_TEMPTABLE ||
+      !derived_unit->is_mergeable())
     DBUG_RETURN(false);
+
+  if (derived_table->algorithm == VIEW_ALGORITHM_UNDEFINED)
+  {
+    const bool merge_heuristic=
+      (derived_table->is_view() || allow_merge_derived) &&
+      derived_unit->merge_heuristic();
+    if (!hint_table_state(thd, derived_table, DERIVED_MERGE_HINT_ENUM,
+                          merge_heuristic ?
+                          OPTIMIZER_SWITCH_DERIVED_MERGE : 0))
+      DBUG_RETURN(false);
+  }
 
   SELECT_LEX *const derived_select= derived_unit->first_select();
   /*

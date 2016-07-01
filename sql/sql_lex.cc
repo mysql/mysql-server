@@ -3698,7 +3698,8 @@ void SELECT_LEX_UNIT::include_down(LEX *lex, SELECT_LEX *outer)
 
 
 /**
-  Return true if query expression can be merged into an outer query.
+  Return true if query expression can be merged into an outer query, based on
+  technical constraints.
   Being mergeable also means that derived table/view is updatable.
 
   A view/derived table is not mergeable if it is one of the following:
@@ -3708,11 +3709,26 @@ void SELECT_LEX_UNIT::include_down(LEX *lex, SELECT_LEX *outer)
    - A table-less query (unimportant special case).
    - A query with a LIMIT (limit applies to subquery, so the implementation
      strategy is to materialize this subquery, including row count constraint).
-   - A query that modifies variables (When variables are modified, try to
-     preserve the original structure of the query. This is less likely to cause
-     changes in variable assignment order).
+*/
 
-  A view/derived table will also not be merged if it contains subqueries
+bool SELECT_LEX_UNIT::is_mergeable() const
+{
+  if (is_union())
+    return false;
+
+  SELECT_LEX *const select= first_select();
+  return !select->is_grouped() &&
+         !select->having_cond() &&
+         !select->is_distinct() &&
+         select->table_list.elements > 0 &&
+         !select->has_limit();
+}
+
+
+/**
+  True if heuristics suggest to merge this query expression.
+
+  A view/derived table is not suggested for merging if it contains subqueries
   in the SELECT list that depend on columns from itself.
   Merging such objects is possible, but we assume they are made derived
   tables because the user wants them to be materialized, for performance
@@ -3725,12 +3741,13 @@ void SELECT_LEX_UNIT::include_down(LEX *lex, SELECT_LEX *outer)
   The select list subqueries are evaluated the same number of times also with
   join buffering enabled, even though the table then only will be read once.
 
-  When materialization hints are implemented, this decision may be reconsidered.
+  Another case is, a query that modifies variables: then try to preserve the
+  original structure of the query. This is less likely to cause changes in
+  variable assignment order.
 */
-
-bool SELECT_LEX_UNIT::is_mergeable() const
+bool SELECT_LEX_UNIT::merge_heuristic() const
 {
-  if (is_union())
+  if (thd->lex->set_var_list.elements != 0)
     return false;
 
   SELECT_LEX *const select= first_select();
@@ -3741,13 +3758,9 @@ bool SELECT_LEX_UNIT::is_mergeable() const
     if (item->has_subquery() && item->used_tables())
       return false;
   }
-  return !select->is_grouped() &&
-         !select->having_cond() &&
-         !select->is_distinct() &&
-         select->table_list.elements > 0 &&
-         !select->has_limit() &&
-         thd->lex->set_var_list.elements == 0;
+  return true;
 }
+
 
 /**
   Renumber contained select_lex objects.

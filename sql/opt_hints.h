@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,6 +50,7 @@ enum opt_hints_enum
   QB_NAME_HINT_ENUM,
   SEMIJOIN_HINT_ENUM,
   SUBQUERY_HINT_ENUM,
+  DERIVED_MERGE_HINT_ENUM,
   MAX_HINT_ENUM
 };
 
@@ -370,13 +371,12 @@ public:
     table alias in the query block and attaches corresponding
     key hint objects to appropriate KEY structures.
 
-    @param table      Pointer to TABLE object
-    @param alias      Table alias
+    @param table  Table reference
 
     @return  pointer Opt_hints_table object if this object is found,
              NULL otherwise.
   */
-  Opt_hints_table *adjust_table_hints(TABLE *table, const char *alias);
+  Opt_hints_table *adjust_table_hints(TABLE_LIST *table);
 
   /**
     Returns whether semi-join is enabled for this query block
@@ -448,9 +448,9 @@ public:
     Function sets correlation between key hint objects and
     appropriate KEY structures.
 
-    @param table      Pointer to TABLE object
+    @param table      Pointer to TABLE_LIST object
   */
-  void adjust_key_hints(TABLE *table);
+  void adjust_key_hints(TABLE_LIST *table);
 };
 
 
@@ -488,7 +488,7 @@ public:
   optimizer switch value if hint is not specified.
 
   @param thd               Pointer to THD object
-  @param table             Pointer to TABLE object
+  @param table             Pointer to TABLE_LIST object
   @param keyno             Key number
   @param type_arg          Hint type
   @param optimizer_switch  Optimizer switch flag
@@ -496,7 +496,7 @@ public:
   @return key hint value if hint is specified,
           otherwise optimizer switch value.
 */
-bool hint_key_state(const THD *thd, const TABLE *table,
+bool hint_key_state(const THD *thd, const TABLE_LIST *table,
                     uint keyno, opt_hints_enum type_arg,
                     uint optimizer_switch);
 
@@ -505,14 +505,14 @@ bool hint_key_state(const THD *thd, const TABLE *table,
   optimizer switch value if hint is not specified.
 
   @param thd                Pointer to THD object
-  @param table              Pointer to TABLE object
+  @param table              Pointer to TABLE_LIST object
   @param type_arg           Hint type
   @param optimizer_switch   Optimizer switch flag
 
   @return table hint value if hint is specified,
           otherwise optimizer switch value.
 */
-bool hint_table_state(const THD *thd, const TABLE *table,
+bool hint_table_state(const THD *thd, const TABLE_LIST *table,
                       opt_hints_enum type_arg,
                       uint optimizer_switch);
 

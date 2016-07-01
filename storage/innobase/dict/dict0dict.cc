@@ -476,7 +476,7 @@ dict_table_try_drop_aborted_and_mutex_exit(
 	    && table != NULL
 	    && table->drop_aborted
 	    && table->get_ref_count() == 1
-	    && dict_table_get_first_index(table)) {
+	    && table->first_index()) {
 
 		/* Attempt to drop the indexes whose online creation
 		was aborted. */
@@ -547,7 +547,7 @@ dict_table_close(
 		drop_aborted = try_drop
 			&& table->drop_aborted
 			&& table->get_ref_count() == 1
-			&& dict_table_get_first_index(table);
+			&& table->first_index();
 
 		mutex_exit(&dict_sys->mutex);
 
@@ -809,16 +809,14 @@ dict_table_autoinc_initialize(
 @return number of FTS indexes */
 ulint
 dict_table_get_all_fts_indexes(
-	const dict_table_t*	table,
+	dict_table_t*		table,
 	ib_vector_t*		indexes)
 {
 	dict_index_t* index;
 
 	ut_a(ib_vector_size(indexes) == 0);
 
-	for (index = dict_table_get_first_index(table);
-	     index;
-	     index = dict_table_get_next_index(index)) {
+	for (index = table->first_index(); index; index = index->next()) {
 
 		if (index->type == DICT_FTS) {
 			ib_vector_push(indexes, &index);
@@ -1168,8 +1166,7 @@ dict_table_get_nth_col_pos(
 	const dict_table_t*	table,	/*!< in: table */
 	ulint			n)	/*!< in: column number */
 {
-	return(dict_index_get_nth_col_pos(dict_table_get_first_index(table),
-					  n));
+	return(dict_index_get_nth_col_pos(table->first_index(), n));
 }
 
 /** Get the innodb column position for a non-virtual column according to
@@ -1226,7 +1223,7 @@ dict_table_col_in_clustered_key(
 
 	col = dict_table_get_nth_col(table, n);
 
-	index = dict_table_get_first_index(table);
+	index = table->first_index();
 
 	n_fields = dict_index_get_n_unique(index);
 
@@ -1553,7 +1550,7 @@ dict_table_can_be_evicted(
 	ut_a(table->referenced_set.empty());
 
 	if (table->get_ref_count() == 0) {
-		dict_index_t*	index;
+		const dict_index_t*	index;
 
 		/* The transaction commit and rollback are called from
 		outside the handler interface. This means that there is
@@ -1564,11 +1561,11 @@ dict_table_can_be_evicted(
 			return(FALSE);
 		}
 
-		for (index = dict_table_get_first_index(table);
+		for (index = table->first_index();
 		     index != NULL;
-		     index = dict_table_get_next_index(index)) {
+		     index = index->next()) {
 
-			btr_search_t*	info = btr_search_get_info(index);
+			const btr_search_t* info = btr_search_get_info(index);
 
 			/* We are not allowed to free the in-memory index
 			struct dict_index_t until all entries in the adaptive
@@ -1684,9 +1681,9 @@ dict_table_find_index_on_id(
 	const dict_table_t*	table,
 	const index_id_t&	id)
 {
-	for (const dict_index_t* index = dict_table_get_first_index(table);
+	for (const dict_index_t* index = table->first_index();
 	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
+	     index = index->next()) {
 		if (index->space == id.m_space_id
 		    && index->id == id.m_index_id) {
 			return(index);
@@ -1892,9 +1889,9 @@ dict_table_rename_in_cache(
 	ut_a(dict_sys->size > 0);
 
 	/* Update the table_name field in indexes */
-	for (index = dict_table_get_first_index(table);
+	for (index = table->first_index();
 	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
+	     index = index->next()) {
 
 		index->table_name = table->name.m_name;
 	}
@@ -3604,11 +3601,11 @@ dict_foreign_find_index(
 					the columns must be declared
 					NOT NULL */
 {
-	dict_index_t*	index;
+	const dict_index_t*	index;
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 
-	index = dict_table_get_first_index(table);
+	index = table->first_index();
 
 	while (index != NULL) {
 		if (types_idx != index
@@ -3620,10 +3617,10 @@ dict_foreign_find_index(
 			    table, col_names, columns, n_cols,
 			    index, types_idx,
 			    check_charsets, check_null)) {
-			return(index);
+			return const_cast<dict_index_t*>(index);
 		}
 
-		index = dict_table_get_next_index(index);
+		index = index->next();
 	}
 
 	return(NULL);
@@ -5684,9 +5681,9 @@ dict_init_dynamic_metadata(
 
 	metadata->reset();
 
-	for (const dict_index_t* index = dict_table_get_first_index(table);
+	for (const dict_index_t* index = table->first_index();
 	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
+	     index = index->next()) {
 
 		if (dict_index_is_corrupted(index)) {
 			metadata->add_corrupted_index(
@@ -6267,7 +6264,7 @@ dict_table_get_index_on_name(
 {
 	dict_index_t*	index;
 
-	index = dict_table_get_first_index(table);
+	index = table->first_index();
 
 	while (index != NULL) {
 		if (index->is_committed() == committed
@@ -6276,7 +6273,7 @@ dict_table_get_index_on_name(
 			return(index);
 		}
 
-		index = dict_table_get_next_index(index);
+		index = index->next();
 	}
 
 	return(NULL);
@@ -7931,7 +7928,7 @@ dict_sdi_get_index(
 
 	if (table != NULL) {
 		dict_sdi_close_table(table);
-		return(dict_table_get_first_index(table));
+		return(table->first_index());
 	}
 	return(NULL);
 }

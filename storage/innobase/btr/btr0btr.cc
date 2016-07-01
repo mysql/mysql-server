@@ -1224,7 +1224,7 @@ btr_truncate(
 	const dict_index_t*	index)
 {
 	ut_ad(dict_index_is_clust(index));
-	ut_ad(dict_table_get_next_index(index) == NULL);
+	ut_ad(index->next() == NULL);
 
 	page_no_t		root_page_no	= index->page;
 	space_id_t		space_id	= index->space;
@@ -1287,7 +1287,7 @@ btr_truncate_recover(
 	const dict_index_t*	index)
 {
 	ut_ad(dict_index_is_clust(index));
-	ut_ad(dict_table_get_next_index(index) == NULL);
+	ut_ad(index->next() == NULL);
 
 	page_no_t		root_page_no = index->page;
 	space_id_t		space_id = index->space;
@@ -5289,7 +5289,7 @@ btr_sdi_create(
 	mtr_t*			mtr,
 	dict_table_t*		table)
 {
-	dict_index_t*	index = dict_table_get_first_index(table);
+	dict_index_t*	index = table->first_index();
 	ut_ad(index != NULL);
 	ut_ad(UT_LIST_GET_LEN(table->indexes) == 1);
 
@@ -5346,8 +5346,7 @@ btr_sdi_create_indexes(
 			fil_space_release(space);
 			return(DB_ERROR);
 		} else {
-			dict_index_t*	index = dict_table_get_first_index(
-				sdi_tables[copy_num]);
+			dict_index_t*	index = sdi_tables[copy_num]->first_index();
 			index->page = sdi_root_page_num[copy_num];
 		}
 	}

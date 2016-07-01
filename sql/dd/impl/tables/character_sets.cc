@@ -20,6 +20,7 @@
 #include "dd/dd.h"                                // dd::create_object
 #include "dd/cache/dictionary_client.h"           // dd::cache::Dictionary_...
 #include "dd/impl/raw/object_keys.h"              // Global_name_key
+#include "dd/impl/types/charset_impl.h"           // dd::Charset_impl
 
 namespace dd {
 namespace tables {
@@ -28,6 +29,41 @@ const Character_sets &Character_sets::instance()
 {
   static Character_sets *s_instance= new Character_sets();
   return *s_instance;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+Character_sets::Character_sets()
+{
+  m_target_def.table_name(table_name());
+  m_target_def.dd_version(1);
+
+  m_target_def.add_field(FIELD_ID,
+                         "FIELD_ID",
+                         "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
+  m_target_def.add_field(FIELD_NAME,
+                         "FIELD_NAME",
+                         "name VARCHAR(64) NOT NULL COLLATE utf8_general_ci");
+  m_target_def.add_field(FIELD_DEFAULT_COLLATION_ID,
+                         "FIELD_DEFAULT_COLLATION_ID",
+                         "default_collation_id BIGINT UNSIGNED NOT NULL");
+  m_target_def.add_field(FIELD_COMMENT,
+                         "FIELD_COMMENT",
+                         "comment VARCHAR(2048) NOT NULL");
+  m_target_def.add_field(FIELD_MB_MAX_LENGTH,
+                         "FIELD_MB_MAX_LENGTH",
+                         "mb_max_length INT UNSIGNED NOT NULL");
+
+  m_target_def.add_index("PRIMARY KEY(id)");
+  m_target_def.add_index("UNIQUE KEY(name)");
+
+  // Add an explicit index for the FK column to avoid errors regarding
+  // different number of indexes known to InnoDB and MySQL
+  // WL#7743 FIXME
+  m_target_def.add_index("UNIQUE KEY(default_collation_id)");
+
+  m_target_def.add_cyclic_foreign_key("FOREIGN KEY (default_collation_id) "
+                                      "REFERENCES collations(id)");
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -109,6 +145,15 @@ bool Character_sets::populate(THD *thd) const
 
   return error;
 }
+
+///////////////////////////////////////////////////////////////////////////
+
+/* purecov: begin deadcode */
+Dictionary_object *Character_sets::create_dictionary_object(const Raw_record &) const
+{
+  return new (std::nothrow) Charset_impl();
+}
+/* purecov: end */
 
 ///////////////////////////////////////////////////////////////////////////
 

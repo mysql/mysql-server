@@ -340,6 +340,7 @@ rw_lock_s_lock_spin(
 	it here for efficiency. */
 
 	ut_ad(rw_lock_validate(lock));
+	rw_lock_stats.rw_s_spin_wait_count.inc();
 
 lock_loop:
 
@@ -713,6 +714,7 @@ rw_lock_x_lock_func(
 	sync_array_t*	sync_arr;
 	ulint		spin_count = 0;
 	uint64_t	count_os_wait = 0;
+	bool		spinning = false;
 
 	ut_ad(rw_lock_validate(lock));
 	ut_ad(!rw_lock_own(lock, RW_LOCK_S));
@@ -733,6 +735,10 @@ lock_loop:
 		return;
 
 	} else {
+		if (!spinning) {
+			spinning = true;
+			rw_lock_stats.rw_x_spin_wait_count.inc();
+		}
 
 		/* Spin waiting for the lock_word to become free */
 		os_rmb;

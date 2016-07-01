@@ -5768,7 +5768,7 @@ static
 void
 innobase_vcol_build_templ(
 	const TABLE*		table,
-	dict_index_t*		clust_index,
+	const dict_index_t*	clust_index,
 	Field*			field,
 	const dict_col_t*	col,
 	mysql_row_templ_t*	templ,
@@ -5909,7 +5909,7 @@ innobase_build_v_templ(
 	ulint	j = 0;
 	ulint	z = 0;
 
-	dict_index_t*	clust_index = dict_table_get_first_index(ib_table);
+	const dict_index_t*	clust_index = ib_table->first_index();
 
 	for (ulint i = 0; i < table->s->fields; i++) {
 		Field*  field = table->field[i];
@@ -6345,7 +6345,7 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 		so I would set the in-memory clustered index as corrupted
 		instead of calling dict_set_corrupted to make test case
 		pass */
-		dict_table_get_first_index(ib_table)->type |= DICT_CORRUPT;
+		ib_table->first_index()->type |= DICT_CORRUPT;
 		dict_table_close(ib_table, FALSE, FALSE);
 		ib_table = NULL;
 		is_part = NULL;
@@ -7419,7 +7419,7 @@ ha_innobase::build_template(
 		}
 	}
 
-	clust_index = dict_table_get_first_index(m_prebuilt->table);
+	clust_index = m_prebuilt->table->first_index();
 
 	index = whole_row ? clust_index : m_prebuilt->index;
 
@@ -8140,7 +8140,7 @@ calc_row_difference(
 	ut_ad(!srv_read_only_mode || dict_table_is_intrinsic(prebuilt->table));
 
 	n_fields = table->s->fields;
-	clust_index = dict_table_get_first_index(prebuilt->table);
+	clust_index = prebuilt->table->first_index();
 
 	/* We use upd_buff to convert changed fields */
 	buf = (byte*) upd_buff;
@@ -9209,7 +9209,7 @@ ha_innobase::innobase_get_index(
 		}
 	} else {
 		key = 0;
-		index = dict_table_get_first_index(m_prebuilt->table);
+		index = m_prebuilt->table->first_index();
 	}
 
 	if (index == NULL) {
@@ -14056,7 +14056,7 @@ ha_innobase::records(
 
 	m_prebuilt->trx->op_info = "counting records";
 
-	dict_index_t*	index = dict_table_get_first_index(m_prebuilt->table);
+	dict_index_t*	index = m_prebuilt->table->first_index();
 
 	ut_ad(dict_index_is_clust(index));
 
@@ -14272,7 +14272,7 @@ ha_innobase::estimate_rows_upper_bound()
 
 	m_prebuilt->trx->op_info = "calculating upper bound for table rows";
 
-	index = dict_table_get_first_index(m_prebuilt->table);
+	index = m_prebuilt->table->first_index();
 
 	ulint	stat_n_leaf_pages = index->stat_n_leaf_pages;
 
@@ -14426,10 +14426,10 @@ innobase_get_mysql_key_number_for_index(
 	object instead */
 	if (index->table != ib_table) {
 		i = 0;
-		ind = dict_table_get_first_index(index->table);
+		ind = index->table->first_index();
 
 		while (index != ind) {
-			ind = dict_table_get_next_index(ind);
+			ind = ind->next();
 			i++;
 		}
 
@@ -14472,9 +14472,9 @@ innobase_get_mysql_key_number_for_index(
 	}
 
 	/* Loop through each index of the table and lock them */
-	for (ind = dict_table_get_first_index(ib_table);
+	for (ind = ib_table->first_index();
 	     ind != NULL;
-	     ind = dict_table_get_next_index(ind)) {
+	     ind = ind->next()) {
 		if (index == ind) {
 			/* Temp index is internal to InnoDB, that is
 			not present in the MySQL index list, so no
@@ -15192,9 +15192,9 @@ ha_innobase::check(
 
 	ut_ad(!dict_table_is_corrupted(m_prebuilt->table));
 
-	for (index = dict_table_get_first_index(m_prebuilt->table);
+	for (index = m_prebuilt->table->first_index();
 	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
+	     index = index->next()) {
 		/* If this is an index being created or dropped, skip */
 		if (!index->is_committed()) {
 			continue;
@@ -15307,7 +15307,7 @@ ha_innobase::check(
 			dict_set_corrupted(index);
 		}
 
-		if (index == dict_table_get_first_index(m_prebuilt->table)) {
+		if (index == m_prebuilt->table->first_index()) {
 			n_rows_in_table = n_rows;
 		} else if (!(index->type & DICT_FTS)
 			   && (n_rows != n_rows_in_table)) {

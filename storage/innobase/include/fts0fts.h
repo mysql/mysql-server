@@ -341,7 +341,7 @@ public:
 	@param[in]	table	table with FTS indexes
 	@param[in,out]	heap	memory heap where 'this' is stored */
 	fts_t(
-		const dict_table_t*	table,
+		dict_table_t*		table,
 		mem_heap_t*		heap);
 
 	/** fts_t destructor. */

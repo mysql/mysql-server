@@ -192,7 +192,7 @@ Ha_innopart_share::open_one_table_part(
 		this would be removed in WL#7141-7488, we don't need to
 		persist it */
 
-		dict_table_get_first_index(ib_table)->type |= DICT_CORRUPT;
+		ib_table->first_index()->type |= DICT_CORRUPT;
 		dict_table_close(ib_table, FALSE, FALSE);
 	}
 
@@ -478,8 +478,7 @@ Ha_innopart_share::get_index(
 	    || keynr >= m_index_count) {
 
 		if (keynr == MAX_KEY) {
-			return(dict_table_get_first_index(
-				get_table_part(part_id)));
+			return(get_table_part(part_id)->first_index());
 		}
 		return(NULL);
 	}
@@ -1994,8 +1993,7 @@ ha_innopart::innopart_get_index(
 	} else {
 		/* Get the generated index. */
 		ut_ad(keynr == MAX_KEY);
-		index = dict_table_get_first_index(
-				m_part_share->get_table_part(part_id));
+		index = m_part_share->get_table_part(part_id)->first_index();
 	}
 
 	if (index == NULL) {
@@ -3474,7 +3472,7 @@ ha_innopart::estimate_rows_upper_bound()
 	     i = m_part_info->get_next_used_partition(i)) {
 
 		m_prebuilt->table = m_part_share->get_table_part(i);
-		index = dict_table_get_first_index(m_prebuilt->table);
+		index = m_prebuilt->table->first_index();
 
 		stat_n_leaf_pages = index->stat_n_leaf_pages;
 

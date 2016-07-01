@@ -60,12 +60,6 @@ public:
     m_target_def.add_index("PRIMARY KEY (id)");
     m_target_def.add_index("UNIQUE KEY (name)");
 
-    m_target_def.add_option("ENGINE=INNODB");
-    m_target_def.add_option("DEFAULT CHARSET=utf8");
-    m_target_def.add_option("COLLATE=utf8_bin");
-    m_target_def.add_option("ROW_FORMAT=DYNAMIC");
-    m_target_def.add_option("STATS_PERSISTENT=0");
-
     m_target_def.add_populate_statement(
       "INSERT INTO catalogs(id, name, created, last_altered) "
         "VALUES (1, 'def', now(), now())");

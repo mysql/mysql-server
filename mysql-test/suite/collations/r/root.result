@@ -1,4 +1,4 @@
-select hex(convert(uc using utf32)), name from unicode order by uc collate utf8mb4_800_ci_ai, cp;
+select hex(convert(uc using utf32)), name from unicode order by uc collate utf8mb4_800_ai_ci, cp;
 hex(convert(uc using utf32))	name
 00000009	<control>
 0000000A	<control>

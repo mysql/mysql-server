@@ -48,12 +48,6 @@ Parameter_type_elements::Parameter_type_elements()
 
   m_target_def.add_foreign_key("FOREIGN KEY (parameter_id) REFERENCES "
                                "parameters(id)");
-
-  m_target_def.add_option("ENGINE=INNODB");
-  m_target_def.add_option("DEFAULT CHARSET=utf8");
-  m_target_def.add_option("COLLATE=utf8_bin");
-  m_target_def.add_option("ROW_FORMAT=DYNAMIC");
-  m_target_def.add_option("STATS_PERSISTENT=0");
 }
 
 ///////////////////////////////////////////////////////////////////////////

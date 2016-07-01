@@ -292,7 +292,6 @@ INCLUDE (CheckIncludeFiles)
 
 CHECK_INCLUDE_FILES (alloca.h HAVE_ALLOCA_H)
 CHECK_INCLUDE_FILES (arpa/inet.h HAVE_ARPA_INET_H)
-CHECK_INCLUDE_FILES (dirent.h HAVE_DIRENT_H)
 CHECK_INCLUDE_FILES (dlfcn.h HAVE_DLFCN_H)
 CHECK_INCLUDE_FILES (execinfo.h HAVE_EXECINFO_H)
 CHECK_INCLUDE_FILES (fpu_control.h HAVE_FPU_CONTROL_H)
@@ -378,7 +377,6 @@ CHECK_FUNCTION_EXISTS (posix_memalign HAVE_POSIX_MEMALIGN)
 CHECK_FUNCTION_EXISTS (pread HAVE_PREAD) # Used by NDB
 CHECK_FUNCTION_EXISTS (pthread_condattr_setclock HAVE_PTHREAD_CONDATTR_SETCLOCK)
 CHECK_FUNCTION_EXISTS (pthread_sigmask HAVE_PTHREAD_SIGMASK)
-CHECK_FUNCTION_EXISTS (readdir_r HAVE_READDIR_R)
 CHECK_FUNCTION_EXISTS (readlink HAVE_READLINK)
 CHECK_FUNCTION_EXISTS (realpath HAVE_REALPATH)
 CHECK_FUNCTION_EXISTS (setfd HAVE_SETFD) # Used by libevent (never true)
@@ -642,6 +640,33 @@ CHECK_CXX_SOURCE_COMPILES("
   {
     int foo= -10; int bar= 10;
     long long int foo64= -10; long long int bar64= 10;
+    if (!__atomic_fetch_add(&foo, bar, __ATOMIC_SEQ_CST) || foo)
+      return -1;
+    bar= __atomic_exchange_n(&foo, bar, __ATOMIC_SEQ_CST);
+    if (bar || foo != 10)
+      return -1;
+    bar= __atomic_compare_exchange_n(&bar, &foo, 15, 0,
+                                     __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+    if (bar)
+      return -1;
+    if (!__atomic_fetch_add(&foo64, bar64, __ATOMIC_SEQ_CST) || foo64)
+      return -1;
+    bar64= __atomic_exchange_n(&foo64, bar64, __ATOMIC_SEQ_CST);
+    if (bar64 || foo64 != 10)
+      return -1;
+    bar64= __atomic_compare_exchange_n(&bar64, &foo64, 15, 0,
+                                       __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+    if (bar64)
+      return -1;
+    return 0;
+  }"
+  HAVE_GCC_ATOMIC_BUILTINS)
+
+CHECK_CXX_SOURCE_COMPILES("
+  int main()
+  {
+    int foo= -10; int bar= 10;
+    long long int foo64= -10; long long int bar64= 10;
     if (!__sync_fetch_and_add(&foo, bar) || foo)
       return -1;
     bar= __sync_lock_test_and_set(&foo, bar);
@@ -660,7 +685,7 @@ CHECK_CXX_SOURCE_COMPILES("
       return -1;
     return 0;
   }"
-  HAVE_GCC_ATOMIC_BUILTINS)
+  HAVE_GCC_SYNC_BUILTINS)
 
 IF(WITH_VALGRIND)
   SET(VALGRIND_HEADERS "valgrind/memcheck.h;valgrind/valgrind.h")

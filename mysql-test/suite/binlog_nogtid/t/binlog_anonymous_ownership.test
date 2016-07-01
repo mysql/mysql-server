@@ -1,0 +1,331 @@
+# ==== Purpose ====
+#
+# Check that anonymous ownership is acquired and released as expected.
+#
+# When a client sets GTID_NEXT='ANONYMOUS', it 'acquires anonymous
+# ownership'.  Then, when it commits or rolls back, it 'releases
+# anonymous ownership.  If GTID_NEXT='AUTOMATIC' and GTID_MODE=OFF or
+# OFF_PERMISSIVE, then a client 'acquires anonymous ownership' when
+# the transaction is flushed to the binary log, and releases it on
+# commit.  If a client already has GTID_NEXT='ANONYMOUS' but anonymous
+# ownership has been released by a commit or rollback, then anonymous
+# ownership is re-acquired when the next statement begins to execute.
+# As an exception, "innocent" statements do not re-acquire anonymous
+# ownership; here "innocent" statements include SET, SHOW, SELECT, and
+# DO statements that do not invoke stored functions.
+#
+# Multiple clients can 'hold anonymous ownership' at the same time.
+# The global status variable ONGOING_ANONYMOUS_TRANSACTION_COUNT
+# contains the number of clients that 'hold anonymous ownership'.  The
+# session variable @@session.gtid_owned contains the string
+# 'ANONYMOUS' if the client hold anonymous ownership.
+#
+# This test checks different ways to acquire and release ownership,
+# and verifies that ONGOING_ANONYMOUS_TRANSACTION_COUNT and
+# @@SESSION.GTID_OWNED change accordingly.
+#
+# ==== Implementation ====
+#
+# We test a number of statements.  For each statement we specify what
+# is the expected values of GTID_NEXT, GTID_OWNED, and
+# ONGOING_ANONYMOUS_TRANSACTION_COUNT after the statement.  Each
+# statement is stored together with the expected values of these
+# variables in one row of the table 'statements'.  Thus the test
+# scenarios are specified by the contents of this table in the
+# 'Initialize' section below.  In the 'Test' section, we execute one
+# row at a time from the table and check that the variables change as
+# specified.
+#
+# ==== References ====
+#
+# WL#7083: GTIDs: set gtid_mode=ON online
+# - Behavior of anonymous ownership was specified in this worklog.
+# - Most of test was implemented in this worklog.
+#
+# WL#7592: GTIDs: generate Gtid_log_event and Previous_gtids_log_event always
+# BUG#20341210: WL7592: ASSERT AT BINLOG.CC:1139 FOR IMPLICIT COMMIT WHEN GTID_NEXT=ANONYMOUS
+# - The bugfix was verified by the test case
+#   binlog_gtid_next_anonymous_implicit_commit.test, which was
+#   subsequently moved into the present test (the cases for implicit
+#   commit inside a transaction).
+
+# Test sets gtid_mode explicitly, no need to run in multiple combinations.
+
+--source include/have_debug_sync.inc
+
+--let $rpl_extra_connections_per_server= 3
+--let $rpl_topology= none
+--source include/rpl_init.inc
+
+
+--echo ==== Initialize ====
+
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
+
+CREATE TABLE statements (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  comment VARCHAR(100) NOT NULL,
+  connection INT,
+  statement VARCHAR(1000),
+  gtid_next VARCHAR(100) NOT NULL,
+  gtid_owned VARCHAR(100) NOT NULL,
+  anonymous_count INT NOT NULL,
+  sync_point VARCHAR(100) NOT NULL,
+  error VARCHAR(100) NOT NULL
+) ENGINE = InnoDB;
+
+INSERT INTO statements
+(comment, connection, statement, gtid_next, gtid_owned, anonymous_count,
+ sync_point, error)
+VALUES
+#comment
+#con statement                       gtid_next    gtid_owned count sync error
+('Nothing should be owned by default.',
+ 1, '',                              'AUTOMATIC', '',          0,  '',  ''),
+
+('Set gtid_next (automatic->anonymous) acquires ownership.',
+ 1, 'SET GTID_NEXT="ANONYMOUS"',     'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+
+('Implicit commit releases ownership.',
+ 1, 'CREATE TABLE t1 (a INT)',       'ANONYMOUS', '',          0,  '',  ''),
+
+('Implicitly committing statement re-acquires ownership.',
+ 1, 'CREATE TABLE t2 (a INT)',       '',          '',          1,  '->before_execute_sql_command',  ''),
+
+('Implicitly committing statement releases ownership at the end.',
+ 1, '#CREATE TABLE t2 (a INT)',      'ANONYMOUS', '',          0,  'before_execute_sql_command->',  ''),
+
+('Set gtid_next (anonymous->anonymous) acquires ownership.',
+ 1, 'SET GTID_NEXT="ANONYMOUS"',     'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+
+('Nothing special happens with ownership while inside a transaction.',
+ 1, 'BEGIN',                         'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+('',
+ 1, 'INSERT INTO t1 VALUES (1)',     'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+
+('Commit releases ownership.',
+ 1, 'COMMIT',                        'ANONYMOUS', '',          0,  '',  ''),
+
+('Begin acquires ownership.',
+ 1, 'BEGIN',                         'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+
+('Commit releases ownership even if nothing executed.',
+ 1, 'COMMIT',                        'ANONYMOUS', '',          0,  '',  ''),
+
+('Rollback releases ownership.',
+ 1, 'BEGIN',                         'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+
+('',
+ 1, 'ROLLBACK',                      'ANONYMOUS', '',          0,  '',  ''),
+
+('Implicit commit in transaction releases ownership.',
+ 1, 'BEGIN',                         'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+
+('',
+ 1, 'INSERT INTO t1 VALUES (1)',     'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+
+('',
+ 1, 'DROP TABLE t2',                 'ANONYMOUS', '',          0,  '->after_implicit_pre_commit', ''),
+
+('',
+ 1, '#DROP TABLE t2',                'ANONYMOUS', '',          0,  'after_implicit_pre_commit->', ''),
+
+('Autocommit transaction acquires ownership.',
+ 1, 'INSERT INTO t1 VALUES (1)',     '',          '',          1,  '->before_execute_sql_command', ''),
+
+('Autocommit transaction releases ownership at end.',
+ 1, '#INSERT INTO t1 VALUES (1)',    'ANONYMOUS', '',          0,  'before_execute_sql_command->', ''),
+
+('SET does not acquire ownership.',
+ 1, 'SET AUTOCOMMIT = 0',            'ANONYMOUS', '',          0,  '',  ''),
+
+('Non-autocommitted DML acquires ownership.',
+ 1, 'INSERT INTO t1 VALUES (1)',     'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+('',
+ 1, 'INSERT INTO t1 VALUES (1)',     'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+('',
+ 1, 'ROLLBACK',                      'ANONYMOUS', '',          0,  '',  ''),
+
+('Client disconnect releases ownership.',
+ 1, 'BEGIN',                         'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+('',
+ 1, 'reconnect',                     'AUTOMATIC', '',          0,  '',  ''),
+
+('Ongoing_anonymous_transaction_count > 1 when there are concurrent transactions.',
+ 1, 'SET GTID_NEXT="ANONYMOUS"',     'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+('',
+ 2, '',                              'AUTOMATIC', '',          1,  '',  ''),
+('',
+ 2, 'SET GTID_NEXT="ANONYMOUS"',     'ANONYMOUS', 'ANONYMOUS', 2,  '',  ''),
+('',
+ 3, '',                              'AUTOMATIC', '',          2,  '',  ''),
+('',
+ 3, 'SET GTID_NEXT="ANONYMOUS"',     'ANONYMOUS', 'ANONYMOUS', 3,  '',  ''),
+('',
+ 2, 'reconnect',                     'AUTOMATIC', '',          2,  '',  ''),
+('',
+ 1, 'COMMIT',                        'ANONYMOUS', '',          1,  '',  ''),
+('',
+ 3, 'ROLLBACK',                      'ANONYMOUS', '',          0,  '',  ''),
+
+('Set gtid_next (anonymous->automatic) works.',
+ 1, 'SET GTID_NEXT="AUTOMATIC"',     'AUTOMATIC', '',          0,  '',  ''),
+
+('Set gtid_next (automatic->automatic) works.',
+ 1, 'SET GTID_NEXT="AUTOMATIC"',     'AUTOMATIC', '',          0,  '',  ''),
+
+('Can set gtid_mode!=on when Ongoing_anonymous_transaction_count > 0.',
+ 2, 'SET GTID_NEXT="ANONYMOUS"',     'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+('',
+ 1, 'SET GLOBAL GTID_MODE="OFF_PERMISSIVE"','AUTOMATIC', '',   1,  '',  ''),
+('',
+ 1, 'SET GLOBAL GTID_MODE="ON_PERMISSIVE"', 'AUTOMATIC', '',   1,  '',  ''),
+('',
+ 1, 'SET GLOBAL GTID_MODE="ON_PERMISSIVE"', 'AUTOMATIC', '',   1,  '',  ''),
+('',
+ 1, 'SET GLOBAL GTID_MODE="OFF_PERMISSIVE"','AUTOMATIC', '',   1,  '',  ''),
+('',
+ 1, 'SET GLOBAL GTID_MODE="OFF_PERMISSIVE"','AUTOMATIC', '',   1,  '',  ''),
+('',
+ 1, 'SET GLOBAL GTID_MODE="OFF"',    'AUTOMATIC', '',          1,  '',  ''),
+('',
+ 1, 'SET GLOBAL GTID_MODE="OFF"',    'AUTOMATIC', '',          1,  '',  ''),
+('',
+ 2, 'ROLLBACK',                      'ANONYMOUS', '',          0,  '',  '');
+
+
+--echo ==== Test ====
+
+--let $statement_count= `SELECT COUNT(*) FROM statements`
+--let $statement_number= 0
+while ($statement_number < $statement_count)
+{
+  --connection default
+  --let $suffix=            FROM statements ORDER BY id LIMIT $statement_number, 1
+  --let $comment=           `SELECT comment $suffix`
+  --let $statement=         `SELECT statement $suffix`
+  --let $connection_number= `SELECT connection $suffix`
+  --let $connection=        server_1_$connection_number
+  --let $gtid_next=         `SELECT gtid_next $suffix`
+  --let $gtid_owned=        `SELECT gtid_owned $suffix`
+  --let $anonymous_count=   `SELECT anonymous_count $suffix`
+  --let $sync_point=        `SELECT sync_point $suffix`
+  --let $error=             `SELECT error $suffix`
+
+  if ($comment != '')
+  {
+    --echo ---- Comment ----
+  }
+  --echo # Statement $statement_number:
+
+  --let $rpl_connection_name= $connection
+  --source include/rpl_connection.inc
+
+  if ($statement == 'reconnect')
+  {
+    # Get connection id.
+    --connection $connection
+    --let $thread_id= `SELECT CONNECTION_ID()`
+
+    # Disconnect
+    --connection default
+    --disconnect $connection
+
+    # Wait for session to disappear.
+    --let $wait_condition= SELECT COUNT(*) = 0 FROM performance_schema.threads WHERE PROCESSLIST_ID = $thread_id
+    --source include/wait_condition.inc
+
+    # Reconnect
+    --let $rpl_connection_name= $connection
+    --let $rpl_server_number= 1
+    --source include/rpl_connect.inc
+
+    --let $statement=
+  }
+
+  if ($sync_point != '')
+  {
+    --connection default
+    --let $sync_point_from= `SELECT SUBSTRING_INDEX('$sync_point', '->', 1)`
+    --let $sync_point_to= `SELECT SUBSTRING_INDEX('$sync_point', '->', -1)`
+    if ($sync_point_to != '')
+    {
+      --let $statement_connection= $connection
+      --let $auxiliary_connection= default
+      --let $sync_point= $sync_point_to
+      --source include/execute_to_sync_point.inc
+    }
+    if ($sync_point_from != '')
+    {
+      --let $statement_connection= $connection
+      --let $auxiliary_connection= default
+      --let $sync_point= $sync_point_from
+      --source include/execute_from_sync_point.inc
+    }
+  }
+
+  if ($sync_point == '')
+  {
+    if ($statement != '')
+    {
+      #Disabled because of BUG#13687542.
+      #if ($error != '')
+      #{
+      #  --error $error
+      #}
+
+      eval $statement;
+    }
+  }
+
+  # If we used execute_to_sync_point.inc above, then the connection
+  # has changed and we cannot execute on $connection. So skip the
+  # checks for session variables in that case.
+  if ($CURRENT_CONNECTION == $connection)
+  {
+    --let $actual_gtid_owned= `SELECT @@SESSION.GTID_OWNED`
+    --let $actual_gtid_next= `SELECT @@SESSION.GTID_NEXT`
+
+    --connection default
+    --let $assert_text= GTID_NEXT should be '$gtid_next'
+    --let $assert_cond= "$actual_gtid_next" = "$gtid_next"
+    --source include/assert.inc
+
+    --let $assert_text= GTID_OWNED should be '$gtid_owned'
+    --let $assert_cond= "$actual_gtid_owned" = "$gtid_owned"
+    --source include/assert.inc
+  }
+
+  --let $assert_text= ONGOING_ANONYMOUS_TRANSACTION_COUNT should be $anonymous_count
+  --let $assert_cond= [SHOW STATUS LIKE "ONGOING_ANONYMOUS_TRANSACTION_COUNT", Value, 1] = $anonymous_count
+  --source include/assert.inc
+
+  --inc $statement_number
+}
+
+--connection server_1
+SET GTID_NEXT = 'ANONYMOUS';
+--connection server_1_1
+SET GLOBAL GTID_MODE = 'OFF_PERMISSIVE';
+SET GLOBAL GTID_MODE = 'ON_PERMISSIVE';
+--error ER_CANT_SET_GTID_MODE
+--connection server_1
+ROLLBACK;
+--connection server_1_1
+SET GLOBAL GTID_MODE = 'ON';
+--connection server_1
+SELECT @@GLOBAL.GTID_MODE;
+--error ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON
+SET GTID_NEXT = 'ANONYMOUS';
+
+
+--echo ==== Clean up ====
+
+SET GLOBAL GTID_MODE = 'ON_PERMISSIVE';
+SET GLOBAL GTID_MODE = 'OFF_PERMISSIVE';
+SET GLOBAL GTID_MODE = 'OFF';
+DROP TABLE statements;
+DROP TABLE t1;
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
+
+--source include/rpl_end.inc

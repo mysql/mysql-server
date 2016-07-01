@@ -33,14 +33,13 @@
 #include "expect.h"
 
 
-using namespace xpl;
-
-using xpl::Server;
+namespace
+{
 
 class Stmt
 {
 public:
-  ngs::Error_code execute(Sql_data_context &da, ngs::Protocol_encoder &proto, const bool show_warnings,
+  ngs::Error_code execute(xpl::Sql_data_context &da, ngs::Protocol_encoder &proto, const bool show_warnings,
                           const bool compact_metadata, const std::string &query,
                           const ::google::protobuf::RepeatedPtrField< ::Mysqlx::Datatypes::Any > &args)
   {
@@ -67,26 +66,26 @@ public:
     return execute(da, proto, show_warnings, compact_metadata, m_qb.get());
   }
 
-  ngs::Error_code execute(Sql_data_context &da, ngs::Protocol_encoder &proto, const bool show_warnings, const bool compact_metadata, const std::string &query)
+  ngs::Error_code execute(xpl::Sql_data_context &da, ngs::Protocol_encoder &proto, const bool show_warnings, const bool compact_metadata, const std::string &query)
   {
-    Sql_data_context::Result_info info;
+    xpl::Sql_data_context::Result_info info;
     ngs::Error_code error = da.execute_sql_and_stream_results(query, compact_metadata, info);
 
     if (!error)
     {
       if (info.num_warnings > 0 && show_warnings)
-        notices::send_warnings(da, proto);
-      notices::send_rows_affected(proto, info.affected_rows);
+        xpl::notices::send_warnings(da, proto);
+      xpl::notices::send_rows_affected(proto, info.affected_rows);
       if (info.last_insert_id > 0)
-        notices::send_generated_insert_id(proto, info.last_insert_id);
+        xpl::notices::send_generated_insert_id(proto, info.last_insert_id);
       if (!info.message.empty())
-        notices::send_message(proto, info.message);
+        xpl::notices::send_message(proto, info.message);
       proto.send_exec_ok();
     }
     else
     {
       if (show_warnings)
-        notices::send_warnings(da, proto, true);
+        xpl::notices::send_warnings(da, proto, true);
     }
 
     return error;
@@ -94,9 +93,9 @@ public:
 
   void operator() ()
   {
-    const char *value_null = "NULL";
+    static const char *value_null = "NULL";
 
-    m_qb.format() % Query_formatter::No_escape<const char*>(value_null);
+    m_qb.format() % xpl::Query_formatter::No_escape<const char*>(value_null);
   }
 
   template <typename Value_type>
@@ -106,104 +105,110 @@ public:
   }
 
 private:
-  Query_string_builder m_qb;
+  xpl::Query_string_builder m_qb;
 };
 
 
-ngs::Error_code on_stmt_execute(Session &session,
-                                Sql_data_context &da, Session_options &options,
-                                ngs::Protocol_encoder &proto,
-                                const Mysqlx::Sql::StmtExecute &msg)
+ngs::Error_code on_stmt_execute(xpl::Session &session, const Mysqlx::Sql::StmtExecute &msg)
 {
   log_debug("%s: %s", session.client().client_id(), msg.stmt().c_str());
+
   if (msg.namespace_() == "sql" || !msg.has_namespace_())
   {
-    Server::update_status_variable<&Common_status_variables::inc_stmt_execute_sql>(session.get_status_variables());
-
-    Stmt stmt;
-    return stmt.execute(da, proto, options.get_send_warnings(), msg.compact_metadata(), msg.stmt(), msg.args());
+    session.update_status<&xpl::Common_status_variables::inc_stmt_execute_sql>();
+    return Stmt().execute(session.data_context(), session.proto(), session.options().get_send_warnings(),
+                          msg.compact_metadata(), msg.stmt(), msg.args());
   }
-  else if (msg.namespace_() == "xplugin")
+
+  if (msg.namespace_() == "xplugin")
   {
-    Server::update_status_variable<&Common_status_variables::inc_stmt_execute_xplugin>(session.get_status_variables());
-
-    return Admin_command_handler::execute(session, da, options, msg.stmt(), msg.args());
+    session.update_status<&xpl::Common_status_variables::inc_stmt_execute_xplugin>();
+    if (session.options().get_send_xplugin_deprecation())
+    {
+      xpl::notices::send_message(session.proto(), "Namespace 'xplugin' is deprecated, please use 'mysqlx' instead");
+      session.options().set_send_xplugin_deprecation(false);
+    }
+    xpl::Admin_command_arguments_list args(msg.args());
+    return xpl::Admin_command_handler(session).execute(msg.namespace_(), msg.stmt(), args);
   }
-  else
-    return ngs::Error_code(ER_X_INVALID_NAMESPACE, "Unknown namespace "+msg.namespace_());
+
+  if (msg.namespace_() == "mysqlx")
+  {
+    session.update_status<&xpl::Common_status_variables::inc_stmt_execute_mysqlx>();
+    xpl::Admin_command_arguments_object args(msg.args());
+    return xpl::Admin_command_handler(session).execute(msg.namespace_(), msg.stmt(), args);
+  }
+
+  return ngs::Error(ER_X_INVALID_NAMESPACE, "Unknown namespace %s", msg.namespace_().c_str());
 }
 
 
-ngs::Error_code on_expect_open(Session &session, ngs::Protocol_encoder &proto, Expectation_stack &expect, Session_options &options, const Mysqlx::Expect::Open &msg)
+ngs::Error_code on_expect_open(xpl::Session &session, xpl::Expectation_stack &expect, const Mysqlx::Expect::Open &msg)
 {
-  Server::update_status_variable<&Common_status_variables::inc_expect_open>(session.get_status_variables());
+  session.update_status<&xpl::Common_status_variables::inc_expect_open>();
 
   ngs::Error_code error = expect.open(msg);
   if (!error)
-    proto.send_ok("");
+    session.proto().send_ok("");
   return error;
 }
 
 
-ngs::Error_code on_expect_close(Session &session, ngs::Protocol_encoder &proto, Expectation_stack &expect, Session_options &options, const Mysqlx::Expect::Close &msg)
+ngs::Error_code on_expect_close(xpl::Session &session, xpl::Expectation_stack &expect, const Mysqlx::Expect::Close &msg)
 {
-  Server::update_status_variable<&Common_status_variables::inc_expect_close>(session.get_status_variables());
+  session.update_status<&xpl::Common_status_variables::inc_expect_close>();
 
   ngs::Error_code error = expect.close();
   if (!error)
-    proto.send_ok("");
+    session.proto().send_ok("");
   return error;
 }
 
 
-static ngs::Error_code do_dispatch_command(Session &session,
-                                           Sql_data_context &da, ngs::Protocol_encoder &proto,
-                                           Crud_command_handler &crudh, Expectation_stack &expect,
-                                           Session_options &options,
-                                           ngs::Request &command)
+ngs::Error_code do_dispatch_command(xpl::Session &session, xpl::Crud_command_handler &crudh,
+                                    xpl::Expectation_stack &expect, ngs::Request &command)
 {
   switch (command.get_type())
   {
     case Mysqlx::ClientMessages::SQL_STMT_EXECUTE:
-      return on_stmt_execute(session, da, options, proto, static_cast<const Mysqlx::Sql::StmtExecute&>(*command.message()));
+      return on_stmt_execute(session, static_cast<const Mysqlx::Sql::StmtExecute&>(*command.message()));
 
     case Mysqlx::ClientMessages::CRUD_FIND:
-      return crudh.execute_crud_find(proto, static_cast<const Mysqlx::Crud::Find&>(*command.message()));
+      return crudh.execute_crud_find(session, static_cast<const Mysqlx::Crud::Find&>(*command.message()));
 
     case Mysqlx::ClientMessages::CRUD_INSERT:
-      return crudh.execute_crud_insert(proto, static_cast<const Mysqlx::Crud::Insert&>(*command.message()));
+      return crudh.execute_crud_insert(session, static_cast<const Mysqlx::Crud::Insert&>(*command.message()));
 
     case Mysqlx::ClientMessages::CRUD_UPDATE:
-      return crudh.execute_crud_update(proto, static_cast<const Mysqlx::Crud::Update&>(*command.message()));
+      return crudh.execute_crud_update(session, static_cast<const Mysqlx::Crud::Update&>(*command.message()));
 
     case Mysqlx::ClientMessages::CRUD_DELETE:
-      return crudh.execute_crud_delete(proto, static_cast<const Mysqlx::Crud::Delete&>(*command.message()));
+      return crudh.execute_crud_delete(session, static_cast<const Mysqlx::Crud::Delete&>(*command.message()));
 
     case Mysqlx::ClientMessages::EXPECT_OPEN:
-      return on_expect_open(session, proto, expect, options, static_cast<const Mysqlx::Expect::Open&>(*command.message()));
+      return on_expect_open(session, expect, static_cast<const Mysqlx::Expect::Open&>(*command.message()));
 
     case Mysqlx::ClientMessages::EXPECT_CLOSE:
-      return on_expect_close(session, proto, expect, options, static_cast<const Mysqlx::Expect::Close&>(*command.message()));
+      return on_expect_close(session, expect, static_cast<const Mysqlx::Expect::Close&>(*command.message()));
   }
   return ngs::Error(ER_UNKNOWN_COM_ERROR, "Unexpected message received");
 }
 
+} // namespace
 
-bool dispatcher::dispatch_command(Session &session,
-                                  Sql_data_context &da, ngs::Protocol_encoder &proto,
-                                  Crud_command_handler &crudh, Expectation_stack &expect,
-                                  Session_options &options,
-                                  ngs::Request &command)
+
+bool xpl::dispatcher::dispatch_command(Session &session, Crud_command_handler &crudh,
+                                       Expectation_stack &expect, ngs::Request &command)
 {
   ngs::Error_code error = expect.pre_client_stmt(command.get_type());
   if (!error)
   {
-    error = do_dispatch_command(session, da, proto, crudh, expect, options, command);
+    error = do_dispatch_command(session, crudh, expect, command);
     if (error)
-      proto.send_result(error);
+      session.proto().send_result(error);
     expect.post_client_stmt(command.get_type(), error);
   }
   else
-    proto.send_result(error);
+    session.proto().send_result(error);
   return error.error != ER_UNKNOWN_COM_ERROR;
 }

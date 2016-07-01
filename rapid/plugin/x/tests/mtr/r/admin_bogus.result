@@ -6,13 +6,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 5157
-  msg: "Invalid xplugin command whatever"
-  sql_state: "HY000"
-}
-
+Got expected error: Invalid xplugin command whatever (code 5157)
 send Mysqlx.Sql.StmtExecute {
   stmt: "whatever"
   namespace: "bogus"

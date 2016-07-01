@@ -16,9 +16,9 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Sql.StmtExecuteOk {
-}
 
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 send Mysqlx.Sql.StmtExecute {
   stmt: "bla"
   namespace: "bla"

@@ -1100,7 +1100,7 @@ pars_process_assign_list(
 	table_sym = node->table_sym;
 	col_assign_list = static_cast<col_assign_node_t*>(
 		 node->col_assign_list);
-	clust_index = dict_table_get_first_index(node->table);
+	clust_index = node->table->first_index();
 
 	assign_node = col_assign_list;
 	n_assigns = 0;

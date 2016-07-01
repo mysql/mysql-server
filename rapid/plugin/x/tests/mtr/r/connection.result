@@ -832,6 +832,7 @@ expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 1	root	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 create and activate new session con1
 connecting...
 active session is now 'con1'
@@ -844,6 +845,7 @@ expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 2	con1	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 open 3rd xprotocol connection where 2 sessions already opened (may fail)
 connecting...
 active session is now 'con2'
@@ -905,6 +907,7 @@ expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 1	root	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 create and activate new session con1
 connecting...
 active session is now 'con1'
@@ -917,6 +920,7 @@ expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 2	con1	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 open 3rd xprotocol connection where 2 sessions already opened
 connecting...
 active session is now 'con2'
@@ -930,6 +934,7 @@ client_id	user	host
 2	con1	localhost
 3	con2	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 RUN show status like 'Mysqlx_connections_closed'
 Variable_name	Value
 Mysqlx_connections_closed	0
@@ -978,6 +983,7 @@ expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 4	root	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 RUN show status like 'Mysqlx_connections_closed'
 Variable_name	Value
 Mysqlx_connections_closed	3
@@ -1002,6 +1008,7 @@ expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 5	xcon1	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 RUN show status like 'Mysqlx_connections_closed'
 Variable_name	Value
 Mysqlx_connections_closed	3
@@ -1057,6 +1064,7 @@ client_id	user	host
 5	xcon1	localhost
 7	xcon2	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 RUN drop user xcon1@localhost
 
 0 rows affected
@@ -1115,6 +1123,7 @@ expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 8	root	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 RUN show status like 'Mysqlx_connections_closed'
 Variable_name	Value
 Mysqlx_connections_closed	6
@@ -1151,6 +1160,7 @@ expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 9	xcon1	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 send Mysqlx.Sql.StmtExecute {
   stmt: "select sleep(100);"
 }
@@ -1206,6 +1216,7 @@ client_id	user	host
 10	xcon2	localhost
 11	xcon2	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   args {
@@ -1286,6 +1297,7 @@ expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 12	root	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 create and activate new session con1
 connecting...
 active session is now 'con1'
@@ -1298,6 +1310,7 @@ expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 13	mysqlcon1	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 open 3rd xprotocol connection where 2 sessions already opened
 connecting...
 active session is now 'con2'

@@ -20,14 +20,12 @@
 #include "expr_generator.h"
 
 #include "json_utils.h"
-#include "my_regex.h"
-#include "my_dbug.h"
-
 #include <boost/bind.hpp>
 #include <boost/function.hpp>
 
 #include "xpl_error.h"
 #include "mysql/service_my_snprintf.h"
+#include "xpl_regex.h"
 
 namespace xpl
 {
@@ -577,41 +575,6 @@ struct Interval_unit_validator
 };
 
 
-class Regex
-{
-public:
-  explicit Regex(const char* const pattern)
-  {
-    memset(&m_re, 0, sizeof(m_re));
-    int err = my_regcomp(&m_re, pattern,
-                         (MY_REG_EXTENDED | MY_REG_ICASE | MY_REG_NOSUB),
-                         &my_charset_latin1);
-
-    // Workaround for unused variable
-    check_result(err);
-  }
-
-  ~Regex()
-  {
-    my_regfree(&m_re);
-    my_regex_end();
-  }
-
-  bool match(const char *value) const
-  {
-    return my_regexec(&m_re, value, (size_t)0, NULL, 0) == 0;
-  }
-
-private:
-  void check_result(const int err)
-  {
-    DBUG_ASSERT( err == 0 );
-  }
-
-  my_regex_t m_re;
-};
-
-
 struct Cast_type_validator
 {
   Cast_type_validator(const char* const error_msg)
@@ -620,7 +583,7 @@ struct Cast_type_validator
 
   bool operator() (const char* str) const
   {
-    static const Regex re(
+    static const xpl::Regex re(
         "^("
         "BINARY([[.left-parenthesis.]][[:digit:]]+[[.right-parenthesis.]])?|"
         "DATE|DATETIME|TIME|JSON|"

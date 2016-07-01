@@ -525,10 +525,17 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
   }
 
   my_stpcpy(suffix_pos, "CONNECT_NAMED_MUTEX");
-  connect_named_mutex= CreateMutex(NULL, TRUE, tmp);
+  connect_named_mutex= OpenMutex(SYNCHRONIZE, FALSE, tmp);
   if (connect_named_mutex == NULL)
   {
     error_allow= CR_SHARED_MEMORY_CONNECT_SET_ERROR;
+    goto err;
+  }
+
+  if (WaitForSingleObject(connect_named_mutex, connect_timeout) !=
+    WAIT_OBJECT_0)
+  {
+    error_allow = CR_SHARED_MEMORY_CONNECT_ABANDONED_ERROR;
     goto err;
   }
 
@@ -547,12 +554,13 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
     goto err;
   }
 
+  /* Get number of connection */
+  connect_number = uint4korr(handle_connect_map);/*WAX2*/
+
   ReleaseMutex(connect_named_mutex);
   CloseHandle(connect_named_mutex);
   connect_named_mutex = NULL;
 
-  /* Get number of connection */
-  connect_number = uint4korr(handle_connect_map);/*WAX2*/
   p= int10_to_str(connect_number, connect_number_char, 10);
 
   /*

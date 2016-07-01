@@ -907,7 +907,7 @@ row_sel_get_clust_rec(
 
 	row_build_row_ref_fast(plan->clust_ref, plan->clust_map, rec, offsets);
 
-	index = dict_table_get_first_index(plan->table);
+	index = plan->table->first_index();
 
 	btr_pcur_open_with_no_init(index, plan->clust_ref, PAGE_CUR_LE,
 				   BTR_SEARCH_LEAF, &plan->clust_pcur,
@@ -3289,7 +3289,7 @@ row_sel_get_clust_rec_for_mysql(
 	row_build_row_ref_in_tuple(prebuilt->clust_ref, rec,
 				   sec_index, *offsets, trx);
 
-	clust_index = dict_table_get_first_index(sec_index->table);
+	clust_index = sec_index->table->first_index();
 
 	btr_pcur_open_with_no_init(clust_index, prebuilt->clust_ref,
 				   PAGE_CUR_LE, BTR_SEARCH_LEAF,
@@ -4042,7 +4042,7 @@ row_search_no_mvcc(
 
 	/* Step-0: Re-use the cached mtr. */
 	mtr_t*		mtr = &index->last_sel_cur->mtr;
-	dict_index_t*	clust_index = dict_table_get_first_index(index->table);
+	dict_index_t*	clust_index = index->table->first_index();
 
 	/* Step-1: Build the select graph. */
 	if (direction == 0 && prebuilt->sel_graph == NULL) {
@@ -4753,7 +4753,7 @@ row_search_mvcc(
 
 	que_thr_move_to_run_state_for_mysql(thr, trx);
 
-	clust_index = dict_table_get_first_index(index->table);
+	clust_index = index->table->first_index();
 
 	/* Do some start-of-statement preparations */
 

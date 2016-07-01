@@ -17,5 +17,4 @@
 
 --source include/have_innodb.inc
 let $engine_type       = InnoDB;
---source include/not_embedded.inc
 --source suite/funcs_1/datadict/is_views.inc

@@ -137,7 +137,7 @@ row_purge_remove_clust_if_poss_low(
 
 	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_S));
 
-	index = dict_table_get_first_index(node->table);
+	index = node->table->first_index();
 
 	fil_space_t*	space = fil_space_acquire_silent(index->space);
 	if (space == NULL) {
@@ -628,7 +628,7 @@ row_purge_skip_uncommitted_virtual_index(
 	added virtual column.*/
 	while (index != NULL && dict_index_has_virtual(index)
 	       && !index->is_committed() && index->has_new_v_col) {
-		index = dict_table_get_next_index(index);
+		index = index->next();
 	}
 }
 
@@ -665,7 +665,7 @@ row_purge_del_mark(
 			mem_heap_empty(heap);
 		}
 
-		node->index = dict_table_get_next_index(node->index);
+		node->index = node->index->next();
 	}
 
 	mem_heap_free(heap);
@@ -718,7 +718,7 @@ row_purge_upd_exist_or_extern_func(
 			mem_heap_empty(heap);
 		}
 
-		node->index = dict_table_get_next_index(node->index);
+		node->index = node->index->next();
 	}
 
 	mem_heap_free(heap);
@@ -775,7 +775,7 @@ skip_secondaries:
 			/* We have to acquire an SX-latch to the clustered
 			index tree (exclude other tree changes) */
 
-			index = dict_table_get_first_index(node->table);
+			index = node->table->first_index();
 			mtr_sx_lock(dict_index_get_lock(index), &mtr);
 
 			mtr.set_undo_space(rseg->space);
@@ -925,7 +925,7 @@ try_again:
 		goto err_exit;
 	}
 
-	clust_index = dict_table_get_first_index(node->table);
+	clust_index = node->table->first_index();
 
 	if (clust_index == NULL
 	    || dict_index_is_corrupted(clust_index)) {
@@ -989,9 +989,9 @@ row_purge_record_func(
 	ut_ad(!node->found_clust);
 	ut_ad(!node->table->skip_alter_undo);
 
-	clust_index = dict_table_get_first_index(node->table);
+	clust_index = node->table->first_index();
 
-	node->index = dict_table_get_next_index(clust_index);
+	node->index = clust_index->next();
 	ut_ad(!trx_undo_roll_ptr_is_insert(node->roll_ptr));
 
 	switch (node->rec_type) {

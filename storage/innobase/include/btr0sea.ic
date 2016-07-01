@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,6 +34,18 @@ btr_search_info_update_slow(
 /*========================*/
 	btr_search_t*	info,	/*!< in/out: search info */
 	btr_cur_t*	cursor);/*!< in: cursor which was just positioned */
+
+/********************************************************************//**
+Returns search info for an index.
+@return search info; search mutex reserved */
+UNIV_INLINE
+const btr_search_t*
+btr_search_get_info(
+/*================*/
+	const dict_index_t*	index)	/*!< in: index */
+{
+	return(index->search_info);
+}
 
 /********************************************************************//**
 Returns search info for an index.

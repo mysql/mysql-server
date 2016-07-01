@@ -579,7 +579,7 @@ row_log_table_delete(
 	}
 
 	dict_table_t* new_table = index->online_log->table;
-	dict_index_t* new_index = dict_table_get_first_index(new_table);
+	dict_index_t* new_index = new_table->first_index();
 
 	ut_ad(dict_index_is_clust(new_index));
 	ut_ad(!dict_index_is_online_ddl(new_index));
@@ -922,7 +922,7 @@ row_log_table_low(
 	ulint			avail_size;
 	const dict_index_t*	new_index;
 
-	new_index = dict_table_get_first_index(index->online_log->table);
+	new_index = index->online_log->table->first_index();
 
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(dict_index_is_clust(new_index));
@@ -1219,8 +1219,7 @@ row_log_table_get_pk(
 	/* log->error is protected by log->mutex. */
 	if (log->error == DB_SUCCESS) {
 		dict_table_t*	new_table	= log->table;
-		dict_index_t*	new_index
-			= dict_table_get_first_index(new_table);
+		dict_index_t*	new_index	= new_table->first_index();
 		const ulint	new_n_uniq
 			= dict_index_get_n_unique(new_index);
 
@@ -1627,7 +1626,7 @@ row_log_table_apply_insert_low(
 	dberr_t		error;
 	dtuple_t*	entry;
 	const row_log_t*log	= dup->index->online_log;
-	dict_index_t*	index	= dict_table_get_first_index(log->table);
+	dict_index_t*	index	= log->table->first_index();
 	ulint		n_index = 0;
 
 	ut_ad(dtuple_validate(row));
@@ -1661,7 +1660,7 @@ row_log_table_apply_insert_low(
 	}
 
 	do {
-		if (!(index = dict_table_get_next_index(index))) {
+		if (!(index = index->next())) {
 			break;
 		}
 
@@ -1768,7 +1767,7 @@ row_log_table_apply_delete_low(
 		    rec_printer(btr_pcur_get_rec(pcur),
 				offsets).str().c_str()));
 
-	if (dict_table_get_next_index(index)) {
+	if (index->next()) {
 		/* Build a row template for purging secondary index entries. */
 		row = row_build(
 			ROW_COPY_DATA, index, btr_pcur_get_rec(pcur),
@@ -1793,7 +1792,7 @@ row_log_table_apply_delete_low(
 		return(error);
 	}
 
-	while ((index = dict_table_get_next_index(index)) != NULL) {
+	while ((index = index->next()) != NULL) {
 		if (index->type & DICT_FTS) {
 			continue;
 		}
@@ -1863,7 +1862,7 @@ row_log_table_apply_delete(
 	ulint			ext_size)	/*!< in: external field size */
 {
 	dict_table_t*	new_table = log->table;
-	dict_index_t*	index = dict_table_get_first_index(new_table);
+	dict_index_t*	index = new_table->first_index();
 	dtuple_t*	old_pk;
 	mtr_t		mtr;
 	btr_pcur_t	pcur;
@@ -2005,7 +2004,7 @@ row_log_table_apply_update(
 {
 	const row_log_t*log	= dup->index->online_log;
 	const dtuple_t*	row;
-	dict_index_t*	index	= dict_table_get_first_index(log->table);
+	dict_index_t*	index	= log->table->first_index();
 	mtr_t		mtr;
 	btr_pcur_t	pcur;
 	dberr_t		error;
@@ -2239,7 +2238,7 @@ func_exit_committed:
 	dtuple_t*	old_row;
 	row_ext_t*	old_ext;
 
-	if (dict_table_get_next_index(index)) {
+	if (index->next()) {
 		/* Construct the row corresponding to the old value of
 		the record. */
 		old_row = row_build(
@@ -2278,7 +2277,7 @@ func_exit_committed:
 		dtuple_big_rec_free(big_rec);
 	}
 
-	while ((index = dict_table_get_next_index(index)) != NULL) {
+	while ((index = index->next()) != NULL) {
 		if (error != DB_SUCCESS) {
 			break;
 		}
@@ -2369,7 +2368,7 @@ row_log_table_apply_op(
 						for parsing mrec */
 {
 	row_log_t*	log	= dup->index->online_log;
-	dict_index_t*	new_index = dict_table_get_first_index(log->table);
+	dict_index_t*	new_index = log->table->first_index();
 	ulint		extra_size;
 	const mrec_t*	next_mrec;
 	dtuple_t*	old_pk;
@@ -2761,8 +2760,7 @@ row_log_table_apply_ops(
 	dict_index_t*	index		= const_cast<dict_index_t*>(
 		dup->index);
 	dict_table_t*	new_table	= index->online_log->table;
-	dict_index_t*	new_index	= dict_table_get_first_index(
-		new_table);
+	dict_index_t*	new_index	= new_table->first_index();
 	const ulint	i		= 1 + REC_OFFS_HEADER_SIZE
 		+ ut_max(dict_index_get_n_fields(index),
 			 dict_index_get_n_unique(new_index) + 2);
@@ -3103,7 +3101,7 @@ row_log_table_apply(
 	stage->begin_phase_log_table();
 
 	ut_ad(!rw_lock_own(dict_operation_lock, RW_LOCK_S));
-	clust_index = dict_table_get_first_index(old_table);
+	clust_index = old_table->first_index();
 
 	rw_lock_x_lock(dict_index_get_lock(clust_index));
 

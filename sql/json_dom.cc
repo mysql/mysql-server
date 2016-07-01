@@ -1268,6 +1268,7 @@ bool Json_object::consume(Json_object *other)
       this_iter->second= merge_doms(this_iter->second, value);
       if (this_iter->second == NULL)
         return true;                          /* purecov: inspected */
+      this_iter->second->set_parent(this);
     }
   }
 
@@ -1279,7 +1280,10 @@ Json_dom *Json_object::get(const std::string &key) const
   const Json_object_map::const_iterator iter= m_map.find(key);
 
   if (iter != m_map.end())
+  {
+    DBUG_ASSERT(iter->second->parent() == this);
     return iter->second;
+  }
 
   return NULL;
 }
@@ -2573,6 +2577,22 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
 }
 
 
+namespace
+{
+
+/// Does the path contain an ellipsis token?
+bool contains_ellipsis(const Json_seekable_path &path)
+{
+  const size_t size= path.leg_count();
+  for (size_t i= 0; i < size; i++)
+    if (path.get_leg_at(i)->get_type() == jpl_ellipsis)
+      return true;
+  return false;
+}
+
+} // namespace
+
+
 bool Json_wrapper::seek(const Json_seekable_path &path,
                         Json_wrapper_vector *hits,
                         bool auto_wrap, bool only_need_one)
@@ -2586,7 +2606,7 @@ bool Json_wrapper::seek(const Json_seekable_path &path,
   }
 
   // use fast-track code if the path doesn't have any ellipses
-  if (!path.contains_ellipsis())
+  if (!contains_ellipsis(path))
   {
     return seek_no_ellipsis(path, hits, 0, auto_wrap, only_need_one);
   }

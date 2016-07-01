@@ -428,7 +428,23 @@ private:
 class SEL_ARG :public Sql_alloc
 {
 public:
-  uint8 min_flag,max_flag,maybe_flag;
+  uint8 min_flag, max_flag;
+
+  // maybe_flag signals that this range is AND-ed with some unknown range
+  // (a MAYBE_KEY node). This means that the range could be smaller than
+  // what it would otherwise denote; e.g., a range such as
+  //
+  //   (0 < x < 3) AND x=( SELECT ... )
+  //
+  // could in reality be e.g. (1 < x < 2), depending on what the subselect
+  // returns (and we don't know that when planning), but it could never be
+  // bigger.
+  //
+  // FIXME: It's unclear if this is really kept separately per SEL_ARG or is
+  // meaningful only at the root node. Most code seems to assume the latter,
+  // but a few select places, non-root nodes appear to be modified.
+  uint8 maybe_flag;
+
   uint8 part;					// Which key part
   uint8 maybe_null;
   /**
@@ -566,7 +582,7 @@ public:
     return sel_cmp(field,max_value, arg->min_value, max_flag, arg->min_flag);
   }
   SEL_ARG *clone_and(SEL_ARG* arg, MEM_ROOT *mem_root)
-  {						// Get overlapping range
+  {                                             // Get intersection of ranges.
     uchar *new_min,*new_max;
     uint8 flag_min,flag_max;
     if (cmp_min_to_min(arg) >= 0)
@@ -589,20 +605,20 @@ public:
 		       MY_TEST(maybe_flag && arg->maybe_flag));
   }
   SEL_ARG *clone_first(SEL_ARG *arg, MEM_ROOT *mem_root)
-  {						// min <= X < arg->min
+  {                                             // arg->min <= X < arg->min
     return new (mem_root) SEL_ARG(field,part, min_value, arg->min_value,
 		       min_flag, arg->min_flag & NEAR_MIN ? 0 : NEAR_MAX,
 		       maybe_flag | arg->maybe_flag);
   }
   SEL_ARG *clone_last(SEL_ARG *arg, MEM_ROOT *mem_root)
-  {						// min <= X <= key_max
+  {                                             // arg->min <= X <= key_max
     return new (mem_root) SEL_ARG(field, part, min_value, arg->max_value,
 		       min_flag, arg->max_flag, maybe_flag | arg->maybe_flag);
   }
   SEL_ARG *clone(RANGE_OPT_PARAM *param, SEL_ARG *new_parent, SEL_ARG **next);
 
   bool copy_min(SEL_ARG* arg)
-  {						// Get overlapping range
+  {                                             // max(this->min, arg->min) <= x <= this->max
     if (cmp_min_to_min(arg) > 0)
     {
       min_value=arg->min_value; min_flag=arg->min_flag;
@@ -613,7 +629,7 @@ public:
     return 0;
   }
   bool copy_max(SEL_ARG* arg)
-  {						// Get overlapping range
+  {                                             // this->min <= x <= min(this->max, arg->max)
     if (cmp_max_to_max(arg) <= 0)
     {
       max_value=arg->max_value; max_flag=arg->max_flag;
@@ -1158,6 +1174,7 @@ static bool eq_tree(SEL_ARG* a,SEL_ARG *b);
 static bool eq_ranges_exceeds_limit(SEL_ARG *keypart_root, uint* count, 
                                     uint limit);
 
+// Shared sentinel node for all trees.
 static SEL_ARG null_element(SEL_ARG::IMPOSSIBLE);
 static bool null_part_in_key(KEY_PART *key_part, const uchar *key,
                              uint length);
@@ -2931,7 +2948,7 @@ int test_quick_select(THD *thd, Key_map keys_to_use,
           continue;
         }
 
-        if (hint_key_state(thd, head, idx, NO_RANGE_HINT_ENUM, 0))
+        if (hint_key_state(thd, head->pos_in_table_list, idx, NO_RANGE_HINT_ENUM, 0))
         {
           trace_idx_details.add("usable", false).
             add_alnum("cause", "no_range_optimization hint");
@@ -5155,7 +5172,8 @@ static void ror_intersect_cpy(ROR_INTERSECT_INFO *dst,
     where k_ij may be the same as any k_pq (i.e. keys may have common parts).
 
     Note that for ROR retrieval, only equality conditions are usable so there
-    are no open ranges (e.g., k_ij > c_ij) in 'scan' or 'info'
+    are no open ranges (e.g., k_ij > c_ij) in 'scan' or 'info', and the R-B
+    tree contains only a single node.
 
     A full row is retrieved if entire condition holds.
 
@@ -5265,6 +5283,7 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
   for (sel_arg= scan->sel_arg; sel_arg;
        sel_arg= sel_arg->next_key_part)
   {
+    DBUG_ASSERT(sel_arg->elements == 1);
     DBUG_PRINT("info",("sel_arg step"));
     cur_covered= MY_TEST(bitmap_is_set(&info->covered_fields,
                                        key_part[sel_arg->part].fieldnr-1));

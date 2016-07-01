@@ -1,4 +1,4 @@
-select hex(convert(uc using utf32)), name from unicode where category in ('Lu','Ll','Lt') order by uc  collate utf8mb4_ro_800_ci_ai, cp;
+select hex(convert(uc using utf32)), name from unicode where category in ('Lu','Ll','Lt') order by uc  collate utf8mb4_ro_800_ai_ci, cp;
 hex(convert(uc using utf32))	name
 00000041	LATIN CAPITAL LETTER A
 00000061	LATIN SMALL LETTER A

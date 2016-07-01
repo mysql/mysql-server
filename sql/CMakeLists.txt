@@ -24,6 +24,7 @@ INCLUDE_DIRECTORIES(
   ${ZLIB_INCLUDE_DIR}
   ${SSL_INCLUDE_DIRS}
   ${CMAKE_BINARY_DIR}/sql
+  ${LZ4_INCLUDE_DIR}
 )
 
 SET(CONF_SOURCES
@@ -218,6 +219,7 @@ SET(SQL_SHARED_SOURCES
   mdl.cc
   my_decimal.cc
   mysqld.cc
+  mysqld_thd_manager.cc
   net_serv.cc
   opt_costconstantcache.cc
   opt_costconstants.cc
@@ -382,7 +384,6 @@ SET(SQL_SOURCE
   event_scheduler.cc
   events.cc
   mf_iocache.cc
-  mysqld_thd_manager.cc
   protocol_callback.cc
   signal_handler.cc
   sql_audit.cc

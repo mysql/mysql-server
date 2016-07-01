@@ -176,7 +176,7 @@ row_undo_search_clust_to_pcur(
 	mtr_start(&mtr);
 	dict_disable_redo_if_temporary(node->table, &mtr);
 
-	clust_index = dict_table_get_first_index(node->table);
+	clust_index = node->table->first_index();
 
 	found = row_search_on_row_ref(&node->pcur, BTR_MODIFY_LEAF,
 				      node->table, node->ref, &mtr);

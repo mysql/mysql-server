@@ -877,7 +877,7 @@ row_vers_old_has_index_entry(
 	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));
 
-	clust_index = dict_table_get_first_index(index->table);
+	clust_index = index->table->first_index();
 
 	comp = page_rec_is_comp(rec);
 	ut_ad(!dict_table_is_comp(index->table) == !comp);

@@ -91,14 +91,32 @@ public:
   longlong expression;
   interval_type interval;
 
-  static Event_parse_data *
-  new_instance(THD *thd);
-
   bool
   check_parse_data(THD *thd);
 
   bool
   check_dates(THD *thd, int previous_on_completion);
+
+  Event_parse_data()
+    :on_completion(Event_parse_data::ON_COMPLETION_DEFAULT),
+    status(Event_parse_data::ENABLED), status_changed(false),
+    do_not_create(false), body_changed(false),
+    item_starts(NULL), item_ends(NULL), item_execute_at(NULL),
+    starts_null(true), ends_null(true), execute_at_null(true),
+    item_expression(NULL), expression(0)
+  {
+    DBUG_ENTER("Event_parse_data::Event_parse_data");
+
+    /* Actually in the parser STARTS is always set */
+    starts= ends= execute_at= 0;
+
+    comment.str= NULL;
+    comment.length= 0;
+
+    DBUG_VOID_RETURN;
+  }
+
+  ~Event_parse_data();
 
 private:
 
@@ -119,9 +137,6 @@ private:
 
   int
   init_ends(THD *thd);
-
-  Event_parse_data();
-  ~Event_parse_data();
 
   void
   report_bad_value(const char *item_name, Item *bad_item);

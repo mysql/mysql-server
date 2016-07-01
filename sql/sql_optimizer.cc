@@ -3008,9 +3008,9 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join, uint no_jbuf_after)
   ha_rows rows;
   uint bufsz= 4096;
   uint join_cache_flags= HA_MRR_NO_NULL_ENDPOINTS;
-  const bool bnl_on= hint_table_state(join->thd, tab->table_ref->table,
+  const bool bnl_on= hint_table_state(join->thd, tab->table_ref,
                                       BNL_HINT_ENUM, OPTIMIZER_SWITCH_BNL);
-  const bool bka_on= hint_table_state(join->thd, tab->table_ref->table,
+  const bool bka_on= hint_table_state(join->thd, tab->table_ref,
                                       BKA_HINT_ENUM, OPTIMIZER_SWITCH_BKA);
 
   const uint tableno= tab->idx();

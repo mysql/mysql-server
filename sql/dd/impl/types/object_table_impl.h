@@ -38,6 +38,16 @@ protected:
   Object_table_definition_impl m_target_def;
 
 public:
+  Object_table_impl()
+  {
+    // Add common options
+    m_target_def.add_option("ENGINE=INNODB");
+    m_target_def.add_option("DEFAULT CHARSET=utf8");
+    m_target_def.add_option("COLLATE=utf8_bin");
+    m_target_def.add_option("ROW_FORMAT=DYNAMIC");
+    m_target_def.add_option("STATS_PERSISTENT=0");
+  }
+
   virtual const Object_table_definition *table_definition(
                   uint version MY_ATTRIBUTE((unused))) const
   {

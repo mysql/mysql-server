@@ -48,36 +48,7 @@ public:
   };
 
 public:
-  Tablespace_files()
-  {
-    m_target_def.table_name(table_name());
-    m_target_def.dd_version(1);
-
-    m_target_def.add_field(FIELD_TABLESPACE_ID,
-                           "FIELD_TABLESPACE_ID",
-                           "tablespace_id BIGINT UNSIGNED NOT NULL");
-    m_target_def.add_field(FIELD_ORDINAL_POSITION,
-                           "FIELD_ORDINAL_POSITION",
-                           "ordinal_position INT UNSIGNED NOT NULL");
-    m_target_def.add_field(FIELD_FILE_NAME,
-                           "FIELD_FILE_NAME",
-                           "file_name VARCHAR(512) NOT NULL");
-    m_target_def.add_field(FIELD_SE_PRIVATE_DATA,
-                           "FIELD_SE_PRIVATE_DATA",
-                           "se_private_data MEDIUMTEXT");
-
-    m_target_def.add_index("UNIQUE KEY (tablespace_id, ordinal_position)");
-    m_target_def.add_index("UNIQUE KEY (file_name)");
-
-    m_target_def.add_foreign_key("FOREIGN KEY (tablespace_id) \
-                                  REFERENCES tablespaces(id)");
-
-    m_target_def.add_option("ENGINE=INNODB");
-    m_target_def.add_option("DEFAULT CHARSET=utf8");
-    m_target_def.add_option("COLLATE=utf8_bin");
-    m_target_def.add_option("ROW_FORMAT=DYNAMIC");
-    m_target_def.add_option("STATS_PERSISTENT=0");
-  }
+  Tablespace_files();
 
   virtual const std::string &name() const
   { return Tablespace_files::table_name(); }

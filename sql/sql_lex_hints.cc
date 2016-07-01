@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -155,6 +155,8 @@ void Hint_scanner::add_hint_token_digest()
       case QB_NAME_HINT:
       case SEMIJOIN_HINT:
       case SUBQUERY_HINT:
+      case DERIVED_MERGE_HINT:
+      case NO_DERIVED_MERGE_HINT:
         break;
       default:
         DBUG_ASSERT(false);

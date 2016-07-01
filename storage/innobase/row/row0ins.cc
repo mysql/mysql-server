@@ -123,9 +123,9 @@ ins_node_create_entry_list(
 	secondary indexes) in the entry list. Filteration of
 	these corrupted index will be done in row_ins() */
 
-	for (index = dict_table_get_first_index(node->table);
+	for (index = node->table->first_index();
 	     index != 0;
-	     index = dict_table_get_next_index(index)) {
+	     index = index->next()) {
 
 		entry = row_build_index_entry_low(
 			node->row, NULL, index, node->entry_sys_heap,
@@ -1207,7 +1207,7 @@ row_ins_foreign_check_on_constraint(
 		/* We have to look for the record in the clustered index
 		in the child table */
 
-		clust_index = dict_table_get_first_index(table);
+		clust_index = table->first_index();
 
 		ref = row_build_row_ref(ROW_COPY_POINTERS, index, rec,
 					tmp_heap);
@@ -3668,7 +3668,7 @@ row_ins_alloc_row_id_step(
 
 	ut_ad(node->state == INS_NODE_ALLOC_ROW_ID);
 
-	if (dict_index_is_unique(dict_table_get_first_index(node->table))) {
+	if (dict_index_is_unique(node->table->first_index())) {
 
 		/* No row id is stored if the clustered index is unique */
 
@@ -3771,7 +3771,7 @@ row_ins(
 
 		row_ins_alloc_row_id_step(node);
 
-		node->index = dict_table_get_first_index(node->table);
+		node->index = node->table->first_index();
 		node->entry = UT_LIST_GET_FIRST(node->entry_list);
 
 		if (node->ins_type == INS_SEARCHED) {
@@ -3838,7 +3838,7 @@ row_ins(
 			break;
 		}
 
-		node->index = dict_table_get_next_index(node->index);
+		node->index = node->index->next();
 		node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry);
 
 		DBUG_EXECUTE_IF(
@@ -3848,7 +3848,7 @@ row_ins(
 		/* Skip corrupted secondary index and its entry */
 		while (node->index && dict_index_is_corrupted(node->index)) {
 
-			node->index = dict_table_get_next_index(node->index);
+			node->index = node->index->next();
 			node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry);
 		}
 
@@ -3860,8 +3860,7 @@ row_ins(
 			while (node->index
 			       && !dict_index_is_unique(node->index)) {
 
-				node->index = dict_table_get_next_index(
-					node->index);
+				node->index = node->index->next();
 				node->entry = UT_LIST_GET_NEXT(tuple_list,
 							       node->entry);
 			}

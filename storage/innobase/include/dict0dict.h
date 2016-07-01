@@ -697,51 +697,18 @@ dict_foreign_qualify_index(
 					the columns must be declared
 					NOT NULL */
 	MY_ATTRIBUTE((warn_unused_result));
-#ifdef UNIV_DEBUG
-/********************************************************************//**
-Gets the first index on the table (the clustered index).
-@return index, NULL if none exists */
-UNIV_INLINE
-dict_index_t*
-dict_table_get_first_index(
-/*=======================*/
-	const dict_table_t*	table)	/*!< in: table */
-	MY_ATTRIBUTE((warn_unused_result));
-/********************************************************************//**
-Gets the last index on the table.
-@return index, NULL if none exists */
-UNIV_INLINE
-dict_index_t*
-dict_table_get_last_index(
-/*=======================*/
-	const dict_table_t*	table)	/*!< in: table */
-	MY_ATTRIBUTE((warn_unused_result));
-/********************************************************************//**
-Gets the next index on the table.
-@return index, NULL if none left */
-UNIV_INLINE
-dict_index_t*
-dict_table_get_next_index(
-/*======================*/
-	const dict_index_t*	index)	/*!< in: index */
-	MY_ATTRIBUTE((warn_unused_result));
-#else /* UNIV_DEBUG */
-# define dict_table_get_first_index(table) UT_LIST_GET_FIRST((table)->indexes)
-# define dict_table_get_last_index(table) UT_LIST_GET_LAST((table)->indexes)
-# define dict_table_get_next_index(index) UT_LIST_GET_NEXT(indexes, index)
-#endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
 /* Skip corrupted index */
 #define dict_table_skip_corrupt_index(index)			\
 	while (index && dict_index_is_corrupted(index)) {	\
-		index = dict_table_get_next_index(index);	\
+		index = index->next();				\
 	}
 
 /* Get the next non-corrupt index */
 #define dict_table_next_uncorrupted_index(index)		\
 do {								\
-	index = dict_table_get_next_index(index);		\
+	index = index->next();					\
 	dict_table_skip_corrupt_index(index);			\
 } while (0)
 
@@ -814,7 +781,7 @@ dict_index_is_sec_or_ibuf(
 @return number of FTS indexes */
 ulint
 dict_table_get_all_fts_indexes(
-	const dict_table_t*	table,
+	dict_table_t*		table,
 	ib_vector_t*		indexes);
 
 /********************************************************************//**
@@ -2170,7 +2137,7 @@ field_index position of table */
 UNIV_INLINE
 dict_index_t*
 dict_table_get_index_on_first_col(
-	const dict_table_t*	table,
+	dict_table_t*		table,
 	ulint			col_index);
 
 /** Check if a column is a virtual column

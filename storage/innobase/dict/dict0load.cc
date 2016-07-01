@@ -2348,7 +2348,7 @@ dict_load_indexes(
 			without index when DICT_ERR_IGNORE_CORRUPT is set.
 			DICT_ERR_IGNORE_CORRUPT is currently only set
 			for drop table */
-			if (dict_table_get_first_index(table) == NULL
+			if (table->first_index() == NULL
 			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)) {
 				ib::warn() << "Cannot load table "
 					<< table->name
@@ -2394,7 +2394,7 @@ dict_load_indexes(
 			/* TABLE_ID mismatch means that we have
 			run out of index definitions for the table. */
 
-			if (dict_table_get_first_index(table) == NULL
+			if (table->first_index() == NULL
 			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)) {
 
 				ib::warn() << "Failed to load the"
@@ -2472,7 +2472,7 @@ dict_load_indexes(
 			dict_mem_index_free(index);
 			goto func_exit;
 		} else if (!dict_index_is_clust(index)
-			   && NULL == dict_table_get_first_index(table)) {
+			   && NULL == table->first_index()) {
 
 			ib::error() << "Trying to load index " << index->name
 				<< " for table " << table->name
@@ -3104,7 +3104,7 @@ err_exit:
 
 		/* Make sure that at least the clustered index was loaded.
 		Otherwise refuse to load the table */
-		index = dict_table_get_first_index(table);
+		index = table->first_index();
 
 		if (!srv_force_recovery
 		    || !index
@@ -3179,8 +3179,7 @@ dict_load_table_on_id(
 	/*---------------------------------------------------*/
 	/* Get the secondary index based on ID for table SYS_TABLES */
 	sys_tables = dict_sys->sys_tables;
-	sys_table_ids = dict_table_get_next_index(
-		dict_table_get_first_index(sys_tables));
+	sys_table_ids = sys_tables->first_index()->next();
 	ut_ad(!dict_table_is_comp(sys_tables));
 	ut_ad(!dict_index_is_clust(sys_table_ids));
 	heap = mem_heap_create(256);
@@ -3635,8 +3634,7 @@ dict_load_foreigns(
 	/* Get the secondary index based on FOR_NAME from table
 	SYS_FOREIGN */
 
-	sec_index = dict_table_get_next_index(
-		dict_table_get_first_index(sys_foreign));
+	sec_index = sys_foreign->first_index()->next();
 	ut_ad(!dict_index_is_clust(sec_index));
 start_load:
 
@@ -3733,7 +3731,7 @@ load_next_index:
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
-	sec_index = dict_table_get_next_index(sec_index);
+	sec_index = sec_index->next();
 
 	if (sec_index != NULL) {
 

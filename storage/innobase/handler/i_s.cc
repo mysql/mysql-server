@@ -3867,8 +3867,8 @@ i_s_fts_index_table_fill(
 		DBUG_RETURN(0);
 	}
 
-	for (index = dict_table_get_first_index(user_table);
-	     index; index = dict_table_get_next_index(index)) {
+	for (index = user_table->first_index();
+	     index; index = index->next()) {
 		if (index->type & DICT_FTS) {
 			i_s_fts_index_table_fill_one_index(index, thd, tables);
 		}
@@ -8839,7 +8839,7 @@ i_s_files_table_fill(
 			continue;
 		case FIL_TYPE_TABLESPACE:
 			if (!is_system_tablespace(space()->id)
-			    && space()->id <= srv_undo_tablespaces_open) {
+			    && srv_is_undo_tablespace(space()->id)) {
 				type = "UNDO LOG";
 				break;
 			} /* else fall through for TABLESPACE */

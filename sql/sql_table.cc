@@ -12291,13 +12291,14 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 
              /*
                BLOB and VARCHAR have pointers in their field, we must convert
-               to string; GEOMETRY is implemented on top of BLOB.
+               to string; GEOMETRY and JSON are implemented on top of BLOB.
                BIT may store its data among NULL bits, convert as well.
              */
               switch (f->type()) {
                 case MYSQL_TYPE_BLOB:
                 case MYSQL_TYPE_VARCHAR:
                 case MYSQL_TYPE_GEOMETRY:
+                case MYSQL_TYPE_JSON:
                 case MYSQL_TYPE_BIT:
                 {
                   String tmp;
