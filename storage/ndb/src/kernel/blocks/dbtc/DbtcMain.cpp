@@ -2898,7 +2898,7 @@ Dbtc::hasOp(ApiConnectRecordPtr transPtr, Uint32 opPtrI)
 /*****************************************************************************/
 void Dbtc::execTCKEYREQ(Signal* signal) 
 {
-  Uint32 sendersNodeId = refToNode(signal->getSendersBlockRef());
+  Uint32 sendersBlockRef = signal->getSendersBlockRef();
   UintR compare_transid1, compare_transid2;
   const TcKeyReq * const tcKeyReq = (TcKeyReq *)signal->getDataPtr();
   UintR Treqinfo;
@@ -2932,7 +2932,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   if (ERROR_INSERTED(8079))
   {
     /* Test that no signals received after API_FAILREQ */
-    if (sendersNodeId == c_lastFailedApi)
+    if (refToNode(sendersBlockRef) == c_lastFailedApi)
     {
       /* Signal from API node received *after* API_FAILREQ */
       ndbrequire(false);
@@ -2964,7 +2964,10 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   localTabptr.p = &tableRecord[TtabIndex];
   switch (regApiPtr->apiConnectstate) {
   case CS_CONNECTED:{
-    if (TstartFlag == 1 && getAllowStartTransaction(sendersNodeId, localTabptr.p->singleUserMode) == true){
+    if (TstartFlag == 1 &&
+        getAllowStartTransaction(refToNode(sendersBlockRef),
+                                 localTabptr.p->singleUserMode) == true)
+    {
       //---------------------------------------------------------------------
       // Initialise API connect record if transaction is started.
       //---------------------------------------------------------------------
@@ -2973,7 +2976,10 @@ void Dbtc::execTCKEYREQ(Signal* signal)
       regApiPtr->m_flags |= TexecFlag;
     } else {
       releaseSections(handle);
-      if(getAllowStartTransaction(sendersNodeId, localTabptr.p->singleUserMode) == true){
+      if (getAllowStartTransaction(refToNode(sendersBlockRef),
+                                   localTabptr.p->singleUserMode) == true)
+      {
+
 	/*------------------------------------------------------------------
 	 * WE EXPECTED A START TRANSACTION. SINCE NO OPERATIONS HAVE BEEN 
 	 * RECEIVED WE INDICATE THIS BY SETTING FIRST_TC_CONNECT TO RNIL TO 
@@ -2983,7 +2989,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
 	return;
       } else {
 	/**
-	 * getAllowStartTransaction(sendersNodeId) == false
+	 * getAllowStartTransaction(refToNode(sendersBlockRef)) == false
 	 */
 	TCKEY_abort(signal, TexecFlag ? 60 : 57);
 	return;
@@ -3001,7 +3007,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
        */
       jam();
       if (unlikely(getNodeState().getSingleUserMode()) &&
-          getNodeState().getSingleUserApi() != sendersNodeId &&
+          getNodeState().getSingleUserApi() != refToNode(sendersBlockRef) &&
           !localTabptr.p->singleUserMode)
       {
         releaseSections(handle);
@@ -3029,7 +3035,9 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   case CS_ABORTING:
     if (regApiPtr->abortState == AS_IDLE) {
       if (TstartFlag == 1) {
-        if(getAllowStartTransaction(sendersNodeId, localTabptr.p->singleUserMode) == false){
+        if(getAllowStartTransaction(refToNode(sendersBlockRef),
+                                    localTabptr.p->singleUserMode) == false)
+        {
           releaseSections(handle);
           TCKEY_abort(signal, TexecFlag ? 60 : 57);
           return;
@@ -3224,7 +3232,11 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     titcLenAiInTckeyreq = TcKeyReq::getAIInTcKeyReq(Treqinfo);
     regCachePtr->m_read_committed_base = 0;
   }
-
+  if (refToMain(sendersBlockRef) == DBUTIL)
+  {
+    jam();
+    Tspecial_op_flags |= TcConnectRecord::SOF_UTIL_FLAG;
+  }
   regCachePtr->keylen = TkeyLength;
   regCachePtr->lenAiInTckeyreq = titcLenAiInTckeyreq;
   regCachePtr->currReclenAi = titcLenAiInTckeyreq;
@@ -4341,6 +4353,10 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
     handle.m_ptr[ LqhKeyReq::KeyInfoSectionNum ]= keyInfoSection;
     handle.m_cnt= 1;
 
+    if (regTcPtr->m_special_op_flags & TcConnectRecord::SOF_UTIL_FLAG)
+    {
+      LqhKeyReq::setUtilFlag(lqhKeyReq->requestInfo, 1);
+    }
     if (regCachePtr->attrlength != 0)
     {
       SegmentedSectionPtr attrInfoSection;

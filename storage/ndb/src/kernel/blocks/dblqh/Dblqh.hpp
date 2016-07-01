@@ -284,6 +284,7 @@ class Lgman;
 #define ZWRITE_LOCK 1
 #define ZSCAN_FRAG_CLOSED 2
 #define ZNUM_RESERVED_TC_CONNECT_RECORDS 3
+#define ZNUM_RESERVED_UTIL_CONNECT_RECORDS 100
 /* ------------------------------------------------------------------------- */
 /*       ERROR CODES ADDED IN VERSION 0.1 AND 0.2                            */
 /* ------------------------------------------------------------------------- */

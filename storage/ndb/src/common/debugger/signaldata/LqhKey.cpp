@@ -82,6 +82,8 @@ printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
     fprintf(output, "Deferred-constraints ");
   if(LqhKeyReq::getNoTriggersFlag(reqInfo))
     fprintf(output, "NoTriggers ");
+  if(LqhKeyReq::getUtilFlag(reqInfo))
+    fprintf(output, "UtilFlag ");
 
   fprintf(output, "ScanInfo/noFiredTriggers: H\'%x\n", sig->scanInfo);
   

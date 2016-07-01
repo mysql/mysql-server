@@ -4938,11 +4938,16 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   }
 
   sig0 = lqhKeyReq->clientConnectPtr;
-  if (ctcNumFree > ZNUM_RESERVED_TC_CONNECT_RECORDS &&
-      !ERROR_INSERTED_CLEAR(5031)) {
+  if ((ctcNumFree > ZNUM_RESERVED_UTIL_CONNECT_RECORDS &&
+       !ERROR_INSERTED_CLEAR(5031)) ||
+      (ctcNumFree > ZNUM_RESERVED_TC_CONNECT_RECORDS &&
+       LqhKeyReq::getUtilFlag(Treqinfo)))
+  {
     jamEntry();
     seizeTcrec();
-  } else {
+  }
+  else
+  {
 /* ------------------------------------------------------------------------- */
 /* NO FREE TC RECORD AVAILABLE, THUS WE CANNOT HANDLE THE REQUEST.           */
 /* ------------------------------------------------------------------------- */
@@ -11393,16 +11398,22 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   const Uint32 senderData = scanFragReq->senderData;
   const Uint32 senderBlockRef = signal->senderBlockRef();
 
-  if (likely(ctcNumFree > ZNUM_RESERVED_TC_CONNECT_RECORDS &&
+  if (likely(ctcNumFree > ZNUM_RESERVED_UTIL_CONNECT_RECORDS &&
              !ERROR_INSERTED_CLEAR(5055)) ||
       (ScanFragReq::getLcpScanFlag(scanFragReq->requestInfo)) ||
-      (refToMain(senderBlockRef) == BACKUP))
+      (refToMain(senderBlockRef) == BACKUP) ||
+      (refToMain(senderBlockRef) == DBUTIL &&
+       ctcNumFree > ZNUM_RESERVED_TC_CONNECT_RECORDS))
   {
     /**
      * We always keep 3 operation records, one for LCP scans and one for
      * Node recovery support (to handle COPY_FRAGREQ when we're aiding a
      * node to startup by synchronizing our data with the starting nodes
      * recovered data and finally one for backup scans.
+     *
+     * We also provide 100 records not available to ordinary transactions
+     * but available to DBUTIL operations. But LCP and Backup operations
+     * still have preference over DBUTIL operations.
      */
     seizeTcrec();
 
