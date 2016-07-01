@@ -1786,6 +1786,21 @@ private:
   Uint32 c_nextNodeGroup;
   Uint16 c_next_replica_node[MAX_NDB_NODE_GROUPS][NDBMT_MAX_WORKER_INSTANCES];
 
+  /**
+   * Temporary variables used by CREATE_FRAGMENTATION_REQ
+   */
+  Uint16
+    tmp_next_replica_node[MAX_NDB_NODE_GROUPS][NDBMT_MAX_WORKER_INSTANCES];
+  Uint8
+    tmp_next_replica_node_set[MAX_NDB_NODE_GROUPS][NDBMT_MAX_WORKER_INSTANCES];
+  Uint16 tmp_node_group_id[MAX_NDB_PARTITIONS];
+  Uint16 tmp_fragments_per_ldm[MAX_NDB_NODES][NDBMT_MAX_WORKER_INSTANCES];
+  Uint16 tmp_fragments_per_node[MAX_NDB_NODES];
+  void init_next_replica_node(
+    Uint16
+     (*next_replica_node)[MAX_NDB_NODE_GROUPS][NDBMT_MAX_WORKER_INSTANCES],
+     Uint32 noOfReplicas);
+
   NodeRecord *nodeRecord;
 
   PageRecord *pageRecord;
