@@ -11928,9 +11928,22 @@ Dbdih::getFragmentsPerNode()
   return c_fragments_per_node_;
 }
 
+void
+Dbdih::init_next_replica_node(
+  Uint16 (*next_replica_node)[MAX_NDB_NODE_GROUPS][NDBMT_MAX_WORKER_INSTANCES],
+  Uint32 noOfReplicas)
+{
+  for (Uint32 i = 0; i < MAX_NDB_NODE_GROUPS; i++)
+  {
+    for (Uint32 j = 0; j < NDBMT_MAX_WORKER_INSTANCES; j++)
+    {
+      (*next_replica_node)[i][j] = (j % noOfReplicas);
+    }
+  }
+}
+
 void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
 {
-  Uint16 node_group_id[MAX_NDB_PARTITIONS];
   jamEntry();
   CreateFragmentationReq * const req = 
     (CreateFragmentationReq*)signal->getDataPtr();
@@ -12050,11 +12063,11 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         When we come here the the exact partition is specified
         and there is an array of node groups sent along as well.
       */
-      memcpy(&node_group_id[0], &signal->theData[25], 2 * noOfFragments);
-      Uint16 loc_next_replica_node[MAX_NDB_NODE_GROUPS][NDBMT_MAX_WORKER_INSTANCES];
+      memcpy(&tmp_node_group_id[0], &signal->theData[25], 2 * noOfFragments);
       Uint16 (*next_replica_node)[MAX_NDB_NODE_GROUPS][NDBMT_MAX_WORKER_INSTANCES] =
-        &loc_next_replica_node;
-      memset(loc_next_replica_node, 0, sizeof(loc_next_replica_node));
+        &tmp_next_replica_node;
+      init_next_replica_node(&tmp_next_replica_node, noOfReplicas);
+
       Uint32 default_node_group= 0;
       Uint32 next_log_part = 0;
       if ((DictTabInfo::FragmentType)fragType == DictTabInfo::HashMapPartition)
@@ -12213,7 +12226,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       for(Uint32 fragNo = 0; fragNo < noOfFragments; fragNo++)
       {
         jam();
-        NGPtr.i = node_group_id[fragNo];
+        NGPtr.i = tmp_node_group_id[fragNo];
+        ndbrequire(default_node_group < MAX_NDB_NODE_GROUPS);
         if (NGPtr.i == NDB_UNDEF_NODEGROUP)
         {
           jam();
@@ -12268,6 +12282,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
 
         /* Select primary replica node as next index in double array */
         Uint32 node_index = (*next_replica_node)[NGPtr.i][logPart];
+        ndbrequire(node_index < noOfReplicas);
 
         for(Uint32 replicaNo = 0; replicaNo < noOfReplicas; replicaNo++)
         {
@@ -12275,8 +12290,10 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           const Uint16 nodeId = NGPtr.p->nodesInGroup[node_index];
           fragments[count++]= nodeId;
           inc_node_or_group(node_index, NGPtr.p->nodeCount);
+          ndbrequire(node_index < noOfReplicas);
         }
         inc_node_or_group(node_index, NGPtr.p->nodeCount);
+        ndbrequire(node_index < noOfReplicas);
         (*next_replica_node)[NGPtr.i][logPart] = node_index;
 
         /**
@@ -12307,6 +12324,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       if (use_specific_fragment_count)
       {
         jam();
+        ndbrequire(default_node_group < MAX_NDB_NODE_GROUPS);
         c_nextNodeGroup = default_node_group;
       }
     } else {
@@ -12323,25 +12341,22 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         break;
       }
       // Keep track of no of (primary) fragments per node
-      Uint8 next_replica_node_set[MAX_NDB_NODE_GROUPS][NDBMT_MAX_WORKER_INSTANCES];
-      Uint16 loc_next_replica_node[MAX_NDB_NODE_GROUPS][NDBMT_MAX_WORKER_INSTANCES];
       Uint16 (*next_replica_node)[MAX_NDB_NODE_GROUPS][NDBMT_MAX_WORKER_INSTANCES] =
-        &loc_next_replica_node;
-      Uint16 fragments_per_node[MAX_NDB_NODES];
-      Uint16 fragments_per_ldm[MAX_NDB_NODES][NDBMT_MAX_WORKER_INSTANCES];
+        &tmp_next_replica_node;
 
-      memcpy(loc_next_replica_node,
+      memcpy(tmp_next_replica_node,
              c_next_replica_node,
-             sizeof(loc_next_replica_node));
-      memset(next_replica_node_set, 0, sizeof(next_replica_node_set));
-      memset(fragments_per_node, 0, sizeof(fragments_per_node));
-      memset(fragments_per_ldm, 0, sizeof(fragments_per_ldm));
+             sizeof(tmp_next_replica_node));
+      memset(tmp_next_replica_node_set, 0, sizeof(tmp_next_replica_node_set));
+      memset(tmp_fragments_per_node, 0, sizeof(tmp_fragments_per_node));
+      memset(tmp_fragments_per_ldm, 0, sizeof(tmp_fragments_per_ldm));
       for (Uint32 fragNo = 0; fragNo < primTabPtr.p->totalfragments; fragNo++) {
         jam();
         FragmentstorePtr fragPtr;
         ReplicaRecordPtr replicaPtr;
         getFragstore(primTabPtr.p, fragNo, fragPtr);
         Uint32 log_part_id = fragPtr.p->m_log_part_id;
+        ndbrequire(log_part_id < NDBMT_MAX_WORKER_INSTANCES);
 	fragments[count++] = log_part_id;
         fragments[count++] = fragPtr.p->preferredPrimary;
 
@@ -12356,8 +12371,9 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           {
             Uint32 node_index = replicaNo;
             inc_node_or_group(node_index, NGPtr.p->nodeCount);
+            ndbrequire(node_index < noOfReplicas);
             (*next_replica_node)[NGPtr.i][log_part_id] = node_index;
-            next_replica_node_set[NGPtr.i][log_part_id] = TRUE;
+            tmp_next_replica_node_set[NGPtr.i][log_part_id] = TRUE;
             break;
           }
         }
@@ -12366,8 +12382,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
              replicaPtr.i = replicaPtr.p->nextPool) {
           jam();
           c_replicaRecordPool.getPtr(replicaPtr);
-          fragments_per_ldm[replicaPtr.p->procNode][log_part_id]++;
-          fragments_per_node[replicaPtr.p->procNode]++;
+          tmp_fragments_per_ldm[replicaPtr.p->procNode][log_part_id]++;
+          tmp_fragments_per_node[replicaPtr.p->procNode]++;
           if (replicaPtr.p->procNode != fragPtr.p->preferredPrimary) {
             jam();
             fragments[count++]= replicaPtr.p->procNode;
@@ -12378,12 +12394,12 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
              replicaPtr.i = replicaPtr.p->nextPool) {
           jam();
           c_replicaRecordPool.getPtr(replicaPtr);
-          fragments_per_ldm[replicaPtr.p->procNode][log_part_id]++;
-          fragments_per_node[replicaPtr.p->procNode]++;
+          tmp_fragments_per_ldm[replicaPtr.p->procNode][log_part_id]++;
+          tmp_fragments_per_node[replicaPtr.p->procNode]++;
           if (replicaPtr.p->procNode != fragPtr.p->preferredPrimary) {
             jam();
             fragments[count++]= replicaPtr.p->procNode;
-            fragments_per_node[replicaPtr.p->procNode]++;
+            tmp_fragments_per_node[replicaPtr.p->procNode]++;
           }
         }
       }
@@ -12398,8 +12414,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         ndbrequire(fragType == DictTabInfo::HashMapPartition ||
                    fragType == DictTabInfo::DistrKeyOrderedIndex);
         /**
-         * All nodes that don't belong to a nodegroup to ~0 fragments_per_node
-         *   so that they don't get any more...
+         * All nodes that don't belong to a nodegroup to ~0
+         * tmp_fragments_per_node so that they don't get any more...
          */
         for (Uint32 i = 0; i<MAX_NDB_NODES; i++)
         {
@@ -12407,8 +12423,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
               getNodeGroup(i) >= cnoOfNodeGroups)
           {
             jam();
-            ndbassert(fragments_per_node[i] == 0);
-            fragments_per_node[i] = ~(Uint16)0;
+            ndbassert(tmp_fragments_per_node[i] == 0);
+            tmp_fragments_per_node[i] = ~(Uint16)0;
           }
         }
 
@@ -12461,8 +12477,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
          * creating and on-line altering tables.
          */
 
-        Uint32 first_new_node = find_min_index(fragments_per_node, 
-                                               NDB_ARRAY_SIZE(fragments_per_node),
+        Uint32 first_new_node = find_min_index(tmp_fragments_per_node, 
+                                               NDB_ARRAY_SIZE(tmp_fragments_per_node),
                                                0);
         Uint32 firstNG = getNodeGroup(first_new_node);
         Uint32 next_log_part = 0;
@@ -12494,8 +12510,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         for (Uint32 i = primTabPtr.p->totalfragments; i<noOfFragments; i++)
         {
           jam();
-          Uint32 node = find_min_index(fragments_per_node, 
-                                       NDB_ARRAY_SIZE(fragments_per_node),
+          Uint32 node = find_min_index(tmp_fragments_per_node, 
+                                       NDB_ARRAY_SIZE(tmp_fragments_per_node),
                                        0);
 
           NGPtr.i = getNodeGroup(node);
@@ -12516,33 +12532,37 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
             }
             logPart = next_log_part % globalData.ndbLogParts;
           }
-          ndbrequire(logPart < NDBMT_MAX_WORKER_INSTANCES);
-          logPart = find_min_index(&fragments_per_ldm[node][0],
+          logPart = find_min_index(&tmp_fragments_per_ldm[node][0],
                                    globalData.ndbLogParts,
                                    logPart);
+          ndbrequire(logPart < NDBMT_MAX_WORKER_INSTANCES);
 
           /* Select primary replica node */
           Uint32 primary_node;
-          if (next_replica_node_set[NGPtr.i][logPart] ||
+          if (tmp_next_replica_node_set[NGPtr.i][logPart] ||
               fragmentCountType == NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE)
           {
+            jam();
             Uint32 node_index = (*next_replica_node)[NGPtr.i][logPart];
             primary_node = NGPtr.p->nodesInGroup[node_index];
             inc_node_or_group(node_index, NGPtr.p->nodeCount);
+            ndbrequire(node_index < noOfReplicas);
             (*next_replica_node)[NGPtr.i][logPart] = node_index;
           }
           else
           {
+            jam();
             Uint32 node_index = c_next_replica_node[NGPtr.i][logPart];
             primary_node = NGPtr.p->nodesInGroup[node_index];
             inc_node_or_group(node_index, NGPtr.p->nodeCount);
             c_next_replica_node[NGPtr.i][logPart] = node_index;
           }
+          ndbrequire(primary_node < MAX_NDB_NODES);
           fragments[count++] = logPart;
           fragments[count++] = primary_node;
-          fragments_per_ldm[primary_node][logPart]++;
+          tmp_fragments_per_ldm[primary_node][logPart]++;
           /* Ensure that we don't report this as min immediately again */
-          fragments_per_node[primary_node]++;
+          tmp_fragments_per_node[primary_node]++;
           for (Uint32 r = 0; r < noOfReplicas; r++)
           {
             jam();
@@ -12551,8 +12571,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
               jam();
               Uint32 replicaNode = NGPtr.p->nodesInGroup[r];
               fragments[count++] = replicaNode;
-              fragments_per_node[replicaNode]++;
-              fragments_per_ldm[replicaNode][logPart]++;
+              tmp_fragments_per_node[replicaNode]++;
+              tmp_fragments_per_ldm[replicaNode][logPart]++;
             }
           }
         }
@@ -22526,6 +22546,7 @@ void Dbdih::initCommonData()
 	      "Only up to four replicas are supported. Check NoOfReplicas.");
   }
 
+  init_next_replica_node(&c_next_replica_node, cnoReplicas);
   bzero(&m_gcp_save, sizeof(m_gcp_save));
   bzero(&m_micro_gcp, sizeof(m_micro_gcp));
   NdbTick_Invalidate(&m_gcp_save.m_master.m_start_time);
