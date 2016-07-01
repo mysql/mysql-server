@@ -1691,15 +1691,29 @@ void Dbdih::execNDB_STTOR(Signal* signal)
     
   case ZNDB_SPH4:
     jam();
-    c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
     cmasterTakeOverNode = ZNIL;
     switch(typestart){
     case NodeState::ST_INITIAL_START:
       jam();
+      ndbassert(c_lcpState.lcpStatus == LCP_STATUS_IDLE);
+      c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
       ndbsttorry10Lab(signal, __LINE__);
       return;
     case NodeState::ST_SYSTEM_RESTART:
       jam();
+      if (!c_performed_copy_phase)
+      {
+        jam();
+        /**
+         * We are not performing the copy phase, it is a normal
+         * system restart, we initialise the LCP status to IDLE.
+         *
+         * When copy phase is performed the LCP processing have
+         * already started when we arrive here.
+         */
+        ndbassert(c_lcpState.lcpStatus == LCP_STATUS_IDLE);
+        c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
+      }
       ndbsttorry10Lab(signal, __LINE__);
       return;
     case NodeState::ST_INITIAL_NODE_RESTART:
@@ -1715,7 +1729,8 @@ void Dbdih::execNDB_STTOR(Signal* signal)
        * When this signal is confirmed the master has also copied the 
        * dictionary and the distribution information.
        */
-
+      ndbassert(c_lcpState.lcpStatus == LCP_STATUS_IDLE);
+      c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
       g_eventLogger->info("Request copying of distribution and dictionary"
                           " information from master Starting");
 
@@ -18725,6 +18740,7 @@ void Dbdih::execSTART_RECCONF(Signal* signal)
   if (senderData != RNIL)
   {
     jam();
+    c_performed_copy_phase = true;
     /**
      * This is normally a node restart, but it could also be second
      * phase of a system restart where a node is restored from a more
@@ -22470,6 +22486,7 @@ void Dbdih::initCommonData()
   cfirstDeadNode = RNIL;
   cgckptflag = false;
   cgcpOrderBlocked = 0;
+  c_performed_copy_phase = false;
 
   c_lcpMasterTakeOverState.set(LMTOS_IDLE, __LINE__);
 
