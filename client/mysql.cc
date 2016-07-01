@@ -2816,7 +2816,7 @@ C_MODE_END
   if not.
 */
 
-#if defined(USE_NEW_READLINE_INTERFACE) 
+#if defined(USE_NEW_EDITLINE_INTERFACE)
 static int fake_magic_space(int, int);
 extern "C" char *no_completion(const char*,int)
 #elif defined(USE_LIBEDIT_INTERFACE)
@@ -2845,7 +2845,7 @@ static int not_in_history(const char *line)
 }
 
 
-#if defined(USE_NEW_READLINE_INTERFACE)
+#if defined(USE_NEW_EDITLINE_INTERFACE)
 static int fake_magic_space(int, int)
 #else
 static int fake_magic_space(const char *, int)
@@ -2862,7 +2862,7 @@ static void initialize_readline (char *name)
   rl_readline_name = name;
 
   /* Tell the completer that we want a crack first. */
-#if defined(USE_NEW_READLINE_INTERFACE)
+#if defined(USE_NEW_EDITLINE_INTERFACE)
   rl_attempted_completion_function= (rl_completion_func_t*)&new_mysql_completion;
   rl_completion_entry_function= (rl_compentry_func_t*)&no_completion;
 
@@ -2890,7 +2890,7 @@ static char **new_mysql_completion(const char *text,
                                    int end MY_ATTRIBUTE((unused)))
 {
   if (!status.batch && !quick)
-#if defined(USE_NEW_READLINE_INTERFACE)
+#if defined(USE_NEW_EDITLINE_INTERFACE)
     return rl_completion_matches(text, new_command_generator);
 #else
     return completion_matches((char *)text, (CPFunction *)new_command_generator);
