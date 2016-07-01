@@ -2073,6 +2073,8 @@ private:
     2.4  C O M M O N    S T O R E D    V A R I A B L E S
     ----------------------------------------------------
   */
+  bool c_performed_copy_phase;
+
   struct DIVERIFY_queue
   {
     DIVERIFY_queue() {
