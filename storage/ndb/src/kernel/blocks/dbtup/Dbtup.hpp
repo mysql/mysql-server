@@ -3281,7 +3281,7 @@ private:
 #endif
 
   void expand_tuple(KeyReqStruct*, Uint32 sizes[4], Tuple_header*org, 
-		    const Tablerec*, bool disk);
+		    const Tablerec*, bool disk, bool from_lcp_keep = false);
   void shrink_tuple(KeyReqStruct*, Uint32 sizes[2], const Tablerec*,
 		    bool disk);
   
