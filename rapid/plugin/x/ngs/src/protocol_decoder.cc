@@ -109,12 +109,6 @@ Error_code Message_decoder::parse(Request &request)
                                                   static_cast<int>(buffer.length()));
     // variable 'mysqlx_max_allowed_packet' has been checked when buffer was filling by data
     stream.SetTotalBytesLimit(static_cast<int>(buffer.length()), -1 /*no warnings*/);
-    // Protobuf limits the number of nested objects in decoded message
-    // 400 nested objects should be enough to write complicated queries.
-    // Protobuf doesn't print a readable error after reaching the limit
-    // thus we would like to ensure that user doesn't hit the error
-    stream.SetRecursionLimit(400);
-
     message->ParseFromCodedStream(&stream);
 
     if (!message->IsInitialized())
