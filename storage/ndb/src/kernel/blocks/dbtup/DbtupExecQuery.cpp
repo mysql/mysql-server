@@ -3889,9 +3889,6 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
     src_ptr = src_ptr + step;
   }
 
-  src->m_header_bits= bits & 
-    ~(Uint32)(Tuple_header::MM_SHRINK | Tuple_header::MM_GROWN);
- 
   /**
    * The source tuple only touches the header parts. The updates of the
    * tuple is applied on the new copy tuple. We still need to ensure that
@@ -4329,14 +4326,15 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
   Uint32 copy_bits= req_struct->m_tuple_ptr->m_header_bits;
   
   if(sizes[2+MM] == sizes[MM])
-    ;
+    jam();
   else if(sizes[2+MM] < sizes[MM])
   {
     if(0) ndbout_c("shrink");
-    req_struct->m_tuple_ptr->m_header_bits= copy_bits|Tuple_header::MM_SHRINK;
+    jam();
   }
   else
   {
+    jam();
     if(0) printf("grow - ");
     Ptr<Page> pagePtr = req_struct->m_varpart_page_ptr;
     Var_page* pageP= (Var_page*)pagePtr.p;
@@ -4384,6 +4382,7 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
     {
       //ndbassert(!regOperPtr->is_first_operation());
       if (0) ndbout_c(" no grow");
+      jam();
       return 0;
     }
     Uint32 *new_var_part=realloc_var_part(&terrorCode,

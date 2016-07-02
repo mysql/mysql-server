@@ -3899,8 +3899,8 @@ void Dbacc::deleteElement(Page8Ptr delPageptr,
     delPageptr.p->word32[delElemptr] = lastPageptr.p->word32[lastElemptr];
     delPageptr.p->word32[delElemptr + 1] =
       lastPageptr.p->word32[lastElemptr + 1];
-    ContainerHeader delConhead = delPageptr.p->word32[delConptr];
-    if (ElementHeader::getLocked(tdeElemhead)) {
+    if (ElementHeader::getLocked(tdeElemhead))
+    {
       /* --------------------------------------------------------------------------------- */
       /* THE LAST ELEMENT IS LOCKED AND IS THUS REFERENCED BY AN OPERATION RECORD. WE NEED */
       /* TO UPDATE THE OPERATION RECORD WITH THE NEW REFERENCE TO THE ELEMENT.             */
