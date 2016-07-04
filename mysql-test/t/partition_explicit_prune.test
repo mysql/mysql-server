@@ -546,12 +546,12 @@ WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 CREATE TABLE t3 SELECT * FROM t1 PARTITION (pNeg,subp3,`p100-99999`);
 if (`SELECT $PS_PROTOCOL = 0`)
 {
-  --replace_regex /^HANDLER_COMMIT 8$/HANDLER_COMMIT <handler_commit_count>/ /5/<handler_read_first_count>/ /22/<handler_read_key_count>/ /140/<handler_external_lock_count>/
+  --replace_regex /^HANDLER_COMMIT 7$/HANDLER_COMMIT <handler_commit_count>/ /5$/<handler_read_first_count>/ /21/<handler_read_key_count>/ /136/<handler_external_lock_count>/
   --source include/get_handler_status_counts.inc
 }
 if (`SELECT $PS_PROTOCOL > 0`)
 {
-  --replace_regex /^HANDLER_COMMIT 9$/HANDLER_COMMIT <handler_commit_count>/ /5/<handler_read_first_count>/ /23/<handler_read_key_count>/ /162/<handler_external_lock_count>/
+  --replace_regex /^HANDLER_COMMIT 8$/HANDLER_COMMIT <handler_commit_count>/ /5$/<handler_read_first_count>/ /22/<handler_read_key_count>/ /158/<handler_external_lock_count>/
   --source include/get_handler_status_counts.inc
 }
 ## Restore the original query

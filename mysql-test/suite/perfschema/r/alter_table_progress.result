@@ -65,8 +65,6 @@ stage/sql/setup	NULL	NULL
 stage/sql/creating table	NULL	NULL
 stage/sql/Opening system tables	NULL	NULL
 stage/sql/Locking system tables	NULL	NULL
-stage/sql/Opening system tables	NULL	NULL
-stage/sql/Locking system tables	NULL	NULL
 stage/sql/After create	NULL	NULL
 stage/sql/Opening system tables	NULL	NULL
 stage/sql/Locking system tables	NULL	NULL

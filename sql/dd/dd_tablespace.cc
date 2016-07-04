@@ -170,7 +170,8 @@ bool get_tablespace_name(THD *thd, const T *obj,
 
 std::unique_ptr<dd::Tablespace>
 create_tablespace(THD *thd, st_alter_tablespace *ts_info,
-                  handlerton *hton, bool commit_dd_changes)
+                  handlerton *hton, bool commit_dd_changes,
+                  bool store_sdi)
 {
   DBUG_ENTER("dd_create_tablespace");
 
@@ -226,7 +227,7 @@ create_tablespace(THD *thd, st_alter_tablespace *ts_info,
 
   // Write changes to dictionary.
   if (thd->dd_client()->store(tablespace.get()) ||
-      dd::store_sdi(thd, tablespace.get()))
+      (store_sdi && dd::store_sdi(thd, tablespace.get())))
   {
     if (commit_dd_changes)
     {

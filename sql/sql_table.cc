@@ -1891,9 +1891,17 @@ static bool rea_create_table(THD *thd, const char *path,
   }
   else
   {
+    /*
+      Don't store SDI if engine supports atomic DDL. We would have to store
+      it once again anyway after SE updates dd::Table object during call
+      to handler::create() method. Also storage of SDIs in InnoDB can't work
+      correctly until SE adjusts some attributes.
+    */
     table_ptr= dd::create_table(thd, db, table_name,
                                 create_info, create_fields,
                                 key_info, keys, file,
+                                !(create_info->db_type->flags &
+                                  HTON_SUPPORTS_ATOMIC_DDL),
                                 !(create_info->db_type->flags &
                                   HTON_SUPPORTS_ATOMIC_DDL));
     if (!table_ptr)
@@ -2065,7 +2073,7 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
                             lpt->key_info_buffer,
                             lpt->key_count,
                             lpt->table->file,
-                            true))
+                            true, true))
         DBUG_RETURN(true);
     }
   }
@@ -8811,8 +8819,15 @@ static bool mysql_inplace_alter_table(THD *thd,
       DBUG_RETURN(true);
     }
 
-    dd::Sdi_updater update_sdi= make_sdi_updater(thd, altered_table_def.get(),
-                                                 new_sch);
+    /*
+      For engines which support atomic DDL we don't have SDI stored yet.
+      Use Sdi_updater which only does store_sdi() for them.
+    */
+    dd::Sdi_updater update_sdi=
+        (db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) ?
+        dd::Sdi_updater() :
+        make_sdi_updater(thd, altered_table_def.get(),
+                         new_sch);
 
     altered_table_def->set_schema_id(old_table_def->schema_id());
     altered_table_def->set_name(alter_ctx->alias);
@@ -8841,7 +8856,8 @@ static bool mysql_inplace_alter_table(THD *thd,
       DBUG_RETURN(true);
     }
 
-    if (dd::remove_sdi(thd, altered_table_def.get(), new_sch) ||
+    if ((!(db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+         dd::remove_sdi(thd, altered_table_def.get(), new_sch)) ||
         thd->dd_client()->drop_uncached(altered_table_def.get()))
       DBUG_RETURN(true);
   }
@@ -9035,7 +9051,8 @@ static bool mysql_inplace_alter_table(THD *thd,
       before quick_rm_table() below commits transaction.
     */
     (void) trans_rollback_stmt(thd);
-    // Delete temporary .frm/.par
+    // Delete temporary .frm/.par.
+    // Does something only for engines which don't support atomic DDL.
     (void) quick_rm_table(thd, create_info->db_type, alter_ctx->new_db,
                           alter_ctx->tmp_name, FN_IS_TMP | NO_HA_TABLE);
   }
@@ -11093,8 +11110,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
           We need to revert changes to data-dictionary but
           still commit statement in this case.
         */
-        if (dd::remove_sdi(thd, altered_table_def.get(), sch_obj) ||
-            thd->dd_client()->drop_uncached(altered_table_def.get()))
+        if (thd->dd_client()->drop_uncached(altered_table_def.get()))
           goto err_new_table_cleanup;
       }
       goto end_inplace_noop;

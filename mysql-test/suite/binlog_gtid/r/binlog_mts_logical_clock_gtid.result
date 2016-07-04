@@ -72,4 +72,4 @@ CREATE TEMPORARY TABLE ttm1 (a INT) ENGINE=MyISAM;
 CREATE TEMPORARY TABLE tti1 (a INT) ENGINE=Innodb;
 *** The query is logged in three parts.
 DROP TABLE tm,t1,ttm1,tti1;
-include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;3 4;4 5]
+include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;3 4;4 5;5 6]

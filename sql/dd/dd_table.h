@@ -65,6 +65,8 @@ dd::enum_column_types dd_get_new_field_type(enum_field_types type);
   @param commit_dd_changes  Indicates whether change should be committed
                             (WL7743/TODO: consider if this parameter is
                             necessary).
+  @param store_sdi          Indicates whether we need to store SDI for
+                            table being created.
 
   @returns Uncached dd::Table object for table created (nullptr in
            case of failure).
@@ -76,7 +78,8 @@ std::unique_ptr<Table> create_table(THD *thd,
                                     const List<Create_field> &create_fields,
                                     const KEY *keyinfo, uint keys,
                                     handler *file,
-                                    bool commit_dd_changes);
+                                    bool commit_dd_changes,
+                                    bool store_sdi);
 
 /**
   Prepares a dd::Table object for a temporary table from

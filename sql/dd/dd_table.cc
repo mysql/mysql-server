@@ -1533,7 +1533,8 @@ static std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
                                     const KEY *keyinfo,
                                     uint keys,
                                     handler *file,
-                                    bool commit_dd_changes)
+                                    bool commit_dd_changes,
+                                    bool store_sdi)
 {
   // Verify that this is not a dd table.
   DBUG_ASSERT(!dd::get_dictionary()->is_dd_table_name(schema_name,
@@ -1544,6 +1545,7 @@ static std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
   dd::Schema_MDL_locker mdl_locker(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *sch_obj= NULL;
+
   if (mdl_locker.ensure_locked(schema_name.c_str()) ||
       thd->dd_client()->acquire<dd::Schema>(schema_name, &sch_obj))
   {
@@ -1574,7 +1576,7 @@ static std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
 
   // Store info in DD tables.
   if (thd->dd_client()->store(tab_obj.get()) ||
-      dd::store_sdi(thd, tab_obj.get(), sch_obj))
+      (store_sdi && dd::store_sdi(thd, tab_obj.get(), sch_obj)))
   {
     if (commit_dd_changes)
     {
@@ -1600,7 +1602,8 @@ std::unique_ptr<dd::Table> create_table(THD *thd,
                              const KEY *keyinfo,
                              uint keys,
                              handler *file,
-                             bool commit_dd_changes)
+                             bool commit_dd_changes,
+                             bool store_sdi)
 {
   dd::Dictionary *dict= dd::get_dictionary();
   const dd::Object_table *dd_table= dict->get_dd_table(schema_name, table_name);
@@ -1609,7 +1612,8 @@ std::unique_ptr<dd::Table> create_table(THD *thd,
     create_dd_system_table(thd, table_name, create_info, create_fields,
                            keyinfo, keys, file, *dd_table) :
     create_dd_user_table(thd, schema_name, table_name, create_info,
-                         create_fields, keyinfo, keys, file, commit_dd_changes);
+                         create_fields, keyinfo, keys, file, commit_dd_changes,
+                         store_sdi);
 }
 
 
