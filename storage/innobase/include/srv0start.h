@@ -29,7 +29,6 @@ Created 10/10/1995 Heikki Tuuri
 #include "univ.i"
 #include "log0log.h"
 #include "ut0byte.h"
-#include "trx0sys.h"
 
 // Forward declaration
 struct dict_table_t;
@@ -157,8 +156,6 @@ extern	bool	srv_is_being_shutdown;
 /** TRUE if a raw partition is in use */
 extern	ibool	srv_start_raw_disk_in_use;
 
-/** List of undo tablespace ids. */
-extern std::vector<space_id_t> srv_undo_tablespace_ids;
 
 /** Shutdown state */
 enum srv_shutdown_t {

@@ -8839,7 +8839,7 @@ i_s_files_table_fill(
 			continue;
 		case FIL_TYPE_TABLESPACE:
 			if (!is_system_tablespace(space()->id)
-			    && srv_is_undo_tablespace(space()->id)) {
+			    && space()->id <= srv_undo_tablespaces_open) {
 				type = "UNDO LOG";
 				break;
 			} /* else fall through for TABLESPACE */

@@ -2782,32 +2782,3 @@ srv_purge_threads_active()
 
 	return(false);
 }
-
-/** Check whether given space id is undo tablespace id
-@param[in]	space	space id to check
-@return true if it is undo tablespace else false. */
-bool
-srv_is_undo_tablespace(
-	space_id_t	space)
-{
-	ulint   i = 0;
-
-	for (std::vector<space_id_t>::iterator it
-		= srv_undo_tablespace_ids.begin();
-	     it != srv_undo_tablespace_ids.end(); it++, i++) {
-
-		if (i >= srv_undo_tablespaces_open) {
-			break;
-		}
-
-		if (space == *it) {
-			return(true);
-		}
-	}
-
-	if (srv_undo_tablespaces_open == 0) {
-		return (srv_sys_space.space_id() == space);
-	}
-
-	return(false);
-}

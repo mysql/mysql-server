@@ -211,7 +211,9 @@ bool
 Tablespace::is_undo_tablespace(
 	ulint	id)
 {
-	return(srv_is_undo_tablespace(id));
+	return(id <= srv_undo_tablespaces_open
+	       && id != srv_sys_space.space_id()
+	       && id != srv_tmp_space.space_id());
 }
 
 /** Use the ADD DATAFILE path to create a Datafile object and add it to the

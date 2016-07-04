@@ -302,7 +302,7 @@ bool
 is_system_or_undo_tablespace(space_id_t id)
 {
 	return(id == srv_sys_space.space_id()
-	       || srv_is_undo_tablespace(id));
+	       || id <= srv_undo_tablespaces_open);
 }
 
 /** Check if predefined shared tablespace.
@@ -313,7 +313,7 @@ is_predefined_tablespace(space_id_t id)
 {
 	ut_ad(srv_sys_space.space_id() == TRX_SYS_SPACE);
 	ut_ad(TRX_SYS_SPACE == 0);
-	return(is_system_or_undo_tablespace(id)
+	return(id <= srv_undo_tablespaces_open
 	       || id == srv_tmp_space.space_id());
 }
 #endif /* fsp0sysspace_h */
