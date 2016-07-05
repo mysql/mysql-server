@@ -811,10 +811,11 @@ namespace keyring__keys_container_unittest
     {
       InSequence dummy;
 
+      ISerialized_object *null_serialized_object= NULL;
       EXPECT_CALL(*keyring_io, get_serializer())
         .WillOnce(Return(mock_serializer));
       EXPECT_CALL(*mock_serializer, serialize(_,NULL,NONE))
-        .WillOnce(Return(reinterpret_cast<ISerialized_object*>(NULL)));
+        .WillOnce(Return(null_serialized_object));
       EXPECT_CALL(*logger, log(MY_ERROR_LEVEL, StrEq("Could not flush keys to keyring's backup")));
     }
     EXPECT_EQ(keys_container->store_key(sample_key), 1);
@@ -839,6 +840,7 @@ namespace keyring__keys_container_unittest
 
     {
       InSequence dummy;
+      ISerialized_object *null_serialized_object= NULL;
       //flush to backup
       EXPECT_CALL(*keyring_io, get_serializer())
         .WillOnce(Return(mock_serializer));
@@ -849,7 +851,7 @@ namespace keyring__keys_container_unittest
       EXPECT_CALL(*keyring_io, get_serializer())
         .WillOnce(Return(mock_serializer));
       EXPECT_CALL(*mock_serializer, serialize(_,sample_key,STORE_KEY))
-        .WillOnce(Return(reinterpret_cast<ISerialized_object*>(NULL)));
+        .WillOnce(Return(null_serialized_object));
       EXPECT_CALL(*logger, log(MY_ERROR_LEVEL, StrEq("Could not flush keys to keyring")));
     }
     EXPECT_EQ(keys_container->store_key(sample_key), 1);
@@ -896,11 +898,12 @@ namespace keyring__keys_container_unittest
 
     {
       InSequence dummy;
+      ISerialized_object *null_serialized_object= NULL;
 
       EXPECT_CALL(*keyring_io, get_serializer())
         .WillOnce(Return(mock_serializer));
       EXPECT_CALL(*mock_serializer, serialize(_,NULL,NONE))
-        .WillOnce(Return(reinterpret_cast<ISerialized_object*>(NULL)));
+        .WillOnce(Return(null_serialized_object));
       EXPECT_CALL(*logger, log(MY_ERROR_LEVEL, StrEq("Could not flush keys to keyring's backup")));
     }
     EXPECT_EQ(keys_container->remove_key(sample_key), 1);
@@ -951,6 +954,7 @@ namespace keyring__keys_container_unittest
 
     {
       InSequence dummy;
+      ISerialized_object *null_serialized_object= NULL;
       //flush to backup
       EXPECT_CALL(*keyring_io, get_serializer())
         .WillOnce(Return(mock_serializer));
@@ -961,7 +965,7 @@ namespace keyring__keys_container_unittest
       EXPECT_CALL(*keyring_io, get_serializer())
         .WillOnce(Return(mock_serializer));
       EXPECT_CALL(*mock_serializer, serialize(_,sample_key,REMOVE_KEY))
-        .WillOnce(Return(reinterpret_cast<ISerialized_object*>(NULL)));
+        .WillOnce(Return(null_serialized_object));
       EXPECT_CALL(*logger, log(MY_ERROR_LEVEL, StrEq("Could not flush keys to keyring")));
     }
 
@@ -1115,6 +1119,7 @@ namespace keyring__keys_container_unittest
 
     {
       InSequence dummy;
+      ISerialized_object *null_serialized_object= NULL;
       //flush to backup
       EXPECT_CALL(*keyring_io, get_serializer())
         .WillOnce(Return(mock_serializer));
@@ -1125,7 +1130,7 @@ namespace keyring__keys_container_unittest
       EXPECT_CALL(*keyring_io, get_serializer())
         .WillOnce(Return(mock_serializer));
       EXPECT_CALL(*mock_serializer, serialize(_,sample_key,REMOVE_KEY))
-        .WillOnce(Return(reinterpret_cast<ISerialized_object*>(NULL)));
+        .WillOnce(Return(null_serialized_object));
       EXPECT_CALL(*logger, log(MY_ERROR_LEVEL, StrEq("Could not flush keys to keyring")));
     }
 
