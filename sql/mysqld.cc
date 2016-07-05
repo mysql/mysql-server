@@ -207,11 +207,41 @@
 /**
   @page PAGE_EXTENDING Extending MySQL
 
+  Components
+  ----------
+
+  MySQL 8.0 introduces support for extending the server through components.
+  Components can communicate with other components through service APIs.
+  And can provide implementations of service APIs for other components to use.
+  All components are equal and can communicate with all other components.
+  Service implementations can be found by name via a registry service handle
+  which is passed to the component initialization function.
+  There can be multiple service API implementations for a single service API.
+  One of them is the default implementation.
+  Service API are stateless by definition. If they need to handle state or
+  object instances they need to do so by using factory methods and instance
+  handles.
+
+  To ease up transition to the component model the current server
+  functionality (server proper and plugins) is contained within
+  a dedicated built in server component. The server component currently
+  contains all of the functionality provided by the server and
+  classical server plugins.
+
+  More components can be installed via the "INSTALL COMPONENT" SQL command.
+
+  The component infrastructure is designed as a replacement for the classical
+  MySQL plugin system as it does not suffer from some of the limitations of it
+  and provides better isolation for the component code.
+
+  See @subpage PAGE_COMPONENTS.
+
   Plugins and Services
   --------------------
 
   As of MySQL 5.1 the server functionality can be extended through
-  installing (dynamically or statically linked) extra code modules.
+  installing (dynamically or statically linked) extra code modules
+  called plugins.
 
   The server defines a set of well known plugin APIs that the modules
   can implement.
@@ -234,14 +264,6 @@
   separate binaries.
 
   To learn how to create these user defined functions see @subpage page_ext_udf
-
-  @section extending_component Components
-
-  The MySQL Server 8.0 introduces Components that will be used for
-  "componentization" as a replacement for the old MySQL plugin system for new
-  plug-in development.
-
-  See @subpage PAGE_COMPONENTS.
 */
 
 

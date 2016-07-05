@@ -140,11 +140,16 @@
   deactivate plugin
   @enduml
 
-  See also:
-   - @subpage page_ext_plugin_svc_anathomy
-   - @subpage page_ext_plugin_svc_new_service_howto
-   - @subpage page_ext_plugin_api_goodservices
-   - @ref group_ext_plugin_services
+  Understanding and creating plugin services
+  -----------------------------
+
+  - @subpage page_ext_plugin_svc_anathomy
+  - @subpage page_ext_plugin_svc_new_service_howto
+  - @subpage page_ext_plugin_api_goodservices
+
+  @section sect_ext_plugin_svc_reference Plugin Services Reference
+
+   See @ref group_ext_plugin_services
 */
 
 /**
