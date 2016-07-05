@@ -1062,8 +1062,6 @@ fi
 %attr(755, root, root) %{_bindir}/mysqlpump
 %attr(755, root, root) %{_bindir}/mysqlshow
 %attr(755, root, root) %{_bindir}/mysqlslap
-%attr(755, root, root) %{_bindir}/mysql_config
-%attr(755, root, root) %{_bindir}/mysql_config-%{__isa_bits}
 %attr(755, root, root) %{_bindir}/mysql_config_editor
 
 %attr(644, root, root) %{_mandir}/man1/mysql.1*
@@ -1325,9 +1323,10 @@ fi
 %endif # cluster
 
 %changelog
-* Fri Jun 03 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.14-1
+* Tue Jul 05 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.14-1
 - Updated compatver to 5.6.31
 - Adapt MySQL server 5.7 packaging to MySQL Cluster 7.5
+- Remove mysql_config from client subpackage
 
 * Wed May 04 2016 Georgi Kodinov <georgi.kodinov@oracle.com> - 5.7.13-1
 - Add test_udf_services.so plugin
