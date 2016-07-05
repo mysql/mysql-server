@@ -170,6 +170,7 @@ eval $create3;
 insert into t1 (a) values (1), (2);
 select * from t1 order by a;
 update t1 set a=3 where c=-2;
+--sorted_result
 select * from t1;
 delete from t1;
 select * from t1;
