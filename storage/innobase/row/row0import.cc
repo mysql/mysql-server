@@ -1208,8 +1208,7 @@ row_import::match_table_columns(
 		const char*	col_name;
 		ulint		cfg_col_index;
 
-		col_name = dict_table_get_col_name(
-			m_table, dict_col_get_no(col));
+		col_name = m_table->get_col_name(dict_col_get_no(col));
 
 		cfg_col_index = find_col(col_name);
 
@@ -3727,7 +3726,7 @@ row_import_for_mysql(
 	/* The caller assured that this is not read_only_mode and that no
 	temorary tablespace is being imported. */
 	ut_ad(!srv_read_only_mode);
-	ut_ad(!dict_table_is_temporary(table));
+	ut_ad(!table->is_temporary());
 
 	ut_a(table->space);
 	ut_ad(prebuilt->trx);

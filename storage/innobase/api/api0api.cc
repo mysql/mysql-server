@@ -1226,7 +1226,7 @@ ib_insert_query_graph_create(
 		node->ins->select = NULL;
 		node->ins->values_list = NULL;
 
-		row = dtuple_create(heap, dict_table_get_n_cols(table));
+		row = dtuple_create(heap, table->get_n_cols());
 		dict_table_copy_types(row, table);
 
 		ut_ad(!dict_table_have_virtual_index(table));
@@ -2362,10 +2362,10 @@ ib_col_get_name(
 	const char*	name;
 	ib_cursor_t*    cursor = (ib_cursor_t*) ib_crsr;
 	dict_table_t*	table = cursor->prebuilt->table;
-	dict_col_t*     col = dict_table_get_nth_col(table, i);
+	dict_col_t*     col = table->get_col(i);
 	ulint           col_no = dict_col_get_no(col);
 
-	name = dict_table_get_col_name(table, col_no);
+	name = table->get_col_name(col_no);
 
 	return(name);
 }
@@ -2825,7 +2825,7 @@ ib_clust_read_tuple_create(
 
 	index = cursor->prebuilt->table->first_index();
 
-	n_cols = dict_table_get_n_cols(cursor->prebuilt->table);
+	n_cols = cursor->prebuilt->table->get_n_cols();
 	return(ib_row_tuple_new(index, n_cols));
 }
 
@@ -2841,7 +2841,7 @@ ib_tuple_get_n_user_cols(
 
 	if (tuple->type == TPL_TYPE_ROW) {
 		return(static_cast<ib_ulint_t>(
-			dict_table_get_n_user_cols(tuple->index->table)));
+			(tuple->index->table->get_n_user_cols())));
 	}
 
 	return(static_cast<ib_ulint_t>(

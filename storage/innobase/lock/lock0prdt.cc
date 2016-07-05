@@ -524,7 +524,7 @@ lock_prdt_insert_check_and_lock(
 		return(DB_SUCCESS);
 	}
 
-	ut_ad(!dict_table_is_temporary(index->table));
+	ut_ad(!index->table->is_temporary());
 	ut_ad(!index->is_clustered());
 
 	trx_t*	trx = thr_get_trx(thr);
@@ -808,7 +808,7 @@ lock_prdt_lock(
 	dberr_t		err = DB_SUCCESS;
 	lock_rec_req_status	status = LOCK_REC_SUCCESS;
 
-	if (trx->read_only || dict_table_is_temporary(index->table)) {
+	if (trx->read_only || index->table->is_temporary()) {
 		return(DB_SUCCESS);
 	}
 

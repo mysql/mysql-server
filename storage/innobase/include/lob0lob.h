@@ -626,12 +626,12 @@ public:
 		ut_ad(m_mtr->memo_contains_page_flagged(
 				m_rec,
 				MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX)
-				|| dict_table_is_intrinsic(table()));
+				|| table()->is_intrinsic());
 
 		ut_ad(mtr_memo_contains_flagged(m_mtr,
 				dict_index_get_lock(index()),
 				MTR_MEMO_SX_LOCK | MTR_MEMO_X_LOCK)
-				|| dict_table_is_intrinsic(table()));
+				|| table()->is_intrinsic());
 
 		return(true);
 	}
@@ -1682,7 +1682,7 @@ public:
 				ctx.get_mtr(),
 				dict_index_get_lock(ctx.index()),
 				MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK)
-		      || dict_table_is_intrinsic(ctx.table()));
+		      || ctx.table()->is_intrinsic());
 		ut_ad(mtr_is_page_fix(ctx.get_mtr(),
 				      ctx.m_blobref.page_align(),
 				      MTR_MEMO_PAGE_X_FIX, ctx.table()));

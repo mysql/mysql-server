@@ -5556,8 +5556,7 @@ fts_update_doc_id(
 
 	if (error == DB_SUCCESS) {
 		dict_index_t*	clust_index;
-		dict_col_t*	col = dict_table_get_nth_col(
-			table, table->fts->doc_col);
+		dict_col_t*	col = table->get_col(table->fts->doc_col);
 
 		ufield->exp = NULL;
 
@@ -7332,7 +7331,7 @@ fts_valid_stopword_table(
 	} else {
 		const char*     col_name;
 
-		col_name = dict_table_get_col_name(table, 0);
+		col_name = table->get_col_name(0);
 
 		if (ut_strcmp(col_name, "value")) {
 			ib::error() << "Invalid column name for stopword"
@@ -7342,7 +7341,7 @@ fts_valid_stopword_table(
 			return(NULL);
 		}
 
-		col = dict_table_get_nth_col(table, 0);
+		col = table->get_col(0);
 
 		if (col->mtype != DATA_VARCHAR
 		    && col->mtype != DATA_VARMYSQL) {

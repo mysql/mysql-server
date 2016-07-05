@@ -444,7 +444,7 @@ row_purge_remove_sec_if_poss_leaf(
 		}
 
 		/* Change buffering is disabled for temporary tables. */
-		mode = (dict_table_is_temporary(index->table))
+		mode = (index->table->is_temporary())
 			? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			: BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			| BTR_DELETE;
@@ -456,7 +456,7 @@ row_purge_remove_sec_if_poss_leaf(
 
 		/* Change buffering is disabled for temporary tables
 		and spatial index. */
-		mode = (dict_table_is_temporary(index->table)
+		mode = (index->table->is_temporary()
 			|| dict_index_is_spatial(index))
 			? BTR_MODIFY_LEAF
 			: BTR_MODIFY_LEAF | BTR_DELETE;
@@ -762,7 +762,7 @@ skip_secondaries:
 			/* If table is temp then it can't have its undo log
 			residing in rollback segment with REDO log enabled. */
 			bool is_redo_rseg =
-				dict_table_is_temporary(node->table)
+				node->table->is_temporary()
 				? false : true;
 			rseg = trx_sys_get_nth_rseg(
 				trx_sys, rseg_id, is_redo_rseg);
@@ -911,7 +911,7 @@ try_again:
 
 	/* Disable purging for temp-tables as they are short-lived
 	and no point in re-organzing such short lived tables */
-	if (dict_table_is_temporary(node->table)) {
+	if (node->table->is_temporary()) {
 		goto close_exit;
 	}
 

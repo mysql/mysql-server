@@ -126,7 +126,7 @@ PageBulk::init()
 	}
 
 	if (dict_index_is_sec_or_ibuf(m_index)
-	    && !dict_table_is_temporary(m_index->table)
+	    && !m_index->table->is_temporary()
 	    && page_is_leaf(new_page)) {
 		page_update_max_trx_id(new_block, NULL, m_trx_id, mtr);
 	}
@@ -313,7 +313,7 @@ PageBulk::commit(
 
 		/* Set no free space left and no buffered changes in ibuf. */
 		if (!m_index->is_clustered()
-		    && !dict_table_is_temporary(m_index->table)
+		    && !m_index->table->is_temporary()
 		    && page_is_leaf(m_page)) {
 			ibuf_set_bitmap_for_bulk_load(
 				m_block, innobase_fill_factor == 100);
@@ -914,7 +914,7 @@ BtrBulk::finish(dberr_t	err)
 {
 	page_no_t	last_page_no = FIL_NULL;
 
-	ut_ad(!dict_table_is_temporary(m_index->table));
+	ut_ad(!m_index->table->is_temporary());
 
 	if (m_page_bulks->size() == 0) {
 		/* The table is empty. The root page of the index tree

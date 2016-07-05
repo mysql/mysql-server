@@ -797,7 +797,7 @@ ha_innobase::check_if_supported_inplace_alter(
 	DBUG_ASSERT(!m_prebuilt->table->fts || m_prebuilt->table->fts->doc_col
 		    <= table->s->fields);
 	DBUG_ASSERT(!m_prebuilt->table->fts || m_prebuilt->table->fts->doc_col
-		    < dict_table_get_n_user_cols(m_prebuilt->table));
+		    < m_prebuilt->table->get_n_user_cols());
 
 	if (ha_alter_info->handler_flags
 	    & Alter_inplace_info::ADD_SPATIAL_INDEX) {
@@ -1202,9 +1202,8 @@ innobase_col_check_fk(
 		dict_s_col_t	s_col = *it;
 
 		for (ulint j = 0; j < s_col.num_base; j++) {
-			if (strcmp(col_name, dict_table_get_col_name(
-						table,
-						s_col.base_col[j]->ind)) == 0) {
+			if (strcmp(col_name, table->get_col_name(
+					s_col.base_col[j]->ind)) == 0) {
 				return(true);
 			}
 		}
@@ -1609,7 +1608,7 @@ innobase_rec_to_mysql(
 {
 	uint	n_fields	= table->s->fields;
 
-	ut_ad(n_fields == dict_table_get_n_user_cols(index->table)
+	ut_ad(n_fields == index->table->get_n_user_cols()
 	      - !!(DICT_TF2_FLAG_IS_SET(index->table,
 					DICT_TF2_FTS_HAS_DOC_ID)));
 
@@ -1660,7 +1659,7 @@ innobase_fields_to_mysql(
 	uint	n_fields	= table->s->fields;
 	ulint	num_v = 0;
 
-	ut_ad(n_fields == dict_table_get_n_user_cols(index->table)
+	ut_ad(n_fields == index->table->get_n_user_cols()
 	      + dict_table_get_n_v_cols(index->table)
 	      - !!(DICT_TF2_FLAG_IS_SET(index->table,
 					DICT_TF2_FTS_HAS_DOC_ID)));
@@ -1714,7 +1713,7 @@ innobase_row_to_mysql(
 	ulint	num_v = 0;
 
 	/* The InnoDB row may contain an extra FTS_DOC_ID column at the end. */
-	ut_ad(row->n_fields == dict_table_get_n_cols(itab));
+	ut_ad(row->n_fields == itab->get_n_cols());
 	ut_ad(n_fields == row->n_fields - DATA_N_SYS_COLS
 	      + dict_table_get_n_v_cols(itab)
 	      - !!(DICT_TF2_FLAG_IS_SET(itab, DICT_TF2_FTS_HAS_DOC_ID)));
@@ -1739,7 +1738,7 @@ innobase_row_to_mysql(
 			field->set_notnull();
 
 			innobase_col_to_mysql(
-				dict_table_get_nth_col(itab, i - num_v),
+				itab->get_col(i - num_v),
 				static_cast<const uchar*>(dfield_get_data(df)),
 				dfield_get_len(df), field);
 		}
@@ -2160,13 +2159,13 @@ innobase_fts_check_doc_id_col(
 	i -= *num_v;
 
 	for (; i + DATA_N_SYS_COLS < (uint) table->n_cols; i++) {
-		const char*     name = dict_table_get_col_name(table, i);
+		const char*     name = table->get_col_name(i);
 
 		if (strcmp(name, FTS_DOC_ID_COL_NAME) == 0) {
 #ifdef UNIV_DEBUG
 			const dict_col_t*       col;
 
-			col = dict_table_get_nth_col(table, i);
+			col = table->get_col(i);
 
 			/* Because the FTS_DOC_ID does not exist in
 			the MySQL data dictionary, this must be the
@@ -2894,16 +2893,16 @@ innobase_build_col_map(
 	DBUG_ENTER("innobase_build_col_map");
 	DBUG_ASSERT(altered_table != table);
 	DBUG_ASSERT(new_table != old_table);
-	DBUG_ASSERT(dict_table_get_n_cols(new_table)
+	DBUG_ASSERT(new_table->get_n_cols()
 		    + dict_table_get_n_v_cols(new_table)
 		    >= altered_table->s->fields + DATA_N_SYS_COLS);
-	DBUG_ASSERT(dict_table_get_n_cols(old_table)
+	DBUG_ASSERT(old_table->get_n_cols()
 		    + dict_table_get_n_v_cols(old_table)
 		    >= table->s->fields + DATA_N_SYS_COLS);
 	DBUG_ASSERT(!!add_cols == !!(ha_alter_info->handler_flags
 				     & Alter_inplace_info::ADD_COLUMN));
 	DBUG_ASSERT(!add_cols || dtuple_get_n_fields(add_cols)
-		    == dict_table_get_n_cols(new_table));
+		    == new_table->get_n_cols());
 
 	ulint*	col_map = static_cast<ulint*>(
 		mem_heap_alloc(
@@ -2977,8 +2976,7 @@ found_col:
 		DBUG_ASSERT(DICT_TF2_FLAG_IS_SET(old_table,
 						 DICT_TF2_FTS_HAS_DOC_ID));
 		DBUG_ASSERT(i + DATA_N_SYS_COLS + 1 == old_table->n_cols);
-		DBUG_ASSERT(!strcmp(dict_table_get_col_name(
-					    old_table, i),
+		DBUG_ASSERT(!strcmp(old_table->get_col_name(i),
 				    FTS_DOC_ID_COL_NAME));
 		if (altered_table->s->fields + DATA_N_SYS_COLS
 		    - new_table->n_v_cols
@@ -3100,7 +3098,7 @@ innobase_get_col_names(
 
 	/* Copy the internal column names. */
 	i = table->s->fields - user_table->n_v_def;
-	cols[i] = dict_table_get_col_name(user_table, i);
+	cols[i] = user_table->get_col_name(i);
 
 	while (++i < user_table->n_def) {
 		cols[i] = cols[i - 1] + strlen(cols[i - 1]) + 1;
@@ -3214,7 +3212,7 @@ innobase_pk_order_preserved(
 	not counting ADD COLUMN, which are constant. */
 	lint	last_field_order = -1;
 	ulint	existing_field_count = 0;
-	ulint	old_n_cols = dict_table_get_n_cols(old_clust_index->table);
+	ulint	old_n_cols = old_clust_index->table->get_n_cols();
 	for (ulint new_field = 0; new_field < new_n_uniq; new_field++) {
 		ulint	new_col_no =
 			new_clust_index->fields[new_field].col->ind;
@@ -3387,9 +3385,7 @@ innobase_check_gis_columns(
 			continue;
 		}
 
-		const char* col_name = dict_table_get_col_name(
-			table, col_nr);
-
+		const char* col_name = table->get_col_name(col_nr);
 		if (innobase_update_gis_column_type(
 			table->id, col_name, trx)) {
 
@@ -3839,7 +3835,7 @@ innobase_add_virtual_try(
 
 	n_v_col +=  ctx->num_to_add_vcol;
 
-	n_col -= dict_table_get_n_sys_cols(user_table);
+	n_col -= user_table->get_n_sys_cols();
 
 	n_v_col -= ctx->num_to_drop_vcol;
 
@@ -4073,7 +4069,7 @@ innobase_drop_virtual_try(
 
 	n_v_col -=  ctx->num_to_drop_vcol;
 
-	n_col -= dict_table_get_n_sys_cols(user_table);
+	n_col -= user_table->get_n_sys_cols();
 
 	ulint	new_n = dict_table_encode_n_col(n_col, n_v_col)
 			+ ((user_table->flags & DICT_TF_COMPACT) << 31);
@@ -4647,7 +4643,7 @@ new_clustered_failed:
 		    & Alter_inplace_info::ADD_COLUMN) {
 			add_cols = dtuple_create_with_vcol(
 				ctx->heap,
-				dict_table_get_n_cols(ctx->new_table),
+				ctx->new_table->get_n_cols(),
 				dict_table_get_n_v_cols(ctx->new_table));
 
 			dict_table_copy_types(add_cols, ctx->new_table);
@@ -5296,7 +5292,7 @@ alter_fill_stored_column(
 		}
 
 		ulint	num_base = field->gcol_info->non_virtual_base_columns();
-		dict_col_t*	col = dict_table_get_nth_col(table, i);
+		dict_col_t*	col = table->get_col(i);
 
 		s_col.m_col = col;
 		s_col.s_pos = i;
@@ -6122,8 +6118,7 @@ alter_templ_needs_rebuild(
 		cf_it.rewind();
 		while (const Create_field* cf = cf_it++) {
 			for (ulint j=0; j < table->n_cols; j++) {
-				dict_col_t* cols
-                                   = dict_table_get_nth_col(table, j);
+				dict_col_t* cols = table->get_col(j);
 				if (cf->length > cols->len
 				    && dict_col_in_v_indexes(table, cols)) {
 					return(true);
@@ -6405,7 +6400,7 @@ check_col_exists_in_indexes(
 	bool			is_v)
 {
 	/* This function does not check system columns */
-	if (!is_v && dict_table_get_nth_col(table, col_no)->mtype == DATA_SYS) {
+	if (!is_v && table->get_col(col_no)->mtype == DATA_SYS) {
 		return(true);
 	}
 
@@ -6589,7 +6584,7 @@ func_exit:
 	/* Reset dict_col_t::ord_part for those columns fail to be indexed,
 	we do this by checking every existing column, if any current
 	index would index them */
-	for (ulint i = 0; i < dict_table_get_n_cols(prebuilt->table); i++) {
+	for (ulint i = 0; i < prebuilt->table->get_n_cols(); i++) {
 		if (!check_col_exists_in_indexes(prebuilt->table, i, false)) {
 			prebuilt->table->cols[i].ord_part = 0;
 		}
@@ -6976,7 +6971,7 @@ innobase_enlarge_column_try(
 #endif /* UNIV_DEBUG */
 	} else {
 #ifdef UNIV_DEBUG
-		col = dict_table_get_nth_col(user_table, nth_col);
+		col = user_table->get_col(nth_col);
 #endif /* UNIV_DEBUG */
 		pos = nth_col;
 	}
@@ -7127,8 +7122,7 @@ innobase_rename_or_enlarge_columns_cache(
 						user_table, col_n)->m_col.len
 					= cf->length;
 				} else {
-					dict_table_get_nth_col(
-						user_table, col_n)->len
+					user_table->get_col(col_n)->len
 					= cf->length;
 				}
 			}

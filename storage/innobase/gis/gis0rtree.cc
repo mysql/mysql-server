@@ -915,7 +915,7 @@ rtr_split_page_move_rec_list(
 	for MVCC. */
 	if (dict_index_is_sec_or_ibuf(index)
 	    && page_is_leaf(page)
-	    && !dict_table_is_temporary(index->table)) {
+	    && !index->table->is_temporary()) {
 		page_update_max_trx_id(new_block, NULL,
 				       page_get_max_trx_id(page),
 				       mtr);
@@ -1301,7 +1301,7 @@ after_insert:
 	if (!rec) {
 		/* We play safe and reset the free bits for new_page */
 		if (!cursor->index->is_clustered()
-		    && !dict_table_is_temporary(cursor->index->table)) {
+		    && !cursor->index->table->is_temporary()) {
 			ibuf_reset_free_bits(new_block);
 			ibuf_reset_free_bits(block);
 		}

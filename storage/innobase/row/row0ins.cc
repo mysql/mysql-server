@@ -155,17 +155,17 @@ row_ins_alloc_sys_fields(
 	heap = node->entry_sys_heap;
 
 	ut_ad(row && table && heap);
-	ut_ad(dtuple_get_n_fields(row) == dict_table_get_n_cols(table));
+	ut_ad(dtuple_get_n_fields(row) == table->get_n_cols());
 
 	/* allocate buffer to hold the needed system created hidden columns. */
 	uint len = DATA_ROW_ID_LEN + DATA_TRX_ID_LEN;
-	if (!dict_table_is_intrinsic(table)) {
+	if (!table->is_intrinsic()) {
 		len += DATA_ROLL_PTR_LEN;
 	}
 	ptr = static_cast<byte*>(mem_heap_zalloc(heap, len));
 
 	/* 1. Populate row-id */
-	col = dict_table_get_sys_col(table, DATA_ROW_ID);
+	col = table->get_sys_col(DATA_ROW_ID);
 
 	dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
 
@@ -176,7 +176,7 @@ row_ins_alloc_sys_fields(
 	ptr += DATA_ROW_ID_LEN;
 
 	/* 2. Populate trx id */
-	col = dict_table_get_sys_col(table, DATA_TRX_ID);
+	col = table->get_sys_col(DATA_TRX_ID);
 
 	dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
 
@@ -186,8 +186,8 @@ row_ins_alloc_sys_fields(
 
 	ptr += DATA_TRX_ID_LEN;
 
-	if (!dict_table_is_intrinsic(table)) {
-		col = dict_table_get_sys_col(table, DATA_ROLL_PTR);
+	if (!table->is_intrinsic()) {
+		col = table->get_sys_col(DATA_ROLL_PTR);
 
 		dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
 
@@ -1304,8 +1304,7 @@ row_ins_foreign_check_on_constraint(
 
 			ufield->field_no = dict_table_get_nth_col_pos(
 				table, col_no);
-			dict_col_t*	col = dict_table_get_nth_col(
-				table, col_no);
+			dict_col_t*	col = table->get_col(col_no);
 			dict_col_copy_type(col, dfield_get_type(&ufield->new_val));
 
 			ufield->orig_len = 0;
@@ -2532,15 +2531,15 @@ row_ins_clust_index_entry_low(
 
 	autoinc_mtr.start();
 
-	if (dict_table_is_temporary(index->table)) {
+	if (index->table->is_temporary()) {
 		/* Disable REDO logging as the lifetime of temp-tables is
 		limited to server or connection lifetime and so REDO
 		information is not needed on restart for recovery.
 		Disable locking as temp-tables are local to a connection. */
 
 		ut_ad(flags & BTR_NO_LOCKING_FLAG);
-		ut_ad(!dict_table_is_intrinsic(index->table)
-		      || (flags & BTR_NO_UNDO_LOG_FLAG));
+		ut_ad(!index->table->is_intrinsic()
+			|| (flags & BTR_NO_UNDO_LOG_FLAG));
 
 		autoinc_mtr.get_mtr()->set_log_mode(MTR_LOG_NO_REDO);
 	} else {
@@ -2583,7 +2582,7 @@ row_ins_clust_index_entry_low(
 	cursor = btr_pcur_get_btr_cur(&pcur);
 	cursor->thr = thr;
 
-	ut_ad(!dict_table_is_intrinsic(index->table)
+	ut_ad(!index->table->is_intrinsic()
 	      || cursor->page_cur.block->made_dirty_with_no_latch);
 
 #ifdef UNIV_DEBUG
@@ -2602,7 +2601,7 @@ row_ins_clust_index_entry_low(
 	operation that can be done in this case. */
 	ut_ad(!index->allow_duplicates
 	      || (index->allow_duplicates
-		  && dict_table_is_intrinsic(index->table)));
+		  && index->table->is_intrinsic()));
 
 	if (!index->allow_duplicates
 	    && n_uniq
@@ -2782,7 +2781,7 @@ row_ins_sorted_clust_index_entry(
 
 	ut_ad(index->last_ins_cur != NULL);
 	ut_ad(index->is_clustered());
-	ut_ad(dict_table_is_intrinsic(index->table));
+	ut_ad(index->table->is_intrinsic());
 	ut_ad(dict_index_is_auto_gen_clust(index));
 
 	btr_cur_t	cursor;
@@ -2987,21 +2986,19 @@ row_ins_sec_index_entry_low(
 
 	cursor.thr = thr;
 	cursor.rtr_info = NULL;
-	ut_ad(thr_get_trx(thr)->id != 0
-	      || dict_table_is_intrinsic(index->table));
+	ut_ad(thr_get_trx(thr)->id != 0 || index->table->is_intrinsic());
 
 	mtr_start(&mtr);
 	mtr.set_named_space(index->space);
 
-	if (dict_table_is_temporary(index->table)) {
+	if (index->table->is_temporary()) {
 		/* Disable REDO logging as the lifetime of temp-tables is
 		limited to server or connection lifetime and so REDO
 		information is not needed on restart for recovery.
 		Disable locking as temp-tables are local to a connection. */
 
 		ut_ad(flags & BTR_NO_LOCKING_FLAG);
-		ut_ad(!dict_table_is_intrinsic(index->table)
-		      || (flags & BTR_NO_UNDO_LOG_FLAG));
+		ut_ad(!index->table->is_intrinsic() || (flags & BTR_NO_UNDO_LOG_FLAG));
 
 		mtr.set_log_mode(MTR_LOG_NO_REDO);
 	} else if (!dict_index_is_spatial(index)) {
@@ -3072,7 +3069,7 @@ row_ins_sec_index_entry_low(
 			goto func_exit;});
 
 	} else {
-		if (dict_table_is_intrinsic(index->table)) {
+		if (index->table->is_intrinsic()) {
 			btr_cur_search_to_nth_level_with_no_latch(
 				index, 0, entry, PAGE_CUR_LE, &cursor,
 				__FILE__, __LINE__, &mtr);
@@ -3159,7 +3156,7 @@ row_ins_sec_index_entry_low(
 		prevent any insertion of a duplicate by another
 		transaction. Let us now reposition the cursor and
 		continue the insertion. */
-		if (dict_table_is_intrinsic(index->table)) {
+		if (index->table->is_intrinsic()) {
 			btr_cur_search_to_nth_level_with_no_latch(
 				index, 0, entry, PAGE_CUR_LE, &cursor,
 				__FILE__, __LINE__, &mtr);
@@ -3334,9 +3331,9 @@ row_ins_clust_index_entry(
 	/* Try first optimistic descent to the B-tree */
 	ulint	flags;
 
-	if (!dict_table_is_intrinsic(index->table)) {
+	if (!index->table->is_intrinsic()) {
 		log_free_check();
-		flags = dict_table_is_temporary(index->table)
+		flags = index->table->is_temporary()
 			? BTR_NO_LOCKING_FLAG
 			: 0;
 
@@ -3352,7 +3349,7 @@ row_ins_clust_index_entry(
 		flags = BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG;
 	}
 
-	if (dict_table_is_intrinsic(index->table)
+	if (index->table->is_intrinsic()
 	    && dict_index_is_auto_gen_clust(index)) {
 		err = row_ins_sorted_clust_index_entry(
 			BTR_MODIFY_LEAF, index, entry, n_ext, thr);
@@ -3372,14 +3369,13 @@ row_ins_clust_index_entry(
 	}
 
 	/* Try then pessimistic descent to the B-tree */
-	if (!dict_table_is_intrinsic(index->table)) {
+	if (!index->table->is_intrinsic()) {
 		log_free_check();
 	} else {
 		index->last_sel_cur->invalid = true;
 	}
 
-	if (dict_table_is_intrinsic(index->table)
-	    && dict_index_is_auto_gen_clust(index)) {
+	if (index->table->is_intrinsic() && dict_index_is_auto_gen_clust(index)) {
 		err = row_ins_sorted_clust_index_entry(
 			BTR_MODIFY_TREE, index, entry, n_ext, thr);
 	} else {
@@ -3432,11 +3428,11 @@ row_ins_sec_index_entry(
 
 	ulint	flags;
 
-	if (!dict_table_is_intrinsic(index->table)) {
+	if (!index->table->is_intrinsic()) {
 		log_free_check();
 		ut_ad(thr_get_trx(thr)->id != 0);
 
-		flags = dict_table_is_temporary(index->table)
+		flags = index->table->is_temporary()
                         ? BTR_NO_LOCKING_FLAG
                         : 0;
 		/* For intermediate table during copy alter table,
@@ -3460,7 +3456,7 @@ row_ins_sec_index_entry(
 
 		/* Try then pessimistic descent to the B-tree */
 
-		if (!dict_table_is_intrinsic(index->table)) {
+		if (!index->table->is_intrinsic()) {
 			log_free_check();
 		} else {
 			index->last_sel_cur->invalid = true;
@@ -3575,7 +3571,7 @@ row_ins_index_entry_set_vals(
 			const dict_v_col_t*     v_col
 				= reinterpret_cast<const dict_v_col_t*>(col);
 			ut_ad(dtuple_get_n_fields(row)
-			      == dict_table_get_n_cols(index->table));
+			      == index->table->get_n_cols());
 			row_field = dtuple_get_nth_v_field(row, v_col->v_pos);
 		} else {
 			row_field = dtuple_get_nth_field(
@@ -3826,7 +3822,7 @@ row_ins(
 			}
 		}
 
-		if (node->duplicate && dict_table_is_temporary(node->table)) {
+		if (node->duplicate && node->table->is_temporary()) {
 			ut_ad(thr_get_trx(thr)->error_state
 			      == DB_DUPLICATE_KEY);
 			/* For TEMPORARY TABLE, we won't lock anything,
@@ -3902,7 +3898,7 @@ row_ins_step(
 	node = static_cast<ins_node_t*>(thr->run_node);
 
 	ut_ad(que_node_get_type(node) == QUE_NODE_INSERT);
-	ut_ad(!dict_table_is_intrinsic(node->table));
+	ut_ad(!node->table->is_intrinsic());
 
 	parent = que_node_get_parent(node);
 	sel_node = node->select;

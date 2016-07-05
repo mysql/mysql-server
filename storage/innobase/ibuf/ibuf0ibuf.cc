@@ -1495,7 +1495,7 @@ ibuf_dummy_index_add_col(
 			       dtype_get_prtype(type),
 			       dtype_get_len(type));
 	dict_index_add_col(index, index->table,
-			   dict_table_get_nth_col(index->table, i), len);
+			   index->table->get_col(i), len);
 }
 /********************************************************************//**
 Deallocates a dummy index for inserting a record to a non-clustered index. */

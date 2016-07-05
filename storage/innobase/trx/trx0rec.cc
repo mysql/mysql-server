@@ -922,7 +922,7 @@ trx_undo_page_report_modify(
 	/* If table instance is temporary then select noredo rseg as changes
 	to undo logs don't need REDO logging given that they are not
 	restored on restart as corresponding object doesn't exist on restart.*/
-	undo_ptr = dict_table_is_temporary(index->table)
+	undo_ptr = index->table->is_temporary()
 		   ? &trx->rsegs.m_noredo : &trx->rsegs.m_redo;
 
 	first_free = mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
@@ -1231,11 +1231,11 @@ trx_undo_page_report_modify(
 
 		ptr += 2;
 
-		for (col_no = 0; col_no < dict_table_get_n_cols(table);
+		for (col_no = 0; col_no < table->get_n_cols();
 		     col_no++) {
 
 			const dict_col_t*	col
-				= dict_table_get_nth_col(table, col_no);
+				= table->get_col(col_no);
 
 			if (col->ord_part) {
 				ulint			pos;
@@ -1686,12 +1686,12 @@ trx_undo_rec_get_partial_row(
 	ut_ad(index->is_clustered());
 
 	*row = dtuple_create_with_vcol(
-		heap, dict_table_get_n_cols(index->table),
+		heap, index->table->get_n_cols(),
 		dict_table_get_n_v_cols(index->table));
 
 	/* Mark all columns in the row uninitialized, so that
 	we can distinguish missing fields from fields that are SQL NULL. */
-	for (ulint i = 0; i < dict_table_get_n_cols(index->table); i++) {
+	for (ulint i = 0; i < index->table->get_n_cols(); i++) {
 		dfield_get_type(dtuple_get_nth_field(*row, i))
 			->mtype = DATA_MISSING;
 	}
@@ -1744,7 +1744,7 @@ trx_undo_rec_get_partial_row(
 			col_no = dict_col_get_no(col);
 			dfield = dtuple_get_nth_field(*row, col_no);
 			dict_col_copy_type(
-				dict_table_get_nth_col(index->table, col_no),
+				index->table->get_col(col_no),
 				dfield_get_type(dfield));
 		}
 
@@ -1920,7 +1920,7 @@ trx_undo_report_row_operation(
 
 	trx = thr_get_trx(thr);
 
-	bool	is_temp_table = dict_table_is_temporary(index->table);
+	bool	is_temp_table = index->table->is_temporary();
 
 	/* Temporary tables do not go into INFORMATION_SCHEMA.TABLES,
 	so do not bother adding it to the list of modified tables by
@@ -2053,7 +2053,7 @@ trx_undo_report_row_operation(
 				mtr_commit(&mtr);
 				mtr_start(&mtr);
 
-				if (dict_table_is_temporary(index->table)) {
+				if (index->table->is_temporary()) {
 					mtr.set_log_mode(MTR_LOG_NO_REDO);
 				} else {
 					mtr.set_undo_space(
@@ -2097,7 +2097,7 @@ trx_undo_report_row_operation(
 
 		ut_ad(++loop_count < 2);
 		mtr_start(&mtr);
-		if (dict_table_is_temporary(index->table)) {
+		if (index->table->is_temporary()) {
 			mtr.set_log_mode(MTR_LOG_NO_REDO);
 		} else {
 			mtr.set_undo_space(undo_ptr->rseg->space);
@@ -2296,8 +2296,7 @@ trx_undo_prev_version_build(
 
 	/* REDO rollback segment are used only for non-temporary objects.
 	For temporary objects NON-REDO rollback segments are used. */
-	bool is_redo_rseg =
-		dict_table_is_temporary(index->table) ? false : true;
+	bool is_redo_rseg = !index->table->is_temporary() ;
 
 	ut_ad(!index->table->skip_alter_undo);
 
@@ -2440,7 +2439,7 @@ trx_undo_prev_version_build(
 		if (!(*vrow)) {
 			*vrow = dtuple_create_with_vcol(
 				v_heap ? v_heap : heap,
-				dict_table_get_n_cols(index->table),
+				index->table->get_n_cols(),
 				dict_table_get_n_v_cols(index->table));
 			dtuple_init_v_fld(*vrow);
 		}

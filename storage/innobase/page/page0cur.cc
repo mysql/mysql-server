@@ -315,7 +315,7 @@ populate_offsets(
 	ulint*			offsets,
 	mem_heap_t**		heap)
 {
-	ut_ad(dict_table_is_intrinsic(index->table));
+	ut_ad(index->table->is_intrinsic());
 
 	bool rec_has_null_values	= false;
 
@@ -957,7 +957,7 @@ page_cur_insert_rec_write_log(
 
 	/* Avoid REDO logging to save on costly IO because
 	temporary tables are not recovered during crash recovery. */
-	if (dict_table_is_temporary(index->table)) {
+	if (index->table->is_temporary()) {
 		byte*	log_ptr = mlog_open(mtr, 0);
 		if (log_ptr == NULL) {
 			return;
@@ -2345,7 +2345,7 @@ page_copy_rec_list_end_to_created_page(
 
 	mtr_log_t	log_mode;
 
-	if (dict_table_is_temporary(index->table)
+	if (index->table->is_temporary()
 	    || index->table->ibd_file_missing /* IMPORT TABLESPACE */) {
 		log_mode = mtr_get_log_mode(mtr);
 	} else {

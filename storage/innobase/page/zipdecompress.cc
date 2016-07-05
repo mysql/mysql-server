@@ -307,8 +307,7 @@ page_zip_fields_decode(
 
 		dict_mem_table_add_col(table, NULL, NULL, mtype,
 				       val & 1 ? DATA_NOT_NULL : 0, len);
-		dict_index_add_col(index, table,
-				   dict_table_get_nth_col(table, i), 0);
+		dict_index_add_col(index, table, table->get_col(i), 0);
 	}
 
 	val = *b++;

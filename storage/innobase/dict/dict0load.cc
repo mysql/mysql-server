@@ -122,7 +122,7 @@ name_of_col_is(
 					      dict_index_get_nth_field(
 						      index, i)));
 
-	return(strcmp(name, dict_table_get_col_name(table, tmp)) == 0);
+	return(strcmp(name, table->get_col_name(tmp)) == 0);
 }
 #endif /* UNIV_DEBUG */
 
@@ -813,7 +813,7 @@ err_len:
 	}
 
 	if (column != NULL) {
-		*column = dict_table_get_nth_col(table, base);
+		*column = table->get_col(base);
 	}
 
 	return(NULL);
@@ -2195,7 +2195,7 @@ dict_load_columns(
 
 			ut_a(table->fts->doc_col == ULINT_UNDEFINED);
 
-			col = dict_table_get_nth_col(table, i - n_skipped);
+			col = table->get_col(i - n_skipped);
 
 			ut_ad(col->len == sizeof(doc_id_t));
 
@@ -2782,7 +2782,7 @@ dict_load_tablespace(
 	mem_heap_t*		heap,
 	dict_err_ignore_t	ignore_err)
 {
-	ut_ad(!dict_table_is_temporary(table));
+	ut_ad(!table->is_temporary());
 
 	/* The system tablespace is always available. */
 	if (is_system_tablespace(table->space)) {

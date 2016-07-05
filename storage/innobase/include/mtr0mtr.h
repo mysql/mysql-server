@@ -85,14 +85,12 @@ savepoint. */
 /** Check if memo contains the given item ignore if table is intrinsic
 @return TRUE if contains or table is intrinsic. */
 #define mtr_is_block_fix(m, o, t, table)				\
-	(mtr_memo_contains(m, o, t)					\
-	 || dict_table_is_intrinsic(table))
+	(mtr_memo_contains(m, o, t) || table->is_intrinsic())
 
 /** Check if memo contains the given page ignore if table is intrinsic
 @return TRUE if contains or table is intrinsic. */
 #define mtr_is_page_fix(m, p, t, table)					\
-	(mtr_memo_contains_page(m, p, t)				\
-	 || dict_table_is_intrinsic(table))
+	(mtr_memo_contains_page(m, p, t) || table->is_intrinsic())
 
 /** Check if memo contains the given item.
 @return	TRUE if contains */

@@ -830,13 +830,13 @@ row_create_prebuilt(
 	uint		srch_key_len = 0;
 	ulint		search_tuple_n_fields;
 
-	search_tuple_n_fields = 2 * (dict_table_get_n_cols(table)
+	search_tuple_n_fields = 2 * (table->get_n_cols()
 				     + dict_table_get_n_v_cols(table));
 
 	clust_index = table->first_index();
 
 	/* Make sure that search_tuple is long enough for clustered index */
-	ut_a(2 * dict_table_get_n_cols(table) >= clust_index->n_fields);
+	ut_a(2 * table->get_n_cols() >= clust_index->n_fields);
 
 	ref_len = dict_index_get_n_unique(clust_index);
 
@@ -861,8 +861,7 @@ row_create_prebuilt(
 	/* allocd in row_get_prebuilt_update_vector() */ \
 	+ sizeof(upd_node_t) \
 	+ sizeof(upd_t) \
-	+ sizeof(upd_field_t) \
-	  * dict_table_get_n_cols(table) \
+	+ sizeof(upd_field_t) * table->get_n_cols() \
 	+ sizeof(que_fork_t) \
 	+ sizeof(que_thr_t) \
 	/* allocd in row_get_prebuilt_insert_row() */ \
@@ -871,7 +870,7 @@ row_create_prebuilt(
 	sure if this prebuilt instance is going to be \
 	used in inserts */ \
 	+ (mysql_row_len < 256 ? mysql_row_len : 0) \
-	+ DTUPLE_EST_ALLOC(dict_table_get_n_cols(table) \
+	+ DTUPLE_EST_ALLOC(table->get_n_cols() \
 			   + dict_table_get_n_v_cols(table)) \
 	+ sizeof(que_fork_t) \
 	+ sizeof(que_thr_t) \
@@ -1139,7 +1138,7 @@ row_get_prebuilt_insert_row(
 	dtuple_t*	row;
 
 	row = dtuple_create_with_vcol(
-			prebuilt->heap, dict_table_get_n_cols(table),
+			prebuilt->heap, table->get_n_cols(),
 			dict_table_get_n_v_cols(table));
 
 	dict_table_copy_types(row, table);
@@ -1415,7 +1414,7 @@ row_mysql_to_innobase(
 	row_prebuilt_t*		prebuilt,
 	const byte*		mysql_rec)
 {
-	ut_ad(dict_table_is_intrinsic(prebuilt->table));
+	ut_ad(prebuilt->table->is_intrinsic());
 
 	const byte*		ptr = mysql_rec;
 
@@ -1833,7 +1832,7 @@ row_insert_for_mysql(
 	/* For intrinsic tables there a lot of restrictions that can be
 	relaxed including locking of table, transaction handling, etc.
 	Use direct cursor interface for inserting to intrinsic tables. */
-	if (dict_table_is_intrinsic(prebuilt->table)) {
+	if (prebuilt->table->is_intrinsic()) {
 		return(row_insert_for_mysql_using_cursor(mysql_rec, prebuilt));
 	} else {
 		return(row_insert_for_mysql_using_ins_graph(
@@ -1894,10 +1893,10 @@ row_create_update_node_for_mysql(
 
 	node->table = table;
 
-	node->update = upd_create(dict_table_get_n_cols(table)
+	node->update = upd_create(table->get_n_cols()
 				  + dict_table_get_n_v_cols(table), heap);
 
-	node->update_n_fields = dict_table_get_n_cols(table);
+	node->update_n_fields = table->get_n_cols();
 
 	UT_LIST_INIT(node->columns, &sym_node_t::col_var_list);
 
@@ -2211,7 +2210,7 @@ row_update_for_mysql_using_cursor(
 		dfield_t*	row_id_field;
 
 		row_id_field = dtuple_get_nth_field(
-			node->upd_row, dict_table_get_n_cols(table) - 2);
+			node->upd_row, table->get_n_cols() - 2);
 
 		dict_sys_write_row_id(
 			static_cast<byte*>(row_id_field->data),
@@ -2220,7 +2219,7 @@ row_update_for_mysql_using_cursor(
 
 	/* Step-2: Update the trx_id column. */
 	trx_id_field = dtuple_get_nth_field(
-		node->upd_row, dict_table_get_n_cols(table) - 1);
+		node->upd_row, table->get_n_cols() - 1);
 	trx_write_trx_id(static_cast<byte*>(trx_id_field->data),
 			 dict_table_get_next_table_sess_trx_id(node->table));
 
@@ -2324,7 +2323,7 @@ row_del_upd_for_mysql_using_cursor(
 					      prebuilt->clust_pcur);
 	}
 
-	ut_ad(dict_table_is_intrinsic(prebuilt->table));
+	ut_ad(prebuilt->table->is_intrinsic());
 	ut_ad(!prebuilt->table->n_v_cols);
 
 	/* Internal table is created by optimiser. So there
@@ -2697,7 +2696,7 @@ row_update_for_mysql(
 	const byte*		mysql_rec,
 	row_prebuilt_t*		prebuilt)
 {
-	if (dict_table_is_intrinsic(prebuilt->table)) {
+	if (prebuilt->table->is_intrinsic()) {
 		return(row_del_upd_for_mysql_using_cursor(mysql_rec, prebuilt));
 	} else {
 		ut_a(prebuilt->template_type == ROW_MYSQL_WHOLE_ROW);
@@ -2712,7 +2711,7 @@ void
 row_delete_all_rows(
 	dict_table_t*	table)
 {
-	ut_ad(dict_table_is_temporary(table));
+	ut_ad(table->is_temporary());
 	/* Step-0: If there is cached insert position along with mtr
 	commit it before starting delete/update action. */
 	table->first_index()->last_ins_cur->release();
@@ -3175,7 +3174,7 @@ row_create_index_for_mysql(
 
 	is_fts = (index->type == DICT_FTS);
 
-	if (handler != NULL && dict_table_is_intrinsic(handler)) {
+	if (handler != NULL && handler->is_intrinsic()) {
 		table = handler;
 	}
 
@@ -3189,10 +3188,10 @@ row_create_index_for_mysql(
 
 	} else {
 		table->acquire();
-		ut_ad(dict_table_is_intrinsic(table));
+		ut_ad(table->is_intrinsic());
 	}
 
-	if (!dict_table_is_temporary(table)) {
+	if (!table->is_temporary()) {
 		trx_start_if_not_started_xa(trx, true);
 	}
 
@@ -3225,7 +3224,7 @@ row_create_index_for_mysql(
 	/* For temp-table we avoid insertion into SYSTEM TABLES to
 	maintain performance and so we have separate path that directly
 	just updates dictonary cache. */
-	if (!dict_table_is_temporary(table)) {
+	if (!table->is_temporary()) {
 		/* Note that the space id where we store the index is
 		inherited from the table in dict_build_index_def_step()
 		in dict0crea.cc. */
@@ -3256,7 +3255,7 @@ row_create_index_for_mysql(
 		they are used by optimizer for all record formats. */
 		err = dict_index_add_to_cache(
 			table, index, FIL_NULL,
-			!dict_table_is_intrinsic(table)
+			!table->is_intrinsic()
 			&& trx_is_strict(trx));
 
 		if (err != DB_SUCCESS) {
@@ -3268,7 +3267,7 @@ row_create_index_for_mysql(
 
 		/* as above function has freed index object re-load it
 		now from dictionary cache using index_id */
-		if (dict_table_is_intrinsic(table)) {
+		if (table->is_intrinsic()) {
 			/* trx_id field is used for tracking which transaction
 			created the index. For intrinsic table this is
 			ir-relevant and so re-use it for tracking consistent
@@ -3280,7 +3279,7 @@ row_create_index_for_mysql(
 
 		err = dict_create_index_tree_in_mem(index, trx);
 
-		if (err != DB_SUCCESS && !dict_table_is_intrinsic(table)) {
+		if (err != DB_SUCCESS && !table->is_intrinsic()) {
 			dict_index_remove_from_cache(table, index);
 		}
 	}
@@ -3930,7 +3929,7 @@ row_discard_tablespace_for_mysql(
 
 	if (table == 0) {
 		err = DB_TABLE_NOT_FOUND;
-	} else if (dict_table_is_temporary(table)) {
+	} else if (table->is_temporary()) {
 
 		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			    ER_CANNOT_DISCARD_TEMPORARY_TABLE);
@@ -4113,7 +4112,7 @@ row_drop_table_from_cache(
 	trx_t*		trx)
 {
 	dberr_t	err = DB_SUCCESS;
-	bool	is_temp = dict_table_is_temporary(table);
+	bool	is_temp = table->is_temporary();
 
 	/* Remove the pointer to this table object from the list
 	of modified tables by the transaction because the object
@@ -4121,7 +4120,7 @@ row_drop_table_from_cache(
 	trx->mod_tables.erase(table);
 
 	/* Remove SDI tables of the tablespace from cache */
-	if (!dict_table_is_intrinsic(table)) {
+	if (!table->is_intrinsic()) {
 		dict_sdi_remove_from_cache(table->space, NULL, true);
 		dict_table_remove_from_cache(table);
 	} else {
@@ -4230,7 +4229,7 @@ row_drop_table_for_mysql(
 
 	trx->op_info = "dropping table";
 
-	if (handler != NULL && dict_table_is_intrinsic(handler)) {
+	if (handler != NULL && handler->is_intrinsic()) {
 		table = handler;
 		is_intrinsic_temp_table = true;
 	}
@@ -4257,7 +4256,7 @@ row_drop_table_for_mysql(
 				| DICT_ERR_IGNORE_CORRUPT));
 	} else {
 		table->acquire();
-		ut_ad(dict_table_is_intrinsic(table));
+		ut_ad(table->is_intrinsic());
 	}
 
 	if (!table) {
@@ -4268,7 +4267,7 @@ row_drop_table_for_mysql(
 	/* This function is called recursively via fts_drop_tables(). */
 	if (!trx_is_started(trx)) {
 
-		if (!dict_table_is_temporary(table)) {
+		if (!table->is_temporary()) {
 			trx_start_for_ddl(trx, TRX_DICT_OP_TABLE);
 		} else {
 			trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
@@ -4295,7 +4294,7 @@ row_drop_table_for_mysql(
 		/* Do not bother to deal with persistent stats for temp
 		tables since we know temp tables do not use persistent
 		stats. */
-		if (!dict_table_is_temporary(table)) {
+		if (!table->is_temporary()) {
 			dict_stats_wait_bg_to_stop_using_table(
 				table, trx);
 		}
@@ -4304,7 +4303,7 @@ row_drop_table_for_mysql(
 	/* make sure background stats thread is not running on the table */
 	ut_ad(!(table->stats_bg_flag & BG_STAT_IN_PROGRESS));
 
-	if (!dict_table_is_temporary(table)) {
+	if (!table->is_temporary()) {
 
 		dict_stats_recalc_pool_del(table);
 
@@ -4320,7 +4319,7 @@ row_drop_table_for_mysql(
 		}
 	}
 
-	if (!dict_table_is_intrinsic(table)) {
+	if (!table->is_intrinsic()) {
 		dict_table_prevent_eviction(table);
 	}
 
@@ -4418,14 +4417,14 @@ row_drop_table_for_mysql(
 
 	if (table->get_ref_count() == 0) {
 		/* We don't take lock on intrinsic table so nothing to remove.*/
-		if (!dict_table_is_intrinsic(table)) {
+		if (!table->is_intrinsic()) {
 			lock_remove_all_on_table(table, TRUE);
 		}
 		ut_a(table->n_rec_locks == 0);
 	} else if (table->get_ref_count() > 0 || table->n_rec_locks > 0) {
 		ibool	added;
 
-		ut_ad(!dict_table_is_intrinsic(table));
+		ut_ad(!table->is_intrinsic());
 
 		added = row_add_table_to_background_drop_list(
 			table->name.m_name);
@@ -4458,7 +4457,7 @@ row_drop_table_for_mysql(
 	/* If we get this far then the table to be dropped must not have
 	any table or record locks on it. */
 
-	ut_a(dict_table_is_intrinsic(table) || !lock_table_has_locks(table));
+	ut_a(table->is_intrinsic() || !lock_table_has_locks(table));
 
 	switch (trx_get_dict_operation(trx)) {
 	case TRX_DICT_OP_NONE:
@@ -4503,7 +4502,7 @@ row_drop_table_for_mysql(
 
 	/* As we don't insert entries to SYSTEM TABLES for temp-tables
 	we need to avoid running removal of these entries. */
-	if (!dict_table_is_temporary(table)) {
+	if (!table->is_temporary()) {
 		/* We use the private SQL parser of Innobase to generate the
 		query graphs needed in deleting the dictionary data from system
 		tables in Innobase. Deleting a row from SYS_INDEXES table also
@@ -4648,7 +4647,7 @@ row_drop_table_for_mysql(
 		table_id = table->id;
 		ibd_file_missing = table->ibd_file_missing;
 		is_discarded = dict_table_is_discarded(table);
-		is_temp = dict_table_is_temporary(table);
+		is_temp = table->is_temporary();
 		shared_tablespace = DICT_TF_HAS_SHARED_SPACE(table->flags);
 		is_encrypted = dict_table_is_encrypted(table);
 

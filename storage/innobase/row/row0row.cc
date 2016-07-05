@@ -449,14 +449,14 @@ row_build_low(
 		ut_ad(col_map);
 		row = dtuple_copy(add_cols, heap);
 		/* dict_table_copy_types() would set the fields to NULL */
-		for (ulint i = 0; i < dict_table_get_n_cols(col_table); i++) {
+		for (ulint i = 0; i < col_table->get_n_cols(); i++) {
 			dict_col_copy_type(
-				dict_table_get_nth_col(col_table, i),
+				col_table->get_col(i),
 				dfield_get_type(dtuple_get_nth_field(row, i)));
 		}
 	} else if (add_v != NULL) {
 		row = dtuple_create_with_vcol(
-			heap, dict_table_get_n_cols(col_table),
+			heap, col_table->get_n_cols(),
 			dict_table_get_n_v_cols(col_table) + add_v->n_v_col);
 		dict_table_copy_types(row, col_table);
 
@@ -468,7 +468,7 @@ row_build_low(
 		}
 	} else {
 		row = dtuple_create_with_vcol(
-			heap, dict_table_get_n_cols(col_table),
+			heap, col_table->get_n_cols(),
 			dict_table_get_n_v_cols(col_table));
 		dict_table_copy_types(row, col_table);
 	}
@@ -516,7 +516,7 @@ row_build_low(
 		if (rec_offs_nth_extern(offsets, i)) {
 			dfield_set_ext(dfield);
 
-			col = dict_table_get_nth_col(col_table, col_no);
+			col = col_table->get_col(col_no);
 
 			if (col->ord_part) {
 				/* We will have to fetch prefixes of

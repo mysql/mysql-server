@@ -4322,7 +4322,7 @@ i_s_innodb_temp_table_info_fill_table(
 	     table != NULL;
 	     table = UT_LIST_GET_NEXT(table_LRU, table)) {
 
-		if (!dict_table_is_temporary(table)) {
+		if (!table->is_temporary()) {
 			continue;
 		}
 

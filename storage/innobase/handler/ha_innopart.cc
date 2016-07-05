@@ -170,14 +170,14 @@ Ha_innopart_share::open_one_table_part(
 	dict_table_t *ib_table = m_table_parts[part_id];
 	if ((!DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID)
 	     && m_table_share->fields
-		 != (dict_table_get_n_user_cols(ib_table)
-		     + dict_table_get_n_v_cols(ib_table)))
+		 != (ib_table->get_n_user_cols()
+			 + dict_table_get_n_v_cols(ib_table)))
 	    || (DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID)
 		&& (m_table_share->fields
-		    != dict_table_get_n_user_cols(ib_table)
+		    != ib_table->get_n_user_cols()
 		       + dict_table_get_n_v_cols(ib_table) - 1))) {
 		ib::warn() << "Partition `" << get_partition_name(part_id)
-			<< "` contains " << dict_table_get_n_user_cols(ib_table)
+			<< "` contains " << ib_table->get_n_user_cols()
 			<< " user defined columns in InnoDB, but "
 			<< m_table_share->fields
 			<< " columns in MySQL. Please check"
@@ -3168,11 +3168,11 @@ ha_innopart::truncate_partition_low()
 		ut_ad(table_part->n_ref_count >= 1);
 
 		/* Temporary partitioned tables are not supported! */
-		ut_ad(!dict_table_is_temporary(table_part));
+		ut_ad(!table_part->is_temporary());
 
 		/* Intrinsic partitioned tables are not supported! */
-		ut_ad(!dict_table_is_intrinsic(table_part));
-		if (dict_table_is_temporary(table_part)) {
+		ut_ad(!table_part->is_intrinsic());
+		if (table_part->is_temporary()) {
 			error = HA_ERR_WRONG_COMMAND;
 			break;
 		}

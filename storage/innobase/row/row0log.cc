@@ -1081,7 +1081,7 @@ row_log_table_get_pk_old_col(
 {
 	for (ulint i = 0; i < table->n_cols; i++) {
 		if (col_no == col_map[i]) {
-			return(dict_table_get_nth_col(table, i));
+			return(table->get_col(i));
 		}
 	}
 
@@ -1465,14 +1465,14 @@ row_log_table_apply_convert_mrec(
 	if (log->add_cols) {
 		row = dtuple_copy(log->add_cols, heap);
 		/* dict_table_copy_types() would set the fields to NULL */
-		for (ulint i = 0; i < dict_table_get_n_cols(log->table); i++) {
+		for (ulint i = 0; i < log->table->get_n_cols(); i++) {
 			dict_col_copy_type(
-				dict_table_get_nth_col(log->table, i),
+				log->table->get_col(i),
 				dfield_get_type(dtuple_get_nth_field(row, i)));
 		}
 	} else {
 		row = dtuple_create_with_vcol(
-			heap, dict_table_get_n_cols(log->table), num_v);
+			heap, log->table->get_n_cols(), num_v);
 		dict_table_copy_types(row, log->table);
 	}
 
@@ -1569,7 +1569,7 @@ blob_done:
 
 		/* See if any columns were changed to NULL or NOT NULL. */
 		const dict_col_t*	new_col
-			= dict_table_get_nth_col(log->table, col_no);
+			= log->table->get_col(col_no);
 		ut_ad(new_col->mtype == col->mtype);
 
 		/* Assert that prtype matches except for nullability. */
@@ -2765,9 +2765,9 @@ row_log_table_apply_ops(
 		+ ut_max(dict_index_get_n_fields(index),
 			 dict_index_get_n_unique(new_index) + 2);
 	const ulint	trx_id_col	= dict_col_get_clust_pos(
-		dict_table_get_sys_col(index->table, DATA_TRX_ID), index);
+		index->table->get_sys_col(DATA_TRX_ID), index);
 	const ulint	new_trx_id_col	= dict_col_get_clust_pos(
-		dict_table_get_sys_col(new_table, DATA_TRX_ID), new_index);
+		new_table->get_sys_col(DATA_TRX_ID), new_index);
 	trx_t*		trx		= thr_get_trx(thr);
 
 	ut_ad(index->is_clustered());

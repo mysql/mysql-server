@@ -1812,11 +1812,11 @@ row_merge_read_clustered_index(
 		do not violate the added NOT NULL constraints. */
 
 		nonnull = static_cast<ulint*>(
-			ut_malloc_nokey(dict_table_get_n_cols(new_table)
+			ut_malloc_nokey(new_table->get_n_cols()
 				  * sizeof *nonnull));
 
-		for (ulint i = 0; i < dict_table_get_n_cols(old_table); i++) {
-			if (dict_table_get_nth_col(old_table, i)->prtype
+		for (ulint i = 0; i < old_table->get_n_cols(); i++) {
+			if (old_table->get_col(i)->prtype
 			    & DATA_NOT_NULL) {
 				continue;
 			}
@@ -1828,7 +1828,7 @@ row_merge_read_clustered_index(
 				continue;
 			}
 
-			if (dict_table_get_nth_col(new_table, j)->prtype
+			if (new_table->get_col(j)->prtype
 			    & DATA_NOT_NULL) {
 				nonnull[n_nonnull++] = j;
 			}
@@ -2097,7 +2097,7 @@ end_of_index:
 		if (add_autoinc != ULINT_UNDEFINED) {
 
 			ut_ad(add_autoinc
-			      < dict_table_get_n_user_cols(new_table));
+			      < new_table->get_n_user_cols());
 
 			const dfield_t*	dfield;
 
@@ -4191,7 +4191,7 @@ row_merge_create_index(
 
 			}
 		} else {
-			name = dict_table_get_col_name(table, ifield->col_no);
+			name = table->get_col_name(ifield->col_no);
 
 		}
 
@@ -4238,7 +4238,7 @@ row_merge_is_index_usable(
 	}
 
 	return(!index->is_corrupted()
-	       && (dict_table_is_temporary(index->table)
+	       && (index->table->is_temporary()
 		   || index->trx_id == 0
 		   || !MVCC::is_view_active(trx->read_view)
 		   || trx->read_view->changes_visible(
@@ -4279,7 +4279,7 @@ row_merge_write_redo(
 	mtr_t	mtr;
 	byte*	log_ptr;
 
-	ut_ad(!dict_table_is_temporary(index->table));
+	ut_ad(!index->table->is_temporary());
 	mtr.start();
 	log_ptr = mlog_open(&mtr, 11 + 8);
 	log_ptr = mlog_write_initial_log_record_low(

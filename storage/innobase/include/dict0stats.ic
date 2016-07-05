@@ -182,7 +182,7 @@ dict_stats_deinit(
 /*==============*/
 	dict_table_t*	table)	/*!< in/out: table */
 {
-	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
+	ut_ad(mutex_own(&dict_sys->mutex) || table->is_intrinsic());
 
 	ut_a(table->get_ref_count() == 0);
 
