@@ -98,6 +98,7 @@ Message *Message_decoder::alloc_message(int8_t type, Error_code &ret_error, bool
 
 Error_code Message_decoder::parse(Request &request)
 {
+  const int max_recursion_limit = 100;
   bool msg_is_shared;
   Error_code ret_error;
   Message *message = alloc_message(request.get_type(), ret_error, msg_is_shared);
@@ -109,12 +110,29 @@ Error_code Message_decoder::parse(Request &request)
                                                   static_cast<int>(buffer.length()));
     // variable 'mysqlx_max_allowed_packet' has been checked when buffer was filling by data
     stream.SetTotalBytesLimit(static_cast<int>(buffer.length()), -1 /*no warnings*/);
+    // Protobuf limits the number of nested objects when decoding messages
+    // lets set the value in explicit way (to ensure that is set accordingly with
+    // out stack size)
+    //
+    // Protobuf doesn't print a readable error after reaching the limit
+    // thus in case of failure we try to validate the limit by decrementing and
+    // incrementing the value & checking result for failure
+    stream.SetRecursionLimit(max_recursion_limit);
+
     message->ParseFromCodedStream(&stream);
 
     if (!message->IsInitialized())
     {
       log_debug("Error parsing message of type %i: %s",
                 request.get_type(), message->InitializationErrorString().c_str());
+
+      //Workaraound
+      stream.DecrementRecursionDepth();
+      if (!stream.IncrementRecursionDepth())
+      {
+        return Error(ER_X_BAD_MESSAGE, "X Protocol message recursion limit (%i) exceeded", max_recursion_limit);
+      }
+
       if (!msg_is_shared)
         delete message;
       message = NULL;
