@@ -15,7 +15,7 @@
 
 #include <my_global.h>
 #include <mysql/psi/mysql_file.h>
-  #include "buffered_file_io.h"
+#include "buffered_file_io.h"
 
 namespace keyring {
 
@@ -96,9 +96,8 @@ my_bool Buffered_file_io::check_file_structure(File file, size_t file_size)
          is_file_version_correct(file) == FALSE;
 }
 
-my_bool Buffered_file_io::load_keyring_into_input_buffer(File file)
+my_bool Buffered_file_io::load_file_into_buffer(File file, Buffer *buffer)
 {
-  buffer.free();
   mysql_file_seek(file, 0, MY_SEEK_END, MYF(0));
   size_t file_size= mysql_file_tell(file, MYF(0));
   if (file_size == 0)
@@ -111,14 +110,12 @@ my_bool Buffered_file_io::load_keyring_into_input_buffer(File file)
   mysql_file_seek(file, file_version.length(), MY_SEEK_SET, MYF(0)); //skip file version
   if (likely(input_buffer_size > 0))
   {
-    buffer.reserve(input_buffer_size);
-    if (mysql_file_read(file, buffer.data, input_buffer_size, MYF(0)) !=
+    buffer->reserve(input_buffer_size);
+    if (mysql_file_read(file, buffer->data, input_buffer_size, MYF(0)) !=
         input_buffer_size)
-    {
-      buffer.free();
       return TRUE;
-    }
   }
+  memory_needed_for_buffer= buffer->size;
   return FALSE;
 }
 
@@ -129,50 +126,40 @@ my_bool Buffered_file_io::load_keyring_into_input_buffer(File file)
 */
 my_bool Buffered_file_io::recreate_keyring_from_backup_if_backup_exists()
 {
+  Buffer buffer;
   File backup_file;
   if (open_backup_file(&backup_file))
     return FALSE; //no backup file to recover from
-  if (load_keyring_into_input_buffer(backup_file))
+  if (load_file_into_buffer(backup_file, &buffer))
   {
     logger->log(MY_WARNING_LEVEL, "Found malformed keyring backup file - "
                                   "removing it");
-    buffer.free();
     mysql_file_close(backup_file, MYF(0));
     // if backup file was successfully removed then we have one keyring file
-    return remove(get_backup_filename()->c_str()) == 0 ? FALSE : TRUE;
+    return remove_backup();
   }
-  if (flush_to_keyring() || mysql_file_close(backup_file, MYF(0)) < 0)
+  if (flush_buffer_to_storage(&buffer) || mysql_file_close(backup_file, MYF(0)) < 0)
   {
     logger->log(MY_ERROR_LEVEL, "Error while restoring keyring from backup file"
                                 " cannot overwrite keyring with backup");
     return TRUE;
   }
-  return remove(get_backup_filename()->c_str()) == 0 ? FALSE : TRUE;
-}
-
-my_bool Buffered_file_io::open(std::string *keyring_filename)
-{
-  this->keyring_filename= *keyring_filename;
-  return recreate_keyring_from_backup_if_backup_exists();
+  return remove_backup();
 }
 
 my_bool Buffered_file_io::init(std::string *keyring_filename)
 {
-  File file;
   DBUG_ASSERT(keyring_filename->empty() == FALSE);
 #ifdef HAVE_PSI_INTERFACE
   keyring_init_psi_file_keys();
 #endif
-  if(unlikely(open(keyring_filename)))
-    return TRUE;
-  file= mysql_file_open(keyring_file_data_key, keyring_filename->c_str(),
-                        O_CREAT | O_RDWR, MYF(0));
-  return file < 0 || load_keyring_into_input_buffer(file) ||
-         mysql_file_close(file, MYF(0)) < 0;
+  this->keyring_filename= *keyring_filename;
+  return recreate_keyring_from_backup_if_backup_exists();
 }
 
-my_bool Buffered_file_io::flush_to_file(PSI_file_key *file_key,
-                                      const std::string* filename)
+my_bool Buffered_file_io::flush_buffer_to_file(Buffer *buffer,
+                                               PSI_file_key *file_key,
+                                               const std::string* filename)
 {
   File file;
   my_bool was_error= TRUE;
@@ -181,26 +168,24 @@ my_bool Buffered_file_io::flush_to_file(PSI_file_key *file_key,
   if (file >= 0 &&
     mysql_file_write(file, reinterpret_cast<const uchar*>(file_version.c_str()),
                      file_version.length(), MYF(0)) == file_version.length() &&
-    mysql_file_write(file, buffer.data, buffer.size,
-                     MYF(0)) == buffer.size &&
+    mysql_file_write(file, buffer->data, buffer->size,
+                     MYF(0)) == buffer->size &&
     mysql_file_write(file, reinterpret_cast<const uchar*>(eofTAG.c_str()),
                      eofTAG.length(), MYF(0)) == eofTAG.length() &&
     mysql_file_close(file, MYF(0)) >= 0)
   {
     was_error= FALSE;
   }
-  buffer.free();
   return was_error;
 }
 
-my_bool Buffered_file_io::flush_to_backup()
+my_bool Buffered_file_io::flush_to_backup(ISerialized_object *serialized_object)
 {
-  if (flush_to_file(&keyring_backup_file_data_key, get_backup_filename()) == FALSE)
-  {
-    backup_exists= TRUE;
-    return FALSE;
-  }
-  return TRUE;
+  Buffer *buffer= dynamic_cast<Buffer*>(serialized_object);
+  DBUG_ASSERT(buffer != NULL);
+  return buffer == NULL ||
+         flush_buffer_to_file(buffer, &keyring_backup_file_data_key,
+                              get_backup_filename());
 }
 
 my_bool Buffered_file_io::remove_backup()
@@ -208,64 +193,56 @@ my_bool Buffered_file_io::remove_backup()
   return remove(get_backup_filename()->c_str()) == 0 ? FALSE : TRUE;
 }
 
-
-my_bool Buffered_file_io::flush_to_keyring(IKey *key /*=NULL*/MY_ATTRIBUTE((unused)),
-                                           Flush_operation operation /*= STORE_KEY*/MY_ATTRIBUTE((unused)))
+my_bool Buffered_file_io::flush_buffer_to_storage(Buffer *buffer)
 {
-  return flush_to_file(&keyring_file_data_key, &keyring_filename);
+  return flush_buffer_to_file(buffer, &keyring_file_data_key, &keyring_filename);
 }
 
-my_bool Buffered_file_io::close()
+my_bool Buffered_file_io::flush_to_storage(ISerialized_object *serialized_object)
 {
-  my_bool was_error= FALSE;
-  if(backup_exists)
-  {
-    was_error= remove_backup();
-    if (was_error == FALSE)
-      backup_exists= FALSE;
-  }
-  buffer.free();
-  return was_error;
-}
+  Buffer *buffer= dynamic_cast<Buffer*>(serialized_object);
+  DBUG_ASSERT(buffer != NULL);
+  DBUG_ASSERT(serialized_object->get_key_operation() != NONE);
 
-void Buffered_file_io::reserve_buffer(size_t memory_size)
-{
-  buffer.reserve(memory_size);
-}
-
-my_bool Buffered_file_io::operator<<(const IKey* key)
-{
-  if (buffer.size < buffer.position + key->get_key_pod_size())
-    return FALSE;
-  key->store_in_buffer(buffer.data, &buffer.position);
-  return TRUE;
-}
-
-my_bool Buffered_file_io::operator>>(IKey **key)
-{
-  *key= NULL;
-
-  boost::movelib::unique_ptr<Key> key_ptr(new Key());
-  size_t number_of_bytes_read_from_buffer = 0;
-  if (buffer.data == NULL)
-  {
-    DBUG_ASSERT(buffer.size == 0);
-    return FALSE;
-  }
-  if (key_ptr->load_from_buffer(buffer.data + buffer.position,
-                                &number_of_bytes_read_from_buffer,
-                                buffer.size - buffer.position) == FALSE)
-  {
-    buffer.position += number_of_bytes_read_from_buffer;
-    *key= key_ptr.release();
+  if (flush_buffer_to_storage(buffer) || remove_backup())
     return TRUE;
-  }
+
+  memory_needed_for_buffer= buffer->size;
   return FALSE;
 }
 
-Buffered_file_io::~Buffered_file_io()
+ISerializer* Buffered_file_io::get_serializer()
 {
-  close();
+  hash_to_buffer_serializer.set_memory_needed_for_buffer(memory_needed_for_buffer);
+  return &hash_to_buffer_serializer;
+}
+
+my_bool Buffered_file_io::get_serialized_object(ISerialized_object **serialized_object)
+{
+  File file= mysql_file_open(keyring_file_data_key, keyring_filename.c_str(),
+                             O_CREAT | O_RDWR, MYF(0));
+  if (file < 0)
+    return TRUE;
+
+  Buffer *buffer= new Buffer;
+  if (load_file_into_buffer(file, buffer) || mysql_file_close(file, MYF(0)) < 0)
+  {
+    delete buffer;
+    *serialized_object= NULL;
+    return TRUE;
+  }
+  if (buffer->size == 0)  //empty keyring file
+  {
+    delete buffer;
+    buffer= NULL;
+  }
+  *serialized_object= buffer;
+  return FALSE;
+}
+
+my_bool Buffered_file_io::has_next_serialized_object()
+{
+  return FALSE;
 }
 
 } //namespace keyring

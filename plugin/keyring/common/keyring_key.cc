@@ -18,13 +18,14 @@
 namespace keyring {
 
 Key::Key()
-  : key_len(0)
+  : key(NULL)
+  , key_len(0)
 {}
 
 Key::Key(const char *a_key_id, const char *a_key_type, const char *a_user_id,
     const void *a_key, size_t a_key_len)
 {
- if(a_key_id != NULL)
+  if(a_key_id != NULL)
     key_id= a_key_id;
 
   if(a_key_type != NULL)
@@ -72,7 +73,6 @@ void Key::store_in_buffer(uchar* buffer, size_t *buffer_position) const
   store_field(buffer, buffer_position, user_id.c_str(), user_id.length());
   store_field(buffer, buffer_position, reinterpret_cast<char*>(key.get()),
               key_len);
-
 
   size_t padding= (sizeof(size_t) - (*buffer_position % sizeof(size_t))) %
                   sizeof(size_t);

@@ -13,50 +13,26 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef MYSQL_BUFFER_H
-#define MYSQL_BUFFER_H
+#ifndef MYSQL_I_KEYS_CONTAINER_H
+#define MYSQL_I_KEYS_CONTAINER_H
 
-#include "keyring_memory.h"
-#include "i_serialized_object.h"
+#include "i_keyring_key.h"
+#include "i_keyring_io.h"
 
-namespace keyring
-{
+namespace keyring {
 
-class Buffer : public ISerialized_object
+class IKeys_container : public Keyring_alloc
 {
 public:
-  Buffer() : data(NULL)
-  {
-    mark_as_empty();
-  }
-  Buffer(size_t memory_size) : data(NULL)
-  {
-    reserve(memory_size);
-  }
-  ~Buffer()
-  {
-    if(data != NULL)
-      delete[] data;
-  }
+  virtual my_bool init(IKeyring_io* keyring_io, std::string keyring_storage_url)= 0;
+  virtual my_bool store_key(IKey *key)= 0;
+  virtual IKey* fetch_key(IKey *key)= 0;
+  virtual my_bool remove_key(IKey *key)= 0;
+  virtual std::string get_keyring_storage_url()= 0;
 
-  inline void free();
-  my_bool get_next_key(IKey **key);
-  my_bool has_next_key();
-  void reserve(size_t memory_size);
-
-  uchar *data;
-  size_t size;
-  size_t position;
-private:
-  Buffer(const Buffer&);
-  Buffer& operator=(const Buffer&);
-
-  inline void mark_as_empty()
-  {
-    size= position= 0;
-  }
+  virtual ~IKeys_container() {};
 };
 
-} //namespace keyring
+}//namespace keyring
 
-#endif //MYSQL_BUFFER_H
+#endif //MYSQL_I_KEYS_CONTAINER_H

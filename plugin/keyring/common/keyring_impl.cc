@@ -126,8 +126,7 @@ my_bool check_key_for_writting(IKey* key, std::string error_for)
  return FALSE;
 }
 
-my_bool mysql_key_store(IKeyring_io *keyring_io,
-                        boost::movelib::unique_ptr<IKey> key_to_store)
+my_bool mysql_key_store(boost::movelib::unique_ptr<IKey> key_to_store)
 {
   if (is_keys_container_initialized == FALSE)
     return TRUE;
@@ -138,7 +137,7 @@ my_bool mysql_key_store(IKeyring_io *keyring_io,
   if (key_to_store->get_key_data_size() > 0)
     key_to_store->xor_data();
   mysql_rwlock_wrlock(&LOCK_keyring);
-  if (keys->store_key(keyring_io, key_to_store.get()))
+  if (keys->store_key(key_to_store.get()))
   {
     mysql_rwlock_unlock(&LOCK_keyring);
     return TRUE;
@@ -149,8 +148,7 @@ my_bool mysql_key_store(IKeyring_io *keyring_io,
   return FALSE;
 }
 
-my_bool mysql_key_remove(IKeyring_io *keyring_io,
-                         boost::movelib::unique_ptr<IKey> key_to_remove)
+my_bool mysql_key_remove(boost::movelib::unique_ptr<IKey> key_to_remove)
 {
   bool retval= false;
   if (is_keys_container_initialized == FALSE)
@@ -162,7 +160,7 @@ my_bool mysql_key_remove(IKeyring_io *keyring_io,
     return TRUE;
   }
   mysql_rwlock_wrlock(&LOCK_keyring);
-  retval= keys->remove_key(keyring_io, key_to_remove.get());
+  retval= keys->remove_key(key_to_remove.get());
   mysql_rwlock_unlock(&LOCK_keyring);
   return retval;
 }

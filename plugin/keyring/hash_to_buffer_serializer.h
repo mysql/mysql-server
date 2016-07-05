@@ -13,50 +13,31 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef MYSQL_BUFFER_H
-#define MYSQL_BUFFER_H
+#ifndef MYSQL_HASH_TO_BUFFER_SERIALIZER_H
+#define MYSQL_HASH_TO_BUFFER_SERIALIZER_H
 
-#include "keyring_memory.h"
-#include "i_serialized_object.h"
+#include "i_serializer.h"
+#include "i_keyring_key.h"
+#include "buffer.h"
 
 namespace keyring
 {
-
-class Buffer : public ISerialized_object
-{
-public:
-  Buffer() : data(NULL)
+  class Hash_to_buffer_serializer : public ISerializer
   {
-    mark_as_empty();
-  }
-  Buffer(size_t memory_size) : data(NULL)
-  {
-    reserve(memory_size);
-  }
-  ~Buffer()
-  {
-    if(data != NULL)
-      delete[] data;
-  }
+  public:
+    ISerialized_object* serialize(HASH *keys_hash, IKey *key,
+                                  const Key_operation operation);
 
-  inline void free();
-  my_bool get_next_key(IKey **key);
-  my_bool has_next_key();
-  void reserve(size_t memory_size);
+    void set_memory_needed_for_buffer(size_t memory_needed_for_buffer)
+    {
+      this->memory_needed_for_buffer= memory_needed_for_buffer;
+    }
+  protected:
+    size_t memory_needed_for_buffer;
 
-  uchar *data;
-  size_t size;
-  size_t position;
-private:
-  Buffer(const Buffer&);
-  Buffer& operator=(const Buffer&);
+    my_bool store_keys_in_buffer(HASH *keys_hash, Buffer *buffer);
+    my_bool store_key_in_buffer(const IKey* key, Buffer *buffer);
+  };
+}
 
-  inline void mark_as_empty()
-  {
-    size= position= 0;
-  }
-};
-
-} //namespace keyring
-
-#endif //MYSQL_BUFFER_H
+#endif //MYSQL_HASH_TO_BUFFER_SERIALIZER_H

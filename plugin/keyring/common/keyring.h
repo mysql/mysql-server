@@ -55,22 +55,18 @@ void update_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
 
 my_bool mysql_key_fetch(boost::movelib::unique_ptr<IKey> key_to_fetch, char **key_type,
                         void **key, size_t *key_len);
-
-my_bool mysql_key_store(IKeyring_io *keyring_io,
-                        boost::movelib::unique_ptr<IKey> key_to_store);
-
-my_bool mysql_key_remove(IKeyring_io *keyring_io,
-                         boost::movelib::unique_ptr<IKey> key_to_remove);
+my_bool mysql_key_store(boost::movelib::unique_ptr<IKey> key_to_store);
+my_bool mysql_key_remove(boost::movelib::unique_ptr<IKey> key_to_remove);
 
 my_bool check_key_for_writting(IKey* key, std::string error_for);
 
-template <typename T, typename U>
+template <typename T>
 my_bool mysql_key_fetch(const char *key_id, char **key_type, const char *user_id,
                         void **key, size_t *key_len)
 {
   try
   {
-    boost::movelib::unique_ptr<IKey> key_to_fetch(new U(key_id, NULL, user_id, NULL, 0));
+    boost::movelib::unique_ptr<IKey> key_to_fetch(new T(key_id, NULL, user_id, NULL, 0));
     return mysql_key_fetch(::boost::move(key_to_fetch), key_type, key, key_len);
   }
   catch (...)
@@ -81,15 +77,14 @@ my_bool mysql_key_fetch(const char *key_id, char **key_type, const char *user_id
   }
 }
 
-template <typename T, typename U>
+template <typename T>
 my_bool mysql_key_store(const char *key_id, const char *key_type,
                         const char *user_id, const void *key, size_t key_len)
 {
   try
   {
-    T keyring_io(logger.get());
-    boost::movelib::unique_ptr<IKey> key_to_store(new U(key_id, key_type, user_id, key, key_len));
-    return mysql_key_store(&keyring_io, ::boost::move(key_to_store));
+    boost::movelib::unique_ptr<IKey> key_to_store(new T(key_id, key_type, user_id, key, key_len));
+    return mysql_key_store(::boost::move(key_to_store));
   }
   catch (...)
   {
@@ -99,14 +94,13 @@ my_bool mysql_key_store(const char *key_id, const char *key_type,
   }
 }
 
-template <typename T, typename U>
+template <typename T>
 my_bool mysql_key_remove(const char *key_id, const char *user_id)
 {
   try
   {
-    T keyring_io(logger.get());
-    boost::movelib::unique_ptr<IKey> key_to_remove(new U(key_id, NULL, user_id, NULL, 0));
-    return mysql_key_remove(&keyring_io, ::boost::move(key_to_remove));
+    boost::movelib::unique_ptr<IKey> key_to_remove(new T(key_id, NULL, user_id, NULL, 0));
+    return mysql_key_remove(::boost::move(key_to_remove));
   }
   catch (...)
   {

@@ -16,7 +16,6 @@
 #undef HAVE_PSI_INTERFACE
 #include <my_global.h>
 #include <iostream>
-#include <atomic/gcc_builtins.h>
 #include <sql_plugin_ref.h>
 #include <time.h>
 #include "../keyring.cc"
@@ -166,7 +165,8 @@ void* fetch(void *arg)
     {
       mysql_mutex_lock(&LOCK_verbose);
       std::cout << "Key fetch " << key_id << ' ';
-      if(key_type != NULL) std::cout << *key_type << ' ';
+      if(key_type != NULL)
+        std::cout << key_type << ' ';
       std::cout << user << ' ';
       if(result==FALSE)
         std::cout << "successfull" << std::endl;

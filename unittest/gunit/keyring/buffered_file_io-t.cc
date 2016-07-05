@@ -66,14 +66,13 @@ namespace keyring_buffered_file_io_unittest
     std::string file_name("./some_funny_name");
     Buffered_file_io buffered_io(logger);
     remove(file_name.c_str());
-    my_bool retVal= 1;
-    retVal= buffered_io.init(&file_name);
-    EXPECT_EQ(retVal, 0);
-    IKey *empty_key= NULL;
+    EXPECT_EQ(buffered_io.init(&file_name),0);
+    ISerialized_object *serialized_object= NULL;
+
+    EXPECT_EQ(buffered_io.get_serialized_object(&serialized_object), 0);
     //The keyring file is new so no keys should be available
-    retVal= buffered_io >> &empty_key;
-    EXPECT_EQ(retVal, 0);
-    ASSERT_TRUE(empty_key == NULL);
+    ASSERT_TRUE(serialized_object == NULL);
+
     remove(file_name.c_str());
   }
 
@@ -82,36 +81,53 @@ namespace keyring_buffered_file_io_unittest
     std::string file_name("./write_key");
     Buffered_file_io *buffered_io= new Buffered_file_io(logger);
     remove(file_name.c_str());
-    my_bool retVal= 1;
-    retVal= buffered_io->init(&file_name);
-    EXPECT_EQ(retVal, 0);
+    EXPECT_EQ(buffered_io->init(&file_name), 0);
     std::string sample_key_data;
 
     Key key_to_add("Robert_add_key", "AES", "Roberts_add_key_type", sample_key_data.c_str(), sample_key_data.length()+1);
-    buffered_io->reserve_buffer(key_to_add.get_key_pod_size());
-    retVal= *buffered_io << &key_to_add;
-    EXPECT_EQ(retVal, 1);
-    retVal= buffered_io->flush_to_keyring();
-    EXPECT_EQ(retVal, 0);
+
+    Buffer *empty_serialized_object= new Buffer;
+    empty_serialized_object->set_key_operation(NONE);
+    Buffer *serialized_object_with_key_to_add= new Buffer(key_to_add.get_key_pod_size());
+    key_to_add.store_in_buffer(serialized_object_with_key_to_add->data,
+                               &(serialized_object_with_key_to_add->position));
+    serialized_object_with_key_to_add->position= 0; //rewind buffer
+    serialized_object_with_key_to_add->set_key_operation(STORE_KEY);
+
+    EXPECT_EQ(buffered_io->flush_to_backup(empty_serialized_object), 0);
+    //flush to keyring expects backup file to exist
+    EXPECT_EQ(buffered_io->flush_to_storage(serialized_object_with_key_to_add), 0);
     delete buffered_io;
+    delete empty_serialized_object;
+    delete serialized_object_with_key_to_add;
 
     Buffered_file_io *buffered_io_2= new Buffered_file_io(logger);
     buffered_io_2->init(&file_name);
-    IKey *empty_key= NULL;
-    retVal= *buffered_io_2 >> &empty_key;
-    EXPECT_EQ(retVal, 1);
+    IKey *retrieved_key= NULL;
+    IKey *retrieved_key2= NULL;
+    ISerialized_object *serialized_keys= NULL;
+    EXPECT_EQ(buffered_io_2->get_serialized_object(&serialized_keys), 0);
+    ASSERT_TRUE(serialized_keys != NULL);
+
+    EXPECT_EQ(serialized_keys->has_next_key(), TRUE);
+    EXPECT_EQ(serialized_keys->get_next_key(&retrieved_key), FALSE);
+    EXPECT_EQ(serialized_keys->has_next_key(), FALSE);
+    EXPECT_EQ(serialized_keys->get_next_key(&retrieved_key2), TRUE);
+    ASSERT_TRUE(retrieved_key2 == NULL);
+
     EXPECT_STREQ("Robert_add_keyRoberts_add_key_type",
-                 empty_key->get_key_signature()->c_str());
+                 retrieved_key->get_key_signature()->c_str());
     EXPECT_EQ(strlen("Robert_add_keyRoberts_add_key_type"),
-              empty_key->get_key_signature()->length());
+              retrieved_key->get_key_signature()->length());
 
-    uchar* empty_key_data= empty_key->get_key_data();
-    size_t empty_key_data_size= empty_key->get_key_data_size();
-    EXPECT_EQ(empty_key_data_size, sample_key_data.length()+1);
-    retVal= memcmp(empty_key_data, sample_key_data.c_str(), empty_key_data_size);
-    EXPECT_EQ(retVal, 0);
-    buffered_io_2->close();
+    uchar* retrieved_key_data= retrieved_key->get_key_data();
+    size_t retrieved_key_data_size= retrieved_key->get_key_data_size();
+    EXPECT_EQ(retrieved_key_data_size, sample_key_data.length()+1);
+    EXPECT_EQ(memcmp(retrieved_key_data, sample_key_data.c_str(), retrieved_key_data_size),
+              0);
 
+    delete retrieved_key;
+    delete serialized_keys;
     delete buffered_io_2;
     remove(file_name.c_str());
   }
@@ -121,54 +137,71 @@ namespace keyring_buffered_file_io_unittest
     std::string file_name("./write_key");
     Buffered_file_io *buffered_io= new Buffered_file_io(logger);
     remove(file_name.c_str());
-    my_bool retVal= 1;
-    retVal= buffered_io->init(&file_name);
-    EXPECT_EQ(retVal, 0);
+    EXPECT_EQ(buffered_io->init(&file_name), 0);
     std::string sample_key_data1("Robi1");
     std::string sample_key_data2("Robi2");
 
     Key key_to_add1("Robert_add_key1", "AES", "Roberts_add_key1_type", sample_key_data1.c_str(), sample_key_data1.length()+1);
     Key key_to_add2("Robert_add_key2", "AES", "Roberts_add_key2_type", sample_key_data2.c_str(), sample_key_data2.length()+1);
-    buffered_io->reserve_buffer(key_to_add1.get_key_pod_size() + key_to_add2.get_key_pod_size());
-    retVal= *buffered_io << &key_to_add1;
-    EXPECT_EQ(retVal, 1);
-    retVal= *buffered_io << &key_to_add2;
-    EXPECT_EQ(retVal, 1);
-    retVal= buffered_io->flush_to_keyring();
-    EXPECT_EQ(retVal, 0);
+
+    Buffer *empty_serialized_object= new Buffer;
+    empty_serialized_object->set_key_operation(NONE);
+    Buffer *serialized_object_with_keys_to_add= new Buffer(key_to_add1.get_key_pod_size() +
+                                                           key_to_add2.get_key_pod_size());
+    key_to_add1.store_in_buffer(serialized_object_with_keys_to_add->data,
+                                &(serialized_object_with_keys_to_add->position));
+    key_to_add2.store_in_buffer(serialized_object_with_keys_to_add->data,
+                                &(serialized_object_with_keys_to_add->position));
+    serialized_object_with_keys_to_add->position= 0; //rewind buffer
+    serialized_object_with_keys_to_add->set_key_operation(STORE_KEY);
+
+    EXPECT_EQ(buffered_io->flush_to_backup(empty_serialized_object), 0);
+    //flush to keyring expects backup file to exist
+    EXPECT_EQ(buffered_io->flush_to_storage(serialized_object_with_keys_to_add), 0);
     delete buffered_io;
+    delete empty_serialized_object;
+    delete serialized_object_with_keys_to_add;
 
     Buffered_file_io *buffered_io_2= new Buffered_file_io(logger);
     buffered_io_2->init(&file_name);
+    IKey *retrieved_key1= NULL;
+    IKey *retrieved_key2= NULL;
+    IKey *retrieved_key3= NULL;
+    ISerialized_object *serialized_keys= NULL;
+    EXPECT_EQ(buffered_io_2->get_serialized_object(&serialized_keys), 0);
+    ASSERT_TRUE(serialized_keys != NULL);
 
-    IKey *empty_key_1= NULL;
-    retVal= *buffered_io_2 >> &empty_key_1;
-    EXPECT_EQ(retVal, 1);
+    EXPECT_EQ(serialized_keys->has_next_key(), TRUE);
+    EXPECT_EQ(serialized_keys->get_next_key(&retrieved_key1), FALSE);
+    ASSERT_TRUE(retrieved_key1 != NULL);
+    EXPECT_EQ(serialized_keys->has_next_key(), TRUE);
+    EXPECT_EQ(serialized_keys->get_next_key(&retrieved_key2), FALSE);
+    ASSERT_TRUE(retrieved_key2 != NULL);
+    EXPECT_EQ(serialized_keys->has_next_key(), FALSE);
+    EXPECT_EQ(serialized_keys->get_next_key(&retrieved_key3), TRUE);
+    ASSERT_TRUE(retrieved_key3 == NULL);
+
     EXPECT_STREQ("Robert_add_key1Roberts_add_key1_type",
-                 empty_key_1->get_key_signature()->c_str());
+                 retrieved_key1->get_key_signature()->c_str());
     EXPECT_EQ(strlen("Robert_add_key1Roberts_add_key1_type"),
-              empty_key_1->get_key_signature()->length());
-    uchar* empty_key_1_data= empty_key_1->get_key_data();
-    size_t empty_key_1_data_size= empty_key_1->get_key_data_size();
-    EXPECT_EQ(empty_key_1_data_size, sample_key_data1.length()+1);
-    retVal= memcmp(empty_key_1_data, sample_key_data1.c_str(), empty_key_1_data_size);
-    EXPECT_EQ(retVal, 0);
+              retrieved_key1->get_key_signature()->length());
+    uchar* retrieved_key1_data= retrieved_key1->get_key_data();
+    size_t retrieved_key1_data_size= retrieved_key1->get_key_data_size();
+    EXPECT_EQ(retrieved_key1_data_size, sample_key_data1.length()+1);
+    EXPECT_EQ(memcmp(retrieved_key1_data, sample_key_data1.c_str(), retrieved_key1_data_size), 0);
 
-    IKey *empty_key_2= NULL;
-    retVal= *buffered_io_2 >> &empty_key_2;
-    EXPECT_EQ(retVal, 1);
     EXPECT_STREQ("Robert_add_key2Roberts_add_key2_type",
-                 empty_key_2->get_key_signature()->c_str());
+                 retrieved_key2->get_key_signature()->c_str());
     EXPECT_EQ(strlen("Robert_add_key2Roberts_add_key2_type"),
-              empty_key_2->get_key_signature()->length());
-    uchar* empty_key_2_data= empty_key_2->get_key_data();
-    size_t empty_key_2_data_size= empty_key_2->get_key_data_size();
-    EXPECT_EQ(empty_key_2_data_size, sample_key_data2.length()+1);
-    retVal= memcmp(empty_key_2_data, sample_key_data2.c_str(), empty_key_2_data_size);
-    EXPECT_EQ(retVal, 0);
+              retrieved_key2->get_key_signature()->length());
+    uchar* retrieved_key2_data= retrieved_key2->get_key_data();
+    size_t retrieved_key2_data_size= retrieved_key2->get_key_data_size();
+    EXPECT_EQ(retrieved_key2_data_size, sample_key_data2.length()+1);
+    EXPECT_EQ(memcmp(retrieved_key2_data, sample_key_data2.c_str(), retrieved_key2_data_size), 0);
 
-    buffered_io_2->close();
-
+    delete retrieved_key1;
+    delete retrieved_key2;
+    delete serialized_keys;
     delete buffered_io_2;
     remove(file_name.c_str());
   }

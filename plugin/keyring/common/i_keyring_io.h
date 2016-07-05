@@ -18,27 +18,21 @@
 
 #include <my_global.h>
 #include "keyring_key.h"
+#include "i_serializer.h"
 
 namespace keyring {
 
-enum Flush_operation
-{
-  STORE_KEY,
-  REMOVE_KEY,
-  FULL
-};
 
 class IKeyring_io : public Keyring_alloc
 {
 public:
   virtual my_bool init(std::string *keyring_storage_url)= 0;
-  virtual my_bool open(std::string *keyring_storage_url)= 0;
-  virtual void reserve_buffer(size_t memory_size)= 0;
-  virtual my_bool close()= 0;
-  virtual my_bool flush_to_backup()= 0;
-  virtual my_bool flush_to_keyring(IKey *key = NULL, Flush_operation operation= STORE_KEY)= 0;
-  virtual my_bool operator<< (const IKey* key)= 0;
-  virtual my_bool operator>> (IKey **key)= 0;
+  virtual my_bool flush_to_backup(ISerialized_object *serialized_object)= 0;
+  virtual my_bool flush_to_storage(ISerialized_object *serialized_object)=0;
+
+  virtual ISerializer *get_serializer()= 0;
+  virtual my_bool get_serialized_object(ISerialized_object **serialized_object)= 0;
+  virtual my_bool has_next_serialized_object()= 0;
 
   virtual ~IKeyring_io() {}
 };
