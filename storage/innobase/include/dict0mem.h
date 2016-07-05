@@ -982,7 +982,6 @@ struct dict_index_t{
 	}
 
 	/** Check whether the index is corrupted.
-	@param[in]	index	index object
 	@return true if index is corrupted, otherwise false */
 	bool is_corrupted() const
 	{
@@ -1772,7 +1771,6 @@ public:
 	}
 
 	/** Check whether the table is corrupted.
-	@param[in]	table	table object
 	@return true if the table is corrupted, otherwise false */
 	bool is_corrupted() const
 	{
