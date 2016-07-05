@@ -156,6 +156,7 @@
 
 #cmakedefine HAVE_ISINF 1
 
+#cmakedefine HAVE_KQUEUE 1
 #cmakedefine HAVE_KQUEUE_TIMERS 1
 #cmakedefine HAVE_POSIX_TIMERS 1
 
