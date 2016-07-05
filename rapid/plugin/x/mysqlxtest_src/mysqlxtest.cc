@@ -822,8 +822,8 @@ public:
     m_commands["enablessl"]   = &Command::cmd_enablessl;
     m_commands["sleep "]      = &Command::cmd_sleep;
     m_commands["login "]      = &Command::cmd_login;
-    m_commands["stmtadmin "]  = &Command::cmd_stmt_admin;
-    m_commands["stmtsql "]    = &Command::cmd_stmt_sql;
+    m_commands["stmtadmin "]  = &Command::cmd_stmtadmin;
+    m_commands["stmtsql "]    = &Command::cmd_stmtsql;
     m_commands["loginerror "] = &Command::cmd_loginerror;
     m_commands["repeat "]     = &Command::cmd_repeat;
     m_commands["endrepeat"]   = &Command::cmd_endrepeat;
@@ -1149,7 +1149,7 @@ private:
     return Continue;
   }
 
-  Result cmd_stmt_sql(Execution_context &context, const std::string &args)
+  Result cmd_stmtsql(Execution_context &context, const std::string &args)
   {
     Mysqlx::Sql::StmtExecute stmt;
 
@@ -1165,7 +1165,7 @@ private:
   }
 
 
-  Result cmd_stmt_admin(Execution_context &context, const std::string &args)
+  Result cmd_stmtadmin(Execution_context &context, const std::string &args)
   {
     std::string tmp = args;
     replace_variables(tmp);
@@ -1295,6 +1295,9 @@ private:
     {
       variable_name = argl[1];
     }
+
+    // Allow use of variables as a source of number of iterations
+    replace_variables(argl[0]);
 
     Loop_do loop = {context.m_stream.tellg(), atoi(argl[0].c_str()), 0, variable_name};
 
