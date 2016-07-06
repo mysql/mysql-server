@@ -151,7 +151,6 @@ namespace keyring__keys_container_unittest
     remove(keyring_incorrect_version);
     delete sample_key; //unused in this test
   }
-#endif  // HAVE_UBSAN
 
   TEST_F(Keys_container_test, InitWithFileWithIncorrectTAG)
   {
@@ -165,6 +164,7 @@ namespace keyring__keys_container_unittest
     remove(keyring_incorrect_tag);
     delete sample_key; //unused in this test
   }
+#endif  // HAVE_UBSAN
 
   TEST_F(Keys_container_test, StoreFetchRemove)
   {
@@ -728,6 +728,8 @@ namespace keyring__keys_container_unittest
     EXPECT_CALL(*keyring_io, has_next_serialized_object()).WillOnce(Return(FALSE));
   }
 
+// HAVE_UBSAN: undefined behaviour in gmock.
+#if !defined(HAVE_UBSAN)
   TEST_F(Keys_container_with_mocked_io_test, ErrorFromIODuringInitOnGettingSerializedObject)
   {
     keyring_io= new Mock_keyring_io();
@@ -775,8 +777,6 @@ namespace keyring__keys_container_unittest
     delete logger;
   }
 
-// HAVE_UBSAN: undefined behaviour in gmock.
-#if !defined(HAVE_UBSAN)
   TEST_F(Keys_container_with_mocked_io_test, ErrorFromIODuringInitInvalidKey)
   {
     keyring_io= new Mock_keyring_io();
@@ -1057,7 +1057,6 @@ namespace keyring__keys_container_unittest
     delete logger;
     delete mock_serializer;
   }
-#endif  // HAVE_UBSAN
 
   TEST_F(Keys_container_with_mocked_io_test, ErrorFromIOWhileRemovingKeyAfterAdding2Keys)
   {
@@ -1158,6 +1157,7 @@ namespace keyring__keys_container_unittest
     delete logger;
     delete mock_serializer;
   }
+#endif  // HAVE_UBSAN
 
   TEST_F(Keys_container_with_mocked_io_test, Store2KeysAndRemoveThem)
   {
