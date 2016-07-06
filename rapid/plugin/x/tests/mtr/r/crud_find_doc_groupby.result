@@ -32,6 +32,10 @@ doc
 {"age": 7, "name": "foo", "count": 1}
 command ok
 Got expected error: Invalid empty projection list for grouping (code 5114)
+doc
+{"name": "foo", "count": 2}
+command ok
+Got expected error: Unknown column 'nowhere' in grouping criteria (code 5117)
 Mysqlx.Ok {
   msg: "bye!"
 }

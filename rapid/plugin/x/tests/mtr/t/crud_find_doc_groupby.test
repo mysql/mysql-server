@@ -1,5 +1,6 @@
 ## Doc: Find with group by clause
 ## BUG#22950240
+## BUG#23738896
 
 --source ../include/xplugin_preamble.inc
 
@@ -35,13 +36,13 @@ Mysqlx.Crud.Find {
     }
   }
   grouping {
-      type: IDENT
-      identifier {
-        document_path {
-          type: MEMBER
-          value: "name"
-        }
+    type: IDENT
+    identifier {
+      document_path {
+        type: MEMBER
+        value: "name"
       }
+    }
   }
 }
 -->recvresult
@@ -160,6 +161,25 @@ Mysqlx.Crud.Find {
   collection { name: "xcoll" schema: "xtest" }
   data_model: DOCUMENT
   grouping {
+    type: IDENT
+    identifier {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+  }
+}
+-->expecterror 5114
+-->recvresult
+
+# group by name, count name and criteria on count
+Mysqlx.Crud.Find {
+  collection { name: "xcoll" schema: "xtest" }
+  data_model: DOCUMENT
+  projection {
+    alias: "name"
+    source {
       type: IDENT
       identifier {
         document_path {
@@ -167,9 +187,126 @@ Mysqlx.Crud.Find {
           value: "name"
         }
       }
+    }
   }
+  projection {
+    alias: "count"
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "count"
+        }
+        param {
+          type: OPERATOR operator {
+            name: "*"
+          }
+        }
+      }
+    }
+  }
+  grouping {
+    type: IDENT
+    identifier {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+  }
+  grouping_criteria {
+    type: OPERATOR
+    operator {
+      name: ">"
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "count"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_UINT
+          v_unsigned_int: 1
+        }
+      }
+    }
+  } 
 }
--->expecterror 5114
+-->recvresult
+
+
+
+# error: wrong memeber path in grouping criteria
+Mysqlx.Crud.Find {
+  collection { name: "xcoll" schema: "xtest" }
+  data_model: DOCUMENT
+  projection {
+    alias: "name"
+    source {
+      type: IDENT
+      identifier {
+        document_path {
+          type: MEMBER
+          value: "name"
+        }
+      }
+    }
+  }
+  projection {
+    alias: "count"
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "count"
+        }
+        param {
+          type: OPERATOR operator {
+            name: "*"
+          }
+        }
+      }
+    }
+  }
+  grouping {
+    type: IDENT
+    identifier {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+  }
+  grouping_criteria {
+    type: OPERATOR
+    operator {
+      name: ">"
+      param {
+        type: IDENT
+        identifier {
+          name: "nowhere"
+          document_path {
+            type: MEMBER
+            value: "count"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_UINT
+          v_unsigned_int: 1
+        }
+      }
+    }
+  } 
+}
+-->expecterror 5117
 -->recvresult
 EOF
 
