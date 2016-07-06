@@ -1,0 +1,56 @@
+#
+# wl#9383 INNODB: ADD AN OPTION TO TURN OFF/ON DEADLOCK CHECKER
+#
+
+--source include/have_innodb.inc
+--source include/not_embedded.inc
+--source include/count_sessions.inc
+
+SET GLOBAL innodb_deadlock_detect=OFF;
+SET GLOBAL innodb_lock_wait_timeout=2;
+
+connect (con1,localhost,root,,);
+
+connection default;
+
+CREATE TABLE t1(
+	id	INT,
+	PRIMARY KEY(id)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES(1), (2), (3);
+
+BEGIN;
+
+SELECT * FROM t1 WHERE id = 1 FOR UPDATE;
+
+connection con1;
+
+BEGIN;
+
+SELECT * FROM t1 WHERE id = 2 FOR UPDATE;
+
+--send SELECT * FROM t1 WHERE id = 1 FOR UPDATE;
+
+connection default;
+--send SELECT * FROM t1 WHERE id = 2 FOR UPDATE;
+
+connection con1;
+--error ER_LOCK_WAIT_TIMEOUT
+--reap;
+
+ROLLBACK;
+
+connection default;
+--reap;
+
+ROLLBACK;
+
+DROP TABLE t1;
+
+disconnect con1;
+
+--source include/wait_until_count_sessions.inc
+
+SET GLOBAL innodb_lock_wait_timeout=default;
+SET GLOBAL innodb_deadlock_detect=default;
