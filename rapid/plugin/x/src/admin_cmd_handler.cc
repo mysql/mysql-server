@@ -1193,7 +1193,8 @@ bool is_collection(xpl::Sql_data_context &da, const std::string &schema, const s
     if (result.size() != 1)
     {
       log_debug("Unable to recognize '%s' as a collection; query result size: %lu",
-                std::string(schema.empty() ? name : schema + "." + name).c_str(), result.size());
+                std::string(schema.empty() ? name : schema + "." + name).c_str(),
+                static_cast<unsigned long>(result.size()));
       return false;
     }
     long int cnt = 0, doc = 0, id = 0, gen = 0;
