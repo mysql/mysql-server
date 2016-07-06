@@ -14,49 +14,49 @@ INSERT INTO xtest.zcoll (doc) VALUES ('{"_id": "1", "name": "Anabel"}');
 
  xcoll is corect collection
 ***************************
-OK
 doc
 {"_id": "1", "name": "Anabel"}
 command ok
-OK
+Got expected error (code 0)
 doc
 command ok
-OK
+Got expected error (code 0)
 doc
 command ok
-OK
+Got expected error (code 0)
 doc
 {"_id": "1", "name": "Anabel"}
 command ok
-OK
+Got expected error (code 0)
 doc
 command ok
-Got expected error: `name` is not a member of collection (code 5121)
+Got expected error (code 0)
+Got expected error: Unknown column 'name' in selection criteria (code 5117)
 
  ycoll is not corect collection; missing `doc` column
 *****************************************************
-Got expected error: `ycoll` is not a collection (code 5156)
-Got expected error: `ycoll` is not a collection (code 5156)
-Got expected error: `ycoll` is not a collection (code 5156)
-Got expected error: `ycoll` is not a collection (code 5156)
-Got expected error: `ycoll` is not a collection (code 5156)
-Got expected error: `ycoll` is not a collection (code 5156)
+in main, line 43:in macro Find_value, line 28:ERROR: Got unexpected error: Unknown column 'doc' in collection (code 5117); expected was 1054 
+Got expected error: Unknown column 'doc' in collection (code 5117)
+Got expected error: Unknown column 'doc' in collection (code 5117)
+Got expected error: Unknown column 'doc' in collection (code 5117)
+Got expected error: Unknown column 'doc' in collection (code 5117)
+Got expected error: Unknown column 'doc' in collection (code 5117)
 
  zcoll is not corect collection; missing `_id` column
 *****************************************************
-Got expected error: `zcoll` is not a collection (code 5156)
-Got expected error: `zcoll` is not a collection (code 5156)
-OK
+in main, line 51:in macro Find_value, line 28:ERROR: Got unexpected error: Unknown column '_id' in selection criteria (code 5117); expected was 1054 
+Got expected error: Unknown column '_id' in selection criteria (code 5117)
 doc
 command ok
-OK
+Got expected error (code 0)
 doc
 {"_id": "1", "name": "Anabel"}
 command ok
-OK
+Got expected error (code 0)
 doc
 command ok
-Got expected error: `name` is not a member of collection (code 5121)
+Got expected error (code 0)
+Got expected error: Unknown column 'name' in selection criteria (code 5117)
 Mysqlx.Ok {
   msg: "bye!"
 }
