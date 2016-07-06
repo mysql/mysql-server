@@ -35,6 +35,7 @@
 # WL#7083: GTIDs: Set GTID_MODE=ON online
 # - Rewrote the test.
 
+--source include/no_valgrind_without_big.inc
 --source include/have_debug_sync.inc
 --source include/have_debug.inc
 # include/assert_command_output.inc doesn't work for mysqld on windows

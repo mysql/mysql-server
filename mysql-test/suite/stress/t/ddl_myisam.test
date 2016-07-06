@@ -1,3 +1,4 @@
+--source include/no_valgrind_without_big.inc
 #Start server with MyISAM
 --source include/force_myisam_default.inc
 
