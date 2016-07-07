@@ -5172,8 +5172,10 @@ static void ror_intersect_cpy(ROR_INTERSECT_INFO *dst,
     where k_ij may be the same as any k_pq (i.e. keys may have common parts).
 
     Note that for ROR retrieval, only equality conditions are usable so there
-    are no open ranges (e.g., k_ij > c_ij) in 'scan' or 'info', and the R-B
-    tree contains only a single node.
+    are no open ranges (e.g., k_ij > c_ij) in 'scan' or 'info'.
+    FIXME: This isn't true in practice; e.g. i_main.costmodel_planchange ends
+    up calling this function with an inequality condition, and thus the estimation
+    is probably wrong (since the code assumes only one element in the tree).
 
     A full row is retrieved if entire condition holds.
 
@@ -5283,7 +5285,6 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
   for (sel_arg= scan->sel_arg; sel_arg;
        sel_arg= sel_arg->next_key_part)
   {
-    DBUG_ASSERT(sel_arg->elements == 1);
     DBUG_PRINT("info",("sel_arg step"));
     cur_covered= MY_TEST(bitmap_is_set(&info->covered_fields,
                                        key_part[sel_arg->part].fieldnr-1));
