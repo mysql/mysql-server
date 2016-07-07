@@ -4218,6 +4218,9 @@ innodb_init(
 		DBUG_RETURN(innodb_init_abort());
 	}
 
+#ifdef _WIN32
+	ut_win_init_time();
+#endif /* _WIN32 */
 	DBUG_RETURN(0);
 }
 

@@ -49,6 +49,39 @@ epoch starts from 1970/1/1. For selection of constant see:
 http://support.microsoft.com/kb/167296/ */
 #define WIN_TO_UNIX_DELTA_USEC	11644473600000000LL
 
+/** The frequency of the Windows performance counter. */
+static uintmax_t query_performance_frequency;
+/** Offset of Windows performance counter from the Unix epoch in
+microseconds */
+static uintmax_t query_performance_offset_micros;
+
+/** Initialize counter frequency and offset values used by high resolution
+timing functions on Windows. */
+void
+ut_win_init_time()
+{
+	FILETIME	ft;
+	LARGE_INTEGER	li;
+	LARGE_INTEGER	t_cnt;
+
+	static_assert(
+		sizeof(LARGE_INTEGER) == sizeof(query_performance_frequency),
+		"sizeof(LARGE_INTEGER) != sizeof(query_performance_frequency)");
+
+	/* QueryPerformanceFrequency and QueryPerformanceCounter always
+	succeed on Windows XP and later. */
+	QueryPerformanceFrequency((LARGE_INTEGER *)&query_performance_frequency);
+
+	GetSystemTimeAsFileTime(&ft);
+	QueryPerformanceCounter(&t_cnt);
+	li.LowPart = ft.dwLowDateTime;
+	li.HighPart = ft.dwHighDateTime;
+	query_performance_offset_micros = (li.QuadPart
+		- WIN_TO_UNIX_DELTA_USEC * 10
+		- ((t_cnt.QuadPart / query_performance_frequency) * 10000000
+		+ ((t_cnt.QuadPart % query_performance_frequency) * 10000000)
+		/ query_performance_frequency)) /10 ;
+}
 
 /*****************************************************************//**
 This is the Windows version of gettimeofday(2).
@@ -168,6 +201,36 @@ ut_time_us(
 
 	return(us);
 }
+
+#ifdef _WIN32
+/** Return the system time using a high resolution clock.
+Upon successful completion, the value 0 is returned; otherwise the
+value -1 is returned and the global variable errno is set to indicate the
+error.
+@param[out]	sec		seconds since the Epoch
+@param[out]	ms		microseconds since the Epoch+*sec
+@return 0 on success, -1 otherwise */
+int
+ut_high_res_usectime(
+	ulint*	sec,
+	ulint*	ms)
+{
+	LARGE_INTEGER	t_cnt;
+	/* QueryPerformanceCounter always succeeds on Windows XP and later. */
+	QueryPerformanceCounter(&t_cnt);
+	lint total_ms = ((t_cnt.QuadPart / query_performance_frequency
+		* 1000000)
+		+ ((t_cnt.QuadPart % query_performance_frequency)
+		* 1000000 / query_performance_frequency)
+		+ query_performance_offset_micros);
+
+	*sec = (ulint)total_ms / 1000000;
+	*ms  = (ulint)total_ms % 1000000;
+
+	return(0);
+}
+#endif /* _WIN32 */
+
 
 /**********************************************************//**
 Returns the number of milliseconds since some epoch.  The
