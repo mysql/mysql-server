@@ -154,13 +154,18 @@ private:
 @param[in]	args		zero or more args */
 template<typename F, typename ... Args>
 void
-os_thread_create(mysql_pfs_key_t pfs_key, F&& f, Args&& ... args)
+create_detached_thread(mysql_pfs_key_t pfs_key, F&& f, Args&& ... args)
 {
-	Runnable	runnable(pfs_key);
-	std::thread	t(runnable, f, args ...);
+	std::thread     t(Runnable(pfs_key), f, args ...);
 
 	t.detach();
 }
+
+#ifdef UNIV_PFS_THREAD
+#define os_thread_create(...)		create_detached_thread(__VA_ARGS__)
+#else
+#define os_thread_create(k, ...)	create_detached_thread(0, __VA_ARGS__)
+#endif /* UNIV_PFS_THREAD */
 
 #endif /* !os0thread_create_h */
 
