@@ -792,7 +792,7 @@ enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
   if (ret != SP_OK)
     DBUG_RETURN(ret);
 
-  ret= dd::remove_routine(thd, routine);
+  ret= dd::remove_routine(thd, routine, true);
 
   if (ret != SP_OK)
     DBUG_RETURN(ret);
@@ -1083,7 +1083,7 @@ enum_sp_return_code sp_drop_db_routines(THD *thd, const char *db)
                       delete_container_pointers(routines);
                       DBUG_RETURN(SP_DROP_FAILED);} );
 
-    ret_code= dd::remove_routine(thd, routine2);
+    ret_code= dd::remove_routine(thd, routine2, false);
     if (ret_code != SP_OK)
     {
       my_error(ER_SP_DROP_FAILED, MYF(0),

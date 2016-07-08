@@ -364,7 +364,7 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
   }
 
   if (event_ptr != nullptr)
-    DBUG_RETURN(dd::drop_event(thd, event_ptr));
+    DBUG_RETURN(dd::drop_event(thd, event_ptr, true));
 
   // Event not found
   if (!drop_if_exists)
@@ -395,8 +395,6 @@ Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
   DBUG_ENTER("Event_db_repository::drop_schema_events");
   DBUG_PRINT("enter", ("schema=%s", schema.str));
 
-  // Turn off autocommit.
-  Disable_autocommit_guard autocommit_guard(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *sch_obj= nullptr;
 
@@ -425,7 +423,7 @@ Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
     if (thd->dd_client()->acquire<dd::Event>(schema.str, event_obj->name(), &event_obj2))
       DBUG_RETURN(true);
 
-    if (dd::drop_event(thd, event_obj2))
+    if (dd::drop_event(thd, event_obj2, false))
     {
       my_error(ER_SP_DROP_FAILED, MYF(0),
                "Drop failed for Event: %s", event_obj->name().c_str());

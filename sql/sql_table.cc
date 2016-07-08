@@ -54,6 +54,7 @@
 #include "sql_trigger.h"              // change_trigger_table_name
 #include "strfunc.h"                  // find_type2
 #include "transaction.h"              // trans_commit_stmt
+#include "log_event.h"                // Query_log_event
 
 #include "partitioning/partition_handler.h" // Partition_handler
 
@@ -2236,6 +2237,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
   uint have_non_tmp_table= 0;
   uint have_trans_tmp_table= 0;
   uint have_non_trans_tmp_table= 0;
+  bool not_used;
 
   DBUG_ENTER("mysql_rm_table");
 
@@ -2350,7 +2352,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
   /* mark for close and remove all cached entries */
   thd->push_internal_handler(&err_handler);
   error= mysql_rm_table_no_locks(thd, tables, if_exists, drop_temporary,
-                                 false);
+                                 false, &not_used, nullptr);
   thd->pop_internal_handler();
 
   if (!drop_temporary)
@@ -2455,6 +2457,12 @@ static void append_table_name(String *to, const TABLE_LIST *table)
   @param  drop_temporary  Only drop temporary tables
   @param  drop_database   This is DROP DATABASE statement. Drop views
                           and handle binary logging in a special way.
+  @param[out] dropped_non_atomic Indicates whether we have dropped some tables
+                                 in SEs which don't support atomic DDL.
+  @param[out] dropped_atomic     Set of tables in SEs supporting atomic DDL
+                                 which we have managed. This parameter is a
+                                 workaround used by DROP DATABASE until WL#7016
+                                 is implemented.
 
   @retval  0  ok
   @retval  1  Error
@@ -2476,7 +2484,12 @@ static void append_table_name(String *to, const TABLE_LIST *table)
 */
 
 int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
-                            bool drop_temporary, bool drop_database)
+                            bool drop_temporary, bool drop_database,
+                            bool *dropped_non_atomic
+#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
+                            , std::vector<TABLE_LIST*> *dropped_atomic
+#endif
+                            )
 {
   std::vector<TABLE_LIST*> base_atomic_tables;
   std::vector<TABLE_LIST*> base_non_atomic_tables;
@@ -2492,6 +2505,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
   /* DROP DATABASE implies if_exists and absence of drop_temporary. */
   DBUG_ASSERT(!drop_database || (if_exists && !drop_temporary));
+
+  *dropped_non_atomic= false;
 
   /*
     Sort tables into groups according to type of handling they require:
@@ -2791,9 +2806,38 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
       WL7743/TODO/QQ: Move this check here?
     */
-    if (base_non_atomic_tables.size() == 1 &&
-        !base_atomic_tables.size() && !views.size() &&
-        !nonexistent_tables.size())
+    if (drop_database)
+    {
+      if (!base_non_atomic_tables.size())
+      {
+        /*
+          Normal case. This is DROP DATABASE and we don't any tables in SEs
+          which don't support atomic DDL. Remaining tables, views, routines
+          and events can be dropped atomically and atomically logged as a
+          single DROP DATABASE statement by the caller.
+        */
+        gtid_group_single_table_group= true;
+      }
+      else
+      {
+        /*
+          Awkward case. We have GTID assigned for DROP DATABASE and it needs
+          to drop table in SE which doesn't support atomic DDL.
+
+          Most probably we are replicating from older (pre-5.8) master or tables
+          on master and slave have different SEs.
+          We try to handle situation in the following way - if the whole statement
+          succeeds caller will log all changes as a single DROP DATABASE under
+          GTID provided. In case of failure we will emit special error saying
+          that statement can't be logged correctly and manual intervention is
+          required.
+        */
+        gtid_group_many_table_groups= true;
+      }
+    }
+    else if (base_non_atomic_tables.size() == 1 &&
+             !base_atomic_tables.size() && !views.size() &&
+             !nonexistent_tables.size())
     {
       /*
         Normal case. Single base table in SE which don't support atomic DDL
@@ -3020,6 +3064,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           drop_all_triggers(thd, table->db, table->table_name))
         DBUG_RETURN(1);
 
+      *dropped_non_atomic= true;
+
 
       if (!gtid_group_many_table_groups)
       {
@@ -3028,20 +3074,41 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           single-table DROP TABLE for this specific table.
 
           Write single-table DROP TABLE statement to binary log.
+
+          Do this even if table was dropped as part of DROP DATABASE statement,
+          as this descreases chance of things getting out of sync in case of
+          crash.
         */
-        if (!drop_database)
-        {
-          String built_query;
+        String built_query;
 
-          built_query.set_charset(system_charset_info);
-          if (if_exists)
-            built_query.append("DROP TABLE IF EXISTS ");
-          else
-            built_query.append("DROP TABLE ");
+        built_query.set_charset(system_charset_info);
+        if (if_exists)
+          built_query.append("DROP TABLE IF EXISTS ");
+        else
+          built_query.append("DROP TABLE ");
 
+        if (drop_database)
+          append_identifier(thd, &built_query, table->table_name,
+                            table->table_name_length, system_charset_info,
+                            thd->charset());
+        else
           append_table_ident(thd, &built_query, table, false);
-          built_query.append(" /* generated by server */");
 
+        built_query.append(" /* generated by server */");
+
+        if (drop_database && mysql_bin_log.is_open())
+        {
+          Query_log_event qinfo(thd, built_query.ptr(),
+                                built_query.length(), false,
+                                true, false, 0);
+          qinfo.db= table->db;
+          qinfo.db_len= table->db_length;
+
+          if (mysql_bin_log.write_event(&qinfo))
+            DBUG_RETURN(1);
+        }
+        else
+        {
           if (write_bin_log(thd, true, built_query.ptr(),
                             built_query.length(), false /*is_trans*/))
             DBUG_RETURN(1);
@@ -3108,6 +3175,10 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       else
         built_query.append("DROP TABLE ");
     }
+
+    DEBUG_SYNC(thd, "rm_table_no_locks_before_delete_table");
+    DBUG_EXECUTE_IF("sleep_before_no_locks_delete_table",
+                    my_sleep(100000););
 
     for (TABLE_LIST *table : base_atomic_tables)
     {
@@ -3261,6 +3332,11 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
 #ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
       table_dropped= true;
+
+      if (drop_database)
+      {
+        dropped_atomic->push_back(table);
+      }
 #endif
 
       if (!drop_database && !gtid_group_many_table_groups)
@@ -3312,9 +3388,39 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       }
     }
 
+    DEBUG_SYNC(thd, "rm_table_no_locks_before_binlog");
+
     int error= 0;
 
-    if (!gtid_group_many_table_groups)
+    if (drop_database)
+    {
+      /*
+        This is DROP DATABASE.
+
+        If we don't have GTID assigned removal of tables from this group will be
+        logged as DROP DATABASE and committed atomically, together with removal of
+        events and stored routines, by the caller.
+
+        The same thing should happen if we have GTID assigned and tables only from
+        this group.
+
+        If we have GTID assigned and mix of tables from SEs which support atomic
+        DDL and which don't support it we will still behave in similar way.
+        If the whole statement succeeds removal of tables from all groups will
+        be logged as single DROP DATABASE statement. In case of failure we will
+        report special error, but in addition it makes sense to rollback all changes
+        to tables in SEs supporting atomic DDL.
+
+        So do nothing here in all three cases described above.
+      */
+#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
+      Disable_gtid_state_update_guard disabler(thd);
+      thd->is_commit_in_middle_of_statement= true;
+      error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
+      thd->is_commit_in_middle_of_statement= false;
+#endif
+    }
+    else if (!gtid_group_many_table_groups)
     {
       /*
         We don't have GTID assigned, or we have GTID assigned and our DROP
@@ -3322,15 +3428,12 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         multi-table DROP TABLES statement.
       */
 
-      if (!drop_database)
-      {
-        /* Chop off the last comma */
-        built_query.chop();
-        built_query.append(" /* generated by server */");
-        if (write_bin_log(thd, true, built_query.ptr(),
-                          built_query.length(), true /*is_trans*/))
-          DBUG_RETURN(1);
-      }
+      /* Chop off the last comma */
+      built_query.chop();
+      built_query.append(" /* generated by server */");
+      if (write_bin_log(thd, true, built_query.ptr(),
+                        built_query.length(), true /*is_trans*/))
+        DBUG_RETURN(1);
 
       if (!gtid_group_single_table_group)
       {
@@ -3374,7 +3477,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       DBUG_RETURN(1);
   }
 
-  if (gtid_group_many_table_groups)
+  if (!drop_database && gtid_group_many_table_groups)
   {
     /*
       We DROP TABLES statement with GTID assigned and either several tables
@@ -3384,41 +3487,37 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       We have postponed write to binlog earlier. Now it is time to do it.
     */
 
-    if (!drop_database)
+    String built_query;
+
+    built_query.set_charset(system_charset_info);
+
+    if (if_exists)
+      built_query.append("DROP TABLE IF EXISTS ");
+    else
+      built_query.append("DROP TABLE ");
+
+    for (TABLE_LIST *table : base_non_atomic_tables)
     {
-      String built_query;
-
-      built_query.set_charset(system_charset_info);
-
-      if (if_exists)
-        built_query.append("DROP TABLE IF EXISTS ");
-      else
-        built_query.append("DROP TABLE ");
-
-      for (TABLE_LIST *table : base_non_atomic_tables)
-      {
-        append_table_ident(thd, &built_query, table, false);
-        built_query.append(",");
-      }
-      for (TABLE_LIST *table : base_atomic_tables)
-      {
-        append_table_ident(thd, &built_query, table, false);
-        built_query.append(",");
-      }
-      for (TABLE_LIST *table : nonexistent_tables)
-      {
-        append_table_ident(thd, &built_query, table, false);
-        built_query.append(",");
-      }
-
-      /* Chop off the last comma */
-      built_query.chop();
-      built_query.append(" /* generated by server */");
-      if (write_bin_log(thd, true, built_query.ptr(),
-                        built_query.length(), true /*is_trans*/))
-
-        DBUG_RETURN(1);
+      append_table_ident(thd, &built_query, table, false);
+      built_query.append(",");
     }
+    for (TABLE_LIST *table : base_atomic_tables)
+    {
+      append_table_ident(thd, &built_query, table, false);
+      built_query.append(",");
+    }
+    for (TABLE_LIST *table : nonexistent_tables)
+    {
+      append_table_ident(thd, &built_query, table, false);
+      built_query.append(",");
+    }
+
+    /* Chop off the last comma */
+    built_query.chop();
+    built_query.append(" /* generated by server */");
+    if (write_bin_log(thd, true, built_query.ptr(),
+                      built_query.length(), true /*is_trans*/))
+      DBUG_RETURN(1);
 
     /*
       Commit our changes to the binary log (if any) and mark GTID

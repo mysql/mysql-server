@@ -18,6 +18,9 @@
 
 #include "my_global.h"
 #include "binary_log_types.h"  // enum_field_types
+#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
+#include <vector>
+#endif
 
 class Alter_info;
 class Alter_table_ctx;
@@ -201,7 +204,12 @@ bool mysql_checksum_table(THD* thd, TABLE_LIST* table_list,
 bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
                     my_bool drop_temporary);
 int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
-                            bool drop_temporary, bool drop_database);
+                            bool drop_temporary, bool drop_database,
+                            bool *dropped_non_atomic
+#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
+                            , std::vector<TABLE_LIST*> *dropped_atomic
+#endif
+                            );
 bool quick_rm_table(THD *thd, handlerton *base, const char *db,
                     const char *table_name, uint flags);
 bool prepare_sp_create_field(THD *thd,

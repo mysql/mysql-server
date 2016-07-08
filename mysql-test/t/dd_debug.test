@@ -89,11 +89,6 @@ SET DEBUG_SYNC= 'now SIGNAL cont';
 --connection default
 SET DEBUG_SYNC= 'RESET';
 SET GLOBAL DEBUG= '-d, fail_while_acquiring_dd_object';
---echo # Note: We are now left with an inconsistency
---echo #       between the file system and the dd.
---echo #       To get out of this, create a directory.
---let $MYSQLD_DATADIR= `select @@datadir`
---mkdir $MYSQLD_DATADIR/s1
 
 --echo # 1.3b No schema found during drop.
 
@@ -101,10 +96,6 @@ SET DEBUG= '+d, pretend_no_schema_in_drop_schema';
 --error ER_BAD_DB_ERROR
 DROP SCHEMA s1;
 SET DEBUG= '-d, pretend_no_schema_in_drop_schema';
---echo # Note: We are now left with an inconsistency
---echo #       between the file system and the dd.
---echo #       To get out of this, create a directory.
---mkdir $MYSQLD_DATADIR/s1
 
 --echo # 1.3c Fail while dropping dd object during drop.
 
@@ -113,15 +104,6 @@ SET DEBUG= '+d, fail_while_dropping_dd_object';
 DROP SCHEMA s1;
 SET DEBUG= '-d, fail_while_dropping_dd_object';
 --echo # Do it for real.
---echo # Note: The statement below fails, and the entry for
---echo #       s1 in mysql.schemata is still present. This
---echo #       will be addressed in WL#7743.
---error ER_DB_DROP_EXISTS
-DROP SCHEMA s1;
-SELECT COUNT(*) FROM mysql.schemata WHERE name LIKE 's1';
-
---echo # To get out of this, create a directory, then drop.
---mkdir $MYSQLD_DATADIR/s1
 DROP SCHEMA s1;
 SELECT COUNT(*) FROM mysql.schemata WHERE name LIKE 's1';
 

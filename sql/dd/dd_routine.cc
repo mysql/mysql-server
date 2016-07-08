@@ -464,7 +464,8 @@ enum_sp_return_code create_routine(THD *thd, const Schema *schema, sp_head *sp)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-enum_sp_return_code remove_routine(THD *thd, const Routine *routine)
+enum_sp_return_code remove_routine(THD *thd, const Routine *routine,
+                                   bool commit_dd_changes)
 {
   DBUG_ENTER("dd::remove_routine");
 
@@ -477,7 +478,8 @@ enum_sp_return_code remove_routine(THD *thd, const Routine *routine)
     DBUG_RETURN(SP_DROP_FAILED);
   }
 
-  bool error= (trans_commit_stmt(thd) || trans_commit(thd));
+  bool error= commit_dd_changes &&
+              (trans_commit_stmt(thd) || trans_commit(thd));
   DBUG_RETURN(error ? SP_INTERNAL_ERROR : SP_OK);
 }
 

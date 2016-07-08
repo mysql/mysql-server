@@ -43,20 +43,23 @@ FLUSH STATUS;
 # 'DROP TABLE IF EXISTS <deleted tables>' is binlogged
 # when 'DROP DATABASE' fails and at least one table is deleted
 # from the database.
+#
+# Unlike test for bug#11765416/58381 this test uses MyISAM
+# for t1. So DROP DATABASE will have side-effect even when atomic
+# DDL is introduced. DROP TABLE IF EXISTS should be logged
+# for MyISAM table in this case.
 RESET MASTER;
 CREATE DATABASE testing_1;
 USE testing_1;
-CREATE TABLE t1(c1 INT);
-CREATE TABLE t2(c1 INT);
-# Create a file in the database directory
-SELECT 'hello' INTO OUTFILE 'fake_file.FAKE_FILE';
-
-# 'DROP DATABASE' will fail if there is any other file in the the
-# database directory
+CREATE TABLE t1(c1 INT) ENGINE=MyISAM;
+CREATE TABLE t2(c1 INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE test.t1 (c1 INT, FOREIGN KEY(c1) REFERENCES testing_1.t2(c1)) ENGINE=InnoDB;
+#
+# 'DROP DATABASE' will fail but will delete table t1.
+#
 DROP DATABASE testing_1;
-ERROR HY000: Error dropping database (can't rmdir './testing_1/', errno: ## - ...)
-
-# Remove the fake file.
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+DROP TABLE test.t1;
 # Now we can drop the database.
 DROP DATABASE testing_1;
 #
@@ -127,20 +130,23 @@ FLUSH STATUS;
 # 'DROP TABLE IF EXISTS <deleted tables>' is binlogged
 # when 'DROP DATABASE' fails and at least one table is deleted
 # from the database.
+#
+# Unlike test for bug#11765416/58381 this test uses MyISAM
+# for t1. So DROP DATABASE will have side-effect even when atomic
+# DDL is introduced. DROP TABLE IF EXISTS should be logged
+# for MyISAM table in this case.
 RESET MASTER;
 CREATE DATABASE testing_1;
 USE testing_1;
-CREATE TABLE t1(c1 INT);
-CREATE TABLE t2(c1 INT);
-# Create a file in the database directory
-SELECT 'hello' INTO OUTFILE 'fake_file.FAKE_FILE';
-
-# 'DROP DATABASE' will fail if there is any other file in the the
-# database directory
+CREATE TABLE t1(c1 INT) ENGINE=MyISAM;
+CREATE TABLE t2(c1 INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE test.t1 (c1 INT, FOREIGN KEY(c1) REFERENCES testing_1.t2(c1)) ENGINE=InnoDB;
+#
+# 'DROP DATABASE' will fail but will delete table t1.
+#
 DROP DATABASE testing_1;
-ERROR HY000: Error dropping database (can't rmdir './testing_1/', errno: ## - ...)
-
-# Remove the fake file.
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+DROP TABLE test.t1;
 # Now we can drop the database.
 DROP DATABASE testing_1;
 #
@@ -212,20 +218,23 @@ FLUSH STATUS;
 # 'DROP TABLE IF EXISTS <deleted tables>' is binlogged
 # when 'DROP DATABASE' fails and at least one table is deleted
 # from the database.
+#
+# Unlike test for bug#11765416/58381 this test uses MyISAM
+# for t1. So DROP DATABASE will have side-effect even when atomic
+# DDL is introduced. DROP TABLE IF EXISTS should be logged
+# for MyISAM table in this case.
 RESET MASTER;
 CREATE DATABASE testing_1;
 USE testing_1;
-CREATE TABLE t1(c1 INT);
-CREATE TABLE t2(c1 INT);
-# Create a file in the database directory
-SELECT 'hello' INTO OUTFILE 'fake_file.FAKE_FILE';
-
-# 'DROP DATABASE' will fail if there is any other file in the the
-# database directory
+CREATE TABLE t1(c1 INT) ENGINE=MyISAM;
+CREATE TABLE t2(c1 INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE test.t1 (c1 INT, FOREIGN KEY(c1) REFERENCES testing_1.t2(c1)) ENGINE=InnoDB;
+#
+# 'DROP DATABASE' will fail but will delete table t1.
+#
 DROP DATABASE testing_1;
-ERROR HY000: Error dropping database (can't rmdir './testing_1/', errno: ## - ...)
-
-# Remove the fake file.
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+DROP TABLE test.t1;
 # Now we can drop the database.
 DROP DATABASE testing_1;
 #

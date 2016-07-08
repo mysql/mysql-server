@@ -58,32 +58,17 @@ disconnect con1;
 connection default;
 SET DEBUG_SYNC= 'RESET';
 SET GLOBAL DEBUG= '-d, fail_while_acquiring_dd_object';
-# Note: We are now left with an inconsistency
-#       between the file system and the dd.
-#       To get out of this, create a directory.
 # 1.3b No schema found during drop.
 SET DEBUG= '+d, pretend_no_schema_in_drop_schema';
 DROP SCHEMA s1;
 ERROR 42000: Unknown database 's1'
 SET DEBUG= '-d, pretend_no_schema_in_drop_schema';
-# Note: We are now left with an inconsistency
-#       between the file system and the dd.
-#       To get out of this, create a directory.
 # 1.3c Fail while dropping dd object during drop.
 SET DEBUG= '+d, fail_while_dropping_dd_object';
 DROP SCHEMA s1;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG= '-d, fail_while_dropping_dd_object';
 # Do it for real.
-# Note: The statement below fails, and the entry for
-#       s1 in mysql.schemata is still present. This
-#       will be addressed in WL#7743.
-DROP SCHEMA s1;
-ERROR HY000: Can't drop database 's1'; database doesn't exist
-SELECT COUNT(*) FROM mysql.schemata WHERE name LIKE 's1';
-COUNT(*)
-1
-# To get out of this, create a directory, then drop.
 DROP SCHEMA s1;
 SELECT COUNT(*) FROM mysql.schemata WHERE name LIKE 's1';
 COUNT(*)

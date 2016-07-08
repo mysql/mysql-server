@@ -63,11 +63,10 @@ const char *del_exts[]= {".frm", ".BAK", ".TMD", ".opt", ".OLD", ".cfg", ".SDI",
 static TYPELIB deletable_extentions=
 {array_elements(del_exts)-1,"del_exts", del_exts, NULL};
 
-static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
-                                              const char *db,
-                                              const char *path,
-                                              TABLE_LIST **tables,
-                                              bool *found_other_files);
+static bool find_unknown_and_remove_deletable_files(THD *thd, MY_DIR *dirp,
+                                                    const char *path);
+
+static bool find_db_tables(THD *thd, const char *db, TABLE_LIST **tables);
 
 static long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);
 static my_bool rm_dir_w_symlink(const char *org_path, my_bool send_error);
@@ -381,6 +380,34 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
 
 
 /**
+  Auxiliary function which writes DROP DATABASE statement to binary log
+  overriding connection's current database with one being dropped.
+*/
+
+static bool write_rm_db_to_binlog(THD *thd, const LEX_CSTRING &db)
+{
+  if (mysql_bin_log.is_open())
+  {
+    int errcode= query_error_code(thd, TRUE);
+    Query_log_event qinfo(thd, thd->query().str, thd->query().length,
+                          true /* transactional cache */, false,
+                          /* suppress_use */ true, errcode);
+    /*
+      Write should use the database being dropped as the "current
+      database" and not the threads current database, which is the
+      default.
+    */
+    qinfo.db= db.str;
+    qinfo.db_len= db.length;
+
+    return mysql_bin_log.write_event(&qinfo);
+  }
+
+  return false;
+}
+
+
+/**
   Drop all tables, routines and events in a database and the database itself.
 
   @param  thd        Thread handle
@@ -403,10 +430,14 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
   bool error= false;
   char	path[2 * FN_REFLEN + 16];
   MY_DIR *dirp;
-  bool found_other_files= false;
   TABLE_LIST *tables= NULL;
   TABLE_LIST *table;
   Drop_table_error_handler err_handler;
+#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
+  std::vector<TABLE_LIST*> dropped_atomic;
+#endif
+  bool dropped_non_atomic= false;
+
   DBUG_ENTER("mysql_rm_db");
 
   if (lock_schema_name(thd, db.str))
@@ -433,17 +464,27 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
       push_warning_printf(thd, Sql_condition::SL_NOTE,
 			  ER_DB_DROP_EXISTS,
                           ER_THD(thd, ER_DB_DROP_EXISTS), db.str);
-      goto update_binlog;
+      if (write_rm_db_to_binlog(thd, db))
+        DBUG_RETURN(true);
+      /*
+        Rely on commit at the end of the statement to commit changes
+        to binary log.
+      */
+      goto dropped_ok;
     }
   }
 
-  if (find_db_tables_and_rm_known_files(thd, dirp, db.str, path, &tables,
-                                        &found_other_files))
+  if (find_unknown_and_remove_deletable_files(thd, dirp, path))
   {
     my_dirend(dirp);
     DBUG_RETURN(true);
   }
   my_dirend(dirp);
+
+  if (find_db_tables(thd, db.str, &tables))
+  {
+    DBUG_RETURN(true);
+  }
 
   /*
     Disable drop of enabled log tables, must be done before name locking.
@@ -484,8 +525,17 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
     DBUG_RETURN(true);
 
   thd->push_internal_handler(&err_handler);
-  if (!(tables &&
-        (error= mysql_rm_table_no_locks(thd, tables, true, false, true))))
+  if (tables)
+    error= mysql_rm_table_no_locks(thd, tables, true, false, true,
+                                   &dropped_non_atomic, &dropped_atomic);
+
+  DBUG_EXECUTE_IF("rm_db_fail_after_dropping_tables",
+                  {
+                    my_error(ER_UNKNOWN_ERROR, MYF(0));
+                    error= true;
+                  });
+
+  if (!error)
   {
     /*
       We temporarily disable the binary log while dropping SPs
@@ -516,55 +566,38 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
     error= (error || (sp_drop_db_routines(thd, db.str) != SP_OK));
     reenable_binlog(thd);
 
-    /*
-      If the directory is a symbolic link, remove the link first, then
-      remove the directory the symbolic link pointed at
-    */
-    if (error || found_other_files)
-      error= true;
-    else
-      error= rm_dir_w_symlink(path, true);
   }
   thd->pop_internal_handler();
 
-  //
-  // Remove schema in DD
-  //
-
-  /*
-    If database exists and there was no error we should
-    remove DD entry.
-  */
   if (!error)
   {
+    /*
+      If database exists and there was no error we should
+      write statement to binary log and remove DD entry.
+    */
+
+    if (write_rm_db_to_binlog(thd, db))
+      DBUG_RETURN(true);
+
+    // Call to dd::drop_schema() implicitly commits transaction.
     if (dd::drop_schema(thd, db.str))
       DBUG_RETURN(true);
+
+    // WWL7743/TODO/FIXME. Call handlerton::post_ddl() hook here.
+
+    /*
+      If the directory is a symbolic link, remove the link first, then
+      remove the directory the symbolic link pointed at.
+
+      QQ: Should we treat this as a warning/note/error to error log
+          but send OK to client in this case?
+    */
+    if (rm_dir_w_symlink(path, true))
+      DBUG_RETURN(true);
   }
-
-update_binlog:
-  if (mysql_bin_log.is_open())
+  else
   {
-    if (!error)
-    {
-      int errcode= query_error_code(thd, TRUE);
-      Query_log_event qinfo(thd, thd->query().str, thd->query().length,
-                            false, true, /* suppress_use */ true, errcode);
-      /*
-        Write should use the database being dropped as the "current
-        database" and not the threads current database, which is the
-        default.
-      */
-      qinfo.db     = db.str;
-      qinfo.db_len = db.length;
-
-      /*
-        These DDL methods and logging are protected with the exclusive
-        metadata lock on the schema.
-      */
-      if (mysql_bin_log.write_event(&qinfo))
-        DBUG_RETURN(true);
-    }
-    else
+    if (mysql_bin_log.is_open())
     {
       char *query, *query_pos, *query_end, *query_data_start;
       char temp_identifier[ 2 * FN_REFLEN + 2];
@@ -575,7 +608,11 @@ update_binlog:
         (some tables were removed).  So we generate an error and let
         user fix the situation.
       */
-      if (thd->variables.gtid_next.type == GTID_GROUP)
+      if (thd->variables.gtid_next.type == GTID_GROUP
+#ifdef NEEDS_WL7016_TO_BE_READY
+          && dropped_non_atomic
+#endif
+          )
       {
         char gtid_buf[Gtid::MAX_TEXT_LENGTH + 1];
         thd->variables.gtid_next.gtid.to_string(global_sid_map, gtid_buf,
@@ -585,6 +622,7 @@ update_binlog:
         DBUG_RETURN(true);
       }
 
+#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
       DBUG_PRINT("info", ("DROP DATABASE failed; generating DROP TABLE statement(s) in the binlog"));
 
       if (!(query= (char*) thd->alloc(MAX_DROP_TABLE_Q_LEN)))
@@ -596,16 +634,8 @@ update_binlog:
       query_pos= query_data_start= my_stpcpy(query,"DROP TABLE IF EXISTS ");
       query_end= query + MAX_DROP_TABLE_Q_LEN;
 
-      for (TABLE_LIST *tbl= tables; tbl; tbl= tbl->next_local)
+      for (const TABLE_LIST *tbl : dropped_atomic)
       {
-        // Only write drop table to the binlog for tables that no longer exist.
-        bool exists;
-        if (check_if_table_exists(thd, tbl, &exists))
-          DBUG_RETURN(true);
-
-        if (exists)
-          continue;
-
         /* 3 for the quotes and the comma*/
         size_t tbl_name_len= strlen(tbl->table_name) + 3;
         if (query_pos + tbl_name_len + 1 >= query_end)
@@ -644,25 +674,12 @@ update_binlog:
                             db.length))
           DBUG_RETURN(true);
       }
+#endif
     }
-  }
-
-  /*
-    We have postponed generating the error until now, since if the
-    error ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID occurs we
-    should report that instead.
-  */
-  if (found_other_files)
-  {
-    char errbuf[MYSQL_ERRMSG_SIZE];
-    my_error(ER_DB_DROP_RMDIR, MYF(0), path, EEXIST,
-               my_strerror(errbuf, MYSQL_ERRMSG_SIZE, EEXIST));
     DBUG_RETURN(true);
   }
 
-  if (error)
-    DBUG_RETURN(true);
-
+dropped_ok:
   /*
     If this database was the client's selected database, we silently
     change the client's selected database to nothing (to have an empty
@@ -689,19 +706,23 @@ update_binlog:
 }
 
 
-static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
-                                              const char *db,
-                                              const char *path,
-                                              TABLE_LIST **tables,
-                                              bool *found_other_files)
+/**
+  Auxiliary function which checks if database directory has any
+  files which won't be deleted automatically - either because
+  we know that these are temporary/backup files which are safe
+  for delete or by dropping the tables in the database.
+  Also deletes various temporary/backup files which are known to
+  be safe to delete.
+*/
+
+static bool
+find_unknown_and_remove_deletable_files(THD *thd, MY_DIR *dirp,
+                                        const char *path)
 {
   char filePath[FN_REFLEN];
-  TABLE_LIST *tot_list=0, **tot_list_next_local, **tot_list_next_global;
-  DBUG_ENTER("find_db_tables_and_rm_known_files");
+  DBUG_ENTER("rm_known_files");
   DBUG_PRINT("enter",("path: %s", path));
   TYPELIB *known_extensions= ha_known_exts();
-
-  tot_list_next_local= tot_list_next_global= &tot_list;
 
   for (uint idx=0 ;
        idx < dirp->number_off_files && !thd->killed ;
@@ -734,15 +755,14 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
 	  DBUG_RETURN(true);
 	continue;
       }
-      *found_other_files= true;
-      continue;
+      goto found_other_files;
     }
     if (!(extension= strrchr(file->name, '.')))
       extension= strend(file->name);
     if (find_type(extension, &deletable_extentions, FIND_TYPE_NO_PREFIX) <= 0)
     {
       if (find_type(extension, known_extensions, FIND_TYPE_NO_PREFIX) <= 0)
-        *found_other_files= true;
+        goto found_other_files;
       continue;
     }
     strxmov(filePath, path, "/", file->name, NullS);
@@ -759,6 +779,29 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
       DBUG_RETURN(true);
     }
   }
+
+  DBUG_RETURN(false);
+
+found_other_files:
+  char errbuf[MYSQL_ERRMSG_SIZE];
+  my_error(ER_DB_DROP_RMDIR, MYF(0), path, EEXIST,
+           my_strerror(errbuf, MYSQL_ERRMSG_SIZE, EEXIST));
+  DBUG_RETURN(true);
+}
+
+
+/**
+  Auxiliary function which retrieves list of all tables in the database
+  from the data-dictionary.
+*/
+
+static bool find_db_tables(THD *thd, const char *db, TABLE_LIST **tables)
+{
+  TABLE_LIST *tot_list=0, **tot_list_next_local, **tot_list_next_global;
+  DBUG_ENTER("find_db_tables");
+
+  tot_list_next_local= tot_list_next_global= &tot_list;
+
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *sch_obj= NULL;
   if (thd->dd_client()->acquire<dd::Schema>(db, &sch_obj))

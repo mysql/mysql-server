@@ -136,12 +136,13 @@ bool update_event_time_and_status(THD *thd, const Event *event,
 /**
   Drop an Event from event metadata table.
 
-  @param thd            Thread handle.
-  @param event          Event to be droppped.
+  @param thd                Thread handle.
+  @param event              Event to be droppped.
+  @param commit_dd_changes  Indicates whether change should be committed.
 
   @retval true if event drop failed.
   @retval false if event drop succeeded.
 */
-bool drop_event(THD *thd, const Event *event);
+bool drop_event(THD *thd, const Event *event, bool commit_dd_changes);
 } // namespace dd
 #endif // DD_EVENT_INCLUDED

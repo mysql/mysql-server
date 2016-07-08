@@ -66,14 +66,16 @@ enum_sp_return_code create_routine(THD *thd, const Schema *schema, sp_head *sp);
 /**
   Removes routine from the DD tables.
 
-  @param[in]  thd     Thread handle.
-  @param[in]  routine Procedure or Function to drop.
+  @param[in]  thd               Thread handle.
+  @param[in]  routine           Procedure or Function to drop.
+  @param[in]  commit_dd_changes Indicates whether change should be committed.
 
   @retval SP_OK      ON SUCCESS
   @retval non-SP_OK  ON FAILURE
 */
 
-enum_sp_return_code remove_routine(THD *thd, const Routine *routine);
+enum_sp_return_code remove_routine(THD *thd, const Routine *routine,
+                                   bool commit_dd_changes);
 
 
 /**
