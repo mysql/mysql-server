@@ -8,11 +8,11 @@
 # like \G or \C (which in turn leads to BUG#36391: "mysqlbinlog creates invalid charset statements".
 #
 # The test executes simple commands that are stored in the binary log and
-# re-execute them through the mysql client which should have to process 
+# re-execute them through the mysql client which should have to process
 # some command shortcuts. The backslashes within strings is disabled in the file
 # rpl_bug36391-master.opt by the option --sql_mode=NO_BACKSLASH_ESCAPES.
 #
-# 
+#
 
 --source include/have_log_bin.inc
 --source include/have_binlog_format_mixed.inc
@@ -34,3 +34,4 @@ SHOW TABLES;
 
 # Clean up
 DROP TABLE t1;
+--remove_file $datadir/master-bin.saved
