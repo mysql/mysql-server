@@ -17,6 +17,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #define SERVICE_H
 
 /**
+ Specific type for the service status return values.
+
+ 0 is FALSE, non-zero is TRUE. Corresponds to C++ bool.
+
+ @sa DEFINE_BOOL_METHOD, DECLARE_BOOL_METHOD
+*/
+typedef int mysql_service_status_t;
+
+/**
   @page PAGE_COMPONENTS_SERVICE A Service and a Service Implementation
 
   The Service is basic concept of the Components subsystem. A Service is a
@@ -97,7 +106,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
   @param args The list of arguments of the method taken in parentheses.
 */
 #define DECLARE_BOOL_METHOD(name, args) \
-  DECLARE_METHOD(bool, name, args)
+  DECLARE_METHOD(mysql_service_status_t, name, args)
 
 /**
   Defines an object type that is meant for carrying handles to the
