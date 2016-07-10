@@ -15,6 +15,7 @@
 
 #include "dd_table.h"
 
+#include "current_thd.h"
 #include "debug_sync.h"                       // DEBUG_SYNC
 #include "default_values.h"                   // max_pack_length
 #include "log.h"                              // sql_print_error
@@ -1697,6 +1698,9 @@ bool rename_table(THD *thd,
   const T *from_tab= NULL;
   const T *to_tab= NULL;
 
+  DBUG_EXECUTE_IF("alter_table_after_rename_1",
+                  DEBUG_SYNC(thd, "before_rename_in_dd"););
+
   // Acquire all objects.
   if (from_mdl_locker.ensure_locked(from_schema_name) ||
       to_mdl_locker.ensure_locked(to_schema_name) ||
@@ -1809,6 +1813,11 @@ bool rename_table(THD *thd,
     return true;
   }
 
+  DBUG_EXECUTE_IF("alter_table_after_rename_1",
+                   DBUG_SET("-d,alter_table_after_rename_1");
+                   DEBUG_SYNC(thd, "after_rename_in_dd"););
+
+
   return trans_commit_stmt(thd) ||
          trans_commit(thd);
 }
@@ -1839,6 +1848,8 @@ bool abstract_table_type(dd::cache::Dictionary_client *client,
   // Assign the table type out parameter.
   DBUG_ASSERT(table_type);
   *table_type= table->type();
+
+  DEBUG_SYNC(current_thd, "after_acquire_abstract_table");
 
   DBUG_RETURN(false);
 }

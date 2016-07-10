@@ -9899,6 +9899,24 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   */
   dd::Table *tmp_table_def;
 
+  /*
+    Take the X metadata lock on temporary name used for new version of
+    the table. This ensures that concurrent I_S queries won't try to open it.
+  */
+
+  MDL_request tmp_name_mdl_request;
+  bool is_tmp_table= (table->s->tmp_table != NO_TMP_TABLE);
+
+  if (!is_tmp_table)
+  {  MDL_REQUEST_INIT(&tmp_name_mdl_request,
+                     MDL_key::TABLE,
+                     alter_ctx.new_db, alter_ctx.tmp_name,
+                     MDL_EXCLUSIVE, MDL_STATEMENT);
+    if (thd->mdl_context.acquire_lock(&tmp_name_mdl_request,
+                                      thd->variables.lock_wait_timeout))
+      DBUG_RETURN(true);
+  }
+
   tmp_disable_binlog(thd);
 
   error= create_table_impl(thd, alter_ctx.new_db, alter_ctx.tmp_name,
@@ -10337,6 +10355,29 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
               current_pid, thd->thread_id());
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, backup_name);
+
+  /*
+    Take the X metadata lock on temporary name used for new version of
+    the table. This ensures that concurrent I_S queries won't try to open it.
+    Assert to ensure we do not come here when ALTERing temporary table.
+  */
+  {
+    DBUG_ASSERT(!is_tmp_table);
+    MDL_request backup_name_mdl_request;
+    MDL_REQUEST_INIT(&backup_name_mdl_request,
+                     MDL_key::TABLE,
+                     alter_ctx.db, backup_name,
+                     MDL_EXCLUSIVE, MDL_STATEMENT);
+    if (thd->mdl_context.acquire_lock(&backup_name_mdl_request,
+                                    thd->variables.lock_wait_timeout))
+    {
+      // Rename to temporary name failed, delete the new table, abort ALTER.
+      (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
+                            alter_ctx.tmp_name, FN_IS_TMP);
+
+      goto err_with_mdl;
+    }
+  }
   if (mysql_rename_table(thd, old_db_type, alter_ctx.db, alter_ctx.table_name,
                          alter_ctx.db, backup_name, FN_TO_IS_TMP))
   {
@@ -10350,6 +10391,10 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                           alter_ctx.tmp_name, FN_IS_TMP);
     goto err_with_mdl;
   }
+
+  DBUG_EXECUTE_IF("alter_table_after_rename",
+                  DBUG_SET("-d,alter_table_after_rename");
+                  DBUG_SET("+d,alter_table_after_rename_1"););
 
   // Rename the new table to the correct name.
   if (mysql_rename_table(thd, new_db_type, alter_ctx.new_db, alter_ctx.tmp_name,

@@ -4768,6 +4768,8 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
       if (res)
         goto err;
 
+      DEBUG_SYNC(thd, "show_after_table_list_prep");
+
       List_iterator_fast<LEX_STRING> it_files(table_names);
       while ((table_name= it_files++))
       {
