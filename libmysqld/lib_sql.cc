@@ -341,6 +341,12 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
   THD *thd;
   my_bool res;
 
+  if (stmt->param_count && !stmt->bind_param_done)
+  {
+    set_stmt_error(stmt, CR_PARAMS_NOT_BOUND, unknown_sqlstate, NULL);
+    DBUG_RETURN(1);
+  }
+
   int4store(header, stmt->stmt_id);
   header[4]= (uchar) stmt->flags;
   thd= (THD*)stmt->mysql->thd;
