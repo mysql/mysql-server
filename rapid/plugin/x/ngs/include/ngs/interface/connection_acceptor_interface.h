@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,14 +17,23 @@
  * 02110-1301  USA
  */
 
+#ifndef _NGS_CONNECTION_ACCEPTOR_INTERFACE_H_
+#define _NGS_CONNECTION_ACCEPTOR_INTERFACE_H_
 
-// this will put the boost::error_code code in this file, which will allow us to
-// use boost::system::error_code without linking to libboost_system
+#include "violite.h"
 
-#define BOOST_SYSTEM_SOURCE
 
-#include <boost/system/error_code.hpp>
+namespace ngs
+{
 
-#ifndef BOOST_ERROR_CODE_HEADER_ONLY
-#include <boost/system/detail/error_code.ipp>
-#endif
+class Connection_acceptor_interface
+{
+public:
+  virtual ~Connection_acceptor_interface() {};
+
+  virtual Vio *accept() = 0;
+};
+
+} // namespace ngs
+
+#endif // _NGS_CONNECTION_ACCEPTOR_INTERFACE_H_

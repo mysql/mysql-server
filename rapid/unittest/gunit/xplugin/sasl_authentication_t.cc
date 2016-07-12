@@ -26,7 +26,6 @@
 
 #include <stdexcept>
 #include <boost/scoped_ptr.hpp>
-#include <boost/system/error_code.hpp>
 
 
 namespace xpl
@@ -49,8 +48,9 @@ public:
     mock_options_session.reset(new StrictMock<ngs::test::Mock_options_session>());
     sut = Auth_type::create(mock_session.get());
 
-    ON_CALL(mock_data_context, authenticate(_, _, _, _, _, _, _)).WillByDefault(Return(default_error));
+    ON_CALL(mock_data_context, authenticate(_, _, _, _, _, _, _, _)).WillByDefault(Return(default_error));
     EXPECT_CALL(mock_connection, options()).WillRepeatedly(Return(ngs::IOptions_session_ptr(mock_options_session.get(), Custom_allocator_with_check<ngs::IOptions_session>(boost::none))));
+    EXPECT_CALL(mock_connection, connection_type()).WillRepeatedly(Return(ngs::Connection_tls));
     EXPECT_CALL(mock_client, connection()).WillRepeatedly(ReturnRef(mock_connection));
     EXPECT_CALL(*mock_session, data_context()).WillRepeatedly(ReturnRef(mock_data_context));
   }
@@ -129,7 +129,7 @@ TEST_F(ExpectedValuesSaslAuthenticationTestSuite, handleStart_autenticateAndRetu
   std::string sasl_login_string = expected_login;
 
   EXPECT_CALL(mock_client, client_address()).WillOnce(Return(expected_host));
-  EXPECT_CALL(mock_client, client_hostname()).WillOnce(ReturnRef(expected_hostname));
+  EXPECT_CALL(mock_client, client_hostname()).WillOnce(Return(expected_hostname.c_str()));
   ngs::Authentication_handler::Response result = sut->handle_start("", sasl_login_string, "");
 
   assert_responce(result, "Invalid user or password", ngs::Authentication_handler::Failed, ER_NO_SUCH_USER);
@@ -141,7 +141,7 @@ TEST_F(ExpectedValuesSaslAuthenticationTestSuite, handleStart_autenticateAndRetu
   std::string sasl_login_string = "some data" + sasl_separator + "some data";
 
   EXPECT_CALL(mock_client, client_address()).WillOnce(Return(expected_host));
-  EXPECT_CALL(mock_client, client_hostname()).WillOnce(ReturnRef(expected_hostname));
+  EXPECT_CALL(mock_client, client_hostname()).WillOnce(Return(expected_hostname.c_str()));
   ngs::Authentication_handler::Response result = sut->handle_start("", sasl_login_string, "");
 
   assert_responce(result, "Invalid user or password", ngs::Authentication_handler::Failed, ER_NO_SUCH_USER);
@@ -154,7 +154,7 @@ TEST_F(ExpectedValuesSaslAuthenticationTestSuite, handleStart_autenticateAndRetu
   std::string sasl_login_string = get_sasl_message(empty_user, expected_password, "autorize_as");
 
   EXPECT_CALL(mock_client, client_address()).WillOnce(Return(expected_host));
-  EXPECT_CALL(mock_client, client_hostname()).WillOnce(ReturnRef(expected_hostname));
+  EXPECT_CALL(mock_client, client_hostname()).WillOnce(Return(expected_hostname.c_str()));
   ngs::Authentication_handler::Response result = sut->handle_start("", sasl_login_string, "");
 
   assert_responce(result, "Invalid user or password", ngs::Authentication_handler::Failed, ER_NO_SUCH_USER);
@@ -167,8 +167,9 @@ TEST_F(ExpectedValuesSaslAuthenticationTestSuite, handleStart_autenticateAndRetu
   std::string sasl_login_string = get_sasl_message(expected_login, empty_password);
 
   EXPECT_CALL(mock_client, client_address()).WillOnce(Return(expected_host));
-  EXPECT_CALL(mock_client, client_hostname()).WillOnce(ReturnRef(expected_hostname));
-  EXPECT_CALL(mock_data_context, authenticate(StrEq(expected_login), StrEq(expected_hostname.c_str()), StrEq(expected_host), StrEq(""), _, false, _))
+  EXPECT_CALL(mock_client, supports_expired_passwords()).WillOnce(Return(false));
+  EXPECT_CALL(mock_client, client_hostname()).WillOnce(Return(expected_hostname.c_str()));
+  EXPECT_CALL(mock_data_context, authenticate(StrEq(expected_login), StrEq(expected_hostname.c_str()), StrEq(expected_host), StrEq(""), _, false, _, ngs::Connection_tls))
       .WillOnce(Return(ec_success));
 
   ngs::Authentication_handler::Response result = sut->handle_start("", sasl_login_string, "");
@@ -182,8 +183,9 @@ TEST_F(ExpectedValuesSaslAuthenticationTestSuite, handleStart_autenticateAndRetu
   std::string sasl_login_string = get_sasl_message(expected_login, expected_password, expected_database);
 
   EXPECT_CALL(mock_client, client_address()).WillOnce(Return(expected_host));
-  EXPECT_CALL(mock_client, client_hostname()).WillOnce(ReturnRef(expected_hostname));
-  EXPECT_CALL(mock_data_context, authenticate(StrEq(expected_login), StrEq(expected_hostname), StrEq(expected_host),StrEq(expected_database), _, false, _))
+  EXPECT_CALL(mock_client, supports_expired_passwords()).WillOnce(Return(false));
+  EXPECT_CALL(mock_client, client_hostname()).WillOnce(Return(expected_hostname.c_str()));
+  EXPECT_CALL(mock_data_context, authenticate(StrEq(expected_login), StrEq(expected_hostname), StrEq(expected_host),StrEq(expected_database), _, false, _, ngs::Connection_tls))
     .WillOnce(Return(ec_success));
 
   ngs::Authentication_handler::Response result = sut->handle_start("", sasl_login_string, "");
@@ -197,8 +199,9 @@ TEST_F(ExpectedValuesSaslAuthenticationTestSuite, handleStart_autenticateAndRetu
   std::string sasl_login_string = get_sasl_message(expected_login, expected_password, expected_database);
 
   EXPECT_CALL(mock_client, client_address()).WillOnce(Return(expected_host));
-  EXPECT_CALL(mock_client, client_hostname()).WillOnce(ReturnRef(expected_hostname));
-  EXPECT_CALL(mock_data_context, authenticate(StrEq(expected_login), StrEq(expected_host), StrEq(expected_host),StrEq(expected_database), _, false, _))
+  EXPECT_CALL(mock_client, client_hostname()).WillOnce(Return(expected_hostname.c_str()));
+  EXPECT_CALL(mock_client, supports_expired_passwords()).WillOnce(Return(false));
+  EXPECT_CALL(mock_data_context, authenticate(StrEq(expected_login), StrEq(expected_host), StrEq(expected_host),StrEq(expected_database), _, false, _, ngs::Connection_tls))
     .WillOnce(Return(ec_failur));
 
   ngs::Authentication_handler::Response result = sut->handle_start("", sasl_login_string, "");
@@ -212,16 +215,23 @@ class Partialmock_Sasl_auth : public Sasl_plain_auth
 public:
   Partialmock_Sasl_auth(xpl::Session *session) : Sasl_plain_auth(session) {}
 
-  static ngs::Authentication_handler_ptr create(ngs::Session *session)
+  static ngs::Authentication_handler_ptr create(ngs::Session_interface *session)
   {
     return Authentication_handler::wrap_ptr(new Partialmock_Sasl_auth((xpl::Session*)session));
   }
 
-  MOCK_METHOD0(done, void ());
-
-  void DoDone()
+  bool DoDone()
   {
     Sasl_plain_auth::done();
+
+    return true;
+  }
+
+  // Workaround for GMOCK undefined behaviour with ResultHolder
+  MOCK_METHOD0(done_void, bool ());
+  void done()
+  {
+    done_void();
   }
 };
 
@@ -234,7 +244,7 @@ TEST_F(PartialMockSaslAuthenticationTestSuite, smartPtrDestructor_callsDoneMetho
   Partialmock_Sasl_auth *mock_sut = dynamic_cast<Partialmock_Sasl_auth*>(sut.get());
 
   // Check call to object and ensure that its delete by calling base method
-  EXPECT_CALL(*mock_sut, done()).WillOnce(InvokeWithoutArgs(mock_sut, &Partialmock_Sasl_auth::DoDone));
+  EXPECT_CALL(*mock_sut, done_void()).WillOnce(InvokeWithoutArgs(mock_sut, &Partialmock_Sasl_auth::DoDone));
 }
 
 

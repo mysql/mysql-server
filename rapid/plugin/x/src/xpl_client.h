@@ -21,8 +21,8 @@
 #define _XPL_CLIENT_H_
 
 
-#include "ngs/protocol_monitor.h"
 #include "ngs/client.h"
+#include "ngs/protocol_monitor.h"
 
 struct st_mysql_show_var;
 
@@ -32,7 +32,7 @@ namespace xpl
 
   class Client;
 
-  class Protocol_monitor : public ngs::IProtocol_monitor
+  class Protocol_monitor : public ngs::Protocol_monitor_interface
   {
   public:
     Protocol_monitor() : m_client(0) {}
@@ -54,12 +54,22 @@ namespace xpl
   class Client : public ngs::Client
   {
   public:
-    Client(ngs::Connection_ptr connection, ngs::IServer *server, Client_id client_id, Protocol_monitor *pmon);
+    Client(ngs::Connection_ptr connection, ngs::Server_interface &server, Client_id client_id, Protocol_monitor *pmon);
     virtual ~Client();
 
-    virtual void on_session_close(ngs::Session *s);
-    virtual void on_session_reset(ngs::Session *s);
+  public: // impl ngs::Client_interface
+    virtual void on_session_close(ngs::Session_interface &s);
+    virtual void on_session_reset(ngs::Session_interface &s);
 
+    virtual void on_server_shutdown();
+    virtual void on_auth_timeout();
+
+  public: // impl ngs::Client
+    virtual void on_network_error(int error);
+    virtual std::string resolve_hostname(const std::string &ip);
+    virtual ngs::Capabilities_configurator *capabilities_configurator();
+
+  public:
     void set_supports_expired_passwords(bool flag);
     bool supports_expired_passwords();
     bool is_handler_thd(THD *thd);
@@ -67,23 +77,14 @@ namespace xpl
     void get_status_ssl_cipher_list(st_mysql_show_var *var);
 
     void kill();
-
     boost::shared_ptr<xpl::Session> get_session();
 
-  protected:
-    virtual void on_network_error(int error);
-
-    virtual void on_server_shutdown();
-    virtual void on_auth_timeout();
-
-    virtual void post_activate_tls();
-    virtual bool is_localhost(const char *);
 
   private:
+    bool is_localhost(const char *hostname);
+
     bool m_supports_expired_passwords;
     Protocol_monitor *m_protocol_monitor;
-
-    virtual ngs::Capabilities_configurator *capabilities_configurator();
   };
 
   typedef boost::shared_ptr<Client> Client_ptr;
@@ -91,4 +92,4 @@ namespace xpl
 } // namespace xpl
 
 
-#endif
+#endif // _XPL_CLIENT_H_

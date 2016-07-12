@@ -28,22 +28,23 @@
 namespace ngs
 {
 
-  struct Protocol_config
+class Protocol_config
+{
+public:
+  uint32_t  default_max_frame_size;
+  uint32_t max_message_size;
+
+  seconds  connect_timeout;
+  milliseconds connect_timeout_hysteresis;
+
+  Protocol_config()
+  : default_max_frame_size(16*1024*1024),
+    max_message_size(16*1024*1024),
+    connect_timeout(not_a_date_time),
+    connect_timeout_hysteresis(100)
   {
-    uint32_t  default_max_frame_size;
-    uint32_t max_message_size;
-
-    seconds  connect_timeout;
-    milliseconds connect_timeout_hysteresis;
-
-    Protocol_config()
-    : default_max_frame_size(16*1024*1024),
-      max_message_size(16*1024*1024),
-      connect_timeout(not_a_date_time),
-      connect_timeout_hysteresis(100)
-    {
-    }
-  };
+  }
+};
 
 } // namespace ngs
 

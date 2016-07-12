@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,14 +17,26 @@
  * 02110-1301  USA
  */
 
+#ifndef _NGS_HANDLER_INTERFACE_H_
+#define _NGS_HANDLER_INTERFACE_H_
 
-// this will put the boost::error_code code in this file, which will allow us to
-// use boost::system::error_code without linking to libboost_system
+#include "violite.h"
+#include "ngs/thread.h"
+#include <boost/function.hpp>
 
-#define BOOST_SYSTEM_SOURCE
+namespace ngs
+{
 
-#include <boost/system/error_code.hpp>
+class Server_task_interface
+{
+public:
+  virtual ~Server_task_interface() {}
 
-#ifndef BOOST_ERROR_CODE_HEADER_ONLY
-#include <boost/system/detail/error_code.ipp>
-#endif
+  virtual void pre_loop() = 0;
+  virtual void post_loop() = 0;
+  virtual void loop() = 0;
+};
+
+} // namespace ngs
+
+#endif // _NGS_HANDLER_INTERFACE_H_
