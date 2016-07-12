@@ -2614,15 +2614,6 @@ extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused)))
 #endif // !EMBEDDED_LIBRARY
 
 
-#if defined(HAVE_BACKTRACE) && defined(HAVE_ABI_CXA_DEMANGLE)
-#include <cxxabi.h>
-extern "C" char *my_demangle(const char *mangled_name, int *status)
-{
-  return abi::__cxa_demangle(mangled_name, NULL, NULL, status);
-}
-#endif
-
-
 /**
   All global error messages are sent here where the first one is stored
   for the client.

@@ -182,11 +182,10 @@ void my_print_stacktrace(uchar* stack_bottom MY_ATTRIBUTE((unused)),
 
 #ifdef HAVE_ABI_CXA_DEMANGLE
 
-char MY_ATTRIBUTE ((weak)) *
-my_demangle(const char *mangled_name MY_ATTRIBUTE((unused)),
-            int *status MY_ATTRIBUTE((unused)))
+#include <cxxabi.h>
+static char *my_demangle(const char *mangled_name, int *status)
 {
-  return NULL;
+  return abi::__cxa_demangle(mangled_name, NULL, NULL, status);
 }
 
 
