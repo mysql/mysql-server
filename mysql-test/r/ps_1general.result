@@ -788,3 +788,5 @@ execute stmt1;
 1
 drop prepare stmt1;
 drop table t1;
+select ?+1;
+Got one of the listed errors

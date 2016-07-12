@@ -936,3 +936,10 @@ drop table t1;
 #     Matthias
 
 # End of 4.1 tests
+
+#
+# MDEV-10318 unset params in --ps --embedded
+#
+--error ER_PARSE_ERROR,2031
+select ?+1;
+
