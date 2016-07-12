@@ -18,12 +18,11 @@
  */
 
 #include "mysqlx_crud.h"
-#include "mysqlx_connection.h"
-#include "ngs_common/protocol_protobuf.h"
-
+#include "mysqlx_session.h"
+#include "mysqlx_protocol.h"
 #include "mysqlx_parser.h"
+#include "mysqlx_resultset.h"
 
-#include "compilerutils.h"
 #include <boost/algorithm/string.hpp>
 
 #define CONTENT_TYPE_GEOMETRY 0x0001
@@ -252,7 +251,7 @@ boost::shared_ptr<Result> Find_Base::execute()
 
   SessionRef session(m_coll->schema()->session());
 
-  boost::shared_ptr<Result> result(session->connection()->execute_find(*m_find));
+  boost::shared_ptr<Result> result(session->protocol()->execute_find(*m_find));
 
   // wait for results (at least metadata) to arrive
   result->wait();
@@ -363,11 +362,11 @@ boost::shared_ptr<Result> Add_Base::execute()
   boost::shared_ptr<Result> result;
   if (m_insert->mutable_row()->size())
   {
-    result = session->connection()->execute_insert(*m_insert);
+    result = session->protocol()->execute_insert(*m_insert);
     result->wait();
   }
   else
-    result = session->connection()->new_empty_result();
+    result = session->protocol()->new_empty_result();
 
   result->setLastDocumentIDs(m_last_document_ids);
   m_last_document_ids.clear();
@@ -450,7 +449,7 @@ boost::shared_ptr<Result> Remove_Base::execute()
 
   SessionRef session(m_coll->schema()->session());
 
-  boost::shared_ptr<Result> result(session->connection()->execute_delete(*m_delete));
+  boost::shared_ptr<Result> result(session->protocol()->execute_delete(*m_delete));
 
   result->wait();
 
@@ -512,7 +511,7 @@ boost::shared_ptr<Result> Modify_Base::execute()
 
   SessionRef session(m_coll->schema()->session());
 
-  boost::shared_ptr<Result> result(session->connection()->execute_update(*m_update));
+  boost::shared_ptr<Result> result(session->protocol()->execute_update(*m_update));
 
   result->wait();
 
@@ -701,11 +700,6 @@ Mysqlx::Datatypes::Scalar* Table_Statement::convert_table_value(const TableValue
   return my_scalar;
 }
 
-//Collection_Statement &Collection_Statement::bind(const std::string &UNUSED(name), const DocumentValue &UNUSED(value))
-//{
-//  return *this;
-//}
-
 Delete_Base::Delete_Base(boost::shared_ptr<Table> table)
 : Table_Statement(table), m_delete(new Mysqlx::Crud::Delete())
 {
@@ -731,7 +725,7 @@ boost::shared_ptr<Result> Delete_Base::execute()
 
   SessionRef session(m_table->schema()->session());
 
-  boost::shared_ptr<Result> result(session->connection()->execute_delete(*m_delete));
+  boost::shared_ptr<Result> result(session->protocol()->execute_delete(*m_delete));
 
   result->wait();
 
@@ -797,7 +791,7 @@ boost::shared_ptr<Result> Update_Base::execute()
 
   SessionRef session(m_table->schema()->session());
 
-  boost::shared_ptr<Result> result(session->connection()->execute_update(*m_update));
+  boost::shared_ptr<Result> result(session->protocol()->execute_update(*m_update));
 
   result->wait();
 
@@ -890,7 +884,7 @@ boost::shared_ptr<Result> Select_Base::execute()
 
   SessionRef session(m_table->schema()->session());
 
-  boost::shared_ptr<Result> result(session->connection()->execute_find(*m_find));
+  boost::shared_ptr<Result> result(session->protocol()->execute_find(*m_find));
 
   // wait for results (at least metadata) to arrive
   result->wait();
@@ -987,7 +981,7 @@ boost::shared_ptr<Result> Insert_Base::execute()
 
   SessionRef session(m_table->schema()->session());
 
-  boost::shared_ptr<Result> result(session->connection()->execute_insert(*m_insert));
+  boost::shared_ptr<Result> result(session->protocol()->execute_insert(*m_insert));
 
   result->wait();
 

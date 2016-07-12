@@ -18,18 +18,15 @@
  */
 
 #include "ngs/client.h"
-#include "ngs/server.h"
 #include "ngs/scheduler.h"
-#include "ngs/client_session.h"
+#include "ngs/interface/server_interface.h"
+#include "ngs/interface/session_interface.h"
 #include "ngs/capabilities/handler_tls.h"
 #include "ngs/capabilities/handler_auth_mech.h"
 #include "ngs/capabilities/handler_readonly_value.h"
 #include "ngs/protocol/protocol_config.h"
 #include "ngs/protocol_monitor.h"
 #include "ngs/ngs_error.h"
-
-// needed for ip_to_hostname(), should probably be turned into a service
-#include "hostname.h"
 
 #include <string.h>
 #include <algorithm>
@@ -43,14 +40,13 @@
 #undef ERROR // Needed to avoid conflict with ERROR in mysqlx.pb.h
 #include "ngs_common/protocol_protobuf.h"
 
-#include "mysql/service_my_snprintf.h"
 
 using namespace ngs;
 
-
-boost::atomics::atomic<int32_t> Client::num_of_instances(0);
-
-Client::Client(Connection_ptr connection, IServer *server, Client_id client_id, IProtocol_monitor &pmon)
+Client::Client(Connection_ptr connection,
+               Server_interface &server,
+               Client_id client_id,
+               Protocol_monitor_interface &pmon)
 : m_client_id(client_id),
   m_server(server),
   m_connection(connection),
@@ -62,7 +58,6 @@ Client::Client(Connection_ptr connection, IServer *server, Client_id client_id, 
   m_protocol_monitor(pmon),
   m_close_reason(Not_closing)
 {
-  ++num_of_instances;
   my_snprintf(m_id, sizeof(m_id), "%llu", static_cast<ulonglong>(client_id));
 }
 
@@ -74,7 +69,6 @@ Client::~Client()
     m_connection->close();
 
   delete m_encoder;
-  --num_of_instances;
 }
 
 
@@ -87,7 +81,7 @@ void Client::reset_accept_time(const Client_state new_state)
 {
   m_state.exchange(new_state);
   m_accept_time = microsec_clock::universal_time();
-  m_server->restart_client_supervision_timer();
+  m_server.restart_client_supervision_timer();
 }
 
 
@@ -95,8 +89,11 @@ void Client::activate_tls()
 {
   log_debug("%s: enabling TLS for client", client_id());
 
-  if (m_server->ssl_context()->activate_tls(connection(), m_server->config()->connect_timeout.total_seconds()))
-    post_activate_tls();
+  if (m_server.ssl_context()->activate_tls(connection(), m_server.get_config()->connect_timeout.total_seconds()))
+  {
+    if (connection().options()->active_tls())
+      session()->mark_as_tls_session();
+  }
   else
   {
     log_warning("%s: Error during SSL handshake", client_id());
@@ -179,11 +176,11 @@ void Client::handle_message(Request &request)
 
     case Mysqlx::ClientMessages::SESS_AUTHENTICATE_START:
       if (m_state.compare_exchange_strong(expected_state, Client_authenticating_first) &&
-          server()->is_running())
+          server().is_running())
       {
         log_debug("%s: Authenticating client...", client_id());
 
-        boost::shared_ptr<Session> s(session());
+        boost::shared_ptr<Session_interface> s(session());
         // start redirecting incoming messages directly to the session
         if (s)
         {
@@ -233,13 +230,13 @@ void Client::on_network_error(int error)
   {
     // trigger all sessions to close and stop whatever they're doing
     log_debug("%s: killing session", client_id());
-    if (Session::Closing != m_session->state())
-      server()->worker_scheduler()->post_and_wait(boost::bind(&Client::on_kill, this, boost::ref(*m_session)));
+    if (Session_interface::Closing != m_session->state())
+      server().get_worker_scheduler()->post_and_wait(boost::bind(&Client::on_kill, this, boost::ref(*m_session)));
   }
 }
 
 
-void Client::on_kill(Session &session)
+void Client::on_kill(Session_interface &session)
 {
   m_session->on_kill();
 }
@@ -248,49 +245,52 @@ void Client::on_kill(Session &session)
 void Client::remove_client_from_server()
 {
   if (false == m_removed.exchange(true))
-    m_server->on_client_closed(shared_from_this());
+    m_server.on_client_closed(*this);
 }
 
 
-void Client::on_accept(const bool skip_resolve, const struct sockaddr_in *client_addr)
+void Client::on_client_addr(const bool skip_resolve)
 {
   m_client_addr.resize(INET6_ADDRSTRLEN);
-  if (client_addr->sin_family == AF_INET)
+
+  switch(m_connection->connection_type())
   {
-    inet_ntop(client_addr->sin_family, (void*)&client_addr->sin_addr,
-              &m_client_addr[0], m_client_addr.size());
-    m_client_port = ntohs(client_addr->sin_port);
+  case Connection_tcpip:
+  {
+    m_connection->peer_address(m_client_addr, m_client_port);
   }
-  else
-  {
-    inet_ntop(client_addr->sin_family, &((struct sockaddr_in6*)client_addr)->sin6_addr,
-            &m_client_addr[0], m_client_addr.size());
-    m_client_port = ntohs(((struct sockaddr_in6*)client_addr)->sin6_port);
+  break;
+
+  case Connection_namedpipe:
+  case Connection_unixsocket: // fall through
+    m_client_host = "localhost";
+    return;
+
+  default:
+    return;
   }
 
   // turn IP to hostname for auth uses
-  if (!skip_resolve)
+  if (skip_resolve)
+    return;
+
+  m_client_host = "";
+
+  try
   {
-    char *hostname = NULL;
-    uint connect_errors;
-    int rc = ip_to_hostname((struct sockaddr_storage*)client_addr, m_client_addr.c_str(), &hostname, &connect_errors);
-
-    if (rc == RC_BLOCKED_HOST)
-    {
-      log_info("%s: Client rejected: blocked host %s\n", client_id(), m_client_addr.c_str());
-      m_close_reason = Close_reject;
-      disconnect_and_trigger_close();
-      return;
-    }
-    if (hostname)
-    {
-      m_client_host = hostname;
-
-      if (!is_localhost(hostname))
-        my_free(hostname);
-    }
+    m_client_host = resolve_hostname(m_client_addr);
   }
+  catch(...)
+  {
+    m_close_reason = Close_reject;
+    disconnect_and_trigger_close();
 
+    throw;
+  }
+}
+
+void Client::on_accept()
+{
   log_debug("%s: Accepted client connection from %s", client_id(), client_address());
 
   // it can be accessed directly (no other thread access thus object)
@@ -301,7 +301,7 @@ void Client::on_accept(const bool skip_resolve, const struct sockaddr_in *client
 
   // pre-allocate the initial session
   // this is also needed for the srv_session to correctly report us to the audit.log as in the Pre-authenticate state
-  boost::shared_ptr<Session> session(m_server->create_session(shared_from_this(), m_encoder, 1));
+  boost::shared_ptr<Session_interface> session(m_server.create_session(*this, *m_encoder, 1));
   if (!session)
   {
     log_warning("%s: Error creating session for connection from %s", client_id(), m_client_addr.c_str());
@@ -326,7 +326,7 @@ void Client::on_accept(const bool skip_resolve, const struct sockaddr_in *client
   }
 }
 
-void Client::on_session_auth_success(Session *s)
+void Client::on_session_auth_success(Session_interface &s)
 {
   // this is called from worker thread
   Client_state expected = Client_authenticating_first;
@@ -334,9 +334,9 @@ void Client::on_session_auth_success(Session *s)
 }
 
 
-void Client::on_session_close(Session *s)
+void Client::on_session_close(Session_interface &s)
 {
-  log_debug("%s: Session %i removed", client_id(), s->session_id());
+  log_debug("%s: Session %i removed", client_id(), s.session_id());
 
   // no more open sessions, disconnect
   if (m_close_reason == Not_closing)
@@ -350,12 +350,12 @@ void Client::on_session_close(Session *s)
 }
 
 
-void Client::on_session_reset(Session *s)
+void Client::on_session_reset(Session_interface &s)
 {
-  log_debug("%s: Resetting session %i", client_id(), s->session_id());
+  log_debug("%s: Resetting session %i", client_id(), s.session_id());
 
   m_state = Client_accepted_with_session;
-  boost::shared_ptr<Session> session(m_server->create_session(shared_from_this(), m_encoder, 1));
+  boost::shared_ptr<Session_interface> session(m_server.create_session(*this, *m_encoder, 1));
   if (!session)
   {
     log_warning("%s: Error creating session for connection from %s", client_id(), m_client_addr.c_str());
@@ -386,6 +386,11 @@ void Client::on_server_shutdown()
   log_info("%s: closing client because of shutdown (state: %i)", client_id(), m_state.load());
   //XXX send a server shutdown notice
   disconnect_and_trigger_close();
+}
+
+Protocol_monitor_interface &Client::get_protocol_monitor()
+{
+  return m_protocol_monitor;
 }
 
 void Client::shutdown_connection()
@@ -444,9 +449,9 @@ Request_unique_ptr Client::read_one_message(Error_code &ret_error)
   msg_size = *pdata;
   int8_t type = (int8_t)buffer[4];
 
-  if (msg_size > m_server->config()->max_message_size)
+  if (msg_size > m_server.get_config()->max_message_size)
   {
-    log_warning("%s: Message of size %u received, exceeding the limit of %i", client_id(), msg_size, m_server->config()->max_message_size);
+    log_warning("%s: Message of size %u received, exceeding the limit of %i", client_id(), msg_size, m_server.get_config()->max_message_size);
     // invalid message size
     // Don't send error, just abort connection
     //ret_error = Fatal(ER_X_BAD_MESSAGE, "Message too large");
@@ -494,13 +499,14 @@ Request_unique_ptr Client::read_one_message(Error_code &ret_error)
 }
 
 
-void Client::run(bool skip_name_resolve, struct sockaddr_in client_addr)
+void Client::run(const bool skip_name_resolve)
 {
-  on_accept(skip_name_resolve, &client_addr);
-
-  while (m_state != Client_closing && m_session)
+  try
   {
-    try
+    on_client_addr(skip_name_resolve);
+    on_accept();
+
+    while (m_state != Client_closing && m_session)
     {
       Error_code error;
       Request_unique_ptr message(read_one_message(error));
@@ -517,7 +523,7 @@ void Client::run(bool skip_name_resolve, struct sockaddr_in client_addr)
         disconnect_and_trigger_close();
         break;
       }
-      boost::shared_ptr<Session> s(session());
+      boost::shared_ptr<Session_interface> s(session());
       if (m_state != Client_accepted && s)
       {
         // pass the message to the session
@@ -526,15 +532,14 @@ void Client::run(bool skip_name_resolve, struct sockaddr_in client_addr)
       else
         handle_message(*message);
     }
-    catch (std::exception &e)
-    {
-      log_error("%s: Exception in client event loop: %s", client_id(), e.what());
-      break;
-    }
+  }
+  catch (std::exception &e)
+  {
+    log_error("%s: Force stopping client because exception occurred: %s", client_id(), e.what());
   }
 
   {
-    Mutex_lock lock(server()->get_client_exit_mutex());
+    Mutex_lock lock(server().get_client_exit_mutex());
     m_state = Client_closed;
 
     remove_client_from_server();

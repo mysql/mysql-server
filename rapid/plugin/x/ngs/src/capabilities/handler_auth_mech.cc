@@ -17,44 +17,37 @@
  * 02110-1301  USA
  */
 
-
-#include "ngs/capabilities/handler_auth_mech.h"
-
 #include "ngs_common/connection_vio.h"
+#include "ngs/interface/client_interface.h"
+#include "ngs/interface/server_interface.h"
+#include "ngs/capabilities/handler_auth_mech.h"
 #include "ngs/mysqlx/setter_any.h"
-#include "ngs/client.h"
-#include "ngs/server.h"
 
 
 namespace ngs
 {
-
 
 bool Capability_auth_mech::is_supported() const
 {
   return true;
 }
 
-
 void Capability_auth_mech::get(::Mysqlx::Datatypes::Any &any)
 {
   std::vector<std::string> auth_mechs;
 
-  m_client.server()->get_authentication_mechanisms(auth_mechs, m_client);
+  m_client.server().get_authentication_mechanisms(auth_mechs, m_client);
 
   Setter_any::set_array(any, auth_mechs);
 }
-
 
 bool Capability_auth_mech::set(const ::Mysqlx::Datatypes::Any &any)
 {
   return false;
 }
 
-
 void Capability_auth_mech::commit()
 {
 }
-
 
 } // namespace ngs

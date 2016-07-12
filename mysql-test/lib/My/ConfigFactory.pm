@@ -134,6 +134,13 @@ sub fix_server_id {
   return $server_id;
 }
 
+sub fix_x_socket {
+  my $result = fix_socket(@_);
+  $result =~ s/mysqld\.([0-9]+)\.sock$/mysqlx\.$1\.sock/;
+
+  return $result;
+}
+
 sub fix_socket {
   my ($self, $config, $group_name, $group)= @_;
   # Put socket file in tmpdir
@@ -148,6 +155,7 @@ sub fix_socket {
     my $port = $group->value('port');
     $socket = "$dir/mysqld-$port.sock"; 
   }
+
   return $socket;
 }
 
@@ -257,6 +265,7 @@ my @mysqld_rules=
  { '#host' => \&fix_host },
  { 'port' => \&fix_port },
  { 'socket' => \&fix_socket },
+ { 'loose-mysqlx-socket' => \&fix_x_socket },
  { '#log-error' => \&fix_log_error },
  { 'general_log' => 1 },
  { 'general_log_file' => \&fix_log },
@@ -272,6 +281,7 @@ my @mysqld_rules=
  { 'ssl-key' => \&fix_ssl_server_key },
  { 'loose-sha256_password_auto_generate_rsa_keys' => "0"},
   );
+
 
 if (IS_WINDOWS)
 {

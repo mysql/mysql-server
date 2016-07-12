@@ -20,6 +20,8 @@
 #ifndef _USER_VERIFICATION_HELPER_H_
 #define _USER_VERIFICATION_HELPER_H_
 
+#include "ngs_common/connection_type.h"
+
 #include "sql_data_context.h"
 #include "sql_user_require.h"
 #include "query_string_builder.h"
@@ -30,13 +32,14 @@ namespace xpl
   class User_verification_helper
   {
   public:
-    User_verification_helper(const On_user_password_hash &hash_verification_cb, const Command_delegate::Field_types &fields_type, const char *ip, ngs::IOptions_session_ptr &options_session)
-    : m_hash_verification_cb(hash_verification_cb), m_fields_type(fields_type), m_users_ip(ip), m_options_session(options_session)
+    User_verification_helper(const On_user_password_hash &hash_verification_cb, const Command_delegate::Field_types &fields_type, const char *ip, ngs::IOptions_session_ptr &options_session, const ngs::Connection_type type)
+    : m_hash_verification_cb(hash_verification_cb), m_fields_type(fields_type), m_users_ip(ip), m_options_session(options_session), m_type(type)
     {
     }
 
     bool operator() (const Row_data &row)
     {
+      bool require_secure_transport;
       std::string db_user_hostname_or_ip_mask;
       std::string db_password_hash;
       bool is_account_not_locked = false;
@@ -45,18 +48,19 @@ namespace xpl
       bool is_offline_mode_and_isnt_super_user = false;
       Sql_user_require required;
 
-      DBUG_ASSERT(10 == row.fields.size());
+      DBUG_ASSERT(11 == row.fields.size());
 
-      if (!get_string_value(row, 0, db_password_hash) ||
-          !get_bool_from_string_value(row, 1, "N", is_account_not_locked) ||
-          !get_bool_from_int_value(row, 2, is_password_expired) ||
-          !get_bool_from_int_value(row, 3, disconnect_on_expired_password) ||
-          !get_bool_from_int_value(row, 4, is_offline_mode_and_isnt_super_user) ||
-          !get_string_value(row, 5, db_user_hostname_or_ip_mask) ||
-          !get_string_value(row, 6, required.ssl_type) ||
-          !get_string_value(row, 7, required.ssl_cipher) ||
-          !get_string_value(row, 8, required.ssl_x509_issuer) ||
-          !get_string_value(row, 9, required.ssl_x509_subject))
+      if (!get_bool_from_int_value(row, 0, require_secure_transport) ||
+          !get_string_value(row, 1, db_password_hash) ||
+          !get_bool_from_string_value(row, 2, "N", is_account_not_locked) ||
+          !get_bool_from_int_value(row, 3, is_password_expired) ||
+          !get_bool_from_int_value(row, 4, disconnect_on_expired_password) ||
+          !get_bool_from_int_value(row, 5, is_offline_mode_and_isnt_super_user) ||
+          !get_string_value(row, 6, db_user_hostname_or_ip_mask) ||
+          !get_string_value(row, 7, required.ssl_type) ||
+          !get_string_value(row, 8, required.ssl_cipher) ||
+          !get_string_value(row, 9, required.ssl_x509_issuer) ||
+          !get_string_value(row, 10, required.ssl_x509_subject))
         return false;
 
       if (is_ip_and_ipmask(db_user_hostname_or_ip_mask))
@@ -90,6 +94,12 @@ namespace xpl
             throw ngs::Error(ER_MUST_CHANGE_PASSWORD_LOGIN, "Your password has expired.");
         }
 
+        if (require_secure_transport)
+        {
+          if (!ngs::Connection_type_helper::is_secure_type(m_type))
+            throw ngs::Error(ER_SECURE_TRANSPORT_REQUIRED, "Secure transport required. To log in you must use TCP+SSL or UNIX socket connection.");
+        }
+
         ngs::Error_code error = required.validate(m_options_session);
         if (error)
           throw error;
@@ -113,7 +123,7 @@ namespace xpl
       //  - disconnect_on_expired_password
       // column `is_offline_mode_and_isnt_super_user` is set true if it
       //  - offline mode and user has not super priv
-      qb.put("/* xplugin authentication */ SELECT `authentication_string`,`account_locked`, "
+      qb.put("/* xplugin authentication */ SELECT @@require_secure_transport, `authentication_string`,`account_locked`, "
           "(`password_expired`!='N') as `is_password_expired`, "
           "@@disconnect_on_expired_password as `disconnect_on_expired_password`, "
           "@@offline_mode and (`Super_priv`='N') as `is_offline_mode_and_isnt_super_user`,"
@@ -241,6 +251,7 @@ namespace xpl
     std::string                          m_users_ip;
     std::string                          m_matched_host;
     ngs::IOptions_session_ptr            &m_options_session;
+    ngs::Connection_type                 m_type;
   };
 
 } // namespace xpl

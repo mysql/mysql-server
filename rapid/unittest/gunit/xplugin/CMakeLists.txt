@@ -71,7 +71,7 @@ INCLUDE_DIRECTORIES(SYSTEM
     ${LIBEVENT_INCLUDE_DIR}
     ${GMOCK_INCLUDE_DIRS}
     ${GTEST_INCLUDE_DIR}
-    ${CMAKE_BINARY_DIR}/rapid/plugin/x/protobuf
+    ${CMAKE_BINARY_DIR}/rapid/plugin/x/generated/protobuf
 )
 
 INCLUDE_DIRECTORIES(
@@ -85,6 +85,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/regex
   ${PROJECT_SOURCE_DIR}/sql
   ${PROJECT_SOURCE_DIR}/include/mysql
+  ${CMAKE_BINARY_DIR}/rapid/plugin/x/generated/
 )
 
 FILE(
@@ -97,7 +98,6 @@ FILE(
   "${CMAKE_CURRENT_SOURCE_DIR}/stubs/misc.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/stubs/plugin.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/test_main.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/boost_code.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/mysqlx_pb_wrapper.cc"
   "${PROJECT_SOURCE_DIR}/rapid/plugin/x/src/mysql_function_names.cc"
   "${PROJECT_SOURCE_DIR}/rapid/plugin/x/mysqlxtest_src/mysqlx_row.cc"

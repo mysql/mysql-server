@@ -204,7 +204,6 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
   }
   DBUG_ASSERT(xtype != (Mysqlx::Resultset::ColumnMetaData::FieldType)0);
 
-  DBUG_ASSERT(m_proto != NULL);
   if (compact_metadata())
     m_proto->send_column_metadata(xcollation, xtype, field->decimals, xflags, field->length, ctype);
   else
@@ -227,7 +226,6 @@ int Streaming_command_delegate::end_result_metadata(uint server_status,
 
 int Streaming_command_delegate::start_row()
 {
-  DBUG_ASSERT(m_proto != NULL);
   if (!m_streaming_metadata)
     m_proto->start_row();
   return false;
@@ -235,7 +233,6 @@ int Streaming_command_delegate::start_row()
 
 int Streaming_command_delegate::end_row()
 {
-  DBUG_ASSERT(m_proto != NULL);
   if (!m_streaming_metadata)
     m_proto->send_row();
   return false;
@@ -245,7 +242,6 @@ void Streaming_command_delegate::abort_row()
 {
   // Called when a resultset is being sent but an error occurs
   // For example, select 1, password('') while validate_password is ON;
-  DBUG_ASSERT(m_proto != NULL);
   m_proto->abort_row();
 }
 
@@ -257,7 +253,6 @@ ulong Streaming_command_delegate::get_client_capabilities()
 /****** Getting data ******/
 int Streaming_command_delegate::get_null()
 {
-  DBUG_ASSERT(m_proto != NULL);
   m_proto->row_builder().add_null_field();
 
   return false;
@@ -265,7 +260,6 @@ int Streaming_command_delegate::get_null()
 
 int Streaming_command_delegate::get_integer(longlong value)
 {
-  DBUG_ASSERT(m_proto != NULL);
   my_bool unsigned_flag = (m_field_types[m_proto->row_builder().get_num_fields()].flags & UNSIGNED_FLAG) != 0;
 
   return get_longlong(value, unsigned_flag);
@@ -273,7 +267,6 @@ int Streaming_command_delegate::get_integer(longlong value)
 
 int Streaming_command_delegate::get_longlong(longlong value, uint unsigned_flag)
 {
-  DBUG_ASSERT(m_proto != NULL);
   // This is a hack to workaround server bugs similar to #77787:
   // Sometimes, server will not report a column to be UNSIGNED in the metadata, but will
   // send the data as unsigned anyway. That will cause the client to receive messed up
@@ -297,7 +290,6 @@ int Streaming_command_delegate::get_longlong(longlong value, uint unsigned_flag)
 
 int Streaming_command_delegate::get_decimal(const decimal_t * value)
 {
-  DBUG_ASSERT(m_proto != NULL);
   m_proto->row_builder().add_decimal_field(value);
 
   return false;
@@ -305,7 +297,6 @@ int Streaming_command_delegate::get_decimal(const decimal_t * value)
 
 int Streaming_command_delegate::get_double(double value, uint32 decimals)
 {
-  DBUG_ASSERT(m_proto != NULL);
   if (m_field_types[m_proto->row_builder().get_num_fields()].type == MYSQL_TYPE_FLOAT)
     m_proto->row_builder().add_float_field(static_cast<float>(value));
   else
@@ -315,7 +306,6 @@ int Streaming_command_delegate::get_double(double value, uint32 decimals)
 
 int Streaming_command_delegate::get_date(const MYSQL_TIME * value)
 {
-  DBUG_ASSERT(m_proto != NULL);
   m_proto->row_builder().add_date_field(value);
 
   return false;
@@ -323,7 +313,6 @@ int Streaming_command_delegate::get_date(const MYSQL_TIME * value)
 
 int Streaming_command_delegate::get_time(const MYSQL_TIME * value, uint decimals)
 {
-  DBUG_ASSERT(m_proto != NULL);
   m_proto->row_builder().add_time_field(value, decimals);
 
   return false;
@@ -331,7 +320,6 @@ int Streaming_command_delegate::get_time(const MYSQL_TIME * value, uint decimals
 
 int Streaming_command_delegate::get_datetime(const MYSQL_TIME * value, uint decimals)
 {
-  DBUG_ASSERT(m_proto != NULL);
   m_proto->row_builder().add_datetime_field(value, decimals);
 
   return false;
@@ -340,7 +328,6 @@ int Streaming_command_delegate::get_datetime(const MYSQL_TIME * value, uint deci
 int Streaming_command_delegate::get_string(const char * const value, size_t length,
                                                const CHARSET_INFO * const valuecs)
 {
-  DBUG_ASSERT(m_proto != NULL);
   enum_field_types type = m_field_types[m_proto->row_builder().get_num_fields()].type;
   unsigned int flags = m_field_types[m_proto->row_builder().get_num_fields()].flags;
 
@@ -374,7 +361,6 @@ void Streaming_command_delegate::handle_ok(uint server_status, uint statement_wa
                        ulonglong affected_rows, ulonglong last_insert_id,
                        const char * const message)
 {
-  DBUG_ASSERT(m_proto != NULL);
   if (m_sent_result)
   {
     if (server_status & SERVER_MORE_RESULTS_EXISTS)

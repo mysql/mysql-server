@@ -23,13 +23,10 @@
 #endif // WIN32
 
 #include "ngs/client_session.h"
-#include "ngs/client.h"
-#include "ngs/server.h"
+#include "ngs/interface/client_interface.h"
+#include "ngs/interface/server_interface.h"
 #include "ngs/protocol_authentication.h"
-
-#define LOG_DOMAIN "ngs.session"
 #include "ngs/log.h"
-
 #include "ngs/ngs_error.h"
 
 #undef ERROR // Needed to avoid conflict with ERROR in mysqlx.pb.h
@@ -41,7 +38,7 @@ using namespace ngs;
 // Code below this line is executed from the network thread
 // ------------------------------------------------------------------------------------------------
 
-Session::Session(Client& client, Protocol_encoder *proto, Session_id session_id)
+Session::Session(Client_interface& client, Protocol_encoder *proto, const Session_id session_id)
 : m_client(client), // don't hold a real reference to the parent to avoid circular reference
   m_encoder(proto),
   m_auth_handler(),
@@ -79,7 +76,7 @@ void Session::on_close(const bool update_old_state)
     if (update_old_state)
       m_state_before_close = m_state;
     m_state = Closing;
-    m_client.on_session_close(this);
+    m_client.on_session_close(*this);
   }
 }
 
@@ -133,7 +130,7 @@ bool Session::handle_ready_message(ngs::Request &command)
     case Mysqlx::ClientMessages::SESS_RESET:
       // session reset
       m_state = Closing;
-      m_client.on_session_reset(this);
+      m_client.on_session_reset(*this);
       return true;
   }
   return false;
@@ -145,7 +142,7 @@ void Session::stop_auth()
   m_auth_handler.reset();
 
   // request termination
-  m_client.on_session_close(this);
+  m_client.on_session_close(*this);
 }
 
 
@@ -162,7 +159,7 @@ bool Session::handle_auth_message(ngs::Request &command)
              m_client.client_id(), m_id, authm.mech_name().c_str(),
              authm.auth_data().c_str());
 
-    m_auth_handler = m_client.server()->get_auth_handler(authm.mech_name(), this);
+    m_auth_handler = m_client.server().get_auth_handler(authm.mech_name(), this);
     if (!m_auth_handler.get())
     {
       log_info("%s.%u: Invalid authentication method %s", m_client.client_id(), m_id, authm.mech_name().c_str());
@@ -214,7 +211,7 @@ void Session::on_auth_success(const Authentication_handler::Response &response)
   log_debug("%s.%u: Login succeeded", m_client.client_id(), m_id);
   m_auth_handler.reset();
   m_state = Ready;
-  m_client.on_session_auth_success(this);
+  m_client.on_session_auth_success(*this);
   m_encoder->send_auth_ok(response.data); // send it last, so that on_auth_success() can send session specific notices
 }
 
