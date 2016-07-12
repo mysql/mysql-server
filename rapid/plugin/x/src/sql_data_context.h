@@ -20,6 +20,7 @@
 #ifndef _SQL_DATA_CONTEXT_H_
 #define _SQL_DATA_CONTEXT_H_
 
+#include "ngs_common/connection_type.h"
 #include "ngs/protocol_encoder.h"
 
 #include "mysql/service_my_snprintf.h"
@@ -45,9 +46,11 @@ namespace ngs
 
 namespace xpl
 {
+
 typedef boost::function<bool (const std::string &password_hash)> On_user_password_hash;
 typedef Buffering_command_delegate::Field_value Field_value;
 typedef Buffering_command_delegate::Row_data    Row_data;
+
 
 class Sql_data_context : private boost::noncopyable
 {
@@ -87,12 +90,11 @@ public:
   ngs::Error_code init();
   void deinit();
 
-  ngs::Error_code init(const int client_port, const bool is_tls_activated);
-  virtual ngs::Error_code authenticate(const char *user, const char *host, const char *ip, const char *db, On_user_password_hash password_hash_cb, bool allow_expired_passwords, ngs::IOptions_session_ptr &options_session);
+  ngs::Error_code init(const int client_port, const ngs::Connection_type type);
+  virtual ngs::Error_code authenticate(const char *user, const char *host, const char *ip, const char *db, On_user_password_hash password_hash_cb, bool allow_expired_passwords, ngs::IOptions_session_ptr &options_session, const ngs::Connection_type type);
 
   ngs::Protocol_encoder &proto()
   {
-    DBUG_ASSERT(m_proto != NULL);
     return *m_proto;
   }
 
@@ -103,7 +105,7 @@ public:
 
   void detach();
 
-  ngs::Error_code set_connection_type(const bool is_tls_activated);
+  ngs::Error_code set_connection_type(const ngs::Connection_type type);
   bool kill();
   bool is_killed();
   bool is_acl_disabled();
@@ -135,11 +137,11 @@ private:
   ngs::Error_code execute_sql(Command_delegate &deleg, const char *sql, size_t length, Result_info &r_info);
 
   ngs::Error_code switch_to_user(const char *username, const char *hostname, const char *address, const char *db);
-  ngs::Error_code query_user(const char *user, const char *host, const char *ip, On_user_password_hash &hash_verification_cb, ngs::IOptions_session_ptr &options_session);
+  ngs::Error_code query_user(const char *user, const char *host, const char *ip, On_user_password_hash &hash_verification_cb, ngs::IOptions_session_ptr &options_session, const ngs::Connection_type type);
 
   static void default_completion_handler(void *ctx, unsigned int sql_errno, const char *err_msg);
 
-  ngs::Protocol_encoder* m_proto;
+  ngs::Protocol_encoder *m_proto;
   MYSQL_SESSION          m_mysql_session;
 
   Callback_command_delegate m_callback_delegate;
@@ -164,4 +166,4 @@ private:
 
 #undef MYSQL_CLIENT
 
-#endif
+#endif // _SQL_DATA_CONTEXT_H_

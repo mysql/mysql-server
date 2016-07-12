@@ -23,11 +23,7 @@
 
 #ifndef NGS_DISABLE_LOGGING
 
-# ifdef WITH_LOGGER
-#  include <logger/logger.h>
-# else
-#  include "xpl_log.h"
-# endif
+#include "xpl_log.h"
 
 #else
 
@@ -36,6 +32,6 @@
 #define log_warning(...) do {} while(0)
 #define log_error(...) do {} while(0)
 
-#endif
+#endif // NGS_DISABLE_LOGGING
 
-#endif
+#endif // _NGS_LOG_H_

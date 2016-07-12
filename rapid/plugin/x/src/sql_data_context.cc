@@ -36,13 +36,13 @@
 
 using namespace xpl;
 
-ngs::Error_code Sql_data_context::init(const int client_port, const bool is_tls_activated)
+ngs::Error_code Sql_data_context::init(const int client_port, const ngs::Connection_type type)
 {
   ngs::Error_code error = init();
   if (error)
     return error;
 
-  if ((error = set_connection_type(is_tls_activated)))
+  if ((error = set_connection_type(type)))
     return error;
 
   if (0 != srv_session_info_set_client_port(m_mysql_session, client_port))
@@ -133,9 +133,14 @@ bool Sql_data_context::kill()
 }
 
 
-ngs::Error_code Sql_data_context::set_connection_type(const bool is_tls_activated)
+ngs::Error_code Sql_data_context::set_connection_type(const ngs::Connection_type type)
 {
-  if (0 != srv_session_info_set_connection_type(m_mysql_session, (enum_vio_type)(is_tls_activated ? VIO_TYPE_SSL : VIO_TYPE_TCPIP)))
+  enum_vio_type vio_type = ngs::Connection_type_helper::convert_type(type);
+
+  if (NO_VIO_TYPE == vio_type)
+    return ngs::Error(ER_X_SESSION, "Connection type not known. type=%i", (int)type);
+
+  if (0 != srv_session_info_set_connection_type(m_mysql_session, vio_type))
     return ngs::Error_code(ER_X_SESSION, "Could not set session connection type");
 
   return ngs::Error_code();
@@ -186,11 +191,12 @@ void Sql_data_context::switch_to_local_user(const std::string &user)
 
 
 ngs::Error_code Sql_data_context::query_user(const char *user, const char *host, const char *ip,
-                                             On_user_password_hash &hash_verification_cb, ngs::IOptions_session_ptr &options_session)
+                                             On_user_password_hash &hash_verification_cb,
+                                             ngs::IOptions_session_ptr &options_session, const ngs::Connection_type type)
 {
   COM_DATA data;
 
-  User_verification_helper user_verification(hash_verification_cb, m_buffering_delegate.get_field_types(), ip, options_session);
+  User_verification_helper user_verification(hash_verification_cb, m_buffering_delegate.get_field_types(), ip, options_session, type);
 
   std::string query = user_verification.get_sql(user, host);
 
@@ -230,7 +236,7 @@ ngs::Error_code Sql_data_context::query_user(const char *user, const char *host,
 
 ngs::Error_code Sql_data_context::authenticate(const char *user, const char *host, const char *ip,
                                                const char *db, On_user_password_hash password_hash_cb,
-                                               bool allow_expired_passwords, ngs::IOptions_session_ptr &options_session)
+                                               bool allow_expired_passwords, ngs::IOptions_session_ptr &options_session, const ngs::Connection_type type)
 {
   ngs::Error_code error = switch_to_user(MYSQLXSYS_USER, MYSQLXSYS_HOST, NULL, NULL);
   if (error)
@@ -241,7 +247,7 @@ ngs::Error_code Sql_data_context::authenticate(const char *user, const char *hos
 
   if (!is_acl_disabled())
   {
-    error = query_user(user, host, ip, password_hash_cb, options_session);
+    error = query_user(user, host, ip, password_hash_cb, options_session, type);
   }
 
   if (error.error == ER_MUST_CHANGE_PASSWORD_LOGIN)

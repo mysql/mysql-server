@@ -3,7 +3,8 @@
 --let $dont_load_plugin = 1
 --source ../include/xplugin_preamble.inc
 call mtr.add_suppression("Plugin mysqlx reported: .Error parsing message of type 17:");
-
+call mtr.add_suppression("Plugin mysqlx reported: .X Plugin failed to setup UNIX socket .., with:");
+call mtr.add_suppression("Plugin mysqlx reported: .UNIX socket path is empty");
 --source include/restart_mysqld.inc
 
 

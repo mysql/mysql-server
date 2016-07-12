@@ -20,36 +20,26 @@
 #ifndef _NGS_CLIENT_SESSION_H_
 #define _NGS_CLIENT_SESSION_H_
 
+#include "interface/session_interface.h"
 #include "ngs/protocol_encoder.h"
 #include "ngs/thread.h"
 #include "ngs/protocol_authentication.h"
-#include <boost/enable_shared_from_this.hpp>
 
 namespace ngs
 {
   class Client;
   class Protocol_encoder;
 
-
-  class Session : public boost::enable_shared_from_this<Session>
+  class Session: public Session_interface
   {
   public:
     typedef int32_t Session_id;
 
-    class Delegate
-    {
-    public:
-      virtual ~Delegate() {}
-
-      virtual void on_session_auth_success(Session *s) = 0;
-      virtual void on_session_close(Session *s) = 0;
-    };
-
-    Session(Client &client, Protocol_encoder *proto, Session_id session_id);
+    Session(Client_interface &client, Protocol_encoder *proto, const Session_id session_id);
     virtual ~Session();
 
-    Session_id session_id() const { return m_id; }
-    bool is_ready() const;
+    virtual Session_id session_id() const { return m_id; }
+    virtual bool is_ready() const;
 
   public:
     virtual void on_close(const bool update_old_state = false);
@@ -60,10 +50,9 @@ namespace ngs
     // handle a single message, returns true if message was handled false if not
     virtual bool handle_message(ngs::Request &command);
 
-    Client &client() const { return m_client; }
+    Client_interface &client() { return m_client; }
 
     Protocol_encoder &proto() { return *m_encoder; }
-    virtual Error_code init() = 0;
 
   protected:
     virtual bool handle_auth_message(ngs::Request &command);
@@ -72,27 +61,17 @@ namespace ngs
     void stop_auth();
 
   public:
-    enum State
-    {
-      // start as Authenticating
-      Authenticating,
-      // once authenticated, we can handle work
-      Ready,
-      // connection is closing, but wait for data to flush out first
-      Closing
-    };
-
     State state() const { return m_state; }
     State state_before_close() const { return m_state_before_close; }
 
   protected:
-    Client &m_client;
+    Client_interface &m_client;
     Protocol_encoder *m_encoder;
     Authentication_handler_ptr m_auth_handler;
     State m_state;
     State m_state_before_close;
 
-    Session_id m_id;
+    const Session_id m_id;
     // true if a session session was already scheduled for execution in a thread
     int32 m_thread_pending;
     // true if the session is currently assigned to a thread and executing

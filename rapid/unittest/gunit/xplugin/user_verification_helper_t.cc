@@ -35,6 +35,7 @@ namespace xpl
 {
 
   const char     *USER_IP = "100.20.20.10";
+  const longlong  REQUIRE_SECURE_TRANSPORT = 0;
   const char     *EXPECTED_HASH         = "AABBCCDD";
   const char     *ACCOUNT_NOT_LOCKET    = "N";
   const longlong  PASSWORD_NOT_EXPIRED  = 0;
@@ -54,11 +55,11 @@ namespace xpl
     public:
       User_verification_test()
       {
-        boost::function<bool (const std::string &)> hash_check = boost::bind(&Mock_hash_verification::check_hash, &m_hash, _1);
+        m_hash_check = boost::bind(&Mock_hash_verification::check_hash, &m_hash, _1);
 
         m_mock_options.reset(new testing::StrictMock<ngs::test::Mock_options_session>());
         m_options = boost::static_pointer_cast<ngs::IOptions_session>(m_mock_options);
-        m_sut.reset(new User_verification_helper(hash_check, m_field_types, USER_IP, m_options));
+        m_sut.reset(new User_verification_helper(m_hash_check, m_field_types, USER_IP, m_options, ngs::Connection_tls));
       }
 
       void setup_field_types(const char *value)
@@ -79,8 +80,9 @@ namespace xpl
         m_field_types.push_back(field_type);
       }
 
-      void setup_db_user(const std::string &host)
+      void setup_db_user(const std::string &host, const longlong secure_transport = REQUIRE_SECURE_TRANSPORT)
       {
+        setup_field_types(secure_transport);
         setup_field_types(EXPECTED_HASH);
         setup_field_types(ACCOUNT_NOT_LOCKET);
         setup_field_types(PASSWORD_NOT_EXPIRED);
@@ -98,6 +100,7 @@ namespace xpl
       }
 
       ::testing::StrictMock<Mock_hash_verification> m_hash;
+      boost::function<bool (const std::string &)> m_hash_check;
 
       boost::shared_ptr<ngs::IOptions_session> m_options;
       boost::shared_ptr<testing::StrictMock<ngs::test::Mock_options_session> > m_mock_options;
@@ -206,6 +209,65 @@ namespace xpl
     INSTANTIATE_TEST_CASE_P(Range_from_0_to_9,
         User_verification_param_test,
         ::testing::Range(0, 9, 1));
+
+    struct Test_param_connection_type
+    {
+      Test_param_connection_type(const bool requires_secure, const ngs::Connection_type type)
+      : m_requires_secure(requires_secure),
+        m_type(type)
+      {
+      }
+
+      bool m_requires_secure;
+      ngs::Connection_type m_type;
+    };
+
+    class User_verification_param_test_with_supported_combinations: public User_verification_test, public testing::WithParamInterface<Test_param_connection_type>
+    {
+    };
+
+    TEST_P(User_verification_param_test_with_supported_combinations, expect_result_on_given_connection_type)
+    {
+      const Test_param_connection_type &param = GetParam();
+
+      m_sut.reset(new User_verification_helper(m_hash_check, m_field_types, USER_IP, m_options, param.m_type));
+      EXPECT_CALL(m_hash, check_hash(EXPECTED_HASH)).WillRepeatedly(testing::Return(true));
+
+      setup_db_user(USER_IP, param.m_requires_secure);
+      setup_no_ssl();
+
+      ASSERT_TRUE((*m_sut)(m_row_data));
+    }
+
+    INSTANTIATE_TEST_CASE_P(Supported_connection_type_require_transport_combinations,
+        User_verification_param_test_with_supported_combinations,
+        ::testing::Values(
+            Test_param_connection_type(false, ngs::Connection_tcpip),
+            Test_param_connection_type(false, ngs::Connection_namedpipe),
+            Test_param_connection_type(false, ngs::Connection_tls),
+            Test_param_connection_type(false, ngs::Connection_unixsocket),
+            Test_param_connection_type(true, ngs::Connection_unixsocket),
+            Test_param_connection_type(true, ngs::Connection_tls)));
+
+    class User_verification_param_test_with_unsupported_combinations : public User_verification_param_test_with_supported_combinations { };
+    TEST_P(User_verification_param_test_with_unsupported_combinations, expect_result_on_given_connection_type)
+    {
+      const Test_param_connection_type &param = GetParam();
+
+      m_sut.reset(new User_verification_helper(m_hash_check, m_field_types, USER_IP, m_options, param.m_type));
+      EXPECT_CALL(m_hash, check_hash(EXPECTED_HASH)).WillRepeatedly(testing::Return(true));
+
+      setup_db_user(USER_IP, param.m_requires_secure);
+      setup_no_ssl();
+
+      ASSERT_THROW((*m_sut)(m_row_data), ngs::Error_code);
+    }
+
+    INSTANTIATE_TEST_CASE_P(Unsupported_connection_type_require_transport_combinations,
+        User_verification_param_test_with_unsupported_combinations,
+        ::testing::Values(
+            Test_param_connection_type(true, ngs::Connection_tcpip),
+            Test_param_connection_type(true, ngs::Connection_namedpipe)));
 
   }
 }
