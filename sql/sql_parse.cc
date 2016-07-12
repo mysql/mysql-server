@@ -412,9 +412,14 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_RENAME_USER]=       CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_DROP_USER]=         CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_ALTER_USER]=        CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_ALTER_USER_DEFAULT_ROLE]= CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_GRANT]=             CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_GRANT_ROLE]=        CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE_ALL]=        CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_REVOKE_ROLE]=       CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_DROP_ROLE]=         CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_CREATE_ROLE]=       CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_OPTIMIZE]=          CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_ALTER_INSTANCE]=    CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
@@ -449,12 +454,17 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CHECK]=     CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
 
   sql_command_flags[SQLCOM_CREATE_USER]|=       CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_CREATE_ROLE]|=       CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_USER]|=         CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_DROP_ROLE]|=         CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_RENAME_USER]|=       CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_USER]|=        CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_REVOKE]|=            CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_REVOKE_ALL]|=        CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_REVOKE_ROLE]|=       CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_GRANT]|=             CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_GRANT_ROLE]|=        CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ALTER_USER_DEFAULT_ROLE]|=  CF_AUTO_COMMIT_TRANS;
 
   sql_command_flags[SQLCOM_ASSIGN_TO_KEYCACHE]= CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_PRELOAD_KEYS]=       CF_AUTO_COMMIT_TRANS;
@@ -546,9 +556,11 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_ALTER_EVENT]|=      CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_DROP_EVENT]|=       CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_CREATE_USER]|=      CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_CREATE_ROLE]|=      CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_RENAME_USER]|=      CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_ALTER_USER]|=       CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_DROP_USER]|=        CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_DROP_ROLE]|=        CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_CREATE_SERVER]|=    CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_ALTER_SERVER]|=     CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_DROP_SERVER]|=      CF_DISALLOW_IN_RO_TRANS;
@@ -564,8 +576,10 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_REPAIR]|=           CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_OPTIMIZE]|=         CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_GRANT]|=            CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_GRANT_ROLE]|=       CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_REVOKE]|=           CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_REVOKE_ALL]|=       CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_REVOKE_ROLE]|=      CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_INSTALL_PLUGIN]|=   CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]|= CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_ALTER_INSTANCE]|=   CF_DISALLOW_IN_RO_TRANS;
@@ -709,6 +723,12 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_EXPLAIN_OTHER]|=           CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_SHOW_CREATE_USER]|=        CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_SET_PASSWORD]|=            CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_DROP_ROLE]|=               CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_CREATE_ROLE]|=             CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SET_ROLE]|=                CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_GRANT_ROLE]|=              CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_REVOKE_ROLE]|=             CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_ALTER_USER_DEFAULT_ROLE]|= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_END]|=                     CF_ALLOW_PROTOCOL_PLUGIN;
 
   /*
@@ -3300,9 +3320,6 @@ mysql_execute_command(THD *thd, bool first_level)
         thd->security_context()->priv_user().str),
       lex->verbose);
     break;
-  case SQLCOM_SHOW_PRIVILEGES:
-    res= mysqld_show_privileges(thd);
-    break;
   case SQLCOM_SHOW_ENGINE_LOGS:
     {
       if (check_access(thd, FILE_ACL, any_db, NULL, NULL, 0, 0))
@@ -3384,7 +3401,6 @@ mysql_execute_command(THD *thd, bool first_level)
 
     break;
   }
-
   case SQLCOM_SET_PASSWORD:
   {
     List<set_var_base> *lex_var_list= &lex->var_list;
@@ -3665,7 +3681,7 @@ mysql_execute_command(THD *thd, bool first_level)
       break;
     /* Conditionally writes to binlog */
     HA_CREATE_INFO create_info(*lex->create_info);
-    if (!(res = mysql_create_user(thd, lex->users_list, create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS)))
+    if (!(res = mysql_create_user(thd, lex->users_list, create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS, false)))
       my_ok(thd);
     break;
   }
@@ -3677,6 +3693,7 @@ mysql_execute_command(THD *thd, bool first_level)
     /* Conditionally writes to binlog */
     if (!(res = mysql_drop_user(thd, lex->users_list, lex->drop_if_exists)))
       my_ok(thd);
+
     break;
   }
   case SQLCOM_RENAME_USER:
@@ -3908,17 +3925,9 @@ mysql_execute_command(THD *thd, bool first_level)
     break;
   }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  case SQLCOM_SHOW_GRANTS:
+  case SQLCOM_SHOW_PRIVILEGES:
   {
-    LEX_USER *grant_user= get_current_user(thd, lex->grant_user);
-    if (!grant_user)
-      goto error;
-    if (!strcmp(thd->security_context()->priv_user().str,
-                grant_user->user.str) ||
-        !check_access(thd, SELECT_ACL, "mysql", NULL, NULL, 1, 0))
-    {
-      res = mysql_show_grants(thd, grant_user);
-    }
+    mysqld_show_privileges(thd);
     break;
   }
   case SQLCOM_SHOW_CREATE_USER:
@@ -4541,6 +4550,13 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_UNINSTALL_COMPONENT:
   case SQLCOM_SHUTDOWN:
   case SQLCOM_ALTER_INSTANCE:
+  case SQLCOM_CREATE_ROLE:
+  case SQLCOM_DROP_ROLE:
+  case SQLCOM_SET_ROLE:
+  case SQLCOM_GRANT_ROLE:
+  case SQLCOM_REVOKE_ROLE:
+  case SQLCOM_ALTER_USER_DEFAULT_ROLE:
+  case SQLCOM_SHOW_GRANTS:
     DBUG_ASSERT(lex->m_sql_cmd != NULL);
     res= lex->m_sql_cmd->execute(thd);
     break;
@@ -4797,6 +4813,7 @@ finish:
 
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
 {
+  DBUG_ENTER("execute_sqlcom_select");
   LEX	*lex= thd->lex;
   bool statement_timer_armed= false;
   bool res;
@@ -4826,21 +4843,21 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
       */
       Query_result *const result= new Query_result_send(thd);
       if (!result)
-        return true; /* purecov: inspected */
+        DBUG_RETURN(true); /* purecov: inspected */
       res= handle_query(thd, lex, result, 0, 0);
     }
     else
     {
       Query_result *result= lex->result;
       if (!result && !(result= new Query_result_send(thd)))
-        return true;                            /* purecov: inspected */
+        DBUG_RETURN(true);                            /* purecov: inspected */
       Query_result *save_result= result;
       Query_result *analyse_result= NULL;
       if (lex->proc_analyse)
       {
         if ((result= analyse_result=
              new Query_result_analyse(thd, result, lex->proc_analyse)) == NULL)
-          return true;
+          DBUG_RETURN(true);
       }
       res= handle_query(thd, lex, result, 0, 0);
       delete analyse_result;
@@ -4854,7 +4871,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
     reset_statement_timer(thd);
 
   DEBUG_SYNC(thd, "after_table_open");
-  return res;
+  DBUG_RETURN(res);
 }
 
 
@@ -4992,6 +5009,14 @@ void THD::reset_for_next_command()
              ("is_current_stmt_binlog_format_row(): %d",
               thd->is_current_stmt_binlog_format_row()));
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    /*
+      In case we're processing multiple statements we need to checkout a new
+      acl access map here as the global acl version might have increased due to
+      a grant/revoke or flush.
+    */
+    thd->security_context()->checkout_access_maps();
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -6436,7 +6461,7 @@ LEX_USER *create_default_definer(THD *thd)
 
 LEX_USER *get_current_user(THD *thd, LEX_USER *user)
 {
-  if (!user->user.str)  // current_user
+  if (!user || !user->user.str)  // current_user
   {
     LEX_USER *default_definer= create_default_definer(thd);
     if (default_definer)

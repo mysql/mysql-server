@@ -199,8 +199,8 @@ use mysqltest_db1;
 GRANT DELETE ON mysqltest_db1.* TO mysqltest_u1@localhost;
 SHOW GRANTS FOR mysqltest_u1@localhost;
 Grants for mysqltest_u1@localhost
-GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
-GRANT DELETE, TRIGGER ON `mysqltest_db1`.* TO 'mysqltest_u1'@'localhost'
+GRANT USAGE ON *.* TO `mysqltest_u1`@`localhost`
+GRANT DELETE, TRIGGER ON `mysqltest_db1`.* TO `mysqltest_u1`@`localhost`
 
 ---> connection: bug15166_u1_con
 use mysqltest_db1;

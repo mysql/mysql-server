@@ -5,8 +5,8 @@ connect (test2,localhost,test2,,test,MASTER_MYPORT,MASTER_MYSOCK);
 USE test;
 SHOW GRANTS FOR CURRENT_USER;
 Grants for test2@localhost
-GRANT USAGE ON *.* TO 'test2'@'localhost'
-GRANT SELECT, INSERT, UPDATE, CREATE, DROP, ALTER ON `test`.* TO 'test2'@'localhost'
+GRANT USAGE ON *.* TO `test2`@`localhost`
+GRANT SELECT, INSERT, UPDATE, CREATE, DROP, ALTER ON `test`.* TO `test2`@`localhost`
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 SELECT * FROM t_10;
 a	b
@@ -60,8 +60,8 @@ connect (test2,localhost,test2,,test,MASTER_MYPORT,MASTER_MYSOCK);
 USE test;
 SHOW GRANTS FOR CURRENT_USER;
 Grants for test2@localhost
-GRANT USAGE ON *.* TO 'test2'@'localhost'
-GRANT SELECT, UPDATE, CREATE, DROP, ALTER ON `test`.* TO 'test2'@'localhost'
+GRANT USAGE ON *.* TO `test2`@`localhost`
+GRANT SELECT, UPDATE, CREATE, DROP, ALTER ON `test`.* TO `test2`@`localhost`
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 ERROR 42000: INSERT command denied to user 'test2'@'localhost' for table 'tp'
 disconnect test2;
@@ -72,8 +72,8 @@ connect (test2,localhost,test2,,test,MASTER_MYPORT,MASTER_MYSOCK);
 USE test;
 SHOW GRANTS FOR CURRENT_USER;
 Grants for test2@localhost
-GRANT USAGE ON *.* TO 'test2'@'localhost'
-GRANT SELECT, INSERT, UPDATE, DROP, ALTER ON `test`.* TO 'test2'@'localhost'
+GRANT USAGE ON *.* TO `test2`@`localhost`
+GRANT SELECT, INSERT, UPDATE, DROP, ALTER ON `test`.* TO `test2`@`localhost`
 ALTER TABLE tsp EXCHANGE PARTITION sp00 WITH TABLE tsp_00;
 ERROR 42000: CREATE command denied to user 'test2'@'localhost' for table 'tsp'
 disconnect test2;
@@ -84,8 +84,8 @@ connect (test2,localhost,test2,,test,MASTER_MYPORT,MASTER_MYSOCK);
 USE test;
 SHOW GRANTS FOR CURRENT_USER;
 Grants for test2@localhost
-GRANT USAGE ON *.* TO 'test2'@'localhost'
-GRANT SELECT, INSERT, UPDATE, CREATE, ALTER ON `test`.* TO 'test2'@'localhost'
+GRANT USAGE ON *.* TO `test2`@`localhost`
+GRANT SELECT, INSERT, UPDATE, CREATE, ALTER ON `test`.* TO `test2`@`localhost`
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 ERROR 42000: DROP command denied to user 'test2'@'localhost' for table 'tp'
 disconnect test2;

@@ -15,7 +15,7 @@ set enabled='NO' where name='wait/lock/table/sql/handler';
 delete from performance_schema.setup_objects
 where object_name='t2';
 select * from performance_schema.setup_actors
-order by USER, HOST, ROLE;
+order by USER, HOST, `ROLE`;
 HOST	USER	ROLE	ENABLED	HISTORY
 localhost	user1	%	YES	YES
 localhost	user2	%	YES	YES

@@ -2010,9 +2010,13 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_ASSIGN_TO_KEYCACHE:
   case SQLCOM_PRELOAD_KEYS:
   case SQLCOM_GRANT:
+  case SQLCOM_GRANT_ROLE:
   case SQLCOM_REVOKE:
+  case SQLCOM_REVOKE_ROLE:
   case SQLCOM_KILL:
   case SQLCOM_ALTER_INSTANCE:
+  case SQLCOM_SET_ROLE:
+  case SQLCOM_ALTER_USER_DEFAULT_ROLE:
     break;
 
   case SQLCOM_PREPARE:
@@ -2433,6 +2437,13 @@ bool reinit_stmt_before_use(THD *thd, LEX *lex)
       unit->set_thd(thd);
     }
   }
+
+  /*
+    m_view_ctx_list contains all the view tables view_ctx objects and must
+    be emptied now since it's going to be re-populated below as we reiterate
+    over all query_tables and call TABLE_LIST::prepare_security().
+  */
+  thd->m_view_ctx_list.empty();
 
   /*
     TODO: When the new table structure is ready, then have a status bit

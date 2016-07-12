@@ -1025,6 +1025,10 @@ void THD::cleanup(void)
   */
   session_tracker.deinit();
 
+  /*
+    If we have a Security_context, make sure it is "logged out"
+  */
+  
   cleanup_done=1;
   DBUG_VOID_RETURN;
 }
@@ -1106,6 +1110,7 @@ void THD::release_resources()
 
   if (current_thd == this)
     restore_globals();
+  
   m_release_resources_done= true;
 }
 
@@ -1497,6 +1502,13 @@ void THD::cleanup_after_query()
     substitute_null_with_insert_id= TRUE;
   }
   arg_of_last_insert_id_function= 0;
+  /* Hack for cleaning up view security contexts */
+  List_iterator<Security_context> it(m_view_ctx_list);
+  while(Security_context *ctx= it++)
+  {
+    ctx->logout();
+  }
+  m_view_ctx_list.empty();
   /* Free Items that were created during this execution */
   free_items();
   /* Reset where. */
@@ -1839,6 +1851,7 @@ void Query_arena::cleanup_stmt()
 
 void THD::end_statement()
 {
+  DBUG_ENTER("end_statement");
   /* Cleanup SQL processing state to reuse this statement in next query. */
   lex_end(lex);
   delete lex->result;
@@ -1849,6 +1862,7 @@ void THD::end_statement()
     Don't free mem_root, as mem_root is freed in the end of dispatch_command
     (once for any command).
   */
+  DBUG_VOID_RETURN;
 }
 
 

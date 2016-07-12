@@ -113,6 +113,7 @@ mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
+mysql.default_roles                                OK
 mysql.engine_cost                                  OK
 mysql.func                                         OK
 mysql.general_log                                  OK
@@ -127,6 +128,7 @@ mysql.innodb_table_stats                           OK
 mysql.plugin                                       OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
@@ -154,6 +156,7 @@ mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
+mysql.default_roles                                OK
 mysql.engine_cost                                  OK
 mysql.func                                         OK
 mysql.general_log                                  OK
@@ -167,6 +170,7 @@ mysql.innodb_table_stats                           OK
 mysql.plugin                                       OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
@@ -190,6 +194,7 @@ mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
+mysql.default_roles                                OK
 mysql.engine_cost                                  OK
 mysql.func                                         OK
 mysql.general_log                                  OK
@@ -203,6 +208,7 @@ mysql.innodb_table_stats                           OK
 mysql.plugin                                       OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK

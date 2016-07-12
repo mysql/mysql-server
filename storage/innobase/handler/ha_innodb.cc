@@ -3560,6 +3560,8 @@ static bool innobase_is_supported_system_table(const char *db,
 							"time_zone_transition",
 							"time_zone_transition_type",
 							"user",
+							"role_edges",
+							"default_roles",
 							(const char *)NULL };
 
 	if (!is_sql_layer_system_table)

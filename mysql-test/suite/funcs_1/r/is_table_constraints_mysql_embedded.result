@@ -11,6 +11,7 @@ def	mysql	PRIMARY	mysql	columns_priv	PRIMARY KEY
 def	mysql	PRIMARY	mysql	column_stats	PRIMARY KEY
 def	mysql	PRIMARY	mysql	component	PRIMARY KEY
 def	mysql	PRIMARY	mysql	db	PRIMARY KEY
+def	mysql	PRIMARY	mysql	default_roles	PRIMARY KEY
 def	mysql	PRIMARY	mysql	engine_cost	PRIMARY KEY
 def	mysql	PRIMARY	mysql	func	PRIMARY KEY
 def	mysql	PRIMARY	mysql	gtid_executed	PRIMARY KEY
@@ -26,6 +27,7 @@ def	mysql	PRIMARY	mysql	innodb_table_stats	PRIMARY KEY
 def	mysql	PRIMARY	mysql	plugin	PRIMARY KEY
 def	mysql	PRIMARY	mysql	procs_priv	PRIMARY KEY
 def	mysql	PRIMARY	mysql	proxies_priv	PRIMARY KEY
+def	mysql	PRIMARY	mysql	role_edges	PRIMARY KEY
 def	mysql	PRIMARY	mysql	servers	PRIMARY KEY
 def	mysql	PRIMARY	mysql	server_cost	PRIMARY KEY
 def	mysql	PRIMARY	mysql	slave_master_info	PRIMARY KEY
@@ -55,6 +57,7 @@ def	mysql	PRIMARY	mysql	columns_priv	PRIMARY KEY
 def	mysql	PRIMARY	mysql	column_stats	PRIMARY KEY
 def	mysql	PRIMARY	mysql	component	PRIMARY KEY
 def	mysql	PRIMARY	mysql	db	PRIMARY KEY
+def	mysql	PRIMARY	mysql	default_roles	PRIMARY KEY
 def	mysql	PRIMARY	mysql	engine_cost	PRIMARY KEY
 def	mysql	PRIMARY	mysql	func	PRIMARY KEY
 def	mysql	PRIMARY	mysql	gtid_executed	PRIMARY KEY
@@ -70,6 +73,7 @@ def	mysql	PRIMARY	mysql	innodb_table_stats	PRIMARY KEY
 def	mysql	PRIMARY	mysql	plugin	PRIMARY KEY
 def	mysql	PRIMARY	mysql	procs_priv	PRIMARY KEY
 def	mysql	PRIMARY	mysql	proxies_priv	PRIMARY KEY
+def	mysql	PRIMARY	mysql	role_edges	PRIMARY KEY
 def	mysql	PRIMARY	mysql	servers	PRIMARY KEY
 def	mysql	PRIMARY	mysql	server_cost	PRIMARY KEY
 def	mysql	PRIMARY	mysql	slave_master_info	PRIMARY KEY

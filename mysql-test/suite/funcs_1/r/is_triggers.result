@@ -144,8 +144,8 @@ trg1	INSERT	t1	SET @test_before = 2, new.f1 = @test_before	BEFORE	#	ONLY_FULL_GR
 # Establish connection testuser2 (user=testuser2)
 SHOW GRANTS FOR 'testuser2'@'localhost';
 Grants for testuser2@localhost
-GRANT USAGE ON *.* TO 'testuser2'@'localhost'
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE VIEW, SHOW VIEW ON `db_datadict`.`t1` TO 'testuser2'@'localhost'
+GRANT USAGE ON *.* TO `testuser2`@`localhost`
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE VIEW, SHOW VIEW ON `db_datadict`.`t1` TO `testuser2`@`localhost`
 # No TRIGGER Privilege --> no result for query
 SELECT * FROM information_schema.triggers
 WHERE trigger_name = 'trg1';
@@ -155,8 +155,8 @@ Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_clie
 # Establish connection testuser3 (user=testuser3)
 SHOW GRANTS FOR 'testuser3'@'localhost';
 Grants for testuser3@localhost
-GRANT TRIGGER ON *.* TO 'testuser3'@'localhost'
-GRANT SELECT ON `db_datadict`.`t1` TO 'testuser3'@'localhost'
+GRANT TRIGGER ON *.* TO `testuser3`@`localhost`
+GRANT SELECT ON `db_datadict`.`t1` TO `testuser3`@`localhost`
 # TRIGGER Privilege + SELECT Privilege on t1 --> result for query
 SELECT * FROM information_schema.triggers
 WHERE trigger_name = 'trg1';
@@ -168,7 +168,7 @@ trg1	INSERT	t1	SET @test_before = 2, new.f1 = @test_before	BEFORE	#	ONLY_FULL_GR
 # Establish connection testuser4 (user=testuser4)
 SHOW GRANTS FOR 'testuser4'@'localhost';
 Grants for testuser4@localhost
-GRANT TRIGGER ON *.* TO 'testuser4'@'localhost'
+GRANT TRIGGER ON *.* TO `testuser4`@`localhost`
 # TRIGGER Privilege + no SELECT Privilege on t1 --> result for query
 SELECT * FROM db_datadict.t1;
 ERROR 42000: SELECT command denied to user 'testuser4'@'localhost' for table 't1'

@@ -298,6 +298,8 @@ connection default;
 CREATE TABLE mysql.temp_user LIKE mysql.user;
 INSERT INTO mysql.temp_user SELECT * FROM mysql.user;
 ALTER TABLE mysql.user DROP COLUMN account_locked;
+ALTER TABLE mysql.user DROP COLUMN create_role_priv;
+ALTER TABLE mysql.user DROP COLUMN drop_role_priv;
 --error ER_BAD_FIELD_ERROR
 CREATE USER backuser@localhost IDENTIFIED BY 'pass' ACCOUNT LOCK;
 SELECT COUNT(*) FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');

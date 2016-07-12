@@ -1088,8 +1088,8 @@ Warning	1287	Using GRANT statement to modify existing user's properties other th
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
-GRANT SELECT ON `mysqltest`.* TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
+GRANT SELECT ON `mysqltest`.* TO `u1`@`h`
 SET debug="-d,wl7158_replace_user_table_2";
 DROP USER u1@h;
 CREATE USER u1@h;
@@ -1133,8 +1133,8 @@ Warning	1287	Using GRANT statement to modify existing user's properties other th
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
-GRANT SELECT ON `mysqltest`.* TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
+GRANT SELECT ON `mysqltest`.* TO `u1`@`h`
 SET debug="-d,wl7158_replace_db_table_2";
 SET debug="+d,wl7158_replace_db_table_3";
 REVOKE ALL PRIVILEGES ON mysqltest.* FROM u1@h;
@@ -1144,8 +1144,8 @@ Level	Code	Message
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
-GRANT SELECT ON `mysqltest`.* TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
+GRANT SELECT ON `mysqltest`.* TO `u1`@`h`
 SET debug="-d,wl7158_replace_db_table_3";
 DROP USER u1@h;
 SET debug="+d,wl7158_replace_db_table_4";
@@ -1222,7 +1222,7 @@ Error	3501	The ACL operation failed due to the following error from SE: errcode 
 SET debug="-d,wl7158_modify_grant_table_2";
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
 DROP USER u1@h;
 CREATE USER u1@h;
 SET debug="+d,wl7158_replace_proxies_priv_table_1";
@@ -1233,7 +1233,7 @@ Level	Code	Message
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
 SET debug="-d,wl7158_replace_proxies_priv_table_1";
 SET debug="+d,wl7158_replace_proxies_priv_table_2";
 GRANT PROXY ON plug_dest TO u1@h;
@@ -1243,7 +1243,7 @@ Level	Code	Message
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
 SET debug="-d,wl7158_replace_proxies_priv_table_2";
 SET debug="+d,wl7158_replace_proxies_priv_table_5";
 GRANT PROXY ON plug_dest TO u1@h;
@@ -1253,7 +1253,7 @@ Level	Code	Message
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
 SET debug="-d,wl7158_replace_proxies_priv_table_5";
 GRANT PROXY ON plug_dest TO u1@h;
 SET debug="+d,wl7158_replace_proxies_priv_table_3";
@@ -1264,7 +1264,7 @@ Level	Code	Message
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
 GRANT PROXY ON 'plug_dest'@'%' TO 'u1'@'h'
 SET debug="-d,wl7158_replace_proxies_priv_table_3";
 SET debug="+d,wl7158_replace_proxies_priv_table_4";
@@ -1275,7 +1275,7 @@ Level	Code	Message
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
 GRANT PROXY ON 'plug_dest'@'%' TO 'u1'@'h'
 SET debug="-d,wl7158_replace_proxies_priv_table_4";
 DROP USER u1@h;
@@ -1283,7 +1283,7 @@ CREATE TABLE t1 (a INT);
 CREATE USER u1@h;
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
 SET debug="+d,wl7158_replace_column_table_1";
 GRANT SELECT(a), UPDATE(a), INSERT(a), REFERENCES(a) ON t1 TO u1@h;
 ERROR HY000: The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
@@ -1292,7 +1292,7 @@ Level	Code	Message
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
 SET debug="-d,wl7158_replace_column_table_1";
 SET debug="+d,wl7158_replace_column_table_2";
 GRANT SELECT(a), UPDATE(a), INSERT(a), REFERENCES(a) ON t1 TO u1@h;
@@ -1302,7 +1302,7 @@ Level	Code	Message
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
 SET debug="-d,wl7158_replace_column_table_2";
 SET debug="+d,wl7158_replace_column_table_5";
 GRANT SELECT(a), UPDATE(a), INSERT(a), REFERENCES(a) ON t1 TO u1@h;
@@ -1312,7 +1312,7 @@ Level	Code	Message
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
 SET debug="-d,wl7158_replace_column_table_5";
 GRANT SELECT(a), UPDATE(a), INSERT(a), REFERENCES(a) ON t1 TO u1@h;
 SET debug="+d,wl7158_replace_column_table_3";
@@ -1323,8 +1323,8 @@ Level	Code	Message
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
-GRANT SELECT (a), INSERT (a), UPDATE (a), REFERENCES (a) ON `test`.`t1` TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
+GRANT SELECT (`a`), INSERT (`a`), UPDATE (`a`), REFERENCES (`a`) ON `test`.`t1` TO `u1`@`h`
 SET debug="-d,wl7158_replace_column_table_3";
 SET debug="+d,wl7158_replace_column_table_4";
 REVOKE SELECT(a), UPDATE(a), INSERT(a), REFERENCES(a) ON t1 FROM u1@h;
@@ -1334,8 +1334,8 @@ Level	Code	Message
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
-GRANT SELECT (a), INSERT (a), UPDATE (a), REFERENCES (a) ON `test`.`t1` TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
+GRANT SELECT (`a`), INSERT (`a`), UPDATE (`a`), REFERENCES (`a`) ON `test`.`t1` TO `u1`@`h`
 SET debug="-d,wl7158_replace_column_table_4";
 GRANT SELECT(a), UPDATE(a), INSERT(a), REFERENCES(a) ON t1 TO u1@h;
 SET debug="+d,wl7158_replace_column_table_6";
@@ -1346,8 +1346,8 @@ Level	Code	Message
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
-GRANT SELECT (a), INSERT (a), UPDATE (a), REFERENCES (a) ON `test`.`t1` TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
+GRANT SELECT (`a`), INSERT (`a`), UPDATE (`a`), REFERENCES (`a`) ON `test`.`t1` TO `u1`@`h`
 SET debug="-d,wl7158_replace_column_table_6";
 GRANT SELECT(a), UPDATE(a), INSERT(a), REFERENCES(a) ON t1 TO u1@h;
 SET debug="+d,wl7158_replace_column_table_7";
@@ -1355,8 +1355,8 @@ REVOKE ALL PRIVILEGES, GRANT OPTION FROM u1@h;
 ERROR HY000: The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
-GRANT SELECT (a), INSERT (a), UPDATE (a), REFERENCES (a) ON `test`.`t1` TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
+GRANT SELECT (`a`), INSERT (`a`), UPDATE (`a`), REFERENCES (`a`) ON `test`.`t1` TO `u1`@`h`
 SET debug="-d,wl7158_replace_column_table_7";
 GRANT SELECT(a), UPDATE(a), INSERT(a), REFERENCES(a) ON t1 TO u1@h;
 SET debug="+d,wl7158_replace_column_table_8";
@@ -1364,8 +1364,8 @@ REVOKE ALL PRIVILEGES, GRANT OPTION FROM u1@h;
 ERROR HY000: The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
-GRANT SELECT (a), INSERT (a), UPDATE (a), REFERENCES (a) ON `test`.`t1` TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
+GRANT SELECT (`a`), INSERT (`a`), UPDATE (`a`), REFERENCES (`a`) ON `test`.`t1` TO `u1`@`h`
 SET debug="-d,wl7158_replace_column_table_8";
 CREATE TABLE t2 (a INT);
 GRANT SELECT(a), UPDATE(a), INSERT(a), REFERENCES(a) ON t1 TO u1@h;
@@ -1390,7 +1390,7 @@ host	db	user	table_name	grantor	table_priv	column_priv
 localhost	sys	mysql.sys	sys_config	root@localhost	Select	
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
 GRANT UPDATE (a) ON t1 TO u1@h;
 SET debug='+d,mysql_grant_table_init_out_of_memory';
 FLUSH PRIVILEGES;
@@ -1417,14 +1417,14 @@ Host	Db	User	Table_name	Column_name	Timestamp	Column_priv
 SELECT * FROM mysql.tables_priv WHERE host = 'h' AND user = 'u1';
 Host	Db	User	Table_name	Grantor	Timestamp	Table_priv	Column_priv
 SELECT * FROM mysql.user WHERE host = 'h' AND user = 'u1';
-Host	User	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections	plugin	authentication_string	password_expired	password_last_changed	password_lifetime	account_locked
+Host	User	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections	plugin	authentication_string	password_expired	password_last_changed	password_lifetime	account_locked	Create_role_priv	Drop_role_priv
 SET debug="-d,wl7158_replace_column_table_5";
 DROP TABLE t1;
 CREATE TABLE t1 (a INT);
 CREATE USER u1@h;
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
 SET debug="+d,wl7158_replace_table_table_1";
 GRANT UPDATE ON t1 TO u1@h;
 ERROR HY000: The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
@@ -1433,7 +1433,7 @@ Level	Code	Message
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
 SET debug="-d,wl7158_replace_table_table_1";
 SET debug="+d,wl7158_replace_table_table_3";
 GRANT UPDATE ON t1 TO u1@h;
@@ -1443,7 +1443,7 @@ Level	Code	Message
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
 SET debug="-d,wl7158_replace_table_table_3";
 GRANT UPDATE ON t1 TO u1@h;
 SET debug="+d,wl7158_replace_table_table_2";
@@ -1454,8 +1454,8 @@ Level	Code	Message
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
-GRANT UPDATE ON `test`.`t1` TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
+GRANT UPDATE ON `test`.`t1` TO `u1`@`h`
 SET debug="-d,wl7158_replace_table_table_2";
 DROP TABLE t1;
 DROP USER u1@h;
@@ -1464,7 +1464,7 @@ CREATE USER u1@h;
 CREATE PROCEDURE p() SET @x = 1;
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
 SET debug="+d,wl7158_replace_routine_table_1";
 GRANT USAGE ON PROCEDURE p TO u1@h WITH GRANT OPTION;
 ERROR HY000: The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
@@ -1473,7 +1473,7 @@ Level	Code	Message
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
 SET debug="-d,wl7158_replace_routine_table_1";
 SET debug="+d,wl7158_replace_routine_table_4";
 GRANT USAGE ON PROCEDURE p TO u1@h WITH GRANT OPTION;
@@ -1483,7 +1483,7 @@ Level	Code	Message
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
+GRANT USAGE ON *.* TO `u1`@`h`
 SET debug="-d,wl7158_replace_routine_table_4";
 GRANT USAGE ON PROCEDURE p TO u1@h WITH GRANT OPTION;
 SET debug="+d,wl7158_replace_routine_table_2";
@@ -1494,8 +1494,8 @@ Level	Code	Message
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
-GRANT USAGE ON PROCEDURE `test`.`p` TO 'u1'@'h' WITH GRANT OPTION
+GRANT USAGE ON *.* TO `u1`@`h`
+GRANT USAGE ON PROCEDURE `test`.`p` TO `u1`@`h` WITH GRANT OPTION
 SET debug="-d,wl7158_replace_routine_table_2";
 SET debug="+d,wl7158_replace_routine_table_3";
 DROP PROCEDURE p;
@@ -1506,8 +1506,8 @@ Error	3501	The ACL operation failed due to the following error from SE: errcode 
 Warning	1405	Failed to revoke all privileges to dropped routine
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
-GRANT USAGE ON *.* TO 'u1'@'h'
-GRANT USAGE ON PROCEDURE `test`.`p` TO 'u1'@'h' WITH GRANT OPTION
+GRANT USAGE ON *.* TO `u1`@`h`
+GRANT USAGE ON PROCEDURE `test`.`p` TO `u1`@`h` WITH GRANT OPTION
 SET debug="-d,wl7158_replace_routine_table_3";
 DROP TABLE t1;
 DROP USER u1@h;
@@ -1770,6 +1770,7 @@ mysql.columns_priv_bak                             OK
 mysql.component                                    OK
 mysql.db                                           OK
 mysql.db_bak                                       OK
+mysql.default_roles                                OK
 mysql.engine_cost                                  OK
 mysql.func                                         OK
 mysql.general_log                                  OK
@@ -1785,6 +1786,7 @@ mysql.procs_priv                                   OK
 mysql.procs_priv_bak                               OK
 mysql.proxies_priv                                 OK
 mysql.proxies_priv_bak                             OK
+mysql.role_edges                                   OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK

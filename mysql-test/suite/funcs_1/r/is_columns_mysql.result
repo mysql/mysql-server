@@ -41,6 +41,10 @@ def	mysql	db	Show_view_priv	17	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci
 def	mysql	db	Trigger_priv	22	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references		
 def	mysql	db	Update_priv	6	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references		
 def	mysql	db	User	3		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references		
+def	mysql	default_roles	DEFAULT_ROLE_HOST	3	%	NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references		
+def	mysql	default_roles	DEFAULT_ROLE_USER	4		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references		
+def	mysql	default_roles	HOST	1		NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references		
+def	mysql	default_roles	USER	2		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references		
 def	mysql	engine_cost	comment	6	NULL	YES	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references		
 def	mysql	engine_cost	cost_name	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI		select,insert,update,references		
 def	mysql	engine_cost	cost_value	4	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references		
@@ -105,6 +109,11 @@ def	mysql	proxies_priv	Proxied_user	4		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bi
 def	mysql	proxies_priv	Timestamp	7	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references		
 def	mysql	proxies_priv	User	2		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references		
 def	mysql	proxies_priv	With_grant	5	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references		
+def	mysql	role_edges	FROM_HOST	1		NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references		
+def	mysql	role_edges	FROM_USER	2		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references		
+def	mysql	role_edges	TO_HOST	3		NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references		
+def	mysql	role_edges	TO_USER	4		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references		
+def	mysql	role_edges	WITH_ADMIN_OPTION	5	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references		
 def	mysql	servers	Db	3		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references		
 def	mysql	servers	Host	2		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references		
 def	mysql	servers	Owner	9		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references		
@@ -220,6 +229,7 @@ def	mysql	user	Alter_priv	16	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	e
 def	mysql	user	Alter_routine_priv	27	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references		
 def	mysql	user	authentication_string	41	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references		
 def	mysql	user	Create_priv	7	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references		
+def	mysql	user	Create_role_priv	46	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references		
 def	mysql	user	Create_routine_priv	26	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references		
 def	mysql	user	Create_tablespace_priv	31	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references		
 def	mysql	user	Create_tmp_table_priv	19	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references		
@@ -227,6 +237,7 @@ def	mysql	user	Create_user_priv	28	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_genera
 def	mysql	user	Create_view_priv	24	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references		
 def	mysql	user	Delete_priv	6	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references		
 def	mysql	user	Drop_priv	8	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references		
+def	mysql	user	Drop_role_priv	47	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references		
 def	mysql	user	Event_priv	29	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references		
 def	mysql	user	Execute_priv	21	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references		
 def	mysql	user	File_priv	12	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references		
@@ -369,6 +380,10 @@ NULL	mysql	component	component_group_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 3.0000	mysql	db	Execute_priv	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
 3.0000	mysql	db	Event_priv	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
 3.0000	mysql	db	Trigger_priv	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
+3.0000	mysql	default_roles	HOST	char	60	180	utf8	utf8_bin	char(60)
+3.0000	mysql	default_roles	USER	char	32	96	utf8	utf8_bin	char(32)
+3.0000	mysql	default_roles	DEFAULT_ROLE_HOST	char	60	180	utf8	utf8_bin	char(60)
+3.0000	mysql	default_roles	DEFAULT_ROLE_USER	char	32	96	utf8	utf8_bin	char(32)
 3.0000	mysql	engine_cost	engine_name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 NULL	mysql	engine_cost	device_type	int	NULL	NULL	NULL	NULL	int(11)
 3.0000	mysql	engine_cost	cost_name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
@@ -433,6 +448,11 @@ NULL	mysql	procs_priv	Timestamp	timestamp	NULL	NULL	NULL	NULL	timestamp
 NULL	mysql	proxies_priv	With_grant	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
 3.0000	mysql	proxies_priv	Grantor	char	93	279	utf8	utf8_bin	char(93)
 NULL	mysql	proxies_priv	Timestamp	timestamp	NULL	NULL	NULL	NULL	timestamp
+3.0000	mysql	role_edges	FROM_HOST	char	60	180	utf8	utf8_bin	char(60)
+3.0000	mysql	role_edges	FROM_USER	char	32	96	utf8	utf8_bin	char(32)
+3.0000	mysql	role_edges	TO_HOST	char	60	180	utf8	utf8_bin	char(60)
+3.0000	mysql	role_edges	TO_USER	char	32	96	utf8	utf8_bin	char(32)
+3.0000	mysql	role_edges	WITH_ADMIN_OPTION	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
 3.0000	mysql	servers	Server_name	char	64	192	utf8	utf8_general_ci	char(64)
 3.0000	mysql	servers	Host	char	64	192	utf8	utf8_general_ci	char(64)
 3.0000	mysql	servers	Db	char	64	192	utf8	utf8_general_ci	char(64)
@@ -588,4 +608,6 @@ NULL	mysql	user	max_user_connections	int	NULL	NULL	NULL	NULL	int(11) unsigned
 NULL	mysql	user	password_last_changed	timestamp	NULL	NULL	NULL	NULL	timestamp
 NULL	mysql	user	password_lifetime	smallint	NULL	NULL	NULL	NULL	smallint(5) unsigned
 3.0000	mysql	user	account_locked	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
+3.0000	mysql	user	Create_role_priv	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
+3.0000	mysql	user	Drop_role_priv	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
 SET sql_mode = default;

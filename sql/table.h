@@ -1689,11 +1689,15 @@ typedef struct	st_lex_user {
   LEX_CSTRING host;
   LEX_CSTRING plugin;
   LEX_CSTRING auth;
+  /* Below attributes defines the context in which this token parsed */
   bool uses_identified_by_clause;
   bool uses_identified_with_clause;
   bool uses_authentication_string_clause;
   bool uses_identified_by_password_clause;
+  bool opt_if_not_exists;
   LEX_ALTER alter_status;
+
+  static st_lex_user *alloc(THD *thd, LEX_STRING *user, LEX_STRING *host);
 } LEX_USER;
 
 
@@ -1796,9 +1800,6 @@ struct TABLE_LIST
                      MDL_key::TABLE, db, table_name,
                      mdl_type_for_dml(lock_type),
                      MDL_TRANSACTION);
-    callback_func= 0;
-    opt_hints_table= NULL;
-    opt_hints_qb= NULL;
   }
 
 
@@ -2114,7 +2115,7 @@ struct TABLE_LIST
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *find_view_security_context(THD *thd);
-  bool prepare_view_securety_context(THD *thd);
+  bool prepare_view_security_context(THD *thd);
 #endif
 
   /// Cleanup for re-execution in a prepared statement or a stored procedure.
@@ -2640,7 +2641,7 @@ private:
   /**
      Optimized copy of m_join_cond (valid for one single
      execution). Initialized by SELECT_LEX::get_optimizable_conditions().
-     @todo it would be good to reset it in reinit_before_use(), if
+     @todo it would be goo dto reset it in reinit_before_use(), if
      reinit_stmt_before_use() had a loop including join nests.
   */
   Item          *m_join_cond_optim;

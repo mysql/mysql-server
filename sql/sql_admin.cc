@@ -84,7 +84,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     size_t key_length;
     /*
       If the table didn't exist, we have a shared metadata lock
-      on it that is left from mysql_admin_table()'s attempt to 
+      on it that is left from mysql_admin_table()'s attempt to
       open it. Release the shared metadata lock before trying to
       acquire the exclusive lock to satisfy MDL asserts and avoid
       deadlocks.
@@ -139,7 +139,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     Check if this is a table type that stores index and data separately,
     like ISAM or MyISAM. We assume fixed order of engine file name
     extentions array. First element of engine file name extentions array
-    is meta/index file extention. Second element - data file extention. 
+    is meta/index file extention. Second element - data file extention.
   */
   ext= table->file->ht->file_extensions;
   if (!ext || !ext[0] || !ext[1])
@@ -253,7 +253,7 @@ static inline bool table_not_corrupt_error(uint sql_errno)
 /*
   RETURN VALUES
     FALSE Message sent to net (admin operation went ok)
-    TRUE  Message should be sent by caller 
+    TRUE  Message should be sent by caller
           (admin operation or network communication failed)
 */
 static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
@@ -593,7 +593,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       query_cache.invalidate(thd, table->table, FALSE);
       /*
         XXX: hack: switch off open_for_modify to skip the
-        flush that is made later in the execution flow. 
+        flush that is made later in the execution flow.
       */
       open_for_modify= 0;
     }
@@ -650,7 +650,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         /*
           mysql_recreate_table() can push OK or ERROR.
           Clear 'OK' status. If there is an error, keep it:
-          we will store the error message in a result set row 
+          we will store the error message in a result set row
           and then clear.
         */
         if (thd->get_stmt_da()->is_ok())
@@ -824,7 +824,7 @@ send_result_message:
       /*
         mysql_recreate_table() can push OK or ERROR.
         Clear 'OK' status. If there is an error, keep it:
-        we will store the error message in a result set row 
+        we will store the error message in a result set row
         and then clear.
       */
       if (thd->get_stmt_da()->is_ok())
@@ -1268,4 +1268,280 @@ bool Sql_cmd_alter_instance::execute(THD *thd)
   }
 
   DBUG_RETURN(res);
+}
+
+
+bool Sql_cmd_create_role::execute(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_set_create_role::execute");
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  // TODO: Execution-time processing of the CREATE ROLE statement
+  if (check_global_access(thd, CREATE_ROLE_ACL | CREATE_USER_ACL))
+    DBUG_RETURN(true);
+  /* Conditionally writes to binlog */
+  HA_CREATE_INFO create_info;
+  /*
+    Roles must be locked for authentication by default.
+    The below is a hack to make mysql_create_user() behave
+    correctly.
+  */
+  thd->lex->ssl_cipher= 0;
+  thd->lex->x509_issuer= 0;
+  thd->lex->x509_subject= 0;
+  thd->lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
+  thd->lex->alter_password.account_locked= true;
+  thd->lex->alter_password.update_account_locked_column= true;
+  thd->lex->alter_password.expire_after_days= 0;
+  thd->lex->alter_password.update_password_expired_column= true;
+  thd->lex->alter_password.use_default_password_lifetime= true;
+  thd->lex->alter_password.update_password_expired_fields= true;
+  
+  List_iterator<LEX_USER > it(*const_cast<List<LEX_USER > * >(roles));
+  LEX_USER *role;
+  while((role= it++))
+  {
+    role->uses_identified_by_clause= false;
+    role->uses_identified_by_password_clause= false;
+    role->uses_identified_with_clause= false;
+    role->uses_authentication_string_clause= false;
+    role->alter_status.expire_after_days= 0;
+    role->alter_status.account_locked= true;
+    role->alter_status.update_account_locked_column= true;
+    role->alter_status.update_password_expired_fields= true;
+    role->alter_status.use_default_password_lifetime= true;
+    role->alter_status.update_password_expired_column= true;
+  }
+  if (!(mysql_create_user(thd, *const_cast<List<LEX_USER > * >(roles),
+                          if_not_exists, true)))
+  {
+    my_ok(thd);
+    DBUG_RETURN(false);
+  }
+#endif
+  DBUG_RETURN(true);
+}
+
+
+bool Sql_cmd_drop_role::execute(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_drop_role::execute");
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (check_global_access(thd, DROP_ROLE_ACL | CREATE_USER_ACL))
+    DBUG_RETURN(true);
+  if (mysql_drop_user(thd, const_cast<List<LEX_USER > &>(*roles),
+                      ignore_errors))
+    DBUG_RETURN(true);
+  my_ok(thd);
+#endif
+  DBUG_RETURN(false);
+}
+
+bool Sql_cmd_set_role::execute(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_set_role::execute");
+  int ret= 0;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  switch (role_type)
+  {
+    case ROLE_NONE:
+      ret= mysql_set_active_role_none(thd);
+    break;
+    case ROLE_DEFAULT:
+      ret= mysql_set_role_default(thd);
+    break;
+    case ROLE_ALL:
+      ret= mysql_set_active_role_all(thd, except_roles);
+    break;
+    case ROLE_NAME:
+      ret= mysql_set_active_role(thd, role_list);
+    break;
+  }
+#endif
+  DBUG_RETURN(ret != 0);
+}
+
+
+bool Sql_cmd_grant_roles::execute(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_grant_roles::execute");
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  List_iterator<LEX_USER> it(*(const_cast<List<LEX_USER > *>(roles)));
+  while(LEX_USER *role= it++)
+  {
+    if (!has_grant_role_privilege(thd, role->user,role->host))
+    {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "WITH ADMIN, SUPER");
+      DBUG_RETURN(true);
+    }
+  }
+  DBUG_RETURN(mysql_grant_role(thd, users, roles, this->with_admin_option));
+#else
+  DBUG_RETURN(false);
+#endif
+}
+
+
+bool Sql_cmd_revoke_roles::execute(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_revoke_roles::execute");
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  List_iterator<LEX_USER> it(*(const_cast<List<LEX_USER > *>(roles)));
+  while(LEX_USER *role= it++)
+  {
+    if (!has_grant_role_privilege(thd, role->user,role->host))
+    {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "WITH ADMIN, SUPER");
+      DBUG_RETURN(true);
+    }
+  }
+  DBUG_RETURN(mysql_revoke_role(thd, users, roles));
+#else
+  DBUG_RETURN(false);
+#endif
+}
+
+
+bool Sql_cmd_alter_user_default_role::execute(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_alter_user_default_role::execute");
+  bool ret= false;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  {
+    List<LEX_USER> *tmp_users= const_cast<List<LEX_USER > * >(users);
+    List_iterator<LEX_USER > it(*tmp_users);
+    LEX_USER *user;
+    while((user= it++))
+    {
+      if (strcmp(thd->security_context()->priv_user().str,
+                 user->user.str)  != 0)
+      {
+        TABLE_LIST table;
+        table.init_one_table("mysql", 5, "default_roles", 4, 0, TL_READ);
+        if (check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 1) &&
+            check_global_access(thd, CREATE_USER_ACL))
+        {
+          my_error(ER_ACCESS_DENIED_ERROR,MYF(0),
+                   user->user.str,
+                   user->host.str,
+                   (thd->password ?
+                    ER_THD(thd, ER_YES) :
+                    ER_THD(thd, ER_NO)));
+          DBUG_RETURN(true);
+        }
+      }
+      else
+      {
+        // Verify that the user actually is granted the role before it is 
+        // set as default.
+        List<LEX_USER> *tmp_roles= const_cast<List<LEX_USER > * >(roles);
+        List_iterator<LEX_USER > roles_it(*tmp_roles);
+        LEX_USER *role;
+        if (roles != 0)
+        {
+          while ((role= roles_it++))
+          {
+             if (!is_granted_role(thd->security_context()->priv_user(),
+                                  thd->security_context()->priv_host(),
+                                  role->user,
+                                  role->host))
+             {
+               my_error(ER_ACCESS_DENIED_ERROR,MYF(0),
+                        user->user.str,
+                        user->host.str,
+                        (thd->password ?
+                         ER_THD(thd, ER_YES) :
+                         ER_THD(thd, ER_NO)));
+               DBUG_RETURN(true);
+             }
+          }
+        }
+      }
+    }
+  }
+  List<LEX_USER> *tmp_roles= const_cast<List<LEX_USER > * >(roles);
+  List_iterator<LEX_USER > roles_it(*tmp_roles);
+  LEX_USER *role;
+  List_of_auth_id_refs authids;
+  if (roles != 0)
+  {
+    while ((role= roles_it++))
+    {
+      Auth_id_ref authid= std::make_pair(role->user, role->host);
+      authids.push_back(authid);
+    }
+  }
+  List<LEX_USER> *tmp_users= const_cast<List<LEX_USER > * >(users);
+  List_iterator<LEX_USER > it(*tmp_users);
+  LEX_USER *user;
+  while ((user= it++) && !ret)
+  {
+    user= get_current_user(thd, user);
+    if (role_type == ROLE_NONE)
+      ret= mysql_clear_default_roles(thd, user);
+    else if (role_type == ROLE_ALL)
+      ret= mysql_alter_user_set_default_roles_all(thd, user);
+    else if (role_type == ROLE_NAME)
+      ret= mysql_alter_user_set_default_roles(thd, user, authids);
+  }
+  if (!ret)
+    my_ok(thd);
+#endif
+  DBUG_RETURN(ret);
+}
+
+
+bool Sql_cmd_show_privileges::execute(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_show_privileges::execute");
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (for_user == 0 || for_user->user.str == 0)
+  {
+	  /* SHOW PRIVILEGE FOR CURRENT_USER */
+	  LEX_USER current_user;
+	  get_default_definer(thd, &current_user);
+    if (using_users == 0 || using_users->elements == 0)
+    {
+      List_of_auth_id_refs *active_list=
+        thd->security_context()->get_active_roles();
+      DBUG_RETURN(mysql_show_grants(thd, &current_user, *active_list));
+    }
+  }
+  else if (strcmp(thd->security_context()->priv_user().str,
+           for_user->user.str)  != 0)
+  {
+    TABLE_LIST table;
+    table.init_one_table("mysql", 5, "user", 4, 0, TL_READ);
+    if (!is_granted_table_access(thd, SELECT_ACL, &table))
+    {
+      char command[128];
+      get_privilege_desc(command, sizeof(command), SELECT_ACL);
+      my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
+               command,
+               thd->security_context()->priv_user().str,
+               thd->security_context()->host_or_ip().str,
+               "user");
+      DBUG_RETURN(false);
+    }
+  }
+  List_of_auth_id_refs authid_list;
+  if (using_users != 0 && using_users->elements > 0)
+  {
+    /* We have a USING clause */
+    LEX_USER *user;
+    List<LEX_USER > *tmp_using_users=
+    const_cast<List<LEX_USER > *> (using_users);
+    List_iterator<LEX_USER> it(*tmp_using_users);
+    while ((user= it++))
+    {
+      Auth_id_ref authid= std::make_pair(user->user, user->host);
+      authid_list.push_back(authid);
+    }
+  }
+
+  LEX_USER *tmp_user= const_cast<LEX_USER *>(for_user);
+  tmp_user= get_current_user(thd, tmp_user);
+  DBUG_RETURN(mysql_show_grants(thd, tmp_user, authid_list));
+#else
+  DBUG_RETURN(false);
+#endif
 }

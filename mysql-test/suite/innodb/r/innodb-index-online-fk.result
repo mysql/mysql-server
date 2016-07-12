@@ -396,6 +396,7 @@ mysql/columns
 mysql/columns_priv
 mysql/component
 mysql/db
+mysql/default_roles
 mysql/engine_cost
 mysql/events
 mysql/foreign_key_column_usage
@@ -416,6 +417,7 @@ mysql/parameters
 mysql/plugin
 mysql/procs_priv
 mysql/proxies_priv
+mysql/role_edges
 mysql/routines
 mysql/schemata
 mysql/server_cost
@@ -1077,6 +1079,7 @@ mysql/columns
 mysql/columns_priv
 mysql/component
 mysql/db
+mysql/default_roles
 mysql/engine_cost
 mysql/events
 mysql/foreign_key_column_usage
@@ -1097,6 +1100,7 @@ mysql/parameters
 mysql/plugin
 mysql/procs_priv
 mysql/proxies_priv
+mysql/role_edges
 mysql/routines
 mysql/schemata
 mysql/server_cost
@@ -1240,6 +1244,7 @@ mysql/columns
 mysql/columns_priv
 mysql/component
 mysql/db
+mysql/default_roles
 mysql/engine_cost
 mysql/events
 mysql/foreign_key_column_usage
@@ -1260,6 +1265,7 @@ mysql/parameters
 mysql/plugin
 mysql/procs_priv
 mysql/proxies_priv
+mysql/role_edges
 mysql/routines
 mysql/schemata
 mysql/server_cost
@@ -1414,6 +1420,7 @@ mysql/columns
 mysql/columns_priv
 mysql/component
 mysql/db
+mysql/default_roles
 mysql/engine_cost
 mysql/events
 mysql/foreign_key_column_usage
@@ -1434,6 +1441,7 @@ mysql/parameters
 mysql/plugin
 mysql/procs_priv
 mysql/proxies_priv
+mysql/role_edges
 mysql/routines
 mysql/schemata
 mysql/server_cost
@@ -1588,6 +1596,7 @@ mysql/columns
 mysql/columns_priv
 mysql/component
 mysql/db
+mysql/default_roles
 mysql/engine_cost
 mysql/events
 mysql/foreign_key_column_usage
@@ -1608,6 +1617,7 @@ mysql/parameters
 mysql/plugin
 mysql/procs_priv
 mysql/proxies_priv
+mysql/role_edges
 mysql/routines
 mysql/schemata
 mysql/server_cost

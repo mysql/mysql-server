@@ -67,12 +67,106 @@ FOREIGN KEY (schema_collation_id) REFERENCES collations(id)
 set sql_mode='';
 set default_storage_engine=myisam;
 
-CREATE TABLE IF NOT EXISTS db (   Host char(60) binary DEFAULT '' NOT NULL, Db char(64) binary DEFAULT '' NOT NULL, User char(32) binary DEFAULT '' NOT NULL, Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Delete_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Drop_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Grant_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, References_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Index_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, PRIMARY KEY Host (Host,Db,User), KEY User (User) ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Database privileges';
+CREATE TABLE IF NOT EXISTS db
+(
+Host char(60) binary DEFAULT '' NOT NULL,
+Db char(64) binary DEFAULT '' NOT NULL,
+User char(32) binary DEFAULT '' NOT NULL,
+Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Delete_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Create_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Drop_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Grant_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+References_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Index_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Alter_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+PRIMARY KEY Host (Host,Db,User), KEY User (User)
+)
+engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Database privileges';
 
 -- Remember for later if db table already existed
 set @had_db_table= @@warning_count != 0;
 
-CREATE TABLE IF NOT EXISTS user (   Host char(60) binary DEFAULT '' NOT NULL, User char(32) binary DEFAULT '' NOT NULL, Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Delete_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Drop_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Reload_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Shutdown_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Process_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, File_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Grant_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, References_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Index_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Show_db_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Super_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Repl_slave_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Repl_client_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_user_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_tablespace_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci DEFAULT '' NOT NULL, ssl_cipher BLOB NOT NULL, x509_issuer BLOB NOT NULL, x509_subject BLOB NOT NULL, max_questions int(11) unsigned DEFAULT 0  NOT NULL, max_updates int(11) unsigned DEFAULT 0  NOT NULL, max_connections int(11) unsigned DEFAULT 0  NOT NULL, max_user_connections int(11) unsigned DEFAULT 0  NOT NULL, plugin char(64) DEFAULT 'mysql_native_password' NOT NULL, authentication_string TEXT, password_expired ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, password_last_changed timestamp NULL DEFAULT NULL, password_lifetime smallint unsigned NULL DEFAULT NULL, account_locked ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, PRIMARY KEY Host (Host,User) ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Users and global privileges';
+CREATE TABLE IF NOT EXISTS user
+(
+Host char(60) binary DEFAULT '' NOT NULL,
+User char(32) binary DEFAULT '' NOT NULL,
+Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Delete_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Create_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Drop_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Reload_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Shutdown_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Process_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+File_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Grant_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+References_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Index_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Alter_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Show_db_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Super_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Repl_slave_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Repl_client_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Create_user_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Create_tablespace_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci DEFAULT '' NOT NULL,
+ssl_cipher BLOB NOT NULL,
+x509_issuer BLOB NOT NULL,
+x509_subject BLOB NOT NULL,
+max_questions int(11) unsigned DEFAULT 0  NOT NULL,
+max_updates int(11) unsigned DEFAULT 0  NOT NULL,
+max_connections int(11) unsigned DEFAULT 0  NOT NULL,
+max_user_connections int(11) unsigned DEFAULT 0  NOT NULL,
+plugin char(64) DEFAULT 'mysql_native_password' NOT NULL,
+authentication_string TEXT,
+password_expired ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+password_last_changed timestamp NULL DEFAULT NULL,
+password_lifetime smallint unsigned NULL DEFAULT NULL,
+account_locked ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Create_role_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Drop_role_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+PRIMARY KEY Host (Host,User)
+) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Users and global privileges';
+
+CREATE TABLE IF NOT EXISTS default_roles
+(
+HOST CHAR(60) BINARY DEFAULT '' NOT NULL, USER CHAR(32) BINARY DEFAULT '' NOT NULL,
+DEFAULT_ROLE_HOST CHAR(60) BINARY DEFAULT '%' NOT NULL,
+DEFAULT_ROLE_USER CHAR(32) BINARY DEFAULT '' NOT NULL,
+PRIMARY KEY (HOST, USER, DEFAULT_ROLE_HOST, DEFAULT_ROLE_USER)
+) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Default roles';
+
+CREATE TABLE IF NOT EXISTS role_edges
+(
+FROM_HOST CHAR(60) BINARY DEFAULT '' NOT NULL,
+FROM_USER CHAR(32) BINARY DEFAULT '' NOT NULL,
+TO_HOST CHAR(60) BINARY DEFAULT '' NOT NULL,
+TO_USER CHAR(32) BINARY DEFAULT '' NOT NULL,
+WITH_ADMIN_OPTION ENUM('N', 'Y') COLLATE UTF8_GENERAL_CI DEFAULT 'N' NOT NULL,
+PRIMARY KEY (FROM_HOST,FROM_USER,TO_HOST,TO_USER)
+) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Role hierarchy and role grants';
 
 -- Remember for later if user table already existed
 set @had_user_table= @@warning_count != 0;
@@ -877,7 +971,7 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.setup_actors("
   "HOST CHAR(60) collate utf8_bin default '%' not null,"
   "USER CHAR(32) collate utf8_bin default '%' not null,"
-  "ROLE CHAR(32) collate utf8_bin default '%' not null,"
+  "`ROLE` CHAR(32) collate utf8_bin default '%' not null,"
   "ENABLED ENUM ('YES', 'NO') not null default 'YES',"
   "HISTORY ENUM ('YES', 'NO') not null default 'YES'"
   ")ENGINE=PERFORMANCE_SCHEMA;";
@@ -1145,7 +1239,7 @@ SET @cmd="CREATE TABLE performance_schema.threads("
   "PROCESSLIST_STATE VARCHAR(64),"
   "PROCESSLIST_INFO LONGTEXT,"
   "PARENT_THREAD_ID BIGINT unsigned,"
-  "ROLE VARCHAR(64),"
+  "`ROLE` VARCHAR(64),"
   "INSTRUMENTED ENUM ('YES', 'NO') not null,"
   "HISTORY ENUM ('YES', 'NO') not null,"
   "CONNECTION_TYPE VARCHAR(16),"

@@ -1024,7 +1024,8 @@ public:
 
   Security_context* security_context() const { return m_security_ctx; }
   void set_security_context(Security_context *sctx) { m_security_ctx= sctx; }
-
+  List<Security_context> m_view_ctx_list;
+  
   /*
     Points to info-string that we show in SHOW PROCESSLIST
     You are supposed to update thd->proc_info only if you have coded

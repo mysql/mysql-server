@@ -174,18 +174,18 @@ GRANT PROXY ON future_user TO grant_plug;
 in default connection
 SHOW GRANTS FOR grant_plug;
 Grants for grant_plug@%
-GRANT ALL PRIVILEGES ON *.* TO 'grant_plug'@'%'
+GRANT ALL PRIVILEGES ON *.* TO `grant_plug`@`%`
 GRANT PROXY ON 'future_user'@'%' TO 'grant_plug'@'%'
 REVOKE PROXY ON future_user FROM grant_plug;
 SHOW GRANTS FOR grant_plug;
 Grants for grant_plug@%
-GRANT ALL PRIVILEGES ON *.* TO 'grant_plug'@'%'
+GRANT ALL PRIVILEGES ON *.* TO `grant_plug`@`%`
 ## testing drop user
 CREATE USER test_drop@localhost;
 GRANT PROXY ON future_user TO test_drop@localhost;
 SHOW GRANTS FOR test_drop@localhost;
 Grants for test_drop@localhost
-GRANT USAGE ON *.* TO 'test_drop'@'localhost'
+GRANT USAGE ON *.* TO `test_drop`@`localhost`
 GRANT PROXY ON 'future_user'@'%' TO 'test_drop'@'localhost'
 DROP USER test_drop@localhost;
 SELECT * FROM mysql.proxies_priv WHERE Host = 'test_drop' AND User = 'localhost';
@@ -413,6 +413,7 @@ mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
+mysql.default_roles                                OK
 mysql.engine_cost                                  OK
 mysql.func                                         OK
 mysql.general_log                                  OK
@@ -426,6 +427,7 @@ mysql.innodb_table_stats                           OK
 mysql.plugin                                       OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK

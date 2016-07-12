@@ -497,7 +497,6 @@ const char *my_localhost= "localhost";
 
 bool opt_large_files= sizeof(my_off_t) > 4;
 static my_bool opt_autocommit; ///< for --autocommit command-line option
-
 /*
   Used with --help for detailed option
 */
@@ -1052,7 +1051,6 @@ Checkable_rwlock *global_sid_lock= NULL;
 Sid_map *global_sid_map= NULL;
 Gtid_state *gtid_state= NULL;
 Gtid_table_persistor *gtid_table_persistor= NULL;
-
 
 void set_remaining_args(int argc, char **argv)
 {
@@ -1832,6 +1830,9 @@ void clean_up(bool print_message)
     my_timer_deinitialize();
 
   have_statement_timeout= SHOW_OPTION_DISABLED;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    shutdown_acl_cache();
+#endif
 
   log_syslog_exit();
 
@@ -2771,6 +2772,7 @@ SHOW_VAR com_status_vars[]= {
   {"alter_table",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_TABLE]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_tablespace",     (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_TABLESPACE]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_user",           (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_USER]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"alter_user_default_role", (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_USER_DEFAULT_ROLE]), SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"analyze",              (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ANALYZE]),                    SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"begin",                (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_BEGIN]),                      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"binlog",               (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_BINLOG_BASE64_EVENT]),        SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -2786,6 +2788,7 @@ SHOW_VAR com_status_vars[]= {
   {"create_function",      (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_SPFUNCTION]),          SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"create_index",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_INDEX]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"create_procedure",     (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_PROCEDURE]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"create_role",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_ROLE]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"create_server",        (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_SERVER]),              SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"create_table",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_TABLE]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"create_trigger",       (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_TRIGGER]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -2801,6 +2804,7 @@ SHOW_VAR com_status_vars[]= {
   {"drop_function",        (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_FUNCTION]),              SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_index",           (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_INDEX]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_procedure",       (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_PROCEDURE]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"drop_role",            (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_ROLE]),                  SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_server",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_SERVER]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_table",           (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_TABLE]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_trigger",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_TRIGGER]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -2812,6 +2816,7 @@ SHOW_VAR com_status_vars[]= {
   {"flush",                (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_FLUSH]),                      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"get_diagnostics",      (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_GET_DIAGNOSTICS]),            SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"grant",                (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_GRANT]),                      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"grant_roles",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_GRANT_ROLE]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"ha_close",             (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_HA_CLOSE]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"ha_open",              (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_HA_OPEN]),                    SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"ha_read",              (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_HA_READ]),                    SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -2838,12 +2843,14 @@ SHOW_VAR com_status_vars[]= {
   {"resignal",             (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_RESIGNAL]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"revoke",               (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_REVOKE]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"revoke_all",           (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_REVOKE_ALL]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"revoke_roles",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_REVOKE_ROLE]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"rollback",             (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ROLLBACK]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"rollback_to_savepoint",(char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ROLLBACK_TO_SAVEPOINT]),      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"savepoint",            (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SAVEPOINT]),                  SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"select",               (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SELECT]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"set_option",           (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SET_OPTION]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"set_password",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SET_PASSWORD]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"set_role",             (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SET_ROLE]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"signal",               (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SIGNAL]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"show_binlog_events",   (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SHOW_BINLOG_EVENTS]),         SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"show_binlogs",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SHOW_BINLOGS]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -6564,6 +6571,15 @@ static int show_aborted_connects(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
+static int show_acl_cache_items_count(THD *thd, SHOW_VAR *var, char *buff)
+{
+  var->type= SHOW_LONG;
+  var->value= buff;
+  long *value= reinterpret_cast<long*>(buff);
+  *value= static_cast<long>(get_global_acl_cache_size());
+  return 0;
+}
+
 
 static int show_connection_errors_max_connection(THD *thd, SHOW_VAR *var,
                                                  char *buff)
@@ -7221,6 +7237,7 @@ SHOW_VAR status_vars[]= {
   {"Aborted_clients",          (char*) &aborted_threads,                              SHOW_LONG,               SHOW_SCOPE_GLOBAL},
 #ifndef EMBEDDED_LIBRARY
   {"Aborted_connects",         (char*) &show_aborted_connects,                        SHOW_FUNC,               SHOW_SCOPE_GLOBAL},
+  {"Acl_cache_items_count",    (char*) &show_acl_cache_items_count,                   SHOW_FUNC,               SHOW_SCOPE_GLOBAL},
 #endif
 #ifdef HAVE_REPLICATION
 #ifndef DBUG_OFF

@@ -1117,10 +1117,12 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 /*
    Tokens from MySQL 8.0
 */
-
 %token  JSON_UNQUOTED_SEPARATOR_SYM   /* MYSQL */
+%token  ROLE_SYM                      /* SQL-1999-R */
+%token  ADMIN_SYM                     /* SQL-1999-R */
 %token  INVISIBLE_SYM
 %token  VISIBLE_SYM
+%token  EXCEPT_SYM                    /* SQL-1999-R */
 %token  COMPONENT_SYM                 /* MYSQL */
 %token  GRAMMAR_SELECTOR_EXPR         /* synthetic token: starts single expr. */
 %token  GRAMMAR_SELECTOR_GCOL       /* synthetic token: starts generated col. */
@@ -1159,6 +1161,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %type <lex_str>
         IDENT IDENT_QUOTED TEXT_STRING DECIMAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM
         LEX_HOSTNAME ULONGLONG_NUM select_alias ident ident_or_text
+        role_ident role_ident_or_text
         IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
         NCHAR_STRING opt_component key_cache_name
         sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem ident_or_empty
@@ -1291,9 +1294,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <cast_type> cast_type
 
-%type <symbol> keyword keyword_sp
+%type <symbol> keyword keyword_sp keyword_role
+        keyword_role_aux1 keyword_role_aux2
 
-%type <lex_user> user grant_user user_func
+%type <lex_user> user grant_user user_func role
 
 %type <charset>
         opt_collate
@@ -1310,7 +1314,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %type <boolfunc2creator> comp_op
 
 %type <NONE>
-        change drop
+        change
         truncate rename
         show describe load alter optimize keycache preload flush
         reset purge commit rollback savepoint release
@@ -1328,8 +1332,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         varchar nchar nvarchar
         table_name
         column_list column_list_id
-        opt_column_list grant_privileges grant_ident grant_list grant_option
-        object_privilege object_privilege_list user_list rename_list
+        opt_column_list grant_ident grant_list grant_option
+        object_privilege object_privilege_list rename_list
         clear_privileges flush_options flush_option
         opt_flush_lock flush_options_list
         optional_braces
@@ -1397,6 +1401,7 @@ END_OF_INPUT
 
 %type <is_not_empty> opt_convert_xid opt_ignore opt_linear opt_bin_mod
         opt_if_not_exists opt_temporary
+        opt_grant_option opt_with_admin_option
 
 %type <NONE>
         '-' '+' '*' '/' '%' '(' ')'
@@ -1520,6 +1525,7 @@ END_OF_INPUT
         shutdown_stmt
 	alter_instance_stmt
         create_table_stmt
+        set_role_stmt
 
 %type <table_ident> table_ident_opt_wild
 
@@ -1545,6 +1551,8 @@ END_OF_INPUT
 %type <optimizer_hints> SELECT_SYM INSERT_SYM REPLACE_SYM UPDATE_SYM DELETE_SYM
 
 %type <join_type> outer_join_type natural_join_type inner_join_type
+
+%type <user_list> user_list role_list opt_except_role_list
 
 %type <alter_instance_action> alter_instance_action
 
@@ -1824,6 +1832,7 @@ simple_statement:
         | savepoint
         | select_stmt           { CONTEXTUALIZE($1); }
         | set                   { CONTEXTUALIZE($1); }
+        | set_role_stmt         { MAKE_CMD($1); } // TODO: merge with "set"
         | signal_stmt
         | show
         | shutdown_stmt         { MAKE_CMD($1); }
@@ -2450,6 +2459,12 @@ create:
             if (Lex->create_info == NULL)
               MYSQL_YYABORT; // OOM
             lex->create_info->options= $3 ? HA_LEX_CREATE_IF_NOT_EXISTS : 0;
+          }
+        | CREATE ROLE_SYM opt_if_not_exists role_list
+          {
+            Lex->sql_command= SQLCOM_CREATE_ROLE;
+            PT_statement *tmp= NEW_PTN PT_create_role(!!$3, $4);
+            MAKE_CMD(tmp);
           }
         | CREATE LOGFILE_SYM GROUP_SYM logfile_group_info
           {
@@ -7114,6 +7129,41 @@ alter:
             Lex->contains_plaintext_password= true;
           }
         | alter_instance_stmt { MAKE_CMD($1); }
+        | alter_user_command user DEFAULT_SYM ROLE_SYM ALL
+          {
+            List<LEX_USER> *users= new List<LEX_USER>;
+            if (users == NULL || users->push_back($2))
+              MYSQL_YYABORT;
+            List<LEX_USER> *role_list= new List<LEX_USER>;
+            Lex->sql_command= SQLCOM_ALTER_USER_DEFAULT_ROLE;
+              PT_statement *tmp=
+                NEW_PTN PT_alter_user_default_role(Lex->drop_if_exists,
+                                                   users, role_list, ROLE_ALL);
+              MAKE_CMD(tmp);
+          }
+        | alter_user_command user DEFAULT_SYM ROLE_SYM NONE_SYM
+          {
+            List<LEX_USER> *users= new List<LEX_USER>;
+            if (users == NULL || users->push_back($2))
+              MYSQL_YYABORT;
+            List<LEX_USER> *role_list= new List<LEX_USER>;
+            Lex->sql_command= SQLCOM_ALTER_USER_DEFAULT_ROLE;
+              PT_statement *tmp=
+                NEW_PTN PT_alter_user_default_role(Lex->drop_if_exists,
+                                                   users, role_list, ROLE_NONE);
+              MAKE_CMD(tmp);
+          }
+        | alter_user_command user DEFAULT_SYM ROLE_SYM role_list
+          {
+            List<LEX_USER> *users= new List<LEX_USER>;
+            if (users == NULL || users->push_back($2))
+              MYSQL_YYABORT;
+            Lex->sql_command= SQLCOM_ALTER_USER_DEFAULT_ROLE;
+            PT_statement *tmp=
+              NEW_PTN PT_alter_user_default_role(Lex->drop_if_exists,
+                                                 users, $5, ROLE_NAME);
+            MAKE_CMD(tmp);
+          }
         ;
 
 alter_user_command:
@@ -10760,7 +10810,7 @@ empty_select_options:
         ;
 
 /*
-  Drop : delete tables or index or user
+  Drop : delete tables or index or user or role
 */
 
 drop:
@@ -10878,6 +10928,7 @@ drop:
              LEX *lex=Lex;
              lex->sql_command= SQLCOM_DROP_USER;
              lex->drop_if_exists= $3;
+             lex->users_list= *$5;
           }
         | DROP VIEW_SYM if_exists table_list opt_restrict
           {
@@ -10918,6 +10969,12 @@ drop:
           {
             Lex->sql_command = SQLCOM_DROP_SERVER;
             Lex->m_sql_cmd= NEW_PTN Sql_cmd_drop_server($4, $3);
+          }
+        | DROP ROLE_SYM if_exists role_list
+          {
+            Lex->sql_command= SQLCOM_DROP_ROLE;
+            PT_statement *tmp= NEW_PTN PT_drop_role($3, $4);
+            MAKE_CMD(tmp);
           }
         ;
 
@@ -11582,11 +11639,6 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, 0, SCH_ENGINES))
               MYSQL_YYABORT;
           }
-        | PRIVILEGES
-          {
-            LEX *lex=Lex;
-            lex->sql_command= SQLCOM_SHOW_PRIVILEGES;
-          }
         | COUNT_SYM '(' '*' ')' WARNINGS
           {
             Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW WARNINGS doesn't clear them.
@@ -11711,22 +11763,30 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, 0, SCH_COLLATIONS))
               MYSQL_YYABORT;
           }
-        | GRANTS
+        | PRIVILEGES
           {
             LEX *lex=Lex;
-            lex->sql_command= SQLCOM_SHOW_GRANTS;
-            LEX_USER *curr_user;
-            if (!(curr_user= (LEX_USER*) lex->thd->alloc(sizeof(st_lex_user))))
-              MYSQL_YYABORT;
-            memset(curr_user, 0, sizeof(st_lex_user));
-            lex->grant_user= curr_user;
+            lex->sql_command= SQLCOM_SHOW_PRIVILEGES;
+            /* Show all available grants in the server */
+          }
+        | GRANTS
+          {
+            Lex->sql_command= SQLCOM_SHOW_GRANTS;			
+            PT_statement *tmp= NEW_PTN PT_show_privileges(0, 0);
+            MAKE_CMD(tmp);
           }
         | GRANTS FOR_SYM user
           {
-            LEX *lex=Lex;
+            LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_GRANTS;
-            lex->grant_user=$3;
-            lex->grant_user->auth= NULL_CSTR;
+            PT_statement *tmp= NEW_PTN PT_show_privileges($3, 0);
+            MAKE_CMD(tmp);
+          }
+        | GRANTS FOR_SYM user USING user_list
+          {
+            Lex->sql_command= SQLCOM_SHOW_GRANTS;
+            PT_statement *tmp= NEW_PTN PT_show_privileges($3, $5);
+            MAKE_CMD(tmp);
           }
         | CREATE DATABASE opt_if_not_exists ident
           {
@@ -12844,6 +12904,17 @@ ident:
           }
         ;
 
+role_ident:
+          IDENT_sys
+        | keyword_role
+          {
+            $$.str= YYTHD->strmake($1.str, $1.length);
+            if ($$.str == NULL)
+              MYSQL_YYABORT;
+            $$.length= $1.length;
+          }
+        ;
+
 label_ident:
           IDENT_sys    { $$=$1; }
         | keyword_sp
@@ -12862,71 +12933,22 @@ ident_or_text:
         | LEX_HOSTNAME { $$=$1;}
         ;
 
+role_ident_or_text:
+          role_ident
+        | TEXT_STRING_sys
+        | LEX_HOSTNAME
+        ;
+
 user:
           ident_or_text
           {
-            THD *thd= YYTHD;
-            if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
-              MYSQL_YYABORT;
-
-            /*
-              Trim whitespace as the values will go to a CHAR field
-              when stored.
-            */
-            trim_whitespace(system_charset_info, &$1);
-
-            $$->user.str= $1.str;
-            $$->user.length= $1.length;
-            $$->host.str= "%";
-            $$->host.length= 1;
-            $$->plugin= EMPTY_CSTR;
-            $$->auth= NULL_CSTR;
-            $$->uses_identified_by_clause= false;
-            $$->uses_identified_with_clause= false;
-            $$->uses_identified_by_password_clause= false;
-            $$->uses_authentication_string_clause= false;
-
-            if (check_string_char_length($$->user, ER_THD(YYTHD, ER_USERNAME),
-                                         USERNAME_CHAR_LENGTH,
-                                         system_charset_info, 0))
+            if (!($$= st_lex_user::alloc(YYTHD, &$1, NULL)))
               MYSQL_YYABORT;
           }
         | ident_or_text '@' ident_or_text
           {
-            THD *thd= YYTHD;
-            if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
+            if (!($$= st_lex_user::alloc(YYTHD, &$1, &$3)))
               MYSQL_YYABORT;
-
-            /*
-              Trim whitespace as the values will go to a CHAR field
-              when stored.
-            */
-            trim_whitespace(system_charset_info, &$1);
-            trim_whitespace(system_charset_info, &$3);
-
-            $$->user.str= $1.str;
-            $$->user.length= $1.length;
-            $$->host.str= $3.str;
-            $$->host.length= $3.length;
-            $$->plugin= EMPTY_CSTR;
-            $$->auth= NULL_CSTR;
-            $$->uses_identified_by_clause= false;
-            $$->uses_identified_with_clause= false;
-            $$->uses_identified_by_password_clause= false;
-            $$->uses_authentication_string_clause= false;
-
-            if (check_string_char_length($$->user, ER_THD(YYTHD, ER_USERNAME),
-                                         USERNAME_CHAR_LENGTH,
-                                         system_charset_info, 0) ||
-                check_host_name($$->host))
-              MYSQL_YYABORT;
-            /*
-              Convert hostname part of username to lowercase.
-              It's OK to use in-place lowercase as long as
-              the character set is utf8.
-            */
-            my_casedn_str(system_charset_info, $3.str);
-            $$->host.str= $3.str;
           }
         | CURRENT_USER optional_braces
           {
@@ -12941,10 +12963,40 @@ user:
           }
         ;
 
-/* Keyword that we allow for identifiers (except SP labels) */
+role:
+          role_ident_or_text
+          {
+            if (!($$= st_lex_user::alloc(YYTHD, &$1, NULL)))
+              MYSQL_YYABORT;
+          }
+        | role_ident_or_text '@' ident_or_text
+          {
+            if (!($$= st_lex_user::alloc(YYTHD, &$1, &$3)))
+              MYSQL_YYABORT;
+          }
+        ;
+
+/* Keywords that we allow for identifiers (except SP labels).
+
+   Also see statement-specific rules:
+   * keyword_sp,
+   * keyword_role
+*/
 keyword:
           keyword_sp            {}
-        | ACCOUNT_SYM           {}
+        | keyword_role_aux2     {}
+        | EXECUTE_SYM           {}
+        | SHUTDOWN              {}
+        ;
+
+/*
+  This is a subset of non-reserved keywords.
+  We allow keyword_role_aux2 for role identifiers in addition to
+  keyword_role_aux1.
+  Also see a comment above the keyword_role rule.
+*/
+keyword_role_aux2:
+          ACCOUNT_SYM           {}
         | ASCII_SYM             {}
         | ALWAYS_SYM            {}
         | BACKUP_SYM            {}
@@ -12960,7 +13012,6 @@ keyword:
         | DEALLOCATE_SYM        {}
         | DO_SYM                {}
         | END                   {}
-        | EXECUTE_SYM           {}
         | FLUSH_SYM             {}
         | FOLLOWS_SYM           {}
         | FORMAT_SYM            {}
@@ -12987,7 +13038,6 @@ keyword:
         | SAVEPOINT_SYM         {}
         | SECURITY_SYM          {}
         | SERVER_SYM            {}
-        | SHUTDOWN              {}
         | SIGNED_SYM            {}
         | SOCKET_SYM            {}
         | SLAVE                 {}
@@ -13010,6 +13060,24 @@ keyword:
  * conflicts.
  */
 keyword_sp:
+          keyword_role_aux1        {}
+        | EVENT_SYM                {}
+        | FILE_SYM                 {}
+        | NONE_SYM                 {}
+        | PROCESS                  {}
+        | PROXY_SYM                {}
+        | RELOAD                   {}
+        | REPLICATION              {}
+        | SUPER_SYM                {}
+        ;
+
+/*
+  This is a subset of non-reserved keywords in keyword_sp.
+  We allow keyword_role_aux1 for role identifiers in addition to
+  keyword_role_aux2.
+  Also see a comment above the keyword_role rule.
+*/
+keyword_role_aux1:
           ACTION                   {}
         | ADDDATE_SYM              {}
         | AFTER_SYM                {}
@@ -13089,7 +13157,6 @@ keyword_sp:
         | ERROR_SYM                {}
         | ERRORS                   {}
         | ESCAPE_SYM               {}
-        | EVENT_SYM                {}
         | EVENTS_SYM               {}
         | EVERY_SYM                {}
         | EXCHANGE_SYM             {}
@@ -13103,7 +13170,6 @@ keyword_sp:
         | FOUND_SYM                {}
         | ENABLE_SYM               {}
         | FULL                     {}
-        | FILE_SYM                 {}
         | FILE_BLOCK_SIZE_SYM      {}
         | FILTER_SYM               {}
         | FIRST_SYM                {}
@@ -13195,7 +13261,6 @@ keyword_sp:
         | NEW_SYM                  {}
         | NO_WAIT_SYM              {}
         | NODEGROUP_SYM            {}
-        | NONE_SYM                 {}
         | NUMBER_SYM               {}
         | NVARCHAR_SYM             {}
         | OFFSET_SYM               {}
@@ -13216,11 +13281,9 @@ keyword_sp:
         | PRESERVE_SYM             {}
         | PREV_SYM                 {}
         | PRIVILEGES               {}
-        | PROCESS                  {}
         | PROCESSLIST_SYM          {}
         | PROFILE_SYM              {}
         | PROFILES_SYM             {}
-        | PROXY_SYM                {}
         | QUARTER_SYM              {}
         | QUERY_SYM                {}
         | QUICK                    {}
@@ -13235,10 +13298,8 @@ keyword_sp:
         | RELAY_LOG_FILE_SYM       {}
         | RELAY_LOG_POS_SYM        {}
         | RELAY_THREAD             {}
-        | RELOAD                   {}
         | REORGANIZE_SYM           {}
         | REPEATABLE_SYM           {}
-        | REPLICATION              {}
         | REPLICATE_DO_DB          {}
         | REPLICATE_IGNORE_DB      {}
         | REPLICATE_DO_TABLE       {}
@@ -13291,7 +13352,6 @@ keyword_sp:
         | SUBJECT_SYM              {}
         | SUBPARTITION_SYM         {}
         | SUBPARTITIONS_SYM        {}
-        | SUPER_SYM                {}
         | SUSPEND_SYM              {}
         | SWAPS_SYM                {}
         | SWITCHES_SYM             {}
@@ -13335,6 +13395,28 @@ keyword_sp:
         | XID_SYM                  {}
         | XML_SYM                  {}
         | YEAR_SYM                 {}
+        ;
+
+/* Keywords that we allow for role names.
+
+   To not introduce new grammar conflicts, the following keyword tokens are
+   not welcome as role names:
+        EVENT_SYM
+        EXECUTE_SYM
+        FILE_SYM
+        PROCESS
+        PROXY_SYM
+        RELOAD
+        REPLICATION
+        SHUTDOWN
+        SUPER_SYM
+
+  Note: this rule is a combination of keyword & keyword_sp rules (excluding
+        keywords above).
+*/
+keyword_role:
+          keyword_role_aux1
+        | keyword_role_aux2
         ;
 
 /*
@@ -13391,6 +13473,48 @@ start_option_value_list:
           }
         ;
 
+set_role_stmt:
+          SET_SYM ROLE_SYM role_list
+          {
+            $$= NEW_PTN PT_set_role($3);
+            Lex->sql_command= SQLCOM_SET_ROLE;
+          }
+        | SET_SYM ROLE_SYM NONE_SYM
+          {
+            $$= NEW_PTN PT_set_role(ROLE_NONE);
+            Lex->sql_command= SQLCOM_SET_ROLE;
+          }
+        | SET_SYM ROLE_SYM DEFAULT_SYM
+          {
+            $$= NEW_PTN PT_set_role(ROLE_DEFAULT);
+            Lex->sql_command= SQLCOM_SET_ROLE;
+          }
+        | SET_SYM DEFAULT_SYM ROLE_SYM role_list TO_SYM role_list
+          {
+            $$= NEW_PTN PT_alter_user_default_role(false, $6, $4, ROLE_NAME);
+            Lex->sql_command= SQLCOM_ALTER_USER_DEFAULT_ROLE;
+          }
+        | SET_SYM DEFAULT_SYM ROLE_SYM NONE_SYM TO_SYM role_list
+          {
+            $$= NEW_PTN PT_alter_user_default_role(false, $6, NULL, ROLE_NONE);
+            Lex->sql_command= SQLCOM_ALTER_USER_DEFAULT_ROLE;
+          }
+        | SET_SYM DEFAULT_SYM ROLE_SYM ALL TO_SYM role_list
+          {
+            $$= NEW_PTN PT_alter_user_default_role(false, $6, NULL, ROLE_ALL);
+            Lex->sql_command= SQLCOM_ALTER_USER_DEFAULT_ROLE;
+          }
+        | SET_SYM ROLE_SYM ALL opt_except_role_list
+          {
+            $$= NEW_PTN PT_set_role(ROLE_ALL, $4);
+            Lex->sql_command= SQLCOM_SET_ROLE;
+          }
+        ;
+
+opt_except_role_list:
+          /* empty */          { $$= NULL; }
+        | EXCEPT_SYM role_list { $$= $2; }
+        ;
 
 // Start of option value list, option_type was given
 start_option_value_list_following_option_type:
@@ -13825,6 +13949,12 @@ handler_rkey_mode:
 revoke:
           REVOKE clear_privileges { Lex->sql_command= SQLCOM_REVOKE; } revoke_command
           {}
+        | REVOKE role_list FROM user_list
+          {
+            Lex->sql_command= SQLCOM_REVOKE_ROLE;
+            PT_statement *tmp= NEW_PTN PT_revoke_roles($2, $4);
+            MAKE_CMD(tmp);
+          }
         ;
 
 revoke_command:
@@ -13832,6 +13962,7 @@ revoke_command:
           {
             LEX *lex= Lex;
             lex->type= 0;
+            lex->users_list= *$6;
           }
         | grant_privileges ON_SYM FUNCTION_SYM grant_ident FROM user_list
           {
@@ -13842,6 +13973,7 @@ revoke_command:
               MYSQL_YYABORT;
             }
             lex->type= TYPE_ENUM_FUNCTION;
+            lex->users_list= *$6;
           }
         | grant_privileges ON_SYM PROCEDURE_SYM grant_ident FROM user_list
           {
@@ -13852,14 +13984,17 @@ revoke_command:
               MYSQL_YYABORT;
             }
             lex->type= TYPE_ENUM_PROCEDURE;
+            lex->users_list= *$6;
           }
         | ALL opt_privileges ',' GRANT OPTION FROM user_list
           {
             Lex->sql_command = SQLCOM_REVOKE_ALL;
+            Lex->users_list= *$7;
           }
         | PROXY_SYM ON_SYM user FROM user_list
           {
             LEX *lex= Lex;
+            lex->users_list= *$5;
             lex->users_list.push_front ($3);
             lex->type= TYPE_ENUM_PROXY;
           }
@@ -13868,6 +14003,12 @@ revoke_command:
 grant:
           GRANT clear_privileges { Lex->sql_command= SQLCOM_GRANT; } grant_command
           {}
+        | GRANT role_list TO_SYM user_list opt_with_admin_option
+          {
+            Lex->sql_command= SQLCOM_GRANT_ROLE;
+            PT_statement *tmp= NEW_PTN PT_grant_roles($2, $4, $5);
+            MAKE_CMD(tmp);
+          }
         ;
 
 grant_command:
@@ -13902,6 +14043,8 @@ grant_command:
         | PROXY_SYM ON_SYM user TO_SYM grant_list opt_grant_option
           {
             LEX *lex= Lex;
+            if ($6)
+              lex->grant |= GRANT_ACL;
             lex->users_list.push_front ($3);
             lex->type= TYPE_ENUM_PROXY;
           }
@@ -13976,6 +14119,13 @@ object_privilege:
         | EVENT_SYM               { Lex->grant |= EVENT_ACL;}
         | TRIGGER_SYM             { Lex->grant |= TRIGGER_ACL; }
         | CREATE TABLESPACE_SYM   { Lex->grant |= CREATE_TABLESPACE_ACL; }
+        | CREATE ROLE_SYM         { Lex->grant |= CREATE_ROLE_ACL; }
+        | DROP ROLE_SYM           { Lex->grant |= DROP_ROLE_ACL; }
+        ;
+
+opt_with_admin_option:
+          /* empty */           { $$= false; }
+        | WITH ADMIN_SYM OPTION { $$= true; }
         ;
 
 opt_and:
@@ -14074,12 +14224,29 @@ grant_ident:
 user_list:
           user
           {
-            if (Lex->users_list.push_back($1))
+            $$= new List<LEX_USER>;
+            if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT;
           }
         | user_list ',' user
           {
-            if (Lex->users_list.push_back($3))
+            $$= $1;
+            if ($$->push_back($3))
+              MYSQL_YYABORT;
+          }
+        ;
+
+role_list:
+          role
+          {
+            $$= new List<LEX_USER>;
+            if ($$ == NULL || $$->push_back($1))
+              MYSQL_YYABORT;
+          }
+        | role_list ',' role
+          {
+            $$= $1;
+            if ($$->push_back($3))
               MYSQL_YYABORT;
           }
         ;
@@ -14226,8 +14393,8 @@ grant_options:
         ;
 
 opt_grant_option:
-          /* empty */ {}
-        | WITH GRANT OPTION { Lex->grant |= GRANT_ACL;}
+          /* empty */       { $$= false; }
+        | WITH GRANT OPTION { $$= true; }
         ;
 
 grant_option_list:

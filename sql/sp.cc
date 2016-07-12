@@ -2168,7 +2168,9 @@ uint sp_get_flags_for_command(LEX *lex)
   case SQLCOM_CREATE_USER:
   case SQLCOM_ALTER_TABLE:
   case SQLCOM_GRANT:
+  case SQLCOM_GRANT_ROLE:
   case SQLCOM_REVOKE:
+  case SQLCOM_REVOKE_ROLE:
   case SQLCOM_BEGIN:
   case SQLCOM_RENAME_TABLE:
   case SQLCOM_RENAME_USER:
@@ -2204,6 +2206,8 @@ uint sp_get_flags_for_command(LEX *lex)
   case SQLCOM_SLAVE_START:
   case SQLCOM_SLAVE_STOP:
   case SQLCOM_ALTER_INSTANCE:
+  case SQLCOM_CREATE_ROLE:
+  case SQLCOM_DROP_ROLE:
     flags= sp_head::HAS_COMMIT_OR_ROLLBACK;
     break;
   default:

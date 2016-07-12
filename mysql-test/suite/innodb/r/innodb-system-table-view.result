@@ -18,6 +18,8 @@ TABLE_ID	NAME	FLAG	N_COLS	SPACE	FILE_FORMAT	ROW_FORMAT	ZIP_PAGE_SIZE	SPACE_TYPE
 32	mysql/gtid_executed	33	6	18	Barracuda	Dynamic	0	Single
 33	mysql/server_cost	33	7	19	Barracuda	Dynamic	0	Single
 34	mysql/engine_cost	33	9	20	Barracuda	Dynamic	0	Single
+41	mysql/engine_cost	33	9	27	Dynamic	0	Single
+42	mysql/proxies_priv	33	10	28	Dynamic	0	Single
 table_id	pos	mtype	prtype	len	name
 11	0	1	524292	0	ID
 11	1	1	524292	0	FOR_NAME
@@ -87,6 +89,16 @@ table_id	pos	mtype	prtype	len	name
 34	3	9	1028	4	cost_value
 34	4	3	525575	4	last_update
 34	5	12	2166799	3072	comment
+24	3	5	2163196	10	description
+24	4	5	2163196	10	example
+24	5	5	2163196	10	url
+25	0	6	1794	2	help_category_id
+28	1	6	1795	4	Time_zone_id
+42	2	13	5439998	180	Proxied_host
+42	3	13	5439998	96	Proxied_user
+42	4	6	1281	1	With_grant
+42	5	13	5439998	231	Grantor
+42	6	3	525575	4	Timestamp
 index_id	table_id	type	n_fields	space	name
 11	11	3	1	0	ID_IND
 12	11	0	1	0	FOR_IND
@@ -99,19 +111,21 @@ index_id	table_id	type	n_fields	space	name
 19	17	3	1	3	PRIMARY
 20	18	3	1	4	PRIMARY
 21	18	2	1	4	name
-22	19	3	1	5	PRIMARY
+22	19	3	4	5	PRIMARY
 23	19	2	1	5	name
 24	20	3	2	6	PRIMARY
 25	21	3	1	7	PRIMARY
 26	21	2	1	7	name
 27	22	3	1	8	PRIMARY
-28	23	3	1	9	PRIMARY
+28	24	3	1	10	PRIMARY
 29	24	3	2	10	PRIMARY
 30	25	3	2	11	PRIMARY
 31	26	3	1	12	PRIMARY
 37	32	3	2	18	PRIMARY
 38	33	3	1	19	PRIMARY
 39	34	3	3	20	PRIMARY
+50	42	3	4	28	PRIMARY
+51	42	0	1	28	Grantor
 SELECT index_id,pos,name FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS
 WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'id', 'host', 'port', 'variable')
 ORDER BY index_id, pos;
@@ -127,7 +141,7 @@ index_id	pos	name
 18	0	name
 19	0	Server_name
 20	0	help_topic_id
-21	0	name
+21	1	USER
 22	0	help_category_id
 23	0	name
 24	0	help_keyword_id
@@ -150,6 +164,9 @@ index_id	pos	name
 39	0	cost_name
 39	1	engine_name
 39	2	device_type
+41	0	Grantor
+50	3	Proxied_user
+51	0	Grantor
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
@@ -209,6 +226,7 @@ SYS_FOREIGN	0	7
 SYS_FOREIGN_COLS	0	7
 SYS_TABLESPACES	0	6
 SYS_VIRTUAL	0	6
+mysql/default_roles	33	7
 mysql/engine_cost	33	9
 mysql/gtid_executed	33	6
 mysql/help_category	33	7
@@ -218,6 +236,7 @@ mysql/help_topic	33	9
 mysql/innodb_index_stats	33	11
 mysql/innodb_table_stats	33	9
 mysql/plugin	33	5
+mysql/role_edges	33	8
 mysql/server_cost	33	7
 mysql/servers	33	12
 mysql/slave_master_info	33	28

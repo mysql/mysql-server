@@ -1,4 +1,5 @@
 /* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -20,6 +21,7 @@
 #include "auth_common.h"
 #include "sql_class.h"
 #include <mysql/service_security_context.h>
+#include "current_thd.h"
 
 #define MY_SVC_TRUE  1
 #define MY_SVC_FALSE 0
@@ -160,7 +162,8 @@ my_svc_bool security_context_copy(MYSQL_SECURITY_CONTEXT in_ctx,
   the user\@host[ip] combo supplied and checks if the user
   has access to the database requested.
   The lookup is done in exactly the same way as at login time.
-
+  The new security context need to checkout additional privileges using
+  the checkout_acl method.
   @param[in]  ctx   The handle of the security context to update
   @param[in]  user  The user name to look up
   @param[in]  host  The host name to look up

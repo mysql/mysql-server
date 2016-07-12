@@ -161,6 +161,7 @@ SET(SQL_SHARED_SOURCES
   auth/service_security_context.cc
   auto_thd.cc
   keyring_service.cc
+  auth/role_tables.cc
   ssl_wrapper_service.cc
   bootstrap.cc
   check_stack.cc
@@ -412,6 +413,18 @@ ENDIF()
 # Source files that use Boost
 SET(SQL_BOOST_SOURCES
   debug_sync.cc
+  auth/auth_common.cc
+  auth/sql_authentication.cc
+  auth/sql_auth_cache.cc
+  auth/sql_authorization.cc
+  auth/sql_user_table.cc
+  auth/sql_user.cc
+  auth/password.c
+  auth/password_policy_service.cc
+  auth/sql_security_ctx.cc
+  auth/service_security_context.cc
+  auth/role_tables.cc
+  sql_reload.cc
   handler.cc
   geometry_rtree.cc
   gis/srs/srs.cc

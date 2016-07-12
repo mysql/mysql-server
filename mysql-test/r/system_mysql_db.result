@@ -4,6 +4,7 @@ column_stats
 columns_priv
 component
 db
+default_roles
 engine_cost
 func
 general_log
@@ -17,6 +18,7 @@ innodb_table_stats
 plugin
 procs_priv
 proxies_priv
+role_edges
 server_cost
 servers
 slave_master_info
@@ -107,6 +109,8 @@ user	CREATE TABLE `user` (
   `password_last_changed` timestamp NULL DEFAULT NULL,
   `password_lifetime` smallint(5) unsigned DEFAULT NULL,
   `account_locked` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Create_role_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Drop_role_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
   PRIMARY KEY (`Host`,`User`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 COMMENT='Users and global privileges'
 show create table func;

@@ -3632,6 +3632,8 @@ bool LEX::can_not_use_merged()
 }
 
 /*
+  case SQLCOM_REVOKE_ROLE:
+  case SQLCOM_GRANT_ROLE:
   Should Items_ident be printed correctly
 
   SYNOPSIS

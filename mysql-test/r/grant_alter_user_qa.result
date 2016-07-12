@@ -1431,14 +1431,14 @@ GRANT SELECT,INSERT,UPDATE ON mysql.* TO user1@localhost;
 
 SHOW GRANTS FOR user1@localhost;
 Grants for user1@localhost
-GRANT SELECT ON *.* TO 'user1'@'localhost'
-GRANT SELECT, INSERT, UPDATE ON `mysql`.* TO 'user1'@'localhost'
+GRANT SELECT ON *.* TO `user1`@`localhost`
+GRANT SELECT, INSERT, UPDATE ON `mysql`.* TO `user1`@`localhost`
 
 REVOKE INSERT,UPDATE ON mysql.* FROM user1@localhost;
 SHOW GRANTS FOR user1@localhost;
 Grants for user1@localhost
-GRANT SELECT ON *.* TO 'user1'@'localhost'
-GRANT SELECT ON `mysql`.* TO 'user1'@'localhost'
+GRANT SELECT ON *.* TO `user1`@`localhost`
+GRANT SELECT ON `mysql`.* TO `user1`@`localhost`
 
 GRANT SELECT,INSERT,UPDATE ON *.* TO user2@localhost IDENTIFIED BY 'admin'
       REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
@@ -2190,7 +2190,7 @@ REVOKE CREATE USER ON *.* FROM user1@localhost;
 REVOKE SELECT ON mysql.* FROM user1@localhost;
 SHOW GRANTS FOR user1@localhost;
 Grants for user1@localhost
-GRANT INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EVENT, TRIGGER, CREATE TABLESPACE ON *.* TO 'user1'@'localhost'
+GRANT INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `user1`@`localhost`
 SELECT USER(), CURRENT_USER();
 USER()	CURRENT_USER()
 user1@localhost	user1@localhost
@@ -2203,12 +2203,12 @@ ERROR 42000: Access denied for user 'user1'@'localhost' to database 'mysql'
 REVOKE ALL ON *.* FROM user1@localhost;
 SHOW GRANTS FOR user1@localhost;
 Grants for user1@localhost
-GRANT USAGE ON *.* TO 'user1'@'localhost'
+GRANT USAGE ON *.* TO `user1`@`localhost`
 GRANT UPDATE ON mysql.* TO user1@localhost;
 SHOW GRANTS FOR user1@localhost;
 Grants for user1@localhost
-GRANT USAGE ON *.* TO 'user1'@'localhost'
-GRANT UPDATE ON `mysql`.* TO 'user1'@'localhost'
+GRANT USAGE ON *.* TO `user1`@`localhost`
+GRANT UPDATE ON `mysql`.* TO `user1`@`localhost`
 SELECT USER(), CURRENT_USER();
 USER()	CURRENT_USER()
 user1@localhost	user1@localhost

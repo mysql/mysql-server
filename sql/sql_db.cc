@@ -954,7 +954,7 @@ err:
                         take ownership of the name (the caller must not free
                         the allocated memory). If the name is NULL, we're
                         going to switch to NULL db.
-  @param new_db_access  Privileges of the new database.
+  @param new_db_access  Privileges of the new database. (with roles)
   @param new_db_charset Character set of the new database.
 */
 
@@ -1001,7 +1001,8 @@ static void mysql_change_db_impl(THD *thd,
   /* 2. Update security context. */
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  thd->security_context()->set_db_access(new_db_access);
+  /* Cache the effective schema level privilege with roles applied */
+  thd->security_context()->cache_current_db_access(new_db_access);
 #endif
 
   /* 3. Update db-charset environment variables. */
@@ -1163,7 +1164,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   LEX_CSTRING new_db_file_name_cstr;
 
   Security_context *sctx= thd->security_context();
-  ulong db_access= sctx->db_access();
+  ulong db_access= sctx->current_db_access();
   const CHARSET_INFO *db_default_cl= NULL;
 
   DBUG_ENTER("mysql_change_db");
@@ -1238,18 +1239,26 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
       mysql_change_db_impl(thd, NULL_CSTR, 0, thd->variables.collation_server);
     DBUG_RETURN(true);
   }
-
+  new_db_file_name_cstr.str= new_db_file_name.str;
+  new_db_file_name_cstr.length= new_db_file_name.length;
   DBUG_PRINT("info",("Use database: %s", new_db_file_name.str));
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  db_access= sctx->check_access(DB_ACLS) ?
-    DB_ACLS :
-    acl_get(sctx->host().str,
-            sctx->ip().str,
-            sctx->priv_user().str,
-            new_db_file_name.str,
-            false) | sctx->master_access();
-
+  if (sctx->get_active_roles()->size() == 0)
+  {
+    db_access= sctx->check_access(DB_ACLS) ?
+      DB_ACLS :
+      acl_get(sctx->host().str,
+              sctx->ip().str,
+              sctx->priv_user().str,
+              new_db_file_name.str,
+              false) | sctx->master_access();
+  }
+  else
+  {
+    db_access= sctx->db_acl(new_db_file_name_cstr) | sctx->master_access();
+  }
+  
   if (!force_switch &&
       !(db_access & DB_ACLS) &&
       check_grant_db(thd, new_db_file_name.str))
@@ -1314,13 +1323,10 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   }
 
   db_default_cl= db_default_cl ? db_default_cl : thd->collation();
-
   /*
     NOTE: in mysql_change_db_impl() new_db_file_name is assigned to THD
     attributes and will be freed in THD::~THD().
   */
-  new_db_file_name_cstr.str= new_db_file_name.str;
-  new_db_file_name_cstr.length= new_db_file_name.length;
   mysql_change_db_impl(thd, new_db_file_name_cstr, db_access, db_default_cl);
 
 done:

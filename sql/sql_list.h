@@ -596,7 +596,6 @@ public:
   inline T** ref(void)	    { return (T**) base_list_iterator::ref(); }
 };
 
-
 template <class T> class List_iterator_fast :public base_list_iterator
 {
 protected:

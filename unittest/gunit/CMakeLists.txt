@@ -373,6 +373,7 @@ SET(SERVER_TESTS
   thd_manager
   union_syntax
   unique
+  wild_case_compare
 )
 
 SET(SQL_GUNIT_LIB_SOURCE 

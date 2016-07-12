@@ -31,7 +31,7 @@ insert into performance_schema.setup_actors
 values ('hostb', '%', '%', 'YES', 'YES');
 
 select * from performance_schema.setup_actors
-order by USER, HOST, ROLE;
+order by USER, HOST, `ROLE`;
 
 set @orig_sql_mode= @@sql_mode;
 set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
@@ -181,7 +181,7 @@ insert into performance_schema.setup_actors
 values ('localhost', '%', '%', 'YES', 'YES');
 
 select * from performance_schema.setup_actors
-order by USER, HOST, ROLE;
+order by USER, HOST, `ROLE`;
 
 --echo # Switch to (con4b, localhost, user4, , )
 connect (con4b, localhost, user4, , );

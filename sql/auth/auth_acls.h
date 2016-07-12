@@ -1,6 +1,3 @@
-#ifndef AUTH_ACLS_INCLUDED
-#define AUTH_ACLS_INCLUDED
-
 /* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -15,9 +12,11 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+#ifndef AUTH_ACLS_INCLUDED
+#define AUTH_ACLS_INCLUDED
 
 /* Total Number of ACLs present in mysql.user */
-#define NUM_ACLS        29
+#define NUM_ACLS        31
 
 #define SELECT_ACL      (1L << 0)
 #define INSERT_ACL      (1L << 1)
@@ -48,6 +47,8 @@
 #define EVENT_ACL       (1L << 26)
 #define TRIGGER_ACL     (1L << 27)
 #define CREATE_TABLESPACE_ACL (1L << 28)
+#define CREATE_ROLE_ACL     (1L << 29)
+#define DROP_ROLE_ACL       (1L << 30)
 /*
   don't forget to update
   1. static struct show_privileges_st sys_privileges[]
@@ -57,7 +58,7 @@
   5. sql_yacc.yy - for GRANT/REVOKE to work
 */
 
-#define NO_ACCESS       (1L << 30)
+#define NO_ACCESS       (1L << 31)
 #define DB_ACLS \
 (UPDATE_ACL | SELECT_ACL | INSERT_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | \
  GRANT_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL | CREATE_TMP_ACL | \
@@ -85,7 +86,7 @@
  CREATE_TMP_ACL | LOCK_TABLES_ACL | REPL_SLAVE_ACL | REPL_CLIENT_ACL | \
  EXECUTE_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | CREATE_PROC_ACL | \
  ALTER_PROC_ACL | CREATE_USER_ACL | EVENT_ACL | TRIGGER_ACL | \
- CREATE_TABLESPACE_ACL)
+ CREATE_TABLESPACE_ACL | CREATE_ROLE_ACL | DROP_ROLE_ACL)
 
 #define DEFAULT_CREATE_PROC_ACLS \
 (ALTER_PROC_ACL | EXECUTE_ACL)
@@ -151,6 +152,6 @@
                                      (((A) & ALTER_PROC_ACL) >> 23) | \
                                      (((A) & GRANT_ACL) >> 8))
 
-#define GRANT_TABLES 6
+#define GRANT_TABLES 8
 
 #endif /* AUTH_ACLS_INCLUDED */

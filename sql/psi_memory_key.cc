@@ -89,6 +89,7 @@ PSI_memory_key key_memory_XID_STATE;
 PSI_memory_key key_memory_acl_mem;
 PSI_memory_key key_memory_acl_memex;
 PSI_memory_key key_memory_acl_cache;
+PSI_memory_key key_memory_acl_map_cache;
 PSI_memory_key key_memory_binlog_cache_mngr;
 PSI_memory_key key_memory_binlog_pos;
 PSI_memory_key key_memory_binlog_recover_exec;
@@ -167,6 +168,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_acl_mem, "sql_acl_mem", PSI_FLAG_GLOBAL},
   { &key_memory_acl_memex, "sql_acl_memex", PSI_FLAG_GLOBAL},
   { &key_memory_acl_cache, "acl_cache", PSI_FLAG_GLOBAL},
+  { &key_memory_acl_map_cache, "acl_map_cache", PSI_FLAG_GLOBAL },
   { &key_memory_thd_main_mem_root, "thd::main_mem_root", PSI_FLAG_THREAD},
   { &key_memory_help, "help", 0},
   { &key_memory_new_frm_mem, "new_frm_mem", 0},

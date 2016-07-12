@@ -35,11 +35,34 @@
 #include "sql_auth_cache.h"
 #include "sql_authentication.h"
 #include "sql_authorization.h"
+#include "role_tables.h"
 #include "template_utils.h"
 #include "debug_sync.h"
 
 #include "dd/dd_table.h"                /* dd::table_exists */
 #include "dd/types/abstract_table.h"    /* dd::Abstract_table */
+#include "prealloced_array.h"
+#include "current_thd.h"
+#include "m_string.h"
+
+#include <string>
+#include <map>
+#include <utility>
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/adjacency_iterator.hpp>
+#include <boost/graph/filtered_graph.hpp>
+#include <boost/graph/graph_traits.hpp>
+#include <boost/graph/graphml.hpp>
+
+Granted_roles_graph *g_granted_roles= 0;
+Role_index_map *g_authid_to_vertex= 0;
+static char g_active_dummy_user[]= "active dummy user";
+extern bool initialized;
+extern Default_roles *g_default_roles;
+typedef boost::graph_traits<Granted_roles_graph>::adjacency_iterator
+  Role_adjacency_iterator;
+#endif
 
 const char *command_array[]=
 {
@@ -48,13 +71,14 @@ const char *command_array[]=
   "ALTER", "SHOW DATABASES", "SUPER", "CREATE TEMPORARY TABLES",
   "LOCK TABLES", "EXECUTE", "REPLICATION SLAVE", "REPLICATION CLIENT",
   "CREATE VIEW", "SHOW VIEW", "CREATE ROUTINE", "ALTER ROUTINE",
-  "CREATE USER", "EVENT", "TRIGGER", "CREATE TABLESPACE"
+  "CREATE USER", "EVENT", "TRIGGER", "CREATE TABLESPACE", "CREATE ROLE",
+  "DROP ROLE"
 };
 
 uint command_lengths[]=
 {
   6, 6, 6, 6, 6, 4, 6, 8, 7, 4, 5, 10, 5, 5, 14, 5, 23, 11, 7, 17, 18, 11, 9,
-  14, 13, 11, 5, 7, 17
+  14, 13, 11, 5, 7, 17, 11, 9
 };
 
 const char *any_db="*any*";	// Special symbol for check_access
@@ -64,8 +88,1108 @@ static bool check_show_access(THD *thd, TABLE_LIST *table);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 static bool check_routine_level_acl(THD *thd, const char *db,
                                     const char *name, bool is_proc);
-#endif
+void get_granted_roles(Role_vertex_descriptor &v,
+                       List_of_granted_roles *granted_roles);
+bool alter_user_set_default_roles(THD *thd, TABLE *table, LEX_USER *user,
+                                  const List_of_auth_id_refs &new_auth_ids);
+bool clear_default_roles(THD *thd, TABLE *table, LEX_USER *user,
+                         std::vector<Role_id > *default_roles);
 
+/**
+  This utility function is used by revoke_role() and remove_all_granted_roles()
+  for removing a specific edge from the role graph.
+  @param thd Thread handler
+  @param authid_role The role which should be revoked
+  @param authid_user The user who will get its role revoked
+  @param user_vert [out] The vertex descriptor of the user
+
+  @return Success state
+    @retval true No such user
+    @retval false User was removed
+*/
+
+bool revoke_role_helper(THD *thd, std::string &authid_role,
+                        std::string &authid_user,
+                        Role_vertex_descriptor *user_vert)
+{
+  DBUG_ENTER("revoke_role_helper");
+  mysql_mutex_assert_owner(&acl_cache->lock);
+
+  Role_vertex_descriptor role_vert;
+  Role_index_map::iterator it= g_authid_to_vertex->find(authid_user);
+  if (it == g_authid_to_vertex->end())
+  {
+    // No such user
+    DBUG_RETURN(true);
+  }
+  else
+    *user_vert= it->second;
+
+  it= g_authid_to_vertex->find(authid_role);
+  if (it ==g_authid_to_vertex->end())
+  {
+    // No such role
+    DBUG_RETURN(true);
+  }
+  else
+    role_vert= it->second;
+  boost::remove_edge(*user_vert, role_vert, *g_granted_roles);
+  DBUG_RETURN(false);
+}
+
+/**
+ Used by mysql_revoke_role() for revoking a specified role from a specified
+ user.
+
+ @param thd Thread handler
+ @param role The role which will be revoked
+ @param user The user who will get its role revoked
+
+*/
+void revoke_role(THD *thd, ACL_USER *role, ACL_USER *user)
+{
+  std::string authid_role= create_authid_str_from(role);
+  std::string authid_user= create_authid_str_from(user);
+  Role_vertex_descriptor user_vert;
+  if (revoke_role_helper(thd, authid_role, authid_user, &user_vert))
+  {
+    // TODO No such role yet.
+    return;
+  }
+  /*
+   If there are no edges connected to this authid node then this is not
+   a role id anymore.
+  */
+  Role_adjacency_iterator vert_it, vert_end;
+  boost::tie(vert_it, vert_end)
+    = boost::adjacent_vertices(user_vert, *g_granted_roles);
+  role->is_role= (vert_it == vert_end);
+}
+
+
+/**
+    Since the gap in the vertex vector was removed all the vertex descriptors
+    has changed. As a consequence we now need to rebuild the authid_to_vertex
+    index.
+*/
+void rebuild_vertex_index(THD *thd)
+{
+  mysql_mutex_assert_owner(&acl_cache->lock);
+  g_authid_to_vertex->clear();
+  boost::graph_traits<Granted_roles_graph>::vertex_iterator vert_it, vert_end;
+  boost::tie(vert_it, vert_end)= boost::vertices(*g_granted_roles);
+  for(; vert_it != vert_end; ++vert_it)
+  {
+    ACL_USER acl_user= boost::get(boost::vertex_acl_user_t(), *g_granted_roles)
+                        [
+                          boost::vertex(*vert_it, *g_granted_roles)
+                        ];
+    std::string authid= create_authid_str_from(&acl_user);
+    (*g_authid_to_vertex)[authid]= *vert_it;
+  }
+}
+
+bool drop_role(THD *thd, TABLE *edge_table, TABLE *defaults_table,
+               const Auth_id_ref &authid_user)
+{
+  DBUG_ENTER("drop_role");
+  bool error= false;
+  mysql_mutex_assert_owner(&acl_cache->lock);
+  std::string authid_user_str= create_authid_str_from(authid_user);
+  Role_index_map::iterator it;
+
+  if ((it= g_authid_to_vertex->find(authid_user_str)) !=
+      g_authid_to_vertex->end())
+  {
+    /* Drop all adjacent edges from the role_edges table */
+    boost::graph_traits<Granted_roles_graph>::edge_iterator eit, eit_end;
+    boost::tie(eit, eit_end)= boost::edges(*g_granted_roles);
+    // TODO why doesn't adjacent_iterator work here?
+    for( ;eit != eit_end; ++eit)
+    {
+      ACL_USER to_acl_user= boost::get(boost::vertex_acl_user_t(), *g_granted_roles)
+                            [
+                              boost::source(*eit, *g_granted_roles)
+                            ];
+      ACL_USER from_acl_user= boost::get(boost::vertex_acl_user_t(),*g_granted_roles)
+                              [
+                                boost::target(*eit, *g_granted_roles)
+                              ];
+
+      Auth_id_ref from_user= create_authid_from(&from_acl_user);
+      Auth_id_ref to_user= create_authid_from(&to_acl_user);
+      std::string from_user_str= create_authid_str_from(&from_acl_user);
+      std::string to_user_str= create_authid_str_from(&to_acl_user);
+      if (authid_user_str == to_user_str || authid_user_str == from_user_str)
+      {
+        /* Remove all connecting edges */
+        error= modify_role_edges_in_table(thd, edge_table, from_user, to_user,
+                                          false, true);
+        error= modify_role_edges_in_table(thd, edge_table, to_user, from_user,
+                                          false, true);
+      }
+    }
+
+    /* remove this vertex from the graph (along with its edges) */
+    DBUG_PRINT("info",("Removing %s from graph and rebuild the index.",
+                        authid_user_str.c_str()));
+    /*
+      We clear all edges connecting this vertex but we avoid removing it
+      from the graph at this time as it would invalidate the vertex
+      descriptors and we would have to rebuild all indexes. For now it is
+      enough to remove the index entry. As the roles  are reloaded from the
+      tables the dropped roles will disappear.
+    */
+
+    boost::clear_vertex(it->second, *g_granted_roles);
+    g_authid_to_vertex->erase(it);
+  }
+  // Remove all default roles
+  clear_default_roles(thd, defaults_table, authid_user, 0);
+  DBUG_RETURN(error);
+}
+
+/**
+  Used by mysql_drop_user(). Will drop all
+  @param thd
+  @param edge_table
+  @param defaults_table
+  @param user_name
+ 
+  @returns
+    @retval true An error occurred
+    @retval false Success
+*/
+bool revoke_all_roles_from_user(THD *thd, TABLE *edge_table,
+                                TABLE *defaults_table, LEX_USER *user_name)
+{
+  List_of_granted_roles granted_roles;
+  get_granted_roles(thd, user_name, &granted_roles);
+  Auth_id_ref user_name_authid= create_authid_from(user_name);
+  bool error= drop_role(thd, edge_table, defaults_table, user_name_authid);
+  return error;
+}
+
+/**
+  If possible, it will revoke all roles and default roles from user_from and
+  set them for user_to instead.
+
+  @param thd Thread handle
+  @param table A table handler
+  @param user_from The name of the ACL_USER which will be renamed.
+  @param granted_roles [out] A list of roles that were successfully revoked.
+
+  @return success state
+    @retval true En error occurred
+    @retval false Successful
+*/
+bool revoke_all_granted_roles(THD *thd, TABLE *table, LEX_USER *user_from,
+                             List_of_granted_roles *granted_roles)
+{
+  DBUG_ENTER("revoke_all_granted_roles");
+  std::string authid_user= create_authid_str_from(user_from);
+  Role_index_map::iterator it;
+  if ((it= g_authid_to_vertex->find(authid_user)) == g_authid_to_vertex->end())
+  {
+    /* The user from wasn't in the role graph index; nothing to do. */
+    DBUG_RETURN(true);
+  }
+
+  get_granted_roles(it->second, granted_roles);
+  Role_vertex_descriptor user_vert;
+  bool errors= false;
+  for( auto&& ref : *granted_roles)
+  {
+    std::string role_id_str;
+    ref.first.auth_str(&role_id_str);
+    std::string user_from_str= create_authid_str_from(user_from);
+    Auth_id_ref role_id= create_authid_from(ref.first);
+    errors= modify_role_edges_in_table(thd, table, role_id,
+                                       {user_from->user, user_from->host},
+                                       ref.second, true);
+    if(errors)
+      break;
+    revoke_role_helper(thd, role_id_str, user_from_str, &user_vert);
+  }
+  DBUG_RETURN(errors);
+}
+
+bool is_role_id(LEX_USER *authid)
+{
+  ACL_USER *acl_user=
+    find_acl_user(authid->host.str, authid->user.str, true);
+  if (acl_user == 0)
+    return false;
+  return acl_user->is_role;
+}
+
+/**
+  Grants a single role to a single user. The change is made to the in-memory
+  roles graph and not persistent.
+
+  @see mysql_grant_role
+
+  @param thd Thread handler
+  @param role A pointer to the role to be granted
+  @param user A pointer to the user which will be granted
+  @param with_admin_opt True if the user should have the ability to pass on the
+    granted role to another authorization id.
+
+  @return
+*/
+void grant_role(THD *thd, ACL_USER *role, ACL_USER *user, bool with_admin_opt)
+{
+  DBUG_ENTER("grant_role");
+  bool is_added;
+  std::string authid_role= create_authid_str_from(role);
+  std::string authid_user= create_authid_str_from(user);
+  Role_vertex_descriptor user_vert, role_vert;
+  Role_index_map::iterator it;
+
+  if ((it= g_authid_to_vertex->find(authid_user)) == g_authid_to_vertex->end())
+  {
+    user_vert= boost::add_vertex(*g_granted_roles);
+    g_authid_to_vertex->insert(make_pair(authid_user, user_vert));
+  }
+  else
+    user_vert= it->second;
+
+  if ((it= g_authid_to_vertex->find(authid_role)) == g_authid_to_vertex->end())
+  {
+    role_vert= boost::add_vertex(*g_granted_roles);
+    g_authid_to_vertex->insert(make_pair(authid_role, role_vert));
+  }
+  else
+    role_vert= it->second;
+
+  boost::property_map<Granted_roles_graph,
+                      boost::vertex_name_t>::type user_pname, role_pname;
+  user_pname= boost::get(boost::vertex_name_t(), *g_granted_roles);
+  boost::put(user_pname, user_vert, authid_user);
+  role_pname= boost::get(boost::vertex_name_t(), *g_granted_roles);
+  boost::put(role_pname, role_vert, authid_role);
+
+  boost::property_map<Granted_roles_graph,
+                      boost::vertex_acl_user_t>::type user_pacl_user,
+                                                      role_pacl_user;
+  user_pacl_user= boost::get(boost::vertex_acl_user_t(), *g_granted_roles);
+  boost::put(user_pacl_user, user_vert, *user);
+  role_pacl_user= boost::get(boost::vertex_acl_user_t(), *g_granted_roles);
+  boost::put(role_pacl_user, role_vert, *role);
+
+  Role_edge_descriptor edge;
+  tie(edge, is_added)= add_edge(user_vert, role_vert, *g_granted_roles);
+
+  boost::property_map<Granted_roles_graph,
+                      boost::edge_capacity_t>::type edge_colors;
+  edge_colors= boost::get(boost::edge_capacity_t(), *g_granted_roles);
+  boost::put(edge_colors, edge, (with_admin_opt ?
+                                 1 : 0));
+  role->is_role= true;
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Renames a user in the mysql.role_edge and the mysql.default_roles
+  tables. user_to must already exist in the acl_user cache, but user_from
+  may not as long as it exist in the role graph.
+
+  @param thd Thread handler
+  @param edge_table An open table handle for mysql.edge_mysql
+  @param defaults_table An open table handle for mysql.default_roles
+  @param user_from The user to rename
+  @param user_to The target user name
+
+  @see mysql_rename_user
+
+  @return
+    @retval true An error occurred
+    @retval false Success
+*/
+
+bool roles_rename_authid(THD *thd, TABLE *edge_table, TABLE *defaults_table,
+                         LEX_USER *user_from, LEX_USER *user_to)
+{
+  mysql_mutex_assert_owner(&acl_cache->lock);
+  ACL_USER *acl_user_to=
+  find_acl_user(user_to->host.str, user_to->user.str, true);
+  if (acl_user_to == 0)
+  {
+    /* The target user doesn't exist yet? */
+    return true;
+  }
+  /* Update default roles */
+  std::vector<Role_id > old_roles;
+  Auth_id_ref authid_user_from= create_authid_from(user_from);
+  clear_default_roles(thd, defaults_table, authid_user_from, &old_roles);
+  List_of_auth_id_refs new_default_role_ref;
+  for (auto&& role : old_roles)
+  {
+    Auth_id_ref authid= create_authid_from(role);
+    new_default_role_ref.push_back(authid);
+  }
+  bool ret= alter_user_set_default_roles(thd, defaults_table, user_to,
+                                         new_default_role_ref);
+
+  if (ret)
+  {
+    String warning;
+    warning.append("MYSQL.DEFAULT_ROLES couldn't be updated for authorization"
+                   "identifier ");
+    append_identifier(thd, &warning, user_from->user.str,
+                      user_from->user.length);
+    append_identifier(thd, &warning, user_from->host.str,
+                      user_from->host.length);
+    sql_print_warning("%s", warning.c_ptr());
+    ret= false;
+  }
+
+  List_of_granted_roles granted_roles;
+  ret= revoke_all_granted_roles(thd, edge_table, user_from, &granted_roles);
+  if (!ret)
+  {
+    for(auto&& ref : granted_roles)
+    {
+      ACL_USER *acl_role=
+        find_acl_user(ref.first.host().c_str(), ref.first.user().c_str(),
+                      ref.second);
+      if (acl_role == 0)
+      {
+        /* An invalid reference was encountered; just ignore it. */
+        continue;
+      }
+      grant_role(thd, acl_role, acl_user_to, ref.second);
+      Auth_id_ref authid_role= create_authid_from(acl_role);
+      Auth_id_ref authid_user= create_authid_from(acl_user_to);
+      ret= modify_role_edges_in_table(thd, edge_table, authid_role, authid_user,
+                                     ref.second, false);
+      if (ret)
+        break;
+    }
+  }
+  return ret;
+}
+
+
+/**
+  Maps a global ACL to a string representation.
+
+  @param thd Thread handler
+  @param want_access An ACL
+  @param acl_user The associated user which carries the ACL
+  @param global [out] The resulting string
+
+*/
+
+void make_global_privilege_statement(THD *thd, ulong want_access,
+                                     ACL_USER *acl_user, String *global)
+{
+  mysql_mutex_assert_owner(&acl_cache->lock);
+  global->length(0);
+  global->append(STRING_WITH_LEN("GRANT "));
+
+  if (test_all_bits(want_access, (GLOBAL_ACLS & ~ GRANT_ACL)))
+    global->append(STRING_WITH_LEN("ALL PRIVILEGES"));
+  else if (!(want_access & ~GRANT_ACL))
+    global->append(STRING_WITH_LEN("USAGE"));
+  else
+  {
+    bool found=0;
+    ulong test_access= want_access & ~GRANT_ACL;
+    int counter= 0;
+    ulong j= SELECT_ACL;
+    for (;j <= GLOBAL_ACLS;counter++,j <<= 1)
+    {
+      if (test_access & j)
+      {
+        if (found)
+          global->append(STRING_WITH_LEN(", "));
+        found=1;
+        global->append(command_array[counter],command_lengths[counter]);
+      }
+    }
+  }
+  global->append (STRING_WITH_LEN(" ON *.* TO "));
+  size_t len= acl_user->user == 0 ? 0 : strlen(acl_user->user);
+  append_identifier(thd, global, acl_user->user, len);
+  global->append('@');
+  append_identifier(thd, global, acl_user->host.get_host(),
+                    acl_user->host.get_host_len());
+  if (want_access & GRANT_ACL)
+    global->append(STRING_WITH_LEN(" WITH GRANT OPTION"));
+}
+
+
+/**
+  Maps a set of database level ACLs to string representations and sends them
+  through the client protocol.
+
+  @param thd The thread handler
+  @param role The authid associated with the ACLs
+  @param protocol A handler used for sending data to the client
+  @param db_map A list of database level ACLs
+  @param db_wild_map A list of database level ACLs which use pattern matching
+
+*/
+
+void make_database_privilege_statement(THD *thd, ACL_USER *role,
+                                       Protocol *protocol,
+                                       Db_access_map &db_map,
+                                       Db_access_map &db_wild_map)
+{
+  mysql_mutex_assert_owner(&acl_cache->lock);
+  Db_access_map::iterator it= db_map.begin();
+  for(;it != db_map.end(); ++it)
+  {
+    ulong want_access= it->second;
+    std::string db_name= it->first;
+
+    String db;
+    db.length(0);
+    db.append(STRING_WITH_LEN("GRANT "));
+
+    if (test_all_bits(want_access,(DB_ACLS & ~GRANT_ACL)))
+      db.append(STRING_WITH_LEN("ALL PRIVILEGES"));
+    else if (!(want_access & ~GRANT_ACL))
+      db.append(STRING_WITH_LEN("USAGE"));
+    else
+    {
+      int found=0, cnt;
+      ulong j,test_access= want_access & ~GRANT_ACL;
+      for (cnt=0, j= SELECT_ACL; j <= DB_ACLS; cnt++,j <<= 1)
+      {
+        if (test_access & j)
+        {
+          if (found)
+            db.append(STRING_WITH_LEN(", "));
+          found= 1;
+          db.append(command_array[cnt],command_lengths[cnt]);
+        }
+      }
+    }
+    db.append (STRING_WITH_LEN(" ON "));
+    append_identifier(thd, &db, db_name.c_str(), db_name.length());
+    db.append (STRING_WITH_LEN(".* TO "));
+    append_identifier(thd, &db, role->user, strlen(role->user));
+    db.append('@');
+    // host and lex_user->host are equal except for case
+    append_identifier(thd, &db, role->host.get_host(),
+                      role->host.get_host_len());
+    if (want_access & GRANT_ACL)
+      db.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
+    protocol->start_row();
+    protocol->store(db.ptr(),db.length(),db.charset());
+    protocol->end_row();
+  }
+
+  Db_access_map::iterator it_wild= db_wild_map.begin();
+  for(;it_wild != db_wild_map.end(); ++it_wild)
+  {
+    ulong want_access= it_wild->second;
+    std::string db_name= it_wild->first;
+
+    String db;
+    db.length(0);
+    db.append(STRING_WITH_LEN("GRANT "));
+
+    if (test_all_bits(want_access,(DB_ACLS & ~GRANT_ACL)))
+      db.append(STRING_WITH_LEN("ALL PRIVILEGES"));
+    else if (!(want_access & ~GRANT_ACL))
+      db.append(STRING_WITH_LEN("USAGE"));
+    else
+    {
+      int found=0, cnt;
+      ulong j,test_access= want_access & ~GRANT_ACL;
+      for (cnt=0, j= SELECT_ACL; j <= DB_ACLS; cnt++,j <<= 1)
+      {
+        if (test_access & j)
+        {
+          if (found)
+            db.append(STRING_WITH_LEN(", "));
+          found= 1;
+          db.append(command_array[cnt],command_lengths[cnt]);
+        }
+      }
+    }
+    db.append (STRING_WITH_LEN(" ON "));
+    append_identifier(thd, &db, db_name.c_str(), db_name.length());
+    db.append (STRING_WITH_LEN(".* TO "));
+    append_identifier(thd, &db, role->user, strlen(role->user));
+    db.append ('@');
+    // host and lex_user->host are equal except for case
+    append_identifier(thd, &db, role->host.get_host(), role->host.get_host_len());
+    if (want_access & GRANT_ACL)
+      db.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
+    protocol->start_row();
+    protocol->store(db.ptr(),db.length(),db.charset());
+    protocol->end_row();
+  }
+}
+
+
+/**
+  Maps a set of global level proxy ACLs to string representations and sends them
+  through the client protocol.
+
+  @param thd The thread handler
+  @param user The authid associated with the proxy ACLs.
+  @param protocol The handler used for sending data through the client protocol
+
+*/
+
+void make_proxy_privilege_statement(THD *thd, ACL_USER *user,
+                                    Protocol *protocol)
+{
+  mysql_mutex_assert_owner(&acl_cache->lock);
+  for (ACL_PROXY_USER *proxy= acl_proxy_users->begin();
+       proxy != acl_proxy_users->end(); ++proxy)
+  {
+    if (proxy->granted_on(user->host.get_host(), user->user))
+    {
+      String global;
+      proxy->print_grant(&global);
+      protocol->start_row();
+      protocol->store(global.ptr(), global.length(), global.charset());
+      protocol->end_row();
+    }
+  }
+}
+
+
+/**
+  Maps a set of database level ACLs for stored programs to string
+  representations and sends them through the client protocol.
+
+  @param thd A thread handler
+  @param role The authid associated with the ACLs
+  @param protocol The handler used for sending data through the client protocol
+  @param sp_map The ACLs granted to role
+  @param type Either 0 for procedures or 1 for functions
+
+*/
+
+void make_sp_privilege_statement(THD *thd, ACL_USER *role,
+                                 Protocol *protocol,
+                                 SP_access_map &sp_map,
+                                 int type)
+{
+  mysql_mutex_assert_owner(&acl_cache->lock);
+  SP_access_map::iterator it= sp_map.begin();
+  for(;it != sp_map.end(); ++it)
+  {
+    ulong want_access= it->second;
+    std::string sp_name= it->first;
+
+    String db;
+    db.length(0);
+    db.append(STRING_WITH_LEN("GRANT "));
+
+    if (test_all_bits(want_access,(DB_ACLS & ~GRANT_ACL)))
+      db.append(STRING_WITH_LEN("ALL PRIVILEGES"));
+    else if (!(want_access & ~GRANT_ACL))
+      db.append(STRING_WITH_LEN("USAGE"));
+    else
+    {
+      int found=0, cnt;
+      ulong j,test_access= want_access & ~GRANT_ACL;
+      for (cnt=0, j= SELECT_ACL; j <= DB_ACLS; cnt++,j <<= 1)
+      {
+        if (test_access & j)
+        {
+          if (found)
+            db.append(STRING_WITH_LEN(", "));
+          found= 1;
+          db.append(command_array[cnt],command_lengths[cnt]);
+        }
+      }
+    }
+    db.append (STRING_WITH_LEN(" ON "));
+    if (type == 0)
+      db.append ( STRING_WITH_LEN("PROCEDURE "));
+    else
+      db.append ( STRING_WITH_LEN("FUNCTION "));
+    db.append(sp_name.c_str(), sp_name.length());
+    db.append (STRING_WITH_LEN(" TO "));
+    append_identifier(thd, &db, role->user, strlen(role->user));
+    db.append (STRING_WITH_LEN("@"));
+    // host and lex_user->host are equal except for case
+    append_identifier(thd, &db, role->host.get_host(), role->host.get_host_len());
+    if (want_access & GRANT_ACL)
+      db.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
+    protocol->start_row();
+    protocol->store(db.ptr(),db.length(),db.charset());
+    protocol->end_row();
+  }
+}
+
+bool is_granted_role_with_admin(const std::string &authid,
+                                const List_of_granted_roles &granted_roles)
+{
+  std::string granted_role_str;
+  for(auto &role : granted_roles)
+  {
+    if (!role.second)
+      continue;
+    granted_role_str.clear();
+    role.first.auth_str(&granted_role_str);
+    if (authid == granted_role_str)
+      return true;
+  }
+  return false;
+}
+
+void
+make_with_admin_privilege_statement(THD *thd, ACL_USER *acl_user,
+                                    Protocol *protocol,
+                                    const Grant_acl_set &with_admin_acl,
+                                    const List_of_granted_roles &granted_roles)
+{
+  mysql_mutex_assert_owner(&acl_cache->lock);
+  if (with_admin_acl.size() == 0)
+    return;
+  Grant_acl_set::const_iterator it= with_admin_acl.begin();
+  String global;
+	global.append(STRING_WITH_LEN("GRANT "));
+  bool found= false;
+	for (; it != with_admin_acl.end(); ++it)
+	{
+    if (is_granted_role_with_admin(*it, granted_roles))
+      continue;
+    if (it != with_admin_acl.begin())
+			global.append(',');
+		global.append(it->c_str(), it->length());
+    found= true;
+  }
+  if (found)
+  {
+    global.append(STRING_WITH_LEN(" TO "));
+    append_identifier(thd, &global, acl_user->user, strlen(acl_user->user));
+    global.append('@');
+    append_identifier(thd, &global, acl_user->host.get_host(),
+                      acl_user->host.get_host_len());
+    global.append(" WITH ADMIN OPTION");
+
+    protocol->start_row();
+    protocol->store(global.ptr(), global.length(), global.charset());
+    protocol->end_row();
+  }
+}
+
+void make_roles_privilege_statement(THD *thd, ACL_USER *role,
+                                    Protocol *protocol,
+                                    const List_of_granted_roles &granted_roles)
+{
+  mysql_mutex_assert_owner(&acl_cache->lock);
+  if (granted_roles.size() == 0)
+    return;
+  List_of_granted_roles::const_iterator it= granted_roles.begin();
+  String global;
+  global.append(STRING_WITH_LEN("GRANT "));
+
+  bool found= false;
+  /* First list granted roles which doesn't have WITH ADMIN */
+  for (; it != granted_roles.end(); ++it)
+  {
+    if (it->second)
+      continue;
+    if (found)
+      global.append(',');
+    append_identifier(thd, &global, it->first.user().c_str(),
+                      it->first.user().length());
+    global.append('@');
+    append_identifier(thd, &global, it->first.host().c_str(),
+                      it->first.host().length());
+    found= true;
+  }
+  if (found)
+  {
+    global.append(STRING_WITH_LEN(" TO "));
+    append_identifier(thd, &global, role->user, strlen(role->user));
+    global.append('@');
+    append_identifier(thd, &global, role->host.get_host(),
+                      role->host.get_host_len());
+    protocol->start_row();
+    protocol->store(global.ptr(), global.length(), global.charset());
+    protocol->end_row();
+  }
+
+  String with_admin_str;
+  with_admin_str.append(STRING_WITH_LEN("GRANT "));
+  found= false;
+  it= granted_roles.begin();
+	/* List roles WITH ADMIN property */
+  for (; it != granted_roles.end(); ++it)
+  {
+    if (!it->second)
+      continue;
+    if (found)
+      with_admin_str.append(',');
+    append_identifier(thd, &with_admin_str, it->first.user().c_str(),
+                      it->first.user().length());
+    with_admin_str.append('@');
+    append_identifier(thd, &with_admin_str, it->first.host().c_str(),
+                      it->first.host().length());
+    found= true;
+  }
+  if (found)
+  {
+    with_admin_str.append(STRING_WITH_LEN(" TO "));
+    append_identifier(thd, &with_admin_str, role->user, strlen(role->user));
+    with_admin_str.append('@');
+    append_identifier(thd, &with_admin_str, role->host.get_host(),
+                      role->host.get_host_len());
+    with_admin_str.append(" WITH ADMIN OPTION");
+    protocol->start_row();
+    protocol->store(with_admin_str.ptr(), with_admin_str.length(),
+                    with_admin_str.charset());
+    protocol->end_row();
+  }
+
+}
+
+
+void make_table_privilege_statement(THD *thd, ACL_USER *role,
+                                    Protocol *protocol,
+                                    Table_access_map &table_map)
+{
+  mysql_mutex_assert_owner(&acl_cache->lock);
+  Table_access_map::iterator it= table_map.begin();
+  for(;it != table_map.end(); ++it)
+  {
+    std::string qualified_table_name= it->first;
+    Grant_table_aggregate agg= it->second;
+    String global;
+    ulong test_access= (agg.table_access | agg.cols) & ~GRANT_ACL;
+
+    global.length(0);
+    global.append(STRING_WITH_LEN("GRANT "));
+
+    if (test_all_bits(agg.table_access, (TABLE_ACLS & ~GRANT_ACL)))
+      global.append(STRING_WITH_LEN("ALL PRIVILEGES"));
+    else if (!test_access)
+      global.append(STRING_WITH_LEN("USAGE"));
+    else
+    {
+      /* Add specific column access */
+      int found= 0;
+      ulong j;
+      ulong counter;
+      for (counter= 0, j= SELECT_ACL; j <= TABLE_ACLS; counter++, j<<= 1)
+      {
+        if (test_access & j)
+        {
+          if (found)
+            global.append(STRING_WITH_LEN(", "));
+          found= 1;
+          global.append(command_array[counter],command_lengths[counter]);
+
+          if (agg.cols)
+          {
+            uint found_col= 0;
+            Column_map::iterator col_it= agg.columns.begin();
+            for(;col_it != agg.columns.end(); ++col_it)
+            {
+              if (col_it->second & j)
+              {
+                if (!found_col)
+                {
+                  found_col= 1;
+                  /*
+                    If we have a duplicated table level privilege, we
+                    must write the access privilege name again.
+                  */
+                  if (agg.table_access & j)
+                  {
+                    global.append(STRING_WITH_LEN(", "));
+                    global.append(command_array[counter],
+                                  command_lengths[counter]);
+                  }
+                  global.append(STRING_WITH_LEN(" ("));
+                }
+                else
+                  global.append(STRING_WITH_LEN(", "));
+                append_identifier(thd, &global, col_it->first.c_str(),
+                                  col_it->first.length());
+              }
+            }
+            if (found_col)
+              global.append(')');
+          }
+        }
+      }
+    }
+    global.append(STRING_WITH_LEN(" ON "));
+    global.append(qualified_table_name.c_str(),
+                  qualified_table_name.length());
+    global.append(STRING_WITH_LEN(" TO "));
+    append_identifier(thd, &global, role->user, strlen(role->user));
+    global.append('@');
+    // host and lex_user->host are equal except for case
+    append_identifier(thd, &global, role->host.get_host(),
+                      role->host.get_host_len());
+    if (agg.table_access & GRANT_ACL)
+      global.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
+    protocol->start_row();
+    protocol->store(global.ptr(),global.length(),global.charset());
+    protocol->end_row();
+  }
+}
+
+void get_sp_access_map(ACL_USER *acl_user, SP_access_map *sp_map,
+                       HASH *hash)
+{
+  mysql_mutex_assert_owner(&acl_cache->lock);
+  uint index;
+  /* Add routine access */
+  for (index=0 ; index < hash->records ; index++)
+  {
+    const char *user, *host;
+    GRANT_NAME *grant_proc= (GRANT_NAME*) my_hash_element(hash, index);
+    if (!(user=grant_proc->user))
+      user= "";
+    if (!(host= grant_proc->host.get_host()))
+      host= "";
+
+    /*
+      We do not make SHOW GRANTS case-sensitive here (like REVOKE),
+      but make it case-insensitive because that's the way they are
+      actually applied, and showing fewer privileges than are applied
+      would be wrong from a security point of view.
+    */
+
+    if (!strcmp(acl_user->user,user) &&
+        !my_strcasecmp(system_charset_info, acl_user->host.get_host(), host))
+    {
+      ulong proc_access= grant_proc->privs;
+      if (proc_access != 0)
+      {
+        String key;
+        append_identifier(&key, grant_proc->db, strlen(grant_proc->db));
+        key.append(".");
+        append_identifier(&key, grant_proc->tname,
+                          strlen(grant_proc->tname));
+        (*sp_map)[std::string(key.c_ptr())] |= proc_access;
+      }
+    }
+  }
+}
+
+void get_table_access_map(ACL_USER *acl_user,
+                          Table_access_map *table_map)
+{
+  DBUG_ENTER("get_table_access_map");
+  mysql_mutex_assert_owner(&acl_cache->lock);
+  for (ulong index= 0 ; index < column_priv_hash.records ; ++index)
+  {
+    const char *user, *host;
+    GRANT_TABLE *grant_table= (GRANT_TABLE*)
+      my_hash_element(&column_priv_hash, index);
+
+    if (!(user=grant_table->user))
+      user= "";
+    if (!(host= grant_table->host.get_host()))
+      host= "";
+    const char *acl_user_host, *acl_user_user;
+    if (!(acl_user_host= acl_user->host.get_host()))
+      acl_user_host= "";
+    if (!(acl_user_user= acl_user->user))
+      acl_user_user= "";
+
+    /*
+      We do not make SHOW GRANTS case-sensitive here (like REVOKE),
+      but make it case-insensitive because that's the way they are
+      actually applied, and showing fewer privileges than are applied
+      would be wrong from a security point of view.
+    */
+    if (!strcmp(acl_user_user,user) &&
+        !my_strcasecmp(system_charset_info, acl_user_host, host))
+    {
+      ulong table_access= grant_table->privs;
+      if ((table_access | grant_table->cols) != 0)
+      {
+        String q_name;
+        THD *thd= table_map->get_thd();
+        append_identifier(thd, &q_name, grant_table->db,
+                          strlen(grant_table->db));
+        q_name.append(".");
+        append_identifier(thd, &q_name, grant_table->tname,
+                          strlen(grant_table->tname));
+        Grant_table_aggregate agg= (*table_map)[std::string(q_name.c_ptr())];
+        // cols is an ACL of all privileges found as column privileges in the
+        // table given any column in that table. Before a hash look up
+        // you can check in this column if the column exist in the first place
+        // for the required privilege
+        agg.cols |= grant_table->cols;
+        agg.table_access |= grant_table->privs;
+        if (grant_table->cols)
+        {
+          DBUG_PRINT("info",("Collecting column privileges for %s@%s",
+                             acl_user->user, acl_user->host.get_host()));
+          for (ulong col_idx= 0; col_idx < grant_table->hash_columns.records;
+               ++col_idx)
+          {
+            String q_col_name;
+            // Iterate over all column ACLs for this table
+            GRANT_COLUMN *col=
+              (GRANT_COLUMN *)my_hash_element(&(grant_table->hash_columns),
+                                               col_idx);
+            // TODO why can this be 0x0 ?!
+            if (col)
+            {
+              std::string str_column_name(col->column,
+                                          col->key_length);
+              ulong col_access= agg.columns[str_column_name];
+              col_access |= col->rights;
+              agg.columns[str_column_name]= col_access;
+              DBUG_PRINT("info",
+                         ("Found privilege %lu on %s.%s",
+                          col_access, q_name.c_ptr(), q_col_name.c_ptr()));
+            }
+          }
+        }
+        (*table_map)[std::string(q_name.c_ptr())]= agg;
+      }
+    }
+  } // end for
+  DBUG_VOID_RETURN;
+}
+
+
+bool has_wildcard_characters(const LEX_CSTRING &db)
+{
+  return (memchr(db.str, wild_one, db.length) != NULL ||
+          memchr(db.str, wild_many, db.length) != NULL);
+}
+
+void get_database_access_map(ACL_USER *acl_user, Db_access_map *db_map,
+                             Db_access_map *db_wild_map)
+{
+  ACL_DB *acl_db;
+  mysql_mutex_assert_owner(&acl_cache->lock);
+  for (acl_db= acl_dbs->begin(); acl_db != acl_dbs->end(); ++acl_db)
+  {
+    const char *acl_db_user, *acl_db_host;
+    if (!(acl_db_user=acl_db->user))
+      acl_db_user= "";
+    if (!(acl_db_host=acl_db->host.get_host()))
+      acl_db_host= "";
+    const char *acl_user_host, *acl_user_user;
+    if (!(acl_user_host= acl_user->host.get_host()))
+      acl_user_host= "";
+    if (!(acl_user_user= acl_user->user))
+      acl_user_user= "";
+
+    /*
+      We do not make SHOW GRANTS case-sensitive here (like REVOKE),
+      but make it case-insensitive because that's the way they are
+      actually applied, and showing fewer privileges than are applied
+      would be wrong from a security point of view.
+    */
+
+    if (!strcmp(acl_user_user,acl_db_user) &&
+        !my_strcasecmp(system_charset_info, acl_user_host, acl_db_host))
+    {
+      ulong want_access= acl_db->access;
+      if (want_access)
+      {
+        if (has_wildcard_characters({acl_db->db, strlen(acl_db->db)}))
+        {
+          (*db_wild_map)[std::string(acl_db->db)] |= want_access;
+        }
+        else
+        {
+          (*db_map)[std::string(acl_db->db)] |= want_access;
+        }
+        DBUG_PRINT("info",("Role: %s db: %s acl: %lu",
+                           acl_user_user, acl_db->db, want_access));
+      } // end if access
+    }
+  } // end for
+}
+
+/**
+  A graph visitor used for doing breadth-first traversal of the global role
+  graph. The visitor takes a set of access maps and aggregate all discovered
+  privileges into these maps.
+*/
+class Get_access_maps : public boost::default_bfs_visitor
+{
+public:
+  Get_access_maps(ulong *access, Db_access_map *db_map,
+                  Db_access_map *db_wild_map,
+                  Table_access_map *table_map,
+                  SP_access_map *sp_map,
+                  SP_access_map *func_map,
+                  Grant_acl_set *with_admin_acl) :
+    m_access(access),
+    m_db_map(db_map),
+    m_db_wild_map(db_wild_map),
+    m_table_map(table_map),
+    m_sp_map(sp_map),
+    m_func_map(func_map),
+    m_with_admin_acl(with_admin_acl)
+  {}
+
+  template < typename Vertex, typename Graph >
+  void discover_vertex(Vertex u, const Graph & g) const
+  {
+    ACL_USER acl_user= get(boost::vertex_acl_user_t(), *g_granted_roles)[u];
+    if (acl_user.user == g_active_dummy_user)
+      return; // skip root node
+    DBUG_PRINT("info",("Role visitor in %s@%s, adding global access %lu\n",
+                       acl_user.user,
+                       acl_user.host.get_host(),
+                       acl_user.access));
+    /* Add global access */
+    *m_access |= acl_user.access;
+
+    /* Add database access */
+    get_database_access_map(&acl_user, m_db_map, m_db_wild_map);
+
+    /* Add table access */
+    get_table_access_map(&acl_user, m_table_map);
+
+    /* Add stored procedure access */
+    get_sp_access_map(&acl_user, m_sp_map, &proc_priv_hash);
+
+    /* Add user function access */
+    get_sp_access_map(&acl_user, m_sp_map, &func_priv_hash);
+  }
+
+  template < typename Edge, typename Graph >
+  void examine_edge(const Edge &edge, Graph &granted_roles)
+  {
+    ACL_USER to_user= boost::get(boost::vertex_acl_user_t(), granted_roles)
+    [
+      boost::target(edge, granted_roles)
+    ];
+    int with_admin_opt= boost::get(boost::edge_capacity_t(), granted_roles)
+                        [
+                         edge
+                        ];
+    if (with_admin_opt)
+    {
+      String qname;
+      append_identifier(&qname, to_user.user, strlen(to_user.user));
+      qname.append('@');
+      append_identifier(&qname, to_user.host.get_host(),
+                        to_user.host.get_host_len());
+      /* We save the granted role in the Acl_map of the granted user */
+      m_with_admin_acl->insert(std::string(qname.c_ptr_quick(),
+                                           qname.length()));
+    }
+  }
+private:
+  ulong *m_access;
+  Db_access_map *m_db_map;
+  Db_access_map *m_db_wild_map;
+  Table_access_map *m_table_map;
+  SP_access_map *m_sp_map;
+  SP_access_map *m_func_map;
+  Grant_acl_set *m_with_admin_acl;
+};
+
+#endif
 /**
   Get a cached internal schema access.
   @param grant_internal_info the cache
@@ -156,6 +1280,7 @@ IS_internal_schema_access::lookup(const char *name) const
 bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
                      TABLE_LIST *first_table)
 {
+  DBUG_ENTER("select_precheck");
   bool res;
   /*
     lex->exchange != NULL implies SELECT .. INTO OUTFILE and this
@@ -175,7 +1300,7 @@ bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
   else
     res= check_access(thd, privileges_requested, any_db, NULL, NULL, 0, 0);
 
-  return res;
+  DBUG_RETURN(res);
 }
 
 
@@ -455,7 +1580,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
           In other words, once a merge table is created, the privileges of
           the underlying tables can be revoked, but the user will still have
           access to the merge table (provided that the user has privileges on
-          the merge table itself). 
+          the merge table itself).
 
         - Temporary tables shadow base tables.
 
@@ -539,7 +1664,7 @@ bool check_readonly(THD *thd, bool err_if_readonly)
       sql_command == SQLCOM_CHANGE_REPLICATION_FILTER)
     DBUG_RETURN(FALSE);
 
-  bool is_super = thd->security_context()->check_access(SUPER_ACL);
+  bool is_super= thd->security_context()->check_access(SUPER_ACL);
 
   /* super_read_only=OFF and user has SUPER privilege,
   do not prohibit operation:
@@ -575,18 +1700,15 @@ void err_readonly(THD *thd)
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 
-/**
-  Wrapper class which simplifies read guard usage for LOCK_grant.
-*/
-class LOCK_grant_read_guard : public Partitioned_rwlock_read_guard
+LOCK_grant_read_guard::LOCK_grant_read_guard(THD *thd) :
+  Partitioned_rwlock_read_guard(&LOCK_grant, thd->thread_id())
 {
-public:
-  explicit LOCK_grant_read_guard(THD *thd)
-    : Partitioned_rwlock_read_guard(&LOCK_grant, thd->thread_id())
-  { }
-};
+}
 
-
+LOCK_grant_read_guard::LOCK_grant_read_guard(unsigned long id) :
+  Partitioned_rwlock_read_guard(&LOCK_grant, id)
+{
+}
 /**
   Check grants for commands which work only with one table and all other
   tables belonging to subselects or implicitly opened tables.
@@ -643,7 +1765,7 @@ bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
     1   access denied, error is sent to client
 */
 
-bool check_single_table_access(THD *thd, ulong privilege, 
+bool check_single_table_access(THD *thd, ulong privilege,
                                TABLE_LIST *all_tables, bool no_errors)
 {
   Security_context *backup_ctx= thd->security_context();
@@ -684,12 +1806,15 @@ bool
 check_routine_access(THD *thd, ulong want_access, const char *db, char *name,
 		     bool is_proc, bool no_errors)
 {
+  DBUG_ENTER("check_routine_access");
   TABLE_LIST tables[1];
-  
+
   memset(tables, 0, sizeof(TABLE_LIST));
   tables->db= db;
+  tables->db_length= strlen(db);
   tables->table_name= tables->alias= name;
-  
+  tables->table_name_length= strlen(tables->table_name);
+
   /*
     The following test is just a shortcut for check_access() (to avoid
     calculating db_access) under the assumption that it's common to
@@ -705,13 +1830,22 @@ check_routine_access(THD *thd, ulong want_access, const char *db, char *name,
   DBUG_ASSERT((want_access & CREATE_PROC_ACL) == 0);
   if (thd->security_context()->check_access(want_access))
     tables->grant.privilege= want_access;
-  else if (check_access(thd, want_access, db,
+  else
+  {
+    DBUG_PRINT("info",("Checking routine %s.%s for schema level access.",
+                        db, tables->table_name));
+    if (check_access(thd, want_access, db,
                         &tables->grant.privilege,
                         &tables->grant.m_internal,
                         0, no_errors))
-    return TRUE;
-  
-  return check_grant_routine(thd, want_access, tables, is_proc, no_errors);
+
+      DBUG_RETURN(TRUE);
+  }
+
+  DBUG_PRINT("info",("Checking routine %s.%s for routine level access.",
+                        db, tables->table_name));
+  DBUG_RETURN(check_grant_routine(thd, want_access, tables, is_proc,
+                                  no_errors));
 }
 
 
@@ -766,6 +1900,7 @@ bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
 bool check_some_routine_access(THD *thd, const char *db, const char *name,
                                bool is_proc)
 {
+  DBUG_ENTER("check_some_routine_access");
   ulong save_priv;
   /*
     The following test is just a shortcut for check_access() (to avoid
@@ -777,11 +1912,11 @@ bool check_some_routine_access(THD *thd, const char *db, const char *name,
     as it only opens SHOW_PROC_ACLS.
   */
   if (thd->security_context()->check_access(SHOW_PROC_ACLS, true))
-    return FALSE;
+    DBUG_RETURN(FALSE);
   if (!check_access(thd, SHOW_PROC_ACLS, db, &save_priv, NULL, 0, 1) ||
       (save_priv & SHOW_PROC_ACLS))
-    return FALSE;
-  return check_routine_level_acl(thd, db, name, is_proc);
+    DBUG_RETURN(FALSE);
+  DBUG_RETURN(check_routine_level_acl(thd, db, name, is_proc));
 }
 
 
@@ -897,12 +2032,23 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     {
       if (db && (!thd->db().str || db_is_pattern ||
                  strcmp(db, thd->db().str)))
-        db_access= acl_get(sctx->host().str, sctx->ip().str,
-                           sctx->priv_user().str, db, db_is_pattern);
+      {
+        if (sctx->get_active_roles()->size() > 0)
+        {
+          bool use_patterns=
+            ((want_access & GRANT_ACL) ? true : !dont_check_global_grants);
+          db_access= sctx->db_acl({db, strlen(db)}, use_patterns);
+        }
+        else
+        {
+          db_access= acl_get(sctx->host().str, sctx->ip().str,
+                             sctx->priv_user().str, db, db_is_pattern);
+        }
+      }
       else
       {
         /* get access for current db */
-        db_access= sctx->db_access();
+        db_access= sctx->current_db_access();
       }
       /*
         The effective privileges are the union of the global privileges
@@ -946,10 +2092,23 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   }
 
   if (db && (!thd->db().str || db_is_pattern || strcmp(db,thd->db().str)))
-    db_access= acl_get(sctx->host().str, sctx->ip().str,
-                       sctx->priv_user().str, db, db_is_pattern);
+  {
+    if (sctx->get_active_roles()->size() > 0)
+    {
+      bool flags=
+        ((want_access & GRANT_ACL) ? true : !dont_check_global_grants);
+      db_access= sctx->db_acl({db, strlen(db)}, flags);
+      DBUG_PRINT("info",("check_access using db-level privilege for %s. "
+                         "ACL: %lu", db, db_access));
+    }
+    else
+    {
+      db_access= acl_get(sctx->host().str, sctx->ip().str,
+                         sctx->priv_user().str, db, db_is_pattern);
+    }
+  }
   else
-    db_access= sctx->db_access();
+    db_access= sctx->current_db_access();
   DBUG_PRINT("info",("db_access: %lu  want_access: %lu",
                      db_access, want_access));
 
@@ -1040,6 +2199,7 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
 		   bool any_combination_of_privileges_will_do,
                    uint number, bool no_errors)
 {
+  DBUG_ENTER("check_table_access");
   TABLE_LIST *org_tables= tables;
   TABLE_LIST *first_not_own_table= thd->lex->first_not_own_table();
   uint i= 0;
@@ -1073,7 +2233,7 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
     DBUG_ASSERT(!table_ref->schema_table_reformed ||
                 table_ref == thd->lex->select_lex->table_list.first);
 
-    DBUG_PRINT("info", ("derived: %d  view: %d", table_ref->is_derived(),
+    DBUG_PRINT("info", ("table: %s derived: %d  view: %d", table_ref->table_name, table_ref->is_derived(),
                         table_ref->is_view()));
 
     if (table_ref->is_derived())
@@ -1090,15 +2250,117 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
   thd->set_security_context(backup_ctx);
 
   DBUG_EXECUTE_IF("force_check_table_access_return_ok",
-                  return false;);
-  return check_grant(thd,requirements,org_tables,
+                  DBUG_RETURN(false););
+  DBUG_RETURN(check_grant(thd,requirements,org_tables,
                      any_combination_of_privileges_will_do,
-                     number, no_errors);
+                     number, no_errors));
 deny:
   thd->set_security_context(backup_ctx);
-  return TRUE;
+  DBUG_RETURN(TRUE);
 }
 
+/**
+  Given a TABLE_LIST object this function checks against
+   1. global privileges
+   2. db privileges
+   3. table level privileges
+
+  This function only checks the existence of required ACL on a single table
+  object. No special consideration is made for the table type (derived, view,
+  temporary etc).
+
+  @param thd Thread handle
+  @param required_acl The privileges which are required to continue
+  @param table An initialized, single TABLE_LIST object
+
+  @return
+    @retval true Access is granted
+    @retval false Access denied
+*/
+
+bool is_granted_table_access(THD *thd, ulong required_acl,
+                             TABLE_LIST *table)
+{
+  DBUG_ENTER("is_granted_table_access");
+  const char *table_name= table->get_table_name();
+  const char *db_name= table->get_db_name();
+  if (thd->security_context()->get_active_roles()->size() != 0)
+  {
+    /* Check privilege against the role privilege cache */
+    ulong global_acl= thd->security_context()->master_access();
+    if ((global_acl & required_acl) == required_acl)
+    {
+      DBUG_PRINT("info",("Access granted for %s.%s by global privileges",
+                         db_name, table_name));
+      DBUG_RETURN(true);
+    }
+    ulong db_acl= thd->security_context()->db_acl({db_name, strlen(db_name)},
+                                                  true)
+                  | global_acl;
+    if ((db_acl & required_acl) == required_acl)
+    {
+      DBUG_PRINT("info",("Access granted for %s.%s by schema privileges",
+                         db_name, table_name));
+      DBUG_RETURN(true);
+    }
+
+    Grant_table_aggregate aggr=
+      thd->security_context()->table_and_column_acls({table_name,
+                                                      strlen(table_name)},
+                                                     {db_name,
+                                                      strlen(db_name)});
+    if (((aggr.table_access | db_acl) & required_acl) == required_acl)
+    {
+      DBUG_PRINT("info",("Access granted for %s.%s by table privileges",
+                         db_name, table_name));
+      DBUG_RETURN(true);
+    }
+  }
+  else
+  {
+    /* No active roles */
+    Security_context *sctx= thd->security_context();
+    if ((sctx->master_access() & required_acl) == required_acl)
+    {
+      DBUG_PRINT("info",
+                 ("(no role) Access granted for %s.%s by global privileges",
+                  db_name, table_name));
+      DBUG_RETURN(true);
+    }
+    ulong db_access;
+    if ((!thd->db().str || strcmp(db_name,thd->db().str)))
+      db_access= acl_get(sctx->host().str, sctx->ip().str,
+                         sctx->priv_user().str, db_name, false);
+    else
+      db_access= sctx->current_db_access();
+    db_access= (db_access | sctx->master_access());
+    if ((db_access & required_acl) == required_acl)
+    {
+      DBUG_PRINT("info",
+                 ("(no role)  Access granted for %s.%s by schema privileges",
+                  db_name, table_name));
+      DBUG_RETURN(true);
+    }
+    GRANT_TABLE *grant_table= table_hash_search(sctx->host().str,
+                                                sctx->ip().str,
+                                                db_name,
+                                                sctx->priv_user().str,
+                                                table_name,
+                                                FALSE);
+    if (!grant_table)
+      DBUG_RETURN(false);
+
+    if (((grant_table->privs | db_access) & required_acl) == required_acl)
+    {
+      DBUG_PRINT("info",
+                 ("(no role) Access granted for %s.%s by table privileges",
+                  db_name, table_name));
+      DBUG_RETURN(true);
+    }
+  }
+  // permission denied
+  DBUG_RETURN(false);
+}
 
 /****************************************************************************
   Handle GRANT commands
@@ -1137,7 +2399,45 @@ static bool test_if_create_new_users(THD *thd)
   return create_new_users;
 }
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+bool has_grant_role_privilege(THD *thd, const LEX_CSTRING &role_name,
+                              const LEX_CSTRING &role_host)
+{
+  DBUG_ENTER("has_grant_role_privilege");
+  Security_context *sctx= thd->security_context();
+  if (MY_TEST(sctx->check_access(SUPER_ACL)))
+  {
+    DBUG_PRINT("info",("`%s`@`%s` has with admin privileges for `%s`@`%s` "
+                       "through super privileges",
+                       sctx->priv_user().str, sctx->priv_host().str,
+                       role_name.str, role_host.str));
+    DBUG_RETURN(true);
+  }
 
+  /*
+    1. user has global INSERT or SUPER_ACL privileges
+    2. user has inherited the GRANT r TO CURRENT_USER WITH ADMIN OPTION
+       privileges, where r is a node in some active role graph R granted to
+       CURRENT_USER.
+  */
+
+  if (sctx->has_with_admin_acl(role_name, role_host))
+  {
+
+     DBUG_PRINT("info",("`%s`@`%s` has with admin privileges for `%s`@`%s` by "
+                       " WITH ADMIN from granted roles",
+                       sctx->priv_user().str, sctx->priv_host().str,
+                       role_name.str, role_host.str));
+    DBUG_RETURN(true);
+  }
+
+  DBUG_PRINT("info",("`%s`@`%s` doesn't have admin privileges for `%s`@`%s`",
+                     sctx->priv_user().str, sctx->priv_host().str,
+                     role_name.str, role_host.str));
+  DBUG_RETURN(false);
+}
+
+#endif
 /*
   Store table level and column level grants in the privilege tables
 
@@ -1320,7 +2620,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   }
 #endif /* HAVE_REPLICATION */
 
-  /* 
+  /*
     The lock api is depending on the thd->lex variable which needs to be
     re-initialized.
   */
@@ -1563,8 +2863,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     acl_notify_htons(thd, thd->query().str, thd->query().length);
     my_ok(thd);
   }
-
   thd->lex->restore_backup_query_tables_list(&backup);
+  get_global_acl_cache()->increase_version();
   DBUG_RETURN(result);
 }
 
@@ -1823,9 +3123,218 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   if (write_to_binlog && !result)
     acl_notify_htons(thd, thd->query().str, thd->query().length);
+  get_global_acl_cache()->increase_version();
+
   DBUG_RETURN(result);
 }
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+bool mysql_revoke_role(THD *thd, const List <LEX_USER > *users,
+                       const List <LEX_USER > *roles)
+{
+  DBUG_ENTER("mysql_revoke_role");
+  /*
+    This statement will be replicated as a statement, even when using
+    row-based replication.  The binlog state will be cleared here to
+    statement based replication and will be reset to the originals
+    values when we are out of this function scope
+  */
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
+  TABLE *table= open_role_edges_table(thd);
+  mysql_mutex_lock(&acl_cache->lock);
+  List_iterator<LEX_USER > users_it(const_cast<List<LEX_USER> &>(*users));
+  bool errors= false;
+  LEX_USER *lex_user;
+  while ((lex_user= users_it++) && !errors)
+  {
+    List_iterator<LEX_USER > roles_it(const_cast<List<LEX_USER> &>(*roles));
+    LEX_USER *role;
+    if (lex_user->user.str == 0)
+    {
+      // HACK: We're using CURRENT_USER()
+      lex_user= get_current_user(thd, lex_user);
+      DBUG_PRINT("note", ("current user= %s@%s",
+              lex_user->user.str,
+              lex_user->host.str));
+    }
+
+    ACL_USER *acl_user;
+    if ((acl_user= find_acl_user(lex_user->host.str, lex_user->user.str,
+                                 true)) == NULL)
+    {
+      my_error(ER_UNKNOWN_AUTHID, MYF(0), lex_user->user.str,
+               lex_user->host.str);
+      errors= true;
+      break;
+    }
+    while ((role= roles_it++) && !errors)
+    {
+      ACL_USER *acl_role;
+      if ((acl_role= find_acl_user(role->host.str,
+                       role->user.str, true)) == NULL)
+      {
+        my_error(ER_UNKNOWN_AUTHID, MYF(0),
+                 const_cast<char *>(role->user.str),
+                 const_cast<char *>(role->host.str));
+        errors= true;
+        break;
+      }
+      else
+      {
+        DBUG_PRINT("info",("User %s@%s will drop parent %s@%s",
+                           acl_user->user, acl_user->host.get_host(),
+                           role->user.str, role->host.str));
+        Auth_id_ref from_user= create_authid_from(role);
+        Auth_id_ref to_user= create_authid_from(acl_user);
+        errors= modify_role_edges_in_table(thd, table, from_user, to_user,
+                                           false, true);
+        if (errors)
+        {
+          my_error(ER_FAILED_REVOKE_ROLE, MYF(0),
+                   const_cast<char *>(role->user.str),
+                   const_cast<char *>(role->host.str));
+          break;
+        }
+        revoke_role(thd, acl_role, acl_user);
+      }
+    }
+  }
+  mysql_mutex_unlock(&acl_cache->lock);
+  bool rollback_whole_statement= false;
+  int result= 0;
+  /* If no error occurred we write to the bin log */
+  if (!errors)
+  {
+    result= write_bin_log_n_handle_any_error(thd, thd->query().str,
+                                             thd->query().length,
+                                             true,
+                                             &rollback_whole_statement);
+  }
+  result|=
+    acl_end_trans_and_close_tables(thd,
+                                   thd->transaction_rollback_request ||
+                                   rollback_whole_statement);
+
+  if (result == 0 && !errors)
+  {
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
+    my_ok(thd);
+  }
+  get_global_acl_cache()->increase_version();
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Grants a list of roles to a list of users. Changes are persistent and written
+  in the mysql.roles_edges table.
+
+  @param thd Thread handler
+  @param users A list of authorization IDs
+  @param roles A list of authorization IDs
+  @param with_admin_opt True if the granted users should be able to pass on
+    the roles to other authorization IDs
+
+  @return Success state
+    @retval true An error occurred and the DA is set.
+    @retval false The operation was successful and DA is set.
+*/
+
+bool mysql_grant_role(THD *thd, const List <LEX_USER > *users,
+                      const List <LEX_USER > *roles, bool with_admin_opt)
+{
+  DBUG_ENTER("mysql_grant_role");
+  /*
+    This statement will be replicated as a statement, even when using
+    row-based replication.  The binlog state will be cleared here to
+    statement based replication and will be reset to the originals
+    values when we are out of this function scope
+  */
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
+  
+  TABLE *table= open_role_edges_table(thd);
+  mysql_mutex_lock(&acl_cache->lock);
+  List_iterator<LEX_USER > users_it(const_cast<List<LEX_USER> &>(*users));
+  LEX_USER *lex_user;
+  bool errors= false;
+  while ((lex_user= users_it++) && !errors)
+  {
+    List_iterator<LEX_USER > roles_it(const_cast<List<LEX_USER> &>(*roles));
+    LEX_USER *role;
+    if (lex_user->user.str == 0)
+    {
+      // HACK: We're using CURRENT_USER()
+      lex_user= get_current_user(thd, lex_user);
+      DBUG_PRINT("note", ("current user= %s@%s",
+                          lex_user->user.str,
+                          lex_user->host.str));
+    }
+    ACL_USER *acl_user;
+    if ((acl_user= find_acl_user(lex_user->host.str, lex_user->user.str,
+                                 true)) == NULL)
+    {
+      my_error(ER_UNKNOWN_AUTHID, MYF(0), lex_user->user.str,
+               lex_user->host.str);
+      mysql_mutex_unlock(&acl_cache->lock);
+      DBUG_RETURN(true);
+    }
+    while ((role= roles_it++) && !errors)
+    {
+      ACL_USER *acl_role;
+      if ((acl_role= find_acl_user(role->host.str,
+                                   role->user.str, true)) == NULL)
+      {
+        my_error(ER_UNKNOWN_AUTHID, MYF(0),
+                 const_cast<char *>(role->user.str),
+                 const_cast<char *>(role->host.str));
+        errors= true;
+        break;
+      }
+      else
+      {
+        DBUG_PRINT("info",("User %s@%s will inherit from %s@%s",
+                           acl_user->user, acl_user->host.get_host(),
+        role->user.str, role->host.str));
+        grant_role(thd, acl_role, acl_user, with_admin_opt);
+        Auth_id_ref from_user= create_authid_from(role);
+        Auth_id_ref to_user= create_authid_from(acl_user);
+        errors= modify_role_edges_in_table(thd, table, from_user, to_user,
+                                           with_admin_opt, false);
+        if (errors)
+        {
+          std::string user_str= create_authid_str_from(acl_user);
+          std::string role_str= create_authid_str_from(role);
+          my_error(ER_FAILED_ROLE_GRANT, MYF(0), user_str.c_str(),
+                   role_str.c_str());
+          break;
+        }
+      }
+    }
+  }
+  mysql_mutex_unlock(&acl_cache->lock);
+  bool rollback_whole_statement= false;
+  if (!errors)
+  {
+
+    errors= write_bin_log_n_handle_any_error(thd, thd->query().str,
+                                            thd->query().length,
+                                            true,
+                                            &rollback_whole_statement);
+  }
+  errors|=
+    acl_end_trans_and_close_tables(thd,
+                                   thd->transaction_rollback_request ||
+                                   rollback_whole_statement);
+
+  if (!errors)
+  {
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
+    my_ok(thd);
+  }
+  get_global_acl_cache()->increase_version();
+  DBUG_RETURN(errors);
+}
+#endif
 
 bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
                  ulong rights, bool revoke_grant, bool is_proxy)
@@ -1833,7 +3342,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   List_iterator <LEX_USER> str_list (list);
   LEX_USER *Str, *tmp_Str, *proxied_user= NULL;
   char tmp_db[NAME_LEN+1];
-  bool create_new_users=0;
+  bool create_new_users= false;
   TABLE_LIST tables[2];
   bool transactional_tables;
   ulong what_to_set= 0;
@@ -1861,6 +3370,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     proxied_user= str_list++;
   }
 
+
   /* open the mysql.user and mysql.db or mysql.proxies_priv tables */
 
   /*
@@ -1880,7 +3390,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
                              "proxies_priv", TL_WRITE, MDL_SHARED_NO_READ_WRITE);
   else
     tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
-                             C_STRING_WITH_LEN("db"), 
+                             C_STRING_WITH_LEN("db"),
                              "db", TL_WRITE, MDL_SHARED_NO_READ_WRITE);
 
   tables[0].next_local= tables[0].next_global= tables+1;
@@ -2018,8 +3528,10 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
         continue;
       }
     }
+
     is_partial_execution= true;
   }
+
   mysql_mutex_unlock(&acl_cache->lock);
 
   /*
@@ -2073,12 +3585,13 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
                                    thd->transaction_rollback_request ||
                                    rollback_whole_statement);
 
-  
+
   if (!result)
   {
     acl_notify_htons(thd, thd->query().str, thd->query().length);
     my_ok(thd);
   }
+  get_global_acl_cache()->increase_version();
   DBUG_RETURN(result);
 }
 
@@ -2117,8 +3630,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
      of one of elements of this table list).
 
    @return Access status
-     @retval FALSE Access granted; But column privileges might need to be
-      checked.
+     @retval FALSE Access granted; But column privileges need to be checked.
      @retval TRUE The user did not have the requested privileges on any of the
       tables.
 
@@ -2189,6 +3701,8 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
           clause, or an INFORMATION_SCHEMA table, drop the request for
           a privilege.
         */
+
+// TODO Why would we make a difference between debug and non-debug here?
 #ifndef DBUG_OFF
         t_ref->grant.want_privilege= 0;
 #endif
@@ -2211,40 +3725,95 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       continue;
     }
 
-    GRANT_TABLE *grant_table= table_hash_search(sctx->host().str,
-                                                sctx->ip().str,
-                                                t_ref->get_db_name(),
-                                                sctx->priv_user().str,
-                                                t_ref->get_table_name(),
-                                                FALSE);
-
-    if (!grant_table)
+    if (sctx->get_active_roles()->size() != 0)
     {
-      want_access &= ~t_ref->grant.privilege;
-      goto err;                                 // No grants
+      t_ref->grant.grant_table= 0;
+      t_ref->grant.version= grant_version;
+
+      Grant_table_aggregate aggr=
+        sctx->table_and_column_acls({t_ref->get_db_name(),
+                                     strlen(t_ref->get_db_name())},
+                                    {t_ref->get_table_name(),
+                                     strlen(t_ref->get_table_name())});
+
+      DBUG_PRINT("info",
+                 ("Acl_map table %s.%s has access %lu",
+                  t_ref->get_db_name(), t_ref->get_table_name(),
+                  aggr.table_access));
+      /*
+        For SHOW COLUMNS, SHOW INDEX it is enough to have some
+        privileges on any column combination on the table.
+      */
+      if (any_combination_will_do && (aggr.cols != 0 || aggr.table_access != 0))
+        continue;
+
+      /*
+        For SHOW COLUMNS, SHOW INDEX it is enough to have some
+        privileges on any column combination on the table.
+      */
+      if (any_combination_will_do)
+        continue;
+      t_ref->grant.privilege= aggr.table_access;
+      t_ref->set_want_privilege(want_access & COL_ACLS);
+      if (!(~t_ref->grant.privilege & want_access))
+      {
+        DBUG_PRINT("info",("Access not denied because of column acls for %s.%s."
+                           "want_access= %lu, grant.privilege= %lu",
+                           t_ref->get_db_name(),
+                           t_ref->get_table_name(),
+                           want_access,
+                           t_ref->grant.privilege));
+        continue;
+      }
+      if (want_access & ~(aggr.cols | t_ref->grant.privilege))
+      {
+        want_access &= ~(aggr.cols | t_ref->grant.privilege);
+        DBUG_PRINT("info",("Access denied for %s.%s. Unfulfilled access: %lu",
+                           t_ref->get_db_name(), t_ref->get_table_name(),
+                           want_access));
+        goto err;
+      }
     }
-
-    /*
-      For SHOW COLUMNS, SHOW INDEX it is enough to have some
-      privileges on any column combination on the table.
-    */
-    if (any_combination_will_do)
-      continue;
-
-    t_ref->grant.grant_table= grant_table; // Remember for column test
-    t_ref->grant.version= grant_version;
-    t_ref->grant.privilege|= grant_table->privs;
-    t_ref->set_want_privilege(want_access & COL_ACLS);
-
-    if (!(~t_ref->grant.privilege & want_access))
-      continue;
-
-    if (want_access & ~(grant_table->cols | t_ref->grant.privilege))
+    else
     {
-      want_access &= ~(grant_table->cols | t_ref->grant.privilege);
-      goto err;                                 // impossible
-    }
-  }
+      GRANT_TABLE *grant_table= table_hash_search(sctx->host().str,
+                                                  sctx->ip().str,
+                                                  t_ref->get_db_name(),
+                                                  sctx->priv_user().str,
+                                                  t_ref->get_table_name(),
+                                                  FALSE);
+
+      if (!grant_table)
+      {
+        DBUG_PRINT("info",("Table %s didn't exist in the legacy table acl cache", t_ref->get_table_name()));
+        want_access &= ~t_ref->grant.privilege;
+        goto err;                                 // No grants
+      }
+
+      /*
+        For SHOW COLUMNS, SHOW INDEX it is enough to have some
+        privileges on any column combination on the table.
+      */
+      if (any_combination_will_do)
+        continue;
+
+      t_ref->grant.grant_table= grant_table; // Remember for column test
+      t_ref->grant.version= grant_version;
+      t_ref->grant.privilege|= grant_table->privs;
+      t_ref->set_want_privilege(want_access & COL_ACLS);
+
+      DBUG_PRINT("info",("t_ref->grant.privilege = %lu",
+                         t_ref->grant.privilege));
+      if (!(~t_ref->grant.privilege & want_access))
+        continue;
+
+      if (want_access & ~(grant_table->cols | t_ref->grant.privilege))
+      {
+        want_access &= ~(grant_table->cols | t_ref->grant.privilege);
+        goto err;                                 // impossible
+      }
+    } // end else
+  } // end for
   DBUG_RETURN(FALSE);
 
 err:
@@ -2306,22 +3875,49 @@ bool check_grant_column(THD *thd, GRANT_INFO *grant,
   LOCK_grant_read_guard lock(thd);
 
   /* reload table if someone has modified any grants */
-
-  if (grant->version != grant_version)
+  if (sctx->get_active_roles()->size() != 0)
   {
-    grant->grant_table=
-      table_hash_search(sctx->host().str, sctx->ip().str,
-                        db_name, sctx->priv_user().str,
-                        table_name, 0);         /* purecov: inspected */
-    grant->version= grant_version;              /* purecov: inspected */
+    DBUG_ASSERT(grant->grant_table == 0);
+    Grant_table_aggregate agg=
+      sctx->table_and_column_acls({(const char *)db_name,
+                                   strlen(db_name)},
+                                  {(const char*)table_name,
+                                    strlen(table_name)});
+    std::string q_name(name);
+    Column_map::iterator it= agg.columns.find(q_name);
+    if (it != agg.columns.end())
+    {
+      if(!(~(it->second) & want_privilege))
+      {
+        DBUG_PRINT("info",("Sufficient column privileges found for %s.%s.%s",
+                           db_name, table_name, name));
+        DBUG_RETURN(0);
+      }
+    }
+    else
+    {
+       DBUG_PRINT("info",("No column privileges found for %s.%s.%s",
+                           db_name, table_name, name));
+    }
   }
-  if (!(grant_table= grant->grant_table))
-    goto err;                                   /* purecov: deadcode */
-
-  grant_column=column_hash_search(grant_table, name, length);
-  if (grant_column && !(~grant_column->rights & want_privilege))
+  else
   {
-    DBUG_RETURN(0);
+    if (grant->version != grant_version)
+    {
+      grant->grant_table=
+        table_hash_search(sctx->host().str, sctx->ip().str,
+                          db_name, sctx->priv_user().str,
+                          table_name, 0);         /* purecov: inspected */
+      grant->version= grant_version;              /* purecov: inspected */
+    }
+    if (!(grant_table= grant->grant_table))
+      goto err;                                   /* purecov: deadcode */
+
+    grant_column=column_hash_search(grant_table, name, length);
+    if (grant_column && !(~grant_column->rights & want_privilege))
+    {
+      DBUG_RETURN(0);
+    }
   }
 
 err:
@@ -2370,6 +3966,7 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
                                      const char *name, size_t length,
                                      ulong want_privilege)
 {
+  DBUG_ENTER("check_column_grant_in_table_ref");
   GRANT_INFO *grant;
   const char *db_name;
   const char *table_name;
@@ -2385,18 +3982,26 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
     grant= &(table_ref->grant);
     db_name= table_ref->view_db.str;
     table_name= table_ref->view_name.str;
-    if (table_ref->belong_to_view && 
+    if (table_ref->belong_to_view &&
         thd->lex->sql_command == SQLCOM_SHOW_FIELDS)
     {
-      view_privs= get_column_grant(thd, grant, db_name, table_name, name);
+      if (sctx->get_active_roles()->size() > 0)
+      {
+        view_privs= sctx->table_acl({db_name, strlen(db_name)},
+                                    {table_name, strlen(table_name)});
+        DBUG_PRINT("info",("Found role privileges for %s.%s : %lu",
+                           db_name, table_name, view_privs));
+      }
+      else
+        view_privs= get_column_grant(thd, grant, db_name, table_name, name);
       if (view_privs & VIEW_ANY_ACL)
       {
         table_ref->belong_to_view->allowed_show= TRUE;
-        return FALSE;
+        DBUG_RETURN(FALSE);
       }
       table_ref->belong_to_view->allowed_show= FALSE;
       my_error(ER_VIEW_NO_EXPLAIN, MYF(0));
-      return TRUE;
+      DBUG_RETURN(TRUE);
     }
   }
   else if (table_ref->nested_join)
@@ -2407,7 +4012,7 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
     while (!error && (table= it++))
       error|= check_column_grant_in_table_ref(thd, table, name, length,
                                               want_privilege);
-    return error;
+    DBUG_RETURN(error);
   }
   else
   {
@@ -2418,12 +4023,12 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
     table_name= table->s->table_name.str;
   }
 
-  return check_grant_column(thd, grant, db_name, table_name, name,
-                            length, sctx, want_privilege);
+  DBUG_RETURN(check_grant_column(thd, grant, db_name, table_name, name,
+                                 length, sctx, want_privilege));
 }
 
 
-/** 
+/**
   @brief check if a query can access a set of columns
 
   @param  thd  the current thread
@@ -2432,28 +4037,30 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
   @return Operation status
     @retval 0 Success
     @retval 1 Falure
-  @details This function walks over the columns of a table reference 
+  @details This function walks over the columns of a table reference
    The columns may originate from different tables, depending on the kind of
    table reference, e.g. join, view.
    For each table it will retrieve the grant information and will use it
    to check the required access privileges for the fields requested from it.
-*/    
-bool check_grant_all_columns(THD *thd, ulong want_access_arg, 
+*/
+bool check_grant_all_columns(THD *thd, ulong want_access_arg,
                              Field_iterator_table_ref *fields)
 {
   Security_context *sctx= thd->security_context();
   ulong want_access= want_access_arg;
   const char *table_name= NULL;
 
-  const char* db_name; 
+  const char* db_name;
   GRANT_INFO *grant;
   /* Initialized only to make gcc happy */
   GRANT_TABLE *grant_table= NULL;
-  /* 
+  /*
      Flag that gets set if privilege checking has to be performed on column
      level.
   */
   bool using_column_privileges= FALSE;
+  bool has_roles= thd->security_context()->get_active_roles()->size() > 0;
+  Grant_table_aggregate aggr;
 
   LOCK_grant_read_guard lock(thd);
 
@@ -2465,36 +4072,83 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
     {
       table_name= fields->get_table_name();
       db_name= fields->get_db_name();
-      grant= fields->grant();
-      /* get a fresh one for each table */
-      want_access= want_access_arg & ~grant->privilege;
-      if (want_access)
+      if (has_roles)
       {
-        /* reload table if someone has modified any grants */
-        if (grant->version != grant_version)
+        LEX_CSTRING str_db_name= { db_name, strlen(db_name) };
+        LEX_CSTRING str_table_name= { table_name, strlen(table_name) };
+        aggr= thd->security_context()->table_and_column_acls(str_db_name,
+                                                             str_table_name);
+        /* Get cached GRANT_INFO */
+        grant= fields->grant();
+        /* Update it to reflect current role privileges */
+        grant->privilege= aggr.table_access;
+        /* Reduce remaining privilege requirements */
+        want_access= want_access_arg & ~grant->privilege;
+      }
+      else
+      {
+        grant= fields->grant();
+        /* get a fresh one for each table */
+        want_access= want_access_arg & ~grant->privilege;
+        if (want_access)
         {
-          grant->grant_table=
-            table_hash_search(sctx->host().str, sctx->ip().str,
-                              db_name, sctx->priv_user().str,
-                              table_name, 0);   /* purecov: inspected */
-          grant->version= grant_version;        /* purecov: inspected */
-        }
+          /* reload table if someone has modified any grants */
+          if (grant->version != grant_version)
+          {
+            grant->grant_table=
+              table_hash_search(sctx->host().str, sctx->ip().str,
+                                db_name, sctx->priv_user().str,
+                                table_name, 0);   /* purecov: inspected */
+            grant->version= grant_version;        /* purecov: inspected */
+          }
 
-        grant_table= grant->grant_table;
-        DBUG_ASSERT (grant_table);
+          grant_table= grant->grant_table;
+          DBUG_ASSERT (grant_table);
+        }
       }
     }
 
     if (want_access)
     {
-      GRANT_COLUMN *grant_column=
-        column_hash_search(grant_table, field_name, strlen(field_name));
-      if (grant_column)
-        using_column_privileges= TRUE;
-      if (!grant_column || (~grant_column->rights & want_access))
-        goto err;
+      if (has_roles)
+      {
+        /* Does any of the columns have the access we need? */
+        if (aggr.cols & want_access)
+        {
+          /* Find our column */
+          std::string q_name(field_name);
+          Column_map::iterator it=
+            aggr.columns.find(q_name);
+          if (it != aggr.columns.end())
+          {
+            if(!(~(it->second) & want_access))
+            {
+              DBUG_PRINT("info",
+                         ("Sufficient column privileges found for %s.%s.%s",
+                          db_name, table_name, field_name));
+              goto err;
+            }
+          }
+          else
+          {
+             DBUG_PRINT("info",("No column privileges found for %s.%s.%s",
+                                 db_name, table_name, field_name));
+             goto err;
+          }
+        }
+      }
+      else
+      {
+        /* Roles are not used; fall back on legacy behavior */
+        GRANT_COLUMN *grant_column=
+          column_hash_search(grant_table, field_name, strlen(field_name));
+        if (grant_column)
+          using_column_privileges= TRUE;
+        if (!grant_column || (~grant_column->rights & want_access))
+          goto err;
+      }
     }
-  }
+  } // next table
   return 0;
 
 err:
@@ -2523,33 +4177,64 @@ err:
 
 static bool check_grant_db_routine(THD *thd, const char *db, HASH *hash)
 {
+  DBUG_ENTER("check_grant_db_routine");
   Security_context *sctx= thd->security_context();
 
-  for (uint idx= 0; idx < hash->records; ++idx)
+  if (sctx->get_active_roles()->size() != 0 && db != 0)
   {
-    GRANT_NAME *item= (GRANT_NAME*) my_hash_element(hash, idx);
-
-    if (strcmp(item->user, sctx->priv_user().str) == 0 &&
-        strcmp(item->db, db) == 0 &&
-        item->host.compare_hostname(sctx->host().str,
-                                    sctx->ip().str))
+    DBUG_PRINT("info",("Using roles Acl_map to detect schema level privileges"));
+    ulong acl= sctx->db_acl({db, strlen(db)});
+    DBUG_RETURN(acl == 0);
+  }
+  else
+  {
+    for (uint idx= 0; idx < hash->records; ++idx)
     {
-      return FALSE;
-    }
+      GRANT_NAME *item= (GRANT_NAME*) my_hash_element(hash, idx);
+
+      if (strcmp(item->user, sctx->priv_user().str) == 0 &&
+          strcmp(item->db, db) == 0 &&
+          item->host.compare_hostname(sctx->host().str,
+                                      sctx->ip().str))
+      {
+        DBUG_RETURN(FALSE);
+      }
+    } // end for
   }
 
-  return TRUE;
+  DBUG_RETURN(TRUE);
 }
 
+bool has_any_table_acl(Security_context *sctx, const LEX_CSTRING &str)
+{
+  if (sctx->get_active_roles()->size() > 0)
+  {
+    return sctx->any_table_acl(str);
+  }
+  return false;
+}
 
-/*
+bool has_any_routine_acl(Security_context *sctx,
+                         const LEX_CSTRING &db)
+{
+  if (sctx->get_active_roles()->size() > 0)
+  {
+    return sctx->any_sp_acl(db);
+  }
+  return false;
+}
+
+/**
   Check if a user has the right to access a database
   Access is accepted if he has a grant for any table/routine in the database
   Return 1 if access is denied
+  @param thd The thread handler
+  @param db The name of the database
 */
 
 bool check_grant_db(THD *thd,const char *db)
 {
+  DBUG_ENTER("check_table_and_sp_access");
   Security_context *sctx= thd->security_context();
   LEX_CSTRING priv_user= sctx->priv_user();
   char helping [NAME_LEN+USERNAME_LENGTH+2];
@@ -2557,6 +4242,15 @@ bool check_grant_db(THD *thd,const char *db)
   bool error= TRUE;
   size_t copy_length;
 
+  if (sctx->get_active_roles()->size() > 0)
+  {
+    size_t db_len= strlen(db);
+    ulong db_access= sctx->db_acl({db, db_len});
+    if (db_access != 0)
+      DBUG_RETURN(0);
+    DBUG_RETURN(!has_any_table_acl(sctx, {db, db_len}) &&
+                !has_any_routine_acl(sctx, {db, db_len}));
+  }
   /* Added 1 at the end to avoid buffer overflow at strmov()*/
   copy_length= ((priv_user.str ? strlen(priv_user.str) : 0) +
                 (db ? strlen(db) : 0)) + 1;
@@ -2565,7 +4259,7 @@ bool check_grant_db(THD *thd,const char *db)
     Make sure that my_stpcpy() operations do not result in buffer overflow.
   */
   if (copy_length >= (NAME_LEN+USERNAME_LENGTH+2))
-    return 1;
+    DBUG_RETURN(1);
 
   len= (uint) (my_stpcpy(my_stpcpy(helping, priv_user.str) + 1, db) -
                helping) + 1;
@@ -2583,15 +4277,20 @@ bool check_grant_db(THD *thd,const char *db)
                                            sctx->ip().str))
     {
       error= FALSE; /* Found match. */
+      DBUG_PRINT("info",("Detected table level acl in column_priv_hash"));
       break;
     }
   }
 
   if (error)
+  {
+    DBUG_PRINT("info",("No table level acl in column_priv_hash; checking "
+                       "for schema level acls"));
     error= check_grant_db_routine(thd, db, &proc_priv_hash) &&
            check_grant_db_routine(thd, db, &func_priv_hash);
+  }
 
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -2626,20 +4325,47 @@ bool check_grant_routine(THD *thd, ulong want_access,
     DBUG_RETURN(0);                             // ok
 
   LOCK_grant_read_guard lock(thd);
-
+  bool has_roles= (sctx->get_active_roles()->size() > 0);
   for (table= procs; table; table= table->next_global)
   {
-    GRANT_NAME *grant_proc;
-    if ((grant_proc= routine_hash_search(host, sctx->ip().str, table->db, user,
-                                         table->table_name, is_proc, 0)))
-      table->grant.privilege|= grant_proc->privs;
-
-    if (want_access & ~table->grant.privilege)
+    if (has_roles)
+    {
+      ulong acl;
+      if (is_proc)
+      {
+        acl= sctx->procedure_acl({table->db, table->db_length},
+                                 {table->table_name,
+                                  table->table_name_length});
+      }
+      else
+      {
+        acl= sctx->function_acl({table->db, table->db_length},
+                                {table->table_name,
+                                 table->table_name_length});
+      }
+      table->grant.privilege|= acl;
+      DBUG_PRINT("info",("Checking Acl_map for proc acls in %s.%s; "
+                         "found %lu", table->db, table->table_name,
+                         table->grant.privilege));
+    }
+    else
+    {
+      GRANT_NAME *grant_proc;
+      if ((grant_proc= routine_hash_search(host, sctx->ip().str, table->db, user,
+                                           table->table_name, is_proc, 0)))
+      {
+        table->grant.privilege|= grant_proc->privs;
+        DBUG_PRINT("info",("Checking for routine acls in %s; "
+                           "found %lu", table->db, grant_proc->privs));
+      }
+    }
+    if ((want_access & table->grant.privilege) != want_access)
     {
       want_access &= ~table->grant.privilege;
       goto err;
     }
   }
+
   DBUG_RETURN(0);
 
 err:
@@ -2664,9 +4390,9 @@ err:
 
 
 /*
-  Check if routine has any of the 
+  Check if routine has any of the
   routine level grants
-  
+
   SYNPOSIS
    bool    check_routine_level_acl()
    thd          Thread handler
@@ -2674,13 +4400,14 @@ err:
    name         Routine name
 
   RETURN
-   0            Ok 
+   0            Ok
    1            error
 */
 
 static bool check_routine_level_acl(THD *thd, const char *db,
                                     const char *name, bool is_proc)
 {
+  DBUG_ENTER("check_routine_level_acl");
   bool no_routine_acl= 1;
   GRANT_NAME *grant_proc;
   Security_context *sctx= thd->security_context();
@@ -2692,7 +4419,7 @@ static bool check_routine_level_acl(THD *thd, const char *db,
                                        sctx->priv_user().str,
                                        name, is_proc, 0)))
     no_routine_acl= !(grant_proc->privs & SHOW_PROC_ACLS);
-  return no_routine_acl;
+  DBUG_RETURN(no_routine_acl);
 }
 
 
@@ -2750,147 +4477,61 @@ ulong get_column_grant(THD *thd, GRANT_INFO *grant,
   GRANT_TABLE *grant_table;
   GRANT_COLUMN *grant_column;
   ulong priv;
-
+  Security_context *sctx= thd->security_context();
   LOCK_grant_read_guard lock(thd);
 
   /* reload table if someone has modified any grants */
-  if (grant->version != grant_version)
+  /*
+    note: grant->grant_table is set iff we need to check column level routines
+    and table level privileges hasn't isn't enough to fulfill the requirement.
+    However, we might be using this routine to check table level privileges
+    too so we must still check these before we continue. Doh..
+  */
+  if (sctx->get_active_roles()->size() != 0 && !grant->grant_table)
   {
-    Security_context *sctx= thd->security_context();
-    grant->grant_table=
-      table_hash_search(sctx->host().str, sctx->ip().str,
-                        db_name, sctx->priv_user().str,
-                        table_name, 0);         /* purecov: inspected */
-    grant->version= grant_version;              /* purecov: inspected */
-  }
-
-  if (!(grant_table= grant->grant_table))
     priv= grant->privilege;
+    Grant_table_aggregate aggr=
+      sctx->table_and_column_acls({(const char*)db_name, strlen(db_name)},
+                                  {(const char*)table_name,
+                                   strlen(table_name)});
+    priv|= aggr.table_access;
+    /* Find our column */
+    std::string q_name;
+    q_name.append(field_name);
+    Column_map::iterator it=
+      aggr.columns.find(std::string(q_name.c_str()));
+    if (it != aggr.columns.end())
+    {
+      priv|= it->second;
+    }
+
+  }
   else
   {
-    grant_column= column_hash_search(grant_table, field_name,
-                                     strlen(field_name));
-    if (!grant_column)
-      priv= (grant->privilege | grant_table->privs);
+    if (grant->version != grant_version)
+    {
+
+      grant->grant_table=
+        table_hash_search(sctx->host().str, sctx->ip().str,
+                          db_name, sctx->priv_user().str,
+                          table_name, 0);         /* purecov: inspected */
+      grant->version= grant_version;              /* purecov: inspected */
+    }
+
+    if (!(grant_table= grant->grant_table))
+      priv= grant->privilege;
     else
-      priv= (grant->privilege | grant_table->privs | grant_column->rights);
+    {
+      grant_column= column_hash_search(grant_table, field_name,
+                                       strlen(field_name));
+      if (!grant_column)
+        priv= (grant->privilege | grant_table->privs);
+      else
+        priv= (grant->privilege | grant_table->privs | grant_column->rights);
+    }
   }
   return priv;
 }
-
-static int show_routine_grants(THD* thd, LEX_USER *lex_user, HASH *hash,
-                               const char *type, int typelen,
-                               char *buff, int buffsize)
-{
-  uint counter, index;
-  int error= 0;
-  Protocol *protocol= thd->get_protocol();
-  /* Add routine access */
-  for (index=0 ; index < hash->records ; index++)
-  {
-    const char *user, *host;
-    GRANT_NAME *grant_proc= (GRANT_NAME*) my_hash_element(hash, index);
-
-    if (!(user=grant_proc->user))
-      user= "";
-    if (!(host= grant_proc->host.get_host()))
-      host= "";
-
-    /*
-      We do not make SHOW GRANTS case-sensitive here (like REVOKE),
-      but make it case-insensitive because that's the way they are
-      actually applied, and showing fewer privileges than are applied
-      would be wrong from a security point of view.
-    */
-
-    if (!strcmp(lex_user->user.str,user) &&
-        !my_strcasecmp(system_charset_info, lex_user->host.str, host))
-    {
-      ulong proc_access= grant_proc->privs;
-      if (proc_access != 0)
-      {
-        String global(buff, buffsize, system_charset_info);
-        ulong test_access= proc_access & ~GRANT_ACL;
-
-        global.length(0);
-        global.append(STRING_WITH_LEN("GRANT "));
-
-        if (!test_access)
-          global.append(STRING_WITH_LEN("USAGE"));
-        else
-        {
-          /* Add specific procedure access */
-          int found= 0;
-          ulong j;
-
-          for (counter= 0, j= SELECT_ACL; j <= PROC_ACLS; counter++, j<<= 1)
-          {
-            if (test_access & j)
-            {
-              if (found)
-                global.append(STRING_WITH_LEN(", "));
-              found= 1;
-              global.append(command_array[counter],command_lengths[counter]);
-            }
-          }
-        }
-        global.append(STRING_WITH_LEN(" ON "));
-        global.append(type,typelen);
-        global.append(' ');
-        append_identifier(thd, &global, grant_proc->db,
-                          strlen(grant_proc->db));
-        global.append('.');
-        append_identifier(thd, &global, grant_proc->tname,
-                          strlen(grant_proc->tname));
-        global.append(STRING_WITH_LEN(" TO '"));
-        global.append(lex_user->user.str, lex_user->user.length,
-                      system_charset_info);
-        global.append(STRING_WITH_LEN("'@'"));
-        // host and lex_user->host are equal except for case
-        global.append(host, strlen(host), system_charset_info);
-        global.append('\'');
-        if (proc_access & GRANT_ACL)
-          global.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
-        protocol->start_row();
-        protocol->store(global.ptr(),global.length(),global.charset());
-        if (protocol->end_row())
-        {
-          error= -1;
-          break;
-        }
-      }
-    }
-  }
-  return error;
-}
-
-
-static bool
-show_proxy_grants(THD *thd, LEX_USER *user, char *buff, size_t buffsize)
-{
-  Protocol *protocol= thd->get_protocol();
-  int error= 0;
-
-  for (ACL_PROXY_USER *proxy= acl_proxy_users->begin();
-       proxy != acl_proxy_users->end(); ++proxy)
-  {
-    if (proxy->granted_on(user->host.str, user->user.str))
-    {
-      String global(buff, buffsize, system_charset_info);
-      global.length(0);
-      proxy->print_grant(&global);
-      protocol->start_row();
-      protocol->store(global.ptr(), global.length(), global.charset());
-      if (protocol->end_row())
-      {
-        error= -1;
-        break;
-      }
-    }
-  }
-  return error;
-}
-
 
 /*
   Make a clear-text version of the requested privilege.
@@ -2921,29 +4562,163 @@ void get_privilege_desc(char *to, uint max_length, ulong access)
   *to=0;
 }
 
-
-/*
-  SHOW GRANTS;  Send grants for a user to the client
-
-  IMPLEMENTATION
-   Send to client grant-like strings depicting user@host privileges
-*/
-
-bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+void get_privilege_access_maps(ACL_USER *acl_user,
+                               const List_of_auth_id_refs *using_roles,
+                               ulong *access,
+                               Db_access_map *db_map,
+                               Db_access_map *db_wild_map,
+                               Table_access_map *table_map,
+                               SP_access_map *sp_map,
+                               SP_access_map *func_map,
+                               List_of_granted_roles *granted_roles,
+                               Grant_acl_set *with_admin_acl)
 {
-  ulong want_access;
-  uint counter,index;
+  DBUG_ENTER("get_privilege_access_maps");
+  mysql_mutex_assert_owner(&acl_cache->lock);
+  boost::graph_traits<Granted_roles_graph>::vertex_iterator vi, vi_end;
+  /* First we check the current users access control */
+  // Get global access
+  *access= acl_user->access;
+  DBUG_PRINT("info",("Global access for acl_user %s@%s is %lu",acl_user->user,
+                     acl_user->host.get_host(),acl_user->access));
+  // Get database access
+  get_database_access_map(acl_user, db_map, db_wild_map);
+  // Get table- and column privileges
+  get_table_access_map(acl_user, table_map);
+  // get stored procedure privileges
+  get_sp_access_map(acl_user, sp_map, &proc_priv_hash);
+  // get user function privileges
+  get_sp_access_map(acl_user, func_map, &func_priv_hash);
+
+  /* Only check roles if there are any granted roles at all */
+  boost::tie(vi, vi_end) = boost::vertices(*g_granted_roles);
+  if (vi != vi_end)
+  {
+    // Add dummy node with the active roles
+    ACL_USER dummy_user;
+    dummy_user.access= 0;
+    dummy_user.user= &g_active_dummy_user[0];
+    dummy_user.host.update_hostname("");
+    // Only inserts if the vertex doesn't already exist
+    Role_vertex_descriptor root= boost::add_vertex(*g_granted_roles);
+    boost::property_map<Granted_roles_graph,
+                        boost::vertex_acl_user_t >::type root_prop;
+    root_prop= boost::get(boost::vertex_acl_user_t(), *g_granted_roles);
+    boost::put(root_prop, root, dummy_user);
+    // for each active role as ar
+    //   if ar in child nodes (v) as w:
+    //     add_edge(v,w).
+    int granted_active_roles = 0;
+    Role_vertex_descriptor user_vertex, active_role_vertex;
+    String ss_acl_user;
+    append_identifier(&ss_acl_user, acl_user->user,
+                      strlen(acl_user->user));
+    ss_acl_user.append('@');
+    append_identifier(&ss_acl_user, acl_user->host.get_host(),
+                      acl_user->host.get_host_len());
+    Role_index_map::iterator it=
+      g_authid_to_vertex->find(std::string(ss_acl_user.c_ptr_quick()));
+    if (it != g_authid_to_vertex->end())
+    {
+      user_vertex = it->second;
+      get_granted_roles(user_vertex, granted_roles);
+      if (using_roles->size() != 0)
+      {
+        List_of_auth_id_refs::const_iterator active_roles_iterator=
+          using_roles->begin();
+        /*
+          Find the vertex id of the user we want to investigate the outbound
+          edges of.
+        */
+        for (; active_roles_iterator != using_roles->end();
+             ++active_roles_iterator)
+        {
+          /* If active role has an out-edges equal to active_roles_iterator */
+          if (!find_if_granted_role(user_vertex, active_roles_iterator->first,
+                                    active_roles_iterator->second,
+                                    &active_role_vertex))
+          {
+            THD *thd= current_thd;
+            if (thd)
+            {
+              push_warning_printf(thd, Sql_condition::SL_WARNING,
+                                  ER_UNKNOWN_AUTHID,
+                                  "Illegal role `%s`@`%s` was ignored.",
+                                  active_roles_iterator->first.str,
+                                  active_roles_iterator->second.str);
+            }
+            continue;
+          }
+
+          boost::add_edge(root, active_role_vertex, *g_granted_roles);
+          ++granted_active_roles;
+          // Was this edge with admin option?
+          {
+            Role_edge_descriptor edge;
+            bool found;
+            boost::tie(edge, found)=
+              boost::edge(user_vertex, active_role_vertex, *g_granted_roles);
+            if (found)
+            {
+              int with_admin_opt= boost::get(boost::edge_capacity_t(),
+                                             *g_granted_roles)
+                            [
+                             edge
+                            ];
+              std::string role_authid=
+                create_authid_str_from(active_roles_iterator->first,
+                                       active_roles_iterator->second);
+              if (with_admin_opt)
+              {
+                with_admin_acl->insert(role_authid);
+              }
+            }
+          }
+        } // end for
+      }
+    }
+    if (granted_active_roles > 0)
+    {
+      Get_access_maps vis(access, db_map, db_wild_map, table_map, sp_map,
+                          func_map, with_admin_acl);
+      boost::breadth_first_search(*g_granted_roles,
+                                  root,
+                                  boost::color_map(boost::get(boost::vertex_color_t(),
+                                                              *g_granted_roles)
+                                                  ).visitor(vis)
+                                 );
+    } // end if
+    // clean up helper node
+    boost::clear_vertex(root, *g_granted_roles);
+    boost::remove_vertex(root, *g_granted_roles);
+  } // end if
+  DBUG_PRINT("info",("Global access for role user %s@%s is %lu",acl_user->user,
+                     acl_user->host.get_host(), *access));
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  SHOW GRANTS FOR user USING [ALL | role [,role ...]]
+  @param thd
+  @param lex_user
+  @param using_roles An forward iterable container of LEX_STRING std::pair
+
+  @return Success status
+*/
+bool mysql_show_grants(THD *thd, LEX_USER *lex_user,
+                       const List_of_auth_id_refs &using_roles)
+{
   int  error = 0;
   ACL_USER *acl_user= NULL;
-  ACL_DB *acl_db;
   char buff[1024];
-  Protocol *protocol= thd->get_protocol();
   DBUG_ENTER("mysql_show_grants");
 
   if (!initialized)
   {
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   LOCK_grant_read_guard lock(thd);
@@ -2957,7 +4732,23 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 
     my_error(ER_NONEXISTING_GRANT, MYF(0),
              lex_user->user.str, lex_user->host.str);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
+  }
+
+  for(auto &role_ref : using_roles)
+  {
+    List_of_granted_roles granted_roles;
+    get_granted_roles(thd, lex_user, &granted_roles);
+    std::string authid(create_authid_str_from(role_ref));
+    if (find(granted_roles.begin(), granted_roles.end(), authid) ==
+        granted_roles.end())
+    {
+      mysql_mutex_unlock(&acl_cache->lock);
+      lock.unlock();
+      my_error(ER_ROLE_NOT_GRANTED, MYF(0), role_ref.first.str,
+               role_ref.second.str, lex_user->user.str, lex_user->host.str);
+      DBUG_RETURN(true);
+    }
   }
 
   Item_string *field=new Item_string("",0,&my_charset_latin1);
@@ -2972,257 +4763,38 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
   {
     mysql_mutex_unlock(&acl_cache->lock);
 
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
+  // aggregate over the active role and user privileges
+  Db_access_map db_map;
+  Db_access_map db_wild_map;
+  Table_access_map table_map;
+  SP_access_map sp_map;
+  SP_access_map func_map;
+  Grant_acl_set with_admin_acl;
+  List_of_granted_roles granted_roles;
+  ulong access;
+  table_map.set_thd(thd);
+  get_privilege_access_maps(acl_user, &using_roles, &access, &db_map,
+                            &db_wild_map, &table_map, &sp_map, &func_map,
+                            &granted_roles, &with_admin_acl);
+  String output;
+  make_global_privilege_statement(thd, access, acl_user, &output);
+  Protocol *protocol= thd->get_protocol();
+  protocol->start_row();
+  protocol->store(output.ptr(),output.length(),output.charset());
+  protocol->end_row();
 
-  /* Add first global access grants */
-  {
-    String global(buff,sizeof(buff),system_charset_info);
-    global.length(0);
-    global.append(STRING_WITH_LEN("GRANT "));
+  make_database_privilege_statement(thd, acl_user, protocol, db_map,
+                                    db_wild_map);
+  make_table_privilege_statement(thd, acl_user, protocol, table_map);
+  make_sp_privilege_statement(thd, acl_user, protocol, sp_map, 0);
+  make_sp_privilege_statement(thd, acl_user, protocol, func_map, 1);
+  make_proxy_privilege_statement(thd, acl_user, protocol);
+  make_roles_privilege_statement(thd, acl_user, protocol, granted_roles);
+  make_with_admin_privilege_statement(thd, acl_user, protocol, with_admin_acl,
+                                      granted_roles);
 
-    want_access= acl_user->access;
-    if (test_all_bits(want_access, (GLOBAL_ACLS & ~ GRANT_ACL)))
-      global.append(STRING_WITH_LEN("ALL PRIVILEGES"));
-    else if (!(want_access & ~GRANT_ACL))
-      global.append(STRING_WITH_LEN("USAGE"));
-    else
-    {
-      bool found=0;
-      ulong j,test_access= want_access & ~GRANT_ACL;
-      for (counter=0, j = SELECT_ACL;j <= GLOBAL_ACLS;counter++,j <<= 1)
-      {
-        if (test_access & j)
-        {
-          if (found)
-            global.append(STRING_WITH_LEN(", "));
-          found=1;
-          global.append(command_array[counter],command_lengths[counter]);
-        }
-      }
-    }
-    global.append (STRING_WITH_LEN(" ON *.* TO '"));
-    global.append(lex_user->user.str, lex_user->user.length,
-                  system_charset_info);
-    global.append (STRING_WITH_LEN("'@'"));
-    global.append(lex_user->host.str,lex_user->host.length,
-                  system_charset_info);
-    global.append ('\'');
-    if (want_access & GRANT_ACL)
-      global.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
-    protocol->start_row();
-    protocol->store(global.ptr(),global.length(),global.charset());
-    if (protocol->end_row())
-    {
-      error= -1;
-      goto end;
-    }
-  }
-
-  /* Add database access */
-  for (acl_db= acl_dbs->begin(); acl_db != acl_dbs->end(); ++acl_db)
-  {
-    const char *user, *host;
-
-    if (!(user=acl_db->user))
-      user= "";
-    if (!(host=acl_db->host.get_host()))
-      host= "";
-
-    /*
-      We do not make SHOW GRANTS case-sensitive here (like REVOKE),
-      but make it case-insensitive because that's the way they are
-      actually applied, and showing fewer privileges than are applied
-      would be wrong from a security point of view.
-    */
-
-    if (!strcmp(lex_user->user.str,user) &&
-        !my_strcasecmp(system_charset_info, lex_user->host.str, host))
-    {
-      want_access=acl_db->access;
-      if (want_access)
-      {
-        String db(buff,sizeof(buff),system_charset_info);
-        db.length(0);
-        db.append(STRING_WITH_LEN("GRANT "));
-
-        if (test_all_bits(want_access,(DB_ACLS & ~GRANT_ACL)))
-          db.append(STRING_WITH_LEN("ALL PRIVILEGES"));
-        else if (!(want_access & ~GRANT_ACL))
-          db.append(STRING_WITH_LEN("USAGE"));
-        else
-        {
-          int found=0, cnt;
-          ulong j,test_access= want_access & ~GRANT_ACL;
-          for (cnt=0, j = SELECT_ACL; j <= DB_ACLS; cnt++,j <<= 1)
-          {
-            if (test_access & j)
-            {
-              if (found)
-                db.append(STRING_WITH_LEN(", "));
-              found = 1;
-              db.append(command_array[cnt],command_lengths[cnt]);
-            }
-          }
-        }
-        db.append (STRING_WITH_LEN(" ON "));
-        append_identifier(thd, &db, acl_db->db, strlen(acl_db->db));
-        db.append (STRING_WITH_LEN(".* TO '"));
-        db.append(lex_user->user.str, lex_user->user.length,
-                  system_charset_info);
-        db.append (STRING_WITH_LEN("'@'"));
-        // host and lex_user->host are equal except for case
-        db.append(host, strlen(host), system_charset_info);
-        db.append ('\'');
-        if (want_access & GRANT_ACL)
-          db.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
-        protocol->start_row();
-        protocol->store(db.ptr(),db.length(),db.charset());
-        if (protocol->end_row())
-        {
-          error= -1;
-          goto end;
-        }
-      }
-    }
-  }
-
-  /* Add table & column access */
-  for (index=0 ; index < column_priv_hash.records ; index++)
-  {
-    const char *user, *host;
-    GRANT_TABLE *grant_table= (GRANT_TABLE*)
-      my_hash_element(&column_priv_hash, index);
-
-    if (!(user=grant_table->user))
-      user= "";
-    if (!(host= grant_table->host.get_host()))
-      host= "";
-
-    /*
-      We do not make SHOW GRANTS case-sensitive here (like REVOKE),
-      but make it case-insensitive because that's the way they are
-      actually applied, and showing fewer privileges than are applied
-      would be wrong from a security point of view.
-    */
-
-    if (!strcmp(lex_user->user.str,user) &&
-        !my_strcasecmp(system_charset_info, lex_user->host.str, host))
-    {
-      ulong table_access= grant_table->privs;
-      if ((table_access | grant_table->cols) != 0)
-      {
-        String global(buff, sizeof(buff), system_charset_info);
-        ulong test_access= (table_access | grant_table->cols) & ~GRANT_ACL;
-
-        global.length(0);
-        global.append(STRING_WITH_LEN("GRANT "));
-
-        if (test_all_bits(table_access, (TABLE_ACLS & ~GRANT_ACL)))
-          global.append(STRING_WITH_LEN("ALL PRIVILEGES"));
-        else if (!test_access)
-          global.append(STRING_WITH_LEN("USAGE"));
-        else
-        {
-          /* Add specific column access */
-          int found= 0;
-          ulong j;
-
-          for (counter= 0, j= SELECT_ACL; j <= TABLE_ACLS; counter++, j<<= 1)
-          {
-            if (test_access & j)
-            {
-              if (found)
-                global.append(STRING_WITH_LEN(", "));
-              found= 1;
-              global.append(command_array[counter],command_lengths[counter]);
-
-              if (grant_table->cols)
-              {
-                uint found_col= 0;
-                for (uint col_index=0 ;
-                     col_index < grant_table->hash_columns.records ;
-                     col_index++)
-                {
-                  GRANT_COLUMN *grant_column = (GRANT_COLUMN*)
-                    my_hash_element(&grant_table->hash_columns,col_index);
-                  if (grant_column->rights & j)
-                  {
-                    if (!found_col)
-                    {
-                      found_col= 1;
-                      /*
-                        If we have a duplicated table level privilege, we
-                        must write the access privilege name again.
-                      */
-                      if (table_access & j)
-                      {
-                        global.append(STRING_WITH_LEN(", "));
-                        global.append(command_array[counter],
-                                      command_lengths[counter]);
-                      }
-                      global.append(STRING_WITH_LEN(" ("));
-                    }
-                    else
-                      global.append(STRING_WITH_LEN(", "));
-                    global.append(grant_column->column,
-                                  grant_column->key_length,
-                                  system_charset_info);
-                  }
-                }
-                if (found_col)
-                  global.append(')');
-              }
-            }
-          }
-        }
-        global.append(STRING_WITH_LEN(" ON "));
-        append_identifier(thd, &global, grant_table->db,
-                          strlen(grant_table->db));
-        global.append('.');
-        append_identifier(thd, &global, grant_table->tname,
-                          strlen(grant_table->tname));
-        global.append(STRING_WITH_LEN(" TO '"));
-        global.append(lex_user->user.str, lex_user->user.length,
-                      system_charset_info);
-        global.append(STRING_WITH_LEN("'@'"));
-        // host and lex_user->host are equal except for case
-        global.append(host, strlen(host), system_charset_info);
-        global.append('\'');
-        if (table_access & GRANT_ACL)
-          global.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
-        protocol->start_row();
-        protocol->store(global.ptr(),global.length(),global.charset());
-        if (protocol->end_row())
-        {
-          error= -1;
-          break;
-        }
-      }
-    }
-  }
-
-  if (show_routine_grants(thd, lex_user, &proc_priv_hash, 
-                          STRING_WITH_LEN("PROCEDURE"), buff, sizeof(buff)))
-  {
-    error= -1;
-    goto end;
-  }
-
-  if (show_routine_grants(thd, lex_user, &func_priv_hash,
-                          STRING_WITH_LEN("FUNCTION"), buff, sizeof(buff)))
-  {
-    error= -1;
-    goto end;
-  }
-
-  if (show_proxy_grants(thd, lex_user, buff, sizeof(buff)))
-  {
-    error= -1;
-    goto end;
-  }
-
-end:
   mysql_mutex_unlock(&acl_cache->lock);
   lock.unlock();
 
@@ -3230,6 +4802,20 @@ end:
   DBUG_RETURN(error);
 }
 
+void roles_graphml(String *str)
+{
+  mysql_mutex_lock(&acl_cache->lock);
+  boost::dynamic_properties dp;
+  dp.property("name", boost::get(boost::vertex_name_t(), *g_granted_roles));
+  dp.property("color", boost::get(boost::edge_capacity_t(), *g_granted_roles));
+  std::stringstream ss;
+  boost::write_graphml(ss, *g_granted_roles, dp, true);
+  std::string out= ss.str();
+  str->copy(out.c_str(), out.length(), system_charset_info);
+  mysql_mutex_unlock(&acl_cache->lock);
+}
+
+#endif
 
 /**
   Remove db access privileges.
@@ -3513,7 +5099,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     {
       result= -1;
       continue;
-    }  
+    }
     if (!find_acl_user(lex_user->host.str, lex_user->user.str, TRUE))
     {
       result= -1;
@@ -3611,6 +5197,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 
   if (!result)
     acl_notify_htons(thd, thd->query().str, thd->query().length);
+  get_global_acl_cache()->increase_version();
   DBUG_RETURN(result);
 }
 
@@ -3666,7 +5253,7 @@ private:
   @param sp_db     DB of the stored procedure
   @param sp_name   Name of the stored procedure
   @param is_proc   True if this is a SP rather than a function.
-  
+
   @retval
     0           OK.
   @retval
@@ -3781,7 +5368,6 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
     DBUG_RETURN(TRUE);
 
   combo->user.str= (char *) sctx->user().str;
-
   mysql_mutex_lock(&acl_cache->lock);
 
   if ((au= find_acl_user(combo->host.str= (char *) sctx->host_or_ip().str,
@@ -3893,10 +5479,9 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
                        (priv_user.str ? priv_user.str : "(NULL)"),
                        db, table));
   /*
-    This function is not intended for derived tables which doesn't have a 
+    This functiomakn is not intended for derived tables which doesn't have a
     name. If this happens something is wrong.
   */
-  DBUG_ASSERT(table != 0);
   /* --skip-grants */
   if (!initialized)
   {
@@ -3905,28 +5490,48 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
     DBUG_PRINT("info", ("privilege 0x%lx", grant->privilege));
     DBUG_VOID_RETURN;
   }
-
-  /* global privileges */
-  grant->privilege= sctx->master_access();
-
-  /* db privileges */
-  grant->privilege|= acl_get(sctx->host().str, sctx->ip().str,
-                             priv_user.str, db, 0);
-
-  DEBUG_SYNC(thd, "fill_effective_table_privileges");
-  /* table privileges */
-  LOCK_grant_read_guard lock(thd);
-
-  if (grant->version != grant_version)
+  DBUG_PRINT("info",("Effective table privileges are deduced from active roles"
+                     " (%lu)",
+                     (unsigned long)sctx->get_active_roles()->size()));
+  if (sctx->get_active_roles()->size() > 0)
   {
-    grant->grant_table=
-      table_hash_search(sctx->host().str, sctx->ip().str, db,
-                        priv_user.str, table, 0);   /* purecov: inspected */
-    grant->version= grant_version;              /* purecov: inspected */
+     /* global privileges */
+    grant->privilege= sctx->master_access();
+    LEX_CSTRING str_db= {db, strlen(db)};
+    /* db privileges */
+    grant->privilege|= sctx->db_acl(str_db);
+    LEX_CSTRING str_table= {table, strlen(table)};
+    /* table privileges */
+    grant->privilege|= sctx->table_acl(str_db, str_table);
+    grant->grant_table= 0;
+    DBUG_PRINT("info",("Role used: %s db: %s db-acl: %lu all-acl: %lu ",
+                       sctx->get_active_roles()->at(0).first.str,
+                       db, sctx->db_acl(str_db), grant->privilege));
   }
-  if (grant->grant_table != 0)
+  else
   {
-    grant->privilege|= grant->grant_table->privs;
+    /* global privileges */
+    grant->privilege= sctx->master_access();
+
+    /* db privileges */
+    grant->privilege|= acl_get(sctx->host().str, sctx->ip().str,
+                               priv_user.str, db, 0);
+
+    DEBUG_SYNC(thd, "fill_effective_table_privileges");
+    /* table privileges */
+    LOCK_grant_read_guard lock(thd);
+
+    if (grant->version != grant_version)
+    {
+      grant->grant_table=
+        table_hash_search(sctx->host().str, sctx->ip().str, db,
+                          priv_user.str, table, 0);   /* purecov: inspected */
+      grant->version= grant_version;              /* purecov: inspected */
+    }
+    if (grant->grant_table != 0)
+    {
+      grant->privilege|= grant->grant_table->privs;
+    }
   }
 
   DBUG_PRINT("info", ("privilege 0x%lx", grant->privilege));
@@ -3939,7 +5544,7 @@ acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
                              bool with_grant)
 {
   DBUG_ENTER("acl_check_proxy_grant_access");
-  DBUG_PRINT("info", ("user=%s host=%s with_grant=%d", user, host, 
+  DBUG_PRINT("info", ("user=%s host=%s with_grant=%d", user, host,
                       (int) with_grant));
   if (!initialized)
   {
@@ -3970,7 +5575,7 @@ acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
       !my_strcasecmp(system_charset_info, host,
                      thd->security_context()->priv_host().str))
   {
-    DBUG_PRINT("info", ("strcmp (%s, %s) my_casestrcmp (%s, %s) equal", 
+    DBUG_PRINT("info", ("strcmp (%s, %s) my_casestrcmp (%s, %s) equal",
                         thd->security_context()->priv_user().str, user,
                         host, thd->security_context()->priv_host().str));
     DBUG_RETURN(FALSE);
@@ -4047,7 +5652,7 @@ int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
         (strcmp(thd->security_context()->priv_user().str, user) ||
          my_strcasecmp(system_charset_info, curr_host, host)))
       continue;
-      
+
     want_access= acl_user->access;
     if (!(want_access & GRANT_ACL))
       is_grantable= "NO";
@@ -4070,7 +5675,7 @@ int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
       {
         if (test_access & j)
         {
-          if (update_schema_privilege(thd, table, buff, 0, 0, 0, 0, 
+          if (update_schema_privilege(thd, table, buff, 0, 0, 0, 0,
                                       command_array[priv_id],
                                       command_lengths[priv_id], is_grantable))
           {
@@ -4239,7 +5844,7 @@ int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
           }
         }
       }
-    }   
+    }
   }
 err:
 
@@ -4575,3 +6180,857 @@ bool check_fk_parent_table_access(THD *thd,
 
   return false;
 }
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+/**
+  Examines if a user\@host authid is connected to a role\@role_host authid by
+  comparing all out-edges if the user\@host vertex in the global role graph.
+
+  @return
+    @retval true the two vertices are connected (role is granted)
+    @retval false not connected (role is not granted)
+*/
+bool check_if_granted_role(LEX_CSTRING user, LEX_CSTRING host,
+                           LEX_CSTRING role, LEX_CSTRING role_host)
+{
+  String key;
+  append_identifier(&key, user.str, user.length);
+  key.append('@');
+  append_identifier(&key, host.str, host.length);
+  Role_index_map::iterator it=
+    g_authid_to_vertex->find(std::string(key.c_ptr_quick()));
+  if (it == g_authid_to_vertex->end())
+  {
+    /* There's no such registered vertex yet; maybe no such user */
+    return false;
+  }
+  return find_if_granted_role(it->second, role, role_host);
+}
+
+/**
+  Given a vertex in the roles graph, this function finds a directly connected
+  vertex given a (role, role_host) tuple. The resulting vertex is returned to
+  the caller through an out-param.
+
+  @param v Vertex descriptor of the authid which might have a granted role
+  @param role User name part of an authid
+  @param role_host Host name part of an authid
+  @param found_vertex [out] The corresponding vertex of the granted role.
+
+  @return Success state
+   @retval true The role is granted and the corresponding vertex is returned.
+   @retval false No such role is granted.
+*/
+bool find_if_granted_role(Role_vertex_descriptor v,
+                          LEX_CSTRING role,
+                          LEX_CSTRING role_host,
+						              Role_vertex_descriptor *found_vertex)
+{
+  mysql_mutex_assert_owner(&acl_cache->lock);
+  boost::graph_traits < Granted_roles_graph >::out_edge_iterator ei, ei_end;
+  boost::tie(ei, ei_end)= boost::out_edges(v, *g_granted_roles);
+  /* Iterate all neighboring vertices */
+  for(; ei != ei_end; ++ei)
+  {
+    /* find current user in role graph */
+    ACL_USER acl_user= get(boost::vertex_acl_user_t(),
+                           *g_granted_roles)[
+                                             boost::target(*ei,
+                                                           *g_granted_roles)
+                                            ];
+    if ((role.length == strlen(acl_user.user)) &&
+        (role_host.length == acl_user.host.get_host_len()) &&
+        !strncmp(role.str, acl_user.user, role.length) &&
+        !strncmp(role_host.str, acl_user.host.get_host(), role_host.length))
+    {
+      /* Found a vertex matching the active role */
+      if (found_vertex != 0)
+        *found_vertex = boost::target(*ei, *g_granted_roles);
+      return true;
+    }
+  }
+  /* No grated role match the requested role for the current user */
+  return false;
+}
+
+/**
+  Populates a list of authorization IDs that are connected to a specified
+  graph vertex in the global roles graph.
+
+  The constructed list contains references to a shared memory. The authIDs
+  are not copied!
+
+  The list of granted roles is /appended/ to the out variable.
+
+  @param v A valid vertex descriptor from the global roles graph
+  @param granted_roles [out] A list of authorization IDs
+*/
+void get_granted_roles(Role_vertex_descriptor &v,
+                       List_of_granted_roles *granted_roles)
+{
+  DBUG_ENTER("get_granted_roles");
+  mysql_mutex_assert_owner(&acl_cache->lock);
+  boost::graph_traits < Granted_roles_graph >::out_edge_iterator ei, ei_end;
+  boost::tie(ei, ei_end) = boost::out_edges(v, *g_granted_roles);
+  /* Iterate all neighboring vertices */
+  for (; ei != ei_end; ++ei)
+  {
+    /* find current user in role graph */
+    ACL_USER acl_user = get(boost::vertex_acl_user_t(), *g_granted_roles)
+             [
+               boost::target(*ei, *g_granted_roles)
+             ];
+    boost::property_map<Granted_roles_graph,
+                        boost::edge_capacity_t>::type edge_with_admin;
+    edge_with_admin= boost::get(boost::edge_capacity_t(), *g_granted_roles);
+    int with_admin_opt= edge_with_admin[*ei];
+    LEX_CSTRING tmp_user, tmp_host;
+    tmp_user.str= acl_user.user;
+    tmp_user.length= strlen(acl_user.user);
+    tmp_host.str= acl_user.host.get_host();
+    tmp_host.length= acl_user.host.get_host_len();
+    Role_id id(tmp_user, tmp_host);
+    granted_roles->push_back(std::make_pair(id, with_admin_opt != 0));
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  This is a convenience function.
+  @see get_granted_roles(Role_vertex_descriptor &v,
+                         List_of_granted_roles *granted_roles)
+
+  @param thd The thread context
+  @param user The authid to check for granted roles
+  @param granted_roles [out] A list of granted authids
+*/
+
+void get_granted_roles(THD *thd, LEX_USER *user,
+                       List_of_granted_roles *granted_roles)
+{
+  Role_index_map::iterator it;
+  std::string str_user= create_authid_str_from(user);
+  if ((it= g_authid_to_vertex->find(str_user)) !=
+      g_authid_to_vertex->end())
+  {
+    get_granted_roles(it->second, granted_roles);
+  }
+}
+
+/**
+  Shallow copy a list of default role authorization IDs from an Role_id storage
+
+  @param acl_user A valid authID for which we want the default roles.
+  @param authlist [out] The target list to be populated. Optional if 0
+
+*/
+
+void get_default_roles(const Auth_id_ref &acl_user,
+                       List_of_auth_id_refs *authlist)
+{
+  Role_id user(acl_user);
+  Default_roles::iterator role_it, role_end;
+  boost::tie(role_it, role_end)= g_default_roles->equal_range(user);
+  for(;role_it != role_end; ++role_it)
+  {
+    Auth_id_ref ref= create_authid_from(role_it->second);
+    authlist->push_back(ref);
+  }
+}
+
+
+/**
+  Removes all default roles from user. Removed users are copied to the
+  vector supplied in the arguments.
+
+  @param thd Thread handler
+  @param table Open table handler
+  @param user_auth_id A reference to the authorization ID to clear
+  @param default_roles [out] The vector to which the removed roles are copied.
+
+  @return
+   @retval true An error occurred.
+   @retval false Success
+*/
+bool clear_default_roles(THD *thd, TABLE *table,
+                         const Auth_id_ref &user_auth_id,
+                         std::vector<Role_id > *default_roles)
+{
+  DBUG_ENTER("clear_default_roles");
+  Default_roles::iterator role_it, role_end, begin_it;
+  Role_id user_role_id(user_auth_id);
+  boost::tie(begin_it, role_end)= g_default_roles->equal_range(user_role_id);
+  role_it= begin_it;
+  for( ;role_it != role_end; ++role_it)
+  {
+    if (default_roles != 0)
+    {
+      default_roles->push_back(role_it->second);
+    }
+    Auth_id_ref role_auth_id= create_authid_from(role_it->second);
+    modify_default_roles_in_table(thd, table, user_auth_id, role_auth_id,
+                                    true);
+  }
+  g_default_roles->erase(begin_it, role_end);
+  DBUG_RETURN(false);
+}
+
+bool mysql_clear_default_roles(THD *thd, LEX_USER *user)
+{
+  /*
+    This statement will be replicated as a statement, even when using
+    row-based replication.  The binlog state will be cleared here to
+    statement based replication and will be reset to the originals
+    values when we are out of this function scope
+  */
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
+  /* Table lock must be established before LOCK_grant */
+  TABLE *table= open_default_role_table(thd);
+  /* LOCK_grant protects g_default_roles */
+  bool ret= false;
+
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
+  mysql_mutex_lock(&acl_cache->lock);
+  Auth_id_ref authid= create_authid_from(user);
+  ret= clear_default_roles(thd, table, authid, 0);
+  mysql_mutex_unlock(&acl_cache->lock);
+  bool rollback_whole_statement= false;
+  int result= 0;
+  if (!ret)
+  {
+    result= write_bin_log_n_handle_any_error(thd, thd->query().str,
+                                             thd->query().length,
+                                             true,
+                                             &rollback_whole_statement);
+  }
+  lock.unlock();
+  result|=
+    acl_end_trans_and_close_tables(thd,
+                                   thd->transaction_rollback_request ||
+                                   rollback_whole_statement);
+
+  if (result == 0)
+  {
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
+  }
+  get_global_acl_cache()->increase_version();
+  return ret;
+}
+
+
+/**
+  Set all granted role as default roles. Writes to table mysql.default_roles
+  and binlog.
+
+  @param thd Thread handler
+  @param user The user whose default roles are set.
+
+  @return
+    @retval true An error occurred and DA is set
+    @retval false Successful
+*/
+
+bool mysql_alter_user_set_default_roles_all(THD *thd, LEX_USER *user)
+{
+  /*
+    This statement will be replicated as a statement, even when using
+    row-based replication.  The binlog state will be cleared here to
+    statement based replication and will be reset to the originals
+    values when we are out of this function scope
+  */
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
+  TABLE *table= open_default_role_table(thd);
+  if (!table)
+  {
+    my_error(ER_OPEN_ROLE_TABLES, MYF(MY_WME));
+    return true;
+  }
+  LOCK_grant.wrlock();
+  mysql_mutex_lock(&acl_cache->lock);
+  std::string authid_role= create_authid_str_from(user);
+  Role_index_map::iterator it= g_authid_to_vertex->find(authid_role);
+  if (it == g_authid_to_vertex->end())
+  {
+    /* No such user */
+    my_error(ER_UNKNOWN_AUTHID, MYF(MY_WME), user->user.str, user->host.str);
+    mysql_mutex_unlock(&acl_cache->lock);
+    LOCK_grant.wrunlock();
+    return true;
+  }
+  List_of_granted_roles granted_roles;
+  get_granted_roles(it->second, &granted_roles);
+  List_of_auth_id_refs new_default_role_ref;
+  for (auto&& role : granted_roles)
+  {
+    Auth_id_ref authid= create_authid_from(role.first);
+    new_default_role_ref.push_back(authid);
+  }
+  bool errors= alter_user_set_default_roles(thd, table, user,
+                                            new_default_role_ref);
+  if (errors)
+  {
+    my_error(ER_FAILED_DEFAULT_ROLES, MYF(0));
+  }
+  mysql_mutex_unlock(&acl_cache->lock);
+  bool rollback_whole_statement= false;
+  int result= write_bin_log_n_handle_any_error(thd, thd->query().str,
+                                               thd->query().length,
+                                               true,
+                                               &rollback_whole_statement);
+  LOCK_grant.wrunlock();
+  result|=
+    acl_end_trans_and_close_tables(thd,
+                                   thd->transaction_rollback_request ||
+                                   rollback_whole_statement);
+
+  if (result == 0)
+  {
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
+  }
+  get_global_acl_cache()->increase_version();
+  return errors;
+}
+
+bool alter_user_set_default_roles(THD *thd, TABLE *table, LEX_USER *user,
+                                  const List_of_auth_id_refs &new_auth_ids)
+{
+  ACL_USER *acl_user = find_acl_user(user->host.str, user->user.str, true);
+  if (acl_user == 0)
+    return true;
+  bool errors= false;
+  if (new_auth_ids.size() != 0)
+  {
+    Default_roles::iterator role_it, role_end;
+    Auth_id_ref user_auth_id= create_authid_from(user);
+    Role_id user_role_id(user_auth_id);
+    boost::tie(role_it, role_end)= g_default_roles->equal_range(user_role_id);
+    for( ;role_it != role_end && !errors; ++role_it)
+    {
+      if (std::find(new_auth_ids.begin(), new_auth_ids.end(),
+                    role_it->second) == new_auth_ids.end())
+      {
+        Auth_id_ref role_auth_id= create_authid_from(role_it->second);
+        errors= modify_default_roles_in_table(thd, table, user_auth_id,
+                                              role_auth_id, true);
+      }
+    }
+    List_of_auth_id_refs::const_iterator it= new_auth_ids.begin();
+    boost::tie(role_it, role_end)= g_default_roles->equal_range(user_role_id);
+    for( ;it != new_auth_ids.end() && !errors; ++it)
+    {
+      if (find(role_it, role_end, *it) == role_end)
+      {
+        errors= modify_default_roles_in_table(thd, table, user_auth_id, *it,
+                                              false);
+      }
+    }
+    boost::tie(role_it, role_end)= g_default_roles->equal_range(user_role_id);
+    g_default_roles->erase(role_it, role_end);
+    it= new_auth_ids.begin();
+    for( ;it != new_auth_ids.end() && !errors; ++it)
+    {
+      Role_id role_role_id(*it);
+      g_default_roles->insert(std::make_pair(user_role_id, role_role_id));
+    }
+  }
+  return errors;
+}
+
+/**
+  Sets a list of authorization IDs as the default roles for a given
+  authorization ID.
+
+  This function aquire the acl_cache->lock mutex.
+
+  @see Sql_cmd_alter_user_default_role::execute
+  @param thd Thread handler
+  @param user The user which should get a default role
+  @param new_auth_ids A list of authentication IDs which will be the new default
+ roles.
+
+  @return Success state
+    @retval true The operation failed and the DA is set.
+    @retval false The operation succeeded and the DA isn't set.
+*/
+bool mysql_alter_user_set_default_roles(THD *thd, LEX_USER *user,
+                       const List_of_auth_id_refs &new_auth_ids)
+{
+  /*
+    This statement will be replicated as a statement, even when using
+    row-based replication.  The binlog state will be cleared here to
+    statement based replication and will be reset to the originals
+    values when we are out of this function scope
+  */
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
+  /* Lock table must be taken before LOCK_grant */
+  TABLE *table= open_default_role_table(thd);
+  /* LOCK_grant must be taken before acl_cache->lock */
+  LOCK_grant.wrlock();
+  mysql_mutex_lock(&acl_cache->lock);
+  bool ret= alter_user_set_default_roles(thd, table, user, new_auth_ids);
+  if (ret)
+  {
+    my_error(ER_FAILED_DEFAULT_ROLES, MYF(0));
+  }
+  mysql_mutex_unlock(&acl_cache->lock);
+  bool rollback_whole_statement= false;
+  int result= 0;
+  if (!ret)
+  {
+    result= write_bin_log_n_handle_any_error(thd, thd->query().str,
+                                             thd->query().length,
+                                             true,
+                                             &rollback_whole_statement);
+  }
+  LOCK_grant.wrunlock();
+  result|=
+    acl_end_trans_and_close_tables(thd,
+                                   thd->transaction_rollback_request ||
+                                   rollback_whole_statement);
+  if (result == 0)
+  {
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
+  }
+  get_global_acl_cache()->increase_version();
+  return ret;
+}
+
+/**
+  Helper used for producing a key to a key-value-map
+*/
+std::string create_authid_str_from(const LEX_USER *user)
+{
+  String tmp;
+  append_identifier(&tmp, user->user.str, user->user.length);
+	tmp.append('@');
+  append_identifier(&tmp, user->host.str, user->host.length);
+  return std::string(tmp.c_ptr_quick());
+}
+
+Auth_id_ref create_authid_from(const LEX_USER *user)
+{
+  Auth_id_ref id;
+  id= std::make_pair(user->user, user->host);
+  return id;
+}
+
+Auth_id_ref create_authid_from(const Role_id &user)
+{
+  Auth_id_ref id;
+  LEX_CSTRING lex_user;
+  lex_user.str= user.user().c_str();
+  lex_user.length= user.user().length();
+  LEX_CSTRING lex_host;
+  lex_host.str= user.host().c_str();
+  lex_host.length= user.host().length();
+  id= std::make_pair(lex_user, lex_host);
+  return id;
+}
+
+/**
+  Helper used for producing a key to a key-value-map
+*/
+std::string create_authid_str_from(const ACL_USER *user)
+{
+  String tmp;
+  size_t length= user->user == 0 ? 0 : strlen(user->user);
+  append_identifier(&tmp, user->user, length);
+	tmp.append("@");
+  append_identifier(&tmp, user->host.get_host(),
+                    user->host.get_host_len());
+  return std::string(tmp.c_ptr_quick());
+}
+
+std::string create_authid_str_from(const Auth_id_ref &user)
+{
+  String tmp;
+  append_identifier(&tmp, user.first.str, user.first.length);
+	tmp.append("@");
+  append_identifier(&tmp, user.second.str, user.second.length);
+  return std::string(tmp.c_ptr_quick());
+}
+
+std::string create_authid_str_from(const LEX_CSTRING &user,
+                                   const LEX_CSTRING &host)
+{
+  String tmp;
+  append_identifier(&tmp, user.str, user.length);
+  tmp.append('@');
+  append_identifier(&tmp, host.str, host.length);
+  return std::string(tmp.c_ptr_quick());
+}
+
+Auth_id_ref create_authid_from(const ACL_USER *user)
+{
+  Auth_id_ref id;
+  LEX_CSTRING username;
+  LEX_CSTRING host;
+  username.str= user->user;
+  if (user->user != 0)
+    username.length= strlen(user->user);
+  else
+    username.length= 0;
+  host.str= user->host.get_host();
+  host.length= const_cast<ACL_USER *>(user)->host.get_host_len();
+  id= std::make_pair(username, host);
+  return id;
+}
+
+std::string create_authid_str_from(const Role_id &user)
+{
+  std::string tmp;
+  user.auth_str(&tmp);
+  return tmp;
+}
+
+int mysql_set_active_role_none(THD *thd)
+{
+  thd->security_context()->clear_active_roles();
+  thd->security_context()->checkout_access_maps();
+  ulong new_db_access= thd->security_context()->db_acl(thd->db());
+  thd->security_context()->cache_current_db_access(new_db_access);
+  mysql_mutex_lock(&acl_cache->lock);
+  ACL_USER *user= find_acl_user(thd->security_context()->priv_host().str,
+                                thd->security_context()->priv_user().str, true);
+  if (user)
+  {
+    thd->security_context()->set_master_access(user->access);
+  }
+  mysql_mutex_unlock(&acl_cache->lock);
+  my_ok(thd);
+  return 0;
+}
+
+/**
+   Activates all the default roles in the current security context
+
+   This function acquires the LOCK_grant read lock.
+
+   @param thd A valid THD handle
+
+   @return Error code
+     @retval 0 Success; the specified role was activated.
+     @retval != 0 Failure. DA is set.
+*/
+int mysql_set_role_default(THD *thd)
+{
+  int ret= 0;
+  /* LOCK_grant protects g_default_roles */
+  LOCK_grant_read_guard lock(thd);
+  List_of_auth_id_refs *active_list=
+    thd->security_context()->get_active_roles();
+  List_of_auth_id_refs authids;
+  List_of_auth_id_refs backup_active_list;
+  backup_active_list.reserve(active_list->size());
+  /* Shallow copy of LEX_CSTRING pairs. Memory not duplicated */
+  std::copy(active_list->begin(),
+            active_list->end(),
+            std::back_inserter(backup_active_list));
+  /* Clear active roles but don't free memory */
+  thd->security_context()->get_active_roles()->clear();
+  LEX_USER current_user;
+  /* hack for the current_user token */
+  get_default_definer(thd, &current_user);
+  Auth_id_ref current_user_authid= create_authid_from(&current_user);
+  /*
+    Search global structure for target user;
+    authids have their own memory storage (Role_id)
+  */
+  get_default_roles(current_user_authid, &authids);
+  if (authids.size() > 0)
+  {
+    List_of_auth_id_refs::iterator it = authids.begin();
+    mysql_mutex_lock(&acl_cache->lock);
+    for (; it != authids.end() && ret == 0; ++it)
+    {
+      /*
+         Activating a role allocates new memory for the activated role
+         and perform a deep copy of the default role.
+      */
+      ret= thd->security_context()->activate_role(it->first, it->second, true);
+      if (ret)
+      {
+        my_error(ER_ROLE_NOT_GRANTED, MYF(0), it->first.str, it->second.str,
+                 current_user_authid.first.str, current_user_authid.second.str);
+      }
+    }
+    mysql_mutex_unlock(&acl_cache->lock);
+  }
+  if (ret == 0)
+  {
+    thd->security_context()->checkout_access_maps();
+    ulong new_db_access= thd->security_context()->db_acl(thd->db());
+    thd->security_context()->cache_current_db_access(new_db_access);
+    /* Old memory in the backup list must now be freed. */
+    for(auto &&role : backup_active_list)
+    {
+      my_free(const_cast<char*>(role.first.str));
+      my_free(const_cast<char*>(role.second.str));
+    }
+    my_ok(thd);
+  }
+  else
+  {
+    /*
+      Failing to activate all roles will rollback the statement and reset
+      the previous roles.
+      1. Remove any newly activated roles and deallocate memory
+      2. Copy the backup elements to the active_list (shallow copy)
+    */
+    thd->security_context()->clear_active_roles();
+    std::copy(backup_active_list.begin(), backup_active_list.end(),
+              std::back_inserter(*active_list));
+  }
+  return ret;
+}
+
+/**
+   Activates all granted role in the current security context
+
+   This function acquires the acl_user->lock mutex.
+
+   @param thd A valid THD handle
+   @param except_users A pointer to a list of LEX_USER objects which represent
+ roles that shouldn't be activated.
+
+   @return Error code
+     @retval 0 Success; the specified role was activated.
+     @retval != 0 Failure. DA is set.
+*/
+int mysql_set_active_role_all(THD *thd, const List<LEX_USER > *except_users)
+{
+  Security_context *sctx= thd->security_context();
+  List_of_auth_id_refs *active_list=
+    sctx->get_active_roles();
+  List_of_auth_id_refs backup_active_list;
+  backup_active_list.reserve(active_list->size());
+  std::copy(active_list->begin(),
+            active_list->end(),
+            std::back_inserter(backup_active_list));
+  sctx->get_active_roles()->clear();
+
+  sctx->clear_active_roles();
+  int ret= 0;
+  LEX_USER *current_user= create_default_definer(thd);
+  std::string authid= create_authid_str_from(current_user);
+  Role_index_map::iterator it;
+  List_of_granted_roles granted_roles;
+  mysql_mutex_lock(&acl_cache->lock);
+  if ((it= g_authid_to_vertex->find(authid)) != g_authid_to_vertex->end())
+  {
+    Role_vertex_descriptor user_vertex = it->second;
+    get_granted_roles(user_vertex, &granted_roles);
+    List_of_granted_roles::iterator role_it= granted_roles.begin();
+    for( ;role_it != granted_roles.end(); ++role_it)
+    {
+      bool found_except_user= false;
+      if (except_users && except_users->elements > 0)
+      {
+        List_iterator<LEX_USER >
+          except_users_it(*(const_cast<List<LEX_USER > *>(except_users)));
+        while(LEX_USER *except_user= (LEX_USER *)except_users_it.next())
+        {
+          if ((except_user->user.length == role_it->first.user().length()) &&
+              (except_user->host.length == role_it->first.host().length()) &&
+              strncmp(except_user->user.str, role_it->first.user().c_str(),
+                      except_user->user.length) == 0 &&
+              native_strncasecmp(except_user->host.str,
+                                 role_it->first.host().c_str(),
+                                 except_user->host.length) == 0)
+          {
+            found_except_user= true;
+            break;
+          }
+        }
+      }
+      if (!found_except_user)
+      {
+        ret= sctx->activate_role({role_it->first.user().c_str(),
+                                 role_it->first.user().length()},
+                                 {role_it->first.host().c_str(),
+                                  role_it->first.host().length()},
+                                 true);
+        if (ret != 0)
+        {
+          my_error(ER_ROLE_NOT_GRANTED, MYF(0), role_it->first.user().c_str(),
+                   role_it->first.host().c_str(), current_user->user.str,
+                   current_user->host.str);
+          break;
+        }
+      }
+    } // end for
+  }
+  mysql_mutex_unlock(&acl_cache->lock);
+  if (ret == 0)
+  {
+    thd->security_context()->checkout_access_maps();
+    ulong new_db_access= thd->security_context()->db_acl(thd->db());
+    thd->security_context()->cache_current_db_access(new_db_access);
+    /* Drop backup */
+    for(auto&& ref : backup_active_list)
+    {
+      my_free(const_cast<char *>(ref.first.str));
+      my_free(const_cast<char *>(ref.second.str));
+    }
+    my_ok(thd);
+  }
+  else
+  {
+    /* restore backup */
+    active_list->clear();
+    std::copy(backup_active_list.begin(), backup_active_list.end(),
+              std::back_inserter(*active_list));
+  }
+  return ret;
+}
+
+int mysql_set_active_role(THD *thd, const List<LEX_USER > *role_list)
+{
+  LOCK_grant_read_guard lock(thd);
+  int ret= 0;
+  List_of_auth_id_refs *active_list=
+    thd->security_context()->get_active_roles();
+  List_of_auth_id_refs backup_active_list;
+  backup_active_list.reserve(active_list->size());
+  std::copy(active_list->begin(),
+            active_list->end(),
+            std::back_inserter(backup_active_list));
+  thd->security_context()->get_active_roles()->clear();
+  List_iterator<LEX_USER> it(*(const_cast<List<LEX_USER > *>(role_list)));
+  LEX_USER *role= 0;
+  mysql_mutex_lock(&acl_cache->lock);
+  while (ret == 0 && (role= it++))
+  {
+    ret= thd->security_context()->activate_role(role->user, role->host, true);
+  }
+  mysql_mutex_unlock(&acl_cache->lock);
+  if (ret == 0)
+  {
+    thd->security_context()->checkout_access_maps();
+    ulong new_db_access= thd->security_context()->db_acl(thd->db());
+    thd->security_context()->cache_current_db_access(new_db_access);
+    /* Drop backup */
+    for(auto&& ref : backup_active_list)
+    {
+      my_free(const_cast<char *>(ref.first.str));
+      my_free(const_cast<char *>(ref.second.str));
+    }
+    my_ok(thd);
+  }
+  else
+  {
+    if (role)
+    {
+      my_error(ER_ROLE_NOT_GRANTED, MYF(0), role->user.str, role->host.str,
+               thd->security_context()->priv_user().str,
+               thd->security_context()->priv_host().str);
+    }
+    /* restore backup */
+    active_list->clear();
+    std::copy(backup_active_list.begin(), backup_active_list.end(),
+              std::back_inserter(*active_list));
+  }
+  return ret;
+}
+
+
+/**
+  This function works just like check_if_granted_role, but also guarantees that
+  the proper lock is taken so that the function can be used in a wider context.
+  @param user The user name part of a authid which should be tested
+  @param host The host name part of a authid which should be tested
+  @param role The role name part of the role authid
+  @param role_host The host name part of the role authid
+
+  @return success value
+    @retval true The value user\@host was previously granted role\@role_host
+    @retval false role\@role_host is not granted to user\@host
+*/
+
+bool is_granted_role(LEX_CSTRING user, LEX_CSTRING host, LEX_CSTRING role,
+                     LEX_CSTRING role_host)
+{
+  bool ret= false;
+  mysql_mutex_lock(&acl_cache->lock);
+  ret= check_if_granted_role(user, host, role, role_host);
+  mysql_mutex_unlock(&acl_cache->lock);
+  return ret;
+}
+
+void roles_init_graph()
+{
+  g_authid_to_vertex= new Role_index_map;
+  g_granted_roles= new Granted_roles_graph;
+}
+
+void roles_delete_graph()
+{
+  delete g_granted_roles;
+  delete g_authid_to_vertex;
+}
+
+bool operator==(const Role_id &a,
+                const std::string &b)
+{
+  std::string tmp;
+  a.auth_str(&tmp);
+  return tmp == b;
+}
+
+bool operator==(const std::pair<Role_id, bool> &a,
+                const std::string &b)
+{
+  return a.first == b;
+}
+
+
+bool operator==(const Role_id &a, const Auth_id_ref &b)
+{
+  return ((a.user().length() == b.first.length) &&
+          (a.host().length() == b.second.length) &&
+          strncmp(a.user().c_str(), b.first.str, b.first.length) == 0 &&
+          my_strcasecmp(system_charset_info, a.host().c_str(),
+                        b.second.str) == 0);
+}
+
+
+bool operator==(const Auth_id_ref &a, const Role_id &b)
+{
+  return b == a;
+}
+
+bool operator==(const std::pair<const Role_id, const Role_id> &a,
+                const Auth_id_ref &b)
+{
+  return ((a.second.user().length() == b.first.length) &&
+          (a.second.host().length() == b.second.length) &&
+          strncmp(a.second.user().c_str(), b.first.str, b.first.length) == 0 &&
+          my_strcasecmp(system_charset_info, a.second.host().c_str(),
+                        b.second.str) == 0);
+}
+
+bool operator==(const Role_id &a, const Role_id &b)
+{
+  return ((a.user() == b.user()) &&
+          (a.host().length() == b.host().length()) &&
+          (my_strcasecmp(system_charset_info, a.host().c_str(),
+                         b.host().c_str()) ==0));
+}
+
+bool operator<(const Auth_id_ref &a, const Auth_id_ref &b)
+{
+  if (a.first.length != b.first.length)
+    return a.first.length < b.first.length;
+  if (a.second.length != b.second.length)
+    return a.second.length < b.second.length;
+
+  int first= memcmp(a.first.str, b.first.str, a.first.length);
+  if (first != 0)
+    return first < 0;
+  int second= memcmp(a.second.str, b.second.str, a.second.length);
+  if (second != 0)
+    return second < 0;
+  return false;
+}
+#endif

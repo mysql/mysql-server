@@ -7740,6 +7740,18 @@ ER_SRS_NOT_CARTESIAN_UNDEFINED SR001
 ER_PK_INDEX_CANT_BE_INVISIBLE
   eng "A primary key index cannot be invisible"
 
+ER_UNKNOWN_AUTHID
+  eng "Unknown authorization ID `%.64s`@`%.64s`"
+
+ER_FAILED_ROLE_GRANT
+  eng "Failed to grant %.90s` to %.90s"
+
+ER_OPEN_ROLE_TABLES
+  eng "Failed to open the security system tables"
+
+ER_FAILED_DEFAULT_ROLES
+  eng "Failed to set default roles"
+
 ER_COMPONENTS_NO_SCHEME
   eng "Cannot find schema in specified URN: '%.192s'."
   pol "Nie można znaleźć rodzaju zasobu w podanym URN: '%.192s'."
@@ -7751,6 +7763,15 @@ ER_COMPONENTS_NO_SCHEME_SERVICE
 ER_COMPONENTS_CANT_LOAD
   eng "Cannot load component from specified URN: '%.192s'."
   pol "Nie można wczytać komponentu pod podanym URN: '%.192s'."
+
+ER_ROLE_NOT_GRANTED
+  eng "`%.64s`@`%.64s` is not granted to `%.64s`@`%.64s`"
+
+ER_FAILED_REVOKE_ROLE
+  eng "Could not revoke role from `%.64s`@`%.64s`"
+
+ER_RENAME_ROLE
+  eng  "Renaming of a role identifier is forbidden"
 
 ER_COMPONENTS_CANT_ACQUIRE_SERVICE_IMPLEMENTATION
   eng "Cannot acquire specified service implementation: '%.192s'."

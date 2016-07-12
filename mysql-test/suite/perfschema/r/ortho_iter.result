@@ -60,6 +60,7 @@ and (name in (
 "memory/sql/sql_acl_mem",
 "memory/sql/sql_acl_memex",
 "memory/sql/acl_cache",
+"memory/sql/acl_map_cache",
 "memory/sql/TABLE_SHARE::mem_root",
 "memory/sql/TABLE",
 "memory/sql/Query_cache",

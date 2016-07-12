@@ -357,6 +357,5 @@ bool TABLE_LIST::materialize_derived(THD *thd)
 bool TABLE_LIST::cleanup_derived()
 {
   DBUG_ASSERT(is_view_or_derived() && uses_materialization());
-
   return derived_unit()->cleanup(false);
 }

@@ -2426,6 +2426,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     }
 
     /* we should cleanup free_list and memroot, used by instruction */
+    
     thd->cleanup_after_query();
     free_root(&execute_mem_root, MYF(0));
 
