@@ -9995,9 +9995,6 @@ int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli)
   if ((error= unpack_current_row(rli, &m_cols)))
     goto end;
 
-  // Temporary fix to find out why it fails [/Matz]
-  memcpy(m_table->read_set->bitmap, m_cols.bitmap, (m_table->read_set->n_bits + 7) / 8);
-
   /*
     Trying to do an index scan without a usable key
     This is a valid state because we allow the user
@@ -10459,9 +10456,6 @@ int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli)
   prepare_record(table, &m_cols, FALSE);
   if (!(error= unpack_current_row(rli, &m_cols)))
   {
-    // Temporary fix to find out why it fails [/Matz]
-    memcpy(m_table->read_set->bitmap, m_cols.bitmap, (m_table->read_set->n_bits + 7) / 8);
-
     /** save a copy so that we can compare against it later */
     store_record(m_table, record[1]);
 
@@ -10833,6 +10827,26 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     if (get_general_type_code() == binary_log::DELETE_ROWS_EVENT ||
         get_general_type_code() == binary_log::UPDATE_ROWS_EVENT)
         bitmap_intersect(table->read_set,&m_cols);
+
+    /*
+      Call mark_generated_columns() to set read_set/write_set bits of the
+      virtual generated columns as required in order to get these computed.
+      This is needed since all columns need to have a value in the before
+      image for the record when doing the update (some storage engines will
+      use this for maintaining of secondary indexes). This call is required
+      even for DELETE events to set write_set bit in order to satisfy
+      ASSERTs in Field_*::store functions.
+
+      binlog_prepare_row_image() function, which will be called from
+      binlogging functions (binlog_update_row() and binlog_delete_row())
+      will take care of removing these spurious fields required during
+      execution but not needed for binlogging. In case of inserts, there
+      are no spurious fields (all generated columns are required to be written
+      into the binlog).
+    */
+
+    if (m_table->vfield)
+      m_table->mark_generated_columns(get_general_type_code() == binary_log::UPDATE_ROWS_EVENT);
 
     bitmap_set_all(table->write_set);
 
@@ -12635,10 +12649,6 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
   DBUG_PRINT("info",("Updating row in table"));
   DBUG_DUMP("old record", m_table->record[1], m_table->s->reclength);
   DBUG_DUMP("new values", m_table->record[0], m_table->s->reclength);
-
-  // Temporary fix to find out why it fails [/Matz]
-  memcpy(m_table->read_set->bitmap, m_cols.bitmap, (m_table->read_set->n_bits + 7) / 8);
-  memcpy(m_table->write_set->bitmap, m_cols_ai.bitmap, (m_table->write_set->n_bits + 7) / 8);
 
   m_table->mark_columns_per_binlog_row_image();
   error= m_table->file->ha_update_row(m_table->record[1], m_table->record[0]);
