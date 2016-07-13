@@ -299,7 +299,8 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_write_set_extraction, "write_set_extraction", 0},
   { &key_memory_get_all_tables, "get_all_tables", 0},
   { &key_memory_fill_schema_schemata, "fill_schema_schemata", 0},
-  { &key_memory_native_functions, "native_functions", PSI_FLAG_GLOBAL}
+  { &key_memory_native_functions, "native_functions", PSI_FLAG_GLOBAL},
+  { &key_memory_JSON, "JSON", 0},
 };
 
 void register_server_memory_keys()
