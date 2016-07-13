@@ -25,7 +25,6 @@
 #endif
 
 using keyring::Buffered_file_io;
-using keyring::Key;
 using keyring::Keys_container;
 using keyring::Logger;
 
@@ -167,18 +166,18 @@ int keyring_deinit(void *arg MY_ATTRIBUTE((unused)))
 my_bool mysql_key_fetch(const char *key_id, char **key_type, const char *user_id,
                         void **key, size_t *key_len)
 {
-  return mysql_key_fetch<Key>(key_id, key_type, user_id, key, key_len);
+  return mysql_key_fetch<keyring::Key>(key_id, key_type, user_id, key, key_len);
 }
 
 my_bool mysql_key_store(const char *key_id, const char *key_type,
                         const char *user_id, const void *key, size_t key_len)
 {
-  return mysql_key_store<Key>(key_id, key_type, user_id, key, key_len);
+  return mysql_key_store<keyring::Key>(key_id, key_type, user_id, key, key_len);
 }
 
 my_bool mysql_key_remove(const char *key_id, const char *user_id)
 {
-  return mysql_key_remove<Key>(key_id, user_id);
+  return mysql_key_remove<keyring::Key>(key_id, user_id);
 }
 
 
@@ -187,7 +186,7 @@ my_bool mysql_key_generate(const char *key_id, const char *key_type,
 {
   try
   {
-    boost::movelib::unique_ptr<IKey> key_candidate(new Key(key_id, key_type, user_id, NULL, 0));
+    boost::movelib::unique_ptr<IKey> key_candidate(new keyring::Key(key_id, key_type, user_id, NULL, 0));
 
     boost::movelib::unique_ptr<uchar[]> key(new uchar[key_len]);
     if (key.get() == NULL)
