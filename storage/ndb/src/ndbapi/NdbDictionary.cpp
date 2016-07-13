@@ -4395,6 +4395,7 @@ NdbOut& operator <<(class NdbOut&, NdbDictionary::Table const& tab)
   ndbout << "Number of attributes: " <<  tab.getNoOfColumns() << endl;
   ndbout << "Number of primary keys: " <<  tab.getNoOfPrimaryKeys() << endl;
   ndbout << "Length of frm data: " << tab.getFrmLength() << endl;
+  ndbout << "Max Rows: " << tab.getMaxRows() << endl;
   ndbout << "Row Checksum: " << tab.getRowChecksumIndicator() << endl;
   ndbout << "Row GCI: " << tab.getRowGCIIndicator() << endl;
   ndbout << "SingleUserMode: " << (Uint32) tab.getSingleUserMode() << endl;

@@ -11,6 +11,7 @@ Temporary table: no
 Number of attributes: 2
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
@@ -50,6 +51,7 @@ Temporary table: no
 Number of attributes: 9
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
