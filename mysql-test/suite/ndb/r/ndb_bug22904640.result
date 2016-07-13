@@ -34,7 +34,6 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-<<<<<<< HEAD
 PartitionCount: 8
 FragmentCount: 8
 FragmentCountType: ONE_PER_LDM_PER_NODE
@@ -42,31 +41,17 @@ ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options:
-=======
-FragmentCount: 8
-ExtraRowGciBits: 0
-ExtraRowAuthorBits: 0
-TableStatus: Retrieved
->>>>>>> mysql-5.6-cluster-7.4
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Int PRIMARY KEY AT=FIXED ST=MEMORY
-<<<<<<< HEAD
 c Int NULL AT=FIXED ST=MEMORY DYNAMIC
-=======
-c Int NULL AT=FIXED ST=MEMORY
->>>>>>> mysql-5.6-cluster-7.4
 -- Indexes -- 
 PRIMARY KEY(a, b) - UniqueHashIndex
 PRIMARY(a, b) - OrderedIndex
 -- Per partition info for t1 -- 
 Partition	Row count	Commit count	Frag fixed memory	Frag varsized memory	Extent_space	Free extent_space	
-<<<<<<< HEAD
 3        	12       	12          	32768            	32768               	0            	0                 	
-=======
-3        	12       	12          	32768            	0                    	0            	0                 	
->>>>>>> mysql-5.6-cluster-7.4
 
 
 NDBT_ProgramExit: 0 - OK
@@ -87,7 +72,6 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-<<<<<<< HEAD
 PartitionCount: 8
 FragmentCount: 8
 FragmentCountType: ONE_PER_LDM_PER_NODE
@@ -95,31 +79,17 @@ ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options:
-=======
-FragmentCount: 8
-ExtraRowGciBits: 0
-ExtraRowAuthorBits: 0
-TableStatus: Retrieved
->>>>>>> mysql-5.6-cluster-7.4
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Int PRIMARY KEY AT=FIXED ST=MEMORY
-<<<<<<< HEAD
 c Int NULL AT=FIXED ST=MEMORY DYNAMIC
-=======
-c Int NULL AT=FIXED ST=MEMORY
->>>>>>> mysql-5.6-cluster-7.4
 -- Indexes -- 
 PRIMARY KEY(a, b) - UniqueHashIndex
 PRIMARY(a, b) - OrderedIndex
 -- Per partition info for t1 -- 
 Partition	Row count	Commit count	Frag fixed memory	Frag varsized memory	Extent_space	Free extent_space	
-<<<<<<< HEAD
 3        	12       	12          	32768            	32768               	0            	0                 	
-=======
-3        	12       	12          	32768            	0                    	0            	0                 	
->>>>>>> mysql-5.6-cluster-7.4
 
 
 NDBT_ProgramExit: 0 - OK
