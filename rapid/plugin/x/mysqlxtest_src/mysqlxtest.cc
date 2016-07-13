@@ -1133,7 +1133,7 @@ private:
 
     Message_by_name::iterator iterator_msg_id = server_msgs_by_name.find(iterator_msg_name->second);
 
-	if (server_msgs_by_name.end() == iterator_msg_id)
+    if (server_msgs_by_name.end() == iterator_msg_id)
     {
       std::cout << "Invalid data in internal message list, entry not found:" << iterator_msg_name->second << "\n";
       return Stop_with_failure;
@@ -1141,7 +1141,7 @@ private:
 
     const int expected_msg_id = iterator_msg_id->second.second;
 
-    while (!stop)
+    do
     {
       boost::scoped_ptr<mysqlx::Message> msg(context.connection()->recv_raw(msgid));
       if (msg.get())
@@ -1166,6 +1166,8 @@ private:
         }
       }
     }
+    while (!stop);
+
     variables_to_unreplace.clear();
 
     if (Mysqlx::ServerMessages::ERROR == msgid &&
