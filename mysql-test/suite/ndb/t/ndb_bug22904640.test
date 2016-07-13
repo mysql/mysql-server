@@ -29,7 +29,7 @@ select * from t1 order by b;
 
 # Trigger assert from bug#22904640 with an alter table
 # not actually doing any changes to partitioniong
-ALTER ONLINE TABLE t1 REORGANIZE PARTITION;
+ALTER TABLE t1 algorithm=inplace, REORGANIZE PARTITION;
 
 DROP TABLE t1;
 

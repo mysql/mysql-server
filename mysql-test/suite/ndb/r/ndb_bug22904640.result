@@ -34,21 +34,24 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 8
 FragmentCount: 8
+FragmentCountType: ONE_PER_LDM_PER_NODE
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Int PRIMARY KEY AT=FIXED ST=MEMORY
-c Int NULL AT=FIXED ST=MEMORY
+c Int NULL AT=FIXED ST=MEMORY DYNAMIC
 -- Indexes -- 
 PRIMARY KEY(a, b) - UniqueHashIndex
 PRIMARY(a, b) - OrderedIndex
 -- Per partition info for t1 -- 
 Partition	Row count	Commit count	Frag fixed memory	Frag varsized memory	Extent_space	Free extent_space	
-3        	12       	12          	32768            	0                    	0            	0                 	
+3        	12       	12          	32768            	32768               	0            	0                 	
 
 
 NDBT_ProgramExit: 0 - OK
@@ -69,21 +72,24 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 8
 FragmentCount: 8
+FragmentCountType: ONE_PER_LDM_PER_NODE
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Int PRIMARY KEY AT=FIXED ST=MEMORY
-c Int NULL AT=FIXED ST=MEMORY
+c Int NULL AT=FIXED ST=MEMORY DYNAMIC
 -- Indexes -- 
 PRIMARY KEY(a, b) - UniqueHashIndex
 PRIMARY(a, b) - OrderedIndex
 -- Per partition info for t1 -- 
 Partition	Row count	Commit count	Frag fixed memory	Frag varsized memory	Extent_space	Free extent_space	
-3        	12       	12          	32768            	0                    	0            	0                 	
+3        	12       	12          	32768            	32768               	0            	0                 	
 
 
 NDBT_ProgramExit: 0 - OK
@@ -102,7 +108,5 @@ a	b	c
 1	10	3
 1	11	3
 1	12	3
-ALTER ONLINE TABLE t1 REORGANIZE PARTITION;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+ALTER TABLE t1 algorithm=inplace, REORGANIZE PARTITION;
 DROP TABLE t1;
