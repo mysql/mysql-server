@@ -1,7 +1,7 @@
 SELECT sys.format_path(NULL);
 sys.format_path(NULL)
 NULL
-SET @mypath := CONCAT(@@global.basedir, '/logs/binlog.000001');
+SET @mypath := CONCAT(@@global.basedir, 'logs/binlog.000001');
 SELECT sys.format_path(@mypath);
 sys.format_path(@mypath)
 @@basedir/logs/binlog.000001
