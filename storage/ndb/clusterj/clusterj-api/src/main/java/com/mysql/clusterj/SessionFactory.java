@@ -41,6 +41,7 @@ public interface SessionFactory {
 
     /** Get a list containing the number of open sessions for each connection
      * in the connection pool.
+     * @since 7.3.14, 7.4.12, 7.5.2
      */
     public List<Integer> getConnectionPoolSessionCounts();
 
