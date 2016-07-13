@@ -7086,6 +7086,7 @@ mysqld_get_one_option(int optid,
     break;
   case 'b':
     strmake(mysql_home,argument,sizeof(mysql_home)-1);
+    mysql_home_ptr= mysql_home;
     break;
   case 'C':
     if (default_collation_name == compiled_default_collation_name)
