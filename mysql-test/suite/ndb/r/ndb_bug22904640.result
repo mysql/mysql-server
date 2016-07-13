@@ -19,75 +19,9 @@ a	b	c
 1	10	3
 1	11	3
 1	12	3
--- t1 --
-Version: Any
-Fragment type: HashMapPartition
-K Value: 6
-Min load factor: 78
-Max load factor: 80
-Temporary table: no
-Number of attributes: 3
-Number of primary keys: 2
-Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
-Row GCI: 1
-SingleUserMode: 0
-ForceVarPart: 1
-FragmentCount: 8
-ExtraRowGciBits: 0
-ExtraRowAuthorBits: 0
-TableStatus: Retrieved
-HashMap: DEFAULT-HASHMAP-3840-8
--- Attributes --
-a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Int PRIMARY KEY AT=FIXED ST=MEMORY
-c Int NULL AT=FIXED ST=MEMORY
--- Indexes -- 
-PRIMARY KEY(a, b) - UniqueHashIndex
-PRIMARY(a, b) - OrderedIndex
--- Per partition info for t1 -- 
-Partition	Row count	Commit count	Frag fixed memory	Frag varsized memory	Extent_space	Free extent_space	
-3        	12       	12          	32768            	0                    	0            	0                 	
-
-
-NDBT_ProgramExit: 0 - OK
-
 drop table t1;
--- t1 --
-Version: Any
-Fragment type: HashMapPartition
-K Value: 6
-Min load factor: 78
-Max load factor: 80
-Temporary table: no
-Number of attributes: 3
-Number of primary keys: 2
-Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
-Row GCI: 1
-SingleUserMode: 0
-ForceVarPart: 1
-FragmentCount: 8
-ExtraRowGciBits: 0
-ExtraRowAuthorBits: 0
-TableStatus: Retrieved
-HashMap: DEFAULT-HASHMAP-3840-8
--- Attributes --
-a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Int PRIMARY KEY AT=FIXED ST=MEMORY
-c Int NULL AT=FIXED ST=MEMORY
--- Indexes -- 
-PRIMARY KEY(a, b) - UniqueHashIndex
-PRIMARY(a, b) - OrderedIndex
--- Per partition info for t1 -- 
-Partition	Row count	Commit count	Frag fixed memory	Frag varsized memory	Extent_space	Free extent_space	
-3        	12       	12          	32768            	0                    	0            	0                 	
-
-
-NDBT_ProgramExit: 0 - OK
-
 select * from t1 order by b;
 a	b	c
 1	1	3
