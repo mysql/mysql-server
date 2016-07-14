@@ -61,7 +61,7 @@ int parse_cnf_file(istream &sin, map<string, string > *options,
     getline(sin, option_value);
     trim(&option_value);
     if (option_name.length() > 0)
-      options->insert(make_pair<string, string >(option_name, option_value));
+      options->insert(pair<string, string >(option_name, option_value));
   }
   return ALL_OK;
   } catch(...)
