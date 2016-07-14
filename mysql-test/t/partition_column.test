@@ -447,7 +447,7 @@ partition by range columns(a,b)
 -- error ER_PARTITION_COLUMN_LIST_ERROR
 create table t1 (a int, b int)
 partition by range columns(a,b)
-(partition p0 values less than (1,1,1);
+(partition p0 values less than (1,1,1));
 
 create table t1 (a int, b int)
 partition by range columns(a,b)

@@ -2158,7 +2158,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
   {
     if (thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
         thd->lex->select_lex->item_list.elements && /* With select */
-        !(thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
+        !(thd->lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
         thd->is_current_stmt_binlog_format_row())
     {
       /*
@@ -10203,7 +10203,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
 
       if (lex->sql_command != SQLCOM_CREATE_TABLE ||
           (lex->sql_command == SQLCOM_CREATE_TABLE &&
-          (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)))
+          (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)))
       {
         if (table->table->s->tmp_table)
           lex->set_stmt_accessed_table(trans ? LEX::STMT_READS_TEMP_TRANS_TABLE :
@@ -10624,14 +10624,14 @@ bool THD::is_ddl_gtid_compatible()
              ("SQLCOM_CREATE:%d CREATE-TMP:%d SELECT:%d SQLCOM_DROP:%d DROP-TMP:%d trx:%d",
               lex->sql_command == SQLCOM_CREATE_TABLE,
               (lex->sql_command == SQLCOM_CREATE_TABLE &&
-               (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)),
+               (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)),
               lex->select_lex->item_list.elements,
               lex->sql_command == SQLCOM_DROP_TABLE,
               (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary),
               in_multi_stmt_transaction_mode()));
 
   if (lex->sql_command == SQLCOM_CREATE_TABLE &&
-      !(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
+      !(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
       lex->select_lex->item_list.elements)
   {
     /*
@@ -10646,7 +10646,7 @@ bool THD::is_ddl_gtid_compatible()
     DBUG_RETURN(ret);
   }
   else if ((lex->sql_command == SQLCOM_CREATE_TABLE &&
-            (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) != 0) ||
+            (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) != 0) ||
            (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary))
   {
     /*

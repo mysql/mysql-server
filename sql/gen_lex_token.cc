@@ -375,7 +375,7 @@ static void compute_tokens()
   set_start_expr_token(AT_SYM);
   set_start_expr_token(STARTS_SYM);
   set_start_expr_token(ENDS_SYM);
-  set_start_expr_token(DEFAULT);
+  set_start_expr_token(DEFAULT_SYM);
   set_start_expr_token(RETURN_SYM);
   set_start_expr_token(IF);
   set_start_expr_token(ELSEIF_SYM);
@@ -504,7 +504,7 @@ static void print_tokens()
 }
 
 /*
-  ZEROFILL is the last token in the MySQL 5.7 token list,
+  ZEROFILL_SYM is the last token in the MySQL 5.7 token list,
   see sql/sql_yacc.yy
   The token value is frozen and should not change,
   to avoid changing query digest values.
@@ -513,7 +513,7 @@ static const int zerofill_expected_value = 906;
 
 int main(int argc,char **argv)
 {
-  if (ZEROFILL < zerofill_expected_value)
+  if (ZEROFILL_SYM < zerofill_expected_value)
   {
     fprintf(stderr,
             "Token deleted.\n"
@@ -521,7 +521,7 @@ int main(int argc,char **argv)
     return 1;
   }
 
-  if (ZEROFILL > zerofill_expected_value)
+  if (ZEROFILL_SYM > zerofill_expected_value)
   {
     fprintf(stderr,
             "Token added in the wrong place.\n"

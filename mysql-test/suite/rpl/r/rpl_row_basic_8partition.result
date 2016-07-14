@@ -366,7 +366,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH ( YEAR(t))
+/*!50100 PARTITION BY HASH (YEAR(t))
 PARTITIONS 4 */
 --- On slave ---
 include/sync_slave_sql_with_master.inc
@@ -383,7 +383,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH ( YEAR(t))
+/*!50100 PARTITION BY HASH (YEAR(t))
 PARTITIONS 4 */
 "--- Insert into t1 --" as "";
 --- Select from t1 on master --- 
@@ -438,7 +438,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH ( YEAR(t))
+/*!50100 PARTITION BY HASH (YEAR(t))
 PARTITIONS 4 */
 --- On slave ---
 include/sync_slave_sql_with_master.inc
@@ -455,7 +455,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH ( YEAR(t))
+/*!50100 PARTITION BY HASH (YEAR(t))
 PARTITIONS 4 */
 "--- Insert into t1 --" as "";
 --- Select from t1 on master --- 

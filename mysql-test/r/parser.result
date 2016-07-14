@@ -1184,12 +1184,9 @@ CREATE PROCEDURE p1()
 BEGIN
 parse_gcol_expr: LOOP
 SELECT 1;
-END LOOP label1;
+END LOOP parse_gcol_expr;
 END|
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ': LOOP
-SELECT 1;
-END LOOP label1;
-END' at line 3
+DROP PROCEDURE p1;
 # PARSE_GCOL_EXPR is not a valid statement:
 PARSE_GCOL_EXPR (1);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PARSE_GCOL_EXPR (1)' at line 1

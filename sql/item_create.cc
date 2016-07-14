@@ -7045,7 +7045,6 @@ create_func_cast(THD *thd, const POS &pos, Item *a, Cast_target cast_target,
   Cast_type type;
   type.target= cast_target;
   type.charset= cs;
-  type.type_flags= 0;
   type.length= NULL;
   type.dec= NULL;
   return create_func_cast(thd, pos, a, &type);

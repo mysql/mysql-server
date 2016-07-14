@@ -22,6 +22,9 @@
 #include "sp_pcontext.h"
 #include "key_spec.h"
 #include "derror.h"         // ER_THD
+#include "parse_tree_column_attrs.h" // PT_field_def_base
+#include "parse_tree_partitions.h" // PT_partition
+#include "dd/types/abstract_table.h" // dd::enum_table_type::BASE_TABLE
 
 
 PT_joined_table *PT_table_reference::add_cross_join(PT_cross_join* cj)
@@ -332,16 +335,13 @@ bool PT_option_value_no_option_type_internal::contextualize(Parse_context *pc)
   LEX *lex= thd->lex;
   sp_head *sp= lex->sphead;
 
-  if (sp)
-    sp->m_parser_data.push_expr_start_ptr(expr_pos.raw.start);
-
   if (opt_expr != NULL && opt_expr->itemize(pc, &opt_expr))
     return true;
 
   const char *expr_start_ptr= NULL;
 
   if (sp)
-    expr_start_ptr= sp->m_parser_data.pop_expr_start_ptr();
+    expr_start_ptr= expr_pos.raw.start;
 
   if (name->value.var == trg_new_row_fake_var)
   {
@@ -1186,6 +1186,13 @@ bool PT_index_definition_stmt::contextualize(Parse_context *pc)
 
   lex->sql_command= SQLCOM_CREATE_INDEX;
 
+  if (m_field_ident)
+  {
+    if (m_field_ident->contextualize(pc))
+      return true;
+    m_name= m_field_ident->field_name;
+  }
+
   if (select_lex->add_table_to_list(thd, m_table_ident, NULL,
                                     TL_OPTION_UPDATING,
                                     TL_READ_NO_INSERT,
@@ -1195,8 +1202,6 @@ bool PT_index_definition_stmt::contextualize(Parse_context *pc)
   lex->alter_info.reset();
   lex->alter_info.flags= Alter_info::ALTER_ADD_INDEX;
 
-  lex->change= NullS;
-
   return setup_index(m_keytype, m_name, m_type, m_columns, m_options,
                      m_lock_and_algorithm_options, pc);
 }
@@ -1204,9 +1209,13 @@ bool PT_index_definition_stmt::contextualize(Parse_context *pc)
 
 bool PT_inline_index_definition::contextualize(Parse_context *pc)
 {
+  if (super::contextualize(pc) || (m_name && m_name->contextualize(pc)))
+    return true;
+
+  const LEX_STRING name= m_name ? m_name->field_name : NULL_STR;
   Index_options empty_lock_and_algorithm_options;
   empty_lock_and_algorithm_options.init(pc->thd->mem_root);
-  if (setup_index(m_keytype, m_name, m_type, m_columns, m_options,
+  if (setup_index(m_keytype, name, m_type, m_columns, m_options,
                   empty_lock_and_algorithm_options, pc))
     return true;
 
@@ -1220,29 +1229,39 @@ bool PT_inline_index_definition::contextualize(Parse_context *pc)
 
 bool PT_foreign_key_definition::contextualize(Parse_context *pc)
 {
+  if (super::contextualize(pc) ||
+      (m_constraint_name && m_constraint_name->contextualize(pc)) ||
+      (m_key_name && m_key_name->contextualize(pc)))
+    return true;
+
   THD *thd= pc->thd;
   LEX *lex= thd->lex;
 
   lex->key_create_info= default_key_create_info;
 
-  const LEX_STRING used_name= m_key_name.str ? m_key_name : m_constraint_name;
+  const LEX_STRING used_name=
+    m_key_name ? m_key_name->field_name
+               : m_constraint_name ? m_constraint_name->field_name
+                                   : NULL_STR;
+
   Key_spec *foreign_key=
     new Foreign_key_spec(thd->mem_root,
                          to_lex_cstring(used_name),
                          *m_columns,
                          m_referenced_table->db,
                          m_referenced_table->table,
-                         lex->ref_list,
-                         lex->fk_delete_opt,
-                         lex->fk_update_opt,
-                         lex->fk_match_option);
+                         m_ref_list,
+                         m_fk_delete_opt,
+                         m_fk_update_opt,
+                         m_fk_match_option);
   if (foreign_key == NULL || lex->alter_info.key_list.push_back(foreign_key))
     return true;
   /* Only used for ALTER TABLE. Ignored otherwise. */
   lex->alter_info.flags|= Alter_info::ADD_FOREIGN_KEY;
 
-  const LEX_CSTRING index_name=
-    to_lex_cstring(m_constraint_name.str ? m_constraint_name : m_key_name);
+  const LEX_CSTRING index_name= to_lex_cstring(
+    m_constraint_name ? m_constraint_name->field_name
+                      : m_key_name ? m_key_name->field_name : NULL_STR);
 
   Key_spec *key=
     new Key_spec(thd->mem_root, KEYTYPE_MULTIPLE, index_name,
@@ -1253,3 +1272,309 @@ bool PT_foreign_key_definition::contextualize(Parse_context *pc)
   return false;
 }
 
+
+bool PT_create_table_engine_option::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+
+  HA_CREATE_INFO * const create_info= pc->thd->lex->create_info;
+
+  create_info->used_fields|= HA_CREATE_USED_ENGINE;
+  const bool is_temp_table= create_info->options & HA_LEX_CREATE_TMP_TABLE;
+  return resolve_engine(pc->thd, engine, is_temp_table, false,
+                        &create_info->db_type);
+}
+
+
+bool PT_create_stats_auto_recalc_option::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+
+  HA_CREATE_INFO * const create_info= pc->thd->lex->create_info;
+
+  switch (value) {
+  case Ternary_option::ON:
+    create_info->stats_auto_recalc= HA_STATS_AUTO_RECALC_ON;
+    break;
+  case Ternary_option::OFF:
+    create_info->stats_auto_recalc= HA_STATS_AUTO_RECALC_OFF;
+    break;
+  case Ternary_option::DEFAULT:
+    create_info->stats_auto_recalc= HA_STATS_AUTO_RECALC_DEFAULT;
+    break;
+  default:
+    DBUG_ASSERT(false);
+  }
+  create_info->used_fields|= HA_CREATE_USED_STATS_AUTO_RECALC;
+  return false;
+}
+
+
+bool PT_create_stats_stable_pages::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+
+  HA_CREATE_INFO * const create_info= pc->thd->lex->create_info;
+
+  create_info->stats_sample_pages= value;
+  create_info->used_fields|= HA_CREATE_USED_STATS_SAMPLE_PAGES;
+  return false;
+}
+
+
+bool PT_create_union_option::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+
+  THD * const thd= pc->thd;
+  LEX * const lex= thd->lex;
+  HA_CREATE_INFO * const create_info= lex->create_info;
+  const Yacc_state *yyps= &thd->m_parser_state->m_yacc;
+
+  lex->select_lex->table_list.save_and_clear(&lex->save_list);
+  if (pc->select->add_tables(thd, tables, TL_OPTION_UPDATING,
+                             yyps->m_lock_type, yyps->m_mdl_type))
+    return true;
+  /*
+    Move the union list to the merge_list and exclude its tables
+    from the global list.
+  */
+  create_info->merge_list= lex->select_lex->table_list;
+  lex->select_lex->table_list= lex->save_list;
+  /*
+    When excluding union list from the global list we assume that
+    elements of the former immediately follow elements which represent
+    table being created/altered and parent tables.
+  */
+  TABLE_LIST *last_non_sel_table= lex->create_last_non_select_table;
+  DBUG_ASSERT(last_non_sel_table->next_global == create_info->merge_list.first);
+  last_non_sel_table->next_global= 0;
+  lex->query_tables_last= &last_non_sel_table->next_global;
+
+  create_info->used_fields|= HA_CREATE_USED_UNION;
+  return false;
+}
+
+
+bool PT_create_table_default_charset::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+
+  HA_CREATE_INFO * const create_info= pc->thd->lex->create_info;
+  if ((create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET) &&
+       create_info->default_table_charset && value &&
+       !my_charset_same(create_info->default_table_charset,value))
+  {
+    my_error(ER_CONFLICTING_DECLARATIONS, MYF(0),
+             "CHARACTER SET ", create_info->default_table_charset->csname,
+             "CHARACTER SET ", value->csname);
+    return true;
+  }
+  create_info->default_table_charset= value;
+  create_info->used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
+  return false;
+}
+
+
+bool PT_create_table_default_collation::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+
+  HA_CREATE_INFO * const create_info= pc->thd->lex->create_info;
+
+  if ((create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET) &&
+       create_info->default_table_charset && value &&
+       !(value= merge_charset_and_collation(create_info->default_table_charset,
+                                            value)))
+  {
+    return true;
+  }
+
+  create_info->default_table_charset= value;
+  create_info->used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
+  return false;
+}
+
+
+bool PT_column_def::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc) || field_ident->contextualize(pc) ||
+      field_def->contextualize(pc) ||
+      (opt_column_constraint && opt_column_constraint->contextualize(pc)))
+    return true;
+
+  pc->thd->lex->alter_info.flags|= field_def->alter_info_flags;
+  return pc->thd->lex->alter_info.add_field(pc->thd,
+                                            &field_ident->field_name,
+                                            field_def->type,
+                                            field_def->length,
+                                            field_def->dec,
+                                            field_def->type_flags,
+                                            field_def->default_value,
+                                            field_def->on_update_value,
+                                            &field_def->comment,
+                                            NULL,
+                                            field_def->interval_list,
+                                            field_def->charset,
+                                            field_def->uint_geom_type,
+                                            field_def->gcol_info,
+                                            NULL);
+}
+
+
+bool PT_create_table_stmt::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+
+  THD *thd= pc->thd;
+  LEX *lex= thd->lex;
+  TABLE_LIST *table= pc->select->add_table_to_list(thd, table_name, NULL,
+                                                   TL_OPTION_UPDATING,
+                                                   TL_WRITE, MDL_SHARED);
+  if (table == NULL)
+    return true;
+  /*
+    Instruct open_table() to acquire SHARED lock to check the
+    existance of table. If the table does not exist then
+    it will be upgraded EXCLUSIVE MDL lock. If table exist
+    then open_table() will return with an error or warning.
+  */
+  table->open_strategy= TABLE_LIST::OPEN_FOR_CREATE;
+  lex->alter_info.reset();
+  lex->create_info= thd->alloc_typed<HA_CREATE_INFO>();
+  if (lex->create_info == NULL)
+    return true; // OOM
+
+  lex->create_info->options= 0;
+  if (is_temporary)
+    lex->create_info->options|= HA_LEX_CREATE_TMP_TABLE;
+  if (only_if_not_exists)
+    lex->create_info->options|= HA_LEX_CREATE_IF_NOT_EXISTS;
+
+  lex->create_info->default_table_charset= NULL;
+  lex->name.str= 0;
+  lex->name.length= 0;
+  lex->create_last_non_select_table= lex->last_table();
+
+  if (opt_like_clause != NULL)
+  {
+    pc->thd->lex->create_info->options|= HA_LEX_CREATE_TABLE_LIKE;
+    TABLE_LIST *src_table= pc->select->add_table_to_list(pc->thd,
+                                                         opt_like_clause,
+                                                         NULL, 0,
+                                                         TL_READ,
+                                                         MDL_SHARED_READ);
+    if (!src_table)
+      return true;
+    /* CREATE TABLE ... LIKE is not allowed for views. */
+    src_table->required_type= dd::enum_table_type::BASE_TABLE;
+  }
+  else
+  {
+    if (opt_table_element_list)
+    {
+      for (auto element : *opt_table_element_list)
+      {
+        if (element->contextualize(pc))
+          return true;
+      }
+      lex->create_last_non_select_table= lex->last_table();
+    }
+
+    if (opt_create_table_options)
+    {
+      for (auto option : *opt_create_table_options)
+        if (option->contextualize(pc))
+          return true;
+    }
+
+    if (opt_partitioning)
+    {
+      if (opt_partitioning->contextualize(pc))
+        return true;
+      /*
+        Remove all tables used in PARTITION clause from the global table
+        list. Partitioning with subqueries is not allowed anyway.
+      */
+      TABLE_LIST *last_non_sel_table= lex->create_last_non_select_table;
+      last_non_sel_table->next_global= 0;
+      lex->query_tables_last= &last_non_sel_table->next_global;
+
+      lex->part_info= &opt_partitioning->part_info;
+    }
+
+    switch (on_duplicate) {
+    case On_duplicate::IGNORE_DUP:
+      lex->set_ignore(true);
+      break;
+    case On_duplicate::REPLACE_DUP:
+      lex->duplicates= DUP_REPLACE;
+      break;
+    case On_duplicate::ERROR:
+      lex->duplicates= DUP_ERROR;
+      break;
+    }
+
+    if (opt_query_expression)
+    {
+      /*
+        In CREATE TABLE t ... SELECT the table_list initially contains
+        here a table entry for the destination table `t'.
+        Backup it and clean the table list for the processing of
+        the query expression and push `t' back to the beginning of the
+        table_list finally.
+
+        @todo: Don't save the CREATE destination table in
+               SELECT_LEX::table_list and remove this backup & restore.
+
+        The following work only with the local list, the global list
+        is created correctly in this case
+      */
+      SQL_I_List<TABLE_LIST> save_list;
+      SELECT_LEX * const save_select= pc->select;
+      save_select->table_list.save_and_clear(&save_list);
+
+      if (opt_query_expression->contextualize(pc))
+        return true;
+
+      /*
+        The following work only with the local list, the global list
+        is created correctly in this case
+      */
+      save_select->table_list.push_front(&save_list);
+    }
+  }
+
+  lex->set_current_select(pc->select);
+  if ((lex->create_info->used_fields & HA_CREATE_USED_ENGINE) &&
+      !lex->create_info->db_type)
+  {
+    lex->create_info->db_type=
+      lex->create_info->options & HA_LEX_CREATE_TMP_TABLE ?
+      ha_default_temp_handlerton(thd) : ha_default_handlerton(thd);
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+      ER_WARN_USING_OTHER_HANDLER,
+      ER_THD(thd, ER_WARN_USING_OTHER_HANDLER),
+      ha_resolve_storage_engine_name(lex->create_info->db_type),
+      table_name->table.str);
+  }
+  create_table_set_open_action_and_adjust_tables(lex);
+  return false;
+}
+
+
+Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd)
+{
+  thd->lex->sql_command= SQLCOM_CREATE_TABLE;
+  Parse_context pc(thd, thd->lex->current_select());
+  if (contextualize(&pc))
+    return NULL;
+  return &cmd;
+}

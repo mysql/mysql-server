@@ -3,6 +3,8 @@ SET @@session.default_storage_engine = 'MyISAM';
 # Section 1. Wrong column definition options
 #            - DEFAULT <value>
 #            - AUTO_INCREMENT
+#            - SERIAL DEFAULT VALUE
+#            - ON UPDATE NOW ...
 # NOT NULL
 create table t1 (a int, b int generated always as (a+1) virtual not null);
 insert into t1(a) values(null);
@@ -47,17 +49,31 @@ info: Records: 1  Duplicates: 0  Warnings: 0
 drop table t1;
 # DEFAULT
 create table t1 (a int, b int generated always as (a+1) virtual default 0);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'default 0)' at line 1
+ERROR HY000: Incorrect usage of DEFAULT and generated column
 create table t1 (a int);
 alter table t1 add column b int generated always as (a+1) virtual default 0;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'default 0' at line 1
+ERROR HY000: Incorrect usage of DEFAULT and generated column
 drop table t1;
 # AUTO_INCREMENT
 create table t1 (a int, b int generated always as (a+1) virtual AUTO_INCREMENT);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AUTO_INCREMENT)' at line 1
+ERROR HY000: Incorrect usage of AUTO_INCREMENT and generated column
 create table t1 (a int);
 alter table t1 add column b int generated always as (a+1) virtual AUTO_INCREMENT;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AUTO_INCREMENT' at line 1
+ERROR HY000: Incorrect usage of AUTO_INCREMENT and generated column
+drop table t1;
+# SERIAL DEFAULT VALUE
+create table t1 (a int, b int generated always as (a+1) virtual SERIAL DEFAULT VALUE);
+ERROR HY000: Incorrect usage of SERIAL DEFAULT VALUE and generated column
+create table t1 (a int);
+alter table t1 add column b int generated always as (a+1) virtual SERIAL DEFAULT VALUE;
+ERROR HY000: Incorrect usage of SERIAL DEFAULT VALUE and generated column
+drop table t1;
+# ON UPDATE
+create table t1 (a int, b int generated always as (a+1) virtual ON UPDATE NOW());
+ERROR HY000: Incorrect usage of ON UPDATE and generated column
+create table t1 (a int);
+alter table t1 add column b int generated always as (a+1) virtual ON UPDATE NOW();
+ERROR HY000: Incorrect usage of ON UPDATE and generated column
 drop table t1;
 # [PRIMARY] KEY
 create table t1 (a int, b int generated always as (a+1) stored key);

@@ -867,32 +867,32 @@ static bool fill_dd_partition_from_create_info(THD *thd,
   if (part_info)
   {
     switch (part_info->part_type) {
-    case RANGE_PARTITION:
+    case partition_type::RANGE:
       if (part_info->column_list)
         tab_obj->set_partition_type(dd::Table::PT_RANGE_COLUMNS);
       else
         tab_obj->set_partition_type(dd::Table::PT_RANGE);
       break;
-    case LIST_PARTITION:
+    case partition_type::LIST:
       if (part_info->column_list)
         tab_obj->set_partition_type(dd::Table::PT_LIST_COLUMNS);
       else
         tab_obj->set_partition_type(dd::Table::PT_LIST);
       break;
-    case HASH_PARTITION:
+    case partition_type::HASH:
       if (part_info->list_of_part_fields)
       {
         /* KEY partitioning */
         if (part_info->linear_hash_ind)
         {
-          if (part_info->key_algorithm == partition_info::KEY_ALGORITHM_51)
+          if (part_info->key_algorithm == enum_key_algorithm::KEY_ALGORITHM_51)
             tab_obj->set_partition_type(dd::Table::PT_LINEAR_KEY_51);
           else
             tab_obj->set_partition_type(dd::Table::PT_LINEAR_KEY_55);
         }
         else
         {
-          if (part_info->key_algorithm == partition_info::KEY_ALGORITHM_51)
+          if (part_info->key_algorithm == enum_key_algorithm::KEY_ALGORITHM_51)
             tab_obj->set_partition_type(dd::Table::PT_KEY_51);
           else
             tab_obj->set_partition_type(dd::Table::PT_KEY_55);
@@ -965,14 +965,14 @@ static bool fill_dd_partition_from_create_info(THD *thd,
         /* KEY partitioning */
         if (part_info->linear_hash_ind)
         {
-          if (part_info->key_algorithm == partition_info::KEY_ALGORITHM_51)
+          if (part_info->key_algorithm == enum_key_algorithm::KEY_ALGORITHM_51)
             tab_obj->set_subpartition_type(dd::Table::ST_LINEAR_KEY_51);
           else
             tab_obj->set_subpartition_type(dd::Table::ST_LINEAR_KEY_55);
         }
         else
         {
-          if (part_info->key_algorithm == partition_info::KEY_ALGORITHM_51)
+          if (part_info->key_algorithm == enum_key_algorithm::KEY_ALGORITHM_51)
             tab_obj->set_subpartition_type(dd::Table::ST_KEY_51);
           else
             tab_obj->set_subpartition_type(dd::Table::ST_KEY_55);
@@ -1047,7 +1047,7 @@ static bool fill_dd_partition_from_create_info(THD *thd,
           return true;
 
         /* Fill in partition values if not KEY/HASH. */
-        if (part_info->part_type == RANGE_PARTITION)
+        if (part_info->part_type == partition_type::RANGE)
         {
           if (part_info->column_list)
           {
@@ -1086,7 +1086,7 @@ static bool fill_dd_partition_from_create_info(THD *thd,
             }
           }
         }
-        else if (part_info->part_type == LIST_PARTITION)
+        else if (part_info->part_type == partition_type::LIST)
         {
           uint list_index= 0;
           List_iterator<part_elem_value> list_val_it(part_elem->list_val_list);
@@ -1133,7 +1133,7 @@ static bool fill_dd_partition_from_create_info(THD *thd,
         else
         {
           // HASH/KEY partition, nothing to fill in?
-          DBUG_ASSERT(part_info->part_type == HASH_PARTITION);
+          DBUG_ASSERT(part_info->part_type == partition_type::HASH);
         }
 
 

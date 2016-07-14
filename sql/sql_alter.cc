@@ -212,7 +212,7 @@ bool Sql_cmd_alter_table::execute(THD *thd)
     referenced from this structure will be modified.
     @todo move these into constructor...
   */
-  HA_CREATE_INFO create_info(lex->create_info);
+  HA_CREATE_INFO create_info(*lex->create_info);
   Alter_info alter_info(lex->alter_info, thd->mem_root);
   ulong priv=0;
   ulong priv_needed= ALTER_ACL;

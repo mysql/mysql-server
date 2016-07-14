@@ -12282,7 +12282,7 @@ void ha_ndbcluster::set_part_info(partition_info *part_info, bool early)
   if (!early)
   {
     m_use_partition_pruning= FALSE;
-    if (!(m_part_info->part_type == HASH_PARTITION &&
+    if (!(m_part_info->part_type == partition_type::HASH &&
           m_part_info->list_of_part_fields &&
           !m_part_info->is_sub_partitioned()))
     {
@@ -12294,7 +12294,7 @@ void ha_ndbcluster::set_part_info(partition_info *part_info, bool early)
       m_use_partition_pruning= TRUE;
       m_user_defined_partitioning= TRUE;
     }
-    if (m_part_info->part_type == HASH_PARTITION &&
+    if (m_part_info->part_type == partition_type::HASH &&
         m_part_info->list_of_part_fields &&
         m_part_info->num_full_part_fields == 0)
     {
@@ -16907,7 +16907,7 @@ void ha_ndbcluster::set_auto_partitions(partition_info *part_info)
 {
   DBUG_ENTER("ha_ndbcluster::set_auto_partitions");
   part_info->list_of_part_fields= TRUE;
-  part_info->part_type= HASH_PARTITION;
+  part_info->part_type= partition_type::HASH;
   switch (opt_ndb_distribution)
   {
   case NDB_DISTRIBUTION_KEYHASH:
@@ -17016,7 +17016,7 @@ create_table_set_up_partition_info(HA_CREATE_INFO* create_info,
 {
   DBUG_ENTER("create_table_set_up_partition_info");
 
-  if (part_info->part_type == HASH_PARTITION &&
+  if (part_info->part_type == partition_type::HASH &&
       part_info->list_of_part_fields == TRUE)
   {
     Field **fields= part_info->part_field_array;
@@ -17059,7 +17059,7 @@ create_table_set_up_partition_info(HA_CREATE_INFO* create_info,
     col.setPrimaryKey(FALSE);
     col.setAutoIncrement(FALSE);
     ndbtab.addColumn(col);
-    if (part_info->part_type == RANGE_PARTITION)
+    if (part_info->part_type == partition_type::RANGE)
     {
       const int error = create_table_set_range_data(part_info, ndbtab);
       if (error)
@@ -17067,7 +17067,7 @@ create_table_set_up_partition_info(HA_CREATE_INFO* create_info,
         DBUG_RETURN(error);
       }
     }
-    else if (part_info->part_type == LIST_PARTITION)
+    else if (part_info->part_type == partition_type::LIST)
     {
       const int error = create_table_set_list_data(part_info, ndbtab);
       if (error)
@@ -17326,7 +17326,7 @@ enum_alter_inplace_result
          or user defined partitioning
        */
        if (table_share->primary_key == MAX_KEY ||
-           part_info->part_type != HASH_PARTITION ||
+           part_info->part_type != partition_type::HASH ||
            !part_info->list_of_part_fields)
          DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 

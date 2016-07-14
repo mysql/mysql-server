@@ -1297,14 +1297,15 @@ DROP TABLE parse_gcol_expr;
 
 DELIMITER |;
 --echo # parse_gcol_expr can't be a label:
---error ER_PARSE_ERROR
 CREATE PROCEDURE p1()
 BEGIN
 parse_gcol_expr: LOOP
   SELECT 1;
-END LOOP label1;
+END LOOP parse_gcol_expr;
 END|
 DELIMITER ;|
+
+DROP PROCEDURE p1;
 
 --echo # PARSE_GCOL_EXPR is not a valid statement:
 --error ER_PARSE_ERROR

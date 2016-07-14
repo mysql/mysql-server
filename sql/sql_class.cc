@@ -2691,7 +2691,7 @@ void THD::Query_plan::set_modification_plan(Modification_plan *plan_arg)
   @param s              error message: NULL default means ER(ER_SYNTAX_ERROR)
 */
 
-void THD::parse_error_at(const YYLTYPE &location, const char *s)
+void THD::syntax_error_at(const YYLTYPE &location, const char *s)
 {
   uint lineno= location.raw.start ?
     m_parser_state->m_lip.get_lineno(location.raw.start) : 1;

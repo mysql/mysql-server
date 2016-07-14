@@ -1,7 +1,7 @@
 #ifndef SQL_TMP_TABLE_INCLUDED
 #define SQL_TMP_TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include "my_global.h"
 #include "my_base.h"        // ha_rows
 #include "item.h"           // Item
+#include "mem_root_array.h"
 
 class Create_field;
 class Field;
@@ -35,13 +36,12 @@ class SJ_TMP_TABLE;
 class Temp_table_param;
 class THD;
 struct TABLE;
-template<typename Element_type, bool has_trivial_destructor>
+template<typename Element_type, bool has_trivial_destructor, typename Parent>
   class Mem_root_array;
 template <class T> class List;
 typedef struct st_columndef MI_COLUMNDEF;
 typedef struct st_key KEY;
 typedef struct st_order ORDER;
-typedef Mem_root_array<Item*, true> Func_ptr_array;
 
 
 /*
@@ -70,7 +70,7 @@ bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
                            ulonglong options, my_bool big_tables,
                            Opt_trace_context *trace);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
-                        Func_ptr_array *copy_func, Field **from_field,
+                        Mem_root_array<Item *> *copy_func, Field **from_field,
                         Field **default_field,
                         bool group, bool modify_item,
                         bool table_cant_handle_bit_fields,

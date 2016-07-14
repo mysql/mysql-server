@@ -3393,7 +3393,7 @@ static TYPELIB *create_typelib(MEM_ROOT *mem_root, Create_field *field_def)
 
   @param[in]  thd          Thread handle
   @param[in]  field_type   Field type
-  @param[out] field_def    An instance of create_field to be filled
+  @param[out] field_def    An instance of initialized create_field
 
   @return Error status.
 */
@@ -3402,19 +3402,6 @@ bool prepare_sp_create_field(THD *thd,
                              enum enum_field_types field_type,
                              Create_field *field_def)
 {
-  LEX *lex= thd->lex;
-  LEX_STRING cmt = { NULL, 0 };
-
-  if (field_def->init(thd, "", field_type, lex->length, lex->dec,
-                      lex->type, NULL, NULL, &cmt, 0,
-                      &lex->interval_list,
-                      lex->charset ? lex->charset :
-                                     thd->variables.collation_database,
-                      lex->uint_geom_type, NULL))
-  {
-    return true;
-  }
-
   if (field_def->sql_type == MYSQL_TYPE_SET)
   {
     if (prepare_set_field(thd, field_def))

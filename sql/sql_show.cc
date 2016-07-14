@@ -7066,10 +7066,10 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
 
     /* Partition method*/
     switch (part_info->part_type) {
-    case RANGE_PARTITION:
-    case LIST_PARTITION:
+    case partition_type::RANGE:
+    case partition_type::LIST:
       tmp_res.length(0);
-      if (part_info->part_type == RANGE_PARTITION)
+      if (part_info->part_type == partition_type::RANGE)
         tmp_res.append(partition_keywords[PKW_RANGE].str,
                        partition_keywords[PKW_RANGE].length);
       else
@@ -7080,7 +7080,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
                        partition_keywords[PKW_COLUMNS].length);
       table->field[7]->store(tmp_res.ptr(), tmp_res.length(), cs);
       break;
-    case HASH_PARTITION:
+    case partition_type::HASH:
       tmp_res.length(0);
       if (part_info->linear_hash_ind)
         tmp_res.append(partition_keywords[PKW_LINEAR].str,
@@ -7153,7 +7153,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
       table->field[5]->set_notnull();
 
       /* Partition description */
-      if (part_info->part_type == RANGE_PARTITION)
+      if (part_info->part_type == partition_type::RANGE)
       {
         if (part_info->column_list)
         {
@@ -7179,7 +7179,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
         }
         table->field[11]->set_notnull();
       }
-      else if (part_info->part_type == LIST_PARTITION)
+      else if (part_info->part_type == partition_type::LIST)
       {
         List_iterator<part_elem_value> list_val_it(part_elem->list_val_list);
         part_elem_value *list_value;

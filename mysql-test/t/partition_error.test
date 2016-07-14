@@ -821,7 +821,7 @@ CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
 CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd';
 CREATE TABLESPACE ts3 ADD DATAFILE 'ts3.ibd';
 
---error ER_PARTITION_REQUIRES_VALUES_ERROR
+--error ER_PARSE_ERROR
 CREATE TABLE t1 (
   a int
 )
@@ -1275,7 +1275,7 @@ partitions 2
 #
 # Partition by range, no values less than definition
 #
---error ER_PARTITION_REQUIRES_VALUES_ERROR
+--error ER_PARSE_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -1315,7 +1315,21 @@ partitions 2
  partition x2 values less than (5));
 
 #
-# Partition by range, missing parenthesis
+# Partition by list, missing parenthesis
+#
+--error ER_PARSE_ERROR
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by list (a)
+partitions 2
+(partition x1 values less than 4,
+ partition x2 values less than (5));
+
+#
+# Partition by list, error: unexpected LESS THAN
 #
 --error ER_PARTITION_WRONG_VALUES_ERROR
 CREATE TABLE t1 (
@@ -1325,7 +1339,7 @@ c int not null,
 primary key(a,b))
 partition by list (a)
 partitions 2
-(partition x1 values less than 4,
+(partition x1 values less than (4),
  partition x2 values less than (5));
 
 #
@@ -1504,7 +1518,7 @@ partitions 2
 #
 # Partition by list, no values in definition
 #
---error ER_PARTITION_REQUIRES_VALUES_ERROR
+--error ER_PARSE_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -1532,7 +1546,7 @@ partitions 2
 #
 # Partition by list, no values in definition
 #
---error ER_PARTITION_REQUIRES_VALUES_ERROR
+--error ER_PARSE_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,

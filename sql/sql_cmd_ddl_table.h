@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,14 +13,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_config.h"
-#include "parse_tree_node_base.h"
-#include "sql_class.h"
-#include "sql_parse.h"
+#ifndef SQL_CMD_CREATE_TABLE_INCLUDED
+#define SQL_CMD_CREATE_TABLE_INCLUDED
 
+#include "my_global.h"
+#include "sql_cmd.h"
 
-Parse_context::Parse_context(THD *thd_arg, SELECT_LEX *sl_arg)
-  : thd(thd_arg),
-    mem_root(thd->mem_root),
-    select(sl_arg)
-{}
+class Sql_cmd_create_table : public Sql_cmd
+{
+public:
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_CREATE_TABLE;
+  }
+
+  virtual bool execute(THD *thd);
+};
+
+#endif /* SQL_CMD_CREATE_TABLE_INCLUDED */

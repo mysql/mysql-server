@@ -8972,7 +8972,7 @@ ha_innopart::check_if_supported_inplace_alter(
 		| Alter_inplace_info::DROP_PK_INDEX))) {
 
 		/* Check partition by key(). */
-		if ((m_part_info->part_type == HASH_PARTITION)
+		if ((m_part_info->part_type == partition_type::HASH)
 		    && m_part_info->list_of_part_fields
 		    && m_part_info->part_field_list.is_empty()) {
 
@@ -8980,7 +8980,7 @@ ha_innopart::check_if_supported_inplace_alter(
 		}
 
 		/* Check sub-partition by key(). */
-		if ((m_part_info->subpart_type == HASH_PARTITION)
+		if ((m_part_info->subpart_type == partition_type::HASH)
 		    && m_part_info->list_of_subpart_fields
 		    && m_part_info->subpart_field_list.is_empty()) {
 

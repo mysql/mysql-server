@@ -262,7 +262,7 @@ static Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
 */
 
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
-                        Func_ptr_array *copy_func, Field **from_field,
+                        Mem_root_array<Item *> *copy_func, Field **from_field,
                         Field **default_field,
                         bool group, bool modify_item,
                         bool table_cant_handle_bit_fields,

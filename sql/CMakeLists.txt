@@ -163,6 +163,7 @@ SET(SQL_SHARED_SOURCES
   keyring_service.cc
   ssl_wrapper_service.cc
   bootstrap.cc
+  check_stack.cc
   conn_handler/connection_handler_manager.cc 
   current_thd.cc
   dd_sp.cc
@@ -234,12 +235,14 @@ SET(SQL_SHARED_SOURCES
   opt_sum.cc 
   opt_trace.cc
   opt_trace2server.cc
+  parse_error.cc
   parse_file.cc
   parse_tree_helpers.cc
   parse_tree_hints.cc
   parse_tree_items.cc
   parse_tree_node_base.cc
   parse_tree_nodes.cc
+  parse_tree_partitions.cc
   select_lex_visitor.cc
   parser_service.cc
   partition_info.cc
@@ -278,6 +281,7 @@ SET(SQL_SHARED_SOURCES
   sql_cache.cc
   sql_class.cc
   sql_component.cc
+  sql_cmd_ddl_table.cc
   sql_connect.cc
   sql_crypt.cc
   sql_cursor.cc

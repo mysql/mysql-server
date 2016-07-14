@@ -828,7 +828,7 @@ static bool handle_list_of_fields(List_iterator<char> it,
       goto end;
     }
   }
-  if (is_list_empty && part_info->part_type == HASH_PARTITION)
+  if (is_list_empty && part_info->part_type == partition_type::HASH)
   {
     uint primary_key= table->s->primary_key;
     if (primary_key != MAX_KEY)
@@ -886,7 +886,7 @@ static int check_signed_flag(partition_info *part_info)
 {
   int error= 0;
   uint i= 0;
-  if (part_info->part_type != HASH_PARTITION &&
+  if (part_info->part_type != partition_type::HASH &&
       part_info->part_expr->unsigned_flag)
   {
     List_iterator<partition_element> part_it(part_info->partitions);
@@ -1388,7 +1388,7 @@ static void set_up_partition_func_pointers(partition_info *part_info)
   if (part_info->is_sub_partitioned())
   {
     part_info->get_partition_id= get_partition_id_with_sub;
-    if (part_info->part_type == RANGE_PARTITION)
+    if (part_info->part_type == partition_type::RANGE)
     {
       if (part_info->column_list)
         part_info->get_part_partition_id= get_partition_id_range_col;
@@ -1435,14 +1435,14 @@ static void set_up_partition_func_pointers(partition_info *part_info)
   {
     part_info->get_part_partition_id= NULL;
     part_info->get_subpartition_id= NULL;
-    if (part_info->part_type == RANGE_PARTITION)
+    if (part_info->part_type == partition_type::RANGE)
     {
       if (part_info->column_list)
         part_info->get_partition_id= get_partition_id_range_col;
       else
         part_info->get_partition_id= get_partition_id_range;
     }
-    else if (part_info->part_type == LIST_PARTITION)
+    else if (part_info->part_type == partition_type::LIST)
     {
       if (part_info->column_list)
         part_info->get_partition_id= get_partition_id_list_col;
@@ -1697,7 +1697,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
   }
   if (part_info->is_sub_partitioned())
   {
-    DBUG_ASSERT(part_info->subpart_type == HASH_PARTITION);
+    DBUG_ASSERT(part_info->subpart_type == partition_type::HASH);
     /*
       Subpartition is defined. We need to verify that subpartitioning
       function is correct.
@@ -1722,12 +1722,12 @@ bool fix_partition_func(THD *thd, TABLE *table,
       }
     }
   }
-  DBUG_ASSERT(part_info->part_type != NOT_A_PARTITION);
+  DBUG_ASSERT(part_info->part_type != partition_type::NONE);
   /*
     Partition is defined. We need to verify that partitioning
     function is correct.
   */
-  if (part_info->part_type == HASH_PARTITION)
+  if (part_info->part_type == partition_type::HASH)
   {
     if (part_info->linear_hash_ind)
       set_linear_hash_mask(part_info, part_info->num_parts);
@@ -1766,13 +1766,13 @@ bool fix_partition_func(THD *thd, TABLE *table,
         goto end;
     }
     part_info->fixed= TRUE;
-    if (part_info->part_type == RANGE_PARTITION)
+    if (part_info->part_type == partition_type::RANGE)
     {
       error_str= partition_keywords[PKW_RANGE].str;
       if (unlikely(part_info->check_range_constants(thd)))
         goto end;
     }
-    else if (part_info->part_type == LIST_PARTITION)
+    else if (part_info->part_type == partition_type::LIST)
     {
       error_str= partition_keywords[PKW_LIST].str;
       if (unlikely(part_info->check_list_constants(thd)))
@@ -1796,7 +1796,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
       goto end;
     }
   }
-  if (((part_info->part_type != HASH_PARTITION ||
+  if (((part_info->part_type != partition_type::HASH ||
         part_info->list_of_part_fields == FALSE) &&
        !part_info->column_list &&
        check_part_func_fields(part_info->part_field_array, TRUE)) ||
@@ -2420,7 +2420,7 @@ int add_column_list_values(File fptr, partition_info *part_info,
   uint i;
   List_iterator<char> it(part_info->part_field_list);
   uint num_elements= part_info->part_field_list.elements;
-  bool use_parenthesis= (part_info->part_type == LIST_PARTITION &&
+  bool use_parenthesis= (part_info->part_type == partition_type::LIST &&
                          part_info->num_columns > 1U);
 
   if (use_parenthesis)
@@ -2492,7 +2492,7 @@ static int add_partition_values(File fptr, partition_info *part_info,
 {
   int err= 0;
 
-  if (part_info->part_type == RANGE_PARTITION)
+  if (part_info->part_type == partition_type::RANGE)
   {
     err+= add_string(fptr, " VALUES LESS THAN ");
     if (part_info->column_list)
@@ -2519,7 +2519,7 @@ static int add_partition_values(File fptr, partition_info *part_info,
         err+= add_string(fptr, partition_keywords[PKW_MAXVALUE].str);
     }
   }
-  else if (part_info->part_type == LIST_PARTITION)
+  else if (part_info->part_type == partition_type::LIST)
   {
     uint i;
     List_iterator<part_elem_value> list_val_it(p_elem->list_val_list);
@@ -2586,9 +2586,9 @@ static int add_key_with_algorithm(File fptr, partition_info *part_info,
     Then only add ALGORITHM = 1, not the default 2 or non-set 0!
     For .frm current_comment_start is NULL, then add ALGORITHM if != 0.
   */
-  if (part_info->key_algorithm == partition_info::KEY_ALGORITHM_51 || // SHOW
+  if (part_info->key_algorithm == enum_key_algorithm::KEY_ALGORITHM_51 ||// SHOW
       (!current_comment_start &&                                      // .frm
-       (part_info->key_algorithm != partition_info::KEY_ALGORITHM_NONE)))
+       (part_info->key_algorithm != enum_key_algorithm::KEY_ALGORITHM_NONE)))
   {
     /* If we already are within a comment, end that comment first. */
     if (current_comment_start)
@@ -2597,7 +2597,7 @@ static int add_key_with_algorithm(File fptr, partition_info *part_info,
     err+= add_part_key_word(fptr, partition_keywords[PKW_ALGORITHM].str);
     err+= add_equal(fptr);
     err+= add_space(fptr);
-    err+= add_int(fptr, part_info->key_algorithm);
+    err+= add_int(fptr, static_cast<longlong>(part_info->key_algorithm));
     err+= add_space(fptr);
     err+= add_string(fptr, "*/ ");
     if (current_comment_start)
@@ -2708,13 +2708,13 @@ char *generate_partition_syntax(partition_info *part_info,
   err+= add_partition_by(fptr);
   switch (part_info->part_type)
   {
-    case RANGE_PARTITION:
+    case partition_type::RANGE:
       err+= add_part_key_word(fptr, partition_keywords[PKW_RANGE].str);
       break;
-    case LIST_PARTITION:
+    case partition_type::LIST:
       err+= add_part_key_word(fptr, partition_keywords[PKW_LIST].str);
       break;
-    case HASH_PARTITION:
+    case partition_type::HASH:
       if (part_info->linear_hash_ind)
         err+= add_string(fptr, partition_keywords[PKW_LINEAR].str);
       if (part_info->list_of_part_fields)
@@ -4508,7 +4508,7 @@ bool mysql_unpack_partition(THD *thd,
 
   thd->variables.character_set_client= system_charset_info;
 
-  Parser_state parser_state;
+  Partition_expr_parser_state parser_state;
   if (parser_state.init(thd, part_buf, part_info_len))
     goto end;
 
@@ -4525,25 +4525,19 @@ bool mysql_unpack_partition(THD *thd,
     we then save in the partition info structure.
   */
   *work_part_info_used= FALSE;
-  lex.part_info= new partition_info();/* Indicates MYSQLparse from this place */
-  if (!lex.part_info)
-  {
-    mem_alloc_error(sizeof(partition_info));
-    goto end;
-  }
-  part_info= lex.part_info;
   DBUG_PRINT("info", ("Parse: %s", part_buf));
 
   thd->m_digest= NULL;
   thd->m_statement_psi= NULL;
   if (parse_sql(thd, & parser_state, NULL) ||
-      part_info->fix_parser_data(thd))
+      parser_state.result->fix_parser_data(thd))
   {
     thd->free_items();
     thd->m_digest= parent_digest;
     thd->m_statement_psi= parent_locker;
     goto end;
   }
+  part_info= parser_state.result;
   thd->m_digest= parent_digest;
   thd->m_statement_psi= parent_locker;
   /*
@@ -5043,7 +5037,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
          if default partitioning is used.
       */
 
-      if (tab_part_info->part_type != HASH_PARTITION ||
+      if (tab_part_info->part_type != partition_type::HASH ||
           ((table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION) &&
            !tab_part_info->use_default_num_partitions) ||
           ((!(table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION)) &&
@@ -5113,14 +5107,14 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
     {
       if (thd->work_part_info->part_type != tab_part_info->part_type)
       {
-        if (thd->work_part_info->part_type == NOT_A_PARTITION)
+        if (thd->work_part_info->part_type == partition_type::NONE)
         {
-          if (tab_part_info->part_type == RANGE_PARTITION)
+          if (tab_part_info->part_type == partition_type::RANGE)
           {
             my_error(ER_PARTITIONS_MUST_BE_DEFINED_ERROR, MYF(0), "RANGE");
             goto err;
           }
-          else if (tab_part_info->part_type == LIST_PARTITION)
+          else if (tab_part_info->part_type == partition_type::LIST)
           {
             my_error(ER_PARTITIONS_MUST_BE_DEFINED_ERROR, MYF(0), "LIST");
             goto err;
@@ -5132,25 +5126,25 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
         }
         else
         {
-          if (thd->work_part_info->part_type == RANGE_PARTITION)
+          if (thd->work_part_info->part_type == partition_type::RANGE)
           {
             my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
                      "RANGE", "LESS THAN");
           }
-          else if (thd->work_part_info->part_type == LIST_PARTITION)
+          else if (thd->work_part_info->part_type == partition_type::LIST)
           {
-            DBUG_ASSERT(thd->work_part_info->part_type == LIST_PARTITION);
+            DBUG_ASSERT(thd->work_part_info->part_type == partition_type::LIST);
             my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
                      "LIST", "IN");
           }
-          else if (tab_part_info->part_type == RANGE_PARTITION)
+          else if (tab_part_info->part_type == partition_type::RANGE)
           {
             my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
                      "RANGE", "LESS THAN");
           }
           else
           {
-            DBUG_ASSERT(tab_part_info->part_type == LIST_PARTITION);
+            DBUG_ASSERT(tab_part_info->part_type == partition_type::LIST);
             my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
                      "LIST", "IN");
           }
@@ -5160,11 +5154,11 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       if ((tab_part_info->column_list &&
           alt_part_info->num_columns != tab_part_info->num_columns) ||
           (!tab_part_info->column_list &&
-            (tab_part_info->part_type == RANGE_PARTITION ||
-             tab_part_info->part_type == LIST_PARTITION) &&
+            (tab_part_info->part_type == partition_type::RANGE ||
+             tab_part_info->part_type == partition_type::LIST) &&
             alt_part_info->num_columns != 1U) ||
           (!tab_part_info->column_list &&
-            tab_part_info->part_type == HASH_PARTITION &&
+            tab_part_info->part_type == partition_type::HASH &&
             alt_part_info->num_columns != 0))
       {
         my_error(ER_PARTITION_COLUMN_LIST_ERROR, MYF(0));
@@ -5193,7 +5187,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
         must know the number of new partitions in this case.
       */
       if (thd->lex->no_write_to_binlog &&
-          tab_part_info->part_type != HASH_PARTITION)
+          tab_part_info->part_type != partition_type::HASH)
       {
         my_error(ER_NO_BINLOG_ERROR, MYF(0));
         goto err;
@@ -5296,7 +5290,7 @@ and copying and finally the third line after also dropping the partitions
 that are reorganised.
 */
       if (*new_part_info &&
-          tab_part_info->part_type == HASH_PARTITION)
+          tab_part_info->part_type == partition_type::HASH)
       {
         uint part_no= 0, start_part= 1, start_sec_part= 1;
         uint end_part= 0, end_sec_part= 0;
@@ -5442,8 +5436,8 @@ that are reorganised.
       List_iterator<partition_element> part_it(tab_part_info->partitions);
 
       tab_part_info->is_auto_partitioned= FALSE;
-      if (!(tab_part_info->part_type == RANGE_PARTITION ||
-            tab_part_info->part_type == LIST_PARTITION))
+      if (!(tab_part_info->part_type == partition_type::RANGE ||
+            tab_part_info->part_type == partition_type::LIST))
       {
         my_error(ER_ONLY_ON_RANGE_LIST_PARTITION, MYF(0), "DROP");
         goto err;
@@ -5498,7 +5492,7 @@ that are reorganised.
       uint num_parts_coalesced= alter_info->num_parts;
       uint num_parts_remain= tab_part_info->num_parts - num_parts_coalesced;
       List_iterator<partition_element> part_it(tab_part_info->partitions);
-      if (tab_part_info->part_type != HASH_PARTITION)
+      if (tab_part_info->part_type != partition_type::HASH)
       {
         my_error(ER_COALESCE_ONLY_ON_HASH_PARTITION, MYF(0));
         goto err;
@@ -5620,8 +5614,8 @@ state of p1.
         my_error(ER_REORG_PARTITION_NOT_EXIST, MYF(0));
         goto err;
       }
-      if (!(tab_part_info->part_type == RANGE_PARTITION ||
-            tab_part_info->part_type == LIST_PARTITION) &&
+      if (!(tab_part_info->part_type == partition_type::RANGE ||
+            tab_part_info->part_type == partition_type::LIST) &&
            (num_parts_new != num_parts_reorged))
       {
         my_error(ER_REORG_HASH_ONLY_ON_SAME_NO, MYF(0));
@@ -5792,7 +5786,7 @@ the generated partition syntax in a correct manner.
         to reorganize into
       */
       if (alter_info->flags == Alter_info::ALTER_REORGANIZE_PARTITION &&
-          tab_part_info->part_type == RANGE_PARTITION &&
+          tab_part_info->part_type == partition_type::RANGE &&
           ((is_last_partition_reorged &&
             (tab_part_info->column_list ?
              (tab_part_info->compare_column_values(
@@ -6981,8 +6975,8 @@ bool fast_alter_partition_table(THD *thd,
     }
   }
   else if ((alter_info->flags & Alter_info::ALTER_ADD_PARTITION) &&
-           (part_info->part_type == RANGE_PARTITION ||
-            part_info->part_type == LIST_PARTITION))
+           (part_info->part_type == partition_type::RANGE ||
+            part_info->part_type == partition_type::LIST))
   {
     /*
       ADD RANGE/LIST PARTITIONS
@@ -7356,8 +7350,8 @@ static void set_up_range_analysis_info(partition_info *part_info)
     partitioning
   */
   switch (part_info->part_type) {
-  case RANGE_PARTITION:
-  case LIST_PARTITION:
+  case partition_type::RANGE:
+  case partition_type::LIST:
     if (!part_info->column_list)
     {
       if (part_info->part_expr->get_monotonicity_info() != NON_MONOTONIC)
@@ -7656,12 +7650,12 @@ static int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
   get_col_endpoint_func  get_col_endpoint;
   DBUG_ENTER("get_part_iter_for_interval_cols_via_map");
 
-  if (part_info->part_type == RANGE_PARTITION)
+  if (part_info->part_type == partition_type::RANGE)
   {
     get_col_endpoint= get_partition_id_cols_range_for_endpoint;
     part_iter->get_next= get_next_partition_id_range;
   }
-  else if (part_info->part_type == LIST_PARTITION)
+  else if (part_info->part_type == partition_type::LIST)
   {
     get_col_endpoint= get_partition_id_cols_list_for_endpoint;
     part_iter->get_next= get_next_partition_id_list;
@@ -7686,11 +7680,11 @@ static int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
   }
   if (flags & NO_MAX_RANGE)
   {
-    if (part_info->part_type == RANGE_PARTITION)
+    if (part_info->part_type == partition_type::RANGE)
       part_iter->part_nums.end= part_info->num_parts;
     else /* LIST_PARTITION */
     {
-      DBUG_ASSERT(part_info->part_type == LIST_PARTITION);
+      DBUG_ASSERT(part_info->part_type == partition_type::LIST);
       part_iter->part_nums.end= part_info->num_list_values;
     }
   }
@@ -7768,7 +7762,7 @@ static int get_part_iter_for_interval_via_mapping(partition_info *part_info,
   (void)max_len;
   part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
 
-  if (part_info->part_type == RANGE_PARTITION)
+  if (part_info->part_type == partition_type::RANGE)
   {
     if (part_info->part_charset_field_array)
       get_endpoint=        get_partition_id_range_for_endpoint_charset;
@@ -7777,7 +7771,7 @@ static int get_part_iter_for_interval_via_mapping(partition_info *part_info,
     max_endpoint_val=    part_info->num_parts;
     part_iter->get_next= get_next_partition_id_range;
   }
-  else if (part_info->part_type == LIST_PARTITION)
+  else if (part_info->part_type == partition_type::LIST)
   {
 
     if (part_info->part_charset_field_array)
@@ -7806,7 +7800,7 @@ static int get_part_iter_for_interval_via_mapping(partition_info *part_info,
   can_match_multiple_values= (flags || !min_value || !max_value ||
                               memcmp(min_value, max_value, field_len));
   if (can_match_multiple_values &&
-      (part_info->part_type == RANGE_PARTITION ||
+      (part_info->part_type == partition_type::RANGE ||
        part_info->has_null_value))
   {
     /* Range scan on RANGE or LIST partitioned table */

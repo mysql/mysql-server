@@ -203,6 +203,11 @@ public:
       memset(ptr, 0, size);
     return ptr;
   }
+  template<typename T> T *alloc_typed()
+  {
+    void *m= alloc(sizeof(T));
+    return m == NULL ? NULL : new (m) T;
+  }
   inline char *mem_strdup(const char *str)
   { return strdup_root(mem_root,str); }
   inline char *strmake(const char *str, size_t size)
@@ -3768,7 +3773,7 @@ public:
   Session_tracker session_tracker;
   Session_sysvar_resource_manager session_sysvar_res_mgr;
 
-  void parse_error_at(const YYLTYPE &location, const char *s= NULL);
+  void syntax_error_at(const YYLTYPE &location, const char *s= NULL);
 
   /**
     Send name and type of result to client.

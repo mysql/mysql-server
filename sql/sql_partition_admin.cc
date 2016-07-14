@@ -43,7 +43,7 @@ bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd)
     referenced from this structure will be modified.
     @todo move these into constructor...
   */
-  HA_CREATE_INFO create_info(lex->create_info);
+  HA_CREATE_INFO create_info(*lex->create_info);
   Alter_info alter_info(lex->alter_info, thd->mem_root);
   ulong priv_needed= ALTER_ACL | DROP_ACL | INSERT_ACL | CREATE_ACL;
 

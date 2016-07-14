@@ -21,6 +21,7 @@
 #include "mem_root_array.h"
 
 class SELECT_LEX;
+class Table_ident;
 
 /**
   Base class for parse-time Item objects
@@ -206,10 +207,6 @@ Item_splocal* create_item_for_sp_var(THD *thd,
                                      const char *start,
                                      const char *end);
 
-bool setup_select_in_parentheses(SELECT_LEX *);
-void my_syntax_error(const char *s);
-
-
 bool find_sys_var_null_base(THD *thd, struct sys_var_with_base *tmp);
 bool set_system_variable(THD *thd, struct sys_var_with_base *tmp,
                          enum enum_var_type var_type, Item *val);
@@ -220,5 +217,10 @@ bool set_trigger_new_row(Parse_context *pc,
                          LEX_STRING expr_query);
 void sp_create_assignment_lex(THD *thd, const char *option_ptr);
 bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr);
+bool resolve_engine(THD *thd,
+                    const LEX_STRING &name,
+                    bool is_temp_table,
+                    bool strict,
+                    handlerton **ret);
 
 #endif /* PARSE_TREE_HELPERS_INCLUDED */

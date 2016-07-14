@@ -3252,14 +3252,6 @@ bool sp_head::reset_lex(THD *thd)
   sublex->set_sp_current_parsing_ctx(oldlex->get_sp_current_parsing_ctx());
   sublex->sp_lex_in_use= FALSE;
 
-  /* Reset type info. */
-
-  sublex->charset= NULL;
-  sublex->length= NULL;
-  sublex->dec= NULL;
-  sublex->interval_list.empty();
-  sublex->type= 0;
-
   /* Reset part of parser state which needs this. */
   thd->m_parser_state->m_yacc.reset_before_substatement();
 
@@ -3688,7 +3680,7 @@ bool sp_head::merge_table_list(THD *thd,
           return false;
         if (lex_for_tmp_check->sql_command == SQLCOM_CREATE_TABLE &&
             lex_for_tmp_check->query_tables == table &&
-            lex_for_tmp_check->create_info.options & HA_LEX_CREATE_TMP_TABLE)
+            lex_for_tmp_check->create_info->options & HA_LEX_CREATE_TMP_TABLE)
         {
           tab->temp= true;
           tab->qname.length= temp_table_key_length;
