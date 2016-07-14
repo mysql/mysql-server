@@ -21,11 +21,11 @@ ERROR HY000: Table 'tables' is read only
 drop table t3;
 ERROR 42S02: Unknown table 'test.t3'
 rename table t1 to t3;
-ERROR HY000: Table 'tables' is read only
+ERROR HY000: Error on rename of './test/t1' to './test/t3' (errno: 165 - Table is read only)
 truncate table t1;
 ERROR HY000: Table 't1' is read only
 create tablespace t1 add datafile 't1.ibd' Engine=InnoDB;
-ERROR HY000: Failed to create TABLESPACE t1
+ERROR HY000: Table 'tablespaces' is read only
 # restart
 drop table t1;
 show tables;
