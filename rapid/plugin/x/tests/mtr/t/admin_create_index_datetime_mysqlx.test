@@ -51,8 +51,11 @@ Mysqlx.Crud.Insert {
 
 
 -->callmacro Create_index "datetime"	false	"$.data.datetime"	"DATETIME"	false	0
--->callmacro Create_index	"time"	false	"$.data.time"	"TIME"	false	0
--->callmacro Create_index	"date"	false	"$.data.date"	"DATE"	false	0
+-->callmacro Create_index	"time"	false	"$.data.time"	"TIME"	true	0
+-->callmacro Create_index	"date"	true	"$.data.date"	"DATE"	false	0
+
+-->stmtsql SHOW INDEX FROM xtest.dt;
+-->recvresult Table Non_unique Key_name Column_name Null
 EOF
 
 
@@ -61,7 +64,6 @@ EOF
 --write_file $xtest_file_drop
 -->quiet
 ## Test data
-
 
 -->macro Drop_index  %INDEX%  %ERROR%
 -->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"dt", "name": %INDEX%}
@@ -76,12 +78,12 @@ EOF
 -->callmacro Drop_index	""	5013
 -->callmacro Drop_index	"timedate"	1091
 
+-->stmtsql SHOW INDEX FROM xtest.dt;
+-->recvresult Table Non_unique Key_name Column_name Null
 EOF
 
 --exec $MYSQLXTEST -uroot --password='' --file=$xtest_file_create 2>&1
-SHOW INDEX FROM xtest.dt;
 --exec $MYSQLXTEST -uroot --password='' --file=$xtest_file_drop 2>&1
-SHOW INDEX FROM xtest.dt;
 
 --remove_file $xtest_file_create
 --remove_file $xtest_file_drop
