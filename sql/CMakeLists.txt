@@ -503,17 +503,6 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 ENDIF()
 
 
-# Set -O1 on Solaris x86 to avoid exhausting virtual memory when
-# compiling
-IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_SYSTEM_NAME MATCHES "SunOS")
-  IF(CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-    ADD_COMPILE_FLAGS(
-      gis/srs/wkt_parser.cc
-      COMPILE_FLAGS "-O1"
-    )
-  ENDIF()
-ENDIF()
-
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 # See comments in filesort_compare-t.cc about __builtin_memcmp
 IF(HAVE_NO_BUILTIN_MEMCMP)
