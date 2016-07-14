@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -67,7 +67,7 @@ dict_index_add_col(
 	} else
 #endif /* !UNIV_LIBRARY */
 	{
-		col_name = dict_table_get_col_name(table, dict_col_get_no(col));
+		col_name = table->get_col_name(dict_col_get_no(col));
 	}
 
 	dict_mem_index_add_field(index, col_name, prefix_len);
@@ -113,31 +113,4 @@ dict_index_add_col(
 	if (!(col->prtype & DATA_NOT_NULL)) {
 		index->n_nullable++;
 	}
-}
-
-/**********************************************************************//**
-Returns a column's name.
-@return column name. NOTE: not guaranteed to stay valid if table is
-modified in any way (columns added, etc.). */
-const char*
-dict_table_get_col_name(
-/*====================*/
-	const dict_table_t*	table,	/*!< in: table */
-	ulint			col_nr)	/*!< in: column number */
-{
-	ulint		i;
-	const char*	s;
-
-	ut_ad(table);
-	ut_ad(col_nr < table->n_def);
-	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-
-	s = table->col_names;
-	if (s) {
-		for (i = 0; i < col_nr; i++) {
-			s += strlen(s) + 1;
-		}
-	}
-
-	return(s);
 }

@@ -572,8 +572,16 @@ trx_sys_create_rsegs(
 
 		for (i = 0; i < new_rsegs; ++i) {
 			space_id_t	space;
-			space = (n_spaces == 0) ? 0
-				: srv_undo_tablespace_ids[i % n_spaces];
+
+			/* Tablespace 0 is the system tablespace. All UNDO
+			log tablespaces start from 1. */
+
+			if (n_spaces > 0) {
+				space = static_cast<space_id_t>(
+					(i % n_spaces) + 1);
+			} else {
+				space = 0; /* System tablespace */
+			}
 
 			if (trx_rseg_create(space, 0) != NULL) {
 				++n_used;

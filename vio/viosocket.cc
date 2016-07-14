@@ -426,6 +426,26 @@ static void vio_wait_until_woken(Vio *vio)
     // Wait until the vio is woken up from poll.
   }
 }
+#elif defined HAVE_KQUEUE
+static const int WAKEUP_EVENT_ID= 0xFACEFEED;
+
+static void vio_wait_until_woken(Vio *vio)
+{
+  if (vio->kq_fd != -1)
+  {
+    struct kevent kev;
+
+    EV_SET(&kev, WAKEUP_EVENT_ID, EVFILT_USER, 0, NOTE_TRIGGER, 0, NULL);
+    int nev= kevent(vio->kq_fd, &kev, 1, nullptr, 0, nullptr);
+    if (nev != -1)
+    {
+      while (vio->kevent_wakeup_flag.test_and_set())
+      {
+        // Wait until the vio is woken up from kevent.
+      }
+    }
+  }
+}
 #endif
 
 
@@ -454,11 +474,21 @@ int vio_shutdown(Vio * vio)
       else
         perror("Error in pthread_kill");
     }
+#elif defined HAVE_KQUEUE
+    if (vio->kq_fd != -1 &&
+        vio->kevent_wakeup_flag.test_and_set())
+      vio_wait_until_woken(vio);
 #endif
 
     if (mysql_socket_close(vio->mysql_socket))
       r= -1;
+#ifdef HAVE_KQUEUE
+    if (vio->kq_fd == -1 || close(vio->kq_fd))
+      r= -1;
+    vio->kq_fd= -1;
+#endif
   }
+
   if (r)
   {
     DBUG_PRINT("vio_error", ("close() failed, error: %d",socket_errno));
@@ -783,7 +813,7 @@ static my_bool socket_peek_read(Vio *vio, uint *bytes)
   @retval  1  The requested I/O event has occurred.
 */
 
-#if !defined(_WIN32) && !defined(__APPLE__)
+#if !defined(_WIN32) && !defined(HAVE_KQUEUE)
 int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
 {
   int ret;
@@ -827,7 +857,7 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
   // Check if shutdown is in progress, if so return -1
   if (vio->poll_shutdown_flag.test_and_set())
     DBUG_RETURN(-1);
-  timespec ts= {timeout / 1000, (timeout % 1000) * 1000000};
+  timespec ts= { timeout / 1000, (timeout % 1000) * 1000000 };
 #endif
 
   /*
@@ -871,8 +901,7 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
   DBUG_RETURN(ret);
 }
 
-#else
-
+#elif defined(_WIN32)
 int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
 {
   int ret;
@@ -887,11 +916,6 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
 
   if (fd == INVALID_SOCKET)
     DBUG_RETURN(-1);
-
-#ifdef __APPLE__
-  if (fd >= FD_SETSIZE)
-    DBUG_RETURN(-1);
-#endif
 
   /* Convert the timeout, in milliseconds, to seconds and microseconds. */
   if (timeout >= 0)
@@ -935,13 +959,7 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
 
   /* Set error code to indicate a timeout error. */
   if (ret == 0)
-#if defined(_WIN32)
     WSASetLastError(SOCKET_ETIMEDOUT);
-#elif defined(__APPLE__)
-    errno= SOCKET_ETIMEDOUT;
-#else
-#error Oops...Wrong OS
-#endif
 
   /* Error or timeout? */
   if (ret <= 0)
@@ -967,8 +985,88 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
 
   DBUG_RETURN(ret);
 }
+#elif defined(HAVE_KQUEUE)
+int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
+{
+  int nev;
+  static const int MAX_EVENT= 2;
+  struct kevent kev_set[MAX_EVENT];
+  struct kevent kev_event[MAX_EVENT];
 
-#endif /* _WIN32 */
+  my_socket fd= mysql_socket_getfd(vio->mysql_socket);
+  MYSQL_SOCKET_WAIT_VARIABLES(locker, state) /* no ';' */
+  DBUG_ENTER("vio_io_wait");
+
+  if (vio->kq_fd == -1)
+    DBUG_RETURN(-1);
+
+  EV_SET(&kev_set[1], WAKEUP_EVENT_ID, EVFILT_USER,
+         EV_ADD | EV_ENABLE | EV_DISPATCH | EV_CLEAR, 0, 0, nullptr);
+  switch(event)
+  {
+  case VIO_IO_EVENT_READ:
+    EV_SET(&kev_set[0], fd, EVFILT_READ,
+           EV_ADD | EV_ENABLE | EV_DISPATCH | EV_CLEAR, 0, 0, nullptr);
+    break;
+  case VIO_IO_EVENT_WRITE:
+  case VIO_IO_EVENT_CONNECT:
+    EV_SET(&kev_set[0], fd, EVFILT_WRITE,
+           EV_ADD | EV_ENABLE | EV_DISPATCH | EV_CLEAR, 0, 0, nullptr);
+    break;
+  }
+  MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket, PSI_SOCKET_SELECT, 0);
+
+  timespec ts= { static_cast<long>(timeout / 1000),
+                 (static_cast<long>(timeout) % 1000) * 1000000 };
+
+  // Check if shutdown is in progress, if so return -1.
+  if (vio->kevent_wakeup_flag.test_and_set())
+    DBUG_RETURN(-1);
+
+  int retry_count= 0;
+  do
+  {
+    nev= kevent(vio->kq_fd, kev_set, MAX_EVENT, kev_event, MAX_EVENT,
+                timeout >= 0 ? &ts : nullptr);
+  } while(nev < 0 && vio_should_retry(vio)
+          && (retry_count++ < vio->retry_count));
+
+  vio->kevent_wakeup_flag.clear();
+
+  if (nev == -1)
+  {
+    // On error, -1 is returned.
+    DBUG_PRINT("error", ("kevent returned error %d\n",errno));
+  }
+  else if (nev == 0)
+  {
+    // Timeout in kevent.
+    errno= SOCKET_ETIMEDOUT;
+  }
+  else
+  {
+    for (int i= 0; i < nev; i++)
+    {
+      if (!(kev_event[i].flags & (EV_ERROR|EV_EOF)))
+      {
+       // Ensure that the requested I/O event has completed.
+       DBUG_ASSERT(event == VIO_IO_EVENT_READ ? kev_event[i].filter & EVFILT_READ:
+                    kev_event[i].filter & EVFILT_WRITE);
+      }
+
+      // Shutdown or kill in progress, indicate error.
+      if (kev_event[i].filter == EVFILT_USER)
+      {
+        nev= -1;
+        break;
+      }
+    }
+  }
+
+  MYSQL_END_SOCKET_WAIT(locker, 0);
+  DBUG_RETURN(nev);
+}
+#endif // HAVE_KQUEUE
 
 
 /**

@@ -22,6 +22,7 @@
 #include "logger.h"
 #include "keyring_memory.h"
 #include "buffer.h"
+#include "hash_to_buffer_serializer.h"
 
 namespace keyring {
 
@@ -29,43 +30,32 @@ class Buffered_file_io : public IKeyring_io
 {
 public:
   Buffered_file_io(ILogger *logger)
-    : eofTAG("EOF"),
-      file_version("Keyring file version:1.0"),
-      logger(logger)
+    : eofTAG("EOF")
+    , file_version("Keyring file version:1.0")
+    , logger(logger)
     , backup_exists(FALSE)
+    , memory_needed_for_buffer(0)
   {}
 
-  ~Buffered_file_io();
-
   my_bool init(std::string *keyring_filename);
-  my_bool open(std::string *keyring_filename);
-  void reserve_buffer(size_t memory_size);
-  my_bool close();
-  my_bool flush_to_backup();
-  /* Both attributes are unused */
-  my_bool flush_to_keyring(IKey *key = NULL, Flush_operation operation = STORE_KEY);
-  /**
-   * Writes key into the buffer
-   * @param key the key to be written to the buffer
-   * @return TRUE on success
-  */
-  my_bool operator<<(const IKey* key);
-  /**
-   * Reads key from the buffer
-   * @param key the key where memory from the buffer is going to be placed
-   * @return TRUE on success
-  */
-  my_bool operator>>(IKey **key);
+
+  my_bool flush_to_backup(ISerialized_object *serialized_object);
+  my_bool flush_to_storage(ISerialized_object *serialized_object);
+
+  ISerializer* get_serializer();
+  my_bool get_serialized_object(ISerialized_object **serialized_object);
+  my_bool has_next_serialized_object();
 protected:
-  Buffer buffer;
+  virtual my_bool remove_backup();
 private:
   my_bool recreate_keyring_from_backup_if_backup_exists();
 
   std::string* get_backup_filename();
-  my_bool remove_backup();
   my_bool open_backup_file(File *backup_file);
-  my_bool load_keyring_into_input_buffer(File file);
-  my_bool flush_to_file(PSI_file_key *file_key, const std::string* filename);
+  my_bool load_file_into_buffer(File file, Buffer *buffer);
+  my_bool flush_buffer_to_storage(Buffer *buffer);
+  my_bool flush_buffer_to_file(Buffer *buffer, PSI_file_key *file_key,
+                               const std::string* filename);
   inline my_bool check_file_structure(File file, size_t file_size);
   my_bool is_file_tag_correct(File file);
   my_bool is_file_version_correct(File file);
@@ -76,6 +66,8 @@ private:
   const std::string file_version;
   ILogger *logger;
   my_bool backup_exists;
+  Hash_to_buffer_serializer hash_to_buffer_serializer;
+  size_t memory_needed_for_buffer;
 };
 
 }//namespace keyring

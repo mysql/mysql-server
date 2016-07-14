@@ -144,16 +144,16 @@ protected:
   double m_null_values_fraction;
 
   /// String representation of the JSON field "buckets".
-  static constexpr const char *BUCKETS_STR = "buckets";
+  static constexpr const char *buckets_str() { return "buckets"; }
 
   /// String representation of the JSON field "last-updated".
-  static constexpr const char *LAST_UPDATED_STR = "last-updated";
+  static constexpr const char *last_updated_str() { return "last-updated"; }
 
   /// String representation of the JSON field "histogram-type".
-  static constexpr const char *HISTOGRAM_TYPE_STR = "histogram-type";
+  static constexpr const char *histogram_type_str() { return "histogram-type"; }
 
   /// String representation of the JSON field "null-values".
-  static constexpr const char *NULL_VALUES_STR = "null-values";
+  static constexpr const char *null_values_str() {return "null-values"; }
 private:
   /// The MEM_ROOT where the histogram contents will be allocated.
   MEM_ROOT * const m_mem_root;

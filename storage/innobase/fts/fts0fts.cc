@@ -4513,7 +4513,7 @@ fts_sync_table(
 	ut_ad(table->fts);
 
 	if (!dict_table_is_discarded(table) && table->fts->cache
-	    && !dict_table_is_corrupted(table)) {
+	    && !table->is_corrupted()) {
 		err = fts_sync(table->fts->cache->sync,
 			       unlock_cache, wait, has_dict);
 	}
@@ -5556,8 +5556,7 @@ fts_update_doc_id(
 
 	if (error == DB_SUCCESS) {
 		dict_index_t*	clust_index;
-		dict_col_t*	col = dict_table_get_nth_col(
-			table, table->fts->doc_col);
+		dict_col_t*	col = table->get_col(table->fts->doc_col);
 
 		ufield->exp = NULL;
 
@@ -6614,7 +6613,7 @@ fts_check_corrupt_index(
 		if (index->id == aux_table->index_id) {
 			ut_ad(index->type & DICT_FTS);
 			dict_table_close(table, true, false);
-			return(dict_index_is_corrupted(index));
+			return(index->is_corrupted());
 		}
 	}
 
@@ -7332,7 +7331,7 @@ fts_valid_stopword_table(
 	} else {
 		const char*     col_name;
 
-		col_name = dict_table_get_col_name(table, 0);
+		col_name = table->get_col_name(0);
 
 		if (ut_strcmp(col_name, "value")) {
 			ib::error() << "Invalid column name for stopword"
@@ -7342,7 +7341,7 @@ fts_valid_stopword_table(
 			return(NULL);
 		}
 
-		col = dict_table_get_nth_col(table, 0);
+		col = table->get_col(0);
 
 		if (col->mtype != DATA_VARCHAR
 		    && col->mtype != DATA_VARMYSQL) {
@@ -7747,7 +7746,7 @@ fts_check_corrupt(
 
 		if (aux_table == NULL) {
 			dict_set_corrupted(base_table->first_index());
-			ut_ad(dict_table_is_corrupted(base_table));
+			ut_ad(base_table->is_corrupted());
 			sane = false;
 			continue;
 		}
@@ -7761,7 +7760,7 @@ fts_check_corrupt(
 			/* Check if auxillary table needed for FTS is sane. */
 			if (aux_table_index->page == FIL_NULL) {
 				dict_set_corrupted(base_table->first_index());
-				ut_ad(dict_table_is_corrupted(base_table));
+				ut_ad(base_table->is_corrupted());
 				sane = false;
 			}
 		}

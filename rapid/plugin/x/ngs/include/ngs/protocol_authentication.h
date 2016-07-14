@@ -29,7 +29,7 @@
 
 namespace ngs
 {
-  class Session;
+  class Session_interface;
   class Authentication_handler;
 
   typedef Custom_allocator<Authentication_handler>::Unique_ptr Authentication_handler_ptr;
@@ -54,7 +54,7 @@ namespace ngs
 
     virtual ~Authentication_handler() {}
 
-    typedef Authentication_handler_ptr (*create)(Session *session);
+    typedef Authentication_handler_ptr (*create)(Session_interface *session);
 
     virtual Response handle_start(const std::string &mechanism,
                                   const std::string &data,

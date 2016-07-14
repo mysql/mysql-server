@@ -74,6 +74,9 @@ bool check_string_char_length(const LEX_CSTRING &str, const char *err_msg,
                               bool no_error);
 const CHARSET_INFO* merge_charset_and_collation(const CHARSET_INFO *cs,
                                                 const CHARSET_INFO *cl);
+bool merge_sp_var_charset_and_collation(const CHARSET_INFO **to,
+                                        const CHARSET_INFO *cs,
+                                        const CHARSET_INFO *cl);
 bool check_host_name(const LEX_CSTRING &str);
 bool mysql_test_parse_for_slave(THD *thd);
 bool is_update_query(enum enum_sql_command command);
@@ -96,25 +99,14 @@ int append_file_to_dir(THD *thd, const char **filename_ptr,
                        const char *table_name);
 void execute_init_command(THD *thd, LEX_STRING *init_command,
                           mysql_rwlock_t *var_lock);
-bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum enum_field_types type,
-		       char *length, char *decimal,
-		       uint type_modifier,
-		       Item *default_value, Item *on_update_value,
-		       LEX_STRING *comment,
-		       char *change, List<String> *interval_list,
-		       const CHARSET_INFO *cs,
-		       uint uint_geom_type,
-                       Generated_column *gcol_info);
 void add_to_list(SQL_I_List<ORDER> &list, ORDER *order);
 void add_join_on(TABLE_LIST *b,Item *expr);
 bool push_new_name_resolution_context(Parse_context *pc,
                                       TABLE_LIST *left_op,
                                       TABLE_LIST *right_op);
-void store_position_for_column(const char *name);
 void init_update_queries(void);
 Item *negate_expression(Parse_context *pc, Item *expr);
-extern "C" bool check_stack_overrun(const THD *thd,
-                                    long margin, uchar *dummy);
+const CHARSET_INFO *get_bin_collation(const CHARSET_INFO *cs);
 void killall_non_super_threads(THD *thd);
 bool shutdown(THD *thd, enum mysql_enum_shutdown_level level);
 

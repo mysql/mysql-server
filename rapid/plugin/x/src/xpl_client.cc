@@ -18,7 +18,6 @@
  */
 
 #include "xpl_server.h"
-#include "xpl_client.h"
 #include "xpl_session.h"
 #include "mysql_show_variable_wrapper.h"
 
@@ -30,13 +29,17 @@
 
 #include <boost/make_shared.hpp>
 #include <boost/algorithm/string/join.hpp>
-#include "xpl_plugin.h"
+#include "mysqlx_version.h"
 #include "mysql_variables.h"
+#include "xpl_client.h"
+
+// needed for ip_to_hostname(), should probably be turned into a service
+#include "hostname.h"
 
 
 using namespace xpl;
 
-Client::Client(ngs::Connection_ptr connection, ngs::IServer *server, Client_id client_id,
+Client::Client(ngs::Connection_ptr connection, ngs::Server_interface &server, Client_id client_id,
                Protocol_monitor *pmon)
 : ngs::Client(connection, server, client_id, *pmon),
   m_supports_expired_passwords(false),
@@ -53,17 +56,17 @@ Client::~Client()
 }
 
 
-void Client::on_session_close(ngs::Session *s)
+void Client::on_session_close(ngs::Session_interface &s)
 {
   ngs::Client::on_session_close(s);
-  if (s->state_before_close() != ngs::Session::Authenticating)
+  if (s.state_before_close() != ngs::Session_interface::Authenticating)
   {
     Global_status_variables::instance().increment_closed_sessions_count();
   }
 }
 
 
-void Client::on_session_reset(ngs::Session *s)
+void Client::on_session_reset(ngs::Session_interface &s)
 {
   ngs::Client::on_session_reset(s);
 }
@@ -85,8 +88,8 @@ ngs::Capabilities_configurator *Client::capabilities_configurator()
 
   // add our capabilities
   caps->add_handler(boost::make_shared<ngs::Capability_readonly_value>("node_type", "mysql"));
-  caps->add_handler(boost::make_shared<ngs::Capability_readonly_value>("plugin.version", XPL_PLUGIN_VERSION_STRING));
-  caps->add_handler(boost::make_shared<Cap_handles_expired_passwords>(boost::static_pointer_cast<xpl::Client>(shared_from_this())));
+  caps->add_handler(boost::make_shared<ngs::Capability_readonly_value>("plugin.version", MYSQLX_PLUGIN_VERSION_STRING));
+  caps->add_handler(boost::make_shared<Cap_handles_expired_passwords>(boost::ref(*this)));
 
   return caps;
 }
@@ -125,7 +128,7 @@ void Client::on_network_error(int error)
 
 void Client::on_server_shutdown()
 {
-  boost::shared_ptr<ngs::Session> local_copy = m_session;
+  boost::shared_ptr<ngs::Session_interface> local_copy = m_session;
 
   if (local_copy)
     local_copy->on_kill();
@@ -144,9 +147,9 @@ void Client::on_auth_timeout()
 
 bool Client::is_handler_thd(THD *thd)
 {
-  boost::shared_ptr<xpl::Session> session = get_session();
+  boost::shared_ptr<ngs::Session_interface> session = this->session();
 
-  return thd && session && (session->data_context().get_thd() == thd);
+  return thd && session && (session->is_handled_by(thd));
 }
 
 
@@ -158,11 +161,40 @@ void Client::get_status_ssl_cipher_list(st_mysql_show_var * var)
 }
 
 
-void Client::post_activate_tls()
+std::string Client::resolve_hostname(const std::string &ip)
 {
-  boost::shared_ptr<Session> session = get_session();
-  if (session)
-    session->data_context().set_connection_type(connection().options()->active_tls());
+  std::string result;
+
+  my_socket socket = m_connection->get_socket_id();
+  struct sockaddr_storage addr_storage;
+  struct sockaddr *addr= (struct sockaddr *) &addr_storage;
+  socket_len_t addr_length= sizeof (addr_storage);
+
+  /* Get sockaddr by socked fd. */
+
+  const int err_code = getpeername(socket, addr, &addr_length);
+
+  if (err_code)
+  {
+    log_error("getpeername failed with error: %i", err_code);
+    return "";
+  }
+
+  char *hostname = NULL;
+  uint connect_errors = 0;
+  const int resolve_result = ip_to_hostname(&addr_storage, ip.c_str(), &hostname, &connect_errors);
+
+  if (RC_BLOCKED_HOST == resolve_result)
+  {
+    throw std::runtime_error("Host is blocked");
+  }
+
+  result = hostname;
+
+  if (!is_localhost(hostname))
+    my_free(hostname);
+
+  return result;
 }
 
 

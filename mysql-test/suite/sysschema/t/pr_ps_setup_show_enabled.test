@@ -24,7 +24,7 @@ UPDATE performance_schema.setup_consumers
 UPDATE performance_schema.threads
    SET INSTRUMENTED = 'NO'
  WHERE NAME LIKE 'thread/innodb/srv\_%'
-    OR NAME LIKE '%con_sockets%'
+    OR NAME LIKE '%con\_%'
     OR NAME LIKE '%signal_handler%';
 
 # Show limited info (no thread or instrument info)

@@ -40,14 +40,4 @@ dict_index_add_col(
 	dict_col_t*		col,		/*!< in: column */
 	ulint			prefix_len);	/*!< in: column prefix length */
 
-/**********************************************************************//**
-Returns a column's name.
-@return column name. NOTE: not guaranteed to stay valid if table is
-modified in any way (columns added, etc.). */
-const char*
-dict_table_get_col_name(
-/*====================*/
-	const dict_table_t*	table,	/*!< in: table */
-	ulint			col_nr)	/*!< in: column number */
-	MY_ATTRIBUTE((warn_unused_result));
 #endif

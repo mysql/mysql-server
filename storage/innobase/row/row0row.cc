@@ -75,7 +75,7 @@ row_build_index_entry_low(
 
 	entry_len = dict_index_get_n_fields(index);
 
-	if (flag == ROW_BUILD_FOR_INSERT && dict_index_is_clust(index)) {
+	if (flag == ROW_BUILD_FOR_INSERT && index->is_clustered()) {
 		num_v = dict_table_get_n_v_cols(index->table);
 		entry = dtuple_create_with_vcol(heap, entry_len, num_v);
 	} else {
@@ -102,7 +102,7 @@ row_build_index_entry_low(
 
 		if (i >= entry_len) {
 			/* This is to insert new rows to cluster index */
-			ut_ad(dict_index_is_clust(index)
+			ut_ad(index->is_clustered()
 			      && flag == ROW_BUILD_FOR_INSERT);
 			dfield = dtuple_get_nth_v_field(entry, i - entry_len);
 			col = &dict_table_get_nth_v_col(
@@ -142,7 +142,7 @@ row_build_index_entry_low(
 
 #ifdef UNIV_DEBUG
 		if (dfield_get_type(dfield2)->prtype & DATA_VIRTUAL
-		    && dict_index_is_clust(index)) {
+		    && index->is_clustered()) {
 			ut_ad(flag == ROW_BUILD_FOR_INSERT);
 		}
 #endif /* UNIV_DEBUG */
@@ -277,7 +277,7 @@ row_build_index_entry_low(
 
 		if ((!ind_field || ind_field->prefix_len == 0)
 		    && (!dfield_is_ext(dfield)
-			|| dict_index_is_clust(index))) {
+			|| index->is_clustered())) {
 			/* The dfield_copy() above suffices for
 			columns that are stored in-page, or for
 			clustered index record columns that are not
@@ -396,7 +396,7 @@ row_build_low(
 	ut_ad(index != NULL);
 	ut_ad(rec != NULL);
 	ut_ad(heap != NULL);
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(!trx_sys_mutex_own());
 	ut_ad(!col_map || col_table);
 
@@ -449,14 +449,14 @@ row_build_low(
 		ut_ad(col_map);
 		row = dtuple_copy(add_cols, heap);
 		/* dict_table_copy_types() would set the fields to NULL */
-		for (ulint i = 0; i < dict_table_get_n_cols(col_table); i++) {
+		for (ulint i = 0; i < col_table->get_n_cols(); i++) {
 			dict_col_copy_type(
-				dict_table_get_nth_col(col_table, i),
+				col_table->get_col(i),
 				dfield_get_type(dtuple_get_nth_field(row, i)));
 		}
 	} else if (add_v != NULL) {
 		row = dtuple_create_with_vcol(
-			heap, dict_table_get_n_cols(col_table),
+			heap, col_table->get_n_cols(),
 			dict_table_get_n_v_cols(col_table) + add_v->n_v_col);
 		dict_table_copy_types(row, col_table);
 
@@ -468,7 +468,7 @@ row_build_low(
 		}
 	} else {
 		row = dtuple_create_with_vcol(
-			heap, dict_table_get_n_cols(col_table),
+			heap, col_table->get_n_cols(),
 			dict_table_get_n_v_cols(col_table));
 		dict_table_copy_types(row, col_table);
 	}
@@ -516,7 +516,7 @@ row_build_low(
 		if (rec_offs_nth_extern(offsets, i)) {
 			dfield_set_ext(dfield);
 
-			col = dict_table_get_nth_col(col_table, col_no);
+			col = col_table->get_col(col_no);
 
 			if (col->ord_part) {
 				/* We will have to fetch prefixes of
@@ -791,7 +791,7 @@ row_build_row_ref(
 	ut_ad(index != NULL);
 	ut_ad(rec != NULL);
 	ut_ad(heap != NULL);
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 
 	offsets = rec_get_offsets(rec, index, offsets,
 				  ULINT_UNDEFINED, &tmp_heap);
@@ -898,7 +898,7 @@ row_build_row_ref_in_tuple(
 	ut_a(ref);
 	ut_a(index);
 	ut_a(rec);
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 	ut_a(index->table);
 
 	clust_index = index->table->first_index();
@@ -1022,7 +1022,7 @@ row_get_clust_rec(
 	ibool		found;
 	rec_t*		clust_rec;
 
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 
 	table = index->table;
 

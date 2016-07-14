@@ -230,7 +230,7 @@ page_zip_compress_write_log(
 	/* Multiply by uncompressed of size stored per record */
 	if (!page_is_leaf(page)) {
 		trailer_size *= PAGE_ZIP_DIR_SLOT_SIZE + REC_NODE_PTR_SIZE;
-	} else if (dict_index_is_clust(index)) {
+	} else if (index->is_clustered()) {
 		trailer_size *= PAGE_ZIP_DIR_SLOT_SIZE
 			+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
 	} else {
@@ -289,7 +289,7 @@ page_zip_get_n_prev_extern(
 	ut_ad(page_is_leaf(page));
 	ut_ad(page_is_comp(page));
 	ut_ad(dict_table_is_comp(index->table));
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(!dict_index_is_ibuf(index));
 
 	heap_no = rec_get_heap_no_new(rec);
@@ -952,7 +952,7 @@ page_zip_compress_clust(
 		For each externally stored column, store the
 		BTR_EXTERN_FIELD_REF separately. */
 		if (rec_offs_any_extern(offsets)) {
-			ut_ad(dict_index_is_clust(index));
+			ut_ad(index->is_clustered());
 
 			err = page_zip_compress_clust_ext(
 				LOGFILE
@@ -1187,7 +1187,7 @@ page_zip_compress(
 
 	/* Dense page directory and uncompressed columns, if any */
 	if (page_is_leaf(page)) {
-		if (dict_index_is_clust(index)) {
+		if (index->is_clustered()) {
 			trx_id_col = dict_index_get_sys_col_pos(
 				index, DATA_TRX_ID);
 			ut_ad(trx_id_col > 0);
@@ -1801,7 +1801,7 @@ page_zip_write_rec_ext(
 			src = rec_get_nth_field(rec, offsets,
 						i, &len);
 
-			ut_ad(dict_index_is_clust(index));
+			ut_ad(index->is_clustered());
 			ut_ad(len
 			      >= BTR_EXTERN_FIELD_REF_SIZE);
 			src += len - BTR_EXTERN_FIELD_REF_SIZE;
@@ -1917,7 +1917,7 @@ page_zip_write_rec(
 	if (page_is_leaf(page)) {
 		ulint		len;
 
-		if (dict_index_is_clust(index)) {
+		if (index->is_clustered()) {
 			ulint		trx_id_col;
 
 			trx_id_col = dict_index_get_sys_col_pos(index,
@@ -2110,7 +2110,7 @@ page_zip_write_blob_ptr(
 	ut_ad(page_zip_header_cmp(page_zip, page));
 
 	ut_ad(page_is_leaf(page));
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 
 	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 	UNIV_MEM_ASSERT_RW(rec, rec_offs_data_size(offsets));
@@ -2409,14 +2409,13 @@ page_zip_clear_rec(
 		memset(field, 0, REC_NODE_PTR_SIZE);
 		memset(storage - (heap_no - 1) * REC_NODE_PTR_SIZE,
 		       0, REC_NODE_PTR_SIZE);
-	} else if (dict_index_is_clust(index)) {
+	} else if (index->is_clustered()) {
 		/* Clear trx_id and roll_ptr. On the compressed page,
 		there is an array of these fields immediately before the
 		dense page directory, at the very end of the page. */
 		const ulint	trx_id_pos
 			= dict_col_get_clust_pos(
-			dict_table_get_sys_col(
-				index->table, DATA_TRX_ID), index);
+				index->table->get_sys_col(DATA_TRX_ID), index);
 		storage	= page_zip_dir_start(page_zip);
 		field	= rec_get_nth_field(rec, offsets, trx_id_pos, &len);
 		ut_ad(len == DATA_TRX_ID_LEN);
@@ -2631,7 +2630,7 @@ page_zip_dir_delete(
 	The "owned" and "deleted" flags will be cleared. */
 	mach_write_to_2(slot_free, page_offset(rec));
 
-	if (!page_is_leaf(page) || !dict_index_is_clust(index)) {
+	if (!page_is_leaf(page) || !index->is_clustered()) {
 		ut_ad(!rec_offs_any_extern(offsets));
 		goto skip_blobs;
 	}
@@ -2676,7 +2675,7 @@ void
 page_zip_dir_add_slot(
 /*==================*/
 	page_zip_des_t*	page_zip,	/*!< in/out: compressed page */
-	ulint		is_clustered)	/*!< in: nonzero for clustered index,
+	bool		is_clustered)	/*!< in: nonzero for clustered index,
 					zero for others */
 {
 	ulint	n_dense;
@@ -2847,7 +2846,7 @@ page_zip_reorganize(
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(page_is_comp(page));
 	ut_ad(!dict_index_is_ibuf(index));
-	ut_ad(!dict_table_is_temporary(index->table));
+	ut_ad(!index->table->is_temporary());
 	/* Note that page_zip_validate(page_zip, page, index) may fail here. */
 	UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
 	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
@@ -2884,7 +2883,7 @@ page_zip_reorganize(
 	operate on same temp-table in parallel.
 	max_trx_id is use to track which all trxs wrote to the page
 	in parallel but in case of temp-table this can is not needed. */
-	if (!dict_index_is_clust(index)
+	if (!index->is_clustered()
 	    && page_is_leaf(temp_page)) {
 		/* Copy max trx id to recreated page */
 		trx_id_t	max_trx_id = page_get_max_trx_id(temp_page);
@@ -2929,7 +2928,7 @@ page_zip_copy_recs(
 	dict_index_t*		index,		/*!< in: index of the B-tree */
 	mtr_t*			mtr)		/*!< in: mini-transaction */
 {
-	ut_ad(!dict_table_is_temporary(index->table));
+	ut_ad(!index->table->is_temporary());
 	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(mtr_memo_contains_page(mtr, src, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(!dict_index_is_ibuf(index));
@@ -2943,12 +2942,12 @@ page_zip_copy_recs(
 	ut_a(page_zip_get_size(page_zip) == page_zip_get_size(src_zip));
 	if (UNIV_UNLIKELY(src_zip->n_blobs)) {
 		ut_a(page_is_leaf(src));
-		ut_a(dict_index_is_clust(index));
+		ut_a(index->is_clustered());
 	}
 
 	/* The PAGE_MAX_TRX_ID must be set on leaf pages of secondary
 	indexes.  It does not matter on other pages. */
-	ut_a(dict_index_is_clust(index)
+	ut_a(index->is_clustered()
 	     || !page_is_leaf(src)
 	     || page_get_max_trx_id(src));
 
@@ -2980,7 +2979,7 @@ page_zip_copy_recs(
 		memcpy(page_zip, src_zip, sizeof *page_zip);
 		page_zip->data = data;
 	}
-	ut_ad(page_zip_get_trailer_len(page_zip, dict_index_is_clust(index))
+	ut_ad(page_zip_get_trailer_len(page_zip, index->is_clustered())
 	      + page_zip->m_end < page_zip_get_size(page_zip));
 
 	if (!page_is_leaf(src)

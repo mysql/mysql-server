@@ -2998,13 +2998,20 @@ i_s_fts_deleted_generic_fill(
 		DBUG_RETURN(0);
 	}
 
+	/* Prevent DDL to drop fts aux tables. */
+	rw_lock_s_lock(dict_operation_lock);
+
 	user_table = dict_table_open_on_name(
 		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
+		rw_lock_s_unlock(dict_operation_lock);
+
 		DBUG_RETURN(0);
 	} else if (!dict_table_has_fts_index(user_table)) {
 		dict_table_close(user_table, FALSE, FALSE);
+
+		rw_lock_s_unlock(dict_operation_lock);
 
 		DBUG_RETURN(0);
 	}
@@ -3037,6 +3044,8 @@ i_s_fts_deleted_generic_fill(
 	fts_doc_ids_free(deleted);
 
 	dict_table_close(user_table, FALSE, FALSE);
+
+	rw_lock_s_unlock(dict_operation_lock);
 
 	DBUG_RETURN(0);
 }
@@ -3860,10 +3869,15 @@ i_s_fts_index_table_fill(
 		DBUG_RETURN(0);
 	}
 
+	/* Prevent DDL to drop fts aux tables. */
+	rw_lock_s_lock(dict_operation_lock);
+
 	user_table = dict_table_open_on_name(
 		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
+		rw_lock_s_unlock(dict_operation_lock);
+
 		DBUG_RETURN(0);
 	}
 
@@ -3875,6 +3889,8 @@ i_s_fts_index_table_fill(
 	}
 
 	dict_table_close(user_table, FALSE, FALSE);
+
+	rw_lock_s_unlock(dict_operation_lock);
 
 	DBUG_RETURN(0);
 }
@@ -4015,13 +4031,20 @@ i_s_fts_config_fill(
 
 	fields = table->field;
 
+	/* Prevent DDL to drop fts aux tables. */
+	rw_lock_s_lock(dict_operation_lock);
+
 	user_table = dict_table_open_on_name(
 		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
+		rw_lock_s_unlock(dict_operation_lock);
+
 		DBUG_RETURN(0);
 	} else if (!dict_table_has_fts_index(user_table)) {
 		dict_table_close(user_table, FALSE, FALSE);
+
+		rw_lock_s_unlock(dict_operation_lock);
 
 		DBUG_RETURN(0);
 	}
@@ -4077,6 +4100,8 @@ i_s_fts_config_fill(
 	trx_free_for_background(trx);
 
 	dict_table_close(user_table, FALSE, FALSE);
+
+	rw_lock_s_unlock(dict_operation_lock);
 
 	DBUG_RETURN(0);
 }
@@ -4297,7 +4322,7 @@ i_s_innodb_temp_table_info_fill_table(
 	     table != NULL;
 	     table = UT_LIST_GET_NEXT(table_LRU, table)) {
 
-		if (!dict_table_is_temporary(table)) {
+		if (!table->is_temporary()) {
 			continue;
 		}
 
@@ -8839,7 +8864,7 @@ i_s_files_table_fill(
 			continue;
 		case FIL_TYPE_TABLESPACE:
 			if (!is_system_tablespace(space()->id)
-			    && srv_is_undo_tablespace(space()->id)) {
+			    && space()->id <= srv_undo_tablespaces_open) {
 				type = "UNDO LOG";
 				break;
 			} /* else fall through for TABLESPACE */

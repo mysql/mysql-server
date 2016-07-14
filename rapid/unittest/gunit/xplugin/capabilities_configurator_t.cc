@@ -88,13 +88,13 @@ public:
 
   static void expect_get_capability(Mock_ptr mock)
   {
-    EXPECT_CALL(*mock, get(_));
+    EXPECT_CALL(*mock, get_void(_));
   }
 
 
   static void expect_commit(Mock_ptr mock)
   {
-    EXPECT_CALL(*mock, commit());
+    EXPECT_CALL(*mock, commit_void());
   }
 
 

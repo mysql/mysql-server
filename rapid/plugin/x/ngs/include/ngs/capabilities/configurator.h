@@ -31,8 +31,7 @@
 namespace ngs
 {
 
-
-  class Client;
+  class Client_interface;
 
 
   class Capabilities_configurator

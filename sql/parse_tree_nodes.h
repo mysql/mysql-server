@@ -26,7 +26,54 @@
 #include "sql_parse.h"               // add_join_natural
 #include "sql_update.h"              // Sql_cmd_update
 #include "sql_admin.h"               // Sql_cmd_shutdown etc.
+#include "sql_cmd_ddl_table.h"       // Sql_cmd_create_table
+#include "mysqld.h"                  // table_alias_charset
 
+/**
+  @defgroup ptn  Parse tree nodes
+  @ingroup  Parser
+*/
+/**
+  @defgroup ptn_stmt  Nodes representing SQL statements
+  @ingroup  ptn
+*/
+/**
+  @defgroup ptn_create_table  CREATE TABLE statement
+  @ingroup  ptn_stmt
+*/
+/**
+  @defgroup ptn_alter_table  ALTER TABLE statement
+  @ingroup  ptn_stmt
+*/
+/**
+  @defgroup ptn_create_table_stuff  Clauses of CREATE TABLE statement
+  @ingroup  ptn_create_table
+*/
+/**
+  @defgroup ptn_partitioning CREATE/ALTER TABLE partitioning-related stuff
+  @ingroup  ptn_create_table ptn_alter_table
+*/
+/**
+  @defgroup ptn_part_options Partition options in CREATE/ALTER TABLE
+  @ingroup  ptn_partitioning
+*/
+/**
+  @defgroup ptn_create_or_alter_table_options  Table options of CREATE/ALTER TABLE
+  @anchor   ptn_create_or_alter_table_options
+  @ingroup  ptn_create_table ptn_alter_table
+*/
+/**
+  @defgroup ptn_col_types  Column types in CREATE/ALTER TABLE
+  @ingroup  ptn_create_table ptn_alter_table
+*/
+/**
+  @defgroup ptn_col_attrs  Column attributes in CREATE/ALTER TABLE
+  @ingroup  ptn_create_table ptn_alter_table
+*/
+/**
+  @defgroup ptn_not_gcol_attr Non-generated column attributes in CREATE/ALTER TABLE
+  @ingroup ptn_col_attrs ptn_alter_table
+*/
 
 /**
   Calls contextualize() on every node in the array.
@@ -45,6 +92,11 @@ bool contextualize_nodes(Mem_root_array_YY<Node_type *> nodes,
 template<enum_parsing_context Context> class PTI_context;
 
 
+/**
+  Base class for all top-level nodes of SQL statements
+
+  @ingroup ptn_stmt
+*/
 class PT_statement : public Parse_tree_node
 {
 public:
@@ -1929,6 +1981,11 @@ private:
 };
 
 
+/**
+  Top-level node for the DELETE statement
+
+  @ingroup ptn_stmt
+*/
 class PT_delete : public PT_statement
 {
   typedef PT_statement super;
@@ -1996,6 +2053,11 @@ private:
 };
 
 
+/**
+  Top-level node for the UPDATE statement
+
+  @ingroup ptn_stmt
+*/
 class PT_update : public PT_statement
 {
   typedef PT_statement super;
@@ -2058,6 +2120,11 @@ public:
 };
 
 
+/**
+  Top-level node for the INSERT statement
+
+  @ingroup ptn_stmt
+*/
 class PT_insert : public PT_statement
 {
   typedef PT_statement super;
@@ -2120,6 +2187,11 @@ private:
 };
 
 
+/**
+  Top-level node for the SHUTDOWN statement
+
+  @ingroup ptn_stmt
+*/
 class PT_shutdown : public PT_statement
 {
   Sql_cmd_shutdown sql_cmd;
@@ -2129,6 +2201,64 @@ public:
 };
 
 
+class PT_field_ident : public Parse_tree_node
+{
+public:
+  const LEX_STRING field_name;
+
+public:
+  explicit PT_field_ident(const LEX_STRING &field_name)
+  : field_name(field_name)
+  {}
+};
+
+
+class PT_field_ident_3d : public PT_field_ident
+{
+  typedef PT_field_ident super;
+
+  const char *db_name;
+  const char *table_name;
+
+public:
+  PT_field_ident_3d(const LEX_STRING &db_name,
+                    const LEX_STRING &table_name,
+                    const LEX_STRING &field_name)
+  : super(field_name), db_name(db_name.str), table_name(table_name.str)
+  {}
+
+  PT_field_ident_3d(const LEX_STRING &table_name,
+                    const LEX_STRING &field_name)
+  : super(field_name), db_name(NULL), table_name(table_name.str)
+  {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc))
+      return true;
+
+    TABLE_LIST *table= pc->select->table_list.first;
+
+    if (db_name && my_strcasecmp(table_alias_charset, db_name, table->db))
+    {
+      my_error(ER_WRONG_DB_NAME, MYF(0), db_name);
+      return true;
+    }
+    if (my_strcasecmp(table_alias_charset, table_name, table->table_name))
+    {
+      my_error(ER_WRONG_TABLE_NAME, MYF(0), table_name);
+      return true;
+    }
+    return false;
+  }
+};
+
+
+/**
+  Top-level node for the ALTER INSTANCE statement
+
+  @ingroup ptn_stmt
+*/
 class PT_alter_instance : public PT_statement
 {
   typedef PT_statement super;
@@ -2198,7 +2328,7 @@ PT_requested_lock;
   thd->lex->key_create_info.
 
   @tparam Option_type The data type of the option.
-  @tparam Property Pointer-to-member for the option om KEY_CREATE_INFO.
+  @tparam Property Pointer-to-member for the option of KEY_CREATE_INFO.
 */
 template<typename Option_type, Option_type KEY_CREATE_INFO::*Property>
 class PT_index_option : public PT_base_index_option
@@ -2273,14 +2403,32 @@ class PT_index_definition_stmt : public PT_index_definition
 {
 public:
   PT_index_definition_stmt(keytype type_par,
-                           const LEX_STRING name_arg,
+                           const LEX_STRING &name_arg,
                            PT_base_index_option *type,
                            Table_ident *table_ident,
                            List<Key_part_spec> *cols,
                            Index_options options,
                            Index_options lock_and_algorithm_options)
     : m_keytype(type_par),
+      m_field_ident(NULL),
       m_name(name_arg),
+      m_type(type),
+      m_table_ident(table_ident),
+      m_columns(cols),
+      m_options(options),
+      m_lock_and_algorithm_options(lock_and_algorithm_options)
+  {}
+
+  PT_index_definition_stmt(keytype type_par,
+                           PT_field_ident *field_ident,
+                           PT_base_index_option *type,
+                           Table_ident *table_ident,
+                           List<Key_part_spec> *cols,
+                           Index_options options,
+                           Index_options lock_and_algorithm_options)
+    : m_keytype(type_par),
+      m_field_ident(field_ident),
+      m_name({0, 0}),
       m_type(type),
       m_table_ident(table_ident),
       m_columns(cols),
@@ -2292,7 +2440,8 @@ public:
 
 private:
   keytype m_keytype;
-  const LEX_STRING m_name;
+  PT_field_ident *m_field_ident;
+  LEX_STRING m_name;
   PT_base_index_option *m_type;
   Table_ident *m_table_ident;
   List<Key_part_spec> *m_columns;
@@ -2301,13 +2450,22 @@ private:
 };
 
 
-class PT_table_constraint_def : public Parse_tree_node {};
+/**
+  Base class for column/constraint definitions in CREATE %TABLE
+
+  @ingroup ptn_create_table_stuff
+*/
+class PT_table_element : public Parse_tree_node {};
+
+class PT_table_constraint_def : public PT_table_element {};
 
 class PT_inline_index_definition : public PT_table_constraint_def
 {
+  typedef PT_table_constraint_def super;
+
 public:
   PT_inline_index_definition(keytype type_par,
-                             const LEX_STRING name_arg,
+                             PT_field_ident *name_arg,
                              PT_base_index_option *type,
                              List<Key_part_spec> *cols,
                              Index_options options)
@@ -2322,7 +2480,7 @@ public:
 
 private:
   keytype m_keytype;
-  const LEX_STRING m_name;
+  PT_field_ident *m_name;
   PT_base_index_option *m_type;
   List<Key_part_spec> *m_columns;
   Index_options m_options;
@@ -2331,25 +2489,595 @@ private:
 
 class PT_foreign_key_definition : public PT_table_constraint_def
 {
+  typedef PT_table_constraint_def super;
+
 public:
-  PT_foreign_key_definition(const LEX_STRING constraint_name,
-                            const LEX_STRING key_name,
+  PT_foreign_key_definition(PT_field_ident *constraint_name,
+                            PT_field_ident *key_name,
                             List<Key_part_spec> *columns,
-                            Table_ident *referenced_table)
+                            Table_ident *referenced_table,
+                            List<Key_part_spec> *ref_list,
+                            fk_match_opt fk_match_option,
+                            fk_option fk_update_opt,
+                            fk_option fk_delete_opt)
     : m_constraint_name(constraint_name),
       m_key_name(key_name),
       m_columns(columns),
-      m_referenced_table(referenced_table)
+      m_referenced_table(referenced_table),
+      m_ref_list(ref_list),
+      m_fk_match_option(fk_match_option),
+      m_fk_update_opt(fk_update_opt),
+      m_fk_delete_opt(fk_delete_opt)
   {}
 
  bool contextualize(Parse_context *pc);
 
 private:
-  const LEX_STRING m_constraint_name;
-  const LEX_STRING m_key_name;
+  PT_field_ident *m_constraint_name;
+  PT_field_ident *m_key_name;
   List<Key_part_spec> *m_columns;
   Table_ident *m_referenced_table;
+  List<Key_part_spec> *m_ref_list;
+  fk_match_opt m_fk_match_option;
+  fk_option m_fk_update_opt;
+  fk_option m_fk_delete_opt;
 };
 
+
+/**
+  Base class for CREATE TABLE option nodes
+
+  @ingroup ptn_create_or_alter_table_options
+*/
+class PT_create_table_option : public Parse_tree_node {};
+
+
+/**
+  A template for options that set a single property in HA_CREATE_INFO, and
+  also records if the option was explicitly set.
+*/
+template<typename Option_type, Option_type HA_CREATE_INFO::*Property,
+         ulong Property_flag>
+class PT_traceable_create_table_option : public PT_create_table_option
+{
+  typedef PT_create_table_option super;
+
+  const Option_type value;
+
+public:
+  explicit PT_traceable_create_table_option(Option_type value)
+  : value(value)
+  {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc))
+      return true;
+    pc->thd->lex->create_info->*Property= value;
+    pc->thd->lex->create_info->used_fields|= Property_flag;
+    return false;
+  }
+};
+
+
+#define TYPE_AND_REF(x) decltype(x), &x
+
+
+/**
+  Node for the @SQL{MAX_ROWS [=] @B{@<integer@>}} table option
+  
+  @ingroup ptn_create_or_alter_table_options
+*/
+typedef PT_traceable_create_table_option<TYPE_AND_REF(HA_CREATE_INFO::max_rows),
+                                         HA_CREATE_USED_MAX_ROWS>
+        PT_create_max_rows_option;
+
+
+/**
+  Node for the @SQL{MIN_ROWS [=] @B{@<integer@>}} table option
+  
+  @ingroup ptn_create_or_alter_table_options
+*/
+typedef PT_traceable_create_table_option<TYPE_AND_REF(HA_CREATE_INFO::min_rows),
+                                         HA_CREATE_USED_MIN_ROWS>
+        PT_create_min_rows_option;
+
+
+/**
+  Node for the @SQL{AVG_ROW_LENGTH_ROWS [=] @B{@<integer@>}} table option
+  
+  @ingroup ptn_create_or_alter_table_options
+*/
+typedef PT_traceable_create_table_option<TYPE_AND_REF(HA_CREATE_INFO::avg_row_length),
+                                         HA_CREATE_USED_AVG_ROW_LENGTH>
+        PT_create_avg_row_length_option;
+
+
+/**
+  Node for the @SQL{PASSWORD [=] @B{@<string@>}} table option
+  
+  @ingroup ptn_create_or_alter_table_options
+*/
+typedef PT_traceable_create_table_option<TYPE_AND_REF(HA_CREATE_INFO::password),
+                                         HA_CREATE_USED_PASSWORD>
+        PT_create_password_option;
+
+
+/**
+  Node for the @SQL{COMMENT [=] @B{@<string@>}} table option
+  
+  @ingroup ptn_create_or_alter_table_options
+*/
+typedef PT_traceable_create_table_option<TYPE_AND_REF(HA_CREATE_INFO::comment),
+                                         HA_CREATE_USED_COMMENT>
+        PT_create_commen_option;
+
+
+/**
+  Node for the @SQL{COMPRESSION [=] @B{@<string@>}} table option
+  
+  @ingroup ptn_create_or_alter_table_options
+*/
+typedef PT_traceable_create_table_option<TYPE_AND_REF(HA_CREATE_INFO::compress),
+                                         HA_CREATE_USED_COMPRESS>
+        PT_create_compress_option;
+
+
+/**
+  Node for the @SQL{ENGRYPTION [=] @B{@<string@>}} table option
+  
+  @ingroup ptn_create_or_alter_table_options
+*/
+typedef PT_traceable_create_table_option<TYPE_AND_REF(HA_CREATE_INFO::encrypt_type),
+                                         HA_CREATE_USED_ENCRYPT>
+        PT_create_encryption_option;
+
+
+/**
+  Node for the @SQL{AUTO_INCREMENT [=] @B{@<integer@>}} table option
+  
+  @ingroup ptn_create_or_alter_table_options
+*/
+typedef PT_traceable_create_table_option<TYPE_AND_REF(HA_CREATE_INFO::auto_increment_value),
+                                         HA_CREATE_USED_AUTO>
+        PT_create_auto_increment_option;
+
+
+typedef PT_traceable_create_table_option<TYPE_AND_REF(HA_CREATE_INFO::row_type),
+                                         HA_CREATE_USED_ROW_FORMAT>
+        PT_create_row_format_option;
+
+
+typedef PT_traceable_create_table_option<TYPE_AND_REF(HA_CREATE_INFO::merge_insert_method),
+                                         HA_CREATE_USED_INSERT_METHOD>
+        PT_create_insert_method_option;
+
+
+typedef PT_traceable_create_table_option<TYPE_AND_REF(HA_CREATE_INFO::data_file_name),
+                                         HA_CREATE_USED_DATADIR>
+        PT_create_data_directory_option;
+
+
+typedef PT_traceable_create_table_option<TYPE_AND_REF(HA_CREATE_INFO::index_file_name),
+                                         HA_CREATE_USED_INDEXDIR>
+        PT_create_index_directory_option;
+
+
+typedef PT_traceable_create_table_option<TYPE_AND_REF(HA_CREATE_INFO::tablespace),
+                                         HA_CREATE_USED_TABLESPACE>
+        PT_create_tablespace_option;
+
+
+typedef PT_traceable_create_table_option<TYPE_AND_REF(HA_CREATE_INFO::connect_string),
+                                         HA_CREATE_USED_CONNECTION>
+        PT_create_connection_option;
+
+
+typedef PT_traceable_create_table_option<TYPE_AND_REF(HA_CREATE_INFO::key_block_size),
+                                         HA_CREATE_USED_KEY_BLOCK_SIZE>
+        PT_create_key_block_size_option;
+
+
+typedef decltype(HA_CREATE_INFO::table_options) table_options_t;
+
+
+/**
+  A template for options that set HA_CREATE_INFO::table_options and
+  also records if the option was explicitly set.
+*/
+template<ulong Property_flag,
+         table_options_t Default, table_options_t Yes, table_options_t No>
+class PT_ternary_create_table_option : public PT_create_table_option
+{
+  typedef PT_create_table_option super;
+
+  const Ternary_option value;
+
+public:
+  explicit PT_ternary_create_table_option(Ternary_option value)
+  : value(value)
+  {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc))
+      return true;
+    pc->thd->lex->create_info->table_options&= ~(Yes | No);
+    switch (value) {
+    case Ternary_option::ON:
+      pc->thd->lex->create_info->table_options|= Yes;
+      break;
+    case Ternary_option::OFF:
+      pc->thd->lex->create_info->table_options|= No;
+      break;
+    case Ternary_option::DEFAULT:
+      break;
+    default:
+      DBUG_ASSERT(false);
+    }
+    pc->thd->lex->create_info->used_fields|= Property_flag;
+    return false;
+  }
+};
+
+
+/**
+  Node for the @SQL{PACK_KEYS [=] @B{1|0|DEFAULT}} table option
+  
+  @ingroup ptn_create_or_alter_table_options
+
+  PACK_KEYS | Constructor parameter
+  ----------|----------------------
+  1         | Ternary_option::ON
+  0         | Ternary_option::OFF
+  DEFAULT   | Ternary_option::DEFAULT
+*/
+typedef PT_ternary_create_table_option<HA_CREATE_USED_PACK_KEYS, // flag
+                                       0,                        // DEFAULT
+                                       HA_OPTION_PACK_KEYS,      // ON
+                                       HA_OPTION_NO_PACK_KEYS>   // OFF
+        PT_create_pack_keys_option;
+
+
+/**
+  Node for the @SQL{STATS_PERSISTENT [=] @B{1|0|DEFAULT}} table option
+  
+  @ingroup ptn_create_or_alter_table_options
+
+  STATS_PERSISTENT | Constructor parameter
+  -----------------|----------------------
+  1                | Ternary_option::ON
+  0                | Ternary_option::OFF
+  DEFAULT          | Ternary_option::DEFAULT
+*/
+typedef PT_ternary_create_table_option<HA_CREATE_USED_STATS_PERSISTENT,  // flag
+                                       0,                             // DEFAULT
+                                       HA_OPTION_STATS_PERSISTENT,    // ON
+                                       HA_OPTION_NO_STATS_PERSISTENT> // OFF
+        PT_create_stats_persistent_option;
+
+
+/**
+  A template for options that set HA_CREATE_INFO::table_options and
+  also records if the option was explicitly set.
+*/
+template<ulong Property_flag, table_options_t Yes, table_options_t No>
+class PT_bool_create_table_option : public PT_create_table_option
+{
+  typedef PT_create_table_option super;
+
+  const bool value;
+
+public:
+  explicit PT_bool_create_table_option(bool value) : value(value) {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc))
+      return true;
+    pc->thd->lex->create_info->table_options&= ~(Yes | No);
+    pc->thd->lex->create_info->table_options|= value ? Yes : No;
+    pc->thd->lex->create_info->used_fields|= Property_flag;
+    return false;
+  }
+};
+
+
+/**
+  Node for the @SQL{CHECKSUM|TABLE_CHECKSUM [=] @B{0|@<not 0@>}} table option
+  
+  @ingroup ptn_create_or_alter_table_options
+
+  TABLE_CHECKSUM | Constructor parameter
+  ---------------|----------------------
+  0              | false
+  not 0          | true
+*/
+typedef PT_bool_create_table_option<HA_CREATE_USED_CHECKSUM, // flag
+                                    HA_OPTION_CHECKSUM,      // ON
+                                    HA_OPTION_NO_CHECKSUM    // OFF
+                                    >
+        PT_create_checksum_option;
+
+
+/**
+  Node for the @SQL{DELAY_KEY_WRITE [=] @B{0|@<not 0@>}} table option
+  
+  @ingroup ptn_create_or_alter_table_options
+
+  TABLE_CHECKSUM | Constructor parameter
+  ---------------|----------------------
+  0              | false
+  not 0          | true
+*/
+typedef PT_bool_create_table_option<HA_CREATE_USED_DELAY_KEY_WRITE, // flag
+                                    HA_OPTION_DELAY_KEY_WRITE,      // ON
+                                    HA_OPTION_NO_DELAY_KEY_WRITE>   // OFF
+        PT_create_delay_key_write_option;
+
+
+/**
+  Node for the @SQL{ENGINE [=] @B{@<identifier@>|@<string@>}} table option
+  
+  @ingroup ptn_create_or_alter_table_options
+*/
+class PT_create_table_engine_option : public PT_create_table_option
+{
+  typedef PT_create_table_option super;
+
+  const LEX_STRING engine;
+
+public:
+  /**
+    @param engine       Storage engine name.
+  */
+  explicit PT_create_table_engine_option(const LEX_STRING &engine)
+  : engine(engine)
+  {}
+
+  virtual bool contextualize(Parse_context *pc);
+};
+
+
+/**
+  Node for the @SQL{STATS_AUTO_RECALC [=] @B{@<0|1|DEFAULT@>})} table option
+  
+  @ingroup ptn_create_or_alter_table_options
+*/
+class PT_create_stats_auto_recalc_option : public PT_create_table_option
+{
+  typedef PT_create_table_option super;
+
+  const Ternary_option value;
+
+public:
+  /**
+    @param value
+      STATS_AUTO_RECALC | value
+      ------------------|----------------------
+      1                 | Ternary_option::ON
+      0                 | Ternary_option::OFF
+      DEFAULT           | Ternary_option::DEFAULT
+  */
+  PT_create_stats_auto_recalc_option(Ternary_option value) : value(value) {}
+
+  virtual bool contextualize(Parse_context *pc);
+};
+
+
+/**
+  Node for the @SQL{STATS_SAMPLE_PAGES [=] @B{@<integer@>|DEFAULT}} table option
+  
+  @ingroup ptn_create_or_alter_table_options
+*/
+class PT_create_stats_stable_pages : public PT_create_table_option
+{
+  typedef PT_create_table_option super;
+  typedef decltype(HA_CREATE_INFO::stats_sample_pages) value_t;
+
+  const value_t value;
+
+public:
+  /**
+    Constructor for implicit number of pages
+
+    @param value       Nunber of pages, 1@<=N@<=65535.
+  */
+  explicit PT_create_stats_stable_pages(value_t value) : value(value)
+  {
+    DBUG_ASSERT(value != 0 && value <= 0xFFFF);
+  }
+  /**
+    Constructor for the DEFAULT number of pages
+  */
+  PT_create_stats_stable_pages() : value(0) {} // DEFAULT
+
+  virtual bool contextualize(Parse_context *pc);
+};
+
+class PT_create_union_option : public PT_create_table_option
+{
+  typedef PT_create_table_option super;
+
+  const Trivial_array<Table_ident *> *tables;
+
+public:
+  explicit PT_create_union_option(const Trivial_array<Table_ident *> *tables)
+  : tables(tables)
+  {}
+
+  virtual bool contextualize(Parse_context *pc);
+};
+
+
+class PT_create_storage_option : public PT_create_table_option
+{
+  typedef PT_create_table_option super;
+
+  const ha_storage_media value;
+
+public:
+  explicit PT_create_storage_option(ha_storage_media value) : value(value) {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc))
+      return true;
+    pc->thd->lex->create_info->storage_media= value;
+    return false;
+  }
+};
+
+
+class PT_create_table_default_charset : public PT_create_table_option
+{
+  typedef PT_create_table_option super;
+
+  const CHARSET_INFO *value;
+
+public:
+  explicit PT_create_table_default_charset(const CHARSET_INFO *value)
+  : value(value)
+  {}
+
+  virtual bool contextualize(Parse_context *pc);
+};
+
+
+class PT_create_table_default_collation : public PT_create_table_option
+{
+  typedef PT_create_table_option super;
+
+  const CHARSET_INFO *value;
+
+public:
+  explicit PT_create_table_default_collation(const CHARSET_INFO *value)
+  : value(value)
+  {}
+
+  virtual bool contextualize(Parse_context *pc);
+};
+
+
+class PT_check_constraint : public PT_table_constraint_def
+{
+  typedef PT_table_constraint_def super;
+
+  Item *expr;
+
+public:
+  explicit PT_check_constraint(Item *expr) : expr(expr) {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    return super::contextualize(pc) && expr->itemize(pc, &expr);
+  }
+};
+
+
+class PT_column_def : public PT_table_element
+{
+  typedef Parse_tree_node super;
+
+  PT_field_ident *field_ident;
+  PT_field_def_base *field_def;
+
+  /// Currently we ignore that constraint in the executor.
+  PT_table_constraint_def *opt_column_constraint;
+
+public:
+  PT_column_def(PT_field_ident *field_ident,
+                PT_field_def_base *field_def,
+                PT_table_constraint_def *opt_column_constraint)
+  : field_ident(field_ident),
+    field_def(field_def),
+    opt_column_constraint(opt_column_constraint)
+  {}
+
+  virtual bool contextualize(Parse_context *pc);
+};
+
+
+/**
+  Top-level node for the CREATE %TABLE statement
+
+  @ingroup ptn_create_table
+*/
+class PT_create_table_stmt : public PT_statement
+{
+  typedef PT_statement super;
+
+  bool is_temporary;
+  bool only_if_not_exists;
+  Table_ident *table_name;
+  const Trivial_array<PT_table_element *> *opt_table_element_list;
+  const Trivial_array<PT_create_table_option *> *opt_create_table_options;
+  PT_partition *opt_partitioning;
+  On_duplicate on_duplicate;
+  PT_query_expression *opt_query_expression;
+  Table_ident *opt_like_clause;
+
+  Sql_cmd_create_table cmd;
+
+public:
+  /**
+    @param is_temporary               True if @SQL{CREATE @B{TEMPORARY} %TABLE}
+    @param only_if_not_exists  True if @SQL{CREATE %TABLE ... @B{IF NOT EXISTS}}
+    @param table_name                 @SQL{CREATE %TABLE ... @B{@<table name@>}}
+    @param opt_table_element_list     NULL or a list of table column and
+                                      constraint definitions.
+    @param opt_create_table_options   NULL or a list of
+                                      @ref ptn_create_or_alter_table_options
+                                      "table options".
+    @param opt_partitioning           NULL or the @SQL{PARTITION BY} clause.
+    @param on_duplicate               DUPLICATE, IGNORE or fail with an error
+                                      on data duplication errors (relevant
+                                      for @SQL{CREATE TABLE ... SELECT}
+                                      statements).
+    @param opt_query_expression       NULL or the @SQL{@B{SELECT}} clause.
+  */
+  PT_create_table_stmt(
+    bool is_temporary,
+    bool only_if_not_exists,
+    Table_ident *table_name,
+    const Trivial_array<PT_table_element *> *opt_table_element_list,
+    const Trivial_array<PT_create_table_option *> *opt_create_table_options,
+    PT_partition *opt_partitioning,
+    On_duplicate on_duplicate,
+    PT_query_expression *opt_query_expression)
+  : is_temporary(is_temporary),
+    only_if_not_exists(only_if_not_exists),
+    table_name(table_name),
+    opt_table_element_list(opt_table_element_list),
+    opt_create_table_options(opt_create_table_options),
+    opt_partitioning(opt_partitioning),
+    on_duplicate(on_duplicate),
+    opt_query_expression(opt_query_expression),
+    opt_like_clause(NULL)
+  {}
+  /**
+    @param is_temporary       True if @SQL{CREATE @B{TEMPORARY} %TABLE}.
+    @param only_if_not_exists True if @SQL{CREATE %TABLE ... @B{IF NOT EXISTS}}.
+    @param table_name         @SQL{CREATE %TABLE ... @B{@<table name@>}}.
+    @param opt_like_clause    NULL or the @SQL{@B{LIKE @<table name@>}} clause.
+  */
+  PT_create_table_stmt(bool is_temporary,
+                       bool only_if_not_exists,
+                       Table_ident *table_name,
+                       Table_ident *opt_like_clause)
+  : is_temporary(is_temporary),
+    only_if_not_exists(only_if_not_exists),
+    table_name(table_name),
+    opt_table_element_list(NULL),
+    opt_create_table_options(NULL),
+    opt_partitioning(NULL),
+    on_duplicate(On_duplicate::ERROR),
+    opt_query_expression(NULL),
+    opt_like_clause(opt_like_clause)
+  {}
+
+  virtual bool contextualize(Parse_context *pc);
+  virtual Sql_cmd *make_cmd(THD *thd);
+};
 
 #endif /* PARSE_TREE_NODES_INCLUDED */

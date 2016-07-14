@@ -160,7 +160,7 @@ dict_stats_should_ignore_index(
 	const dict_index_t*	index)	/*!< in: index */
 {
 	return((index->type & DICT_FTS)
-	       || dict_index_is_corrupted(index)
+	       || index->is_corrupted()
 	       || dict_index_is_spatial(index)
 	       || index->to_be_dropped
 	       || !index->is_committed());
@@ -701,7 +701,7 @@ dict_stats_update_transient_for_index(
 {
 	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO
 	    && (srv_force_recovery >= SRV_FORCE_NO_LOG_REDO
-		|| !dict_index_is_clust(index))) {
+		|| !index->is_clustered())) {
 		/* If we have set a high innodb_force_recovery
 		level, do not calculate statistics, as a badly
 		corrupted index can cause a crash in it.
@@ -710,7 +710,7 @@ dict_stats_update_transient_for_index(
 		various means, also via secondary indexes. */
 		dict_stats_empty_index(index);
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
-	} else if (ibuf_debug && !dict_index_is_clust(index)) {
+	} else if (ibuf_debug && !index->is_clustered()) {
 		dict_stats_empty_index(index);
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 	} else {
@@ -2078,7 +2078,7 @@ dict_stats_update_persistent(
 	index = table->first_index();
 
 	if (index == NULL
-	    || dict_index_is_corrupted(index)
+	    || index->is_corrupted()
 	    || (index->type | DICT_UNIQUE) != (DICT_CLUSTERED | DICT_UNIQUE)) {
 
 		/* Table definition is corrupt */

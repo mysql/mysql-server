@@ -21,11 +21,10 @@
 #define _CAP_HANDLES_EXPIRED_PASSWORDS_H_
 
 #include "ngs/capabilities/handler.h"
-#include "xpl_client.h"
-
 #include "ngs/mysqlx/getter_any.h"
 #include "ngs/mysqlx/setter_any.h"
 
+#include "xpl_client.h"
 #include "xpl_log.h"
 
 namespace xpl
@@ -34,10 +33,10 @@ namespace xpl
 class Cap_handles_expired_passwords : public ngs::Capability_handler
 {
 public:
-  Cap_handles_expired_passwords(boost::shared_ptr<xpl::Client> client)
+  Cap_handles_expired_passwords(xpl::Client &client)
   : m_client(client)
   {
-    m_value = m_client->supports_expired_passwords();
+    m_value = m_client.supports_expired_passwords();
   }
 
 private:
@@ -66,11 +65,11 @@ private:
 
   virtual void commit()
   {
-    m_client->set_supports_expired_passwords(m_value);
+    m_client.set_supports_expired_passwords(m_value);
   }
 
 private:
-  boost::shared_ptr<xpl::Client> m_client;
+  xpl::Client &m_client;
   bool m_value;
 };
 

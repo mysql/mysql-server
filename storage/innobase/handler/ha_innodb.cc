@@ -1636,7 +1636,7 @@ innobase_srv_conc_enter_innodb(
 	/* We rely on server to do external_lock(F_UNLCK) to reset the
 	srv_conc.n_active counter. Since there are no locks on instrinsic
 	tables, we should skip this for intrinsic temporary tables. */
-	if (dict_table_is_intrinsic(prebuilt->table)) {
+	if (prebuilt->table->is_intrinsic()) {
 		return;
 	}
 
@@ -1674,7 +1674,7 @@ innobase_srv_conc_exit_innodb(
 	/* We rely on server to do external_lock(F_UNLCK) to reset the
 	srv_conc.n_active counter. Since there are no locks on instrinsic
 	tables, we should skip this for intrinsic temporary tables. */
-	if (dict_table_is_intrinsic(prebuilt->table)) {
+	if (prebuilt->table->is_intrinsic()) {
 		return;
 	}
 
@@ -2853,7 +2853,7 @@ innobase_copy_frm_flags_from_create_info(
 	ibool	ps_on;
 	ibool	ps_off;
 
-	if (dict_table_is_temporary(innodb_table)) {
+	if (innodb_table->is_temporary()) {
 		/* Temp tables do not use persistent stats. */
 		ps_on = FALSE;
 		ps_off = TRUE;
@@ -2888,7 +2888,7 @@ innobase_copy_frm_flags_from_table_share(
 	ibool	ps_on;
 	ibool	ps_off;
 
-	if (dict_table_is_temporary(innodb_table)) {
+	if (innodb_table->is_temporary()) {
 		/* Temp tables do not use persistent stats */
 		ps_on = FALSE;
 		ps_off = TRUE;
@@ -2974,7 +2974,7 @@ ha_innobase::update_thd(
 
 	TrxInInnoDB	trx_in_innodb(trx);
 
-	ut_ad(dict_table_is_intrinsic(m_prebuilt->table)
+	ut_ad(m_prebuilt->table->is_intrinsic()
 	      || trx_in_innodb.is_aborted()
 	      || (trx->dict_operation_lock_mode == 0
 		  && trx->dict_operation == TRX_DICT_OP_NONE));
@@ -4221,6 +4221,9 @@ innodb_init(
 		DBUG_RETURN(innodb_init_abort());
 	}
 
+#ifdef _WIN32
+	ut_win_init_time();
+#endif /* _WIN32 */
 	DBUG_RETURN(0);
 }
 
@@ -5953,12 +5956,10 @@ innobase_build_v_templ(
 
 		/* Build template for base columns */
 		if (marker[j]) {
-			dict_col_t*   col = dict_table_get_nth_col(
-						ib_table, j);
+			dict_col_t*   col = ib_table->get_col(j);
 
 #ifdef UNIV_DEBUG
-			const char*	name = dict_table_get_col_name(
-						ib_table, j);
+			const char*	name = ib_table->get_col_name(j);
 
 			ut_ad(!ut_strcmp(name, field->field_name));
 #endif
@@ -6321,7 +6322,7 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 					   ignore_err);
 	} else {
 		ib_table->acquire();
-		ut_ad(dict_table_is_intrinsic(ib_table));
+		ut_ad(ib_table->is_intrinsic());
 	}
 
 	if (ib_table != NULL
@@ -6332,7 +6333,7 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 			!= dict_table_get_n_tot_u_cols(ib_table) - 1)))) {
 
 		ib::warn() << "Table " << norm_name << " contains "
-			<< dict_table_get_n_user_cols(ib_table) << " user"
+			<< ib_table->get_n_user_cols() << " user"
 			" defined columns in InnoDB, but " << table->s->fields
 			<< " columns in MySQL. Please check"
 			" INFORMATION_SCHEMA.INNODB_SYS_COLUMNS and " REFMAN
@@ -6522,7 +6523,7 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 			for (uint i = 0; i < table->s->keys; i++) {
 				dict_index_t*	index;
 				index = innobase_get_index(i);
-				if (dict_index_is_clust(index)) {
+				if (index->is_clustered()) {
 					ref_length =
 						 table->key_info[i].key_length;
 				}
@@ -7281,7 +7282,7 @@ build_template_field(
 		col = &dict_table_get_nth_v_col(index->table, v_no)->m_col;
 	} else {
 		templ->is_virtual = false;
-		col = dict_table_get_nth_col(index->table, i);
+		col = index->table->get_col(i);
 	}
 
 	if (!templ->is_virtual) {
@@ -7290,7 +7291,7 @@ build_template_field(
 						col, clust_index);
 		ut_a(templ->clust_rec_field_no != ULINT_UNDEFINED);
 
-		if (dict_index_is_clust(index)) {
+		if (index->is_clustered()) {
 			templ->rec_field_no = templ->clust_rec_field_no;
 		} else {
 			templ->rec_field_no = dict_index_get_nth_col_pos(
@@ -7298,7 +7299,7 @@ build_template_field(
 		}
 	} else {
 		templ->clust_rec_field_no = v_no;
-		if (dict_index_is_clust(index)) {
+		if (index->is_clustered()) {
 			templ->rec_field_no = templ->clust_rec_field_no;
 		} else {
 			templ->rec_field_no
@@ -7335,7 +7336,7 @@ build_template_field(
 	templ->mbmaxlen = dict_col_get_mbmaxlen(col);
 	templ->is_unsigned = col->prtype & DATA_UNSIGNED;
 
-	if (!dict_index_is_clust(index)
+	if (!index->is_clustered()
 	    && templ->rec_field_no == ULINT_UNDEFINED) {
 		prebuilt->need_to_access_clustered = TRUE;
 	}
@@ -7427,7 +7428,7 @@ ha_innobase::build_template(
 
 	/* Either m_prebuilt->index should be a secondary index, or it
 	should be the clustered index. */
-	ut_ad(dict_index_is_clust(index) == (index == clust_index));
+	ut_ad(index->is_clustered() == (index == clust_index));
 
 	/* Below we check column by column if we need to access
 	the clustered index. */
@@ -7530,7 +7531,7 @@ ha_innobase::build_template(
 							i - num_v);
 				}
 
-				if (dict_index_is_clust(m_prebuilt->index)) {
+				if (m_prebuilt->index->is_clustered()) {
 					ut_ad(templ->icp_rec_field_no
 					      != ULINT_UNDEFINED);
 					/* If the primary key includes
@@ -7578,7 +7579,7 @@ ha_innobase::build_template(
 				we were unable to use an accurate condition
 				for end_range in the "if" condition above,
 				and the following assertion would fail.
-				ut_ad(!dict_index_is_clust(m_prebuilt->index)
+				ut_ad(!(m_prebuilt->index->is_clustered())
 				      || templ->rec_field_no
 				      < m_prebuilt->index->n_uniq);
 				*/
@@ -7736,10 +7737,9 @@ ha_innobase::innobase_lock_autoinc(void)
 	dberr_t		error = DB_SUCCESS;
 	long		lock_mode = innobase_autoinc_lock_mode;
 
-	ut_ad(!srv_read_only_mode
-	      || dict_table_is_intrinsic(m_prebuilt->table));
+	ut_ad(!srv_read_only_mode || m_prebuilt->table->is_intrinsic());
 
-	if (dict_table_is_intrinsic(m_prebuilt->table)) {
+	if (m_prebuilt->table->is_intrinsic()) {
 		/* Intrinsic table are not shared accorss connection
 		so there is no need to AUTOINC lock the table. */
 		lock_mode = AUTOINC_NO_LOCKING;
@@ -7858,14 +7858,14 @@ ha_innobase::write_row(
 
 	DBUG_ENTER("ha_innobase::write_row");
 
-	if (dict_table_is_intrinsic(m_prebuilt->table)) {
+	if (m_prebuilt->table->is_intrinsic()) {
 		DBUG_RETURN(intrinsic_table_write_row(record));
 	}
 
 	trx_t*		trx = thd_to_trx(m_user_thd);
 	TrxInInnoDB	trx_in_innodb(trx);
 
-	if (!dict_table_is_intrinsic(m_prebuilt->table)
+	if (!m_prebuilt->table->is_intrinsic()
 	    && trx_in_innodb.is_aborted()) {
 
 		innobase_rollback(ht, m_user_thd, false);
@@ -8137,7 +8137,7 @@ calc_row_difference(
 	doc_id_t	doc_id = FTS_NULL_DOC_ID;
 	ulint		num_v = 0;
 
-	ut_ad(!srv_read_only_mode || dict_table_is_intrinsic(prebuilt->table));
+	ut_ad(!srv_read_only_mode || prebuilt->table->is_intrinsic());
 
 	n_fields = table->s->fields;
 	clust_index = prebuilt->table->first_index();
@@ -8521,7 +8521,7 @@ ha_innobase::update_row(
 
 	ut_a(m_prebuilt->trx == trx);
 
-	if (high_level_read_only && !dict_table_is_intrinsic(m_prebuilt->table)) {
+	if (high_level_read_only && !m_prebuilt->table->is_intrinsic()) {
 		ib_senderrf(ha_thd(), IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	} else if (!trx_is_started(trx)) {
@@ -8571,8 +8571,7 @@ ha_innobase::update_row(
 		goto func_exit;
 	}
 
-	if (!dict_table_is_intrinsic(m_prebuilt->table)
-	    && TrxInInnoDB::is_aborted(trx)) {
+	if (!m_prebuilt->table->is_intrinsic() && TrxInInnoDB::is_aborted(trx)) {
 
 		innobase_rollback(ht, m_user_thd, false);
 
@@ -8691,7 +8690,7 @@ ha_innobase::delete_row(
 
 	DBUG_ENTER("ha_innobase::delete_row");
 
-	if (!dict_table_is_intrinsic(m_prebuilt->table)
+	if (!m_prebuilt->table->is_intrinsic()
 	    && trx_in_innodb.is_aborted()) {
 
 		innobase_rollback(ht, m_user_thd, false);
@@ -8702,7 +8701,7 @@ ha_innobase::delete_row(
 
 	ut_a(m_prebuilt->trx == trx);
 
-	if (high_level_read_only && !dict_table_is_intrinsic(m_prebuilt->table)) {
+	if (high_level_read_only && !m_prebuilt->table->is_intrinsic()) {
 		ib_senderrf(ha_thd(), IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	} else if (!trx_is_started(trx)) {
@@ -8742,7 +8741,7 @@ ha_innobase::delete_all_rows()
 {
 	DBUG_ENTER("ha_innobase::delete_all_rows");
 
-	if (!dict_table_is_intrinsic(m_prebuilt->table)) {
+	if (!m_prebuilt->table->is_intrinsic()) {
 		/* Transactional tables should use truncate(). */
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 	}
@@ -8769,7 +8768,7 @@ ha_innobase::unlock_row(void)
 	nothing to unlock.  There is no locking for intrinsic table. */
 
 	if (m_prebuilt->select_lock_type == LOCK_NONE
-	    || dict_table_is_intrinsic(m_prebuilt->table)) {
+	    || m_prebuilt->table->is_intrinsic()) {
 		DBUG_VOID_RETURN;
 	}
 
@@ -8779,7 +8778,7 @@ ha_innobase::unlock_row(void)
 		DBUG_VOID_RETURN;
 	}
 
-	ut_ad(!dict_table_is_intrinsic(m_prebuilt->table));
+	ut_ad(!m_prebuilt->table->is_intrinsic());
 
 	/* Ideally, this assert must be in the beginning of the function.
 	But there are some calls to this function from the SQL layer when the
@@ -8995,13 +8994,13 @@ ha_innobase::index_read(
 
 	dict_index_t*	index = m_prebuilt->index;
 
-	if (index == NULL || dict_index_is_corrupted(index)) {
+	if (index == NULL || index->is_corrupted()) {
 		m_prebuilt->index_usable = FALSE;
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
 	if (!m_prebuilt->index_usable) {
-		DBUG_RETURN(dict_index_is_corrupted(index)
+		DBUG_RETURN(index->is_corrupted()
 			    ? HA_ERR_INDEX_CORRUPT
 			    : HA_ERR_TABLE_DEF_CHANGED);
 	}
@@ -9065,7 +9064,7 @@ ha_innobase::index_read(
 
 		innobase_srv_conc_enter_innodb(m_prebuilt);
 
-		if (!dict_table_is_intrinsic(m_prebuilt->table)) {
+		if (!m_prebuilt->table->is_intrinsic()) {
 
 			if (TrxInInnoDB::is_aborted(m_prebuilt->trx)) {
 
@@ -9241,7 +9240,7 @@ ha_innobase::change_active_index(
 
 	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
-	if (!dict_table_is_intrinsic(m_prebuilt->table)
+	if (!m_prebuilt->table->is_intrinsic()
 	    && trx_in_innodb.is_aborted()) {
 
 		innobase_rollback(ht, m_user_thd, false);
@@ -9265,16 +9264,15 @@ ha_innobase::change_active_index(
 		m_prebuilt->trx, m_prebuilt->index);
 
 	if (!m_prebuilt->index_usable) {
-		if (dict_index_is_corrupted(m_prebuilt->index)) {
+		if (m_prebuilt->index->is_corrupted()) {
 			char	table_name[MAX_FULL_NAME_LEN + 1];
 
 			innobase_format_name(
 				table_name, sizeof table_name,
 				m_prebuilt->index->table->name.m_name);
 
-			if (dict_index_is_clust(m_prebuilt->index)) {
-				ut_ad(dict_table_is_corrupted(
-					m_prebuilt->table));
+			if (m_prebuilt->index->is_clustered()) {
+				ut_ad(m_prebuilt->table->is_corrupted());
 				push_warning_printf(
 					m_user_thd, Sql_condition::SL_WARNING,
 					HA_ERR_TABLE_CORRUPT,
@@ -9363,7 +9361,7 @@ ha_innobase::general_fetch(
 
 	ut_ad(trx == thd_to_trx(m_user_thd));
 
-	bool	intrinsic = dict_table_is_intrinsic(m_prebuilt->table);
+	bool	intrinsic = m_prebuilt->table->is_intrinsic();
 
 	if (!intrinsic && TrxInInnoDB::is_aborted(trx)) {
 
@@ -10159,16 +10157,16 @@ innodb_base_col_setup(
 			ulint   z;
 
 			for (z = 0; z < table->n_cols; z++) {
-				const char* name = dict_table_get_col_name(table, z);
+				const char* name = table->get_col_name(z);
 				if (!innobase_strcasecmp(name,
-																 base_field->field_name)) {
+					base_field->field_name)) {
 					break;
 				}
 			}
 
 			ut_ad(z != table->n_cols);
 
-			v_col->base_col[n] = dict_table_get_nth_col(table, z);
+			v_col->base_col[n] = table->get_col(z);
 			ut_ad(v_col->base_col[n]->ind == z);
 			n++;
 		}
@@ -10196,8 +10194,7 @@ innodb_base_col_setup_for_stored(
 				     i)) {
 			ulint	z;
 			for (z = 0; z < table->n_cols; z++) {
-				const char* name = dict_table_get_col_name(
-							table, z);
+				const char* name = table->get_col_name(z);
 				if (!innobase_strcasecmp(
 					name, base_field->field_name)) {
 					break;
@@ -10206,7 +10203,7 @@ innodb_base_col_setup_for_stored(
 
 			ut_ad(z != table->n_cols);
 
-			s_col->base_col[n] = dict_table_get_nth_col(table, z);
+			s_col->base_col[n] = table->get_col(z);
 			n++;
 
 			if (n == s_col->num_base) {
@@ -10350,7 +10347,7 @@ create_table_info_t::create_table_def()
 		(probably 5.7.4+). */
 		char field_name[MAX_FULL_NAME_LEN + 2 + 10];
 
-		if (dict_table_is_intrinsic(table) && field->orig_table) {
+		if (table->is_intrinsic() && field->orig_table) {
 
 			snprintf(field_name, sizeof(field_name),
 				    "%s_%s_" ULINTPF, field->orig_table->alias,
@@ -10533,7 +10530,7 @@ err_col:
 	Given that temp table lifetime is limited to connection/server lifetime
 	on re-start we don't need to restore temp-table and so no entry is
 	needed in SYSTEM tables. */
-	if (dict_table_is_temporary(table)) {
+	if (table->is_temporary()) {
 
 		if (m_create_info->compress.length > 0) {
 
@@ -10572,7 +10569,7 @@ err_col:
 				not shared beyond session scope), add
 				it to session specific THD structure
 				instead of adding it to dictionary cache. */
-				if (dict_table_is_intrinsic(table)) {
+				if (table->is_intrinsic()) {
 					add_table_to_thread_cache(
 						table, temp_table_heap, m_thd);
 
@@ -10824,12 +10821,12 @@ create_index(
 		  ut_error;
 
 		const char*	field_name = key_part->field->field_name;
-		if (handler != NULL && dict_table_is_intrinsic(handler)) {
+		if (handler != NULL && handler->is_intrinsic()) {
 
 			ut_ad(!innobase_is_v_fld(key_part->field));
-			ulint	col_no = dict_col_get_no(dict_table_get_nth_col(
-					handler, key_part->field->field_index));
-			field_name = dict_table_get_col_name(handler, col_no);
+			ulint	col_no = dict_col_get_no(handler->get_col(
+					key_part->field->field_index));
+			field_name = handler->get_col_name(col_no);
 		}
 
 		col_type = get_innobase_type_from_mysql_type(
@@ -12107,7 +12104,7 @@ innobase_parse_hint_from_comment(
 	}
 
 	/* update SYS_INDEX table */
-	if (!dict_table_is_temporary(table)) {
+	if (!table->is_temporary()) {
 		for (uint i = 0; i < table_share->keys; i++) {
 			is_found[i] = false;
 		}
@@ -12292,7 +12289,7 @@ create_table_info_t::initialize_autoinc()
 			m_table_name, true, false, DICT_ERR_IGNORE_NONE);
 	} else {
 		innobase_table->acquire();
-		ut_ad(dict_table_is_intrinsic(innobase_table));
+		ut_ad(innobase_table->is_intrinsic());
 	}
 
 	DBUG_ASSERT(innobase_table != NULL);
@@ -12530,7 +12527,7 @@ create_table_info_t::create_table()
 	dict_table_t*		handler =
 		priv->lookup_table_handler(m_table_name);
 
-	ut_ad(handler == NULL || dict_table_is_intrinsic(handler));
+	ut_ad(handler == NULL || handler->is_intrinsic());
 	ut_ad(handler == NULL || is_intrinsic_temp_table());
 
 	/* There is no concept of foreign key for intrinsic tables. */
@@ -12617,7 +12614,7 @@ create_table_info_t::create_table_update_dict()
 			m_table_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 	} else {
 		innobase_table->acquire();
-		ut_ad(dict_table_is_intrinsic(innobase_table));
+		ut_ad(innobase_table->is_intrinsic());
 	}
 
 	DBUG_ASSERT(innobase_table != 0);
@@ -12891,7 +12888,7 @@ ha_innobase::discard_or_import_tablespace(
 
 	dict_table_t*	dict_table = m_prebuilt->table;
 
-	if (dict_table_is_temporary(dict_table)) {
+	if (dict_table->is_temporary()) {
 
 		ib_senderrf(
 			m_prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
@@ -13019,7 +13016,7 @@ ha_innobase::truncate(dd::Table *dd_tab)
 	DBUG_ASSERT(m_prebuilt->table->n_ref_count >= 1);
 
 	/* Truncate of intrinsic table is not allowed truncate for now. */
-	if (dict_table_is_intrinsic(m_prebuilt->table)) {
+	if (m_prebuilt->table->is_intrinsic()) {
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 	}
 
@@ -13042,7 +13039,7 @@ ha_innobase::truncate(dd::Table *dd_tab)
 	update_create_info_from_table(&info, table);
 	char* tsname	= NULL;
 
-	if (dict_table_is_temporary(m_prebuilt->table)) {
+	if (m_prebuilt->table->is_temporary()) {
 		info.options|= HA_LEX_CREATE_TMP_TABLE;
 	} else {
 		dict_get_and_save_data_dir_path(m_prebuilt->table, false);
@@ -13120,7 +13117,7 @@ ha_innobase::delete_table(
 	if (sqlcom == SQLCOM_TRUNCATE
 	    && thd_killed(ha_thd())
 	    && (m_prebuilt == NULL
-		|| dict_table_is_temporary(m_prebuilt->table))) {
+		|| m_prebuilt->table->is_temporary())) {
 		sqlcom = SQLCOM_DROP_TABLE;
 	}
 
@@ -14042,7 +14039,7 @@ ha_innobase::records(
 		*num_rows = HA_POS_ERROR;
 		DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
 
-	} else if (dict_table_is_corrupted(m_prebuilt->table)) {
+	} else if (m_prebuilt->table->is_corrupted()) {
 		ib_errf(m_user_thd, IB_LOG_LEVEL_WARN,
 			ER_INNODB_INDEX_CORRUPT,
 			"Table '%s' is corrupt.",
@@ -14058,7 +14055,7 @@ ha_innobase::records(
 
 	dict_index_t*	index = m_prebuilt->table->first_index();
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 
 	m_prebuilt->index_usable = row_merge_is_index_usable(
 		m_prebuilt->trx, index);
@@ -14155,7 +14152,7 @@ ha_innobase::records_in_range(
 		n_rows = HA_POS_ERROR;
 		goto func_exit;
 	}
-	if (dict_index_is_corrupted(index)) {
+	if (index->is_corrupted()) {
 		n_rows = HA_ERR_INDEX_CORRUPT;
 		goto func_exit;
 	}
@@ -15003,7 +15000,7 @@ ha_innobase::enable_indexes(
 	/* Enable index only for intrinsic table. Behavior for all other
 	table continue to remain same. */
 
-	if (dict_table_is_intrinsic(m_prebuilt->table)) {
+	if (m_prebuilt->table->is_intrinsic()) {
 		ut_ad(mode == HA_KEY_SWITCH_ALL);
 		for (dict_index_t* index
 			= UT_LIST_GET_FIRST(m_prebuilt->table->indexes);
@@ -15012,7 +15009,7 @@ ha_innobase::enable_indexes(
 
 			/* InnoDB being clustered index we can't disable/enable
 			clustered index itself. */
-			if (dict_index_is_clust(index)) {
+			if (index->is_clustered()) {
 				continue;
 			}
 
@@ -15036,7 +15033,7 @@ ha_innobase::disable_indexes(
 	/* Disable index only for intrinsic table. Behavior for all other
 	table continue to remain same. */
 
-	if (dict_table_is_intrinsic(m_prebuilt->table)) {
+	if (m_prebuilt->table->is_intrinsic()) {
 		ut_ad(mode == HA_KEY_SWITCH_ALL);
 		for (dict_index_t* index
 			= UT_LIST_GET_FIRST(m_prebuilt->table->indexes);
@@ -15045,7 +15042,7 @@ ha_innobase::disable_indexes(
 
 			/* InnoDB being clustered index we can't disable/enable
 			clustered index itself. */
-			if (dict_index_is_clust(index)) {
+			if (index->is_clustered()) {
 				continue;
 			}
 
@@ -15171,7 +15168,7 @@ ha_innobase::check(
 
 	m_prebuilt->trx->op_info = "checking table";
 
-	if (dict_table_is_corrupted(m_prebuilt->table)) {
+	if (m_prebuilt->table->is_corrupted()) {
 		/* Now that the table is already marked as corrupted,
 		there is no need to check any index of this table */
 		m_prebuilt->trx->op_info = "";
@@ -15190,7 +15187,7 @@ ha_innobase::check(
 	REPEATABLE READ here */
 	m_prebuilt->trx->isolation_level = TRX_ISO_REPEATABLE_READ;
 
-	ut_ad(!dict_table_is_corrupted(m_prebuilt->table));
+	ut_ad(!m_prebuilt->table->is_corrupted());
 
 	for (index = m_prebuilt->table->first_index();
 	     index != NULL;
@@ -15201,7 +15198,7 @@ ha_innobase::check(
 		}
 
 		if (!(check_opt->flags & T_QUICK)
-		    && !dict_index_is_corrupted(index)) {
+		    && !index->is_corrupted()) {
 			/* Enlarge the fatal lock wait timeout during
 			CHECK TABLE. */
 			os_atomic_increment_ulint(
@@ -15240,7 +15237,7 @@ ha_innobase::check(
 			m_prebuilt->trx, m_prebuilt->index);
 
 		if (!m_prebuilt->index_usable) {
-			if (dict_index_is_corrupted(m_prebuilt->index)) {
+			if (m_prebuilt->index->is_corrupted()) {
 				push_warning_printf(
 					m_user_thd,
 					Sql_condition::SL_WARNING,
@@ -15280,13 +15277,13 @@ ha_innobase::check(
 
 		DBUG_EXECUTE_IF(
 			"dict_set_clust_index_corrupted",
-			if (dict_index_is_clust(index)) {
+			if (index->is_clustered()) {
 				ret = DB_CORRUPTION;
 			});
 
 		DBUG_EXECUTE_IF(
 			"dict_set_index_corrupted",
-			if (!dict_index_is_clust(index)) {
+			if (!index->is_clustered()) {
 				ret = DB_CORRUPTION;
 			});
 
@@ -15994,7 +15991,7 @@ ha_innobase::start_stmt(
 
 	TrxInInnoDB	trx_in_innodb(trx);
 
-	if (dict_table_is_intrinsic(m_prebuilt->table)) {
+	if (m_prebuilt->table->is_intrinsic()) {
 
 		if (thd_sql_command(thd) == SQLCOM_ALTER_TABLE) {
 
@@ -16015,7 +16012,7 @@ ha_innobase::start_stmt(
 	m_prebuilt->hint_need_to_fetch_extra_cols = 0;
 	reset_template();
 
-	if (dict_table_is_temporary(m_prebuilt->table)
+	if (m_prebuilt->table->is_temporary()
 	    && m_mysql_has_locked
 	    && m_prebuilt->select_lock_type == LOCK_NONE) {
 		dberr_t error;
@@ -16135,7 +16132,7 @@ ha_innobase::external_lock(
 
 	ut_ad(m_prebuilt->table);
 
-	if (dict_table_is_intrinsic(m_prebuilt->table)) {
+	if (m_prebuilt->table->is_intrinsic()) {
 
 		if (sql_command == SQLCOM_ALTER_TABLE) {
 
@@ -17054,7 +17051,7 @@ ha_innobase::store_lock(
 	const uint sql_command = thd_sql_command(thd);
 
 	if (srv_read_only_mode
-	    && !dict_table_is_intrinsic(m_prebuilt->table)
+	    && !m_prebuilt->table->is_intrinsic()
 	    && (sql_command == SQLCOM_UPDATE
 		|| sql_command == SQLCOM_INSERT
 		|| sql_command == SQLCOM_REPLACE
@@ -19798,6 +19795,13 @@ static MYSQL_SYSVAR_ULONG(concurrency_tickets, srv_n_free_tickets_to_enter,
   "Number of times a thread is allowed to enter InnoDB within the same SQL query after it has once got the ticket",
   NULL, NULL, 5000L, 1L, ~0UL, 0);
 
+static MYSQL_SYSVAR_BOOL(deadlock_detect, innobase_deadlock_detect,
+  PLUGIN_VAR_NOCMDARG,
+  "Enable/disable InnoDB deadlock detector (default ON)."
+  " if set to OFF, deadlock detection is skipped,"
+  " and we rely on innodb_lock_wait_timeout in case of deadlock.",
+  NULL, NULL, TRUE);
+
 static MYSQL_SYSVAR_LONG(fill_factor, innobase_fill_factor,
   PLUGIN_VAR_RQCMDARG,
   "Percentage of B-tree page filled during bulk insert",
@@ -20313,6 +20317,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(ft_sort_pll_degree),
   MYSQL_SYSVAR(force_load_corrupted),
   MYSQL_SYSVAR(lock_wait_timeout),
+  MYSQL_SYSVAR(deadlock_detect),
   MYSQL_SYSVAR(page_size),
   MYSQL_SYSVAR(log_buffer_size),
   MYSQL_SYSVAR(log_file_size),

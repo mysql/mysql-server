@@ -15,6 +15,7 @@
 
 #include "dd_table.h"
 
+#include "current_thd.h"
 #include "debug_sync.h"                       // DEBUG_SYNC
 #include "default_values.h"                   // max_pack_length
 #include "log.h"                              // sql_print_error
@@ -893,32 +894,32 @@ static bool fill_dd_partition_from_create_info(THD *thd,
   if (part_info)
   {
     switch (part_info->part_type) {
-    case RANGE_PARTITION:
+    case partition_type::RANGE:
       if (part_info->column_list)
         tab_obj->set_partition_type(dd::Table::PT_RANGE_COLUMNS);
       else
         tab_obj->set_partition_type(dd::Table::PT_RANGE);
       break;
-    case LIST_PARTITION:
+    case partition_type::LIST:
       if (part_info->column_list)
         tab_obj->set_partition_type(dd::Table::PT_LIST_COLUMNS);
       else
         tab_obj->set_partition_type(dd::Table::PT_LIST);
       break;
-    case HASH_PARTITION:
+    case partition_type::HASH:
       if (part_info->list_of_part_fields)
       {
         /* KEY partitioning */
         if (part_info->linear_hash_ind)
         {
-          if (part_info->key_algorithm == partition_info::KEY_ALGORITHM_51)
+          if (part_info->key_algorithm == enum_key_algorithm::KEY_ALGORITHM_51)
             tab_obj->set_partition_type(dd::Table::PT_LINEAR_KEY_51);
           else
             tab_obj->set_partition_type(dd::Table::PT_LINEAR_KEY_55);
         }
         else
         {
-          if (part_info->key_algorithm == partition_info::KEY_ALGORITHM_51)
+          if (part_info->key_algorithm == enum_key_algorithm::KEY_ALGORITHM_51)
             tab_obj->set_partition_type(dd::Table::PT_KEY_51);
           else
             tab_obj->set_partition_type(dd::Table::PT_KEY_55);
@@ -991,14 +992,14 @@ static bool fill_dd_partition_from_create_info(THD *thd,
         /* KEY partitioning */
         if (part_info->linear_hash_ind)
         {
-          if (part_info->key_algorithm == partition_info::KEY_ALGORITHM_51)
+          if (part_info->key_algorithm == enum_key_algorithm::KEY_ALGORITHM_51)
             tab_obj->set_subpartition_type(dd::Table::ST_LINEAR_KEY_51);
           else
             tab_obj->set_subpartition_type(dd::Table::ST_LINEAR_KEY_55);
         }
         else
         {
-          if (part_info->key_algorithm == partition_info::KEY_ALGORITHM_51)
+          if (part_info->key_algorithm == enum_key_algorithm::KEY_ALGORITHM_51)
             tab_obj->set_subpartition_type(dd::Table::ST_KEY_51);
           else
             tab_obj->set_subpartition_type(dd::Table::ST_KEY_55);
@@ -1073,7 +1074,7 @@ static bool fill_dd_partition_from_create_info(THD *thd,
           return true;
 
         /* Fill in partition values if not KEY/HASH. */
-        if (part_info->part_type == RANGE_PARTITION)
+        if (part_info->part_type == partition_type::RANGE)
         {
           if (part_info->column_list)
           {
@@ -1112,7 +1113,7 @@ static bool fill_dd_partition_from_create_info(THD *thd,
             }
           }
         }
-        else if (part_info->part_type == LIST_PARTITION)
+        else if (part_info->part_type == partition_type::LIST)
         {
           uint list_index= 0;
           List_iterator<part_elem_value> list_val_it(part_elem->list_val_list);
@@ -1159,7 +1160,7 @@ static bool fill_dd_partition_from_create_info(THD *thd,
         else
         {
           // HASH/KEY partition, nothing to fill in?
-          DBUG_ASSERT(part_info->part_type == HASH_PARTITION);
+          DBUG_ASSERT(part_info->part_type == partition_type::HASH);
         }
 
 
@@ -1807,10 +1808,14 @@ bool rename_table(THD *thd,
   const T *to_tab= NULL;
   std::unique_ptr<const T> to_guard;
 
+  DBUG_EXECUTE_IF("alter_table_after_rename_1",
+                  DEBUG_SYNC(thd, "before_rename_in_dd"););
+
   /*
     Acquire all objects. Uncommitted read for 'from' object allows us
     to use this function in ALTER TABLE ALGORITHM=INPLACE implementation.
   */
+
   if (from_mdl_locker.ensure_locked(from_schema_name) ||
       to_mdl_locker.ensure_locked(to_schema_name) ||
       thd->dd_client()->acquire<dd::Schema>(from_schema_name, &from_sch) ||
@@ -1942,6 +1947,10 @@ bool rename_table(THD *thd,
     return true;
   }
 
+  DBUG_EXECUTE_IF("alter_table_after_rename_1",
+                   DBUG_SET("-d,alter_table_after_rename_1");
+                   DEBUG_SYNC(thd, "after_rename_in_dd"););
+
   return commit_dd_changes &&
          (trans_commit_stmt(thd) || trans_commit(thd));
 }
@@ -1972,6 +1981,8 @@ bool abstract_table_type(dd::cache::Dictionary_client *client,
   // Assign the table type out parameter.
   DBUG_ASSERT(table_type);
   *table_type= table->type();
+
+  DEBUG_SYNC(current_thd, "after_acquire_abstract_table");
 
   DBUG_RETURN(false);
 }

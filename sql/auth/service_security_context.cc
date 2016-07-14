@@ -31,6 +31,8 @@
   @param[out] out_ctx  placeholder for the security context handle
   @retval true    failure
   @retval false   success
+
+  @sa security_context_service_st
 */
 my_svc_bool thd_get_security_context(MYSQL_THD _thd,
                                      MYSQL_SECURITY_CONTEXT *out_ctx)
@@ -58,6 +60,8 @@ my_svc_bool thd_get_security_context(MYSQL_THD _thd,
   @param[in]  in_ctx  The handle of the new security context
   @retval true    failure
   @retval false   success
+
+  @sa security_context_service_st
 */
 my_svc_bool thd_set_security_context(MYSQL_THD _thd,
                                      MYSQL_SECURITY_CONTEXT in_ctx)
@@ -82,6 +86,8 @@ my_svc_bool thd_set_security_context(MYSQL_THD _thd,
   @param[out] out_ctx  placeholder for the newly created security context handle
   @retval true    failure
   @retval false   success
+
+  @sa security_context_service_st
 */
 my_svc_bool security_context_create(MYSQL_SECURITY_CONTEXT *out_ctx)
 {
@@ -103,6 +109,8 @@ my_svc_bool security_context_create(MYSQL_SECURITY_CONTEXT *out_ctx)
   @param[in]  ctx  The handle of the security context to destroy
   @retval true    failure
   @retval false   success
+
+  @sa security_context_service_st
 */
 my_svc_bool security_context_destroy(MYSQL_SECURITY_CONTEXT ctx)
 {
@@ -124,6 +132,8 @@ my_svc_bool security_context_destroy(MYSQL_SECURITY_CONTEXT ctx)
   @param[out] out_ctx  placeholder for the handle of the copied security context
   @retval true    failure
   @retval false   success
+
+  @sa security_context_service_st
 */
 my_svc_bool security_context_copy(MYSQL_SECURITY_CONTEXT in_ctx,
                                   MYSQL_SECURITY_CONTEXT *out_ctx)
@@ -158,6 +168,8 @@ my_svc_bool security_context_copy(MYSQL_SECURITY_CONTEXT in_ctx,
   @param[in]  db    The database to check access to
   @retval true    failure
   @retval false   success
+
+  @sa security_context_service_st
 */
 my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
                                     const char *user, const char *host,
@@ -171,22 +183,25 @@ my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
   Reads a named security context attribute and retuns its value.
   Currently defined names are:
 
-  user        MYSQL_LEX_CSTRING *  login user (a.k.a. the user's part of USER())
-  host        MYSQL_LEX_CSTRING *  login host (a.k.a. the host's part of USER())
-  ip          MYSQL_LEX_CSTRING *  login client ip
-  host_or_ip  MYSQL_LEX_CSTRING *  host, if present, ip if not.
-  priv_user   MYSQL_LEX_CSTRING *  authenticated user (a.k.a. the user's part of CURRENT_USER())
-  priv_host   MYSQL_LEX_CSTRING *  authenticated host (a.k.a. the host's part of CURRENT_USER())
-  proxy_user  MYSQL_LEX_CSTRING *  the proxy user used in authenticating
+  - user        MYSQL_LEX_CSTRING *  login user (a.k.a. the user's part of USER())
+  - host        MYSQL_LEX_CSTRING *  login host (a.k.a. the host's part of USER())
+  - ip          MYSQL_LEX_CSTRING *  login client ip
+  - host_or_ip  MYSQL_LEX_CSTRING *  host, if present, ip if not.
+  - priv_user   MYSQL_LEX_CSTRING *  authenticated user (a.k.a. the user's part of CURRENT_USER())
+  - priv_host   MYSQL_LEX_CSTRING *  authenticated host (a.k.a. the host's part of CURRENT_USER())
+  - proxy_user  MYSQL_LEX_CSTRING *  the proxy user used in authenticating
 
-  privilege_super   my_svc_bool *  1 if the user account has supper privilege, 0 otherwise
-  privilege_execute my_svc_bool *  1 if the user account has execute privilege, 0 otherwise
+  - privilege_super   my_svc_bool *  1 if the user account has supper privilege, 0 otherwise
+  - privilege_execute my_svc_bool *  1 if the user account has execute privilege, 0 otherwise
 
   @param[in]  ctx   The handle of the security context to read from
   @param[in]  name  The option name to read
   @param[out] inout_pvalue The value of the option. Type depends on the name.
   @retval true    failure
   @retval false   success
+
+  @sa security_context_service_st
+
 */
 my_svc_bool security_context_get_option(MYSQL_SECURITY_CONTEXT ctx,
                                         const char *name, void *inout_pvalue)
@@ -238,7 +253,7 @@ my_svc_bool security_context_get_option(MYSQL_SECURITY_CONTEXT ctx,
         *((my_svc_bool *) inout_pvalue)= checked ? MY_SVC_TRUE : MY_SVC_FALSE;
       }
       else
-        return MY_SVC_TRUE; /** invalid option */
+        return MY_SVC_TRUE; /* invalid option */
     }
     return MY_SVC_FALSE;
   }
@@ -252,21 +267,23 @@ my_svc_bool security_context_get_option(MYSQL_SECURITY_CONTEXT ctx,
   Sets a value for a named security context attribute
   Currently defined names are:
 
-  user        MYSQL_LEX_CSTRING *  login user (a.k.a. the user's part of USER())
-  host        MYSQL_LEX_CSTRING *  login host (a.k.a. the host's part of USER())
-  ip          MYSQL_LEX_CSTRING *  login client ip
-  priv_user   MYSQL_LEX_CSTRING *  authenticated user (a.k.a. the user's part of CURRENT_USER())
-  priv_host   MYSQL_LEX_CSTRING *  authenticated host (a.k.a. the host's part of CURRENT_USER())
-  proxy_user  MYSQL_LEX_CSTRING *  the proxy user used in authenticating
+  - user        MYSQL_LEX_CSTRING *  login user (a.k.a. the user's part of USER())
+  - host        MYSQL_LEX_CSTRING *  login host (a.k.a. the host's part of USER())
+  - ip          MYSQL_LEX_CSTRING *  login client ip
+  - priv_user   MYSQL_LEX_CSTRING *  authenticated user (a.k.a. the user's part of CURRENT_USER())
+  - priv_host   MYSQL_LEX_CSTRING *  authenticated host (a.k.a. the host's part of CURRENT_USER())
+  - proxy_user  MYSQL_LEX_CSTRING *  the proxy user used in authenticating
 
-  privilege_super   my_svc_bool *  1 if the user account has supper privilege, 0 otherwise
-  privilege_execute my_svc_bool *  1 if the user account has execute privilege, 0 otherwise
+  - privilege_super   my_svc_bool *  1 if the user account has supper privilege, 0 otherwise
+  - privilege_execute my_svc_bool *  1 if the user account has execute privilege, 0 otherwise
 
   @param[in]  ctx   The handle of the security context to set into
   @param[in]  name  The option name to set
   @param[in]  pvalue The value of the option. Type depends on the name.
   @retval true    failure
   @retval false   success
+
+  @sa security_context_service_st
 */
 my_svc_bool security_context_set_option(MYSQL_SECURITY_CONTEXT ctx,
                                         const char *name, void *pvalue)
@@ -321,7 +338,7 @@ my_svc_bool security_context_set_option(MYSQL_SECURITY_CONTEXT ctx,
         ctx->set_master_access(ctx->master_access() & !(EXECUTE_ACL));
     }
     else
-      return MY_SVC_TRUE; /** invalid option */
+      return MY_SVC_TRUE; /* invalid option */
     return MY_SVC_FALSE;
   }
   catch (...)

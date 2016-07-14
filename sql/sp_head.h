@@ -137,7 +137,6 @@ private:
 
 public:
   sp_parser_data() :
-    m_expr_start_ptr(NULL),
     m_current_stmt_start_ptr(NULL),
     m_option_start_ptr(NULL),
     m_param_start_ptr(NULL),
@@ -204,44 +203,6 @@ public:
   ///////////////////////////////////////////////////////////////////////
 
   void process_new_sp_instr(THD *thd, sp_instr *i);
-
-  ///////////////////////////////////////////////////////////////////////
-
-  /**
-    Retrieve expression start pointer in the query string.
-
-    This function is named 'pop' to highlight that it changes the internal
-    state, and two subsequent calls may not return same value.
-
-    @note It's true only in the debug mode, but this check is very useful in
-    the parser to ensure we "pop" every "pushed" pointer, because we have
-    lots of branches, and it's pretty easy to forget something somewhere.
-  */
-  const char *pop_expr_start_ptr()
-  {
-#ifndef DBUG_OFF
-    DBUG_ASSERT(m_expr_start_ptr);
-    const char *p= m_expr_start_ptr;
-    m_expr_start_ptr= NULL;
-    return p;
-#else
-    return m_expr_start_ptr;
-#endif
-  }
-
-  /**
-    Remember expression start pointer in the query string.
-
-    This function is named 'push' to highlight that the pointer must be
-    retrieved (pop) later.
-
-    @sa the note for pop_expr_start_ptr().
-  */
-  void push_expr_start_ptr(const char *expr_start_ptr)
-  {
-    DBUG_ASSERT(!m_expr_start_ptr);
-    m_expr_start_ptr= expr_start_ptr;
-  }
 
   ///////////////////////////////////////////////////////////////////////
 
@@ -360,9 +321,6 @@ public:
   void do_cont_backpatch(uint dest);
 
 private:
-  /// Start of the expression query string (any but SET-expression).
-  const char *m_expr_start_ptr;
-
   /// Start of the current statement's query string.
   const char *m_current_stmt_start_ptr;
 

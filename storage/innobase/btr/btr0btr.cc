@@ -217,7 +217,7 @@ btr_height_get(
 					   MTR_MEMO_S_LOCK
 					   | MTR_MEMO_X_LOCK
 					   | MTR_MEMO_SX_LOCK)
-	      || dict_table_is_intrinsic(index->table));
+	      || index->table->is_intrinsic());
 
 	/* S latches the page */
 	root_block = btr_root_block_get(index, RW_S_LATCH, mtr);
@@ -299,7 +299,7 @@ btr_root_adjust_on_import(
 
 		err = DB_CORRUPTION;
 
-	} else if (dict_index_is_clust(index)) {
+	} else if (index->is_clustered()) {
 		bool	page_is_compact_format;
 
 		page_is_compact_format = page_is_comp(page) > 0;
@@ -533,7 +533,7 @@ btr_get_size(
 	ut_ad(srv_read_only_mode
 	      || mtr_memo_contains(mtr, dict_index_get_lock(index),
 				   MTR_MEMO_S_LOCK)
-	      || dict_table_is_intrinsic(index->table));
+	      || index->table->is_intrinsic());
 	ut_ad(index->page >= FSP_FIRST_INODE_PAGE_NO);
 
 	if (index->page == FIL_NULL
@@ -757,7 +757,7 @@ btr_page_get_father_node_ptr_func(
 	      || mtr_memo_contains_flagged(mtr, dict_index_get_lock(index),
 					   MTR_MEMO_X_LOCK
 					   | MTR_MEMO_SX_LOCK)
-	      || dict_table_is_intrinsic(index->table));
+	      || index->table->is_intrinsic());
 
 	ut_ad(dict_index_get_page(index) != page_no);
 
@@ -767,7 +767,7 @@ btr_page_get_father_node_ptr_func(
 	ut_a(page_rec_is_user_rec(user_rec));
 
 	tuple = dict_index_build_node_ptr(index, user_rec, 0, heap, level);
-	if (dict_table_is_intrinsic(index->table)) {
+	if (index->table->is_intrinsic()) {
 		btr_cur_search_to_nth_level_with_no_latch(
 			index, level + 1, tuple, PAGE_CUR_LE, cursor,
 			file, line, mtr);
@@ -1040,7 +1040,7 @@ btr_create(
 			/* Not enough space for new segment, free root
 			segment before return. */
 			btr_free_root(block, mtr);
-			if (!dict_table_is_temporary(index->table)) {
+			if (!index->table->is_temporary()) {
 				btr_free_root_invalidate(block, mtr);
 			}
 
@@ -1089,7 +1089,7 @@ btr_create(
 	Note: Insert Buffering is disabled for temporary tables given that
 	most temporary tables are smaller in size and short-lived. */
 	if (!(type & DICT_CLUSTERED)
-	    && !dict_table_is_temporary(index->table)) {
+	    && !index->table->is_temporary()) {
 
 		ibuf_reset_free_bits(block);
 	}
@@ -1223,7 +1223,7 @@ void
 btr_truncate(
 	const dict_index_t*	index)
 {
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(index->next() == NULL);
 
 	page_no_t		root_page_no	= index->page;
@@ -1286,7 +1286,7 @@ void
 btr_truncate_recover(
 	const dict_index_t*	index)
 {
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(index->next() == NULL);
 
 	page_no_t		root_page_no = index->page;
@@ -1416,7 +1416,7 @@ btr_page_reorganize_low(
 	for MVCC. */
 	if (dict_index_is_sec_or_ibuf(index)
 	    && page_is_leaf(page)
-	    && !dict_table_is_temporary(index->table)) {
+	    && !index->table->is_temporary()) {
 		/* Copy max trx id to recreated page */
 		trx_id_t	max_trx_id = page_get_max_trx_id(temp_page);
 		page_set_max_trx_id(block, NULL, max_trx_id, mtr);
@@ -1737,7 +1737,7 @@ btr_root_raise_and_insert(
 	ut_ad(mtr_memo_contains_flagged(mtr, dict_index_get_lock(index),
 					MTR_MEMO_X_LOCK
 					| MTR_MEMO_SX_LOCK)
-	      || dict_table_is_intrinsic(index->table));
+	      || index->table->is_intrinsic());
 	ut_ad(mtr_is_block_fix(
 		mtr, root_block, MTR_MEMO_PAGE_X_FIX, index->table));
 
@@ -1855,8 +1855,8 @@ btr_root_raise_and_insert(
 
 	/* We play safe and reset the free bits for the new page */
 
-	if (!dict_index_is_clust(index)
-	    && !dict_table_is_temporary(index->table)) {
+	if (!index->is_clustered()
+	    && !index->table->is_temporary()) {
 		ibuf_reset_free_bits(new_block);
 	}
 
@@ -2214,7 +2214,7 @@ btr_insert_on_non_leaf_level_func(
 	ut_ad(level > 0);
 
 	if (!dict_index_is_spatial(index)) {
-		if (dict_table_is_intrinsic(index->table)) {
+		if (index->table->is_intrinsic()) {
 			btr_cur_search_to_nth_level_with_no_latch(
 				index, level, tuple, PAGE_CUR_LE, &cursor,
 				__FILE__, __LINE__, mtr);
@@ -2485,7 +2485,7 @@ btr_insert_into_right_sibling(
 	page_t*		page = buf_block_get_frame(block);
 	page_no_t	next_page_no = btr_page_get_next(page, mtr);
 
-	ut_ad(dict_table_is_intrinsic(cursor->index->table)
+	ut_ad(cursor->index->table->is_intrinsic()
 	      || mtr_memo_contains_flagged(
 			mtr, dict_index_get_lock(cursor->index),
 			MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK));
@@ -2536,8 +2536,8 @@ btr_insert_into_right_sibling(
 	if (rec == NULL) {
 		if (is_leaf
 		    && next_block->page.size.is_compressed()
-		    && !dict_index_is_clust(cursor->index)
-		    && !dict_table_is_temporary(cursor->index->table)) {
+		    && !cursor->index->is_clustered()
+		    && !cursor->index->table->is_temporary()) {
 			/* Reset the IBUF_BITMAP_FREE bits, because
 			page_cur_tuple_insert() will have attempted page
 			reorganize before failing. */
@@ -2578,8 +2578,8 @@ btr_insert_into_right_sibling(
 	ut_ad(rec_offs_validate(rec, cursor->index, *offsets));
 
 	if (is_leaf
-	    && !dict_index_is_clust(cursor->index)
-	    && !dict_table_is_temporary(cursor->index->table)) {
+	    && !cursor->index->is_clustered()
+	    && !cursor->index->table->is_temporary()) {
 		/* Update the free bits of the B-tree page in the
 		insert buffer bitmap. */
 
@@ -2659,13 +2659,13 @@ func_start:
 	ut_ad(mtr_memo_contains_flagged(mtr,
 					dict_index_get_lock(cursor->index),
 					MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK)
-	      || dict_table_is_intrinsic(cursor->index->table));
+	      || cursor->index->table->is_intrinsic());
 	ut_ad(!dict_index_is_online_ddl(cursor->index)
 	      || (flags & BTR_CREATE_FLAG)
-	      || dict_index_is_clust(cursor->index));
+	      || cursor->index->is_clustered());
 	ut_ad(rw_lock_own_flagged(dict_index_get_lock(cursor->index),
 				  RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX)
-	      || dict_table_is_intrinsic(cursor->index->table));
+	      || cursor->index->table->is_intrinsic());
 
 	block = btr_cur_get_block(cursor);
 	page = buf_block_get_frame(block);
@@ -2798,7 +2798,7 @@ insert_empty:
 	}
 
 	if (!srv_read_only_mode
-	    && !dict_table_is_intrinsic(cursor->index->table)
+	    && !cursor->index->table->is_intrinsic()
 	    && insert_will_fit
 	    && page_is_leaf(page)
 	    && !dict_index_is_online_ddl(cursor->index)) {
@@ -2973,8 +2973,8 @@ insert_empty:
 		start of the function for a new split */
 insert_failed:
 		/* We play safe and reset the free bits for new_page */
-		if (!dict_index_is_clust(cursor->index)
-		    && !dict_table_is_temporary(cursor->index->table)) {
+		if (!cursor->index->is_clustered()
+		    && !cursor->index->table->is_temporary()) {
 			ibuf_reset_free_bits(new_block);
 			ibuf_reset_free_bits(block);
 		}
@@ -2991,8 +2991,8 @@ func_exit:
 	/* Insert fit on the page: update the free bits for the
 	left and right pages in the same mtr */
 
-	if (!dict_index_is_clust(cursor->index)
-	    && !dict_table_is_temporary(cursor->index->table)
+	if (!cursor->index->is_clustered()
+	    && !cursor->index->table->is_temporary()
 	    && page_is_leaf(page)) {
 
 		ibuf_update_free_bits_for_two_pages_low(
@@ -3365,8 +3365,8 @@ btr_lift_page_up(
 	btr_page_free(index, block, mtr);
 
 	/* We play it safe and reset the free bits for the father */
-	if (!dict_index_is_clust(index)
-	    && !dict_table_is_temporary(index->table)) {
+	if (!index->is_clustered()
+	    && !index->table->is_temporary()) {
 		ibuf_reset_free_bits(father_block);
 	}
 	ut_ad(page_validate(father_page, index));
@@ -3430,7 +3430,7 @@ btr_compress(
 		ut_ad(mtr_memo_contains_flagged(mtr, dict_index_get_lock(index),
 						MTR_MEMO_X_LOCK
 						| MTR_MEMO_SX_LOCK)
-		      || dict_table_is_intrinsic(index->table));
+		      || index->table->is_intrinsic());
 	}
 #endif /* UNIV_DEBUG */
 
@@ -3810,8 +3810,8 @@ retry:
 		}
 	}
 
-	if (!dict_index_is_clust(index)
-	    && !dict_table_is_temporary(index->table)
+	if (!index->is_clustered()
+	    && !index->table->is_temporary()
 	    && page_is_leaf(merge_page)) {
 		/* Update the free bits of the B-tree page in the
 		insert buffer bitmap.  This has to be done in a
@@ -3898,7 +3898,7 @@ err_exit:
 	if (page_size.is_compressed()
 	    && merge_page
 	    && page_is_leaf(merge_page)
-	    && !dict_index_is_clust(index)) {
+	    && !index->is_clustered()) {
 
 		ibuf_reset_free_bits(merge_block);
 	}
@@ -3978,8 +3978,8 @@ btr_discard_only_page_on_level(
 	btr_page_empty(block, buf_block_get_page_zip(block), index, 0, mtr);
 	ut_ad(page_is_leaf(buf_block_get_frame(block)));
 
-	if (!dict_index_is_clust(index)
-	    && !dict_table_is_temporary(index->table)) {
+	if (!index->is_clustered()
+	    && !index->table->is_temporary()) {
 		/* We play it safe and reset the free bits for the root */
 		ibuf_reset_free_bits(block);
 
@@ -4021,7 +4021,7 @@ btr_discard_page(
 
 	ut_ad(mtr_memo_contains_flagged(mtr, dict_index_get_lock(index),
 					MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK)
-	      || dict_table_is_intrinsic(index->table));
+	      || index->table->is_intrinsic());
 
 	ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
 

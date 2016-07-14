@@ -200,6 +200,8 @@
   @defgroup group_ext_plugin_services MySQL Server Plugin Services
 
   This is a group of all plugin service APIs.
+
+  See @ref page_ext_plugin_services for more details.
 */
 
 /**

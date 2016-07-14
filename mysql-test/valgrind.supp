@@ -936,6 +936,33 @@
 }
 
 {
+  OpenSSL still reachable.
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:malloc
+  fun:CRYPTO_malloc
+  ...
+  fun:ERR_peek_error
+  fun:vio_ssl_read
+  ...
+}
+
+{
+  OpenSSL still reachable.
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:malloc
+  fun:CRYPTO_malloc
+  ...
+  fun:ERR_peek_error
+  ...
+  fun:sslaccept
+  ...
+  fun:server_mpvio_read_packet
+  ...
+}
+
+{
    Bug#16039908 "BYTES STILL REACHABLE" IN VALGRIND TEST ON 5.6/TRUNK
    Memcheck:Leak
    fun:calloc

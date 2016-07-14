@@ -424,7 +424,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
     CREATE TABLE ... SELECT, also require INSERT.
   */
 
-  want_priv= (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
+  want_priv= (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) ?
              CREATE_TMP_ACL :
              (CREATE_ACL | (select_lex->item_list.elements ? INSERT_ACL : 0));
 
@@ -435,7 +435,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
     goto err;
 
   /* If it is a merge table, check privileges for merge children. */
-  if (lex->create_info.merge_list.first)
+  if (lex->create_info->merge_list.first)
   {
     /*
       The user must have (SELECT_ACL | UPDATE_ACL | DELETE_ACL) on the
@@ -473,7 +473,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
     */
 
     if (check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
-                           lex->create_info.merge_list.first,
+                           lex->create_info->merge_list.first,
                            FALSE, UINT_MAX, FALSE))
       goto err;
   }
@@ -489,13 +489,13 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
                                      UINT_MAX, FALSE))
       goto err;
   }
-  else if (lex->create_info.options & HA_LEX_CREATE_TABLE_LIKE)
+  else if (lex->create_info->options & HA_LEX_CREATE_TABLE_LIKE)
   {
     if (check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE))
       goto err;
   }
 
-  if (check_fk_parent_table_access(thd, &lex->create_info, &lex->alter_info))
+  if (check_fk_parent_table_access(thd, lex->create_info, &lex->alter_info))
     goto err;
 
   error= FALSE;

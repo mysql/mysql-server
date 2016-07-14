@@ -223,8 +223,8 @@ class Sdi_rcontext
   friend void track_object(Sdi_rcontext *rctx, Column *column_object);
   friend void track_object(Sdi_rcontext *rctx, Index *index_object);
 
-  friend void lookup_opx_reference(Sdi_rcontext *rctx, Index** index_var, uint opx);
-  friend void lookup_opx_reference(Sdi_rcontext *rctx, Column** column_var, uint opx);
+  friend Index *get_by_opx(Sdi_rcontext *rctx, const Index*, uint opx);
+  friend Column *get_by_opx(Sdi_rcontext *rctx, const Column*, uint opx);
 
   friend char *buf_handle(Sdi_rcontext *rctx, size_t sz);
 
@@ -274,17 +274,15 @@ void track_object(Sdi_rcontext *sdictx, Index *index_object)
 }
 
 
-void lookup_opx_reference(dd::Sdi_rcontext *sdictx, dd::Column **column_var,
-                          uint opx)
+Index *get_by_opx(dd::Sdi_rcontext *sdictx, const Index*, uint opx)
 {
-  *column_var= sdictx->m_column_object_opx[opx];
+  return sdictx->m_index_object_opx[opx];
 }
 
 
-void lookup_opx_reference(dd::Sdi_rcontext *sdictx, dd::Index **index_var,
-                          uint opx)
+Column *get_by_opx(dd::Sdi_rcontext *sdictx, const Column*, uint opx)
 {
-  *index_var= sdictx->m_index_object_opx[opx];
+  return sdictx->m_column_object_opx[opx];
 }
 
 

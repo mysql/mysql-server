@@ -119,7 +119,7 @@ bool Singleton<T>::histogram_to_json(Json_object *json_object) const
       return true;                            /* purecov: inspected */
   }
 
-  if (json_object->add_clone(BUCKETS_STR, &json_buckets))
+  if (json_object->add_clone(buckets_str(), &json_buckets))
     return true;                              /* purecov: inspected */
   return false;
 }
@@ -230,7 +230,7 @@ bool Singleton<my_decimal>::add_value_json_bucket(const my_decimal &value,
 template <class T>
 std::string Singleton<T>::histogram_type_to_str() const
 {
-  return SINGLETON_STR;
+  return singleton_str();
 }
 
 

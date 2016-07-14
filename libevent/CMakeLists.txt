@@ -89,5 +89,8 @@ IF(MSVC)
   ADD_COMPILE_FLAGS(${LIBEVENT_ALL_SRC} COMPILE_FLAGS "/wd4005 /wd4267 /wd4244")
 ENDIF()
 
-ADD_LIBRARY(event_share SHARED ${LIBEVENT_ALL_SRC})
 ADD_LIBRARY(event STATIC ${LIBEVENT_ALL_SRC})
+
+# Use EXCLUDE_FROM_ALL to build only if another component
+# which dependens on libevent is built
+SET_PROPERTY(TARGET event PROPERTY EXCLUDE_FROM_ALL TRUE)

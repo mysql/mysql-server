@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -467,19 +467,6 @@ public:
     *res= head_str;
     return false;
   }
-};
-
-
-class PTI_num_literal_num : public Item_int
-{
-  typedef Item_int super;
-
-public:
-  PTI_num_literal_num(const POS &pos,
-                       const LEX_STRING &num, int dummy_error= 0)
-  : super(pos, num, my_strtoll10(num.str, NULL, &dummy_error),
-          static_cast<uint>(num.length))
-  {}
 };
 
 

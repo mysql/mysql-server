@@ -169,8 +169,7 @@ dict_mem_table_create(
 	table->flags2 = (unsigned int) flags2;
 	table->name.m_name = mem_strdup(name);
 	table->space = (unsigned int) space;
-	table->n_t_cols = (unsigned int) (n_cols +
-			dict_table_get_n_sys_cols(table));
+	table->n_t_cols = (unsigned int) (n_cols + table->get_n_sys_cols());
 	table->n_v_cols = (unsigned int) (n_v_cols);
 	table->n_cols = table->n_t_cols - table->n_v_cols;
 
@@ -336,7 +335,7 @@ dict_mem_table_add_col(
 						     i, name, heap);
 	}
 
-	col = dict_table_get_nth_col(table, i);
+	col = table->get_col(i);
 
 	dict_mem_fill_column_struct(col, i, mtype, prtype, len);
 }

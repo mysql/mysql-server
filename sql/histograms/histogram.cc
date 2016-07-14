@@ -90,19 +90,19 @@ bool Histogram::histogram_to_json(Json_object *json_object) const
 
   // last-updated
   const Json_datetime last_updated(current_time, MYSQL_TYPE_DATETIME);
-  if (json_object->add_clone(LAST_UPDATED_STR, &last_updated))
+  if (json_object->add_clone(last_updated_str(), &last_updated))
     return true;                              /* purecov: inspected */
 
   // histogram-type
   const Json_string histogram_type(histogram_type_to_str());
-  if (json_object->add_clone(HISTOGRAM_TYPE_STR, &histogram_type))
+  if (json_object->add_clone(histogram_type_str(), &histogram_type))
     return true;                              /* purecov: inspected */
 
   // Fraction of NULL values.
   DBUG_ASSERT(get_null_values_fraction() >= 0.0);
   DBUG_ASSERT(get_null_values_fraction() <= 1.0);
   const Json_double null_values(get_null_values_fraction());
-  if (json_object->add_clone(NULL_VALUES_STR, &null_values))
+  if (json_object->add_clone(null_values_str(), &null_values))
     return true;                              /* purecov: inspected */
   return false;
 }

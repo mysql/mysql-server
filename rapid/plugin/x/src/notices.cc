@@ -41,7 +41,7 @@ static bool end_warning_row(xpl::Callback_command_delegate::Row_data *row, ngs::
   static const char * const WARNING_STRING = "Warning";
 
   Mysqlx::Notice::Warning warning;
-  ngs::IProtocol_monitor &protocol_monitor = proto.get_protocol_monitor();
+  ngs::Protocol_monitor_interface &protocol_monitor = proto.get_protocol_monitor();
 
   if (!last_error.empty())
   {

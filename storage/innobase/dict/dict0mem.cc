@@ -167,7 +167,7 @@ dict_mem_table_add_s_col(
 	ulint		num_base)
 {
 	ulint	i = table->n_def - 1;
-	dict_col_t*	col = dict_table_get_nth_col(table, i);
+	dict_col_t*	col = table->get_col(i);
 	dict_s_col_t	s_col;
 
 	ut_ad(col != NULL);
@@ -548,9 +548,9 @@ dict_mem_fill_vcol_set_for_base_col(
 		}
 
 		for (ulint j = 0; j < v_col->num_base; j++) {
-			if (strcmp(col_name, dict_table_get_col_name(
-					table,
-					v_col->base_col[j]->ind)) == 0) {
+			if (strcmp(col_name,
+				   table->get_col_name(
+					   v_col->base_col[j]->ind)) == 0) {
 
 				if (*v_cols == NULL) {
 					*v_cols = UT_NEW_NOKEY(dict_vcol_set());

@@ -225,8 +225,9 @@ Lex_input_stream::reset(const char *buffer, size_t length)
   yylineno= 1;
   yytoklen= 0;
   yylval= NULL;
-  lookahead_token= -1;
-  lookahead_yylval= NULL;
+  lookahead_token= grammar_selector_token;
+  static YYSTYPE dummy_yylval;
+  lookahead_yylval= &dummy_yylval;
   skip_digest= false;
   /*
     Lex_input_stream modifies the query string in one special case (sic!).
@@ -462,7 +463,6 @@ void LEX::reset()
   insert_table= NULL;
   insert_table_leaf= NULL;
   parsing_options.reset();
-  length= 0;
   part_info= NULL;
   duplicates= DUP_ERROR;
   ignore= false;
@@ -482,10 +482,10 @@ void LEX::reset()
   name.length= 0;
   event_parse_data= NULL;
   profile_options= PROFILE_NONE;
-  uint_geom_type= 0;
   select_number= 0;
   allow_sum_func= 0;
   in_sum_func= NULL;
+  create_info= NULL;
   server_options.reset();
   explain_format= NULL;
   is_lex_started= true;
@@ -498,7 +498,6 @@ void LEX::reset()
   exchange= NULL;
   mark_broken(false);
   max_execution_time= 0;
-  parse_gcol_expr= false;
   opt_hints_global= NULL;
   binlog_need_explicit_defaults_ts= false;
 }
@@ -1156,6 +1155,21 @@ uint Lex_input_stream::get_lineno(const char *raw_ptr)
   }
   return ret;
 }
+
+
+Partition_expr_parser_state::Partition_expr_parser_state()
+: Parser_state(GRAMMAR_SELECTOR_PART), result(NULL)
+{}
+
+
+Gcol_expr_parser_state::Gcol_expr_parser_state()
+: Parser_state(GRAMMAR_SELECTOR_GCOL), result(NULL)
+{}
+
+
+Expression_parser_state::Expression_parser_state()
+: Parser_state(GRAMMAR_SELECTOR_EXPR), result(NULL)
+{}
 
 
 /*
@@ -2326,6 +2340,41 @@ bool SELECT_LEX::set_context(Name_resolution_context *outer_context)
     stack of contexts for the whole query.
   */
   return parent_lex->push_context(&context);
+}
+
+
+
+/**
+  Add tables from an array to a list of used tables.
+
+  @param thd            Current session.
+  @param tables         Tables to add.
+  @param table_options  A set of the following bits:
+                         - TL_OPTION_UPDATING : Table will be updated,
+                         - TL_OPTION_FORCE_INDEX : Force usage of index,
+                         - TL_OPTION_ALIAS : an alias in multi table DELETE.
+  @param lock_type      How table should be locked.
+  @param mdl_type       Type of metadata lock to acquire on the table.
+
+  @returns true if error (reported), otherwise false.
+*/
+
+bool SELECT_LEX::add_tables(THD *thd,
+                            const Trivial_array<Table_ident *> *tables,
+                            ulong table_options,
+                            thr_lock_type lock_type,
+                            enum_mdl_type mdl_type)
+{
+  if (tables == NULL)
+    return false;
+
+  for (auto *table : *tables)
+  {
+    if (!add_table_to_list(thd, table, NULL,
+                           table_options, lock_type, mdl_type))
+      return true;
+  }
+  return false;
 }
 
 

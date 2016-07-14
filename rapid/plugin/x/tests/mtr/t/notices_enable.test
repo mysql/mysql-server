@@ -212,7 +212,7 @@ Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecute {
   stmt: "create table test.dup (a int);"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvuntil Mysqlx.Error
 
 Mysqlx.Sql.StmtExecute {
   stmt: "show count(*) errors;"
@@ -243,7 +243,7 @@ Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecute {
   stmt: "create table t1 (a int not null, b int, primary key (a));"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvuntil Mysqlx.Error
 
 Mysqlx.Sql.StmtExecute {
   stmt: "create table if not exists t1 select 2;"
@@ -295,7 +295,7 @@ Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecute {
  stmt: "drop tables if exists t1,t1;"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvuntil Mysqlx.Error
 
 Mysqlx.Sql.StmtExecute {
  stmt: "set max_error_count=65535;"
@@ -602,7 +602,7 @@ Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecute {
   stmt: "select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4 group by c2;"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvuntil Mysqlx.Error
 -->echo expect both error and warning
 -->echo change result file once Bug#21524666 is fixed
 Mysqlx.Sql.StmtExecute {
@@ -715,7 +715,7 @@ create table worklog5743_8(a1 int, a2 TEXT, a3 TEXT) KEY_BLOCK_SIZE=8;
 Mysqlx.Sql.StmtExecute {
   stmt: "create index idx1 on worklog5743_1(a2(4000));"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvuntil Mysqlx.Error
 
 -->sql
 ## setting back to original value
@@ -763,21 +763,21 @@ use test;
 Mysqlx.Sql.StmtExecute {
   stmt: "create table t2 (id int primary key) engine = innodb key_block_size = 9;"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvuntil Mysqlx.Error
 
 -->echo expect 2 warnings and 1 Error
 -->echo modify the result file once Bug#21524666 is fixed
 Mysqlx.Sql.StmtExecute {
   stmt: "create table t2 (id int primary key) engine = innodb key_block_size = 9 row_format = redundant;"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvuntil Mysqlx.Error
 
 -->echo expect 1 warning and 2 Error
 -->echo modify the result file once Bug#21524666 is fixed
 Mysqlx.Sql.StmtExecute {
   stmt: "create table bug46000(`id` int, key `GEN_clust_INDEX`(`id`))engine=innodb;"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvuntil Mysqlx.Error
 
 -->echo resetting mtr non-default value of show_compatibility_56 to OFF to check warnings returned by xplugin for below operations
 Mysqlx.Sql.StmtExecute {
@@ -925,7 +925,7 @@ end//
 Mysqlx.Sql.StmtExecute {
   stmt: "call proc_1();"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvuntil Mysqlx.Error
 
 -->sql
 SET @@session.max_error_count = 5;
@@ -935,7 +935,7 @@ SELECT @@session.max_error_count;
 Mysqlx.Sql.StmtExecute {
   stmt: "call proc_1();"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvuntil Mysqlx.Error
 
 -->sql
 SET @@session.max_error_count = 7;
@@ -945,7 +945,7 @@ SELECT @@session.max_error_count;
 Mysqlx.Sql.StmtExecute {
   stmt: "call proc_1();"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvuntil Mysqlx.Error
 
 -->sql
 SET @@session.max_error_count = 9;
@@ -955,7 +955,7 @@ SELECT @@session.max_error_count;
 Mysqlx.Sql.StmtExecute {
   stmt: "call proc_1();"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvuntil Mysqlx.Error
 
 -->sql
 drop database demo;
@@ -980,7 +980,7 @@ create table worklog5743_8(a1 int, a2 TEXT, a3 TEXT) KEY_BLOCK_SIZE=8;
 Mysqlx.Sql.StmtExecute {
   stmt: "create index idx1 on worklog5743_1(a2(4000));"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvuntil Mysqlx.Error
 
 -->sql
 ## setting back to original value
@@ -1284,7 +1284,7 @@ use mysql;
 Mysqlx.Sql.StmtExecute {
   stmt: "drop tables if exists t1;"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvuntil Mysqlx.Error
 
 -->echo expect MYSQLX_NOTICE_OTHER_SENT=8,MYSQLX_NOTICE_WARNING_SENT=3
 -->sql

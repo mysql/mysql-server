@@ -1665,7 +1665,7 @@ static bool setup_partition_from_dd(THD *thd,
     return false;
   }
   // Iterate over all possible values
-  if (part_info->part_type == RANGE_PARTITION)
+  if (part_info->part_type == partition_type::RANGE)
   {
     if (part_info->column_list)
     {
@@ -1705,7 +1705,7 @@ static bool setup_partition_from_dd(THD *thd,
       }
     }
   }
-  else if (part_info->part_type == LIST_PARTITION)
+  else if (part_info->part_type == partition_type::LIST)
   {
     if (part_info->column_list)
     {
@@ -1792,7 +1792,7 @@ static bool setup_partition_from_dd(THD *thd,
   else
   {
 #ifndef DBUG_OFF
-    DBUG_ASSERT(part_info->part_type == HASH_PARTITION);
+    DBUG_ASSERT(part_info->part_type == partition_type::HASH);
     DBUG_ASSERT(part_obj->values().empty());
 #endif
   }
@@ -1894,43 +1894,43 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
     part_info->list_of_part_fields= true;
     // Fall through.
   case dd::Table::PT_RANGE:
-    part_info->part_type= RANGE_PARTITION;
+    part_info->part_type= partition_type::RANGE;
     break;
   case dd::Table::PT_LIST_COLUMNS:
     part_info->column_list= true;
     part_info->list_of_part_fields= true;
     // Fall through.
   case dd::Table::PT_LIST:
-    part_info->part_type= LIST_PARTITION;
+    part_info->part_type= partition_type::LIST;
     break;
   case dd::Table::PT_LINEAR_HASH:
     part_info->linear_hash_ind= true;
     // Fall through.
   case dd::Table::PT_HASH:
-    part_info->part_type= HASH_PARTITION;
+    part_info->part_type= partition_type::HASH;
     break;
   case dd::Table::PT_LINEAR_KEY_51:
     part_info->linear_hash_ind= true;
     // Fall through.
   case dd::Table::PT_KEY_51:
-    part_info->key_algorithm= partition_info::KEY_ALGORITHM_51;
+    part_info->key_algorithm= enum_key_algorithm::KEY_ALGORITHM_51;
     part_info->list_of_part_fields= true;
-    part_info->part_type= HASH_PARTITION;
+    part_info->part_type= partition_type::HASH;
     break;
   case dd::Table::PT_LINEAR_KEY_55:
     part_info->linear_hash_ind= true;
     // Fall through.
   case dd::Table::PT_KEY_55:
-    part_info->key_algorithm= partition_info::KEY_ALGORITHM_55;
+    part_info->key_algorithm= enum_key_algorithm::KEY_ALGORITHM_55;
     part_info->list_of_part_fields= true;
-    part_info->part_type= HASH_PARTITION;
+    part_info->part_type= partition_type::HASH;
     break;
   case dd::Table::PT_AUTO_LINEAR:
     part_info->linear_hash_ind= true;
     // Fall through.
   case dd::Table::PT_AUTO:
-    part_info->key_algorithm= partition_info::KEY_ALGORITHM_55;
-    part_info->part_type= HASH_PARTITION;
+    part_info->key_algorithm= enum_key_algorithm::KEY_ALGORITHM_55;
+    part_info->part_type= partition_type::HASH;
     part_info->list_of_part_fields= TRUE;
     part_info->is_auto_partitioned= true;
     share->auto_partitioned= true;
@@ -1942,29 +1942,29 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
   }
   switch (tab_obj->subpartition_type()) {
   case dd::Table::ST_NONE:
-    part_info->subpart_type= NOT_A_PARTITION;
+    part_info->subpart_type= partition_type::NONE;
     break;
   case dd::Table::ST_LINEAR_HASH:
     part_info->linear_hash_ind= true;
     // Fall through.
   case dd::Table::ST_HASH:
-    part_info->subpart_type= HASH_PARTITION;
+    part_info->subpart_type= partition_type::HASH;
     break;
   case dd::Table::ST_LINEAR_KEY_51:
     part_info->linear_hash_ind= true;
     // Fall through.
   case dd::Table::ST_KEY_51:
-    part_info->key_algorithm= partition_info::KEY_ALGORITHM_51;
+    part_info->key_algorithm= enum_key_algorithm::KEY_ALGORITHM_51;
     part_info->list_of_subpart_fields= true;
-    part_info->subpart_type= HASH_PARTITION;
+    part_info->subpart_type= partition_type::HASH;
     break;
   case dd::Table::ST_LINEAR_KEY_55:
     part_info->linear_hash_ind= true;
     // Fall through.
   case dd::Table::ST_KEY_55:
-    part_info->key_algorithm= partition_info::KEY_ALGORITHM_55;
+    part_info->key_algorithm= enum_key_algorithm::KEY_ALGORITHM_55;
     part_info->list_of_subpart_fields= true;
-    part_info->subpart_type= HASH_PARTITION;
+    part_info->subpart_type= partition_type::HASH;
     break;
   default:
     // Unknown sub partitioning type!

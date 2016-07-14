@@ -8,7 +8,7 @@
 # Use two connections, use temporary tables on both of them, and by
 # switching connections between statements, the test can check if the
 # statements are logged with the correct thread id.
-# 
+#
 # The statements current tested include:
 #   CREATE TEMPORARY TABLE
 #   CREATE TEMPORARY TABLE LIKE
@@ -95,6 +95,7 @@ select * from foo;
 
 # clean up
 drop table foo;
+-- remove_file $MYSQLD_DATADIR/master-bin.saved35583
 
 #################################################################
 # BUG#51226
@@ -109,7 +110,7 @@ connect (con2,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 
 #
 # action: on con1 create the database and the tmp table
-# 
+#
 -- connection con1
 -- eval create database $dbname
 -- eval use $dbname
@@ -117,7 +118,7 @@ create temporary table t1(i int);
 
 #
 # action: on con1 create the tmp table
-# 
+#
 -- connection con2
 -- eval use $dbname
 create temporary table t1(i int);
@@ -125,7 +126,7 @@ create temporary table t1(i int);
 # action: at this point, the last event binlogged contains the
 #         pseudo_thread_id from con2. So now we switch to con1, issue
 #         a statement that fails and close the connection (which logs
-#         implicitely a DROP TEMPORARY TABLE).  
+#         implicitely a DROP TEMPORARY TABLE).
 #
 #         Before the patch this would not log con1's pseudo_thread_id
 #         because the failing statement would reset THD context
@@ -163,3 +164,4 @@ RESET MASTER;
 # assertion: assert that when replaying the binary log will succeed,
 #            instead of failing with "Table 'XXX.YYY' doesn't exist"
 -- exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.saved51226 | $MYSQL
+-- remove_file $MYSQLD_DATADIR/master-bin.saved51226

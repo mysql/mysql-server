@@ -4205,7 +4205,7 @@ static TYPELIB *create_typelib(MEM_ROOT *mem_root, Create_field *field_def)
 
   @param[in]  thd          Thread handle
   @param[in]  field_type   Field type
-  @param[out] field_def    An instance of create_field to be filled
+  @param[out] field_def    An instance of initialized create_field
 
   @return Error status.
 */
@@ -4214,19 +4214,6 @@ bool prepare_sp_create_field(THD *thd,
                              enum enum_field_types field_type,
                              Create_field *field_def)
 {
-  LEX *lex= thd->lex;
-  LEX_STRING cmt = { NULL, 0 };
-
-  if (field_def->init(thd, "", field_type, lex->length, lex->dec,
-                      lex->type, NULL, NULL, &cmt, 0,
-                      &lex->interval_list,
-                      lex->charset ? lex->charset :
-                                     thd->variables.collation_database,
-                      lex->uint_geom_type, NULL))
-  {
-    return true;
-  }
-
   if (field_def->sql_type == MYSQL_TYPE_SET)
   {
     if (prepare_set_field(thd, field_def))
@@ -10816,19 +10803,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
   /* We have to do full alter table. */
 
-  if (table->s->tmp_table == NO_TMP_TABLE)
-  {
-    MDL_request tmp_name_mdl_request;
-
-    MDL_REQUEST_INIT(&tmp_name_mdl_request, MDL_key::TABLE,
-                     alter_ctx.new_db, alter_ctx.tmp_name,
-                     MDL_EXCLUSIVE, MDL_TRANSACTION);
-
-    if (thd->mdl_context.acquire_lock(&tmp_name_mdl_request,
-                                      thd->variables.lock_wait_timeout))
-      DBUG_RETURN(true);
-  }
-
   bool partition_changed= false;
   bool fast_alter_part_table= false;
   partition_info *new_part_info= NULL;
@@ -11062,12 +11036,27 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
     We become responsible for destroying this dd::Table object until we pass its
     ownership to the TABLE_SHARE of the temporary table.
-
-    WL7743/TODO: Consider acquiring X lock on tmp_name before using it (needed
-                 to block InnoDB purge, also makes sense since such names might
-                 be visible to other threads for non-trans SEs).
   */
   dd::Table *tmp_table_def;
+
+  /*
+    Take the X metadata lock on temporary name used for new version of
+    the table. This ensures that concurrent I_S queries won't try to open it.
+  */
+
+  MDL_request tmp_name_mdl_request;
+  bool is_tmp_table= (table->s->tmp_table != NO_TMP_TABLE);
+
+  if (!is_tmp_table)
+  {
+    MDL_REQUEST_INIT(&tmp_name_mdl_request,
+                     MDL_key::TABLE,
+                     alter_ctx.new_db, alter_ctx.tmp_name,
+                     MDL_EXCLUSIVE, MDL_STATEMENT);
+    if (thd->mdl_context.acquire_lock(&tmp_name_mdl_request,
+                                      thd->variables.lock_wait_timeout))
+      DBUG_RETURN(true);
+  }
 
   tmp_disable_binlog(thd);
 
@@ -11543,25 +11532,35 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, backup_name);
 
-  {
-    MDL_request backup_name_mdl_request;
-    MDL_REQUEST_INIT(&backup_name_mdl_request, MDL_key::TABLE,
-                     alter_ctx.db, backup_name,
-                     MDL_EXCLUSIVE, MDL_TRANSACTION);
-    if (thd->mdl_context.acquire_lock(&backup_name_mdl_request,
-                                      thd->variables.lock_wait_timeout))
-      goto err_new_table_cleanup;
-  }
-
   close_all_tables_for_name(thd, table->s, alter_ctx.is_table_renamed(), NULL);
   table_list->table= table= NULL;                  /* Safety */
 
   /*
-    Rename the old table to temporary name to have a backup in case
+    Rename the old version to temporary name to have a backup in case
     anything goes wrong while renaming the new table.
 
-    WL7743/TODO Acquire X MDL lock on backup_name too?
+    Take the X metadata lock on this temporary name too. This ensures that
+    concurrent I_S queries won't try to open it. Assert to ensure we do not
+    come here when ALTERing temporary table.
   */
+  {
+    DBUG_ASSERT(!is_tmp_table);
+    MDL_request backup_name_mdl_request;
+    MDL_REQUEST_INIT(&backup_name_mdl_request,
+                     MDL_key::TABLE,
+                     alter_ctx.db, backup_name,
+                     MDL_EXCLUSIVE, MDL_STATEMENT);
+    if (thd->mdl_context.acquire_lock(&backup_name_mdl_request,
+                                    thd->variables.lock_wait_timeout))
+    {
+      // Rename to temporary name failed, delete the new table, abort ALTER.
+      (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
+                            alter_ctx.tmp_name, FN_IS_TMP);
+
+      goto err_with_mdl;
+    }
+  }
+
   if (mysql_rename_table(thd, old_db_type, alter_ctx.db, alter_ctx.table_name,
                          alter_ctx.db, backup_name,
                          FN_TO_IS_TMP | (atomic_replace ? NO_DD_COMMIT : 0)))
@@ -11588,6 +11587,10 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 #endif
     goto err_with_mdl;
   }
+
+  DBUG_EXECUTE_IF("alter_table_after_rename",
+                  DBUG_SET("-d,alter_table_after_rename");
+                  DBUG_SET("+d,alter_table_after_rename_1"););
 
   // Rename the new table to the correct name.
   if (mysql_rename_table(thd, new_db_type, alter_ctx.new_db, alter_ctx.tmp_name,

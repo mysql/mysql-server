@@ -1,6 +1,7 @@
 #
 # Test alter table with MyISAM
 #
+--source include/no_valgrind_without_big.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 # Columns prefix length is 3072,hence page size 16k

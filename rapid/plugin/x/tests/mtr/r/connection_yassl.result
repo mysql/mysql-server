@@ -922,6 +922,39 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+call mtr.add_suppression("Plugin mysqlx reported: '.+: Unsuccessful login attempt: Secure transport required. To log in you must use TCP.SSL or UNIX socket connection.");
+SET GLOBAL require_secure_transport:=1;
+in main, line 0:ERROR: Secure transport required. To log in you must use TCP+SSL or UNIX socket connection. (code 1045)
+not ok
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+RUN SELECT USER()
+USER()
+root@localhost
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
+Variable_name	Value
+Mysqlx_ssl_accepts	0
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
+Variable_name	Value
+Mysqlx_ssl_finished_accepts	0
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
+Variable_name	Value
+Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+SET GLOBAL require_secure_transport:=0;
 UNINSTALL PLUGIN mysqlx;
 SHOW STATUS LIKE 'mysqlx%';
 Variable_name	Value

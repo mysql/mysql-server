@@ -1208,8 +1208,7 @@ row_import::match_table_columns(
 		const char*	col_name;
 		ulint		cfg_col_index;
 
-		col_name = dict_table_get_col_name(
-			m_table, dict_col_get_no(col));
+		col_name = m_table->get_col_name(dict_col_get_no(col));
 
 		cfg_col_index = find_col(col_name);
 
@@ -2344,9 +2343,9 @@ row_import_adjust_root_pages_of_secondary_indexes(
 
 	/* Adjust the root pages of the secondary indexes only. */
 	while ((index = index->next()) != NULL) {
-		ut_a(!dict_index_is_clust(index));
+		ut_a(!index->is_clustered());
 
-		if (!dict_index_is_corrupted(index)
+		if (!index->is_corrupted()
 		    && index->space != FIL_NULL
 		    && index->page != FIL_NULL) {
 
@@ -2444,7 +2443,7 @@ row_import_set_sys_max_row_id(
 	dict_index_t*		index;
 
 	index = table->first_index();
-	ut_a(dict_index_is_clust(index));
+	ut_a(index->is_clustered());
 
 	mtr_start(&mtr);
 
@@ -3727,7 +3726,7 @@ row_import_for_mysql(
 	/* The caller assured that this is not read_only_mode and that no
 	temorary tablespace is being imported. */
 	ut_ad(!srv_read_only_mode);
-	ut_ad(!dict_table_is_temporary(table));
+	ut_ad(!table->is_temporary());
 
 	ut_a(table->space);
 	ut_ad(prebuilt->trx);
@@ -4019,7 +4018,7 @@ row_import_for_mysql(
 
 	dict_index_t*	index = table->first_index();
 
-	if (!dict_index_is_clust(index)) {
+	if (!index->is_clustered()) {
 		return(row_import_error(prebuilt, trx, DB_CORRUPTION));
 	}
 

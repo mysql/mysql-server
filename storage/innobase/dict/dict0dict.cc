@@ -501,18 +501,18 @@ dict_table_close(
 					indexes after an aborted online
 					index creation */
 {
-	if (!dict_locked && !dict_table_is_intrinsic(table)) {
+	if (!dict_locked && !table->is_intrinsic()) {
 		mutex_enter(&dict_sys->mutex);
 	}
 
-	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
+	ut_ad(mutex_own(&dict_sys->mutex) || table->is_intrinsic());
 	ut_a(table->get_ref_count() > 0);
 
 	table->release();
 
 	/* Intrinsic table is not added to dictionary cache so skip other
 	cache specific actions. */
-	if (dict_table_is_intrinsic(table)) {
+	if (table->is_intrinsic()) {
 		return;
 	}
 
@@ -607,7 +607,7 @@ dict_table_has_column(
 
 	if (col_nr < col_max
 		&& innobase_strcasecmp(
-			col_name, dict_table_get_col_name(table, col_nr)) == 0) {
+			col_name, table->get_col_name(col_nr)) == 0) {
 		return(col_nr);
 	}
 
@@ -615,7 +615,7 @@ dict_table_has_column(
 	for (ulint i = 0; i < col_max; i++) {
 		if (i != col_nr
 			&& innobase_strcasecmp(
-				col_name, dict_table_get_col_name(table, i)) == 0) {
+				col_name, table->get_col_name(i)) == 0) {
 
 			return(i);
 		}
@@ -971,10 +971,10 @@ dict_index_get_nth_col_or_prefix_pos(
 	if (is_virtual) {
 		col = &(dict_table_get_nth_v_col(index->table, n)->m_col);
 	} else {
-		col = dict_table_get_nth_col(index->table, n);
+		col = index->table->get_col(n);
 	}
 
-	if (dict_index_is_clust(index)) {
+	if (index->is_clustered()) {
 
 		return(dict_col_get_clust_pos(col, index));
 	}
@@ -1014,7 +1014,7 @@ dict_index_contains_col_or_prefix(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	if (dict_index_is_clust(index)) {
+	if (index->is_clustered()) {
 
 		return(TRUE);
 	}
@@ -1022,7 +1022,7 @@ dict_index_contains_col_or_prefix(
 	if (is_virtual) {
 		col = &dict_table_get_nth_v_col(index->table, n)->m_col;
 	} else {
-		col = dict_table_get_nth_col(index->table, n);
+		col = index->table->get_col(n);
 	}
 
 	n_fields = dict_index_get_n_fields(index);
@@ -1221,7 +1221,7 @@ dict_table_col_in_clustered_key(
 
 	ut_ad(table);
 
-	col = dict_table_get_nth_col(table, n);
+	col = table->get_col(n);
 
 	index = table->first_index();
 
@@ -1333,7 +1333,7 @@ dict_table_open_on_name(
 
 	if (table != NULL) {
 		if (ignore_err == DICT_ERR_IGNORE_NONE
-		    && dict_table_is_corrupted(table)) {
+		    && table->is_corrupted()) {
 			/* Make life easy for drop table. */
 			dict_table_prevent_eviction(table);
 
@@ -1376,8 +1376,7 @@ dict_table_add_system_columns(
 	mem_heap_t*	heap)	/*!< in: temporary heap */
 {
 	ut_ad(table);
-	ut_ad(table->n_def ==
-	      (table->n_cols - dict_table_get_n_sys_cols(table)));
+	ut_ad(table->n_def == (table->n_cols - table->get_n_sys_cols()));
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 	ut_ad(!table->cached);
 
@@ -1407,7 +1406,7 @@ dict_table_add_system_columns(
 #error "DATA_TRX_ID != 1"
 #endif
 
-	if (!dict_table_is_intrinsic(table)) {
+	if (!table->is_intrinsic()) {
 		dict_mem_table_add_col(table, heap, "DB_ROLL_PTR", DATA_SYS,
 				       DATA_ROLL_PTR | DATA_NOT_NULL,
 				       DATA_ROLL_PTR_LEN);
@@ -1432,8 +1431,7 @@ dict_table_set_big_rows(
 {
 	ulint	row_len = 0;
 	for (ulint i = 0; i < table->n_def; i++) {
-		ulint	col_len = dict_col_get_max_size(
-			dict_table_get_nth_col(table, i));
+		ulint	col_len = dict_col_get_max_size( table->get_col(i));
 
 		row_len += col_len;
 
@@ -1799,7 +1797,7 @@ dict_table_rename_in_cache(
 		char*		filepath;
 
 		ut_ad(dict_table_is_file_per_table(table));
-		ut_ad(!dict_table_is_temporary(table));
+		ut_ad(!table->is_temporary());
 
 		/* Make sure the data_dir_path is set. */
 		dict_get_and_save_data_dir_path(table, true);
@@ -1836,7 +1834,7 @@ dict_table_rename_in_cache(
 		char*	new_path = NULL;
 		char*	old_path = fil_space_get_first_path(table->space);
 
-		ut_ad(!dict_table_is_temporary(table));
+		ut_ad(!table->is_temporary());
 
 		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 			new_path = os_file_make_new_pathname(
@@ -2557,7 +2555,7 @@ dict_index_too_big_for_tree(
 				field_max_size = field->prefix_len;
 			}
 		} else if (field_max_size > BTR_EXTERN_LOCAL_STORED_MAX_SIZE
-			   && dict_index_is_clust(new_index)) {
+			   && new_index->is_clustered()) {
 
 			/* In the worst case, we have a locally stored
 			column of BTR_EXTERN_LOCAL_STORED_MAX_SIZE bytes.
@@ -2653,14 +2651,14 @@ dict_index_add_to_cache_w_vcol(
 	ulint		i;
 
 	ut_ad(index);
-	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
+	ut_ad(mutex_own(&dict_sys->mutex) || table->is_intrinsic());
 	ut_ad(index->n_def == index->n_fields);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 	ut_ad(!dict_index_is_online_ddl(index));
 	ut_ad(!dict_index_is_ibuf(index));
 
 	ut_d(mem_heap_validate(index->heap));
-	ut_a(!dict_index_is_clust(index)
+	ut_a(!index->is_clustered()
 	     || UT_LIST_GET_LEN(table->indexes) == 0);
 
 	if (!dict_index_find_cols(table, index, add_v)) {
@@ -2674,7 +2672,7 @@ dict_index_add_to_cache_w_vcol(
 
 	if (index->type == DICT_FTS) {
 		new_index = dict_index_build_internal_fts(table, index);
-	} else if (dict_index_is_clust(index)) {
+	} else if (index->is_clustered()) {
 		new_index = dict_index_build_internal_clust(table, index);
 	} else {
 		new_index = dict_index_build_internal_non_clust(table, index);
@@ -2766,12 +2764,12 @@ dict_index_add_to_cache_w_vcol(
 
 	/* Intrinsic table are not added to dictionary cache instead are
 	cached to session specific thread cache. */
-	if (!dict_table_is_intrinsic(table)) {
+	if (!table->is_intrinsic()) {
 		dict_sys->size += mem_heap_get_size(new_index->heap);
 	}
 
 	/* Check if key part of the index is unique. */
-	if (dict_table_is_intrinsic(table)) {
+	if (table->is_intrinsic()) {
 
 		new_index->rec_cache.fixed_len_key = true;
 		for (i = 0; i < new_index->n_uniq; i++) {
@@ -2920,7 +2918,7 @@ dict_index_remove_from_cache_low(
 
 	size = mem_heap_get_size(index->heap);
 
-	ut_ad(!dict_table_is_intrinsic(table));
+	ut_ad(!table->is_intrinsic());
 	ut_ad(dict_sys->size >= size);
 
 	dict_sys->size -= size;
@@ -2957,15 +2955,14 @@ dict_index_find_cols(
 
 	ut_ad(table != NULL && index != NULL);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
+	ut_ad(mutex_own(&dict_sys->mutex) || table->is_intrinsic());
 
 	for (ulint i = 0; i < index->n_fields; i++) {
 		ulint		j;
 		dict_field_t*	field = dict_index_get_nth_field(index, i);
 
 		for (j = 0; j < table->n_cols; j++) {
-			if (!strcmp(dict_table_get_col_name(table, j),
-				    field->name)) {
+			if (!strcmp(table->get_col_name(j), field->name)) {
 
 				/* Check if same column is being assigned again
 				which suggest that column has duplicate name. */
@@ -2979,7 +2976,7 @@ dict_index_find_cols(
 					goto dup_err;
 				}
 
-				field->col = dict_table_get_nth_col(table, j);
+				field->col = table->get_col(j);
 
 				col_added.push_back(j);
 
@@ -3144,7 +3141,7 @@ dict_table_copy_types(
 		dtype_t*	dtype	= dfield_get_type(dfield);
 
 		dfield_set_null(dfield);
-		dict_col_copy_type(dict_table_get_nth_col(table, i), dtype);
+		dict_col_copy_type(table->get_col(i), dtype);
 	}
 
 	dict_table_copy_v_types(tuple, table);
@@ -3193,10 +3190,10 @@ dict_index_build_internal_clust(
 	ibool*		indexed;
 
 	ut_ad(table && index);
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(!dict_index_is_ibuf(index));
 
-	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
+	ut_ad(mutex_own(&dict_sys->mutex) || table->is_intrinsic());
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	/* Create a new index object with certainly enough fields */
@@ -3243,15 +3240,14 @@ dict_index_build_internal_clust(
 
 	if (!dict_index_is_unique(index)) {
 		dict_index_add_col(new_index, table,
-				   dict_table_get_sys_col(
-					   table, DATA_ROW_ID),
+				   table->get_sys_col(DATA_ROW_ID),
 				   0);
 		trx_id_pos++;
 	}
 
 	dict_index_add_col(
 		new_index, table,
-		dict_table_get_sys_col(table, DATA_TRX_ID), 0);
+		table->get_sys_col(DATA_TRX_ID), 0);
 
 
 	for (i = 0; i < trx_id_pos; i++) {
@@ -3293,11 +3289,11 @@ dict_index_build_internal_clust(
 	/* UNDO logging is turned-off for intrinsic table and so
 	DATA_ROLL_PTR system columns are not added as default system
 	columns to such tables. */
-	if (!dict_table_is_intrinsic(table)) {
+	if (!table->is_intrinsic()) {
 
 		dict_index_add_col(
 			new_index, table,
-			dict_table_get_sys_col(table, DATA_ROLL_PTR),
+			table->get_sys_col(DATA_ROLL_PTR),
 			0);
 	}
 
@@ -3321,10 +3317,10 @@ dict_index_build_internal_clust(
 
 	/* Add to new_index non-system columns of table not yet included
 	there */
-	ulint n_sys_cols = dict_table_get_n_sys_cols(table);
+	ulint n_sys_cols = table->get_n_sys_cols();
 	for (i = 0; i + n_sys_cols < (ulint) table->n_cols; i++) {
 
-		dict_col_t*	col = dict_table_get_nth_col(table, i);
+		dict_col_t*	col = table->get_col(i);
 		ut_ad(col->mtype != DATA_SYS);
 
 		if (!indexed[col->ind]) {
@@ -3360,16 +3356,16 @@ dict_index_build_internal_non_clust(
 	ibool*		indexed;
 
 	ut_ad(table && index);
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 	ut_ad(!dict_index_is_ibuf(index));
-	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
+	ut_ad(mutex_own(&dict_sys->mutex) || table->is_intrinsic());
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	/* The clustered index should be the first in the list of indexes */
 	clust_index = UT_LIST_GET_FIRST(table->indexes);
 
 	ut_ad(clust_index);
-	ut_ad(dict_index_is_clust(clust_index));
+	ut_ad(clust_index->is_clustered());
 	ut_ad(!dict_index_is_ibuf(clust_index));
 
 	/* Create a new index */
@@ -4059,16 +4055,15 @@ dict_scan_col(
 		*success = TRUE;
 		*column = NULL;
 	} else {
-		for (i = 0; i < dict_table_get_n_cols(table); i++) {
+		for (i = 0; i < table->get_n_cols(); i++) {
 
-			const char*	col_name = dict_table_get_col_name(
-				table, i);
+			const char*	col_name =  table->get_col_name(i);
 
 			if (0 == innobase_strcasecmp(col_name, *name)) {
 				/* Found */
 
 				*success = TRUE;
-				*column = dict_table_get_nth_col(table, i);
+				*column = table->get_col(i);
 				strcpy((char*) *name, col_name);
 
 				break;
@@ -4795,8 +4790,7 @@ col_loop1:
 	for (i = 0; i < foreign->n_fields; i++) {
 		foreign->foreign_col_names[i] = mem_heap_strdup(
 			foreign->heap,
-			dict_table_get_col_name(table,
-						dict_col_get_no(columns[i])));
+			table->get_col_name(dict_col_get_no(columns[i])));
 	}
 
 	ptr = dict_scan_table_name(cs, ptr, &referenced_table, name,
@@ -5685,7 +5679,7 @@ dict_init_dynamic_metadata(
 	     index != NULL;
 	     index = index->next()) {
 
-		if (dict_index_is_corrupted(index)) {
+		if (index->is_corrupted()) {
 			metadata->add_corrupted_index(
 				index_id_t(index->space, index->id));
 		}
@@ -5734,7 +5728,7 @@ dict_table_apply_dynamic_metadata(
 		if (index != NULL) {
 			ut_ad(index->space == index_id.m_space_id);
 
-			if (!dict_index_is_corrupted(index)) {
+			if (!index->is_corrupted()) {
 				index->type |= DICT_CORRUPT;
 				get_dirty = true;
 			}
@@ -5825,7 +5819,7 @@ dict_table_load_dynamic_metadata(
 
 	ut_ad(dict_sys != NULL);
 	ut_ad(mutex_own(&dict_sys->mutex));
-	ut_ad(!dict_table_is_temporary(table));
+	ut_ad(!table->is_temporary());
 
 	table_buffer = dict_persist->table_buffer;
 
@@ -5874,7 +5868,7 @@ dict_table_mark_dirty(
 {
 	ut_ad(!srv_missing_dd_table_buffer);
 
-	ut_ad(!dict_table_is_temporary(table));
+	ut_ad(!table->is_temporary());
 
 	mutex_enter(&dict_persist->mutex);
 
@@ -5930,7 +5924,7 @@ dict_set_corrupted(
 		index->type |= DICT_CORRUPT;
 
 		if (!srv_read_only_mode
-		    && !dict_table_is_temporary(table)) {
+		    && !table->is_temporary()) {
 			/* In RO mode, we should be able to mark the
 			in memory indexes as corrupted but do not log it.
 			Also, no need to log for temporary table */
@@ -5983,7 +5977,7 @@ dict_table_persist_to_dd_table_buffer_low(
 	ut_ad(mutex_own(&dict_persist->mutex));
 	ut_ad(table->dirty_status == METADATA_DIRTY);
 	ut_ad(table->in_dirty_dict_tables_list);
-	ut_ad(!dict_table_is_temporary(table));
+	ut_ad(!table->is_temporary());
 
 	DDTableBuffer*		table_buffer = dict_persist->table_buffer;
 	PersistentTableMetadata	metadata(table->id);
@@ -6227,8 +6221,7 @@ dict_ind_init(void)
 
 	dict_ind_redundant = dict_mem_index_create("SYS_DUMMY1", "SYS_DUMMY1",
 						   DICT_HDR_SPACE, 0, 1);
-	dict_index_add_col(dict_ind_redundant, table,
-			   dict_table_get_nth_col(table, 0), 0);
+	dict_index_add_col(dict_ind_redundant, table, table->get_col(0), 0);
 	dict_ind_redundant->table = table;
 	/* avoid ut_ad(index->cached) in dict_index_get_n_unique_in_tree */
 	dict_ind_redundant->cached = TRUE;
@@ -6377,7 +6370,7 @@ dict_table_check_for_dup_indexes(
 
 	do {
 		if (!index1->is_committed()) {
-			ut_a(!dict_index_is_clust(index1));
+			ut_a(!index1->is_clustered());
 
 			switch (check) {
 			case CHECK_ALL_COMPLETE:
@@ -6726,7 +6719,7 @@ dict_foreign_qualify_index(
 
 		col_name = col_names
 			? col_names[col_no]
-			: dict_table_get_col_name(table, col_no);
+			: table->get_col_name(col_no);
 
 		if (0 != innobase_strcasecmp(columns[i], col_name)) {
 			return(false);
@@ -7157,15 +7150,15 @@ DDTableBuffer::create_tuples()
 	sys_buf = static_cast<byte*>(mem_heap_alloc(m_heap, 8));
 	memset(sys_buf, 0, sizeof *sys_buf);
 
-	col = dict_table_get_sys_col(m_index->table, DATA_ROW_ID);
+	col = m_index->table->get_sys_col(DATA_ROW_ID);
 	dfield = dtuple_get_nth_field(m_replace_tuple, dict_col_get_no(col));
 	dfield_set_data(dfield, sys_buf, DATA_ROW_ID_LEN);
 
-	col = dict_table_get_sys_col(m_index->table, DATA_TRX_ID);
+	col = m_index->table->get_sys_col(DATA_TRX_ID);
 	dfield = dtuple_get_nth_field(m_replace_tuple, dict_col_get_no(col));
 	dfield_set_data(dfield, sys_buf, DATA_TRX_ID_LEN);
 
-	col = dict_table_get_sys_col(m_index->table, DATA_ROLL_PTR);
+	col = m_index->table->get_sys_col(DATA_ROLL_PTR);
 	dfield = dtuple_get_nth_field(m_replace_tuple, dict_col_get_no(col));
 	dfield_set_data(dfield, sys_buf, DATA_ROLL_PTR_LEN);
 }

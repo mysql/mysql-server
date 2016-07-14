@@ -154,6 +154,53 @@ typedef int (*get_partitions_in_range_iter)(partition_info *part_info,
                                             uint min_len, uint max_len,
                                             uint flags,
                                             PARTITION_ITERATOR *part_iter);
+/**
+  PARTITION BY KEY ALGORITHM=N
+  Which algorithm to use for hashing the fields.
+  N = 1 - Use 5.1 hashing (numeric fields are hashed as binary)
+  N = 2 - Use 5.5 hashing (numeric fields are hashed like latin1 bytes)
+*/
+enum class enum_key_algorithm
+{
+  KEY_ALGORITHM_NONE= 0,
+  KEY_ALGORITHM_51= 1,
+  KEY_ALGORITHM_55= 2
+};
+
+
+class Parser_partition_info
+{
+public:
+  partition_info * const part_info;
+  partition_element * const current_partition;  // partition
+  partition_element * const curr_part_elem;     // part or sub part
+  part_elem_value *curr_list_val;
+  uint curr_list_object;
+  uint count_curr_subparts;
+
+public:
+  Parser_partition_info(partition_info * const part_info,
+                        partition_element * const current_partition,
+                        partition_element * const curr_part_elem,
+                        part_elem_value *curr_list_val,
+                        uint curr_list_object)
+  : part_info(part_info),
+    current_partition(current_partition),
+    curr_part_elem(curr_part_elem),
+    curr_list_val(curr_list_val),
+    curr_list_object(curr_list_object),
+    count_curr_subparts(0)
+  {}
+
+  void init_col_val(part_column_list_val *col_val, Item *item);
+  part_column_list_val *add_column_value();
+  bool add_max_value();
+  bool reorganize_into_single_field_col_val();
+  bool init_column_part();
+  bool add_column_list_value(THD *thd, Item *item);
+};
+
+
 class partition_info : public Sql_alloc
 {
 public:
@@ -289,11 +336,6 @@ public:
   char *part_func_string;                //!< Partition expression as string
   char *subpart_func_string;             //!< Subpartition expression as string
 
-  /* Used during parsing */
-  partition_element *curr_part_elem;     // part or sub part
-  partition_element *current_partition;  // partition
-  part_elem_value *curr_list_val;
-  uint curr_list_object;
   uint num_columns;
 
   TABLE *table;
@@ -315,7 +357,6 @@ public:
 
   uint num_parts;
   uint num_subparts;
-  uint count_curr_subparts;                  // used during parsing
 
   uint num_list_values;
 
@@ -330,18 +371,7 @@ public:
     but mainly of use to handlers supporting partitioning.
   */
   uint16 linear_hash_mask;
-  /*
-    PARTITION BY KEY ALGORITHM=N
-    Which algorithm to use for hashing the fields.
-    N = 1 - Use 5.1 hashing (numeric fields are hashed as binary)
-    N = 2 - Use 5.5 hashing (numeric fields are hashed like latin1 bytes)
-  */
-  enum enum_key_algorithm
-    {
-      KEY_ALGORITHM_NONE= 0,
-      KEY_ALGORITHM_51= 1,
-      KEY_ALGORITHM_55= 2
-    };
+
   enum_key_algorithm key_algorithm;
 
   /* Only the number of partitions defined (uses default names and options). */
@@ -384,17 +414,16 @@ public:
     list_array(NULL), err_value(0),
     part_info_string(NULL),
     part_func_string(NULL), subpart_func_string(NULL),
-    curr_part_elem(NULL), current_partition(NULL),
-    curr_list_object(0), num_columns(0), table(NULL),
+    num_columns(0), table(NULL),
     default_engine_type(NULL),
-    part_type(NOT_A_PARTITION), subpart_type(NOT_A_PARTITION),
+    part_type(partition_type::NONE),
+    subpart_type(partition_type::NONE),
     part_info_len(0),
     part_func_len(0), subpart_func_len(0),
     num_parts(0), num_subparts(0),
-    count_curr_subparts(0),
     num_list_values(0), num_part_fields(0), num_subpart_fields(0),
     num_full_part_fields(0), has_null_part_id(0), linear_hash_mask(0),
-    key_algorithm(KEY_ALGORITHM_NONE),
+    key_algorithm(enum_key_algorithm::KEY_ALGORITHM_NONE),
     use_default_partitions(TRUE), use_default_num_partitions(TRUE),
     use_default_subpartitions(TRUE), use_default_num_subpartitions(TRUE),
     default_partitions_setup(FALSE), defined_max_value(FALSE),
@@ -418,7 +447,7 @@ public:
   /* Answers the question if subpartitioning is used for a certain table */
   inline bool is_sub_partitioned() const
   {
-    return (subpart_type == NOT_A_PARTITION ?  FALSE : TRUE);
+    return subpart_type != partition_type::NONE;
   }
 
   /* Returns the total number of partitions on the leaf level */
@@ -449,17 +478,11 @@ public:
                                   part_elem_value *val,
                                   uint part_id);
   bool fix_parser_data(THD *thd);
-  bool add_max_value();
-  void init_col_val(part_column_list_val *col_val, Item *item);
-  bool reorganize_into_single_field_col_val();
-  part_column_list_val *add_column_value();
   bool set_part_expr(char *start_token, Item *item_ptr,
                      char *end_token, bool is_subpart);
   static int compare_column_values(const void *a, const void *b);
   bool set_up_charset_field_preps();
   bool check_partition_field_length();
-  bool init_column_part();
-  bool add_column_list_value(THD *thd, Item *item);
   void set_show_version_string(String *packet);
   partition_element *get_part_elem(const char *partition_name,
                                    char *file_name,

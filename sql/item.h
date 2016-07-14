@@ -2881,8 +2881,6 @@ public:
     item_name= name_par;
   }
 
-  virtual bool itemize(Parse_context *pc, Item **res);
-
   enum Type type() const { return NULL_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
   double val_real();
@@ -3157,6 +3155,11 @@ public:
   { init(str_arg, length); }
   Item_int(const POS &pos, const char *str_arg, uint length) : super(pos)
   { init(str_arg, length); }
+
+  Item_int(const POS &pos, const LEX_STRING &num, int dummy_error= 0)
+  : Item_int(pos, num, my_strtoll10(num.str, NULL, &dummy_error),
+             static_cast<uint>(num.length))
+  {}
 
 private:
   void init(const char *str_arg, uint length);

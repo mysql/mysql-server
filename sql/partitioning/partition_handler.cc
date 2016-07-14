@@ -970,7 +970,7 @@ uint32 Partition_helper::ph_calculate_key_hash_value(Field **field_array)
   ulong nr2= 4;
   bool use_51_hash;
   use_51_hash= MY_TEST((*field_array)->table->part_info->key_algorithm ==
-                       partition_info::KEY_ALGORITHM_51);
+                       enum_key_algorithm::KEY_ALGORITHM_51);
 
   do
   {
@@ -1475,7 +1475,7 @@ int Partition_helper::copy_partitions(ulonglong * const copied,
 
   if (m_part_info->linear_hash_ind)
   {
-    if (m_part_info->part_type == HASH_PARTITION)
+    if (m_part_info->part_type == partition_type::HASH)
       set_linear_hash_mask(m_part_info, m_part_info->num_parts);
     else
       set_linear_hash_mask(m_part_info, m_part_info->num_subparts);

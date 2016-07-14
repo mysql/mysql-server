@@ -15,7 +15,7 @@ SELECT variable_value
 FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 variable_value
-Buffer pool(s) load completed at TIMESTAMP_NOW
+Buffer pool load completed or still running
 SELECT COUNT(*) FROM information_schema.innodb_buffer_page_lru
 WHERE table_name LIKE '%ib_bp_test%';
 COUNT(*)

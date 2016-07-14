@@ -1,3 +1,4 @@
+--source include/no_valgrind_without_big.inc
 # Columns prefix length is 3072,hence page size 16k
 --source include/have_innodb_16k.inc
 

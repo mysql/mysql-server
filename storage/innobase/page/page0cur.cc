@@ -315,7 +315,7 @@ populate_offsets(
 	ulint*			offsets,
 	mem_heap_t**		heap)
 {
-	ut_ad(dict_table_is_intrinsic(index->table));
+	ut_ad(index->table->is_intrinsic());
 
 	bool rec_has_null_values	= false;
 
@@ -957,7 +957,7 @@ page_cur_insert_rec_write_log(
 
 	/* Avoid REDO logging to save on costly IO because
 	temporary tables are not recovered during crash recovery. */
-	if (dict_table_is_temporary(index->table)) {
+	if (index->table->is_temporary()) {
 		byte*	log_ptr = mlog_open(mtr, 0);
 		if (log_ptr == NULL) {
 			return;
@@ -1815,7 +1815,7 @@ page_cur_insert_rec_zip(
 			page, 1);
 
 	/* 2. Try to find suitable space from page memory management */
-	if (!page_zip_available(page_zip, dict_index_is_clust(index),
+	if (!page_zip_available(page_zip, index->is_clustered(),
 				rec_size, 1)
 	    || reorg_before_insert) {
 		/* The values can change dynamically. */
@@ -1844,7 +1844,7 @@ page_cur_insert_rec_zip(
 			ut_ad(!page_header_get_ptr(page, PAGE_FREE));
 
 			if (page_zip_available(
-				    page_zip, dict_index_is_clust(index),
+				    page_zip, index->is_clustered(),
 				    rec_size, 1)) {
 				goto use_heap;
 			}
@@ -1863,7 +1863,7 @@ page_cur_insert_rec_zip(
 			ut_ad(!page_header_get_ptr(page, PAGE_FREE));
 
 			if (page_zip_available(
-				    page_zip, dict_index_is_clust(index),
+				    page_zip, index->is_clustered(),
 				    rec_size, 1)) {
 				/* After reorganizing, there is space
 				available. */
@@ -2037,7 +2037,7 @@ too_small:
 				       - REC_NODE_PTR_SIZE, 0,
 				       REC_NODE_PTR_SIZE);
 			}
-		} else if (dict_index_is_clust(index)) {
+		} else if (index->is_clustered()) {
 			/* Zero out the DB_TRX_ID and DB_ROLL_PTR
 			columns of free_rec, in case it will not be
 			overwritten by insert_rec. */
@@ -2085,7 +2085,7 @@ use_heap:
 			return(NULL);
 		}
 
-		page_zip_dir_add_slot(page_zip, dict_index_is_clust(index));
+		page_zip_dir_add_slot(page_zip, index->is_clustered());
 	}
 
 	/* 3. Create the record */
@@ -2345,7 +2345,7 @@ page_copy_rec_list_end_to_created_page(
 
 	mtr_log_t	log_mode;
 
-	if (dict_table_is_temporary(index->table)
+	if (index->table->is_temporary()
 	    || index->table->ibd_file_missing /* IMPORT TABLESPACE */) {
 		log_mode = mtr_get_log_mode(mtr);
 	} else {

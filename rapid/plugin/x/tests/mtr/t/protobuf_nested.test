@@ -68,20 +68,20 @@ Mysqlx.Crud.Find {
 -->noquiet
 -->endmacro
 
-## Current recursion limit is set to 400
+## Current recursion limit is set to 100
 ## each repeated message in bellow macro contains two messages
 ## (it increases the current depth by 2)
 -->newsession test_different_messages	root
--->echo Try to use value greater than the default limit 100 /2 => 50
+-->echo Try to use value greater than the default limit 50 /2 => 25
+-->callmacro Send_message_with_repeated_nested_objects	25
+-->recvresult
+
+-->echo Try to use value equal than the X Protocol limit 100 /2 => 50
+-->callmacro Send_message_with_repeated_nested_objects	50
+-->recvresult
+
+-->echo Try to use value greater than the X Protocol limit 102 /2 => 51
 -->callmacro Send_message_with_repeated_nested_objects	51
--->recvresult
-
--->echo Try to use value equal than the X Protocol limit 400 /2 => 200
--->callmacro Send_message_with_repeated_nested_objects	200
--->recvresult
-
--->echo Try to use value greater than the X Protocol limit 400 /2 => 200
--->callmacro Send_message_with_repeated_nested_objects	201
 -->expecterror 5000
 -->recvresult
 -->closesession abort

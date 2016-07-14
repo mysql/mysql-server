@@ -227,7 +227,7 @@ bool Equi_height<T>::histogram_to_json(Json_object *json_object) const
       return true;                            /* purecov: inspected */
   }
 
-  if (json_object->add_clone(BUCKETS_STR, &buckets))
+  if (json_object->add_clone(buckets_str(), &buckets))
     return true;                              /* purecov: inspected */
   return false;
 }
@@ -236,7 +236,7 @@ bool Equi_height<T>::histogram_to_json(Json_object *json_object) const
 template <class T>
 std::string Equi_height<T>::histogram_type_to_str() const
 {
-  return EQUI_HEIGHT_STR;
+  return equi_height_str();
 }
 
 // Explicit template instantiations.

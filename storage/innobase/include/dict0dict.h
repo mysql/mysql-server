@@ -701,7 +701,7 @@ dict_foreign_qualify_index(
 
 /* Skip corrupted index */
 #define dict_table_skip_corrupt_index(index)			\
-	while (index && dict_index_is_corrupted(index)) {	\
+	while (index && index->is_corrupted()) {	\
 		index = index->next();				\
 	}
 
@@ -711,16 +711,6 @@ do {								\
 	index = index->next();					\
 	dict_table_skip_corrupt_index(index);			\
 } while (0)
-
-/********************************************************************//**
-Check whether the index is the clustered index.
-@return nonzero for clustered index, zero for other indexes */
-UNIV_INLINE
-ulint
-dict_index_is_clust(
-/*================*/
-	const dict_index_t*	index)	/*!< in: index */
-	MY_ATTRIBUTE((warn_unused_result));
 
 /** Check if index is auto-generated clustered index.
 @param[in]	index	index
@@ -784,46 +774,10 @@ dict_table_get_all_fts_indexes(
 	dict_table_t*		table,
 	ib_vector_t*		indexes);
 
-/********************************************************************//**
-Gets the number of user-defined non-virtual columns in a table in the
-dictionary cache.
-@return number of user-defined (e.g., not ROW_ID) non-virtual
-columns of a table */
-UNIV_INLINE
-ulint
-dict_table_get_n_user_cols(
-/*=======================*/
-	const dict_table_t*	table)	/*!< in: table */
-	MY_ATTRIBUTE((warn_unused_result));
-/** Gets the number of user-defined virtual and non-virtual columns in a table
-in the dictionary cache.
-@param[in]	table	table
-@return number of user-defined (e.g., not ROW_ID) columns of a table */
 UNIV_INLINE
 ulint
 dict_table_get_n_tot_u_cols(
 	const dict_table_t*	table);
-/********************************************************************//**
-Gets the number of system columns in a table.
-For intrinsic table on ROW_ID column is added for all other
-tables TRX_ID and ROLL_PTR are all also appeneded.
-@return number of system (e.g., ROW_ID) columns of a table */
-UNIV_INLINE
-ulint
-dict_table_get_n_sys_cols(
-/*======================*/
-	const dict_table_t*	table)	/*!< in: table */
-	MY_ATTRIBUTE((warn_unused_result));
-/********************************************************************//**
-Gets the number of all non-virtual columns (also system) in a table
-in the dictionary cache.
-@return number of columns of a table */
-UNIV_INLINE
-ulint
-dict_table_get_n_cols(
-/*==================*/
-	const dict_table_t*	table)	/*!< in: table */
-	MY_ATTRIBUTE((warn_unused_result));
 
 /** Gets the number of virtual columns in a table in the dictionary cache.
 @param[in]	table	the table to check
@@ -879,17 +833,6 @@ dict_table_get_nth_v_col_mysql(
 	ulint			col_nr);
 
 #ifdef UNIV_DEBUG
-/********************************************************************//**
-Gets the nth column of a table.
-@return pointer to column object */
-UNIV_INLINE
-dict_col_t*
-dict_table_get_nth_col(
-/*===================*/
-	const dict_table_t*	table,	/*!< in: table */
-	ulint			pos)	/*!< in: position of column */
-	MY_ATTRIBUTE((warn_unused_result));
-
 /** Gets the nth virtual column of a table.
 @param[in]	table	table
 @param[in]	pos	position of virtual column
@@ -900,22 +843,7 @@ dict_table_get_nth_v_col(
 	const dict_table_t*	table,
 	ulint			pos);
 
-/********************************************************************//**
-Gets the given system column of a table.
-@return pointer to column object */
-UNIV_INLINE
-dict_col_t*
-dict_table_get_sys_col(
-/*===================*/
-	const dict_table_t*	table,	/*!< in: table */
-	ulint			sys)	/*!< in: DATA_ROW_ID, ... */
-	MY_ATTRIBUTE((warn_unused_result));
 #else /* UNIV_DEBUG */
-#define dict_table_get_nth_col(table, pos)	\
-((table)->cols + (pos))
-#define dict_table_get_sys_col(table, sys)	\
-((table)->cols + (table)->n_cols + (sys)	\
- - (dict_table_get_n_sys_cols(table)))
 /* Get nth virtual columns */
 #define dict_table_get_nth_v_col(table, pos)	((table)->v_cols + (pos))
 #endif /* UNIV_DEBUG */
@@ -1786,24 +1714,6 @@ Closes the data dictionary module. */
 void
 dict_close(void);
 /*============*/
-#ifndef UNIV_HOTBACKUP
-/** Check whether the table is corrupted.
-@param[in]	table	table object
-@return true if the table is corrupted, otherwise false */
-UNIV_INLINE
-bool
-dict_table_is_corrupted(
-	const dict_table_t*	table);
-
-/** Check whether the index is corrupted.
-@param[in]	index	index object
-@return true if index is corrupted, otherwise false */
-UNIV_INLINE
-bool
-dict_index_is_corrupted(
-	const dict_index_t*	index);
-
-#endif /* !UNIV_HOTBACKUP */
 
 /** Wrapper for the system table used to buffer the persistent dynamic
 metadata.
@@ -1989,16 +1899,6 @@ dict_table_is_discarded(
 	MY_ATTRIBUTE((warn_unused_result));
 
 /********************************************************************//**
-Check if it is a temporary table.
-@return true if temporary table flag is set. */
-UNIV_INLINE
-bool
-dict_table_is_temporary(
-/*====================*/
-	const dict_table_t*	table)	/*!< in: table to check */
-	MY_ATTRIBUTE((warn_unused_result));
-
-/********************************************************************//**
 Check if it is a encrypted table.
 @return true if table encryption flag is set. */
 UNIV_INLINE
@@ -2006,24 +1906,6 @@ bool
 dict_table_is_encrypted(
 /*====================*/
 	const dict_table_t*	table)	/*!< in: table to check */
-	MY_ATTRIBUTE((warn_unused_result));
-
-/** Check whether the table is intrinsic.
-An intrinsic table is a special kind of temporary table that
-is invisible to the end user.  It is created internally by the MySQL server
-layer or other module connected to InnoDB in order to gather and use data
-as part of a larger task.  Since access to it must be as fast as possible,
-it does not need UNDO semantics, system fields DB_TRX_ID & DB_ROLL_PTR,
-doublewrite, checksum, insert buffer, use of the shared data dictionary,
-locking, or even a transaction.  In short, these are not ACID tables at all,
-just temporary
-
-@param[in]	table	table to check
-@return true if intrinsic table flag is set. */
-UNIV_INLINE
-bool
-dict_table_is_intrinsic(
-	const dict_table_t*	table)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Check whether the table is DDTableBuffer. See class DDTableBuffer

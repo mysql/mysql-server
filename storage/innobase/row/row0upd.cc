@@ -361,7 +361,7 @@ row_upd_index_entry_sys_field(
 	byte*		field;
 	ulint		pos;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 
 	pos = dict_index_get_sys_col_pos(index, type);
 
@@ -558,7 +558,7 @@ row_upd_write_sys_vals_to_log(
 				in mlog */
 	mtr_t*		mtr MY_ATTRIBUTE((unused))) /*!< in: mtr */
 {
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(mtr);
 
 	log_ptr += mach_write_compressed(log_ptr,
@@ -795,7 +795,7 @@ row_upd_build_sec_rec_difference_binary(
 	ulint		i;
 
 	/* This function is used only for a secondary index */
-	ut_a(!dict_index_is_clust(index));
+	ut_a(!index->is_clustered());
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(rec_offs_n_fields(offsets) == dtuple_get_n_fields(entry));
 	ut_ad(!rec_offs_any_extern(offsets));
@@ -880,7 +880,7 @@ row_upd_build_difference_binary(
 	rec_offs_init(offsets_);
 
 	/* This function is used only for a clustered index */
-	ut_a(dict_index_is_clust(index));
+	ut_a(index->is_clustered());
 	ut_ad(!index->table->skip_alter_undo);
 
 	update = upd_create(n_fld + n_v_fld, heap);
@@ -888,7 +888,7 @@ row_upd_build_difference_binary(
 	n_diff = 0;
 
 	trx_id_pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
-	ut_ad(dict_table_is_intrinsic(index->table)
+	ut_ad(index->table->is_intrinsic()
 	      || (dict_index_get_sys_col_pos(index, DATA_ROLL_PTR)
 			== trx_id_pos + 1));
 
@@ -915,7 +915,7 @@ row_upd_build_difference_binary(
 
 			/* DB_ROLL_PTR */
 			if (i == trx_id_pos + 1
-			    && !dict_table_is_intrinsic(index->table)) {
+			    && !index->table->is_intrinsic()) {
 				continue;
 			}
 		}
@@ -1457,7 +1457,7 @@ row_upd_replace(
 	ut_ad(row);
 	ut_ad(ext);
 	ut_ad(index);
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(update);
 	ut_ad(heap);
 	ut_ad(update->validate());
@@ -1465,7 +1465,7 @@ row_upd_replace(
 
 	n_cols = dtuple_get_n_fields(row);
 	table = index->table;
-	ut_ad(n_cols == dict_table_get_n_cols(table));
+	ut_ad(n_cols == table->get_n_cols());
 
 	ext_cols = static_cast<ulint*>(
 		mem_heap_alloc(heap, n_cols * sizeof *ext_cols));
@@ -1477,7 +1477,7 @@ row_upd_replace(
 	for (col_no = 0; col_no < n_cols; col_no++) {
 
 		const dict_col_t*	col
-			= dict_table_get_nth_col(table, col_no);
+			= table->get_col(col_no);
 		const ulint		clust_pos
 			= dict_col_get_clust_pos(col, index);
 		dfield_t*		dfield;
@@ -1744,7 +1744,7 @@ row_upd_changes_ord_field_binary_func(
 			dfield_len = dfield_get_len(dfield);
 			ut_a(dfield_len > BTR_EXTERN_FIELD_REF_SIZE);
 			dfield_len -= BTR_EXTERN_FIELD_REF_SIZE;
-			ut_a(dict_index_is_clust(index)
+			ut_a(index->is_clustered()
 			     || ind_field->prefix_len <= dfield_len);
 
 			buf = static_cast<byte*>(dfield_get_data(dfield));
@@ -2167,7 +2167,7 @@ row_upd_sec_index_entry(
 	entry = row_build_index_entry(node->row, node->ext, index, heap);
 	ut_a(entry);
 
-	if (!dict_table_is_intrinsic(index->table)) {
+	if (!index->table->is_intrinsic()) {
 		log_free_check();
 	}
 
@@ -2181,11 +2181,11 @@ row_upd_sec_index_entry(
 	server or connection lifetime and so REDO information is not needed
 	on restart for recovery.
 	Disable locking as temp-tables are not shared across connection. */
-	if (dict_table_is_temporary(index->table)) {
+	if (index->table->is_temporary()) {
 		flags |= BTR_NO_LOCKING_FLAG;
 		mtr.set_log_mode(MTR_LOG_NO_REDO);
 
-		if (dict_table_is_intrinsic(index->table)) {
+		if (index->table->is_intrinsic()) {
 			flags |= BTR_NO_UNDO_LOG_FLAG;
 		}
 	}
@@ -2225,7 +2225,7 @@ row_upd_sec_index_entry(
 		are no foreign key constraints referring to the index.
 		Change buffering is disabled for temporary tables and
 		spatial index. */
-		mode = (referenced || dict_table_is_temporary(index->table)
+		mode = (referenced || index->table->is_temporary()
 			|| dict_index_is_spatial(index))
 			? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			: BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
@@ -2240,7 +2240,7 @@ row_upd_sec_index_entry(
 		are no foreign key constraints referring to the index.
 		Change buffering is disabled for temporary tables and
 		spatial index. */
-		mode = (referenced || dict_table_is_temporary(index->table)
+		mode = (referenced || index->table->is_temporary()
 			|| dict_index_is_spatial(index))
 			? BTR_MODIFY_LEAF
 			: BTR_MODIFY_LEAF | BTR_DELETE_MARK;
@@ -2374,7 +2374,7 @@ row_upd_sec_step(
 {
 	ut_ad((node->state == UPD_NODE_UPDATE_ALL_SEC)
 	      || (node->state == UPD_NODE_UPDATE_SOME_SEC));
-	ut_ad(!dict_index_is_clust(node->index));
+	ut_ad(!node->index->is_clustered());
 
 	if (node->state == UPD_NODE_UPDATE_ALL_SEC
 	    || row_upd_changes_ord_field_binary(node->index, node->update,
@@ -2504,7 +2504,7 @@ row_upd_clust_rec_by_insert(
 	ulint*		offsets			= NULL;
 
 	ut_ad(node);
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 
 	trx = thr_get_trx(thr);
 	table = node->table;
@@ -2659,7 +2659,7 @@ row_upd_check_autoinc_counter(
 	}
 
 	if (!dict_table_has_autoinc_col(table)
-	    || dict_table_is_temporary(table)
+	    || table->is_temporary()
 	    || node->row == NULL) {
 
 		return;
@@ -2729,7 +2729,7 @@ row_upd_clust_rec(
 	AutoIncLogMtr	autoinc_mtr(mtr);
 
 	ut_ad(node);
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(!thr_get_trx(thr)->in_rollback);
 
 	pcur = node->pcur;
@@ -2788,11 +2788,11 @@ row_upd_clust_rec(
 	server or connection lifetime and so REDO information is not needed
 	on restart for recovery.
 	Disable locking as temp-tables are not shared across connection. */
-	if (dict_table_is_temporary(index->table)) {
+	if (index->table->is_temporary()) {
 		flags |= BTR_NO_LOCKING_FLAG;
 		autoinc_mtr.get_mtr()->set_log_mode(MTR_LOG_NO_REDO);
 
-		if (dict_table_is_intrinsic(index->table)) {
+		if (index->table->is_intrinsic()) {
 			flags |= BTR_NO_UNDO_LOG_FLAG;
 		}
 	}
@@ -2884,7 +2884,7 @@ row_upd_del_mark_clust_rec(
 	dberr_t		err;
 
 	ut_ad(node);
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(node->is_delete);
 
 	pcur = node->pcur;
@@ -2954,11 +2954,11 @@ row_upd_clust_step(
 	server or connection lifetime and so REDO information is not needed
 	on restart for recovery.
 	Disable locking as temp-tables are not shared across connection. */
-	if (dict_table_is_temporary(index->table)) {
+	if (index->table->is_temporary()) {
 		flags |= BTR_NO_LOCKING_FLAG;
 		mtr.set_log_mode(MTR_LOG_NO_REDO);
 
-		if (dict_table_is_intrinsic(index->table)) {
+		if (index->table->is_intrinsic()) {
 			flags |= BTR_NO_UNDO_LOG_FLAG;
 		}
 	}
@@ -3165,7 +3165,7 @@ row_upd(
 	switch (node->state) {
 	case UPD_NODE_UPDATE_CLUSTERED:
 	case UPD_NODE_INSERT_CLUSTERED:
-		if (!dict_table_is_intrinsic(node->table)) {
+		if (!node->table->is_intrinsic()) {
 			log_free_check();
 		}
 		err = row_upd_clust_step(node, thr);

@@ -981,6 +981,25 @@ struct dict_index_t{
 			const_cast<const dict_index_t*>(this)->next()));
 	}
 
+	/** Check whether the index is corrupted.
+	@return true if index is corrupted, otherwise false */
+	bool is_corrupted() const
+	{
+		ut_ad(magic_n == DICT_INDEX_MAGIC_N);
+
+		return(type & DICT_CORRUPT);
+	}
+
+	/* Check whether the index is the clustered index
+	@return nonzero for clustered index, zero for other indexes */
+
+	bool is_clustered() const
+	{
+		ut_ad(magic_n == DICT_INDEX_MAGIC_N);
+
+		return(type & DICT_CLUSTERED);
+	}
+
 #endif /* !UNIV_HOTBACKUP */
 };
 
@@ -1749,6 +1768,130 @@ public:
 		return(const_cast<dict_index_t*>(
 			const_cast<const dict_table_t*>(this)
 			->first_index()));
+	}
+
+	/** Check whether the table is corrupted.
+	@return true if the table is corrupted, otherwise false */
+	bool is_corrupted() const
+	{
+		ut_ad(magic_n == DICT_TABLE_MAGIC_N);
+
+		const dict_index_t*	index = first_index();
+
+		/* It is possible that this table is only half created, in which case
+		the clustered index may be NULL.  If the clustered index is corrupted,
+		the table is corrupt.  We do not consider the table corrupt if only
+		a secondary index is corrupt. */
+		ut_ad(index == NULL || index->is_clustered());
+
+		return(index != NULL && index->type & DICT_CORRUPT);
+	}
+
+
+	/** Returns a column's name.
+	@param[in] col_nr	column number
+	@return column name. NOTE: not guaranteed to stay valid if table is
+	modified in any way (columns added, etc.). */
+	const char* get_col_name(ulint col_nr) const
+	{
+		ut_ad(col_nr < n_def);
+		ut_ad(magic_n == DICT_TABLE_MAGIC_N);
+
+		const char* s = col_names;
+		if (s) {
+			for (ulint i = 0; i < col_nr; i++) {
+				s += strlen(s) + 1;
+			}
+		}
+
+		return(s);
+	}
+
+	/**Gets the nth column of a table.
+	@param[in] pos	position of column
+	@return pointer to column object */
+	dict_col_t* get_col(ulint pos) const
+	{
+		ut_ad(pos < n_def);
+		ut_ad(magic_n == DICT_TABLE_MAGIC_N);
+
+		return(cols + pos);
+	}
+
+	/** Gets the number of user-defined non-virtual columns in a table
+	in the dictionary cache.
+	@return number of user-defined (e.g., not ROW_ID) non-virtual columns
+	of a table */
+	ulint get_n_user_cols() const
+	{
+		ut_ad(magic_n == DICT_TABLE_MAGIC_N);
+
+		return(n_cols - get_n_sys_cols());
+	}
+
+	/** Gets the number of system columns in a table.
+	For intrinsic table on ROW_ID column is added for all other
+	tables TRX_ID and ROLL_PTR are all also appeneded.
+	@return number of system (e.g., ROW_ID) columns of a table */
+	ulint get_n_sys_cols() const
+	{
+		ut_ad(magic_n == DICT_TABLE_MAGIC_N);
+
+		return (is_intrinsic() ? DATA_ITT_N_SYS_COLS : DATA_N_SYS_COLS);
+	}
+
+	/** Gets the number of all non-virtual columns (also system) in a table
+	in the dictionary cache.
+	@return number of non-virtual columns of a table */
+	ulint get_n_cols() const
+	{
+		ut_ad(magic_n == DICT_TABLE_MAGIC_N);
+
+		return(n_cols);
+	}
+
+	/** Gets the given system column of a table.
+	@param[in] sys DATA_ROW_ID, ...
+	@return pointer to column object */
+	dict_col_t*  get_sys_col(ulint sys) const
+	{
+		dict_col_t*	col;
+
+		ut_ad(sys < get_n_sys_cols());
+		ut_ad(magic_n == DICT_TABLE_MAGIC_N);
+
+		col = get_col(n_cols - get_n_sys_cols() + sys);
+		ut_ad(col->mtype == DATA_SYS);
+		ut_ad(col->prtype == (sys | DATA_NOT_NULL));
+
+		return(col);
+	}
+
+	/** Determine if this is a temporary table. */
+	bool is_temporary() const
+	{
+		ut_ad(magic_n == DICT_TABLE_MAGIC_N);
+		return(flags2 & DICT_TF2_TEMPORARY);
+	}
+
+	/** Determine whether the table is intrinsic.
+	An intrinsic table is a special kind of temporary table that
+	is invisible to the end user. It can be created internally by InnoDB,
+	the MySQL server layer or other modules connected to InnoDB in order
+	to gather and use data as part of a larger task. Since access to it
+	must be as fast as possible, it does not need UNDO semantics, system
+	fields DB_TRX_ID & DB_ROLL_PTR, doublewrite, checksum, insert buffer,
+	use of the shared data dictionary, locking, or even a transaction.
+	In short, these are not ACID tables at all, just temporary data stored
+	and manipulated during a larger process.*/
+	bool is_intrinsic() const
+	{
+		if (flags2 & DICT_TF2_INTRINSIC) {
+			ut_ad(is_temporary());
+			return(true);
+		}
+
+		return(false);
 	}
 };
 

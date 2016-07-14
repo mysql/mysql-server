@@ -88,7 +88,7 @@ class Equi_height : public Histogram
 {
 private:
   /// String representation of the histogram type EQUI-HEIGHT.
-  static constexpr const char *EQUI_HEIGHT_STR = "equi-height";
+  static constexpr const char *equi_height_str() { return "equi-height"; }
 
   /// The buckets for this histogram.
   std::vector<equi_height::Bucket<T>,

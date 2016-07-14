@@ -170,14 +170,14 @@ Ha_innopart_share::open_one_table_part(
 	dict_table_t *ib_table = m_table_parts[part_id];
 	if ((!DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID)
 	     && m_table_share->fields
-		 != (dict_table_get_n_user_cols(ib_table)
-		     + dict_table_get_n_v_cols(ib_table)))
+		 != (ib_table->get_n_user_cols()
+			 + dict_table_get_n_v_cols(ib_table)))
 	    || (DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID)
 		&& (m_table_share->fields
-		    != dict_table_get_n_user_cols(ib_table)
+		    != ib_table->get_n_user_cols()
 		       + dict_table_get_n_v_cols(ib_table) - 1))) {
 		ib::warn() << "Partition `" << get_partition_name(part_id)
-			<< "` contains " << dict_table_get_n_user_cols(ib_table)
+			<< "` contains " << ib_table->get_n_user_cols()
 			<< " user defined columns in InnoDB, but "
 			<< m_table_share->fields
 			<< " columns in MySQL. Please check"
@@ -1212,7 +1212,7 @@ share_error:
 			for (uint i = 0; i < table->s->keys; i++) {
 				dict_index_t*	index;
 				index = innopart_get_index(0, i);
-				if (dict_index_is_clust(index)) {
+				if (index->is_clustered()) {
 					ref_length =
 						 table->key_info[i].key_length;
 				}
@@ -2036,7 +2036,7 @@ ha_innopart::change_active_index(
 							   m_prebuilt->index);
 
 	if (UNIV_UNLIKELY(!m_prebuilt->index_usable)) {
-		if (dict_index_is_corrupted(m_prebuilt->index)) {
+		if (m_prebuilt->index->is_corrupted()) {
 			char table_name[MAX_FULL_NAME_LEN + 1];
 
 			innobase_format_name(
@@ -3169,11 +3169,11 @@ ha_innopart::truncate_partition_low(dd::Table *table_def)
 		ut_ad(table_part->n_ref_count >= 1);
 
 		/* Temporary partitioned tables are not supported! */
-		ut_ad(!dict_table_is_temporary(table_part));
+		ut_ad(!table_part->is_temporary());
 
 		/* Intrinsic partitioned tables are not supported! */
-		ut_ad(!dict_table_is_intrinsic(table_part));
-		if (dict_table_is_temporary(table_part)) {
+		ut_ad(!table_part->is_intrinsic());
+		if (table_part->is_temporary()) {
 			error = HA_ERR_WRONG_COMMAND;
 			break;
 		}
@@ -3347,7 +3347,7 @@ ha_innopart::records_in_range(
 	Necessary message should have been printed in innopart_get_index(). */
 	if (index == NULL
 	    || dict_table_is_discarded(m_prebuilt->table)
-	    || dict_index_is_corrupted(index)
+	    || index->is_corrupted()
 	    || !row_merge_is_index_usable(m_prebuilt->trx, index)) {
 
 		n_rows = HA_POS_ERROR;

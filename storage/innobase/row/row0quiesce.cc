@@ -309,7 +309,7 @@ row_quiesce_write_table(
 		ib_uint32_t	len;
 		const char*	col_name;
 
-		col_name = dict_table_get_col_name(table, dict_col_get_no(col));
+		col_name = table->get_col_name(dict_col_get_no(col));
 
 		/* Include the NUL byte in the length. */
 		len = static_cast<ib_uint32_t>(strlen(col_name) + 1);
@@ -915,7 +915,7 @@ row_quiesce_set_state(
 
 		return(DB_UNSUPPORTED);
 
-	} else if (dict_table_is_temporary(table)) {
+	} else if (table->is_temporary()) {
 
 		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
 			    ER_CANNOT_DISCARD_TEMPORARY_TABLE);

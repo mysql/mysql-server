@@ -3499,17 +3499,6 @@ my_decimal *Item_string::val_decimal(my_decimal *decimal_value)
 }
 
 
-bool Item_null::itemize(Parse_context *pc, Item **res)
-{
-  if (skip_itemize(res))
-    return false;
-  if (super::itemize(pc, res))
-    return true;
-  pc->thd->lex->type|= EXPLICIT_NULL_FLAG;
-  return false;
-}
-
-
 bool Item_null::eq(const Item *item, bool binary_cmp) const
 { return item->type() == type(); }
 

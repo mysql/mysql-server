@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -162,6 +162,9 @@ sub cpus {
 
 # Return the number of cpus found
 sub num_cpus {
+  if (IS_WINDOWS) {
+    return $ENV{NUMBER_OF_PROCESSORS} || 1;
+  }
   my ($self)= @_;
   return int(@{$self->{cpus}}) or
     confess "INTERNAL ERROR: No cpus in list";

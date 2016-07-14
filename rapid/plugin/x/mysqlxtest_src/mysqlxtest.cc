@@ -17,10 +17,10 @@
  * 02110-1301  USA
  */
 
+#include "my_global.h"
+#include "mysqlx_version.h"
 #include "ngs_common/protocol_protobuf.h"
-#include "mysqlx.h"
 #include "mysqlx_crud.h"
-#include "mysqlx_connection.h"
 #include "ngs_common/protocol_const.h"
 
 #include <boost/algorithm/string.hpp>
@@ -49,6 +49,14 @@
 #include <sstream>
 #include <stdexcept>
 #include <algorithm>
+#include "mysqlx_protocol.h"
+#include "mysqlx_session.h"
+#include "mysqlx_resultset.h"
+#include "mysqlx_error.h"
+
+#ifdef HAVE_SYS_UN_H
+#include <sys/un.h>
+#endif
 
 const char CMD_ARG_SEPARATOR = '\t';
 const char * const MYSQLXTEST_VERSION = "1.0";
@@ -278,18 +286,19 @@ private:
 class Connection_manager
 {
 public:
-  Connection_manager(const std::string &uri, const mysqlx::Ssl_config &ssl_config_, const std::size_t timeout_, const bool _dont_wait_for_disconnect)
-  : port(MYSQLX_PORT), ssl_config(ssl_config_), timeout(timeout_), dont_wait_for_disconnect(_dont_wait_for_disconnect)
+  Connection_manager(const std::string &uri, const mysqlx::Ssl_config &ssl_config_, const std::size_t timeout_, const bool _dont_wait_for_disconnect, const std::string &socket)
+  : port(MYSQLX_PORT), ssl_config(ssl_config_), timeout(timeout_), dont_wait_for_disconnect(_dont_wait_for_disconnect), unix_socket(socket)
   {
     int pwdfound;
     mysqlx::parse_mysql_connstring(uri, proto, user, pass, host, port, sock, db, pwdfound);
 
-    active_connection.reset(new mysqlx::Connection(ssl_config, timeout, dont_wait_for_disconnect));
+    active_connection.reset(new mysqlx::XProtocol(ssl_config, timeout, dont_wait_for_disconnect));
     connections[""] = active_connection;
 
     if (OPT_verbose)
       std::cout << "Connecting...\n";
-    active_connection->connect(host, port);
+
+    make_connection(active_connection);
   }
 
   void get_credentials(std::string &ret_user, std::string &ret_pass)
@@ -325,15 +334,16 @@ public:
 
     std::cout << "connecting...\n";
 
-    boost::shared_ptr<mysqlx::Connection> connection;
+    boost::shared_ptr<mysqlx::XProtocol> connection;
     mysqlx::Ssl_config                    connection_ssl_config;
 
     if (!no_ssl)
       connection_ssl_config = ssl_config;
 
-    connection.reset(new mysqlx::Connection(connection_ssl_config, timeout, dont_wait_for_disconnect));
+    connection.reset(new mysqlx::XProtocol(connection_ssl_config, timeout, dont_wait_for_disconnect));
 
-    connection->connect(host, port);
+    make_connection(connection);
+
     if (user != "-")
     {
       if (user.empty())
@@ -439,7 +449,7 @@ public:
     if (connections.find(name) == connections.end())
     {
       std::string slist;
-      for (std::map<std::string, boost::shared_ptr<mysqlx::Connection> >::const_iterator it = connections.begin(); it != connections.end(); ++it)
+      for (std::map<std::string, boost::shared_ptr<mysqlx::XProtocol> >::const_iterator it = connections.begin(); it != connections.end(); ++it)
         slist.append(it->first).append(", ");
       if (!slist.empty())
         slist.resize(slist.length()-2);
@@ -453,7 +463,7 @@ public:
     std::cout << "switched to session " << (active_connection_name.empty() ? "default" : active_connection_name) << "\n";
   }
 
-  mysqlx::Connection* active()
+  mysqlx::XProtocol* active()
   {
     if (!active_connection)
       std::runtime_error("no active session");
@@ -461,14 +471,23 @@ public:
   }
 
 private:
-  std::map<std::string, boost::shared_ptr<mysqlx::Connection> > connections;
-  boost::shared_ptr<mysqlx::Connection> active_connection;
+  void make_connection(boost::shared_ptr<mysqlx::XProtocol> &connection)
+  {
+    if (unix_socket.empty())
+      connection->connect(host, port);
+    else
+      connection->connect_to_localhost(unix_socket);
+  }
+
+  std::map<std::string, boost::shared_ptr<mysqlx::XProtocol> > connections;
+  boost::shared_ptr<mysqlx::XProtocol> active_connection;
   std::string active_connection_name;
   std::string proto, user, pass, host, sock, db;
   int port;
   mysqlx::Ssl_config ssl_config;
   const std::size_t timeout;
   const bool dont_wait_for_disconnect;
+  const std::string unix_socket;
 };
 
 static std::string data_to_bindump(const std::string &bindump)
@@ -717,7 +736,7 @@ public:
   std::istream       &m_stream;
   Connection_manager *m_cm;
 
-  mysqlx::Connection *connection() { return m_cm->active(); }
+  mysqlx::XProtocol *connection() { return m_cm->active(); }
 };
 
 //---------------------------------------------------------------------------------------------------------
@@ -1103,13 +1122,30 @@ private:
 
     boost::split(argl, args, boost::is_any_of(" "), boost::token_compress_on);
 
-
     bool show = true, stop = false;
 
     if (argl.size() > 1)
       show = atoi(argl[1].c_str()) > 0;
 
-    while (!stop)
+    Message_by_full_name::iterator iterator_msg_name = server_msgs_by_full_name.find(argl[0]);
+
+    if (server_msgs_by_full_name.end() == iterator_msg_name)
+    {
+      std::cout << "Unknown message name: " << argl[0] << " " << server_msgs_by_full_name.size() << "\n";
+      return Stop_with_failure;
+    }
+
+    Message_by_name::iterator iterator_msg_id = server_msgs_by_name.find(iterator_msg_name->second);
+
+    if (server_msgs_by_name.end() == iterator_msg_id)
+    {
+      std::cout << "Invalid data in internal message list, entry not found:" << iterator_msg_name->second << "\n";
+      return Stop_with_failure;
+    }
+
+    const int expected_msg_id = iterator_msg_id->second.second;
+
+    do
     {
       boost::scoped_ptr<mysqlx::Message> msg(context.connection()->recv_raw(msgid));
       if (msg.get())
@@ -1134,7 +1170,14 @@ private:
         }
       }
     }
+    while (!stop);
+
     variables_to_unreplace.clear();
+
+    if (Mysqlx::ServerMessages::ERROR == msgid &&
+        Mysqlx::ServerMessages::ERROR != expected_msg_id)
+      return Stop_with_failure;
+
     return Continue;
   }
 
@@ -1255,9 +1298,9 @@ private:
         user = s;
     }
 
-    void (mysqlx::Connection::*method)(const std::string &, const std::string &, const std::string &);
+    void (mysqlx::XProtocol::*method)(const std::string &, const std::string &, const std::string &);
 
-    method = &mysqlx::Connection::authenticate_mysql41;
+    method = &mysqlx::XProtocol::authenticate_mysql41;
 
     try
     {
@@ -1266,7 +1309,7 @@ private:
       // Prepered for method map
       if (0 == strncmp(auth_meth.c_str(), "plain", 5))
       {
-        method = &mysqlx::Connection::authenticate_plain;
+        method = &mysqlx::XProtocol::authenticate_plain;
       }
       else if ( !(0 == strncmp(auth_meth.c_str(), "mysql41", 5) || 0 == auth_meth.length()))
         throw mysqlx::Error(CR_UNKNOWN_ERROR, "Wrong authentication method");
@@ -1945,8 +1988,7 @@ private:
 
 boost::posix_time::ptime Command::m_start_measure = boost::posix_time::not_a_date_time;
 
-
-static int process_client_message(mysqlx::Connection *connection, int8_t msg_id, const mysqlx::Message &msg)
+static int process_client_message(mysqlx::XProtocol *connection, int8_t msg_id, const mysqlx::Message &msg)
 {
   if (!OPT_quiet)
     std::cout << "send " << message_to_text(msg) << "\n";
@@ -2217,7 +2259,7 @@ static void print_result_set(mysqlx::Result &result, const std::vector<std::stri
   }
 }
 
-static int run_sql_batch(mysqlx::Connection *conn, const std::string &sql_)
+static int run_sql_batch(mysqlx::XProtocol *conn, const std::string &sql_)
 {
   std::string delimiter = ";";
   std::vector<std::pair<size_t, size_t> > ranges;
@@ -2681,6 +2723,7 @@ public:
 
   int port;
   int timeout;
+  std::string socket;
   std::string host;
   std::string uri;
   std::string password;
@@ -2710,11 +2753,16 @@ public:
     std::cout << "--schema=<schema>     Default schema to connect to\n";
     std::cout << "--uri=<uri>           Connection URI\n";
     std::cout << "                      URI takes precedence before options like: user, host, password, port\n";
+    std::cout << "--socket=<file>       Connection through UNIX socket or Named Pipe\n";
+    std::cout << "--use-socket          Connection through UNIX socket or Named Pipe using default file name\n";
+    std::cout << "                      --use-socket* options take precedence before options like: uri, user,\n";
+    std::cout << "                      host, password, port\n";
     std::cout << "--ssl-key             X509 key in PEM format\n";
     std::cout << "--ssl-ca              CA file in PEM format\n";
     std::cout << "--ssl-ca_path         CA directory\n";
     std::cout << "--ssl-cert            X509 cert in PEM format\n";
     std::cout << "--ssl-cipher          SSL cipher to use\n";
+    std::cout << "--tls-version         TLS version to use\n";
     std::cout << "--connect-expired-password Allow expired password\n";
     std::cout << "--quiet               Don't print out messages sent\n";
     std::cout << "--fatal-errors=<0|1>  Mysqlxtest is started with ignoring or stopping on fatal error\n";
@@ -2831,6 +2879,15 @@ public:
     return true;
   }
 
+  std::string get_socket_name()
+  {
+#if defined(_WIN32)
+    return MYSQLX_NAMEDPIPE;
+#else
+    return MYSQLX_UNIX_ADDR;
+#endif
+  }
+
   My_command_line_options(int argc, char **argv)
   : Command_line_options(argc, argv), run_mode(RunTest), has_file(false),
     cap_expired_password(false), dont_wait_for_server_disconnect(false),
@@ -2872,6 +2929,8 @@ public:
         ssl.cert = value;
       else if (check_arg_with_value(argv, i, "--ssl-cipher", NULL, value))
         ssl.cipher = value;
+      else if (check_arg_with_value(argv, i, "--tls-version", NULL, value))
+        ssl.tls_version = value;
       else if (check_arg_with_value(argv, i, "--host", "-h", value))
         host = value;
       else if (check_arg_with_value(argv, i, "--user", "-u", value))
@@ -2888,8 +2947,12 @@ public:
         OPT_fatal_errors = atoi(value);
       else if (check_arg_with_value(argv, i, "--password", "-p", value))
         password = value;
+      else if (check_arg_with_value(argv, i, "--socket", "-S", value))
+        socket = value;
       else if (check_arg_with_value(argv, i, NULL, "-v", value))
         set_variable_option(value);
+      else if (check_arg(argv, i, "--use-socket", NULL))
+        socket = get_socket_name();
       else if (check_arg(argv, i, "--close-no-sync", NULL))
         dont_wait_for_server_disconnect = true;
       else if (check_arg(argv, i, "--bindump", "-B"))
@@ -2930,7 +2993,7 @@ public:
     }
 
     if (port == 0)
-      port = MYSQLX_PORT;
+      port = MYSQLX_TCP_PORT;
     if (host.empty())
       host = "localhost";
 
@@ -2998,7 +3061,7 @@ static std::vector<Block_processor_ptr> create_block_processors(Connection_manag
 
 static int process_client_input_on_session(const My_command_line_options &options, std::istream &input)
 {
-  Connection_manager cm(options.uri, options.ssl, options.timeout, options.dont_wait_for_server_disconnect);
+  Connection_manager cm(options.uri, options.ssl, options.timeout, options.dont_wait_for_server_disconnect, options.socket);
   int r = 1;
 
   try
@@ -3027,7 +3090,7 @@ static int process_client_input_on_session(const My_command_line_options &option
 
 static int process_client_input_no_auth(const My_command_line_options &options, std::istream &input)
 {
-  Connection_manager cm(options.uri, options.ssl, options.timeout, options.dont_wait_for_server_disconnect);
+  Connection_manager cm(options.uri, options.ssl, options.timeout, options.dont_wait_for_server_disconnect, options.socket);
   int r = 1;
 
   try
@@ -3321,6 +3384,11 @@ int main(int argc, char **argv)
     script_stack.push_front(frame);
 
     result = mode(options, input);
+  }
+  catch (mysqlx::Error &e)
+  {
+    std::cerr << "ERROR: " << e.what() << "\n";
+    result = 1;
   }
   catch (std::exception &e)
   {

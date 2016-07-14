@@ -129,25 +129,26 @@ void track_object(Sdi_rcontext *rctx, Index *index_object);
 
 
 /**
-  Update an Index reference variable from a deserialized ordinal position index.
+  Return an non-owning raw pointer to the deserialized Index object
+  with ordinal postion index opx (ordinal position opx+1). The unused
+  const Index* argument is needed for overload resolution.
 
   @param rctx opaque context
-  @param index_var Index reference variable to update
   @param opx ordinal position index
 */
 
-void lookup_opx_reference(Sdi_rcontext *rctx, Index** index_var, uint opx);
-
+Index *get_by_opx(Sdi_rcontext *rctx, const Index*, uint opx);
 
 /**
-  Update a Column reference variable from a deserialized ordinal position index.
+  Return an non-owning raw pointer to the deserialized Column object
+  with ordinal postion index opx (ordinal position opx+1). The unused
+  const Column* argument is needed for overload resolution.
 
   @param rctx opaque context
-  @param column_var column reference variable to update
   @param opx ordinal position index
 */
 
-void lookup_opx_reference(Sdi_rcontext *rctx, Column** column_var, uint opx);
+Column *get_by_opx(Sdi_rcontext *rctx, const Column*, uint opx);
 
 
 /**
@@ -474,7 +475,7 @@ bool read_opx_reference(dd::Sdi_rcontext *rctx, PP *p, const GV &gv,
   {
     return true;
   }
-  lookup_opx_reference(rctx, p, opx);
+  *p= get_by_opx(rctx, *p, opx);
   return false;
 }
 

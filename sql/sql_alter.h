@@ -22,6 +22,7 @@
 #include "prealloced_array.h" // Prealloced_array
 #include "sql_cmd.h"  // Sql_cmd
 #include "sql_list.h" // List
+#include "binary_log_types.h" // enum_field_types
 
 class Create_field;
 class Item;
@@ -386,6 +387,21 @@ public:
 
   bool set_requested_lock(const LEX_STRING *str);
 
+  bool add_field(THD *thd,
+                 const LEX_STRING *field_name,
+                 enum enum_field_types type,
+                 const char *length,
+                 const char *decimal,
+                 uint type_modifier,
+                 Item *default_value,
+                 Item *on_update_value,
+                 LEX_STRING *comment,
+                 const char *change,
+                 List<String> *interval_list,
+                 const CHARSET_INFO *cs,
+                 uint uint_geom_type,
+                 class Generated_column *gcol_info,
+                 const char *opt_after);
 private:
   Alter_info &operator=(const Alter_info &rhs); // not implemented
   Alter_info(const Alter_info &rhs);            // not implemented

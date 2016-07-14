@@ -70,7 +70,7 @@ row_undo_ins_remove_clust_rec(
 	dict_index_t*	index	= node->pcur.btr_cur.index;
 	bool		online;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(node->trx->in_rollback);
 
 	mtr_start(&mtr);
@@ -264,7 +264,7 @@ row_undo_ins_remove_sec_low(
 		deleting a secondary index record: the distinction
 		only matters when deleting a record that contains
 		externally stored columns. */
-		ut_ad(!dict_index_is_clust(index));
+		ut_ad(!index->is_clustered());
 		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
 					   false, &mtr);
 	}
@@ -473,7 +473,7 @@ row_undo_ins(
 	/* Iterate over all the indexes and undo the insert.*/
 
 	node->index = node->table->first_index();
-	ut_ad(dict_index_is_clust(node->index));
+	ut_ad(node->index->is_clustered());
 	/* Skip the clustered index (the first index) */
 	node->index = node->index->next();
 

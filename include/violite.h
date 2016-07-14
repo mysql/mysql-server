@@ -28,12 +28,15 @@
 
 /* Simple vio interface in C;  The functions are implemented in violite.c */
 
-#if !defined(_WIN32) && !defined(__APPLE__) && !defined(__SUNPRO_CC)
+#if !defined(_WIN32) && !defined(HAVE_KQUEUE) && !defined(__SUNPRO_CC)
 #define USE_PPOLL_IN_VIO
 #endif
 
 #if defined(__cplusplus) && defined(USE_PPOLL_IN_VIO)
 #include <signal.h>
+#include <atomic>
+#elif defined(__cplusplus) && defined(HAVE_KQUEUE)
+#include <sys/event.h>
 #include <atomic>
 #endif
 
@@ -311,6 +314,9 @@ struct st_vio
 
   */
   std::atomic_flag      poll_shutdown_flag= ATOMIC_FLAG_INIT;
+#elif defined HAVE_KQUEUE
+  int                   kq_fd= { -1 };
+  std::atomic_flag      kevent_wakeup_flag= ATOMIC_FLAG_INIT;
 #endif
 
   /*
