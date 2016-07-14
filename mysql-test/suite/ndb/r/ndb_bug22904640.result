@@ -19,9 +19,9 @@ a	b	c
 1	10	3
 1	11	3
 1	12	3
-Max Rows: 0
+include/assert_grep.inc [Checking MAX_ROWS is unchanged]
 drop table t1;
-Max Rows: 0
+include/assert_grep.inc [Checking MAX_ROWS is unchanged]
 select * from t1 order by b;
 a	b	c
 1	1	3
