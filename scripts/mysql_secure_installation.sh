@@ -324,7 +324,7 @@ remove_remote_root() {
 
 remove_test_database() {
     echo " - Dropping test database..."
-    do_query "DROP DATABASE test;"
+    do_query "DROP DATABASE IF EXISTS test;"
     if [ $? -eq 0 ]; then
 	echo " ... Success!"
     else

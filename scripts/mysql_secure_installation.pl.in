@@ -217,7 +217,7 @@ sub remove_remote_root {
 
 sub remove_test_database {
   print " - Dropping test database...\n";
-  if (do_query("DROP DATABASE test;")) {
+  if (do_query("DROP DATABASE IF EXISTS test;")) {
     print " ... Success!\n";
   } else {
     print " ... Failed!  Not critical, keep moving...\n";
