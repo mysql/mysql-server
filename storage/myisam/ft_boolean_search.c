@@ -168,7 +168,7 @@ static int FTB_WORD_cmp_list(const void *cmp_arg, const void *a_arg, const void 
   FTB_WORD **b= (FTB_WORD**)b_arg;
   /* ORDER BY word, ndepth */
   int i= ha_compare_text(cs, (uchar*) (*a)->word + 1, (*a)->len - 1,
-                             (uchar*) (*b)->word + 1, (*b)->len - 1, 0, 0);
+                             (uchar*) (*b)->word + 1, (*b)->len - 1, 0);
   if (!i)
     i= CMP_NUM((*a)->ndepth, (*b)->ndepth);
   return i;
@@ -424,7 +424,7 @@ static int _ft2_search_no_lock(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
                        info->lastkey_length-extra-1,
               (uchar*) ftbw->word+1,
                        ftbw->len-1,
-             (my_bool) (ftbw->flags & FTB_FLAG_TRUNC),0);
+             (my_bool) (ftbw->flags & FTB_FLAG_TRUNC));
   }
 
   if (r || info->lastkey_length > max_word_length) /* not found */
@@ -923,7 +923,7 @@ static int ftb_find_relevance_add_word(MYSQL_FTPARSER_PARAM *param,
     ftbw= ftb->list[c];
     if (ha_compare_text(ftb->charset, (uchar*)word, len,
                         (uchar*)ftbw->word+1, ftbw->len-1,
-                        (my_bool) (ftbw->flags & FTB_FLAG_TRUNC), 0) < 0)
+                        (my_bool) (ftbw->flags & FTB_FLAG_TRUNC)) < 0)
       b= c;
     else
       a= c;
@@ -950,7 +950,7 @@ static int ftb_find_relevance_add_word(MYSQL_FTPARSER_PARAM *param,
     ftbw= ftb->list[c];
     if (ha_compare_text(ftb->charset, (uchar*)word, len,
                         (uchar*)ftbw->word + 1,ftbw->len - 1,
-                        (my_bool)(ftbw->flags & FTB_FLAG_TRUNC), 0))
+                        (my_bool)(ftbw->flags & FTB_FLAG_TRUNC)))
     {
       if (ftb->with_scan & FTB_FLAG_TRUNC)
         continue;

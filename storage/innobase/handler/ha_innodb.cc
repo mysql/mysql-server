@@ -6864,7 +6864,7 @@ innobase_fts_text_cmp(
 
 	return(ha_compare_text(
 		charset, s1->f_str, static_cast<uint>(s1->f_len),
-		s2->f_str, static_cast<uint>(s2->f_len), 0, 0));
+		s2->f_str, static_cast<uint>(s2->f_len), 0));
 }
 
 /******************************************************************//**
@@ -6887,7 +6887,7 @@ innobase_fts_text_case_cmp(
 
 	return(ha_compare_text(
 		charset, s1->f_str, static_cast<uint>(s1->f_len),
-		s2->f_str, static_cast<uint>(newlen), 0, 0));
+		s2->f_str, static_cast<uint>(newlen), 0));
 }
 
 /******************************************************************//**
@@ -6934,7 +6934,7 @@ innobase_fts_text_cmp_prefix(
 
 	result = ha_compare_text(
 		charset, s2->f_str, static_cast<uint>(s2->f_len),
-		s1->f_str, static_cast<uint>(s1->f_len), 1, 0);
+		s1->f_str, static_cast<uint>(s1->f_len), 1);
 
 	/* We switched s1, s2 position in ha_compare_text. So we need
 	to negate the result */

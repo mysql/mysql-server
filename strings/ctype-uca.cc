@@ -3289,8 +3289,7 @@ my_coll_rule_parse(MY_COLL_RULES *rules,
 }
 
 static size_t
-my_char_weight_put_800(CHARSET_INFO *cs,
-                       MY_UCA_WEIGHT_LEVEL *dst,
+my_char_weight_put_800(MY_UCA_WEIGHT_LEVEL *dst,
                        uint16 *to, size_t to_length,
                        my_wc_t *str, size_t len)
 {
@@ -3368,7 +3367,7 @@ my_char_weight_put(CHARSET_INFO *cs,
   if (!to_length)
     return 0;
   if (cs->state & MY_CS_UCA_800)
-    return my_char_weight_put_800(cs, dst, to, to_length, str, len);
+    return my_char_weight_put_800(dst, to, to_length, str, len);
 
   to_length--; /* Without trailing zero */
   for (count= 0; len; )
