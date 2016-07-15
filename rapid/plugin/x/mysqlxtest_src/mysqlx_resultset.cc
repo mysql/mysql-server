@@ -600,19 +600,19 @@ boost::shared_ptr<Row> Result::next()
   if (m_buffered)
     ret_val = m_current_result->next();
   else
-{
-  if (!ready())
-    wait();
+  {
+    if (!ready())
+      wait();
 
-  if (m_state == ReadStmtOk)
-    read_stmt_ok();
+    if (m_state == ReadStmtOk)
+      read_stmt_ok();
 
     if (m_state != ReadDone)
     {
       ret_val = read_row();
 
-  if (m_state == ReadStmtOk)
-    read_stmt_ok();
+      if (m_state == ReadStmtOk)
+        read_stmt_ok();
     }
   }
 
