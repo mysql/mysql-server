@@ -3117,7 +3117,13 @@ void Query_result_create::abort_result_set()
     removal of table from data-dictionary and commit associated with it)
   */
   if (!thd->in_sub_stmt)
+  {
     trans_rollback_stmt(thd);
+    if (thd->transaction_rollback_request)
+    {
+      trans_rollback_implicit(thd);
+    }
+  }
 
   if (m_plock)
   {
