@@ -722,12 +722,6 @@ public:
   /* MTS submode  */
   Mts_submode* current_mts_submode;
 
-  /*
-    Slave side local seq_no identifying a parent group that being
-    the scheduled transaction is considered to be dependent
-   */
-  ulonglong mts_last_known_parent_group_id;
-
   /* most of allocation in the coordinator rli is there */
   void init_workers(ulong);
 

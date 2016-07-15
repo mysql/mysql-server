@@ -97,7 +97,7 @@ enum what_to_validate
   VALIDATE_KEY_LENGTH= 8
 };
 
-uint get_args_count_from_validation_request(int to_validate)
+static uint get_args_count_from_validation_request(int to_validate)
 {
   uint args_count= 0;
 
@@ -185,10 +185,10 @@ static my_bool validate(UDF_ARGS *args, uint expected_arg_count,
   return FALSE;
 }
 
-my_bool keyring_udf_func_init(UDF_INIT *initid, UDF_ARGS *args, char *message,
-                              int to_validate,
-                              const boost::optional<size_t> max_lenth_to_return,
-                              const size_t size_of_memory_to_allocate)
+static my_bool keyring_udf_func_init(UDF_INIT *initid, UDF_ARGS *args, char *message,
+                                     int to_validate,
+                                     const boost::optional<size_t> max_lenth_to_return,
+                                     const size_t size_of_memory_to_allocate)
 {
   initid->ptr= NULL;
   uint expected_arg_count= get_args_count_from_validation_request(to_validate);

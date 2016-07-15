@@ -825,7 +825,6 @@ static bool add_part_col_vals(partition_info *part_info,
       DBUG_ASSERT(!col_val->item_expression->null_value);
       if (expr_to_string(&val_str,
                          col_val->item_expression,
-                         col_val,
                          NULL,
                          field_name,
                          create_info,

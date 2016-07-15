@@ -1128,8 +1128,8 @@ my_decompose_hangul_syllable(my_wc_t syllable, my_wc_t* jamo)
   return trailingjamo_index ? 3 : 2;
 }
 
-void my_put_jamo_weights(my_uca_scanner *scanner, my_wc_t *hangul_jamo,
-                         int jamo_cnt)
+static void my_put_jamo_weights(my_uca_scanner *scanner, my_wc_t *hangul_jamo,
+                                int jamo_cnt)
 {
   for (int jamoind= 0; jamoind < jamo_cnt; jamoind++)
   {

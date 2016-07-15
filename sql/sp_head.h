@@ -663,17 +663,6 @@ public:
   bool execute_procedure(THD *thd, List<Item> *args);
 
   /**
-    Implement SHOW CREATE statement for stored routines.
-
-    @param thd  Thread context.
-    @param type         Stored routine type
-                        (SP_TYPE_PROCEDURE or SP_TYPE_FUNCTION)
-
-    @return Error status.
-  */
-  bool show_create_routine(THD *thd, enum_sp_type type);
-
-  /**
     Add instruction to SP.
 
     @param thd    Thread context.
@@ -722,8 +711,6 @@ public:
       *lenp= (uint) m_name.length;
     return m_name.str;
   }
-
-  char *create_string(THD *thd, ulong *lenp);
 
   /**
     Create Field-object corresponding to the RETURN field of a stored function.

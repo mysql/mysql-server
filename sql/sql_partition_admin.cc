@@ -21,7 +21,6 @@
 #include "partition_info.h"                 // class partition_info etc.
 #include "sql_base.h"                       // open_and_lock_tables, etc
 #include "debug_sync.h"                     // DEBUG_SYNC
-#include "sql_base.h"                       // open_and_lock_tables
 #include "log.h"
 #include "partitioning/partition_handler.h" // Partition_handler
 #include "sql_class.h"                      // THD
@@ -725,7 +724,6 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   TABLE_LIST *first_table= thd->lex->select_lex->table_list.first;
   Alter_info *alter_info= &thd->lex->alter_info;
   uint table_counter;
-  List<String> partition_names_list;
   Partition_handler *part_handler;
   DBUG_ENTER("Sql_cmd_alter_table_truncate_partition::execute");
 

@@ -96,9 +96,6 @@ typedef struct {
   uint32 end_part;
 } part_id_range;
 
-bool is_partition_in_list(char *part_name, List<char> list_part_names);
-char *are_partitions_in_table(partition_info *new_part_info,
-                              partition_info *old_part_info);
 int get_parts_for_update(const uchar *old_data, uchar *new_data,
                          const uchar *rec0, partition_info *part_info,
                          uint32 *old_part_id, uint32 *new_part_id,
@@ -106,8 +103,6 @@ int get_parts_for_update(const uchar *old_data, uchar *new_data,
 int get_part_for_delete(const uchar *buf, const uchar *rec0,
                         partition_info *part_info, uint32 *part_id);
 void prune_partition_set(const TABLE *table, part_id_range *part_spec);
-bool check_partition_info(partition_info *part_info,handlerton **eng_type,
-                          TABLE *table, handler *file, HA_CREATE_INFO *info);
 void set_linear_hash_mask(partition_info *part_info, uint num_parts);
 bool fix_partition_func(THD *thd, TABLE *table, bool create_table_ind);
 bool partition_key_modified(TABLE *table, const MY_BITMAP *fields);
@@ -166,8 +161,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            bool *partition_changed,
                            partition_info **new_part_info);
 int expr_to_string(String *val_conv,
-                   Item *item_expr, 
-                   part_column_list_val *col_val,
+                   Item *item_expr,
                    Field *field,
                    const char *field_name,
                    const HA_CREATE_INFO *create_info,

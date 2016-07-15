@@ -56,7 +56,7 @@ const ulonglong all_features= Opt_trace_context::default_features;
    @param  str     pointer to trace
    @param  length  trace's length
 */
-void do_check_json_compliance(const char *str, size_t length)
+static void do_check_json_compliance(const char *str, size_t length)
 {
   return;
   /*

@@ -29,6 +29,7 @@ using keyring::Key;
 using keyring::Keys_container;
 using keyring::Logger;
 
+static
 my_bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path)
 {
   if (!keyring_file_path || strlen(keyring_file_path) == 0)
@@ -55,9 +56,9 @@ my_bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path)
   return FALSE;
 }
 
-int check_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
-                            struct st_mysql_sys_var *var  MY_ATTRIBUTE((unused)),
-                            void *save, st_mysql_value *value)
+static int check_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
+                                   struct st_mysql_sys_var *var  MY_ATTRIBUTE((unused)),
+                                   void *save, st_mysql_value *value)
 {
   char            buff[FN_REFLEN+1];
   const char      *keyring_filename;
@@ -153,7 +154,7 @@ static int keyring_init(MYSQL_PLUGIN plugin_info)
   }
 }
 
-int keyring_deinit(void *arg MY_ATTRIBUTE((unused)))
+static int keyring_deinit(void *arg MY_ATTRIBUTE((unused)))
 {
   //not taking a lock here as the calls to keyring_deinit are serialized by
   //the plugin framework
@@ -164,26 +165,26 @@ int keyring_deinit(void *arg MY_ATTRIBUTE((unused)))
   return 0;
 }
 
-my_bool mysql_key_fetch(const char *key_id, char **key_type, const char *user_id,
-                        void **key, size_t *key_len)
+static my_bool mysql_key_fetch(const char *key_id, char **key_type, const char *user_id,
+                               void **key, size_t *key_len)
 {
   return mysql_key_fetch<Key>(key_id, key_type, user_id, key, key_len);
 }
 
-my_bool mysql_key_store(const char *key_id, const char *key_type,
-                        const char *user_id, const void *key, size_t key_len)
+static my_bool mysql_key_store(const char *key_id, const char *key_type,
+                               const char *user_id, const void *key, size_t key_len)
 {
   return mysql_key_store<Key>(key_id, key_type, user_id, key, key_len);
 }
 
-my_bool mysql_key_remove(const char *key_id, const char *user_id)
+static my_bool mysql_key_remove(const char *key_id, const char *user_id)
 {
   return mysql_key_remove<Key>(key_id, user_id);
 }
 
 
-my_bool mysql_key_generate(const char *key_id, const char *key_type,
-                           const char *user_id, size_t key_len)
+static my_bool mysql_key_generate(const char *key_id, const char *key_type,
+                                  const char *user_id, size_t key_len)
 {
   try
   {

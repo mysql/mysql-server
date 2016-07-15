@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ using my_testing::Server_initializer;
 int summary_count= 0;
 char last_query[10];
 
-bool slow_logger(THD *thd, const char *query, size_t query_length)
+static bool slow_logger(THD *thd, const char *query, size_t query_length)
 {
   summary_count++;
   strcpy(last_query, query);
@@ -36,7 +36,7 @@ bool slow_logger(THD *thd, const char *query, size_t query_length)
 }
 
 
-void error_logger(const char *format,  ...)
+static void error_logger(const char *format,  ...)
 {
   va_list args;
 

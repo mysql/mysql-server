@@ -621,7 +621,6 @@ struct st_global_ddl_log
     that wrote the DDL log.
   */
   char file_entry_buf[4*IO_SIZE];
-  char file_name_str[FN_REFLEN];
   char *file_name;
   DDL_LOG_MEMORY_ENTRY *first_free;
   DDL_LOG_MEMORY_ENTRY *first_used;

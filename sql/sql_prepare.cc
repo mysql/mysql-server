@@ -4181,50 +4181,6 @@ Ed_connection::add_result_set(Ed_result_set *ed_result_set)
 }
 
 
-/**
-  Release ownership of the current result set to the client.
-
-  Since we use a simple linked list for result sets,
-  this method uses a linear search of the previous result
-  set to exclude the released instance from the list.
-
-  @todo Use double-linked list, when this is really used.
-
-  XXX: This has never been tested with more than one result set!
-
-  @pre There must be a result set.
-*/
-
-Ed_result_set *
-Ed_connection::store_result_set()
-{
-  Ed_result_set *ed_result_set;
-
-  DBUG_ASSERT(m_current_rset);
-
-  if (m_current_rset == m_rsets)
-  {
-    /* Assign the return value */
-    ed_result_set= m_current_rset;
-    /* Exclude the return value from the list. */
-    m_current_rset= m_rsets= m_rsets->m_next_rset;
-  }
-  else
-  {
-    Ed_result_set *prev_rset= m_rsets;
-    /* Assign the return value. */
-    ed_result_set= m_current_rset;
-
-    /* Exclude the return value from the list */
-    while (prev_rset->m_next_rset != m_current_rset)
-      prev_rset= ed_result_set->m_next_rset;
-    m_current_rset= prev_rset->m_next_rset= m_current_rset->m_next_rset;
-  }
-  ed_result_set->m_next_rset= NULL; /* safety */
-
-  return ed_result_set;
-}
-
 /*************************************************************************
 * Protocol_local
 **************************************************************************/

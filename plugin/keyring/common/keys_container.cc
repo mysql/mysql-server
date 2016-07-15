@@ -28,7 +28,7 @@ static uchar *get_hash_key(const uchar *key, size_t *length)
 }
 
 
-void free_hash_key(void* key)
+static void free_hash_key(void* key)
 {
   IKey *key_to_free= reinterpret_cast<IKey*>(key);
   delete key_to_free;

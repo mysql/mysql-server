@@ -20,7 +20,6 @@
 #include "sql_parse.h"                        // test_if_data_home_dir
 #include "auth_common.h"                      // *_ACL
 #include "table.h"                            // TABLE_LIST
-#include "my_bitmap.h"                        // bitmap*
 #include "sql_base.h"                         // fill_record
 #include "table_trigger_dispatcher.h"         // Table_trigger_dispatcher
 #include "trigger_chain.h"                    // Trigger_chain
@@ -28,7 +27,6 @@
 #include "sql_class.h"                        // THD
 #include "derror.h"                           // ER_THD
 #include "sql_tablespace.h"                   // check_tablespace_name
-#include "template_utils.h"
 #include "error_handler.h"
 
 
@@ -552,7 +550,6 @@ err:
 
   SYNOPSIS
     create_default_partition_names()
-    part_no                         Partition number for subparts
     num_parts                       Number of partitions
     start_no                        Starting partition number
     subpart                         Is it subpartitions
@@ -568,8 +565,7 @@ err:
 
 #define MAX_PART_NAME_SIZE 8
 
-char *partition_info::create_default_partition_names(uint part_no,
-                                                     uint num_parts_arg,
+char *partition_info::create_default_partition_names(uint num_parts_arg,
                                                      uint start_no)
 {
   char *ptr= (char*) sql_calloc(num_parts_arg*MAX_PART_NAME_SIZE);
@@ -728,7 +724,7 @@ bool partition_info::set_up_default_partitions(Partition_handler *part_handler,
     my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
     goto end;
   }
-  if (unlikely((!(default_name= create_default_partition_names(0, num_parts,
+  if (unlikely((!(default_name= create_default_partition_names(num_parts,
                                                                start_no)))))
     goto end;
   i= 0;
@@ -1375,12 +1371,6 @@ static int partition_info_list_part_cmp(const void* a, const void* b)
     return 0;
 }
 } // extern "C"
-
-
-int partition_info::list_part_cmp(const void* a, const void* b)
-{
-  return partition_info_list_part_cmp(a, b);
-}
 
 
 /*
@@ -2596,7 +2586,6 @@ bool Parser_partition_info::reorganize_into_single_field_col_val()
   them in the format required by the rest of the partitioning
   code.
 
-  @param thd        Thread object
   @param val        Array of one value
   @param part_elem  The partition instance
   @param part_id    Id of partition instance
@@ -2606,8 +2595,7 @@ bool Parser_partition_info::reorganize_into_single_field_col_val()
     @retval FALSE  Success
 */
 
-bool partition_info::fix_partition_values(THD *thd,
-                                          part_elem_value *val,
+bool partition_info::fix_partition_values(part_elem_value *val,
                                           partition_element *part_elem,
                                           uint part_id)
 {
@@ -2898,7 +2886,7 @@ bool partition_info::fix_parser_data(THD *thd)
       }
       else
       {
-        if (fix_partition_values(thd, val, part_elem, i))
+        if (fix_partition_values(val, part_elem, i))
         {
           DBUG_RETURN(TRUE);
         }

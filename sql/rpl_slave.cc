@@ -2278,24 +2278,6 @@ bool sql_slave_killed(THD* thd, Relay_log_info* rli)
 }
 
 
-/*
-  skip_load_data_infile()
-
-  NOTES
-    This is used to tell a 3.23 master to break send_file()
-*/
-
-void skip_load_data_infile(NET *net)
-{
-  DBUG_ENTER("skip_load_data_infile");
-
-  (void)net_request_file(net, "/dev/null");
-  (void)my_net_read(net);                               // discard response
-  (void)net_write_command(net, 0, (uchar*) "", 0, (uchar*) "", 0); // ok
-  DBUG_VOID_RETURN;
-}
-
-
 bool net_request_file(NET* net, const char* fname)
 {
   DBUG_ENTER("net_request_file");
@@ -11175,80 +11157,6 @@ static int check_slave_sql_config_conflict(const Relay_log_info *rli)
   return 0;
 }
 
-
-/**
-  Checks if any slave threads of any channel is running in Multisource
-  replication.
-  @note: The caller shall possess channel_map lock before calling this function.
-
-  @param[in]        thread_mask       type of slave thread- IO/SQL or any
-  @param[in]        already_locked_mi the mi that has its run_lock already
-                                      taken.
-
-  @return
-    @retval          true               atleast one channel threads are running.
-    @retval          false              none of the the channels are running.
-*/
-bool is_any_slave_channel_running(int thread_mask,
-                                  Master_info* already_locked_mi)
-{
-  DBUG_ENTER("is_any_slave_channel_running");
-  Master_info *mi= 0;
-  bool is_running;
-
-  channel_map.assert_some_lock();
-
-  for (mi_map::iterator it= channel_map.begin(); it != channel_map.end(); it++)
-  {
-    mi= it->second;
-
-    if (mi)
-    {
-      if ((thread_mask & SLAVE_IO) != 0)
-      {
-        /*
-          start_slave() might call this function after already locking the
-          rli->run_lock for a slave channel that is going to be started.
-          In this case, we just assert that the lock is taken.
-        */
-        if (mi != already_locked_mi)
-          mysql_mutex_lock(&mi->run_lock);
-        else
-        {
-          mysql_mutex_assert_owner(&mi->run_lock);
-        }
-        is_running= mi->slave_running;
-        if (mi != already_locked_mi)
-          mysql_mutex_unlock(&mi->run_lock);
-        if (is_running)
-          DBUG_RETURN(true);
-      }
-
-      if ((thread_mask & SLAVE_SQL) != 0)
-      {
-        /*
-          start_slave() might call this function after already locking the
-          rli->run_lock for a slave channel that is going to be started.
-          In this case, we just assert that the lock is taken.
-        */
-        if (mi != already_locked_mi)
-          mysql_mutex_lock(&mi->rli->run_lock);
-        else
-        {
-          mysql_mutex_assert_owner(&mi->rli->run_lock);
-        }
-        is_running= mi->rli->slave_running;
-        if (mi != already_locked_mi)
-          mysql_mutex_unlock(&mi->rli->run_lock);
-        if (is_running)
-          DBUG_RETURN(true);
-      }
-    }
-
-  }
-
-  DBUG_RETURN(false);
-}
 
 #endif /* HAVE_REPLICATION */
 

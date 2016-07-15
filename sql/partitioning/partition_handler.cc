@@ -2154,36 +2154,6 @@ void Partition_helper::ph_position(const uchar *record)
 
 
 /**
-  Read row using position.
-
-  This is like rnd_next, but you are given a position to use to determine
-  the row. The position will be pointing to data of length handler::ref_length
-  that handler::ref was set by position(record). Tables clustered on primary
-  key usually use the full primary key as reference (like InnoDB). Heap based
-  tables usually returns offset in heap file (like MyISAM).
-
-  @param[out] buf  buffer that should be filled with record in MySQL format.
-  @param[in]  pos  position given as handler::ref when position() was called.
-
-  @return Operation status.
-    @retval    0  Success
-    @retval != 0  Error code
-*/
-
-int Partition_helper::ph_rnd_pos(uchar *buf, uchar *pos)
-{
-  uint part_id;
-  DBUG_ENTER("Partition_helper::ph_rnd_pos");
-
-  part_id= uint2korr(pos);
-  DBUG_ASSERT(part_id < m_tot_parts);
-  DBUG_ASSERT(m_part_info->is_partition_used(part_id));
-  m_last_part= part_id;
-  DBUG_RETURN(rnd_pos_in_part(part_id, buf, (pos + PARTITION_BYTES_IN_POS)));
-}
-
-
-/**
   Read row using position using given record to find.
 
   This works as position()+rnd_pos() functions, but does some extra work,
@@ -2421,105 +2391,6 @@ int Partition_helper::ph_index_init_setup(uint inx, bool sorted)
     bitmap_union(m_table->read_set, &m_part_info->full_part_field_set);
 
   DBUG_RETURN(0);
-}
-
-
-/**
-  Initialize handler before start of index scan.
-
-  index_init is always called before starting index scans (except when
-  starting through index_read_idx and using read_range variants).
-
-  @param inx     Index number.
-  @param sorted  Is rows to be returned in sorted order.
-
-  @return Operation status
-    @retval    0  Success
-    @retval != 0  Error code
-*/
-
-int Partition_helper::ph_index_init(uint inx, bool sorted)
-{
-  int error;
-  uint part_id= m_part_info->get_first_used_partition();
-  DBUG_ENTER("Partition_helper::ph_index_init");
-  m_handler->active_index= inx;
-
-  if (part_id == MY_BIT_NONE)
-  {
-    DBUG_RETURN(0);
-  }
-
-  if ((error= ph_index_init_setup(inx, sorted)))
-  {
-    DBUG_RETURN(error);
-  }
-  if ((error= init_record_priority_queue()))
-  {
-    destroy_record_priority_queue();
-    DBUG_RETURN(error);
-  }
-
-  for (/* part_id already set. */;
-       part_id < MY_BIT_NONE;
-       part_id= m_part_info->get_next_used_partition(part_id))
-  {
-    if ((error= index_init_in_part(part_id, inx, sorted)))
-      goto err;
-
-    DBUG_EXECUTE_IF("partition_fail_index_init", {
-      part_id++;
-      error= HA_ERR_NO_PARTITION_FOUND;
-      goto err;
-    });
-  }
-err:
-  if (error)
-  {
-    /* End the previously initialized indexes. */
-    uint j;
-    for (j= m_part_info->get_first_used_partition();
-         j < part_id;
-         j= m_part_info->get_next_used_partition(j))
-    {
-      (void) index_end_in_part(j);
-    }
-    destroy_record_priority_queue();
-  }
-  DBUG_RETURN(error);
-}
-
-
-/**
-  End of index scan.
-
-  index_end is called at the end of an index scan to clean up any
-  things needed to clean up.
-
-  @return Operation status.
-    @retval    0  Success
-    @retval != 0  Error code
-*/
-
-int Partition_helper::ph_index_end()
-{
-  int error= 0;
-  uint i;
-  DBUG_ENTER("Partition_helper::ph_index_end");
-
-  m_part_spec.start_part= NO_CURRENT_PART_ID;
-  m_ref_usage= REF_NOT_USED;
-  for (i= m_part_info->get_first_used_partition();
-       i < MY_BIT_NONE;
-       i= m_part_info->get_next_used_partition(i))
-  {
-    int tmp;
-    if ((tmp= index_end_in_part(i)))
-      error= tmp;
-  }
-  destroy_record_priority_queue();
-  m_handler->active_index= MAX_KEY;
-  DBUG_RETURN(error);
 }
 
 
@@ -3812,24 +3683,3 @@ Partition_helper::get_dynamic_partition_info_low(ha_statistics *stat_info,
   }
   bitmap_copy(&m_part_info->read_partitions, &m_part_info->lock_partitions);
 }
-
-
-/**
-  Get checksum for table.
-
-  @return Checksum or 0 if not supported, which also may be a correct checksum!.
-*/
-
-ha_checksum Partition_helper::ph_checksum() const
-{
-  ha_checksum sum= 0;
-  if ((m_handler->ha_table_flags() & HA_HAS_CHECKSUM))
-  {
-    for (uint i= 0; i < m_tot_parts; i++)
-    {
-      sum+= checksum_in_part(i);
-    }
-  }
-  return sum;
-}
-

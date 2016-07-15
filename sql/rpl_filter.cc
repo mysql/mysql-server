@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -733,10 +733,10 @@ static const uchar *get_table_key(const uchar* a, size_t *len)
 }
 
 
-void free_table_ent(void* a)
+static void free_table_ent(void* a)
 {
   TABLE_RULE_ENT *e= (TABLE_RULE_ENT *) a;
-  
+
   my_free(e);
 }
 

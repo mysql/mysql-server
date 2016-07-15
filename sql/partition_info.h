@@ -470,8 +470,7 @@ public:
   void print_no_partition_found(THD *thd, TABLE *table);
   void print_debug(const char *str, uint*);
   Item* get_column_item(Item *item, Field *field);
-  bool fix_partition_values(THD *thd,
-                            part_elem_value *val,
+  bool fix_partition_values(part_elem_value *val,
                             partition_element *part_elem,
                             uint part_id);
   bool fix_column_value_functions(THD *thd,
@@ -536,13 +535,12 @@ public:
   bool same_key_column_order(List<Create_field> *create_list);
 
 private:
-  static int list_part_cmp(const void* a, const void* b);
   bool set_up_default_partitions(Partition_handler *part_handler,
                                  HA_CREATE_INFO *info,
                                  uint start_no);
   bool set_up_default_subpartitions(Partition_handler *part_handler,
                                     HA_CREATE_INFO *info);
-  char *create_default_partition_names(uint part_no, uint num_parts,
+  char *create_default_partition_names(uint num_parts,
                                        uint start_no);
   char *create_default_subpartition_name(uint subpart_no,
                                          const char *part_name);

@@ -18,6 +18,7 @@
 #endif
 
 #include "rpl_group_replication.h"
+#include "mysql/group_replication_priv.h"
 
 #include "log.h"                  // sql_print_error
 #include "mysqld.h"               // mysqld_port

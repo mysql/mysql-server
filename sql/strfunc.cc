@@ -178,43 +178,6 @@ uint find_type2(const TYPELIB *typelib, const char *x, size_t length,
 
 
 /*
-  Un-hex all elements in a typelib
-
-  SYNOPSIS
-   unhex_type2()
-   interval       TYPELIB (struct of pointer to values + lengths + count)
-
-  NOTES
-
-  RETURN
-    N/A
-*/
-
-void unhex_type2(TYPELIB *interval)
-{
-  for (uint pos= 0; pos < interval->count; pos++)
-  {
-    char *from, *to;
-    for (from= to= (char*) interval->type_names[pos]; *from; )
-    {
-      /*
-        Note, hexchar_to_int(*from++) doesn't work
-        one some compilers, e.g. IRIX. Looks like a compiler
-        bug in inline functions in combination with arguments
-        that have a side effect. So, let's use from[0] and from[1]
-        and increment 'from' by two later.
-      */
-
-      *to++= (char) (hexchar_to_int(from[0]) << 4) +
-                     hexchar_to_int(from[1]);
-      from+= 2;
-    }
-    interval->type_lengths[pos] /= 2;
-  }
-}
-
-
-/*
   Check if the first word in a string is one of the ones in TYPELIB
 
   SYNOPSIS
@@ -317,36 +280,6 @@ outp:
   *errors= error_count;
   return static_cast<size_t>(to - to_start);
 
-}
-
-
-/*
-  Searches for a LEX_STRING in an LEX_STRING array.
-
-  SYNOPSIS
-    find_string_in_array()
-      heap    The array
-      needle  The string to search for
-
-  NOTE
-    The last LEX_STRING in the array should have str member set to NULL
-
-  RETURN VALUES
-    -1   Not found
-    >=0  Ordinal position
-*/
-
-int find_string_in_array(LEX_STRING * const haystack, LEX_STRING * const needle,
-                         CHARSET_INFO * const cs)
-{
-  const LEX_STRING *pos;
-  for (pos= haystack; pos->str; pos++)
-    if (!cs->coll->strnncollsp(cs, (uchar *) pos->str, pos->length,
-                               (uchar *) needle->str, needle->length))
-    {
-      return static_cast<int>(pos - haystack);
-    }
-  return -1;
 }
 
 
