@@ -23,6 +23,7 @@ import java.util.Map;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.Collections;
 
 import com.mysql.ndbjtie.ndbapi.Ndb;
 import com.mysql.ndbjtie.ndbapi.Ndb_cluster_connection;
@@ -67,7 +68,7 @@ public class ClusterConnectionImpl
     final int connectTimeoutMgm;
 
     /** All regular dbs (not dbForNdbRecord) given out by this cluster connection */
-    private Map<DbImpl, Object> dbs = new IdentityHashMap<DbImpl, Object>();
+    private Map<DbImpl, Object> dbs = Collections.synchronizedMap(new IdentityHashMap<DbImpl, Object>());
 
     /** The DbImplForNdbRecord */
     DbImplForNdbRecord dbForNdbRecord;
