@@ -920,4 +920,39 @@ int channel_get_retrieved_gtid_set(const char* channel,
   DBUG_RETURN(error);
 }
 
+bool channel_is_stopping(const char* channel,
+                         enum_channel_thread_types thd_type)
+{
+  bool is_stopping= false;
+  DBUG_ENTER("channel_is_stopping(channel, thd_type");
+
+  channel_map.rdlock();
+  Master_info *mi= channel_map.get_mi(channel);
+  if (mi == NULL)
+  {
+    channel_map.unlock();
+    DBUG_RETURN(false);
+  }
+
+  mi->channel_rdlock();
+
+  switch(thd_type)
+  {
+    case CHANNEL_NO_THD:
+      break;
+    case CHANNEL_RECEIVER_THREAD:
+      is_stopping= likely(mi->is_stopping.atomic_get());
+      break;
+    case CHANNEL_APPLIER_THREAD:
+      is_stopping= likely(mi->rli->is_stopping.atomic_get());
+      break;
+    default:
+      DBUG_ASSERT(0);
+  }
+
+  mi->channel_unlock();
+  channel_map.unlock();
+
+  DBUG_RETURN(is_stopping);
+}
 #endif /* HAVE_REPLICATION */
