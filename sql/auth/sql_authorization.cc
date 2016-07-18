@@ -4050,7 +4050,7 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
   ulong want_access= want_access_arg;
   const char *table_name= NULL;
 
-  const char* db_name;
+  const char* db_name= NULL;
   GRANT_INFO *grant;
   /* Initialized only to make gcc happy */
   GRANT_TABLE *grant_table= NULL;
