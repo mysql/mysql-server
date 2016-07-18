@@ -327,6 +327,9 @@ capacity. PCT_IO(5) -> returns the number of IO operations that
 is 5% of the max where max is srv_io_capacity.  */
 #define PCT_IO(p) ((ulong) (srv_io_capacity * ((double) (p) / 100.0)))
 
+/** Maximum number of purge threads, including the purge coordinator */
+#define MAX_PURGE_THREADS	32
+
 /* The "innodb_stats_method" setting, decides how InnoDB is going
 to treat NULL value when collecting statistics. It is not defined
 as enum type because the configure option takes unsigned integer type. */
