@@ -65,21 +65,18 @@ row_purge_node_create(
 	que_thr_t*	parent,
 	mem_heap_t*	heap)
 {
+	purge_node_t*	node;
+
 	ut_ad(parent != NULL);
 	ut_ad(heap != NULL);
-
-	purge_node_t*	node;
 
 	node = static_cast<purge_node_t*>(
 		mem_heap_zalloc(heap, sizeof(*node)));
 
 	node->common.type = QUE_NODE_PURGE;
 	node->common.parent = parent;
-	node->done = true;
-
+	node->done = TRUE;
 	node->heap = mem_heap_create(256);
-
-	node->recs = nullptr;
 
 	return(node);
 }
@@ -99,8 +96,7 @@ row_purge_reposition_pcur(
 	if (node->found_clust) {
 		ut_ad(node->validate_pcur());
 
-		node->found_clust = btr_pcur_restore_position(
-			mode, &node->pcur, mtr);
+		node->found_clust = btr_pcur_restore_position(mode, &node->pcur, mtr);
 
 	} else {
 		node->found_clust = row_search_on_row_ref(
@@ -951,19 +947,18 @@ err_exit:
 		goto close_exit;
 	}
 
-	ptr = trx_undo_rec_get_row_ref(
-		ptr, clust_index, &(node->ref), node->heap);
+	ptr = trx_undo_rec_get_row_ref(ptr, clust_index, &(node->ref),
+				       node->heap);
 
 	trx = thr_get_trx(thr);
 
-	ptr = trx_undo_update_rec_get_update(
-		ptr, clust_index, type, trx_id, roll_ptr, info_bits, trx,
-		node->heap, &(node->update));
+	ptr = trx_undo_update_rec_get_update(ptr, clust_index, type, trx_id,
+					     roll_ptr, info_bits, trx,
+					     node->heap, &(node->update));
 
 	/* Read to the partial row the fields that occur in indexes */
 
 	if (!(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
-
 		ptr = trx_undo_rec_get_partial_row(
 			ptr, clust_index, &node->row,
 			type == TRX_UNDO_UPD_DEL_REC,
@@ -1079,22 +1074,17 @@ row_purge(
 	}
 }
 
-/** Explicitly call the destructor, this is to get around Clang bug#12350.
-@param[in,out]	p		Instance on which to call the destructor */
-template<typename T>
+/***********************************************************//**
+Reset the purge query thread. */
+UNIV_INLINE
 void
-call_destructor(T* p)
-{
-	p->~T();
-}
-
-/** Reset the purge query thread.
-@param[in,out]	thr		The query thread to execute */
-static
-void
-row_purge_end(que_thr_t* thr)
+row_purge_end(
+/*==========*/
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	purge_node_t*	node;
+
+	ut_ad(thr);
 
 	node = static_cast<purge_node_t*>(thr->run_node);
 
@@ -1102,42 +1092,35 @@ row_purge_end(que_thr_t* thr)
 
 	thr->run_node = que_node_get_parent(node);
 
-	if (node->recs != nullptr) {
+	node->undo_recs = NULL;
 
-		ut_ad(node->recs->empty());
-
-		/* Note: We call the destructor explicitly here, but don't
-		want to free the memory. The Recs (and rows contained within)
-		were allocated from the purge_sys->heap */
-
-		call_destructor(node->recs);
-
-		node->recs = nullptr;
-	}
-
-	node->done = true;
+	node->done = TRUE;
 
 	ut_a(thr->run_node != NULL);
 
 	mem_heap_empty(node->heap);
 }
 
-/** Does the purge operation for a single undo log record. This is a high-level
+/***********************************************************//**
+Does the purge operation for a single undo log record. This is a high-level
 function used in an SQL execution graph.
-@param[in,out]	thr		The query thread to execute
-@return query thread to run next or nullptr */
+@return query thread to run next or NULL */
 que_thr_t*
-row_purge_step(que_thr_t* thr)
+row_purge_step(
+/*===========*/
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	purge_node_t*	node;
 
+	ut_ad(thr);
+
 	node = static_cast<purge_node_t*>(thr->run_node);
 
-	node->table = nullptr;
-	node->row = nullptr;
-	node->ref = nullptr;
-	node->index = nullptr;
-	node->update = nullptr;
+	node->table = NULL;
+	node->row = NULL;
+	node->ref = NULL;
+	node->index = NULL;
+	node->update = NULL;
 	node->found_clust = FALSE;
 	node->rec_type = ULINT_UNDEFINED;
 	node->cmpl_info = ULINT_UNDEFINED;
@@ -1146,22 +1129,21 @@ row_purge_step(que_thr_t* thr)
 
 	ut_ad(que_node_get_type(node) == QUE_NODE_PURGE);
 
-	if (node->recs != nullptr && !node->recs->empty()) {
-		purge_node_t::rec_t	rec;
+	if (!(node->undo_recs == NULL || ib_vector_is_empty(node->undo_recs))) {
+		trx_purge_rec_t*purge_rec;
 
-		rec = node->recs->back();
-		node->recs->pop_back();
+		purge_rec = static_cast<trx_purge_rec_t*>(
+			ib_vector_pop(node->undo_recs));
 
-		node->roll_ptr = rec.roll_ptr;
+		node->roll_ptr = purge_rec->roll_ptr;
 
-		row_purge(node, rec.undo_rec, thr);
+		row_purge(node, purge_rec->undo_rec, thr);
 
-		if (node->recs->empty()) {
+		if (ib_vector_is_empty(node->undo_recs)) {
 			row_purge_end(thr);
 		} else {
 			thr->run_node = node;
 		}
-
 	} else {
 		row_purge_end(thr);
 	}

@@ -19462,7 +19462,7 @@ static MYSQL_SYSVAR_ULONG(purge_threads, srv_n_purge_threads,
   NULL, NULL,
   4,			/* Default setting */
   1,			/* Minimum value */
-  MAX_PURGE_THREADS, 0);/* Maximum value */
+  32, 0);		/* Maximum value */
 
 static MYSQL_SYSVAR_ULONG(sync_array_size, srv_sync_array_size,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,

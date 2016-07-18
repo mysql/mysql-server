@@ -260,9 +260,6 @@ trx_purge_sys_create(
 	purge_sys->view_active = true;
 
 	purge_sys->rseg_iter = UT_NEW_NOKEY(TrxUndoRsegsIterator(purge_sys));
-
-	/* Allocate 8K bytes for the initial heap. */
-	purge_sys->heap = mem_heap_create(8 * 1024);
 }
 
 /************************************************************************
@@ -296,10 +293,6 @@ trx_purge_sys_close(void)
 	os_event_destroy(purge_sys->event);
 
 	purge_sys->event = NULL;
-
-	mem_heap_free(purge_sys->heap);
-
-	purge_sys->heap = nullptr;
 
 	UT_DELETE(purge_sys->rseg_iter);
 
@@ -1602,31 +1595,27 @@ trx_purge_fetch_next_rec(
 	return(trx_purge_get_next_rec(n_pages_handled, heap));
 }
 
-/** This function runs a purge batch.
-@param[in]	n_purge_threads	number of purge threads
-@param[in,out]	purge_sys	purge instance
-@param[in]	batch_size	no. of pages to purge
+/*******************************************************************//**
+This function runs a purge batch.
 @return number of undo log pages handled in the batch */
 static
 ulint
 trx_purge_attach_undo_recs(
-	const ulint	n_purge_threads,
-	trx_purge_t*	purge_sys,
-	ulint		batch_size)
+/*=======================*/
+	ulint		n_purge_threads,/*!< in: number of purge threads */
+	trx_purge_t*	purge_sys,	/*!< in/out: purge instance */
+	ulint		batch_size)	/*!< in: no. of pages to purge */
 {
 	que_thr_t*	thr;
+	ulint		i = 0;
 	ulint		n_pages_handled = 0;
+	ulint		n_thrs = UT_LIST_GET_LEN(purge_sys->query->thrs);
 
 	ut_a(n_purge_threads > 0);
-	ut_a(n_purge_threads <= MAX_PURGE_THREADS);
 
 	purge_sys->limit = purge_sys->iter;
 
-	que_thr_t*	run_thrs[MAX_PURGE_THREADS];
-
-	/* Validate some pre-requisites and reset done flag. */
-	ulint		i = 0;
-
+	/* Debug code to validate some pre-requisites and reset done flag. */
 	for (thr = UT_LIST_GET_FIRST(purge_sys->query->thrs);
 	     thr != NULL && i < n_purge_threads;
 	     thr = UT_LIST_GET_NEXT(thrs, thr), ++i) {
@@ -1634,38 +1623,40 @@ trx_purge_attach_undo_recs(
 		purge_node_t*		node;
 
 		/* Get the purge node. */
-		node = static_cast<purge_node_t*>(thr->child);
+		node = (purge_node_t*) thr->child;
 
 		ut_a(que_node_get_type(node) == QUE_NODE_PURGE);
-		ut_a(node->recs == nullptr);
+		ut_a(node->undo_recs == NULL);
 		ut_a(node->done);
 
-		node->done = false;
-
-		ut_a(!thr->is_active);
-
-		run_thrs[i] = thr;
+		node->done = FALSE;
 	}
 
 	/* There should never be fewer nodes than threads, the inverse
 	however is allowed because we only use purge threads as needed. */
 	ut_a(i == n_purge_threads);
+
+	/* Fetch and parse the UNDO records. The UNDO records are added
+	to a per purge node vector. */
+	thr = UT_LIST_GET_FIRST(purge_sys->query->thrs);
+	ut_a(n_thrs > 0 && thr != NULL);
+
 	ut_ad(trx_purge_check_limit());
 
-	mem_heap_t*	heap = purge_sys->heap;
+	i = 0;
 
-	mem_heap_empty(heap);
+	for (;;) {
+		purge_node_t*		node;
+		trx_purge_rec_t*	purge_rec;
 
-	using GroupBy = std::map<
-		table_id_t, purge_node_t::Recs*,
-		std::less<table_id_t>,
-		mem_heap_allocator<std::pair<table_id_t, purge_node_t::Recs*>>>;
+		ut_a(!thr->is_active);
 
-	GroupBy		group_by{
-		GroupBy::key_compare{},
-		mem_heap_allocator<GroupBy::value_type>{heap}};
+		/* Get the purge node. */
+		node = (purge_node_t*) thr->child;
+		ut_a(que_node_get_type(node) == QUE_NODE_PURGE);
 
-	for (ulint i = 0; n_pages_handled < batch_size; ++i) {
+		purge_rec = static_cast<trx_purge_rec_t*>(
+			mem_heap_zalloc(node->heap, sizeof(*purge_rec)));
 
 		/* Track the max {trx_id, undo_no} for truncating the
 		UNDO logs once we have purged the records. */
@@ -1674,71 +1665,38 @@ trx_purge_attach_undo_recs(
 			purge_sys->limit = purge_sys->iter;
 		}
 
-		purge_node_t::rec_t	rec;
-
 		/* Fetch the next record, and advance the purge_sys->iter. */
-		rec.undo_rec = trx_purge_fetch_next_rec(
-			&rec.roll_ptr, &n_pages_handled, heap);
+		purge_rec->undo_rec = trx_purge_fetch_next_rec(
+			&purge_rec->roll_ptr, &n_pages_handled, node->heap);
 
-		if (rec.undo_rec == nullptr) {
+		if (purge_rec->undo_rec != NULL) {
 
+			if (node->undo_recs == NULL) {
+				node->undo_recs = ib_vector_create(
+					ib_heap_allocator_create(node->heap),
+					sizeof(trx_purge_rec_t),
+					batch_size);
+			} else {
+				ut_a(!ib_vector_is_empty(node->undo_recs));
+			}
+
+			ib_vector_push(node->undo_recs, purge_rec);
+
+			if (n_pages_handled >= batch_size) {
+
+				break;
+			}
+		} else {
 			break;
 		}
 
-		table_id_t	table_id;
+		thr = UT_LIST_GET_NEXT(thrs, thr);
 
-		table_id = trx_undo_rec_get_table_id(rec.undo_rec);
-
-		GroupBy::iterator	lb = group_by.lower_bound(table_id);
-
-		if (lb != group_by.end()
-		    && !(group_by.key_comp()(table_id, lb->first))) {
-
-			lb->second->push_back(rec);
-
-		} else {
-			using value_type = GroupBy::value_type;
-
-			void*			ptr;
-			purge_node_t::Recs*	recs;
-
-			ptr = mem_heap_alloc(heap, sizeof(purge_node_t::Recs));
-
-			/* Call the destructor explicitly in row_purge_end() */
-			recs = new (ptr) purge_node_t::Recs{
-				mem_heap_allocator<purge_node_t::rec_t>{heap}};
-
-			recs->push_back(rec);
-
-			group_by.insert(lb, value_type(table_id, recs));
+		if (!(++i % n_purge_threads)) {
+			thr = UT_LIST_GET_FIRST(purge_sys->query->thrs);
 		}
-	}
 
-	/* Objective is to ensure that all the table entries in one
-	batch are handled by the same thread. Ths is to avoid contention
-	on the dict_index_t::lock */
-
-	GroupBy::const_iterator	end = group_by.cend();
-
-	for (GroupBy::const_iterator it = group_by.cbegin(); it != end; ) {
-
-		for (ulint i = 0; i < n_purge_threads && it != end; ++i, ++it) {
-
-			purge_node_t*	node;
-
-			node = static_cast<purge_node_t*>(run_thrs[i]->child);
-
-			ut_a(que_node_get_type(node) == QUE_NODE_PURGE);
-
-			if (node->recs == nullptr) {
-				node->recs = it->second;
-			} else {
-				node->recs->insert(
-					std::end(*node->recs),
-					std::begin(*it->second),
-					std::end(*it->second));
-			}
-		}
+		ut_a(thr != NULL);
 	}
 
 	ut_ad(trx_purge_check_limit());
@@ -1794,24 +1752,17 @@ trx_purge_wait_for_workers_to_complete(
 /*===================================*/
 	trx_purge_t*	purge_sys)	/*!< in: purge instance */
 {
-	ulint		i = 0;
 	ulint		n_submitted = purge_sys->n_submitted;
 
 	/* Ensure that the work queue empties out. */
 	while (!os_compare_and_swap_ulint(
 			&purge_sys->n_completed, n_submitted, n_submitted)) {
 
-		if (++i < 10) {
-			os_thread_yield();
-		} else {
-
-			if (srv_get_task_queue_length() > 0) {
-				srv_release_threads(SRV_WORKER, 1);
-			}
-
-			os_thread_sleep(20);
-			i = 0;
+		if (srv_get_task_queue_length() > 0) {
+			srv_release_threads(SRV_WORKER, 1);
 		}
+
+		os_thread_yield();
 	}
 
 	/* None of the worker threads should be doing any work. */
@@ -1882,9 +1833,10 @@ trx_purge(
 
 	/* Do we do an asynchronous purge or not ? */
 	if (n_purge_threads > 1) {
+		ulint	i = 0;
 
 		/* Submit the tasks to the work queue. */
-		for (ulint i = 0; i < n_purge_threads - 1; ++i) {
+		for (i = 0; i < n_purge_threads - 1; ++i) {
 			thr = que_fork_scheduler_round_robin(
 				purge_sys->query, thr);
 
