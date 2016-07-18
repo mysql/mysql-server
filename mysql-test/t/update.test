@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Test is skipped with log-bin enabled as the count of commit and prepare handlers
 # increase when binary logging is enabled.
 --source include/not_log_bin.inc
@@ -627,10 +622,12 @@ KEY key1 (a,b,c)
 
 INSERT INTO t1 (a,b,c,d) VALUES (1, 1, 1, 4), (2, 2, 2, 5), (2, 3, 4, 7),
 (3, 3, 3, 9), (4, 4, 4, 0), (5, 5, 5, 1), (5, 6, 7, 3), (5, 7, 9, 9);
+analyze table t1;
 
 # Updating part of index, should still use the index for the order by (no
 # filesort)
 let $query=UPDATE t1 SET c = 72 WHERE a = 2 ORDER BY b ASC LIMIT 1;
+--replace_column 10 #
 eval explain $query;
 eval $query;
 SELECT * FROM t1;
@@ -638,6 +635,7 @@ SELECT * FROM t1;
 # Updating field not included in index, should use index for order by (no file
 # sort) 
 let $query=UPDATE t1 SET d = 72 WHERE a = 2 ORDER BY b ASC LIMIT 1;
+--replace_column 10 #
 eval explain $query;
 eval $query;
 SELECT * FROM t1;
@@ -647,13 +645,16 @@ SELECT * FROM t1;
 #sort).
 INSERT INTO t1 (a,b,c,d) VALUES (5, 5, 1, 1), (5, 5, 2, 1), (5, 5, 4, 1);
 let $query=UPDATE t1 SET c = 3 WHERE a = 5 ORDER BY b ASC LIMIT 3;
+--replace_column 10 #
 eval explain $query;
 eval $query;
 SELECT * FROM t1;
 
 # Must use file sort since the index can not be used for order by as range on
 # "a" is not constant
+analyze table t1;
 let $query=UPDATE t1 SET c = 62 WHERE a > 1 ORDER BY b ASC LIMIT 3;
+--replace_column 10 #
 eval explain $query;
 eval $query;
 SELECT * FROM t1;
@@ -668,18 +669,21 @@ ANALYZE TABLE t1;
 # Updating part of index, should still use the index for the order by (no file
 # sort)
 let $query=UPDATE t1 SET c = 82 ORDER BY a ASC LIMIT 1;
+--replace_column 10 #
 eval explain $query;
 eval $query;
 SELECT * FROM t1;
 
 # Must use file sort since the index can not be used for order by
 let $query=UPDATE t1 SET a = 82 ORDER BY b ASC LIMIT 1;
+--replace_column 10 #
 eval explain $query;
 eval $query;
 SELECT * FROM t1;
 
 # Must use file sort since the index can not be used for order by
 let $query=UPDATE t1 SET b = 82 ORDER BY d ASC LIMIT 1;
+--replace_column 10 #
 eval explain $query;
 eval $query;
 SELECT * FROM t1;
@@ -697,6 +701,7 @@ ANALYZE TABLE t1;
 # Updating part of index, should still use the index for the order by (no file
 # sort)
 let $query=UPDATE t1 SET c = 82 ORDER BY a ASC LIMIT 2;
+--replace_column 10 #
 eval explain $query;
 eval $query;
 SELECT * FROM t1;

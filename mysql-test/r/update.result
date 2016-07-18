@@ -194,22 +194,22 @@ INSERT INTO t2 VALUES (3,4433,10005,493,500);
 INSERT INTO t2 VALUES (3,4433,10005,492,500);
 UPDATE IGNORE t2,t1 set t2.colE = t2.colE + 1,colF=0 WHERE t1.colA = t2.colA AND (t1.colB & 4096) > 0 AND (colE + 1) < colF;
 Warnings:
+Warning	1062	Duplicate entry '3-4433-10005-493' for key 'PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-494' for key 'PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-495' for key 'PRIMARY'
 Warning	1062	Duplicate entry '3-4433-10005-496' for key 'PRIMARY'
 Warning	1062	Duplicate entry '3-4433-10005-497' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-495' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-494' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-493' for key 'PRIMARY'
 SELECT * FROM t2;
 colC	colA	colD	colE	colF
+3	4433	10005	492	500
+3	4433	10005	493	500
+3	4433	10005	494	500
 3	4433	10005	495	500
 3	4433	10005	496	500
+3	4433	10005	498	0
 3	4433	10009	495	0
 3	4433	10011	495	0
-3	4433	10005	498	0
 3	4433	10013	490	0
-3	4433	10005	494	500
-3	4433	10005	493	500
-3	4433	10005	492	500
 DROP TABLE t1;
 DROP TABLE t2;
 create table t1 (c1 int, c2 char(6), c3 int);
@@ -278,7 +278,7 @@ a
 show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	0
+Handler_read_key	1
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -290,46 +290,48 @@ update t1 set b=9999 order by a limit 1;
 show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	0
+Handler_read_key	4
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	2
-Handler_read_rnd_next	0
+Handler_read_rnd_next	18
 flush status;
 delete from t1 order by a limit 1;
 show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	0
-Handler_read_last	0
-Handler_read_next	0
-Handler_read_prev	0
-Handler_read_rnd	0
-Handler_read_rnd_next	0
-flush status;
-delete from t1 order by a desc limit 1;
-show status like 'handler_read%';
-Variable_name	Value
-Handler_read_first	0
-Handler_read_key	0
-Handler_read_last	1
-Handler_read_next	0
-Handler_read_prev	0
-Handler_read_rnd	0
-Handler_read_rnd_next	0
-alter table t1 disable keys;
-flush status;
-delete from t1 order by a limit 1;
-show status like 'handler_read%';
-Variable_name	Value
-Handler_read_first	0
-Handler_read_key	0
+Handler_read_key	2
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	1
 Handler_read_rnd_next	9
+flush status;
+delete from t1 order by a desc limit 1;
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	1
+Handler_read_rnd_next	8
+alter table t1 disable keys;
+Warnings:
+Note	1031	Table storage engine for 't1' doesn't have this option
+flush status;
+delete from t1 order by a limit 1;
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
 select * from t1;
 a	b
 0	0
@@ -380,7 +382,7 @@ update t2 set a=3 where a=2;
 show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	1
+Handler_read_key	2
 Handler_read_last	0
 Handler_read_next	1
 Handler_read_prev	0
@@ -672,9 +674,12 @@ KEY key1 (a,b,c)
 );
 INSERT INTO t1 (a,b,c,d) VALUES (1, 1, 1, 4), (2, 2, 2, 5), (2, 3, 4, 7),
 (3, 3, 3, 9), (4, 4, 4, 0), (5, 5, 5, 1), (5, 6, 7, 3), (5, 7, 9, 9);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain UPDATE t1 SET c = 72 WHERE a = 2 ORDER BY b ASC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	range	key1	key1	5	const	2	100.00	Using where; Using temporary
+1	UPDATE	t1	NULL	range	key1	key1	5	const	#	100.00	Using where; Using temporary
 UPDATE t1 SET c = 72 WHERE a = 2 ORDER BY b ASC LIMIT 1;
 SELECT * FROM t1;
 a	b	c	d
@@ -688,7 +693,7 @@ a	b	c	d
 5	7	9	9
 explain UPDATE t1 SET d = 72 WHERE a = 2 ORDER BY b ASC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	range	key1	key1	5	const	2	100.00	Using where; Using temporary
+1	UPDATE	t1	NULL	range	key1	key1	5	const	#	100.00	Using where; Using temporary
 UPDATE t1 SET d = 72 WHERE a = 2 ORDER BY b ASC LIMIT 1;
 SELECT * FROM t1;
 a	b	c	d
@@ -703,7 +708,7 @@ a	b	c	d
 INSERT INTO t1 (a,b,c,d) VALUES (5, 5, 1, 1), (5, 5, 2, 1), (5, 5, 4, 1);
 explain UPDATE t1 SET c = 3 WHERE a = 5 ORDER BY b ASC LIMIT 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	range	key1	key1	5	const	5	100.00	Using where; Using temporary
+1	UPDATE	t1	NULL	range	key1	key1	5	const	#	100.00	Using where; Using temporary
 UPDATE t1 SET c = 3 WHERE a = 5 ORDER BY b ASC LIMIT 3;
 SELECT * FROM t1;
 a	b	c	d
@@ -718,9 +723,12 @@ a	b	c	d
 5	5	3	1
 5	5	3	1
 5	5	3	1
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain UPDATE t1 SET c = 62 WHERE a > 1 ORDER BY b ASC LIMIT 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	range	key1	key1	5	const	10	100.00	Using where; Using filesort
+1	UPDATE	t1	NULL	range	key1	key1	5	const	#	100.00	Using where; Using filesort
 UPDATE t1 SET c = 62 WHERE a > 1 ORDER BY b ASC LIMIT 3;
 SELECT * FROM t1;
 a	b	c	d
@@ -742,7 +750,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 explain UPDATE t1 SET c = 82 ORDER BY a ASC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	index	NULL	key1	15	NULL	1	100.00	Using temporary
+1	UPDATE	t1	NULL	index	NULL	key1	15	NULL	#	100.00	Using temporary
 UPDATE t1 SET c = 82 ORDER BY a ASC LIMIT 1;
 SELECT * FROM t1;
 a	b	c	d
@@ -767,7 +775,7 @@ a	b	c	d
 5	7	9	9
 explain UPDATE t1 SET a = 82 ORDER BY b ASC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	19	100.00	Using filesort
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
 UPDATE t1 SET a = 82 ORDER BY b ASC LIMIT 1;
 SELECT * FROM t1;
 a	b	c	d
@@ -792,7 +800,7 @@ a	b	c	d
 5	7	9	9
 explain UPDATE t1 SET b = 82 ORDER BY d ASC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	19	100.00	Using filesort
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
 UPDATE t1 SET b = 82 ORDER BY d ASC LIMIT 1;
 SELECT * FROM t1;
 a	b	c	d
@@ -824,7 +832,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 explain UPDATE t1 SET c = 82 ORDER BY a ASC LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	index	NULL	key1	15	NULL	2	100.00	Using temporary
+1	UPDATE	t1	NULL	index	NULL	key1	15	NULL	#	100.00	Using temporary
 UPDATE t1 SET c = 82 ORDER BY a ASC LIMIT 2;
 SELECT * FROM t1;
 a	b	c	d
