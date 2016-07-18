@@ -3,6 +3,9 @@ call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: 
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
 call mtr.add_suppression("Plugin mysqlx reported: ....: Unsuccessful login attempt: Secure transport required. To log in you must use TCP.SSL or UNIX socket connection");
 Wait for the X Plugin before restarting the server
+Mysqlx.Ok {
+  msg: "bye!"
+}
 ok
 Test different connection types while secure transport when the server was started with this flag set to ON
 # restart: --require_secure_transport=ON
