@@ -7739,9 +7739,12 @@ ha_innobase::innobase_lock_autoinc(void)
 
 	ut_ad(!srv_read_only_mode || m_prebuilt->table->is_intrinsic());
 
-	if (m_prebuilt->table->is_intrinsic()) {
-		/* Intrinsic table are not shared accorss connection
-		so there is no need to AUTOINC lock the table. */
+	if (m_prebuilt->table->is_intrinsic()
+	    || m_prebuilt->no_autoinc_locking) {
+		/* Intrinsic table are not shared across connection
+		so there is no need to AUTOINC lock the table.
+		Also we won't use AUTOINC lock if this was requested
+		explicitly. */
 		lock_mode = AUTOINC_NO_LOCKING;
 	}
 
@@ -15906,6 +15909,9 @@ ha_innobase::extra(
 	case HA_EXTRA_END_ALTER_COPY:
 		m_prebuilt->table->skip_alter_undo = 0;
 		break;
+	case HA_EXTRA_NO_AUTOINC_LOCKING:
+		m_prebuilt->no_autoinc_locking = true;
+		break;
 	default:/* Do nothing */
 		;
 	}
@@ -15936,6 +15942,7 @@ ha_innobase::end_stmt()
 	m_prebuilt->autoinc_last_value = 0;
 
 	m_prebuilt->skip_serializable_dd_view = false;
+	m_prebuilt->no_autoinc_locking = false;
 
 	/* This transaction had called ha_innobase::start_stmt() */
 	trx_t*	trx = m_prebuilt->trx;

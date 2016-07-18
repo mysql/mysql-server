@@ -92,7 +92,6 @@ bool Open_dictionary_tables_ctx::open_tables()
   if (::open_tables(m_thd, &table_list, &counter, flags))
     DBUG_RETURN(true);
 
-#ifndef DBUG_OFF
   /*
     Data-dictionary tables must use storage engine supporting attachable
     transactions.
@@ -100,8 +99,9 @@ bool Open_dictionary_tables_ctx::open_tables()
   for (TABLE_LIST *t= table_list; t; t= t->next_global)
   {
     DBUG_ASSERT(t->table->file->ha_table_flags() & HA_ATTACHABLE_TRX_COMPATIBLE);
+    if (t->table->file->extra(HA_EXTRA_NO_AUTOINC_LOCKING))
+      DBUG_RETURN(true);
   }
-#endif
 
   // Lock the tables.
   if (lock_tables(m_thd, table_list, counter, flags))

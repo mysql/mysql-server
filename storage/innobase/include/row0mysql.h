@@ -861,6 +861,9 @@ struct row_prebuilt_t {
 	bool		skip_serializable_dd_view;
 					/* true, if we want skip serializable
 					isolation level on views on DD tables */
+	bool		no_autoinc_locking;
+					/* true, if we were asked to skip
+					AUTOINC locking for the table. */
 	/** Return materialized key for secondary index scan */
 	bool		m_read_virtual_key;
 

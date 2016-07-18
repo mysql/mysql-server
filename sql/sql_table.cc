@@ -9051,6 +9051,9 @@ static bool mysql_inplace_alter_table(THD *thd,
 
   THD_STAGE_INFO(thd, stage_end);
 
+  DBUG_EXECUTE_IF("sleep_alter_before_main_binlog", my_sleep(6000000););
+  DEBUG_SYNC(thd, "alter_table_before_main_binlog");
+
   ha_binlog_log_query(thd, create_info->db_type, LOGCOM_ALTER_TABLE,
                       thd->query().str, thd->query().length,
                       alter_ctx->db, alter_ctx->table_name);
@@ -11430,6 +11433,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                  alter_info->keys_onoff,
                                  &alter_ctx))
       goto err_new_table_cleanup;
+
+    DEBUG_SYNC(thd, "alter_after_copy_table");
   }
   else
   {
@@ -11851,8 +11856,6 @@ bool mysql_trans_commit_alter_copy_data(THD *thd)
   if (ha_enable_transaction(thd, TRUE))
     DBUG_RETURN(TRUE);
 
-  DEBUG_SYNC(thd, "commit_alter_copy_table");
-  
   /*
     Ensure that the new table is saved properly to disk before installing
     the new .frm.
