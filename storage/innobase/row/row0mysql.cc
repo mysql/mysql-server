@@ -5806,3 +5806,28 @@ row_mysql_close(void)
 
 	row_mysql_drop_list_inited = FALSE;
 }
+
+/** Can a record buffer or a prefetch cache be utilized for prefetching
+records in this scan?
+@retval true   if records can be prefetched
+@retval false  if records cannot be prefetched */
+bool row_prebuilt_t::can_prefetch_records() const
+{
+	/* Inside an update, for example, we do not cache rows, since
+	we may use the cursor position to do the actual update, that
+	is why we require select_lock_type == LOCK_NONE. Since we keep
+	space in prebuilt only for the BLOBs of a single row, we
+	cannot cache rows in the case there are BLOBs in the fields to
+	be fetched. In HANDLER (note: the HANDLER statement, not the
+	handler class) we do not cache rows because there the cursor
+	is a scrollable cursor. */
+	return select_lock_type == LOCK_NONE
+		&& !m_no_prefetch
+		&& !templ_contains_blob
+		&& !templ_contains_fixed_point
+		&& !clust_index_was_generated
+		&& !used_in_HANDLER
+		&& !innodb_api
+		&& template_type != ROW_MYSQL_DUMMY_TEMPLATE
+		&& !in_fts_query;
+}

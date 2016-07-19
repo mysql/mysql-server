@@ -825,12 +825,10 @@ struct row_prebuilt_t {
 					store it here so that we can return
 					it to MySQL */
 	/*----------------------*/
-	void*		idx_cond;	/*!< In ICP, pointer to a ha_innobase,
-					passed to innobase_index_cond().
-					NULL if index condition pushdown is
-					not used. */
+	bool		idx_cond;	/*!< True if index condition pushdown
+					is used, false otherwise. */
 	ulint		idx_cond_n_cols;/*!< Number of fields in idx_cond_cols.
-					0 if and only if idx_cond == NULL. */
+					0 if and only if idx_cond == false. */
 	/*----------------------*/
 	unsigned	innodb_api:1;	/*!< whether this is a InnoDB API
 					query */
@@ -867,8 +865,17 @@ struct row_prebuilt_t {
 	/** The MySQL table object */
 	TABLE*		m_mysql_table;
 
+	/** The MySQL handler object. */
+	ha_innobase*	m_mysql_handler;
+
 	/** limit value to avoid fts result overflow */
 	ulonglong	m_fts_limit;
+
+	/** Can a record buffer or a prefetch cache be utilized for prefetching
+	records in this scan?
+	@retval true   if records can be prefetched
+	@retval false  if records cannot be prefetched */
+	bool can_prefetch_records() const;
 };
 
 /** Callback for row_mysql_sys_index_iterate() */

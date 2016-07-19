@@ -3363,7 +3363,7 @@ ha_innobase::reset_template(void)
 
 	/* Reset index condition pushdown state. */
 	if (m_prebuilt->idx_cond) {
-		m_prebuilt->idx_cond = NULL;
+		m_prebuilt->idx_cond = false;
 		m_prebuilt->idx_cond_n_cols = 0;
 		/* Invalidate m_prebuilt->mysql_template
 		in ha_innobase::write_row(). */
@@ -6420,6 +6420,7 @@ ha_innobase::open(const char* name, int, uint)
 	ut_ad(m_prebuilt->default_rec);
 
 	m_prebuilt->m_mysql_table = table;
+	m_prebuilt->m_mysql_handler = this;
 
 	key_used_on_scan = table_share->primary_key;
 
@@ -7624,12 +7625,12 @@ ha_innobase::build_template(
 			}
 		}
 
-		m_prebuilt->idx_cond = this;
+		m_prebuilt->idx_cond = true;
 	} else {
 		mysql_row_templ_t*	templ;
 		ulint			num_v = 0;
 		/* No index condition pushdown */
-		m_prebuilt->idx_cond = NULL;
+		m_prebuilt->idx_cond = false;
 
 		for (i = 0; i < n_fields; i++) {
 			const Field*	field;
@@ -20500,11 +20501,9 @@ InnoDB index push-down condition check
 ICP_RESULT
 innobase_index_cond(
 /*================*/
-	void*	file)	/*!< in/out: pointer to ha_innobase */
+	ha_innobase*	h)	/*!< in/out: pointer to ha_innobase */
 {
 	DBUG_ENTER("innobase_index_cond");
-
-	ha_innobase*	h = reinterpret_cast<class ha_innobase*>(file);
 
 	DBUG_ASSERT(h->pushed_idx_cond);
 	DBUG_ASSERT(h->pushed_idx_cond_keyno != MAX_KEY);
@@ -20895,6 +20894,33 @@ ha_innobase::idx_cond_push(
 	in_range_check_pushed_down = TRUE;
 	/* We will evaluate the condition entirely */
 	DBUG_RETURN(NULL);
+}
+
+/** Find out if a Record_buffer is wanted by this handler, and what is the
+maximum buffer size the handler wants.
+
+@param[out] max_rows  gets set to the maximum number of records to allocate
+                      space for in the buffer
+@retval true   if the handler wants a buffer
+@retval false  if the handler does not want a buffer */
+bool ha_innobase::is_record_buffer_wanted(ha_rows* const max_rows) const
+{
+	/* If the scan won't be able to utilize the record buffer, return that
+	we don't want one. The decision on whether to use a buffer is taken in
+	row_search_mvcc(), look for the comment that starts with "Decide
+	whether to prefetch extra rows." Let's do the same check here. */
+
+	if (!m_prebuilt->can_prefetch_records()) {
+		*max_rows = 0;
+		return false;
+	}
+
+	/* Limit the number of rows in the buffer to 100 for now. We may want
+	to fine-tune this later, possibly taking record size and page size into
+	account. The optimizer might allocate an even smaller buffer if it
+	thinks a smaller number of rows will be fetched. */
+	*max_rows = 100;
+	return true;
 }
 
 /******************************************************************//**

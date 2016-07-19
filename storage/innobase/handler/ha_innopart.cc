@@ -1143,6 +1143,7 @@ share_error:
 
 	DBUG_ASSERT(table != NULL);
 	m_prebuilt->m_mysql_table = table;
+	m_prebuilt->m_mysql_handler = this;
 
 	if (ib_table->n_v_cols > 0) {
 		mutex_enter(&dict_sys->mutex);

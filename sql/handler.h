@@ -43,6 +43,7 @@ class handler;
 class Item;
 class partition_info;
 class Partition_handler;
+class Record_buffer;
 class SE_cost_constants;     // see opt_costconstants.h
 class String;
 struct handlerton;
@@ -3031,6 +3032,7 @@ public:
     RANGE_SCAN_DESC
   };
 private:
+  Record_buffer *m_record_buffer= nullptr;     ///< Buffer for multi-row reads.
   /*
     Storage space for the end range value. Should only be accessed using
     the end_range pointer. The content is invalid when end_range is NULL.
@@ -3224,6 +3226,40 @@ public:
     cached_table_flags= table_flags();
   }
   /* ha_ methods: public wrappers for private virtual API */
+
+  /**
+    Set a record buffer that the storage engine can use for multi-row reads.
+    The buffer has to be provided prior to the first read from an index or a
+    table.
+
+    @param buffer the buffer to use for multi-row reads
+  */
+  void ha_set_record_buffer(Record_buffer *buffer) { m_record_buffer= buffer; }
+
+  /**
+    Get the record buffer that was set with ha_set_record_buffer().
+
+    @return the buffer to use for multi-row reads, or nullptr if there is none
+  */
+  Record_buffer *ha_get_record_buffer() const { return m_record_buffer; }
+
+  /**
+    Does this handler want to get a Record_buffer for multi-row reads
+    via the ha_set_record_buffer() function? And if so, what is the
+    maximum number of records to allocate space for in the buffer?
+
+    Storage engines that support using a Record_buffer should override
+    handler::is_record_buffer_wanted().
+
+    @param[out] max_rows  gets set to the maximum number of records to
+                          allocate space for in the buffer if the function
+                          returns true
+
+    @retval true   if the handler would like a Record_buffer
+    @retval false  if the handler does not want a Record_buffer
+  */
+  bool ha_is_record_buffer_wanted(ha_rows *const max_rows) const
+  { return is_record_buffer_wanted(max_rows); }
 
   int ha_open(TABLE *table, const char *name, int mode, int test_if_locked);
   int ha_close(void);
@@ -3770,6 +3806,7 @@ public:
                      enum_range_scan_direction direction);
   int compare_key(key_range *range);
   int compare_key_icp(const key_range *range) const;
+  int compare_key_in_buffer(const uchar *buf);
   virtual int ft_init() { return HA_ERR_WRONG_COMMAND; }
   void ft_end() { ft_handler=NULL; }
   virtual FT_INFO *ft_init_ext(uint flags, uint inx,String *key)
@@ -4784,6 +4821,25 @@ private:
   }
   virtual void start_bulk_insert(ha_rows rows) {}
   virtual int end_bulk_insert() { return 0; }
+
+  /**
+    Does this handler want to get a Record_buffer for multi-row reads
+    via the ha_set_record_buffer() function? And if so, what is the
+    maximum number of records to allocate space for in the buffer?
+
+    Storage engines that support using a Record_buffer should override
+    this function and return true for scans that could benefit from a
+    buffer.
+
+    @param[out] max_rows  gets set to the maximum number of records to
+                          allocate space for in the buffer if the function
+                          returns true
+
+    @retval true   if the handler would like a Record_buffer
+    @retval false  if the handler does not want a Record_buffer
+  */
+  virtual bool is_record_buffer_wanted(ha_rows *const max_rows) const
+  { *max_rows= 0; return false; }
 protected:
   virtual int index_read(uchar * buf, const uchar * key, uint key_len,
                          enum ha_rkey_function find_flag)

@@ -480,6 +480,15 @@ private:
 	/** Write Row Interface optimized for Intrinsic table. */
 	int intrinsic_table_write_row(uchar* record);
 
+	/** Find out if a Record_buffer is wanted by this handler, and what is
+	the maximum buffer size the handler wants.
+
+	@param[out] max_rows gets set to the maximum number of records to
+		    allocate space for in the buffer
+	@retval true   if the handler wants a buffer
+	@retval false  if the handler does not want a buffer */
+	virtual bool is_record_buffer_wanted(ha_rows* const max_rows) const;
+
 protected:
 	void update_thd(THD* thd);
 

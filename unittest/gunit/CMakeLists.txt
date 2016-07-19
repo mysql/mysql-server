@@ -300,6 +300,7 @@ SET(TESTS
   partitioned_rwlock
   prealloced_array
   priority_queue
+  record_buffer
   sql_list
   sql_plist
   sql_string

@@ -39,6 +39,7 @@
 #include "probes_mysql.h"             // MYSQL_HANDLER_WRLOCK_START
 #include "opt_costconstantcache.h"    // reload_optimizer_cost_constants
 #include "psi_memory_key.h"
+#include "record_buffer.h"            // Record_buffer
 #include "rpl_handler.h"              // RUN_HOOK
 #include "sdi_utils.h"                // import_serialized_meta_data
 #include "sql_base.h"                 // free_io_cache
@@ -2886,6 +2887,7 @@ int handler::ha_index_end()
   DBUG_ASSERT(inited == INDEX);
   inited= NONE;
   end_range= NULL;
+  m_record_buffer= nullptr;
   DBUG_RETURN(index_end());
 }
 
@@ -2933,6 +2935,7 @@ int handler::ha_rnd_end()
   DBUG_ASSERT(inited == RND);
   inited= NONE;
   end_range= NULL;
+  m_record_buffer= nullptr;
   DBUG_RETURN(rnd_end());
 }
 
@@ -7481,6 +7484,13 @@ void handler::set_end_range(const key_range* range,
   else
     end_range= NULL;
 
+  /*
+    Clear the out-of-range flag in the record buffer when a new range is
+    started.
+  */
+  if (m_record_buffer != nullptr)
+    m_record_buffer->set_out_of_range(false);
+
   range_scan_direction= direction;
 }
 
@@ -7544,6 +7554,75 @@ int handler::compare_key_icp(const key_range *range) const
     cmp= -cmp;
   return cmp;
 }
+
+
+/**
+  Change the offsets of all the fields in a key range.
+
+  @param range     the key range
+  @param key_part  the first key part
+  @param diff      how much to change the offsets with
+*/
+static inline void
+move_key_field_offsets(const key_range *range, const KEY_PART_INFO *key_part,
+                       my_ptrdiff_t diff)
+{
+  for (size_t len= 0; len < range->length;
+       len+= key_part->store_length, ++key_part)
+    key_part->field->move_field_offset(diff);
+}
+
+
+/**
+  Check if the key in the given buffer (which is not necessarily
+  TABLE::record[0]) is within range. Called by the storage engine when
+  filling m_record_buffer to avoid reading too many rows.
+
+  Side-effect: This function sets the in_range_check_pushed_down flag
+  to prevent the handler from performing redundant range checks on the
+  rows returned by the storage engine.
+
+  @param buf  the buffer that holds the key
+  @retval -1 if the key is within the range
+  @retval  0 if the key is equal to the end_range key, and
+             key_compare_result_on_equal is 0
+  @retval  1 if the key is outside the range
+*/
+int handler::compare_key_in_buffer(const uchar *buf)
+{
+  DBUG_ASSERT(m_record_buffer != nullptr &&
+              !m_record_buffer->is_out_of_range() &&
+              end_range != nullptr);
+
+  /*
+    End range on descending scans is only checked with ICP for now, and then we
+    check it with compare_key_icp() instead of this function.
+  */
+  DBUG_ASSERT(range_scan_direction == RANGE_SCAN_ASC);
+
+  /*
+    Since we compare with the end range here, there is no need for the
+    handler to check the end range.
+  */
+  in_range_check_pushed_down= true;
+
+  // Make the fields in the key point into the buffer instead of record[0].
+  const my_ptrdiff_t diff= buf - table->record[0];
+  if (diff != 0)
+    move_key_field_offsets(end_range, range_key_part, diff);
+
+  // Compare the key in buf against end_range.
+  int cmp= key_cmp(range_key_part, end_range->key, end_range->length);
+  if (cmp == 0)
+    cmp= key_compare_result_on_equal;
+
+  // Reset the field offsets.
+  if (diff != 0)
+    move_key_field_offsets(end_range, range_key_part, -diff);
+
+  return cmp;
+}
+
 
 int handler::index_read_idx_map(uchar * buf, uint index, const uchar * key,
                                 key_part_map keypart_map,
@@ -7997,6 +8076,8 @@ int handler::ha_reset()
   pushed_cond= NULL;
   /* Reset information about pushed index conditions */
   cancel_pushed_idx_cond();
+  // Forget the record buffer.
+  m_record_buffer= nullptr;
 
   const int retval= reset();
   DBUG_RETURN(retval);

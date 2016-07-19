@@ -52,7 +52,10 @@ Created 12/19/1997 Heikki Tuuri
 #include "row0mysql.h"
 #include "read0read.h"
 #include "buf0lru.h"
+#include "handler.h"
+#include "ha_innodb.h"
 #include "ha_prototypes.h"
+#include "record_buffer.h"
 #include "srv0mon.h"
 #include "ut0new.h"
 #include "lob0lob.h"
@@ -3674,6 +3677,17 @@ row_sel_copy_cached_fields_for_mysql(
 	}
 }
 
+/** Get the record buffer provided by the server, if there is one.
+@param	prebuilt	prebuilt struct
+@return the record buffer, or nullptr if none was provided */
+static Record_buffer* row_sel_get_record_buffer(const row_prebuilt_t* prebuilt)
+{
+	if (prebuilt->m_mysql_handler == nullptr) {
+		return nullptr;
+	}
+	return prebuilt->m_mysql_handler->ha_get_record_buffer();
+}
+
 /********************************************************************//**
 Pops a cached row for MySQL from the fetch cache. */
 UNIV_INLINE
@@ -3692,7 +3706,12 @@ row_sel_dequeue_cached_row_for_mysql(
 
 	UNIV_MEM_ASSERT_W(buf, prebuilt->mysql_row_len);
 
-	cached_rec = prebuilt->fetch_cache[prebuilt->fetch_cache_first];
+	/* The row is cached in the server-provided buffer, if there
+	is one. If not, get it from our own prefetch cache.*/
+	const auto record_buffer = row_sel_get_record_buffer(prebuilt);
+	cached_rec = record_buffer ?
+		record_buffer->record(prebuilt->fetch_cache_first) :
+		prebuilt->fetch_cache[prebuilt->fetch_cache_first];
 
 	if (UNIV_UNLIKELY(prebuilt->keep_other_fields_on_keyread)) {
 		row_sel_copy_cached_fields_for_mysql(buf, cached_rec, prebuilt);
@@ -3727,7 +3746,13 @@ row_sel_dequeue_cached_row_for_mysql(
 	prebuilt->fetch_cache_first++;
 
 	if (prebuilt->n_fetch_cached == 0) {
+		/* All the prefetched records have been returned.
+		Rewind so that we can insert records at the beginning
+		of the prefetch cache or record buffer. */
 		prebuilt->fetch_cache_first = 0;
+		if (record_buffer != nullptr) {
+			record_buffer->clear();
+		}
 	}
 }
 
@@ -3742,6 +3767,10 @@ row_sel_prefetch_cache_init(
 	ulint	i;
 	ulint	sz;
 	byte*	ptr;
+
+	/* We use our own prefetch cache only if the server didn't
+	provide one. */
+	ut_ad(row_sel_get_record_buffer(prebuilt) == nullptr);
 
 	/* Reserve space for the magic number. */
 	sz = UT_ARR_SIZE(prebuilt->fetch_cache) * (prebuilt->mysql_row_len + 8);
@@ -3773,21 +3802,36 @@ row_sel_fetch_last_buf(
 /*===================*/
 	row_prebuilt_t*	prebuilt)	/*!< in/out: prebuilt struct */
 {
-	ut_ad(!prebuilt->templ_contains_blob);
-	ut_ad(prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE);
+	const auto record_buffer = row_sel_get_record_buffer(prebuilt);
 
-	if (prebuilt->fetch_cache[0] == NULL) {
+	ut_ad(!prebuilt->templ_contains_blob);
+	if (record_buffer == nullptr) {
+		ut_ad(prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE);
+	} else {
+		ut_ad(prebuilt->mysql_prefix_len <=
+		      record_buffer->record_size());
+		ut_ad(record_buffer->records() == prebuilt->n_fetch_cached);
+	}
+
+	if (record_buffer == nullptr && prebuilt->fetch_cache[0] == nullptr) {
 		/* Allocate memory for the fetch cache */
 		ut_ad(prebuilt->n_fetch_cached == 0);
 
 		row_sel_prefetch_cache_init(prebuilt);
 	}
 
+	/* Use the server-provided buffer if there is one. Otherwise,
+	use our own prefetch buffer. */
+	byte* buf = record_buffer ?
+		record_buffer->add_record() :
+		prebuilt->fetch_cache[prebuilt->n_fetch_cached];
+
 	ut_ad(prebuilt->fetch_cache_first == 0);
-	UNIV_MEM_INVALID(prebuilt->fetch_cache[prebuilt->n_fetch_cached],
+	UNIV_MEM_INVALID(buf, record_buffer ?
+			 record_buffer->record_size() :
 			 prebuilt->mysql_row_len);
 
-	return(prebuilt->fetch_cache[prebuilt->n_fetch_cached]);
+	return(buf);
 }
 
 /********************************************************************//**
@@ -3802,10 +3846,10 @@ row_sel_enqueue_cache_row_for_mysql(
 	/* For non ICP code path the row should already exist in the
 	next fetch cache slot. */
 
-	if (prebuilt->idx_cond != NULL) {
+	if (prebuilt->idx_cond) {
 		byte*	dest = row_sel_fetch_last_buf(prebuilt);
 
-		ut_memcpy(dest, mysql_rec, prebuilt->mysql_row_len);
+		ut_memcpy(dest, mysql_rec, prebuilt->mysql_prefix_len);
 	}
 
 	++prebuilt->n_fetch_cached;
@@ -3889,7 +3933,7 @@ row_search_idx_cond_check(
 /*======================*/
 	byte*			mysql_rec,	/*!< out: record
 						in MySQL format (invalid unless
-						prebuilt->idx_cond!=NULL and
+						prebuilt->idx_cond == true and
 						we return ICP_MATCH) */
 	row_prebuilt_t*		prebuilt,	/*!< in/out: prebuilt struct
 						for the table handle */
@@ -3936,7 +3980,7 @@ row_search_idx_cond_check(
 	index, if the case of the column has been updated in
 	the past, or a record has been deleted and a record
 	inserted in a different case. */
-	result = innobase_index_cond(prebuilt->idx_cond);
+	result = innobase_index_cond(prebuilt->m_mysql_handler);
 	switch (result) {
 	case ICP_MATCH:
 		/* Convert the remaining fields to MySQL format.
@@ -3958,11 +4002,37 @@ row_search_idx_cond_check(
 		return(result);
 	case ICP_OUT_OF_RANGE:
 		MONITOR_INC(MONITOR_ICP_OUT_OF_RANGE);
+		const auto record_buffer = row_sel_get_record_buffer(prebuilt);
+		if (record_buffer) {
+			record_buffer->set_out_of_range(true);
+		}
 		return(result);
 	}
 
 	ut_error;
 	return(result);
+}
+
+/** Check the pushed-down end-range condition to avoid prefetching too
+many records into the record buffer.
+@param[in]	mysql_rec	record in MySQL format
+@param[in,out]	handler		the MySQL handler performing the scan
+@param[in,out]	record_buffer	the record buffer we are reading into
+@retval true	if the row in \a mysql_rec is out of range
+@retval false	if the row in \a mysql_rec is in range */
+static
+bool
+row_search_end_range_check(
+	const byte*	mysql_rec,
+	ha_innobase*	handler,
+	Record_buffer*	record_buffer)
+{
+	if (handler->end_range &&
+	    handler->compare_key_in_buffer(mysql_rec) > 0) {
+		record_buffer->set_out_of_range(true);
+		return true;
+	}
+	return false;
 }
 
 /** Traverse to next/previous record.
@@ -4445,7 +4515,10 @@ row_search_mvcc(
 	prebuilt->new_rec_locks = 0;
 
 	/*-------------------------------------------------------------*/
-	/* PHASE 1: Try to pop the row from the prefetch cache */
+	/* PHASE 1: Try to pop the row from the record buffer or from
+	the prefetch cache */
+
+	const auto record_buffer = row_sel_get_record_buffer(prebuilt);
 
 	if (UNIV_UNLIKELY(direction == 0)) {
 		trx->op_info = "starting index read";
@@ -4453,6 +4526,9 @@ row_search_mvcc(
 		prebuilt->n_rows_fetched = 0;
 		prebuilt->n_fetch_cached = 0;
 		prebuilt->fetch_cache_first = 0;
+		if (record_buffer != nullptr) {
+			record_buffer->reset();
+		}
 
 		if (prebuilt->sel_graph == NULL) {
 			/* Build a dummy select query graph */
@@ -4478,6 +4554,10 @@ row_search_mvcc(
 			prebuilt->n_fetch_cached = 0;
 			prebuilt->fetch_cache_first = 0;
 
+			/* A record buffer is not used for scroll cursors.
+			Otherwise, it would have to be reset here too. */
+			ut_ad(record_buffer == nullptr);
+
 		} else if (UNIV_LIKELY(prebuilt->n_fetch_cached > 0)) {
 			row_sel_dequeue_cached_row_for_mysql(buf, prebuilt);
 
@@ -4487,12 +4567,17 @@ row_search_mvcc(
 			goto func_exit;
 		}
 
-		if (prebuilt->fetch_cache_first > 0
-		    && prebuilt->fetch_cache_first < MYSQL_FETCH_CACHE_SIZE) {
+		/* The prefetch cache is exhausted, so fetch_cache_first
+		should point to the beginning of the cache. */
+		ut_ad(prebuilt->fetch_cache_first == 0);
 
-			/* The previous returned row was popped from the fetch
-			cache, but the cache was not full at the time of the
-			popping: no more rows can exist in the result set */
+		if (record_buffer != nullptr &&
+		    record_buffer->is_out_of_range()) {
+
+			/* The previous returned row was popped from
+			the fetch cache, but the end of the range was
+			reached while filling the cache, so there are
+			no more rows to put into the cache. */
 
 			err = DB_RECORD_NOT_FOUND;
 			goto func_exit;
@@ -5473,33 +5558,33 @@ requires_clust_rec:
 				offsets));
 	ut_ad(!rec_get_deleted_flag(result_rec, comp));
 
+	/* If we cannot prefetch records, we should not have a record buffer.
+	See ha_innobase::ha_is_record_buffer_wanted(). */
+	ut_ad(prebuilt->can_prefetch_records() || record_buffer == nullptr);
+
 	/* Decide whether to prefetch extra rows.
 	At this point, the clustered index record is protected
 	by a page latch that was acquired when pcur was positioned.
 	The latch will not be released until mtr_commit(&mtr). */
 
-	if ((match_mode == ROW_SEL_EXACT
-	     || prebuilt->n_rows_fetched >= MYSQL_FETCH_CACHE_THRESHOLD)
-	    && prebuilt->select_lock_type == LOCK_NONE
-	    && !prebuilt->m_no_prefetch
-	    && !prebuilt->templ_contains_blob
-	    && !prebuilt->templ_contains_fixed_point
-	    && !prebuilt->clust_index_was_generated
-	    && !prebuilt->used_in_HANDLER
-	    && !prebuilt->innodb_api
-	    && prebuilt->template_type != ROW_MYSQL_DUMMY_TEMPLATE
-	    && !prebuilt->in_fts_query) {
+	if (record_buffer != nullptr ||
+	    ((match_mode == ROW_SEL_EXACT
+	      || prebuilt->n_rows_fetched >= MYSQL_FETCH_CACHE_THRESHOLD)
+	     && prebuilt->can_prefetch_records())) {
 
 		/* Inside an update, for example, we do not cache rows,
 		since we may use the cursor position to do the actual
 		update, that is why we require ...lock_type == LOCK_NONE.
 		Since we keep space in prebuilt only for the BLOBs of
 		a single row, we cannot cache rows in the case there
-		are BLOBs in the fields to be fetched. In HANDLER we do
+		are BLOBs in the fields to be fetched. In HANDLER (note:
+		the HANDLER statement, not the handler class) we do
 		not cache rows because there the cursor is a scrollable
 		cursor. */
 
-		ut_a(prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE);
+		const auto max_rows_to_cache = record_buffer ?
+			record_buffer->max_records() : MYSQL_FETCH_CACHE_SIZE;
+		ut_a(prebuilt->n_fetch_cached < max_rows_to_cache);
 
 		/* We only convert from InnoDB row format to MySQL row
 		format when ICP is disabled. */
@@ -5519,6 +5604,7 @@ requires_clust_rec:
 			was not written to then we reset next_buf so that
 			we can re-use the MySQL record buffer in the next
 			iteration. */
+			byte* prev_buf = next_buf;
 
 			next_buf = next_buf
 				 ? row_sel_fetch_last_buf(prebuilt) : buf;
@@ -5544,6 +5630,21 @@ requires_clust_rec:
 				goto next_rec;
 			}
 
+			/* If we are filling a server-provided buffer, and the
+			server has pushed down an end range condition, evaluate
+			the condition to prevent that we read too many rows. */
+			if (record_buffer != nullptr &&
+			    row_search_end_range_check(
+				    next_buf, prebuilt->m_mysql_handler,
+				    record_buffer)) {
+				if (next_buf != buf) {
+					record_buffer->remove_last();
+				}
+				next_buf = prev_buf;
+				err = DB_RECORD_NOT_FOUND;
+				goto normal_return;
+			}
+
 			if (next_buf != buf) {
 				row_sel_enqueue_cache_row_for_mysql(
 					next_buf, prebuilt);
@@ -5552,11 +5653,17 @@ requires_clust_rec:
 			row_sel_enqueue_cache_row_for_mysql(buf, prebuilt);
 		}
 
-		if (prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE) {
+		if (prebuilt->n_fetch_cached < max_rows_to_cache) {
 			goto next_rec;
 		}
 
 	} else {
+		/* We cannot use a record buffer for this scan, so assert that
+		we don't have one. If we have a record buffer here,
+		ha_innobase::is_record_buffer_wanted() should be updated so
+		that a buffer is not allocated unnecessarily. */
+		ut_ad(record_buffer == nullptr);
+
 		if (UNIV_UNLIKELY
 		    (prebuilt->template_type == ROW_MYSQL_DUMMY_TEMPLATE)) {
 			/* CHECK TABLE: fetch the row */

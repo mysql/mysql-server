@@ -25,6 +25,7 @@
 #include "mdl.h"           // MDL_wait_for_subgraph
 #include "enum_query_type.h" // enum_query_type
 #include "opt_costmodel.h" // Cost_model_table
+#include "record_buffer.h" // Record_buffer
 #include "sql_bitmap.h"    // Bitmap
 #include "sql_sort.h"      // Filesort_info
 #include "table_id.h"      // Table_id
@@ -1078,6 +1079,10 @@ public:
   uchar *write_row_record;		/* Used as optimisation in
 					   THD::write_row */
   uchar *insert_values;                  /* used by INSERT ... UPDATE */
+
+  /// Buffer for use in multi-row reads. Initially empty.
+  Record_buffer m_record_buffer{0, 0, nullptr};
+
   /* 
     Map of keys that can be used to retrieve all data from this table 
     needed by the query without reading the row.

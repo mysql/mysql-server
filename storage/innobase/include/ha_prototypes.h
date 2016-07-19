@@ -34,6 +34,7 @@ simple headers.
 #if !defined UNIV_HOTBACKUP
 
 /* Forward declarations */
+class ha_innobase;
 class THD;
 typedef struct charset_info_st CHARSET_INFO;
 struct dict_table_t;
@@ -503,7 +504,7 @@ InnoDB index push-down condition check defined in ha_innodb.cc
 ICP_RESULT
 innobase_index_cond(
 /*================*/
-	void*	file)	/*!< in/out: pointer to ha_innobase */
+	ha_innobase*	h)	/*!< in/out: pointer to ha_innobase */
 	MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************************//**

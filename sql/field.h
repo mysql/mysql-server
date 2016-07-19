@@ -1406,7 +1406,7 @@ public:
   virtual uint max_packed_col_length()
   { return pack_length(); }
 
-  uint offset(uchar *record)
+  uint offset(uchar *record) const
   {
     return (uint) (ptr - record);
   }
