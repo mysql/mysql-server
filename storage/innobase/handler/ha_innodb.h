@@ -910,8 +910,7 @@ innodb_base_col_setup_for_stored(
 #define innobase_is_v_fld(field) ((field)->gcol_info && !(field)->stored_in_db)
 
 /** Release temporary latches.
-Call this function when mysqld passes control to the client. That is to
-avoid deadlocks on the adaptive hash S-latch possibly held by thd. For more
+Call this function when mysqld passes control to the client. For more
 documentation, see handler.cc.
 @param[in]	hton	Handlerton.
 @param[in]	thd	MySQL thread.

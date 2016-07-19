@@ -4398,6 +4398,7 @@ row_search_mvcc(
 	ut_ad(index && pcur && search_tuple);
 	ut_a(prebuilt->magic_n == ROW_PREBUILT_ALLOCATED);
 	ut_a(prebuilt->magic_n2 == ROW_PREBUILT_ALLOCATED);
+	ut_a(!trx->has_search_latch);
 
 	/* We don't support FTS queries from the HANDLER interfaces, because
 	we implemented FTS as reversed inverted index with auxiliary tables.
@@ -4437,25 +4438,6 @@ row_search_mvcc(
 	bool    need_vrow = dict_index_has_virtual(prebuilt->index)
 		&& (prebuilt->read_just_key
 		    || prebuilt->m_read_virtual_key);
-
-	/*-------------------------------------------------------------*/
-	/* PHASE 0: Release a possible s-latch we are holding on the
-	adaptive hash index latch if there is someone waiting behind */
-
-	if (trx->has_search_latch
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	    && rw_lock_get_writer(
-		btr_get_search_latch(index)) != RW_LOCK_NOT_LOCKED
-#endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
-	    ) {
-
-		/* There is an x-latch request on the adaptive hash index:
-		release the s-latch to reduce starvation and wait for
-		BTR_SEA_TIMEOUT rounds before trying to keep it again over
-		calls from MySQL */
-
-		trx_search_latch_release_if_reserved(trx);
-	}
 
 	/* Reset the new record lock info if trx_t::allow_semi_consistent().
 	Then we are able to remove the record locks set here on an
@@ -4700,8 +4682,6 @@ row_search_mvcc(
 
 	/*-------------------------------------------------------------*/
 	/* PHASE 3: Open or restore index cursor position */
-
-	trx_search_latch_release_if_reserved(trx);
 
 	spatial_search = dict_index_is_spatial(index)
 			 && mode >= PAGE_CUR_CONTAIN;
@@ -5893,6 +5873,8 @@ func_exit:
 #endif /* UNIV_DEBUG */
 
 	DEBUG_SYNC_C("innodb_row_search_for_mysql_exit");
+
+	ut_a(!trx->has_search_latch);
 
 	DBUG_RETURN(err);
 }
