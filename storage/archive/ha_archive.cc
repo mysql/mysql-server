@@ -563,7 +563,7 @@ int ha_archive::init_archive_reader()
   Init out lock.
   We open the file we will read from.
 */
-int ha_archive::open(const char *name, int mode, uint open_options)
+int ha_archive::open(const char *name, int, uint open_options)
 {
   int rc= 0;
   DBUG_ENTER("ha_archive::open");
@@ -804,7 +804,7 @@ int ha_archive::real_write_row(uchar *buf, azio_stream *writer)
   the bytes required for the length in the header.
 */
 
-uint32 ha_archive::max_row_length(const uchar *buf)
+uint32 ha_archive::max_row_length(const uchar*)
 {
   uint32 length= (uint32)(table->s->reclength + table->s->fields*2);
   length+= ARCHIVE_ROW_HEADER_SIZE;
@@ -925,8 +925,7 @@ error:
 }
 
 
-void ha_archive::get_auto_increment(ulonglong offset, ulonglong increment,
-                                    ulonglong nb_desired_values,
+void ha_archive::get_auto_increment(ulonglong, ulonglong, ulonglong,
                                     ulonglong *first_value,
                                     ulonglong *nb_reserved_values)
 {
@@ -935,7 +934,7 @@ void ha_archive::get_auto_increment(ulonglong offset, ulonglong increment,
 }
 
 /* Initialized at each key walk (called multiple times unlike rnd_init()) */
-int ha_archive::index_init(uint keynr, bool sorted)
+int ha_archive::index_init(uint keynr, bool)
 {
   DBUG_ENTER("ha_archive::index_init");
   active_index= keynr;
@@ -960,7 +959,7 @@ int ha_archive::index_read(uchar *buf, const uchar *key,
 
 
 int ha_archive::index_read_idx(uchar *buf, uint index, const uchar *key,
-                                 uint key_len, enum ha_rkey_function find_flag)
+                               uint key_len, enum ha_rkey_function)
 {
   int rc;
   bool found= 0;
@@ -1284,7 +1283,7 @@ end:
   needed.
 */
 
-void ha_archive::position(const uchar *record)
+void ha_archive::position(const uchar*)
 {
   DBUG_ENTER("ha_archive::position");
   my_store_ptr(ref, ref_length, current_position);
@@ -1339,7 +1338,7 @@ int ha_archive::repair(THD* thd, HA_CHECK_OPT* check_opt)
   The table can become fragmented if data was inserted, read, and then
   inserted again. What we do is open up the file and recompress it completely. 
 */
-int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
+int ha_archive::optimize(THD*, HA_CHECK_OPT* check_opt)
 {
   int rc= 0;
   azio_stream writer;
@@ -1596,7 +1595,7 @@ int ha_archive::info(uint flag)
     @return != 0 Error
 */
 
-int ha_archive::extra(enum ha_extra_function operation)
+int ha_archive::extra(enum ha_extra_function operation MY_ATTRIBUTE((unused)))
 {
   int ret= 0;
   DBUG_ENTER("ha_archive::extra");
@@ -1679,15 +1678,13 @@ bool ha_archive::is_crashed() const
 /**
   @brief Check for upgrade
 
-  @param[in]  check_opt  check options
-
   @return Completion status
     @retval HA_ADMIN_OK            No upgrade required
     @retval HA_ADMIN_CORRUPT       Cannot read meta-data
     @retval HA_ADMIN_NEEDS_UPGRADE Upgrade required
 */
 
-int ha_archive::check_for_upgrade(HA_CHECK_OPT *check_opt)
+int ha_archive::check_for_upgrade(HA_CHECK_OPT*)
 {
   DBUG_ENTER("ha_archive::check_for_upgrade");
   if (init_archive_reader())
@@ -1702,7 +1699,7 @@ int ha_archive::check_for_upgrade(HA_CHECK_OPT *check_opt)
   Simple scan of the tables to make sure everything is ok.
 */
 
-int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
+int ha_archive::check(THD* thd, HA_CHECK_OPT*)
 {
   int rc= 0;
   const char *old_proc_info;

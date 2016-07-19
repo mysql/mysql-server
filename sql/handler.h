@@ -3373,10 +3373,10 @@ public:
     @retval  false                 table and key names were not available,
                                    the out parameters were not touched.
   */
-  virtual bool get_foreign_dup_key(char *child_table_name,
-                                   uint child_table_name_len,
-                                   char *child_key_name,
-                                   uint child_key_name_len)
+  virtual bool get_foreign_dup_key(char *child_table_name MY_ATTRIBUTE((unused)),
+                                   uint child_table_name_len MY_ATTRIBUTE((unused)),
+                                   char *child_key_name MY_ATTRIBUTE((unused)),
+                                   uint child_key_name_len MY_ATTRIBUTE((unused)))
   { DBUG_ASSERT(false); return(false); }
 
 
@@ -3419,7 +3419,8 @@ public:
     using an index by calling it using read_time(index, 1, table_size).
   */
 
-  virtual double read_time(uint index, uint ranges, ha_rows rows)
+  virtual double read_time(uint index MY_ATTRIBUTE((unused)),
+                           uint ranges, ha_rows rows)
   { return rows2double(ranges+rows); }
 
   /**
@@ -3711,7 +3712,7 @@ public:
     @retval  0           Success
     @retval  >0          Error code
   */
-  virtual int exec_bulk_update(uint *dup_key_found)
+  virtual int exec_bulk_update(uint *dup_key_found MY_ATTRIBUTE((unused)))
   {
     DBUG_ASSERT(FALSE);
     return HA_ERR_WRONG_COMMAND;
@@ -3764,17 +3765,17 @@ protected:
     scan. There are also methods to jump to first and last entry.
   */
   /// @see index_read_map().
-  virtual int index_next(uchar * buf)
-   { return  HA_ERR_WRONG_COMMAND; }
+  virtual int index_next(uchar*)  { return  HA_ERR_WRONG_COMMAND; }
+
   /// @see index_read_map().
-  virtual int index_prev(uchar * buf)
-   { return  HA_ERR_WRONG_COMMAND; }
+  virtual int index_prev(uchar*)  { return  HA_ERR_WRONG_COMMAND; }
+
   /// @see index_read_map().
-  virtual int index_first(uchar * buf)
-   { return  HA_ERR_WRONG_COMMAND; }
+  virtual int index_first(uchar*) { return  HA_ERR_WRONG_COMMAND; }
+
   /// @see index_read_map().
-  virtual int index_last(uchar * buf)
-   { return  HA_ERR_WRONG_COMMAND; }
+  virtual int index_last(uchar*)  { return  HA_ERR_WRONG_COMMAND; }
+
   /// @see index_read_map().
   virtual int index_next_same(uchar *buf, const uchar *key, uint keylen);
   /**
@@ -3809,14 +3810,16 @@ public:
   int compare_key_in_buffer(const uchar *buf);
   virtual int ft_init() { return HA_ERR_WRONG_COMMAND; }
   void ft_end() { ft_handler=NULL; }
-  virtual FT_INFO *ft_init_ext(uint flags, uint inx,String *key)
+  virtual FT_INFO *ft_init_ext(uint flags MY_ATTRIBUTE((unused)),
+                               uint inx MY_ATTRIBUTE((unused)),
+                               String *key MY_ATTRIBUTE((unused)))
     { return NULL; }
   virtual FT_INFO *ft_init_ext_with_hints(uint inx, String *key,
                                           Ft_hints *hints)
   {
     return ft_init_ext(hints->get_flags(), inx, key);
   }
-  virtual int ft_read(uchar *buf) { return HA_ERR_WRONG_COMMAND; }
+  virtual int ft_read(uchar*) { return HA_ERR_WRONG_COMMAND; }
 protected:
   /// @see index_read_map().
   virtual int rnd_next(uchar *buf)=0;
@@ -3852,7 +3855,9 @@ public:
     @return Number of rows in range.
   */
 
-  virtual ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key)
+  virtual ha_rows records_in_range(uint inx MY_ATTRIBUTE((unused)),
+                                   key_range *min_key MY_ATTRIBUTE((unused)),
+                                   key_range *max_key MY_ATTRIBUTE((unused)))
     { return (ha_rows) 10; }
   /*
     If HA_PRIMARY_KEY_REQUIRED_FOR_POSITION is set, then it sets ref
@@ -3891,11 +3896,12 @@ public:
   */
 
   virtual int info(uint flag)=0;
-  virtual uint32 calculate_key_hash_value(Field **field_array)
+  virtual uint32 calculate_key_hash_value(Field **field_array MY_ATTRIBUTE((unused)))
   { DBUG_ASSERT(0); return 0; }
-  virtual int extra(enum ha_extra_function operation)
+  virtual int extra(enum ha_extra_function operation MY_ATTRIBUTE((unused)))
   { return 0; }
-  virtual int extra_opt(enum ha_extra_function operation, ulong cache_size)
+  virtual int extra_opt(enum ha_extra_function operation,
+                        ulong cache_size MY_ATTRIBUTE((unused)))
   { return extra(operation); }
 
   /**
@@ -3957,7 +3963,9 @@ public:
     @retval    0                 Success.
   */
 
-  virtual int start_stmt(THD *thd, thr_lock_type lock_type) {return 0;}
+  virtual int start_stmt(THD *thd MY_ATTRIBUTE((unused)),
+                         thr_lock_type lock_type MY_ATTRIBUTE((unused)))
+  { return 0; }
   virtual void get_auto_increment(ulonglong offset, ulonglong increment,
                                   ulonglong nb_desired_values,
                                   ulonglong *first_value,
@@ -3995,11 +4003,11 @@ public:
     @param    create_info         Create info from ALTER TABLE.
   */
 
-  virtual void update_create_info(HA_CREATE_INFO *create_info) {}
+  virtual void update_create_info(HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) {}
   int check_old_types();
-  virtual int assign_to_keycache(THD* thd, HA_CHECK_OPT* check_opt)
+  virtual int assign_to_keycache(THD*, HA_CHECK_OPT*)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
-  virtual int preload_keys(THD* thd, HA_CHECK_OPT* check_opt)
+  virtual int preload_keys(THD*, HA_CHECK_OPT*)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   /* end of the list of admin commands */
 
@@ -4012,7 +4020,7 @@ public:
   */
 
   virtual int indexes_are_disabled(void) {return 0;}
-  virtual void append_create_info(String *packet) {}
+  virtual void append_create_info(String *packet MY_ATTRIBUTE((unused))) {}
   /**
     If index == MAX_KEY then a check for table is made and if index <
     MAX_KEY then a check is made if the table has foreign keys and if
@@ -4023,7 +4031,7 @@ public:
     @retval   TRUE            Foreign key defined on table or index
     @retval   FALSE           No foreign key defined
   */
-  virtual bool is_fk_defined_on_table_or_index(uint index)
+  virtual bool is_fk_defined_on_table_or_index(uint index MY_ATTRIBUTE((unused)))
   { return FALSE; }
   virtual char* get_foreign_key_create_info()
   { return(NULL);}  /* gets foreign key create string from InnoDB */
@@ -4048,7 +4056,8 @@ public:
     @return The handler error code or zero for success.
   */
   virtual int
-  get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
+  get_foreign_key_list(THD *thd MY_ATTRIBUTE((unused)),
+                     List<FOREIGN_KEY_INFO> *f_key_list MY_ATTRIBUTE((unused)))
   { return 0; }
   /**
     Get the list of foreign keys referencing this table.
@@ -4062,7 +4071,8 @@ public:
     @return The handler error code or zero for success.
   */
   virtual int
-  get_parent_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
+  get_parent_foreign_key_list(THD *thd MY_ATTRIBUTE((unused)),
+                     List<FOREIGN_KEY_INFO> *f_key_list MY_ATTRIBUTE((unused)))
   { return 0; }
   /**
     Get the list of tables which are direct or indirect parents in foreign
@@ -4080,13 +4090,13 @@ public:
     @return The handler error code or zero for success
   */
   virtual int
-  get_cascade_foreign_key_table_list(THD *thd,
-                                     List<st_handler_tablename> *fk_table_list)
+  get_cascade_foreign_key_table_list(THD *thd MY_ATTRIBUTE((unused)),
+              List<st_handler_tablename> *fk_table_list MY_ATTRIBUTE((unused)))
   { return 0; }
   virtual uint referenced_by_foreign_key() { return 0;}
   virtual void init_table_handle_for_HANDLER()
   { return; }       /* prepare InnoDB for HANDLER */
-  virtual void free_foreign_key_create_info(char* str) {}
+  virtual void free_foreign_key_create_info(char*) {}
   /** The following can be called without an open handler */
   virtual const char *table_type() const =0;
 
@@ -4118,7 +4128,8 @@ public:
   virtual uint max_supported_key_parts() const { return MAX_REF_PARTS; }
   virtual uint max_supported_key_length() const { return MAX_KEY_LENGTH; }
   virtual uint max_supported_key_part_length() const { return 255; }
-  virtual uint min_record_length(uint options) const { return 1; }
+  virtual uint min_record_length(uint options MY_ATTRIBUTE((unused))) const
+  { return 1; }
 
   virtual bool low_byte_first() const { return 1; }
   virtual ha_checksum checksum() const { return 0; }
@@ -4235,11 +4246,12 @@ public:
         cached
   */
 
-  virtual my_bool register_query_cache_table(THD *thd, char *table_key,
-                                             size_t key_length,
-                                             qc_engine_callback
-                                             *engine_callback,
-                                             ulonglong *engine_data)
+  virtual my_bool
+  register_query_cache_table(THD *thd MY_ATTRIBUTE((unused)),
+                             char *table_key MY_ATTRIBUTE((unused)),
+                             size_t key_length MY_ATTRIBUTE((unused)),
+                             qc_engine_callback *engine_callback,
+                             ulonglong *engine_data MY_ATTRIBUTE((unused)))
   {
     *engine_callback= 0;
     return TRUE;
@@ -4332,7 +4344,9 @@ public:
            not to evaluate
   */
 
- virtual Item *idx_cond_push(uint keyno, Item* idx_cond) { return idx_cond; }
+ virtual Item *idx_cond_push(uint keyno MY_ATTRIBUTE((unused)),
+                             Item* idx_cond)
+ { return idx_cond; }
 
  /** Reset information about pushed index conditions */
  virtual void cancel_pushed_idx_cond()
@@ -4363,18 +4377,20 @@ public:
   virtual const TABLE* parent_of_pushed_join() const
   { return NULL; }
 
-  virtual int index_read_pushed(uchar * buf, const uchar * key,
-                             key_part_map keypart_map)
+  virtual int index_read_pushed(uchar *buf MY_ATTRIBUTE((unused)),
+                                const uchar *key MY_ATTRIBUTE((unused)),
+                                key_part_map keypart_map MY_ATTRIBUTE((unused)))
   { return  HA_ERR_WRONG_COMMAND; }
 
-  virtual int index_next_pushed(uchar * buf)
+  virtual int index_next_pushed(uchar *buf MY_ATTRIBUTE((unused)))
   { return  HA_ERR_WRONG_COMMAND; }
 
  /**
    Part of old, deprecated in-place ALTER API.
  */
- virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
-					 uint table_changes)
+ virtual bool
+ check_if_incompatible_data(HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused)),
+                            uint table_changes MY_ATTRIBUTE((unused)))
  { return COMPATIBLE_DATA_NO; }
 
  /* On-line/in-place ALTER TABLE interface. */
@@ -4562,9 +4578,11 @@ protected:
     @retval   true              Error
     @retval   false             Success
  */
- virtual bool prepare_inplace_alter_table(TABLE *altered_table,
-                                          Alter_inplace_info *ha_alter_info,
-                                          dd::Table *new_dd_tab)
+ virtual bool
+ prepare_inplace_alter_table(TABLE *altered_table MY_ATTRIBUTE((unused)),
+                             Alter_inplace_info
+                             *ha_alter_info MY_ATTRIBUTE((unused)),
+                             dd::Table *new_dd_tab MY_ATTRIBUTE((unused)))
  { return false; }
 
 
@@ -4587,8 +4605,9 @@ protected:
     @retval   true              Error
     @retval   false             Success
  */
- virtual bool inplace_alter_table(TABLE *altered_table,
-                                  Alter_inplace_info *ha_alter_info)
+ virtual bool
+ inplace_alter_table(TABLE *altered_table MY_ATTRIBUTE((unused)),
+                     Alter_inplace_info *ha_alter_info MY_ATTRIBUTE((unused)))
  { return false; }
 
 
@@ -4624,10 +4643,12 @@ protected:
     @retval   true              Error
     @retval   false             Success
  */
- virtual bool commit_inplace_alter_table(TABLE *altered_table,
-                                         Alter_inplace_info *ha_alter_info,
-                                         bool commit)
-{
+ virtual bool
+ commit_inplace_alter_table(TABLE *altered_table MY_ATTRIBUTE((unused)),
+                            Alter_inplace_info
+                            *ha_alter_info MY_ATTRIBUTE((unused)),
+                            bool commit MY_ATTRIBUTE((unused)))
+ {
   /* Nothing to commit/rollback, mark all handlers committed! */
   ha_alter_info->group_commit_ctx= NULL;
   return false;
@@ -4701,7 +4722,11 @@ private:
 
   virtual int open(const char *name, int mode, uint test_if_locked)=0;
   virtual int close(void)=0;
-  virtual int index_init(uint idx, bool sorted) { active_index= idx; return 0; }
+  virtual int index_init(uint idx, bool sorted MY_ATTRIBUTE((unused)))
+  {
+    active_index= idx;
+    return 0;
+  }
   virtual int index_end() { active_index= MAX_KEY; return 0; }
   /**
     rnd_init() can be called two times without rnd_end() in between
@@ -4804,9 +4829,9 @@ private:
   }
   virtual void release_auto_increment() { return; };
   /** admin commands - called from mysql_admin_table */
-  virtual int check_for_upgrade(HA_CHECK_OPT *check_opt)
+  virtual int check_for_upgrade(HA_CHECK_OPT *)
   { return 0; }
-  virtual int check(THD* thd, HA_CHECK_OPT* check_opt)
+  virtual int check(THD*, HA_CHECK_OPT*)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
 
   /**
@@ -4814,12 +4839,12 @@ private:
      to specify CHECK option to use to call check()
      upon the table.
   */
-  virtual int repair(THD* thd, HA_CHECK_OPT* check_opt)
+  virtual int repair(THD*, HA_CHECK_OPT*)
   {
     DBUG_ASSERT(!(ha_table_flags() & HA_CAN_REPAIR));
     return HA_ADMIN_NOT_IMPLEMENTED;
   }
-  virtual void start_bulk_insert(ha_rows rows) {}
+  virtual void start_bulk_insert(ha_rows) {}
   virtual int end_bulk_insert() { return 0; }
 
   /**
@@ -4841,10 +4866,14 @@ private:
   virtual bool is_record_buffer_wanted(ha_rows *const max_rows) const
   { *max_rows= 0; return false; }
 protected:
-  virtual int index_read(uchar * buf, const uchar * key, uint key_len,
-                         enum ha_rkey_function find_flag)
+  virtual int index_read(uchar *buf MY_ATTRIBUTE((unused)),
+                         const uchar *key MY_ATTRIBUTE((unused)),
+                         uint key_len MY_ATTRIBUTE((unused)),
+                         enum ha_rkey_function find_flag MY_ATTRIBUTE((unused)))
    { return  HA_ERR_WRONG_COMMAND; }
-  virtual int index_read_last(uchar * buf, const uchar * key, uint key_len)
+  virtual int index_read_last(uchar *buf MY_ATTRIBUTE((unused)),
+                              const uchar *key MY_ATTRIBUTE((unused)),
+                              uint key_len MY_ATTRIBUTE((unused)))
   {
     set_my_errno(HA_ERR_WRONG_COMMAND);
     return HA_ERR_WRONG_COMMAND;
@@ -4866,8 +4895,9 @@ public:
     @param    dup_key_found  Number of duplicate keys found
 
   */
-  virtual int bulk_update_row(const uchar *old_data, uchar *new_data,
-                              uint *dup_key_found)
+  virtual int bulk_update_row(const uchar *old_data MY_ATTRIBUTE((unused)),
+                              uchar *new_data MY_ATTRIBUTE((unused)),
+                              uint *dup_key_found MY_ATTRIBUTE((unused)))
   {
     DBUG_ASSERT(FALSE);
     return HA_ERR_WRONG_COMMAND;
@@ -4908,9 +4938,9 @@ public:
   */
   virtual int truncate()
   { return HA_ERR_WRONG_COMMAND; }
-  virtual int optimize(THD* thd, HA_CHECK_OPT* check_opt)
+  virtual int optimize(THD*, HA_CHECK_OPT*)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
-  virtual int analyze(THD* thd, HA_CHECK_OPT* check_opt)
+  virtual int analyze(THD*, HA_CHECK_OPT*)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
 
 
@@ -4925,7 +4955,8 @@ public:
     @note Called if open_table_from_share fails and is_crashed().
   */
 
-  virtual bool check_and_repair(THD *thd) { return TRUE; }
+  virtual bool check_and_repair(THD *thd MY_ATTRIBUTE((unused)))
+  { return TRUE; }
 
 
   /**
@@ -4937,7 +4968,8 @@ public:
     @retval   != 0                      Error.
   */
 
-  virtual int disable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
+  virtual int disable_indexes(uint mode MY_ATTRIBUTE((unused)))
+  { return HA_ERR_WRONG_COMMAND; }
 
 
   /**
@@ -4949,8 +4981,9 @@ public:
     @retval   != 0                      Error.
   */
 
-  virtual int enable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
-  virtual int discard_or_import_tablespace(my_bool discard)
+  virtual int enable_indexes(uint mode MY_ATTRIBUTE((unused)))
+  { return HA_ERR_WRONG_COMMAND; }
+  virtual int discard_or_import_tablespace(my_bool discard MY_ATTRIBUTE((unused)))
   {
     set_my_errno(HA_ERR_WRONG_COMMAND);
     return HA_ERR_WRONG_COMMAND;
@@ -4958,11 +4991,14 @@ public:
   virtual void drop_table(const char *name);
   virtual int create(const char *name, TABLE *form, HA_CREATE_INFO *info)=0;
 
-  virtual bool get_se_private_data(dd::Table *dd_table, uint dd_version)
+  virtual bool get_se_private_data(dd::Table *dd_table MY_ATTRIBUTE((unused)),
+                                   uint dd_version MY_ATTRIBUTE((unused)))
   { return false; }
 
-  virtual int create_handler_files(const char *name, const char *old_name,
-                                   int action_flag, HA_CREATE_INFO *info)
+  virtual int create_handler_files(const char *name MY_ATTRIBUTE((unused)),
+                                   const char *old_name MY_ATTRIBUTE((unused)),
+                                   int action_flag MY_ATTRIBUTE((unused)),
+                                   HA_CREATE_INFO *info MY_ATTRIBUTE((unused)))
   { return FALSE; }
 
   virtual bool set_ha_share_ref(Handler_share **arg_ha_share)

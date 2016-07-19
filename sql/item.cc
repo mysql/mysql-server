@@ -6485,7 +6485,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
     break;					// Blob handled outside of case
   case MYSQL_TYPE_GEOMETRY:
     field= new Field_geom(max_length, maybe_null,
-                          item_name.ptr(), table->s, get_geometry_type());
+                          item_name.ptr(), get_geometry_type());
     break;
   case MYSQL_TYPE_JSON:
     field= new Field_json(max_length, maybe_null, item_name.ptr());

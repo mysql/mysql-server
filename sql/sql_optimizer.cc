@@ -1088,7 +1088,7 @@ int JOIN::replace_index_subquery()
   first_qep_tab->set_condition(where_cond);
 
   engine=
-    new subselect_indexsubquery_engine(thd, first_qep_tab, unit->item,
+    new subselect_indexsubquery_engine(first_qep_tab, unit->item,
                                        where_cond,
                                        having_cond);
 

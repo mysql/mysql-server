@@ -236,7 +236,7 @@ public:
 
     @return  pointer to complex hint for a given type.
   */
-  virtual PT_hint *get_complex_hints(opt_hints_enum type)
+  virtual PT_hint *get_complex_hints(opt_hints_enum type MY_ATTRIBUTE((unused)))
   {
     DBUG_ASSERT(0);
     return NULL; /* error C4716: must return a value */
@@ -304,7 +304,7 @@ public:
     max_exec_time= NULL;
   }
 
-  virtual void append_name(THD *thd, String *str) {}
+  virtual void append_name(THD*, String*) {}
   virtual PT_hint *get_complex_hints(opt_hints_enum type);
 };
 

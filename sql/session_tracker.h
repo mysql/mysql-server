@@ -119,21 +119,10 @@ class Session_tracker
 private:
   State_tracker *m_trackers[SESSION_TRACKER_END + 1];
 
-  /* The following two functions are private to disable copying. */
-  /** Copy constructor */
-  Session_tracker(Session_tracker const &other)
-  {
-    DBUG_ASSERT(FALSE);
-  }
-
-  /** Copy assignment operator */
-  Session_tracker& operator= (Session_tracker const &rhs)
-  {
-    DBUG_ASSERT(FALSE);
-    return *this;
-  }
-
 public:
+  Session_tracker(Session_tracker const&) = delete;
+
+  Session_tracker& operator= (Session_tracker const&) = delete;
 
   /** Constructor */
   Session_tracker()
@@ -197,7 +186,7 @@ private:
 public:
   Session_state_change_tracker();
   bool enable(THD *thd);
-  bool check(THD *thd, set_var *var)
+  bool check(THD*, set_var*)
   { return false; }
   bool update(THD *thd);
   bool store(THD *thd, String &buf);
@@ -266,7 +255,7 @@ public:
   Transaction_state_tracker();
   bool enable(THD *thd)
   { return update(thd); }
-  bool check(THD *thd, set_var *var)
+  bool check(THD*, set_var*)
   { return false; }
   bool update(THD *thd);
   bool store(THD *thd, String &buf);

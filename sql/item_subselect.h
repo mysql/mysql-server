@@ -334,7 +334,7 @@ public:
      sj_convert_priority(0), sj_chosen(false), embedding_join_nest(NULL)
   {}
 
-  virtual trans_res select_transformer(SELECT_LEX *select)
+  virtual trans_res select_transformer(SELECT_LEX*)
   {
     exec_method= EXEC_EXISTS;
     return RES_OK;
@@ -730,11 +730,7 @@ private:
   Item *having;
 public:
 
-  /*
-    constructor can assign THD because it will be called after
-    SELECT_LEX::prepare
-  */
-  subselect_indexsubquery_engine(THD *thd_arg, QEP_TAB *tab_arg,
+  subselect_indexsubquery_engine(QEP_TAB *tab_arg,
 				 Item_subselect *subs, Item *where,
                                  Item *having_arg)
     :subselect_engine(subs, 0), tab(tab_arg), cond(where),
@@ -811,9 +807,9 @@ private:
   Temp_table_param *tmp_param;
 
 public:
-  subselect_hash_sj_engine(THD *thd, Item_subselect *in_predicate,
+  subselect_hash_sj_engine(Item_subselect *in_predicate,
                            subselect_single_select_engine *old_engine)
-    :subselect_indexsubquery_engine(thd, NULL, in_predicate, NULL, NULL),
+    :subselect_indexsubquery_engine(NULL, in_predicate, NULL, NULL),
     is_materialized(false), materialize_engine(old_engine), tmp_param(NULL)
   {}
   ~subselect_hash_sj_engine();
