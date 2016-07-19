@@ -55,12 +55,23 @@ bool Raw_table::find_record(const Object_key &key,
   TABLE *table= get_table();
   std::unique_ptr<Raw_key> k(key.create_access_key(this));
 
-  int rc= table->file->ha_index_read_idx_map(
+  int rc;
+  if (!table->file->inited &&
+      (rc= table->file->ha_index_init(k->index_no, true)))
+  {
+    table->file->print_error(rc, MYF(0));
+    DBUG_RETURN(true);
+  }
+
+  rc= table->file->ha_index_read_idx_map(
     table->record[0],
     k->index_no,
     k->key,
     k->keypart_map,
     (k->keypart_map == HA_WHOLE_KEY) ?  HA_READ_KEY_EXACT : HA_READ_PREFIX);
+
+  if (table->file->inited)
+    table->file->ha_index_end();  // Close the scan over the index
 
   // Row not found.
   if (rc == HA_ERR_KEY_NOT_FOUND || rc == HA_ERR_END_OF_FILE)
@@ -176,11 +187,22 @@ bool Raw_table::find_last_record(const Object_key &key,
   TABLE *table= get_table();
   std::unique_ptr<Raw_key> k(key.create_access_key(this));
 
-  int rc= table->file->ha_index_read_idx_map(table->record[0],
+  int rc;
+  if (!table->file->inited &&
+      (rc=table->file->ha_index_init(k->index_no, true)))
+  {
+    table->file->print_error(rc, MYF(0));
+    DBUG_RETURN(true);
+  }
+
+  rc= table->file->ha_index_read_idx_map(table->record[0],
                                              k->index_no,
                                              k->key,
                                              k->keypart_map,
                                              HA_READ_PREFIX_LAST_OR_PREV);
+
+  if (table->file->inited)
+    table->file->ha_index_end();  // Close the scan over the index
 
   // Row not found.
   if (rc == HA_ERR_KEY_NOT_FOUND || rc == HA_ERR_END_OF_FILE)

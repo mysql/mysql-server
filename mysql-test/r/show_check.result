@@ -286,6 +286,7 @@ mysql	view_table_usage	0	0
 mysql	index_partitions	0	0
 mysql	table_partitions	0	0
 mysql	tablespaces	0	0
+mysql	triggers	0	0
 drop table t1;
 create table t1 (a int not null, b VARCHAR(10), INDEX (b) ) AVG_ROW_LENGTH=10 CHECKSUM=1 COMMENT="test" ENGINE=MYISAM MIN_ROWS=10 MAX_ROWS=100 PACK_KEYS=1 DELAY_KEY_WRITE=1 ROW_FORMAT=fixed;
 show create table t1;

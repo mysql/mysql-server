@@ -126,7 +126,6 @@ time_zone_leap_second
 time_zone_name
 time_zone_transition
 time_zone_transition_type
-triggers
 user
 t1
 t4
@@ -143,15 +142,12 @@ TABLESPACES	TABLESPACES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
 TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TRIGGERS	TRIGGERS
-triggers	TRIGGERS
 tables_priv	tables_priv
 time_zone	time_zone
 time_zone_leap_second	time_zone_leap_second
 time_zone_name	time_zone_name
 time_zone_transition	time_zone_transition
 time_zone_transition_type	time_zone_transition_type
-TRIGGERS	triggers
-triggers	triggers
 t1	t1
 t4	t4
 t2	t2
@@ -166,15 +162,12 @@ TABLESPACES	TABLESPACES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
 TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TRIGGERS	TRIGGERS
-triggers	TRIGGERS
 tables_priv	tables_priv
 time_zone	time_zone
 time_zone_leap_second	time_zone_leap_second
 time_zone_name	time_zone_name
 time_zone_transition	time_zone_transition
 time_zone_transition_type	time_zone_transition_type
-TRIGGERS	triggers
-triggers	triggers
 t1	t1
 t4	t4
 t2	t2
@@ -189,15 +182,12 @@ TABLESPACES	TABLESPACES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
 TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TRIGGERS	TRIGGERS
-triggers	TRIGGERS
 tables_priv	tables_priv
 time_zone	time_zone
 time_zone_leap_second	time_zone_leap_second
 time_zone_name	time_zone_name
 time_zone_transition	time_zone_transition
 time_zone_transition_type	time_zone_transition_type
-TRIGGERS	triggers
-triggers	triggers
 t1	t1
 t4	t4
 t2	t2
@@ -820,7 +810,6 @@ information_schema	ROUTINES	ROUTINE_COMMENT
 information_schema	TRIGGERS	ACTION_CONDITION
 information_schema	TRIGGERS	ACTION_STATEMENT
 information_schema	VIEWS	VIEW_DEFINITION
-mysql	triggers	action_statement_utf8
 select table_name, column_name, data_type from information_schema.columns
 where table_schema not in ('performance_schema', 'sys')
 and data_type = 'datetime'
@@ -906,7 +895,7 @@ AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
 information_schema	31
-mysql	31
+mysql	30
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
 begin

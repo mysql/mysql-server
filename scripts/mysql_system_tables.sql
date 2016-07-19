@@ -1,4 +1,4 @@
--- Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2007, 2016 Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -24,41 +24,6 @@ set @have_innodb= (select count(engine) from information_schema.engines where en
 SET FOREIGN_KEY_CHECKS= 1;
 
 # Added sql_mode elements and making it as SET, instead of ENUM
-CREATE TABLE IF NOT EXISTS triggers (
-id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-schema_id BIGINT UNSIGNED NOT NULL,
-name VARCHAR(64) NOT NULL COLLATE utf8_general_ci,
-event_type ENUM('INSERT','UPDATE','DELETE') NOT NULL,
-table_id BIGINT UNSIGNED NOT NULL,
-action_timing ENUM('BEFORE','AFTER') NOT NULL,
-action_order INT UNSIGNED NOT NULL,
-action_statement LONGBLOB NOT NULL,
-action_statement_utf8 LONGTEXT NOT NULL,
-created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-last_altered TIMESTAMP NOT NULL DEFAULT NOW(),
-sql_mode SET(
-'MODE_REAL_AS_FLOAT', 'MODE_PIPES_AS_CONCAT', 'MODE_ANSI_QUOTES', 'MODE_IGNORE_SPACE',
-'MODE_NOT_USED', 'MODE_ONLY_FULL_GROUP_BY', 'MODE_NO_UNSIGNED_SUBTRACTION', 'MODE_NO_DIR_IN_CREATE',
-'MODE_POSTGRESQL', 'MODE_ORACLE', 'MODE_MSSQL', 'MODE_DB2', 'MODE_MAXDB', 'MODE_NO_KEY_OPTIONS',
-'MODE_NO_TABLE_OPTIONS', 'MODE_NO_FIELD_OPTIONS', 'MODE_MYSQL323', 'MODE_MYSQL40', 'MODE_ANSI',
-'MODE_NO_AUTO_VALUE_ON_ZERO', 'MODE_NO_BACKSLASH_ESCAPES', 'MODE_STRICT_TRANS_TABLES',
-'MODE_STRICT_ALL_TABLES', 'MODE_NO_ZERO_IN_DATE', 'MODE_NO_ZERO_DATE', 'MODE_INVALID_DATES',
-'MODE_ERROR_FOR_DIVISION_BY_ZERO', 'MODE_TRADITIONAL', 'MODE_NO_AUTO_CREATE_USER',
-'MODE_HIGH_NOT_PRECEDENCE', 'MODE_NO_ENGINE_SUBSTITUTION', 'MODE_PAD_CHAR_TO_FULL_LENGTH'
-) NOT NULL,
-definer VARCHAR(93) NOT NULL,
-client_collation_id BIGINT UNSIGNED NOT NULL,
-connection_collation_id BIGINT UNSIGNED NOT NULL,
-schema_collation_id BIGINT UNSIGNED NOT NULL,
-PRIMARY KEY (id),
-UNIQUE KEY (schema_id, name),
-UNIQUE KEY (table_id, event_type, action_timing, action_order),
-FOREIGN KEY (schema_id) REFERENCES schemata(id),
-FOREIGN KEY (table_id) REFERENCES tables(id),
-FOREIGN KEY (client_collation_id) REFERENCES collations(id),
-FOREIGN KEY (connection_collation_id) REFERENCES collations(id),
-FOREIGN KEY (schema_collation_id) REFERENCES collations(id)
-) ENGINE=INNODB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0;
 
 --
 -- New DD schema end

@@ -2257,4 +2257,79 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share)
   return trans_commit_stmt(thd) || trans_commit(thd);
 }
 
+bool move_triggers(THD *thd,
+                   const char *from_schema_name,
+                   const char *from_name,
+                   const char *to_schema_name,
+                   const char *to_name)
+{
+  // We must make sure the schema is released and unlocked in the right order.
+  dd::Schema_MDL_locker from_mdl_locker(thd);
+  dd::Schema_MDL_locker to_mdl_locker(thd);
+
+  // Check if source and destination schemas exist.
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Schema *from_sch= nullptr;
+  const dd::Schema *to_sch= nullptr;
+  const dd::Table *from_tab= nullptr;
+  const dd::Table *to_tab= nullptr;
+
+  // Acquire all objects.
+  if (from_mdl_locker.ensure_locked(from_schema_name) ||
+      to_mdl_locker.ensure_locked(to_schema_name) ||
+      thd->dd_client()->acquire<dd::Schema>(from_schema_name, &from_sch) ||
+      thd->dd_client()->acquire<dd::Schema>(to_schema_name, &to_sch) ||
+      thd->dd_client()->acquire<dd::Table>(to_schema_name, to_name, &to_tab) ||
+      thd->dd_client()->acquire<dd::Table>(from_schema_name, from_name, &from_tab))
+  {
+    // Error is reported by the dictionary subsystem.
+    return true;
+  }
+
+  // Report error if missing objects.
+  if (from_sch == nullptr)
+  {
+    my_error(ER_BAD_DB_ERROR, MYF(0), from_schema_name);
+    return true;
+  }
+
+  if (to_sch == nullptr)
+  {
+    my_error(ER_BAD_DB_ERROR, MYF(0), to_schema_name);
+    return true;
+  }
+
+  if (from_tab == nullptr)
+  {
+    my_error(ER_NO_SUCH_TABLE, MYF(0), from_schema_name, from_name);
+    return true;
+  }
+
+  if (to_tab == nullptr)
+  {
+    my_error(ER_NO_SUCH_TABLE, MYF(0), to_schema_name, to_name);
+    return true;
+  }
+
+  // Copy the triggers into to_tab clone and drop it from
+  // from_tab clone.
+  std::unique_ptr<dd::Table> from_clone(from_tab->clone());
+  std::unique_ptr<dd::Table> to_clone(to_tab->clone());
+  to_clone->copy_triggers(from_clone.get());
+  from_clone->drop_all_triggers();
+
+  // Store from_clone and to_clone
+  if (thd->dd_client()->update(&from_tab, from_clone.get()) ||
+      thd->dd_client()->update(&to_tab, to_clone.get()))
+  {
+    trans_rollback_stmt(thd);
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
+    return true;
+  }
+
+  return trans_commit_stmt(thd) ||
+         trans_commit(thd);
+}
+
 } // namespace dd

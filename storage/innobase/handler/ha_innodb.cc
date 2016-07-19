@@ -11498,6 +11498,7 @@ static const innodb_dd_table_t innodb_dd_table[] = {
         INNODB_DD_TABLE("routines", 6),
         INNODB_DD_TABLE("parameters", 3),
         INNODB_DD_TABLE("parameter_type_elements", 1),
+        INNODB_DD_TABLE("triggers", 6),
 	INNODB_DD_TABLE("innodb_table_stats", 1),
 	INNODB_DD_TABLE("innodb_index_stats", 1)
 };

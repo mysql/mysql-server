@@ -114,6 +114,7 @@ SET(DD_SOURCES
   dd/impl/tables/tables.cc
   dd/impl/tables/tablespace_files.cc
   dd/impl/tables/tablespaces.cc
+  dd/impl/tables/triggers.cc
   dd/impl/tables/version.cc
   dd/impl/tables/view_table_usage.cc
 
@@ -142,6 +143,7 @@ SET(DD_SOURCES
   dd/impl/types/table_impl.cc
   dd/impl/types/tablespace_file_impl.cc
   dd/impl/types/tablespace_impl.cc
+  dd/impl/types/trigger_impl.cc
   dd/impl/types/view_impl.cc
   dd/impl/types/view_table_impl.cc
   dd/impl/types/weak_object_impl.cc

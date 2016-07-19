@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify it under
    the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include "dd/types/index.h"                    // dd::Index
 #include "dd/types/partition.h"                // dd::Partition
 #include "dd/types/table.h"                    // dd:Table
+#include "dd/types/trigger.h"                  // dd::Trigger
 
 namespace dd {
 
@@ -66,6 +67,18 @@ public:
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
   virtual void debug_print(std::string &outb) const;
+
+private:
+  /**
+    Store the trigger object in DD table.
+
+    @param otx  current Open_dictionary_tables_ctx
+
+    @returns
+     false on success.
+     true on failure.
+  */
+  bool store_triggers(Open_dictionary_tables_ctx *otx);
 
 public:
   /////////////////////////////////////////////////////////////////////////
@@ -307,6 +320,50 @@ public:
   virtual bool update_aux_key(aux_key_type *key) const
   { return Table::update_aux_key(key); }
 
+  /////////////////////////////////////////////////////////////////////////
+  // Trigger collection.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual bool has_trigger() const
+  {
+    return (m_triggers.size() > 0);
+  }
+
+  virtual const Trigger_collection &triggers() const
+  { return m_triggers; }
+
+  virtual Trigger_collection *triggers()
+  { return &m_triggers; }
+
+  virtual void copy_triggers(Table *tab_obj);
+
+  virtual Trigger *add_trigger(Trigger::enum_action_timing at,
+                               Trigger::enum_event_type et);
+
+  virtual const Trigger *get_trigger(const char *name) const;
+
+  virtual Trigger *add_trigger_following(const Trigger *trigger,
+                                         Trigger::enum_action_timing at,
+                                         Trigger::enum_event_type et);
+
+  virtual Trigger *add_trigger_preceding(const Trigger *trigger,
+                                         Trigger::enum_action_timing at,
+                                         Trigger::enum_event_type et);
+
+  virtual void drop_trigger(const Trigger *trigger);
+
+  virtual void drop_all_triggers();
+
+private:
+
+  uint get_max_action_order(Trigger::enum_action_timing at,
+                            Trigger::enum_event_type et) const;
+
+  void reorder_action_order(Trigger::enum_action_timing at,
+                            Trigger::enum_event_type et);
+
+  Trigger_impl *create_trigger();
+
 private:
   // Fields.
 
@@ -334,6 +391,7 @@ private:
   Index_collection m_indexes;
   Foreign_key_collection m_foreign_keys;
   Partition_collection m_partitions;
+  Trigger_collection m_triggers;
 
   // References to other objects.
 

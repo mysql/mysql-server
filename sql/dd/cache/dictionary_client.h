@@ -558,6 +558,24 @@ public:
 
 
   /**
+    Retrieve a table name of a given trigger name and schema id.
+
+    @param        schema_id        schema id of the trigger.
+    @param        trigger_name     Name of the trigger.
+    @param  [out] table_name       Name of the table for which
+                                   trigger belongs to. Empty string if
+                                   there is no such trigger.
+
+    @retval      false    No error.
+    @retval      true     Error.
+  */
+
+  bool get_table_name_by_trigger_name(Object_id schema_id,
+                                      const std::string &trigger_name,
+                                      std::string *table_name);
+
+
+  /**
     Get the highest currently used se private id for the table objects.
 
     @param       engine        Name of the engine storing the table.

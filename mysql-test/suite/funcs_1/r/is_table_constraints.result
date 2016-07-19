@@ -90,14 +90,6 @@ def	mysql	PRIMARY	mysql	time_zone_leap_second
 def	mysql	PRIMARY	mysql	time_zone_name
 def	mysql	PRIMARY	mysql	time_zone_transition
 def	mysql	PRIMARY	mysql	time_zone_transition_type
-def	mysql	PRIMARY	mysql	triggers
-def	mysql	schema_id	mysql	triggers
-def	mysql	table_id	mysql	triggers
-def	mysql	triggers_ibfk_1	mysql	triggers
-def	mysql	triggers_ibfk_2	mysql	triggers
-def	mysql	triggers_ibfk_3	mysql	triggers
-def	mysql	triggers_ibfk_4	mysql	triggers
-def	mysql	triggers_ibfk_5	mysql	triggers
 def	mysql	PRIMARY	mysql	user
 def	sys	PRIMARY	sys	sys_config
 #########################################################################################

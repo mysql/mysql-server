@@ -39,6 +39,7 @@
 #include "dd/impl/tables/tables.h"                   // Tables
 #include "dd/impl/tables/tablespace_files.h"         // Tablespace_files
 #include "dd/impl/tables/tablespaces.h"              // Tablespaces
+#include "dd/impl/tables/triggers.h"                 // Triggers
 #include "dd/impl/tables/version.h"                  // Version
 #include "dd/impl/tables/view_table_usage.h"         // View_table_usage
 
@@ -105,6 +106,7 @@ void System_tables::init()
   register_system_table<Routines>();
   register_system_table<Parameters>();
   register_system_table<Parameter_type_elements>();
+  register_system_table<Triggers>();
 }
 
 void System_views::init()

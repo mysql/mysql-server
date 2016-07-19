@@ -49,6 +49,7 @@
 #include "dd/impl/tables/tables.h"           // create_name_key()
 #include "dd/impl/tables/tablespaces.h"      // create_name_key()
 #include "dd/impl/tables/table_partitions.h" // get_partition_table_id()
+#include "dd/impl/tables/triggers.h"         // dd::tables::Triggers
 #include "dd/impl/types/object_table_definition_impl.h" // fs_name_case()
 #include "dd/impl/types/entity_object_impl.h"// Entity_object_impl
 
@@ -1264,6 +1265,60 @@ bool Dictionary_client::get_table_name_by_partition_se_private_id(
   return false;
 }
 /* purecov: end */
+
+bool Dictionary_client::get_table_name_by_trigger_name(
+                          Object_id schema_id,
+                          const std::string &trigger_name,
+                          std::string *table_name)
+{
+  DBUG_ASSERT(table_name != nullptr);
+  *table_name= "";
+
+  // Read record directly from the tables.
+  Object_id table_id;
+  if (tables::Triggers::get_trigger_table_id(m_thd,
+                                             schema_id,
+                                             trigger_name,
+                                             &table_id))
+  {
+    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    return true;
+  }
+
+  const Table::id_key_type key(table_id);
+  const Table::cache_partition_type *stored_object= nullptr;
+
+  bool error= Shared_dictionary_cache::instance()->
+                get_uncached(m_thd, key, ISO_READ_COMMITTED, &stored_object);
+
+  if (!error)
+  {
+    // Dynamic cast may legitimately return nullptr if the stored
+    // object was nullptr, i.e., the object did not exist.
+    const Table *table= dynamic_cast<const Table*>(stored_object);
+
+    // Delete the object and report error if dynamic cast fails.
+    if (stored_object != nullptr && table == nullptr)
+    {
+      my_error(ER_INVALID_DD_OBJECT, MYF(0),
+                Table::OBJECT_TABLE().name().c_str(),
+                "Not a table object.");
+      delete stored_object;
+      return true;
+    }
+
+    // Copy the table name to OUT param.
+    if (table != nullptr)
+    {
+      *table_name= table->name();
+      delete stored_object;
+    }
+  }
+  else
+    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+
+  return error;
+}
 
 
 // Get the highest currently used se private id for the table objects.

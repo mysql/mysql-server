@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,6 +46,7 @@
 #include "dd/types/event.h"
 #include "dd/types/procedure.h"
 #include "dd/types/parameter.h"
+#include "dd/types/trigger.h"
 
 
 namespace dd_unittest {
@@ -318,6 +319,19 @@ void set_attributes(dd::Table *obj, const std::string &name,
 
   dd::Partition_index *part_index_obj= part_obj->add_index(idx_obj);
   part_index_obj->set_tablespace_id(1);
+
+  //
+  // Store table trigger information
+  //
+
+  dd::Trigger *trig_obj=
+    obj->add_trigger(dd::Trigger::enum_action_timing::AT_BEFORE,
+                     dd::Trigger::enum_event_type::ET_INSERT);
+  trig_obj->set_name("newtrigger0");
+  trig_obj->set_definer("definer_username", "definer_hostname");
+  trig_obj->set_client_collation_id(1);
+  trig_obj->set_connection_collation_id(1);
+  trig_obj->set_schema_collation_id(1);
 }
 
 

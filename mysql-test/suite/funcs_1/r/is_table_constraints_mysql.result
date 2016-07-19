@@ -39,14 +39,6 @@ def	mysql	PRIMARY	mysql	time_zone_leap_second	PRIMARY KEY
 def	mysql	PRIMARY	mysql	time_zone_name	PRIMARY KEY
 def	mysql	PRIMARY	mysql	time_zone_transition	PRIMARY KEY
 def	mysql	PRIMARY	mysql	time_zone_transition_type	PRIMARY KEY
-def	mysql	PRIMARY	mysql	triggers	PRIMARY KEY
-def	mysql	schema_id	mysql	triggers	UNIQUE
-def	mysql	table_id	mysql	triggers	UNIQUE
-def	mysql	triggers_ibfk_1	mysql	triggers	FOREIGN KEY
-def	mysql	triggers_ibfk_2	mysql	triggers	FOREIGN KEY
-def	mysql	triggers_ibfk_3	mysql	triggers	FOREIGN KEY
-def	mysql	triggers_ibfk_4	mysql	triggers	FOREIGN KEY
-def	mysql	triggers_ibfk_5	mysql	triggers	FOREIGN KEY
 def	mysql	PRIMARY	mysql	user	PRIMARY KEY
 # Establish connection testuser1 (user=testuser1)
 SELECT * FROM information_schema.table_constraints

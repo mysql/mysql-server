@@ -48,9 +48,9 @@ id	name	type	engine	collation_id	comment	hidden	options	se_private_data	se_priva
 17	table_partitions	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	27	NULL
 18	table_partition_values	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	28	NULL
 19	index_partitions	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	29	NULL
-24	innodb_table_stats	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	34	NULL
-25	innodb_index_stats	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	35	NULL
-26	character_sets	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	NULL	NULL
+25	innodb_table_stats	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	35	NULL
+26	innodb_index_stats	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	36	NULL
+27	character_sets	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	NULL	NULL
 #
 # Subset of definitions from columns, not including
 # default_values.
@@ -324,11 +324,11 @@ id	table_id	name	type	algorithm	is_algorithm_explicit	is_visible	is_generated	hi
 51	19	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=61;root=338;	NULL	InnoDB
 52	19	index_id	MULTIPLE	BTREE	0	1	1	0	2		flags=0;	id=62;root=339;	NULL	InnoDB
 53	19	tablespace_id	MULTIPLE	BTREE	0	1	1	0	3		flags=0;	id=63;root=340;	NULL	InnoDB
-69	24	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=32;	id=79;root=361;	NULL	InnoDB
-70	25	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=32;	id=80;root=363;	NULL	InnoDB
-71	26	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	NULL	NULL	InnoDB
-72	26	name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	NULL	NULL	InnoDB
-73	26	default_collation_id	MULTIPLE	BTREE	0	1	1	0	3		flags=0;	NULL	NULL	InnoDB
+75	25	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=32;	id=85;root=368;	NULL	InnoDB
+76	26	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=32;	id=86;root=370;	NULL	InnoDB
+77	27	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	NULL	NULL	InnoDB
+78	27	name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	NULL	NULL	InnoDB
+79	27	default_collation_id	MULTIPLE	BTREE	0	1	1	0	3		flags=0;	NULL	NULL	InnoDB
 #
 # Definitions from index_column_usage
 SELECT * FROM index_column_usage

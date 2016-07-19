@@ -208,22 +208,6 @@ def	mysql	time_zone_transition_type	Is_DST	4	0	NO	tinyint	NULL	NULL	3	0	NULL	NUL
 def	mysql	time_zone_transition_type	Offset	3	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
 def	mysql	time_zone_transition_type	Time_zone_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned	PRI		select,insert,update,references		
 def	mysql	time_zone_transition_type	Transition_type_id	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned	PRI		select,insert,update,references		
-def	mysql	triggers	action_order	7	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references		
-def	mysql	triggers	action_statement	8	NULL	NO	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	NULL	longblob			select,insert,update,references		
-def	mysql	triggers	action_statement_utf8	9	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_bin	longtext			select,insert,update,references		
-def	mysql	triggers	action_timing	6	NULL	NO	enum	6	18	NULL	NULL	NULL	utf8	utf8_bin	enum('BEFORE','AFTER')			select,insert,update,references		
-def	mysql	triggers	client_collation_id	14	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references		
-def	mysql	triggers	connection_collation_id	15	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references		
-def	mysql	triggers	created	10	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references		
-def	mysql	triggers	definer	13	NULL	NO	varchar	93	279	NULL	NULL	NULL	utf8	utf8_bin	varchar(93)			select,insert,update,references		
-def	mysql	triggers	event_type	4	NULL	NO	enum	6	18	NULL	NULL	NULL	utf8	utf8_bin	enum('INSERT','UPDATE','DELETE')			select,insert,update,references		
-def	mysql	triggers	id	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI	auto_increment	select,insert,update,references		
-def	mysql	triggers	last_altered	11	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references		
-def	mysql	triggers	name	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
-def	mysql	triggers	schema_collation_id	16	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references		
-def	mysql	triggers	schema_id	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references		
-def	mysql	triggers	sql_mode	12	NULL	NO	set	638	1914	NULL	NULL	NULL	utf8	utf8_bin	set('MODE_REAL_AS_FLOAT','MODE_PIPES_AS_CONCAT','MODE_ANSI_QUOTES','MODE_IGNORE_SPACE','MODE_NOT_USED','MODE_ONLY_FULL_GROUP_BY','MODE_NO_UNSIGNED_SUBTRACTION','MODE_NO_DIR_IN_CREATE','MODE_POSTGRESQL','MODE_ORACLE','MODE_MSSQL','MODE_DB2','MODE_MAXDB','MODE_NO_KEY_OPTIONS','MODE_NO_TABLE_OPTIONS','MODE_NO_FIELD_OPTIONS','MODE_MYSQL323','MODE_MYSQL40','MODE_ANSI','MODE_NO_AUTO_VALUE_ON_ZERO','MODE_NO_BACKSLASH_ESCAPES','MODE_STRICT_TRANS_TABLES','MODE_STRICT_ALL_TABLES','MODE_NO_ZERO_IN_DATE','MODE_NO_ZERO_DATE','MODE_INVALID_DATES','MODE_ERROR_FOR_DIVISION_BY_ZERO','MODE_TRADITIONAL','MODE_NO_AUTO_CREATE_USER','MODE_HIGH_NOT_PRECEDENCE','MODE_NO_ENGINE_SUBSTITUTION','MODE_PAD_CHAR_TO_FULL_LENGTH')			select,insert,update,references		
-def	mysql	triggers	table_id	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references		
 def	mysql	user	account_locked	45	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references		
 def	mysql	user	Alter_priv	16	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references		
 def	mysql	user	Alter_routine_priv	27	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references		
@@ -285,10 +269,8 @@ AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH = 1
 ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 1.0000	blob	NULL	NULL
-1.0000	longblob	NULL	NULL
 1.0000	mediumblob	NULL	NULL
 1.0000	char	latin1	latin1_swedish_ci
-1.0000	longtext	utf8	utf8_bin
 1.0000	text	utf8	utf8_bin
 1.0000	mediumtext	utf8	utf8_general_ci
 1.0000	text	utf8	utf8_general_ci
@@ -304,7 +286,6 @@ ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 3.0000	char	utf8	utf8_bin
 3.0000	enum	utf8	utf8_bin
-3.0000	set	utf8	utf8_bin
 3.0000	varchar	utf8	utf8_bin
 3.0000	char	utf8	utf8_general_ci
 3.0000	enum	utf8	utf8_general_ci
@@ -547,22 +528,6 @@ NULL	mysql	time_zone_transition_type	Transition_type_id	int	NULL	NULL	NULL	NULL	
 NULL	mysql	time_zone_transition_type	Offset	int	NULL	NULL	NULL	NULL	int(11)
 NULL	mysql	time_zone_transition_type	Is_DST	tinyint	NULL	NULL	NULL	NULL	tinyint(3) unsigned
 3.0000	mysql	time_zone_transition_type	Abbreviation	char	8	24	utf8	utf8_general_ci	char(8)
-NULL	mysql	triggers	id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	mysql	triggers	schema_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-3.0000	mysql	triggers	name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
-3.0000	mysql	triggers	event_type	enum	6	18	utf8	utf8_bin	enum('INSERT','UPDATE','DELETE')
-NULL	mysql	triggers	table_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-3.0000	mysql	triggers	action_timing	enum	6	18	utf8	utf8_bin	enum('BEFORE','AFTER')
-NULL	mysql	triggers	action_order	int	NULL	NULL	NULL	NULL	int(10) unsigned
-1.0000	mysql	triggers	action_statement	longblob	4294967295	4294967295	NULL	NULL	longblob
-1.0000	mysql	triggers	action_statement_utf8	longtext	4294967295	4294967295	utf8	utf8_bin	longtext
-NULL	mysql	triggers	created	timestamp	NULL	NULL	NULL	NULL	timestamp
-NULL	mysql	triggers	last_altered	timestamp	NULL	NULL	NULL	NULL	timestamp
-3.0000	mysql	triggers	sql_mode	set	638	1914	utf8	utf8_bin	set('MODE_REAL_AS_FLOAT','MODE_PIPES_AS_CONCAT','MODE_ANSI_QUOTES','MODE_IGNORE_SPACE','MODE_NOT_USED','MODE_ONLY_FULL_GROUP_BY','MODE_NO_UNSIGNED_SUBTRACTION','MODE_NO_DIR_IN_CREATE','MODE_POSTGRESQL','MODE_ORACLE','MODE_MSSQL','MODE_DB2','MODE_MAXDB','MODE_NO_KEY_OPTIONS','MODE_NO_TABLE_OPTIONS','MODE_NO_FIELD_OPTIONS','MODE_MYSQL323','MODE_MYSQL40','MODE_ANSI','MODE_NO_AUTO_VALUE_ON_ZERO','MODE_NO_BACKSLASH_ESCAPES','MODE_STRICT_TRANS_TABLES','MODE_STRICT_ALL_TABLES','MODE_NO_ZERO_IN_DATE','MODE_NO_ZERO_DATE','MODE_INVALID_DATES','MODE_ERROR_FOR_DIVISION_BY_ZERO','MODE_TRADITIONAL','MODE_NO_AUTO_CREATE_USER','MODE_HIGH_NOT_PRECEDENCE','MODE_NO_ENGINE_SUBSTITUTION','MODE_PAD_CHAR_TO_FULL_LENGTH')
-3.0000	mysql	triggers	definer	varchar	93	279	utf8	utf8_bin	varchar(93)
-NULL	mysql	triggers	client_collation_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	mysql	triggers	connection_collation_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	mysql	triggers	schema_collation_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 3.0000	mysql	user	Host	char	60	180	utf8	utf8_bin	char(60)
 3.0000	mysql	user	User	char	32	96	utf8	utf8_bin	char(32)
 3.0000	mysql	user	Select_priv	enum	1	3	utf8	utf8_general_ci	enum('N','Y')

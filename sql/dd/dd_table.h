@@ -303,5 +303,28 @@ bool recreate_table(THD *thd, const char *schema_name,
 */
 bool fix_row_type(THD *thd, TABLE_SHARE *share);
 
+/**
+  Move all triggers from a table to another.
+
+  @param[in]    thd              Thread context
+  @param[in]    from_schema_name Name of the schema
+  @param[in]    from_table_name  Name of the table
+  @param[in]    to_schema_name   Name of the schema
+  @param[in]    to_table_name    Name of the table
+
+  Triggers from from_schema_name.from_table_name will be moved
+  into to_schema_name.to_table_name. And the transaction will be
+  committed.
+
+  @retval       false       Success
+  @retval       true        Error
+*/
+
+bool move_triggers(THD *thd,
+                   const char *from_schema_name,
+                   const char *from_name,
+                   const char *to_schema_name,
+                   const char *to_name);
+
 } // namespace dd
 #endif // DD_TABLE_INCLUDED

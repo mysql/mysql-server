@@ -27,7 +27,7 @@ TABLE_ID	NAME	FLAG	N_COLS	SPACE	ROW_FORMAT	ZIP_PAGE_SIZE	SPACE_TYPE
 36	mysql/routines	33	29	22	Dynamic	0	Single
 37	mysql/parameters	33	17	23	Dynamic	0	Single
 38	mysql/parameter_type_elements	33	6	24	Dynamic	0	Single
-41	mysql/triggers	33	19	27	Dynamic	0	Single
+39	mysql/triggers	33	19	25	Dynamic	0	Single
 42	mysql/db	33	25	28	Dynamic	0	Single
 43	mysql/user	33	50	29	Dynamic	0	Single
 44	mysql/default_roles	33	7	30	Dynamic	0	Single
@@ -292,22 +292,22 @@ table_id	pos	mtype	prtype	len	name
 38	0	6	1800	8	parameter_id
 38	1	6	1795	4	element_index
 38	2	4	4130063	255	name
-41	0	6	1800	8	id
-41	1	6	1800	8	schema_id
-41	2	12	2162959	192	name
-41	3	6	1022	1	event_type
-41	4	6	1800	8	table_id
-41	5	6	1022	1	action_timing
-41	6	6	1795	4	action_order
-41	7	5	4130300	12	action_statement
-41	8	5	5439996	12	action_statement_utf8
-41	9	3	525575	4	created
-41	10	3	525575	4	last_altered
-41	11	6	1022	4	sql_mode
-41	12	12	5443855	279	definer
-41	13	6	1800	8	client_collation_id
-41	14	6	1800	8	connection_collation_id
-41	15	6	1800	8	schema_collation_id
+39	0	6	1800	8	id
+39	1	6	1800	8	schema_id
+39	2	12	2162959	192	name
+39	3	6	1022	1	event_type
+39	4	6	1800	8	table_id
+39	5	6	1022	1	action_timing
+39	6	6	1795	4	action_order
+39	7	5	4130300	12	action_statement
+39	8	5	5439996	12	action_statement_utf8
+39	9	3	525575	5	created
+39	10	3	525575	5	last_altered
+39	11	6	1022	4	sql_mode
+39	12	12	5443855	279	definer
+39	13	6	1800	8	client_collation_id
+39	14	6	1800	8	connection_collation_id
+39	15	6	1800	8	schema_collation_id
 42	0	13	5439998	180	Host
 42	1	13	5439998	192	Db
 42	2	13	5439998	96	User
@@ -541,13 +541,13 @@ index_id	table_id	type	n_fields	space	name
 83	37	2	2	23	routine_id
 84	37	0	1	23	collation_id
 85	38	3	2	24	PRIMARY
-88	17	0	1	3	default_collation_id
-89	41	3	1	27	PRIMARY
-90	41	2	2	27	schema_id
-91	41	2	4	27	table_id
-92	41	0	1	27	client_collation_id
-93	41	0	1	27	connection_collation_id
-94	41	0	1	27	schema_collation_id
+86	39	3	1	25	PRIMARY
+87	39	2	2	25	schema_id
+88	39	2	4	25	table_id
+89	39	0	1	25	client_collation_id
+90	39	0	1	25	connection_collation_id
+91	39	0	1	25	schema_collation_id
+94	17	0	1	3	default_collation_id
 95	42	3	3	28	PRIMARY
 96	42	0	1	28	User
 97	43	3	2	29	PRIMARY
@@ -658,15 +658,15 @@ index_id	pos	name
 84	0	collation_id
 85	0	parameter_id
 85	1	element_index
-88	0	default_collation_id
-90	0	schema_id
-91	0	table_id
-91	1	event_type
-91	2	action_timing
-91	3	action_order
-92	0	client_collation_id
-93	0	connection_collation_id
-94	0	schema_collation_id
+87	0	schema_id
+88	0	table_id
+88	1	event_type
+88	2	action_timing
+88	3	action_order
+89	0	client_collation_id
+90	0	connection_collation_id
+91	0	schema_collation_id
+94	0	default_collation_id
 95	1	Db
 95	2	User
 96	0	User

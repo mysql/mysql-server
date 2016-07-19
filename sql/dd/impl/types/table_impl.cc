@@ -16,6 +16,7 @@
 #include "dd/impl/types/table_impl.h"
 
 #include "mysqld_error.h"                            // ER_*
+#include "current_thd.h"                             // current_thd
 
 #include "dd/impl/object_key.h"                      // Needed for destructor
 #include "dd/impl/properties_impl.h"                 // Properties_impl
@@ -26,9 +27,11 @@
 #include "dd/impl/tables/indexes.h"                  // Indexes
 #include "dd/impl/tables/tables.h"                   // Tables
 #include "dd/impl/tables/table_partitions.h"         // Table_partitions
+#include "dd/impl/tables/triggers.h"                 // Triggers
 #include "dd/impl/types/foreign_key_impl.h"          // Foreign_key_impl
 #include "dd/impl/types/index_impl.h"                // Index_impl
 #include "dd/impl/types/partition_impl.h"            // Partition_impl
+#include "dd/impl/types/trigger_impl.h"              // Trigger_impl
 #include "dd/types/column.h"                         // Column
 
 #include <sstream>
@@ -37,6 +40,7 @@ using dd::tables::Foreign_keys;
 using dd::tables::Indexes;
 using dd::tables::Tables;
 using dd::tables::Table_partitions;
+using dd::tables::Triggers;
 
 namespace dd {
 
@@ -66,6 +70,7 @@ Table_impl::Table_impl()
   m_indexes(),
   m_foreign_keys(),
   m_partitions(),
+  m_triggers(),
   m_collation_id(INVALID_OBJECT_ID),
   m_tablespace_id(INVALID_OBJECT_ID)
 {
@@ -133,7 +138,7 @@ bool Table_impl::restore_children(Open_dictionary_tables_ctx *otx)
   //   - Partitions should be loaded at the end, as it refers to
   //     indexes.
 
-  return
+  bool ret=
     Abstract_table_impl::restore_children(otx)
     ||
     m_indexes.restore_items(
@@ -152,28 +157,118 @@ bool Table_impl::restore_children(Open_dictionary_tables_ctx *otx)
       this,
       otx,
       otx->get_table<Partition>(),
-      Table_partitions::create_key_by_table_id(this->id()));
+      Table_partitions::create_key_by_table_id(this->id()))
+    ||
+    m_triggers.restore_items(
+      this,
+      otx,
+      otx->get_table<Trigger>(),
+      Triggers::create_key_by_table_id(this->id()));
+
+  /*
+    Keep the collection items ordered based on
+    action_timing, event_type and action_order.
+  */
+  if (!ret)
+  {
+    class Sort_triggers
+    {
+    public:
+      inline bool operator() (const Trigger *t1,
+                              const Trigger *t2) const
+      {
+        return t1->action_timing() < t2->action_timing() &&
+               t1->event_type() < t2->event_type() &&
+               t1->action_order() < t2->action_order();
+      }
+    };
+
+    m_triggers.sort_items(Sort_triggers());
+  }
+
+  return ret;
+
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+bool Table_impl::store_triggers(Open_dictionary_tables_ctx *otx)
+{
+  /*
+    There is a requirement to keep the collection items in
+    following order.  The reason is,
+
+    Suppose we are updating a dd::Table object with,
+      a) We already have a trigger 't1' with ID 1.
+      b) We added a new trigger 't2' added preceding to 't1'.
+    We have a row for a) in (DD) disk with action_order=1.
+
+    The expectation is that row b) should have action_order=1
+    and row a) should have action_order=2.
+
+    If we try to store row b) first with action_order=1, then
+    there is possibility violating the constraint
+      "UNIQUE KEY (table_id, event_type,
+                   action_timing, action_order)"
+    because row a) might also contain the same event_type and
+    action_timing as that of b). And we would fail inserting
+    row b).
+
+    This demands us to drop all the triggers which are already
+    present on disk and then store any new triggers.  This
+    would not violate the above unique constraint.
+
+    However we should avoid trying to drop triggers if no triggers
+    existed before. Such an attempt will lead to index lookup which
+    might cause acquisition of gap lock on index supremum in InnoDB.
+    This might lead to deadlock if two independent CREATE TRIGGER
+    are executed concurrently and both acquire gap locks on index
+    supremum first and then try to insert their records into this gap.
+  */
+  bool needs_delete= m_triggers.has_removed_items();
+
+  if (!needs_delete)
+  {
+    /* Check if there are any non-new Trigger objects. */
+    for (const Trigger *trigger : *triggers())
+    {
+      if (trigger->id() != INVALID_OBJECT_ID)
+      {
+        needs_delete= true;
+        break;
+      }
+    }
+  }
+
+  if (needs_delete)
+  {
+    if (m_triggers.drop_items(otx,
+                              otx->get_table<Trigger>(),
+                              Triggers::create_key_by_table_id(this->id())))
+      return true;
+
+    /*
+      In-case a trigger is dropped, we need to avoid dropping it
+      second time. So clear all the removed items.
+    */
+    m_triggers.clear_removed_items();
+  }
+
+  // Store the items.
+  return m_triggers.store_items(otx);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 bool Table_impl::store_children(Open_dictionary_tables_ctx *otx)
 {
-  if (Abstract_table_impl::store_children(otx))
-    return true;
-
-  // Note that indexes has to be stored first, as
-  // partitions refer indexes.
-  bool ret= m_indexes.store_items(otx);
-  if (!ret)
-  {
-    ret= m_foreign_keys.store_items(otx);
-  }
-  if (!ret)
-  {
-    ret= m_partitions.store_items(otx);
-  }
-  return ret;
+  return Abstract_table_impl::store_children(otx) ||
+    // Note that indexes has to be stored first, as
+    // partitions refer indexes.
+    m_indexes.store_items(otx) ||
+    m_foreign_keys.store_items(otx) ||
+    m_partitions.store_items(otx) ||
+    store_triggers(otx);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -184,6 +279,10 @@ bool Table_impl::drop_children(Open_dictionary_tables_ctx *otx) const
   // as it has foreign key to indexes.
 
   return
+    m_triggers.drop_items(otx,
+      otx->get_table<Trigger>(),
+      Triggers::create_key_by_table_id(this->id()))
+    ||
     m_partitions.drop_items(otx,
       otx->get_table<Partition>(),
       Table_partitions::create_key_by_table_id(this->id()))
@@ -434,6 +533,17 @@ void Table_impl::debug_print(std::string &outb) const
       ss << s << " | ";
     }
   }
+
+  ss << "] m_triggers: " << m_triggers.size() << " [ ";
+
+  {
+    for (const Trigger *trig : triggers())
+    {
+      std::string s;
+      trig->debug_print(s);
+      ss << s << " | ";
+    }
+  }
   ss << "] ";
 
   ss << " }";
@@ -509,6 +619,212 @@ Partition *Table_impl::get_partition(Object_id partition_id)
   return NULL;
 }
 
+
+///////////////////////////////////////////////////////////////////////////
+// Trigger collection.
+///////////////////////////////////////////////////////////////////////////
+
+uint Table_impl::get_max_action_order(Trigger::enum_action_timing at,
+                                      Trigger::enum_event_type et) const
+{
+  uint max_order= 0;
+  for (const Trigger *trig : triggers())
+  {
+    if (trig->action_timing() == at &&
+        trig->event_type() == et)
+      max_order++;
+  }
+
+  return max_order;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+void Table_impl::reorder_action_order(Trigger::enum_action_timing at,
+                                      Trigger::enum_event_type et) {
+
+  uint new_order= 1;
+  for (Trigger *trigger : *triggers())
+  {
+    if (trigger->action_timing() == at &&
+        trigger->event_type() == et)
+      trigger->set_action_order(new_order++);
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+Trigger_impl *Table_impl::create_trigger() {
+
+  Trigger_impl *trigger= new (std::nothrow) Trigger_impl(this);
+  if (trigger == nullptr)
+    return nullptr;
+
+  THD *thd= current_thd;
+  trigger->set_created(thd->query_start_timeval_trunc(2));
+  trigger->set_last_altered(thd->query_start_timeval_trunc(2));
+
+  return trigger;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+Trigger *Table_impl::add_trigger(Trigger::enum_action_timing at,
+                                 Trigger::enum_event_type et) {
+
+  Trigger_impl *trigger= create_trigger();
+  if (trigger == nullptr)
+    return nullptr;
+
+  m_triggers.push_back(trigger);
+  trigger->set_action_timing(at);
+  trigger->set_event_type(et);
+  trigger->set_action_order(get_max_action_order(at, et));
+
+  return trigger;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+const Trigger *Table_impl::get_trigger(const char *name) const
+{
+  for (const Trigger *trigger : triggers())
+  {
+    if (!strcmp(name, trigger->name().c_str()))
+      return trigger;
+  }
+
+  return nullptr;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+Trigger *Table_impl::add_trigger_following(const Trigger *trigger,
+                                           Trigger::enum_action_timing at,
+                                           Trigger::enum_event_type et)
+{
+  DBUG_ASSERT(trigger != nullptr &&
+              trigger->action_timing() == at &&
+              trigger->event_type() == et);
+
+  int new_pos= dynamic_cast<const Trigger_impl*>(trigger)->ordinal_position();
+
+  // Allocate new Trigger object.
+  Trigger_impl *new_trigger= create_trigger();
+  if (new_trigger == nullptr)
+    return nullptr;
+
+  m_triggers.push_back(new_trigger);
+  new_trigger->set_action_timing(at);
+  new_trigger->set_event_type(et);
+
+  int last_pos= dynamic_cast<Trigger_impl*>(new_trigger)->ordinal_position();
+  if (last_pos > (new_pos + 1))
+    m_triggers.move(last_pos - 1, new_pos);
+
+  reorder_action_order(at, et);
+
+  return new_trigger;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+Trigger *Table_impl::add_trigger_preceding(const Trigger *trigger,
+                                           Trigger::enum_action_timing at,
+                                           Trigger::enum_event_type et)
+{
+  DBUG_ASSERT(trigger != nullptr &&
+              trigger->action_timing() == at
+              && trigger->event_type() == et);
+
+  Trigger_impl *new_trigger= create_trigger();
+  if (new_trigger == nullptr)
+    return nullptr;
+
+  int new_pos= dynamic_cast<const Trigger_impl*>(trigger)->ordinal_position();
+  m_triggers.push_back(new_trigger);
+  new_trigger->set_action_timing(at);
+  new_trigger->set_event_type(et);
+
+  int last_pos= dynamic_cast<Trigger_impl*>(new_trigger)->ordinal_position();
+  m_triggers.move(last_pos-1, new_pos-1);
+
+  reorder_action_order(at, et);
+
+  return new_trigger;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+void Table_impl::copy_triggers(Table *tab_obj)
+{
+  DBUG_ASSERT(tab_obj != nullptr);
+
+  for (Trigger *trig : *tab_obj->triggers())
+  {
+    /*
+      Reset the trigger primary key ID, so that a new row is
+      created for them, when the object is stored. Following is
+      the issue if we don't do that.
+
+      * When the triggers are copied by dd::Table::copy_triggers(),
+        it retained the old trigger ID's. This is fine in theory
+        to re-use ID. But see below points.
+
+      * thd->dd_client()->update() updates the dd::Table object which
+        contains the moved triggers. The DD framework would insert
+        these triggers with same old trigger ID in mysql.triggers.id.
+        This too is fine.
+
+      * After inserting a row, we set dd::Trigger_impl::m_id
+        only if a new id m_table->file->insert_id_for_cur_row was
+        generated. The problem here is that there was no new row ID
+        generated as we did retain old mysql.triggers.id. Hence we
+        end-up marking the dd::Trigger_impl::m_id as INVALID_OBJECT_ID.
+        Note that the value stored in DD is now difference than the
+        value in in-memory dd::Trigger_impl object.
+
+      * Later if the same object is updated (may be rename operation)
+        then as the dd::Trigger_impl::m_id is INVALID_OBJECT_ID, we
+        end-up creating a duplicate row which already exists.
+
+      So, It is not necessary to retain the old trigger ID's, the
+      dd::Table::copy_triggers() API now sets the ID's of cloned
+      trigger objects to INVALID_OBJECT_ID. This will work fine as the
+      m_table->file->insert_id_for_cur_row gets generated as expected
+      and the trigger metadata on DD table mysql.triggers and in-memory
+      DD object dd::Trigger_impl would both be same.
+    */
+    Trigger_impl *new_trigger=
+      new Trigger_impl(*dynamic_cast<const Trigger_impl*>(trig), this);
+    DBUG_ASSERT(new_trigger != nullptr);
+
+    new_trigger->set_id(INVALID_OBJECT_ID);
+
+    m_triggers.push_back(new_trigger);
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+void Table_impl::drop_all_triggers()
+{
+  m_triggers.remove_all();
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+void Table_impl::drop_trigger(const Trigger *trigger)
+{
+  DBUG_ASSERT(trigger != nullptr);
+  dd::Trigger::enum_action_timing at= trigger->action_timing();
+  dd::Trigger::enum_event_type et= trigger->event_type();
+
+  m_triggers.remove(dynamic_cast<Trigger_impl*>(const_cast<Trigger*>(trigger)));
+
+  reorder_action_order(at, et);
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 bool Table::update_aux_key(aux_key_type *key,
@@ -533,6 +849,7 @@ void Table_type::register_tables(Open_dictionary_tables_ctx *otx) const
   otx->register_tables<Index>();
   otx->register_tables<Foreign_key>();
   otx->register_tables<Partition>();
+  otx->register_tables<Trigger>();
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -554,10 +871,12 @@ Table_impl::Table_impl(const Table_impl &src)
     m_indexes(),
     m_foreign_keys(),
     m_partitions(),
+    m_triggers(),
     m_collation_id(src.m_collation_id), m_tablespace_id(src.m_tablespace_id)
 {
   m_indexes.deep_copy(src.m_indexes, this);
   m_foreign_keys.deep_copy(src.m_foreign_keys, this);
   m_partitions.deep_copy(src.m_partitions, this);
+  m_triggers.deep_copy(src.m_triggers, this);
 }
 }
