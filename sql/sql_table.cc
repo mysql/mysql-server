@@ -3052,10 +3052,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         WL7743/TODO/QQ: Should we write incident to binary log in this case?
                         After all replication might be broken after that...
       */
-      thd->is_commit_in_middle_of_statement= true;
       error= dd::drop_table<dd::Table>(thd, table->db, table->table_name,
                                        table_def, true, false);
-      thd->is_commit_in_middle_of_statement= false;
 
       /* Invalidate even if we failed fully delete the table. */
       query_cache.invalidate_single(thd, table, FALSE);
@@ -3119,7 +3117,9 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           /*
             We don't have GTID assigned. Commit change to binary log (if
             there was any) and get GTID assigned for our single-table
-            change.
+            change. Do not release ANONYMOUS_GROUP ownership yet as there
+            can be more tables to drop and corresponding statements to
+            write to binary log.
           */
           thd->is_commit_in_middle_of_statement= true;
           error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
@@ -3415,9 +3415,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       */
 #ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
       Disable_gtid_state_update_guard disabler(thd);
-      thd->is_commit_in_middle_of_statement= true;
       error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
-      thd->is_commit_in_middle_of_statement= false;
 #endif
     }
     else if (!gtid_group_many_table_groups)
@@ -3440,6 +3438,9 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         /*
           We don't have GTID assigned. Commit changes to SE, data-dictionary
           and binary log and get GTID assigned for our changes.
+          Do not release ANONYMOUS_GROUP ownership yet as there can be more
+          tables (e.g. temporary) to drop and corresponding statements to
+          write to binary log.
         */
         thd->is_commit_in_middle_of_statement= true;
         error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
@@ -3468,9 +3469,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         crash? Also more transactional feel...)
       */
       Disable_gtid_state_update_guard disabler(thd);
-      thd->is_commit_in_middle_of_statement= true;
       error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
-      thd->is_commit_in_middle_of_statement= false;
     }
 
     if (error)
@@ -11525,6 +11524,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   */
   if (!atomic_replace)
   {
+    Disable_gtid_state_update_guard disabler(thd);
+
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err_new_table_cleanup;
   }
