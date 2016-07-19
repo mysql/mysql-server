@@ -2460,10 +2460,10 @@ create:
               MYSQL_YYABORT; // OOM
             lex->create_info->options= $3 ? HA_LEX_CREATE_IF_NOT_EXISTS : 0;
           }
-        | CREATE ROLE_SYM opt_if_not_exists role_list
+        | CREATE ROLE_SYM opt_if_not_exists clear_privileges role_list
           {
             Lex->sql_command= SQLCOM_CREATE_ROLE;
-            PT_statement *tmp= NEW_PTN PT_create_role(!!$3, $4);
+            PT_statement *tmp= NEW_PTN PT_create_role(!!$3, $5);
             MAKE_CMD(tmp);
           }
         | CREATE LOGFILE_SYM GROUP_SYM logfile_group_info
