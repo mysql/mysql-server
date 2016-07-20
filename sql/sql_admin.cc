@@ -1431,13 +1431,13 @@ bool Sql_cmd_alter_user_default_role::execute(THD *thd)
       }
       else
       {
-        // Verify that the user actually is granted the role before it is 
+        // Verify that the user actually is granted the role before it is
         // set as default.
-        List<LEX_USER> *tmp_roles= const_cast<List<LEX_USER > * >(roles);
-        List_iterator<LEX_USER > roles_it(*tmp_roles);
-        LEX_USER *role;
         if (roles != 0)
         {
+          List<LEX_USER> *tmp_roles= const_cast<List<LEX_USER > * >(roles);
+          List_iterator<LEX_USER > roles_it(*tmp_roles);
+          LEX_USER *role;
           while ((role= roles_it++))
           {
              if (!is_granted_role(thd->security_context()->priv_user(),
@@ -1458,12 +1458,12 @@ bool Sql_cmd_alter_user_default_role::execute(THD *thd)
       }
     }
   }
-  List<LEX_USER> *tmp_roles= const_cast<List<LEX_USER > * >(roles);
-  List_iterator<LEX_USER > roles_it(*tmp_roles);
-  LEX_USER *role;
   List_of_auth_id_refs authids;
   if (roles != 0)
   {
+    List<LEX_USER> *tmp_roles= const_cast<List<LEX_USER > * >(roles);
+    List_iterator<LEX_USER > roles_it(*tmp_roles);
+    LEX_USER *role;
     while ((role= roles_it++))
     {
       Auth_id_ref authid= std::make_pair(role->user, role->host);
