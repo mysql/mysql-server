@@ -564,6 +564,8 @@ INSERT INTO t2 VALUES (NULL, 0), (NULL,1);
 
 CREATE VIEW v1 AS SELECT a FROM t1 ORDER BY a;
 
+ANALYZE TABLE t1,t2;
+
 let $query=
 UPDATE t2, v1 AS t SET t2.b = t.a+5 ;
 
@@ -626,6 +628,7 @@ analyze table t1;
 
 # Updating part of index, should still use the index for the order by (no
 # filesort)
+analyze table t1;
 let $query=UPDATE t1 SET c = 72 WHERE a = 2 ORDER BY b ASC LIMIT 1;
 --replace_column 10 #
 eval explain $query;
@@ -644,6 +647,7 @@ SELECT * FROM t1;
 # Updating field included in index, should use index for order by (no file
 #sort).
 INSERT INTO t1 (a,b,c,d) VALUES (5, 5, 1, 1), (5, 5, 2, 1), (5, 5, 4, 1);
+analyze table t1;
 let $query=UPDATE t1 SET c = 3 WHERE a = 5 ORDER BY b ASC LIMIT 3;
 --replace_column 10 #
 eval explain $query;
@@ -653,7 +657,7 @@ SELECT * FROM t1;
 # Must use file sort since the index can not be used for order by as range on
 # "a" is not constant
 analyze table t1;
-let $query=UPDATE t1 SET c = 62 WHERE a > 1 ORDER BY b ASC LIMIT 3;
+let $query=UPDATE t1 SET c = 62 WHERE a > 4 ORDER BY b ASC LIMIT 3;
 --replace_column 10 #
 eval explain $query;
 eval $query;
