@@ -3855,14 +3855,17 @@ buf_block_from_ahi(const byte* ptr)
 	ut_ad(buf_chunk_map_ref == buf_chunk_map_reg);
 	ut_ad(!buf_pool_resizing);
 
-	const byte* bound = reinterpret_cast<uintptr_t>(ptr)
-			    > srv_buf_pool_chunk_unit
-			    ? ptr - srv_buf_pool_chunk_unit : 0;
-	it = chunk_map->upper_bound(bound);
+	buf_chunk_t*	chunk;
+	it = chunk_map->upper_bound(ptr);
 
-	ut_a(it != chunk_map->end());
+	ut_a(it != chunk_map->begin());
 
-	buf_chunk_t*	chunk = it->second;
+	if (it == chunk_map->end()) {
+		chunk = chunk_map->rbegin()->second;
+	} else {
+		chunk = (--it)->second;
+	}
+
 	ulint		offs = ptr - chunk->blocks->frame;
 
 	offs >>= UNIV_PAGE_SIZE_SHIFT;
