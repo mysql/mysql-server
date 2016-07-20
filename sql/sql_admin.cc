@@ -1542,6 +1542,7 @@ bool Sql_cmd_show_privileges::execute(THD *thd)
   tmp_user= get_current_user(thd, tmp_user);
   DBUG_RETURN(mysql_show_grants(thd, tmp_user, authid_list));
 #else
+  my_ok(thd);
   DBUG_RETURN(false);
 #endif
 }
