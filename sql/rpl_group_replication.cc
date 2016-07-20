@@ -271,7 +271,8 @@ unsigned int get_group_replication_members_number_info()
   include/mysql/group_replication_priv.h
 */
 
-void get_server_host_port_uuid(char **hostname, uint *port, char** uuid)
+void get_server_parameters(char **hostname, uint *port, char** uuid,
+                           unsigned int *out_server_version)
 {
   /*
     use startup option report-host and report-port when provided,
@@ -290,6 +291,30 @@ void get_server_host_port_uuid(char **hostname, uint *port, char** uuid)
     *port= mysqld_port;
 
   *uuid= server_uuid;
+
+  //Convert server version to hex
+
+  ulong major= 0, minor= 0, patch= 0;
+  char *pos= server_version, *end_pos;
+  //extract each server decimal number, e.g., for 5.9.30 -> 5, 9 and 30
+  major= strtoul(pos, &end_pos, 10);  pos=end_pos+1;
+  minor= strtoul(pos, &end_pos, 10);  pos=end_pos+1;
+  patch= strtoul(pos, &end_pos, 10);
+
+  /*
+    Convert to a equivalent hex representation.
+    5.9.30 -> 0x050930
+    version= 0 x 16^5 + 5 x 16^4 + 0 x 16^3 + 9 x 16^2 + 3 x 16^1 + 0 x 16^0
+  */
+  int v1= patch / 10;
+  int v0= patch - v1 * 10;
+  int v3= minor / 10;
+  int v2= minor - v3 * 10;
+  int v5= major / 10;
+  int v4= major - v5 * 10;
+
+  *out_server_version= v0 + v1 * 16 + v2 * 256 + v3 * 4096 + v4 * 65536 + v5 * 1048576;
+
   return;
 }
 
