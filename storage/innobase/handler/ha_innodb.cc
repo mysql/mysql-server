@@ -59,11 +59,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <dd/types/tablespace.h>
 #include <dd/properties.h>
 
+#include "dd/dd.h"
+#include "dd/dictionary.h"
+#include "dd/cache/dictionary_client.h"
 #include "dd/properties.h"
 #include "dd/sdi_tablespace.h"    // dd::sdi_tablespace::store
 #include "dd/types/table.h"
 #include "dd/types/index.h"
 #include "dd/types/partition.h"
+#include "dd/types/object_type.h"
+#include "dd/types/tablespace_file.h"
 
 /* Include necessary InnoDB headers */
 #include "api0api.h"
@@ -126,6 +131,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sync0sync.h"
 /* for ha_innopart, Native InnoDB Partitioning. */
 #include "ha_innopart.h"
+
+/** Handler name for InnoDB */
+static constexpr char handler_name[] = "InnoDB";
 
 /** TRUE if we don't have DDTableBuffer in the system tablespace,
 this should be due to we run the server against old data files.
@@ -12664,6 +12672,167 @@ create_table_info_t::create_table_update_dict()
 	DBUG_RETURN(0);
 }
 
+/** Update the global data dictionary.
+@tparam		Table	dd::Table or dd::Partition
+@param[in]	table	table object
+@return	0		On success
+@retval	error number	On failure*/
+template<typename Table>
+int
+create_table_info_t::create_table_update_global_dd(
+	Table*		dd_table)
+{
+	/* TODO: To make this work with partitioned table */
+
+	DBUG_ENTER("create_table_update_global_dd");
+
+	if (dd_table == NULL) {
+		DBUG_RETURN(0);
+	}
+
+	/* This should be replaced by some convert function, and table
+	can be cached in this class */
+	dict_table_t*	table = dict_table_open_on_name(
+		m_table_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+	ut_ad(table != NULL);
+
+	dd::cache::Dictionary_client*	client = dd::get_dd_client(m_thd);
+	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
+
+	std::unique_ptr<dd::Tablespace> dd_space(
+		dd::create_object<dd::Tablespace>());
+
+	/* The tablespace id here means:
+	1 for all the data dictionary tables;
+	2 for the tablespace of innodb_system;
+	3 for the tablespace specified with innodb_file_per_table explicitly
+	dd::INVALID_OBJECT_ID for no specified tablespace */
+	dd::Object_id	space_id = dd_table->tablespace_id();
+
+	if ((space_id == dd::INVALID_OBJECT_ID
+	     && dict_table_is_file_per_table(table))
+	    || space_id == static_cast<dd::Object_id>(3)) {
+		/* This means user table and file_per_table */
+		dd_space->set_name(table->name.m_name);
+
+		if (dd::acquire_exclusive_tablespace_mdl(
+			    m_thd, dd_space->name().c_str(), true)) {
+			dict_table_close(table, false, false);
+			DBUG_RETURN(HA_ERR_GENERIC);
+		}
+
+		char*	path = fil_space_get_first_path(table->space);
+		ulint	flags = fil_space_get_flags(table->space);
+
+		dd_space->set_engine(handler_name);
+		dd::Properties& p	= dd_space->se_private_data();
+		p.set_uint32("id", static_cast<uint32>(table->space));
+		p.set_uint32("flags", flags);
+		dd::Tablespace_file*	dd_file = dd_space->add_file();
+		dd_file->set_filename(path);
+		client->store(dd_space.get());
+	} else {
+		/* This could be a data dictionary table, a table residing in
+		innodb_system and a table not of file_per_table.
+		Check if the tablespace exists */
+		ut_ad(space_id == static_cast<dd::Object_id>(1)
+		      || space_id == static_cast<dd::Object_id>(2)
+		      || (space_id > static_cast<dd::Object_id>(3)
+			  && !dict_table_is_file_per_table(table)));
+
+		const dd::Tablespace*	index_space = NULL;
+		if (client->acquire<dd::Tablespace>(
+			    table->space, &index_space)) {
+			dict_table_close(table, false, false);
+			DBUG_RETURN(HA_ERR_GENERIC);
+		}
+
+		uint32	id;
+		if (index_space == NULL) {
+			dict_table_close(table, false, false);
+			my_error(ER_TABLESPACE_MISSING, MYF(0),
+				 table->name.m_name);
+			DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
+		} else if (index_space->se_private_data().get_uint32(
+				    "id", &id)
+			   || id != table->space) {
+			ut_ad(!"missing or incorrect tablespace id");
+			dict_table_close(table, false, false);
+			DBUG_RETURN(HA_ERR_GENERIC);
+		}
+	}
+
+	enum row_type	type;
+	dd::Table::enum_row_format	rf;
+	dd::Properties&	options = dd_table->options();
+
+	if (auto zip_ssize = DICT_TF_GET_ZIP_SSIZE(table->flags)) {
+		uint32	old_size;
+		if (!options.get_uint32("key_block_size", &old_size)
+		    && old_size != 0) {
+			options.set_uint32("key_block_size",
+					   1 << (zip_ssize - 1));
+		}
+	} else {
+		options.set_uint32("key_block_size", 0);
+        }
+
+	switch (dict_tf_get_rec_format(table->flags)) {
+	case REC_FORMAT_REDUNDANT:
+		rf = dd::Table::RF_REDUNDANT;
+		type = ROW_TYPE_REDUNDANT;
+		break;
+	case REC_FORMAT_COMPACT:
+		rf = dd::Table::RF_COMPACT;
+		type = ROW_TYPE_COMPACT;
+		break;
+	case REC_FORMAT_COMPRESSED:
+		rf = dd::Table::RF_COMPRESSED;
+		type = ROW_TYPE_COMPRESSED;
+		break;
+	case REC_FORMAT_DYNAMIC:
+		rf = dd::Table::RF_DYNAMIC;
+		type = ROW_TYPE_DYNAMIC;
+		break;
+	default:
+		ut_ad(0);
+	}
+
+	dd_table->set_row_format(rf);
+	if (options.exists("row_type")) {
+		options.set_uint32("row_type", type);
+	}
+
+	dd::Object_id	dd_space_id = dd_space.get()->id();
+
+	if (dd_table->tablespace_id() == dd::INVALID_OBJECT_ID) {
+		dd_table->set_tablespace_id(dd_space_id);
+	}
+
+	dd_table->set_se_private_id(table->id);
+
+	const dict_index_t* index = table->first_index();
+
+	for (auto dd_index : *dd_table->indexes()) {
+		ut_ad(index != nullptr);
+
+		dd_index->set_tablespace_id(dd_space_id);
+
+		dd::Properties& p = dd_index->se_private_data();
+		ut_ad(p.empty());
+		p.set_uint64("id", index->id);
+		p.set_uint32("root", index->page);
+		p.set_uint64("trx_id", index->trx_id);
+
+		index = index->next();
+	}
+
+	dict_table_close(table, false, false);
+
+	DBUG_RETURN(0);
+}
+
+
 /** Allocate a new trx. */
 void
 create_table_info_t::allocate_trx()
@@ -12784,6 +12953,10 @@ ha_innobase::create(
 	}
 
 	if ((error = info.create_table())) {
+		goto cleanup;
+	}
+
+	if ((error = info.create_table_update_global_dd(dd_table))) {
 		goto cleanup;
 	}
 

@@ -747,6 +747,14 @@ public:
 	/** Update the internal data dictionary. */
 	int create_table_update_dict();
 
+	/** Update the global data dictionary.
+	@tparam		Table	dd::Table or dd::Partition
+	@param[in]	table	table object
+	@return	0		On success
+	@retval	error number	On failure*/
+	template<typename Table>
+	int create_table_update_global_dd(Table* dd_table);
+
 	/** Validates the create options. Checks that the options
 	KEY_BLOCK_SIZE, ROW_FORMAT, DATA DIRECTORY, TEMPORARY & TABLESPACE
 	are compatible with each other and other settings.
