@@ -632,6 +632,27 @@ dict_mem_table_free_foreign_vcol_set(
 
 #endif /* !UNIV_HOTBACKUP */
 
+/** Check whether index can be used by transaction
+@param[in] trx		transaction*/
+bool dict_index_t::is_usable(const trx_t* trx) const
+{
+	/* Indexes that are being created are not usable. */
+	if (!is_clustered() && dict_index_is_online_ddl(this)) {
+		return false;
+	}
+
+	/* Cannot use a corrupted index. */
+	if (is_corrupted()) {
+		return false;
+	}
+
+	/* Check if the specified transaction can see this index. */
+	return(table->is_temporary()
+			|| trx_id == 0
+			|| !MVCC::is_view_active(trx->read_view)
+			|| trx->read_view->changes_visible(trx_id, table->name));
+}
+
 /**********************************************************************//**
 Frees an index memory object. */
 void

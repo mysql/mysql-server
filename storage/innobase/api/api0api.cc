@@ -833,8 +833,7 @@ ib_create_cursor(
 			++prebuilt->trx->n_mysql_tables_in_use;
 
 			 prebuilt->index_usable =
-				row_merge_is_index_usable(
-					prebuilt->trx, prebuilt->index);
+				 prebuilt->index->is_usable(prebuilt->trx);
 
 			/* Assign a read view if the transaction does
 			not have it yet */

@@ -2033,8 +2033,8 @@ ha_innopart::change_active_index(
 		DBUG_RETURN(1);
 	}
 
-	m_prebuilt->index_usable = row_merge_is_index_usable(m_prebuilt->trx,
-							   m_prebuilt->index);
+	m_prebuilt->index_usable =
+		m_prebuilt->index->is_usable(m_prebuilt->trx);
 
 	if (UNIV_UNLIKELY(!m_prebuilt->index_usable)) {
 		if (m_prebuilt->index->is_corrupted()) {
@@ -3342,7 +3342,7 @@ ha_innopart::records_in_range(
 	if (index == NULL
 	    || dict_table_is_discarded(m_prebuilt->table)
 	    || index->is_corrupted()
-	    || !row_merge_is_index_usable(m_prebuilt->trx, index)) {
+	    || !index->is_usable(m_prebuilt->trx)) {
 
 		n_rows = HA_POS_ERROR;
 		goto func_exit;

@@ -9242,8 +9242,8 @@ ha_innobase::change_active_index(
 		DBUG_RETURN(1);
 	}
 
-	m_prebuilt->index_usable = row_merge_is_index_usable(
-		m_prebuilt->trx, m_prebuilt->index);
+	m_prebuilt->index_usable =
+		m_prebuilt->index->is_usable(m_prebuilt->trx);
 
 	if (!m_prebuilt->index_usable) {
 		if (m_prebuilt->index->is_corrupted()) {
@@ -13997,8 +13997,7 @@ ha_innobase::records(
 
 	ut_ad(index->is_clustered());
 
-	m_prebuilt->index_usable = row_merge_is_index_usable(
-		m_prebuilt->trx, index);
+	m_prebuilt->index_usable = index->is_usable(m_prebuilt->trx);
 
 	if (!m_prebuilt->index_usable) {
 		*num_rows = HA_POS_ERROR;
@@ -14096,7 +14095,7 @@ ha_innobase::records_in_range(
 		n_rows = HA_ERR_INDEX_CORRUPT;
 		goto func_exit;
 	}
-	if (!row_merge_is_index_usable(m_prebuilt->trx, index)) {
+	if (!index->is_usable(m_prebuilt->trx)) {
 		n_rows = HA_ERR_TABLE_DEF_CHANGED;
 		goto func_exit;
 	}
@@ -15168,8 +15167,8 @@ ha_innobase::check(
 		access to the clustered index. */
 		m_prebuilt->index = index;
 
-		m_prebuilt->index_usable = row_merge_is_index_usable(
-			m_prebuilt->trx, m_prebuilt->index);
+		m_prebuilt->index_usable =
+			m_prebuilt->index->is_usable(m_prebuilt->trx);
 
 		if (!m_prebuilt->index_usable) {
 			if (m_prebuilt->index->is_corrupted()) {

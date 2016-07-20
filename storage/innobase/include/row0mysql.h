@@ -645,7 +645,7 @@ struct row_prebuilt_t {
 					the row id: in this case this flag
 					is set to TRUE */
 	unsigned	index_usable:1;	/*!< caches the value of
-					row_merge_is_index_usable(trx,index) */
+					index->is_usable(trx) */
 	unsigned	read_just_key:1;/*!< set to 1 when MySQL calls
 					ha_innobase::extra with the
 					argument HA_EXTRA_KEYREAD; it is enough

@@ -4224,29 +4224,6 @@ row_merge_create_index(
 }
 
 /*********************************************************************//**
-Check if a transaction can use an index. */
-ibool
-row_merge_is_index_usable(
-/*======================*/
-	const trx_t*		trx,	/*!< in: transaction */
-	const dict_index_t*	index)	/*!< in: index to check */
-{
-	if (!index->is_clustered()
-	    && dict_index_is_online_ddl(index)) {
-		/* Indexes that are being created are not useable. */
-		return(FALSE);
-	}
-
-	return(!index->is_corrupted()
-	       && (index->table->is_temporary()
-		   || index->trx_id == 0
-		   || !MVCC::is_view_active(trx->read_view)
-		   || trx->read_view->changes_visible(
-			   index->trx_id,
-			   index->table->name)));
-}
-
-/*********************************************************************//**
 Drop a table. The caller must have ensured that the background stats
 thread is not processing the table. This can be done by calling
 dict_stats_wait_bg_to_stop_using_table() after locking the dictionary and

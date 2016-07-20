@@ -1001,6 +1001,10 @@ struct dict_index_t{
 	}
 
 #endif /* !UNIV_HOTBACKUP */
+
+	/** Check whether index can be used by transaction
+	@param[in] trx		transaction*/
+	bool is_usable(const trx_t* trx) const;
 };
 
 /** The status of online index creation */
