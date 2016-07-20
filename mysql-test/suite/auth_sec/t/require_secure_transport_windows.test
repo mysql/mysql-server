@@ -114,6 +114,7 @@ SET @@global.require_secure_transport = ON;
 connect(pipe_con4,localhost,root,,,,,PIPE);
 disconnect pipe_con4;
 --disable_query_log
+--replace_regex /client could not create request event \([0-9]+\)/client could not create request event (Errcode)/
 --error 2038
 connect(memory_con3,localhost,root,,,,$shm_name,SHM);
 --enable_query_log
