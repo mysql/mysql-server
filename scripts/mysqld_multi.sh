@@ -213,7 +213,7 @@ sub defaults_for_group
 
   return () unless $my_print_defaults_exists;
 
-  my $com= join ' ', 'my_print_defaults', @defaults_options, $group;
+  my $com= join ' ', 'my_print_defaults -s', @defaults_options, $group;
   my @defaults = `$com`;
   chomp @defaults;
   return @defaults;
