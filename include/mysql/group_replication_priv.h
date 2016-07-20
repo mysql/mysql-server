@@ -61,9 +61,10 @@ my_thread_attr_t *get_connection_attrib();
   @param[out] hostname
   @param[out] port
   @param[out] uuid
+  @param[out] server_version
 */
-void get_server_host_port_uuid(char **hostname, uint *port, char** uuid);
-
+void get_server_parameters(char **hostname, uint *port, char **uuid,
+                           unsigned int *server_version);
 
 /**
   Returns the server_id.

@@ -570,7 +570,8 @@ int validate_plugin_server_requirements(Trans_param *param)
 
   char *hostname, *uuid;
   uint port;
-  get_server_host_port_uuid(&hostname, &port, &uuid);
+  unsigned int server_version;
+  get_server_parameters(&hostname, &port, &uuid, &server_version);
 
   Trans_context_info startup_pre_reqs;
   get_server_startup_prerequirements(startup_pre_reqs, false);
