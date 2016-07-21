@@ -780,7 +780,8 @@ Sql_condition* THD::raise_condition(uint sql_errno,
   */
   Sql_condition *cond= NULL;
   if (!(is_fatal_error && (sql_errno == EE_OUTOFMEMORY ||
-                           sql_errno == ER_OUTOFMEMORY)))
+                           sql_errno == ER_OUTOFMEMORY ||
+                           sql_errno == ER_STD_BAD_ALLOC_ERROR)))
   {
     cond= da->push_warning(this, sql_errno, sqlstate, level, msg);
   }

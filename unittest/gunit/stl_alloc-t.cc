@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 
 #include "malloc_allocator.h"
 #include "memroot_allocator.h"
+#include "psi_memory_key.h"
+#include "stateless_allocator.h"
 
 #include <vector>
 #include <list>
@@ -76,6 +78,100 @@ public:
 };
 
 
+/*
+  Local utility function which calls my_malloc with the standard MYF flags.
+ */
+
+static void *my_malloc_(PSI_memory_key k, size_t s)
+{
+  return my_malloc(k, s, MYF(MY_WME | ME_FATALERROR));
+}
+
+/* Functor for un-instrumented my_malloc */
+struct Not_instr_alloc
+{
+  void *operator()(size_t s) const
+  {
+    return my_malloc_(PSI_NOT_INSTRUMENTED, s);
+  }
+};
+
+/*
+   Template alias for a Stateless_allocator using un-instrumented
+   my_malloc allocation. Deallocation functor is the default template
+   argument which is functor invoking my_free.
+*/
+template <class T>
+using Not_instr_allocator=
+  Stateless_allocator<T, Not_instr_alloc>;
+
+
+/*
+  Templated functor for my_malloc allocation using a PSI_KEY specified
+  a compile time. This is generally not that useful outside unit
+  testing as the PSI_KEY value is not normally known at compile time.
+*/
+template <int PSI_KEY>
+struct PSI_key_alloc
+{
+  void *operator()(size_t s) const
+  {
+    return my_malloc_(PSI_KEY, s);
+  }
+};
+
+/*
+  Template alias for a Stateless allocator which allocates with
+  my_malloc and PSI key 42.
+*/
+template <class T>
+using PSI_42_allocator= Stateless_allocator<T, PSI_key_alloc<42> >;
+
+
+/*
+  Functor which allocates using the global operator new and
+  initializes the allocated memory with the value provided in the
+  template argument.
+ */
+template <unsigned char INIT>
+struct Init_alloc
+{
+  void *operator()(size_t s) const
+  {
+    DBUG_EXECUTE_IF("simulate_out_of_memory", {return nullptr;} );
+
+    char *buf= static_cast<char*>(operator new(s));
+    memset(buf, INIT, s);
+    return buf;
+  }
+};
+
+/*
+  Functor which deallocates using the global operator delete and and
+  writes the value provided in the template argument into the memory
+  being released.
+ */
+template <unsigned char TRASH>
+struct Trash_dealloc
+{
+  void operator()(void *p, size_t s) const
+  {
+    memset(p, TRASH, s);
+    operator delete(p);
+  }
+};
+
+
+/*
+  Template alias for a Stateless_allocator using initialized
+  allocation with new and trash-filled deallocation with delete
+*/
+template <class T>
+using Init_aa_allocator= Stateless_allocator<T, Init_alloc<0xaa>,
+                                             Trash_dealloc<0xbb> >;
+
+
+
 //
 // Test of container with simple objects
 //
@@ -88,7 +184,10 @@ protected:
 };
 
 typedef ::testing::Types<Malloc_allocator_wrapper<int>,
-                         Memroot_allocator_wrapper<int> > AllocatorTypesInt;
+                         Memroot_allocator_wrapper<int>,
+                         Not_instr_allocator<int>,
+                         PSI_42_allocator<int>,
+                         Init_aa_allocator<int> > AllocatorTypesInt;
 
 TYPED_TEST_CASE(STLAllocTestInt, AllocatorTypesInt);
 
@@ -156,6 +255,7 @@ TYPED_TEST(STLAllocTestInt, OutOfMemory)
 
   DBUG_SET("+d,simulate_out_of_memory");
   ASSERT_THROW(v1.reserve(1000), std::bad_alloc);
+  DBUG_SET("-d,simulate_out_of_memory");
 }
 #endif
 
@@ -171,7 +271,10 @@ class STLAllocTestObject : public STLAllocTestInt<T>
 { };
 
 typedef ::testing::Types<Malloc_allocator_wrapper<Container_object>,
-                         Memroot_allocator_wrapper<Container_object> >
+                         Memroot_allocator_wrapper<Container_object>,
+                         Not_instr_allocator<Container_object>,
+                         PSI_42_allocator<Container_object>,
+                         Init_aa_allocator<Container_object> >
         AllocatorTypesObject;
 
 TYPED_TEST_CASE(STLAllocTestObject, AllocatorTypesObject);
@@ -217,7 +320,10 @@ class STLAllocTestNested : public STLAllocTestInt<T>
 { };
 
 typedef ::testing::Types<Malloc_allocator_wrapper<Container_container>,
-                         Memroot_allocator_wrapper<Container_container> >
+                         Memroot_allocator_wrapper<Container_container>,
+                         Not_instr_allocator<Container_container>,
+                         PSI_42_allocator<Container_container>,
+                         Init_aa_allocator<Container_container> >
          AllocatorTypesNested;
 
 TYPED_TEST_CASE(STLAllocTestNested, AllocatorTypesNested);
@@ -242,6 +348,72 @@ TYPED_TEST(STLAllocTestNested, NestedContainers)
   l1.push_back(cc1);
   l1.push_back(cc2);
 }
+
+//
+// Test that it is possible to instantiate the std::basic_string
+// template with various Stateless_allocator instances.
+//
+
+/*
+  Template alias for basic_string with char.
+ */
+template < class Allocator >
+using default_string= std::basic_string<char, std::char_traits<char>,
+                                        Allocator>;
+
+
+template <class A>
+class STLAllocTestBasicStringTemplate : public ::testing::Test
+{
+};
+
+/*
+  Cannot use the stateful allocators with basic_string. The following
+  will not compile, due to
+  http://gcc.gnu.org/bugzilla/show_bug.cgi?id=56437 "basic_string
+  assumes that allocators are default-constructible":
+
+   typedef std::basic_string<char, std::char_traits<char>,
+                             Malloc_allocator<char> > MA_string_type;
+   MA_string_type y("bar", Malloc_allocator<char>(42));
+*/
+typedef ::testing::Types<Not_instr_allocator<char>,
+                         PSI_42_allocator<char>,
+                         Init_aa_allocator<char> >
+         AllocatorTypesBasicStringTemplate;
+
+TYPED_TEST_CASE(STLAllocTestBasicStringTemplate,
+                AllocatorTypesBasicStringTemplate);
+
+
+//
+// Verify that a default_string can be created and extended with the
+// Stateless_allocator instantiations.
+//
+TYPED_TEST(STLAllocTestBasicStringTemplate, BasicTest)
+{
+  typedef default_string<TypeParam> String_type;
+
+  String_type x("foobar");
+  x += "_tag";
+  EXPECT_EQ(10U, x.size());
+
+}
+
+
+//
+// Verify that std::bad_alloc is thrown in out-of-memory conditions
+//
+TYPED_TEST(STLAllocTestBasicStringTemplate, OutOfMemTest)
+{
+  typedef default_string<TypeParam> String_type;
+
+  String_type x("foobar");
+  DBUG_SET("+d,simulate_out_of_memory");
+  ASSERT_THROW(x.reserve(1000), std::bad_alloc);
+  DBUG_SET("-d,simulate_out_of_memory");
+}
+
 
 } // namespace stlalloc_unittest
 
