@@ -246,6 +246,17 @@ public:
 		dd::Table*	dd_table,
 		uint		dd_version);
 
+	/** Add hidden columns and indexes to an InnoDB table definition.
+	@param[in,out]	dd_table	data dictionary cache object
+	@return	error number
+	@retval	0 on success */
+	int get_extra_columns_and_keys(
+		const HA_CREATE_INFO*,
+		const List<Create_field>*,
+		const KEY*,
+		uint,
+		dd::Table*	dd_table);
+
 	/** Create an InnoDB table.
 	@param[in]	name		table name in filename-safe encoding
 	@param[in]	form		table structure

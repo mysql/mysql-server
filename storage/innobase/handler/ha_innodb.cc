@@ -66,9 +66,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dd/sdi_tablespace.h"    // dd::sdi_tablespace::store
 #include "dd/types/table.h"
 #include "dd/types/index.h"
+#include "dd/types/column.h"
+#include "dd/types/index_element.h"
 #include "dd/types/partition.h"
 #include "dd/types/object_type.h"
 #include "dd/types/tablespace_file.h"
+#include "dd_table_share.h"
 
 /* Include necessary InnoDB headers */
 #include "api0api.h"
@@ -12843,6 +12846,347 @@ create_table_info_t::allocate_trx()
 	m_trx->ddl = true;
 }
 
+/** Look up a column in a table using the system_charset_info collation.
+@param[in]	dd_table	data dictionary table
+@param[in]	name		column name
+@return	the column
+@retval	nullptr	if not found */
+static
+const dd::Column*
+dd_find_column(dd::Table* dd_table, const char* name)
+{
+	for (const dd::Column* c : dd_table->columns()) {
+		if (!my_strcasecmp(system_charset_info,
+				   c->name().c_str(), name)) {
+			return(c);
+		}
+	}
+	return(nullptr);
+}
+
+/** Check if a column is the only column in an index.
+@param[in]	index	data dictionary index
+@param[in]	column	the column to look for
+@return	whether the column is the only column in the index */
+static
+bool
+dd_is_only_column(const dd::Index* index, const dd::Column* column)
+{
+	return(index->elements().size() == 1
+	       && &(*index->elements().begin())->column() == column);
+}
+
+/** Add a hidden index element at the end.
+@param[in,out]	index	created index metadata
+@param[in]	column	column of the index */
+static
+void
+dd_add_hidden_element(dd::Index* index, const dd::Column* column)
+{
+	dd::Index_element* e = index->add_element(
+		const_cast<dd::Column*>(column));
+	e->set_hidden(true);
+	e->set_order(dd::Index_element::ORDER_ASC);
+}
+
+/** Initialize a hidden unique B-tree index.
+@param[in,out]	index	created index metadata
+@param[in]	name	name of the index
+@param[in]	column	column of the index
+@return the initialized index */
+static
+dd::Index*
+dd_set_hidden_unique_index(
+	dd::Index*		index,
+	const char*		name,
+	const dd::Column*	column)
+{
+	index->set_name(name);
+	index->set_hidden(true);
+	index->set_algorithm(dd::Index::IA_BTREE);
+	index->set_type(dd::Index::IT_UNIQUE);
+	index->set_engine(handler_name);
+	dd_add_hidden_element(index, column);
+	return(index);
+}
+
+/** Add a hidden column when creating a table.
+@param[in,out]	dd_table	table containing user columns and indexes
+@param[in]	name		hidden column name
+@param[in]	length		length of the column, in bytes
+@return the added column, or NULL if there already was a column by that name */
+static
+dd::Column*
+dd_add_hidden_column(
+	dd::Table*	dd_table,
+	const char*	name,
+	uint		length)
+{
+	if (const dd::Column* c = dd_find_column(dd_table, name)) {
+		my_error(ER_WRONG_COLUMN_NAME, MYF(0), c->name().c_str());
+		return(nullptr);
+	}
+
+	dd::Column* col = dd_table->add_column();
+	col->set_hidden(true);
+	col->set_name(name);
+	col->set_type(dd::enum_column_types::STRING);
+	col->set_nullable(false);
+	col->set_char_length(length);
+	col->set_collation_id(my_charset_bin.number);
+
+	return(col);
+}
+
+/** Add hidden columns and indexes to an InnoDB table definition.
+@param[in,out]	dd_table	data dictionary cache object
+@return error number
+@retval 0 on success */
+int
+ha_innobase::get_extra_columns_and_keys(
+	const HA_CREATE_INFO*,
+	const List<Create_field>*,
+	const KEY*,
+	uint,
+	dd::Table*	dd_table)
+{
+	DBUG_ENTER("ha_innobase::get_extra_columns_and_keys");
+	THD*			thd			= ha_thd();
+	dd::Index*		primary			= nullptr;
+	bool			has_fulltext		= false;
+	const dd::Index*	fts_doc_id_index	= nullptr;
+
+	for (dd::Index* i : *dd_table->indexes()) {
+		/* The name "PRIMARY" is reserved for the PRIMARY KEY */
+		ut_ad((i->type() == dd::Index::IT_PRIMARY)
+		      == !my_strcasecmp(system_charset_info, i->name().c_str(),
+					primary_key_name));
+
+		if (!my_strcasecmp(system_charset_info,
+				   i->name().c_str(), FTS_DOC_ID_INDEX_NAME)) {
+			ut_ad(!fts_doc_id_index);
+			ut_ad(i->type() != dd::Index::IT_PRIMARY);
+			fts_doc_id_index = i;
+		}
+
+		switch (i->algorithm()) {
+		case dd::Index::IA_SE_SPECIFIC:
+			ut_ad(0);
+			break;
+		case dd::Index::IA_HASH:
+			/* This is currently blocked
+			by ha_innobase::is_index_algorithm_supported(). */
+			ut_ad(0);
+			break;
+		case dd::Index::IA_RTREE:
+			if (i->type() == dd::Index::IT_SPATIAL) {
+				continue;
+			}
+			ut_ad(0);
+			break;
+		case dd::Index::IA_BTREE:
+			switch (i->type()) {
+			case dd::Index::IT_PRIMARY:
+				ut_ad(!primary);
+				ut_ad(i == *dd_table->indexes()->begin());
+				primary = i;
+				continue;
+			case dd::Index::IT_UNIQUE:
+				if (primary == nullptr
+				    && dd_index_is_candidate_key(i)) {
+					primary = i;
+					ut_ad(*dd_table->indexes()->begin()
+					      == i);
+				}
+				continue;
+			case dd::Index::IT_MULTIPLE:
+				continue;
+			case dd::Index::IT_FULLTEXT:
+			case dd::Index::IT_SPATIAL:
+				ut_ad(0);
+			}
+			break;
+		case dd::Index::IA_FULLTEXT:
+			if (i->type() == dd::Index::IT_FULLTEXT) {
+				has_fulltext = true;
+				continue;
+			}
+			ut_ad(0);
+			break;
+		}
+
+		my_error(ER_UNSUPPORTED_INDEX_ALGORITHM,
+			 MYF(0), i->name().c_str());
+		DBUG_RETURN(ER_UNSUPPORTED_INDEX_ALGORITHM);
+	}
+
+	if (has_fulltext) {
+		/* Add FTS_DOC_ID_INDEX(FTS_DOC_ID) if needed */
+		const dd::Column* fts_doc_id = dd_find_column(
+			dd_table, FTS_DOC_ID_COL_NAME);
+
+		if (fts_doc_id_index) {
+			switch (fts_doc_id_index->type()) {
+			case dd::Index::IT_PRIMARY:
+				/* PRIMARY!=FTS_DOC_ID_INDEX */
+				ut_ad(!"wrong fts_doc_id_index");
+				/* fall through */
+			case dd::Index::IT_UNIQUE:
+				/* We already checked for this. */
+				ut_ad(fts_doc_id_index->algorithm()
+				      == dd::Index::IA_BTREE);
+				if (dd_is_only_column(fts_doc_id_index,
+						      fts_doc_id)) {
+					break;
+				}
+				/* fall through */
+			case dd::Index::IT_MULTIPLE:
+			case dd::Index::IT_FULLTEXT:
+			case dd::Index::IT_SPATIAL:
+				my_error(ER_INNODB_FT_WRONG_DOCID_INDEX,
+					 MYF(0),
+					 fts_doc_id_index->name().c_str());
+				push_warning(
+					thd,
+					Sql_condition::SL_WARNING,
+					ER_WRONG_NAME_FOR_INDEX,
+					" InnoDB: Index name "
+					FTS_DOC_ID_INDEX_NAME " is reserved"
+					" for UNIQUE INDEX("
+					FTS_DOC_ID_COL_NAME ") for "
+					" FULLTEXT Document ID indexing.");
+				DBUG_RETURN(ER_INNODB_FT_WRONG_DOCID_INDEX);
+			}
+			ut_ad(fts_doc_id);
+		}
+
+		if (fts_doc_id) {
+			if (fts_doc_id->type()
+			    != dd::enum_column_types::LONGLONG
+			    || !fts_doc_id->is_unsigned()
+			    || fts_doc_id->is_nullable()
+			    || fts_doc_id->name() != FTS_DOC_ID_COL_NAME) {
+				my_error(ER_INNODB_FT_WRONG_DOCID_COLUMN,
+					 MYF(0),
+					 fts_doc_id->name().c_str());
+				push_warning(
+					thd,
+					Sql_condition::SL_WARNING,
+					ER_WRONG_COLUMN_NAME,
+					" InnoDB: Column name "
+					FTS_DOC_ID_COL_NAME " is reserved for"
+					" FULLTEXT Document ID indexing.");
+				DBUG_RETURN(ER_INNODB_FT_WRONG_DOCID_COLUMN);
+			}
+		} else {
+			/* Add hidden FTS_DOC_ID column */
+			dd::Column* col = dd_table->add_column();
+			col->set_hidden(true);
+			col->set_name(FTS_DOC_ID_COL_NAME);
+			col->set_type(dd::enum_column_types::LONGLONG);
+			col->set_nullable(false);
+			col->set_unsigned(true);
+			fts_doc_id = col;
+		}
+
+		ut_ad(fts_doc_id);
+
+		if (fts_doc_id_index == nullptr
+		    && (primary == nullptr
+			|| !dd_is_only_column(primary, fts_doc_id))) {
+			dd_set_hidden_unique_index(dd_table->add_index(),
+						   FTS_DOC_ID_INDEX_NAME,
+						   fts_doc_id);
+		}
+	}
+
+	if (primary == nullptr) {
+		dd::Column* db_row_id = dd_add_hidden_column(
+			dd_table, "DB_ROW_ID", DATA_ROW_ID_LEN);
+
+		if (db_row_id == nullptr) {
+			DBUG_RETURN(ER_WRONG_COLUMN_NAME);
+		}
+
+		primary = dd_set_hidden_unique_index(
+			dd_table->add_first_index(),
+			primary_key_name,
+			db_row_id);
+	}
+
+	/* Add PRIMARY KEY columns to each secondary index, including:
+	1. all PRIMARY KEY column prefixes
+	2. full PRIMARY KEY columns which don't exist in the secondary index */
+
+	std::vector<const dd::Index_element*, ut_allocator<dd::Index_element*>>
+		pk_elements;
+
+	for (dd::Index* index : *dd_table->indexes()) {
+		if (index == primary) {
+			continue;
+		}
+
+		pk_elements.clear();
+		for (const dd::Index_element* e : primary->elements()) {
+			if (dd_index_element_is_prefix(e)
+			    || std::search_n(index->elements().begin(),
+					     index->elements().end(), 1, e,
+					     [](const dd::Index_element* ie,
+						const dd::Index_element* e) {
+						     return(&ie->column()
+							    == &e->column());
+					     }) == index->elements().end()) {
+				pk_elements.push_back(e);
+			}
+		}
+
+		for (const dd::Index_element* e : pk_elements) {
+			auto ie = index->add_element(
+				const_cast<dd::Column*>(&e->column()));
+			ie->set_hidden(true);
+			ie->set_order(e->order());
+		}
+	}
+
+	/* Add the InnoDB system columns DB_TRX_ID, DB_ROLL_PTR. */
+	dd::Column* db_trx_id = dd_add_hidden_column(
+		dd_table, "DB_TRX_ID", DATA_TRX_ID_LEN);
+	if (db_trx_id == nullptr) {
+		DBUG_RETURN(ER_WRONG_COLUMN_NAME);
+	}
+
+	dd::Column* db_roll_ptr = dd_add_hidden_column(
+		dd_table, "DB_ROLL_PTR", DATA_ROLL_PTR_LEN);
+	if (db_roll_ptr == nullptr) {
+		DBUG_RETURN(ER_WRONG_COLUMN_NAME);
+	}
+
+	dd_add_hidden_element(primary, db_trx_id);
+	dd_add_hidden_element(primary, db_roll_ptr);
+
+	/* Add all non-virtual columns to the clustered index,
+	unless they already part of the PRIMARY KEY. */
+
+	for (const dd::Column* c : dd_table->columns()) {
+		if (c->is_hidden() || c->is_virtual()) {
+			continue;
+		}
+
+		if (std::search_n(primary->elements().begin(),
+				  primary->elements().end(), 1,
+				  c, [](const dd::Index_element* e,
+					const dd::Column* c)
+				  {
+					  return(!dd_index_element_is_prefix(e)
+						 && &e->column() == c);
+				  })
+		    == primary->elements().end()) {
+			dd_add_hidden_element(primary, c);
+		}
+	}
+
+	DBUG_RETURN(0);
+}
 /** Get storage-engine private data for a data dictionary table.
 @param[in,out]	dd_table	data dictionary table definition
 @param[in]	dd_version	data dictionary version
