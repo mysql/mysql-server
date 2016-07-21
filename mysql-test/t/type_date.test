@@ -169,18 +169,8 @@ DROP TABLE t1;
 #
 
 CREATE TABLE t1 (a DATE, b INT, PRIMARY KEY (a,b));
-## The current sub test could fail (difference to expected result) if we
-## have just reached midnight.
-## (Bug#41776 type_date.test may fail if run around midnight)
-## Therefore we sleep a bit if we are too close to midnight.
-## The complete test itself needs in average less than 1 second.
-## Therefore a time_distance to midnight of 5 seconds should be sufficient.
-if (`SELECT CURTIME() > SEC_TO_TIME(24 * 3600 - 5)`)
-{
-   # We are here when CURTIME() is between '23:59:56' and '23:59:59'.
-   # So a sleep time of 5 seconds brings us between '00:00:01' and '00:00:04'.
-   --real_sleep 5
-}
+
+SET timestamp=UNIX_TIMESTAMP('2016-07-21 14:48:18');
 INSERT INTO t1 VALUES (DATE(NOW()), 1);
 SELECT COUNT(*) FROM t1 WHERE a = NOW();
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE a = NOW();
@@ -192,6 +182,7 @@ EXPLAIN SELECT COUNT(*) FROM t1 WHERE a = NOW() AND b = 1;
 ALTER TABLE t1 DROP PRIMARY KEY;
 SELECT COUNT(*) FROM t1 WHERE a = NOW();
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE a = NOW();
+SET timestamp=DEFAULT;
 
 DROP TABLE t1;
 
