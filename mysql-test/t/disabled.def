@@ -18,3 +18,4 @@ ssl-big                  : Bug #18977126 MAIN.SSL-BIG FAILS WITH TIMEOUT Times o
 # For more details on tags WL6378_* refer sql/dd/mtr_readme.txt
 main.mysql_upgrade        : WL#6378 2015-11-06 jhauglid WL6378_UPGRADE
 main.status               : Bug#14286343 2015-12-22 Mohit Legacy Bug leading to sporadic failures on PB2 occuring since 2012.
+main.partition_windows   : Bug#23758642 2016-07-21 Erlend Disable the test until it can be run on Hudson
