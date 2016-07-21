@@ -275,7 +275,7 @@ our $opt_resfile= $ENV{'MTR_RESULT_FILE'} || 0;
 my $opt_skip_core;
 
 our $opt_check_testcases= 1;
-our $opt_failcheck_testcases= 0;
+our $opt_fail_check_testcases= 0;
 my $opt_mark_progress;
 our $opt_test_progress;
 my $opt_max_connections;
@@ -1061,7 +1061,7 @@ sub print_global_resfile {
   resfile_global("compress", $opt_compress ? 1 : 0);
   resfile_global("parallel", $opt_parallel);
   resfile_global("check-testcases", $opt_check_testcases ? 1 : 0);
-  resfile_global("failcheck-testcases", $opt_failcheck_testcases ? 1 : 0);
+  resfile_global("fail-check-testcases", $opt_fail_check_testcases ? 1 : 0);
   resfile_global("mysqld", \@opt_extra_mysqld_opt);
   resfile_global("bootstrap", \@opt_extra_bootstrap_opt);
   resfile_global("mysqltest", \@opt_extra_mysqltest_opt);
@@ -1160,7 +1160,7 @@ sub command_line_setup {
              # Test case authoring
              'record'                   => \$opt_record,
              'check-testcases!'         => \$opt_check_testcases,
-             'failcheck-testcases!'     => \$opt_failcheck_testcases,
+             'fail-check-testcases!'    => \$opt_fail_check_testcases,
              'mark-progress'            => \$opt_mark_progress,
              'test-progress'            => \$opt_test_progress,
 
@@ -1497,14 +1497,14 @@ sub command_line_setup {
   }
 
   # --------------------------------------------------------------------------
-  # Check if both failcheck-testcases and no-check-testcases were used
+  # Check if both fail-check-testcases and no-check-testcases were used
   # simultaneously
   # --------------------------------------------------------------------------
-  if ( $opt_failcheck_testcases and !$opt_check_testcases )
+  if ( $opt_fail_check_testcases and !$opt_check_testcases )
   {
-    # Turn OFF failcheck-testcases
-    mtr_report("Turning off --failcheck-testcases ");
-    $opt_failcheck_testcases= 0;
+    # Turn OFF fail-check-testcases
+    mtr_report("Turning off --fail-check-testcases ");
+    $opt_fail_check_testcases= 0;
   }
 
   # --------------------------------------------------------------------------
@@ -1871,7 +1871,7 @@ sub command_line_setup {
     # Turn off check testcases to save time
     mtr_report("Turning off --check-testcases to save time when valgrinding");
     $opt_check_testcases = 0; 
-    $opt_failcheck_testcases= 0;
+    $opt_fail_check_testcases= 0;
   }
 
   if ( $opt_helgrind )
@@ -1886,7 +1886,7 @@ sub command_line_setup {
     # Turn off check testcases to save time.
     mtr_report("Turning off --check-testcases to save time when helgrinding");
     $opt_check_testcases = 0;
-    $opt_failcheck_testcases= 0;
+    $opt_fail_check_testcases= 0;
   }
 
   if ($opt_debug_common)
@@ -4212,7 +4212,7 @@ do a proper clean-up. It could also be caused by the previous test run
 by this thread, if the server wasn't restarted.
 This is the diff of the states of the servers before and after the
 test case was executed:\n";
-          if ($opt_failcheck_testcases) {
+          if ($opt_fail_check_testcases) {
             $tinfo->{comment}.= $message;
             $tinfo->{comment}.= $report;
             # Do not grab the log file since the test actually passed
@@ -4745,8 +4745,8 @@ sub run_testcase ($) {
       {
         $check_res= check_testcase($tinfo, "after") if !$res;
         # Test succeeded but failed in check-test, failing the test in case
-        # option --failcheck-testcases had been passed
-        if (($res == 0) and $opt_failcheck_testcases) {
+        # option --fail-check-testcases had been passed
+        if (($res == 0) and $opt_fail_check_testcases) {
           if ($check_res == 1) {
             resfile_output($tinfo->{'comment'}) if $opt_resfile;
             $res= 1;
@@ -7353,7 +7353,7 @@ Options for test case authoring
 
   record TESTNAME       (Re)genereate the result file for TESTNAME
   check-testcases       Check testcases for sideeffects
-  failcheck-testcases   Fail testcases for sideeffects
+  fail-check-testcases  Fail testcases for sideeffects
   mark-progress         Log line number and elapsed time to <testname>.progress
   test-progress         Print the percentage of tests completed
 
