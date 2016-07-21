@@ -7405,7 +7405,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   rli->is_stopping.atomic_set(1);
   (void) RUN_HOOK(binlog_relay_io, applier_stop,
                   (thd, rli->mi,
-                   !rli->sql_thread_kill_accepted));
+                   rli->is_error() || !rli->sql_thread_kill_accepted));
 
   slave_stop_workers(rli, &mts_inited); // stopping worker pool
   delete rli->current_mts_submode;
@@ -11470,11 +11470,15 @@ static int check_slave_sql_config_conflict(const Relay_log_info *rli)
   {
     const char* channel= const_cast<Relay_log_info*>(rli)->get_channel();
     if (slave_parallel_workers > 0 &&
+        (channel_mts_submode != MTS_PARALLEL_TYPE_LOGICAL_CLOCK ||
+         (channel_mts_submode == MTS_PARALLEL_TYPE_LOGICAL_CLOCK &&
+          !opt_slave_preserve_commit_order)) &&
         channel_map.is_group_replication_channel_name(channel, true))
     {
         my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
-                 "START SLAVE SQL_THREAD when SLAVE_PARALLEL_WORKERS > 0",
-                 channel);
+                 "START SLAVE SQL_THREAD when SLAVE_PARALLEL_WORKERS > 0 "
+                 "and SLAVE_PARALLEL_TYPE != LOGICAL_CLOCK "
+                 "or SLAVE_PRESERVE_COMMIT_ORDER != ON", channel);
         return ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED;
     }
   }
