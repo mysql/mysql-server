@@ -362,14 +362,6 @@ void Security_context::clear_active_roles(void)
     it->second.length= 0;
   }
   m_active_roles.clear();
-#if defined(HAVE_VALGRIND) || defined(HAVE_ASAN)
-  /*
-    Clear does not actually free the memory as an optimization for reuse.
-    This confuses valgrind, so we swap with an empty vector to ensure the
-    memory is freed when testing with valgrind
-  */
-  List_of_auth_id_refs().swap(m_active_roles);
-#endif
 }
 
 List_of_auth_id_refs *

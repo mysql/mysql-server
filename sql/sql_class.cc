@@ -1502,12 +1502,15 @@ void THD::cleanup_after_query()
     substitute_null_with_insert_id= TRUE;
   }
   arg_of_last_insert_id_function= 0;
-  /* Hack for cleaning up view security contexts */
+  /*
+    Need to clean up view security contexts since they are allocated
+    dynamically. But we can't call List::delete_elements() since
+    they're allocated from a memory root.
+    So we call the destructors instead to clean up the instances.
+  */
   List_iterator<Security_context> it(m_view_ctx_list);
   while(Security_context *ctx= it++)
-  {
-    ctx->logout();
-  }
+    ctx->~Security_context();
   m_view_ctx_list.empty();
   /* Free Items that were created during this execution */
   free_items();
