@@ -1326,6 +1326,18 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
         j->ref().key_copy[part_no]= s_key;
       else
       {
+        /**
+           The outer reference is to a const table, so we copy the value
+           straight from that table now (during optimization), instead of from
+           the temporary table created during execution.
+
+           TODO: Synchronize with the temporary table creation code, so that
+           there is no need to create a column for this value.
+        */
+        bool dummy_value= false;
+        keyuse->val->walk(&Item::repoint_const_outer_ref,
+                          Item::WALK_PREFIX,
+                          pointer_cast<uchar*>(&dummy_value));
         /*
           key is const, copy value now and possibly skip it while ::exec().
 
