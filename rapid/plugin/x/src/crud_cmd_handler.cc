@@ -57,27 +57,7 @@ ngs::Error_code xpl::Crud_command_handler::execute_crud_insert(Session &session,
   Sql_data_context::Result_info info;
   error = session.data_context().execute_sql_no_result(m_qb.get(), info);
   if (error)
-  {
-    if (is_table_data_model(msg))
-      return error;
-
-    //XXX do some work to find the column that's violating constraints and fix the error message (or just append the original error)
-    switch (error.error)
-    {
-    case ER_BAD_NULL_ERROR:
-      return ngs::Error(ER_X_DOC_ID_MISSING,
-                        "Document is missing a required field");
-
-    case ER_BAD_FIELD_ERROR:
-      return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING,
-                        "Table '%s' is not a document collection", msg.collection().name().c_str());
-
-    case ER_DUP_ENTRY:
-      return ngs::Error(ER_X_DOC_ID_DUPLICATE,
-                        "Document contains a field value that is not unique but required to be");
-    }
-    return error;
-  }
+    return error_handling_insert(error, msg);
 
   if (info.num_warnings > 0 && session.options().get_send_warnings())
     notices::send_warnings(session.data_context(), session.proto());
@@ -88,6 +68,31 @@ ngs::Error_code xpl::Crud_command_handler::execute_crud_insert(Session &session,
     notices::send_message(session.proto(), info.message);
   session.proto().send_exec_ok();
   return ngs::Success();
+}
+
+
+ngs::Error_code xpl::Crud_command_handler::error_handling_insert(const ngs::Error_code &error,
+                                                                 const Mysqlx::Crud::Insert &msg) const
+{
+  if (is_table_data_model(msg))
+    return error;
+
+  //XXX do some work to find the column that's violating constraints and fix the error message (or just append the original error)
+  switch (error.error)
+  {
+  case ER_BAD_NULL_ERROR:
+    return ngs::Error(ER_X_DOC_ID_MISSING,
+                      "Document is missing a required field");
+
+  case ER_BAD_FIELD_ERROR:
+    return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING,
+                      "Table '%s' is not a document collection", msg.collection().name().c_str());
+
+  case ER_DUP_ENTRY:
+    return ngs::Error(ER_X_DOC_ID_DUPLICATE,
+                      "Document contains a field value that is not unique but required to be");
+  }
+  return error;
 }
 
 
@@ -103,18 +108,7 @@ ngs::Error_code xpl::Crud_command_handler::execute_crud_update(Session &session,
   Sql_data_context::Result_info info;
   error = session.data_context().execute_sql_no_result(m_qb.get(), info);
   if (error)
-  {
-    if (is_table_data_model(msg))
-      return error;
-
-    switch (error.error)
-    {
-    case ER_INVALID_JSON_TEXT_IN_PARAM:
-      return ngs::Error(ER_X_BAD_UPDATE_DATA,
-                        "Invalid data for update operation on document collection table");
-    }
-    return error;
-  }
+    return error_handling_update(error, msg);
 
   if (info.num_warnings > 0 && session.options().get_send_warnings())
     notices::send_warnings(session.data_context(), session.proto());
@@ -123,6 +117,22 @@ ngs::Error_code xpl::Crud_command_handler::execute_crud_update(Session &session,
     notices::send_message(session.proto(), info.message);
   session.proto().send_exec_ok();
   return ngs::Success();
+}
+
+
+ngs::Error_code xpl::Crud_command_handler::error_handling_update(const ngs::Error_code &error,
+                                                                 const Mysqlx::Crud::Update &msg) const
+{
+  if (is_table_data_model(msg))
+    return error;
+
+  switch (error.error)
+  {
+  case ER_INVALID_JSON_TEXT_IN_PARAM:
+    return ngs::Error(ER_X_BAD_UPDATE_DATA,
+                      "Invalid data for update operation on document collection table");
+  }
+  return error;
 }
 
 
@@ -150,22 +160,6 @@ ngs::Error_code xpl::Crud_command_handler::execute_crud_delete(Session &session,
 }
 
 
-namespace
-{
-inline std::string extract_column_name(const std::string &msg)
-{
-  std::string::size_type b = msg.find('\'', 0);
-  if (b == std::string::npos)
-    return std::string();
-  std::string::size_type e = msg.find('\'', b+1);
-  if (e == std::string::npos)
-    return std::string();
-  return msg.substr(b+1, e-b-1);
-}
-
-} // namespace
-
-
 ngs::Error_code xpl::Crud_command_handler::execute_crud_find(Session &session, const Mysqlx::Crud::Find &msg)
 {
   session.update_status<&Common_status_variables::inc_crud_find>();
@@ -178,24 +172,7 @@ ngs::Error_code xpl::Crud_command_handler::execute_crud_find(Session &session, c
   Sql_data_context::Result_info info;
   error = session.data_context().execute_sql_and_stream_results(m_qb.get(), false, info);
   if (error)
-  {
-    if (is_table_data_model(msg))
-      return error;
-    // if we're operating on documents but there are missing fields in the table (doc or _id),
-    // then this is not a collection
-    switch (error.error)
-    {
-    case ER_BAD_FIELD_ERROR:
-      std::string col = extract_column_name(error.message);
-      if (col == "doc" || col == "_id")
-        return ngs::Error(ER_X_INVALID_COLLECTION,
-                          "`%s` is not a collection", msg.collection().name().c_str());
-      else
-        return ngs::Error(ER_X_BAD_DOC_PATH,
-                          "`%s` is not a member of collection", col.c_str());
-    }
-    return error;
-  }
+    return error_handling_find(error, msg);
 
   if (info.num_warnings > 0 && session.options().get_send_warnings())
     notices::send_warnings(session.data_context(), session.proto());
@@ -203,4 +180,39 @@ ngs::Error_code xpl::Crud_command_handler::execute_crud_find(Session &session, c
     notices::send_message(session.proto(), info.message);
   session.proto().send_exec_ok();
   return ngs::Success();
+}
+
+
+namespace
+{
+
+inline bool check_message(const std::string &msg, const char *pattern, std::string::size_type &pos)
+{
+  return (pos = msg.find(pattern)) != std::string::npos;
+}
+
+} // namespace
+
+
+ngs::Error_code xpl::Crud_command_handler::error_handling_find(const ngs::Error_code &error,
+                                                               const Mysqlx::Crud::Find &msg) const
+{
+  if (is_table_data_model(msg))
+    return error;
+
+  switch (error.error)
+  {
+  case ER_BAD_FIELD_ERROR:
+    std::string::size_type pos = std::string::npos;
+    if (check_message(error.message, "having clause", pos))
+      return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING,
+                        "%sgrouping criteria", error.message.substr(0, pos-1).c_str());
+    if (check_message(error.message, "where clause", pos))
+      return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING,
+                        "%sselection criteria", error.message.substr(0, pos-1).c_str());
+    if (check_message(error.message, "field list", pos))
+      return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING,
+                        "%scollection", error.message.substr(0, pos-1).c_str());
+  }
+  return error;
 }

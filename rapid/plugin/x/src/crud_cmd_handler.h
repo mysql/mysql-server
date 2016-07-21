@@ -40,6 +40,10 @@ public:
   ngs::Error_code execute_crud_delete(Session &session, const Mysqlx::Crud::Delete &msg);
 
 private:
+  ngs::Error_code error_handling_insert(const ngs::Error_code &error, const Mysqlx::Crud::Insert &msg) const;
+  ngs::Error_code error_handling_update(const ngs::Error_code &error, const Mysqlx::Crud::Update &msg) const;
+  ngs::Error_code error_handling_find(const ngs::Error_code &error, const Mysqlx::Crud::Find &msg) const;
+
   Query_string_builder m_qb;
 };
 
