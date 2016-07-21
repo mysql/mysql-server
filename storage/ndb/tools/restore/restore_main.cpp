@@ -100,6 +100,7 @@ static int _print = 0;
 static int _print_meta = 0;
 static int _print_data = 0;
 static int _print_log = 0;
+static int _print_sql_log = 0;
 static int _restore_data = 0;
 static int _restore_meta = 0;
 static int _no_restore_disk = 0;
@@ -200,6 +201,9 @@ static struct my_option my_long_options[] =
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "print_log", NDB_OPT_NOSHORT, "Print log to stdout",
     (uchar**) &_print_log, (uchar**) &_print_log,  0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "print_sql_log", NDB_OPT_NOSHORT, "Print SQL log to stdout",
+    (uchar**) &_print_sql_log, (uchar**) &_print_sql_log,  0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "backup_path", NDB_OPT_NOSHORT, "Path to backup files",
     (uchar**) &ga_backupPath, (uchar**) &ga_backupPath, 0,
@@ -662,6 +666,11 @@ o verify nodegroup mapping
     ga_print = true;
     g_printer->m_print_log = true;
   }
+  if (_print_sql_log)
+    {
+      ga_print = true;
+      g_printer->m_print_sql_log = true;
+    }
 
   if (_restore_data)
   {
@@ -1379,6 +1388,52 @@ main(int argc, char** argv)
     err << "The backup contains no tables" << endl;
     exitHandler(NDBT_FAILED);
   }
+
+  if(_print_sql_log && _print_log)
+  {
+    debug << "Check to ensure that both print-sql-log and print-log "
+          << "options are not passed" << endl;
+    err << "Both print-sql-log and print-log options passed. Exiting..."
+        << endl;
+    exitHandler(NDBT_FAILED);
+  }
+
+  if (_print_sql_log)
+  {
+    debug << "Check for tables with hidden PKs or column of type blob "
+          << "when print-sql-log option is passed" << endl;
+    for(Uint32 i = 0; i < metaData.getNoOfTables(); i++)
+    {
+      const TableS *table = metaData[i];
+      if (!(checkSysTable(table) && checkDbAndTableName(table)))
+        continue;
+      /* Blobs are stored as separate tables with names prefixed
+       * with NDB$BLOB. This can be used to check if there are
+       * any columns of type blob in the tables being restored */
+      BaseString tableName(table->getTableName());
+      Vector<BaseString> tableNameParts;
+      tableName.split(tableNameParts, "/");
+      if (tableNameParts[2].substr(0,8) == "NDB$BLOB")
+      {
+        err << "Found column of type blob with print-sql-log option set. "
+            << "Exiting..." << endl;
+        exitHandler(NDBT_FAILED);
+      }
+      /* Hidden PKs are stored with the name $PK */
+      int noOfPK = table->m_dictTable->getNoOfPrimaryKeys();
+      for(int j = 0; j < noOfPK; j++)
+      {
+        const char* pkName = table->m_dictTable->getPrimaryKey(j);
+        if(strcmp(pkName,"$PK") == 0)
+        {
+          err << "Found hidden primary key with print-sql-log option set. "
+              << "Exiting..." << endl;
+          exitHandler(NDBT_FAILED);
+        }
+      }
+    }
+  }
+
   debug << "Validate Footer" << endl;
   Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
   info << timestamp << " [restore_metadata]" << " Validate Footer" << endl;
@@ -1654,7 +1709,7 @@ main(int argc, char** argv)
       }
     }
 
-    if(_restore_data || _print_log)
+    if(_restore_data || _print_log || _print_sql_log)
     {
       RestoreLogIterator logIter(metaData);
 
