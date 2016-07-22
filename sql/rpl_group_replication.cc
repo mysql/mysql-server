@@ -361,6 +361,7 @@ get_server_startup_prerequirements(Trans_context_info& requirements,
   requirements.rli_repository_type= opt_rli_repository_id;
   requirements.parallel_applier_type= mts_parallel_option;
   requirements.parallel_applier_workers= opt_mts_slave_parallel_workers;
+  requirements.parallel_applier_preserve_commit_order= opt_slave_preserve_commit_order;
 }
 #endif //HAVE_REPLICATION
 

@@ -80,6 +80,7 @@ typedef struct Trans_context_info {
   // enum values in enum_mts_parallel_type
   ulong parallel_applier_type;
   ulong parallel_applier_workers;
+  bool parallel_applier_preserve_commit_order;
   enum_tx_isolation tx_isolation;  // enum values in enum_tx_isolation
 } Trans_context_info;
 

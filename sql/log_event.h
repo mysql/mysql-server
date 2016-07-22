@@ -1125,13 +1125,13 @@ public:
      @return TRUE  if the event starts a group (transaction)
              FASE  otherwise
   */
-  virtual bool starts_group() { return false; }
+  virtual bool starts_group() const { return false; }
 
   /**
      @return TRUE  if the event ends a group (transaction)
              FASE  otherwise
   */
-  virtual bool ends_group()   { return false; }
+  virtual bool ends_group() const { return false; }
 
   /**
      Apply the event to the database.
@@ -1448,14 +1448,14 @@ public:        /* !!! Public in this patch to allow old usage */
      occures within logics of @c get_slave_worker().
   */
 
-  bool starts_group()
+  bool starts_group() const
   {
     return
       !strncmp(query, "BEGIN", q_len) ||
       !strncmp(query, STRING_WITH_LEN("XA START"));
   }
 
-  virtual bool ends_group()
+  virtual bool ends_group() const
   {
     return
       !strncmp(query, "COMMIT", q_len) ||
@@ -1807,7 +1807,7 @@ protected:
                       Log_event_footer *footer_arg)
   : Log_event(header_arg, footer_arg) {}
   ~Xid_apply_log_event() {}
-  virtual bool ends_group() { return true; }
+  virtual bool ends_group() const { return true; }
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
   virtual enum_skip_reason do_shall_skip(Relay_log_info *rli);
   virtual int do_apply_event(Relay_log_info const *rli);
