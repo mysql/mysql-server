@@ -7,11 +7,6 @@
 
 # do not be influenced by other tests.
 connection master;
-call mtr.add_suppression("Did not write failed .* into binary log while "
-                         "revoking all_privileges from a list of users.");
-call mtr.add_suppression("Did not write failed .* into binary log while "
-                         "storing routine level grants in the privilege "
-                         "tables.");
 call mtr.add_suppression("REVOKE/GRANT failed while storing routine level "
                          "grants in the privilege tables. An incident event "
                          "has been written to the binary log which will "
