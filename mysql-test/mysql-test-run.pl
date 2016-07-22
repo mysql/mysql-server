@@ -4378,6 +4378,7 @@ sub run_testcase ($) {
   my $print_freq=20;
 
   mtr_verbose("Running test:", $tinfo->{name});
+  $ENV{'MTR_TEST_NAME'} = $tinfo->{name};
   resfile_report_test($tinfo) if $opt_resfile;
 
   # Allow only alpanumerics pluss _ - + . in combination names,
