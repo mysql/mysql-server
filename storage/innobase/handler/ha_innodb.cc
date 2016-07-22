@@ -12814,6 +12814,8 @@ create_table_info_t::create_table_update_global_dd(
 
 	dd_table->set_se_private_id(table->id);
 
+	dd_table->se_private_data().set_uint32("space", table->space);
+
 	const dict_index_t* index = table->first_index();
 
 	for (auto dd_index : *dd_table->indexes()) {
