@@ -303,7 +303,6 @@ our $opt_valgrind= 0;
 my $opt_valgrind_mysqld= 0;
 my $opt_valgrind_clients= 0;
 my $opt_valgrind_mysqltest= 0;
-my @default_valgrind_args= ("--show-reachable=yes");
 my @valgrind_args;
 my $opt_valgrind_path;
 my $valgrind_reports= 0;
@@ -1777,6 +1776,7 @@ sub command_line_setup {
     # Set special valgrind options unless options passed on command line
     push(@valgrind_args, "--trace-children=yes")
       unless @valgrind_args;
+    unshift(@valgrind_args, "--tool=callgrind");
   }
 
   if ( $opt_trace_protocol )
@@ -1786,13 +1786,28 @@ sub command_line_setup {
     push(@opt_extra_mysqld_opt, "--optimizer-trace-max-mem-size=1000000");
   }
 
+  # default to --tool=memcheck
+  if ($opt_valgrind && ! grep(/^--tool=/i, @valgrind_args))
+  {
+    # Set valgrind_option unless already defined
+    push(@valgrind_args, ("--num-callers=16", "--show-reachable=yes"))
+       unless @valgrind_args;
+    if($daemonize_mysqld)
+    {
+      push(@valgrind_args, "--leak-check=no")
+    }
+    else
+    {
+      push(@valgrind_args, "--leak-check=yes")
+    }
+    unshift(@valgrind_args, "--tool=memcheck");
+  }
+
   if ( $opt_valgrind )
   {
-    # Set valgrind_options to default unless already defined
-    push(@valgrind_args, @default_valgrind_args)
-      unless @valgrind_args;
-
     # Don't add --quiet; you will loose the summary reports.
+    push(@valgrind_args, "--suppressions=${glob_mysql_test_dir}/valgrind.supp")
+      if -f "$glob_mysql_test_dir/valgrind.supp";
 
     mtr_report("Running valgrind with options \"",
 	       join(" ", @valgrind_args), "\"");
@@ -6831,27 +6846,6 @@ sub valgrind_client_arguments {
 sub valgrind_arguments {
   my $args= shift;
   my $exe=  shift;
-
-  if ( $opt_callgrind)
-  {
-    mtr_add_arg($args, "--tool=callgrind");
-    mtr_add_arg($args, "--base=$opt_vardir/log");
-  }
-  else
-  {
-    mtr_add_arg($args, "--tool=memcheck"); # From >= 2.1.2 needs this option
-    if($daemonize_mysqld)
-    {
-      mtr_add_arg($args, "--leak-check=no");
-    }
-    else
-    {
-      mtr_add_arg($args, "--leak-check=yes");
-    }
-    mtr_add_arg($args, "--num-callers=16");
-    mtr_add_arg($args, "--suppressions=%s/valgrind.supp", $glob_mysql_test_dir)
-      if -f "$glob_mysql_test_dir/valgrind.supp";
-  }
 
   # Add valgrind options, can be overriden by user
   mtr_add_arg($args, '%s', $_) for (@valgrind_args);
