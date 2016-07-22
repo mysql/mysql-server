@@ -12745,7 +12745,7 @@ create_table_info_t::create_table_update_global_dd(
 
 		const dd::Tablespace*	index_space = NULL;
 		if (client->acquire<dd::Tablespace>(
-			    table->space, &index_space)) {
+			    dd_table->tablespace_id(), &index_space)) {
 			dict_table_close(table, FALSE, FALSE);
 			DBUG_RETURN(HA_ERR_GENERIC);
 		}
