@@ -1281,7 +1281,7 @@ public:
                                            uint key_parts= 0);
   void mark_columns_used_by_index(uint index);
   void mark_auto_increment_column(void);
-  void mark_columns_needed_for_update(void);
+  void mark_columns_needed_for_update(bool mark_binlog_columns);
   void mark_columns_needed_for_delete(void);
   void mark_columns_needed_for_insert(void);
   void mark_columns_per_binlog_row_image(void);
