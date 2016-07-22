@@ -70,6 +70,8 @@ public:
 
   void add_table(const std::string &name);
 
+  THD *get_thd() const { return m_thd; }
+
 private:
   THD *m_thd;
   thr_lock_type m_lock_type;

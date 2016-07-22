@@ -513,8 +513,8 @@ index_id	table_id	type	n_fields	space	name
 55	30	2	2	16	schema_id
 56	30	2	2	16	table_id
 57	30	0	1	16	unique_constraint_id
-58	31	3	3	17	foreign_key_id
-59	31	2	2	17	foreign_key_id_2
+58	31	3	2	17	PRIMARY
+59	31	2	3	17	foreign_key_id
 60	31	0	1	17	column_id
 61	32	3	1	18	PRIMARY
 62	32	2	2	18	table_id
@@ -623,10 +623,10 @@ index_id	pos	name
 56	0	table_id
 57	0	unique_constraint_id
 58	0	foreign_key_id
-58	1	column_id
-58	2	referenced_column_name
+58	1	ordinal_position
 59	0	foreign_key_id
-59	1	ordinal_position
+59	1	column_id
+59	2	referenced_column_name
 60	0	column_id
 62	0	table_id
 63	0	table_id

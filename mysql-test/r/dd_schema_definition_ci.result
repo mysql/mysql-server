@@ -311,8 +311,8 @@ id	table_id	name	type	algorithm	is_algorithm_explicit	is_visible	is_generated	hi
 38	15	schema_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=48;root=321;	NULL	InnoDB
 39	15	table_id	UNIQUE	BTREE	0	1	0	0	3		flags=32;	id=49;root=322;	NULL	InnoDB
 40	15	unique_constraint_id	MULTIPLE	BTREE	0	1	1	0	4		flags=0;	id=50;root=323;	NULL	InnoDB
-41	16	foreign_key_id	UNIQUE	BTREE	0	1	0	0	1		flags=32;	id=51;root=325;	NULL	InnoDB
-42	16	foreign_key_id_2	UNIQUE	BTREE	0	1	0	0	2		flags=0;	id=52;root=326;	NULL	InnoDB
+41	16	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=51;root=325;	NULL	InnoDB
+42	16	foreign_key_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=52;root=326;	NULL	InnoDB
 43	16	column_id	MULTIPLE	BTREE	0	1	1	0	3		flags=0;	id=53;root=327;	NULL	InnoDB
 44	17	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=54;root=329;	NULL	InnoDB
 45	17	table_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=55;root=330;	NULL	InnoDB
@@ -412,10 +412,10 @@ index_id	ordinal_position	column_id	length	order	hidden
 39	2	128	192	ASC	0
 40	1	129	8	ASC	0
 41	1	136	8	ASC	0
-41	2	138	8	ASC	0
-41	3	139	192	ASC	0
+41	2	137	4	ASC	0
 42	1	136	8	ASC	0
-42	2	137	4	ASC	0
+42	2	138	8	ASC	0
+42	3	139	192	ASC	0
 43	1	138	8	ASC	0
 44	1	140	8	ASC	0
 45	1	141	8	ASC	0

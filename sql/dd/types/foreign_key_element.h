@@ -57,13 +57,15 @@ public:
 
   virtual const Column &column() const = 0;
 
-  virtual Column &column() = 0;
+  virtual void set_column(const Column *column) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // ordinal_position.
   /////////////////////////////////////////////////////////////////////////
 
   virtual uint ordinal_position() const = 0;
+
+  virtual void set_ordinal_position(int ordinal_position) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // referenced column name.

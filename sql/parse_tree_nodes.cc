@@ -1239,14 +1239,17 @@ bool PT_foreign_key_definition::contextualize(Parse_context *pc)
 
   lex->key_create_info= default_key_create_info;
 
-  const LEX_STRING used_name=
-    m_key_name ? m_key_name->field_name
-               : m_constraint_name ? m_constraint_name->field_name
-                                   : NULL_STR;
+  /*
+    If defined, the CONSTRAINT symbol value is used.
+    Otherwise, the FOREIGN KEY index_name value is used.
+  */
+  const LEX_CSTRING used_name= to_lex_cstring(
+    m_constraint_name ? m_constraint_name->field_name
+                      : m_key_name ? m_key_name->field_name : NULL_STR);
 
   Key_spec *foreign_key=
     new Foreign_key_spec(thd->mem_root,
-                         to_lex_cstring(used_name),
+                         used_name,
                          *m_columns,
                          m_referenced_table->db,
                          m_referenced_table->table,
@@ -1259,12 +1262,8 @@ bool PT_foreign_key_definition::contextualize(Parse_context *pc)
   /* Only used for ALTER TABLE. Ignored otherwise. */
   lex->alter_info.flags|= Alter_info::ADD_FOREIGN_KEY;
 
-  const LEX_CSTRING index_name= to_lex_cstring(
-    m_constraint_name ? m_constraint_name->field_name
-                      : m_key_name ? m_key_name->field_name : NULL_STR);
-
   Key_spec *key=
-    new Key_spec(thd->mem_root, KEYTYPE_MULTIPLE, index_name,
+    new Key_spec(thd->mem_root, KEYTYPE_MULTIPLE, used_name,
                  &default_key_create_info, true, true, *m_columns);
   if (key == NULL || lex->alter_info.key_list.push_back(key))
     return true;

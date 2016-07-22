@@ -34,6 +34,8 @@
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/types/column.h"                  // dd::Column
 #include "dd/types/column_type_element.h"     // dd::Column_type_element
+#include "dd/types/foreign_key.h"             // dd::Foreign_key
+#include "dd/types/foreign_key_element.h"     // dd::Foreign_key_element
 #include "dd/types/index.h"                   // dd::Index
 #include "dd/types/index_element.h"           // dd::Index_element
 #include "dd/types/object_table.h"            // dd::Object_table
@@ -48,6 +50,7 @@
 
 // TODO: Avoid exposing dd/impl headers in public files.
 #include "dd/impl/utils.h"                    // dd::escape
+#include "dd/impl/dictionary_impl.h"          // default_catalog_name
 
 #include <memory>                             // unique_ptr
 
@@ -648,6 +651,163 @@ static void fill_dd_indexes_from_keyinfo(dd::Table *tab_obj,
 
 
 /**
+  Translate from the old fk_option enum to the new
+  dd::Foreign_key::enum_rule enum.
+
+  @param opt  old fk_option enum.
+  @return     new dd::Foreign_key::enum_rule
+*/
+
+static dd::Foreign_key::enum_rule get_fk_rule(fk_option opt)
+{
+  switch (opt)
+  {
+  case FK_OPTION_RESTRICT:
+    return dd::Foreign_key::RULE_RESTRICT;
+  case FK_OPTION_CASCADE:
+    return dd::Foreign_key::RULE_CASCADE;
+  case FK_OPTION_SET_NULL:
+    return dd::Foreign_key::RULE_SET_NULL;
+  case FK_OPTION_DEFAULT:
+    return dd::Foreign_key::RULE_SET_DEFAULT;
+  case FK_OPTION_NO_ACTION:
+  case FK_OPTION_UNDEF:
+  default:
+    return dd::Foreign_key::RULE_NO_ACTION;
+  }
+}
+
+
+/**
+  Find the index to be used for unique_constraint_id.
+
+  @param tab_obj  Table where to look for an suitable index.
+  @param key      FK which we want to find a matching index for.
+
+  @retval Index corresponing to the FK or nullptr if no such index
+          was found (error reported).
+
+  @note For backward compatibility, we try to find the same index that InnoDB
+  does (@see dict_foreign_find_index). One consequence is that the index
+  might not be an unique index as this is not required by InnoDB.
+  Note that it is difficult to guarantee that we iterate through the
+  indexes in the same order as InnoDB - this means that if several indexes
+  fit, we might select a different one.
+*/
+
+static const dd::Index* find_fk_unique_constraint(const dd::Table *tab_obj,
+                                                  const FOREIGN_KEY *key)
+{
+  for (const dd::Index *idx : tab_obj->indexes())
+  {
+    // The index may have more elements, but must start with the same
+    // elements as the FK.
+    if (key->key_parts > idx->elements().size())
+      continue;
+
+    if (idx->type() == Index::IT_FULLTEXT ||
+        idx->type() == Index::IT_SPATIAL)
+      continue;
+
+    bool match= true;
+    for (uint i= 0; i < key->key_parts && match; i++)
+    {
+      const dd::Index_element *idx_ele= idx->elements()[i];
+      const dd::Column &col= idx_ele->column();
+
+      if (col.is_virtual())
+        match= false;
+      else if (my_strcasecmp(system_charset_info,
+                             col.name().c_str(),
+                             key->key_part[i].str) != 0)
+        match= false;
+    }
+    if (match)
+      return idx;
+  }
+  my_error(ER_CANNOT_ADD_FOREIGN, MYF(0));
+  return nullptr;
+}
+
+
+/**
+  Add foreign keys to dd::Table according to Foreign_key_spec structs.
+
+  @param tab_obj      table to add foreign keys to
+  @param key_count    number of foreign keys
+  @param keyinfo      array containing foreign key info
+
+  @retval true if error (error reported), false otherwise.
+*/
+
+static bool fill_dd_foreign_keys_from_create_fields(dd::Table *tab_obj,
+                                                    uint key_count,
+                                                    const FOREIGN_KEY *keyinfo)
+{
+  DBUG_ENTER("dd::fill_dd_foreign_keys_from_create_fields");
+  for (const FOREIGN_KEY *key= keyinfo; key != keyinfo + key_count; ++key)
+  {
+    dd::Foreign_key *fk_obj= tab_obj->add_foreign_key();
+
+    fk_obj->set_name(key->name);
+
+    const dd::Index *matching_idx= find_fk_unique_constraint(tab_obj, keyinfo);
+    if (matching_idx == nullptr)
+      DBUG_RETURN(true);
+    fk_obj->set_unique_constraint(matching_idx);
+
+    switch (key->match_opt)
+    {
+    case FK_MATCH_FULL:
+      fk_obj->set_match_option(dd::Foreign_key::OPTION_FULL);
+      break;
+    case FK_MATCH_PARTIAL:
+      fk_obj->set_match_option(dd::Foreign_key::OPTION_PARTIAL);
+      break;
+    case FK_MATCH_SIMPLE:
+    case FK_MATCH_UNDEF:
+    default:
+      fk_obj->set_match_option(dd::Foreign_key::OPTION_NONE);
+      break;
+    }
+
+    fk_obj->set_update_rule(get_fk_rule(key->update_opt));
+
+    fk_obj->set_delete_rule(get_fk_rule(key->delete_opt));
+
+    fk_obj->referenced_table_catalog_name(
+      Dictionary_impl::instance()->default_catalog_name());
+
+    fk_obj->referenced_table_schema_name(std::string(key->ref_db.str,
+                                                     key->ref_db.length));
+
+    fk_obj->referenced_table_name(std::string(key->ref_table.str,
+                                              key->ref_table.length));
+
+    for (uint i= 0; i < key->key_parts; i++)
+    {
+      dd::Foreign_key_element *fk_col_obj= fk_obj->add_element();
+
+      fk_col_obj->set_ordinal_position(i);
+
+      const dd::Column *column=
+        tab_obj->get_column(std::string(key->key_part[i].str,
+                                        key->key_part[i].length));
+
+      DBUG_ASSERT(column);
+      fk_col_obj->set_column(column);
+
+      fk_col_obj->referenced_column_name(
+        std::string(key->fk_key_part[i].str, key->fk_key_part[i].length));
+    }
+
+  }
+
+  DBUG_RETURN(false);
+};
+
+
+/**
   Set dd::Tablespace object id for dd::Table and dd::Partition
   object during CREATE TABLE.
 
@@ -1234,6 +1394,8 @@ static bool fill_dd_table_from_create_info(THD *thd,
                                            const List<Create_field> &create_fields,
                                            const KEY *keyinfo,
                                            uint keys,
+                                           const FOREIGN_KEY *fk_keyinfo,
+                                           uint fk_keys,
                                            handler *file)
 {
   // Table name must be set with the correct case depending on l_c_t_n
@@ -1405,6 +1567,14 @@ static bool fill_dd_table_from_create_info(THD *thd,
   // Add index definitions
   fill_dd_indexes_from_keyinfo(tab_obj, keys, keyinfo);
 
+  // Only add foreign key definitions for engines that support it.
+  if (ha_check_storage_engine_flag(create_info->db_type,
+                                   HTON_SUPPORTS_FOREIGN_KEYS))
+  {
+    if (fill_dd_foreign_keys_from_create_fields(tab_obj, fk_keys, fk_keyinfo))
+      return true;
+  }
+
   // Add tablespace definition.
   if (fill_dd_tablespace_id_or_name<dd::Table>(
                               thd,
@@ -1429,6 +1599,8 @@ static bool create_dd_system_table(THD *thd,
                                    const List<Create_field> &create_fields,
                                    const KEY *keyinfo,
                                    uint keys,
+                                   const FOREIGN_KEY *fk_keyinfo,
+                                   uint fk_keys,
                                    handler *file,
                                    const dd::Object_table &dd_table)
 {
@@ -1453,7 +1625,7 @@ static bool create_dd_system_table(THD *thd,
 
   if (fill_dd_table_from_create_info(thd, tab_obj, table_name,
                                      create_info, create_fields,
-                                     keyinfo, keys, file))
+                                     keyinfo, keys, fk_keyinfo, fk_keys, file))
     return true;
 
   // Get the se private data for the DD table
@@ -1474,6 +1646,8 @@ static bool create_dd_user_table(THD *thd,
                                  const List<Create_field> &create_fields,
                                  const KEY *keyinfo,
                                  uint keys,
+                                 const FOREIGN_KEY *fk_keyinfo,
+                                 uint fk_keys,
                                  handler *file)
 {
   // Verify that this is not a dd table.
@@ -1503,7 +1677,7 @@ static bool create_dd_user_table(THD *thd,
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
-                                     keyinfo, keys, file))
+                                     keyinfo, keys, fk_keyinfo, fk_keys, file))
     return true;
 
   Disable_gtid_state_update_guard disabler(thd);
@@ -1530,6 +1704,8 @@ bool create_table(THD *thd,
                   const List<Create_field> &create_fields,
                   const KEY *keyinfo,
                   uint keys,
+                  const FOREIGN_KEY *fk_keyinfo,
+                  uint fk_keys,
                   handler *file)
 {
   dd::Dictionary *dict= dd::get_dictionary();
@@ -1537,9 +1713,11 @@ bool create_table(THD *thd,
 
   return dd_table ?
     create_dd_system_table(thd, table_name, create_info, create_fields,
-                           keyinfo, keys, file, *dd_table) :
+                           keyinfo, keys, fk_keyinfo, fk_keys,
+                           file, *dd_table) :
     create_dd_user_table(thd, schema_name, table_name, create_info,
-                         create_fields, keyinfo, keys, file);
+                         create_fields, keyinfo, keys, fk_keyinfo,
+                         fk_keys, file);
 }
 
 
@@ -1575,10 +1753,35 @@ dd::Table *create_tmp_table(THD *thd,
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
-                                     keyinfo, keys, file))
+                                     keyinfo, keys, NULL, 0, file))
     return NULL;
 
   return tab_obj.release();
+}
+
+
+bool add_foreign_keys(THD *thd,
+                      const std::string &schema_name,
+                      const std::string &table_name,
+                      const FOREIGN_KEY *fk_keyinfo, uint fk_keys)
+{
+  DBUG_ENTER("dd::add_foreign_keys");
+  dd::cache::Dictionary_client *client= thd->dd_client();
+  dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+  const dd::Table *const_table= nullptr;
+  if (client->acquire<dd::Table>(schema_name, table_name, &const_table))
+    DBUG_RETURN(true);
+
+  std::unique_ptr<dd::Table> table(const_table->clone());
+
+  if (fill_dd_foreign_keys_from_create_fields(table.get(), fk_keys, fk_keyinfo))
+    DBUG_RETURN(true);
+
+  if (client->update(&const_table, table.get()))
+    DBUG_RETURN(true);
+
+  DBUG_RETURN(false);
 }
 
 

@@ -25,6 +25,7 @@
 #include "binary_log_types.h" // enum_field_types
 
 class Create_field;
+class FOREIGN_KEY;
 class Item;
 class Key_spec;
 class String;
@@ -450,6 +451,15 @@ public:
   const char   *new_name;
   const char   *new_alias;
   char         tmp_name[80];
+
+  /*
+    Used to temporarily store pre-existing foreign keys during ALTER TABLE
+    These FKs can't be part of the temporary table as they will then cause
+    the unique name constraint to be violated. The FKs will be added back
+    to the table at the end of ALTER TABLE.
+  */
+  FOREIGN_KEY  *fk_info;
+  uint         fk_count;
 
 private:
   char new_filename[FN_REFLEN + 1];

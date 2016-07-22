@@ -109,7 +109,7 @@ test/fk_1	a2	b	0
 ALTER TABLE child ADD CONSTRAINT fk_1 FOREIGN KEY (a2)
 REFERENCES parent(b) ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-ERROR HY000: Duplicate foreign key constraint name 'test/fk_1'
+ERROR HY000: Duplicate foreign key constraint name 'fk_1'
 SET foreign_key_checks = 1;
 INSERT INTO child VALUES(1,2),(2,3);
 INSERT INTO child VALUES(4,4);
@@ -2262,7 +2262,7 @@ CREATE INDEX idx ON t3(a);
 ALTER TABLE `t2` ADD CONSTRAINT `fw` FOREIGN KEY (`c`) REFERENCES t3 (a);
 ALTER TABLE `t2` ADD CONSTRAINT `e` foreign key (`d`) REFERENCES t3(a);
 ALTER TABLE `t3` ADD CONSTRAINT `e` foreign key (`c`) REFERENCES `t2`(`c`) ON UPDATE SET NULL;
-ERROR HY000: Failed to add the foreign key constraint 'test/e' to system tables
+ERROR HY000: Duplicate foreign key constraint name 'e'
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0

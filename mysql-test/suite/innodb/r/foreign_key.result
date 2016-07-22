@@ -6,14 +6,14 @@ create table t1 (f1 int primary key) engine=InnoDB;
 create table t2 (f1 int primary key,
 constraint c1 foreign key (f1) references t1(f1),
 constraint c1 foreign key (f1) references t1(f1)) engine=InnoDB;
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Duplicate foreign key constraint name 'c1'
 create table t2 (f1 int primary key,
 constraint c1 foreign key (f1) references t1(f1)) engine=innodb;
 alter table t2 add constraint c1 foreign key (f1) references t1(f1);
-ERROR 23000: Can't write; duplicate key in table '#sql-temporary'
+ERROR HY000: Duplicate foreign key constraint name 'c1'
 set foreign_key_checks = 0;
 alter table t2 add constraint c1 foreign key (f1) references t1(f1);
-ERROR HY000: Duplicate foreign key constraint name 'test/c1'
+ERROR HY000: Duplicate foreign key constraint name 'c1'
 drop table t2, t1;
 #
 # Bug #20031243 CREATE TABLE FAILS TO CHECK IF FOREIGN KEY COLUMN

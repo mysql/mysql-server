@@ -16,6 +16,7 @@
 #include "dd/impl/types/foreign_key_impl.h"
 
 #include "mysqld_error.h"                            // ER_*
+#include "error_handler.h"                           // Internal_error_handler
 
 #include "dd/properties.h"                           // Needed for destructor
 #include "dd/impl/sdi_impl.h"                        // sdi read/write functions
@@ -57,8 +58,6 @@ const Object_type &Foreign_key::TYPE()
 // Foreign_key_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-// Foreign keys not supported in the Global DD yet
-/* purecov: begin deadcode */
 Foreign_key_impl::Foreign_key_impl()
  :m_match_option(OPTION_NONE),
   m_update_rule(RULE_NO_ACTION),
@@ -87,6 +86,46 @@ const Table &Foreign_key_impl::table() const
 Table &Foreign_key_impl::table()
 {
   return *m_table;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+class Foreign_key_name_error_handler : public Internal_error_handler
+{
+  const char *name;
+public:
+  Foreign_key_name_error_handler(const char *name_arg)
+    : name(name_arg)
+  { }
+
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    if (sql_errno == ER_DUP_ENTRY)
+    {
+      my_error(ER_FK_DUP_NAME, MYF(0), name);
+      return true;
+    }
+    return false;
+  }
+};
+
+
+bool Foreign_key_impl::store(Open_dictionary_tables_ctx *otx)
+{
+  /*
+    Translate ER_DUP_ENTRY errors to the more user-friendly ER_FK_DUP_NAME.
+    We should not report ER_DUP_ENTRY in any other cases (that would be
+    a code bug).
+  */
+  Foreign_key_name_error_handler error_handler(name().c_str());
+  otx->get_thd()->push_internal_handler(&error_handler);
+  bool error= Weak_object_impl::store(otx);
+  otx->get_thd()->pop_internal_handler();
+  return error;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -179,13 +218,17 @@ bool Foreign_key_impl::restore_attributes(const Raw_record &r)
   restore_id(r, Foreign_keys::FIELD_ID);
   restore_name(r, Foreign_keys::FIELD_NAME);
 
+  m_unique_constraint=
+    m_table->get_index(
+      r.read_ref_id(Foreign_keys::FIELD_UNIQUE_CONSTRAINT_ID));
+
   m_match_option= (enum_match_option) r.read_int(Foreign_keys::FIELD_MATCH_OPTION);
   m_update_rule= (enum_rule)          r.read_int(Foreign_keys::FIELD_UPDATE_RULE);
   m_delete_rule= (enum_rule)          r.read_int(Foreign_keys::FIELD_DELETE_RULE);
 
-  m_unique_constraint=
-    m_table->get_index(
-      r.read_ref_id(Foreign_keys::FIELD_UNIQUE_CONSTRAINT_ID));
+  m_referenced_table_catalog_name= r.read_str(Foreign_keys::FIELD_REFERENCED_CATALOG);
+  m_referenced_table_schema_name=  r.read_str(Foreign_keys::FIELD_REFERENCED_SCHEMA);
+  m_referenced_table_name=         r.read_str(Foreign_keys::FIELD_REFERENCED_TABLE);
 
   return (m_unique_constraint == NULL);
 }
@@ -195,14 +238,17 @@ bool Foreign_key_impl::restore_attributes(const Raw_record &r)
 bool Foreign_key_impl::store_attributes(Raw_record *r)
 {
   return store_id(r, Foreign_keys::FIELD_ID) ||
-         store_name(r, Foreign_keys::FIELD_NAME) ||
-         r->store(Foreign_keys::FIELD_TABLE_ID, m_table->id()) ||
-         r->store(Foreign_keys::FIELD_UNIQUE_CONSTRAINT_ID, m_unique_constraint->id()) ||
-         r->store(Foreign_keys::FIELD_MATCH_OPTION, m_match_option) ||
-         r->store(Foreign_keys::FIELD_UPDATE_RULE, m_update_rule) ||
-         r->store(Foreign_keys::FIELD_DELETE_RULE, m_delete_rule);
+    r->store(Foreign_keys::FIELD_SCHEMA_ID, m_table->schema_id()) ||
+    r->store(Foreign_keys::FIELD_TABLE_ID, m_table->id()) ||
+    store_name(r, Foreign_keys::FIELD_NAME) ||
+    r->store(Foreign_keys::FIELD_UNIQUE_CONSTRAINT_ID, m_unique_constraint->id()) ||
+    r->store(Foreign_keys::FIELD_MATCH_OPTION, m_match_option) ||
+    r->store(Foreign_keys::FIELD_UPDATE_RULE, m_update_rule) ||
+    r->store(Foreign_keys::FIELD_DELETE_RULE, m_delete_rule) ||
+    r->store(Foreign_keys::FIELD_REFERENCED_CATALOG, m_referenced_table_catalog_name) ||
+    r->store(Foreign_keys::FIELD_REFERENCED_SCHEMA, m_referenced_table_schema_name) ||
+    r->store(Foreign_keys::FIELD_REFERENCED_TABLE, m_referenced_table_name);
 }
-/* purecov: end */
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -280,7 +326,6 @@ void Foreign_key_impl::debug_print(std::string &outb) const
 
 /////////////////////////////////////////////////////////////////////////
 
-/* purecov: begin deadcode */
 Foreign_key_element *Foreign_key_impl::add_element()
 {
   Foreign_key_element_impl *e= new (std::nothrow) Foreign_key_element_impl(this);
@@ -301,7 +346,7 @@ Foreign_key_impl *Foreign_key_impl::clone(const Foreign_key_impl &other,
 
 Foreign_key_impl::Foreign_key_impl(const Foreign_key_impl &src,
                                    Table_impl *parent,
-                                   Index *unique_constraint)
+                                   const Index *unique_constraint)
   : Weak_object(src), Entity_object_impl(src),
     m_match_option(src.m_match_option), m_update_rule(src.m_update_rule),
     m_delete_rule(src.m_delete_rule),
@@ -314,7 +359,6 @@ Foreign_key_impl::Foreign_key_impl(const Foreign_key_impl &src,
 {
   m_elements.deep_copy(src.m_elements, this);
 }
-/* purecov: end */
 
 ///////////////////////////////////////////////////////////////////////////
 // Foreign_key_type implementation.

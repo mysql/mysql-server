@@ -533,10 +533,10 @@ t4	CREATE TABLE `t4` (
   CONSTRAINT `dc` FOREIGN KEY (`a`) REFERENCES `t1` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t3 add constraint dc foreign key (a) references t1(a);
-ERROR 23000: Can't write; duplicate key in table '#sql-temporary'
+ERROR HY000: Duplicate foreign key constraint name 'dc'
 SET FOREIGN_KEY_CHECKS=0;
 alter table t3 add constraint dc foreign key (a) references t1(a);
-ERROR HY000: Failed to add the foreign key constraint 'test/dc' to system tables
+ERROR HY000: Duplicate foreign key constraint name 'dc'
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 show create table t3;
 Table	Create Table
