@@ -12696,7 +12696,7 @@ create_table_info_t::create_table_update_global_dd(
 	/* This should be replaced by some convert function, and table
 	can be cached in this class */
 	dict_table_t*	table = dict_table_open_on_name(
-		m_table_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+		m_table_name, TRUE, FALSE, DICT_ERR_IGNORE_NONE);
 	ut_ad(table != NULL);
 
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(m_thd);
@@ -12720,7 +12720,7 @@ create_table_info_t::create_table_update_global_dd(
 
 		if (dd::acquire_exclusive_tablespace_mdl(
 			    m_thd, dd_space->name().c_str(), true)) {
-			dict_table_close(table, false, false);
+			dict_table_close(table, TRUE, FALSE);
 			DBUG_RETURN(HA_ERR_GENERIC);
 		}
 
@@ -12746,13 +12746,13 @@ create_table_info_t::create_table_update_global_dd(
 		const dd::Tablespace*	index_space = NULL;
 		if (client->acquire<dd::Tablespace>(
 			    table->space, &index_space)) {
-			dict_table_close(table, false, false);
+			dict_table_close(table, TRUE, FALSE);
 			DBUG_RETURN(HA_ERR_GENERIC);
 		}
 
 		uint32	id;
 		if (index_space == NULL) {
-			dict_table_close(table, false, false);
+			dict_table_close(table, TRUE, FALSE);
 			my_error(ER_TABLESPACE_MISSING, MYF(0),
 				 table->name.m_name);
 			DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
@@ -12760,7 +12760,7 @@ create_table_info_t::create_table_update_global_dd(
 				    "id", &id)
 			   || id != table->space) {
 			ut_ad(!"missing or incorrect tablespace id");
-			dict_table_close(table, false, false);
+			dict_table_close(table, TRUE, FALSE);
 			DBUG_RETURN(HA_ERR_GENERIC);
 		}
 	}
@@ -12817,7 +12817,7 @@ create_table_info_t::create_table_update_global_dd(
 	const dict_index_t* index = table->first_index();
 
 	for (auto dd_index : *dd_table->indexes()) {
-		ut_ad(index != nullptr);
+		ut_ad(index != NULL);
 
 		dd_index->set_tablespace_id(dd_space_id);
 
@@ -12830,7 +12830,7 @@ create_table_info_t::create_table_update_global_dd(
 		index = index->next();
 	}
 
-	dict_table_close(table, false, false);
+	dict_table_close(table, TRUE, FALSE);
 
 	DBUG_RETURN(0);
 }
