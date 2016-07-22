@@ -46,11 +46,6 @@ COUNT(*)
 ########## setup (PART I)
 ##########
 include/rpl_reset.inc
-call mtr.add_suppression("Did not write failed .* into binary log while "
-                         "storing routine level grants in the privilege "
-                         "tables.");
-call mtr.add_suppression("Did not write failed .* into binary log while "
-                         "revoking all_privileges from a list of users.");
 CREATE DATABASE b54866 ;
 use b54866;
 CREATE TABLE t1 ( c1 INT, c2 INT, c3 INT );

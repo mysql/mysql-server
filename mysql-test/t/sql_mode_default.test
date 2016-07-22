@@ -8,8 +8,6 @@
 
 --source include/not_embedded.inc
 
-call mtr.add_suppression("Did not write failed .* into binary log while "
-                         "granting/revoking privileges in databases.");
 call mtr.add_suppression(" *NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should .*");
 
 SET sql_mode = default;

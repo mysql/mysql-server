@@ -3,11 +3,6 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-call mtr.add_suppression("Did not write failed .* into binary log while "
-                         "revoking all_privileges from a list of users.");
-call mtr.add_suppression("Did not write failed .* into binary log while "
-                         "storing routine level grants in the privilege "
-                         "tables.");
 call mtr.add_suppression("REVOKE/GRANT failed while storing routine level "
                          "grants in the privilege tables. An incident event "
                          "has been written to the binary log which will "

@@ -2809,8 +2809,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     additional privileges on the slave).
     Before ACLs are changed to execute fully or none at all, when
     some error happens, write an incident if one or more users are
-    granted/revoked successfully (it has a partial execution), a
-    warning if no user is granted/revoked successfully.
+    granted/revoked successfully (it has a partial execution).
   */
   if (result)
   {
@@ -2823,10 +2822,6 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
         mysql_bin_log.write_incident(thd, true /* need_lock_log=true */,
                                      err_msg);
       }
-      else
-        sql_print_warning("Did not write failed '%s' into binary log while "
-                          "storing table level and column level grants in "
-                          "the privilege tables.", thd->query().str);
     }
   }
   else
@@ -3066,8 +3061,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     /*
       Before ACLs are changed to execute fully or none at all, when
       some error happens, write an incident if one or more users are
-      granted/revoked successfully (it has a partial execution), a
-      warning if no user is granted/revoked successfully.
+      granted/revoked successfully (it has a partial execution).
     */
     if (result)
     {
@@ -3080,10 +3074,6 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
           mysql_bin_log.write_incident(thd, true /* need_lock_log=true */,
                                        err_msg);
         }
-        else
-          sql_print_warning("Did not write failed '%s' into binary log while "
-                            "storing routine level grants in the privilege "
-                            "tables.", thd->query().str);
       }
     }
     else
@@ -3537,8 +3527,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   /*
     Before ACLs are changed to execute fully or none at all, when
     some error happens, write an incident if one or more users are
-    granted/revoked successfully (it has a partial execution), a
-    warning if no user is granted/revoked successfully.
+    granted/revoked successfully (it has a partial execution).
   */
   if (result)
   {
@@ -3551,10 +3540,6 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
         mysql_bin_log.write_incident(thd, true /* need_lock_log=true */,
                                      err_msg);
       }
-      else
-        sql_print_warning("Did not write failed '%s' into binary log while "
-                          "granting/revoking privileges in databases.",
-                          thd->query().str);
     }
   }
   else
@@ -5159,8 +5144,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   /*
     Before ACLs are changed to execute fully or none at all, when
     some error happens, write an incident if one or more users are
-    revoked successfully (it has a partial execution), a warning
-    if no user is granted/revoked successfully.
+    revoked successfully (it has a partial execution).
   */
   if (result)
   {
@@ -5174,10 +5158,6 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
         mysql_bin_log.write_incident(thd, true /* need_lock_log=true */,
                                      err_msg);
       }
-      else
-        sql_print_warning("Did not write failed '%s' into binary log while "
-                          "revoking all_privileges from a list of users.",
-                          thd->query().str);
     }
   }
   else

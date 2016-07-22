@@ -31,8 +31,6 @@
 # Make sure the test is repeatable
 RESET MASTER;
 
-call mtr.add_suppression("Did not write failed .* into binary log while storing table level and column level grants in the privilege tables.");
-
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 
 --replace_result $master_uuid MASTER_UUID
