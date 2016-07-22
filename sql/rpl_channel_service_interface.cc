@@ -274,7 +274,8 @@ int channel_create(const char* channel,
   if (channel_info->auto_position)
   {
     lex_mi->auto_position= LEX_MASTER_INFO::LEX_MI_ENABLE;
-    if (mi && mi->is_auto_position())
+    if ((mi && mi->is_auto_position()) ||
+        channel_info->auto_position == RPL_SERVICE_SERVER_DEFAULT)
     {
       //So change master allows new configurations with a running SQL thread
       lex_mi->auto_position= LEX_MASTER_INFO::LEX_MI_UNCHANGED;
