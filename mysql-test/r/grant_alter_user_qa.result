@@ -1,10 +1,6 @@
 #
 # WL#6409: CREATE/ALTER USER
 #
-call mtr.add_suppression("Did not write failed .* into binary log while "
-                         "granting/revoking privileges in databases.");
-call mtr.add_suppression("Did not write failed .* into binary log while "
-                         "storing table level and column level grants in the privilege tables.");
 call mtr.add_suppression("\\[Warning\\] Server shutdown in progress");
 # CREATE USER
 
@@ -2100,7 +2096,6 @@ DROP USER u1;
 
 Bug #20364862 MYSQLADMIN PASSWORD AFFECTS EXTERNAL AUTH ACCOUNTS
 
-call mtr.add_suppression("Did not write failed");
 CREATE USER bug20364862_user@localhost IDENTIFIED WITH test_plugin_server AS 'bug20364862_dest';
 CREATE USER bug20364862_dest@localhost IDENTIFIED BY 'dest_password';
 GRANT PROXY ON bug20364862_dest@localhost TO bug20364862_user@localhost;
