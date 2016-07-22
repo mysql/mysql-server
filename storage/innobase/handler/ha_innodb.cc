@@ -12696,7 +12696,7 @@ create_table_info_t::create_table_update_global_dd(
 	/* This should be replaced by some convert function, and table
 	can be cached in this class */
 	dict_table_t*	table = dict_table_open_on_name(
-		m_table_name, TRUE, FALSE, DICT_ERR_IGNORE_NONE);
+		m_table_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 	ut_ad(table != NULL);
 
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(m_thd);
@@ -12720,7 +12720,7 @@ create_table_info_t::create_table_update_global_dd(
 
 		if (dd::acquire_exclusive_tablespace_mdl(
 			    m_thd, dd_space->name().c_str(), true)) {
-			dict_table_close(table, TRUE, FALSE);
+			dict_table_close(table, FALSE, FALSE);
 			DBUG_RETURN(HA_ERR_GENERIC);
 		}
 
@@ -12746,13 +12746,13 @@ create_table_info_t::create_table_update_global_dd(
 		const dd::Tablespace*	index_space = NULL;
 		if (client->acquire<dd::Tablespace>(
 			    table->space, &index_space)) {
-			dict_table_close(table, TRUE, FALSE);
+			dict_table_close(table, FALSE, FALSE);
 			DBUG_RETURN(HA_ERR_GENERIC);
 		}
 
 		uint32	id;
 		if (index_space == NULL) {
-			dict_table_close(table, TRUE, FALSE);
+			dict_table_close(table, FALSE, FALSE);
 			my_error(ER_TABLESPACE_MISSING, MYF(0),
 				 table->name.m_name);
 			DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
@@ -12760,7 +12760,7 @@ create_table_info_t::create_table_update_global_dd(
 				    "id", &id)
 			   || id != table->space) {
 			ut_ad(!"missing or incorrect tablespace id");
-			dict_table_close(table, TRUE, FALSE);
+			dict_table_close(table, FALSE, FALSE);
 			DBUG_RETURN(HA_ERR_GENERIC);
 		}
 	}
@@ -12822,7 +12822,6 @@ create_table_info_t::create_table_update_global_dd(
 		dd_index->set_tablespace_id(dd_space_id);
 
 		dd::Properties& p = dd_index->se_private_data();
-		ut_ad(p.empty());
 		p.set_uint64("id", index->id);
 		p.set_uint32("root", index->page);
 		p.set_uint64("trx_id", index->trx_id);
@@ -12830,7 +12829,7 @@ create_table_info_t::create_table_update_global_dd(
 		index = index->next();
 	}
 
-	dict_table_close(table, TRUE, FALSE);
+	dict_table_close(table, FALSE, FALSE);
 
 	DBUG_RETURN(0);
 }
@@ -13300,10 +13299,6 @@ ha_innobase::create(
 		goto cleanup;
 	}
 
-	if ((error = info.create_table_update_global_dd(dd_table))) {
-		goto cleanup;
-	}
-
 	innobase_commit_low(trx);
 
 	if (!info.is_intrinsic_temp_table()) {
@@ -13313,6 +13308,10 @@ ha_innobase::create(
 		the InnoDB data dictionary get out-of-sync if the user runs
 		with innodb_flush_log_at_trx_commit = 0 */
 		log_buffer_flush_to_disk();
+	}
+
+	if ((error = info.create_table_update_global_dd(dd_table))) {
+		goto cleanup;
 	}
 
 	error = info.create_table_update_dict();
