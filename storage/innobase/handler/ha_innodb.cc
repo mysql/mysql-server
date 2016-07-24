@@ -11540,7 +11540,35 @@ static const innodb_dd_table_t innodb_dd_table[] = {
         INNODB_DD_TABLE("parameters", 3),
         INNODB_DD_TABLE("parameter_type_elements", 1),
 	INNODB_DD_TABLE("innodb_table_stats", 1),
-	INNODB_DD_TABLE("innodb_index_stats", 1)
+	INNODB_DD_TABLE("innodb_index_stats", 1),
+	INNODB_DD_TABLE("triggers", 1),
+	INNODB_DD_TABLE("db", 1),
+	INNODB_DD_TABLE("user", 1),
+	INNODB_DD_TABLE("func", 1),
+	INNODB_DD_TABLE("plugin", 1),
+	INNODB_DD_TABLE("servers", 1),
+	INNODB_DD_TABLE("tables_priv", 1),
+	INNODB_DD_TABLE("columns_priv", 1),
+	INNODB_DD_TABLE("help_topic", 1),
+	INNODB_DD_TABLE("help_category", 1),
+	INNODB_DD_TABLE("help_relation", 1),
+	INNODB_DD_TABLE("help_keyword", 1),
+	INNODB_DD_TABLE("time_zone_name", 1),
+	INNODB_DD_TABLE("time_zone", 1),
+	INNODB_DD_TABLE("time_zone_transition", 1),
+	INNODB_DD_TABLE("time_zone_transition_type", 1),
+	INNODB_DD_TABLE("time_zone_leap_second", 1),
+	INNODB_DD_TABLE("procs_priv", 1),
+	INNODB_DD_TABLE("component", 1),
+	INNODB_DD_TABLE("slave_relay_log_info", 1),
+	INNODB_DD_TABLE("slave_master_info", 1),
+	INNODB_DD_TABLE("slave_worker_info", 1),
+	INNODB_DD_TABLE("gtid_executed", 1),
+	INNODB_DD_TABLE("server_cost", 1),
+	INNODB_DD_TABLE("engine_cost", 1),
+	INNODB_DD_TABLE("column_stats", 1),
+	INNODB_DD_TABLE("proxies_priv", 1),
+	INNODB_DD_TABLE("sys_config", 1),
 };
 
 /** Number of hard-coded data dictionary tables */
@@ -12693,6 +12721,14 @@ create_table_info_t::create_table_update_global_dd(
 		DBUG_RETURN(0);
 	}
 
+	bool	is_dd_table = false;
+        for (uint i = 0; i < innodb_dd_table_size; ++i) {
+                if (dd_table->name() == innodb_dd_table[i].name) {
+                        is_dd_table = true;
+			break;
+                }
+        }
+
 	/* This should be replaced by some convert function, and table
 	can be cached in this class */
 	dict_table_t*	table = dict_table_open_on_name(
@@ -12713,6 +12749,7 @@ create_table_info_t::create_table_update_global_dd(
 	dd::Object_id	space_id = dd_table->tablespace_id();
 
 	if ((space_id == dd::INVALID_OBJECT_ID
+	     && !is_dd_table
 	     && dict_table_is_file_per_table(table))
 	    || space_id == static_cast<dd::Object_id>(3)) {
 		/* This means user table and file_per_table */
@@ -12734,7 +12771,7 @@ create_table_info_t::create_table_update_global_dd(
 		dd::Tablespace_file*	dd_file = dd_space->add_file();
 		dd_file->set_filename(path);
 		client->store(dd_space.get());
-	} else {
+	} else if (!is_dd_table) {
 		/* This could be a data dictionary table, a table residing in
 		innodb_system and a table not of file_per_table.
 		Check if the tablespace exists */
@@ -12808,7 +12845,8 @@ create_table_info_t::create_table_update_global_dd(
 
 	dd::Object_id	dd_space_id = dd_space.get()->id();
 
-	if (dd_table->tablespace_id() == dd::INVALID_OBJECT_ID) {
+	if (dd_table->tablespace_id() == dd::INVALID_OBJECT_ID
+	    && !is_dd_table) {
 		dd_table->set_tablespace_id(dd_space_id);
 	}
 

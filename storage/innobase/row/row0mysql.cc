@@ -3023,7 +3023,7 @@ row_create_table_for_mysql(
 	que_run_threads(thr);
 
 	err = trx->error_state;
-#if 0
+//#if 0
 	/* Update SYS_TABLESPACES and SYS_DATAFILES if a new file-per-table
 	tablespace was created. */
 	if (err == DB_SUCCESS && dict_table_is_file_per_table(table)) {
@@ -3076,7 +3076,7 @@ row_create_table_for_mysql(
 			settings. */
 		}
 	}
-#endif
+//#endif
 	switch (err) {
 	case DB_SUCCESS:
 	case DB_IO_NO_PUNCH_HOLE_FS:

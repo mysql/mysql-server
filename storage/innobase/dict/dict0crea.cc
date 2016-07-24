@@ -1284,7 +1284,11 @@ dict_create_table_step(
 			goto function_exit;
 		}
 
-		node->state = TABLE_ADD_TO_CACHE;
+		node->state = TABLE_BUILD_COL_DEF;
+		node->col_no = 0;
+		thr->run_node = node->tab_def;
+
+		//node->state = TABLE_ADD_TO_CACHE;
 
 		return(thr);
 	}
@@ -1414,7 +1418,11 @@ dict_create_index_step(
 			goto function_exit;
 		}
 
-		node->state = INDEX_ADD_TO_CACHE;
+		node->state = INDEX_BUILD_FIELD_DEF;
+		node->field_no = 0;
+		thr->run_node = node->ind_def;
+
+		//node->state = INDEX_ADD_TO_CACHE;
 
 		return(thr);
 	}
