@@ -993,6 +993,26 @@ bool do_command(THD *thd)
   /* Restore read timeout value */
   if (classic)
     my_net_set_read_timeout(net, thd->variables.net_read_timeout);
+/*
+if(command == COM_QUERY) { 
+  WarpCursor* stmt;
+  WarpRow* row;
+
+  if(my_query(thd,"host,user","select host,user from mysql.user", &stmt)) {
+    int rownum = 0;
+    if(stmt) {
+      while((row = stmt->next()))  { 
+        ++rownum;
+        printf("ROWNUM: %d\n", rownum);
+        row->print();
+        printf("BY KEY: %s\n", row->at("user").c_str());
+        printf("BY ORD: %s\n", (row->at(0)).c_str());
+      }      
+    }
+  }
+
+}
+*/
 
   return_value= dispatch_command(thd, &com_data, command);
   thd->get_protocol_classic()->get_packet()->shrink(
@@ -7190,3 +7210,210 @@ merge_charset_and_collation(const CHARSET_INFO *cs, const CHARSET_INFO *cl)
   }
   return cs;
 }
+
+class SQLRow
+{
+  private:
+  std::vector<std::string> row;
+  std::vector<std::string> meta;
+  public:
+  SQLRow(std::vector<std::string> meta, const char* data, unsigned long long data_len) 
+  {
+    //printf("::%s\n", data);
+    std::string tmp = "";
+    bool in_escape = false;
+    unsigned long long i;
+    for(i = 0;i<data_len;++i)
+    {
+      if(!in_escape)
+      {
+        switch(data[i])
+        {
+          case '\\':
+            in_escape = true;
+            continue;
+          case '|':
+            row.push_back(tmp);
+            tmp = "";
+          break;
+
+          case '"':
+            continue;
+
+          break;
+
+          default:
+            tmp += data[i];
+        }
+      } else {
+        tmp += data[i];
+        in_escape = false;
+      }
+    }
+    if(tmp != "")
+    { row.push_back(tmp); }
+    this->meta = meta;
+  }
+
+  const std::string at(const std::string name)
+  {
+    std::vector<std::string>::iterator it;
+    int i = 0;
+    for(it=meta.begin(); it< meta.end(); it++)
+    {
+      if(name == *it)
+      { return row[i]; }
+      ++i;
+    }
+
+    return "";
+  }
+
+  const std::string at(const unsigned int num)
+  { 
+    return row[num];
+  }
+
+  const std::vector<std::string> get_row()
+  { return row; }
+
+  void print() 
+  {
+    for(unsigned int i=0;i<row.size();++i) {
+      printf("%d=%s\n",i,(row[i]).c_str());
+    }
+  }
+
+};
+
+class SQLCursor
+{
+  char *data;
+  unsigned long long data_len;
+  unsigned long long offset;
+  SQLRow* cur_row;
+
+  std::vector<std::string> meta;
+
+  public:
+  SQLCursor(const char* cols, long long col_len, const char* buf, unsigned long long buf_len ) {
+    data = (char*)malloc(buf_len+1);
+    memset(data,0,buf_len+1);
+    memcpy(data, buf, buf_len);
+    data_len = buf_len;
+    offset = 0;
+    /*
+    printf("DATA:\n%s\n---\n", data);
+    printf("DATA_LEN: %d\n", data_len);
+    printf("OFFSET: %d\n", offset);
+    printf("COLS: %s\n", cols);
+    */
+
+    /* populate the list of columns for the resultset */
+    std::string tmp;
+    for(int i=0;i<col_len;++i) {
+      if(cols[i] != ',')
+      { tmp += cols[i];
+      } else
+      { meta.push_back(tmp);
+        tmp = "";
+      }
+    }
+    if(tmp != "") {
+      meta.push_back(tmp);
+    }
+
+    cur_row = NULL;
+  }
+
+  void reset() {
+    offset = 0;
+  }
+
+  SQLRow* next() 
+  { /*
+    printf("\nNEXT\nDATA:\n%s\n", data);
+    printf("DATA_LEN: %d\n", data_len);
+    printf("OFFSET: %d\n", offset);
+    */
+    if(cur_row != NULL) delete cur_row;
+    cur_row = NULL;
+
+    std::string tmp = "";
+    char c=0;
+    while(offset < data_len) 
+    { //printf("%d\n", data[offset]);
+      if((c = data[offset++]) != '\n') 
+      { 
+        tmp += c;
+      } else {
+        break;
+      } 
+    }
+    if(tmp != "") 
+    {
+      cur_row = new SQLRow(meta, tmp.c_str(), tmp.length());
+      //cur_row->print();
+    }
+    //printf("NEW OFFSET: %d\n", offset);
+    return cur_row;
+  }
+
+  ~SQLCursor() {
+    if(cur_row != NULL) delete cur_row;
+    if(data_len>0) free(data);
+  }
+
+
+};
+
+class SQLClient {
+  THD* conn;
+  SQLClient(THD *thd) : conn(thd) {}
+
+  static bool query(THD* conn, std::string columns, std::string query, SQLCursor** cursor) 
+  { 
+    Protocol_classic *protocol= conn->get_protocol_classic();
+    Vio* save_vio;
+    ulong save_client_capabilities;
+    COM_DATA com_data;
+  
+    std::string marshal_sql = std::string("CALL sys.sql_client('") + columns + "','" + query + "');";
+    save_client_capabilities= protocol->get_client_capabilities();
+    protocol->add_client_capability(CLIENT_MULTI_QUERIES);
+    save_vio= protocol->get_vio();
+    protocol->set_vio(NULL);
+  
+    protocol->create_command(&com_data, COM_QUERY, (uchar*)marshal_sql.c_str(), marshal_sql.length());
+    dispatch_command(conn, &com_data, COM_QUERY);
+    protocol->set_client_capabilities(save_client_capabilities);
+    protocol->set_vio(save_vio);
+    *cursor = (SQLCursor*)NULL;
+  
+    user_var_entry *entry;
+    entry= (user_var_entry *) my_hash_search(&conn->user_vars, (uchar*)"sql_result", 11);
+    int is_resultset=0;
+    if(!entry) 
+    { return false; }
+  
+    if( strncmp(entry->ptr(),"OK",2) != 0 && ((is_resultset = strncmp(entry->ptr(),"RS",2)) != 0) ) 
+    { return false; }
+  
+    if(is_resultset == 0) 
+    {
+      entry= (user_var_entry *) my_hash_search(&conn->user_vars, (uchar*)"sql_resultset", 14);
+  
+      if(entry && entry->length() > 0) 
+      { *cursor = new SQLCursor(columns.c_str(), columns.length(), entry->ptr(), entry->length()); }
+    }
+  
+    return true;
+  
+  }
+
+  bool query(std::string columns, std::string query, SQLCursor** cursor) {
+    return SQLClient::query(this->conn, columns, query, cursor);
+  }
+
+};
+ 
