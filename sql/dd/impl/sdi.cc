@@ -160,7 +160,9 @@ std::string generic_serialize(THD *thd, const char *dd_object_type,
   w.String(STRING_WITH_LEN("dd_object_type"));
   w.String(dd_object_type, dd_object_type_size);
   w.String(STRING_WITH_LEN("dd_object"));
+#if 0//WL#7141 TODO: fix WL#7069 conflicts
   dd_obj.serialize(&wctx, &w);
+#endif
   w.EndObject();
 
   return (wctx.error() ? empty_ : std::string(buf.GetString(), buf.GetSize()));

@@ -12753,7 +12753,11 @@ create_table_info_t::create_table_update_global_dd(
 	     && dict_table_is_file_per_table(table))
 	    || space_id == static_cast<dd::Object_id>(3)) {
 		/* This means user table and file_per_table */
-		dd_space->set_name(table->name.m_name);
+
+		/* For prototype only, quickly get the table name */
+		const char*	slash = strrchr(table->name.m_name, '/');
+
+		dd_space->set_name(slash + 1);
 
 		if (dd::acquire_exclusive_tablespace_mdl(
 			    m_thd, dd_space->name().c_str(), true)) {
