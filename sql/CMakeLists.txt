@@ -500,6 +500,13 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
                       COMPILE_FLAGS "-Wno-misleading-indentation")
   ENDIF()
+
+  MY_CHECK_CXX_COMPILER_FLAG("-Wmaybe-uninitialized" HAVE_MAYBE_UNINITIALIZED)
+  IF(HAVE_MAYBE_UNINITIALIZED)
+    # Boost Graph has uninitialized usage
+    ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
+                      COMPILE_FLAGS "-Wno-maybe-uninitialized")
+  ENDIF()
 ENDIF()
 
 
