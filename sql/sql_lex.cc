@@ -3569,6 +3569,9 @@ void LEX::first_lists_tables_same()
     if (query_tables_last == &first_table->next_global)
       query_tables_last= first_table->prev_global;
 
+    if (query_tables_own_last == &first_table->next_global)
+      query_tables_own_last= first_table->prev_global;
+
     if ((next= *first_table->prev_global= first_table->next_global))
       next->prev_global= first_table->prev_global;
     /* include in new place */
