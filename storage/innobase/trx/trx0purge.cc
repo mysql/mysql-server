@@ -154,8 +154,8 @@ TrxUndoRsegsIterator::set_next()
 	/* We assume in purge of externally stored fields that
 	space id is in the range of UNDO tablespace space ids
 	unless space is system tablespace */
-	ut_a(m_purge_sys->rseg->space <= srv_undo_tablespaces_open
-		|| is_system_tablespace(
+	ut_a(srv_is_undo_tablespace(m_purge_sys->rseg->space)
+	     || is_system_tablespace(
 			m_purge_sys->rseg->space));
 
 	const page_size_t	page_size(m_purge_sys->rseg->page_size);
@@ -923,15 +923,23 @@ trx_purge_mark_undo_for_truncate(
 			/* Tablespace qualifies for truncate. */
 			undo_trunc->mark(space_id);
 			undo::Truncate::add_space_to_trunc_list(space_id);
-			break;
 		}
 
-		space_id = ((space_id + 1) % (srv_undo_tablespaces_active + 1));
-		if (space_id == 0) {
-			/* Note: UNDO tablespace ids starts from 1. */
-			++space_id;
+		space_id++;
+
+		if (space_id >= (srv_undo_space_id_start
+				 + srv_undo_tablespaces_active)) {
+			/* Note: UNDO tablespace ids starts from
+			srv_undo_space_id_start variable value. */
+			space_id = srv_undo_space_id_start;
+		}
+
+		if (undo_trunc->is_marked()) {
+			break;
 		}
 	}
+
+	undo_trunc->set_scan_start(space_id);
 
 	/* Couldn't make any selection. */
 	if (!undo_trunc->is_marked()) {
