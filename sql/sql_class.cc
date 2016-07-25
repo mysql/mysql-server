@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4246,6 +4246,25 @@ has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables)
   return 0;
 }
 
+#ifndef DBUG_OFF
+const char * get_locked_tables_mode_name(enum_locked_tables_mode locked_tables_mode)
+{
+   switch (locked_tables_mode)
+   {
+   case LTM_NONE:
+     return "LTM_NONE";
+   case LTM_LOCK_TABLES:
+     return "LTM_LOCK_TABLES";
+   case LTM_PRELOCKED:
+     return "LTM_PRELOCKED";
+   case LTM_PRELOCKED_UNDER_LOCK_TABLES:
+     return "LTM_PRELOCKED_UNDER_LOCK_TABLES";
+   default:
+     return "Unknown table lock mode";
+   }
+}
+#endif
+
 /**
   Decide on logging format to use for the statement and issue errors
   or warnings as needed.  The decision depends on the following
@@ -4397,15 +4416,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     TABLE* prev_access_table= NULL;
 
 #ifndef DBUG_OFF
-    {
-      static const char *prelocked_mode_name[] = {
-        "NON_PRELOCKED",
-        "PRELOCKED",
-        "PRELOCKED_UNDER_LOCK_TABLES",
-      };
-      DBUG_PRINT("debug", ("prelocked_mode: %s",
-                           prelocked_mode_name[locked_tables_mode]));
-    }
+    DBUG_PRINT("debug", ("prelocked_mode: %s",
+                          get_locked_tables_mode_name(locked_tables_mode)));
 #endif
 
     if (variables.binlog_format != BINLOG_FORMAT_ROW && tables)
