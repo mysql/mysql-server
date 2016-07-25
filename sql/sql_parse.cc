@@ -7304,12 +7304,8 @@ class SQLCursor
     memcpy(data, buf, buf_len);
     data_len = buf_len;
     offset = 0;
-    /*printf("DATA:\n%s\n---\n", data);
-    printf("DATA_LEN: %d\n", data_len);
-    printf("OFFSET: %d\n", offset);
-    printf("COLS: %s\n", cols);
-    */
-    /* populate the list of columns for the resultset */
+
+    /* populate the list of columns (what counts as metadata...) for the resultset */
     std::string tmp;
     for(int i=0;i<col_len;++i) 
     {
@@ -7331,17 +7327,13 @@ class SQLCursor
 
   SQLRow* next() 
   { 
-    /*printf("\nNEXT\nDATA:\n%s\n", data);
-    printf("DATA_LEN: %d\n", data_len);
-    printf("OFFSET: %d\n", offset);
-    */ 
     if(cur_row != NULL) delete cur_row;
     cur_row = NULL;
 
     std::string tmp = "";
     char c=0;
     while(offset < data_len) 
-    { //printf("%d\n", data[offset]);
+    { 
       if((c = data[offset++]) != '\n') 
       { 
         tmp += c;
@@ -7352,9 +7344,7 @@ class SQLCursor
     if(tmp != "") 
     {
       cur_row = new SQLRow(meta, tmp.c_str(), tmp.length());
-      //cur_row->print();
     }
-    //printf("NEW OFFSET: %d\n", offset);
     return cur_row;
   }
 
@@ -7366,14 +7356,67 @@ class SQLCursor
 
 };
 
+
+/****c* SQLClient
+ * NAME
+ *   This is the class that represents a "connection" to the server through
+ *   a THD handle.  Pass a THD* into the constructor.
+ *
+ *   The three available methods are:
+ *   std::string sqlcode() - returns the sqlcode error number from the last statement
+ *   std::string sqlerr() - returns the error message from the last statement
+ *
+ *   bool query(std::string columns, std::string query, SQLCursor** cursor)
+ *     - columns is the list of columns aliases in the query, comma separated
+ *     - query is the actual SQL query 
+ *     - cursor is always a pointer to a SQLCursor* passed by reference
+ *       If a cursor is allocated, it is the responsibility of the
+ *       caller to delete the cursor.
+ *     - Only SELECT statements allocate cursors and only if the resultset
+ *       returns results
+ *
+ * SYNOPSIS
+ *   bool res;
+ *   SQLClient conn(thd);
+ *   SQLCursor* stmt;
+ *   SQLRow* row;
+ *   res = conn.query("alias1,alias2,X", 
+ *     "select col1 as alias1, col2 as alias2, X from ...", &stmt);  
+ *   if(res) 
+ *   { int rownum=1;
+ *     while((row = stmt->next())) {
+ *       printf("ROWNUM: %d\n", rownum++);
+ *       row->print();
+ *       std::cout << "AT COL 0:" << row->at(0).c_str() << "\n";
+ *     }
+ *     delete stmt;
+ *   }
+ *   else
+ *   {
+ *     // query failed
+ *      ...do something with conn.sqlcode() and conn.sqlerr()
+ *   }  
+ *
+*/
 class SQLClient 
 {
   private:
   THD* conn;
-  SQLClient(THD *thd) : conn(thd) {}
+  std::string _sqlcode;
+  std::string _sqlerr; 
 
   public:
-  static bool query(THD* conn, std::string columns, std::string query, SQLCursor** cursor) 
+  SQLClient(THD *thd) : conn(thd) {}
+
+  std::string sqlcode() { return _sqlcode; }
+  std::string sqlerr() { return _sqlerr; }
+
+  /* Only SELECT allocate cursors.  If a select returns true and does
+   * not allocate a cursor, then the resultset is EMPTY.  The cursor
+   * pointer is set to NULL if a cursor is not allocated.
+  */
+
+  bool query(std::string columns, std::string query, SQLCursor** cursor) 
   { 
     Protocol_classic *protocol= conn->get_protocol_classic();
     Vio* save_vio;
@@ -7396,30 +7439,41 @@ class SQLClient
 
     for(unsigned int i=0;i<columns.length();++i) 
     {
-        if(columns[i] != ',')
+        if(columns[i] != ',' && i != (columns.length()-1))
         { 
           tmp += columns[i];
-        } else {
+        } else
+        {
+          /* slurp up last character */
+          if(i==(columns.length()-1)) 
+          { tmp += columns[i];  }
+
           /* the stored proc expects the columns to be * separated */
           if(new_columns != "") 
           { new_columns += '*'; }
-          tmp = "REPLACE(`" + tmp + "`,char(10),\"\\\\n\")";
-          tmp = "IFNULL(" + tmp + ",\"\\N\")";
-          new_columns += tmp;
+ 
+          int len = 0;
+          /* reserve some extra space for the overhead of multiple expressions */
+          char *c = (char*)malloc((len=(tmp.length() + 128)*4));
+          char *d;
+          assert(c != NULL);
+
+          memset(c,0,len);
+          snprintf(c,len-1,"REPLACE(`%s`,''\"'',''\\\\\\\\\"'')", tmp.c_str());
+          snprintf(c,len-1,"REPLACE(%s,\"\\\\n\",\"\\\\\\\\n\")", (d=strdup(c)));
+          free(d);
+          int real_len = snprintf(c,len-1,"IFNULL(%s,\"\\\\N\")", (d=strdup(c)));
+          free(d);
+          assert(real_len <= len); 
+          new_columns += std::string(c,real_len);
+          free(c);
           tmp = "";
         }  
     }
-    if(tmp != "") 
-    {
-       if(new_columns != "") 
-       { new_columns += ','; }
-       tmp = "REPLACE(`" + tmp + "`,char(10),\"\\\\n\")";
-       tmp = "IFNULL(" + tmp + ", \"\\N\")";
-       new_columns += tmp;
-    }
+    _sqlcode = "";
+    _sqlerr = "";
 
     std::string marshal_sql = std::string("CALL sys.sql_client('") + new_columns + "','" + query + "');";
-    // printf("EXEC_SQL:\n%s\n", marshal_sql.c_str());
     save_client_capabilities= protocol->get_client_capabilities();
     protocol->add_client_capability(CLIENT_MULTI_QUERIES);
     save_vio= protocol->get_vio();
@@ -7434,30 +7488,61 @@ class SQLClient
     entry= (user_var_entry *) my_hash_search(&conn->user_vars, (uchar*)"sql_result", 10);
     int is_resultset=0;
     if(!entry) 
-    { return false; }
+    { 
+      printf("Internal SQL client failed to produce result set through call:\n%s\n", marshal_sql.c_str());
+      _sqlcode = "99999";
+      _sqlerr = "sys.sql_client is missing or failed to produce result set";
+      return false; 
+    }
   
     if( strncmp(entry->ptr(),"OK",2) != 0 && ((is_resultset = strncmp(entry->ptr(),"RS",2)) != 0) ) 
-    { return false; }
+    { unsigned int i; 
+      for(i=0;i<entry->length();++i) {
+        if(entry->ptr()[i] == ' ') 
+        { 
+          i++;
+          break; 
+        }
+      }
+      for(;i<entry->length();++i) {
+        if(entry->ptr()[i] != ':') 
+        { 
+          _sqlcode += entry->ptr()[i];
+        } else {
+          break;
+        }
+      }
+      _sqlerr.assign(entry->ptr()+i+1,entry->length()-i-1); 
 
-  
+      return false; 
+    }
+
     if(is_resultset == 0) 
     {
       entry= (user_var_entry *) my_hash_search(&conn->user_vars, (uchar*)"sql_resultset", 13);
   
       if(entry && entry->length() > 0) 
-      { *cursor = new SQLCursor(columns.c_str(), columns.length(), entry->ptr(), entry->length()); }
+      { 
+        *cursor = new SQLCursor(columns.c_str(), columns.length(), entry->ptr(), entry->length()); 
+
+        /* free up the resulset in the user variable using the SET command */
+        marshal_sql = std::string("SET @sql_resultset=NULL");
+        protocol->add_client_capability(CLIENT_MULTI_QUERIES);
+        protocol->set_vio(NULL);
+  
+        protocol->create_command(&com_data, COM_QUERY, (uchar*)marshal_sql.c_str(), marshal_sql.length());
+        dispatch_command(conn, &com_data, COM_QUERY);
+        protocol->set_client_capabilities(save_client_capabilities);
+        protocol->set_vio(save_vio);
+      }
     }
   
     return true;
   
   }
 
-  bool query(std::string columns, std::string query, SQLCursor** cursor) 
-  {
-    return SQLClient::query(this->conn, columns, query, cursor);
-  }
-
 };
+
 /* TODO: make this pluggable */ 
 bool query_injection_point(THD* thd, COM_DATA *com_data, enum enum_server_command command, 
                            COM_DATA* new_com_data, enum enum_server_command* new_command) 
@@ -7475,10 +7560,11 @@ bool query_injection_point(THD* thd, COM_DATA *com_data, enum enum_server_comman
     { 
 
       std::string new_query;
+      SQLClient conn(thd);
       SQLCursor* stmt;
       SQLRow* row;
 
-      if(SQLClient::query(thd,"pw","select authentication_string as pw from mysql.user where concat(user,'@',host) = USER() or user = USER() LIMIT 1", &stmt)) 
+      if(conn.query("pw,user","select authentication_string as pw,user from mysql.user where concat(user,'@',host) = USER() or user = USER() LIMIT 1", &stmt)) 
       {
         if(stmt != NULL) 
         {
