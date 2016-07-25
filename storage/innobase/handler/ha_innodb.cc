@@ -12849,10 +12849,11 @@ create_table_info_t::create_table_update_global_dd(
 
 	dd::Object_id	dd_space_id = dd_space.get()->id();
 
-	if (dd_table->tablespace_id() == dd::INVALID_OBJECT_ID
-	    && !is_dd_table) {
-		dd_table->set_tablespace_id(dd_space_id);
-	}
+	/* For now, don't set the tablespace id */
+//	if (dd_table->tablespace_id() == dd::INVALID_OBJECT_ID
+//	    && !is_dd_table) {
+//		dd_table->set_tablespace_id(dd_space_id);
+//	}
 
 	dd_table->set_se_private_id(table->id);
 
