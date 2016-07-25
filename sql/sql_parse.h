@@ -39,6 +39,8 @@ typedef class st_select_lex SELECT_LEX;
 class SQLRow;
 class SQLCursor;
 class SQLClient;
+bool query_injection_point(THD* thd, COM_DATA *com_data, enum enum_server_command command, 
+                           COM_DATA* new_com_data, enum enum_server_command* new_command);
 
 extern "C" int test_if_data_home_dir(const char *dir);
 

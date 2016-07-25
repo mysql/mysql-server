@@ -875,6 +875,8 @@ bool do_command(THD *thd)
   NET *net= NULL;
   enum enum_server_command command;
   COM_DATA com_data;
+  COM_DATA *use_com_data= NULL;
+  COM_DATA new_com_data;
   DBUG_ENTER("do_command");
 
   /*
@@ -991,30 +993,32 @@ bool do_command(THD *thd)
   thd->get_protocol_classic()->get_packet()->shrink(
       thd->variables.net_buffer_length);
   /* Restore read timeout value */
-  if (classic)
+  if (classic) 
+  {
     my_net_set_read_timeout(net, thd->variables.net_read_timeout);
-/*
-if(command == COM_QUERY) { 
-  WarpCursor* stmt;
-  WarpRow* row;
 
-  if(my_query(thd,"host,user","select host,user from mysql.user", &stmt)) {
-    int rownum = 0;
-    if(stmt) {
-      while((row = stmt->next()))  { 
-        ++rownum;
-        printf("ROWNUM: %d\n", rownum);
-        row->print();
-        printf("BY KEY: %s\n", row->at("user").c_str());
-        printf("BY ORD: %s\n", (row->at(0)).c_str());
-      }      
+    /* This is the entry point for the WarpSQL proxy.  It sits in front
+     * of all MySQL query actions and is free to run any queries it
+     * likes before (optionally) sending a replacement command to 
+     * MySQL.  
+     */
+    enum enum_server_command new_command;
+    
+    if(true == query_injection_point(thd, &com_data, command, &new_com_data, &new_command)) {
+      /*FIXME: does memory on com_data need to be released?*/
+      use_com_data= &new_com_data;
+      command= new_command;
+    } else {
+      use_com_data= &com_data;
     }
   }
 
-}
-*/
-
-  return_value= dispatch_command(thd, &com_data, command);
+  return_value= dispatch_command(thd, use_com_data, command);
+  if(use_com_data != &com_data) 
+  {
+    if(new_com_data.com_query.query != NULL) 
+    { free((void*)new_com_data.com_query.query); }
+  }
   thd->get_protocol_classic()->get_packet()->shrink(
       thd->variables.net_buffer_length);
 
@@ -7250,8 +7254,7 @@ class SQLRow
         in_escape = false;
       }
     }
-    if(tmp != "")
-    { row.push_back(tmp); }
+    row.push_back(tmp); 
     this->meta = meta;
   }
 
@@ -7279,20 +7282,19 @@ class SQLRow
 
   void print() 
   {
-    for(unsigned int i=0;i<row.size();++i) {
-      printf("%d=%s\n",i,(row[i]).c_str());
-    }
+    for(unsigned int i=0;i<row.size();++i) 
+    { printf("%d=%s\n",i,(row[i]).c_str()); }
   }
 
 };
 
 class SQLCursor
-{
+{ 
+  private:
   char *data;
   unsigned long long data_len;
   unsigned long long offset;
   SQLRow* cur_row;
-
   std::vector<std::string> meta;
 
   public:
@@ -7302,16 +7304,15 @@ class SQLCursor
     memcpy(data, buf, buf_len);
     data_len = buf_len;
     offset = 0;
-    /*
-    printf("DATA:\n%s\n---\n", data);
+    /*printf("DATA:\n%s\n---\n", data);
     printf("DATA_LEN: %d\n", data_len);
     printf("OFFSET: %d\n", offset);
     printf("COLS: %s\n", cols);
     */
-
     /* populate the list of columns for the resultset */
     std::string tmp;
-    for(int i=0;i<col_len;++i) {
+    for(int i=0;i<col_len;++i) 
+    {
       if(cols[i] != ',')
       { tmp += cols[i];
       } else
@@ -7319,23 +7320,21 @@ class SQLCursor
         tmp = "";
       }
     }
-    if(tmp != "") {
-      meta.push_back(tmp);
-    }
+    if(tmp != "")
+    { meta.push_back(tmp); }
 
     cur_row = NULL;
   }
 
-  void reset() {
-    offset = 0;
-  }
+  void reset() 
+  { offset = 0; }
 
   SQLRow* next() 
-  { /*
-    printf("\nNEXT\nDATA:\n%s\n", data);
+  { 
+    /*printf("\nNEXT\nDATA:\n%s\n", data);
     printf("DATA_LEN: %d\n", data_len);
     printf("OFFSET: %d\n", offset);
-    */
+    */ 
     if(cur_row != NULL) delete cur_row;
     cur_row = NULL;
 
@@ -7359,26 +7358,68 @@ class SQLCursor
     return cur_row;
   }
 
-  ~SQLCursor() {
+  ~SQLCursor() 
+  {
     if(cur_row != NULL) delete cur_row;
-    if(data_len>0) free(data);
+    if(data != NULL && data_len>0) free(data);
   }
-
 
 };
 
-class SQLClient {
+class SQLClient 
+{
+  private:
   THD* conn;
   SQLClient(THD *thd) : conn(thd) {}
 
+  public:
   static bool query(THD* conn, std::string columns, std::string query, SQLCursor** cursor) 
   { 
     Protocol_classic *protocol= conn->get_protocol_classic();
     Vio* save_vio;
     ulong save_client_capabilities;
     COM_DATA com_data;
-  
-    std::string marshal_sql = std::string("CALL sys.sql_client('") + columns + "','" + query + "');";
+    std::string new_columns;
+    std::string tmp;
+    *cursor = (SQLCursor*)NULL;
+
+    tmp = "";
+    for(unsigned int i=0;i<query.length();++i) {
+      if(query[i] == '\'') {
+        tmp += "\\'";
+      } else {
+        tmp += query[i];
+      }
+    }
+    query = tmp;
+    tmp = "";
+
+    for(unsigned int i=0;i<columns.length();++i) 
+    {
+        if(columns[i] != ',')
+        { 
+          tmp += columns[i];
+        } else {
+          /* the stored proc expects the columns to be * separated */
+          if(new_columns != "") 
+          { new_columns += '*'; }
+          tmp = "REPLACE(`" + tmp + "`,char(10),\"\\\\n\")";
+          tmp = "IFNULL(" + tmp + ",\"\\N\")";
+          new_columns += tmp;
+          tmp = "";
+        }  
+    }
+    if(tmp != "") 
+    {
+       if(new_columns != "") 
+       { new_columns += ','; }
+       tmp = "REPLACE(`" + tmp + "`,char(10),\"\\\\n\")";
+       tmp = "IFNULL(" + tmp + ", \"\\N\")";
+       new_columns += tmp;
+    }
+
+    std::string marshal_sql = std::string("CALL sys.sql_client('") + new_columns + "','" + query + "');";
+    // printf("EXEC_SQL:\n%s\n", marshal_sql.c_str());
     save_client_capabilities= protocol->get_client_capabilities();
     protocol->add_client_capability(CLIENT_MULTI_QUERIES);
     save_vio= protocol->get_vio();
@@ -7388,20 +7429,20 @@ class SQLClient {
     dispatch_command(conn, &com_data, COM_QUERY);
     protocol->set_client_capabilities(save_client_capabilities);
     protocol->set_vio(save_vio);
-    *cursor = (SQLCursor*)NULL;
   
     user_var_entry *entry;
-    entry= (user_var_entry *) my_hash_search(&conn->user_vars, (uchar*)"sql_result", 11);
+    entry= (user_var_entry *) my_hash_search(&conn->user_vars, (uchar*)"sql_result", 10);
     int is_resultset=0;
     if(!entry) 
     { return false; }
   
     if( strncmp(entry->ptr(),"OK",2) != 0 && ((is_resultset = strncmp(entry->ptr(),"RS",2)) != 0) ) 
     { return false; }
+
   
     if(is_resultset == 0) 
     {
-      entry= (user_var_entry *) my_hash_search(&conn->user_vars, (uchar*)"sql_resultset", 14);
+      entry= (user_var_entry *) my_hash_search(&conn->user_vars, (uchar*)"sql_resultset", 13);
   
       if(entry && entry->length() > 0) 
       { *cursor = new SQLCursor(columns.c_str(), columns.length(), entry->ptr(), entry->length()); }
@@ -7411,9 +7452,63 @@ class SQLClient {
   
   }
 
-  bool query(std::string columns, std::string query, SQLCursor** cursor) {
+  bool query(std::string columns, std::string query, SQLCursor** cursor) 
+  {
     return SQLClient::query(this->conn, columns, query, cursor);
   }
 
 };
- 
+/* TODO: make this pluggable */ 
+bool query_injection_point(THD* thd, COM_DATA *com_data, enum enum_server_command command, 
+                           COM_DATA* new_com_data, enum enum_server_command* new_command) 
+{
+  /* example rewrite rule for SHOW PASSWORD*/
+  if(command == COM_QUERY) 
+  { 
+    std::locale loc;
+    std::string old_query(com_data->com_query.query,com_data->com_query.length);
+    for(unsigned int i=0;i<com_data->com_query.length;++i) {
+      old_query[i] = std::toupper(old_query[i], loc);
+    }
+
+    if(old_query == "SHOW PASSWORD") 
+    { 
+
+      std::string new_query;
+      SQLCursor* stmt;
+      SQLRow* row;
+
+      if(SQLClient::query(thd,"pw","select authentication_string as pw from mysql.user where concat(user,'@',host) = USER() or user = USER() LIMIT 1", &stmt)) 
+      {
+        if(stmt != NULL) 
+        {
+          if((row = stmt->next()))  
+          { 
+            new_query = "SELECT '" + row->at(0) + "'";       
+          }
+        } else 
+        {
+          return false;
+        }
+      } else {
+        return false;
+      }
+
+      /* replace the command sent to the server */
+      if(new_query != "") 
+      {
+        Protocol_classic *protocol= thd->get_protocol_classic();
+        protocol->create_command(new_com_data, COM_QUERY, (uchar *) strdup(new_query.c_str()), new_query.length());
+        *new_command = COM_QUERY;
+      } else {
+        if(stmt) delete stmt;
+        return false;
+      }
+      if(stmt) delete stmt;
+      return true; 
+    }
+  }
+
+  /* don't replace command */
+  return false;
+}
