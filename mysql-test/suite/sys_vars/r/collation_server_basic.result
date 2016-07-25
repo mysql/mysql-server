@@ -597,10 +597,10 @@ SET @@session.collation_server = eucjpms_bin;
 SELECT @@session.collation_server;
 @@session.collation_server
 eucjpms_bin
-SET @@session.collation_server = utf8mb4_0900_ai_ci;
+SET @@session.collation_server = utf8mb4_800_ai_ci;
 SELECT @@session.collation_server;
 @@session.collation_server
-utf8mb4_0900_ai_ci
+utf8mb4_800_ai_ci
 '#--------------------FN_DYNVARS_014_07-------------------------#'
 SET @@global.collation_server = big5_chinese_ci;
 SELECT @@global.collation_server;
@@ -1126,10 +1126,10 @@ SET @@global.collation_server = eucjpms_bin;
 SELECT @@global.collation_server;
 @@global.collation_server
 eucjpms_bin
-SET @@global.collation_server = utf8mb4_0900_ai_ci;
+SET @@global.collation_server = utf8mb4_800_ai_ci;
 SELECT @@global.collation_server;
 @@global.collation_server
-utf8mb4_0900_ai_ci
+utf8mb4_800_ai_ci
 '#--------------------FN_DYNVARS_014_08-------------------------#'
 SET @@collation_server = LATIN7_GENERAL_CS;
 SELECT @@collation_server;

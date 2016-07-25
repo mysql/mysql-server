@@ -76,6 +76,7 @@ extern MY_UNICASE_INFO my_unicase_default;
 extern MY_UNICASE_INFO my_unicase_turkish;
 extern MY_UNICASE_INFO my_unicase_mysql500;
 extern MY_UNICASE_INFO my_unicase_unicode520;
+extern MY_UNICASE_INFO my_unicase_unicode800;
 
 #define MY_UCA_MAX_CONTRACTION 6
 #define MY_UCA_MAX_WEIGHT_SIZE 25
@@ -180,7 +181,7 @@ extern MY_UNI_CTYPE my_uni_ctype[256];
 #define MY_CS_NONASCII  8192   /* if not ASCII-compatible        */
 #define MY_CS_UNICODE_SUPPLEMENT 16384 /* Non-BMP Unicode characters */
 #define MY_CS_LOWER_SORT 32768 /* If use lower case as weight   */
-#define MY_CS_UCA_900   65536  /* If use UCA 9.0.0   */
+#define MY_CS_UCA_800 65536 /* If use UCA 8.0.0   */
 #define MY_CHARSET_UNDEFINED 0
 
 /* Character repertoire flags */
@@ -468,7 +469,7 @@ extern CHARSET_INFO my_charset_utf8_general_mysql500_ci;
 extern CHARSET_INFO my_charset_utf8mb4_bin;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_utf8mb4_general_ci;
 extern CHARSET_INFO my_charset_utf8mb4_unicode_ci;
-extern CHARSET_INFO my_charset_utf8mb4_0900_ai_ci;
+extern CHARSET_INFO my_charset_utf8mb4_800_ai_ci;
 #define MY_UTF8MB3                 "utf8"
 #define MY_UTF8MB4                 "utf8mb4"
 

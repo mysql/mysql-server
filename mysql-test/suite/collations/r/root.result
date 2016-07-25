@@ -1,4 +1,4 @@
-select hex(convert(uc using utf32)), name from unicode order by uc collate utf8mb4_0900_ai_ci, cp;
+select hex(convert(uc using utf32)), name from unicode order by uc collate utf8mb4_800_ai_ci, cp;
 hex(convert(uc using utf32))	name
 00000009	<control>
 0000000A	<control>
@@ -28995,7 +28995,6 @@ hex(convert(uc using utf32))	name
 0000FACE	CJK COMPATIBILITY IDEOGRAPH-FACE
 00002EF3	CJK RADICAL C-SIMPLIFIED TURTLE
 00002FD5	KANGXI RADICAL FLUTE
-00009FD5	<CJK Ideograph, Last>
 0000FA0E	CJK COMPATIBILITY IDEOGRAPH-FA0E
 0000FA0F	CJK COMPATIBILITY IDEOGRAPH-FA0F
 0000FA11	CJK COMPATIBILITY IDEOGRAPH-FA11
@@ -29080,7 +29079,6 @@ hex(convert(uc using utf32))	name
 0002FA11	CJK COMPATIBILITY IDEOGRAPH-2FA11
 0002FA16	CJK COMPATIBILITY IDEOGRAPH-2FA16
 00004DB5	<CJK Ideograph Extension A, Last>
-00020000	<CJK Ideograph Extension B, First>
 0002F803	CJK COMPATIBILITY IDEOGRAPH-2F803
 0002F812	CJK COMPATIBILITY IDEOGRAPH-2F812
 0002F91B	CJK COMPATIBILITY IDEOGRAPH-2F91B
@@ -29193,13 +29191,7 @@ hex(convert(uc using utf32))	name
 0002FA14	CJK COMPATIBILITY IDEOGRAPH-2FA14
 0002F88F	CJK COMPATIBILITY IDEOGRAPH-2F88F
 0002FA1D	CJK COMPATIBILITY IDEOGRAPH-2FA1D
-0002A6D6	<CJK Ideograph Extension B, Last>
-0002A700	<CJK Ideograph Extension C, First>
-0002B734	<CJK Ideograph Extension C, Last>
-0002B740	<CJK Ideograph Extension D, First>
-0002B81D	<CJK Ideograph Extension D, Last>
-0002B820	<CJK Ideograph Extension E, First>
-0002CEA1	<CJK Ideograph Extension E, Last>
+00009FD5	<CJK Ideograph, Last>
 0000D800	<Non Private Use High Surrogate, First>
 0000DB7F	<Non Private Use High Surrogate, Last>
 0000DB80	<Private Use High Surrogate, First>
@@ -29208,6 +29200,14 @@ hex(convert(uc using utf32))	name
 0000DFFF	<Low Surrogate, Last>
 0000E000	<Private Use, First>
 0000F8FF	<Private Use, Last>
+00020000	<CJK Ideograph Extension B, First>
+0002A6D6	<CJK Ideograph Extension B, Last>
+0002A700	<CJK Ideograph Extension C, First>
+0002B734	<CJK Ideograph Extension C, Last>
+0002B740	<CJK Ideograph Extension D, First>
+0002B81D	<CJK Ideograph Extension D, Last>
+0002B820	<CJK Ideograph Extension E, First>
+0002CEA1	<CJK Ideograph Extension E, Last>
 000F0000	<Plane 15 Private Use, First>
 000FFFFD	<Plane 15 Private Use, Last>
 00100000	<Plane 16 Private Use, First>

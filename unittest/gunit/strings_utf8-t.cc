@@ -399,7 +399,7 @@ TEST_F(StringsUTF8mb4Test, MyIsmbcharUtf8mb4)
   /* Not testing for illegal charaters as same is tested in above test case */
 }
 
-class StringsUTF8mb4_900Test : public ::testing::Test
+class StringsUTF8mb4UCA800Test : public ::testing::Test
 {
 protected:
   virtual void SetUp()
@@ -407,7 +407,7 @@ protected:
     // Save global settings.
     m_charset= system_charset_info;
 
-    system_charset_info= &my_charset_utf8mb4_0900_ai_ci;
+    system_charset_info= &my_charset_utf8mb4_800_ai_ci;
   }
 
   virtual void TearDown()
@@ -420,7 +420,7 @@ private:
   CHARSET_INFO *m_charset;
 };
 
-TEST_F(StringsUTF8mb4_900Test, MyUCA900Collate)
+TEST_F(StringsUTF8mb4UCA800Test, MyUCA800Collate)
 {
   uchar utf8mb4_src[8], utf8mb4_dst[8];
 
