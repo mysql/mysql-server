@@ -49,8 +49,8 @@ mysql/foreign_keys	14	33	PRIMARY	5	3	1	50
 mysql/foreign_keys	14	33	schema_id	6	2	2	50
 mysql/foreign_keys	14	33	table_id	7	2	2	50
 mysql/foreign_keys	14	33	unique_constraint_id	8	0	1	50
-mysql/foreign_key_column_usage	7	33	foreign_key_id	5	3	3	50
-mysql/foreign_key_column_usage	7	33	foreign_key_id_2	6	2	2	50
+mysql/foreign_key_column_usage	7	33	PRIMARY	5	3	2	50
+mysql/foreign_key_column_usage	7	33	foreign_key_id	6	2	3	50
 mysql/foreign_key_column_usage	7	33	column_id	7	0	1	50
 mysql/func	7	33	PRIMARY	5	3	1	50
 mysql/gtid_executed	6	33	PRIMARY	5	3	2	50
