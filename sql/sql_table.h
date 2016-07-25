@@ -21,6 +21,7 @@
 #ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
 #include <vector>
 #endif
+#include <set>
 
 class Alter_info;
 class Alter_table_ctx;
@@ -174,7 +175,8 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
                                 HA_CREATE_INFO *create_info,
                                 Alter_info *alter_info,
                                 uint select_field_count,
-                                bool *is_trans);
+                                bool *is_trans,
+                                handlerton **post_ddl_ht);
 int mysql_discard_or_import_tablespace(THD *thd,
                                        TABLE_LIST *table_list);
 bool mysql_prepare_alter_table(THD *thd, TABLE *table,
@@ -205,7 +207,8 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
                     my_bool drop_temporary);
 int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                             bool drop_temporary, bool drop_database,
-                            bool *dropped_non_atomic
+                            bool *dropped_non_atomic,
+                            std::set<handlerton*> *post_ddl_htons
 #ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
                             , std::vector<TABLE_LIST*> *dropped_atomic
 #endif

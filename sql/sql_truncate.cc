@@ -34,6 +34,7 @@
 #include "dd/types/abstract_table.h" // dd::enum_table_type
 #include "dd/dd_schema.h"   // dd::Schema_MDL_locker
 #include "dd/sdi.h"         // dd::store_sdi
+#include "transaction.h"    // trans_commit_stmt()
 
 
 /**
@@ -393,15 +394,15 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
   @param[in]  thd               Thread context.
   @param[in]  table_ref         Table list element for the table to
                                 be truncated.
-  @param[out] hton_can_recreate Set to TRUE if table can be dropped
-                                and recreated.
+  @param[out] hton              Pointer to handlerton object for the
+                                table's storage engine.
 
   @retval  FALSE  Success.
   @retval  TRUE   Error.
 */
 
 bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
-                                        bool *hton_can_recreate)
+                                        handlerton **hton)
 {
   TABLE *table= NULL;
   DBUG_ENTER("Sql_cmd_truncate_table::lock_table");
@@ -430,8 +431,8 @@ bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
                                             table_ref->table_name, FALSE)))
       DBUG_RETURN(TRUE);
 
-    *hton_can_recreate= ha_check_storage_engine_flag(table->s->db_type(),
-                                                     HTON_CAN_RECREATE);
+    *hton= table->s->db_type();
+
     table_ref->mdl_request.ticket= table->mdl_ticket;
   }
   else
@@ -442,8 +443,7 @@ bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
                          thd->variables.lock_wait_timeout, 0))
       DBUG_RETURN(TRUE);
 
-    if (dd::check_storage_engine_flag(thd, table_ref,
-                                      HTON_CAN_RECREATE, hton_can_recreate))
+    if (dd::table_storage_engine(thd, table_ref, hton))
       DBUG_RETURN(TRUE);
   }
 
@@ -460,7 +460,7 @@ bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
       DBUG_RETURN(TRUE);
     m_ticket_downgrade= table->mdl_ticket;
     /* Close if table is going to be recreated. */
-    if (*hton_can_recreate)
+    if ((*hton)->flags & HTON_CAN_RECREATE)
       close_all_tables_for_name(thd, table->s, false, NULL);
   }
   else
@@ -493,6 +493,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
   int error;
   bool binlog_stmt;
   bool binlog_is_trans;
+  handlerton *hton= nullptr;
   DBUG_ENTER("Sql_cmd_truncate_table::truncate_table");
 
   DBUG_ASSERT((!table_ref->table) ||
@@ -547,12 +548,10 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
   }
   else /* It's not a temporary table. */
   {
-    bool hton_can_recreate;
-
-    if (lock_table(thd, table_ref, &hton_can_recreate))
+    if (lock_table(thd, table_ref, &hton))
       DBUG_RETURN(TRUE);
 
-    if (hton_can_recreate)
+    if (hton->flags & HTON_CAN_RECREATE)
     {
 #ifndef EMBEDDED_LIBRARY
       if (mysql_audit_table_access_notify(thd, table_ref))
@@ -561,11 +560,6 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
       }
 #endif /* !EMBEDDED_LIBRARY */
 
-      bool hton_supports_atomic_ddl;
-      if (dd::check_storage_engine_flag(thd, table_ref,
-                                        HTON_SUPPORTS_ATOMIC_DDL,
-                                        &hton_supports_atomic_ddl))
-        DBUG_RETURN(true);
      /*
         The storage engine can truncate the table by creating an
         empty table with the same structure.
@@ -578,7 +572,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
 
       /* No need to binlog a failed truncate-by-recreate. */
       binlog_stmt= !error;
-      binlog_is_trans= hton_supports_atomic_ddl;
+      binlog_is_trans= (hton->flags & HTON_SUPPORTS_ATOMIC_DDL);
     }
     else
     {
@@ -622,6 +616,18 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
   if (binlog_stmt)
     error|= write_bin_log(thd, !error, thd->query().str, thd->query().length,
                           binlog_is_trans);
+
+  /* Commit or rollback statement before downgrading metadata lock. */
+  if (!error)
+    error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
+
+  if (error)
+    trans_rollback_stmt(thd);
+
+  if (!is_temporary_table(table_ref) &&
+      (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+      hton->post_ddl)
+    hton->post_ddl(thd);
 
   /*
     A locked table ticket was upgraded to a exclusive lock. After the

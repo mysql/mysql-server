@@ -160,6 +160,12 @@ class Query_result_create: public Query_result_insert {
   MYSQL_LOCK *m_lock;
   /* m_lock or thd->extra_lock */
   MYSQL_LOCK **m_plock;
+  /**
+    If table being created has SE supporting atomic DDL, pointer to SE's
+    handlerton object to be used for calling SE post-DDL hook, nullptr -
+    otherwise.
+  */
+  handlerton *m_post_ddl_ht;
 public:
   Query_result_create(THD *thd,
                       TABLE_LIST *table_arg,
@@ -180,7 +186,8 @@ public:
      create_info(create_info_par),
      select_tables(select_tables_arg),
      alter_info(alter_info_arg),
-     m_plock(NULL)
+     m_plock(nullptr),
+     m_post_ddl_ht(nullptr)
   {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
 

@@ -30,6 +30,7 @@
                               // build_table_filename
 #include "sql_trigger.h"      // change_trigger_table_name
 #include "sql_view.h"         // mysql_rename_view
+#include "transaction.h"      // trans_commit_stmt
 
 #include "dd/dd_table.h"      // dd::table_exists
 #include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
@@ -37,7 +38,8 @@
 
 
 static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
-				 bool skip_error, bool *int_commit_done);
+                                 bool skip_error, bool *int_commit_done,
+                                 std::set<handlerton*> *post_ddl_htons);
 
 static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list);
 
@@ -46,14 +48,14 @@ static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list);
   the new name.
 */
 
-bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
+bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
 {
   bool error= 1;
-  bool binlog_error= 0;
   TABLE_LIST *ren_table= 0;
   int to_table;
   char *rename_log_table[2]= {NULL, NULL};
   bool int_commit_done= false;
+  std::set<handlerton*> post_ddl_htons;
   DBUG_ENTER("mysql_rename_tables");
 
   /*
@@ -156,7 +158,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     An exclusive lock on table names is satisfactory to ensure
     no other thread accesses this table.
   */
-  if ((ren_table= rename_tables(thd, table_list, 0, &int_commit_done)))
+  if ((ren_table= rename_tables(thd, table_list, 0, &int_commit_done,
+                                &post_ddl_htons)))
   {
     /* Rename didn't succeed;  rename back the tables in reverse order */
     TABLE_LIST *table;
@@ -176,7 +179,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
 	   table= table->next_local->next_local) ;
       table= table->next_local->next_local;		// Skip error table
       /* Revert to old names */
-      rename_tables(thd, table, 1, &int_commit_done);
+      rename_tables(thd, table, 1, &int_commit_done, &post_ddl_htons);
 
       /* Revert the table list (for prepared statements) */
       table_list= reverse_table_list(table_list);
@@ -187,20 +190,30 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     error= 1;
   }
 
-  if (!silent && !error)
-  {
-    binlog_error= write_bin_log(thd, true,
-                                thd->query().str, thd->query().length,
-                                !int_commit_done);
-    if (!binlog_error)
-      my_ok(thd);
-  }
-
   if (!error)
     query_cache.invalidate(thd, table_list, FALSE);
 
+  if (!error)
+  {
+    error= write_bin_log(thd, true,
+                         thd->query().str, thd->query().length,
+                         !int_commit_done);
+  }
+
+  if (!error && !int_commit_done)
+    error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
+
+  if (error)
+    trans_rollback_stmt(thd);
+
+  for (handlerton *hton : post_ddl_htons)
+    hton->post_ddl(thd);
+
+  if (!error)
+    my_ok(thd);
+
 err:
-  DBUG_RETURN(error || binlog_error);
+  DBUG_RETURN(error);
 }
 
 
@@ -249,7 +262,7 @@ static bool
 do_rename(THD *thd, TABLE_LIST *ren_table,
           const char *new_db, const char *new_table_name,
           const char *new_table_alias, bool skip_error,
-          bool *int_commit_done)
+          bool *int_commit_done, std::set<handlerton*> *post_ddl_htons)
 {
   const char *new_alias= new_table_name;
   const char *old_alias= ren_table->table_name;
@@ -301,7 +314,11 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
         simpler this way.
       */
       const bool do_commit= *int_commit_done ||
-                            (hton->flags & HTON_SUPPORTS_ATOMIC_DDL);
+                            !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL);
+
+      if ((hton->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+          (hton->post_ddl))
+        post_ddl_htons->insert(hton);
 
       // If renaming fails, my_error() has already been called
       if (mysql_rename_table(thd, hton, ren_table->db, old_alias, new_db,
@@ -375,7 +392,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
 
 static TABLE_LIST *
 rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error,
-              bool *int_commit_done)
+              bool *int_commit_done, std::set<handlerton*> *post_ddl_htons)
 {
   TABLE_LIST *ren_table, *new_table;
 
@@ -385,7 +402,8 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error,
   {
     new_table= ren_table->next_local;
     if (do_rename(thd, ren_table, new_table->db, new_table->table_name,
-                  new_table->alias, skip_error, int_commit_done))
+                  new_table->alias, skip_error, int_commit_done,
+                  post_ddl_htons))
       DBUG_RETURN(ren_table);
   }
   DBUG_RETURN(0);

@@ -1443,6 +1443,19 @@ typedef bool (*notify_alter_table_t)(THD *thd, const MDL_key *mdl_key,
 */
 typedef bool (*rotate_encryption_master_key_t)(void);
 
+/**
+  Perform post-commit/rollback cleanup after DDL statement (e.g. in
+  case of DROP TABLES really remove table files from disk).
+
+  @note This hook will be invoked after DDL commit or rollback only
+        for storage engines supporting atomic DDL.
+
+  @note Problems during execution of this method should be reported to
+        error log and as warnings/notes to user. Since this method is
+        called after successful commit of the statement we can't fail
+        statement with error.
+*/
+typedef void (*post_ddl_t)(THD *thd);
 
 /**
   handlerton is a singleton structure - one instance per storage engine -
@@ -1585,6 +1598,7 @@ struct handlerton
   notify_exclusive_mdl_t notify_exclusive_mdl;
   notify_alter_table_t notify_alter_table;
   rotate_encryption_master_key_t rotate_encryption_master_key;
+  post_ddl_t post_ddl;
 
   /** Flag for Engine License. */
   uint32 license;

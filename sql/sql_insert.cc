@@ -2526,7 +2526,8 @@ void Query_result_insert::abort_result_set()
 static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
                                       TABLE_LIST *create_table,
                                       Alter_info *alter_info,
-                                      List<Item> *items)
+                                      List<Item> *items,
+                                      handlerton **post_ddl_ht)
 {
   TABLE tmp_table;		// Used during 'Create_field()'
   TABLE_SHARE share;
@@ -2625,7 +2626,8 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     if (!mysql_create_table_no_lock(thd, create_table->db,
                                     create_table->table_name,
                                     create_info, alter_info,
-                                    select_field_count, NULL))
+                                    select_field_count, NULL,
+                                    post_ddl_ht))
     {
       DEBUG_SYNC(thd,"create_table_select_before_open");
 
@@ -2704,7 +2706,7 @@ int Query_result_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   DEBUG_SYNC(thd,"create_table_select_before_check_if_exists");
 
   if (!(table= create_table_from_items(thd, create_info, create_table,
-                                       alter_info, &values)))
+                                       alter_info, &values, &m_post_ddl_ht)))
     /* abort() deletes table */
     DBUG_RETURN(-1);
 
@@ -3090,6 +3092,9 @@ bool Query_result_create::send_eof()
       tdc_remove_table(thd, TDC_RT_REMOVE_ALL, create_table->db,
                        create_table->table_name, false);
     }
+
+    if (m_post_ddl_ht)
+      m_post_ddl_ht->post_ddl(thd);
   }
   return tmp;
 }
@@ -3215,6 +3220,14 @@ void Query_result_create::abort_result_set()
     drop_open_table();
     table=0;                                    // Safety
   }
+
+  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
+  {
+    trans_rollback_stmt(thd);
+    if (m_post_ddl_ht)
+      m_post_ddl_ht->post_ddl(thd);
+  }
+
   DBUG_VOID_RETURN;
 }
 

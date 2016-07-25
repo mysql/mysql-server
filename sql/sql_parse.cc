@@ -3131,7 +3131,7 @@ mysql_execute_command(THD *thd, bool first_level)
         goto error;
     }
 
-    if (mysql_rename_tables(thd, first_table, 0))
+    if (mysql_rename_tables(thd, first_table))
       goto error;
     break;
   }

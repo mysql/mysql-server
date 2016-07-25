@@ -713,6 +713,9 @@ bool Sql_cmd_alter_table_exchange_partition::
       Do this before we downgrade metadata locks.
     */
     (void) trans_rollback_stmt(thd);
+    if ((part_table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+        part_table->file->ht->post_ddl)
+      part_table->file->ht->post_ddl(thd);
     (void) thd->locked_tables_list.reopen_tables(thd);
     DBUG_RETURN(true);
   }
@@ -725,14 +728,18 @@ bool Sql_cmd_alter_table_exchange_partition::
       dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
       const dd::Schema *part_sch_obj= NULL;
       const dd::Schema *swap_sch_obj= NULL;
+      handlerton *hton= part_table->file->ht;
 
       // Close TABLE instances which marked as old earlier.
       close_all_tables_for_name(thd, swap_table->s, false, NULL);
       close_all_tables_for_name(thd, part_table->s, false, NULL);
 
-      // Ensure that we re-open tables even in case of error.
-      auto rollback_reopen_lambda =
-        [](THD *thd)
+      /*
+        Ensure that we call post-DDL hook and re-open tables even
+        in case of error.
+      */
+      auto rollback_post_ddl_reopen_lambda =
+        [hton](THD *thd)
         {
           /*
             Rollback all possible changes to data-dictionary and SE which
@@ -740,11 +747,16 @@ bool Sql_cmd_alter_table_exchange_partition::
             reporting an error. Do this before we downgrade metadata locks.
           */
           (void) trans_rollback_stmt(thd);
+          /*
+            Call SE post DDL hook. This handles both rollback and commit cases.
+          */
+          if (hton->post_ddl)
+            hton->post_ddl(thd);
           (void) thd->locked_tables_list.reopen_tables(thd);
         };
 
-      std::unique_ptr<THD, decltype(rollback_reopen_lambda)>
-        rollback_reopen_guard(thd, rollback_reopen_lambda);
+      std::unique_ptr<THD, decltype(rollback_post_ddl_reopen_lambda)>
+        rollback_post_ddl_reopen_guard(thd, rollback_post_ddl_reopen_lambda);
 
       if (!thd->dd_client()->update_uncached_and_invalidate(
                                part_table_def.get()) &&
