@@ -9752,6 +9752,24 @@ static bool inline fulltext_unsafe_set(TABLE_SHARE *s)
   }
   return FALSE;
 }
+#ifndef DBUG_OFF
+const char * get_locked_tables_mode_name(enum_locked_tables_mode locked_tables_mode)
+{
+   switch (locked_tables_mode)
+   {
+   case LTM_NONE:
+     return "LTM_NONE";
+   case LTM_LOCK_TABLES:
+     return "LTM_LOCK_TABLES";
+   case LTM_PRELOCKED:
+     return "LTM_PRELOCKED";
+   case LTM_PRELOCKED_UNDER_LOCK_TABLES:
+     return "LTM_PRELOCKED_UNDER_LOCK_TABLES";
+   default:
+     return "Unknown table lock mode";
+   }
+}
+#endif
 
 /**
   Decide on logging format to use for the statement and issue errors
