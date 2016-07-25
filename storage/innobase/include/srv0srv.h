@@ -774,11 +774,11 @@ bool
 srv_purge_threads_active();
 
 /** Check whether given space id is undo tablespace id
-@param[in]	space	space id to check
+@param[in]	space_id	space id to check
 @return true if it is undo tablespace else false. */
 bool
 srv_is_undo_tablespace(
-	space_id_t	space);
+	space_id_t	space_id);
 
 #ifdef UNIV_DEBUG
 /** Disables master thread. It's used by:
