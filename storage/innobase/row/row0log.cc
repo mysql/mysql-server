@@ -1191,8 +1191,8 @@ row_log_table_get_pk(
 			ulint	trx_id_offs = index->trx_id_offset;
 
 			if (!trx_id_offs) {
-				ulint	pos = dict_index_get_sys_col_pos(
-					index, DATA_TRX_ID);
+				ulint	pos =
+					index->get_sys_col_pos(DATA_TRX_ID);
 				ulint	len;
 				ut_ad(pos > 0);
 
@@ -1234,7 +1234,7 @@ row_log_table_get_pk(
 
 			for (ulint i = 0; i < new_n_uniq; i++) {
 				size += dict_col_get_min_size(
-					dict_index_get_nth_col(new_index, i));
+					new_index->get_col(i));
 			}
 
 			*heap = mem_heap_create(
@@ -1261,7 +1261,7 @@ row_log_table_get_pk(
 			ulint		prtype;
 			ulint		mbminmaxlen;
 
-			ifield = dict_index_get_nth_field(new_index, new_i);
+			ifield = new_index->get_field(new_i);
 			dfield = dtuple_get_nth_field(tuple, new_i);
 
 			const ulint	col_no
@@ -1478,7 +1478,7 @@ row_log_table_apply_convert_mrec(
 
 	for (ulint i = 0; i < rec_offs_n_fields(offsets); i++) {
 		const dict_field_t*	ind_field
-			= dict_index_get_nth_field(index, i);
+			= index->get_field(i);
 
 		if (ind_field->prefix_len) {
 			/* Column prefixes can only occur in key

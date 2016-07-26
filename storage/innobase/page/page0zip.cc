@@ -369,7 +369,7 @@ page_zip_fields_encode(
 	ut_ad(trx_id_pos == ULINT_UNDEFINED || trx_id_pos < n);
 
 	for (i = col = 0; i < n; i++) {
-		dict_field_t*	field = dict_index_get_nth_field(index, i);
+		dict_field_t*	field = index->get_field(i);
 		ulint		val;
 
 		if (dict_field_get_col(field)->prtype & DATA_NOT_NULL) {
@@ -1188,8 +1188,7 @@ page_zip_compress(
 	/* Dense page directory and uncompressed columns, if any */
 	if (page_is_leaf(page)) {
 		if (index->is_clustered()) {
-			trx_id_col = dict_index_get_sys_col_pos(
-				index, DATA_TRX_ID);
+			trx_id_col = index->get_sys_col_pos(DATA_TRX_ID);
 			ut_ad(trx_id_col > 0);
 			ut_ad(trx_id_col != ULINT_UNDEFINED);
 
@@ -1199,8 +1198,8 @@ page_zip_compress(
 		} else {
 			/* Signal the absence of trx_id
 			in page_zip_fields_encode() */
-			ut_ad(dict_index_get_sys_col_pos(
-				      index, DATA_TRX_ID) == ULINT_UNDEFINED);
+			ut_ad(index->get_sys_col_pos(DATA_TRX_ID)
+				== ULINT_UNDEFINED);
 			trx_id_col = 0;
 			slot_size = PAGE_ZIP_DIR_SLOT_SIZE;
 		}
@@ -1920,8 +1919,7 @@ page_zip_write_rec(
 		if (index->is_clustered()) {
 			ulint		trx_id_col;
 
-			trx_id_col = dict_index_get_sys_col_pos(index,
-								DATA_TRX_ID);
+			trx_id_col = index->get_sys_col_pos(DATA_TRX_ID);
 			ut_ad(trx_id_col != ULINT_UNDEFINED);
 
 			/* Store separately trx_id, roll_ptr and
@@ -1968,8 +1966,8 @@ page_zip_write_rec(
 		} else {
 			/* Leaf page of a secondary index:
 			no externally stored columns */
-			ut_ad(dict_index_get_sys_col_pos(index, DATA_TRX_ID)
-			      == ULINT_UNDEFINED);
+			ut_ad(index->get_sys_col_pos(DATA_TRX_ID) 
+				== ULINT_UNDEFINED);
 			ut_ad(!rec_offs_any_extern(offsets));
 
 			/* Log the entire record. */

@@ -381,7 +381,7 @@ ib_read_tuple(
 			ulint			col_no;
 			const dict_field_t*	index_field;
 
-			index_field = dict_index_get_nth_field(index, i);
+			index_field = index->get_field(i);
 			col = dict_field_get_col(index_field);
 			col_no = dict_col_get_no(col);
 
@@ -2375,15 +2375,15 @@ Get an index field name from the cursor.
 const char*
 ib_get_idx_field_name(
 /*==================*/
-	ib_crsr_t       ib_crsr,        /*!< in: InnoDB cursor instance */
+	ib_crsr_t	ib_crsr,	/*!< in: InnoDB cursor instance */
 	ib_ulint_t	i)		/*!< in: column index in tuple */
 {
-	ib_cursor_t*    cursor = (ib_cursor_t*) ib_crsr;
+	ib_cursor_t*	cursor = (ib_cursor_t*) ib_crsr;
 	dict_index_t*	index = cursor->prebuilt->index;
-	dict_field_t* 	field;
+	dict_field_t*	field;
 
 	if (index) {
-		field = dict_index_get_nth_field(cursor->prebuilt->index, i);
+		field = cursor->prebuilt->index->get_field(i);
 
 		if (field) {
 			return(field->name);
@@ -3220,9 +3220,9 @@ ib_sdi_create_search_tuple(
 	ib_crsr_t		ib_crsr,
 	const dd::sdi_key_t*	sdi_key)
 {
-	ut_ad(dict_index_get_nth_field(ib_crsr->prebuilt->index, 0)->fixed_len
+	ut_ad(ib_crsr->prebuilt->index->get_field(0)->fixed_len
 	      == dd::SDI_KEY_LEN);
-	ut_ad(dict_index_get_nth_field(ib_crsr->prebuilt->index, 1)->fixed_len
+	ut_ad(ib_crsr->prebuilt->index->get_field(1)->fixed_len
 	      == dd::SDI_TYPE_LEN);
 
 	ib_tpl_t	key_tpl = ib_clust_search_tuple_create(ib_crsr);
@@ -3246,9 +3246,9 @@ ib_sdi_create_insert_tuple(
 	const void*		sdi,
 	uint64_t		sdi_len)
 {
-	ut_ad(dict_index_get_nth_field(ib_crsr->prebuilt->index, 0)->fixed_len
+	ut_ad(ib_crsr->prebuilt->index->get_field(0)->fixed_len
 	      == dd::SDI_KEY_LEN);
-	ut_ad(dict_index_get_nth_field(ib_crsr->prebuilt->index, 1)->fixed_len
+	ut_ad(ib_crsr->prebuilt->index->get_field(1)->fixed_len
 	      == dd::SDI_TYPE_LEN);
 
 	ib_tpl_t	tuple = ib_clust_read_tuple_create(ib_crsr);

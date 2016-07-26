@@ -951,7 +951,7 @@ fts_index_get_charset(
 	dict_field_t*		field;
 	ulint			prtype;
 
-	field = dict_index_get_nth_field(index, 0);
+	field = index->get_field(0);
 	prtype = field->col->prtype;
 
 	charset = fts_get_charset(prtype);
@@ -962,7 +962,7 @@ fts_index_get_charset(
 	for (i = 1; i < index->n_fields; i++) {
 		CHARSET_INFO*   fld_charset;
 
-		field = dict_index_get_nth_field(index, i);
+		field = index->get_field(i);
 		prtype = field->col->prtype;
 
 		fld_charset = fts_get_charset(prtype);
@@ -1815,9 +1815,9 @@ fts_create_one_common_table(
 			new_table->space, DICT_UNIQUE|DICT_CLUSTERED, 1);
 
 		if (!is_config) {
-			dict_mem_index_add_field(index, "doc_id", 0);
+			index->add_field("doc_id", 0);
 		} else {
-			dict_mem_index_add_field(index, "key", 0);
+			index->add_field("key", 0);
 		}
 
 		/* We save and restore trx->dict_operation because
@@ -1938,7 +1938,7 @@ fts_create_common_tables(
 	index = dict_mem_index_create(
 		name, FTS_DOC_ID_INDEX_NAME, table->space,
 		DICT_UNIQUE, 1);
-	dict_mem_index_add_field(index, FTS_DOC_ID_COL_NAME, 0);
+	index->add_field(FTS_DOC_ID_COL_NAME, 0);
 
 	op = trx_get_dict_operation(trx);
 
@@ -1989,7 +1989,7 @@ fts_create_one_index_table(
 			table_name, fts_table->table,
 			FTS_AUX_INDEX_TABLE_NUM_COLS);
 
-	field = dict_index_get_nth_field(index, 0);
+	field = index->get_field(0);
 	charset = fts_get_charset(field->col->prtype);
 
 	dict_mem_table_add_col(new_table, heap, "word",
@@ -2026,8 +2026,8 @@ fts_create_one_index_table(
 		dict_index_t*	index = dict_mem_index_create(
 			table_name, "FTS_INDEX_TABLE_IND", new_table->space,
 			DICT_UNIQUE|DICT_CLUSTERED, 2);
-		dict_mem_index_add_field(index, "word", 0);
-		dict_mem_index_add_field(index, "first_doc_id", 0);
+		index->add_field("word", 0);
+		index->add_field("first_doc_id", 0);
 
 		trx_dict_op_t op = trx_get_dict_operation(trx);
 
@@ -3324,7 +3324,7 @@ fts_fetch_doc_from_rec(
 	num_field = dict_index_get_n_fields(index);
 
 	for (i = 0; i < num_field; i++) {
-		ifield = dict_index_get_nth_field(index, i);
+		ifield = index->get_field(i);
 		col = dict_field_get_col(ifield);
 		clust_pos = dict_col_get_clust_pos(col, clust_index);
 
@@ -3399,7 +3399,7 @@ fts_fetch_doc_from_tuple(
 		ulint			pos;
 		dfield_t*		field;
 
-		ifield = dict_index_get_nth_field(index, i);
+		ifield = index->get_field(i);
 		col = dict_field_get_col(ifield);
 		pos = dict_col_get_no(col);
 		field = dtuple_get_nth_field(tuple, pos);
@@ -3756,7 +3756,7 @@ fts_get_max_doc_id(
 		return(0);
 	}
 
-	dfield = dict_index_get_nth_field(index, 0);
+	dfield = index->get_field(0);
 
 #if 0 /* This can fail when renaming a column to FTS_DOC_ID_COL_NAME. */
 	ut_ad(innobase_strcasecmp(FTS_DOC_ID_COL_NAME, dfield->name) == 0);

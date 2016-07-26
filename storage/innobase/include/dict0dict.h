@@ -1154,64 +1154,6 @@ dict_index_get_n_ordering_defined_by_user(
 	const dict_index_t*	index)	/*!< in: an internal representation
 					of index (in the dictionary cache) */
 	MY_ATTRIBUTE((warn_unused_result));
-#ifdef UNIV_DEBUG
-/********************************************************************//**
-Gets the nth field of an index.
-@return pointer to field object */
-UNIV_INLINE
-dict_field_t*
-dict_index_get_nth_field(
-/*=====================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			pos)	/*!< in: position of field */
-	MY_ATTRIBUTE((warn_unused_result));
-#else /* UNIV_DEBUG */
-# define dict_index_get_nth_field(index, pos) ((index)->fields + (pos))
-#endif /* UNIV_DEBUG */
-/********************************************************************//**
-Gets pointer to the nth column in an index.
-@return column */
-UNIV_INLINE
-const dict_col_t*
-dict_index_get_nth_col(
-/*===================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			pos)	/*!< in: position of the field */
-	MY_ATTRIBUTE((warn_unused_result));
-/********************************************************************//**
-Gets the column number of the nth field in an index.
-@return column number */
-UNIV_INLINE
-ulint
-dict_index_get_nth_col_no(
-/*======================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			pos)	/*!< in: position of the field */
-	MY_ATTRIBUTE((warn_unused_result));
-/********************************************************************//**
-Looks for column n in an index.
-@return position in internal representation of the index;
-ULINT_UNDEFINED if not contained */
-UNIV_INLINE
-ulint
-dict_index_get_nth_col_pos(
-/*=======================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			n)	/*!< in: column number */
-	MY_ATTRIBUTE((warn_unused_result));
-/********************************************************************//**
-Looks for column n in an index.
-@return position in internal representation of the index;
-ULINT_UNDEFINED if not contained */
-ulint
-dict_index_get_nth_col_or_prefix_pos(
-/*=================================*/
-	const dict_index_t*	index,		/*!< in: index */
-	ulint			n,		/*!< in: column number */
-	bool			inc_prefix,	/*!< in: TRUE=consider
-						column prefixes too */
-	bool			is_virtual)	/*!< in: is a virtual column */
-	MY_ATTRIBUTE((warn_unused_result));
 /********************************************************************//**
 Returns TRUE if the index contains a column or a prefix of that column.
 @return TRUE if contains the column or its prefix */
@@ -1257,16 +1199,6 @@ dict_table_mysql_pos_to_innodb(
 	const dict_table_t*	table,
 	ulint			n);
 
-/********************************************************************//**
-Returns the position of a system column in an index.
-@return position, ULINT_UNDEFINED if not contained */
-UNIV_INLINE
-ulint
-dict_index_get_sys_col_pos(
-/*=======================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			type)	/*!< in: DATA_ROW_ID, ... */
-	MY_ATTRIBUTE((warn_unused_result));
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Copies types of fields contained in index to tuple. */

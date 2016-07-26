@@ -109,7 +109,7 @@ row_build_index_entry_low(
 				index->table, i - entry_len)->m_col;
 
 		} else {
-			ind_field = dict_index_get_nth_field(index, i);
+			ind_field = index->get_field(i);
 			col = ind_field->col;
 			col_no = dict_col_get_no(col);
 			dfield = dtuple_get_nth_field(entry, i);
@@ -480,7 +480,7 @@ row_build_low(
 
 	for (ulint i = 0; i < rec_offs_n_fields(offsets); i++) {
 		const dict_field_t*	ind_field
-			= dict_index_get_nth_field(index, i);
+			= index->get_field(i);
 
 		if (ind_field->prefix_len) {
 			/* Column prefixes can only occur in key
@@ -835,8 +835,7 @@ row_build_row_ref(
 		column, or the full column, and we must adjust the length
 		accordingly. */
 
-		clust_col_prefix_len = dict_index_get_nth_field(
-			clust_index, i)->prefix_len;
+		clust_col_prefix_len = clust_index->get_field(i)->prefix_len;
 
 		if (clust_col_prefix_len > 0) {
 			if (len != UNIV_SQL_NULL) {
@@ -935,8 +934,7 @@ row_build_row_ref_in_tuple(
 		column, or the full column, and we must adjust the length
 		accordingly. */
 
-		clust_col_prefix_len = dict_index_get_nth_field(
-			clust_index, i)->prefix_len;
+		clust_col_prefix_len = clust_index->get_field(i)->prefix_len;
 
 		if (clust_col_prefix_len > 0) {
 			if (len != UNIV_SQL_NULL) {

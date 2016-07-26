@@ -747,13 +747,13 @@ dict_create_sys_fields_tuple(
 	ut_ad(heap);
 
 	for (j = 0; j < index->n_fields; j++) {
-		if (dict_index_get_nth_field(index, j)->prefix_len > 0) {
+		if (index->get_field(j)->prefix_len > 0) {
 			index_contains_column_prefix_field = TRUE;
 			break;
 		}
 	}
 
-	field = dict_index_get_nth_field(index, fld_no);
+	field = index->get_field(fld_no);
 
 	sys_fields = dict_sys->sys_fields;
 
@@ -1982,7 +1982,7 @@ dict_index_has_col_by_name(
 	const dict_index_t*	index)
 {
         for (ulint i = 0; i < index->n_fields; i++) {
-                dict_field_t*   field = dict_index_get_nth_field(index, i);
+                dict_field_t*   field = index->get_field(i);
 
 		if (strcmp(field->name, col_name) == 0) {
 			return(true);
@@ -2560,8 +2560,8 @@ dict_sdi_create_idx_in_mem(
 		DICT_CLUSTERED |DICT_UNIQUE | DICT_SDI, 2);
 	ut_ad(temp_index);
 
-	dict_mem_index_add_field(temp_index, "id", 0);
-	dict_mem_index_add_field(temp_index, "type", 0);
+	temp_index->add_field("id", 0);
+	temp_index->add_field("type", 0);
 
 	temp_index->table = table;
 

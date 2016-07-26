@@ -943,58 +943,6 @@ dict_table_set_and_persist_autoinc(
 	}
 }
 
-
-#endif /* !UNIV_HOTBACKUP */
-
-/** Looks for column n in an index.
-@param[in]	index		index
-@param[in]	n		column number
-@param[in]	inc_prefix	true=consider column prefixes too
-@param[in]	is_virtual	true==virtual column
-@return position in internal representation of the index;
-ULINT_UNDEFINED if not contained */
-ulint
-dict_index_get_nth_col_or_prefix_pos(
-	const dict_index_t*	index,
-	ulint			n,
-	bool			inc_prefix,
-	bool			is_virtual)
-{
-	const dict_field_t*	field;
-	const dict_col_t*	col;
-	ulint			pos;
-	ulint			n_fields;
-
-	ut_ad(index);
-	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-
-	if (is_virtual) {
-		col = &(dict_table_get_nth_v_col(index->table, n)->m_col);
-	} else {
-		col = index->table->get_col(n);
-	}
-
-	if (index->is_clustered()) {
-
-		return(dict_col_get_clust_pos(col, index));
-	}
-
-	n_fields = dict_index_get_n_fields(index);
-
-	for (pos = 0; pos < n_fields; pos++) {
-		field = dict_index_get_nth_field(index, pos);
-
-		if (col == field->col
-		    && (inc_prefix || field->prefix_len == 0)) {
-
-			return(pos);
-		}
-	}
-
-	return(ULINT_UNDEFINED);
-}
-
-#ifndef UNIV_HOTBACKUP
 /** Returns TRUE if the index contains a column or a prefix of that column.
 @param[in]	index		index
 @param[in]	n		column number
@@ -1028,7 +976,7 @@ dict_index_contains_col_or_prefix(
 	n_fields = dict_index_get_n_fields(index);
 
 	for (pos = 0; pos < n_fields; pos++) {
-		field = dict_index_get_nth_field(index, pos);
+		field = index->get_field(pos);
 
 		if (col == field->col) {
 
@@ -1061,7 +1009,7 @@ dict_index_get_nth_field_pos(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	field2 = dict_index_get_nth_field(index2, n);
+	field2 = index2->get_field(n);
 
 	n_fields = dict_index_get_n_fields(index);
 
@@ -1070,7 +1018,7 @@ dict_index_get_nth_field_pos(
 	bool	is_mbr_fld = (n == 0 && dict_index_is_spatial(index2));
 
 	for (pos = 0; pos < n_fields; pos++) {
-		field = dict_index_get_nth_field(index, pos);
+		field = index->get_field(pos);
 
 		/* The first field of a spatial index is a transformed
 		MBR (Minimum Bound Box) field made out of original column,
@@ -1166,7 +1114,7 @@ dict_table_get_nth_col_pos(
 	const dict_table_t*	table,	/*!< in: table */
 	ulint			n)	/*!< in: column number */
 {
-	return(dict_index_get_nth_col_pos(table->first_index(), n));
+	return(table->first_index()->get_col_pos(n));
 }
 
 /** Get the innodb column position for a non-virtual column according to
@@ -1228,7 +1176,7 @@ dict_table_col_in_clustered_key(
 	n_fields = dict_index_get_n_unique(index);
 
 	for (pos = 0; pos < n_fields; pos++) {
-		field = dict_index_get_nth_field(index, pos);
+		field = index->get_field(pos);
 
 		if (col == field->col) {
 
@@ -2389,7 +2337,7 @@ dict_index_node_ptr_max_size(
 	/* Compute the maximum possible record size. */
 	for (i = 0; i < dict_index_get_n_unique_in_tree(index); i++) {
 		const dict_field_t*	field
-			= dict_index_get_nth_field(index, i);
+			= index->get_field(i);
 		const dict_col_t*	col
 			= dict_field_get_col(field);
 		ulint			field_max_size;
@@ -2518,7 +2466,7 @@ dict_index_too_big_for_tree(
 	/* Compute the maximum possible record size. */
 	for (i = 0; i < new_index->n_fields; i++) {
 		const dict_field_t*	field
-			= dict_index_get_nth_field(new_index, i);
+			= new_index->get_field(i);
 		const dict_col_t*	col
 			= dict_field_get_col(field);
 		ulint			field_max_size;
@@ -2707,7 +2655,7 @@ dict_index_add_to_cache_w_vcol(
 
 	for (i = 0; i < n_ord; i++) {
 		const dict_field_t*	field
-			= dict_index_get_nth_field(new_index, i);
+			= new_index->get_field(i);
 
 		/* Check the column being added in the index for
 		the first time and flag the ordering column. */
@@ -2775,7 +2723,7 @@ dict_index_add_to_cache_w_vcol(
 		for (i = 0; i < new_index->n_uniq; i++) {
 
 			const dict_field_t*	field;
-			field = dict_index_get_nth_field(new_index, i);
+			field = new_index->get_field(i);
 
 			if (!field->fixed_len) {
 				new_index->rec_cache.fixed_len_key = false;
@@ -2787,7 +2735,7 @@ dict_index_add_to_cache_w_vcol(
 		for (i = 0; i < new_index->n_uniq; i++) {
 
 			const dict_field_t*	field;
-			field = dict_index_get_nth_field(new_index, i);
+			field = new_index->get_field(i);
 
 			if (!(field->col->prtype & DATA_NOT_NULL)) {
 				new_index->rec_cache.key_has_null_cols = true;
@@ -2889,7 +2837,7 @@ dict_index_remove_from_cache_low(
 		const dict_v_col_t*	vcol;
 
 		for (ulint i = 0; i < dict_index_get_n_fields(index); i++) {
-			col =  dict_index_get_nth_col(index, i);
+			col =  index->get_col(i);
 			if (dict_col_is_virtual(col)) {
 				vcol = reinterpret_cast<const dict_v_col_t*>(
 					col);
@@ -2959,7 +2907,7 @@ dict_index_find_cols(
 
 	for (ulint i = 0; i < index->n_fields; i++) {
 		ulint		j;
-		dict_field_t*	field = dict_index_get_nth_field(index, i);
+		dict_field_t*	field = index->get_field(i);
 
 		for (j = 0; j < table->n_cols; j++) {
 			if (!strcmp(table->get_col_name(j), field->name)) {
@@ -3056,7 +3004,7 @@ dict_index_copy(
 
 	for (i = start; i < end; i++) {
 
-		field = dict_index_get_nth_field(index2, i);
+		field = index2->get_field(i);
 
 		dict_index_add_col(index1, table, field->col,
 				   field->prefix_len);
@@ -3085,7 +3033,7 @@ dict_index_copy_types(
 		const dict_field_t*	ifield;
 		dtype_t*		dfield_type;
 
-		ifield = dict_index_get_nth_field(index, i);
+		ifield = index->get_field(i);
 		dfield_type = dfield_get_type(dtuple_get_nth_field(tuple, i));
 		dict_col_copy_type(dict_field_get_col(ifield), dfield_type);
 		if (dict_index_is_spatial(index)
@@ -3253,7 +3201,7 @@ dict_index_build_internal_clust(
 	for (i = 0; i < trx_id_pos; i++) {
 
 		ulint	fixed_size = dict_col_get_fixed_size(
-			dict_index_get_nth_col(new_index, i),
+			new_index->get_col(i),
 			dict_table_is_comp(table));
 
 		if (fixed_size == 0) {
@@ -3262,8 +3210,7 @@ dict_index_build_internal_clust(
 			break;
 		}
 
-		dict_field_t* field = dict_index_get_nth_field(
-			new_index, i);
+		dict_field_t* field = new_index->get_field(i);
 		if (field->prefix_len > 0) {
 			new_index->trx_id_offset = 0;
 
@@ -3304,7 +3251,7 @@ dict_index_build_internal_clust(
 	/* Mark the table columns already contained in new_index */
 	for (i = 0; i < new_index->n_def; i++) {
 
-		field = dict_index_get_nth_field(new_index, i);
+		field = new_index->get_field(i);
 
 		/* If there is only a prefix of the column in the index
 		field, do not mark the column as contained in the index */
@@ -3390,7 +3337,7 @@ dict_index_build_internal_non_clust(
 	/* Mark the table columns already contained in new_index */
 	for (i = 0; i < new_index->n_def; i++) {
 
-		field = dict_index_get_nth_field(new_index, i);
+		field = new_index->get_field(i);
 
 		if (dict_col_is_virtual(field->col)) {
 			continue;
@@ -3410,7 +3357,7 @@ dict_index_build_internal_non_clust(
 
 	for (i = 0; i < clust_index->n_uniq; i++) {
 
-		field = dict_index_get_nth_field(clust_index, i);
+		field = clust_index->get_field(i);
 
 		if (!indexed[field->col->ind]) {
 			dict_index_add_col(new_index, table, field->col,
@@ -4949,7 +4896,7 @@ scan_on_conditions:
 	}
 
 	for (j = 0; j < foreign->n_fields; j++) {
-		if ((dict_index_get_nth_col(foreign->foreign_index, j)->prtype)
+		if ((foreign->foreign_index->get_col(j)->prtype)
 		    & DATA_NOT_NULL) {
 
 			/* It is not sensible to define SET NULL
@@ -5396,7 +5343,7 @@ dict_index_calc_min_rec_len(
 		sum = REC_N_NEW_EXTRA_BYTES;
 		for (i = 0; i < dict_index_get_n_fields(index); i++) {
 			const dict_col_t*	col
-				= dict_index_get_nth_col(index, i);
+				= index->get_col(i);
 			ulint	size = dict_col_get_fixed_size(col, comp);
 			sum += size;
 			if (!size) {
@@ -5415,8 +5362,7 @@ dict_index_calc_min_rec_len(
 	}
 
 	for (i = 0; i < dict_index_get_n_fields(index); i++) {
-		sum += dict_col_get_fixed_size(
-			dict_index_get_nth_col(index, i), comp);
+		sum += dict_col_get_fixed_size(index->get_col(i), comp);
 	}
 
 	if (sum > 127) {
@@ -6701,7 +6647,7 @@ dict_foreign_qualify_index(
 		const char*	col_name;
 		ulint		col_no;
 
-		field = dict_index_get_nth_field(index, i);
+		field = index->get_field(i);
 		col_no = dict_col_get_no(field->col);
 
 		ut_ad(!dict_col_is_virtual(field->col));
@@ -6726,8 +6672,8 @@ dict_foreign_qualify_index(
 		}
 
 		if (types_idx && !cmp_cols_are_equal(
-			    dict_index_get_nth_col(index, i),
-			    dict_index_get_nth_col(types_idx, i),
+			    index->get_col(i),
+			    types_idx->get_col(i),
 			    check_charsets)) {
 			return(false);
 		}
@@ -7186,9 +7132,9 @@ DDTableBuffer::init()
 					DICT_HDR_SPACE,
 					DICT_CLUSTERED | DICT_UNIQUE, 2);
 
-	dict_mem_index_add_field(m_index, "TABLE_ID", 0);
+	m_index->add_field("TABLE_ID", 0);
 
-	dict_mem_index_add_field(m_index, "METADATA", 0);
+	m_index->add_field("METADATA", 0);
 
 	bool	found;
 	found = dict_index_find_cols(table, m_index, NULL);

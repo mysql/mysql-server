@@ -70,9 +70,9 @@ dict_index_add_col(
 		col_name = table->get_col_name(dict_col_get_no(col));
 	}
 
-	dict_mem_index_add_field(index, col_name, prefix_len);
+	index->add_field(col_name, prefix_len);
 
-	field = dict_index_get_nth_field(index, index->n_def - 1);
+	field = index->get_field(index->n_def - 1);
 
 	field->col = col;
 	/* DATA_POINT is a special type, whose fixed_len should be:

@@ -1012,7 +1012,7 @@ cmp_rec_rec_simple_field(
 	const byte*	rec2_b_ptr;
 	ulint		rec1_f_len;
 	ulint		rec2_f_len;
-	const dict_col_t*	col	= dict_index_get_nth_col(index, n);
+	const dict_col_t*	col	= index->get_col(n);
 
 	ut_ad(!rec_offs_nth_extern(offsets1, n));
 	ut_ad(!rec_offs_nth_extern(offsets2, n));
@@ -1064,8 +1064,7 @@ cmp_rec_rec_simple(
 		      == rec_offs_nth_sql_null(offsets2, n));
 
 		if (rec_offs_nth_sql_null(offsets1, n)) {
-			ut_ad(!(dict_index_get_nth_col(index, n)->prtype
-				& DATA_NOT_NULL));
+			ut_ad(!(index->get_col(n)->prtype & DATA_NOT_NULL));
 			null_eq = true;
 		}
 	}
@@ -1185,7 +1184,7 @@ cmp_rec_rec_with_match(
 		} else {
 			const dict_col_t*	col;
 
-			col	= dict_index_get_nth_col(index, cur_field);
+			col	= index->get_col(cur_field);
 
 			mtype = col->mtype;
 			prtype = col->prtype;

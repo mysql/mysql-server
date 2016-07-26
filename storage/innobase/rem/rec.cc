@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -98,7 +98,7 @@ rec_init_offsets(
 				goto resolved;
 			}
 
-			field = dict_index_get_nth_field(index, i);
+			field = index->get_field(i);
 			if (!(dict_field_get_col(field)->prtype
 			      & DATA_NOT_NULL)) {
 				/* nullable field => read the null flag */
@@ -338,7 +338,7 @@ rec_get_offsets_reverse(
 			goto resolved;
 		}
 
-		field = dict_index_get_nth_field(index, i);
+		field = index->get_field(i);
 		if (!(dict_field_get_col(field)->prtype & DATA_NOT_NULL)) {
 			/* nullable field => read the null flag */
 

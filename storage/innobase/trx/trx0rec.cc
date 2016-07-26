@@ -306,8 +306,7 @@ trx_undo_read_v_idx_low(
 			TODO: in the future, it might be worth to add
 			checks on other indexes */
 			if (index->id == id) {
-				const dict_col_t* col = dict_index_get_nth_col(
-					index, pos);
+				const dict_col_t* col = index->get_col(pos);
 				ut_ad(dict_col_is_virtual(col));
 				const dict_v_col_t*	vcol = reinterpret_cast<
 					const dict_v_col_t*>(col);
@@ -988,8 +987,7 @@ trx_undo_page_report_modify(
 
 	/* Store the values of the system columns */
 	field = rec_get_nth_field(rec, offsets,
-				  dict_index_get_sys_col_pos(
-					  index, DATA_TRX_ID), &flen);
+				  index->get_sys_col_pos(DATA_TRX_ID), &flen);
 	ut_ad(flen == DATA_TRX_ID_LEN);
 
 	trx_id = trx_read_trx_id(field);
@@ -1004,8 +1002,7 @@ trx_undo_page_report_modify(
 	ptr += mach_u64_write_compressed(ptr, trx_id);
 
 	field = rec_get_nth_field(rec, offsets,
-				  dict_index_get_sys_col_pos(
-					  index, DATA_ROLL_PTR), &flen);
+				  index->get_sys_col_pos(DATA_ROLL_PTR), &flen);
 	ut_ad(flen == DATA_ROLL_PTR_LEN);
 
 	ptr += mach_u64_write_compressed(ptr, trx_read_roll_ptr(field));
@@ -1020,7 +1017,7 @@ trx_undo_page_report_modify(
 
 		/* The ordering columns must not be stored externally. */
 		ut_ad(!rec_offs_nth_extern(offsets, i));
-		ut_ad(dict_index_get_nth_col(index, i)->ord_part);
+		ut_ad(index->get_col(i)->ord_part);
 
 		if (trx_undo_left(undo_page, ptr) < 5) {
 
@@ -1142,9 +1139,8 @@ trx_undo_page_report_modify(
 			}
 
 			if (!is_virtual && rec_offs_nth_extern(offsets, pos)) {
-				const dict_col_t*	col
-					= dict_index_get_nth_col(index, pos);
-				ulint			prefix_len
+				const dict_col_t* col = index->get_col(pos);
+				ulint	prefix_len
 					= dict_max_field_len_store_undo(
 						table, col);
 
@@ -1264,8 +1260,7 @@ trx_undo_page_report_modify(
 					return(0);
 				}
 
-				pos = dict_index_get_nth_col_pos(index,
-								 col_no);
+				pos = index->get_col_pos(col_no);
 				ptr += mach_write_compressed(ptr, pos);
 
 				/* Save the old value of field */
@@ -1274,8 +1269,7 @@ trx_undo_page_report_modify(
 
 				if (rec_offs_nth_extern(offsets, pos)) {
 					const dict_col_t*	col =
-						dict_index_get_nth_col(
-							index, pos);
+							index->get_col(pos);
 					ulint			prefix_len =
 						dict_max_field_len_store_undo(
 							table, col);
@@ -1529,7 +1523,7 @@ trx_undo_update_rec_get_update(
 	trx_write_trx_id(buf, trx_id);
 
 	upd_field_set_field_no(upd_field,
-			       dict_index_get_sys_col_pos(index, DATA_TRX_ID),
+			       index->get_sys_col_pos(DATA_TRX_ID),
 			       index, trx);
 	dfield_set_data(&(upd_field->new_val), buf, DATA_TRX_ID_LEN);
 
@@ -1540,7 +1534,7 @@ trx_undo_update_rec_get_update(
 	trx_write_roll_ptr(buf, roll_ptr);
 
 	upd_field_set_field_no(
-		upd_field, dict_index_get_sys_col_pos(index, DATA_ROLL_PTR),
+		upd_field, index->get_sys_col_pos(DATA_ROLL_PTR),
 		index, trx);
 	dfield_set_data(&(upd_field->new_val), buf, DATA_ROLL_PTR_LEN);
 
@@ -1755,7 +1749,7 @@ trx_undo_rec_get_partial_row(
 				&vcol->m_col,
 				dfield_get_type(dfield));
 		} else {
-			col = dict_index_get_nth_col(index, field_no);
+			col = index->get_col(field_no);
 			col_no = dict_col_get_no(col);
 			dfield = dtuple_get_nth_field(*row, col_no);
 			dict_col_copy_type(

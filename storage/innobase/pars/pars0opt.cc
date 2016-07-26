@@ -356,7 +356,7 @@ opt_calc_index_goodness(
 
 	for (j = 0; j < n_fields; j++) {
 
-		col_no = dict_index_get_nth_col_no(index, j);
+		col_no = index->get_col_no(j);
 
 		exp = opt_look_for_col_in_cond_before(
 			OPT_EQUAL, col_no,
@@ -530,8 +530,7 @@ opt_check_order_by(
 
 			ut_a((dict_index_get_n_unique(plan->index)
 			      <= plan->n_exact_match)
-			     || (dict_index_get_nth_col_no(plan->index,
-							   plan->n_exact_match)
+			     || (plan->index->get_col_no(plan->n_exact_match)
 				 == order_col_no));
 		}
 	}
@@ -712,8 +711,7 @@ opt_classify_comparison(
 	if ((dict_index_get_n_fields(plan->index) > plan->n_exact_match)
 	    && opt_look_for_col_in_comparison_before(
 		    OPT_COMPARISON,
-		    dict_index_get_nth_col_no(plan->index,
-					      plan->n_exact_match),
+		    plan->index->get_col_no(plan->n_exact_match),
 		    cond, sel_node, i, &op)) {
 
 		if (sel_node->asc && ((op == '<') || (op == PARS_LE_TOKEN))) {
@@ -942,13 +940,13 @@ opt_find_all_cols(
 
 	/* Fill in the field_no fields in sym_node */
 
-	sym_node->field_nos[SYM_CLUST_FIELD_NO] = dict_index_get_nth_col_pos(
-		index->table->first_index(), sym_node->col_no);
+	sym_node->field_nos[SYM_CLUST_FIELD_NO] =
+		index->table->first_index()->get_col_pos(sym_node->col_no);
 	if (!index->is_clustered()) {
 
 		ut_a(plan);
 
-		col_pos = dict_index_get_nth_col_pos(index, sym_node->col_no);
+		col_pos = index->get_col_pos(sym_node->col_no);
 
 		if (col_pos == ULINT_UNDEFINED) {
 
@@ -1113,9 +1111,8 @@ opt_clust_access(
 		tables, and they should not contain column prefix indexes. */
 
 		if (dict_is_sys_table(index->table->id)
-		    && (dict_index_get_nth_field(index, pos)->prefix_len != 0
-		    || dict_index_get_nth_field(clust_index, i)
-		    ->prefix_len != 0)) {
+		    && (index->get_field(pos)->prefix_len != 0
+		    || clust_index->get_field(i)->prefix_len != 0)) {
 			ib::error() << "Error in pars0opt.cc: table "
 				<< index->table->name
 				<< " has prefix_len != 0";

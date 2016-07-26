@@ -520,7 +520,7 @@ mlog_open_and_write_index(
 			const dict_col_t*	col;
 			ulint			len;
 
-			field = dict_index_get_nth_field(index, i);
+			field = index->get_field(i);
 			col = dict_field_get_col(field);
 			len = field->fixed_len;
 			ut_ad(len < 0x7fff);
@@ -627,11 +627,9 @@ mlog_parse_index(
 		if (n_uniq != n) {
 			/* Identify DB_TRX_ID and DB_ROLL_PTR in the index. */
 			ut_a(DATA_TRX_ID_LEN
-			     == dict_index_get_nth_col(ind, DATA_TRX_ID - 1
-						       + n_uniq)->len);
+			     == ind->get_col(DATA_TRX_ID - 1 + n_uniq)->len);
 			ut_a(DATA_ROLL_PTR_LEN
-			     == dict_index_get_nth_col(ind, DATA_ROLL_PTR - 1
-						       + n_uniq)->len);
+			     == ind->get_col(DATA_ROLL_PTR - 1 + n_uniq)->len);
 			ind->fields[DATA_TRX_ID - 1 + n_uniq].col
 				= &table->cols[n + DATA_TRX_ID];
 			ind->fields[DATA_ROLL_PTR - 1 + n_uniq].col

@@ -1036,23 +1036,6 @@ dict_index_get_n_ordering_defined_by_user(
 }
 
 #ifdef UNIV_DEBUG
-/********************************************************************//**
-Gets the nth field of an index.
-@return pointer to field object */
-UNIV_INLINE
-dict_field_t*
-dict_index_get_nth_field(
-/*=====================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			pos)	/*!< in: position of field */
-{
-	ut_ad(index);
-	ut_ad(pos < index->n_def);
-	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-
-	return((dict_field_t*) (index->fields) + pos);
-}
-
 /** Check if a table is a temporary table with compressed row format,
 we should always expect false.
 @param[in]	table	table
@@ -1072,31 +1055,6 @@ dict_table_is_compressed_temporary(
 }
 #endif /* UNIV_DEBUG */
 
-/********************************************************************//**
-Returns the position of a system column in an index.
-@return position, ULINT_UNDEFINED if not contained */
-UNIV_INLINE
-ulint
-dict_index_get_sys_col_pos(
-/*=======================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			type)	/*!< in: DATA_ROW_ID, ... */
-{
-	ut_ad(index);
-	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-	ut_ad(!dict_index_is_ibuf(index));
-
-	if (index->is_clustered()) {
-
-		return(dict_col_get_clust_pos(
-			       index->table->get_sys_col(type),
-			       index));
-	}
-
-	return(dict_index_get_nth_col_pos(
-		       index, dict_table_get_sys_col_no(index->table, type)));
-}
-
 /*********************************************************************//**
 Gets the field column.
 @return field->col, pointer to the table column */
@@ -1109,46 +1067,6 @@ dict_field_get_col(
 	ut_ad(field);
 
 	return(field->col);
-}
-
-/********************************************************************//**
-Gets pointer to the nth column in an index.
-@return column */
-UNIV_INLINE
-const dict_col_t*
-dict_index_get_nth_col(
-/*===================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			pos)	/*!< in: position of the field */
-{
-	return(dict_field_get_col(dict_index_get_nth_field(index, pos)));
-}
-
-/********************************************************************//**
-Gets the column number the nth field in an index.
-@return column number */
-UNIV_INLINE
-ulint
-dict_index_get_nth_col_no(
-/*======================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			pos)	/*!< in: position of the field */
-{
-	return(dict_col_get_no(dict_index_get_nth_col(index, pos)));
-}
-
-/********************************************************************//**
-Looks for column n in an index.
-@return position in internal representation of the index;
-ULINT_UNDEFINED if not contained */
-UNIV_INLINE
-ulint
-dict_index_get_nth_col_pos(
-/*=======================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			n)	/*!< in: column number */
-{
-	return(dict_index_get_nth_col_or_prefix_pos(index, n, false, false));
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -1165,8 +1083,7 @@ dict_index_get_min_size(
 	ulint	size	= 0;
 
 	while (n--) {
-		size += dict_col_get_min_size(dict_index_get_nth_col(index,
-								     n));
+		size += dict_col_get_min_size(index->get_col(n));
 	}
 
 	return(size);

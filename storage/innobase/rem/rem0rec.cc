@@ -183,8 +183,7 @@ rec_get_n_extern_new(
 
 	/* read the lengths of fields 0..n */
 	do {
-		const dict_field_t*	field
-			= dict_index_get_nth_field(index, i);
+		const dict_field_t*	field = index->get_field(i);
 		const dict_col_t*	col
 			= dict_field_get_col(field);
 		ulint			len;
@@ -334,7 +333,7 @@ rec_get_converted_size_comp_prefix_low(
 		ulint			fixed_len;
 		const dict_col_t*	col;
 
-		field = dict_index_get_nth_field(index, i);
+		field = index->get_field(i);
 		len = dfield_get_len(&fields[i]);
 		col = dict_field_get_col(field);
 
@@ -812,7 +811,7 @@ rec_convert_dtuple_to_rec_comp(
 		/* only nullable fields can be null */
 		ut_ad(!dfield_is_null(field));
 
-		ifield = dict_index_get_nth_field(index, i);
+		ifield = index->get_field(i);
 		fixed_len = ifield->fixed_len;
 		col = ifield->col;
 		if (temp && fixed_len
@@ -1206,7 +1205,7 @@ rec_copy_prefix_to_buf(
 		const dict_field_t*	field;
 		const dict_col_t*	col;
 
-		field = dict_index_get_nth_field(index, i);
+		field = index->get_field(i);
 		col = dict_field_get_col(field);
 
 		if (!(col->prtype & DATA_NOT_NULL)) {
@@ -1765,8 +1764,7 @@ rec_get_trx_id(
 {
 	const page_t*	page
 		= page_align(rec);
-	ulint		trx_id_col
-		= dict_index_get_sys_col_pos(index, DATA_TRX_ID);
+	ulint		trx_id_col = index->get_sys_col_pos(DATA_TRX_ID);
 	const byte*	trx_id;
 	ulint		len;
 	mem_heap_t*	heap		= NULL;

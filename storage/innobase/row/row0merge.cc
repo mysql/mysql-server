@@ -560,7 +560,7 @@ row_merge_buf_add(
 	data_size = 0;
 	extra_size = UT_BITS_IN_BYTES(index->n_nullable);
 
-	ifield = dict_index_get_nth_field(index, 0);
+	ifield = index->get_field(0);
 
 	for (i = 0; i < n_fields; i++, field++, ifield++) {
 		ulint			len;
@@ -1604,8 +1604,7 @@ row_geo_field_is_valid(
 	const dtuple_t*		row,
 	dict_index_t*		index)
 {
-	const dict_field_t*	ind_field
-		= dict_index_get_nth_field(index, 0);
+	const dict_field_t*	ind_field = index->get_field(0);
 	const dict_col_t*	col
 		= ind_field->col;
 	ulint			col_no
@@ -4195,7 +4194,7 @@ row_merge_create_index(
 
 		}
 
-		dict_mem_index_add_field(index, name, ifield->prefix_len);
+		index->add_field(name, ifield->prefix_len);
 	}
 
 	/* Add the index to SYS_INDEXES, using the index prototype. */

@@ -2476,7 +2476,7 @@ row_import_set_sys_max_row_id(
 
 		field = rec_get_nth_field(
 			rec, offsets,
-			dict_index_get_sys_col_pos(index, DATA_ROW_ID),
+			index->get_sys_col_pos(DATA_ROW_ID),
 			&len);
 
 		if (len == DATA_ROW_ID_LEN) {

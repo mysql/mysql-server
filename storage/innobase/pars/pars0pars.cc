@@ -1137,14 +1137,13 @@ pars_process_assign_list(
 
 		col_sym = assign_node->col;
 
-		upd_field_set_field_no(upd_field, dict_index_get_nth_col_pos(
-					       clust_index, col_sym->col_no),
-				       clust_index, NULL);
+		upd_field_set_field_no(upd_field,
+				clust_index->get_col_pos(col_sym->col_no),
+				clust_index, NULL);
 		upd_field->exp = assign_node->val;
 
 		if (!dict_col_get_fixed_size(
-			    dict_index_get_nth_col(clust_index,
-						   upd_field->field_no),
+			    clust_index->get_col(upd_field->field_no),
 			    dict_table_is_comp(node->table))) {
 			changes_field_size = 0;
 		}
@@ -1910,7 +1909,7 @@ pars_create_index(
 	column = column_list;
 
 	while (column) {
-		dict_mem_index_add_field(index, column->name, 0);
+		index->add_field(column->name, 0);
 
 		column->resolved = TRUE;
 		column->token_type = SYM_COLUMN;

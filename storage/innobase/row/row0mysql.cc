@@ -2877,7 +2877,7 @@ row_table_got_default_clust_index(
 
 	clust_index = table->first_index();
 
-	return(dict_index_get_nth_col(clust_index, 0)->mtype == DATA_SYS);
+	return(clust_index->get_col(0)->mtype == DATA_SYS);
 }
 
 /*********************************************************************//**
@@ -3199,7 +3199,7 @@ row_create_index_for_mysql(
 		/* Check that prefix_len and actual length
 		< DICT_MAX_INDEX_COL_LEN */
 
-		len = dict_index_get_nth_field(index, i)->prefix_len;
+		len = index->get_field(i)->prefix_len;
 
 		if (field_lengths && field_lengths[i]) {
 			len = ut_max(len, field_lengths[i]);

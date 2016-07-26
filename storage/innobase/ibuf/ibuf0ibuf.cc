@@ -1855,7 +1855,7 @@ ibuf_entry_build(
 		entry_field = dtuple_get_nth_field(entry, i);
 		dfield_copy(field, entry_field);
 
-		ifield = dict_index_get_nth_field(index, i);
+		ifield = index->get_field(i);
 		/* Prefix index columns of fixed-length columns are of
 		fixed length.  However, in the function call below,
 		dfield_get_type(entry_field) contains the fixed length

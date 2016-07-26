@@ -538,7 +538,7 @@ row_ins_cascade_calc_update_vec(
 
 		parent_field_no = dict_table_get_nth_col_pos(
 			parent_table,
-			dict_index_get_nth_col_no(parent_index, i));
+			parent_index->get_col_no(i));
 
 		for (j = 0; j < parent_update->n_fields; j++) {
 			const upd_field_t*	parent_ufield
@@ -551,7 +551,7 @@ row_ins_cascade_calc_update_vec(
 				ulint			ufield_len;
 				upd_field_t*		ufield;
 
-				col = dict_index_get_nth_col(index, i);
+				col = index->get_col(i);
 
 				/* A field in the parent index record is
 				updated. Let us make the update vector
@@ -1299,8 +1299,7 @@ row_ins_foreign_check_on_constraint(
 
 		for (i = 0; i < foreign->n_fields; i++) {
 			upd_field_t*	ufield = &update->fields[i];
-			ulint		col_no = dict_index_get_nth_col_no(
-						index, i);
+			ulint		col_no = index->get_col_no(i);
 
 			ufield->field_no = dict_table_get_nth_col_pos(
 				table, col_no);
@@ -1313,9 +1312,8 @@ row_ins_foreign_check_on_constraint(
 
 			if (table->fts && dict_table_is_fts_column(
 				table->fts->indexes,
-				dict_index_get_nth_col_no(index, i),
-				dict_col_is_virtual(
-					dict_index_get_nth_col(index, i)))
+				index->get_col_no(i),
+				dict_col_is_virtual(index->get_col(i)))
 			    != ULINT_UNDEFINED) {
 				fts_col_affacted = TRUE;
 			}
@@ -1341,9 +1339,8 @@ row_ins_foreign_check_on_constraint(
 		for (i = 0; i < foreign->n_fields; i++) {
 			if (table->fts && dict_table_is_fts_column(
 				table->fts->indexes,
-				dict_index_get_nth_col_no(index, i),
-				dict_col_is_virtual(
-					dict_index_get_nth_col(index, i)))
+				index->get_col_no(i),
+				dict_col_is_virtual(index->get_col(i)))
 			    != ULINT_UNDEFINED) {
 				fts_col_affacted = TRUE;
 			}
@@ -3563,7 +3560,7 @@ row_ins_index_entry_set_vals(
 				index->table, i - n_fields)->m_col;
 		} else {
 			field = dtuple_get_nth_field(entry, i);
-			ind_field = dict_index_get_nth_field(index, i);
+			ind_field = index->get_field(i);
 			col = ind_field->col;
 		}
 

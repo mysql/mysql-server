@@ -4428,7 +4428,7 @@ btr_index_rec_validate(
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
 	for (i = 0; i < n; i++) {
-		dict_field_t*	field = dict_index_get_nth_field(index, i);
+		dict_field_t*	field = index->get_field(i);
 		ulint		fixed_size = dict_col_get_fixed_size(
 						dict_field_get_col(field),
 						page_is_comp(page));

@@ -2046,8 +2046,7 @@ too_small:
 			ulint	trx_id_offs;
 			ulint	len;
 
-			trx_id_col = dict_index_get_sys_col_pos(index,
-								DATA_TRX_ID);
+			trx_id_col = index->get_sys_col_pos(DATA_TRX_ID);
 			ut_ad(trx_id_col > 0);
 			ut_ad(trx_id_col != ULINT_UNDEFINED);
 

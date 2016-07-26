@@ -1005,6 +1005,61 @@ struct dict_index_t{
 	/** Check whether index can be used by transaction
 	@param[in] trx		transaction*/
 	bool is_usable(const trx_t* trx) const;
+
+	/** Adds a field definition to an index. NOTE: does not take a copy
+	of the column name if the field is a column. The memory occupied
+	by the column name may be released only after publishing the index.
+	@param[in] name		column name
+	@param[in] prefix_len	0 or the column prefix length in a MySQL index
+				like INDEX (textcol(25)) */
+	void add_field(const char* name, ulint prefix_len)
+	{
+		dict_field_t*	field;
+
+		ut_ad(magic_n == DICT_INDEX_MAGIC_N);
+
+		n_def++;
+
+		field =  get_field(n_def - 1);
+
+		field->name = name;
+		field->prefix_len = (unsigned int) prefix_len;
+	}
+
+	/** Gets the nth field of an index.
+	@param[in] pos	position of field
+	@return pointer to field object */
+	dict_field_t* get_field(ulint pos) const
+	{
+		ut_ad(pos < n_def);
+		ut_ad(magic_n == DICT_INDEX_MAGIC_N);
+
+		return(fields + pos);
+	}
+
+	/** Gets pointer to the nth column in an index.
+	@param[in] pos	position of the field
+	@return column */
+	const dict_col_t* get_col(ulint pos) const;
+
+	/** Gets the column number the nth field in an index.
+	@param[in] pos	position of the field
+	@return column number */
+	ulint get_col_no(ulint pos) const;
+
+	/** Returns the position of a system column in an index.
+	@param[in] type		DATA_ROW_ID, ...
+	@return position, ULINT_UNDEFINED if not contained */
+	ulint get_sys_col_pos(ulint type) const;
+
+	/** Looks for column n in an index.
+	@param[in]	n		column number
+	@param[in]	inc_prefix	true=consider column prefixes too
+	@param[in]	is_virtual	true==virtual column
+	@return position in internal representation of the index;
+	ULINT_UNDEFINED if not contained */
+	ulint get_col_pos(
+		ulint n, bool inc_prefix=false, bool is_virtual=false) const;
 };
 
 /** The status of online index creation */

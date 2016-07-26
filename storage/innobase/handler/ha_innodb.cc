@@ -7276,8 +7276,7 @@ build_template_field(
 		if (index->is_clustered()) {
 			templ->rec_field_no = templ->clust_rec_field_no;
 		} else {
-			templ->rec_field_no = dict_index_get_nth_col_pos(
-						index, i);
+			templ->rec_field_no = index->get_col_pos(i);
 		}
 	} else {
 		templ->clust_rec_field_no = v_no;
@@ -7285,8 +7284,7 @@ build_template_field(
 			templ->rec_field_no = templ->clust_rec_field_no;
 		} else {
 			templ->rec_field_no
-				= dict_index_get_nth_col_or_prefix_pos(
-					index, v_no, FALSE, true);
+				= index->get_col_pos(v_no, false, true);
 		}
 		templ->icp_rec_field_no = ULINT_UNDEFINED;
 	}
@@ -7508,9 +7506,8 @@ ha_innobase::build_template(
 						= templ->rec_field_no;
 				} else {
 					templ->icp_rec_field_no
-						= dict_index_get_nth_col_pos(
-							m_prebuilt->index,
-							i - num_v);
+						= m_prebuilt->index
+						  ->get_col_pos(i - num_v);
 				}
 
 				if (m_prebuilt->index->is_clustered()) {
@@ -7539,9 +7536,8 @@ ha_innobase::build_template(
 				an end_range comparison. */
 
 				templ->icp_rec_field_no
-					= dict_index_get_nth_col_or_prefix_pos(
-						m_prebuilt->index, i - num_v,
-						true, false);
+					= m_prebuilt->index->get_col_pos(
+						i - num_v, true, false);
 				ut_ad(templ->icp_rec_field_no
 				      != ULINT_UNDEFINED);
 
@@ -9822,7 +9818,7 @@ innobase_fts_create_doc_id_key(
 
 #ifdef UNIV_DEBUG
 	/* The unique Doc ID field should be an eight-bytes integer */
-	dict_field_t*	field = dict_index_get_nth_field(index, 0);
+	dict_field_t*	field = index->get_field(0);
         ut_a(field->col->mtype == DATA_INT);
 	ut_ad(sizeof(*doc_id) == field->fixed_len);
 	ut_ad(!strcmp(index->name, FTS_DOC_ID_INDEX_NAME));
@@ -10729,8 +10725,7 @@ create_index(
 				DBUG_RETURN(HA_ERR_UNSUPPORTED);
 			}
 
-			dict_mem_index_add_field(
-				index, key_part->field->field_name, 0);
+			index->add_field(key_part->field->field_name, 0);
 		}
 
 		DBUG_RETURN(convert_error_code_to_mysql(
@@ -10849,7 +10844,7 @@ create_index(
 			index->type |= DICT_VIRTUAL;
 		}
 
-		dict_mem_index_add_field(index, field_name, prefix_len);
+		index->add_field(field_name, prefix_len);
 	}
 
 	ut_ad(key->flags & HA_FULLTEXT || !(index->type & DICT_FTS));
@@ -20684,7 +20679,7 @@ innobase_get_field_from_update_vector(
 
 	for (ulint i = 0; i < foreign->n_fields; i++) {
 
-		parent_col_no = dict_index_get_nth_col_no(parent_index, i);
+		parent_col_no = parent_index->get_col_no(i);
 		parent_field_no = dict_table_get_nth_col_pos(
 			parent_table, parent_col_no);
 

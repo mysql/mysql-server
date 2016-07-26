@@ -211,7 +211,7 @@ row_sel_sec_rec_is_for_clust_rec(
 		bool			is_virtual;
 		row_ext_t*		ext;
 
-		ifield = dict_index_get_nth_field(sec_index, i);
+		ifield = sec_index->get_field(i);
 		col = dict_field_get_col(ifield);
 
 		is_virtual = dict_col_is_virtual(col);
@@ -2505,7 +2505,7 @@ row_sel_convert_mysql_key_to_innobase(
 	dtuple_set_n_fields(tuple, ULINT_MAX);
 
 	dfield = dtuple_get_nth_field(tuple, 0);
-	field = dict_index_get_nth_field(index, 0);
+	field = index->get_field(0);
 
 	if (UNIV_UNLIKELY(dfield_get_type(dfield)->mtype == DATA_SYS)) {
 		/* A special case: we are looking for a position in the
@@ -2697,8 +2697,7 @@ row_sel_store_row_id_to_prebuilt(
 	ut_ad(rec_offs_validate(index_rec, index, offsets));
 
 	data = rec_get_nth_field(
-		index_rec, offsets,
-		dict_index_get_sys_col_pos(index, DATA_ROW_ID), &len);
+		index_rec, offsets, index->get_sys_col_pos(DATA_ROW_ID), &len);
 
 	if (UNIV_UNLIKELY(len != DATA_ROW_ID_LEN)) {
 
@@ -2706,7 +2705,7 @@ row_sel_store_row_id_to_prebuilt(
 			" index " << index->name
 			<< " of table " << index->table->name
 			<< ", Field number "
-			<< dict_index_get_sys_col_pos(index, DATA_ROW_ID)
+			<< index->get_sys_col_pos(DATA_ROW_ID)
 			<< ", record:";
 
 		rec_print_new(stderr, index_rec, offsets);
@@ -2758,8 +2757,7 @@ row_sel_field_store_in_mysql_format_func(
 	byte*			ptr;
 #ifdef UNIV_DEBUG
 	const dict_field_t*	field
-		= templ->is_virtual
-			 ? NULL : dict_index_get_nth_field(index, field_no);
+		= templ->is_virtual ? NULL : index->get_field(field_no);
 #endif /* UNIV_DEBUG */
 
 	ut_ad(len != UNIV_SQL_NULL);
@@ -3149,9 +3147,8 @@ row_sel_store_mysql_rec(
 
 				/* If it is part of index key the data should
 				have been materialized. */
-				ut_ad(dict_index_get_nth_col_or_prefix_pos(
-					prebuilt->index, col->v_pos, false,
-					true) == ULINT_UNDEFINED);
+				ut_ad(prebuilt->index->get_col_pos(col->v_pos,
+					false, true) == ULINT_UNDEFINED);
 
 				continue;
 			}
@@ -3185,8 +3182,7 @@ row_sel_store_mysql_rec(
 			: templ->rec_field_no;
 		/* We should never deliver column prefixes to MySQL,
 		except for evaluating innobase_index_cond(). */
-		ut_ad(dict_index_get_nth_field(index, field_no)->prefix_len
-		      == 0);
+		ut_ad(index->get_field(field_no)->prefix_len == 0);
 
 		if (!row_sel_store_mysql_field(mysql_rec, prebuilt,
 					       rec, index, offsets,
@@ -4382,7 +4378,7 @@ row_sel_fill_vrow(
 		const dict_field_t*     field;
                 const dict_col_t*       col;
 
-		field = dict_index_get_nth_field(index, i);
+		field = index->get_field(i);
 		col = dict_field_get_col(field);
 
 		if (dict_col_is_virtual(col)) {
@@ -6023,8 +6019,7 @@ row_count_rtree_recs(
 	entry = dtuple_create(heap, entry_len);
 
 	for (i = 0; i < entry_len; i++) {
-		const dict_field_t*	ind_field
-			= dict_index_get_nth_field(index, i);
+		const dict_field_t*	ind_field = index->get_field(i);
 		const dict_col_t*	col
 			= ind_field->col;
 		dfield_t*		dfield
@@ -6252,7 +6247,7 @@ row_search_max_autoinc(
 	const char*	col_name,	/*!< in: name of autoinc column */
 	ib_uint64_t*	value)		/*!< out: AUTOINC value read */
 {
-	dict_field_t*	dfield = dict_index_get_nth_field(index, 0);
+	dict_field_t*	dfield = index->get_field(0);
 	dberr_t		error = DB_SUCCESS;
 	*value = 0;
 

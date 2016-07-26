@@ -542,8 +542,7 @@ rec_init_offsets_comp_ordinary(
 
 	/* read the lengths of fields 0..n */
 	do {
-		const dict_field_t*	field
-			= dict_index_get_nth_field(index, i);
+		const dict_field_t*	field = index->get_field(i);
 		const dict_col_t*	col
 			= dict_field_get_col(field);
 		ulint			len;
