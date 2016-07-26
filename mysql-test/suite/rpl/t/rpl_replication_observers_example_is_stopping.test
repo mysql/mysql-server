@@ -51,6 +51,8 @@
 --source include/have_replication_observers_example_plugin.inc
 # This test case is binary log format agnostic
 --source include/have_binlog_format_mixed.inc
+# This test cannot run with MTS
+--source include/not_mts_slave_parallel_workers.inc
 --source include/have_gtid.inc
 --let $rpl_skip_start_slave= 1
 --source include/master-slave.inc
