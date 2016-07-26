@@ -34,6 +34,8 @@
   constructed.
 
   Example usage:
+
+  @verbatim
   struct My_psi_key_alloc
   {
     void* operator(size_t s)()
@@ -54,6 +56,7 @@
   typedef default_string<My_psi_key_allocator> My_psi_key_str;
 
   My_psi_key_str x("foobar");
+  @endverbatim
 
   Since a Stateless_allocator instance is always
   default-constructible, it can also be used to create instances of
