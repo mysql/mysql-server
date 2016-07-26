@@ -851,7 +851,10 @@ srv_undo_tablespaces_init(
 			name, sizeof(name), "%s%cundo%03u",
 			srv_undo_dir, OS_PATH_SEPARATOR, id);
 
-		/* Undo space ids start from 1. */
+		if (n_undo_tablespaces < n_conf_tablespaces) {
+			fil_set_max_space_id_if_bigger(id);
+		}
+
 		err = srv_undo_tablespace_open(name, id);
 
 		if (err != DB_SUCCESS) {
