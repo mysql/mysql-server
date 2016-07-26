@@ -35,11 +35,9 @@ typedef struct st_lex_user LEX_USER;
 typedef struct st_order ORDER;
 typedef class st_select_lex SELECT_LEX;
 
-/* in sql_client.cc */
-/*class SQLRow;
+class SQLRow;
 class SQLCursor;
 class SQLClient;
-*/
 bool query_injection_point(THD* thd, COM_DATA *com_data, enum enum_server_command command, 
                            COM_DATA* new_com_data, enum enum_server_command* new_command);
 

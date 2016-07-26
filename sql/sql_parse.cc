@@ -7250,7 +7250,11 @@ class SQLRow
             tmp += data[i];
         }
       } else {
-        tmp += data[i];
+        if(data[i] == 'n') {
+          tmp += "\n";
+        } else {
+          tmp += data[i];
+        }
         in_escape = false;
       }
     }
@@ -7456,7 +7460,13 @@ class SQLClient
           /* reserve some extra space for the overhead of multiple expressions */
           char *c = (char*)malloc((len=(tmp.length() + 128)*4));
           char *d;
-          assert(c != NULL);
+          if(c == NULL) 
+          { 
+            printf("Internal SQL client out of memory\n");
+            _sqlcode = "99998";
+            _sqlerr = "Internal SQL client out of memory\n";
+            return false; 
+          }
 
           memset(c,0,len);
           snprintf(c,len-1,"REPLACE(`%s`,''\"'',''\\\\\\\\\"'')", tmp.c_str());
@@ -7464,7 +7474,6 @@ class SQLClient
           free(d);
           int real_len = snprintf(c,len-1,"IFNULL(%s,\"\\\\N\")", (d=strdup(c)));
           free(d);
-          assert(real_len <= len); 
           new_columns += std::string(c,real_len);
           free(c);
           tmp = "";
@@ -7574,6 +7583,7 @@ bool query_injection_point(THD* thd, COM_DATA *com_data, enum enum_server_comman
           }
         } else 
         {
+          delete stmt;
           return false;
         }
       } else {
