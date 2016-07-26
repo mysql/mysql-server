@@ -2113,3 +2113,34 @@ a	b
 0	0
 1	1
 drop table t2;
+#
+# MDEV-10228: Delete missing rows with OR conditions
+#  (The example uses UPDATE, because UPDATE allows to use index hints
+#   and so it's possible to make an example that works with any storage
+#   engine)
+#
+CREATE TABLE t1 (
+key1varchar varchar(14) NOT NULL,
+key2int int(11) NOT NULL DEFAULT '0',
+col1 int,
+PRIMARY KEY (key1varchar,key2int),
+KEY key1varchar (key1varchar),
+KEY key2int (key2int)
+) DEFAULT CHARSET=utf8;
+insert into t1 values 
+('value1',0, 0),
+('value1',1, 0),
+('value1',1000685, 0),
+('value1',1003560, 0),
+('value1',1004807, 0);
+update t1 force index (PRIMARY) set col1=12345
+where (key1varchar='value1' AND (key2int <=1 OR  key2int > 1));
+# The following must show col1=12345 for all rows:
+select * from t1;
+key1varchar	key2int	col1
+value1	0	12345
+value1	1	12345
+value1	1000685	12345
+value1	1003560	12345
+value1	1004807	12345
+drop table t1;

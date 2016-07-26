@@ -10409,8 +10409,10 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
       KEY *table_key=quick->head->key_info+quick->index;
       flag=EQ_RANGE;
       if ((table_key->flags & HA_NOSAME) &&
+          min_part == key_tree->part &&
           key_tree->part == table_key->key_parts-1)
       {
+        DBUG_ASSERT(min_part == max_part);
         if ((table_key->flags & HA_NULL_PART_KEY) &&
             null_part_in_key(key,
                              param->min_key,

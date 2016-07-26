@@ -1689,3 +1689,32 @@ insert into t2 values (0, 0, 0, 0), (1, 1, 1, 1);
 analyze table t2;
 select a, b from t2 where (a, b) in ((0, 0), (1, 1));
 drop table t2;
+
+--echo #
+--echo # MDEV-10228: Delete missing rows with OR conditions
+--echo #  (The example uses UPDATE, because UPDATE allows to use index hints
+--echo #   and so it's possible to make an example that works with any storage
+--echo #   engine)
+--echo #
+
+CREATE TABLE t1 (
+  key1varchar varchar(14) NOT NULL,
+  key2int int(11) NOT NULL DEFAULT '0',
+  col1 int,
+  PRIMARY KEY (key1varchar,key2int),
+  KEY key1varchar (key1varchar),
+  KEY key2int (key2int)
+) DEFAULT CHARSET=utf8;
+ 
+insert into t1 values 
+  ('value1',0, 0),
+  ('value1',1, 0),
+  ('value1',1000685, 0),
+  ('value1',1003560, 0),
+  ('value1',1004807, 0);
+
+update t1 force index (PRIMARY) set col1=12345
+where (key1varchar='value1' AND (key2int <=1 OR  key2int > 1));
+--echo # The following must show col1=12345 for all rows:
+select * from t1;
+drop table t1;
