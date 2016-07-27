@@ -400,7 +400,7 @@ TYPED_TEST(STLAllocTestBasicStringTemplate, BasicTest)
 
 }
 
-
+#ifndef DBUG_OFF
 //
 // Verify that std::bad_alloc is thrown in out-of-memory conditions
 //
@@ -413,7 +413,7 @@ TYPED_TEST(STLAllocTestBasicStringTemplate, OutOfMemTest)
   ASSERT_THROW(x.reserve(1000), std::bad_alloc);
   DBUG_SET("-d,simulate_out_of_memory");
 }
-
+#endif /* !DBUG_OFF */
 
 } // namespace stlalloc_unittest
 
