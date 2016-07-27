@@ -171,14 +171,18 @@ ErrorReporter::formatMessage(int thr_no,
 
   processId = NdbHost_GetProcessId();
   char thrbuf[100] = "";
-  char thrSuffix[100] = "";
   if (thr_no >= 0)
   {
+    char thrSuffix[100] = "";
     BaseString::snprintf(thrbuf, sizeof(thrbuf), " thr: %u", thr_no);
-    /* Append the thread number to log the causing thread trace file
-     * name explicitly */
-    BaseString::snprintf(thrSuffix, sizeof(thrSuffix), "_t%u", thr_no);
-    failingThdTraceFileName.append(thrSuffix);
+    if (thr_no > 0)
+    {
+      /* Append the thread number to log the causing thread trace file
+       * name explicitly
+       * Thread 0 is a special case with no suffix */
+      BaseString::snprintf(thrSuffix, sizeof(thrSuffix), "_t%u", thr_no);
+      failingThdTraceFileName.append(thrSuffix);
+    }
   }
 
   char time_str[39];
