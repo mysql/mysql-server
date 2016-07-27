@@ -535,6 +535,83 @@ struct dict_col_t{
 					this column. Our current max limit is
 					3072 (REC_VERSION_56_MAX_INDEX_COL_LEN)
 					bytes. */
+
+#ifndef UNIV_HOTBACKUP
+	/** Returns the minimum size of the column.
+	@return minimum size */
+	ulint get_min_size() const
+	{
+		return(dtype_get_min_size_low(mtype, prtype, len, mbminmaxlen));
+	}
+
+	/** Returns the maximum size of the column.
+	@return maximum size */
+	ulint get_max_size() const
+	{
+		return(dtype_get_max_size_low(mtype, len));
+	}
+#endif /* !UNIV_HOTBACKUP*/
+
+	/** Returns the size of a fixed size column, 0 if not a fixed size column.
+	@param[in] comp		nonzero=ROW_FORMAT=COMPACT
+	@return fixed size, or 0 */
+	ulint get_fixed_size(ulint comp) const
+	{
+		return(dtype_get_fixed_size_low(mtype, prtype, len,
+			mbminmaxlen, comp));
+	}
+
+	/** Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a column.
+	For fixed length types it is the fixed length of the type, otherwise 0.
+	@param[in] comp		nonzero=ROW_FORMAT=COMPACT
+	@return SQL null storage size in ROW_FORMAT=REDUNDANT */
+	ulint get_null_size(ulint comp) const
+	{
+		return(get_fixed_size(comp));
+	}
+
+	/** Check whether the col is used in spatial index or regular index.
+	@return spatial status */
+	spatial_status_t get_spatial_status() const
+	{
+		spatial_status_t	spatial_status = SPATIAL_NONE;
+
+		/* Column is not a part of any index. */
+		if (!ord_part) {
+			return(spatial_status);
+		}
+
+		if (DATA_GEOMETRY_MTYPE(mtype)) {
+			if (max_prefix == 0) {
+				spatial_status = SPATIAL_ONLY;
+			} else {
+				/* Any regular index on a geometry column
+				should have a prefix. */
+				spatial_status = SPATIAL_MIXED;
+			}
+		}
+
+		return(spatial_status);
+	}
+
+#ifdef UNIV_DEBUG
+	/** Assert that a column and a data type match.
+	param[in] type		data type
+	@return true */
+	bool assert_equal(const dtype_t* type) const
+	{
+		ut_ad(type);
+
+		ut_ad(mtype == type->mtype);
+		ut_ad(prtype == type->prtype);
+		//ut_ad(col->len == type->len);
+# ifndef UNIV_HOTBACKUP
+		ut_ad(mbminmaxlen == type->mbminmaxlen);
+# endif /* !UNIV_HOTBACKUP */
+
+		return true;
+	}
+#endif /* UNIV_DEBUG */
 };
 
 /** Index information put in a list of virtual column structure. Index
@@ -998,6 +1075,19 @@ struct dict_index_t{
 		ut_ad(magic_n == DICT_INDEX_MAGIC_N);
 
 		return(type & DICT_CLUSTERED);
+	}
+
+	/** Returns the minimum data size of an index record.
+	@return minimum data size in bytes */
+	ulint get_min_size() const
+	{
+		ulint	size	= 0;
+
+		for (unsigned i = 0; i < n_fields; i++) {
+			size += get_col(i)->get_min_size();
+		}
+
+		return(size);
 	}
 
 #endif /* !UNIV_HOTBACKUP */
@@ -2408,34 +2498,6 @@ dict_table_autoinc_own(
 	return(mutex_own(table->autoinc_mutex));
 }
 #endif /* UNIV_DEBUG */
-
-/** Check whether the col is used in spatial index or regular index.
-@param[in]	col	column to check
-@return spatial status */
-inline
-spatial_status_t
-dict_col_get_spatial_status(
-	const dict_col_t*	col)
-{
-	spatial_status_t	spatial_status = SPATIAL_NONE;
-
-	/* Column is not a part of any index. */
-	if (!col->ord_part) {
-		return(spatial_status);
-	}
-
-	if (DATA_GEOMETRY_MTYPE(col->mtype)) {
-		if (col->max_prefix == 0) {
-			spatial_status = SPATIAL_ONLY;
-		} else {
-			/* Any regular index on a geometry column
-			should have a prefix. */
-			spatial_status = SPATIAL_MIXED;
-		}
-	}
-
-	return(spatial_status);
-}
 
 #include "dict0mem.ic"
 

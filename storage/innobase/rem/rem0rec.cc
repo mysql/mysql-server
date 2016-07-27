@@ -346,10 +346,10 @@ rec_get_converted_size_comp_prefix_low(
 				ut_ad(type->prtype & DATA_GIS_MBR);
 			} else {
 				ut_ad(type->mtype == DATA_SYS_CHILD
-				      || dict_col_type_assert_equal(col, type));
+				      || col->assert_equal(type));
 			}
 		} else {
-			ut_ad(dict_col_type_assert_equal(col, type));
+			ut_ad(col->assert_equal(type));
 		}
 #endif
 
@@ -368,8 +368,7 @@ rec_get_converted_size_comp_prefix_low(
 		      || (col->len == 0 && col->mtype == DATA_VARCHAR));
 
 		fixed_len = field->fixed_len;
-		if (temp && fixed_len
-		    && !dict_col_get_fixed_size(col, temp)) {
+		if (temp && fixed_len && !col->get_fixed_size(temp)) {
 			fixed_len = 0;
 		}
 		/* If the maximum length of a variable-length field
@@ -814,8 +813,7 @@ rec_convert_dtuple_to_rec_comp(
 		ifield = index->get_field(i);
 		fixed_len = ifield->fixed_len;
 		col = ifield->col;
-		if (temp && fixed_len
-		    && !dict_col_get_fixed_size(col, temp)) {
+		if (temp && fixed_len && !col->get_fixed_size(temp)) {
 			fixed_len = 0;
 		}
 

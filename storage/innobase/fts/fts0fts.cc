@@ -5356,8 +5356,7 @@ fts_get_doc_id_from_rec(
 	offsets = rec_get_offsets(
 		rec, index, offsets, ULINT_UNDEFINED, &my_heap);
 
-	col_no = dict_col_get_index_pos(
-		&table->cols[table->fts->doc_col], index);
+	col_no = index->get_col_pos(table->fts->doc_col);
 
 	ut_ad(col_no != ULINT_UNDEFINED);
 

@@ -602,7 +602,7 @@ row_ins_cascade_calc_update_vec(
 				need to pad with spaces the new value of the
 				child column */
 
-				min_size = dict_col_get_min_size(col);
+				min_size = col->get_min_size();
 
 				/* Because UNIV_SQL_NULL (the marker
 				of SQL NULL values) exceeds all possible

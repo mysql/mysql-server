@@ -236,59 +236,6 @@ dict_max_v_field_len_store_undo(
 	dict_table_t*		table,
 	ulint			col_no);
 
-#endif /* !UNIV_HOTBACKUP */
-#ifdef UNIV_DEBUG
-/*********************************************************************//**
-Assert that a column and a data type match.
-@return TRUE */
-UNIV_INLINE
-ibool
-dict_col_type_assert_equal(
-/*=======================*/
-	const dict_col_t*	col,	/*!< in: column */
-	const dtype_t*		type)	/*!< in: data type */
-	MY_ATTRIBUTE((warn_unused_result));
-#endif /* UNIV_DEBUG */
-#ifndef UNIV_HOTBACKUP
-/***********************************************************************//**
-Returns the minimum size of the column.
-@return minimum size */
-UNIV_INLINE
-ulint
-dict_col_get_min_size(
-/*==================*/
-	const dict_col_t*	col)	/*!< in: column */
-	MY_ATTRIBUTE((warn_unused_result));
-/***********************************************************************//**
-Returns the maximum size of the column.
-@return maximum size */
-UNIV_INLINE
-ulint
-dict_col_get_max_size(
-/*==================*/
-	const dict_col_t*	col)	/*!< in: column */
-	MY_ATTRIBUTE((warn_unused_result));
-/***********************************************************************//**
-Returns the size of a fixed size column, 0 if not a fixed size column.
-@return fixed size, or 0 */
-UNIV_INLINE
-ulint
-dict_col_get_fixed_size(
-/*====================*/
-	const dict_col_t*	col,	/*!< in: column */
-	ulint			comp)	/*!< in: nonzero=ROW_FORMAT=COMPACT  */
-	MY_ATTRIBUTE((warn_unused_result));
-/***********************************************************************//**
-Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a column.
-For fixed length types it is the fixed length of the type, otherwise 0.
-@return SQL null storage size in ROW_FORMAT=REDUNDANT */
-UNIV_INLINE
-ulint
-dict_col_get_sql_null_size(
-/*=======================*/
-	const dict_col_t*	col,	/*!< in: column */
-	ulint			comp)	/*!< in: nonzero=ROW_FORMAT=COMPACT  */
-	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Gets the column number.
 @return col->ind, table column position (starting from 0) */
@@ -857,17 +804,6 @@ dict_table_get_sys_col_no(
 	const dict_table_t*	table,	/*!< in: table */
 	ulint			sys)	/*!< in: DATA_ROW_ID, ... */
 	MY_ATTRIBUTE((warn_unused_result));
-#ifndef UNIV_HOTBACKUP
-/********************************************************************//**
-Returns the minimum data size of an index record.
-@return minimum data size in bytes */
-UNIV_INLINE
-ulint
-dict_index_get_min_size(
-/*====================*/
-	const dict_index_t*	index)	/*!< in: index */
-	MY_ATTRIBUTE((warn_unused_result));
-#endif /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 Check whether the table uses the compact page format.
 @return TRUE if table uses the compact page format */

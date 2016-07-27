@@ -569,7 +569,7 @@ rec_init_offsets_comp_ordinary(
 		}
 
 		if (!field->fixed_len
-		    || (temp && !dict_col_get_fixed_size(col, temp))) {
+		    || (temp && !col->get_fixed_size(temp))) {
 			ut_ad(col->mtype != DATA_POINT);
 			/* Variable-length field: read the length */
 			len = *lens--;

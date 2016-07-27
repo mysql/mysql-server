@@ -1278,8 +1278,7 @@ trx_undo_page_report_modify(
 
 
 					spatial_status =
-						dict_col_get_spatial_status(
-							col);
+						col->get_spatial_status();
 
 					/* If there is a spatial index on it,
 					log its MBR */
@@ -1771,8 +1770,7 @@ trx_undo_rec_get_partial_row(
 
 			/* Keep compatible with 5.7.9 format. */
 			if (spatial_status == SPATIAL_UNKNOWN) {
-				spatial_status =
-					dict_col_get_spatial_status(col);
+				spatial_status = col->get_spatial_status();
 			}
 
 			switch (spatial_status) {

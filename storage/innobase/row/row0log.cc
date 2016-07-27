@@ -1233,8 +1233,7 @@ row_log_table_get_pk(
 			}
 
 			for (ulint i = 0; i < new_n_uniq; i++) {
-				size += dict_col_get_min_size(
-					new_index->get_col(i));
+				size += new_index->get_col(i)->get_min_size();
 			}
 
 			*heap = mem_heap_create(
@@ -1591,8 +1590,7 @@ blob_done:
 		/* Adjust the DATA_NOT_NULL flag in the parsed row. */
 		dfield_get_type(dfield)->prtype = new_col->prtype;
 
-		ut_ad(dict_col_type_assert_equal(new_col,
-						 dfield_get_type(dfield)));
+		ut_ad(new_col->assert_equal(dfield_get_type(dfield)));
 	}
 
 	/* read the virtual column data if any */

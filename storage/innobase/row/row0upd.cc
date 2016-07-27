@@ -420,9 +420,8 @@ row_upd_changes_field_size_or_external(
 			this fix also to 4.0. The merge to 5.0 will be made
 			manually immediately after we commit this to 4.1. */
 
-			new_len = dict_col_get_sql_null_size(
-				index->get_col(upd_field->field_no), 
-				0);
+			new_len = index->get_col(upd_field->field_no)
+				->get_null_size(0);
 		}
 
 		old_len = rec_offs_nth_size(offsets, upd_field->field_no);
@@ -1624,7 +1623,7 @@ row_upd_changes_ord_field_binary_func(
 
 			ut_ad(dfield->data != NULL
 			      && dfield->len > GEO_DATA_HEADER_SIZE);
-			ut_ad(dict_col_get_spatial_status(col) != SPATIAL_NONE);
+			ut_ad(col->get_spatial_status() != SPATIAL_NONE);
 
 			/* Get the old mbr. */
 			if (dfield_is_ext(dfield)) {

@@ -366,8 +366,7 @@ row_merge_buf_create(
 	mem_heap_t*		heap;
 
 	max_tuples = static_cast<ulint>(srv_sort_buf_size)
-		/ ut_max(static_cast<ulint>(1),
-			 dict_index_get_min_size(index));
+		/ ut_max(static_cast<ulint>(1), index->get_min_size());
 
 	buf_size = (sizeof *buf);
 

@@ -102,83 +102,6 @@ dict_col_is_virtual(
 
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef UNIV_DEBUG
-/*********************************************************************//**
-Assert that a column and a data type match.
-@return TRUE */
-UNIV_INLINE
-ibool
-dict_col_type_assert_equal(
-/*=======================*/
-	const dict_col_t*	col,	/*!< in: column */
-	const dtype_t*		type)	/*!< in: data type */
-{
-	ut_ad(col);
-	ut_ad(type);
-
-	ut_ad(col->mtype == type->mtype);
-	ut_ad(col->prtype == type->prtype);
-	//ut_ad(col->len == type->len);
-# ifndef UNIV_HOTBACKUP
-	ut_ad(col->mbminmaxlen == type->mbminmaxlen);
-# endif /* !UNIV_HOTBACKUP */
-
-	return(TRUE);
-}
-#endif /* UNIV_DEBUG */
-
-#ifndef UNIV_HOTBACKUP
-/***********************************************************************//**
-Returns the minimum size of the column.
-@return minimum size */
-UNIV_INLINE
-ulint
-dict_col_get_min_size(
-/*==================*/
-	const dict_col_t*	col)	/*!< in: column */
-{
-	return(dtype_get_min_size_low(col->mtype, col->prtype, col->len,
-				      col->mbminmaxlen));
-}
-/***********************************************************************//**
-Returns the maximum size of the column.
-@return maximum size */
-UNIV_INLINE
-ulint
-dict_col_get_max_size(
-/*==================*/
-	const dict_col_t*	col)	/*!< in: column */
-{
-	return(dtype_get_max_size_low(col->mtype, col->len));
-}
-#endif /* !UNIV_HOTBACKUP */
-/***********************************************************************//**
-Returns the size of a fixed size column, 0 if not a fixed size column.
-@return fixed size, or 0 */
-UNIV_INLINE
-ulint
-dict_col_get_fixed_size(
-/*====================*/
-	const dict_col_t*	col,	/*!< in: column */
-	ulint			comp)	/*!< in: nonzero=ROW_FORMAT=COMPACT */
-{
-	return(dtype_get_fixed_size_low(col->mtype, col->prtype, col->len,
-					col->mbminmaxlen, comp));
-}
-/***********************************************************************//**
-Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a column.
-For fixed length types it is the fixed length of the type, otherwise 0.
-@return SQL null storage size in ROW_FORMAT=REDUNDANT */
-UNIV_INLINE
-ulint
-dict_col_get_sql_null_size(
-/*=======================*/
-	const dict_col_t*	col,	/*!< in: column */
-	ulint			comp)	/*!< in: nonzero=ROW_FORMAT=COMPACT  */
-{
-	return(dict_col_get_fixed_size(col, comp));
-}
-
 /*********************************************************************//**
 Gets the column number.
 @return col->ind, table column position (starting from 0) */
@@ -1070,25 +993,6 @@ dict_field_get_col(
 }
 
 #ifndef UNIV_HOTBACKUP
-/********************************************************************//**
-Returns the minimum data size of an index record.
-@return minimum data size in bytes */
-UNIV_INLINE
-ulint
-dict_index_get_min_size(
-/*====================*/
-	const dict_index_t*	index)	/*!< in: index */
-{
-	ulint	n	= dict_index_get_n_fields(index);
-	ulint	size	= 0;
-
-	while (n--) {
-		size += dict_col_get_min_size(index->get_col(n));
-	}
-
-	return(size);
-}
-
 /*********************************************************************//**
 Gets the space id of the root of the index tree.
 @return space id */

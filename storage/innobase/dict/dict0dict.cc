@@ -1379,7 +1379,7 @@ dict_table_set_big_rows(
 {
 	ulint	row_len = 0;
 	for (ulint i = 0; i < table->n_def; i++) {
-		ulint	col_len = dict_col_get_max_size( table->get_col(i));
+		ulint	col_len = table->get_col(i)->get_max_size();
 
 		row_len += col_len;
 
@@ -2345,7 +2345,7 @@ dict_index_node_ptr_max_size(
 
 		/* Determine the maximum length of the index field. */
 
-		field_max_size = dict_col_get_fixed_size(col, comp);
+		field_max_size = col->get_fixed_size(comp);
 		if (field_max_size) {
 			/* dict_index_add_col() should guarantee this */
 			ut_ad(!field->prefix_len
@@ -2356,7 +2356,7 @@ dict_index_node_ptr_max_size(
 			continue;
 		}
 
-		field_max_size = dict_col_get_max_size(col);
+		field_max_size = col->get_max_size();
 		field_ext_max_size = field_max_size < 256 ? 1 : 2;
 
 		if (field->prefix_len
@@ -2484,7 +2484,7 @@ dict_index_too_big_for_tree(
 		case in rec_get_converted_size_comp() for
 		REC_STATUS_ORDINARY records. */
 
-		field_max_size = dict_col_get_fixed_size(col, comp);
+		field_max_size = col->get_fixed_size(comp);
 		if (field_max_size && field->fixed_len != 0) {
 			/* dict_index_add_col() should guarantee this */
 			ut_ad(!field->prefix_len
@@ -2495,7 +2495,7 @@ dict_index_too_big_for_tree(
 			goto add_field_size;
 		}
 
-		field_max_size = dict_col_get_max_size(col);
+		field_max_size = col->get_max_size();
 		field_ext_max_size = field_max_size < 256 ? 1 : 2;
 
 		if (field->prefix_len) {
@@ -3200,8 +3200,7 @@ dict_index_build_internal_clust(
 
 	for (i = 0; i < trx_id_pos; i++) {
 
-		ulint	fixed_size = dict_col_get_fixed_size(
-			new_index->get_col(i),
+		ulint	fixed_size = new_index->get_col(i)->get_fixed_size(
 			dict_table_is_comp(table));
 
 		if (fixed_size == 0) {
@@ -5344,7 +5343,7 @@ dict_index_calc_min_rec_len(
 		for (i = 0; i < dict_index_get_n_fields(index); i++) {
 			const dict_col_t*	col
 				= index->get_col(i);
-			ulint	size = dict_col_get_fixed_size(col, comp);
+			ulint	size = col->get_fixed_size(comp);
 			sum += size;
 			if (!size) {
 				size = col->len;
@@ -5362,7 +5361,7 @@ dict_index_calc_min_rec_len(
 	}
 
 	for (i = 0; i < dict_index_get_n_fields(index); i++) {
-		sum += dict_col_get_fixed_size(index->get_col(i), comp);
+		sum += index->get_col(i)->get_fixed_size(comp);
 	}
 
 	if (sum > 127) {

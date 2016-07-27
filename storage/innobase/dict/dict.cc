@@ -88,8 +88,8 @@ dict_index_add_col(
 		field->fixed_len = DATA_MBR_LEN;
 	} else {
 		field->fixed_len = static_cast<unsigned int>(
-					dict_col_get_fixed_size(
-					col, dict_table_is_comp(table)));
+					col->get_fixed_size(
+						dict_table_is_comp(table)));
 	}
 
 	if (prefix_len && field->fixed_len > prefix_len) {

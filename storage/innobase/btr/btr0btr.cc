@@ -4429,9 +4429,9 @@ btr_index_rec_validate(
 
 	for (i = 0; i < n; i++) {
 		dict_field_t*	field = index->get_field(i);
-		ulint		fixed_size = dict_col_get_fixed_size(
-						dict_field_get_col(field),
-						page_is_comp(page));
+		const dict_col_t*	col = dict_field_get_col(field);
+		ulint		fixed_size = col ->get_fixed_size(
+			page_is_comp(page));
 
 		rec_get_nth_field_offs(offsets, i, &len);
 
@@ -4443,7 +4443,7 @@ btr_index_rec_validate(
 		length.  When fixed_size == 0, prefix_len is the maximum
 		length of the prefix index column. */
 
-		if (dict_field_get_col(field)->mtype == DATA_POINT) {
+		if (col->mtype == DATA_POINT) {
 			ut_ad(fixed_size == DATA_POINT_LEN);
 			if (dict_index_is_spatial(index)) {
 				/* For DATA_POINT data, when it has R-tree
