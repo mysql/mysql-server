@@ -463,7 +463,8 @@ static void mct_start_logging(const char *test_case_name)
               (const char *) tmp_dir,
               (const char *) test_case_name);
 
-  mct_log_file= my_fopen(mct_log_file_path, O_WRONLY | O_BINARY, MYF(MY_WME));
+  mct_log_file= my_fopen(mct_log_file_path, O_WRONLY | MY_FOPEN_BINARY,
+                         MYF(MY_WME));
 
   if (!mct_log_file)
   {
@@ -15309,7 +15310,8 @@ static void test_bug17667()
   strxmov(master_log_filename, opt_vardir, "/log/master.log", NullS);
   if (!opt_silent)
     printf("Opening '%s'\n", master_log_filename);
-  log_file= my_fopen(master_log_filename, (int) (O_RDONLY | O_BINARY), MYF(0));
+  log_file= my_fopen(master_log_filename, (int) (O_RDONLY | MY_FOPEN_BINARY),
+                     MYF(0));
   free(master_log_filename);
 
   if (log_file == NULL)
@@ -20215,7 +20217,8 @@ static void test_bug20444737()
   strxmov(master_test_filename, test_dir, "/std_data/bug20444737.sql", NullS);
   if (!opt_silent)
     fprintf(stdout, "Opening '%s'\n", master_test_filename);
-  test_file= my_fopen(master_test_filename, (int)(O_RDONLY | O_BINARY), MYF(0));
+  test_file= my_fopen(master_test_filename, (int)(O_RDONLY | MY_FOPEN_BINARY),
+                      MYF(0));
   if (test_file == NULL)
   {
     fprintf(stderr, "Error in opening file");

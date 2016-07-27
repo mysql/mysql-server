@@ -783,7 +783,7 @@ static uint read_ddl_log_header()
   create_ddl_log_file_name(file_name);
   if ((global_ddl_log.file_id= mysql_file_open(key_file_global_ddl_log,
                                                file_name,
-                                               O_RDWR | O_BINARY, MYF(0))) >= 0)
+                                               O_RDWR, MYF(0))) >= 0)
   {
     if (read_ddl_log_file_entry(0UL))
     {
@@ -947,7 +947,7 @@ static bool init_ddl_log()
   create_ddl_log_file_name(file_name);
   if ((global_ddl_log.file_id= mysql_file_create(key_file_global_ddl_log,
                                                  file_name, CREATE_MODE,
-                                                 O_RDWR | O_TRUNC | O_BINARY,
+                                                 O_RDWR | O_TRUNC,
                                                  MYF(MY_WME))) < 0)
   {
     /* Couldn't create ddl log file, this is serious error */

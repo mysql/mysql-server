@@ -4626,7 +4626,7 @@ static int com_source(String *buffer MY_ATTRIBUTE((unused)),
   end[0]=0;
   unpack_filename(source_name,source_name);
   /* open file name */
-  if (!(sql_file = my_fopen(source_name, O_RDONLY | O_BINARY,MYF(0))))
+  if (!(sql_file = my_fopen(source_name, O_RDONLY | MY_FOPEN_BINARY, MYF(0))))
   {
     char buff[FN_REFLEN+60];
     sprintf(buff,"Failed to open file '%s', error: %d", source_name,errno);

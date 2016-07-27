@@ -176,7 +176,8 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
   uint i;
   MYSQL_FILE *file;
 
-  if (!(file= mysql_file_fopen(0, name, O_RDONLY|O_BINARY, MYF(MY_WME))))
+  if (!(file= mysql_file_fopen(0, name, O_RDONLY | MY_FOPEN_BINARY,
+                               MYF(MY_WME))))
     return 1;
   {
     union

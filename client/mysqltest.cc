@@ -2048,7 +2048,7 @@ static int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
   DBUG_PRINT("enter", ("fname: %s", fname));
 
   if ((fd= create_temp_file(temp_file_path, TMPDIR,
-                            "tmp", O_CREAT | O_SHARE | O_RDWR,
+                            "tmp", O_CREAT | O_RDWR,
                             MYF(MY_WME))) < 0)
     die("Failed to create temporary file for ds");
 
@@ -4600,7 +4600,7 @@ static void do_perl(struct st_command *command)
 
     /* Create temporary file name */
     if ((fd= create_temp_file(temp_file_path, getenv("MYSQLTEST_VARDIR"),
-                              "tmp", O_CREAT | O_SHARE | O_RDWR,
+                              "tmp", O_CREAT | O_RDWR,
                               MYF(MY_WME))) < 0)
       die("Failed to create temporary file for perl command");
     my_close(fd, MYF(0));
@@ -7345,7 +7345,7 @@ static void read_embedded_server_arguments(const char *name)
     embedded_server_arg_count=1;
     embedded_server_args[0]= (char*) "";		/* Progname */
   }
-  if (!(file=my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(MY_WME))))
+  if (!(file=my_fopen(buff, O_RDONLY | MY_FOPEN_BINARY, MYF(MY_WME))))
     die("Failed to open file '%s'", buff);
 
   while (embedded_server_arg_count < MAX_EMBEDDED_SERVER_ARGS &&

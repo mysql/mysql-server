@@ -262,21 +262,12 @@ int mysql_tmpfile_path(const char *path, const char *prefix)
   char filename[FN_REFLEN];
   File fd = create_temp_file(filename, path, prefix,
 #ifdef _WIN32
-                             O_BINARY | O_TRUNC | O_SEQUENTIAL |
-                             O_SHORT_LIVED |
+                             O_TRUNC | O_SEQUENTIAL |
 #endif /* _WIN32 */
-                             O_CREAT | O_EXCL | O_RDWR | O_TEMPORARY,
+                             O_CREAT | O_EXCL | O_RDWR,
                              MYF(MY_WME));
-  if (fd >= 0) {
-#ifndef _WIN32
-    /*
-      This can be removed once the following bug is fixed:
-      Bug #28903  create_temp_file() doesn't honor O_TEMPORARY option
-                  (file not removed) (Unix)
-    */
+  if (fd >= 0)
     unlink(filename);
-#endif /* !_WIN32 */
-  }
 
   return fd;
 }

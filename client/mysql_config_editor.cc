@@ -725,7 +725,7 @@ static my_bool check_and_create_login_file(void)
 #define S_IRWXO  00007
 #endif
 
-  const int access_flag= (O_RDWR | O_BINARY);
+  const int access_flag= O_RDWR;
   const ushort create_mode= (S_IRUSR | S_IWUSR );
 
   /* Get the login file name. */

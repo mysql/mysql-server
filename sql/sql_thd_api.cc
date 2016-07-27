@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -333,26 +333,6 @@ void thd_binlog_pos(const MYSQL_THD thd,
 extern "C"
 int mysql_tmpfile(const char *prefix)
 {
-  char filename[FN_REFLEN];
-  File fd = create_temp_file(filename, mysql_tmpdir, prefix,
-#ifdef _WIN32
-                             O_BINARY | O_TRUNC | O_SEQUENTIAL |
-                             O_SHORT_LIVED |
-#endif /* _WIN32 */
-                             O_CREAT | O_EXCL | O_RDWR | O_TEMPORARY,
-                             MYF(MY_WME));
-  if (fd >= 0) {
-#ifndef _WIN32
-    /*
-      This can be removed once the following bug is fixed:
-      Bug #28903  create_temp_file() doesn't honor O_TEMPORARY option
-                  (file not removed) (Unix)
-    */
-    unlink(filename);
-#endif /* !_WIN32 */
-  }
-
-  return fd;
   return mysql_tmpfile_path(mysql_tmpdir, prefix);
 }
 

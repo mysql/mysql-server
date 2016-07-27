@@ -5990,7 +5990,7 @@ int check_temp_dir(char* tmp_file, const char *channel_name)
               "%s%s%s", tmp_file, channel_name, server_uuid);
   if ((fd= mysql_file_create(key_file_misc,
                              unique_tmp_file_name, CREATE_MODE,
-                             O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
+                             O_WRONLY | O_EXCL | O_NOFOLLOW,
                              MYF(MY_WME))) < 0)
   DBUG_RETURN(1);
 

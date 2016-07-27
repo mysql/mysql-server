@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,9 +45,6 @@
     The behaviour of this function differs a lot between
     implementation, it's main use is to generate a file with
     a name that does not already exist.
-
-    When passing O_TEMPORARY flag in "mode" the file should
-    be automatically deleted
 
     The implementation using mkstemp should be considered the
     reference implementation when adding a new or modifying an
@@ -120,8 +117,6 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     }
     my_stpcpy(convert_dirname(to,dir,NullS),prefix_buff);
     org_file=mkstemp(to);
-    if (mode & O_TEMPORARY)
-      (void) my_delete(to, MYF(MY_WME));
     file=my_register_filename(org_file, to, FILE_BY_MKSTEMP,
 			      EE_CANTCREATEFILE, MyFlags);
     /* If we didn't manage to register the name, remove the temp file */

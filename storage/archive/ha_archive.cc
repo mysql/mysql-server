@@ -468,7 +468,7 @@ Archive_share *ha_archive::get_share(const char *table_name, int *rc)
       anything but reading... open it for write and we will generate null
       compression writes).
     */
-    if (!(azopen(&archive_tmp, tmp_share->data_file_name, O_RDONLY|O_BINARY)))
+    if (!(azopen(&archive_tmp, tmp_share->data_file_name, O_RDONLY)))
     {
       delete tmp_share;
       *rc= my_errno() ? my_errno() : HA_ERR_CRASHED;
@@ -504,8 +504,7 @@ int Archive_share::init_archive_writer()
     a gzip file that can be both read and written we keep a writer open
     that is shared amoung all open tables.
   */
-  if (!(azopen(&archive_write, data_file_name,
-               O_RDWR|O_BINARY)))
+  if (!(azopen(&archive_write, data_file_name, O_RDWR)))
   {
     DBUG_PRINT("ha_archive", ("Could not open archive write file"));
     crashed= true;
@@ -545,7 +544,7 @@ int ha_archive::init_archive_reader()
   */
   if (!archive_reader_open)
   {
-    if (!(azopen(&archive, share->data_file_name, O_RDONLY|O_BINARY)))
+    if (!(azopen(&archive, share->data_file_name, O_RDONLY)))
     {
       DBUG_PRINT("ha_archive", ("Could not open archive read file"));
       share->crashed= TRUE;
@@ -729,7 +728,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   if (!(mysql_file_stat(arch_key_file_data, name_buff, &file_stat, MYF(0))))
   {
     set_my_errno(0);
-    if (!(azopen(&create_stream, name_buff, O_CREAT|O_RDWR|O_BINARY)))
+    if (!(azopen(&create_stream, name_buff, O_CREAT | O_RDWR)))
     {
       error= errno;
       goto error2;
@@ -1368,7 +1367,7 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   fn_format(writer_filename, share->table_name, "", ARN, 
             MY_REPLACE_EXT | MY_UNPACK_FILENAME);
 
-  if (!(azopen(&writer, writer_filename, O_CREAT|O_RDWR|O_BINARY)))
+  if (!(azopen(&writer, writer_filename, O_CREAT | O_RDWR)))
   {
     share->in_optimize= false;
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);

@@ -3687,7 +3687,7 @@ static int warn_one(const char *file_name)
   char *issuer= NULL;
   char *subject= NULL;
 
-  if (!(fp= my_fopen(file_name, O_RDONLY | O_BINARY, MYF(MY_WME))))
+  if (!(fp= my_fopen(file_name, O_RDONLY | MY_FOPEN_BINARY, MYF(MY_WME))))
   {
     sql_print_error("Error opening CA certificate file");
     return 1;

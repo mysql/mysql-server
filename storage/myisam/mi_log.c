@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ int mi_log(int activate_log)
                                                         myisam_log_filename,
                                                         "", ".log", 4),
                                               0,
-                                              (O_RDWR | O_BINARY | O_APPEND),
+                                              (O_RDWR | O_APPEND),
                                               MYF(0))) < 0)
 	DBUG_RETURN(my_errno());
     }
