@@ -2676,12 +2676,26 @@ loop:
 		return(n_tables + n_tables_dropped);
 	}
 
+	DBUG_EXECUTE_IF("row_drop_tables_in_background_sleep",
+		os_thread_sleep(5000000);
+	);
+
 	table = dict_table_open_on_name(drop->table_name, FALSE, FALSE,
 					DICT_ERR_IGNORE_NONE);
 
 	if (table == NULL) {
 		/* If for some reason the table has already been dropped
 		through some other mechanism, do not try to drop it */
+
+		goto already_dropped;
+	}
+
+	if (!table->to_be_dropped) {
+		/* There is a scenario: the old table is dropped
+		just after it's added into drop list, and new
+		table with the same name is created, then we try
+		to drop the new table in background. */
+		dict_table_close(table, FALSE, FALSE);
 
 		goto already_dropped;
 	}
@@ -3944,6 +3958,13 @@ row_drop_table_for_mysql(
 			}
 		}
 	}
+
+
+	DBUG_EXECUTE_IF("row_drop_table_add_to_background",
+		row_add_table_to_background_drop_list(table->name);
+		err = DB_SUCCESS;
+		goto funct_exit;
+	);
 
 	/* TODO: could we replace the counter n_foreign_key_checks_running
 	with lock checks on the table? Acquire here an exclusive lock on the
