@@ -7232,7 +7232,7 @@ i_s_dict_fill_sys_columns(
 
 	OK(field_store_string(fields[SYS_COLUMN_NAME], col_name));
 
-	if (dict_col_is_virtual(column)) {
+	if (column->is_virtual()) {
 		ulint	pos = dict_create_v_col_pos(nth_v_col, column->ind);
 		OK(fields[SYS_COLUMN_POSITION]->store(pos, true));
 	} else {

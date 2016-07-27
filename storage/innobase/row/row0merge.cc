@@ -570,7 +570,7 @@ row_merge_buf_add(
 		const dfield_t*		row_field;
 
 		col = ifield->col;
-		if (dict_col_is_virtual(col)) {
+		if (col->is_virtual()) {
 			v_col = reinterpret_cast<const dict_v_col_t*>(col);
 		}
 
@@ -579,7 +579,7 @@ row_merge_buf_add(
 		/* Process the Doc ID column */
 		if (*doc_id > 0
 		    && col_no == index->table->fts->doc_col
-		    && !dict_col_is_virtual(col)) {
+		    && !col->is_virtual()) {
 			fts_write_doc_id((byte*) &write_doc_id, *doc_id);
 
 			/* Note: field->data now points to a value on the
@@ -597,7 +597,7 @@ row_merge_buf_add(
 			field->type.len = ifield->col->len;
 		} else {
 			/* Use callback to get the virtual column value */
-			if (dict_col_is_virtual(col)) {
+			if (col->is_virtual()) {
 				const dict_index_t*	clust_index
 					= new_table->first_index();
 
@@ -730,7 +730,7 @@ row_merge_buf_add(
 					len = dfield_get_len(field);
 				}
 			}
-		} else if (!dict_col_is_virtual(col)) {
+		} else if (!col->is_virtual()) {
 			/* Only non-virtual column are stored externally */
 			const byte*	buf = row_ext_lookup(ext, col_no,
 							     &len);

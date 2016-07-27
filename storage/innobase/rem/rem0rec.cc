@@ -184,8 +184,7 @@ rec_get_n_extern_new(
 	/* read the lengths of fields 0..n */
 	do {
 		const dict_field_t*	field = index->get_field(i);
-		const dict_col_t*	col
-			= dict_field_get_col(field);
+		const dict_col_t*	col = field->col;
 		ulint			len;
 
 		if (!(col->prtype & DATA_NOT_NULL)) {
@@ -335,7 +334,7 @@ rec_get_converted_size_comp_prefix_low(
 
 		field = index->get_field(i);
 		len = dfield_get_len(&fields[i]);
-		col = dict_field_get_col(field);
+		col = field->col;
 
 #ifdef UNIV_DEBUG
 		dtype_t*	type;
@@ -1204,7 +1203,7 @@ rec_copy_prefix_to_buf(
 		const dict_col_t*	col;
 
 		field = index->get_field(i);
-		col = dict_field_get_col(field);
+		col = field->col;
 
 		if (!(col->prtype & DATA_NOT_NULL)) {
 			/* nullable field => read the null flag */

@@ -99,8 +99,7 @@ rec_init_offsets(
 			}
 
 			field = index->get_field(i);
-			if (!(dict_field_get_col(field)->prtype
-			      & DATA_NOT_NULL)) {
+			if (!(field->col->prtype & DATA_NOT_NULL)) {
 				/* nullable field => read the null flag */
 
 				if (UNIV_UNLIKELY(!(byte) null_mask)) {
@@ -121,8 +120,7 @@ rec_init_offsets(
 			}
 
 			if (UNIV_UNLIKELY(!field->fixed_len)) {
-				const dict_col_t*	col
-					= dict_field_get_col(field);
+				const dict_col_t*	col = field->col;
 				/* DATA_POINT should always be a fixed
 				length column. */
 				ut_ad(col->mtype != DATA_POINT);
@@ -339,7 +337,7 @@ rec_get_offsets_reverse(
 		}
 
 		field = index->get_field(i);
-		if (!(dict_field_get_col(field)->prtype & DATA_NOT_NULL)) {
+		if (!(field->col->prtype & DATA_NOT_NULL)) {
 			/* nullable field => read the null flag */
 
 			if (UNIV_UNLIKELY(!(byte) null_mask)) {
@@ -361,8 +359,7 @@ rec_get_offsets_reverse(
 
 		if (UNIV_UNLIKELY(!field->fixed_len)) {
 			/* Variable-length field: read the length */
-			const dict_col_t*	col
-				= dict_field_get_col(field);
+			const dict_col_t*	col = field->col;
 			len = *lens++;
 			/* If the maximum length of the field is up
 			to 255 bytes, the actual length is always

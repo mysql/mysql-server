@@ -5758,7 +5758,7 @@ innobase_vcol_build_templ(
 	mysql_row_templ_t*	templ,
 	ulint			col_no)
 {
-	if (dict_col_is_virtual(col)) {
+	if (col->is_virtual()) {
 		templ->is_virtual = true;
 		templ->col_no = col_no;
 		templ->clust_rec_field_no = ULINT_UNDEFINED;
@@ -5794,8 +5794,8 @@ innobase_vcol_build_templ(
 	}
 
         templ->charset = dtype_get_charset_coll(col->prtype);
-        templ->mbminlen = dict_col_get_mbminlen(col);
-        templ->mbmaxlen = dict_col_get_mbmaxlen(col);
+        templ->mbminlen = col->get_mbminlen();
+        templ->mbmaxlen = col->get_mbmaxlen();
         templ->is_unsigned = col->prtype & DATA_UNSIGNED;
 }
 
@@ -7312,8 +7312,8 @@ build_template_field(
 	}
 
 	templ->charset = dtype_get_charset_coll(col->prtype);
-	templ->mbminlen = dict_col_get_mbminlen(col);
-	templ->mbmaxlen = dict_col_get_mbmaxlen(col);
+	templ->mbminlen = col->get_mbminlen();
+	templ->mbmaxlen = col->get_mbmaxlen();
 	templ->is_unsigned = col->prtype & DATA_UNSIGNED;
 
 	if (!index->is_clustered()
@@ -8055,8 +8055,7 @@ innodb_fill_old_vcol_val(
 	ulint		col_pack_len,
 	byte*		buf)
 {
-	dict_col_copy_type(
-		col, dfield_get_type(vfield));
+	col->copy_type(dfield_get_type(vfield));
 	if (o_len != UNIV_SQL_NULL) {
 
 		buf = row_mysql_store_col_in_innobase_format(
@@ -8287,8 +8286,7 @@ calc_row_difference(
 			}
 
 			if (n_len != UNIV_SQL_NULL) {
-				dict_col_copy_type(
-					col, dfield_get_type(&dfield));
+				col->copy_type(dfield_get_type(&dfield));
 
 				buf = row_mysql_store_col_in_innobase_format(
 					&dfield,
@@ -8299,8 +8297,7 @@ calc_row_difference(
 					dict_table_is_comp(prebuilt->table));
 				dfield_copy(&ufield->new_val, &dfield);
 			} else {
-				dict_col_copy_type(
-					col, dfield_get_type(&ufield->new_val));
+				col->copy_type(dfield_get_type(&ufield->new_val));
 				dfield_set_null(&ufield->new_val);
 			}
 
@@ -8320,8 +8317,7 @@ calc_row_difference(
 
 				if (!field->is_null_in_record(old_row)) {
 					if (n_len == UNIV_SQL_NULL) {
-						dict_col_copy_type(
-							col, dfield_get_type(
+						col->copy_type(dfield_get_type(
 								&dfield));
 					}
 
@@ -8337,8 +8333,7 @@ calc_row_difference(
 						    &dfield);
 					dfield_copy(vfield, &dfield);
 				} else {
-					dict_col_copy_type(
-						col, dfield_get_type(
+					col->copy_type(dfield_get_type(
 						ufield->old_v_val));
 					dfield_set_null(ufield->old_v_val);
 					dfield_set_null(vfield);

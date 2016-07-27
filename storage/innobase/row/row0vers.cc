@@ -443,7 +443,7 @@ row_vers_non_vc_match(
 		const dict_col_t*	col = ind_field->col;
 
 		/* Only check non-virtual columns */
-		if (dict_col_is_virtual(col)) {
+		if (col->is_virtual()) {
 			continue;
 		}
 
@@ -479,7 +479,7 @@ row_vers_build_clust_v_col(
 	for (ulint i = 0; i < dict_index_get_n_fields(index); i++) {
 		const dict_field_t* ind_field = index->get_field(i);
 
-		if (dict_col_is_virtual(ind_field->col)) {
+		if (ind_field->col->is_virtual()) {
 			const dict_v_col_t*       col;
 
 			col = reinterpret_cast<const dict_v_col_t*>(
@@ -578,7 +578,7 @@ row_vers_build_cur_vrow_low(
 				 = index->get_field(i);
 			const dict_col_t*	col = ind_field->col;
 
-			if (!dict_col_is_virtual(col)) {
+			if (!col->is_virtual()) {
 				continue;
 			}
 
@@ -715,7 +715,7 @@ row_vers_vc_matches_cluster(
 			const dict_col_t*	col = ind_field->col;
 			field1 = dtuple_get_nth_field(ientry, i);
 
-			if (!dict_col_is_virtual(col)) {
+			if (!col->is_virtual()) {
 				continue;
 			}
 

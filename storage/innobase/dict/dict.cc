@@ -45,7 +45,7 @@ dict_index_add_col(
 	const char*	col_name;
 
 #ifndef UNIV_LIBRARY
-	if (dict_col_is_virtual(col)) {
+	if (col->is_virtual()) {
 		dict_v_col_t*	v_col = reinterpret_cast<dict_v_col_t*>(col);
 
 		/* When v_col->v_indexes==NULL,

@@ -118,7 +118,7 @@ name_of_col_is(
 	ulint			i,	/*!< in: index field offset */
 	const char*		name)	/*!< in: name to compare to */
 {
-	ulint	tmp = dict_col_get_no(dict_field_get_col(index->get_field(i)));
+	ulint	tmp = dict_col_get_no(index->get_field(i)->col);
 
 	return(strcmp(name, table->get_col_name(tmp)) == 0);
 }

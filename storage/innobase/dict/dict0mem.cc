@@ -261,7 +261,7 @@ dict_mem_table_col_rename_low(
 				/* if is_virtual and that in field->col does
 				not match, continue */
 				if ((!is_virtual) !=
-				    (!dict_col_is_virtual(field->col))) {
+				    (!field->col->is_virtual())) {
 					continue;
 				}
 
@@ -654,7 +654,7 @@ bool dict_index_t::is_usable(const trx_t* trx) const
 @return column */
 const dict_col_t* dict_index_t::get_col(ulint pos) const
 {
-	return(dict_field_get_col(get_field(pos)));
+	return(get_field(pos)->col);
 }
 
 /** Gets the column number the nth field in an index.

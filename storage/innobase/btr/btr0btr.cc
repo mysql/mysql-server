@@ -4429,7 +4429,7 @@ btr_index_rec_validate(
 
 	for (i = 0; i < n; i++) {
 		dict_field_t*	field = index->get_field(i);
-		const dict_col_t*	col = dict_field_get_col(field);
+		const dict_col_t*	col = field->col;
 		ulint		fixed_size = col ->get_fixed_size(
 			page_is_comp(page));
 

@@ -550,6 +550,52 @@ struct dict_col_t{
 	{
 		return(dtype_get_max_size_low(mtype, len));
 	}
+
+	/** Check if a column is a virtual column
+	@return true if it is a virtual column, false otherwise */
+	bool is_virtual() const
+	{
+		return(prtype & DATA_VIRTUAL);
+	}
+
+	/** Gets the column data type.
+	@param[out] type	data type */
+	void copy_type(dtype_t* type) const
+	{
+		ut_ad(type != NULL);
+
+		type->mtype = mtype;
+		type->prtype = prtype;
+		type->len = len;
+		type->mbminmaxlen = mbminmaxlen;
+	}
+
+	/** Gets the minimum number of bytes per character.
+	@return minimum multi-byte char size, in bytes */
+	ulint get_mbminlen() const
+	{
+		return(DATA_MBMINLEN(mbminmaxlen));
+	}
+
+	/** Gets the maximum number of bytes per character.
+	@return maximum multi-byte char size, in bytes */
+	ulint get_mbmaxlen() const
+	{
+		return(DATA_MBMAXLEN(mbminmaxlen));
+	}
+
+	/** Sets the minimum and maximum number of bytes per character.
+	@param[in] mbminlen	minimum multi byte character size, in bytes
+	@param[in] mbmaxlen	mAXimum multi-byte character size, in bytes */
+	void set_mbminmaxlen(ulint mbminlen, ulint mbmaxlen)
+	{
+		ut_ad(mbminlen < DATA_MBMAX);
+		ut_ad(mbmaxlen < DATA_MBMAX);
+		ut_ad(mbminlen <= mbmaxlen);
+
+		mbminmaxlen = DATA_MBMINMAXLEN(mbminlen, mbmaxlen);
+	}
+
 #endif /* !UNIV_HOTBACKUP*/
 
 	/** Returns the size of a fixed size column, 0 if not a fixed size column.

@@ -723,10 +723,8 @@ pars_resolve_exp_columns(
 				sym_node->col_no = i;
 				sym_node->prefetch_buf = NULL;
 
-				dict_col_copy_type(
-					col,
-					dfield_get_type(&sym_node
-							->common.val));
+				col->copy_type(dfield_get_type(
+						&sym_node->common.val));
 
 				return;
 			}

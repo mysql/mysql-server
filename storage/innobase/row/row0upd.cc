@@ -1202,8 +1202,8 @@ row_upd_index_replace_new_col_vals_index_pos(
 		const upd_field_t*	uf;
 
 		field = index->get_field(i);
-		col = dict_field_get_col(field);
-		if (dict_col_is_virtual(col)) {
+		col = field->col;
+		if (col->is_virtual()) {
 			const dict_v_col_t*	vcol = reinterpret_cast<
 							const dict_v_col_t*>(
 								col);
@@ -1257,8 +1257,8 @@ row_upd_index_replace_new_col_vals(
 		const upd_field_t*	uf;
 
 		field = index->get_field(i);
-		col = dict_field_get_col(field);
-		if (dict_col_is_virtual(col)) {
+		col = field->col;
+		if (col->is_virtual()) {
 			const dict_v_col_t*	vcol = reinterpret_cast<
 							const dict_v_col_t*>(
 								col);
@@ -1298,7 +1298,7 @@ row_upd_set_vcol_data(
 	dfield_t*	dfield = dtuple_get_nth_v_field(row, vcol->v_pos);
 
 	if (dfield_get_type(dfield)->mtype == DATA_MISSING) {
-		dict_col_copy_type(&vcol->m_col, dfield_get_type(dfield));
+		vcol->m_col.copy_type(dfield_get_type(dfield));
 
 		dfield_set_data(dfield, field, len);
 	}
@@ -1564,15 +1564,13 @@ row_upd_changes_ord_field_binary_func(
 		dfield_t		dfield_ext;
 		ulint			dfield_len;
 		const byte*		buf;
-		bool			is_virtual;
 		const dict_v_col_t*	vcol = NULL;
 
 		ind_field = index->get_field(i);
-		col = dict_field_get_col(ind_field);
+		col = ind_field->col;
 		col_no = dict_col_get_no(col);
-		is_virtual = dict_col_is_virtual(col);
 
-		if (is_virtual) {
+		if (col->is_virtual()) {
 			vcol = reinterpret_cast<const dict_v_col_t*>(col);
 
 			upd_field = upd_get_field_by_field_no(
@@ -1593,7 +1591,7 @@ row_upd_changes_ord_field_binary_func(
 			return(TRUE);
 		}
 
-		if (is_virtual) {
+		if (col->is_virtual()) {
 			dfield = dtuple_get_nth_v_field(
 				row,  vcol->v_pos);
 		} else {
@@ -1790,8 +1788,7 @@ row_upd_changes_some_index_ord_field_binary(
 				return(TRUE);
 			}
 		} else {
-			if (dict_field_get_col(
-				index->get_field(upd_field->field_no))
+			if (index->get_field(upd_field->field_no)->col
 					->ord_part) {
 				return(TRUE);
 			}
@@ -1885,7 +1882,7 @@ row_upd_changes_first_fields_binary(
 		ulint			col_pos;
 
 		ind_field = index->get_field(i);
-		col = dict_field_get_col(ind_field);
+		col = ind_field->col;
 		col_pos = dict_col_get_clust_pos(col, clust_index);
 
 		ut_a(ind_field->prefix_len == 0);

@@ -521,7 +521,7 @@ mlog_open_and_write_index(
 			ulint			len;
 
 			field = index->get_field(i);
-			col = dict_field_get_col(field);
+			col = field->col;
 			len = field->fixed_len;
 			ut_ad(len < 0x7fff);
 			if (len == 0

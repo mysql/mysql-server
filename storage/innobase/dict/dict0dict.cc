@@ -2338,8 +2338,7 @@ dict_index_node_ptr_max_size(
 	for (i = 0; i < dict_index_get_n_unique_in_tree(index); i++) {
 		const dict_field_t*	field
 			= index->get_field(i);
-		const dict_col_t*	col
-			= dict_field_get_col(field);
+		const dict_col_t*	col = field->col;
 		ulint			field_max_size;
 		ulint			field_ext_max_size;
 
@@ -2467,8 +2466,7 @@ dict_index_too_big_for_tree(
 	for (i = 0; i < new_index->n_fields; i++) {
 		const dict_field_t*	field
 			= new_index->get_field(i);
-		const dict_col_t*	col
-			= dict_field_get_col(field);
+		const dict_col_t*	col = field->col;
 		ulint			field_max_size;
 		ulint			field_ext_max_size;
 
@@ -2838,7 +2836,7 @@ dict_index_remove_from_cache_low(
 
 		for (ulint i = 0; i < dict_index_get_n_fields(index); i++) {
 			col =  index->get_col(i);
-			if (dict_col_is_virtual(col)) {
+			if (col->is_virtual()) {
 				vcol = reinterpret_cast<const dict_v_col_t*>(
 					col);
 
@@ -3035,7 +3033,7 @@ dict_index_copy_types(
 
 		ifield = index->get_field(i);
 		dfield_type = dfield_get_type(dtuple_get_nth_field(tuple, i));
-		dict_col_copy_type(dict_field_get_col(ifield), dfield_type);
+		ifield->col->copy_type(dfield_type);
 		if (dict_index_is_spatial(index)
 		    && DATA_GEOMETRY_MTYPE(dfield_type->mtype)) {
 			dfield_type->prtype |= DATA_GIS_MBR;
@@ -3066,9 +3064,7 @@ dict_table_copy_v_types(
 		dtype_t*	dtype	= dfield_get_type(dfield);
 
 		dfield_set_null(dfield);
-		dict_col_copy_type(
-			&(dict_table_get_nth_v_col(table, i)->m_col),
-			dtype);
+		dict_table_get_nth_v_col(table, i)->m_col.copy_type(dtype);
 	}
 }
 /*******************************************************************//**
@@ -3089,7 +3085,7 @@ dict_table_copy_types(
 		dtype_t*	dtype	= dfield_get_type(dfield);
 
 		dfield_set_null(dfield);
-		dict_col_copy_type(table->get_col(i), dtype);
+		table->get_col(i)->copy_type(dtype);
 	}
 
 	dict_table_copy_v_types(tuple, table);
@@ -3338,7 +3334,7 @@ dict_index_build_internal_non_clust(
 
 		field = new_index->get_field(i);
 
-		if (dict_col_is_virtual(field->col)) {
+		if (field->col->is_virtual()) {
 			continue;
 		}
 
@@ -6649,7 +6645,7 @@ dict_foreign_qualify_index(
 		field = index->get_field(i);
 		col_no = dict_col_get_no(field->col);
 
-		ut_ad(!dict_col_is_virtual(field->col));
+		ut_ad(!field->col->is_virtual());
 
 		if (field->prefix_len != 0) {
 			/* We do not accept column prefix

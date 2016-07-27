@@ -172,45 +172,6 @@ void
 dict_table_persist_to_dd_table_buffer(
 	dict_table_t*	table);
 
-/*********************************************************************//**
-Gets the minimum number of bytes per character.
-@return minimum multi-byte char size, in bytes */
-UNIV_INLINE
-ulint
-dict_col_get_mbminlen(
-/*==================*/
-	const dict_col_t*	col)	/*!< in: column */
-	MY_ATTRIBUTE((warn_unused_result));
-/*********************************************************************//**
-Gets the maximum number of bytes per character.
-@return maximum multi-byte char size, in bytes */
-UNIV_INLINE
-ulint
-dict_col_get_mbmaxlen(
-/*==================*/
-	const dict_col_t*	col)	/*!< in: column */
-	MY_ATTRIBUTE((warn_unused_result));
-
-/** Sets the minimum and maximum number of bytes per character.
-@param[in,out]	col		column
-@param[in]	mbminlen	minimum multi-byte character size, in bytes
-@param[in]	mbmaxlen	maximum multi-byte character size, in bytes */
-UNIV_INLINE
-void
-dict_col_set_mbminmaxlen(
-	dict_col_t*	col,
-	ulint		mbminlen,
-	ulint		mbmaxlen);
-
-/** Gets the column data type.
-@param[in]	col	column
-@param[out]	type	data type */
-UNIV_INLINE
-void
-dict_col_copy_type(
-	const dict_col_t*	col,
-	dtype_t*		type);
-
 /**********************************************************************//**
 Determine bytes of column prefix to be stored in the undo log. Please
 note that if !dict_table_has_atomic_blobs(table), no prefix
@@ -1145,17 +1106,6 @@ dict_index_copy_types(
 	const dict_index_t*	index,		/*!< in: index */
 	ulint			n_fields);	/*!< in: number of
 						field types to copy */
-#endif /* !UNIV_HOTBACKUP */
-/*********************************************************************//**
-Gets the field column.
-@return field->col, pointer to the table column */
-UNIV_INLINE
-const dict_col_t*
-dict_field_get_col(
-/*===============*/
-	const dict_field_t*	field)	/*!< in: index field */
-	MY_ATTRIBUTE((warn_unused_result));
-#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 /**********************************************************************//**
 Checks that a tuple has n_fields_cmp value in a sensible range, so that
@@ -1889,14 +1839,6 @@ dict_index_t*
 dict_table_get_index_on_first_col(
 	dict_table_t*		table,
 	ulint			col_index);
-
-/** Check if a column is a virtual column
-@param[in]	col	column
-@return true if it is a virtual column, false otherwise */
-UNIV_INLINE
-bool
-dict_col_is_virtual(
-	const dict_col_t*	col);
 
 /** encode number of columns and number of virtual columns in one
 4 bytes value. We could do this because the number of columns in

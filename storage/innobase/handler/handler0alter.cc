@@ -1641,7 +1641,7 @@ null_field:
 		field->set_notnull();
 
 		innobase_col_to_mysql(
-			dict_field_get_col(index->get_field(ipos)),
+			index->get_field(ipos)->col,
 			ifield, ilen, field);
 	}
 }
@@ -1690,7 +1690,7 @@ innobase_fields_to_mysql(
 			const dfield_t*	df	= &fields[ipos];
 
 			innobase_col_to_mysql(
-				dict_field_get_col(index->get_field(ipos)),
+				index->get_field(ipos)->col,
 				static_cast<const uchar*>(dfield_get_data(df)),
 				dfield_get_len(df), field);
 		}
@@ -2252,7 +2252,7 @@ innobase_fts_check_doc_id_index(
 		    && field->col->mtype == DATA_INT
 		    && field->col->len == 8
 		    && field->col->prtype & DATA_NOT_NULL
-		    && !dict_col_is_virtual(field->col)) {
+		    && !field->col->is_virtual()) {
 			if (fts_doc_col_no) {
 				*fts_doc_col_no = dict_col_get_no(field->col);
 			}
@@ -6409,7 +6409,7 @@ check_col_exists_in_indexes(
 		for (ulint i = 0; i < index->n_user_defined_cols; i++) {
 			const dict_col_t* idx_col = index->get_col(i);
 
-			if (is_v && dict_col_is_virtual(idx_col)) {
+			if (is_v && idx_col->is_virtual()) {
 				const dict_v_col_t*   v_col = reinterpret_cast<
 					const dict_v_col_t*>(idx_col);
 				if (v_col->v_pos == col_no) {
@@ -6417,7 +6417,7 @@ check_col_exists_in_indexes(
 				}
 			}
 
-			if (!is_v && !dict_col_is_virtual(idx_col)
+			if (!is_v && !idx_col->is_virtual()
 			    && dict_col_get_no(idx_col) == col_no) {
 				return(true);
 			}
@@ -7660,7 +7660,7 @@ get_col_list_to_be_dropped(
 		for (ulint col = 0; col < index->n_user_defined_cols; col++) {
 			const dict_col_t*	idx_col = index->get_col(col);
 
-			if (dict_col_is_virtual(idx_col)) {
+			if (idx_col->is_virtual()) {
 				const dict_v_col_t*	v_col
 					= reinterpret_cast<
 						const dict_v_col_t*>(idx_col);

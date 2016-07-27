@@ -3325,7 +3325,7 @@ fts_fetch_doc_from_rec(
 
 	for (i = 0; i < num_field; i++) {
 		ifield = index->get_field(i);
-		col = dict_field_get_col(ifield);
+		col = ifield->col;
 		clust_pos = dict_col_get_clust_pos(col, clust_index);
 
 		if (!get_doc->index_cache->charset) {
@@ -3400,7 +3400,7 @@ fts_fetch_doc_from_tuple(
 		dfield_t*		field;
 
 		ifield = index->get_field(i);
-		col = dict_field_get_col(ifield);
+		col = ifield->col;
 		pos = dict_col_get_no(col);
 		field = dtuple_get_nth_field(tuple, pos);
 
@@ -5565,7 +5565,7 @@ fts_update_doc_id(
 		clust_index = table->first_index();
 
 		ufield->field_no = dict_col_get_clust_pos(col, clust_index);
-		dict_col_copy_type(col, dfield_get_type(&ufield->new_val));
+		col->copy_type(dfield_get_type(&ufield->new_val));
 
 		/* It is possible we update record that has
 		not yet be sync-ed from last crash. */

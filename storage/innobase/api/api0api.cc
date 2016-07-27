@@ -382,7 +382,7 @@ ib_read_tuple(
 			const dict_field_t*	index_field;
 
 			index_field = index->get_field(i);
-			col = dict_field_get_col(index_field);
+			col = index_field->col;
 			col_no = dict_col_get_no(col);
 
 			dfield = dtuple_get_nth_field(dtuple, col_no);

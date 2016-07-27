@@ -307,7 +307,7 @@ trx_undo_read_v_idx_low(
 			checks on other indexes */
 			if (index->id == id) {
 				const dict_col_t* col = index->get_col(pos);
-				ut_ad(dict_col_is_virtual(col));
+				ut_ad(col->is_virtual());
 				const dict_v_col_t*	vcol = reinterpret_cast<
 					const dict_v_col_t*>(col);
 				*col_pos = vcol->v_pos;
@@ -1744,15 +1744,12 @@ trx_undo_rec_get_partial_row(
 			col = &vcol->m_col;
 			col_no = dict_col_get_no(col);
 			dfield = dtuple_get_nth_v_field(*row, vcol->v_pos);
-			dict_col_copy_type(
-				&vcol->m_col,
-				dfield_get_type(dfield));
+			vcol->m_col.copy_type(dfield_get_type(dfield));
 		} else {
 			col = index->get_col(field_no);
 			col_no = dict_col_get_no(col);
 			dfield = dtuple_get_nth_field(*row, col_no);
-			dict_col_copy_type(
-				index->table->get_col(col_no),
+			index->table->get_col(col_no)->copy_type(
 				dfield_get_type(dfield));
 		}
 
@@ -2529,9 +2526,7 @@ trx_undo_read_v_cols(
 
 			if (!in_purge
 			    || dfield_get_type(dfield)->mtype == DATA_MISSING) {
-				dict_col_copy_type(
-					&vcol->m_col,
-					dfield_get_type(dfield));
+				vcol->m_col.copy_type(dfield_get_type(dfield));
 				dfield_set_data(dfield, field, len);
 			}
 		}

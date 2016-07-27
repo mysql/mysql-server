@@ -372,7 +372,7 @@ page_zip_fields_encode(
 		dict_field_t*	field = index->get_field(i);
 		ulint		val;
 
-		if (dict_field_get_col(field)->prtype & DATA_NOT_NULL) {
+		if (field->col->prtype & DATA_NOT_NULL) {
 			val = 1; /* set the "not nullable" flag */
 		} else {
 			val = 0; /* nullable field */
@@ -380,8 +380,7 @@ page_zip_fields_encode(
 
 		if (!field->fixed_len) {
 			/* variable-length field */
-			const dict_col_t*	column
-				= dict_field_get_col(field);
+			const dict_col_t*	column = field->col;
 
 			if (DATA_BIG_COL(column)) {
 				val |= 0x7e; /* max > 255 bytes */

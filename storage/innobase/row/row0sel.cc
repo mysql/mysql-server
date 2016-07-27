@@ -208,17 +208,14 @@ row_sel_sec_rec_is_for_clust_rec(
 		ulint			clust_pos = 0;
 		ulint			clust_len;
 		ulint			len;
-		bool			is_virtual;
 		row_ext_t*		ext;
 
 		ifield = sec_index->get_field(i);
-		col = dict_field_get_col(ifield);
-
-		is_virtual = dict_col_is_virtual(col);
+		col = ifield->col;
 
 		/* For virtual column, its value will need to be
 		reconstructed from base column in cluster index */
-		if (is_virtual) {
+		if (col->is_virtual()) {
 			const dict_v_col_t*	v_col;
 			const dtuple_t*         row;
 			dfield_t*		vfield;
@@ -252,7 +249,7 @@ row_sel_sec_rec_is_for_clust_rec(
 		len = clust_len;
 
 		if (ifield->prefix_len > 0 && len != UNIV_SQL_NULL
-		    && sec_len != UNIV_SQL_NULL && !is_virtual) {
+		    && sec_len != UNIV_SQL_NULL && !col->is_virtual()) {
 
 			if (rec_offs_nth_extern(clust_offs, clust_pos)) {
 				len -= BTR_EXTERN_FIELD_REF_SIZE;
@@ -4375,25 +4372,25 @@ row_sel_fill_vrow(
 	dtuple_init_v_fld(*vrow);
 
 	for (ulint i = 0; i < dict_index_get_n_fields(index); i++) {
-		const dict_field_t*     field;
-                const dict_col_t*       col;
+		const dict_field_t*	field;
+		const dict_col_t*	col;
 
 		field = index->get_field(i);
-		col = dict_field_get_col(field);
+		col = field->col;
 
-		if (dict_col_is_virtual(col)) {
-			const byte*     data;
-		        ulint           len;
+		if (col->is_virtual()) {
+			const byte*	data;
+			ulint		len;
 
 			data = rec_get_nth_field(rec, offsets, i, &len);
 
-                        const dict_v_col_t*     vcol = reinterpret_cast<
+			const dict_v_col_t*     vcol = reinterpret_cast<
 				const dict_v_col_t*>(col);
 
 			dfield_t* dfield = dtuple_get_nth_v_field(
 				*vrow, vcol->v_pos);
 			dfield_set_data(dfield, data, len);
-			dict_col_copy_type(col, dfield_get_type(dfield));
+			col->copy_type(dfield_get_type(dfield));
 		}
 	}
 }

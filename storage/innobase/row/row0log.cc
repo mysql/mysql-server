@@ -1263,8 +1263,7 @@ row_log_table_get_pk(
 			ifield = new_index->get_field(new_i);
 			dfield = dtuple_get_nth_field(tuple, new_i);
 
-			const ulint	col_no
-				= dict_field_get_col(ifield)->ind;
+			const ulint	col_no = ifield->col->ind;
 
 			if (const dict_col_t* col
 			    = row_log_table_get_pk_old_col(
@@ -1465,8 +1464,7 @@ row_log_table_apply_convert_mrec(
 		row = dtuple_copy(log->add_cols, heap);
 		/* dict_table_copy_types() would set the fields to NULL */
 		for (ulint i = 0; i < log->table->get_n_cols(); i++) {
-			dict_col_copy_type(
-				log->table->get_col(i),
+			log->table->get_col(i)->copy_type(
 				dfield_get_type(dtuple_get_nth_field(row, i)));
 		}
 	} else {
@@ -1489,8 +1487,7 @@ row_log_table_apply_convert_mrec(
 			continue;
 		}
 
-		const dict_col_t*	col
-			= dict_field_get_col(ind_field);
+		const dict_col_t*	col = ind_field->col;
 
 		ulint			col_no
 			= log->col_map[dict_col_get_no(col)];

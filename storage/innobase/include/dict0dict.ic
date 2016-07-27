@@ -32,74 +32,6 @@ Created 1/8/1996 Heikki Tuuri
 #include "sync0rw.h"
 #include "fsp0sysspace.h"
 
-/*********************************************************************//**
-Gets the minimum number of bytes per character.
-@return minimum multi-byte char size, in bytes */
-UNIV_INLINE
-ulint
-dict_col_get_mbminlen(
-/*==================*/
-	const dict_col_t*	col)	/*!< in: column */
-{
-	return(DATA_MBMINLEN(col->mbminmaxlen));
-}
-/*********************************************************************//**
-Gets the maximum number of bytes per character.
-@return maximum multi-byte char size, in bytes */
-UNIV_INLINE
-ulint
-dict_col_get_mbmaxlen(
-/*==================*/
-	const dict_col_t*	col)	/*!< in: column */
-{
-	return(DATA_MBMAXLEN(col->mbminmaxlen));
-}
-/*********************************************************************//**
-Sets the minimum and maximum number of bytes per character. */
-UNIV_INLINE
-void
-dict_col_set_mbminmaxlen(
-/*=====================*/
-	dict_col_t*	col,		/*!< in/out: column */
-	ulint		mbminlen,	/*!< in: minimum multi-byte
-					character size, in bytes */
-	ulint		mbmaxlen)	/*!< in: minimum multi-byte
-					character size, in bytes */
-{
-	ut_ad(mbminlen < DATA_MBMAX);
-	ut_ad(mbmaxlen < DATA_MBMAX);
-	ut_ad(mbminlen <= mbmaxlen);
-
-	col->mbminmaxlen = DATA_MBMINMAXLEN(mbminlen, mbmaxlen);
-}
-/*********************************************************************//**
-Gets the column data type. */
-UNIV_INLINE
-void
-dict_col_copy_type(
-/*===============*/
-	const dict_col_t*	col,	/*!< in: column */
-	dtype_t*		type)	/*!< out: data type */
-{
-	ut_ad(col != NULL);
-	ut_ad(type != NULL);
-
-	type->mtype = col->mtype;
-	type->prtype = col->prtype;
-	type->len = col->len;
-	type->mbminmaxlen = col->mbminmaxlen;
-}
-/** Check if a column is a virtual column
-@param[in]      col     column
-@return true if it is a virtual column, false otherwise */
-UNIV_INLINE
-bool
-dict_col_is_virtual(
-	const dict_col_t*	col)
-{
-	return(col->prtype & DATA_VIRTUAL);
-}
-
 #endif /* !UNIV_HOTBACKUP */
 
 /*********************************************************************//**
@@ -977,20 +909,6 @@ dict_table_is_compressed_temporary(
 	return(false);
 }
 #endif /* UNIV_DEBUG */
-
-/*********************************************************************//**
-Gets the field column.
-@return field->col, pointer to the table column */
-UNIV_INLINE
-const dict_col_t*
-dict_field_get_col(
-/*===============*/
-	const dict_field_t*	field)	/*!< in: index field */
-{
-	ut_ad(field);
-
-	return(field->col);
-}
 
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**

@@ -337,6 +337,6 @@ dict_mem_fill_column_struct(
 	ulint	mbminlen;
 	ulint	mbmaxlen;
         dtype_get_mblen(mtype, prtype, &mbminlen, &mbmaxlen);
-	dict_col_set_mbminmaxlen(column, mbminlen, mbmaxlen);
+	column->set_mbminmaxlen(mbminlen, mbmaxlen);
 #endif /* !UNIV_LIBRARY */
 }
