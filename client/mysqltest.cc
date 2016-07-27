@@ -404,7 +404,7 @@ enum enum_commands {
   Q_LIST_FILES, Q_LIST_FILES_WRITE_FILE, Q_LIST_FILES_APPEND_FILE,
   Q_SEND_SHUTDOWN, Q_SHUTDOWN_SERVER,
   Q_RESULT_FORMAT_VERSION,
-  Q_MOVE_FILE, Q_REMOVE_FILES_WILDCARD, Q_SEND_EVAL,
+  Q_MOVE_FILE, Q_REMOVE_FILES_WILDCARD, Q_COPY_FILES_WILDCARD, Q_SEND_EVAL,
   Q_OUTPUT,                            /* redirect output to a file */
   Q_RESET_CONNECTION,
   Q_UNKNOWN,			       /* Unknown command.   */
@@ -509,6 +509,7 @@ const char *command_names[]=
   "result_format",
   "move_file",
   "remove_files_wildcard",
+  "copy_files_wildcard",
   "send_eval",
   "output",
   "reset_connection",
@@ -3631,6 +3632,134 @@ static void do_copy_file(struct st_command *command)
   handle_command_error(command, error);
   dynstr_free(&ds_from_file);
   dynstr_free(&ds_to_file);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  SYNOPSIS
+  do_copy_files_wildcard
+  command       command handle
+
+  DESCRIPTION
+  copy_file <from_directory> <to_directory> [<file_name_pattern>]
+  Copy files <from_directory> to <to_directory> optionally
+  matching <file_name_pattern>
+
+  NOTE! Will fail if no files match the <file_name_pattern>
+        Will fail if <from_directory> is empty and/or there are no
+        files in it.
+        Will fail if <from_directory> or <to_directory> or both do not exist.
+*/
+
+static void do_copy_files_wildcard(struct st_command * command)
+{
+  static DYNAMIC_STRING ds_source;
+  static DYNAMIC_STRING ds_destination;
+  static DYNAMIC_STRING ds_wild;
+
+  const struct command_arg copy_file_args[] = {
+    { "from_directory", ARG_STRING, TRUE, &ds_source,
+      "Directory to copy from" },
+    { "to_directory", ARG_STRING, TRUE, &ds_destination,
+      "Directory to copy to" },
+    { "filename", ARG_STRING, FALSE, &ds_wild, "File name pattern"}
+  };
+  DBUG_ENTER("do_copy_files_wildcard");
+
+  check_command_args(command, command->first_argument,
+                     copy_file_args,
+                     sizeof(copy_file_args)/sizeof(struct command_arg),
+                     ' ');
+
+  DBUG_PRINT("info", ("Copy files of %s to %s",
+                      ds_source.str, ds_destination.str));
+
+  DBUG_PRINT("info", ("listing directory: %s", ds_source.str));
+
+  int error= 0;
+  /* Note that my_dir sorts the list if not given any flags */
+  MY_DIR *dir_info= my_dir(ds_source.str, MYF(MY_DONT_SORT | MY_WANT_STAT));
+
+  /* Directory does not exist or access denied */
+  if (!dir_info)
+  {
+    error= 1;
+    goto end;
+  }
+
+  /* The directory exists but is empty */
+  if (dir_info->number_off_files == 2)
+  {
+    error= 1;
+    set_my_errno(ENOENT);
+    goto end;
+  }
+
+  char dir_separator[2];
+  dir_separator[0]= FN_LIBCHAR;
+  dir_separator[1]= 0;
+  dynstr_append(&ds_source, dir_separator);
+  dynstr_append(&ds_destination, dir_separator);
+
+  /* Set default wild chars for wild_compare, is changed in embedded mode */
+  set_wild_chars(1);
+
+  /* Storing the length of the path to the file, so it can be reused */
+  size_t source_file_length;
+  size_t dest_file_length;
+  dest_file_length= ds_destination.length;
+  source_file_length= ds_source.length;
+  uint match_count;
+  match_count= 0;
+
+  for (uint i= 0; i < dir_info->number_off_files; i++)
+  {
+    ds_source.length= source_file_length;
+    ds_destination.length= dest_file_length;
+    FILEINFO *file= dir_info->dir_entry + i;
+
+    /*
+      Copy only regular files, i.e. no directories etc.
+      if (!MY_S_ISREG(file->mystat->st_mode))
+      MY_S_ISREG does not work here on Windows, just skip directories
+    */
+    if (MY_S_ISDIR(file->mystat->st_mode))
+      continue;
+
+    /* Copy only those files which the pattern matches */
+    if (ds_wild.length && wild_compare(file->name, ds_wild.str, 0))
+      continue;
+
+    match_count++;
+    dynstr_append(&ds_source, file->name);
+    dynstr_append(&ds_destination, file->name);
+    DBUG_PRINT("info", ("Copying file: %s to %s",
+                        ds_source.str, ds_destination.str));
+
+    /* MY_HOLD_ORIGINAL_MODES prevents attempts to chown the file */
+    error= (my_copy(ds_source.str, ds_destination.str,
+                    MYF(MY_HOLD_ORIGINAL_MODES)) != 0);
+
+    if (error)
+      goto end;
+  }
+
+  /* Pattern did not match any files */
+  if (!match_count)
+  {
+    error= 1;
+    set_my_errno(ENOENT);
+  }
+
+end:
+  set_wild_chars(0);
+  my_dirend(dir_info);
+  handle_command_error(command, error);
+  dynstr_free(&ds_source);
+  dynstr_free(&ds_destination);
+  dynstr_free(&ds_wild);
+
   DBUG_VOID_RETURN;
 }
 
@@ -9532,6 +9661,7 @@ int main(int argc, char **argv)
 	break;
       case Q_REMOVE_FILE: do_remove_file(command); break;
       case Q_REMOVE_FILES_WILDCARD: do_remove_files_wildcard(command); break;
+      case Q_COPY_FILES_WILDCARD: do_copy_files_wildcard(command); break;
       case Q_MKDIR: do_mkdir(command); break;
       case Q_RMDIR: do_rmdir(command); break;
       case Q_LIST_FILES: do_list_files(command); break;
