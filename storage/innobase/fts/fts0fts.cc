@@ -108,6 +108,7 @@ UNIV_INTERN mysql_pfs_key_t	fts_pll_tokenize_mutex_key;
 /** variable to record innodb_fts_internal_tbl_name for information
 schema table INNODB_FTS_INSERTED etc. */
 UNIV_INTERN char* fts_internal_tbl_name		= NULL;
+UNIV_INTERN char* fts_internal_tbl_name2	= NULL;
 
 /** InnoDB default stopword list:
 There are different versions of stopwords, the stop words listed
