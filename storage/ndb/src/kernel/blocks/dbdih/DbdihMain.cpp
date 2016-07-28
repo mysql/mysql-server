@@ -26775,6 +26775,11 @@ Dbdih::execCREATE_NODEGROUP_IMPL_REQ(Signal* signal)
     for (Uint32 i = 0; i<NDB_ARRAY_SIZE(req->nodes) && req->nodes[i] ; i++)
     {
       cnt++;
+      if(req->nodes[i] >= MAX_NDB_NODES)
+      {
+        err = CreateNodegroupRef::NodeNotDefined;
+        goto error;
+      }
       if (getNodeActiveStatus(req->nodes[i]) != Sysfile::NS_Configured)
       {
         jam();
