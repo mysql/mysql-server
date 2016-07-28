@@ -8382,6 +8382,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
 {
   MYSQL_RES *res= NULL;     /* Note that here 'res' is meta data result set */
   MYSQL_STMT *stmt;
+  int err= 0;
   DYNAMIC_STRING ds_prepare_warnings= DYNAMIC_STRING();
   DYNAMIC_STRING ds_execute_warnings= DYNAMIC_STRING();
   DBUG_ENTER("run_query_stmt");
@@ -8466,13 +8467,104 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
           mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
   }
 
-  /*
-    If we got here the statement succeeded and was expected to do so,
-    get data. Note that this can still give errors found during execution!
-    Store the result of the query if if will return any fields
-  */
-  if (mysql_stmt_field_count(stmt) && mysql_stmt_store_result(stmt))
+  do
   {
+    /*
+      If we got here the statement succeeded and was expected to do so,
+      get data. Note that this can still give errors found during execution!
+      Store the result of the query if if will return any fields
+    */
+    if (mysql_stmt_field_count(stmt) && mysql_stmt_store_result(stmt))
+    {
+      handle_error(command, mysql_stmt_errno(stmt),
+                   mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt), ds);
+      goto end;
+    }
+
+    if (!disable_result_log)
+    {
+      /*
+        Not all statements creates a result set. If there is one we can
+        now create another normal result set that contains the meta
+        data. This set can be handled almost like any other non prepared
+        statement result set.
+      */
+      if ((res= mysql_stmt_result_metadata(stmt)) != NULL)
+      {
+        /* Take the column count from meta info */
+        MYSQL_FIELD *fields= mysql_fetch_fields(res);
+        uint num_fields= mysql_num_fields(res);
+
+        if (display_metadata)
+          append_metadata(ds, fields, num_fields);
+
+        if (!display_result_vertically)
+          append_table_headings(ds, fields, num_fields);
+
+        append_stmt_result(ds, stmt, fields, num_fields);
+
+        /* Free normal result set with meta data */
+        mysql_free_result(res);
+      }
+      else
+      {
+        /*
+	  This is a query without resultset
+        */
+      }
+
+      /*
+        Fetch info before fetching warnings, since it will be reset
+        otherwise.
+      */
+
+      if (!disable_info)
+        append_info(ds, mysql_affected_rows(stmt->mysql), mysql_info(mysql));
+
+      if (display_session_track_info)
+        append_session_track_info(ds, mysql);
+
+      /*
+        Add all warnings to the result. We can't do this if we are in
+        the middle of processing results from multi-statement, because
+        this will break protocol.
+      */
+      if (!disable_warnings && !mysql_more_results(stmt->mysql))
+      {
+        /* Get the warnings from execute */
+
+        /* Append warnings to ds - if there are any */
+        if (append_warnings(&ds_execute_warnings, mysql) ||
+            ds_execute_warnings.length ||
+            ds_prepare_warnings.length ||
+            ds_warnings->length)
+        {
+          /*
+            Clear prepare warnings if there are execute warnings,
+            since they are probably duplicated.
+          */
+          if (ds_execute_warnings.length &&
+              strstr(ds_execute_warnings.str, ds_prepare_warnings.str))
+            dynstr_set(&ds_prepare_warnings, NULL);
+
+          dynstr_append_mem(ds, "Warnings:\n", 10);
+          if (ds_warnings->length)
+            dynstr_append_mem(ds, ds_warnings->str,
+                              ds_warnings->length);
+          if (ds_prepare_warnings.length)
+            dynstr_append_mem(ds, ds_prepare_warnings.str,
+                              ds_prepare_warnings.length);
+          if (ds_execute_warnings.length)
+            dynstr_append_mem(ds, ds_execute_warnings.str,
+                              ds_execute_warnings.length);
+        }
+      }
+    }
+  } while((err= mysql_stmt_next_result(stmt)) == 0);
+
+  if (err > 0)
+  {
+    /* We got an error from mysql_stmt_next_result, maybe expected */
     handle_error(command, mysql_stmt_errno(stmt),
                  mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt), ds);
     goto end;
@@ -8480,78 +8572,6 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
 
   /* If we got here the statement was both executed and read successfully */
   handle_no_error(command);
-  if (!disable_result_log)
-  {
-    /*
-      Not all statements creates a result set. If there is one we can
-      now create another normal result set that contains the meta
-      data. This set can be handled almost like any other non prepared
-      statement result set.
-    */
-    if ((res= mysql_stmt_result_metadata(stmt)) != NULL)
-    {
-      /* Take the column count from meta info */
-      MYSQL_FIELD *fields= mysql_fetch_fields(res);
-      uint num_fields= mysql_num_fields(res);
-
-      if (display_metadata)
-        append_metadata(ds, fields, num_fields);
-
-      if (!display_result_vertically)
-        append_table_headings(ds, fields, num_fields);
-
-      append_stmt_result(ds, stmt, fields, num_fields);
-
-      mysql_free_result(res);     /* Free normal result set with meta data */
-
-      /*
-        Clear prepare warnings if there are execute warnings,
-        since they are probably duplicated.
-      */
-      if (ds_execute_warnings.length || mysql->warning_count)
-        dynstr_set(&ds_prepare_warnings, NULL);
-    }
-    else
-    {
-      /*
-	This is a query without resultset
-      */
-    }
-
-    /*
-      Fetch info before fetching warnings, since it will be reset
-      otherwise.
-    */
-
-    if (!disable_info)
-      append_info(ds, mysql_stmt_affected_rows(stmt), mysql_info(mysql));
-
-    if (display_session_track_info)
-      append_session_track_info(ds, mysql);
-
-    if (!disable_warnings)
-    {
-      /* Get the warnings from execute */
-
-      /* Append warnings to ds - if there are any */
-      if (append_warnings(&ds_execute_warnings, mysql) ||
-          ds_execute_warnings.length ||
-          ds_prepare_warnings.length ||
-          ds_warnings->length)
-      {
-        dynstr_append_mem(ds, "Warnings:\n", 10);
-        if (ds_warnings->length)
-          dynstr_append_mem(ds, ds_warnings->str,
-                            ds_warnings->length);
-        if (ds_prepare_warnings.length)
-          dynstr_append_mem(ds, ds_prepare_warnings.str,
-                            ds_prepare_warnings.length);
-        if (ds_execute_warnings.length)
-          dynstr_append_mem(ds, ds_execute_warnings.str,
-                            ds_execute_warnings.length);
-      }
-    }
-  }
 
 end:
   if (!disable_warnings)
@@ -8986,6 +9006,7 @@ void init_re(void)
     "[[:space:]]*KILL[[:space:]]|"
     "[[:space:]]*REVOKE[[:space:]]+ALL[[:space:]]+PRIVILEGES[[:space:]]|"
     "[[:space:]]*DO[[:space:]]|"
+    "[[:space:]]*CALL[[:space:]]|"
     "[[:space:]]*COMMIT[[:space:]]|"
     "[[:space:]]*SET[[:space:]]+OPTION[[:space:]]|"
     "[[:space:]]*SHOW[[:space:]]+CREATE[[:space:]]+TABLE[[:space:]]|"

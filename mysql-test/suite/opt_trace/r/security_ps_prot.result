@@ -61,6 +61,7 @@ call p1();
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 call p1()	20	0
+call p1()	20	0
 set b@0 NULL	20	0
 jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	706	0
 select 22 into b from dual	407	0
@@ -126,6 +127,7 @@ call p1();
 # Ps-protocol-specific note: mysqltest uses normal protocol for CALL
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
+call p1()	20	0
 	0	1
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 select f1();
@@ -265,6 +267,7 @@ call p1();
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 call p1()	20	0
+call p1()	20	0
 set b@0 NULL	20	0
 jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	706	0
 select 22 into b from dual	407	0
@@ -297,7 +300,7 @@ set optimizer_trace_offset=2,optimizer_trace_limit=1;
 call p1();
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
-jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	706	0
+set b@0 NULL	20	0
 set optimizer_trace="enabled=off";
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 call p2();
@@ -379,6 +382,7 @@ call p1();
 # implementation, CALL is hidden.
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
+call p1()	20	0
 	0	1
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 select f1();
@@ -435,6 +439,7 @@ set optimizer_trace_offset=0,optimizer_trace_limit=100;
 call p1();
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
+call p1()	20	0
 	0	1
 # Trace exposed body of routine, and content of t1, which we
 # could see anyway:
@@ -491,6 +496,10 @@ call p1();
 # Cannot see those substatements which use t1
 select QUERY, TRACE, INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	INSUFFICIENT_PRIVILEGES
+call p1()	{
+  "steps": [
+  ]
+}	0
 		1
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 select f1();
@@ -654,6 +663,7 @@ call p1();
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 call p1()	20	0
+call p1()	20	0
 set b@0 NULL	20	0
 	0	1
 select 22 into b from dual	407	0
@@ -734,6 +744,7 @@ set optimizer_trace_offset=0,optimizer_trace_limit=100;
 call p1();
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
+call p1()	20	0
 call p1()	20	0
 set b@0 NULL	20	0
 jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	706	0
