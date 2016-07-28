@@ -128,12 +128,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0mem.h"
 #include "row0ext.h"
 #include "lob0lob.h"
-
+#include "dict0priv.h"
 #include "ha_innodb.h"
 #include "i_s.h"
 #include "sync0sync.h"
 /* for ha_innopart, Native InnoDB Partitioning. */
 #include "ha_innopart.h"
+#include <bitset>
 
 /** Handler name for InnoDB */
 static constexpr char handler_name[] = "InnoDB";
@@ -234,6 +235,8 @@ get_row_format(
 		return(REC_FORMAT_DYNAMIC);
 	}
 }
+
+static constexpr table_id_t NUM_HARD_CODED_TABLES = 27;
 
 static ulong	innodb_default_row_format = DEFAULT_ROW_FORMAT_DYNAMIC;
 
@@ -6269,6 +6272,1374 @@ ha_innobase::innobase_initialize_autoinc()
 	dict_table_autoinc_initialize(m_prebuilt->table, auto_inc);
 }
 
+/** Return a display name for the row format
+@param[in]      row_format      Row Format
+@return row format name */
+static
+const char*
+get_row_format_name(enum row_type row_format)
+{
+        switch (row_format) {
+        case ROW_TYPE_COMPACT:
+                return("ROW_FORMAT=COMPACT");
+        case ROW_TYPE_COMPRESSED:
+                return("ROW_FORMAT=COMPRESSED");
+        case ROW_TYPE_DYNAMIC:
+                return("ROW_FORMAT=DYNAMIC");
+        case ROW_TYPE_REDUNDANT:
+                return("ROW_FORMAT=REDUNDANT");
+        case ROW_TYPE_DEFAULT:
+                return("ROW_FORMAT=DEFAULT");
+        case ROW_TYPE_FIXED:
+                return("ROW_FORMAT=FIXED");
+        case ROW_TYPE_PAGED:
+                return("ROW_FORMAT=PAGED");
+        case ROW_TYPE_NOT_USED:
+                break;
+        }
+        return("ROW_FORMAT");
+}
+
+/** Validate the table format options.
+@param[in]	zip_allowed	whether ROW_FORMAT=COMPRESSED is OK
+@param[in]	strict		whether innodb_strict_mode=ON
+@param[out]	is_redundant	whether ROW_FORMAT=REDUNDANT
+@param[out]	blob_prefix	whether ROW_FORMAT=DYNAMIC
+				or ROW_FORMAT=COMPRESSED
+@param[out]	zip_ssize	log2(compressed page size),
+				or 0 if not ROW_FORMAT=COMPRESSED
+@retval true if invalid (my_error will have been called)
+@retval false if valid */
+bool
+format_validate(
+	THD*			m_thd,
+        const TABLE*		m_form,
+	bool			zip_allowed,
+	bool			strict,
+	bool*			is_redundant,
+	bool*			blob_prefix,
+	unsigned*		zip_ssize,
+	bool			m_implicit)
+{
+	bool	is_temporary = false;
+	ut_ad(m_thd != nullptr);
+	ut_ad(!zip_allowed || srv_page_size <= UNIV_ZIP_SIZE_MAX);
+
+	/* 1+log2(compressed_page_size), or 0 if not compressed */
+	*zip_ssize			= 0;
+	const unsigned	zip_ssize_max	= std::min(
+		(ulint)UNIV_PAGE_SSIZE_MAX, (ulint)PAGE_ZIP_SSIZE_MAX);
+	const char*	zip_refused	= zip_allowed
+		? nullptr
+		: srv_page_size <= UNIV_ZIP_SIZE_MAX
+		? "innodb_file_per_table=OFF"
+		: "innodb_page_size>16k";
+	bool		invalid		= false;
+
+	if (unsigned key_block_size = m_form->s->key_block_size) {
+		unsigned	valid_zssize = 0;
+		char		kbs[MY_INT32_NUM_DECIMAL_DIGITS
+				    + sizeof "KEY_BLOCK_SIZE="];
+		snprintf(kbs, sizeof kbs, "KEY_BLOCK_SIZE=%u",
+			 key_block_size);
+		for (unsigned kbsize = 1, zssize = 1;
+		     zssize <= zip_ssize_max;
+		     zssize++, kbsize <<= 1) {
+			if (kbsize == key_block_size) {
+				valid_zssize = zssize;
+				break;
+			}
+		}
+
+		if (valid_zssize == 0) {
+			if (strict) {
+				my_error(ER_WRONG_VALUE, MYF(0),
+					 "KEY_BLOCK_SIZE",
+					 kbs + sizeof "KEY_BLOCK_SIZE");
+				invalid = true;
+			} else {
+				push_warning_printf(
+					m_thd, Sql_condition::SL_WARNING,
+					ER_WRONG_VALUE,
+					ER_DEFAULT(ER_WRONG_VALUE),
+					"KEY_BLOCK_SIZE",
+					kbs + sizeof "KEY_BLOCK_SIZE");
+			}
+		} else if (!zip_allowed) {
+			int		error = is_temporary
+				? ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE
+				: ER_ILLEGAL_HA_CREATE_OPTION;
+
+			if (strict) {
+				my_error(error, MYF(0), innobase_hton_name,
+					 kbs, zip_refused);
+				invalid = true;
+			} else {
+				push_warning_printf(
+					m_thd, Sql_condition::SL_WARNING,
+					error,
+					ER_DEFAULT(error),
+					innobase_hton_name,
+					kbs, zip_refused);
+			}
+		} else if (m_form->s->row_type == ROW_TYPE_DEFAULT
+			   || m_form->s->row_type == ROW_TYPE_COMPRESSED) {
+			ut_ad(m_form->s->real_row_type == ROW_TYPE_COMPRESSED);
+			*zip_ssize = valid_zssize;
+		} else {
+			int	error = is_temporary
+				? ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE
+				: ER_ILLEGAL_HA_CREATE_OPTION;
+			const char* conflict = get_row_format_name(
+				m_form->s->row_type);
+
+			if (strict) {
+				my_error(error, MYF(0),innobase_hton_name, 
+					 kbs, conflict);
+				invalid = true;
+			} else {
+				push_warning_printf(
+					m_thd, Sql_condition::SL_WARNING,
+					error,
+					ER_DEFAULT(error),
+					innobase_hton_name, kbs, conflict);
+			}
+		}
+	} else if (m_form->s->row_type != ROW_TYPE_COMPRESSED
+		   || !is_temporary) {
+		/* not ROW_FORMAT=COMPRESSED (nor KEY_BLOCK_SIZE),
+		or not TEMPORARY TABLE */
+	} else if (strict) {
+		my_error(ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE, MYF(0));
+		invalid = true;
+	} else {
+		push_warning(m_thd, Sql_condition::SL_WARNING,
+			     ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE,
+			     ER_THD(m_thd,
+				    ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE));
+	}
+
+	/* Check for a valid InnoDB ROW_FORMAT specifier and
+	other incompatibilities. */
+	rec_format_t	innodb_row_format = REC_FORMAT_DYNAMIC;
+
+	switch (m_form->s->row_type) {
+	case ROW_TYPE_DYNAMIC:
+		ut_ad(*zip_ssize == 0);
+		ut_ad(m_form->s->real_row_type == ROW_TYPE_DYNAMIC);
+		break;
+	case ROW_TYPE_COMPACT:
+		ut_ad(*zip_ssize == 0);
+		ut_ad(m_form->s->real_row_type == ROW_TYPE_COMPACT);
+		innodb_row_format = REC_FORMAT_COMPACT;
+		break;
+	case ROW_TYPE_REDUNDANT:
+		ut_ad(*zip_ssize == 0);
+		ut_ad(m_form->s->real_row_type == ROW_TYPE_REDUNDANT);
+		innodb_row_format = REC_FORMAT_REDUNDANT;
+		break;
+	case ROW_TYPE_FIXED:
+	case ROW_TYPE_PAGED:
+	case ROW_TYPE_NOT_USED:
+		{
+			const char* name = get_row_format_name(
+				m_form->s->row_type);
+			if (strict) {
+				my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+					 innobase_hton_name, name);
+				invalid = true;
+			} else {
+				push_warning_printf(
+					m_thd, Sql_condition::SL_WARNING,
+					ER_ILLEGAL_HA_CREATE_OPTION,
+					ER_DEFAULT(ER_ILLEGAL_HA_CREATE_OPTION),
+					innobase_hton_name, name);
+			}
+		}
+		/* fall through */
+	case ROW_TYPE_DEFAULT:
+		switch (m_form->s->real_row_type) {
+		case ROW_TYPE_FIXED:
+		case ROW_TYPE_PAGED:
+		case ROW_TYPE_NOT_USED:
+		case ROW_TYPE_DEFAULT:
+			/* get_real_row_type() should not return these */
+			ut_ad(0);
+			/* fall through */
+		case ROW_TYPE_DYNAMIC:
+			ut_ad(*zip_ssize == 0);
+			break;
+		case ROW_TYPE_COMPACT:
+			ut_ad(*zip_ssize == 0);
+			innodb_row_format = REC_FORMAT_COMPACT;
+			break;
+		case ROW_TYPE_REDUNDANT:
+			ut_ad(*zip_ssize == 0);
+			innodb_row_format = REC_FORMAT_REDUNDANT;
+			break;
+		case ROW_TYPE_COMPRESSED:
+			innodb_row_format = REC_FORMAT_COMPRESSED;
+			break;
+		}
+
+		if (*zip_ssize == 0) {
+			/* No valid KEY_BLOCK_SIZE was specified,
+			so do not imply ROW_FORMAT=COMPRESSED. */
+			if (innodb_row_format == REC_FORMAT_COMPRESSED) {
+				innodb_row_format = REC_FORMAT_DYNAMIC;
+			}
+			break;
+		}
+		/* fall through */
+	case ROW_TYPE_COMPRESSED:
+		if (is_temporary) {
+			if (strict) {
+				invalid = true;
+			}
+			/* ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE
+			was already reported. */
+			ut_ad(m_form->s->real_row_type == ROW_TYPE_DYNAMIC);
+			break;
+		} else if (zip_allowed) {
+			/* ROW_FORMAT=COMPRESSED without KEY_BLOCK_SIZE
+			implies half the maximum compressed page size. */
+			if (*zip_ssize == 0) {
+				*zip_ssize = zip_ssize_max - 1;
+			}
+			ut_ad(m_form->s->real_row_type == ROW_TYPE_COMPRESSED);
+			innodb_row_format = REC_FORMAT_COMPRESSED;
+			break;
+		}
+
+		if (strict) {
+			my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+				 innobase_hton_name,
+				 "ROW_FORMAT=COMPRESSED", zip_refused);
+			invalid = true;
+		} else {
+			push_warning_printf(
+				m_thd, Sql_condition::SL_WARNING,
+				ER_ILLEGAL_HA_CREATE_OPTION,
+				ER_DEFAULT(ER_ILLEGAL_HA_CREATE_OPTION),
+				innobase_hton_name,
+				 "ROW_FORMAT=COMPRESSED", zip_refused);
+		}
+	}
+
+	if (const char* algorithm = m_form->s->compress.length > 0
+	    ? m_form->s->compress.str : nullptr) {
+		Compression	compression;
+		dberr_t		err = Compression::check(algorithm,
+							 &compression);
+
+		if (err == DB_UNSUPPORTED) {
+			my_error(ER_WRONG_VALUE, MYF(0),
+				 "COMPRESSION", algorithm);
+			invalid = true;
+		} else if (compression.m_type != Compression::NONE) {
+			if (*zip_ssize != 0) {
+				my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+					 innobase_hton_name,
+					 "COMPRESSION",
+					 m_form->s->key_block_size
+					 ? "KEY_BLOCK_SIZE"
+					 : "ROW_FORMAT=COMPRESSED");
+				invalid = true;
+			}
+
+			if (is_temporary) {
+				my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+					 innobase_hton_name,
+					 "COMPRESSION", "TEMPORARY");
+				invalid = true;
+#if 1//WL#7141 TODO: check this in dd_space_invalid()
+			} else if (!m_implicit) {
+				my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+					 innobase_hton_name,
+					 "COMPRESSION", "TABLESPACE");
+				invalid = true;
+#endif
+			}
+		}
+	}
+
+#if 0//WL#8548 TODO
+	if (const char* encryption = m_form->encrypt_type.str) {
+		if (!Encryption::is_none(encryption)) {
+			byte*			master_key = nullptr;
+			ulint			master_key_id;
+			Encryption::Version	version;
+
+			/* Check if keyring is ready. */
+			Encryption::get_master_key(&master_key_id,
+						   &master_key,
+						   &version);
+
+			if (master_key == nullptr) {
+				my_error(ER_CANNOT_FIND_KEY_IN_KEYRING,
+					 MYF(0));
+				invalid = true;
+			}
+
+			my_free(master_key);
+			// TODO: copy master_key_id to or check against
+			// dd::Tablespace::se_private_data
+		} else if (m_form->encrypt_type.length > 0) {
+			my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
+			invalid = true;
+		}
+	}
+#endif
+
+	/* Check if there are any FTS indexes defined on this table. */
+	for (uint i = 0; i < m_form->s->keys; i++) {
+		const KEY*	key = &m_form->key_info[i];
+
+		if (key->flags & HA_FULLTEXT) {
+			/* We don't support FTS indexes in temporary
+			tables. */
+			if (is_temporary) {
+				my_error(ER_INNODB_NO_FT_TEMP_TABLE, MYF(0));
+				return(true);
+			}
+#if 1//WL#9099 TODO: enable FULLTEXT INDEX
+			my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
+			return(true);
+#endif
+		}
+	}
+
+	ut_ad((*zip_ssize == 0)
+	      == (innodb_row_format != REC_FORMAT_COMPRESSED));
+
+	*is_redundant = false;
+	*blob_prefix = false;
+
+	switch (innodb_row_format) {
+	case REC_FORMAT_REDUNDANT:
+		*is_redundant = true;
+		*blob_prefix = true;
+		break;
+	case REC_FORMAT_COMPACT:
+		*blob_prefix = true;
+		break;
+	case REC_FORMAT_COMPRESSED:
+		ut_ad(!is_temporary);
+		break;
+	case REC_FORMAT_DYNAMIC:
+		break;
+	}
+
+	return(invalid);
+}
+
+/** Create an index.
+@param[in,out]	table		InnoDB table
+@param[in]	strict		whether to be strict about the max record size
+@param[in]	form		MySQL table structure
+@param[in]	key_num		key_info[] offset
+@return		error code
+@retval		0 on success
+@retval		HA_ERR_INDEX_COL_TOO_LONG if a column is too long
+@retval		HA_ERR_TOO_BIG_ROW if the record is too long */
+static MY_ATTRIBUTE((warn_unused_result))
+int
+create_index_metadata(
+	dict_table_t*		table,
+	bool			strict,
+	const TABLE_SHARE*	form,
+	uint			key_num)
+{
+	const KEY&		key		= form->key_info[key_num];
+	ulint			type;
+	unsigned		n_fields	= key.user_defined_key_parts;
+	unsigned		n_uniq		= n_fields;
+	std::bitset<REC_MAX_N_FIELDS>	indexed;
+
+	/* This name cannot be used for a non-primary index */
+	ut_ad(key_num == form->primary_key
+	      || my_strcasecmp(system_charset_info,
+			       key.name, primary_key_name) != 0);
+	/* PARSER is only valid for FULLTEXT INDEX */
+	ut_ad((key.flags & (HA_FULLTEXT | HA_USES_PARSER)) != HA_USES_PARSER);
+	ut_ad(form->fields > 0);
+	ut_ad(n_fields > 0);
+
+	if (key.flags & (HA_SPATIAL | HA_FULLTEXT)) {
+		switch (key.flags & HA_KEYFLAG_MASK) {
+		case HA_SPATIAL:
+			type = DICT_SPATIAL;
+			break;
+		case HA_FULLTEXT:
+			type = DICT_FTS;
+			n_uniq = 0;
+		default:
+			ut_ad(0);
+		}
+	} else if (key_num == form->primary_key) {
+		ut_ad(key.flags & HA_NOSAME);
+		ut_ad(n_uniq > 0);
+		type = DICT_CLUSTERED | DICT_UNIQUE;
+	} else {
+		type = (key.flags & HA_NOSAME)
+			? DICT_UNIQUE 
+			: 0;
+	}
+#if 0
+	if (key.flags & (HA_SPATIAL | HA_FULLTEXT)) {
+		ut_ad(!dict_table_is_intrinsic(table));
+
+		switch (key.flags & HA_KEYFLAG_MASK) {
+		case HA_SPATIAL:
+			type = DICT_SPATIAL;
+			ut_ad(n_fields == 1);
+			/* Add all PRIMARY KEY columns. */
+			n_fields += table->first_index()->n_uniq;
+			break;
+		case HA_FULLTEXT:
+			type = DICT_FTS;
+			n_uniq = 0;
+#if 1//WL#9099 TODO
+			return(HA_ERR_UNSUPPORTED);
+#endif
+			break;
+		default:
+			ut_ad(0);
+		}
+
+		for (uint i = 0; i < key.user_defined_key_parts; i++) {
+			/* FULLTEXT or SPATIAL index are not supported
+			on generated virtual columns. */
+			if (key.key_part[i].field->is_virtual_gcol()) {
+				ut_ad(0);
+				return(HA_ERR_UNSUPPORTED);
+			}
+		}
+	} else if (key_num == form->primary_key) {
+		ut_ad(key.flags & HA_NOSAME);
+		ut_ad(n_uniq > 0);
+		type = DICT_CLUSTERED;
+		/* Add all non-virtual columns except DB_ROW_ID. */
+		n_fields += table->n_cols - table->n_v_cols - 1;
+
+		/* Subtract those columns that are already part of the
+		PRIMARY KEY, not counting prefix indexes. */
+		for (unsigned i = 0; i < key.user_defined_key_parts; i++) {
+			const KEY_PART_INFO& key_part = key.key_part[i];
+
+			if (!(key_part.key_part_flag & HA_PART_KEY_SEG)) {
+				unsigned f = key_part.fieldnr - 1;
+				ut_ad(f < form->fields);
+
+				if (indexed.test(f)) {
+					continue;
+				}
+				indexed.set(f);
+				n_fields--;
+			}
+		}
+	} else {
+		const dict_index_t*	clust_index = table->first_index();
+
+		type = (key.flags & HA_NOSAME)
+			? DICT_UNIQUE 
+			: 0;
+		/* An ordinary secondary index should contain a hidden
+		index element for each full-column PRIMARY KEY element,
+		except if the full-column element is in the secondary KEY. */
+		for (unsigned i = 0; i < clust_index->n_uniq; i++) {
+			const dict_field_t* field = &clust_index->fields[i];
+			if (!field->prefix_len != 0) {
+				indexed.set(field->col->ind);
+			}
+		}
+		for (unsigned i = 0; i < key.user_defined_key_parts; i++) {
+			const KEY_PART_INFO& key_part = key.key_part[i];
+			if (!(key_part.key_part_flag & HA_PART_KEY_SEG)) {
+				unsigned f = key_part.fieldnr - 1;
+				ut_ad(f < form->fields);
+				indexed.reset(f);
+			}
+		}
+
+		/* Count the columns necessary to determine the
+		clustered index entry uniquely. */
+		for (unsigned i = 0; i < clust_index->n_uniq; i++) {
+			const dict_field_t* field = &clust_index->fields[i];
+			if (field->prefix_len != 0
+			    || indexed.test(field->col->ind)) {
+				n_fields++;
+			}
+		}
+
+		if (type != DICT_CLUSTERED) {
+			n_uniq = n_fields;
+		}
+	}
+#endif
+
+	/* dict_index_t*	index = dict_index_t::create(
+		table, type, key.name, 0, n_fields, n_uniq,
+		type == dict_index_t::SPATIAL || dict_table_is_intrinsic(table),
+		key.flags & HA_NULL_ARE_EQUAL); */
+
+	dict_index_t*	index = dict_mem_index_create(
+		table->name.m_name, key.name, 0, type, n_fields);
+	
+	index->n_uniq = n_uniq;
+
+	const ulint	max_len	= DICT_MAX_FIELD_LEN_BY_FORMAT(table);
+	DBUG_EXECUTE_IF("ib_create_table_fail_at_create_index",
+			dict_mem_index_free(index);
+			my_error(ER_INDEX_COLUMN_TOO_LONG, MYF(0), max_len);
+			return(HA_ERR_TOO_BIG_ROW););
+
+	for (unsigned i = 0; i < key.user_defined_key_parts; i++) {
+		const KEY_PART_INFO*	key_part	= &key.key_part[i];
+		unsigned		prefix_len	= 0;
+		const Field*		field		= key_part->field;
+		ut_ad(field == form->field[key_part->fieldnr - 1]);
+		ut_ad(field == form->field[field->field_index]);
+
+		if (field->is_virtual_gcol()) {
+			index->type |= DICT_VIRTUAL;
+		}
+
+#if 1//WL#7743 FIXME: do not set HA_PART_KEY_SEG for SPATIAL indexes
+		if (key.flags & HA_SPATIAL) {
+			prefix_len = 0;
+		} else
+#endif
+		if (key_part->key_part_flag & HA_PART_KEY_SEG) {
+			/* SPATIAL and FULLTEXT index always are on
+			full columns. */
+			ut_ad(!(key.flags & (HA_SPATIAL | HA_FULLTEXT)));
+			prefix_len = key_part->length;
+			ut_ad(prefix_len > 0);
+		} else {
+			ut_ad(key.flags & (HA_SPATIAL | HA_FULLTEXT)
+			      || (!is_blob(field->real_type())
+				  && field->real_type()
+				  != MYSQL_TYPE_GEOMETRY)
+			      || key_part->length
+			      >= (field->type() == MYSQL_TYPE_VARCHAR
+				  ? field->key_length()
+				  : field->pack_length()));
+			prefix_len = 0;
+		}
+
+		if (key_part->length > max_len || prefix_len > max_len) {
+			dict_mem_index_free(index);
+			my_error(ER_INDEX_COLUMN_TOO_LONG, MYF(0), max_len);
+			return(HA_ERR_INDEX_COL_TOO_LONG);
+		}
+
+		dict_col_t*	col = &table->cols[field->field_index];
+		dict_index_add_col(index, table, col, prefix_len);
+	}
+
+	ut_ad(((key.flags & HA_FULLTEXT) == HA_FULLTEXT)
+	      == !!(index->type & DICT_FTS));
+
+	index->n_user_defined_cols = key.user_defined_key_parts;
+
+	int err = dict_index_add_to_cache(table, index, 0, FALSE);
+	ut_ad(err == DB_SUCCESS);
+
+	if (index->type & DICT_FTS) {
+		ut_ad(n_uniq == 0);
+
+		if (table->fts->cache == nullptr) {
+			table->flags2 |= DICT_TF2_FTS;
+			table->fts->cache = fts_cache_create(table);
+		}
+
+		rw_lock_x_lock(&table->fts->cache->init_lock);
+		/* Notify the FTS cache about this index. */
+		fts_cache_index_cache_create(table, index);
+		rw_lock_x_unlock(&table->fts->cache->init_lock);
+	}
+
+	if (!strcmp(index->name, FTS_DOC_ID_INDEX_NAME)) {
+		ut_ad(table->fts_doc_id_index == nullptr);
+		table->fts_doc_id_index = index;
+	}
+
+	if (key.flags & HA_USES_PARSER) {
+		ut_ad(index->type & DICT_FTS);
+		index->parser = static_cast<st_mysql_ftparser*>(
+			plugin_decl(key.parser)->info);
+		index->is_ngram = strcmp(
+			plugin_name(key.parser)->str,
+			FTS_NGRAM_PARSER_NAME) == 0;
+		DBUG_EXECUTE_IF(
+			"fts_instrument_use_default_parser",
+			index->parser = &fts_default_parser;);
+	}
+
+	return(0);
+}
+
+/** Parse MERGE_THRESHOLD value from a comment string.
+@param[in]      thd     connection
+@param[in]      str     string which might include 'MERGE_THRESHOLD='
+@return value parsed
+@retval dict_index_t::MERGE_THRESHOLD_DEFAULT for missing or invalid value. */
+static
+ulint
+dd_parse_merge_threshold(THD* thd, const char* str)
+{
+        static constexpr char   label[] = "MERGE_THRESHOLD=";
+
+        if (const char* pos = strstr(str, label)) {
+                pos += (sizeof label) - 1;
+
+                int     ret = atoi(pos);
+
+                if (ret > 0
+                    && unsigned(ret) <= DICT_INDEX_MERGE_THRESHOLD_DEFAULT) {
+                        return(static_cast<ulint>(ret));
+                }
+
+                push_warning_printf(
+                        thd, Sql_condition::SL_WARNING,
+                        WARN_OPTION_IGNORED,
+                        ER_DEFAULT(WARN_OPTION_IGNORED),
+                        "MERGE_THRESHOLD");
+        }
+
+        return(DICT_INDEX_MERGE_THRESHOLD_DEFAULT);
+}
+
+
+/** Copy attributes from MySQL TABLE_SHARE into an InnoDB table object.
+@param[in,out]	thd		thread context
+@param[in,out]	table		InnoDB table
+@param[in]	table_share	TABLE_SHARE */
+inline
+void
+dd_copy_from_table_share(
+	THD*			thd,
+	dict_table_t*		table,
+	const TABLE_SHARE*	table_share)
+{
+	if (dict_table_is_temporary(table)) {
+		//table->set_persistent_stats(false);
+		dict_stats_set_persistent(table, false, true);
+	} else {
+		switch (table_share->db_create_options
+			& (HA_OPTION_STATS_PERSISTENT
+			   | HA_OPTION_NO_STATS_PERSISTENT)) {
+		default:
+			/* If a CREATE or ALTER statement contains
+			STATS_PERSISTENT=0 STATS_PERSISTENT=1,
+			it will be interpreted as STATS_PERSISTENT=1. */
+		case HA_OPTION_STATS_PERSISTENT:
+			//table->set_persistent_stats(true);
+			dict_stats_set_persistent(table, true, false);
+			break;
+		case HA_OPTION_NO_STATS_PERSISTENT:
+			//table->set_persistent_stats(false);
+			dict_stats_set_persistent(table, false, true);
+			break;
+		case 0:
+			break;
+		}
+	}
+
+	dict_stats_auto_recalc_set(
+		table,
+		table_share->stats_auto_recalc == HA_STATS_AUTO_RECALC_ON,
+		table_share->stats_auto_recalc == HA_STATS_AUTO_RECALC_OFF);
+
+
+	table->stats_sample_pages = table_share->stats_sample_pages;
+
+	const ulint	merge_threshold_table = table_share->comment.str
+		? dd_parse_merge_threshold(thd, table_share->comment.str)
+		: DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
+	dict_index_t*	index	= table->first_index();
+
+	index->merge_threshold = merge_threshold_table;
+
+	if (dict_index_is_auto_gen_clust(index)) {
+		index = index->next();
+	}
+
+	for (uint i = 0; i < table_share->keys; i++) {
+		const KEY*	key_info = &table_share->key_info[i];
+
+		ut_ad(index != nullptr);
+
+		if (key_info->flags & HA_USES_COMMENT
+		    && key_info->comment.str != nullptr) {
+			index->merge_threshold = dd_parse_merge_threshold(
+				thd, key_info->comment.str);
+		} else {
+			index->merge_threshold = merge_threshold_table;
+		}
+
+		index = index->next();
+	}
+
+	ut_ad(index == nullptr);
+}
+
+inline
+int
+create_key_metadata(
+	const dd::Table*		dd_part,
+        const TABLE*                    m_form,
+	dict_table_t*			m_table,
+	const char*			name,
+	HA_CREATE_INFO*			m_create_info,
+	bool				zip_allowed,
+	bool				strict,
+	THD*				m_thd,
+        bool                            m_skip_mdl)
+{
+	int		error = 0;
+
+	/* Create the keys */
+	if (m_form->s->keys == 0 || m_form->s->primary_key == MAX_KEY) {
+		/* Create an index which is used as the clustered index;
+		order the rows by the hidden InnoDB column DB_ROW_ID. */
+		dict_index_t*	index = dict_mem_index_create(
+			m_table->name.m_name, "GEN_CLUST_INDEX",
+			0, DICT_CLUSTERED, 0);
+		index->n_uniq = 0;
+
+		dberr_t	new_err = dict_index_add_to_cache(
+			m_table, index, index->page, FALSE);
+		if (new_err != DB_SUCCESS) {
+			error = HA_ERR_GENERIC;
+			goto dd_error;
+		}
+	} else {
+		/* In InnoDB, the clustered index must always be
+		created first. */
+		error = create_index_metadata(m_table, strict, m_form->s,
+					      m_form->s->primary_key);
+		if (error != 0) {
+			goto dd_error;
+		}
+	}
+
+	/* Create the ancillary tables that are common to all FTS indexes on
+	this table. */
+	if (dict_table_has_fts_index(m_table)) {
+#if 0// WL#9099 TODO: implement FULLTEXT INDEX
+		fts_doc_id_index_enum	ret;
+
+		ut_ad(!dict_table_is_intrinsic(m_table));
+		/* Check whether there already exists FTS_DOC_ID_INDEX */
+		ret = innobase_fts_check_doc_id_index_in_def(
+			m_form->s->keys, m_form->key_info);
+
+		switch (ret) {
+		case FTS_INCORRECT_DOC_ID_INDEX:
+			push_warning_printf(m_thd,
+					    Sql_condition::SL_WARNING,
+					    ER_WRONG_NAME_FOR_INDEX,
+					    " InnoDB: Index name %s is reserved"
+					    " for the unique index on"
+					    " FTS_DOC_ID column for FTS"
+					    " Document ID indexing"
+					    " on table %s. Please check"
+					    " the index definition to"
+					    " make sure it is of correct"
+					    " type\n",
+					    FTS_DOC_ID_INDEX_NAME,
+					    m_table->name.table());
+
+			if (m_table->fts) {
+				fts_free(m_table);
+			}
+
+			my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0),
+				 FTS_DOC_ID_INDEX_NAME);
+			error = -1;
+			return(error);
+		case FTS_EXIST_DOC_ID_INDEX:
+		case FTS_NOT_EXIST_DOC_ID_INDEX:
+			break;
+		}
+		// TODO: replace fts_create_common_tables()
+#endif
+		return(HA_ERR_GENERIC);
+	}
+
+	for (uint i = !m_form->s->primary_key; i < m_form->s->keys; i++) {
+		error = create_index_metadata(m_table, strict, m_form->s, i);
+		if (error != 0) {
+			goto dd_error;
+		}
+	}
+
+	/* Cache all the FTS indexes on this table in the FTS specific
+	structure. They are used for FTS indexed column update handling. */
+	if (dict_table_has_fts_index(m_table)) {
+
+		fts_t*	fts = m_table->fts;
+		ut_a(fts != nullptr);
+
+		dict_table_get_all_fts_indexes(m_table, fts->indexes);
+	}
+
+	if (Field** autoinc_col = m_form->s->found_next_number_field) {
+		const dd::Properties& p = dd_part->se_private_data();
+		//m_table->set_autoinc_col((*autoinc_col)->field_index);
+		dict_table_autoinc_set_col_pos(
+			m_table, (*autoinc_col)->field_index);
+		uint64	version, autoinc = 0;
+		if (p.get_uint64(dd_table_key_strings[DD_TABLE_VERSION],
+				 &version)
+		    || p.get_uint64(dd_table_key_strings[DD_TABLE_AUTOINC],
+				    &autoinc)) {
+			ut_ad(!"problem setting AUTO_INCREMENT");
+			error = HA_ERR_CRASHED;
+			goto dd_error;
+		}
+	}
+
+	if (error == 0) {
+		dd_copy_from_table_share(m_thd, m_table, m_form->s);
+		ut_ad(!dict_table_is_temporary(m_table)
+		      || !dict_table_page_size(m_table).is_compressed());
+		if (!dict_table_is_temporary(m_table)) {
+			//m_table->stats_lock_create();
+			dict_table_stats_latch_create(m_table, true);
+		}
+	} else {
+dd_error:
+		dict_mem_table_free(m_table);
+	}
+
+	return(error);
+}
+
+/** Determine if a table contains a fulltext index.
+@param[in]      table
+@return whether the table contains any fulltext index */
+inline
+bool
+dd_table_contains_fulltext(const dd::Table* table)
+{
+        for (const dd::Index* index : table->indexes()) {
+                if (index->type() == dd::Index::IT_FULLTEXT) {
+                        return(true);
+                }
+        }
+        return(false);
+}
+
+inline std::nullptr_t dd_part_name(const dd::Table*) {return nullptr;}
+inline std::nullptr_t dd_subpart_name(const dd::Table*) {return nullptr;}
+
+/** Get the parent partition of a partition
+@param[in]      part    partition
+@return parent partition
+@retval nullptr if not subpartitioned */
+inline const dd::Partition* dd_parent(const dd::Partition& part)
+{
+        return(part.parent());
+}
+
+/** Get the partition name.
+@param[in]      part    partition or subpartition
+@return partition name */
+inline
+const char*
+dd_part_name(const dd::Partition* part)
+{
+        if (const dd::Partition* parent = dd_parent(*part)) {
+                ut_ad(part->level() == 1);
+                part = parent;
+        }
+
+        ut_ad(part->level() == 0);
+        return(part->name().c_str());
+}
+
+/** Get the subpartition name.
+@param[in]      part    partition or subpartition
+@return subpartition name
+@retval nullptr if not subpartitioned */
+inline
+const char*
+dd_subpart_name(const dd::Partition* part)
+{
+        return(part->parent() ? part->name().c_str() : nullptr);
+}
+
+/** Create the internal InnoDB table definition, without any indexes.
+@tparam		Table		dd::Table or dd::Partition
+@param[in]	dd_part		Global Data Dictionary metadata,
+				or NULL for internal temporary table
+@param[in]	name		table name
+@param[in]	zip_allowed	whether ROW_FORMAT=COMPRESSED is OK
+@param[in]	strict		whether to use innodb_strict_mode=ON
+@return ER_ level error
+@retval 0 on success */
+inline
+dict_table_t*
+create_table_metadata(
+	const dd::Table*		dd_part,
+        const TABLE*                    m_form,
+	const char*			name,
+	HA_CREATE_INFO*			m_create_info,
+	bool				zip_allowed,
+	bool				strict,
+	THD*				m_thd,
+        bool                            m_skip_mdl,
+	bool				m_implicit)
+{
+	mem_heap_t*	heap;
+	char		norm_name[FN_REFLEN];
+
+	ut_ad(m_thd != nullptr);
+	ut_ad(name != nullptr);
+	ut_ad(m_create_info == nullptr
+	      || m_form->s->row_type == m_create_info->row_type);
+	ut_ad(m_create_info == nullptr
+	      || m_form->s->key_block_size == m_create_info->key_block_size);
+	bool invalid = false;
+
+	if (m_form->s->fields > REC_MAX_N_USER_FIELDS) {
+		my_error(ER_TOO_MANY_FIELDS, MYF(0));
+		return(NULL);
+	}
+
+
+#if 0//WL#7141 TODO: these should be tablespace attributes and be used!
+	std::string	compress;
+	std::string	encrypt;
+	if (dd_part != nullptr) {
+		dd_part->table().options().get("compress", compress);
+		dd_part->table().options().get("encrypt", encrypt);
+	}
+
+	if (!compress.empty()) {
+		// TODO: check fil_node_t::punch_hole too,
+		// and maybe issue a warning when compression is not feasible?
+	}
+	if (!encrypt.empty() && !Encryption.is_none(encrypt.c_str())) {
+		my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
+		invalid = true;
+	}
+#endif
+	const unsigned	n_mysql_cols = m_form->s->fields;
+
+	// WL#6394 FIXME: m_form->table_cache_key is not valid at bootstrap!
+	normalize_table_name(norm_name, name);
+
+	const bool	fulltext = dd_part != nullptr
+		&& dd_table_contains_fulltext(dd_part);
+	const unsigned  doc_id_col = 0;
+	const bool	add_doc_id = fulltext && doc_id_col >= n_mysql_cols;
+	const unsigned	n_cols = n_mysql_cols + add_doc_id;
+
+	bool		is_redundant;
+	bool		blob_prefix;
+	unsigned	zip_ssize;
+
+	if (format_validate(m_thd, m_form, zip_allowed, strict,
+			    &is_redundant, &blob_prefix, &zip_ssize, m_implicit)
+	    || invalid) {
+		return(NULL);
+	}
+
+	uint32		space; 
+	dd_part->se_private_data().get_uint32("space", &space);
+
+	dict_table_t*	m_table = dict_mem_table_create(
+		norm_name, space, n_cols, 0, 0, 0);
+
+	m_table->id = dd_part->se_private_id();
+
+	if (!is_redundant) {
+		m_table->flags |= DICT_TF_COMPACT;
+	}
+
+	if (m_implicit) {
+		m_table->flags2 |= DICT_TF2_USE_FILE_PER_TABLE;
+	}
+
+	if (zip_ssize) {
+		/* TODO, fill this */
+	}
+
+	if (fulltext) {
+		m_table->flags2 |= DICT_TF2_FTS;
+		m_table->fts = fts_create(m_table);
+		m_table->fts->cache = fts_cache_create(m_table);
+	} else {
+		m_table->fts = NULL;
+	}
+
+	bool	is_temp = !dd_part->is_persistent()
+			  && (dd_part->se_private_id()
+			      >= NUM_HARD_CODED_TABLES);
+	if (is_temp) {
+		m_table->flags2 |= DICT_TF2_TEMPORARY;
+	}
+
+	if (false /* TODO instrinsic */) {
+		m_table->flags2 |= DICT_TF2_INTRINSIC;
+	}
+
+	heap = mem_heap_create(1000);
+
+	for (unsigned i = 0; i < n_mysql_cols; i++) {
+		const Field*	field = m_form->field[i];
+		unsigned	mtype;
+		unsigned	prtype = field->type();
+		unsigned	col_len = field->pack_length();
+
+		/* The MySQL type code has to fit in 8 bits
+		in the metadata stored in the InnoDB change buffer. */
+		ut_ad(prtype < DATA_NOT_NULL);
+		ut_ad(field->charset() == nullptr
+		      || field->charset()->number <= MAX_CHAR_COLL_NUM);
+		ut_ad(field->charset() == nullptr
+		      || field->charset()->number > 0);
+
+		if (!field->real_maybe_null()) {
+			prtype |= DATA_NOT_NULL;
+		}
+
+		if (field->binary()) {
+			prtype |= DATA_BINARY_TYPE;
+		}
+
+		switch (field->real_type()) {
+		case MYSQL_TYPE_ENUM:
+		case MYSQL_TYPE_SET:
+			/* ENUM and SET have a field->type() of
+			string, but the data is actually internally
+			stored as INT UNSIGNED. */
+		case MYSQL_TYPE_TIME:
+		case MYSQL_TYPE_DATETIME:
+		case MYSQL_TYPE_TIMESTAMP:
+			prtype |= DATA_UNSIGNED;
+			mtype = DATA_INT;
+			break;
+		default:
+			mtype = DATA_MISSING;
+
+			if (field->flags & UNSIGNED_FLAG) {
+				prtype |= DATA_UNSIGNED;
+			}
+
+			/* NOTE that we only allow string
+			types in DATA_MYSQL and DATA_VARMYSQL */
+			switch (field->type()) {
+			case MYSQL_TYPE_VARCHAR:/* MySQL 5.0.3 true VARCHAR */
+				{
+					uint	lenlen = static_cast<
+						const Field_varstring*>(
+							field)->length_bytes;
+					col_len -= lenlen;
+					ut_ad(lenlen == 1 || lenlen == 2);
+					if (lenlen == 2) {
+						prtype |=
+							DATA_LONG_TRUE_VARCHAR;
+					}
+				}
+				/* fall through */
+			case MYSQL_TYPE_VAR_STRING:/* old VARCHAR */
+				prtype |= field->charset()->number << 16;
+				ut_ad((field->charset()
+				       == &my_charset_bin)
+				      == !!(prtype & DATA_BINARY_TYPE));
+				mtype = (prtype & DATA_BINARY_TYPE)
+					? DATA_BINARY
+					: DATA_VARMYSQL;
+				break;
+			case MYSQL_TYPE_BIT:
+			case MYSQL_TYPE_STRING:
+				if (prtype & DATA_BINARY_TYPE) {
+					mtype = DATA_FIXBINARY;
+					break;
+				}
+				mtype = DATA_MYSQL;
+				prtype |= field->charset()->number << 16;
+				break;
+			case MYSQL_TYPE_NEWDECIMAL:
+				mtype = DATA_FIXBINARY;
+				break;
+			case MYSQL_TYPE_LONG:
+			case MYSQL_TYPE_LONGLONG:
+			case MYSQL_TYPE_TINY:
+			case MYSQL_TYPE_SHORT:
+			case MYSQL_TYPE_INT24:
+			case MYSQL_TYPE_DATE:
+			case MYSQL_TYPE_YEAR:
+			case MYSQL_TYPE_NEWDATE:
+				mtype = DATA_INT;
+				break;
+			case MYSQL_TYPE_TIME:
+			case MYSQL_TYPE_DATETIME:
+			case MYSQL_TYPE_TIMESTAMP:
+				mtype = DATA_FIXBINARY;
+				break;
+			case MYSQL_TYPE_FLOAT:
+				mtype = DATA_FLOAT;
+				break;
+			case MYSQL_TYPE_DOUBLE:
+				mtype = DATA_DOUBLE;
+				break;
+			case MYSQL_TYPE_DECIMAL:
+				mtype = DATA_DECIMAL;//TODO: remove this!
+				break;
+			case MYSQL_TYPE_GEOMETRY:
+				mtype = DATA_GEOMETRY;
+				break;
+			case MYSQL_TYPE_TINY_BLOB:
+			case MYSQL_TYPE_MEDIUM_BLOB:
+			case MYSQL_TYPE_BLOB:
+			case MYSQL_TYPE_LONG_BLOB:
+			case MYSQL_TYPE_JSON:
+				mtype = DATA_BLOB;
+				prtype |= field->charset()->number << 16;
+				break;
+			case MYSQL_TYPE_NULL:
+				ut_ad(!(prtype & DATA_NOT_NULL));
+				ut_ad(mtype == DATA_MISSING);
+				break;
+			case MYSQL_TYPE_TIMESTAMP2:
+			case MYSQL_TYPE_TIME2:
+			case MYSQL_TYPE_DATETIME2:
+			case MYSQL_TYPE_ENUM:
+			case MYSQL_TYPE_SET:
+				ut_ad(!"invalid column type");
+			}
+		}
+
+		dict_mem_table_add_col(m_table, heap, field->field_name,
+				       mtype, prtype, col_len);	
+	}
+
+	if (add_doc_id) {
+		/* Add the hidden FTS_DOC_ID column. */
+		//m_table->add_column(std::min(doc_id_col, n_mysql_cols),
+		//		    heap, FTS_DOC_ID_COL_NAME,
+		//		    DATA_INT,
+		//		    DATA_NOT_NULL | DATA_UNSIGNED
+		//		    | DATA_BINARY_TYPE | DATA_FTS_DOC_ID,
+		//		    sizeof(doc_id_t));
+		dict_mem_table_add_col(m_table, heap, FTS_DOC_ID_COL_NAME,
+					DATA_INT, DATA_NOT_NULL | DATA_UNSIGNED | DATA_BINARY_TYPE | DATA_FTS_DOC_ID, sizeof(doc_id_t));
+	}
+
+#if 0 /* Virtual column */
+	for (unsigned v = 0; v < n_mysql_cols; v++) {
+		const Field*	field = m_form->field[v];
+
+		if (!field->is_virtual_gcol()) {
+			continue;
+		}
+
+		dict_vcol_t*	vcol
+			= new(mem_heap_alloc(m_table->heap, sizeof(*vcol)))
+			dict_vcol_t(m_table->col(v), m_table->heap);
+
+		for (unsigned b = 0; b < n_mysql_cols; b++) {
+			if (!bitmap_is_set(&field->gcol_info->base_columns_map,
+					   b)) {
+				continue;
+			}
+
+			const Field* base = m_form->field[b];
+			ut_ad(!strcmp(m_table->get_col_name(b),
+				      base->field_name));
+			if (!base->is_virtual_gcol()) {
+				vcol->add(m_table->get_col(b));
+			}
+		}
+	}
+#endif
+	mutex_enter(&dict_sys->mutex);
+	dict_table_add_to_cache(m_table, TRUE, heap);
+	mutex_exit(&dict_sys->mutex);
+	mem_heap_free(heap);
+
+	return(m_table);
+}
+
+/** Get the first index of a table.
+@param[in]      table   table containing user columns and indexes
+@return the first index
+@retval NULL    if there are no indexes */
+inline
+const dd::Index*
+dd_first_index(const dd::Table* table)
+{
+        ut_ad(table->partitions().empty());
+	return(*table->indexes().begin());
+}
+
+
+static constexpr char reserved_implicit_name[] = "innodb_file_per_table";
+
+/** InnoDB private key strings for dd::Tablespace.
+@see dd_space_keys */
+const char* const dd_space_key_strings[DD_SPACE__LAST] = {
+        "flags",
+        "id"
+};
+
+/** InnoDB private key strings for dd::Table. @see dd_table_keys */
+const char* const dd_table_key_strings[DD_TABLE__LAST] = {
+        "autoinc",
+        "data_directory",
+        "version"
+};
+
+/** InnoDB private key strings for dd::Index or dd::Partition_index.
+@see dd_index_keys */
+const char* const dd_index_key_strings[DD_INDEX__LAST] = {
+        "id",
+        "root",
+        "trx_id"
+};
+
+/** Check if a tablespace is implicit.
+@param[in]      dd_space        tablespace metadata
+@param[in]      space_id        InnoDB tablespace ID
+@retval true    if the tablespace is implicit (file per table or partition)
+@retval false   if the tablespace is shared (predefined or user-created) */
+bool
+dd_tablespace_is_implicit(const dd::Tablespace* dd_space, space_id_t space_id)
+{
+        const char*     name = dd_space->name().c_str();
+        const char*     suffix = &name[sizeof reserved_implicit_name];
+        char*           end;
+
+        ut_d(uint32 id);
+        ut_ad(!dd_space->se_private_data().get_uint32(
+                      dd_space_key_strings[DD_SPACE_ID], &id));
+        ut_ad(id == space_id);
+
+	/* TODO */
+        if (strncmp(name, reserved_implicit_name, suffix - name - 1)) {
+                /* Not starting with innodb_file_per_table. */
+                return(false);
+        }
+
+        if (suffix[-1] != '.' || suffix[0] == '\0'
+            || strtoul(suffix, &end, 10) != space_id
+            || *end != '\0') {
+                ut_ad(!"invalid implicit tablespace name");
+                return(false);
+        }
+
+        return(true);
+}
+
+/** Determine if a tablespace is implicit.
+@param[in,out]  client          data dictionary client
+@param[in]      dd_space_id     dd::Tablespace::id
+@param[out]     implicit        whether the tablespace is implicit tablespace
+@retval false   on success
+@retval true    on failure */
+bool
+dd_tablespace_is_implicit(
+        dd::cache::Dictionary_client*   client,
+        dd::Object_id                   dd_space_id,
+        bool*                           implicit)
+{
+        const dd::Tablespace*   dd_space;
+        uint32                  id = 0;
+        const bool              fail
+                = client->acquire_uncached_uncommitted<dd::Tablespace>(
+                        dd_space_id, &dd_space)
+                || dd_space == nullptr
+                || dd_space->se_private_data().get_uint32(
+                        dd_space_key_strings[DD_SPACE_ID], &id);
+
+        if (!fail) {
+                *implicit = dd_tablespace_is_implicit(dd_space, id);
+        }
+
+        delete dd_space;
+        return(fail);
+}
+
+dict_table_t*
+dd_open_table(
+        dd::cache::Dictionary_client*   client,
+        const TABLE*                    table,
+	const char*			name,
+        bool*                           uncached,
+        dict_table_t*&                  ib_table,
+        const dd::Table*                dd_table,
+        bool                            skip_mdl,
+	THD*				thd)
+{
+	table_id_t id = dd_table->se_private_id();
+	bool	implicit = !(id < NUM_HARD_CODED_TABLES);
+
+#if 0
+	/* TODO: this is relying on tablespace name contains
+	"innodb_file_per_table" */
+	if (implicit) {
+		implicit = dd_tablespace_is_implicit(
+			client, dd_first_index(dd_table)->tablespace_id(),
+			&implicit);
+	}
+#endif
+
+	const bool      zip_allowed = srv_page_size <= UNIV_ZIP_SIZE_MAX;
+	const bool	strict = false;
+
+	dict_table_t* m_table = create_table_metadata(
+		dd_table, table, name,
+		NULL, zip_allowed, strict, thd, skip_mdl, implicit);
+
+	mutex_enter(&dict_sys->mutex);
+	create_key_metadata(
+		dd_table, table, m_table, dd_table->name().c_str(),
+		NULL, zip_allowed, strict, thd, skip_mdl);
+	mutex_exit(&dict_sys->mutex);
+
+	/* Now fill the space ID and Root page number for each index */
+        dict_index_t* index = m_table->first_index();
+        for (const auto dd_index : dd_table->indexes()) {
+                ut_ad(index != nullptr);
+
+                const dd::Properties&   se_private_data
+                        = dd_index->se_private_data();
+                uint64                  id = 0;
+                uint32                  root = 0;
+                fil_space_t*            space = fil_space_get(m_table->space);
+
+                if (space == nullptr) {
+			dict_mem_table_free(m_table);
+			return(NULL);
+                }
+
+                if (se_private_data.get_uint64(
+                            dd_index_key_strings[DD_INDEX_ID], &id)
+                    || se_private_data.get_uint32(
+                            dd_index_key_strings[DD_INDEX_ROOT], &root)) {
+			dict_mem_table_free(m_table);
+			return(NULL);
+                }
+
+                ut_ad(root > 1);
+                ut_ad(root != FIL_NULL);
+                ut_ad(id != 0);
+		index->page = root;
+		index->space = space->id;
+		index->id = id;
+                index = index->next();
+	}
+	return(m_table);
+}
+
+
+
 /** Open an InnoDB table.
 @param[in]	name	table name
 @retval 1 if error
@@ -6327,9 +7698,28 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 	ib_table = thd_to_innodb_session(thd)->lookup_table_handler(norm_name);
 
 	if (ib_table == NULL) {
+		if (strstr(name, "mysql") == NULL) {
+			mutex_enter(&dict_sys->mutex);
+			ib_table = dict_table_check_if_in_cache_low(norm_name);
+			mutex_exit(&dict_sys->mutex);
 
-		ib_table = open_dict_table(name, norm_name, is_part,
-					   ignore_err);
+			if (ib_table == NULL) {
+				dd::cache::Dictionary_client*	client
+					= dd::get_dd_client(thd);
+
+				if (!(ib_table = dd_open_table(
+					client, table, name,
+					nullptr, ib_table, dd_tab, false,
+					thd))) {
+						set_my_errno(ENOENT);
+						DBUG_RETURN(1);
+				}
+			}
+			ib_table->n_ref_count++;
+		} else {
+			ib_table = open_dict_table(name, norm_name, is_part,
+                                           ignore_err);
+		}
 	} else {
 		ib_table->acquire();
 		ut_ad(dict_table_is_intrinsic(ib_table));
@@ -10947,6 +12337,7 @@ create_clustered_index_when_no_primary(
 	return(convert_error_code_to_mysql(error, flags, NULL));
 }
 
+#if 0
 /** Return a display name for the row format
 @param[in]	row_format	Row Format
 @return row format name */
@@ -10974,6 +12365,7 @@ get_row_format_name(
 	}
 	return("NOT USED");
 }
+#endif
 
 /** Validate DATA DIRECTORY option.
 @return true if valid, false if not. */

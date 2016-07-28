@@ -2435,8 +2435,7 @@ dict_index_node_ptr_max_size(
 If a record of this index might not fit on a single B-tree page,
 return TRUE.
 @return TRUE if the index record could become too big */
-static
-ibool
+bool
 dict_index_too_big_for_tree(
 /*========================*/
 	const dict_table_t*	table,		/*!< in: table */
@@ -2589,7 +2588,7 @@ add_field_size:
 				" size (" << page_rec_max
 				<< ") for a record on index leaf page.";
 
-			return(TRUE);
+			return(true);
 		}
 
 		/* Check the size limit on non-leaf pages.  Records
@@ -2601,11 +2600,11 @@ add_field_size:
 		if (i + 1 == dict_index_get_n_unique_in_tree(new_index)
 		    && rec_max_size + REC_NODE_PTR_SIZE >= page_ptr_max) {
 
-			return(TRUE);
+			return(true);
 		}
 	}
 
-	return(FALSE);
+	return(false);
 }
 
 /** Adds an index to the dictionary cache.

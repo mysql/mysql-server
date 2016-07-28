@@ -93,6 +93,9 @@ public:
 
 	Table_flags table_flags() const;
 
+	/** The storage engine handlerton name. */
+	static const char* hton_name;
+
 	ulong index_flags(uint idx, uint part, bool all_parts) const;
 
 	uint max_supported_keys() const;
@@ -1082,4 +1085,49 @@ innobase_build_v_templ_callback(
 /** Callback function definition, used by MySQL server layer to initialized
 the table virtual columns' template */
 typedef void (*my_gcolumn_templatecallback_t)(const TABLE*, void*);
+
+/** InnoDB private keys for dd::Tablespace */
+enum dd_space_keys {
+        /** Tablespace flags */
+        DD_SPACE_FLAGS,
+        /** Tablespace identifier */
+        DD_SPACE_ID,
+        /** Sentinel */
+        DD_SPACE__LAST
+};
+
+/** InnoDB private key strings for dd::Tablespace.
+@see dd_space_keys */
+extern const char* const dd_space_key_strings[DD_SPACE__LAST];
+
+/** InnoDB private keys for dd::Table */
+enum dd_table_keys {
+        /** Auto-increment counter */
+        DD_TABLE_AUTOINC,
+        /** DATA DIRECTORY (static metadata) */
+        DD_TABLE_DATA_DIRECTORY,
+        /** Dynamic metadata version */
+        DD_TABLE_VERSION,
+        /** Sentinel */
+        DD_TABLE__LAST
+};
+
+/** InnoDB private key strings for dd::Table. @see dd_table_keys */
+extern const char* const dd_table_key_strings[DD_TABLE__LAST];
+
+/** InnoDB private keys for dd::Index or dd::Partition_index */
+enum dd_index_keys {
+        /** Index identifier */
+        DD_INDEX_ID,
+        /** Root page number */
+        DD_INDEX_ROOT,
+        /** Creating transaction ID */
+        DD_INDEX_TRX_ID,
+        /** Sentinel */
+        DD_INDEX__LAST
+};
+
+/** InnoDB private key strings for dd::Index or dd::Partition_index.
+@see dd_index_keys */
+extern const char* const dd_index_key_strings[DD_INDEX__LAST];
 
