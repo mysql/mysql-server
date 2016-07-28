@@ -615,7 +615,7 @@ static MYSQL_SYSVAR_BOOL(check_user_name, check_user_name,
   PLUGIN_VAR_NOCMDARG,
   "Check if the password matches the login or the effective user names "
   "or the reverse of them",
-  NULL, NULL, FALSE);
+  NULL, NULL, TRUE);
 
 static struct st_mysql_sys_var* validate_password_system_variables[]= {
   MYSQL_SYSVAR(length),
