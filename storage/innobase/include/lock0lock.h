@@ -43,6 +43,8 @@ Created 5/7/1996 Heikki Tuuri
 // Forward declaration
 class ReadView;
 
+extern my_bool	innobase_deadlock_detect;
+
 /*********************************************************************//**
 Gets the size of a lock struct.
 @return size in bytes */
