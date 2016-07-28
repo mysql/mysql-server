@@ -157,23 +157,38 @@ int group_replication_init(const char* plugin_name)
     return 1;
   }
 
-  if (group_replication_handler != NULL)
-    return 1;
+  mysql_mutex_lock(&LOCK_group_replication_handler);
+  if (group_replication_handler == NULL)
+  {
+    group_replication_handler= new Group_replication_handler(plugin_name);
 
-  group_replication_handler= new Group_replication_handler(plugin_name);
+    if (group_replication_handler)
+    {
+      int ret= group_replication_handler->init();
+      mysql_mutex_unlock(&LOCK_group_replication_handler);
+      return ret;
+    }
+  }
+  mysql_mutex_unlock(&LOCK_group_replication_handler);
 
-  if (group_replication_handler)
-    return group_replication_handler->init();
   return 1;
 }
 
 int group_replication_cleanup()
 {
-  if (!group_replication_handler)
+  mysql_mutex_lock(&LOCK_group_replication_handler);
+  if (group_replication_handler != NULL)
+  {
+    delete group_replication_handler;
+    group_replication_handler= NULL;
+  }
+  else
+  {
+    mysql_mutex_unlock(&LOCK_group_replication_handler);
     return 1;
+  }
+  mysql_mutex_unlock(&LOCK_group_replication_handler);
 
-  delete group_replication_handler;
-  group_replication_handler= NULL;
   return 0;
 }
 
@@ -186,6 +201,7 @@ bool is_group_replication_plugin_loaded()
 
 int group_replication_start()
 {
+  mysql_mutex_lock(&LOCK_group_replication_handler);
   if (is_group_replication_plugin_loaded())
   {
     /*
@@ -204,16 +220,24 @@ int group_replication_start()
     gtid_mode_lock->rdlock();
     int ret= group_replication_handler->start();
     gtid_mode_lock->unlock();
+    mysql_mutex_unlock(&LOCK_group_replication_handler);
     return ret;
   }
+  mysql_mutex_unlock(&LOCK_group_replication_handler);
   sql_print_error("Group Replication plugin is not installed.");
   return 1;
 }
 
 int group_replication_stop()
 {
+  mysql_mutex_lock(&LOCK_group_replication_handler);
   if (is_group_replication_plugin_loaded())
-   return group_replication_handler->stop();
+  {
+    int ret= group_replication_handler->stop();
+    mysql_mutex_unlock(&LOCK_group_replication_handler);
+    return ret;
+  }
+  mysql_mutex_unlock(&LOCK_group_replication_handler);
 
   sql_print_error("Group Replication plugin is not installed.");
   return 1;
@@ -221,8 +245,15 @@ int group_replication_stop()
 
 bool is_group_replication_running()
 {
+  mysql_mutex_lock(&LOCK_group_replication_handler);
   if (is_group_replication_plugin_loaded())
-    return group_replication_handler->is_running();
+  {
+    bool ret= group_replication_handler->is_running();
+    mysql_mutex_unlock(&LOCK_group_replication_handler);
+    return ret;
+  }
+  mysql_mutex_unlock(&LOCK_group_replication_handler);
+
   return false;
 }
 
@@ -236,8 +267,15 @@ int set_group_replication_retrieved_certification_info(View_change_log_event *vi
 bool get_group_replication_connection_status_info(
     const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS& callbacks)
 {
+  mysql_mutex_lock(&LOCK_group_replication_handler);
   if (is_group_replication_plugin_loaded())
-    return group_replication_handler->get_connection_status_info(callbacks);
+  {
+    int ret= group_replication_handler->get_connection_status_info(callbacks);
+    mysql_mutex_unlock(&LOCK_group_replication_handler);
+    return ret;
+  }
+  mysql_mutex_unlock(&LOCK_group_replication_handler);
+
   return true;
 }
 
@@ -245,23 +283,45 @@ bool get_group_replication_group_members_info(
     unsigned int index,
     const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS& callbacks)
 {
+  mysql_mutex_lock(&LOCK_group_replication_handler);
   if (is_group_replication_plugin_loaded())
-    return group_replication_handler->get_group_members_info(index, callbacks);
+  {
+    bool ret=
+      group_replication_handler->get_group_members_info(index, callbacks);
+    mysql_mutex_unlock(&LOCK_group_replication_handler);
+    return ret;
+  }
+  mysql_mutex_unlock(&LOCK_group_replication_handler);
+
   return true;
 }
 
 bool get_group_replication_group_member_stats_info(
     const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks)
 {
+  mysql_mutex_lock(&LOCK_group_replication_handler);
   if (is_group_replication_plugin_loaded())
-    return group_replication_handler->get_group_member_stats_info(callbacks);
+  {
+    bool ret= group_replication_handler->get_group_member_stats_info(callbacks);
+    mysql_mutex_unlock(&LOCK_group_replication_handler);
+    return ret;
+  }
+  mysql_mutex_unlock(&LOCK_group_replication_handler);
+
   return true;
 }
 
 unsigned int get_group_replication_members_number_info()
 {
+  mysql_mutex_lock(&LOCK_group_replication_handler);
   if (is_group_replication_plugin_loaded())
-    return group_replication_handler->get_members_number_info();
+  {
+    unsigned int ret= group_replication_handler->get_members_number_info();
+    mysql_mutex_unlock(&LOCK_group_replication_handler);
+    return ret;
+  }
+  mysql_mutex_unlock(&LOCK_group_replication_handler);
+
   return 0;
 }
 

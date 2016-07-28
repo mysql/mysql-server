@@ -991,6 +991,7 @@ mysql_cond_t COND_server_started;
 mysql_mutex_t LOCK_reset_gtid_table;
 mysql_mutex_t LOCK_compress_gtid_table;
 mysql_cond_t COND_compress_gtid_table;
+mysql_mutex_t LOCK_group_replication_handler;
 #if !defined (EMBEDDED_LIBRARY) && !defined(_WIN32)
 mysql_mutex_t LOCK_socket_listener_active;
 mysql_cond_t COND_socket_listener_active;
@@ -3602,6 +3603,8 @@ static int init_thread_environment()
                    &LOCK_compress_gtid_table, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_compress_gtid_table,
                   &COND_compress_gtid_table);
+  mysql_mutex_init(key_LOCK_group_replication_handler,
+                   &LOCK_group_replication_handler, MY_MUTEX_INIT_FAST);
 #ifndef EMBEDDED_LIBRARY
   Events::init_mutexes();
 #if defined(_WIN32)
@@ -9034,6 +9037,8 @@ PSI_cond_key key_object_loading_cond; // TODO need to initialize
 PSI_mutex_key key_mts_temp_table_LOCK;
 PSI_mutex_key key_mts_gaq_LOCK;
 PSI_mutex_key key_thd_timer_mutex;
+PSI_mutex_key key_LOCK_group_replication_handler;
+
 #ifdef HAVE_REPLICATION
 PSI_mutex_key key_commit_order_manager_mutex;
 PSI_mutex_key key_mutex_slave_worker_hash;
@@ -9127,7 +9132,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_mutex_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0, 0},
 #endif
   { &key_LOCK_offline_mode, "LOCK_offline_mode", PSI_FLAG_GLOBAL, 0},
-  { &key_LOCK_default_password_lifetime, "LOCK_default_password_lifetime", PSI_FLAG_GLOBAL, 0}
+  { &key_LOCK_default_password_lifetime, "LOCK_default_password_lifetime", PSI_FLAG_GLOBAL, 0},
+  { &key_LOCK_group_replication_handler, "LOCK_group_replication_handler", PSI_FLAG_GLOBAL, 0}
 };
 #endif // !EMBEDDED_LIBRARY
 
