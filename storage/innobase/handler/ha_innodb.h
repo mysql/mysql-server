@@ -841,6 +841,23 @@ public:
 		const char*     name,
 		ibool           set_lower_case);
 
+	static bool create_dd_tablespace(
+		dd::cache::Dictionary_client*	dd_client,
+		THD*				thd,
+		dd::Tablespace*			dd_space,
+		dict_table_t*			table);
+
+	template<typename Table>
+	static void set_table_options(
+		Table*		dd_table,
+		dict_table_t*	table);
+
+	template<typename Table>
+	static void write_dd_table(
+		dd::Object_id	dd_space_id,
+		Table*		dd_table,
+		dict_table_t*	table);
+
 private:
 	/** Parses the table name into normal name and either temp path or
 	remote path if needed.*/

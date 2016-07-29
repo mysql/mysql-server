@@ -32,6 +32,20 @@ Smart ALTER TABLE
 #include <mysql/plugin.h>
 #include <key_spec.h>
 
+#include "dd/dd.h"
+#include "dd/dictionary.h"
+#include "dd/cache/dictionary_client.h"
+#include "dd/properties.h"
+#include "dd/sdi_tablespace.h"    // dd::sdi_tablespace::store
+#include "dd/types/table.h"
+#include "dd/types/index.h"
+#include "dd/types/column.h"
+#include "dd/types/index_element.h"
+#include "dd/types/partition.h"
+#include "dd/types/object_type.h"
+#include "dd/types/tablespace_file.h"
+#include "dd_table_share.h"
+
 /* Include necessary InnoDB headers */
 #include "btr0sea.h"
 #include "dict0crea.h"
@@ -4171,6 +4185,86 @@ innodb_v_adjust_idx_col(
 	}
 }
 
+template<typename Table>
+static MY_ATTRIBUTE((warn_unused_result))
+bool
+prepare_inplace_alter_table_global_dd(
+	Alter_inplace_info*	ha_alter_info,
+	dict_table_t*		new_table,
+	const dict_table_t*	old_table,
+	const Table*		old_dd_tab,
+	Table*			new_dd_tab)
+{
+	ha_innobase_inplace_ctx*ctx = static_cast<ha_innobase_inplace_ctx*>
+		(ha_alter_info->handler_ctx);
+	THD*			thd = ctx->prebuilt->trx->mysql_thd;
+
+	if (innobase_need_rebuild(ha_alter_info)) {
+		/* To rebuild, we wtite back the whole table */
+		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
+		dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+		dd::Object_id	dd_space_id = (*old_dd_tab->indexes().begin())
+			->tablespace_id();
+
+		if (dict_table_is_file_per_table(old_table)) {
+			dd::Object_id	old_space_id = dd_space_id;
+
+			const dd::Tablespace*	old_dd_space = NULL;
+			if (client->acquire_uncached_uncommitted<
+				    dd::Tablespace>(old_space_id,
+						    &old_dd_space)) {
+				ut_a(false);
+				return(true);
+			}
+
+			ut_a(old_dd_space != NULL);
+			if (dd::acquire_exclusive_tablespace_mdl(
+				thd, old_dd_space->name().c_str(), false)) {
+				ut_a(false);
+				return(true);
+			}
+
+			if (client->drop_uncached(old_dd_space)) {
+				ut_a(false);
+				return(true);
+			}
+		}
+
+		if (dict_table_is_file_per_table(new_table)) {
+			std::unique_ptr<dd::Tablespace> dd_space(
+				dd::create_object<dd::Tablespace>());
+			if (create_table_info_t::create_dd_tablespace(
+				    client, thd, dd_space.get(), new_table)) {
+				ut_a(false);
+				return(true);
+			}
+
+			dd_space_id = dd_space.get()->id();
+		}
+
+		create_table_info_t::set_table_options(new_dd_tab, new_table);
+
+		create_table_info_t::write_dd_table(
+			dd_space_id, new_dd_tab, new_table);
+
+	} else {
+		ut_ad(old_table == new_table);
+
+		/* No need to update dd::Table, but update all dd::Index */
+		new_dd_tab->set_se_private_id(old_dd_tab->se_private_id());
+
+                /* Copy the index metadata or create new indexes. */
+//		const dict_index_t*     old_idx = old_table->first_index();
+//		dict_index_t*           new_idx = new_table->first_index();
+//		auto                    it = new_dd_tab->indexes()->begin();
+
+
+	}
+
+	return(false);
+}
+
 /** Update internal structures with concurrent writes blocked,
 while preparing ALTER TABLE.
 
@@ -4194,6 +4288,8 @@ prepare_inplace_alter_table_dict(
 	Alter_inplace_info*	ha_alter_info,
 	const TABLE*		altered_table,
 	const TABLE*		old_table,
+	const dd::Table*	old_dd_tab,
+	dd::Table*		new_dd_tab,
 	const char*		table_name,
 	ulint			flags,
 	ulint			flags2,
@@ -4894,6 +4990,12 @@ op_ok:
 	dict_locked = false;
 
 	ut_a(ctx->trx->lock.n_active_thrs == 0);
+
+	if (prepare_inplace_alter_table_global_dd(
+		    ha_alter_info, ctx->new_table, user_table,
+		    old_dd_tab, new_dd_tab)) {
+		error = DB_ERROR;
+	}
 
 error_handling:
 	/* After an error, remove all those index definitions from the
@@ -6066,6 +6168,7 @@ found_col:
 
 	DBUG_RETURN(prepare_inplace_alter_table_dict(
 			    ha_alter_info, altered_table, table,
+			    old_dd_tab, new_dd_tab,
 			    table_share->table_name.str,
 			    info.flags(), info.flags2(),
 			    fts_doc_col_no, add_fts_doc_id,

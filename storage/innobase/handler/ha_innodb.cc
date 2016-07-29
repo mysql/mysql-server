@@ -14095,6 +14095,120 @@ create_table_info_t::create_table_update_dict()
 	DBUG_RETURN(0);
 }
 
+bool
+create_table_info_t::create_dd_tablespace(
+	dd::cache::Dictionary_client*	dd_client,
+	THD*				thd,
+	dd::Tablespace*			dd_space,
+	dict_table_t*			table)
+{
+        /* For prototype only, quickly get the table name */
+        const char*     slash = strrchr(table->name.m_name, '/');
+
+        dd_space->set_name(slash + 1);
+
+        if (dd::acquire_exclusive_tablespace_mdl(
+                    thd, dd_space->name().c_str(), true)) {
+		return(true);
+        }
+
+	char*   path = fil_space_get_first_path(table->space);
+	ulint   flags = fil_space_get_flags(table->space);
+
+	dd_space->set_engine(handler_name);
+	dd::Properties& p       = dd_space->se_private_data();
+	p.set_uint32("id", static_cast<uint32>(table->space));
+	p.set_uint32("flags", flags);
+	dd::Tablespace_file*    dd_file = dd_space->add_file();
+	dd_file->set_filename(path);
+	dd_client->store(dd_space);
+
+	return(false);
+}
+
+template<typename Table>
+void
+create_table_info_t::set_table_options(
+	Table*		dd_table,
+	dict_table_t*	table)
+{
+        enum row_type   type;
+        dd::Table::enum_row_format      rf;
+        dd::Properties& options = dd_table->options();
+
+        if (auto zip_ssize = DICT_TF_GET_ZIP_SSIZE(table->flags)) {
+                uint32  old_size;
+                if (!options.get_uint32("key_block_size", &old_size)
+                    && old_size != 0) {
+                        options.set_uint32("key_block_size",
+                                           1 << (zip_ssize - 1));
+                }
+        } else {
+                options.set_uint32("key_block_size", 0);
+        }
+
+        switch (dict_tf_get_rec_format(table->flags)) {
+        case REC_FORMAT_REDUNDANT:
+                rf = dd::Table::RF_REDUNDANT;
+                type = ROW_TYPE_REDUNDANT;
+                break;
+        case REC_FORMAT_COMPACT:
+                rf = dd::Table::RF_COMPACT;
+                type = ROW_TYPE_COMPACT;
+                break;
+        case REC_FORMAT_COMPRESSED:
+                rf = dd::Table::RF_COMPRESSED;
+                type = ROW_TYPE_COMPRESSED;
+                break;
+        case REC_FORMAT_DYNAMIC:
+                rf = dd::Table::RF_DYNAMIC;
+                type = ROW_TYPE_DYNAMIC;
+                break;
+        default:
+                ut_ad(0);
+        }
+
+        dd_table->set_row_format(rf);
+        if (options.exists("row_type")) {
+                options.set_uint32("row_type", type);
+        }
+}
+
+template<typename Table>
+void
+create_table_info_t::write_dd_table(
+	dd::Object_id	dd_space_id,
+	Table*		dd_table,
+	dict_table_t*	table)
+{
+        /* For now, don't set the tablespace id */
+//      if (dd_table->tablespace_id() == dd::INVALID_OBJECT_ID
+//          && !is_dd_table) {
+//              dd_table->set_tablespace_id(dd_space_id);
+//      }
+
+        dd_table->set_se_private_id(table->id);
+
+	/* Also duplicate the tablespace id here */
+        dd_table->se_private_data().set_uint32("space", table->space);
+
+        const dict_index_t* index = table->first_index();
+
+        for (auto dd_index : *dd_table->indexes()) {
+                ut_ad(index != NULL);
+
+                dd_index->set_tablespace_id(dd_space_id);
+
+                dd::Properties& p = dd_index->se_private_data();
+                p.set_uint64("id", index->id);
+                p.set_uint32("root", index->page);
+                p.set_uint64("trx_id", index->trx_id);
+
+                index = index->next();
+        }	
+}
+
+
 /** Update the global data dictionary.
 @tparam		Table	dd::Table or dd::Partition
 @param[in]	table	table object
@@ -14145,28 +14259,11 @@ create_table_info_t::create_table_update_global_dd(
 	     && dict_table_is_file_per_table(table))
 	    || space_id == static_cast<dd::Object_id>(3)) {
 		/* This means user table and file_per_table */
-
-		/* For prototype only, quickly get the table name */
-		const char*	slash = strrchr(table->name.m_name, '/');
-
-		dd_space->set_name(slash + 1);
-
-		if (dd::acquire_exclusive_tablespace_mdl(
-			    m_thd, dd_space->name().c_str(), true)) {
+		if (create_dd_tablespace(client, m_thd, dd_space.get(),
+					 table)) {
 			dict_table_close(table, FALSE, FALSE);
 			DBUG_RETURN(HA_ERR_GENERIC);
 		}
-
-		char*	path = fil_space_get_first_path(table->space);
-		ulint	flags = fil_space_get_flags(table->space);
-
-		dd_space->set_engine(handler_name);
-		dd::Properties& p	= dd_space->se_private_data();
-		p.set_uint32("id", static_cast<uint32>(table->space));
-		p.set_uint32("flags", flags);
-		dd::Tablespace_file*	dd_file = dd_space->add_file();
-		dd_file->set_filename(path);
-		client->store(dd_space.get());
 	} else if (!is_dd_table) {
 		/* This could be a data dictionary table, a table residing in
 		innodb_system and a table not of file_per_table.
@@ -14198,73 +14295,9 @@ create_table_info_t::create_table_update_global_dd(
 		}
 	}
 
-	enum row_type	type;
-	dd::Table::enum_row_format	rf;
-	dd::Properties&	options = dd_table->options();
+	set_table_options(dd_table, table);
 
-	if (auto zip_ssize = DICT_TF_GET_ZIP_SSIZE(table->flags)) {
-		uint32	old_size;
-		if (!options.get_uint32("key_block_size", &old_size)
-		    && old_size != 0) {
-			options.set_uint32("key_block_size",
-					   1 << (zip_ssize - 1));
-		}
-	} else {
-		options.set_uint32("key_block_size", 0);
-        }
-
-	switch (dict_tf_get_rec_format(table->flags)) {
-	case REC_FORMAT_REDUNDANT:
-		rf = dd::Table::RF_REDUNDANT;
-		type = ROW_TYPE_REDUNDANT;
-		break;
-	case REC_FORMAT_COMPACT:
-		rf = dd::Table::RF_COMPACT;
-		type = ROW_TYPE_COMPACT;
-		break;
-	case REC_FORMAT_COMPRESSED:
-		rf = dd::Table::RF_COMPRESSED;
-		type = ROW_TYPE_COMPRESSED;
-		break;
-	case REC_FORMAT_DYNAMIC:
-		rf = dd::Table::RF_DYNAMIC;
-		type = ROW_TYPE_DYNAMIC;
-		break;
-	default:
-		ut_ad(0);
-	}
-
-	dd_table->set_row_format(rf);
-	if (options.exists("row_type")) {
-		options.set_uint32("row_type", type);
-	}
-
-	dd::Object_id	dd_space_id = dd_space.get()->id();
-
-	/* For now, don't set the tablespace id */
-//	if (dd_table->tablespace_id() == dd::INVALID_OBJECT_ID
-//	    && !is_dd_table) {
-//		dd_table->set_tablespace_id(dd_space_id);
-//	}
-
-	dd_table->set_se_private_id(table->id);
-
-	dd_table->se_private_data().set_uint32("space", table->space);
-
-	const dict_index_t* index = table->first_index();
-
-	for (auto dd_index : *dd_table->indexes()) {
-		ut_ad(index != NULL);
-
-		dd_index->set_tablespace_id(dd_space_id);
-
-		dd::Properties& p = dd_index->se_private_data();
-		p.set_uint64("id", index->id);
-		p.set_uint32("root", index->page);
-		p.set_uint64("trx_id", index->trx_id);
-
-		index = index->next();
-	}
+	write_dd_table(dd_space.get()->id(), dd_table, table);
 
 	dict_table_close(table, FALSE, FALSE);
 
