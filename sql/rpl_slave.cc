@@ -10495,7 +10495,10 @@ static void change_execute_options(LEX_MASTER_INFO* lex_mi, Master_info* mi)
                         connection retries.
 
   @param preserve_logs  If the decision of purging the logs should be always be
-                        false even if a relay log name is given to the method.
+                        false even if no relay log name/position is given to
+                        the method. The preserve_logs parameter will not be
+                        respected when the relay log info repository is not
+                        initialized.
 
   @retval 0   success
   @retval !=0 error
@@ -10611,7 +10614,9 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
   have_execute_option= have_change_master_execute_option(lex_mi,
                                                          &need_relay_log_purge);
 
-  if (preserve_logs && need_relay_log_purge)
+  if (need_relay_log_purge && /* If we should purge the logs for this channel */
+      preserve_logs &&        /* And we were asked to keep them */
+      mi->rli->inited)        /* And the channel was initialized properly */
   {
     need_relay_log_purge= false;
   }
@@ -10801,8 +10806,9 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
       */
       const char* msg;
       relay_log_purge= 0;
-      /* Relay log is already initialized */
 
+      /* Relay log must be already initialized */
+      DBUG_ASSERT(mi->rli->inited);
       if (mi->rli->init_relay_log_pos(mi->rli->get_group_relay_log_name(),
                                       mi->rli->get_group_relay_log_pos(),
                                       true/*we do need mi->rli->data_lock*/,

@@ -34,6 +34,7 @@ int test_channel_service_interface();
 int test_channel_service_interface_io_thread();
 bool test_channel_service_interface_is_io_stopping();
 bool test_channel_service_interface_is_sql_stopping();
+bool test_channel_service_interface_relay_log_renamed();
 
 /*
   Will register the number of calls to each method of Server state
@@ -211,6 +212,8 @@ static int trans_before_dml(Trans_param *param, int& out_val)
                   test_channel_service_interface_is_io_stopping(););
   DBUG_EXECUTE_IF("validate_replication_observers_plugin_server_is_sql_stopping",
                   test_channel_service_interface_is_sql_stopping(););
+  DBUG_EXECUTE_IF("validate_replication_observers_plugin_server_relay_log_renamed",
+                  test_channel_service_interface_relay_log_renamed(););
   return 0;
 }
 
@@ -985,6 +988,52 @@ bool test_channel_service_interface_is_sql_stopping()
   DBUG_ASSERT(binlog_relay_applier_stop_call==0);
 
   return (error | exists | sql_stopping | sql_running);
+}
+
+bool test_channel_service_interface_relay_log_renamed()
+{
+  //The initialization method should return OK
+  int error= initialize_channel_service_interface();
+  DBUG_ASSERT(!error);
+
+  //Initialize the channel to be used with the channel service interface
+  char interface_channel[]= "example_channel";
+  char channel_hostname[]= "127.0.0.1";
+  char channel_user[]= "root";
+  Channel_creation_info info;
+  initialize_channel_creation_info(&info);
+  info.preserve_relay_logs= true;
+  info.hostname= channel_hostname;
+  info.user= channel_user;
+  error= channel_create(interface_channel, &info);
+  DBUG_ASSERT(!error);
+
+  //Assert the channel exists
+  bool exists= channel_is_active(interface_channel, CHANNEL_NO_THD);
+  DBUG_ASSERT(exists);
+
+  //Start the SQL thread
+  Channel_connection_info connection_info;
+  initialize_channel_connection_info(&connection_info);
+  error= channel_start(interface_channel,
+                       &connection_info,
+                       CHANNEL_APPLIER_THREAD,
+                       true);
+
+  if (error)
+  {
+    THD *thd= current_thd;
+    thd->clear_error();
+    const char act[]= "now SIGNAL reached_sql_thread_startup_failed";
+    DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+  }
+  else
+  {
+    const char act[]= "now SIGNAL reached_sql_thread_started";
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  }
+
+  return (error | exists);
 }
 
 /*
