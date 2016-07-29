@@ -716,7 +716,8 @@ public:
                          ROWID_MERGE_ENGINE, TABLE_SCAN_ENGINE};
 
   subselect_engine(Item_subselect *si,
-                   select_result_interceptor *res)
+                   select_result_interceptor *res):
+    thd(NULL)
   {
     result= res;
     item= si;
@@ -732,7 +733,7 @@ public:
     Should be called before prepare().
   */
   void set_thd(THD *thd_arg);
-  THD * get_thd() { return thd; }
+  THD * get_thd() { return thd ? thd : current_thd; }
   virtual int prepare(THD *)= 0;
   virtual void fix_length_and_dec(Item_cache** row)= 0;
   /*

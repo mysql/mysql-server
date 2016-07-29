@@ -5490,6 +5490,21 @@ alter table v1 check partition p1;
 drop view v1;
 drop table t1;
 
+
+--echo #
+--echo # MDEV-10419: crash in mariadb 10.1.16-MariaDB-1~trusty
+--echo #
+CREATE TABLE t1 (c1 CHAR(13));
+CREATE TABLE t2 (c2 CHAR(13));
+ 
+CREATE FUNCTION f() RETURNS INT RETURN 0;
+CREATE OR REPLACE VIEW v1 AS select f() from t1 where c1 in (select c2 from t2);
+DROP FUNCTION f;
+ 
+SHOW CREATE VIEW v1;
+
+drop view v1;
+drop table t1,t2;
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.5 tests.
 --echo # -----------------------------------------------------------------
