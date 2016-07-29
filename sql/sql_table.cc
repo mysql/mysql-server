@@ -7909,10 +7909,8 @@ static bool is_inplace_alter_impossible(TABLE *table,
     do the operation inplace as indexes or value of stored generated
     columns might become invalid.
   */
-  if ((alter_info->flags &
-       (Alter_info::ALTER_CHANGE_COLUMN_DEFAULT |
-        Alter_info::ALTER_CHANGE_COLUMN)) &&
-       table->has_gcol())
+  if ((alter_info->flags & Alter_info::ALTER_CHANGE_COLUMN_DEFAULT) &&
+      table->has_gcol())
   {
     for (Field **vfield= table->vfield; *vfield; vfield++)
     {

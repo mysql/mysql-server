@@ -7679,6 +7679,8 @@ alter_list_item:
                                           $6))
               MYSQL_YYABORT;
             lex->alter_info.flags|= Alter_info::ALTER_CHANGE_COLUMN;
+            if ($5->default_value)
+               lex->alter_info.flags|= Alter_info::ALTER_CHANGE_COLUMN_DEFAULT;
             Lex->create_last_non_select_table= Lex->last_table();
           }
         | MODIFY_SYM opt_column field_ident
@@ -7703,6 +7705,8 @@ alter_list_item:
                                           $5))
               MYSQL_YYABORT;
             lex->alter_info.flags|= Alter_info::ALTER_CHANGE_COLUMN;
+            if ($4->default_value)
+               lex->alter_info.flags|= Alter_info::ALTER_CHANGE_COLUMN_DEFAULT;
             Lex->create_last_non_select_table= Lex->last_table();
           }
         | DROP opt_column field_ident opt_restrict
