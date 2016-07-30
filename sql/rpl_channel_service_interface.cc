@@ -254,6 +254,12 @@ int channel_create(const char* channel,
   lex_mi= new st_lex_master_info();
   lex_mi->channel= channel;
   lex_mi->host= channel_info->hostname;
+  /*
+    'group_replication_recovery' channel (*after recovery is done*)
+    or 'group_replication_applier' channel wants to set the port number
+    to '0' as there is no actual network usage on these channels.
+  */
+  lex_mi->port_opt= LEX_MASTER_INFO::LEX_MI_ENABLE;
   lex_mi->port= channel_info->port;
   lex_mi->user= channel_info->user;
   lex_mi->password= channel_info->password;
@@ -750,7 +756,8 @@ int channel_queue_packet(const char* channel,
   DBUG_RETURN(result);
 }
 
-int channel_wait_until_apply_queue_applied(char* channel, long long timeout)
+int channel_wait_until_apply_queue_applied(const char* channel,
+                                           long long timeout)
 {
   DBUG_ENTER("channel_wait_until_apply_queue_applied(channel, timeout)");
 
@@ -779,7 +786,7 @@ int channel_wait_until_apply_queue_applied(char* channel, long long timeout)
   DBUG_RETURN(error);
 }
 
-int channel_is_applier_waiting(char* channel)
+int channel_is_applier_waiting(const char* channel)
 {
   DBUG_ENTER("channel_is_applier_waiting(channel)");
   int result= RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
@@ -879,6 +886,35 @@ int channel_flush(const char* channel)
   channel_map.unlock();
 
   DBUG_RETURN(error ? 1 : 0);
+}
+
+int channel_get_retrieved_gtid_set(const char* channel,
+                                   char** retrieved_set)
+{
+  DBUG_ENTER("channel_get_retrieved_gtid_set(channel,retrieved_set)");
+
+  channel_map.rdlock();
+
+  Master_info *mi= channel_map.get_mi(channel);
+
+  if (mi == NULL)
+  {
+    channel_map.unlock();
+    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+  }
+
+  mi->inc_reference();
+  channel_map.unlock();
+
+  int error= 0;
+  const Gtid_set* receiver_gtid_set= mi->rli->get_gtid_set();
+  if (receiver_gtid_set->to_string(retrieved_set,
+                                   true /*need_lock*/) == -1)
+    error= ER_OUTOFMEMORY;
+
+  mi->dec_reference();
+
+  DBUG_RETURN(error);
 }
 
 #endif /* HAVE_REPLICATION */

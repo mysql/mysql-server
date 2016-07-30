@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -74,6 +74,8 @@ private:
     uint n_fields;
     const char* schema;
     const char* name;
+    uint n_pk_fields;
+    const uint* pk_field_indexes;
   } struct_table_data;
 
   static struct_table_data rli_table_data;

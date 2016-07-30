@@ -1,0 +1,518 @@
+########### ../t/crud_myisam_memory.test                     #########
+##                                                                   #
+## This test aims to run crud message on myisam/memory engine.       #
+## Test runs following message on                                    #
+##  - create_collection message                                      #
+##  - Insert message                                                 #
+##  - create_collection_index                                        #
+##  - update message                                                 #
+##  - delete message                                                 #
+#######################################################################
+
+
+--source include/have_myisam.inc
+
+SET @start_global_value = @@global.default_storage_engine;
+SELECT @start_global_value;
+SET @@global.default_storage_engine = myisam;
+
+--source ../include/xplugin_preamble.inc
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+-->sql
+-- "Creating database for testcase"
+DROP DATABASE IF EXISTS xplugintest;
+CREATE DATABASE xplugintest;
+USE xplugintest;
+
+CREATE TABLE `table1` (
+  `doc` VARCHAR(100) DEFAULT NULL,
+  `_id` INT AUTO_INCREMENT PRIMARY KEY
+) ENGINE=memory;
+
+-->endsql
+
+-- "Create table table2 in xplugintest "
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recvresult
+
+-->echo Insert multiple rows into a Document column : myisam table
+Mysqlx.Crud.Insert {
+  collection {
+    name: "table2"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+    type: LITERAL
+    literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"1\",\n         \"name\": \"Omar Bras\", \"id\": \"1\"\n}"
+        }
+    }
+  }}
+  row {
+    field {
+    type: LITERAL
+    literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"2\",\n         \"name\": \"Omar Mex\", \"id\": \"2\"\n}"
+        }
+    }}
+  }
+}
+-->recvresult
+
+-->echo Insert into memory table
+Mysqlx.Crud.Insert {
+  collection {
+    name: "table1"
+    schema: "xplugintest"
+  }
+  data_model: TABLE
+  projection {
+    name: "_id"
+  }
+  projection {
+    name: "doc"
+  }
+
+  row {
+    field {
+      type: LITERAL
+      literal {
+          type: V_SINT
+          v_signed_int: 10
+      }
+    }
+    field {
+    type: LITERAL
+    literal {
+        type: V_STRING
+        v_string {
+          value: "Omar Bras"
+        }
+    }
+  }}
+  row {
+    field {
+      type: LITERAL
+      literal {
+          type: V_SINT
+          v_signed_int: 11
+      }
+    }
+    field {
+    type: LITERAL
+    literal {
+        type: V_STRING
+        v_string {
+          value: "Omar Mex"
+        }
+    }}
+  }
+
+}
+-->recvresult
+-->sql
+SELECT * FROM xplugintest.table2;
+SELECT * FROM xplugintest.table1;
+-->endsql
+
+
+-->echo "Index with  unique(true), index column NOT NULL (true)":myisam table
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection_index"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "name_index"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: true
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "$.name"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "TEXT(50)"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: true
+    }
+  }
+  namespace: "xplugin"
+}
+-->recvresult
+-->sql
+SHOW CREATE TABLE xplugintest.table2;
+SHOW CREATE TABLE xplugintest.table1;
+SELECT * FROM xplugintest.table2;
+SELECT * FROM xplugintest.table1;
+-->endsql
+
+-->echo Update - myisam table
+Mysqlx.Crud.Update {
+  collection {
+    name: "table2"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+           name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+               type: V_SINT
+               v_signed_int: 2
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+          type: V_STRING
+          v_string {
+            value: "\"Omar Argentina\""
+          }
+      }
+    }
+  }
+
+
+}
+-->recvresult
+-->echo Update value - memory table
+Mysqlx.Crud.Update {
+  collection {
+    name: "table1"
+    schema: "xplugintest"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+               type: V_SINT
+               v_signed_int: 10
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: "doc"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+          type: V_STRING
+          v_string {
+            value: "Omar Argentina"
+          }
+      }
+    }
+  }
+
+
+}
+-->recvresult
+
+
+-->sql
+SHOW CREATE TABLE xplugintest.table2;
+SHOW CREATE TABLE xplugintest.table1;
+SELECT JSON_EXTRACT(doc,'$.name') FROM xplugintest.table2;
+SELECT * FROM xplugintest.table2;
+SELECT * FROM xplugintest.table1;
+-->endsql
+
+-->echo Delete with == operator : myisam table
+Mysqlx.Crud.Delete {
+  collection {
+    name: "table2"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT identifier { name: "_id" }
+      }
+      param {
+        type: LITERAL
+        literal {
+                type: V_SINT
+                v_signed_int: 2
+              }
+         }
+      }
+   }
+}
+-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->echo Delete with == operator : memory table
+Mysqlx.Crud.Delete {
+  collection {
+    name: "table1"
+    schema: "xplugintest"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+                type: V_SINT
+                v_signed_int: 11
+         }
+      }
+    }
+  }
+}
+-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+SELECT JSON_EXTRACT(doc,'$.name') FROM xplugintest.table2;
+SELECT * FROM xplugintest.table2;
+SELECT * FROM xplugintest.table1;
+-->endsql
+
+-->echo insert : myisam table
+Mysqlx.Crud.Insert {
+  collection {
+    name: "table2"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+    type: LITERAL
+    literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"3\",\n         \"name\": \"Omar Peru\", \"id\": \"3\"\n}"
+        }
+    }
+  }}
+}
+-->recvresult
+
+
+-->echo insert : memory table
+Mysqlx.Crud.Insert {
+  collection {
+    name: "table1"
+    schema: "xplugintest"
+  }
+  projection {
+    name: "_id"
+  }
+  projection {
+    name: "doc"
+  }
+  data_model: TABLE
+  row {
+    field {
+      type: LITERAL
+      literal {
+          type: V_SINT
+          v_signed_int: 12
+      }
+    }
+    field {
+    type: LITERAL
+    literal {
+        type: V_STRING
+        v_string {
+          value: "Omar Peru"
+        }
+    }
+  }
+ }
+}
+-->recvresult
+
+-->echo # Insert fail due to non unique _id doc member: myisam table
+Mysqlx.Crud.Insert {
+  collection {
+    name: "table2"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+    type: LITERAL
+    literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"1\",\n         \"name\": \"Omar Colombia\", \"id\": \"3\"\n}"
+        }
+    }
+  }}
+}
+-->expecterror 5116
+-->recvresult
+
+
+
+-->echo # Insert fail due to non unique _id doc member: memory table
+Mysqlx.Crud.Insert {
+  collection {
+    name: "table1"
+    schema: "xplugintest"
+  }
+  projection {
+    name: "_id"
+  }
+  projection {
+    name: "doc"
+  }
+  data_model: TABLE
+  row {
+    field {
+      type: LITERAL
+      literal {
+          type: V_SINT
+          v_signed_int: 10
+        }
+    }
+    field {
+    type: LITERAL
+    literal {
+        type: V_STRING
+        v_string {
+          value: "Omar Colombia"
+        }
+    }
+  }}
+}
+-->expecterror 1062
+-->recvresult
+
+-->sql
+SELECT * FROM xplugintest.table2;
+SELECT * FROM xplugintest.table1;
+-->endsql
+
+
+EOF
+
+--exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp  2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+
+
+#cleanup
+DROP DATABASE IF EXISTS xplugintest;
+## Postamble
+UNINSTALL PLUGIN mysqlx;
+
+SET @@global.default_storage_engine = @start_global_value;
+SELECT @@global.default_storage_engine;
+

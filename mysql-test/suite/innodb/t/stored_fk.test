@@ -1,0 +1,40 @@
+--source include/have_innodb.inc
+
+--echo # Create statement with FK on base column of stored column
+--error ER_CANNOT_ADD_FOREIGN
+create table t1(f1 int, f2 int as(f1) stored,
+		foreign key(f1) references t2(f1) on delete cascade)engine=innodb;
+
+--echo # adding new stored column during alter table copy operation.
+create table t1(f1 int primary key);
+create table t2(f1 int not null, f2 int as (f1) virtual,
+		foreign key(f1) references t1(f1) on update cascade)engine=innodb;
+
+--replace_regex  /Error on rename of '.*' to '.*'/Error on rename of 'OLD_FILE_NAME' to 'NEW_FILE_NAME'/
+--error ER_ERROR_ON_RENAME
+alter table t2 add column f3 int as (f1) stored, add column f4 int as (f1) virtual;
+drop table t2, t1;
+
+--echo # adding foreign key constraint for base columns during alter copy.
+create table t1(f1 int primary key);
+create table t2(f1 int not null, f2 int as (f1) stored);
+--error ER_CANNOT_ADD_FOREIGN
+alter table t2 add foreign key(f1) references t1(f1) on update cascade, algorithm=copy;
+drop table t2, t1;
+
+--echo # adding foreign key constraint for base columns during online alter.
+create table t1(f1 int primary key);
+create table t2(f1 int not null, f2 int as (f1) stored);
+set foreign_key_checks = 0;
+--error ER_CANNOT_ADD_FOREIGN_BASE_COL_STORED
+alter table t2 add foreign key(f1) references t1(f1) on update cascade, algorithm=inplace;
+drop table t2, t1;
+
+--echo # adding stored column via online alter.
+create table t1(f1 int primary key);
+create table t2(f1 int not null,
+		foreign key(f1) references t1(f1) on update cascade)engine=innodb;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+alter table t2 add column f2 int as (f1) stored, algorithm=inplace;
+drop table t2, t1;
+set foreign_key_checks = 1;

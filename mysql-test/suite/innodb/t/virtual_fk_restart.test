@@ -1,0 +1,50 @@
+-- source include/have_innodb.inc
+-- source include/not_embedded.inc
+
+--echo #
+--echo # Bug#22469130: FOREIGN KEY ON DELETE CASCADE NOT ALLOWED
+--echo #		WHEN A VIRTUAL INDEX EXISTS.
+
+--echo # Add the VIRTUAL INDEX contains fk constraINT column
+--echo # using INPLACE alter operatiON
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT NOT NULL,
+		fld3 INT AS (fld2) VIRTUAL, KEY(fld1),
+		FOREIGN KEY(fld1) REFERENCES t1(fld1) ON UPDATE CASCADE);
+INSERT INTO t1(fld1) VALUES(1);
+INSERT INTO t2(fld1, fld2) VALUES(1, 2);
+--source include/restart_mysqld.inc
+UPDATE t1 SET fld1= 2;
+SELECT fld3, fld1 FROM t2;
+alter TABLE t2 ADD INDEX vk(fld3, fld1), ALGORITHM=INPLACE;
+UPDATE t1 SET fld1=3;
+SELECT fld3, fld1 FROM t2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld3, fld1 FROM t2;
+--enable_warnings
+DROP TABLE t2, t1;
+
+--echo # TEMPORARY TABLE NAME and CHILD TABLE NAME are same
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+		fld2 INT AS (fld1) VIRTUAL,
+		KEY(fld2),
+		FOREIGN KEY(fld1) REFERENCES t1(fld1)
+		ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1), (2);
+INSERT INTO t2 VALUES(1, DEFAULT), (2, default);
+--SOURCE include/restart_mysqld.inc
+CREATE TEMPORARY TABLE t2 (fld1 INT NOT NULL)ENGINE=INNODB;
+UPDATE t1 SET fld1= 3 WHERE fld1= 2;
+--connect(con1,localhost,root,,test)
+SELECT fld2 FROM t2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2 FROM t2;
+--enable_warnings
+CHECK TABLE t2;
+connection default;
+disconnect con1;
+DROP TABLE t2;
+DROP TABLE t2, t1;

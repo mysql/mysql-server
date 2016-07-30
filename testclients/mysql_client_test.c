@@ -20727,6 +20727,76 @@ static void test_bug17883203()
   mysql_stmt_close(stmt);
 }
 
+/*
+  Bug#22559575: "the statement (1) has no open cursor" pops
+                sometimes with prepared+query_cache
+*/
+static void bug22559575_base(unsigned long type)
+{
+  MYSQL_STMT *stmt;
+  int rc;
+  const char stmt_text[] ="SELECT a FROM t22559575";
+  MYSQL_RES *prepare_meta = NULL;
+  MYSQL_BIND bind[1];
+  short data;
+  unsigned long length;
+
+  stmt = mysql_stmt_init(mysql);
+  check_stmt(stmt);
+  if (type == CURSOR_TYPE_READ_ONLY)
+  {
+    rc = mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (const void*)&type);
+    check_execute(stmt, rc);
+  }
+  rc = mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+  prepare_meta = mysql_stmt_result_metadata(stmt);
+  DIE_UNLESS(prepare_meta != NULL);
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  memset(bind, 0, sizeof(bind));
+  bind[0].buffer_type= MYSQL_TYPE_SHORT;
+  bind[0].buffer= (void *)&data;
+  bind[0].length= &length;
+  rc= mysql_stmt_bind_result(stmt, bind);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+  DIE_UNLESS(data == 1);
+
+  mysql_free_result(prepare_meta);
+  rc= mysql_stmt_close(stmt);
+  check_execute(stmt, rc);
+}
+
+static void test_bug22559575()
+{
+  int rc;
+
+  rc= mysql_query(mysql, "CREATE TABLE t22559575(a SMALLINT)");
+  myquery(rc);
+  rc= mysql_query(mysql, "INSERT INTO t22559575 VALUES (1)");
+  myquery(rc);
+
+  /* Should not cache */
+  bug22559575_base(CURSOR_TYPE_READ_ONLY);
+  bug22559575_base(CURSOR_TYPE_READ_ONLY);
+  /* Should save to cache */
+  bug22559575_base(CURSOR_TYPE_NO_CURSOR);
+  /* Should use cache */
+  bug22559575_base(CURSOR_TYPE_NO_CURSOR);
+  /* should not use cache */
+  bug22559575_base(CURSOR_TYPE_READ_ONLY);
+
+  rc= mysql_query(mysql, "DROP TABLE t22559575");
+  myquery(rc);
+}
+
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
   { "test_view_sp_list_fields", test_view_sp_list_fields },
@@ -21015,6 +21085,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug20821550", test_bug20821550 },
   { "test_wl8754", test_wl8754 },
   { "test_bug17883203", test_bug17883203 },
+  { "test_bug22559575", test_bug22559575 },
   { 0, 0 }
 };
 

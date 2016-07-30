@@ -4209,7 +4209,6 @@ static int dump_tablespaces(char* ts_where)
   dynstr_append_checked(&sqlbuf,
                 " GROUP BY LOGFILE_GROUP_NAME, FILE_NAME"
                 ", ENGINE, TOTAL_EXTENTS, INITIAL_SIZE"
-                ", EXTRA"
                 " ORDER BY LOGFILE_GROUP_NAME");
 
   if (mysql_query(mysql, sqlbuf.str) ||

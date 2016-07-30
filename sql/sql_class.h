@@ -90,7 +90,8 @@ enum enum_rbr_exec_mode { RBR_EXEC_MODE_STRICT,
                           RBR_EXEC_MODE_IDEMPOTENT,
                           RBR_EXEC_MODE_LAST_BIT };
 enum enum_transaction_write_set_hashing_algorithm { HASH_ALGORITHM_OFF= 0,
-                                                    HASH_ALGORITHM_MURMUR32= 1 };
+                                                    HASH_ALGORITHM_MURMUR32= 1,
+                                                    HASH_ALGORITHM_XXHASH64= 2};
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED,
@@ -4537,11 +4538,12 @@ public:
 
   /**
     This is only used by master dump threads.
-    When the master receives a new connection from a slave with a UUID that
-    is already connected, it will set this flag TRUE before killing the old
-    slave connection.
+    When the master receives a new connection from a slave with a
+    UUID (for slave versions >= 5.6)/server_id(for slave versions < 5.6)
+    that is already connected, it will set this flag TRUE
+    before killing the old slave connection.
   */
-  bool duplicate_slave_uuid;
+  bool duplicate_slave_id;
 
   /**
     Claim all the memory used by the THD object.

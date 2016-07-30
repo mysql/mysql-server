@@ -2429,6 +2429,7 @@ int io_thread_init_commands(MYSQL *mysql, Master_info *mi)
 {
   char query[256];
   int ret= 0;
+  DBUG_EXECUTE_IF("fake_5_5_version_slave", return ret;);
 
   sprintf(query, "SET @slave_uuid= '%s'", server_uuid);
   if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query)))
@@ -7389,7 +7390,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
 
   (void) RUN_HOOK(binlog_relay_io, applier_stop,
                   (thd, rli->mi,
-                   (abort_loop || thd->killed || rli->abort_slave)));
+                   !rli->sql_thread_kill_accepted));
 
   slave_stop_workers(rli, &mts_inited); // stopping worker pool
   delete rli->current_mts_submode;
@@ -8629,8 +8630,11 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   }
 
 #ifdef HAVE_OPENSSL
+  /* By default the channel is not configured to use SSL */
+  enum mysql_ssl_mode ssl_mode= SSL_MODE_DISABLED;
   if (mi->ssl)
   {
+    /* The channel is configured to use SSL */
     mysql_ssl_set(mysql,
                   mi->ssl_key[0]?mi->ssl_key:0,
                   mi->ssl_cert[0]?mi->ssl_cert:0,
@@ -8647,15 +8651,14 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                   mi->tls_version[0] ? mi->tls_version : 0);
     mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH,
                   mi->ssl_crlpath[0] ? mi->ssl_crlpath : 0);
-    enum mysql_ssl_mode ssl_mode;
     if (mi->ssl_verify_server_cert)
       ssl_mode= SSL_MODE_VERIFY_IDENTITY;
     else if (mi->ssl_ca[0] || mi->ssl_capath[0])
       ssl_mode= SSL_MODE_VERIFY_CA;
     else
       ssl_mode= SSL_MODE_REQUIRED;
-    mysql_options(mysql, MYSQL_OPT_SSL_MODE, &ssl_mode);
   }
+  mysql_options(mysql, MYSQL_OPT_SSL_MODE, &ssl_mode);
 #endif
 
   /*
@@ -9633,25 +9636,36 @@ bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
                       " so slave stops; check error log on slave"
                       " for more info", MYF(0), bug_id);
       // a verbose message for the error log
-      rli->report(ERROR_LEVEL, ER_UNKNOWN_ERROR,
-                  "According to the master's version ('%s'),"
-                  " it is probable that master suffers from this bug:"
-                  " http://bugs.mysql.com/bug.php?id=%u"
-                  " and thus replicating the current binary log event"
-                  " may make the slave's data become different from the"
-                  " master's data."
-                  " To take no risk, slave refuses to replicate"
-                  " this event and stops."
-                  " We recommend that all updates be stopped on the"
-                  " master and slave, that the data of both be"
-                  " manually synchronized,"
-                  " that master's binary logs be deleted,"
-                  " that master be upgraded to a version at least"
-                  " equal to '%d.%d.%d'. Then replication can be"
-                  " restarted.",
-                  rli->get_rli_description_event()->server_version,
-                  bug_id,
-                  fixed_in[0], fixed_in[1], fixed_in[2]);
+      enum loglevel report_level= INFORMATION_LEVEL;
+      if (!ignored_error_code(ER_UNKNOWN_ERROR))
+      {
+        report_level= ERROR_LEVEL;
+        current_thd->is_slave_error= 1;
+      }
+      /* In case of ignored errors report warnings only if log_warnings > 1. */
+      else if (log_warnings > 1)
+        report_level= WARNING_LEVEL;
+
+      if (report_level != INFORMATION_LEVEL)
+        rli->report(report_level, ER_UNKNOWN_ERROR,
+                    "According to the master's version ('%s'),"
+                    " it is probable that master suffers from this bug:"
+                    " http://bugs.mysql.com/bug.php?id=%u"
+                    " and thus replicating the current binary log event"
+                    " may make the slave's data become different from the"
+                    " master's data."
+                    " To take no risk, slave refuses to replicate"
+                    " this event and stops."
+                    " We recommend that all updates be stopped on the"
+                    " master and slave, that the data of both be"
+                    " manually synchronized,"
+                    " that master's binary logs be deleted,"
+                    " that master be upgraded to a version at least"
+                    " equal to '%d.%d.%d'. Then replication can be"
+                    " restarted.",
+                    rli->get_rli_description_event()->server_version,
+                    bug_id,
+                    fixed_in[0], fixed_in[1], fixed_in[2]);
       return TRUE;
     }
   }
@@ -10544,7 +10558,13 @@ static int change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
     strmake(mi->host, lex_mi->host, sizeof(mi->host)-1);
   if (lex_mi->bind_addr)
     strmake(mi->bind_addr, lex_mi->bind_addr, sizeof(mi->bind_addr)-1);
-  if (lex_mi->port)
+  /*
+    Setting channel's port number explicitly to '0' should be allowed.
+    Eg: 'group_replication_recovery' channel (*after recovery is done*)
+    or 'group_replication_applier' channel wants to set the port number
+    to '0' as there is no actual network usage on these channels.
+  */
+  if (lex_mi->port || lex_mi->port_opt == LEX_MASTER_INFO::LEX_MI_ENABLE)
     mi->port = lex_mi->port;
   if (lex_mi->connect_retry)
     mi->connect_retry = lex_mi->connect_retry;
@@ -11422,12 +11442,11 @@ static int check_slave_sql_config_conflict(const Relay_log_info *rli)
   {
     const char* channel= const_cast<Relay_log_info*>(rli)->get_channel();
     if (slave_parallel_workers > 0 &&
-        channel_mts_submode != MTS_PARALLEL_TYPE_LOGICAL_CLOCK &&
         channel_map.is_group_replication_channel_name(channel, true))
     {
         my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
-                 "START SLAVE SQL_THREAD when SLAVE_PARALLEL_WORKERS > 0 "
-                 "and SLAVE_PARALLEL_TYPE != LOGICAL_CLOCK", channel);
+                 "START SLAVE SQL_THREAD when SLAVE_PARALLEL_WORKERS > 0",
+                 channel);
         return ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED;
     }
   }

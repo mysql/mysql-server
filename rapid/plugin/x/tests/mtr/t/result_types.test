@@ -1,0 +1,35 @@
+## generated
+## Test resultset types
+
+--source ../include/xplugin_preamble.inc
+## Test starts here
+--write_file $MYSQL_TMP_DIR/result_types.tmp
+
+-->sql
+create schema xtest;
+use xtest;
+
+create table unsigneds (i int unsigned, b bigint unsigned, t tinyint unsigned, s smallint unsigned, f float unsigned, d double unsigned, de decimal(10,2) unsigned, dt datetime, ts timestamp);
+
+# test float and double
+create table test_d (f float, d double);
+insert into test_d values (1.0/81, 1.0/81);
+insert into test_d values (1234567890.1234567890,1234567890.1234567890);
+select * from test_d;
+
+-->endsql
+
+Mysqlx.Sql.StmtExecute {
+   stmt: "select * from unsigneds"
+}
+-->recv
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+EOF
+
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/result_types.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/result_types.tmp
+
+## Postamble
+drop schema xtest;
+uninstall plugin mysqlx;

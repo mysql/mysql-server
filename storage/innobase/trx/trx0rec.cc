@@ -306,10 +306,10 @@ trx_undo_read_v_idx_low(
 		dict_index_t*	index = dict_table_get_next_index(clust_index);
 
 		while (index != NULL) {
-			/* Return when we find an index matches the id.
-			TODO: in the future, it might worth to add more
-			check with other indexes */
-			if (index->id == id && index->is_committed()) {
+			/* Return if we find a matching index.
+			TODO: in the future, it might be worth to add
+			checks on other indexes */
+			if (index->id == id) {
 				const dict_col_t* col = dict_index_get_nth_col(
 					index, pos);
 				ut_ad(dict_col_is_virtual(col));

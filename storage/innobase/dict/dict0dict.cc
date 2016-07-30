@@ -4610,8 +4610,8 @@ loop:
 			return(DB_CANNOT_ADD_CONSTRAINT);
 		}
 
-		if (dict_foreigns_has_v_base_col(local_fk_set, table)) {
-			return(DB_NO_FK_ON_V_BASE_COL);
+		if (dict_foreigns_has_s_base_col(local_fk_set, table)) {
+			return(DB_NO_FK_ON_S_BASE_COL);
 		}
 
 		/**********************************************************/
@@ -4629,6 +4629,8 @@ loop:
 				      local_fk_set.end(),
 				      dict_foreign_add_to_referenced_table());
 			local_fk_set.clear();
+
+			dict_mem_table_fill_foreign_vcol_set(table);
 		}
 		return(error);
 	}
@@ -5796,6 +5798,13 @@ dict_set_corrupted(
 	if (index->type & DICT_CORRUPT) {
 		/* The index was already flagged corrupted. */
 		ut_ad(!dict_index_is_clust(index) || index->table->corrupted);
+		goto func_exit;
+	}
+
+	/* If this is read only mode, do not update SYS_INDEXES, just
+	mark it as corrupted in memory */
+	if (srv_read_only_mode) {
+		index->type |= DICT_CORRUPT;
 		goto func_exit;
 	}
 

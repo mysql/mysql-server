@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -171,14 +171,19 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
 ENDIF()
 
 # A GCC bug causes crash when compiling these files on ARM64 with -O1+
-# Compile them with -O0 as a workaround until the GCC bug is fixed.
+# Compile them with -O0 as a workaround.
 IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
-  INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-  ADD_COMPILE_FLAGS(
-    btr/btr0btr.cc
-    btr/btr0cur.cc
-    buf/buf0buf.cc
-    gis/gis0sea.cc
-    COMPILE_FLAGS "-O0"
-  )
+  # Bug was fixed in GCC 5.2, so workaround only needed < 5.2
+  EXECUTE_PROCESS(COMMAND ${CMAKE_C_COMPILER} -dumpversion
+                  OUTPUT_VARIABLE GCC_VERSION)
+  IF(GCC_VERSION VERSION_LESS 5.2)
+    INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+    ADD_COMPILE_FLAGS(
+      btr/btr0btr.cc
+      btr/btr0cur.cc
+      buf/buf0buf.cc
+      gis/gis0sea.cc
+      COMPILE_FLAGS "-O0"
+      )
+  ENDIF()
 ENDIF()

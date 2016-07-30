@@ -36,7 +36,6 @@
 xpl::Session::Session(ngs::Client &client, ngs::Protocol_encoder *proto, Session_id session_id)
 : ngs::Session(client, proto, session_id),
   m_sql(new Sql_data_context(proto)),
-  m_crud_handler(NULL),
   m_was_authenticated(false)
 {
 }
@@ -50,15 +49,12 @@ xpl::Session::~Session()
   m_sql->deinit();
 
   delete m_sql;
-  delete m_crud_handler;
 }
 
 
 // handle a message while in Ready state
 bool xpl::Session::handle_ready_message(ngs::Request &command)
 {
-  DBUG_ASSERT(m_crud_handler != NULL);
-
   // check if the session got killed
   if (m_sql->is_killed())
   {
@@ -73,8 +69,7 @@ bool xpl::Session::handle_ready_message(ngs::Request &command)
 
   try
   {
-    return dispatcher::dispatch_command(*this, *m_sql, *m_encoder, *m_crud_handler, m_expect_stack,
-                                            m_options, command);
+    return dispatcher::dispatch_command(*this, m_crud_handler, m_expect_stack, command);
   }
   catch (ngs::Error_code &err)
   {
@@ -123,8 +118,6 @@ void xpl::Session::on_auth_success(const ngs::Authentication_handler::Response &
   Global_status_variables::instance().increment_sessions_count();
 
   m_was_authenticated = true;
-  if (!m_crud_handler)
-    m_crud_handler = new Crud_command_handler(*m_sql, m_options, m_status_variables);
 }
 
 
@@ -157,3 +150,34 @@ bool xpl::Session::can_see_user(const char *user) const
   }
   return false;
 }
+
+
+template<void (xpl::Common_status_variables::*method)()>
+void xpl::Session::update_status()
+{
+  xpl::Server::update_status_variable<method>(m_status_variables);
+}
+
+
+template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_execute_sql>();
+template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_execute_xplugin>();
+template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_execute_mysqlx>();
+template void xpl::Session::update_status<&xpl::Common_status_variables::inc_expect_open>();
+template void xpl::Session::update_status<&xpl::Common_status_variables::inc_expect_close>();
+template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_ping>();
+template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_list_clients>();
+template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_kill_client>();
+template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_create_collection>();
+template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_create_collection_index>();
+template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_drop_collection>();
+template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_drop_collection_index>();
+template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_enable_notices>();
+template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_disable_notices>();
+template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_list_notices>();
+template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_list_objects>();
+template void xpl::Session::update_status<&xpl::Common_status_variables::inc_crud_insert>();
+template void xpl::Session::update_status<&xpl::Common_status_variables::inc_crud_update>();
+template void xpl::Session::update_status<&xpl::Common_status_variables::inc_crud_delete>();
+template void xpl::Session::update_status<&xpl::Common_status_variables::inc_crud_find>();
+template void xpl::Session::update_status<&xpl::Common_status_variables::inc_stmt_ensure_collection>();
+

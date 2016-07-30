@@ -1139,7 +1139,6 @@ REFERENCES parent(id)
 ON DELETE CASCADE
 ) ENGINE=INNODB;
 ALTER TABLE child ADD INDEX `i1` (x);
-ERROR HY000: Cannot create index on virtual column whose base column has foreign constraint.
 CREATE TABLE child_1 (
 id INT,
 parent_id INT,
@@ -1161,7 +1160,7 @@ FOREIGN KEY (parent_id)
 REFERENCES parent(id)
 ON DELETE CASCADE
 ) ENGINE=INNODB;
-ERROR HY000: Cannot add foreign key constraint
+DROP TABLE child;
 CREATE TABLE child (
 id INT,
 parent_id INT,
@@ -1172,20 +1171,16 @@ INDEX `i1` (x)
 ALTER TABLE child ADD FOREIGN KEY (parent_id)
 REFERENCES parent(id)
 ON DELETE CASCADE;
-ERROR HY000: Cannot add foreign key constraint
 SET foreign_key_checks = 0;
 ALTER TABLE child ADD FOREIGN KEY (parent_id)
 REFERENCES parent(id)
 ON DELETE CASCADE;
-ERROR HY000: Cannot add foreign key on the base column of indexed virtual column.
 ALTER TABLE child ADD FOREIGN KEY (parent_id)
 REFERENCES parent(id)
 ON DELETE SET NULL;
-ERROR HY000: Cannot add foreign key on the base column of indexed virtual column.
 ALTER TABLE child ADD FOREIGN KEY (parent_id)
 REFERENCES parent(id)
 ON UPDATE CASCADE;
-ERROR HY000: Cannot add foreign key on the base column of indexed virtual column.
 ALTER TABLE child ADD FOREIGN KEY (parent_id)
 REFERENCES parent(id);
 SET foreign_key_checks = 1;
@@ -1232,7 +1227,6 @@ CREATE TABLE `ibstd_16_fk` (
 `d` int(11) DEFAULT NULL,
 `b` varchar(198) DEFAULT NULL,
 `c` char(179) DEFAULT NULL,
-`vadcol` int(11) GENERATED ALWAYS AS (a+length(d)) STORED,
 `vbcol` char(2) GENERATED ALWAYS AS (substr(b,2,2)) VIRTUAL,
 `vbidxcol` char(3) GENERATED ALWAYS AS (substr(b,1,3)) VIRTUAL,
 UNIQUE KEY `b` (`b`(10),`a`,`d`),
@@ -1245,14 +1239,12 @@ KEY `vbidxcol_2` (`vbidxcol`,`d`),
 CONSTRAINT `fk_16` FOREIGN KEY (`a`) REFERENCES `ibstd_16` (`a`) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 ALTER TABLE ibstd_16_fk ADD INDEX `a_2` (`a`,`vbidxcol`);
-ERROR HY000: Cannot create index on virtual column whose base column has foreign constraint.
 DROP TABLE ibstd_16_fk;
 CREATE TABLE `ibstd_16_fk` (
 `a` int(11) DEFAULT NULL,
 `d` int(11) DEFAULT NULL,
 `b` varchar(198) DEFAULT NULL,
 `c` char(179) DEFAULT NULL,
-`vadcol` int(11) GENERATED ALWAYS AS (a+length(d)) STORED,
 `vbcol` char(2)  GENERATED ALWAYS AS (substr(b,2,2)) VIRTUAL,
 `vbidxcol` char(3) GENERATED ALWAYS AS (substr(b,1,3)) VIRTUAL,
 UNIQUE KEY `b` (`b`(10),`a`,`d`),
@@ -1265,11 +1257,9 @@ KEY `a_2` (`a`,`vbidxcol`),
 KEY `vbidxcol_2` (`vbidxcol`,`d`)
 ) ENGINE=InnoDB;
 ALTER TABLE `ibstd_16_fk` ADD CONSTRAINT `fk_16` FOREIGN KEY (`a`) REFERENCES `ibstd_16` (`a`) ON DELETE SET NULL;
-ERROR HY000: Cannot add foreign key constraint
 DROP INDEX a_2 ON ibstd_16_fk;
-ALTER TABLE `ibstd_16_fk` ADD CONSTRAINT `fk_16` FOREIGN KEY (`a`) REFERENCES `ibstd_16` (`a`) ON DELETE SET NULL;
 INSERT INTO ibstd_16 VALUES (1, 2, "aaa", "bbb", default, default, default);
-INSERT INTO ibstd_16_fk VALUES(1, 3, "mmm", "SSS", default, default, default);
+INSERT INTO ibstd_16_fk VALUES(1, 3, "mmm", "SSS", default, default);
 DELETE FROM ibstd_16 WHERE a = 1;
 DROP TABLE ibstd_16_fk;
 DROP TABLE ibstd_16;
@@ -1622,3 +1612,17 @@ KEY `vbidxcol_2` (`vbidxcol`,`d`)
 INSERT INTO t values (11, 1, "11", "aa", default, default, default);
 ALTER TABLE t ADD COLUMN nc01128 BIGINT  AUTO_INCREMENT NOT NULL, ADD KEY auto_nc01128(nc01128);
 DROP TABLE t;
+#
+#Bug #22965271 NEEDS REBUILD FOR COLUMN LENGTH CHANGE THAT IS
+#PART OF VIRTUAL INDEX.
+#
+CREATE TABLE t1(
+a VARCHAR(45) CHARACTER SET LATIN1,
+b VARCHAR(115) CHARACTER SET UTF8 GENERATED ALWAYS AS ('f1') VIRTUAL,
+UNIQUE KEY (b,a))ENGINE=INNODB;
+INSERT INTO t1(a) VALUES ('');
+ALTER TABLE t1 CHANGE COLUMN a a VARCHAR(85);
+SELECT * FROM t1;
+a	b
+	f1
+DROP TABLE t1;

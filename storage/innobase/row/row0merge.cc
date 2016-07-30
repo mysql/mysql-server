@@ -587,7 +587,7 @@ row_merge_buf_add(
 				row_field = innobase_get_computed_value(
 					row, v_col, clust_index,
 					v_heap, NULL, ifield, trx->mysql_thd,
-					my_table, old_table);
+					my_table, old_table, NULL, NULL);
 
 				if (row_field == NULL) {
 					*err = DB_COMPUTE_VALUE_FAILED;
@@ -2633,7 +2633,7 @@ wait_again:
 		/* Sync fts cache for other fts indexes to keep all
 		fts indexes consistent in sync_doc_id. */
 		err = fts_sync_table(const_cast<dict_table_t*>(new_table),
-				     false, true);
+				     false, true, false);
 
 		if (err == DB_SUCCESS) {
 			fts_update_next_doc_id(
@@ -4151,30 +4151,10 @@ row_merge_create_index(
 			} else {
 				name = dict_table_get_v_col_name(
 					table, ifield->col_no);
-
-				if (dict_table_has_base_in_foreign(
-					    table, ifield->col_no)) {
-					my_error(ER_CANNOT_CREATE_VIRTUAL_INDEX_CONSTRAINT,
-						 MYF(0));
-					trx->error_state = DB_NO_VIRTUAL_INDEX_ON_FK;
-					dict_mem_index_free(index);
-					DBUG_RETURN(NULL);
-				}
 			}
 		} else {
 			name = dict_table_get_col_name(table, ifield->col_no);
 
-			/* If this is a virtual index, we need to block
-			any non-virtual column (in this virtual index) that is
-			also part of some foreign constraint */
-			if ((index_def->ind_type & DICT_VIRTUAL)
-			    && dict_foreigns_has_this_col(table, name)) {
-				my_error(ER_CANNOT_CREATE_VIRTUAL_INDEX_CONSTRAINT,
-					 MYF(0));
-				trx->error_state = DB_NO_VIRTUAL_INDEX_ON_FK;
-				dict_mem_index_free(index);
-				DBUG_RETURN(NULL);
-			}
 		}
 
 		dict_mem_index_add_field(index, name, ifield->prefix_len);

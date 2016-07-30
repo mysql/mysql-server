@@ -168,12 +168,9 @@ enum dberr_t {
 	DB_WRONG_FILE_NAME,		/*!< Invalid Filename */
 
 	DB_COMPUTE_VALUE_FAILED,	/*!< Compute generated value failed */
-	DB_NO_FK_ON_V_BASE_COL,		/*!< Cannot add foreign constrain
+	DB_NO_FK_ON_S_BASE_COL,		/*!< Cannot add foreign constrain
 					placed on the base column of
-					indexed virtual column */
-	DB_NO_VIRTUAL_INDEX_ON_FK,	/*!< Cannot create index on virtual
-					column whose base column has foreign
-					constraint */
+					stored column */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,

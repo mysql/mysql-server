@@ -204,6 +204,7 @@ dict_mem_table_free(
 	dict_table_autoinc_destroy(table);
 #endif /* UNIV_HOTBACKUP */
 
+	dict_mem_table_free_foreign_vcol_set(table);
 	dict_table_stats_latch_destroy(table);
 
 	table->foreign_set.~dict_foreign_set();
@@ -219,6 +220,10 @@ dict_mem_table_free(
 			= dict_table_get_nth_v_col(table, i);
 
 		UT_DELETE(vcol->v_indexes);
+	}
+
+	if (table->s_cols != NULL) {
+		UT_DELETE(table->s_cols);
 	}
 
 	mem_heap_free(table->heap);
@@ -393,6 +398,39 @@ dict_mem_table_add_v_col(
 
 	return(v_col);
 }
+
+/** Adds a stored column definition to a table.
+@param[in]	table		table
+@param[in]	num_base	number of base columns. */
+void
+dict_mem_table_add_s_col(
+	dict_table_t*	table,
+	ulint		num_base)
+{
+	ulint	i = table->n_def - 1;
+	dict_col_t*	col = dict_table_get_nth_col(table, i);
+	dict_s_col_t	s_col;
+
+	ut_ad(col != NULL);
+
+	if (table->s_cols == NULL) {
+		table->s_cols = UT_NEW_NOKEY(dict_s_col_list());
+	}
+
+	s_col.m_col = col;
+	s_col.s_pos = i + table->n_v_def;
+
+	if (num_base != 0) {
+		s_col.base_col = static_cast<dict_col_t**>(mem_heap_zalloc(
+			table->heap, num_base * sizeof(dict_col_t*)));
+	} else {
+		s_col.base_col = NULL;
+	}
+
+	s_col.num_base = num_base;
+	table->s_cols->push_back(s_col);
+}
+
 
 /**********************************************************************//**
 Renames a column of a table in the data dictionary cache. */
@@ -673,6 +711,8 @@ dict_mem_foreign_create(void)
 
 	foreign->heap = heap;
 
+	foreign->v_cols = NULL;
+
 	DBUG_PRINT("dict_mem_foreign_create", ("heap: %p", heap));
 
 	DBUG_RETURN(foreign);
@@ -737,6 +777,181 @@ dict_mem_referenced_table_name_lookup_set(
 			= foreign->referenced_table_name;
 	}
 }
+
+/** Fill the virtual column set with virtual column information
+present in the given virtual index.
+@param[in]	index	virtual index
+@param[out]	v_cols	virtual column set. */
+static
+void
+dict_mem_fill_vcol_has_index(
+	const dict_index_t*	index,
+	dict_vcol_set**		v_cols)
+{
+	for (ulint i = 0; i < index->table->n_v_cols; i++) {
+		dict_v_col_t*	v_col = dict_table_get_nth_v_col(
+					index->table, i);
+		if (!v_col->m_col.ord_part) {
+			continue;
+		}
+
+		dict_v_idx_list::iterator it;
+		for (it = v_col->v_indexes->begin();
+		     it != v_col->v_indexes->end(); ++it) {
+			dict_v_idx_t	v_idx = *it;
+
+			if (v_idx.index != index) {
+				continue;
+			}
+
+			if (*v_cols == NULL) {
+				*v_cols = UT_NEW_NOKEY(dict_vcol_set());
+			}
+
+			(*v_cols)->insert(v_col);
+		}
+	}
+}
+
+/** Fill the virtual column set with the virtual column of the index
+if the index contains given column name.
+@param[in]	col_name	column name
+@param[in]	table		innodb table object
+@param[out]	v_cols		set of virtual column information. */
+static
+void
+dict_mem_fill_vcol_from_v_indexes(
+	const char*		col_name,
+	const dict_table_t*	table,
+	dict_vcol_set**		v_cols)
+{
+	/* virtual column can't be Primary Key, so start with
+	secondary index */
+	for (dict_index_t* index = dict_table_get_next_index(
+			dict_table_get_first_index(table));
+		index;
+		index = dict_table_get_next_index(index)) {
+
+		if (!dict_index_has_virtual(index)) {
+			continue;
+		}
+
+		for (ulint i = 0; i < index->n_fields; i++) {
+			dict_field_t*	field =
+				dict_index_get_nth_field(index, i);
+
+			if (strcmp(field->name, col_name) == 0) {
+				dict_mem_fill_vcol_has_index(
+					index, v_cols);
+			}
+		}
+	}
+}
+
+/** Fill the virtual column set with virtual columns which have base columns
+as the given col_name
+@param[in]	col_name	column name
+@param[in]	table		table object
+@param[out]	v_cols		set of virtual columns. */
+static
+void
+dict_mem_fill_vcol_set_for_base_col(
+	const char*		col_name,
+	const dict_table_t*	table,
+	dict_vcol_set**		v_cols)
+{
+	for (ulint i = 0; i < table->n_v_cols; i++) {
+		dict_v_col_t*	v_col = dict_table_get_nth_v_col(table, i);
+
+		if (!v_col->m_col.ord_part) {
+			continue;
+		}
+
+		for (ulint j = 0; j < v_col->num_base; j++) {
+			if (strcmp(col_name, dict_table_get_col_name(
+					table,
+					v_col->base_col[j]->ind)) == 0) {
+
+				if (*v_cols == NULL) {
+					*v_cols = UT_NEW_NOKEY(dict_vcol_set());
+				}
+
+				(*v_cols)->insert(v_col);
+			}
+		}
+	}
+}
+
+/** Fills the dependent virtual columns in a set.
+Reason for being dependent are
+1) FK can be present on base column of virtual columns
+2) FK can be present on column which is a part of virtual index
+@param[in,out]  foreign foreign key information. */
+void
+dict_mem_foreign_fill_vcol_set(
+        dict_foreign_t* foreign)
+{
+	ulint	type = foreign->type;
+
+	if (type == 0) {
+		return;
+	}
+
+	for (ulint i = 0; i < foreign->n_fields; i++) {
+		/** FK can be present on base columns
+		of virtual columns. */
+		dict_mem_fill_vcol_set_for_base_col(
+			foreign->foreign_col_names[i],
+			foreign->foreign_table,
+			&foreign->v_cols);
+
+		/** FK can be present on the columns
+		which can be a part of virtual index. */
+		dict_mem_fill_vcol_from_v_indexes(
+			foreign->foreign_col_names[i],
+			foreign->foreign_table,
+			&foreign->v_cols);
+	}
+}
+
+/** Fill virtual columns set in each fk constraint present in the table.
+@param[in,out]	table	innodb table object. */
+void
+dict_mem_table_fill_foreign_vcol_set(
+	dict_table_t*	table)
+{
+	dict_foreign_set	fk_set = table->foreign_set;
+	dict_foreign_t*		foreign;
+
+	dict_foreign_set::iterator it;
+	for (it = fk_set.begin(); it != fk_set.end(); ++it) {
+		foreign = *it;
+
+		dict_mem_foreign_fill_vcol_set(foreign);
+	}
+}
+
+/** Free the vcol_set from all foreign key constraint on the table.
+@param[in,out]	table	innodb table object. */
+void
+dict_mem_table_free_foreign_vcol_set(
+	dict_table_t*	table)
+{
+	dict_foreign_set	fk_set = table->foreign_set;
+	dict_foreign_t*		foreign;
+
+	dict_foreign_set::iterator it;
+	for (it = fk_set.begin(); it != fk_set.end(); ++it) {
+
+		foreign = *it;
+
+		if (foreign->v_cols != NULL) {
+			UT_DELETE(foreign->v_cols);
+			foreign->v_cols = NULL;
+		}
+	}
+}
+
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**

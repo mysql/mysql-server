@@ -1,3 +1,4 @@
+--force-restart
 --no-console
 --character-sets-dir=$MYSQL_TEST_DIR/std_data/
 --log-error=$MYSQLTEST_VARDIR/tmp/ctype_ldml_log.err

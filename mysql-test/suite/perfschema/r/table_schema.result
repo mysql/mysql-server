@@ -901,7 +901,7 @@ def	performance_schema	replication_connection_status	THREAD_ID	4	NULL	YES	bigint
 def	performance_schema	replication_connection_status	SERVICE_STATE	5	NULL	NO	enum	10	30	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ON','OFF','CONNECTING')			select,insert,update,references		
 def	performance_schema	replication_connection_status	COUNT_RECEIVED_HEARTBEATS	6	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	performance_schema	replication_connection_status	LAST_HEARTBEAT_TIMESTAMP	7	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	Shows when the most recent heartbeat signal was received.	
-def	performance_schema	replication_connection_status	RECEIVED_TRANSACTION_SET	8	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_general_ci	text			select,insert,update,references		
+def	performance_schema	replication_connection_status	RECEIVED_TRANSACTION_SET	8	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext			select,insert,update,references		
 def	performance_schema	replication_connection_status	LAST_ERROR_NUMBER	9	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
 def	performance_schema	replication_connection_status	LAST_ERROR_MESSAGE	10	NULL	NO	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references		
 def	performance_schema	replication_connection_status	LAST_ERROR_TIMESTAMP	11	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references		
@@ -916,7 +916,7 @@ def	performance_schema	replication_group_member_stats	MEMBER_ID	3	NULL	NO	char	3
 def	performance_schema	replication_group_member_stats	COUNT_TRANSACTIONS_IN_QUEUE	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	performance_schema	replication_group_member_stats	COUNT_TRANSACTIONS_CHECKED	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	performance_schema	replication_group_member_stats	COUNT_CONFLICTS_DETECTED	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	replication_group_member_stats	COUNT_TRANSACTIONS_VALIDATING	7	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	replication_group_member_stats	COUNT_TRANSACTIONS_ROWS_VALIDATING	7	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	performance_schema	replication_group_member_stats	TRANSACTIONS_COMMITTED_ALL_MEMBERS	8	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext			select,insert,update,references		
 def	performance_schema	replication_group_member_stats	LAST_CONFLICT_FREE_TRANSACTION	9	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_general_ci	text			select,insert,update,references		
 def	performance_schema	rwlock_instances	NAME	1	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references		

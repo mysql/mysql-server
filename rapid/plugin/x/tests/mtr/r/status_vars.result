@@ -1,0 +1,188 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+RUN DROP SCHEMA IF EXISTS xtest
+
+0 rows affected
+RUN CREATE SCHEMA xtest
+
+1 rows affected
+RUN CREATE TABLE xtest.xtable (xcolumn VARCHAR(20))
+
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_sessions'
+Variable_name	Value
+Mysqlx_sessions	1
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_crud_insert'
+Variable_name	Value
+Mysqlx_crud_insert	0
+0 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    name: "xcolumn"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "xstring"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_crud_insert'
+Variable_name	Value
+Mysqlx_crud_insert	1
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_crud_find'
+Variable_name	Value
+Mysqlx_crud_find	0
+0 rows affected
+send Mysqlx.Crud.Find {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+}
+
+xcolumn
+xstring
+command ok
+RUN SHOW STATUS LIKE 'Mysqlx_crud_find'
+Variable_name	Value
+Mysqlx_crud_find	1
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_crud_update'
+Variable_name	Value
+Mysqlx_crud_update	0
+0 rows affected
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "xcolumn"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "xstring"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: "xcolumn"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "updated_xstring"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN SHOW STATUS LIKE 'Mysqlx_crud_update'
+Variable_name	Value
+Mysqlx_crud_update	1
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_crud_delete'
+Variable_name	Value
+Mysqlx_crud_delete	0
+0 rows affected
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "xcolumn"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "updated_xstring"
+          }
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_crud_delete'
+Variable_name	Value
+Mysqlx_crud_delete	1
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_stmt_execute_%'
+Variable_name	Value
+Mysqlx_stmt_execute_mysqlx	0
+Mysqlx_stmt_execute_sql	13
+Mysqlx_stmt_execute_xplugin	0
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT COUNT(*) FROM xtest.xtable"
+}
+
+COUNT(*)
+0
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_stmt_execute_%'
+Variable_name	Value
+Mysqlx_stmt_execute_mysqlx	0
+Mysqlx_stmt_execute_sql	15
+Mysqlx_stmt_execute_xplugin	0
+0 rows affected
+RUN DROP SCHEMA IF EXISTS xtest
+
+1 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+UNINSTALL PLUGIN mysqlx;

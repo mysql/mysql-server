@@ -186,6 +186,19 @@ const char *info_slave_worker_fields []=
 */
 const ulong mts_partition_hash_soft_max= 16;
 
+/*
+  index value of some outstanding slots of info_slave_worker_fields
+*/
+enum {
+  LINE_FOR_CHANNEL= 12,
+};
+
+const uint info_slave_worker_table_pk_field_indexes []=
+{
+  LINE_FOR_CHANNEL,
+  0,
+};
+
 Slave_worker::Slave_worker(Relay_log_info *rli
 #ifdef HAVE_PSI_INTERFACE
                            ,PSI_mutex_key *param_key_info_run_lock,
@@ -2669,3 +2682,12 @@ const char* Slave_worker::get_for_channel_str(bool upper_case) const
   return c_rli->get_for_channel_str(upper_case);
 }
 
+const uint* Slave_worker::get_table_pk_field_indexes()
+{
+  return info_slave_worker_table_pk_field_indexes;
+}
+
+uint Slave_worker::get_channel_field_index()
+{
+  return LINE_FOR_CHANNEL;
+}

@@ -66,19 +66,16 @@ namespace mysqlx
   struct Ssl_config
   {
     Ssl_config()
-    {
-      key      = NULL;
-      ca       = NULL;
-      ca_path  = NULL;
-      cert     = NULL;
-      cipher   = NULL;
-    }
+    : key(NULL), ca(NULL), ca_path(NULL),
+      cert(NULL), cipher(NULL), tls_version(NULL)
+    {}
 
     const char *key;
     const char *ca;
     const char *ca_path;
     const char *cert;
     const char *cipher;
+    const char *tls_version;
   };
 
   class MYSQLXTEST_PUBLIC Connection : public boost::enable_shared_from_this<Connection>
@@ -150,6 +147,8 @@ namespace mysqlx
     void send_bytes(const std::string &data);
 
     void set_trace_protocol(bool flag) { m_trace_packets = flag; }
+
+    boost::shared_ptr<Result> new_empty_result();
 
   private:
     void perform_close();

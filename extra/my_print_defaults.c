@@ -173,7 +173,7 @@ int main(int argc, char **argv)
 
   org_argv= argv;
   args_used= get_defaults_options(argc, argv, &defaults, &extra_defaults,
-                                  &group_suffix, &login_path);
+                                  &group_suffix, &login_path, FALSE);
 
   /* Copy defaults-xxx arguments & program name */
   count=args_used+1;

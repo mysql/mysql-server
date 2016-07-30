@@ -5307,7 +5307,7 @@ String *Item_func_gtid_subtract::val_str_ascii(String *str)
     if (status == RETURN_STATUS_OK)
     {
       Gtid_set set2(&sid_map, charp2, &status);
-      int length;
+      size_t length;
       // subtract, save result, return result
       if (status == RETURN_STATUS_OK)
       {

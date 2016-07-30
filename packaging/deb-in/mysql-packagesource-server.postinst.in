@@ -1,0 +1,128 @@
+#!/bin/bash
+
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
+. /usr/share/debconf/confmodule
+
+take_upstart_job_backup () {
+	if [ -e "/etc/init/mysql.conf" ] && [ -d "/var/lib/mysql" ];
+	then
+		mv /etc/init/mysql.conf /var/lib/mysql/.mysql.conf.backup
+	fi
+}
+
+# Runs an arbitrary init sql file supplied in $1. Does not require login access
+run_init_sql() {
+	tmpdir=$(mktemp -d)
+	chown mysql:mysql "$tmpdir"
+	mysqld --user=mysql --init-file="$1" --socket="$tmpdir/mysqld.sock" --pid-file="$tmpdir/mysqld.pid" > /dev/null 2>&1
+	result=$?
+	rm -rf "$tmpdir"
+	return $result
+}
+
+# To avoid having hardcoded paths in the script, we do a search on the path, as suggested at:
+# https://www.debian.org/doc/manuals/developers-reference/ch06.en.html#bpp-debian-maint-scripts
+pathfind() {
+	OLDIFS="$IFS"
+	IFS=:
+	for p in $PATH; do
+		if [ -x "$p/$*" ]; then
+			IFS="$OLDIFS"
+			return 0
+		fi
+	done
+	IFS="$OLDIFS"
+	return 1
+}
+
+invoke() {
+	if pathfind invoke-rc.d; then
+		invoke-rc.d mysql
+	else
+		/etc/init.d/mysql $1
+	fi
+}
+case "$1" in
+	configure)
+
+	if [ -z "$2" ];
+	then
+
+		set -e
+		# If the existing config file is a proper file, we back it up
+		if [ -f "/etc/mysql/my.cnf" ] && [ ! -L "/etc/mysql/my.cnf" ]; then
+			cp /etc/mysql/my.cnf /etc/mysql/my.cnf.bak
+		fi
+		update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 200
+
+		MYSQLDATA=/var/lib/mysql
+		MYSQLFILES=/var/lib/mysql-files
+		if aa-status --enabled 2>/dev/null; then
+			apparmor_parser -r -T -W /etc/apparmor.d/usr.sbin.mysqld 2>/dev/null || true
+		fi
+		if [ ! "$(ls -A ${MYSQLDATA})" ] && [ -d ${MYSQLFILES} ];
+		then
+			db_get mysql-@DEB_PRODUCTNAME@-server/root-pass && PASSWD=${RET}
+			db_set mysql-@DEB_PRODUCTNAME@-server/root-pass ""
+			db_set mysql-@DEB_PRODUCTNAME@-server/re-root-pass ""
+			SQL=$(mktemp --tmpdir=/var/lib/mysql-files/)
+			touch ${SQL}
+			chmod 600 ${SQL}
+			chown mysql:mysql ${SQL}
+			if [ ! -z "${PASSWD}" ];
+			then
+				cat << EOF > ${SQL}
+USE mysql;
+ALTER user 'root'@'localhost' IDENTIFIED BY '${PASSWD}';
+SHUTDOWN;
+EOF
+				PASSWD=""
+			else
+				cat << EOF > ${SQL}
+USE mysql;
+INSTALL PLUGIN auth_socket SONAME 'auth_socket.so';
+ALTER USER 'root'@'localhost' IDENTIFIED WITH 'auth_socket';
+SHUTDOWN;
+EOF
+			fi
+			mysqld --initialize-insecure --user=mysql > /dev/null
+			run_init_sql "$SQL"
+			rm -f "$SQL"
+		fi
+
+		set +e
+
+	fi
+
+	;;
+
+	abort-upgrade|abort-remove|abort-configure)
+
+	;;
+
+	*)
+	exit 1
+	;;
+esac
+
+db_stop
+
+take_upstart_job_backup
+
+#DEBHELPER#
+
+exit 0

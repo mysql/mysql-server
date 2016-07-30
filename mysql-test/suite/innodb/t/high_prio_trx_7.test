@@ -36,6 +36,7 @@ let $wait_timeout = 10;
 let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
 WHERE id = @con2_id AND INFO = 'LOCK TABLE t1 WRITE/* From connection 2 */';
 --source include/wait_condition.inc
+--sleep 1
 COMMIT;
 
 --echo
@@ -92,6 +93,7 @@ let $wait_timeout = 10;
 let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
 WHERE id = @con1_id AND INFO = 'UPDATE t1 SET c1=1 WHERE c1=0';
 --source include/wait_condition.inc
+--sleep 1
 COMMIT;
 UNLOCK TABLES;
 
@@ -229,9 +231,11 @@ eval SET @con2_id = $con2_id;
 --enable_query_log
 let $wait_timeout = 10;
 let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
-WHERE id = @con2_id AND INFO = 'UPDATE t1 SET c1=2 WHERE c1=1 /* From connection 2 */';
+WHERE id = @con2_id AND INFO = 'UPDATE t1 SET c1=2 WHERE c1=1 /* From connection 2 */'
+AND STATE = 'updating';
 --source include/wait_condition.inc
 let $con3_id=`SELECT CONNECTION_ID()`;
+--sleep 1
 --send DELETE FROM t1 WHERE c1=1 /* From connection 3 */
 
 --connection con4
@@ -242,11 +246,12 @@ eval SET @con3_id = $con3_id;
 --enable_query_log
 let $wait_timeout = 10;
 let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
-WHERE id = @con3_id AND INFO = 'DELETE FROM t1 WHERE c1=1 /* From connection 3 */';
---echo $wait_condition
+WHERE id = @con3_id AND INFO = 'DELETE FROM t1 WHERE c1=1 /* From connection 3 */'
+AND STATE = 'updating';
 --source include/wait_condition.inc
 --echo # wait over
 let $con4_id=`SELECT CONNECTION_ID()`;
+--sleep 1
 --send INSERT INTO t1 VALUES (1) /* From connection 4 */
 
 --connection con5
@@ -263,6 +268,7 @@ let $wait_timeout = 10;
 let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
 WHERE id = @con4_id AND INFO = 'INSERT INTO t1 VALUES (1) /* From connection 4 */';
 --source include/wait_condition.inc
+--sleep 1
 COMMIT;
 
 --connection con2
@@ -298,6 +304,7 @@ let $wait_timeout = 10;
 let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
 WHERE id = @con1_id AND INFO = 'INSERT INTO t1 VALUES (50)';
 --source include/wait_condition.inc
+--sleep 1
 COMMIT;
 
 --connection con1

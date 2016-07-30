@@ -682,3 +682,45 @@ insert into t(a) values(1);
 select b from t group by c;
 
 drop table t;
+
+--echo #
+--echo # Bug#23037025 COL+PARTITION SIG11 IN ROW_SEL_STORE_MYSQL_REC
+--echo #
+set sql_mode='';
+
+CREATE TABLE t1 (
+   col1 INT,
+   col2 INT AS (col1) VIRTUAL NOT NULL,
+   col3 INT AS (1) VIRTUAL,
+   KEY (col3)
+) ENGINE=INNODB PARTITION BY KEY (col1) PARTITIONS 2;
+
+CREATE TABLE t2 (col1 INTEGER);
+CREATE TABLE t3 (col1 INTEGER);
+
+CREATE TRIGGER t2_trig1 BEFORE INSERT ON t2 FOR EACH ROW
+  INSERT INTO t3 SELECT col2 FROM t1 GROUP BY col3;
+
+--disable_warnings
+INSERT IGNORE INTO t1(col1) values(NULL);
+--enable_warnings
+
+--error ER_BAD_NULL_ERROR
+INSERT INTO t2 VALUES(1);
+
+DROP TRIGGER t2_trig1;
+DROP TABLE t3;
+DROP TABLE t2;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#23194259 ASSERTION FAILURE:TRX0TRX.H:1416:SRV_READ_ONLY_MODE
+--echo #
+
+CREATE TABLE t1(col1 INT AS(1), KEY(col1))
+ENGINE=INNODB
+PARTITION BY KEY(col1) PARTITIONS 2;
+
+SELECT * FROM t1 WHERE sha(uuid_short());
+
+DROP TABLE t1;

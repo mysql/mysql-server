@@ -1,4 +1,4 @@
-# Copyright (c) 2015 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,22 +13,24 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-
-# Exclude mysqlpump tool from being compiled by SunStudio compiler. It has bug
-# that forbids usage of pure virtual interfaces (and other classes with no
-# fields) without dummy workarounds. In fact, only libmysql must be build with
-# this toolset, so it is acceptable to exclude mysqlpump here.
+# If we are building client-only (-DWITHOUT_SERVER=ON) with Solaris Studio,
+# we skip building the mysqlpump tool. The server, and mysqlpump, will be built
+# using gcc.
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/dump
 )
 
 IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
-  RETURN()
+  IF (WITHOUT_SERVER)
+    MESSAGE(STATUS "Not building mysqlpump")
+    RETURN()
+  ENDIF()
 ENDIF()
 
 # Prevent Boost from including external precompiled Boost libraries, use
-# threading (not implemented for Solaris) and turn off unused functionality.
+# threading (not implemented for older Solaris Studio compilers)
+# and turn off unused functionality.
 IF(USING_LOCAL_BOOST)
   ADD_DEFINITIONS(
     -DBOOST_ALL_NO_LIB

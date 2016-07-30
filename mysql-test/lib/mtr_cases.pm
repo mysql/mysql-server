@@ -289,6 +289,7 @@ sub collect_one_suite($)
       $suitedir= my_find_dir($::basedir,
 			     ["share/mysql-test/suite",
 			      "mysql-test/suite",
+                              "lib/mysql-test/suite",
 			      "internal/mysql-test/suite",
 			      "mysql-test",
 			      # Look in storage engine specific suite dirs
@@ -296,6 +297,8 @@ sub collect_one_suite($)
 			      # Look in plugin specific suite dir
 			      "plugin/$suite/tests",
 			      "internal/plugin/$suite/tests",
+			      "rapid/plugin/$suite/tests",
+			      "rapid/mysql-test/suite",
 			     ],
 			     [$suite, "mtr"], ($suite =~ /^i_/));
       return unless $suitedir;
@@ -857,6 +860,14 @@ sub collect_one_test_case {
   {
     $tinfo->{'skip'}= 1;
     return $tinfo;
+  }
+
+  # ----------------------------------------------------------------------
+  # Check for replicaton tests
+  # ----------------------------------------------------------------------
+  if ( $suitedir =~ 'rpl' )
+  {
+    $tinfo->{'rpl_test'}= 1;
   }
 
   # ----------------------------------------------------------------------

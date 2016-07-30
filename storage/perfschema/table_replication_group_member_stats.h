@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,7 +50,7 @@ struct st_row_group_member_stats {
   ulonglong trx_in_queue;
   ulonglong trx_checked;
   ulonglong trx_conflicts;
-  ulonglong trx_validating;
+  ulonglong trx_rows_validating;
   char *trx_committed;
   size_t trx_committed_length;
   char last_cert_trx[Gtid::MAX_TEXT_LENGTH+1];

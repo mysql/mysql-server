@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -77,7 +77,8 @@ Gtid_set::Gtid_set(Sid_map *_sid_map, const char *text,
 void Gtid_set::init()
 {
   DBUG_ENTER("Gtid_set::init");
-  cached_string_length= -1;
+  has_cached_string_length= false;
+  cached_string_length= 0;
   cached_string_format= NULL;
   chunks= NULL;
   free_intervals= NULL;
@@ -277,7 +278,8 @@ void Gtid_set::put_free_interval(Interval *iv)
 void Gtid_set::clear()
 {
   DBUG_ENTER("Gtid_set::clear");
-  cached_string_length= -1;
+  has_cached_string_length= false;
+  cached_string_length= 0;
   rpl_sidno max_sidno= get_max_sidno();
   if (max_sidno == 0)
     DBUG_VOID_RETURN;
@@ -316,7 +318,8 @@ Gtid_set::add_gno_interval(Interval_iterator *ivitp,
   DBUG_PRINT("info", ("start=%lld end=%lld", start, end));
   Interval *iv;
   Interval_iterator ivit= *ivitp;
-  cached_string_length= -1;
+  has_cached_string_length= false;
+  cached_string_length= 0;
 
   while ((iv= ivit.get()) != NULL)
   {
@@ -371,6 +374,7 @@ void Gtid_set::remove_gno_interval(Interval_iterator *ivitp,
   DBUG_ASSERT(start < end);
   Interval_iterator ivit= *ivitp;
   Interval *iv;
+  has_cached_string_length= false;
   cached_string_length= -1;
 
   // Skip intervals of 'this' that are completely before the removed interval.
@@ -823,7 +827,7 @@ rpl_gno Gtid_set::get_last_gno(rpl_sidno sidno) const
   DBUG_RETURN(gno);
 }
 
-int Gtid_set::to_string(char **buf_arg, bool need_lock,
+long Gtid_set::to_string(char **buf_arg, bool need_lock,
                         const Gtid_set::String_format *sf_arg) const
 {
   DBUG_ENTER("Gtid_set::to_string");
@@ -834,7 +838,7 @@ int Gtid_set::to_string(char **buf_arg, bool need_lock,
     else
       sid_lock->assert_some_wrlock();
   }
-  int len= get_string_length(sf_arg);
+  size_t len= get_string_length(sf_arg);
   *buf_arg= (char *)my_malloc(key_memory_Gtid_set_to_string,
                               len + 1, MYF(MY_WME));
   if (*buf_arg == NULL)
@@ -845,7 +849,7 @@ int Gtid_set::to_string(char **buf_arg, bool need_lock,
   DBUG_RETURN(len);
 }
 
-int Gtid_set::to_string(char *buf, bool need_lock,
+size_t Gtid_set::to_string(char *buf, bool need_lock,
                         const Gtid_set::String_format *sf) const
 {
   DBUG_ENTER("Gtid_set::to_string");
@@ -916,9 +920,10 @@ int Gtid_set::to_string(char *buf, bool need_lock,
   memcpy(s, sf->end, sf->end_length);
   s += sf->end_length;
   *s= '\0';
-  DBUG_PRINT("info", ("ret='%s' strlen(s)=%zu s-buf=%lu get_string_length=%d", buf,
-             strlen(buf), (ulong) (s - buf), get_string_length(sf)));
-  DBUG_ASSERT(s - buf == get_string_length(sf));
+  DBUG_PRINT("info", ("ret='%s' strlen(s)=%zu s-buf=%lu get_string_length=%llu", buf,
+             strlen(buf), (ulong) (s - buf),
+             static_cast<unsigned long long>(get_string_length(sf))));
+  DBUG_ASSERT((ulong) (s - buf) == get_string_length(sf));
   if (sid_lock != NULL && need_lock)
     sid_lock->unlock();
   DBUG_RETURN((int)(s - buf));
@@ -977,14 +982,14 @@ static size_t get_string_length(rpl_gno gno)
 }
 
 
-int Gtid_set::get_string_length(const Gtid_set::String_format *sf) const
+size_t Gtid_set::get_string_length(const Gtid_set::String_format *sf) const
 {
   DBUG_ASSERT(sid_map != NULL);
   if (sid_lock != NULL)
     sid_lock->assert_some_wrlock();
   if (sf == NULL)
     sf= &default_string_format;
-  if (cached_string_length == -1 || cached_string_format != sf)
+  if (has_cached_string_length == false || cached_string_format != sf)
   {
     int n_sids= 0, n_intervals= 0, n_long_intervals= 0;
     size_t total_interval_length= 0;
@@ -1023,6 +1028,7 @@ int Gtid_set::get_string_length(const Gtid_set::String_format *sf) const
           (n_intervals - n_sids) * sf->gno_gno_separator_length +
           n_long_intervals * sf->gno_start_end_separator_length;
     }
+    has_cached_string_length= true;
     cached_string_format= sf;
   }
   return cached_string_length;

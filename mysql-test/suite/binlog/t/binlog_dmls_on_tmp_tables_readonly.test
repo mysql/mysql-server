@@ -1,0 +1,93 @@
+# ==== Purpose ====
+#
+# Check that DMLs are allowed on temporary tables, when server is in read only
+# mode and binary log is enabled with binlog-format being stmt/mixed mode.
+#
+# ==== Implementation ====
+#
+# Start the server with binary log being enabled. Mark the server as read only.
+# Create a non-SUPER user and let the user to create a temporary table and
+# perform DML operations on that temporary table. DMLs should not be blocked
+# with a 'server read-only mode' error.
+#
+# ==== References ====
+#
+# Bug#12818255: READ-ONLY OPTION DOES NOT ALLOW INSERTS/UPDATES ON TEMPORARY
+# TABLES
+# Bug#14294223: CHANGES NOT ALLOWED TO TEMPORARY TABLES ON READ-ONLY SERVERS
+###############################################################################
+--source include/have_log_bin.inc
+--disable_warnings
+DROP TABLE IF EXISTS t1 ;
+--enable_warnings
+
+--enable_connect_log
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+--echo # READ_ONLY does nothing to SUPER users
+--echo # so we use a non-SUPER one:
+GRANT CREATE, SELECT, DROP ON *.* TO test@localhost;
+
+connect (con1,localhost,test,,test);
+
+connection default;
+SET GLOBAL READ_ONLY=1;
+
+connection con1;
+CREATE TEMPORARY TABLE t1 (a INT) ENGINE=INNODB;
+
+--echo # Test INSERTS with autocommit being off and on.
+BEGIN;
+INSERT INTO t1 VALUES (10);
+COMMIT;
+INSERT INTO t1 VALUES (20);
+
+--echo # Test UPDATES with autocommit being off and on.
+BEGIN;
+UPDATE t1 SET a=30 WHERE a=10;
+COMMIT;
+UPDATE t1 SET a=40 WHERE a=20;
+
+connection default;
+SET GLOBAL READ_ONLY=0;
+
+--echo # Test scenario where global read_only is enabled in the middle of transaction.
+--echo # Test INSERT operations on temporary tables, INSERTs should be successful even
+--echo # when global read_only is enabled.
+connection con1;
+BEGIN;
+INSERT INTO t1 VALUES(50);
+
+connection default;
+SET GLOBAL READ_ONLY=1;
+
+connection con1;
+SELECT @@GLOBAL.READ_ONLY;
+COMMIT;
+
+connection default;
+SET GLOBAL READ_ONLY=0;
+
+--echo # Test UPDATE operations on temporary tables, UPDATEs should be successful even
+--echo # when global read_only is enabled.
+connection con1;
+BEGIN;
+UPDATE t1 SET a=60 WHERE a=50;
+
+connection default;
+SET GLOBAL READ_ONLY=1;
+
+connection con1;
+SELECT @@GLOBAL.READ_ONLY;
+COMMIT;
+
+SELECT * FROM t1;
+
+--echo # Clean up
+connection default;
+SET GLOBAL READ_ONLY=0;
+
+disconnect con1;
+DROP USER test@localhost;
+set sql_mode= @orig_sql_mode;
+--disable_connect_log

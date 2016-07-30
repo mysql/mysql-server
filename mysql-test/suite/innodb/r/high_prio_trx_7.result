@@ -117,8 +117,6 @@ DELETE FROM t1 WHERE c1=1 /* From connection 3 */;
 include/start_transaction_high_prio.inc
 START TRANSACTION /* HIGH PRIORITY */;
 # connection 4: wait - insert
-SELECT COUNT(*) = 1 FROM information_schema.processlist
-WHERE id = @con3_id AND INFO = 'DELETE FROM t1 WHERE c1=1 /* From connection 3 */'
 # wait over
 INSERT INTO t1 VALUES (1) /* From connection 4 */;
 include/start_transaction_high_prio.inc

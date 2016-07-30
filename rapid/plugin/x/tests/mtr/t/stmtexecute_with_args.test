@@ -1,0 +1,257 @@
+## generated
+## Test query with resultset
+
+## Preamble
+
+## SETUP DB
+--source ../include/xplugin_preamble.inc
+CREATE DATABASE xtest;
+USE xtest;
+CREATE TABLE `scalar_types`(`number_uint` INTEGER UNSIGNED DEFAULT 10, `number_sint` INTEGER DEFAULT -10, `value_bool` BOOLEAN DEFAULT 0, `value_string` VARCHAR(255) default NULL, `number_float` FLOAT DEFAULT 1.1, `number_double` DOUBLE DEFAULT 2.2, `value_blob` TINYBLOB DEFAULT NULL);
+
+--write_file $MYSQL_TMP_DIR/stmtexecute_insert.tmp
+Mysqlx.Sql.StmtExecute {
+  stmt: "INSERT INTO `xtest`.`scalar_types`(`number_sint`, `number_uint`, `value_string`) VALUES(0, ?, 'First inserted row'),(?, 1,'Second inserted row'), (-1, 0,?)"
+  args {
+      type: SCALAR
+      scalar {
+        type: V_UINT
+        v_unsigned_int: 1
+      }
+  }
+  args {
+      type: SCALAR
+      scalar {
+        type: V_SINT
+        v_signed_int: -1
+      }
+  }
+  args {
+      type: SCALAR
+      scalar {
+        type: V_STRING
+        v_string {
+           value: "\"Thrid\" inserted 'row'"
+        }
+      }
+  }  
+}
+-->recvresult
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "INSERT INTO `xtest`.`scalar_types`(`number_float`, `number_double`, `value_blob`) VALUES(0.1, ?, 'First inserted blob'),(?, 200.01,'Second inserted blob'), (10.11, 2.2, ?), (111, 222, ?)"
+  args {
+      type: SCALAR
+      scalar {
+        type: V_DOUBLE
+        v_double: 200.01
+      }
+  }
+  args {
+      type: SCALAR
+      scalar {
+        type: V_DOUBLE
+        v_double: 10.11
+      }
+  }
+  args {
+      type: SCALAR
+      scalar {
+        type: V_STRING
+        v_string {
+           value: "\"Thrid\" inserted 'blob'"
+        }
+      }
+  }  
+  args {
+      type: SCALAR
+      scalar {
+        type: V_NULL
+      }
+  }  
+}
+-->recvresult
+EOF
+
+--write_file $MYSQL_TMP_DIR/stmtexecute_select.tmp
+-->echo Filter data by unsigned int
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT * FROM `xtest`.`scalar_types` WHERE `number_uint`=?"
+  args {
+      type: SCALAR
+      scalar {
+        type: V_UINT
+        v_unsigned_int: 1
+      }
+  }
+}
+-->recvresult
+
+-->echo Filter data by signed int
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT * FROM `xtest`.`scalar_types` WHERE `number_sint`=?"
+  args {
+      type: SCALAR
+      scalar {
+        type: V_SINT
+        v_signed_int: -1
+      }
+  }
+}
+-->recvresult
+
+-->echo Filter data by blob
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT * FROM `xtest`.`scalar_types` WHERE `value_blob` LIKE ?"
+  args {
+      type: SCALAR
+      scalar {
+        type: V_STRING
+        v_string {
+           value: "%blob%"
+        }
+      }
+  }
+}
+-->recvresult
+
+-->echo Filter empty data
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT * FROM `xtest`.`scalar_types` WHERE `value_string` IS ?"
+  args {
+      type: SCALAR
+      scalar {
+        type: V_NULL
+      }
+  }
+}
+-->recvresult
+
+-->echo Filter data by string pattern
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT * FROM `xtest`.`scalar_types` WHERE `value_string` LIKE ?"
+  args {
+      type: SCALAR
+      scalar {
+        type: V_STRING
+        v_string {
+        	value: "%inserted 'row%"
+        }
+      }
+  }
+}
+-->recvresult
+
+-->echo Filter data by double
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT * FROM `xtest`.`scalar_types` WHERE `number_double` = ?"
+  args {
+      type: SCALAR
+      scalar {
+        type: V_DOUBLE
+        v_double: 2.2
+      }
+  }
+}
+-->recvresult
+
+-->echo Append string as new column
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT `number_sint`,? FROM `xtest`.`scalar_types` LIMIT 1" 
+  args {
+      type: SCALAR
+      scalar {
+        type: V_STRING
+        v_string {
+        	value: "number_sint"
+        }
+      }
+  }
+}
+-->recvresult
+
+-->echo Use compact_metadata=true/false
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT `number_sint`,? FROM `xtest`.`scalar_types` LIMIT 1"
+  args {
+      type: SCALAR
+      scalar {
+        type: V_STRING
+        v_string {
+                value: "number_sint"
+        }
+      }
+  }
+  compact_metadata : true
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT `number_sint`,? FROM `xtest`.`scalar_types` LIMIT 1"
+  args {
+      type: SCALAR
+      scalar {
+        type: V_STRING
+        v_string {
+                value: "number_sint"
+        }
+      }
+  }
+  compact_metadata : false
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+EOF
+
+--write_file $MYSQL_TMP_DIR/stmtexecute_invalid.tmp
+-->echo Too many args
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT * FROM `xtest`.`scalar_types`"
+  args {
+      type: SCALAR
+      scalar {
+        type: V_STRING
+        v_string {
+        	value: "%inserted 'row%"
+        }
+      }
+  }
+}
+-->recvtype Mysqlx.Error
+
+-->sql
+USE `xtest`;
+-->endsql
+
+-->echo String as identifier
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT * FROM ?" 
+  args {
+      type: SCALAR
+      scalar {
+        type: V_STRING
+        v_string {
+        	value: "scalar_types"
+        }
+      }
+  }
+}
+-->recvtype Mysqlx.Error
+
+EOF
+
+
+## Test starts here
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/stmtexecute_insert.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/stmtexecute_insert.tmp
+
+SELECT * FROM `xtest`.`scalar_types`;
+
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/stmtexecute_select.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/stmtexecute_select.tmp
+
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/stmtexecute_invalid.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/stmtexecute_invalid.tmp
+
+## Postamble
+UNINSTALL PLUGIN mysqlx;
+DROP DATABASE xtest;

@@ -169,6 +169,11 @@ procs_priv
 proxies_priv
 tables_priv
 user
+=== test mysql_upgrade of two mysqlds ===
+DROP DATABASE sys;
+DROP DATABASE sys;
+mysql_upgrade first mysqld...
+mysql_upgrade second mysqld...
 call mysql.mysql_cluster_backup_privileges();
 call mysql.mysql_cluster_backup_privileges();
 call mysql.mysql_cluster_restore_local_privileges();

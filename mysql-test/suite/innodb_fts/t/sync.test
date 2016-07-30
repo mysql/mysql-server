@@ -108,8 +108,6 @@ DROP TABLE t1;
 --echo # Case 3: Test insert crash recovery
 --let $_expect_file_name=$MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
 
-connect (con1,localhost,root,,);
-
 CREATE TABLE t1 (
         FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
         title VARCHAR(200),
@@ -137,6 +135,36 @@ INSERT INTO t1(title) VALUES('mysql');
 SET SESSION debug="-d,fts_instrument_sync_debug";
 
 SELECT * FROM t1 WHERE MATCH(title) AGAINST ('mysql database');
+
+DROP TABLE t1;
+
+--echo # Case 4: Test sync commit & rollback in background
+CREATE TABLE t1(
+        id INT AUTO_INCREMENT,
+        title VARCHAR(100),
+        FULLTEXT(title),
+        PRIMARY KEY(id)) ENGINE=InnoDB;
+
+SET SESSION debug="+d,fts_instrument_sync";
+INSERT INTO t1(title) VALUES('mysql');
+SET SESSION debug="-d,fts_instrument_sync";
+
+--source include/restart_mysqld.inc
+
+SET GLOBAL debug="+d,fts_instrument_sync,fts_instrument_sync_interrupted";
+INSERT INTO t1(title) VALUES('database');
+SET GLOBAL debug="-d,fts_instrument_sync,fts_instrument_sync_interrupted";
+
+SET SESSION debug="+d,fts_instrument_sync_debug";
+INSERT INTO t1(title) VALUES('good');
+SET SESSION debug="-d,fts_instrument_sync_debug";
+
+SET GLOBAL innodb_ft_aux_table="test/t1";
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+SET GLOBAL innodb_ft_aux_table=default;
+
+SELECT * FROM t1 WHERE MATCH(title) AGAINST ('mysql database good');
 
 DROP TABLE t1;
 

@@ -123,6 +123,15 @@ page_zip_empty_size(
 	ulint	n_fields,	/*!< in: number of columns in the index */
 	ulint	zip_size)	/*!< in: compressed page size in bytes */
 	MY_ATTRIBUTE((const));
+
+/** Check whether a tuple is too big for compressed table
+@param[in]	index	dict index object
+@param[in]	entry	entry for the index
+@return	true if it's too big, otherwise false */
+bool
+page_zip_is_too_big(
+	const dict_index_t*	index,
+	const dtuple_t*		entry);
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**

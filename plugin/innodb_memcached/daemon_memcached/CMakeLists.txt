@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -78,7 +78,7 @@ SET(MEMCACHED_SOURCES
 MYSQL_ADD_PLUGIN(libmemcached ${MEMCACHED_SOURCES}
 		MODULE_ONLY MODULE_OUTPUT_NAME "libmemcached")
 
-TARGET_LINK_LIBRARIES(libmemcached ${LIBEVENT_LIBRARY})
+TARGET_LINK_LIBRARIES(libmemcached ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES})
 TARGET_LINK_LIBRARIES(libmemcached memcached_utilities)
 
 IF(ENABLE_MEMCACHED_SASL)

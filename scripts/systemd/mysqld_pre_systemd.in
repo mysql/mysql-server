@@ -47,7 +47,7 @@ install_db () {
     # Note: something different than datadir=/var/lib/mysql requires SELinux policy changes (in enforcing mode)
 
     local instance=$1
-    datadir=$(get_option mysqld datadir "/var/lib/mysql${instance+:-$instance}" $instance)
+    datadir=$(get_option mysqld datadir "/var/lib/mysql${instance:+-$instance}" $instance)
     log=$(get_option mysqld log-error "/var/log/mysql${instance:+-$instance}.log" $instance)
 
     # Restore log, dir, perms and SELinux contexts

@@ -1,0 +1,171 @@
+## generated
+## Simple collection
+
+--source ../include/xplugin_preamble.inc
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/admin_list_objects.tmp
+## Test data
+-->sql
+create schema xtest default charset 'utf8mb4';
+use xtest;
+create table mytable (a int);
+create table mytable2 (a int, doc json);
+create view myview as select 1;
+-->endsql
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xtest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "books"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recvresult
+
+-->sql
+create view fakecoll as select * from xtest.books
+-->endsql
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_objects"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xtest"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recvresult
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_objects"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "invalid"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->expecterror 1049
+-->recvresult
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_objects"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xtest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "myt%"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recvresult
+
+## empty resultset
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_objects"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xtest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "bla%"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recvresult
+
+## list objects in current database 
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_objects"
+  namespace: "xplugin"
+}
+-->recvresult
+
+
+-->stmtsql ALTER TABLE xtest.books ADD COLUMN (nothing INT)
+-->recvresult
+
+
+-->stmtsql show columns from xtest.books
+-->recvresult
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_objects"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xtest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "books"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recvresult
+
+EOF
+
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/admin_list_objects.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/admin_list_objects.tmp
+
+## Postamble
+drop schema if exists xtest;
+uninstall plugin mysqlx;

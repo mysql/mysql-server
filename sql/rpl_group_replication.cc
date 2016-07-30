@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -321,6 +321,7 @@ get_server_startup_prerequirements(Trans_context_info& requirements,
   requirements.gtid_mode=
     get_gtid_mode(has_lock ? GTID_MODE_LOCK_GTID_MODE :
                   GTID_MODE_LOCK_NONE);
+  requirements.log_slave_updates= opt_log_slave_updates;
   requirements.transaction_write_set_extraction=
     global_system_variables.transaction_write_set_extraction;
   requirements.mi_repository_type= opt_mi_repository_id;

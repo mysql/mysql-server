@@ -386,18 +386,22 @@ CREATE TABLE t1 (f1 int, gc int AS (f1 + 1) STORED PRIMARY KEY);
 INSERT INTO t1(f1) VALUES (1),(2),(0),(9),(3),(4),(8),(7),(5),(6);
 ANALYZE TABLE t1;
 --echo # Should use index
+--sorted_result
 SELECT * FROM t1 WHERE f1 + 1 > 7;
 EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7;
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
 SELECT * FROM t1 WHERE f1 + 1 = 7;
 EXPLAIN SELECT * FROM t1 WHERE f1 + 1 = 7;
+--sorted_result
 SELECT * FROM t1 WHERE f1 + 1 IN (7,5);
 EXPLAIN SELECT * FROM t1 WHERE f1 + 1 IN(7,5);
+--sorted_result
 SELECT * FROM t1 WHERE f1 + 1 BETWEEN 5 AND 7;
 EXPLAIN SELECT * FROM t1 WHERE f1 + 1 BETWEEN 5 AND 7;
 
 --echo # Check that expression isn't transformed for a disabled key
+--sorted_result
 SELECT * FROM t1 IGNORE KEY FOR JOIN(PRIMARY) WHERE f1 + 1 BETWEEN 5 AND 7;
 EXPLAIN SELECT * FROM t1 IGNORE KEY FOR JOIN(PRIMARY) WHERE f1 + 1 BETWEEN 5 AND 7;
 
@@ -415,6 +419,7 @@ EXPLAIN SELECT f1 + 1, MAX(GC)
   FROM t1 IGNORE KEY FOR GROUP BY(PRIMARY) GROUP BY f1 + 1;
 
 --echo # Shouldn't use index
+--sorted_result
 SELECT * FROM t1 WHERE f1 + 1 > 7.0;
 EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7.0;
 
@@ -437,9 +442,11 @@ INSERT INTO t1(f1) VALUES
  (070707),(080808);
 ANALYZE TABLE t1;
 
+--sorted_result
 SELECT * FROM t1 WHERE f1 + 1 > 070707;
 --echo # INT column & index should be picked
 EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 070707;
+--sorted_result
 SELECT * FROM t1 WHERE f1 + 1 > CAST(070707 AS DATE);
 --echo # DATE column & index should be picked
 EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > CAST(070707 AS DATE);
@@ -755,6 +762,7 @@ INSERT INTO employees (data) VALUES('{"id": 2, "name": "Joe"}');
 let $query= SELECT * FROM employees WHERE JSON_EXTRACT(data, '\$.name') = 'Jane';
 ANALYZE TABLE employees;
 --eval EXPLAIN $query
+--sorted_result
 --eval $query
 # The index on name1 should not be used, since it contains
 # double-quoted values which don't match the string literal in the
@@ -762,11 +770,13 @@ ANALYZE TABLE employees;
 ALTER TABLE employees ADD INDEX name_idx1(name1);
 ANALYZE TABLE employees;
 --eval EXPLAIN $query
+--sorted_result
 --eval $query
 # The index on name2 contains unquoted strings and can be used.
 ALTER TABLE employees ADD INDEX name_idx2(name2);
 ANALYZE TABLE employees;
 --eval EXPLAIN $query
+--sorted_result
 --eval $query
 DROP TABLE employees;
 --echo #

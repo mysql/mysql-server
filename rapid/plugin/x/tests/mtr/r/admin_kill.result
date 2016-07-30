@@ -1,0 +1,151 @@
+create user unpriv@localhost;
+set password for unpriv@localhost = password('x');
+Warnings:
+Warning	1287	'SET PASSWORD FOR <user> = PASSWORD('<plaintext_password>')' is deprecated and will be removed in a future release. Please use SET PASSWORD FOR <user> = '<plaintext_password>' instead
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	sql_session
+1	root	localhost	$SESSION
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+connecting...
+active session is now 'aux'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	sql_session
+1	root	localhost	$SESSION
+2	root	localhost	$SESSION
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+switched to session default
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	sql_session
+1	root	localhost	$SESSION
+2	root	localhost	$SESSION
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 2
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+RUN select sleep(0.5)
+sleep(0.5)
+0
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	sql_session
+1	root	localhost	$SESSION
+command ok
+connecting...
+active session is now 'unpriv'
+Should list unprivs session only
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	sql_session
+3	unpriv	localhost	$SESSION
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+Try to kill a root session from unpriv
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 1
+    }
+  }
+  namespace: "xplugin"
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 1095
+  msg: "You are not owner of thread"
+  sql_state: "HY000"
+}
+
+switched to session default
+RUN select sleep(0.5)
+sleep(0.5)
+0
+0 rows affected
+Should list all sessions
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	sql_session
+1	root	localhost	$SESSION
+3	unpriv	localhost	$SESSION
+command ok
+Now kill the unpriv session
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 3
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+RUN select sleep(0.5)
+sleep(0.5)
+0
+0 rows affected
+Should list only root session
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	sql_session
+1	root	localhost	$SESSION
+command ok
+RUN drop schema if exists xtest
+
+0 rows affected
+RUN drop user unpriv@localhost
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+uninstall plugin mysqlx;

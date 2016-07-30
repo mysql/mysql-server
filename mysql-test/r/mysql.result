@@ -522,9 +522,10 @@ a
 2
 #
 # Bug #16102788: INDETERMINATE BEHAVIOR DUE TO EMPTY OPTION VALUES
+# Bug #23023457: DEBIAN/UBUNTU PACKAGES FAIL TO INSTALL BECAUSE OF EMPTY CONFIG VALUES
 #
-mysql: [ERROR] mysql: Empty value for 'port' specified
-mysql: [ERROR] mysql: Empty value for 'port' specified
+mysql: [Warning] mysql: Empty value for 'port' specified. Will throw an error in future versions
+mysql: [Warning] mysql: Empty value for 'port' specified. Will throw an error in future versions
 #
 # Bug #21464621: MYSQL CLI SHOULD SUGGEST CONNECT-EXPIRED-PASSWORD WHEN ERROR 1862 OCCURS
 #
