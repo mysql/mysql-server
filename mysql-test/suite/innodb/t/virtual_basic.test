@@ -1016,7 +1016,6 @@ CREATE TABLE child (
         ON DELETE CASCADE
 ) ENGINE=INNODB;
 
---error ER_CANNOT_CREATE_VIRTUAL_INDEX_CONSTRAINT
 ALTER TABLE child ADD INDEX `i1` (x);
 
 # If foreign constrain does not have cascade clause, or with "no action" clause
@@ -1037,8 +1036,6 @@ DROP TABLE child_1;
 
 DROP TABLE child;
 
-# This should fail
---error ER_CANNOT_ADD_FOREIGN
 CREATE TABLE child (
     id INT,
     parent_id INT,
@@ -1051,6 +1048,8 @@ CREATE TABLE child (
         ON DELETE CASCADE
 ) ENGINE=INNODB;
 
+DROP TABLE child;
+
 CREATE TABLE child (
     id INT,
     parent_id INT,
@@ -1059,7 +1058,6 @@ CREATE TABLE child (
     INDEX `i1` (x)
 ) ENGINE=INNODB;
 
---error ER_CANNOT_ADD_FOREIGN
 ALTER TABLE child ADD FOREIGN KEY (parent_id)
 REFERENCES parent(id)
 ON DELETE CASCADE;
@@ -1067,17 +1065,14 @@ ON DELETE CASCADE;
 # Check inplace option
 SET foreign_key_checks = 0;
 
---error ER_CANNOT_ADD_FOREIGN_BASE_COL_VIRTUAL
 ALTER TABLE child ADD FOREIGN KEY (parent_id)
 REFERENCES parent(id)
 ON DELETE CASCADE;
 
---error ER_CANNOT_ADD_FOREIGN_BASE_COL_VIRTUAL
 ALTER TABLE child ADD FOREIGN KEY (parent_id)
 REFERENCES parent(id)
 ON DELETE SET NULL;
 
---error ER_CANNOT_ADD_FOREIGN_BASE_COL_VIRTUAL
 ALTER TABLE child ADD FOREIGN KEY (parent_id)
 REFERENCES parent(id)
 ON UPDATE CASCADE;
@@ -1111,8 +1106,7 @@ CREATE TABLE `ibstd_16` (
   KEY `vbidxcol_2` (`vbidxcol`,`d`)
 )  ENGINE=INNODB;
 
-# This should fail, since KEY `a_2` contains a virtual column and
-# a column 'a' that is in a cascading foreign constraint
+# Block when FK constraint on base column of stored column.
 --error ER_CANNOT_ADD_FOREIGN
 CREATE TABLE `ibstd_16_fk` (
   `a` int(11) DEFAULT NULL,
@@ -1139,7 +1133,6 @@ CREATE TABLE `ibstd_16_fk` (
   `d` int(11) DEFAULT NULL,
   `b` varchar(198) DEFAULT NULL,
   `c` char(179) DEFAULT NULL,
-  `vadcol` int(11) GENERATED ALWAYS AS (a+length(d)) STORED,
   `vbcol` char(2) GENERATED ALWAYS AS (substr(b,2,2)) VIRTUAL,
   `vbidxcol` char(3) GENERATED ALWAYS AS (substr(b,1,3)) VIRTUAL,
   UNIQUE KEY `b` (`b`(10),`a`,`d`),
@@ -1152,9 +1145,6 @@ CREATE TABLE `ibstd_16_fk` (
   CONSTRAINT `fk_16` FOREIGN KEY (`a`) REFERENCES `ibstd_16` (`a`) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
-# Add this index with virtual column and normal column in constraint
-# also should fail
---error ER_CANNOT_CREATE_VIRTUAL_INDEX_CONSTRAINT
 ALTER TABLE ibstd_16_fk ADD INDEX `a_2` (`a`,`vbidxcol`);
 
 # Now try to add a table with virtual index, and then add constraint
@@ -1166,7 +1156,6 @@ CREATE TABLE `ibstd_16_fk` (
   `d` int(11) DEFAULT NULL,
   `b` varchar(198) DEFAULT NULL,
   `c` char(179) DEFAULT NULL,
-  `vadcol` int(11) GENERATED ALWAYS AS (a+length(d)) STORED,
   `vbcol` char(2)  GENERATED ALWAYS AS (substr(b,2,2)) VIRTUAL,
   `vbidxcol` char(3) GENERATED ALWAYS AS (substr(b,1,3)) VIRTUAL,
   UNIQUE KEY `b` (`b`(10),`a`,`d`),
@@ -1179,20 +1168,13 @@ CREATE TABLE `ibstd_16_fk` (
   KEY `vbidxcol_2` (`vbidxcol`,`d`)
 ) ENGINE=InnoDB;
 
-# This should fail, since it will make column `a` part of constraint, and
-# it is already part of a virtual index (`a_2` (`a`,`vbidxcol`))
---error ER_CANNOT_ADD_FOREIGN
 ALTER TABLE `ibstd_16_fk` ADD CONSTRAINT `fk_16` FOREIGN KEY (`a`) REFERENCES `ibstd_16` (`a`) ON DELETE SET NULL;
 
 # DROP the index
 DROP INDEX a_2 ON ibstd_16_fk;
 
-# Now the constraint can be added, since NONE of virtual columns can be
-# affected by cascade update
-ALTER TABLE `ibstd_16_fk` ADD CONSTRAINT `fk_16` FOREIGN KEY (`a`) REFERENCES `ibstd_16` (`a`) ON DELETE SET NULL;
-
 INSERT INTO ibstd_16 VALUES (1, 2, "aaa", "bbb", default, default, default);
-INSERT INTO ibstd_16_fk VALUES(1, 3, "mmm", "SSS", default, default, default);
+INSERT INTO ibstd_16_fk VALUES(1, 3, "mmm", "SSS", default, default);
 
 # Cascading delete/update on column non-related to virtual column or virtual
 # index will be fine
@@ -1524,3 +1506,17 @@ ALTER TABLE t ADD COLUMN nc01128 BIGINT  AUTO_INCREMENT NOT NULL, ADD KEY auto_n
 
 DROP TABLE t;
 --source include/wait_until_count_sessions.inc
+
+--echo #
+--echo #Bug #22965271 NEEDS REBUILD FOR COLUMN LENGTH CHANGE THAT IS
+--echo #PART OF VIRTUAL INDEX.
+--echo #
+
+CREATE TABLE t1(
+a VARCHAR(45) CHARACTER SET LATIN1,
+b VARCHAR(115) CHARACTER SET UTF8 GENERATED ALWAYS AS ('f1') VIRTUAL,
+UNIQUE KEY (b,a))ENGINE=INNODB;
+INSERT INTO t1(a) VALUES ('');
+ALTER TABLE t1 CHANGE COLUMN a a VARCHAR(85);
+SELECT * FROM t1;
+DROP TABLE t1;

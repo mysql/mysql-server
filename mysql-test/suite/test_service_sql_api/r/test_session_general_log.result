@@ -1,3 +1,5 @@
+# Setting general_log to initial state empty
+TRUNCATE TABLE mysql.general_log;
 SET @old_log_output = @@global.log_output;
 SET @old_general_log = @@global.general_log;
 SET @old_general_log_file = @@global.general_log_file;
@@ -63,12 +65,12 @@ deinit thread
 ##########################################
 # Check general log file
 ##########################################
-CREATE TABLE t1 (c1 TEXT);
+CREATE TABLE t1 (c1 TEXT, c2 TEXT);
 LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/log/test_session_general.log' INTO TABLE t1;
-SELECT count(c1) FROM t1 WHERE c1 LIKE '%Connect%';
+SELECT count(c1) FROM t1 WHERE c2 LIKE '%Connect%';
 count(c1)
 18
-SELECT count(c1) FROM t1 WHERE c1 LIKE '%Quit%';
+SELECT count(c1) FROM t1 WHERE c2 LIKE '%Quit%';
 count(c1)
 18
 SELECT count(*) FROM mysql.general_log WHERE command_type IN ('Connect','Quit');
@@ -79,6 +81,8 @@ count(*)
 ##########################################
 # Dropping the created table
 DROP TABLE t1;
+# Removing general_log content
+TRUNCATE TABLE mysql.general_log;
 # Deleting log file created
 SET GLOBAL log_output = @old_log_output;
 SET GLOBAL general_log = @old_general_log;

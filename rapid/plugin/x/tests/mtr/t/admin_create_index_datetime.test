@@ -1,0 +1,331 @@
+## generated
+## Index of time related types
+
+--source ../include/xplugin_preamble.inc
+## Test starts here
+--write_file $MYSQL_TMP_DIR/admin_create_index_datetime.tmp
+## Test data
+-->sql
+drop schema if exists xtest;
+create schema xtest default charset 'utf8mb4';
+use xtest;
+-->endsql
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xtest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "dt"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+Mysqlx.Crud.Insert {
+  collection {
+    name: "dt"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "{\"_id\": \"1\", \"data\": {\"datetime\": \"1976-02-25T01:12:34\", \"date\":\"2015-05-27\", \"time\":\"10:36:00\"}}"
+        }
+      }
+    }
+  }
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+Mysqlx.Crud.Insert {
+  collection {
+    name: "dt"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+          type: V_STRING
+          v_string {
+            value: "{\"_id\": \"2\", \"data\": {\"datetime\": \"2010-03-25T12:02:00\", \"date\":\"2014-05-27\", \"time\":\"11:36:00\"}}"
+          }
+      }
+    }
+  }
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+Mysqlx.Crud.Insert {
+  collection {
+    name: "dt"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "{\"_id\": \"3\", \"data\": {\"datetime\": \"2013-04-05T03:00:34\", \"date\":\"2013-05-27\", \"time\":\"12:36:00\"}}"
+        }
+      }
+    }
+  }
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+Mysqlx.Crud.Insert {
+  collection {
+    name: "dt"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "{\"_id\": \"4\", \"data\": {\"datetime\": \"1982-12-10T03:12:34\", \"date\":\"2012-05-27\", \"time\":\"13:36:00\"}}"
+        }
+      }
+    }
+  }
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection_index"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xtest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "dt"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "datetime"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: false
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "$.data.datetime"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "DATETIME"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: false
+    }
+  }
+  namespace: "xplugin"
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection_index"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xtest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "dt"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "time"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: false
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "$.data.time"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "TIME"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: false
+    }
+  }
+  namespace: "xplugin"
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection_index"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xtest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "dt"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "date"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: false
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "$.data.date"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "DATE"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: false
+    }
+  }
+  namespace: "xplugin"
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+## Cleanup
+-->sql
+drop schema if exists xtest;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/admin_create_index_datetime.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/admin_create_index_datetime.tmp
+
+## Postamble
+uninstall plugin mysqlx;

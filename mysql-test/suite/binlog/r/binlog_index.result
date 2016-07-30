@@ -328,6 +328,69 @@ master-bin.000017	#
 master-bin.000018	#
 master-bin.000019	#
 master-bin.000020	#
+# Test case11: Bug #20381055SERVER CRASHES IF INDEX FILE IS OPENED BY
+SET SESSION debug="d,force_index_file_delete_failure";
+call mtr.add_suppression("Failed to delete the existing index file");
+call mtr.add_suppression("failed to move crash safe index file to index file");
+call mtr.add_suppression("failed to update the index file");
+PURGE BINARY LOGS TO 'master-bin.000014';;
+ERROR HY000: I/O error reading log index file
+# Test the index file is complete, although is not purged successfully.
+# Also this will indicate that binary logging is not disabled.
+show binary logs;
+Log_name	File_size
+master-bin.000012	#
+master-bin.000013	#
+master-bin.000014	#
+master-bin.000015	#
+master-bin.000016	#
+master-bin.000017	#
+master-bin.000018	#
+master-bin.000019	#
+master-bin.000020	#
+SET GLOBAL binlog_error_action='IGNORE_ERROR';
+FLUSH LOGS;
+ERROR HY000: Can't open file: 'master-bin.000021' (errno: 1 - Operation not permitted)
+SHOW BINARY LOGS;
+ERROR HY000: You are not using binary logging
+# restart
+show binary logs;
+Log_name	File_size
+master-bin.000012	#
+master-bin.000013	#
+master-bin.000014	#
+master-bin.000015	#
+master-bin.000016	#
+master-bin.000017	#
+master-bin.000018	#
+master-bin.000019	#
+master-bin.000020	#
+master-bin.000021	#
+CREATE TABLE t1(i INT);
+SET GLOBAL binlog_error_action='IGNORE_ERROR';
+SET SESSION debug="+d,force_index_file_delete_failure";
+SET SESSION debug="+d,force_rotate";
+INSERT INTO t1 VALUES (12);
+ERROR HY000: Can't open file: 'master-bin.000022' (errno: 1 - Operation not permitted)
+SHOW BINARY LOGS;
+ERROR HY000: You are not using binary logging
+# restart
+show binary logs;
+Log_name	File_size
+master-bin.000012	#
+master-bin.000013	#
+master-bin.000014	#
+master-bin.000015	#
+master-bin.000016	#
+master-bin.000017	#
+master-bin.000018	#
+master-bin.000019	#
+master-bin.000020	#
+master-bin.000021	#
+master-bin.000022	#
+DROP TABLE t1;
+# Test case11: Ends
 SET SESSION debug="";
 SET GLOBAL binlog_error_action= ABORT_SERVER;
+RESET MASTER;
 End of tests

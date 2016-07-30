@@ -902,6 +902,9 @@ struct row_prebuilt_t {
 
 	/** The MySQL table object */
 	TABLE*		m_mysql_table;
+
+	/** limit value to avoid fts result overflow */
+	ulonglong	m_fts_limit;
 };
 
 /** Callback for row_mysql_sys_index_iterate() */
@@ -925,6 +928,8 @@ struct SysIndexCallback {
 @param[in,out]	mysql_table	mysql table object
 @param[in]	old_table	during ALTER TABLE, this is the old table
 				or NULL.
+@param[in]	parent_update	update vector for the parent row
+@param[in]	foreign		foreign key information
 @return the field filled with computed value */
 dfield_t*
 innobase_get_computed_value(
@@ -936,7 +941,22 @@ innobase_get_computed_value(
 	const dict_field_t*	ifield,
 	THD*			thd,
 	TABLE*			mysql_table,
-	const dict_table_t*	old_table);
+	const dict_table_t*	old_table,
+	upd_t*			parent_update,
+	dict_foreign_t*		foreign);
+
+/** Get the computed value by supplying the base column values.
+@param[in,out]	table	the table whose virtual column template to be built */
+void
+innobase_init_vc_templ(
+	dict_table_t*	table);
+
+/** Change dbname and table name in table->vc_templ.
+@param[in,out]	table	the table whose virtual column template
+dbname and tbname to be renamed. */
+void
+innobase_rename_vc_templ(
+	dict_table_t*	table);
 
 #define ROW_PREBUILT_FETCH_MAGIC_N	465765687
 

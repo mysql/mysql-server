@@ -25,6 +25,9 @@
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
 
+# Pass --define 'with_cluster 1' to build with cluster support
+%{?with_cluster: %global cluster 1}
+
 # By default, a build will include the bundeled "yaSSL" library for SSL.
 %{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
 
@@ -42,7 +45,7 @@
 %{!?feature_set:                 %global feature_set community}
 %{!?compilation_comment_release: %global compilation_comment_release MySQL Community Server - (GPL)}
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community Server - Debug (GPL)}
-%{!?src_base:                    %global src_base mysql}
+%{!?src_base:                    %global src_base mysql%{?cluster:-cluster-gpl}}
 
 # Version for compat libs
 %if 0%{?rhel} == 5
@@ -58,7 +61,7 @@
 %endif
 
 %if 0%{?rhel} == 7
-%global compatver             5.6.25
+%global compatver             5.6.31
 %global compatlib             18
 %global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.6/mysql-%{compatver}.tar.gz
 %endif
@@ -95,7 +98,7 @@
 
 %global min                   5.7.9
 
-Name:           mysql-%{product_suffix}
+Name:           mysql%{?cluster:-cluster}-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @MYSQL_NO_DASH_VERSION@
@@ -113,7 +116,6 @@ Source7:        %{compatsrc}
 Source10:       http://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
-Patch0:         mysql-5.7-libmysqlclient-symbols.patch
 %{?el5:BuildRequires:  cmake28 >= 2.8.2}
 %{?el6:BuildRequires:  cmake28 >= 2.8.2}
 %{?el7:BuildRequires:  cmake >= 2.8.2}
@@ -172,22 +174,29 @@ Requires:       grep
 Requires:       procps
 Requires:       shadow-utils
 Requires:       net-tools
+Requires:       %{name}-client%{?_isa} >= %{min}
+Requires:       %{name}-common%{?_isa} = %{version}-%{release}
 %if 0%{?commercial}
 Obsoletes:      mysql-commercial-bench < 5.7.8
 Provides:       MySQL-server-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-server-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-server < %{version}-%{release}
-Requires:       mysql-commercial-client%{?_isa} >= %{min}
-Requires:       mysql-commercial-common%{?_isa} >= %{min}
-%else
-Provides:       MySQL-server%{?_isa} = %{version}-%{release}
-Requires:       mysql-community-client%{?_isa} >= %{min}
-Requires:       mysql-community-common%{?_isa} >= %{min}
+%if 0%{?cluster}
+Provides:       MySQL-Cluster-server-advanced%{?_isa} = %{version}-%{release}
+Obsoletes:      MySQL-Cluster-server-advanced%{?_isa} < %{version}-%{release}
+Obsoletes:      mysql-commercial-server < %{version}-%{release}
+Obsoletes:      mysql-cluster-community-server < %{version}-%{release}
 %endif
+%endif
+%if 0%{?cluster}
+Provides:       MySQL-Cluster-server-gpl%{?_isa} = %{version}-%{release}
+Obsoletes:      MySQL-Cluster-server-gpl%{?_isa} < %{version}-%{release}
+%endif
+Provides:       MySQL-server%{?_isa} = %{version}-%{release}
+Obsoletes:      MySQL-server < %{version}-%{release}
 Obsoletes:      mysql-community-bench < 5.7.8
 Obsoletes:      community-mysql-bench
 Obsoletes:      mysql-bench
-Obsoletes:      MySQL-server < %{version}-%{release}
 Obsoletes:      mysql-server < %{version}-%{release}
 Obsoletes:      mariadb-bench
 Obsoletes:      mariadb-server
@@ -230,15 +239,23 @@ to run and administer a MySQL server.
 %package        client
 Summary:        MySQL database client applications and tools
 Group:          Applications/Databases
+Requires:       %{name}-libs%{?_isa} >= %{min}
 %if 0%{?commercial}
 Provides:       MySQL-client-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-client-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-client < %{version}-%{release}
-Requires:       mysql-commercial-libs%{?_isa} >= %{min}
-%else
-Provides:       MySQL-client%{?_isa} = %{version}-%{release}
-Requires:       mysql-community-libs%{?_isa} >= %{min}
+%if 0%{?cluster}
+Provides:       MySQL-Cluster-client-advanced%{?_isa} = %{version}-%{release}
+Obsoletes:      MySQL-Cluster-client-advanced%{?_isa} < %{version}-%{release}
+Obsoletes:      mysql-commercial-client < %{version}-%{release}
+Obsoletes:      mysql-cluster-community-client < %{version}-%{release}
 %endif
+%endif
+%if 0%{?cluster}
+Provides:       MySQL-Cluster-client-gpl%{?_isa} = %{version}-%{release}
+Obsoletes:      MySQL-Cluster-client-gpl < %{version}-%{release}
+%endif
+Provides:       MySQL-client%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-client < %{version}-%{release}
 Obsoletes:      mariadb
 %if 0%{?rhel} > 5
@@ -256,6 +273,10 @@ Summary:        MySQL database common files for server and client libs
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-common < %{version}-%{release}
+%if 0%{?cluster}
+Obsoletes:      mysql-commercial-common < %{version}-%{release}
+Obsoletes:      mysql-cluster-community-common < %{version}-%{release}
+%endif
 %endif
 Provides:       mysql-common = %{version}-%{release}
 Provides:       mysql-common%{?_isa} = %{version}-%{release}
@@ -269,15 +290,23 @@ MySQL database server, and MySQL embedded server.
 %package        test
 Summary:        Test suite for the MySQL database server
 Group:          Applications/Databases
+Requires:       %{name}-server%{?_isa} >= %{min}
 %if 0%{?commercial}
 Provides:       MySQL-test-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-test-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-test < %{version}-%{release}
-Requires:       mysql-commercial-server%{?_isa} >= %{min}
-%else
-Provides:       MySQL-test%{?_isa} = %{version}-%{release}
-Requires:       mysql-community-server%{?_isa} >= %{min}
+%if 0%{?cluster}
+Provides:       MySQL-Cluster-test-advanced%{?_isa} = %{version}-%{release}
+Obsoletes:      MySQL-Cluster-test-advanced%{?_isa} < %{version}-%{release}
+Obsoletes:      mysql-commercial-test < %{version}-%{release}
+Obsoletes:      mysql-cluster-community-test < %{version}-%{release}
 %endif
+%endif
+%if 0%{?cluster}
+Provides:       MySQL-Cluster-test-gpl%{?_isa} = %{version}-%{release}
+Obsoletes:      MySQL-Cluster-test-gpl < %{version}-%{release}
+%endif
+Provides:       MySQL-test%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-test < %{version}-%{release}
 Obsoletes:      mysql-test < %{version}-%{release}
 Obsoletes:      mariadb-test
@@ -291,15 +320,23 @@ database server.
 %package        devel
 Summary:        Development header files and libraries for MySQL database client applications
 Group:          Applications/Databases
+Requires:       %{name}-libs%{?_isa} >= %{min}
 %if 0%{?commercial}
 Provides:       MySQL-devel-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-devel-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-devel < %{version}-%{release}
-Requires:       mysql-commercial-libs%{?_isa} >= %{min}
-%else
-Provides:       MySQL-devel%{?_isa} = %{version}-%{release}
-Requires:       mysql-community-libs%{?_isa} >= %{min}
+%if 0%{?cluster}
+Provides:       MySQL-Cluster-devel-advanced%{?_isa} = %{version}-%{release}
+Obsoletes:      MySQL-Cluster-devel-advanced%{?_isa} < %{version}-%{release}
+Obsoletes:      mysql-commercial-devel < %{version}-%{release}
+Obsoletes:      mysql-cluster-community-devel < %{version}-%{release}
 %endif
+%endif
+%if 0%{?cluster}
+Provides:       MySQL-Cluster-devel-gpl%{?_isa} = %{version}-%{release}
+Obsoletes:      MySQL-Cluster-devel-gpl < %{version}-%{release}
+%endif
+Provides:       MySQL-devel = %{version}-%{release}
 Obsoletes:      MySQL-devel < %{version}-%{release}
 Obsoletes:      mysql-devel < %{version}-%{release}
 Obsoletes:      mariadb-devel
@@ -314,15 +351,23 @@ to develop MySQL client applications.
 %package        libs
 Summary:        Shared libraries for MySQL database client applications
 Group:          Applications/Databases
+Requires:       %{name}-common%{?_isa} >= %{min}
 %if 0%{?commercial}
 Provides:       MySQL-shared-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-shared-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-libs < %{version}-%{release}
-Requires:       mysql-commercial-common%{?_isa} >= %{min}
-%else
-Provides:       MySQL-shared%{?_isa} = %{version}-%{release}
-Requires:       mysql-community-common%{?_isa} >= %{min}
+%if 0%{?cluster}
+Provides:       MySQL-Cluster-shared-advanced%{?_isa} = %{version}-%{release}
+Obsoletes:      MySQL-Cluster-shared-advanced < %{version}-%{release}
+Obsoletes:      MySQL-shared-advanced < %{version}-%{release}
+Obsoletes:      mysql-cluster-community-libs < %{version}-%{release}
 %endif
+%endif
+%if 0%{?cluster}
+Provides:       MySQL-Cluster-shared-gpl%{?_isa} = %{version}-%{release}
+Obsoletes:      MySQL-Cluster-shared-gpl < %{version}-%{release}
+%endif
+Provides:       MySQL-shared%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-shared < %{version}-%{release}
 Obsoletes:      mysql-libs < %{version}-%{release}
 Obsoletes:      mariadb-libs
@@ -341,15 +386,23 @@ Group:          Applications/Databases
 Obsoletes:      mysql-libs-compat < %{version}-%{release}
 Provides:       mysql-libs-compat = %{version}-%{release}
 Provides:       mysql-libs-compat%{?_isa} = %{version}-%{release}
+Requires:       %{name}-libs%{?_isa} >= %{min}
 %if 0%{?commercial}
 Provides:       MySQL-shared-compat-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-shared-compat-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-libs-compat < %{version}-%{release}
-Requires:       mysql-commercial-libs%{?_isa} >= %{min}
-%else
-Provides:       MySQL-shared-compat%{?_isa} = %{version}-%{release}
-Requires:       mysql-community-libs%{?_isa} >= %{min}
+%if 0%{?cluster}
+Provides:       MySQL-Cluster-shared-compat-advanced%{?_isa} = %{version}-%{release}
+Obsoletes:      MySQL-Cluster-shared-compat-advanced < %{version}-%{release}
+Obsoletes:      mysql-commercial-libs-compat < %{version}-%{release}
+Obsoletes:      mysql-cluster-community-libs-compat < %{version}-%{release}
 %endif
+%endif
+%if 0%{?cluster}
+Provides:       MySQL-Cluster-shared-compat-gpl%{?_isa} = %{version}-%{release}
+Obsoletes:      MySQL-Cluster-shared-compat-gpl < %{version}-%{release}
+%endif
+Provides:       MySQL-shared-compat%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-shared-compat < %{version}-%{release}
 %if 0%{?rhel} > 5
 Obsoletes:      mysql-libs < %{version}-%{release}
@@ -364,16 +417,24 @@ applications.
 %package        embedded
 Summary:        MySQL embedded library
 Group:          Applications/Databases
+Requires:       %{name}-common%{?_isa} = %{version}-%{release}
 %if 0%{?commercial}
 Provides:       MySQL-embedded-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-embedded-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-embedded < %{version}-%{release}
-Requires:       mysql-commercial-common%{?_isa} >= %{min}
-%else
-Provides:       MySQL-embedded%{?_isa} = %{version}-%{release}
-Requires:       mysql-community-common%{?_isa} >= %{min}
+%if 0%{?cluster}
+Provides:       MySQL-Cluster-embedded-advanced%{?_isa} = %{version}-%{release}
+Obsoletes:      MySQL-Cluster-embedded-advanced < %{version}-%{release}
+Obsoletes:      mysql-commercial-embedded < %{version}-%{release}
+Obsoletes:      mysql-cluster-community-embedded < %{version}-%{release}
+%endif
+%endif
+%if 0%{?cluster}
+Provides:       MySQL-Cluster-embedded-gpl%{?_isa} = %{version}-%{release}
+Obsoletes:      MySQL-Cluster-embedded-gpl%{?_isa} < %{version}-%{release}
 %endif
 Obsoletes:      mariadb-embedded
+Provides:       MySQL-embedded = %{version}-%{release}
 Obsoletes:      MySQL-embedded < %{version}-%{release}
 Obsoletes:      mysql-embedded < %{version}-%{release}
 Provides:       mysql-embedded = %{version}-%{release}
@@ -395,11 +456,13 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 %package        embedded-compat
 Summary:        MySQL embedded compat library
 Group:          Applications/Databases
+Requires:       %{name}-common%{?_isa} >= %{min}
 %if 0%{?commercial}
 Obsoletes:      mysql-community-embedded-compat < %{version}-%{release}
-Requires:       mysql-commercial-common%{?_isa} >= %{min}
-%else
-Requires:       mysql-community-common%{?_isa} >= %{min}
+%if 0%{?cluster}
+Obsoletes:      mysql-commercial-embedded-compat < %{version}-%{release}
+Obsoletes:      mysql-cluster-community-embedded-compat < %{version}-%{release}
+%endif
 %endif
 
 %description    embedded-compat
@@ -410,13 +473,14 @@ compatibility for applications using version %{compatlib} of the library.
 %package        embedded-devel
 Summary:        Development header files and libraries for MySQL as an embeddable library
 Group:          Applications/Databases
+Requires:       %{name}-devel%{?_isa} >= %{min}
+Requires:       %{name}-embedded%{?_isa} >= %{min}
 %if 0%{?commercial}
 Obsoletes:      mysql-community-embedded-devel < %{version}-%{release}
-Requires:       mysql-commercial-devel%{?_isa} >= %{min}
-Requires:       mysql-commercial-embedded%{?_isa} >= %{min}
-%else
-Requires:       mysql-community-devel%{?_isa} >= %{min}
-Requires:       mysql-community-embedded%{?_isa} >= %{min}
+%if 0%{?cluster}
+Obsoletes:      mysql-commercial-embedded-devel < %{version}-%{release}
+Obsoletes:      mysql-cluster-community-embedded-devel < %{version}-%{release}
+%endif
 %endif
 Obsoletes:      mariadb-embedded-devel
 Obsoletes:      mysql-embedded-devel < %{version}-%{release}
@@ -431,16 +495,9 @@ the embedded version of the MySQL server.
 %package -n     mysql
 Summary:        Convenience package for easy upgrades of MySQL package set
 Group:          Applications/Databases
-%if 0%{?commercial}
-Requires:       mysql-commercial-client%{?_isa} >= %{min}
-Requires:       mysql-commercial-libs%{?_isa} >= %{min}
-Requires:       mysql-commercial-libs-compat%{?_isa} >= %{min}
-%else
-Requires:       mysql-community-client%{?_isa} >= %{min}
-Requires:       mysql-community-libs%{?_isa} >= %{min}
-Requires:       mysql-community-libs-compat%{?_isa} >= %{min}
-%endif
-
+Requires:       %{name}-client%{?_isa} >= %{min}
+Requires:       %{name}-libs%{?_isa} >= %{min}
+Requires:       %{name}-libs-compat%{?_isa} >= %{min}
 %description -n mysql
 This package has as sole purpose to require other MySQL packages such
 that upgrades will be more convenient.
@@ -449,14 +506,92 @@ Technical background: this is done to reflect the fact that mysql
 package has been split into several subpackages.
 %endif
 
+%if 0%{?cluster}
+%package        management-server
+Summary:        MySQL Cluster Management Server Daemon
+Group:          Applications/Databases
+%description    management-server
+This package contains the MySQL Cluster Management Server Daemon,
+which reads the cluster configuration file and distributes this
+information to all nodes in the cluster.
+
+%package        data-node
+Summary:        MySQL Cluster Data Node Daemon
+Group:          Applications/Databases
+%description    data-node
+This package contains MySQL Cluster Data Node Daemon, it's the process
+that is used to handle all the data in tables using the NDB Cluster
+storage engine. It comes in two variants: ndbd and ndbmtd, the former
+is single threaded while the latter is multi-threaded.
+
+%package        auto-installer
+Summary:        Web-based graphical configuration installer for MySQL Cluster
+Group:          Applications/Databases
+Requires:       %{name}-server%{?_isa} = %{version}-%{release}
+Requires:       python-paramiko
+Requires:       python2-crypto
+%description    auto-installer
+This package contains the MySQL Cluster web-based graphical
+configuration installer, which can be used to set up and start or stop
+a MySQL Cluster on one or more host computers.
+
+%package        ndbclient
+Summary:        Shared libraries for MySQL NDB storage engine client applications
+Group:          Applications/Databases
+%description    ndbclient
+This package contains the shared libraries for MySQL MySQL NDB storage
+engine client applications.
+
+%package        ndbclient-devel
+Summary:        Development files for MySQL NDB storage engine client applications
+Group:          Applications/Databases
+Requires:       %{name}-devel%{?_isa} = %{version}-%{release}
+Requires:       %{name}-ndbclient%{?_isa} = %{version}-%{release}
+%description    ndbclient-devel
+This package contains the development header files and libraries
+necessary to develop client applications for MySQL NDB storage engine.
+
+%package        nodejs
+Summary:        Set of Node.js adapters for MySQL Cluster
+Group:          Applications/Databases
+%description    nodejs
+This package contains MySQL NoSQL Connector for JavaScript, a set of
+Node.js adapters for MySQL Cluster and MySQL Server, which make it
+possible to write JavaScript applications for Node.js using MySQL
+data.
+
+%package        java
+Summary:        MySQL Cluster Connector for Java
+Group:          Applications/Databases
+%description    java
+This package contains MySQL Cluster Connector for Java, which includes
+ClusterJ and ClusterJPA, a plugin for use with OpenJPA.
+
+ClusterJ is a high level database API that is similar in style and
+concept to object-relational mapping persistence frameworks such as
+Hibernate and JPA.
+
+ClusterJPA is an OpenJPA implementation for MySQL Cluster that
+attempts to offer the best possible performance by leveraging the
+strengths of both ClusterJ and JDBC.
+
+%package        memcached
+Summary:        Memcached API for MySQL Cluster implemented as a loadable storage engine for memcached
+Group:          Applications/Databases
+Requires:       %{name}-server%{?_isa} = %{version}-%{release}
+%description    memcached
+This package contains the standard memcached server and a loadable
+storage engine for memcached using the Memcache API for MySQL Cluster
+to provide a persistent MySQL Cluster data store.
+
+%endif # cluster
+
 %prep
 %if 0%{?compatlib}
 %setup -q -T -a 0 -a 7 -a 10 -c -n %{src_dir}
 %else
 %setup -q -T -a 0 -a 10 -c -n %{src_dir}
 %endif # 0%{?compatlib}
-pushd mysql-%{compatver}
-%{?el7:%patch0 -p1}
 
 %build
 # Fail quickly and obviously if user tries to build as root
@@ -523,6 +658,7 @@ fi
     -DINSTALL_LIBDIR="%{_lib}/mysql" \
     -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
     -DINSTALL_SQLBENCHDIR=share \
+    -DWITH_SYMVER16=1 \
     -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
     -DFEATURE_SET="%{feature_set}" \
     -DWITH_EMBEDDED_SERVER=1 \
@@ -880,6 +1016,10 @@ fi
 %dir %attr(750, mysql, mysql) /var/lib/mysql-files
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
+%if 0%{?cluster}
+%attr(644, root, root) %{_datadir}/mysql/ndb_dist_priv.sql
+%endif
+
 %files common
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
@@ -922,8 +1062,6 @@ fi
 %attr(755, root, root) %{_bindir}/mysqlpump
 %attr(755, root, root) %{_bindir}/mysqlshow
 %attr(755, root, root) %{_bindir}/mysqlslap
-%attr(755, root, root) %{_bindir}/mysql_config
-%attr(755, root, root) %{_bindir}/mysql_config-%{__isa_bits}
 %attr(755, root, root) %{_bindir}/mysql_config_editor
 
 %attr(644, root, root) %{_mandir}/man1/mysql.1*
@@ -936,6 +1074,58 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysqlshow.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlslap.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_config_editor.1*
+
+%if 0%{?cluster}
+%attr(755, root, root) %{_bindir}/ndb_blob_tool
+%attr(755, root, root) %{_bindir}/ndb_config
+%attr(755, root, root) %{_bindir}/ndb_delete_all
+%attr(755, root, root) %{_bindir}/ndb_desc
+%attr(755, root, root) %{_bindir}/ndb_drop_index
+%attr(755, root, root) %{_bindir}/ndb_drop_table
+%attr(755, root, root) %{_bindir}/ndb_error_reporter
+%attr(755, root, root) %{_bindir}/ndb_index_stat
+%attr(755, root, root) %{_bindir}/ndb_mgm
+%attr(755, root, root) %{_bindir}/ndb_move_data
+%attr(755, root, root) %{_bindir}/ndb_print_backup_file
+%attr(755, root, root) %{_bindir}/ndb_print_file
+%attr(755, root, root) %{_bindir}/ndb_print_frag_file
+%attr(755, root, root) %{_bindir}/ndb_print_schema_file
+%attr(755, root, root) %{_bindir}/ndb_print_sys_file
+%attr(755, root, root) %{_bindir}/ndb_redo_log_reader
+%attr(755, root, root) %{_bindir}/ndb_restore
+%attr(755, root, root) %{_bindir}/ndb_select_all
+%attr(755, root, root) %{_bindir}/ndb_select_count
+%attr(755, root, root) %{_bindir}/ndb_setup.py
+%attr(755, root, root) %{_bindir}/ndb_show_tables
+%attr(755, root, root) %{_bindir}/ndb_size.pl
+%attr(755, root, root) %{_bindir}/ndb_waiter
+%attr(755, root, root) %{_bindir}/ndbinfo_select_all
+
+%attr(644, root, root) %{_mandir}/man1/ndb-common-options.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_blob_tool.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_config.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_cpcd.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_delete_all.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_desc.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_drop_index.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_drop_table.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_error_reporter.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_index_stat.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_mgm.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_print_backup_file.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_print_file.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_print_schema_file.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_print_sys_file.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_restore.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_select_all.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_select_count.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_setup.py.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_show_tables.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_size.pl.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_waiter.1*
+%attr(644, root, root) %{_mandir}/man1/ndbd_redo_log_reader.1*
+%attr(644, root, root) %{_mandir}/man1/ndbinfo_select_all.1*
+%endif #cluster
 
 %files devel
 %defattr(-, root, root, -)
@@ -1078,8 +1268,67 @@ fi
 %doc %{?license_files_server}
 %endif
 
+%if 0%{?cluster}
+%files management-server
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%attr(755, root, root) %{_sbindir}/ndb_mgmd
+%attr(644, root, root) %{_mandir}/man8/ndb_mgmd.8*
+
+%files data-node
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%attr(755, root, root) %{_sbindir}/ndbd
+%attr(755, root, root) %{_sbindir}/ndbmtd
+%attr(644, root, root) %{_mandir}/man8/ndbd.8*
+%attr(644, root, root) %{_mandir}/man8/ndbmtd.8*
+
+%files auto-installer
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%attr(755, root, root) %{_bindir}/mcc_config.py
+%{_datadir}/mysql/mcc/
+%exclude %{_datadir}/mysql/mcc/tst/
+
+%files memcached
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%attr(755, root, root) %{_bindir}/memclient
+%attr(755, root, root) %{_sbindir}/memcached
+%attr(755, root, root) %{_libdir}/mysql/ndb_engine.so
+%{_datadir}/mysql/memcache-api/
+
+%files ndbclient
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%attr(755, root, root) %{_libdir}/mysql/libndbclient.so.6.0.0
+
+%files ndbclient-devel
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%attr(644, root, root) %{_libdir}/mysql/libndbclient_static.a
+%{_libdir}/mysql/libndbclient.so
+
+%files nodejs
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%{_datadir}/mysql/nodejs/
+%exclude %{_datadir}/mysql/nodejs/test/
+%exclude %{_datadir}/mysql/nodejs/perftest/
+
+%files java
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%{_datadir}/mysql/java/
+%endif # cluster
+
 %changelog
-* Mon Apr 04 2016 Georgi Kodinov <georgi.kodinov@oracle.com> - 5.7.13-1
+* Tue Jul 05 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.14-1
+- Updated compatver to 5.6.31
+- Adapt MySQL server 5.7 packaging to MySQL Cluster 7.5
+- Remove mysql_config from client subpackage
+
+* Wed May 04 2016 Georgi Kodinov <georgi.kodinov@oracle.com> - 5.7.13-1
 - Add test_udf_services.so plugin
 - Add keyring_udf.so plugin to server subpackage
 

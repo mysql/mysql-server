@@ -3873,3 +3873,24 @@ INSERT INTO t (a) VALUES (0), (1);
 SELECT 1 FROM t GROUP BY ST_AsGeoJSON(NULL, "1", NULL);
 SELECT 1 FROM t GROUP BY ST_AsGeoJSON(NULL, 5, 0);
 DROP TABLE t;
+
+--echo #
+--echo # Bug#22930020 INVALID DATA FOR ST_GEOMFROMGEOJSON() IS HARD TO DIAGNOSE
+--echo #
+
+CREATE TABLE t1 (col1 JSON);
+
+INSERT INTO t1 (col1) VALUES
+  ('{ "type": "Feature", "geometry": null, "properties": {} }');
+
+ALTER TABLE t1 ADD COLUMN `col2` geometry
+  GENERATED ALWAYS AS (ST_GeomFromGeoJSON(col1->'$.geometry')) VIRTUAL;
+
+SELECT * FROM t1;
+
+SELECT ST_GeomFromGeoJSON(CAST('null' AS JSON));
+SELECT ST_GeomFromGeoJSON('null');
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT ST_GeomFromGeoJSON('Null');
+
+DROP TABLE t1;

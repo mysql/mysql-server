@@ -182,6 +182,9 @@
 #cmakedefine HAVE_U_INT32_T 1
 #cmakedefine HAVE_STRUCT_TIMESPEC
 
+/* Support for tagging symbols with __attribute__((visibility("hidden"))) */
+#cmakedefine HAVE_VISIBILITY_HIDDEN 1
+
 /* Code tests*/
 #cmakedefine STACK_DIRECTION @STACK_DIRECTION@
 #cmakedefine TIME_WITH_SYS_TIME 1
@@ -195,6 +198,7 @@
 #cmakedefine HAVE_BUILTIN_EXPECT 1
 #cmakedefine HAVE_BUILTIN_STPCPY 1
 #cmakedefine HAVE_GCC_ATOMIC_BUILTINS 1
+#cmakedefine HAVE_GCC_SYNC_BUILTINS 1
 #cmakedefine HAVE_VALGRIND
 
 /* IPV6 */
@@ -272,6 +276,7 @@
 #cmakedefine HAVE_NCURSES_H 1
 #cmakedefine USE_LIBEDIT_INTERFACE 1
 #cmakedefine HAVE_HIST_ENTRY 1
+#cmakedefine USE_NEW_EDITLINE_INTERFACE 1
 
 /*
  * Libedit

@@ -101,3 +101,34 @@ FTS_DOC_ID	title
 1	database
 2	mysql
 DROP TABLE t1;
+# Case 4: Test sync commit & rollback in background
+CREATE TABLE t1(
+id INT AUTO_INCREMENT,
+title VARCHAR(100),
+FULLTEXT(title),
+PRIMARY KEY(id)) ENGINE=InnoDB;
+SET SESSION debug="+d,fts_instrument_sync";
+INSERT INTO t1(title) VALUES('mysql');
+SET SESSION debug="-d,fts_instrument_sync";
+# restart
+SET GLOBAL debug="+d,fts_instrument_sync,fts_instrument_sync_interrupted";
+INSERT INTO t1(title) VALUES('database');
+SET GLOBAL debug="-d,fts_instrument_sync,fts_instrument_sync_interrupted";
+SET SESSION debug="+d,fts_instrument_sync_debug";
+INSERT INTO t1(title) VALUES('good');
+SET SESSION debug="-d,fts_instrument_sync_debug";
+SET GLOBAL innodb_ft_aux_table="test/t1";
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
+database	4	4	1	4	0
+good	5	5	1	5	0
+mysql	2	2	1	2	0
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
+SET GLOBAL innodb_ft_aux_table=default;
+SELECT * FROM t1 WHERE MATCH(title) AGAINST ('mysql database good');
+id	title
+1	mysql
+2	database
+3	good
+DROP TABLE t1;

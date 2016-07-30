@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,10 +29,13 @@ public:
   /**
     Get the next query string.
 
-    @arg query output parameter to return the query
+    @param[out] query return the query
+    @param[out] read_error return the read error code
+    @param[out] query_source return the source of the query
+                             (if it is from a file or a compiled one).
     @return one of the READ_BOOTSTRAP
   */
-  virtual int next(std::string &query, int *read_error)= 0;
+  virtual int next(std::string &query, int *read_error, int *query_source)= 0;
 
   /** end processing the iterator */
   virtual void end(void) {}
@@ -55,7 +58,7 @@ public:
   File_command_iterator(const char *file_name);
   virtual ~File_command_iterator();
 
-  int next(std::string &query, int *read_error);
+  int next(std::string &query, int *read_error, int *query_source);
   void end(void);
   bool has_file()
   {

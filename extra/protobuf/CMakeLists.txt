@@ -17,14 +17,14 @@
 # We also build libprotobuf.a and libprotobuf-lite.a, the protobuf runtime
 # support libraries.
 
-# The files in protobuf-2.6.0/ are unmodified versions of google source files.
+# The files in protobuf-2.6.1/ are unmodified versions of google source files.
 # To save some space and time, we have remove directories which are not
 # needed by MySQL:
-#   protobuf-2.6.0/gtest/
-#   protobuf-2.6.0/java/
-#   protobuf-2.6.0/python/
-#   protobuf-2.6.0/m4/
-#   protobuf-2.6.0/vsprojects/
+#   protobuf-2.6.1/gtest/
+#   protobuf-2.6.1/java/
+#   protobuf-2.6.1/python/
+#   protobuf-2.6.1/m4/
+#   protobuf-2.6.1/vsprojects/
 
 SET(PROTOBUF_MSVC_DISABLED_WARNINGS "/wd4018 /wd4005 /wd4244 /wd4267 /wd4065")
 
@@ -70,12 +70,12 @@ IF(CMAKE_USE_PTHREADS_INIT)
 ENDIF()
 
 INCLUDE_DIRECTORIES(
-  ${CMAKE_CURRENT_SOURCE_DIR}/protobuf-2.6.0/src
+  ${CMAKE_CURRENT_SOURCE_DIR}/protobuf-2.6.1/src
   ${ZLIB_INCLUDE_DIR}
 )
 
 SET(PROTO_SRC_DIR
-  "${CMAKE_SOURCE_DIR}/extra/protobuf/protobuf-2.6.0/src")
+  "${CMAKE_SOURCE_DIR}/extra/protobuf/protobuf-2.6.1/src")
 
 SET(LIBPROTOBUF_LITE_SOURCES
   ${PROTO_SRC_DIR}/google/protobuf/stubs/atomicops_internals_x86_gcc.cc
@@ -139,6 +139,7 @@ ENDIF(MSVC)
 
 ADD_CONVENIENCE_LIBRARY(protobuf 
   ${LIBPROTOBUF_SOURCES} ${LIBPROTOBUF_LITE_SOURCES})
+SET_PROPERTY(TARGET protobuf PROPERTY EXCLUDE_FROM_ALL TRUE)
 TARGET_LINK_LIBRARIES(protobuf
   ${CMAKE_THREAD_LIBS_INIT} ${ZLIB_LIBRARY} ${LIBRT})
 
@@ -218,5 +219,7 @@ IF(MSVC)
 ENDIF(MSVC)
 
 ADD_CONVENIENCE_LIBRARY(protoclib ${LIBPROTOC_SOURCES})
+SET_PROPERTY(TARGET protoclib PROPERTY EXCLUDE_FROM_ALL TRUE)
 ADD_EXECUTABLE(protoc ${PROTO_SRC_DIR}/google/protobuf/compiler/main.cc)
+SET_PROPERTY(TARGET protoc PROPERTY EXCLUDE_FROM_ALL TRUE)
 TARGET_LINK_LIBRARIES(protoc protobuf protoclib protobuf)

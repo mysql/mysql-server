@@ -34,7 +34,7 @@
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community Server - Debug (GPL)}
 %{!?src_base:                    %global src_base mysql}
 
-%global compatver             5.6.25
+%global compatver             5.6.31
 %global compatlib             18
 %global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.6/mysql-%{compatver}.tar.gz
 
@@ -74,7 +74,6 @@ Source4:        my_config.h
 Source6:        mysql_config.sh
 Source7:        %{compatsrc}
 Source10:       http://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
-Patch0:         mysql-5.7-libmysqlclient-symbols.patch
 BuildRequires:  cmake
 BuildRequires:  perl
 BuildRequires:  time
@@ -123,10 +122,10 @@ Requires:       mecab-ipadic
 Obsoletes:      mysql-commercial-bench < 5.7.8
 Obsoletes:      mysql-community-server < %{version}-%{release}
 Requires:       mysql-commercial-client%{?_isa} >= %{min}
-Requires:       mysql-commercial-common%{?_isa} >= %{min}
+Requires:       mysql-commercial-common%{?_isa} = %{version}-%{release}
 %else
 Requires:       mysql-community-client%{?_isa} >= %{min}
-Requires:       mysql-community-common%{?_isa} >= %{min}
+Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
 %endif
 Obsoletes:      mysql-community-bench < 5.7.8
 Obsoletes:      community-mysql-bench
@@ -285,9 +284,9 @@ Summary:        MySQL embedded library
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-embedded < %{version}-%{release}
-Requires:       mysql-commercial-common%{?_isa} >= %{min}
+Requires:       mysql-commercial-common%{?_isa} = %{version}-%{release}
 %else
-Requires:       mysql-community-common%{?_isa} >= %{min}
+Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
 %endif
 Obsoletes:      mariadb-embedded
 Obsoletes:      community-mysql-embedded < %{version}-%{release}
@@ -344,8 +343,6 @@ the embedded version of the MySQL server.
 
 %prep
 %setup -q -T -a 0 -a 7 -a 10 -c -n %{src_dir}
-pushd mysql-%{compatver}
-%patch0 -p1
 
 %build
 # Fail quickly and obviously if user tries to build as root
@@ -372,6 +369,7 @@ fi
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
            -DINSTALL_SQLBENCHDIR=share \
+           -DWITH_SYMVER16=1 \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_EMBEDDED_SERVER=1 \
@@ -695,8 +693,6 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_bindir}/mysqlpump
 %attr(755, root, root) %{_bindir}/mysqlshow
 %attr(755, root, root) %{_bindir}/mysqlslap
-%attr(755, root, root) %{_bindir}/mysql_config
-%attr(755, root, root) %{_bindir}/mysql_config-%{__isa_bits}
 %attr(755, root, root) %{_bindir}/mysql_config_editor
 
 %attr(644, root, root) %{_mandir}/man1/mysql.1*
@@ -842,7 +838,11 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
-* Mon Apr 04 2016 Georgi Kodinov <georgi.kodinov@oracle.com> - 5.7.13-1
+* Tue Jul 05 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.14-1
+- Updated compatver to 5.6.31
+- Remove mysql_config from client subpackage
+
+* Wed May 04 2016 Georgi Kodinov <georgi.kodinov@oracle.com> - 5.7.13-1
 - Add test_udf_services.so plugin
 - Add keyring_udf.so plugin to server subpackage
 

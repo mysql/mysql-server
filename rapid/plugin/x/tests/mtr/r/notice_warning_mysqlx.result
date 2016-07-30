@@ -1,0 +1,61 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+1/0	1/0
+null	null
+0 rows affected
+Warnings generated:
+WARNING | 1365 | Division by 0
+WARNING | 1365 | Division by 0
+
+command ok
+1/0
+null
+0 rows affected
+
+command ok
+1/0
+null
+0 rows affected
+Warnings generated:
+WARNING | 1365 | Division by 0
+
+1 rows affected
+Warnings generated:
+WARNING | 1265 | Data truncated for column 'd' at row 1
+d
+command ok
+Warnings generated:
+WARNING | 1365 | Division by 0
+
+0 rows affected
+Rows matched: 1  Changed: 0  Warnings: 1
+Warnings generated:
+WARNING | 1265 | Data truncated for column 'd' at row 1
+notice	enabled
+warnings	1
+account_expired	1
+generated_insert_id	1
+rows_affected	1
+produced_message	1
+command ok
+
+0 rows affected
+
+0 rows affected
+Variable_name	Value
+Mysqlx_stmt_execute_mysqlx	3
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+UNINSTALL PLUGIN mysqlx;

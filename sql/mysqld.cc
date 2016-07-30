@@ -141,7 +141,6 @@
 #include "item_cmpfunc.h"               // arg_cmp_func
 #include "item_strfunc.h"               // Item_func_uuid
 #include "handler.h"
-#include "sql_thd_internal_api.h"       // create_thd, destroy_thd
 
 #ifndef EMBEDDED_LIBRARY
 #include "srv_session.h"
@@ -974,7 +973,12 @@ public:
       sql_print_warning(ER_DEFAULT(ER_FORCING_CLOSE),my_progname,
                         closing_thd->thread_id(),
                         (main_sctx_user.length ? main_sctx_user.str : ""));
-      close_connection(closing_thd, 0, is_server_shutdown);
+      /*
+        Do not generate MYSQL_AUDIT_CONNECTION_DISCONNECT event, when closing
+        thread close sessions. Each session will generate DISCONNECT event by
+        itself.
+      */
+      close_connection(closing_thd, 0, is_server_shutdown, false);
     }
   }
 private:
@@ -1044,18 +1048,8 @@ static void close_connections(void)
   sql_print_information("Forcefully disconnecting %d remaining clients",
                         static_cast<int>(thd_manager->get_thd_count()));
 
-  /*
-    Need to have a current_thd for the shutdown thread since
-    close_connections() can result in a call to the audit plugins.
-    And these may need the current thd set in order to check for
-    stack overflow due to recursive audit events.
-
-    See event_class_dispatch() for more details.
-  */
-  THD *shutdown_thd= create_thd(false, true, true, PSI_NOT_INSTRUMENTED);
   Call_close_conn call_close_conn(true);
   thd_manager->do_for_all_thd(&call_close_conn);
-  destroy_thd(shutdown_thd);
   /*
     All threads have now been aborted. Stop event scheduler thread
     after aborting all client connections, otherwise user may
@@ -3579,7 +3573,7 @@ static int init_server_auto_options()
   /* load_defaults require argv[0] is not null */
   char **argv= &name;
   int argc= 1;
-  if (!check_file_permissions(fname))
+  if (!check_file_permissions(fname, false))
   {
     /*
       Found a world writable file hence removing it as it is dangerous to write
@@ -3608,6 +3602,24 @@ static int init_server_auto_options()
     if (!Uuid::is_valid(uuid))
     {
       sql_print_error("The server_uuid stored in auto.cnf file is not a valid UUID.");
+      goto err;
+    }
+    /*
+      Uuid::is_valid() cannot do strict check on the length as it will be
+      called by GTID::is_valid() as well (GTID = UUID:seq_no). We should
+      explicitly add the *length check* here in this function.
+
+      If UUID length is less than '36' (UUID_LENGTH), that error case would have
+      got caught in above is_valid check. The below check is to make sure that
+      length is not greater than UUID_LENGTH i.e., there are no extra characters
+      (Garbage) at the end of the valid UUID.
+    */
+    if (strlen(uuid) > UUID_LENGTH)
+    {
+      sql_print_error("Garbage characters found at the end of the server_uuid "
+                      "value in auto.cnf file. It should be of length '%d' "
+                      "(UUID_LENGTH). Clear it and restart the server. ",
+                      UUID_LENGTH);
       goto err;
     }
     strcpy(server_uuid, uuid);

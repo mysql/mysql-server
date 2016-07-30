@@ -9,6 +9,7 @@ call mtr.add_suppression("Slave: Could not start slave for channel");
 call mtr.add_suppression("Error during --relay-log-recovery: Could not locate rotate event from the master");
 call mtr.add_suppression("slave with the same server_uuid as this slave has connected to the master");
 call mtr.add_suppression("Failed to create or recover replication info repositories");
+call mtr.add_suppression("Got fatal error .* from master .* slave with the same server_uuid/server_id");
 include/stop_slave.inc
 RESET SLAVE ALL;
 SET GLOBAL master_info_repository='TABLE';

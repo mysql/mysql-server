@@ -27,13 +27,13 @@ my $i;
 # mysql_secure_installation into a function with the values no.
 sub after_commands()
 {
-   $texp[$i]->expect(15,' -re ',[ 'anonymous users' => sub {
+   $texp[$i]->expect(15,' -re ',[ 'Remove anonymous users?' => sub {
 $texp[$i]->send("n\n");}]);
-   $texp[$i]->expect(15,' -re ',[ 'root login' => sub {
+   $texp[$i]->expect(15,' -re ',[ 'Disallow root login remotely?' => sub {
 $texp[$i]->send("n\n");}]);
-   $texp[$i]->expect(15,' -re ',[ 'test database' => sub {
+   $texp[$i]->expect(15,' -re ',[ 'Remove test database and access to it?' => sub {
 $texp[$i]->send("n\n");}]);
-   $texp[$i]->expect(15,' -re ',[ 'Reload' => sub { $texp[$i]->send("n\n");}]);
+   $texp[$i]->expect(15,' -re ',[ 'Reload privilege tables now?' => sub { $texp[$i]->send("n\n");}]);
    print "Execution number $i was successful\n";
 }
 
@@ -48,13 +48,13 @@ sub initial_commands()
 # mysql_secure_installation into a function with the values yes.
 sub after_effects()
 {
-   $texp[$i]->expect(15,' -re ',[ 'anonymous users' => sub {
+   $texp[$i]->expect(15,' -re ',[ 'Remove anonymous users?' => sub {
 $texp[$i]->send("y\n");}]);
-   $texp[$i]->expect(15,' -re ',[ 'root login' => sub {
+   $texp[$i]->expect(15,' -re ',[ 'Disallow root login remotely?' => sub {
 $texp[$i]->send("y\n");}]);
-   $texp[$i]->expect(15,' -re ',[ 'test database' => sub {
+   $texp[$i]->expect(15,' -re ',[ 'Remove test database and access to it?' => sub {
 $texp[$i]->send("y\n");}]);
-   $texp[$i]->expect(15,' -re ',[ 'Reload' => sub { $texp[$i]->send("y\n");}]);
+   $texp[$i]->expect(15,' -re ',[ 'Reload privilege tables now?' => sub { $texp[$i]->send("y\n");}]);
    print "Execution number $i was successful\n";
 }
 

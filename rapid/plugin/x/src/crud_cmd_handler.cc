@@ -33,12 +33,6 @@
 #include "xpl_server.h"
 #include "xpl_session.h"
 
-xpl::Crud_command_handler::Crud_command_handler(Sql_data_context &da, Session_options &options,
-                                                Session_status_variables &status_variables)
-: m_da(da), m_options(options), m_qb(1024), m_status_variables(status_variables)
-{}
-
-
 namespace
 {
 
@@ -48,13 +42,12 @@ inline bool is_table_data_model(const T& msg)
   return msg.data_model() == Mysqlx::Crud::TABLE;
 }
 
-}
+} // namespace
 
 
-ngs::Error_code xpl::Crud_command_handler::execute_crud_insert(ngs::Protocol_encoder &proto,
-                                                               const Mysqlx::Crud::Insert &msg)
+ngs::Error_code xpl::Crud_command_handler::execute_crud_insert(Session &session, const Mysqlx::Crud::Insert &msg)
 {
-  xpl::Server::update_status_variable<&Common_status_variables::inc_crud_insert>(m_status_variables);
+  session.update_status<&Common_status_variables::inc_crud_insert>();
 
   m_qb.clear();
   ngs::Error_code error = Insert_statement_builder(msg, m_qb).build();
@@ -62,7 +55,7 @@ ngs::Error_code xpl::Crud_command_handler::execute_crud_insert(ngs::Protocol_enc
     return error;
 
   Sql_data_context::Result_info info;
-  error = m_da.execute_sql_no_result(m_qb.get(), info);
+  error = session.data_context().execute_sql_no_result(m_qb.get(), info);
   if (error)
   {
     if (is_table_data_model(msg))
@@ -71,37 +64,36 @@ ngs::Error_code xpl::Crud_command_handler::execute_crud_insert(ngs::Protocol_enc
     //XXX do some work to find the column that's violating constraints and fix the error message (or just append the original error)
     switch (error.error)
     {
-      case ER_BAD_NULL_ERROR:
-          return ngs::Error(ER_X_DOC_ID_MISSING,
-                            "Document is missing a required field");
+    case ER_BAD_NULL_ERROR:
+      return ngs::Error(ER_X_DOC_ID_MISSING,
+                        "Document is missing a required field");
 
-      case ER_BAD_FIELD_ERROR:
-         return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING,
-                           "Table '%s' is not a document collection", msg.collection().name().c_str());
+    case ER_BAD_FIELD_ERROR:
+      return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING,
+                        "Table '%s' is not a document collection", msg.collection().name().c_str());
 
-      case ER_DUP_ENTRY:
-          return ngs::Error(ER_X_DOC_ID_DUPLICATE,
-                            "Document contains a field value that is not unique but required to be");
+    case ER_DUP_ENTRY:
+      return ngs::Error(ER_X_DOC_ID_DUPLICATE,
+                        "Document contains a field value that is not unique but required to be");
     }
     return error;
   }
 
-  if (info.num_warnings > 0 && m_options.get_send_warnings())
-    notices::send_warnings(m_da, proto);
-  notices::send_rows_affected(proto, info.affected_rows);
+  if (info.num_warnings > 0 && session.options().get_send_warnings())
+    notices::send_warnings(session.data_context(), session.proto());
+  notices::send_rows_affected(session.proto(), info.affected_rows);
   if (is_table_data_model(msg))
-    notices::send_generated_insert_id(proto, info.last_insert_id);
+    notices::send_generated_insert_id(session.proto(), info.last_insert_id);
   if (!info.message.empty())
-    notices::send_message(proto, info.message);
-  proto.send_exec_ok();
+    notices::send_message(session.proto(), info.message);
+  session.proto().send_exec_ok();
   return ngs::Success();
 }
 
 
-ngs::Error_code xpl::Crud_command_handler::execute_crud_update(ngs::Protocol_encoder &proto,
-                                                               const Mysqlx::Crud::Update &msg)
+ngs::Error_code xpl::Crud_command_handler::execute_crud_update(Session &session, const Mysqlx::Crud::Update &msg)
 {
-  xpl::Server::update_status_variable<&Common_status_variables::inc_crud_update>(m_status_variables);
+  session.update_status<&Common_status_variables::inc_crud_update>();
 
   m_qb.clear();
   ngs::Error_code error = Update_statement_builder(msg, m_qb).build();
@@ -109,7 +101,7 @@ ngs::Error_code xpl::Crud_command_handler::execute_crud_update(ngs::Protocol_enc
     return error;
 
   Sql_data_context::Result_info info;
-  error = m_da.execute_sql_no_result(m_qb.get(), info);
+  error = session.data_context().execute_sql_no_result(m_qb.get(), info);
   if (error)
   {
     if (is_table_data_model(msg))
@@ -117,27 +109,26 @@ ngs::Error_code xpl::Crud_command_handler::execute_crud_update(ngs::Protocol_enc
 
     switch (error.error)
     {
-      case ER_INVALID_JSON_TEXT_IN_PARAM:
-        return ngs::Error(ER_X_BAD_UPDATE_DATA,
-                          "Invalid data for update operation on document collection table");
+    case ER_INVALID_JSON_TEXT_IN_PARAM:
+      return ngs::Error(ER_X_BAD_UPDATE_DATA,
+                        "Invalid data for update operation on document collection table");
     }
     return error;
   }
 
-  if (info.num_warnings > 0 && m_options.get_send_warnings())
-    notices::send_warnings(m_da, proto);
-  notices::send_rows_affected(proto, info.affected_rows);
+  if (info.num_warnings > 0 && session.options().get_send_warnings())
+    notices::send_warnings(session.data_context(), session.proto());
+  notices::send_rows_affected(session.proto(), info.affected_rows);
   if (!info.message.empty())
-    notices::send_message(proto, info.message);
-  proto.send_exec_ok();
+    notices::send_message(session.proto(), info.message);
+  session.proto().send_exec_ok();
   return ngs::Success();
 }
 
 
-ngs::Error_code xpl::Crud_command_handler::execute_crud_delete(ngs::Protocol_encoder &proto,
-                                                               const Mysqlx::Crud::Delete &msg)
+ngs::Error_code xpl::Crud_command_handler::execute_crud_delete(Session &session, const Mysqlx::Crud::Delete &msg)
 {
-  xpl::Server::update_status_variable<&Common_status_variables::inc_crud_delete>(m_status_variables);
+  session.update_status<&Common_status_variables::inc_crud_delete>();
 
   m_qb.clear();
   ngs::Error_code error = Delete_statement_builder(msg, m_qb).build();
@@ -145,16 +136,16 @@ ngs::Error_code xpl::Crud_command_handler::execute_crud_delete(ngs::Protocol_enc
     return error;
 
   Sql_data_context::Result_info info;
-  error = m_da.execute_sql_no_result(m_qb.get(), info);
+  error = session.data_context().execute_sql_no_result(m_qb.get(), info);
   if (error)
     return error;
 
-  if (info.num_warnings > 0 && m_options.get_send_warnings())
-    notices::send_warnings(m_da, proto);
-  notices::send_rows_affected(proto, info.affected_rows);
+  if (info.num_warnings > 0 && session.options().get_send_warnings())
+    notices::send_warnings(session.data_context(), session.proto());
+  notices::send_rows_affected(session.proto(), info.affected_rows);
   if (!info.message.empty())
-    notices::send_message(proto, info.message);
-  proto.send_exec_ok();
+    notices::send_message(session.proto(), info.message);
+  session.proto().send_exec_ok();
   return ngs::Success();
 }
 
@@ -175,10 +166,9 @@ inline std::string extract_column_name(const std::string &msg)
 } // namespace
 
 
-ngs::Error_code xpl::Crud_command_handler::execute_crud_find(ngs::Protocol_encoder &proto,
-                                                             const Mysqlx::Crud::Find &msg)
+ngs::Error_code xpl::Crud_command_handler::execute_crud_find(Session &session, const Mysqlx::Crud::Find &msg)
 {
-  xpl::Server::update_status_variable<&Common_status_variables::inc_crud_find>(m_status_variables);
+  session.update_status<&Common_status_variables::inc_crud_find>();
 
   m_qb.clear();
   ngs::Error_code error = Find_statement_builder(msg, m_qb).build();
@@ -186,7 +176,7 @@ ngs::Error_code xpl::Crud_command_handler::execute_crud_find(ngs::Protocol_encod
     return error;
 
   Sql_data_context::Result_info info;
-  error = m_da.execute_sql_and_stream_results(m_qb.get(), false, info);
+  error = session.data_context().execute_sql_and_stream_results(m_qb.get(), false, info);
   if (error)
   {
     if (is_table_data_model(msg))
@@ -207,10 +197,10 @@ ngs::Error_code xpl::Crud_command_handler::execute_crud_find(ngs::Protocol_encod
     return error;
   }
 
-  if (info.num_warnings > 0 && m_options.get_send_warnings())
-    notices::send_warnings(m_da, proto);
+  if (info.num_warnings > 0 && session.options().get_send_warnings())
+    notices::send_warnings(session.data_context(), session.proto());
   if (!info.message.empty())
-    notices::send_message(proto, info.message);
-  proto.send_exec_ok();
+    notices::send_message(session.proto(), info.message);
+  session.proto().send_exec_ok();
   return ngs::Success();
 }

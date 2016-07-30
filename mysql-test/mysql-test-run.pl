@@ -164,7 +164,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,gis,rpl,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,xplugin";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,gis,rpl,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -243,6 +243,7 @@ our $opt_ddd;
 our $opt_client_ddd;
 my $opt_boot_ddd;
 our $opt_manual_gdb;
+our $opt_manual_boot_gdb;
 our $opt_manual_lldb;
 our $opt_manual_dbx;
 our $opt_manual_ddd;
@@ -258,6 +259,8 @@ our $experimental_test_cases= [];
 
 my $baseport;
 my $mysqlx_baseport;
+
+my $opt_mysqlx_baseport = $ENV{'MYSQLXPLUGIN_PORT'} || "auto";
 # $opt_build_thread may later be set from $opt_port_base
 my $opt_build_thread= $ENV{'MTR_BUILD_THREAD'} || "auto";
 my $opt_port_base= $ENV{'MTR_PORT_BASE'} || "auto";
@@ -431,8 +434,9 @@ sub main {
   }
   $ENV{MTR_PARALLEL} = $opt_parallel;
 
-  if ($opt_parallel > 1 && ($opt_start_exit || $opt_stress)) {
-    mtr_warning("Parallel cannot be used with --start-and-exit or --stress\n" .
+  my $is_option_mysqlx_port_set= $opt_mysqlx_baseport ne "auto";
+  if ($opt_parallel > 1 && ($opt_start_exit || $opt_stress || $is_option_mysqlx_port_set)) {
+    mtr_warning("Parallel cannot be used neither with --start-and-exit nor --stress nor --mysqlx_port\n" .
                "Setting parallel to 1");
     $opt_parallel= 1;
   }
@@ -464,6 +468,7 @@ sub main {
   # Also read from any plugin local or suite specific plugin.defs
   for (glob "$basedir/plugin/*/tests/mtr/plugin.defs".
             " $basedir/internal/plugin/*/tests/mtr/plugin.defs".
+            " $basedir/rapid/plugin/*/tests/mtr/plugin.defs".
             " suite/*/plugin.defs") {
     read_plugin_defs($_);
   }
@@ -1115,8 +1120,9 @@ sub command_line_setup {
 	     'skip-im'                  => \&ignore_option,
 
              # Specify ports
-	     'build-thread|mtr-build-thread=i' => \$opt_build_thread,
-	     'port-base|mtr-port-base=i'       => \$opt_port_base,
+             'build-thread|mtr-build-thread=i' => \$opt_build_thread,
+             'mysqlx-port=i'                   => \$opt_mysqlx_baseport,
+             'port-base|mtr-port-base=i'       => \$opt_port_base,
 
              # Test case authoring
              'record'                   => \$opt_record,
@@ -1142,6 +1148,7 @@ sub command_line_setup {
              'client-gdb'               => \$opt_client_gdb,
              'client-lldb'              => \$opt_client_lldb,
              'manual-gdb'               => \$opt_manual_gdb,
+             'manual-boot-gdb'          => \$opt_manual_boot_gdb,
              'manual-lldb'              => \$opt_manual_lldb,
 	     'boot-gdb'                 => \$opt_boot_gdb,
              'manual-debug'             => \$opt_manual_debug,
@@ -1616,7 +1623,7 @@ sub command_line_setup {
 
     if ( $opt_gdb || $opt_ddd || $opt_manual_gdb || $opt_manual_lldb || 
          $opt_manual_ddd || $opt_manual_debug || $opt_debugger || $opt_dbx || 
-         $opt_lldb || $opt_manual_dbx)
+         $opt_lldb || $opt_manual_dbx || $opt_manual_boot_gdb )
     {
       mtr_error("You need to use the client debug options for the",
 		"embedded server. Ex: --client-gdb");
@@ -1645,7 +1652,7 @@ sub command_line_setup {
   if ( $opt_gdb || $opt_client_gdb || $opt_ddd || $opt_client_ddd || 
        $opt_manual_gdb || $opt_manual_lldb || $opt_manual_ddd || 
        $opt_manual_debug || $opt_dbx || $opt_client_dbx || $opt_manual_dbx || 
-       $opt_debugger || $opt_client_debugger )
+       $opt_debugger || $opt_client_debugger || $opt_manual_boot_gdb )
   {
     # Indicate that we are using debugger
     $glob_debugger= 1;
@@ -1828,7 +1835,6 @@ sub command_line_setup {
   check_debug_support(\%mysqld_variables);
 
   executable_setup();
-
 }
 
 
@@ -1879,8 +1885,12 @@ sub set_build_thread_ports($) {
 
   # Calculate baseport
   $baseport= $build_thread * 10 + 10000;
-  $mysqlx_baseport =  $baseport + 9;
-  if ( $baseport < 5001 or $mysqlx_baseport + 9 >= 32767 )
+
+  my $should_generate_value= $opt_mysqlx_baseport eq "auto";
+
+  $mysqlx_baseport= $should_generate_value ? $baseport + 9 : $opt_mysqlx_baseport;
+  
+  if ( $baseport < 5001 or $baseport + 9 >= 32767)
   {
     mtr_error("MTR_BUILD_THREAD number results in a port",
               "outside 5001 - 32767",
@@ -3818,7 +3828,7 @@ sub mysql_install_db {
   # ----------------------------------------------------------------------
   my $bootstrap_sql_file= "$opt_vardir/tmp/bootstrap.sql";
 
-  if ($opt_boot_gdb) {
+  if ($opt_boot_gdb || $opt_manual_boot_gdb) {
     gdb_arguments(\$args, \$exe_mysqld_bootstrap, $mysqld->name(),
 		  $bootstrap_sql_file);
   }
@@ -3904,6 +3914,16 @@ sub mysql_install_db {
   # Add procedures for checking server is restored after testcase
   mtr_tofile($bootstrap_sql_file,
              sql_to_bootstrap(mtr_grab_file("include/mtr_check.sql")));
+
+  if ( $opt_manual_boot_gdb )
+  {
+    # The configuration has been set up and user has been prompted for
+    # how to start the servers manually in the requested debugger.
+    # At this time mtr.pl have no knowledge about the server processes
+    # and thus can't wait for them to finish, mtr exits at this point.
+    exit(0);
+  }
+
 
   # Log bootstrap command
   my $path_bootstrap_log= "$opt_vardir/log/bootstrap.log";
@@ -6127,6 +6147,7 @@ sub stop_servers($$) {
     delete $server->{'started_tinfo'};
     delete $server->{'started_opts'};
     delete $server->{'started_cnf'};
+    delete $server->{'restart_opts'};
   }
 }
 
@@ -6387,6 +6408,7 @@ sub start_mysqltest ($) {
     $exe=  "strace";
     mtr_add_arg($args, "-o");
     mtr_add_arg($args, "%s/log/mysqltest.strace", $opt_vardir);
+    mtr_add_arg($args, "-f");
     mtr_add_arg($args, "$exe_mysqltest");
   }
 
@@ -6595,7 +6617,7 @@ sub gdb_arguments {
 	     "break main\n" .
 	     $runline);
 
-  if ( $opt_manual_gdb )
+  if ( $opt_manual_gdb || $opt_manual_boot_gdb )
   {
      print "\nTo start gdb for $type, type in another window:\n";
      print "gdb -cd $glob_mysql_test_dir -x $gdb_init_file $$exe\n";
@@ -6803,6 +6825,7 @@ sub strace_server_arguments {
 
   mtr_add_arg($args, "-o");
   mtr_add_arg($args, "%s/log/%s.strace", $opt_vardir, $type);
+  mtr_add_arg($args, "-f");
   mtr_add_arg($args, $$exe);
   $$exe= "strace";
 }
@@ -7162,6 +7185,8 @@ Options for debugging the product
   boot-dbx              Start bootstrap server in dbx
   boot-ddd              Start bootstrap server in ddd
   boot-gdb              Start bootstrap server in gdb
+  manual-boot-gdb       Let user manually start mysqld in gdb, during
+                        initialize process
   client-dbx            Start mysqltest client in dbx
   client-ddd            Start mysqltest client in ddd
   client-debugger=NAME  Start mysqltest in the selected debugger

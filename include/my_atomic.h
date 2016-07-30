@@ -1,7 +1,7 @@
 #ifndef MY_ATOMIC_INCLUDED
 #define MY_ATOMIC_INCLUDED
 
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,8 +56,10 @@
 #  include "atomic/generic-msvc.h"
 #elif defined(HAVE_SOLARIS_ATOMIC)
 #  include "atomic/solaris.h"
-#elif defined(HAVE_GCC_ATOMIC_BUILTINS)
-#  include "atomic/gcc_builtins.h"
+#elif defined(HAVE_GCC_SYNC_BUILTINS)   /* Use old __sync by default */
+#  include "atomic/gcc_sync.h"
+#elif defined(HAVE_GCC_ATOMIC_BUILTINS) /* Use __atomic on e.g. powerpc */
+#  include "atomic/gcc_atomic.h"
 #else
 #  error Native atomics support not found!
 #endif

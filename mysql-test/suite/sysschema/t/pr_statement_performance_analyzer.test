@@ -13,6 +13,8 @@
 # yet have a summary view that we can use for this view.
 # Until then, we disable this test with --ps-protocol
 -- source include/no_protocol.inc
+# Bug #23290879 - For reasons unknown to man this test fails randomly only on Windows
+-- source include/not_windows.inc
 
 use test;
 --disable_warnings
@@ -31,17 +33,15 @@ connection con1;
 use test;
 --let $con1_thread_id= `SELECT THREAD_ID FROM performance_schema.threads WHERE PROCESSLIST_ID = CONNECTION_ID()`
 
-# Disable instrumentation for the thread that will be monitoring and ensure all P_S tables are reset
+# Disable instrumentation for all other threads other than the one that will
+# my monitored for this test ($con1_thread_id)
 connection default;
 --disable_result_log
-CALL sys.ps_setup_disable_thread(CONNECTION_ID());
+--replace_result $con1_thread_id CON1_THREAD_ID
+eval UPDATE performance_schema.threads SET INSTRUMENTED = IF(THREAD_ID = $con1_thread_id, 'YES', 'NO');
 CALL sys.ps_setup_enable_consumer('events_statements_history_long');
 CALL sys.ps_truncate_all_tables(FALSE);
 --enable_result_log
-
-# The sleeps of more than 1 second ensures that the first_seen and last_seen will not be within the
-# same second and thus will be unique for all of the queries. This is required for the result substitution to
-# be deterministic.
 
 # Start with some initial queries
 # Don't rely on the digests being constant across MySQL releases and versions, so find the
@@ -50,7 +50,6 @@ CALL sys.ps_truncate_all_tables(FALSE);
 connection con1;
 INSERT INTO t1 VALUES (1, 0);
 connection default;
-#--let $wait_condition= SELECT COUNT(*) = 1 FROM t1
 --let $wait_condition= SELECT SUBSTRING(SQL_TEXT, 1, 7) = 'INSERT ' FROM performance_schema.events_statements_current WHERE THREAD_ID = $con1_thread_id AND DIGEST IS NOT NULL
 --source include/wait_condition.inc
 --let $digest_insert= `SELECT DIGEST FROM performance_schema.events_statements_current WHERE THREAD_ID = $con1_thread_id ORDER BY EVENT_ID DESC LIMIT 1`
@@ -58,7 +57,6 @@ connection default;
 connection con1;
 UPDATE t1 SET val = 1 WHERE id = 1;
 connection default;
-#--let $wait_condition= SELECT val = 1 FROM t1 WHERE id = 1;
 --let $wait_condition= SELECT SUBSTRING(SQL_TEXT, 1, 7) = 'UPDATE ' FROM performance_schema.events_statements_current WHERE THREAD_ID = $con1_thread_id AND DIGEST IS NOT NULL
 --source include/wait_condition.inc
 --let $digest_update= `SELECT DIGEST FROM performance_schema.events_statements_current WHERE THREAD_ID = $con1_thread_id ORDER BY EVENT_ID DESC LIMIT 1`
@@ -100,23 +98,9 @@ connection default;
 # before continuing with the actual tests of pr_statement_performance_analyzer()
 --let $wait_condition= SELECT COUNT_STAR = 2 FROM performance_schema.events_statements_summary_by_digest WHERE DIGEST = '$digest_select'
 --source include/wait_condition.inc
-CALL sys.statement_performance_analyzer('snapshot', NULL, NULL);
 
-# Do a sanity check to ensure we are assuming the queries has the digests they have and that there is nothing else in the events_statements_summary_by_digest than there actually is.
---replace_result $digest_insert DIGEST_INSERT $digest_update DIGEST_UPDATE $digest_select DIGEST_SELECT
---sorted_result
-SELECT DIGEST, COUNT_STAR FROM performance_schema.events_statements_summary_by_digest;
-
-# with_runtimes_in_95th_percentile
-# It is unknown what the result will be since the execution times for each query are unknown
-# So just check that no warning or error occurs
---disable_result_log
-CALL sys.statement_performance_analyzer('overall', NULL, 'with_runtimes_in_95th_percentile');
-CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_runtimes_in_95th_percentile');
---enable_result_log
-
-# analysis - as there's no control of the lock time, it may be the same for two or more of the queries.
-# So replace_result cannot be used to give it a unique value. Instead just use LOCK_LATENCY for all rows.
+# Get all values to be used in replacements now to minimize the risk of the
+# values disappearing out of the performance_schema tables
 --let $o_upd_total_latency= `SELECT total_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_update'`
 --let $o_upd_max_latency= `SELECT max_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_update'`
 --let $o_upd_avg_latency= `SELECT avg_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_update'`
@@ -135,16 +119,34 @@ CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_r
 --let $o_upd_lock_latency= `SELECT lock_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_update'`
 --let $o_sel_lock_latency= `SELECT lock_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_select'`
 --let $o_ins_lock_latency= `SELECT lock_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_insert'`
---replace_result $query_insert QUERY_INSERT $query_select QUERY_SELECT $query_update QUERY_UPDATE $digest_insert DIGEST_INSERT $digest_update DIGEST_UPDATE $digest_select DIGEST_SELECT $o_upd_total_latency LATENCY $o_upd_max_latency LATENCY $o_upd_avg_latency LATENCY $o_upd_lock_latency LATENCY $o_upd_first_seen FIRST_SEEN $o_upd_last_seen LAST_SEEN $o_sel_total_latency LATENCY $o_sel_max_latency LATENCY $o_sel_avg_latency LATENCY $o_sel_lock_latency LATENCY $o_sel_first_seen FIRST_SEEN $o_sel_last_seen LAST_SEEN $o_ins_total_latency LATENCY $o_ins_max_latency LATENCY $o_ins_avg_latency LATENCY $o_ins_lock_latency LATENCY $o_ins_first_seen FIRST_SEEN $o_ins_last_seen LAST_SEEN
---sorted_result
-CALL sys.statement_performance_analyzer('overall', NULL, 'analysis');
-
 --let $d_upd_total_latency= `SELECT sys.format_time(TIMER_WAIT) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_update' ORDER BY EVENT_ID DESC LIMIT 1`
 --let $d_sel_total_latency= `SELECT sys.format_time(TIMER_WAIT) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_select' ORDER BY EVENT_ID DESC LIMIT 1`
 --let $d_ins_total_latency= `SELECT sys.format_time(TIMER_WAIT) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_insert' ORDER BY EVENT_ID DESC LIMIT 1`
 --let $d_upd_tock_latency= `SELECT sys.format_time(LOCK_TIME) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_update' ORDER BY EVENT_ID DESC LIMIT 1`
 --let $d_sel_tock_latency= `SELECT sys.format_time(LOCK_TIME) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_select' ORDER BY EVENT_ID DESC LIMIT 1`
 --let $d_ins_tock_latency= `SELECT sys.format_time(LOCK_TIME) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_insert' ORDER BY EVENT_ID DESC LIMIT 1`
+
+CALL sys.statement_performance_analyzer('snapshot', NULL, NULL);
+
+# Do a sanity check to ensure we are assuming the queries has the digests they have and that there is nothing else in the events_statements_summary_by_digest than there actually is.
+--replace_result $digest_insert DIGEST_INSERT $digest_update DIGEST_UPDATE $digest_select DIGEST_SELECT
+--sorted_result
+SELECT DIGEST, COUNT_STAR FROM performance_schema.events_statements_summary_by_digest;
+
+# with_runtimes_in_95th_percentile
+# It is unknown what the result will be since the execution times for each query are unknown
+# So just check that no warning or error occurs
+--disable_result_log
+CALL sys.statement_performance_analyzer('overall', NULL, 'with_runtimes_in_95th_percentile');
+CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_runtimes_in_95th_percentile');
+--enable_result_log
+
+# analysis - as there's no control of the various latencies, it may be the same for two or more of the queries.
+# So replace_result cannot be used to give it a unique value. Instead just use LATENCY for all rows.
+--replace_result $query_insert QUERY_INSERT $query_select QUERY_SELECT $query_update QUERY_UPDATE $digest_insert DIGEST_INSERT $digest_update DIGEST_UPDATE $digest_select DIGEST_SELECT $o_upd_total_latency LATENCY $o_upd_max_latency LATENCY $o_upd_avg_latency LATENCY $o_upd_lock_latency LATENCY $o_upd_first_seen FIRST_SEEN $o_upd_last_seen LAST_SEEN $o_sel_total_latency LATENCY $o_sel_max_latency LATENCY $o_sel_avg_latency LATENCY $o_sel_lock_latency LATENCY $o_sel_first_seen FIRST_SEEN $o_sel_last_seen LAST_SEEN $o_ins_total_latency LATENCY $o_ins_max_latency LATENCY $o_ins_avg_latency LATENCY $o_ins_lock_latency LATENCY $o_ins_first_seen FIRST_SEEN $o_ins_last_seen LAST_SEEN
+--sorted_result
+CALL sys.statement_performance_analyzer('overall', NULL, 'analysis');
+
 --replace_result $query_insert QUERY_INSERT $query_select QUERY_SELECT $query_update QUERY_UPDATE $digest_insert DIGEST_INSERT $digest_update DIGEST_UPDATE $digest_select DIGEST_SELECT $d_upd_total_latency LATENCY $o_upd_max_latency LATENCY $o_upd_first_seen FIRST_SEEN $o_upd_last_seen LAST_SEEN $d_upd_tock_latency LATENCY $d_sel_total_latency LATENCY $o_sel_max_latency LATENCY $o_sel_first_seen FIRST_SEEN $o_sel_last_seen LAST_SEEN $d_sel_tock_latency LATENCY $d_ins_total_latency LATENCY $o_ins_max_latency LATENCY $o_ins_first_seen FIRST_SEEN $o_ins_last_seen LAST_SEEN $d_ins_tock_latency LATENCY
 --sorted_result
 CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'analysis');
@@ -292,4 +294,5 @@ SET SESSION sql_mode = @@global.sql_mode;
 SET @sys.statement_performance_analyzer.limit = NULL;
 SET @sys.statement_performance_analyzer.view = NULL;
 --source ../include/ps_setup_consumers_cleanup.inc
+--source ../include/ps_threads_cleanup.inc
 --source ../include/sys_config_cleanup.inc

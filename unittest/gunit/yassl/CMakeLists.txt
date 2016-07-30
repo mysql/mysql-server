@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,3 +33,4 @@ IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
   TARGET_LINK_LIBRARIES(yassl-t perfschema pfs_server_stubs)
 ENDIF()
 TARGET_LINK_LIBRARIES(yassl-t ${LIBSOCKET})
+ADD_TEST(yassl yassl-t)

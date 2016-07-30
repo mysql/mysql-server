@@ -3,10 +3,10 @@
  *  memcached - memory caching daemon
  *
  *       http://www.danga.com/memcached/
- *  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
  *  Copyright 2003 Danga Interactive, Inc.  All rights reserved.
- *  This file was modified by Oracle on 28-08-2015.
- *  Modifications copyright (c) 2015, Oracle and/or its affiliates.
+ *  This file was modified by Oracle on 28-08-2015 and 23-03-2016.
+ *  Modifications copyright (c) 2015, 2016, Oracle and/or its affiliates.
  *  All rights reserved.
  *
  *  Use and distribution licensed under the BSD license.  See
@@ -89,7 +89,7 @@ static inline void item_set_cas(const void *cookie, item *it, uint64_t cas) {
 #define STATS_MISS(conn, op, key, nkey) \
     STATS_TWO(conn, op##_misses, cmd_##op, key, nkey)
 
-#if defined(HAVE_GCC_ATOMIC_BUILTINS)
+#if defined(HAVE_GCC_SYNC_BUILTINS)
 
 #define STATS_NOKEY(conn, op)	\
 do { \
@@ -115,7 +115,7 @@ do { \
 
 #define MEMCACHED_ATOMIC_MSG	"InnoDB MEMCACHED: Memcached uses atomic increment \n"
 
-#else /* HAVE_GCC_ATOMIC_BUILTINS */
+#else /* HAVE_GCC_SYNC_BUILTINS */
 #define STATS_NOKEY(conn, op) { \
     struct thread_stats *thread_stats = \
         get_thread_stats(conn); \
@@ -142,7 +142,7 @@ do { \
 }
 
 #define MEMCACHED_ATOMIC_MSG	"InnoDB Memcached: Memcached DOES NOT use atomic increment"
-#endif /* HAVE_GCC_ATOMIC_BUILTINS */
+#endif /* HAVE_GCC_SYNC_BUILTINS */
 
 volatile sig_atomic_t memcached_shutdown;
 volatile sig_atomic_t memcached_initialized;

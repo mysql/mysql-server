@@ -1,0 +1,140 @@
+## Test notices
+
+--source ../include/xplugin_preamble.inc
+## Test starts here
+--let $xtest_file= $MYSQL_TMP_DIR/stmtexecute_query_result_mysqlx.tmp
+--write_file $xtest_file
+-->quiet
+
+-->sql
+USE test;
+CREATE TABLE chartab (d VARCHAR(1));
+SET @old_sql_mode=@@sql_mode;
+SET @@sql_mode='ERROR_FOR_DIVISION_BY_ZERO';
+-->endsql
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1/0, 1/0"
+}
+-->recvresult
+
+## Disable warnings and try again
+-->stmtadmin disable_notices	{"notice":"warnings"}
+-->recvresult
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1/0"
+}
+-->recvresult
+
+## Enable warnings and try again
+-->stmtadmin enable_notices	{"notice":["warnings"]}
+-->recvresult
+
+## SQL
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1/0"
+}
+-->recvresult
+
+## CRUD Insert
+Mysqlx.Crud.Insert {
+  collection {
+    name: "chartab"
+    schema: "test"
+  }
+  data_model: TABLE
+  projection {
+    name: "d"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "XX"
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+## CRUD Find
+Mysqlx.Crud.Find {
+  collection {
+    name: "chartab"
+    schema: "test"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "/"
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 1
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 0
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+## CRUD Update
+Mysqlx.Crud.Update {
+  collection {
+    name: "chartab"
+    schema: "test"
+  }
+  data_model: TABLE
+  operation {
+    source {
+      name: "d"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "XX"
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+## CRUD Delete
+# Not sure what kind of delete generates warnings...
+
+-->stmtadmin list_notices
+-->recvresult
+
+-->sql
+DROP TABLE chartab;
+SET @@sql_mode = @old_sql_mode;
+-->endsql
+
+-->sql
+SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
+-->endsql
+
+EOF
+
+--exec $MYSQLXTEST -uroot --password='' --file=$xtest_file 2>&1
+--remove_file $xtest_file
+
+## Postamble
+UNINSTALL PLUGIN mysqlx;

@@ -44,7 +44,7 @@ int mysql_check_errors;
 const int SYS_TABLE_COUNT = 1;
 const int SYS_VIEW_COUNT = 100;
 const int SYS_TRIGGER_COUNT = 2;
-const int SYS_FUNCTION_COUNT = 21;
+const int SYS_FUNCTION_COUNT = 22;
 const int SYS_PROCEDURE_COUNT = 26;
 
 /**
@@ -240,6 +240,32 @@ public:
           return EXIT_UPGRADING_QUERIES_ERROR;
         }
       } else {
+        /* If the database is empty, upgrade */
+        if (!mysql_query(this->m_mysql_connection,
+          "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'sys'"))
+        {
+          MYSQL_RES *result = mysql_store_result(this->m_mysql_connection);
+          if (result)
+          {
+            MYSQL_ROW row;
+            if ((row = mysql_fetch_row(result)))
+            {
+              if (strcmp(row[0], "0") == 0)
+              {
+                // The sys database contained nothing
+                stringstream ss;
+                ss << "Found empty sys database. Installing the sys schema.";
+                this->print_verbose_message(ss.str());
+                if (this->run_sys_schema_upgrade() != 0)
+                {
+                  return EXIT_UPGRADING_QUERIES_ERROR;
+                }
+              }
+            }
+            mysql_free_result(result);
+          }
+        }
+
         /* If the version is smaller, upgrade */
         if (mysql_query(this->m_mysql_connection, "SELECT * FROM sys.version") != 0)
         {
@@ -350,7 +376,7 @@ public:
           "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGGER_SCHEMA = 'sys'") != 0)
         {
           return this->print_error(EXIT_UPGRADING_QUERIES_ERROR,
-              "Query against INFORMATION_SCHEMA.TABLES failed when checking the sys schema.");
+              "Query against INFORMATION_SCHEMA.TRIGGERS failed when checking the sys schema.");
         } else {
           MYSQL_RES *result = mysql_store_result(this->m_mysql_connection);
           if (result)
@@ -380,7 +406,7 @@ public:
           "SELECT COUNT(*) FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA = 'sys' AND ROUTINE_TYPE = 'FUNCTION'") != 0)
         {
           return this->print_error(EXIT_UPGRADING_QUERIES_ERROR,
-              "Query against INFORMATION_SCHEMA.TABLES failed when checking the sys schema.");
+              "Query against INFORMATION_SCHEMA.ROUTINES failed when checking the sys schema.");
         } else {
           MYSQL_RES *result = mysql_store_result(this->m_mysql_connection);
           if (result)
@@ -410,7 +436,7 @@ public:
           "SELECT COUNT(*) FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA = 'sys' AND ROUTINE_TYPE = 'PROCEDURE'") != 0)
         {
           return this->print_error(EXIT_UPGRADING_QUERIES_ERROR,
-              "Query against INFORMATION_SCHEMA.TABLES failed when checking the sys schema.");
+              "Query against INFORMATION_SCHEMA.ROUTINES failed when checking the sys schema.");
         } else {
           MYSQL_RES *result = mysql_store_result(this->m_mysql_connection);
           if (result)

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1434,7 +1434,10 @@ srv_mon_set_module_control(
 				module */
 				set_current_module = FALSE;
 			} else if (module_id == MONITOR_ALL_COUNTER) {
-				continue;
+				if (!(innodb_counter_info[ix].monitor_type
+				      & MONITOR_GROUP_MODULE)) {
+					continue;
+				}
 			} else {
 				/* Hitting the next module, stop */
 				break;

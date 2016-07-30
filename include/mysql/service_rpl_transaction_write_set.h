@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ struct st_trans_write_set
 {
   unsigned int m_flags; // reserved
   unsigned long write_set_size; // Size of the PKE set of the transaction.
-  unsigned long* write_set;  // A pointer to the PKE set.
+  unsigned long long* write_set;  // A pointer to the PKE set.
 };
 typedef struct st_trans_write_set Transaction_write_set;
 

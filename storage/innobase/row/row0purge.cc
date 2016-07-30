@@ -504,10 +504,18 @@ row_purge_remove_sec_if_poss_leaf(
 
 			if (dict_index_is_spatial(index)) {
 				const page_t*   page;
+				const trx_t*	trx = NULL;
+
+				if (btr_cur->rtr_info != NULL
+				    && btr_cur->rtr_info->thr != NULL) {
+					trx = thr_get_trx(
+						btr_cur->rtr_info->thr);
+				}
 
 				page = btr_cur_get_page(btr_cur);
 
 				if (!lock_test_prdt_page_lock(
+					trx,
 					page_get_space_id(page),
 					page_get_page_no(page))
 				     && page_get_n_recs(page) < 2

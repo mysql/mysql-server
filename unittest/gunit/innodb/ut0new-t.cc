@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -171,18 +171,19 @@ TEST(ut0new, edgecases)
 	ut_allocator<byte>	alloc1(mem_key_buf_buf_pool);
 	ut_new_pfx_t		pfx;
 	void*			ret;
+	const void*		null_ptr= NULL;
 
 	ret = alloc1.allocate_large(0, &pfx);
-	EXPECT_EQ(NULL, ret);
+	EXPECT_EQ(null_ptr, ret);
 
 #ifdef UNIV_PFS_MEMORY
 	ret = alloc1.allocate(16);
 	ASSERT_TRUE(ret != NULL);
 	ret = alloc1.reallocate(ret, 0, __FILE__);
-	EXPECT_EQ(NULL, ret);
+	EXPECT_EQ(null_ptr, ret);
 
 	ret = UT_NEW_ARRAY_NOKEY(byte, 0);
-	EXPECT_EQ(NULL, ret);
+	EXPECT_EQ(null_ptr, ret);
 #endif /* UNIV_PFS_MEMORY */
 
 	ut_allocator<big_t>	alloc2(mem_key_buf_buf_pool);
@@ -195,7 +196,7 @@ TEST(ut0new, edgecases)
 	ret = alloc2.allocate(16);
 	ASSERT_TRUE(ret != NULL);
 	ret = alloc2.reallocate(ret, too_many_elements, __FILE__);
-	EXPECT_EQ(NULL, ret);
+	EXPECT_EQ(null_ptr, ret);
 #endif /* UNIV_PFS_MEMORY */
 
 	bool	threw = false;
@@ -208,7 +209,7 @@ TEST(ut0new, edgecases)
 	EXPECT_TRUE(threw);
 
 	ret = alloc2.allocate(too_many_elements, NULL, NULL, false, false);
-	EXPECT_EQ(NULL, ret);
+	EXPECT_EQ(null_ptr, ret);
 
 	threw = false;
 	try {

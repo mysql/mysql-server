@@ -786,9 +786,8 @@ RESET MASTER;
 FLUSH LOGS;
 SELECT
 (@a:=LOAD_FILE("MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug37313.binlog"))
-IS NOT NULL;
-(@a:=LOAD_FILE("MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug37313.binlog"))
-IS NOT NULL
+IS NOT NULL AS Loaded;
+Loaded
 1
 *** Unsigned server_id 4294967295 is found: 1 ***
 SET @@global.server_id= 1;

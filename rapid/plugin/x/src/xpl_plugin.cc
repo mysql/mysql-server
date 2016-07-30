@@ -198,6 +198,7 @@ static struct st_mysql_show_var xpl_plugin_status[]=
 {
   { XPL_STATUS_VARIABLE_NAME("stmt_execute_sql"),               xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_execute_sql>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
   { XPL_STATUS_VARIABLE_NAME("stmt_execute_xplugin"),           xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_execute_xplugin>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
+  { XPL_STATUS_VARIABLE_NAME("stmt_execute_mysqlx"),            xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_execute_mysqlx>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
   { XPL_STATUS_VARIABLE_NAME("crud_update"),                    xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_crud_update>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
   { XPL_STATUS_VARIABLE_NAME("crud_delete"),                    xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_crud_delete>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
   { XPL_STATUS_VARIABLE_NAME("crud_find"),                      xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_crud_find>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
@@ -205,6 +206,7 @@ static struct st_mysql_show_var xpl_plugin_status[]=
   { XPL_STATUS_VARIABLE_NAME("expect_open"),                    xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_expect_open>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
   { XPL_STATUS_VARIABLE_NAME("expect_close"),                   xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_expect_close>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
   { XPL_STATUS_VARIABLE_NAME("stmt_create_collection"),         xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_create_collection>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
+  { XPL_STATUS_VARIABLE_NAME("stmt_ensure_collection"),         xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_ensure_collection>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
   { XPL_STATUS_VARIABLE_NAME("stmt_create_collection_index"),   xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_create_collection_index>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
   { XPL_STATUS_VARIABLE_NAME("stmt_drop_collection"),           xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_drop_collection>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
   { XPL_STATUS_VARIABLE_NAME("stmt_drop_collection_index"),     xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_drop_collection_index>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },

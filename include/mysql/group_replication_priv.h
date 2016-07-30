@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include <replication.h>
 #include <rpl_channel_service_interface.h>
 #include <rpl_gtid.h>
+#include <rpl_write_set_handler.h>
 
 
 /**
@@ -178,6 +179,14 @@ void global_thd_manager_add_thd(THD *thd);
 */
 void global_thd_manager_remove_thd(THD *thd);
 
+/**
+  Function that returns the write set extraction algorithm name.
+
+  @param[in] algorithm  The algorithm value
+
+  @return the algorithm name
+*/
+const char* get_write_set_algorithm_string(unsigned int algorithm);
 
 #endif	/* GROUP_REPLICATION_PRIV_INCLUDE */
 

@@ -57,17 +57,12 @@ void xpl::Sql_data_result::query(const std::string &query)
 }
 
 
-/*
-NOTE: Commented for coverage. Uncomment when needed.
-
 void xpl::Sql_data_result::get_next_field(long &value)
 {
-  //XXX: type check should be more complex
   Field_value &field_value = validate_field_index_no_null(MYSQL_TYPE_LONGLONG);
 
   value = static_cast<long>(field_value.value.v_long);
 }
-*/
 
 
 void xpl::Sql_data_result::get_next_field(bool &value)
@@ -86,7 +81,7 @@ void xpl::Sql_data_result::get_next_field(std::string &value)
 
   value = "";
   if (field_value && field_value->is_string)
-    value = *field_value->value.v_string;    
+    value = *field_value->value.v_string;
 }
 
 

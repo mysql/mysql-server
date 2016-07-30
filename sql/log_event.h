@@ -73,6 +73,9 @@ class String;
 typedef ulonglong sql_mode_t;
 typedef struct st_db_worker_hash_entry db_worker_hash_entry;
 extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+int ignored_error_code(int err_code);
+#endif
 #define PREFIX_SQL_LOAD "SQL_LOAD-"
 
 /**

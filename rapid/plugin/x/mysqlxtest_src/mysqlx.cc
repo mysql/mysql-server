@@ -71,7 +71,7 @@ namespace mysqlx {
 #ifdef WIN32
 #pragma warning(push, 0)
 #endif
-#include <boost/asio.hpp>
+#include <boost/asio/error.hpp>
 #ifdef WIN32
 #pragma warning(pop)
 #endif
@@ -222,7 +222,7 @@ boost::shared_ptr<Session> mysqlx::openSession(const std::string &host, int port
 
 Connection::Connection(const Ssl_config &ssl_config, const std::size_t timeout, const bool dont_wait_for_disconnect)
 : m_sync_connection(ssl_config.key, ssl_config.ca, ssl_config.ca_path,
-                    ssl_config.cert, ssl_config.cipher, timeout),
+                    ssl_config.cert, ssl_config.cipher, ssl_config.tls_version, timeout),
   m_client_id(0),
   m_trace_packets(false), m_closed(true),
   m_dont_wait_for_disconnect(dont_wait_for_disconnect)
@@ -658,7 +658,18 @@ void Connection::send_bytes(const std::string &data)
 void Connection::send(int mid, const Message &msg)
 {
   boost::system::error_code error;
-  uint8_t buf[5];
+
+  union
+  {
+    uint8_t buf[5];                        // Must be properly aligned
+    longlong dummy;
+  };
+  /*
+    Use dummy, otherwise g++ 4.4 reports: unused variable 'dummy'
+    MY_ATTRIBUTE((unused)) did not work, so we must use it.
+  */
+  dummy= 0;
+
   uint32_t *buf_ptr = (uint32_t *)buf;
   *buf_ptr = msg.ByteSize() + 1;
 #ifdef WORDS_BIGENDIAN
@@ -862,7 +873,18 @@ Message *Connection::recv_payload(const int mid, const std::size_t msglen)
 
 Message *Connection::recv_raw(int &mid)
 {
-  char buf[5];
+  union
+  {
+    char buf[5];                                // Must be properly aligned
+    longlong dummy;
+  };
+
+  /*
+    Use dummy, otherwise g++ 4.4 reports: unused variable 'dummy'
+    MY_ATTRIBUTE((unused)) did not work, so we must use it.
+  */
+  dummy= 0;
+  mid = 0;
 
   return recv_message_with_header(mid, buf, 0);
 }
@@ -929,6 +951,13 @@ boost::shared_ptr<Result> Connection::new_result(bool expect_data)
   return m_last_result;
 }
 
+boost::shared_ptr<Result> Connection::new_empty_result()
+{
+  boost::shared_ptr<Result> empty_result(new Result(shared_from_this(), false, false));
+
+  return empty_result;
+}
+
 boost::shared_ptr<Schema> Session::getSchema(const std::string &name)
 {
   std::map<std::string, boost::shared_ptr<Schema> >::const_iterator iter = m_schemas.find(name);
@@ -981,14 +1010,14 @@ void Document::reset(const std::string &doc, bool expression, const std::string 
   m_id = id;
 }
 
-Result::Result(boost::shared_ptr<Connection>owner, bool expect_data)
+Result::Result(boost::shared_ptr<Connection>owner, bool expect_data, bool expect_ok)
 : current_message(NULL), m_owner(owner), m_last_insert_id(-1), m_affected_rows(-1),
-  m_result_index(0), m_state(expect_data ? ReadMetadataI : ReadStmtOkI), m_buffered(false), m_buffering(false)
+  m_result_index(0), m_state(expect_data ? ReadMetadataI : expect_ok ? ReadStmtOkI : ReadDone), m_buffered(false), m_buffering(false), m_has_doc_ids(false)
 {
 }
 
 Result::Result()
-: current_message(NULL), m_buffered(false), m_buffering(false)
+  : current_message(NULL), m_state(ReadDone), m_buffered(false), m_buffering(false)
 {
 }
 
@@ -1224,6 +1253,32 @@ mysqlx::Message* Result::pop_message()
   current_message = NULL;
 
   return result;
+}
+
+std::string Result::lastDocumentId()
+{
+  // Last document id is only available on collection add operations
+  // and only if a single document is added (MY-139 Spec, Req 4, 6)
+  if (!m_has_doc_ids || m_last_document_ids.size() != 1)
+    throw std::logic_error("document id is not available.");
+
+  return m_last_document_ids.at(0);
+}
+
+const std::vector<std::string>& Result::lastDocumentIds()
+{
+  // Last document ids are available on any collection add operation (MY-139 Spec, Req 1-5)
+  if (!m_has_doc_ids)
+    throw std::logic_error("document ids are not available.");
+
+  return m_last_document_ids;
+}
+
+void Result::setLastDocumentIDs(const std::vector<std::string>& document_ids)
+{
+  m_has_doc_ids = true;
+  m_last_document_ids.reserve(document_ids.size());
+  std::copy(document_ids.begin(), document_ids.end(), std::back_inserter(m_last_document_ids));
 }
 
 static ColumnMetadata unwrap_column_metadata(const Mysqlx::Resultset::ColumnMetaData &column_data)

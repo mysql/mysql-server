@@ -25,7 +25,7 @@
 #include "rpl_rli.h"                     // Relay_log_info
 #include "sql_class.h"                   // THD
 #include "sql_tmp_table.h"               // create_virtual_tmp_table
-
+#include "rpl_slave.h"
 #include <algorithm>
 
 using std::min;
@@ -91,7 +91,7 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
 
 /**
  */
- #ifndef MYSQL_CLIENT
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
 static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
                           const CHARSET_INFO *field_cs)
 {
@@ -660,14 +660,25 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
       const char *tbl_name= table->s->table_name.str;
       char source_buf[MAX_FIELD_WIDTH];
       char target_buf[MAX_FIELD_WIDTH];
+      enum loglevel report_level= INFORMATION_LEVEL;
       String source_type(source_buf, sizeof(source_buf), &my_charset_latin1);
       String target_type(target_buf, sizeof(target_buf), &my_charset_latin1);
       show_sql_type(type(col), field_metadata(col), &source_type, field->charset());
       field->sql_type(target_type);
-      rli->report(ERROR_LEVEL, ER_SLAVE_CONVERSION_FAILED,
-                  ER(ER_SLAVE_CONVERSION_FAILED),
-                  col, db_name, tbl_name,
-                  source_type.c_ptr_safe(), target_type.c_ptr_safe());
+      if (!ignored_error_code(ER_SLAVE_CONVERSION_FAILED))
+      {
+        report_level= ERROR_LEVEL;
+        thd->is_slave_error= 1;
+      }
+      /* In case of ignored errors report warnings only if log_warnings > 1. */
+      else if (log_warnings > 1)
+        report_level= WARNING_LEVEL;
+
+      if (report_level != INFORMATION_LEVEL)
+        rli->report(report_level, ER_SLAVE_CONVERSION_FAILED,
+                    ER(ER_SLAVE_CONVERSION_FAILED),
+                    col, db_name, tbl_name,
+                    source_type.c_ptr_safe(), target_type.c_ptr_safe());
       return false;
     }
   }
@@ -806,10 +817,23 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
 
 err:
   if (conv_table == NULL)
-    rli->report(ERROR_LEVEL, ER_SLAVE_CANT_CREATE_CONVERSION,
-                ER(ER_SLAVE_CANT_CREATE_CONVERSION),
-                target_table->s->db.str,
-                target_table->s->table_name.str);
+  {
+    enum loglevel report_level= INFORMATION_LEVEL;
+    if (!ignored_error_code(ER_SLAVE_CANT_CREATE_CONVERSION))
+    {
+      report_level= ERROR_LEVEL;
+      thd->is_slave_error= 1;
+    }
+    /* In case of ignored errors report warnings only if log_warnings > 1. */
+    else if (log_warnings > 1)
+      report_level= WARNING_LEVEL;
+
+    if (report_level != INFORMATION_LEVEL)
+      rli->report(report_level, ER_SLAVE_CANT_CREATE_CONVERSION,
+                  ER(ER_SLAVE_CANT_CREATE_CONVERSION),
+                  target_table->s->db.str,
+                  target_table->s->table_name.str);
+  }
   DBUG_RETURN(conv_table);
 }
 

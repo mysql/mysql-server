@@ -966,10 +966,10 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 SELECT * FROM t1 WHERE f1 + 1 > 070707;
 f1	gc_int	gc_date
+101010	101011	2010-10-11
 70707	70708	2007-07-08
 80808	80809	2008-08-09
 90909	90910	2009-09-10
-101010	101011	2010-10-11
 # INT column & index should be picked
 EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 070707;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -978,10 +978,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc_int` AS `gc_int`,`test`.`t1`.`gc_date` AS `gc_date` from `test`.`t1` where (`test`.`t1`.`gc_int` > 70707)
 SELECT * FROM t1 WHERE f1 + 1 > CAST(070707 AS DATE);
 f1	gc_int	gc_date
+101010	101011	2010-10-11
 70707	70708	2007-07-08
 80808	80809	2008-08-09
 90909	90910	2009-09-10
-101010	101011	2010-10-11
 # DATE column & index should be picked
 EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > CAST(070707 AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

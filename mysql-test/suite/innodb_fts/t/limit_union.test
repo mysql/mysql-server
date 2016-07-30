@@ -1,0 +1,143 @@
+--source include/have_debug.inc
+
+--echo # Bug #22709692	FTS QUERY EXCEEDS RESULT CACHE LIMIT
+
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title,body),
+FULLTEXT (body))ENGINE=InnoDB;
+
+INSERT INTO articles (title,body) VALUES
+	('MySQL Tutorial','DBMS stands for DataBase ...'),
+	('How To Use MySQL Well','After you went through a ...'),
+	('Optimizing MySQL','In this tutorial we will show ...'),
+	('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+	('MySQL vs. YourSQL','In the following database comparison ...'),
+	('MySQL Security','When configured properly, MySQL ...');
+
+let $default_cache_size = `select @@query_cache_size`;
+SET GLOBAL query_cache_size=0;
+
+--echo # Query involves Ranking
+SELECT * FROM articles
+	WHERE MATCH (title,body)
+	AGAINST ('MySQL' IN NATURAL LANGUAGE MODE) LIMIT 1;
+
+--echo # Without optimization
+SET DEBUG = '+d,fts_union_limit_off';
+SELECT * FROM articles
+	WHERE MATCH (title,body)
+	AGAINST ('MySQL' IN NATURAL LANGUAGE MODE) LIMIT 1;
+SET DEBUG = '-d,fts_union_limit_off';
+
+--echo # Query involves No Ranking and fts_union operations
+SELECT * FROM articles
+	WHERE MATCH (title,body)
+	AGAINST ('MySQL' IN BOOLEAN MODE) limit 1;
+
+--echo # Without optimization
+SET DEBUG = '+d,fts_union_limit_off';
+SELECT * FROM articles
+	WHERE MATCH (title,body)
+	AGAINST ('MySQL' IN BOOLEAN MODE) limit 1;
+
+SET DEBUG = '-d,fts_union_limit_off';
+
+--echo # Query involves No ranking and fts_union, fts_ignore
+SELECT * FROM articles
+	WHERE MATCH (title,body)
+	AGAINST ('MySQL -YourSQL' IN BOOLEAN MODE) limit 1;
+
+--echo # Without optimization
+SET DEBUG = '+d,fts_union_limit_off';
+SELECT * FROM articles
+	WHERE MATCH (title,body)
+	AGAINST ('MySQL -YourSQL' IN BOOLEAN MODE) limit 1;
+SET DEBUG = '-d,fts_union_limit_off';
+
+--echo # Query with fts_intersect
+SELECT * FROM articles
+	WHERE MATCH (title,body)
+	AGAINST ('MySQL +YourSQL' IN BOOLEAN MODE) limit 1;
+
+--echo # Without optimization
+SET DEBUG = '+d,fts_union_limit_off';
+SELECT * FROM articles
+	WHERE MATCH (title,body)
+	AGAINST ('MySQL +YourSQL' IN BOOLEAN MODE) limit 1;
+SET DEBUG = '-d,fts_union_limit_off';
+
+# insert record with @ character which is used in proximity search
+INSERT INTO articles (title,body) VALUES
+	('MySQL Tutorial','request doc@oraclehelp.com ...'),
+	('MySQL Tutorial','request support@oraclehelp.com ...'),
+	('Trial version','query performace @1255 minute on 2.1Hz
+	  Memory 2GB...'),
+	('when To Use MySQL Well','for free faq  mail@xyz.com ...');
+
+--echo # Query with @distance
+SELECT * FROM articles
+	WHERE MATCH (title,body)
+	AGAINST ('"MySQL request"@3' IN BOOLEAN MODE) limit 1;
+
+--echo # Without optimization
+SET DEBUG = '+d,fts_union_limit_off';
+SELECT * FROM articles
+	WHERE MATCH (title,body)
+	AGAINST ('"MySQL request"@3' IN BOOLEAN MODE) limit 1;
+SET DEBUG = '-d,fts_union_limit_off';
+
+--echo # Query with subexpression
+SELECT * FROM articles
+	WHERE MATCH (title,body)
+	AGAINST ('+MySQL +(-support +doc)' IN BOOLEAN MODE) limit 1;
+
+--echo # Without optimization
+SET DEBUG = '+d,fts_union_limit_off';
+SELECT * FROM articles
+	WHERE MATCH (title,body)
+	AGAINST ('+MySQL +(-support +doc)' IN BOOLEAN MODE) limit 1;
+SET DEBUG = '-d,fts_union_limit_off';
+
+--echo # limit num1 OFFSET num2
+SELECT * FROM articles
+	WHERE MATCH (title,body)
+	AGAINST ('MySQL' in boolean mode) limit 4 offset 2;
+
+--echo # Without optimization
+SET DEBUG = '+d,fts_union_limit_off';
+SELECT * FROM articles
+	WHERE MATCH (title,body)
+	AGAINST ('MySQL' in boolean mode) limit 4 offset 2;
+SET DEBUG = '-d,fts_union_limit_off';
+
+--echo # wild card search
+SELECT * FROM articles
+	WHERE MATCH (title,body)
+	AGAINST ('ru*' IN BOOLEAN MODE) limit 1;
+
+--echo # Without optimization
+SET DEBUG = '+d,fts_union_limit_off';
+SELECT * FROM articles
+	WHERE MATCH (title,body)
+	AGAINST ('ru*' IN BOOLEAN MODE) limit 1;
+SET DEBUG = '-d,fts_union_limit_off';
+
+--echo # phrase search
+SELECT * FROM articles
+	WHERE MATCH (title,body)
+	AGAINST ('"request support"' IN BOOLEAN MODE) limit 1;
+
+--echo # Without optimization
+SET DEBUG = '+d,fts_union_limit_off';
+SELECT * FROM articles
+	WHERE MATCH (title,body)
+	AGAINST ('"request support"' IN BOOLEAN MODE) limit 1;
+SET DEBUG = '-d,fts_union_limit_off';
+
+DROP TABLE articles;
+--disable_query_log
+--eval SET GLOBAL query_cache_size = $default_cache_size
+--enable_query_log
