@@ -739,7 +739,7 @@ static void plugin_dl_del(const LEX_STRING *dl)
 #endif
 }
 
-st_plugin_int *plugin_find_internal(const LEX_CSTRING &name,
+static st_plugin_int *plugin_find_internal(const LEX_CSTRING &name,
                                                   int type)
 {
   uint i;

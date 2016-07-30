@@ -35,54 +35,6 @@ typedef struct st_lex_user LEX_USER;
 typedef struct st_order ORDER;
 typedef class st_select_lex SELECT_LEX;
 
-#ifdef WarpSQL
-class SQLRow
-{
-  private:
-  std::vector<std::string> row;
-  std::vector<std::string> meta;
-
-  public:
-  SQLRow(std::vector<std::string> meta, const char* data, unsigned long long data_len); 
-  const std::string at(const std::string name);
-  const std::string at(const unsigned int num);
-  const std::vector<std::string> get_row();
-  void print();
-
-};
-
-class SQLCursor
-{ 
-  private:
-  char *data;
-  unsigned long long data_len;
-  unsigned long long offset;
-  SQLRow* cur_row;
-  std::vector<std::string> meta;
-
-  public:
-  SQLCursor(const char* cols, long long col_len, const char* buf, unsigned long long buf_len );
-  void reset(); 
-  SQLRow* next(); 
-  ~SQLCursor() ;
-};
-
-
-class SQLClient 
-{
-  private:
-  THD* conn;
-  std::string _sqlcode;
-  std::string _sqlerr; 
-
-  public:
-  SQLClient(THD *thd) : conn(thd) {}
-  std::string sqlcode();
-  std::string sqlerr();
-  my_bool query(std::string columns, std::string query, SQLCursor** cursor);
-};
-#endif
-
 extern "C" int test_if_data_home_dir(const char *dir);
 
 bool stmt_causes_implicit_commit(const THD *thd, uint mask);
