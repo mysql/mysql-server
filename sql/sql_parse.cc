@@ -15,6 +15,7 @@
 
 #include "sql_parse.h"
 #include "sql_plugin.h"
+#include "../include/mysql/plugin_sqlshim.h"
 
 #include "auth_common.h"      // acl_authenticate
 #include "binlog.h"           // purge_master_logs

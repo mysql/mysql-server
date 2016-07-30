@@ -14,7 +14,7 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
     02110-1301  USA */
 #define MYSQL_SERVER
-#include <mysql/plugin.h>
+#include <mysql/plugin_sqlshim.h>
 #include <sql_class.h>
 #include <protocol_classic.h>
 #include <locale>

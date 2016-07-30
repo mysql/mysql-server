@@ -80,7 +80,7 @@ typedef struct st_mysql_xid MYSQL_XID;
   Plugin API. Common for all plugin types.
 */
 
-#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0107
+#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0106
 
 /*
   The allowable types of plugins
@@ -494,12 +494,6 @@ struct st_mysql_plugin
 #define MYSQL_REWRITE_POST_PARSE_INTERFACE_VERSION 0x0010
 #define MYSQL_SQLSHIM_INTERFACE_VERSION 0x0010
 
-#include "com_data.h"
-struct st_mysql_sqlshim
-{
-  int interface_version;
-  my_bool (*shim_function)(MYSQL_THD, union COM_DATA*, enum enum_server_command, union COM_DATA*, enum enum_server_command*);
-};
 
 /*************************************************************************
   API for Storage Engine plugin. (MYSQL_DAEMON_PLUGIN)
