@@ -1175,7 +1175,7 @@ struct trp_callback : public TransporterCallback
   Uint32 get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max);
   Uint32 bytes_sent(NodeId node, Uint32 bytes);
   bool has_data_to_send(NodeId node);
-  void reset_send_buffer(NodeId node, bool should_be_empty);
+  void reset_send_buffer(NodeId node);
 };
 
 static char *g_thr_repository_mem = NULL;
@@ -4277,22 +4277,22 @@ trp_callback::bytes_sent(NodeId node, Uint32 bytes)
 
 /**
  * NOTE:
- *    ::has_data_to_send() is only called
+ *    In Release builds ::has_data_to_send() is only called
  *    from TransporterRegistry::performSend().
  *    ::performSend() in turn, is only called from either
  *    the single threaded scheduler, or the API, which
  *    will end up in the single threaded ::has_data_to_send()
  *    implemented in class TransporterCallbackKernelNonMT
- *    Thus, this ::has_data_to_send is actually never used!
+ *    Thus, this ::has_data_to_send is not used in Release builds.
  *
- *    However, a simple implementaton based on probing
- *    get_bytes_to_send_iovec() is provided for completenes.
- *    As this is unused code, it is completely untested.
+ *    In addition Debug builds use ::has_data_to_send() to assert
+ *    that the send buffer is empty when expected to be.
+ *    a simple implementaton based on probing
+ *    get_bytes_to_send_iovec() is provided for this purpose.
  */
 bool
 trp_callback::has_data_to_send(NodeId node)
 {
-  assert(false); //Trap untested code, see comment above
   struct iovec v[1];
   return (get_bytes_to_send_iovec(node, v, 1) > 0);
 }
@@ -4307,7 +4307,7 @@ trp_callback::has_data_to_send(NodeId node)
  * as required.
  */
 void
-trp_callback::reset_send_buffer(NodeId node, bool should_be_empty)
+trp_callback::reset_send_buffer(NodeId node)
 {
   struct thr_repository *rep = g_thr_repository;
   thr_repository::send_buffer * sb = rep->m_send_buffers+node;
@@ -4326,7 +4326,6 @@ trp_callback::reset_send_buffer(NodeId node, bool should_be_empty)
     release_list(&pool, sb->m_buffer.m_first_page, sb->m_buffer.m_last_page);
     sb->m_buffer.m_first_page = NULL;
     sb->m_buffer.m_last_page  = NULL;
-    assert(!should_be_empty); // Got data when it should be empty
   }
 
   /* Drop all pending data in m_sending buffers. */
@@ -4335,8 +4334,6 @@ trp_callback::reset_send_buffer(NodeId node, bool should_be_empty)
     release_list(&pool, sb->m_sending.m_first_page, sb->m_sending.m_last_page);
     sb->m_sending.m_first_page = NULL;
     sb->m_sending.m_last_page = NULL;
-
-    assert(!should_be_empty); // Got data when it should be empty
   }
   sb->m_node_total_send_buffer_size = 0;
   unlock(&sb->m_buffer_lock);
