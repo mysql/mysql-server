@@ -14,6 +14,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "auth/auth_common.h"
+#include <gtest/gtest.h>
+#include "mysqld.h"
 
 namespace wild_case_compare_unittest {
 
