@@ -7592,6 +7592,7 @@ dd_open_table(
 
 	const bool      zip_allowed = srv_page_size <= UNIV_ZIP_SIZE_MAX;
 	const bool	strict = false;
+	bool		first_index = true;
 
 	dict_table_t* m_table = create_table_metadata(
 		dd_table, table, name,
@@ -7612,12 +7613,28 @@ dd_open_table(
                         = dd_index->se_private_data();
                 uint64                  id = 0;
                 uint32                  root = 0;
-                fil_space_t*            space = fil_space_get(m_table->space);
 
-                if (space == nullptr) {
-			dict_mem_table_free(m_table);
+		dd::Object_id   index_space_id = dd_index->tablespace_id();
+		const dd::Tablespace* index_space = nullptr;
+		if (client->acquire_uncached_uncommitted<dd::Tablespace>(
+                           index_space_id, &index_space)) {
 			return(NULL);
-                }
+		}
+		uint32	sid;
+
+		if (index_space->se_private_data().get_uint32(
+                            dd_space_key_strings[DD_SPACE_ID], &sid)) {
+		}
+
+		if (first_index) {
+			ut_ad(sid == m_table->space);
+			m_table->space = sid;
+			fil_space_t*	space = fil_space_get(m_table->space);
+			if (space == nullptr) {
+				dict_mem_table_free(m_table);
+				return(NULL);
+			}
+		}
 
                 if (se_private_data.get_uint64(
                             dd_index_key_strings[DD_INDEX_ID], &id)
@@ -7631,7 +7648,7 @@ dd_open_table(
                 ut_ad(root != FIL_NULL);
                 ut_ad(id != 0);
 		index->page = root;
-		index->space = space->id;
+		index->space = sid;
 		index->id = id;
                 index = index->next();
 	}
@@ -14179,11 +14196,14 @@ create_table_info_t::write_dd_table(
 	Table*		dd_table,
 	dict_table_t*	table)
 {
-        /* For now, don't set the tablespace id */
-//      if (dd_table->tablespace_id() == dd::INVALID_OBJECT_ID
-//          && !is_dd_table) {
-//              dd_table->set_tablespace_id(dd_space_id);
-//      }
+	/* TODO: Set tablespace_id to dd::table only for non-implicit
+	table in the system tablespace */
+#if 0
+	if (dd_table->tablespace_id() == dd::INVALID_OBJECT_ID
+	    && !is_dd_table) {
+		dd_table->set_tablespace_id(dd_space_id);
+	}
+#endif
 
         dd_table->set_se_private_id(table->id);
 
