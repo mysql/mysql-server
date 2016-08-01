@@ -398,13 +398,16 @@ sub main {
     for my $limit (2000, 1500, 1000, 500){
       $opt_parallel-- if ($sys_info->min_bogomips() < $limit);
     }
-    my $max_par= $ENV{MTR_MAX_PARALLEL} || 8;
-    $opt_parallel= $max_par if ($opt_parallel > $max_par);
-    $opt_parallel= $num_tests if ($opt_parallel > $num_tests);
+    if(defined $ENV{MTR_MAX_PARALLEL}) {
+      my $max_par= $ENV{MTR_MAX_PARALLEL};
+      $opt_parallel= $max_par if ($opt_parallel > $max_par);
+    }
     $opt_parallel= 1 if ($opt_parallel < 1);
-    mtr_report("Using parallel: $opt_parallel");
   }
+  # Limit parallel workers to number of tests to avoid idle workers
+  $opt_parallel= $num_tests if ($num_tests > 0 and $opt_parallel > $num_tests);
   $ENV{MTR_PARALLEL} = $opt_parallel;
+  mtr_report("Using parallel: $opt_parallel");
 
   if ($opt_parallel > 1 && ($opt_start_exit || $opt_stress)) {
     mtr_warning("Parallel cannot be used with --start-and-exit or --stress\n" .
@@ -1783,9 +1786,13 @@ sub set_build_thread_ports($) {
   if ( lc($opt_build_thread) eq 'auto' ) {
     my $found_free = 0;
     $build_thread = 300;	# Start attempts from here
+
+    my $build_thread_upper = $build_thread + ($opt_parallel > 39
+                             ? $opt_parallel + int($opt_parallel / 4)
+                             : 49);
     while (! $found_free)
     {
-      $build_thread= mtr_get_unique_id($build_thread, 349);
+      $build_thread= mtr_get_unique_id($build_thread, $build_thread_upper);
       if ( !defined $build_thread ) {
         mtr_error("Could not get a unique build thread id");
       }
