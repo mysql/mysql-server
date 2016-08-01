@@ -402,7 +402,7 @@ public:
   Uint32 get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max);
   Uint32 bytes_sent(NodeId node, Uint32 bytes);
   bool has_data_to_send(NodeId node);
-  void reset_send_buffer(NodeId node, bool should_be_empty);
+  void reset_send_buffer(NodeId node);
 
 #ifdef ERROR_INSERT
   void consume_sendbuffer(Uint32 bytes_remain);
@@ -414,11 +414,14 @@ private:
   struct TFSendBuffer
   {
     TFSendBuffer()
-    {
-      m_sending = false;
-      m_reset = false;
-      m_node_active = false;
-    }
+      : m_mutex(),
+        m_sending(false),
+        m_reset(false),
+        m_node_active(false),
+        m_current_send_buffer_size(0),
+        m_buffer(),
+        m_out_buffer()
+    {}
 
     /**
      * Protection of struct members:
@@ -465,7 +468,7 @@ private:
 
   void do_send_buffer(Uint32 node, TFSendBuffer *b);
 
-  Uint32 get_current_send_buffer_size(NodeId node)
+  Uint32 get_current_send_buffer_size(NodeId node) const
   {
     return m_send_buffers[node].m_current_send_buffer_size;
   }
