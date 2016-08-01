@@ -15209,6 +15209,22 @@ ha_innobase::delete_table(
 	/* We are doing a DDL operation. */
 	++trx->will_lock;
 
+	bool	file_per_table = false;
+	bool	tmp_table = false;
+	{
+        	dict_table_t* tab = dict_table_open_on_name(
+			norm_name, FALSE, FALSE,
+			static_cast<dict_err_ignore_t>(
+				DICT_ERR_IGNORE_INDEX_ROOT
+				| DICT_ERR_IGNORE_CORRUPT));
+
+		if (tab != NULL) {
+			file_per_table = dict_table_is_file_per_table(tab);
+			tmp_table = dict_table_is_temporary(tab);
+			dict_table_close(tab, FALSE, FALSE);
+		}
+	}
+
 	/* Drop the table in InnoDB */
 
 	err = row_drop_table_for_mysql(
@@ -15290,6 +15306,34 @@ ha_innobase::delete_table(
 		log_buffer_flush_to_disk();
 	} else if (err == DB_SUCCESS) {
 		priv->unregister_table_handler(norm_name);
+	}
+
+	if (err == DB_SUCCESS && !tmp_table && file_per_table) {
+		dd::Object_id   dd_space_id = (*dd_table->indexes().begin())->tablespace_id();
+		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
+		dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+		if (dd::acquire_exclusive_tablespace_mdl(
+			    thd, name, false)) {
+			ut_a(false);
+		}
+
+		const dd::Tablespace*	dd_space;
+		if (client->acquire_uncached_uncommitted<dd::Tablespace>(
+			    dd_space_id, &dd_space)) {
+			ut_a(false);
+		}
+
+		ut_a(dd_space != NULL);
+
+		if (dd::acquire_exclusive_tablespace_mdl(
+			    thd, dd_space->name().c_str(), false)) {
+			ut_a(false);
+		}
+
+		bool fail = client->drop_uncached(dd_space);
+		ut_a(!fail);
+		delete dd_space;
 	}
 
 	innobase_commit_low(trx);
