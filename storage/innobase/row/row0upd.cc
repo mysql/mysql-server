@@ -111,6 +111,8 @@ Please do NOT change this when server is running.
 FIXME: This should be removed away once we can upgrade for new DD. */
 extern bool	srv_missing_dd_table_buffer;
 
+/* WL#7595 TODO */
+#if 0
 /***********************************************************//**
 Checks if an update vector changes some of the first ordering fields of an
 index record. This is only used in foreign key checks and we can assume
@@ -124,7 +126,7 @@ row_upd_changes_first_fields_binary(
 	dict_index_t*	index,	/*!< in: index of entry */
 	const upd_t*	update,	/*!< in: update vector for the row */
 	ulint		n);	/*!< in: how many first fields to check */
-
+#endif
 
 /*********************************************************************//**
 Checks if index currently is mentioned as a referenced index in a foreign
@@ -190,6 +192,7 @@ row_upd_check_references_constraints(
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
+#if 0
 	dict_foreign_t*	foreign;
 	mem_heap_t*	heap;
 	dtuple_t*	entry;
@@ -287,6 +290,10 @@ func_exit:
 		DBUG_SET("-d,row_upd_cascade_lock_wait_err"););
 
 	DBUG_RETURN(err);
+#else
+	/* TODO: Disable foreign key stuff, WL#7595 will take case of it */
+	return(DB_SUCCESS);
+#endif
 }
 
 /*********************************************************************//**
@@ -1858,6 +1865,8 @@ row_upd_changes_fts_column(
 
 }
 
+/* Disable foreign key stuff, WL#7595 will take care of it */
+#if 0
 /***********************************************************//**
 Checks if an update vector changes some of the first ordering fields of an
 index record. This is only used in foreign key checks and we can assume
@@ -1911,6 +1920,7 @@ row_upd_changes_first_fields_binary(
 
 	return(FALSE);
 }
+#endif
 
 /*********************************************************************//**
 Copies the column values from a record. */

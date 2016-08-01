@@ -4235,7 +4235,9 @@ prepare_inplace_alter_table_global_dd(
 			std::unique_ptr<dd::Tablespace> dd_space(
 				dd::create_object<dd::Tablespace>());
 			if (create_table_info_t::create_dd_tablespace(
-				    client, thd, dd_space.get(), new_table)) {
+				    client, thd, dd_space.get(),
+				    old_dd_tab->name().c_str(),
+				    new_table->space)) {
 				ut_a(false);
 				return(true);
 			}
@@ -4254,12 +4256,22 @@ prepare_inplace_alter_table_global_dd(
 		/* No need to update dd::Table, but update all dd::Index */
 		new_dd_tab->set_se_private_id(old_dd_tab->se_private_id());
 
-                /* Copy the index metadata or create new indexes. */
-//		const dict_index_t*     old_idx = old_table->first_index();
-//		dict_index_t*           new_idx = new_table->first_index();
-//		auto                    it = new_dd_tab->indexes()->begin();
+		dd::Object_id	dd_space_id = (*old_dd_tab->indexes().begin())
+			->tablespace_id();
 
+                /* Now all index metadata are ready in dict_index_t(s),
+		copy them into dd::Index(es) */
+		dict_index_t*           new_idx = new_table->first_index();
+		for (dd::Index* idx : *new_dd_tab->indexes()) {
+			if (strcmp(idx->name().c_str(), new_idx->name) != 0) {
+				/* The order should be the same.
+				TODO: Report error */
+			}
 
+			create_table_info_t::write_dd_index(
+				dd_space_id, idx, new_idx);
+			new_idx = new_idx->next();
+		}
 	}
 
 	return(false);

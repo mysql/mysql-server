@@ -14100,24 +14100,22 @@ create_table_info_t::create_dd_tablespace(
 	dd::cache::Dictionary_client*	dd_client,
 	THD*				thd,
 	dd::Tablespace*			dd_space,
-	dict_table_t*			table)
+	const char*			name,
+	space_id_t			space)
 {
-        /* For prototype only, quickly get the table name */
-        const char*     slash = strrchr(table->name.m_name, '/');
-
-        dd_space->set_name(slash + 1);
+        dd_space->set_name(name);
 
         if (dd::acquire_exclusive_tablespace_mdl(
                     thd, dd_space->name().c_str(), true)) {
 		return(true);
         }
 
-	char*   path = fil_space_get_first_path(table->space);
-	ulint   flags = fil_space_get_flags(table->space);
+	char*   path = fil_space_get_first_path(space);
+	ulint   flags = fil_space_get_flags(space);
 
 	dd_space->set_engine(handler_name);
 	dd::Properties& p       = dd_space->se_private_data();
-	p.set_uint32("id", static_cast<uint32>(table->space));
+	p.set_uint32("id", static_cast<uint32>(space));
 	p.set_uint32("flags", flags);
 	dd::Tablespace_file*    dd_file = dd_space->add_file();
 	dd_file->set_filename(path);
@@ -14197,17 +14195,26 @@ create_table_info_t::write_dd_table(
         for (auto dd_index : *dd_table->indexes()) {
                 ut_ad(index != NULL);
 
-                dd_index->set_tablespace_id(dd_space_id);
-
-                dd::Properties& p = dd_index->se_private_data();
-                p.set_uint64("id", index->id);
-                p.set_uint32("root", index->page);
-                p.set_uint64("trx_id", index->trx_id);
+		write_dd_index(dd_space_id, dd_index, index);
 
                 index = index->next();
         }	
 }
 
+template<typename Index>
+void
+create_table_info_t::write_dd_index(
+	dd::Object_id		dd_space_id,
+	Index*			dd_index,
+	const dict_index_t*	index)
+{
+	dd_index->set_tablespace_id(dd_space_id);
+
+	dd::Properties& p = dd_index->se_private_data();
+	p.set_uint64("id", index->id);
+	p.set_uint32("root", index->page);
+	p.set_uint64("trx_id", index->trx_id);
+}
 
 /** Update the global data dictionary.
 @tparam		Table	dd::Table or dd::Partition
@@ -14258,9 +14265,11 @@ create_table_info_t::create_table_update_global_dd(
 	     && !is_dd_table
 	     && dict_table_is_file_per_table(table))
 	    || space_id == static_cast<dd::Object_id>(3)) {
+		/* For prototype only, quickly get the table name */
+		const char* name = strrchr(table->name.m_name, '/') + 1;
 		/* This means user table and file_per_table */
 		if (create_dd_tablespace(client, m_thd, dd_space.get(),
-					 table)) {
+					 name, table->space)) {
 			dict_table_close(table, FALSE, FALSE);
 			DBUG_RETURN(HA_ERR_GENERIC);
 		}

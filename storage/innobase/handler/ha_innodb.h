@@ -845,7 +845,8 @@ public:
 		dd::cache::Dictionary_client*	dd_client,
 		THD*				thd,
 		dd::Tablespace*			dd_space,
-		dict_table_t*			table);
+		const char*			name,
+		space_id_t			space);
 
 	template<typename Table>
 	static void set_table_options(
@@ -857,6 +858,12 @@ public:
 		dd::Object_id	dd_space_id,
 		Table*		dd_table,
 		dict_table_t*	table);
+
+	template<typename Index>
+	static void write_dd_index(
+		dd::Object_id		dd_space_id,
+		Index*			dd_index,
+		const dict_index_t*	index);
 
 private:
 	/** Parses the table name into normal name and either temp path or
