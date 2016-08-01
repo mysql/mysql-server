@@ -1018,13 +1018,17 @@ bool test_channel_service_interface_relay_log_renamed()
   {
     THD *thd= current_thd;
     thd->clear_error();
+#if !defined(DBUG_OFF)
     const char act[]= "now SIGNAL reached_sql_thread_startup_failed";
     DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+#endif
   }
   else
   {
+#if !defined(DBUG_OFF)
     const char act[]= "now SIGNAL reached_sql_thread_started";
     DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+#endif
   }
 
   return (error | exists);
