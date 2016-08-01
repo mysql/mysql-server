@@ -7790,7 +7790,7 @@ ER_COMPONENTS_LOAD_CANT_INITIALIZE
   pol "Metoda inicjalizująca dostarczona przez komponent '%.192s' nie zakończyła się z powodzeniem."
 
 ER_COMPONENTS_UNLOAD_NOT_LOADED
-  eng "Component specified by URN '%.192s' to unload have not been loaded before."
+  eng "Component specified by URN '%.192s' to unload has not been loaded before."
   pol "Komponent podany do odłączenia przez URN '%.192s' nie był wcześniej załadowany."
 
 ER_COMPONENTS_UNLOAD_CANT_DEINITIALIZE
@@ -7802,7 +7802,7 @@ ER_COMPONENTS_CANT_RELEASE_SERVICE
   pol "Zwolnienie wcześniej pozyskanej implementacji usługi nie powiodło się."
 
 ER_COMPONENTS_UNLOAD_CANT_UNREGISTER_SERVICE
-  eng "Unregistration of service implementation '%.192s' provided by component '%.192s' performed failed during unloading of the component."
+  eng "Unregistration of service implementation '%.192s' provided by component '%.192s' failed during unloading of the component."
   pol "Wyrejstrowanie implementacji usługi '%.192s' dostarczonej przez komponent '%.192s' wykonywane podczas odłączania komponentu nie zakończyła się z powodzeniem."
 
 ER_COMPONENTS_CANT_UNLOAD
