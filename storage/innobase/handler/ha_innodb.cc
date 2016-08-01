@@ -7249,11 +7249,8 @@ create_table_metadata(
 		return(NULL);
 	}
 
-	uint32		space; 
-	dd_part->se_private_data().get_uint32("space", &space);
-
 	dict_table_t*	m_table = dict_mem_table_create(
-		norm_name, space, n_cols, 0, 0, 0);
+		norm_name, 0, n_cols, 0, 0, 0);
 
 	m_table->id = dd_part->se_private_id();
 
@@ -7627,13 +7624,14 @@ dd_open_table(
 		}
 
 		if (first_index) {
-			ut_ad(sid == m_table->space);
+			ut_ad(m_table->space == 0);
 			m_table->space = sid;
 			fil_space_t*	space = fil_space_get(m_table->space);
 			if (space == nullptr) {
 				dict_mem_table_free(m_table);
 				return(NULL);
 			}
+			first_index = false;
 		}
 
                 if (se_private_data.get_uint64(
