@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1598,7 +1598,7 @@ Ndb_mgmd_event_service::stop_sessions(){
     if(my_socket_valid(m_clients[i].m_socket))
     {
       NDB_CLOSE_SOCKET(m_clients[i].m_socket);
-      m_clients.erase(i);
+      m_clients.erase(i, false);
     }
   }
   m_clients.unlock();
