@@ -22,3 +22,12 @@ connect(pipe_con,localhost,root,,,,,PIPE);
 
 connection default;
 disconnect pipe_con;
+
+# MDEV-10383 : check that other server cannot 'bind' on the same pipe
+let $MYSQLD_DATADIR= `select @@datadir`;
+--error  1
+--exec $MYSQLD_CMD --enable-named-pipe --skip-networking --log-error=second-mysqld.err
+let SEARCH_FILE=$MYSQLD_DATADIR/second-mysqld.err;
+let SEARCH_RANGE= -50;
+let SEARCH_PATTERN=\[ERROR\] Create named pipe failed;
+source include/search_pattern_in_file.inc;
