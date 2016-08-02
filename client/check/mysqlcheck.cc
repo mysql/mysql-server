@@ -543,6 +543,12 @@ int main(int argc, char **argv)
   if (dbConnect(current_host, current_user, opt_password))
     exit(EX_MYSQLERR);
 
+  // Sun Studio does not work with range constructor from char** to string.
+  vector<string> conv;
+  conv.reserve(argc);
+  for (int i= 0; i < argc; i++)
+    conv.push_back(argv[i]);
+
   mysql_check(sock, what_to_do, opt_alldbs,
                 opt_check_only_changed, opt_extended,
                 opt_databases, opt_fast,
@@ -552,7 +558,7 @@ int main(int argc, char **argv)
                 opt_frm, opt_fix_table_names,
                 opt_fix_db_names, opt_upgrade,
                 opt_write_binlog, verbose,
-                opt_skip_database, vector<string>(argv, argv+argc),
+                opt_skip_database, conv,
                 DBerror);
 
   dbDisconnect(current_host);
