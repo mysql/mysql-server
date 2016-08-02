@@ -1,4 +1,4 @@
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ MACRO(NDB_ADD_TARGET_PROPERTY TARGET PROPERTY VALUE)
   LIST(APPEND curr ${VALUE})
 
   # Set new PROPERTY of TARGET
-  SET_TARGET_PROPERTIES(${TARGET} PROPERTIES ${PROPERTY} ${curr})
+  SET_TARGET_PROPERTIES(${TARGET} PROPERTIES ${PROPERTY} "${curr}")
 
   #GET_TARGET_PROPERTY(after ${TARGET} ${PROPERTY})
   #MESSAGE(STATUS "${TARGET}.${PROPERTY}: ${after}")
