@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -338,10 +338,11 @@ Format_description_event(const char* buf, unsigned int event_len,
   number_of_event_types=
    event_len - (LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET + 1);
 
+  const uint8_t *ubuf = reinterpret_cast<const uint8_t*>(buf);
   post_header_len.resize(number_of_event_types);
   post_header_len.insert(post_header_len.begin(),
-                         buf + ST_COMMON_HEADER_LEN_OFFSET + 1,
-                         (buf + ST_COMMON_HEADER_LEN_OFFSET + 1 +
+                         ubuf + ST_COMMON_HEADER_LEN_OFFSET + 1,
+                         (ubuf + ST_COMMON_HEADER_LEN_OFFSET + 1 +
                           number_of_event_types));
 
   calc_server_version_split();
