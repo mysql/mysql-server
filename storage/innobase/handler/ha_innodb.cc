@@ -1211,6 +1211,53 @@ uint32
 innobase_sdi_get_num_copies(
 	const dd::Tablespace&	tablespace);
 
+/** Store sdi for a dd:Schema object associated with table
+@param[in,out]  thd     connection thread
+@param[in]      sdi     serialized dictionary information JSON string
+@param[in]      schema  dd object
+@param[in]      table   table with which schema is associated
+@return error status
+@retval false   if successful
+@retval true    on failure */
+static
+bool
+innodb_store_schema_sdi(
+        THD*                    thd,
+        handlerton*,
+        const dd::sdi_t&        sdi,
+        const dd::Schema*       schema,
+        const dd::Table*        table);
+
+/** Remove serialized dictionary information for a schema.
+@param[in,out]  thd     connection thread
+@param[in]      schema  dd object
+@param[in]      table   table with which schema is associated
+@return error status
+@retval false   if successful
+@retval true    on failure */
+static
+bool
+innodb_remove_schema_sdi(
+        THD*                    thd,
+        handlerton*,
+        const dd::Schema*       schema,
+        const dd::Table*        table);
+
+/** Remove serialized dictionary information for a table.
+@param[in,out]  thd     connection thread
+@param[in]      table   dd object
+@param[in]      schema  schema with which table is associated
+@return error status
+@retval false   if successful
+@retval true    on failure */
+static
+bool
+innodb_remove_table_sdi(
+        THD*                    thd,
+        handlerton*,
+        const dd::Table*        table,
+        const dd::Schema*       schema);
+
 /** @brief Initialize the default value of innodb_commit_concurrency.
 
 Once InnoDB is running, the innodb_commit_concurrency must not change
@@ -4169,10 +4216,10 @@ innodb_init(
 	innobase_hton->sdi_flush = innobase_sdi_flush;
 	innobase_hton->sdi_get_num_copies = innobase_sdi_get_num_copies;
 
-        innobase_hton->store_schema_sdi  = dd::sdi_tablespace::store;
-        innobase_hton->store_table_sdi   = dd::sdi_tablespace::store;
-        innobase_hton->remove_schema_sdi = dd::sdi_tablespace::remove;
-        innobase_hton->remove_table_sdi  = dd::sdi_tablespace::remove;
+	innobase_hton->store_schema_sdi = innodb_store_schema_sdi;
+	innobase_hton->store_table_sdi = dd::sdi_tablespace::store;
+	innobase_hton->remove_schema_sdi = innodb_remove_schema_sdi;
+	innobase_hton->remove_table_sdi = innodb_remove_table_sdi;
 
 	innobase_hton->rotate_encryption_master_key =
 		innobase_encryption_key_rotation;
@@ -5149,6 +5196,11 @@ innobase_sdi_set(
 	const void*		sdi,
 	uint64			sdi_len)
 {
+#if 1
+	// TODO
+	return(false);
+#endif
+
 	uint32	space_id;
 	if (innobase_sdi_check_existence(tablespace, &space_id)
 	    != DB_SUCCESS) {
@@ -5187,6 +5239,10 @@ innobase_sdi_delete(
 	const dd::Tablespace&	tablespace,
 	const dd::sdi_key_t*	sdi_key)
 {
+#if 1
+	// TODO
+	return(false);
+#endif
 	uint32	space_id;
 	if (innobase_sdi_check_existence(tablespace, &space_id)
 	    != DB_SUCCESS) {
@@ -5223,6 +5279,10 @@ bool
 innobase_sdi_flush(
 	const dd::Tablespace&	tablespace)
 {
+#if 1
+	// TODO
+	return(false);
+#endif
 	uint32	space_id;
 	if (innobase_sdi_check_existence(tablespace, &space_id)
 	    != DB_SUCCESS) {
@@ -5251,6 +5311,69 @@ innobase_sdi_get_num_copies(
 
 	return(ib_sdi_get_num_copies(space_id));
 }
+
+/** Store sdi for a dd:Schema object associated with table
+@param[in,out]  thd     connection thread
+@param[in]      sdi     serialized dictionary information JSON string
+@param[in]      schema  dd object
+@param[in]      table   table with which schema is associated
+@return error status
+@retval false   if successful
+@retval true    on failure */
+static
+bool
+innodb_store_schema_sdi(
+        THD*                    thd,
+        handlerton*,
+        const dd::sdi_t&        sdi,
+        const dd::Schema*       schema,
+        const dd::Table*        table)
+{
+        ut_ad(table->schema_id() == schema->id());
+        // TODO: implement WL#7053/WL#7069
+        return(false);
+}
+
+/** Remove serialized dictionary information for a schema.
+@param[in,out]  thd     connection thread
+@param[in]      schema  dd object
+@param[in]      table   table with which schema is associated
+@return error status
+@retval false   if successful
+@retval true    on failure */
+static
+bool
+innodb_remove_schema_sdi(
+        THD*                    thd,
+        handlerton*,
+        const dd::Schema*       schema,
+        const dd::Table*        table)
+{
+        ut_ad(table->schema_id() == schema->id());
+        // TODO: implement WL#7053/WL#7069
+        return(false);
+}
+
+/** Remove serialized dictionary information for a table.
+@param[in,out]  thd     connection thread
+@param[in]      table   dd object
+@param[in]      schema  schema with which table is associated
+@return error status
+@retval false   if successful
+@retval true    on failure */
+static
+bool
+innodb_remove_table_sdi(
+        THD*                    thd,
+        handlerton*,
+        const dd::Table*        table,
+        const dd::Schema*       schema)
+{
+        ut_ad(table->schema_id() == schema->id());
+        // TODO: implement WL#7053/WL#7069
+        return(false);
+}
+
 
 /*************************************************************************//**
 ** InnoDB database tables
