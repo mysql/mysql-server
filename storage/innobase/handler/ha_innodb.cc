@@ -7713,7 +7713,8 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 	ib_table = thd_to_innodb_session(thd)->lookup_table_handler(norm_name);
 
 	if (ib_table == NULL) {
-		if (strstr(name, "mysql") == NULL) {
+		if (strstr(name, "mysql") == nullptr
+		    && strstr(name, "sys") == nullptr) {
 			mutex_enter(&dict_sys->mutex);
 			ib_table = dict_table_check_if_in_cache_low(norm_name);
 			mutex_exit(&dict_sys->mutex);
