@@ -354,25 +354,26 @@ void Mysql_crawler::enumerate_users()
 
     Abstract_dump_task* previous_grant= m_dump_start_task;
 
+    std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*> ::iterator
+      it1= create_user.begin();
+    const Mysql::Tools::Base::Mysql_query_runner::Row& create_row= **it1;
+
+    std::string user= create_row[0];
     for (std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*>
-      ::iterator it1= create_user.begin(), it2 = user_grants.begin();
-      it1 != create_user.end(); ++it1, ++it2)
+       ::iterator it2= user_grants.begin(); it2 != user_grants.end(); ++it2)
     {
-      const Mysql::Tools::Base::Mysql_query_runner::Row& create_row= **it1;
       const Mysql::Tools::Base::Mysql_query_runner::Row& grant_row= **it2;
-
-      std::string user= std::string(create_row[0] + ";\n" + grant_row[0]);
-
-      Privilege* grant=
-        new Privilege(
+      user+= std::string(";\n" + grant_row[0]);
+    }
+    Privilege* grant=
+      new Privilege(
         this->generate_new_object_id(), user_row[0], user);
 
-      grant->add_dependency(previous_grant);
-      if (it1+1 == create_user.end())
-        m_dump_end_task->add_dependency(grant);
-      this->process_dump_task(grant);
-      previous_grant= grant;
-    }
+    grant->add_dependency(previous_grant);
+    m_dump_end_task->add_dependency(grant);
+    this->process_dump_task(grant);
+    previous_grant= grant;
+
     Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&create_user);
     Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&user_grants);
   }
