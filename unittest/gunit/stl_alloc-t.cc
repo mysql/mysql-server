@@ -26,6 +26,7 @@
 #include <list>
 #include <deque>
 #include <algorithm>
+#include <memory>
 
 using std::vector;
 using std::list;
@@ -79,12 +80,25 @@ public:
 
 
 /*
+  Flag for turning on allocation failure simulation.
+*/
+static bool simulate_failed_allocation= false;
+
+/*
+  Custom std::unique_ptr "Deleter" to reset flag. Allows unique_ptr to be used
+  as scope guard which ensures that the flag is reset.
+*/
+static auto reset_sfa= [](bool *sfap) { *sfap= false; };
+
+
+/*
   Local utility function which calls my_malloc with the standard MYF flags.
- */
+*/
 
 static void *my_malloc_(PSI_memory_key k, size_t s)
 {
-  return my_malloc(k, s, MYF(MY_WME | ME_FATALERROR));
+  return simulate_failed_allocation ? nullptr :
+    my_malloc(k, s, MYF(MY_WME | ME_FATALERROR));
 }
 
 /* Functor for un-instrumented my_malloc */
@@ -138,7 +152,11 @@ struct Init_alloc
 {
   void *operator()(size_t s) const
   {
-    DBUG_EXECUTE_IF("simulate_out_of_memory", {return nullptr;} );
+    if (simulate_failed_allocation ||
+        DBUG_EVALUATE_IF("simulate_out_of_memory", true, false))
+    {
+      return nullptr;
+    }
 
     char *buf= static_cast<char*>(operator new(s));
     memset(buf, INIT, s);
@@ -357,9 +375,8 @@ TYPED_TEST(STLAllocTestNested, NestedContainers)
 /*
   Template alias for basic_string with char.
  */
-template < class Allocator >
-using default_string= std::basic_string<char, std::char_traits<char>,
-                                        Allocator>;
+template <class A>
+using default_string= std::basic_string<char, std::char_traits<char>, A>;
 
 
 template <class A>
@@ -378,9 +395,8 @@ class STLAllocTestBasicStringTemplate : public ::testing::Test
    MA_string_type y("bar", Malloc_allocator<char>(42));
 */
 typedef ::testing::Types<Not_instr_allocator<char>,
-                         PSI_42_allocator<char>,
-                         Init_aa_allocator<char> >
-         AllocatorTypesBasicStringTemplate;
+                        PSI_42_allocator<char>,
+                        Init_aa_allocator<char> > AllocatorTypesBasicStringTemplate;
 
 TYPED_TEST_CASE(STLAllocTestBasicStringTemplate,
                 AllocatorTypesBasicStringTemplate);
@@ -400,20 +416,23 @@ TYPED_TEST(STLAllocTestBasicStringTemplate, BasicTest)
 
 }
 
-//#ifndef DBUG_OFF
 //
 // Verify that std::bad_alloc is thrown in out-of-memory conditions
 //
-//TYPED_TEST(STLAllocTestBasicStringTemplate, OutOfMemTest)
-//{
-//  typedef default_string<TypeParam> String_type;
+TYPED_TEST(STLAllocTestBasicStringTemplate, OutOfMemTest)
+{
+  // Scope guard which ensures flag is reset
+  std::unique_ptr<bool, decltype(reset_sfa)>
+    sg(&simulate_failed_allocation, reset_sfa);
 
-//  String_type x("foobar");
-//  DBUG_SET("+d,simulate_out_of_memory");
-//  ASSERT_THROW(x.reserve(1000), std::bad_alloc);
-//  DBUG_SET("-d,simulate_out_of_memory");
-//}
-//#endif /* !DBUG_OFF */
+  typedef default_string<TypeParam> String_type;
+
+  String_type x("foobar");
+
+  // Set flag to force allocation failure
+  simulate_failed_allocation= true;
+  ASSERT_THROW(x+= "some more text", std::bad_alloc);
+}
 
 } // namespace stlalloc_unittest
 
