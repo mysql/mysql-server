@@ -11189,7 +11189,8 @@ create_table_info_t::innobase_table_flags()
 		}
 
 		if (m_use_shared_space
-		    || (m_create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
+		    || (m_create_info->options & HA_LEX_CREATE_TMP_TABLE)
+		    || !m_use_file_per_table) {
 			if (!Encryption::is_none(encryption)) {
 				/* Can't encrypt shared tablespace */
 				my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
