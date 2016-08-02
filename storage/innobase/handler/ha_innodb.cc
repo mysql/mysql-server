@@ -13071,7 +13071,7 @@ innobase_dict_init(
 		/* Options */
 		"",
 		/* Se private data */
-		"",
+		"flags=8225;id=0;",
 		/* Comment */
 		"",
 		/* Engine */
@@ -14195,19 +14195,12 @@ create_table_info_t::write_dd_table(
 	Table*		dd_table,
 	dict_table_t*	table)
 {
-	/* TODO: Set tablespace_id to dd::table only for non-implicit
-	table in the system tablespace */
-#if 0
-	if (dd_table->tablespace_id() == dd::INVALID_OBJECT_ID
-	    && !is_dd_table) {
+	/* Only set the tablespace id for tables in innodb_system tablespace */
+	if (dd_space_id == 1) {
 		dd_table->set_tablespace_id(dd_space_id);
 	}
-#endif
 
         dd_table->set_se_private_id(table->id);
-
-	/* Also duplicate the tablespace id here */
-        dd_table->se_private_data().set_uint32("space", table->space);
 
         const dict_index_t* index = table->first_index();
 
@@ -14270,20 +14263,22 @@ create_table_info_t::create_table_update_global_dd(
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(m_thd);
 	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
 
-	std::unique_ptr<dd::Tablespace> dd_space(
-		dd::create_object<dd::Tablespace>());
-
 	/* The tablespace id here means:
 	1 for all the data dictionary tables;
 	2 for the tablespace of innodb_system;
 	3 for the tablespace specified with innodb_file_per_table explicitly
 	dd::INVALID_OBJECT_ID for no specified tablespace */
 	dd::Object_id	space_id = dd_table->tablespace_id();
+	dd::Object_id	dd_space_id = dd::INVALID_OBJECT_ID;
 
-	if ((space_id == dd::INVALID_OBJECT_ID
-	     && !is_dd_table
-	     && dict_table_is_file_per_table(table))
-	    || space_id == static_cast<dd::Object_id>(3)) {
+	/* TODO: Check for TEMPORARY TABLE */
+	if (space_id == dd::INVALID_OBJECT_ID
+	    && !is_dd_table
+	    && dict_table_is_file_per_table(table)) {
+
+		std::unique_ptr<dd::Tablespace> dd_space(
+			dd::create_object<dd::Tablespace>());
+
 		/* For prototype only, quickly get the table name */
 		const char* name = strrchr(table->name.m_name, '/') + 1;
 		/* This means user table and file_per_table */
@@ -14292,14 +14287,16 @@ create_table_info_t::create_table_update_global_dd(
 			dict_table_close(table, FALSE, FALSE);
 			DBUG_RETURN(HA_ERR_GENERIC);
 		}
-	} else if (!is_dd_table) {
-		/* This could be a data dictionary table, a table residing in
-		innodb_system and a table not of file_per_table.
-		Check if the tablespace exists */
-		ut_ad(space_id == static_cast<dd::Object_id>(1)
-		      || space_id == static_cast<dd::Object_id>(2)
-		      || (space_id > static_cast<dd::Object_id>(3)
-			  && !dict_table_is_file_per_table(table)));
+
+		dd_space_id = dd_space.get()->id();
+	} else if (!is_dd_table && table->space != 0) {
+		/* This is a user table that resides in shared
+		tablesapce */
+		ut_ad(!dict_table_is_file_per_table(table));
+		ut_ad(DICT_TF_HAS_SHARED_SPACE(table->flags));
+
+		/* Currently the tablespace id is hard coded as 0 */
+		dd_space_id = dd_table->tablespace_id();
 
 		const dd::Tablespace*	index_space = NULL;
 		if (client->acquire<dd::Tablespace>(
@@ -14321,11 +14318,19 @@ create_table_info_t::create_table_update_global_dd(
 			dict_table_close(table, FALSE, FALSE);
 			DBUG_RETURN(HA_ERR_GENERIC);
 		}
+	} else if (!is_dd_table) {
+		/* This is a user table that resides in innodb_system
+		tablespace, nothing to do now */
+		ut_ad(table->space == 0);
+		ut_ad(!dict_table_is_file_per_table(table));
+		dd_space_id = 1;
+	} else {
+		/* This is a data dictionary table, nothing to do now */
 	}
 
 	set_table_options(dd_table, table);
 
-	write_dd_table(dd_space.get()->id(), dd_table, table);
+	write_dd_table(dd_space_id, dd_table, table);
 
 	dict_table_close(table, FALSE, FALSE);
 

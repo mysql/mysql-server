@@ -4243,6 +4243,10 @@ prepare_inplace_alter_table_global_dd(
 			}
 
 			dd_space_id = dd_space.get()->id();
+		} else if (new_table->space == 0) {
+			dd_space_id = 1;
+		} else {
+			/* TODO: shared tablespace, nothing to do for now. */
 		}
 
 		create_table_info_t::set_table_options(new_dd_tab, new_table);
@@ -4258,6 +4262,12 @@ prepare_inplace_alter_table_global_dd(
 
 		dd::Object_id	dd_space_id = (*old_dd_tab->indexes().begin())
 			->tablespace_id();
+
+		if (new_table->space == 0) {
+			dd_space_id = 1;
+		} else {
+			/* TODO: shared tablespace, nothing to do for now */
+		}
 
                 /* Now all index metadata are ready in dict_index_t(s),
 		copy them into dd::Index(es) */
