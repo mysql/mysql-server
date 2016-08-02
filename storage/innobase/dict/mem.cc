@@ -269,32 +269,6 @@ dict_mem_index_create(
 }
 
 /**********************************************************************//**
-Adds a field definition to an index. NOTE: does not take a copy
-of the column name if the field is a column. The memory occupied
-by the column name may be released only after publishing the index. */
-void
-dict_mem_index_add_field(
-/*=====================*/
-	dict_index_t*	index,		/*!< in: index */
-	const char*	name,		/*!< in: column name */
-	ulint		prefix_len)	/*!< in: 0 or the column prefix length
-					in a MySQL index like
-					INDEX (textcol(25)) */
-{
-	dict_field_t*	field;
-
-	ut_ad(index);
-	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-
-	index->n_def++;
-
-	field = dict_index_get_nth_field(index, index->n_def - 1);
-
-	field->name = name;
-	field->prefix_len = (unsigned int) prefix_len;
-}
-
-/**********************************************************************//**
 Adds a column definition to a table. */
 void
 dict_mem_table_add_col(
@@ -363,6 +337,6 @@ dict_mem_fill_column_struct(
 	ulint	mbminlen;
 	ulint	mbmaxlen;
         dtype_get_mblen(mtype, prtype, &mbminlen, &mbmaxlen);
-	dict_col_set_mbminmaxlen(column, mbminlen, mbmaxlen);
+	column->set_mbminmaxlen(mbminlen, mbmaxlen);
 #endif /* !UNIV_LIBRARY */
 }

@@ -26,7 +26,6 @@
 --source ../include/xplugin_preamble.inc
 call mtr.add_suppression("Error parsing message of type 12: args");
 call mtr.add_suppression("Error handling message: args");
-#call mtr.add_suppression("Did not write failed 'GRANT USAGE ON *.* TO 'username'@'localhost'' into binary log while granting/revoking privileges in databases");
 
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/mysqlx-in.tmp

@@ -233,8 +233,8 @@ UNIV_INLINE
 bool
 fil_is_user_tablespace_id(space_id_t space_id)
 {
-	return(space_id > srv_undo_tablespaces_open
-	       && space_id != srv_tmp_space.space_id());
+	return(!srv_is_undo_tablespace(space_id)
+	       && !is_system_tablespace(space_id));
 }
 
 #ifdef UNIV_DEBUG

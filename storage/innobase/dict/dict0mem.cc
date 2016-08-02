@@ -256,14 +256,12 @@ dict_mem_table_col_rename_low(
 			ulint	n_fields = dict_index_get_n_fields(index);
 
 			for (ulint i = 0; i < n_fields; i++) {
-				dict_field_t*	field
-					= dict_index_get_nth_field(
-						index, i);
+				dict_field_t*	field = index->get_field(i);
 
 				/* if is_virtual and that in field->col does
 				not match, continue */
 				if ((!is_virtual) !=
-				    (!dict_col_is_virtual(field->col))) {
+				    (!field->col->is_virtual())) {
 					continue;
 				}
 
@@ -306,8 +304,7 @@ dict_mem_table_col_rename_low(
 			constraints will be freed at the same time
 			when the table object is freed. */
 			foreign->foreign_col_names[f]
-				= dict_index_get_nth_field(
-					foreign->foreign_index, f)->name;
+				= foreign->foreign_index->get_field(f)->name;
 		}
 	}
 
@@ -323,8 +320,8 @@ dict_mem_table_col_rename_low(
 			orphan when foreign_key_checks=0 and the
 			parent table is dropped. */
 
-			const char* col_name = dict_index_get_nth_field(
-				foreign->referenced_index, f)->name;
+			const char* col_name =
+				foreign->referenced_index->get_field(f)->name;
 
 			if (strcmp(foreign->referenced_col_names[f],
 				   col_name)) {
@@ -517,8 +514,7 @@ dict_mem_fill_vcol_from_v_indexes(
 		}
 
 		for (ulint i = 0; i < index->n_fields; i++) {
-			dict_field_t*   field =
-				dict_index_get_nth_field(index, i);
+			dict_field_t* field = index->get_field(i);
 
 			if (strcmp(field->name, col_name) == 0) {
 				dict_mem_fill_vcol_has_index(
@@ -632,6 +628,101 @@ dict_mem_table_free_foreign_vcol_set(
 
 #endif /* !UNIV_HOTBACKUP */
 
+/** Check whether index can be used by transaction
+@param[in] trx		transaction*/
+bool dict_index_t::is_usable(const trx_t* trx) const
+{
+	/* Indexes that are being created are not usable. */
+	if (!is_clustered() && dict_index_is_online_ddl(this)) {
+		return false;
+	}
+
+	/* Cannot use a corrupted index. */
+	if (is_corrupted()) {
+		return false;
+	}
+
+	/* Check if the specified transaction can see this index. */
+	return(table->is_temporary()
+			|| trx_id == 0
+			|| !MVCC::is_view_active(trx->read_view)
+			|| trx->read_view->changes_visible(trx_id, table->name));
+}
+
+/** Gets pointer to the nth column in an index.
+@param[in] pos	position of the field
+@return column */
+const dict_col_t* dict_index_t::get_col(ulint pos) const
+{
+	return(get_field(pos)->col);
+}
+
+/** Gets the column number the nth field in an index.
+@param[in] pos	position of the field
+@return column number */
+ulint dict_index_t::get_col_no(ulint pos) const
+{
+	return(dict_col_get_no(get_col(pos)));
+}
+
+/** Returns the position of a system column in an index.
+@param[in] type		DATA_ROW_ID, ...
+@return position, ULINT_UNDEFINED if not contained */
+ulint dict_index_t::get_sys_col_pos(ulint type) const
+{
+	ut_ad(magic_n == DICT_INDEX_MAGIC_N);
+	ut_ad(!dict_index_is_ibuf(this));
+
+	if (is_clustered()) {
+
+		return(dict_col_get_clust_pos(
+			table->get_sys_col(type),
+			this));
+	}
+
+	return(get_col_pos(dict_table_get_sys_col_no(table, type)));
+}
+
+/** Looks for column n in an index.
+@param[in]	n		column number
+@param[in]	inc_prefix	true=consider column prefixes too
+@param[in]	is_virtual	true==virtual column
+@return position in internal representation of the index;
+ULINT_UNDEFINED if not contained */
+ulint dict_index_t::get_col_pos(
+	ulint n, bool inc_prefix, bool is_virtual) const
+{
+	const dict_field_t*	field;
+	const dict_col_t*	col;
+	ulint			pos;
+	ulint			n_fields;
+
+	ut_ad(magic_n == DICT_INDEX_MAGIC_N);
+
+	if (is_virtual) {
+		col = &(dict_table_get_nth_v_col(table, n)->m_col);
+	} else {
+		col = table->get_col(n);
+	}
+
+	if (is_clustered()) {
+		return(dict_col_get_clust_pos(col, this));
+	}
+
+	n_fields = dict_index_get_n_fields(this);
+
+	for (pos = 0; pos < n_fields; pos++) {
+		field = get_field(pos);
+
+		if (col == field->col
+			&& (inc_prefix || field->prefix_len == 0)) {
+
+			return(pos);
+		}
+	}
+
+	return(ULINT_UNDEFINED);
+}
 /**********************************************************************//**
 Frees an index memory object. */
 void

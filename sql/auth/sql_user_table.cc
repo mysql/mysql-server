@@ -1,4 +1,5 @@
 /* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -194,7 +195,7 @@ void commit_and_close_mysql_tables(THD *thd)
 
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-
+extern bool initialized;
 
 /*
   Get all access bits from table after fieldnr
@@ -301,6 +302,7 @@ bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction)
     */
     (void) acl_reload(thd);
     (void) grant_reload(thd);
+    (void) roles_init_from_tables(thd);
   }
 
   return result;
@@ -471,6 +473,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
   bool builtin_plugin= true;
   bool update_password= (what_to_replace & PLUGIN_ATTR);
   char what= (revoke_grant) ? 'N' : 'Y';
+  char *priv_str;
   uchar user_key[MAX_KEY_LENGTH];
   LEX *lex= thd->lex;
   LEX_CSTRING old_plugin;
@@ -619,7 +622,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
   if (what_to_replace & PLUGIN_ATTR ||
       (what_to_replace & DEFAULT_AUTH_ATTR && !old_row_exists))
   {
-    if (table->s->fields >= 41)
+    if (table->s->fields >= MYSQL_USER_FIELD_PLUGIN)
     {
       table->field[MYSQL_USER_FIELD_PLUGIN]->
         store(combo->plugin.str, combo->plugin.length, system_charset_info);
@@ -683,15 +686,50 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
          ((Field_enum*) (*tmp_field))->typelib->count == 2 ;
          tmp_field++, priv <<= 1)
     {
-      if (priv & rights)              // set requested privileges
+      if (priv & rights)
+      {
+        // set requested privileges
         (*tmp_field)->store(&what, 1, &my_charset_latin1);
+        DBUG_PRINT("info",("Updating field %lu with privilege %c",
+                           (ulong)(table->field+2 - tmp_field), (char)what));
+      }
+    }
+    if (table->s->fields > MYSQL_USER_FIELD_CREATE_ROLE_PRIV)
+    {
+      if (CREATE_ROLE_ACL & rights)
+      {
+        table->field[MYSQL_USER_FIELD_CREATE_ROLE_PRIV]->
+          store(&what, 1, &my_charset_latin1);
+      }
+      if (DROP_ROLE_ACL & rights)
+      {
+        table->field[MYSQL_USER_FIELD_DROP_ROLE_PRIV]->
+          store(&what, 1, &my_charset_latin1);
+      }
     }
   }
   rights= get_access(table, MYSQL_USER_FIELD_SELECT_PRIV, &next_field);
+  if (table->s->fields > MYSQL_USER_FIELD_DROP_ROLE_PRIV)
+  {
+    priv_str= get_field(&global_acl_memory,
+                        table->field[MYSQL_USER_FIELD_CREATE_ROLE_PRIV]);
+    if (priv_str && (*priv_str == 'Y' || *priv_str == 'y'))
+    {
+      rights |= CREATE_ROLE_ACL;
+    }
+    priv_str= get_field(&global_acl_memory,
+                        table->field[MYSQL_USER_FIELD_DROP_ROLE_PRIV]);
+    if (priv_str && (*priv_str == 'Y' || *priv_str == 'y'))
+    {
+      rights |= DROP_ROLE_ACL;
+    }
+  }
+  DBUG_PRINT("info",("Privileges on disk are now %lu", rights));
   DBUG_PRINT("info",("table fields: %d",table->s->fields));
 
   /* We write down SSL related ACL stuff */
-  if ((what_to_replace & SSL_ATTR) && (table->s->fields >= 31))
+  if ((what_to_replace & SSL_ATTR) &&
+       (table->s->fields >= MYSQL_USER_FIELD_X509_SUBJECT))
     update_ssl_properties(thd, table);
   next_field+=4;
 
@@ -1010,7 +1048,6 @@ table_error:
 
   DBUG_RETURN(-1);
 }
-
 
 /**
   Insert, update or remove a record in the mysql.proxies_priv table.
@@ -1907,12 +1944,22 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables)
                                C_STRING_WITH_LEN("proxies_priv"),
                                "proxies_priv",
                                TL_WRITE, MDL_SHARED_NO_READ_WRITE);
+  (tables + 6)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                               C_STRING_WITH_LEN("role_edges"),
+                               "role_edges",
+                               TL_WRITE, MDL_SHARED_NO_READ_WRITE);
+  (tables + 7)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                               C_STRING_WITH_LEN("default_roles"),
+                               "default_roles",
+                               TL_WRITE, MDL_SHARED_NO_READ_WRITE);
 
   tables->next_local= tables->next_global= tables + 1;
   (tables+1)->next_local= (tables+1)->next_global= tables + 2;
   (tables+2)->next_local= (tables+2)->next_global= tables + 3;
   (tables+3)->next_local= (tables+3)->next_global= tables + 4;
   (tables+4)->next_local= (tables+4)->next_global= tables + 5;
+  (tables+5)->next_local= (tables+5)->next_global= tables + 6;
+  (tables+6)->next_local= (tables+6)->next_global= tables + 7;
 
 #ifdef HAVE_REPLICATION
   /*
@@ -1926,11 +1973,14 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables)
       account in tests.
     */
     tables[0].updating= tables[1].updating= tables[2].updating=
-      tables[3].updating= tables[4].updating= tables[5].updating= 1;
+      tables[3].updating= tables[4].updating= tables[5].updating=
+      tables[6].updating= tables[7].updating= 1;
+    
     if (!(thd->sp_runtime_ctx || rpl_filter->tables_ok(0, tables)))
       DBUG_RETURN(1);
     tables[0].updating= tables[1].updating= tables[2].updating=
-      tables[3].updating= tables[4].updating= tables[5].updating= 0;
+      tables[3].updating= tables[4].updating= tables[5].updating=
+      tables[6].updating= tables[7].updating= 0;
   }
 #endif
 

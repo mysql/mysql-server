@@ -5,6 +5,7 @@ column_stats
 columns_priv
 component
 db
+default_roles
 engine_cost
 func
 general_log
@@ -18,6 +19,7 @@ innodb_table_stats
 plugin
 procs_priv
 proxies_priv
+role_edges
 server_cost
 servers
 slave_master_info
@@ -48,6 +50,7 @@ column_stats
 columns_priv
 component
 db
+default_roles
 engine_cost
 func
 general_log
@@ -61,6 +64,7 @@ innodb_table_stats
 plugin
 procs_priv
 proxies_priv
+role_edges
 server_cost
 servers
 slave_master_info

@@ -476,7 +476,7 @@ trx_rseg_get_n_undo_tablespaces(
 
 	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
 		page_no_t	page_no;
-		space_id_t	space;
+		space_id_t	space_id;
 
 		page_no = trx_sysf_rseg_get_page_no(sys_header, i, &mtr);
 
@@ -484,14 +484,14 @@ trx_rseg_get_n_undo_tablespaces(
 			continue;
 		}
 
-		space = trx_sysf_rseg_get_space(sys_header, i, &mtr);
+		space_id = trx_sysf_rseg_get_space(sys_header, i, &mtr);
 
-		if (space != 0) {
+		if (space_id != 0) {
 			ulint	j;
 			ibool	found = FALSE;
 
 			for (j = 0; j < n_undo_tablespaces; ++j) {
-				if (space_ids[j] == space) {
+				if (space_ids[j] == space_id) {
 					found = TRUE;
 					break;
 				}
@@ -499,7 +499,7 @@ trx_rseg_get_n_undo_tablespaces(
 
 			if (!found) {
 				ut_a(n_undo_tablespaces <= i);
-				space_ids[n_undo_tablespaces++] = space;
+				space_ids[n_undo_tablespaces++] = space_id;
 			}
 		}
 	}

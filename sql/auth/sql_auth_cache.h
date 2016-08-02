@@ -1,7 +1,4 @@
-#ifndef SQL_USER_CACHE_INCLUDED
-#define SQL_USER_CACHE_INCLUDED
-
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +12,8 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+#ifndef SQL_USER_CACHE_INCLUDED
+#define SQL_USER_CACHE_INCLUDED
 
 #include "my_global.h"
 #include "my_sys.h"                     // wild_many, wild_one, wild_prefix
@@ -27,7 +26,15 @@
 #include "partitioned_rwlock.h"         // Partitioned_rwlock
 #include "sql_alloc.h"                  // Sql_alloc
 #include "sql_connect.h"                // USER_RESOURCES
-
+#include "sql_security_ctx.h"
+#include "auth_internal.h"       // List_of_authid, Authid
+#include "lf.h"
+#include <unordered_map>
+#include <utility>
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/breadth_first_search.hpp>
+#endif
 /* Forward Declarations */
 class String;
 struct TABLE;
@@ -107,7 +114,12 @@ public:
     Specifies whether the user account is locked or unlocked.
   */
   bool account_locked;
-
+  /**
+   If this ACL_USER was used as a role id then this flag is true.
+   During RENAME USER this variable is used for determining if it is safe
+   to rename the user or not.
+  */
+  bool is_role;
   ACL_USER *copy(MEM_ROOT *root);
 };
 
@@ -264,7 +276,6 @@ public:
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 extern MEM_ROOT global_acl_memory;
 extern MEM_ROOT memex; 
-extern bool initialized;
 const size_t ACL_PREALLOC_SIZE = 10U;
 extern Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *acl_users;
 extern Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE> *acl_proxy_users;
@@ -288,9 +299,8 @@ inline GRANT_NAME * routine_hash_search(const char *host, const char *ip,
                                         const char *tname, bool proc,
                                         bool exact)
 {
-  return
-    name_hash_search(proc ? &proc_priv_hash : &func_priv_hash,
-                     host, ip, db, user, tname, exact, TRUE);
+  return name_hash_search(proc ? &proc_priv_hash : &func_priv_hash,
+                          host, ip, db, user, tname, exact, TRUE);
 }
 
 inline GRANT_TABLE * table_hash_search(const char *host, const char *ip,
@@ -308,7 +318,162 @@ inline GRANT_COLUMN * column_hash_search(GRANT_TABLE *t, const char *cname,
                                         (uchar*) cname, length);
 }
 
+/* Role management */
 
+/** Tag dispatch for custom Role_properties */
+namespace boost {
+  enum vertex_acl_user_t { vertex_acl_user };
+  BOOST_INSTALL_PROPERTY(vertex, acl_user);
+}
+
+/** 
+  Custom vertex properties used in Granted_roles_graph
+  TODO ACL_USER contains too much information. We only need global access,
+  username and hostname. If this was a POD we don't have to hold the same
+  mutex as ACL_USER.
+*/
+typedef boost::property<boost::vertex_acl_user_t,
+                        ACL_USER,
+                        boost::property<boost::vertex_color_t,
+                                        boost::default_color_type,
+                                        boost::property<boost::vertex_name_t,
+                                                        std::string >
+                                       >
+                       > Role_properties;
+
+typedef boost::property<boost::edge_capacity_t,
+                        int
+                       > Role_edge_properties;
+
+/** A graph of all users/roles privilege inheritance */
+typedef boost::adjacency_list<boost::setS,      // OutEdges
+                              boost::vecS,      // Vertices
+                              boost::directedS,  // Directed graph
+                              Role_properties,  // Vertex props
+                              Role_edge_properties
+                             > Granted_roles_graph;
+
+/** The data type of a vertex in the Granted_roles_graph */
+typedef boost::graph_traits<Granted_roles_graph>::vertex_descriptor
+  Role_vertex_descriptor;
+
+/** The data type of an edge in the Granted_roles_graph */
+typedef boost::graph_traits<Granted_roles_graph>::edge_descriptor
+  Role_edge_descriptor;
+
+/** The datatype of the map between authids and graph vertex descriptors */
+typedef std::unordered_map<std::string, Role_vertex_descriptor >
+  Role_index_map;
+
+/** Container for global, schema, table/view and routine ACL maps */
+class Acl_map : public Sql_alloc
+{
+public:
+  Acl_map(Security_context *sctx, uint64 ver);
+  Acl_map(const Acl_map &map);
+  Acl_map(const Acl_map &&map);
+  ~Acl_map();
+private:
+  Acl_map &operator=(const Acl_map &map);
+public:
+  void *operator new(size_t size);
+  void operator delete(void* p);
+  Acl_map &operator=(Acl_map &&map);
+  void increase_reference_count();
+  void decrease_reference_count();
+
+  ulong global_acl();
+  Db_access_map *db_acls();
+  Db_access_map *db_wild_acls();
+  Table_access_map *table_acls();
+  SP_access_map *sp_acls();
+  SP_access_map *func_acls();
+  Grant_acl_set *grant_acls();
+  uint64 version() { return m_version; }
+  uint32 reference_count()
+  {
+    return my_atomic_load32(&m_reference_count);
+  }
+private:
+  volatile int32 m_reference_count;
+  uint64 m_version;
+  Db_access_map m_db_acls;
+  Db_access_map m_db_wild_acls;
+  Table_access_map m_table_acls;
+  ulong m_global_acl;
+  SP_access_map m_sp_acls;
+  SP_access_map m_func_acls;
+  Grant_acl_set m_with_admin_acls;
+};
+
+typedef LF_HASH Acl_cache_internal;
+
+class Acl_cache
+{
+public:
+  Acl_cache();
+  ~Acl_cache();
+
+  /**
+    When ever the role graph is modified we must flatten the privileges again.
+    This is done by increasing the role graph version counter. Next time
+    a security context is created for an authorization id (aid) a request is
+    also sent to the acl_cache to checkout a flattened acl_map for this
+    particular aid. If a previous acl_map exists the version of this map is
+    compared to the role graph version. If they don't match a new acl_map
+    is calculated and inserted into the cache.
+  */
+  void increase_version();
+  /**
+    Returns a pointer to an acl map to the caller and increase the reference
+    count on the object, iff the object version is the same as the global
+    graph version.
+    If no acl map exists which correspond ot the current authorization id of
+    the security context, a new acl map is calculated, inserted into the cache
+    and returned to the user.
+    A new object will also be created if the role graph version counter is
+    different than the acl map object's version.
+  
+    @param uid
+    @return
+  */
+  Acl_map *checkout_acl_map(Security_context *sctx, Auth_id_ref &uid,
+                            List_of_auth_id_refs &active_roles);
+  /**
+    When the security context is done with the acl map it calls the cache
+    to decrease the reference count on that object.
+    @param map
+  */
+  void return_acl_map(Acl_map *map);
+  /**
+    Removes all acl map objects with a references count of zero.
+  */
+  void flush_cache();
+  /**
+    Return a lower boundary to the current version count.
+  */
+  uint64 version();
+  /**
+    Return a snapshot of the number of items in the cache
+  */
+  int32 size();
+  
+private:
+  /**
+    Creates a new acl map for the authorization id of the security context.
+
+    @param version The version of the new map
+    @param sctx The associated security context
+    @return
+  */
+  Acl_map *create_acl_map(uint64 version, Security_context *sctx);
+  /** Role graph version counter */
+  volatile uint64 m_role_graph_version;
+  Acl_cache_internal m_cache;
+  mysql_mutex_t m_cache_flush_mutex;
+};
+
+Acl_cache *get_global_acl_cache();
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 #endif /* SQL_USER_CACHE_INCLUDED */

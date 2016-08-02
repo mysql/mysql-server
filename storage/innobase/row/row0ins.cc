@@ -538,7 +538,7 @@ row_ins_cascade_calc_update_vec(
 
 		parent_field_no = dict_table_get_nth_col_pos(
 			parent_table,
-			dict_index_get_nth_col_no(parent_index, i));
+			parent_index->get_col_no(i));
 
 		for (j = 0; j < parent_update->n_fields; j++) {
 			const upd_field_t*	parent_ufield
@@ -551,7 +551,7 @@ row_ins_cascade_calc_update_vec(
 				ulint			ufield_len;
 				upd_field_t*		ufield;
 
-				col = dict_index_get_nth_col(index, i);
+				col = index->get_col(i);
 
 				/* A field in the parent index record is
 				updated. Let us make the update vector
@@ -602,7 +602,7 @@ row_ins_cascade_calc_update_vec(
 				need to pad with spaces the new value of the
 				child column */
 
-				min_size = dict_col_get_min_size(col);
+				min_size = col->get_min_size();
 
 				/* Because UNIV_SQL_NULL (the marker
 				of SQL NULL values) exceeds all possible
@@ -628,7 +628,7 @@ row_ins_cascade_calc_update_vec(
 							       ->new_val),
 					       ufield_len);
 
-					mbminlen = dict_col_get_mbminlen(col);
+					mbminlen = col->get_mbminlen();
 
 					ut_ad(!(ufield_len % mbminlen));
 					ut_ad(!(min_size % mbminlen));
@@ -653,7 +653,7 @@ row_ins_cascade_calc_update_vec(
 				    && dict_table_is_fts_column(
 					table->fts->indexes,
 					dict_col_get_no(col),
-					dict_col_is_virtual(col))
+					col->is_virtual())
 					!= ULINT_UNDEFINED) {
 					*fts_col_affected = TRUE;
 				}
@@ -1299,13 +1299,12 @@ row_ins_foreign_check_on_constraint(
 
 		for (i = 0; i < foreign->n_fields; i++) {
 			upd_field_t*	ufield = &update->fields[i];
-			ulint		col_no = dict_index_get_nth_col_no(
-						index, i);
+			ulint		col_no = index->get_col_no(i);
 
 			ufield->field_no = dict_table_get_nth_col_pos(
 				table, col_no);
 			dict_col_t*	col = table->get_col(col_no);
-			dict_col_copy_type(col, dfield_get_type(&ufield->new_val));
+			col->copy_type(dfield_get_type(&ufield->new_val));
 
 			ufield->orig_len = 0;
 			ufield->exp = NULL;
@@ -1313,9 +1312,8 @@ row_ins_foreign_check_on_constraint(
 
 			if (table->fts && dict_table_is_fts_column(
 				table->fts->indexes,
-				dict_index_get_nth_col_no(index, i),
-				dict_col_is_virtual(
-					dict_index_get_nth_col(index, i)))
+				index->get_col_no(i),
+				index->get_col(i)->is_virtual())
 			    != ULINT_UNDEFINED) {
 				fts_col_affacted = TRUE;
 			}
@@ -1341,9 +1339,8 @@ row_ins_foreign_check_on_constraint(
 		for (i = 0; i < foreign->n_fields; i++) {
 			if (table->fts && dict_table_is_fts_column(
 				table->fts->indexes,
-				dict_index_get_nth_col_no(index, i),
-				dict_col_is_virtual(
-					dict_index_get_nth_col(index, i)))
+				index->get_col_no(i),
+				index->get_col(i)->is_virtual())
 			    != ULINT_UNDEFINED) {
 				fts_col_affacted = TRUE;
 			}
@@ -3563,11 +3560,11 @@ row_ins_index_entry_set_vals(
 				index->table, i - n_fields)->m_col;
 		} else {
 			field = dtuple_get_nth_field(entry, i);
-			ind_field = dict_index_get_nth_field(index, i);
+			ind_field = index->get_field(i);
 			col = ind_field->col;
 		}
 
-		if (dict_col_is_virtual(col)) {
+		if (col->is_virtual()) {
 			const dict_v_col_t*     v_col
 				= reinterpret_cast<const dict_v_col_t*>(col);
 			ut_ad(dtuple_get_n_fields(row)
@@ -3584,8 +3581,7 @@ row_ins_index_entry_set_vals(
 		if (ind_field != NULL && ind_field->prefix_len > 0
 		    && dfield_get_len(row_field) != UNIV_SQL_NULL) {
 
-			const	dict_col_t*	col
-				= dict_field_get_col(ind_field);
+			const	dict_col_t*	col = ind_field->col;
 
 			len = dtype_get_at_most_n_mbchars(
 				col->prtype, col->mbminmaxlen,

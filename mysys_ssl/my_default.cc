@@ -904,7 +904,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
 
   if (is_login_file)
   {
-    if ( !(fp = mysql_file_fopen(key_file_cnf, name, (O_RDONLY | O_BINARY),
+    if ( !(fp = mysql_file_fopen(key_file_cnf, name, O_RDONLY | MY_FOPEN_BINARY,
                                  MYF(0))))
       return 1;                                 /* Ignore wrong files. */
   }

@@ -124,6 +124,9 @@ lsn_t	srv_shutdown_lsn;
 /** TRUE if a raw partition is in use */
 ibool	srv_start_raw_disk_in_use = FALSE;
 
+/** UNDO tablespaces starts with space id. */
+space_id_t	srv_undo_space_id_start;
+
 /** Number of IO threads to use */
 ulint	srv_n_file_io_threads = 0;
 
@@ -700,14 +703,36 @@ srv_undo_tablespaces_init(
 	restriction will/should be lifted. */
 
 	for (i = 0; create_new_db && i < n_conf_tablespaces; ++i) {
-		char	name[OS_FILE_MAX_PATH];
+		char		name[OS_FILE_MAX_PATH];
+		space_id_t	space_id;
+
+		DBUG_EXECUTE_IF("innodb_undo_upgrade",
+			if (i == 0) {
+				dict_hdr_get_new_id(
+					NULL, NULL, &space_id, NULL, true);
+				dict_hdr_get_new_id(
+					NULL, NULL, &space_id, NULL, true);
+				dict_hdr_get_new_id(
+					NULL, NULL, &space_id, NULL, true);
+			});
+
+		dict_hdr_get_new_id(NULL, NULL, &space_id, NULL, true);
+
+		fil_set_max_space_id_if_bigger(space_id);
+
+		if (i == 0) {
+			srv_undo_space_id_start = space_id;
+			prev_space_id = srv_undo_space_id_start - 1;
+		}
 
 		snprintf(
 			name, sizeof(name),
 			"%s%cundo%03" ULINTPFS,
-			srv_undo_dir, OS_PATH_SEPARATOR, i + 1);
+			srv_undo_dir, OS_PATH_SEPARATOR,
+			static_cast<ulint>(space_id));
 
-		/* Undo space ids start from 1. */
+		undo_tablespace_ids[i] = space_id;
+
 		err = srv_undo_tablespace_create(
 			name, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES);
 
@@ -728,6 +753,11 @@ srv_undo_tablespaces_init(
 			undo_tablespace_ids);
 
 		srv_undo_tablespaces_active = n_undo_tablespaces;
+
+		if (srv_undo_tablespaces_active != 0) {
+			srv_undo_space_id_start = undo_tablespace_ids[0];
+			prev_space_id = srv_undo_space_id_start - 1;
+		}
 
 		/* Check if any of the UNDO tablespace needs fix-up because
 		server crashed while truncate was active on UNDO tablespace.*/
@@ -768,11 +798,7 @@ srv_undo_tablespaces_init(
 	} else {
 		n_undo_tablespaces = n_conf_tablespaces;
 
-		for (i = 1; i <= n_undo_tablespaces; ++i) {
-			undo_tablespace_ids[i - 1] = static_cast<space_id_t>(i);
-		}
-
-		undo_tablespace_ids[i] = SPACE_UNKNOWN;
+		undo_tablespace_ids[n_conf_tablespaces] = SPACE_UNKNOWN;
 	}
 
 	/* Open all the undo tablespaces that are currently in use. If we
@@ -798,7 +824,7 @@ srv_undo_tablespaces_init(
 		ut_a(undo_tablespace_ids[i] != 0);
 		ut_a(undo_tablespace_ids[i] != SPACE_UNKNOWN);
 
-		/* Undo space ids start from 1. */
+		fil_set_max_space_id_if_bigger(undo_tablespace_ids[i]);
 
 		err = srv_undo_tablespace_open(name, undo_tablespace_ids[i]);
 
@@ -825,7 +851,10 @@ srv_undo_tablespaces_init(
 			name, sizeof(name), "%s%cundo%03u",
 			srv_undo_dir, OS_PATH_SEPARATOR, id);
 
-		/* Undo space ids start from 1. */
+		if (n_undo_tablespaces < n_conf_tablespaces) {
+			fil_set_max_space_id_if_bigger(id);
+		}
+
 		err = srv_undo_tablespace_open(name, id);
 
 		if (err != DB_SUCCESS) {
@@ -870,11 +899,12 @@ srv_undo_tablespaces_init(
 		mtr_t	mtr;
 
 		/* The undo log tablespace */
-		for (id = 1; id <= n_undo_tablespaces; ++id) {
+		for (id = 0; id < n_undo_tablespaces; ++id) {
 			mtr_start(&mtr);
-			mtr.set_undo_space(id);
+			mtr.set_undo_space(undo_tablespace_ids[id]);
 			fsp_header_init(
-				id, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
+				undo_tablespace_ids[id],
+				SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
 			mtr_commit(&mtr);
 		}
 	}
@@ -1802,8 +1832,6 @@ files_checked:
 	if (!srv_read_only_mode) {
 		dict_stats_thread_init();
 	}
-
-	fil_set_max_space_id_if_bigger(srv_undo_tablespaces);
 
 	if (create_new_db) {
 		ut_a(!srv_read_only_mode);

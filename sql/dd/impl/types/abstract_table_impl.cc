@@ -300,7 +300,10 @@ Column *Abstract_table_impl::get_column(const std::string name)
 {
   for (Column *c : m_columns)
   {
-    if (!strcmp(name.c_str(), c->name().c_str()))
+    // Column names are case-insensitive
+    if (my_strcasecmp(system_charset_info,
+                      name.c_str(),
+                      c->name().c_str()) == 0)
       return c;
   }
 
@@ -313,7 +316,10 @@ const Column *Abstract_table_impl::get_column(const std::string name) const
 {
   for (const Column *c : m_columns)
   {
-    if (!strcmp(name.c_str(), c->name().c_str()))
+    // Column names are case-insensitive
+    if (my_strcasecmp(system_charset_info,
+                      name.c_str(),
+                      c->name().c_str()) == 0)
       return c;
   }
 

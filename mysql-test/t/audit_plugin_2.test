@@ -1,3 +1,6 @@
+# Disabling the test with --ps-protocol
+--source include/no_ps_protocol.inc
+
 --echo # Test is temporarily run with show_compatibility_56=ON until Bug#21783798 is fixed.
 select @@global.show_compatibility_56 into @show_compatibility_56_save;
 set @@global.show_compatibility_56=ON;

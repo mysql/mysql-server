@@ -84,7 +84,7 @@ bool Foreign_key_spec::validate(THD *thd, List<Create_field> &table_fields) cons
   Create_field  *sql_field;
   List_iterator<Create_field> it(table_fields);
   DBUG_ENTER("Foreign_key_spec::validate");
-  if (ref_columns.size() > 0 && ref_columns.size() != columns.size())
+  if (ref_columns.size() != columns.size())
   {
     my_error(ER_WRONG_FK_DEF, MYF(0),
              (name.str ? name.str : "foreign key without name"),

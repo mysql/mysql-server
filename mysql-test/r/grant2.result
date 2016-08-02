@@ -14,10 +14,6 @@ delete from mysql.db where user like 'mysqltest\_%';
 delete from mysql.tables_priv where user like 'mysqltest\_%';
 delete from mysql.columns_priv where user like 'mysqltest\_%';
 flush privileges;
-call mtr.add_suppression("Did not write failed .* into binary log while "
-                         "granting/revoking privileges in databases.");
-call mtr.add_suppression("Did not write failed .* into binary log while "
-                         "revoking all_privileges from a list of users.");
 grant all privileges on `my\_1`.* to mysqltest_1@localhost with grant option;
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
@@ -69,12 +65,12 @@ Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
-GRANT CREATE USER ON *.* TO 'mysqltest_1'@'localhost'
-GRANT ALL PRIVILEGES ON `my\_%`.* TO 'mysqltest_1'@'localhost' WITH GRANT OPTION
+GRANT CREATE USER ON *.* TO `mysqltest_1`@`localhost`
+GRANT ALL PRIVILEGES ON `my\_%`.* TO `mysqltest_1`@`localhost` WITH GRANT OPTION
 show grants for mysqltest_2@localhost;
 Grants for mysqltest_2@localhost
-GRANT USAGE ON *.* TO 'mysqltest_2'@'localhost'
-GRANT ALL PRIVILEGES ON `my\_1`.* TO 'mysqltest_2'@'localhost' WITH GRANT OPTION
+GRANT USAGE ON *.* TO `mysqltest_2`@`localhost`
+GRANT ALL PRIVILEGES ON `my\_1`.* TO `mysqltest_2`@`localhost` WITH GRANT OPTION
 show grants for mysqltest_3@localhost;
 ERROR 42000: There is no such grant defined for user 'mysqltest_3' on host 'localhost'
 delete from mysql.user where user like 'mysqltest\_%';
@@ -96,8 +92,8 @@ grant all privileges on `mysqltest_1`.* to mysqltest_1@localhost with grant opti
 ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'mysqltest_1'
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
-GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
-GRANT ALL PRIVILEGES ON `mysqltest\_1`.* TO 'mysqltest_1'@'localhost' WITH GRANT OPTION
+GRANT USAGE ON *.* TO `mysqltest_1`@`localhost`
+GRANT ALL PRIVILEGES ON `mysqltest\_1`.* TO `mysqltest_1`@`localhost` WITH GRANT OPTION
 delete from mysql.user where user like 'mysqltest\_%';
 delete from mysql.db where user like 'mysqltest\_%';
 drop database mysqltest_1;
@@ -111,8 +107,8 @@ use mysqltest;
 create table t1 (id int primary key, data varchar(255));
 show grants for current_user();
 Grants for mysqltest_1@localhost
-GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
-GRANT SELECT, INSERT ON `mysqltest`.* TO 'mysqltest_1'@'localhost'
+GRANT USAGE ON *.* TO `mysqltest_1`@`localhost`
+GRANT SELECT, INSERT ON `mysqltest`.* TO `mysqltest_1`@`localhost`
 insert into t1 values (1, 'I can''t change it!');
 update t1 set data='I can change it!' where id = 1;
 ERROR 42000: UPDATE command denied to user 'mysqltest_1'@'localhost' for table 't1'
@@ -196,13 +192,13 @@ host	db	user	table_name	column_name
 %	test	mysqltest_2	t2	c2
 show grants for 'mysqltest_1';
 Grants for mysqltest_1@%
-GRANT USAGE ON *.* TO 'mysqltest_1'@'%'
+GRANT USAGE ON *.* TO "mysqltest_1"@"%"
 show grants for 'mysqltest_2';
 Grants for mysqltest_2@%
-GRANT SELECT ON *.* TO 'mysqltest_2'@'%'
-GRANT INSERT ON "test".* TO 'mysqltest_2'@'%'
-GRANT UPDATE (c2) ON "test"."t2" TO 'mysqltest_2'@'%'
-GRANT UPDATE ON "test"."t1" TO 'mysqltest_2'@'%'
+GRANT SELECT ON *.* TO "mysqltest_2"@"%"
+GRANT INSERT ON "test".* TO "mysqltest_2"@"%"
+GRANT UPDATE ON "test"."t1" TO "mysqltest_2"@"%"
+GRANT UPDATE ("c2") ON "test"."t2" TO "mysqltest_2"@"%"
 drop user 'mysqltest_1';
 select host,user,authentication_string from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
 host	user	authentication_string
@@ -235,10 +231,10 @@ host	db	user	table_name	column_name
 %	test	mysqltest_1	t2	c2
 show grants for 'mysqltest_1';
 Grants for mysqltest_1@%
-GRANT SELECT ON *.* TO 'mysqltest_1'@'%'
-GRANT INSERT ON "test".* TO 'mysqltest_1'@'%'
-GRANT UPDATE (c2) ON "test"."t2" TO 'mysqltest_1'@'%'
-GRANT UPDATE ON "test"."t1" TO 'mysqltest_1'@'%'
+GRANT SELECT ON *.* TO "mysqltest_1"@"%"
+GRANT INSERT ON "test".* TO "mysqltest_1"@"%"
+GRANT UPDATE ON "test"."t1" TO "mysqltest_1"@"%"
+GRANT UPDATE ("c2") ON "test"."t2" TO "mysqltest_1"@"%"
 drop user 'mysqltest_1';
 drop user 'mysqltest_1';
 ERROR HY000: Operation DROP USER failed for 'mysqltest_1'@'%'
@@ -290,19 +286,19 @@ drop user 'mysqltest_2';
 create user '%@b'@'b';
 show grants for '%@b'@'b';
 Grants for %@b@b
-GRANT USAGE ON *.* TO '%@b'@'b'
+GRANT USAGE ON *.* TO "%@b"@"b"
 grant select on mysql.* to '%@b'@'b';
 show grants for '%@b'@'b';
 Grants for %@b@b
-GRANT USAGE ON *.* TO '%@b'@'b'
-GRANT SELECT ON "mysql".* TO '%@b'@'b'
+GRANT USAGE ON *.* TO "%@b"@"b"
+GRANT SELECT ON "mysql".* TO "%@b"@"b"
 rename user '%@b'@'b' to '%@a'@'a';
 show grants for '%@b'@'b';
 ERROR 42000: There is no such grant defined for user '%@b' on host 'b'
 show grants for '%@a'@'a';
 Grants for %@a@a
-GRANT USAGE ON *.* TO '%@a'@'a'
-GRANT SELECT ON "mysql".* TO '%@a'@'a'
+GRANT USAGE ON *.* TO "%@a"@"a"
+GRANT SELECT ON "mysql".* TO "%@a"@"a"
 drop user '%@a'@'a';
 create user mysqltest_2@localhost;
 grant create user on *.* to mysqltest_2@localhost;
@@ -316,8 +312,8 @@ create user mysqltest_3@localhost;
 grant INSERT,DELETE,UPDATE on mysql.* to mysqltest_3@localhost;
 show grants;
 Grants for mysqltest_3@localhost
-GRANT USAGE ON *.* TO 'mysqltest_3'@'localhost'
-GRANT INSERT, UPDATE, DELETE ON `mysql`.* TO 'mysqltest_3'@'localhost'
+GRANT USAGE ON *.* TO `mysqltest_3`@`localhost`
+GRANT INSERT, UPDATE, DELETE ON `mysql`.* TO `mysqltest_3`@`localhost`
 select host,user,authentication_string from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
 ERROR 42000: SELECT command denied to user 'mysqltest_3'@'localhost' for table 'user'
 insert ignore into mysql.user set host='%', user='mysqltest_B';
@@ -341,8 +337,8 @@ Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 show grants for current_user();
 Grants for mysqltest_1@127.0.0.0/255.0.0.0
-GRANT USAGE ON *.* TO 'mysqltest_1'@'127.0.0.0/255.0.0.0'
-GRANT ALL PRIVILEGES ON `mysqltest_1`.`t1` TO 'mysqltest_1'@'127.0.0.0/255.0.0.0'
+GRANT USAGE ON *.* TO `mysqltest_1`@`127.0.0.0/255.0.0.0`
+GRANT ALL PRIVILEGES ON `mysqltest_1`.`t1` TO `mysqltest_1`@`127.0.0.0/255.0.0.0`
 select * from t1;
 i
 1

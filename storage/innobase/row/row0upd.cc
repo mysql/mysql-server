@@ -363,7 +363,7 @@ row_upd_index_entry_sys_field(
 
 	ut_ad(index->is_clustered());
 
-	pos = dict_index_get_sys_col_pos(index, type);
+	pos = index->get_sys_col_pos(type);
 
 	dfield = dtuple_get_nth_field(entry, pos);
 	field = static_cast<byte*>(dfield_get_data(dfield));
@@ -420,10 +420,8 @@ row_upd_changes_field_size_or_external(
 			this fix also to 4.0. The merge to 5.0 will be made
 			manually immediately after we commit this to 4.1. */
 
-			new_len = dict_col_get_sql_null_size(
-				dict_index_get_nth_col(index,
-						       upd_field->field_no),
-				0);
+			new_len = index->get_col(upd_field->field_no)
+				->get_null_size(0);
 		}
 
 		old_len = rec_offs_nth_size(offsets, upd_field->field_no);
@@ -562,8 +560,7 @@ row_upd_write_sys_vals_to_log(
 	ut_ad(mtr);
 
 	log_ptr += mach_write_compressed(log_ptr,
-					 dict_index_get_sys_col_pos(
-						 index, DATA_TRX_ID));
+					index->get_sys_col_pos(DATA_TRX_ID));
 
 	trx_write_roll_ptr(log_ptr, roll_ptr);
 	log_ptr += DATA_ROLL_PTR_LEN;
@@ -887,10 +884,9 @@ row_upd_build_difference_binary(
 
 	n_diff = 0;
 
-	trx_id_pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
+	trx_id_pos = index->get_sys_col_pos(DATA_TRX_ID);
 	ut_ad(index->table->is_intrinsic()
-	      || (dict_index_get_sys_col_pos(index, DATA_ROLL_PTR)
-			== trx_id_pos + 1));
+	      || (index->get_sys_col_pos(DATA_ROLL_PTR) == trx_id_pos + 1));
 
 	if (!offsets) {
 		offsets = rec_get_offsets(rec, index, offsets_,
@@ -1205,9 +1201,9 @@ row_upd_index_replace_new_col_vals_index_pos(
 		const dict_col_t*	col;
 		const upd_field_t*	uf;
 
-		field = dict_index_get_nth_field(index, i);
-		col = dict_field_get_col(field);
-		if (dict_col_is_virtual(col)) {
+		field = index->get_field(i);
+		col = field->col;
+		if (col->is_virtual()) {
 			const dict_v_col_t*	vcol = reinterpret_cast<
 							const dict_v_col_t*>(
 								col);
@@ -1260,9 +1256,9 @@ row_upd_index_replace_new_col_vals(
 		const dict_col_t*	col;
 		const upd_field_t*	uf;
 
-		field = dict_index_get_nth_field(index, i);
-		col = dict_field_get_col(field);
-		if (dict_col_is_virtual(col)) {
+		field = index->get_field(i);
+		col = field->col;
+		if (col->is_virtual()) {
 			const dict_v_col_t*	vcol = reinterpret_cast<
 							const dict_v_col_t*>(
 								col);
@@ -1302,7 +1298,7 @@ row_upd_set_vcol_data(
 	dfield_t*	dfield = dtuple_get_nth_v_field(row, vcol->v_pos);
 
 	if (dfield_get_type(dfield)->mtype == DATA_MISSING) {
-		dict_col_copy_type(&vcol->m_col, dfield_get_type(dfield));
+		vcol->m_col.copy_type(dfield_get_type(dfield));
 
 		dfield_set_data(dfield, field, len);
 	}
@@ -1568,15 +1564,13 @@ row_upd_changes_ord_field_binary_func(
 		dfield_t		dfield_ext;
 		ulint			dfield_len;
 		const byte*		buf;
-		bool			is_virtual;
 		const dict_v_col_t*	vcol = NULL;
 
-		ind_field = dict_index_get_nth_field(index, i);
-		col = dict_field_get_col(ind_field);
+		ind_field = index->get_field(i);
+		col = ind_field->col;
 		col_no = dict_col_get_no(col);
-		is_virtual = dict_col_is_virtual(col);
 
-		if (is_virtual) {
+		if (col->is_virtual()) {
 			vcol = reinterpret_cast<const dict_v_col_t*>(col);
 
 			upd_field = upd_get_field_by_field_no(
@@ -1597,7 +1591,7 @@ row_upd_changes_ord_field_binary_func(
 			return(TRUE);
 		}
 
-		if (is_virtual) {
+		if (col->is_virtual()) {
 			dfield = dtuple_get_nth_v_field(
 				row,  vcol->v_pos);
 		} else {
@@ -1627,7 +1621,7 @@ row_upd_changes_ord_field_binary_func(
 
 			ut_ad(dfield->data != NULL
 			      && dfield->len > GEO_DATA_HEADER_SIZE);
-			ut_ad(dict_col_get_spatial_status(col) != SPATIAL_NONE);
+			ut_ad(col->get_spatial_status() != SPATIAL_NONE);
 
 			/* Get the old mbr. */
 			if (dfield_is_ext(dfield)) {
@@ -1794,8 +1788,8 @@ row_upd_changes_some_index_ord_field_binary(
 				return(TRUE);
 			}
 		} else {
-			if (dict_field_get_col(dict_index_get_nth_field(
-				index, upd_field->field_no))->ord_part) {
+			if (index->get_field(upd_field->field_no)->col
+					->ord_part) {
 				return(TRUE);
 			}
 		}
@@ -1823,7 +1817,7 @@ row_upd_changes_doc_id(
 
 	/* Convert from index-specific column number to table-global
 	column number. */
-	col_no = dict_index_get_nth_col_no(clust_index, upd_field->field_no);
+	col_no = clust_index->get_col_no(upd_field->field_no);
 
 	return(col_no == fts->doc_col);
 }
@@ -1851,8 +1845,7 @@ row_upd_changes_fts_column(
 
 		/* Convert from index-specific column number to table-global
 		column number. */
-		col_no = dict_index_get_nth_col_no(clust_index,
-						   upd_field->field_no);
+		col_no = clust_index->get_col_no(upd_field->field_no);
 		return(dict_table_is_fts_column(fts->indexes, col_no, false));
 	}
 
@@ -1888,8 +1881,8 @@ row_upd_changes_first_fields_binary(
 		const dict_col_t*	col;
 		ulint			col_pos;
 
-		ind_field = dict_index_get_nth_field(index, i);
-		col = dict_field_get_col(ind_field);
+		ind_field = index->get_field(i);
+		col = ind_field->col;
 		col_pos = dict_col_get_clust_pos(col, clust_index);
 
 		ut_a(ind_field->prefix_len == 0);
@@ -2689,8 +2682,7 @@ row_upd_check_autoinc_counter(
 	the column number in the table instead. */
 	old_counter = row_get_autoinc_counter(
 		node->row,
-		dict_index_get_nth_col_no(
-			index, table->autoinc_field_no));
+		index->get_col_no(table->autoinc_field_no));
 
 	/* We just check if the updated counter is bigger than
 	the old one, which may result in more redo logs, since

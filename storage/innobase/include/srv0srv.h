@@ -327,6 +327,9 @@ capacity. PCT_IO(5) -> returns the number of IO operations that
 is 5% of the max where max is srv_io_capacity.  */
 #define PCT_IO(p) ((ulong) (srv_io_capacity * ((double) (p) / 100.0)))
 
+/** Maximum number of purge threads, including the purge coordinator */
+#define MAX_PURGE_THREADS	32
+
 /* The "innodb_stats_method" setting, decides how InnoDB is going
 to treat NULL value when collecting statistics. It is not defined
 as enum type because the configure option takes unsigned integer type. */
@@ -769,6 +772,13 @@ srv_purge_wakeup(void);
 @return true if any thread is active, false if no thread is active */
 bool
 srv_purge_threads_active();
+
+/** Check whether given space id is undo tablespace id
+@param[in]	space_id	space id to check
+@return true if it is undo tablespace else false. */
+bool
+srv_is_undo_tablespace(
+	space_id_t	space_id);
 
 #ifdef UNIV_DEBUG
 /** Disables master thread. It's used by:

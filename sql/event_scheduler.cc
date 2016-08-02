@@ -168,7 +168,6 @@ deinit_event_thread(THD *thd)
   thd->proc_info= "Clearing";
   thd->get_protocol_classic()->end_net();
   DBUG_PRINT("exit", ("Event thread finishing"));
-
   thd->release_resources();
   thd_manager->remove_thd(thd);
   thd_manager->dec_thread_running();
@@ -195,7 +194,7 @@ pre_init_event_thread(THD* thd)
 {
   DBUG_ENTER("pre_init_event_thread");
   thd->security_context()->set_master_access(0);
-  thd->security_context()->set_db_access(0);
+  thd->security_context()->cache_current_db_access(0);
   thd->security_context()->set_host_or_ip_ptr((char *) my_localhost,
                                               strlen(my_localhost));
   thd->get_protocol_classic()->init_net(NULL);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -181,7 +181,7 @@ int _mi_ft_cmp(MI_INFO *info, uint keynr, const uchar *rec1, const uchar *rec2)
     if ((ftsi1.pos != ftsi2.pos) &&
         (!ftsi1.pos || !ftsi2.pos ||
          ha_compare_text(cs, (uchar*) ftsi1.pos,ftsi1.len,
-                         (uchar*) ftsi2.pos,ftsi2.len,0,0)))
+                         (uchar*) ftsi2.pos,ftsi2.len,0)))
       DBUG_RETURN(THOSE_TWO_DAMN_KEYS_ARE_REALLY_DIFFERENT);
   }
   DBUG_RETURN(GEE_THEY_ARE_ABSOLUTELY_IDENTICAL);
@@ -210,7 +210,7 @@ int _mi_ft_update(MI_INFO *info, uint keynr, uchar *keybuf,
   while(old_word->pos && new_word->pos)
   {
     cmp= ha_compare_text(cs, (uchar*) old_word->pos,old_word->len,
-                             (uchar*) new_word->pos,new_word->len,0,0);
+                             (uchar*) new_word->pos,new_word->len,0);
     cmp2= cmp ? 0 : (fabs(old_word->weight - new_word->weight) > 1.e-5);
 
     if (cmp < 0 || cmp2)

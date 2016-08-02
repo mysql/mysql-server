@@ -32,6 +32,7 @@
 #include <my_sys.h>
 #include <m_string.h>
 #include <my_thread.h>
+#include "sql_common.h"
 
 #include <sql_common.h>
 #include "errmsg.h"

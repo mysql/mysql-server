@@ -2878,7 +2878,7 @@ row_table_got_default_clust_index(
 
 	clust_index = table->first_index();
 
-	return(dict_index_get_nth_col(clust_index, 0)->mtype == DATA_SYS);
+	return(clust_index->get_col(0)->mtype == DATA_SYS);
 }
 
 /*********************************************************************//**
@@ -3200,7 +3200,7 @@ row_create_index_for_mysql(
 		/* Check that prefix_len and actual length
 		< DICT_MAX_INDEX_COL_LEN */
 
-		len = dict_index_get_nth_field(index, i)->prefix_len;
+		len = index->get_field(i)->prefix_len;
 
 		if (field_lengths && field_lengths[i]) {
 			len = ut_max(len, field_lengths[i]);
@@ -3491,12 +3491,26 @@ loop:
 		return(n_tables + n_tables_dropped);
 	}
 
+	DBUG_EXECUTE_IF("row_drop_tables_in_background_sleep",
+		os_thread_sleep(5000000);
+	);
+
 	table = dict_table_open_on_name(drop->table_name, FALSE, FALSE,
 					DICT_ERR_IGNORE_NONE);
 
 	if (table == NULL) {
 		/* If for some reason the table has already been dropped
 		through some other mechanism, do not try to drop it */
+
+		goto already_dropped;
+	}
+
+	if (!table->to_be_dropped) {
+		/* There is a scenario: the old table is dropped
+		just after it's added into drop list, and new
+		table with the same name is created, then we try
+		to drop the new table in background. */
+		dict_table_close(table, FALSE, FALSE);
 
 		goto already_dropped;
 	}
@@ -4370,6 +4384,13 @@ row_drop_table_for_mysql(
 		}
 	}
 
+
+	DBUG_EXECUTE_IF("row_drop_table_add_to_background",
+		row_add_table_to_background_drop_list(table->name.m_name);
+		err = DB_SUCCESS;
+		goto funct_exit;
+	);
+
 	/* TODO: could we replace the counter n_foreign_key_checks_running
 	with lock checks on the table? Acquire here an exclusive lock on the
 	table, and rewrite lock0lock.cc and the lock wait in srv0srv.cc so that
@@ -4906,6 +4927,19 @@ loop:
 	row_mysql_lock_data_dictionary(trx);
 
 	while ((table_name = dict_get_first_table_name_in_db(name))) {
+		/* Drop parent table if it is a fts aux table, to
+		avoid accessing dropped fts aux tables in information
+		scheam when parent table still exists.
+		Note: Drop parent table will drop fts aux tables. */
+		char*	parent_table_name;
+		parent_table_name = fts_get_parent_table_name(
+				table_name, strlen(table_name));
+
+		if (parent_table_name != NULL) {
+			ut_free(table_name);
+			table_name = parent_table_name;
+		}
+
 		ut_a(memcmp(table_name, name, namelen) == 0);
 
 		table = dict_table_open_on_name(
@@ -5806,4 +5840,29 @@ row_mysql_close(void)
 	mutex_free(&row_drop_list_mutex);
 
 	row_mysql_drop_list_inited = FALSE;
+}
+
+/** Can a record buffer or a prefetch cache be utilized for prefetching
+records in this scan?
+@retval true   if records can be prefetched
+@retval false  if records cannot be prefetched */
+bool row_prebuilt_t::can_prefetch_records() const
+{
+	/* Inside an update, for example, we do not cache rows, since
+	we may use the cursor position to do the actual update, that
+	is why we require select_lock_type == LOCK_NONE. Since we keep
+	space in prebuilt only for the BLOBs of a single row, we
+	cannot cache rows in the case there are BLOBs in the fields to
+	be fetched. In HANDLER (note: the HANDLER statement, not the
+	handler class) we do not cache rows because there the cursor
+	is a scrollable cursor. */
+	return select_lock_type == LOCK_NONE
+		&& !m_no_prefetch
+		&& !templ_contains_blob
+		&& !templ_contains_fixed_point
+		&& !clust_index_was_generated
+		&& !used_in_HANDLER
+		&& !innodb_api
+		&& template_type != ROW_MYSQL_DUMMY_TEMPLATE
+		&& !in_fts_query;
 }

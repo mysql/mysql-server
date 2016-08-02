@@ -35,13 +35,10 @@ Created 3/26/1996 Heikki Tuuri
 #include "usr0sess.h"
 #include "fil0fil.h"
 #include "read0types.h"
+#include "srv0start.h"
 
 /** The global data structure coordinating a purge */
 extern trx_purge_t*	purge_sys;
-
-/** A dummy undo record used as a return value when we have a whole undo log
-which needs no purge */
-extern trx_undo_rec_t	trx_purge_dummy_rec;
 
 /********************************************************************//**
 Calculates the file address of an undo log header when we have the file
@@ -149,8 +146,10 @@ struct purge_iter_t {
 of undo tablespace. */
 namespace undo {
 
-	typedef std::vector<space_id_t>		undo_spaces_t;
-	typedef	std::vector<trx_rseg_t*>	rseg_for_trunc_t;
+	using undo_spaces_t = std::vector<ulint, ut_allocator<ulint>>;
+
+	using rseg_for_trunc_t = std::vector<
+		trx_rseg_t*, ut_allocator<trx_rseg_t*>>;
 
 	/** Magic Number to indicate truncate action is complete. */
 	const ib_uint32_t			s_magic = 76845412;
@@ -196,7 +195,7 @@ namespace undo {
 			:
 			m_undo_for_trunc(SPACE_UNKNOWN),
 			m_rseg_for_trunc(),
-			m_scan_start(1),
+			m_scan_start(srv_undo_space_id_start),
 			m_purge_rseg_truncate_frequency(
 				static_cast<ulint>(
 				srv_purge_rseg_truncate_frequency))
@@ -225,13 +224,6 @@ namespace undo {
 		void mark(space_id_t undo_id)
 		{
 			m_undo_for_trunc = undo_id;
-
-			m_scan_start = (undo_id + 1)
-					% (srv_undo_tablespaces_active + 1);
-			if (m_scan_start == 0) {
-				/* Note: UNDO tablespace ids starts from 1. */
-				m_scan_start = 1;
-			}
 
 			/* We found an UNDO-tablespace to truncate so set the
 			local purge rseg truncate frequency to 1. This will help
@@ -287,6 +279,12 @@ namespace undo {
 		space_id_t get_scan_start() const
 		{
 			return(m_scan_start);
+		}
+
+		/** Set the tablespace id to start scanning from. */
+		void set_scan_start(space_id_t	space_id)
+		{
+			m_scan_start = space_id;
 		}
 
 		/** Check if the tablespace needs fix-up (based on presence of
@@ -463,12 +461,9 @@ struct trx_purge_t{
 
 	undo::Truncate	undo_trunc;	/*!< Track UNDO tablespace marked
 					for truncate. */
-};
 
-/** Info required to purge a record */
-struct trx_purge_rec_t {
-	trx_undo_rec_t*	undo_rec;	/*!< Record to purge */
-	roll_ptr_t	roll_ptr;	/*!< File pointr to UNDO record */
+	mem_heap_t*	heap;		/*!< Heap for reading the undo log
+					records */
 };
 
 /**

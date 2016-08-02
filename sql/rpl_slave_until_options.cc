@@ -250,6 +250,9 @@ bool Until_after_gtids::check_after_dispatching_event()
 
 int Until_view_id::init(const char *view_id)
 {
+  until_view_id_found= false;
+  until_view_id_commit_found= false;
+
   try
   {
     m_view_id.assign(view_id);
@@ -270,13 +273,22 @@ bool Until_view_id::check_before_dispatching_event(const Log_event *ev)
 {
   if (ev->get_type_code() == binary_log::VIEW_CHANGE_EVENT)
   {
-    View_change_log_event *view_event= (View_change_log_event *)ev;
+    View_change_log_event *view_event=
+        const_cast<View_change_log_event*>(
+            static_cast<const View_change_log_event*>(ev));
 
     if (m_view_id.compare(view_event->get_view_id()) == 0)
     {
       set_group_replication_retrieved_certification_info(view_event);
-      return true;
+      until_view_id_found= true;
+      return false;
     }
+  }
+
+  if (until_view_id_found && ev->ends_group())
+  {
+    until_view_id_commit_found= true;
+    return false;
   }
 
   return false;
@@ -284,7 +296,7 @@ bool Until_view_id::check_before_dispatching_event(const Log_event *ev)
 
 bool Until_view_id::check_after_dispatching_event()
 {
-  return false;
+  return until_view_id_commit_found;
 }
 
 void Until_mts_gap::init()

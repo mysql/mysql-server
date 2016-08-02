@@ -31,18 +31,19 @@ void xpl::Find_statement_builder::add_statement() const
   if (!m_is_relational && m_msg.grouping_size() > 0)
     add_document_statement_with_grouping();
   else
-    add_statement_common(&Find_statement_builder::add_projection);
+    add_statement_common();
 }
 
 
-void xpl::Find_statement_builder::add_statement_common(const Projection_adder &projection_adder) const
+void xpl::Find_statement_builder::add_statement_common() const
 {
   m_builder.put("SELECT ");
-  (this->*projection_adder)(m_msg.projection());
+  add_projection(m_msg.projection());
   m_builder.put(" FROM ");
   add_table(m_msg.collection());
   add_filter(m_msg.criteria());
-  add_grouping(m_msg.grouping(), m_msg.grouping_criteria());
+  add_grouping(m_msg.grouping());
+  add_grouping_criteria(m_msg.grouping_criteria());
   add_order(m_msg.order());
   add_limit(m_msg.limit(), false);
 }
@@ -51,7 +52,7 @@ void xpl::Find_statement_builder::add_statement_common(const Projection_adder &p
 namespace
 {
 const char* const DERIVED_TABLE_NAME = "`_DERIVED_TABLE_`";
-}
+} // namespace
 
 
 void xpl::Find_statement_builder::add_document_statement_with_grouping() const
@@ -62,8 +63,16 @@ void xpl::Find_statement_builder::add_document_statement_with_grouping() const
   m_builder.put("SELECT ");
   add_document_object(m_msg.projection(), &Find_statement_builder::add_document_primary_projection_item);
   m_builder.put(" FROM (");
-  add_statement_common(&Find_statement_builder::add_table_projection);
+  m_builder.put("SELECT ");
+  add_table_projection(m_msg.projection());
+  m_builder.put(" FROM ");
+  add_table(m_msg.collection());
+  add_filter(m_msg.criteria());
+  add_grouping(m_msg.grouping());
+  add_order(m_msg.order());
+  add_limit(m_msg.limit(), false);
   m_builder.put(") AS ").put(DERIVED_TABLE_NAME);
+  add_grouping_criteria(m_msg.grouping_criteria());
 }
 
 
@@ -138,15 +147,15 @@ void xpl::Find_statement_builder::add_document_primary_projection_item(const Pro
 }
 
 
-void xpl::Find_statement_builder::add_grouping(const Grouping_list &group,
-                                               const Having &having) const
+void xpl::Find_statement_builder::add_grouping(const Grouping_list &group) const
 {
-  if (group.size() == 0)
-    return;
-
-  m_builder.put(" GROUP BY ").put_list(group);
-
-  if (having.IsInitialized())
-    m_builder.put(" HAVING ").gen(having);
+  if (group.size() > 0)
+    m_builder.put(" GROUP BY ").put_list(group);
 }
 
+
+void xpl::Find_statement_builder::add_grouping_criteria(const Grouping_criteria &criteria) const
+{
+  if (criteria.IsInitialized())
+    m_builder.put(" HAVING ").gen(criteria);
+}

@@ -27,8 +27,8 @@ if(count(*)=1, 'OK', 'FAIL')
 OK
 show grants for mysqlxsys@localhost;
 Grants for mysqlxsys@localhost
-GRANT SUPER ON *.* TO 'mysqlxsys'@'localhost'
-GRANT SELECT ON `mysql`.`user` TO 'mysqlxsys'@'localhost'
+GRANT SUPER ON *.* TO `mysqlxsys`@`localhost`
+GRANT SELECT ON `mysql`.`user` TO `mysqlxsys`@`localhost`
 Uninstall plugin, ensure it got removed
 uninstall plugin mysqlx;
 select if(count(*)=0, 'OK', 'FAIL') from mysql.user where user='mysqlxsys' and host='localhost';
@@ -58,8 +58,8 @@ Uninstall the plugin, the account shouldnt be dropped, since its not ours
 uninstall plugin mysqlx;
 show grants for mysqlxsys@localhost;
 Grants for mysqlxsys@localhost
-GRANT USAGE ON *.* TO 'mysqlxsys'@'localhost'
-GRANT INSERT ON `mysql`.`user` TO 'mysqlxsys'@'localhost'
+GRANT USAGE ON *.* TO `mysqlxsys`@`localhost`
+GRANT INSERT ON `mysql`.`user` TO `mysqlxsys`@`localhost`
 select if(count(*)=1, 'OK', 'FAIL') from mysql.user where user='mysqlxsys' and host='localhost';
 if(count(*)=1, 'OK', 'FAIL')
 OK

@@ -38,6 +38,7 @@ mysql/column_type_elements	6	33	PRIMARY	5	3	2	50
 mysql/component	6	33	PRIMARY	5	3	1	50
 mysql/db	25	33	PRIMARY	5	3	3	50
 mysql/db	25	33	User	6	0	1	50
+mysql/default_roles	7	33	PRIMARY	5	3	4	50
 mysql/engine_cost	9	33	PRIMARY	5	3	3	50
 mysql/events	26	33	PRIMARY	5	3	1	50
 mysql/events	26	33	schema_id	6	2	2	50
@@ -48,8 +49,8 @@ mysql/foreign_keys	14	33	PRIMARY	5	3	1	50
 mysql/foreign_keys	14	33	schema_id	6	2	2	50
 mysql/foreign_keys	14	33	table_id	7	2	2	50
 mysql/foreign_keys	14	33	unique_constraint_id	8	0	1	50
-mysql/foreign_key_column_usage	7	33	foreign_key_id	5	3	3	50
-mysql/foreign_key_column_usage	7	33	foreign_key_id_2	6	2	2	50
+mysql/foreign_key_column_usage	7	33	PRIMARY	5	3	2	50
+mysql/foreign_key_column_usage	7	33	foreign_key_id	6	2	3	50
 mysql/foreign_key_column_usage	7	33	column_id	7	0	1	50
 mysql/func	7	33	PRIMARY	5	3	1	50
 mysql/gtid_executed	6	33	PRIMARY	5	3	2	50
@@ -80,6 +81,7 @@ mysql/procs_priv	11	33	PRIMARY	5	3	5	50
 mysql/procs_priv	11	33	Grantor	6	0	1	50
 mysql/proxies_priv	10	33	PRIMARY	5	3	4	50
 mysql/proxies_priv	10	33	Grantor	6	0	1	50
+mysql/role_edges	8	33	PRIMARY	5	3	4	50
 mysql/routines	29	33	PRIMARY	5	3	1	50
 mysql/routines	29	33	schema_id	6	2	3	50
 mysql/routines	29	33	result_collation_id	7	0	1	50
@@ -126,7 +128,7 @@ mysql/triggers	19	33	table_id	7	2	4	50
 mysql/triggers	19	33	client_collation_id	8	0	1	50
 mysql/triggers	19	33	connection_collation_id	9	0	1	50
 mysql/triggers	19	33	schema_collation_id	10	0	1	50
-mysql/user	48	33	PRIMARY	5	3	2	50
+mysql/user	50	33	PRIMARY	5	3	2	50
 mysql/version	4	33	PRIMARY	5	3	1	50
 mysql/view_table_usage	7	33	PRIMARY	5	3	4	50
 mysql/view_table_usage	7	33	table_catalog	6	0	3	50

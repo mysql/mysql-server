@@ -314,7 +314,7 @@ public:
   set_var_password(st_lex_user *user_arg,char *password_arg)
     :user(user_arg), password(password_arg)
   {}
-  int resolve(THD *thd) { return 0; }
+  int resolve(THD*) { return 0; }
   int check(THD *thd);
   int update(THD *thd);
   void print(THD *thd, String *str);	/* To self-print */
@@ -340,7 +340,7 @@ public:
      character_set_results(result_coll_arg),
      collation_connection(connection_coll_arg)
   {}
-  int resolve(THD *thd) { return 0; }
+  int resolve(THD*) { return 0; }
   int check(THD *thd);
   int update(THD *thd);
   void print(THD *thd, String *str);	/* To self-print */

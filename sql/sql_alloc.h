@@ -34,21 +34,27 @@ public:
     return sql_alloc(size);
   }
   static void *operator new[](size_t size, MEM_ROOT *mem_root,
-                              const std::nothrow_t &arg= std::nothrow) throw ()
+                              const std::nothrow_t &arg MY_ATTRIBUTE((unused))
+                              = std::nothrow) throw ()
   { return alloc_root(mem_root, size); }
 
   static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg= std::nothrow) throw ()
+                            const std::nothrow_t &arg MY_ATTRIBUTE((unused))
+                            = std::nothrow) throw ()
   { return alloc_root(mem_root, size); }
 
-  static void operator delete(void *ptr, size_t size) { TRASH(ptr, size); }
-  static void operator delete(void *ptr, MEM_ROOT *mem_root,
-                              const std::nothrow_t &arg) throw ()
+  static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
+                              size_t size MY_ATTRIBUTE((unused)))
+  { TRASH(ptr, size); }
+  static void operator delete(void*, MEM_ROOT*,
+                              const std::nothrow_t&) throw ()
   { /* never called */ }
-  static void operator delete[](void *ptr, MEM_ROOT *mem_root,
-                                const std::nothrow_t &arg) throw ()
+  static void operator delete[](void*, MEM_ROOT*,
+                                const std::nothrow_t&) throw ()
   { /* never called */ }
-  static void operator delete[](void *ptr, size_t size) { TRASH(ptr, size); }
+  static void operator delete[](void *ptr MY_ATTRIBUTE((unused)),
+                                size_t size MY_ATTRIBUTE((unused)))
+  { TRASH(ptr, size); }
 
   inline Sql_alloc() {}
   inline ~Sql_alloc() {}

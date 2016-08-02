@@ -118,9 +118,7 @@ name_of_col_is(
 	ulint			i,	/*!< in: index field offset */
 	const char*		name)	/*!< in: name to compare to */
 {
-	ulint	tmp = dict_col_get_no(dict_field_get_col(
-					      dict_index_get_nth_field(
-						      index, i)));
+	ulint	tmp = dict_col_get_no(index->get_field(i)->col);
 
 	return(strcmp(name, table->get_col_name(tmp)) == 0);
 }
@@ -1065,8 +1063,8 @@ err_len:
 	}
 
 	if (index) {
-		dict_mem_index_add_field(
-			index, mem_heap_strdupl(heap, (const char*) field, len),
+		index->add_field(
+			mem_heap_strdupl(heap, (const char*) field, len),
 			prefix_len);
 	} else {
 		ut_a(sys_field);

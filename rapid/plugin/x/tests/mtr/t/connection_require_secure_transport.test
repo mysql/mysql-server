@@ -42,6 +42,9 @@ EOF
 
 call mtr.add_suppression("Plugin mysqlx reported: ....: Unsuccessful login attempt: Secure transport required. To log in you must use TCP.SSL or UNIX socket connection");
 
+--echo Wait for the X Plugin before restarting the server
+--exec $MYSQLXTEST -q -uroot --password='' --file=$MYSQL_TMP_DIR/check_connection.tmp 2>&1
+
 --echo Test different connection types while secure transport when the server was started with this flag set to ON
 # Cases when the flag is dynamicly changes is tests in related x test file (for example connection_ssl.test)
 let $restart_parameters = restart: --require_secure_transport=ON;

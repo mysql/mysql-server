@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -212,7 +212,7 @@ int mi_unique_comp(MI_UNIQUEDEF *def, const uchar *a, const uchar *b,
         type == HA_KEYTYPE_VARTEXT2)
     {
       if (ha_compare_text(keyseg->charset, pos_a, a_length,
-                                           pos_b, b_length, 0, 1))
+                                           pos_b, b_length, 0))
         return 1;
     }
     else

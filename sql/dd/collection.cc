@@ -244,6 +244,14 @@ bool Collection<T>::drop_items(Open_dictionary_tables_ctx *otx,
 
 
 template <typename T>
+const typename Collection<T>::abstract_type* Collection<T>::at(size_t n) const
+{
+  DBUG_ASSERT(n < size());
+  return m_items[n];
+}
+
+
+template <typename T>
 template <typename Parent_item>
 void Collection<T>::deep_copy(const Collection<T> &src, Parent_item *parent)
 {
@@ -445,6 +453,17 @@ template void Collection<Partition_index*>::remove(Partition_index_impl*);
 template void Collection<Partition_value*>::remove(Partition_value_impl*);
 template void Collection<Tablespace_file*>::remove(Tablespace_file_impl*);
 template void Collection<View_table*>::remove(View_table_impl*);
+
+template const Collection<Column*>::abstract_type*
+Collection<Column*>::at(size_t n) const;
+template const Collection<Foreign_key*>::abstract_type*
+Collection<Foreign_key*>::at(size_t n) const;
+template const Collection<Foreign_key_element*>::abstract_type*
+Collection<Foreign_key_element*>::at(size_t n) const;
+template const Collection<Index*>::abstract_type*
+Collection<Index*>::at(size_t n) const;
+template const Collection<Index_element*>::abstract_type*
+Collection<Index_element*>::at(size_t n) const;
 
 template void Collection<Column*>::
 deep_copy<Abstract_table_impl>(Collection<Column*> const&, Abstract_table_impl*);

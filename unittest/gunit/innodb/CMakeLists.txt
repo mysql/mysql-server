@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,7 +30,8 @@ SET(TESTS
   ha_innodb
   mem0mem
   ut0crc32
-  ut0lock_free_hash
+  # Disabled due to Bug#23630781 CRASH IN UT0LOCK_FREE_HASH-T
+  #ut0lock_free_hash
   ut0mem
   ut0new
 )

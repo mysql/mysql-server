@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -141,7 +141,7 @@ bool MY_LOCALE_ERRMSGS::read_texts()
   (void) my_load_path(lang_path, lang_path, lc_messages_dir);
   if ((file= mysql_file_open(key_file_ERRMSG,
                              fn_format(name, ERRMSG_FILE, lang_path, "", 4),
-                             O_RDONLY | O_SHARE | O_BINARY,
+                             O_RDONLY,
                              MYF(0))) < 0)
   {
     /*
@@ -153,7 +153,7 @@ bool MY_LOCALE_ERRMSGS::read_texts()
     if ((file= mysql_file_open(key_file_ERRMSG,
                                fn_format(name, ERRMSG_FILE,
                                          lc_messages_dir, "", 4),
-                               O_RDONLY | O_SHARE | O_BINARY,
+                               O_RDONLY,
                                MYF(0))) < 0)
     {
       sql_print_error("Can't find error-message file '%s'. Check error-message"

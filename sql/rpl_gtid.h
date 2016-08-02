@@ -834,7 +834,7 @@ public:
     Assert that this thread owns the n'th mutex.
     This is a no-op if DBUG_OFF is on.
   */
-  inline void assert_owner(int n) const
+  inline void assert_owner(int n MY_ATTRIBUTE((unused))) const
   {
 #ifndef DBUG_OFF
     mysql_mutex_assert_owner(&get_mutex_cond(n)->mutex);
@@ -844,7 +844,7 @@ public:
     Assert that this thread does not own the n'th mutex.
     This is a no-op if DBUG_OFF is on.
   */
-  inline void assert_not_owner(int n) const
+  inline void assert_not_owner(int n MY_ATTRIBUTE((unused))) const
   {
 #ifndef DBUG_OFF
     mysql_mutex_assert_not_owner(&get_mutex_cond(n)->mutex);
@@ -1047,8 +1047,9 @@ struct Gtid
   }
 #endif
   /// Print this Gtid to the trace file if debug is enabled; no-op otherwise.
-  void dbug_print(const Sid_map *sid_map, const char *text= "",
-                  bool need_lock= false) const
+  void dbug_print(const Sid_map *sid_map MY_ATTRIBUTE((unused)),
+                  const char *text MY_ATTRIBUTE((unused))= "",
+                  bool need_lock MY_ATTRIBUTE((unused))= false) const
   {
 #ifndef DBUG_OFF
     char buf[MAX_TEXT_LENGTH + 1];
@@ -1434,8 +1435,9 @@ public:
     Print this Gtid_set to the trace file if debug is enabled; no-op
     otherwise.
   */
-  void dbug_print(const char *text= "", bool need_lock= false,
-                  const Gtid_set::String_format *sf= NULL) const
+  void dbug_print(const char *text MY_ATTRIBUTE((unused))= "",
+                  bool need_lock MY_ATTRIBUTE((unused))= false,
+                  const Gtid_set::String_format *sf MY_ATTRIBUTE((unused))= NULL) const
   {
 #ifndef DBUG_OFF
     char *str;
@@ -2214,7 +2216,7 @@ public:
     Print this Owned_gtids to the trace file if debug is enabled; no-op
     otherwise.
   */
-  void dbug_print(const char *text= "") const
+  void dbug_print(const char *text MY_ATTRIBUTE((unused))= "") const
   {
 #ifndef DBUG_OFF
     char *str= to_string();
@@ -2621,7 +2623,7 @@ public:
     Increase the global counter when starting a call to
     WAIT_FOR_EXECUTED_GTID_SET or WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.
   */
-  void begin_gtid_wait(enum_gtid_mode_lock gtid_mode_lock)
+  void begin_gtid_wait(enum_gtid_mode_lock gtid_mode_lock MY_ATTRIBUTE((unused)))
   {
     DBUG_ENTER("Gtid_state::begin_gtid_wait");
     DBUG_ASSERT(get_gtid_mode(gtid_mode_lock) != GTID_MODE_OFF);
@@ -2876,7 +2878,7 @@ public:
     Print this Gtid_state to the trace file if debug is enabled; no-op
     otherwise.
   */
-  void dbug_print(const char *text= "") const
+  void dbug_print(const char *text MY_ATTRIBUTE((unused))= "") const
   {
 #ifndef DBUG_OFF
     sid_lock->assert_some_wrlock();
@@ -3252,7 +3254,8 @@ struct Gtid_specification
     Print this Gtid_specificatoin to the trace file if debug is
     enabled; no-op otherwise.
   */
-  void dbug_print(const char *text= "", bool need_lock= false) const
+  void dbug_print(const char *text MY_ATTRIBUTE((unused))= "",
+                  bool need_lock MY_ATTRIBUTE((unused))= false) const
   {
 #ifndef DBUG_OFF
     char buf[MAX_TEXT_LENGTH + 1];

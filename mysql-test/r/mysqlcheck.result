@@ -7,6 +7,7 @@ mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
+mysql.default_roles                                OK
 mysql.engine_cost                                  OK
 mysql.func                                         OK
 mysql.general_log
@@ -21,6 +22,7 @@ mysql.innodb_table_stats                           OK
 mysql.plugin                                       OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
@@ -49,6 +51,9 @@ mysql.component
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.db
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.default_roles
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.engine_cost
@@ -88,6 +93,9 @@ mysql.procs_priv
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.proxies_priv
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.role_edges
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.server_cost
@@ -138,6 +146,7 @@ mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
+mysql.default_roles                                OK
 mysql.engine_cost                                  OK
 mysql.func                                         OK
 mysql.general_log
@@ -152,6 +161,7 @@ mysql.innodb_table_stats                           OK
 mysql.plugin                                       OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
@@ -177,6 +187,9 @@ mysql.component
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.db
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.default_roles
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.engine_cost
@@ -216,6 +229,9 @@ mysql.procs_priv
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.proxies_priv
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.role_edges
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.server_cost

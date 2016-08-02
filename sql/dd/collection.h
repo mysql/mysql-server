@@ -188,11 +188,7 @@ public:
   size_t size() const
   { return m_items.size(); }
 
-  const abstract_type* at(size_t n) const
-  {
-    DBUG_ASSERT(n < size());
-    return m_items[n];
-  }
+  const abstract_type* at(size_t n) const;
 
   T at(size_t n)
   {

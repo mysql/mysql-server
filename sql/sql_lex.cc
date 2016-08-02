@@ -3632,6 +3632,8 @@ bool LEX::can_not_use_merged()
 }
 
 /*
+  case SQLCOM_REVOKE_ROLE:
+  case SQLCOM_GRANT_ROLE:
   Should Items_ident be printed correctly
 
   SYNOPSIS
@@ -4052,6 +4054,9 @@ void LEX::first_lists_tables_same()
     TABLE_LIST *next;
     if (query_tables_last == &first_table->next_global)
       query_tables_last= first_table->prev_global;
+
+    if (query_tables_own_last == &first_table->next_global)
+      query_tables_own_last= first_table->prev_global;
 
     if ((next= *first_table->prev_global= first_table->next_global))
       next->prev_global= first_table->prev_global;

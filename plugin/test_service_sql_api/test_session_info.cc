@@ -718,10 +718,10 @@ static void test_sql(void *p)
   }
 
   /* All information from performance_schema  */
-  my_snprintf(buffer_query, sizeof(buffer_query), "SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,role,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  %lu",  session_1_id);
+  my_snprintf(buffer_query, sizeof(buffer_query), "SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,`role`,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  %lu",  session_1_id);
   EXEC_TEST_CMD(session_1, buffer_query, p, plugin_ctx);
 
-  my_snprintf(buffer_query, sizeof(buffer_query), "SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,role,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  %lu",  session_2_id);
+  my_snprintf(buffer_query, sizeof(buffer_query), "SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,`role`,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  %lu",  session_2_id);
   EXEC_TEST_CMD(session_2, buffer_query, p, plugin_ctx);
 
   /* srv_session_info_get_current_db */

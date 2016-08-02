@@ -4,8 +4,8 @@ CREATE USER testuser@'::1' identified by '1234';
 GRANT ALL ON test.* TO testuser@'::1';
 SHOW GRANTS FOR testuser@'::1';
 Grants for testuser@::1
-GRANT USAGE ON *.* TO 'testuser'@'::1'
-GRANT ALL PRIVILEGES ON `test`.* TO 'testuser'@'::1'
+GRANT USAGE ON *.* TO `testuser`@`::1`
+GRANT ALL PRIVILEGES ON `test`.* TO `testuser`@`::1`
 SELECT USER();
 USER()
 root@localhost
@@ -124,8 +124,8 @@ CREATE USER testuser@'127.0.0.1' identified by '1234';
 GRANT ALL ON test.* TO testuser@'127.0.0.1';
 SHOW GRANTS FOR testuser@'127.0.0.1';
 Grants for testuser@127.0.0.1
-GRANT USAGE ON *.* TO 'testuser'@'127.0.0.1'
-GRANT ALL PRIVILEGES ON `test`.* TO 'testuser'@'127.0.0.1'
+GRANT USAGE ON *.* TO `testuser`@`127.0.0.1`
+GRANT ALL PRIVILEGES ON `test`.* TO `testuser`@`127.0.0.1`
 SELECT USER();
 USER()
 root@localhost
@@ -247,8 +247,8 @@ CREATE USER testuser@'0000:0000:0000:0000:0000:0000:0000:0001' identified by '12
 GRANT ALL ON test.* TO testuser@'0000:0000:0000:0000:0000:0000:0000:0001';
 SHOW GRANTS FOR testuser@'0000:0000:0000:0000:0000:0000:0000:0001';
 Grants for testuser@0000:0000:0000:0000:0000:0000:0000:0001
-GRANT USAGE ON *.* TO 'testuser'@'0000:0000:0000:0000:0000:0000:0000:0001'
-GRANT ALL PRIVILEGES ON `test`.* TO 'testuser'@'0000:0000:0000:0000:0000:0000:0000:0001'
+GRANT USAGE ON *.* TO `testuser`@`0000:0000:0000:0000:0000:0000:0000:0001`
+GRANT ALL PRIVILEGES ON `test`.* TO `testuser`@`0000:0000:0000:0000:0000:0000:0000:0001`
 SELECT USER();
 USER()
 root@localhost
@@ -367,8 +367,8 @@ CREATE USER testuser@'0:0:0:0:0:0:0:1' identified by '1234';
 GRANT ALL ON test.* TO testuser@'0:0:0:0:0:0:0:1';
 SHOW GRANTS FOR testuser@'0:0:0:0:0:0:0:1';
 Grants for testuser@0:0:0:0:0:0:0:1
-GRANT USAGE ON *.* TO 'testuser'@'0:0:0:0:0:0:0:1'
-GRANT ALL PRIVILEGES ON `test`.* TO 'testuser'@'0:0:0:0:0:0:0:1'
+GRANT USAGE ON *.* TO `testuser`@`0:0:0:0:0:0:0:1`
+GRANT ALL PRIVILEGES ON `test`.* TO `testuser`@`0:0:0:0:0:0:0:1`
 SELECT USER();
 USER()
 root@localhost

@@ -52,11 +52,6 @@ SELECT COUNT(*) FROM mysql.user WHERE user like 'dummy%';
 -- source include/rpl_reset.inc
 -- connection master
 
-call mtr.add_suppression("Did not write failed .* into binary log while "
-                         "storing routine level grants in the privilege "
-                         "tables.");
-call mtr.add_suppression("Did not write failed .* into binary log while "
-                         "revoking all_privileges from a list of users.");
 --let $dbname= b54866
 --let $dbuser= b54866_user
 

@@ -366,8 +366,7 @@ row_merge_buf_create(
 	mem_heap_t*		heap;
 
 	max_tuples = static_cast<ulint>(srv_sort_buf_size)
-		/ ut_max(static_cast<ulint>(1),
-			 dict_index_get_min_size(index));
+		/ ut_max(static_cast<ulint>(1), index->get_min_size());
 
 	buf_size = (sizeof *buf);
 
@@ -560,7 +559,7 @@ row_merge_buf_add(
 	data_size = 0;
 	extra_size = UT_BITS_IN_BYTES(index->n_nullable);
 
-	ifield = dict_index_get_nth_field(index, 0);
+	ifield = index->get_field(0);
 
 	for (i = 0; i < n_fields; i++, field++, ifield++) {
 		ulint			len;
@@ -571,7 +570,7 @@ row_merge_buf_add(
 		const dfield_t*		row_field;
 
 		col = ifield->col;
-		if (dict_col_is_virtual(col)) {
+		if (col->is_virtual()) {
 			v_col = reinterpret_cast<const dict_v_col_t*>(col);
 		}
 
@@ -580,7 +579,7 @@ row_merge_buf_add(
 		/* Process the Doc ID column */
 		if (*doc_id > 0
 		    && col_no == index->table->fts->doc_col
-		    && !dict_col_is_virtual(col)) {
+		    && !col->is_virtual()) {
 			fts_write_doc_id((byte*) &write_doc_id, *doc_id);
 
 			/* Note: field->data now points to a value on the
@@ -598,7 +597,7 @@ row_merge_buf_add(
 			field->type.len = ifield->col->len;
 		} else {
 			/* Use callback to get the virtual column value */
-			if (dict_col_is_virtual(col)) {
+			if (col->is_virtual()) {
 				const dict_index_t*	clust_index
 					= new_table->first_index();
 
@@ -731,7 +730,7 @@ row_merge_buf_add(
 					len = dfield_get_len(field);
 				}
 			}
-		} else if (!dict_col_is_virtual(col)) {
+		} else if (!col->is_virtual()) {
 			/* Only non-virtual column are stored externally */
 			const byte*	buf = row_ext_lookup(ext, col_no,
 							     &len);
@@ -1604,8 +1603,7 @@ row_geo_field_is_valid(
 	const dtuple_t*		row,
 	dict_index_t*		index)
 {
-	const dict_field_t*	ind_field
-		= dict_index_get_nth_field(index, 0);
+	const dict_field_t*	ind_field = index->get_field(0);
 	const dict_col_t*	col
 		= ind_field->col;
 	ulint			col_no
@@ -4195,7 +4193,7 @@ row_merge_create_index(
 
 		}
 
-		dict_mem_index_add_field(index, name, ifield->prefix_len);
+		index->add_field(name, ifield->prefix_len);
 	}
 
 	/* Add the index to SYS_INDEXES, using the index prototype. */
@@ -4221,29 +4219,6 @@ row_merge_create_index(
 	}
 
 	DBUG_RETURN(index);
-}
-
-/*********************************************************************//**
-Check if a transaction can use an index. */
-ibool
-row_merge_is_index_usable(
-/*======================*/
-	const trx_t*		trx,	/*!< in: transaction */
-	const dict_index_t*	index)	/*!< in: index to check */
-{
-	if (!index->is_clustered()
-	    && dict_index_is_online_ddl(index)) {
-		/* Indexes that are being created are not useable. */
-		return(FALSE);
-	}
-
-	return(!index->is_corrupted()
-	       && (index->table->is_temporary()
-		   || index->trx_id == 0
-		   || !MVCC::is_view_active(trx->read_view)
-		   || trx->read_view->changes_visible(
-			   index->trx_id,
-			   index->table->name)));
 }
 
 /*********************************************************************//**

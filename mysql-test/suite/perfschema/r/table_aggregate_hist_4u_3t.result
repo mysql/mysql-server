@@ -11,7 +11,7 @@ Warning	1287	Using GRANT for creating new user is deprecated and will be removed
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select * from performance_schema.setup_actors
-order by USER, HOST, ROLE;
+order by USER, HOST, `ROLE`;
 HOST	USER	ROLE	ENABLED	HISTORY
 localhost	user1	%	YES	YES
 localhost	user2	%	YES	YES

@@ -161,6 +161,7 @@ SET(SQL_SHARED_SOURCES
   auth/service_security_context.cc
   auto_thd.cc
   keyring_service.cc
+  auth/role_tables.cc
   ssl_wrapper_service.cc
   bootstrap.cc
   check_stack.cc
@@ -412,6 +413,18 @@ ENDIF()
 # Source files that use Boost
 SET(SQL_BOOST_SOURCES
   debug_sync.cc
+  auth/auth_common.cc
+  auth/sql_authentication.cc
+  auth/sql_auth_cache.cc
+  auth/sql_authorization.cc
+  auth/sql_user_table.cc
+  auth/sql_user.cc
+  auth/password.c
+  auth/password_policy_service.cc
+  auth/sql_security_ctx.cc
+  auth/service_security_context.cc
+  auth/role_tables.cc
+  sql_reload.cc
   handler.cc
   geometry_rtree.cc
   gis/srs/srs.cc
@@ -487,19 +500,15 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
                       COMPILE_FLAGS "-Wno-misleading-indentation")
   ENDIF()
-ENDIF()
 
-
-# Set -O1 on Solaris x86 to avoid exhausting virtual memory when
-# compiling
-IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_SYSTEM_NAME MATCHES "SunOS")
-  IF(CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-    ADD_COMPILE_FLAGS(
-      gis/srs/wkt_parser.cc
-      COMPILE_FLAGS "-O1"
-    )
+  MY_CHECK_CXX_COMPILER_FLAG("-Wmaybe-uninitialized" HAVE_MAYBE_UNINITIALIZED)
+  IF(HAVE_MAYBE_UNINITIALIZED)
+    # Boost Graph has uninitialized usage
+    ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
+                      COMPILE_FLAGS "-Wno-maybe-uninitialized")
   ENDIF()
 ENDIF()
+
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 # See comments in filesort_compare-t.cc about __builtin_memcmp
@@ -548,7 +557,7 @@ SET (BINLOG_SOURCE rpl_gtid_misc.cc
                    rpl_gtid_state.cc rpl_gtid_owned.cc rpl_gtid_execution.cc
                    rpl_gtid_mutex_cond_array.cc rpl_gtid_persist.cc
                    log_event.cc binlog.cc sql_binlog.cc
-                   rpl_filter.cc rpl_record.cc rpl_record_old.cc
+                   rpl_filter.cc rpl_record.cc
                    rpl_utility.cc rpl_injector.cc rpl_table_access.cc)
 ADD_CONVENIENCE_LIBRARY(binlog ${BINLOG_SOURCE})
 TARGET_LINK_LIBRARIES(binlog binlogevents_static)

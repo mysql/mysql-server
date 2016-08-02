@@ -1,6 +1,3 @@
-#ifndef ITEM_STRFUNC_INCLUDED
-#define ITEM_STRFUNC_INCLUDED
-
 /* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -18,6 +15,9 @@
 
 
 /* This file defines all string functions */
+#ifndef ITEM_STRFUNC_INCLUDED
+#define ITEM_STRFUNC_INCLUDED
+
 #include "crypt_genhash_impl.h"       // CRYPT_MAX_PASSWORD_SIZE
 #include "item_func.h"                // Item_func
 #include "item_cmpfunc.h"             // Item_bool_func
@@ -393,6 +393,27 @@ public:
 };
 
 
+class Item_func_roles_graphml : public Item_str_func
+{
+private:
+  String m_str;
+public:
+  public:
+  Item_func_roles_graphml(const POS &pos)
+    : Item_str_func(pos)
+  {}
+
+  String *val_str(String *);
+  void fix_length_and_dec() {}
+  bool fix_fields(THD *thd, Item **ref);
+  const char *func_name() const
+  {
+    return "ROLES_GRAPHML";
+  }
+  virtual void print(String *str, enum_query_type query_type);
+  bool resolve_type(THD *thd) { return false; }
+};
+
 class Item_func_trim :public Item_str_func
 {
 public:
@@ -698,7 +719,6 @@ public:
   const Name_string fully_qualified_func_name() const
   { return NAME_STRING("user()"); }
 };
-
 
 class Item_func_current_user :public Item_func_user
 {
@@ -1346,5 +1366,21 @@ public:
   const char *func_name() const{ return "gtid_subtract"; }
   String *val_str_ascii(String *);
 };
+
+
+class Item_func_current_role :public Item_str_func
+{
+  typedef Item_str_func super;
+  String m_active_role;
+public:
+  explicit Item_func_current_role(const POS &pos) : Item_str_func(pos) {}
+  const char *func_name() const { return "current_role"; }
+  virtual bool resolve_type(THD *thd) { return false; }
+  virtual bool fix_fields(THD *thd, Item **ref);
+  virtual void fix_length_and_dec() {}
+  virtual String *val_str(String *str);
+};
+
+
 
 #endif /* ITEM_STRFUNC_INCLUDED */

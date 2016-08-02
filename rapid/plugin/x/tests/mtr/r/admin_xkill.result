@@ -165,7 +165,7 @@ abc@localhost	abc@localhost
 0 rows affected
 RUN show grants
 Grants for abc@localhost
-GRANT USAGE ON *.* TO 'abc'@'localhost'
+GRANT USAGE ON *.* TO `abc`@`localhost`
 0 rows affected
 open another session of abc user and kill first session of abc user,which should be successful
 connecting...
@@ -218,7 +218,7 @@ abc@localhost	abc@localhost
 0 rows affected
 RUN show grants
 Grants for abc@localhost
-GRANT USAGE ON *.* TO 'abc'@'localhost'
+GRANT USAGE ON *.* TO `abc`@`localhost`
 0 rows affected
 killing abc user session with its own session 'abc' which should be successful
 expect right error instead of End of File
@@ -264,7 +264,7 @@ root@localhost	root@localhost
 0 rows affected
 RUN show grants
 Grants for root@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 0 rows affected
 open process only privileged user seession and kill root user session,expect error "You are not owner of thread"
@@ -314,7 +314,7 @@ process@localhost	process@localhost
 0 rows affected
 RUN show grants
 Grants for process@localhost
-GRANT PROCESS ON *.* TO 'process'@'localhost'
+GRANT PROCESS ON *.* TO `process`@`localhost`
 0 rows affected
 open privileged user seession and kill root user session,expect success
 connecting...
@@ -371,7 +371,7 @@ xplugin@localhost	xplugin@localhost
 0 rows affected
 RUN show grants
 Grants for xplugin@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'xplugin'@'localhost'
+GRANT ALL PRIVILEGES ON *.* TO `xplugin`@`localhost`
 0 rows affected
 Cleanup
 RUN drop schema if exists xtest

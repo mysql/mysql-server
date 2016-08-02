@@ -391,7 +391,10 @@ innobase_need_rebuild(
 /*==================*/
 	const Alter_inplace_info*	ha_alter_info)
 {
-	if (ha_alter_info->handler_flags
+	Alter_inplace_info::HA_ALTER_FLAGS alter_inplace_flags =
+		ha_alter_info->handler_flags & ~(INNOBASE_INPLACE_IGNORE);
+
+	if (alter_inplace_flags
 	    == Alter_inplace_info::CHANGE_CREATE_OPTION
 	    && !(ha_alter_info->create_info->used_fields
 		 & (HA_CREATE_USED_ROW_FORMAT
@@ -572,7 +575,6 @@ ha_innobase::check_if_supported_inplace_alter(
 	}
 
 	update_thd();
-	trx_search_latch_release_if_reserved(m_prebuilt->trx);
 
 	if (ha_alter_info->handler_flags
 	    & ~(INNOBASE_INPLACE_IGNORE
@@ -1009,8 +1011,7 @@ innobase_check_fk_option(
 			     | DICT_FOREIGN_ON_DELETE_SET_NULL)) {
 
 		for (ulint j = 0; j < foreign->n_fields; j++) {
-			if ((dict_index_get_nth_col(
-				     foreign->foreign_index, j)->prtype)
+			if ((foreign->foreign_index->get_col(j)->prtype)
 			    & DATA_NOT_NULL) {
 
 				/* It is not sensible to define
@@ -1620,8 +1621,7 @@ innobase_rec_to_mysql(
 
 		field->reset();
 
-		ipos = dict_index_get_nth_col_or_prefix_pos(
-			index, i, true, false);
+		ipos = index->get_col_pos(i, true, false);
 
 		if (ipos == ULINT_UNDEFINED
 		    || rec_offs_nth_extern(offsets, ipos)) {
@@ -1641,8 +1641,7 @@ null_field:
 		field->set_notnull();
 
 		innobase_col_to_mysql(
-			dict_field_get_col(
-				dict_index_get_nth_field(index, ipos)),
+			index->get_field(ipos)->col,
 			ifield, ilen, field);
 	}
 }
@@ -1678,8 +1677,7 @@ innobase_fields_to_mysql(
 			col_n = i - num_v;
 		}
 
-		ipos = dict_index_get_nth_col_or_prefix_pos(
-			index, col_n, true, innobase_is_v_fld(field));
+		ipos = index->get_col_pos(col_n, true, innobase_is_v_fld(field));
 
 		if (ipos == ULINT_UNDEFINED
 		    || dfield_is_ext(&fields[ipos])
@@ -1692,8 +1690,7 @@ innobase_fields_to_mysql(
 			const dfield_t*	df	= &fields[ipos];
 
 			innobase_col_to_mysql(
-				dict_field_get_col(
-					dict_index_get_nth_field(index, ipos)),
+				index->get_field(ipos)->col,
 				static_cast<const uchar*>(dfield_get_data(df)),
 				dfield_get_len(df), field);
 		}
@@ -2248,14 +2245,14 @@ innobase_fts_check_doc_id_index(
 
 		/* Check whether the index has FTS_DOC_ID as its
 		first column */
-		field = dict_index_get_nth_field(index, 0);
+		field = index->get_field(0);
 
 		/* The column would be of a BIGINT data type */
 		if (strcmp(field->name, FTS_DOC_ID_COL_NAME) == 0
 		    && field->col->mtype == DATA_INT
 		    && field->col->len == 8
 		    && field->col->prtype & DATA_NOT_NULL
-		    && !dict_col_is_virtual(field->col)) {
+		    && !field->col->is_virtual()) {
 			if (fts_doc_col_no) {
 				*fts_doc_col_no = dict_col_get_no(field->col);
 			}
@@ -5619,8 +5616,7 @@ check_if_ok_to_rename:
 		}
 
 		for (ulint i = 0; i < dict_index_get_n_fields(index); i++) {
-			const dict_field_t* field
-				= dict_index_get_nth_field(index, i);
+			const dict_field_t* field = index->get_field(i);
 			if (field->prefix_len > max_col_len) {
 				my_error(ER_INDEX_COLUMN_TOO_LONG, MYF(0),
 					 max_col_len);
@@ -5909,7 +5905,7 @@ err_exit:
 	}
 
 	if (!(ha_alter_info->handler_flags & INNOBASE_ALTER_DATA)
-	    || (ha_alter_info->handler_flags
+	    || ((ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE)
 		== Alter_inplace_info::CHANGE_CREATE_OPTION
 		&& !innobase_need_rebuild(ha_alter_info))) {
 
@@ -6085,8 +6081,7 @@ dict_col_in_v_indexes(
 			continue;
 		}
 		for (ulint k = 0; k < index->n_fields; k++) {
-			dict_field_t*   field
-				= dict_index_get_nth_field(index, k);
+			dict_field_t* field = index->get_field(k);
 			if (field->col->ind == col->ind) {
 				return(true);
 			}
@@ -6173,7 +6168,7 @@ ok_exit:
 		DBUG_RETURN(false);
 	}
 
-	if (ha_alter_info->handler_flags
+	if ((ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE)
 	    == Alter_inplace_info::CHANGE_CREATE_OPTION
 	    && !innobase_need_rebuild(ha_alter_info)) {
 		goto ok_exit;
@@ -6415,10 +6410,9 @@ check_col_exists_in_indexes(
 		}
 
 		for (ulint i = 0; i < index->n_user_defined_cols; i++) {
-			const dict_col_t* idx_col
-				= dict_index_get_nth_col(index, i);
+			const dict_col_t* idx_col = index->get_col(i);
 
-			if (is_v && dict_col_is_virtual(idx_col)) {
+			if (is_v && idx_col->is_virtual()) {
 				const dict_v_col_t*   v_col = reinterpret_cast<
 					const dict_v_col_t*>(idx_col);
 				if (v_col->v_pos == col_no) {
@@ -6426,7 +6420,7 @@ check_col_exists_in_indexes(
 				}
 			}
 
-			if (!is_v && !dict_col_is_virtual(idx_col)
+			if (!is_v && !idx_col->is_virtual()
 			    && dict_col_get_no(idx_col) == col_no) {
 				return(true);
 			}
@@ -6729,8 +6723,7 @@ err_exit:
 	     index = index->next()) {
 
 		for (ulint i = 0; i < dict_index_get_n_fields(index); i++) {
-			if (strcmp(dict_index_get_nth_field(index, i)->name,
-				   from)) {
+			if (strcmp(index->get_field(i)->name, from)) {
 				continue;
 			}
 
@@ -7668,10 +7661,9 @@ get_col_list_to_be_dropped(
 		const dict_index_t*	index = ctx->drop_index[index_count];
 
 		for (ulint col = 0; col < index->n_user_defined_cols; col++) {
-			const dict_col_t*	idx_col
-				= dict_index_get_nth_col(index, col);
+			const dict_col_t*	idx_col = index->get_col(col);
 
-			if (dict_col_is_virtual(idx_col)) {
+			if (idx_col->is_virtual()) {
 				const dict_v_col_t*	v_col
 					= reinterpret_cast<
 						const dict_v_col_t*>(idx_col);

@@ -191,7 +191,8 @@ public:
      m_is_alloced(false)
   { }
   static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg= std::nothrow) throw ()
+                            const std::nothrow_t &arg MY_ATTRIBUTE((unused))
+                            = std::nothrow) throw ()
   { return alloc_root(mem_root, size); }
   static void operator delete(void *ptr_arg, size_t size)
   {
@@ -201,7 +202,7 @@ public:
   }
 
   static void operator delete(void *, MEM_ROOT *,
-                              const std::nothrow_t &arg) throw ()
+                              const std::nothrow_t &) throw ()
   { /* never called */ }
 
   ~String() { mem_free(); }

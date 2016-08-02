@@ -1342,7 +1342,6 @@ public:
   }
 };
 
-
 class PT_set : public Parse_tree_node
 {
   typedef Parse_tree_node super;
@@ -1374,7 +1373,6 @@ public:
     return list->contextualize(pc);
   }
 };
-
 
 class PT_into_destination : public Parse_tree_node
 {
@@ -3078,6 +3076,221 @@ public:
 
   virtual bool contextualize(Parse_context *pc);
   virtual Sql_cmd *make_cmd(THD *thd);
+};
+
+class PT_create_role : public PT_statement
+{
+  typedef PT_statement super;
+
+  Sql_cmd_create_role sql_cmd;
+
+public:
+  PT_create_role(bool if_not_exists, const List<LEX_USER> *roles)
+  : sql_cmd(if_not_exists, roles)
+  {}
+
+  virtual Sql_cmd *make_cmd(THD *thd)
+  {
+    Parse_context pc(thd, thd->lex->current_select());
+    if (contextualize(&pc))
+      return NULL;
+    return &sql_cmd;
+  }
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc))
+      return true;
+    return false;
+  }
+};
+
+
+class PT_drop_role : public PT_statement
+{
+  typedef PT_statement super;
+
+  Sql_cmd_drop_role sql_cmd;
+
+public:
+  explicit PT_drop_role(bool ignore_errors, const List<LEX_USER> *roles)
+  : sql_cmd(ignore_errors, roles)
+  {}
+
+  virtual Sql_cmd *make_cmd(THD *thd)
+  {
+    Parse_context pc(thd, thd->lex->current_select());
+    if (contextualize(&pc))
+      return NULL;
+    return &sql_cmd;
+  }
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc))
+      return true;
+    return false;
+  }
+};
+
+
+class PT_set_role : public PT_statement
+{
+  typedef PT_statement super;
+
+  Sql_cmd_set_role sql_cmd;
+
+public:
+  explicit PT_set_role(role_enum role_type,
+                       const List<LEX_USER> *opt_except_roles= NULL)
+  : sql_cmd(role_type, opt_except_roles)
+  {
+    DBUG_ASSERT(role_type == ROLE_ALL || opt_except_roles == NULL);
+  }
+  explicit PT_set_role(const List<LEX_USER> *roles) : sql_cmd(roles) {}
+
+  virtual Sql_cmd *make_cmd(THD *thd)
+  {
+    Parse_context pc(thd, thd->lex->current_select());
+    if (contextualize(&pc))
+      return NULL;
+    return &sql_cmd;
+  }
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc))
+      return true;
+    switch (sql_cmd.role_type) {
+    case ROLE_NONE:
+      break;
+    case ROLE_DEFAULT:
+      break;
+    case ROLE_ALL:
+      break;
+    case ROLE_NAME:
+      break;
+    }
+    return false;
+  }
+};
+
+
+class PT_grant_roles : public PT_statement
+{
+  typedef PT_statement super;
+
+  Sql_cmd_grant_roles sql_cmd;
+
+public:
+  PT_grant_roles(const List<LEX_USER> *roles, const List<LEX_USER> *users,
+                 bool with_admin_option)
+  : sql_cmd(roles, users, with_admin_option)
+  {}
+
+  virtual Sql_cmd *make_cmd(THD *thd)
+  {
+    Parse_context pc(thd, thd->lex->current_select());
+    if (contextualize(&pc))
+      return NULL;
+    return &sql_cmd;
+  }
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc))
+      return true;
+    // TODO: parse-time processing of GRANT roles TO users (if needed)
+    return false;
+  }
+};
+
+
+class PT_revoke_roles : public PT_statement
+{
+  typedef PT_statement super;
+
+  Sql_cmd_revoke_roles sql_cmd;
+
+public:
+  PT_revoke_roles(const List<LEX_USER> *roles, const List<LEX_USER> *users)
+  : sql_cmd(roles, users)
+  {}
+
+  virtual Sql_cmd *make_cmd(THD *thd)
+  {
+    Parse_context pc(thd, thd->lex->current_select());
+    if (contextualize(&pc))
+      return NULL;
+    return &sql_cmd;
+  }
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc))
+      return true;
+    // TODO: parse-time processing of REVOKE roles TO users (if needed)
+    return false;
+  }
+};
+
+
+class PT_alter_user_default_role : public PT_statement
+{
+  typedef PT_statement super;
+
+  Sql_cmd_alter_user_default_role sql_cmd;
+
+public:
+   PT_alter_user_default_role(bool if_exists,
+                              const List<LEX_USER> *users,
+                              const List<LEX_USER> *roles,
+                              const role_enum role_type)
+  : sql_cmd(if_exists, users, roles, role_type)
+  {}
+
+  virtual Sql_cmd *make_cmd(THD *thd)
+  {
+    Parse_context pc(thd, thd->lex->current_select());
+    if (contextualize(&pc))
+      return NULL;
+    return &sql_cmd;
+  }
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc))
+      return true;
+    // TODO: parse-time processing (if any) of the LEX_USER *sql_cmd.role
+    //       for the ALTER USER ... DEFAULT ROLE statement
+    return false;
+  }
+};
+
+
+class PT_show_privileges : public PT_statement
+{
+  typedef PT_statement super;
+
+  Sql_cmd_show_privileges sql_cmd;
+
+public:
+   PT_show_privileges(const LEX_USER *opt_for_user,
+                      const List<LEX_USER> *opt_using_users)
+  : sql_cmd(opt_for_user, opt_using_users)
+  {
+    DBUG_ASSERT(opt_using_users == NULL || opt_for_user != NULL);
+  }
+
+  virtual Sql_cmd *make_cmd(THD *thd)
+  {
+    Parse_context pc(thd, thd->lex->current_select());
+    if (contextualize(&pc))
+      return NULL;
+    return &sql_cmd;
+  }
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc))
+      return true;
+    // TODO: parse-time processing (if any) of sql_cmd.for_user and
+    //       sql_cmd.using_users for the SHOW PRIVILEGES FOR ... statement
+    return false;
+  }
 };
 
 #endif /* PARSE_TREE_NODES_INCLUDED */

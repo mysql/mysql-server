@@ -589,7 +589,7 @@ public:
   */
   Settable_routine_parameter() {}
   virtual ~Settable_routine_parameter() {}
-  virtual void set_required_privilege(bool rw) {};
+  virtual void set_required_privilege(bool rw MY_ATTRIBUTE((unused))) {};
 
   /*
     Set parameter value.
@@ -607,7 +607,7 @@ public:
   */
   virtual bool set_value(THD *thd, sp_rcontext *ctx, Item **it)= 0;
 
-  virtual void set_out_param_info(Send_field *info) {}
+  virtual void set_out_param_info(Send_field *info MY_ATTRIBUTE((unused))) {}
 
   virtual const Send_field *get_out_param_info() const
   { return NULL; }
@@ -637,7 +637,7 @@ class Item : public Parse_tree_node
 
   Item(const Item &);			/* Prevent use of these */
   void operator=(Item &);
-  virtual bool is_expensive_processor(uchar *arg) { return false; }
+  virtual bool is_expensive_processor(uchar*) { return false; }
 
 protected:
   /**
@@ -654,12 +654,15 @@ public:
   static void *operator new(size_t size) throw ()
   { return sql_alloc(size); }
   static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg= std::nothrow) throw ()
+                            const std::nothrow_t &arg MY_ATTRIBUTE((unused))
+                            = std::nothrow) throw ()
   { return alloc_root(mem_root, size); }
 
-  static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
-  static void operator delete(void *ptr, MEM_ROOT *mem_root,
-                              const std::nothrow_t &arg) throw ()
+  static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
+                              size_t size MY_ATTRIBUTE((unused)))
+  { TRASH(ptr, size); }
+  static void operator delete(void*, MEM_ROOT*,
+                              const std::nothrow_t&) throw ()
   {}
 
   enum Type {INVALID_ITEM= 0,
@@ -729,8 +732,8 @@ private:
     Note: contextualize_() is an intermediate function. Remove it together
     with Parse_tree_node::contextualize_().
   */
-  virtual bool contextualize(Parse_context *pc) { DBUG_ASSERT(0); return true; }
-  virtual bool contextualize_(Parse_context *pc) { DBUG_ASSERT(0); return true; }
+  virtual bool contextualize(Parse_context*) { DBUG_ASSERT(0); return true; }
+  virtual bool contextualize_(Parse_context*) { DBUG_ASSERT(0); return true; }
 
 protected:
   /**
@@ -790,8 +793,9 @@ public:
     @param removed_select select_lex that tables are moved away from,
                           child of parent_select.
   */
-  virtual void fix_after_pullout(SELECT_LEX *parent_select,
-                                 SELECT_LEX *removed_select)
+  virtual void
+  fix_after_pullout(SELECT_LEX *parent_select MY_ATTRIBUTE((unused)),
+                    SELECT_LEX *removed_select MY_ATTRIBUTE((unused)))
   {};
   /*
     should be used in case where we are sure that we do not need
@@ -921,7 +925,8 @@ public:
         - If the value of the function is NULL then the bound is the 
           smallest possible value of LLONG_MIN 
   */
-  virtual longlong val_int_endpoint(bool left_endp, bool *incl_endp)
+  virtual longlong val_int_endpoint(bool left_endp MY_ATTRIBUTE((unused)),
+                                    bool *incl_endp MY_ATTRIBUTE((unused)))
   { DBUG_ASSERT(0); return 0; }
 
 
@@ -1127,7 +1132,7 @@ public:
     @return false if successful, true on failure
   */
   /* purecov: begin deadcode */
-  virtual bool val_json(Json_wrapper *result)
+  virtual bool val_json(Json_wrapper *result MY_ATTRIBUTE((unused)))
   {
     DBUG_ABORT();
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "item type for JSON");
@@ -1155,10 +1160,12 @@ public:
     @return                  the filtering effect (between 0 and 1) this
                              Item contributes with.
   */
-  virtual float get_filtering_effect(table_map filter_for_table,
-                                     table_map read_tables,
-                                     const MY_BITMAP *fields_to_ignore,
-                                     double rows_in_table)
+  virtual float
+  get_filtering_effect(table_map filter_for_table MY_ATTRIBUTE((unused)),
+                       table_map read_tables MY_ATTRIBUTE((unused)),
+                       const MY_BITMAP
+                       *fields_to_ignore MY_ATTRIBUTE((unused)),
+                       double rows_in_table MY_ATTRIBUTE((unused)))
   {
     // Filtering effect cannot be calculated for a table already read.
     DBUG_ASSERT((read_tables & filter_for_table) == 0);
@@ -1338,7 +1345,7 @@ public:
 
   virtual Field *get_tmp_table_field() { return 0; }
   /* This is also used to create fields in CREATE ... SELECT: */
-  virtual Field *tmp_table_field(TABLE *t_arg) { return 0; }
+  virtual Field *tmp_table_field(TABLE*) { return 0; }
   virtual const char *full_name() const
   {
     return item_name.is_set() ? item_name.ptr() : "???";
@@ -1432,7 +1439,7 @@ public:
     query and why they should be generated from the Item-tree, @see
     mysql_register_view().
   */
-  virtual inline void print(String *str, enum_query_type query_type)
+  virtual inline void print(String *str, enum_query_type)
   {
     str->append(full_name());
   }
@@ -1449,8 +1456,8 @@ public:
 
   virtual void update_used_tables() {}
 
-  virtual void split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                              List<Item> &fields) {}
+  virtual void split_sum_func(THD*, Ref_item_array,
+                              List<Item>&) {}
   /* Called for items that really have to be split */
   void split_sum_func2(THD *thd, Ref_item_array ref_item_array,
                        List<Item> &fields,
@@ -1492,17 +1499,18 @@ public:
     set field of temporary table for Item which can be switched on temporary
     table during query processing (grouping and so on)
   */
-  virtual void set_result_field(Field *field) {}
+  virtual void set_result_field(Field*) {}
   virtual bool is_result_field() { return 0; }
   virtual bool is_bool_func() { return 0; }
-  virtual void save_in_result_field(bool no_conversions) {}
+  virtual void save_in_result_field(bool no_conversions MY_ATTRIBUTE((unused)))
+  {}
   /*
     Set value of aggregate function in case of no rows for grouping were found.
     Also used for subqueries with outer references in SELECT list.
   */
   virtual void no_rows_in_result() {}
-  virtual Item *copy_or_same(THD *thd) { return this; }
-  virtual Item *copy_andor_structure(THD *thd) { return this; }
+  virtual Item *copy_or_same(THD*) { return this; }
+  virtual Item *copy_andor_structure(THD*) { return this; }
   virtual Item *real_item() { return this; }
   virtual Item *substitutional_item()
   {
@@ -1544,7 +1552,9 @@ public:
                        by agreement, an error may have been reported
   */
 
-  virtual bool walk(Item_processor processor, enum_walk walk, uchar *arg)
+  virtual bool walk(Item_processor processor,
+                    enum_walk walk MY_ATTRIBUTE((unused)),
+                    uchar *arg)
   {
     return (this->*processor)(arg);
   }
@@ -1580,7 +1590,7 @@ public:
   }
 
    virtual void traverse_cond(Cond_traverser traverser,
-                              void *arg, traverse_order order)
+                              void *arg, traverse_order)
    {
      (*traverser)(this, arg);
    }
@@ -1592,16 +1602,16 @@ public:
     this function and set the int_arg to maximum of the input data
     and their own version info.
   */
-  virtual bool intro_version(uchar *int_arg) { return false; }
+  virtual bool intro_version(uchar*) { return false; }
 
   virtual bool cleanup_processor(uchar *arg);
-  virtual bool collect_item_field_processor(uchar * arg) { return 0; }
+  virtual bool collect_item_field_processor(uchar*) { return 0; }
 
   /**
     Item::walk function. Set bit in table->tmp_set for all fields in
     table 'arg' that are referred to by the Item.
   */
-  virtual bool add_field_to_set_processor(uchar * arg) { return false; }
+  virtual bool add_field_to_set_processor(uchar*) { return false; }
 
   /// A processor to handle the select lex visitor framework.
   virtual bool visitor_processor(uchar *arg);
@@ -1610,7 +1620,7 @@ public:
     Item::walk function. Set bit in table->cond_set for all fields of
     all tables that are referred to by the Item.
   */
-  virtual bool add_field_to_cond_set_processor(uchar *unused) {return false; }
+  virtual bool add_field_to_cond_set_processor(uchar*) {return false; }
 
   /**
      Visitor interface for removing all column expressions (Item_field) in
@@ -1619,16 +1629,18 @@ public:
      @param arg  A MY_BITMAP* cast to unsigned char*, where the bits represent
                  Field::field_index values.
    */
-  virtual bool remove_column_from_bitmap(uchar *arg) { return false; }
-  virtual bool find_item_in_field_list_processor(uchar *arg) { return false; }
-  virtual bool change_context_processor(uchar *context) { return false; }
+  virtual bool remove_column_from_bitmap(uchar *arg MY_ATTRIBUTE((unused)))
+  { return false; }
+  virtual bool find_item_in_field_list_processor(uchar*) { return false; }
+  virtual bool change_context_processor(uchar*) { return false; }
   virtual bool find_item_processor(uchar *arg) { return this == (void *) arg; }
   /**
     Mark underlying field in read or write map of a table.
 
     @param arg        Mark_field object
   */
-  virtual bool mark_field_in_map(uchar *arg) { return false; }
+  virtual bool mark_field_in_map(uchar *arg MY_ATTRIBUTE((unused)))
+  { return false; }
 protected:
   /**
     Helper function for mark_field_in_map(uchar *arg).
@@ -1662,16 +1674,18 @@ public:
     @note This function is used to update used tables information after
           merging a query block (a subquery) with its parent.
   */
-  virtual bool used_tables_for_level(uchar *arg) { return false; }
-  virtual bool check_column_privileges(uchar *arg) { return false; }
-  virtual bool inform_item_in_cond_of_tab(uchar *arg) { return false; }
+  virtual bool used_tables_for_level(uchar *arg MY_ATTRIBUTE((unused)))
+  { return false; }
+  virtual bool check_column_privileges(uchar*) { return false; }
+  virtual bool inform_item_in_cond_of_tab(uchar*) { return false; }
   /**
      Clean up after removing the item from the item tree.
 
      @param arg Pointer to the SELECT_LEX from which the walk started, i.e.,
                 the SELECT_LEX that contained the clause that was removed.
   */
-  virtual bool clean_up_after_removal(uchar *arg) { return false; }
+  virtual bool clean_up_after_removal(uchar *arg MY_ATTRIBUTE((unused)))
+  { return false; }
 
   /**
     Propagate components that use referenced columns from derived tables.
@@ -1681,29 +1695,29 @@ public:
     means that this column can also be marked as used.
     @see also SELECT_LEX::delete_unused_merged_columns().
   */
-  virtual bool propagate_derived_used(uchar *arg) { return is_derived_used(); }
+  virtual bool propagate_derived_used(uchar*) { return is_derived_used(); }
 
   /// @see Distinct_check::check_query()
-  virtual bool aggregate_check_distinct(uchar *arg)
+  virtual bool aggregate_check_distinct(uchar*)
   { return false; }
   /// @see Group_check::check_query()
-  virtual bool aggregate_check_group(uchar *arg)
+  virtual bool aggregate_check_group(uchar*)
   { return false; }
   /// @see Group_check::analyze_conjunct()
-  virtual bool is_strong_side_column_not_in_fd(uchar *arg)
+  virtual bool is_strong_side_column_not_in_fd(uchar*)
   { return false; }
   /// @see Group_check::is_in_fd_of_underlying()
-  virtual bool is_column_not_in_fd(uchar *arg)
+  virtual bool is_column_not_in_fd(uchar*)
   { return false; }
-  virtual Bool3 local_column(const SELECT_LEX *sl) const
+  virtual Bool3 local_column(const SELECT_LEX*) const
   { return Bool3::false3(); }
 
-  virtual bool cache_const_expr_analyzer(uchar **arg);
-  virtual Item* cache_const_expr_transformer(uchar *arg);
+  virtual bool cache_const_expr_analyzer(uchar**);
+  virtual Item* cache_const_expr_transformer(uchar*);
 
-  virtual bool equality_substitution_analyzer(uchar **arg) { return false; }
+  virtual bool equality_substitution_analyzer(uchar**) { return false; }
 
-  virtual Item* equality_substitution_transformer(uchar *arg) { return this; }
+  virtual Item* equality_substitution_transformer(uchar*) { return this; }
 
   /*
     Check if a partition function is allowed
@@ -1756,25 +1770,27 @@ public:
     assumes that there are no multi-byte collations amongst the partition
     fields.
   */
-  virtual bool check_partition_func_processor(uchar *bool_arg) { return true;}
+  virtual bool
+  check_partition_func_processor(uchar *bool_arg MY_ATTRIBUTE((unused)))
+  { return true;}
   virtual bool subst_argument_checker(uchar **arg)
-  { 
+  {
     if (*arg)
-      *arg= NULL; 
-    return true;     
+      *arg= NULL;
+    return true;
   }
-  virtual bool explain_subquery_checker(uchar **arg) { return true; }
-  virtual Item *explain_subquery_propagator(uchar *arg) { return this; }
+  virtual bool explain_subquery_checker(uchar**) { return true; }
+  virtual Item *explain_subquery_propagator(uchar*) { return this; }
 
-  virtual Item *equal_fields_propagator(uchar * arg) { return this; }
-  virtual bool set_no_const_sub(uchar *arg) { return false; }
-  virtual Item *replace_equal_field(uchar * arg) { return this; }
+  virtual Item *equal_fields_propagator(uchar*) { return this; }
+  virtual bool set_no_const_sub(uchar*) { return false; }
+  virtual Item *replace_equal_field(uchar*) { return this; }
   /*
     Check if an expression value has allowed arguments, like DATE/DATETIME
     for date functions. Also used by partitioning code to reject
     timezone-dependent expressions in a (sub)partitioning function.
   */
-  virtual bool check_valid_arguments_processor(uchar *arg) { return false; }
+  virtual bool check_valid_arguments_processor(uchar*) { return false; }
 
  /**
    Check if an expression/function is allowed for a virtual column
@@ -1785,17 +1801,15 @@ public:
 
    @returns true if function is not accepted
   */
-  virtual bool check_gcol_func_processor(uchar *int_arg)
+  virtual bool check_gcol_func_processor(uchar *int_arg MY_ATTRIBUTE((unused)))
   { return true; }
 
   /**
     Check if a generated expression depends on DEFAULT function.
 
-    @param arg ignored
-
     @returns false if the function is not DEFAULT(), otherwise true.
   */
-  virtual bool check_gcol_depend_default_processor(uchar *arg)
+  virtual bool check_gcol_depend_default_processor(uchar*)
   { return false; }
 
   /*
@@ -1809,12 +1823,12 @@ public:
     For SP local variable returns address of pointer to Item representing its
     current value and pointer passed via parameter otherwise.
   */
-  virtual Item **this_item_addr(THD *thd, Item **addr_arg) { return addr_arg; }
+  virtual Item **this_item_addr(THD*, Item **addr_arg) { return addr_arg; }
 
   // Row emulation
   virtual uint cols() { return 1; }
-  virtual Item* element_index(uint i) { return this; }
-  virtual Item** addr(uint i) { return 0; }
+  virtual Item* element_index(uint) { return this; }
+  virtual Item** addr(uint) { return 0; }
   virtual bool check_cols(uint c);
   // It is not row => null inside is impossible
   virtual bool null_inside() { return 0; }
@@ -1824,8 +1838,8 @@ public:
   Field *tmp_table_field_from_field_type(TABLE *table, bool fixed_length);
   virtual Item_field *field_for_view_update() { return 0; }
 
-  virtual Item *neg_transformer(THD *thd) { return NULL; }
-  virtual Item *update_value_transformer(uchar *select_arg) { return this; }
+  virtual Item *neg_transformer(THD*) { return NULL; }
+  virtual Item *update_value_transformer(uchar*) { return this; }
   virtual Item *safe_charset_converter(const CHARSET_INFO *tocs);
   void delete_self()
   {
@@ -1981,11 +1995,11 @@ public:
   /**
     Analyzer function for GC substitution. @see substitute_gc()
   */
-  virtual bool gc_subst_analyzer(uchar **arg) { return false; }
+  virtual bool gc_subst_analyzer(uchar**) { return false; }
   /**
     Transformer function for GC substitution. @see substitute_gc()
   */
-  virtual Item *gc_subst_transformer(uchar *arg) { return this; }
+  virtual Item *gc_subst_transformer(uchar*) { return this; }
   /**
     Check if this item is of a type that is eligible for GC
     substitution. All items that belong to subclasses of Item_func are
@@ -1997,8 +2011,15 @@ public:
     return t == FUNC_ITEM || t == COND_ITEM;
   }
 
+  /**
+    This function applies only to Item_field objects referred to by an Item_ref
+    object that has been marked as a const_item.
+
+    @param arg  Keep track of whether an Item_ref refers to an Item_field.
+  */
+  virtual bool repoint_const_outer_ref(uchar *arg) { return false; }
 private:
-  virtual bool subq_opt_away_processor(uchar *arg) { return false; }
+  virtual bool subq_opt_away_processor(uchar*) { return false; }
 
 public:                            // Start of data fields
   /**
@@ -2103,7 +2124,7 @@ public:
 
   void set_used_tables(table_map map) { used_table_map= map; }
   table_map used_tables() const { return used_table_map; }
-  bool check_gcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar*) { return false;}
   /* to prevent drop fixed flag (no need parent cleanup call) */
   void cleanup()
   {
@@ -2374,7 +2395,7 @@ public:
     return value_item->send(protocol, str);
   }
 
-  virtual bool cache_const_expr_analyzer(uchar **arg)
+  virtual bool cache_const_expr_analyzer(uchar**)
   {
     // Item_name_const always wraps a literal, so there is no need to cache it.
     return false;
@@ -2437,7 +2458,7 @@ public:
 
   virtual Item_num *neg()= 0;
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
-  bool check_partition_func_processor(uchar *int_arg) { return false;}
+  bool check_partition_func_processor(uchar*) { return false;}
 };
 
 #define NO_CACHED_FIELD_INDEX ((uint)(-1))
@@ -2738,7 +2759,7 @@ public:
   }
   longlong val_int_endpoint(bool left_endp, bool *incl_endp);
   Field *get_tmp_table_field() { return result_field; }
-  Field *tmp_table_field(TABLE *t_arg) { return result_field; }
+  Field *tmp_table_field(TABLE*) { return result_field; }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_date_result(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
@@ -2757,7 +2778,7 @@ public:
   }
   bool used_tables_for_level(uchar *arg);
   bool check_column_privileges(uchar *arg);
-  bool check_partition_func_processor(uchar *int_arg) { return false; }
+  bool check_partition_func_processor(uchar*) { return false; }
   void cleanup();
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
   bool subst_argument_checker(uchar **arg);
@@ -2846,7 +2867,9 @@ public:
   { return m_alias_of_expr ||
       // maybe the qualifying table was given an alias ("t1 AS foo"):
       (field ? field->table->alias_name_used : false);
- }
+  }
+
+  bool repoint_const_outer_ref(uchar *arg);
 };
 
 class Item_null :public Item_basic_constant
@@ -2889,11 +2912,11 @@ public:
   longlong val_date_temporal() { return val_int(); }
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  bool get_date(MYSQL_TIME*, my_time_flags_t)
   {
     return true;
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME*)
   {
     return true;
   }
@@ -2911,7 +2934,7 @@ public:
   }
 
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
-  bool check_partition_func_processor(uchar *int_arg) {return false;}
+  bool check_partition_func_processor(uchar*) {return false;}
 };
 
 /**
@@ -2939,10 +2962,10 @@ public:
   {
     save_in_field(result_field, no_conversions);
   }
-  bool check_partition_func_processor(uchar *int_arg) {return true;}
+  bool check_partition_func_processor(uchar*) {return true;}
   enum_field_types field_type() const { return fld_type; }
   Item_result result_type() const { return res_type; }
-  bool check_gcol_func_processor(uchar *int_arg)
+  bool check_gcol_func_processor(uchar*)
   { return true; }
 };  
 
@@ -3189,9 +3212,9 @@ public:
   Item_num *neg() { value= -value; return this; }
   uint decimal_precision() const
   { return (uint)(max_length - MY_TEST(value < 0)); }
-  bool eq(const Item *, bool binary_cmp) const;
-  bool check_partition_func_processor(uchar *bool_arg) { return false;}
-  bool check_gcol_func_processor(uchar *int_arg) { return false;}
+  bool eq(const Item*, bool binary_cmp MY_ATTRIBUTE((unused))) const;
+  bool check_partition_func_processor(uchar*) { return false;}
+  bool check_gcol_func_processor(uchar*) { return false;}
 };
 
 
@@ -3242,12 +3265,12 @@ public:
   Item *clone_item() { return new Item_temporal(field_type(), value); }
   longlong val_time_temporal() { return val_int(); }
   longlong val_date_temporal() { return val_int(); }
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  bool get_date(MYSQL_TIME*, my_time_flags_t)
   {
     DBUG_ASSERT(0);
     return false;
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME*)
   {
     DBUG_ASSERT(0);
     return false;
@@ -3306,7 +3329,7 @@ public:
   longlong val_int();
   double val_real();
   String *val_str(String*);
-  my_decimal *val_decimal(my_decimal *val) { return &decimal_value; }
+  my_decimal *val_decimal(my_decimal*) { return &decimal_value; }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_decimal(ltime, fuzzydate);
@@ -3330,7 +3353,7 @@ public:
   uint decimal_precision() const { return decimal_value.precision(); }
   bool eq(const Item *, bool binary_cmp) const;
   void set_decimal_value(my_decimal *value_par);
-  bool check_partition_func_processor(uchar *bool_arg) { return false;}
+  bool check_partition_func_processor(uchar*) { return false;}
 };
 
 
@@ -3426,7 +3449,7 @@ public:
                 val_arg, decimal_par, length), func_name(name_arg)
   {}
 
-  virtual inline void print(String *str, enum_query_type query_type)
+  virtual inline void print(String *str, enum_query_type)
   {
     str->append(func_name);
   }
@@ -3588,7 +3611,7 @@ public:
                                     collation.collation->mbmaxlen);
   }
   virtual void print(String *str, enum_query_type query_type);
-  bool check_partition_func_processor(uchar *int_arg) {return false;}
+  bool check_partition_func_processor(uchar*) {return false;}
 
   /**
     Return TRUE if character-set-introducer was explicitly specified in the
@@ -3659,13 +3682,13 @@ public:
 
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
 
-  virtual inline void print(String *str, enum_query_type query_type)
+  virtual inline void print(String *str, enum_query_type)
   {
     str->append(func_name);
   }
 
-  bool check_partition_func_processor(uchar *int_arg) {return true;}
-  bool check_gcol_func_processor(uchar *int_arg)
+  bool check_partition_func_processor(uchar*) {return true;}
+  bool check_gcol_func_processor(uchar*)
   { return true; }
 };
 
@@ -3773,7 +3796,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Item *safe_charset_converter(const CHARSET_INFO *tocs);
-  bool check_partition_func_processor(uchar *int_arg) {return false;}
+  bool check_partition_func_processor(uchar*) { return false; }
   static LEX_STRING make_hex_str(const char *str, size_t str_length);
 private:
   void hex_string_init(const char *str, uint str_length);
@@ -3809,7 +3832,7 @@ public:
   {}
   ~Item_result_field() {}			/* Required with gcc 2.95 */
   Field *get_tmp_table_field() { return result_field; }
-  Field *tmp_table_field(TABLE *t_arg) { return result_field; }
+  Field *tmp_table_field(TABLE*) { return result_field; }
   table_map used_tables() const { return 1; }
 
   /**
@@ -3847,7 +3870,7 @@ public:
     also to make printing of items inherited from Item_sum uniform.
   */
   virtual const char *func_name() const= 0;
-  bool check_gcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar*) { return false;}
 };
 
 
@@ -3984,7 +4007,7 @@ public:
   virtual Item* transform(Item_transformer, uchar *arg);
   virtual Item* compile(Item_analyzer analyzer, uchar **arg_p,
                         Item_transformer transformer, uchar *arg_t);
-  virtual bool explain_subquery_checker(uchar **arg)
+  virtual bool explain_subquery_checker(uchar**)
   {
     /*
       Always return false: we don't need to go deeper into referenced
@@ -4062,6 +4085,8 @@ public:
   {
     return (*ref)->created_by_in2exists();
   }
+
+  bool repoint_const_outer_ref(uchar *arg);
 };
 
 
@@ -4129,7 +4154,7 @@ public:
     build_equal_items_for_cond().
     TODO: Implement multiple equality optimization for views.
   */
-  virtual bool subst_argument_checker(uchar **arg)
+  virtual bool subst_argument_checker(uchar**)
   {
     return false;
   }
@@ -4225,7 +4250,7 @@ public:
                      alias_of_expr_arg),
     outer_ref(0), in_sum_func(0), found_in_select_list(1)
   {}
-  void save_in_result_field(bool no_conversions)
+  void save_in_result_field(bool no_conversions MY_ATTRIBUTE((unused)))
   {
     outer_ref->save_org_in_field(result_field);
   }
@@ -4329,12 +4354,12 @@ public:
     decimals= decimals_arg;
   }
   void print(String *str, enum_query_type query_type);
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  bool get_date(MYSQL_TIME*, my_time_flags_t)
   {
     DBUG_ASSERT(0);
     return true;
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME*)
   {
     DBUG_ASSERT(0);
     return true;
@@ -4512,7 +4537,7 @@ public:
   virtual bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)= 0;
   virtual bool get_time(MYSQL_TIME *ltime)= 0;
   /* purecov: begin deadcode */
-  virtual bool val_json(Json_wrapper *wr)
+  virtual bool val_json(Json_wrapper*)
   {
     DBUG_ABORT();
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "item type for JSON");
@@ -4792,7 +4817,7 @@ public:
            ((walk & WALK_POSTFIX) && (this->*processor)(args));
   }
 
-  bool check_gcol_depend_default_processor(uchar *arg_uchar)
+  bool check_gcol_depend_default_processor(uchar*)
   { return true; }
 
   Item *transform(Item_transformer transformer, uchar *args);
@@ -4845,7 +4870,7 @@ public:
            arg->walk(processor, walk, args) ||
            ((walk & WALK_POSTFIX) && (this->*processor)(args));
   }
-  bool check_gcol_func_processor(uchar *int_arg)
+  bool check_gcol_func_processor(uchar*)
   { return true; }
 };
 
@@ -4907,7 +4932,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   table_map used_tables() const { return (table_map)0L; }
   Field *get_tmp_table_field() { return 0; }
-  Item *copy_or_same(THD *thd) { return this; }
+  Item *copy_or_same(THD*) { return this; }
   Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
   void cleanup();
 
@@ -5003,7 +5028,7 @@ public:
     used_table_map= example->used_tables();
   }
 
-  virtual bool allocate(uint i) { return 0; }
+  virtual bool allocate(uint) { return 0; }
   virtual bool setup(Item *item)
   {
     example= item;
@@ -5036,7 +5061,7 @@ public:
   { 
     return cached_field ? cached_field->eq_def (field) : FALSE;
   }
-  bool eq(const Item *item, bool binary_cmp) const
+  bool eq(const Item *item, bool binary_cmp MY_ATTRIBUTE((unused))) const
   {
     return this == item;
   }
@@ -5078,7 +5103,7 @@ public:
   bool walk (Item_processor processor, enum_walk walk, uchar *arg);
   virtual void clear() { null_value= TRUE; value_cached= FALSE; }
   bool is_null() { return value_cached ? null_value : example->is_null(); }
-  bool check_gcol_func_processor(uchar *int_arg) { return true;}
+  bool check_gcol_func_processor(uchar*) { return true;}
   Item_result result_type() const
   {
     if (!example)
@@ -5243,17 +5268,17 @@ public:
     illegal_method_call((const char*)"val_str");
     return 0;
   };
-  my_decimal *val_decimal(my_decimal *val)
+  my_decimal *val_decimal(my_decimal*)
   {
     illegal_method_call((const char*)"val_decimal");
     return 0;
   };
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  bool get_date(MYSQL_TIME*, my_time_flags_t)
   {
     illegal_method_call((const char *) "get_date");
     return true;
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME*)
   {
     illegal_method_call((const char *) "get_time");
     return true;
@@ -5367,12 +5392,12 @@ public:
   longlong val_int();
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String*);
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  bool get_date(MYSQL_TIME*, my_time_flags_t)
   {
     DBUG_ASSERT(0);
     return true;
   }
-  bool get_time(MYSQL_TIME *ltime)
+  bool get_time(MYSQL_TIME*)
   {
     DBUG_ASSERT(0);
     return true;

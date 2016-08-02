@@ -6994,7 +6994,7 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
                     });
     if ((fd= mysql_file_create(key_file_log_event_data,
                                fname, CREATE_MODE,
-                               O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
+                               O_WRONLY | O_EXCL | O_NOFOLLOW,
                                MYF(MY_WME))) < 0)
     {
       rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
@@ -7005,7 +7005,7 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
   }
   else if ((fd= mysql_file_open(key_file_log_event_data,
                                 fname,
-                                O_WRONLY | O_APPEND | O_BINARY | O_NOFOLLOW,
+                                O_WRONLY | O_APPEND | O_NOFOLLOW,
                                 MYF(MY_WME))) < 0)
   {
     rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),

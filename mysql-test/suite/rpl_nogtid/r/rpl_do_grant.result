@@ -3,11 +3,6 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-call mtr.add_suppression("Did not write failed .* into binary log while "
-                         "revoking all_privileges from a list of users.");
-call mtr.add_suppression("Did not write failed .* into binary log while "
-                         "storing routine level grants in the privilege "
-                         "tables.");
 call mtr.add_suppression("REVOKE/GRANT failed while storing routine level "
                          "grants in the privilege tables. An incident event "
                          "has been written to the binary log which will "
@@ -31,8 +26,8 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 grant drop on test.* to rpl_do_grant@localhost;
 show grants for rpl_do_grant@localhost;
 Grants for rpl_do_grant@localhost
-GRANT SELECT ON *.* TO 'rpl_do_grant'@'localhost'
-GRANT DROP ON `test`.* TO 'rpl_do_grant'@'localhost'
+GRANT SELECT ON *.* TO `rpl_do_grant`@`localhost`
+GRANT DROP ON `test`.* TO `rpl_do_grant`@`localhost`
 set password for rpl_do_grant@localhost="does it work?";
 select authentication_string<>_binary'' from mysql.user where user=_binary'rpl_do_grant';
 authentication_string<>_binary''
@@ -63,46 +58,46 @@ ERROR 42000: There is no such grant defined for user 'rpl_do_grant' on host 'loc
 create user rpl_do_grant@localhost;
 show grants for rpl_do_grant@localhost;
 Grants for rpl_do_grant@localhost
-GRANT USAGE ON *.* TO 'rpl_do_grant'@'localhost'
+GRANT USAGE ON *.* TO `rpl_do_grant`@`localhost`
 show grants for rpl_do_grant2@localhost;
 ERROR 42000: There is no such grant defined for user 'rpl_do_grant2' on host 'localhost'
 show grants for rpl_do_grant@localhost;
 Grants for rpl_do_grant@localhost
-GRANT USAGE ON *.* TO 'rpl_do_grant'@'localhost'
+GRANT USAGE ON *.* TO `rpl_do_grant`@`localhost`
 show grants for rpl_do_grant2@localhost;
 ERROR 42000: There is no such grant defined for user 'rpl_do_grant2' on host 'localhost'
 rename user rpl_do_grant@localhost to rpl_do_grant2@localhost;
 show grants for rpl_do_grant2@localhost;
 Grants for rpl_do_grant2@localhost
-GRANT USAGE ON *.* TO 'rpl_do_grant2'@'localhost'
+GRANT USAGE ON *.* TO `rpl_do_grant2`@`localhost`
 show grants for rpl_do_grant2@localhost;
 Grants for rpl_do_grant2@localhost
-GRANT USAGE ON *.* TO 'rpl_do_grant2'@'localhost'
+GRANT USAGE ON *.* TO `rpl_do_grant2`@`localhost`
 grant DELETE,INSERT on mysqltest1.* to rpl_do_grant2@localhost;
 show grants for rpl_do_grant2@localhost;
 Grants for rpl_do_grant2@localhost
-GRANT USAGE ON *.* TO 'rpl_do_grant2'@'localhost'
-GRANT INSERT, DELETE ON `mysqltest1`.* TO 'rpl_do_grant2'@'localhost'
+GRANT USAGE ON *.* TO `rpl_do_grant2`@`localhost`
+GRANT INSERT, DELETE ON `mysqltest1`.* TO `rpl_do_grant2`@`localhost`
 show grants for rpl_do_grant2@localhost;
 Grants for rpl_do_grant2@localhost
-GRANT USAGE ON *.* TO 'rpl_do_grant2'@'localhost'
-GRANT INSERT, DELETE ON `mysqltest1`.* TO 'rpl_do_grant2'@'localhost'
+GRANT USAGE ON *.* TO `rpl_do_grant2`@`localhost`
+GRANT INSERT, DELETE ON `mysqltest1`.* TO `rpl_do_grant2`@`localhost`
 revoke DELETE on mysqltest1.* from rpl_do_grant2@localhost;
 show grants for rpl_do_grant2@localhost;
 Grants for rpl_do_grant2@localhost
-GRANT USAGE ON *.* TO 'rpl_do_grant2'@'localhost'
-GRANT INSERT ON `mysqltest1`.* TO 'rpl_do_grant2'@'localhost'
+GRANT USAGE ON *.* TO `rpl_do_grant2`@`localhost`
+GRANT INSERT ON `mysqltest1`.* TO `rpl_do_grant2`@`localhost`
 show grants for rpl_do_grant2@localhost;
 Grants for rpl_do_grant2@localhost
-GRANT USAGE ON *.* TO 'rpl_do_grant2'@'localhost'
-GRANT INSERT ON `mysqltest1`.* TO 'rpl_do_grant2'@'localhost'
+GRANT USAGE ON *.* TO `rpl_do_grant2`@`localhost`
+GRANT INSERT ON `mysqltest1`.* TO `rpl_do_grant2`@`localhost`
 revoke all privileges, grant option from rpl_do_grant2@localhost;
 show grants for rpl_do_grant2@localhost;
 Grants for rpl_do_grant2@localhost
-GRANT USAGE ON *.* TO 'rpl_do_grant2'@'localhost'
+GRANT USAGE ON *.* TO `rpl_do_grant2`@`localhost`
 show grants for rpl_do_grant2@localhost;
 Grants for rpl_do_grant2@localhost
-GRANT USAGE ON *.* TO 'rpl_do_grant2'@'localhost'
+GRANT USAGE ON *.* TO `rpl_do_grant2`@`localhost`
 drop user rpl_do_grant2@localhost;
 show grants for rpl_do_grant2@localhost;
 ERROR 42000: There is no such grant defined for user 'rpl_do_grant2' on host 'localhost'
@@ -132,9 +127,9 @@ Host	Db	User	Routine_name	Routine_type	Grantor	Proc_priv	Timestamp
 localhost	bug42217_db	create_rout_db	upgrade_del_func	FUNCTION	create_rout_db@localhost	Execute,Alter Routine	#
 SHOW GRANTS FOR 'create_rout_db'@'localhost';
 Grants for create_rout_db@localhost
-GRANT USAGE ON *.* TO 'create_rout_db'@'localhost'
-GRANT CREATE ROUTINE ON `bug42217_db`.* TO 'create_rout_db'@'localhost' WITH GRANT OPTION
-GRANT EXECUTE, ALTER ROUTINE ON FUNCTION `bug42217_db`.`upgrade_del_func` TO 'create_rout_db'@'localhost'
+GRANT USAGE ON *.* TO `create_rout_db`@`localhost`
+GRANT CREATE ROUTINE ON `bug42217_db`.* TO `create_rout_db`@`localhost` WITH GRANT OPTION
+GRANT EXECUTE, ALTER ROUTINE ON FUNCTION `bug42217_db`.`upgrade_del_func` TO `create_rout_db`@`localhost`
 USE bug42217_db;
 SHOW CREATE FUNCTION upgrade_del_func;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
@@ -210,22 +205,22 @@ GRANT EXECUTE ON PROCEDURE p1 TO 'user49119'@'localhost';
 ### Showing grants for both users: root and user49119 (master)
 SHOW GRANTS FOR 'user49119'@'localhost';
 Grants for user49119@localhost
-GRANT USAGE ON *.* TO 'user49119'@'localhost'
-GRANT EXECUTE ON PROCEDURE `test`.`p1` TO 'user49119'@'localhost'
+GRANT USAGE ON *.* TO `user49119`@`localhost`
+GRANT EXECUTE ON PROCEDURE `test`.`p1` TO `user49119`@`localhost`
 SHOW GRANTS FOR CURRENT_USER;
 Grants for root@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 ##############################################################
 ##############################################################
 ### Showing grants for both users: root and user49119 (master)
 SHOW GRANTS FOR 'user49119'@'localhost';
 Grants for user49119@localhost
-GRANT USAGE ON *.* TO 'user49119'@'localhost'
-GRANT EXECUTE ON PROCEDURE `test`.`p1` TO 'user49119'@'localhost'
+GRANT USAGE ON *.* TO `user49119`@`localhost`
+GRANT EXECUTE ON PROCEDURE `test`.`p1` TO `user49119`@`localhost`
 SHOW GRANTS FOR CURRENT_USER;
 Grants for root@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 ##############################################################
 ## This statement will make the revoke fail because root has no
@@ -238,10 +233,10 @@ ERROR 42000: There is no such grant defined for user 'root' on host 'localhost' 
 ### after revoke statement failure
 SHOW GRANTS FOR 'user49119'@'localhost';
 Grants for user49119@localhost
-GRANT USAGE ON *.* TO 'user49119'@'localhost'
+GRANT USAGE ON *.* TO `user49119`@`localhost`
 SHOW GRANTS FOR CURRENT_USER;
 Grants for root@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 ##############################################################
 SET sql_log_bin= 0;
@@ -257,11 +252,11 @@ include/start_slave_sql.inc
 ### after revoke statement failure (should match 
 SHOW GRANTS FOR 'user49119'@'localhost';
 Grants for user49119@localhost
-GRANT USAGE ON *.* TO 'user49119'@'localhost'
-GRANT EXECUTE ON PROCEDURE `test`.`p1` TO 'user49119'@'localhost'
+GRANT USAGE ON *.* TO `user49119`@`localhost`
+GRANT EXECUTE ON PROCEDURE `test`.`p1` TO `user49119`@`localhost`
 SHOW GRANTS FOR CURRENT_USER;
 Grants for root@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 ##############################################################
 DROP TABLE t1;

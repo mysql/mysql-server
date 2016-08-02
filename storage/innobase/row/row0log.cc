@@ -1191,8 +1191,8 @@ row_log_table_get_pk(
 			ulint	trx_id_offs = index->trx_id_offset;
 
 			if (!trx_id_offs) {
-				ulint	pos = dict_index_get_sys_col_pos(
-					index, DATA_TRX_ID);
+				ulint	pos =
+					index->get_sys_col_pos(DATA_TRX_ID);
 				ulint	len;
 				ut_ad(pos > 0);
 
@@ -1233,8 +1233,7 @@ row_log_table_get_pk(
 			}
 
 			for (ulint i = 0; i < new_n_uniq; i++) {
-				size += dict_col_get_min_size(
-					dict_index_get_nth_col(new_index, i));
+				size += new_index->get_col(i)->get_min_size();
 			}
 
 			*heap = mem_heap_create(
@@ -1261,11 +1260,10 @@ row_log_table_get_pk(
 			ulint		prtype;
 			ulint		mbminmaxlen;
 
-			ifield = dict_index_get_nth_field(new_index, new_i);
+			ifield = new_index->get_field(new_i);
 			dfield = dtuple_get_nth_field(tuple, new_i);
 
-			const ulint	col_no
-				= dict_field_get_col(ifield)->ind;
+			const ulint	col_no = ifield->col->ind;
 
 			if (const dict_col_t* col
 			    = row_log_table_get_pk_old_col(
@@ -1466,8 +1464,7 @@ row_log_table_apply_convert_mrec(
 		row = dtuple_copy(log->add_cols, heap);
 		/* dict_table_copy_types() would set the fields to NULL */
 		for (ulint i = 0; i < log->table->get_n_cols(); i++) {
-			dict_col_copy_type(
-				log->table->get_col(i),
+			log->table->get_col(i)->copy_type(
 				dfield_get_type(dtuple_get_nth_field(row, i)));
 		}
 	} else {
@@ -1478,7 +1475,7 @@ row_log_table_apply_convert_mrec(
 
 	for (ulint i = 0; i < rec_offs_n_fields(offsets); i++) {
 		const dict_field_t*	ind_field
-			= dict_index_get_nth_field(index, i);
+			= index->get_field(i);
 
 		if (ind_field->prefix_len) {
 			/* Column prefixes can only occur in key
@@ -1490,8 +1487,7 @@ row_log_table_apply_convert_mrec(
 			continue;
 		}
 
-		const dict_col_t*	col
-			= dict_field_get_col(ind_field);
+		const dict_col_t*	col = ind_field->col;
 
 		ulint			col_no
 			= log->col_map[dict_col_get_no(col)];
@@ -1591,8 +1587,7 @@ blob_done:
 		/* Adjust the DATA_NOT_NULL flag in the parsed row. */
 		dfield_get_type(dfield)->prtype = new_col->prtype;
 
-		ut_ad(dict_col_type_assert_equal(new_col,
-						 dfield_get_type(dfield)));
+		ut_ad(new_col->assert_equal(dfield_get_type(dfield)));
 	}
 
 	/* read the virtual column data if any */

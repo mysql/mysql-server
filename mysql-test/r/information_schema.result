@@ -101,6 +101,7 @@ column_stats
 columns_priv
 component
 db
+default_roles
 engine_cost
 func
 general_log
@@ -112,6 +113,7 @@ help_topic
 plugin
 procs_priv
 proxies_priv
+role_edges
 server_cost
 servers
 slave_master_info
@@ -708,6 +710,8 @@ password_expired	select,insert,update,references
 password_last_changed	select,insert,update,references
 password_lifetime	select,insert,update,references
 account_locked	select,insert,update,references
+Create_role_priv	select,insert,update,references
+Drop_role_priv	select,insert,update,references
 use test;
 create function sub1(i int) returns int
 return i+1;
@@ -902,7 +906,7 @@ AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
 information_schema	31
-mysql	29
+mysql	31
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
 begin
@@ -987,8 +991,8 @@ GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'user1'@'localhost'	def	USAGE	NO
 show grants;
 Grants for user1@localhost
-GRANT USAGE ON *.* TO 'user1'@'localhost'
-GRANT SELECT (f1) ON `mysqltest`.`t1` TO 'user1'@'localhost'
+GRANT USAGE ON *.* TO `user1`@`localhost`
+GRANT SELECT (`f1`) ON `mysqltest`.`t1` TO `user1`@`localhost`
 select * from information_schema.column_privileges order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 select * from information_schema.table_privileges order by grantee;
@@ -1001,8 +1005,8 @@ GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'user2'@'localhost'	def	USAGE	NO
 show grants;
 Grants for user2@localhost
-GRANT USAGE ON *.* TO 'user2'@'localhost'
-GRANT SELECT ON `mysqltest`.`t2` TO 'user2'@'localhost'
+GRANT USAGE ON *.* TO `user2`@`localhost`
+GRANT SELECT ON `mysqltest`.`t2` TO `user2`@`localhost`
 select * from information_schema.column_privileges order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 select * from information_schema.table_privileges order by grantee;
@@ -1015,8 +1019,8 @@ GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'user3'@'localhost'	def	USAGE	NO
 show grants;
 Grants for user3@localhost
-GRANT USAGE ON *.* TO 'user3'@'localhost'
-GRANT SELECT ON `mysqltest`.* TO 'user3'@'localhost'
+GRANT USAGE ON *.* TO `user3`@`localhost`
+GRANT SELECT ON `mysqltest`.* TO `user3`@`localhost`
 select * from information_schema.column_privileges where grantee like '%user%'
 order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
@@ -1038,7 +1042,7 @@ GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'user4'@'localhost'	def	SELECT	NO
 show grants;
 Grants for user4@localhost
-GRANT SELECT ON *.* TO 'user4'@'localhost'
+GRANT SELECT ON *.* TO `user4`@`localhost`
 drop user user1@localhost, user2@localhost, user3@localhost, user4@localhost;
 use test;
 drop database mysqltest;

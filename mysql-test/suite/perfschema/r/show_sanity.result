@@ -533,7 +533,13 @@ where show_mode = "5.7"
     and source = "P_S.GLOBAL_STATUS")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.6	I_S.GLOBAL_STATUS	COM_ALTER_USER_DEFAULT_ROLE
+5.6	I_S.GLOBAL_STATUS	COM_CREATE_ROLE
+5.6	I_S.GLOBAL_STATUS	COM_DROP_ROLE
+5.6	I_S.GLOBAL_STATUS	COM_GRANT_ROLES
 5.6	I_S.GLOBAL_STATUS	COM_INSTALL_COMPONENT
+5.6	I_S.GLOBAL_STATUS	COM_REVOKE_ROLES
+5.6	I_S.GLOBAL_STATUS	COM_SET_ROLE
 5.6	I_S.GLOBAL_STATUS	COM_SHUTDOWN
 5.6	I_S.GLOBAL_STATUS	COM_UNINSTALL_COMPONENT
 
@@ -622,6 +628,12 @@ where show_mode = "5.7"
     and source = "P_S.SESSION_STATUS")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.6	I_S.SESSION_STATUS	COM_ALTER_USER_DEFAULT_ROLE
+5.6	I_S.SESSION_STATUS	COM_CREATE_ROLE
+5.6	I_S.SESSION_STATUS	COM_DROP_ROLE
+5.6	I_S.SESSION_STATUS	COM_GRANT_ROLES
+5.6	I_S.SESSION_STATUS	COM_REVOKE_ROLES
+5.6	I_S.SESSION_STATUS	COM_SET_ROLE
 5.6	I_S.SESSION_STATUS	COM_SHUTDOWN
 
 ================================================================================
@@ -660,6 +672,7 @@ where (show_mode = "JUNK: GLOBAL-ONLY")
 and source = "I_S.SESSION_STATUS")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.7	P_S.SESSION_STATUS	Acl_cache_items_count
 
 ================================================================================
 TEST 13
@@ -702,6 +715,7 @@ where show_mode = "5.7"
     and source = "P_S.STATUS_BY_ACCOUNT")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.7	P_S.SESSION_STATUS	Acl_cache_items_count
 
 ================================================================================
 TEST 15
@@ -757,6 +771,7 @@ where show_mode = "5.7"
     and source = "P_S.STATUS_BY_USER")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.7	P_S.SESSION_STATUS	Acl_cache_items_count
 
 ================================================================================
 TEST 18
@@ -811,6 +826,7 @@ where show_mode = "5.7"
     and source = "P_S.STATUS_BY_HOST")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.7	P_S.SESSION_STATUS	Acl_cache_items_count
 
 ================================================================================
 TEST 21

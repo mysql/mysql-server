@@ -740,8 +740,8 @@ CREATE USER untrusted@localhost;
 GRANT SELECT ON mysqltest1.* TO untrusted@localhost;
 SHOW GRANTS FOR untrusted@localhost;
 Grants for untrusted@localhost
-GRANT USAGE ON *.* TO 'untrusted'@'localhost'
-GRANT SELECT ON `mysqltest1`.* TO 'untrusted'@'localhost'
+GRANT USAGE ON *.* TO `untrusted`@`localhost`
+GRANT SELECT ON `mysqltest1`.* TO `untrusted`@`localhost`
 USE mysqltest1;
 CREATE TABLE t1 (a INT, b CHAR(64));
 flush logs;

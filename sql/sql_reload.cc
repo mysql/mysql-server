@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -85,7 +85,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
       bool reload_acl_failed= acl_reload(thd);
       bool reload_grants_failed= grant_reload(thd);
       bool reload_servers_failed= servers_reload(thd);
-
       if (reload_acl_failed || reload_grants_failed || reload_servers_failed)
       {
         result= 1;
@@ -95,6 +94,16 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
         */
         my_error(ER_UNKNOWN_ERROR, MYF(0));
       }
+      else
+      {
+        /* Reload the role grant graph and rebuild index */
+        if (roles_init_from_tables(thd))
+        {
+          result= 1;
+          my_error(ER_UNKNOWN_ERROR, MYF(0));
+        }
+      }
+
       /*
         Check storage engine type for every ACL table and output warning
         message in case it's different from supported one (InnoDB).
@@ -352,7 +361,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
  */
  return result || (thd ? thd->killed : 0);
 }
-
 
 /**
   Implementation of FLUSH TABLES @<table_list@> WITH READ LOCK.

@@ -381,7 +381,7 @@ dict_boot(void)
 				      DICT_HDR_SPACE,
 				      DICT_UNIQUE | DICT_CLUSTERED, 1);
 
-	dict_mem_index_add_field(index, "NAME", 0);
+	index->add_field("NAME", 0);
 
 	index->id = DICT_TABLES_ID;
 
@@ -395,7 +395,7 @@ dict_boot(void)
 	/*-------------------------*/
 	index = dict_mem_index_create("SYS_TABLES", "ID_IND",
 				      DICT_HDR_SPACE, DICT_UNIQUE, 1);
-	dict_mem_index_add_field(index, "ID", 0);
+	index->add_field("ID", 0);
 
 	index->id = DICT_TABLE_IDS_ID;
 	error = dict_index_add_to_cache(table, index,
@@ -427,8 +427,8 @@ dict_boot(void)
 				      DICT_HDR_SPACE,
 				      DICT_UNIQUE | DICT_CLUSTERED, 2);
 
-	dict_mem_index_add_field(index, "TABLE_ID", 0);
-	dict_mem_index_add_field(index, "POS", 0);
+	index->add_field("TABLE_ID", 0);
+	index->add_field("POS", 0);
 
 	index->id = DICT_COLUMNS_ID;
 	error = dict_index_add_to_cache(table, index,
@@ -461,8 +461,8 @@ dict_boot(void)
 				      DICT_HDR_SPACE,
 				      DICT_UNIQUE | DICT_CLUSTERED, 2);
 
-	dict_mem_index_add_field(index, "TABLE_ID", 0);
-	dict_mem_index_add_field(index, "ID", 0);
+	index->add_field("TABLE_ID", 0);
+	index->add_field("ID", 0);
 
 	index->id = DICT_INDEXES_ID;
 	error = dict_index_add_to_cache(table, index,
@@ -489,8 +489,8 @@ dict_boot(void)
 				      DICT_HDR_SPACE,
 				      DICT_UNIQUE | DICT_CLUSTERED, 2);
 
-	dict_mem_index_add_field(index, "INDEX_ID", 0);
-	dict_mem_index_add_field(index, "POS", 0);
+	index->add_field("INDEX_ID", 0);
+	index->add_field("POS", 0);
 
 	index->id = DICT_FIELDS_ID;
 	error = dict_index_add_to_cache(table, index,

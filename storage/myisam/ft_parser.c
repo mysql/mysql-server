@@ -37,7 +37,7 @@ static int FT_WORD_cmp(const void* a, const void* b, const void *c)
   FT_WORD *w1= (FT_WORD*)b;
   FT_WORD *w2= (FT_WORD*)c;
   return ha_compare_text(cs, (uchar*) w1->pos, w1->len,
-                         (uchar*) w2->pos, w2->len, 0, 0);
+                         (uchar*) w2->pos, w2->len, 0);
 }
 
 static int walk_and_copy(FT_WORD *word,uint32 count,FT_DOCSTAT *docstat)

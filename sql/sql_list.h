@@ -184,7 +184,6 @@ public:
     The elements themselves are copied by pointer.
   */
   base_list(const base_list &rhs, MEM_ROOT *mem_root);
-  inline base_list(bool error) { }
   inline bool push_back(void *info)
   {
     if (((*last)=new list_node(info, &end_of_list)))
@@ -596,14 +595,13 @@ public:
   inline T** ref(void)	    { return (T**) base_list_iterator::ref(); }
 };
 
-
 template <class T> class List_iterator_fast :public base_list_iterator
 {
 protected:
-  inline T *replace(T *a)   { return (T*) 0; }
-  inline T *replace(List<T> &a) { return (T*) 0; }
+  inline T *replace(T*)     { return (T*) 0; }
+  inline T *replace(List<T> &) { return (T*) 0; }
   inline void remove(void)  { }
-  inline void after(T *a)   { }
+  inline void after(T*)     { }
   inline T** ref(void)	    { return (T**) 0; }
 
 public:

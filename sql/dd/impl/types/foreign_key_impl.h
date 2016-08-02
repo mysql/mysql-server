@@ -39,15 +39,14 @@ class Open_dictionary_tables_ctx;
 class Foreign_key_impl : public Entity_object_impl,
                          public Foreign_key
 {
-// Foreign keys not supported in the Global DD yet
-/* purecov: begin deadcode */
 public:
   Foreign_key_impl();
 
   Foreign_key_impl(Table_impl *table);
 
   Foreign_key_impl(const Foreign_key_impl &src,
-                   Table_impl *parent, Index *unique_constraint);
+                   Table_impl *parent,
+                   const Index *unique_constraint);
 
   virtual ~Foreign_key_impl()
   { }
@@ -57,6 +56,8 @@ public:
   { return Foreign_key::OBJECT_TABLE(); }
 
   virtual bool validate() const;
+
+  virtual bool store(Open_dictionary_tables_ctx *otx);
 
   virtual bool restore_children(Open_dictionary_tables_ctx *otx);
 
@@ -103,8 +104,8 @@ public:
   virtual const Index &unique_constraint() const
   { return *m_unique_constraint; }
 
-  virtual Index &unique_constraint()
-  { return *m_unique_constraint; }
+  virtual void set_unique_constraint(const Index *unique_constraint)
+  { m_unique_constraint= unique_constraint; }
 
   /////////////////////////////////////////////////////////////////////////
   // match_option.
@@ -150,7 +151,7 @@ public:
   // the schema name of the referenced table.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &referenced_table_shema_name() const
+  virtual const std::string &referenced_table_schema_name() const
   { return m_referenced_table_schema_name; }
 
   virtual void referenced_table_schema_name(const std::string &name)
@@ -203,7 +204,7 @@ private:
   enum_rule         m_update_rule;
   enum_rule         m_delete_rule;
 
-  Index *m_unique_constraint;
+  const Index *m_unique_constraint;
 
   std::string m_referenced_table_catalog_name;
   std::string m_referenced_table_schema_name;
@@ -214,7 +215,13 @@ private:
   // Collections.
 
   Foreign_key_elements m_elements;
-/* purecov: end */
+
+public:
+  Foreign_key_impl *clone(Table_impl *parent,
+                          const Index *unique_constraint) const
+  {
+    return new Foreign_key_impl(*this, parent, unique_constraint);
+  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

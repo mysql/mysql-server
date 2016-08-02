@@ -156,6 +156,8 @@ extern	bool	srv_is_being_shutdown;
 /** TRUE if a raw partition is in use */
 extern	ibool	srv_start_raw_disk_in_use;
 
+/** UNDO tablespaces starts with space id. */
+extern	space_id_t	srv_undo_space_id_start;
 
 /** Shutdown state */
 enum srv_shutdown_t {

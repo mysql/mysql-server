@@ -69,6 +69,7 @@ static const SYMBOL symbols[] = {
   { SYM("ACCOUNT",                  ACCOUNT_SYM)},
   { SYM("ACTION",                   ACTION)},
   { SYM("ADD",                      ADD)},
+  { SYM("ADMIN",                    ADMIN_SYM)},
   { SYM("AFTER",                    AFTER_SYM)},
   { SYM("AGAINST",                  AGAINST)},
   { SYM("AGGREGATE",                AGGREGATE_SYM)},
@@ -220,6 +221,7 @@ static const SYMBOL symbols[] = {
   { SYM("EVENT",                    EVENT_SYM)},
   { SYM("EVENTS",                   EVENTS_SYM)},
   { SYM("EVERY",                    EVERY_SYM)},
+  { SYM("EXCEPT",                   EXCEPT_SYM)},
   { SYM("EXCHANGE",                 EXCHANGE_SYM)},
   { SYM("EXECUTE",                  EXECUTE_SYM)},
   { SYM("EXISTS",                   EXISTS)},
@@ -516,6 +518,7 @@ static const SYMBOL symbols[] = {
   { SYM("REVOKE",                   REVOKE)},
   { SYM("RIGHT",                    RIGHT)},
   { SYM("RLIKE",                    REGEXP)}, /* Like in mSQL2 */
+  { SYM("ROLE",                     ROLE_SYM)},
   { SYM("ROLLBACK",                 ROLLBACK_SYM)},
   { SYM("ROLLUP",                   ROLLUP_SYM)},
   { SYM("ROUTINE",                  ROUTINE_SYM)},

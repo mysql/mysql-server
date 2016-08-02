@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,7 +41,6 @@ private:
   int do_flush_info(const bool force);
   int do_remove_info();
   int do_clean_info();
-  static int do_reset_info(const int nparam);
 
   int do_prepare_info_for_read();
   int do_prepare_info_for_write();

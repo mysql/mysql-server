@@ -32,6 +32,7 @@
 #include "mysqld.h"
 
 #include "auth_internal.h"
+#include "role_tables.h"
 
 /**
   Auxiliary function for constructing a  user list string.
@@ -185,6 +186,7 @@ void append_user_new(THD *thd, String *str, LEX_USER *user, bool comma= true)
 }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+extern bool initialized;
 
 /*
  Enumeration of various ACL's and Hashes used in handle_grant_struct()
@@ -1055,7 +1057,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
 /**
   Handle all privilege tables and in-memory privilege structures.
     @param  thd                 Thread handle
-    @param  tables              The array with the four open tables.
+    @param  tables              The array with the seven open tables.
     @param  drop                If user_from is to be dropped.
     @param  user_from           The the user to be searched/dropped/renamed.
     @param  user_to             The new name for the user if to be renamed,
@@ -1081,6 +1083,20 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
   int found;
   int ret;
   DBUG_ENTER("handle_grant_data");
+
+  if (drop)
+  {
+    /*
+      Tables are defined by open_grant_tables()
+      index 6 := mysql.role_edges
+      index 7 := mysql.default_roles
+    */
+    if (revoke_all_roles_from_user(thd, tables[6].table, tables[7].table,
+                                   user_from))
+    {
+      DBUG_RETURN(-1);
+    }
+  }
 
   /* Handle user table. */
   if ((found= handle_grant_table(thd, tables, 0, drop, user_from, user_to)) < 0)
@@ -1290,7 +1306,7 @@ int write_bin_log_n_handle_any_error(THD *thd,
     TRUE        Error.
 */
 
-bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists)
+bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool is_role)
 {
   int result;
   String wrong_users;
@@ -1322,10 +1338,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists)
   while ((tmp_user_name= user_list++))
   {
     /*
-      If tmp_user_name.user.str is == NULL then
-      user_name := tmp_user_name.
-      Else user_name.user := sctx->user
-      TODO and all else is turned to NULL !! Why?
+      Ignore the current user as it already exists. 
     */
     if (!(user_name= get_current_user(thd, tmp_user_name)))
     {
@@ -1418,7 +1431,8 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists)
   {
     String *rlb= &thd->rewritten_query;
     rlb->mem_free();
-    mysql_rewrite_create_alter_user(thd, rlb, &users_not_to_log);
+    if (!is_role)
+      mysql_rewrite_create_alter_user(thd, rlb, &users_not_to_log);
 
     if (!thd->rewritten_query.length())
       result|= write_bin_log_n_handle_any_error(thd, thd->query().str,
@@ -1456,8 +1470,8 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists)
     list                        The users to drop.
 
   RETURN
-    FALSE       OK.
-    TRUE        Error.
+    false       OK.
+    true       Error.
 */
 
 bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
@@ -1489,14 +1503,13 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
 
   Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
-
   while ((tmp_user_name= user_list++))
   {
     if (!(user_name= get_current_user(thd, tmp_user_name)))
     {
       result= TRUE;
       continue;
-    }  
+    }
     int ret= handle_grant_data(thd, tables, 1, user_name, NULL);
     if (ret <= 0)
     {
@@ -1528,11 +1541,22 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
 
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
   rebuild_check_host();
-
   mysql_mutex_unlock(&acl_cache->lock);
 
   if (result && !rollback_whole_statement)
-    my_error(ER_CANNOT_USER, MYF(0), "DROP USER", wrong_users.c_ptr_safe());
+  {
+    String operation_str;
+    if (thd->query_plan.get_command() == SQLCOM_DROP_ROLE)
+    {
+      operation_str.append("DROP ROLE");
+    }
+    else
+    {
+      operation_str.append("DROP USER");
+    }
+    my_error(ER_CANNOT_USER, MYF(0), operation_str.c_ptr_quick(),
+             wrong_users.c_ptr_safe());
+  }
 
   if (some_users_deleted || if_exists)
   {
@@ -1557,6 +1581,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
     acl_notify_htons(thd, thd->query().str, thd->query().length);
 
   thd->variables.sql_mode= old_sql_mode;
+  (void) roles_init_from_tables(thd);
   DBUG_RETURN(result);
 }
 
@@ -1587,6 +1612,30 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
   bool rollback_whole_statement= false;
   DBUG_ENTER("mysql_rename_user");
 
+  /* Is this auth id a role id? */
+  {
+    mysql_mutex_lock(&acl_cache->lock);
+    List_iterator <LEX_USER> authid_list_iterator(list);
+    LEX_USER *authid;
+    while ((authid= authid_list_iterator++))
+    {
+      if (!(authid= get_current_user(thd, authid)))
+      {
+        /*
+          This user is not a role.
+        */
+        continue;
+      }
+      if (is_role_id(authid))
+      {
+        my_error(ER_RENAME_ROLE, MYF(0));
+        mysql_mutex_unlock(&acl_cache->lock);
+        DBUG_RETURN(true);
+      }
+    }
+    mysql_mutex_unlock(&acl_cache->lock);
+  }
+  
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to
@@ -1601,7 +1650,6 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
 
   Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
-
   while ((tmp_user_from= user_list++))
   {
     if (!(user_from= get_current_user(thd, tmp_user_from)))
@@ -1657,11 +1705,12 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     }
 
     some_users_renamed= true;
+    roles_rename_authid(thd, tables[6].table, tables[7].table, user_from,
+                        user_to);
   }
   
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
   rebuild_check_host();
-
   mysql_mutex_unlock(&acl_cache->lock);
 
   if (result && !rollback_whole_statement)
@@ -1682,9 +1731,10 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     acl_end_trans_and_close_tables(thd,
                                    thd->transaction_rollback_request ||
                                    rollback_whole_statement);
-
+  
   if (some_users_renamed && !result)
     acl_notify_htons(thd, thd->query().str, thd->query().length);
+  (void) roles_init_from_tables(thd);
   DBUG_RETURN(result);
 }
 

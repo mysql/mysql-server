@@ -1,0 +1,259 @@
+#
+# Test syntax of foreign keys
+#
+
+# Use MyISAM for this table since we are only interested in checking syntax.
+--error ER_WRONG_FK_DEF
+create table t1 (
+	a int not null references t2,
+	b int not null references t2 (c),
+	primary key (a,b),
+	foreign key (a) references t3 match full,
+	foreign key (a) references t3 match partial,
+	foreign key (a,b) references t3 (c,d) on delete no action
+	  on update no action,
+	foreign key (a,b) references t3 (c,d) on update cascade,
+	foreign key (a,b) references t3 (c,d) on delete set default,
+	foreign key (a,b) references t3 (c,d) on update set null) engine=myisam;
+
+# Remove the problematic FKs and try again.
+create table t1 (
+        a int not null,
+	b int not null references t2 (c),
+	primary key (a,b),
+	foreign key (a,b) references t3 (c,d) on delete no action
+	  on update no action,
+	foreign key (a,b) references t3 (c,d) on update cascade,
+	foreign key (a,b) references t3 (c,d) on delete set default,
+	foreign key (a,b) references t3 (c,d) on update set null) engine=myisam;
+
+create index a on t1 (a);
+create unique index b on t1 (a,b);
+drop table t1;
+
+# End of 4.1 tests
+
+#
+# Bug#34455 (Ambiguous foreign keys syntax is accepted)
+#
+
+--disable_warnings
+drop table if exists t_34455;
+--enable_warnings
+
+# 2 match clauses, illegal
+--error ER_PARSE_ERROR
+create table t_34455 (
+  a int not null,
+  foreign key (a) references t3 (a) match full match partial);
+
+# match after on delete, illegal
+--error ER_PARSE_ERROR
+create table t_34455 (
+  a int not null,
+  foreign key (a) references t3 (a) on delete set default match full);
+
+# match after on update, illegal
+--error ER_PARSE_ERROR
+create table t_34455 (
+  a int not null,
+  foreign key (a) references t3 (a) on update set default match full);
+
+# 2 on delete clauses, illegal
+--error ER_PARSE_ERROR
+create table t_34455 (
+  a int not null,
+  foreign key (a) references t3 (a)
+  on delete set default on delete set default);
+
+# 2 on update clauses, illegal
+--error ER_PARSE_ERROR
+create table t_34455 (
+  a int not null,
+  foreign key (a) references t3 (a)
+  on update set default on update set default);
+
+create table t_34455 (a int not null);
+
+# 2 match clauses, illegal
+--error ER_PARSE_ERROR
+alter table t_34455
+  add foreign key (a) references t3 (a) match full match partial);
+
+# match after on delete, illegal
+--error ER_PARSE_ERROR
+alter table t_34455
+  add foreign key (a) references t3 (a) on delete set default match full);
+
+# match after on update, illegal
+--error ER_PARSE_ERROR
+alter table t_34455
+  add foreign key (a) references t3 (a) on update set default match full);
+
+# 2 on delete clauses, illegal
+--error ER_PARSE_ERROR
+alter table t_34455
+  add foreign key (a) references t3 (a)
+  on delete set default on delete set default);
+
+# 2 on update clauses, illegal
+--error ER_PARSE_ERROR
+alter table t_34455
+  add foreign key (a) references t3 (a)
+  on update set default on update set default);
+
+drop table t_34455;
+
+--echo #
+--echo # WL#6929: Move FOREIGN KEY constraints to the global data dictionary
+--echo #
+
+--echo # Extra coverage of @@foreign_key_checks
+--echo #
+
+SET @@foreign_key_checks= 0;
+CREATE TABLE t1(a INT PRIMARY KEY, b INT, FOREIGN KEY (b) REFERENCES non(a));
+ALTER TABLE t1 ADD FOREIGN KEY (b) REFERENCES non(a);
+DROP TABLE t1;
+
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE t2(a INT PRIMARY KEY, b INT, FOREIGN KEY (b) REFERENCES t1(a));
+DROP TABLE t1;
+DROP TABLE t2;
+
+SET @@foreign_key_checks= 1;
+--error ER_CANNOT_ADD_FOREIGN
+CREATE TABLE t1(a INT PRIMARY KEY, b INT, FOREIGN KEY (b) REFERENCES non(a));
+# Works, but no FK created
+CREATE TABLE t1(a INT PRIMARY KEY, b INT REFERENCES non(a));
+SHOW CREATE TABLE t1;
+--error ER_CANNOT_ADD_FOREIGN
+ALTER TABLE t1 ADD FOREIGN KEY (b) REFERENCES non(a);
+DROP TABLE t1;
+
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE t2(a INT PRIMARY KEY, b INT, FOREIGN KEY (b) REFERENCES t1(a));
+--error ER_ROW_IS_REFERENCED
+DROP TABLE t1;
+DROP TABLE t2, t1;
+
+SET @@foreign_key_checks= DEFAULT;
+
+--echo # Test coverage of identifier length related to foreign keys.
+--echo #
+
+CREATE TABLE t1(a INT PRIMARY KEY);
+
+# Exactly 64 chars
+CREATE TABLE t2(a INT PRIMARY KEY, b INT);
+ALTER TABLE t2 ADD CONSTRAINT
+name567890123456789012345678901234567890123456789012345678901234
+FOREIGN KEY
+name567890123456789012345678901234567890123456789012345678901234
+(b) REFERENCES t1(a);
+SHOW CREATE TABLE t2;
+SELECT name FROM mysql.foreign_keys WHERE referenced_table_name = 't1';
+DROP TABLE t2;
+
+# 65 chars - too long
+CREATE TABLE t2(a INT PRIMARY KEY, b INT);
+--error ER_TOO_LONG_IDENT
+ALTER TABLE t2 ADD FOREIGN KEY
+name5678901234567890123456789012345678901234567890123456789012345
+(b) REFERENCES t1(a);
+--error ER_TOO_LONG_IDENT
+ALTER TABLE t2 ADD CONSTRAINT
+name5678901234567890123456789012345678901234567890123456789012345
+FOREIGN KEY (b) REFERENCES t1(a);
+DROP TABLE t2;
+
+# 65 chars - too long, now with pre-existing index on b
+CREATE TABLE t2(a INT PRIMARY KEY, b INT UNIQUE);
+--error ER_TOO_LONG_IDENT
+ALTER TABLE t2 ADD FOREIGN KEY
+name5678901234567890123456789012345678901234567890123456789012345
+(b) REFERENCES t1(a);
+--error ER_TOO_LONG_IDENT
+ALTER TABLE t2 ADD CONSTRAINT
+name5678901234567890123456789012345678901234567890123456789012345
+FOREIGN KEY (b) REFERENCES t1(a);
+DROP TABLE t2;
+
+DROP TABLE t1;
+
+--error ER_TOO_LONG_IDENT
+CREATE TABLE t1(a INT PRIMARY KEY, b INT,
+FOREIGN KEY(b) REFERENCES name5678901234567890123456789012345678901234567890123456789012345.t2(a));
+--error ER_WRONG_TABLE_NAME
+CREATE TABLE t1(a INT PRIMARY KEY, b INT,
+FOREIGN KEY(b) REFERENCES name5678901234567890123456789012345678901234567890123456789012345(a));
+--error ER_WRONG_COLUMN_NAME
+CREATE TABLE t1(a INT PRIMARY KEY, b INT,
+FOREIGN KEY(b) REFERENCES t2(name5678901234567890123456789012345678901234567890123456789012345));
+
+SET @@foreign_key_checks= 0;
+
+--error ER_TOO_LONG_IDENT
+CREATE TABLE t1(a INT PRIMARY KEY, b INT,
+FOREIGN KEY(b) REFERENCES name5678901234567890123456789012345678901234567890123456789012345.t2(a));
+--error ER_WRONG_TABLE_NAME
+CREATE TABLE t1(a INT PRIMARY KEY, b INT,
+FOREIGN KEY(b) REFERENCES name5678901234567890123456789012345678901234567890123456789012345(a));
+--error ER_WRONG_COLUMN_NAME
+CREATE TABLE t1(a INT PRIMARY KEY, b INT,
+FOREIGN KEY(b) REFERENCES t2(name5678901234567890123456789012345678901234567890123456789012345));
+
+SET @@foreign_key_checks= DEFAULT;
+
+--echo # Test coverage for foreign key name generation
+--echo #
+
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE t2(a INT PRIMARY KEY);
+CREATE TABLE t3(a INT PRIMARY KEY, b INT, c INT);
+
+ALTER TABLE t3 ADD FOREIGN KEY (b) REFERENCES t1(a);
+# InnoDB generated name (until after WL#6599)
+SHOW CREATE TABLE t3;
+# Server generated name (until after WL#6599)
+SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
+WHERE fk.table_id = t.id AND t.name = 't3';
+
+ALTER TABLE t3 ADD FOREIGN KEY (c) REFERENCES t1(a);
+# InnoDB generated name (until after WL#6599)
+SHOW CREATE TABLE t3;
+# Server generated name (until after WL#6599)
+SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
+WHERE fk.table_id = t.id AND t.name = 't3';
+
+ALTER TABLE t3 ADD FOREIGN KEY (b) REFERENCES t1(a);
+# InnoDB generated name (until after WL#6599)
+SHOW CREATE TABLE t3;
+# Server generated name (until after WL#6599)
+SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
+WHERE fk.table_id = t.id AND t.name = 't3';
+
+ALTER TABLE t3 DROP FOREIGN KEY t3_ibfk_1;
+# InnoDB generated name (until after WL#6599)
+SHOW CREATE TABLE t3;
+# Server generated name (until after WL#6599)
+SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
+WHERE fk.table_id = t.id AND t.name = 't3';
+
+ALTER TABLE t3 ADD FOREIGN KEY (b) REFERENCES t1(a);
+# InnoDB generated name (until after WL#6599)
+SHOW CREATE TABLE t3;
+# Server generated name (until after WL#6599)
+SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
+WHERE fk.table_id = t.id AND t.name = 't3';
+
+DROP TABLE t3, t2, t1;
+
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE name567890123456789012345678901234567890123456789012345678901234(a INT PRIMARY KEY, b INT);
+
+--error ER_TOO_LONG_IDENT
+ALTER TABLE name567890123456789012345678901234567890123456789012345678901234
+ADD FOREIGN KEY(b) REFERENCES t1(a);
+
+DROP TABLE name567890123456789012345678901234567890123456789012345678901234, t1;

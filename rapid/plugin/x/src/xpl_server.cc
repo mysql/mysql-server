@@ -403,7 +403,7 @@ void xpl::Server::verify_mysqlx_user_grants(Sql_data_context &context)
   {
     sql_result.get_next_field(grants);
     ++num_of_grants;
-    if (grants == "GRANT USAGE ON *.* TO '" MYSQLXSYS_USER "'@'" MYSQLXSYS_HOST "'")
+    if (grants == "GRANT USAGE ON *.* TO `" MYSQLXSYS_USER "`@`" MYSQLXSYS_HOST "`")
       has_no_privileges = true;
 
     bool on_all_schemas = false;

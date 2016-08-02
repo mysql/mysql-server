@@ -17,7 +17,7 @@ set enabled='NO' where name like 'event%';
 delete from performance_schema.setup_actors
 where user in ('user2', 'user4');
 select * from performance_schema.setup_actors
-order by USER, HOST, ROLE;
+order by USER, HOST, `ROLE`;
 HOST	USER	ROLE	ENABLED	HISTORY
 localhost	user1	%	YES	YES
 localhost	user3	%	YES	YES

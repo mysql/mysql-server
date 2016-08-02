@@ -111,6 +111,9 @@ static void ignore_traces_from_libraries(enum loglevel ll, const char *format, v
 
 static void replace_all(std::string &input, const std::string &to_find, const std::string &change_to)
 {
+  if (to_find.empty())
+    return;
+
   size_t position = input.find(to_find);
 
   while (std::string::npos != position)
@@ -2765,6 +2768,7 @@ public:
     std::cout << "--tls-version         TLS version to use\n";
     std::cout << "--connect-expired-password Allow expired password\n";
     std::cout << "--quiet               Don't print out messages sent\n";
+    std::cout << "-vVARIABLE_NAME=VALUE Set variable VARIABLE_NAME from command line\n";
     std::cout << "--fatal-errors=<0|1>  Mysqlxtest is started with ignoring or stopping on fatal error\n";
     std::cout << "-B, --bindump         Dump binary representation of messages sent, in format suitable for\n";
     std::cout << "--verbose             Enable extra verbose messages\n";

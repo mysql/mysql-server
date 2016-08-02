@@ -400,10 +400,10 @@ void Mysql_crawler::enumerate_table_triggers(
     const Mysql::Tools::Base::Mysql_query_runner::Row& trigger_row= **it;
     Trigger* trigger= new Trigger(this->generate_new_object_id(),
       trigger_row[0], table.get_schema(),
-      this->get_version_specific_statement(
+      "DELIMITER //\n" + this->get_version_specific_statement(
       this->get_create_statement(
       runner, table.get_schema(), trigger_row[0], "TRIGGER", 2).value(),
-      "TRIGGER", "50017", "50003"),
+      "TRIGGER", "50017", "50003") + "\n//\n" + "DELIMITER ;\n",
       &table);
 
     trigger->add_dependency(dependency);

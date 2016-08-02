@@ -321,7 +321,7 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
         tbl->set_privileges(SELECT_ACL);
       else
         fill_effective_table_privileges(thd, &tbl->grant, tbl->db,
-                                        tbl->table_name);
+                                        tbl->get_table_name());
     }
   }
 
@@ -646,7 +646,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     view->set_privileges(SELECT_ACL);
   else
     fill_effective_table_privileges(thd, &view->grant, view->db,
-                                    view->table_name);
+                                    view->get_table_name());
 
   /*
     Make sure that the current user does not have more column-level privileges
@@ -1597,22 +1597,29 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
       For suid views prepare a security context for checking underlying
       objects of the view.
     */
-    if (!(view_ref->view_sctx= (Security_context *)
-          thd->stmt_arena->mem_calloc(sizeof(Security_context))))
+    if (!(view_ref->view_sctx= (Security_context *)thd->stmt_arena->mem_calloc(sizeof(Security_context))))
     {
       result= true;
       DBUG_RETURN(true);
     }
+    // TODO Do we need to initialize this context to get the correct active
+    // roles (ie the default roles)
     security_ctx= view_ref->view_sctx;
+    security_ctx->init();
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    DBUG_PRINT("info",("Allocated suid view. Active roles: %lu",
+      (ulong)view_ref->view_sctx->get_active_roles()->size()));
+#endif
+    thd->m_view_ctx_list.push_back(view_ref->view_sctx);
   }
   else
   {
     /*
       For non-suid views inherit security context from view's table list.
       This allows properly handle situation when non-suid view is used
-      from within suid view.
+      from within suid view.    
     */
-    security_ctx= view_ref->security_ctx;
+    security_ctx= view_ref->security_ctx;   
   }
 
   // Assign the context to the tables referenced in the view

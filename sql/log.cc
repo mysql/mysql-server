@@ -571,7 +571,7 @@ bool File_query_log::open()
 
   if ((file= mysql_file_open(m_log_file_key,
                              log_file_name,
-                             O_CREAT | O_BINARY | O_WRONLY | O_APPEND,
+                             O_CREAT | O_WRONLY | O_APPEND,
                              MYF(MY_WME))) < 0)
     goto err;
 

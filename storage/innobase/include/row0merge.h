@@ -246,14 +246,6 @@ row_merge_create_index(
 	const index_def_t*	index_def,
 	const dict_add_v_col_t*	add_v);
 /*********************************************************************//**
-Check if a transaction can use an index.
-@return TRUE if index can be used by the transaction else FALSE */
-ibool
-row_merge_is_index_usable(
-/*======================*/
-	const trx_t*		trx,	/*!< in: transaction */
-	const dict_index_t*	index);	/*!< in: index to check */
-/*********************************************************************//**
 Drop a table. The caller must have ensured that the background stats
 thread is not processing the table. This can be done by calling
 dict_stats_wait_bg_to_stop_using_table() after locking the dictionary and

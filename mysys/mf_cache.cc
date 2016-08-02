@@ -27,20 +27,6 @@
 #include "mysys_err.h"
 #include "mysql/service_mysql_alloc.h"
 
-	/*
-	  Remove an open tempfile so that it doesn't survive
-	  if we crash.
-	*/
-
-static my_bool cache_remove_open_tmp(IO_CACHE *cache MY_ATTRIBUTE((unused)),
-				     const char *name)
-{
-#if O_TEMPORARY == 0
-  /* The following should always succeed */
-  (void) my_delete(name,MYF(MY_WME));
-#endif /* O_TEMPORARY == 0 */
-  return 0;
-}
 
 	/*
 	** Open tempfile cached by IO_CACHE
@@ -80,11 +66,15 @@ my_bool real_open_cached_file(IO_CACHE *cache)
   DBUG_ENTER("real_open_cached_file");
   if ((cache->file= mysql_file_create_temp(cache->file_key, name_buff,
                       cache->dir, cache->prefix,
-                      (O_RDWR | O_BINARY | O_TRUNC | O_TEMPORARY | O_SHORT_LIVED),
+                      (O_RDWR | O_TRUNC),
                       MYF(MY_WME))) >= 0)
   {
     error=0;
-    cache_remove_open_tmp(cache, name_buff);
+    /*
+      Remove an open tempfile so that it doesn't survive
+      if we crash.
+    */
+    (void) my_delete(name_buff, MYF(MY_WME));
   }
   DBUG_RETURN(error);
 }

@@ -300,6 +300,7 @@ SET(TESTS
   partitioned_rwlock
   prealloced_array
   priority_queue
+  record_buffer
   sql_list
   sql_plist
   sql_string
@@ -373,6 +374,7 @@ SET(SERVER_TESTS
   thd_manager
   union_syntax
   unique
+  wild_case_compare
 )
 
 SET(SQL_GUNIT_LIB_SOURCE 

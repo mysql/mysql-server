@@ -67,7 +67,7 @@ void setup_rctx(dcb, dd::Weak_object *, dd::RJ_Document &);
 
 // Mocking functions
 
-void mock_properties(dd::Properties &p, uint64 size)
+static void mock_properties(dd::Properties &p, uint64 size)
 {
   for (uint64 i= 0; i < size; ++i)
   {
@@ -76,14 +76,14 @@ void mock_properties(dd::Properties &p, uint64 size)
 }
 
 
-void mock_dd_obj(dd::Schema *s)
+static void mock_dd_obj(dd::Schema *s)
 {
   s->set_created(42);
   s->set_last_altered(42);
 }
 
 
-void mock_dd_obj(dd::Column_type_element *cte)
+static void mock_dd_obj(dd::Column_type_element *cte)
 {
   if (cte)
   {
@@ -92,7 +92,7 @@ void mock_dd_obj(dd::Column_type_element *cte)
 }
 
 
-void mock_dd_obj(dd::Column *c)
+static void mock_dd_obj(dd::Column *c)
 {
   static dd::Object_id curid= 10000;
   dynamic_cast<dd::Entity_object_impl*>(c)->set_id(curid++);
@@ -118,14 +118,14 @@ void mock_dd_obj(dd::Column *c)
 }
 
 
-void mock_dd_obj(dd::Index_element *ie)
+static void mock_dd_obj(dd::Index_element *ie)
 {
   ie->set_length(42);
   ie->set_order(dd::Index_element::ORDER_DESC);
 }
 
 
-void mock_dd_obj(dd::Index *i, dd::Column *c= NULL)
+static void mock_dd_obj(dd::Index *i, dd::Column *c= NULL)
 {
   static dd::Object_id curid= 10000;
   dynamic_cast<dd::Entity_object_impl*>(i)->set_id(curid++);
@@ -145,13 +145,13 @@ void mock_dd_obj(dd::Index *i, dd::Column *c= NULL)
 }
 
 
-void mock_dd_obj(dd::Foreign_key_element *fke)
+static void mock_dd_obj(dd::Foreign_key_element *fke)
 {
   fke->referenced_column_name("mocked referenced column name");
 }
 
 
-void mock_dd_obj(dd::Foreign_key *fk)
+static void mock_dd_obj(dd::Foreign_key *fk)
 {
   fk->set_match_option(Foreign_key::OPTION_PARTIAL);
   fk->set_update_rule(Foreign_key::RULE_CASCADE);
@@ -164,14 +164,14 @@ void mock_dd_obj(dd::Foreign_key *fk)
 }
 
 
-void mock_dd_obj(dd::Partition_index *pi)
+static void mock_dd_obj(dd::Partition_index *pi)
 {
   mock_properties(pi->options(), FANOUT);
   mock_properties(pi->se_private_data(), FANOUT);
 }
 
 
-void mock_dd_obj(dd::Partition_value *pv)
+static void mock_dd_obj(dd::Partition_value *pv)
 {
   pv->set_list_num(42);
   pv->set_column_num(42);
@@ -179,7 +179,7 @@ void mock_dd_obj(dd::Partition_value *pv)
 }
 
 
-void mock_dd_obj(dd::Partition *p, dd::Index *ix= NULL)
+static void mock_dd_obj(dd::Partition *p, dd::Index *ix= NULL)
 {
   p->set_level(42);
   p->set_number(42);
@@ -196,7 +196,7 @@ void mock_dd_obj(dd::Partition *p, dd::Index *ix= NULL)
 }
 
 
-void mock_dd_obj(dd::Table *t)
+static void mock_dd_obj(dd::Table *t)
 {
   mock_properties(t->options(), FANOUT);
   t->set_created(42);
@@ -226,14 +226,14 @@ void mock_dd_obj(dd::Table *t)
 }
 
 
-void mock_dd_obj(dd::Tablespace_file *f)
+static void mock_dd_obj(dd::Tablespace_file *f)
 {
   f->set_filename("mock_tablespace_file");
   mock_properties(f->se_private_data(), FANOUT);
 }
 
 
-void mock_dd_obj(dd::Tablespace *ts)
+static void mock_dd_obj(dd::Tablespace *ts)
 {
   ts->set_comment("Mocked tablespace");
   mock_properties(ts->options(), FANOUT);

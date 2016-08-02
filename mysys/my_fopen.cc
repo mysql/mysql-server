@@ -295,29 +295,28 @@ FILE *my_fdopen(File Filedes, const char *name, int Flags, myf MyFlags)
 
 static void make_ftype(char * to, int flag)
 {
-  /* check some possible invalid combinations */  
+  /* check some possible invalid combinations */
   DBUG_ASSERT((flag & (O_TRUNC | O_APPEND)) != (O_TRUNC | O_APPEND));
   DBUG_ASSERT((flag & (O_WRONLY | O_RDWR)) != (O_WRONLY | O_RDWR));
 
-  if ((flag & (O_RDONLY|O_WRONLY)) == O_WRONLY)    
-    *to++= (flag & O_APPEND) ? 'a' : 'w';  
-  else if (flag & O_RDWR)          
+  if ((flag & (O_RDONLY|O_WRONLY)) == O_WRONLY)
+    *to++= (flag & O_APPEND) ? 'a' : 'w';
+  else if (flag & O_RDWR)
   {
-    /* Add '+' after theese */    
-    if (flag & (O_TRUNC | O_CREAT))      
-      *to++= 'w';    
-    else if (flag & O_APPEND)      
-      *to++= 'a';    
-    else      
+    /* Add '+' after theese */
+    if (flag & (O_TRUNC | O_CREAT))
+      *to++= 'w';
+    else if (flag & O_APPEND)
+      *to++= 'a';
+    else
       *to++= 'r';
-    *to++= '+';  
-  }  
-  else    
+    *to++= '+';
+  }
+  else
     *to++= 'r';
 
-#if FILE_BINARY            /* If we have binary-files */  
-  if (flag & FILE_BINARY)    
+  if (flag & MY_FOPEN_BINARY)
     *to++='b';
-#endif  
+
   *to='\0';
 } /* make_ftype */

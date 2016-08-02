@@ -1687,6 +1687,7 @@ union YYSTYPE {
   Trivial_array<Table_ident *> *table_list;
   udf_func *udf;
   LEX_USER *lex_user;
+  List<LEX_USER> *user_list;
   struct sys_var_with_base variable;
   enum enum_var_type var_type;
   keytype key_type;

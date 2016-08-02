@@ -19,7 +19,7 @@
 # Display the current setup used
 
 select * from performance_schema.setup_actors
-  order by USER, HOST, ROLE;
+  order by USER, HOST, `ROLE`;
 
 select * from performance_schema.setup_objects
   order by object_type, object_schema, object_name;

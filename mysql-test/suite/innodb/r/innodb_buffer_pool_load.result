@@ -29,7 +29,7 @@ SELECT variable_value
 FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 variable_value
-Buffer pool(s) load completed at TIMESTAMP_NOW
+Buffer pool load completed or still running
 DROP TABLE ib_bp_test;
 SET GLOBAL innodb_buffer_pool_dump_pct=default;
 #
@@ -50,7 +50,7 @@ SELECT variable_value
 FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 variable_value
-Buffer pool(s) load completed at TIMESTAMP_NOW
+Buffer pool load completed or still running
 DROP TABLE t1;
 DROP DATABASE test;
 # restart

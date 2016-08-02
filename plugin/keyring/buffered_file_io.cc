@@ -31,7 +31,7 @@ static PSI_file_info all_keyring_files[]=
   { &keyring_backup_file_data_key, "keyring_backup_file_data", 0}
 };
 
-void keyring_init_psi_file_keys(void)
+static void keyring_init_psi_file_keys(void)
 {
   const char *category = "keyring_file";
   int count;

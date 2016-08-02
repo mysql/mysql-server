@@ -20,12 +20,29 @@
 #include "my_base.h"                   /* ha_rows, ha_key_alg */
 #include "mysql/mysql_lex_string.h"    /* LEX_CSTRING */
 #include "sql_plugin_ref.h"            /* plugin_ref */
+#include "key_spec.h"                  /* fk_option */
 
 class Field;
 class String;
 struct TABLE;
 typedef struct st_bitmap MY_BITMAP;
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
+
+
+class FOREIGN_KEY
+{
+public:
+  const char *name;
+  uint key_parts;
+  LEX_CSTRING *key_part;
+  LEX_CSTRING *fk_key_part;
+  LEX_CSTRING ref_db;
+  LEX_CSTRING ref_table;
+  fk_option delete_opt;
+  fk_option update_opt;
+  fk_match_opt match_opt;
+};
+
 
 class KEY_PART_INFO {	/* Info about a key part */
 public:

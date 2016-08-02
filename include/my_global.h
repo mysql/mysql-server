@@ -464,27 +464,19 @@ typedef socklen_t socket_len_t;
 
 /* file create flags */
 
-#ifndef O_SHARE			/* Probably not windows */
-#define O_SHARE		0	/* Flag to my_open for shared files */
-#ifndef O_BINARY
-#define O_BINARY	0	/* Flag to my_open for binary files */
+#ifdef _WIN32
+/* Only for my_fopen() - _O_BINARY is set by default for my_open() */
+#define MY_FOPEN_BINARY _O_BINARY
+#else
+#define MY_FOPEN_BINARY 0       /* Ignore on non-Windows */
 #endif
-#ifndef FILE_BINARY
-#define FILE_BINARY	O_BINARY /* Flag to my_fopen for binary streams */
-#endif
+
 #ifdef HAVE_FCNTL
 #define F_TO_EOF	0L	/* Param to lockf() to lock rest of file */
 #endif
-#endif /* O_SHARE */
 
-#ifndef O_TEMPORARY
-#define O_TEMPORARY	0
-#endif
-#ifndef O_SHORT_LIVED
-#define O_SHORT_LIVED	0
-#endif
-#ifndef O_NOFOLLOW
-#define O_NOFOLLOW      0
+#ifdef _WIN32
+#define O_NOFOLLOW      0       /* Ignore on Windows */
 #endif
 
 /* additional file share flags for win32 */

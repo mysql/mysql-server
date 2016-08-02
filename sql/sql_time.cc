@@ -1064,49 +1064,6 @@ bool parse_date_time_format(timestamp_type format_type,
 }
 
 
-/*
-  Create a copy of a Date_time_format object
-
-  SYNOPSIS
-    date_and_time_format_copy()
-    thd			Set if variable should be allocated in thread mem
-    format		format to copy
-
-  NOTES
-    The returned object should be freed with my_free()
-
-  RETURN
-    NULL ponter:	Error
-    new object
-*/
-
-Date_time_format *date_time_format_copy(THD *thd, Date_time_format *format)
-{
-  Date_time_format *new_format;
-  size_t length= sizeof(*format) + format->format.length + 1;
-
-  if (thd)
-    new_format= (Date_time_format *) thd->alloc(length);
-  else
-    new_format=  (Date_time_format *) my_malloc(key_memory_DATE_TIME_FORMAT,
-                                                length, MYF(MY_WME));
-  if (new_format)
-  {
-    /* Put format string after current pos */
-    new_format->format.str= (char*) (new_format+1);
-    memcpy((char*) new_format->positions, (char*) format->positions,
-	   sizeof(format->positions));
-    new_format->time_separator= format->time_separator;
-    /* We make the string null terminated for easy printf in SHOW VARIABLES */
-    memcpy(new_format->format.str, format->format.str,
-	   format->format.length);
-    new_format->format.str[format->format.length]= 0;
-    new_format->format.length= format->format.length;
-  }
-  return new_format;
-}
-
-
 Known_date_time_format known_date_time_formats[6]=
 {
   {"USA", "%m.%d.%Y", "%Y-%m-%d %H.%i.%s", "%h:%i:%s %p" },

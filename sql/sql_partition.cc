@@ -48,18 +48,15 @@
 #include "sql_partition.h"
 
 #include "current_thd.h"
-#include "hash.h"                       // HASH
 #include "debug_sync.h"                 // DEBUG_SYNC
 #include "derror.h"                     // ER_THD
 #include "item.h"                       // enum_monotoncity_info
 #include "item_func.h"                  // Item_func
-#include "key.h"                        // key_restore
 #include "lock.h"                       // mysql_lock_remove
 #include "log.h"                        // sql_print_warning
 #include "mysqld.h"                     // mysql_tmpdir
 #include "opt_range.h"                  // store_key_image_to_rec
 #include "sql_analyse.h"                // append_escaped
-#include "sql_alter.h"                  // Alter_table_ctx
 #include "partition_info.h"             // partition_info
 #include "partitioning/partition_handler.h" // Partition_handler
 #include "psi_memory_key.h"
@@ -67,10 +64,8 @@
 #include "sql_cache.h"                  // query_cache
 #include "sql_class.h"                  // THD
 #include "sql_parse.h"                  // parse_sql
-#include "sql_show.h"                   // append_identifier
 #include "sql_table.h"                  // build_table_filename
 #include "sql_tablespace.h"             // check_tablespace_name
-#include "table.h"                      // TABLE_SHARE
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -2331,7 +2326,6 @@ static Create_field* get_sql_field(const char *field_name,
 
 int expr_to_string(String *val_conv,
                    Item *item_expr, 
-                   part_column_list_val *col_val,
                    Field *field,
                    const char *field_name,
                    const HA_CREATE_INFO *create_info,
@@ -2458,7 +2452,6 @@ int add_column_list_values(File fptr, partition_info *part_info,
         {
           err+= expr_to_string(&val_conv,
                                item_expr,
-                               col_val,
                                NULL,
                                field_name,
                                create_info,
@@ -2468,7 +2461,6 @@ int add_column_list_values(File fptr, partition_info *part_info,
         {
           err+= expr_to_string(&val_conv,
                                item_expr,
-                               col_val,
                                part_info->part_field_array[i],
                                NULL,
                                NULL,
@@ -6734,7 +6726,7 @@ static void reopen_locked_tables(THD *thd)
 static bool handle_alter_part_end(ALTER_PARTITION_PARAM_TYPE *lpt,
                                   bool error)
 {
-  partition_info *part_info= lpt->part_info->get_clone();
+  partition_info *part_info;
   THD *thd= lpt->thd;
   TABLE *table= lpt->table;
   DBUG_ENTER("handle_alter_part_end");

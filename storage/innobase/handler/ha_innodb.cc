@@ -1875,8 +1875,7 @@ add_table_to_thread_cache(
 }
 
 /********************************************************************//**
-Call this function when mysqld passes control to the client. That is to
-avoid deadlocks on the adaptive hash S-latch possibly held by thd. For more
+Call this function when mysqld passes control to the client. For more
 documentation, see handler.cc.
 @return 0 */
 inline
@@ -1895,9 +1894,9 @@ innobase_release_temporary_latches(
 
 	trx_t*	trx = thd_to_trx(thd);
 
-	if (trx != NULL) {
-		trx_search_latch_release_if_reserved(trx);
-	}
+	/* The btree search latch used to be held possibly in this case.
+	It's not true now, so no need to release it just assert */
+	ut_a(trx == NULL || !trx->has_search_latch);
 
 	return(0);
 }
@@ -3126,15 +3125,6 @@ innobase_query_caching_of_table_permitted(
 		return(static_cast<my_bool>(false));
 	}
 
-	if (trx->has_search_latch) {
-		sql_print_error("The calling thread is holding the adaptive"
-				" search, latch though calling"
-				" innobase_query_caching_of_table_permitted.");
-		trx_print(stderr, trx, 1024);
-	}
-
-	trx_search_latch_release_if_reserved(trx);
-
 	innobase_srv_conc_force_exit_innodb(trx);
 
 	if (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
@@ -3375,7 +3365,7 @@ ha_innobase::reset_template(void)
 
 	/* Reset index condition pushdown state. */
 	if (m_prebuilt->idx_cond) {
-		m_prebuilt->idx_cond = NULL;
+		m_prebuilt->idx_cond = false;
 		m_prebuilt->idx_cond_n_cols = 0;
 		/* Invalidate m_prebuilt->mysql_template
 		in ha_innobase::write_row(). */
@@ -3403,8 +3393,6 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 
 	/* Initialize the m_prebuilt struct much like it would be inited in
 	external_lock */
-
-	trx_search_latch_release_if_reserved(m_prebuilt->trx);
 
 	innobase_srv_conc_force_exit_innodb(m_prebuilt->trx);
 
@@ -3562,6 +3550,8 @@ static bool innobase_is_supported_system_table(const char *db,
 							"time_zone_transition",
 							"time_zone_transition_type",
 							"user",
+							"role_edges",
+							"default_roles",
 							(const char *)NULL };
 
 	if (!is_sql_layer_system_table)
@@ -4688,12 +4678,6 @@ innobase_rollback_trx(
 	DBUG_ENTER("innobase_rollback_trx");
 	DBUG_PRINT("trans", ("aborting transaction"));
 
-	/* Release a possible FIFO ticket and search latch. Since we will
-	reserve the trx_sys->mutex, we have to release the search system
-	latch first to obey the latching order. */
-
-	trx_search_latch_release_if_reserved(trx);
-
 	innobase_srv_conc_force_exit_innodb(trx);
 
 	/* If we had reserved the auto-inc lock for some table (if
@@ -5777,7 +5761,7 @@ innobase_vcol_build_templ(
 	mysql_row_templ_t*	templ,
 	ulint			col_no)
 {
-	if (dict_col_is_virtual(col)) {
+	if (col->is_virtual()) {
 		templ->is_virtual = true;
 		templ->col_no = col_no;
 		templ->clust_rec_field_no = ULINT_UNDEFINED;
@@ -5813,8 +5797,8 @@ innobase_vcol_build_templ(
 	}
 
         templ->charset = dtype_get_charset_coll(col->prtype);
-        templ->mbminlen = dict_col_get_mbminlen(col);
-        templ->mbmaxlen = dict_col_get_mbmaxlen(col);
+        templ->mbminlen = col->get_mbminlen();
+        templ->mbmaxlen = col->get_mbmaxlen();
         templ->is_unsigned = col->prtype & DATA_UNSIGNED;
 }
 
@@ -6439,6 +6423,7 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 	ut_ad(m_prebuilt->default_rec);
 
 	m_prebuilt->m_mysql_table = table;
+	m_prebuilt->m_mysql_handler = this;
 
 	key_used_on_scan = table_share->primary_key;
 
@@ -6865,7 +6850,7 @@ innobase_fts_text_cmp(
 
 	return(ha_compare_text(
 		charset, s1->f_str, static_cast<uint>(s1->f_len),
-		s2->f_str, static_cast<uint>(s2->f_len), 0, 0));
+		s2->f_str, static_cast<uint>(s2->f_len), 0));
 }
 
 /******************************************************************//**
@@ -6888,7 +6873,7 @@ innobase_fts_text_case_cmp(
 
 	return(ha_compare_text(
 		charset, s1->f_str, static_cast<uint>(s1->f_len),
-		s2->f_str, static_cast<uint>(newlen), 0, 0));
+		s2->f_str, static_cast<uint>(newlen), 0));
 }
 
 /******************************************************************//**
@@ -6935,7 +6920,7 @@ innobase_fts_text_cmp_prefix(
 
 	result = ha_compare_text(
 		charset, s2->f_str, static_cast<uint>(s2->f_len),
-		s1->f_str, static_cast<uint>(s1->f_len), 1, 0);
+		s1->f_str, static_cast<uint>(s1->f_len), 1);
 
 	/* We switched s1, s2 position in ha_compare_text. So we need
 	to negate the result */
@@ -7294,8 +7279,7 @@ build_template_field(
 		if (index->is_clustered()) {
 			templ->rec_field_no = templ->clust_rec_field_no;
 		} else {
-			templ->rec_field_no = dict_index_get_nth_col_pos(
-						index, i);
+			templ->rec_field_no = index->get_col_pos(i);
 		}
 	} else {
 		templ->clust_rec_field_no = v_no;
@@ -7303,8 +7287,7 @@ build_template_field(
 			templ->rec_field_no = templ->clust_rec_field_no;
 		} else {
 			templ->rec_field_no
-				= dict_index_get_nth_col_or_prefix_pos(
-					index, v_no, FALSE, true);
+				= index->get_col_pos(v_no, false, true);
 		}
 		templ->icp_rec_field_no = ULINT_UNDEFINED;
 	}
@@ -7332,8 +7315,8 @@ build_template_field(
 	}
 
 	templ->charset = dtype_get_charset_coll(col->prtype);
-	templ->mbminlen = dict_col_get_mbminlen(col);
-	templ->mbmaxlen = dict_col_get_mbmaxlen(col);
+	templ->mbminlen = col->get_mbminlen();
+	templ->mbmaxlen = col->get_mbmaxlen();
 	templ->is_unsigned = col->prtype & DATA_UNSIGNED;
 
 	if (!index->is_clustered()
@@ -7526,9 +7509,8 @@ ha_innobase::build_template(
 						= templ->rec_field_no;
 				} else {
 					templ->icp_rec_field_no
-						= dict_index_get_nth_col_pos(
-							m_prebuilt->index,
-							i - num_v);
+						= m_prebuilt->index
+						  ->get_col_pos(i - num_v);
 				}
 
 				if (m_prebuilt->index->is_clustered()) {
@@ -7557,9 +7539,8 @@ ha_innobase::build_template(
 				an end_range comparison. */
 
 				templ->icp_rec_field_no
-					= dict_index_get_nth_col_or_prefix_pos(
-						m_prebuilt->index, i - num_v,
-						true, false);
+					= m_prebuilt->index->get_col_pos(
+						i - num_v, true, false);
 				ut_ad(templ->icp_rec_field_no
 				      != ULINT_UNDEFINED);
 
@@ -7643,12 +7624,12 @@ ha_innobase::build_template(
 			}
 		}
 
-		m_prebuilt->idx_cond = this;
+		m_prebuilt->idx_cond = true;
 	} else {
 		mysql_row_templ_t*	templ;
 		ulint			num_v = 0;
 		/* No index condition pushdown */
-		m_prebuilt->idx_cond = NULL;
+		m_prebuilt->idx_cond = false;
 
 		for (i = 0; i < n_fields; i++) {
 			const Field*	field;
@@ -8080,8 +8061,7 @@ innodb_fill_old_vcol_val(
 	ulint		col_pack_len,
 	byte*		buf)
 {
-	dict_col_copy_type(
-		col, dfield_get_type(vfield));
+	col->copy_type(dfield_get_type(vfield));
 	if (o_len != UNIV_SQL_NULL) {
 
 		buf = row_mysql_store_col_in_innobase_format(
@@ -8312,8 +8292,7 @@ calc_row_difference(
 			}
 
 			if (n_len != UNIV_SQL_NULL) {
-				dict_col_copy_type(
-					col, dfield_get_type(&dfield));
+				col->copy_type(dfield_get_type(&dfield));
 
 				buf = row_mysql_store_col_in_innobase_format(
 					&dfield,
@@ -8324,8 +8303,7 @@ calc_row_difference(
 					dict_table_is_comp(prebuilt->table));
 				dfield_copy(&ufield->new_val, &dfield);
 			} else {
-				dict_col_copy_type(
-					col, dfield_get_type(&ufield->new_val));
+				col->copy_type(dfield_get_type(&ufield->new_val));
 				dfield_set_null(&ufield->new_val);
 			}
 
@@ -8345,8 +8323,7 @@ calc_row_difference(
 
 				if (!field->is_null_in_record(old_row)) {
 					if (n_len == UNIV_SQL_NULL) {
-						dict_col_copy_type(
-							col, dfield_get_type(
+						col->copy_type(dfield_get_type(
 								&dfield));
 					}
 
@@ -8362,8 +8339,7 @@ calc_row_difference(
 						    &dfield);
 					dfield_copy(vfield, &dfield);
 				} else {
-					dict_col_copy_type(
-						col, dfield_get_type(
+					col->copy_type(dfield_get_type(
 						ufield->old_v_val));
 					dfield_set_null(ufield->old_v_val);
 					dfield_set_null(vfield);
@@ -9263,8 +9239,8 @@ ha_innobase::change_active_index(
 		DBUG_RETURN(1);
 	}
 
-	m_prebuilt->index_usable = row_merge_is_index_usable(
-		m_prebuilt->trx, m_prebuilt->index);
+	m_prebuilt->index_usable =
+		m_prebuilt->index->is_usable(m_prebuilt->trx);
 
 	if (!m_prebuilt->index_usable) {
 		if (m_prebuilt->index->is_corrupted()) {
@@ -9843,7 +9819,7 @@ innobase_fts_create_doc_id_key(
 
 #ifdef UNIV_DEBUG
 	/* The unique Doc ID field should be an eight-bytes integer */
-	dict_field_t*	field = dict_index_get_nth_field(index, 0);
+	dict_field_t*	field = index->get_field(0);
         ut_a(field->col->mtype == DATA_INT);
 	ut_ad(sizeof(*doc_id) == field->fixed_len);
 	ut_ad(!strcmp(index->name, FTS_DOC_ID_INDEX_NAME));
@@ -10750,8 +10726,7 @@ create_index(
 				DBUG_RETURN(HA_ERR_UNSUPPORTED);
 			}
 
-			dict_mem_index_add_field(
-				index, key_part->field->field_name, 0);
+			index->add_field(key_part->field->field_name, 0);
 		}
 
 		DBUG_RETURN(convert_error_code_to_mysql(
@@ -10870,7 +10845,7 @@ create_index(
 			index->type |= DICT_VIRTUAL;
 		}
 
-		dict_mem_index_add_field(index, field_name, prefix_len);
+		index->add_field(field_name, prefix_len);
 	}
 
 	ut_ad(key->flags & HA_FULLTEXT || !(index->type & DICT_FTS));
@@ -12236,8 +12211,6 @@ create_table_info_t::set_tablespace_type(
 int
 create_table_info_t::initialize()
 {
-	trx_t*		parent_trx;
-
 	DBUG_ENTER("create_table_info_t::initialize");
 
 	ut_ad(m_thd != NULL);
@@ -12259,12 +12232,8 @@ create_table_info_t::initialize()
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 
-	parent_trx = check_trx_exists(m_thd);
+	check_trx_exists(m_thd);
 
-	/* In case MySQL calls this in the middle of a SELECT query, release
-	possible adaptive hash latch to avoid deadlocks of threads */
-
-	trx_search_latch_release_if_reserved(parent_trx);
 	DBUG_RETURN(0);
 }
 
@@ -13490,12 +13459,7 @@ innobase_create_tablespace(
 
 	/* Get the transaction associated with the current thd and make
 	sure it will not block this DDL. */
-	trx_t*	parent_trx = check_trx_exists(thd);
-
-	/* In case MySQL calls this in the middle of a SELECT
-	query, release possible adaptive hash latch to avoid
-	deadlocks of threads */
-	trx_search_latch_release_if_reserved(parent_trx);
+	check_trx_exists(thd);
 
 	/* Allocate a new transaction for this DDL */
 	trx = innobase_trx_allocate(thd);
@@ -13597,12 +13561,7 @@ innobase_drop_tablespace(
 
 	/* Get the transaction associated with the current thd and make sure
 	it will not block this DDL. */
-	trx_t*	parent_trx = check_trx_exists(thd);
-
-	/* In case MySQL calls this in the middle of a SELECT
-	query, release possible adaptive hash latch to avoid
-	deadlocks of threads */
-	trx_search_latch_release_if_reserved(parent_trx);
+	check_trx_exists(thd);
 
 	/* Allocate a new transaction for this DDL */
 	trx = innobase_trx_allocate(thd);
@@ -13738,13 +13697,7 @@ innobase_drop_database(
 
 	/* In the Windows plugin, thd = current_thd is always NULL */
 	if (thd != NULL) {
-		trx_t*	parent_trx = check_trx_exists(thd);
-
-		/* In case MySQL calls this in the middle of a SELECT
-		query, release possible adaptive hash latch to avoid
-		deadlocks of threads */
-
-		trx_search_latch_release_if_reserved(parent_trx);
+		check_trx_exists(thd);
 	}
 
 	ulint	len = 0;
@@ -14060,8 +14013,7 @@ ha_innobase::records(
 
 	ut_ad(index->is_clustered());
 
-	m_prebuilt->index_usable = row_merge_is_index_usable(
-		m_prebuilt->trx, index);
+	m_prebuilt->index_usable = index->is_usable(m_prebuilt->trx);
 
 	if (!m_prebuilt->index_usable) {
 		*num_rows = HA_POS_ERROR;
@@ -14159,7 +14111,7 @@ ha_innobase::records_in_range(
 		n_rows = HA_ERR_INDEX_CORRUPT;
 		goto func_exit;
 	}
-	if (!row_merge_is_index_usable(m_prebuilt->trx, index)) {
+	if (!index->is_usable(m_prebuilt->trx)) {
 		n_rows = HA_ERR_TABLE_DEF_CHANGED;
 		goto func_exit;
 	}
@@ -14621,12 +14573,7 @@ ha_innobase::info_low(
 
 	update_thd(ha_thd());
 
-	/* In case MySQL calls this in the middle of a SELECT query, release
-	possible adaptive hash latch to avoid deadlocks of threads */
-
 	m_prebuilt->trx->op_info = (char*)"returning various info to MySQL";
-
-	trx_search_latch_release_if_reserved(m_prebuilt->trx);
 
 	ib_table = m_prebuilt->table;
 	DBUG_ASSERT(ib_table->n_ref_count > 0);
@@ -15236,8 +15183,8 @@ ha_innobase::check(
 		access to the clustered index. */
 		m_prebuilt->index = index;
 
-		m_prebuilt->index_usable = row_merge_is_index_usable(
-			m_prebuilt->trx, m_prebuilt->index);
+		m_prebuilt->index_usable =
+			m_prebuilt->index->is_usable(m_prebuilt->trx);
 
 		if (!m_prebuilt->index_usable) {
 			if (m_prebuilt->index->is_corrupted()) {
@@ -15364,12 +15311,6 @@ ha_innobase::get_foreign_key_create_info(void)
 	update_thd(ha_thd());
 
 	m_prebuilt->trx->op_info = (char*)"getting info on foreign keys";
-
-	/* In case MySQL calls this in the middle of a SELECT query,
-	release possible adaptive hash latch to avoid
-	deadlocks of threads */
-
-	trx_search_latch_release_if_reserved(m_prebuilt->trx);
 
 	if (!srv_read_only_mode) {
 		mutex_enter(&srv_dict_tmpfile_mutex);
@@ -16437,8 +16378,6 @@ innodb_show_status(
 	}
 
 	trx_t*	trx = check_trx_exists(thd);
-
-	trx_search_latch_release_if_reserved(trx);
 
 	innobase_srv_conc_force_exit_innodb(trx);
 
@@ -17639,12 +17578,6 @@ innobase_xa_prepare(
 
 	thd_get_xid(thd, (MYSQL_XID*) trx->xid);
 
-	/* Release a possible FIFO ticket and search latch. Since we will
-	reserve the trx_sys->mutex, we have to release the search system
-	latch first to obey the latching order. */
-
-	trx_search_latch_release_if_reserved(trx);
-
 	innobase_srv_conc_force_exit_innodb(trx);
 
 	TrxInInnoDB	trx_in_innodb(trx);
@@ -18090,6 +18023,50 @@ innodb_internal_table_validate(
 	}
 
 	return(ret);
+}
+
+/****************************************************************//**
+Update global variable "fts_internal_tbl_name" with the "saved"
+stopword table name value. This function is registered as a callback
+with MySQL. */
+static
+void
+innodb_internal_table_update(
+/*=========================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	const char*	table_name;
+	char*		old;
+
+	ut_a(save != NULL);
+	ut_a(var_ptr != NULL);
+
+	table_name = *static_cast<const char*const*>(save);
+	old = *(char**) var_ptr;
+
+	if (table_name) {
+		*(char**) var_ptr =  my_strdup(PSI_INSTRUMENT_ME,
+					       table_name,  MYF(0));
+	} else {
+		*(char**) var_ptr = NULL;
+	}
+
+	if (old) {
+		my_free(old);
+	}
+
+	fts_internal_tbl_name2 = *(char**) var_ptr;
+	if (fts_internal_tbl_name2 == NULL) {
+		fts_internal_tbl_name = const_cast<char*>("default");
+	} else {
+		fts_internal_tbl_name = fts_internal_tbl_name2;
+	}
 }
 
 /****************************************************************//**
@@ -19490,7 +19467,7 @@ static MYSQL_SYSVAR_ULONG(purge_threads, srv_n_purge_threads,
   NULL, NULL,
   4,			/* Default setting */
   1,			/* Minimum value */
-  32, 0);		/* Maximum value */
+  MAX_PURGE_THREADS, 0);/* Maximum value */
 
 static MYSQL_SYSVAR_ULONG(sync_array_size, srv_sync_array_size,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
@@ -19824,11 +19801,11 @@ static MYSQL_SYSVAR_BOOL(disable_sort_file_cache, srv_disable_sort_file_cache,
   "Whether to disable OS system file cache for sort I/O",
   NULL, NULL, FALSE);
 
-static MYSQL_SYSVAR_STR(ft_aux_table, fts_internal_tbl_name,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
+static MYSQL_SYSVAR_STR(ft_aux_table, fts_internal_tbl_name2,
+  PLUGIN_VAR_NOCMDARG,
   "FTS internal auxiliary table to be checked",
   innodb_internal_table_validate,
-  NULL, NULL);
+  innodb_internal_table_update, NULL);
 
 static MYSQL_SYSVAR_ULONG(ft_cache_size, fts_max_cache_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -20587,11 +20564,9 @@ InnoDB index push-down condition check
 ICP_RESULT
 innobase_index_cond(
 /*================*/
-	void*	file)	/*!< in/out: pointer to ha_innobase */
+	ha_innobase*	h)	/*!< in/out: pointer to ha_innobase */
 {
 	DBUG_ENTER("innobase_index_cond");
-
-	ha_innobase*	h = reinterpret_cast<class ha_innobase*>(file);
 
 	DBUG_ASSERT(h->pushed_idx_cond);
 	DBUG_ASSERT(h->pushed_idx_cond_keyno != MAX_KEY);
@@ -20729,7 +20704,7 @@ innobase_get_field_from_update_vector(
 
 	for (ulint i = 0; i < foreign->n_fields; i++) {
 
-		parent_col_no = dict_index_get_nth_col_no(parent_index, i);
+		parent_col_no = parent_index->get_col_no(i);
 		parent_field_no = dict_table_get_nth_col_pos(
 			parent_table, parent_col_no);
 
@@ -20982,6 +20957,33 @@ ha_innobase::idx_cond_push(
 	in_range_check_pushed_down = TRUE;
 	/* We will evaluate the condition entirely */
 	DBUG_RETURN(NULL);
+}
+
+/** Find out if a Record_buffer is wanted by this handler, and what is the
+maximum buffer size the handler wants.
+
+@param[out] max_rows  gets set to the maximum number of records to allocate
+                      space for in the buffer
+@retval true   if the handler wants a buffer
+@retval false  if the handler does not want a buffer */
+bool ha_innobase::is_record_buffer_wanted(ha_rows* const max_rows) const
+{
+	/* If the scan won't be able to utilize the record buffer, return that
+	we don't want one. The decision on whether to use a buffer is taken in
+	row_search_mvcc(), look for the comment that starts with "Decide
+	whether to prefetch extra rows." Let's do the same check here. */
+
+	if (!m_prebuilt->can_prefetch_records()) {
+		*max_rows = 0;
+		return false;
+	}
+
+	/* Limit the number of rows in the buffer to 100 for now. We may want
+	to fine-tune this later, possibly taking record size and page size into
+	account. The optimizer might allocate an even smaller buffer if it
+	thinks a smaller number of rows will be fetched. */
+	*max_rows = 100;
+	return true;
 }
 
 /******************************************************************//**

@@ -423,7 +423,7 @@ static int create_sys_files(struct languages *lang_head,
 
     strxmov(outfile_end, FN_ROOTDIR, OUTFILE, NullS);
 
-    if (!(to= my_fopen(outfile, O_WRONLY | FILE_BINARY, MYF(MY_WME))))
+    if (!(to= my_fopen(outfile, O_WRONLY | MY_FOPEN_BINARY, MYF(MY_WME))))
       DBUG_RETURN(1);
 
     /* 4 is for 4 bytes to store row position / error message */
@@ -531,7 +531,7 @@ static int parse_input_file(const char *file_name, struct errors **top_error,
 
   *top_error= 0;
   *top_lang= 0;
-  if (!(file= my_fopen(file_name, O_RDONLY | O_SHARE, MYF(MY_WME))))
+  if (!(file= my_fopen(file_name, O_RDONLY, MYF(MY_WME))))
     DBUG_RETURN(0);
 
   while ((str= fgets(buff, sizeof(buff), file)))

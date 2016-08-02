@@ -67,21 +67,6 @@ public:
 
 
 /*
-  Compares two COPY_INFO::Statistics and makes sure they are equal.
-*/
-void check_equality(const COPY_INFO::Statistics a,
-                    const COPY_INFO::Statistics b)
-{
-  EXPECT_EQ(a.records, b.records);
-  EXPECT_EQ(a.deleted, b.deleted);
-  EXPECT_EQ(a.updated, b.updated);
-  EXPECT_EQ(a.copied,  b.copied);
-  EXPECT_EQ(a.error_count, b.error_count);
-  EXPECT_EQ(a.touched, b.touched);
-}
-
-
-/*
   Convenience class for creating a COPY_INFO to represent an insert operation.
 */
 class Mock_COPY_INFO: public COPY_INFO
@@ -235,7 +220,7 @@ TEST_F(CopyInfoTest, updateAccessors)
 }
 
 
-Field_long make_field()
+static Field_long make_field()
 {
   static uchar unused_null_byte;
 

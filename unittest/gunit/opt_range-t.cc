@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ public:
   explicit TestFailLinePrinter(int line) : m_line(line) {}
   int m_line;
 };
-std::ostream &operator<< (std::ostream &s, const TestFailLinePrinter &v)
+static std::ostream &operator<< (std::ostream &s, const TestFailLinePrinter &v)
 {
   return s << "called from line " << v.m_line;
 }
@@ -1714,7 +1714,7 @@ public:
   - Move some place it can be reused
   - Use varargs instead of copy-paste.
 */
-Item_row *new_Item_row(int a, int b)
+static Item_row *new_Item_row(int a, int b)
 {
   /*
     The Item_row CTOR doesn't store the reference to the list, hence
@@ -1726,7 +1726,7 @@ Item_row *new_Item_row(int a, int b)
 }
 
 
-Item_row *new_Item_row(int a, int b, int c)
+static Item_row *new_Item_row(int a, int b, int c)
 {
   /*
     The Item_row CTOR doesn't store the reference to the list, hence
@@ -1740,7 +1740,7 @@ Item_row *new_Item_row(int a, int b, int c)
 
 
 /// @todo Move some place it can be reused.
-Item_row *new_Item_row(Field **fields, int count)
+static Item_row *new_Item_row(Field **fields, int count)
 {
   /*
     The Item_row CTOR doesn't store the reference to the list, hence
@@ -1839,7 +1839,7 @@ TEST_F(OptRangeTest, RowConstructorIn3)
   refer to any other SEL_ARGs through next/prev/left/right)
 */
 
-void build_interval_list(Mock_SEL_ARG *root, Mock_SEL_ARG *other)
+static void build_interval_list(Mock_SEL_ARG *root, Mock_SEL_ARG *other)
 {
   /*
     Keep the tree balanced by adding nodes to left and right of

@@ -3598,7 +3598,7 @@ CREATE TABLE t3 (
 
 CREATE VIEW v1 AS
 SELECT profile.person_id AS person_id
-  FROM t1 profile, t2 userrole, t3 role
+  FROM t1 profile, t2 userrole, t3 `role`
     WHERE userrole.person_id = profile.person_id AND
           role.role_id = userrole.role_id AND
           profile.status_flg = 'A'

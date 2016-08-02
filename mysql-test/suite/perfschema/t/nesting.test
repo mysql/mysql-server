@@ -32,7 +32,7 @@ create table test.setup_actors as
 # Only instrument the user connections
 truncate table performance_schema.setup_actors;
 insert into performance_schema.setup_actors
-  set host= 'localhost', user= 'user1', role= '%';
+  set host= 'localhost', user= 'user1', `role`= '%';
 
 update performance_schema.threads set instrumented='NO';
 

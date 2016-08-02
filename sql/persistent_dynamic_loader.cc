@@ -87,7 +87,7 @@ static Component_db_intact table_intact;
   @retval true failure
   @retval false success
 */
-bool close_tables(THD* thd, MDL_savepoint& mdl_savepoint)
+static bool close_tables(THD* thd, MDL_savepoint& mdl_savepoint)
 {
   close_thread_tables(thd);
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
@@ -111,7 +111,7 @@ bool close_tables(THD* thd, MDL_savepoint& mdl_savepoint)
     stack.
   @retval false success
 */
-bool open_component_table(
+static bool open_component_table(
   THD *thd, enum thr_lock_type lock_type, TABLE **table,
   MDL_savepoint* mdl_savepoint)
 {

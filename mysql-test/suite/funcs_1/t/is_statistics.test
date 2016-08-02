@@ -150,7 +150,7 @@ connect (testuser1, localhost, testuser1, , test);
 eval $my_select;
 --sorted_result
 eval $my_show1;
---error ER_DBACCESS_DENIED_ERROR
+--error ER_TABLEACCESS_DENIED_ERROR
 eval $my_show2;
 
 --echo # Establish connection testuser2 (user=testuser2)
@@ -158,7 +158,7 @@ eval $my_show2;
 connect (testuser2, localhost, testuser2, , test);
 # nothing visible for testuser2
 eval $my_select;
---error ER_DBACCESS_DENIED_ERROR
+--error ER_TABLEACCESS_DENIED_ERROR
 eval $my_show1;
 --sorted_result
 eval $my_show2;
@@ -178,13 +178,13 @@ connection testuser1;
 eval $my_select;
 --sorted_result
 eval $my_show1;
---error ER_DBACCESS_DENIED_ERROR
+--error ER_TABLEACCESS_DENIED_ERROR
 eval $my_show2;
 
 --echo # Switch to connection testuser2
 connection testuser2;
 eval $my_select;
---error ER_DBACCESS_DENIED_ERROR
+--error ER_TABLEACCESS_DENIED_ERROR
 eval $my_show1;
 --sorted_result
 eval $my_show2;

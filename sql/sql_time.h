@@ -93,8 +93,6 @@ void make_truncated_value_warning(THD *thd,
                                   timestamp_type time_type,
                                   const char *field_name);
 
-extern Date_time_format *date_time_format_copy(THD *thd,
-					       Date_time_format *format);
 const char *get_date_time_format_str(Known_date_time_format *format,
 				     timestamp_type type);
 void make_date(const Date_time_format *format, const MYSQL_TIME *l_time,

@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
     return 1;
 
   FILE *infile;
-  if (!(infile= my_fopen(INFILE, O_RDONLY | O_SHARE, MYF(MY_WME))))
+  if (!(infile= my_fopen(INFILE, O_RDONLY, MYF(MY_WME))))
     return 1;
 
   FILE *outfile;

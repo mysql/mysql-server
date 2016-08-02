@@ -42,7 +42,7 @@
 #include "sql_select.h"                  // actual_key_parts
 #include "sql_table.h"                   // build_table_filename
 #include "sql_view.h"                    // view_type
-#include "strfunc.h"                     // unhex_type2
+#include "strfunc.h"                     // find_type
 #include "table_cache.h"                 // table_cache_manager
 #include "table_trigger_dispatcher.h"    // Table_trigger_dispatcher
 #include "template_utils.h"              // down_cast
@@ -59,6 +59,7 @@
 
 #include "pfs_table_provider.h"
 #include "mysql/psi/mysql_table.h"
+#include <iterator>
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
@@ -3273,7 +3274,7 @@ void TABLE_LIST::set_want_privilege(ulong want_privilege)
 */
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-bool TABLE_LIST::prepare_view_securety_context(THD *thd)
+bool TABLE_LIST::prepare_view_security_context(THD *thd)
 {
   DBUG_ENTER("TABLE_LIST::prepare_view_securety_context");
   DBUG_PRINT("enter", ("table: %s", alias));
@@ -3347,7 +3348,7 @@ Security_context *TABLE_LIST::find_view_security_context(THD *thd)
   }
   if (upper_view)
   {
-    DBUG_PRINT("info", ("Securety context of view %s will be used",
+    DBUG_PRINT("info", ("Security context of view %s will be used",
                         upper_view->alias));
     sctx= upper_view->view_sctx;
     DBUG_ASSERT(sctx);
@@ -3380,8 +3381,9 @@ bool TABLE_LIST::prepare_security(THD *thd)
   Security_context *save_security_ctx= thd->security_context();
 
   DBUG_ASSERT(!prelocking_placeholder);
-  if (prepare_view_securety_context(thd))
+  if (prepare_view_security_context(thd))
     DBUG_RETURN(TRUE);
+  /* Acl_map was previously checked out by get_aclroot */
   thd->set_security_context(find_view_security_context(thd));
   opt_trace_disable_if_no_security_context_access(thd);
   while ((tbl= tb++))
@@ -3402,7 +3404,7 @@ bool TABLE_LIST::prepare_security(THD *thd)
     else
     {
       local_db= tbl->db;
-      local_table_name= tbl->table_name;
+      local_table_name= tbl->get_table_name();
     }
     fill_effective_table_privileges(thd, &tbl->grant, local_db,
                                     local_table_name);
@@ -4170,7 +4172,7 @@ void TABLE::mark_columns_needed_for_delete(THD *thd)
     build a complete row). If this is the case, we mark all not
     updated columns to be read.
 
-    If this is no the case, we do like in the delete case and mark
+    If this is not the case, we do like in the delete case and mark
     if neeed, either the primary key column or all columns to be read.
     (see mark_columns_needed_for_delete() for details)
 
@@ -4178,17 +4180,29 @@ void TABLE::mark_columns_needed_for_delete(THD *thd)
     mark all USED key columns as 'to-be-read'. This allows the engine to
     loop over the given record to find all changed keys and doesn't have to
     retrieve the row again.
-    
+
     Unlike other similar methods, it doesn't mark fields used by triggers,
     that is the responsibility of the caller to do, by using
     Table_trigger_dispatcher::mark_used_fields(TRG_EVENT_UPDATE)!
+
+    Note: Marking additional columns as per binlog_row_image requirements will
+    influence query execution plan. For example in the case of
+    binlog_row_image=FULL the entire read_set and write_set needs to be flagged.
+    This will influence update query to think that 'used key is being modified'
+    and query will create a temporary table to process the update operation.
+    Which will result in performance degradation. Hence callers who don't want
+    their query execution to be influenced as per binlog_row_image requirements
+    can skip marking binlog specific columns here and they should make an
+    explicit call to 'mark_columns_per_binlog_row_image()' function to mark
+    binlog_row_image specific columns.
 */
 
-void TABLE::mark_columns_needed_for_update(THD *thd)
+void TABLE::mark_columns_needed_for_update(THD *thd, bool mark_binlog_columns)
 {
 
   DBUG_ENTER("mark_columns_needed_for_update");
-  mark_columns_per_binlog_row_image(thd);
+  if (mark_binlog_columns)
+    mark_columns_per_binlog_row_image(thd);
   if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE)
   {
     /* Mark all used key columns for read */
@@ -4740,6 +4754,24 @@ void TABLE_LIST::reinit_before_use(THD *thd)
   schema_table_state= NOT_PROCESSED;
 
   mdl_request.ticket= NULL;
+
+  /*
+    Is this table part of a SECURITY DEFINER VIEW?
+  */
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (!prelocking_placeholder && view && view_suid && view_sctx)
+  {
+    /*
+      The suid view needs to "login" again at this stage before privilege
+      precheck is done. The THD::m_view_ctx list is used to keep track of the
+      new authorized security context life time. When the THD is reset or
+      destroyed the security context is safely logged out and and any Acl_maps
+      returned to the Acl cache.
+    */
+    prepare_view_security_context(thd);
+    thd->m_view_ctx_list.push_back(view_sctx);
+  }
+#endif
 }
 
 
@@ -5578,4 +5610,53 @@ void TABLE::mark_gcol_in_maps(Field *field)
         bitmap_set_bit(write_set, i);
     }
   }
+}
+
+
+st_lex_user *
+st_lex_user::alloc(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg)
+{
+  st_lex_user *ret= static_cast<st_lex_user *>(thd->alloc(sizeof(st_lex_user)));
+  if (ret == NULL)
+    return NULL;
+  /*
+    Trim whitespace as the values will go to a CHAR field
+    when stored.
+  */
+  trim_whitespace(system_charset_info, user_arg);
+  if (host_arg)
+    trim_whitespace(system_charset_info, host_arg);
+
+  ret->user.str= user_arg->str;
+  ret->user.length= user_arg->length;
+  ret->host.str= host_arg ? host_arg->str : "%";
+  ret->host.length= host_arg ? host_arg->length : 1;
+  ret->plugin= EMPTY_CSTR;
+  ret->auth= NULL_CSTR;
+  ret->uses_identified_by_clause= false;
+  ret->uses_identified_with_clause= false;
+  ret->uses_identified_by_password_clause= false;
+  ret->uses_authentication_string_clause= false;
+  ret->alter_status.account_locked= false;
+  ret->alter_status.expire_after_days= 0;
+  ret->alter_status.update_account_locked_column= false;
+  ret->alter_status.update_password_expired_column= false;
+  ret->alter_status.update_password_expired_fields= false;
+  ret->alter_status.use_default_password_lifetime= false;
+  if (check_string_char_length(ret->user, ER_THD(thd, ER_USERNAME),
+                               USERNAME_CHAR_LENGTH,
+                               system_charset_info, 0) ||
+      (host_arg && check_host_name(ret->host)))
+    return NULL;
+  if (host_arg)
+  {
+    /*
+      Convert hostname part of username to lowercase.
+      It's OK to use in-place lowercase as long as
+      the character set is utf8.
+    */
+    my_casedn_str(system_charset_info, host_arg->str);
+    ret->host.str= host_arg->str;
+  }
+  return ret;
 }

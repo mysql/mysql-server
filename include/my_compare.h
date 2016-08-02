@@ -112,7 +112,7 @@ typedef struct st_HA_KEYSEG		/* Key-portion */
   set_rec_bits(0, bit_ptr, bit_ofs, bit_len)
 
 extern int ha_compare_text(const CHARSET_INFO *, uchar *, uint, uchar *, uint ,
-			   my_bool, my_bool);
+			   my_bool);
 extern int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a,
 		      uchar *b, uint key_length, uint nextflag,
 		      uint *diff_pos);

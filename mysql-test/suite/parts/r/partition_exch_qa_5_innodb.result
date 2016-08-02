@@ -10,8 +10,8 @@ current_user()
 test1@localhost
 SHOW GRANTS FOR CURRENT_USER;
 Grants for test1@localhost
-GRANT USAGE ON *.* TO 'test1'@'localhost'
-GRANT SELECT, INSERT, CREATE, DROP ON `test`.* TO 'test1'@'localhost'
+GRANT USAGE ON *.* TO `test1`@`localhost`
+GRANT SELECT, INSERT, CREATE, DROP ON `test`.* TO `test1`@`localhost`
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 ERROR 42000: ALTER command denied to user 'test1'@'localhost' for table 'tp'
 disconnect test1;
@@ -22,8 +22,8 @@ current_user()
 test2@localhost
 SHOW GRANTS FOR CURRENT_USER;
 Grants for test2@localhost
-GRANT USAGE ON *.* TO 'test2'@'localhost'
-GRANT SELECT, INSERT, UPDATE, CREATE, DROP, ALTER ON `test`.* TO 'test2'@'localhost'
+GRANT USAGE ON *.* TO `test2`@`localhost`
+GRANT SELECT, INSERT, UPDATE, CREATE, DROP, ALTER ON `test`.* TO `test2`@`localhost`
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 SELECT * FROM t_10;
 a	b
@@ -80,8 +80,8 @@ current_user()
 test2@localhost
 SHOW GRANTS FOR CURRENT_USER;
 Grants for test2@localhost
-GRANT USAGE ON *.* TO 'test2'@'localhost'
-GRANT SELECT, INSERT, UPDATE, CREATE, DROP ON `test`.* TO 'test2'@'localhost'
+GRANT USAGE ON *.* TO `test2`@`localhost`
+GRANT SELECT, INSERT, UPDATE, CREATE, DROP ON `test`.* TO `test2`@`localhost`
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 ERROR 42000: ALTER command denied to user 'test2'@'localhost' for table 'tp'
 SELECT * FROM tp WHERE a BETWEEN 0 AND 10;

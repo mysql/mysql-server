@@ -45,7 +45,7 @@ dict_index_add_col(
 	const char*	col_name;
 
 #ifndef UNIV_LIBRARY
-	if (dict_col_is_virtual(col)) {
+	if (col->is_virtual()) {
 		dict_v_col_t*	v_col = reinterpret_cast<dict_v_col_t*>(col);
 
 		/* When v_col->v_indexes==NULL,
@@ -70,9 +70,9 @@ dict_index_add_col(
 		col_name = table->get_col_name(dict_col_get_no(col));
 	}
 
-	dict_mem_index_add_field(index, col_name, prefix_len);
+	index->add_field(col_name, prefix_len);
 
-	field = dict_index_get_nth_field(index, index->n_def - 1);
+	field = index->get_field(index->n_def - 1);
 
 	field->col = col;
 	/* DATA_POINT is a special type, whose fixed_len should be:
@@ -88,8 +88,8 @@ dict_index_add_col(
 		field->fixed_len = DATA_MBR_LEN;
 	} else {
 		field->fixed_len = static_cast<unsigned int>(
-					dict_col_get_fixed_size(
-					col, dict_table_is_comp(table)));
+					col->get_fixed_size(
+						dict_table_is_comp(table)));
 	}
 
 	if (prefix_len && field->fixed_len > prefix_len) {

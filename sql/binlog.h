@@ -448,7 +448,6 @@ class MYSQL_BIN_LOG: public TC_LOG
   // current file sequence number for load data infile binary logging
   uint file_id;
   uint open_count;				// For replication
-  int readers_count;
 
   /* pointer to the sync period variable, for binlog this will be
      sync_binlog_period, for relay log this will be
@@ -482,7 +481,6 @@ class MYSQL_BIN_LOG: public TC_LOG
     return *sync_period_ptr;
   }
 
-  int write_to_file(IO_CACHE *cache);
   /*
     This is used to start writing to a new log file. The difference from
     new_file() is locking. new_file_without_locking() does not acquire
@@ -493,7 +491,6 @@ class MYSQL_BIN_LOG: public TC_LOG
 
   /** Manage the stages in ordered_commit. */
   Stage_manager stage_manager;
-  void do_flush(THD *thd);
 
   bool open(
 #ifdef HAVE_PSI_INTERFACE
@@ -722,7 +719,6 @@ public:
   int prepare(THD *thd, bool all);
   int recover(IO_CACHE *log, Format_description_log_event *fdle,
               my_off_t *valid_pos);
-  int recover(IO_CACHE *log, Format_description_log_event *fdle);
 #if !defined(MYSQL_CLIENT)
 
   void update_thd_next_event_pos(THD *thd);
@@ -899,7 +895,6 @@ public:
   int open_purge_index_file(bool destroy);
   bool is_inited_purge_index_file();
   int close_purge_index_file();
-  int clean_purge_index_file();
   int sync_purge_index_file();
   int register_purge_index_entry(const char* entry);
   int register_create_index_entry(const char* entry);

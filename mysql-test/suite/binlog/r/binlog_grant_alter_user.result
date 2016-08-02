@@ -1311,14 +1311,14 @@ GRANT SELECT,INSERT,UPDATE ON mysql.* TO user1@localhost;
 
 SHOW GRANTS FOR user1@localhost;
 Grants for user1@localhost
-GRANT SELECT ON *.* TO 'user1'@'localhost'
-GRANT SELECT, INSERT, UPDATE ON `mysql`.* TO 'user1'@'localhost'
+GRANT SELECT ON *.* TO `user1`@`localhost`
+GRANT SELECT, INSERT, UPDATE ON `mysql`.* TO `user1`@`localhost`
 
 REVOKE INSERT,UPDATE ON mysql.* FROM user1@localhost;
 SHOW GRANTS FOR user1@localhost;
 Grants for user1@localhost
-GRANT SELECT ON *.* TO 'user1'@'localhost'
-GRANT SELECT ON `mysql`.* TO 'user1'@'localhost'
+GRANT SELECT ON *.* TO `user1`@`localhost`
+GRANT SELECT ON `mysql`.* TO `user1`@`localhost`
 
 GRANT SELECT,INSERT,UPDATE ON *.* TO user2@localhost IDENTIFIED BY 'admin'
       REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'

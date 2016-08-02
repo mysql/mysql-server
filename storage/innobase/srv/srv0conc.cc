@@ -178,13 +178,6 @@ srv_conc_enter_innodb_with_atomics(
 			(void) os_atomic_increment_lint(
 				&srv_conc.n_waiting, 1);
 
-			/* Release possible search system latch this
-			thread has */
-
-			if (trx->has_search_latch) {
-				trx_search_latch_release_if_reserved(trx);
-			}
-
 			thd_wait_begin(trx->mysql_thd, THD_WAIT_USER_LOCK);
 
 			notified_mysql = TRUE;
