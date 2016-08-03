@@ -533,7 +533,8 @@ public:
   Generated_column()
     : expr_item(0), item_free_list(0),
     field_type(MYSQL_TYPE_LONG),
-    stored_in_db(false), num_non_virtual_base_cols(0)
+    stored_in_db(false), num_non_virtual_base_cols(0),
+    permanent_changes_completed(false)
   {
     expr_str.str= NULL;
     expr_str.length= 0;
@@ -592,6 +593,13 @@ private:
                                     phisically stored in the database*/
   /// How many non-virtual base columns in base_columns_map
   uint num_non_virtual_base_cols;
+
+public:
+  /**
+     Used to make sure permanent changes to the item tree of expr_item are
+     made only once.
+  */
+  bool permanent_changes_completed;
 };
 
 class Proto_field

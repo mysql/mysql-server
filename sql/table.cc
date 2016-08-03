@@ -1145,6 +1145,10 @@ static bool unpack_gcol_info(THD *thd,
   /* Validate the Item tree. */
   status= fix_fields_gcol_func(thd, field);
 
+  // Permanent changes to the item_tree are completed.
+  if (!thd->lex->is_ps_or_view_context_analysis())
+    field->gcol_info->permanent_changes_completed= true;
+
   if (disable_strict_mode)
   {
     thd->pop_internal_handler();
@@ -2507,17 +2511,28 @@ bool TABLE::refix_gc_items(THD *thd)
       if (!vfield->gcol_info->expr_item->fixed)
       {
         bool res= false;
-        /**
-          We should keep all the newly-created Items during fixing fields
-          in the same life span as the ones created parsing the generated
-          expression string.
+        /*
+          The call to fix_fields_gcol_func() may create new item objects in the
+          item tree for the generated column expression. If these are permanent
+          changes to the item tree, the new items must have the same life-span
+          as the ones created during parsing of the generated expression
+          string. We achieve this by temporarily switching to use the TABLE's
+          mem_root if the permanent changes to the item tree haven't been
+          completed (by checking the status of
+          gcol_info->permanent_changes_completed) and this call is not part of
+          context analysis (like prepare or show create table).
         */
         Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
         Query_arena backup_arena;
         Query_arena gcol_arena(&vfield->table->mem_root,
                                Query_arena::STMT_CONVENTIONAL_EXECUTION);
-        thd->set_n_backup_active_arena(&gcol_arena, &backup_arena);
-        thd->stmt_arena= &gcol_arena;
+        if (!vfield->gcol_info->permanent_changes_completed &&
+            !thd->lex->is_ps_or_view_context_analysis())
+        {
+          thd->set_n_backup_active_arena(&gcol_arena, &backup_arena);
+          thd->stmt_arena= &gcol_arena;
+        }
+
         /* 
           Temporarily disable privileges check; already done when first fixed,
           and then based on definer's (owner's) rights: this thread has
@@ -2529,8 +2544,23 @@ bool TABLE::refix_gc_items(THD *thd)
         if (fix_fields_gcol_func(thd, vfield))
           res= true;
 
-        thd->stmt_arena= backup_stmt_arena_ptr;
-        thd->restore_active_arena(&gcol_arena, &backup_arena);
+        if (!vfield->gcol_info->permanent_changes_completed &&
+            !thd->lex->is_ps_or_view_context_analysis())
+        {
+          // Switch back to the original stmt_arena.
+          thd->stmt_arena= backup_stmt_arena_ptr;
+          thd->restore_active_arena(&gcol_arena, &backup_arena);
+
+          // Append the new items to the original item_free_list.
+          Item *item= vfield->gcol_info->item_free_list;
+          while (item->next)
+            item= item->next;
+          item->next= gcol_arena.free_list;
+
+          // Permanent changes to the item_tree are completed.
+          vfield->gcol_info->permanent_changes_completed= true;
+        }
+
         // Restore any privileges check
         thd->want_privilege= sav_want_priv;
         get_fields_in_item_tree= FALSE;
@@ -2538,12 +2568,6 @@ bool TABLE::refix_gc_items(THD *thd)
         /* error occurs */
         if (res)
           return res;
-
-        // We need append the new items to orignal item lists
-        Item *item= vfield->gcol_info->item_free_list;
-        while(item->next)
-          item= item->next;
-        item->next= gcol_arena.free_list;
       }
     }
   }
