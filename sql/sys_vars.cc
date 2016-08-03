@@ -3033,6 +3033,13 @@ static bool check_log_path(sys_var *self, THD *thd, set_var *var)
     return true;
   }
 
+  static const LEX_CSTRING my_cnf= { STRING_WITH_LEN("my.cnf") };
+  if (val->length >= my_cnf.length)
+  {
+    if (strcasecmp(val->str + val->length - my_cnf.length, my_cnf.str) == 0)
+      return true; // log file name ends with "my.cnf"
+  }
+
   char path[FN_REFLEN];
   size_t path_length= unpack_filename(path, val->str);
 
