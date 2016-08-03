@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -359,6 +359,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::REF_ITEM:
   case Item::NULL_ITEM:
   case Item::VARBIN_ITEM:
+  case Item::PARAM_ITEM:
     if (make_copy_field)
     {
       DBUG_ASSERT(((Item_result_field*)item)->result_field);
