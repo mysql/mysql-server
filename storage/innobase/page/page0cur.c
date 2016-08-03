@@ -1048,6 +1048,26 @@ use_heap:
 	insert_rec = rec_copy(insert_buf, rec, offsets);
 	rec_offs_make_valid(insert_rec, index, offsets);
 
+	/* This is because assertion below is debug assertion */
+#ifdef UNIV_DEBUG
+	if (UNIV_UNLIKELY(current_rec == insert_rec)) {
+		ulint extra_len, data_len;
+		extra_len = rec_offs_extra_size(offsets);
+		data_len = rec_offs_data_size(offsets);
+
+		fprintf(stderr, "InnoDB: Error: current_rec == insert_rec "
+			" extra_len %lu data_len %lu insert_buf %p rec %p\n",
+			extra_len, data_len, insert_buf, rec);
+		fprintf(stderr, "InnoDB; Physical record: \n");
+		rec_print(stderr, rec, index);
+		fprintf(stderr, "InnoDB: Inserted record: \n");
+		rec_print(stderr, insert_rec, index);
+		fprintf(stderr, "InnoDB: Current record: \n");
+		rec_print(stderr, current_rec, index);
+		ut_a(current_rec != insert_rec);
+	}
+#endif /* UNIV_DEBUG */
+
 	/* 4. Insert the record in the linked list of records */
 	ut_ad(current_rec != insert_rec);
 
