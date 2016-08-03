@@ -59,7 +59,7 @@ class Plugin_system_variables
 {
 public:
   static int          max_connections;
-  static unsigned int xport;
+  static unsigned int port;
   static unsigned int min_worker_threads;
   static unsigned int idle_worker_thread_timeout;
   static unsigned int max_allowed_packet;

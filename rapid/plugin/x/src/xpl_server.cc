@@ -26,6 +26,7 @@
 #include "xpl_client.h"
 #include "xpl_session.h"
 #include "xpl_system_variables.h"
+#include "xpl_listener_factory.h"
 #include "mysql_variables.h"
 #include "mysql_show_variable_wrapper.h"
 #include "sql_data_result.h"
@@ -281,7 +282,9 @@ int xpl::Server::main(MYSQL_PLUGIN p)
         "MYSQLX_UNIX_PORT",
         WIN32_OR_UNIX(MYSQLX_NAMEDPIPE, MYSQLX_UNIX_ADDR));
 
-    boost::shared_ptr<ngs::Server_acceptors> acceptors(new ngs::Server_acceptors(Plugin_system_variables::xport, Plugin_system_variables::socket));
+    Listener_factory listener_factory;
+    boost::shared_ptr<ngs::Server_acceptors> acceptors(
+        new ngs::Server_acceptors(listener_factory, Plugin_system_variables::port, Plugin_system_variables::socket));
 
     instance_rwl.wlock();
 

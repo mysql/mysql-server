@@ -35,163 +35,6 @@ using namespace ngs;
 namespace details
 {
 
-class Tcp_listener: public Listener_interface
-{
-public:
-  Tcp_listener(const unsigned short port, Time_and_socket_events &event)
-  : m_state(State_listener_initializing),
-    m_port(port),
-    m_event(event)
-  {
-    m_tcp_socket = ngs::Connection_vio::create_and_bind_socket(port, m_last_error);
-  }
-
-  ~Tcp_listener()
-  {
-    Connection_vio::close_socket(m_tcp_socket);
-  }
-
-  Sync_variable_state &get_state()
-  {
-    return m_state;
-  }
-
-  bool is_handled_by_socket_event()
-  {
-    return true;
-  }
-
-  std::string get_last_error()
-  {
-    return m_last_error;
-  }
-
-  std::string get_description()
-  {
-    char to_string_buffer[32];
-
-    sprintf(to_string_buffer, "%i", m_port);
-
-    std::string result = "TCP (port:";
-
-    result += to_string_buffer;
-    result += ")";
-
-    return result;
-  }
-
-  bool setup_listener(On_connection on_connection)
-  {
-    if (INVALID_SOCKET == m_tcp_socket)
-      return false;
-
-    if (m_event.listen(m_tcp_socket, on_connection))
-    {
-      m_state.set(State_listener_prepared);
-      return true;
-    }
-
-    return false;
-  }
-
-  void close_listener()
-  {
-    Connection_vio::close_socket(m_tcp_socket);
-  }
-
-  void loop()
-  {
-  }
-
-private:
-  Sync_variable_state m_state;
-  const unsigned short m_port;
-  my_socket m_tcp_socket;
-  Time_and_socket_events &m_event;
-  std::string m_last_error;
-};
-
-
-class Unix_socket_listener: public Listener_interface
-{
-public:
-  Unix_socket_listener(const std::string &unix_socket_path, Time_and_socket_events &event)
-  : m_state(State_listener_initializing),
-    m_unix_socket_path(unix_socket_path),
-    m_event(event)
-  {
-#if !defined(HAVE_SYS_UN_H)
-    m_state.set(State_listener_stopped);
-#else
-    m_unix_socket = ngs::Connection_vio::create_and_bind_socket(unix_socket_path, m_last_error);
-#endif // !defined(HAVE_SYS_UN_H)
-  }
-
-  ~Unix_socket_listener()
-  {
-    Connection_vio::close_socket(m_unix_socket);
-  }
-
-  Sync_variable_state &get_state()
-  {
-    return m_state;
-  }
-
-  bool is_handled_by_socket_event()
-  {
-    return true;
-  }
-
-  std::string get_description()
-  {
-    std::string result = "UNIX socket (";
-
-    result += m_unix_socket_path;
-    result += ")";
-
-    return result;
-  }
-
-  std::string get_last_error()
-  {
-    return m_last_error;
-  }
-
-  bool setup_listener(On_connection on_connection)
-  {
-    if (!m_state.is(State_listener_initializing))
-      return false;
-
-    if (INVALID_SOCKET == m_unix_socket)
-      return false;
-
-    if (m_event.listen(m_unix_socket, on_connection))
-    {
-      m_state.set(State_listener_prepared);
-      return true;
-    }
-
-    return false;
-  }
-
-  void close_listener()
-  {
-    Connection_vio::close_socket(m_unix_socket);
-  }
-
-  void loop()
-  {
-  }
-
-private:
-  Sync_variable_state m_state;
-  const std::string m_unix_socket_path;
-  my_socket m_unix_socket;
-  Time_and_socket_events &m_event;
-  std::string m_last_error;
-};
-
-
 class Server_task_listener: public Server_task_interface
 {
 public:
@@ -275,11 +118,12 @@ private:
 
 
 Server_acceptors::Server_acceptors(
+    Listener_factory_interface &listener_factory,
     const unsigned short tcp_port,
     const std::string &unix_socket_file_or_named_pipe)
-: m_tcp_socket(new details::Tcp_listener(tcp_port, m_event)),
+: m_tcp_socket(listener_factory.create_tcp_socket_listener(tcp_port, m_event)),
 #if defined(HAVE_SYS_UN_H)
-  m_unix_socket(new details::Unix_socket_listener(unix_socket_file_or_named_pipe, m_event)),
+  m_unix_socket(listener_factory.create_unix_socket_listener(unix_socket_file_or_named_pipe, m_event)),
 #endif
   m_time_and_event_state(State_listener_initializing),
   m_time_and_event_task(new Server_task_time_and_event(m_event, m_time_and_event_state))
@@ -298,7 +142,7 @@ bool Server_acceptors::prepare_impl(On_connection on_connection, const bool skip
 
   if (listeners.empty())
   {
-    log_warning("All IO interfaces are disabled, X Protocol won't be accessible");
+    log_warning("All I/O interfaces are disabled, X Protocol won't be accessible");
 
     return false;
   }
@@ -312,7 +156,7 @@ bool Server_acceptors::prepare_impl(On_connection on_connection, const bool skip
   {
     abort();
 
-    log_error("Preparation of IO interfaces failed, X Protocol won't be accessible");
+    log_error("Preparation of I/O interfaces failed, X Protocol won't be accessible");
 
     return false;
   }
@@ -452,10 +296,18 @@ void Server_acceptors::report_listener_status(Listener_interface *listener)
 {
   if (!listener->get_state().is(State_listener_prepared))
   {
-    log_error("X Plugin failed to setup %s, with:", listener->get_description().c_str());
+    log_error("X Plugin failed to setup %s, with:", listener->get_name_and_configuration().c_str());
     log_error("%s", listener->get_last_error().c_str());
+
+    const std::string listener_configuration_variable = listener->get_configuration_variable();
+
+    if (!listener_configuration_variable.empty())
+    {
+      log_info("Please see the MySQL documentation for '%s' system variable to fix the error", listener_configuration_variable.c_str());
+    }
+
     return;
   }
 
-  log_info("X Plugin listens at %s", listener->get_description().c_str());
+  log_info("X Plugin listens on %s", listener->get_name_and_configuration().c_str());
 }
