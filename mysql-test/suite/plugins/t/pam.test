@@ -29,5 +29,6 @@ EOF
 --remove_file $MYSQLTEST_VARDIR/tmp/pam_bad.txt
 drop user test_pam;
 drop user pam_test;
+let $count_sessions= 1;
+--source include/wait_until_count_sessions.inc
 uninstall plugin pam;
-
