@@ -5,6 +5,9 @@ grant proxy on pam_test to test_pam;
 show variables like 'pam%';
 Variable_name	Value
 pam_use_cleartext_plugin	ON
+#
+# same test as in pam.test now fails
+#
 drop user test_pam;
 drop user pam_test;
 uninstall plugin pam;
