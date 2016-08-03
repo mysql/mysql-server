@@ -104,6 +104,12 @@ static const size_t	MAX_BLOCKS = 128;
 /** Block buffer size */
 #define BUFFER_BLOCK_SIZE ((ulint)(UNIV_PAGE_SIZE * 1.3))
 
+/** Max disk sector size */
+static const ulint	MAX_SECTOR_SIZE = 4096;
+
+/** Disk sector size of aligning write buffer for DIRECT_IO */
+static ulint	os_io_ptr_align = UNIV_SECTOR_SIZE;
+
 /* This specifies the file permissions InnoDB uses when it creates files in
 Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to
 my_umask */
@@ -2035,7 +2041,7 @@ os_file_create_subdirs_if_needed(
 @param[in,out]	n		number of bytes to read/write, starting from
 				offset
 @return pointer to allocated page, compressed data is written to the offset
-	that is aligned on UNIV_SECTOR_SIZE of Block.m_ptr */
+	that is aligned on the disk sector size */
 static
 Block*
 os_file_compress_page(
@@ -2071,7 +2077,7 @@ os_file_compress_page(
 	byte*	compressed_page;
 
 	compressed_page = static_cast<byte*>(
-		ut_align(block->m_ptr, UNIV_SECTOR_SIZE));
+		ut_align(block->m_ptr, os_io_ptr_align));
 
 	byte*	buf_ptr;
 
@@ -2128,7 +2134,7 @@ os_file_encrypt_page(
 	Block*  block = os_alloc_block();
 
 	encrypted_page = static_cast<byte*>(
-		ut_align(block->m_ptr, UNIV_SECTOR_SIZE));
+		ut_align(block->m_ptr, os_io_ptr_align));
 
 	buf_ptr = encryption.encrypt(type,
 				     reinterpret_cast<byte*>(buf), *n,
@@ -5067,7 +5073,6 @@ os_file_io(
 	Block*		block;
 	ulint		original_n = n;
 	IORequest	type = in_type;
-	byte*		compressed_page;
 	ssize_t		bytes_returned = 0;
 
 	if (type.is_compressed()) {
@@ -5076,12 +5081,8 @@ os_file_io(
 		ut_ad(offset > 0);
 
 		block = os_file_compress_page(type, buf, &n);
-
-		compressed_page = static_cast<byte*>(
-			ut_align(block->m_ptr, UNIV_SECTOR_SIZE));
 	} else {
 		block = NULL;
-		compressed_page = NULL;
 	}
 
 	/* We do encryption after compression, since if we do encryption
@@ -5120,7 +5121,7 @@ os_file_io(
 				*err = os_file_io_complete(
 					type, file,
 					reinterpret_cast<byte*>(buf),
-					compressed_page, original_n,
+					NULL, original_n,
 					static_cast<ulint>(offset), n);
 			} else {
 
@@ -6286,6 +6287,94 @@ AIO::shutdown()
 	s_reads = NULL;
 }
 
+#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+/**
+Try and get the FusionIO sector size. */
+void
+os_fusionio_get_sector_size()
+{
+	if (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT
+	    || srv_unix_file_flush_method == SRV_UNIX_O_DIRECT_NO_FSYNC) {
+		ulint		sector_size = UNIV_SECTOR_SIZE;
+		char*		path = srv_data_home;
+		os_file_t	check_file;
+		byte*		ptr;
+		byte*		block_ptr;
+		char		current_dir[3];
+		char*		dir_end;
+		ulint		dir_len;
+		ulint		check_path_len;
+		char*		check_file_name;
+		ssize_t		ret;
+
+		/* If the srv_data_home is empty, set the path to
+		current dir. */
+		if (*path == 0) {
+			current_dir[0] = FN_CURLIB;
+			current_dir[1] = FN_LIBCHAR;
+			current_dir[2] = 0;
+			path = current_dir;
+		}
+
+		/* Get the path of data file */
+		dir_end = strrchr(path, OS_PATH_SEPARATOR);
+		dir_len = dir_end? dir_end - path : strlen(path);
+
+		/* allocate a new path and move the directory path to it. */
+		check_path_len = dir_len + sizeof "/check_sector_size";
+		check_file_name = static_cast<char*>(
+			ut_zalloc_nokey(check_path_len));
+		memcpy(check_file_name, path, dir_len);
+
+		/* Construct a check file name. */
+		strcat(check_file_name + dir_len, "/check_sector_size");
+
+		/* Create a tmp file for checking sector size. */
+		check_file = ::open(check_file_name,
+				    O_CREAT|O_TRUNC|O_WRONLY|O_DIRECT,
+				    S_IRWXU);
+
+		if (check_file == -1) {
+			ib::error()
+				<< "Failed to create check sector file, errno:"
+				<< errno << " Please confirm O_DIRECT is"
+				<< " supported and remove the file "
+				<< check_file_name << " if it exists.";
+			ut_free(check_file_name);
+			errno = 0;
+			return;
+		}
+
+		/* Try to write the file with different sector size
+		alignment. */
+		ptr = static_cast<byte*>(ut_malloc_nokey(2 * MAX_SECTOR_SIZE));
+
+		while (sector_size <= MAX_SECTOR_SIZE) {
+			block_ptr = static_cast<byte*>(
+				ut_align(ptr, sector_size));
+			ret = pwrite(check_file, block_ptr,
+				    sector_size, 0);
+			if (ret > 0 && (ulint) ret == sector_size) {
+				break;
+			}
+			sector_size *= 2;
+		}
+
+		/* The sector size should <= MAX_SECTOR_SIZE. */
+		ut_ad(sector_size <= MAX_SECTOR_SIZE);
+
+		close(check_file);
+		unlink(check_file_name);
+
+		ut_free(check_file_name);
+		ut_free(ptr);
+		errno = 0;
+
+		os_io_ptr_align = sector_size;
+	}
+}
+#endif /* !NO_FALLOCATE && UNIV_LINUX */
+
 /** Initializes the asynchronous io system. Creates one array each for ibuf
 and log i/o. Also creates one array each for read and write where each
 array is divided logically into n_readers and n_writers
@@ -6329,6 +6418,12 @@ os_aio_init(
 
 		ut_a(it->m_ptr != NULL);
 	}
+
+	/* Get sector size for DIRECT_IO. In this case, we need to
+	know the sector size for aligning the write buffer. */
+#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+	os_fusionio_get_sector_size();
+#endif /* !NO_FALLOCATE && UNIV_LINUX */
 
 	return(AIO::start(limit, n_readers, n_writers, n_slots_sync));
 }
