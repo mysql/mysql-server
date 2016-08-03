@@ -573,6 +573,16 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
      */
 
     old_row_exists = 1;
+
+    /* Check if there is such a user in user table in memory? */
+
+    if (!find_acl_user(combo->host.str,combo->user.str, FALSE))
+    {
+      my_error(ER_PASSWORD_NO_MATCH, MYF(0));
+      error= -1;
+      goto end;
+    }
+
     store_record(table,record[1]);			// Save copy for update
 
     /* 1. resolve plugins in the LEX_USER struct if needed */
