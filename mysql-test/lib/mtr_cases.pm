@@ -22,7 +22,7 @@ package mtr_cases;
 use strict;
 
 use base qw(Exporter);
-our @EXPORT= qw(collect_option collect_test_cases $suitedir);
+our @EXPORT= qw(collect_option collect_test_cases init_pattern $suitedir);
 
 use mtr_report;
 use mtr_match;

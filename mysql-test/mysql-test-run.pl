@@ -193,6 +193,7 @@ my $opt_ssl;
 my $opt_skip_ssl;
 my @opt_skip_test_list;
 my $opt_do_test_list= "";
+my $opt_do_suite;
 our $opt_ssl_supported;
 my $opt_ps_protocol;
 my $opt_sp_protocol;
@@ -399,7 +400,36 @@ sub main {
   if ($opt_skip_sys_schema) {
     $opt_suites =~ s/,sysschema//;
   }
-  mtr_report("Using suites: $opt_suites") unless @opt_cases;
+
+  my $mtr_suites= $opt_suites;
+  # Skip the suites that doesn't match --do-suite filter
+  if ($opt_do_suite)
+  {
+    my $opt_do_suite_reg= init_pattern($opt_do_suite, "--do-suite");
+    for my $suite (split(",", $opt_suites))
+    {
+      if ($opt_do_suite_reg and not $suite =~ /$opt_do_suite_reg/)
+      {
+        $opt_suites =~ s/$suite,?//;
+      }
+    }
+
+    # Removing ',' at the end of $opt_suites if exists
+    $opt_suites =~ s/,$//;
+  }
+
+  if ($opt_suites)
+  {
+    mtr_report("Using suites: $opt_suites") unless @opt_cases;
+  }
+  else
+  {
+    if ($opt_do_suite)
+    {
+      mtr_error("The PREFIX/REGEX '$opt_do_suite' doesn't match any of ".
+                "'$mtr_suites' suite(s)");
+    }
+  }
 
   init_timers();
 
@@ -1146,6 +1176,7 @@ sub command_line_setup {
              'skip-rpl'                 => \&collect_option,
              'skip-test=s'              => \&collect_option,
              'do-test=s'                => \&collect_option,
+             'do-suite=s'               => \$opt_do_suite,
              'start-from=s'             => \&collect_option,
              'big-test'                 => \$opt_big_test,
 	     'combination=s'            => \@opt_combinations,
@@ -7315,6 +7346,9 @@ Options to control what test suites or cases to run
   do-test=PREFIX or REGEX
                         Run test cases which name are prefixed with PREFIX
                         or fulfills REGEX
+  do-suite=PREFIX or REGEX
+                        Run tests from suites whose name is prefixed with
+                        PREFIX or fulfills REGEX
   skip-test=PREFIX or REGEX
                         Skip test cases which name are prefixed with PREFIX
                         or fulfills REGEX
