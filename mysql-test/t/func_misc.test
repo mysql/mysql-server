@@ -599,3 +599,13 @@ drop table t1;
 --echo #
 --echo # End of 5.5 tests
 --echo #
+
+#
+# Bug#12735545 - PARSER STACK OVERFLOW WITH NAME_CONST
+#                CONTAINING OR EXPRESSION
+#
+--error ER_WRONG_ARGUMENTS
+SELECT NAME_CONST('a', -(1 OR 2)) OR 1;
+--error ER_WRONG_ARGUMENTS
+SELECT NAME_CONST('a', -(1 AND 2)) OR 1;
+SELECT NAME_CONST('a', -(1)) OR 1;
