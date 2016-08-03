@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2594,7 +2594,6 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
     old_cnt = m_total_buckets;
   }
   
-  //assert(old_cnt >= cnt);
   if (unlikely(! (old_cnt >= cnt)))
   {
     crash_on_invalid_SUB_GCP_COMPLETE_REP(bucket, rep, len, old_cnt, cnt);
@@ -2608,15 +2607,15 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
     {
   do_complete:
       m_startup_hack = false;
-       bool gapBegins = false;
+      bool gapBegins = false;
 
       // if there is a gap, mark the gap boundary
-       if (m_event_buffer_manager.onEpochCompleted(gci, gapBegins))
+      if (m_event_buffer_manager.onEpochCompleted(gci, gapBegins))
         reportStatus();
 
       // if a new gap begins, mark the bucket.
-       if (gapBegins)
-         bucket->m_state |= Gci_container::GC_OUT_OF_MEMORY;
+      if (gapBegins)
+        bucket->m_state |= Gci_container::GC_OUT_OF_MEMORY;
 
       complete_bucket(bucket);
       m_latestGCI = m_complete_data.m_gci = gci; // before reportStatus
@@ -2644,7 +2643,6 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
                           Uint32(minGCI >> 32), Uint32(minGCI),
                           Uint32(m_latestGCI >> 32), Uint32(m_latestGCI));
       bucket->m_state = Gci_container::GC_COMPLETE;
-      bucket->m_gcp_complete_rep_count = 1; // Prevent from being reused
       m_latest_complete_GCI = gci;
     }
   }
