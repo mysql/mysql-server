@@ -51,6 +51,8 @@ typedef struct Trans_table_info {
   uint number_of_primary_keys;
   /// The db_type of the storage engine used by the table
   int db_type;
+  /// information to store if the table has foreign key with 'CASCADE' clause.
+  bool has_cascade_foreign_key;
 } Trans_table_info;
 
 /**
