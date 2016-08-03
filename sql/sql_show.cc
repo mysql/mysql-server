@@ -6937,19 +6937,30 @@ int fill_variables(THD *thd, TABLE_LIST *tables, COND *cond)
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   enum enum_schema_tables schema_table_idx=
     get_schema_table_idx(tables->schema_table);
-  enum enum_var_type option_type= OPT_SESSION;
+  enum enum_var_type scope= OPT_SESSION;
   bool upper_case_names= (schema_table_idx != SCH_VARIABLES);
   bool sorted_vars= (schema_table_idx == SCH_VARIABLES);
 
   if ((sorted_vars && lex->option_type == OPT_GLOBAL) ||
       schema_table_idx == SCH_GLOBAL_VARIABLES)
-    option_type= OPT_GLOBAL;
+    scope= OPT_GLOBAL;
 
   COND *partial_cond= make_cond_for_info_schema(cond, tables);
 
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
-  res= show_status_array(thd, wild, enumerate_sys_vars(thd, sorted_vars, option_type),
-                         option_type, NULL, "", tables->table,
+
+  /*
+    Avoid recursive LOCK_system_variables_hash acquisition in
+    intern_sys_var_ptr() by pre-syncing dynamic session variables.
+  */
+  if (scope == OPT_SESSION &&
+      (!thd->variables.dynamic_variables_ptr ||
+       global_system_variables.dynamic_variables_head >
+       thd->variables.dynamic_variables_head))
+    sync_dynamic_session_variables(thd, true);
+
+  res= show_status_array(thd, wild, enumerate_sys_vars(thd, sorted_vars, scope),
+                         scope, NULL, "", tables->table,
                          upper_case_names, partial_cond);
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
   DBUG_RETURN(res);
