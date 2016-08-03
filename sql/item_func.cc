@@ -2661,6 +2661,9 @@ double my_double_round(double value, longlong dec, bool dec_unsigned,
   volatile double value_div_tmp= value / tmp;
   volatile double value_mul_tmp= value * tmp;
 
+  if (!dec_negative && my_isinf(tmp)) // "dec" is too large positive number
+    return value;
+
   if (dec_negative && my_isinf(tmp))
     tmp2= 0.0;
   else if (!dec_negative && my_isinf(value_mul_tmp))
