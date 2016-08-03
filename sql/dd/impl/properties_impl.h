@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -95,6 +95,9 @@ public:
 
   virtual bool empty() const
   { return m_map->empty(); }
+
+  virtual void clear()
+  { return m_map->clear(); }
 
   virtual bool exists(const std::string &key) const
   { return m_map->find(key) != m_map->end(); }

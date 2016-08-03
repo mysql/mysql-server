@@ -15215,6 +15215,11 @@ ha_innobase::truncate(dd::Table *dd_tab)
 		name, dd_tab, SQLCOM_TRUNCATE);
 
 	if (!error) {
+		dd_tab->set_se_private_id(dd::INVALID_OBJECT_ID);
+		for (auto dd_index : *dd_tab->indexes()) {
+			dd_index->se_private_data().clear();
+		}
+
 		error = create(name, table, &info, dd_tab,
 				file_per_table);
 	}
