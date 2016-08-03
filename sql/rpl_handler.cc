@@ -327,6 +327,44 @@ int Trans_delegate::before_commit(THD *thd, bool all,
 }
 
 /**
+ Helper method to check if the given table has 'CASCADE' foreign key or not.
+
+ @param[in]   TABLE     Table object that needs to be verified.
+ @param[in]   THD       Current execution thread.
+
+ @return bool TRUE      If the table has 'CASCADE' foreign key.
+              FALSE     If the table does not have 'CASCADE' foreign key.
+*/
+bool has_cascade_foreign_key(TABLE *table, THD *thd)
+{
+  DBUG_ENTER("has_cascade_foreign_key");
+  List<FOREIGN_KEY_INFO> f_key_list;
+  table->file->get_foreign_key_list(thd, &f_key_list);
+
+  FOREIGN_KEY_INFO *f_key_info;
+  List_iterator_fast<FOREIGN_KEY_INFO> foreign_key_iterator(f_key_list);
+  while ((f_key_info=foreign_key_iterator++))
+  {
+    /*
+     The possible values for update_method are
+     {"CASCADE", "SET NULL", "NO ACTION", "RESTRICT"}.
+
+     Hence we are avoiding the usage of strncmp
+     ("'update_method' value with 'CASCADE'") and just comparing
+     the first character of the update_method value with 'C'.
+    */
+    if (f_key_info->update_method->str[0] == 'C' ||
+        f_key_info->delete_method->str[0] == 'C')
+    {
+      DBUG_ASSERT(!strncmp(f_key_info->update_method->str, "CASCADE", 7) ||
+                  !strncmp(f_key_info->delete_method->str, "CASCADE", 7));
+      DBUG_RETURN(TRUE);
+    }
+  }
+  DBUG_RETURN(FALSE);
+}
+
+/**
  Helper method to create table information for the hook call
  */
 void
@@ -348,7 +386,7 @@ Trans_delegate::prepare_table_info(THD* thd,
   std::vector<Trans_table_info> table_info_holder;
   for(; open_tables != NULL; open_tables= open_tables->next)
   {
-    Trans_table_info table_info = {0,0,0};
+    Trans_table_info table_info = {0,0,0,0};
 
     if (open_tables->no_replicate)
     {
@@ -372,6 +410,12 @@ Trans_delegate::prepare_table_info(THD* thd,
     table_info.number_of_primary_keys= primary_keys;
 
     table_info.db_type= open_tables->s->db_type()->db_type;
+
+    /*
+      Find out if the table has foreign key with ON UPDATE/DELETE CASCADE
+      clause.
+    */
+    table_info.has_cascade_foreign_key= has_cascade_foreign_key(open_tables, thd);
 
     table_info_holder.push_back(table_info);
   }
@@ -399,6 +443,8 @@ Trans_delegate::prepare_table_info(THD* thd,
                                 = (*table_info_holder_it).table_name;
       table_info_list[table].db_type
                                 = (*table_info_holder_it).db_type;
+      table_info_list[table].has_cascade_foreign_key
+                                = (*table_info_holder_it).has_cascade_foreign_key;
     }
   }
 
