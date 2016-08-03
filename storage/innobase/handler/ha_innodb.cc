@@ -14412,7 +14412,8 @@ create_table_info_t::create_table_update_global_dd(
 		}
 
 		dd_space_id = dd_space.get()->id();
-	} else if (!is_dd_table && table->space != 0) {
+	} else if (!is_dd_table && table->space != 0
+		   && table->space != srv_tmp_space.space_id()) {
 		/* This is a user table that resides in shared
 		tablesapce */
 		ut_ad(!dict_table_is_file_per_table(table));
@@ -14443,10 +14444,13 @@ create_table_info_t::create_table_update_global_dd(
 		}
 	} else if (!is_dd_table) {
 		/* This is a user table that resides in innodb_system
-		tablespace, nothing to do now */
-		ut_ad(table->space == 0);
+		tablespace, or it is a temporary table nothing to do now */
+		ut_ad(table->space == 0
+		      || table->space == srv_tmp_space.space_id());
 		ut_ad(!dict_table_is_file_per_table(table));
-		dd_space_id = 1;
+		if (table->space !=  srv_tmp_space.space_id()) {
+			dd_space_id = 1;
+		}
 	} else {
 		/* This is a data dictionary table, nothing to do now */
 	}

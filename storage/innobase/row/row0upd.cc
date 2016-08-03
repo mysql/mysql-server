@@ -112,7 +112,7 @@ FIXME: This should be removed away once we can upgrade for new DD. */
 extern bool	srv_missing_dd_table_buffer;
 
 /* WL#7595 TODO */
-#if 0
+#if 1
 /***********************************************************//**
 Checks if an update vector changes some of the first ordering fields of an
 index record. This is only used in foreign key checks and we can assume
@@ -192,7 +192,7 @@ row_upd_check_references_constraints(
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-#if 0
+#if 1
 	dict_foreign_t*	foreign;
 	mem_heap_t*	heap;
 	dtuple_t*	entry;
@@ -203,6 +203,11 @@ row_upd_check_references_constraints(
 	ibool		got_s_lock	= FALSE;
 
 	DBUG_ENTER("row_upd_check_references_constraints");
+
+	if (strstr(table->name.m_name, "mysql") != NULL
+	    && strstr(table->name.m_name, "tablespace") != NULL) {
+		DBUG_RETURN(DB_SUCCESS);
+	}
 
 	if (table->referenced_set.empty()) {
 		DBUG_RETURN(DB_SUCCESS);
@@ -1866,7 +1871,7 @@ row_upd_changes_fts_column(
 }
 
 /* Disable foreign key stuff, WL#7595 will take care of it */
-#if 0
+#if 1
 /***********************************************************//**
 Checks if an update vector changes some of the first ordering fields of an
 index record. This is only used in foreign key checks and we can assume
