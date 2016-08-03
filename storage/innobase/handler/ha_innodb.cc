@@ -1912,33 +1912,6 @@ add_table_to_thread_cache(
 }
 
 /********************************************************************//**
-Call this function when mysqld passes control to the client. For more
-documentation, see handler.cc.
-@return 0 */
-inline
-int
-innobase_release_temporary_latches(
-/*===============================*/
-	handlerton*	hton,	/*!< in: handlerton */
-	THD*		thd)	/*!< in: MySQL thread */
-{
-	DBUG_ASSERT(hton == innodb_hton_ptr);
-
-	if (!innodb_inited) {
-
-		return(0);
-	}
-
-	trx_t*	trx = thd_to_trx(thd);
-
-	/* The btree search latch used to be held possibly in this case.
-	It's not true now, so no need to release it just assert */
-	ut_a(trx == NULL || !trx->has_search_latch);
-
-	return(0);
-}
-
-/********************************************************************//**
 Increments innobase_active_counter and every INNOBASE_WAKE_INTERVALth
 time calls srv_active_wake_master_thread. This function should be used
 when a single database operation may introduce a small need for
@@ -4164,8 +4137,6 @@ innodb_init(
 	innobase_hton->flags =
 		HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS;
 
-	innobase_hton->release_temporary_latches =
-		innobase_release_temporary_latches;
 	innobase_hton->replace_native_transaction_in_thd =
 		innodb_replace_trx_in_thd;
 	innobase_hton->file_extensions = ha_innobase_exts;
@@ -6314,13 +6285,6 @@ ha_innobase::open(const char* name, int, uint)
 
 	thd = ha_thd();
 
-	/* Under some cases MySQL seems to call this function while
-	holding search latch(es). This breaks the latching order as
-	we acquire dict_sys->mutex below and leads to a deadlock. */
-	if (thd != NULL) {
-		innobase_release_temporary_latches(ht, thd);
-	}
-
 	normalize_table_name(norm_name, name);
 
 	m_user_thd = NULL;
@@ -6845,12 +6809,6 @@ ha_innobase::close()
 /*================*/
 {
 	DBUG_ENTER("ha_innobase::close");
-
-	THD*	thd = ha_thd();
-
-	if (thd != NULL) {
-		innobase_release_temporary_latches(ht, thd);
-	}
 
 	row_prebuilt_free(m_prebuilt, FALSE);
 

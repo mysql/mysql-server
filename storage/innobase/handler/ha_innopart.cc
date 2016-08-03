@@ -1022,14 +1022,6 @@ ha_innopart::open(const char* name, int, uint)
 	}
 	thd = ha_thd();
 
-	/* Under some cases MySQL seems to call this function while
-	holding search latch(es). This breaks the latching order as
-	we acquire dict_sys->mutex below and leads to a deadlock. */
-
-	if (thd != NULL) {
-		innobase_release_temporary_latches(ht, thd);
-	}
-
 	normalize_table_name(norm_name, name);
 
 	m_user_thd = NULL;
@@ -1442,14 +1434,7 @@ void ha_innopart::clear_ins_upd_nodes()
 int
 ha_innopart::close()
 {
-	THD*	thd;
-
 	DBUG_ENTER("ha_innopart::close");
-
-	thd = ha_thd();
-	if (thd != NULL) {
-		innobase_release_temporary_latches(ht, thd);
-	}
 
 	ut_ad(m_pcur_parts == NULL);
 	ut_ad(m_clust_pcur_parts == NULL);

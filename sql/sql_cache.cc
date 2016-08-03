@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1380,12 +1380,6 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
                           query_state.default_week_format,
                           query_state.in_trans,
                           query_state.autocommit));
-
-    /*
-     Make InnoDB to release the adaptive hash index latch before
-     acquiring the query cache mutex.
-    */
-    ha_release_temporary_latches(thd);
 
     /*
       A table- or a full flush operation can potentially take a long time to

@@ -2420,9 +2420,6 @@ free_tmp_table(THD *thd, TABLE *entry)
   save_proc_info=thd->proc_info;
   THD_STAGE_INFO(thd, stage_removing_tmp_table);
 
-  // Release latches since this can take a long time
-  ha_release_temporary_latches(thd);
-
   filesort_free_buffers(entry, true);
 
   if (entry->is_created())
@@ -2509,9 +2506,6 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
     table->file->print_error(error, MYF(ME_FATALERROR));
     DBUG_RETURN(1);
   }
-
-  // Release latches since this can take a long time
-  ha_release_temporary_latches(thd);
 
   new_table= *table;
   share= *table->s;

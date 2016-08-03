@@ -918,17 +918,6 @@ innodb_base_col_setup_for_stored(
 /** whether this is a computed virtual column */
 #define innobase_is_v_fld(field) ((field)->gcol_info && !(field)->stored_in_db)
 
-/** Release temporary latches.
-Call this function when mysqld passes control to the client. For more
-documentation, see handler.cc.
-@param[in]	hton	Handlerton.
-@param[in]	thd	MySQL thread.
-@return 0 */
-int
-innobase_release_temporary_latches(
-	handlerton*	hton,
-	THD*		thd);
-
 /** Always normalize table name to lower case on Windows */
 #ifdef _WIN32
 #define normalize_table_name(norm_name, name)           \

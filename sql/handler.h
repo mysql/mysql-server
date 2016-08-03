@@ -1040,8 +1040,6 @@ typedef void (*binlog_log_query_t)(handlerton *hton, THD *thd,
                                    const char *query, uint query_length,
                                    const char *db, const char *table_name);
 
-typedef int (*release_temporary_latches_t)(handlerton *hton, THD *thd);
-
 typedef int (*discover_t)(handlerton *hton, THD* thd, const char *db,
                           const char *name,
                           uchar **frmblob,
@@ -1556,7 +1554,6 @@ struct handlerton
 
   binlog_func_t binlog_func;
   binlog_log_query_t binlog_log_query;
-  release_temporary_latches_t release_temporary_latches;
   discover_t discover;
   find_files_t find_files;
   table_exists_in_engine_t table_exists_in_engine;
@@ -5310,9 +5307,6 @@ bool default_rm_tmp_tables(handlerton *hton, THD *thd, List<LEX_STRING> *files);
 extern "C" int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);
 int ha_resize_key_cache(KEY_CACHE *key_cache);
 int ha_change_key_cache(KEY_CACHE *old_key_cache, KEY_CACHE *new_key_cache);
-
-/* report to InnoDB that control passes to the client */
-int ha_release_temporary_latches(THD *thd);
 
 /* transactions: interface to handlerton functions */
 int ha_start_consistent_snapshot(THD *thd);
