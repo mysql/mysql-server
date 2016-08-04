@@ -35,7 +35,7 @@ let $restart_parameters_restore = --enable-named-pipe;
 --error 1
 --exec $MYSQLXTEST -u nonblank --password='nonblank' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
  
- call mtr.add_suppression("Plugin mysqlx reported: .All IO interfaces are disabled, X Protocol won't be accessible");
+ call mtr.add_suppression("Plugin mysqlx reported: .All I/O interfaces are disabled, X Protocol won't be accessible");
 
 --disable_query_log
 let $restart_parameters = restart: $restart_parameters_restore;
