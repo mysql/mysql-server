@@ -22,7 +22,7 @@ namespace xpl
 {
 
 int          Plugin_system_variables::max_connections;
-unsigned int Plugin_system_variables::xport;
+unsigned int Plugin_system_variables::port;
 unsigned int Plugin_system_variables::min_worker_threads;
 unsigned int Plugin_system_variables::idle_worker_thread_timeout;
 unsigned int Plugin_system_variables::max_allowed_packet;

@@ -54,7 +54,6 @@ class Server_task_interface;
 class Connection_acceptor_interface;
 class Incoming_queue;
 class Scheduler_dynamic;
-class Named_pipe_listener;
 class Server_acceptors;
 
 class Server: public Server_interface

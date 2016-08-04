@@ -48,7 +48,8 @@ public:
 
   virtual Sync_variable_state &get_state() = 0;
   virtual std::string get_last_error() = 0;
-  virtual std::string get_description() = 0;
+  virtual std::string get_name_and_configuration() const = 0;
+  virtual std::string get_configuration_variable() const = 0;
   virtual bool is_handled_by_socket_event() = 0;
 
   virtual bool setup_listener(On_connection) = 0;
