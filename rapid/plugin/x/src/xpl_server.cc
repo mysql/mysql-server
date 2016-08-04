@@ -525,10 +525,22 @@ static xpl::Ssl_config choose_ssl_config(const bool mysqld_have_ssl,
     const xpl::Ssl_config & mysqlx_ssl)
 {
   if (!mysqlx_ssl.is_configured() && mysqld_have_ssl)
+  {
+    my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL,
+        "Using SSL configuration from MySQL Server");
+
     return mysqld_ssl;
+  }
 
   if (mysqlx_ssl.is_configured())
+  {
+    my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL,
+        "Using SSL configuration from Mysqlx Plugin");
     return mysqlx_ssl;
+  }
+
+  my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL,
+      "Neither MySQL Server nor Mysqlx Plugin has valid SSL configuration");
 
   return xpl::Ssl_config();
 }
@@ -581,37 +593,31 @@ bool xpl::Server::on_net_startup()
     instance->start_verify_server_state_timer();
 
     ngs::Ssl_context_unique_ptr ssl_ctx(new ngs::Ssl_context());
-    try
+
+    ssl_config = choose_ssl_config(mysqld_have_ssl,
+                                   ssl_config,
+                                   xpl::Plugin_system_variables::ssl_config);
+
+    // YaSSL doesn't support CRL according to vio
+    const char *crl = IS_YASSL_OR_OPENSSL(NULL, ssl_config.ssl_crl);
+    const char *crlpath = IS_YASSL_OR_OPENSSL(NULL, ssl_config.ssl_crlpath);
+
+    const bool ssl_setup_result = ssl_ctx->setup(tls_version, ssl_config.ssl_key,
+                                                 ssl_config.ssl_ca,
+                                                 ssl_config.ssl_capath,
+                                                 ssl_config.ssl_cert,
+                                                 ssl_config.ssl_cipher,
+                                                 crl, crlpath);
+
+    if (ssl_setup_result)
     {
-      ssl_config = choose_ssl_config(mysqld_have_ssl,
-                                     ssl_config,
-                                     xpl::Plugin_system_variables::ssl_config);
-
-#ifdef HAVE_YASSL
-      // YaSSL doesn't support CRL according to vio
-      const char *crl = NULL;
-      const char *crlpath = NULL;
-#else
-      const char *crl = ssl_config.ssl_crl;
-      const char *crlpath = ssl_config.ssl_crlpath;
-#endif
-      ssl_ctx->setup(tls_version,
-                     ssl_config.ssl_key,
-                     ssl_config.ssl_ca,
-                     ssl_config.ssl_capath,
-                     ssl_config.ssl_cert,
-                     ssl_config.ssl_cipher,
-                     crl, crlpath);
-
-#if !defined(HAVE_YASSL)
-      my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL, "Using OpenSSL for connections");
-#else
-      my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL, "Using YaSSL for connections");
-#endif
+      my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL,
+          "Using " IS_YASSL_OR_OPENSSL("YaSSL", "OpenSSL") " for TLS connections");
     }
-    catch (std::exception &e)
+    else
     {
-      throw ngs::Error_code(ER_X_SERVICE_ERROR, std::string("SSL context setup failed: \"") + e.what() + std::string("\""));
+      my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL,
+          "For more information, please see the Using Secure Connections with X Plugin section in the MySQL documentation.");
     }
 
     if (instance->server().prepare(boost::move(ssl_ctx), skip_networking, skip_name_resolve, true))
