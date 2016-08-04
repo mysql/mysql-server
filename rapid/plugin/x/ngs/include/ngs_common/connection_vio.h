@@ -107,6 +107,8 @@ public:
   void close();
 
   static void close_socket(my_socket &fd);
+  static void unlink_unix_socket_file(const std::string &unix_socket_file);
+
   static my_socket accept(my_socket sock, struct sockaddr* addr, socklen_t& len, int& err, std::string& strerr);
 
   static my_socket create_and_bind_socket(const unsigned short port, std::string &error_message);
@@ -120,6 +122,7 @@ public:
 
 private:
   static bool create_lockfile(const std::string &unix_socket_file, std::string &error_message);
+  static std::string get_lockfile_name(const std::string &unix_socket_file);
 
   friend class Ssl_context;
 

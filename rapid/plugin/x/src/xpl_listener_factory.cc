@@ -41,7 +41,8 @@ public:
 
   ~Tcp_listener()
   {
-    ::ngs::Connection_vio::close_socket(m_tcp_socket);
+    // close_listener() can be called multiple times, by user + from destructor
+    close_listener();
   }
 
   Sync_variable_state &get_state()
@@ -94,6 +95,11 @@ public:
 
   void close_listener()
   {
+    // Connection_vio::close_socket can be called multiple times
+    // it invalidates the content of m_tcp_socket thus at next call
+    // it does nothing
+    //
+    // Same applies to close_listener()
     ngs::Connection_vio::close_socket(m_tcp_socket);
   }
 
@@ -127,7 +133,8 @@ public:
 
   ~Unix_socket_listener()
   {
-    ngs::Connection_vio::close_socket(m_unix_socket);
+    // close_listener() can be called multiple times, by user + from destructor
+    close_listener();
   }
 
   Sync_variable_state &get_state()
@@ -179,7 +186,11 @@ public:
 
   void close_listener()
   {
+    const bool should_unlink_unix_socket = INVALID_SOCKET != m_unix_socket;
     ngs::Connection_vio::close_socket(m_unix_socket);
+
+    if (should_unlink_unix_socket)
+      ngs::Connection_vio::unlink_unix_socket_file(m_unix_socket_path);
   }
 
   void loop()
