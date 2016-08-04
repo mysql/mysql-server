@@ -4963,7 +4963,24 @@ bool JOIN::make_join_plan()
 
   // Outer join dependencies were initialized above, now complete the analysis.
   if (select_lex->outer_join)
-    propagate_dependencies();
+  {
+    if (propagate_dependencies())
+    {
+      /*
+        Catch illegal cross references for outer joins.
+        This could happen before WL#2486 was implemented in 5.0, but should no
+        longer be possible.
+        Thus, an assert has been added should this happen again.
+        @todo Remove the error check below.
+      */
+      DBUG_ASSERT(0);
+      tables= 0;               // Don't use join->table
+      primary_tables= 0;
+      my_error(ER_WRONG_OUTER_JOIN, MYF(0));
+      return true;
+    }
+    init_key_dependencies();
+  }
 
   if (unlikely(trace->is_started()))
     trace_table_dependencies(trace, join_tab, primary_tables);
@@ -5006,6 +5023,14 @@ bool JOIN::make_join_plan()
   // Make a first estimate of the fanout for each table in the query block.
   if (estimate_rowcount())
     DBUG_RETURN(true);
+
+  /*
+    Apply join order hints, with the exception of
+    JOIN_FIXED_ORDER and STRAIGHT_JOIN.
+  */
+  if (select_lex->opt_hints_qb &&
+      !(select_lex->active_options() & SELECT_STRAIGHT_JOIN))
+    select_lex->opt_hints_qb->apply_join_order_hints(this);
 
   if (sj_nests)
   {
@@ -5248,24 +5273,8 @@ bool JOIN::propagate_dependencies()
   JOIN_TAB *const tab_end= join_tab + tables;
   for (JOIN_TAB *tab= join_tab; tab < tab_end; tab++)
   {
-    /*
-      Catch illegal cross references for outer joins.
-      This could happen before WL#2486 was implemented in 5.0, but should no
-      longer be possible.
-      Thus, an assert has been added should this happen again.
-      @todo Remove the error check below.
-    */
-    DBUG_ASSERT(!(tab->dependent & tab->table_ref->map()));
-
-    if (tab->dependent & tab->table_ref->map())
-    {
-      tables= 0;               // Don't use join->table
-      primary_tables= 0;
-      my_error(ER_WRONG_OUTER_JOIN, MYF(0));
+    if ((tab->dependent & tab->table_ref->map()))
       return true;
-    }
-
-    tab->key_dependent= tab->dependent;
   }
 
   return false;

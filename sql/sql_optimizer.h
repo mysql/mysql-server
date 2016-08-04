@@ -706,6 +706,12 @@ public:
   bool fts_index_access(JOIN_TAB *tab);
 
   Next_select_func get_end_select_func();
+  /**
+     Propagate dependencies between tables due to outer join relations.
+
+     @returns false if success, true if error
+  */
+  bool propagate_dependencies();
 
 private:
   bool optimized; ///< flag to avoid double optimization in EXPLAIN
@@ -748,6 +754,18 @@ private:
   bool optimize_fts_query();
 
   bool prune_table_partitions();
+  /**
+    Initialize key dependencies for join tables.
+
+    TODO figure out necessity of this method. Current test
+         suite passed without this intialization.
+  */
+  void init_key_dependencies()
+  {
+    JOIN_TAB *const tab_end= join_tab + tables;
+    for (JOIN_TAB *tab= join_tab; tab < tab_end; tab++)
+      tab->key_dependent= tab->dependent;
+  }
 
 private:
   void set_prefix_tables();
@@ -755,7 +773,6 @@ private:
   void set_semijoin_embedding();
   bool make_join_plan();
   bool init_planner_arrays();
-  bool propagate_dependencies();
   bool extract_const_tables();
   bool extract_func_dependent_tables();
   void update_sargable_from_const(SARGABLE_PARAM *sargables);
