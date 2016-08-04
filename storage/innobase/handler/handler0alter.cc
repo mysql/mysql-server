@@ -6076,7 +6076,14 @@ err_exit:
 			DBUG_RETURN(true);
 		}
 
-		DBUG_RETURN(false);
+		ha_innobase_inplace_ctx*	ctx
+			= static_cast<ha_innobase_inplace_ctx*>(
+				ha_alter_info->handler_ctx);
+
+		DBUG_RETURN(prepare_inplace_alter_table_global_dd(
+			ha_alter_info, ctx->new_table,
+			ctx->old_table,
+			old_dd_tab, new_dd_tab));
 	}
 
 	/* If we are to build a full-text search index, check whether
@@ -6729,7 +6736,9 @@ func_exit:
 		}
 	}
 
-	trx_commit_for_mysql(prebuilt->trx);
+	/* Do not commit/rollback prebuilt->trx, assume mysql will
+	rollback it */
+
 	MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
 	DBUG_RETURN(fail);
 }
