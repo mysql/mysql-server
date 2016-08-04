@@ -11502,8 +11502,7 @@ static const innodb_dd_table_t innodb_dd_table[] = {
 };
 
 /** Number of hard-coded data dictionary tables */
-static const uint innodb_dd_table_size
-	= (sizeof innodb_dd_table) / sizeof *innodb_dd_table;
+static constexpr size_t innodb_dd_table_size = UT_ARR_SIZE(innodb_dd_table);
 #endif /* UNIV_DEBUG */
 
 /** Initialize InnoDB for being used to store the DD tables.
@@ -11546,7 +11545,7 @@ innobase_dict_init(
 		/* Definition */
 		"  database_name VARCHAR(64) NOT NULL, \n"
 		"  table_name VARCHAR(64) NOT NULL, \n"
-		"  last_update TIMESTAMP NOT NULL NOT NULL \n"
+		"  last_update TIMESTAMP NOT NULL \n"
 		"  DEFAULT CURRENT_TIMESTAMP \n"
 		"  ON UPDATE CURRENT_TIMESTAMP, \n"
 		"  n_rows BIGINT UNSIGNED NOT NULL, \n"
