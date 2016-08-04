@@ -9,6 +9,12 @@ SET @@global.slow_query_log_file = mytest.log;
 ERROR 42000: Incorrect argument type to variable 'slow_query_log_file'
 SET @@global.slow_query_log_file = 12;
 ERROR 42000: Incorrect argument type to variable 'slow_query_log_file'
+SET @@global.slow_query_log_file = 'my.cnf';
+ERROR 42000: Variable 'slow_query_log_file' can't be set to the value of 'my.cnf'
+SET @@global.slow_query_log_file = '/tmp/my.cnf';
+ERROR 42000: Variable 'slow_query_log_file' can't be set to the value of '/tmp/my.cnf'
+SET @@global.general_log_file = '.my.cnf';
+ERROR 42000: Variable 'general_log_file' can't be set to the value of '.my.cnf'
 '#----------------------FN_DYNVARS_004_03------------------------#'
 SELECT @@global.slow_query_log_file = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 

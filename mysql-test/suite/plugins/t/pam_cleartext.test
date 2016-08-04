@@ -3,10 +3,22 @@
 
 show variables like 'pam%';
 
+--write_file $MYSQLTEST_VARDIR/tmp/pam_good.txt
+not very secret challenge
+9225
+select user(), current_user(), database();
+EOF
+
+--echo #
+--echo # same test as in pam.test now fails
+--echo #
 --error 1
---exec echo FAIL | $MYSQL_TEST -u test_pam --plugin-dir=$plugindir
+--exec $MYSQL_TEST -u test_pam --plugin-dir=$plugindir < $MYSQLTEST_VARDIR/tmp/pam_good.txt
+
+--remove_file $MYSQLTEST_VARDIR/tmp/pam_good.txt
 
 drop user test_pam;
 drop user pam_test;
+let $count_sessions= 1;
+--source include/wait_until_count_sessions.inc
 uninstall plugin pam;
-

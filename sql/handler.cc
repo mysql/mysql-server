@@ -1238,7 +1238,8 @@ int ha_commit_trans(THD *thd, bool all)
 
   uint rw_ha_count= ha_check_and_coalesce_trx_read_only(thd, ha_info, all);
   /* rw_trans is TRUE when we in a transaction changing data */
-  bool rw_trans= is_real_trans && (rw_ha_count > 0);
+  bool rw_trans= is_real_trans &&
+                 (rw_ha_count > !thd->is_current_stmt_binlog_disabled());
   MDL_request mdl_request;
 
   if (rw_trans)

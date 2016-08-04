@@ -3025,14 +3025,23 @@ static bool check_log_path(sys_var *self, THD *thd, set_var *var)
   if (!var->save_result.string_value.str)
     return true;
 
-  if (var->save_result.string_value.length > FN_REFLEN)
+  LEX_STRING *val= &var->save_result.string_value;
+
+  if (val->length > FN_REFLEN)
   { // path is too long
     my_error(ER_PATH_LENGTH, MYF(0), self->name.str);
     return true;
   }
 
+  static const LEX_CSTRING my_cnf= { STRING_WITH_LEN("my.cnf") };
+  if (val->length >= my_cnf.length)
+  {
+    if (strcasecmp(val->str + val->length - my_cnf.length, my_cnf.str) == 0)
+      return true; // log file name ends with "my.cnf"
+  }
+
   char path[FN_REFLEN];
-  size_t path_length= unpack_filename(path, var->save_result.string_value.str);
+  size_t path_length= unpack_filename(path, val->str);
 
   if (!path_length)
     return true;
@@ -3046,9 +3055,9 @@ static bool check_log_path(sys_var *self, THD *thd, set_var *var)
     return false;
   }
 
-  (void) dirname_part(path, var->save_result.string_value.str, &path_length);
+  (void) dirname_part(path, val->str, &path_length);
 
-  if (var->save_result.string_value.length - path_length >= FN_LEN)
+  if (val->length - path_length >= FN_LEN)
   { // filename is too long
       my_error(ER_PATH_LENGTH, MYF(0), self->name.str);
       return true;

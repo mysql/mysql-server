@@ -574,3 +574,10 @@ drop table t1;
 #
 # End of 5.5 tests
 #
+SELECT NAME_CONST('a', -(1 OR 2)) OR 1;
+ERROR HY000: Incorrect arguments to NAME_CONST
+SELECT NAME_CONST('a', -(1 AND 2)) OR 1;
+ERROR HY000: Incorrect arguments to NAME_CONST
+SELECT NAME_CONST('a', -(1)) OR 1;
+NAME_CONST('a', -(1)) OR 1
+1
