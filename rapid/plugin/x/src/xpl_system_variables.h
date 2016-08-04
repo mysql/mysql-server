@@ -39,7 +39,6 @@ struct Ssl_config
   Ssl_config();
 
   bool is_configured() const;
-//  void set_not_null_value();
 
   char *ssl_key;
   char *ssl_ca;

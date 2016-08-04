@@ -76,7 +76,8 @@ void Plugin_system_variables::setup_system_variable_from_env_or_compile_opt(char
 
 
 Ssl_config::Ssl_config()
-: ssl_key(NULL), ssl_ca(NULL), ssl_capath(NULL), ssl_cert(NULL), ssl_cipher(NULL), ssl_crl(NULL), ssl_crlpath(NULL), m_null_char(0)
+: ssl_key(NULL), ssl_ca(NULL), ssl_capath(NULL), ssl_cert(NULL), ssl_cipher(NULL),
+  ssl_crl(NULL), ssl_crlpath(NULL), m_null_char(0)
 {
 }
 
@@ -90,24 +91,6 @@ bool Ssl_config::is_configured() const
          has_value(ssl_crl) ||
          has_value(ssl_crlpath);
 }
-
-/*void Ssl_config::set_not_null_value()
-{
-  if (!has_value(ssl_key))
-    ssl_key = &m_null_char;
-  if (!has_value(ssl_ca))
-    ssl_ca = &m_null_char;
-  if (!has_value(ssl_capath))
-    ssl_capath = &m_null_char;
-  if (!has_value(ssl_cert))
-    ssl_cert = &m_null_char;
-  if (!has_value(ssl_cipher))
-    ssl_cipher = &m_null_char;
-  if (!has_value(ssl_crl))
-    ssl_crl = &m_null_char;
-  if (!has_value(ssl_crlpath))
-    ssl_crlpath = &m_null_char;
-}*/
 
 bool Ssl_config::has_value(const char *ptr) const
 {

@@ -139,7 +139,7 @@ class Ssl_context
 {
 public:
   Ssl_context();
-  void setup(const char* tls_version,
+  bool setup(const char* tls_version,
               const char* ssl_key,
               const char* ssl_ca,
               const char* ssl_capath,
