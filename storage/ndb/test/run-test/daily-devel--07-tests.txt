@@ -66,3 +66,6 @@ cmd: testScan
 args: -n ScanDuringShrinkAndExpandBack T1
 max-time : 180
 
+cmd: testSystemRestart
+args: -n StaleNodeTakeoverDuringSR T1
+
