@@ -1442,7 +1442,7 @@ srv_start(bool create_new_db)
 
 	srv_boot();
 
-	ib::info() << (ut_crc32_sse2_enabled ? "Using" : "Not using")
+	ib::info() << (ut_crc32_cpu_enabled ? "Using" : "Not using")
 		<< " CPU crc32 instructions";
 
 	if (!srv_read_only_mode) {
