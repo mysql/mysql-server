@@ -33,8 +33,8 @@ insert into t2 select
 from t1 A, t1 B, t1 C;
 
 explain
-select count(length(a) + length(filler)) from t2 where a>='a-1000-a' and a <'a-1001-a';
-select count(length(a) + length(filler)) from t2 where a>='a-1000-a' and a <'a-1001-a';
+select count(length(a) + length(filler)) from t2 force index (a) where a>='a-1000-a' and a <'a-1001-a';
+select count(length(a) + length(filler)) from t2 force index (a) where a>='a-1000-a' and a <'a-1001-a';
 drop table t2;
 
 # Try a very big rowid
