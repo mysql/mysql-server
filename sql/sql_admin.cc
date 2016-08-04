@@ -441,7 +441,19 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       }
       thd->prepare_derived_at_open= FALSE;
 
-      table->next_global= save_next_global;
+      /*
+        MERGE engine may adjust table->next_global chain, thus we have to
+        append save_next_global after merge children.
+      */
+      if (save_next_global)
+      {
+        TABLE_LIST *table_list_iterator= table;
+        while (table_list_iterator->next_global)
+          table_list_iterator= table_list_iterator->next_global;
+        table_list_iterator->next_global= save_next_global;
+        save_next_global->prev_global= &table_list_iterator->next_global;
+      }
+
       table->next_local= save_next_local;
       thd->open_options&= ~extra_open_options;
 

@@ -3832,4 +3832,21 @@ test.m1	repair	error	Corrupt
 # Clean-up.
 drop tables m1, t1, t4;
 drop view t3;
+#
+# MDEV-10424 - Assertion `ticket == __null' failed in
+#              MDL_request::set_type
+#
+CREATE TABLE t1 (f1 INT) ENGINE=MyISAM;
+CREATE TABLE tmerge (f1 INT) ENGINE=MERGE UNION=(t1);
+PREPARE stmt FROM "ANALYZE TABLE tmerge, t1";
+EXECUTE stmt;
+Table	Op	Msg_type	Msg_text
+test.tmerge	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	Table is already up to date
+EXECUTE stmt;
+Table	Op	Msg_type	Msg_text
+test.tmerge	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	Table is already up to date
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1, tmerge;
 End of 5.5 tests

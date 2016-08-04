@@ -2880,6 +2880,19 @@ drop tables m1, t1, t4;
 drop view t3;
 
 
+--echo #
+--echo # MDEV-10424 - Assertion `ticket == __null' failed in
+--echo #              MDL_request::set_type
+--echo #
+CREATE TABLE t1 (f1 INT) ENGINE=MyISAM;
+CREATE TABLE tmerge (f1 INT) ENGINE=MERGE UNION=(t1);
+PREPARE stmt FROM "ANALYZE TABLE tmerge, t1";
+EXECUTE stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1, tmerge;
+
+
 --echo End of 5.5 tests
 
 --disable_result_log
