@@ -42,10 +42,10 @@ namespace ngs
       {
         m_connection_vio.reset(new Connection_vio(m_ssl_context, NULL));
 
-        m_mock_socket_operations = new Mock_socket_operations();
+        m_mock_socket_operations = new StrictMock<Mock_socket_operations>();
         m_connection_vio->set_socket_operations(m_mock_socket_operations);
 
-        m_mock_system_operations = new Mock_system_operations();
+        m_mock_system_operations = new StrictMock<Mock_system_operations>();
         m_connection_vio->set_system_operations(m_mock_system_operations);
       }
 
@@ -465,6 +465,35 @@ namespace ngs
 
       ASSERT_EQ(INVALID_SOCKET, result);
 #endif // !defined(HAVE_SYS_UN_H)
+    }
+
+    TEST_F(Connection_vio_test, try_to_unlink_empty_string)
+    {
+      const std::string expected_unix_socket_file = "";
+
+      // Does nothing
+      Connection_vio::unlink_unix_socket_file(expected_unix_socket_file);
+    }
+
+    TEST_F(Connection_vio_test, try_to_unlink_when_system_interfaces_are_not_set)
+    {
+      const std::string expected_unix_socket_file = "existing file";
+
+      m_connection_vio->set_system_operations(NULL);
+
+      // Does nothing
+      Connection_vio::unlink_unix_socket_file(expected_unix_socket_file);
+    }
+
+    TEST_F(Connection_vio_test, try_to_unlink_existing_unix_socket_file)
+    {
+      const std::string expected_unix_socket_file = "expected file";
+      const std::string expected_lockfile = "expected file.lock";
+
+      EXPECT_CALL(*m_mock_system_operations, unlink(StrEq(expected_unix_socket_file)));
+      EXPECT_CALL(*m_mock_system_operations, unlink(StrEq(expected_lockfile)));
+
+      Connection_vio::unlink_unix_socket_file(expected_unix_socket_file);
     }
   }
 }

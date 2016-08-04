@@ -353,6 +353,20 @@ void Connection_vio::close_socket(my_socket &fd)
   }
 }
 
+void Connection_vio::unlink_unix_socket_file(const std::string &unix_socket_file)
+{
+  if (unix_socket_file.empty())
+    return;
+
+  if (!m_system_operations)
+    return;
+
+  const std::string unix_socket_lockfile = get_lockfile_name(unix_socket_file);
+
+  (void) m_system_operations->unlink(unix_socket_file.c_str());
+  (void) m_system_operations->unlink(unix_socket_lockfile.c_str());
+}
+
 void Connection_vio::get_error(int& err, std::string& strerr)
 {
   err = socket_errno;
@@ -549,7 +563,7 @@ bool Connection_vio::create_lockfile(const std::string &unix_socket_file, std::s
   char buffer[8];
   const char x_prefix = 'X';
   const pid_t cur_pid= m_system_operations->getpid();
-  std::string lock_filename= unix_socket_file + ".lock";
+  std::string lock_filename= get_lockfile_name(unix_socket_file);
 
   compile_time_assert(sizeof(pid_t) == 4);
   int retries= 3;
@@ -683,6 +697,11 @@ bool Connection_vio::create_lockfile(const std::string &unix_socket_file, std::s
   }
   return true;
 #endif // defined(HAVE_SYS_UN_H)
+}
+
+std::string Connection_vio::get_lockfile_name(const std::string &unix_socket_file)
+{
+  return unix_socket_file+ ".lock";
 }
 
 Socket_operations_interface::Unique_ptr Connection_vio::m_socket_operations;
