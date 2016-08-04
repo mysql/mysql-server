@@ -12287,12 +12287,13 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
     return;
   }
 
+  /* Only the master should read a table definition from disk during SR */
   if (getNodeState().getSystemRestartInProgress() &&
-     tabPtr.p->tabStatus == TabRecord::TS_IDLE)
+      tabPtr.p->tabStatus == TabRecord::TS_IDLE &&
+      cmasterNodeId == getOwnNodeId())
   {
     jam();
     
-    ndbrequire(cmasterNodeId == getOwnNodeId());
     tabPtr.p->tabStatus = TabRecord::TS_CREATING;
     
     initTableFile(tabPtr);
