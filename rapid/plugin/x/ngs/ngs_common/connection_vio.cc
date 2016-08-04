@@ -291,14 +291,14 @@ Ssl_context::Ssl_context()
 {
 }
 
-void Ssl_context::setup(const char* tls_version,
-                        const char* ssl_key,
-                        const char* ssl_ca,
-                        const char* ssl_capath,
-                        const char* ssl_cert,
-                        const char* ssl_cipher,
-                        const char* ssl_crl,
-                        const char* ssl_crlpath)
+bool Ssl_context::setup(const char *tls_version,
+                        const char *ssl_key,
+                        const char *ssl_ca,
+                        const char *ssl_capath,
+                        const char *ssl_cert,
+                        const char *ssl_cipher,
+                        const char *ssl_crl,
+                        const char *ssl_crlpath)
 {
   enum_ssl_init_error error = SSL_INITERR_NOERROR;
 
@@ -313,10 +313,12 @@ void Ssl_context::setup(const char* tls_version,
   if (NULL == m_ssl_acceptor)
   {
     log_warning("Failed at SSL configuration: \"%s\"", sslGetErrString(error));
-    return;
+    return false;
   }
 
   m_options.reset(new Options_context_ssl(m_ssl_acceptor));
+
+  return true;
 }
 
 

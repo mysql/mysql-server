@@ -278,4 +278,10 @@ void Server::update_status_variable(xpl::Common_status_variables &status_variabl
 
 } // namespace xpl
 
+#ifdef HAVE_YASSL
+#define IS_YASSL_OR_OPENSSL(Y, O) Y
+#else // HAVE_YASSL
+#define IS_YASSL_OR_OPENSSL(Y, O) O
+#endif // HAVE_YASSL
+
 #endif  // _XPL_SERVER_H_
