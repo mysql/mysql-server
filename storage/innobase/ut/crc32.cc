@@ -120,39 +120,47 @@ ut_crc32_swap_byteorder(
 
 /* CRC32 hardware implementation. */
 
-/* Flag that tells whether the CPU supports CRC32 or not */
-bool	ut_crc32_sse2_enabled = false;
+/** Flag that tells whether the CPU supports CRC32 or not.
+The CRC32 instructions are part of the SSE4.2 instruction set. */
+bool	ut_crc32_cpu_enabled = false;
 
 #if defined(__GNUC__) && defined(__x86_64__)
-/********************************************************************//**
-Fetches CPU info */
+/** Checks whether the CPU has the CRC32 instructions (part of the SSE4.2
+instruction set).
+@return true if CRC32 is available */
 static
-void
-ut_cpuid(
-/*=====*/
-	uint32_t	vend[3],	/*!< out: CPU vendor */
-	uint32_t*	model,		/*!< out: CPU model */
-	uint32_t*	family,		/*!< out: CPU family */
-	uint32_t*	stepping,	/*!< out: CPU stepping */
-	uint32_t*	features_ecx,	/*!< out: CPU features ecx */
-	uint32_t*	features_edx)	/*!< out: CPU features edx */
+bool
+ut_crc32_check_cpu()
 {
+#ifdef UNIV_DEBUG_VALGRIND
+	/* Valgrind does not understand the CRC32 instructions:
+
+	vex amd64->IR: unhandled instruction bytes: 0xF2 0x48 0xF 0x38 0xF0 0xA
+	valgrind: Unrecognised instruction at address 0xad3db5.
+	Your program just tried to execute an instruction that Valgrind
+	did not recognise.  There are two possible reasons for this.
+	1. Your program has a bug and erroneously jumped to a non-code
+	   location.  If you are running Memcheck and you just saw a
+	   warning about a bad jump, it's probably your program's fault.
+	2. The instruction is legitimate but Valgrind doesn't handle it,
+	   i.e. it's Valgrind's fault.  If you think this is the case or
+	   you are not sure, please let us know and we'll try to fix it.
+	Either way, Valgrind will now raise a SIGILL signal which will
+	probably kill your program.
+
+	*/
+	return false;
+#else
 	uint32_t	sig;
-	asm("cpuid" : "=b" (vend[0]), "=c" (vend[2]), "=d" (vend[1]) : "a" (0));
-	asm("cpuid" : "=a" (sig), "=c" (*features_ecx), "=d" (*features_edx)
+	uint32_t	features_ecx;
+	uint32_t	features_edx;
+
+	asm("cpuid" : "=a" (sig), "=c" (features_ecx), "=d" (features_edx)
 	    : "a" (1)
 	    : "ebx");
 
-	*model = ((sig >> 4) & 0xF);
-	*family = ((sig >> 8) & 0xF);
-	*stepping = (sig & 0xF);
-
-	if (memcmp(vend, "GenuineIntel", 12) == 0
-	    || (memcmp(vend, "AuthenticAMD", 12) == 0 && *family == 0xF)) {
-
-		*model += (((sig >> 16) & 0xF) << 4);
-		*family += ((sig >> 20) & 0xFF);
-	}
+	return features_ecx & (1 << 20);  // SSE4.2
+#endif /* UNIV_DEBUG_VALGRIND */
 }
 
 /** Calculate CRC32 over 8-bit data using a hardware/CPU instruction.
@@ -273,7 +281,7 @@ ut_crc32_hw(
 {
 	uint32_t	crc = 0xFFFFFFFFU;
 
-	ut_a(ut_crc32_sse2_enabled);
+	ut_a(ut_crc32_cpu_enabled);
 
 	/* Calculate byte-by-byte up to an 8-byte aligned address. After
 	this consume the input 8-bytes at a time. */
@@ -365,7 +373,7 @@ ut_crc32_legacy_big_endian_hw(
 {
 	uint32_t	crc = 0xFFFFFFFFU;
 
-	ut_a(ut_crc32_sse2_enabled);
+	ut_a(ut_crc32_cpu_enabled);
 
 	/* Calculate byte-by-byte up to an 8-byte aligned address. After
 	this consume the input 8-bytes at a time. */
@@ -418,7 +426,7 @@ ut_crc32_byte_by_byte_hw(
 {
 	uint32_t	crc = 0xFFFFFFFFU;
 
-	ut_a(ut_crc32_sse2_enabled);
+	ut_a(ut_crc32_cpu_enabled);
 
 	while (len > 0) {
 		ut_crc32_8_hw(&crc, &buf, &len);
@@ -699,45 +707,16 @@ ut_crc32_init()
 /*===========*/
 {
 #if defined(__GNUC__) && defined(__x86_64__)
-	uint32_t	vend[3];
-	uint32_t	model;
-	uint32_t	family;
-	uint32_t	stepping;
-	uint32_t	features_ecx;
-	uint32_t	features_edx;
+	ut_crc32_cpu_enabled = ut_crc32_check_cpu();
 
-	ut_cpuid(vend, &model, &family, &stepping,
-		 &features_ecx, &features_edx);
-
-	/* Valgrind does not understand the CRC32 instructions:
-
-	vex amd64->IR: unhandled instruction bytes: 0xF2 0x48 0xF 0x38 0xF0 0xA
-	valgrind: Unrecognised instruction at address 0xad3db5.
-	Your program just tried to execute an instruction that Valgrind
-	did not recognise.  There are two possible reasons for this.
-	1. Your program has a bug and erroneously jumped to a non-code
-	   location.  If you are running Memcheck and you just saw a
-	   warning about a bad jump, it's probably your program's fault.
-	2. The instruction is legitimate but Valgrind doesn't handle it,
-	   i.e. it's Valgrind's fault.  If you think this is the case or
-	   you are not sure, please let us know and we'll try to fix it.
-	Either way, Valgrind will now raise a SIGILL signal which will
-	probably kill your program.
-
-	*/
-#ifndef UNIV_DEBUG_VALGRIND
-	ut_crc32_sse2_enabled = (features_ecx >> 20) & 1;
-#endif /* UNIV_DEBUG_VALGRIND */
-
-	if (ut_crc32_sse2_enabled) {
+	if (ut_crc32_cpu_enabled) {
 		ut_crc32 = ut_crc32_hw;
 		ut_crc32_legacy_big_endian = ut_crc32_legacy_big_endian_hw;
 		ut_crc32_byte_by_byte = ut_crc32_byte_by_byte_hw;
 	}
-
 #endif /* defined(__GNUC__) && defined(__x86_64__) */
 
-	if (!ut_crc32_sse2_enabled) {
+	if (!ut_crc32_cpu_enabled) {
 		ut_crc32_slice8_table_init();
 		ut_crc32 = ut_crc32_sw;
 		ut_crc32_legacy_big_endian = ut_crc32_legacy_big_endian_sw;
