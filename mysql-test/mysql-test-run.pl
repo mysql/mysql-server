@@ -301,6 +301,8 @@ my $opt_reorder= 1;
 my $opt_force_restart= 0;
 
 our $opt_suite_opt;
+our $opt_no_skip;
+our $excluded_string;
 
 my $opt_strace_client;
 my $opt_strace_server;
@@ -1121,6 +1123,7 @@ sub print_global_resfile {
   resfile_global("warnings", $opt_warnings ? 1 : 0);
   resfile_global("test-progress", $opt_test_progress ? 1 : 0);
   resfile_global("max-connections", $opt_max_connections);
+  resfile_global("no-skip", $opt_no_skip ? 1 : 0);
 #  resfile_global("default-myisam", $opt_default_myisam ? 1 : 0);
   resfile_global("product", "MySQL");
   resfile_global("xml-report", $opt_xml_report);
@@ -1183,6 +1186,7 @@ sub command_line_setup {
              'skip-combinations'        => \&collect_option,
              'experimental=s'           => \@opt_experimentals,
              'skip-sys-schema'          => \$opt_skip_sys_schema,
+             'no-skip'                  => \$opt_no_skip,
 	     # skip-im is deprecated and silently ignored
 	     'skip-im'                  => \&ignore_option,
 
@@ -1495,6 +1499,28 @@ sub command_line_setup {
     }
   }
 
+# ---------------------------------------
+# Read the file and store it in a string.
+# ----------------------------------------
+
+  if($opt_no_skip)
+  {
+     $excluded_string = '';
+     my $excludenoskip = 'include/excludenoskip.list';
+     my $i_excludenoskip = '../internal/mysql-test/include/i_excludenoskip.list';
+     foreach my $excludedList ($excludenoskip,$i_excludenoskip)
+     {
+       open(my $fh, '<', $excludedList)
+         or die "no-skip option cannot run without '$excludedList' $!";
+       while(<$fh>)
+       {
+         chomp $_;
+         $excluded_string .= $_."," unless ($_=~ /^\s*$/ or $_=~ /^#/);
+       }
+       close $fh;
+     }
+     chop $excluded_string;
+  }
 
   # --------------------------------------------------------------------------
   # Find out default storage engine being used(if any)
@@ -6572,7 +6598,8 @@ sub start_check_testcase ($$$) {
   mtr_add_arg($args, "--test-file=%s", "include/check-testcase.test");
   mtr_add_arg($args, "--verbose");
   mtr_add_arg($args, "--logdir=%s/tmp", $opt_vardir);
-  if (IS_WINDOWS)
+
+if (IS_WINDOWS)
   {
     mtr_add_arg($args, "--protocol=pipe");
   }
@@ -6641,6 +6668,12 @@ sub start_mysqltest ($) {
   if ( $opt_ps_protocol )
   {
     mtr_add_arg($args, "--ps-protocol");
+  }
+
+  if ( $opt_no_skip )
+  {
+    mtr_add_arg($args, "--no-skip");
+    mtr_add_arg($args,"--no-skip-exclude-list=$excluded_string");
   }
 
   if ( $opt_sp_protocol )
@@ -7545,6 +7578,11 @@ Misc options
                         phases of test execution.
   nounit-tests          Do not run unit tests. Normally run if configured
                         and if not running named tests/suites
+  no-skip               This option is used to run all MTR tests even if the
+                        condition required for running the test as specified
+                        by inc files are not satisfied. The option mandatorily
+                        requires an excluded list at include/excludenoskip.list
+                        which contains inc files which should continue to skip.
   unit-tests            Run unit tests even if they would otherwise not be run
   unit-tests-report     Include report of every test included in unit tests.
   stress=ARGS           Run stress test, providing options to

@@ -118,7 +118,7 @@ C_MODE_END
 
 enum {
   OPT_PS_PROTOCOL=OPT_MAX_CLIENT_OPTION, OPT_SP_PROTOCOL,
-  OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL, OPT_MAX_CONNECT_RETRIES,
+  OPT_NO_SKIP, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL, OPT_MAX_CONNECT_RETRIES,
   OPT_MAX_CONNECTIONS, OPT_MARK_PROGRESS, OPT_LOG_DIR,
   OPT_TAIL_LINES, OPT_RESULT_FORMAT_VERSION, OPT_TRACE_PROTOCOL,
   OPT_EXPLAIN_PROTOCOL, OPT_JSON_EXPLAIN_PROTOCOL, OPT_TRACE_EXEC
@@ -127,6 +127,7 @@ enum {
 static int record= 0, opt_sleep= -1;
 static char *opt_db= 0, *opt_pass= 0;
 const char *opt_user= 0, *opt_host= 0, *unix_sock= 0, *opt_basedir= "./";
+const char *excluded_string= 0;
 static char *shared_memory_base_name=0;
 const char *opt_logdir= "";
 const char *opt_include= 0, *opt_charsets_dir;
@@ -140,6 +141,7 @@ static my_bool tty_password= 0;
 static my_bool opt_mark_progress= 0;
 static my_bool ps_protocol= 0, ps_protocol_enabled= 0;
 static my_bool sp_protocol= 0, sp_protocol_enabled= 0;
+static my_bool no_skip=0;
 static my_bool view_protocol= 0, view_protocol_enabled= 0;
 static my_bool opt_trace_protocol= 0, opt_trace_protocol_enabled= 0;
 static my_bool explain_protocol= 0, explain_protocol_enabled= 0;
@@ -283,6 +285,20 @@ static my_regex_t explain_re;/* the query can be converted to EXPLAIN */
 static void init_re(void);
 static int match_re(my_regex_t *, char *);
 static void free_re(void);
+
+/* To retrieve a filename from a filepath */
+const char * get_filename_from_path(const char * path)
+{
+  const char *fname= NULL;
+  if (is_windows)
+    fname = strrchr(path, '\\');
+  else
+    fname = strrchr(path, '/');
+  if (fname == NULL)
+    return path;
+  else
+    return ++fname;
+}
 
 #ifndef EMBEDDED_LIBRARY
 static uint opt_protocol= 0;
@@ -7254,6 +7270,9 @@ static struct my_option my_long_options[] =
   {"sp-protocol", OPT_SP_PROTOCOL, "Use stored procedures for select.",
    &sp_protocol, &sp_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"no-skip", OPT_NO_SKIP, "Force the test to run without skip.",
+   &no_skip, &no_skip, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
   {"tail-lines", OPT_TAIL_LINES,
    "Number of lines of the result to include in a failure report.",
@@ -7261,6 +7280,8 @@ static struct my_option my_long_options[] =
    GET_INT, REQUIRED_ARG, 0, 0, 10000, 0, 0, 0},
   {"test-file", 'x', "Read test from/in this file (default stdin).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"no-skip-exclude-list", 'n', "Contains comma seperated list of to be excluded inc files.",
+   &excluded_string, &excluded_string, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"timer-file", 'm', "File where the timing in microseconds is stored.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't', "Temporary directory where sockets are put.",
@@ -9946,7 +9967,20 @@ int main(int argc, char **argv)
         abort_flag= 1;
         break;
       case Q_SKIP:
-        abort_not_supported_test("%s", command->first_argument);
+        if(!no_skip)
+          /*Skip the test-case*/
+          abort_not_supported_test("%s", command->first_argument);
+        else
+        {
+          const char *excluded_list = excluded_string;
+          const char *path = cur_file->file_name;
+          const char *fn = get_filename_from_path(path);
+          if(strstr(excluded_list,fn))
+            abort_not_supported_test("%s", command->first_argument);
+          else
+          /*Ignore the skip and continue running the test-case */
+          command->last_argument= command->end;
+        }
         break;
 
       case Q_RESULT:

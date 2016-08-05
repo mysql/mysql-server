@@ -1,0 +1,151 @@
+###############################################################################
+#                                                                             #
+# WL#9073 - Excluded list for MTR no-skip option                              #
+#         - Below listed inc files will continue to skip with --no-skip option#
+#                                                                             #
+# Creation Date: 2016-July-26                                                 #
+# Author : Mohit Joshi							      #
+#									      #
+#									      #
+###############################################################################
+
+# 1.0 OS dependent files
+# Below files are OS specific and tests will run only on selective platform
+# where conditions are met and skip on others.
+have_32bit.inc
+have_64bit.inc
+have_case_insensitive_file_system.inc
+have_case_sensitive_file_system.inc
+have_crypt.inc
+have_lowercase0.inc
+have_lowercase1.inc
+have_lowercase2.inc
+linux.inc
+windows.inc
+not_windows.inc
+have_open_file_limit_more_than_5000.inc
+have_partition_open_file_limit.inc
+table_compress_2.test
+table_compress_3.test
+have_posix_locale.inc
+# Checks if mysqld_safe is installed in the path specified by MTR. mysqld_safe is obsolete on platforms that use systemd to monitor mysqld.
+have_mysqld_safe.inc
+# Native partitioning is supported by Innodb but not supported by MyISAM.
+support_native_partitioning.inc
+
+# 2.0 Binlog formats
+# Below files are included because rpl suite runs each test with 3 different
+# binlog format combinations. The test may not be meant to run on all binlog
+# formats and will skip
+have_binlog_format_mixed_or_row.inc
+have_binlog_format_mixed_or_statement.inc
+have_binlog_format_mixed.inc
+have_binlog_format_row_or_statement.inc
+have_binlog_format_row.inc
+have_binlog_format_statement.inc
+
+# 3.0 Compile options
+# Below files are included because few tests are meant to be tested with
+# specific compile options which is not available in all builds.
+have_debug_sync.inc
+have_debug.inc
+have_nodebug.inc
+mysql_have_debug.inc
+
+# 4.0 Miscellaneous
+
+# 4.1 Reason for inclusion: If not included, this will cause the same tests
+# to run again when --log-bin option will be used to run the suites. This
+# will cause duplicate test runs leading to increased test execution time.
+not_log_bin.inc
+
+# 4.2 Reason for inclusion: Tests should run only with supported tablespace
+# value and skip on others. However, this can be handled using a custom
+# bootstrap file, and below files can be removed from the excluded list once
+# the same is implemented.
+have_undo_tablespaces.inc
+have_no_undo_tablespaces.inc
+
+# 4.3 Tests are run only on Dev builds compiled with -DWITH_DEBUG=1 option
+# Additional references for more details:  https://dev.mysql.com/doc/internals/en/cmake-build-types.html
+mysqlbinlog_have_debug.inc
+have_innochecksum_debug.inc
+have_udf.inc
+have_mecab.inc
+fix_priv_tables.test
+
+# 4.4
+# Test with yassl is supported only on community build.
+# Test will openssl is supported only on commercial build.
+have_yassl.inc
+have_openssl.inc
+have_openssl_binary.inc
+have_ssl_communication.inc
+have_ssl_crypto_functs.inc
+
+# 4.5 Reason for inclusion: Tests should run only with supported innodb page
+# sizes and skip on others. However, this can be handled using a custom
+# bootstrap fle and below files can be removed from the excluded list once
+# the same is implemented.
+have_innodb_16k.inc
+have_innodb_32k.inc
+have_innodb_4k.inc
+have_innodb_64k.inc
+have_innodb_8k.inc
+have_innodb_max_16k.inc
+have_innodb_min_8k.inc
+
+# 4.6 IP versions
+have_ipv4_mapped.inc
+
+# 4.7 System variable which checks whether server has statement_timeout feature or
+# not.The value can be NO if the background thread used by this feature could
+# not be initialized during server start
+# More details can be found at:
+# http://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_have_statement_timeout
+have_statement_timeout.inc
+
+# 5.0 Different protocols
+# Reason for inclusion: Tests should run only with supported protocols and
+# skip on others.
+have_ps_protocol.inc
+have_no_protocol.inc
+no_view_protocol.inc
+no_ps_protocol.inc
+no_sp_protocol.inc
+no_opt_trace_protocol.inc
+no_explain_protocol.inc
+no_cursor_protocol.inc
+
+# 6.0 Different builds
+have_embedded.inc
+not_embedded.inc
+have_valgrind.inc
+
+# 7.0 Few skipped test-cases
+mysql_embedded.test
+
+# Bug #24357947 MOVE TESTS THAT NEED GR PLUGIN TO GROUP REPLICATION TREE
+# Skip tests until the Bug is fixed.
+have_group_replication_plugin.inc
+
+# Skip tests that need storage engines compiled as plugins.
+have_federated_plugin.inc
+have_archive_plugin.inc
+have_blackhole_plugin.inc
+
+# Until Bug#24365372 is fixed and pushed on trunk, including the below inc file in the excluded list.
+only_mts_slave_parallel_workers.inc
+not_mts_slave_parallel_workers.inc
+
+# Bug#24390614 MAIN.DYNAMIC_TRACING NEVER RUNS. To be retained until the Bug is fixed.
+dynamic_tracing.test
+
+# To be retained until Bug#24382105 - PARTS.PARTITION_VALUE_INNODB NEVER RUNS
+# is fixed.
+partition_value_innodb.test
+
+# Not running currently on Solaris and Windows as the binary must be built with NUMA support.
+sys_vars.innodb_numa_interleave_basic
+# Bug#24397674 INNODB.DOUBLEWRITE SOMETIMES SKIPS IN PB2 RUNS
+doublewrite.test
