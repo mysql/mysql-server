@@ -8505,6 +8505,13 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
 
         /* Free normal result set with meta data */
         mysql_free_result(res);
+
+        /*
+          Clear prepare warnings if there are execute warnings,
+          since they are probably duplicated.
+        */
+        if (ds_execute_warnings.length || mysql->warning_count)
+          dynstr_set(&ds_prepare_warnings, NULL);
       }
       else
       {
@@ -8539,14 +8546,6 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
             ds_prepare_warnings.length ||
             ds_warnings->length)
         {
-          /*
-            Clear prepare warnings if there are execute warnings,
-            since they are probably duplicated.
-          */
-          if (ds_execute_warnings.length &&
-              strstr(ds_execute_warnings.str, ds_prepare_warnings.str))
-            dynstr_set(&ds_prepare_warnings, NULL);
-
           dynstr_append_mem(ds, "Warnings:\n", 10);
           if (ds_warnings->length)
             dynstr_append_mem(ds, ds_warnings->str,
