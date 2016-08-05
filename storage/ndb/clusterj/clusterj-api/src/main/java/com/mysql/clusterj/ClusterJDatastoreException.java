@@ -1,6 +1,6 @@
 /*
-   Copyright 2010 Sun Microsystems, Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,18 +26,36 @@ public class ClusterJDatastoreException extends ClusterJException {
 
     private static final long serialVersionUID = 2208896230646592560L;
 
-    @SuppressWarnings("unused")
     private int code = 0;
-    @SuppressWarnings("unused")
+
+    /** Get the code
+     @since 7.3.15, 7.4.13, 7.5.4
+    */
+    public int getCode() {
+        return code;
+    }
+
     private int mysqlCode = 0;
+
+    /** Get the mysql code
+     @since 7.3.15, 7.4.13, 7.5.4
+     */
+    public int getMysqlCode() {
+        return mysqlCode;
+    }
+
     private int status = 0;
 
+    /** Get the status
+     */
     public int getStatus() {
         return status;
     }
 
     private int classification = 0;
 
+    /** Get the classification
+     */
     public int getClassification() {
         return classification;
     }
