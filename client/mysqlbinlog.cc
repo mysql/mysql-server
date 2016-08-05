@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1444,6 +1444,12 @@ static int parse_args(int *argc, char*** argv)
 */
 static Exit_status safe_connect()
 {
+  /*
+    A possible old connection's resources are reclaimed now
+    at new connect attempt. The final safe_connect resources
+    are mysql_closed at the end of program, explicitly.
+  */
+  mysql_close(mysql);
   mysql= mysql_init(NULL);
 
   if (!mysql)
