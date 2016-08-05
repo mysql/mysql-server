@@ -41,7 +41,8 @@ public:
 
   Server_acceptors(Listener_factory_interface &listener_factory,
                    const unsigned short tcp_port,
-                   const std::string &unix_socket_file_or_named_pipe);
+                   const std::string &unix_socket_file_or_named_pipe,
+                   const uint32 backlog);
 
   bool prepare(On_connection on_connection, const bool skip_networking, const bool use_unix_sockets_or_named_pipes);
   void abort();

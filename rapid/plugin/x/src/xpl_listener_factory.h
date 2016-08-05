@@ -29,8 +29,8 @@ namespace xpl
 class Listener_factory: public ngs::Listener_factory_interface
 {
 public:
-  ngs::Listener_interface_ptr create_unix_socket_listener(const std::string &unix_socket_path, ngs::Time_and_socket_events &event);
-  ngs::Listener_interface_ptr create_tcp_socket_listener(const unsigned short port, ngs::Time_and_socket_events &event);
+  ngs::Listener_interface_ptr create_unix_socket_listener(const std::string &unix_socket_path, ngs::Time_and_socket_events &event, const uint32 backlog);
+  ngs::Listener_interface_ptr create_tcp_socket_listener(const unsigned short port, ngs::Time_and_socket_events &event, const uint32 backlog);
 };
 
 } // namespace xpl

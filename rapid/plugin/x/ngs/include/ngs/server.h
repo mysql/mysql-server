@@ -147,6 +147,7 @@ private:
 
   bool m_timer_running;
   bool m_skip_name_resolve;
+  uint32 m_errors_while_accepting;
 
   boost::shared_ptr<Server_acceptors> m_acceptors;
   boost::shared_ptr<Scheduler_dynamic> m_accept_scheduler;

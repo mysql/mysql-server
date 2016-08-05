@@ -33,11 +33,10 @@ typedef Memory_new<Listener_interface>::Unique_ptr Listener_interface_ptr;
 class Listener_factory_interface
 {
 public:
-
   virtual ~Listener_factory_interface() {}
 
-  virtual Listener_interface_ptr create_unix_socket_listener(const std::string &unix_socket_path, Time_and_socket_events &event) = 0;
-  virtual Listener_interface_ptr create_tcp_socket_listener(const unsigned short port, Time_and_socket_events &event) = 0;
+  virtual Listener_interface_ptr create_unix_socket_listener(const std::string &unix_socket_path, Time_and_socket_events &event, const uint32 backlog) = 0;
+  virtual Listener_interface_ptr create_tcp_socket_listener(const unsigned short port, Time_and_socket_events &event, const uint32 backlog) = 0;
 };
 
 } // namespace ngs

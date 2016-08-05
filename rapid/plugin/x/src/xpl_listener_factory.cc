@@ -31,12 +31,12 @@ namespace details
 class Tcp_listener: public ngs::Listener_interface
 {
 public:
-  Tcp_listener(const unsigned short port, ngs::Time_and_socket_events &event)
+  Tcp_listener(const unsigned short port, ngs::Time_and_socket_events &event, const uint32 backlog)
   : m_state(ngs::State_listener_initializing),
     m_port(port),
     m_event(event)
   {
-    m_tcp_socket = ngs::Connection_vio::create_and_bind_socket(port, m_last_error);
+    m_tcp_socket = ngs::Connection_vio::create_and_bind_socket(port, m_last_error, backlog);
   }
 
   ~Tcp_listener()
@@ -119,15 +119,16 @@ private:
 class Unix_socket_listener: public ngs::Listener_interface
 {
 public:
-  Unix_socket_listener(const std::string &unix_socket_path, ngs::Time_and_socket_events &event)
+  Unix_socket_listener(const std::string &unix_socket_path, ngs::Time_and_socket_events &event, const uint32 backlog)
   : m_state(ngs::State_listener_initializing),
     m_unix_socket_path(unix_socket_path),
+    m_unix_socket(INVALID_SOCKET),
     m_event(event)
   {
 #if !defined(HAVE_SYS_UN_H)
     m_state.set(ngs::State_listener_stopped);
 #else
-    m_unix_socket = ngs::Connection_vio::create_and_bind_socket(unix_socket_path, m_last_error);
+    m_unix_socket = ngs::Connection_vio::create_and_bind_socket(unix_socket_path, m_last_error, backlog);
 #endif // !defined(HAVE_SYS_UN_H)
   }
 
@@ -209,14 +210,14 @@ private:
 } // namespace details
 
 
-ngs::Listener_interface_ptr Listener_factory::create_unix_socket_listener(const std::string &unix_socket_path, ngs::Time_and_socket_events &event)
+ngs::Listener_interface_ptr Listener_factory::create_unix_socket_listener(const std::string &unix_socket_path, ngs::Time_and_socket_events &event, const uint32 backlog)
 {
   return ngs::Listener_interface_ptr(
-      new details::Unix_socket_listener(unix_socket_path, event));
+      new details::Unix_socket_listener(unix_socket_path, event, backlog));
 }
 
-ngs::Listener_interface_ptr Listener_factory::create_tcp_socket_listener(const unsigned short port, ngs::Time_and_socket_events &event)
+ngs::Listener_interface_ptr Listener_factory::create_tcp_socket_listener(const unsigned short port, ngs::Time_and_socket_events &event, const uint32 backlog)
 {
   return ngs::Listener_interface_ptr(
-      new details::Tcp_listener(port, event));
+      new details::Tcp_listener(port, event, backlog));
 }
