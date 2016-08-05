@@ -254,6 +254,7 @@ SET(SQL_SOURCE
   ${GEN_DIGEST_SOURCES}
   ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
+  ../extra/lz4/xxhash.c
   ../libmysql/errmsg.c
   ../sql-common/client.c
   ../sql-common/client_plugin.c
@@ -312,6 +313,11 @@ ADD_COMPILE_FLAGS(
   item_json_func.cc
   spatial.cc
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+)
+
+ADD_COMPILE_FLAGS(
+  ../extra/lz4/xxhash.c
+  COMPILE_FLAGS -DXXH_NAMESPACE=MY_
 )
 
 # Fixes "C1128: number of sections exceeded object file format limit" in MSVC /MD

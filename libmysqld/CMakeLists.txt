@@ -62,6 +62,7 @@ SET(SQL_EMBEDDED_SOURCES
   libmysqld.c
   ${GEN_SOURCES}
   ${GEN_YACC_SOURCES}
+  ../extra/lz4/xxhash.c
   ../client/get_password.c
   ../libmysql/errmsg.c
   ../libmysql/libmysql.c
@@ -116,6 +117,11 @@ ADD_COMPILE_FLAGS(
   ../sql/item_json_func.cc
   ../sql/spatial.cc
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+)
+
+ADD_COMPILE_FLAGS(
+  ../extra/lz4/xxhash.c
+  COMPILE_FLAGS -DXXH_NAMESPACE=MY_
 )
 
 # Fixes "C1128: number of sections exceeded object file format limit" in MSVC /MD
