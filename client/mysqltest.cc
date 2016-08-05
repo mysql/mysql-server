@@ -416,7 +416,7 @@ enum enum_commands {
   Q_REPLACE_REGEX, Q_REMOVE_FILE, Q_FILE_EXIST,
   Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT, Q_SKIP,
   Q_CHMOD_FILE, Q_APPEND_FILE, Q_CAT_FILE, Q_DIFF_FILES,
-  Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR,
+  Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR, Q_FORCE_RMDIR,
   Q_LIST_FILES, Q_LIST_FILES_WRITE_FILE, Q_LIST_FILES_APPEND_FILE,
   Q_SEND_SHUTDOWN, Q_SHUTDOWN_SERVER,
   Q_RESULT_FORMAT_VERSION,
@@ -517,6 +517,7 @@ const char *command_names[]=
   "change_user",
   "mkdir",
   "rmdir",
+  "force-rmdir",
   "list_files",
   "list_files_write_file",
   "list_files_append_file",
@@ -4005,17 +4006,78 @@ static void do_mkdir(struct st_command *command)
   DBUG_VOID_RETURN;
 }
 
+
+/*
+  SYNOPSIS
+  do_force_rmdir
+  command    - command handle
+  ds_dirname - pointer to dynamic string containing directory informtion
+
+  DESCRIPTION
+  force-rmdir <dir_name>
+  Remove the directory <dir_name>
+*/
+
+void do_force_rmdir(struct st_command *command, DYNAMIC_STRING *ds_dirname)
+{
+  DBUG_ENTER("do_force_rmdir");
+
+  char dir_name[FN_REFLEN];
+  strncpy(dir_name, ds_dirname->str, sizeof(dir_name));
+
+  /* Note that my_dir sorts the list if not given any flags */
+  MY_DIR *dir_info= my_dir(ds_dirname->str, MYF(MY_DONT_SORT | MY_WANT_STAT));
+
+  if (dir_info && dir_info->number_off_files > 2)
+  {
+    /* Storing the length of the path to the file, so it can be reused */
+    size_t length= ds_dirname->length;
+
+    /* Delete the directory recursively */
+    for (uint i= 0; i < dir_info->number_off_files; i++)
+    {
+      FILEINFO *file= dir_info->dir_entry + i;
+
+      /* Skip the names "." and ".." */
+      if (!strcmp(file->name, ".") ||
+          !strcmp(file->name, ".."))
+        continue;
+
+      ds_dirname->length= length;
+      char dir_separator[2]= {FN_LIBCHAR, 0};
+      dynstr_append(ds_dirname, dir_separator);
+      dynstr_append(ds_dirname, file->name);
+
+      if (MY_S_ISDIR(file->mystat->st_mode))
+        /* It's a directory */
+        do_force_rmdir(command, ds_dirname);
+      else
+        /* It's a file */
+        my_delete(ds_dirname->str, MYF(0));
+    }
+  }
+
+  int error= rmdir(dir_name) != 0;
+  set_my_errno(errno);
+  handle_command_error(command, error);
+
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   SYNOPSIS
   do_rmdir
   command	called command
+  force         Recursively delete a directory if the value is set to true,
+                otherwise delete an empty direcory
 
   DESCRIPTION
   rmdir <dir_name>
   Remove the empty directory <dir_name>
 */
 
-static void do_rmdir(struct st_command *command)
+static void do_rmdir(struct st_command *command, my_bool force)
 {
   int error;
   static DYNAMIC_STRING ds_dirname;
@@ -4029,8 +4091,14 @@ static void do_rmdir(struct st_command *command)
                      ' ');
 
   DBUG_PRINT("info", ("removing directory: %s", ds_dirname.str));
-  error= rmdir(ds_dirname.str) != 0;
-  handle_command_error(command, error);
+  if (force)
+    do_force_rmdir(command, &ds_dirname);
+  else
+  {
+    error= rmdir(ds_dirname.str) != 0;
+    set_my_errno(errno);
+    handle_command_error(command, error);
+  }
   dynstr_free(&ds_dirname);
   DBUG_VOID_RETURN;
 }
@@ -9704,7 +9772,8 @@ int main(int argc, char **argv)
       case Q_REMOVE_FILES_WILDCARD: do_remove_files_wildcard(command); break;
       case Q_COPY_FILES_WILDCARD: do_copy_files_wildcard(command); break;
       case Q_MKDIR: do_mkdir(command); break;
-      case Q_RMDIR: do_rmdir(command); break;
+      case Q_RMDIR: do_rmdir(command, 0); break;
+      case Q_FORCE_RMDIR: do_rmdir(command, 1); break;
       case Q_LIST_FILES: do_list_files(command); break;
       case Q_LIST_FILES_WRITE_FILE:
         do_list_files_write_file_command(command, FALSE);

@@ -1269,3 +1269,6 @@ numbers.txt
 wl5766_data.txt
 words.dat
 words2.dat
+#
+# Bug#24316799: --RMDIR DOES NOT DELETE DIRECTORY RECURSIVELY
+#

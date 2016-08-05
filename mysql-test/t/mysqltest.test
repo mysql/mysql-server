@@ -3298,3 +3298,24 @@ connection default;
 --copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/copy1/ *
 
 --rmdir $MYSQLTEST_VARDIR/copy2/
+
+--echo #
+--echo # Bug#24316799: --RMDIR DOES NOT DELETE DIRECTORY RECURSIVELY
+--echo #
+
+# Delete an empty directory, should succeed
+--mkdir $MYSQLTEST_VARDIR/bug24316799
+--force-rmdir $MYSQLTEST_VARDIR/bug24316799
+
+# Delete a directory recursively, should succeed
+--mkdir $MYSQLTEST_VARDIR/bug24316799
+--copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/bug24316799 loaddata*
+
+--mkdir $MYSQLTEST_VARDIR/bug24316799/bug24316799_subdir
+--copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/bug24316799/bug24316799_subdir bug*
+
+--force-rmdir $MYSQLTEST_VARDIR/bug24316799
+
+# Directory doesn't exist, should fail
+--error 1
+--force-rmdir $MYSQLTEST_VARDIR/bug24316799
