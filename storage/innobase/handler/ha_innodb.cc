@@ -54,6 +54,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_thd_internal_api.h>
 #include <my_check_opt.h>
 #include <my_bitmap.h>
+#include <mysql_com.h>
 #include <mysql/service_thd_alloc.h>
 #include <mysql/service_thd_wait.h>
 #include <dd/types/tablespace.h>
@@ -11539,12 +11540,20 @@ innobase_dict_init(
 	DBUG_ASSERT(tables && tables->is_empty());
 	DBUG_ASSERT(tablespaces && tablespaces->is_empty());
 
+	/** Maximum length of a table name from InnoDB point of view, including
+	partitions and subpartitions, in number of characters.
+	The naming is: "table_name#P#partition_name#SP#subpartition_name",
+	where each of the names can be up to NAME_CHAR_LEN (64) characters.
+	So the maximum is 64 + strlen(#P#) + 64 + strlen(#SP#) + 64 = 199. */
+#define NAME_CHAR_LEN_PARTITIONS_STR	"199"
+
 	static Plugin_table innodb_table_stats(
 		/* Name */
 		"innodb_table_stats",
 		/* Definition */
 		"  database_name VARCHAR(64) NOT NULL, \n"
-		"  table_name VARCHAR(64) NOT NULL, \n"
+		"  table_name VARCHAR(" NAME_CHAR_LEN_PARTITIONS_STR
+		") NOT NULL, \n"
 		"  last_update TIMESTAMP NOT NULL \n"
 		"  DEFAULT CURRENT_TIMESTAMP \n"
 		"  ON UPDATE CURRENT_TIMESTAMP, \n"
@@ -11562,7 +11571,8 @@ innobase_dict_init(
 		"innodb_index_stats",
 		/* Definition */
 		"  database_name VARCHAR(64) NOT NULL, \n"
-		"  table_name VARCHAR(64) NOT NULL, \n"
+		"  table_name VARCHAR(" NAME_CHAR_LEN_PARTITIONS_STR
+		") NOT NULL, \n"
 		"  index_name VARCHAR(64) NOT NULL, \n"
 		"  last_update TIMESTAMP NOT NULL NOT NULL \n"
 		"  DEFAULT CURRENT_TIMESTAMP \n"
