@@ -120,10 +120,10 @@ private:
 Server_acceptors::Server_acceptors(
     Listener_factory_interface &listener_factory,
     const unsigned short tcp_port,
-    const std::string &unix_socket_file_or_named_pipe)
-: m_tcp_socket(listener_factory.create_tcp_socket_listener(tcp_port, m_event)),
+    const std::string &unix_socket_file_or_named_pipe, const uint32 backlog)
+: m_tcp_socket(listener_factory.create_tcp_socket_listener(tcp_port, m_event, backlog)),
 #if defined(HAVE_SYS_UN_H)
-  m_unix_socket(listener_factory.create_unix_socket_listener(unix_socket_file_or_named_pipe, m_event)),
+  m_unix_socket(listener_factory.create_unix_socket_listener(unix_socket_file_or_named_pipe, m_event, backlog)),
 #endif
   m_time_and_event_state(State_listener_initializing),
   m_time_and_event_task(new Server_task_time_and_event(m_event, m_time_and_event_state))
