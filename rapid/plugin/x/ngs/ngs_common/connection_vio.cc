@@ -411,7 +411,7 @@ my_socket Connection_vio::accept(my_socket sock, struct sockaddr* addr, socklen_
   return res;
 }
 
-my_socket Connection_vio::create_and_bind_socket(const unsigned short port, std::string &error_message)
+my_socket Connection_vio::create_and_bind_socket(const unsigned short port, std::string &error_message, const uint32 backlog)
 {
   int err;
   std::string errstr;
@@ -450,7 +450,7 @@ my_socket Connection_vio::create_and_bind_socket(const unsigned short port, std:
     return INVALID_SOCKET;
   }
 
-  if (m_socket_operations->listen(result, 9999) < 0)
+  if (m_socket_operations->listen(result, backlog) < 0)
   {
     // lets decide later if its an error or not
     get_error(err, errstr);
@@ -467,7 +467,7 @@ my_socket Connection_vio::create_and_bind_socket(const unsigned short port, std:
   return result;
 }
 
-my_socket Connection_vio::create_and_bind_socket(const std::string &unix_socket_file, std::string &error_message)
+my_socket Connection_vio::create_and_bind_socket(const std::string &unix_socket_file, std::string &error_message, const uint32 backlog)
 {
 #if defined(HAVE_SYS_UN_H)
   struct sockaddr_un addr;
@@ -535,7 +535,7 @@ my_socket Connection_vio::create_and_bind_socket(const std::string &unix_socket_
   umask(old_mask);
 
   // listen
-  if (m_socket_operations->listen(listener_socket, 9999) < 0)
+  if (m_socket_operations->listen(listener_socket, backlog) < 0)
   {
     get_error(err, errstr);
 
@@ -563,7 +563,7 @@ bool Connection_vio::create_lockfile(const std::string &unix_socket_file, std::s
   char buffer[8];
   const char x_prefix = 'X';
   const pid_t cur_pid= m_system_operations->getpid();
-  std::string lock_filename= get_lockfile_name(unix_socket_file);
+  const std::string lock_filename= get_lockfile_name(unix_socket_file);
 
   compile_time_assert(sizeof(pid_t) == 4);
   int retries= 3;

@@ -271,6 +271,10 @@ int xpl::Server::main(MYSQL_PLUGIN p)
 {
   xpl::plugin_handle = p;
 
+  uint32 listen_backlog = 50 + Plugin_system_variables::max_connections / 5;
+  if (listen_backlog > 900)
+    listen_backlog= 900;
+
   try
   {
     Global_status_variables::instance().reset();
@@ -284,7 +288,7 @@ int xpl::Server::main(MYSQL_PLUGIN p)
 
     Listener_factory listener_factory;
     boost::shared_ptr<ngs::Server_acceptors> acceptors(
-        new ngs::Server_acceptors(listener_factory, Plugin_system_variables::port, Plugin_system_variables::socket));
+        new ngs::Server_acceptors(listener_factory, Plugin_system_variables::port, Plugin_system_variables::socket, listen_backlog));
 
     instance_rwl.wlock();
 
