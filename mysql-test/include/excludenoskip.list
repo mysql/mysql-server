@@ -146,10 +146,10 @@ dynamic_tracing.test
 partition_value_innodb.test
 
 # Not running currently on Solaris and Windows as the binary must be built with NUMA support.
-innodb_numa_interleave_basic.test
+have_numa.inc
 
 # Bug#24397674 INNODB.DOUBLEWRITE SOMETIMES SKIPS IN PB2 RUNS
-no_checkpoint_end.inc
+check.txt
 
 # GNU grep not supported on Solaris and Windows
 have_grep.inc
