@@ -351,8 +351,8 @@ int Trans_delegate::before_commit(THD *thd, bool all,
 /**
  Helper method to check if the given table has 'CASCADE' foreign key or not.
 
- @param[in]   TABLE     Table object that needs to be verified.
- @param[in]   THD       Current execution thread.
+ @param[in]   table     Table object that needs to be verified.
+ @param[in]   thd       Current execution thread.
 
  @return bool TRUE      If the table has 'CASCADE' foreign key.
               FALSE     If the table does not have 'CASCADE' foreign key.
