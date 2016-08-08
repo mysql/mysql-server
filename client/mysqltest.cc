@@ -4057,6 +4057,7 @@ void do_force_rmdir(struct st_command *command, DYNAMIC_STRING *ds_dirname)
     }
   }
 
+  my_dirend(dir_info);
   int error= rmdir(dir_name) != 0;
   set_my_errno(errno);
   handle_command_error(command, error);
