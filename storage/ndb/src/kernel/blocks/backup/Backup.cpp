@@ -3103,6 +3103,8 @@ Backup::createTrigReply(Signal* signal, BackupRecordPtr ptr)
     ref->backupId = ptr.p->backupId;
     ref->errorCode = ptr.p->errorCode;
     ref->nodeId = getOwnNodeId();
+    ndbout_c("Backup::createTrigReply : CREATE_TRIG_IMPL error %d, backup id %u node %d",
+             ref->errorCode, ref->backupId, ref->nodeId);
     sendSignal(ptr.p->masterRef, GSN_START_BACKUP_REF, signal,
                StartBackupRef::SignalLength, JBB);
     return;
