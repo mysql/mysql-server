@@ -310,15 +310,36 @@ CHECK TABLE bug47205 FOR UPGRADE;
 
 DROP TABLE bug47205;
 
+
 --echo #
 --echo #MDEV-6128:[PATCH] mysqlcheck wrongly escapes '.' in table names
 --echo #
-CREATE TABLE test.`t.1` (id int);
+create table `t.1` (id int);
+create view `v.1` as select 1;
 
 --echo mysqlcheck test t.1
 --exec $MYSQL_CHECK test t.1
+--echo mysqlcheck --all-in-1 test t.1
+--exec $MYSQL_CHECK --all-in-1 test t.1
+--echo mysqlcheck --all-in-1 --databases --process-views test
+--exec $MYSQL_CHECK --all-in-1 --databases --process-views test
 
-drop table test.`t.1`;
+create table `t.2`(a varchar(20) primary key) default character set utf8 collate utf8_general_ci engine=innodb;
+flush table `t.2`;
+--remove_file $MYSQLD_DATADIR/test/t@002e2.frm
+--copy_file std_data/bug47205.frm $MYSQLD_DATADIR/test/t@002e2.frm
+
+--copy_file std_data/bug36055.frm $MYSQLD_DATADIR/test/t@002e3.frm
+--copy_file std_data/bug36055.MYD $MYSQLD_DATADIR/test/t@002e3.MYD
+--copy_file std_data/bug36055.MYI $MYSQLD_DATADIR/test/t@002e3.MYI
+
+--echo mysqlcheck --check-upgrade --auto-repair test
+--exec $MYSQL_CHECK --check-upgrade --auto-repair test
+
+check table `t.1`, `t.2`, `t.3`;
+check table `t.1`, `t.2`, `t.3` for upgrade;
+drop view `v.1`;
+drop table test.`t.1`, `t.2`, `t.3`;
 
 #
 # MDEV-8123 mysqlcheck: new --process-views option conflicts with --quick, --extended and such
@@ -355,3 +376,25 @@ create table `#mysql50#t1``1` (a int) engine=myisam;
 --exec $MYSQL_CHECK --fix-table-names --databases test
 show tables;
 drop table `t1``1`;
+
+#
+#     MDEV-9440 mysqlcheck -A --auto-repair selects wrong database when trying to repair broken table
+#
+call mtr.add_suppression("ha_myisam");
+call mtr.add_suppression("Checking table");
+create database mysqltest1;
+create table mysqltest1.t1 (a int) engine=myisam;
+create table t2 (a int);
+
+let $datadir= `select @@datadir`;
+remove_file $datadir/mysqltest1/t1.MYD;
+write_file $datadir/mysqltest1/t1.MYD;
+foo
+EOF
+
+check table mysqltest1.t1;
+
+--exec $MYSQL_CHECK -A --auto-repair --fast
+
+drop table t2;
+drop database mysqltest1;

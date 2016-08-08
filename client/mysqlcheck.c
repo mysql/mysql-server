@@ -232,7 +232,7 @@ static int process_selected_tables(char *db, char **table_names, int tables);
 static int process_all_tables_in_db(char *database);
 static int process_one_db(char *database);
 static int use_db(char *database);
-static int handle_request_for_tables(char *tables, size_t length, my_bool view);
+static int handle_request_for_tables(char *, size_t, my_bool, my_bool);
 static int dbConnect(char *host, char *user,char *passwd);
 static void dbDisconnect(char *host);
 static void DBerror(MYSQL *mysql, const char *when);
@@ -566,7 +566,7 @@ static int process_selected_tables(char *db, char **table_names, int tables)
     }
     *--end = 0;
     handle_request_for_tables(table_names_comma_sep + 1, tot_length - 1,
-                              opt_do_views != 0);
+                              opt_do_views != 0, opt_all_in_1);
     my_free(table_names_comma_sep);
   }
   else
@@ -577,7 +577,7 @@ static int process_selected_tables(char *db, char **table_names, int tables)
       view= is_view(table);
       if (view < 0)
         continue;
-      handle_request_for_tables(table, table_len, (view == 1));
+      handle_request_for_tables(table, table_len, view == 1, opt_all_in_1);
     }
   DBUG_RETURN(0);
 } /* process_selected_tables */
@@ -605,13 +605,9 @@ static char *fix_table_name(char *dest, char *src)
   *dest++= '`';
   for (; *src; src++)
   {
-    switch (*src) {
-    case '`':            /* escape backtick character */
+    if (*src == '`')
       *dest++= '`';
-      /* fall through */
-    default:
-      *dest++= *src;
-    }
+    *dest++= *src;
   }
   *dest++= '`';
 
@@ -700,9 +696,9 @@ static int process_all_tables_in_db(char *database)
     *--end = 0;
     *--views_end = 0;
     if (tot_length)
-      handle_request_for_tables(tables + 1, tot_length - 1, FALSE);
+      handle_request_for_tables(tables + 1, tot_length - 1, FALSE, opt_all_in_1);
     if (tot_views_length)
-      handle_request_for_tables(views + 1, tot_views_length - 1, TRUE);
+      handle_request_for_tables(views + 1, tot_views_length - 1, TRUE, opt_all_in_1);
     my_free(tables);
     my_free(views);
   }
@@ -728,7 +724,7 @@ static int process_all_tables_in_db(char *database)
            !strcmp(row[0], "slow_log")))
         continue;                               /* Skip logging tables */
 
-      handle_request_for_tables(row[0], fixed_name_length(row[0]), view);
+      handle_request_for_tables(row[0], fixed_name_length(row[0]), view, opt_all_in_1);
     }
   }
   mysql_free_result(res);
@@ -787,13 +783,11 @@ static int rebuild_table(char *name)
   int rc= 0;
   DBUG_ENTER("rebuild_table");
 
-  query= (char*)my_malloc(sizeof(char) * (12 + fixed_name_length(name) + 6 + 1),
+  query= (char*)my_malloc(sizeof(char) * (12 + strlen(name) + 6 + 1),
                           MYF(MY_WME));
   if (!query)
     DBUG_RETURN(1);
-  ptr= strmov(query, "ALTER TABLE ");
-  ptr= fix_table_name(ptr, name);
-  ptr= strxmov(ptr, " FORCE", NullS);
+  ptr= strxmov(query, "ALTER TABLE ", name, " FORCE", NullS);
   if (mysql_real_query(sock, query, (ulong)(ptr - query)))
   {
     fprintf(stderr, "Failed to %s\n", query);
@@ -849,7 +843,8 @@ static int disable_binlog()
   return run_query(stmt);
 }
 
-static int handle_request_for_tables(char *tables, size_t length, my_bool view)
+static int handle_request_for_tables(char *tables, size_t length,
+                                     my_bool view, my_bool dont_quote)
 {
   char *query, *end, options[100], message[100];
   char table_name_buff[NAME_CHAR_LEN*2*2+1], *table_name;
@@ -907,7 +902,7 @@ static int handle_request_for_tables(char *tables, size_t length, my_bool view)
 
   if (!(query =(char *) my_malloc(query_size, MYF(MY_WME))))
     DBUG_RETURN(1);
-  if (opt_all_in_1)
+  if (dont_quote)
   {
     DBUG_ASSERT(strlen(op)+strlen(tables)+strlen(options)+8+1 <= query_size);
 
@@ -950,6 +945,13 @@ static int handle_request_for_tables(char *tables, size_t length, my_bool view)
   DBUG_RETURN(0);
 }
 
+static void insert_table_name(DYNAMIC_ARRAY *arr, char *in, size_t dblen)
+{
+  char buf[NAME_LEN*2+2];
+  in[dblen]= 0;
+  my_snprintf(buf, sizeof(buf), "%`s.%`s", in, in + dblen + 1);
+  insert_dynamic(arr, (uchar*) buf);
+}
 
 static void print_result()
 {
@@ -957,16 +959,13 @@ static void print_result()
   MYSQL_ROW row;
   char prev[(NAME_LEN+9)*3+2];
   char prev_alter[MAX_ALTER_STR_SIZE];
-  char *db_name;
-  uint length_of_db;
+  size_t length_of_db= strlen(sock->db);
   uint i;
   my_bool found_error=0, table_rebuild=0;
   DYNAMIC_ARRAY *array4repair= &tables4repair;
   DBUG_ENTER("print_result");
 
   res = mysql_use_result(sock);
-  db_name= sock->db;
-  length_of_db= strlen(db_name);
 
   prev[0] = '\0';
   prev_alter[0]= 0;
@@ -990,16 +989,10 @@ static void print_result()
           if (prev_alter[0])
             insert_dynamic(&alter_table_cmds, (uchar*) prev_alter);
           else
-          {
-            char *table_name= prev + (length_of_db+1);
-            insert_dynamic(&tables4rebuild, (uchar*) table_name);
-          }
+            insert_table_name(&tables4rebuild, prev, length_of_db);
         }
         else
-        {
-          char *table_name= prev + (length_of_db+1);
-          insert_dynamic(array4repair, (uchar*) table_name);
-        }
+          insert_table_name(array4repair, prev, length_of_db);
       }
       array4repair= &tables4repair;
       found_error=0;
@@ -1066,16 +1059,10 @@ static void print_result()
       if (prev_alter[0])
         insert_dynamic(&alter_table_cmds, (uchar*) prev_alter);
       else
-      {
-        char *table_name= prev + (length_of_db+1);
-        insert_dynamic(&tables4rebuild, (uchar*) table_name);
-      }
+        insert_table_name(&tables4rebuild, prev, length_of_db);
     }
     else
-    {
-      char *table_name= prev + (length_of_db+1);
-      insert_dynamic(array4repair, (uchar*) table_name);
-    }
+      insert_table_name(array4repair, prev, length_of_db);
   }
   mysql_free_result(res);
   DBUG_VOID_RETURN;
@@ -1209,7 +1196,7 @@ int main(int argc, char **argv)
     for (i = 0; i < tables4repair.elements ; i++)
     {
       char *name= (char*) dynamic_array_ptr(&tables4repair, i);
-      handle_request_for_tables(name, fixed_name_length(name), FALSE);
+      handle_request_for_tables(name, fixed_name_length(name), FALSE, TRUE);
     }
     for (i = 0; i < tables4rebuild.elements ; i++)
       rebuild_table((char*) dynamic_array_ptr(&tables4rebuild, i));
@@ -1220,7 +1207,7 @@ int main(int argc, char **argv)
     for (i = 0; i < views4repair.elements ; i++)
     {
       char *name= (char*) dynamic_array_ptr(&views4repair, i);
-      handle_request_for_tables(name, fixed_name_length(name), TRUE);
+      handle_request_for_tables(name, fixed_name_length(name), TRUE, TRUE);
     }
   }
   ret= test(first_error);

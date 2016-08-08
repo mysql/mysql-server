@@ -312,10 +312,37 @@ DROP TABLE bug47205;
 #
 #MDEV-6128:[PATCH] mysqlcheck wrongly escapes '.' in table names
 #
-CREATE TABLE test.`t.1` (id int);
+create table `t.1` (id int);
+create view `v.1` as select 1;
 mysqlcheck test t.1
 test.t.1                                           OK
-drop table test.`t.1`;
+mysqlcheck --all-in-1 test t.1
+test.t.1                                           OK
+mysqlcheck --all-in-1 --databases --process-views test
+test.t.1                                           OK
+test.v.1                                           OK
+create table `t.2`(a varchar(20) primary key) default character set utf8 collate utf8_general_ci engine=innodb;
+flush table `t.2`;
+mysqlcheck --check-upgrade --auto-repair test
+test.t.1                                           OK
+test.t.2
+error    : Table rebuild required. Please do "ALTER TABLE `t.2` FORCE" or dump/reload to fix it!
+test.t.3                                           Needs upgrade
+
+Repairing tables
+test.t.3                                           OK
+check table `t.1`, `t.2`, `t.3`;
+Table	Op	Msg_type	Msg_text
+test.t.1	check	status	OK
+test.t.2	check	status	OK
+test.t.3	check	status	OK
+check table `t.1`, `t.2`, `t.3` for upgrade;
+Table	Op	Msg_type	Msg_text
+test.t.1	check	status	OK
+test.t.2	check	status	OK
+test.t.3	check	status	OK
+drop view `v.1`;
+drop table test.`t.1`, `t.2`, `t.3`;
 create view v1 as select 1;
 mysqlcheck --process-views test
 test.v1                                            OK
@@ -344,3 +371,48 @@ show tables;
 Tables_in_test
 t1`1
 drop table `t1``1`;
+call mtr.add_suppression("ha_myisam");
+call mtr.add_suppression("Checking table");
+create database mysqltest1;
+create table mysqltest1.t1 (a int) engine=myisam;
+create table t2 (a int);
+check table mysqltest1.t1;
+Table	Op	Msg_type	Msg_text
+mysqltest1.t1	check	warning	Size of datafile is: 4       Should be: 0
+mysqltest1.t1	check	error	got error: 0 when reading datafile at record: 0
+mysqltest1.t1	check	error	Corrupt
+mtr.global_suppressions                            Table is already up to date
+mtr.test_suppressions                              Table is already up to date
+mysql.columns_priv                                 Table is already up to date
+mysql.db                                           Table is already up to date
+mysql.event                                        Table is already up to date
+mysql.func                                         Table is already up to date
+mysql.help_category                                Table is already up to date
+mysql.help_keyword                                 Table is already up to date
+mysql.help_relation                                Table is already up to date
+mysql.help_topic                                   Table is already up to date
+mysql.host                                         Table is already up to date
+mysql.ndb_binlog_index                             Table is already up to date
+mysql.plugin                                       Table is already up to date
+mysql.proc                                         Table is already up to date
+mysql.procs_priv                                   Table is already up to date
+mysql.proxies_priv                                 Table is already up to date
+mysql.servers                                      Table is already up to date
+mysql.tables_priv                                  Table is already up to date
+mysql.time_zone                                    Table is already up to date
+mysql.time_zone_leap_second                        Table is already up to date
+mysql.time_zone_name                               Table is already up to date
+mysql.time_zone_transition                         Table is already up to date
+mysql.time_zone_transition_type                    Table is already up to date
+mysql.user                                         Table is already up to date
+mysqltest1.t1
+warning  : Table is marked as crashed
+warning  : Size of datafile is: 4       Should be: 0
+error    : got error: 0 when reading datafile at record: 0
+error    : Corrupt
+test.t2                                            Table is already up to date
+
+Repairing tables
+mysqltest1.t1                                      OK
+drop table t2;
+drop database mysqltest1;
