@@ -2004,7 +2004,7 @@ void drop_table_share(PFS_thread *thread,
     pfs->destroy_lock_stat();
     pfs->destroy_index_stats();
 
-    pfs->m_lock.allocated_to_free();
+    global_table_share_container.deallocate(pfs);
   }
 
   lf_hash_search_unpin(pins);
