@@ -1762,6 +1762,8 @@ double Item_sum_std::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double nr= Item_sum_variance::val_real();
+  if (my_isinf(nr))
+    return DBL_MAX;
   DBUG_ASSERT(nr >= 0.0);
   return sqrt(nr);
 }

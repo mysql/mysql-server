@@ -1590,3 +1590,9 @@ SELECT
   SUM(data3) AS C_3
 FROM t1;
 DROP TABLE t1;
+
+--echo #
+--echo # MDEV-10468 Assertion `nr >= 0.0' failed in Item_sum_std::val_real()
+--echo #
+SELECT STDDEV_POP(f) FROM (SELECT "1e+309" AS f UNION SELECT "-1e+309" AS f) tbl;
+SELECT STDDEV(f) FROM (SELECT 1.7976931348623157e+308 AS f UNION SELECT -1.7976931348623157e+308 AS f) tbl;

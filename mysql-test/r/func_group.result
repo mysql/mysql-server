@@ -2297,3 +2297,15 @@ FROM t1;
 C_1	C_2	C_3
 NULL	100	200
 DROP TABLE t1;
+#
+# MDEV-10468 Assertion `nr >= 0.0' failed in Item_sum_std::val_real()
+#
+SELECT STDDEV_POP(f) FROM (SELECT "1e+309" AS f UNION SELECT "-1e+309" AS f) tbl;
+STDDEV_POP(f)
+1.7976931348623157e308
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '1e+309'
+Warning	1292	Truncated incorrect DOUBLE value: '-1e+309'
+SELECT STDDEV(f) FROM (SELECT 1.7976931348623157e+308 AS f UNION SELECT -1.7976931348623157e+308 AS f) tbl;
+STDDEV(f)
+1.7976931348623157e308
