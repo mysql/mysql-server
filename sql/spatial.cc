@@ -444,7 +444,7 @@ Geometry *Geometry::construct(Geometry_buffer *buffer,
   shallow assign data in 'wkt' to the Geometry object to be returned.
   @param buffer Place to create the returned Geometry object at.
   @param trs WKT read stream.
-  @param wkt Little endian WKB buffer for WKB data of the returned Geometry
+  @param wkb Little endian WKB buffer for WKB data of the returned Geometry
   object.
   @param init_stream Whether set WKB buffer pointer to returned Geometry
   object.
@@ -452,7 +452,7 @@ Geometry *Geometry::construct(Geometry_buffer *buffer,
   @return A Geometry object with data specified by the WKT.
  */
 Geometry *Geometry::create_from_wkt(Geometry_buffer *buffer,
-				    Gis_read_stream *trs, String *wkt,
+				    Gis_read_stream *trs, String *wkb,
 				    bool init_stream, bool check_trailing)
 {
   LEX_STRING name;
@@ -461,23 +461,22 @@ Geometry *Geometry::create_from_wkt(Geometry_buffer *buffer,
   if (trs->get_next_word(&name))
   {
     trs->set_error_msg("Geometry name expected");
-    return NULL;
+    return nullptr;
   }
   if (!(ci= find_class(name.str, name.length)) ||
-      wkt->reserve(WKB_HEADER_SIZE, 512))
-    return NULL;
+      wkb->reserve(WKB_HEADER_SIZE, 512))
+    return nullptr;
   Geometry *result= (*ci->m_create_func)(buffer->data);
-  wkt->q_append((char) wkb_ndr);
-  wkt->q_append((uint32) result->get_class_info()->m_type_id);
-  if (trs->check_next_symbol('(') ||
-      result->init_from_wkt(trs, wkt) ||
-      trs->check_next_symbol(')') ||
+  wkb->q_append((char) wkb_ndr);
+  wkb->q_append((uint32) result->get_class_info()->m_type_id);
+
+  if (result->init_from_wkt(trs, wkb) ||
       (check_trailing && !trs->is_end_of_stream()))
-    return NULL;
+    return nullptr;
 
   if (init_stream)
-    result->set_data_ptr(wkt->ptr() + WKB_HEADER_SIZE,
-                         wkt->length() - WKB_HEADER_SIZE);
+    result->set_data_ptr(wkb->ptr() + WKB_HEADER_SIZE,
+                         wkb->length() - WKB_HEADER_SIZE);
   result->has_geom_header_space(true);
   if (result->get_geotype() == wkb_polygon)
     result->polygon_is_wkb_form(true);
@@ -1516,11 +1515,15 @@ uint32 Gis_point::get_data_size() const
 }
 
 
-bool Gis_point::init_from_wkt(Gis_read_stream *trs, String *wkb)
+bool Gis_point::init_from_wkt(Gis_read_stream *trs, String *wkb,
+                              const bool parens)
 {
   double x, y;
-  if (trs->get_next_number(&x) || trs->get_next_number(&y) ||
-      wkb->reserve(POINT_DATA_SIZE, 256))
+  if ((parens && trs->check_next_symbol('(')) ||
+      trs->get_next_number(&x) ||
+      trs->get_next_number(&y) ||
+      wkb->reserve(POINT_DATA_SIZE, 256) ||
+      (parens && trs->check_next_symbol(')')))
     return true;
   wkb->q_append(x);
   wkb->q_append(y);
@@ -1557,13 +1560,15 @@ bool Gis_point::get_data_as_wkt(String *txt, wkb_parser *wkb) const
   point_xy p;
   if (wkb->scan_xy(&p))
     return true;
-  if (txt->reserve(MAX_DIGITS_IN_DOUBLE * 2 + 1))
+  if (txt->reserve(MAX_DIGITS_IN_DOUBLE * 2 + 3))
     return true;
   if (!std::isfinite(p.x) || !std::isfinite(p.y))
     return true;
+  txt->qs_append('(');
   txt->qs_append(p.x, MAX_DIGITS_IN_DOUBLE);
   txt->qs_append(' ');
   txt->qs_append(p.y, MAX_DIGITS_IN_DOUBLE);
+  txt->qs_append(')');
   return false;
 }
 
@@ -1623,13 +1628,15 @@ bool Gis_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb)
   uint32 np_pos= wkb->length();
   Gis_point p(false);
 
+  if (trs->check_next_symbol('('))
+    return true;
   if (wkb->reserve(4, 512))
     return true;
   wkb->length(wkb->length()+4);			// Reserve space for points
 
   for (;;)
   {
-    if (p.init_from_wkt(trs, wkb))
+    if (p.init_from_wkt(trs, wkb, false))
       return true;
     n_points++;
     if (trs->skip_char(','))			// Didn't find ','
@@ -1659,6 +1666,8 @@ bool Gis_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb)
 out:
 
   wkb->write_at_position(np_pos, n_points);
+  if (trs->check_next_symbol(')'))
+    return true;
   return false;
 }
 
@@ -1703,9 +1712,10 @@ bool Gis_line_string::get_data_as_wkt(String *txt, wkb_parser *wkb) const
 {
   uint32 n_points;
   if (wkb->scan_n_points_and_check_data(&n_points) ||
-      txt->reserve(((MAX_DIGITS_IN_DOUBLE + 1) * 2 + 1) * n_points))
+      txt->reserve(1 + ((MAX_DIGITS_IN_DOUBLE + 1) * 2 + 1) * n_points))
     return true;
 
+  txt->qs_append('(');
   while (n_points--)
   {
     point_xy p;
@@ -1718,6 +1728,7 @@ bool Gis_line_string::get_data_as_wkt(String *txt, wkb_parser *wkb) const
     txt->qs_append(',');
   }
   txt->length(txt->length() - 1);		// Remove end ','
+  txt->qs_append(')');
   return false;
 }
 
@@ -2267,6 +2278,8 @@ bool Gis_polygon::init_from_wkt(Gis_read_stream *trs, String *wkb)
   uint32 n_linear_rings= 0;
   uint32 lr_pos= wkb->length();
 
+  if (trs->check_next_symbol('('))
+    return true;
   if (wkb->reserve(4, 512))
     return true;
   wkb->length(wkb->length()+4);			// Reserve space for points
@@ -2278,9 +2291,7 @@ bool Gis_polygon::init_from_wkt(Gis_read_stream *trs, String *wkb)
     ls.set_props(is_first ? POLYGON_OUTER_RING : POLYGON_INNER_RING);
     is_first= false;
 
-    if (trs->check_next_symbol('(') ||
-	ls.init_from_wkt(trs, wkb) ||
-	trs->check_next_symbol(')'))
+    if (ls.init_from_wkt(trs, wkb))
       return true;
 
     n_linear_rings++;
@@ -2288,6 +2299,8 @@ bool Gis_polygon::init_from_wkt(Gis_read_stream *trs, String *wkb)
       break;
   }
   wkb->write_at_position(lr_pos, n_linear_rings);
+  if (trs->check_next_symbol(')'))
+    return true;
   return false;
 }
 
@@ -2336,6 +2349,7 @@ bool Gis_polygon::get_data_as_wkt(String *txt, wkb_parser *wkb) const
   if (wkb->scan_non_zero_uint4(&n_linear_rings))
     return true;
 
+  txt->append('(');
   while (n_linear_rings--)
   {
     uint32 n_points;
@@ -2348,6 +2362,7 @@ bool Gis_polygon::get_data_as_wkt(String *txt, wkb_parser *wkb) const
     txt->qs_append(',');
   }
   txt->length(txt->length() - 1);		// Remove end ','
+  txt->qs_append(')');
   return false;
 }
 
@@ -2584,6 +2599,8 @@ bool Gis_multi_point::init_from_wkt(Gis_read_stream *trs, String *wkb)
   uint32 np_pos= wkb->length();
   Gis_point p(false);
 
+  if (trs->check_next_symbol('('))
+    return true;
   if (wkb->reserve(4, 512))
     return true;
   wkb->length(wkb->length()+4);			// Reserve space for points
@@ -2610,7 +2627,7 @@ bool Gis_multi_point::init_from_wkt(Gis_read_stream *trs, String *wkb)
     if (match_pt_lbra && trs->check_next_symbol('('))
       return true;
 
-    if (p.init_from_wkt(trs, wkb))
+    if (p.init_from_wkt(trs, wkb, false))
       return true;
 
     if (match_pt_lbra && trs->check_next_symbol(')'))
@@ -2621,6 +2638,8 @@ bool Gis_multi_point::init_from_wkt(Gis_read_stream *trs, String *wkb)
       break;
   }
   wkb->write_at_position(np_pos, n_points);	// Store number of found points
+  if (trs->check_next_symbol(')'))
+    return true;
   return false;
 }
 
@@ -2660,6 +2679,7 @@ bool Gis_multi_point::get_data_as_wkt(String *txt, wkb_parser *wkb) const
 {
   uint32 n_points;
 
+  txt->append('(');
   if (wkb->scan_n_points_and_check_data(&n_points, WKB_HEADER_SIZE) ||
       txt->reserve(((MAX_DIGITS_IN_DOUBLE + 1) * 2 + 1) * n_points))
     return true;
@@ -2671,6 +2691,7 @@ bool Gis_multi_point::get_data_as_wkt(String *txt, wkb_parser *wkb) const
   */
   append_points(txt, n_points, wkb, WKB_HEADER_SIZE, true);
   txt->length(txt->length()-1);			// Remove end ','
+  txt->qs_append(')');
   return false;
 }
 
@@ -2747,6 +2768,8 @@ bool Gis_multi_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb)
   uint32 n_line_strings= 0;
   uint32 ls_pos= wkb->length();
 
+  if (trs->check_next_symbol('('))
+    return true;
   if (wkb->reserve(4, 512))
     return true;
   wkb->length(wkb->length()+4);			// Reserve space for points
@@ -2759,15 +2782,15 @@ bool Gis_multi_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb)
       return true;
     wkb->q_append((char) wkb_ndr); wkb->q_append((uint32) wkb_linestring);
 
-    if (trs->check_next_symbol('(') ||
-	ls.init_from_wkt(trs, wkb) ||
-	trs->check_next_symbol(')'))
+    if (ls.init_from_wkt(trs, wkb))
       return true;
     n_line_strings++;
     if (trs->skip_char(','))			// Didn't find ','
       break;
   }
   wkb->write_at_position(ls_pos, n_line_strings);
+  if (trs->check_next_symbol(')'))
+    return true;
   return false;
 }
 
@@ -2819,6 +2842,7 @@ bool Gis_multi_line_string::get_data_as_wkt(String *txt, wkb_parser *wkb) const
   if (wkb->scan_non_zero_uint4(&n_line_strings))
     return true;
 
+  txt->append('(');
   while (n_line_strings--)
   {
     uint32 n_points;
@@ -2833,6 +2857,7 @@ bool Gis_multi_line_string::get_data_as_wkt(String *txt, wkb_parser *wkb) const
     txt->qs_append(',');
   }
   txt->length(txt->length() - 1);
+  txt->qs_append(')');
   return false;
 }
 
@@ -2991,6 +3016,8 @@ bool Gis_multi_polygon::init_from_wkt(Gis_read_stream *trs, String *wkb)
   uint32 np_pos= wkb->length();
   Gis_polygon p(false);
 
+  if (trs->check_next_symbol('('))
+    return true;
   if (wkb->reserve(4, 512))
     return true;
   wkb->length(wkb->length()+4);			// Reserve space for points
@@ -3002,15 +3029,15 @@ bool Gis_multi_polygon::init_from_wkt(Gis_read_stream *trs, String *wkb)
     wkb->q_append((char) wkb_ndr);
     wkb->q_append((uint32) wkb_polygon);
 
-    if (trs->check_next_symbol('(') ||
-	p.init_from_wkt(trs, wkb) ||
-	trs->check_next_symbol(')'))
+    if (p.init_from_wkt(trs, wkb))
       return true;
     n_polygons++;
     if (trs->skip_char(','))			// Didn't find ','
       break;
   }
   wkb->write_at_position(np_pos, n_polygons);
+  if (trs->check_next_symbol(')'))
+    return true;
   return false;
 }
 
@@ -3060,6 +3087,7 @@ bool Gis_multi_polygon::get_data_as_wkt(String *txt, wkb_parser *wkb) const
   if (wkb->scan_non_zero_uint4(&n_polygons))
     return true;
 
+  txt->append('(');
   while (n_polygons--)
   {
     uint32 n_linear_rings;
@@ -3085,6 +3113,7 @@ bool Gis_multi_polygon::get_data_as_wkt(String *txt, wkb_parser *wkb) const
     txt->qs_append(',');
   }
   txt->length(txt->length() - 1);
+  txt->qs_append(')');
   return false;
 }
 
@@ -3441,25 +3470,39 @@ bool Gis_geometry_collection::init_from_wkt(Gis_read_stream *trs, String *wkb)
     return true;
   wkb->length(wkb->length()+4);			// Reserve space for points
 
-  for (;;)
+  if (trs->get_next_toc_type() == Gis_read_stream::word)
   {
-    /*
-      Allow specifying an empty geometry collection in this form:
-      'geometrycollection()', this is also the WKT output form of an empty
-      geometry collection.
-     */
-    if (n_objects == 0 && trs->get_next_toc_type() == Gis_read_stream::r_bra)
-      break;
-    if (!(g= create_from_wkt(&buffer, trs, wkb, true,
-                             false/* Allow trailing bytes. */)))
+    LEX_STRING empty;
+    if (trs->get_next_word(&empty) ||
+        empty.length != 5 ||
+        native_strncasecmp("EMPTY", empty.str, 5))
       return true;
-    /*
-      Allow g to be a nested geometry collection, nested ones are flatterned
-      in BG_geometry_collection before sending to new BG based GIS algorithms.
-     */
-    n_objects++;
-    if (trs->skip_char(','))			// Didn't find ','
-      break;
+  }
+  else
+  {
+    if (trs->check_next_symbol('('))
+      return true;
+    for (;;)
+    {
+      /*
+        Allow specifying an empty geometry collection in this form:
+        'geometrycollection()'.
+      */
+      if (n_objects == 0 && trs->get_next_toc_type() == Gis_read_stream::r_bra)
+        break;
+      if (!(g= create_from_wkt(&buffer, trs, wkb, true,
+                               false/* Allow trailing bytes. */)))
+        return true;
+      /*
+        Allow g to be a nested geometry collection, nested ones are flatterned
+        in BG_geometry_collection before sending to new BG based GIS algorithms.
+      */
+      n_objects++;
+      if (trs->skip_char(','))			// Didn't find ','
+        break;
+    }
+    if (trs->check_next_symbol(')'))
+      return true;
   }
 
   wkb->write_at_position(no_pos, n_objects);
@@ -3526,16 +3569,22 @@ bool Gis_geometry_collection::get_data_as_wkt(String *txt,
     return true;
 
   if (n_objects == 0)
-    nback= 0;
-
-  while (n_objects--)
   {
-    if (!(geom= scan_header_and_create(wkb, &buffer)) ||
-        geom->as_wkt(txt, wkb) ||
-        txt->append(STRING_WITH_LEN(","), 512))
-      return true;
+    txt->append(STRING_WITH_LEN(" EMPTY"));
   }
-  txt->length(txt->length() - nback);
+  else
+  {
+    txt->append('(');
+    while (n_objects--)
+    {
+      if (!(geom= scan_header_and_create(wkb, &buffer)) ||
+          geom->as_wkt(txt, wkb) ||
+          txt->append(STRING_WITH_LEN(","), 512))
+        return true;
+    }
+    txt->length(txt->length() - nback);
+    txt->append(')');
+  }
   return false;
 }
 

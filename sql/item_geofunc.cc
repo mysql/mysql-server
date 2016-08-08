@@ -740,7 +740,7 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
     The rollback variable is used for detecting/accepting NULL objects inside
     collections (a feature with NULL geometry is allowed, and thus we can have
     a geometry collection with a NULL geometry translated into following WKT:
-    GEOMETRYCOLLECTION()).
+    GEOMETRYCOLLECTION EMPTY).
 
     parse_object() does a recursive parsing of the GeoJSON document.
   */
