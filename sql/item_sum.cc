@@ -1462,7 +1462,7 @@ my_decimal *Item_sum_sum::val_decimal(my_decimal *val)
   if (aggr)
     aggr->endup();
   if (hybrid_type == DECIMAL_RESULT)
-    return (dec_buffs + curr_dec_buff);
+    return null_value ? NULL : (dec_buffs + curr_dec_buff);
   return val_decimal_from_real(val);
 }
 

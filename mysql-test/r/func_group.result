@@ -2270,3 +2270,30 @@ t2_id	GROUP_CONCAT(IF (t6.b, t6.f, t5.f) ORDER BY 1)
 EXECUTE stmt;
 t2_id	GROUP_CONCAT(IF (t6.b, t6.f, t5.f) ORDER BY 1)
 DROP TABLE t1,t2,t3,t4,t5,t6;
+#
+# MDEV-10500 CASE/IF Statement returns multiple values and shifts further result values to the next column
+#
+CREATE TABLE t1 (
+id int not null AUTO_INCREMENT,
+active bool not null,
+data1 bigint,
+data2 bigint,
+data3 bigint,
+primary key (id)
+);
+INSERT INTO t1 (active,data1,data2,data3) VALUES (1,null,100,200);
+SELECT
+CASE WHEN active THEN SUM(data1) END AS C_1,
+SUM(data2) AS C_2,
+SUM(data3) AS C_3
+FROM t1;
+C_1	C_2	C_3
+NULL	100	200
+SELECT
+IF(active, SUM(data1), 5) AS C_1,
+SUM(data2) AS C_2,
+SUM(data3) AS C_3
+FROM t1;
+C_1	C_2	C_3
+NULL	100	200
+DROP TABLE t1;
