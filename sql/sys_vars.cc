@@ -3040,10 +3040,14 @@ static bool check_log_path(sys_var *self, THD *thd, set_var *var)
     return true;
 
   static const LEX_CSTRING my_cnf= { STRING_WITH_LEN("my.cnf") };
+  static const LEX_CSTRING my_ini= { STRING_WITH_LEN("my.ini") };
   if (path_length >= my_cnf.length)
   {
     if (strcasecmp(path + path_length - my_cnf.length, my_cnf.str) == 0)
       return true; // log file name ends with "my.cnf"
+    DBUG_ASSERT(my_cnf.length == my_ini.length);
+    if (strcasecmp(path + path_length - my_ini.length, my_ini.str) == 0)
+      return true; // log file name ends with "my.ini"
   }
 
   MY_STAT f_stat;

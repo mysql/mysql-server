@@ -67,6 +67,8 @@ SET @@global.slow_query_log_file = '/tmp/my.cnf';
 SET @@global.general_log_file = '.my.cnf';
 --error ER_WRONG_VALUE_FOR_VAR
 SET @@global.general_log_file = 'my.cnf\0foo';
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.general_log_file = 'my.ini';
 
 --echo '#----------------------FN_DYNVARS_004_03------------------------#'
 ############################################################################## 
