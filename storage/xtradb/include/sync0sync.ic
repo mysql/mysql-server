@@ -178,6 +178,11 @@ mutex_exit_func(
 	to wake up possible hanging threads if
 	they are missed in mutex_signal_object. */
 
+	/* We add a memory barrier to prevent reading of the
+	number of waiters before releasing the lock. */
+
+	os_mb;
+
 	if (mutex_get_waiters(mutex) != 0) {
 
 		mutex_signal_object(mutex);
