@@ -65,7 +65,7 @@ int mysql_del_sys_var_chain(sys_var *chain);
 
 enum enum_var_type
 {
-  OPT_DEFAULT= 0, OPT_SESSION, OPT_GLOBAL, OPT_PERSIST
+  OPT_DEFAULT= 0, OPT_SESSION, OPT_GLOBAL
 };
 
 /**
@@ -114,7 +114,6 @@ protected:
   on_update_function on_update;
   const char *const deprecation_substitute;
   bool is_os_charset; ///< true if the value is in character_set_filesystem
-  struct get_opt_arg_source source;
 
 public:
   sys_var(sys_var_chain *chain, const char *name_arg, const char *comment,
@@ -142,14 +141,6 @@ public:
   virtual void update_default(longlong new_def_value)
   { option.def_value= new_def_value; }
   longlong get_default() { return option.def_value; }
-  virtual bool is_default(THD *thd, set_var *var);
-  virtual longlong get_min_value() { return option.min_value; }
-  virtual ulonglong get_max_value() { return option.max_value; }
-  virtual void set_arg_source(get_opt_arg_source *src) {}
-  enum_variable_source get_source() { return source.m_source; }
-  const char* get_source_name() { return source.m_name; }
-  void set_source(enum_variable_source src) { option.arg_source->m_source= src; }
-  void set_source_name(const char* path) { option.arg_source->m_name= path; }
 
   /**
      Update the system variable with the default value from either
@@ -183,7 +174,6 @@ public:
   {
     switch (query_type)
     {
-      case OPT_PERSIST:
       case OPT_GLOBAL:  return scope() & (GLOBAL | SESSION);
       case OPT_SESSION: return scope() & (SESSION | ONLY_SESSION);
       case OPT_DEFAULT: return scope() & (SESSION | ONLY_SESSION);
@@ -287,7 +277,6 @@ public:
   int resolve(THD *thd);
   int check(THD *thd);
   int update(THD *thd);
-  void update_source();
   int light_check(THD *thd);
   void print(THD *thd, String *str);	/* To self-print */
 #ifdef OPTIMIZER_TRACE

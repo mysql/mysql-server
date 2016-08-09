@@ -7827,9 +7827,6 @@ ER_COMPONENTS_UNLOAD_DUPLICATE_IN_GROUP
 ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS
   eng "@@GLOBAL.GTID_PURGED cannot be changed: %s"
 
-ER_VARIABLE_NOT_PERSISTED
-  eng "Variables cannot be persisted. Please retry."
-
 ER_CANNOT_LOCK_USER_MANAGEMENT_CACHES
   eng "Can not lock user management caches for processing."
 #

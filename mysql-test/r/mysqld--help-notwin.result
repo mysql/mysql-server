@@ -828,11 +828,6 @@ The following options may be given as the first argument:
  --performance-schema-users-size=# 
  Maximum number of instrumented users. Use 0 to disable,
  -1 for automated scaling.
- --persisted-globals-load 
- When this option is enabled, config file mysqld-auto.cnf
- is read and applied to server, else this file is ignored
- even if present.
- (Defaults to on; use --skip-persisted-globals-load to disable.)
  --pid-file=name     Pid file used by safe_mysqld
  --plugin-dir=name   Directory for plugins
  --plugin-load=name  Optional semicolon-separated list of plugins to load,
@@ -1444,7 +1439,7 @@ performance-schema-consumer-global-instrumentation TRUE
 performance-schema-consumer-statements-digest TRUE
 performance-schema-consumer-thread-instrumentation TRUE
 performance-schema-digests-size -1
-performance-schema-error-size 1037
+performance-schema-error-size 1036
 performance-schema-events-stages-history-long-size -1
 performance-schema-events-stages-history-size -1
 performance-schema-events-statements-history-long-size -1
@@ -1485,7 +1480,6 @@ performance-schema-session-connect-attrs-size -1
 performance-schema-setup-actors-size -1
 performance-schema-setup-objects-size -1
 performance-schema-users-size -1
-persisted-globals-load TRUE
 port ####
 port-open-timeout 0
 preload-buffer-size 32768

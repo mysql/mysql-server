@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -116,9 +116,6 @@
 #include "pfs_user.h"
 #include "pfs_host.h"
 #include "pfs_account.h"
-#include <string>
-
-using std::string;
 
 typedef std::vector<st_mysql_show_var> Status_var_array;
 
@@ -141,7 +138,6 @@ class System_variable
 public:
   System_variable();
   System_variable(THD *target_thd, const SHOW_VAR *show_var, enum_var_type query_scope);
-  System_variable(THD *target_thd, const SHOW_VAR *show_var);
   ~System_variable() {}
 
   bool is_null() const {return !m_initialized;};
@@ -154,19 +150,12 @@ public:
   enum_mysql_show_type m_type;
   int m_scope;
   const CHARSET_INFO *m_charset;
-  enum_variable_source m_source;
-  char m_path_str[SHOW_VAR_FUNC_BUFF_SIZE+1];
-  size_t m_path_length;
-  char m_min_value_str[SHOW_VAR_FUNC_BUFF_SIZE+1];
-  size_t m_min_value_length;
-  char m_max_value_str[SHOW_VAR_FUNC_BUFF_SIZE+1];
-  size_t m_max_value_length;
 
 private:
   bool m_initialized;
   void init(THD *thd, const SHOW_VAR *show_var, enum_var_type query_scope);
-  void init(THD *thd, const SHOW_VAR *show_var);
 };
+
 
 /**
   CLASS Status_variable - Status variable derived from SHOW_VAR.
@@ -574,10 +563,14 @@ public:
   ~PFS_system_variable_cache() { free_mem_root(); }
 
 private:
+  /* Build SHOW_var array. */
+  bool init_show_var_array(enum_var_type scope, bool strict);
   bool do_initialize_session(void);
 
   /* Global */
   int do_materialize_global(void);
+  /* Global and Session - THD */
+  int do_materialize_all(THD* thd);
   /* Session - THD */
   int do_materialize_session(THD* thd);
   /* Session -  PFS_thread */
@@ -599,30 +592,8 @@ private:
   void clear_mem_root(void);
   /* Free mem_root memory. */
   void free_mem_root(void);
-protected:
-  /* Build SHOW_var array. */
-  bool init_show_var_array(enum_var_type scope, bool strict);
-  /* Global and Session - THD */
-  int do_materialize_all(THD* thd);
-
 };
 
-/**
-  CLASS PFS_system_variable_info_cache - System variable info cache.
-*/
-class PFS_system_variable_info_cache : public PFS_system_variable_cache
-{
-public:
-  PFS_system_variable_info_cache(bool external_init) :
-                            PFS_system_variable_cache(external_init)
-  {
-  }
-  ~PFS_system_variable_info_cache() { }
-
-private:
-  /* Global and Session - THD */
-  int do_materialize_all(THD* thd);
-};
 
 /**
   CLASS PFS_status_variable_cache - Status variable cache

@@ -138,6 +138,7 @@ template<typename T_type> Abstract_option<T_type>::Abstract_option(void* value,
   this->m_option_structure.block_size= 0;
   this->m_option_structure.max_value= 0;
   this->m_option_structure.min_value= 0;
+  this->m_option_structure.sub_size= 0;
   this->m_option_structure.typelib= NULL;
   this->m_option_structure.u_max_value= NULL;
 
@@ -161,7 +162,6 @@ template<typename T_type> Abstract_option<T_type>::Abstract_option(void* value,
 
   this->m_option_structure.value= value;
   this->m_option_structure.var_type= var_type;
-  this->m_option_structure.arg_source= 0;
 }
 
 template<typename T_type> my_option Abstract_option<T_type>::get_my_option()

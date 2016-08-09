@@ -894,7 +894,7 @@ static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
   if (check_has_super(self, thd, var))
     return true;
 
-  if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST)
+  if (var->type == OPT_GLOBAL)
     return false;
 
   /*
@@ -948,7 +948,7 @@ static bool fix_binlog_format_after_update(sys_var *self, THD *thd,
 static bool prevent_global_rbr_exec_mode_idempotent(sys_var *self, THD *thd,
                                                     set_var *var )
 {
-  if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST)
+  if (var->type == OPT_GLOBAL)
   {
     my_error(ER_LOCAL_VARIABLE, MYF(0), self->name.str);
     return true;
@@ -1029,7 +1029,7 @@ static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var)
   if (check_has_super(self, thd, var))
     return true;
 
-  if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST)
+  if (var->type == OPT_GLOBAL)
     return false;
 
    /*
@@ -1848,7 +1848,7 @@ static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var)
   }
 #endif
 
-  if ((var->type == OPT_GLOBAL || var->type == OPT_PERSIST) &&
+  if (var->type == OPT_GLOBAL &&
       global_system_variables.binlog_format != BINLOG_FORMAT_ROW)
   {
     my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), var->var->name.str);
@@ -2213,7 +2213,7 @@ static Sys_var_uint Sys_lower_case_table_names(
 
 static bool session_readonly(sys_var *self, THD *thd, set_var *var)
 {
-  if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST)
+  if (var->type == OPT_GLOBAL)
     return false;
   my_error(ER_VARIABLE_IS_READONLY, MYF(0), "SESSION",
            self->name.str, "GLOBAL");
@@ -2340,7 +2340,7 @@ static Sys_var_long Sys_max_digest_length(
 
 static bool check_max_delayed_threads(sys_var *self, THD *thd, set_var *var)
 {
-  return (var->type != OPT_GLOBAL && var->type != OPT_PERSIST) &&
+  return var->type != OPT_GLOBAL &&
          var->save_result.ulonglong_value != 0 &&
          var->save_result.ulonglong_value !=
                            global_system_variables.max_insert_delayed_threads;
@@ -2409,8 +2409,7 @@ static Sys_var_uint Sys_pseudo_thread_id(
 
 static bool fix_max_join_size(sys_var *self, THD *thd, enum_var_type type)
 {
-  System_variables *sv= (type == OPT_GLOBAL || type == OPT_PERSIST)
-       ? &global_system_variables : &thd->variables;
+  System_variables *sv= type == OPT_GLOBAL ? &global_system_variables : &thd->variables;
   if (sv->max_join_size == HA_POS_ERROR)
     sv->option_bits|= OPTION_BIG_SELECTS;
   else
@@ -2561,7 +2560,7 @@ static Sys_var_ulong Sys_net_buffer_length(
 
 static bool fix_net_read_timeout(sys_var *self, THD *thd, enum_var_type type)
 {
-  if (type != OPT_GLOBAL && type != OPT_PERSIST)
+  if (type != OPT_GLOBAL)
   {
     // net_buffer_length is a specific property for the classic protocols
     if (!thd->is_classic_protocol())
@@ -2585,7 +2584,7 @@ static Sys_var_ulong Sys_net_read_timeout(
 
 static bool fix_net_write_timeout(sys_var *self, THD *thd, enum_var_type type)
 {
-  if (type != OPT_GLOBAL && type != OPT_PERSIST)
+  if (type != OPT_GLOBAL)
   {
     // net_read_timeout is a specific property for the classic protocols
     if (!thd->is_classic_protocol())
@@ -2609,7 +2608,7 @@ static Sys_var_ulong Sys_net_write_timeout(
 
 static bool fix_net_retry_count(sys_var *self, THD *thd, enum_var_type type)
 {
-  if (type != OPT_GLOBAL && type != OPT_PERSIST)
+  if (type != OPT_GLOBAL)
   {
     // net_write_timeout is a specific property for the classic protocols
     if (!thd->is_classic_protocol())
@@ -2716,7 +2715,7 @@ static Sys_var_ulong Sys_range_optimizer_max_mem_size(
 static bool
 limit_parser_max_mem_size(sys_var *self, THD *thd, set_var *var)
 {
-  if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST)
+  if (var->type == OPT_GLOBAL)
     return false;
   ulonglong val= var->save_result.ulonglong_value;
   if (val > global_system_variables.parser_max_mem_size)
@@ -3183,7 +3182,7 @@ static Sys_var_ulong Sys_multi_range_count(
 
 static bool fix_thd_mem_root(sys_var *self, THD *thd, enum_var_type type)
 {
-  if (type != OPT_GLOBAL && type != OPT_PERSIST)
+  if (type != OPT_GLOBAL)
     reset_root_defaults(thd->mem_root,
                         thd->variables.query_alloc_block_size,
                         thd->variables.query_prealloc_size);
@@ -3265,7 +3264,7 @@ static Sys_var_charptr Sys_tmpdir(
 
 static bool fix_trans_mem_root(sys_var *self, THD *thd, enum_var_type type)
 {
-  if (type != OPT_GLOBAL && type != OPT_PERSIST)
+  if (type != OPT_GLOBAL)
     thd->get_transaction()->init_mem_root_defaults(
         thd->variables.trans_alloc_block_size,
         thd->variables.trans_prealloc_size);
@@ -4107,7 +4106,7 @@ static bool check_sql_mode(sys_var *self, THD *thd, set_var *var)
 }
 static bool fix_sql_mode(sys_var *self, THD *thd, enum_var_type type)
 {
-  if (type != OPT_GLOBAL && type != OPT_PERSIST)
+  if (type != OPT_GLOBAL)
   {
     /* Update thd->server_status */
     if (thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
@@ -4619,7 +4618,7 @@ static Sys_var_charptr Sys_time_format(
 
 static bool fix_autocommit(sys_var *self, THD *thd, enum_var_type type)
 {
-  if (type == OPT_GLOBAL || type == OPT_PERSIST)
+  if (type == OPT_GLOBAL)
   {
     if (global_system_variables.option_bits & OPTION_AUTOCOMMIT)
       global_system_variables.option_bits&= ~OPTION_NOT_AUTOCOMMIT;
@@ -4730,7 +4729,7 @@ static bool check_sql_log_bin(sys_var *self, THD *thd, set_var *var)
   if (check_has_super(self, thd, var))
     return TRUE;
 
-  if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST)
+  if (var->type == OPT_GLOBAL)
     return TRUE;
 
   /* If in a stored function/trigger, it's too late to change sql_log_bin. */
@@ -6104,14 +6103,3 @@ static Sys_var_charptr Sys_disabled_storage_engines(
        READ_ONLY GLOBAL_VAR(opt_disabled_storage_engines),
        CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
        DEFAULT(""));
-
-static Sys_var_mybool Sys_persisted_globals_load(
-       "persisted_globals_load",
-       "When this option is enabled, config file mysqld-auto.cnf is read "
-       "and applied to server, else this file is ignored even if present.",
-       READ_ONLY GLOBAL_VAR(persisted_globals_load),
-       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
-       NO_MUTEX_GUARD,
-       NOT_IN_BINLOG,
-       ON_CHECK(0),
-       ON_UPDATE(0));

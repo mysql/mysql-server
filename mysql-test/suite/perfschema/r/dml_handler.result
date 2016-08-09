@@ -9,9 +9,6 @@ SELECT COUNT(*) FROM table_list INTO @table_count;
 # For each table in the performance schema, attempt HANDLER...OPEN,
 # which should fail with an error 1031, ER_ILLEGAL_HA.
 
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=93;
-HANDLER performance_schema.variables_info OPEN;
-ERROR HY000: Table storage engine for 'variables_info' doesn't have this option
 SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=92;
 HANDLER performance_schema.variables_by_thread OPEN;
 ERROR HY000: Table storage engine for 'variables_by_thread' doesn't have this option

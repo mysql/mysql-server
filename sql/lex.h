@@ -447,7 +447,6 @@ static const SYMBOL symbols[] = {
   { SYM("PARTITIONING",             PARTITIONING_SYM)},
   { SYM("PARTITIONS",               PARTITIONS_SYM)},
   { SYM("PASSWORD",                 PASSWORD)},
-  { SYM("PERSIST",                  PERSIST_SYM)},
   { SYM("PHASE",                    PHASE_SYM)},
   { SYM("PLUGIN",                   PLUGIN_SYM)},
   { SYM("PLUGINS",                  PLUGINS_SYM)},
