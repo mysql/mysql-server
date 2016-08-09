@@ -369,7 +369,7 @@ bool Persisted_variables_cache::load_persist_file()
 bool Persisted_variables_cache::set_persist_options(bool what_options)
 {
   THD *thd;
-  LEX lex_tmp, *sav_lex;
+  LEX lex_tmp, *sav_lex= NULL;
   List<set_var_base> tmp_var_list;
   map<string, string> *persist_hash= NULL;
   map<string, string>::const_iterator iter;
