@@ -1238,6 +1238,11 @@ def	performance_schema	user_variables_by_thread	VARIABLE_VALUE	3	NULL	YES	longbl
 def	performance_schema	variables_by_thread	THREAD_ID	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	performance_schema	variables_by_thread	VARIABLE_NAME	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
 def	performance_schema	variables_by_thread	VARIABLE_VALUE	3	NULL	YES	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references		
+def	performance_schema	variables_info	VARIABLE_NAME	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
+def	performance_schema	variables_info	VARIABLE_SOURCE	2	NULL	YES	enum	12	36	NULL	NULL	NULL	utf8	utf8_general_ci	enum('COMPILED','GLOBAL','SERVER','EXPLICIT','EXTRA','USER','LOGIN','COMMAND_LINE','PERSISTED','DYNAMIC')			select,insert,update,references		
+def	performance_schema	variables_info	VARIABLE_PATH	3	NULL	YES	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references		
+def	performance_schema	variables_info	MIN_VALUE	4	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
+def	performance_schema	variables_info	MAX_VALUE	5	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
 select count(*) from information_schema.columns
 where table_schema="performance_schema" and data_type = "bigint"
    and column_name like "%number_of_bytes" into @count_byte_columns;

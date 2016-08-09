@@ -44,6 +44,7 @@
 #include "m_ctype.h"
 #include <my_dir.h>
 #include <my_aes.h>
+#include <my_getopt.h>
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_my_snprintf.h"
 #include "typelib.h"
@@ -52,6 +53,36 @@
 #endif
 
 #include "prealloced_array.h"
+#include <string>
+#include <map>
+
+using std::string;
+using std::map;
+
+struct my_variable_sources
+{
+  string m_config_file_name;
+  enum_variable_source m_source;
+};
+
+/**
+  Defines mapping between variable names (set as part of config files
+  or command line) and its config file/source value.
+  ex: If config file /etc/my.cnf has variables max_connections= 30 and
+  $datadir/mysqld-auto.cnf has variables max_heap_table_size=887808
+  then this variable will have following key/value pair.
+  max_connections -> (/etc/my.cnf , enum_variable_source::GLOBAL)
+  max_heap_table_size -> ($datadir/mysqld-auto.cnf ,
+                          enum_variable_source::PERSISTED)
+*/
+static map<string, my_variable_sources> variables_hash;
+/**
+  Defines mapping between config files names and its corresponding enum values.
+  ex: File /etc/my.cnf is mapped to enum_variable_source::GLOBAL
+  ~/.my.cnf is mapped to enum_variable_source::USER
+  command line options are mapped to enum_variable_source::COMMAND_LINE
+*/
+static map<string, enum_variable_source> default_paths;
 
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_file_key key_file_cnf;
@@ -102,6 +133,7 @@ my_bool my_getopt_is_args_separator(const char* arg)
 {
   return (arg == args_separator);
 }
+
 const char *my_defaults_file=0;
 const char *my_defaults_group_suffix=0;
 const char *my_defaults_extra_file=0;
@@ -112,6 +144,9 @@ static char my_defaults_file_buffer[FN_REFLEN];
 static char my_defaults_extra_file_buffer[FN_REFLEN];
 
 static my_bool defaults_already_read= FALSE;
+
+/* Set to TRUE, if --no-defaults is found. */
+my_bool no_defaults= FALSE;
 
 /* Which directories are searched for options (and in which order) */
 
@@ -127,7 +162,7 @@ static const char *f_extensions[]= { ".cnf", 0 };
 
 extern "C" {
 static int handle_default_option(void *in_ctx, const char *group_name,
-                                 const char *option);
+                                 const char *option, const char *cnf_file);
 }
 
 /*
@@ -295,6 +330,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
     }
 
     defaults_already_read= TRUE;
+    init_variable_default_paths();
 
     /*
       We can only handle 'defaults-group-suffix' if we are called from
@@ -452,6 +488,7 @@ err:
     option                  The very option to be processed. It is already
                             prepared to be used in argv (has -- prefix). If it
                             is NULL, we are handling a new group (section).
+    cnf_file                Config file name with absolute file path.
 
   DESCRIPTION
     This handler checks whether a group is one of the listed and adds an option
@@ -465,7 +502,7 @@ err:
 */
 
 static int handle_default_option(void *in_ctx, const char *group_name,
-                                 const char *option)
+                                 const char *option, const char *cnf_file)
 {
   char *tmp;
   struct handle_option_ctx *ctx= (struct handle_option_ctx *) in_ctx;
@@ -480,11 +517,10 @@ static int handle_default_option(void *in_ctx, const char *group_name,
     if (ctx->m_args->push_back(tmp))
       return 1;
     my_stpcpy(tmp, option);
+    update_variable_source(option, cnf_file);
   }
-
   return 0;
 }
-
 
 /*
   Gets options from the command line, however if --no-defaults
@@ -625,7 +661,6 @@ int load_defaults(const char *conf_file, const char **groups,
      value pointed to by default_directories is undefined.
 */
 
-
 int my_load_defaults(const char *conf_file, const char **groups,
                   int *argc, char ***argv, const char ***default_directories)
 {
@@ -651,7 +686,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
     --no-defaults is always the first option
   */
   if (*argc >= 2 && !strcmp(argv[0][1], "--no-defaults"))
-    found_no_defaults= TRUE;
+    no_defaults= found_no_defaults= TRUE;
 
   group.count=0;
   group.name= "defaults";
@@ -1015,7 +1050,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
       strmake(curr_gr, ptr, MY_MIN((size_t) (end-ptr)+1, sizeof(curr_gr)-1));
 
       /* signal that a new group is found */
-      opt_handler(handler_ctx, curr_gr, NULL);
+      opt_handler(handler_ctx, curr_gr, NULL, NULL);
 
       continue;
     }
@@ -1037,7 +1072,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
     if (!value)
     {
       strmake(my_stpcpy(option,"--"),ptr, (size_t) (end-ptr));
-      if (opt_handler(handler_ctx, curr_gr, option))
+      if (opt_handler(handler_ctx, curr_gr, option, name))
         goto err;
     }
     else
@@ -1108,7 +1143,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
 	  *ptr++= *value;
       }
       *ptr=0;
-      if (opt_handler(handler_ctx, curr_gr, option))
+      if (opt_handler(handler_ctx, curr_gr, option, name))
         goto err;
     }
   }
@@ -1295,6 +1330,211 @@ void print_defaults(const char *conf_file, const char **groups)
 --login-path=#          Read this path from the login file.");
 }
 
+/**
+  Initialize all the mappings between default config file paths/
+  command line options/persistent config file path/login file path
+  and corresponding enum_variable_source values.
+*/
+void init_variable_default_paths()
+{
+  char datadir[FN_REFLEN]= {0};
+  string extradir= (my_defaults_extra_file ?
+                    my_defaults_extra_file : string());
+  string explicitdir= (my_defaults_file ? my_defaults_file : string());
+
+  string defsyscondir;
+#if defined(DEFAULT_SYSCONFDIR)
+  defsyscondir= DEFAULT_SYSCONFDIR;
+#endif
+
+#ifdef _WIN32
+  char buffer[FN_REFLEN];
+
+  /* windows supports ini/cnf extension for some config files */
+  if (GetWindowsDirectory(buffer, sizeof(buffer)))
+  {
+    default_paths[string(buffer) + "\\my.ini"]= enum_variable_source::GLOBAL;
+    default_paths[string(buffer) + "\\my.cnf"]= enum_variable_source::GLOBAL;
+  }
+  default_paths["C:\\my.ini"]= enum_variable_source::GLOBAL;
+  default_paths["C:\\my.cnf"]= enum_variable_source::GLOBAL;
+  if (GetModuleFileName(NULL, buffer, (DWORD)sizeof(buffer)))
+  {
+    char* end = strend(buffer), *last= NULL;
+    for (; end > buffer; end--)
+    {
+      if (*end == FN_LIBCHAR)
+      {
+        if (last)
+        {
+          end[1] = 0;
+          break;
+        }
+        last = end;
+      }
+    }
+    default_paths[string(buffer) +
+          "\\.mylogin.cnf"]= enum_variable_source::LOGIN;
+  }
+#else
+  char* env= getenv("MYSQL_HOME");
+  uint length= (env ? strlen(env) : 0);
+  if (length && (env[length-1] != '/'))
+  {
+    env[length]= '/';
+    env[length+1]= '\0';
+  }
+  if (length)
+    default_paths[string(env) + "my.cnf"]= enum_variable_source::SERVER;
+
+  char buffer[FN_REFLEN]= "~/";
+  unpack_filename(buffer, buffer);
+  default_paths["/etc/my.cnf"]= enum_variable_source::GLOBAL;
+  default_paths["/etc/mysql/my.cnf"]= enum_variable_source::GLOBAL;
+  default_paths[string(buffer) + ".my.cnf"]= enum_variable_source::MYSQL_USER;
+  default_paths[string(buffer) + ".mylogin.cnf"]= enum_variable_source::LOGIN;
+
+#if defined(DEFAULT_SYSCONFDIR)
+    default_paths[defsyscondir + "/my.cnf"]= enum_variable_source::GLOBAL;
+#endif
+#endif
+
+  convert_dirname(datadir, MYSQL_DATADIR, NullS);
+  default_paths[string(datadir) + "mysqld-auto.cnf"]= enum_variable_source::PERSISTED;
+
+  if(extradir.length())
+    default_paths[extradir]= enum_variable_source::EXTRA;
+  if(explicitdir.length())
+    default_paths[explicitdir]= enum_variable_source::EXPLICIT;
+
+  default_paths[""]= enum_variable_source::COMMAND_LINE;
+}
+
+/**
+  Track all options loaded from config files and command line options
+  along with the path from where options are loaded. For command line
+  options path is empty string.
+
+  Ex:
+  /etc/my.cnf has max_connections
+  /$datadir/mysqld.auto.cnf has max_user_connections
+  ./mysqld --server-id=47
+  with this setup, variables_hash has 3 entires of the above options
+  along with path of config files and its enum value which is as below:
+  max_connections -> (/etc/my.cnf , enum_variable_source::GLOBAL)
+  max_user_connections -> ($datadir/mysqld.auto.cnf ,
+                           enum_variable_source::PERSISTED)
+  server-id -> ("" , enum_variable_source::COMMAND_LINE)
+
+   @param [in] opt_name       Pointer to option name. opt_name must be in
+                              the form off --XXXXXX
+   @param [in] value          Pointer to config file path
+*/
+void update_variable_source(const char* opt_name, const char* value)
+{
+  string var_name= string(opt_name);
+  string path= (value ? value : string(""));
+
+  /* opt_name must be of form --XXXXX which means min length must be 3 */
+  if (var_name.length() < 3)
+   return;
+
+  std::size_t pos= var_name.find("=");
+  /* strip the value part if present */
+  if (pos != string::npos)
+    var_name= var_name.substr(0, pos);
+
+  /* remove -- */
+  var_name= var_name.substr(2);
+
+  /* replace all '-' to '_' */
+  while ((pos= var_name.find("-")) != string::npos)
+    var_name.replace(pos, 1, "_");
+
+  /*
+    check if variable is appended with 'loose', 'skip', 'disable',
+    'enable', 'maximum'
+  */
+  if ((pos= var_name.find("loose_")) != string::npos)
+    var_name= var_name.substr(strlen("loose_")+pos);
+  else if ((pos= var_name.find("disable_")) != string::npos)
+    var_name= var_name.substr(strlen("disable_")+pos);
+  else if ((pos= var_name.find("enable_")) != string::npos)
+    var_name= var_name.substr(strlen("enable_")+pos);
+  else if ((pos= var_name.find("maximum_")) != string::npos)
+    var_name= var_name.substr(strlen("maximum_")+pos);
+  else if ((pos= var_name.find("skip_")) != string::npos)
+  {
+    bool skip_variable= false;
+    string skip_variables[]= { "skip_name_resolve", "skip_networking",
+      "skip_show_database", "skip_external_locking" };
+    for (uint skip_index= 0;
+         skip_index < (sizeof (skip_variables)/sizeof (skip_variables[0]));
+         ++skip_index)
+    {
+      if (var_name == skip_variables[skip_index])
+      {
+        /* do not trim the skip_ prefix for variables which start with skip */
+        skip_variable= true;
+        break;
+      }
+    }
+    if (skip_variable == false)
+     var_name= var_name.substr(strlen("skip_")+pos);
+  }
+
+  map<string, enum_variable_source>::iterator it= default_paths.find(path);
+  my_variable_sources source;
+  if (it != default_paths.end())
+  {
+    source.m_config_file_name= path;
+    source.m_source= it->second;
+  }
+
+  std::pair<std::map<string, my_variable_sources>::iterator,bool> ret;
+  ret= variables_hash.insert(std::pair<string, my_variable_sources>(var_name, source));
+  /*
+    If value exists replace it with new path. ex: if there exists
+    same variables in my.cnf and mysqld-auto.cnf and specified in
+    command line options, then final entry into this hash will be
+    option name as key and mysqld-auto.cnf file path + PERSISTED
+    as value.
+  */
+  if (ret.second == false)
+    variables_hash[var_name]= source;
+}
+
+/**
+  This function will set value for my_option::arg_source by doing a
+  lookup into variables_hash based on opt_name as key. If key is present
+  corresponding value (config file, enum value) will be set in value.
+
+   @param [in] opt_name       Pointer to option name.
+   @param [out] value         Pointer to struct holding config file path
+                              and variable source
+
+   @return void
+*/
+void set_variable_source(const char *opt_name, void* value)
+{
+  string src_name= opt_name;
+  std::size_t pos;
+
+  /* replace all '-' to '_' */
+  while ((pos= src_name.find("-")) != string::npos)
+    src_name.replace(pos, 1, "_");
+
+  map<string, my_variable_sources>::iterator it= variables_hash.find(src_name);
+  if (it != variables_hash.end())
+  {
+    if ((get_opt_arg_source*)value)
+    {
+      ((get_opt_arg_source*)value)->m_name=
+        it->second.m_config_file_name.c_str();
+      ((get_opt_arg_source*)value)->m_source= it->second.m_source;
+    }
+  }
+}
 
 static int add_directory(MEM_ROOT *alloc, const char *dir, const char **dirs)
 {

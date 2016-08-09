@@ -2710,6 +2710,23 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
+-- TABLE VARIABLES_INFO
+--
+
+SET @cmd="CREATE TABLE performance_schema.variables_info("
+  "VARIABLE_NAME varchar(64) not null,"
+  "VARIABLE_SOURCE ENUM('COMPILED','GLOBAL','SERVER','EXPLICIT','EXTRA','USER','LOGIN','COMMAND_LINE','PERSISTED','DYNAMIC'),"
+  "VARIABLE_PATH varchar(1024),"
+  "MIN_VALUE varchar(64),"
+  "MAX_VALUE varchar(64)"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
 -- TABLE STATUS_BY_THREAD
 --
 

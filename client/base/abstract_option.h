@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -138,7 +138,6 @@ template<typename T_type> Abstract_option<T_type>::Abstract_option(void* value,
   this->m_option_structure.block_size= 0;
   this->m_option_structure.max_value= 0;
   this->m_option_structure.min_value= 0;
-  this->m_option_structure.sub_size= 0;
   this->m_option_structure.typelib= NULL;
   this->m_option_structure.u_max_value= NULL;
 
@@ -162,6 +161,7 @@ template<typename T_type> Abstract_option<T_type>::Abstract_option(void* value,
 
   this->m_option_structure.value= value;
   this->m_option_structure.var_type= var_type;
+  this->m_option_structure.arg_source= 0;
 }
 
 template<typename T_type> my_option Abstract_option<T_type>::get_my_option()

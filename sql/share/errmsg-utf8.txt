@@ -7827,6 +7827,9 @@ ER_COMPONENTS_UNLOAD_DUPLICATE_IN_GROUP
 ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS
   eng "@@GLOBAL.GTID_PURGED cannot be changed: %s"
 
+ER_VARIABLE_NOT_PERSISTED
+  eng "Variables cannot be persisted. Please retry."
+
 #
 #  End of 8.0 error messages.
 #

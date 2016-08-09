@@ -330,6 +330,7 @@
 #include "options_mysqld.h"             // OPT_THREAD_CACHE_SIZE
 #include "opt_costconstantcache.h"      // delete_optimizer_cost_module
 #include "parse_file.h"                 // File_parser_dummy_hook
+#include "persisted_variable.h"         // Persisted_variables_cache
 #include "psi_memory_key.h"             // key_memory_MYSQL_RELAY_LOG_index
 #include "replication.h"                // thd_enter_cond
 #include "rpl_filter.h"                 // Rpl_filter
@@ -833,6 +834,8 @@ ulong stored_program_cache_size= 0;
 */
 my_bool avoid_temporal_upgrade;
 
+my_bool persisted_globals_load= TRUE;
+
 const double log_10[] = {
   1e000, 1e001, 1e002, 1e003, 1e004, 1e005, 1e006, 1e007, 1e008, 1e009,
   1e010, 1e011, 1e012, 1e013, 1e014, 1e015, 1e016, 1e017, 1e018, 1e019,
@@ -1052,6 +1055,9 @@ Checkable_rwlock *global_sid_lock= NULL;
 Sid_map *global_sid_map= NULL;
 Gtid_state *gtid_state= NULL;
 Gtid_table_persistor *gtid_table_persistor= NULL;
+
+/* cache for persisted variables */
+static Persisted_variables_cache persisted_variables_cache;
 
 void set_remaining_args(int argc, char **argv)
 {
@@ -1837,6 +1843,9 @@ void clean_up(bool print_message)
 
   log_syslog_exit();
 
+#ifndef EMBEDDED_LIBRARY
+  persisted_variables_cache.cleanup();
+#endif
   /*
     The following lines may never be executed as the main thread may have
     killed us
@@ -3553,6 +3562,9 @@ int init_common_variables()
                     "and ignore_table rules to hush.");
     return 1;
   }
+  /* Once all options are handled we load persisted config file */
+  if (persisted_variables_cache.load_persist_file())
+    return 1;
 
   return 0;
 }
@@ -4831,11 +4843,17 @@ int mysqld_main(int argc, char **argv)
     flush_error_log_messages();
     return 1;
   }
+
+  /* Initialize variables cache for persisted variables */
+  persisted_variables_cache.init();
+
   my_getopt_use_args_separator= FALSE;
   defaults_argc= argc;
   defaults_argv= argv;
   remaining_argc= argc;
   remaining_argv= argv;
+
+  init_variable_default_paths();
 
   /* Must be initialized early for comparison of options name */
   system_charset_info= &my_charset_utf8_general_ci;
@@ -5537,6 +5555,13 @@ int mysqld_main(int argc, char **argv)
   //  Start signal handler thread.
   start_signal_handler();
 #endif
+
+  /* set all persistent options */
+  if (persisted_variables_cache.set_persist_options())
+  {
+    sql_print_error("Setting persistent options failed.");
+    return 1;
+  }
 
   if (opt_initialize)
   {
