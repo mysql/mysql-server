@@ -11543,9 +11543,9 @@ innobase_dict_init(
 
 	/** Maximum length of a table name from InnoDB point of view, including
 	partitions and subpartitions, in number of characters.
-	The naming is: "table_name#P#partition_name#SP#subpartition_name",
+	The naming is: @code "table_name#P#partition_name#SP#subpartition_name" @endcode,
 	where each of the names can be up to NAME_CHAR_LEN (64) characters.
-	So the maximum is 64 + strlen(#P#) + 64 + strlen(#SP#) + 64 = 199. */
+	So the maximum is 64 + strlen(@code "#P#" @endcode) + 64 + strlen(@code "#SP#" @endcode) + 64 = 199. */
 #define NAME_CHAR_LEN_PARTITIONS_STR	"199"
 
 	static Plugin_table innodb_table_stats(
