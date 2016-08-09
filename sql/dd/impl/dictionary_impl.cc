@@ -56,8 +56,6 @@ bool Dictionary_impl::init(bool install)
 
   Dictionary_impl::s_instance= d.release();
 
-  // TODO: We need to do basic ACL initialization to get a working LOCK_grant.
-  // We should instead rethink the order stuff happens during server start.
 #ifndef EMBEDDED_LIBRARY
   acl_init(true);
 #endif

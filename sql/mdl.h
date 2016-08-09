@@ -339,6 +339,7 @@ public:
      - USER_LEVEL_LOCK is for user-level locks.
      - LOCKING_SERVICE is for the name plugin RW-lock service
      - SRID is for spatial reference systems
+     - ACL_CACHE is for ACL caches
     Note that although there isn't metadata locking on triggers,
     it's necessary to have a separate namespace for them since
     MDL_key is also used outside of the MDL subsystem.
@@ -357,6 +358,7 @@ public:
                             USER_LEVEL_LOCK,
                             LOCKING_SERVICE,
                             SRID,
+                            ACL_CACHE,
                             /* This should be the last ! */
                             NAMESPACE_END };
 

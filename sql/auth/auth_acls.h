@@ -151,7 +151,4 @@
 #define get_rights_for_procedure(A) ((((A) & EXECUTE_ACL) >> 18) |  \
                                      (((A) & ALTER_PROC_ACL) >> 23) | \
                                      (((A) & GRANT_ACL) >> 8))
-
-#define GRANT_TABLES 8
-
 #endif /* AUTH_ACLS_INCLUDED */

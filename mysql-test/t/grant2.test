@@ -312,11 +312,13 @@ drop user 'mysqltest_1a', 'mysqltest_2a', 'mysqltest_3a';
 create user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
 --error ER_CANNOT_USER
 create user 'mysqltest_1a', 'mysqltest_2', 'mysqltest_3a';
+create user 'mysqltest_1a', 'mysqltest_3a';
 --error ER_CANNOT_USER
 rename user 'mysqltest_1a' to 'mysqltest_1b', 'mysqltest_2a' TO 'mysqltest_2b', 'mysqltest_3a' TO 'mysqltest_3b';
 drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
 --error ER_CANNOT_USER
 drop user 'mysqltest_1b', 'mysqltest_2b', 'mysqltest_3b';
+drop user 'mysqltest_1a', 'mysqltest_3a';
 #
 # Obsolete syntax has been dropped
 create user 'mysqltest_2' identified by 'Mysqltest-2';

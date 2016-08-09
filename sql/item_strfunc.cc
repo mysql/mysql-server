@@ -1816,7 +1816,7 @@ bool Item_func_roles_graphml::fix_fields(THD *thd, Item **ref)
   Item_str_func::fix_fields(thd, ref);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (thd->security_context()->check_access(SUPER_ACL, false))
-    roles_graphml(&m_str);
+    roles_graphml(thd, &m_str);
   else
     m_str.set(STRING_WITH_LEN("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
                               "<graphml />"), system_charset_info);

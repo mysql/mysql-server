@@ -1287,7 +1287,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     Enforce password expiration for all RPC commands, except the
     following:
 
-    COM_QUERY does a more fine-grained check later.
+    COM_QUERY/COM_STMT_PREPARE and COM_STMT_EXECUTE do a more
+    fine-grained check later.
     COM_STMT_CLOSE and COM_STMT_SEND_LONG_DATA don't return anything.
     COM_PING only discloses information that the server is running,
        and that's available through other means.
@@ -1298,7 +1299,9 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
                command != COM_STMT_CLOSE &&
                command != COM_STMT_SEND_LONG_DATA &&
                command != COM_PING &&
-               command != COM_QUIT))
+               command != COM_QUIT &&
+               command != COM_STMT_PREPARE &&
+               command != COM_STMT_EXECUTE))
   {
     my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
     goto done;
@@ -2177,7 +2180,7 @@ bool sp_process_definer(THD *thd)
   /* Check that the specified definer exists. Emit a warning if not. */
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (!is_acl_user(lex->definer->host.str, lex->definer->user.str))
+  if (!is_acl_user(thd, lex->definer->host.str, lex->definer->user.str))
   {
     push_warning_printf(thd,
                         Sql_condition::SL_NOTE,
@@ -3762,8 +3765,8 @@ mysql_execute_command(THD *thd, bool first_level)
           if (acl_check_proxy_grant_access (thd, user->host.str, user->user.str,
                                         lex->grant & GRANT_ACL))
             goto error;
-        } 
-        else if (is_acl_user(user->host.str, user->user.str) &&
+        }
+        else if (is_acl_user(thd, user->host.str, user->user.str) &&
                  user->auth.str &&
                  check_change_password (thd, user->host.str, user->user.str,
                                         user->auth.str,
@@ -3825,7 +3828,7 @@ mysql_execute_command(THD *thd, bool first_level)
           {
             if (!(user= get_current_user(thd, tmp_user)))
               goto error;
-	    reset_mqh(user, 0);
+	    reset_mqh(thd, user, 0);
           }
 	}
       }
@@ -4115,7 +4118,7 @@ mysql_execute_command(THD *thd, bool first_level)
           current_host= lex->definer->host;
           current_user= lex->definer->user;
         }
-        if (is_acl_user(current_host.str, current_user.str))
+        if (is_acl_user(thd, current_host.str, current_user.str))
         {
           security_context.change_security_context(thd,
                                                    current_user,

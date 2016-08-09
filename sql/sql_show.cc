@@ -1142,7 +1142,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     }
     else
     {
-      db_access= (acl_get(sctx->host().str, sctx->ip().str,
+      db_access= (acl_get(thd, sctx->host().str, sctx->ip().str,
                           sctx->priv_user().str, dbname, 0) |
                   sctx->master_access());
     }
@@ -4562,6 +4562,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
   }
 
   {
+    mysql_mutex_unlock(&LOCK_open);
     TABLE tbl;
     memset(&tbl, 0, sizeof(TABLE));
     init_sql_alloc(key_memory_table_triggers_list,
@@ -4580,6 +4581,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
       free_root(&tbl.mem_root, MYF(0));
       my_free((void *) tbl.alias);
     }
+    mysql_mutex_lock(&LOCK_open);
   }
 
 end_share:
@@ -4821,7 +4823,7 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
                        &thd->col_access, NULL, 0, 1) ||
           (!thd->col_access && check_grant_db(thd, db_name->str))) ||
         sctx->check_access(DB_ACLS | SHOW_DB_ACL, true) ||
-        have_db_privileges || acl_get(sctx->host().str, sctx->ip().str,
+        have_db_privileges || acl_get(thd, sctx->host().str, sctx->ip().str,
                 sctx->priv_user().str, db_name->str, 0))
 #endif
     {
@@ -5047,7 +5049,7 @@ static int fill_schema_schemata(THD *thd, TABLE_LIST *tables, Item *cond)
     }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (sctx->check_access(DB_ACLS | SHOW_DB_ACL, true) ||
-	acl_get(sctx->host().str, sctx->ip().str,
+	acl_get(thd, sctx->host().str, sctx->ip().str,
                 sctx->priv_user().str, db_name->str, 0) ||
                 !check_grant_db(thd, db_name->str))
 #endif

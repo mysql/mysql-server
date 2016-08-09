@@ -9162,7 +9162,6 @@ static PSI_mutex_info all_server_mutexes[]=
 };
 #endif // !EMBEDDED_LIBRARY
 
-PSI_rwlock_key key_rwlock_LOCK_grant;
 PSI_rwlock_key key_rwlock_LOCK_logger;
 PSI_rwlock_key key_rwlock_query_cache_query_lock;
 PSI_rwlock_key key_rwlock_channel_map_lock;
@@ -9183,7 +9182,6 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_Binlog_transmit_delegate_lock, "Binlog_transmit_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Binlog_relay_IO_delegate_lock, "Binlog_relay_IO_delegate::lock", PSI_FLAG_GLOBAL},
 #endif
-  { &key_rwlock_LOCK_grant, "LOCK_grant", 0},
   { &key_rwlock_LOCK_logger, "LOGGER::LOCK_logger", 0},
   { &key_rwlock_LOCK_sys_init_connect, "LOCK_sys_init_connect", PSI_FLAG_GLOBAL},
   { &key_rwlock_LOCK_sys_init_slave, "LOCK_sys_init_slave", PSI_FLAG_GLOBAL},

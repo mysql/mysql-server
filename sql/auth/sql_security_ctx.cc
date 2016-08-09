@@ -210,7 +210,7 @@ change_security_context(THD *thd,
                                thd->security_context()->priv_host().str));
   if (needs_change)
   {
-    if (acl_getroot(this,
+    if (acl_getroot(thd, this,
                     const_cast<char*>(definer_user.str),
                     const_cast<char*>(definer_host.str),
                     const_cast<char*>(definer_host.str),
@@ -264,8 +264,8 @@ bool Security_context::check_access(ulong want_access, bool match_any)
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 /**
-  This method pushes a role to the list of active roles. It requires the
-  acl_cache::lock mutex and the LOCK_grant read lock.
+  This method pushes a role to the list of active roles. It requires
+  Acl_cache_lock_guard.
  
   This method allocates memory which must be freed when the role is deactivated.
  

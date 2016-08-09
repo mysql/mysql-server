@@ -29,7 +29,7 @@ DROP USER nonexisting@localhost;
 ERROR HY000: Operation DROP USER failed for 'nonexisting'@'localhost'
 DROP USER nonexisting@localhost, dummy@localhost;
 ERROR HY000: Operation DROP USER failed for 'nonexisting'@'localhost'
-DROP USER dummy1@localhost, dummy2@localhost;
+DROP USER dummy@localhost, dummy1@localhost, dummy2@localhost;
 SELECT user, host FROM mysql.user WHERE user like 'dummy%';
 user	host
 SELECT COUNT(*) FROM mysql.user WHERE user like 'dummy%';
@@ -56,15 +56,18 @@ CREATE USER 'b54866_user'@'localhost';
 GRANT ALL ON b54866.* TO 'b54866_user'@'localhost';
 REVOKE ALL ON b54866.* FROM 'b54866_user'@'localhost', 'b54866_fake_user';
 ERROR 42000: There is no such grant defined for user 'b54866_fake_user' on host '%'
-call mtr.add_suppression("Slave SQL.*The incident LOST_EVENTS occured on the master.*");
-include/wait_for_slave_sql_error.inc [errno=1590]
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-include/start_slave_sql.inc
+****** Checking grants on the master for user: b54866_user ******
+SHOW GRANTS FOR 'b54866_user'@'localhost';
+Grants for b54866_user@localhost
+GRANT USAGE ON *.* TO `b54866_user`@`localhost`
+GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
+*************************************************************
 include/sync_slave_sql_with_master.inc
 ****** Checking grants on the master for user: b54866_user ******
 SHOW GRANTS FOR 'b54866_user'@'localhost';
 Grants for b54866_user@localhost
 GRANT USAGE ON *.* TO `b54866_user`@`localhost`
+GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
 *************************************************************
 include/sync_slave_sql_with_master.inc
 ****** Checking grants on the slave for user: b54866_user *******
@@ -81,6 +84,7 @@ GRANT ALTER,CREATE,DROP ON TABLE b54866.t1 TO 'b54866_user'@'localhost';
 SHOW GRANTS FOR 'b54866_user'@'localhost';
 Grants for b54866_user@localhost
 GRANT USAGE ON *.* TO `b54866_user`@`localhost`
+GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
 GRANT CREATE, DROP, ALTER ON `b54866`.`t1` TO `b54866_user`@`localhost`
 *************************************************************
 include/sync_slave_sql_with_master.inc
@@ -97,11 +101,9 @@ ERROR 42000: There is no such grant defined for user 'b54866_fake_user' on host 
 SHOW GRANTS FOR 'b54866_user'@'localhost';
 Grants for b54866_user@localhost
 GRANT USAGE ON *.* TO `b54866_user`@`localhost`
-GRANT CREATE, DROP ON `b54866`.`t1` TO `b54866_user`@`localhost`
+GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
+GRANT CREATE, DROP, ALTER ON `b54866`.`t1` TO `b54866_user`@`localhost`
 *************************************************************
-include/wait_for_slave_sql_error.inc [errno=1590]
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-include/start_slave_sql.inc
 include/sync_slave_sql_with_master.inc
 ****** Checking grants on the slave for user: b54866_user *******
 SHOW GRANTS FOR 'b54866_user'@'localhost';
@@ -121,7 +123,8 @@ GRANT EXECUTE ON FUNCTION b54866.b54866_f TO 'b54866_user'@'localhost';
 SHOW GRANTS FOR 'b54866_user'@'localhost';
 Grants for b54866_user@localhost
 GRANT USAGE ON *.* TO `b54866_user`@`localhost`
-GRANT CREATE, DROP ON `b54866`.`t1` TO `b54866_user`@`localhost`
+GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
+GRANT CREATE, DROP, ALTER ON `b54866`.`t1` TO `b54866_user`@`localhost`
 GRANT EXECUTE ON PROCEDURE `b54866`.`b54866_p` TO `b54866_user`@`localhost`
 GRANT EXECUTE ON FUNCTION `b54866`.`b54866_f` TO `b54866_user`@`localhost`
 *************************************************************
@@ -145,12 +148,11 @@ ERROR 42000: There is no such grant defined for user 'b54866_fake_user' on host 
 SHOW GRANTS FOR 'b54866_user'@'localhost';
 Grants for b54866_user@localhost
 GRANT USAGE ON *.* TO `b54866_user`@`localhost`
-GRANT CREATE, DROP ON `b54866`.`t1` TO `b54866_user`@`localhost`
+GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
+GRANT CREATE, DROP, ALTER ON `b54866`.`t1` TO `b54866_user`@`localhost`
+GRANT EXECUTE ON PROCEDURE `b54866`.`b54866_p` TO `b54866_user`@`localhost`
 GRANT EXECUTE ON FUNCTION `b54866`.`b54866_f` TO `b54866_user`@`localhost`
 *************************************************************
-include/wait_for_slave_sql_error.inc [errno=1590]
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-include/start_slave_sql.inc
 include/sync_slave_sql_with_master.inc
 ****** Checking grants on the slave for user: b54866_user *******
 SHOW GRANTS FOR 'b54866_user'@'localhost';
@@ -170,11 +172,11 @@ ERROR 42000: There is no such grant defined for user 'b54866_fake_user' on host 
 SHOW GRANTS FOR 'b54866_user'@'localhost';
 Grants for b54866_user@localhost
 GRANT USAGE ON *.* TO `b54866_user`@`localhost`
-GRANT CREATE, DROP ON `b54866`.`t1` TO `b54866_user`@`localhost`
+GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
+GRANT CREATE, DROP, ALTER ON `b54866`.`t1` TO `b54866_user`@`localhost`
+GRANT EXECUTE ON PROCEDURE `b54866`.`b54866_p` TO `b54866_user`@`localhost`
+GRANT EXECUTE ON FUNCTION `b54866`.`b54866_f` TO `b54866_user`@`localhost`
 *************************************************************
-include/wait_for_slave_sql_error.inc [errno=1590]
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-include/start_slave_sql.inc
 include/sync_slave_sql_with_master.inc
 ****** Checking grants on the slave for user: b54866_user *******
 SHOW GRANTS FOR 'b54866_user'@'localhost';

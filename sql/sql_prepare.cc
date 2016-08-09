@@ -3540,7 +3540,8 @@ Prepared_statement::execute_loop(bool open_cursor,
     return TRUE;
 
   if (unlikely(thd->security_context()->password_expired() &&
-               lex->sql_command != SQLCOM_SET_PASSWORD))
+               lex->sql_command != SQLCOM_SET_PASSWORD &&
+               lex->sql_command != SQLCOM_ALTER_USER))
   {
     my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
     return true;

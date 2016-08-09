@@ -10,6 +10,9 @@
 --echo [On Master]
 --echo # No users exist:
 
+CALL mtr.add_suppression('Following users were specified in CREATE USER IF NOT EXISTS');
+CALL mtr.add_suppression('Following users were specified in ALTER USER IF EXISTS');
+
 DROP USER IF EXISTS wl8540@nohost1, wl8540@nohost2;
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 ALTER USER IF EXISTS wl8540@nohost1, wl8540@nohost2 ACCOUNT LOCK;

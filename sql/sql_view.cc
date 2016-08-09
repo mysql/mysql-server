@@ -521,7 +521,8 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     }
     else
     {
-      if (!is_acl_user(lex->definer->host.str,
+      if (!is_acl_user(thd,
+                       lex->definer->host.str,
                        lex->definer->user.str))
       {
         push_warning_printf(thd, Sql_condition::SL_NOTE,
@@ -1124,26 +1125,6 @@ bool open_and_read_view(THD *thd, TABLE_SHARE *share,
 
   if (view_ref->is_view())
   {
-    /*
-      It's an execution of a PS/SP and the view has already been unfolded
-      into a list of used tables. Now we only need to update the information
-      about granted privileges in the view tables with the actual data
-      stored in MySQL privilege system.  We don't need to restore the
-      required privileges (by calling register_want_access) because they has
-      not changed since PREPARE or the previous execution: the only case
-      when this information is changed is execution of UPDATE on a view, but
-      the original want_access is restored in its end.
-
-      Optimizer trace: because tables have been unfolded already, they are
-      in LEX::query_tables of the statement using the view. So privileges on
-      them are checked as done for explicitely listed tables, in constructor
-      of Opt_trace_start. Security context change is checked in
-      prepare_security() below.
-    */
-    if (!view_ref->prelocking_placeholder &&
-        view_ref->prepare_security(thd))
-      DBUG_RETURN(true);
-
     DBUG_PRINT("info",
                ("VIEW %s.%s is already processed on previous PS/SP execution",
                 view_ref->view_db.str, view_ref->view_name.str));
@@ -1230,11 +1211,29 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
   TABLE_LIST *const top_view= view_ref->top_table();
 
   if (view_ref->is_view())
+  {
     /*
       It's an execution of a PS/SP and the view has already been unfolded
-      into a list of used tables.
+      into a list of used tables. Now we only need to update the information
+      about granted privileges in the view tables with the actual data
+      stored in MySQL privilege system.  We don't need to restore the
+      required privileges (by calling register_want_access) because they has
+      not changed since PREPARE or the previous execution: the only case
+      when this information is changed is execution of UPDATE on a view, but
+      the original want_access is restored in its end.
+
+      Optimizer trace: because tables have been unfolded already, they are
+      in LEX::query_tables of the statement using the view. So privileges on
+      them are checked as done for explicitely listed tables, in constructor
+      of Opt_trace_start. Security context change is checked in
+      prepare_security() below.
     */
+    if (!view_ref->prelocking_placeholder &&
+        view_ref->prepare_security(thd))
+      DBUG_RETURN(true);
+
     DBUG_RETURN(false);
+  }
 
   // Save VIEW parameters, which will be wiped out by derived table processing
   view_ref->view_db.str= view_ref->db;

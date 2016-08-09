@@ -7830,6 +7830,8 @@ ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS
 ER_VARIABLE_NOT_PERSISTED
   eng "Variables cannot be persisted. Please retry."
 
+ER_CANNOT_LOCK_USER_MANAGEMENT_CACHES
+  eng "Can not lock user management caches for processing."
 #
 #  End of 8.0 error messages.
 #

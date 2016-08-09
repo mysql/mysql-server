@@ -555,7 +555,7 @@ void acl_log_connect(const char *user, const char *host, const char *auth_as,
 	const char *db, THD *thd,
 enum enum_server_command command);
 int acl_authenticate(THD *thd, enum_server_command command);
-bool acl_check_host(const char *host, const char *ip);
+bool acl_check_host(THD *thd, const char *host, const char *ip);
 
 /*
   User Attributes are the once which are defined during CREATE/ALTER/GRANT
@@ -574,8 +574,12 @@ bool acl_check_host(const char *host, const char *ip);
 
 /* rewrite CREATE/ALTER/GRANT user */
 void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
-                                     std::set<LEX_USER *> *users_not_to_log= NULL);
+                                     std::set<LEX_USER *> *users_not_to_log= NULL,
+                                     bool for_binlog= false);
 void mysql_rewrite_grant(THD *thd, String *rlb);
+void mysql_rewrite_set_password(THD *thd, String *rlb,
+                                std::set<LEX_USER *> *users,
+                                bool for_binlog= false);
 
 /* sql_user */
 void append_user(THD *thd, String *str, LEX_USER *user,
@@ -585,11 +589,6 @@ int check_change_password(THD *thd, const char *host, const char *user,
                           const char *password, size_t password_len);
 bool change_password(THD *thd, const char *host, const char *user,
                      char *password);
-int write_bin_log_n_handle_any_error(THD *thd,
-                                     const char* query,
-                                     size_t query_len,
-                                     bool transactional_tables,
-                                     bool *rollback_whole_statement);
 bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists,
                        bool is_role);
 bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists);
@@ -614,10 +613,10 @@ bool grant_init(bool skip_grant_tables);
 void grant_free(void);
 my_bool grant_reload(THD *thd);
 bool roles_init_from_tables(THD *thd);
-ulong acl_get(const char *host, const char *ip,
+ulong acl_get(THD *thd, const char *host, const char *ip,
               const char *user, const char *db, my_bool db_is_pattern);
-bool is_acl_user(const char *host, const char *user);
-bool acl_getroot(Security_context *sctx, char *user,
+bool is_acl_user(THD *thd, const char *host, const char *user);
+bool acl_getroot(THD *thd, Security_context *sctx, char *user,
                  char *host, char *ip, const char *db);
 
 /* sql_authorization */
@@ -652,7 +651,7 @@ bool check_grant_db(THD *thd,const char *db);
 bool acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
                                   bool with_grant);
 void get_privilege_desc(char *to, uint max_length, ulong access);
-void get_mqh(const char *user, const char *host, USER_CONN *uc);
+void get_mqh(THD *thd, const char *user, const char *host, USER_CONN *uc);
 ulong get_table_grant(THD *thd, TABLE_LIST *table);
 ulong get_column_grant(THD *thd, GRANT_INFO *grant,
                        const char *db_name, const char *table_name,
@@ -720,7 +719,7 @@ bool mysql_alter_user_set_default_roles_all(THD *thd, LEX_USER *user);
 bool is_granted_table_access(THD *thd, ulong required_acl,
                              TABLE_LIST *table);
 bool mysql_clear_default_roles(THD *thd, LEX_USER *user);
-void roles_graphml(String *);
+void roles_graphml(THD *thd, String *);
 bool has_grant_role_privilege(THD *thd, const LEX_CSTRING &role_name,
                               const LEX_CSTRING &role_host);
 Auth_id_ref create_authid_from(const LEX_USER *user);
@@ -781,6 +780,8 @@ typedef enum ssl_artifacts_status
 } ssl_artifacts_status;
 
 ulong get_global_acl_cache_size();
+
+bool roles_init_from_tables(THD *thd, bool use_mutex_lock);
 #endif /* EMBEDDED_LIBRARY */
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)

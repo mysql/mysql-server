@@ -29,13 +29,11 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	0
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	0
-localhost	wait/synch/rwlock/sql/LOCK_grant	0
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	65
 execute dump_waits_history;
 event_name	count(event_name)
 execute dump_stages_account;
@@ -104,7 +102,6 @@ username	event_name	count_star
 user1	wait/io/file/sql/query_log	1
 user1	wait/synch/mutex/sql/LOCK_connection_count	0
 user1	wait/synch/mutex/sql/LOCK_uuid_generator	0
-user1	wait/synch/rwlock/sql/LOCK_grant	1
 username	status
 user2	not found
 username	status
@@ -120,17 +117,14 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	1
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	0
-localhost	wait/synch/rwlock/sql/LOCK_grant	1
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	1
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	66
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	1
-wait/synch/rwlock/sql/LOCK_grant	1
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -209,7 +203,6 @@ username	event_name	count_star
 user1	wait/io/file/sql/query_log	7
 user1	wait/synch/mutex/sql/LOCK_connection_count	0
 user1	wait/synch/mutex/sql/LOCK_uuid_generator	2
-user1	wait/synch/rwlock/sql/LOCK_grant	4
 username	status
 user2	not found
 username	status
@@ -225,18 +218,15 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	7
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	2
-localhost	wait/synch/rwlock/sql/LOCK_grant	4
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	7
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	2
-wait/synch/rwlock/sql/LOCK_grant	69
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	7
 wait/synch/mutex/sql/LOCK_uuid_generator	2
-wait/synch/rwlock/sql/LOCK_grant	4
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -312,12 +302,10 @@ username	event_name	count_star
 user1	wait/io/file/sql/query_log	7
 user1	wait/synch/mutex/sql/LOCK_connection_count	0
 user1	wait/synch/mutex/sql/LOCK_uuid_generator	2
-user1	wait/synch/rwlock/sql/LOCK_grant	4
 username	event_name	count_star
 user2	wait/io/file/sql/query_log	1
 user2	wait/synch/mutex/sql/LOCK_connection_count	0
 user2	wait/synch/mutex/sql/LOCK_uuid_generator	0
-user2	wait/synch/rwlock/sql/LOCK_grant	1
 username	status
 user3	not found
 username	status
@@ -331,18 +319,15 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	8
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	2
-localhost	wait/synch/rwlock/sql/LOCK_grant	5
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	8
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	2
-wait/synch/rwlock/sql/LOCK_grant	70
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	8
 wait/synch/mutex/sql/LOCK_uuid_generator	2
-wait/synch/rwlock/sql/LOCK_grant	5
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -430,12 +415,10 @@ username	event_name	count_star
 user1	wait/io/file/sql/query_log	7
 user1	wait/synch/mutex/sql/LOCK_connection_count	0
 user1	wait/synch/mutex/sql/LOCK_uuid_generator	2
-user1	wait/synch/rwlock/sql/LOCK_grant	4
 username	event_name	count_star
 user2	wait/io/file/sql/query_log	7
 user2	wait/synch/mutex/sql/LOCK_connection_count	0
 user2	wait/synch/mutex/sql/LOCK_uuid_generator	2
-user2	wait/synch/rwlock/sql/LOCK_grant	4
 username	status
 user3	not found
 username	status
@@ -449,18 +432,15 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	14
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	4
-localhost	wait/synch/rwlock/sql/LOCK_grant	8
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	14
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	4
-wait/synch/rwlock/sql/LOCK_grant	73
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	14
 wait/synch/mutex/sql/LOCK_uuid_generator	4
-wait/synch/rwlock/sql/LOCK_grant	8
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -536,17 +516,14 @@ username	event_name	count_star
 user1	wait/io/file/sql/query_log	7
 user1	wait/synch/mutex/sql/LOCK_connection_count	0
 user1	wait/synch/mutex/sql/LOCK_uuid_generator	2
-user1	wait/synch/rwlock/sql/LOCK_grant	4
 username	event_name	count_star
 user2	wait/io/file/sql/query_log	7
 user2	wait/synch/mutex/sql/LOCK_connection_count	0
 user2	wait/synch/mutex/sql/LOCK_uuid_generator	2
-user2	wait/synch/rwlock/sql/LOCK_grant	4
 username	event_name	count_star
 user3	wait/io/file/sql/query_log	1
 user3	wait/synch/mutex/sql/LOCK_connection_count	0
 user3	wait/synch/mutex/sql/LOCK_uuid_generator	0
-user3	wait/synch/rwlock/sql/LOCK_grant	1
 username	status
 user4	not found
 execute dump_waits_account;
@@ -558,18 +535,15 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	15
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	4
-localhost	wait/synch/rwlock/sql/LOCK_grant	9
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	15
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	4
-wait/synch/rwlock/sql/LOCK_grant	74
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	15
 wait/synch/mutex/sql/LOCK_uuid_generator	4
-wait/synch/rwlock/sql/LOCK_grant	9
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -657,17 +631,14 @@ username	event_name	count_star
 user1	wait/io/file/sql/query_log	7
 user1	wait/synch/mutex/sql/LOCK_connection_count	0
 user1	wait/synch/mutex/sql/LOCK_uuid_generator	2
-user1	wait/synch/rwlock/sql/LOCK_grant	4
 username	event_name	count_star
 user2	wait/io/file/sql/query_log	7
 user2	wait/synch/mutex/sql/LOCK_connection_count	0
 user2	wait/synch/mutex/sql/LOCK_uuid_generator	2
-user2	wait/synch/rwlock/sql/LOCK_grant	4
 username	event_name	count_star
 user3	wait/io/file/sql/query_log	7
 user3	wait/synch/mutex/sql/LOCK_connection_count	0
 user3	wait/synch/mutex/sql/LOCK_uuid_generator	2
-user3	wait/synch/rwlock/sql/LOCK_grant	4
 username	status
 user4	not found
 execute dump_waits_account;
@@ -679,18 +650,15 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	21
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	6
-localhost	wait/synch/rwlock/sql/LOCK_grant	12
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	21
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	6
-wait/synch/rwlock/sql/LOCK_grant	77
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	21
 wait/synch/mutex/sql/LOCK_uuid_generator	6
-wait/synch/rwlock/sql/LOCK_grant	12
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -766,22 +734,18 @@ username	event_name	count_star
 user1	wait/io/file/sql/query_log	7
 user1	wait/synch/mutex/sql/LOCK_connection_count	0
 user1	wait/synch/mutex/sql/LOCK_uuid_generator	2
-user1	wait/synch/rwlock/sql/LOCK_grant	4
 username	event_name	count_star
 user2	wait/io/file/sql/query_log	7
 user2	wait/synch/mutex/sql/LOCK_connection_count	0
 user2	wait/synch/mutex/sql/LOCK_uuid_generator	2
-user2	wait/synch/rwlock/sql/LOCK_grant	4
 username	event_name	count_star
 user3	wait/io/file/sql/query_log	7
 user3	wait/synch/mutex/sql/LOCK_connection_count	0
 user3	wait/synch/mutex/sql/LOCK_uuid_generator	2
-user3	wait/synch/rwlock/sql/LOCK_grant	4
 username	event_name	count_star
 user4	wait/io/file/sql/query_log	1
 user4	wait/synch/mutex/sql/LOCK_connection_count	0
 user4	wait/synch/mutex/sql/LOCK_uuid_generator	0
-user4	wait/synch/rwlock/sql/LOCK_grant	1
 execute dump_waits_account;
 user	host	event_name	count_star
 execute dump_waits_user;
@@ -791,18 +755,15 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	22
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	6
-localhost	wait/synch/rwlock/sql/LOCK_grant	13
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	22
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	6
-wait/synch/rwlock/sql/LOCK_grant	78
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	22
 wait/synch/mutex/sql/LOCK_uuid_generator	6
-wait/synch/rwlock/sql/LOCK_grant	13
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -890,22 +851,18 @@ username	event_name	count_star
 user1	wait/io/file/sql/query_log	7
 user1	wait/synch/mutex/sql/LOCK_connection_count	0
 user1	wait/synch/mutex/sql/LOCK_uuid_generator	2
-user1	wait/synch/rwlock/sql/LOCK_grant	4
 username	event_name	count_star
 user2	wait/io/file/sql/query_log	7
 user2	wait/synch/mutex/sql/LOCK_connection_count	0
 user2	wait/synch/mutex/sql/LOCK_uuid_generator	2
-user2	wait/synch/rwlock/sql/LOCK_grant	4
 username	event_name	count_star
 user3	wait/io/file/sql/query_log	7
 user3	wait/synch/mutex/sql/LOCK_connection_count	0
 user3	wait/synch/mutex/sql/LOCK_uuid_generator	2
-user3	wait/synch/rwlock/sql/LOCK_grant	4
 username	event_name	count_star
 user4	wait/io/file/sql/query_log	7
 user4	wait/synch/mutex/sql/LOCK_connection_count	0
 user4	wait/synch/mutex/sql/LOCK_uuid_generator	2
-user4	wait/synch/rwlock/sql/LOCK_grant	4
 execute dump_waits_account;
 user	host	event_name	count_star
 execute dump_waits_user;
@@ -915,18 +872,15 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	28
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	8
-localhost	wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	28
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	81
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	28
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -1004,17 +958,14 @@ username	event_name	count_star
 user2	wait/io/file/sql/query_log	7
 user2	wait/synch/mutex/sql/LOCK_connection_count	0
 user2	wait/synch/mutex/sql/LOCK_uuid_generator	2
-user2	wait/synch/rwlock/sql/LOCK_grant	4
 username	event_name	count_star
 user3	wait/io/file/sql/query_log	7
 user3	wait/synch/mutex/sql/LOCK_connection_count	0
 user3	wait/synch/mutex/sql/LOCK_uuid_generator	2
-user3	wait/synch/rwlock/sql/LOCK_grant	4
 username	event_name	count_star
 user4	wait/io/file/sql/query_log	7
 user4	wait/synch/mutex/sql/LOCK_connection_count	0
 user4	wait/synch/mutex/sql/LOCK_uuid_generator	2
-user4	wait/synch/rwlock/sql/LOCK_grant	4
 execute dump_waits_account;
 user	host	event_name	count_star
 execute dump_waits_user;
@@ -1024,19 +975,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	29
 localhost	wait/synch/mutex/sql/LOCK_connection_count	1
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	8
-localhost	wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	29
 wait/synch/mutex/sql/LOCK_connection_count	1
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	81
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	29
 wait/synch/mutex/sql/LOCK_connection_count	1
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -1117,12 +1065,10 @@ username	event_name	count_star
 user3	wait/io/file/sql/query_log	7
 user3	wait/synch/mutex/sql/LOCK_connection_count	0
 user3	wait/synch/mutex/sql/LOCK_uuid_generator	2
-user3	wait/synch/rwlock/sql/LOCK_grant	4
 username	event_name	count_star
 user4	wait/io/file/sql/query_log	7
 user4	wait/synch/mutex/sql/LOCK_connection_count	0
 user4	wait/synch/mutex/sql/LOCK_uuid_generator	2
-user4	wait/synch/rwlock/sql/LOCK_grant	4
 execute dump_waits_account;
 user	host	event_name	count_star
 execute dump_waits_user;
@@ -1132,19 +1078,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	30
 localhost	wait/synch/mutex/sql/LOCK_connection_count	2
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	8
-localhost	wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	30
 wait/synch/mutex/sql/LOCK_connection_count	2
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	81
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	30
 wait/synch/mutex/sql/LOCK_connection_count	2
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -1227,7 +1170,6 @@ username	event_name	count_star
 user4	wait/io/file/sql/query_log	7
 user4	wait/synch/mutex/sql/LOCK_connection_count	0
 user4	wait/synch/mutex/sql/LOCK_uuid_generator	2
-user4	wait/synch/rwlock/sql/LOCK_grant	4
 execute dump_waits_account;
 user	host	event_name	count_star
 execute dump_waits_user;
@@ -1237,19 +1179,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	31
 localhost	wait/synch/mutex/sql/LOCK_connection_count	3
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	8
-localhost	wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	31
 wait/synch/mutex/sql/LOCK_connection_count	3
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	81
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	31
 wait/synch/mutex/sql/LOCK_connection_count	3
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -1339,19 +1278,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	32
 localhost	wait/synch/mutex/sql/LOCK_connection_count	4
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	8
-localhost	wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	81
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -1442,19 +1378,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	32
 localhost	wait/synch/mutex/sql/LOCK_connection_count	4
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	8
-localhost	wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	81
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -1545,19 +1478,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	32
 localhost	wait/synch/mutex/sql/LOCK_connection_count	4
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	8
-localhost	wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	81
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -1648,19 +1578,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	32
 localhost	wait/synch/mutex/sql/LOCK_connection_count	4
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	8
-localhost	wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	81
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -1751,19 +1678,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	0
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	0
-localhost	wait/synch/rwlock/sql/LOCK_grant	0
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	81
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -1854,19 +1778,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	0
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	0
-localhost	wait/synch/rwlock/sql/LOCK_grant	0
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	65
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -1957,19 +1878,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	0
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	0
-localhost	wait/synch/rwlock/sql/LOCK_grant	0
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	65
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -2060,19 +1978,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	0
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	0
-localhost	wait/synch/rwlock/sql/LOCK_grant	0
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	65
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -2163,19 +2078,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	0
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	0
-localhost	wait/synch/rwlock/sql/LOCK_grant	0
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	65
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -2266,19 +2178,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	0
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	0
-localhost	wait/synch/rwlock/sql/LOCK_grant	0
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	65
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -2369,19 +2278,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	0
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	0
-localhost	wait/synch/rwlock/sql/LOCK_grant	0
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	65
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -2472,19 +2378,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	0
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	0
-localhost	wait/synch/rwlock/sql/LOCK_grant	0
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	65
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -2575,19 +2478,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	0
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	0
-localhost	wait/synch/rwlock/sql/LOCK_grant	0
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	65
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -2678,19 +2578,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	0
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	0
-localhost	wait/synch/rwlock/sql/LOCK_grant	0
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	65
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -2781,19 +2678,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	0
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	0
-localhost	wait/synch/rwlock/sql/LOCK_grant	0
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	65
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -2884,19 +2778,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	0
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	0
-localhost	wait/synch/rwlock/sql/LOCK_grant	0
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	65
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -2987,19 +2878,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	0
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	0
-localhost	wait/synch/rwlock/sql/LOCK_grant	0
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	65
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -3090,19 +2978,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	0
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	0
-localhost	wait/synch/rwlock/sql/LOCK_grant	0
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	65
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -3193,19 +3078,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	0
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	0
-localhost	wait/synch/rwlock/sql/LOCK_grant	0
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	65
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -3296,19 +3178,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	0
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	0
-localhost	wait/synch/rwlock/sql/LOCK_grant	0
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	65
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -3399,19 +3278,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	0
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	0
-localhost	wait/synch/rwlock/sql/LOCK_grant	0
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	65
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -3502,19 +3378,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	0
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	0
-localhost	wait/synch/rwlock/sql/LOCK_grant	0
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	65
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -3605,19 +3478,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	0
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	0
-localhost	wait/synch/rwlock/sql/LOCK_grant	0
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	65
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;
@@ -3708,19 +3578,16 @@ host	event_name	count_star
 localhost	wait/io/file/sql/query_log	0
 localhost	wait/synch/mutex/sql/LOCK_connection_count	0
 localhost	wait/synch/mutex/sql/LOCK_uuid_generator	0
-localhost	wait/synch/rwlock/sql/LOCK_grant	0
 execute dump_waits_global;
 event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	65
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	16
 execute dump_stages_account;
 user	host	event_name	count_star
 execute dump_stages_user;

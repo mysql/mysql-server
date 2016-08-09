@@ -276,6 +276,11 @@ int PFS_object_row::make_row(const MDL_key *mdl)
     m_schema_name_length= mdl->db_name_length();
     m_object_name_length= mdl->name_length();
     break;
+  case MDL_key::ACL_CACHE:
+    m_object_type= OBJECT_TYPE_ACL_CACHE;
+    m_schema_name_length= mdl->db_name_length();
+    m_object_name_length= mdl->name_length();
+    break;
   case MDL_key::NAMESPACE_END:
   default:
     m_object_type= NO_OBJECT_TYPE;
@@ -616,6 +621,8 @@ void set_field_object_type(Field *f, enum_object_type object_type)
   case OBJECT_TYPE_LOCKING_SERVICE:
     PFS_engine_table::set_field_varchar_utf8(f, "LOCKING SERVICE", 15);
     break;
+  case OBJECT_TYPE_ACL_CACHE:
+    PFS_engine_table::set_field_varchar_utf8(f, "ACL CACHE", 9);
   case NO_OBJECT_TYPE:
   default:
     DBUG_ASSERT(false);

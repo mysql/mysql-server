@@ -1248,7 +1248,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   {
     db_access= sctx->check_access(DB_ACLS) ?
       DB_ACLS :
-      acl_get(sctx->host().str,
+      acl_get(thd, sctx->host().str,
               sctx->ip().str,
               sctx->priv_user().str,
               new_db_file_name.str,

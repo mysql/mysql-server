@@ -382,7 +382,6 @@ extern PSI_mutex_key key_commit_order_manager_mutex;
 extern PSI_mutex_key key_mutex_slave_worker_hash;
 #endif
 
-extern PSI_rwlock_key key_rwlock_LOCK_grant;
 extern PSI_rwlock_key key_rwlock_LOCK_logger;
 extern PSI_rwlock_key key_rwlock_query_cache_query_lock;
 extern PSI_rwlock_key key_rwlock_channel_map_lock;

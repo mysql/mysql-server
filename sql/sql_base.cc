@@ -51,6 +51,7 @@
 #include "transaction.h"              // trans_rollback_stmt
 #include "trigger_loader.h"           // Trigger_loader
 #include "sql_audit.h"                // mysql_audit_table_access_notify
+#include "auth_common.h"
 
 #ifdef HAVE_REPLICATION
 #include "rpl_rli.h"                  //Relay_log_information
@@ -846,13 +847,20 @@ TABLE_SHARE *get_cached_table_share(THD *thd, const char *db,
 OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
 {
   int result = 0;
-  OPEN_TABLE_LIST **start_list, *open_list;
+  OPEN_TABLE_LIST **start_list, *open_list, *start, *prev;
   TABLE_LIST table_list;
   DBUG_ENTER("list_open_tables");
 
   memset(&table_list, 0, sizeof(table_list));
   start_list= &open_list;
   open_list=0;
+
+  /*
+    This is done in two parts:
+    1. First, we will make OPEN_TABLE_LIST under LOCK_open
+    2. Second, we will check permission and unlink OPEN_TABLE_LIST
+       entries if permission check fails
+  */
 
   table_cache_manager.lock_all_and_tdc();
 
@@ -866,14 +874,6 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
     if (db && my_strcasecmp(system_charset_info, db, share->db.str))
       continue;
     if (wild && wild_compare(share->table_name.str, wild, 0))
-      continue;
-
-    /* Check if user has SELECT privilege for any column in the table */
-    table_list.db=         share->db.str;
-    table_list.table_name= share->table_name.str;
-    table_list.grant.privilege=0;
-
-    if (check_table_access(thd,SELECT_ACL,&table_list, TRUE, 1, TRUE))
       continue;
 
     if (!(*start_list = (OPEN_TABLE_LIST *)
@@ -895,6 +895,33 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
     *start_list=0;
   }
   table_cache_manager.unlock_all_and_tdc();
+
+  start= open_list;
+  prev= start;
+
+  while (start)
+  {
+    /* Check if user has SELECT privilege for any column in the table */
+    table_list.db= start->db;
+    table_list.table_name= start->table;
+    table_list.grant.privilege=0;
+
+    if (check_table_access(thd, SELECT_ACL, &table_list, TRUE, 1, TRUE))
+    {
+      /* Unlink OPEN_TABLE_LIST */
+      if (start == open_list)
+      {
+        open_list= start->next;
+        prev= open_list;
+      }
+      else
+        prev->next= start->next;
+    }
+    else
+      prev= start;
+    start= start->next;
+  }
+
   DBUG_RETURN(open_list);
 }
 

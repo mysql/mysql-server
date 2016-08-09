@@ -104,7 +104,8 @@ PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END]=
   {0, "Waiting for commit lock", 0},
   {0, "User lock", 0}, /* Be compatible with old status. */
   {0, "Waiting for locking service lock", 0},
-  {0, "Waiting for spatial reference system lock", 0}
+  {0, "Waiting for spatial reference system lock", 0},
+  {0, "Waiting for acl cache lock", 0}
 };
 
 #ifdef HAVE_PSI_INTERFACE
@@ -221,7 +222,8 @@ public:
   bool is_lock_object_singleton(const MDL_key *mdl_key) const
   {
     return (mdl_key->mdl_namespace() == MDL_key::GLOBAL ||
-            mdl_key->mdl_namespace() == MDL_key::COMMIT);
+            mdl_key->mdl_namespace() == MDL_key::COMMIT ||
+            mdl_key->mdl_namespace() == MDL_key::ACL_CACHE);
   }
 
 private:
@@ -234,6 +236,8 @@ private:
   MDL_lock *m_global_lock;
   /** Pre-allocated MDL_lock object for COMMIT namespace. */
   MDL_lock *m_commit_lock;
+  /** Pre-allocated MDL_lock object for ACL_CACHE namespace. */
+  MDL_lock *m_acl_cache_lock;
   /**
     Number of unused MDL_lock objects in the server.
 
@@ -1021,14 +1025,15 @@ public:
   }
 
   /**
-    Check if MDL_lock object represents user-level lock or locking service
-    lock, so threads waiting for it need to check if connection is lost
-    and abort waiting when it is.
+    Check if MDL_lock object represents user-level lock,locking service
+    lock or acl cache lock, so threads waiting for it need to check if
+    connection is lost and abort waiting when it is.
   */
   static bool object_lock_needs_connection_check(const MDL_lock *lock)
   {
     return (lock->key.mdl_namespace() == MDL_key::USER_LEVEL_LOCK ||
-            lock->key.mdl_namespace() == MDL_key::LOCKING_SERVICE);
+            lock->key.mdl_namespace() == MDL_key::LOCKING_SERVICE ||
+            lock->key.mdl_namespace() == MDL_key::ACL_CACHE);
   }
 
   /**
@@ -1151,9 +1156,11 @@ void MDL_map::init()
 {
   MDL_key global_lock_key(MDL_key::GLOBAL, "", "");
   MDL_key commit_lock_key(MDL_key::COMMIT, "", "");
+  MDL_key acl_cache_lock_key(MDL_key::ACL_CACHE, "", "");
 
   m_global_lock= MDL_lock::create(&global_lock_key);
   m_commit_lock= MDL_lock::create(&commit_lock_key);
+  m_acl_cache_lock= MDL_lock::create(&acl_cache_lock_key);
 
   m_unused_lock_objects= 0;
 
@@ -1172,6 +1179,7 @@ void MDL_map::destroy()
 {
   MDL_lock::destroy(m_global_lock);
   MDL_lock::destroy(m_commit_lock);
+  MDL_lock::destroy(m_acl_cache_lock);
 
   lf_hash_destroy(&m_locks);
 }
@@ -1185,8 +1193,8 @@ void MDL_map::destroy()
   @param[in]      mdl_key  Key for which MDL_lock object needs to be found.
   @param[out]     pinned   TRUE  - if MDL_lock object is pinned,
                            FALSE - if MDL_lock object doesn't require pinning
-                                   (i.e. it is an object for GLOBAL or COMMIT
-                                   namespaces).
+                                   (i.e. it is an object for GLOBAL, COMMIT or
+                                   ACL_CACHE namespaces).
 
   @retval MY_LF_ERRPTR   - Failure (OOM)
   @retval other-non-NULL - MDL_lock object found.
@@ -1195,23 +1203,35 @@ void MDL_map::destroy()
 
 MDL_lock* MDL_map::find(LF_PINS *pins, const MDL_key *mdl_key, bool *pinned)
 {
-  MDL_lock *lock;
+  MDL_lock *lock= NULL;
 
   if (is_lock_object_singleton(mdl_key))
   {
     /*
-      Avoid look up in m_locks hash when lock for GLOBAL or COMMIT namespace
-      is requested. Return pointer to pre-allocated MDL_lock instance instead.
-      Such an optimization allows us to avoid a few atomic operations for any
-      statement changing data.
+      Avoid look up in m_locks hash when lock for GLOBAL, COMMIT or ACL_CACHE
+      namespace is requested. Return pointer to pre-allocated MDL_lock instance
+      instead. Such an optimization allows us to avoid a few atomic operations
+      for any statement changing data.
 
       It works since these namespaces contain only one element so keys
       for them look like '<namespace-id>\0\0'.
     */
     DBUG_ASSERT(mdl_key->length() == 3);
 
-    lock= (mdl_key->mdl_namespace() == MDL_key::GLOBAL) ? m_global_lock :
-                                                          m_commit_lock;
+    switch (mdl_key->mdl_namespace())
+    {
+    case MDL_key::GLOBAL:
+      lock= m_global_lock;
+      break;
+    case MDL_key::COMMIT:
+      lock= m_commit_lock;
+      break;
+    case MDL_key::ACL_CACHE:
+      lock= m_acl_cache_lock;
+      break;
+    default:
+      DBUG_ASSERT(false);
+    }
 
     *pinned= false;
 
@@ -1243,8 +1263,8 @@ MDL_lock* MDL_map::find(LF_PINS *pins, const MDL_key *mdl_key, bool *pinned)
   @param[in]      mdl_key  Key for which MDL_lock object needs to be found.
   @param[out]     pinned   TRUE  - if MDL_lock object is pinned,
                            FALSE - if MDL_lock object doesn't require pinning
-                                   (i.e. it is an object for GLOBAL or COMMIT
-                                   namespaces).
+                                   (i.e. it is an object for GLOBAL, COMMIT or
+                                   ACL_CACHE namespaces).
 
   @retval non-NULL - Success. MDL_lock instance for the key with
                      locked MDL_lock::m_rwlock.
@@ -1254,7 +1274,7 @@ MDL_lock* MDL_map::find(LF_PINS *pins, const MDL_key *mdl_key, bool *pinned)
 MDL_lock* MDL_map::find_or_insert(LF_PINS *pins, const MDL_key *mdl_key,
                                   bool *pinned)
 {
-  MDL_lock *lock;
+  MDL_lock *lock= NULL;
 
   while ((lock= find(pins, mdl_key, pinned)) == NULL)
   {
@@ -3080,7 +3100,7 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
 retry:
   /*
     The below call pins pointer to returned MDL_lock object (unless
-    it is the singleton object for GLOBAL or COMMIT namespaces).
+    it is the singleton object for GLOBAL, COMMIT or ACL_CACHE namespaces).
   */
   if (!(lock= mdl_locks.find_or_insert(m_pins, key, &pinned)))
   {
@@ -4595,7 +4615,7 @@ MDL_context::owns_equal_or_stronger_lock(
 bool MDL_context::find_lock_owner(const MDL_key *mdl_key,
                                   MDL_context_visitor *visitor)
 {
-  MDL_lock *lock;
+  MDL_lock *lock= NULL;
   MDL_context *owner;
   bool pinned;
 

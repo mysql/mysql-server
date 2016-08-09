@@ -1712,11 +1712,11 @@ CREATE PROCEDURE mysqltest1.test() SQL SECURITY DEFINER
 CREATE FUNCTION mysqltest1.test() RETURNS INT RETURN 1;
 --error ER_NO_SUCH_TABLE
 GRANT EXECUTE ON FUNCTION mysqltest1.test TO mysqltest_1@localhost;
+--error ER_NO_SUCH_TABLE
 GRANT ALL PRIVILEGES ON test.* TO mysqltest_1@localhost;
 CALL mysqltest1.test();
 DROP DATABASE mysqltest1;
 RENAME TABLE mysql.procs_gone TO mysql.procs_priv;
-DROP USER mysqltest_1@localhost;
 FLUSH PRIVILEGES;
 
 

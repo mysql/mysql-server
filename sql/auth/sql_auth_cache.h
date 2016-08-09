@@ -22,7 +22,7 @@
 #include "mysql_time.h"                 // MYSQL_TIME
 #include "prealloced_array.h"           // Prealloced_array
 #include "violite.h"                    // SSL_type
-#include "hash_filo.h"                  // HASH, hash_filo
+#include "hash.h"                       // HASH
 #include "partitioned_rwlock.h"         // Partitioned_rwlock
 #include "sql_alloc.h"                  // Sql_alloc
 #include "sql_connect.h"                // USER_RESOURCES
@@ -35,6 +35,7 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/breadth_first_search.hpp>
 #endif
+
 /* Forward Declarations */
 class String;
 struct TABLE;
@@ -215,7 +216,7 @@ public:
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 
-class acl_entry :public hash_filo_element
+class acl_entry
 {
 public:
   ulong access;
@@ -282,11 +283,10 @@ extern Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE> *acl_proxy_users;
 extern Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *acl_dbs;
 extern Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE> *acl_wild_hosts;
 extern HASH column_priv_hash, proc_priv_hash, func_priv_hash;
-extern hash_filo *acl_cache;
+extern HASH db_cache;
 extern HASH acl_check_hosts;
 extern bool allow_all_hosts;
 extern uint grant_version; /* Version of priv tables */
-extern Partitioned_rwlock LOCK_grant;
 
 GRANT_NAME *name_hash_search(HASH *name_hash,
                              const char *host,const char* ip,
@@ -475,5 +475,51 @@ private:
 
 Acl_cache *get_global_acl_cache();
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
+
+/**
+  Enum for specifying lock type over Acl cache
+*/
+
+enum class Acl_cache_lock_mode
+{
+  READ_MODE=1,
+  WRITE_MODE
+};
+
+/**
+  Lock guard for ACL Cache.
+  Destructor automatically releases the lock.
+*/
+
+class Acl_cache_lock_guard
+{
+public:
+  Acl_cache_lock_guard(THD *thd,
+                       Acl_cache_lock_mode mode);
+
+  /**
+    Acl_cache_lock_guard destructor.
+
+    Release lock(s) if taken
+  */
+  ~Acl_cache_lock_guard()
+  {
+    unlock();
+  }
+
+  bool lock(bool raise_error= true);
+  void unlock();
+
+private:
+  bool already_locked();
+
+private:
+  /** Handle to THD object */
+  THD *m_thd;
+  /** Lock mode */
+  Acl_cache_lock_mode m_mode;
+  /** Lock status */
+  bool m_locked;
+};
 
 #endif /* SQL_USER_CACHE_INCLUDED */

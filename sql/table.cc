@@ -3276,7 +3276,7 @@ bool TABLE_LIST::prepare_view_security_context(THD *thd)
   {
     DBUG_PRINT("info", ("This table is suid view => load contest"));
     DBUG_ASSERT(view && view_sctx);
-    if (acl_getroot(view_sctx,
+    if (acl_getroot(thd, view_sctx,
                     const_cast<char*>(definer.user.str),
                     const_cast<char*>(definer.host.str),
                     const_cast<char*>(definer.host.str),

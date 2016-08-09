@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -437,6 +437,12 @@ int table_events_waits_common::make_metadata_lock_object_columns(PFS_events_wait
     case MDL_key::LOCKING_SERVICE:
       m_row.m_object_type= "LOCKING SERVICE";
       m_row.m_object_type_length= 15;
+      m_row.m_object_schema_length= mdl->db_name_length();
+      m_row.m_object_name_length= mdl->name_length();
+      break;
+    case MDL_key::ACL_CACHE:
+      m_row.m_object_type= "ACL CACHE";
+      m_row.m_object_type_length= 9;
       m_row.m_object_schema_length= mdl->db_name_length();
       m_row.m_object_name_length= mdl->name_length();
       break;

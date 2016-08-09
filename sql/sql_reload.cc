@@ -112,12 +112,12 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
         result= 1;
     }
 
+    reset_mqh(thd, (LEX_USER *)NULL, TRUE);
     if (tmp_thd)
     {
       delete tmp_thd;
       thd= 0;
     }
-    reset_mqh((LEX_USER *)NULL, TRUE);
   }
 #endif
   if (options & REFRESH_LOG)
@@ -353,7 +353,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
  }
 #endif
  if (options & REFRESH_USER_RESOURCES)
-   reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
+   reset_mqh(thd, nullptr, 0);             /* purecov: inspected */
  if (*write_to_binlog != -1)
    *write_to_binlog= tmp_write_to_binlog;
  /*

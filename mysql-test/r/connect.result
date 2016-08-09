@@ -314,6 +314,14 @@ ERROR HY000: Operation ALTER USER failed for 'invalid_user'@'localhost'
 SELECT password_expired FROM mysql.user
 WHERE user='must_change' and host = 'localhost';
 password_expired
+N
+SELECT USER();
+USER()
+must_change@localhost
+ALTER USER must_change@localhost PASSWORD EXPIRE;
+SELECT password_expired FROM mysql.user
+WHERE user='must_change' and host = 'localhost';
+password_expired
 Y
 SELECT USER();
 ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
