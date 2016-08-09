@@ -4491,16 +4491,14 @@ mysql_execute_command(THD *thd, bool first_level)
       break;
     }
   case SQLCOM_CREATE_TRIGGER:
-  {
-    /* Conditionally writes to binlog. */
-    res= mysql_create_or_drop_trigger(thd, all_tables, 1);
-
-    break;
-  }
   case SQLCOM_DROP_TRIGGER:
   {
     /* Conditionally writes to binlog. */
-    res= mysql_create_or_drop_trigger(thd, all_tables, 0);
+    DBUG_ASSERT(lex->m_sql_cmd != nullptr);
+    static_cast<Sql_cmd_ddl_trigger_common*>(lex->m_sql_cmd)->set_table(
+      all_tables);
+
+    res= lex->m_sql_cmd->execute(thd);
     break;
   }
   case SQLCOM_ALTER_TABLESPACE:

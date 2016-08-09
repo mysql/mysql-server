@@ -83,6 +83,8 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql_component.h"
 #include "parse_tree_hints.h"
 #include "derror.h"
+#include "sql_trigger.h"                     // Sql_cmd_create_trigger,
+                                             // Sql_cmd_create_trigger
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
@@ -10959,6 +10961,7 @@ drop:
             lex->sql_command= SQLCOM_DROP_TRIGGER;
             lex->drop_if_exists= $3;
             lex->spname= $4;
+            Lex->m_sql_cmd= new (YYTHD->mem_root) Sql_cmd_drop_trigger();
           }
         | DROP TABLESPACE_SYM tablespace_name drop_ts_options_list
           {
@@ -14871,6 +14874,8 @@ trigger_tail:
                                                     TL_READ_NO_INSERT,
                                                     MDL_SHARED_NO_WRITE))
               MYSQL_YYABORT;
+
+            Lex->m_sql_cmd= new (YYTHD->mem_root) Sql_cmd_create_trigger();
           }
         ;
 
