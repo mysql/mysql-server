@@ -222,4 +222,18 @@ size_t explain_filename(THD* thd, const char *from, char *to, size_t to_length,
 extern MYSQL_PLUGIN_IMPORT const char *primary_key_name;
 extern mysql_mutex_t LOCK_gdl;
 
+
+/**
+  Acquire metadata lock on triggers associated with a list of tables.
+
+  @param[in] thd     Current thread context
+  @param[in] tables  Tables for that associated triggers have to locked.
+
+  @return Operation status.
+    @retval false Success
+    @retval true  Failure
+*/
+
+bool lock_trigger_names(THD *thd, TABLE_LIST *tables);
+
 #endif /* SQL_TABLE_INCLUDED */

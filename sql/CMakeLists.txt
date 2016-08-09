@@ -69,6 +69,7 @@ SET(DD_SOURCES
   dd/dd_schema.cc
   dd/dd_table.cc
   dd/dd_tablespace.cc
+  dd/dd_trigger.cc
   dd/dd_view.cc
 
   dd/impl/bootstrapper.cc
@@ -354,7 +355,6 @@ SET(SQL_SHARED_SOURCES
   transaction_info.cc
   trigger.cc
   trigger_creation_ctx.cc
-  trigger_loader.cc
   trigger_chain.cc
   tztime.cc
   uniques.cc

@@ -47,7 +47,6 @@
 #include "sql_plugin.h"               // plugin_foreach
 #include "sql_table.h"                // build_table_filename
 #include "transaction.h"              // trans_commit_implicit
-#include "trigger_def.h"              // TRG_EXT
 #include "sql_select.h"               // actual_key_parts
 #include "rpl_write_set_handler.h"    // add_pke
 #include "auth_common.h"              // check_readonly() and SUPER_ACL
@@ -7704,9 +7703,6 @@ TYPELIB* ha_known_exts()
   
   List<char> found_exts;
   const char **ext, *old_ext;
-
-  found_exts.push_back((char*) TRG_EXT);
-  found_exts.push_back((char*) TRN_EXT);
 
   plugin_foreach(NULL, exts_handlerton,
                  MYSQL_STORAGE_ENGINE_PLUGIN, &found_exts);

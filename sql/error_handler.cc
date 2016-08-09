@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,11 +26,7 @@
   warnings during DROP TABLE operation. Currently we don't want to expose
   the following warnings during DROP TABLE:
     - Some of table files are missed or invalid (the table is going to be
-      deleted anyway, so why bother that something was missed);
-    - A trigger associated with the table does not have DEFINER (One of the
-      MySQL specifics now is that triggers are loaded for the table being
-      dropped. So, we may have a warning that trigger does not have DEFINER
-      attribute during DROP TABLE operation).
+      deleted anyway, so why bother that something was missed).
 
   @return true if the condition is handled.
 */
@@ -40,8 +36,7 @@ bool Drop_table_error_handler::handle_condition(THD *thd,
                                                 Sql_condition::enum_severity_level *level,
                                                 const char* msg)
 {
-  return ((sql_errno == EE_DELETE && my_errno() == ENOENT) ||
-          sql_errno == ER_TRG_NO_DEFINER);
+  return (sql_errno == EE_DELETE && my_errno() == ENOENT);
 }
 
 

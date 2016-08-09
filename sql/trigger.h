@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "m_string.h"                 // LEX_CSTRING
 #include "mysql/mysql_lex_string.h"   // LEX_STRING
 #include "sql_alloc.h"                // Sql_alloc
+#include "sql_string.h"
 #include "table.h"                    // GRANT_INFO
 #include "trigger_def.h"              // enum_trigger_event_type
 
@@ -47,10 +48,8 @@ typedef struct st_mysql_const_lex_string LEX_CSTRING;
 
     1. loading from Data Dictionary (by Trigger_loader)
 
-      In this case Trigger object is initialized in two phases:
-        - from the data which is directly available in TRG-file;
-        - from the data which gets available after parsing CREATE TRIGGER
-          statement (trigger name, ...)
+      In this case Trigger object is initialized from the data
+      which is directly available in data dictionary;
 
       @see Trigger::create_from_dd().
 
@@ -69,15 +68,21 @@ public:
                                      String *binlog_create_trigger_stmt);
 
   static Trigger *create_from_dd(MEM_ROOT *mem_root,
+                                 const LEX_CSTRING &trigger_name,
                                  const LEX_CSTRING &db_name,
                                  const LEX_CSTRING &subject_table_name,
-                                 const LEX_STRING &definition,
+                                 const LEX_CSTRING &definition,
+                                 const LEX_CSTRING &definition_utf8,
                                  sql_mode_t sql_mode,
-                                 const LEX_STRING &definer,
-                                 const LEX_STRING &client_cs_name,
-                                 const LEX_STRING &connection_cl_name,
-                                 const LEX_STRING &db_cl_name,
-                                 const longlong *created_timestamp);
+                                 const LEX_CSTRING &definer_user,
+                                 const LEX_CSTRING &definer_host,
+                                 const LEX_CSTRING &client_cs_name,
+                                 const LEX_CSTRING &connection_cl_name,
+                                 const LEX_CSTRING &db_cl_name,
+                                 enum_trigger_event_type trg_event_type,
+                                 enum_trigger_action_time_type trg_time_type,
+                                 uint action_order,
+                                 timeval created_timestamp);
 
 public:
   bool execute(THD *thd);
@@ -90,8 +95,6 @@ public:
 
   void print_upgrade_warning(THD *thd);
 
-  void rename_subject_table(THD *thd, const LEX_STRING &new_table_name);
-
 public:
   /************************************************************************
    * Attribute accessors.
@@ -103,45 +106,55 @@ public:
   const LEX_CSTRING &get_subject_table_name() const
   { return m_subject_table_name; }
 
-  const LEX_STRING &get_trigger_name() const
+  const LEX_CSTRING &get_trigger_name() const
   { return m_trigger_name; }
 
-  const LEX_STRING &get_definition() const
+  const LEX_CSTRING &get_definition() const
   { return m_definition; }
+
+  const LEX_CSTRING &get_definition_utf8() const
+  { return m_definition_utf8; }
 
   sql_mode_t get_sql_mode() const
   { return m_sql_mode; }
 
-  const LEX_STRING &get_definer() const
+  const LEX_CSTRING &get_definer() const
   { return m_definer; }
 
-  const LEX_STRING &get_on_table_name() const
-  { return m_on_table_name; }
+  const LEX_CSTRING &get_definer_user() const
+  { return m_definer_user; }
 
-  const LEX_STRING &get_client_cs_name() const
+  const LEX_CSTRING &get_definer_host() const
+  { return m_definer_host; }
+
+  const LEX_CSTRING &get_client_cs_name() const
   { return m_client_cs_name; }
 
-  const LEX_STRING &get_connection_cl_name() const
+  const LEX_CSTRING &get_connection_cl_name() const
   { return m_connection_cl_name; }
 
-  const LEX_STRING &get_db_cl_name() const
+  const LEX_CSTRING &get_db_cl_name() const
   { return m_db_cl_name; }
 
   enum_trigger_event_type get_event() const
   { return m_event; }
 
+  const LEX_CSTRING &get_event_as_string() const;
+
   enum_trigger_action_time_type get_action_time() const
   { return m_action_time; }
 
+  const LEX_CSTRING &get_action_time_as_string() const;
+
   bool is_created_timestamp_null() const
-  { return m_created_timestamp == 0; }
+  {
+    return m_created_timestamp.tv_sec == 0 &&
+           m_created_timestamp.tv_usec == 0;
+  }
 
   timeval get_created_timestamp() const
   {
-    timeval timestamp_value;
-    timestamp_value.tv_sec= static_cast<long>(m_created_timestamp / 100);
-    timestamp_value.tv_usec= (m_created_timestamp % 100) * 10000;
-    return timestamp_value;
+    return m_created_timestamp;
   }
 
   ulonglong get_action_order() const
@@ -162,53 +175,44 @@ public:
   const char *get_parse_error_message() const
   { return m_parse_error_message; }
 
-public:
-  /************************************************************************
-   * To be used by Trigger_loader only
-   ***********************************************************************/
 
-  LEX_STRING *get_definition_ptr()
-  { return &m_definition; }
+  /**
+    Construct a full CREATE TRIGGER statement from Trigger's data members.
 
-  sql_mode_t *get_sql_mode_ptr()
-  { return &m_sql_mode; }
+    @param [in] thd                       Thread context
+    @param [out] full_trigger_definition  Place where a CREATE TRIGGER
+                                          statement be stored.
 
-  LEX_STRING *get_definer_ptr()
-  { return &m_definer; }
+    @return Operation status
+      @retval true   Failure
+      @retval false  Success
+  */
 
-  LEX_STRING *get_client_cs_name_ptr()
-  { return &m_client_cs_name; }
-
-  LEX_STRING *get_connection_cl_name_ptr()
-  { return &m_connection_cl_name; }
-
-  LEX_STRING *get_db_cl_name_ptr()
-  { return &m_db_cl_name; }
-
-  longlong *get_created_timestamp_ptr()
-  { return &m_created_timestamp; }
+  bool create_full_trigger_definition(THD *thd,
+                                      String *full_trigger_definition) const;
 
 private:
-  Trigger(MEM_ROOT *mem_root,
+  Trigger(const LEX_CSTRING &trigger_name,
+          MEM_ROOT *mem_root,
           const LEX_CSTRING &db_name,
           const LEX_CSTRING &table_name,
-          const LEX_STRING &definition,
+          const LEX_CSTRING &definition,
+          const LEX_CSTRING &definition_utf8,
           sql_mode_t sql_mode,
-          const LEX_STRING &definer,
-          const LEX_STRING &client_cs_name,
-          const LEX_STRING &connection_cl_name,
-          const LEX_STRING &db_cl_name,
+          const LEX_CSTRING &definer_user,
+          const LEX_CSTRING &definer_host,
+          const LEX_CSTRING &client_cs_name,
+          const LEX_CSTRING &connection_cl_name,
+          const LEX_CSTRING &db_cl_name,
           enum_trigger_event_type event_type,
           enum_trigger_action_time_type action_time,
-          longlong created_timestamp);
+          uint action_order,
+          timeval created_timestamp);
 
 public:
   ~Trigger();
 
 private:
-  void set_trigger_name(const LEX_STRING &trigger_name)
-  { m_trigger_name= trigger_name; }
-
   void set_parse_error_message(const char *error_message)
   {
     m_has_parse_error= true;
@@ -216,7 +220,6 @@ private:
             sizeof(m_parse_error_message));
   }
 
-private:
   /**
     Memory root to store all data of this Trigger object.
 
@@ -225,9 +228,14 @@ private:
   */
   MEM_ROOT *m_mem_root;
 
+  /**
+    Full trigger definition reconstructed from a data loaded from the table
+    mysql.trigger.
+  */
+  LEX_CSTRING m_full_trigger_definition;
 private:
   /************************************************************************
-   * Mandatory trigger attributes loaded from TRG-file.
+   * Mandatory trigger attributes loaded from data dictionary.
    * All these strings are allocated on m_mem_root.
    ***********************************************************************/
 
@@ -237,23 +245,32 @@ private:
   /// Table name.
   LEX_CSTRING m_subject_table_name;
 
-  /// Trigger definition to save in TRG-file.
-  LEX_STRING m_definition;
+  /// Trigger definition to save in DD.
+  LEX_CSTRING m_definition;
+
+  /// Trigger definition in UTF8 to save in DD.
+  LEX_CSTRING m_definition_utf8;
 
   /// Trigger sql-mode.
   sql_mode_t m_sql_mode;
 
   /// Trigger definer.
-  LEX_STRING m_definer;
+  LEX_CSTRING m_definer;
+
+  /// Trigger definer (user part).
+  LEX_CSTRING m_definer_user;
+
+  /// Trigger definer (host part).
+  LEX_CSTRING m_definer_host;
 
   /// Character set context, used for parsing and executing trigger.
-  LEX_STRING m_client_cs_name;
+  LEX_CSTRING m_client_cs_name;
 
   /// Collation name of the connection within one a trigger are created.
-  LEX_STRING m_connection_cl_name;
+  LEX_CSTRING m_connection_cl_name;
 
   /// Default database collation.
-  LEX_STRING m_db_cl_name;
+  LEX_CSTRING m_db_cl_name;
 
   /// Trigger event.
   enum_trigger_event_type m_event;
@@ -268,36 +285,22 @@ private:
 
     There is special value -- zero means CREATED is not set (NULL).
   */
-  longlong m_created_timestamp;
+  timeval m_created_timestamp;
 
   /**
     Action_order value for the trigger. Action_order is the ordinal position
     of the trigger in the list of triggers with the same EVENT_MANIPULATION,
     CONDITION_TIMING, and ACTION_ORIENTATION.
-
-    At the moment action order is not explicitly stored in the TRG-file. Trigger
-    execution order however is mantained by the order of trigger attributes in
-    the TRG-file. This attribute is calculated after loading.
   */
   ulonglong m_action_order;
 
 private:
   /************************************************************************
-   * The following attributes can be set only after parsing trigger definition
-   * statement (CREATE TRIGGER). There is no way to retrieve them directly from
-   * TRG-file.
-   *
    * All these strings are allocated on the trigger table's mem-root.
    ***********************************************************************/
 
   /// Trigger name.
-  LEX_STRING m_trigger_name;
-
-  /**
-    A pointer to the "ON < table name >" part of the trigger definition. It is
-    used for updating trigger definition in RENAME TABLE.
-  */
-  LEX_STRING m_on_table_name;
+  LEX_CSTRING m_trigger_name;
 
 private:
   /************************************************************************

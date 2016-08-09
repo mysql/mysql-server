@@ -60,11 +60,15 @@
 #include "dd/dd.h"                        // dd::get_dictionary
 #include "dd/dd_schema.h"                 // dd::schema_exists
 #include "dd/dd_table.h"                  // dd::drop_table
+#include "dd/dd_trigger.h"                // dd::table_has_triggers
 #include "dd/dictionary.h"                // dd::Dictionary
 #include "dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
 #include "dd/types/foreign_key.h"         // dd::Foreign_key
 #include "dd/types/foreign_key_element.h" // dd::Foreign_key_element
 #include "dd/types/table.h"               // dd::Table
+
+#include "trigger.h"
+#include "table_trigger_dispatcher.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -2205,6 +2209,41 @@ int write_bin_log(THD *thd, bool clear_error,
 }
 
 
+bool lock_trigger_names(THD *thd,
+                        TABLE_LIST *tables)
+{
+  for (TABLE_LIST *table= tables; table;
+      table= table->next_global)
+  {
+    List<LEX_CSTRING> trigger_names;
+
+    if (table->open_type == OT_TEMPORARY_ONLY ||
+        (table->open_type == OT_TEMPORARY_OR_BASE &&
+         is_temporary_table(table)))
+      continue;
+
+    if (dd::load_trigger_names(thd,
+                               thd->mem_root,
+                               table->db,
+                               table->table_name,
+                               &trigger_names))
+      return true;
+
+    List_iterator_fast<LEX_CSTRING> it(trigger_names);
+    LEX_CSTRING *trigger_name;
+
+    while ((trigger_name= it++))
+    {
+      if (acquire_exclusive_mdl_for_trigger(thd, table->db,
+                                            trigger_name->str))
+        return true;
+    }
+  }
+
+  return false;
+}
+
+
 /*
  delete (drop) tables.
 
@@ -2276,8 +2315,10 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
     if (!thd->locked_tables_mode)
     {
       if (lock_table_names(thd, tables, NULL,
-                           thd->variables.lock_wait_timeout, 0))
+                           thd->variables.lock_wait_timeout, 0) ||
+          lock_trigger_names(thd, tables))
         DBUG_RETURN(true);
+
       for (table= tables; table; table= table->next_local)
       {
         if (is_temporary_table(table))
@@ -2369,6 +2410,40 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
   }
   my_ok(thd);
   DBUG_RETURN(FALSE);
+}
+
+
+/**
+  Drop table from the Data Dictionary and remove statistics
+  from performance schema for triggers associated with the table.
+
+  @param  thd             Thread handler
+  @param  table           Table to drop
+  @param  drop_view       Allow to delete VIEW .frm
+
+  @retval false  ok
+  @retval true   Error
+*/
+
+static bool delete_ordinary_table_details_from_dd(THD *thd, TABLE_LIST *table,
+                                                 bool drop_view)
+{
+  if (dd::get_dictionary()->is_dd_table_name(table->db, table->table_name))
+    return true;
+
+#ifdef HAVE_PSI_SP_INTERFACE
+  if (!drop_view && remove_all_triggers_from_perfschema(thd, table))
+    return true;
+#endif
+
+  bool err;
+  if (drop_view) // Remove either table or a view
+    err= dd::drop_table<dd::Abstract_table>(thd, table->db,
+                                            table->table_name);
+  else // Remove only table
+    err= dd::drop_table<dd::Table>(thd, table->db, table->table_name);
+
+  return err;
 }
 
 
@@ -2744,24 +2819,9 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       }
       if (!error || error == ENOENT || error == HA_ERR_NO_SUCH_TABLE)
       {
-        // Delete table details from new DD
-        if (!dd::get_dictionary()->is_dd_table_name(db, table->table_name))
-        {
-          uint err;
-          if (drop_view) // Remove either table or a view
-            err= dd::drop_table<dd::Abstract_table>(thd, db,
-                                                   table->table_name);
-          else // Remove only table
-            err= dd::drop_table<dd::Table>(thd, db, table->table_name);
-
-          if (!err)
-          {
-            error|= drop_all_triggers(thd, db, table->table_name);
-            non_tmp_table_deleted= TRUE;
-          }
-          else
-            error|= 1;
-        }
+        if (!delete_ordinary_table_details_from_dd(thd, table,
+                                                   drop_view))
+          non_tmp_table_deleted= true;
         else
           error|= 1;
 
@@ -8142,6 +8202,10 @@ static bool mysql_inplace_alter_table(THD *thd,
   table_list->table= table= NULL;
   close_temporary_table(thd, altered_table, true, false);
 
+  if (dd::move_triggers(thd, alter_ctx->db, alter_ctx->alias,
+                        alter_ctx->new_db, alter_ctx->tmp_name))
+    DBUG_RETURN(true);
+
   /*
     Replace the old .FRM with the new .FRM, but keep the old name for now.
     Rename to the new name (if needed) will be handled separately below.
@@ -8155,6 +8219,8 @@ static bool mysql_inplace_alter_table(THD *thd,
     // transaction. This situation will be fixed in WL#7785.
     DBUG_ASSERT(!thd->transaction_rollback_request);
 
+    (void) dd::move_triggers(thd, alter_ctx->new_db, alter_ctx->tmp_name,
+                             alter_ctx->db, alter_ctx->alias);
     // Since changes were done in-place, we can't revert them.
     (void) quick_rm_table(thd, db_type,
                           alter_ctx->new_db, alter_ctx->tmp_name,
@@ -8197,22 +8263,6 @@ static bool mysql_inplace_alter_table(THD *thd,
         If the rename fails we will still have a working table
         with the old name, but with other changes applied.
       */
-      DBUG_RETURN(true);
-    }
-    if (change_trigger_table_name(thd,
-                                  alter_ctx->db,
-                                  alter_ctx->alias,
-                                  alter_ctx->table_name,
-                                  alter_ctx->new_db,
-                                  alter_ctx->new_alias))
-    {
-      /*
-        If the rename of trigger files fails, try to rename the table
-        back so we at least have matching table and trigger files.
-      */
-      (void) mysql_rename_table(thd, db_type,
-                                alter_ctx->new_db, alter_ctx->new_alias,
-                                alter_ctx->db, alter_ctx->alias, NO_FK_CHECKS);
       DBUG_RETURN(true);
     }
   }
@@ -9608,19 +9658,6 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
                            alter_ctx->db, alter_ctx->table_name,
                            alter_ctx->new_db, alter_ctx->new_alias, 0))
       error= -1;
-    else if (change_trigger_table_name(thd,
-                                       alter_ctx->db,
-                                       alter_ctx->alias,
-                                       alter_ctx->table_name,
-                                       alter_ctx->new_db,
-                                       alter_ctx->new_alias))
-    {
-      (void) mysql_rename_table(thd, old_db_type,
-                                alter_ctx->new_db, alter_ctx->new_alias,
-                                alter_ctx->db, alter_ctx->table_name, 
-                                NO_FK_CHECKS);
-      error= -1;
-    }
   }
 
   if (!error)
@@ -9831,6 +9868,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   if (error)
     DBUG_RETURN(true);
 
+  if (lock_trigger_names(thd, table_list))
+    DBUG_RETURN(true);
+
   // Check if ALTER TABLE ... ENGINE is disallowed by the storage engine.
   if (table_list->table->s->db_type() != create_info->db_type &&
       (alter_info->flags & Alter_info::ALTER_OPTIONS) &&
@@ -9870,6 +9910,21 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   thd->add_to_binlog_accessed_dbs(alter_ctx.db);
   if (alter_ctx.is_database_changed())
     thd->add_to_binlog_accessed_dbs(alter_ctx.new_db);
+
+  // Ensure that triggers are in the same schema as their subject table.
+  if (alter_ctx.is_database_changed())
+  {
+    bool table_has_trigger;
+    if (dd::table_has_triggers(thd, alter_ctx.db, alter_ctx.table_name,
+                               &table_has_trigger))
+      DBUG_RETURN(true);
+
+    if (table_has_trigger)
+    {
+      my_error(ER_TRG_IN_WRONG_SCHEMA, MYF(0));
+      DBUG_RETURN(true);
+    }
+  }
 
   MDL_request target_mdl_request;
 
@@ -10791,22 +10846,10 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     goto err_with_mdl;
   }
 
-  // Check if we renamed the table and if so update trigger files.
-  if (alter_ctx.is_table_renamed() &&
-      change_trigger_table_name(thd,
-                                alter_ctx.db,
-                                alter_ctx.alias,
-                                alter_ctx.table_name,
-                                alter_ctx.new_db,
-                                alter_ctx.new_alias))
+  // Move triggers from old table to the new table.
+  if (dd::move_triggers(thd, alter_ctx.db, backup_name,
+                        alter_ctx.new_db, alter_ctx.new_alias))
   {
-    // Rename succeeded, delete the new table.
-    (void) quick_rm_table(thd, new_db_type,
-                          alter_ctx.new_db, alter_ctx.new_alias, 0);
-    // Restore the backup of the original table to the old name.
-    (void) mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
-                              alter_ctx.db, alter_ctx.alias, 
-                              FN_FROM_IS_TMP | NO_FK_CHECKS);
     goto err_with_mdl;
   }
 

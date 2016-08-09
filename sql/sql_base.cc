@@ -49,7 +49,6 @@
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "template_utils.h"
 #include "transaction.h"              // trans_rollback_stmt
-#include "trigger_loader.h"           // Trigger_loader
 #include "sql_audit.h"                // mysql_audit_table_access_notify
 #include "auth_common.h"
 
@@ -59,6 +58,7 @@
 
 #include "dd/dd_table.h"              // dd::table_exists
 #include "dd/dd_tablespace.h"         // dd::fill_table_and_parts_tablespace_name
+#include "dd/dd_trigger.h"            // dd::table_has_triggers
 #include "dd/types/table.h"           // dd::Table
 
 #include "pfs_table_provider.h"
@@ -550,7 +550,12 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
     which can be done without mutex protection.
   */
   mysql_mutex_unlock(&LOCK_open);
-  DEBUG_SYNC(thd, "get_share_before_open");
+
+#if defined(ENABLED_DEBUG_SYNC)
+  if (!thd->is_attachable_ro_transaction_active())
+    DEBUG_SYNC(thd, "get_share_before_open");
+#endif
+
   open_table_err= open_table_def(thd, share, open_view, NULL);
 
   /*
@@ -4184,7 +4189,12 @@ err:
 
 static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
 {
-  if (Trigger_loader::trg_file_exists(share->db.str, share->table_name.str))
+  bool table_has_trigger;
+  if (dd::table_has_triggers(thd, share->db.str, share->table_name.str,
+                             &table_has_trigger))
+    return true;
+
+  if (table_has_trigger)
   {
     Table_trigger_dispatcher *d= Table_trigger_dispatcher::create(entry);
 

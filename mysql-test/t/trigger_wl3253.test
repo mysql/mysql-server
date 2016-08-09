@@ -380,47 +380,6 @@ SET TIMESTAMP=DEFAULT;
 
 DROP TABLE t1;
 
---echo #
---echo # Test 20. Check that the statement CHECK TABLE FOR UPGRADE outputs
---echo #          the warnings for triggers created by a server without support for wl3253.
---echo #
-
-CREATE TABLE t1 (a INT);
-
-let $MYSQLD_DATADIR=`SELECT @@datadir`;
---write_file $MYSQLD_DATADIR/test/t1.TRG
-TYPE=TRIGGERS
-triggers='CREATE DEFINER=`root`@`localhost` TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1' 'CREATE DEFINER=`root`@`localhost` TRIGGER tr1_ai AFTER INSERT ON t1 FOR EACH ROW SET @a:=2'
-sql_modes=1073741824 1073741824
-definers='root@localhost' 'root@localhost'
-client_cs_names='latin1' 'latin1'
-connection_cl_names='latin1_swedish_ci' 'latin1_swedish_ci'
-db_cl_names='latin1_swedish_ci' 'latin1_swedish_ci'
-EOF
-
---write_file $MYSQLD_DATADIR/test/tr1_bi.TRN
-TYPE=TRIGGERNAME
-trigger_table=t1
-EOF
-
---write_file $MYSQLD_DATADIR/test/tr1_ai.TRN
-TYPE=TRIGGERNAME
-trigger_table=t1
-EOF
-
-FLUSH TABLE t1;
-
-CHECK TABLE t1 FOR UPGRADE;
-
-SHOW TRIGGERS;
-
-SELECT * FROM INFORMATION_SCHEMA.TRIGGERS WHERE trigger_schema = 'test';
-
-SHOW CREATE TRIGGER tr1_bi;
-SHOW CREATE TRIGGER tr1_ai;
-
-DROP TABLE t1;
-
 SET binlog_format=@binlog_format_saved;
 
 --echo # End of tests.

@@ -26,35 +26,19 @@
                                       // write_bin_log()
 #include "sql_handler.h"              // mysql_ha_rm_tables()
 #include "sp_cache.h"                 // sp_invalidate_cache()
-#include "trigger_loader.h"           // Trigger_loader
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "transaction.h"              // trans_commit_stmt, trans_commit
+#include "trigger.h"                  // Trigger
 #include "binlog.h"
 #include "sp_head.h"                  // sp_name
 #include "derror.h"                   // ER_THD
 
 #include "dd/types/abstract_table.h"  // dd::enum_table_type
+#include "dd/dd_trigger.h"            // dd::table_has_triggers
 
 #include "mysql/psi/mysql_sp.h"
-
+#include "debug_sync.h"               // DEBUG_SYNC
 ///////////////////////////////////////////////////////////////////////////
-
-/**
-  Find trigger's table from trigger identifier and add it to
-  the statement table list.
-
-  @param[in] thd       Thread context.
-  @param[in] db_name   Schema name.
-  @param[in] trigger_name  Trigger name.
-  @param[in] continue_if_not_exist TRUE if SQL statement contains "IF EXISTS" clause.
-                       That means a warning instead of error should be
-                       thrown if trigger with given name does not exist.
-  @param[out] table    Pointer to TABLE_LIST object for the
-                       table trigger.
-
-  @return Operation status
-    @retval FALSE On success.
-    @retval TRUE  Otherwise.
-*/
 
 bool add_table_for_trigger(THD *thd,
                            const LEX_CSTRING &db_name,
@@ -63,16 +47,19 @@ bool add_table_for_trigger(THD *thd,
                            TABLE_LIST **table)
 {
   LEX *lex= thd->lex;
-  char trn_path_buff[FN_REFLEN];
-  LEX_STRING tbl_name= { NULL, 0 };
 
   DBUG_ENTER("add_table_for_trigger");
 
-  LEX_STRING trn_path=
-    Trigger_loader::build_trn_path(trn_path_buff, FN_REFLEN,
-                                   db_name.str, trigger_name.str);
+  std::string table_name;
+  bool trigger_found;
+  if (dd::get_table_name_for_trigger(thd, db_name.str,
+                                     trigger_name.str,
+                                     &table_name,
+                                     &trigger_found,
+                                     continue_if_not_exist))
+    DBUG_RETURN(true);
 
-  if (Trigger_loader::check_trn_exists(trn_path))
+  if (!trigger_found)
   {
     if (continue_if_not_exist)
     {
@@ -82,49 +69,106 @@ bool add_table_for_trigger(THD *thd,
 
       *table= NULL;
 
-      DBUG_RETURN(FALSE);
+      DBUG_RETURN(false);
     }
 
     my_error(ER_TRG_DOES_NOT_EXIST, MYF(0));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
-  if (Trigger_loader::load_trn_file(thd, trigger_name, trn_path, &tbl_name))
-    DBUG_RETURN(TRUE);
+  *table= sp_add_to_query_tables(thd, lex, db_name.str, table_name.c_str());
 
-  *table= sp_add_to_query_tables(thd, lex, db_name.str, tbl_name.str);
-
-  DBUG_RETURN(*table ? FALSE : TRUE);
+  DBUG_RETURN(*table ? false : true);
 }
 
 
-/**
-  Update .TRG and .TRN files after renaming triggers' subject table.
+bool drop_all_triggers(THD *thd, const char *db_name, const char *table_name)
+{
+  // Check if there is at least one trigger for the given table.
 
-  @param[in] thd            Thread context
-  @param[in] db_name        Current database of subject table
-  @param[in] table_alias    Current alias of subject table
-  @param[in] table_name     Current name of subject table
-  @param[in] new_db_name    New database for subject table
-  @param[in] new_table_name New name of subject table
+  bool table_has_trigger;
+  if (dd::table_has_triggers(thd, db_name, table_name, &table_has_trigger))
+    return true;
 
-  @note
-    This method tries to leave trigger related files in consistent state, i.e.
-    it either will complete successfully, or will fail leaving files in their
-    initial state.
+  if (!table_has_trigger)
+    return false;
 
-  @note
-    This method assumes that subject table is not renamed to itself.
+  List<Trigger> triggers;
+  Table_trigger_dispatcher tbl_trg_dsp(db_name, table_name);
 
-  @note
-    This method needs to be called under an exclusive table metadata lock.
+  /*
+    Load triggers from the Data Dictionary without subsequent parsing.
+    To drop triggers it is required to know only trigger name, db name,
+    trigger event and action time. All these information are stored in
+    the Data Dictionary.
+  */
+  return
+    tbl_trg_dsp.load_triggers(thd) ||
+    tbl_trg_dsp.fill_and_return_trigger_list(&triggers) == nullptr ||
+    dd::drop_all_triggers(thd, db_name, table_name,
+                          &triggers);
+}
 
-  @return Operation status.
-    @retval false Success
-    @retval true  Failure
-*/
 
-bool change_trigger_table_name(THD *thd,
+bool remove_all_triggers_from_perfschema(THD *thd, TABLE_LIST *table)
+{
+  List<LEX_CSTRING> trigger_names;
+
+  if (dd::load_trigger_names(thd,
+                             thd->mem_root,
+                             table->db,
+                             table->table_name,
+                             &trigger_names))
+    return true;
+
+  List_iterator_fast<LEX_CSTRING> it(trigger_names);
+  LEX_CSTRING *trigger_name;
+
+  while ((trigger_name= it++))
+  {
+    /* Drop statistics for this stored program from performance schema. */
+    MYSQL_DROP_SP(to_uint(enum_sp_type::TRIGGER),
+                  table->db, table->db_length,
+                  trigger_name->str, trigger_name->length);
+
+  }
+
+  return false;
+}
+
+
+bool check_table_triggers_are_not_in_the_same_schema(THD *thd,
+                                                     const char *db_name,
+                                                     const char *table_name,
+                                                     const char *new_db_name)
+{
+  // Check if there is at least one trigger for the given table.
+
+  bool table_has_trigger;
+  if (dd::table_has_triggers(thd, db_name, table_name, &table_has_trigger))
+    return true;
+
+  if (!table_has_trigger)
+    return false;
+
+  /*
+    Since triggers should be in the same schema as their subject tables
+    moving table with them between two schemas raises too many questions.
+    (E.g. what should happen if in new schema we already have trigger
+     with same name ?).
+  */
+
+  if (my_strcasecmp(table_alias_charset, db_name, new_db_name))
+  {
+    my_error(ER_TRG_IN_WRONG_SCHEMA, MYF(0));
+    return true;
+  }
+
+  return false;
+}
+
+
+bool reload_triggers_for_table(THD *thd,
                                const char *db_name,
                                const char *table_alias,
                                const char *table_name,
@@ -133,7 +177,12 @@ bool change_trigger_table_name(THD *thd,
 {
   // Check if there is at least one trigger for the given table.
 
-  if (!Trigger_loader::trg_file_exists(db_name, table_name))
+  bool table_has_trigger;
+  if (dd::table_has_triggers(thd, new_db_name, new_table_name,
+                              &table_has_trigger))
+    return true;
+
+  if (!table_has_trigger)
     return false;
 
   /*
@@ -158,50 +207,51 @@ bool change_trigger_table_name(THD *thd,
                                                            table_name,
                                                            MDL_EXCLUSIVE));
 
-  DBUG_ASSERT(my_strcasecmp(table_alias_charset, db_name, new_db_name) ||
-              my_strcasecmp(table_alias_charset, table_alias, new_table_name));
+  DBUG_ASSERT(my_strcasecmp(table_alias_charset, table_alias, new_table_name));
 
-  Table_trigger_dispatcher d(db_name, table_name);
+  Table_trigger_dispatcher tbl_trg_dsp(new_db_name, new_table_name);
 
-  return d.check_n_load(thd, true) ||
-         d.check_for_broken_triggers() ||
-         d.rename_subject_table(thd,
-                                db_name, new_db_name,
-                                table_alias,
-                                new_table_name);
+  return tbl_trg_dsp.check_n_load(thd, true) ||
+         tbl_trg_dsp.check_for_broken_triggers();
 }
 
 
-/**
-  Drop all triggers for table.
-
-  @param thd        current thread context
-  @param db_name    name of the table schema
-  @param table_name table name
-
-  @return Operation status.
-    @retval false Success
-    @retval true  Failure
-*/
-bool drop_all_triggers(THD *thd, const char *db_name, const char *table_name)
+bool acquire_mdl_for_trigger(THD *thd,
+                             const char *db,
+                             const char *trg_name,
+                             enum_mdl_type trigger_name_mdl_type)
 {
-  // Check if there is at least one trigger for the given table.
+  MDL_request_list mdl_requests;
+  MDL_request mdl_request;
 
-  if (!Trigger_loader::trg_file_exists(db_name, table_name))
-    return false;
+  DBUG_ASSERT(trg_name != nullptr);
+  DBUG_ASSERT(trigger_name_mdl_type == MDL_EXCLUSIVE ||
+              trigger_name_mdl_type == MDL_SHARED_HIGH_PRIO);
+
+  char lc_name[NAME_LEN + 1];
+  my_stpncpy(lc_name, trg_name, NAME_LEN);
+  my_casedn_str(system_charset_info, lc_name);
+  lc_name[NAME_LEN]= '\0';
+
+  if (thd->global_read_lock.can_acquire_protection())
+    return true;
 
   /*
-    Here we have to 1) load trigger definitions from TRG-files and 2) parse them
-    to find out trigger names. Since trigger names are not stored in the
-    TRG-file, it is impossible to avoid parsing just to delete triggers.
+    It isn't required to create MDL request for MDL_key::GLOBAL,
+    MDL_key::SCHEMA since it was already done before while
+    calling the method open_and_lock_subj_table().
   */
+  MDL_REQUEST_INIT(&mdl_request,
+                   MDL_key::TRIGGER, db, lc_name, trigger_name_mdl_type,
+                   MDL_TRANSACTION);
 
-  Table_trigger_dispatcher d(db_name, table_name);
+  mdl_requests.push_front(&mdl_request);
 
-  return
-    d.check_n_load(thd, true) ||
-    Trigger_loader::drop_all_triggers(db_name, table_name,
-                                      &d.get_trigger_list());
+  if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                     thd->variables.lock_wait_timeout))
+    return true;
+
+  return false;
 }
 
 
@@ -223,32 +273,12 @@ bool Sql_cmd_ddl_trigger_common::check_trg_priv_on_subj_table(
   TABLE_LIST **save_query_tables_own_last= thd->lex->query_tables_own_last;
   thd->lex->query_tables_own_last= nullptr;
 
-  bool err_status= check_table_access(thd, TRIGGER_ACL, table, false, 1, false);
+  bool err_status= check_table_access(thd, TRIGGER_ACL, table, false, 1,
+                                      false);
 
   thd->lex->query_tables_own_last= save_query_tables_own_last;
 
   return err_status;
-}
-
-
-/**
-  Restore original state of meta-data locks.
-
-  @param thd  current thread context
-  @param mdl_ticket  granted metadata lock
-*/
-
-void Sql_cmd_ddl_trigger_common::restore_original_mdl_state(
-  THD *thd,
-  MDL_ticket *mdl_ticket) const
-{
-  /*
-    If we are under LOCK TABLES we should restore original state of
-    meta-data locks. Otherwise all locks will be released along
-    with the implicit commit.
-  */
-  if (thd->locked_tables_mode)
-    mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
 }
 
 
@@ -263,7 +293,7 @@ void Sql_cmd_ddl_trigger_common::restore_original_mdl_state(
 */
 
 TABLE* Sql_cmd_ddl_trigger_common::open_and_lock_subj_table(
-  THD* thd,
+  THD *thd,
   TABLE_LIST *tables,
   MDL_ticket **mdl_ticket) const
 {
@@ -339,7 +369,6 @@ bool Sql_cmd_ddl_trigger_common::cleanup_on_success(
     keep master/slave in consistent state.
   */
   thd->locked_tables_list.reopen_tables(thd);
-
   /*
     Invalidate SP-cache. That's needed because triggers may change list of
     pre-locking tables.
@@ -348,7 +377,21 @@ bool Sql_cmd_ddl_trigger_common::cleanup_on_success(
 
   thd->add_to_binlog_accessed_dbs(db_name);
 
+  DEBUG_SYNC(thd, "trigger_ddl_stmt_before_write_to_binlog");
   return write_bin_log(thd, true, stmt_query.ptr(), stmt_query.length());
+}
+
+
+void Sql_cmd_ddl_trigger_common::restore_original_mdl_state(
+  THD *thd, MDL_ticket *mdl_ticket) const
+{
+  /*
+    If we are under LOCK TABLES we should restore original state of
+    meta-data locks. Otherwise all locks will be released along
+    with the implicit commit.
+  */
+  if (thd->locked_tables_mode)
+    mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
 }
 
 
@@ -430,6 +473,12 @@ bool Sql_cmd_create_trigger::execute(THD *thd)
   if (table == nullptr)
     DBUG_RETURN(true);
 
+  if (acquire_exclusive_mdl_for_trigger(thd, thd->lex->spname->m_db.str,
+                                        thd->lex->spname->m_name.str))
+    DBUG_RETURN(true);
+
+  DEBUG_SYNC(thd, "create_trigger_has_acquired_mdl");
+
   if (table->triggers == nullptr &&
       (table->triggers= Table_trigger_dispatcher::create(table)) == nullptr)
   {
@@ -442,18 +491,23 @@ bool Sql_cmd_create_trigger::execute(THD *thd)
   if (!result)
     result= cleanup_on_success(thd, m_trigger_table->db, table, stmt_query);
 
-  restore_original_mdl_state(thd, mdl_ticket);
-
   if (!result)
   {
+    if (!(result= trans_commit_stmt(thd)) &&
+        !(result= trans_commit(thd)))
+    {
 #ifdef HAVE_PSI_SP_INTERFACE
-    /* Drop statistics for this stored program from performance schema. */
-    MYSQL_DROP_SP(to_uint(enum_sp_type::TRIGGER),
-                  thd->lex->spname->m_db.str, thd->lex->spname->m_db.length,
-                  thd->lex->spname->m_name.str, thd->lex->spname->m_name.length);
+      /* Drop statistics for this stored program from performance schema. */
+      MYSQL_DROP_SP(to_uint(enum_sp_type::TRIGGER),
+                    thd->lex->spname->m_db.str, thd->lex->spname->m_db.length,
+                    thd->lex->spname->m_name.str,
+                    thd->lex->spname->m_name.length);
 #endif
-    my_ok(thd);
+      my_ok(thd);
+    }
   }
+
+  restore_original_mdl_state(thd, mdl_ticket);
 
   DBUG_RETURN(result);
 }
@@ -522,6 +576,13 @@ bool Sql_cmd_drop_trigger::execute(THD *thd)
     DBUG_RETURN(true);
   }
 
+  if (acquire_exclusive_mdl_for_trigger(thd, thd->lex->spname->m_db.str,
+                                        thd->lex->spname->m_name.str))
+  {
+    thd->lex->restore_backup_query_tables_list(&backup);
+    DBUG_RETURN(true);
+  }
+
   if (add_table_for_trigger(thd,
                             thd->lex->spname->m_db,
                             thd->lex->spname->m_name,
@@ -575,6 +636,8 @@ bool Sql_cmd_drop_trigger::execute(THD *thd)
     DBUG_RETURN(true);
   }
 
+  DEBUG_SYNC(thd, "drop_trigger_has_acquired_mdl");
+
   bool trigger_found;
 
   result= table->triggers->drop_trigger(thd,
@@ -587,21 +650,26 @@ bool Sql_cmd_drop_trigger::execute(THD *thd)
   if (!result)
     result= cleanup_on_success(thd, tables->db, table, stmt_query);
 
-  restore_original_mdl_state(thd, mdl_ticket);
-
   /* Restore the query table list. */
   thd->lex->restore_backup_query_tables_list(&backup);
 
   if (!result)
   {
+    if (!(result= trans_commit_stmt(thd)) &&
+        !(result= trans_commit(thd)))
+    {
 #ifdef HAVE_PSI_SP_INTERFACE
-    /* Drop statistics for this stored program from performance schema. */
-    MYSQL_DROP_SP(to_uint(enum_sp_type::TRIGGER),
-                  thd->lex->spname->m_db.str, thd->lex->spname->m_db.length,
-                  thd->lex->spname->m_name.str, thd->lex->spname->m_name.length);
+      /* Drop statistics for this stored program from performance schema. */
+      MYSQL_DROP_SP(to_uint(enum_sp_type::TRIGGER),
+                    thd->lex->spname->m_db.str, thd->lex->spname->m_db.length,
+                    thd->lex->spname->m_name.str,
+                    thd->lex->spname->m_name.length);
 #endif
-    my_ok(thd);
+      my_ok(thd);
+    }
   }
+
+  restore_original_mdl_state(thd, mdl_ticket);
 
   DBUG_RETURN(result);
 }

@@ -757,6 +757,8 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CREATE_PROCEDURE]|=  CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_DROP_PROCEDURE]|=    CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_ALTER_PROCEDURE]|=   CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_CREATE_TRIGGER]|=   CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_DROP_TRIGGER]|=     CF_NEEDS_AUTOCOMMIT_OFF;
 }
 
 bool sqlcom_can_generate_row_events(enum enum_sql_command command)

@@ -14779,14 +14779,13 @@ trigger_follows_precedes_clause:
             /* empty */
             {
               $$.ordering_clause= TRG_ORDER_NONE;
-              $$.anchor_trigger_name.str= NULL;
-              $$.anchor_trigger_name.length= 0;
+              $$.anchor_trigger_name= NULL_CSTR;
             }
           |
             trigger_action_order ident_or_text
             {
               $$.ordering_clause= $1;
-              $$.anchor_trigger_name= $2;
+              $$.anchor_trigger_name= { $2.str, $2.length };
             }
           ;
 
@@ -14811,23 +14810,6 @@ trigger_tail:
               MYSQL_YYABORT;
             }
 
-            lex->raw_trg_on_table_name_begin= @5.raw.start;
-            lex->raw_trg_on_table_name_end= @7.raw.start;
-
-            if (@10.is_empty())
-            {
-              /*
-                @10.is_empty() is true when a clause PRECEDES/FOLLOWS is absent.
-              */
-              lex->trg_ordering_clause_begin= NULL;
-              lex->trg_ordering_clause_end= NULL;
-            }
-            else
-            {
-              lex->trg_ordering_clause_begin= @10.cpp.start;
-              lex->trg_ordering_clause_end= @10.cpp.end;
-            }
-
             sp_head *sp= sp_start_parsing(thd, enum_sp_type::TRIGGER, $2);
 
             if (!sp)
@@ -14847,8 +14829,7 @@ trigger_tail:
 
             memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
             sp->m_chistics= &lex->sp_chistics;
-
-            sp->set_body_start(thd, @9.cpp.end);
+            sp->set_body_start(thd, @10.cpp.end);
           }
           sp_proc_stmt /* $12 */
           { /* $13 */

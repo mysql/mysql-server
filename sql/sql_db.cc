@@ -466,7 +466,8 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
 #ifndef EMBEDDED_LIBRARY
       || Events::lock_schema_events(thd, db.str)
 #endif
-      || lock_db_routines(thd, db.str))
+      || lock_db_routines(thd, db.str)
+      || lock_trigger_names(thd, tables))
     DBUG_RETURN(true);
 
   /* mysql_ha_rm_tables() requires a non-null TABLE_LIST. */

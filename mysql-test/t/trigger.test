@@ -1112,38 +1112,6 @@ drop trigger t1_bi;
 drop table t1;
 drop database mysqltest;
 use test;
-# And now let us check that the properly handle rename if there is some
-# error during it (that we rollback such renames completely).
-create table t1 (id int);
-create trigger t1_bi before insert on t1 for each row set @a:=new.id;
-create trigger t1_ai after insert on t1 for each row set @b:=new.id;
-insert into t1 values (101);
-select @a, @b;
-select trigger_schema, trigger_name, event_object_schema,
-       event_object_table, action_statement from information_schema.triggers
-       where event_object_schema = 'test';
-# Trick which makes update of second .TRN file impossible
-let $MYSQLD_DATADIR= `select @@datadir`;
-write_file $MYSQLD_DATADIR/test/t1_ai.TRN~;
-dummy
-EOF
-chmod 0000 $MYSQLD_DATADIR/test/t1_ai.TRN~;
-# Normalize the datadir path; the embedded server doesn't chdir to datadir
---replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
---error 1
-rename table t1 to t2;
-# 't1' should be still there and triggers should work correctly
-insert into t1 values (102);
-select @a, @b;
-select trigger_schema, trigger_name, event_object_schema,
-       event_object_table, action_statement from information_schema.triggers
-       where event_object_schema = 'test';
-chmod 0600 $MYSQLD_DATADIR/test/t1_ai.TRN~;
-remove_file $MYSQLD_DATADIR/test/t1_ai.TRN~;
-# Let us check that updates to .TRN files were rolled back too
-drop trigger t1_bi;
-drop trigger t1_ai;
-drop table t1;
 
 # Test for bug #16829 "Firing trigger with RETURN crashes the server"
 # RETURN is not supposed to be used anywhere except functions, so error
@@ -2436,11 +2404,6 @@ SHOW TRIGGERS IN db1;
 INSERT INTO t2 VALUES (1);
 SELECT * FROM t1;
 
---echo # Work around Bug#45235
-let $MYSQLD_DATADIR = `select @@datadir`;
---remove_file $MYSQLD_DATADIR/db1/t2.TRG
---remove_file $MYSQLD_DATADIR/db1/trg1.TRN
-
 DROP DATABASE db1;
 USE test;
 
@@ -2906,3 +2869,17 @@ DROP TRIGGER test.silly_trigger;
 DROP TABLE test.silly_one;
 
 --echo End of 5.7 tests.
+
+--echo #
+--echo # Bug #23624693 - USING SHOW CREATE TRIGGER IN A TRANSACTION CRASHES THE SERVER
+--echo #
+
+--error ER_BAD_DB_ERROR
+SHOW CREATE TRIGGER non_existence_db.some_trigger;
+
+--error ER_BAD_DB_ERROR
+CREATE TRIGGER non_existent_db.trg1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+
+--error ER_BAD_DB_ERROR
+DROP TRIGGER non_existent_db.trg1;
+

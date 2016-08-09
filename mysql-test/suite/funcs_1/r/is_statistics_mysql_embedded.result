@@ -78,16 +78,6 @@ def	mysql	time_zone_transition	0	mysql	PRIMARY	1	Time_zone_id	A	#CARD#	NULL	NULL
 def	mysql	time_zone_transition	0	mysql	PRIMARY	2	Transition_time	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	time_zone_transition_type	0	mysql	PRIMARY	1	Time_zone_id	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	time_zone_transition_type	0	mysql	PRIMARY	2	Transition_type_id	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	triggers	1	mysql	client_collation_id	1	client_collation_id	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	triggers	1	mysql	connection_collation_id	1	connection_collation_id	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	triggers	0	mysql	PRIMARY	1	id	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	triggers	1	mysql	schema_collation_id	1	schema_collation_id	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	triggers	0	mysql	schema_id	1	schema_id	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	triggers	0	mysql	schema_id	2	name	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	triggers	0	mysql	table_id	1	table_id	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	triggers	0	mysql	table_id	2	event_type	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	triggers	0	mysql	table_id	3	action_timing	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	triggers	0	mysql	table_id	4	action_order	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	user	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	user	0	mysql	PRIMARY	2	User	A	#CARD#	NULL	NULL		BTREE			YES
 # Establish connection testuser1 (user=testuser1)
@@ -166,16 +156,6 @@ def	mysql	time_zone_transition	0	mysql	PRIMARY	1	Time_zone_id	A	#CARD#	NULL	NULL
 def	mysql	time_zone_transition	0	mysql	PRIMARY	2	Transition_time	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	time_zone_transition_type	0	mysql	PRIMARY	1	Time_zone_id	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	time_zone_transition_type	0	mysql	PRIMARY	2	Transition_type_id	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	triggers	1	mysql	client_collation_id	1	client_collation_id	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	triggers	1	mysql	connection_collation_id	1	connection_collation_id	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	triggers	0	mysql	PRIMARY	1	id	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	triggers	1	mysql	schema_collation_id	1	schema_collation_id	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	triggers	0	mysql	schema_id	1	schema_id	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	triggers	0	mysql	schema_id	2	name	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	triggers	0	mysql	table_id	1	table_id	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	triggers	0	mysql	table_id	2	event_type	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	triggers	0	mysql	table_id	3	action_timing	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	triggers	0	mysql	table_id	4	action_order	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	user	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	user	0	mysql	PRIMARY	2	User	A	#CARD#	NULL	NULL		BTREE			YES
 # Switch to connection default and close connection testuser1

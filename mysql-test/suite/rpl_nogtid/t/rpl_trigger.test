@@ -12,6 +12,16 @@ call mtr.add_suppression("Unsafe statement written to the binary log using state
 --connection slave
 call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually.");
 call mtr.add_suppression("Either event.*is from an old master");
+call mtr.add_suppression("No definer attribute for trigger*");
+#
+# Since WL#7896 gets rid of SUID triggers it is necessary to suppress the following warning.
+# This warning is issued by slave from the function sql_slave_killed() when
+# an error happen during applying statement and there are slave parallel workers.
+# For case when the statement CREATE TRIGGER without specified DEFINER clause is applied
+# on the slave the error ER_TRG_NO_DEFINER is issued that causes the following warning
+# be emitted.
+#
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 --connection master
 enable_query_log;
 
@@ -291,10 +301,7 @@ while ($rnd)
 #
 # The idea of this test is to emulate replication of a trigger from the old
 # master (master w/o "DEFINER in triggers" support) to the new slave and check
-# that:
-#   1. the trigger on the slave will be replicated w/o errors;
-#   2. the trigger on the slave will be non-SUID (will have no DEFINER);
-#   3. the trigger can be activated later on the slave w/o errors.
+# that trigger on the slave won't be replicated and an error will be emitted.
 #
 # In order to emulate this kind of replication, we make the slave playing the binlog,
 # recorded by 5.0.16 master. This binlog contains the following statements:
@@ -305,8 +312,6 @@ while ($rnd)
 #       INSERT INTO t2 VALUES(CURRENT_USER());
 #   INSERT INTO t1 VALUES(1);
 #
-
-# 1. Check that the trigger's replication is succeeded.
 
 # Stop the slave.
 
@@ -349,25 +354,9 @@ SELECT MASTER_POS_WAIT('master-bin.000001', 513) >= 0;
 SHOW TABLES LIKE 't_';
 --replace_column 6 #
 SHOW TRIGGERS;
-# We disable warnings here since it affects the result file in different ways
-# depending on the mode being used.
-disable_warnings;
-
-SELECT * FROM t1;
-SELECT * FROM t2;
-
-# 2. Check that the trigger is non-SUID on the slave;
-# 3. Check that the trigger can be activated on the slave.
-#
-INSERT INTO t1 VALUES(2);
-enable_warnings;
-
-SELECT * FROM t1;
-SELECT * FROM t2;
 
 # That's all, cleanup.
 
-DROP TRIGGER trg1;
 DROP TABLE t1;
 DROP TABLE t2;
 

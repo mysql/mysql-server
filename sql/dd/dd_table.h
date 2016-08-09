@@ -308,9 +308,9 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share);
 
   @param[in]    thd              Thread context
   @param[in]    from_schema_name Name of the schema
-  @param[in]    from_table_name  Name of the table
+  @param[in]    from_name        Name of the table
   @param[in]    to_schema_name   Name of the schema
-  @param[in]    to_table_name    Name of the table
+  @param[in]    to_name          Name of the table
 
   Triggers from from_schema_name.from_table_name will be moved
   into to_schema_name.to_table_name. And the transaction will be

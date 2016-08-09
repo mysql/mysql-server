@@ -2396,8 +2396,7 @@ UNLOCK TABLES;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 trigger trg1 before insert on t1 for each row
-begin
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg1` BEFORE INSERT ON `t1` FOR EACH ROW begin
 if new.a > 10 then
 set new.a := 10;
 set new.a := 11;
@@ -2417,7 +2416,7 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 trigger trg2 before update on t1 for each row begin
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg2` BEFORE UPDATE ON `t1` FOR EACH ROW begin
 if old.a % 2 = 0 then set new.b := 12; end if;
 end */;;
 DELIMITER ;
@@ -2434,8 +2433,7 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 trigger trg3 after update on t1 for each row
-begin
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg3` AFTER UPDATE ON `t1` FOR EACH ROW begin
 if new.a = -1 then
 set @fired:= "Yes";
 end if;
@@ -2466,8 +2464,7 @@ UNLOCK TABLES;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 trigger trg4 before insert on t2 for each row
-begin
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg4` BEFORE INSERT ON `t2` FOR EACH ROW begin
 if new.a > 10 then
 set @fired:= "No";
 end if;
@@ -2912,7 +2909,7 @@ UNLOCK TABLES;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = '' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `test trig` BEFORE INSERT ON `t1 test` FOR EACH ROW BEGIN
+/*!50003 CREATE*/ /*!50017 DEFINER="root"@"localhost"*/ /*!50003 TRIGGER "test trig" BEFORE INSERT ON "t1 test" FOR EACH ROW BEGIN
 INSERT INTO `t2 test` SET a2 = NEW.a1; END */;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -3119,9 +3116,7 @@ UNLOCK TABLES;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'IGNORE_SPACE' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER tr1 BEFORE INSERT ON t1
-FOR EACH ROW
-BEGIN
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `tr1` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN
 SET new.a = 0;
 END */;;
 DELIMITER ;
@@ -4681,16 +4676,14 @@ CREATE VIEW v2 AS SELECT * FROM t2;
 	<triggers name="t2">
 		<trigger Trigger="trig1" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci" Created="--TIMESTAMP--">
 <![CDATA[
-CREATE DEFINER=`root`@`localhost` TRIGGER trig1 BEFORE INSERT ON t2
-FOR EACH ROW BEGIN
+CREATE DEFINER=`root`@`localhost` TRIGGER `trig1` BEFORE INSERT ON `t2` FOR EACH ROW BEGIN
 INSERT INTO t2 VALUES(1);
 END
 ]]>
 		</trigger>
 		<trigger Trigger="trig2" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci" Created="--TIMESTAMP--">
 <![CDATA[
-CREATE DEFINER=`root`@`localhost` TRIGGER trig2 AFTER INSERT ON t2
-FOR EACH ROW BEGIN
+CREATE DEFINER=`root`@`localhost` TRIGGER `trig2` AFTER INSERT ON `t2` FOR EACH ROW BEGIN
 INSERT INTO t2 VALUES(1, ']]]]><![CDATA[>');
 INSERT INTO t2 VALUES(2, '<![CDATA]]]]><![CDATA[>');
 INSERT INTO t2 VALUES(3, '<![CDATA[');
@@ -4820,16 +4813,14 @@ END
 	<triggers name="t2">
 		<trigger Trigger="trig1" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci" Created="--TIMESTAMP--">
 <![CDATA[
-CREATE DEFINER=`root`@`localhost` TRIGGER trig1 BEFORE INSERT ON t2
-FOR EACH ROW BEGIN
+CREATE DEFINER=`root`@`localhost` TRIGGER `trig1` BEFORE INSERT ON `t2` FOR EACH ROW BEGIN
 INSERT INTO t2 VALUES(1);
 END
 ]]>
 		</trigger>
 		<trigger Trigger="trig2" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci" Created="--TIMESTAMP--">
 <![CDATA[
-CREATE DEFINER=`root`@`localhost` TRIGGER trig2 AFTER INSERT ON t2
-FOR EACH ROW BEGIN
+CREATE DEFINER=`root`@`localhost` TRIGGER `trig2` AFTER INSERT ON `t2` FOR EACH ROW BEGIN
 INSERT INTO t2 VALUES(1, ']]]]><![CDATA[>');
 INSERT INTO t2 VALUES(2, '<![CDATA]]]]><![CDATA[>');
 INSERT INTO t2 VALUES(3, '<![CDATA[');
@@ -4962,16 +4953,14 @@ Warning	1287	Using GRANT for creating new user is deprecated and will be removed
 	<triggers name="t2">
 		<trigger Trigger="trig1" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci" Created="--TIMESTAMP--">
 <![CDATA[
-CREATE DEFINER=`root`@`localhost` TRIGGER trig1 BEFORE INSERT ON t2
-FOR EACH ROW BEGIN
+CREATE DEFINER=`root`@`localhost` TRIGGER `trig1` BEFORE INSERT ON `t2` FOR EACH ROW BEGIN
 INSERT INTO t2 VALUES(1);
 END
 ]]>
 		</trigger>
 		<trigger Trigger="trig2" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci" Created="--TIMESTAMP--">
 <![CDATA[
-CREATE DEFINER=`root`@`localhost` TRIGGER trig2 AFTER INSERT ON t2
-FOR EACH ROW BEGIN
+CREATE DEFINER=`root`@`localhost` TRIGGER `trig2` AFTER INSERT ON `t2` FOR EACH ROW BEGIN
 INSERT INTO t2 VALUES(1, ']]]]><![CDATA[>');
 INSERT INTO t2 VALUES(2, '<![CDATA]]]]><![CDATA[>');
 INSERT INTO t2 VALUES(3, '<![CDATA[');
@@ -5070,8 +5059,7 @@ USE `test`;
 /*!50003 SET sql_mode              = '' */ ;
 /*!50032 DROP TRIGGER IF EXISTS tt1_t1 */;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER tt1_t1 BEFORE INSERT ON t1 FOR EACH ROW 
-SET NEW.b=NEW.a + 10 */;;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `tt1_t1` BEFORE INSERT ON `t1` FOR EACH ROW SET NEW.b=NEW.a + 10 */;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;

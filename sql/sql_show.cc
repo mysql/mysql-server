@@ -52,15 +52,16 @@
 #include "sql_table.h"                      // filename_to_tablename
 #include "sql_time.h"                       // interval_type_to_name
 #include "sql_tmp_table.h"                  // create_tmp_table
+#include "sql_trigger.h"                    // acquire_mdl_for_trigger
 #include "sql_view.h"                       // open_and_read_view
 #include "table_trigger_dispatcher.h"       // Table_trigger_dispatcher
 #include "trigger.h"                        // Trigger
 #include "trigger_chain.h"                  // Trigger_chain
-#include "trigger_loader.h"                 // Trigger_loader
 #include "tztime.h"                         // Time_zone
 
 #include "dd/dd.h"                          // dd::get_dictionary()
 #include "dd/dd_table.h"                    // dd::abstract_table_type
+#include "dd/dd_trigger.h"                  // dd::table_has_triggers
 #include "dd/dd_schema.h"                   // dd::Schema_MDL_locker
 #include "dd/dictionary.h"                  // dd::Dictionary
 #include "dd/cache/dictionary_client.h"     // dd::cache::Dictionary_client
@@ -224,19 +225,6 @@ enum enum_i_s_events_fields
   ISE_DB_CL
 };
 
-
-static const LEX_STRING trg_action_time_type_names[]=
-{
-  { C_STRING_WITH_LEN("BEFORE") },
-  { C_STRING_WITH_LEN("AFTER") }
-};
-
-static const LEX_STRING trg_event_type_names[]=
-{
-  { C_STRING_WITH_LEN("INSERT") },
-  { C_STRING_WITH_LEN("UPDATE") },
-  { C_STRING_WITH_LEN("DELETE") }
-};
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 static const char *grant_names[]={
@@ -4489,12 +4477,16 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
 
   if (schema_table->i_s_requested_object & OPEN_TRIGGER_ONLY)
   {
-    if (!Trigger_loader::trg_file_exists(db_name->str, table_name->str))
+    bool table_has_trigger;
+
+    if ((res= dd::table_has_triggers(thd, db_name->str, table_name->str,
+                                     &table_has_trigger)) ||
+        !table_has_trigger)
       goto end;
 
-    Table_trigger_dispatcher d(db_name->str, table_name->str);
+    Table_trigger_dispatcher tbl_trg_dsp(db_name->str, table_name->str);
 
-    if (!d.check_n_load(thd, true))
+    if (!tbl_trg_dsp.check_n_load(thd, true))
     {
       TABLE tbl;
 
@@ -4502,7 +4494,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
       init_sql_alloc(key_memory_table_triggers_list,
                      &tbl.mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
 
-      tbl.triggers= &d;
+      tbl.triggers= &tbl_trg_dsp;
       table_list.table= &tbl;
 
       res= schema_table->process_table(thd, &table_list, table,
@@ -4624,10 +4616,6 @@ end:
       is damaged or contains invalid CREATE TRIGGER statement. That should
       not happen in normal life.
 
-    - ER_TRG_NO_DEFINER -- this warning is thrown when we're loading a
-      trigger created/imported in/from the version of MySQL, which does not
-      support trigger definers.
-
     - ER_TRG_NO_CREATION_CTX -- this warning is thrown when we're loading a
       trigger created/imported in/from the version of MySQL, which does not
       support trigger creation contexts.
@@ -4643,7 +4631,6 @@ public:
                                 const char* msg)
   {
     if (sql_errno == ER_PARSE_ERROR ||
-        sql_errno == ER_TRG_NO_DEFINER ||
         sql_errno == ER_TRG_NO_CREATION_CTX)
       return true;
 
@@ -6688,7 +6675,7 @@ static bool store_trigger(THD *thd, TABLE *table, Trigger *trigger)
                          trigger->get_trigger_name().length, cs);
 
   {
-    const LEX_STRING &s= trg_event_type_names[trigger->get_event()];
+    const LEX_CSTRING &s= trigger->get_event_as_string();
     table->field[3]->store(s.str, s.length, cs);
   }
 
@@ -6709,7 +6696,7 @@ static bool store_trigger(THD *thd, TABLE *table, Trigger *trigger)
   table->field[10]->store(STRING_WITH_LEN("ROW"), cs);
 
   {
-    const LEX_STRING &s= trg_action_time_type_names[trigger->get_action_time()];
+    const LEX_CSTRING &s= trigger->get_action_time_as_string();
     table->field[11]->store(s.str, s.length, cs);
   }
 
@@ -9469,46 +9456,50 @@ static bool show_create_trigger_impl(THD *thd, Trigger *trigger)
 
   LEX_STRING sql_mode_str;
 
-  sql_mode_string_representation(thd, trigger->get_sql_mode(), &sql_mode_str);
+  if (sql_mode_string_representation(thd, trigger->get_sql_mode(),
+                                     &sql_mode_str))
+    return true;
+
+  char create_trg_str_buf[10 * STRING_BUFFER_USUAL_SIZE];
+  String create_trg_str(create_trg_str_buf, sizeof(create_trg_str_buf),
+                        system_charset_info);
+  create_trg_str.length(0);
+
+  /*
+    NOTE: SQL statement field must be not less than 1024 in order not to
+    confuse old clients.
+  */
+  Item_empty_string *stmt_fld=
+    new Item_empty_string("SQL Original Statement",
+                          max<size_t>(create_trg_str.length(),
+                                      1024));
+
+  if (stmt_fld == nullptr)
+    return true;
+
+  if (trigger->create_full_trigger_definition(thd, &create_trg_str))
+    return true;
+
+  stmt_fld->maybe_null= true;
 
   // Send header.
 
-  fields.push_back(new Item_empty_string("Trigger", NAME_LEN));
-  fields.push_back(new Item_empty_string("sql_mode", sql_mode_str.length));
-
-  {
-    /*
-      NOTE: SQL statement field must be not less than 1024 in order not to
-      confuse old clients.
-    */
-
-    Item_empty_string *stmt_fld=
-      new Item_empty_string("SQL Original Statement",
-                            max<size_t>(trigger->get_definition().length,
-                                        1024));
-
-    stmt_fld->maybe_null= TRUE;
-
-    fields.push_back(stmt_fld);
-  }
-
-  fields.push_back(new Item_empty_string("character_set_client",
-                                         MY_CS_NAME_SIZE));
-
-  fields.push_back(new Item_empty_string("collation_connection",
-                                         MY_CS_NAME_SIZE));
-
-  fields.push_back(new Item_empty_string("Database Collation",
-                                         MY_CS_NAME_SIZE));
-
-  fields.push_back(new Item_temporal(MYSQL_TYPE_TIMESTAMP,
-                                     Name_string("Created",
-                                                 sizeof("created")-1),
-                                     0, 0));
-
-  if (thd->send_result_metadata(&fields,
+  if (fields.push_back(new Item_empty_string("Trigger", NAME_LEN)) ||
+      fields.push_back(new Item_empty_string("sql_mode", sql_mode_str.length)) ||
+      fields.push_back(stmt_fld) ||
+      fields.push_back(new Item_empty_string("character_set_client",
+                                             MY_CS_NAME_SIZE)) ||
+      fields.push_back(new Item_empty_string("collation_connection",
+                                             MY_CS_NAME_SIZE)) ||
+      fields.push_back(new Item_empty_string("Database Collation",
+                                             MY_CS_NAME_SIZE)) ||
+      fields.push_back(new Item_temporal(MYSQL_TYPE_TIMESTAMP,
+                                         Name_string("Created",
+                                                     sizeof("created")-1),
+                                                     0, 0)) ||
+      thd->send_result_metadata(&fields,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    return TRUE;
+    return true;
 
   // Resolve trigger client character set.
 
@@ -9521,34 +9512,42 @@ static bool show_create_trigger_impl(THD *thd, Trigger *trigger)
 
   p->start_row();
 
-  p->store(trigger->get_trigger_name(), system_charset_info);
-  p->store(sql_mode_str, system_charset_info);
-  p->store(trigger->get_definition(), client_cs);
-  p->store(trigger->get_client_cs_name(), system_charset_info);
-  p->store(trigger->get_connection_cl_name(), system_charset_info);
-  p->store(trigger->get_db_cl_name(), system_charset_info);
+  if (p->store(trigger->get_trigger_name().str,
+               trigger->get_trigger_name().length, system_charset_info) ||
+      p->store(sql_mode_str, system_charset_info) ||
+      p->store(create_trg_str.c_ptr(), create_trg_str.length(),
+               client_cs) ||
+      p->store(trigger->get_client_cs_name().str,
+               trigger->get_client_cs_name().length, system_charset_info) ||
+      p->store(trigger->get_connection_cl_name().str,
+               trigger->get_connection_cl_name().length,
+               system_charset_info) ||
+      p->store(trigger->get_db_cl_name().str, trigger->get_db_cl_name().length,
+               system_charset_info))
+    return true;
 
+  bool rc;
   if (!trigger->is_created_timestamp_null())
   {
     MYSQL_TIME timestamp;
     my_tz_SYSTEM->gmt_sec_to_TIME(&timestamp,
                                   trigger->get_created_timestamp());
-    p->store(&timestamp, 2);
+    rc= p->store(&timestamp, 2);
   }
   else
-    p->store_null();
+    rc= p->store_null();
 
-  int rc= p->end_row();
+  if (rc || p->end_row())
+    return true;
 
-  if (!rc)
-    my_eof(thd);
+  my_eof(thd);
 
-  return rc != 0;
+  return false;
 }
 
 
 /**
-  Read TRN and TRG files to obtain base table name for the specified
+  Read the Data Dictionary to obtain base table name for the specified
   trigger name and construct TABE_LIST object for the base table.
 
   @param thd      Thread context.
@@ -9574,41 +9573,84 @@ static bool show_create_trigger_impl(THD *thd, Trigger *trigger)
 static
 TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name)
 {
-  char trn_path_buff[FN_REFLEN];
   LEX_CSTRING db;
   LEX_STRING tbl_name;
   TABLE_LIST *table;
 
-  LEX_STRING trn_path=
-    Trigger_loader::build_trn_path(trn_path_buff, FN_REFLEN,
-                                   trg_name->m_db.str,
-                                   trg_name->m_name.str);
+  dd::Schema_MDL_locker mdl_locker(thd);
 
-  if (Trigger_loader::check_trn_exists(trn_path))
+  dd::cache::Dictionary_client *dd_client= thd->dd_client();
+  dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
+
+  const dd::Schema *sch_obj= nullptr;
+  if (mdl_locker.ensure_locked(trg_name->m_db.str) ||
+      dd_client->acquire<dd::Schema>(trg_name->m_db.str, &sch_obj))
+    return nullptr;
+
+  if (sch_obj == nullptr)
   {
-    my_error(ER_TRG_DOES_NOT_EXIST, MYF(0));
-    return NULL;
+    my_error(ER_BAD_DB_ERROR, MYF(0), trg_name->m_db.str);
+    return nullptr;
   }
 
-  if (Trigger_loader::load_trn_file(thd, trg_name->m_name, trn_path, &tbl_name))
-    return NULL;
+  std::string table_name;
+  if (dd_client->get_table_name_by_trigger_name(sch_obj->id(),
+                                                trg_name->m_name.str,
+                                                &table_name))
+    return nullptr;
+
+  if (table_name == "")
+  {
+    my_error(ER_TRG_DOES_NOT_EXIST, MYF(0));
+    return nullptr;
+  }
 
   /* We need to reset statement table list to be PS/SP friendly. */
   if (!(table= (TABLE_LIST*) thd->alloc(sizeof(TABLE_LIST))))
-    return NULL;
+    return nullptr;
 
   db= trg_name->m_db;
-
   db.str= thd->strmake(db.str, db.length);
-  tbl_name.str= thd->strmake(tbl_name.str, tbl_name.length);
 
-  if (db.str == NULL || tbl_name.str == NULL)
-    return NULL;
+  tbl_name.str= thd->strmake(table_name.c_str(), table_name.length());
+  tbl_name.length= table_name.length();
+
+  if (db.str == nullptr || tbl_name.str == nullptr)
+    return nullptr;
 
   table->init_one_table(db.str, db.length, tbl_name.str, tbl_name.length,
                         tbl_name.str, TL_IGNORE);
 
   return table;
+}
+
+
+/**
+  Acquire shared MDL lock for a specified database name/table name.
+
+  @param thd         Thread context.
+  @param db_name     Database name.
+  @param table_name  Table name.
+
+  @return Operation status
+    @retval true Error.
+    @retval false Success.
+*/
+
+static bool acquire_mdl_for_table(THD *thd, const char *db_name,
+                                  const char *table_name)
+{
+  MDL_request table_request;
+  MDL_REQUEST_INIT(&table_request,
+                   MDL_key::TABLE, db_name, table_name,
+                   MDL_SHARED,
+                   MDL_TRANSACTION);
+
+  if (thd->mdl_context.acquire_lock(&table_request,
+                                    thd->variables.lock_wait_timeout))
+    return true;
+
+  return false;
 }
 
 
@@ -9625,11 +9667,21 @@ TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name)
 
 bool show_create_trigger(THD *thd, const sp_name *trg_name)
 {
-  TABLE_LIST *lst= get_trigger_table(thd, trg_name);
   uint num_tables; /* NOTE: unused, only to pass to open_tables(). */
-  Table_trigger_dispatcher *triggers;
   bool error= true;
   Trigger *trigger;
+
+  /*
+    Metadata locks taken during SHOW CREATE TRIGGER should be released when
+    the statement completes as it is an information statement.
+  */
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
+
+  if (acquire_shared_mdl_for_trigger(thd, trg_name->m_db.str,
+                                     trg_name->m_name.str))
+    return true;
+
+  TABLE_LIST *lst= get_trigger_table(thd, trg_name);
 
   if (!lst)
     return true;
@@ -9640,11 +9692,10 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
     return true;
   }
 
-  /*
-    Metadata locks taken during SHOW CREATE TRIGGER should be released when
-    the statement completes as it is an information statement.
-  */
-  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
+  DEBUG_SYNC(thd, "show_create_trigger_before_table_lock");
+
+  if (acquire_mdl_for_table(thd, trg_name->m_db.str, lst->table_name))
+    return true;
 
   /*
     Open the table by name in order to load Table_trigger_dispatcher object.
@@ -9661,15 +9712,13 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
     /* Perform closing actions and return error status. */
   }
 
-  triggers= lst->table->triggers;
-
-  if (!triggers)
+  if (!lst->table->triggers)
   {
     my_error(ER_TRG_DOES_NOT_EXIST, MYF(0));
     goto exit;
   }
 
-  trigger= triggers->find_trigger(trg_name->m_name);
+  trigger= lst->table->triggers->find_trigger(trg_name->m_name);
 
   if (!trigger)
   {

@@ -142,7 +142,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     }
   }
 
-  if (lock_table_names(thd, table_list, 0, thd->variables.lock_wait_timeout, 0))
+  if (lock_table_names(thd, table_list, 0, thd->variables.lock_wait_timeout, 0)
+      || lock_trigger_names(thd, table_list))
     goto err;
 
   for (ren_table= table_list; ren_table; ren_table= ren_table->next_local)
@@ -286,21 +287,18 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
       if (dd::table_storage_engine(thd, ren_table, &hton))
         DBUG_RETURN(!skip_error);
 
+      if (check_table_triggers_are_not_in_the_same_schema(
+            thd,
+            ren_table->db,
+            ren_table->table_name,
+            new_db))
+        DBUG_RETURN(!skip_error);
+
       // If renaming fails, my_error() has already been called
       if (mysql_rename_table(thd, hton, ren_table->db, old_alias, new_db,
                              new_alias, 0))
         DBUG_RETURN(!skip_error);
 
-      // If we fail to update the triggers appropriately, we revert the
-      // changes done and report an error.
-      if (change_trigger_table_name(thd, ren_table->db, old_alias,
-                                         ren_table->table_name,
-                                         new_db, new_alias))
-      {
-        (void) mysql_rename_table(thd, hton, new_db, new_alias,
-                                  ren_table->db, old_alias, NO_FK_CHECKS);
-        DBUG_RETURN(!skip_error);
-      }
       break;
     }
   case dd::enum_table_type::SYSTEM_VIEW: // Fall through

@@ -1738,7 +1738,7 @@ union YYSTYPE {
   struct
   {
     enum enum_trigger_order_type ordering_clause;
-    LEX_STRING anchor_trigger_name;
+    LEX_CSTRING anchor_trigger_name;
   } trg_characteristics;
   class Index_hint *key_usage_element;
   List<Index_hint> *key_usage_list;
@@ -1958,7 +1958,7 @@ struct st_trg_chistics
     Trigger name referenced in the FOLLOWS/PRECEDES clause of the CREATE TRIGGER
     statement.
   */
-  LEX_STRING anchor_trigger_name;
+  LEX_CSTRING anchor_trigger_name;
 };
 
 extern sys_var *trg_new_row_fake_var;
@@ -3196,16 +3196,6 @@ public:
 
   /** SELECT of CREATE VIEW statement */
   LEX_STRING create_view_select;
-
-  /** Start of 'ON table', in trigger statements.  */
-  const char* raw_trg_on_table_name_begin;
-  /** End of 'ON table', in trigger statements. */
-  const char* raw_trg_on_table_name_end;
-
-  /** Start of clause FOLLOWS/PRECEDES. */
-  const char* trg_ordering_clause_begin;
-  /** End (a char after the end) of clause FOLLOWS/PRECEDES. */
-  const char* trg_ordering_clause_end;
 
   /* Partition info structure filled in by PARTITION BY parse part */
   partition_info *part_info;
