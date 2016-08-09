@@ -311,14 +311,14 @@ protected:
 		enum enum_sql_command	sqlcom);
 public:
 	/** DROP and CREATE an InnoDB table.
-	@param[in,out]	dd_trx_rw	data dictionary transaction
+	@param[in,out]	dd_tab		dd::Table of the table to be truncated
 	@return	error number
 	@retval 0 on success */
 	int truncate(dd::Table *dd_tab);
 
 	int rename_table(const char* from, const char* to,
-		const dd::Table *from_table_def,
-		dd::Table *to_table_def);
+		const dd::Table *from_table,
+		dd::Table *to_table);
 
 	int check(THD* thd, HA_CHECK_OPT* check_opt);
 

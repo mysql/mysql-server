@@ -15154,6 +15154,7 @@ ha_innobase::discard_or_import_tablespace(
 }
 
 /** DROP and CREATE an InnoDB table.
+@param[in,out]	dd_tab		dd::Table of the table to be truncated
 @return	error number
 @retval 0 on success */
 int
@@ -15988,16 +15989,24 @@ innobase_drop_database(
 	trx_free_for_mysql(trx);
 }
 
-/*********************************************************************//**
-Renames an InnoDB table.
+/** Renames an InnoDB table.
+@param[in,out]	thd		THD object
+@param[in,out]	trx		transaction
+@param[in]	from		old name of the table
+@param[in]	to		new name of the table
+@param[in]	from_table	dd::Table of the table with old name
+@param[in,out]	to_table	dd::Table of the table with new name
 @return DB_SUCCESS or error code */
 inline MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 innobase_rename_table(
 /*==================*/
-	trx_t*		trx,	/*!< in: transaction */
-	const char*	from,	/*!< in: old name of the table */
-	const char*	to)	/*!< in: new name of the table */
+	THD*		thd,
+	trx_t*		trx,
+	const char*	from,
+	const char*	to,
+	const dd::Table*from_table,
+	const dd::Table*to_table)
 {
 	dberr_t	error;
 	char	norm_to[FN_REFLEN];
@@ -16101,6 +16110,23 @@ innobase_rename_table(
 		}
 	}
 
+	bool	rename_dd_filename = false;
+	char*	new_path = NULL;
+	if (error == DB_SUCCESS && strcmp(norm_from, norm_to) != 0) {
+		dict_table_t*	table = dict_table_open_on_name(
+			norm_to, TRUE, FALSE, DICT_ERR_IGNORE_NONE);
+		ut_ad(table != NULL);
+		ut_ad(!table->ibd_file_missing);
+
+		rename_dd_filename = dict_table_is_file_per_table(table);
+
+		if (rename_dd_filename) {
+			new_path = fil_space_get_first_path(table->space);
+		}
+
+		dict_table_close(table, TRUE, FALSE);
+	}
+
 	row_mysql_unlock_data_dictionary(trx);
 
 	/* Flush the log to reduce probability that the .frm
@@ -16109,24 +16135,67 @@ innobase_rename_table(
 
 	log_buffer_flush_to_disk();
 
+	if (rename_dd_filename) {
+		ut_ad(new_path != NULL);
+
+		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
+		dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+		const dd::Tablespace*	space = NULL;
+		dd::Object_id		dd_space_id =
+			(*to_table->indexes().begin())->tablespace_id();
+                if (client->acquire_uncached_uncommitted<dd::Tablespace>(
+                            dd_space_id, &space)) {
+                        ut_a(false);
+                }
+
+                ut_a(space != NULL);
+
+		dd::Tablespace*	dd_space = const_cast<dd::Tablespace*>(space);
+		if (dd::acquire_exclusive_tablespace_mdl(
+			    thd, to_table->name().c_str(), false)) {
+			ut_a(false);
+		}
+
+		/* We may name it as innodb_file_per_table.* to reduce rename,
+		or at least we should include the schema name to make it
+		unique */
+		dd_space->set_name(to_table->name());
+		ut_ad(dd_space->files().size() == 1);
+		dd::Tablespace_file*	dd_file = const_cast<
+			dd::Tablespace_file*>(*(dd_space->files().begin()));
+		dd_file->set_filename(new_path);
+		bool fail = client->update_uncached_and_invalidate(dd_space);
+		ut_a(!fail);
+
+		ut_free(new_path);
+		delete dd_space;
+	}
+
 	DBUG_RETURN(error);
 }
 
-/*********************************************************************//**
-Renames an InnoDB table.
-@return 0 or error code */
-
+/** Renames an InnoDB table
+@param[in]	from		old name of the table
+@param[in]	to		new name of the table
+@param[in]	from_table	dd::Table of the table with old name
+@param[in,out]	to_table	dd::Table of the table with new name
+@return	0	On success
+@retval	error number */
 int
 ha_innobase::rename_table(
 /*======================*/
-	const char*	from,	/*!< in: old name of the table */
-	const char*	to,	/*!< in: new name of the table */
-	const dd::Table	*from_table_def,
-	dd::Table	*to_table_def)
+	const char*	from,
+	const char*	to,
+	const dd::Table	*from_table,
+	dd::Table	*to_table)
 {
 	THD*	thd = ha_thd();
 
 	DBUG_ENTER("ha_innobase::rename_table");
+	ut_ad(from_table->se_private_id() == to_table->se_private_id());
+        ut_ad(from_table->se_private_data().raw_string()
+	      == to_table->se_private_data().raw_string());
 
 	if (high_level_read_only) {
 		ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
@@ -16146,7 +16215,8 @@ ha_innobase::rename_table(
 	++trx->will_lock;
 	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
-	dberr_t	error = innobase_rename_table(trx, from, to);
+	dberr_t	error = innobase_rename_table(thd, trx, from, to,
+					      from_table, to_table);
 
 	DEBUG_SYNC(thd, "after_innobase_rename_table");
 
