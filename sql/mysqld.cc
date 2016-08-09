@@ -33,6 +33,8 @@
   For the user manual, see http://dev.mysql.com/doc/refman/8.0/en/
 
   For the internals manual, see https://dev.mysql.com/doc/internals/en/index.html
+
+  Document generated on: ${DOXYGEN_GENERATION_DATE}, branch: ${DOXYGEN_GENERATION_BRANCH}, revision: ${DOXYGEN_GENERATION_REVISION}
 */
 
 /**
