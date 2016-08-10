@@ -94,6 +94,7 @@ performance_schema	threads	def
 performance_schema	user_variables_by_thread	def
 performance_schema	users	def
 performance_schema	variables_by_thread	def
+performance_schema	variables_info	def
 select lower(TABLE_NAME), TABLE_TYPE, ENGINE
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
@@ -190,6 +191,7 @@ threads	BASE TABLE	PERFORMANCE_SCHEMA
 user_variables_by_thread	BASE TABLE	PERFORMANCE_SCHEMA
 users	BASE TABLE	PERFORMANCE_SCHEMA
 variables_by_thread	BASE TABLE	PERFORMANCE_SCHEMA
+variables_info	BASE TABLE	PERFORMANCE_SCHEMA
 select lower(TABLE_NAME), VERSION, ROW_FORMAT
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
@@ -286,6 +288,7 @@ threads	10	Dynamic
 user_variables_by_thread	10	Dynamic
 users	10	Fixed
 variables_by_thread	10	Dynamic
+variables_info	10	Dynamic
 select lower(TABLE_NAME), AVG_ROW_LENGTH
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema' and
@@ -388,6 +391,7 @@ status_by_host	table_rows	avg_row_len
 status_by_thread	table_rows	avg_row_len
 status_by_user	table_rows	avg_row_len
 variables_by_thread	table_rows	avg_row_len
+variables_info	table_rows	avg_row_len
 select lower(TABLE_NAME), DATA_LENGTH, MAX_DATA_LENGTH
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
@@ -484,6 +488,7 @@ threads	0	0
 user_variables_by_thread	0	0
 users	0	0
 variables_by_thread	0	0
+variables_info	0	0
 select lower(TABLE_NAME), INDEX_LENGTH, DATA_FREE, AUTO_INCREMENT
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
@@ -580,6 +585,7 @@ threads	0	0	NULL
 user_variables_by_thread	0	0	NULL
 users	0	0	NULL
 variables_by_thread	0	0	NULL
+variables_info	0	0	NULL
 select lower(TABLE_NAME), CREATE_TIME, UPDATE_TIME, CHECK_TIME
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
@@ -676,6 +682,7 @@ threads	NULL	NULL	NULL
 user_variables_by_thread	NULL	NULL	NULL
 users	NULL	NULL	NULL
 variables_by_thread	NULL	NULL	NULL
+variables_info	NULL	NULL	NULL
 select lower(TABLE_NAME), TABLE_COLLATION, CHECKSUM
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
@@ -772,6 +779,7 @@ threads	utf8_general_ci	NULL
 user_variables_by_thread	utf8_general_ci	NULL
 users	utf8_general_ci	NULL
 variables_by_thread	utf8_general_ci	NULL
+variables_info	utf8_general_ci	NULL
 select lower(TABLE_NAME), CREATE_OPTIONS
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
@@ -868,6 +876,7 @@ threads
 user_variables_by_thread	
 users	
 variables_by_thread	
+variables_info	
 select lower(TABLE_NAME), TABLE_COMMENT
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
@@ -964,3 +973,4 @@ threads
 user_variables_by_thread	
 users	
 variables_by_thread	
+variables_info	

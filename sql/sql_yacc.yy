@@ -1120,6 +1120,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
    Tokens from MySQL 8.0
 */
 %token  JSON_UNQUOTED_SEPARATOR_SYM   /* MYSQL */
+%token  PERSIST_SYM
 %token  ROLE_SYM                      /* SQL-1999-R */
 %token  ADMIN_SYM                     /* SQL-1999-R */
 %token  INVISIBLE_SYM
@@ -1266,7 +1267,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         ident_list ident_list_arg
 
 %type <var_type>
-        option_type opt_var_type opt_var_ident_type
+        option_type opt_var_type opt_var_ident_type opt_set_var_ident_type
 
 %type <key_type>
         normal_key_type opt_unique constraint_key_type spatial
@@ -13570,6 +13571,7 @@ option_value:
 
 option_type:
           GLOBAL_SYM  { $$=OPT_GLOBAL; }
+        | PERSIST_SYM { $$=OPT_PERSIST; }
         | LOCAL_SYM   { $$=OPT_SESSION; }
         | SESSION_SYM { $$=OPT_SESSION; }
         ;
@@ -13587,6 +13589,14 @@ opt_var_ident_type:
         | LOCAL_SYM '.'   { $$=OPT_SESSION; }
         | SESSION_SYM '.' { $$=OPT_SESSION; }
         ;
+
+opt_set_var_ident_type:
+          /* empty */     { $$=OPT_DEFAULT; }
+        | PERSIST_SYM '.' { $$=OPT_PERSIST; }
+        | GLOBAL_SYM '.'  { $$=OPT_GLOBAL; }
+        | LOCAL_SYM '.'   { $$=OPT_SESSION; }
+        | SESSION_SYM '.' { $$=OPT_SESSION; }
+         ;
 
 // Option values with preceding option_type.
 option_value_following_option_type:
@@ -13608,7 +13618,8 @@ option_value_no_option_type:
           {
             $$= NEW_PTN PT_option_value_no_option_type_user_var($2, $4);
           }
-        | '@' '@' opt_var_ident_type internal_variable_name equal set_expr_or_default
+        | '@' '@' opt_set_var_ident_type internal_variable_name equal
+          set_expr_or_default
           {
             $$= NEW_PTN PT_option_value_no_option_type_sys_var($3, $4, $6);
           }

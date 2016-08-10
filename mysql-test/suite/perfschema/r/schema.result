@@ -99,6 +99,7 @@ threads
 user_variables_by_thread
 users
 variables_by_thread
+variables_info
 show create table accounts;
 Table	Create Table
 accounts	CREATE TABLE `accounts` (

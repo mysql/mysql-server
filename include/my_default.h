@@ -28,10 +28,11 @@ extern const char *my_defaults_extra_file;
 extern const char *my_defaults_group_suffix;
 extern const char *my_defaults_file;
 extern my_bool my_getopt_use_args_separator;
+extern my_bool no_defaults;
 
 /* Define the type of function to be passed to process_default_option_files */
 typedef int (*Process_option_func)(void *ctx, const char *group_name,
-                                   const char *option);
+                                   const char *option, const char *cnf_file);
 
 my_bool my_getopt_is_args_separator(const char* arg);
 int get_defaults_options(int argc, char **argv,
@@ -51,6 +52,9 @@ int my_search_option_files(const char *conf_file, int *argc,
 void free_defaults(char **argv);
 void my_print_default_files(const char *conf_file);
 void print_defaults(const char *conf_file, const char **groups);
+void init_variable_default_paths();
+void update_variable_source(const char* opt_name, const char* config_file);
+void set_variable_source(const char *opt_name, void* value);
 
 C_MODE_END
 

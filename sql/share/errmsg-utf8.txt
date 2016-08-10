@@ -7832,6 +7832,9 @@ ER_CANNOT_LOCK_USER_MANAGEMENT_CACHES
 ER_SRS_NOT_FOUND SR001
   eng "There's no spatial reference system with SRID %u."
 
+ER_VARIABLE_NOT_PERSISTED
+  eng "Variables cannot be persisted. Please retry."
+
 #
 #  End of 8.0 error messages.
 #

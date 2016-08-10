@@ -129,7 +129,10 @@ MACRO(EXTEND_C_LINK_FLAGS LIBRARY_PATH)
     "${CMAKE_SHARED_LIBRARY_C_FLAGS} -R'\$ORIGIN/../lib' -R${LIBRARY_PATH}")
 ENDMACRO()
 
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCC)
+# We assume that the client code is built with -std=c++11
+# which means that the necessary gcc libraries must be available.
+# Hence we disable the extra link flags, as well as installation of libraries.
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND DISABLED_CMAKE_COMPILER_IS_GNUCC)
   DIRNAME(${CMAKE_CXX_COMPILER} CXX_PATH)
   SET(LIB_SUFFIX "lib")
   IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")

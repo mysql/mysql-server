@@ -35,7 +35,6 @@ typedef void (*init_func_p)(const struct my_option *option, void *variable,
 
 my_error_reporter my_getopt_error_reporter= &my_message_local;
 
-static bool findopt(char *, uint, const struct my_option **);
 static my_bool getopt_compare_strings(const char *, const char *, uint);
 static longlong getopt_ll(char *arg, const struct my_option *optp, int *err);
 static ulonglong getopt_ull(char *, const struct my_option *, int *);
@@ -44,6 +43,7 @@ static void init_variables(const struct my_option *, init_func_p);
 static void init_one_value(const struct my_option *, void *, longlong);
 static void fini_one_value(const struct my_option *, void *, longlong);
 static int setval(const struct my_option *, void *, char *, my_bool);
+static void setval_source(const struct my_option *, void *);
 static char *check_struct_option(char *cur_arg, char *key_name);
 static my_bool get_bool_argument(const char *argument,
                                  bool *error);
@@ -216,7 +216,7 @@ int my_handle_options(int *argc, char ***argv,
   void *value;
   int error, i;
   my_bool is_cmdline_arg= 1;
-  bool opt_found;
+  int opt_found;
 
   /* handle_options() assumes arg0 (program name) always exists */
   DBUG_ASSERT(argc && *argc >= 1);
@@ -237,7 +237,20 @@ int my_handle_options(int *argc, char ***argv,
       break;
     }
   }
-
+  if (pos && *pos)
+  {
+    /*
+      All options which are after args_separator are command line options,
+      thus update the variables_hash with these options with path set
+      to empty string.
+    */
+    pos+= 1;
+    while (*pos && pos != pos_end)
+    {
+      update_variable_source((const char*)*pos, NULL);
+      ++pos;
+    }
+  }
   for (pos= *argv, pos_end=pos+ *argc; pos != pos_end ; pos++)
   {
     char **first= pos;
@@ -430,6 +443,8 @@ int my_handle_options(int *argc, char ***argv,
               }
               else
                 *((my_bool*) value)= ret;
+              /* set variables source */
+              setval_source(optp, (void*)optp->arg_source);
             }
             if (get_one_option && get_one_option(optp->id, optp,
                                *((my_bool*) value) ?
@@ -706,6 +721,14 @@ static my_bool get_bool_argument(const char *argument,
   return 0;
 }
 
+/**
+  Will set the source and file name from where this options is set in
+  my_option struct.
+*/
+static void setval_source(const struct my_option *opts, void *value)
+{
+  set_variable_source(opts->name, value);
+}
 /*
   function: setval
 
@@ -878,6 +901,7 @@ static int setval(const struct my_option *opts, void *value, char *argument,
       goto ret;
     };
   }
+  setval_source(opts, (void*)opts->arg_source);
   return 0;
 
 ret:
@@ -899,11 +923,11 @@ ret:
     @param         length   Length of optpat
     @param[in,out] opt_res  Options
 
-    @retval false    No matching options
-    @retval true     Found an option
+    @retval 0    No matching options
+    @retval 1    Found an option
 */
 
-static bool findopt(char *optpat, uint length,
+int findopt(char *optpat, uint length,
 		   const struct my_option **opt_res)
 {
   for (const struct my_option *opt= *opt_res; opt->name; opt++)
@@ -911,9 +935,9 @@ static bool findopt(char *optpat, uint length,
         !opt->name[length])
     {
       (*opt_res)= opt;
-      return true;
+      return 1;
     }
-  return false;
+  return 0;
 }
 
 
