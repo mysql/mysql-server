@@ -706,7 +706,7 @@ call p_verify_status_increment(0, 0, 0, 0);
 --echo
 truncate table t2;
 --disable_warnings
-call p_verify_status_increment(4, 0, 4, 0);
+call p_verify_status_increment(2, 0, 4, 0);
 commit;
 --echo # There is nothing left to commit
 call p_verify_status_increment(0, 0, 0, 0);
@@ -791,13 +791,13 @@ create table t2 (a int);
 # COM_PREPARE.
 if (`SELECT $PS_PROTOCOL = 0`)
 {
-  --replace_regex /(call p_verify_status_increment.*)7(.*6)/\1<commit_count>\2/
-  call p_verify_status_increment(7, 0, 6, 0);
+  --replace_regex /(call p_verify_status_increment.*)6(.*6)/\1<commit_count>\2/
+  call p_verify_status_increment(6, 0, 6, 0);
 }
 if (`SELECT $PS_PROTOCOL > 0`)
 {
-  --replace_regex /(call p_verify_status_increment.*)8(.*6)/\1<commit_count>\2/
-  call p_verify_status_increment(8, 0, 6, 0);
+  --replace_regex /(call p_verify_status_increment.*)7(.*6)/\1<commit_count>\2/
+  call p_verify_status_increment(7, 0, 6, 0);
 }
 do (select f1() from t1 where a=2);
 call p_verify_status_increment(2, 2, 3, 2);
@@ -850,20 +850,20 @@ create table t3 select a from t2;
 # COM_PREPARE.
 if (`SELECT $PS_PROTOCOL = 0`)
 {
-  --replace_regex /9/<commit_count>/
-  call p_verify_status_increment(9, 0, 4, 4);
+ --replace_regex /8/<commit_count>/
+  call p_verify_status_increment(8, 0, 4, 4);
 }
 if (`SELECT $PS_PROTOCOL > 0`)
 {
-  --replace_regex /10/<commit_count>/
-  call p_verify_status_increment(10, 0, 4, 4);
+  --replace_regex /9/<commit_count>/
+  call p_verify_status_increment(9, 0, 4, 4);
 }
 alter table t3 add column (b int);
-call p_verify_status_increment(11, 0, 2, 0);
+call p_verify_status_increment(8, 0, 2, 0);
 alter table t3 rename t4;
-call p_verify_status_increment(7, 0, 3, 0);
+call p_verify_status_increment(6, 0, 3, 0);
 rename table t4 to t3;
-call p_verify_status_increment(9, 0, 5, 0);
+call p_verify_status_increment(8, 0, 5, 0);
 truncate table t3;
 call p_verify_status_increment(2, 0, 4, 0);
 create view v1 as select * from t2;
