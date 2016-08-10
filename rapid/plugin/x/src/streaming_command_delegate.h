@@ -46,11 +46,11 @@ namespace xpl
 
   private:
     virtual int start_result_metadata(uint num_cols, uint flags,
-                                          const CHARSET_INFO *resultcs);
+                                      const CHARSET_INFO *resultcs);
     virtual int field_metadata(struct st_send_field *field,
-                                   const CHARSET_INFO *charset);
+                               const CHARSET_INFO *charset);
     virtual int end_result_metadata(uint server_status,
-                                        uint warn_count);
+                                    uint warn_count);
 
     virtual int start_row();
     virtual int end_row();
@@ -59,19 +59,22 @@ namespace xpl
     virtual int get_null();
     virtual int get_integer(longlong value);
     virtual int get_longlong(longlong value, uint unsigned_flag);
-    virtual int get_decimal(const decimal_t * value);
+    virtual int get_decimal(const decimal_t *value);
     virtual int get_double(double value, uint32 decimals);
-    virtual int get_date(const MYSQL_TIME * value);
-    virtual int get_time(const MYSQL_TIME * value, uint decimals);
-    virtual int get_datetime(const MYSQL_TIME * value, uint decimals);
+    virtual int get_date(const MYSQL_TIME *value);
+    virtual int get_time(const MYSQL_TIME *value, uint decimals);
+    virtual int get_datetime(const MYSQL_TIME *value, uint decimals);
     virtual int get_string(const char * const value, size_t length,
-                               const CHARSET_INFO * const valuecs);
+                           const CHARSET_INFO *const valuecs);
     virtual void handle_ok(uint server_status, uint statement_warn_count,
                            ulonglong affected_rows, ulonglong last_insert_id,
                            const char * const message);
 
     virtual enum cs_text_or_binary representation() const { return CS_BINARY_REPRESENTATION; }
-  private:
+
+    bool send_column_metadata(uint64_t xcollation, const Mysqlx::Resultset::ColumnMetaData::FieldType &xtype,
+                              uint32_t xflags, uint32_t ctype, const st_send_field *field);
+
     ngs::Protocol_encoder *m_proto;
     const CHARSET_INFO *m_resultcs;
     bool m_sent_result;

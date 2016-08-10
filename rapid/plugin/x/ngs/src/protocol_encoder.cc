@@ -66,9 +66,7 @@ bool Protocol_encoder::send_row()
   m_row_builder.end_row();
   get_protocol_monitor().on_row_send();
 
-  bool res = send_raw_buffer(Mysqlx::ServerMessages::RESULTSET_ROW);
-
-  return res;
+  return send_raw_buffer(Mysqlx::ServerMessages::RESULTSET_ROW);
 }
 
 bool Protocol_encoder::send_result(const Error_code &result)
