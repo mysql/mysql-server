@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -762,6 +762,14 @@ void getTextStartLog(QQQQ) {
 		       theData[3],
 		       theData[4]);
 }
+void getTextLCPRestored(QQQQ) {
+  //-----------------------------------------------------------------------
+  // REPORT Node Start completed restore of LCP.
+  //-----------------------------------------------------------------------
+  BaseString::snprintf(m_text, m_text_len,
+           "Node Start completed restore of LCP id: %u",
+           theData[1]);
+}
 void getTextStartREDOLog(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
 		       "Node: %d StartLog: [GCI Keep: %d LastCompleted: %d NewestRestorable: %d]",
@@ -1441,6 +1449,7 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(NDBStopCompleted,        LogLevel::llStartUp,     1, Logger::LL_INFO ),
   ROW(NDBStopForced,           LogLevel::llStartUp,     1, Logger::LL_ALERT ),
   ROW(NDBStopAborted,          LogLevel::llStartUp,     1, Logger::LL_INFO ),
+  ROW(LCPRestored,             LogLevel::llStartUp,     7, Logger::LL_INFO ),
   ROW(StartREDOLog,            LogLevel::llStartUp,     4, Logger::LL_INFO ),
   ROW(StartLog,                LogLevel::llStartUp,    10, Logger::LL_INFO ),
   ROW(UNDORecordsExecuted,     LogLevel::llStartUp,    15, Logger::LL_INFO ),

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18620,6 +18620,11 @@ void Dblqh::execRESTORE_LCP_CONF(Signal* signal)
      * ---------------------------------------------------------------- */
 
     mark_end_of_lcp_restore(signal);
+
+    /* Log Event denoting the completion of the LCP restore */
+    signal->theData[0] = NDB_LE_LCPRestored;
+    signal->theData[1] = c_lcpId;
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
     csrExecUndoLogState = EULS_STARTED;
     lcpPtr.i = 0;

@@ -57,3 +57,6 @@ args: -n ArbitrationWithApiNodeFailure T1
 cmd: testSystemRestart
 args: -n StaleNodeTakeoverDuringSR T1
 
+cmd: testNodeRestart
+args: -n RestoreOlderLCP T1
+
