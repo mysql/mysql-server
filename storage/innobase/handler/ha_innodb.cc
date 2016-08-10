@@ -14254,8 +14254,8 @@ create_table_info_t::create_dd_tablespace(
 
 	dd_space->set_engine(handler_name);
 	dd::Properties& p       = dd_space->se_private_data();
-	p.set_uint32("id", static_cast<uint32>(space));
-	p.set_uint32("flags", flags);
+	p.set_uint32(dd_space_key_strings[DD_SPACE_ID], static_cast<uint32>(space));
+	p.set_uint32(dd_space_key_strings[DD_SPACE_FLAGS], flags);
 	dd::Tablespace_file*    dd_file = dd_space->add_file();
 	dd_file->set_filename(path);
 	dd_client->store(dd_space);
@@ -14346,9 +14346,9 @@ create_table_info_t::write_dd_index(
 	dd_index->set_tablespace_id(dd_space_id);
 
 	dd::Properties& p = dd_index->se_private_data();
-	p.set_uint64("id", index->id);
-	p.set_uint32("root", index->page);
-	p.set_uint64("trx_id", index->trx_id);
+	p.set_uint64(dd_index_key_strings[DD_INDEX_ID], index->id);
+	p.set_uint32(dd_index_key_strings[DD_INDEX_ROOT], index->page);
+	p.set_uint64(dd_index_key_strings[DD_INDEX_TRX_ID], index->trx_id);
 }
 
 /** Update the global data dictionary.
@@ -14436,7 +14436,7 @@ create_table_info_t::create_table_update_global_dd(
 				 table->name.m_name);
 			DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
 		} else if (index_space->se_private_data().get_uint32(
-				    "id", &id)
+				    dd_space_key_strings[DD_SPACE_ID], &id)
 			   || id != table->space) {
 			ut_ad(!"missing or incorrect tablespace id");
 			dict_table_close(table, FALSE, FALSE);
