@@ -412,7 +412,7 @@ fill_dd_columns_from_create_fields(THD *thd,
   // values, the get_rec_buf() function applied will assume the buffer
   // size to be at least two bytes.
   bufsize= std::max<size_t>(2, bufsize);
-  uchar *buf= reinterpret_cast<uchar*>(my_malloc(key_memory_frm,
+  uchar *buf= reinterpret_cast<uchar*>(my_malloc(key_memory_DD_default_values,
                                                  bufsize, MYF(MY_WME)));
 
   if (!buf)
