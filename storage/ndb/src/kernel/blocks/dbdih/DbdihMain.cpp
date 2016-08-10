@@ -7164,10 +7164,21 @@ Dbdih::nr_start_fragment(Signal* signal,
 	   replicaPtr.p->nextLcp);
 #endif
 
-  Int32 j = replicaPtr.p->noCrashedReplicas - 1;
+  /**
+   * Search for an LCP that can be used to restore.
+   * For each LCP that is VALID we need to check if
+   * it is restorable. It is restorable if the
+   * node has a REDO log interval that can be used
+   * to restore some GCI. For this to happen we have
+   * to have a REDO log in the node that starts
+   * before the last completed GCI in the LCP and that
+   * goes on until at least until the maximum GCI
+   * started in the LCP.
+   */
   Uint32 idx = prevLcpNo(replicaPtr.p->nextLcp);
   for(i = 0; i<MAX_LCP_USED; i++, idx = prevLcpNo(idx))
   {
+    Int32 j = replicaPtr.p->noCrashedReplicas - 1;
 #if defined VM_TRACE || defined ERROR_INSERT
     ndbout_c("scanning idx: %d lcpId: %d crashed replicas: %u %s", 
              idx, replicaPtr.p->lcpId[idx],
@@ -7181,6 +7192,19 @@ Dbdih::nr_start_fragment(Signal* signal,
 #if defined VM_TRACE || defined ERROR_INSERT
       ndbout_c(" maxGciCompleted: %u maxGciStarted: %u", startGci - 1, stopGci);
 #endif
+      /* The following error insert is for Bug #23602217.
+       * It ensures that the most recent LCP is considered
+       * non-restorable. This forces the older LCP to be
+       * restored, which failed to happen previously.
+       */
+      if (ERROR_INSERTED(7248))
+      {
+        g_eventLogger->info("Inserting error to skip most recent LCP");
+        if (i == 0)
+        {
+          continue;
+        }
+      }
       for (; j>= 0; j--)
       {
 #if defined VM_TRACE || defined ERROR_INSERT
@@ -7216,6 +7240,7 @@ Dbdih::nr_start_fragment(Signal* signal,
   {
     Uint32 startGci = replicaPtr.p->maxGciCompleted[idx] + 1;
     Uint32 stopGci = replicaPtr.p->maxGciStarted[idx];
+    Int32 j = replicaPtr.p->noCrashedReplicas - 1;
     for (;j >= 0; j--)
     {
 #if defined VM_TRACE || defined ERROR_INSERT
