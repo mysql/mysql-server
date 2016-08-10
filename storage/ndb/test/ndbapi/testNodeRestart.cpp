@@ -7662,6 +7662,129 @@ int runArbitrationWithApiNodeFailure(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int runLCPandRecordId(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Bug #23602217:  MISSES TO USE OLDER LCP WHEN LATEST LCP
+   * IS NOT RECOVERABLE. This function is called twice so that
+   * 2 consecutive LCPs are triggered and the id of the first
+   * LCP is recorded in order to compare it to the id of LCP
+   * restored in the restart in the next step.
+   */
+  NdbRestarter restarter;
+  struct ndb_logevent event;
+  int filter[]= { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
+  int arg1[] = { DumpStateOrd::DihMaxTimeBetweenLCP };
+  int arg2[] = { DumpStateOrd::DihStartLcpImmediately };
+  if(restarter.dumpStateAllNodes(arg1, 1) != 0)
+  {
+    g_err << "ERROR: Dump MaxTimeBetweenLCP failed" << endl;
+    return NDBT_FAILED;
+  }
+  NdbLogEventHandle handle=
+      ndb_mgm_create_logevent_handle(restarter.handle, filter);
+  ndbout << "Triggering LCP..." << endl;
+  if(restarter.dumpStateAllNodes(arg2, 1) != 0)
+  {
+    g_err << "ERROR: Dump StartLcpImmediately failed" << endl;
+    ndb_mgm_destroy_logevent_handle(&handle);
+    return NDBT_FAILED;
+  }
+  while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+         event.type != NDB_LE_LocalCheckpointCompleted);
+  Uint32 LCPid = event.LocalCheckpointCompleted.lci;
+  ndbout << "LCP: " << LCPid << endl;
+  if(ctx->getProperty("LCP", (Uint32)0) == 0)
+  {
+    ndbout << "Recording id of first LCP" << endl;
+    ctx->setProperty("LCP", LCPid);
+  }
+  ndb_mgm_destroy_logevent_handle(&handle);
+  return NDBT_OK;
+}
+
+int runRestartandCheckLCPRestored(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Bug #23602217:  MISSES TO USE OLDER LCP WHEN LATEST LCP
+   * IS NOT RECOVERABLE. The steps followed are as follows:
+   * - Restart node in nostart state
+   * - Insert error 7248 so first LCP is considered non-restorable
+   * - Start node
+   * - Wait for LCPRestored log event
+   * - Check if restored LCP is same as first LCP id
+   *   recorded in INITIALIZER
+   */
+  NdbRestarter restarter;
+  struct ndb_logevent event;
+  int filter[]= { 15, NDB_MGM_EVENT_CATEGORY_STARTUP, 0 };
+  int node= restarter.getNode(NdbRestarter::NS_RANDOM);
+  ndbout << "Triggering node restart " << node << endl;
+  if(restarter.restartOneDbNode(node, false, true, true) != 0)
+  {
+    g_err << "ERROR: Restarting node " << node << " failed" << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "Wait for NoStart state" << endl;
+  if(restarter.waitNodesNoStart(&node, 1) != 0)
+  {
+    g_err << "ERROR: Node " << node << " stop failed" << endl;
+    return NDBT_FAILED;
+  }
+  NdbLogEventHandle handle=
+        ndb_mgm_create_logevent_handle(restarter.handle, filter);
+  ndbout << "Insert error 7248 so most recent LCP is non-restorable"
+         << endl;
+  if(restarter.insertErrorInNode(node, 7248) != 0)
+  {
+    g_err << "ERROR: Error insert 7248 failed" << endl;
+    ndb_mgm_destroy_logevent_handle(&handle);
+    return NDBT_FAILED;
+  }
+  ndbout << "Start node" << endl;
+  if(restarter.startNodes(&node, 1) != 0)
+  {
+    g_err << "ERROR: Node " << node << " start failed" << endl;
+    if(restarter.insertErrorInNode(node, 0) != 0)
+    {
+      g_err << "ERROR: Error insert clear failed" << endl;
+    }
+    ndb_mgm_destroy_logevent_handle(&handle);
+    return NDBT_FAILED;
+  }
+  if(restarter.waitNodesStarted(&node, 1) != 0)
+  {
+    g_err << "ERROR: Wait node " << node << " start failed" << endl;
+    if(restarter.insertErrorInNode(node, 0) != 0)
+    {
+      g_err << "ERROR: Error insert clear failed" << endl;
+    }
+    ndb_mgm_destroy_logevent_handle(&handle);
+    return NDBT_FAILED;
+  }
+  while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+      event.type != NDB_LE_LCPRestored);
+  Uint32 lcp_restored= event.LCPRestored.restored_lcp_id;
+  ndbout << "LCP Restored: " << lcp_restored << endl;
+  Uint32 first_lcp= ctx->getProperty("LCP", (Uint32)0);
+  if(lcp_restored != first_lcp)
+  {
+    g_err << "ERROR: LCP " << lcp_restored << " restored, "
+          << "expected restore of LCP " << first_lcp << endl;
+    if(restarter.insertErrorInNode(node, 0) != 0)
+    {
+      g_err << "ERROR: Error insert clear failed" << endl;
+    }
+    ndb_mgm_destroy_logevent_handle(&handle);
+    return NDBT_FAILED;
+  }
+  if(restarter.insertErrorInNode(node, 0) != 0)
+  {
+    g_err << "ERROR: Error insert clear failed" << endl;
+    return NDBT_FAILED;
+  }
+  ndb_mgm_destroy_logevent_handle(&handle);
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -8342,6 +8465,17 @@ TESTCASE("ArbitrationWithApiNodeFailure",
          "failure.");
 {
   STEP(runArbitrationWithApiNodeFailure);
+}
+TESTCASE("RestoreOlderLCP",
+         "Check if older LCP is restored when latest LCP is not recoverable");
+{
+  TC_PROPERTY("LCP", (Uint32)0);
+  INITIALIZER(runLCPandRecordId);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runLCPandRecordId);
+  STEP(runRestartandCheckLCPRestored);
+  FINALIZER(runScanReadVerify);
+  FINALIZER(runClearTable);
 }
 
 NDBT_TESTSUITE_END(testNodeRestart);

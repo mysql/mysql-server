@@ -195,6 +195,8 @@ struct Ndb_logevent_body_row ndb_logevent_body[]= {
 
 //  ROW( NDBStopAborted),
 
+  ROW( LCPRestored, "restored_lcp_id", 1, restored_lcp_id),
+
   ROW( StartREDOLog, "node",           1, node),
   ROW( StartREDOLog, "keep_gci",       2, keep_gci),
   ROW( StartREDOLog, "completed_gci",  3, completed_gci),
