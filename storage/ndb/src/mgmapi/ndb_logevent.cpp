@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -202,6 +202,8 @@ struct Ndb_logevent_body_row ndb_logevent_body[]= {
   ROW( NDBStopForced, "extra",          5, extra),
 
 //  ROW( NDBStopAborted),
+
+  ROW( LCPRestored, "restored_lcp_id", 1, restored_lcp_id),
 
   ROW( StartREDOLog, "node",           1, node),
   ROW( StartREDOLog, "keep_gci",       2, keep_gci),

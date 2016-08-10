@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,6 +82,8 @@ extern "C" {
     NDB_LE_NDBStopForced = 59,
     /** NDB_MGM_EVENT_CATEGORY_STARTUP */
     NDB_LE_NDBStopAborted = 18,
+    /** NDB_MGM_EVENT_CATEGORY_STARTUP */
+    NDB_LE_LCPRestored = 85,
     /** NDB_MGM_EVENT_CATEGORY_STARTUP */
     NDB_LE_StartREDOLog = 19,
     /** NDB_MGM_EVENT_CATEGORY_STARTUP */
@@ -409,6 +411,9 @@ extern "C" {
   };
   struct ndb_logevent_NDBStopAborted {
     unsigned _unused;
+  };
+  struct ndb_logevent_LCPRestored {
+    unsigned restored_lcp_id;
   };
   struct ndb_logevent_StartREDOLog {
     unsigned node;
@@ -848,6 +853,7 @@ extern "C" {
       struct ndb_logevent_NDBStopCompleted NDBStopCompleted;
       struct ndb_logevent_NDBStopForced NDBStopForced;
       struct ndb_logevent_NDBStopAborted NDBStopAborted;
+      struct ndb_logevent_LCPRestored LCPRestored;
       struct ndb_logevent_StartREDOLog StartREDOLog;
       struct ndb_logevent_StartLog StartLog;
       struct ndb_logevent_UNDORecordsExecuted UNDORecordsExecuted;
