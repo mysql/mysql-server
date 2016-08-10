@@ -126,6 +126,7 @@ not_ubsan.inc
 # 7.0 Few skipped test-cases
 mysql_embedded.test
 mysql_tzinfo_to_sql_sys.test
+wrapper.test
 
 # Bug #24357947 MOVE TESTS THAT NEED GR PLUGIN TO GROUP REPLICATION TREE
 # Skip tests until the Bug is fixed.
