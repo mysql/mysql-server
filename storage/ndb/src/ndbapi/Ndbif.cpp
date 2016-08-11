@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -100,6 +100,12 @@ Ndb::init(int aMaxNoOfTransactions)
   {
     connected(Uint32(tRef));
   }
+
+  /* Now that we have this block open, set the first transid for
+   * this block from ndb_cluster_connection
+   */
+  theFirstTransId |= theImpl->m_ndb_cluster_connection.
+    get_next_transid(theNdbBlockNumber);
 
   /* Init cached min node version */
   theFacade->lock_poll_mutex();

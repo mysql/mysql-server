@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -142,12 +142,12 @@ public:
    * Lock creation of ndb-objects
    *   Needed to iterate over created ndb objects
    */
-  void lock_ndb_objects();
+  void lock_ndb_objects() const;
 
   /**
    * Unlock creation of ndb-objects
    */
-  void unlock_ndb_objects();
+  void unlock_ndb_objects() const;
 
   /**
    * Iterator of ndb-objects
