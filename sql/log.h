@@ -24,7 +24,7 @@ class Relay_log_info;
 class Format_description_log_event;
 
 bool trans_has_updated_trans_table(const THD* thd);
-bool stmt_has_updated_trans_table(const THD *thd);
+bool stmt_has_updated_trans_table(Ha_trx_info* ha_list);
 bool use_trans_cache(const THD* thd, bool is_transactional);
 bool ending_trans(THD* thd, const bool all);
 bool ending_single_stmt_trans(THD* thd, const bool all);
