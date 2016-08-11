@@ -4185,6 +4185,39 @@ innodb_v_adjust_idx_col(
 	}
 }
 
+/** Copy the engine-private parts of a table definition
+when the change does not affect InnoDB.
+@tparam		Table		dd::Table or dd::Partition
+@param[in,out]	new_table	Copy of old table or partition definition
+@param[in]	old_table	Old table or partition definition */
+template<typename Table>
+void
+dd_copy_private(
+	Table&			new_table,
+	const Table&		old_table)
+{
+	ut_ad(new_table.se_private_data().empty());
+
+	new_table.set_se_private_id(old_table.se_private_id());
+	new_table.set_se_private_data(old_table.se_private_data());
+
+	auto j = new_table.indexes()->begin();
+
+	for (const auto old_index : old_table.indexes()) {
+		auto new_index = *j;
+		++j;
+		ut_ad(!old_index->se_private_data().empty());
+		ut_ad(new_index != NULL);
+		ut_ad(new_index->se_private_data().empty());
+		ut_ad(new_index->name() == old_index->name());
+
+		new_index->set_se_private_data(old_index->se_private_data());
+		new_index->set_tablespace_id(old_index->tablespace_id());
+	}
+
+	ut_ad(j == new_table.indexes()->end());
+}
+
 template<typename Table>
 static MY_ATTRIBUTE((warn_unused_result))
 bool
@@ -5525,6 +5558,9 @@ ha_innobase::prepare_inplace_alter_table(
 				m_prebuilt->table, m_user_thd);
 
 		}
+
+		dd_copy_private(*new_dd_tab, *old_dd_tab);
+
 		DBUG_RETURN(false);
 	}
 

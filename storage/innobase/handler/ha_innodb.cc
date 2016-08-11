@@ -7763,9 +7763,13 @@ dd_open_table(
 		NULL, zip_allowed, strict, thd, skip_mdl, implicit);
 
 	mutex_enter(&dict_sys->mutex);
+
 	create_key_metadata(
 		dd_table, table, m_table, dd_table->name().c_str(),
 		NULL, zip_allowed, strict, thd, skip_mdl);
+
+	dict_table_load_dynamic_metadata(m_table);
+
 	mutex_exit(&dict_sys->mutex);
 
 	/* Now fill the space ID and Root page number for each index */
@@ -7817,6 +7821,7 @@ dd_open_table(
 		index->id = id;
                 index = index->next();
 	}
+
 	return(m_table);
 }
 
