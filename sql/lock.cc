@@ -183,9 +183,11 @@ lock_tables_check(THD *thd, TABLE **tables, size_t count, uint flags)
 
     /*
       Prevent modifications to base tables if READ_ONLY is activated.
-      In any case, read only does not apply to temporary tables.
+      In any case, read only does not apply to temporary tables and
+      performance_schema tables.
     */
-    if (!(flags & MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY) && !t->s->tmp_table)
+    if (!(flags & MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY) && !t->s->tmp_table &&
+        !is_perfschema_db(t->s->db.str, t->s->db.length))
     {
       if (t->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE &&
         check_readonly(thd, true))
