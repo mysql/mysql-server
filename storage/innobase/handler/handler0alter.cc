@@ -4199,6 +4199,12 @@ prepare_inplace_alter_table_global_dd(
 		(ha_alter_info->handler_ctx);
 	THD*			thd = ctx->prebuilt->trx->mysql_thd;
 
+	if (dict_table_has_autoinc_col(new_table)) {
+		dd_set_autoinc(new_dd_tab->se_private_data(),
+			       ha_alter_info->create_info
+			       ->auto_increment_value);
+	}
+
 	if (innobase_need_rebuild(ha_alter_info)) {
 		/* To rebuild, we wtite back the whole table */
 		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
@@ -8599,6 +8605,7 @@ ha_innobase::commit_inplace_alter_table(
 
 	/* Update the persistent autoinc counter if necessary, we should
 	do this before flushing logs. */
+	uint64	autoinc = 0;
 	if (altered_table->found_next_number_field
 	    && !srv_missing_dd_table_buffer) {
 		for (inplace_alter_handler_ctx** pctx = ctx_array;
@@ -8607,6 +8614,10 @@ ha_innobase::commit_inplace_alter_table(
 				= static_cast<ha_innobase_inplace_ctx*>
 				(*pctx);
 			DBUG_ASSERT(ctx->need_rebuild() == new_clustered);
+
+			if (ctx->max_autoinc > autoinc) {
+				autoinc = ctx->max_autoinc;
+			}
 
 			dict_table_t* t = ctx->new_table;
 			Field* field = altered_table->found_next_number_field;
@@ -8954,6 +8965,11 @@ foreign_fail:
 	}
 
 	row_mysql_unlock_data_dictionary(trx);
+
+	if (altered_table->found_next_number_field != NULL) {
+		dd_set_autoinc(new_dd_tab->se_private_data(), autoinc);
+	}
+
 	trx_free_for_mysql(trx);
 
 	/* TODO: The following code could be executed

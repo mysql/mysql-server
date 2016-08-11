@@ -6756,6 +6756,46 @@ format_validate(
 	return(invalid);
 }
 
+/** Set the AUTO_INCREMENT attribute.
+@param[in,out]	se_private_data		dd::Table::se_private_data
+@param[in]	autoinc			the auto-increment value */
+void
+dd_set_autoinc(dd::Properties& se_private_data, uint64 autoinc)
+{
+	//ut_ad(dd_table_data_is_valid(se_private_data));
+
+	/* The value of "autoinc" here is the AUTO_INCREMENT attribute
+	specified at table creation. AUTO_INCREMENT=0 will silently
+	be treated as AUTO_INCREMENT=1. Likewise, if no AUTO_INCREMENT
+	attribute was specified, the value would be 0. */
+
+	if (autoinc > 0) {
+		/* InnoDB persists the "previous" AUTO_INCREMENT value. */
+		autoinc--;
+	}
+
+	uint64	version = 0;
+
+	if (se_private_data.exists(dd_table_key_strings[DD_TABLE_AUTOINC])) {
+		/* Increment the dynamic metadata version, so that
+		any previously buffered persistent dynamic metadata
+		will be ignored after this transaction commits. */
+
+		if (!se_private_data.get_uint64(
+			    dd_table_key_strings[DD_TABLE_VERSION],
+			    &version)) {
+			version++;
+		} else {
+			ut_ad(!"incomplete se_private_data");
+		}
+	}
+
+	se_private_data.set_uint64(dd_table_key_strings[DD_TABLE_VERSION],
+				   version);
+	se_private_data.set_uint64(dd_table_key_strings[DD_TABLE_AUTOINC],
+				   autoinc);
+}
+
 /** Create an index.
 @param[in,out]	table		InnoDB table
 @param[in]	strict		whether to be strict about the max record size
@@ -7211,7 +7251,6 @@ create_key_metadata(
 
 	if (Field** autoinc_col = m_form->s->found_next_number_field) {
 		const dd::Properties& p = dd_part->se_private_data();
-		//m_table->set_autoinc_col((*autoinc_col)->field_index);
 		dict_table_autoinc_set_col_pos(
 			m_table, (*autoinc_col)->field_index);
 		uint64	version, autoinc = 0;
@@ -7223,6 +7262,11 @@ create_key_metadata(
 			error = HA_ERR_CRASHED;
 			goto dd_error;
 		}
+
+		dict_table_autoinc_lock(m_table);
+		dict_table_autoinc_initialize(m_table, autoinc + 1);
+		dict_table_autoinc_unlock(m_table);
+		m_table->autoinc_persisted = autoinc;
 	}
 
 	if (error == 0) {
@@ -14377,6 +14421,11 @@ create_table_info_t::create_table_update_global_dd(
                 }
         }
 
+	if (m_form->found_next_number_field != NULL) {
+		dd_set_autoinc(dd_table->se_private_data(),
+			       m_create_info->auto_increment_value);
+        }
+
 	/* This should be replaced by some convert function, and table
 	can be cached in this class */
 	dict_table_t*	table = dict_table_open_on_name(
@@ -15228,6 +15277,10 @@ ha_innobase::truncate(dd::Table *dd_tab)
 	open(name, 0, 0, dd_tab);
 
 	if (!error) {
+		if (table->found_next_number_field != NULL) {
+			dd_set_autoinc(dd_tab->se_private_data(), 0);
+		}
+
 		dict_names_t	fk_tables;
 
 		mutex_enter(&dict_sys->mutex);
@@ -16144,12 +16197,12 @@ innobase_rename_table(
 		const dd::Tablespace*	space = NULL;
 		dd::Object_id		dd_space_id =
 			(*to_table->indexes().begin())->tablespace_id();
-                if (client->acquire_uncached_uncommitted<dd::Tablespace>(
-                            dd_space_id, &space)) {
-                        ut_a(false);
-                }
+		if (client->acquire_uncached_uncommitted<dd::Tablespace>(
+			    dd_space_id, &space)) {
+			ut_a(false);
+		}
 
-                ut_a(space != NULL);
+		ut_a(space != NULL);
 
 		dd::Tablespace*	dd_space = const_cast<dd::Tablespace*>(space);
 		if (dd::acquire_exclusive_tablespace_mdl(

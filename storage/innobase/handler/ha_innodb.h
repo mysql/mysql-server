@@ -1155,3 +1155,7 @@ enum dd_index_keys {
 @see dd_index_keys */
 extern const char* const dd_index_key_strings[DD_INDEX__LAST];
 
+/** Set the AUTO_INCREMENT attribute.
+@param[in,out]	se_private_data	dd::Table::se_private_data
+@param[in]	autoinc		the auto-increment value */
+void dd_set_autoinc(dd::Properties& se_private_data, uint64 autoinc);
