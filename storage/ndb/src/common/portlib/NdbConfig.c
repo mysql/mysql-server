@@ -90,6 +90,7 @@ char *get_prefix_buf(int len, int node_id)
   tmp_buf[sizeof(tmp_buf)-1]= 0;
 
   buf= NdbConfig_AllocHomePath(len+(int)strlen(tmp_buf));
+  require(len > 0); // avoid buffer overflow
   strcat(buf, tmp_buf);
   return buf;
 }
