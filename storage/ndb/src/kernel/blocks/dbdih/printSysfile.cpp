@@ -26,6 +26,12 @@
 
 static int g_all = 0;
 
+inline void ndb_end_and_exit(int exitcode)
+{
+  ndb_end(0);
+  exit(exitcode);
+}
+
 void 
 usage(const char * prg){
   ndbout << "Usage " << prg 
@@ -128,7 +134,7 @@ int main(int argc, char** argv)
   ndb_init();
   if(argc < 2){
     usage(argv[0]);
-    return 0;
+    ndb_end_and_exit(0);
   }
 
   for(int i = 1; i<argc; i++){
@@ -169,5 +175,5 @@ int main(int argc, char** argv)
     delete [] buf;
     continue;
   }
-  return 0;
+  ndb_end_and_exit(0);
 }
