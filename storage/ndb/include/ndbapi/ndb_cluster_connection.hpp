@@ -152,12 +152,12 @@ public:
    * Lock creation of ndb-objects
    *   Needed to iterate over created ndb objects
    */
-  void lock_ndb_objects();
+  void lock_ndb_objects() const;
 
   /**
    * Unlock creation of ndb-objects
    */
-  void unlock_ndb_objects();
+  void unlock_ndb_objects() const;
 
   /**
    * Iterator of ndb-objects

@@ -139,9 +139,11 @@ private:
 
   // Scan batch configuration parameters
   NdbApiConfig m_config;
-  
-  // keep initial transId's increasing...
-  Uint32 m_max_trans_id;
+
+  // Avoid transid reuse with Block ref reuse
+  Vector<Uint32> m_next_transids;
+  Uint32 get_next_transid(Uint32 reference) const;
+  void set_next_transid(Uint32 reference, Uint32 value);
 
   // Closest data node neighbour
   Uint32 m_data_node_neighbour;

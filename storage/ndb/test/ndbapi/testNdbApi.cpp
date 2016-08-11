@@ -6861,6 +6861,175 @@ int runTestNoExecute(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 
+int
+runCheckTransId(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* stepNdb = GETNDB(step);
+  Ndb_cluster_connection* ncc = &stepNdb->get_ndb_cluster_connection();
+
+  /**
+   * Coverage of problem in bug#23709232
+   *
+   * Shared 'max transid' concept assumes that when a block
+   * reference is reused, the old Ndb's 'max transid' is passed 
+   * to the new Ndb.
+   * However this had a bug, exposed by interleaving of
+   * Ndb(), Ndb->init(), and ~Ndb(), which might be expected
+   * to occur in any multithreaded environment.
+   */
+  
+  Ndb* ndb1 = new Ndb(ncc); // Init transid from connection
+
+  ndb1->init(); // Determine block-ref
+
+  NdbTransaction* trans1 = ndb1->startTransaction();
+  Uint64 transId1 = trans1->getTransactionId();
+  trans1->close();
+
+  ndbout << "Transid1 : " << transId1 << endl;
+
+  Ndb* ndb2 = new Ndb(ncc); // Init transid from connection
+
+  delete ndb1;  // Free block-ref
+
+  ndb2->init(); // Determine block-ref
+
+  NdbTransaction* trans2 = ndb2->startTransaction();
+  Uint64 transId2 = trans2->getTransactionId();
+  trans2->close();
+
+  ndbout << "Transid2 : " << transId2 << endl;
+  
+  delete ndb2;
+  
+  if (transId1 == transId2)
+  {
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
+/* CheckTransIdMt
+ * Can control threading + iterations here
+ */
+const int CheckTransIdSteps = 8;
+const Uint32 CheckTransIdIterations = 10000;
+const Uint32 CheckTransIdEntries = CheckTransIdSteps * CheckTransIdIterations;
+
+static Uint64* g_checkTransIdArrays;
+
+int
+runInitCheckTransIdMt(NDBT_Context* ctx, NDBT_Step* step)
+{
+  g_checkTransIdArrays = new Uint64[CheckTransIdEntries];
+
+  ndbout << "Running" << endl;
+
+  return NDBT_OK;
+}
+
+int
+runCheckTransIdMt(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* stepNdb = GETNDB(step);
+  Ndb_cluster_connection* ncc = &stepNdb->get_ndb_cluster_connection();
+  
+  Uint32 stepIdx = step->getStepNo() - 1;
+  Uint64* myIds = g_checkTransIdArrays + (stepIdx * CheckTransIdIterations);
+  
+  for (Uint32 i=0; i<CheckTransIdIterations; i++)
+  {
+    /* New Ndb, create a transaction, get id, close it, delete Ndb */
+    Ndb newNdb(ncc);
+    newNdb.init();
+    
+    NdbTransaction* newTrans = newNdb.startTransaction();
+    myIds[i] = newTrans->getTransactionId();
+    newTrans->close();
+  }
+
+  return NDBT_OK;
+}
+
+int cmpUint64(const void* a, const void* b)
+{
+  Uint64 va = *((const Uint64*)a);
+  Uint64 vb = *((const Uint64*)b);
+  
+  return ((va > vb)? 1 :
+          (vb > va)? -1 :
+          0);
+} 
+
+int
+runVerifyCheckTransIdMt(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Look for duplicates */
+  ndbout << "Checking" << endl;
+  
+  /* First sort */
+  qsort(g_checkTransIdArrays, CheckTransIdEntries, sizeof(Uint64), cmpUint64);
+  
+  int result = NDBT_OK;
+  Uint32 contigCount = 0;
+  Uint32 errorCount = 0;
+  Uint32 maxContigError = 0;
+  Uint32 contigErrorCount = 0;
+
+  /* Then check */
+  for (Uint32 i=1; i<CheckTransIdEntries; i++)
+  {
+    //ndbout << g_checkTransIdArrays[i-1] << endl;
+    if (g_checkTransIdArrays[i] == g_checkTransIdArrays[i-1])
+    {
+      ndbout << "Error : Duplicate transid found "
+             << " (" << g_checkTransIdArrays[i]
+             << ")" << endl;
+      errorCount ++;
+      contigErrorCount++;
+      
+      result = NDBT_FAILED;
+    }
+    else
+    {
+      if (contigErrorCount > 0)
+      {
+        if (contigErrorCount > maxContigError)
+        {
+          maxContigError = contigErrorCount;
+        }
+        contigErrorCount = 0;
+      }
+      if (g_checkTransIdArrays[i] == g_checkTransIdArrays[i-1] + 1)
+      {
+        contigCount++;
+      }
+    }
+  }
+
+  ndbout << CheckTransIdEntries << " transaction ids of which "
+         << contigCount << " are contiguous, giving "
+         << CheckTransIdEntries - contigCount << " gaps." << endl;
+
+  ndbout << errorCount << " duplicates found, with max of "
+         << maxContigError + 1 << " uses of the same transaction id" << endl;
+
+  return result;
+}
+
+int
+runFinaliseCheckTransIdMt(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Free the storage */
+  delete g_checkTransIdArrays;
+
+  return NDBT_OK;
+}
+
+
+
+
 NDBT_TESTSUITE(testNdbApi);
 TESTCASE("MaxNdb", 
 	 "Create Ndb objects until no more can be created\n"){ 
@@ -7204,6 +7373,20 @@ TESTCASE("CloseBeforeExecute",
          "is released even if Txn is not executed"){ 
   INITIALIZER(runTestNoExecute);
 }
+TESTCASE("CheckTransId",
+         "Check transid uniqueness across multiple Ndb instances")
+{
+  INITIALIZER(runCheckTransId);
+}
+TESTCASE("CheckTransIdMt",
+         "Check transid uniqueness across multiple threads")
+{
+  INITIALIZER(runInitCheckTransIdMt);
+  STEPS(runCheckTransIdMt, CheckTransIdSteps);
+  VERIFIER(runVerifyCheckTransIdMt);
+  FINALIZER(runFinaliseCheckTransIdMt);
+}
+
 
 NDBT_TESTSUITE_END(testNdbApi);
 
