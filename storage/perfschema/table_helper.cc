@@ -623,6 +623,7 @@ void set_field_object_type(Field *f, enum_object_type object_type)
     break;
   case OBJECT_TYPE_ACL_CACHE:
     PFS_engine_table::set_field_varchar_utf8(f, "ACL CACHE", 9);
+    break;
   case NO_OBJECT_TYPE:
   default:
     DBUG_ASSERT(false);
