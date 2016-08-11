@@ -2851,6 +2851,8 @@ recv_parse_log_rec(
 	case MLOG_MULTI_REC_END:
 	case MLOG_DUMMY_RECORD:
 		*type = static_cast<mlog_id_t>(*ptr);
+		*space = SPACE_UNKNOWN;
+		*page_no = FIL_NULL;
 		return(1);
 	case MLOG_CHECKPOINT:
 		if (end_ptr < ptr + SIZE_OF_MLOG_CHECKPOINT) {
@@ -2866,6 +2868,9 @@ recv_parse_log_rec(
 	case MLOG_TABLE_DYNAMIC_META:
 	case MLOG_TABLE_DYNAMIC_META | MLOG_SINGLE_REC_FLAG:
 		table_id_t	id;
+
+		*space = SPACE_UNKNOWN;
+		*page_no = FIL_NULL;
 
 		new_ptr = mlog_parse_initial_dict_log_record(
 			ptr, end_ptr, type, &id);
