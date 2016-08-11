@@ -30,6 +30,28 @@
 #include "pfs_buffer_container.h"
 #include "field.h"
 
+bool PFS_index_events_waits::match(PFS_thread *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key_1.match(pfs))
+      return false;
+  }
+
+  return true;
+}
+
+bool PFS_index_events_waits::match(PFS_events_waits *pfs)
+{
+  if (m_fields >= 2)
+  {
+    if (!m_key_2.match(pfs))
+      return false;
+  }
+
+  return true;
+}
+
 THR_LOCK table_events_waits_current::m_table_lock;
 
 static const TABLE_FIELD_TYPE field_types[]=
@@ -191,7 +213,7 @@ table_events_waits_common::table_events_waits_common
 (const PFS_engine_table_share *share, void *pos)
   : PFS_engine_table(share, pos),
   m_row_exists(false)
-{}
+{ }
 
 void table_events_waits_common::clear_object_columns()
 {
@@ -866,13 +888,59 @@ PFS_engine_table* table_events_waits_current::create(void)
 
 table_events_waits_current::table_events_waits_current()
   : table_events_waits_common(&m_share, &m_pos),
-  m_pos(), m_next_pos()
+  m_pos()
 {}
 
 void table_events_waits_current::reset_position(void)
 {
   m_pos.reset();
   m_next_pos.reset();
+}
+
+PFS_events_waits *table_events_waits_current::get_wait(PFS_thread *pfs_thread, uint index_2)
+{
+  PFS_events_waits *wait;
+
+  /*
+    We do not show nested events for now,
+    this will be revised with TABLE io
+  */
+// #define ONLY_SHOW_ONE_WAIT
+
+#ifdef ONLY_SHOW_ONE_WAIT
+  if (index_2 >= 1)
+    return NULL;
+#else
+  /* m_events_waits_stack[0] is a dummy record */
+  PFS_events_waits *top_wait = &pfs_thread->m_events_waits_stack[WAIT_STACK_BOTTOM];
+  wait= &pfs_thread->m_events_waits_stack[m_pos.m_index_2 + WAIT_STACK_BOTTOM];
+
+  PFS_events_waits *safe_current = pfs_thread->m_events_waits_current;
+
+  if (safe_current == top_wait)
+  {
+    /* Display the last top level wait, when completed */
+    if (m_pos.m_index_2 >= 1)
+      return NULL;
+  }
+  else
+  {
+    /* Display all pending waits, when in progress */
+    if (wait >= safe_current)
+      return NULL;
+  }
+#endif
+
+  if (wait->m_wait_class == NO_WAIT_CLASS)
+  {
+    /*
+      This locker does not exist.
+      There can not be more lockers in the stack, skip to the next thread
+    */
+    return NULL;
+  }
+
+  return wait;
 }
 
 int table_events_waits_current::rnd_next(void)
@@ -888,49 +956,14 @@ int table_events_waits_current::rnd_next(void)
     pfs_thread= global_thread_container.get(m_pos.m_index_1, & has_more_thread);
     if (pfs_thread != NULL)
     {
-      /*
-        We do not show nested events for now,
-        this will be revised with TABLE io
-      */
-// #define ONLY_SHOW_ONE_WAIT
-
-#ifdef ONLY_SHOW_ONE_WAIT
-      if (m_pos.m_index_2 >= 1)
-        continue;
-#else
-      /* m_events_waits_stack[0] is a dummy record */
-      PFS_events_waits *top_wait = &pfs_thread->m_events_waits_stack[WAIT_STACK_BOTTOM];
-      wait= &pfs_thread->m_events_waits_stack[m_pos.m_index_2 + WAIT_STACK_BOTTOM];
-
-      PFS_events_waits *safe_current = pfs_thread->m_events_waits_current;
-
-      if (safe_current == top_wait)
+      wait= get_wait(pfs_thread, m_pos.m_index_2);
+      if (wait != NULL)
       {
-        /* Display the last top level wait, when completed */
-        if (m_pos.m_index_2 >= 1)
-          continue;
+        make_row(pfs_thread, wait);
+        /* Next iteration, look for the next locker in this thread */
+        m_next_pos.set_after(&m_pos);
+        return 0;
       }
-      else
-      {
-        /* Display all pending waits, when in progress */
-        if (wait >= safe_current)
-          continue;
-      }
-#endif
-
-      if (wait->m_wait_class == NO_WAIT_CLASS)
-      {
-        /*
-          This locker does not exist.
-          There can not be more lockers in the stack, skip to the next thread
-        */
-        continue;
-      }
-
-      make_row(pfs_thread, wait);
-      /* Next iteration, look for the next locker in this thread */
-      m_next_pos.set_after(&m_pos);
-      return 0;
     }
   }
 
@@ -947,33 +980,9 @@ int table_events_waits_current::rnd_pos(const void *pos)
   pfs_thread= global_thread_container.get(m_pos.m_index_1);
   if (pfs_thread != NULL)
   {
-#ifdef ONLY_SHOW_ONE_WAIT
-    if (m_pos.m_index_2 >= 1)
-      return HA_ERR_RECORD_DELETED;
-#else
-    /* m_events_waits_stack[0] is a dummy record */
-    PFS_events_waits *top_wait = &pfs_thread->m_events_waits_stack[WAIT_STACK_BOTTOM];
-    wait= &pfs_thread->m_events_waits_stack[m_pos.m_index_2 + WAIT_STACK_BOTTOM];
-
-    PFS_events_waits *safe_current = pfs_thread->m_events_waits_current;
-
-    if (safe_current == top_wait)
-    {
-      /* Display the last top level wait, when completed */
-      if (m_pos.m_index_2 >= 1)
-        return HA_ERR_RECORD_DELETED;
-    }
-    else
-    {
-      /* Display all pending waits, when in progress */
-      if (wait >= safe_current)
-        return HA_ERR_RECORD_DELETED;
-    }
-#endif
-
     DBUG_ASSERT(m_pos.m_index_2 < WAIT_STACK_LOGICAL_SIZE);
-
-    if (wait->m_wait_class != NO_WAIT_CLASS)
+    wait= get_wait(pfs_thread, m_pos.m_index_2);
+    if (wait != NULL)
     {
       make_row(pfs_thread, wait);
       return 0;
@@ -981,6 +990,53 @@ int table_events_waits_current::rnd_pos(const void *pos)
   }
 
   return HA_ERR_RECORD_DELETED;
+}
+
+int table_events_waits_current::index_init(uint idx, bool sorted)
+{
+  PFS_index_events_waits *result;
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_events_waits);
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_events_waits_current::index_next(void)
+{
+  PFS_thread *pfs_thread;
+  PFS_events_waits *wait;
+  bool has_more_thread= true;
+
+  for (m_pos.set_at(&m_next_pos);
+       has_more_thread;
+       m_pos.next_thread())
+  {
+    pfs_thread= global_thread_container.get(m_pos.m_index_1, & has_more_thread);
+    if (pfs_thread != NULL)
+    {
+      if (m_opened_index->match(pfs_thread))
+      {
+        do
+        {
+          wait= get_wait(pfs_thread, m_pos.m_index_2);
+          if (wait != NULL)
+          {
+            if (m_opened_index->match(wait))
+            {
+              make_row(pfs_thread, wait);
+              /* Next iteration, look for the next locker in this thread */
+              m_next_pos.set_after(&m_pos);
+              return 0;
+            }
+            m_pos.m_index_2++;
+          }
+        } while (wait != NULL);
+      }
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
 }
 
 void table_events_waits_current::make_row(PFS_thread *thread, PFS_events_waits *wait)
@@ -1024,6 +1080,32 @@ void table_events_waits_history::reset_position(void)
   m_next_pos.reset();
 }
 
+PFS_events_waits *table_events_waits_history::get_wait(PFS_thread *pfs_thread, uint index_2)
+{
+  PFS_events_waits *wait;
+
+  if (index_2 >= events_waits_history_per_thread)
+  {
+    /* This thread does not have more (full) history */
+    return NULL;
+  }
+
+  if ( ! pfs_thread->m_waits_history_full &&
+      (index_2 >= pfs_thread->m_waits_history_index))
+  {
+    /* This thread does not have more (not full) history */
+    return NULL;
+  }
+
+  wait= &pfs_thread->m_waits_history[index_2];
+  if (wait->m_wait_class == NO_WAIT_CLASS)
+  {
+    return NULL;
+  }
+
+  return wait;
+}
+
 int table_events_waits_history::rnd_next(void)
 {
   PFS_thread *pfs_thread;
@@ -1040,21 +1122,8 @@ int table_events_waits_history::rnd_next(void)
     pfs_thread= global_thread_container.get(m_pos.m_index_1, & has_more_thread);
     if (pfs_thread != NULL)
     {
-      if (m_pos.m_index_2 >= events_waits_history_per_thread)
-      {
-        /* This thread does not have more (full) history */
-        continue;
-      }
-
-      if ( ! pfs_thread->m_waits_history_full &&
-          (m_pos.m_index_2 >= pfs_thread->m_waits_history_index))
-      {
-        /* This thread does not have more (not full) history */
-        continue;
-      }
-
-      wait= &pfs_thread->m_waits_history[m_pos.m_index_2];
-      if (wait->m_wait_class != NO_WAIT_CLASS)
+      wait= get_wait(pfs_thread, m_pos.m_index_2);
+      if (wait != NULL)
       {
         make_row(pfs_thread, wait);
         /* Next iteration, look for the next history in this thread */
@@ -1080,13 +1149,8 @@ int table_events_waits_history::rnd_pos(const void *pos)
   {
     DBUG_ASSERT(m_pos.m_index_2 < events_waits_history_per_thread);
 
-    if ( ! pfs_thread->m_waits_history_full &&
-        (m_pos.m_index_2 >= pfs_thread->m_waits_history_index))
-      return HA_ERR_RECORD_DELETED;
-
-    wait= &pfs_thread->m_waits_history[m_pos.m_index_2];
-
-    if (wait->m_wait_class != NO_WAIT_CLASS)
+    wait= get_wait(pfs_thread, m_pos.m_index_2);
+    if (wait != NULL)
     {
       make_row(pfs_thread, wait);
       return 0;
@@ -1094,6 +1158,56 @@ int table_events_waits_history::rnd_pos(const void *pos)
   }
 
   return HA_ERR_RECORD_DELETED;
+}
+
+int table_events_waits_history::index_init(uint idx, bool sorted)
+{
+  PFS_index_events_waits *result;
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_events_waits);
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_events_waits_history::index_next(void)
+{
+  PFS_thread *pfs_thread;
+  PFS_events_waits *wait;
+  bool has_more_thread= true;
+
+  if (events_waits_history_per_thread == 0)
+    return HA_ERR_END_OF_FILE;
+
+  for (m_pos.set_at(&m_next_pos);
+       has_more_thread;
+       m_pos.next_thread())
+  {
+    pfs_thread= global_thread_container.get(m_pos.m_index_1, & has_more_thread);
+    if (pfs_thread != NULL)
+    {
+      if (m_opened_index->match(pfs_thread))
+      {
+        do
+        {
+          wait= get_wait(pfs_thread, m_pos.m_index_2);
+          if (wait != NULL)
+          {
+            if (m_opened_index->match(wait))
+            {
+              make_row(pfs_thread, wait);
+              /* Next iteration, look for the next history in this thread */
+              m_next_pos.set_after(&m_pos);
+              return 0;
+            }
+            m_pos.m_index_2++;
+          }
+        } while (wait != NULL);
+      }
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
 }
 
 void table_events_waits_history::make_row(PFS_thread *thread, PFS_events_waits *wait)

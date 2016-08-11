@@ -52,6 +52,73 @@ struct row_file_summary_by_instance
   PFS_file_io_stat_row m_io_stat;
 };
 
+class PFS_index_file_summary_by_instance : public PFS_engine_index
+{
+public:
+  PFS_index_file_summary_by_instance(PFS_engine_key *key_1)
+    : PFS_engine_index(key_1)
+  {}
+
+  ~PFS_index_file_summary_by_instance()
+  {}
+
+  virtual bool match(const PFS_file *pfs) = 0;
+};
+
+class PFS_index_file_summary_by_instance_by_instance
+  : public PFS_index_file_summary_by_instance
+{
+public:
+  PFS_index_file_summary_by_instance_by_instance()
+    : PFS_index_file_summary_by_instance(&m_key),
+      m_key("OBJECT_INSTANCE_BEGIN")
+  {}
+
+  ~PFS_index_file_summary_by_instance_by_instance()
+  {}
+
+  bool match(const PFS_file *pfs);
+
+private:
+  PFS_key_object_instance m_key;
+};
+
+class PFS_index_file_summary_by_instance_by_file_name
+  : public PFS_index_file_summary_by_instance
+{
+public:
+  PFS_index_file_summary_by_instance_by_file_name()
+    : PFS_index_file_summary_by_instance(&m_key),
+      m_key("FILE_NAME")
+  {}
+
+  ~PFS_index_file_summary_by_instance_by_file_name()
+  {}
+
+  bool match(const PFS_file *pfs);
+
+private:
+  PFS_key_file_name m_key;
+};
+
+class PFS_index_file_summary_by_instance_by_event_name
+  : public PFS_index_file_summary_by_instance
+{
+public:
+  PFS_index_file_summary_by_instance_by_event_name()
+    : PFS_index_file_summary_by_instance(&m_key),
+      m_key("EVENT_NAME")
+  {}
+
+  ~PFS_index_file_summary_by_instance_by_event_name()
+  {}
+
+  bool match(const PFS_file *pfs);
+
+private:
+  PFS_key_event_name m_key;
+};
+
 /** Table PERFORMANCE_SCHEMA.FILE_SUMMARY_BY_INSTANCE. */
 class table_file_summary_by_instance : public PFS_engine_table
 {
@@ -62,9 +129,13 @@ public:
   static int delete_all_rows();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
 private:
   virtual int read_row_values(TABLE *table,
@@ -94,6 +165,9 @@ private:
   PFS_simple_index m_pos;
   /** Next position. */
   PFS_simple_index m_next_pos;
+
+protected:
+  PFS_index_file_summary_by_instance *m_opened_index;
 };
 
 /** @} */

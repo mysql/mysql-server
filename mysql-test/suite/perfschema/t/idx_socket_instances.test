@@ -1,0 +1,190 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+select OBJECT_INSTANCE_BEGIN, THREAD_ID, SOCKET_ID, IP, PORT
+  from performance_schema.socket_instances
+  limit 1
+  into @oib, @tid, @sid, @ip, @port;
+
+--disable_warnings
+###########################################################################
+# Test index on OBJECT_INSTANCE_BEGIN
+###########################################################################
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select EVENT_NAME from performance_schema.socket_instances
+  where OBJECT_INSTANCE_BEGIN = '0000000';
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select EVENT_NAME from performance_schema.socket_instances
+  where OBJECT_INSTANCE_BEGIN > 0 ;
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select EVENT_NAME from performance_schema.socket_instances
+  where OBJECT_INSTANCE_BEGIN < 0 ;
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select EVENT_NAME from performance_schema.socket_instances
+  where OBJECT_INSTANCE_BEGIN = @oib ;
+
+--echo ############# Explain End #########################################
+--enable_warnings
+
+flush status;
+
+--replace_column 1 #
+select EVENT_NAME from performance_schema.socket_instances
+  where OBJECT_INSTANCE_BEGIN = @oib ;
+
+# Handler counts checked in idx_compare
+# show session status like "handler_read%";
+
+###########################################################################
+# Test index on THREAD_ID
+###########################################################################
+
+--disable_warnings
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select OBJECT_INSTANCE_BEGIN from performance_schema.socket_instances
+  where THREAD_ID = '9999';
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select OBJECT_INSTANCE_BEGIN from performance_schema.socket_instances
+  where THREAD_ID > '9999' ;
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select OBJECT_INSTANCE_BEGIN from performance_schema.socket_instances
+  where THREAD_ID < '1' ;
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select OBJECT_INSTANCE_BEGIN from performance_schema.socket_instances
+  where THREAD_ID = @tid ;
+
+--echo ############# Explain End #########################################
+--enable_warnings
+
+flush status;
+
+--replace_column 1 #
+select OBJECT_INSTANCE_BEGIN from performance_schema.socket_instances
+  where THREAD_ID = @tid limit 1;
+
+#show session status like "handler_read_key";
+
+###########################################################################
+# Test index on SOCKET_ID
+###########################################################################
+
+--disable_warnings
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select OBJECT_INSTANCE_BEGIN from performance_schema.socket_instances
+  where SOCKET_ID = '9999';
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select OBJECT_INSTANCE_BEGIN from performance_schema.socket_instances
+  where SOCKET_ID > 1 ;
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select OBJECT_INSTANCE_BEGIN from performance_schema.socket_instances
+  where SOCKET_ID < 1 ;
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select OBJECT_INSTANCE_BEGIN from performance_schema.socket_instances
+  where SOCKET_ID = @sid ;
+
+--echo ############# Explain End #########################################
+--enable_warnings
+
+flush status;
+
+--replace_column 1 #
+select OBJECT_INSTANCE_BEGIN from performance_schema.socket_instances
+  where SOCKET_ID = @sid ;
+
+#show session status like "handler_read%";
+
+###########################################################################
+# Test index on IP
+###########################################################################
+
+--disable_warnings
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select OBJECT_INSTANCE_BEGIN from performance_schema.socket_instances
+  where IP = '9999';
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select OBJECT_INSTANCE_BEGIN from performance_schema.socket_instances
+  where IP > 1 ;
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select OBJECT_INSTANCE_BEGIN from performance_schema.socket_instances
+  where IP < 1 ;
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select OBJECT_INSTANCE_BEGIN from performance_schema.socket_instances
+  where IP = @ip ;
+
+--echo ############# Explain End #########################################
+--enable_warnings
+
+flush status;
+
+--replace_column 1 #
+select OBJECT_INSTANCE_BEGIN from performance_schema.socket_instances
+  where IP = @ip ;
+
+#show session status like "handler_read%";
+
+###########################################################################
+# Test index on PORT
+###########################################################################
+
+--disable_warnings
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select OBJECT_INSTANCE_BEGIN from performance_schema.socket_instances
+  where PORT = '9999';
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select OBJECT_INSTANCE_BEGIN from performance_schema.socket_instances
+  where PORT > 1 ;
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select OBJECT_INSTANCE_BEGIN from performance_schema.socket_instances
+  where PORT < 1 ;
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select OBJECT_INSTANCE_BEGIN from performance_schema.socket_instances
+  where PORT = @port ;
+
+--echo ############# Explain End #########################################
+--enable_warnings
+
+flush status;
+
+--replace_column 1 #
+select OBJECT_INSTANCE_BEGIN from performance_schema.socket_instances
+  where IP = @ip and PORT = @port;
+
+#show session status like "handler_read%";

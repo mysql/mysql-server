@@ -23,6 +23,7 @@
 
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
+#include "table_helper.h"
 #include "pfs_events_waits.h"
 
 struct PFS_thread;
@@ -125,6 +126,25 @@ struct pos_events_waits_history : public PFS_double_index
   }
 };
 
+class PFS_index_events_waits : public PFS_engine_index
+{
+public:
+  PFS_index_events_waits()
+    : PFS_engine_index(&m_key_1, &m_key_2),
+    m_key_1("THREAD_ID"), m_key_2("EVENT_ID")
+  {}
+
+  ~PFS_index_events_waits()
+  {}
+
+  bool match(PFS_thread *pfs);
+  bool match(PFS_events_waits *pfs);
+
+private:
+  PFS_key_thread_id m_key_1;
+  PFS_key_event_id m_key_2;
+};
+
 /**
   Adapter, for table sharing the structure of
   PERFORMANCE_SCHEMA.EVENTS_WAITS_CURRENT.
@@ -166,8 +186,11 @@ public:
   static int delete_all_rows();
   static ha_rows get_row_count();
 
+  virtual int index_init(uint idx, bool sorted);
+
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
+  virtual int index_next();
   virtual void reset_position(void);
 
 protected:
@@ -190,12 +213,15 @@ private:
   */
   static TABLE_FIELD_DEF m_field_def;
 
+  PFS_events_waits *get_wait(PFS_thread *pfs_thread, uint index_2);
   void make_row(PFS_thread *thread, PFS_events_waits *wait);
 
   /** Current position. */
   pos_events_waits_current m_pos;
   /** Next position. */
   pos_events_waits_current m_next_pos;
+
+  PFS_index_events_waits *m_opened_index;
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_HISTORY. */
@@ -208,12 +234,17 @@ public:
   static int delete_all_rows();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
+
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
 
 protected:
   table_events_waits_history();
+
 
 public:
   ~table_events_waits_history()
@@ -223,12 +254,15 @@ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
 
+  PFS_events_waits *get_wait(PFS_thread *pfs_thread, uint index_2);
   void make_row(PFS_thread *thread, PFS_events_waits *wait);
 
   /** Current position. */
   pos_events_waits_history m_pos;
   /** Next position. */
   pos_events_waits_history m_next_pos;
+
+  PFS_index_events_waits *m_opened_index;
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_HISTORY_LONG. */

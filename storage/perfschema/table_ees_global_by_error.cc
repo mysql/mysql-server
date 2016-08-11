@@ -91,6 +91,16 @@ table_ees_global_by_error::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_ees_global_by_error::match_error_index(uint error_index)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match_error_index(error_index))
+      return false;
+  }
+  return true;
+}
+
 PFS_engine_table*
 table_ees_global_by_error::create(void)
 {
@@ -132,21 +142,15 @@ int table_ees_global_by_error::rnd_init(bool scan)
 
 int table_ees_global_by_error::rnd_next(void)
 {
-  PFS_error_class *error_class;
-
   m_pos.set_at(&m_next_pos);
 
-  error_class= find_error_class(m_pos.m_index_1);
-  if (error_class)
+  for ( ;
+       m_pos.has_more_error();
+       m_pos.next_error())
   {
-    for ( ;
-         m_pos.has_more_error();
-         m_pos.next_error())
-    {
-        make_row(error_class, m_pos.m_index_2);
-        m_next_pos.set_after(&m_pos);
-        return 0;
-    }
+    make_row(m_pos.m_index);
+    m_next_pos.set_after(&m_pos);
+    return 0;
   }
 
   return HA_ERR_END_OF_FILE;
@@ -155,29 +159,52 @@ int table_ees_global_by_error::rnd_next(void)
 int
 table_ees_global_by_error::rnd_pos(const void *pos)
 {
-  PFS_error_class *error_class;
-
   set_position(pos);
 
-  error_class=find_error_class(m_pos.m_index_1);
-  if (error_class)
+  for ( ;
+       m_pos.has_more_error();
+       m_pos.next_error())
   {
-    for ( ;
-         m_pos.has_more_error();
-         m_pos.next_error())
-    {
-      make_row(error_class, m_pos.m_index_2);
-      return 0;
-    }
+    make_row(m_pos.m_index);
+    return 0;
   }
 
   return HA_ERR_RECORD_DELETED;
 }
 
+int table_ees_global_by_error::index_init(uint idx, bool sorted)
+{
+  PFS_index_ees_global_by_error *result= NULL;
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_ees_global_by_error);
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_ees_global_by_error::index_next(void)
+{
+  m_pos.set_at(&m_next_pos);
+
+  for ( ;
+       m_pos.has_more_error();
+       m_pos.next_error())
+  {
+    if (m_opened_index->match_error_index(m_pos.m_index))
+    {
+      make_row(m_pos.m_index);
+      m_next_pos.set_after(&m_pos);
+      return 0;
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
+}
 
 void table_ees_global_by_error
-::make_row(PFS_error_class *klass, int error_index)
+::make_row(int error_index)
 {
+  PFS_error_class *klass= & global_error_class;
   m_row_exists= false;
 
   PFS_connection_error_visitor visitor(klass, error_index);

@@ -15,3 +15,6 @@ ALTER TABLE performance_schema.users ADD INDEX test_index(CURRENT_CONNECTIONS);
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index ON performance_schema.users(CURRENT_CONNECTIONS);
 
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `USER`
+  ON performance_schema.users;

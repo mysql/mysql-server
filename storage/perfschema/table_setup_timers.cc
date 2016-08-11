@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -88,6 +88,17 @@ table_setup_timers::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_setup_timers::match(row_setup_timers *row)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(&row->m_name))
+      return false;
+  }
+
+  return true;
+}
+
 PFS_engine_table* table_setup_timers::create(void)
 {
   return new table_setup_timers();
@@ -137,6 +148,35 @@ int table_setup_timers::rnd_pos(const void *pos)
   DBUG_ASSERT(m_pos.m_index < COUNT_SETUP_TIMERS);
   m_row= &all_setup_timers_data[m_pos.m_index];
   return 0;
+}
+
+int table_setup_timers::index_init(uint idx, bool sorted)
+{
+  PFS_index_setup_timers *result= NULL;
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_setup_timers);
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_setup_timers::index_next(void)
+{
+  for (m_pos.set_at(&m_next_pos);
+       m_pos.m_index < COUNT_SETUP_TIMERS;
+       m_pos.next())
+  {
+    m_row= &all_setup_timers_data[m_pos.m_index];
+
+    if (m_opened_index->match(m_row))
+    {
+      m_next_pos.set_after(&m_pos);
+      return 0;
+    }
+  }
+
+  m_row= NULL;
+  return HA_ERR_END_OF_FILE;
 }
 
 int table_setup_timers::read_row_values(TABLE *table,

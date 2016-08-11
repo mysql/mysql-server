@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 
 /**
   @file storage/perfschema/table_esms_by_thread_by_event_name.cc
-  Table EVENTS_STATEMENTS_SUMMARY_BY_HOST_BY_EVENT_NAME (implementation).
+  Table EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME (implementation).
 */
 
 #include "my_global.h"
@@ -185,6 +185,29 @@ table_esms_by_thread_by_event_name::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_esms_by_thread_by_event_name::match(PFS_thread *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key_1.match(pfs))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_esms_by_thread_by_event_name::match(PFS_statement_class *klass)
+{
+  if (klass->is_mutable())
+    return false;
+
+  if (m_fields >= 2)
+  {
+    if (!m_key_2.match(klass))
+      return false;
+  }
+  return true;
+}
+
 PFS_engine_table*
 table_esms_by_thread_by_event_name::create(void)
 {
@@ -269,14 +292,60 @@ table_esms_by_thread_by_event_name::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-void table_esms_by_thread_by_event_name
+int table_esms_by_thread_by_event_name::index_init(uint idx, bool sorted)
+{
+  m_normalizer= time_normalizer::get(statement_timer);
+
+  DBUG_ASSERT(idx == 0);
+  m_opened_index= PFS_NEW(PFS_index_esms_by_thread_by_event_name);
+  m_index= m_opened_index;
+  return 0;
+}
+
+int table_esms_by_thread_by_event_name::index_next()
+{
+  PFS_thread *thread;
+  PFS_statement_class *statement_class;
+  bool has_more_thread= true;
+
+  for (m_pos.set_at(&m_next_pos);
+       has_more_thread;
+       m_pos.next_thread())
+  {
+    thread= global_thread_container.get(m_pos.m_index_1, & has_more_thread);
+    if (thread != NULL)
+    {
+      if (m_opened_index->match(thread))
+      {
+        do
+        {
+          statement_class= find_statement_class(m_pos.m_index_2);
+          if (statement_class != NULL)
+          {
+            if (m_opened_index->match(statement_class))
+            {
+              make_row(thread, statement_class);
+              m_next_pos.set_after(&m_pos);
+              return 0;
+            }
+            m_pos.m_index_2++;
+          }
+        } while (statement_class != NULL);
+      }
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
+}
+
+int table_esms_by_thread_by_event_name
 ::make_row(PFS_thread *thread, PFS_statement_class *klass)
 {
   pfs_optimistic_state lock;
   m_row_exists= false;
 
   if (klass->is_mutable())
-    return;
+    return 1;
 
   /* Protect this reader against a thread termination */
   thread->m_lock.begin_optimistic_lock(&lock);
@@ -288,11 +357,12 @@ void table_esms_by_thread_by_event_name
   PFS_connection_statement_visitor visitor(klass);
   PFS_connection_iterator::visit_thread(thread, & visitor);
 
-  if (! thread->m_lock.end_optimistic_lock(&lock))
-    return;
+  if (!thread->m_lock.end_optimistic_lock(&lock))
+    return 1;
 
   m_row_exists= true;
   m_row.m_stat.set(m_normalizer, & visitor.m_stat);
+  return 0;
 }
 
 int table_esms_by_thread_by_event_name
@@ -328,4 +398,3 @@ int table_esms_by_thread_by_event_name
 
   return 0;
 }
-

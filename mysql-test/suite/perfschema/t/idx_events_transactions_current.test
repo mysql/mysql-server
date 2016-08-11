@@ -1,0 +1,104 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+create user foo@localhost;
+grant ALL on *.* to foo@localhost;
+
+update performance_schema.setup_consumers set ENABLED='YES' where NAME like "events_transactions_%";
+update performance_schema.setup_instruments set ENABLED='YES' where NAME = "transaction";
+truncate table performance_schema.events_transactions_current;
+
+# Create a new Connection
+connect(con1,localhost,foo,,);
+
+--echo # Connection 1
+--connection con1
+
+select connection_id() into @conid;
+
+let $tid = `select thread_id from performance_schema.threads
+             where PROCESSLIST_ID = @conid`;
+
+start transaction;
+
+--echo # Default connection
+--connection default
+
+--disable_query_log
+--eval select EVENT_ID from performance_schema.events_transactions_current where THREAD_ID = $tid and EVENT_NAME= 'transaction' into @eid;
+--eval select $tid into @tid;
+--enable_query_log
+
+# Test index on THREAD_ID, EVENT_ID
+
+--disable_warnings
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select THREAD_ID, EVENT_ID
+  from performance_schema.events_transactions_current
+  where THREAD_ID = 1;
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select *
+  from performance_schema.events_transactions_current
+  where THREAD_ID > 1;
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select *
+  from performance_schema.events_transactions_current
+  where THREAD_ID < 1;
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select THREAD_ID, EVENT_ID
+  from performance_schema.events_transactions_current
+  where THREAD_ID = 1 and EVENT_ID = '0';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select THREAD_ID, EVENT_ID
+  from performance_schema.events_transactions_current
+  where THREAD_ID = 99999 and EVENT_ID = @eid;
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select THREAD_ID, EVENT_ID
+  from performance_schema.events_transactions_current
+  where THREAD_ID = @tid and EVENT_ID = @eid;
+
+--enable_warnings
+--echo ############# Explain End #########################################
+
+flush status;
+
+--replace_column 1 #
+select EVENT_ID, EVENT_NAME
+  from performance_schema.events_transactions_current
+  where thread_id = @tid and EVENT_ID = @eid;
+
+let $count1 = query_get_value(show session status like "handler_read_key", Value, 1);
+
+--replace_column 1 #
+select EVENT_ID, EVENT_NAME
+  from performance_schema.events_transactions_current
+  where thread_id = @tid and EVENT_ID = @eid;
+
+let $count2 = query_get_value(show session status like "handler_read_key", Value, 1);
+
+if ($count1 < $count2)
+{
+  --echo OK: handler_read_key incremented
+}
+if ($count1 >= $count2)
+{
+  --echo ***ERROR*** handler_read_key: Before= $count1, After= $count2
+}
+
+commit;
+
+drop user foo@localhost;

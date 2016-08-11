@@ -1,0 +1,75 @@
+create user foo@localhost;
+grant ALL on *.* to foo@localhost;
+############ Explain for Query ####################################
+explain select * from performance_schema.accounts
+where USER = 'foo';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	accounts	NULL	ref	ACCOUNT	ACCOUNT	97	const	#	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `performance_schema`.`accounts`.`USER` AS `USER`,`performance_schema`.`accounts`.`HOST` AS `HOST`,`performance_schema`.`accounts`.`CURRENT_CONNECTIONS` AS `CURRENT_CONNECTIONS`,`performance_schema`.`accounts`.`TOTAL_CONNECTIONS` AS `TOTAL_CONNECTIONS` from `performance_schema`.`accounts` where (`performance_schema`.`accounts`.`USER` = 'foo')
+############ Explain for Query ####################################
+explain select * from performance_schema.accounts
+where HOST = 'localhost';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	accounts	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `performance_schema`.`accounts`.`USER` AS `USER`,`performance_schema`.`accounts`.`HOST` AS `HOST`,`performance_schema`.`accounts`.`CURRENT_CONNECTIONS` AS `CURRENT_CONNECTIONS`,`performance_schema`.`accounts`.`TOTAL_CONNECTIONS` AS `TOTAL_CONNECTIONS` from `performance_schema`.`accounts` where (`performance_schema`.`accounts`.`HOST` = 'localhost')
+############ Explain for Query ####################################
+explain select * from performance_schema.accounts
+where USER like "foo%" and HOST = 'localhost';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	accounts	NULL	ALL	ACCOUNT	NULL	NULL	NULL	#	1.11	Using where
+Warnings:
+Note	1003	/* select#1 */ select `performance_schema`.`accounts`.`USER` AS `USER`,`performance_schema`.`accounts`.`HOST` AS `HOST`,`performance_schema`.`accounts`.`CURRENT_CONNECTIONS` AS `CURRENT_CONNECTIONS`,`performance_schema`.`accounts`.`TOTAL_CONNECTIONS` AS `TOTAL_CONNECTIONS` from `performance_schema`.`accounts` where ((`performance_schema`.`accounts`.`HOST` = 'localhost') and (`performance_schema`.`accounts`.`USER` like 'foo%'))
+############ Explain for Query ####################################
+explain select * from performance_schema.accounts
+where USER = 'foo' and HOST = 'nohost';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select NULL AS `USER`,NULL AS `HOST`,NULL AS `CURRENT_CONNECTIONS`,NULL AS `TOTAL_CONNECTIONS` from `performance_schema`.`accounts` where (multiple equal('foo', NULL) and multiple equal('nohost', NULL))
+############ Explain for Query ####################################
+explain select * from performance_schema.accounts
+where USER = 'nouser' and HOST = 'localhost';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select NULL AS `USER`,NULL AS `HOST`,NULL AS `CURRENT_CONNECTIONS`,NULL AS `TOTAL_CONNECTIONS` from `performance_schema`.`accounts` where (multiple equal('nouser', NULL) and multiple equal('localhost', NULL))
+############ Explain for Query ####################################
+explain select * from performance_schema.accounts
+where USER = 'foo' and HOST = 'localhost';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	accounts	NULL	const	ACCOUNT	ACCOUNT	278	const,const	#	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select 'foo' AS `USER`,'localhost' AS `HOST`,'1' AS `CURRENT_CONNECTIONS`,'1' AS `TOTAL_CONNECTIONS` from `performance_schema`.`accounts` where 1
+############# Explain End #########################################
+flush status;
+select *
+from performance_schema.accounts
+where USER = 'foo' and  HOST = 'localhost';
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+foo	localhost	1	1
+show session status like "handler_read%";
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+select *
+from performance_schema.accounts
+where USER = 'foo' and  HOST = 'localhost';
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+foo	localhost	1	1
+show session status like "handler_read%";
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+drop user foo@localhost;

@@ -37,7 +37,7 @@ thread/sql/one_connection  FOREGROUND  5  root  localhost  test  Query  Sending 
 num_cols      : 13
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,`role`,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  6
@@ -47,7 +47,7 @@ thread/sql/one_connection  FOREGROUND  6  root  localhost  test  Query  Sending 
 num_cols      : 13
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 ============================================================================================
@@ -208,7 +208,7 @@ Plugin  0
 num_cols      : 2
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 Setting NO_VIO_TYPE on session_1
@@ -220,7 +220,7 @@ Plugin
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 Setting VIO_TYPE_TCPIP on session_1
@@ -232,7 +232,7 @@ TCP/IP
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 Setting VIO_TYPE_NAMEDPIPE on session_1
@@ -244,7 +244,7 @@ Named Pipe
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 ============================================================================================
@@ -258,7 +258,7 @@ Plugin
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 Setting VIO_TYPE_SSL on session_2
@@ -271,7 +271,7 @@ SSL/TLS
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 Session 2's view
@@ -282,7 +282,7 @@ Shared Memory
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 ============================================================================================
@@ -388,7 +388,7 @@ thread/test_service_sql/session_info  FOREGROUND  8  root  localhost  [NULL]  Qu
 num_cols      : 13
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,`role`,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  9
@@ -398,7 +398,7 @@ thread/test_service_sql/session_info  FOREGROUND  9  root  localhost  [NULL]  Qu
 num_cols      : 13
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 ============================================================================================
@@ -559,7 +559,7 @@ Plugin  0
 num_cols      : 2
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 Setting NO_VIO_TYPE on session_1
@@ -571,7 +571,7 @@ Plugin
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 Setting VIO_TYPE_TCPIP on session_1
@@ -583,7 +583,7 @@ TCP/IP
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 Setting VIO_TYPE_NAMEDPIPE on session_1
@@ -595,7 +595,7 @@ Named Pipe
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 ============================================================================================
@@ -609,7 +609,7 @@ Plugin
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 Setting VIO_TYPE_SSL on session_2
@@ -622,7 +622,7 @@ SSL/TLS
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 Session 2's view
@@ -633,7 +633,7 @@ Shared Memory
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 ============================================================================================

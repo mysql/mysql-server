@@ -1,0 +1,87 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+
+let $olddb = `select database()`;
+create database explain_test_db;
+use explain_test_db;
+
+# Test index on SCHEMA_NAME, DIGEST
+truncate table performance_schema.events_statements_summary_by_digest;
+
+--disable_warnings
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select SCHEMA_NAME, DIGEST
+  from performance_schema.events_statements_summary_by_digest
+  where SCHEMA_NAME = 'explain_test_db';
+
+select digest from performance_schema.events_statements_summary_by_digest
+  where SCHEMA_NAME = 'explain_test_db' limit 1
+  into @digest;
+
+eval use $olddb;
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select *
+  from performance_schema.events_statements_summary_by_digest
+  where SCHEMA_NAME != 'explain_test_db';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select *
+  from performance_schema.events_statements_summary_by_digest
+  where SCHEMA_NAME like '%explain_test_db%';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select SCHEMA_NAME, DIGEST
+  from performance_schema.events_statements_summary_by_digest
+  where SCHEMA_NAME = 'explain_test_db' and DIGEST = 'nodigest';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select SCHEMA_NAME, DIGEST
+  from performance_schema.events_statements_summary_by_digest
+  where SCHEMA_NAME = 'noschema' and DIGEST = @digest;
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select SCHEMA_NAME, DIGEST
+  from performance_schema.events_statements_summary_by_digest
+  where SCHEMA_NAME = 'explain_test_db' and DIGEST = @digest;
+
+--echo ############# Explain End #########################################
+
+--enable_warnings
+
+flush status;
+
+--replace_column 1 [DIGEST] 2 #
+select DIGEST, COUNT_STAR
+  from performance_schema.events_statements_summary_by_digest
+  where SCHEMA_NAME = 'explain_test_db' and DIGEST = @digest;
+
+let $count1 = query_get_value(show session status like "handler_read_key", Value, 1);
+
+--replace_column 1 [DIGEST] 2 #
+select DIGEST, COUNT_STAR
+  from performance_schema.events_statements_summary_by_digest
+  where SCHEMA_NAME = 'explain_test_db' and DIGEST = @digest;
+
+let $count2 = query_get_value(show session status like "handler_read_key", Value, 1);
+
+if ($count1 < $count2)
+{
+  --echo OK: handler_read_key incremented
+}
+if ($count1 >= $count2)
+{
+  --echo ***ERROR*** handler_read_key: Before= $count1, After= $count2
+}
+
+drop database explain_test_db;

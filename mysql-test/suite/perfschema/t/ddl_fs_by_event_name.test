@@ -14,3 +14,6 @@ ALTER TABLE performance_schema.file_summary_by_event_name ADD INDEX test_index(N
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index ON performance_schema.file_summary_by_event_name(NAME);
 
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `PRIMARY`
+  ON performance_schema.file_summary_by_event_name;

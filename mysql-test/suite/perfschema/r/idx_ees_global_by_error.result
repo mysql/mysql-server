@@ -1,0 +1,29 @@
+############ Explain for Query ####################################
+explain select ERROR_NUMBER
+from performance_schema.events_errors_summary_global_by_error
+where ERROR_NUMBER = '0000';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select NULL AS `ERROR_NUMBER` from `performance_schema`.`events_errors_summary_global_by_error` where (NULL = '0000')
+############ Explain for Query ####################################
+explain select ERROR_NUMBER
+from performance_schema.events_errors_summary_global_by_error
+where ERROR_NUMBER = '1146';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_errors_summary_global_by_error	NULL	const	ERROR_NUMBER	ERROR_NUMBER	5	const	#	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '1146' AS `ERROR_NUMBER` from `performance_schema`.`events_errors_summary_global_by_error` where ('1146' = '1146')
+############# Explain End #########################################
+flush status;
+select ERROR_NUMBER
+from performance_schema.events_errors_summary_global_by_error
+where ERROR_NUMBER = '1146';
+ERROR_NUMBER
+1146
+select ERROR_NUMBER
+from performance_schema.events_errors_summary_global_by_error
+where ERROR_NUMBER = '1146';
+ERROR_NUMBER
+1146
+OK: handler_read_key incremented

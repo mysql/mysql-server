@@ -1,0 +1,119 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+select connection_id() into @conid;
+
+let $tid = `select thread_id from performance_schema.threads
+            where PROCESSLIST_ID = @conid`;
+
+create database explain_test_db;
+create table explain_test_db.explain_test_table (c int);
+insert into explain_test_db.explain_test_table values ('1');
+commit;
+
+set @@GLOBAL.autocommit=0;
+
+# Create a new Connection
+connect(con1,127.0.0.1,root,,);
+
+--echo # Connection 1
+--connection con1
+
+start transaction;
+delete from explain_test_db.explain_test_table;
+
+--echo # Default connection
+--connection default
+# Following sql will hang
+--send
+insert into explain_test_db.explain_test_table values('1');
+
+--echo # Connection 1
+--connection con1
+
+--disable_query_log
+--eval select $tid into @tid_default;
+--let $wait_condition = select count(*) > 0 from performance_schema.events_stages_current where THREAD_ID = @tid_default
+--source include/wait_condition.inc
+select EVENT_ID from performance_schema.events_stages_current where THREAD_ID = @tid_default limit 1 into @eid_default;
+--enable_query_log
+
+# Test index on THREAD_ID, EVENT_ID
+
+--disable_warnings
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select THREAD_ID, EVENT_ID
+  from performance_schema.events_stages_current
+  where THREAD_ID = 1;
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select *
+  from performance_schema.events_stages_current
+  where THREAD_ID > 1;
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select *
+  from performance_schema.events_stages_current
+  where THREAD_ID < 1;
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select THREAD_ID, EVENT_ID
+  from performance_schema.events_stages_current
+  where THREAD_ID = 1 and EVENT_ID = "impossible";
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select THREAD_ID, EVENT_ID
+  from performance_schema.events_stages_current
+  where THREAD_ID = 99999 and EVENT_ID = @eid_default;
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select THREAD_ID, EVENT_ID
+  from performance_schema.events_stages_current
+  where THREAD_ID = @tid_default and EVENT_ID = @eid_default;
+
+--enable_warnings
+--echo ############# Explain End #########################################
+
+flush status;
+
+--replace_column 1 #
+select count(*)
+  from performance_schema.events_stages_current
+  where thread_id = @tid_default and EVENT_ID = @eid_default;
+
+let $count1 = query_get_value(show session status like "handler_read_key", Value, 1);
+
+--replace_column 1 #
+select count(*)
+  from performance_schema.events_stages_current
+  where thread_id = @tid_default and EVENT_ID = @eid_default;
+
+let $count2 = query_get_value(show session status like "handler_read_key", Value, 1);
+
+if ($count1 < $count2)
+{
+  --echo OK: handler_read_key incremented
+}
+if ($count1 >= $count2)
+{
+  --echo ***ERROR*** handler_read_key: Before= $count1, After= $count2
+}
+
+commit;
+
+--echo # Default connection
+--connection default
+--reap
+
+drop table explain_test_db.explain_test_table;
+drop database explain_test_db;
+set @@GLOBAL.autocommit= 1;

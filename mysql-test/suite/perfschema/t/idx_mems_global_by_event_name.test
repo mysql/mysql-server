@@ -1,0 +1,44 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+# Test index on EVENT_NAME
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select EVENT_NAME
+  from performance_schema.memory_summary_global_by_event_name
+  where EVENT_NAME = "impossible";
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select EVENT_NAME
+  from performance_schema.memory_summary_global_by_event_name
+  where EVENT_NAME = "memory/performance_schema/users";
+
+--echo ############# Explain End #########################################
+
+truncate table performance_schema.memory_summary_global_by_event_name;
+flush status;
+
+select LOW_COUNT_USED
+  from performance_schema.memory_summary_global_by_event_name
+  where EVENT_NAME = "memory/performance_schema/users";
+
+let $count1 = query_get_value(show session status like "handler_read_key", Value, 1);
+
+select LOW_COUNT_USED
+  from performance_schema.memory_summary_global_by_event_name
+  where EVENT_NAME = "memory/performance_schema/users";
+
+let $count2 = query_get_value(show session status like "handler_read_key", Value, 1);
+
+if ($count1 < $count2)
+{
+  --echo OK: handler_read_key incremented
+}
+if ($count1 >= $count2)
+{
+  --echo ***ERROR*** handler_read_key: Before= $count1, After= $count2
+}

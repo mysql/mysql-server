@@ -32,6 +32,22 @@ struct PFS_host;
   @{
 */
 
+class PFS_index_hosts_by_host : public PFS_index_hosts
+{
+public:
+  PFS_index_hosts_by_host()
+    : PFS_index_hosts(&m_key), m_key("HOST")
+  {}
+
+  ~PFS_index_hosts_by_host()
+  {}
+
+  virtual bool match(PFS_host *pfs);
+
+private:
+  PFS_key_host m_key;
+};
+
 /**
   A row of PERFORMANCE_SCHEMA.HOSTS.
 */
@@ -58,14 +74,14 @@ protected:
                               unsigned char *buf,
                               Field **fields,
                               bool read_all);
-
-
 protected:
   table_hosts();
 
 public:
   ~table_hosts()
   {}
+
+  int index_init(uint idx, bool sorted);
 
 private:
   virtual void make_row(PFS_host *pfs);

@@ -20,3 +20,6 @@ ALTER TABLE performance_schema.replication_connection_status
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index
   ON performance_schema.replication_connection_status(Thread_Id);
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `PRIMARY`
+  ON performance_schema.replication_connection_status;

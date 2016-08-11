@@ -1,0 +1,86 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+#setup
+create user foo@localhost;
+grant ALL on *.* to foo@localhost;
+connect(con, localhost, foo,,);
+
+# Test index on HOST, USER, EVENT_NAME
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select HOST, USER, EVENT_NAME
+  from performance_schema.events_statements_summary_by_account_by_event_name
+  where HOST = 'localhost' and USER= 'foo';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select *
+  from performance_schema.events_statements_summary_by_account_by_event_name
+  where HOST != 'localhost' and USER != 'foo';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select HOST, USER, EVENT_NAME
+  from performance_schema.events_statements_summary_by_account_by_event_name
+  where HOST = 'localhost' and USER= 'foo' and EVENT_NAME = "impossible";
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select HOST, USER, EVENT_NAME
+  from performance_schema.events_statements_summary_by_account_by_event_name
+  where HOST = 'nohost' and USER= 'nouser' and EVENT_NAME = "statement/sql/select";
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select HOST, USER, EVENT_NAME
+  from performance_schema.events_statements_summary_by_account_by_event_name
+  where HOST = 'localhost' and USER= 'nouser' and EVENT_NAME = "statement/sql/select";
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select HOST, USER, EVENT_NAME
+  from performance_schema.events_statements_summary_by_account_by_event_name
+  where HOST = 'nohost' and USER= 'foo' and EVENT_NAME = "statement/sql/select";
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select HOST, USER, EVENT_NAME
+  from performance_schema.events_statements_summary_by_account_by_event_name
+  where HOST = 'localhost' and USER= 'foo' and EVENT_NAME = "statement/sql/select";
+
+--echo ############# Explain End #########################################
+
+--echo
+--echo ## Verify handler counts
+--echo
+flush status;
+--replace_column 2 #
+select EVENT_NAME, COUNT_STAR
+  from performance_schema.events_statements_summary_by_account_by_event_name
+  where USER = 'foo' and EVENT_NAME = "statement/sql/select";
+
+let $count1 = query_get_value(show session status like "handler_read_key", Value, 1);
+
+--replace_column 2 #
+select EVENT_NAME, COUNT_STAR
+  from performance_schema.events_statements_summary_by_account_by_event_name
+  where USER = 'foo' and EVENT_NAME = "statement/sql/select";
+
+let $count2 = query_get_value(show session status like "handler_read_key", Value, 1);
+
+if ($count1 < $count2)
+{
+  --echo OK: handler_read_key incremented
+}
+if ($count1 >= $count2)
+{
+  --echo ***ERROR*** handler_read_key: Before= $count1, After= $count2
+}
+
+# Cleanup
+--connection default
+drop user foo@localhost;

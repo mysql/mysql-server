@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -72,5 +72,31 @@ cursor_by_thread::rnd_pos(const void *pos)
   }
 
   return HA_ERR_RECORD_DELETED;
+}
+
+int cursor_by_thread::index_next()
+{
+  PFS_thread *pfs;
+
+  m_pos.set_at(&m_next_pos);
+  PFS_thread_iterator it= global_thread_container.iterate(m_pos.m_index);
+
+  do
+  {
+    pfs= it.scan_next(& m_pos.m_index);
+    if (pfs != NULL)
+    {
+      if (m_opened_index->match(pfs))
+      {
+        if (!make_row(pfs))
+        {
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
+      }
+    }
+  } while (pfs != NULL);
+
+  return HA_ERR_END_OF_FILE;
 }
 

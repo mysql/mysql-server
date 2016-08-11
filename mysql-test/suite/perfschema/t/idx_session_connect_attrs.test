@@ -1,0 +1,67 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+select PROCESSLIST_ID from performance_schema.session_connect_attrs limit 1
+  into @plid;
+
+##########################################################################
+# Test index on PROCESSLIST_ID, ATTR_NAME
+##########################################################################
+
+--disable_warnings
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select ORDINAL_POSITION
+  from performance_schema.session_connect_attrs
+  where PROCESSLIST_ID = 1;
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select ORDINAL_POSITION
+  from performance_schema.session_connect_attrs
+  where PROCESSLIST_ID > 1;
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select ORDINAL_POSITION
+  from performance_schema.session_connect_attrs
+  where PROCESSLIST_ID < 1;
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select ORDINAL_POSITION
+  from performance_schema.session_connect_attrs
+  where PROCESSLIST_ID = @plid and ATTR_NAME = "impossible";
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select ORDINAL_POSITION
+  from performance_schema.session_connect_attrs
+  where PROCESSLIST_ID = 99999 and ATTR_NAME = '_os';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select ORDINAL_POSITION
+  from performance_schema.session_connect_attrs
+  where PROCESSLIST_ID = @plid and ATTR_NAME = "_os";
+
+--echo ############# Explain End #########################################
+
+--enable_warnings
+
+flush status;
+
+select ORDINAL_POSITION
+  from performance_schema.session_connect_attrs
+  where PROCESSLIST_ID = @plid and ATTR_NAME = "_os";
+
+show session status like "handler_read%";
+
+select ORDINAL_POSITION
+  from performance_schema.session_connect_attrs
+  where PROCESSLIST_ID = @plid and ATTR_NAME = "_os";
+
+show session status like "handler_read%";

@@ -428,7 +428,9 @@ set @have_pfs= (select count(engine) from information_schema.engines where engin
 
 SET @cmd="CREATE TABLE performance_schema.cond_instances("
   "NAME VARCHAR(128) not null,"
-  "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
+  "PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,"
+  "KEY (NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -459,7 +461,8 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_current("
   "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
   "OPERATION VARCHAR(32) not null,"
   "NUMBER_OF_BYTES BIGINT,"
-  "FLAGS INTEGER unsigned"
+  "FLAGS INTEGER unsigned,"
+  "PRIMARY KEY (THREAD_ID, EVENT_ID)"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -490,7 +493,8 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_history("
   "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
   "OPERATION VARCHAR(32) not null,"
   "NUMBER_OF_BYTES BIGINT,"
-  "FLAGS INTEGER unsigned"
+  "FLAGS INTEGER unsigned,"
+  "PRIMARY KEY (THREAD_ID, EVENT_ID)"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -540,7 +544,9 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_summary_by_instance("
   "SUM_TIMER_WAIT BIGINT unsigned not null,"
   "MIN_TIMER_WAIT BIGINT unsigned not null,"
   "AVG_TIMER_WAIT BIGINT unsigned not null,"
-  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "PRIMARY KEY (OBJECT_INSTANCE_BEGIN),"
+  "KEY (EVENT_NAME)"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -559,7 +565,8 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_summary_by_host_by_event_
   "SUM_TIMER_WAIT BIGINT unsigned not null,"
   "MIN_TIMER_WAIT BIGINT unsigned not null,"
   "AVG_TIMER_WAIT BIGINT unsigned not null,"
-  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "UNIQUE KEY (HOST, EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -578,7 +585,8 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_summary_by_user_by_event_
   "SUM_TIMER_WAIT BIGINT unsigned not null,"
   "MIN_TIMER_WAIT BIGINT unsigned not null,"
   "AVG_TIMER_WAIT BIGINT unsigned not null,"
-  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "UNIQUE KEY (USER, EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -598,7 +606,8 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_summary_by_account_by_eve
   "SUM_TIMER_WAIT BIGINT unsigned not null,"
   "MIN_TIMER_WAIT BIGINT unsigned not null,"
   "AVG_TIMER_WAIT BIGINT unsigned not null,"
-  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "UNIQUE KEY `ACCOUNT` (USER, HOST, EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -617,7 +626,8 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_summary_by_thread_by_even
   "SUM_TIMER_WAIT BIGINT unsigned not null,"
   "MIN_TIMER_WAIT BIGINT unsigned not null,"
   "AVG_TIMER_WAIT BIGINT unsigned not null,"
-  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "PRIMARY KEY (THREAD_ID, EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -635,7 +645,8 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_summary_global_by_event_n
   "SUM_TIMER_WAIT BIGINT unsigned not null,"
   "MIN_TIMER_WAIT BIGINT unsigned not null,"
   "AVG_TIMER_WAIT BIGINT unsigned not null,"
-  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "PRIMARY KEY (EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -650,7 +661,9 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.file_instances("
   "FILE_NAME VARCHAR(512) not null,"
   "EVENT_NAME VARCHAR(128) not null,"
-  "OPEN_COUNT INTEGER unsigned not null"
+  "OPEN_COUNT INTEGER unsigned not null,"
+  "PRIMARY KEY (FILE_NAME) USING HASH,"
+  "KEY (EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -685,7 +698,8 @@ SET @cmd="CREATE TABLE performance_schema.file_summary_by_event_name("
   "SUM_TIMER_MISC BIGINT unsigned not null,"
   "MIN_TIMER_MISC BIGINT unsigned not null,"
   "AVG_TIMER_MISC BIGINT unsigned not null,"
-  "MAX_TIMER_MISC BIGINT unsigned not null"
+  "MAX_TIMER_MISC BIGINT unsigned not null,"
+  "PRIMARY KEY (EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -722,7 +736,10 @@ SET @cmd="CREATE TABLE performance_schema.file_summary_by_instance("
   "SUM_TIMER_MISC BIGINT unsigned not null,"
   "MIN_TIMER_MISC BIGINT unsigned not null,"
   "AVG_TIMER_MISC BIGINT unsigned not null,"
-  "MAX_TIMER_MISC BIGINT unsigned not null"
+  "MAX_TIMER_MISC BIGINT unsigned not null,"
+  "PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,"
+  "KEY (FILE_NAME) USING HASH,"
+  "KEY (EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -742,7 +759,11 @@ SET @cmd="CREATE TABLE performance_schema.socket_instances("
   "SOCKET_ID INTEGER not null,"
   "IP VARCHAR(64) not null,"
   "PORT INTEGER not null,"
-  "STATE ENUM('IDLE','ACTIVE') not null"
+  "STATE ENUM('IDLE','ACTIVE') not null,"
+  "PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,"
+  "KEY (THREAD_ID) USING HASH,"
+  "KEY (SOCKET_ID) USING HASH,"
+  "KEY (IP, PORT) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -778,7 +799,9 @@ SET @cmd="CREATE TABLE performance_schema.socket_summary_by_instance("
   "SUM_TIMER_MISC BIGINT unsigned not null,"
   "MIN_TIMER_MISC BIGINT unsigned not null,"
   "AVG_TIMER_MISC BIGINT unsigned not null,"
-  "MAX_TIMER_MISC BIGINT unsigned not null"
+  "MAX_TIMER_MISC BIGINT unsigned not null,"
+  "PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,"
+  "KEY (EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -813,7 +836,8 @@ SET @cmd="CREATE TABLE performance_schema.socket_summary_by_event_name("
   "SUM_TIMER_MISC BIGINT unsigned not null,"
   "MIN_TIMER_MISC BIGINT unsigned not null,"
   "AVG_TIMER_MISC BIGINT unsigned not null,"
-  "MAX_TIMER_MISC BIGINT unsigned not null"
+  "MAX_TIMER_MISC BIGINT unsigned not null,"
+  "PRIMARY KEY (EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -854,7 +878,9 @@ SET @cmd="CREATE TABLE performance_schema.host_cache("
   "FIRST_SEEN TIMESTAMP(0) NOT NULL default 0,"
   "LAST_SEEN TIMESTAMP(0) NOT NULL default 0,"
   "FIRST_ERROR_SEEN TIMESTAMP(0) null default 0,"
-  "LAST_ERROR_SEEN TIMESTAMP(0) null default 0"
+  "LAST_ERROR_SEEN TIMESTAMP(0) null default 0,"
+  "PRIMARY KEY (IP) USING HASH,"
+  "KEY (HOST) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -869,7 +895,10 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.mutex_instances("
   "NAME VARCHAR(128) not null,"
   "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
-  "LOCKED_BY_THREAD_ID BIGINT unsigned"
+  "LOCKED_BY_THREAD_ID BIGINT unsigned,"
+  "PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,"
+  "KEY (NAME) USING HASH,"
+  "KEY (LOCKED_BY_THREAD_ID) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -889,7 +918,8 @@ SET @cmd="CREATE TABLE performance_schema.objects_summary_global_by_type("
   "SUM_TIMER_WAIT BIGINT unsigned not null,"
   "MIN_TIMER_WAIT BIGINT unsigned not null,"
   "AVG_TIMER_WAIT BIGINT unsigned not null,"
-  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "UNIQUE KEY `OBJECT` (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -921,7 +951,10 @@ SET @cmd="CREATE TABLE performance_schema.rwlock_instances("
   "NAME VARCHAR(128) not null,"
   "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
   "WRITE_LOCKED_BY_THREAD_ID BIGINT unsigned,"
-  "READ_LOCKED_BY_COUNT INTEGER unsigned not null"
+  "READ_LOCKED_BY_COUNT INTEGER unsigned not null,"
+  "PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,"
+  "KEY (NAME) USING HASH,"
+  "KEY (WRITE_LOCKED_BY_THREAD_ID) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -938,7 +971,8 @@ SET @cmd="CREATE TABLE performance_schema.setup_actors("
   "USER CHAR(32) collate utf8_bin default '%' not null,"
   "`ROLE` CHAR(32) collate utf8_bin default '%' not null,"
   "ENABLED ENUM ('YES', 'NO') not null default 'YES',"
-  "HISTORY ENUM ('YES', 'NO') not null default 'YES'"
+  "HISTORY ENUM ('YES', 'NO') not null default 'YES',"
+  "PRIMARY KEY (HOST, USER, `ROLE`) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -952,7 +986,8 @@ DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE performance_schema.setup_consumers("
   "NAME VARCHAR(64) not null,"
-  "ENABLED ENUM ('YES', 'NO') not null"
+  "ENABLED ENUM ('YES', 'NO') not null,"
+  "PRIMARY KEY (NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -967,7 +1002,8 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.setup_instruments("
   "NAME VARCHAR(128) not null,"
   "ENABLED ENUM ('YES', 'NO') not null,"
-  "TIMED ENUM ('YES', 'NO') not null"
+  "TIMED ENUM ('YES', 'NO') not null,"
+  "PRIMARY KEY (NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -984,7 +1020,8 @@ SET @cmd="CREATE TABLE performance_schema.setup_objects("
   "OBJECT_SCHEMA VARCHAR(64) default '%',"
   "OBJECT_NAME VARCHAR(64) not null default '%',"
   "ENABLED ENUM ('YES', 'NO') not null default 'YES',"
-  "TIMED ENUM ('YES', 'NO') not null default 'YES'"
+  "TIMED ENUM ('YES', 'NO') not null default 'YES',"
+  "UNIQUE KEY `OBJECT` (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -998,7 +1035,8 @@ DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE performance_schema.setup_timers("
   "NAME VARCHAR(64) not null,"
-  "TIMER_NAME ENUM ('CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND', 'TICK') not null"
+  "TIMER_NAME ENUM ('CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND', 'TICK') not null,"
+  "PRIMARY KEY (NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1049,7 +1087,8 @@ SET @cmd="CREATE TABLE performance_schema.table_io_waits_summary_by_index_usage(
   "SUM_TIMER_DELETE BIGINT unsigned not null,"
   "MIN_TIMER_DELETE BIGINT unsigned not null,"
   "AVG_TIMER_DELETE BIGINT unsigned not null,"
-  "MAX_TIMER_DELETE BIGINT unsigned not null"
+  "MAX_TIMER_DELETE BIGINT unsigned not null,"
+  "UNIQUE KEY `OBJECT` (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1099,7 +1138,8 @@ SET @cmd="CREATE TABLE performance_schema.table_io_waits_summary_by_table("
   "SUM_TIMER_DELETE BIGINT unsigned not null,"
   "MIN_TIMER_DELETE BIGINT unsigned not null,"
   "AVG_TIMER_DELETE BIGINT unsigned not null,"
-  "MAX_TIMER_DELETE BIGINT unsigned not null"
+  "MAX_TIMER_DELETE BIGINT unsigned not null,"
+  "UNIQUE KEY `OBJECT` (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1179,7 +1219,8 @@ SET @cmd="CREATE TABLE performance_schema.table_lock_waits_summary_by_table("
   "SUM_TIMER_WRITE_EXTERNAL BIGINT unsigned not null,"
   "MIN_TIMER_WRITE_EXTERNAL BIGINT unsigned not null,"
   "AVG_TIMER_WRITE_EXTERNAL BIGINT unsigned not null,"
-  "MAX_TIMER_WRITE_EXTERNAL BIGINT unsigned not null"
+  "MAX_TIMER_WRITE_EXTERNAL BIGINT unsigned not null,"
+  "UNIQUE KEY `OBJECT` (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1208,7 +1249,13 @@ SET @cmd="CREATE TABLE performance_schema.threads("
   "INSTRUMENTED ENUM ('YES', 'NO') not null,"
   "HISTORY ENUM ('YES', 'NO') not null,"
   "CONNECTION_TYPE VARCHAR(16),"
-  "THREAD_OS_ID BIGINT unsigned"
+  "THREAD_OS_ID BIGINT unsigned,"
+  "PRIMARY KEY (THREAD_ID) USING HASH,"
+  "KEY (PROCESSLIST_ID) USING HASH,"
+  "KEY (THREAD_OS_ID) USING HASH,"
+  "KEY (NAME) USING HASH,"
+  "KEY `PROCESSLIST_ACCOUNT` (PROCESSLIST_USER, PROCESSLIST_HOST) USING HASH,"
+  "KEY (PROCESSLIST_HOST) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1232,7 +1279,8 @@ SET @cmd="CREATE TABLE performance_schema.events_stages_current("
   "WORK_COMPLETED BIGINT unsigned,"
   "WORK_ESTIMATED BIGINT unsigned,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
+  "PRIMARY KEY (THREAD_ID, EVENT_ID) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1256,7 +1304,8 @@ SET @cmd="CREATE TABLE performance_schema.events_stages_history("
   "WORK_COMPLETED BIGINT unsigned,"
   "WORK_ESTIMATED BIGINT unsigned,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
+  "PRIMARY KEY (THREAD_ID, EVENT_ID) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1299,7 +1348,8 @@ SET @cmd="CREATE TABLE performance_schema.events_stages_summary_by_thread_by_eve
   "SUM_TIMER_WAIT BIGINT unsigned not null,"
   "MIN_TIMER_WAIT BIGINT unsigned not null,"
   "AVG_TIMER_WAIT BIGINT unsigned not null,"
-  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "PRIMARY KEY (THREAD_ID, EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1318,7 +1368,8 @@ SET @cmd="CREATE TABLE performance_schema.events_stages_summary_by_host_by_event
   "SUM_TIMER_WAIT BIGINT unsigned not null,"
   "MIN_TIMER_WAIT BIGINT unsigned not null,"
   "AVG_TIMER_WAIT BIGINT unsigned not null,"
-  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "UNIQUE KEY (HOST, EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1337,7 +1388,8 @@ SET @cmd="CREATE TABLE performance_schema.events_stages_summary_by_user_by_event
   "SUM_TIMER_WAIT BIGINT unsigned not null,"
   "MIN_TIMER_WAIT BIGINT unsigned not null,"
   "AVG_TIMER_WAIT BIGINT unsigned not null,"
-  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "UNIQUE KEY (USER, EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1357,7 +1409,8 @@ SET @cmd="CREATE TABLE performance_schema.events_stages_summary_by_account_by_ev
   "SUM_TIMER_WAIT BIGINT unsigned not null,"
   "MIN_TIMER_WAIT BIGINT unsigned not null,"
   "AVG_TIMER_WAIT BIGINT unsigned not null,"
-  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "UNIQUE KEY `ACCOUNT` (USER, HOST, EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1375,7 +1428,8 @@ SET @cmd="CREATE TABLE performance_schema.events_stages_summary_global_by_event_
   "SUM_TIMER_WAIT BIGINT unsigned not null,"
   "MIN_TIMER_WAIT BIGINT unsigned not null,"
   "AVG_TIMER_WAIT BIGINT unsigned not null,"
-  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "PRIMARY KEY (EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1428,7 +1482,8 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_current("
   "NO_GOOD_INDEX_USED BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
   "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
-  "NESTING_EVENT_LEVEL INTEGER"
+  "NESTING_EVENT_LEVEL INTEGER,"
+  "PRIMARY KEY (THREAD_ID, EVENT_ID) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1481,7 +1536,8 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_history("
   "NO_GOOD_INDEX_USED BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
   "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
-  "NESTING_EVENT_LEVEL INTEGER"
+  "NESTING_EVENT_LEVEL INTEGER,"
+  "PRIMARY KEY (THREAD_ID, EVENT_ID) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1572,7 +1628,8 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_thread_by
   "SUM_SORT_ROWS BIGINT unsigned not null,"
   "SUM_SORT_SCAN BIGINT unsigned not null,"
   "SUM_NO_INDEX_USED BIGINT unsigned not null,"
-  "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null"
+  "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null,"
+  "PRIMARY KEY (THREAD_ID, EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1610,7 +1667,8 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_host_by_e
   "SUM_SORT_ROWS BIGINT unsigned not null,"
   "SUM_SORT_SCAN BIGINT unsigned not null,"
   "SUM_NO_INDEX_USED BIGINT unsigned not null,"
-  "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null"
+  "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null,"
+  "UNIQUE KEY (HOST, EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1648,7 +1706,8 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_user_by_e
   "SUM_SORT_ROWS BIGINT unsigned not null,"
   "SUM_SORT_SCAN BIGINT unsigned not null,"
   "SUM_NO_INDEX_USED BIGINT unsigned not null,"
-  "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null"
+  "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null,"
+  "UNIQUE KEY (USER, EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1687,7 +1746,8 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_account_b
   "SUM_SORT_ROWS BIGINT unsigned not null,"
   "SUM_SORT_SCAN BIGINT unsigned not null,"
   "SUM_NO_INDEX_USED BIGINT unsigned not null,"
-  "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null"
+  "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null,"
+  "UNIQUE KEY `ACCOUNT` (USER, HOST, EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1724,7 +1784,8 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_summary_global_by_ev
   "SUM_SORT_ROWS BIGINT unsigned not null,"
   "SUM_SORT_SCAN BIGINT unsigned not null,"
   "SUM_NO_INDEX_USED BIGINT unsigned not null,"
-  "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null"
+  "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null,"
+  "PRIMARY KEY (EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1760,7 +1821,8 @@ SET @cmd="CREATE TABLE performance_schema.events_transactions_current("
   "NUMBER_OF_RELEASE_SAVEPOINT BIGINT unsigned,"
   "OBJECT_INSTANCE_BEGIN BIGINT unsigned,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
+  "PRIMARY KEY (THREAD_ID, EVENT_ID) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1796,7 +1858,8 @@ SET @cmd="CREATE TABLE performance_schema.events_transactions_history("
   "NUMBER_OF_RELEASE_SAVEPOINT BIGINT unsigned,"
   "OBJECT_INSTANCE_BEGIN BIGINT unsigned,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
+  "PRIMARY KEY (THREAD_ID, EVENT_ID) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1861,7 +1924,8 @@ SET @cmd="CREATE TABLE performance_schema.events_transactions_summary_by_thread_
   "SUM_TIMER_READ_ONLY BIGINT unsigned not null,"
   "MIN_TIMER_READ_ONLY BIGINT unsigned not null,"
   "AVG_TIMER_READ_ONLY BIGINT unsigned not null,"
-  "MAX_TIMER_READ_ONLY BIGINT unsigned not null"
+  "MAX_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "PRIMARY KEY (THREAD_ID, EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1890,7 +1954,8 @@ SET @cmd="CREATE TABLE performance_schema.events_transactions_summary_by_host_by
   "SUM_TIMER_READ_ONLY BIGINT unsigned not null,"
   "MIN_TIMER_READ_ONLY BIGINT unsigned not null,"
   "AVG_TIMER_READ_ONLY BIGINT unsigned not null,"
-  "MAX_TIMER_READ_ONLY BIGINT unsigned not null"
+  "MAX_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "UNIQUE KEY (HOST, EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1919,7 +1984,8 @@ SET @cmd="CREATE TABLE performance_schema.events_transactions_summary_by_user_by
   "SUM_TIMER_READ_ONLY BIGINT unsigned not null,"
   "MIN_TIMER_READ_ONLY BIGINT unsigned not null,"
   "AVG_TIMER_READ_ONLY BIGINT unsigned not null,"
-  "MAX_TIMER_READ_ONLY BIGINT unsigned not null"
+  "MAX_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "UNIQUE KEY (USER, EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1949,7 +2015,8 @@ SET @cmd="CREATE TABLE performance_schema.events_transactions_summary_by_account
   "SUM_TIMER_READ_ONLY BIGINT unsigned not null,"
   "MIN_TIMER_READ_ONLY BIGINT unsigned not null,"
   "AVG_TIMER_READ_ONLY BIGINT unsigned not null,"
-  "MAX_TIMER_READ_ONLY BIGINT unsigned not null"
+  "MAX_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "UNIQUE KEY `ACCOUNT` (USER, HOST, EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1977,7 +2044,8 @@ SET @cmd="CREATE TABLE performance_schema.events_transactions_summary_global_by_
   "SUM_TIMER_READ_ONLY BIGINT unsigned not null,"
   "MIN_TIMER_READ_ONLY BIGINT unsigned not null,"
   "AVG_TIMER_READ_ONLY BIGINT unsigned not null,"
-  "MAX_TIMER_READ_ONLY BIGINT unsigned not null"
+  "MAX_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "PRIMARY KEY (EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1998,7 +2066,8 @@ SET @cmd="CREATE TABLE performance_schema.events_errors_summary_by_account_by_er
   "SUM_ERROR_RAISED  BIGINT unsigned not null,"
   "SUM_ERROR_HANDLED BIGINT unsigned not null,"
   "FIRST_SEEN TIMESTAMP(0) null default 0,"
-  "LAST_SEEN TIMESTAMP(0) null default 0"
+  "LAST_SEEN TIMESTAMP(0) null default 0,"
+  "UNIQUE KEY `ACCOUNT` (USER, HOST, ERROR_NUMBER) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2018,7 +2087,8 @@ SET @cmd="CREATE TABLE performance_schema.events_errors_summary_by_host_by_error
   "SUM_ERROR_RAISED  BIGINT unsigned not null,"
   "SUM_ERROR_HANDLED BIGINT unsigned not null,"
   "FIRST_SEEN TIMESTAMP(0) null default 0,"
-  "LAST_SEEN TIMESTAMP(0) null default 0"
+  "LAST_SEEN TIMESTAMP(0) null default 0,"
+  "UNIQUE KEY (HOST, ERROR_NUMBER) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2038,7 +2108,8 @@ SET @cmd="CREATE TABLE performance_schema.events_errors_summary_by_user_by_error
   "SUM_ERROR_RAISED  BIGINT unsigned not null,"
   "SUM_ERROR_HANDLED BIGINT unsigned not null,"
   "FIRST_SEEN TIMESTAMP(0) null default 0,"
-  "LAST_SEEN TIMESTAMP(0) null default 0"
+  "LAST_SEEN TIMESTAMP(0) null default 0,"
+  "UNIQUE KEY (USER, ERROR_NUMBER) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2058,7 +2129,8 @@ SET @cmd="CREATE TABLE performance_schema.events_errors_summary_by_thread_by_err
   "SUM_ERROR_RAISED  BIGINT unsigned not null,"
   "SUM_ERROR_HANDLED BIGINT unsigned not null,"
   "FIRST_SEEN TIMESTAMP(0) null default 0,"
-  "LAST_SEEN TIMESTAMP(0) null default 0"
+  "LAST_SEEN TIMESTAMP(0) null default 0,"
+  "UNIQUE KEY (THREAD_ID, ERROR_NUMBER) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2077,7 +2149,8 @@ SET @cmd="CREATE TABLE performance_schema.events_errors_summary_global_by_error(
   "SUM_ERROR_RAISED  BIGINT unsigned not null,"
   "SUM_ERROR_HANDLED BIGINT unsigned not null,"
   "FIRST_SEEN TIMESTAMP(0) null default 0,"
-  "LAST_SEEN TIMESTAMP(0) null default 0"
+  "LAST_SEEN TIMESTAMP(0) null default 0,"
+  "UNIQUE KEY (ERROR_NUMBER) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2092,7 +2165,8 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.hosts("
   "HOST CHAR(60) collate utf8_bin default null,"
   "CURRENT_CONNECTIONS bigint not null,"
-  "TOTAL_CONNECTIONS bigint not null"
+  "TOTAL_CONNECTIONS bigint not null,"
+  "UNIQUE KEY (HOST) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2107,7 +2181,8 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.users("
   "USER CHAR(32) collate utf8_bin default null,"
   "CURRENT_CONNECTIONS bigint not null,"
-  "TOTAL_CONNECTIONS bigint not null"
+  "TOTAL_CONNECTIONS bigint not null,"
+  "UNIQUE KEY (USER) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2123,7 +2198,8 @@ SET @cmd="CREATE TABLE performance_schema.accounts("
   "USER CHAR(32) collate utf8_bin default null,"
   "HOST CHAR(60) collate utf8_bin default null,"
   "CURRENT_CONNECTIONS bigint not null,"
-  "TOTAL_CONNECTIONS bigint not null"
+  "TOTAL_CONNECTIONS bigint not null,"
+  "UNIQUE KEY `ACCOUNT` (USER, HOST) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2146,7 +2222,8 @@ SET @cmd="CREATE TABLE performance_schema.memory_summary_global_by_event_name("
   "HIGH_COUNT_USED BIGINT not null,"
   "LOW_NUMBER_OF_BYTES_USED BIGINT not null,"
   "CURRENT_NUMBER_OF_BYTES_USED BIGINT not null,"
-  "HIGH_NUMBER_OF_BYTES_USED BIGINT not null"
+  "HIGH_NUMBER_OF_BYTES_USED BIGINT not null,"
+  "PRIMARY KEY (EVENT_NAME)"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2170,7 +2247,8 @@ SET @cmd="CREATE TABLE performance_schema.memory_summary_by_thread_by_event_name
   "HIGH_COUNT_USED BIGINT not null,"
   "LOW_NUMBER_OF_BYTES_USED BIGINT not null,"
   "CURRENT_NUMBER_OF_BYTES_USED BIGINT not null,"
-  "HIGH_NUMBER_OF_BYTES_USED BIGINT not null"
+  "HIGH_NUMBER_OF_BYTES_USED BIGINT not null,"
+  "PRIMARY KEY (THREAD_ID, EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2195,7 +2273,8 @@ SET @cmd="CREATE TABLE performance_schema.memory_summary_by_account_by_event_nam
   "HIGH_COUNT_USED BIGINT not null,"
   "LOW_NUMBER_OF_BYTES_USED BIGINT not null,"
   "CURRENT_NUMBER_OF_BYTES_USED BIGINT not null,"
-  "HIGH_NUMBER_OF_BYTES_USED BIGINT not null"
+  "HIGH_NUMBER_OF_BYTES_USED BIGINT not null,"
+  "UNIQUE KEY `ACCOUNT` (USER, HOST, EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2219,7 +2298,8 @@ SET @cmd="CREATE TABLE performance_schema.memory_summary_by_host_by_event_name("
   "HIGH_COUNT_USED BIGINT not null,"
   "LOW_NUMBER_OF_BYTES_USED BIGINT not null,"
   "CURRENT_NUMBER_OF_BYTES_USED BIGINT not null,"
-  "HIGH_NUMBER_OF_BYTES_USED BIGINT not null"
+  "HIGH_NUMBER_OF_BYTES_USED BIGINT not null,"
+  "UNIQUE KEY (HOST, EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2243,7 +2323,8 @@ SET @cmd="CREATE TABLE performance_schema.memory_summary_by_user_by_event_name("
   "HIGH_COUNT_USED BIGINT not null,"
   "LOW_NUMBER_OF_BYTES_USED BIGINT not null,"
   "CURRENT_NUMBER_OF_BYTES_USED BIGINT not null,"
-  "HIGH_NUMBER_OF_BYTES_USED BIGINT not null"
+  "HIGH_NUMBER_OF_BYTES_USED BIGINT not null,"
+  "UNIQUE KEY (USER, EVENT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2284,7 +2365,8 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_digest("
   "SUM_NO_INDEX_USED BIGINT unsigned not null,"
   "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null,"
   "FIRST_SEEN TIMESTAMP(0) NOT NULL default 0,"
-  "LAST_SEEN TIMESTAMP(0) NOT NULL default 0"
+  "LAST_SEEN TIMESTAMP(0) NOT NULL default 0,"
+  "UNIQUE KEY (SCHEMA_NAME, DIGEST) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 
@@ -2329,7 +2411,8 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_program("
   "SUM_SORT_ROWS bigint(20) unsigned NOT NULL,"
   "SUM_SORT_SCAN bigint(20) unsigned NOT NULL,"
   "SUM_NO_INDEX_USED bigint(20) unsigned NOT NULL,"
-  "SUM_NO_GOOD_INDEX_USED bigint(20) unsigned NOT NULL"
+  "SUM_NO_GOOD_INDEX_USED bigint(20) unsigned NOT NULL,"
+  "PRIMARY KEY (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2376,7 +2459,12 @@ SET @cmd="CREATE TABLE performance_schema.prepared_statements_instances("
   "SUM_SORT_ROWS bigint(20) unsigned NOT NULL,"
   "SUM_SORT_SCAN bigint(20) unsigned NOT NULL,"
   "SUM_NO_INDEX_USED bigint(20) unsigned NOT NULL,"
-  "SUM_NO_GOOD_INDEX_USED bigint(20) unsigned NOT NULL"
+  "SUM_NO_GOOD_INDEX_USED bigint(20) unsigned NOT NULL,"
+  "PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,"
+  "UNIQUE KEY (OWNER_THREAD_ID, OWNER_EVENT_ID) USING HASH,"
+  "KEY (STATEMENT_ID) USING HASH,"
+  "KEY (STATEMENT_NAME) USING HASH,"
+  "KEY (OWNER_OBJECT_TYPE, OWNER_OBJECT_SCHEMA, OWNER_OBJECT_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2407,7 +2495,8 @@ SET @cmd="CREATE TABLE performance_schema.replication_connection_configuration("
   "CONNECTION_RETRY_INTERVAL INTEGER not null,"
   "CONNECTION_RETRY_COUNT BIGINT unsigned not null,"
   "HEARTBEAT_INTERVAL DOUBLE(10,3) unsigned not null COMMENT 'Number of seconds after which a heartbeat will be sent .',"
-  "TLS_VERSION VARCHAR(255) not null"
+  "TLS_VERSION VARCHAR(255) not null,"
+  "PRIMARY KEY (CHANNEL_NAME) USING HASH"
   ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2470,7 +2559,9 @@ SET @cmd="CREATE TABLE performance_schema.replication_connection_status("
   "RECEIVED_TRANSACTION_SET LONGTEXT not null,"
   "LAST_ERROR_NUMBER INTEGER not null,"
   "LAST_ERROR_MESSAGE VARCHAR(1024) not null,"
-  "LAST_ERROR_TIMESTAMP TIMESTAMP(0) not null"
+  "LAST_ERROR_TIMESTAMP TIMESTAMP(0) not null,"
+  "PRIMARY KEY (CHANNEL_NAME) USING HASH,"
+  "KEY (THREAD_ID) USING HASH"
   ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2484,7 +2575,8 @@ DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE performance_schema.replication_applier_configuration("
   "CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,"
-  "DESIRED_DELAY INTEGER not null"
+  "DESIRED_DELAY INTEGER not null,"
+  "PRIMARY KEY (CHANNEL_NAME) USING HASH"
   ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2500,7 +2592,8 @@ SET @cmd="CREATE TABLE performance_schema.replication_applier_status("
   "CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,"
   "SERVICE_STATE ENUM('ON','OFF') not null,"
   "REMAINING_DELAY INTEGER unsigned,"
-  "COUNT_TRANSACTIONS_RETRIES BIGINT unsigned not null"
+  "COUNT_TRANSACTIONS_RETRIES BIGINT unsigned not null,"
+  "PRIMARY KEY (CHANNEL_NAME) USING HASH"
   ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2518,7 +2611,9 @@ SET @cmd="CREATE TABLE performance_schema.replication_applier_status_by_coordina
   "SERVICE_STATE ENUM('ON','OFF') not null,"
   "LAST_ERROR_NUMBER INTEGER not null,"
   "LAST_ERROR_MESSAGE VARCHAR(1024) not null,"
-  "LAST_ERROR_TIMESTAMP TIMESTAMP(0) not null"
+  "LAST_ERROR_TIMESTAMP TIMESTAMP(0) not null,"
+  "PRIMARY KEY (CHANNEL_NAME) USING HASH,"
+  "KEY (THREAD_ID) USING HASH"
   ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2538,7 +2633,9 @@ SET @cmd="CREATE TABLE performance_schema.replication_applier_status_by_worker("
   "LAST_SEEN_TRANSACTION CHAR(57) not null,"
   "LAST_ERROR_NUMBER INTEGER not null,"
   "LAST_ERROR_MESSAGE VARCHAR(1024) not null,"
-  "LAST_ERROR_TIMESTAMP TIMESTAMP(0) not null"
+  "LAST_ERROR_TIMESTAMP TIMESTAMP(0) not null,"
+  "PRIMARY KEY (CHANNEL_NAME, WORKER_ID) USING HASH,"
+  "KEY (THREAD_ID) USING HASH"
   ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2554,7 +2651,8 @@ SET @cmd="CREATE TABLE performance_schema.session_connect_attrs("
   "PROCESSLIST_ID INT NOT NULL,"
   "ATTR_NAME VARCHAR(32) NOT NULL,"
   "ATTR_VALUE VARCHAR(1024),"
-  "ORDINAL_POSITION INT"
+  "ORDINAL_POSITION INT,"
+  "PRIMARY KEY (PROCESSLIST_ID, ATTR_NAME)"
   ")ENGINE=PERFORMANCE_SCHEMA CHARACTER SET utf8 COLLATE utf8_bin;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2586,7 +2684,10 @@ SET @cmd="CREATE TABLE performance_schema.table_handles("
   "OWNER_THREAD_ID BIGINT unsigned,"
   "OWNER_EVENT_ID BIGINT unsigned,"
   "INTERNAL_LOCK VARCHAR(64),"
-  "EXTERNAL_LOCK VARCHAR(64)"
+  "EXTERNAL_LOCK VARCHAR(64),"
+  "PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,"
+  "KEY (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME) USING HASH,"
+  "KEY (OWNER_THREAD_ID, OWNER_EVENT_ID) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2608,7 +2709,10 @@ SET @cmd="CREATE TABLE performance_schema.metadata_locks("
   "LOCK_STATUS VARCHAR(32) not null,"
   "SOURCE VARCHAR(64),"
   "OWNER_THREAD_ID BIGINT unsigned,"
-  "OWNER_EVENT_ID BIGINT unsigned"
+  "OWNER_EVENT_ID BIGINT unsigned,"
+  "PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,"
+  "KEY (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME) USING HASH,"
+  "KEY (OWNER_THREAD_ID, OWNER_EVENT_ID) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2623,7 +2727,8 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.user_variables_by_thread("
   "THREAD_ID BIGINT unsigned not null,"
   "VARIABLE_NAME VARCHAR(64) not null,"
-  "VARIABLE_VALUE LONGBLOB"
+  "VARIABLE_VALUE LONGBLOB,"
+  "PRIMARY KEY (THREAD_ID, VARIABLE_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2638,7 +2743,8 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.variables_by_thread("
   "THREAD_ID BIGINT unsigned not null,"
   "VARIABLE_NAME VARCHAR(64) not null,"
-  "VARIABLE_VALUE VARCHAR(1024)"
+  "VARIABLE_VALUE VARCHAR(1024),"
+  "PRIMARY KEY (THREAD_ID, VARIABLE_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2652,7 +2758,8 @@ DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE performance_schema.global_variables("
   "VARIABLE_NAME VARCHAR(64) not null,"
-  "VARIABLE_VALUE VARCHAR(1024)"
+  "VARIABLE_VALUE VARCHAR(1024),"
+  "PRIMARY KEY (VARIABLE_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2666,7 +2773,8 @@ DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE performance_schema.session_variables("
   "VARIABLE_NAME VARCHAR(64) not null,"
-  "VARIABLE_VALUE VARCHAR(1024)"
+  "VARIABLE_VALUE VARCHAR(1024),"
+  "PRIMARY KEY (VARIABLE_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2698,7 +2806,8 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.status_by_thread("
   "THREAD_ID BIGINT unsigned not null,"
   "VARIABLE_NAME VARCHAR(64) not null,"
-  "VARIABLE_VALUE VARCHAR(1024)"
+  "VARIABLE_VALUE VARCHAR(1024),"
+  "PRIMARY KEY (THREAD_ID, VARIABLE_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2713,7 +2822,8 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.status_by_user("
   "USER CHAR(32) collate utf8_bin default null,"
   "VARIABLE_NAME VARCHAR(64) not null,"
-  "VARIABLE_VALUE VARCHAR(1024)"
+  "VARIABLE_VALUE VARCHAR(1024),"
+  "UNIQUE KEY (USER, VARIABLE_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2728,7 +2838,8 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.status_by_host("
   "HOST CHAR(60) collate utf8_bin default null,"
   "VARIABLE_NAME VARCHAR(64) not null,"
-  "VARIABLE_VALUE VARCHAR(1024)"
+  "VARIABLE_VALUE VARCHAR(1024),"
+  "UNIQUE KEY (HOST, VARIABLE_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2744,7 +2855,8 @@ SET @cmd="CREATE TABLE performance_schema.status_by_account("
   "USER CHAR(32) collate utf8_bin default null,"
   "HOST CHAR(60) collate utf8_bin default null,"
   "VARIABLE_NAME VARCHAR(64) not null,"
-  "VARIABLE_VALUE VARCHAR(1024)"
+  "VARIABLE_VALUE VARCHAR(1024),"
+  "UNIQUE KEY `ACCOUNT` (USER, HOST, VARIABLE_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2758,7 +2870,8 @@ DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE performance_schema.global_status("
   "VARIABLE_NAME VARCHAR(64) not null,"
-  "VARIABLE_VALUE VARCHAR(1024)"
+  "VARIABLE_VALUE VARCHAR(1024),"
+  "PRIMARY KEY (VARIABLE_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2772,7 +2885,8 @@ DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE performance_schema.session_status("
   "VARIABLE_NAME VARCHAR(64) not null,"
-  "VARIABLE_VALUE VARCHAR(1024)"
+  "VARIABLE_VALUE VARCHAR(1024),"
+  "PRIMARY KEY (VARIABLE_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');

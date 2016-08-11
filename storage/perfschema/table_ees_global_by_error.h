@@ -33,6 +33,23 @@
   @{
 */
 
+class PFS_index_ees_global_by_error : public PFS_engine_index
+{
+public:
+  PFS_index_ees_global_by_error()
+    : PFS_engine_index(&m_key),
+    m_key("ERROR_NUMBER")
+  {}
+
+  ~PFS_index_ees_global_by_error()
+  {}
+
+  virtual bool match_error_index(uint error_index);
+
+private:
+  PFS_key_error_number m_key;
+};
+
 /**
   A row of table
   PERFORMANCE_SCHEMA.EVENTS_ERRORS_SUMMARY_GLOBAL_BY_ERROR.
@@ -46,36 +63,32 @@ struct row_ees_global_by_error
 /**
   Position of a cursor on
   PERFORMANCE_SCHEMA.EVENTS_ERRORS_SUMMARY_GLOBAL_BY_ERROR.
-  Index 1 on error class (1 based)
-  Index 2 on error (0 based)
+  Index 1 on error (0 based)
 */
 struct pos_ees_global_by_error
-: public PFS_double_index
+: public PFS_simple_index
 {
   pos_ees_global_by_error()
-    : PFS_double_index(1, 0)
+    : PFS_simple_index(0)
   {}
 
   inline void reset(void)
   {
-    m_index_1= 1;
-    m_index_2= 0;
+    m_index= 0;
   }
 
   inline void next(void)
   {
-    m_index_1++;
-    m_index_2= 0;
+    m_index++;
   }
 
   inline bool has_more_error(void)
-  { return (m_index_2 < max_server_errors); }
+  { return (m_index < max_server_errors); }
 
   inline void next_error(void)
   {
-    m_index_2++;
+    m_index++;
   }
-
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_ERRORS_SUMMARY_GLOBAL_BY_ERROR. */
@@ -88,10 +101,14 @@ public:
   static int delete_all_rows();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
   virtual int rnd_init(bool scan);
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
 protected:
   virtual int read_row_values(TABLE *table,
@@ -106,7 +123,7 @@ public:
   {}
 
 protected:
-  void make_row(PFS_error_class *klass, int error_index);
+  void make_row(int error_index);
 
 private:
   /** Table share lock. */
@@ -122,6 +139,9 @@ private:
   pos_ees_global_by_error m_pos;
   /** Next position. */
   pos_ees_global_by_error m_next_pos;
+
+protected:
+  PFS_index_ees_global_by_error *m_opened_index;
 };
 
 /** @} */

@@ -28,6 +28,7 @@
 #include "sql_class.h"
 #include "mysqld.h"
 #include "sql_audit.h"                      // audit_global_variable_get
+#include "derror.h"
 
 
 bool Find_THD_variable::operator()(THD *thd)
@@ -608,7 +609,7 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var,
   if (show_var_type != SHOW_FUNC && query_scope == OPT_GLOBAL &&
       mysql_audit_notify(current_thread,
                          AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_GET),
-                         m_name, value, m_value_length))
+                         m_name, value, (uint)m_value_length))
     return;
 #endif
 
@@ -1415,4 +1416,31 @@ void reset_pfs_status_stats()
   reset_global_status();
 }
 
+/**
+  Warning issued if the version of the system variable hash table changes
+  during a query. This can happen when a plugin is loaded or unloaded.
+*/
+void system_variable_warning(void)
+{
+  THD *thd= current_thd;
+  DBUG_ASSERT(thd != NULL);
+  push_warning_printf(thd, Sql_condition::SL_WARNING,
+                      ER_WARN_TOO_FEW_RECORDS,
+                      ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
+                      "System variable hash changed during query.");
+}
+
+/**
+  Warning issued if the global status variable array changes during a query.
+  This can happen when a plugin is loaded or unloaded.
+*/
+void status_variable_warning(void)
+{
+  THD *thd= current_thd;
+  DBUG_ASSERT(thd != NULL);
+  push_warning_printf(thd, Sql_condition::SL_WARNING,
+                      ER_WARN_TOO_FEW_RECORDS,
+                      ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
+                      "Global status variable array changed during query.");
+}
 /** @} */

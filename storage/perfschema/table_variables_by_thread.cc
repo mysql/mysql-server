@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,6 +29,28 @@
 #include "field.h"
 #include "sql_class.h"
 #include "mysqld.h"
+
+bool PFS_index_variables_by_thread::match(PFS_thread *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (! m_key_1.match(pfs))
+      return false;
+  }
+
+  return true;
+}
+
+bool PFS_index_variables_by_thread::match(const System_variable *pfs)
+{
+  if (m_fields >= 2)
+  {
+    if (! m_key_2.match(pfs))
+      return false;
+  }
+
+  return true;
+}
 
 THR_LOCK table_variables_by_thread::m_table_lock;
 
@@ -89,7 +111,8 @@ ha_rows table_variables_by_thread::get_row_count(void)
 
 table_variables_by_thread::table_variables_by_thread()
   : PFS_engine_table(&m_share, &m_pos),
-    m_sysvar_cache(true), m_row_exists(false), m_pos(), m_next_pos(), m_context(NULL)
+    m_sysvar_cache(true), m_row_exists(false), m_pos(), m_next_pos(),
+    m_context(NULL)
 {}
 
 void table_variables_by_thread::reset_position(void)
@@ -100,21 +123,12 @@ void table_variables_by_thread::reset_position(void)
 
 int table_variables_by_thread::rnd_init(bool scan)
 {
-  /*
-    Build array of SHOW_VARs from system variable hash prior to materializing
-    threads in rnd_next() or rnd_pos().
-  */
+  /* Build array of SHOW_VARs from system variable hash. */
   m_sysvar_cache.initialize_session();
 
-  /* Record the version of the system variable hash. */
+  /* Record the version of the system variable hash, store in TLS. */
   ulonglong hash_version= m_sysvar_cache.get_sysvar_hash_version();
 
-  /*
-    The table context holds the current version of the system variable hash and
-    a record of which threads were materialized.
-    If scan == true, then allocate a new context from mem_root and store in TLS.
-    If scan == false, then restore from TLS.
-  */
   m_context= (table_variables_by_thread_context *)current_thd->alloc(sizeof(table_variables_by_thread_context));
   new(m_context) table_variables_by_thread_context(hash_version, !scan);
   return 0;
@@ -122,9 +136,11 @@ int table_variables_by_thread::rnd_init(bool scan)
 
 int table_variables_by_thread::rnd_next(void)
 {
-  /* If system variable hash changes, exit with warning. */ // TODO: Issue warning
-  if (!m_context->versions_match())
+  if (m_context && !m_context->versions_match())
+  {
+    system_variable_warning();
     return HA_ERR_END_OF_FILE;
+  }
 
   bool has_more_thread= true;
 
@@ -137,9 +153,6 @@ int table_variables_by_thread::rnd_next(void)
     /* Materialize all variables for the current thread. Assign a dedicated mem_root. */
     if (m_sysvar_cache.materialize_session(pfs_thread, true) == 0)
     {
-      /* Mark this thread as materialized. */
-      m_context->set_item(m_pos.m_index_1);
-
       const System_variable *system_var= m_sysvar_cache.get(m_pos.m_index_2);
       if (system_var != NULL)
       {
@@ -155,23 +168,19 @@ int table_variables_by_thread::rnd_next(void)
 int
 table_variables_by_thread::rnd_pos(const void *pos)
 {
-  /* If system variable hash changes, do nothing. */
-  if (!m_context->versions_match())
-    return HA_ERR_RECORD_DELETED;
+  if (m_context && !m_context->versions_match())
+  {
+    system_variable_warning();
+    return HA_ERR_END_OF_FILE;
+  }
 
   set_position(pos);
   DBUG_ASSERT(m_pos.m_index_1 < global_thread_container.get_row_count());
 
   PFS_thread *pfs_thread= global_thread_container.get(m_pos.m_index_1);
-    /*
-    Only materialize threads that were previously materialized by rnd_next().
-    If a thread cannot be rematerialized, then do nothing.
-    Only materialize the requested system variable to avoid repeated
-    materialization of each thread, such as with ORDER BY variable_name.
-  */
-  if (m_context->is_item_set(m_pos.m_index_1) &&
-      /* Materialize only the requested variable. */
-      m_sysvar_cache.materialize_session(pfs_thread, m_pos.m_index_2) == 0)
+
+  /* Materialize the requested variable. */
+  if (m_sysvar_cache.materialize_session(pfs_thread, m_pos.m_index_2) == 0)
   {
     /* Get the first (and only) element from the cache. */
     const System_variable *system_var= m_sysvar_cache.get();
@@ -183,6 +192,69 @@ table_variables_by_thread::rnd_pos(const void *pos)
     }
   }
   return HA_ERR_RECORD_DELETED;
+}
+
+int table_variables_by_thread::index_init(uint idx, bool sorted)
+{
+  /* Build array of SHOW_VARs from the system variable hash. */
+  m_sysvar_cache.initialize_session();
+
+  /* Record the version of the system variable hash, store in TLS. */
+  ulonglong hash_version= m_sysvar_cache.get_sysvar_hash_version();
+  m_context= (table_variables_by_thread_context *)current_thd->alloc(sizeof(table_variables_by_thread_context));
+  new(m_context) table_variables_by_thread_context(hash_version, false);
+
+  PFS_index_variables_by_thread *result= NULL;
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_variables_by_thread);
+  m_opened_index= result;
+  m_index= result;
+
+  return 0;
+}
+
+int table_variables_by_thread::index_next(void)
+{
+  if (m_context && !m_context->versions_match())
+  {
+    system_variable_warning();
+    return HA_ERR_END_OF_FILE;
+  }
+
+  bool has_more_thread= true;
+
+  for (m_pos.set_at(&m_next_pos);
+       has_more_thread;
+       m_pos.next_thread())
+  {
+    PFS_thread *pfs_thread= global_thread_container.get(m_pos.m_index_1, &has_more_thread);
+
+    if (pfs_thread != NULL)
+    {
+      if (m_opened_index->match(pfs_thread))
+      {
+        if (m_sysvar_cache.materialize_session(pfs_thread, true) == 0)
+        {
+          const System_variable *system_var;
+          do
+          {
+            system_var= m_sysvar_cache.get(m_pos.m_index_2);
+            if (system_var != NULL)
+            {
+              if (m_opened_index->match(system_var))
+              {
+                make_row(pfs_thread, system_var);
+                m_next_pos.set_after(&m_pos);
+                return 0;
+              }
+              m_pos.m_index_2++;
+            }
+          } while (system_var != NULL);
+        }
+      }
+    }
+  }
+  return HA_ERR_END_OF_FILE;
 }
 
 void table_variables_by_thread
@@ -244,4 +316,3 @@ int table_variables_by_thread
 
   return 0;
 }
-

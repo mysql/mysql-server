@@ -1,0 +1,81 @@
+create database explain_test_db;
+use explain_test_db;
+create table explain_test_table(c int);
+create procedure explain_test_proc()
+BEGIN
+select * from explain_test_table;
+END //
+call explain_test_proc();
+c
+insert into performance_schema.setup_objects values ('PROCEDURE',
+'explain_test_db', 'explain_test_proc', 'YES', 'YES');
+############ Explain for Query ####################################
+explain select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+from performance_schema.setup_objects
+where OBJECT_TYPE = 'PROCEDURE';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	setup_objects	NULL	ref	OBJECT	OBJECT	1	const	#	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `performance_schema`.`setup_objects`.`OBJECT_TYPE` AS `OBJECT_TYPE`,`performance_schema`.`setup_objects`.`OBJECT_SCHEMA` AS `OBJECT_SCHEMA`,`performance_schema`.`setup_objects`.`OBJECT_NAME` AS `OBJECT_NAME` from `performance_schema`.`setup_objects` where (`performance_schema`.`setup_objects`.`OBJECT_TYPE` = 'PROCEDURE')
+use test;
+############ Explain for Query ####################################
+explain select *
+from performance_schema.setup_objects
+where OBJECT_TYPE = 'PROCEDURE' and OBJECT_SCHEMA = 'explain_test_db';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	setup_objects	NULL	ref	OBJECT	OBJECT	196	const,const	#	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `performance_schema`.`setup_objects`.`OBJECT_TYPE` AS `OBJECT_TYPE`,`performance_schema`.`setup_objects`.`OBJECT_SCHEMA` AS `OBJECT_SCHEMA`,`performance_schema`.`setup_objects`.`OBJECT_NAME` AS `OBJECT_NAME`,`performance_schema`.`setup_objects`.`ENABLED` AS `ENABLED`,`performance_schema`.`setup_objects`.`TIMED` AS `TIMED` from `performance_schema`.`setup_objects` where ((`performance_schema`.`setup_objects`.`OBJECT_TYPE` = 'PROCEDURE') and (`performance_schema`.`setup_objects`.`OBJECT_SCHEMA` = 'explain_test_db'))
+############ Explain for Query ####################################
+explain select *
+from performance_schema.setup_objects
+where OBJECT_TYPE = 'PROCEDURE' and OBJECT_SCHEMA = 'explain_test_db'
+        and OBJECT_NAME = 'noobject';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select NULL AS `OBJECT_TYPE`,NULL AS `OBJECT_SCHEMA`,NULL AS `OBJECT_NAME`,NULL AS `ENABLED`,NULL AS `TIMED` from `performance_schema`.`setup_objects` where ((NULL = 'PROCEDURE') and (NULL = 'explain_test_db') and (NULL = 'noobject'))
+############ Explain for Query ####################################
+explain select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+from performance_schema.setup_objects
+where OBJECT_TYPE = 'NOTYPE' and OBJECT_SCHEMA = 'explain_test_db'
+        and OBJECT_NAME = 'explain_test_proc';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select NULL AS `OBJECT_TYPE`,NULL AS `OBJECT_SCHEMA`,NULL AS `OBJECT_NAME` from `performance_schema`.`setup_objects` where ((NULL = 'NOTYPE') and (NULL = 'explain_test_db') and (NULL = 'explain_test_proc'))
+############ Explain for Query ####################################
+explain select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+from performance_schema.setup_objects
+where OBJECT_TYPE = 'PROCEDURE' and OBJECT_SCHEMA = 'nodb'
+        and OBJECT_NAME = 'explain_test_proc';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select NULL AS `OBJECT_TYPE`,NULL AS `OBJECT_SCHEMA`,NULL AS `OBJECT_NAME` from `performance_schema`.`setup_objects` where ((NULL = 'PROCEDURE') and (NULL = 'nodb') and (NULL = 'explain_test_proc'))
+############ Explain for Query ####################################
+explain select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+from performance_schema.setup_objects
+where OBJECT_TYPE = 'PROCEDURE' and OBJECT_SCHEMA = 'explain_test_db'
+        and OBJECT_NAME = 'explain_test_proc';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	setup_objects	NULL	const	OBJECT	OBJECT	390	const,const,const	#	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select 'PROCEDURE' AS `OBJECT_TYPE`,'explain_test_db' AS `OBJECT_SCHEMA`,'explain_test_proc' AS `OBJECT_NAME` from `performance_schema`.`setup_objects` where (('PROCEDURE' = 'PROCEDURE') and ('explain_test_db' = 'explain_test_db') and ('explain_test_proc' = 'explain_test_proc'))
+############# Explain End #########################################
+flush status;
+select ENABLED, TIMED
+from performance_schema.setup_objects
+where OBJECT_TYPE = 'TABLE' and OBJECT_SCHEMA = 'explain_test_db'
+        and OBJECT_NAME = 'explain_test_proc';
+ENABLED	TIMED
+select ENABLED, TIMED
+from performance_schema.setup_objects
+where OBJECT_TYPE = 'PROCEDURE' and OBJECT_SCHEMA = 'explain_test_db'
+        and OBJECT_NAME = 'explain_test_proc';
+ENABLED	TIMED
+YES	YES
+OK: handler_read_key incremented
+delete from performance_schema.setup_objects where object_schema = 'explain_test_db';
+drop table explain_test_db.explain_test_table;
+drop database explain_test_db;

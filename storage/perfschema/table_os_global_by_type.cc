@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -93,6 +93,52 @@ table_os_global_by_type::m_share=
   false, /* checked */
   false  /* perpetual */
 };
+
+bool PFS_index_os_global_by_type::match(PFS_table_share *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key_1.match(OBJECT_TYPE_TABLE))
+      return false;
+  }
+
+  if (m_fields >= 2)
+  {
+    if (!m_key_2.match(pfs))
+      return false;
+  }
+
+  if (m_fields >= 3)
+  {
+    if (!m_key_3.match(pfs))
+      return false;
+  }
+
+  return true;
+}
+
+bool PFS_index_os_global_by_type::match(PFS_program *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key_1.match(pfs))
+      return false;
+  }
+
+  if (m_fields >= 2)
+  {
+    if (!m_key_2.match(pfs))
+      return false;
+  }
+
+  if (m_fields >= 3)
+  {
+    if (!m_key_3.match(pfs))
+      return false;
+  }
+
+  return true;
+}
 
 PFS_engine_table*
 table_os_global_by_type::create(void)
@@ -212,6 +258,75 @@ table_os_global_by_type::rnd_pos(const void *pos)
   }
 
   return HA_ERR_RECORD_DELETED;
+}
+
+int table_os_global_by_type::index_init(uint idx, bool sorted)
+{
+  PFS_index_os_global_by_type *result;
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_os_global_by_type);
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_os_global_by_type::index_next(void)
+{
+  for (m_pos.set_at(&m_next_pos);
+       m_pos.has_more_view();
+       m_pos.next_view())
+  {
+    switch (m_pos.m_index_1) {
+    case pos_os_global_by_type::VIEW_TABLE:
+      {
+        PFS_table_share *table_share;
+        bool has_more_share= true;
+
+        for (;
+             has_more_share;
+             m_pos.m_index_2++)
+        {
+          table_share= global_table_share_container.get(m_pos.m_index_2, &has_more_share);
+          if (table_share != NULL)
+          {
+            if (m_opened_index->match(table_share))
+            {
+              make_table_row(table_share);
+              m_next_pos.set_after(&m_pos);
+              return 0;
+            }
+          }
+        }
+      }
+      break;
+    case pos_os_global_by_type::VIEW_PROGRAM:
+      {
+        PFS_program *pfs_program;
+        bool has_more_program= true;
+
+        for (;
+             has_more_program;
+             m_pos.m_index_2++)
+        {
+          pfs_program= global_program_container.get(m_pos.m_index_2, &has_more_program);
+          if (pfs_program != NULL)
+          {
+            if (m_opened_index->match(pfs_program))
+            {
+              make_program_row(pfs_program);
+              m_next_pos.set_after(&m_pos);
+              return 0;
+            }
+          }
+        }
+      }
+      break;
+    default:
+      break;
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
 }
 
 void table_os_global_by_type::make_program_row(PFS_program *pfs_program)

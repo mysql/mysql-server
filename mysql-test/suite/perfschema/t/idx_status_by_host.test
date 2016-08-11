@@ -1,0 +1,67 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+#setup
+create user foo@localhost;
+grant ALL on *.* to foo@localhost;
+connect(con, localhost, foo,,);
+
+# Test index on HOST, VARIABLE_NAME
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select HOST, VARIABLE_NAME
+  from performance_schema.status_by_host
+  where HOST = 'localhost';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select *
+  from performance_schema.status_by_host
+  where HOST != 'localhost';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select *
+  from performance_schema.status_by_host
+  where HOST NOT LIKE 'localhost';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select HOST, VARIABLE_NAME
+  from performance_schema.status_by_host
+  where HOST = 'localhost' and VARIABLE_NAME = 'impossible';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select HOST, VARIABLE_NAME
+  from performance_schema.status_by_host
+  where HOST = 'nohost' and VARIABLE_NAME = 'Max_execution_time_exceeded';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select HOST, VARIABLE_NAME
+  from performance_schema.status_by_host
+  where HOST = 'localhost' and VARIABLE_NAME = 'Max_execution_time_exceeded';
+
+--echo ############# Explain End #########################################
+
+flush status;
+
+select *
+  from performance_schema.status_by_host
+  where HOST = 'localhost' and VARIABLE_NAME = 'Max_execution_time_exceeded';
+
+show session status like "handler_read%";
+
+select *
+  from performance_schema.status_by_host
+  where HOST = 'localhost' and VARIABLE_NAME = 'Max_execution_time_exceeded';
+
+show session status like "handler_read%";
+
+# Cleanup
+--connection default
+drop user foo@localhost;

@@ -1,0 +1,65 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+select connection_id() into @conid;
+
+select thread_id from performance_schema.threads
+  where PROCESSLIST_ID = @conid
+  into @tid;
+
+# Test index on THREAD_ID, VARIABLE_NAME
+--disable_warnings
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select *
+  from performance_schema.variables_by_thread
+  where THREAD_ID = 1;
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select *
+  from performance_schema.variables_by_thread
+  where THREAD_ID > 1;
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select *
+  from performance_schema.variables_by_thread
+  where THREAD_ID < 1;
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select *
+  from performance_schema.variables_by_thread
+  where THREAD_ID = 1 and VARIABLE_NAME = "impossible";
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select *
+  from performance_schema.variables_by_thread
+  where THREAD_ID = 99999 and VARIABLE_NAME = "autocommit";
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select *
+  from performance_schema.variables_by_thread
+  where THREAD_ID = @tid and VARIABLE_NAME = "autocommit";
+
+--echo ############# Explain End #########################################
+--enable_warnings
+
+flush status;
+
+select VARIABLE_VALUE
+  from performance_schema.variables_by_thread
+  where thread_id = @tid and VARIABLE_NAME = "autocommit";
+
+show session status like "handler_read%";
+
+select VARIABLE_VALUE
+  from performance_schema.variables_by_thread
+  where thread_id = @tid and VARIABLE_NAME = "autocommit";
+
+show session status like "handler_read%";

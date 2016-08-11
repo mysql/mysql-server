@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -185,6 +185,36 @@ table_file_summary_by_instance::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_file_summary_by_instance_by_instance::match(const PFS_file *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(pfs))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_file_summary_by_instance_by_file_name::match(const PFS_file *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(pfs))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_file_summary_by_instance_by_event_name::match(const PFS_file *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(pfs))
+      return false;
+  }
+  return true;
+}
+
 PFS_engine_table* table_file_summary_by_instance::create(void)
 {
   return new table_file_summary_by_instance();
@@ -244,6 +274,55 @@ int table_file_summary_by_instance::rnd_pos(const void *pos)
   }
 
   return HA_ERR_RECORD_DELETED;
+}
+
+int table_file_summary_by_instance::index_init(uint idx, bool sorted)
+{
+  PFS_index_file_summary_by_instance *result= NULL;
+
+  switch(idx)
+  {
+  case 0:
+    result= PFS_NEW(PFS_index_file_summary_by_instance_by_instance);
+    break;
+  case 1:
+    result= PFS_NEW(PFS_index_file_summary_by_instance_by_file_name);
+    break;
+  case 2:
+    result= PFS_NEW(PFS_index_file_summary_by_instance_by_event_name);
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_file_summary_by_instance::index_next(void)
+{
+  PFS_file *pfs;
+
+  m_pos.set_at(&m_next_pos);
+  PFS_file_iterator it= global_file_container.iterate(m_pos.m_index);
+
+  do
+  {
+    pfs= it.scan_next(& m_pos.m_index);
+    if (pfs != NULL)
+    {
+      if (m_opened_index->match(pfs))
+      {
+        make_row(pfs);
+        m_next_pos.set_after(&m_pos);
+        return 0;
+      }
+    }
+  } while (pfs != NULL);
+
+  return HA_ERR_END_OF_FILE;
 }
 
 /**

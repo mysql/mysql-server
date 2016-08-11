@@ -1,0 +1,105 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+connect(con1, localhost, root,,);
+
+create table test.marker(a int);
+lock table test.marker write;
+insert into test.marker values (1);
+
+--connection default
+
+# Test index on OBJECT_INSTANCE_BEGIN
+
+# FIXME
+
+# Test index on OBJECT_TYPE, OBJET_SCHEMA, OBJECT_NAME
+
+explain select * from performance_schema.table_handles
+  where OBJECT_TYPE = "impossible";
+
+explain select * from performance_schema.table_handles
+  where OBJECT_TYPE = "TABLE";
+
+explain select * from performance_schema.table_handles
+  where OBJECT_TYPE > "foo";
+
+explain select * from performance_schema.table_handles
+  where OBJECT_TYPE < "bar";
+
+select * from performance_schema.table_handles
+  where OBJECT_TYPE = "impossible";
+
+select count(*) > 0 from performance_schema.table_handles
+  where OBJECT_TYPE = "TABLE";
+
+
+explain select * from performance_schema.table_handles
+  where OBJECT_TYPE = "TABLE"
+  and OBJECT_SCHEMA = "impossible";
+
+explain select * from performance_schema.table_handles
+  where OBJECT_TYPE = "TABLE"
+  and OBJECT_SCHEMA = "test";
+
+explain select * from performance_schema.table_handles
+  where OBJECT_TYPE = "TABLE"
+  and OBJECT_SCHEMA > "foo";
+
+explain select * from performance_schema.table_handles
+  where OBJECT_TYPE = "TABLE"
+  and OBJECT_SCHEMA < "bar";
+
+select * from performance_schema.table_handles
+  where OBJECT_TYPE = "TABLE"
+  and OBJECT_SCHEMA = "impossible";
+
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INTERNAL_LOCK, EXTERNAL_LOCK
+  from performance_schema.table_handles
+  where OBJECT_TYPE = "TABLE"
+  and OBJECT_SCHEMA = "test";
+
+
+explain select * from performance_schema.table_handles
+  where OBJECT_TYPE = "TABLE"
+  and OBJECT_SCHEMA = "test"
+  and OBJECT_NAME = "impossible";
+
+explain select * from performance_schema.table_handles
+  where OBJECT_TYPE = "TABLE"
+  and OBJECT_SCHEMA = "test"
+  and OBJECT_NAME = "marker";
+
+explain select * from performance_schema.table_handles
+  where OBJECT_TYPE = "TABLE"
+  and OBJECT_SCHEMA = "test"
+  and OBJECT_NAME > "foo";
+
+explain select * from performance_schema.table_handles
+  where OBJECT_TYPE = "TABLE"
+  and OBJECT_SCHEMA = "test"
+  and OBJECT_NAME < "bar";
+
+select * from performance_schema.table_handles
+  where OBJECT_TYPE = "TABLE"
+  and OBJECT_SCHEMA = "test"
+  and OBJECT_NAME = "impossible";
+
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INTERNAL_LOCK, EXTERNAL_LOCK
+  from performance_schema.table_handles
+  where OBJECT_TYPE = "TABLE"
+  and OBJECT_SCHEMA = "test"
+  and OBJECT_NAME = "marker";
+
+# Test index on OWNER_THREAD_ID, OWNER_EVENT_ID
+
+# FIXME
+
+--connection con1
+unlock tables;
+drop table test.marker;
+
+--connection default
+--disconnect con1

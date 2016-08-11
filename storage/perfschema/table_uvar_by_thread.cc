@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -162,6 +162,26 @@ table_uvar_by_thread::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_uvar_by_thread::match(PFS_thread *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key_1.match(pfs))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_uvar_by_thread::match(const User_variable *pfs)
+{
+  if (m_fields >= 2)
+  {
+    if (!m_key_2.match(&pfs->m_name))
+      return false;
+  }
+  return true;
+}
+
 PFS_engine_table*
 table_uvar_by_thread::create(void)
 {
@@ -244,6 +264,55 @@ table_uvar_by_thread::rnd_pos(const void *pos)
   }
 
   return HA_ERR_RECORD_DELETED;
+}
+
+int table_uvar_by_thread::index_init(uint idx, bool sorted)
+{
+  PFS_index_uvar_by_thread *result= NULL;
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_uvar_by_thread);
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_uvar_by_thread::index_next(void)
+{
+  PFS_thread *thread;
+  bool has_more_thread= true;
+
+  for (m_pos.set_at(&m_next_pos);
+       has_more_thread;
+       m_pos.next_thread())
+  {
+    thread= global_thread_container.get(m_pos.m_index_1, & has_more_thread);
+    if (thread != NULL)
+    {
+      if (m_opened_index->match(thread))
+      {
+        if (materialize(thread) == 0)
+        {
+          const User_variable *uvar;
+          do
+          {
+            uvar= m_THD_cache.get(m_pos.m_index_2);
+            if (uvar != NULL)
+            {
+              if (m_opened_index->match(uvar))
+              {
+                make_row(thread, uvar);
+                m_next_pos.set_after(&m_pos);
+                return 0;
+              }
+              m_pos.m_index_2++;
+            }
+          } while (uvar != NULL);
+        }
+      }
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
 }
 
 int table_uvar_by_thread::materialize(PFS_thread *thread)

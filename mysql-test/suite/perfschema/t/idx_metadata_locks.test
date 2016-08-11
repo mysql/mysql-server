@@ -1,0 +1,274 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+connect(con1, localhost, root,,);
+
+create database explain_test_db;
+create table explain_test_db.explain_test_table(a int);
+lock table explain_test_db.explain_test_table write;
+
+--connection default
+
+select OBJECT_INSTANCE_BEGIN, OWNER_THREAD_ID, OWNER_EVENT_ID
+   from performance_schema.metadata_locks
+   limit 1
+   into @oib, @o_tid, @o_eid;
+
+###########################################################################
+# Test index on OBJECT_INSTANCE_BEGIN
+###########################################################################
+--disable_warnings
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select OBJECT_TYPE
+  from performance_schema.metadata_locks
+  where OBJECT_INSTANCE_BEGIN = "impossible";
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select OBJECT_TYPE
+  from performance_schema.metadata_locks
+  where OBJECT_INSTANCE_BEGIN = @oib;
+
+--echo ############# Explain End #########################################
+
+flush status;
+
+--replace_column 1 #
+select OBJECT_TYPE
+  from performance_schema.metadata_locks
+  where OBJECT_INSTANCE_BEGIN = @oib;
+
+show session status like "handler_read%";
+
+###########################################################################
+# Test index on OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+###########################################################################
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OBJECT_TYPE = "impossible";
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OBJECT_TYPE = 'TABLE';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OBJECT_TYPE > 'foo';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OBJECT_TYPE < 'bar';
+
+--echo ############# Explain End #########################################
+--enable_warnings
+
+flush status;
+
+--replace_column 1 #
+select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OBJECT_TYPE = 'TABLE';
+
+show session status like "handler_read%";
+
+--disable_warnings
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OBJECT_TYPE = 'TABLE' and OBJECT_SCHEMA = 'impossible';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OBJECT_TYPE = 'TABLE' and OBJECT_SCHEMA = 'explain_test_db';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OBJECT_TYPE = 'TABLE' and OBJECT_SCHEMA > 'foo';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OBJECT_TYPE = 'TABLE' and OBJECT_SCHEMA > 'bar';
+
+--echo ############# Explain End #########################################
+--enable_warnings
+
+flush status;
+
+--replace_column 1 #
+select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OBJECT_TYPE = 'TABLE' and OBJECT_SCHEMA = 'impossible';
+
+show session status like "handler_read%";
+
+--replace_column 1 #
+select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OBJECT_TYPE = 'TABLE' and OBJECT_SCHEMA = 'explain_test_db';
+
+show session status like "handler_read%";
+
+--disable_warnings
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OBJECT_TYPE = 'TABLE' and
+        OBJECT_SCHEMA = 'explain_test_db' and
+        OBJECT_NAME = 'impossible';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OBJECT_TYPE = 'TABLE' and
+        OBJECT_SCHEMA = 'explain_test_db' and
+        OBJECT_NAME = 'explain_test_table';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OBJECT_TYPE = 'TABLE' and
+        OBJECT_SCHEMA = 'explain_test_db' and
+        OBJECT_NAME > 'foo';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OBJECT_TYPE = 'TABLE' and
+        OBJECT_SCHEMA = 'explain_test_db' and
+        OBJECT_NAME < 'bar';
+
+--echo ############# Explain End #########################################
+--enable_warnings
+
+flush status;
+
+--replace_column 1 #
+select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OBJECT_TYPE = 'TABLE' and
+        OBJECT_SCHEMA = 'explain_test_db' and
+        OBJECT_NAME = 'impossible';
+
+show session status like "handler_read%";
+
+--replace_column 1 #
+select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OBJECT_TYPE = 'TABLE' and
+        OBJECT_SCHEMA = 'explain_test_db' and
+        OBJECT_NAME = 'explain_test_table';
+
+show session status like "handler_read%";
+
+###########################################################################
+# Test index on OWNER_THREAD_ID, OWNER_EVENT_ID
+###########################################################################
+
+--disable_warnings
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OWNER_THREAD_ID = '9999';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OWNER_THREAD_ID < '9999';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OWNER_THREAD_ID > '0000';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OWNER_THREAD_ID = @o_tid;
+
+--echo ############# Explain End #########################################
+--enable_warnings
+
+flush status;
+
+--replace_column 1 #
+select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OWNER_THREAD_ID = @o_tid;
+
+show session status like "handler_read%";
+
+--disable_warnings
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OWNER_THREAD_ID = @o_tid and OWNER_EVENT_ID = '0000';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OWNER_THREAD_ID = @o_tid and OWNER_EVENT_ID < '9999';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OWNER_THREAD_ID = @o_tid and OWNER_EVENT_ID > '9999';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OWNER_THREAD_ID = @o_tid and OWNER_EVENT_ID = @o_eid;
+
+--echo ############# Explain End #########################################
+--enable_warnings
+
+flush status;
+
+--replace_column 1 #
+select LOCK_TYPE
+  from performance_schema.metadata_locks
+  where OWNER_THREAD_ID = @o_tid and OWNER_EVENT_ID = @o_eid;
+
+show session status like "handler_read%";
+
+--connection con1
+unlock tables;
+drop table explain_test_db.explain_test_table;
+drop database explain_test_db;
+
+--connection default
+--disconnect con1

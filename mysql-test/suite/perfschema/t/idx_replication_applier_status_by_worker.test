@@ -1,0 +1,141 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--echo # SETUP
+--disable_warnings
+--source include/master-slave.inc
+
+--connection slave
+--let $save_master_info_repository= `SELECT @@GLOBAL.master_info_repository`
+--let $save_relay_log_info_repository= `SELECT @@GLOBAL.relay_log_info_repository`
+
+--source include/stop_slave.inc
+RESET SLAVE ALL;
+SET GLOBAL master_info_repository='TABLE';
+SET GLOBAL relay_log_info_repository='TABLE';
+SET GLOBAL slave_parallel_workers = 4;
+--disable_query_log
+--eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, MASTER_DELAY=0 FOR CHANNEL 'channel_1';
+--enable_query_log
+--source include/start_slave.inc
+
+--connection master
+--let $rpl_channel_name= channel_1
+--let $sync_slave_connection= slave
+--source include/sync_slave_sql_with_master.inc
+
+select CHANNEL_NAME, WORKER_ID, THREAD_ID
+  from performance_schema.replication_applier_status_by_worker
+  limit 1
+  into @c_name, @w_id, @t_id;
+
+--enable_warnings
+
+###########################################################################
+# Test index on CHANNEL_NAME, WORKER_ID
+###########################################################################
+
+--disable_warnings
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select SERVICE_STATE
+  from performance_schema.replication_applier_status_by_worker
+  where CHANNEL_NAME = "impossible";
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select SERVICE_STATE
+  from performance_schema.replication_applier_status_by_worker
+  where CHANNEL_NAME = @c_name;
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select SERVICE_STATE
+  from performance_schema.replication_applier_status_by_worker
+  where CHANNEL_NAME = "impossible" and WORKER_ID = '9999';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select SERVICE_STATE
+  from performance_schema.replication_applier_status_by_worker
+  where CHANNEL_NAME = @c_name and WORKER_ID = '9999';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select SERVICE_STATE
+  from performance_schema.replication_applier_status_by_worker
+  where CHANNEL_NAME = @c_name and WORKER_ID = @w_id;
+
+--echo ############# Explain End #########################################
+--enable_warnings
+
+flush status;
+
+--replace_column 1 #
+select SERVICE_STATE
+  from performance_schema.replication_applier_status_by_worker
+  where CHANNEL_NAME = @c_name and WORKER_ID = @w_id;
+
+show session status like "handler_read%";
+
+###########################################################################
+# Test index on THREAD_ID
+###########################################################################
+
+--disable_warnings
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select SERVICE_STATE
+  from performance_schema.replication_applier_status_by_worker
+  where THREAD_ID = '9999';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select SERVICE_STATE
+  from performance_schema.replication_applier_status_by_worker
+  where THREAD_ID > 1;
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select SERVICE_STATE
+  from performance_schema.replication_applier_status_by_worker
+  where THREAD_ID < 1;
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select SERVICE_STATE
+  from performance_schema.replication_applier_status_by_worker
+  where THREAD_ID = @t_id;
+
+--echo ############# Explain End #########################################
+--enable_warnings
+
+flush status;
+
+--replace_column 1 #
+select SERVICE_STATE
+  from performance_schema.replication_applier_status_by_worker
+  where THREAD_ID = @t_id;
+
+show session status like "handler_read%";
+
+
+-- echo # CLEANUP
+source include/stop_slave.inc;
+RESET SLAVE ALL;
+eval SET GLOBAL master_info_repository= "$save_master_info_repository";
+eval SET GLOBAL relay_log_info_repository= "$save_relay_log_info_repository";
+SET GLOBAL slave_parallel_workers = 0;
+--disable_warnings
+--disable_query_log
+eval change master to master_host='127.0.0.1', master_port=$MASTER_MYPORT, master_user='root';
+--enable_query_log
+--enable_warnings
+--let $rpl_channel_name=
+--let $sync_slave_connection= slave
+source include/start_slave.inc;
+--connection master
+
+--source include/rpl_end.inc

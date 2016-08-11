@@ -1,0 +1,34 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+# Test index on NAME
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select NAME
+  from performance_schema.setup_consumers
+  where NAME = "impossible";
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select NAME
+  from performance_schema.setup_consumers
+  where NAME = "statements_digest";
+
+--echo ############# Explain End #########################################
+
+flush status;
+
+select *
+  from performance_schema.setup_consumers
+  where NAME = "statements_digest";
+
+show session status like "handler_read%";
+
+select *
+  from performance_schema.setup_consumers
+  where NAME = "statements_digest";
+
+show session status like "handler_read%";

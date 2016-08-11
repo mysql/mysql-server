@@ -1,0 +1,46 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+# Test index on EVENT_NAME
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select EVENT_NAME
+  from performance_schema.events_transactions_summary_global_by_event_name
+  where EVENT_NAME = "impossible";
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select EVENT_NAME
+  from performance_schema.events_transactions_summary_global_by_event_name
+  where EVENT_NAME = "transaction";
+
+--echo ############# Explain End #########################################
+
+truncate table performance_schema.events_transactions_summary_global_by_event_name;
+flush status;
+
+--replace_column 2 #
+select EVENT_NAME, COUNT_STAR
+  from performance_schema.events_transactions_summary_global_by_event_name
+  where EVENT_NAME = "transaction";
+
+let $count1 = query_get_value(show session status like "handler_read_key", Value, 1);
+
+--replace_column 2 #
+select EVENT_NAME, COUNT_STAR
+  from performance_schema.events_transactions_summary_global_by_event_name
+  where EVENT_NAME = "transaction";
+
+let $count2 = query_get_value(show session status like "handler_read_key", Value, 1);
+
+if ($count1 < $count2)
+{
+  --echo OK: handler_read_key incremented
+}
+if ($count1 >= $count2)
+{
+  --echo ***ERROR*** handler_read_key: Before= $count1, After= $count2
+}

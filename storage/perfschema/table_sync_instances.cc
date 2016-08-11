@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -70,6 +70,36 @@ table_mutex_instances::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_mutex_instances_by_instance::match(PFS_mutex *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(pfs))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_mutex_instances_by_name::match(PFS_mutex *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(pfs))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_mutex_instances_by_thread_id::match(PFS_mutex *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match_owner(pfs))
+      return false;
+  }
+  return true;
+}
+
 PFS_engine_table* table_mutex_instances::create(void)
 {
   return new table_mutex_instances();
@@ -123,6 +153,54 @@ int table_mutex_instances::rnd_pos(const void *pos)
   }
 
   return HA_ERR_RECORD_DELETED;
+}
+
+int table_mutex_instances::index_init(uint idx, bool sorted)
+{
+  PFS_index_mutex_instances *result= NULL;
+
+  switch(idx)
+  {
+  case 0:
+    result= PFS_NEW(PFS_index_mutex_instances_by_instance);
+    break;
+  case 1:
+    result= PFS_NEW(PFS_index_mutex_instances_by_name);
+    break;
+  case 2:
+    result= PFS_NEW(PFS_index_mutex_instances_by_thread_id);
+    break;
+  default:
+    DBUG_ASSERT(false);
+  }
+
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_mutex_instances::index_next(void)
+{
+  PFS_mutex *pfs;
+
+  m_pos.set_at(&m_next_pos);
+  PFS_mutex_iterator it= global_mutex_container.iterate(m_pos.m_index);
+
+  do
+  {
+    pfs= it.scan_next(&m_pos.m_index);
+    if (pfs != NULL)
+    {
+      if (m_opened_index->match(pfs))
+      {
+        make_row(pfs);
+        m_next_pos.set_after(&m_pos);
+        return 0;
+      }
+    }
+  } while (pfs != NULL);
+
+  return HA_ERR_END_OF_FILE;
 }
 
 void table_mutex_instances::make_row(PFS_mutex *pfs)
@@ -244,6 +322,36 @@ table_rwlock_instances::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_rwlock_instances_by_instance::match(PFS_rwlock *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(pfs))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_rwlock_instances_by_name::match(PFS_rwlock *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(pfs))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_rwlock_instances_by_thread_id::match(PFS_rwlock *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match_writer(pfs))
+      return false;
+  }
+  return true;
+}
+
 PFS_engine_table* table_rwlock_instances::create(void)
 {
   return new table_rwlock_instances();
@@ -297,6 +405,55 @@ int table_rwlock_instances::rnd_pos(const void *pos)
   }
 
   return HA_ERR_RECORD_DELETED;
+}
+
+int table_rwlock_instances::index_init(uint idx, bool sorted)
+{
+  PFS_index_rwlock_instances *result= NULL;
+
+  switch(idx)
+  {
+  case 0:
+    result= PFS_NEW(PFS_index_rwlock_instances_by_instance);
+    break;
+  case 1:
+    result= PFS_NEW(PFS_index_rwlock_instances_by_name);
+    break;
+  case 2:
+    result= PFS_NEW(PFS_index_rwlock_instances_by_thread_id);
+    break;
+  default:
+    DBUG_ASSERT(false);
+  }
+
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_rwlock_instances::index_next(void)
+{
+  PFS_rwlock *pfs;
+
+  m_pos.set_at(&m_next_pos);
+  PFS_rwlock_iterator it= global_rwlock_container.iterate(m_pos.m_index);
+
+  do
+  {
+    pfs= it.scan_next(&m_pos.m_index);
+    if (pfs != NULL)
+    {
+      if (m_opened_index->match(pfs))
+      {
+        make_row(pfs);
+        m_next_pos.set_after(&m_pos);
+        return 0;
+      }
+      m_pos.m_index++;
+    }
+  } while (pfs != NULL);
+
+  return HA_ERR_END_OF_FILE;
 }
 
 void table_rwlock_instances::make_row(PFS_rwlock *pfs)
@@ -415,6 +572,26 @@ table_cond_instances::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_cond_instances_by_instance::match(PFS_cond *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(pfs))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_cond_instances_by_name::match(PFS_cond *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(pfs))
+      return false;
+  }
+  return true;
+}
+
 PFS_engine_table* table_cond_instances::create(void)
 {
   return new table_cond_instances();
@@ -468,6 +645,52 @@ int table_cond_instances::rnd_pos(const void *pos)
   }
 
   return HA_ERR_RECORD_DELETED;
+}
+
+int table_cond_instances::index_init(uint idx, bool sorted)
+{
+  PFS_index_cond_instances *result= NULL;
+
+  switch(idx)
+  {
+  case 0:
+    result= new PFS_index_cond_instances_by_instance();
+    break;
+  case 1:
+    result= new PFS_index_cond_instances_by_name();
+    break;
+  default:
+    DBUG_ASSERT(false);
+  }
+
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_cond_instances::index_next(void)
+{
+  PFS_cond *pfs;
+
+  m_pos.set_at(&m_next_pos);
+  PFS_cond_iterator it= global_cond_container.iterate(m_pos.m_index);
+
+  do
+  {
+    pfs= it.scan_next(&m_pos.m_index);
+    if (pfs != NULL)
+    {
+      if (m_opened_index->match(pfs))
+      {
+        make_row(pfs);
+        m_next_pos.set_after(&m_pos);
+        return 0;
+      }
+      m_pos.m_index++;
+    }
+  } while (pfs != NULL);
+
+  return HA_ERR_END_OF_FILE;
 }
 
 void table_cond_instances::make_row(PFS_cond *pfs)

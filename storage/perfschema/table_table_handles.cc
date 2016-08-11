@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -95,6 +95,59 @@ table_table_handles::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_table_handles_by_object::match(PFS_table *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (! m_key_1.match(OBJECT_TYPE_TABLE))
+      return false;
+  }
+
+  PFS_table_share *share= sanitize_table_share(pfs->m_share);
+
+  if (m_fields >= 2)
+  {
+    if (! m_key_2.match(share))
+      return false;
+  }
+
+  if (m_fields >= 3)
+  {
+    if (! m_key_3.match(share))
+      return false;
+  }
+
+  return true;
+}
+
+bool PFS_index_table_handles_by_instance::match(PFS_table *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (! m_key.match(pfs))
+      return false;
+  }
+
+  return true;
+}
+
+bool PFS_index_table_handles_by_owner::match(PFS_table *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (! m_key_1.match_owner(pfs))
+      return false;
+  }
+
+  if (m_fields >= 2)
+  {
+    if (! m_key_2.match_owner(pfs))
+      return false;
+  }
+
+  return true;
+}
+
 PFS_engine_table*
 table_table_handles::create(void)
 {
@@ -155,6 +208,55 @@ table_table_handles::rnd_pos(const void *pos)
   }
 
   return HA_ERR_RECORD_DELETED;
+}
+
+int table_table_handles::index_init(uint idx, bool sorted)
+{
+  PFS_index_table_handles *result= NULL;
+
+  switch(idx)
+  {
+  case 0:
+    result= PFS_NEW(PFS_index_table_handles_by_instance);
+    break;
+  case 1:
+    result= PFS_NEW(PFS_index_table_handles_by_object);
+    break;
+  case 2:
+    result= PFS_NEW(PFS_index_table_handles_by_owner);
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_table_handles::index_next(void)
+{
+  PFS_table *pfs;
+
+  m_pos.set_at(&m_next_pos);
+  PFS_table_iterator it= global_table_container.iterate(m_pos.m_index);
+
+  do
+  {
+    pfs= it.scan_next(& m_pos.m_index);
+    if (pfs != NULL)
+    {
+      if (m_opened_index->match(pfs))
+      {
+        make_row(pfs);
+        m_next_pos.set_after(&m_pos);
+        return 0;
+      }
+    }
+  } while (pfs != NULL);
+
+  return HA_ERR_END_OF_FILE;
 }
 
 void table_table_handles::make_row(PFS_table *table)
@@ -218,7 +320,7 @@ int table_table_handles::read_row_values(TABLE *table,
       switch(f->field_index)
       {
       case 0: /* OBJECT_TYPE */
-      case 1: /* SCHEMA_NAME */
+      case 1: /* OBJECT_SCHEMA */
       case 2: /* OBJECT_NAME */
         m_row.m_object.set_field(f->field_index, f);
         break;

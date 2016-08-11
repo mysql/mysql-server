@@ -169,6 +169,7 @@ pfs_autosize.cc
 pfs_buffer_container.cc
 pfs_builtin_memory.cc
 pfs_check.cc
+pfs_column_types.cc
 pfs_column_values.cc
 pfs_con_slice.cc
 pfs_defaults.cc

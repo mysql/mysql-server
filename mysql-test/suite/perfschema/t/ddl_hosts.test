@@ -15,3 +15,6 @@ ALTER TABLE performance_schema.hosts ADD INDEX test_index(CURRENT_CONNECTIONS);
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index ON performance_schema.hosts(CURRENT_CONNECTIONS);
 
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `HOST`
+  ON performance_schema.hosts;

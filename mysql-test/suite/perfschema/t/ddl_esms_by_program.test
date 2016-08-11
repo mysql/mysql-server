@@ -19,3 +19,6 @@ ALTER TABLE performance_schema.events_statements_summary_by_program ADD INDEX te
 CREATE UNIQUE INDEX test_index
   ON performance_schema.events_statements_summary_by_program(OBJECT_NAME);
 
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `PRIMARY`
+  ON performance_schema.events_statements_summary_by_program;

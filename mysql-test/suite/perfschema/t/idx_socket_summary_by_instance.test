@@ -1,0 +1,91 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+select OBJECT_INSTANCE_BEGIN, EVENT_NAME from performance_schema.socket_summary_by_instance
+  limit 1
+  into @oib, @e_name;
+
+###########################################################################
+# Test index on OBJECT_INSTANCE_BEGIN
+###########################################################################
+--disable_warnings
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select EVENT_NAME
+  from performance_schema.socket_summary_by_instance
+  where OBJECT_INSTANCE_BEGIN = "impossible";
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select EVENT_NAME
+  from performance_schema.socket_summary_by_instance
+  where OBJECT_INSTANCE_BEGIN = @oib;
+
+--echo ############# Explain End #########################################
+
+truncate table performance_schema.socket_summary_by_instance;
+flush status;
+
+--replace_column 1 #
+select COUNT_STAR
+  from performance_schema.socket_summary_by_instance
+  where OBJECT_INSTANCE_BEGIN = @oib;
+
+show session status like "handler_read%";
+
+--replace_column 1 #
+select COUNT_STAR
+  from performance_schema.socket_summary_by_instance
+  where OBJECT_INSTANCE_BEGIN = @oib;
+
+show session status like "handler_read%";
+
+
+###########################################################################
+# Test index on EVENT_NAME
+###########################################################################
+--disable_warnings
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select COUNT_STAR
+  from performance_schema.socket_summary_by_instance
+  where EVENT_NAME = "impossible";
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select COUNT_STAR
+  from performance_schema.socket_summary_by_instance
+  where EVENT_NAME = @e_name;
+
+--enable_warnings
+--echo ############# Explain End #########################################
+
+truncate table performance_schema.socket_summary_by_instance;
+flush status;
+
+--replace_column 1 #
+select COUNT_STAR
+  from performance_schema.socket_summary_by_instance
+  where EVENT_NAME = @e_name;
+
+let $count1 = query_get_value(show session status like "handler_read_key", Value, 1);
+
+--replace_column 1 #
+select COUNT_STAR
+  from performance_schema.socket_summary_by_instance
+  where EVENT_NAME = @e_name;
+
+let $count2 = query_get_value(show session status like "handler_read_key", Value, 1);
+
+if ($count1 < $count2)
+{
+  --echo OK: handler_read_key incremented
+}
+if ($count1 >= $count2)
+{
+  --echo ***ERROR*** handler_read_key: Before= $count1, After= $count2
+}

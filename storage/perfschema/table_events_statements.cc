@@ -297,6 +297,26 @@ table_events_statements_history_long::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_events_statements::match(PFS_thread *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key_1.match(pfs))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_events_statements::match(PFS_events *pfs)
+{
+  if (m_fields >= 2)
+  {
+    if (!m_key_2.match(pfs))
+      return false;
+  }
+  return true;
+}
+
 table_events_statements_common::table_events_statements_common
 (const PFS_engine_table_share *share, void *pos)
   : PFS_engine_table(share, pos),
@@ -782,6 +802,59 @@ int table_events_statements_current::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
+int table_events_statements_current::index_next(void)
+{
+  PFS_thread *pfs_thread;
+  PFS_events_statements *statement;
+  bool has_more_thread= true;
+
+  for (m_pos.set_at(&m_next_pos);
+       has_more_thread;
+       m_pos.next_thread())
+  {
+    pfs_thread= global_thread_container.get(m_pos.m_index_1, &has_more_thread);
+    if (pfs_thread != NULL)
+    {
+      if (m_opened_index->match(pfs_thread))
+      {
+        do
+        {
+          uint safe_events_statements_count= pfs_thread->m_events_statements_count;
+          if (safe_events_statements_count == 0)
+          {
+            /* Display the last top level statement, when completed */
+            if (m_pos.m_index_2 >= 1)
+              break;
+          }
+          else
+          {
+            /* Display all pending statements, when in progress */
+            if (m_pos.m_index_2 >= safe_events_statements_count)
+              break;
+          }
+
+          statement= &pfs_thread->m_statement_stack[m_pos.m_index_2];
+          if (statement->m_class != NULL)
+          {
+            if (m_opened_index->match(statement))
+            {
+              make_row(pfs_thread, statement);
+              if (m_row_exists)
+              {
+                m_next_pos.set_after(&m_pos);
+                return 0;
+              }
+            }
+            m_pos.set_after(&m_pos);
+          }
+        } while (statement->m_class != NULL);
+      }
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
+}
+
 void table_events_statements_current::make_row(PFS_thread *pfs_thread,
                                                PFS_events_statements *statement)
 {
@@ -817,6 +890,18 @@ ha_rows
 table_events_statements_current::get_row_count(void)
 {
   return global_thread_container.get_row_count() * statement_stack_max;
+}
+
+int table_events_statements_current::index_init(uint idx, bool sorted)
+{
+  m_normalizer= time_normalizer::get(statement_timer);
+
+  PFS_index_events_statements *result;
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_events_statements);
+  m_opened_index= result;
+  m_index= result;
+  return 0;
 }
 
 PFS_engine_table* table_events_statements_history::create(void)
@@ -913,6 +998,61 @@ int table_events_statements_history::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
+int table_events_statements_history::index_next(void)
+{
+  PFS_thread *pfs_thread;
+  PFS_events_statements *statement;
+  bool has_more_thread= true;
+
+  if (events_statements_history_per_thread == 0)
+    return HA_ERR_END_OF_FILE;
+
+  for (m_pos.set_at(&m_next_pos);
+       has_more_thread;
+       m_pos.next_thread())
+  {
+    pfs_thread= global_thread_container.get(m_pos.m_index_1, & has_more_thread);
+    if (pfs_thread != NULL)
+    {
+      if (m_opened_index->match(pfs_thread))
+      {
+        do
+        {
+          if (m_pos.m_index_2 >= events_statements_history_per_thread)
+          {
+            /* This thread does not have more (full) history */
+            break;
+          }
+
+          if (!pfs_thread->m_statements_history_full &&
+              (m_pos.m_index_2 >= pfs_thread->m_statements_history_index))
+          {
+            /* This thread does not have more (not full) history */
+            break;
+          }
+
+          statement= &pfs_thread->m_statements_history[m_pos.m_index_2];
+          if (statement->m_class != NULL)
+          {
+            if (m_opened_index->match(statement))
+            {
+              make_row(pfs_thread, statement);
+              if (m_row_exists)
+              {
+                m_next_pos.set_after(&m_pos);
+                return 0;
+              }
+            }
+            m_pos.set_after(&m_pos);
+          }
+        } while (statement->m_class != NULL);
+      }
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
+}
+
 void table_events_statements_history::make_row(PFS_thread *pfs_thread,
                                                PFS_events_statements *statement)
 {
@@ -945,6 +1085,18 @@ ha_rows
 table_events_statements_history::get_row_count(void)
 {
   return events_statements_history_per_thread * global_thread_container.get_row_count();
+}
+
+int table_events_statements_history::index_init(uint idx, bool sorted)
+{
+  m_normalizer= time_normalizer::get(statement_timer);
+
+  PFS_index_events_statements *result;
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_events_statements);
+  m_opened_index= result;
+  m_index= result;
+  return 0;
 }
 
 PFS_engine_table* table_events_statements_history_long::create(void)

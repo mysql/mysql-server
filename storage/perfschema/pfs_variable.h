@@ -696,6 +696,9 @@ void sum_user_status(PFS_client *pfs_user, System_status_var *status_totals);
 void sum_host_status(PFS_client *pfs_host, System_status_var *status_totals);
 void sum_account_status(PFS_client *pfs_account, System_status_var *status_totals);
 
+/* Warnings issued if the global system or status variables change mid-query. */
+void system_variable_warning(void);
+void status_variable_warning(void);
 
 /** @} */
 #endif

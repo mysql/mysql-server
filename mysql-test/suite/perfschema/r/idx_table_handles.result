@@ -1,0 +1,118 @@
+create table test.marker(a int);
+lock table test.marker write;
+insert into test.marker values (1);
+explain select * from performance_schema.table_handles
+where OBJECT_TYPE = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table_handles	NULL	ref	OBJECT_TYPE	OBJECT_TYPE	194	const	10	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `performance_schema`.`table_handles`.`OBJECT_TYPE` AS `OBJECT_TYPE`,`performance_schema`.`table_handles`.`OBJECT_SCHEMA` AS `OBJECT_SCHEMA`,`performance_schema`.`table_handles`.`OBJECT_NAME` AS `OBJECT_NAME`,`performance_schema`.`table_handles`.`OBJECT_INSTANCE_BEGIN` AS `OBJECT_INSTANCE_BEGIN`,`performance_schema`.`table_handles`.`OWNER_THREAD_ID` AS `OWNER_THREAD_ID`,`performance_schema`.`table_handles`.`OWNER_EVENT_ID` AS `OWNER_EVENT_ID`,`performance_schema`.`table_handles`.`INTERNAL_LOCK` AS `INTERNAL_LOCK`,`performance_schema`.`table_handles`.`EXTERNAL_LOCK` AS `EXTERNAL_LOCK` from `performance_schema`.`table_handles` where (`performance_schema`.`table_handles`.`OBJECT_TYPE` = 'impossible')
+explain select * from performance_schema.table_handles
+where OBJECT_TYPE = "TABLE";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table_handles	NULL	ref	OBJECT_TYPE	OBJECT_TYPE	194	const	10	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `performance_schema`.`table_handles`.`OBJECT_TYPE` AS `OBJECT_TYPE`,`performance_schema`.`table_handles`.`OBJECT_SCHEMA` AS `OBJECT_SCHEMA`,`performance_schema`.`table_handles`.`OBJECT_NAME` AS `OBJECT_NAME`,`performance_schema`.`table_handles`.`OBJECT_INSTANCE_BEGIN` AS `OBJECT_INSTANCE_BEGIN`,`performance_schema`.`table_handles`.`OWNER_THREAD_ID` AS `OWNER_THREAD_ID`,`performance_schema`.`table_handles`.`OWNER_EVENT_ID` AS `OWNER_EVENT_ID`,`performance_schema`.`table_handles`.`INTERNAL_LOCK` AS `INTERNAL_LOCK`,`performance_schema`.`table_handles`.`EXTERNAL_LOCK` AS `EXTERNAL_LOCK` from `performance_schema`.`table_handles` where (`performance_schema`.`table_handles`.`OBJECT_TYPE` = 'TABLE')
+explain select * from performance_schema.table_handles
+where OBJECT_TYPE > "foo";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table_handles	NULL	ALL	OBJECT_TYPE	NULL	NULL	NULL	1024	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `performance_schema`.`table_handles`.`OBJECT_TYPE` AS `OBJECT_TYPE`,`performance_schema`.`table_handles`.`OBJECT_SCHEMA` AS `OBJECT_SCHEMA`,`performance_schema`.`table_handles`.`OBJECT_NAME` AS `OBJECT_NAME`,`performance_schema`.`table_handles`.`OBJECT_INSTANCE_BEGIN` AS `OBJECT_INSTANCE_BEGIN`,`performance_schema`.`table_handles`.`OWNER_THREAD_ID` AS `OWNER_THREAD_ID`,`performance_schema`.`table_handles`.`OWNER_EVENT_ID` AS `OWNER_EVENT_ID`,`performance_schema`.`table_handles`.`INTERNAL_LOCK` AS `INTERNAL_LOCK`,`performance_schema`.`table_handles`.`EXTERNAL_LOCK` AS `EXTERNAL_LOCK` from `performance_schema`.`table_handles` where (`performance_schema`.`table_handles`.`OBJECT_TYPE` > 'foo')
+explain select * from performance_schema.table_handles
+where OBJECT_TYPE < "bar";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table_handles	NULL	ALL	OBJECT_TYPE	NULL	NULL	NULL	1024	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `performance_schema`.`table_handles`.`OBJECT_TYPE` AS `OBJECT_TYPE`,`performance_schema`.`table_handles`.`OBJECT_SCHEMA` AS `OBJECT_SCHEMA`,`performance_schema`.`table_handles`.`OBJECT_NAME` AS `OBJECT_NAME`,`performance_schema`.`table_handles`.`OBJECT_INSTANCE_BEGIN` AS `OBJECT_INSTANCE_BEGIN`,`performance_schema`.`table_handles`.`OWNER_THREAD_ID` AS `OWNER_THREAD_ID`,`performance_schema`.`table_handles`.`OWNER_EVENT_ID` AS `OWNER_EVENT_ID`,`performance_schema`.`table_handles`.`INTERNAL_LOCK` AS `INTERNAL_LOCK`,`performance_schema`.`table_handles`.`EXTERNAL_LOCK` AS `EXTERNAL_LOCK` from `performance_schema`.`table_handles` where (`performance_schema`.`table_handles`.`OBJECT_TYPE` < 'bar')
+select * from performance_schema.table_handles
+where OBJECT_TYPE = "impossible";
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	OBJECT_INSTANCE_BEGIN	OWNER_THREAD_ID	OWNER_EVENT_ID	INTERNAL_LOCK	EXTERNAL_LOCK
+select count(*) > 0 from performance_schema.table_handles
+where OBJECT_TYPE = "TABLE";
+count(*) > 0
+1
+explain select * from performance_schema.table_handles
+where OBJECT_TYPE = "TABLE"
+  and OBJECT_SCHEMA = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table_handles	NULL	ref	OBJECT_TYPE	OBJECT_TYPE	388	const,const	10	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `performance_schema`.`table_handles`.`OBJECT_TYPE` AS `OBJECT_TYPE`,`performance_schema`.`table_handles`.`OBJECT_SCHEMA` AS `OBJECT_SCHEMA`,`performance_schema`.`table_handles`.`OBJECT_NAME` AS `OBJECT_NAME`,`performance_schema`.`table_handles`.`OBJECT_INSTANCE_BEGIN` AS `OBJECT_INSTANCE_BEGIN`,`performance_schema`.`table_handles`.`OWNER_THREAD_ID` AS `OWNER_THREAD_ID`,`performance_schema`.`table_handles`.`OWNER_EVENT_ID` AS `OWNER_EVENT_ID`,`performance_schema`.`table_handles`.`INTERNAL_LOCK` AS `INTERNAL_LOCK`,`performance_schema`.`table_handles`.`EXTERNAL_LOCK` AS `EXTERNAL_LOCK` from `performance_schema`.`table_handles` where ((`performance_schema`.`table_handles`.`OBJECT_TYPE` = 'TABLE') and (`performance_schema`.`table_handles`.`OBJECT_SCHEMA` = 'impossible'))
+explain select * from performance_schema.table_handles
+where OBJECT_TYPE = "TABLE"
+  and OBJECT_SCHEMA = "test";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table_handles	NULL	ref	OBJECT_TYPE	OBJECT_TYPE	388	const,const	10	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `performance_schema`.`table_handles`.`OBJECT_TYPE` AS `OBJECT_TYPE`,`performance_schema`.`table_handles`.`OBJECT_SCHEMA` AS `OBJECT_SCHEMA`,`performance_schema`.`table_handles`.`OBJECT_NAME` AS `OBJECT_NAME`,`performance_schema`.`table_handles`.`OBJECT_INSTANCE_BEGIN` AS `OBJECT_INSTANCE_BEGIN`,`performance_schema`.`table_handles`.`OWNER_THREAD_ID` AS `OWNER_THREAD_ID`,`performance_schema`.`table_handles`.`OWNER_EVENT_ID` AS `OWNER_EVENT_ID`,`performance_schema`.`table_handles`.`INTERNAL_LOCK` AS `INTERNAL_LOCK`,`performance_schema`.`table_handles`.`EXTERNAL_LOCK` AS `EXTERNAL_LOCK` from `performance_schema`.`table_handles` where ((`performance_schema`.`table_handles`.`OBJECT_TYPE` = 'TABLE') and (`performance_schema`.`table_handles`.`OBJECT_SCHEMA` = 'test'))
+explain select * from performance_schema.table_handles
+where OBJECT_TYPE = "TABLE"
+  and OBJECT_SCHEMA > "foo";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table_handles	NULL	ref	OBJECT_TYPE	OBJECT_TYPE	194	const	10	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `performance_schema`.`table_handles`.`OBJECT_TYPE` AS `OBJECT_TYPE`,`performance_schema`.`table_handles`.`OBJECT_SCHEMA` AS `OBJECT_SCHEMA`,`performance_schema`.`table_handles`.`OBJECT_NAME` AS `OBJECT_NAME`,`performance_schema`.`table_handles`.`OBJECT_INSTANCE_BEGIN` AS `OBJECT_INSTANCE_BEGIN`,`performance_schema`.`table_handles`.`OWNER_THREAD_ID` AS `OWNER_THREAD_ID`,`performance_schema`.`table_handles`.`OWNER_EVENT_ID` AS `OWNER_EVENT_ID`,`performance_schema`.`table_handles`.`INTERNAL_LOCK` AS `INTERNAL_LOCK`,`performance_schema`.`table_handles`.`EXTERNAL_LOCK` AS `EXTERNAL_LOCK` from `performance_schema`.`table_handles` where ((`performance_schema`.`table_handles`.`OBJECT_TYPE` = 'TABLE') and (`performance_schema`.`table_handles`.`OBJECT_SCHEMA` > 'foo'))
+explain select * from performance_schema.table_handles
+where OBJECT_TYPE = "TABLE"
+  and OBJECT_SCHEMA < "bar";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table_handles	NULL	ref	OBJECT_TYPE	OBJECT_TYPE	194	const	10	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `performance_schema`.`table_handles`.`OBJECT_TYPE` AS `OBJECT_TYPE`,`performance_schema`.`table_handles`.`OBJECT_SCHEMA` AS `OBJECT_SCHEMA`,`performance_schema`.`table_handles`.`OBJECT_NAME` AS `OBJECT_NAME`,`performance_schema`.`table_handles`.`OBJECT_INSTANCE_BEGIN` AS `OBJECT_INSTANCE_BEGIN`,`performance_schema`.`table_handles`.`OWNER_THREAD_ID` AS `OWNER_THREAD_ID`,`performance_schema`.`table_handles`.`OWNER_EVENT_ID` AS `OWNER_EVENT_ID`,`performance_schema`.`table_handles`.`INTERNAL_LOCK` AS `INTERNAL_LOCK`,`performance_schema`.`table_handles`.`EXTERNAL_LOCK` AS `EXTERNAL_LOCK` from `performance_schema`.`table_handles` where ((`performance_schema`.`table_handles`.`OBJECT_TYPE` = 'TABLE') and (`performance_schema`.`table_handles`.`OBJECT_SCHEMA` < 'bar'))
+select * from performance_schema.table_handles
+where OBJECT_TYPE = "TABLE"
+  and OBJECT_SCHEMA = "impossible";
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	OBJECT_INSTANCE_BEGIN	OWNER_THREAD_ID	OWNER_EVENT_ID	INTERNAL_LOCK	EXTERNAL_LOCK
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INTERNAL_LOCK, EXTERNAL_LOCK
+from performance_schema.table_handles
+where OBJECT_TYPE = "TABLE"
+  and OBJECT_SCHEMA = "test";
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INTERNAL_LOCK	EXTERNAL_LOCK
+TABLE	test	marker	NULL	WRITE EXTERNAL
+explain select * from performance_schema.table_handles
+where OBJECT_TYPE = "TABLE"
+  and OBJECT_SCHEMA = "test"
+  and OBJECT_NAME = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table_handles	NULL	ref	OBJECT_TYPE	OBJECT_TYPE	582	const,const,const	10	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `performance_schema`.`table_handles`.`OBJECT_TYPE` AS `OBJECT_TYPE`,`performance_schema`.`table_handles`.`OBJECT_SCHEMA` AS `OBJECT_SCHEMA`,`performance_schema`.`table_handles`.`OBJECT_NAME` AS `OBJECT_NAME`,`performance_schema`.`table_handles`.`OBJECT_INSTANCE_BEGIN` AS `OBJECT_INSTANCE_BEGIN`,`performance_schema`.`table_handles`.`OWNER_THREAD_ID` AS `OWNER_THREAD_ID`,`performance_schema`.`table_handles`.`OWNER_EVENT_ID` AS `OWNER_EVENT_ID`,`performance_schema`.`table_handles`.`INTERNAL_LOCK` AS `INTERNAL_LOCK`,`performance_schema`.`table_handles`.`EXTERNAL_LOCK` AS `EXTERNAL_LOCK` from `performance_schema`.`table_handles` where ((`performance_schema`.`table_handles`.`OBJECT_TYPE` = 'TABLE') and (`performance_schema`.`table_handles`.`OBJECT_SCHEMA` = 'test') and (`performance_schema`.`table_handles`.`OBJECT_NAME` = 'impossible'))
+explain select * from performance_schema.table_handles
+where OBJECT_TYPE = "TABLE"
+  and OBJECT_SCHEMA = "test"
+  and OBJECT_NAME = "marker";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table_handles	NULL	ref	OBJECT_TYPE	OBJECT_TYPE	582	const,const,const	10	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `performance_schema`.`table_handles`.`OBJECT_TYPE` AS `OBJECT_TYPE`,`performance_schema`.`table_handles`.`OBJECT_SCHEMA` AS `OBJECT_SCHEMA`,`performance_schema`.`table_handles`.`OBJECT_NAME` AS `OBJECT_NAME`,`performance_schema`.`table_handles`.`OBJECT_INSTANCE_BEGIN` AS `OBJECT_INSTANCE_BEGIN`,`performance_schema`.`table_handles`.`OWNER_THREAD_ID` AS `OWNER_THREAD_ID`,`performance_schema`.`table_handles`.`OWNER_EVENT_ID` AS `OWNER_EVENT_ID`,`performance_schema`.`table_handles`.`INTERNAL_LOCK` AS `INTERNAL_LOCK`,`performance_schema`.`table_handles`.`EXTERNAL_LOCK` AS `EXTERNAL_LOCK` from `performance_schema`.`table_handles` where ((`performance_schema`.`table_handles`.`OBJECT_TYPE` = 'TABLE') and (`performance_schema`.`table_handles`.`OBJECT_SCHEMA` = 'test') and (`performance_schema`.`table_handles`.`OBJECT_NAME` = 'marker'))
+explain select * from performance_schema.table_handles
+where OBJECT_TYPE = "TABLE"
+  and OBJECT_SCHEMA = "test"
+  and OBJECT_NAME > "foo";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table_handles	NULL	ref	OBJECT_TYPE	OBJECT_TYPE	388	const,const	10	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `performance_schema`.`table_handles`.`OBJECT_TYPE` AS `OBJECT_TYPE`,`performance_schema`.`table_handles`.`OBJECT_SCHEMA` AS `OBJECT_SCHEMA`,`performance_schema`.`table_handles`.`OBJECT_NAME` AS `OBJECT_NAME`,`performance_schema`.`table_handles`.`OBJECT_INSTANCE_BEGIN` AS `OBJECT_INSTANCE_BEGIN`,`performance_schema`.`table_handles`.`OWNER_THREAD_ID` AS `OWNER_THREAD_ID`,`performance_schema`.`table_handles`.`OWNER_EVENT_ID` AS `OWNER_EVENT_ID`,`performance_schema`.`table_handles`.`INTERNAL_LOCK` AS `INTERNAL_LOCK`,`performance_schema`.`table_handles`.`EXTERNAL_LOCK` AS `EXTERNAL_LOCK` from `performance_schema`.`table_handles` where ((`performance_schema`.`table_handles`.`OBJECT_TYPE` = 'TABLE') and (`performance_schema`.`table_handles`.`OBJECT_SCHEMA` = 'test') and (`performance_schema`.`table_handles`.`OBJECT_NAME` > 'foo'))
+explain select * from performance_schema.table_handles
+where OBJECT_TYPE = "TABLE"
+  and OBJECT_SCHEMA = "test"
+  and OBJECT_NAME < "bar";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table_handles	NULL	ref	OBJECT_TYPE	OBJECT_TYPE	388	const,const	10	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `performance_schema`.`table_handles`.`OBJECT_TYPE` AS `OBJECT_TYPE`,`performance_schema`.`table_handles`.`OBJECT_SCHEMA` AS `OBJECT_SCHEMA`,`performance_schema`.`table_handles`.`OBJECT_NAME` AS `OBJECT_NAME`,`performance_schema`.`table_handles`.`OBJECT_INSTANCE_BEGIN` AS `OBJECT_INSTANCE_BEGIN`,`performance_schema`.`table_handles`.`OWNER_THREAD_ID` AS `OWNER_THREAD_ID`,`performance_schema`.`table_handles`.`OWNER_EVENT_ID` AS `OWNER_EVENT_ID`,`performance_schema`.`table_handles`.`INTERNAL_LOCK` AS `INTERNAL_LOCK`,`performance_schema`.`table_handles`.`EXTERNAL_LOCK` AS `EXTERNAL_LOCK` from `performance_schema`.`table_handles` where ((`performance_schema`.`table_handles`.`OBJECT_TYPE` = 'TABLE') and (`performance_schema`.`table_handles`.`OBJECT_SCHEMA` = 'test') and (`performance_schema`.`table_handles`.`OBJECT_NAME` < 'bar'))
+select * from performance_schema.table_handles
+where OBJECT_TYPE = "TABLE"
+  and OBJECT_SCHEMA = "test"
+  and OBJECT_NAME = "impossible";
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	OBJECT_INSTANCE_BEGIN	OWNER_THREAD_ID	OWNER_EVENT_ID	INTERNAL_LOCK	EXTERNAL_LOCK
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INTERNAL_LOCK, EXTERNAL_LOCK
+from performance_schema.table_handles
+where OBJECT_TYPE = "TABLE"
+  and OBJECT_SCHEMA = "test"
+  and OBJECT_NAME = "marker";
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INTERNAL_LOCK	EXTERNAL_LOCK
+TABLE	test	marker	NULL	WRITE EXTERNAL
+unlock tables;
+drop table test.marker;

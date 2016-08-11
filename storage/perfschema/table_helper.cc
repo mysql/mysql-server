@@ -27,8 +27,14 @@
 #include "pfs_account.h"
 #include "pfs_instr.h"
 #include "pfs_program.h"
+#include "pfs_prepared_stmt.h"
+#include "pfs_setup_actor.h"
+#include "pfs_setup_object.h"
 #include "field.h"
 #include "pfs_error.h"
+#include "pfs_variable.h"
+#include "pfs_column_types.h"
+#include "pfs_column_values.h"
 
 int PFS_host_row::make_row(PFS_host *pfs)
 {
@@ -169,7 +175,7 @@ void PFS_digest_row::set_field(uint index, Field *f)
     case 2: /* DIGEST_TEXT */
       if (m_digest_text.length() > 0)
         PFS_engine_table::set_field_longtext_utf8(f, m_digest_text.ptr(),
-                                                  m_digest_text.length());
+                                                  (uint)m_digest_text.length());
       else
         f->set_null();
       break;
@@ -347,13 +353,9 @@ void PFS_object_row::set_nullable_field(uint index, Field *f)
   }
 }
 
-int PFS_index_row::make_row(PFS_table_share *pfs,
-                            PFS_table_share_index *pfs_index,
-                            uint table_index)
+int PFS_index_row::make_index_name(PFS_table_share_index *pfs_index,
+                                   uint table_index)
 {
-  if (m_object_row.make_row(pfs))
-    return 1;
-
   if (pfs_index == NULL)
   {
     if (table_index < MAX_INDEXES)
@@ -379,6 +381,19 @@ int PFS_index_row::make_row(PFS_table_share *pfs,
   {
     m_index_name_length= 0;
   }
+
+  return 0;
+}
+
+int PFS_index_row::make_row(PFS_table_share *pfs,
+                            PFS_table_share_index *pfs_index,
+                            uint table_index)
+{
+  if (m_object_row.make_row(pfs))
+    return 1;
+
+  if (make_index_name(pfs_index, table_index))
+   return 1;
 
   return 0;
 }
@@ -583,53 +598,10 @@ void PFS_connection_stat_row::set_field(uint index, Field *f)
 
 void set_field_object_type(Field *f, enum_object_type object_type)
 {
-  switch (object_type)
-  {
-  case OBJECT_TYPE_EVENT:
-    PFS_engine_table::set_field_varchar_utf8(f, "EVENT", 5);
-    break;
-  case OBJECT_TYPE_FUNCTION:
-    PFS_engine_table::set_field_varchar_utf8(f, "FUNCTION", 8);
-    break;
-  case OBJECT_TYPE_PROCEDURE:
-    PFS_engine_table::set_field_varchar_utf8(f, "PROCEDURE", 9);
-    break;
-  case OBJECT_TYPE_TABLE:
-    PFS_engine_table::set_field_varchar_utf8(f, "TABLE", 5);
-    break;
-  case OBJECT_TYPE_TEMPORARY_TABLE:
-    PFS_engine_table::set_field_varchar_utf8(f, "TEMPORARY TABLE", 15);
-    break;
-  case OBJECT_TYPE_TRIGGER:
-    PFS_engine_table::set_field_varchar_utf8(f, "TRIGGER", 7);
-    break;
-  case OBJECT_TYPE_GLOBAL:
-    PFS_engine_table::set_field_varchar_utf8(f, "GLOBAL", 6);
-    break;
-  case OBJECT_TYPE_SCHEMA:
-    PFS_engine_table::set_field_varchar_utf8(f, "SCHEMA", 6);
-    break;
-  case OBJECT_TYPE_COMMIT:
-    PFS_engine_table::set_field_varchar_utf8(f, "COMMIT", 6);
-    break;
-  case OBJECT_TYPE_USER_LEVEL_LOCK:
-    PFS_engine_table::set_field_varchar_utf8(f, "USER LEVEL LOCK", 15);
-    break;
-  case OBJECT_TYPE_TABLESPACE:
-    PFS_engine_table::set_field_varchar_utf8(f, "TABLESPACE", 10);
-    break;
-  case OBJECT_TYPE_LOCKING_SERVICE:
-    PFS_engine_table::set_field_varchar_utf8(f, "LOCKING SERVICE", 15);
-    break;
-  case OBJECT_TYPE_ACL_CACHE:
-    PFS_engine_table::set_field_varchar_utf8(f, "ACL CACHE", 9);
-    break;
-  case NO_OBJECT_TYPE:
-  default:
-    DBUG_ASSERT(false);
-    PFS_engine_table::set_field_varchar_utf8(f, "", 0);
-    break;
-  }
+  const char *name;
+  size_t length;
+  object_type_to_string(object_type, &name, &length);
+  PFS_engine_table::set_field_varchar_utf8(f, name, length);
 }
 
 void set_field_lock_type(Field *f, PFS_TL_LOCK_TYPE lock_type)
@@ -861,7 +833,7 @@ void PFS_variable_name_row::make_row(const char* str, size_t length)
   DBUG_ASSERT(length <= sizeof(m_str));
   DBUG_ASSERT(length <= NAME_CHAR_LEN);
 
-  m_length= MY_MIN(length, NAME_CHAR_LEN); /* enforce max name length */
+  m_length= (uint)MY_MIN(length, NAME_CHAR_LEN); /* enforce max name length */
   if (m_length > 0)
     memcpy(m_str, str, length);
   m_str[m_length]= '\0';
@@ -874,7 +846,7 @@ void PFS_variable_value_row::make_row(const char* str, size_t length)
   {
     memcpy(m_str, str, length);
   }
-  m_length= length;
+  m_length= (uint)length;
 }
 
 void PFS_user_variable_value_row::clear()
@@ -899,3 +871,764 @@ void PFS_user_variable_value_row::make_row(const char* val, size_t length)
   }
 }
 
+bool PFS_key_long_int::do_match(bool record_null, int32 record_value)
+{
+  int cmp= 0;
+
+  if (m_is_null)
+  {
+    cmp= (record_null ? 0 : 1);
+  }
+  else
+  {
+    if (record_null)
+    {
+      cmp= -1;
+    }
+    else if (record_value < m_key_value)
+    {
+      cmp= -1;
+    }
+    else if (record_value > m_key_value)
+    {
+      cmp= +1;
+    }
+    else
+    {
+      cmp= 0;
+    }
+  }
+
+  switch (m_find_flag)
+  {
+  case HA_READ_KEY_EXACT:
+    return (cmp == 0);
+  case HA_READ_KEY_OR_NEXT:
+    return (cmp >= 0);
+  case HA_READ_KEY_OR_PREV:
+    return (cmp <= 0);
+  case HA_READ_BEFORE_KEY:
+    return (cmp < 0);
+  case HA_READ_AFTER_KEY:
+    return (cmp > 0);
+  default:
+    DBUG_ASSERT(false);
+    return false;
+  }
+}
+
+
+bool PFS_key_ulonglong::do_match(bool record_null, ulonglong record_value)
+{
+  int cmp= 0;
+
+  if (m_is_null)
+  {
+    cmp= (record_null ? 0 : 1);
+  }
+  else
+  {
+    if (record_null)
+    {
+      cmp= -1;
+    }
+    else if (record_value < m_key_value)
+    {
+      cmp= -1;
+    }
+    else if (record_value > m_key_value)
+    {
+      cmp= +1;
+    }
+    else
+    {
+      cmp= 0;
+    }
+  }
+
+  switch (m_find_flag)
+  {
+  case HA_READ_KEY_EXACT:
+    return (cmp == 0);
+  case HA_READ_KEY_OR_NEXT:
+    return (cmp >= 0);
+  case HA_READ_KEY_OR_PREV:
+    return (cmp <= 0);
+  case HA_READ_BEFORE_KEY:
+    return (cmp < 0);
+  case HA_READ_AFTER_KEY:
+    return (cmp > 0);
+  default:
+    DBUG_ASSERT(false);
+    return false;
+  }
+}
+
+template <int SIZE>
+bool PFS_key_string<SIZE>
+::do_match(bool record_null, const char* record_string, size_t record_string_length)
+{
+  if (m_find_flag == HA_READ_KEY_EXACT)
+  {
+    if (m_is_null)
+      return record_null;
+
+    if (record_null)
+      return false;
+
+    if (m_key_value_length != record_string_length)
+      return false;
+
+    return (native_strncasecmp(record_string, m_key_value, m_key_value_length) == 0);
+  }
+
+  int cmp= 0;
+
+  if (m_is_null)
+  {
+    cmp= record_null ? 0 : 1;
+  }
+  else
+  {
+    if (record_null)
+    {
+      cmp= -1;
+    }
+    else
+    {
+      cmp= native_strncasecmp(record_string, m_key_value, m_key_value_length);
+    }
+  }
+
+  switch (m_find_flag)
+  {
+  case HA_READ_KEY_OR_NEXT:
+    return (cmp >= 0);
+  case HA_READ_KEY_OR_PREV:
+    return (cmp <= 0);
+  case HA_READ_BEFORE_KEY:
+    return (cmp < 0);
+  case HA_READ_AFTER_KEY:
+    return (cmp > 0);
+  default:
+    DBUG_ASSERT(false);
+    return false;
+  }
+}
+
+template <int SIZE>
+bool PFS_key_string<SIZE>
+::do_match_prefix(bool record_null, const char* record_string, size_t record_string_length)
+{
+  if (m_is_null)
+    return record_null;
+
+  if (record_null)
+    return false;
+
+  if (record_string_length > m_key_value_length)
+    return false;
+
+  return (native_strncasecmp(record_string, m_key_value, record_string_length) == 0);
+}
+
+bool PFS_key_thread_id::match(ulonglong thread_id)
+{
+  return do_match(false, thread_id);
+}
+
+bool PFS_key_thread_id::match(const PFS_thread *pfs)
+{
+  bool record_null= (pfs->m_thread_internal_id == 0);
+  return do_match(record_null, pfs->m_thread_internal_id);
+}
+
+bool PFS_key_thread_id::match_owner(const PFS_table *pfs)
+{
+  PFS_thread *thread= sanitize_thread(pfs->m_thread_owner);
+
+  if (thread == NULL)
+    return do_match(true, 0);
+
+  return do_match(false, thread->m_thread_internal_id);
+}
+
+bool PFS_key_thread_id::match_owner(const PFS_socket *pfs)
+{
+  PFS_thread *thread= sanitize_thread(pfs->m_thread_owner);
+
+  if (thread == NULL)
+    return do_match(true, 0);
+
+  return do_match(false, thread->m_thread_internal_id);
+}
+
+bool PFS_key_thread_id::match_owner(const PFS_mutex *pfs)
+{
+  PFS_thread *thread= sanitize_thread(pfs->m_owner);
+
+  if (thread == NULL)
+    return do_match(true, 0);
+
+  return do_match(false, thread->m_thread_internal_id);
+}
+
+bool PFS_key_thread_id::match_owner(const PFS_prepared_stmt *pfs)
+{
+  return do_match(false, pfs->m_owner_thread_id);
+}
+
+bool PFS_key_thread_id::match_owner(const PFS_metadata_lock *pfs)
+{
+  return do_match(false, pfs->m_owner_thread_id);
+}
+
+bool PFS_key_thread_id::match_writer(const PFS_rwlock *pfs)
+{
+  PFS_thread *thread= sanitize_thread(pfs->m_writer);
+
+  if (thread == NULL)
+    return do_match(true, 0);
+
+  return do_match(false, thread->m_thread_internal_id);
+}
+
+bool PFS_key_event_id::match(const PFS_events *pfs)
+{
+  bool record_null= (pfs->m_event_id == 0);
+  return do_match(record_null, pfs->m_event_id);
+}
+
+bool PFS_key_event_id::match(const PFS_events_waits *pfs)
+{
+  bool record_null= (pfs->m_event_id == 0);
+  return do_match(record_null, pfs->m_event_id);
+}
+
+bool PFS_key_event_id::match_owner(const PFS_table *pfs)
+{
+  bool record_null= (pfs->m_owner_event_id == 0);
+  return do_match(record_null, pfs->m_owner_event_id);
+}
+
+bool PFS_key_event_id::match_owner(const PFS_prepared_stmt *pfs)
+{
+  bool record_null= (pfs->m_owner_event_id == 0);
+  return do_match(record_null, pfs->m_owner_event_id);
+}
+
+bool PFS_key_event_id::match_owner(const PFS_metadata_lock *pfs)
+{
+  bool record_null= (pfs->m_owner_event_id == 0);
+  return do_match(record_null, pfs->m_owner_event_id);
+}
+
+bool PFS_key_processlist_id::match(const PFS_thread *pfs)
+{
+  bool record_null= (pfs->m_processlist_id == 0);
+  return do_match(record_null, pfs->m_processlist_id);
+}
+
+bool PFS_key_processlist_id_int::match(const PFS_thread *pfs)
+{
+  bool record_null= (pfs->m_processlist_id == 0);
+  return do_match(record_null, pfs->m_processlist_id);
+}
+
+bool PFS_key_thread_os_id::match(const PFS_thread *pfs)
+{
+  bool record_null= (pfs->m_thread_os_id == 0);
+  return do_match(record_null, pfs->m_thread_os_id);
+}
+
+bool PFS_key_statement_id::match(const PFS_prepared_stmt *pfs)
+{
+  bool record_null= (pfs->m_stmt_id == 0);
+  return do_match(record_null, pfs->m_stmt_id);
+}
+
+bool PFS_key_socket_id::match(const PFS_socket *pfs)
+{
+  bool record_null= (pfs->m_fd == 0);
+  return do_match(record_null, (int32)pfs->m_fd);
+}
+
+bool PFS_key_port::match(const PFS_socket *pfs)
+{
+  bool record_null= (pfs->m_addr_len == 0);
+  uint port= 0;
+  char ip[INET6_ADDRSTRLEN+1];
+  uint ip_len= 0;
+  if (!record_null)
+  {
+    ip_len= pfs_get_socket_address(ip, sizeof(ip), &port,
+                                   &pfs->m_sock_addr, pfs->m_addr_len);
+    record_null= (ip_len == 0);
+  }
+  return do_match(record_null, (int32)port);
+}
+
+bool PFS_key_error_number::match_error_index(uint error_index)
+{
+  if (error_index > 0 && error_index < PFS_MAX_SERVER_ERRORS)
+  {
+    server_error *temp_error;
+    temp_error= & error_names_array[pfs_to_server_error_map[error_index]];
+
+    return do_match(false, (int32)temp_error->mysql_errno);
+  }
+
+  return false;
+}
+
+bool PFS_key_thread_name::match(const PFS_thread *pfs)
+{
+  PFS_thread_class *klass= sanitize_thread_class(pfs->m_class);
+  if (klass == NULL)
+    return false;
+
+  return match(klass);
+}
+
+bool PFS_key_thread_name::match(const PFS_thread_class *klass)
+{
+  return do_match(false, klass->m_name, klass->m_name_length);
+}
+
+bool PFS_key_event_name::match(const PFS_instr_class *pfs)
+{
+  return do_match(false, pfs->m_name, pfs->m_name_length);
+}
+
+bool PFS_key_event_name::match(const PFS_mutex *pfs)
+{
+  PFS_mutex_class *safe_class= sanitize_mutex_class(pfs->m_class);
+  if (unlikely(safe_class == NULL))
+    return false;
+
+  return do_match(false, safe_class->m_name, safe_class->m_name_length);
+}
+
+bool PFS_key_event_name::match(const PFS_rwlock *pfs)
+{
+  PFS_rwlock_class *safe_class= sanitize_rwlock_class(pfs->m_class);
+  if (unlikely(safe_class == NULL))
+    return false;
+  return do_match(false, safe_class->m_name, safe_class->m_name_length);
+}
+
+bool PFS_key_event_name::match(const PFS_cond *pfs)
+{
+  PFS_cond_class *safe_class= sanitize_cond_class(pfs->m_class);
+  if (unlikely(safe_class == NULL))
+    return false;
+  return do_match(false, safe_class->m_name, safe_class->m_name_length);
+}
+
+bool PFS_key_event_name::match(const PFS_file *pfs)
+{
+  PFS_file_class *safe_class= sanitize_file_class(pfs->m_class);
+  if (unlikely(safe_class == NULL))
+    return false;
+  return do_match(false, safe_class->m_name, safe_class->m_name_length);
+}
+
+bool PFS_key_event_name::match(const PFS_socket *pfs)
+{
+  PFS_socket_class *safe_class= sanitize_socket_class(pfs->m_class);
+  if (unlikely(safe_class == NULL))
+    return false;
+  return do_match(false, safe_class->m_name, safe_class->m_name_length);
+}
+
+bool PFS_key_event_name::match_view(uint view)
+{
+  switch (view)
+  {
+    case PFS_instrument_view_constants::VIEW_MUTEX:
+      return do_match_prefix(false, mutex_instrument_prefix.str,
+                             mutex_instrument_prefix.length);
+
+    case PFS_instrument_view_constants::VIEW_RWLOCK:
+      return do_match_prefix(false, rwlock_instrument_prefix.str,
+                             rwlock_instrument_prefix.length);
+
+    case PFS_instrument_view_constants::VIEW_COND:
+      return do_match_prefix(false, cond_instrument_prefix.str,
+                             cond_instrument_prefix.length);
+
+    case PFS_instrument_view_constants::VIEW_FILE:
+      return do_match_prefix(false, file_instrument_prefix.str,
+                             file_instrument_prefix.length);
+
+    case PFS_instrument_view_constants::VIEW_TABLE:
+      if (do_match_prefix(false, table_io_class_name.str,
+                          table_io_class_name.length))
+      {
+        return true;
+      }
+      return do_match_prefix(false, table_lock_class_name.str,
+                             table_lock_class_name.length);
+
+    case PFS_instrument_view_constants::VIEW_SOCKET:
+      return do_match_prefix(false, socket_instrument_prefix.str,
+                             socket_instrument_prefix.length);
+
+    case PFS_instrument_view_constants::VIEW_IDLE:
+      return do_match_prefix(false, idle_class_name.str,
+                             idle_class_name.length);
+
+    case PFS_instrument_view_constants::VIEW_METADATA:
+      return do_match_prefix(false, metadata_lock_class_name.str,
+                             metadata_lock_class_name.length);
+
+    case PFS_instrument_view_constants::VIEW_THREAD:
+      return do_match_prefix(false, thread_instrument_prefix.str,
+                             thread_instrument_prefix.length);
+
+    case PFS_instrument_view_constants::VIEW_STAGE:
+      return do_match_prefix(false, stage_instrument_prefix.str,
+                             stage_instrument_prefix.length);
+
+    case PFS_instrument_view_constants::VIEW_STATEMENT:
+      return do_match_prefix(false, statement_instrument_prefix.str,
+                             statement_instrument_prefix.length);
+
+    case PFS_instrument_view_constants::VIEW_TRANSACTION:
+      return do_match_prefix(false, transaction_instrument_prefix.str,
+                             transaction_instrument_prefix.length);
+
+    case PFS_instrument_view_constants::VIEW_BUILTIN_MEMORY:
+      return do_match_prefix(false, builtin_memory_instrument_prefix.str,
+                             builtin_memory_instrument_prefix.length);
+
+    case PFS_instrument_view_constants::VIEW_MEMORY:
+      return do_match_prefix(false, memory_instrument_prefix.str,
+                             memory_instrument_prefix.length);
+
+    case PFS_instrument_view_constants::VIEW_ERROR:
+      return do_match_prefix(false, error_class_name.str,
+                             error_class_name.length);
+
+    default:
+      return false;
+  }
+}
+
+bool PFS_key_user::match(const PFS_thread *pfs)
+{
+  bool record_null= (pfs->m_username_length == 0);
+  return do_match(record_null, pfs->m_username, pfs->m_username_length);
+}
+
+bool PFS_key_user::match(const PFS_user *pfs)
+{
+  bool record_null= (pfs->m_username_length == 0);
+  return do_match(record_null, pfs->m_username, pfs->m_username_length);
+}
+
+bool PFS_key_user::match(const PFS_account *pfs)
+{
+  bool record_null= (pfs->m_username_length == 0);
+  return do_match(record_null, pfs->m_username, pfs->m_username_length);
+}
+
+bool PFS_key_user::match(const PFS_setup_actor *pfs)
+{
+  bool record_null= (pfs->m_username_length == 0);
+  return do_match(record_null, pfs->m_username, pfs->m_username_length);
+}
+
+bool PFS_key_host::match(const PFS_thread *pfs)
+{
+  bool record_null= (pfs->m_hostname_length == 0);
+  return do_match(record_null, pfs->m_hostname, pfs->m_hostname_length);
+}
+
+bool PFS_key_host::match(const PFS_host *pfs)
+{
+  bool record_null= (pfs->m_hostname_length == 0);
+  return do_match(record_null, pfs->m_hostname, pfs->m_hostname_length);
+}
+
+bool PFS_key_host::match(const PFS_account *pfs)
+{
+  bool record_null= (pfs->m_hostname_length == 0);
+  return do_match(record_null, pfs->m_hostname, pfs->m_hostname_length);
+}
+
+bool PFS_key_host::match(const PFS_setup_actor *pfs)
+{
+  bool record_null= (pfs->m_hostname_length == 0);
+  return do_match(record_null, pfs->m_hostname, pfs->m_hostname_length);
+}
+
+bool PFS_key_host::match(const char *hostname, uint hostname_length)
+{
+  bool record_null= (hostname_length == 0);
+  return do_match(record_null, hostname, hostname_length);
+}
+
+bool PFS_key_role::match(const PFS_setup_actor *pfs)
+{
+  bool record_null= (pfs->m_rolename_length == 0);
+  return do_match(record_null, pfs->m_rolename, pfs->m_rolename_length);
+}
+
+bool PFS_key_schema::match(const PFS_statements_digest_stat *pfs)
+{
+  bool record_null= (pfs->m_digest_key.m_schema_name_length == 0);
+  return do_match(record_null, pfs->m_digest_key.m_schema_name, pfs->m_digest_key.m_schema_name_length);
+}
+
+bool PFS_key_digest::match(PFS_statements_digest_stat *pfs)
+{
+  bool record_null= (pfs->m_digest_storage.is_empty());
+  char md5_string[MD5_HASH_TO_STRING_LENGTH+1];
+
+  MD5_HASH_TO_STRING(pfs->m_digest_storage.m_md5, md5_string);
+
+  return do_match(record_null, md5_string, MD5_HASH_TO_STRING_LENGTH);
+}
+
+bool PFS_key_name::match(const LEX_STRING *name)
+{
+  bool record_null= (name->length == 0);
+  return do_match(record_null, name->str, name->length);
+}
+
+bool PFS_key_name::match(const char* name, uint name_length)
+{
+  bool record_null= (name_length == 0);
+  return do_match(record_null, name, name_length);
+}
+
+bool PFS_key_variable_name::match(const System_variable *pfs)
+{
+  return do_match(false, pfs->m_name, pfs->m_name_length);
+}
+
+bool PFS_key_variable_name::match(const Status_variable *pfs)
+{
+  return do_match(false, pfs->m_name, pfs->m_name_length);
+}
+
+bool PFS_key_variable_name::match(const PFS_variable_name_row *pfs)
+{
+  bool record_null= (pfs->m_length == 0);
+  return do_match(record_null, pfs->m_str, pfs->m_length);
+}
+
+bool PFS_key_ip::match(const PFS_socket *pfs)
+{
+  bool record_null= (pfs->m_addr_len == 0);
+  uint port= 0;
+  char ip[INET6_ADDRSTRLEN+1];
+  size_t ip_len= 0;
+  if (!record_null)
+  {
+    ip_len= pfs_get_socket_address(ip, sizeof(ip), &port,
+                                   &pfs->m_sock_addr, pfs->m_addr_len);
+    record_null= (ip_len == 0);
+  }
+  return do_match(record_null, (const char *)ip, ip_len);
+}
+
+bool PFS_key_ip::match(const char *ip, uint ip_length)
+{
+  bool record_null= (ip_length == 0);
+  return do_match(record_null, ip, ip_length);
+}
+
+bool PFS_key_statement_name::match(const PFS_prepared_stmt *pfs)
+{
+  return do_match(false, pfs->m_stmt_name, pfs->m_stmt_name_length);
+}
+
+bool PFS_key_file_name::match(const PFS_file *pfs)
+{
+  return do_match(false, pfs->m_filename, pfs->m_filename_length);
+}
+
+void PFS_key_object_type::read(PFS_key_reader & reader, enum ha_rkey_function find_flag)
+{
+  char object_type_string[255]; // FIXME
+  uint object_type_string_length;
+
+  m_find_flag= reader.read_varchar_utf8(find_flag, m_is_null,
+                                        object_type_string, &object_type_string_length,
+                                        sizeof(object_type_string));
+  if (m_is_null)
+  {
+    m_object_type= NO_OBJECT_TYPE;
+  }
+  else
+  {
+    string_to_object_type(object_type_string, object_type_string_length, & m_object_type);
+  }
+}
+
+bool PFS_key_object_type::match(enum_object_type object_type)
+{
+  return (m_object_type == object_type);
+}
+
+bool PFS_key_object_type::match(const PFS_object_row *pfs)
+{
+  return (m_object_type == pfs->m_object_type); // FIXME null check?
+}
+
+bool PFS_key_object_type::match(const PFS_program *pfs)
+{
+  return (m_object_type == pfs->m_type);
+}
+
+void PFS_key_object_type_enum::read(PFS_key_reader & reader, enum ha_rkey_function find_flag)
+{
+  uchar object_type= 0;
+
+  m_find_flag= reader.read_uchar(find_flag, m_is_null, &object_type);
+
+  if (m_is_null)
+  {
+    m_object_type= NO_OBJECT_TYPE;
+  }
+  else
+  {
+    m_object_type= static_cast<enum_object_type>(object_type);
+  }
+}
+
+bool PFS_key_object_type_enum::match(enum_object_type object_type)
+{
+  return (m_object_type == object_type);
+}
+
+bool PFS_key_object_type_enum::match(const PFS_prepared_stmt *pfs)
+{
+  return (m_object_type == pfs->m_owner_object_type);
+}
+
+bool PFS_key_object_type_enum::match(const PFS_object_row *pfs)
+{
+  return (m_object_type == pfs->m_object_type); // FIXME null check?
+}
+
+bool PFS_key_object_type_enum::match(const PFS_program *pfs)
+{
+  return (m_object_type == pfs->m_type);
+}
+
+bool PFS_key_object_schema::match(const PFS_table_share *share)
+{
+  return do_match(false, share->m_schema_name, share->m_schema_name_length);
+}
+
+bool PFS_key_object_schema::match(const PFS_program *pfs)
+{
+  return do_match(false, pfs->m_schema_name, pfs->m_schema_name_length);
+}
+
+bool PFS_key_object_schema::match(const PFS_prepared_stmt *pfs)
+{
+  return do_match(false, pfs->m_owner_object_schema,
+                  pfs->m_owner_object_schema_length);
+}
+
+bool PFS_key_object_schema::match(const PFS_object_row *pfs)
+{
+  bool record_null= (pfs->m_object_name_length == 0);
+  return do_match(record_null, pfs->m_schema_name, pfs->m_schema_name_length);
+}
+
+bool PFS_key_object_schema::match(const PFS_setup_object *pfs)
+{
+  bool record_null= (pfs->m_schema_name_length == 0);
+  return do_match(record_null, pfs->m_schema_name, pfs->m_schema_name_length);
+}
+
+bool PFS_key_object_schema::match(const char *schema_name, uint schema_name_length)
+{
+  bool record_null= (schema_name_length == 0);
+  return do_match(record_null, schema_name, schema_name_length);
+}
+
+bool PFS_key_object_name::match(const PFS_table_share *share)
+{
+  return do_match(false, share->m_table_name, share->m_table_name_length);
+}
+
+bool PFS_key_object_name::match(const PFS_program *pfs)
+{
+  return do_match(false, pfs->m_object_name, pfs->m_object_name_length);
+}
+
+bool PFS_key_object_name::match(const PFS_prepared_stmt *pfs)
+{
+  return do_match(false, pfs->m_owner_object_name,
+                  pfs->m_owner_object_name_length);
+}
+
+bool PFS_key_object_name::match(const PFS_object_row *pfs)
+{
+  bool record_null= (pfs->m_object_name_length == 0);
+  return do_match(record_null, pfs->m_object_name, pfs->m_object_name_length);
+}
+
+bool PFS_key_object_name::match(const PFS_index_row *pfs)
+{
+  bool record_null= (pfs->m_index_name_length == 0);
+  return do_match(record_null, pfs->m_index_name, pfs->m_index_name_length);
+}
+
+bool PFS_key_object_name::match(const PFS_setup_object *pfs)
+{
+  bool record_null= (pfs->m_object_name_length == 0);
+  return do_match(record_null, pfs->m_object_name, pfs->m_object_name_length);
+}
+
+bool PFS_key_object_name::match(const char *object_name, uint object_name_length)
+{
+  bool record_null= (object_name_length == 0);
+  return do_match(record_null, object_name, object_name_length);
+}
+
+bool PFS_key_object_instance::match(const PFS_table *pfs)
+{
+  return (m_identity == pfs->m_identity); // FIXME ?
+}
+
+bool PFS_key_object_instance::match(const PFS_mutex *pfs)
+{
+  return (m_identity == pfs->m_identity);
+}
+
+bool PFS_key_object_instance::match(const PFS_rwlock *pfs)
+{
+  return (m_identity == pfs->m_identity);
+}
+
+bool PFS_key_object_instance::match(const PFS_cond *pfs)
+{
+  return (m_identity == pfs->m_identity);
+}
+
+bool PFS_key_object_instance::match(const PFS_file *pfs)
+{
+  return (m_identity == pfs->m_identity);
+}
+
+bool PFS_key_object_instance::match(const PFS_socket *pfs)
+{
+  return (m_identity == pfs->m_identity);
+}
+
+bool PFS_key_object_instance::match(const PFS_prepared_stmt *pfs)
+{
+  return (m_identity == pfs->m_identity);
+}
+
+bool PFS_key_object_instance::match(const PFS_metadata_lock *pfs)
+{
+  return (m_identity == pfs->m_identity);
+}

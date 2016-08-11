@@ -44,6 +44,25 @@ struct row_tlws_by_table
   PFS_table_lock_stat_row m_stat;
 };
 
+class PFS_index_tlws_by_table : public PFS_engine_index
+{
+public:
+  PFS_index_tlws_by_table()
+    : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
+    m_key_1("OBJECT_TYPE"), m_key_2("OBJECT_SCHEMA"), m_key_3("OBJECT_NAME")
+  {}
+
+  ~PFS_index_tlws_by_table()
+  {}
+
+  virtual bool match(const PFS_table_share *table);
+
+private:
+  PFS_key_object_type m_key_1;
+  PFS_key_object_schema m_key_2;
+  PFS_key_object_name m_key_3;
+};
+
 /** Table PERFORMANCE_SCHEMA.TABLE_LOCK_WAITS_SUMMARY_BY_TABLE. */
 class table_tlws_by_table : public PFS_engine_table
 {
@@ -54,17 +73,20 @@ public:
   static int delete_all_rows();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
   virtual int rnd_init(bool scan);
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
 protected:
   virtual int read_row_values(TABLE *table,
                               unsigned char *buf,
                               Field **fields,
                               bool read_all);
-
   table_tlws_by_table();
 
 public:
@@ -88,6 +110,9 @@ private:
   PFS_simple_index m_pos;
   /** Next position. */
   PFS_simple_index m_next_pos;
+
+protected:
+  PFS_index_tlws_by_table *m_opened_index;
 };
 
 /** @} */

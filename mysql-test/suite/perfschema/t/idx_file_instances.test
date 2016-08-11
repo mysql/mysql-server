@@ -1,0 +1,84 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+select FILE_NAME from performance_schema.file_instances
+  limit 1
+  into @fname;
+
+select EVENT_NAME from performance_schema.file_instances
+  limit 1
+  into @ename;
+
+--disable_warnings
+###########################################################################
+# Test index on FILE_NAME
+###########################################################################
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select EVENT_NAME from performance_schema.file_instances
+  where FILE_NAME = "impossible";
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select EVENT_NAME from performance_schema.file_instances
+  where FILE_NAME > "foo" ;
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select EVENT_NAME from performance_schema.file_instances
+  where FILE_NAME < "bar" ;
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select EVENT_NAME from performance_schema.file_instances
+  where FILE_NAME = @fname ;
+
+--echo ############# Explain End #########################################
+--enable_warnings
+
+flush status;
+
+--replace_column 1 #
+select count(*) from performance_schema.file_instances
+  where FILE_NAME = @fname ;
+
+show session status like "handler_read%";
+
+###########################################################################
+# Test index on EVENT_NAME
+###########################################################################
+
+--disable_warnings
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select FILE_NAME from performance_schema.file_instances
+  where EVENT_NAME = "impossible";
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select FILE_NAME from performance_schema.file_instances
+  where EVENT_NAME > "foo" ;
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select FILE_NAME from performance_schema.file_instances
+  where EVENT_NAME < "bar" ;
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 #
+explain select FILE_NAME from performance_schema.file_instances
+  where EVENT_NAME = @ename ;
+
+--echo ############# Explain End #########################################
+--enable_warnings
+
+flush status;
+
+--replace_column 1 #
+select count(*) FILE_NAME from performance_schema.file_instances
+  where EVENT_NAME = @ename ;
+
+show session status like "handler_read%";

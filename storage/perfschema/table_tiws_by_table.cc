@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -245,6 +245,29 @@ table_tiws_by_table::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_tiws_by_table::match(const PFS_table_share *share)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key_1.match(OBJECT_TYPE_TABLE))
+      return false;
+  }
+
+  if (m_fields >= 2)
+  {
+    if (!m_key_2.match(share))
+      return false;
+  }
+
+  if (m_fields >= 3)
+  {
+    if (!m_key_3.match(share))
+      return false;
+  }
+
+  return true;
+}
+
 PFS_engine_table*
 table_tiws_by_table::create(void)
 {
@@ -323,6 +346,49 @@ table_tiws_by_table::rnd_pos(const void *pos)
   }
 
   return HA_ERR_RECORD_DELETED;
+}
+
+int table_tiws_by_table::index_init(uint idx, bool sorted)
+{
+  m_normalizer= time_normalizer::get(wait_timer);
+
+  PFS_index_tiws_by_table *result= NULL;
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_tiws_by_table);
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_tiws_by_table::index_next(void)
+{
+  PFS_table_share *share;
+  bool has_more_share= true;
+
+  for (m_pos.set_at(&m_next_pos);
+       has_more_share;
+       m_pos.next())
+  {
+    share = global_table_share_container.get(m_pos.m_index, &has_more_share);
+
+    if (share != NULL)
+    {
+      if (share->m_enabled)
+      {
+        if (m_opened_index->match(share))
+        {
+          make_row(share);
+          if (m_row_exists)
+          {
+            m_next_pos.set_after(&m_pos);
+            return 0;
+          }
+        }
+      }
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
 }
 
 void table_tiws_by_table::make_row(PFS_table_share *share)

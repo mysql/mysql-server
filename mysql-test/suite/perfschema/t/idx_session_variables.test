@@ -1,0 +1,34 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+# Test index on VARIABLE_NAME
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select VARIABLE_NAME
+  from performance_schema.session_variables
+  where VARIABLE_NAME = "impossible";
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select VARIABLE_NAME
+  from performance_schema.session_variables
+  where VARIABLE_NAME = "have_ssl";
+
+--echo ############# Explain End #########################################
+
+flush status;
+
+select *
+  from performance_schema.session_variables
+  where VARIABLE_NAME = "have_ssl";
+
+show session status like "handler_read%";
+
+select *
+  from performance_schema.session_variables
+  where VARIABLE_NAME = "have_ssl";
+
+show session status like "handler_read%";

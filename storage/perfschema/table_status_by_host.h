@@ -78,6 +78,25 @@ struct pos_status_by_host
   }
 };
 
+class PFS_index_status_by_host : public PFS_engine_index
+{
+public:
+  PFS_index_status_by_host()
+    : PFS_engine_index(&m_key_1, &m_key_2),
+    m_key_1("HOST"), m_key_2("VARIABLE_NAME")
+  {}
+
+  ~PFS_index_status_by_host()
+  {}
+
+  virtual bool match(PFS_host *pfs);
+  virtual bool match(const Status_variable *pfs);
+
+private:
+  PFS_key_host m_key_1;
+  PFS_key_variable_name m_key_2;
+};
+
 /**
   Store and retrieve table state information for queries that reinstantiate
   the table object.
@@ -101,10 +120,14 @@ public:
   static int delete_all_rows();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
   virtual int rnd_init(bool scan);
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
 protected:
   virtual int read_row_values(TABLE *table,
@@ -118,7 +141,6 @@ public:
   {}
 
 protected:
-  int materialize(PFS_thread *thread);
   void make_row(PFS_host *pfs_host, const Status_variable *status_var);
 
 private:
@@ -141,6 +163,8 @@ private:
 
   /** Table context with global status array version and map of materialized threads. */
   table_status_by_host_context *m_context;
+
+  PFS_index_status_by_host *m_opened_index;
 };
 
 /** @} */

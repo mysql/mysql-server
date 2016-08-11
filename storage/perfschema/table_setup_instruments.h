@@ -23,6 +23,7 @@
 
 #include "pfs_instr_class.h"
 #include "pfs_engine_table.h"
+#include "table_helper.h"
 
 /**
   @addtogroup performance_schema_tables
@@ -41,44 +42,45 @@ struct row_setup_instruments
 };
 
 /** Position of a cursor on PERFORMANCE_SCHEMA.SETUP_INSTRUMENTS. */
-struct pos_setup_instruments : public PFS_double_index
+struct pos_setup_instruments : public PFS_double_index,
+                               public PFS_instrument_view_constants
 {
-  static const uint FIRST_VIEW= 1;
-  static const uint VIEW_MUTEX= 1;
-  static const uint VIEW_RWLOCK= 2;
-  static const uint VIEW_COND= 3;
-  static const uint VIEW_THREAD= 4;
-  static const uint VIEW_FILE= 5;
-  static const uint VIEW_TABLE= 6;
-  static const uint VIEW_STAGE= 7;
-  static const uint VIEW_STATEMENT= 8;
-  static const uint VIEW_TRANSACTION=9;
-  static const uint VIEW_SOCKET= 10;
-  static const uint VIEW_IDLE= 11;
-  static const uint VIEW_BUILTIN_MEMORY= 12;
-  static const uint VIEW_MEMORY= 13;
-  static const uint VIEW_METADATA= 14;
-  static const uint VIEW_ERROR=15;
-  static const uint LAST_VIEW= 15;
-
   pos_setup_instruments()
-    : PFS_double_index(FIRST_VIEW, 1)
+    : PFS_double_index(FIRST_INSTRUMENT, 1)
   {}
 
   inline void reset(void)
   {
-    m_index_1= FIRST_VIEW;
+    m_index_1= FIRST_INSTRUMENT;
     m_index_2= 1;
   }
 
   inline bool has_more_view(void)
-  { return (m_index_1 <= LAST_VIEW); }
+  { return (m_index_1 <= LAST_INSTRUMENT); }
 
   inline void next_view(void)
   {
     m_index_1++;
     m_index_2= 1;
   }
+};
+
+class PFS_index_setup_instruments : public PFS_engine_index
+{
+public:
+  PFS_index_setup_instruments()
+    : PFS_engine_index(&m_key),
+    m_key("NAME")
+  {}
+
+  ~PFS_index_setup_instruments()
+  {}
+
+  bool match_view(uint view);
+  bool match(PFS_instr_class *klass);
+
+private:
+  PFS_key_event_name m_key;
 };
 
 /** Table PERFORMANCE_SCHEMA.SETUP_INSTRUMENTS. */
@@ -90,9 +92,13 @@ public:
   static PFS_engine_table* create();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
 protected:
   virtual int read_row_values(TABLE *table,
@@ -125,6 +131,8 @@ private:
   pos_setup_instruments m_pos;
   /** Next position. */
   pos_setup_instruments m_next_pos;
+
+  PFS_index_setup_instruments *m_opened_index;
 };
 
 /** @} */

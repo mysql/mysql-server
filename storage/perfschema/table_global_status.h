@@ -44,6 +44,23 @@ struct row_global_status
   PFS_variable_value_row m_variable_value;
 };
 
+class PFS_index_global_status : public PFS_engine_index
+{
+public:
+  PFS_index_global_status()
+    : PFS_engine_index(&m_key),
+    m_key("VARIABLE_NAME")
+  {}
+
+  ~PFS_index_global_status()
+  {}
+
+  virtual bool match(const Status_variable *pfs);
+
+private:
+  PFS_key_variable_name m_key;
+};
+
 /**
   Store and retrieve table state information for queries that reinstantiate
   the table object.
@@ -67,10 +84,14 @@ public:
   static int delete_all_rows();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
   virtual int rnd_init(bool scan);
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
 protected:
   virtual int read_row_values(TABLE *table,
@@ -105,6 +126,8 @@ private:
 
   /** Table context with global status array version. */
   table_global_status_context *m_context;
+
+  PFS_index_global_status *m_opened_index;
 };
 
 /** @} */

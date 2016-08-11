@@ -77,6 +77,25 @@ struct pos_variables_by_thread
   }
 };
 
+class PFS_index_variables_by_thread : public PFS_engine_index
+{
+public:
+  PFS_index_variables_by_thread()
+    : PFS_engine_index(&m_key_1, &m_key_2),
+    m_key_1("THREAD_ID"), m_key_2("VARIABLE_NAME")
+  {}
+
+  ~PFS_index_variables_by_thread()
+  {}
+
+  virtual bool match(PFS_thread *pfs);
+  virtual bool match(const System_variable *pfs);
+
+private:
+  PFS_key_thread_id m_key_1;
+  PFS_key_variable_name m_key_2;
+};
+
 /**
   Store and retrieve table state information during queries that reinstantiate
   the table object.
@@ -99,10 +118,14 @@ public:
   static PFS_engine_table* create();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
   virtual int rnd_init(bool scan);
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
 protected:
   virtual int read_row_values(TABLE *table,
@@ -116,7 +139,6 @@ public:
   {}
 
 protected:
-  int materialize(PFS_thread *thread);
   void make_row(PFS_thread *thread, const System_variable *system_var);
 
 private:
@@ -138,6 +160,8 @@ private:
 
   /** Table context with system variable hash version and map of materialized threads. */
   table_variables_by_thread_context *m_context;
+
+  PFS_index_variables_by_thread *m_opened_index;
 };
 
 /** @} */

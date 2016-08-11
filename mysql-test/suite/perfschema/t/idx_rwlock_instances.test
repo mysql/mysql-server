@@ -1,0 +1,126 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+select OBJECT_INSTANCE_BEGIN from performance_schema.rwlock_instances
+  limit 1
+  into @oib;
+
+select NAME from performance_schema.rwlock_instances
+  limit 1
+  into @name;
+
+#TODO : How to get data for this column?
+select WRITE_LOCKED_BY_THREAD_ID  from performance_schema.rwlock_instances
+  where WRITE_LOCKED_BY_THREAD_ID  is not NULL
+  limit 1
+  into @wlbtid;
+
+--disable_warnings
+###########################################################################
+# Test index on OBJECT_INSTANCE_BEGIN
+###########################################################################
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 # 10 #
+explain select NAME from performance_schema.rwlock_instances
+  where OBJECT_INSTANCE_BEGIN = '0000000';
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 # 10 #
+explain select NAME from performance_schema.rwlock_instances
+  where OBJECT_INSTANCE_BEGIN > 0 ;
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 # 10 #
+explain select NAME from performance_schema.rwlock_instances
+  where OBJECT_INSTANCE_BEGIN < 0 ;
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 # 10 #
+explain select NAME from performance_schema.rwlock_instances
+  where OBJECT_INSTANCE_BEGIN = @oib ;
+
+--echo ############# Explain End #########################################
+--enable_warnings
+
+flush status;
+
+--replace_column 1 # 10 #
+select NAME from performance_schema.rwlock_instances
+  where OBJECT_INSTANCE_BEGIN = @oib ;
+
+show session status like "handler_read%";
+
+###########################################################################
+# Test index on NAME
+###########################################################################
+
+--disable_warnings
+--echo ############ Explain for Query ####################################
+--replace_column 1 # 10 #
+explain select OBJECT_INSTANCE_BEGIN from performance_schema.rwlock_instances
+  where NAME = "impossible";
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 # 10 #
+explain select OBJECT_INSTANCE_BEGIN from performance_schema.rwlock_instances
+  where NAME > "foo" ;
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 # 10 #
+explain select OBJECT_INSTANCE_BEGIN from performance_schema.rwlock_instances
+  where NAME < "bar" ;
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 # 10 #
+explain select OBJECT_INSTANCE_BEGIN from performance_schema.rwlock_instances
+  where NAME = @name ;
+
+--echo ############# Explain End #########################################
+--enable_warnings
+
+flush status;
+
+--replace_column 1 # 10 #
+select OBJECT_INSTANCE_BEGIN from performance_schema.rwlock_instances
+  where NAME = @name ;
+
+show session status like "handler_read%";
+
+###########################################################################
+# Test index on WRITE_LOCKED_BY_THREAD_ID
+###########################################################################
+
+--disable_warnings
+--echo ############ Explain for Query ####################################
+--replace_column 1 # 10 #
+explain select OBJECT_INSTANCE_BEGIN from performance_schema.rwlock_instances
+  where WRITE_LOCKED_BY_THREAD_ID  = '9999';
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 # 10 #
+explain select OBJECT_INSTANCE_BEGIN from performance_schema.rwlock_instances
+  where WRITE_LOCKED_BY_THREAD_ID  > 1 ;
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 # 10 #
+explain select OBJECT_INSTANCE_BEGIN from performance_schema.rwlock_instances
+  where WRITE_LOCKED_BY_THREAD_ID  < 1 ;
+
+--echo ############ Explain for Query ####################################
+--replace_column 1 # 10 #
+explain select OBJECT_INSTANCE_BEGIN from performance_schema.rwlock_instances
+  where WRITE_LOCKED_BY_THREAD_ID  = @wlbtid ;
+
+--echo ############# Explain End #########################################
+--enable_warnings
+
+flush status;
+
+--replace_column 1 #
+select OBJECT_INSTANCE_BEGIN from performance_schema.rwlock_instances
+  where WRITE_LOCKED_BY_THREAD_ID  = @wlbtid ;
+
+show session status like "handler_read%";

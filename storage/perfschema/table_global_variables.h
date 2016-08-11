@@ -32,6 +32,23 @@
   @{
 */
 
+class PFS_index_global_variables : public PFS_engine_index
+{
+public:
+  PFS_index_global_variables()
+    : PFS_engine_index(&m_key),
+    m_key("VARIABLE_NAME")
+  {}
+
+  ~PFS_index_global_variables()
+  {}
+
+  virtual bool match(const System_variable *pfs);
+
+private:
+  PFS_key_variable_name m_key;
+};
+
 /**
   Store and retrieve table state information during queries that reinstantiate
   the table object.
@@ -66,10 +83,14 @@ public:
   static PFS_engine_table* create();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
   virtual int rnd_init(bool scan);
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
 protected:
   virtual int read_row_values(TABLE *table,
@@ -104,6 +125,8 @@ private:
 
   /** Table context with system variable hash version. */
   table_global_variables_context *m_context;
+
+  PFS_index_global_variables *m_opened_index;
 };
 
 /** @} */

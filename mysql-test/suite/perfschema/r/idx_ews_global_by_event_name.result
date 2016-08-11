@@ -1,0 +1,30 @@
+############ Explain for Query ####################################
+explain select EVENT_NAME
+from performance_schema.events_waits_summary_global_by_event_name
+where EVENT_NAME = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select NULL AS `EVENT_NAME` from `performance_schema`.`events_waits_summary_global_by_event_name` where (NULL = 'impossible')
+############ Explain for Query ####################################
+explain select EVENT_NAME
+from performance_schema.events_waits_summary_global_by_event_name
+where EVENT_NAME = "wait/lock/table/sql/handler";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_waits_summary_global_by_event_name	NULL	const	PRIMARY	PRIMARY	386	const	#	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select 'wait/lock/table/sql/handler' AS `EVENT_NAME` from `performance_schema`.`events_waits_summary_global_by_event_name` where ('wait/lock/table/sql/handler' = 'wait/lock/table/sql/handler')
+############# Explain End #########################################
+truncate table performance_schema.events_waits_summary_global_by_event_name;
+flush status;
+select EVENT_NAME, COUNT_STAR
+from performance_schema.events_waits_summary_global_by_event_name
+where EVENT_NAME = "wait/lock/table/sql/handler";
+EVENT_NAME	COUNT_STAR
+wait/lock/table/sql/handler	0
+select EVENT_NAME, COUNT_STAR
+from performance_schema.events_waits_summary_global_by_event_name
+where EVENT_NAME = "wait/lock/table/sql/handler";
+EVENT_NAME	COUNT_STAR
+wait/lock/table/sql/handler	0
+OK: handler_read_key incremented

@@ -16,6 +16,8 @@
 #ifndef PFS_COLUMN_TYPES_H
 #define PFS_COLUMN_TYPES_H
 
+#include "my_global.h"
+
 /**
   @file storage/perfschema/pfs_column_types.h
   Data types for columns used in the performance schema tables (declarations)
@@ -221,6 +223,13 @@ enum enum_object_type
 #define LAST_OBJECT_TYPE (static_cast<int> (OBJECT_TYPE_ACL_CACHE))
 /** Integer, number of values of @sa enum_object_type. */
 #define COUNT_OBJECT_TYPE (LAST_OBJECT_TYPE - FIRST_OBJECT_TYPE + 1)
+
+void object_type_to_string(enum_object_type object_type,
+                           const char ** string, size_t *length);
+
+void string_to_object_type(const char* string, size_t length,
+                           enum_object_type *object_type);
+
 
 /**
   Enum values for the NESTING_EVENT_TYPE columns.
