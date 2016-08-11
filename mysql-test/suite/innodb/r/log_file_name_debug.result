@@ -3,6 +3,7 @@
 # IF THERE ARE NO OPERATIONS TO APPLY
 #
 SET GLOBAL DEBUG='+d,fil_names_write_bogus';
+SET GLOBAL innodb_master_thread_disabled_debug=1;
 CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
 # Kill the server
 # restart
