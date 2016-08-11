@@ -102,6 +102,12 @@ Ndb::init(int aMaxNoOfTransactions)
     connected(Uint32(tRef));
   }
 
+  /* Now that we have this block open, set the first transid for
+   * this block from ndb_cluster_connection
+   */
+  theFirstTransId |= theImpl->m_ndb_cluster_connection.
+    get_next_transid(theNdbBlockNumber);
+
   /* Init cached min node version */
   theFacade->lock_poll_mutex();
   theCachedMinDbNodeVersion = theFacade->getMinDbNodeVersion();

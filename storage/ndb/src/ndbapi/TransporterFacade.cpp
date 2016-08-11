@@ -2284,6 +2284,13 @@ TransporterFacade::get_active_ndb_objects() const
   return m_threads.m_use_cnt;
 }
 
+Uint32
+TransporterFacade::mapRefToIdx(Uint32 reference) const
+{
+  assert(reference >= MIN_API_BLOCK_NO);
+  return reference - MIN_API_BLOCK_NO;
+}
+
 void
 TransporterFacade::start_poll(trp_client* clnt)
 {
