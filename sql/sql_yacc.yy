@@ -1297,8 +1297,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <cast_type> cast_type
 
-%type <symbol> keyword keyword_sp keyword_role
-        keyword_role_aux1 keyword_role_aux2
+%type <symbol> ident_keyword label_keyword role_keyword
+        role_or_label_keyword role_or_ident_keyword
 
 %type <lex_user> user grant_user user_func role
 
@@ -12903,7 +12903,7 @@ TEXT_STRING_filesystem:
 
 ident:
           IDENT_sys    { $$=$1; }
-        | keyword
+        | ident_keyword
           {
             THD *thd= YYTHD;
             $$.str= thd->strmake($1.str, $1.length);
@@ -12915,7 +12915,7 @@ ident:
 
 role_ident:
           IDENT_sys
-        | keyword_role
+        | role_keyword
           {
             $$.str= YYTHD->strmake($1.str, $1.length);
             if ($$.str == NULL)
@@ -12926,7 +12926,7 @@ role_ident:
 
 label_ident:
           IDENT_sys    { $$=$1; }
-        | keyword_sp
+        | label_keyword
           {
             THD *thd= YYTHD;
             $$.str= thd->strmake($1.str, $1.length);
@@ -12985,26 +12985,28 @@ role:
           }
         ;
 
-/* Keywords that we allow for identifiers (except SP labels).
+/*
+  Non-reserved keywords that we allow for identifiers (except SP labels).
 
-   Also see statement-specific rules:
-   * keyword_sp,
-   * keyword_role
+  Also see statement-specific rules:
+    * label_keyword,
+    * role_keyword
+
+  We allow the use of some non-reserved keywords as identifiers, SP labels and
+  roles, but the three sets of keywords are different and yet
+  overlapping. Hence we need a somewhat complicated set of rules for all
+  possible intersections of these sets: role_or_ident_keyword,
+  role_or_label_keyword.
 */
-keyword:
-          keyword_sp            {}
-        | keyword_role_aux2     {}
+ident_keyword:
+          label_keyword         {}
+        | role_or_ident_keyword {}
         | EXECUTE_SYM           {}
         | SHUTDOWN              {}
         ;
 
-/*
-  This is a subset of non-reserved keywords.
-  We allow keyword_role_aux2 for role identifiers in addition to
-  keyword_role_aux1.
-  Also see a comment above the keyword_role rule.
-*/
-keyword_role_aux2:
+// These are the non-reserved keywords which may be used for roles or idents.
+role_or_ident_keyword:
           ACCOUNT_SYM           {}
         | ASCII_SYM             {}
         | ALWAYS_SYM            {}
@@ -13063,13 +13065,13 @@ keyword_role_aux2:
         ;
 
 /*
- * Keywords that we allow for labels in SPs.
- * Anything that's the beginning of a statement or characteristics
- * must be in keyword above, otherwise we get (harmful) shift/reduce
- * conflicts.
- */
-keyword_sp:
-          keyword_role_aux1        {}
+  Keywords that we allow for labels in SPs.
+  Anything that's the beginning of a statement or characteristics
+  must be in keyword above, otherwise we get (harmful) shift/reduce
+  conflicts.
+*/
+label_keyword:
+          role_or_label_keyword    {}
         | EVENT_SYM                {}
         | FILE_SYM                 {}
         | NONE_SYM                 {}
@@ -13080,13 +13082,8 @@ keyword_sp:
         | SUPER_SYM                {}
         ;
 
-/*
-  This is a subset of non-reserved keywords in keyword_sp.
-  We allow keyword_role_aux1 for role identifiers in addition to
-  keyword_role_aux2.
-  Also see a comment above the keyword_role rule.
-*/
-keyword_role_aux1:
+// These are the non-reserved keywords which may be used for roles or SP labels.
+role_or_label_keyword:
           ACTION                   {}
         | ADDDATE_SYM              {}
         | AFTER_SYM                {}
@@ -13406,26 +13403,25 @@ keyword_role_aux1:
         | YEAR_SYM                 {}
         ;
 
-/* Keywords that we allow for role names.
+/*
+  Non-reserved keywords that we allow for role names.
 
-   To not introduce new grammar conflicts, the following keyword tokens are
-   not welcome as role names:
-        EVENT_SYM
-        EXECUTE_SYM
-        FILE_SYM
-        PROCESS
-        PROXY_SYM
-        RELOAD
-        REPLICATION
-        SHUTDOWN
-        SUPER_SYM
+  In order not to introduce new grammar conflicts, the following keyword tokens are
+  not welcome as role names:
 
-  Note: this rule is a combination of keyword & keyword_sp rules (excluding
-        keywords above).
+    EVENT_SYM
+    EXECUTE_SYM
+    FILE_SYM
+    PROCESS
+    PROXY_SYM
+    RELOAD
+    REPLICATION
+    SHUTDOWN
+    SUPER_SYM
 */
-keyword_role:
-          keyword_role_aux1
-        | keyword_role_aux2
+role_keyword:
+          role_or_label_keyword
+        | role_or_ident_keyword
         ;
 
 /*
