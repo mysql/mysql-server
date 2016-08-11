@@ -1419,7 +1419,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
       DEBUG_SYNC(thd, "ha_commit_trans_after_acquire_commit_lock");
     }
 
-    if (rw_trans &&
+    if (rw_trans && stmt_has_updated_trans_table(ha_info) &&
         opt_readonly &&
         !(thd->security_ctx->master_access & SUPER_ACL) &&
         !thd->slave_thread)
