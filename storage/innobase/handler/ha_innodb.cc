@@ -3646,6 +3646,10 @@ static
 void
 innodb_buffer_pool_size_init()
 {
+#ifdef UNIV_DEBUG
+	ulint	srv_buf_pool_instances_org = srv_buf_pool_instances;
+#endif /* UNIV_DEBUG */
+
 	if (srv_buf_pool_size >= BUF_POOL_SIZE_THRESHOLD) {
 
 		if (srv_buf_pool_instances == srv_buf_pool_instances_default) {
@@ -3684,6 +3688,13 @@ innodb_buffer_pool_size_init()
 
 		srv_buf_pool_instances = 1;
 	}
+
+#ifdef UNIV_DEBUG
+	if (srv_buf_pool_debug
+	    && srv_buf_pool_instances_org != srv_buf_pool_instances_default) {
+		srv_buf_pool_instances = srv_buf_pool_instances_org;
+	};
+#endif /* UNIV_DEBUG */
 
 	if (srv_buf_pool_chunk_unit * srv_buf_pool_instances
 	    > srv_buf_pool_size) {
@@ -20227,6 +20238,11 @@ static MYSQL_SYSVAR_BOOL(sync_debug, srv_sync_debug,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Enable the sync debug checks",
   NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_BOOL(buffer_pool_debug, srv_buf_pool_debug,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  "Enable buffer pool debug",
+  NULL, NULL, FALSE);
 #endif /* UNIV_DEBUG */
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -20390,6 +20406,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(dict_stats_disabled_debug),
   MYSQL_SYSVAR(master_thread_disabled_debug),
   MYSQL_SYSVAR(sync_debug),
+  MYSQL_SYSVAR(buffer_pool_debug),
 #endif /* UNIV_DEBUG */
   NULL
 };
@@ -21242,6 +21259,14 @@ innodb_buffer_pool_size_validate(
 	}
 
 	if (srv_buf_pool_instances > 1 && intbuf < BUF_POOL_SIZE_THRESHOLD) {
+#ifdef UNIV_DEBUG
+		/* Ignore 1G constraint to enable mulitple instances
+		for debug and test. */
+		if (srv_buf_pool_debug) {
+			goto debug_set;
+		}
+#endif /* UNIV_DEBUG */
+
 		push_warning_printf(thd, Sql_condition::SL_WARNING,
 				    ER_WRONG_ARGUMENTS,
 				    "Cannot update innodb_buffer_pool_size"
@@ -21249,6 +21274,10 @@ innodb_buffer_pool_size_validate(
 				    " innodb_buffer_pool_instances > 1.");
 		return(1);
 	}
+
+#ifdef UNIV_DEBUG
+debug_set:
+#endif /* UNIV_DEBUG */
 
 	if (sizeof(ulint) == 4) {
 		if (intbuf > UINT_MAX32) {

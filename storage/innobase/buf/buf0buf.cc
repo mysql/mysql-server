@@ -311,6 +311,12 @@ in the debug version */
 static ulint	buf_dbg_counter	= 0;
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
+#ifdef UNIV_DEBUG
+/** This is used to enable multiple buffer pool instances
+with small buffer pool size. */
+my_bool	srv_buf_pool_debug;
+#endif /* UNIV_DEBUG */
+
 #if defined UNIV_PFS_MUTEX || defined UNIV_PFS_RWLOCK
 # ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 
@@ -2097,10 +2103,25 @@ withdraw_retry:
 	to freshly allocated pages before any pointers to them are published.*/
 	for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
 		mutex_enter(&(buf_pool_from_array(i)->LRU_list_mutex));
+	}
+
+	for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
 		hash_lock_x_all(buf_pool_from_array(i)->page_hash);
+	}
+
+	for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
 		mutex_enter(&(buf_pool_from_array(i)->zip_free_mutex));
+	}
+
+	for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
 		mutex_enter(&(buf_pool_from_array(i)->free_list_mutex));
+	}
+
+	for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
 		mutex_enter(&(buf_pool_from_array(i)->zip_hash_mutex));
+	}
+
+	for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
 		mutex_enter(&(buf_pool_from_array(i)->flush_state_mutex));
 	}
 
