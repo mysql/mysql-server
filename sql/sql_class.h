@@ -4148,11 +4148,12 @@ private:
 public:
   /**
     This is only used by master dump threads.
-    When the master receives a new connection from a slave with a UUID that
-    is already connected, it will set this flag TRUE before killing the old
-    slave connection.
+    When the master receives a new connection from a slave with a
+    UUID (for slave versions >= 5.6)/server_id(for slave versions < 5.6)
+    that is already connected, it will set this flag TRUE
+    before killing the old slave connection.
   */
-  bool duplicate_slave_uuid;
+  bool duplicate_slave_id;
 };
 
 

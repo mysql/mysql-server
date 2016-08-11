@@ -1,5 +1,5 @@
 /* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
-
+sql_authenticate
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -11125,6 +11125,27 @@ server_mpvio_update_thd(THD *thd, MPVIO_EXT *mpvio)
 }
 
 /**
+  Assign priv_user and priv_host fields of the Security_context.
+
+  @param sctx Security context, which priv_user and priv_host fields are
+              updated.
+  @param user Authenticated user data.
+*/
+inline void
+assign_priv_user_host(Security_context *sctx, const ACL_USER *user)
+{
+  if (user->user)
+    strmake(sctx->priv_user, user->user, USERNAME_LENGTH - 1);
+  else
+    *sctx->priv_user= 0;
+
+  if (user->host.get_host())
+    strmake(sctx->priv_host, user->host.get_host(), MAX_HOSTNAME - 1);
+  else
+    *sctx->priv_host= 0;
+}
+
+/**
   Perform the handshake, authorize the client and update thd sctx variables.
 
   @param thd                     thread handle
@@ -11251,6 +11272,9 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     res= CR_ERROR;
   }
 
+  if (mpvio.can_authenticate())
+    assign_priv_user_host(sctx, acl_user);
+
   if (res > CR_OK && mpvio.status != MPVIO_EXT::SUCCESS)
   {
     Host_errors errors;
@@ -11333,15 +11357,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
 #endif
 
     sctx->master_access= acl_user->access;
-    if (acl_user->user)
-      strmake(sctx->priv_user, acl_user->user, USERNAME_LENGTH - 1);
-    else
-      *sctx->priv_user= 0;
-
-    if (acl_user->host.get_host())
-      strmake(sctx->priv_host, acl_user->host.get_host(), MAX_HOSTNAME - 1);
-    else
-      *sctx->priv_host= 0;
+    assign_priv_user_host(sctx, acl_user);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     /*

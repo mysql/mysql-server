@@ -1992,17 +1992,16 @@ trans_has_updated_trans_table(const THD* thd)
   This function checks if a transactional table was updated by the
   current statement.
 
-  @param thd The client thread that executed the current statement.
+  @param ha_list Registered storage engine handler list.
   @return
     @c true if a transactional table was updated, @c false otherwise.
 */
 bool
-stmt_has_updated_trans_table(const THD *thd)
+stmt_has_updated_trans_table(Ha_trx_info* ha_list)
 {
   Ha_trx_info *ha_info;
 
-  for (ha_info= thd->transaction.stmt.ha_list; ha_info;
-       ha_info= ha_info->next())
+  for (ha_info= ha_list; ha_info; ha_info= ha_info->next())
   {
     if (ha_info->is_trx_read_write() && ha_info->ht() != binlog_hton)
       return (TRUE);
@@ -3426,23 +3425,48 @@ int MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file(bool need_lock_index
     if (mysql_file_close(index_file.file, MYF(0)) < 0)
     {
       error= -1;
-      sql_print_error("MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file "
-                      "failed to close the index file.");
-      goto err;
+      sql_print_error("While rebuilding index file %s: "
+                      "Failed to close the index file.", index_file_name);
+      /*
+        Delete Crash safe index file here and recover the binlog.index
+        state(index_file io_cache) from old binlog.index content.
+       */
+      mysql_file_delete(key_file_binlog_index, crash_safe_index_file_name,
+                        MYF(0));
+
+      goto recoverable_err;
     }
-    mysql_file_delete(key_file_binlog_index, index_file_name, MYF(MY_WME));
+    if (DBUG_EVALUATE_IF("force_index_file_delete_failure", 1, 0) ||
+        mysql_file_delete(key_file_binlog_index, index_file_name, MYF(MY_WME)))
+    {
+      error= -1;
+      sql_print_error("While rebuilding index file %s: "
+                      "Failed to delete the existing index file. It could be "
+                      "that file is being used by some other process.",
+                      index_file_name);
+      /*
+        Delete Crash safe file index file here and recover the binlog.index
+        state(index_file io_cache) from old binlog.index content.
+       */
+      mysql_file_delete(key_file_binlog_index, crash_safe_index_file_name,
+                        MYF(0));
+
+      goto recoverable_err;
+    }
   }
 
   DBUG_EXECUTE_IF("crash_create_before_rename_index_file", DBUG_SUICIDE(););
   if (my_rename(crash_safe_index_file_name, index_file_name, MYF(MY_WME)))
   {
     error= -1;
-    sql_print_error("MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file "
-                    "failed to move crash_safe_index_file to index file.");
-    goto err;
+    sql_print_error("While rebuilding index file %s: "
+                    "Failed to rename the new index file to the existing "
+                    "index file.", index_file_name);
+    goto fatal_err;
   }
   DBUG_EXECUTE_IF("crash_create_after_rename_index_file", DBUG_SUICIDE(););
 
+recoverable_err:
   if ((fd= mysql_file_open(key_file_binlog_index,
                            index_file_name,
                            O_RDWR | O_CREAT | O_BINARY,
@@ -3452,15 +3476,31 @@ int MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file(bool need_lock_index
                          mysql_file_seek(fd, 0L, MY_SEEK_END, MYF(0)),
                                          0, MYF(MY_WME | MY_WAIT_IF_FULL)))
   {
-    error= -1;
-    sql_print_error("MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file "
-                    "failed to open the index file.");
-    goto err;
+    sql_print_error("After rebuilding the index file %s: "
+                    "Failed to open the index file.", index_file_name);
+    goto fatal_err;
   }
 
-err:
   if (need_lock_index)
     mysql_mutex_unlock(&LOCK_index);
+  DBUG_RETURN(error);
+
+fatal_err:
+  /*
+    This situation is very very rare to happen (unless there is some serious
+    memory related issues like OOM) and should be treated as fatal error.
+    Hence it is better to bring down the server without respecting
+    'binlog_error_action' value here.
+  */
+  exec_binlog_error_action_abort("MySQL server failed to update the "
+                                 "binlog.index file's content properly. "
+                                 "It might not be in sync with available "
+                                 "binlogs and the binlog.index file state is in "
+                                 "unrecoverable state. Aborting the server.");
+  /*
+    Server is aborted in the above function.
+    This is dead code to make compiler happy.
+   */
   DBUG_RETURN(error);
 }
 
@@ -4364,7 +4404,7 @@ err:
 
   int error_index= 0, close_error_index= 0;
   /* Read each entry from purge_index_file and delete the file. */
-  if (is_inited_purge_index_file() &&
+  if (!error && is_inited_purge_index_file() &&
       (error_index= purge_index_entry(thd, decrease_log_space, false/*need_lock_index=false*/)))
     sql_print_error("MYSQL_BIN_LOG::purge_logs failed to process registered files"
                     " that would be purged.");
@@ -5457,7 +5497,8 @@ int MYSQL_BIN_LOG::rotate(bool force_rotate, bool* check_purge)
 
   *check_purge= false;
 
-  if (force_rotate || (my_b_tell(&log_file) >= (my_off_t) max_size))
+  if (DBUG_EVALUATE_IF("force_rotate", 1, 0) || force_rotate ||
+      (my_b_tell(&log_file) >= (my_off_t) max_size))
   {
     error= new_file_without_locking(NULL);
     *check_purge= true;
@@ -7250,7 +7291,8 @@ commit_stage:
     If we need to rotate, we do it without commit error.
     Otherwise the thd->commit_error will be possibly reset.
    */
-  if (do_rotate && thd->commit_error == THD::CE_NONE)
+  if (DBUG_EVALUATE_IF("force_rotate", 1, 0) ||
+      (do_rotate && thd->commit_error == THD::CE_NONE))
   {
     /*
       Do not force the rotate as several consecutive groups may
