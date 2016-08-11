@@ -83,6 +83,8 @@ public:
  void setSendThreadInterval(Uint32 ms);
  Uint32 getSendThreadInterval(void);
 
+  Uint32 mapRefToIdx(Uint32 blockReference) const;
+
   // Only sends to nodes which are alive
 private:
   int sendSignal(trp_client*, const NdbApiSignal *, NodeId nodeId);
