@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -130,9 +130,11 @@ private:
 
   // Scan batch configuration parameters
   NdbApiConfig m_config;
-  
-  // keep initial transId's increasing...
-  Uint32 m_max_trans_id;
+
+  // Avoid transid reuse with Block ref reuse
+  Vector<Uint32> m_next_transids;
+  Uint32 get_next_transid(Uint32 reference) const;
+  void set_next_transid(Uint32 reference, Uint32 value);
 
   // Base offset for stats, from Ndb objects that are no 
   // longer with us
