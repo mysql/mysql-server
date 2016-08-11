@@ -2750,7 +2750,8 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   {
     cache_type= Log_event::EVENT_NO_CACHE;
   }
-  else if (using_trans || trx_cache || stmt_has_updated_trans_table(thd) ||
+  else if (using_trans || trx_cache ||
+           stmt_has_updated_trans_table(thd->transaction.stmt.ha_list) ||
            thd->lex->is_mixed_stmt_unsafe(thd->in_multi_stmt_transaction_mode(),
                                           thd->variables.binlog_direct_non_trans_update,
                                           trans_has_updated_trans_table(thd),
