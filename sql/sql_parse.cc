@@ -500,8 +500,6 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CHANGE_REPLICATION_FILTER]=    CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_SLAVE_START]=        CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_SLAVE_STOP]=         CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_START_GROUP_REPLICATION]= CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_STOP_GROUP_REPLICATION]=  CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_TABLESPACE]|=  CF_AUTO_COMMIT_TRANS;
 
   /*
@@ -3269,6 +3267,25 @@ end_with_restore_list:
     if (check_global_access(thd, SUPER_ACL))
       goto error;
 
+    /*
+      If the client thread has locked tables, a deadlock is possible.
+      Assume that
+      - the client thread does LOCK TABLE t READ.
+      - then the client thread does START GROUP_REPLICATION.
+           -try to make the server in super ready only mode
+           -acquire MDL lock ownership which will be waiting for
+            LOCK on table t to be released.
+      To prevent that, refuse START GROUP_REPLICATION if the
+      client thread has locked tables
+    */
+    if (thd->locked_tables_mode ||
+        thd->in_active_multi_stmt_transaction() || thd->in_sub_stmt)
+    {
+      my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
+                 ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+      goto error;
+    }
+
     res= group_replication_start();
 
     //To reduce server dependency, server errors are not used here
@@ -3286,13 +3303,17 @@ end_with_restore_list:
         my_message(ER_GROUP_REPLICATION_APPLIER_INIT_ERROR,
                    ER(ER_GROUP_REPLICATION_APPLIER_INIT_ERROR), MYF(0));
         goto error;
-      case 4: //GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR
+      case 4: //GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
         my_message(ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR,
                    ER(ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR), MYF(0));
         goto error;
-      case 5: //GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
+      case 5: //GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR
         my_message(ER_GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR,
                    ER(ER_GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR), MYF(0));
+        goto error;
+      case 7: //GROUP_REPLICATION_MAX_GROUP_SIZE
+        my_message(ER_GROUP_REPLICATION_MAX_GROUP_SIZE,
+                   ER(ER_GROUP_REPLICATION_MAX_GROUP_SIZE), MYF(0));
         goto error;
     }
     my_ok(thd);
@@ -3304,6 +3325,19 @@ end_with_restore_list:
   {
     if (check_global_access(thd, SUPER_ACL))
       goto error;
+
+    /*
+      Please see explanation @SQLCOM_SLAVE_STOP case
+      to know the reason for thd->locked_tables_mode in
+      the below if condition.
+    */
+    if (thd->locked_tables_mode ||
+        thd->in_active_multi_stmt_transaction() || thd->in_sub_stmt)
+    {
+      my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
+                 ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+      goto error;
+    }
 
     res= group_replication_stop();
     if (res == 1) //GROUP_REPLICATION_CONFIGURATION_ERROR

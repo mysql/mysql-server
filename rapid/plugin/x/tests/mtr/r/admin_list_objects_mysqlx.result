@@ -1,0 +1,55 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
+CREATE TABLE xtest.mytable (a INT);
+CREATE TABLE xtest.mytable2 (a INT, doc JSON);
+CREATE VIEW xtest.myview AS SELECT 1;
+
+command ok
+
+0 rows affected
+name	type
+books	COLLECTION
+fakecoll	VIEW
+mytable	TABLE
+mytable2	TABLE
+myview	VIEW
+command ok
+Got expected error: Unknown database 'invalid' (code 1049)
+name	type
+mytable	TABLE
+mytable2	TABLE
+command ok
+name	type
+command ok
+Got expected error: No database selected (code 1046)
+
+0 rows affected
+name	type
+books	COLLECTION
+fakecoll	VIEW
+mytable	TABLE
+mytable2	TABLE
+myview	VIEW
+command ok
+name	type
+fakecoll	VIEW
+command ok
+
+0 rows affected
+Records: 0  Duplicates: 0  Warnings: 0
+Field	Type	Null	Key	Default	Extra
+doc	json	YES		null	
+_id	varchar(32)	NO	PRI	null	STORED GENERATED
+nothing	int(11)	YES		null	
+0 rows affected
+name	type
+books	TABLE
+command ok
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP SCHEMA IF EXISTS xtest;
+UNINSTALL PLUGIN mysqlx;

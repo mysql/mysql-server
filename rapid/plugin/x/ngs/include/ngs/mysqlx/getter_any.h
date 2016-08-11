@@ -88,7 +88,7 @@ public:
   template <typename Functor>
   static void put_scalar_value_to_functor(const ::Mysqlx::Datatypes::Any &any, Functor & functor)
   {
-    if (::Mysqlx::Datatypes::Any::SCALAR != any.has_type())
+    if (!any.has_type())
       throw ngs::Error_code(ER_X_INVALID_PROTOCOL_DATA, "Invalid data, expecting type");
 
     if (::Mysqlx::Datatypes::Any::SCALAR != any.type())
@@ -145,15 +145,12 @@ public:
   }
 
 private:
-    static void throw_invalid_type_if_false(const ::Mysqlx::Datatypes::Scalar &scalar, const bool is_valid)
-    {
-      if (!is_valid)
-      {
-        std::stringstream stream;
-        stream << "Missing field required for ScalarType:" << scalar.type();
-        throw ngs::Error_code(ER_X_INVALID_PROTOCOL_DATA, stream.str());
-      }
-    }
+  static void throw_invalid_type_if_false(const ::Mysqlx::Datatypes::Scalar &scalar, const bool is_valid)
+  {
+    if (!is_valid)
+      throw ngs::Error(ER_X_INVALID_PROTOCOL_DATA,
+                       "Missing field required for ScalarType: %d", scalar.type());
+  }
 };
 
 

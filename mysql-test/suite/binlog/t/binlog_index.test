@@ -421,7 +421,67 @@ file_exists $MYSQLD_DATADIR/master-bin.000012;
 file_exists $MYSQLD_DATADIR/master-bin.000013;
 file_exists $MYSQLD_DATADIR/master-bin.000014;
 
+-- echo # Test case11: Bug #20381055SERVER CRASHES IF INDEX FILE IS OPENED BY
+        #              OTHER APPLICATION AND PURGE IS ISSUED.
+        # This test case test the server behaviour if index file cannot be
+        # deleted.
+SET SESSION debug="d,force_index_file_delete_failure";
+
+# Add supressions
+call mtr.add_suppression("Failed to delete the existing index file");
+call mtr.add_suppression("failed to move crash safe index file to index file");
+call mtr.add_suppression("failed to update the index file");
+
+# When index file cannot be recreated during purge binary logs command,
+# it should throw error but it should not disable binary logging.
+-- error ER_IO_ERR_LOG_INDEX_READ
+-- eval PURGE BINARY LOGS TO 'master-bin.000014';
+
+-- echo # Test the index file is complete, although is not purged successfully.
+-- echo # Also this will indicate that binary logging is not disabled.
+-- source include/show_binary_logs.inc
+file_exists $MYSQLD_DATADIR/master-bin.000012;
+file_exists $MYSQLD_DATADIR/master-bin.000013;
+file_exists $MYSQLD_DATADIR/master-bin.000014;
+
+# When index file cannot be recreated during FLUSH LOGS command,
+# it should throw error and binary logging should be disabled.
+SET GLOBAL binlog_error_action='IGNORE_ERROR';
+# normalize strerror message for solaris10-sparc-64bit as long as errno is OK
+--replace_regex /\.[\\\/]master/master/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
+--error ER_CANT_OPEN_FILE
+FLUSH LOGS;
+
+--error ER_NO_BINARY_LOGGING
+SHOW BINARY LOGS;
+--source include/restart_mysqld.inc
+--source include/show_binary_logs.inc
+CREATE TABLE t1(i INT);
+SET GLOBAL binlog_error_action='IGNORE_ERROR';
+SET SESSION debug="+d,force_index_file_delete_failure";
+SET SESSION debug="+d,force_rotate";
+
+# When index file cannot be recreated during DML command which
+# is trying to rotate the binary log, it should throw error and
+# binary logging should be disabled.
+# normalize strerror message for solaris10-sparc-64bit as long as errno is OK
+--replace_regex /\.[\\\/]master/master/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
+--error ER_CANT_OPEN_FILE
+INSERT INTO t1 VALUES (12);
+
+--error ER_NO_BINARY_LOGGING
+SHOW BINARY LOGS;
+
+--source include/restart_mysqld.inc
+-- source include/show_binary_logs.inc
+DROP TABLE t1;
+-- echo # Test case11: Ends
+
 eval SET SESSION debug="$old";
 eval SET GLOBAL binlog_error_action= $saved_binlog_error_action;
+
+# Reset Master deletes all binary log files listed in the index file, resets
+# the binary log index file to be empty and creates a new binary log file.
+RESET MASTER;
 
 --echo End of tests

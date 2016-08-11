@@ -681,6 +681,9 @@ bool File_query_log::write_general(ulonglong event_utime,
   if (my_b_write(&log_file, (uchar*) local_time_buff, time_buff_len))
     goto err;
 
+  if (my_b_write(&log_file, (uchar*) "\t", 1))
+    goto err;
+
   length= my_snprintf(buff, 32, "%5u ", thread_id);
 
   if (my_b_write(&log_file, (uchar*) buff, length))

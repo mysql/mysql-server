@@ -15,7 +15,7 @@ Field	Type	Null	Key	Default	Extra
 host	varchar(60)	YES		NULL	
 total	decimal(42,0)	YES		NULL	
 total_latency	decimal(42,0)	YES		NULL	
-max_latency	decimal(42,0)	YES		NULL	
+max_latency	bigint(20) unsigned	YES		NULL	
 lock_latency	decimal(42,0)	YES		NULL	
 rows_sent	decimal(42,0)	YES		NULL	
 rows_examined	decimal(42,0)	YES		NULL	

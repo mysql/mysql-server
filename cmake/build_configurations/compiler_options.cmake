@@ -15,6 +15,7 @@
 
 INCLUDE(CheckCCompilerFlag)
 INCLUDE(CheckCXXCompilerFlag)
+INCLUDE(cmake/floating_point.cmake)
 
 IF(SIZEOF_VOIDP EQUAL 4)
   SET(32BIT 1)
@@ -33,14 +34,28 @@ IF(UNIX)
     IF(WITH_VALGRIND)
       SET(COMMON_C_FLAGS             "-fno-inline ${COMMON_C_FLAGS}")
     ENDIF()
+    # Disable optimizations that change floating point results
+    IF(HAVE_C_FLOATING_POINT_OPTIMIZATION_PROBLEMS)
+      SET(COMMON_C_FLAGS "${COMMON_C_FLAGS} -fno-expensive-optimizations")
+    ENDIF()
     SET(CMAKE_C_FLAGS_DEBUG          "${COMMON_C_FLAGS}")
     SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_C_FLAGS}")
   ENDIF()
   IF(CMAKE_COMPILER_IS_GNUCXX)
     SET(COMMON_CXX_FLAGS               "-g -fabi-version=2 -fno-omit-frame-pointer -fno-strict-aliasing")
+    # GCC 6 has C++14 as default, set it explicitly to the old default.
+    EXECUTE_PROCESS(COMMAND ${CMAKE_CXX_COMPILER} -dumpversion
+                    OUTPUT_VARIABLE GXX_VERSION)
+    IF(GXX_VERSION VERSION_EQUAL 6.0 OR GXX_VERSION VERSION_GREATER 6.0)
+      SET(COMMON_CXX_FLAGS             "${COMMON_CXX_FLAGS} -std=gnu++03")
+    ENDIF()
     # Disable inline optimizations for valgrind testing to avoid false positives
     IF(WITH_VALGRIND)
       SET(COMMON_CXX_FLAGS             "-fno-inline ${COMMON_CXX_FLAGS}")
+    ENDIF()
+    # Disable optimizations that change floating point results
+    IF(HAVE_CXX_FLOATING_POINT_OPTIMIZATION_PROBLEMS)
+      SET(COMMON_CXX_FLAGS "${COMMON_CXX_FLAGS} -fno-expensive-optimizations")
     ENDIF()
     SET(CMAKE_CXX_FLAGS_DEBUG          "${COMMON_CXX_FLAGS}")
     SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_CXX_FLAGS}")
@@ -85,8 +100,8 @@ IF(UNIX)
         "What C++ library to use. The server needs stlport4. It is possible to build the client libraries with -DWITHOUT_SERVER=1 -DSUNPRO_CXX_LIBRARY=Cstd")
 
       IF(CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-        SET(COMMON_C_FLAGS                   "-g -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic")
-        SET(COMMON_CXX_FLAGS                 "-g0 -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic")
+        SET(COMMON_C_FLAGS                   "-g -mt -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic")
+        SET(COMMON_CXX_FLAGS                 "-g0 -mt -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic")
         # We have to specify "-xO1" for DEBUG flags here,
         # see http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=6879978
         SET(CMAKE_C_FLAGS_DEBUG              "-xO1 ${COMMON_C_FLAGS}")
@@ -100,7 +115,7 @@ IF(UNIX)
         ENDIF()
       ELSE() 
         # Assume !x86 is SPARC
-        SET(COMMON_C_FLAGS                 "-g -Xa -xstrconst -mt")
+        SET(COMMON_C_FLAGS                 "-g -xstrconst -mt")
         SET(COMMON_CXX_FLAGS               "-g0 -mt")
         IF(32BIT)
           SET(COMMON_C_FLAGS               "${COMMON_C_FLAGS} -xarch=sparc")

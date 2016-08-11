@@ -1,0 +1,16 @@
+-- source include/not_embedded.inc
+
+# Disable all but a few instruments (reduces output as well)
+# It is not possible to disable memory/performance_schema/%
+# so don't even try.
+UPDATE performance_schema.setup_instruments
+   SET ENABLED = 'NO'
+ WHERE NAME NOT LIKE 'memory/performance_schema/%'
+       AND NAME NOT LIKE 'stage/innodb/%'
+       AND NAME NOT LIKE 'statement/com/%'
+       AND NAME <> 'idle';
+
+CALL sys.ps_setup_show_enabled_instruments();
+
+# Clean up
+-- source ../include/ps_setup_reset_to_default_cleanup.inc

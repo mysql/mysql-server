@@ -11,14 +11,14 @@ create function keyring_key_type_fetch returns string soname 'keyring_udf.so';
 create function keyring_key_length_fetch returns integer soname 'keyring_udf.so';
 create function keyring_key_remove returns integer soname 'keyring_udf.so';
 create function keyring_key_generate returns integer soname 'keyring_udf.so';
-select * from mysql.func where name like '%keyring%';
+select * from mysql.func where name like '%keyring%' order by name;
 name	ret	dl	type
-keyring_key_store	2	keyring_udf.so	function
 keyring_key_fetch	0	keyring_udf.so	function
-keyring_key_type_fetch	0	keyring_udf.so	function
+keyring_key_generate	2	keyring_udf.so	function
 keyring_key_length_fetch	2	keyring_udf.so	function
 keyring_key_remove	2	keyring_udf.so	function
-keyring_key_generate	2	keyring_udf.so	function
+keyring_key_store	2	keyring_udf.so	function
+keyring_key_type_fetch	0	keyring_udf.so	function
 select keyring_key_generate('Rob_AES_128','AES',16);
 ERROR HY000: Can't initialize function 'keyring_key_generate'; This function requires keyring_udf plugin which is not installed. Please install
 select keyring_key_store('Rob_AES_128','AES',"0123456789012345");
@@ -45,14 +45,14 @@ create function keyring_key_type_fetch returns string soname 'keyring_udf.so';
 create function keyring_key_length_fetch returns integer soname 'keyring_udf.so';
 create function keyring_key_remove returns integer soname 'keyring_udf.so';
 create function keyring_key_generate returns integer soname 'keyring_udf.so';
-select * from mysql.func where name like '%keyring%';
+select * from mysql.func where name like '%keyring%' order by name;
 name	ret	dl	type
-keyring_key_generate	2	keyring_udf.so	function
-keyring_key_remove	2	keyring_udf.so	function
-keyring_key_length_fetch	2	keyring_udf.so	function
-keyring_key_type_fetch	0	keyring_udf.so	function
 keyring_key_fetch	0	keyring_udf.so	function
+keyring_key_generate	2	keyring_udf.so	function
+keyring_key_length_fetch	2	keyring_udf.so	function
+keyring_key_remove	2	keyring_udf.so	function
 keyring_key_store	2	keyring_udf.so	function
+keyring_key_type_fetch	0	keyring_udf.so	function
 select keyring_key_generate('Rob_AES_128','AES',16);
 ERROR HY000: Can't initialize function 'keyring_key_generate'; This function requires keyring_udf plugin which is not installed. Please install
 select keyring_key_store('Rob_AES_128','AES',"0123456789012345");

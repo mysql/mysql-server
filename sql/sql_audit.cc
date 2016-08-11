@@ -462,8 +462,8 @@ int mysql_audit_notify(THD *thd, mysql_event_parse_subclass_t subclass,
 */
 inline bool generate_table_access_event(TABLE_LIST *table)
 {
-  /* Discard views. */
-  if (table->is_view())
+  /* Discard views or derived tables. */
+  if (table->is_view_or_derived())
     return false;
 
   /* TRUNCATE query on Storage Engine supporting HTON_CAN_RECREATE flag. */
@@ -1262,7 +1262,16 @@ static int event_class_dispatch(THD *thd, mysql_event_class_t event_class,
   else
   {
     plugin_ref *plugins, *plugins_last;
-    THD *stack_overflow_thd= current_thd;
+
+    /*
+      Audit events must be generated from a thread associated with a given
+      THD. During generation of the certain events, THD's state is modified
+      using the THD::push_internal_handler and THD::pop_internal_handler
+      functions, which are not multithread safe. Additionally, audit
+      notifications have associated thread id, which should remain the same
+      accross all session associated notifications.
+    */
+    DBUG_ASSERT(thd == current_thd);
 
     /*
       Does not allow infinite recursive calls that crash the server.
@@ -1270,12 +1279,8 @@ static int event_class_dispatch(THD *thd, mysql_event_class_t event_class,
       is receiving error event (MYSQL_AUDIT_GENERAL_ERROR). This condition
       breaks the recursion, when the stack size gets close to its minimal
       value.
-      The stack to be guarded should be the one of the currently running
-      thread.
-      If there's THD then a current_thd should be present too.
     */
-    DBUG_ASSERT(stack_overflow_thd != NULL);
-    if (check_stack_overrun(stack_overflow_thd, STACK_MIN_SIZE * 5,
+    if (check_stack_overrun(thd, STACK_MIN_SIZE * 5,
                             reinterpret_cast<uchar *>(&event_generic)))
     {
       return 0;

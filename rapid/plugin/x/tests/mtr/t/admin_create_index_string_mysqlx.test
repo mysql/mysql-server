@@ -1,0 +1,102 @@
+## generated
+
+--source ../include/xplugin_preamble.inc
+
+## Test starts here
+CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
+
+--let $xtest_file= $MYSQL_TMP_DIR/admin_create_index_string_mysqlx.tmp
+--write_file $xtest_file
+-->quiet
+
+## Test data
+-->stmtadmin create_collection	{"schema":"xtest", "name":"books1"}
+-->recvresult
+
+
+-->macro Insert  %COLL%  %VALUE%  %ERROR%
+Mysqlx.Crud.Insert {
+  collection {
+    name: "%COLL%"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: %VALUE%
+        }
+      }
+    }
+  }
+}
+-->expecterror %ERROR%
+-->recvresult
+-->endmacro
+
+
+-->macro Create_index  %INDEX%  %UNIQUE%  %DOCUMENT_PATH%  %TYPE%  %REQUIRED%  %ERROR%
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"books1", "name": %INDEX%, "unique": %UNIQUE%, "constraint":{"member": %DOCUMENT_PATH%, "type": %TYPE%,"required": %REQUIRED%}}
+-->expecterror %ERROR%
+-->recvresult
+-->endmacro
+
+
+-->callmacro Create_index "isbn"	true	"$.isbn"	"TEXT(13)"	false	0
+
+
+-->callmacro Insert	books1	'{"_id": "one", "name": "The Bla", "isbn" : "9780262527804", "pages":30}'	0
+-->callmacro Insert	books1	'{"_id": "two", "name": "The Bla II", "isbn" : "9780262527805"}'	0
+-->callmacro Insert	books1	'{"_id": "three", "name": "The Bla III"}'	0
+
+-->callmacro Create_index	"pages"	true	"$.pages"	"INT"	true	5117
+-->callmacro Create_index	"name"	true	"$.name"	"TEXT(80)"	true	0
+-->callmacro Create_index	"another name"	true	"$.name"	"TEXT(80)"	true	0
+
+
+-->callmacro Insert	books1	'{"_id": "four", "isbn": "9780262527809"}'	5115
+
+
+-->callmacro Create_index	"datetime`;drop table"	false	"$.data.datetime"	"DATETIME"	false	0
+
+-->callmacro Create_index	"_id"	false	"$.data.datetime"	"DATETIME"	false	0
+
+-->callmacro Create_index	"aaa"	true	"$.da\ta.da\tetime"	"DATETIME"	false	5016
+
+-->callmacro Create_index	""	false	"$.data.datetime"	"DATETIME"	false	5017
+
+-->callmacro Create_index	"aaa"	false	"$.data.datetime"	"text(20);drop table"	false	5017
+
+-->callmacro Create_index	"aaa"	false	"$.data.datetime"	"varchar(20)"	false	5017
+
+-->callmacro Create_index	"aaa"	false	"$.data!datetime"	"INT"	false	3143
+
+-->callmacro Create_index	"aaa"	false	"$.data' foo"	"INT"	false	5017
+
+-->callmacro Create_index	"aaa"	false	"data.datetime"	"INT"	false	5017
+
+
+-->stmtadmin create_collection	{"schema":"xtest", "name":"books0"}
+-->recvresult
+
+-->callmacro Insert	books0	'{"_id": "one", "name": "The Bla", "isbn" : "9780262527804", "pages":30}'	0
+-->callmacro Insert	books0	'{"_id": "two", "name": "The Bla Bla", "isbn" : "1280262527804", "pages":50}'	0
+
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"books0", "name":"mix", "unique":true, "constraint":[{"member":"$.isbn", "type":"TEXT(80)", "required":false}, {"member":"$.pages", "type":"INT", "required":false}]}
+-->recvresult
+
+-->stmtsql show create table xtest.books0
+-->recvresult
+EOF
+
+
+--exec $MYSQLXTEST -uroot --password='' --file=$xtest_file 2>&1
+--remove_file $xtest_file
+
+
+## Postamble
+DROP SCHEMA IF EXISTS xtest;
+UNINSTALL PLUGIN mysqlx;

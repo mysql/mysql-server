@@ -350,6 +350,8 @@ namespace mysqlx
 
     boost::shared_ptr<std::vector<ColumnMetadata> > columnMetadata();
     int64_t lastInsertId() const { return m_last_insert_id; }
+    std::string lastDocumentId();
+    const std::vector<std::string>& lastDocumentIds();
     int64_t affectedRows() const { return m_affected_rows; }
     std::string infoMessage() const { return m_info_message; }
 
@@ -378,10 +380,11 @@ namespace mysqlx
       bool is_note;
     };
     const std::vector<Warning> &getWarnings() const { return m_warnings; }
+    void setLastDocumentIDs(const std::vector<std::string>& document_ids);
   private:
     Result();
     Result(const Result &o);
-    Result(boost::shared_ptr<Connection>owner, bool expect_data);
+    Result(boost::shared_ptr<Connection>owner, bool expect_data, bool expect_ok = true);
 
     void read_metadata();
     boost::shared_ptr<Row> read_row();
@@ -399,6 +402,7 @@ namespace mysqlx
     boost::weak_ptr<Connection>m_owner;
     boost::shared_ptr<std::vector<ColumnMetadata> > m_columns;
     int64_t m_last_insert_id;
+    std::vector<std::string> m_last_document_ids;
     int64_t m_affected_rows;
     std::string m_info_message;
 
@@ -420,6 +424,7 @@ namespace mysqlx
 
     bool m_buffered;
     bool m_buffering;
+    bool m_has_doc_ids;
   };
 };
 

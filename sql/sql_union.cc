@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -332,6 +332,24 @@ bool Query_result_union_direct::send_eof()
 
   if (unit->thd->lex->current_select() == last_select_lex)
   {
+    /*
+      If SQL_CALC_FOUND_ROWS is not enabled, adjust the current_found_rows
+      according to the global limit and offset defined.
+    */
+    if (!(unit->first_select()->active_options() & OPTION_FOUND_ROWS))
+    {
+      ha_rows global_limit= unit->global_parameters()->get_limit();
+      ha_rows global_offset= unit->global_parameters()->get_offset();
+
+      if (global_limit != HA_POS_ERROR)
+      {
+        if (global_offset != HA_POS_ERROR)
+          global_limit+= global_offset;
+
+        if (current_found_rows > global_limit)
+          current_found_rows= global_limit;
+      }
+    }
     thd->current_found_rows= current_found_rows;
 
     // Reset and make ready for re-execution

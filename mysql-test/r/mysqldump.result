@@ -5515,7 +5515,7 @@ DROP DATABASE dump_generated;
 #
 SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
 COUNT(*)
-47
+48
 DROP DATABASE sys;
 SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
 COUNT(*)
@@ -5525,4 +5525,4 @@ COUNT(*)
 0
 SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
 COUNT(*)
-47
+48

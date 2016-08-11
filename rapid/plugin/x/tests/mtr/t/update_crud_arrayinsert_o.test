@@ -1,0 +1,1172 @@
+########### ../t/update_crud_arrayinsert_o.test            #############
+###                                                                    #
+### This test runs aims to run UPDATE ARRAY_INSERT operation statement #
+### variant with mysqlxtest client.                                    #
+### Test covers                                                        #
+###  - update with different operators                                 #
+###  - update multiple rows                                            #
+###  - update with rollback transaction                                #
+###  - update insert with different array indexes                      #
+###                                                                    #
+########################################################################
+#
+
+--echo =============================================
+--echo     CRUD UPDATE ARRAY_INSERT SCENARIOS
+--echo =============================================
+--echo 
+
+--echo ================================================================================
+--echo PREAMBLE
+--echo ================================================================================
+--replace_regex /\.dll/.so/
+--source ../include/xplugin_preamble.inc
+create user updatearrayinsert@localhost identified by 'updatearrayinsert';
+grant all on *.* to updatearrayinsert@localhost;
+
+## TEST STARTS HERE
+--echo ================================================================================
+--echo TEST START
+--echo ================================================================================
+
+--write_file $MYSQL_TMP_DIR/mysqlx-update_collection_arrayinsert.tmp
+-->sql
+ SET SQL_SAFE_UPDATES = 0;
+DROP SCHEMA if EXISTS mysqlxcoll;
+CREATE SCHEMA mysqlxcoll;
+USE mysqlxcoll;
+CREATE TABLE maincoll (doc JSON, _id VARCHAR(32) NOT NULL PRIMARY KEY);
+INSERT INTO maincoll (doc, _id) values ('{"_id": "1", "name": ["Victor"], "last_name": ["Otero"],"amount": [4.99]}',json_unquote(json_extract(doc, '$._id')));
+INSERT INTO maincoll (doc, _id) values ('{"_id": "2", "name": ["Gonzalo"], "last_name": ["Chrystens"],"amount": [120.57]}',json_unquote(json_extract(doc, '$._id')));
+INSERT INTO maincoll (doc, _id) values ('{"_id": "3", "name": ["Abraham"], "last_name": ["Vega"],"amount": [74.56]}',json_unquote(json_extract(doc, '$._id')));
+INSERT INTO maincoll (doc, _id) values ('{"_id": "4", "name": ["Jennifer"], "last_name": ["Leon"],"amount": [387.14]}',json_unquote(json_extract(doc, '$._id')));
+INSERT INTO maincoll (doc, _id) values ('{"_id": "5", "name": ["Jhonny"], "last_name": ["Test"],"amount": [125.45]}',json_unquote(json_extract(doc, '$._id')));
+-->endsql
+
+-->echo Update insert String value into Array using == Operator for criteria
+Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"1"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: 'doc'
+      document_path {type: MEMBER value: 'name'}
+      document_path {type: ARRAY_INDEX index: 0}
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING v_string { value: "Victor_Extra_Name"  }
+      }
+    }
+  }
+}
+-->recvresult
+
+-->sql
+select * from maincoll;
+-->endsql
+
+-->echo Update a valid collection with == operator and for Quotes
+Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"1"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: 'doc'
+      document_path {type: MEMBER value: 'name'}
+      document_path {type: ARRAY_INDEX index: 0}
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING v_string { value: "\"VictorArrayInsert\""  }
+      }
+    }
+  }
+}
+-->recvresult
+
+-->sql
+select * from maincoll;
+-->endsql
+
+-->echo Update a valid collection with string value and > operator for multiple docs
+Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: ">"
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"3"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: 'doc'
+      document_path {type: MEMBER value: 'last_name'}
+      document_path {type: ARRAY_INDEX index: 0}
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING v_string { value: "extra_last_name"  }
+      }
+    }
+  }
+}
+-->recvresult
+
+-->sql
+select * from maincoll;
+-->endsql
+
+-->echo Update a valid collection with string value and < operator for multiple docs
+Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "<"
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"2"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: 'doc'
+      document_path {type: MEMBER value: 'last_name'}
+      document_path {type: ARRAY_INDEX index: 0}
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING v_string { value: "extra_last_name_2"  }
+      }
+    }
+  }
+}
+-->recvresult
+
+-->sql
+select * from maincoll;
+-->endsql
+
+-->echo Update a valid collection with string value and <= operator for multiple docs
+Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "<="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"2"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: 'doc'
+      document_path {type: MEMBER value: 'last_name'}
+      document_path {type: ARRAY_INDEX index: 0}
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING v_string { value: "extra_last_name_3"  }
+      }
+    }
+  }
+}
+-->recvresult
+
+-->sql
+select * from maincoll;
+-->endsql
+
+-->echo Update a valid collection with string value and >= operator for multiple docs
+Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: ">="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"3"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: 'doc'
+      document_path {type: MEMBER value: 'amount'}
+      document_path {type: ARRAY_INDEX index: 0}
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE v_double: 257.52
+      }
+    }
+  }
+}
+-->recvresult
+
+-->sql
+select * from maincoll;
+-->endsql
+
+-->echo Update a valid collection with string value and != operator for multiple docs
+Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "!="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"4"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: 'doc'
+      document_path {type: MEMBER value: 'amount'}
+      document_path {type: ARRAY_INDEX index: 0}
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE v_double: 546.12
+      }
+    }
+  }
+}
+-->recvresult
+
+-->sql
+select * from maincoll;
+-->endsql
+
+-->echo Update array insert a Double 
+Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"3"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: 'doc'
+      document_path {type: MEMBER value: 'amount'}
+      document_path {type: ARRAY_INDEX index: 1}
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE v_double: 6.2564
+      }
+    }
+  }
+}
+-->recvresult
+
+-->sql
+select * from maincoll;
+-->endsql
+
+-->echo Update array insert a Float 
+Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"3"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: 'doc'
+      document_path {type: MEMBER value: 'amount'}
+      document_path {type: ARRAY_INDEX index: 0}
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_FLOAT v_float: 356.8594
+      }
+    }
+  }
+}
+-->recvresult
+
+-->sql
+select * from maincoll;
+-->endsql
+
+-->echo Update array insert a NULL 
+Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"2"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: 'doc'
+      document_path {type: MEMBER value: 'amount'}
+      document_path {type: ARRAY_INDEX index: 0}
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_NULL
+      }
+    }
+  }
+}
+-->recvresult
+
+-->sql
+select * from maincoll;
+-->endsql
+
+-->echo Update array insert in different index values
+-->echo array index equal to 1
+Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"2"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: 'doc'
+      document_path {type: MEMBER value: 'amount'}
+      document_path {type: ARRAY_INDEX index: 1}
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE v_double: 1.00
+      }
+    }
+  }
+}
+-->recvresult
+
+-->sql
+select * from maincoll;
+-->endsql
+
+-->echo array index equal to 2
+Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"2"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: 'doc'
+      document_path {type: MEMBER value: 'amount'}
+      document_path {type: ARRAY_INDEX index: 2}
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE v_double: 2.00
+      }
+    }
+  }
+}
+-->recvresult
+
+-->sql
+select * from maincoll;
+-->endsql
+
+-->echo array index equal to 3
+Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"2"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: 'doc'
+      document_path {type: MEMBER value: 'amount'}
+      document_path {type: ARRAY_INDEX index: 3}
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE v_double: 3.00
+      }
+    }
+  }
+}
+-->recvresult
+
+-->sql
+select * from maincoll;
+-->endsql
+
+-->echo array index equal to 4
+Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"2"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: 'doc'
+      document_path {type: MEMBER value: 'amount'}
+      document_path {type: ARRAY_INDEX index: 4}
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE v_double: 4.00
+      }
+    }
+  }
+}
+-->recvresult
+
+-->sql
+select * from maincoll;
+-->endsql
+
+-->echo Update array insert a String into a only numbers member
+Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"2"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: 'doc'
+      document_path {type: MEMBER value: 'amount'}
+      document_path {type: ARRAY_INDEX index: 5}
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING v_string { value: "Index_5" } 
+      }
+    }
+  }
+}
+-->recvresult
+
+-->sql
+select * from maincoll;
+-->endsql
+
+-->echo Update array insert a number into a only String member
+Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"1"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: 'doc'
+      document_path {type: MEMBER value: 'name'}
+      document_path {type: ARRAY_INDEX index: 3}
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_UINT v_unsigned_int: 253
+      }
+    }
+  }
+}
+-->recvresult
+
+-->sql
+select * from maincoll;
+-->endsql
+
+-->echo Update with order clause update last _id in desc order (_id = 5)
+Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "!="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"0"}
+        }
+      }
+    }
+  }
+  limit {
+    row_count: 1
+  }  
+  order {
+    expr {
+      type: IDENT
+      identifier {
+        name: "_id"
+      }
+    }
+    direction: DESC
+  }
+  operation {
+    source {
+      name: 'doc'
+      document_path {type: MEMBER value: 'amount'}
+      document_path {type: ARRAY_INDEX index: 0}
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE v_double: 1234.567
+      }
+    }
+  }
+}
+-->recvresult
+
+-->sql
+select * from maincoll;
+-->endsql
+
+-->echo Update with order clause update first two _id in asc order (_id = 1,2)
+Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "!="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"0"}
+        }
+      }
+    }
+  }
+  limit {
+    row_count: 2
+  }  
+  order {
+    expr {
+      type: IDENT
+      identifier {
+        name: "_id"
+      }
+    }
+    direction: ASC
+  }
+  operation {
+    source {
+      name: 'doc'
+      document_path {type: MEMBER value: 'amount'}
+      document_path {type: ARRAY_INDEX index: 0}
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE v_double: 9876.543
+      }
+    }
+  }
+}
+-->recvresult
+
+-->sql
+select * from maincoll;
+START TRANSACTION;
+-->endsql
+
+-->echo Update transaction rollback
+Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"1"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: 'doc'
+      document_path {type: MEMBER value: 'name'}
+      document_path {type: ARRAY_INDEX index: 3}
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING v_string { value: "i_must_be_rollback" }
+      }
+    }
+  }
+}
+-->recvresult
+
+-->sql
+select * from maincoll;
+ROLLBACK;
+select * from maincoll;
+-->endsql
+
+-->echo Update transaction commit
+Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"1"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: 'doc'
+      document_path {type: MEMBER value: 'name'}
+      document_path {type: ARRAY_INDEX index: 3}
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING v_string { value: "i_must_be_commited" }
+      }
+    }
+  }
+}
+-->recvresult
+
+-->sql
+COMMIT;
+select * from maincoll;
+-->endsql
+
+-->echo Update with non existing doc member
+Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"1"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: 'iamnotadoc'
+      document_path {type: MEMBER value: 'i_donot_exists'}
+      document_path {type: ARRAY_INDEX index: 3}
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING v_string { value: "Test" }
+      }
+    }
+  }
+}
+-->expecterror 1054
+-->recvresult
+
+-->sql
+select * from maincoll;
+-->endsql
+
+-->echo Invalid type of update for Document
+Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"1"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: 'doc'
+      document_path {type: MEMBER value: 'name'}
+      document_path {type: ARRAY_INDEX index: 3}
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING v_string { value: "Test" }
+      }
+    }
+  }
+}
+-->expecterror 5052
+-->recvresult
+
+-->echo Update array insert with an index value out of range
+Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"2"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: 'doc'
+      document_path {type: MEMBER value: 'amount'}
+      document_path {type: ARRAY_INDEX index: 9999999}
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE v_double: 20.00
+      }
+    }
+  }
+}
+-->recvresult
+
+-->sql
+select * from maincoll;
+-->endsql
+
+## Cleanup
+-->echo ================================================================================
+-->echo CLEAN UP
+-->echo ================================================================================
+-->sql
+DROP SCHEMA if EXISTS mysqlxcoll;
+DROP USER updatearrayinsert@localhost;
+SET SQL_SAFE_UPDATES = 1;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -u updatearrayinsert --password='updatearrayinsert' --file=$MYSQL_TMP_DIR/mysqlx-update_collection_arrayinsert.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-update_collection_arrayinsert.tmp
+
+## Postamble
+--echo ================================================================================
+--echo POSTAMBLE
+--echo ================================================================================
+uninstall plugin mysqlx;

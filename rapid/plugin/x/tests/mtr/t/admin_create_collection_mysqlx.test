@@ -1,0 +1,85 @@
+## generated
+## Simple collection
+
+--source ../include/xplugin_preamble.inc
+
+create schema xtest default charset 'utf8mb4';
+create database xtest_1 default charset 'utf8mb4';
+
+
+## Test starts here
+--let $xtest_file= $MYSQL_TMP_DIR/admin_create_collection_mysqlx.tmp
+--write_file $xtest_file
+-->quiet
+
+-->macro Admin_stmt  %CMD%  %ARGS%  %ERROR%
+-->stmtadmin %CMD%	%ARGS%
+-->expecterror %ERROR%
+-->recvresult
+-->endmacro
+
+
+-->callmacro Admin_stmt	create_collection	{"schema":"xtest","name":"books0"}	0
+-->callmacro Admin_stmt	create_collection	{"name":"books1", "schema":"xtest"}	0
+-->callmacro Admin_stmt create_collection	{"name":"books1", "schema":"xtest"}	1050
+-->callmacro Admin_stmt create_collection	{"name":"books1", "schema":"xtest_1"}	0
+
+-->callmacro Admin_stmt	create_collection	{"schema":"xtest"}	5015
+-->callmacro Admin_stmt	create_collection	{"name":"books2"}	5015
+-->callmacro Admin_stmt	create_collection	{}	5015
+-->callmacro Admin_stmt	create_collection	{"extra":"nothing", "name":"books2", "schema":"xtest"}	5015
+
+-->callmacro Admin_stmt	create_collection	{"schema":"xtest", "name":""}	5113
+-->callmacro Admin_stmt	create_collection	{"schema":"", "name":"books2"}	5112
+-->callmacro Admin_stmt	create_collection	{"schema":"xtest", "name":" "}	1103
+-->callmacro Admin_stmt	create_collection	{"schema":" ", "name":"books2"}	1102
+
+-->callmacro Admin_stmt	create_collection	{"schema":"xtest", "name":"col lection"}	0
+-->callmacro Admin_stmt	create_collection	{"schema":"xtest", "name":"a table name'with\"bad`characters"}	0
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args { 
+    type: OBJECT obj {
+      fld {
+        key:'schema'
+        value{type:SCALAR scalar{type:V_STRING v_string{value:'xtest'}}}
+        } 
+      fld {
+        key:'name'
+        value{type:SCALAR scalar{type:V_STRING v_string{value:'\000'}}}
+      } 
+    }
+  }
+  namespace: "mysqlx"
+}
+-->expecterror 5017
+-->recvresult
+
+
+-->sql
+SHOW TABLES FROM xtest
+-->endsql
+
+
+-->callmacro Admin_stmt	drop_collection	{"schema":"xtest","name":"books0"}	0
+-->callmacro Admin_stmt	drop_collection	{"name":"books1","schema":"xtest"}	0
+-->callmacro Admin_stmt drop_collection	{"name":"books1","schema":"xtest_1"}	0
+
+-->callmacro Admin_stmt	drop_collection	{"schema":"xtest"}	5015
+-->callmacro Admin_stmt	drop_collection	{"name":"books2"}	5015
+-->callmacro Admin_stmt	drop_collection	{"extra":"nothing", "name":"books2","schema":"xtest"}	5015
+-->callmacro Admin_stmt	drop_collection	{}	5015
+
+-->sql
+SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -uroot --password='' --file=$xtest_file 2>&1
+
+## Postamble
+--remove_file $xtest_file
+drop schema if exists xtest;
+drop database if exists xtest_1;
+uninstall plugin mysqlx;

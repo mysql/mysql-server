@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include "my_global.h"
 #include "mysql/mysql_lex_string.h"  // LEX_STRING
 #include "rpl_info_handler.h"        // Rpl_info_handler
+#include "table.h"                   // TABLE
 
 class Rpl_info_table_access;
 typedef struct st_mysql_lex_string LEX_STRING;
@@ -59,6 +60,18 @@ private:
     Speciffically, "schema"."table".
   */
   char *description;
+
+  /**
+    This property represents the amount of fields in the repository
+    primary key.
+  */
+  uint m_n_pk_fields;
+
+  /**
+    This property identifies the indexes of the primary keys fields
+    in the table.
+  */
+  const uint *m_pk_field_indexes;
 
   /**
     This is a pointer to a class that facilitates manipulation
@@ -126,9 +139,22 @@ private:
   bool do_update_is_transactional();
   uint do_get_rpl_info_type();
 
+  /**
+    Verify if the table primary key fields are at the expected (column)
+    position.
+
+    @param table The table handle where the verification will be done.
+
+    @return false if the table primary key fields are fine.
+    @return true  if problems were found with table primary key fields.
+  */
+  bool verify_table_primary_key_fields(TABLE* table);
+
   Rpl_info_table(uint nparam,
                  const char* param_schema,
-                 const char *param_table);
+                 const char *param_table,
+                 const uint param_n_pk_fields= 0,
+                 const uint *param_pk_field_indexes= NULL);
 
   Rpl_info_table(const Rpl_info_table& info);
   Rpl_info_table& operator=(const Rpl_info_table& info);

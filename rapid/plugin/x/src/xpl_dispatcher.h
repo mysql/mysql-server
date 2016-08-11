@@ -27,24 +27,18 @@
 
 namespace xpl
 {
-  class Session;
-  class Crud_command_handler;
-  class Sql_data_context;
-  class Expectation_stack;
-  class Session_options;
+class Session;
+class Crud_command_handler;
+class Sql_data_context;
+class Expectation_stack;
+class Session_options;
 
-  namespace dispatcher
-  {
-    bool dispatch_command(Session &session,
-                          Sql_data_context &da,
-                          ngs::Protocol_encoder &proto,
-                          Crud_command_handler &crudh,
-                          Expectation_stack &expect,
-                          Session_options &options,
-                          ngs::Request &command);
-  };
+namespace dispatcher
+{
+bool dispatch_command(Session &session, Crud_command_handler &crudh, Expectation_stack &expect, ngs::Request &command);
+};
 
-  ngs::Error_code show_warnings_and_send(Sql_data_context &da, ngs::Protocol_encoder &proto);
+ngs::Error_code show_warnings_and_send(Sql_data_context &da, ngs::Protocol_encoder &proto);
 }
 
 #endif

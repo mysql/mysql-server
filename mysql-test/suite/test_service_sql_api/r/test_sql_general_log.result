@@ -1,3 +1,5 @@
+# Setting general_log content empty.
+TRUNCATE TABLE mysql.general_log;
 # Creating tables
 CREATE TABLE t_int (c1  TINYINT,
 c2  SMALLINT,
@@ -220,20 +222,20 @@ deinit thread
 ##########################################
 # Check general log file
 ##########################################
-CREATE TABLE t1 (c1 TEXT,c2 TEXT);
+CREATE TABLE t1 (c1 TEXT, c2 TEXT, c3 TEXT);
 LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/log/test_sql_general.log' INTO TABLE t1;
-SELECT c2 FROM t1 WHERE c2 LIKE '%FROM test.t_int%';
-c2
+SELECT c3 FROM t1 WHERE c3 LIKE '%FROM test.t_int%';
+c3
 SELECT * FROM test.t_int
 SELECT * FROM test.t_int
-SELECT c2 FROM t1 WHERE c2 LIKE '%FROM test.t_bigint%';
-c2
+SELECT c3 FROM t1 WHERE c3 LIKE '%FROM test.t_bigint%';
+c3
 SELECT * FROM test.t_bigint
 SELECT * FROM test.t_bigint
-SELECT count(*) FROM t1 WHERE c1 LIKE '%Connect%';
+SELECT count(*) FROM t1 WHERE c2 LIKE '%Connect%';
 count(*)
 4
-SELECT count(*) FROM t1 WHERE c1 LIKE '%Quit%';
+SELECT count(*) FROM t1 WHERE c2 LIKE '%Quit%';
 count(*)
 4
 SELECT argument FROM mysql.general_log WHERE command_type = 'Query' AND 
@@ -244,8 +246,8 @@ SELECT * FROM test.t_int
 SELECT * FROM test.t_bigint
 SELECT * FROM test.t_int
 SELECT * FROM test.t_bigint
-SELECT c2 FROM t1 WHERE c2 LIKE '%FROM test.t_int%'
-SELECT c2 FROM t1 WHERE c2 LIKE '%FROM test.t_bigint%'
+SELECT c3 FROM t1 WHERE c3 LIKE '%FROM test.t_int%'
+SELECT c3 FROM t1 WHERE c3 LIKE '%FROM test.t_bigint%'
 SELECT argument FROM mysql.general_log WHERE command_type = 'Query' AND 
 (argument LIKE '%FROM test.t_int%' OR
 argument LIKE '%FROM test.t_bigint%')
@@ -264,6 +266,8 @@ DROP TABLE t_int;
 DROP TABLE t_bigint;
 DROP TABLE t_real;
 DROP TABLE t_date;
+# Removing general_log content
+TRUNCATE TABLE mysql.general_log;
 # Deleting log file created
 SET GLOBAL log_output = @old_log_output;
 SET GLOBAL general_log = @old_general_log;

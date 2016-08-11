@@ -446,9 +446,8 @@ include/assert.inc [Last event of binlog should be ROLLBACK.]
 flush logs;
 select
 (@a:=load_file("MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output"))
-is not null;
-(@a:=load_file("MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output"))
-is not null
+is not null AS Loaded;
+Loaded
 1
 select
 @a like "%#%error_code=0%ROLLBACK\n/*!*/;%" OR

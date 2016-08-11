@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -203,22 +203,23 @@ lock_prdt_rec_move(
 	const buf_block_t*	donator);	/*!< in: buffer block containing
 						the donating record */
 
-/*********************************************************************//**
-Check whether there are R-tree Page lock on a buffer page
+/** Check whether there are R-tree Page lock on a buffer page
+@param[in]	trx	trx to test the lock
+@param[in]	space	space id for the page
+@param[in]	page_no	page number
 @return true if there is none */
 bool
 lock_test_prdt_page_lock(
-/*=====================*/
-	ulint		space,		/*!< in: space id for the page */
-	ulint		page_no);	/*!< in: page number */
+	const trx_t*    trx,
+	ulint           space,
+	ulint           page_no);
 
-/*************************************************************//**
-Removes predicate lock objects set on an index page which is discarded. */
+/** Removes predicate lock objects set on an index page which is discarded.
+@param[in]	block		page to be discarded
+@param[in]	lock_hash	lock hash */
 void
-lock_prdt_free_from_discard_page(
-/*=============================*/
-	const buf_block_t*	block,	/*!< in: page to be discarded */
+lock_prdt_page_free_from_discard(
+	const buf_block_t*      block,
 	hash_table_t*		lock_hash);
-					/*!< in: lock hash */
 
 #endif

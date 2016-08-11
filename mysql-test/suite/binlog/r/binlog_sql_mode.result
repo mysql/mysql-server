@@ -26,9 +26,8 @@ END;|
 Check Result
 select
 (@a:=load_file("MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug39526.binlog"))
-is not null;
-(@a:=load_file("MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug39526.binlog"))
-is not null
+is not null AS Loaded;
+Loaded
 1
 *** String sql_mode=0 is found: 0 ***
 Clean Up

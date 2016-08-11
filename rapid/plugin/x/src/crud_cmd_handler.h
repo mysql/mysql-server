@@ -24,43 +24,23 @@
 #include "ngs/error_code.h"
 #include "query_string_builder.h"
 
-#include "ngs_common/protocol_protobuf.h"
-
-#include <map>
-
-namespace ngs
-{
-  class Protocol_encoder;
-}
 
 namespace xpl
 {
-class Sql_data_context;
-class Session_options;
-class Session_status_variables;
+class Session;
 
 class Crud_command_handler
 {
 public:
-  Crud_command_handler(Sql_data_context &da, Session_options &options, Session_status_variables &status_variables);
+  Crud_command_handler() : m_qb(1024) {}
 
-  ngs::Error_code execute_crud_insert(ngs::Protocol_encoder &proto,
-                                      const Mysqlx::Crud::Insert &msg);
-
-  ngs::Error_code execute_crud_update(ngs::Protocol_encoder &proto,
-                                      const Mysqlx::Crud::Update &msg);
-
-  ngs::Error_code execute_crud_find(ngs::Protocol_encoder &proto,
-                                      const Mysqlx::Crud::Find &msg);
-
-  ngs::Error_code execute_crud_delete(ngs::Protocol_encoder &proto,
-                                      const Mysqlx::Crud::Delete &msg);
+  ngs::Error_code execute_crud_insert(Session &session, const Mysqlx::Crud::Insert &msg);
+  ngs::Error_code execute_crud_update(Session &session, const Mysqlx::Crud::Update &msg);
+  ngs::Error_code execute_crud_find(Session &session, const Mysqlx::Crud::Find &msg);
+  ngs::Error_code execute_crud_delete(Session &session, const Mysqlx::Crud::Delete &msg);
 
 private:
-  Sql_data_context &m_da;
-  Session_options &m_options;
   Query_string_builder m_qb;
-  Session_status_variables &m_status_variables;
 };
 
 } // namespace xpl

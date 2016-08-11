@@ -27,13 +27,14 @@
 
 #include "sql_data_context.h"
 #include "expect.h"
+#include "crud_cmd_handler.h"
 #include "xpl_session_status_variables.h"
+#include "xpl_global_status_variables.h"
 
 namespace xpl
 {
 
 class Sql_data_context;
-class Crud_command_handler;
 class Dispatcher;
 class Cursor_manager;
 class Client;
@@ -42,22 +43,18 @@ class Session_options
 {
 public:
   Session_options()
-  : m_send_warnings(true)
-  {
-  }
+  : m_send_warnings(true), m_send_xplugin_deprecation(true)
+  {}
 
-  void set_send_warnings(bool flag)
-  {
-    m_send_warnings = flag;
-  }
+  void set_send_warnings(bool flag) { m_send_warnings = flag; }
+  bool get_send_warnings() const { return m_send_warnings; }
 
-  bool get_send_warnings() const
-  {
-    return m_send_warnings;
-  }
+  void set_send_xplugin_deprecation(bool flag) { m_send_xplugin_deprecation = flag; }
+  bool get_send_xplugin_deprecation() const { return m_send_xplugin_deprecation; }
 
 private:
   bool m_send_warnings;
+  bool m_send_xplugin_deprecation;
 };
 
 
@@ -81,11 +78,14 @@ public:
   virtual void on_kill();
 
   bool can_see_user(const char *user) const;
+
+  template<void (Common_status_variables::*method)()> void update_status();
+
 protected:
   virtual bool handle_ready_message(ngs::Request &command);
 
   Sql_data_context *m_sql;
-  Crud_command_handler *m_crud_handler;
+  Crud_command_handler m_crud_handler;
   Expectation_stack m_expect_stack;
 
   Session_options m_options;
@@ -93,6 +93,7 @@ protected:
 
   bool m_was_authenticated;
 };
+
 
 } // namespace xpl
 

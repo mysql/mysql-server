@@ -1,0 +1,76 @@
+## Forbiddend sql commands 
+
+## Preamble
+--source ../include/xplugin_preamble.inc
+## Test starts here
+--write_file $MYSQL_TMP_DIR/forbidden_sql_cmd.tmp
+
+## Test data
+-->sql
+DROP SCHEMA IF EXISTS xtest;
+CREATE SCHEMA xtest;
+USE xtest;
+
+DROP PROCEDURE IF EXISTS xtest.uninstall_plugin;
+DROP PROCEDURE IF EXISTS xtest.install_plugin;
+DROP PROCEDURE IF EXISTS xtest.shutdown_server;
+
+DELIMITER //
+CREATE PROCEDURE xtest.uninstall_plugin()
+BEGIN
+UNINSTALL PLUGIN `mysqlx`;
+END
+//
+
+CREATE PROCEDURE xtest.install_plugin()
+BEGIN
+INSTALL PLUGIN `mysqlx` SONAME "$MYSQLXPLUGIN";
+END
+//
+
+CREATE PROCEDURE xtest.shutdown_server()
+BEGIN
+SHUTDOWN;
+END
+//
+DELIMITER ;
+
+-->endsql
+-->expecterror 3130
+-->sql
+UNINSTALL PLUGIN `mysqlx`;
+-->endsql
+-->expecterror 3130
+-->sql
+INSTALL PLUGIN `mysqlx` SONAME "$MYSQLXPLUGIN";
+-->endsql
+-->expecterror 3130
+-->sql
+SHUTDOWN;
+
+-->endsql
+-->expecterror 3130
+-->sql
+CALL xtest.uninstall_plugin();
+-->endsql
+-->expecterror 3130
+-->sql
+CALL xtest.install_plugin();
+-->endsql
+-->expecterror 3130
+-->sql
+CALL xtest.shutdown_server();
+-->endsql
+
+## Cleanup
+-->sql
+DROP SCHEMA IF EXISTS xtest;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/forbidden_sql_cmd.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/forbidden_sql_cmd.tmp
+
+## Postamble
+UNINSTALL PLUGIN mysqlx;
+

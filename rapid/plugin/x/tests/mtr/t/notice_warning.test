@@ -1,0 +1,162 @@
+## generated
+## Test query with resultset
+
+--source ../include/xplugin_preamble.inc
+## Test starts here
+--write_file $MYSQL_TMP_DIR/stmtexecute_query_result.tmp
+
+-->sql
+use test;
+create table chartab (d varchar(1));
+set @old_sql_mode=@@sql_mode;
+set @@sql_mode='ERROR_FOR_DIVISION_BY_ZERO';
+-->endsql
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "select 1/0, 1/0"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+## Disable warnings and try again
+Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "warnings"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recvresult
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "select 1/0"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+## Enable warnings and try again
+Mysqlx.Sql.StmtExecute {
+  stmt: "enable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "warnings"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recv
+
+## SQL
+Mysqlx.Sql.StmtExecute {
+  stmt: "select 1/0"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+## CRUD Insert
+Mysqlx.Crud.Insert {
+  collection {
+    name: "chartab"
+    schema: "test"
+  }
+  data_model: TABLE
+  projection {
+    name: "d"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "XX"
+        }
+      }
+    }
+  }
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+## CRUD Find
+Mysqlx.Crud.Find {
+  collection {
+    name: "chartab"
+    schema: "test"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "/"
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 1
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 0
+        }
+      }
+    }
+  }
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+## CRUD Update
+Mysqlx.Crud.Update {
+  collection {
+    name: "chartab"
+    schema: "test"
+  }
+  data_model: TABLE
+  operation {
+    source {
+      name: "d"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "XX"
+        }
+      }
+    }
+  }
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+## CRUD Delete
+# Not sure what kind of delete generates warnings...
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_notices"
+  namespace: "xplugin"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->sql
+drop table chartab;
+set @@sql_mode = @old_sql_mode;
+-->endsql
+
+EOF
+
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/stmtexecute_query_result.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/stmtexecute_query_result.tmp
+
+## Postamble
+uninstall plugin mysqlx;

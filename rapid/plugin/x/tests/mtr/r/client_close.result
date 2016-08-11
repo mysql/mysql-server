@@ -1,0 +1,2101 @@
+# restart
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+call mtr.add_suppression('Message of size 4294967040 received, exceeding the limit of 1048576');
+call mtr.add_suppression('21.1: Unsuccessful login attempt: Invalid user or password');
+select sleep(1);
+sleep(1)
+0
+SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up';
+user	host	db	command	state	info
+root	localhost	test	Query	executing	SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up'
+RUN create procedure test.get_stuck()
+begin
+    declare i int;
+    declare x int;
+    set i = 1;
+    while i < 1000 do
+        set i = i + 1;
+        set x = sleep(0.5);
+    end while;
+end
+
+0 rows affected
+RUN show global status like 'mysqlx_connections_%'
+Variable_name	Value
+Mysqlx_connections_accepted	1
+Mysqlx_connections_closed	0
+Mysqlx_connections_rejected	0
+0 rows affected
+
+Close_peer_disconnected
+#######################
+
+Connect and disconnect while idle
+---------------------------------
+connecting...
+active session is now 'sess'
+aborting session sess
+switched to session default
+RUN select sleep(2)
+sleep(2)
+0
+0 rows affected
+RUN show global status like 'mysqlx_connections_%'
+Variable_name	Value
+Mysqlx_connections_accepted	2
+Mysqlx_connections_closed	1
+Mysqlx_connections_rejected	0
+0 rows affected
+
+Connect and disconnect while running a query
+--------------------------------------------
+connecting...
+active session is now 'sess'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select sleep(2)"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: SINT
+  name: "sleep(2)"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  collation: 0
+  fractional_digits: 0
+  length: 21
+  flags: 16
+}
+
+aborting session sess
+switched to session default
+RUN select sleep(2)
+sleep(2)
+0
+0 rows affected
+RUN show global status like 'mysqlx_connections_%'
+Variable_name	Value
+Mysqlx_connections_accepted	3
+Mysqlx_connections_closed	2
+Mysqlx_connections_rejected	0
+0 rows affected
+
+Connect and disconnect while streaming result
+---------------------------------------------
+connecting...
+active session is now 'sess'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "show variables"
+}
+
+aborting session sess
+switched to session default
+RUN select sleep(2)
+sleep(2)
+0
+0 rows affected
+RUN show global status like 'mysqlx_connections_%'
+Variable_name	Value
+Mysqlx_connections_accepted	4
+Mysqlx_connections_closed	3
+Mysqlx_connections_rejected	0
+0 rows affected
+
+Connect and disconnect while input queue is full
+------------------------------------------------
+connecting...
+active session is now 'sess'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select sleep(2)"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 1"
+}
+
+aborting session sess
+switched to session default
+RUN show global status like 'mysqlx_connections_%'
+Variable_name	Value
+Mysqlx_connections_accepted	5
+Mysqlx_connections_closed	4
+Mysqlx_connections_rejected	0
+0 rows affected
+
+Disconnect while in a pipeline
+------------------------------
+connecting...
+active session is now 'sess'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 6"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 1"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: SINT
+  name: "6"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  collation: 0
+  fractional_digits: 0
+  length: 1
+  flags: 16
+}
+
+aborting session sess
+switched to session default
+
+Close_requested_by_client
+#########################
+
+Close when idle
+---------------
+connecting...
+active session is now 'sess'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 1"
+}
+
+1
+1
+0 rows affected
+send Mysqlx.Connection.Close {
+}
+
+Mysqlx.Ok {
+  msg: "bye!"
+}
+
+closing session sess
+switched to session default
+RUN select sleep(2)
+sleep(2)
+0
+0 rows affected
+RUN show global status like 'mysqlx_connections_%'
+Variable_name	Value
+Mysqlx_connections_accepted	7
+Mysqlx_connections_closed	6
+Mysqlx_connections_rejected	0
+0 rows affected
+
+Close in a pipeline
+-------------------
+connecting...
+active session is now 'sess'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 2"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 3"
+}
+
+send Mysqlx.Session.Close {
+}
+
+2
+2
+0 rows affected
+3
+3
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+
+RUN select 4
+While executing select 4:
+Got expected error (one of: 2006 2007 )
+aborting session sess
+switched to session default
+
+Close_client_killed
+###################
+
+Kill a session while idle
+-------------------------
+connecting...
+active session is now 'sess'
+switched to session default
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 9
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+switched to session sess
+aborting session sess
+switched to session default
+
+Kill a session executing query
+------------------------------
+connecting...
+active session is now 'sess'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "call test.get_stuck()"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 1"
+}
+
+switched to session default
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 10
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+switched to session sess
+Got expected error (one of: 1317 2006 2007 5010 )
+aborting session sess
+switched to session default
+
+Kill a session that hasnt authenticated yet
+-------------------------------------------
+connecting...
+active session is now 'sess'
+switched to session default
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 11
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+switched to session sess
+RUN select 1
+While executing select 1:
+Got expected error (one of: 2006 2007 )
+aborting session sess
+switched to session default
+
+Kill a session that hasnt authenticated yet, with data queued
+-------------------------------------------------------------
+connecting...
+active session is now 'sess'
+send Mysqlx.Connection.CapabilitiesGet {
+}
+
+switched to session default
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 12
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+switched to session sess
+Got expected error (one of: 2006 2007 )
+aborting session sess
+switched to session default
+
+Close_fatal_error
+#################
+
+Authentication error
+--------------------
+connecting...
+active session is now 'sess'
+send Mysqlx.Session.AuthenticateStart {
+  mech_name: "invalid"
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 1251
+  msg: "Invalid authentication method invalid"
+  sql_state: "HY000"
+}
+
+aborting session sess
+switched to session default
+
+Authentication error (try to close normally)
+--------------------------------------------
+connecting...
+active session is now 'sess'
+send Mysqlx.Session.AuthenticateStart {
+  mech_name: "invalid"
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 1251
+  msg: "Invalid authentication method invalid"
+  sql_state: "HY000"
+}
+
+closing session sess
+switched to session default
+Got expected error (one of: 2006 2007 )
+
+Disconnect while authenticating
+-------------------------------
+connecting...
+active session is now 'sess'
+send Mysqlx.Session.AuthenticateStart {
+  mech_name: "MYSQL41"
+}
+
+aborting session sess
+switched to session default
+
+Send unexpected message at handshake
+------------------------------------
+connecting...
+active session is now 'sess'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select 1"
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Invalid message"
+  sql_state: "HY000"
+}
+
+aborting session sess
+switched to session default
+
+Disconnect at handshake
+-----------------------
+connecting...
+active session is now 'sess'
+aborting session sess
+switched to session default
+
+Disconnect at handshake
+-----------------------
+connecting...
+active session is now 'sess'
+send Mysqlx.Connection.CapabilitiesGet {
+}
+
+aborting session sess
+switched to session default
+
+Close_aborted
+#############
+
+Send illegal message at handshake
+---------------------------------
+connecting...
+active session is now 'sess'
+Sending 10 bytes raw data...
+closing session sess
+switched to session default
+
+Send illegal message after handshake
+------------------------------------
+connecting...
+active session is now 'sess'
+Sending 10 bytes raw data...
+closing session sess
+switched to session default
+
+Connection failure by auth
+--------------------------
+connecting...
+Got expected error: Invalid user or password (code 1045)
+
+Other conditions
+################
+
+Connect and disconnect after queue read timeout
+-----------------------------------------------
+connecting...
+active session is now 'sess'
+aborting session sess
+switched to session default
+
+Final check of clients still around
+-----------------------------------
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	sql_session
+1	root	localhost	$SESSION
+command ok
+
+Bug #21825183 - WHEN CLIENTS LAST SESSION IS CLOSED THEN NOT ALL QUEUED MESSAGES ARE SEND
+-----------------------------------------------------------------------------------------
+connecting...
+active session is now 'sess'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1234 as `Column`;"
+  namespace: "sql"
+}
+
+send Mysqlx.Session.Close {
+}
+
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Column
+1234
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+
+aborting session sess
+switched to session default
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+select sleep(10);
+sleep(10)
+0
+show global status like 'mysqlx_sessions';
+Variable_name	Value
+Mysqlx_sessions	0
+show global status like 'mysqlx_connections_%';
+Variable_name	Value
+Mysqlx_connections_accepted	23
+Mysqlx_connections_closed	23
+Mysqlx_connections_rejected	0
+SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up';
+user	host	db	command	state	info
+root	localhost	test	Query	executing	SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up'
+drop procedure test.get_stuck;
+uninstall plugin mysqlx;

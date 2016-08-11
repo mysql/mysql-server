@@ -45,8 +45,10 @@ eval SET @con1_id = $con1_id;
 
 let $wait_timeout = 10;
 let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
-WHERE id = @con1_id AND INFO = 'UPDATE t1 SET c1=11 WHERE c1=10';
+WHERE id = @con1_id AND INFO = 'UPDATE t1 SET c1=11 WHERE c1=10'
+AND STATE = 'updating';
 --source include/wait_condition.inc
+--sleep 1
 
 --error ER_LOCK_DEADLOCK
 UPDATE t1 SET c1=2 WHERE c1=0;

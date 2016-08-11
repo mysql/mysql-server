@@ -4727,8 +4727,8 @@ void st_lex_master_info::initialize()
   gtid_until_condition= UNTIL_SQL_BEFORE_GTIDS;
   view_id= NULL;
   until_after_gaps= false;
-  ssl= ssl_verify_server_cert= heartbeat_opt= repl_ignore_server_ids_opt= 
-    retry_count_opt= auto_position= LEX_MI_UNCHANGED;
+  ssl= ssl_verify_server_cert= heartbeat_opt= repl_ignore_server_ids_opt=
+    retry_count_opt= auto_position= port_opt= LEX_MI_UNCHANGED;
   ssl_key= ssl_cert= ssl_ca= ssl_capath= ssl_cipher= NULL;
   ssl_crl= ssl_crlpath= NULL;
   tls_version= NULL;

@@ -1,5 +1,5 @@
 #ifndef RPL_MASTER_H_INCLUDED
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@ bool show_slave_hosts(THD* thd);
 String *get_slave_uuid(THD *thd, String *value);
 bool show_master_status(THD* thd);
 bool show_binlogs(THD* thd);
-void kill_zombie_dump_threads(String *slave_uuid);
+void kill_zombie_dump_threads(THD* thd);
 
 /**
   Process a COM_BINLOG_DUMP_GTID packet.

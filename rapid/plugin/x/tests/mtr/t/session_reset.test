@@ -1,0 +1,120 @@
+--source include/restart_mysqld.inc
+--source ../include/xplugin_preamble.inc
+
+call mtr.add_suppression("Plugin mysqlx reported: '1.1: Unhandled message of type 12'");
+call mtr.add_suppression("Plugin mysqlx reported: '2.1: Unhandled message of type 12'");
+# wait a little to give time for internal temporary session to die out
+select sleep(1);
+--replace_regex /localhost[:0-9]*/localhost/ /Execute/Query/
+SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up';
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/session_reset.tmp
+
+#####Basic scenario:
+#1) Reset session
+Mysqlx.Session.Reset {
+}
+-->recv
+
+#2) Log back
+-->login root
+
+#3) Execute query
+Mysqlx.Sql.StmtExecute {
+    stmt: "select 1.1"
+}
+-->recvresult
+
+##### Check the pipelining:
+#1) Pipeline some queries
+Mysqlx.Sql.StmtExecute {
+  stmt: "select 2.1"
+}
+
+Mysqlx.Sql.StmtExecute {
+    stmt: "select 2.2"
+}
+
+
+#2) Reset session
+Mysqlx.Session.Reset {
+}
+
+
+#3) Receive messages from queries preceeding Reset
+-->recvresult
+-->recvresult
+-->recv
+
+-->login root
+
+
+######## Expect error and server disconnect trying to execute query after the session reset
+Mysqlx.Session.Reset {
+}
+
+-->recv
+
+Mysqlx.Sql.StmtExecute {
+    stmt: "select 3.1"
+}
+
+-->recv
+
+
+##### Ensure that a session after reset is not the same session as from before the reset
+-->newsession foo
+
+-->sql
+set @secret = 12345;
+-->endsql
+
+Mysqlx.Session.Reset {
+}
+-->recv
+-->login root
+
+-->sql
+select IF(@secret is NULL, 'OK', 'FAIL');
+-->endsql
+-->closesession
+
+##
+-->closesession abort
+EOF
+
+--write_file $MYSQL_TMP_DIR/session_reset_single_frame.tmp
+
+-->binparse %SEL1% Mysqlx.Sql.StmtExecute {
+  stmt: "select 2.1"
+}
+
+-->binparse %SEL2% Mysqlx.Sql.StmtExecute {
+    stmt: "select 2.2"
+}
+
+-->binparse %RST% Mysqlx.Session.Reset {
+}
+
+-->binsend %SEL1%%RST%%SEL2%
+
+-->recvresult
+-->recv
+-->recv
+-->closesession abort
+
+
+EOF
+
+
+
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/session_reset.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/session_reset.tmp
+
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/session_reset_single_frame.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/session_reset_single_frame.tmp
+
+
+## Postamble
+uninstall plugin mysqlx;

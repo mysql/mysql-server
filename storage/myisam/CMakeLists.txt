@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ TARGET_LINK_LIBRARIES(myisamchk myisam mysys_ssl)
 SET_TARGET_PROPERTIES(myisamchk PROPERTIES LINKER_LANGUAGE CXX)
 
 MYSQL_ADD_EXECUTABLE(myisamlog myisamlog.c)
-TARGET_LINK_LIBRARIES(myisamlog myisam)
+TARGET_LINK_LIBRARIES(myisamlog myisam ${LIBSOCKET})
 
 MYSQL_ADD_EXECUTABLE(myisampack myisampack.c)
 TARGET_LINK_LIBRARIES(myisampack myisam mysys_ssl)

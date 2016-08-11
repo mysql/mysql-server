@@ -104,7 +104,7 @@ namespace mysqlx
     {
       m_type = other.m_type;
       m_value = other.m_value;
-      if (m_type == TString || m_type == TOctets)
+      if (m_type == TString || m_type == TOctets || m_type == TExpression)
         m_value.s = new std::string(*other.m_value.s);
     }
 
@@ -276,7 +276,7 @@ namespace mysqlx
     {
       if (m_type == TDocument)
         delete m_value.d;
-      else if (m_type == TString || m_type == TExpression || m_type == TExpression)
+      else if (m_type == TString || m_type == TExpression || m_type == TArray)
         delete m_value.s;
     }
 
@@ -666,6 +666,9 @@ namespace mysqlx
 
   class Add_Base : public Collection_Statement
   {
+  protected:
+    std::vector<std::string> m_last_document_ids;
+
   public:
     Add_Base(boost::shared_ptr<Collection> coll);
     Add_Base(const Add_Base &other);
@@ -679,6 +682,7 @@ namespace mysqlx
   class AddStatement : public Add_Base
   {
   public:
+    AddStatement(boost::shared_ptr<Collection> coll);
     AddStatement(boost::shared_ptr<Collection> coll, const Document &doc);
     AddStatement(const AddStatement &other) : Add_Base(other) {}
     AddStatement &operator = (const AddStatement &other) { Add_Base::operator=(other); return *this; }

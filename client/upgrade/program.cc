@@ -44,7 +44,7 @@ int mysql_check_errors;
 const int SYS_TABLE_COUNT = 1;
 const int SYS_VIEW_COUNT = 100;
 const int SYS_TRIGGER_COUNT = 2;
-const int SYS_FUNCTION_COUNT = 21;
+const int SYS_FUNCTION_COUNT = 22;
 const int SYS_PROCEDURE_COUNT = 26;
 
 /**
@@ -376,7 +376,7 @@ public:
           "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGGER_SCHEMA = 'sys'") != 0)
         {
           return this->print_error(EXIT_UPGRADING_QUERIES_ERROR,
-              "Query against INFORMATION_SCHEMA.TABLES failed when checking the sys schema.");
+              "Query against INFORMATION_SCHEMA.TRIGGERS failed when checking the sys schema.");
         } else {
           MYSQL_RES *result = mysql_store_result(this->m_mysql_connection);
           if (result)
@@ -406,7 +406,7 @@ public:
           "SELECT COUNT(*) FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA = 'sys' AND ROUTINE_TYPE = 'FUNCTION'") != 0)
         {
           return this->print_error(EXIT_UPGRADING_QUERIES_ERROR,
-              "Query against INFORMATION_SCHEMA.TABLES failed when checking the sys schema.");
+              "Query against INFORMATION_SCHEMA.ROUTINES failed when checking the sys schema.");
         } else {
           MYSQL_RES *result = mysql_store_result(this->m_mysql_connection);
           if (result)
@@ -436,7 +436,7 @@ public:
           "SELECT COUNT(*) FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA = 'sys' AND ROUTINE_TYPE = 'PROCEDURE'") != 0)
         {
           return this->print_error(EXIT_UPGRADING_QUERIES_ERROR,
-              "Query against INFORMATION_SCHEMA.TABLES failed when checking the sys schema.");
+              "Query against INFORMATION_SCHEMA.ROUTINES failed when checking the sys schema.");
         } else {
           MYSQL_RES *result = mysql_store_result(this->m_mysql_connection);
           if (result)

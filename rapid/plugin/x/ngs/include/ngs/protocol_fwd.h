@@ -22,48 +22,55 @@
 
 namespace google
 {
-  namespace protobuf
-  {
+namespace protobuf
+{
 #ifdef USE_MYSQLX_FULL_PROTO
-    class Message;
+class Message;
 #else
-    class MessageLite;
+class MessageLite;
 #endif
-  }
+}
 }
 
 namespace Mysqlx
 {
-  namespace Resultset
-  {
-    class Row;
-  }
 
-  namespace Datatypes
-  {
-    class Any;
-    class Scalar;
-  }
-
-  namespace Crud
-  {
-    class Projection;
-    class Column;
-    class Limit;
-    class Order;
-    class Insert;
-    class Insert_TypedRow;
-    class UpdateOperation;
-    class Update;
-    class Collection;
-    class Find;
-    class Delete;
-  }
-
-  namespace Expr
-  {
-    class Expr;
-  }
+namespace Sql
+{
+class StmtExecute;
 }
+
+namespace Resultset
+{
+class Row;
+}
+
+namespace Datatypes
+{
+class Any;
+class Scalar;
+}
+
+namespace Crud
+{
+class Projection;
+class Column;
+class Limit;
+class Order;
+class Insert;
+class Insert_TypedRow;
+class UpdateOperation;
+class Update;
+class Collection;
+class Find;
+class Delete;
+}
+
+namespace Expr
+{
+class Expr;
+}
+
+} // Mysqlx
 
 #endif // _PROTOCOL_FWD_H_

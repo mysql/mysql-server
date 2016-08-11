@@ -1,0 +1,29 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+send Mysqlx.Sql.StmtExecute {
+  stmt: "whatever"
+  namespace: "xplugin"
+}
+
+Got expected error: Invalid xplugin command whatever (code 5157)
+send Mysqlx.Sql.StmtExecute {
+  stmt: "whatever"
+  namespace: "bogus"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5162
+  msg: "Unknown namespace bogus"
+  sql_state: "HY000"
+}
+
+RUN drop schema if exists xtest
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+uninstall plugin mysqlx;

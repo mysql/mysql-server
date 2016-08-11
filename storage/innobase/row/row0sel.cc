@@ -235,7 +235,8 @@ row_sel_sec_rec_is_for_clust_rec(
 					row, v_col, clust_index,
 					&heap, NULL, NULL,
 					thr_get_trx(thr)->mysql_thd,
-					thr->prebuilt->m_mysql_table, NULL);
+					thr->prebuilt->m_mysql_table, NULL,
+					NULL, NULL);
 
 			clust_len = vfield->len;
 			clust_field = static_cast<byte*>(vfield->data);
@@ -3218,7 +3219,6 @@ row_sel_store_mysql_rec(
 					rec_get_offsets(rec) */
 {
 	ulint		i;
-	mem_heap_t*	heap = NULL;
 	DBUG_ENTER("row_sel_store_mysql_rec");
 
 	ut_ad(rec_clust || index == prebuilt->index);
@@ -3252,40 +3252,21 @@ row_sel_store_mysql_rec(
 				vrow, col->v_pos);
 
 			/* If this is a partitioned table, it might request
-			InnoDB to fill out virtual column data even it is
-			not indexed (materialized) by setting prebuilt->
-			m_read_virtual_key set. Such info is usually filled
-			by server, but due to the nature of partition table
-			frame work, it is now need to be filled by InnoDB.
-			So we will need to compute the value here */
+			InnoDB to fill out virtual column data for serach
+			index key values while other non key columns are also
+			getting selected. The non-key virtual columns may
+			not be materialized and we should skip them. */
 			if (dfield_get_type(dfield)->mtype == DATA_MISSING) {
 
 				ut_ad(prebuilt->m_read_virtual_key);
 
-				que_thr_t*	thr = que_fork_get_first_thr(
-					prebuilt->sel_graph);
+				/* If it is part of index key the data should
+				have been materialized. */
+				ut_ad(dict_index_get_nth_col_or_prefix_pos(
+					prebuilt->index, col->v_pos, false,
+					true) == ULINT_UNDEFINED);
 
-				if (heap == NULL) {
-					heap = mem_heap_create(100);
-				}
-
-				dtuple_t*	row = row_build(
-					ROW_COPY_DATA, index, rec, offsets,
-					NULL, NULL, NULL, NULL, heap);
-
-				/* BLOB field goes to separate heap */
-				if (DATA_LARGE_MTYPE(templ->type)
-				    && prebuilt->blob_heap == NULL) {
-					prebuilt->blob_heap = mem_heap_create(
-                                        UNIV_PAGE_SIZE);
-				}
-
-				dfield = innobase_get_computed_value(
-					row, col, index,
-					&heap, prebuilt->blob_heap,
-					NULL,
-					thr_get_trx(thr)->mysql_thd,
-					prebuilt->m_mysql_table, NULL);
+				continue;
 			}
 
 			if (dfield->len == UNIV_SQL_NULL) {
@@ -3323,9 +3304,6 @@ row_sel_store_mysql_rec(
 		if (!row_sel_store_mysql_field(mysql_rec, prebuilt,
 					       rec, index, offsets,
 					       field_no, templ)) {
-			if (heap != NULL) {
-				mem_heap_free(heap);
-			}
 
 			DBUG_RETURN(FALSE);
 		}
@@ -3342,10 +3320,6 @@ row_sel_store_mysql_rec(
 			prebuilt->fts_doc_id = fts_get_doc_id_from_rec(
 				prebuilt->table, rec, index, NULL);
 		}
-	}
-
-	if (heap != NULL) {
-		mem_heap_free(heap);
 	}
 
 	DBUG_RETURN(TRUE);

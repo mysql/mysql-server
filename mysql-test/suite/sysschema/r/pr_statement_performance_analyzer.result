@@ -4,7 +4,7 @@ DROP TEMPORARY TABLE IF EXISTS tmp_digests_ini;
 DROP VIEW IF EXISTS view_digests;
 CREATE TABLE t1 (id INT PRIMARY KEY, val int);
 use test;
-CALL sys.ps_setup_disable_thread(CONNECTION_ID());
+UPDATE performance_schema.threads SET INSTRUMENTED = IF(THREAD_ID = CON1_THREAD_ID, 'YES', 'NO');
 CALL sys.ps_setup_enable_consumer('events_statements_history_long');
 CALL sys.ps_truncate_all_tables(FALSE);
 INSERT INTO t1 VALUES (1, 0);
@@ -188,6 +188,7 @@ SET SESSION sql_mode = @@global.sql_mode;
 SET @sys.statement_performance_analyzer.limit = NULL;
 SET @sys.statement_performance_analyzer.view = NULL;
 UPDATE performance_schema.setup_consumers SET enabled = 'YES';
+UPDATE performance_schema.threads SET instrumented = 'YES';
 SET @sys.ignore_sys_config_triggers := true;
 DELETE FROM sys.sys_config;
 INSERT IGNORE INTO sys.sys_config (variable, value) VALUES
