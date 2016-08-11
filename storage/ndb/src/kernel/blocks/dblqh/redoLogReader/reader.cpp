@@ -67,7 +67,8 @@ inline void ndb_end_and_exit(int exitcode)
   exit(exitcode);
 }
 
-NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read a redo log file", 16384) { 
+int main(int argc, char** argv)
+{
   ndb_init();
   Int32 wordIndex = 0;
   Uint32 oldWordIndex = 0;
