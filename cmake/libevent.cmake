@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@ MACRO (MYSQL_USE_BUNDLED_LIBEVENT)
   SET(LIBEVENT_LIBRARY  event)
   SET(LIBEVENT_INCLUDE_DIR  ${CMAKE_SOURCE_DIR}/libevent)
   SET(LIBEVENT_FOUND  TRUE)
+  ADD_DEFINITIONS("-DHAVE_LIBEVENT1")
   SET(WITH_LIBEVENT "bundled" CACHE STRING "Use bundled libevent")
   # Use EXCLUDE_FROM_ALL to build only if another component
   # which dependens on libevent is built
@@ -62,15 +63,21 @@ MACRO (MYSQL_CHECK_LIBEVENT)
       set(LIBEVENT_LIB_PATHS /usr/local/lib /opt/local/lib)
     ENDIF()
 
+    ## libevent.so is historical, use libevent_core.so if found.
+    find_library(LIBEVENT_CORE event_core PATHS ${LIBEVENT_LIB_PATHS})
     find_library(LIBEVENT_LIB event PATHS ${LIBEVENT_LIB_PATHS})
 
-    if (NOT LIBEVENT_LIB)
+    if (NOT LIBEVENT_LIB AND NOT LIBEVENT_CORE)
         MESSAGE(SEND_ERROR "Cannot find appropriate event lib in /usr/local/lib or /opt/local/lib. Use bundled libevent")
     endif() 
 
-    IF (LIBEVENT_LIB AND LIBEVENT_INCLUDE_DIR)
+    IF ((LIBEVENT_LIB OR LIBEVENT_CORE) AND LIBEVENT_INCLUDE_DIR)
       set(LIBEVENT_FOUND TRUE)
-      set(LIBEVENT_LIBS ${LIBEVENT_LIB})
+      IF (LIBEVENT_CORE)
+        set(LIBEVENT_LIBS ${LIBEVENT_CORE})
+      ELSE()
+        set(LIBEVENT_LIBS ${LIBEVENT_LIB})
+      ENDIF()
     ELSE()
       set(LIBEVENT_FOUND FALSE)
     ENDIF()
@@ -79,7 +86,12 @@ MACRO (MYSQL_CHECK_LIBEVENT)
       SET(LIBEVENT_SOURCES "")
       SET(LIBEVENT_LIBRARIES ${LIBEVENT_LIBS})
       SET(LIBEVENT_INCLUDE_DIRS ${LIBEVENT_INCLUDE_DIR})
-      SET(LIBEVENT_DEFINES "-DHAVE_LIBEVENT")
+      find_path(LIBEVENT2_INCLUDE_DIR event2 HINTS ${LIBEVENT_INCLUDE_PATH}/event)
+      IF (LIBEVENT2_INCLUDE_DIR)
+        ADD_DEFINITIONS("-DHAVE_LIBEVENT2")
+      ELSE()
+        ADD_DEFINITIONS("-DHAVE_LIBEVENT1")
+      ENDIF()
     ELSE()
       IF(WITH_LIBEVENT STREQUAL "system")
         MESSAGE(SEND_ERROR "Cannot find appropriate system libraries for libevent. Use bundled libevent")

@@ -1,0 +1,533 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+Test 1
+send Mysqlx.Expect.Open {
+  cond {
+    condition_key: 1
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+
+
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+send Mysqlx.Sql.StmtExecute {
+  stmt: "bla"
+  namespace: "bla"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5162
+  msg: "Unknown namespace bla"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5159
+  msg: "Expectation failed: no_error"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Expect.Close {
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5159
+  msg: "Expectation failed: no_error"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+Test 2
+send Mysqlx.Expect.Open {
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "bla"
+  namespace: "bla"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5162
+  msg: "Unknown namespace bla"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Expect.Close {
+}
+
+Mysqlx.Ok {
+}
+
+Test 3
+send Mysqlx.Expect.Open {
+  cond {
+    condition_key: 1
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Expect.Open {
+  cond {
+    condition_key: 1
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "bogus"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5162
+  msg: "Unknown namespace bogus"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Expect.Close {
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5159
+  msg: "Expectation failed: no_error"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5159
+  msg: "Expectation failed: no_error"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Expect.Close {
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5159
+  msg: "Expectation failed: no_error"
+  sql_state: "HY000"
+}
+
+Test 4
+send Mysqlx.Expect.Open {
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Expect.Open {
+  cond {
+    condition_key: 1
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "bogus"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5162
+  msg: "Unknown namespace bogus"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5159
+  msg: "Expectation failed: no_error"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Expect.Close {
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5159
+  msg: "Expectation failed: no_error"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "bogus"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5162
+  msg: "Unknown namespace bogus"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Expect.Close {
+}
+
+Mysqlx.Ok {
+}
+
+Test 5
+send Mysqlx.Expect.Open {
+  cond {
+    condition_key: 1
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Expect.Open {
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "bogus"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5162
+  msg: "Unknown namespace bogus"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5159
+  msg: "Expectation failed: no_error"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Expect.Close {
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5159
+  msg: "Expectation failed: no_error"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5159
+  msg: "Expectation failed: no_error"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "bogus"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5159
+  msg: "Expectation failed: no_error"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5159
+  msg: "Expectation failed: no_error"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Expect.Close {
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5159
+  msg: "Expectation failed: no_error"
+  sql_state: "HY000"
+}
+
+Test 6 : Do not inherit parent condition by default
+send Mysqlx.Expect.Open {
+  cond {
+    condition_key: 1
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Expect.Open {
+  op: EXPECT_CTX_EMPTY
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "bogus"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5162
+  msg: "Unknown namespace bogus"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Expect.Close {
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "bogus"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5162
+  msg: "Unknown namespace bogus"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5159
+  msg: "Expectation failed: no_error"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Expect.Close {
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5159
+  msg: "Expectation failed: no_error"
+  sql_state: "HY000"
+}
+
+Test 7 : Inherit condition
+send Mysqlx.Expect.Open {
+  op: EXPECT_CTX_EMPTY
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Expect.Close {
+}
+
+Mysqlx.Ok {
+}
+
+Test 8 : Inherit condition
+send Mysqlx.Expect.Open {
+  op: EXPECT_CTX_COPY_PREV
+  cond {
+    condition_key: 1
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "bogus"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5162
+  msg: "Unknown namespace bogus"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5159
+  msg: "Expectation failed: no_error"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Expect.Close {
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5159
+  msg: "Expectation failed: no_error"
+  sql_state: "HY000"
+}
+
+Test 9 : condition_key can take only value 1
+send Mysqlx.Expect.Open {
+  cond {
+    condition_key: 0
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5160
+  msg: "Unknown condition key"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Expect.Open {
+  cond {
+    condition_key: 2
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5160
+  msg: "Unknown condition key"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Expect.Close {
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5158
+  msg: "Expect block currently not open"
+  sql_state: "HY000"
+}
+
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+uninstall plugin mysqlx;

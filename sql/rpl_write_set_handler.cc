@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,22 +16,52 @@
 #include "rpl_write_set_handler.h"
 
 #include "my_global.h"
-#include "my_murmur3.h"    // murmur3_32
 #include "my_stacktrace.h" // my_safe_itoa
 #include "field.h"         // Field
 #include "sql_class.h"     // THD
 #include "sql_list.h"      // List
 #include "table.h"         // TABLE
 
+#include "my_murmur3.h"    // murmur3_32
+#include "xxhash.h"        // xxHash
+
 #include <map>
 #include <string>
 #include <vector>
 
 #define NAME_READ_BUFFER_SIZE 1024
+#define HASH_STRING_SEPARATOR "½"
 
-template <class type> uint32 calc_hash(type T)
+const char *transaction_write_set_hashing_algorithms[]=
 {
-  return (murmur3_32((const uchar*)T, strlen(T), 0));
+  "OFF",
+  "MURMUR32",
+  "XXHASH64"
+  ,0
+};
+
+const char*
+get_write_set_algorithm_string(unsigned int algorithm)
+{
+  switch(algorithm)
+  {
+    case HASH_ALGORITHM_OFF:
+      return "OFF";
+    case HASH_ALGORITHM_MURMUR32:
+      return "MURMUR32";
+    case HASH_ALGORITHM_XXHASH64:
+      return "XXHASH64";
+    default:
+      return "UNKNOWN ALGORITHM";
+  }
+}
+
+template <class type> uint64 calc_hash(ulong algorithm, type T)
+{
+  if(algorithm == HASH_ALGORITHM_MURMUR32)
+    return (murmur3_32((const uchar*)T, strlen(T), 0));
+  else
+    return (XXH64((const uchar*)T, strlen(T), 0));
 }
 
 /**
@@ -81,9 +111,12 @@ void check_foreign_key(TABLE *table, THD *thd,
     // conflict.
     temporary_pke.append("P");
     temporary_pke.append(f_database_name);
+    temporary_pke.append(HASH_STRING_SEPARATOR);
     temporary_pke.append(char_length_database);
     temporary_pke.append(f_table_name);
+    temporary_pke.append(HASH_STRING_SEPARATOR);
     temporary_pke.append(char_length_table);
+
     my_free(buffer_db);
     my_free(buffer_table);
 
@@ -99,60 +132,105 @@ void check_foreign_key(TABLE *table, THD *thd,
 void debug_check_for_write_sets(std::vector<std::string> &key_list_to_hash)
 {
   DBUG_EXECUTE_IF("PKE_assert_single_primary_key_generated_insert",
-                  DBUG_ASSERT(key_list_to_hash[0] == "Ptest4t1211"););
+                  DBUG_ASSERT(key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                                                     HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1"););
 
   DBUG_EXECUTE_IF("PKE_assert_single_primary_key_generated_update",
-                  DBUG_ASSERT(key_list_to_hash[0] == "Ptest4t1231" ||
-                              key_list_to_hash[0] == "Ptest4t1211"););
+                  DBUG_ASSERT(key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                                                     HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" ||
+                              key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                                                     HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1"););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_primary_key_generated_insert",
-                  DBUG_ASSERT(key_list_to_hash[0] == "Ptest4t121121"););
+                  DBUG_ASSERT(key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                                                     HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "12"
+                                                     HASH_STRING_SEPARATOR "1"););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_primary_key_generated_update",
-                  DBUG_ASSERT(key_list_to_hash[0] == "Ptest4t123121" ||
-                              key_list_to_hash[0] == "Ptest4t121121"););
+                  DBUG_ASSERT(key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                                                     HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "12"
+                                                     HASH_STRING_SEPARATOR "1" ||
+                              key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                                                     HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "12"
+                                                     HASH_STRING_SEPARATOR "1"););
 
   DBUG_EXECUTE_IF("PKE_assert_single_primary_unique_key_generated_insert",
-                  DBUG_ASSERT(key_list_to_hash[0] == "Ptest4t1211" &&
-                              key_list_to_hash[1] == "U1test4t1221" &&
-                              key_list_to_hash[2] == "U2test4t1231"););
+                  DBUG_ASSERT(key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                                                     HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
+                              key_list_to_hash[1] == "U1test" HASH_STRING_SEPARATOR "4t1"
+                                                     HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1" &&
+                              key_list_to_hash[2] == "U2test" HASH_STRING_SEPARATOR "4t1"
+                                                     HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1"););
 
   DBUG_EXECUTE_IF("PKE_assert_single_primary_unique_key_generated_update",
-                  DBUG_ASSERT((key_list_to_hash[0] == "Ptest4t1251" &&
-                               key_list_to_hash[1] == "U1test4t1221" &&
-                               key_list_to_hash[2] == "U2test4t1231") ||
-                              (key_list_to_hash[0] == "Ptest4t1211" &&
-                               key_list_to_hash[1] == "U1test4t1221" &&
-                               key_list_to_hash[2] == "U2test4t1231")););
+                  DBUG_ASSERT((key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                                                      HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1" &&
+                               key_list_to_hash[1] == "U1test" HASH_STRING_SEPARATOR "4t1"
+                                                      HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1" &&
+                               key_list_to_hash[2] == "U2test" HASH_STRING_SEPARATOR "4t1"
+                                                      HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1") ||
+                              (key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
+                               key_list_to_hash[1] == "U1test" HASH_STRING_SEPARATOR "4t1"
+                                                      HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1" &&
+                               key_list_to_hash[2] == "U2test" HASH_STRING_SEPARATOR "4t1"
+                                                      HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1")););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_primary_unique_key_generated_insert",
-                  DBUG_ASSERT(key_list_to_hash[0] == "Ptest4t121121" &&
-                              key_list_to_hash[1] == "U1test4t1231" &&
-                              key_list_to_hash[2] == "U2test4t1241"););
+                  DBUG_ASSERT(key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                                                     HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "12"
+                                                     HASH_STRING_SEPARATOR "1" &&
+                              key_list_to_hash[1] == "U1test" HASH_STRING_SEPARATOR "4t1"
+                                                     HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
+                              key_list_to_hash[2] == "U2test" HASH_STRING_SEPARATOR "4t1"
+                                                     HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR "1"););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_primary_unique_key_generated_update",
-                  DBUG_ASSERT((key_list_to_hash[0] == "Ptest4t121121" &&
-                               key_list_to_hash[1] == "U1test4t1231" &&
-                               key_list_to_hash[2] == "U2test4t1241") ||
-                              (key_list_to_hash[0] == "Ptest4t125121" &&
-                               key_list_to_hash[1] == "U1test4t1231" &&
-                               key_list_to_hash[2] == "U2test4t1241")););
+                  DBUG_ASSERT((key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                                                       HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "12"
+                                                       HASH_STRING_SEPARATOR "1" &&
+                               key_list_to_hash[1] == "U1test" HASH_STRING_SEPARATOR "4t1"
+                                                       HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
+                               key_list_to_hash[2] == "U2test" HASH_STRING_SEPARATOR "4t1"
+                                                       HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR "1") ||
+                              (key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                                                       HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "12"
+                                                       HASH_STRING_SEPARATOR "1" &&
+                               key_list_to_hash[1] == "U1test" HASH_STRING_SEPARATOR "4t1"
+                                                       HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
+                               key_list_to_hash[2] == "U2test" HASH_STRING_SEPARATOR "4t1"
+                                                       HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR "1")););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_foreign_key_generated_insert",
-                  DBUG_ASSERT(key_list_to_hash[0] == "Ptest4t321151" &&
-                              key_list_to_hash[1] == "U1test4t3251" &&
-                              key_list_to_hash[2] == "Ptest4t1211" &&
-                              key_list_to_hash[3] == "Ptest4t2251"););
+                  DBUG_ASSERT(key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t3"
+                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "15"
+                                                      HASH_STRING_SEPARATOR "1" &&
+                              key_list_to_hash[1] == "U1test" HASH_STRING_SEPARATOR "4t3"
+                                                      HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1" &&
+                              key_list_to_hash[2] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
+                              key_list_to_hash[3] == "Ptest" HASH_STRING_SEPARATOR "4t2"
+                                                      HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1"););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_foreign_key_generated_update",
-                  DBUG_ASSERT((key_list_to_hash[0] == "Ptest4t321151" &&
-                               key_list_to_hash[1] == "U1test4t3251" &&
-                               key_list_to_hash[2] == "Ptest4t1211" &&
-                               key_list_to_hash[3] == "Ptest4t2251") ||
-                              (key_list_to_hash[0] == "Ptest4t323151" &&
-                               key_list_to_hash[1] == "U1test4t3251" &&
-                               key_list_to_hash[2] == "Ptest4t1231" &&
-                               key_list_to_hash[3] == "Ptest4t2251")););
+                  DBUG_ASSERT((key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t3"
+                                                       HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "15"
+                                                       HASH_STRING_SEPARATOR "1" &&
+                               key_list_to_hash[1] == "U1test" HASH_STRING_SEPARATOR "4t3"
+                                                       HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1" &&
+                               key_list_to_hash[2] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                                                       HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
+                               key_list_to_hash[3] == "Ptest" HASH_STRING_SEPARATOR "4t2"
+                                                       HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1") ||
+                              (key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t3"
+                                                       HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "15"
+                                                       HASH_STRING_SEPARATOR "1" &&
+                               key_list_to_hash[1] == "U1test" HASH_STRING_SEPARATOR "4t3"
+                                                       HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1" &&
+                               key_list_to_hash[2] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                                                       HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
+                               key_list_to_hash[3] == "Ptest" HASH_STRING_SEPARATOR "4t2"
+                                                       HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1")););
 }
 
 
@@ -166,13 +244,14 @@ void debug_check_for_write_sets(std::vector<std::string> &key_list_to_hash)
 void generate_hash_pke(std::string pke, THD* thd)
 {
   DBUG_ENTER("generate_hash_pke");
-  DBUG_ASSERT(thd->variables.transaction_write_set_extraction ==
-              HASH_ALGORITHM_MURMUR32);
+  DBUG_ASSERT(thd->variables.transaction_write_set_extraction !=
+              HASH_ALGORITHM_OFF);
   const char* string_pke=NULL;
   string_pke= (char *)pke.c_str();
   DBUG_PRINT("info", ("The hashed value is %s for %u", string_pke,
                       thd->thread_id()));
-  uint32 hash= calc_hash<const char *>(string_pke);
+  uint64 hash= calc_hash<const char *>(thd->variables.transaction_write_set_extraction,
+                                       string_pke);
   Rpl_transaction_write_set_ctx *transaction_write_set_ctc=
     thd->get_transaction()->get_transaction_write_set_ctx();
   transaction_write_set_ctc->add_write_set(hash);
@@ -203,6 +282,7 @@ void add_pke(TABLE *table, THD *thd)
   const char *char_length_database= my_safe_itoa(10, length_database,
                                                  &buffer_db[length_database-1]);
   temporary_pke.append(database_name);
+  temporary_pke.append(HASH_STRING_SEPARATOR);
   temporary_pke.append(char_length_database);
   my_free(buffer_db);
 
@@ -214,6 +294,7 @@ void add_pke(TABLE *table, THD *thd)
                                 length_table, MYF(0));
   const char *char_length_table= my_safe_itoa(10, length_table, &buffer_table[length_table-1]);
   temporary_pke.append(table_name);
+  temporary_pke.append(HASH_STRING_SEPARATOR);
   temporary_pke.append(char_length_table);
 
   my_free(buffer_table);
@@ -297,6 +378,7 @@ void add_pke(TABLE *table, THD *thd)
         const char *lenStr = my_safe_itoa(10, (row_data.length()),
                                           &buf[row_data.length()-1]);
         unhashed_string.append(pk_value);
+        unhashed_string.append(HASH_STRING_SEPARATOR);
         unhashed_string.append(lenStr);
         my_free(buf);
         my_free(pk_value);
@@ -326,7 +408,9 @@ void add_pke(TABLE *table, THD *thd)
         const char *lenStr = my_safe_itoa(10, (row_data.length()),
                                           &buf[row_data.length()-1]);
         referenced_FQTN.append(pk_value);
+        referenced_FQTN.append(HASH_STRING_SEPARATOR);
         referenced_FQTN.append(lenStr);
+
         my_free(buf);
         my_free(pk_value);
         key_list_to_hash.push_back(referenced_FQTN);

@@ -1,0 +1,951 @@
+## ===================================================================
+###
+###     Monitor CRUD Status variables :
+#       1) Mysqlx_stmt_execute_sql
+#       2) Mysqlx_stmt_execute_xplugin
+#       3) Mysqlx_stmt_create_collection
+#       4) Mysqlx_stmt_create_collection_index
+#       5) Mysqlx_rows_sent
+#       6) Mysqlx_bytes_sent
+#       7) Mysqlx_bytes_received
+#       8) Mysqlx_stmt_drop_collection
+#       9) Mysqlx_stmt_drop_collection_index
+#       10) Mysqlx_stmt_ping
+#       11) Mysqlx_expect_close
+#       12) Mysqlx_expect_open
+#       13) Mysqlx_stmt_list_objects
+#
+###
+### ===================================================================
+
+
+
+#
+#       1) Mysqlx_stmt_execute_sql
+#       2) Mysqlx_stmt_execute_xplugin
+#       13) Mysqlx_stmt_list_objects
+#
+## Preamble
+--source ../include/xplugin_preamble.inc
+
+--disable_query_log
+--disable_warnings
+DROP DATABASE IF EXISTS xplugintest;
+DROP DATABASE IF EXISTS xplugintest_1;
+CREATE DATABASE xplugintest;
+CREATE DATABASE xplugintest_1;
+USE xplugintest;
+--enable_warnings
+--enable_query_log
+
+CREATE TABLE `scalar_types`(`number_uint` INTEGER UNSIGNED DEFAULT 10, `number_sint` INTEGER DEFAULT -10, `value_bool` BOOLEAN DEFAULT 0, `value_string` VARCHAR(255) default NULL, `number_float` FLOAT DEFAULT 1.1, `number_double` DOUBLE DEFAULT 2.2, `value_blob` TINYBLOB DEFAULT NULL);
+
+
+--write_file $MYSQL_TMP_DIR/stmtexecute_insert.tmp
+
+-->sql
+SHOW STATUS like 'Mysqlx_stmt_execute_sql%';
+SHOW STATUS like 'Mysqlx_stmt_execute_xplugin%';
+-->endsql
+
+-- "Create table table2 in xplugintest "
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recvresult
+
+
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "INSERT INTO `xplugintest`.`scalar_types`(`number_sint`, `number_uint`, `value_string`) VALUES(0, ?, 'First inserted row'),(?, 1,'Second inserted row'), (-1, 0,?)"
+  args {
+      type: SCALAR
+      scalar {
+        type: V_UINT
+        v_unsigned_int: 1
+      }
+  }
+  args {
+      type: SCALAR
+      scalar {
+        type: V_SINT
+        v_signed_int: -1
+      }
+  }
+  args {
+      type: SCALAR
+      scalar {
+        type: V_STRING
+        v_string {
+           value: "\"Thrid\" inserted 'row'"
+        }
+      }
+  }  
+}
+-->recvresult
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "INSERT INTO `xplugintest`.`scalar_types`(`number_float`, `number_double`, `value_blob`) VALUES(0.1, ?, 'First inserted blob'),(?, 200.01,'Second inserted blob'), (10.11, 2.2, ?), (111, 222, ?)"
+  args {
+      type: SCALAR
+      scalar {
+        type: V_DOUBLE
+        v_double: 200.01
+      }
+  }
+  args {
+      type: SCALAR
+      scalar {
+        type: V_DOUBLE
+        v_double: 10.11
+      }
+  }
+  args {
+      type: SCALAR
+      scalar {
+        type: V_STRING
+        v_string {
+           value: "\"Thrid\" inserted 'blob'"
+        }
+      }
+  }  
+  args {
+      type: SCALAR
+      scalar {
+        type: V_NULL
+      }
+  }  
+}
+-->recvresult
+-->sql
+SHOW STATUS like 'Mysqlx_stmt_execute_sql%';
+SHOW STATUS like 'Mysqlx_stmt_execute_xplugin%';
+-->endsql
+EOF
+
+
+
+--write_file $MYSQL_TMP_DIR/stmtexecute_select.tmp
+-->sql
+SHOW STATUS like 'Mysqlx_stmt_execute_sql%';
+SHOW STATUS like 'Mysqlx_stmt_execute_xplugin%';
+-->endsql
+-->echo Filter data by unsigned int
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT * FROM `xplugintest`.`scalar_types` WHERE `number_uint`=?"
+  args {
+      type: SCALAR
+      scalar {
+        type: V_UINT
+        v_unsigned_int: 1
+      }
+  }
+}
+-->recvresult
+
+-->echo Filter data by signed int
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT * FROM `xplugintest`.`scalar_types` WHERE `number_sint`=?"
+  args {
+      type: SCALAR
+      scalar {
+        type: V_SINT
+        v_signed_int: -1
+      }
+  }
+}
+-->recvresult
+
+-->sql
+SHOW STATUS like 'Mysqlx_stmt_execute_sql%';
+SHOW STATUS like 'Mysqlx_stmt_execute_xplugin%';
+-->endsql
+
+EOF
+
+## New session will not show values from other session
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/stmtexecute_insert.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/stmtexecute_insert.tmp
+
+--write_file $MYSQL_TMP_DIR/stmtexecute_second_client.tmp
+-->sql
+SHOW STATUS like 'Mysqlx_stmt_execute_sql%';
+SHOW STATUS like 'Mysqlx_stmt_execute_xplugin%';
+-->endsql
+EOF
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/stmtexecute_second_client.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/stmtexecute_second_client.tmp
+
+
+SELECT * FROM `xplugintest`.`scalar_types`;
+
+
+# Run command
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/stmtexecute_select.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/stmtexecute_select.tmp
+
+
+--write_file $MYSQL_TMP_DIR/stmtexecute_insert.tmp
+-->sql
+SHOW STATUS like 'Mysqlx_stmt_execute_sql%';
+SHOW STATUS like 'Mysqlx_stmt_execute_xplugin%';
+-->endsql
+-->echo Insert multiple rows into a Document column
+Mysqlx.Crud.Insert {
+  collection {
+    name: "table2"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+    type: LITERAL
+    literal {
+      type: V_STRING
+      v_string {
+        value: "\n{\n         \"_id\": \"1\",\n         \"name\": \"Omar Bras\", \"id\": \"1\"\n}"
+      }
+    }
+  }}
+  row {
+    field {
+    type: LITERAL
+    literal {
+      type: V_STRING
+      v_string {
+        value: "\n{\n         \"_id\": \"2\",\n         \"name\": \"Omar Mex\", \"id\": \"2\"\n}"
+      }
+    }}
+  }
+}
+-->recvresult
+Mysqlx.Crud.Insert {
+  collection {
+    name: "table2"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+    type: LITERAL
+    literal {
+      type: V_STRING
+      v_string {
+        value: "\n{\n         \"_id\": \"3\",\n         \"name\": \"Omar Peru\", \"id\": \"3\"\n}"
+      }
+    }
+  }}
+}
+-->recvresult
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_objects"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recvresult
+-- statement retunin error counted as well
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_objects"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "nodatabase"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+-- Invalid Mysqlx.Sql.StmtExecute operation conted
+Mysqlx.Sql.StmtExecute {
+  stmt: "errorstatement"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "nodatabase"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->expecterror 1049
+-->recvresult
+-->expecterror 5157
+-->recvresult
+
+
+
+
+-->sql
+SHOW STATUS like 'Mysqlx_stmt_execute_sql%';
+-- "Insert not counted in Mysqlx_stmt_execute_xplugin"
+SHOW STATUS like 'Mysqlx_stmt_execute_xplugin%';
+-- "Insert counted in Mysqlx_crud_insert"
+SHOW STATUS like 'Mysqlx_crud_insert%';
+SHOW STATUS like 'Mysqlx_stmt_list_objects%';
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/stmtexecute_insert.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/stmtexecute_insert.tmp
+
+
+## Postamble
+DROP DATABASE xplugintest;
+DROP DATABASE xplugintest_1;
+
+#-----------------------------------------------------------------------------
+# Test more variable on clean data
+
+#       3) Mysqlx_stmt_create_collection
+#       4) Mysqlx_stmt_create_collection_index
+#       5) Mysqlx_rows_sent
+#       6) Mysqlx_bytes_sent
+#       7) Mysqlx_bytes_received
+#       8) Mysqlx_stmt_drop_collection
+#       9) Mysqlx_stmt_drop_collection_index
+#       10) Mysqlx_stmt_ping
+#       11) Mysqlx_expect_close
+#       12) Mysqlx_expect_open
+#-----------------------------------------------------------------------------
+
+--disable_query_log
+--disable_warnings
+DROP DATABASE IF EXISTS xplugintest;
+DROP DATABASE IF EXISTS xplugintest_1;
+CREATE DATABASE xplugintest;
+CREATE DATABASE xplugintest_1;
+USE xplugintest;
+--enable_warnings
+--enable_query_log
+
+CREATE TABLE `scalar_types`(`number_uint` INTEGER UNSIGNED DEFAULT 10, `number_sint` INTEGER DEFAULT -10, `value_bool` BOOLEAN DEFAULT 0, `value_string` VARCHAR(255) default NULL, `number_float` FLOAT DEFAULT 1.1, `number_double` DOUBLE DEFAULT 2.2, `value_blob` TINYBLOB DEFAULT NULL);
+
+
+--write_file $MYSQL_TMP_DIR/stmtexecute_insert.tmp
+
+-->sql
+SHOW STATUS like 'Mysqlx_stmt_create_collection';
+SHOW STATUS like 'Mysqlx_stmt_create_collection_index%';
+SHOW STATUS like 'Mysqlx_rows_sent%';
+SHOW STATUS like 'Mysqlx_bytes_sent%';
+#SHOW STATUS like 'Mysqlx_bytes_received%';
+
+
+-->endsql
+
+-- "Create table table2 in xplugintest "
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recvresult
+
+-->echo Command is valid but returns error so its counted in status variable
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: ""
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->expecterror 5113
+-->recvresult
+
+-->echo Parse error , so its not counted in status variable
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+}
+-->recv
+
+-->echo "Index with  unique(true), index column NOT NULL (true)" counted in index status variable
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection_index"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "col1_index"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: true
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: ".col1"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "TEXT(13)"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: true
+    }
+  }
+  namespace: "xplugin"
+}
+-->recv
+
+-->echo Command is parsed , returns error. Counted in status variable
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection_index"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table_non_existing"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "col1_index"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: true
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: ".col1"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "TEXT(13)"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: true
+    }
+  }
+  namespace: "xplugin"
+}
+-->recv
+
+
+
+-->echo Invalid index command. Not able to parse so not counted in status variable
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection_index"
+}
+-->recv
+
+-->echo "Create table table3 in xplugintest "
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table3"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recvresult
+
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "INSERT INTO `xplugintest`.`scalar_types`(`number_sint`, `number_uint`, `value_string`) VALUES(0, ?, 'First inserted row'),(?, 1,'Second inserted row'), (-1, 0,?)"
+  args {
+      type: SCALAR
+      scalar {
+        type: V_UINT
+        v_unsigned_int: 1
+      }
+  }
+  args {
+      type: SCALAR
+      scalar {
+        type: V_SINT
+        v_signed_int: -1
+      }
+  }
+  args {
+      type: SCALAR
+      scalar {
+        type: V_STRING
+        v_string {
+           value: "\"Thrid\" inserted 'row'"
+        }
+      }
+  }  
+}
+-->recvresult
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "INSERT INTO `xplugintest`.`scalar_types`(`number_float`, `number_double`, `value_blob`) VALUES(0.1, ?, 'First inserted blob'),(?, 200.01,'Second inserted blob'), (10.11, 2.2, ?), (111, 222, ?)"
+  args {
+      type: SCALAR
+      scalar {
+        type: V_DOUBLE
+        v_double: 200.01
+      }
+  }
+  args {
+      type: SCALAR
+      scalar {
+        type: V_DOUBLE
+        v_double: 10.11
+      }
+  }
+  args {
+      type: SCALAR
+      scalar {
+        type: V_STRING
+        v_string {
+           value: "\"Thrid\" inserted 'blob'"
+        }
+      }
+  }  
+  args {
+      type: SCALAR
+      scalar {
+        type: V_NULL
+      }
+  }  
+}
+-->recvresult
+-->sql
+USE xplugintest;
+SHOW STATUS like 'Mysqlx_stmt_create_collection';
+
+# Create SQL not counted in Mysqlx_stmt_create_collection
+CREATE TABLE `table4` (`number_uint` INTEGER UNSIGNED DEFAULT 10, `number_sint` INTEGER DEFAULT -10, `value_bool` BOOLEAN DEFAULT 0, `value_string` VARCHAR(255) default NULL, `number_float` FLOAT DEFAULT 1.1, `number_double` DOUBLE DEFAULT 2.2, `value_blob` TINYBLOB DEFAULT NULL);
+# Create index not counted Mysqlx_stmt_create_collection_index
+ALTER TABLE xplugintest.table4 ADD FULLTEXT INDEX `fulltext_idx_1` (value_string);
+
+SHOW STATUS like 'Mysqlx_stmt_create_collection';
+SHOW STATUS like 'Mysqlx_stmt_create_collection_index%';
+SHOW STATUS like 'Mysqlx_rows_sent%';
+SHOW STATUS like 'Mysqlx_bytes_sent%';
+#SHOW STATUS like 'Mysqlx_bytes_received%';
+
+
+-->endsql
+
+
+
+-->echo Filter data by unsigned int
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT * FROM `xplugintest`.`scalar_types` WHERE `number_uint`=?"
+  args {
+      type: SCALAR
+      scalar {
+        type: V_UINT
+        v_unsigned_int: 1
+      }
+  }
+}
+-->recvresult
+
+-->echo Filter data by signed int
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT * FROM `xplugintest`.`scalar_types` WHERE `number_sint`=?"
+  args {
+      type: SCALAR
+      scalar {
+        type: V_SINT
+        v_signed_int: -1
+      }
+  }
+}
+-->recvresult
+
+-->sql
+SHOW STATUS like 'Mysqlx_stmt_create_collection';
+SHOW STATUS like 'Mysqlx_stmt_create_collection_index%';
+SHOW STATUS like 'Mysqlx_rows_sent%';
+SHOW STATUS like 'Mysqlx_bytes_sent%';
+#SHOW STATUS like 'Mysqlx_bytes_received%';
+
+
+SHOW STATUS like 'Mysqlx_stmt_drop_collection';
+SHOW STATUS like 'Mysqlx_stmt_drop_collection_index%';
+SHOW STATUS like 'Mysqlx_stmt_ping%';
+-->endsql
+
+
+-->echo # drop index counted in status variable
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection_index"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "col1_index"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recv
+
+
+-->echo "drop index with error counted in status variable" 
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection_index"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "non_existing_index"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recv
+
+
+-->echo "Parse error not counted in status variable"
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection_index"
+}
+-->recv
+
+-->echo # drop collection , index sql not counted in status variable
+-->sql
+DROP TABLE xplugintest.table3;
+ALTER TABLE xplugintest.table4 DROP INDEX `fulltext_idx_1`;
+-->endsql
+
+-->echo "Drop table created using create_collection message"
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recvresult
+
+-->echo "Non existing Drop table counted in status variable"
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table_non_existing"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->expecterror 1051
+-->recvresult
+
+
+-->echo "Drop table parse error NOT counted in status variable"
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection"
+}
+-->recv
+
+-->echo "Drop table created using create_collection message"
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "scalar_types"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recvresult
+
+
+
+-->sql
+SHOW STATUS like 'Mysqlx_stmt_drop_collection';
+SHOW STATUS like 'Mysqlx_stmt_drop_collection_index%';
+-->endsql
+
+Mysqlx.Sql.StmtExecute {
+    namespace : "xplugin"
+    stmt : "ping"
+}
+-->recv
+
+Mysqlx.Sql.StmtExecute {
+    namespace : "bla"
+    stmt : "ping"
+}
+# error
+-->recv
+
+Mysqlx.Sql.StmtExecute {
+    namespace : "xplugin"
+    stmt : "ping"
+}
+-->recv
+
+-->sql
+SHOW STATUS like 'Mysqlx_stmt_ping%';
+-->endsql
+
+-->echo Check - expect.open and expect.close status variable
+-->sql
+SHOW STATUS like 'Mysqlx_expect_close%';
+SHOW STATUS like 'Mysqlx_expect_open%';
+-->endsql
+Mysqlx.Expect.Open {
+    cond {
+        condition_key: 1
+    }
+}
+-->recv
+Mysqlx.Expect.Open {
+}
+-->recv
+-->sql
+SHOW STATUS like 'Mysqlx_expect_close%';
+SHOW STATUS like 'Mysqlx_expect_open%';
+-->endsql
+Mysqlx.Expect.Close {
+}
+-->recv
+-->sql
+SHOW STATUS like 'Mysqlx_expect_close%';
+SHOW STATUS like 'Mysqlx_expect_open%';
+-->endsql
+Mysqlx.Expect.Close {
+}
+-->recv
+-->sql
+SHOW STATUS like 'Mysqlx_expect_close%';
+SHOW STATUS like 'Mysqlx_expect_open%';
+-->endsql
+
+EOF
+
+## Test starts here
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/stmtexecute_insert.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/stmtexecute_insert.tmp
+
+
+## Postamble
+UNINSTALL PLUGIN mysqlx;
+DROP DATABASE xplugintest;
+DROP DATABASE xplugintest_1;

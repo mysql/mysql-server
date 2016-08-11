@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -95,6 +95,11 @@ const char *info_mi_fields []=
   "auto_position",
   "channel_name",
   "tls_version",
+};
+
+const uint info_mi_table_pk_field_indexes []=
+{
+  LINE_FOR_CHANNEL-1,
 };
 
 Master_info::Master_info(
@@ -322,6 +327,11 @@ uint Master_info::get_channel_field_num()
 {
   uint channel_field= LINE_FOR_CHANNEL;
   return channel_field;
+}
+
+const uint* Master_info::get_table_pk_field_indexes()
+{
+  return info_mi_table_pk_field_indexes;
 }
 
 bool Master_info::read_info(Rpl_info_handler *from)

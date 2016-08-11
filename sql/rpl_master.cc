@@ -28,6 +28,7 @@
 #include "rpl_filter.h"                         // binlog_filter
 #include "rpl_handler.h"                        // RUN_HOOK
 #include "sql_class.h"                          // THD
+#include "rpl_group_replication.h"              // is_group_replication_running
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -313,7 +314,6 @@ bool com_binlog_dump(THD *thd, char *packet, size_t packet_length)
 {
   DBUG_ENTER("com_binlog_dump");
   ulong pos;
-  String slave_uuid;
   ushort flags= 0;
   const uchar* packet_position= (uchar *) packet;
   size_t packet_bytes_todo= packet_length;
@@ -334,8 +334,7 @@ bool com_binlog_dump(THD *thd, char *packet, size_t packet_length)
 
   DBUG_PRINT("info", ("pos=%lu flags=%d server_id=%d", pos, flags, thd->server_id));
 
-  get_slave_uuid(thd, &slave_uuid);
-  kill_zombie_dump_threads(&slave_uuid);
+  kill_zombie_dump_threads(thd);
 
   query_logger.general_log_print(thd, thd->get_command(), "Log: '%s'  Pos: %ld",
                                  packet + 10, (long) pos);
@@ -358,7 +357,6 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length)
     Before going GA, we need to make this protocol extensible without
     breaking compatitibilty. /Alfranio.
   */
-  String slave_uuid;
   ushort flags= 0;
   uint32 data_size= 0;
   uint64 pos= 0;
@@ -390,8 +388,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length)
   DBUG_PRINT("info", ("Slave %d requested to read %s at position %llu gtid set "
                       "'%s'.", thd->server_id, name, pos, gtid_string));
 
-  get_slave_uuid(thd, &slave_uuid);
-  kill_zombie_dump_threads(&slave_uuid);
+  kill_zombie_dump_threads(thd);
   query_logger.general_log_print(thd, thd->get_command(),
                                  "Log: '%s' Pos: %llu GTIDs: '%s'",
                                  name, pos, gtid_string);
@@ -456,15 +453,32 @@ String *get_slave_uuid(THD *thd, String *value)
 class Find_zombie_dump_thread : public Find_THD_Impl
 {
 public:
-  Find_zombie_dump_thread(char* value): m_slave_uuid(value) {}
+  Find_zombie_dump_thread(String value): m_slave_uuid(value) {}
   virtual bool operator()(THD *thd)
   {
-    if (thd != current_thd && (thd->get_command() == COM_BINLOG_DUMP ||
+    THD *cur_thd= current_thd;
+    if (thd != cur_thd && (thd->get_command() == COM_BINLOG_DUMP ||
                                thd->get_command() == COM_BINLOG_DUMP_GTID))
     {
       String tmp_uuid;
-      if (get_slave_uuid(thd, &tmp_uuid) != NULL &&
-          !strncmp(m_slave_uuid, tmp_uuid.c_ptr(), UUID_LENGTH))
+      bool is_zombie_thread= false;
+      get_slave_uuid(thd, &tmp_uuid);
+      if (m_slave_uuid.length())
+      {
+        is_zombie_thread= (tmp_uuid.length() &&
+                           !strncmp(m_slave_uuid.c_ptr(),
+                                    tmp_uuid.c_ptr(), UUID_LENGTH));
+      }
+      else
+      {
+        /*
+          Check if it is a 5.5 slave's dump thread i.e., server_id should be
+          same && dump thread should not contain 'UUID'.
+        */
+        is_zombie_thread= ((thd->server_id == cur_thd->server_id) &&
+                           !tmp_uuid.length());
+      }
+      if (is_zombie_thread)
       {
         mysql_mutex_lock(&thd->LOCK_thd_data);
         return true;
@@ -473,35 +487,37 @@ public:
     return false;
   }
 private:
-  char* m_slave_uuid;
+  String m_slave_uuid;
 };
 
 /*
 
   Kill all Binlog_dump threads which previously talked to the same slave
-  ("same" means with the same server id). Indeed, if the slave stops, if the
+  ("same" means with the same UUID(for slave versions >= 5.6) or same server id
+  (for slave versions < 5.6). Indeed, if the slave stops, if the
   Binlog_dump thread is waiting (mysql_cond_wait) for binlog update, then it
   will keep existing until a query is written to the binlog. If the master is
   idle, then this could last long, and if the slave reconnects, we could have 2
   Binlog_dump threads in SHOW PROCESSLIST, until a query is written to the
   binlog. To avoid this, when the slave reconnects and sends COM_BINLOG_DUMP,
-  the master kills any existing thread with the slave's server id (if this id is
+  the master kills any existing thread with the slave's UUID/server id (if this id is
   not zero; it will be true for real slaves, but false for mysqlbinlog when it
   sends COM_BINLOG_DUMP to get a remote binlog dump).
 
   SYNOPSIS
     kill_zombie_dump_threads()
-    slave_uuid      the slave's UUID
+    @param thd newly connected dump thread object
 
 */
 
-void kill_zombie_dump_threads(String *slave_uuid)
+void kill_zombie_dump_threads(THD *thd)
 {
-  if (slave_uuid->length() == 0)
+  String slave_uuid;
+  get_slave_uuid(thd, &slave_uuid);
+  if (slave_uuid.length() == 0 && thd->server_id == 0)
     return;
-  DBUG_ASSERT(slave_uuid->length() == UUID_LENGTH);
 
-  Find_zombie_dump_thread find_zombie_dump_thread(slave_uuid->c_ptr());
+  Find_zombie_dump_thread find_zombie_dump_thread(slave_uuid);
   THD *tmp= Global_THD_manager::get_instance()->
                                 find_thd(&find_zombie_dump_thread);
   if (tmp)
@@ -512,16 +528,29 @@ void kill_zombie_dump_threads(String *slave_uuid)
       again. We just to do kill the thread ourselves.
     */
     if (log_warnings > 1)
-      sql_print_information("While initializing dump thread for slave with "
-                            "UUID <%s>, found a zombie dump thread with "
-                            "the same UUID. Master is killing the zombie dump "
-                            "thread.", slave_uuid->c_ptr());
-    tmp->duplicate_slave_uuid= true;
+    {
+      if (slave_uuid.length())
+      {
+        sql_print_information("While initializing dump thread for slave with "
+                              "UUID <%s>, found a zombie dump thread with the "
+                              "same UUID. Master is killing the zombie dump "
+                              "thread(%u).", slave_uuid.c_ptr(),
+                              tmp->thread_id());
+      }
+      else
+      {
+        sql_print_information("While initializing dump thread for slave with "
+                              "server_id <%u>, found a zombie dump thread with the "
+                              "same server_id. Master is killing the zombie dump "
+                              "thread(%u).", thd->server_id,
+                              tmp->thread_id());
+      }
+    }
+    tmp->duplicate_slave_id= true;
     tmp->awake(THD::KILL_QUERY);
     mysql_mutex_unlock(&tmp->LOCK_thd_data);
   }
 }
-
 
 /**
   Execute a RESET MASTER statement.
@@ -535,6 +564,13 @@ void kill_zombie_dump_threads(String *slave_uuid)
 bool reset_master(THD* thd)
 {
   bool ret= false;
+
+  if (is_group_replication_running())
+  {
+    my_error(ER_CANT_RESET_MASTER, MYF(0), "Group Replication is running");
+    return true;
+  }
+
   if (mysql_bin_log.is_open())
   {
     /*

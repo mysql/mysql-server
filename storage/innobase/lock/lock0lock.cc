@@ -6736,9 +6736,17 @@ lock_trx_release_locks(
 		ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
 	}
 
-	/* The transition of trx->state to TRX_STATE_COMMITTED_IN_MEMORY
-	is protected by both the lock_sys->mutex and the trx->mutex. */
-	lock_mutex_enter();
+	bool	release_lock;
+
+	release_lock = (UT_LIST_GET_LEN(trx->lock.trx_locks) > 0);
+
+	/* Don't take lock_sys mutex if trx didn't acquire any lock. */
+	if (release_lock) {
+
+		/* The transition of trx->state to TRX_STATE_COMMITTED_IN_MEMORY
+		is protected by both the lock_sys->mutex and the trx->mutex. */
+		lock_mutex_enter();
+	}
 
 	trx_mutex_enter(trx);
 
@@ -6761,6 +6769,8 @@ lock_trx_release_locks(
 	/*--------------------------------------*/
 
 	if (trx_is_referenced(trx)) {
+
+		ut_a(release_lock);
 
 		lock_mutex_exit();
 
@@ -6801,11 +6811,14 @@ lock_trx_release_locks(
 
 	trx_mutex_exit(trx);
 
-	lock_release(trx);
+	if (release_lock) {
+
+		lock_release(trx);
+
+		lock_mutex_exit();
+	}
 
 	trx->lock.n_rec_locks = 0;
-
-	lock_mutex_exit();
 
 	/* We don't remove the locks one by one from the vector for
 	efficiency reasons. We simply reset it because we would have

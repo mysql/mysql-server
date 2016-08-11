@@ -303,39 +303,45 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
     XID_STATE *xs= (transaction ? transaction->xid_state() : NULL);
     res= !xs || !xs->is_in_recovery();
     if (res)  // todo: fix transaction cleanup, BUG#20451386
-      my_error(ER_XAER_NOTA, MYF(0));
-    else
     {
-      DBUG_ASSERT(xs->is_in_recovery());
-      /*
-        Resumed transaction XA-commit.
-        The case deals with the "external" XA-commit by either a slave applier
-        or a different than XA-prepared transaction session.
-      */
-      res= xs->xa_trans_rolled_back();
-
-      /*
-        xs' is_binlogged() is passed through xid_state's member to low-level
-        logging routines for deciding how to log.  The same applies to
-        Rollback case.
-      */
-      if (xs->is_binlogged())
-        xid_state->set_binlogged();
-      else
-        xid_state->unset_binlogged();
-      /* Do not execute gtid wrapper whenever 'res' is true (rm error) */
-      gtid_error= MY_TEST(commit_owned_gtids(thd,
-                                             true, &need_clear_owned_gtid));
-      if (gtid_error)
-        my_error(ER_XA_RBROLLBACK, MYF(0));
-      res= res || gtid_error;
-      // todo xa framework: return an error
-      ha_commit_or_rollback_by_xid(thd, m_xid, !res);
-      xid_state->unset_binlogged();
-
-      transaction_cache_delete(transaction);
-      gtid_state_commit_or_rollback(thd, need_clear_owned_gtid, !gtid_error);
+      my_error(ER_XAER_NOTA, MYF(0));
+      DBUG_RETURN(true);
     }
+    else if (thd->in_multi_stmt_transaction_mode())
+    {
+      my_error(ER_XAER_RMFAIL, MYF(0), xid_state->state_name());
+      DBUG_RETURN(true);
+    }
+
+    DBUG_ASSERT(xs->is_in_recovery());
+    /*
+      Resumed transaction XA-commit.
+      The case deals with the "external" XA-commit by either a slave applier
+      or a different than XA-prepared transaction session.
+    */
+    res= xs->xa_trans_rolled_back();
+
+    /*
+      xs' is_binlogged() is passed through xid_state's member to low-level
+      logging routines for deciding how to log.  The same applies to
+      Rollback case.
+    */
+    if (xs->is_binlogged())
+      xid_state->set_binlogged();
+    else
+      xid_state->unset_binlogged();
+    /* Do not execute gtid wrapper whenever 'res' is true (rm error) */
+    gtid_error= MY_TEST(commit_owned_gtids(thd,
+                                           true, &need_clear_owned_gtid));
+    if (gtid_error)
+      my_error(ER_XA_RBROLLBACK, MYF(0));
+    res= res || gtid_error;
+    // todo xa framework: return an error
+    ha_commit_or_rollback_by_xid(thd, m_xid, !res);
+    xid_state->unset_binlogged();
+
+    transaction_cache_delete(transaction);
+    gtid_state_commit_or_rollback(thd, need_clear_owned_gtid, !gtid_error);
     DBUG_RETURN(res);
   }
 
@@ -478,29 +484,34 @@ bool Sql_cmd_xa_rollback::trans_xa_rollback(THD *thd)
     Transaction_ctx *transaction= transaction_cache_search(m_xid);
     XID_STATE *xs= (transaction ? transaction->xid_state() : NULL);
     if (!xs || !xs->is_in_recovery())
-      my_error(ER_XAER_NOTA, MYF(0));
-    else
     {
-      bool gtid_error= false;
-
-      DBUG_ASSERT(xs->is_in_recovery());
-      /*
-        Like in the commit case a failure to store gtid is regarded
-        as the resource manager issue.
-      */
-      if ((gtid_error= commit_owned_gtids(thd, true, &need_clear_owned_gtid)))
-        my_error(ER_XA_RBROLLBACK, MYF(0));
-      xs->xa_trans_rolled_back();
-      if (xs->is_binlogged())
-        xid_state->set_binlogged();
-      else
-        xid_state->unset_binlogged();
-      ha_commit_or_rollback_by_xid(thd, m_xid, false);
-      xid_state->unset_binlogged();
-      transaction_cache_delete(transaction);
-      gtid_state_commit_or_rollback(thd, need_clear_owned_gtid, !gtid_error);
+      my_error(ER_XAER_NOTA, MYF(0));
+      DBUG_RETURN(true);
+    }
+    else if (thd->in_multi_stmt_transaction_mode())
+    {
+      my_error(ER_XAER_RMFAIL, MYF(0), xid_state->state_name());
+      DBUG_RETURN(true);
     }
 
+    bool gtid_error= false;
+
+    DBUG_ASSERT(xs->is_in_recovery());
+    /*
+      Like in the commit case a failure to store gtid is regarded
+      as the resource manager issue.
+    */
+    if ((gtid_error= commit_owned_gtids(thd, true, &need_clear_owned_gtid)))
+      my_error(ER_XA_RBROLLBACK, MYF(0));
+    xs->xa_trans_rolled_back();
+    if (xs->is_binlogged())
+      xid_state->set_binlogged();
+    else
+      xid_state->unset_binlogged();
+    ha_commit_or_rollback_by_xid(thd, m_xid, false);
+    xid_state->unset_binlogged();
+    transaction_cache_delete(transaction);
+    gtid_state_commit_or_rollback(thd, need_clear_owned_gtid, !gtid_error);
     DBUG_RETURN(thd->is_error());
   }
 

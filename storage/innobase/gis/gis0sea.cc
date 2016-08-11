@@ -854,6 +854,8 @@ rtr_get_father_node(
 			page_cur_position(rec,
 					  btr_pcur_get_block(r_cursor),
 					  btr_cur_get_page_cur(btr_cur));
+			btr_cur->rtr_info = sea_cur->rtr_info;
+			btr_cur->tree_height = sea_cur->tree_height;
 			ut_ad(rtr_compare_cursor_rec(
 				index, btr_cur, page_no, &heap));
 			goto func_exit;
@@ -1251,8 +1253,8 @@ rtr_check_discard_page(
 	mutex_exit(&index->rtr_track->rtr_active_mutex);
 
 	lock_mutex_enter();
-	lock_prdt_free_from_discard_page(block, lock_sys->prdt_hash);
-	lock_prdt_free_from_discard_page(block, lock_sys->prdt_page_hash);
+	lock_prdt_page_free_from_discard(block, lock_sys->prdt_hash);
+	lock_prdt_page_free_from_discard(block, lock_sys->prdt_page_hash);
 	lock_mutex_exit();
 }
 

@@ -1,0 +1,39 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+################################################################
+# 1. Generate a huge GTID_EXECUTED with 70043 characters length.
+#    It will be like:
+#    aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:10000:10002:...:120000
+include/assert.inc [GTID_EXECUTED must contain all 70043 characters]
+
+################################################################
+# 2. Sync slave.
+include/sync_slave_sql_with_master.inc
+include/assert.inc [GTID_EXECUTED must contain all 70043 characters]
+
+################################################################
+# 3. Execute some transactions and check that nothing bad happens.
+#    Validate that data is delivered to both servers.
+[connection master]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+include/rpl_sync.inc
+[connection master]
+include/assert.inc ['There is a value 1 in table t1']
+[connection slave]
+include/assert.inc ['There is a value 1 in table t1']
+
+################################################################
+# 4. Check that Retrieved transaction set it is equal to
+#    GTID_EXECUTED.
+include/assert.inc ['Transactions_committed_all_members must be equal to GTID_EXECUTED']
+
+############################################################
+# 5. Clean up.
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

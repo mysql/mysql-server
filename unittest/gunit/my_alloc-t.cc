@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -145,9 +145,10 @@ TEST_P(MyAllocTest, WithMemoryLimit)
 
 TEST_F(MyAllocTest, CheckErrorReporting)
 {
+  const void *null_pointer= NULL;
   EXPECT_TRUE(alloc_root(&m_root, 1000));
   set_memroot_max_capacity(&m_root, 100);
-  EXPECT_EQ(NULL, alloc_root(&m_root, 1000));
+  EXPECT_EQ(null_pointer, alloc_root(&m_root, 1000));
   set_memroot_error_reporting(&m_root, true);
   Mock_global_error_handler error_handler(EE_CAPACITY_EXCEEDED);
   EXPECT_TRUE(alloc_root(&m_root, 1000));
@@ -158,6 +159,7 @@ TEST_F(MyPreAllocTest, PreAlloc)
 {
   // PREALLOCATE_MEMORY_CHUNKS is not defined for valgrind and ASAN
 #if !defined(HAVE_VALGRIND) && !defined(HAVE_ASAN)
+  const void *null_pointer= NULL;
   // MEMROOT has pre-allocated 2048 bytes memory plus some overhead
   size_t pre_allocated= m_prealloc_root.allocated_size;
   EXPECT_LT((unsigned int)2048, pre_allocated);
@@ -169,7 +171,7 @@ TEST_F(MyPreAllocTest, PreAlloc)
   set_memroot_max_capacity(&m_prealloc_root, 100);
   // Sufficient memory has been pre-allocated, so first alloc below will succeed
   EXPECT_TRUE(alloc_root(&m_prealloc_root, 1000));
-  EXPECT_EQ(NULL, alloc_root(&m_prealloc_root, 100));
+  EXPECT_EQ(null_pointer, alloc_root(&m_prealloc_root, 100));
   EXPECT_EQ(pre_allocated, m_prealloc_root.allocated_size);
 
   // Setting error reporting. Error is flagged but allocation succeeds
@@ -204,7 +206,7 @@ TEST_F(MyPreAllocTest, PreAlloc)
   EXPECT_LT((unsigned int)1526, m_prealloc_root.allocated_size);
   pre_allocated= m_prealloc_root.allocated_size;
   //  This will not succeed
-  EXPECT_EQ(NULL, alloc_root(&m_prealloc_root, 512));
+  EXPECT_EQ(null_pointer, alloc_root(&m_prealloc_root, 512));
 
   free_root(&m_prealloc_root, MY_KEEP_PREALLOC);
   EXPECT_LT((unsigned int)1024, m_prealloc_root.allocated_size);

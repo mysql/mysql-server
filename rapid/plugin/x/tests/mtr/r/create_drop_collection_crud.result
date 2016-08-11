@@ -1,0 +1,701 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+call mtr.add_suppression("Error parsing message of type 12: args");
+call mtr.add_suppression("Error handling message: args");
+RUN DROP DATABASE IF EXISTS xplugintest
+
+0 rows affected
+RUN DROP DATABASE IF EXISTS xplugintest_1
+
+0 rows affected
+RUN CREATE DATABASE xplugintest
+
+1 rows affected
+RUN CREATE DATABASE xplugintest_1
+
+1 rows affected
+RUN USE xplugintest
+
+0 rows affected
+RUN CREATE TABLE table1 ( _id INT , doc JSON ) 
+
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest_1"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+RUN SHOW TABLES
+Tables_in_xplugintest
+table1
+table2
+0 rows affected
+RUN SHOW CREATE TABLE table1
+Table	Create Table
+table1	CREATE TABLE `table1` (
+  `_id` int(11) DEFAULT NULL,
+  `doc` json DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+0 rows affected
+RUN SHOW CREATE TABLE table2
+Table	Create Table
+table2	CREATE TABLE `table2` (
+  `doc` json DEFAULT NULL,
+  `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$._id'))) STORED NOT NULL,
+  PRIMARY KEY (`_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+0 rows affected
+RUN SHOW CREATE TABLE xplugintest_1.table2
+Table	Create Table
+table2	CREATE TABLE `table2` (
+  `doc` json DEFAULT NULL,
+  `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$._id'))) STORED NOT NULL,
+  PRIMARY KEY (`_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+0 rows affected
+RUN INSERT INTO table2 (doc) VALUES ('{"a":1,"_id":[100,200]}')
+
+1 rows affected
+RUN SELECT * FROM table2
+doc	_id
+{"a": 1, "_id": [100, 200]}	[100, 200]
+0 rows affected
+RUN ALTER TABLE table2 ADD COLUMN col1 INT 
+
+0 rows affected
+Records: 0  Duplicates: 0  Warnings: 0
+RUN SELECT * FROM table2
+doc	_id	col1
+{"a": 1, "_id": [100, 200]}	[100, 200]	null
+0 rows affected
+RUN SHOW CREATE TABLE table1
+Table	Create Table
+table1	CREATE TABLE `table1` (
+  `_id` int(11) DEFAULT NULL,
+  `doc` json DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+0 rows affected
+RUN SHOW CREATE TABLE table2
+Table	Create Table
+table2	CREATE TABLE `table2` (
+  `doc` json DEFAULT NULL,
+  `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$._id'))) STORED NOT NULL,
+  `col1` int(11) DEFAULT NULL,
+  PRIMARY KEY (`_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+0 rows affected
+RUN INSERT INTO table2 (doc,col1) VALUES ('{"a":2,"_id":[300,400]}',300)
+
+1 rows affected
+RUN SELECT * FROM table2
+doc	_id	col1
+{"a": 1, "_id": [100, 200]}	[100, 200]	null
+{"a": 2, "_id": [300, 400]}	[300, 400]	300
+0 rows affected
+RUN INSERT INTO table2 (doc,col1) VALUES ('{"a":3,"b":[400,400]}',400)
+While executing INSERT INTO table2 (doc,col1) VALUES ('{"a":3,"b":[400,400]}',400):
+Got expected error: Column '_id' cannot be null (code 1048)
+RUN SELECT * FROM table2
+doc	_id	col1
+{"a": 1, "_id": [100, 200]}	[100, 200]	null
+{"a": 2, "_id": [300, 400]}	[300, 400]	300
+0 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "table2"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "{\"a\":3,\"b\":[500,500]}"
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5115
+  msg: "Document is missing a required field"
+  sql_state: "HY000"
+}
+
+RUN SELECT * FROM table2
+doc	_id	col1
+{"a": 1, "_id": [100, 200]}	[100, 200]	null
+{"a": 2, "_id": [300, 400]}	[300, 400]	300
+0 rows affected
+RUN ALTER TABLE table2 DROP COLUMN _id
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+RUN INSERT INTO table2 (doc,col1) VALUES ('{"a":4,"b":[400,400]}',400)
+
+1 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "table2"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "{\"a\":5,\"b\":[500,500]}"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+RUN SELECT * FROM table2
+doc	col1
+{"a": 1, "_id": [100, 200]}	null
+{"a": 2, "_id": [300, 400]}	300
+{"a": 4, "b": [400, 400]}	400
+{"a": 5, "b": [500, 500]}	null
+0 rows affected
+RUN SHOW CREATE TABLE table2
+Table	Create Table
+table2	CREATE TABLE `table2` (
+  `doc` json DEFAULT NULL,
+  `col1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+0 rows affected
+RUN DROP TABLE table2
+
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+RUN SHOW CREATE TABLE table2
+Table	Create Table
+table2	CREATE TABLE `table2` (
+  `doc` json DEFAULT NULL,
+  `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$._id'))) STORED NOT NULL,
+  PRIMARY KEY (`_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+0 rows affected
+RUN CREATE TABLE table2_tmp ( col1 INT)
+
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2_tmp"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+RUN SHOW CREATE TABLE table2
+While executing SHOW CREATE TABLE table2:
+Got expected error: Table 'xplugintest.table2' doesn't exist (code 1146)
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1051
+  msg: "Unknown table \'xplugintest.table2\'"
+  sql_state: "42S02"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest_non_existing"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1051
+  msg: "Unknown table \'xplugintest_non_existing.table2\'"
+  sql_state: "42S02"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5015
+  msg: "Invalid number of arguments, expected 2 but got 1"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection"
+  args {
+    type: OBJECT
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5016
+  msg: "Invalid type for argument \'schema\' at #1 (should be string)"
+  sql_state: "HY000"
+}
+
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create table xplugintest.table_sql ( doc JSON ) "
+  namespace: "sql"
+}
+
+
+0 rows affected
+RUN SHOW CREATE TABLE xplugintest.table_sql
+Table	Create Table
+table_sql	CREATE TABLE `table_sql` (
+  `doc` json DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+0 rows affected
+RUN INSERT INTO xplugintest.table_sql (doc) VALUES ('{"_id":"200"}')
+
+1 rows affected
+RUN SELECT * FROM xplugintest.table_sql
+doc
+{"_id": "200"}
+0 rows affected
+RUN DROP TABLE xplugintest.table_sql
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+RUN CREATE USER 'user1'@'localhost' identified by ''
+
+0 rows affected
+RUN GRANT USAGE ON *.* TO 'user1'@'localhost'
+
+0 rows affected
+RUN CREATE DATABASE xplugintest_user_access
+
+1 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest_user_access"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table1"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Got expected error: CREATE command denied to user 'user1'@'localhost' for table 'table1' (code 1142)
+RUN SHOW CREATE TABLE xplugintest_user_access.table1
+While executing SHOW CREATE TABLE xplugintest_user_access.table1:
+Got expected error: SHOW command denied to user 'user1'@'localhost' for table 'table1' (code 1142)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+RUN SHOW CREATE TABLE xplugintest_user_access.table1
+While executing SHOW CREATE TABLE xplugintest_user_access.table1:
+Got expected error: Table 'xplugintest_user_access.table1' doesn't exist (code 1146)
+RUN DROP USER 'user1'@'localhost'
+
+0 rows affected
+RUN DROP DATABASE xplugintest_user_access
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table3"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table4"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Got expected error: Invalid number of arguments, expected 2 but got 3 (code 5015)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "Invalid"
+}
+
+Got expected error: Unknown namespace Invalid (code 5162)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "non_existing"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Got expected error: Unknown database 'non_existing' (code 1049)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_NULL
+    }
+  }
+  namespace: "xplugin"
+}
+
+Got expected error: Invalid type for argument 'name' at #2 (should be string) (code 5016)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: OBJECT
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table3"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Got expected error: Invalid type for argument 'schema' at #1 (should be string) (code 5016)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table1"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Got expected error: Table 'table1' already exists (code 1050)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+RUN DROP DATABASE IF EXISTS xplugintest
+
+1 rows affected
+RUN DROP DATABASE IF EXISTS xplugintest_1
+
+1 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP DATABASE xplugintest;
+DROP DATABASE xplugintest;
+UNINSTALL PLUGIN mysqlx;

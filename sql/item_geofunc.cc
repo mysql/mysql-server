@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -362,10 +362,31 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
   Json_wrapper wr;
   if (get_json_wrapper(args, 0, buf, func_name(), &wr, true))
     return error_str();
-  if ((null_value= args[0]->null_value))
-    return NULL;
 
-  // The root element must be a object, according to GeoJSON specification.
+  /*
+    We will handle JSON NULL the same way as we handle SQL NULL. The reason
+    behind this is that we want the following SQL to return SQL NULL:
+
+      SELECT ST_GeomFromGeoJSON(
+        JSON_EXTRACT(
+          '{ "type": "Feature",
+             "geometry": null,
+             "properties": { "name": "Foo" }
+           }',
+        '$.geometry')
+      );
+
+    The function JSON_EXTRACT will return a JSON NULL, so if we don't handle
+    JSON NULL as SQL NULL the above SQL will raise an error since we would
+    expect a SQL NULL or a JSON object.
+  */
+  null_value= (args[0]->null_value || wr.type() == Json_dom::J_NULL);
+  if (null_value)
+  {
+    DBUG_ASSERT(maybe_null);
+    return NULL;
+  }
+
   if (wr.type() != Json_dom::J_OBJECT)
   {
     my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
@@ -415,6 +436,7 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
 
     if (rollback)
     {
+      DBUG_ASSERT(maybe_null);
       null_value= true;
       return NULL;
     }
@@ -1384,6 +1406,18 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref)
       break;
     }
   }
+
+  /*
+    Set maybe_null always to true. This is because the following GeoJSON input
+    will return SQL NULL:
+
+      {
+        "type": "Feature",
+        "geometry": null,
+        "properties": { "name": "Foo Bar" }
+      }
+  */
+  maybe_null= true;
   return false;
 }
 

@@ -1,0 +1,2514 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+call mtr.add_suppression("Plugin mysqlx reported: 'Unhandled network error: Bad file descriptor'");
+create user sslcon@localhost identified by 'sslcon';
+grant all on *.* to sslcon@localhost;
+RUN create user abc@localhost identified by 'abc'
+
+0 rows affected
+RUN create user xplugin@localhost identified by 'xplugin'
+
+0 rows affected
+RUN grant all on *.* to xplugin@localhost
+
+0 rows affected
+RUN create user process@localhost identified by 'process'
+
+0 rows affected
+RUN grant process on *.* to process@localhost
+
+0 rows affected
+RUN create user expire@localhost identified by 'expire'
+
+0 rows affected
+RUN grant all on *.* to expire@localhost
+
+0 rows affected
+RUN alter user expire@localhost password expire
+
+0 rows affected
+RUN select sleep(1)
+sleep(1)
+0
+0 rows affected
+Test data
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+client_id	user	host	sql_session
+1	root	localhost	$SESSION
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	0
+Mysqlx_stmt_list_clients	1
+0 rows affected
+create and activate new session
+connecting...
+active session is now 'aux'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+client_id	user	host	
+1	root	localhost
+2	root	localhost
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0 even with another new root session
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	0
+Mysqlx_stmt_list_clients	1
+0 rows affected
+switch back to default session
+switched to session default
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+client_id	user	host	
+1	root	localhost
+2	root	localhost
+command ok
+expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=0 with default root session where list_clients already executed
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	0
+Mysqlx_stmt_list_clients	2
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 2
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+RUN select sleep(0.5)
+sleep(0.5)
+0
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+client_id	user	host	
+1	root	localhost
+command ok
+expect Mysqlx_stmt_list_clients=3 and Mysqlx_stmt_kill_client=1 with default root session where list_clients executed 3 times and kill_client once
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	1
+Mysqlx_stmt_list_clients	3
+0 rows affected
+create and activate new session abc
+expect only abc user session id 
+connecting...
+active session is now 'abc'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+client_id	user	host	
+3	abc	localhost
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+killing root user session with unprivileged user 'abc' which should be unsuccessful
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 1
+    }
+  }
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+Got expected error: You are not owner of thread (code 1095)
+expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=1 with session abc where list_clients and kill_client executed once
+RUN select sleep(0.5)
+sleep(0.5)
+0
+0 rows affected
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	1
+Mysqlx_stmt_list_clients	1
+0 rows affected
+RUN select user(),current_user()
+user()	current_user()
+abc@localhost	abc@localhost
+0 rows affected
+RUN show grants
+Grants for abc@localhost
+GRANT USAGE ON *.* TO 'abc'@'localhost'
+0 rows affected
+open another session of abc user and kill first session of abc user,which should be successful
+connecting...
+active session is now 'abc1'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	
+3	abc	localhost
+4	abc	localhost
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 3
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+RUN select sleep(0.5)
+sleep(0.5)
+0
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	
+4	abc	localhost
+command ok
+expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=1 with new session abc where list_clients executed twice and kill_client executed once
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	1
+Mysqlx_stmt_list_clients	2
+0 rows affected
+RUN select user(),current_user()
+user()	current_user()
+abc@localhost	abc@localhost
+0 rows affected
+RUN show grants
+Grants for abc@localhost
+GRANT USAGE ON *.* TO 'abc'@'localhost'
+0 rows affected
+killing abc user session with its own session 'abc' which should be successful
+expect right error instead of End of File
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 4
+    }
+  }
+  namespace: "xplugin"
+}
+
+Server disconnected
+closing session abc1
+switched to session default
+RUN select sleep(0.5)
+sleep(0.5)
+0
+0 rows affected
+switch back to default session
+switched to session default
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+client_id	user	host	
+1	root	localhost
+command ok
+expect Mysqlx_stmt_list_clients=4 and Mysqlx_stmt_kill_client=1 with default root session where list_clients executed 4 times and kill_client once
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	1
+Mysqlx_stmt_list_clients	4
+0 rows affected
+RUN select user(),current_user()
+user()	current_user()
+root@localhost	root@localhost
+0 rows affected
+RUN show grants
+Grants for root@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+0 rows affected
+open process only privileged user seession and kill root user session,expect error "You are not owner of thread"
+connecting...
+active session is now 'process'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	
+5	process	localhost
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 1
+    }
+  }
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+Got expected error: You are not owner of thread (code 1095)
+checking list of clients after root user session killed by xplugin user
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	
+5	process	localhost
+command ok
+expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=1 with process user where list_clients executed 2 times and kill_client once
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	1
+Mysqlx_stmt_list_clients	2
+0 rows affected
+RUN select user(),current_user()
+user()	current_user()
+process@localhost	process@localhost
+0 rows affected
+RUN show grants
+Grants for process@localhost
+GRANT PROCESS ON *.* TO 'process'@'localhost'
+0 rows affected
+open privileged user seession and kill root user session,expect success
+connecting...
+active session is now 'xplugin'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	
+1	root	localhost
+5	process	localhost
+6	xplugin	localhost
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 1
+    }
+  }
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+
+command ok
+RUN select sleep(0.5)
+sleep(0.5)
+0
+0 rows affected
+checking list of clients after root user session killed by xplugin user
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	
+5	process	localhost
+6	xplugin	localhost
+command ok
+expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=1 with xplugin user where list_clients executed 2 times and kill_client once
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	1
+Mysqlx_stmt_list_clients	2
+0 rows affected
+RUN select user(),current_user()
+user()	current_user()
+xplugin@localhost	xplugin@localhost
+0 rows affected
+RUN show grants
+Grants for xplugin@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'xplugin'@'localhost'
+0 rows affected
+Cleanup
+RUN drop schema if exists xtest
+
+0 rows affected
+closing session xplugin
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+client_id	user	host	
+7	root	localhost
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+expect error while killing client with data type other than usinged int
+try killing xprotocol session with valid sql_session id once xprotocol connetion opened with kill_client,expect error
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 11
+    }
+  }
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+Got expected error: Unknown MySQLx client id 11 (code 1094)
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "1"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Got expected error: Invalid type for argument 'id' at #1 (should be unsigned int) (code 5016)
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: true
+    }
+  }
+  namespace: "xplugin"
+}
+
+Got expected error: Invalid type for argument 'id' at #1 (should be unsigned int) (code 5016)
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: false
+    }
+  }
+  namespace: "xplugin"
+}
+
+Got expected error: Invalid type for argument 'id' at #1 (should be unsigned int) (code 5016)
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: false
+    }
+  }
+  namespace: "xplugin"
+}
+
+Got expected error: Invalid type for argument 'id' at #1 (should be unsigned int) (code 5016)
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: true
+    }
+  }
+  namespace: "xplugin"
+}
+
+Got expected error: Invalid type for argument 'id' at #1 (should be unsigned int) (code 5016)
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_FLOAT
+      v_float: 1
+    }
+  }
+  namespace: "xplugin"
+}
+
+Got expected error: Invalid type for argument 'id' at #1 (should be unsigned int) (code 5016)
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_DOUBLE
+      v_double: 1
+    }
+  }
+  namespace: "xplugin"
+}
+
+Got expected error: Invalid type for argument 'id' at #1 (should be unsigned int) (code 5016)
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_NULL
+    }
+  }
+  namespace: "xplugin"
+}
+
+Got expected error: Invalid type for argument 'id' at #1 (should be unsigned int) (code 5016)
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_OCTETS
+      v_octets {
+        value: "1"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Got expected error: Invalid type for argument 'id' at #1 (should be unsigned int) (code 5016)
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_SINT
+      v_signed_int: -1
+    }
+  }
+  namespace: "xplugin"
+}
+
+Got expected error: Invalid type for argument 'id' at #1 (should be unsigned int) (code 5016)
+expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=11 with root user even though kill_client returns errors
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	11
+Mysqlx_stmt_list_clients	1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+NOTICE: Account password expired
+expect error if list_clients and kill_client executed from password expired user session
+RUN show processlist
+While executing show processlist:
+Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 8
+    }
+  }
+  namespace: "xplugin"
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 1820
+  msg: "You must reset your password using ALTER USER statement before executing this statement."
+  sql_state: "HY000"
+}
+
+expect error for status var executed with password expired user
+RUN show status like 'Mysqlx%client%'
+While executing show status like 'Mysqlx%client%':
+Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+checking list_clients and kill_client with mixed case, expect success as these commands are case insensitive
+send Mysqlx.Sql.StmtExecute {
+  stmt: "LIST_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	
+9	root	localhost
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_CLIENT"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 998
+    }
+  }
+  namespace: "xplugin"
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 1094
+  msg: "Unknown MySQLx client id 998"
+  sql_state: "HY000"
+}
+
+expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=1 with root user when these commads executed with mixed case
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	1
+Mysqlx_stmt_list_clients	1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+checking list_clients and kill_client with default 100 connections, expect success for both list and kill
+RUN set @@global.mysqlx_max_connections=60
+
+0 rows affected
+RUN create user xconnection1@localhost identified by  'xconnection1'
+
+0 rows affected
+RUN create user xconnection2@localhost identified by  'xconnection2'
+
+0 rows affected
+RUN create user xconnection3@localhost identified by  'xconnection3'
+
+0 rows affected
+RUN create user xconnection4@localhost identified by  'xconnection4'
+
+0 rows affected
+RUN create user xconnection5@localhost identified by  'xconnection5'
+
+0 rows affected
+RUN create user xconnection6@localhost identified by  'xconnection6'
+
+0 rows affected
+RUN create user xconnection7@localhost identified by  'xconnection7'
+
+0 rows affected
+RUN create user xconnection8@localhost identified by  'xconnection8'
+
+0 rows affected
+RUN create user xconnection9@localhost identified by  'xconnection9'
+
+0 rows affected
+RUN create user xconnection10@localhost identified by  'xconnection10'
+
+0 rows affected
+RUN create user xconnection11@localhost identified by  'xconnection11'
+
+0 rows affected
+RUN create user xconnection12@localhost identified by  'xconnection12'
+
+0 rows affected
+RUN create user xconnection13@localhost identified by  'xconnection13'
+
+0 rows affected
+RUN create user xconnection14@localhost identified by  'xconnection14'
+
+0 rows affected
+RUN create user xconnection15@localhost identified by  'xconnection15'
+
+0 rows affected
+RUN create user xconnection16@localhost identified by  'xconnection16'
+
+0 rows affected
+RUN create user xconnection17@localhost identified by  'xconnection17'
+
+0 rows affected
+RUN create user xconnection18@localhost identified by  'xconnection18'
+
+0 rows affected
+RUN create user xconnection19@localhost identified by  'xconnection19'
+
+0 rows affected
+RUN create user xconnection20@localhost identified by  'xconnection20'
+
+0 rows affected
+RUN create user xconnection21@localhost identified by  'xconnection21'
+
+0 rows affected
+RUN create user xconnection22@localhost identified by  'xconnection22'
+
+0 rows affected
+RUN create user xconnection23@localhost identified by  'xconnection23'
+
+0 rows affected
+RUN create user xconnection24@localhost identified by  'xconnection24'
+
+0 rows affected
+RUN create user xconnection25@localhost identified by  'xconnection25'
+
+0 rows affected
+RUN create user xconnection26@localhost identified by  'xconnection26'
+
+0 rows affected
+RUN create user xconnection27@localhost identified by  'xconnection27'
+
+0 rows affected
+RUN create user xconnection28@localhost identified by  'xconnection28'
+
+0 rows affected
+RUN create user xconnection29@localhost identified by  'xconnection29'
+
+0 rows affected
+RUN create user xconnection30@localhost identified by  'xconnection30'
+
+0 rows affected
+RUN create user xconnection31@localhost identified by  'xconnection31'
+
+0 rows affected
+RUN create user xconnection32@localhost identified by  'xconnection32'
+
+0 rows affected
+RUN create user xconnection33@localhost identified by  'xconnection33'
+
+0 rows affected
+RUN create user xconnection34@localhost identified by  'xconnection34'
+
+0 rows affected
+RUN create user xconnection35@localhost identified by  'xconnection35'
+
+0 rows affected
+RUN create user xconnection36@localhost identified by  'xconnection36'
+
+0 rows affected
+RUN create user xconnection37@localhost identified by  'xconnection37'
+
+0 rows affected
+RUN create user xconnection38@localhost identified by  'xconnection38'
+
+0 rows affected
+RUN create user xconnection39@localhost identified by  'xconnection39'
+
+0 rows affected
+RUN create user xconnection40@localhost identified by  'xconnection40'
+
+0 rows affected
+RUN create user xconnection41@localhost identified by  'xconnection41'
+
+0 rows affected
+RUN create user xconnection42@localhost identified by  'xconnection42'
+
+0 rows affected
+RUN create user xconnection43@localhost identified by  'xconnection43'
+
+0 rows affected
+RUN create user xconnection44@localhost identified by  'xconnection44'
+
+0 rows affected
+RUN create user xconnection45@localhost identified by  'xconnection45'
+
+0 rows affected
+RUN create user xconnection46@localhost identified by  'xconnection46'
+
+0 rows affected
+RUN create user xconnection47@localhost identified by  'xconnection47'
+
+0 rows affected
+RUN create user xconnection48@localhost identified by  'xconnection48'
+
+0 rows affected
+RUN create user xconnection49@localhost identified by  'xconnection49'
+
+0 rows affected
+RUN create user xconnection50@localhost identified by  'xconnection50'
+
+0 rows affected
+Test data
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+client_id	user	host	sql_session
+10	root	localhost	$SESSION
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0 
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	0
+Mysqlx_stmt_list_clients	1
+0 rows affected
+create and activate new session xconnection1
+connecting...
+active session is now 'xconnection1'
+connecting...
+active session is now 'xconnection2'
+connecting...
+active session is now 'xconnection3'
+connecting...
+active session is now 'xconnection4'
+connecting...
+active session is now 'xconnection5'
+connecting...
+active session is now 'xconnection6'
+connecting...
+active session is now 'xconnection7'
+connecting...
+active session is now 'xconnection8'
+connecting...
+active session is now 'xconnection9'
+connecting...
+active session is now 'xconnection10'
+connecting...
+active session is now 'xconnection11'
+connecting...
+active session is now 'xconnection12'
+connecting...
+active session is now 'xconnection13'
+connecting...
+active session is now 'xconnection14'
+connecting...
+active session is now 'xconnection15'
+connecting...
+active session is now 'xconnection16'
+connecting...
+active session is now 'xconnection17'
+connecting...
+active session is now 'xconnection18'
+connecting...
+active session is now 'xconnection19'
+connecting...
+active session is now 'xconnection20'
+connecting...
+active session is now 'xconnection21'
+connecting...
+active session is now 'xconnection22'
+connecting...
+active session is now 'xconnection23'
+connecting...
+active session is now 'xconnection24'
+connecting...
+active session is now 'xconnection25'
+connecting...
+active session is now 'xconnection26'
+connecting...
+active session is now 'xconnection27'
+connecting...
+active session is now 'xconnection28'
+connecting...
+active session is now 'xconnection29'
+connecting...
+active session is now 'xconnection30'
+connecting...
+active session is now 'xconnection31'
+connecting...
+active session is now 'xconnection32'
+connecting...
+active session is now 'xconnection33'
+connecting...
+active session is now 'xconnection34'
+connecting...
+active session is now 'xconnection35'
+connecting...
+active session is now 'xconnection36'
+connecting...
+active session is now 'xconnection37'
+connecting...
+active session is now 'xconnection38'
+connecting...
+active session is now 'xconnection39'
+connecting...
+active session is now 'xconnection40'
+connecting...
+active session is now 'xconnection41'
+connecting...
+active session is now 'xconnection42'
+connecting...
+active session is now 'xconnection43'
+connecting...
+active session is now 'xconnection44'
+connecting...
+active session is now 'xconnection45'
+connecting...
+active session is now 'xconnection46'
+connecting...
+active session is now 'xconnection47'
+connecting...
+active session is now 'xconnection48'
+connecting...
+active session is now 'xconnection49'
+connecting...
+active session is now 'xconnection50'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+client_id	user	host	
+60	xconnection50	localhost
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+switched to session default
+list all connected clients
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	
+10	root	localhost
+11	xconnection1	localhost
+12	xconnection2	localhost
+13	xconnection3	localhost
+14	xconnection4	localhost
+15	xconnection5	localhost
+16	xconnection6	localhost
+17	xconnection7	localhost
+18	xconnection8	localhost
+19	xconnection9	localhost
+20	xconnection10	localhost
+21	xconnection11	localhost
+22	xconnection12	localhost
+23	xconnection13	localhost
+24	xconnection14	localhost
+25	xconnection15	localhost
+26	xconnection16	localhost
+27	xconnection17	localhost
+28	xconnection18	localhost
+29	xconnection19	localhost
+30	xconnection20	localhost
+31	xconnection21	localhost
+32	xconnection22	localhost
+33	xconnection23	localhost
+34	xconnection24	localhost
+35	xconnection25	localhost
+36	xconnection26	localhost
+37	xconnection27	localhost
+38	xconnection28	localhost
+39	xconnection29	localhost
+40	xconnection30	localhost
+41	xconnection31	localhost
+42	xconnection32	localhost
+43	xconnection33	localhost
+44	xconnection34	localhost
+45	xconnection35	localhost
+46	xconnection36	localhost
+47	xconnection37	localhost
+48	xconnection38	localhost
+49	xconnection39	localhost
+50	xconnection40	localhost
+51	xconnection41	localhost
+52	xconnection42	localhost
+53	xconnection43	localhost
+54	xconnection44	localhost
+55	xconnection45	localhost
+56	xconnection46	localhost
+57	xconnection47	localhost
+58	xconnection48	localhost
+59	xconnection49	localhost
+60	xconnection50	localhost
+command ok
+expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=0 
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	0
+Mysqlx_stmt_list_clients	2
+0 rows affected
+RUN show status like 'Mysqlx_sessions%'
+
+Variable_name	Value
+Mysqlx_sessions	51
+Mysqlx_sessions_accepted	60
+Mysqlx_sessions_closed	9
+Mysqlx_sessions_fatal_error	0
+Mysqlx_sessions_killed	4
+Mysqlx_sessions_rejected	0
+0 rows affected
+killing all newly connected clients except root,one by one
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 11
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 12
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 13
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 14
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 15
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 16
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 17
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 18
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 19
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 20
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 21
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 22
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 23
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 24
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 25
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 26
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 27
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 28
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 29
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 30
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 31
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 32
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 33
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 34
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 35
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 36
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 37
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 38
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 39
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 40
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 41
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 42
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 43
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 44
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 45
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 46
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 47
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 48
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 49
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 50
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 51
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 52
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 53
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 54
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 55
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 56
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 57
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 58
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 59
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 60
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+RUN select sleep(0.5)
+sleep(0.5)
+0
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+client_id	user	host	
+10	root	localhost
+command ok
+expect Mysqlx_stmt_list_clients=3 and Mysqlx_stmt_kill_client=49
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	50
+Mysqlx_stmt_list_clients	3
+0 rows affected
+RUN show status like 'Mysqlx_sessions%'
+
+Variable_name	Value
+Mysqlx_sessions	1
+Mysqlx_sessions_accepted	60
+Mysqlx_sessions_closed	59
+Mysqlx_sessions_fatal_error	0
+Mysqlx_sessions_killed	54
+Mysqlx_sessions_rejected	0
+0 rows affected
+RUN drop user xconnection1@localhost
+
+0 rows affected
+RUN drop user xconnection2@localhost
+
+0 rows affected
+RUN drop user xconnection3@localhost
+
+0 rows affected
+RUN drop user xconnection4@localhost
+
+0 rows affected
+RUN drop user xconnection5@localhost
+
+0 rows affected
+RUN drop user xconnection6@localhost
+
+0 rows affected
+RUN drop user xconnection7@localhost
+
+0 rows affected
+RUN drop user xconnection8@localhost
+
+0 rows affected
+RUN drop user xconnection9@localhost
+
+0 rows affected
+RUN drop user xconnection10@localhost
+
+0 rows affected
+RUN drop user xconnection11@localhost
+
+0 rows affected
+RUN drop user xconnection12@localhost
+
+0 rows affected
+RUN drop user xconnection13@localhost
+
+0 rows affected
+RUN drop user xconnection14@localhost
+
+0 rows affected
+RUN drop user xconnection15@localhost
+
+0 rows affected
+RUN drop user xconnection16@localhost
+
+0 rows affected
+RUN drop user xconnection17@localhost
+
+0 rows affected
+RUN drop user xconnection18@localhost
+
+0 rows affected
+RUN drop user xconnection19@localhost
+
+0 rows affected
+RUN drop user xconnection20@localhost
+
+0 rows affected
+RUN drop user xconnection21@localhost
+
+0 rows affected
+RUN drop user xconnection22@localhost
+
+0 rows affected
+RUN drop user xconnection23@localhost
+
+0 rows affected
+RUN drop user xconnection24@localhost
+
+0 rows affected
+RUN drop user xconnection25@localhost
+
+0 rows affected
+RUN drop user xconnection26@localhost
+
+0 rows affected
+RUN drop user xconnection27@localhost
+
+0 rows affected
+RUN drop user xconnection28@localhost
+
+0 rows affected
+RUN drop user xconnection29@localhost
+
+0 rows affected
+RUN drop user xconnection30@localhost
+
+0 rows affected
+RUN drop user xconnection31@localhost
+
+0 rows affected
+RUN drop user xconnection32@localhost
+
+0 rows affected
+RUN drop user xconnection33@localhost
+
+0 rows affected
+RUN drop user xconnection34@localhost
+
+0 rows affected
+RUN drop user xconnection35@localhost
+
+0 rows affected
+RUN drop user xconnection36@localhost
+
+0 rows affected
+RUN drop user xconnection37@localhost
+
+0 rows affected
+RUN drop user xconnection38@localhost
+
+0 rows affected
+RUN drop user xconnection39@localhost
+
+0 rows affected
+RUN drop user xconnection40@localhost
+
+0 rows affected
+RUN drop user xconnection41@localhost
+
+0 rows affected
+RUN drop user xconnection42@localhost
+
+0 rows affected
+RUN drop user xconnection43@localhost
+
+0 rows affected
+RUN drop user xconnection44@localhost
+
+0 rows affected
+RUN drop user xconnection45@localhost
+
+0 rows affected
+RUN drop user xconnection46@localhost
+
+0 rows affected
+RUN drop user xconnection47@localhost
+
+0 rows affected
+RUN drop user xconnection48@localhost
+
+0 rows affected
+RUN drop user xconnection49@localhost
+
+0 rows affected
+RUN drop user xconnection50@localhost
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+execute list_clients,kill_client with sql namespace,expect error
+change result file once error messages are fixed
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "sql"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+Got expected error: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'list_clients' at line 1 (code 1064)
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 11
+    }
+  }
+  namespace: "sql"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+Got expected error: Too many arguments (code 5015)
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 11
+    }
+  }
+  namespace: ""
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+Got expected error: Unknown namespace  (code 5162)
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 11
+    }
+  }
+  namespace: "invalid"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+Got expected error: Unknown namespace invalid (code 5162)
+expect Mysqlx_stmt_list_clients=0 and Mysqlx_stmt_kill_client=0 as these are not executed on right namespace
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	0
+Mysqlx_stmt_list_clients	0
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+open xconnection with ssl and kill,expect success
+RUN create user con1@localhost identified by 'con1'
+
+0 rows affected
+RUN create user con2@localhost identified by 'con2'
+
+0 rows affected
+RUN set @@global.mysqlx_max_connections=3
+
+0 rows affected
+Test data
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+client_id	user	host	
+62	sslcon	localhost
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	0
+Mysqlx_stmt_list_clients	1
+0 rows affected
+create and activate new session con1
+connecting...
+active session is now 'con1'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+client_id	user	host	
+63	con1	localhost
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	0
+Mysqlx_stmt_list_clients	1
+0 rows affected
+open 3rd xprotocol connection where 2 sessions already opened
+connecting...
+active session is now 'con2'
+expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	0
+Mysqlx_stmt_list_clients	0
+0 rows affected
+switched to session default
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	
+62	sslcon	localhost
+63	con1	localhost
+64	con2	localhost
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 63
+    }
+  }
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 64
+    }
+  }
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+
+command ok
+RUN select sleep(0.5)
+sleep(0.5)
+0
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	
+62	sslcon	localhost
+command ok
+expect Mysqlx_stmt_list_clients=3 and Mysqlx_stmt_kill_client=2
+RUN drop user con1@localhost
+
+0 rows affected
+RUN drop user con2@localhost
+
+0 rows affected
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	2
+Mysqlx_stmt_list_clients	3
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+open xconnection with ssl root user kill,expect success
+RUN create user con1@localhost identified by 'con1'
+
+0 rows affected
+RUN create user con2@localhost identified by 'con2'
+
+0 rows affected
+RUN set @@global.mysqlx_max_connections=3
+
+0 rows affected
+Test data
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+client_id	user	host	
+65	root	localhost
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+create and activate new session con1
+connecting...
+active session is now 'con1      con1    con1'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+client_id	user	host	
+65	root	localhost
+66	root	localhost
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+open 3rd xprotocol connection where 2 sessions already opened
+connecting...
+active session is now 'con2      con2    con2'
+switched to session default
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	
+65	root	localhost
+66	root	localhost
+67	root	localhost
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 66
+    }
+  }
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 67
+    }
+  }
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+
+command ok
+RUN select sleep(0.5)
+sleep(0.5)
+0
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	
+65	root	localhost
+command ok
+RUN drop user con1@localhost
+
+0 rows affected
+RUN drop user con2@localhost
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+show status like 'Mysqlx%client%';
+Variable_name	Value
+Mysqlx_stmt_kill_client	72
+Mysqlx_stmt_list_clients	26
+# restart: --show_compatibility_56=OFF
+drop user abc@localhost;
+drop user xplugin@localhost;
+drop user process@localhost;
+drop user expire@localhost;
+set @@global.mysqlx_max_connections=100;
+show status like 'Mysqlx%client%';
+Variable_name	Value
+Mysqlx_stmt_kill_client	0
+Mysqlx_stmt_list_clients	0
+select sleep(0.5);
+sleep(0.5)
+0
+RUN create user abc@localhost identified by 'abc'
+
+0 rows affected
+RUN create user xplugin@localhost identified by 'xplugin'
+
+0 rows affected
+RUN grant all on *.* to xplugin@localhost
+
+0 rows affected
+RUN create user process@localhost identified by 'process'
+
+0 rows affected
+RUN grant process on *.* to process@localhost
+
+0 rows affected
+RUN create user expire@localhost identified by 'expire'
+
+0 rows affected
+RUN grant all on *.* to expire@localhost
+
+0 rows affected
+RUN alter user expire@localhost password expire
+
+0 rows affected
+Test data
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+client_id	user	host	
+1	root	localhost
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	0
+Mysqlx_stmt_list_clients	1
+0 rows affected
+create and activate new session
+connecting...
+active session is now 'aux'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+client_id	user	host	
+1	root	localhost
+2	root	localhost
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0 even with another new root session
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	0
+Mysqlx_stmt_list_clients	1
+0 rows affected
+switch back to default session
+switched to session default
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+expect error
+client_id	user	host	
+1	root	localhost
+2	root	localhost
+command ok
+expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=0 with default root session where list_clients already executed
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	0
+Mysqlx_stmt_list_clients	2
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 2
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+RUN select sleep(0.5)
+sleep(0.5)
+0
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	
+1	root	localhost
+command ok
+expect Mysqlx_stmt_list_clients=3 and Mysqlx_stmt_kill_client=1 with default root session where list_clients executed 3 times and kill_client once
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	1
+Mysqlx_stmt_list_clients	3
+0 rows affected
+create and activate new session abc
+expect only abc user session id 
+connecting...
+active session is now 'abc'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+client_id	user	host	
+3	abc	localhost
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+killing root user session with unprivileged user 'abc' which should be unsuccessful
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 1
+    }
+  }
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+Got expected error: You are not owner of thread (code 1095)
+expect ERROR: SELECT command denied to user 'abc'@'localhost' for table 'session_status' (code 1142) for show status command
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	1
+Mysqlx_stmt_list_clients	1
+0 rows affected
+open another session of abc user and kill first session of abc user,which should be successful
+connecting...
+active session is now 'abc1'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	
+3	abc	localhost
+4	abc	localhost
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 3
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+RUN select sleep(0.5)
+sleep(0.5)
+0
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	
+4	abc	localhost
+command ok
+expect ERROR: SELECT command denied to user 'abc'@'localhost' for table 'session_status' (code 1142) for show status command
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	1
+Mysqlx_stmt_list_clients	2
+0 rows affected
+killing abc user session with its own session 'abc' which should be successful
+expect right error instead of End of File
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 4
+    }
+  }
+  namespace: "xplugin"
+}
+
+switch back to default session
+Server disconnected
+closing session abc1
+switched to session default
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+client_id	user	host	
+1	root	localhost
+command ok
+expect Mysqlx_stmt_list_clients=4 and Mysqlx_stmt_kill_client=1 with default root session where list_clients executed 4 times and kill_client once
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	1
+Mysqlx_stmt_list_clients	4
+0 rows affected
+open process only privileged user seession and kill root user session,expect error "You are not owner of thread"
+connecting...
+active session is now 'process'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	
+5	process	localhost
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 1
+    }
+  }
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+Got expected error: You are not owner of thread (code 1095)
+RUN select sleep(0.5)
+sleep(0.5)
+0
+0 rows affected
+checking list of clients after root user session killed by xplugin user
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	
+5	process	localhost
+command ok
+expect ERROR: SELECT command denied to user 'process'@'localhost' for table 'session_status' (code 1142) for show command
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	1
+Mysqlx_stmt_list_clients	2
+0 rows affected
+open privileged user seession and kill root user session,expect success
+connecting...
+active session is now 'xplugin'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	
+1	root	localhost
+5	process	localhost
+6	xplugin	localhost
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+send Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 1
+    }
+  }
+  namespace: "xplugin"
+}
+
+expect Mysqlx.Sql.StmtExecuteOk
+
+command ok
+RUN select sleep(0.5)
+sleep(0.5)
+0
+0 rows affected
+checking list of clients after root user session killed by xplugin user
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	
+5	process	localhost
+6	xplugin	localhost
+command ok
+expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=1 with xplugin user where list_clients executed 2 times and kill_client once
+RUN show status like 'Mysqlx%client%'
+Variable_name	Value
+Mysqlx_stmt_kill_client	1
+Mysqlx_stmt_list_clients	2
+0 rows affected
+Cleanup
+RUN drop schema if exists xtest
+
+0 rows affected
+closing session xplugin
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+show status like 'Mysqlx%client%';
+Variable_name	Value
+Mysqlx_stmt_kill_client	6
+Mysqlx_stmt_list_clients	12
+uninstall plugin mysqlx;
+drop user abc@localhost;
+drop user xplugin@localhost;
+drop user process@localhost;
+drop user expire@localhost;
+drop user sslcon@localhost;

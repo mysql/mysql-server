@@ -51,16 +51,26 @@ std::string ssl_error::message(int value) const
   return ERR_error_string(value, &r[0]);
 }
 
+const char* ssl_init_error::name() const BOOST_NOEXCEPT
+{
+  return "SSL INIT";
+}
+
+std::string ssl_init_error::message(int value) const
+{
+  return sslGetErrString((enum_ssl_init_error)value);
+}
+
 Mysqlx_sync_connection::Mysqlx_sync_connection(const char *ssl_key,
                                                const char *ssl_ca, const char *ssl_ca_path,
                                                const char *ssl_cert, const char *ssl_cipher,
-                                               const std::size_t timeout)
+                                               const char *tls_version, const std::size_t timeout)
 : m_timeout(timeout),
   m_vio(NULL),
   m_ssl_acvtive(false),
   m_ssl_init_error(SSL_INITERR_NOERROR)
 {
-  long ssl_ctx_flags = process_tls_version("TLSv1");
+  long ssl_ctx_flags = process_tls_version(tls_version);
 
   m_vioSslFd = new_VioSSLConnectorFd(ssl_key, ssl_cert, ssl_ca, ssl_ca_path, ssl_cipher, &m_ssl_init_error, NULL, NULL, ssl_ctx_flags);
 
@@ -124,10 +134,17 @@ error_code Mysqlx_sync_connection::get_ssl_error(int error_id)
   return error_code(error_id, error_category);
 }
 
+error_code Mysqlx_sync_connection::get_ssl_init_error(const int init_error_id)
+{
+  static ssl_init_error error_category;
+
+  return error_code(init_error_id, error_category);
+}
+
 error_code Mysqlx_sync_connection::activate_tls()
 {
   if (NULL == m_vioSslFd)
-      return get_ssl_error(m_ssl_init_error);
+      return get_ssl_init_error(m_ssl_init_error);
 
   unsigned long error;
   if (0 != sslconnect(m_vioSslFd, m_vio, 60, &error))

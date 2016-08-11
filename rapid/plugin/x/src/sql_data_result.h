@@ -44,6 +44,13 @@ public:
 
   bool next_row();
   long statement_warn_count();
+  Buffering_command_delegate::Resultset::size_type size() const { return m_result_set.size(); }
+
+  template<typename T> Sql_data_result &get(T &value)
+  {
+    get_next_field(value);
+    return *this;
+  }
 
 private:
   typedef Callback_command_delegate::Field_value Field_value;

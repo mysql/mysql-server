@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,15 +35,15 @@ public:
     Function to add the write set of the hash of the PKE in the std::vector
     in the transaction_ctx object.
 
-    @param[in] hash - the uint32 type hash value of the PKE.
+    @param[in] hash - the uint64 type hash value of the PKE.
   */
-  void add_write_set(uint32 hash);
+  void add_write_set(uint64 hash);
 
   /*
     Function to get the pointer of the write set vector in the
     transaction_ctx object.
   */
-  std::vector<uint32> *get_write_set();
+  std::vector<uint64> *get_write_set();
 
   /*
     Cleanup function of the vector which stores the PKE.
@@ -51,7 +51,7 @@ public:
   void clear_write_set();
 
 private:
-  std::vector<uint32> write_set;
+  std::vector<uint64> write_set;
 };
 
 #endif	/* RPL_TRANSACTION_WRITE_SET_CTX_H */

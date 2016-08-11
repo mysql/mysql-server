@@ -1758,7 +1758,8 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
       DEBUG_SYNC(thd, "ha_commit_trans_after_acquire_commit_lock");
     }
 
-    if (rw_trans && check_readonly(thd, true))
+    if (rw_trans && stmt_has_updated_trans_table(ha_info)
+        && check_readonly(thd, true))
     {
       ha_rollback_trans(thd, all);
       error= 1;
@@ -8313,11 +8314,6 @@ bool handler::my_prepare_gcolumn_template(THD *thd,
                                           my_gcolumn_template_callback_t myc,
                                           void* ib_table)
 {
-  /*
-    This is a background thread, so we can re-initialize the main LEX, its
-    current content is not important.
-  */
-  DBUG_ASSERT(thd->system_thread == SYSTEM_THREAD_BACKGROUND);
   char path[FN_REFLEN + 1];
   bool was_truncated;
   build_table_filename(path, sizeof(path) - 1 - reg_ext_length,
@@ -8369,7 +8365,6 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd,
                                              const MY_BITMAP *const fields,
                                              uchar *record)
 {
-  DBUG_ASSERT(thd->system_thread == SYSTEM_THREAD_BACKGROUND);
   bool retval= true;
   lex_start(thd);
 

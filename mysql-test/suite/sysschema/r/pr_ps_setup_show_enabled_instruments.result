@@ -1,0 +1,124 @@
+UPDATE performance_schema.setup_instruments
+SET ENABLED = 'NO'
+ WHERE NAME NOT LIKE 'memory/performance_schema/%'
+       AND NAME NOT LIKE 'stage/innodb/%'
+       AND NAME NOT LIKE 'statement/com/%'
+       AND NAME <> 'idle';
+CALL sys.ps_setup_show_enabled_instruments();
+enabled_instruments	timed
+idle	YES
+memory/performance_schema/accounts	NO
+memory/performance_schema/cond_class	NO
+memory/performance_schema/cond_instances	NO
+memory/performance_schema/events_stages_history	NO
+memory/performance_schema/events_stages_history_long	NO
+memory/performance_schema/events_stages_summary_by_account_by_event_name	NO
+memory/performance_schema/events_stages_summary_by_host_by_event_name	NO
+memory/performance_schema/events_stages_summary_by_thread_by_event_name	NO
+memory/performance_schema/events_stages_summary_by_user_by_event_name	NO
+memory/performance_schema/events_stages_summary_global_by_event_name	NO
+memory/performance_schema/events_statements_current	NO
+memory/performance_schema/events_statements_current.sqltext	NO
+memory/performance_schema/events_statements_current.tokens	NO
+memory/performance_schema/events_statements_history	NO
+memory/performance_schema/events_statements_history.sqltext	NO
+memory/performance_schema/events_statements_history.tokens	NO
+memory/performance_schema/events_statements_history_long	NO
+memory/performance_schema/events_statements_history_long.sqltext	NO
+memory/performance_schema/events_statements_history_long.tokens	NO
+memory/performance_schema/events_statements_summary_by_account_by_event_name	NO
+memory/performance_schema/events_statements_summary_by_digest	NO
+memory/performance_schema/events_statements_summary_by_digest.tokens	NO
+memory/performance_schema/events_statements_summary_by_host_by_event_name	NO
+memory/performance_schema/events_statements_summary_by_program	NO
+memory/performance_schema/events_statements_summary_by_thread_by_event_name	NO
+memory/performance_schema/events_statements_summary_by_user_by_event_name	NO
+memory/performance_schema/events_statements_summary_global_by_event_name	NO
+memory/performance_schema/events_transactions_history	NO
+memory/performance_schema/events_transactions_history_long	NO
+memory/performance_schema/events_transactions_summary_by_account_by_event_name	NO
+memory/performance_schema/events_transactions_summary_by_host_by_event_name	NO
+memory/performance_schema/events_transactions_summary_by_thread_by_event_name	NO
+memory/performance_schema/events_transactions_summary_by_user_by_event_name	NO
+memory/performance_schema/events_waits_history	NO
+memory/performance_schema/events_waits_history_long	NO
+memory/performance_schema/events_waits_summary_by_account_by_event_name	NO
+memory/performance_schema/events_waits_summary_by_host_by_event_name	NO
+memory/performance_schema/events_waits_summary_by_thread_by_event_name	NO
+memory/performance_schema/events_waits_summary_by_user_by_event_name	NO
+memory/performance_schema/file_class	NO
+memory/performance_schema/file_handle	NO
+memory/performance_schema/file_instances	NO
+memory/performance_schema/hosts	NO
+memory/performance_schema/memory_class	NO
+memory/performance_schema/memory_summary_by_account_by_event_name	NO
+memory/performance_schema/memory_summary_by_host_by_event_name	NO
+memory/performance_schema/memory_summary_by_thread_by_event_name	NO
+memory/performance_schema/memory_summary_by_user_by_event_name	NO
+memory/performance_schema/memory_summary_global_by_event_name	NO
+memory/performance_schema/metadata_locks	NO
+memory/performance_schema/mutex_class	NO
+memory/performance_schema/mutex_instances	NO
+memory/performance_schema/prepared_statements_instances	NO
+memory/performance_schema/rwlock_class	NO
+memory/performance_schema/rwlock_instances	NO
+memory/performance_schema/scalable_buffer	NO
+memory/performance_schema/session_connect_attrs	NO
+memory/performance_schema/setup_actors	NO
+memory/performance_schema/setup_objects	NO
+memory/performance_schema/socket_class	NO
+memory/performance_schema/socket_instances	NO
+memory/performance_schema/stage_class	NO
+memory/performance_schema/statement_class	NO
+memory/performance_schema/table_handles	NO
+memory/performance_schema/table_io_waits_summary_by_index_usage	NO
+memory/performance_schema/table_lock_waits_summary_by_table	NO
+memory/performance_schema/table_shares	NO
+memory/performance_schema/threads	NO
+memory/performance_schema/thread_class	NO
+memory/performance_schema/users	NO
+stage/innodb/alter table (end)	YES
+stage/innodb/alter table (flush)	YES
+stage/innodb/alter table (insert)	YES
+stage/innodb/alter table (log apply index)	YES
+stage/innodb/alter table (log apply table)	YES
+stage/innodb/alter table (merge sort)	YES
+stage/innodb/alter table (read PK and internal sort)	YES
+stage/innodb/buffer pool load	YES
+statement/com/Binlog Dump	YES
+statement/com/Binlog Dump GTID	YES
+statement/com/Change user	YES
+statement/com/Close stmt	YES
+statement/com/Connect	YES
+statement/com/Connect Out	YES
+statement/com/Create DB	YES
+statement/com/Daemon	YES
+statement/com/Debug	YES
+statement/com/Delayed insert	YES
+statement/com/Drop DB	YES
+statement/com/Error	YES
+statement/com/Execute	YES
+statement/com/Fetch	YES
+statement/com/Field List	YES
+statement/com/Init DB	YES
+statement/com/Kill	YES
+statement/com/Long Data	YES
+statement/com/Ping	YES
+statement/com/Prepare	YES
+statement/com/Processlist	YES
+statement/com/Quit	YES
+statement/com/Refresh	YES
+statement/com/Register Slave	YES
+statement/com/Reset Connection	YES
+statement/com/Reset stmt	YES
+statement/com/Set option	YES
+statement/com/Shutdown	YES
+statement/com/Sleep	YES
+statement/com/Statistics	YES
+statement/com/Table Dump	YES
+statement/com/Time	YES
+UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';
+TRUNCATE TABLE performance_schema.setup_actors;
+INSERT INTO performance_schema.setup_actors VALUES ('%', '%', '%', 'YES', 'YES');
+UPDATE performance_schema.setup_consumers SET enabled = 'YES';
+UPDATE performance_schema.threads SET instrumented = 'YES';

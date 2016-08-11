@@ -1847,7 +1847,7 @@ convert_error_code_to_mysql(
 	case DB_ROW_IS_REFERENCED:
 		return(HA_ERR_ROW_IS_REFERENCED);
 
-	case DB_NO_FK_ON_V_BASE_COL:
+	case DB_NO_FK_ON_S_BASE_COL:
 	case DB_CANNOT_ADD_CONSTRAINT:
 	case DB_CHILD_NO_INDEX:
 	case DB_PARENT_NO_INDEX:
@@ -7209,6 +7209,7 @@ dberr_t
 ha_innobase::innobase_lock_autoinc(void)
 /*====================================*/
 {
+	DBUG_ENTER("ha_innobase::innobase_lock_autoinc");
 	dberr_t		error = DB_SUCCESS;
 	long		lock_mode = innobase_autoinc_lock_mode;
 
@@ -7252,6 +7253,8 @@ ha_innobase::innobase_lock_autoinc(void)
 		/* Fall through to old style locking. */
 
 	case AUTOINC_OLD_STYLE_LOCKING:
+		DBUG_EXECUTE_IF("die_if_autoinc_old_lock_style_used",
+				ut_ad(0););
 		error = row_lock_table_autoinc_for_mysql(m_prebuilt);
 
 		if (error == DB_SUCCESS) {
@@ -7265,7 +7268,7 @@ ha_innobase::innobase_lock_autoinc(void)
 		ut_error;
 	}
 
-	return(error);
+	DBUG_RETURN(error);
 }
 
 /********************************************************************//**
@@ -9327,7 +9330,8 @@ ha_innobase::ft_init_ext(
 	const byte*	q = reinterpret_cast<const byte*>(
 		const_cast<char*>(query));
 
-	dberr_t	error = fts_query(trx, index, flags, q, query_len, &result);
+	dberr_t	error = fts_query(trx, index, flags, q, query_len, &result,
+				  m_prebuilt->m_fts_limit);
 
 	if (error != DB_SUCCESS) {
 		my_error(convert_error_code_to_mysql(error, 0, NULL), MYF(0));
@@ -9361,6 +9365,12 @@ ha_innobase::ft_init_ext_with_hints(
 	Ft_hints*		hints)		/* in: hints  */
 {
 	/* TODO Implement function properly working with FT hint. */
+	if (hints->get_flags() & FT_NO_RANKING) {
+		m_prebuilt->m_fts_limit = hints->get_limit();
+	} else {
+		m_prebuilt->m_fts_limit = ULONG_UNDEFINED;
+	}
+
 	return(ft_init_ext(hints->get_flags(), keynr, key));
 }
 
@@ -9718,6 +9728,47 @@ innodb_base_col_setup(
 	}
 }
 
+/** Set up base columns for stored column
+@param[in]	table	InnoDB table
+@param[in]	field	MySQL field
+@param[in,out]	s_col	stored column */
+void
+innodb_base_col_setup_for_stored(
+	const dict_table_t*	table,
+	const Field*		field,
+	dict_s_col_t*		s_col)
+{
+	ulint	n = 0;
+
+	for (uint i= 0; i < field->table->s->fields; ++i) {
+		const Field* base_field = field->table->field[i];
+
+		if (!innobase_is_s_fld(base_field)
+		    && !innobase_is_v_fld(base_field)
+		    && bitmap_is_set(&field->gcol_info->base_columns_map,
+				     i)) {
+			ulint	z;
+			for (z = 0; z < table->n_cols; z++) {
+				const char* name = dict_table_get_col_name(
+						table, z);
+				if (!innobase_strcasecmp(
+					name, base_field->field_name)) {
+					break;
+				}
+			}
+
+			ut_ad(z != table->n_cols);
+
+			s_col->base_col[n] = dict_table_get_nth_col(table, z);
+			n++;
+
+			if (n == s_col->num_base) {
+				break;
+			}
+		}
+	}
+}
+
 /** Create a table definition to an InnoDB database.
 @return ER_* level error */
 inline MY_ATTRIBUTE((warn_unused_result))
@@ -9844,6 +9895,7 @@ create_table_info_t::create_table_def()
 
 	for (i = 0; i < n_cols; i++) {
 		ulint	is_virtual;
+		bool	is_stored = false;
 
 		Field*	field = m_form->field[i];
 
@@ -9937,6 +9989,7 @@ create_table_info_t::create_table_def()
 		}
 
 		is_virtual = (innobase_is_v_fld(field)) ? DATA_VIRTUAL : 0;
+		is_stored = innobase_is_s_fld(field);
 
 		/* First check whether the column to be added has a
 		system reserved name. */
@@ -9973,6 +10026,14 @@ err_col:
 				col_len, i,
 				field->gcol_info->non_virtual_base_columns());
 		}
+
+		if (is_stored) {
+			ut_ad(!is_virtual);
+			/* Added stored column in m_s_cols list. */
+			dict_mem_table_add_s_col(
+				table,
+				field->gcol_info->non_virtual_base_columns());
+		}
 	}
 
 	if (num_v) {
@@ -9990,6 +10051,30 @@ err_col:
 			j++;
 
 			innodb_base_col_setup(table, field, v_col);
+		}
+	}
+
+	/** Fill base columns for the stored column present in the list. */
+	if (table->s_cols && table->s_cols->size()) {
+
+		for (i = 0; i < n_cols; i++) {
+			Field*  field = m_form->field[i];
+
+			if (!innobase_is_s_fld(field)) {
+				continue;
+			}
+
+			dict_s_col_list::iterator       it;
+			for (it = table->s_cols->begin();
+			     it != table->s_cols->end(); ++it) {
+				dict_s_col_t	s_col = *it;
+
+				if (s_col.s_pos == i) {
+					innodb_base_col_setup_for_stored(
+						table, field, &s_col);
+					break;
+				}
+			}
 		}
 	}
 
@@ -11796,17 +11881,15 @@ create_table_info_t::create_table()
 				" table where referencing columns appear"
 				" as the first columns.\n", m_table_name);
 			break;
-		case DB_NO_FK_ON_V_BASE_COL:
+		case DB_NO_FK_ON_S_BASE_COL:
 			push_warning_printf(
 				m_thd, Sql_condition::SL_WARNING,
 				HA_ERR_CANNOT_ADD_FOREIGN,
 				"Create table '%s' with foreign key constraint"
 				" failed. Cannot add foreign key constraint"
-				" placed on the base column of indexed"
-				" virtual column, or constraint placed"
-				" on columns being part of virtual index.\n",
+				" placed on the base column of stored"
+				" column. \n",
 				m_table_name);
-			break;
 		default:
 			break;
 		}
@@ -14241,7 +14324,7 @@ ha_innobase::optimize(
 	if (innodb_optimize_fulltext_only) {
 		if (m_prebuilt->table->fts && m_prebuilt->table->fts->cache
 		    && !dict_table_is_discarded(m_prebuilt->table)) {
-			fts_sync_table(m_prebuilt->table, false, true);
+			fts_sync_table(m_prebuilt->table, false, true, false);
 			fts_optimize_table(m_prebuilt->table);
 		}
 		return(HA_ADMIN_OK);
@@ -20217,9 +20300,8 @@ innobase_index_cond(
 	DBUG_RETURN(h->pushed_idx_cond->val_int() ? ICP_MATCH : ICP_NO_MATCH);
 }
 
-
 /** Get the computed value by supplying the base column values.
-@param[in,out]	table	the table whose virtual column template to be built */
+@param[in,out]	table	table whose virtual column template to be built */
 void
 innobase_init_vc_templ(
 	dict_table_t*	table)
@@ -20275,8 +20357,87 @@ innobase_init_vc_templ(
 		&innobase_build_v_templ_callback,
 		static_cast<void*>(table));
 	ut_ad(!ret);
-	table->vc_templ_purge = true;
 	mutex_exit(&dict_sys->mutex);
+}
+
+/** Change dbname and table name in table->vc_templ.
+@param[in,out]	table	the table whose virtual column template
+dbname and tbname to be renamed. */
+void
+innobase_rename_vc_templ(
+	dict_table_t*	table)
+{
+	char	dbname[MAX_DATABASE_NAME_LEN + 1];
+	char	tbname[MAX_DATABASE_NAME_LEN + 1];
+	char*	name = table->name.m_name;
+	ulint	dbnamelen = dict_get_db_name_len(name);
+	ulint	tbnamelen = strlen(name) - dbnamelen - 1;
+	char	t_dbname[MAX_DATABASE_NAME_LEN + 1];
+	char	t_tbname[MAX_TABLE_NAME_LEN + 1];
+
+	strncpy(dbname, name, dbnamelen);
+	dbname[dbnamelen] = 0;
+	strncpy(tbname, name + dbnamelen + 1, tbnamelen);
+	tbname[tbnamelen] =0;
+
+	/* For partition table, remove the partition name and use the
+	"main" table name to build the template */
+#ifdef _WIN32
+	char*   is_part = strstr(tbname, "#p#");
+#else
+	char*   is_part = strstr(tbname, "#P#");
+#endif /* _WIN32 */
+
+	if (is_part != NULL) {
+		*is_part = '\0';
+		tbnamelen = is_part - tbname;
+	}
+
+	dbnamelen = filename_to_tablename(dbname, t_dbname,
+					  MAX_DATABASE_NAME_LEN + 1);
+	tbnamelen = filename_to_tablename(tbname, t_tbname,
+					  MAX_TABLE_NAME_LEN + 1);
+
+	table->vc_templ->db_name = t_dbname;
+	table->vc_templ->tb_name = t_tbname;
+}
+
+/** Get the updated parent field value from the update vector for the
+given col_no.
+@param[in]	foreign		foreign key information
+@param[in]	update		updated parent vector.
+@param[in]	col_no		column position of the table
+@return updated field from the parent update vector, else NULL */
+static
+dfield_t*
+innobase_get_field_from_update_vector(
+	dict_foreign_t*	foreign,
+	upd_t*		update,
+	ulint		col_no)
+{
+	dict_table_t*	parent_table = foreign->referenced_table;
+	dict_index_t*	parent_index = foreign->referenced_index;
+	ulint		parent_field_no;
+	ulint		parent_col_no;
+
+	for (ulint i = 0; i < foreign->n_fields; i++) {
+
+		parent_col_no = dict_index_get_nth_col_no(parent_index, i);
+		parent_field_no = dict_table_get_nth_col_pos(
+			parent_table, parent_col_no);
+
+		for (ulint j = 0; j < update->n_fields; j++) {
+			upd_field_t*	parent_ufield
+				= &update->fields[j];
+
+			if (parent_ufield->field_no == parent_field_no
+			    && parent_col_no == col_no) {
+				return(&parent_ufield->new_val);
+			}
+		}
+	}
+
+	return (NULL);
 }
 
 /** Get the computed value by supplying the base column values.
@@ -20290,6 +20451,8 @@ innobase_init_vc_templ(
 @param[in,out]	mysql_table	mysql table object
 @param[in]	old_table	during ALTER TABLE, this is the old table
 				or NULL.
+@param[in]	parent_update	update vector for the parent row
+@param[in]	foreign		foreign key information
 @return the field filled with computed value, or NULL if just want
 to store the value in passed in "my_rec" */
 dfield_t*
@@ -20302,7 +20465,9 @@ innobase_get_computed_value(
 	const dict_field_t*	ifield,
 	THD*			thd,
 	TABLE*			mysql_table,
-	const dict_table_t*	old_table)
+	const dict_table_t*	old_table,
+	upd_t*			parent_update,
+	dict_foreign_t*		foreign)
 {
 	byte		rec_buf1[REC_VERSION_56_MAX_INDEX_COL_LEN];
 	byte		rec_buf2[REC_VERSION_56_MAX_INDEX_COL_LEN];
@@ -20341,13 +20506,22 @@ innobase_get_computed_value(
 
 	for (ulint i = 0; i < col->num_base; i++) {
 		dict_col_t*			base_col = col->base_col[i];
-		const dfield_t*			row_field;
+		const dfield_t*			row_field = NULL;
 		ulint				col_no = base_col->ind;
 		const mysql_row_templ_t*	templ
 			= index->table->vc_templ->vtempl[col_no];
 		const byte*			data;
 
-		row_field = dtuple_get_nth_field(row, col_no);
+		if (parent_update != NULL) {
+			/** Get the updated field from update vector
+			of the parent table. */
+			row_field = innobase_get_field_from_update_vector(
+					foreign, parent_update, col_no);
+		}
+
+		if (row_field == NULL) {
+			row_field = dtuple_get_nth_field(row, col_no);
+		}
 
 		data = static_cast<const byte*>(row_field->data);
 		len = row_field->len;

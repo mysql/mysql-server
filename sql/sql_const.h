@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -146,7 +146,13 @@
 #define STACK_MIN_SIZE          16000   // Abort if less stack during eval.
 
 #define STACK_MIN_SIZE_FOR_OPEN 1024*80
+
+#if defined( __SUNPRO_CC)
+#define STACK_BUFF_ALLOC        352*2   ///< For stack overrun checks
+#else
 #define STACK_BUFF_ALLOC        352     ///< For stack overrun checks
+#endif
+
 #ifndef MYSQLD_NET_RETRY_COUNT
 #define MYSQLD_NET_RETRY_COUNT  10	///< Abort read after this many int.
 #endif

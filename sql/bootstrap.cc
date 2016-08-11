@@ -30,11 +30,13 @@ static MYSQL_FILE *bootstrap_file= NULL;
 static int bootstrap_error= 0;
 
 
-int File_command_iterator::next(std::string &query, int *error)
+int File_command_iterator::next(std::string &query, int *error,
+                                int *query_source)
 {
   static char query_buffer[MAX_BOOTSTRAP_QUERY_SIZE];
   size_t length= 0;
   int rc;
+  *query_source= QUERY_SOURCE_FILE;
 
   rc= read_bootstrap_query(query_buffer, &length, m_input, m_fgets_fn, error);
   if (rc == READ_BOOTSTRAP_SUCCESS)
@@ -85,6 +87,8 @@ static void handle_bootstrap_impl(THD *thd)
   DBUG_ENTER("handle_bootstrap");
   File_command_iterator file_iter(bootstrap_file, mysql_file_fgets_fn);
   Compiled_in_command_iterator comp_iter;
+  bool has_binlog_option= thd->variables.option_bits & OPTION_BIN_LOG;
+  int query_source, last_query_source= -1;
 
   thd->thread_stack= (char*) &thd;
   thd->security_context()->assign_user(STRING_WITH_LEN("boot"));
@@ -111,7 +115,38 @@ static void handle_bootstrap_impl(THD *thd)
     int error= 0;
     int rc;
 
-    rc= Command_iterator::current_iterator->next(query, &error);
+    rc= Command_iterator::current_iterator->next(query, &error, &query_source);
+
+    /*
+      The server must avoid logging compiled statements into the binary log
+      (and generating GTIDs for them when GTID_MODE is ON) during bootstrap/
+      initialize procedures.
+      We will disable SQL_LOG_BIN session variable before processing compiled
+      statements, and will re-enable it before processing statements of the
+      initialization file.
+    */
+    if (has_binlog_option && query_source != last_query_source)
+    {
+      switch (query_source)
+      {
+      case QUERY_SOURCE_COMPILED:
+        thd->variables.option_bits&= ~OPTION_BIN_LOG;
+        break;
+      case QUERY_SOURCE_FILE:
+        /*
+          Some compiled script might have disable binary logging session
+          variable during compiled scripts. Enabling it again as it was
+          enabled before applying the compiled statements.
+        */
+        thd->variables.sql_log_bin= true;
+        thd->variables.option_bits|= OPTION_BIN_LOG;
+        break;
+      default:
+        DBUG_ASSERT(false);
+        break;
+      }
+    }
+    last_query_source= query_source;
 
     if (rc == READ_BOOTSTRAP_EOF)
       break;
@@ -193,9 +228,30 @@ static void handle_bootstrap_impl(THD *thd)
 
     free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
     thd->get_transaction()->free_memory(MYF(MY_KEEP_PREALLOC));
+
+    /*
+      If the last statement has enabled the session binary logging while
+      processing queries that are compiled and must not be binary logged,
+      we must disable binary logging again.
+    */
+    if (last_query_source == QUERY_SOURCE_COMPILED &&
+        thd->variables.option_bits & OPTION_BIN_LOG)
+      thd->variables.option_bits&= ~OPTION_BIN_LOG;
+
   }
 
   Command_iterator::current_iterator->end();
+
+  /*
+    We should re-enable SQL_LOG_BIN session if it was enabled by default
+    but disabled during bootstrap/initialization.
+  */
+  if (has_binlog_option)
+  {
+    thd->variables.sql_log_bin= true;
+    thd->variables.option_bits|= OPTION_BIN_LOG;
+  }
+
   DBUG_VOID_RETURN;
 }
 

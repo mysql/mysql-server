@@ -5623,6 +5623,28 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
           prev_subselect_item->used_tables_cache|= ut.used_tables;
           prev_subselect_item->const_item_cache&=
             (*reference)->const_item();
+
+          if (select->group_list.elements && place == CTX_HAVING)
+          {
+            /*
+              If an outer field is resolved in a grouping query block then it
+              is replaced with an Item_outer_ref object. Otherwise an
+              Item_field object is used.
+              The new Item_outer_ref object is saved in the inner_refs_list of
+              the outer query block. Here it is only created. It can be fixed
+              only after the original field has been fixed and this is done
+              in the fix_inner_refs() function.
+            */
+            Item_outer_ref *const rf=
+              new Item_outer_ref(context, down_cast<Item_ident *>(*reference));
+            if (rf == NULL)
+              return -1;
+            thd->change_item_tree(reference, rf);
+            if (select->inner_refs_list.push_back(rf))
+              return -1;
+            rf->in_sum_func= thd->lex->in_sum_func;
+          }
+
           if (thd->lex->in_sum_func &&
               thd->lex->in_sum_func->nest_level >= select->nest_level)
             set_if_bigger(thd->lex->in_sum_func->max_arg_level,

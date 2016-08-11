@@ -1,0 +1,52 @@
+########### suite/sysschema/t/pr_create_synonym_db.test #############
+#                                                                   #
+# Testing of of the sys.pr_create_synonym_db() procedure            #
+#                                                                   #
+# Creation:                                                         #
+# 2016-05-23 jkrogh Implement this test as part of bug 22011361     #
+#                                                                   #
+#####################################################################
+
+-- source include/not_embedded.inc
+# Create a couple of tables and a view
+CREATE TABLE t1 (t1_id int PRIMARY KEY, t1_val varchar(10));
+CREATE TABLE t2 (t2_id int PRIMARY KEY, t1_id int, t2_val int, INDEX (t1_id));
+CREATE TABLE `is` (t1_id int PRIMARY KEY, t1_val varchar(10));
+CREATE TABLE `ab``c` (t1_id int PRIMARY KEY, t1_val varchar(10));
+CREATE SQL SECURITY INVOKER VIEW myview AS SELECT * FROM t1 NATURAL JOIN t2;
+
+# Make synonym db of test into test1
+CALL sys.create_synonym_db('test', 'test1');
+# Verify there's one view in test1 per table and view in test
+SELECT TABLE_NAME, SECURITY_TYPE FROM information_schema.VIEWS WHERE TABLE_SCHEMA = 'test1' ORDER BY TABLE_NAME;
+# Try again (should fail)
+-- error ER_SIGNAL_EXCEPTION
+CALL sys.create_synonym_db('test', 'test1');
+
+# Try to make the synonym db for an existing empty schema
+CREATE SCHEMA test2;
+-- error ER_SIGNAL_EXCEPTION
+CALL sys.create_synonym_db('test', 'test2');
+# Ensure test2 is still empty
+SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'test2';
+
+# Use a reserved identifer, Bug #22011361
+CALL sys.create_synonym_db('test', 'is');
+# Verify there's one view in is per table and view in test
+SELECT TABLE_NAME, SECURITY_TYPE FROM information_schema.VIEWS WHERE TABLE_SCHEMA = 'is' ORDER BY TABLE_NAME;
+
+# Copy the is schema to i`s schema:
+CALL sys.create_synonym_db('is', 'i`s');
+# Verify there's one view in i`s per table and view in is
+SELECT TABLE_NAME, SECURITY_TYPE FROM information_schema.VIEWS WHERE TABLE_SCHEMA = 'i`s' ORDER BY TABLE_NAME;
+
+# Clean up
+DROP SCHEMA test1;
+DROP SCHEMA test2;
+DROP SCHEMA `is`;
+DROP SCHEMA `i``s`;
+DROP VIEW test.myview;
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+DROP TABLE `is`;
+DROP TABLE `ab``c`;

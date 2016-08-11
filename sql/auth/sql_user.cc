@@ -708,6 +708,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   thd->lex->alter_password.expire_after_days= 0;
   thd->lex->alter_password.update_account_locked_column= false;
   thd->lex->alter_password.account_locked= false;
+  thd->lex->alter_password.update_password_expired_fields= false;
 
   /*
     When @@log-backward-compatible-user-definitions variable is ON

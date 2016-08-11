@@ -1,0 +1,15 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t (i INT AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+SET @save_debug=@@debug;
+SET GLOBAL DEBUG='+d,die_if_autoinc_old_lock_style_used';
+[connection master]
+INSERT INTO t VALUES (1);
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+SET GLOBAL DEBUG=@save_debug;
+include/rpl_end.inc

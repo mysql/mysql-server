@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -513,12 +513,11 @@ bool trans_rollback_stmt(THD *thd)
     tc_log->rollback(thd, false);
 
   if (!thd->owned_gtid.is_empty() &&
-      thd->variables.gtid_next.type == GTID_GROUP &&
       !thd->in_active_multi_stmt_transaction())
   {
     /*
-      To a failed single statement transaction with a specified gtid on
-      auto-commit mode, we roll back its owned gtid if it does not modify
+      To a failed single statement transaction on auto-commit mode,
+      we roll back its owned gtid if it does not modify
       non-transational table or commit its owned gtid if it has modified
       non-transactional table when rolling back it if binlog is disabled,
       as we did when binlog is enabled.

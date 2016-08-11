@@ -1,6 +1,9 @@
 --source include/not_embedded.inc
 --disable_ps_protocol
 
+--echo # Setting general_log content empty.
+TRUNCATE TABLE mysql.general_log;
+
 --echo # Creating tables
 CREATE TABLE t_int (c1  TINYINT,
                     c2  SMALLINT,
@@ -77,17 +80,17 @@ remove_file $MYSQLD_DATADIR/test_sql_2_sessions.log;
 --echo ##########################################
 --echo # Check general log file
 --echo ##########################################
-CREATE TABLE t1 (c1 TEXT,c2 TEXT);
+CREATE TABLE t1 (c1 TEXT, c2 TEXT, c3 TEXT);
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --disable_warnings
 eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/log/test_sql_general.log' INTO TABLE t1;
 --enable_warnings
 
-SELECT c2 FROM t1 WHERE c2 LIKE '%FROM test.t_int%';
-SELECT c2 FROM t1 WHERE c2 LIKE '%FROM test.t_bigint%';
+SELECT c3 FROM t1 WHERE c3 LIKE '%FROM test.t_int%';
+SELECT c3 FROM t1 WHERE c3 LIKE '%FROM test.t_bigint%';
 
-SELECT count(*) FROM t1 WHERE c1 LIKE '%Connect%';
-SELECT count(*) FROM t1 WHERE c1 LIKE '%Quit%';
+SELECT count(*) FROM t1 WHERE c2 LIKE '%Connect%';
+SELECT count(*) FROM t1 WHERE c2 LIKE '%Quit%';
 
 SELECT argument FROM mysql.general_log WHERE command_type = 'Query' AND 
                                       (argument LIKE '%FROM test.t_int%' OR
@@ -106,6 +109,9 @@ DROP TABLE t_int;
 DROP TABLE t_bigint;
 DROP TABLE t_real;
 DROP TABLE t_date;
+
+--echo # Removing general_log content
+TRUNCATE TABLE mysql.general_log;
 
 --echo # Deleting log file created
 --remove_file $MYSQLTEST_VARDIR/log/test_sql_general.log

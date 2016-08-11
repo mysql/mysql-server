@@ -1,0 +1,224 @@
+## generated
+## Simple collection
+## Added tests to verify data from performance schema.
+
+--source ../include/xplugin_preamble.inc
+
+## Test starts here
+--append_file $MYSQL_TMP_DIR/admin_create_collection.tmp
+
+## Test data
+-->sql
+
+drop schema if exists xtest;
+create schema xtest default charset 'utf8mb4';
+use xtest;
+-->endsql
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xtest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "books"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+Mysqlx.Crud.Insert {
+  collection {
+    name: "books"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "{\"_id\": \"one\", \"name\": \"The Bla\"}"
+        }
+      }
+    }
+  }
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+Mysqlx.Crud.Insert {
+  collection {
+    name: "books"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "{\"_id\": \"two\", \"name\": \"The Bla II\"}"
+        }
+      }
+    }
+  }
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+Mysqlx.Crud.Insert {
+  collection {
+    name: "books"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "{\"_id\": \"one\", \"name\": \"The Bla II\"}"
+        }
+      }
+    }
+  }
+}
+
+## expect Mysqlx.Error
+-->recv
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xtest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "books"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+
+-->echo Negative cases now
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: ""
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: ""
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+## expect Mysqlx.Error
+-->recv
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xtest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: ""
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+## expect Mysqlx.Error
+-->recv
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xtest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "\000"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+## expect Mysqlx.Error
+-->recv
+
+## Cleanup
+-->sql
+drop schema if exists xtest;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/admin_create_collection.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/admin_create_collection.tmp
+
+## Postamble
+uninstall plugin mysqlx;

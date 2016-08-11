@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -347,11 +347,17 @@ void table_events_statements_common::make_row_part_1(PFS_events_statements *stat
   CHARSET_INFO *cs= get_charset(statement->m_sqltext_cs_number, MYF(0));
   size_t valid_length= statement->m_sqltext_length;
 
-  if (cs->mbmaxlen > 1)
+  if (cs != NULL)
   {
-    int well_formed_error;
-    valid_length= cs->cset->well_formed_len(cs, statement->m_sqltext, statement->m_sqltext + valid_length,
-                                            valid_length, &well_formed_error);
+    if (cs->mbmaxlen > 1)
+    {
+      int well_formed_error;
+      valid_length= cs->cset->well_formed_len(cs,
+                                              statement->m_sqltext,
+                                              statement->m_sqltext + valid_length,
+                                              valid_length,
+                                              &well_formed_error);
+    }
   }
 
   m_row.m_sqltext.set_charset(cs);

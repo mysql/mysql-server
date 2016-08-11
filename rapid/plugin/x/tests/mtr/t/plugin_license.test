@@ -1,0 +1,23 @@
+call mtr.add_suppression("Message of size .* received, exceeding the limit of"); 
+
+--echo Setup
+--source ../include/xplugin_preamble.inc
+
+--echo Test
+--let $_server_license= `SELECT IF(@@license = 'Commercial', 'PROPRIETARY', @@license);`
+--let $_plugin_license= `select plugin_license from information_schema.plugins where plugin_name='mysqlx'`
+
+if ($_server_license != $_plugin_license)
+{
+--echo Licenses doesn't match
+--echo Servers license: $_server_license
+--echo Plugins license: $_plugin_license
+}
+
+if ($_server_license == $_plugin_license)
+{
+--echo License ok
+}
+
+--echo Cleanup
+UNINSTALL PLUGIN `mysqlx`;

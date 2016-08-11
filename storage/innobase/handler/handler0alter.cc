@@ -1018,41 +1018,6 @@ innobase_check_fk_option(
 	return(true);
 }
 
-/** Check whether the foreign key options is legit
-@param[in]	foreign		foreign key
-@return true if it is */
-static MY_ATTRIBUTE((warn_unused_result))
-bool
-innobase_check_v_base_col(
-	const dict_foreign_t*	foreign)
-{
-	ulint	type = foreign->type;
-
-	type &= ~(DICT_FOREIGN_ON_DELETE_NO_ACTION
-		  | DICT_FOREIGN_ON_UPDATE_NO_ACTION);
-
-
-	if (type != 0) {
-
-		for (ulint i = 0; i < foreign->n_fields; i++) {
-			if (dict_foreign_has_col_as_base_col(
-				    foreign->foreign_col_names[i],
-				    foreign->foreign_table)) {
-				return(false);
-			}
-
-			/* Check if the fk column is in any virtual index */
-			if (dict_foreign_has_col_in_v_index(
-				foreign->foreign_col_names[i],
-				foreign->foreign_table)) {
-				return(false);
-			}
-		}
-	}
-
-	return(true);
-}
-
 /*************************************************************//**
 Set foreign key options
 @return true if successfully set */
@@ -1208,27 +1173,98 @@ next_rec:
 	return(NULL);
 }
 
-/*************************************************************//**
-Create InnoDB foreign key structure from MySQL alter_info
+/** Check whether given column is a base of stored column.
+@param[in]	col_name	column name
+@param[in]	table		table
+@param[in]	s_cols		list of stored columns
+@return true if the given column is a base of stored column,else false. */
+static
+bool
+innobase_col_check_fk(
+	const char*		col_name,
+	const dict_table_t*	table,
+	dict_s_col_list*	s_cols)
+{
+	dict_s_col_list::const_iterator	it;
+
+	for (it = s_cols->begin();
+	     it != s_cols->end(); ++it) {
+		dict_s_col_t	s_col = *it;
+
+		for (ulint j = 0; j < s_col.num_base; j++) {
+			if (strcmp(col_name, dict_table_get_col_name(
+						table,
+						s_col.base_col[j]->ind)) == 0) {
+				return(true);
+			}
+		}
+	}
+
+	return(false);
+}
+
+/** Check whether the foreign key constraint is on base of any stored columns.
+@param[in]	foreign	Foriegn key constraing information
+@param[in]	table	table to which the foreign key objects
+to be added
+@param[in]	s_cols	list of stored column information in the table.
+@return true if yes, otherwise false. */
+static
+bool
+innobase_check_fk_stored(
+	const dict_foreign_t*	foreign,
+	const dict_table_t*	table,
+	dict_s_col_list*	s_cols)
+{
+	ulint	type = foreign->type;
+
+	type &= ~(DICT_FOREIGN_ON_DELETE_NO_ACTION
+		  | DICT_FOREIGN_ON_UPDATE_NO_ACTION);
+
+	if (type == 0 || s_cols == NULL) {
+		return(false);
+	}
+
+	for (ulint i = 0; i < foreign->n_fields; i++) {
+		if (innobase_col_check_fk(
+			foreign->foreign_col_names[i], table, s_cols)) {
+			return(true);
+		}
+	}
+
+	return(false);
+}
+
+/** Create InnoDB foreign key structure from MySQL alter_info
+@param[in]	ha_alter_info	alter table info
+@param[in]	table_share	TABLE_SHARE
+@param[in]	table		table object
+@param[in]	col_names	column names, or NULL to use
+table->col_names
+@param[in]	drop_index	indexes to be dropped
+@param[in]	n_drop_index	size of drop_index
+@param[out]	add_fk		foreign constraint added
+@param[out]	n_add_fk	number of foreign constraints
+added
+@param[in]	trx		user transaction
+@param[in]	s_cols		list of stored column information
 @retval true if successful
 @retval false on error (will call my_error()) */
 static MY_ATTRIBUTE((nonnull(1,2,3,7,8), warn_unused_result))
 bool
 innobase_get_foreign_key_info(
-/*==========================*/
 	Alter_inplace_info*
-			ha_alter_info,	/*!< in: alter table info */
+			ha_alter_info,
 	const TABLE_SHARE*
-			table_share,	/*!< in: the TABLE_SHARE */
-	dict_table_t*	table,		/*!< in: table */
-	const char**	col_names,	/*!< in: column names, or NULL
-					to use table->col_names */
-	dict_index_t**	drop_index,	/*!< in: indexes to be dropped */
-	ulint		n_drop_index,	/*!< in: size of drop_index[] */
-	dict_foreign_t**add_fk,		/*!< out: foreign constraint added */
-	ulint*		n_add_fk,	/*!< out: number of foreign
-					constraints added */
-	const trx_t*	trx)		/*!< in: user transaction */
+			table_share,
+	dict_table_t*	table,
+	const char**	col_names,
+	dict_index_t**	drop_index,
+	ulint		n_drop_index,
+	dict_foreign_t**add_fk,
+	ulint*		n_add_fk,
+	const trx_t*	trx,
+	dict_s_col_list*s_cols)
 {
 	Key*		key;
 	Foreign_key*	fk_key;
@@ -1444,8 +1480,9 @@ innobase_get_foreign_key_info(
 			goto err_exit;
 		}
 
-		if (!innobase_check_v_base_col(add_fk[num_fk])) {
-			my_error(ER_CANNOT_ADD_FOREIGN_BASE_COL_VIRTUAL, MYF(0));
+		if (innobase_check_fk_stored(
+			add_fk[num_fk], table, s_cols)) {
+			my_error(ER_CANNOT_ADD_FOREIGN_BASE_COL_STORED, MYF(0));
 			goto err_exit;
 		}
 
@@ -5244,6 +5281,55 @@ rename_indexes_in_cache(
 	DBUG_VOID_RETURN;
 }
 
+/** Fill the stored column information in s_cols list.
+@param[in]	altered_table	mysql table object
+@param[in]	table		innodb table object
+@param[out]	s_cols		list of stored column
+@param[out]	s_heap		heap for storing stored
+column information. */
+static
+void
+alter_fill_stored_column(
+	const TABLE*		altered_table,
+	dict_table_t*		table,
+	dict_s_col_list**	s_cols,
+	mem_heap_t**		s_heap)
+{
+       ulint   n_cols = altered_table->s->fields;
+
+	for (ulint i = 0; i < n_cols; i++) {
+		Field* field = altered_table->field[i];
+		dict_s_col_t	s_col;
+
+		if (!innobase_is_s_fld(field)) {
+			continue;
+		}
+
+		ulint	num_base = field->gcol_info->non_virtual_base_columns();
+		dict_col_t*	col = dict_table_get_nth_col(table, i);
+
+		s_col.m_col = col;
+		s_col.s_pos = i;
+
+		if (*s_cols == NULL) {
+			*s_cols = UT_NEW_NOKEY(dict_s_col_list());
+			*s_heap = mem_heap_create(1000);
+		}
+
+		if (num_base != 0) {
+			s_col.base_col = static_cast<dict_col_t**>(mem_heap_zalloc(
+						*s_heap, num_base * sizeof(dict_col_t*)));
+		} else {
+			s_col.base_col = NULL;
+		}
+
+		s_col.num_base = num_base;
+		innodb_base_col_setup_for_stored(table, field, &s_col);
+		(*s_cols)->push_back(s_col);
+	}
+}
+
+
 /** Allows InnoDB to update internal structures with concurrent
 writes blocked (provided that check_if_supported_inplace_alter()
 did not return HA_ALTER_INPLACE_NO_LOCK).
@@ -5282,6 +5368,8 @@ ha_innobase::prepare_inplace_alter_table(
 	bool		add_fts_doc_id		= false;
 	bool		add_fts_doc_id_idx	= false;
 	bool		add_fts_idx		= false;
+	dict_s_col_list*s_cols			= NULL;
+	mem_heap_t*	s_heap			= NULL;
 
 	DBUG_ENTER("prepare_inplace_alter_table");
 	DBUG_ASSERT(!ha_alter_info->handler_ctx);
@@ -5769,6 +5857,9 @@ check_if_can_drop_indexes:
 	    & Alter_inplace_info::ADD_FOREIGN_KEY) {
 		ut_ad(!m_prebuilt->trx->check_foreigns);
 
+		alter_fill_stored_column(altered_table, m_prebuilt->table,
+					 &s_cols, &s_heap);
+
 		add_fk = static_cast<dict_foreign_t**>(
 			mem_heap_zalloc(
 				heap,
@@ -5779,7 +5870,7 @@ check_if_can_drop_indexes:
 			    ha_alter_info, table_share,
 			    m_prebuilt->table, col_names,
 			    drop_index, n_drop_index,
-			    add_fk, &n_add_fk, m_prebuilt->trx)) {
+			    add_fk, &n_add_fk, m_prebuilt->trx, s_cols)) {
 err_exit:
 			if (n_drop_index) {
 				row_mysql_lock_data_dictionary(m_prebuilt->trx);
@@ -5799,7 +5890,17 @@ err_exit:
 				mem_heap_free(heap);
 			}
 
+			if (s_cols != NULL) {
+				UT_DELETE(s_cols);
+				mem_heap_free(s_heap);
+			}
+
 			goto err_exit_no_heap;
+		}
+
+		if (s_cols != NULL) {
+			UT_DELETE(s_cols);
+			mem_heap_free(s_heap);
 		}
 	}
 
@@ -5964,6 +6065,72 @@ found_col:
 			    add_fts_doc_id_idx));
 }
 
+/** Check that the column is part of a virtual index(index contains
+virtual column) in the table
+@param[in]	table		Table containing column
+@param[in]	col		column to be checked
+@return true if this column is indexed with other virtual columns */
+static
+bool
+dict_col_in_v_indexes(
+	dict_table_t*	table,
+	dict_col_t*	col)
+{
+	for (dict_index_t* index = dict_table_get_next_index(
+		dict_table_get_first_index(table)); index != NULL;
+		index = dict_table_get_next_index(index)) {
+		if (!dict_index_has_virtual(index)) {
+			continue;
+		}
+		for (ulint k = 0; k < index->n_fields; k++) {
+			dict_field_t*   field
+				= dict_index_get_nth_field(index, k);
+			if (field->col->ind == col->ind) {
+				return(true);
+			}
+		}
+	}
+
+	return(false);
+}
+
+/* Check whether a columnn length change alter operation requires
+to rebuild the template.
+@param[in]	altered_table	TABLE object for new version of table.
+@param[in]	ha_alter_info	Structure describing changes to be done
+				by ALTER TABLE and holding data used
+				during in-place alter.
+@param[in]	table		table being altered
+@return TRUE if needs rebuild. */
+static
+bool
+alter_templ_needs_rebuild(
+	TABLE*                  altered_table,
+	Alter_inplace_info*     ha_alter_info,
+	dict_table_t*		table)
+{
+        ulint	i = 0;
+        List_iterator_fast<Create_field>  cf_it(
+                ha_alter_info->alter_info->create_list);
+
+	for (Field** fp = altered_table->field; *fp; fp++, i++) {
+		cf_it.rewind();
+		while (const Create_field* cf = cf_it++) {
+			for (ulint j=0; j < table->n_cols; j++) {
+				dict_col_t* cols
+                                   = dict_table_get_nth_col(table, j);
+				if (cf->length > cols->len
+				    && dict_col_in_v_indexes(table, cols)) {
+					return(true);
+				}
+			}
+		}
+	}
+
+	return(false);
+}
+
+
 /** Alter the table structure in-place with operations
 specified using Alter_inplace_info.
 The level of concurrency allowed during this operation depends
@@ -5988,8 +6155,7 @@ ha_innobase::inplace_alter_table(
 	dict_vcol_templ_t*	s_templ = NULL;
 	dict_vcol_templ_t*	old_templ = NULL;
 	struct TABLE*		eval_table = altered_table;
-
-
+	bool			rebuild_templ = false;
 	DBUG_ENTER("inplace_alter_table");
 	DBUG_ASSERT(!srv_read_only_mode);
 
@@ -6037,8 +6203,22 @@ ok_exit:
 	that carries translation information between MySQL TABLE and InnoDB
 	table, which indicates the virtual columns and their base columns
 	info. This is used to do the computation callback, so that the
-	data in base columns can be extracted send to server */
-	if (ctx->need_rebuild() && ctx->new_table->n_v_cols > 0) {
+	data in base columns can be extracted send to server.
+	If the Column length changes and it is a part of virtual
+	index then we need to rebuild the template. */
+	rebuild_templ
+	     = ctx->need_rebuild()
+	       || ((ha_alter_info->handler_flags
+		& Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH)
+		&& alter_templ_needs_rebuild(
+		   altered_table, ha_alter_info, ctx->new_table));
+
+	if ((ctx->new_table->n_v_cols > 0) && rebuild_templ) {
+		/* Save the templ if isn't NULL so as to restore the
+		original state in case of alter operation failures. */
+		if (ctx->new_table->vc_templ != NULL && !ctx->need_rebuild()) {
+			old_templ = ctx->new_table->vc_templ;
+		}
 		s_templ = UT_NEW_NOKEY(dict_vcol_templ_t());
 		s_templ->vtempl = NULL;
 
@@ -6092,7 +6272,8 @@ ok_exit:
 		ctx->m_stage, add_v, eval_table);
 
 	if (s_templ) {
-		ut_ad(ctx->need_rebuild() || ctx->num_to_add_vcol > 0);
+		ut_ad(ctx->need_rebuild() || ctx->num_to_add_vcol > 0
+		      || rebuild_templ);
 		dict_free_vc_templ(s_templ);
 		UT_DELETE(s_templ);
 
@@ -6278,21 +6459,6 @@ innobase_rollback_sec_index(
 	    && !innobase_fulltext_exist(table)) {
 		fts_free(user_table);
 	}
-
-	/* Reset dict_col_t::ord_part for those columns fail to be indexed,
-	we do this by checking every existing column, if any current
-	index would index them */
-	for (ulint i = 0; i < dict_table_get_n_cols(user_table); i++) {
-		if (!check_col_exists_in_indexes(user_table, i, false)) {
-			user_table->cols[i].ord_part = 0;
-		}
-	}
-
-	for (ulint i = 0; i < dict_table_get_n_v_cols(user_table); i++) {
-		if (!check_col_exists_in_indexes(user_table, i, true)) {
-			user_table->v_cols[i].m_col.ord_part = 0;
-		}
-	}
 }
 
 /** Roll back the changes made during prepare_inplace_alter_table()
@@ -6413,6 +6579,21 @@ func_exit:
 			}
 
 			row_mysql_unlock_data_dictionary(prebuilt->trx);
+		}
+	}
+
+	/* Reset dict_col_t::ord_part for those columns fail to be indexed,
+	we do this by checking every existing column, if any current
+	index would index them */
+	for (ulint i = 0; i < dict_table_get_n_cols(prebuilt->table); i++) {
+		if (!check_col_exists_in_indexes(prebuilt->table, i, false)) {
+			prebuilt->table->cols[i].ord_part = 0;
+		}
+	}
+
+	for (ulint i = 0; i < dict_table_get_n_v_cols(prebuilt->table); i++) {
+		if (!check_col_exists_in_indexes(prebuilt->table, i, true)) {
+			prebuilt->table->v_cols[i].m_col.ord_part = 0;
 		}
 	}
 
@@ -7388,8 +7569,8 @@ commit_try_rebuild(
 		/* Normally, n_ref_count must be 1, because purge
 		cannot be executing on this very table as we are
 		holding dict_operation_lock X-latch. */
-
-		error = DB_LOCK_WAIT_TIMEOUT;
+		my_error(ER_TABLE_REFERENCED,MYF(0));
+		DBUG_RETURN(true);
 	}
 
 	switch (error) {
@@ -8341,7 +8522,12 @@ foreign_fail:
 
 				rename_indexes_in_cache(ctx, ha_alter_info);
 			}
+
 		}
+
+		dict_mem_table_free_foreign_vcol_set(ctx->new_table);
+		dict_mem_table_fill_foreign_vcol_set(ctx->new_table);
+
 		DBUG_INJECT_CRASH("ib_commit_inplace_crash",
 				  crash_inject_count++);
 	}
@@ -8385,6 +8571,14 @@ foreign_fail:
 	}
 
 	if (ctx0->num_to_drop_vcol || ctx0->num_to_add_vcol) {
+
+		if (ctx0->old_table->get_ref_count() > 1) {
+
+			row_mysql_unlock_data_dictionary(trx);
+			trx_free_for_mysql(trx);
+			my_error(ER_TABLE_REFERENCED,MYF(0));
+			DBUG_RETURN(true);
+		}
 
 		trx_commit_for_mysql(m_prebuilt->trx);
 

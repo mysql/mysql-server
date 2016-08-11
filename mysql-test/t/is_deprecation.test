@@ -1,0 +1,8 @@
+
+select * from INFORMATION_SCHEMA.INNODB_LOCKS
+  where lock_table = "none";
+
+select * from INFORMATION_SCHEMA.INNODB_LOCK_WAITS
+  where requested_lock_id = "none";
+
+

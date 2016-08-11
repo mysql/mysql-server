@@ -521,7 +521,6 @@ row_ins_cascade_calc_update_vec(
 	update = cascade->update;
 
 	update->info_bits = 0;
-	update->n_fields = foreign->n_fields;
 
 	n_fields_updated = 0;
 
@@ -927,6 +926,118 @@ row_ins_invalidate_query_cache(
 	innobase_invalidate_query_cache(thr_get_trx(thr), name, len);
 }
 
+/** Fill virtual column information in cascade node for the child table.
+@param[out]	cascade		child update node
+@param[in]	rec		clustered rec of child table
+@param[in]	index		clustered index of child table
+@param[in]	node		parent update node
+@param[in]	foreign		foreign key information
+@param[out]	err		error code. */
+static
+void
+row_ins_foreign_fill_virtual(
+	upd_node_t*		cascade,
+	const rec_t*		rec,
+	dict_index_t*		index,
+	upd_node_t*		node,
+	dict_foreign_t*		foreign,
+	dberr_t*		err)
+{
+	row_ext_t*	ext;
+	THD*		thd = current_thd;
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+	rec_offs_init(offsets_);
+	const ulint*	offsets =
+		rec_get_offsets(rec, index, offsets_,
+				ULINT_UNDEFINED, &cascade->heap);
+	mem_heap_t*	v_heap = NULL;
+	upd_t*		update = cascade->update;
+	ulint		n_v_fld = index->table->n_v_def;
+	ulint		n_diff;
+	upd_field_t*	upd_field;
+	dict_vcol_set*	v_cols = foreign->v_cols;
+
+	update->old_vrow = row_build(
+		ROW_COPY_POINTERS, index, rec,
+		offsets, index->table, NULL, NULL,
+		&ext, cascade->heap);
+
+	n_diff = update->n_fields;
+
+	update->n_fields += n_v_fld;
+
+	if (index->table->vc_templ == NULL) {
+		/** This can occur when there is a cascading
+		delete or update after restart. */
+		innobase_init_vc_templ(index->table);
+	}
+
+	for (ulint i = 0; i < n_v_fld; i++) {
+
+		dict_v_col_t*     col = dict_table_get_nth_v_col(
+				index->table, i);
+
+		dict_vcol_set::iterator it = v_cols->find(col);
+
+		if (it == v_cols->end()) {
+			continue;
+		}
+
+		dfield_t*	vfield = innobase_get_computed_value(
+				update->old_vrow, col, index,
+				&v_heap, update->heap, NULL, thd, NULL,
+				NULL, NULL, NULL);
+
+		if (vfield == NULL) {
+			*err = DB_COMPUTE_VALUE_FAILED;
+			goto func_exit;
+		}
+
+		upd_field = upd_get_nth_field(update, n_diff);
+
+		upd_field->old_v_val = static_cast<dfield_t*>(
+				mem_heap_alloc(cascade->heap,
+					sizeof *upd_field->old_v_val));
+
+		dfield_copy(upd_field->old_v_val, vfield);
+
+		upd_field_set_v_field_no(upd_field, i, index);
+
+		if (node->is_delete
+		    ? (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)
+		    : (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)) {
+
+			dfield_set_null(&upd_field->new_val);
+		}
+
+		if (!node->is_delete
+		    && (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE)) {
+
+			dfield_t* new_vfield = innobase_get_computed_value(
+					update->old_vrow, col, index,
+					&v_heap, update->heap, NULL, thd,
+					NULL, NULL, node->update, foreign);
+
+			if (new_vfield == NULL) {
+				*err = DB_COMPUTE_VALUE_FAILED;
+				goto func_exit;
+			}
+
+			dfield_copy(&(upd_field->new_val), new_vfield);
+		}
+
+		n_diff++;
+	}
+
+	update->n_fields = n_diff;
+	*err = DB_SUCCESS;
+
+func_exit:
+	if (v_heap) {
+		mem_heap_free(v_heap);
+	}
+}
+
 /*********************************************************************//**
 Perform referential actions or checks when a parent row is deleted or updated
 and the constraint had an ON DELETE or ON UPDATE condition which was not
@@ -1210,6 +1321,18 @@ row_ins_foreign_check_on_constraint(
 		if (fts_col_affacted) {
 			cascade->fts_doc_id = doc_id;
 		}
+
+		if (foreign->v_cols != NULL
+		    && foreign->v_cols->size() > 0) {
+			row_ins_foreign_fill_virtual(
+				cascade, clust_rec, clust_index,
+				node, foreign, &err);
+
+			if (err != DB_SUCCESS) {
+				goto nonstandard_exit_func;
+			}
+		}
+
 	} else if (table->fts && cascade->is_delete) {
 		/* DICT_FOREIGN_ON_DELETE_CASCADE case */
 		for (i = 0; i < foreign->n_fields; i++) {
@@ -1237,6 +1360,18 @@ row_ins_foreign_check_on_constraint(
 		n_to_update = row_ins_cascade_calc_update_vec(
 			node, foreign, cascade->cascade_heap,
 			trx, &fts_col_affacted, cascade);
+
+
+		if (foreign->v_cols != NULL
+		    && foreign->v_cols->size() > 0) {
+			row_ins_foreign_fill_virtual(
+				cascade, clust_rec, clust_index,
+				node, foreign, &err);
+
+			if (err != DB_SUCCESS) {
+				goto nonstandard_exit_func;
+			}
+		}
 
 		if (n_to_update == ULINT_UNDEFINED) {
 			err = DB_ROW_IS_REFERENCED;

@@ -64,9 +64,6 @@ int unregister_server_state_observer(Server_state_observer *observer, void *p)
   return 0;
 }
 
-struct st_Vio;
-typedef struct st_Vio Vio;
-
 extern "C"
 void ssl_wrapper_version(Vio *vio, char *version, const size_t version_size)
 {
