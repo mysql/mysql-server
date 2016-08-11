@@ -81,6 +81,8 @@
 %global license_type          GPLv2
 %endif
 
+%global min                   5.6.10
+
 Name:           mysql-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
@@ -159,11 +161,11 @@ Requires:       net-tools
 Provides:       MySQL-server-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-server-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-server < %{version}-%{release}
-Requires:       mysql-commercial-client%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-client%{?_isa} >= %{min}
 Requires:       mysql-commercial-common%{?_isa} = %{version}-%{release}
 %else
 Provides:       MySQL-server%{?_isa} = %{version}-%{release}
-Requires:       mysql-community-client%{?_isa} = %{version}-%{release}
+Requires:       mysql-community-client%{?_isa} >= %{min}
 Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
 %endif
 Obsoletes:      MySQL-server < %{version}-%{release}
@@ -212,10 +214,10 @@ Group:          Applications/Databases
 Provides:       MySQL-client-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-client-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-client < %{version}-%{release}
-Requires:       mysql-commercial-libs%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-libs%{?_isa} >= %{min}
 %else
 Provides:       MySQL-client%{?_isa} = %{version}-%{release}
-Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
+Requires:       mysql-community-libs%{?_isa} >= %{min}
 %endif
 Obsoletes:      MySQL-client < %{version}-%{release}
 Obsoletes:      mariadb
@@ -237,7 +239,7 @@ Obsoletes:      mysql-community-common < %{version}-%{release}
 %endif
 Provides:       mysql-common = %{version}-%{release}
 Provides:       mysql-common%{?_isa} = %{version}-%{release}
-%{?el5:Requires: mysql%{?_isa} = %{version}-%{release}} 
+%{?el5:Requires: mysql%{?_isa} >= %{min}}
 
 %description    common
 This packages contains common files needed by MySQL client library,
@@ -251,10 +253,10 @@ Group:          Applications/Databases
 Provides:       MySQL-test-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-test-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-test < %{version}-%{release}
-Requires:       mysql-commercial-server%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-server%{?_isa} >= %{min}
 %else
 Provides:       MySQL-test%{?_isa} = %{version}-%{release}
-Requires:       mysql-community-server%{?_isa} = %{version}-%{release}
+Requires:       mysql-community-server%{?_isa} >= %{min}
 %endif
 Obsoletes:      MySQL-test < %{version}-%{release}
 Obsoletes:      mysql-test < %{version}-%{release}
@@ -272,9 +274,9 @@ Summary:        MySQL benchmark suite
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-bench < %{version}-%{release}
-Requires:       mysql-commercial-server%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-server%{?_isa} >= %{min}
 %else
-Requires:       mysql-community-server%{?_isa} = %{version}-%{release}
+Requires:       mysql-community-server%{?_isa} >= %{min}
 %endif
 Obsoletes:      mariadb-bench
 Obsoletes:      community-mysql-bench < %{version}-%{release}
@@ -293,10 +295,10 @@ Group:          Applications/Databases
 Provides:       MySQL-devel-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-devel-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-devel < %{version}-%{release}
-Requires:       mysql-commercial-libs%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-libs%{?_isa} >= %{min}
 %else
 Provides:       MySQL-devel%{?_isa} = %{version}-%{release}
-Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
+Requires:       mysql-community-libs%{?_isa} >= %{min}
 %endif
 Obsoletes:      MySQL-devel < %{version}-%{release}
 Obsoletes:      mysql-devel < %{version}-%{release}
@@ -316,10 +318,10 @@ Group:          Applications/Databases
 Provides:       MySQL-shared-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-shared-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-libs < %{version}-%{release}
-Requires:       mysql-commercial-common%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-common%{?_isa} >= %{min}
 %else
 Provides:       MySQL-shared%{?_isa} = %{version}-%{release}
-Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
+Requires:       mysql-community-common%{?_isa} >= %{min}
 %endif
 Obsoletes:      MySQL-shared < %{version}-%{release}
 Obsoletes:      mysql-libs < %{version}-%{release}
@@ -343,10 +345,10 @@ Provides:       mysql-libs-compat%{?_isa} = %{version}-%{release}
 Provides:       MySQL-shared-compat-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-shared-compat-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-libs-compat < %{version}-%{release}
-Requires:       mysql-commercial-libs%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-libs%{?_isa} >= %{min}
 %else
 Provides:       MySQL-shared-compat%{?_isa} = %{version}-%{release}
-Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
+Requires:       mysql-community-libs%{?_isa} >= %{min}
 %endif
 Obsoletes:      MySQL-shared-compat < %{version}-%{release}
 %if 0%{?rhel} > 5
@@ -393,11 +395,11 @@ Summary:        Development header files and libraries for MySQL as an embeddabl
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-embedded-devel < %{version}-%{release}
-Requires:       mysql-commercial-devel%{?_isa} = %{version}-%{release}
-Requires:       mysql-commercial-embedded%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-devel%{?_isa} >= %{min}
+Requires:       mysql-commercial-embedded%{?_isa} >= %{min}
 %else
-Requires:       mysql-community-devel%{?_isa} = %{version}-%{release}
-Requires:       mysql-community-embedded%{?_isa} = %{version}-%{release}
+Requires:       mysql-community-devel%{?_isa} >= %{min}
+Requires:       mysql-community-embedded%{?_isa} >= %{min}
 %endif
 Obsoletes:      mariadb-embedded-devel
 Obsoletes:      mysql-embedded-devel < %{version}-%{release}
@@ -413,13 +415,13 @@ the embedded version of the MySQL server.
 Summary:        Convenience package for easy upgrades of MySQL package set
 Group:          Applications/Databases
 %if 0%{?commercial}
-Requires:       mysql-commercial-client%{?_isa} = %{version}-%{release}
-Requires:       mysql-commercial-libs%{?_isa} = %{version}-%{release}
-Requires:       mysql-commercial-libs-compat%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-client%{?_isa} >= %{min}
+Requires:       mysql-commercial-libs%{?_isa} >= %{min}
+Requires:       mysql-commercial-libs-compat%{?_isa} >= %{min}
 %else
-Requires:       mysql-community-client%{?_isa} = %{version}-%{release}
-Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
-Requires:       mysql-community-libs-compat%{?_isa} = %{version}-%{release}
+Requires:       mysql-community-client%{?_isa} >= %{min}
+Requires:       mysql-community-libs%{?_isa} >= %{min}
+Requires:       mysql-community-libs-compat%{?_isa} >= %{min}
 %endif
 
 %description -n mysql
@@ -633,6 +635,7 @@ rm -r $(readlink var) var
 datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)
 /bin/chmod 0755 "$datadir" >/dev/null 2>&1 || :
 /bin/touch /var/log/mysqld.log >/dev/null 2>&1 || :
+/bin/chown mysql:mysql /var/log/mysqld.log >/dev/null 2>&1 || :
 %if 0%{?systemd}
 %systemd_post mysqld.service
 /usr/bin/systemctl enable mysqld >/dev/null 2>&1 || :
@@ -859,8 +862,6 @@ fi
 %attr(755, root, root) %{_bindir}/mysqlimport
 %attr(755, root, root) %{_bindir}/mysqlshow
 %attr(755, root, root) %{_bindir}/mysqlslap
-%attr(755, root, root) %{_bindir}/mysql_config
-%attr(755, root, root) %{_bindir}/mysql_config-%{__isa_bits}
 %attr(755, root, root) %{_bindir}/mysql_config_editor
 
 %attr(644, root, root) %{_mandir}/man1/msql2mysql.1*
@@ -951,6 +952,9 @@ fi
 %endif
 
 %changelog
+* Tue Jul 05 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.32-1
+- Remove mysql_config from client subpackage
+
 * Mon Mar 14 2016 Georgi Kodinov <georgi.kodinov@oracle.com> - 5.6.31-1
 - Add test_udf_services.so plugin
 
