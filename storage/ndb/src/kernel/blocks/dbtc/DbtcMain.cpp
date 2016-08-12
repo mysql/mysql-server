@@ -20625,10 +20625,11 @@ Dbtc::executeFullyReplicatedTrigger(Signal* signal,
   Uint32 currState = regApiPtr->apiConnectstate;
 
   bool ok =
-    (saveState == CS_STARTED &&
-     (currState == saveState || currState == CS_RECEIVING)) ||
-    (saveState == CS_START_COMMITTING &&
-     (currState == saveState || currState == CS_REC_COMMITTING));
+    ((saveState == CS_SEND_FIRE_TRIG_REQ ||
+      saveState == CS_WAIT_FIRE_TRIG_REQ ||
+      saveState == CS_STARTED ||
+      saveState == CS_START_COMMITTING) &&
+      currState == saveState);
 
   if (ok && regApiPtr->lastTcConnect != saveOp)
   {
