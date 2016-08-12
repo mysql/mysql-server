@@ -208,8 +208,17 @@ parse_arguments() {
       --core-file-size=*) core_file_size="$val" ;;
       --ledir=*) ledir="$val" ;;
       --malloc-lib=*) set_malloc_lib "$val" ;;
-      --mysqld=*) MYSQLD="$val" ;;
+      --mysqld=*)
+        if [ -z "$pick_args" ]; then
+          log_error "--mysqld option can only be used as command line option, found in config file"
+          exit 1
+        fi
+        MYSQLD="$val" ;;
       --mysqld-version=*)
+        if [ -z "$pick_args" ]; then
+          log_error "--mysqld-version option can only be used as command line option, found in config file"
+          exit 1
+        fi
         if test -n "$val"
         then
           MYSQLD="mysqld-$val"
@@ -297,38 +306,22 @@ mysqld_ld_preload_text() {
   echo "$text"
 }
 
-
-mysql_config=
-get_mysql_config() {
-  if [ -z "$mysql_config" ]; then
-    mysql_config=`echo "$0" | sed 's,/[^/][^/]*$,/mysql_config,'`
-    if [ ! -x "$mysql_config" ]; then
-      log_error "Can not run mysql_config $@ from '$mysql_config'"
-      exit 1
-    fi
-  fi
-
-  "$mysql_config" "$@"
-}
-
-
 # set_malloc_lib LIB
 # - If LIB is empty, do nothing and return
-# - If LIB is 'tcmalloc', look for tcmalloc shared library in /usr/lib
-#   then pkglibdir.  tcmalloc is part of the Google perftools project.
+# - If LIB is 'tcmalloc', look for tcmalloc shared library in $malloc_dirs.
+#   tcmalloc is part of the Google perftools project.
 # - If LIB is an absolute path, assume it is a malloc shared library
 #
 # Put LIB in mysqld_ld_preload, which will be added to LD_PRELOAD when
 # running mysqld.  See ld.so for details.
 set_malloc_lib() {
+  # This list is kept intentionally simple.
+  malloc_dirs="/usr/lib /usr/lib64 /usr/lib/i386-linux-gnu /usr/lib/x86_64-linux-gnu"
   malloc_lib="$1"
 
   if [ "$malloc_lib" = tcmalloc ]; then
-    pkglibdir=`get_mysql_config --variable=pkglibdir`
     malloc_lib=
-    # This list is kept intentionally simple.  Simply set --malloc-lib
-    # to a full path if another location is desired.
-    for libdir in /usr/lib "$pkglibdir" "$pkglibdir/mysql"; do
+    for libdir in $(echo $malloc_dirs); do
       for flavor in _minimal '' _and_profiler _debug; do
         tmp="$libdir/libtcmalloc$flavor.so"
         #log_notice "DEBUG: Checking for malloc lib '$tmp'"
@@ -339,7 +332,7 @@ set_malloc_lib() {
     done
 
     if [ -z "$malloc_lib" ]; then
-      log_error "no shared library for --malloc-lib=tcmalloc found in /usr/lib or $pkglibdir"
+      log_error "no shared library for --malloc-lib=tcmalloc found in $malloc_dirs"
       exit 1
     fi
   fi
@@ -350,9 +343,21 @@ set_malloc_lib() {
   case "$malloc_lib" in
     /*)
       if [ ! -r "$malloc_lib" ]; then
-        log_error "--malloc-lib '$malloc_lib' can not be read and will not be used"
+        log_error "--malloc-lib can not be read and will not be used"
         exit 1
       fi
+
+      # Restrict to a the list in $malloc_dirs above
+      case "$(dirname "$malloc_lib")" in
+        /usr/lib) ;;
+        /usr/lib64) ;;
+        /usr/lib/i386-linux-gnu) ;;
+        /usr/lib/x86_64-linux-gnu) ;;
+        *)
+          log_error "--malloc-lib must be located in one of the directories: $malloc_dirs"
+          exit 1
+          ;;
+      esac
       ;;
     *)
       log_error "--malloc-lib must be an absolute path or 'tcmalloc'; " \
@@ -569,7 +574,7 @@ then
   log_notice "Logging to '$err_log'."
   logging=file
 
-  if [ ! -f "$err_log" ]; then                  # if error log already exists,
+  if [ ! -f "$err_log" -a ! -h "$err_log" ]; then # if error log already exists,
     touch "$err_log"                            # we just append. otherwise,
     chmod "$fmode" "$err_log"                   # fix the permissions here!
   fi
@@ -594,7 +599,7 @@ then
     USER_OPTION="--user=$user"
   fi
   # Change the err log to the right user, if it is in use
-  if [ $want_syslog -eq 0 ]; then
+  if [ $want_syslog -eq 0 -a ! -h "$err_log" ]; then
     touch "$err_log"
     chown $user "$err_log"
   fi
@@ -614,9 +619,11 @@ safe_mysql_unix_port=${mysql_unix_port:-${MYSQL_UNIX_PORT:-@MYSQL_UNIX_ADDR@}}
 mysql_unix_port_dir=`dirname $safe_mysql_unix_port`
 if [ ! -d $mysql_unix_port_dir ]
 then
-  mkdir $mysql_unix_port_dir
-  chown $user $mysql_unix_port_dir
-  chmod 755 $mysql_unix_port_dir
+  if [ ! -h $mysql_unix_port_dir ]; then
+    mkdir $mysql_unix_port_dir
+    chown $user $mysql_unix_port_dir
+    chmod 755 $mysql_unix_port_dir
+  fi
 fi
 
 # If the user doesn't specify a binary, we assume name "mysqld"
@@ -728,7 +735,9 @@ then
       exit 1
     fi
   fi
-  rm -f "$pid_file"
+  if [ ! -h "$pid_file" ]; then
+      rm -f "$pid_file"
+  fi
   if test -f "$pid_file"
   then
     log_error "Fatal error: Can't remove the pid file:
@@ -779,13 +788,19 @@ have_sleep=1
 
 while true
 do
-  rm -f $safe_mysql_unix_port "$pid_file"	# Some extra safety
+  # Some extra safety
+  if [ ! -h "$safe_mysql_unix_port" ]; then
+    rm -f "$safe_mysql_unix_port"
+  fi
+  if [ ! -h "$pid_file" ]; then
+    rm -f "$pid_file"
+  fi
 
   start_time=`date +%M%S`
 
   eval_log_error "$cmd"
 
-  if [ $want_syslog -eq 0 -a ! -f "$err_log" ]; then
+  if [ $want_syslog -eq 0 -a ! -f "$err_log" -a ! -h "$err_log" ]; then
     touch "$err_log"                    # hypothetical: log was renamed but not
     chown $user "$err_log"              # flushed yet. we'd recreate it with
     chmod "$fmode" "$err_log"           # wrong owner next time we log, so set
