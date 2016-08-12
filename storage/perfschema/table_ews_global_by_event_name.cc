@@ -340,6 +340,7 @@ int table_ews_global_by_event_name::index_next(void)
   PFS_rwlock_class *rwlock_class;
   PFS_cond_class *cond_class;
   PFS_file_class *file_class;
+  PFS_instr_class *table_class;
   PFS_socket_class *socket_class;
   PFS_instr_class *instr_class;
 
@@ -420,27 +421,18 @@ int table_ews_global_by_event_name::index_next(void)
     case pos_ews_global_by_event_name::VIEW_TABLE:
       do
       {
-        if (m_pos.m_index_2 == 1)
+        table_class= find_table_class(m_pos.m_index_2);
+        if (table_class)
         {
-          if (m_opened_index->match(&global_table_io_class))
+          if (m_opened_index->match(table_class))
           {
-            make_table_io_row(&global_table_io_class);
+            make_table_io_row(table_class);
             m_next_pos.set_after(&m_pos);
             return 0;
           }
           m_pos.set_after(&m_pos);
         }
-        if (m_pos.m_index_2 == 2)
-        {
-          if (m_opened_index->match(&global_table_lock_class))
-          {
-            make_table_lock_row(&global_table_lock_class);
-            m_next_pos.set_after(&m_pos);
-            return 0;
-          }
-          m_pos.set_after(&m_pos);
-        }
-      } while (rwlock_class != NULL);
+      } while (table_class != NULL);
       break;
     case pos_ews_global_by_event_name::VIEW_SOCKET:
       do
