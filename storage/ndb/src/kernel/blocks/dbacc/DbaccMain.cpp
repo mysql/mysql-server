@@ -5133,6 +5133,21 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
     const Uint32 tmp = ElementHeader::setLocked(newOwner.i);
     arrGuard(newOwner.p->elementPointer, 2048);
     pagePtr.p->word32[newOwner.p->elementPointer] = tmp;
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+    /**
+     * Invalidate page number in elements second word for test in initScanOp
+     */
+    if (newOwner.p->localdata.isInvalid())
+    {
+      pagePtr.p->word32[newOwner.p->elementPointer + 1] =
+        newOwner.p->localdata.m_page_no;
+    }
+    else
+    {
+      ndbrequire(newOwner.p->localdata.m_page_no ==
+                   pagePtr.p->word32[newOwner.p->elementPointer+1]);
+    }
+#endif
   }
   
   switch(action){
@@ -7672,23 +7687,25 @@ void Dbacc::initScanOpRec(Page8Ptr pageptr,
   tisoLocalPtr = elemptr + 1;
 
   arrGuard(tisoLocalPtr, 2048);
-  Local_key key;
-  key.m_page_no = pageptr.p->word32[tisoLocalPtr];
   if(ElementHeader::getUnlocked(pageptr.p->word32[elemptr]))
   {
+    Local_key key;
+    key.m_page_no = pageptr.p->word32[tisoLocalPtr];
     key.m_page_idx = ElementHeader::getPageIdx(pageptr.p->word32[elemptr]);
+    operationRecPtr.p->localdata = key;
   }
   else
   {
     OperationrecPtr oprec;
     oprec.i = ElementHeader::getOpPtrI(pageptr.p->word32[elemptr]);
     ptrCheckGuard(oprec, coprecsize, operationrec);
-    ndbassert(oprec.p->localdata.m_page_no == key.m_page_no);
-    key.m_page_idx = oprec.p->localdata.m_page_idx;
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+    ndbrequire(oprec.p->localdata.m_page_no == pageptr.p->word32[tisoLocalPtr]);
+#endif
+    operationRecPtr.p->localdata = oprec.p->localdata;
   }
   tisoLocalPtr = tisoLocalPtr + 1;
   ndbrequire(localkeylen == 1)
-  operationRecPtr.p->localdata = key;
   operationRecPtr.p->hashValue.clear();
   operationRecPtr.p->tupkeylen = fragrecptr.p->keyLength;
   operationRecPtr.p->xfrmtupkeylen = 0; // not used
