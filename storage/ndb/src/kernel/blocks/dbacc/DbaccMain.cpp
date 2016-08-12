@@ -3840,7 +3840,10 @@ void Dbacc::commitdelete(Signal* signal)
           ScanRecPtr scanPtr;
           scanPtr.i = fragrecptr.p->scan[i];
           ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
-          scanPtr.p->clearScanned(delElemptr);
+          if(scanPtr.p->isScanned(delElemptr))
+          {
+            scanPtr.p->clearScanned(delElemptr);
+          }
         }
       }
     }
