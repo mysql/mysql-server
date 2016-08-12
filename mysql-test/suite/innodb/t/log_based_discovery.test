@@ -8,6 +8,7 @@
 # Try to restrat the datadir1 server ,expect an error
 # #########################################################
 --source include/not_embedded.inc
+--source include/have_debug.inc
 
 let $MYSQLD_BASEDIR= `select @@basedir`;
 let $START_PAGE_SIZE= `select @@innodb_page_size`;

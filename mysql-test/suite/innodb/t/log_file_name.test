@@ -6,6 +6,7 @@
 
 # Embedded server does not support crashing
 --source include/not_embedded.inc
+--source include/have_debug.inc
 
 SET GLOBAL innodb_file_per_table=ON;
 SET GLOBAL innodb_master_thread_disabled_debug=1;
