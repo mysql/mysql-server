@@ -12681,6 +12681,16 @@ Dbdict::createIndex_parse(Signal* signal, bool master,
       jam();
       bits |= TableRecord::TR_Temporary;
     }
+    if (tableDesc.ReadBackupFlag)
+    {
+      jam();
+      bits |= TableRecord::TR_ReadBackup;
+    }
+    if (tableDesc.FullyReplicatedFlag)
+    {
+      jam();
+      bits |= TableRecord::TR_FullyReplicated;
+    }
     D("index " << createIndexPtr.p->m_indexName);
   }
 
@@ -12927,6 +12937,14 @@ Dbdict::createIndex_toCreateTable(Signal* signal, SchemaOpPtr op_ptr)
   }
   { bool flag = createIndexPtr.p->m_bits & TableRecord::TR_Temporary;
     w.add(DictTabInfo::TableTemporaryFlag, (Uint32)flag);
+  }
+  { bool flag = createIndexPtr.p->m_bits & TableRecord::TR_ReadBackup;
+    w.add(DictTabInfo::ReadBackupFlag, (Uint32)flag);
+    D("ReadBackupFlag: " << flag);
+  }
+  { bool flag = createIndexPtr.p->m_bits & TableRecord::TR_FullyReplicated;
+    w.add(DictTabInfo::FullyReplicatedFlag, (Uint32)flag);
+    D("FullyReplicatedFlag: " << flag);
   }
   w.add(DictTabInfo::FragmentTypeVal, createIndexPtr.p->m_fragmentType);
   // Inherit fragment count if main table is also hashmap partitioned.
@@ -33795,6 +33813,9 @@ Dbdict::check_consistency_table(TableRecordPtr tablePtr)
   case DictTabInfo::UserTable: // should just be "Table"
     jam();
     break;
+  case DictTabInfo::UniqueHashIndex:
+    jam();
+    break;
   default:
     ndbrequire(false);
     break;
@@ -33872,6 +33893,10 @@ Dbdict::check_consistency_index(TableRecordPtr indexPtr)
 void
 Dbdict::check_consistency_trigger(TriggerRecordPtr triggerPtr)
 {
+  D("trigger for table " << triggerPtr.p->tableId << " index = " <<
+    triggerPtr.p->indexId << " name " <<
+    copyRope<SZ>(triggerPtr.p->triggerName));
+
   if (! (triggerPtr.p->triggerState == TriggerRecord::TS_FAKE_UPGRADE))
   {
     ndbrequire(triggerPtr.p->triggerState == TriggerRecord::TS_ONLINE);

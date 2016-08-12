@@ -3451,12 +3451,15 @@ int ha_ndbcluster::unique_index_read(const uchar *key,
                                      uint key_len, uchar *buf)
 {
   NdbTransaction *trans= m_thd_ndb->trans;
+  NdbOperation::LockMode lm= get_ndb_lock_mode(m_lock.type);
   DBUG_ENTER("ha_ndbcluster::unique_index_read");
-  DBUG_PRINT("enter", ("key_len: %u, index: %u", key_len, active_index));
+  DBUG_PRINT("enter", ("key_len: %u, index: %u, lm: %u",
+             key_len,
+             active_index,
+             (unsigned int)lm));
   DBUG_DUMP("key", key, key_len);
   DBUG_ASSERT(trans);
 
-  NdbOperation::LockMode lm= get_ndb_lock_mode(m_lock.type);
 
   if (check_if_pushable(NdbQueryOperationDef::UniqueIndexAccess,
                         active_index))

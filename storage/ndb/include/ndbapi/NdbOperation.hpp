@@ -1247,8 +1247,12 @@ protected:
  * was sent, then the connection object is told about this situation.
  *****************************************************************************/
 
-  int    doSendKeyReq(int processorId, GenericSectionPtr* secs, Uint32 numSecs);
+  int    doSendKeyReq(int processorId,
+                      GenericSectionPtr* secs,
+                      Uint32 numSecs,
+                      bool lastFlag);
   int    doSend(int ProcessorId, Uint32 lastFlag);
+  void   setRequestInfoTCKEYREQ(bool lastFlag, bool longSignal);
   virtual int	 prepareSend(Uint32  TC_ConnectPtr,
                              Uint64  TransactionId,
 			     AbortOption);

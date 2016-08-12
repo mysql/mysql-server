@@ -46,7 +46,7 @@ select count(distinct node_id)
 explain select * from test.t1 where t1.a=6;
 
 --echo Error insert to ensure that TC requests are purely local
---exec $NDB_MGM -e "ALL ERROR 8083" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 8083"
 
 --let $idx=$KEYS
 --disable_query_log
@@ -61,7 +61,7 @@ commit;
 --enable_result_log
 --enable_query_log
 
---exec $NDB_MGM -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
 
 
 
@@ -74,7 +74,7 @@ commit;
 explain select * from test.t1 where t1.b=6;
 
 --echo Error insert to ensure that TC requests are purely local
---exec $NDB_MGM -e "ALL ERROR 8083" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 8083"
 
 --let $idx=$KEYS
 --disable_query_log
@@ -89,18 +89,14 @@ commit;
 --enable_result_log
 --enable_query_log
 
---exec $NDB_MGM -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
-
-
-
-
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
 
 --echo OI scan
 --replace_column 4 # 10 # 11 #
 explain select * from test.t1 where c > 6;
 
 --echo Error insert to ensure that TC requests are purely local
---exec $NDB_MGM -e "ALL ERROR 8083" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 8083"
 
 --disable_query_log
 --disable_result_log
@@ -108,10 +104,7 @@ select * from test.t1 where c > 6;
 --enable_result_log
 --enable_query_log
 
---exec $NDB_MGM -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
-
-
-
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
 
 
 --echo Table scan
@@ -119,7 +112,7 @@ select * from test.t1 where c > 6;
 explain select * from test.t1;
 
 --echo Error insert to ensure that TC requests are purely local
---exec $NDB_MGM -e "ALL ERROR 8083" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 8083"
 
 --disable_query_log
 --disable_result_log
@@ -127,19 +120,11 @@ select * from test.t1;
 --enable_result_log
 --enable_query_log
 
---exec $NDB_MGM -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
-
-
-
-
-
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
 
 
 
 --echo Test pushed queries (SPJ)
-
-
-
 
 --echo Pushed pk->pk
 --echo Lookup to get a.d, feeding pk lookup of b.a
@@ -154,7 +139,7 @@ explain select a.a, a.d, b.d
   where a.a = 6;
 
 --echo Error insert to ensure that SPJ requests are purely local
---exec $NDB_MGM -e "ALL ERROR 17014" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 17014"
 
 --let $idx=$KEYS
 --disable_query_log
@@ -169,9 +154,7 @@ commit;
 --enable_result_log
 --enable_query_log
 
---exec $NDB_MGM -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
-
-
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
 
 
 # Presumably this works despite Bug #23702848 	NDB : READBACKUP BEHAVIOUR WITH UNIQUE INDEXES
@@ -191,7 +174,7 @@ explain select a.a, a.d, b.d
   where a.b = 6;
 
 --echo Error insert to ensure that SPJ requests are purely local
---exec $NDB_MGM -e "ALL ERROR 17014" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 17014"
 
 --let $idx=$KEYS
 --disable_query_log
@@ -206,10 +189,7 @@ commit;
 --enable_result_log
 --enable_query_log
 
---exec $NDB_MGM -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
-
-
-
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
 
 
 --echo Pushed uk->pk
@@ -225,7 +205,7 @@ explain select a.a, a.d, b.d
   where a.b = 6;
 
 --echo Error insert to ensure that SPJ requests are purely local
---exec $NDB_MGM -e "ALL ERROR 17014" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 17014"
 
 --let $idx=$KEYS
 --disable_query_log
@@ -240,43 +220,37 @@ commit;
 --enable_result_log
 --enable_query_log
 
---exec $NDB_MGM -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
 
+--echo Pushed pk->uk
+--echo Lookup to get a.d, feeding uk lookup of b.b
+--replace_column 4 # 10 # 11 #
+explain select a.a, a.d, b.d
+   from 
+        test.t1 a 
+   join 
+        test.t1 b
+     on 
+        a.d = b.b
+  where a.a = 6;
 
+--echo Error insert to ensure that SPJ requests are purely local
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 17014"
 
+--let $idx=$KEYS
+--disable_query_log
+--disable_result_log
+begin;
+while ($idx)
+{
+  --eval select a.a, a.d, b.d from test.t1 a join test.t1 b on a.d = b.b where a.a = $idx
+  --dec $idx
+}
+commit;
+--enable_result_log
+--enable_query_log
 
-# DISABLED as Unique keys do not receive 'Read Backup'(or FR) option from their
-# related tables Bug #23702848 NDB : READBACKUP BEHAVIOUR WITH UNIQUE INDEXES
-#
-#--echo Pushed pk->uk
-#--echo Lookup to get a.d, feeding uk lookup of b.b
-#--replace_column 4 # 10 # 11 #
-#explain select a.a, a.d, b.d
-#   from 
-#        test.t1 a 
-#   join 
-#        test.t1 b
-#     on 
-#        a.d = b.b
-#  where a.a = 6;
-#
-#--echo Error insert to ensure that SPJ requests are purely local
-#--exec $NDB_MGM -e "ALL ERROR 17014" >> $NDB_TOOLS_OUTPUT
-#
-#--let $idx=$KEYS
-#--disable_query_log
-#--disable_result_log
-#begin;
-#while ($idx)
-#{
-#  --eval select a.a, a.d, b.d from test.t1 a join test.t1 b on a.d = b.b where a.a = $idx
-#  --dec $idx
-#}
-#commit;
-#--enable_result_log
-#--enable_query_log
-#
-#--exec $NDB_MGM -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
 
 
 
@@ -293,7 +267,7 @@ explain select a.a, a.d, b.d
         a.d = b.a;
 
 --echo Error insert to ensure that SPJ requests are purely local
---exec $NDB_MGM -e "ALL ERROR 17014" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 17014"
 
 --disable_result_log
 
@@ -308,43 +282,41 @@ select a.a, a.d, b.d
 --enable_result_log
 
 
---exec $NDB_MGM -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
 
 
 
 # DISABLED as Unique keys do not receive 'Read Backup' option from their
 # related tables Bug #23702848 	NDB : READBACKUP BEHAVIOUR WITH UNIQUE INDEXES
 #
-#--echo Pushed scan originating sub-lookups
-#--echo Table scan to get a.d, feeding uk lookups of b.b
-#--replace_column 4 # 10 # 11 #
-#explain select a.a, a.d, b.d 
-#   from 
-#        test.t1 a 
-#   join 
-#        test.t1 b
-#     on 
-#        a.d = b.b;
-#
-#--echo Error insert to ensure that SPJ requests are purely local
-#--exec $NDB_MGM -e "ALL ERROR 17014" >> $NDB_TOOLS_OUTPUT
-#
-#--disable_result_log
-#
-#select a.a, a.d, b.d 
-#   from 
-#        test.t1 a 
-#   join 
-#        test.t1 b
-#     on 
-#        a.d = b.b;
-#
-#--enable_result_log
-#
-#
-#--exec $NDB_MGM -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
-#
+--echo Pushed scan originating sub-lookups
+--echo Table scan to get a.d, feeding uk lookups of b.b
+--replace_column 4 # 10 # 11 #
+explain select a.a, a.d, b.d 
+   from 
+        test.t1 a 
+   join 
+        test.t1 b
+     on 
+        a.d = b.b;
 
+--echo Error insert to ensure that SPJ requests are purely local
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 17014"
+
+--disable_result_log
+
+select a.a, a.d, b.d 
+   from 
+        test.t1 a 
+   join 
+        test.t1 b
+     on 
+        a.d = b.b;
+
+--enable_result_log
+
+
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
 
 
 
@@ -363,7 +335,7 @@ explain select a.a, a.d, b.d
         a.a>10;
 
 --echo Error insert to ensure that SPJ requests are purely local
---exec $NDB_MGM -e "ALL ERROR 17014" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 17014"
 
 --disable_result_log
 
@@ -380,7 +352,7 @@ select a.a, a.d, b.d
 --enable_result_log
 
 
---exec $NDB_MGM -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
 
 
 
@@ -396,7 +368,7 @@ insert into test.t2 select a,b,c,repeat('BJC',300) from test.t1;
 explain select * from test.t2 where t2.a=6;
 
 --echo Error insert to ensure that TC requests are purely local
---exec $NDB_MGM -e "ALL ERROR 8083" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 8083"
 
 --let $idx=$KEYS
 --disable_query_log
@@ -411,7 +383,7 @@ commit;
 --enable_result_log
 --enable_query_log
 
---exec $NDB_MGM -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
 
 
 --echo UI lookups
@@ -419,7 +391,7 @@ commit;
 explain select * from test.t2 where t2.b=6;
 
 --echo Error insert to ensure that TC requests are purely local
---exec $NDB_MGM -e "ALL ERROR 8083" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 8083"
 
 --let $idx=$KEYS
 --disable_query_log
@@ -434,7 +406,7 @@ commit;
 --enable_result_log
 --enable_query_log
 
---exec $NDB_MGM -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
 
 # Disabled due to problem reading ReadBackup 
 # Blobs with OI scan
@@ -445,7 +417,7 @@ commit;
 #explain select * from test.t2 where c > 6;
 #
 #--echo Error insert to ensure that TC requests are purely local
-#--exec $NDB_MGM -e "ALL ERROR 8083" >> $NDB_TOOLS_OUTPUT
+#--exec $NDB_MGM --verbose=0 -e "ALL ERROR 8083"
 #
 #--disable_query_log
 #--disable_result_log
@@ -453,7 +425,7 @@ commit;
 #--enable_result_log
 #--enable_query_log
 #
-#--exec $NDB_MGM -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
+#--exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
 #
 
 # Disabled due to problem reading ReadBackup 
@@ -465,7 +437,7 @@ commit;
 #explain select * from test.t2;
 #
 #--echo Error insert to ensure that TC requests are purely local
-#--exec $NDB_MGM -e "ALL ERROR 8083" >> $NDB_TOOLS_OUTPUT
+#--exec $NDB_MGM --verbose=0 -e "ALL ERROR 8083"
 #
 #--disable_query_log
 #--disable_result_log
@@ -473,4 +445,4 @@ commit;
 #--enable_result_log
 #--enable_query_log
 #
-#--exec $NDB_MGM -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
+#--exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
