@@ -30,15 +30,6 @@ select count(*) from performance_schema.file_instances
 where FILE_NAME = @fname ;
 count(*)
 #
-show session status like "handler_read%";
-Variable_name	Value
-Handler_read_first	0
-Handler_read_key	1
-Handler_read_last	0
-Handler_read_next	0
-Handler_read_prev	0
-Handler_read_rnd	0
-Handler_read_rnd_next	0
 ############ Explain for Query ####################################
 explain select FILE_NAME from performance_schema.file_instances
 where EVENT_NAME = "impossible";
@@ -65,12 +56,3 @@ select count(*) FILE_NAME from performance_schema.file_instances
 where EVENT_NAME = @ename ;
 FILE_NAME
 #
-show session status like "handler_read%";
-Variable_name	Value
-Handler_read_first	0
-Handler_read_key	1
-Handler_read_last	0
-Handler_read_next	1
-Handler_read_prev	0
-Handler_read_rnd	0
-Handler_read_rnd_next	0

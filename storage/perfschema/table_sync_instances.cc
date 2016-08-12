@@ -654,10 +654,10 @@ int table_cond_instances::index_init(uint idx, bool sorted)
   switch(idx)
   {
   case 0:
-    result= new PFS_index_cond_instances_by_instance();
+    result= PFS_NEW(PFS_index_cond_instances_by_instance);
     break;
   case 1:
-    result= new PFS_index_cond_instances_by_name();
+    result= PFS_NEW(PFS_index_cond_instances_by_name);
     break;
   default:
     DBUG_ASSERT(false);

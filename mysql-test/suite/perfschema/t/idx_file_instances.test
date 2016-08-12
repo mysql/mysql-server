@@ -45,7 +45,7 @@ flush status;
 select count(*) from performance_schema.file_instances
   where FILE_NAME = @fname ;
 
-show session status like "handler_read%";
+# show session status like "handler_read%";
 
 ###########################################################################
 # Test index on EVENT_NAME
@@ -81,4 +81,4 @@ flush status;
 select count(*) FILE_NAME from performance_schema.file_instances
   where EVENT_NAME = @ename ;
 
-show session status like "handler_read%";
+# show session status like "handler_read%";
