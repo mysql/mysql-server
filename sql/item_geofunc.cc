@@ -5401,8 +5401,104 @@ longlong Item_func_numpoints::val_int()
   return (longlong) num;
 }
 
+String *Item_func_set_x::val_str(String *str)
+{
+  DBUG_ASSERT(fixed);
+  String *swkb= args[0]->val_str(str);
+  double x_coordinate= args[1]->val_real();
 
-double Item_func_x::val_real()
+  if ((null_value= (args[0]->null_value || args[1]->null_value)))
+  {
+    return nullptr;
+  }
+
+  if (!swkb)
+  {
+    /*
+    We've already found out that args[0]->null_value is false.
+    Therefore, swkb should never be null.
+    */
+    DBUG_ASSERT(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  if (std::isnan(x_coordinate) || std::isinf(x_coordinate))
+  {
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), func_name());
+    return error_str();
+  }
+
+  Geometry_buffer buffer;
+  Geometry *geom;
+  if (!(geom= Geometry::construct(&buffer, swkb)))
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  if (geom->get_type() != Geometry::wkb_point)
+  {
+    my_error(ER_UNEXPECTED_GEOMETRY_TYPE, MYF(0), "POINT",
+             geom->get_class_info()->m_name.str, func_name());
+    return error_str();
+  }
+
+  str->copy(*swkb);
+  float8store(str->c_ptr_safe() + GEOM_HEADER_SIZE, x_coordinate);
+  return str;
+}
+
+String *Item_func_set_y::val_str(String *str)
+{
+  DBUG_ASSERT(fixed);
+  String *swkb= args[0]->val_str(str);
+  double y_coordinate= args[1]->val_real();
+
+  if ((null_value= (args[0]->null_value || args[1]->null_value)))
+  {
+    return nullptr;
+  }
+
+  if (!swkb)
+  {
+    /*
+    We've already found out that args[0]->null_value is false.
+    Therefore, swkb should never be null.
+    */
+    DBUG_ASSERT(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  if (std::isnan(y_coordinate) || std::isinf(y_coordinate))
+  {
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), func_name());
+    return error_str();
+  }
+
+  Geometry_buffer buffer;
+  Geometry *geom;
+  if (!(geom= Geometry::construct(&buffer, swkb)))
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  if (geom->get_type() != Geometry::wkb_point)
+  {
+    my_error(ER_UNEXPECTED_GEOMETRY_TYPE, MYF(0), "POINT",
+             geom->get_class_info()->m_name.str, func_name());
+    return error_str();
+  }
+
+  str->copy(*swkb);
+  float8store(str->c_ptr_safe() + GEOM_HEADER_SIZE + SIZEOF_STORED_DOUBLE,
+              y_coordinate);
+  return str;
+}
+
+double Item_func_get_x::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double res= 0.0;				// In case of errors
@@ -5410,11 +5506,32 @@ double Item_func_x::val_real()
   Geometry_buffer buffer;
   Geometry *geom;
 
-  if ((null_value= (!swkb || args[0]->null_value)))
-    return res;
+  if ((null_value= (args[0]->null_value)))
+  {
+    return 0.0;
+  }
+
+  if (!swkb)
+  {
+    /* 
+    We've already found out that args[0]->null_value is false.
+    Therefore, swkb should never be null.
+    */
+    DBUG_ASSERT(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_real();
+  }
+
   if (!(geom= Geometry::construct(&buffer, swkb)))
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_real();
+  }
+
+  if (geom->get_type() != Geometry::wkb_point)
+  {
+    my_error(ER_UNEXPECTED_GEOMETRY_TYPE, MYF(0), "POINT",
+             geom->get_class_info()->m_name.str, func_name());
     return error_real();
   }
   null_value= geom->get_x(&res);
@@ -5422,7 +5539,7 @@ double Item_func_x::val_real()
 }
 
 
-double Item_func_y::val_real()
+double Item_func_get_y::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double res= 0;				// In case of errors
@@ -5430,11 +5547,32 @@ double Item_func_y::val_real()
   Geometry_buffer buffer;
   Geometry *geom;
 
-  if ((null_value= (!swkb || args[0]->null_value)))
-    return res;
+  if ((null_value= (args[0]->null_value)))
+  {
+    return 0.0;
+  }
+
+  if (!swkb)
+  {
+    /*
+    We've already found out that args[0]->null_value is false.
+    Therefore, swkb should never be null.
+    */
+    DBUG_ASSERT(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_real();
+  }
+
   if (!(geom= Geometry::construct(&buffer, swkb)))
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_real();
+  }
+
+  if (geom->get_type() != Geometry::wkb_point)
+  {
+    my_error(ER_UNEXPECTED_GEOMETRY_TYPE, MYF(0), "POINT",
+             geom->get_class_info()->m_name.str, func_name());
     return error_real();
   }
   null_value= geom->get_y(&res);

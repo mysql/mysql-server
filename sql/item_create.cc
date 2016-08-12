@@ -3132,10 +3132,11 @@ protected:
 };
 
 
-class Create_func_x : public Create_func_arg1
+class Create_func_x : public Create_native_func
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
 
   static Create_func_x s_singleton;
 
@@ -3171,10 +3172,11 @@ protected:
 };
 
 
-class Create_func_y : public Create_func_arg1
+class Create_func_y : public Create_native_func
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
 
   static Create_func_y s_singleton;
 
@@ -6634,9 +6636,36 @@ Create_func_within::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_x Create_func_x::s_singleton;
 
 Item*
-Create_func_x::create(THD *thd, Item *arg1)
+Create_func_x::create_native(THD *thd, LEX_STRING name, PT_item_list *item_list)
 {
-  return new (thd->mem_root) Item_func_x(POS(), arg1);
+  Item* func= nullptr;
+  int arg_count= 0;
+
+  if (item_list != nullptr)
+  {
+    arg_count= item_list->elements();
+  }
+  switch (arg_count)
+  {
+  case 1:
+    {
+      Item *arg1= item_list->pop_front();
+      return new (thd->mem_root) Item_func_get_x(POS(), arg1);
+    }
+  case 2:
+    {
+      Item *arg1= item_list->pop_front();
+      Item *arg2= item_list->pop_front();
+      return new (thd->mem_root) Item_func_set_x(POS(), arg1, arg2);
+    }
+  default:
+    {
+      my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+      break;
+    }
+  }
+
+  return func;
 }
 
 
@@ -6663,9 +6692,36 @@ Create_func_xml_update::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
 Create_func_y Create_func_y::s_singleton;
 
 Item*
-Create_func_y::create(THD *thd, Item *arg1)
+Create_func_y::create_native(THD *thd, LEX_STRING name, PT_item_list *item_list)
 {
-  return new (thd->mem_root) Item_func_y(POS(), arg1);
+  Item* func= nullptr;
+  int arg_count= 0;
+
+  if (item_list != nullptr)
+  {
+    arg_count= item_list->elements();
+  }
+  switch (arg_count)
+  {
+  case 1:
+    {
+      Item *arg1= item_list->pop_front();
+      return new (thd->mem_root) Item_func_get_y(POS(), arg1);
+    }
+  case 2:
+    {
+      Item *arg1= item_list->pop_front();
+      Item *arg2= item_list->pop_front();
+      return new (thd->mem_root) Item_func_set_y(POS(), arg1, arg2);
+    }
+  default:
+    {
+      my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+      break;
+    }
+  }
+
+  return func;
 }
 
 

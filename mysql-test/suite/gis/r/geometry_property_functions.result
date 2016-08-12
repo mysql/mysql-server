@@ -987,8 +987,6 @@ ST_X(NULL)
 NULL
 SELECT ST_X(ST_POINTFROMWKB());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_POINTFROMWKB'
-SELECT ST_X(ST_POINTFROMWKB(POINT(0,0)), 2);
-ERROR 42000: Incorrect parameter count in the call to native function 'ST_X'
 SELECT ST_X(ST_POINTFROMWKB(NULL));
 ST_X(ST_POINTFROMWKB(NULL))
 NULL
@@ -1022,8 +1020,6 @@ ST_Y(NULL)
 NULL
 SELECT ST_Y(ST_POINTFROMWKB());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_POINTFROMWKB'
-SELECT ST_Y(ST_POINTFROMWKB(POINT(0,0)), 2);
-ERROR 42000: Incorrect parameter count in the call to native function 'ST_Y'
 SELECT ST_Y(ST_POINTFROMWKB(NULL));
 ST_Y(ST_POINTFROMWKB(NULL))
 NULL
