@@ -7343,7 +7343,7 @@ dd_subpart_name(const dd::Partition* part)
 @tparam		Table		dd::Table or dd::Partition
 @param[in]	dd_part		Global Data Dictionary metadata,
 				or NULL for internal temporary table
-@param[in]	name		table name
+@param[in]	norm_name	normalized table name
 @param[in]	zip_allowed	whether ROW_FORMAT=COMPRESSED is OK
 @param[in]	strict		whether to use innodb_strict_mode=ON
 @return ER_ level error
@@ -7353,7 +7353,7 @@ dict_table_t*
 create_table_metadata(
 	const dd::Table*		dd_part,
         const TABLE*                    m_form,
-	const char*			name,
+	const char*			norm_name,
 	HA_CREATE_INFO*			m_create_info,
 	bool				zip_allowed,
 	bool				strict,
@@ -7362,10 +7362,9 @@ create_table_metadata(
 	bool				m_implicit)
 {
 	mem_heap_t*	heap;
-	char		norm_name[FN_REFLEN];
 
 	ut_ad(m_thd != nullptr);
-	ut_ad(name != nullptr);
+	ut_ad(norm_name != nullptr);
 	ut_ad(m_create_info == nullptr
 	      || m_form->s->row_type == m_create_info->row_type);
 	ut_ad(m_create_info == nullptr
@@ -7396,9 +7395,6 @@ create_table_metadata(
 	}
 #endif
 	const unsigned	n_mysql_cols = m_form->s->fields;
-
-	// WL#6394 FIXME: m_form->table_cache_key is not valid at bootstrap!
-	normalize_table_name(norm_name, name);
 
 	const bool	fulltext = dd_part != nullptr
 		&& dd_table_contains_fulltext(dd_part);
@@ -7626,6 +7622,7 @@ create_table_metadata(
 	mutex_enter(&dict_sys->mutex);
 	dict_table_add_to_cache(m_table, TRUE, heap);
 	mutex_exit(&dict_sys->mutex);
+
 	mem_heap_free(heap);
 
 	return(m_table);
@@ -7734,7 +7731,7 @@ dict_table_t*
 dd_open_table(
         dd::cache::Dictionary_client*   client,
         const TABLE*                    table,
-	const char*			name,
+	const char*			norm_name,
         bool*                           uncached,
         dict_table_t*&                  ib_table,
         const dd::Table*                dd_table,
@@ -7759,7 +7756,7 @@ dd_open_table(
 	bool		first_index = true;
 
 	dict_table_t* m_table = create_table_metadata(
-		dd_table, table, name,
+		dd_table, table, norm_name,
 		NULL, zip_allowed, strict, thd, skip_mdl, implicit);
 
 	mutex_enter(&dict_sys->mutex);
@@ -7786,6 +7783,11 @@ dd_open_table(
 		const dd::Tablespace* index_space = nullptr;
 		if (client->acquire_uncached_uncommitted<dd::Tablespace>(
                            index_space_id, &index_space)) {
+			my_error(ER_TABLESPACE_MISSING, MYF(0),
+				 m_table->name.m_name);
+			mutex_enter(&dict_sys->mutex);
+			dict_table_remove_from_cache(m_table);
+			mutex_exit(&dict_sys->mutex);
 			return(NULL);
 		}
 		uint32	sid;
@@ -7799,7 +7801,11 @@ dd_open_table(
 			m_table->space = sid;
 			fil_space_t*	space = fil_space_get(m_table->space);
 			if (space == nullptr) {
-				dict_mem_table_free(m_table);
+				my_error(ER_TABLESPACE_MISSING, MYF(0),
+					 m_table->name.m_name);
+				mutex_enter(&dict_sys->mutex);
+				dict_table_remove_from_cache(m_table);
+				mutex_exit(&dict_sys->mutex);
 				return(NULL);
 			}
 			first_index = false;
@@ -7809,7 +7815,9 @@ dd_open_table(
                             dd_index_key_strings[DD_INDEX_ID], &id)
                     || se_private_data.get_uint32(
                             dd_index_key_strings[DD_INDEX_ROOT], &root)) {
-			dict_mem_table_free(m_table);
+			mutex_enter(&dict_sys->mutex);
+			dict_table_remove_from_cache(m_table);
+			mutex_exit(&dict_sys->mutex);
 			return(NULL);
                 }
 
@@ -7896,7 +7904,7 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 					= dd::get_dd_client(thd);
 
 				if (!(ib_table = dd_open_table(
-					client, table, name,
+					client, table, norm_name,
 					nullptr, ib_table, dd_tab, false,
 					thd))) {
 						set_my_errno(ENOENT);
