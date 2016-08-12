@@ -4108,6 +4108,11 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
             lastPageptr.p->clearScanContainer(scanbit, tlastContainerptr);
           }
         }
+        /**
+         * All scans in progress for container are now canceled.
+         * No need to call clearScanInProgress for container header since
+         * container is about to be released anyway.
+         */
       }
       if (lastIsforward)
       {
