@@ -4882,6 +4882,31 @@ NdbDictInterface::createIndex(Ndb & ndb,
     m_error.code = 4250;
     return -1;
   }
+
+  if (it == DictTabInfo::UniqueHashIndex)
+  {
+    /**
+     * We derive the Read backup flag and Fully replicated flag
+     * from the main table. This is only done in the NDB API
+     * here. This enables us to easily make this settable per
+     * table by changing the NDB API. Setting it in data node
+     * makes it harder to change to a more flexible manner in
+     * the future if need arises.
+     *
+     * Ordered indexes are hardcoded in data nodes to always
+     * use the Read backup and Fully replicated flags from the
+     * base table.
+     */
+    DBUG_PRINT("info", ("Index settings: name: %s, read_backup: %u,"
+                        " fully_replicated: %u",
+                        internalName.c_str(),
+                        table.m_read_backup,
+                        table.m_fully_replicated));
+
+    w.add(DictTabInfo::ReadBackupFlag, table.m_read_backup);
+    w.add(DictTabInfo::FullyReplicatedFlag, table.m_fully_replicated);
+  }
+
   req->indexType = it;
   
   req->tableId = table.m_id;

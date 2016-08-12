@@ -2663,7 +2663,6 @@ NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
     return NULL;
   }
 
-  /* It appears that unique index operations do no support readCommitted. */
   if (key_rec->flags & NdbRecord::RecIsIndex &&
       lock_mode == NdbOperation::LM_CommittedRead)
   {
@@ -2685,6 +2684,7 @@ NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
 
   if (upgraded_lock)
   {
+    DBUG_PRINT("info", ("Set ReadCommittedBase true"));
     op->setReadCommittedBase();
   }
   if (op->theLockMode == NdbOperation::LM_CommittedRead)

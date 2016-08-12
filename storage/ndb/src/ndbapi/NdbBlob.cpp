@@ -2785,7 +2785,12 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType,
             setErrorCode(tOp);
             DBUG_RETURN(-1);
           }
-        } 
+        }
+        if (isReadOp() && theNdbOp->getReadCommittedBase())
+        {
+          DBUG_PRINT("info", ("Set ReadCommittedBase on UI lookup"));
+          tOp->setReadCommittedBase();
+        }
       }
       DBUG_PRINT("info", ("Index op : added op before to read table key"));
     }
