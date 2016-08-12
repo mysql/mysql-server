@@ -19,7 +19,7 @@ AS "user_comment",
 '-----------------------------------------------------' AS "Separator"
 FROM information_schema.tables
 WHERE table_schema LIKE 'test%' AND table_type = 'BASE TABLE'
-ORDER BY table_schema,table_name;
+ORDER BY table_schema,table_name COLLATE utf8_general_ci;
 TABLE_CATALOG	def
 TABLE_SCHEMA	test1
 TABLE_NAME	t1
@@ -111,7 +111,7 @@ AS "user_comment",
 '-----------------------------------------------------' AS "Separator"
 FROM information_schema.tables
 WHERE table_schema LIKE 'test%' AND table_type = 'BASE TABLE'
-ORDER BY table_schema,table_name;
+ORDER BY table_schema,table_name COLLATE utf8_general_ci;
 TABLE_CATALOG	def
 TABLE_SCHEMA	test1
 TABLE_NAME	t1

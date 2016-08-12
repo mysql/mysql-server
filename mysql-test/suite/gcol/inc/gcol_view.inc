@@ -26,8 +26,7 @@ analyze table t1;
 create view v1 (d,e) as select abs(b), abs(c) from t1;
 --sorted_result
 select d,e from v1;
-# WL6599_NEED_VIEWCOL
-#select is_updatable from information_schema.views where table_name='v1';
+select is_updatable from information_schema.views where table_name='v1';
 
 # view with different algorithms (explain output differs)
 --replace_column 10 X

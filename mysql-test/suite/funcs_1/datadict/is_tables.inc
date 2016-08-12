@@ -353,8 +353,8 @@ WHERE table_name = 't1_my_tablex';
 #   Enforce a time difference bigger than the smallest unit (1 second).
 --real_sleep 1.1
 INSERT INTO db_datadict.t1_my_tablex SET f1 = 3;
-ANALYZE TABLE db_datadict.t1_my_tablex;
 FLUSH TABLES;
+ANALYZE TABLE db_datadict.t1_my_tablex;
 SELECT UPDATE_TIME > @UPDATE_TIME
     AS "Is current UPDATE_TIME bigger than before last INSERT?"
 FROM information_schema.tables
@@ -392,6 +392,7 @@ CREATE VIEW test.t1_my_tablex AS SELECT 1;
 select * from mysql.table_stats where table_name='t1_my_tablex';
 ANALYZE TABLE test.t1_my_tablex;
 --vertical_results
+--replace_column 15 "#CRT"
 SELECT * FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 --horizontal_results

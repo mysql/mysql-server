@@ -1,15 +1,12 @@
 -- source include/not_embedded.inc
 -- source ../include/ps_truncate_all_tables.inc
 
-## WL6599_NEEDS_VIEW_COLUMNS
-#DESC sys.x$ps_digest_avg_latency_distribution;
+DESC sys.x$ps_digest_avg_latency_distribution;
 
-## WL6599_NEEDS_VIEW_COLUMNS
-#DESC sys.x$ps_digest_avg_latency_distribution;
+DESC sys.x$ps_digest_avg_latency_distribution;
 
-## WL6599_NEEDS_VIEW_COLUMNS
-## Ensure structure changes don't slip in
-#DESC sys.x$ps_digest_avg_latency_distribution;
+# Ensure structure changes don't slip in
+DESC sys.x$ps_digest_avg_latency_distribution;
 
 # Make sure view select does not error, but ignore results
 --disable_result_log
@@ -17,9 +14,8 @@ SELECT * FROM sys.x$ps_digest_avg_latency_distribution;
 --enable_result_log
 
 
-## WL6599_NEEDS_VIEW_COLUMNS
-## Ensure structure changes don't slip in
-#DESC sys.x$ps_digest_avg_latency_distribution;
+# Ensure structure changes don't slip in
+DESC sys.x$ps_digest_avg_latency_distribution;
 
 # Make sure view select does not error, but ignore results
 --disable_result_log

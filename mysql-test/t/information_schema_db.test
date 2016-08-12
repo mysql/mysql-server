@@ -19,8 +19,10 @@ drop function if exists f2;
 --enable_warnings
 
 use INFORMATION_SCHEMA;
+sorted_result;
 --replace_result Tables_in_INFORMATION_SCHEMA Tables_in_information_schema
-show tables where Tables_in_INFORMATION_SCHEMA NOT LIKE 'Innodb%' and Tables_in_INFORMATION_SCHEMA NOT LIKE 'ndb%';
+show tables where Tables_in_INFORMATION_SCHEMA NOT LIKE 'INNODB%' and Tables_in_INFORMATION_SCHEMA NOT LIKE 'ndb%';
+sorted_result;
 --replace_result 'Tables_in_INFORMATION_SCHEMA (T%)' 'Tables_in_information_schema (T%)'
 show tables from INFORMATION_SCHEMA like 'T%';
 create database `inf%`;

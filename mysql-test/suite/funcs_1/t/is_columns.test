@@ -20,6 +20,12 @@
 # privileges.
 --source include/not_embedded.inc
 
+# Result differences depending on FS case sensitivity.
+if (!$require_case_insensitive_file_system)
+{
+  --source include/have_case_sensitive_file_system.inc
+}
+
 --source include/have_innodb.inc
 let $engine_type       = InnoDB;
 let $other_engine_type = InnoDB;
@@ -319,7 +325,8 @@ ALTER TABLE db_datadict.t1_my_tablex
 ADD COLUMN second_col CHAR(10);
 SELECT table_name, column_name
 FROM information_schema.columns
-WHERE table_name = 't1_my_tablex';
+WHERE table_name = 't1_my_tablex'
+ORDER BY table_name, column_name;
 #
 # Check switch ordinal position of column
 SELECT table_name, column_name, ordinal_position
@@ -336,7 +343,8 @@ ORDER BY table_name, column_name;
 # Check DROP COLUMN
 SELECT table_name, column_name
 FROM information_schema.columns
-WHERE table_name = 't1_my_tablex';
+WHERE table_name = 't1_my_tablex'
+ORDER BY table_name, column_name;
 ALTER TABLE db_datadict.t1_my_tablex
 DROP COLUMN first_col;
 SELECT table_name, column_name

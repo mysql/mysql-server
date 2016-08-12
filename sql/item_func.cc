@@ -26,7 +26,8 @@
 #include "my_user.h"             // parse_user
 #include "auth_common.h"         // check_password_strength
 #include "binlog.h"              // mysql_bin_log
-#include "current_thd.h"
+#include "current_thd.h"         // current_thd
+#include "dd_sql_view.h"         // push_view_warning_or_error
 #include "debug_sync.h"          // DEBUG_SYNC
 #include "derror.h"              // ER_THD
 #include "error_handler.h"       // Internal_error_handler
@@ -9274,7 +9275,7 @@ longlong Item_func_can_access_column::val_int()
     for the user without rights, the following UDF's is used.
 
   Syntax:
-    int CAN_ACCESS_VIEW(schema_name, view_name, definer);
+    int CAN_ACCESS_VIEW(schema_name, view_name, definer, options);
 
   @returns,
     1 - If current user has access.
@@ -9291,20 +9292,38 @@ longlong Item_func_can_access_view::val_int()
   String *table_name_ptr;
   String definer;
   String *definer_ptr;
+  String options;
+  String *options_ptr;
   if ((schema_name_ptr=args[0]->val_str(&schema_name)) != NULL &&
       (table_name_ptr=args[1]->val_str(&table_name)) != NULL &&
-      (definer_ptr=args[2]->val_str(&definer)) != NULL)
+      (definer_ptr=args[2]->val_str(&definer)) != NULL &&
+      (options_ptr=args[3]->val_str(&options)) != NULL)
   {
 
     // Make strings safe.
     schema_name_ptr->c_ptr_safe();
     table_name_ptr->c_ptr_safe();
     definer_ptr->c_ptr_safe();
+    options_ptr->c_ptr_safe();
 
     // Skip INFORMATION_SCHEMA database
     if (is_infoschema_db(schema_name_ptr->ptr()) ||
         !my_strcasecmp(system_charset_info, schema_name_ptr->ptr(), "sys"))
       DBUG_RETURN(true);
+
+    // Check if view is valid. If view is invalid then push invalid view
+    // warning.
+    bool is_view_valid= true;
+    std::unique_ptr<dd::Properties>
+      view_options(dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
+
+    if (view_options->get_bool("view_valid", &is_view_valid))
+      DBUG_RETURN(false);
+
+    if (is_view_valid == false)
+      push_view_warning_or_error(current_thd,
+                                 schema_name_ptr->c_ptr_safe(),
+                                 table_name_ptr->c_ptr_safe());
 
     //
     // Check if definer user/host has access.
@@ -9354,6 +9373,7 @@ longlong Item_func_can_access_view::val_int()
         (SHOW_VIEW_ACL|SELECT_ACL))
       DBUG_RETURN(true);
 #endif
+
   }
 
   DBUG_RETURN(false);
@@ -9874,4 +9894,46 @@ longlong Item_func_internal_dd_char_length::val_int()
   {
     DBUG_RETURN(0);
   }
+}
+
+
+longlong Item_func_internal_get_view_warning_or_error::val_int()
+{
+  DBUG_ENTER("Item_func_internal_get_view_warning_or_error::val_int");
+
+  String table_type;
+  String *table_type_ptr;
+  if ((table_type_ptr= args[2]->val_str(&table_type)) != nullptr &&
+      strcmp(table_type_ptr->c_ptr_safe(), "VIEW") == 0)
+  {
+    String schema_name;
+    String *schema_name_ptr;
+    String table_name;
+    String *table_name_ptr;
+    String options;
+    String *options_ptr;
+
+    if ((schema_name_ptr= args[0]->val_str(&schema_name)) != nullptr &&
+        (table_name_ptr= args[1]->val_str(&table_name)) != nullptr &&
+        (options_ptr= args[3]->val_str(&options)) != nullptr)
+    {
+      bool is_view_valid= true;
+      std::unique_ptr<dd::Properties>
+        view_options(dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
+
+      // Return 0 if get_bool() or push_view_warning_or_error() fails
+      if (view_options->get_bool("view_valid", &is_view_valid))
+        DBUG_RETURN(0);
+
+      if (is_view_valid == false)
+      {
+        push_view_warning_or_error(current_thd,
+                                   schema_name_ptr->c_ptr_safe(),
+                                   table_name_ptr->c_ptr_safe());
+        DBUG_RETURN(0);
+      }
+    }
+  }
+
+  DBUG_RETURN(1);
 }

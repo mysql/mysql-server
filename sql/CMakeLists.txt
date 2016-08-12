@@ -119,6 +119,7 @@ SET(DD_SOURCES
   dd/impl/tables/tablespaces.cc
   dd/impl/tables/triggers.cc
   dd/impl/tables/version.cc
+  dd/impl/tables/view_routine_usage.cc
   dd/impl/tables/view_table_usage.cc
 
   dd/impl/types/index_stat_impl.cc
@@ -150,6 +151,7 @@ SET(DD_SOURCES
   dd/impl/types/tablespace_impl.cc
   dd/impl/types/trigger_impl.cc
   dd/impl/types/view_impl.cc
+  dd/impl/types/view_routine_impl.cc
   dd/impl/types/view_table_impl.cc
   dd/impl/types/weak_object_impl.cc
 
@@ -178,6 +180,7 @@ SET(SQL_SHARED_SOURCES
   check_stack.cc
   conn_handler/connection_handler_manager.cc 
   current_thd.cc
+  dd_sql_view.cc
   dd_sp.cc
   dd_table_share.cc
   debug_sync.cc

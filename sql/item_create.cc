@@ -3503,6 +3503,19 @@ protected:
   virtual ~Create_func_internal_get_comment_or_error() {}
 };
 
+class Create_func_internal_get_view_warning_or_error : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_internal_get_view_warning_or_error s_singleton;
+
+protected:
+  Create_func_internal_get_view_warning_or_error() {}
+  virtual ~Create_func_internal_get_view_warning_or_error() {}
+};
+
 
 class Create_func_current_role : public Create_func_arg0
 {
@@ -7227,7 +7240,7 @@ Create_func_can_access_view::create_native(THD *thd, LEX_STRING name,
   if (item_list)
     arg_count= item_list->elements();
 
-  if (arg_count != 3)
+  if (arg_count != 4)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
     return nullptr;
@@ -7236,9 +7249,10 @@ Create_func_can_access_view::create_native(THD *thd, LEX_STRING name,
   Item *param_1= item_list->pop_front();
   Item *param_2= item_list->pop_front();
   Item *param_3= item_list->pop_front();
+  Item *param_4= item_list->pop_front();
 
   return new (thd->mem_root) Item_func_can_access_view(
-                               POS(), param_1, param_2, param_3);
+                               POS(), param_1, param_2, param_3, param_4);
 }
 
 
@@ -7638,18 +7652,38 @@ Create_func_internal_get_comment_or_error::create_native(
   if (item_list)
     arg_count= item_list->elements();
 
-  if (arg_count != 1)
+  if (arg_count != 5)
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
     return nullptr;
   }
 
-  Item *param_1= item_list->pop_front();
-
   return new (thd->mem_root) Item_func_internal_get_comment_or_error(
-                               POS(), param_1);
+                               POS(), item_list);
 }
 
+Create_func_internal_get_view_warning_or_error
+  Create_func_internal_get_view_warning_or_error::s_singleton;
+
+Item*
+Create_func_internal_get_view_warning_or_error::create_native(
+  THD *thd, LEX_STRING name, PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list)
+    arg_count= item_list->elements();
+
+  if (arg_count != 4)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return NULL;
+  }
+
+  return
+    new (thd->mem_root)Item_func_internal_get_view_warning_or_error(POS(),
+                                                                    item_list);
+}
 
 struct Native_func_registry
 {
@@ -7983,6 +8017,8 @@ static Native_func_registry func_array[] =
                 BUILDER(Create_func_internal_index_column_cardinality)},
   { { C_STRING_WITH_LEN("internal_get_comment_or_error") },
                 BUILDER(Create_func_internal_get_comment_or_error)},
+  { { C_STRING_WITH_LEN("internal_get_view_warning_or_error") },
+    BUILDER(Create_func_internal_get_view_warning_or_error)},
 
   { {0, 0}, NULL}
 };

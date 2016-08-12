@@ -64,7 +64,7 @@ eval SHOW COLUMNS FROM information_schema.$is_table;
 
 # Show that TABLE_CATALOG is always NULL.
 SELECT table_catalog, table_schema, table_name
-FROM information_schema.views WHERE table_catalog IS NOT NULL;
+FROM information_schema.views WHERE table_catalog IS NOT NULL order by table_name;
 
 
 --echo ################################################################################

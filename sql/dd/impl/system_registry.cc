@@ -43,6 +43,7 @@
 #include "dd/impl/tables/tablespaces.h"              // Tablespaces
 #include "dd/impl/tables/triggers.h"                 // Triggers
 #include "dd/impl/tables/version.h"                  // Version
+#include "dd/impl/tables/view_routine_usage.h"       // View_routine_usage
 #include "dd/impl/tables/view_table_usage.h"         // View_table_usage
 
 using namespace dd::tables;
@@ -95,6 +96,7 @@ void System_tables::init()
   register_system_table<Spatial_reference_systems>();
   register_system_table<Tables>();
   register_system_table<View_table_usage>();
+  register_system_table<View_routine_usage>();
   register_system_table<Columns>();
   register_system_table<Indexes>();
   register_system_table<Index_column_usage>();

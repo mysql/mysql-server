@@ -1,2 +1,0 @@
-test_sql_views_triggers                 : WL6599_NEEDS_VIEW_COLUMNS
-test_sql_stored_procedures_functions    : WL6599_NEEDS_VIEW_COLUMNS, WL6599_SHOW_IN_SP

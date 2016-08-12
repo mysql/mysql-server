@@ -132,6 +132,8 @@ mysql/triggers	19	33	connection_collation_id	9	0	1	50
 mysql/triggers	19	33	schema_collation_id	10	0	1	50
 mysql/user	50	33	PRIMARY	5	3	2	50
 mysql/version	4	33	PRIMARY	5	3	1	50
+mysql/view_routine_usage	7	33	PRIMARY	5	3	4	50
+mysql/view_routine_usage	7	33	routine_catalog	6	0	3	50
 mysql/view_table_usage	7	33	PRIMARY	5	3	4	50
 mysql/view_table_usage	7	33	table_catalog	6	0	3	50
 CREATE TABLE t1 (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;

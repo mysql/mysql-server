@@ -1709,6 +1709,40 @@ static int connect_to_db(char *host, char *user,char *passwd)
     if (mysql_query_with_error_report(mysql, 0, buff))
       DBUG_RETURN(1);
   }
+
+  /*
+    With the introduction of new information schema views on top
+    of new data dictionary, the way the SHOW command works is
+    changed. We now have two ways of SHOW command picking table
+    statistics.
+
+    One is to read it from DD table mysql.table_stats and
+    mysql.index_stats. For this to happen, we need to execute
+    ANALYZE TABLE prior to execution of mysqldump tool.  As the
+    tool can run on whole database, we would end-up running
+    ANALYZE TABLE for all tables in the database irrespective of
+    whether statistics are already present in the statistics
+    tables. This could be a time consuming additional step to
+    carry.
+
+    Second option is to read statistics from SE itself. This
+    options looks safe and execution of mysqldump tool need not
+    care if ANALYZE TABLE command was run on every table. We
+    always get the statistics, which match the behavior without
+    data dictionary.
+
+    The first option would be faster as we do not opening the
+    underlying tables during execution of SHOW command. However
+    the first option might read old statistics, so we feel second
+    option is preferred here to get statistics dynamically from
+    SE by setting information_schema_stats=latest for this
+    session.
+  */
+  my_snprintf(buff, sizeof(buff),
+              "/*!80000 SET SESSION INFORMATION_SCHEMA_STATS=latest */");
+  if (mysql_query_with_error_report(mysql, 0, buff))
+    DBUG_RETURN(1);
+
   DBUG_RETURN(0);
 } /* connect_to_db */
 
@@ -2619,7 +2653,8 @@ static uint get_table_structure(char *table, char *db, char *table_type,
                                 "`EXTRA` AS `Extra`, "
                                 "`COLUMN_COMMENT` AS `Comment` "
                                 "FROM `INFORMATION_SCHEMA`.`COLUMNS` WHERE "
-                                "TABLE_SCHEMA = '%s' AND TABLE_NAME = '%s'";
+                                "TABLE_SCHEMA = '%s' AND TABLE_NAME = '%s' "
+                                "ORDER BY ORDINAL_POSITION";
   FILE       *sql_file= md_result_file;
   size_t     len;
   my_bool    is_log_table;

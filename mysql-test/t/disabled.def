@@ -19,24 +19,3 @@ ssl-big                  : Bug #18977126 MAIN.SSL-BIG FAILS WITH TIMEOUT Times o
 main.mysql_upgrade        : WL#6378 2015-11-06 jhauglid WL6378_UPGRADE
 main.status               : Bug#14286343 2015-12-22 Mohit Legacy Bug leading to sporadic failures on PB2 occuring since 2012.
 index_merge_delete        :Bug#21373532 2016-07-29 Anitha Test fails very frequently on PB2
-main.ctype_binary                   : WL#6599 2016-03-13 gopshank WL6599_NEEDS_VIEW_COLUMNS
-main.ctype_cp1251                   : WL#6599 2016-03-13 gopshank WL6599_NEEDS_VIEW_COLUMNS
-main.ctype_latin1                   : WL#6599 2016-03-13 gopshank WL6599_NEEDS_VIEW_COLUMNS
-main.ctype_utf8                     : WL#6599 2016-03-13 gopshank WL6599_NEEDS_VIEW_COLUMNS
-main.view                           : WL#6599 2016-03-13 gopshank WL6599_NEEDS_VIEW_COLUMNS
-main.information_schema_parameters  : WL#6599 2016-03-13 gopshank WL6599_NEEDS_VIEW_COLUMNS
-main.information_schema_routines    : WL#6599 2016-03-13 gopshank WL6599_NEEDS_VIEW_COLUMNS
-main.view_alias                     : WL#6599 2016-03-13 gopshank WL6599_NEEDS_VIEW_COLUMNS
-main.view_grant                     : WL#6599 2016-03-13 gopshank WL6599_NEEDS_VIEW_COLUMNS
-main.information_schema_db          : WL#6599 2016-03-13 gopshank WL6599_NEEDS_VIEW_COLUMNS
-main.information_schema-big         : WL#6599 2016-03-13 gopshank WL6599_NEEDS_VIEW_COLUMNS
-main.ctype_ucs                      : WL#6599 2016-03-13 gopshank WL6599_NEEDS_VIEW_COLUMNS
-main.show_check                     : WL#6599 2016-03-13 gopshank WL6599_NEEDS_VIEW_COLUMNS
-main.mysqlpump_basic                : WL#6599 2016-03-13 gopshank WL6599_NEEDS_VIEW_COLUMNS
-main.mysqlpump_concurrency          : WL#6599 2016-03-13 gopshank WL6599_NEEDS_VIEW_COLUMNS
-main.mysqlpump_extended             : WL#6599 2016-03-13 gopshank WL6599_NEEDS_VIEW_COLUMNS
-main.mysqlpump_charset              : WL#6599 2016-03-13 gopshank WL6599_NEEDS_VIEW_COLUMNS
-main.mysqldump                      : WL#6599 2016-03-13 gopshank WL6599_NEEDS_VIEW_COLUMNS
-main.mysqlpump                      : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS
-main.mysqlpump_filters              : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS
-main.mysqlpump_multi_thread         : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS

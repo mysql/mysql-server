@@ -370,12 +370,12 @@ static std::string now_with_opt_decimals(uint decimals)
 
 
 /**
-  Add column objects to dd::Table according to list of Create_field objects.
+  Add column objects to dd::Abstract_table according to list of Create_field objects.
 */
 
-static bool
+bool
 fill_dd_columns_from_create_fields(THD *thd,
-                                   dd::Table *tab_obj,
+                                   dd::Abstract_table *tab_obj,
                                    const List<Create_field> &create_fields,
                                    handler *file)
 {

@@ -936,7 +936,7 @@ create table t2 select sql_big_result f1,count(f2) from t1 group by f1;
 show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	10
+Handler_read_key	11
 Handler_read_last	0
 Handler_read_next	2
 Handler_read_prev	0
@@ -1055,6 +1055,7 @@ TABLE_NAME
 select COLUMN_NAME from information_schema.columns where
 table_schema='test' order by COLUMN_NAME;
 COLUMN_NAME
+имя_поля_в_кодировке_утф8_длиной_больше_чем_45
 имя_поля_в_кодировке_утф8_длиной_больше_чем_45
 select INDEX_NAME from information_schema.statistics where
 table_schema='test' order by INDEX_NAME;

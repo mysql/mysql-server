@@ -20,6 +20,7 @@
 #include "sql_insert.h"
 
 #include "auth_common.h"              // check_grant_all_columns
+#include "dd_sql_view.h"              // update_referencing_views_metadata
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "derror.h"                   // ER_THD
 #include "error_handler.h"            // Strict_error_handler
@@ -2664,6 +2665,29 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 }
 
 
+Query_result_create::Query_result_create(THD *thd,
+                                         TABLE_LIST *table_arg,
+                                         HA_CREATE_INFO *create_info_par,
+                                         Alter_info *alter_info_arg,
+                                         List<Item> &select_fields,
+                                         enum_duplicates duplic,
+                                         TABLE_LIST *select_tables_arg)
+    :Query_result_insert (thd,
+                          NULL, // table_list_par
+                          NULL, // table_par
+                          NULL, // target_columns
+                          &select_fields,
+                          NULL, // update_fields
+                          NULL, // update_values
+                          duplic),
+     create_table(table_arg),
+     create_info(create_info_par),
+     select_tables(select_tables_arg),
+     alter_info(alter_info_arg),
+     m_plock(NULL)
+{}
+
+
 /**
   Create the new table from the selected items.
 
@@ -2711,7 +2735,8 @@ int Query_result_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   }
 
   // Turn off function defaults for columns filled from SELECT list:
-  const bool retval= info.ignore_last_columns(table, values.elements);
+  bool retval= info.ignore_last_columns(table, values.elements);
+
   DBUG_RETURN(retval);
 }
 
@@ -3024,7 +3049,9 @@ bool Query_result_create::send_eof()
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     thd->get_transaction()->mark_created_temp_table(Transaction_ctx::STMT);
 
-  bool tmp= Query_result_insert::send_eof();
+  bool tmp= update_referencing_views_metadata(thd, create_table);
+  if (!tmp)
+    tmp= Query_result_insert::send_eof();
   if (tmp)
     abort_result_set();
   else

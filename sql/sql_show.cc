@@ -3100,6 +3100,7 @@ bool convert_heap_table_to_ondisk(THD *thd, TABLE *table, int error)
   Prepare a Table_ident and add a table_list into SELECT_LEX
 
   @param thd         Thread
+  @param sel         Instance of SELECT_LEX.
   @param db_name     Database name.
   @param table_name  Table name.
 

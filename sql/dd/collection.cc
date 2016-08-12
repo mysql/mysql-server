@@ -36,6 +36,7 @@
 #include "dd/impl/types/tablespace_impl.h"
 #include "dd/impl/types/tablespace_file_impl.h"
 #include "dd/impl/types/view_impl.h"
+#include "dd/impl/types/view_routine_impl.h"
 #include "dd/impl/types/view_table_impl.h"
 #include "dd/impl/types/trigger_impl.h"
 
@@ -310,6 +311,8 @@ template const Partition_value*&
 Collection<Partition_value*>::Collection_const_iterator::operator*();
 template const Tablespace_file*&
 Collection<Tablespace_file*>::Collection_const_iterator::operator*();
+template const View_routine*&
+Collection<View_routine*>::Collection_const_iterator::operator*();
 template const View_table*&
 Collection<View_table*>::Collection_const_iterator::operator*();
 template const Trigger*&
@@ -363,6 +366,10 @@ template bool Collection<Tablespace_file*>::
 restore_items<Tablespace_impl>(Tablespace_impl*,
                                Open_dictionary_tables_ctx*,
                                Raw_table*, Object_key*);
+template bool Collection<View_routine*>::
+restore_items<View_impl>(View_impl*,
+                         Open_dictionary_tables_ctx*,
+                         Raw_table*, Object_key*);
 template bool Collection<View_table*>::
 restore_items<View_impl>(View_impl*,
                          Open_dictionary_tables_ctx*,
@@ -396,6 +403,8 @@ template bool Collection<Partition_value*>::
 store_items(Open_dictionary_tables_ctx*);
 template bool Collection<Tablespace_file*>::
 store_items(Open_dictionary_tables_ctx*);
+template bool Collection<View_routine*>::
+store_items(Open_dictionary_tables_ctx*);
 template bool Collection<View_table*>::
 store_items(Open_dictionary_tables_ctx*);
 template bool Collection<Trigger*>::
@@ -425,6 +434,8 @@ template bool Collection<Partition_value*>::
 drop_items(Open_dictionary_tables_ctx*, Raw_table*, Object_key*) const;
 template bool Collection<Tablespace_file*>::
 drop_items(Open_dictionary_tables_ctx*, Raw_table*, Object_key*) const;
+template bool Collection<View_routine*>::
+drop_items(Open_dictionary_tables_ctx*, Raw_table*, Object_key*) const;
 template bool Collection<View_table*>::
 drop_items(Open_dictionary_tables_ctx*, Raw_table*, Object_key*) const;
 template bool Collection<Trigger*>::
@@ -442,6 +453,7 @@ template void Collection<Partition*>::clear_all_items();
 template void Collection<Partition_index*>::clear_all_items();
 template void Collection<Partition_value*>::clear_all_items();
 template void Collection<Tablespace_file*>::clear_all_items();
+template void Collection<View_routine*>::clear_all_items();
 template void Collection<View_table*>::clear_all_items();
 template void Collection<Trigger*>::clear_all_items();
 
@@ -472,6 +484,7 @@ template void Collection<Partition*>::remove(Partition_impl*);
 template void Collection<Partition_index*>::remove(Partition_index_impl*);
 template void Collection<Partition_value*>::remove(Partition_value_impl*);
 template void Collection<Tablespace_file*>::remove(Tablespace_file_impl*);
+template void Collection<View_routine*>::remove(View_routine_impl*);
 template void Collection<View_table*>::remove(View_table_impl*);
 template void Collection<Trigger*>::remove(Trigger_impl*);
 
@@ -510,6 +523,8 @@ template void Collection<Partition_value*>::
 deep_copy<Partition_impl>(Collection<Partition_value*> const&, Partition_impl*);
 template void Collection<Tablespace_file*>::
 deep_copy<Tablespace_impl>(Collection<Tablespace_file*> const&, Tablespace_impl*);
+template void Collection<View_routine*>::
+deep_copy<View_impl>(Collection<View_routine*> const&, View_impl*);
 template void Collection<View_table*>::
 deep_copy<View_impl>(Collection<View_table*> const&, View_impl*);
 template void Collection<Trigger*>::

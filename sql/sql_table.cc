@@ -24,6 +24,7 @@
 
 #include "auth_common.h"              // check_fk_parent_table_access
 #include "binlog.h"                   // mysql_bin_log
+#include "dd_sql_view.h"              // update_referencing_views_metadata
 #include "dd_table_share.h"           // open_table_def
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "derror.h"                   // ER_THD
@@ -2830,7 +2831,10 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       {
         if (!delete_ordinary_table_details_from_dd(thd, table,
                                                    drop_view))
+        {
+          error|= update_referencing_views_metadata(thd, table);
           non_tmp_table_deleted= true;
+        }
         else
           error|= 1;
 
@@ -6074,7 +6078,7 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   */
   if (open_tables(thd, &thd->lex->query_tables, &not_used, 0))
   {
-    result= TRUE;
+    result= true;
     goto end;
   }
 
@@ -6091,6 +6095,11 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   result= mysql_create_table_no_lock(thd, create_table->db,
                                      create_table->table_name, create_info,
                                      alter_info, 0, &is_trans);
+
+  // Update view metadata.
+  if (!result)
+    result= update_referencing_views_metadata(thd, create_table);
+
   /*
     Don't write statement if:
     - Table creation has failed
@@ -6499,6 +6508,10 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     thd->get_transaction()->mark_created_temp_table(Transaction_ctx::STMT);
+
+  // Update view metadata.
+  if ((res= update_referencing_views_metadata(thd, table)))
+    goto err;
 
   /*
     We have to write the query before we unlock the tables.
@@ -9689,6 +9702,10 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
       error= -1;
   }
 
+  // Update referencing views metadata.
+  if (!error)
+    error= update_referencing_views_metadata(thd, table_list, alter_ctx->new_db,
+                                             alter_ctx->new_alias);
   if (!error)
   {
     error= write_bin_log(thd, true, thd->query().str, thd->query().length);
@@ -10108,8 +10125,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       DBUG_RETURN(true);
     }
     DBUG_RETURN(simple_rename_or_index_change(thd, table_list,
-                                              alter_info->keys_onoff,
-                                              &alter_ctx));
+					     alter_info->keys_onoff,
+					     &alter_ctx));
   }
 
   /* We have to do full alter table. */
@@ -10909,6 +10926,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     goto err_with_mdl;
 
 end_inplace:
+
+  if (update_referencing_views_metadata(thd, table_list, new_db, new_name))
+    goto err_with_mdl;
 
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 

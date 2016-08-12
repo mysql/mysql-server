@@ -6389,6 +6389,28 @@ DROP VIEW v1;
 DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP TABLE t1;
+create function f1()
+returns int(11)
+not deterministic
+contains sql
+sql security definer
+comment ''
+begin
+declare x int(11);
+set x=-1;
+return x;
+end|
+create view v1 as select 1 as one, f1() as days;
+show create view test.v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test`.`v1` AS select 1 AS `one`,`f1`() AS `days`	latin1	latin1_swedish_ci
+select column_name from information_schema.columns
+where table_name='v1' and table_schema='test' order by column_name;
+COLUMN_NAME
+days
+one
+drop view v1;
+drop function f1;
 
 # Bug#13675.
 
@@ -6757,6 +6779,56 @@ call p1$
 a	b
 drop table t1;
 drop procedure p1;
+# ------------------------------------------------------------------
+# -- End of 5.0 tests
+# ------------------------------------------------------------------
+
+#
+# Bug#20550.
+#
+
+#
+# - Prepare.
+#
+
+DROP VIEW IF EXISTS v1;
+DROP VIEW IF EXISTS v2;
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+
+#
+# - Create required objects.
+#
+
+CREATE FUNCTION f1() RETURNS VARCHAR(65525) RETURN 'Hello';
+
+CREATE FUNCTION f2() RETURNS TINYINT RETURN 1;
+
+CREATE VIEW v1 AS SELECT f1();
+
+CREATE VIEW v2 AS SELECT f2();
+
+#
+# - Check.
+#
+
+SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v1';
+DATA_TYPE
+text
+
+SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v2';
+DATA_TYPE
+tinyint
+
+#
+# - Cleanup.
+#
+
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP VIEW v1;
+DROP VIEW v2;
+
 #
 # - Bug#24923: prepare.
 #

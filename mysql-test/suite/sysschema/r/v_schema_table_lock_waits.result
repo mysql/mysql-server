@@ -1,8 +1,44 @@
 DESC sys.schema_table_lock_waits;
 Field	Type	Null	Key	Default	Extra
+object_schema	varchar(64)	YES		NULL	
+object_name	varchar(64)	YES		NULL	
+waiting_thread_id	bigint(20) unsigned	NO		NULL	
+waiting_pid	bigint(20) unsigned	YES		NULL	
+waiting_account	text	YES		NULL	
+waiting_lock_type	varchar(32)	NO		NULL	
+waiting_lock_duration	varchar(32)	NO		NULL	
+waiting_query	longtext	YES		NULL	
+waiting_query_secs	bigint(20)	YES		NULL	
+waiting_query_rows_affected	bigint(20) unsigned	YES		NULL	
+waiting_query_rows_examined	bigint(20) unsigned	YES		NULL	
+blocking_thread_id	bigint(20) unsigned	NO		NULL	
+blocking_pid	bigint(20) unsigned	YES		NULL	
+blocking_account	text	YES		NULL	
+blocking_lock_type	varchar(32)	NO		NULL	
+blocking_lock_duration	varchar(32)	NO		NULL	
+sql_kill_blocking_query	varchar(31)	YES		NULL	
+sql_kill_blocking_connection	varchar(25)	YES		NULL	
 SELECT * FROM sys.schema_table_lock_waits;
 DESC sys.x$schema_table_lock_waits;
 Field	Type	Null	Key	Default	Extra
+object_schema	varchar(64)	YES		NULL	
+object_name	varchar(64)	YES		NULL	
+waiting_thread_id	bigint(20) unsigned	NO		NULL	
+waiting_pid	bigint(20) unsigned	YES		NULL	
+waiting_account	text	YES		NULL	
+waiting_lock_type	varchar(32)	NO		NULL	
+waiting_lock_duration	varchar(32)	NO		NULL	
+waiting_query	longtext	YES		NULL	
+waiting_query_secs	bigint(20)	YES		NULL	
+waiting_query_rows_affected	bigint(20) unsigned	YES		NULL	
+waiting_query_rows_examined	bigint(20) unsigned	YES		NULL	
+blocking_thread_id	bigint(20) unsigned	NO		NULL	
+blocking_pid	bigint(20) unsigned	YES		NULL	
+blocking_account	text	YES		NULL	
+blocking_lock_type	varchar(32)	NO		NULL	
+blocking_lock_duration	varchar(32)	NO		NULL	
+sql_kill_blocking_query	varchar(31)	YES		NULL	
+sql_kill_blocking_connection	varchar(25)	YES		NULL	
 SELECT * FROM sys.x$schema_table_lock_waits;
 CREATE TABLE test.lock_waits (i INT PRIMARY KEY, j INT) ENGINE = InnoDB;
 LOCK TABLE lock_waits WRITE;

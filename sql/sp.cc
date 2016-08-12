@@ -22,6 +22,7 @@
 #include "auth_common.h"    // check_some_routine_access
 #include "binlog.h"         // mysql_bin_log
 #include "dd_sp.h"          // prepare_sp_chistics_from_dd_routine
+#include "dd_sql_view.h"    // update_referencing_views_metadata
 #include "dd_table_share.h" // dd_get_mysql_charset
 #include "debug_sync.h"     // DEBUG_SYNC
 #include "derror.h"         // ER_THD
@@ -592,8 +593,8 @@ bool sp_create_routine(THD *thd, sp_head *sp)
   }
 
   // Check if routine with same name exists.
-  const dd::Routine *sr;
   sp_name spname({sp->m_db.str, sp->m_db.length}, sp->m_name, false);
+  const dd::Routine *sr;
   enum_sp_return_code ret_code= find_routine(thd->dd_client(), &spname,
                                              sp->m_type, &sr);
   if (ret_code == SP_INTERNAL_ERROR)
@@ -700,6 +701,10 @@ bool sp_create_routine(THD *thd, sp_head *sp)
     DBUG_RETURN(true);
   }
 
+  if (sp->m_type == enum_sp_type::FUNCTION &&
+      update_referencing_views_metadata(thd, &spname))
+    DBUG_RETURN(true);
+
   // Invalidate stored routine cache.
   sp_cache_invalidate();
 
@@ -788,7 +793,8 @@ enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Routine *routine= NULL;
-  enum_sp_return_code ret= dd::find_routine(thd->dd_client(), name, type, &routine);
+  enum_sp_return_code ret= dd::find_routine(thd->dd_client(), name, type,
+                                            &routine);
   if (ret != SP_OK)
     DBUG_RETURN(ret);
 
@@ -796,6 +802,10 @@ enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
 
   if (ret != SP_OK)
     DBUG_RETURN(ret);
+
+  if (mdl_type == MDL_key::FUNCTION &&
+      update_referencing_views_metadata(thd, name))
+    DBUG_RETURN(SP_INTERNAL_ERROR);
 
   // Log drop routine event.
   if (mysql_bin_log.is_open())
@@ -1091,6 +1101,10 @@ enum_sp_return_code sp_drop_db_routines(THD *thd, const char *db)
                routine->name().c_str());
       break;
     }
+
+    if (type == enum_sp_type::FUNCTION &&
+        update_referencing_views_metadata(thd, &name))
+      DBUG_RETURN(SP_INTERNAL_ERROR);
 
     is_routine_dropped= true;
 

@@ -67,7 +67,7 @@ tables_priv
 # I_S view definitions.
 SHOW CREATE TABLE information_schema.tables;
 View	Create View	character_set_client	collation_connection
-TABLES	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`TABLES` AS select `cat`.`name` AS `TABLE_CATALOG`,`sch`.`name` AS `TABLE_SCHEMA`,`tbl`.`name` AS `TABLE_NAME`,`tbl`.`type` AS `TABLE_TYPE`,if((`tbl`.`type` = 'VIEW'),NULL,`tbl`.`engine`) AS `ENGINE`,if((`tbl`.`type` = 'VIEW'),NULL,10) AS `VERSION`,`tbl`.`row_format` AS `ROW_FORMAT`,`stat`.`table_rows` AS `TABLE_ROWS`,`stat`.`avg_row_length` AS `AVG_ROW_LENGTH`,`stat`.`data_length` AS `DATA_LENGTH`,`stat`.`max_data_length` AS `MAX_DATA_LENGTH`,`stat`.`index_length` AS `INDEX_LENGTH`,`stat`.`data_free` AS `DATA_FREE`,`stat`.`auto_increment` AS `AUTO_INCREMENT`,`tbl`.`created` AS `CREATE_TIME`,`stat`.`update_time` AS `UPDATE_TIME`,`stat`.`check_time` AS `CHECK_TIME`,`col`.`name` AS `TABLE_COLLATION`,`stat`.`checksum` AS `CHECKSUM`,if((`tbl`.`type` = 'VIEW'),NULL,get_dd_create_options(`tbl`.`options`,if((ifnull(`tbl`.`partition_expression`,'NOT_PART_TBL') = 'NOT_PART_TBL'),0,1))) AS `CREATE_OPTIONS`,if((`tbl`.`type` = 'VIEW'),'VIEW',`tbl`.`comment`) AS `TABLE_COMMENT` from ((((`mysql`.`tables` `tbl` join `mysql`.`schemata` `sch` on((`tbl`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) left join `mysql`.`collations` `col` on((`tbl`.`collation_id` = `col`.`id`))) left join `mysql`.`table_stats` `stat` on(((`tbl`.`name` = `stat`.`table_name`) and (`sch`.`name` = `stat`.`schema_name`)))) where (can_access_table(`sch`.`name`,`tbl`.`name`) and (not(`tbl`.`hidden`)))	utf8	utf8_general_ci
+TABLES	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`TABLES` AS select `cat`.`name` AS `TABLE_CATALOG`,`sch`.`name` AS `TABLE_SCHEMA`,`tbl`.`name` AS `TABLE_NAME`,`tbl`.`type` AS `TABLE_TYPE`,if((`tbl`.`type` = 'BASE TABLE'),`tbl`.`engine`,NULL) AS `ENGINE`,if((`tbl`.`type` = 'VIEW'),NULL,10) AS `VERSION`,`tbl`.`row_format` AS `ROW_FORMAT`,`stat`.`table_rows` AS `TABLE_ROWS`,`stat`.`avg_row_length` AS `AVG_ROW_LENGTH`,`stat`.`data_length` AS `DATA_LENGTH`,`stat`.`max_data_length` AS `MAX_DATA_LENGTH`,`stat`.`index_length` AS `INDEX_LENGTH`,`stat`.`data_free` AS `DATA_FREE`,`stat`.`auto_increment` AS `AUTO_INCREMENT`,`tbl`.`created` AS `CREATE_TIME`,`stat`.`update_time` AS `UPDATE_TIME`,`stat`.`check_time` AS `CHECK_TIME`,`col`.`name` AS `TABLE_COLLATION`,`stat`.`checksum` AS `CHECKSUM`,if((`tbl`.`type` = 'VIEW'),NULL,get_dd_create_options(`tbl`.`options`,if((ifnull(`tbl`.`partition_expression`,'NOT_PART_TBL') = 'NOT_PART_TBL'),0,1))) AS `CREATE_OPTIONS`,internal_get_comment_or_error(`sch`.`name`,`tbl`.`name`,`tbl`.`type`,`tbl`.`options`,`tbl`.`comment`) AS `TABLE_COMMENT` from ((((`mysql`.`tables` `tbl` join `mysql`.`schemata` `sch` on((`tbl`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) left join `mysql`.`collations` `col` on((`tbl`.`collation_id` = `col`.`id`))) left join `mysql`.`table_stats` `stat` on(((`tbl`.`name` = `stat`.`table_name`) and (`sch`.`name` = `stat`.`schema_name`)))) where (can_access_table(`sch`.`name`,`tbl`.`name`) and (not(`tbl`.`hidden`)))	utf8	utf8_general_ci
 #########################################################
 # Issue WL#6599/HLS/6c): Capital cased I_S table column names.
 #########################################################
@@ -222,7 +222,8 @@ count(*) = IF(@@lower_case_table_names = 0, 5, 10)
 # lctn=0 will have table_name as utf8_bin, so we do not match
 # capital information_schema name.
 SELECT COUNT(*)+IF(@@lower_case_table_names=0, 1, 0) FROM
-INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='INFORMATION_SCHEMA';
+INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='INFORMATION_SCHEMA' AND
+TABLE_NAME='TABLES';
 COUNT(*)+IF(@@lower_case_table_names=0, 1, 0)
 1
 #########################################################
@@ -279,7 +280,6 @@ DROP TABLE t1;
 # mysqldump and mysqlpump tool.
 #########################################################
 CREATE DATABASE test1;
-# Following statements should pass as INFORMATION_SCHEMA db is not used.
 # Following statements should pass as INFORMATION_SCHEMA db is not used.
 DROP DATABASE test1;
 ########################################################################
@@ -348,3 +348,46 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE t4;
+#
+# 6. Change in view IS_UDPATABLE value in I_S.views.
+#
+CREATE TABLE t1 (c1 INT(11) DEFAULT NULL, c2 INT(11) DEFAULT NULL);
+INSERT INTO t1 VALUES(5, 5);
+CREATE VIEW v1 AS SELECT A.c1 AS c1 FROM t1 A
+WHERE EXISTS(SELECT B.c2 FROM t1 B WHERE (B.c2 = A.c1));
+# View "v1" is non-updatable but "IS_UPDATABLE" column of I_S.views used
+# show view as "updatable". Now we get correct value for is_updatable
+# column for view "v1".
+SELECT table_name, is_updatable FROM INFORMATION_SCHEMA.VIEWS
+WHERE table_name = 'v1';
+TABLE_NAME	IS_UPDATABLE
+v1	NO
+INSERT INTO v1 VALUES (10);
+UPDATE v1 SET c1=25;
+ERROR HY000: The target table v1 of the UPDATE is not updatable
+DELETE FROM v1;
+ERROR HY000: The target table v1 of the DELETE is not updatable
+# Cleanup
+DROP TABLE t1;
+DROP VIEW v1;
+########################################################################
+# In the 5.7 code while filling schema table "VIEWS", is_updatable column
+# of view is evaluated to YES/NO depending on view is mergable and view
+# has at least one updatable field in the view. 
+# Even while creating view and storing values in new DD tables, is_updatable
+# value is evaluated but there was no check to find view has at least
+# one updatable field. Without this check v1 below was evaluated to
+# updatable view instead of non-updatable.
+# Added check to find minimum one updatable field in create view code to
+# keep the behavior similar to 5.7.
+########################################################################
+CREATE TABLE t1(f1 int);
+CREATE VIEW v1 AS SELECT f1+1 AS a FROM t1;
+# With out check for minimum one updatable field, is_updatable
+# field for view v1 was evaluated to YES instead of NO here.
+SELECT table_name, is_updatable FROM INFORMATION_SCHEMA.VIEWS
+WHERE table_schema != 'sys' ORDER BY table_name;
+TABLE_NAME	IS_UPDATABLE
+v1	NO
+DROP TABLE t1;
+DROP VIEW v1;

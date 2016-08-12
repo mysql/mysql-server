@@ -54,6 +54,15 @@ DROP TABLE t0;
 
 ANALYZE TABLE t1;
 EXPLAIN SELECT * FROM t1 WHERE a BETWEEN 1 AND 450 AND b BETWEEN 1 AND 10;
+
+--disable_warnings
+# Access session_status, so that the session_status metadata is accessed and
+# kept in DD cache. Else the HANDLER_READ_KEY would increment more than
+# required.
+SELECT * FROM performance_schema.session_status
+WHERE VARIABLE_NAME LIKE 'dummy';
+--enable_warnings
+
 FLUSH STATUS;
 --sorted_result
 SELECT * FROM t1 WHERE a BETWEEN 1 AND 450 AND b BETWEEN 1 AND 10;

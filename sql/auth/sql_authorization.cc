@@ -1303,6 +1303,10 @@ bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
   switch(lex->sql_command)
   {
     // For below show commands, perform check_show_access() call
+    case SQLCOM_SHOW_DATABASES:
+      new_dd_show= true;
+      break;
+
     case SQLCOM_SHOW_TABLES:
     case SQLCOM_SHOW_TABLE_STATUS:
     {
@@ -3469,12 +3473,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
 #endif
         continue;
       case ACL_INTERNAL_ACCESS_DENIED:
-      {
-        if (is_infoschema_db(t_ref->get_db_name()) &&
-            ((want_access & SELECT_ACL) || (want_access & LOCK_TABLES_ACL)))
-          continue;
         goto err;
-      }
       case ACL_INTERNAL_ACCESS_CHECK_GRANT:
         break;
       }
@@ -3584,9 +3583,6 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       if (!grant_table)
       {
         DBUG_PRINT("info",("Table %s didn't exist in the legacy table acl cache", t_ref->get_table_name()));
-        if (is_infoschema_db(t_ref->get_db_name()) &&
-            ((want_access & SELECT_ACL) || (want_access & LOCK_TABLES_ACL)))
-          continue;
         want_access &= ~t_ref->grant.privilege;
         goto err;                                 // No grants
       }

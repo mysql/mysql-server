@@ -3,9 +3,8 @@
 # Tests for sys schema
 # Verify the sys.schema_table_statistics view
 
-## WL6599_NEEDS_VIEW_COLUMNS
-## Ensure structure changes don't slip in
-#DESC sys.schema_table_statistics;
+# Ensure structure changes don't slip in
+DESC sys.schema_table_statistics;
 
 # Make sure view select does not error, but ignore results
 --disable_result_log
@@ -13,9 +12,8 @@ SELECT * FROM sys.schema_table_statistics;
 --enable_result_log
 
 
-## WL6599_NEEDS_VIEW_COLUMNS
-## Ensure structure changes don't slip in
-#DESC sys.x$schema_table_statistics;
+# Ensure structure changes don't slip in
+DESC sys.x$schema_table_statistics;
 
 # Make sure view select does not error, but ignore results
 --disable_result_log

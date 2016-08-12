@@ -658,6 +658,27 @@ public:
 
 
   /**
+    Fetch Object ids of all the views referencing base table/ view/ stored
+    function name specified in "schema"."name".
+
+    @tparam       T               Type of the object (View_table/View_routine)
+                                  to retrieve view names for.
+    @param        schema          Schema name.
+    @param        tbl_or_sf_name  Base table/ View/ Stored function name.
+    @param[out]   view_ids        Vector to store Object ids of all the views
+                                  referencing schema.name.
+
+    @return      true   Failure (error is reported).
+    @return      false  Success.
+  */
+  template <typename T>
+  bool fetch_referencing_views_object_id(
+    const char *schema,
+    const char *tbl_or_sf_name,
+    std::vector<Object_id> *view_ids) const;
+
+
+  /**
     Mark all objects acquired by this client as not being used anymore.
 
     This function will release all objects from the client's registry.

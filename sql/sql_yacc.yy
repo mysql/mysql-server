@@ -12025,7 +12025,7 @@ opt_wild_or_where:
 
 opt_wild_or_where_for_show:
           /* empty */
-        | LIKE TEXT_STRING_sys
+        | LIKE TEXT_STRING_literal
           {
             Lex->wild= NEW_PTN String($2.str, $2.length, system_charset_info);
             if (Lex->wild == NULL)

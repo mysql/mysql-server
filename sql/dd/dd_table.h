@@ -363,5 +363,24 @@ bool move_triggers(THD *thd,
                    const char *to_schema_name,
                    const char *to_name);
 
+/**
+  Add column objects to dd::Abstract_table objects according to the
+  list of Create_field objects.
+
+  @param   thd              Thread handle.
+  @param   tab_obj          dd::Table or dd::View's instance.
+  @param   create_fields    List of Create_field objects to fill
+                            dd::Column object(s).
+  @param   file             handler instance for the table.
+
+  @retval  false            On Success
+  @retval  true             On error.
+*/
+
+bool
+fill_dd_columns_from_create_fields(THD *thd,
+                                   Abstract_table *tab_obj,
+                                   const List<Create_field> &create_fields,
+                                   handler *file);
 } // namespace dd
 #endif // DD_TABLE_INCLUDED

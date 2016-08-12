@@ -7,6 +7,14 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 DROP TABLE IF EXISTS t0,t1,t2,t3,t4,t5;
 DROP VIEW IF EXISTS v1;
 SET SESSION information_schema_stats=latest;
+#
+# Bug#11763174 INFORMATION_SCHEMA.PARAMETERS.NUMERIC_PRECISION SHOULD BE BIGINT 
+#
+select table_name, data_type, column_type from information_schema.columns  where column_name = 'numeric_precision' and table_schema = 'information_schema';
+TABLE_NAME	DATA_TYPE	COLUMN_TYPE
+COLUMNS	bigint	bigint(10) unsigned
+PARAMETERS	bigint	bigint(21)
+ROUTINES	bigint	bigint(21)
 show variables where variable_name like "skip_show_database";
 Variable_name	Value
 skip_show_database	OFF
@@ -176,6 +184,11 @@ Tables_in_test (t%)
 t2
 t3
 t5
+analyze table t2, t3, t5;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t5	analyze	status	OK
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t2	InnoDB	10	Dynamic	0	#	#	#	#	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
@@ -188,6 +201,9 @@ a	int(11)	NULL	YES	MUL	NULL		select,insert,update,references
 show full columns from mysql.db like "Insert%";
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 Insert_priv	enum('N','Y')	utf8_general_ci	NO		N		select,insert,update,references	
+show full columns from v1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+c	varchar(64)	utf8_bin	NO		NULL		select,insert,update,references	
 select * from information_schema.COLUMNS where table_name="t1"
 and column_name= "a" order by table_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION
@@ -205,6 +221,10 @@ t1	a	select
 show columns from mysqltest.t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
+select table_name, column_name, privileges from information_schema.columns
+where table_schema = 'mysqltest' and table_name = 'v1' order by table_name, column_name;
+TABLE_NAME	COLUMN_NAME	PRIVILEGES
+v1	c	select
 explain select * from v1;
 ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
 drop view v1, mysqltest.v1;
@@ -375,6 +395,9 @@ c
 v1
 create view v2 (c) as select column_name from information_schema.columns
 where table_name="v2" order by column_name;
+select * from v2;
+c
+c
 create view v3 (c) as select CHARACTER_SET_NAME from information_schema.character_sets
 where CHARACTER_SET_NAME like "latin1%" order by character_set_name;
 select * from v3;
@@ -397,11 +420,11 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 select * from information_schema.views where TABLE_SCHEMA != 'sys' and
 TABLE_NAME rlike "v[0-4]{1}$" order by table_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-def	test	v0	#	NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v0	#	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
 def	test	v1	#	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-def	test	v2	#	NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
-def	test	v3	#	NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
-def	test	v4	#	NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v2	#	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v3	#	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v4	#	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
 drop view v0, v1, v2, v3, v4;
 create table t1 (a int);
 grant select,update,insert on t1 to mysqltest_1@localhost;
@@ -520,6 +543,9 @@ delete from mysql.columns_priv where user='joe';
 flush privileges;
 create table t1 (a int not null auto_increment,b int, primary key (a));
 insert into t1 values (1,1),(NULL,3),(NULL,4);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select AUTO_INCREMENT from information_schema.tables where table_name = 't1';
 AUTO_INCREMENT
 5
@@ -581,7 +607,7 @@ call p108()//
 ERROR 24000: Cursor is already open
 drop procedure p108;
 create view v1 as select A1.table_name from information_schema.TABLES A1
-where table_name= "user";
+where table_name= "user" order by table_name;
 select * from v1;
 table_name
 user
@@ -601,8 +627,8 @@ from information_schema.tables
 where table_schema='information_schema'
 order by table_name collate utf8_general_ci limit 2;
 TABLE_NAME	TABLE_TYPE	ENGINE
-CHARACTER_SETS	SYSTEM VIEW	
-COLLATIONS	SYSTEM VIEW	
+CHARACTER_SETS	SYSTEM VIEW	NULL
+COLLATIONS	SYSTEM VIEW	NULL
 show tables from information_schema like "T%";
 Tables_in_information_schema (T%)
 TABLES
@@ -685,6 +711,9 @@ select column_name from information_schema.columns
 where table_schema='test' order by column_name;
 COLUMN_NAME
 f1
+Warnings:
+Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Warning	1356	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 select index_name from information_schema.statistics where
 table_schema='test' order by index_name;
 INDEX_NAME
@@ -707,6 +736,20 @@ drop view v3;
 drop table t4;
 select * from information_schema.table_names;
 ERROR 42S02: Unknown table 'TABLE_NAMES' in information_schema
+select column_type from information_schema.columns
+where table_schema="information_schema" and table_name="COLUMNS" and
+(column_name="character_set_name" or column_name="collation_name");
+COLUMN_TYPE
+varchar(64)
+varchar(64)
+select TABLE_ROWS from information_schema.tables where
+table_schema="information_schema" and table_name="COLUMNS";
+TABLE_ROWS
+0
+select table_type from information_schema.tables
+where table_schema="mysql" and table_name="user";
+TABLE_TYPE
+BASE TABLE
 show open tables where `table` like "user";
 Database	Table	In_use	Name_locked
 mysql	user	0	0
@@ -733,9 +776,12 @@ count(*)
 drop view a2, a1;
 drop table t_crashme;
 select table_schema, table_name, column_name from information_schema.columns
-where table_schema not in ('performance_schema', 'sys')
+where table_schema not in ('performance_schema', 'sys', 'mysql')
 and data_type = 'longtext' order by table_name, column_name;
 TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME
+information_schema	COLUMNS	DATA_TYPE
+information_schema	COLUMNS	GENERATION_EXPRESSION
+information_schema	VIEWS	VIEW_DEFINITION
 select table_name, column_name, data_type from information_schema.columns
 where table_schema not in ('performance_schema', 'sys')
 and data_type = 'datetime'
@@ -758,6 +804,8 @@ PARTITIONS	CREATE_TIME	datetime
 PARTITIONS	UPDATE_TIME	datetime
 ROUTINES	CREATED	datetime
 ROUTINES	LAST_ALTERED	datetime
+TABLES_DYNAMIC	CHECK_TIME	datetime
+TABLES_DYNAMIC	UPDATE_TIME	datetime
 TRIGGERS	CREATED	datetime
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES A
 WHERE NOT EXISTS
@@ -765,7 +813,7 @@ WHERE NOT EXISTS
 WHERE A.TABLE_SCHEMA = B.TABLE_SCHEMA
 AND A.TABLE_NAME = B.TABLE_NAME);
 COUNT(*)
-115
+0
 create table t1
 ( x_bigint BIGINT,
 x_integer INTEGER,
@@ -792,17 +840,26 @@ grant select on test.* to mysqltest_4@localhost;
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS
-where COLUMN_NAME='TABLE_NAME' ORDER BY TABLE_NAME;
+where COLUMN_NAME='TABLE_NAME' ORDER BY TABLE_NAME COLLATE UTF8_GENERAL_CI;
 TABLE_NAME	COLUMN_NAME	PRIVILEGES
+COLUMNS	TABLE_NAME	select
 COLUMN_PRIVILEGES	TABLE_NAME	select
 FILES	TABLE_NAME	select
 INNODB_BUFFER_PAGE	TABLE_NAME	select
 INNODB_BUFFER_PAGE_LRU	TABLE_NAME	select
 INNODB_CMP_PER_INDEX	table_name	select
 INNODB_CMP_PER_INDEX_RESET	table_name	select
+KEY_COLUMN_USAGE	TABLE_NAME	select
 PARTITIONS	TABLE_NAME	select
 REFERENTIAL_CONSTRAINTS	TABLE_NAME	select
+STATISTICS	TABLE_NAME	select
+STATISTICS_BASE	TABLE_NAME	select
+STATISTICS_DYNAMIC	TABLE_NAME	select
+TABLES	TABLE_NAME	select
+TABLES_DYNAMIC	TABLE_NAME	select
+TABLE_CONSTRAINTS	TABLE_NAME	select
 TABLE_PRIVILEGES	TABLE_NAME	select
+VIEWS	TABLE_NAME	select
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 flush privileges;
@@ -1013,6 +1070,10 @@ b	int(11)	YES		NULL
 drop table t1;
 CREATE TABLE t1 (a int);
 CREATE TABLE t2 (b int);
+analyze table t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 SHOW TABLE STATUS FROM test
 WHERE name IN ( SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_SCHEMA='test' AND TABLE_TYPE='BASE TABLE');
@@ -1025,6 +1086,9 @@ create view v1 (c) as select f1 from t1;
 select database();
 database()
 NULL
+show fields from test.v1;
+Field	Type	Null	Key	Default	Extra
+c	int(11)	YES		NULL	
 drop view v1;
 drop table t1;
 alter database information_schema;
@@ -1092,7 +1156,8 @@ INSERT INTO t1 SET f1 = 1, f2 = 'Schoenenbourg', f3 = 1;
 CREATE FUNCTION func2() RETURNS BIGINT RETURN 1;
 CREATE FUNCTION func1() RETURNS BIGINT
 BEGIN
-RETURN ( SELECT COUNT(*) FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA != 'sys');
+RETURN ( SELECT COUNT(*) FROM information_schema.views WHERE TABLE_SCHEMA != 'sys' AND
+TABLE_SCHEMA != 'information_schema');
 END//
 CREATE VIEW v1 AS SELECT 1 FROM t1
 WHERE f3 = (SELECT func2 ());
@@ -1103,6 +1168,16 @@ DROP TABLE t1;
 DROP VIEW v1;
 DROP FUNCTION func1;
 DROP FUNCTION func2;
+SELECT column_type, GROUP_CONCAT(table_schema, '.', table_name), COUNT(*) AS num
+FROM information_schema.columns WHERE
+table_schema='information_schema' AND
+(column_type = 'varchar(7)' OR column_type = 'varchar(20)'
+ OR column_type = 'varchar(30)')
+GROUP BY column_type ORDER BY num;
+COLUMN_TYPE	GROUP_CONCAT(table_schema, '.', table_name)	num
+varchar(30)	information_schema.PROFILING,information_schema.PROFILING	2
+varchar(7)	information_schema.ROUTINES,information_schema.VIEWS	2
+varchar(20)	information_schema.FILES,information_schema.FILES,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PROFILING	6
 create table t1(f1 char(1) not null, f2 char(9) not null)
 default character set utf8;
 select CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH from
@@ -1171,17 +1246,19 @@ f1()
 DROP FUNCTION f1;
 DROP PROCEDURE p1;
 DROP USER mysql_bug20230@localhost;
-SELECT MAX(table_name COLLATE utf8_general_ci) FROM information_schema.tables WHERE table_schema IN ('mysql', 'information_schema', 'test');
-MAX(table_name COLLATE utf8_general_ci)
-VIEWS
-SELECT table_name from information_schema.tables
-WHERE table_name=(SELECT MAX(table_name COLLATE utf8_general_ci)
+SELECT MAX(table_name)
+FROM information_schema.tables
+WHERE table_schema IN ('mysql', 'information_schema', 'test');
+MAX(table_name)
+user
+SELECT table_name FROM information_schema.tables
+WHERE table_name=(SELECT MAX(table_name)
 FROM information_schema.tables WHERE
 table_schema IN ('mysql',
 'information_schema',
 'test')) order by table_name;
 TABLE_NAME
-VIEWS
+user
 DROP TABLE IF EXISTS bug23037;
 DROP FUNCTION IF EXISTS get_value;
 SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT)
@@ -1215,6 +1292,75 @@ where table_schema = 'test' and column_name = 'f3') order by table_name;
 TABLE_NAME
 t1
 t2
+drop table t1,t2;
+select 1 as f1 from information_schema.tables  where "COLUMN_PRIVILEGES"=
+(select cast(table_name as char)  from information_schema.tables
+where table_schema != 'performance_schema' order by table_name limit 1) limit 1;
+f1
+select t.table_name, group_concat(t.table_schema, '.', t.table_name),
+count(*) as num1
+from information_schema.tables t
+inner join information_schema.columns c1
+on t.table_schema = c1.table_schema AND t.table_name = c1.table_name
+where t.table_name not like 'ndb%' and
+t.table_schema = 'information_schema' and
+c1.ordinal_position =
+(select isnull(c2.column_type) -
+isnull(group_concat(c2.table_schema, '.', c2.table_name)) +
+count(*) as num
+from information_schema.columns c2 where
+c2.table_schema='information_schema' and
+(c2.column_type = 'varchar(7)' or c2.column_type = 'varchar(20)')
+group by c2.column_type order by num limit 1)
+and t.table_name not like 'INNODB_%'
+group by t.table_name order by num1, t.table_name COLLATE utf8_general_ci;
+TABLE_NAME	group_concat(t.table_schema, '.', t.table_name)	num1
+CHARACTER_SETS	information_schema.CHARACTER_SETS	1
+COLLATIONS	information_schema.COLLATIONS	1
+COLLATION_CHARACTER_SET_APPLICABILITY	information_schema.COLLATION_CHARACTER_SET_APPLICABILITY	1
+COLUMNS	information_schema.COLUMNS	1
+COLUMN_PRIVILEGES	information_schema.COLUMN_PRIVILEGES	1
+ENGINES	information_schema.ENGINES	1
+EVENTS	information_schema.EVENTS	1
+FILES	information_schema.FILES	1
+GLOBAL_STATUS	information_schema.GLOBAL_STATUS	1
+GLOBAL_VARIABLES	information_schema.GLOBAL_VARIABLES	1
+KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
+OPTIMIZER_TRACE	information_schema.OPTIMIZER_TRACE	1
+PARAMETERS	information_schema.PARAMETERS	1
+PARTITIONS	information_schema.PARTITIONS	1
+PLUGINS	information_schema.PLUGINS	1
+PROCESSLIST	information_schema.PROCESSLIST	1
+PROFILING	information_schema.PROFILING	1
+REFERENTIAL_CONSTRAINTS	information_schema.REFERENTIAL_CONSTRAINTS	1
+ROUTINES	information_schema.ROUTINES	1
+SCHEMATA	information_schema.SCHEMATA	1
+SCHEMA_PRIVILEGES	information_schema.SCHEMA_PRIVILEGES	1
+SESSION_STATUS	information_schema.SESSION_STATUS	1
+SESSION_VARIABLES	information_schema.SESSION_VARIABLES	1
+SHOW_STATISTICS	information_schema.SHOW_STATISTICS	1
+SHOW_STATISTICS_DYNAMIC	information_schema.SHOW_STATISTICS_DYNAMIC	1
+STATISTICS	information_schema.STATISTICS	1
+STATISTICS_BASE	information_schema.STATISTICS_BASE	1
+STATISTICS_DYNAMIC	information_schema.STATISTICS_DYNAMIC	1
+TABLES	information_schema.TABLES	1
+TABLESPACES	information_schema.TABLESPACES	1
+TABLES_DYNAMIC	information_schema.TABLES_DYNAMIC	1
+TABLE_CONSTRAINTS	information_schema.TABLE_CONSTRAINTS	1
+TABLE_PRIVILEGES	information_schema.TABLE_PRIVILEGES	1
+TRIGGERS	information_schema.TRIGGERS	1
+USER_PRIVILEGES	information_schema.USER_PRIVILEGES	1
+VIEWS	information_schema.VIEWS	1
+create table t1(f1 int);
+create view v1 as select f1+1 as a from t1;
+create table t2 (f1 int, f2 int);
+create view v2 as select f1+1 as a, f2 as b from t2;
+select table_name, is_updatable from information_schema.views where table_schema != 'sys' order by table_name;
+TABLE_NAME	IS_UPDATABLE
+v1	NO
+v2	YES
+delete from v1;
+drop view v1,v2;
 drop table t1,t2;
 alter database;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
@@ -1520,8 +1666,7 @@ DROP DATABASE db1;
 Bug#54422 query with = 'variables'
 
 CREATE TABLE variables(f1 INT);
-SELECT COLUMN_DEFAULT, TABLE_NAME
-FROM INFORMATION_SCHEMA.COLUMNS
+SELECT COLUMN_DEFAULT, TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS
 WHERE information_schema.COLUMNS.TABLE_NAME = 'variables';
 COLUMN_DEFAULT	TABLE_NAME
 NULL	variables
@@ -1582,6 +1727,10 @@ drop function f1;
 drop tables if exists t1, t2, t3;
 create table t1 (i int);
 create table t2 (j int primary key auto_increment);
+analyze table t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 # Switching to connection 'con3726_1'
 lock table t2 read;
 # Switching to connection 'con3726_2'
@@ -1702,6 +1851,10 @@ DEFINER	root@localhost
 SECURITY_TYPE	DEFINER
 CHARACTER_SET_CLIENT	latin1
 COLLATION_CONNECTION	latin1_swedish_ci
+Warnings:
+Level	Warning
+Code	1356
+Message	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 unlock tables;
 #
 # Cleanup.
@@ -1729,7 +1882,8 @@ create table t1 (j int);
 create table t2 (k int);
 #
 # Test that we don't keep locks in case when we to fill
-# I_S table we perform full-blown table open.
+# I_S table we read .TRG file only (this was the case
+# for which problem existed).
 #
 # Acquire lock on 't2' so upcoming RENAME is
 # blocked.
@@ -1745,56 +1899,6 @@ rename table t1 to t3, t2 to t1, t3 to t2;
 #
 # Wait while the above RENAME is blocked.
 SET SESSION information_schema_stats=latest;
-# Issue query to I_S which will open 't0' and get
-# blocked on 't1' because of RENAME.
-select table_name, auto_increment from information_schema.tables where table_schema='mysqltest';
-#
-# Switching to connection 'con12828477_3'. 
-#
-# Wait while the above SELECT is blocked.
-#
-# Check that it holds no lock on 't0' so it can be renamed.
-rename table t0 to t4;
-#
-# Switching to connection 'default'.
-#
-#
-# Unblock the first RENAME.
-unlock tables;
-#
-# Switching to connection 'con12828477_1'. 
-#
-# Reap the first RENAME
-#
-# Switching to connection 'con12828477_2'. 
-#
-# Reap SELECT to I_S.
-TABLE_NAME	AUTO_INCREMENT
-t0	NULL
-t1	NULL
-t2	NULL
-#
-# Switching to connection 'default'.
-#
-#
-# Now test that we don't keep locks in case when we to fill
-# I_S table we read .FRM or .TRG file only (this was the case
-# for which problem existed).
-#
-rename table t4 to t0;
-# Acquire lock on 't2' so upcoming RENAME is
-# blocked.
-lock tables t2 read;
-#
-# Switching to connection 'con12828477_1'. 
-#
-# The below RENAME should wait on 't2' while
-# keeping X lock on 't1'.
-rename table t1 to t3, t2 to t1, t3 to t2;
-#
-# Switching to connection 'con12828477_2'. 
-#
-# Wait while the above RENAME is blocked.
 # Issue query to I_S which will open 't0' and get
 # blocked on 't1' because of RENAME.
 select event_object_table, trigger_name from information_schema.triggers where event_object_schema='mysqltest';
@@ -1964,16 +2068,14 @@ WHERE "COLUMN_PRIVILEGES"=
 (SELECT CAST(TABLE_NAME AS CHAR)
 FROM information_schema.tables
 WHERE table_schema != 'PERFORMANCE_SCHEMA'
-      ORDER BY table_name
-LIMIT 1)
+      ORDER BY table_name LIMIT 1)
 LIMIT 1;
 SELECT 1 AS F1 FROM information_schema.tables
 WHERE "COLUMN_PRIVILEGES"=
 (SELECT CAST(TABLE_NAME AS CHAR)
 FROM information_schema.tables
 WHERE table_schema != 'PERFORMANCE_SCHEMA'
-      ORDER BY table_name
-LIMIT 1)
+      ORDER BY table_name LIMIT 1)
 LIMIT 1;
 F1
 #

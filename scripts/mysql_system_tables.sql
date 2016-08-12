@@ -362,6 +362,13 @@ COMMENT="Column statistics";
 -- INFORMATION SCHEMA VIEWS INSTALLATION
 --
 
+-- Set explicit collation for columns that use utf8_tolower_ci.
+-- This is required to enable optimizer allow comparison between
+-- utf8_tolower_ci and utf8_general_ci columns and to pick right index.
+
+SET @collate_tolower= (SELECT IF(@@lower_case_table_names = 0,
+                                 '', 'COLLATE utf8_tolower_ci'));
+
 --
 -- INFORMATION_SCHEMA.COLLATIONS
 --
@@ -397,16 +404,20 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.COLLATION_C
 --
 -- INFORMATION_SCHEMA.SCHEMATA
 --
+SET @str=CONCAT("
 CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.SCHEMATA AS
-  SELECT cat.name AS CATALOG_NAME,
-    sch.name AS SCHEMA_NAME,
+  SELECT cat.name ", @collate_tolower, " AS CATALOG_NAME,
+    sch.name ", @collate_tolower, " AS SCHEMA_NAME,
     cs.name AS DEFAULT_CHARACTER_SET_NAME,
     col.name AS DEFAULT_COLLATION_NAME,
     NULL AS SQL_PATH
   FROM mysql.schemata sch JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
        JOIN mysql.collations col ON sch.default_collation_id = col.id
        JOIN mysql.character_sets cs ON col.character_set_id= cs.id
-  WHERE CAN_ACCESS_DATABASE(sch.name);
+  WHERE CAN_ACCESS_DATABASE(sch.name)");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
 --
 -- INFORMATION_SCHEMA.TABLES
@@ -424,12 +435,13 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.SCHEMATA AS
 -- information_schema_stats=latest would enable use of definition 2).
 --
 
+SET @str=CONCAT("
 CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.TABLES AS
-  SELECT cat.name AS TABLE_CATALOG,
-    sch.name AS TABLE_SCHEMA,
-    tbl.name AS TABLE_NAME,
+  SELECT cat.name ", @collate_tolower, " AS TABLE_CATALOG,
+    sch.name ", @collate_tolower, " AS TABLE_SCHEMA,
+    tbl.name ", @collate_tolower, " AS TABLE_NAME,
     tbl.type AS TABLE_TYPE,
-    IF(tbl.type  = 'VIEW', NULL, tbl.engine) AS ENGINE,
+    IF(tbl.type = 'BASE TABLE', tbl.engine, NULL) AS ENGINE,
     IF(tbl.type = 'VIEW', NULL, 10 /* FRM_VER_TRUE_VARCHAR */) AS VERSION,
     tbl.row_format AS ROW_FORMAT,
     stat.table_rows AS TABLE_ROWS,
@@ -448,20 +460,25 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.TABLES AS
         GET_DD_CREATE_OPTIONS(tbl.options,
           IF(IFNULL(tbl.partition_expression,'NOT_PART_TBL')='NOT_PART_TBL', 0, 1)))
         AS CREATE_OPTIONS,
-    IF (tbl.type = 'VIEW', 'VIEW', tbl.comment) AS TABLE_COMMENT
+    INTERNAL_GET_COMMENT_OR_ERROR(sch.name, tbl.name, tbl.type, tbl.options, tbl.comment)
+       AS TABLE_COMMENT
   FROM mysql.tables tbl JOIN mysql.schemata sch ON tbl.schema_id=sch.id
        JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
        LEFT JOIN mysql.collations col ON tbl.collation_id=col.id
        LEFT JOIN mysql.table_stats stat ON tbl.name=stat.table_name
        AND sch.name=stat.schema_name
-  WHERE CAN_ACCESS_TABLE(sch.name, tbl.name) AND NOT tbl.hidden;
+  WHERE CAN_ACCESS_TABLE(sch.name, tbl.name) AND NOT tbl.hidden");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
+SET @str=CONCAT("
 CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.TABLES_DYNAMIC AS
-  SELECT cat.name AS TABLE_CATALOG,
-    sch.name AS TABLE_SCHEMA,
-    tbl.name AS TABLE_NAME,
+  SELECT cat.name ", @collate_tolower, " AS TABLE_CATALOG,
+    sch.name ", @collate_tolower, " AS TABLE_SCHEMA,
+    tbl.name ", @collate_tolower, " AS TABLE_NAME,
     tbl.type AS TABLE_TYPE,
-    IF(tbl.type  = 'VIEW', NULL, tbl.engine) AS ENGINE,
+    IF(tbl.type = 'BASE TABLE', tbl.engine, NULL) AS ENGINE,
     IF(tbl.type = 'VIEW', NULL, 10 /* FRM_VER_TRUE_VARCHAR */) AS VERSION,
     tbl.row_format AS ROW_FORMAT,
     INTERNAL_TABLE_ROWS(sch.name, tbl.name,
@@ -500,23 +517,27 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.TABLES_DYNA
         GET_DD_CREATE_OPTIONS(tbl.options,
           IF(IFNULL(tbl.partition_expression,'NOT_PART_TBL')='NOT_PART_TBL', 0, 1)))
         AS CREATE_OPTIONS,
-    IF (tbl.type = 'VIEW', 'VIEW',
-        INTERNAL_GET_COMMENT_OR_ERROR(tbl.comment)) AS TABLE_COMMENT
+    INTERNAL_GET_COMMENT_OR_ERROR(sch.name, tbl.name, tbl.type, tbl.options, tbl.comment)
+       AS TABLE_COMMENT
   FROM mysql.tables tbl JOIN mysql.schemata sch ON tbl.schema_id=sch.id
        JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
        LEFT JOIN mysql.collations col ON tbl.collation_id=col.id
-  WHERE CAN_ACCESS_TABLE(sch.name, tbl.name) AND NOT tbl.hidden;
+  WHERE CAN_ACCESS_TABLE(sch.name, tbl.name) AND NOT tbl.hidden");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
 --
 -- INFORMATION_SCHEMA.COLUMNS
 --
 
+SET @str=CONCAT("
 CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.COLUMNS AS
   SELECT
-    cat.name AS TABLE_CATALOG,
-    sch.name AS TABLE_SCHEMA,
-    tbl.name AS TABLE_NAME,
-    col.name AS COLUMN_NAME,
+    cat.name ", @collate_tolower, " AS TABLE_CATALOG,
+    sch.name ", @collate_tolower, " AS TABLE_SCHEMA,
+    tbl.name ", @collate_tolower, " AS TABLE_NAME,
+    col.name COLLATE utf8_tolower_ci AS COLUMN_NAME,
     col.ordinal_position AS ORDINAL_POSITION,
     col.default_value_utf8 AS COLUMN_DEFAULT,
     IF (col.is_nullable = 1, 'YES','NO') AS IS_NULLABLE,
@@ -554,19 +575,23 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.COLUMNS AS
     col.column_key AS COLUMN_KEY,
     IF(IFNULL(col.generation_expression_utf8,'IS_NOT_GC')='IS_NOT_GC',
        IF (col.is_auto_increment=TRUE,
-            CONCAT(IFNULL(CONCAT("on update ", col.update_option, " "),''),
-                    "auto_increment"),
-           IFNULL(CONCAT("on update ", col.update_option),'')),
-      IF(col.is_virtual, "VIRTUAL GENERATED", "STORED GENERATED")) AS EXTRA,
+            CONCAT(IFNULL(CONCAT('on update ', col.update_option, ' '),''),
+                    'auto_increment'),
+           IFNULL(CONCAT('on update ', col.update_option),'')),
+      IF(col.is_virtual, 'VIRTUAL GENERATED', 'STORED GENERATED')) AS EXTRA,
     GET_DD_COLUMN_PRIVILEGES(sch.name, tbl.name, col.name) AS `PRIVILEGES`,
-    IFNULL(col.comment, "") AS COLUMN_COMMENT,
-    IFNULL(col.generation_expression_utf8, "") AS GENERATION_EXPRESSION
+    IFNULL(col.comment, '') AS COLUMN_COMMENT,
+    IFNULL(col.generation_expression_utf8, '') AS GENERATION_EXPRESSION
   FROM mysql.columns col JOIN mysql.tables tbl ON col.table_id=tbl.id
        JOIN mysql.schemata sch ON tbl.schema_id=sch.id
        JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
        JOIN mysql.collations coll ON col.collation_id=coll.id
        JOIN mysql.character_sets cs ON coll.character_set_id= cs.id
-  WHERE CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name) AND NOT tbl.hidden;
+  WHERE INTERNAL_GET_VIEW_WARNING_OR_ERROR(sch.name, tbl.name, tbl.type, tbl.options) AND
+        CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name) AND NOT tbl.hidden");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
 --
 -- INFORMATION_SCHEMA.STATISTICS
@@ -584,15 +609,16 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.COLUMNS AS
 -- information_schema_stats=latest would enable use of definition 2).
 --
 
+SET @str=CONCAT("
 CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.STATISTICS_BASE AS
-  (SELECT cat.name AS TABLE_CATALOG,
-    sch.name AS TABLE_SCHEMA,
-    tbl.name AS TABLE_NAME,
+  (SELECT cat.name ", @collate_tolower, " AS TABLE_CATALOG,
+    sch.name ", @collate_tolower, " AS TABLE_SCHEMA,
+    tbl.name ", @collate_tolower, " AS TABLE_NAME,
     IF (idx.type = 'PRIMARY' OR idx.type = 'UNIQUE','0','1') AS NON_UNIQUE,
-    sch.name AS INDEX_SCHEMA,
-    idx.name AS INDEX_NAME,
+    sch.name ", @collate_tolower, " AS INDEX_SCHEMA,
+    idx.name COLLATE utf8_tolower_ci AS INDEX_NAME,
     icu.ordinal_position AS SEQ_IN_INDEX,
-    col.name AS COLUMN_NAME,
+    col.name COLLATE utf8_tolower_ci AS COLUMN_NAME,
     CASE WHEN icu.order = 'DESC' THEN 'D'
          WHEN icu.order = 'ASC'  THEN 'A'
          ELSE NULL END AS COLLATION,
@@ -618,7 +644,10 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.STATISTICS_
     JOIN mysql.schemata sch ON tbl.schema_id=sch.id
     JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
     JOIN mysql.collations coll ON tbl.collation_id=coll.id
-  WHERE CAN_ACCESS_TABLE(sch.name, tbl.name) AND NOT tbl.hidden);
+  WHERE CAN_ACCESS_TABLE(sch.name, tbl.name) AND NOT tbl.hidden)");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
 CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.STATISTICS AS
  (SELECT TABLE_CATALOG,
@@ -673,12 +702,13 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.STATISTICS_
 --
 -- INFORMATION_SCHEMA.TABLE_CONSTRAINTS
 --
+SET @str=CONCAT("
 CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.TABLE_CONSTRAINTS AS
-  (SELECT cat.name AS CONSTRAINT_CATALOG,
-          sch.name AS CONSTRAINT_SCHEMA,
+  (SELECT cat.name ", @collate_tolower, " AS CONSTRAINT_CATALOG,
+          sch.name ", @collate_tolower, " AS CONSTRAINT_SCHEMA,
           CONVERT(idx.name USING utf8) AS CONSTRAINT_NAME,
-          sch.name AS TABLE_SCHEMA,
-          tbl.name AS TABLE_NAME,
+          sch.name ", @collate_tolower, " AS TABLE_SCHEMA,
+          tbl.name ", @collate_tolower, " AS TABLE_NAME,
           IF (idx.type='PRIMARY', 'PRIMARY KEY', idx.type) AS CONSTRAINT_TYPE
     FROM mysql.indexes idx JOIN mysql.tables tbl ON idx.table_id = tbl.id
          JOIN mysql.schemata sch ON tbl.schema_id= sch.id
@@ -686,29 +716,33 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.TABLE_CONST
          AND idx.type IN ('PRIMARY', 'UNIQUE')
     WHERE CAN_ACCESS_TABLE(sch.name, tbl.name) AND NOT tbl.hidden)
   UNION
-  (SELECT cat.name AS CONSTRAINT_CATALOG,
-          sch.name AS CONSTRAINT_SCHEMA,
+  (SELECT cat.name ", @collate_tolower, " AS CONSTRAINT_CATALOG,
+          sch.name ", @collate_tolower, " AS CONSTRAINT_SCHEMA,
           CONVERT(fk.name USING utf8)  AS CONSTRAINT_NAME,
-          sch.name AS TABLE_SCHEMA,
-          tbl.name AS TABLE_NAME,
+          sch.name ", @collate_tolower, " AS TABLE_SCHEMA,
+          tbl.name ", @collate_tolower, " AS TABLE_NAME,
           'FOREIGN KEY' AS CONSTRAINT_TYPE
     FROM mysql.foreign_keys fk JOIN mysql.tables tbl ON fk.table_id = tbl.id
          JOIN mysql.schemata sch ON fk.schema_id= sch.id
          JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
-    WHERE CAN_ACCESS_TABLE(sch.name, tbl.name) AND NOT tbl.hidden);
+    WHERE CAN_ACCESS_TABLE(sch.name, tbl.name) AND NOT tbl.hidden)");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
 
 --
 -- INFORMATION_SCHEMA.KEY_COLUMN_USAGE
 --
+SET @str=CONCAT("
 CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.KEY_COLUMN_USAGE AS
-  (SELECT cat.name AS CONSTRAINT_CATALOG,
-     sch.name AS CONSTRAINT_SCHEMA,
+  (SELECT cat.name ", @collate_tolower, " AS CONSTRAINT_CATALOG,
+     sch.name ", @collate_tolower, " AS CONSTRAINT_SCHEMA,
      CONVERT(idx.name USING utf8) AS CONSTRAINT_NAME,
-     cat.name AS TABLE_CATALOG,
-     sch.name AS TABLE_SCHEMA,
-     tbl.name AS TABLE_NAME,
-     col.name AS COLUMN_NAME,
+     cat.name ", @collate_tolower, " AS TABLE_CATALOG,
+     sch.name ", @collate_tolower, " AS TABLE_SCHEMA,
+     tbl.name ", @collate_tolower, " AS TABLE_NAME,
+     col.name COLLATE utf8_tolower_ci AS COLUMN_NAME,
      icu.ordinal_position AS ORDINAL_POSITION,
      NULL AS POSITION_IN_UNIQUE_CONSTRAINT,
      NULL AS REFERENCED_TABLE_SCHEMA,
@@ -722,13 +756,13 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.KEY_COLUMN_
      AND idx.type IN ('PRIMARY', 'UNIQUE')
    WHERE CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name) AND NOT tbl.hidden)
   UNION
-  (SELECT cat.name AS CONSTRAINT_CATALOG,
-     sch.name AS CONSTRAINT_SCHEMA,
+  (SELECT cat.name ", @collate_tolower, " AS CONSTRAINT_CATALOG,
+     sch.name ", @collate_tolower, " AS CONSTRAINT_SCHEMA,
      CONVERT(fk.name USING utf8) AS CONSTRAINT_NAME,
-     cat.name AS TABLE_CATALOG,
-     sch.name AS TABLE_SCHEMA,
-     tbl.name AS TABLE_NAME,
-     col.name AS COLUMN_NAME,
+     cat.name ", @collate_tolower, " AS TABLE_CATALOG,
+     sch.name ", @collate_tolower, " AS TABLE_SCHEMA,
+     tbl.name ", @collate_tolower, " AS TABLE_NAME,
+     col.name COLLATE utf8_tolower_ci AS COLUMN_NAME,
      fkcu.ordinal_position AS ORDINAL_POSITION,
      icu.ordinal_position AS POSITION_IN_UNIQUE_CONSTRAINT,
      fk.referenced_table_schema AS REFERENCED_TABLE_SCHEMA,
@@ -742,16 +776,20 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.KEY_COLUMN_
      JOIN mysql.indexes idx ON fk.unique_constraint_id=idx.id
      JOIN mysql.index_column_usage icu ON idx.id=icu.index_id
      AND icu.column_id=col.id
-   WHERE CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name) AND NOT tbl.hidden);
+   WHERE CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name) AND NOT tbl.hidden)");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
 --
 -- INFORMATION_SCHEMA.VIEWS
 --
+SET @str=CONCAT("
 CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.VIEWS AS
-  SELECT cat.name AS TABLE_CATALOG,
-    sch.name AS TABLE_SCHEMA,
-    vw.name AS TABLE_NAME,
-    IF(CAN_ACCESS_VIEW(sch.name, vw.name, vw.view_definer) = TRUE,
+  SELECT cat.name ", @collate_tolower, " AS TABLE_CATALOG,
+    sch.name ", @collate_tolower, " AS TABLE_SCHEMA,
+    vw.name ", @collate_tolower, " AS TABLE_NAME,
+    IF(CAN_ACCESS_VIEW(sch.name, vw.name, vw.view_definer, vw.options) = TRUE,
        vw.view_definition_utf8, '') AS VIEW_DEFINITION,
     vw.view_check_option AS CHECK_OPTION,
     vw.view_is_updatable AS IS_UPDATABLE,
@@ -765,7 +803,10 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.VIEWS AS
        JOIN mysql.collations conn_coll ON conn_coll.id= vw.view_connection_collation_id
        JOIN mysql.collations client_coll ON client_coll.id= vw.view_client_collation_id
        JOIN mysql.character_sets cs ON cs.id= client_coll.character_set_id
-  WHERE vw.type = 'VIEW' AND CAN_ACCESS_TABLE(sch.name, vw.name);
+  WHERE vw.type = 'VIEW' AND CAN_ACCESS_TABLE(sch.name, vw.name)");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
 -- END OF INFORMATION SCHEMA INSTALLATION
 

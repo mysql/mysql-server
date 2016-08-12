@@ -17,6 +17,7 @@
 
 #include "auth_common.h"    // CREATE_VIEW_ACL
 #include "binlog.h"         // mysql_bin_log
+#include "dd_sql_view.h"    // update_referencing_views_metadata
 #include "derror.h"         // ER_THD
 #include "mysqld.h"         // stage_end reg_ext key_file_frm
 #include "opt_trace.h"      // opt_trace_disable_if_no_view_access
@@ -28,6 +29,8 @@
 #include "sql_show.h"       // append_identifier
 #include "sql_table.h"      // write_bin_log
 
+#include "dd/dd.h"          // dd::get_dictionary
+#include "dd/dictionary.h"  // dd::Dictionary
 #include "dd/dd_schema.h"   // dd::schema_exists
 #include "dd/dd_table.h"    // dd::abstract_table_type
 #include "dd/dd_view.h"     // dd::create_view
@@ -35,8 +38,6 @@
 
 #define MD5_BUFF_LENGTH 33
 
-static int mysql_register_view(THD *thd, TABLE_LIST *view,
-			       enum_view_create_mode mode);
 
 /*
   Make a unique name for an anonymous view column
@@ -715,7 +716,10 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   if (!res)
   {
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->db, view->table_name, false);
-    if (mysql_bin_log.is_open())
+
+    res= update_referencing_views_metadata(thd, view);
+
+    if (!res && mysql_bin_log.is_open())
     {
       String buff;
       const LEX_STRING command[3]=
@@ -793,8 +797,8 @@ err:
      1	Error and error message given
 */
 
-static int mysql_register_view(THD *thd, TABLE_LIST *view,
-			       enum_view_create_mode mode)
+int mysql_register_view(THD *thd, TABLE_LIST *view,
+                        enum_view_create_mode mode)
 {
   LEX *lex= thd->lex;
 
@@ -899,7 +903,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   view->view_suid= lex->create_view_suid;
   view->with_check= lex->create_view_check;
 
-  if ((view->updatable_view= can_be_merged))
+  if (!dd::get_dictionary()->is_system_view_name(view->db, view->table_name) &&
+      (view->updatable_view= can_be_merged))
   {
     /// @see SELECT_LEX::merge_derived()
     bool updatable= false;
@@ -909,10 +914,29 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
          tbl= tbl->next_local)
     {
       updatable|= !((tbl->is_view() && !tbl->updatable_view) ||
-                  tbl->schema_table);
+                     tbl->schema_table);
       outer_joined|= tbl->is_inner_table_of_outer_join();
     }
     updatable&= !outer_joined;
+
+    if (updatable)
+    {
+      // check that at least one column in view is updatable.
+      bool view_has_updatable_column= false;
+      List_iterator_fast<Item> it(lex->select_lex->item_list);
+      Item *item;
+      while ((item= it++))
+      {
+	Item_field *item_field= item->field_for_view_update();
+	if (item_field && !item_field->table_ref->schema_table)
+	{
+	  view_has_updatable_column= true;
+	  break;
+	}
+      }
+      updatable&= view_has_updatable_column;
+    }
+
     if (!updatable)
       view->updatable_view= 0;
   }
@@ -1777,8 +1801,12 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views)
         {
           thd->add_to_binlog_accessed_dbs(view->db);
 
-          // Remove view from DD tables
-          if (dd::drop_table<dd::View>(thd, view->db, view->table_name))
+          /*
+            Remove view from DD tables and update metadata of other views
+            referecing view being dropped.
+          */
+          if (dd::drop_table<dd::View>(thd, view->db, view->table_name) ||
+              update_referencing_views_metadata(thd, view))
           {
             error= true;
           }
@@ -1794,6 +1822,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views)
                            false);
           query_cache.invalidate(thd, view, false);
           sp_cache_invalidate();
+
           break;
         }
       default:

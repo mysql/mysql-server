@@ -383,6 +383,51 @@ std::string Composite_4char_key::str() const
   return ss.str();
 }
 
+///////////////////////////////////////////////////////////////////////////
+//Composite_obj_id_3char_key
+///////////////////////////////////////////////////////////////////////////
+
+Raw_key *
+Composite_obj_id_3char_key::create_access_key(Raw_table *db_table) const
+{
+  TABLE *t= db_table->get_table();
+
+  t->use_all_columns(); // TODO can mark only required fields ?
+
+  t->field[m_id_column_no]->store(m_id, true);
+
+  t->field[m_first_column_no]->store(m_first_name.c_str(),
+                                     m_first_name.length(),
+                                     &my_charset_bin);
+
+  t->field[m_second_column_no]->store(m_second_name.c_str(),
+                                      m_second_name.length(),
+                                      &my_charset_bin);
+
+  t->field[m_third_column_no]->store(m_third_name.c_str(),
+                                     m_third_name.length(),
+                                     &my_charset_bin);
+
+  KEY *key_info= t->key_info + m_index_no;
+
+  Raw_key *k= new Raw_key(m_index_no,
+                          key_info->key_length,
+                          HA_WHOLE_KEY);
+
+  key_copy(k->key, t->record[0], key_info, k->key_len);
+
+  return k;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+std::string Composite_obj_id_3char_key::str() const
+{
+  std::stringstream ss;
+  ss << m_id << m_first_name << ":"
+     << m_second_name << ":" << m_third_name;
+  return ss.str();
+}
 
 ///////////////////////////////////////////////////////////////////////////
 // Index_stat_range_key
@@ -421,5 +466,48 @@ std::string Index_stat_range_key::str() const
      << m_table_name_column_no << ":" << m_table_name;
   return ss.str();
 }
+
+///////////////////////////////////////////////////////////////////////////
+// View_usage_range_key
+///////////////////////////////////////////////////////////////////////////
+
+Raw_key *View_usage_range_key::create_access_key(Raw_table *db_table) const
+{
+  TABLE *t= db_table->get_table();
+
+  t->use_all_columns();
+
+  t->field[m_catalog_name_column_no]->store(m_catalog_name.c_str(),
+                                            m_catalog_name.length(),
+                                            &my_charset_bin);
+  t->field[m_schema_name_column_no]->store(m_schema_name.c_str(),
+                                           m_schema_name.length(),
+                                           &my_charset_bin);
+  t->field[m_table_name_column_no]->store(m_table_name.c_str(),
+                                          m_table_name.length(),
+                                          &my_charset_bin);
+
+  KEY *key_info= t->key_info + m_index_no;
+
+  Raw_key *k= new (std::nothrow) Raw_key(m_index_no,
+                                         key_info->key_length,
+                                         7);
+
+  key_copy(k->key, t->record[0], key_info, k->key_len);
+
+  return k;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+std::string View_usage_range_key::str() const
+{
+  std::stringstream ss;
+  ss << m_catalog_name_column_no << ":" << m_catalog_name
+     << m_schema_name_column_no << ":" << m_schema_name << ":"
+     << m_table_name_column_no << ":" << m_table_name;
+  return ss.str();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 }

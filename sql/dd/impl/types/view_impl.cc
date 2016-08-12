@@ -18,18 +18,21 @@
 #include "my_user.h"                          // parse_user
 #include "mysqld_error.h"                     // ER_*
 
-#include "dd/properties.h"                    // Needed for destructor
-#include "dd/impl/transaction_impl.h"         // Open_dictionary_tables_ctx
-#include "dd/impl/raw/raw_record.h"           // Raw_record
-#include "dd/impl/tables/tables.h"            // Tables
-#include "dd/impl/tables/view_table_usage.h"  // View_table_usage
-#include "dd/impl/types/view_table_impl.h"    // View_table_impl
-#include "dd/types/column.h"                  // Column
+#include "dd/properties.h"                     // Needed for destructor
+#include "dd/impl/transaction_impl.h"          // Open_dictionary_tables_ctx
+#include "dd/impl/raw/raw_record.h"            // Raw_record
+#include "dd/impl/tables/tables.h"             // Tables
+#include "dd/impl/tables/view_routine_usage.h" // View_routine_usage
+#include "dd/impl/tables/view_table_usage.h"   // View_table_usage
+#include "dd/impl/types/view_routine_impl.h"   // View_routine_impl
+#include "dd/impl/types/view_table_impl.h"     // View_table_impl
+#include "dd/types/column.h"                   // Column
 
 #include <sstream>
 
 using dd::tables::Tables;
 using dd::tables::View_table_usage;
+using dd::tables::View_routine_usage;
 
 namespace
 {
@@ -63,6 +66,7 @@ View_impl::View_impl()
   m_algorithm(VA_UNDEFINED),
   m_security_type(ST_INVOKER),
   m_tables(),
+  m_routines(),
   m_client_collation_id(INVALID_OBJECT_ID),
   m_connection_collation_id(INVALID_OBJECT_ID)
 { }
@@ -105,7 +109,12 @@ bool View_impl::restore_children(Open_dictionary_tables_ctx *otx)
       this,
       otx,
       otx->get_table<View_table>(),
-      View_table_usage::create_key_by_view_id(this->id()));
+      View_table_usage::create_key_by_view_id(this->id())) ||
+    m_routines.restore_items(
+      this,
+      otx,
+      otx->get_table<View_routine>(),
+      View_routine_usage::create_key_by_view_id(this->id()));
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -113,14 +122,19 @@ bool View_impl::restore_children(Open_dictionary_tables_ctx *otx)
 bool View_impl::store_children(Open_dictionary_tables_ctx *otx)
 {
   return Abstract_table_impl::store_children(otx) ||
-         m_tables.store_items(otx);
+         m_tables.store_items(otx) ||
+         m_routines.store_items(otx);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 bool View_impl::drop_children(Open_dictionary_tables_ctx *otx) const
 {
-  return m_tables.drop_items(
+  return m_routines.drop_items(
+           otx,
+           otx->get_table<View_routine>(),
+           View_routine_usage::create_key_by_view_id(this->id())) ||
+         m_tables.drop_items(
            otx,
            otx->get_table<View_table>(),
            View_table_usage::create_key_by_view_id(this->id())) ||
@@ -238,6 +252,15 @@ void View_impl::debug_print(std::string &outb) const
   }
   ss << "] ";
 
+  ss << "m_routines:" << m_routines.size() << " [ ";
+  for (const View_routine *r : routines())
+  {
+    std::string ob;
+    r->debug_print(ob);
+    ss << ob;
+  }
+  ss << "] ";
+
   ss << " }";
 
   outb= ss.str();
@@ -253,7 +276,16 @@ View_table *View_impl::add_table()
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// View_type implementation.
+
+View_routine *View_impl::add_routine()
+{
+  View_routine_impl *vr= new (std::nothrow) View_routine_impl(this);
+  m_routines.push_back(vr);
+  return vr;
+}
+
+///////////////////////////////////////////////////////////////////////////
+//View_type implementation.
 ///////////////////////////////////////////////////////////////////////////
 
 void View_type::register_tables(Open_dictionary_tables_ctx *otx) const
@@ -262,6 +294,7 @@ void View_type::register_tables(Open_dictionary_tables_ctx *otx) const
 
   otx->register_tables<Column>();
   otx->register_tables<View_table>();
+  otx->register_tables<View_routine>();
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -274,10 +307,12 @@ View_impl::View_impl(const View_impl &src)
     m_definition_utf8(src.m_definition_utf8),
     m_definer_user(src.m_definer_user), m_definer_host(src.m_definer_host),
     m_tables(),
+    m_routines(),
     m_client_collation_id(src.m_client_collation_id),
     m_connection_collation_id(src.m_connection_collation_id)
 {
   m_tables.deep_copy(src.m_tables, this);
+  m_routines.deep_copy(src.m_routines, this);
 }
 
 ///////////////////////////////////////////////////////////////////////////

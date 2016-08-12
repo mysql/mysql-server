@@ -388,7 +388,9 @@ Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT * FROM information_schema.columns
 WHERE table_schema LIKE 'test%'
-ORDER BY table_schema, table_name, column_name;
+ORDER BY table_schema,
+table_name COLLATE utf8_general_ci,
+ordinal_position;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION
 def	test	t1	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references		
 def	test	t1	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		
@@ -435,6 +437,14 @@ def	test	t9	f1	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,ins
 def	test	t9	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		
 def	test	t9	f3	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
 def	test	tb1	f1	1	NULL	YES	char	0	0	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(0)			select,insert,update,references		
+def	test	tb1	f2	2	NULL	YES	char	0	0	NULL	NULL	NULL	latin1	latin1_bin	char(0)			select,insert,update,references		
+def	test	tb1	f3	3	NULL	YES	char	0	0	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(0)			select,insert,update,references		
+def	test	tb1	f4	4	NULL	YES	tinytext	255	255	NULL	NULL	NULL	latin1	latin1_swedish_ci	tinytext			select,insert,update,references		
+def	test	tb1	f5	5	NULL	YES	text	65535	65535	NULL	NULL	NULL	latin1	latin1_swedish_ci	text			select,insert,update,references		
+def	test	tb1	f6	6	NULL	YES	mediumtext	16777215	16777215	NULL	NULL	NULL	latin1	latin1_swedish_ci	mediumtext			select,insert,update,references		
+def	test	tb1	f7	7	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	latin1	latin1_swedish_ci	longtext			select,insert,update,references		
+def	test	tb1	f8	8	NULL	YES	tinyblob	255	255	NULL	NULL	NULL	NULL	NULL	tinyblob			select,insert,update,references		
+def	test	tb1	f9	9	NULL	YES	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob			select,insert,update,references		
 def	test	tb1	f10	10	NULL	YES	mediumblob	16777215	16777215	NULL	NULL	NULL	NULL	NULL	mediumblob			select,insert,update,references		
 def	test	tb1	f11	11	NULL	YES	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	NULL	longblob			select,insert,update,references		
 def	test	tb1	f12	12	NULL	YES	binary	1	1	NULL	NULL	NULL	NULL	NULL	binary(1)			select,insert,update,references		
@@ -445,7 +455,6 @@ def	test	tb1	f16	16	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(3) uns
 def	test	tb1	f17	17	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(6)			select,insert,update,references		
 def	test	tb1	f18	18	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned			select,insert,update,references		
 def	test	tb1	f19	19	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned zerofill			select,insert,update,references		
-def	test	tb1	f2	2	NULL	YES	char	0	0	NULL	NULL	NULL	latin1	latin1_bin	char(0)			select,insert,update,references		
 def	test	tb1	f20	20	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned zerofill			select,insert,update,references		
 def	test	tb1	f21	21	NULL	YES	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(9)			select,insert,update,references		
 def	test	tb1	f22	22	NULL	YES	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(8) unsigned			select,insert,update,references		
@@ -456,7 +465,6 @@ def	test	tb1	f26	26	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned	
 def	test	tb1	f27	27	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned zerofill			select,insert,update,references		
 def	test	tb1	f28	28	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned zerofill			select,insert,update,references		
 def	test	tb1	f29	29	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references		
-def	test	tb1	f3	3	NULL	YES	char	0	0	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(0)			select,insert,update,references		
 def	test	tb1	f30	30	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	test	tb1	f31	31	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned zerofill			select,insert,update,references		
 def	test	tb1	f32	32	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned zerofill			select,insert,update,references		
@@ -467,7 +475,6 @@ def	test	tb1	f36	36	0000000010	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(
 def	test	tb1	f37	37	10	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references		
 def	test	tb1	f38	38	10	NO	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0)			select,insert,update,references		
 def	test	tb1	f39	39	10	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references		
-def	test	tb1	f4	4	NULL	YES	tinytext	255	255	NULL	NULL	NULL	latin1	latin1_swedish_ci	tinytext			select,insert,update,references		
 def	test	tb1	f40	40	10	NO	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned			select,insert,update,references		
 def	test	tb1	f41	41	0000000010	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
 def	test	tb1	f42	42	0000000000000000000000000000000000000000000000000000000000000010	NO	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned zerofill			select,insert,update,references		
@@ -478,7 +485,6 @@ def	test	tb1	f46	46	9.900000000000000000000000000000	NO	decimal	NULL	NULL	63	30	
 def	test	tb1	f47	47	10	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references		
 def	test	tb1	f48	48	9.900000000000000000000000000000	NO	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned			select,insert,update,references		
 def	test	tb1	f49	49	0000000010	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb1	f5	5	NULL	YES	text	65535	65535	NULL	NULL	NULL	latin1	latin1_swedish_ci	text			select,insert,update,references		
 def	test	tb1	f50	50	000000000000000000000000000000009.900000000000000000000000000000	NO	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned zerofill			select,insert,update,references		
 def	test	tb1	f51	51	0000000010	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
 def	test	tb1	f52	52	000000000000000000000000000000009.900000000000000000000000000000	NO	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned zerofill			select,insert,update,references		
@@ -488,20 +494,6 @@ def	test	tb1	f55	55	0000000099	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(
 def	test	tb1	f56	56	0000000099	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
 def	test	tb1	f57	57	99	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references		
 def	test	tb1	f58	58	99	NO	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0)			select,insert,update,references		
-def	test	tb1	f6	6	NULL	YES	mediumtext	16777215	16777215	NULL	NULL	NULL	latin1	latin1_swedish_ci	mediumtext			select,insert,update,references		
-def	test	tb1	f7	7	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	latin1	latin1_swedish_ci	longtext			select,insert,update,references		
-def	test	tb1	f8	8	NULL	YES	tinyblob	255	255	NULL	NULL	NULL	NULL	NULL	tinyblob			select,insert,update,references		
-def	test	tb1	f9	9	NULL	YES	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob			select,insert,update,references		
-def	test	tb2	f100	42	00000000000000000008.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references		
-def	test	tb2	f101	43	2000-01-01	NO	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		
-def	test	tb2	f102	44	00:00:20	NO	time	NULL	NULL	NULL	NULL	0	NULL	NULL	time			select,insert,update,references		
-def	test	tb2	f103	45	0002-02-02 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select,insert,update,references		
-def	test	tb2	f104	46	2000-12-31 23:59:59	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references		
-def	test	tb2	f105	47	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references		
-def	test	tb2	f106	48	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references		
-def	test	tb2	f107	49	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references		
-def	test	tb2	f108	50	1enum	NO	enum	5	5	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('1enum','2enum')			select,insert,update,references		
-def	test	tb2	f109	51	1set	NO	set	9	9	NULL	NULL	NULL	latin1	latin1_swedish_ci	set('1set','2set')			select,insert,update,references		
 def	test	tb2	f59	1	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references		
 def	test	tb2	f60	2	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned			select,insert,update,references		
 def	test	tb2	f61	3	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
@@ -543,6 +535,16 @@ def	test	tb2	f96	38	8.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsign
 def	test	tb2	f97	39	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
 def	test	tb2	f98	40	00000000000000000008.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references		
 def	test	tb2	f99	41	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
+def	test	tb2	f100	42	00000000000000000008.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references		
+def	test	tb2	f101	43	2000-01-01	NO	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		
+def	test	tb2	f102	44	00:00:20	NO	time	NULL	NULL	NULL	NULL	0	NULL	NULL	time			select,insert,update,references		
+def	test	tb2	f103	45	0002-02-02 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select,insert,update,references		
+def	test	tb2	f104	46	2000-12-31 23:59:59	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references		
+def	test	tb2	f105	47	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references		
+def	test	tb2	f106	48	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references		
+def	test	tb2	f107	49	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references		
+def	test	tb2	f108	50	1enum	NO	enum	5	5	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('1enum','2enum')			select,insert,update,references		
+def	test	tb2	f109	51	1set	NO	set	9	9	NULL	NULL	NULL	latin1	latin1_swedish_ci	set('1set','2set')			select,insert,update,references		
 def	test	tb3	f118	1	a	NO	char	1	1	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(1)			select,insert,update,references		
 def	test	tb3	f119	2		NO	char	1	1	NULL	NULL	NULL	latin1	latin1_bin	char(1)			select,insert,update,references		
 def	test	tb3	f120	3		NO	char	1	1	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(1)			select,insert,update,references		
@@ -659,16 +661,6 @@ def	test	tb4	f238	55	NULL	YES	varchar	0	0	NULL	NULL	NULL	latin1	latin1_swedish_c
 def	test	tb4	f239	56	NULL	YES	varchar	20000	20000	NULL	NULL	NULL	latin1	latin1_bin	varchar(20000)			select,insert,update,references		
 def	test	tb4	f240	57	NULL	YES	varchar	2000	2000	NULL	NULL	NULL	latin1	latin1_swedish_ci	varchar(2000)			select,insert,update,references		
 def	test	tb4	f241	58	NULL	YES	char	100	100	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(100)			select,insert,update,references		
-def	test1	tb2	f100	42	00000000000000000008.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references		
-def	test1	tb2	f101	43	2000-01-01	NO	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		
-def	test1	tb2	f102	44	00:00:20	NO	time	NULL	NULL	NULL	NULL	0	NULL	NULL	time			select,insert,update,references		
-def	test1	tb2	f103	45	0002-02-02 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select,insert,update,references		
-def	test1	tb2	f104	46	2000-12-31 23:59:59	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references		
-def	test1	tb2	f105	47	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references		
-def	test1	tb2	f106	48	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references		
-def	test1	tb2	f107	49	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references		
-def	test1	tb2	f108	50	1enum	NO	enum	5	5	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('1enum','2enum')			select,insert,update,references		
-def	test1	tb2	f109	51	1set	NO	set	9	9	NULL	NULL	NULL	latin1	latin1_swedish_ci	set('1set','2set')			select,insert,update,references		
 def	test1	tb2	f59	1	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references		
 def	test1	tb2	f60	2	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned			select,insert,update,references		
 def	test1	tb2	f61	3	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
@@ -710,6 +702,16 @@ def	test1	tb2	f96	38	8.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsig
 def	test1	tb2	f97	39	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
 def	test1	tb2	f98	40	00000000000000000008.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references		
 def	test1	tb2	f99	41	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
+def	test1	tb2	f100	42	00000000000000000008.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references		
+def	test1	tb2	f101	43	2000-01-01	NO	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		
+def	test1	tb2	f102	44	00:00:20	NO	time	NULL	NULL	NULL	NULL	0	NULL	NULL	time			select,insert,update,references		
+def	test1	tb2	f103	45	0002-02-02 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select,insert,update,references		
+def	test1	tb2	f104	46	2000-12-31 23:59:59	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references		
+def	test1	tb2	f105	47	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references		
+def	test1	tb2	f106	48	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references		
+def	test1	tb2	f107	49	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references		
+def	test1	tb2	f108	50	1enum	NO	enum	5	5	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('1enum','2enum')			select,insert,update,references		
+def	test1	tb2	f109	51	1set	NO	set	9	9	NULL	NULL	NULL	latin1	latin1_swedish_ci	set('1set','2set')			select,insert,update,references		
 def	test4	t6	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references		
 def	test4	t6	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		
 def	test4	t6	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		
@@ -794,7 +796,7 @@ COLLATION_NAME,
 COLUMN_TYPE
 FROM information_schema.columns
 WHERE table_schema LIKE 'test%'
-ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION, DATA_TYPE;
+ORDER BY TABLE_SCHEMA, TABLE_NAME COLLATE utf8_general_ci, ORDINAL_POSITION;
 COL_CML	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE
 1.0000	test	t1	f1	char	20	20	latin1	latin1_swedish_ci	char(20)
 1.0000	test	t1	f2	char	25	25	latin1	latin1_swedish_ci	char(25)

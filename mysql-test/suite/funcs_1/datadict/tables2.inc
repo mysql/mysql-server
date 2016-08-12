@@ -46,5 +46,5 @@ SELECT *,
        '-----------------------------------------------------' AS "Separator"
 FROM information_schema.tables
 $my_where
-ORDER BY table_schema,table_name;
+ORDER BY table_schema,table_name COLLATE utf8_general_ci;
 --horizontal_results

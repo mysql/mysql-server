@@ -84,7 +84,6 @@ i_main.plugin_auth                     WL6378_MODIFIES_SYSTEM_TABLE
   Allow dump/restore of innodb_index_stats and innodb_table_stats.
   See Bug#22655287
 */
-main.mysqldump                         WL6378_DDL_ON_DD_TABLE
 sysschema.mysqldump                    WL6378_DDL_ON_DD_TABLE
 
 /** MEDIUM - Joh
@@ -101,32 +100,12 @@ main.lock_sync                         WL6378_DEBUG_SYNC
 
 /*
   Metadata of IS tables of thread pool plugin seem to be missing
-  from DD tables. How to load metadata of IS tables from dynamic
-  plugins ? - Gopal
+  from DD tables.
 */
-thread_pool.thread_pool_i_s : WL6599_TP_IS_TABLES_MISSING
-
-/*
-  Praveen
-*/
-main.mdl_sync               : WL6599_DEBUG_SYNC_REWRITE
-
-// ANALYZE TABLE under LTWRL - Gopal
-main.flush_read_lock        : WL6599_ANALYZE_TABLE_LTWRL
+thread_pool.thread_pool_i_s : Enabled by WL9495.
 
 // Hangs after 5 contineous run using ./mtr --repeat=30 - Thayu
 i_innodb.innodb_bug14150372 : WL6599_INNODB_SPORADIC
-
-/*
-  This test cases has few parts disabled.
-
-  WL6599_NEEDS_VIEW_COLUMNS
-*/
-main.information_schema                 : WL6599_NEEDS_VIEW_COLUMNS
-
-nist.nist_all                           : Enabled in 7167
-
-sysschema.pr_create_synonym_db          : WL6599_TOLOWER_CI
 
 Restrictions OR waiting for WL/Bug fixes:
 =========================================
@@ -145,117 +124,3 @@ Restrictions OR waiting for WL/Bug fixes:
   
 */
 i_innodb.innodb_bug16083211   : WL6599_ANALYZE_READONLY
-
-
-/*
-  Metadata of view column definition is mssing in DD tables.
-  Needs WL7167 - Praveen.
-*/
-funcs_1.is_schemata                     : WL6599_NEEDS_VIEW_COLUMNS
-funcs_1.is_views                        : WL6599_NEEDS_VIEW_COLUMNS
-funcs_1.is_character_sets               : WL6599_NEEDS_VIEW_COLUMNS
-funcs_1.is_coll_char_set_appl           : WL6599_NEEDS_VIEW_COLUMNS
-funcs_1.is_collations                   : WL6599_NEEDS_VIEW_COLUMNS
-funcs_1.is_tables_is                    : WL6599_NEEDS_VIEW_COLUMNS
-funcs_1.is_statistics                   : WL6599_NEEDS_VIEW_COLUMNS
-funcs_1.is_table_constraints            : WL6599_NEEDS_VIEW_COLUMNS
-funcs_1.is_key_column_usage             : WL6599_NEEDS_VIEW_COLUMNS
-i_main.information_schema               : WL6599_NEEDS_VIEW_COLUMNS
-main.show_check                         : WL6599_NEEDS_VIEW_COLUMNS
-i_main.view                             : WL6599_NEEDS_VIEW_COLUMNS
-i_rpl.rpl_load_view                     : WL6599_NEEDS_VIEW_COLUMNS
-funcs_1.innodb_views                    : WL6599_NEEDS_VIEW_COLUMNS
-funcs_1.memory_views                    : WL6599_NEEDS_VIEW_COLUMNS
-sysschema.pr_diagnostics                : WL6599_NEEDS_VIEW_COLUMNS
-test_sql_views_triggers                 : WL6599_NEEDS_VIEW_COLUMNS
-test_sql_stored_procedures_functions    : WL6599_NEEDS_VIEW_COLUMNS, WL6599_SHOW_IN_SP
-main.ctype_binary                       : WL6599_NEEDS_VIEW_COLUMNS
-main.ctype_cp1251                       : WL6599_NEEDS_VIEW_COLUMNS
-main.ctype_latin1                       : WL6599_NEEDS_VIEW_COLUMNS
-main.ctype_utf8                         : WL6599_NEEDS_VIEW_COLUMNS
-main.view                               : WL6599_NEEDS_VIEW_COLUMNS
-main.information_schema_parameters      : WL6599_NEEDS_VIEW_COLUMNS
-main.information_schema_routines        : WL6599_NEEDS_VIEW_COLUMNS
-main.view_alias                         : WL6599_NEEDS_VIEW_COLUMNS
-main.view_grant                         : WL6599_NEEDS_VIEW_COLUMNS
-main.information_schema_db              : WL6599_NEEDS_VIEW_COLUMNS
-main.ctype_ucs                          : WL6599_NEEDS_VIEW_COLUMNS
-main.mysqlpump_basic                    : WL6599_NEEDS_VIEW_COLUMNS
-main.mysqlpump_concurrency              : WL6599_NEEDS_VIEW_COLUMNS
-main.mysqlpump_extended                 : WL6599_NEEDS_VIEW_COLUMNS
-main.mysqlpump_charset                  : WL6599_NEEDS_VIEW_COLUMNS
-main.mysqldump                          : WL6599_NEEDS_VIEW_COLUMNS
-sysschema.v_schema_auto_increment_columns : WL6599_NEEDS_VIEW_COLUMNS
-funcs_1.is_columns_innodb               : WL6599_NEEDS_VIEW_COLUMNS
-funcs_1.is_columns_is                   : WL6599_NEEDS_VIEW_COLUMNS
-funcs_1.is_columns_memory               : WL6599_NEEDS_VIEW_COLUMNS
-funcs_1.is_columns_mysql                : WL6599_NEEDS_VIEW_COLUMNS
-funcs_1.is_statistics_is                : WL6599_NEEDS_VIEW_COLUMNS
-funcs_1.is_tables                       : WL6599_NEEDS_VIEW_COLUMNS
-funcs_1.is_columns_myisam               : WL6599_NEEDS_VIEW_COLUMNS
-
---big-test
-rpl_nogtid.transactional_ddl_locking    : WL6599_NEEDS_VIEW_COLUMNS
-main.mysqlpump                          : WL6599_NEEDS_VIEW_COLUMNS
-main.information_schema-big             : WL6599_NEEDS_VIEW_COLUMNS
-main.mysqlpump_filters                  : WL6599_NEEDS_VIEW_COLUMNS
-main.mysqlpump_multi_thread             : WL6599_NEEDS_VIEW_COLUMNS
-funcs_1.myisam_views-big                : WL6599_NEEDS_VIEW_COLUMNS
-
-/*
-  Parts of following test cases are commented out due to WL7167
-*/
-i_main.mysqldump
-i_main.view
-i_main.gis
-main.olap
-main.gis
-main.sp
-sysschema.v_innodb_buffer_stats_by_table
-sysschema.v_memory_global_by_current_bytes
-sysschema.v_schema_table_statistics_with_buffer
-sysschema.v_memory_by_user_by_current_bytes
-sysschema.v_waits_global_by_latency
-sysschema.v_schema_table_statistics
-sysschema.v_memory_global_total
-sysschema.v_processlist
-sysschema.v_io_global_by_wait_by_latency
-sysschema.v_user_summary_by_stages
-sysschema.v_user_summary_by_file_io_type
-sysschema.v_ps_digest_95th_percentile_by_avg_us
-sysschema.v_user_summary_by_file_io
-sysschema.v_io_by_thread_by_latency
-sysschema.v_statements_with_errors_or_warnings
-sysschema.v_schema_unused_indexes
-sysschema.v_ps_schema_table_statistics_io
-sysschema.v_user_summary
-sysschema.v_wait_classes_global_by_latency
-sysschema.v_host_summary_by_statement_latency
-sysschema.v_user_summary_by_statement_latency
-sysschema.v_waits_by_host_by_latency
-sysschema.v_statement_analysis
-sysschema.v_ps_check_lost_instrumentation
-sysschema.v_statements_with_sorting
-sysschema.v_innodb_lock_waits
-sysschema.v_wait_classes_global_by_avg_latency
-sysschema.v_ps_digest_avg_latency_distribution
-sysschema.v_waits_by_user_by_latency
-sysschema.v_statements_with_full_table_scans
-sysschema.v_schema_tables_with_full_table_scans
-sysschema.v_host_summary_by_file_io_type
-sysschema.v_host_summary
-sysschema.v_memory_by_host_by_current_bytes
-sysschema.v_host_summary_by_statement_type
-sysschema.v_io_global_by_file_by_latency
-sysschema.v_statements_with_temp_tables
-sysschema.v_memory_by_thread_by_current_bytes
-sysschema.v_latest_file_io
-sysschema.v_io_global_by_file_by_bytes
-sysschema.v_user_summary_by_statement_type
-sysschema.v_schema_index_statistics
-sysschema.v_statements_with_runtimes_in_95th_percentile
-sysschema.v_innodb_buffer_stats_by_schema
-sysschema.v_host_summary_by_file_io
-rpl.rpl_view
-innodb_gis.1
-innodb_gis.gis

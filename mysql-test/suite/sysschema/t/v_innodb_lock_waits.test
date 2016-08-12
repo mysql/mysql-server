@@ -3,9 +3,8 @@
 # Tests for sys schema
 # Verify the sys.innodb_lock_waits view
 
-## WL6599_NEEDS_VIEW_COLUMNS
-## Ensure structure changes don't slip in
-#DESC sys.innodb_lock_waits;
+# Ensure structure changes don't slip in
+DESC sys.innodb_lock_waits;
 
 # Make sure view select does not error, but ignore results
 --disable_result_log
@@ -13,9 +12,8 @@ SELECT * FROM sys.innodb_lock_waits;
 --enable_result_log
 
 
-## WL6599_NEEDS_VIEW_COLUMNS
-## Ensure structure changes don't slip in
-#DESC sys.x$innodb_lock_waits;
+# Ensure structure changes don't slip in
+DESC sys.x$innodb_lock_waits;
 
 # Make sure view select does not error, but ignore results
 --disable_result_log

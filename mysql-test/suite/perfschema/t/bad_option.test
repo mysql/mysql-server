@@ -7,6 +7,9 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
+#Plugin 'MEMORY' has ref_count=1 after shutdown
+call mtr.add_suppression("Plugin \'MEMORY\'");
+
 let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
 --error 0,1
 --remove_file $error_log

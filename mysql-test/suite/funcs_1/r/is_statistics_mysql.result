@@ -1,5 +1,3 @@
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 DROP DATABASE IF EXISTS db_datadict;
 CREATE DATABASE db_datadict;
 DROP   USER testuser1@localhost;

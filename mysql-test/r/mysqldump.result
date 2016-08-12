@@ -3554,44 +3554,11 @@ drop user myDB_User@localhost;
 drop database mysqldump_myDB;
 use test;
 #
-# Bug #21527 mysqldump incorrectly tries to LOCK TABLES on the 
-# information_schema database.
-#
-# Bug #33762: mysqldump can not dump INFORMATION_SCHEMA
-#
-DROP TABLE IF EXISTS `TABLES`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TEMPORARY TABLE `TABLES` (
-  `TABLE_CATALOG` varchar(512) NOT NULL DEFAULT '',
-  `TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
-  `TABLE_NAME` varchar(64) NOT NULL DEFAULT '',
-  `TABLE_TYPE` varchar(64) NOT NULL DEFAULT '',
-  `ENGINE` varchar(64) DEFAULT NULL,
-  `VERSION` bigint(21) unsigned DEFAULT NULL,
-  `ROW_FORMAT` varchar(10) DEFAULT NULL,
-  `TABLE_ROWS` bigint(21) unsigned DEFAULT NULL,
-  `AVG_ROW_LENGTH` bigint(21) unsigned DEFAULT NULL,
-  `DATA_LENGTH` bigint(21) unsigned DEFAULT NULL,
-  `MAX_DATA_LENGTH` bigint(21) unsigned DEFAULT NULL,
-  `INDEX_LENGTH` bigint(21) unsigned DEFAULT NULL,
-  `DATA_FREE` bigint(21) unsigned DEFAULT NULL,
-  `AUTO_INCREMENT` bigint(21) unsigned DEFAULT NULL,
-  `CREATE_TIME` datetime DEFAULT NULL,
-  `UPDATE_TIME` datetime DEFAULT NULL,
-  `CHECK_TIME` datetime DEFAULT NULL,
-  `TABLE_COLLATION` varchar(32) DEFAULT NULL,
-  `CHECKSUM` bigint(21) unsigned DEFAULT NULL,
-  `CREATE_OPTIONS` varchar(255) DEFAULT NULL,
-  `TABLE_COMMENT` varchar(2048) NOT NULL DEFAULT ''
-) ENGINE=MEMORY DEFAULT CHARSET=utf8;
-/*!40101 SET character_set_client = @saved_cs_client */;
-#
 # Bug#19745 mysqldump --xml produces invalid xml
 #
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (f1 int(10), data MEDIUMBLOB);
-INSERT INTO t1 VALUES(1,0xff00fef0);
+INSERT INTO t1 VALUES(1, 0xff00fef0);
 <?xml version="1.0"?>
 <mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <database name="test">
@@ -4362,7 +4329,7 @@ CREATE VIEW v1(x, y) AS SELECT 'a', 'a';
 SELECT view_definition
 FROM INFORMATION_SCHEMA.VIEWS
 WHERE table_schema = 'mysqldump_test_db' AND table_name = 'v1';
-view_definition
+VIEW_DEFINITION
 select 'a' AS `x`,'a' AS `y`
 
 ---> Dumping mysqldump_test_db to bug30217.sql
@@ -4375,7 +4342,7 @@ use test;
 SELECT view_definition
 FROM INFORMATION_SCHEMA.VIEWS
 WHERE table_schema = 'mysqldump_test_db' AND table_name = 'v1';
-view_definition
+VIEW_DEFINITION
 select 'a' AS `x`,'a' AS `y`
 
 DROP DATABASE mysqldump_test_db;
@@ -4642,7 +4609,7 @@ CREATE VIEW v2 AS SELECT * FROM t2;
 	<table_structure name="t1">
 		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
 		<field Field="c2" Type="varchar(20)" Null="YES" Key="" Extra="" Comment="" />
-		<options Name="t1" Engine="MyISAM" Version="10" Row_format="Dynamic" Rows="3" Avg_row_length="20" Data_length="60" Max_data_length="281474976710655" Index_length="1024" Data_free="0" Create_time="--TIME--" Update_time="--TIME--" Collation="latin1_swedish_ci" Create_options="" Comment="" />
+		<options Name="t1" Engine="MyISAM" Version="10" Row_format="Dynamic" Rows="3" Avg_row_length="20" Data_length="60" Max_data_length="281474976710655" Index_length="1024" Data_free="0" Auto_increment="1" Create_time="--TIME--" Update_time="--TIME--" Collation="latin1_swedish_ci" Create_options="" Comment="" />
 	</table_structure>
 	<table_data name="t1">
 	<row>
@@ -4660,7 +4627,7 @@ CREATE VIEW v2 AS SELECT * FROM t2;
 	</table_data>
 	<table_structure name="t2">
 		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
-		<options Name="t2" Engine="MyISAM" Version="10" Row_format="Fixed" Rows="3" Avg_row_length="7" Data_length="21" Max_data_length="1970324836974591" Index_length="1024" Data_free="0" Create_time="--TIME--" Update_time="--TIME--" Collation="latin1_swedish_ci" Create_options="" Comment="" />
+		<options Name="t2" Engine="MyISAM" Version="10" Row_format="Fixed" Rows="3" Avg_row_length="7" Data_length="21" Max_data_length="1970324836974591" Index_length="1024" Data_free="0" Auto_increment="1" Create_time="--TIME--" Update_time="--TIME--" Collation="latin1_swedish_ci" Create_options="" Comment="" />
 	</table_structure>
 	<table_data name="t2">
 	<row>
@@ -4695,11 +4662,11 @@ END
 	<table_structure name="v1">
 		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
 		<field Field="c2" Type="varchar(20)" Null="YES" Key="" Extra="" Comment="" />
-		<options Name="v1" Comment="VIEW" />
+		<options Name="v1" Rows="0" Avg_row_length="0" Data_length="0" Max_data_length="0" Index_length="0" Data_free="0" Create_time="--TIME--" Comment="VIEW" />
 	</table_structure>
 	<table_structure name="v2">
 		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
-		<options Name="v2" Comment="VIEW" />
+		<options Name="v2" Rows="0" Avg_row_length="0" Data_length="0" Max_data_length="0" Index_length="0" Data_free="0" Create_time="--TIME--" Comment="VIEW" />
 	</table_structure>
 	<events>
 		<event Event="e1" sql_mode="" time_zone="SYSTEM" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci">
@@ -4763,7 +4730,7 @@ END
 	<table_structure name="t1">
 		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
 		<field Field="c2" Type="varchar(20)" Null="YES" Key="" Extra="" Comment="" />
-		<options Name="t1" Engine="MyISAM" Version="10" Row_format="Dynamic" Rows="3" Avg_row_length="20" Data_length="60" Max_data_length="281474976710655" Index_length="1024" Data_free="0" Create_time="--TIME--" Update_time="--TIME--" Collation="latin1_swedish_ci" Create_options="" Comment="" />
+		<options Name="t1" Engine="MyISAM" Version="10" Row_format="Dynamic" Rows="3" Avg_row_length="20" Data_length="60" Max_data_length="281474976710655" Index_length="1024" Data_free="0" Auto_increment="1" Create_time="--TIME--" Update_time="--TIME--" Collation="latin1_swedish_ci" Create_options="" Comment="" />
 	</table_structure>
 <!-- 
 -
@@ -4792,7 +4759,7 @@ END
  -->
 	<table_structure name="t2">
 		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
-		<options Name="t2" Engine="MyISAM" Version="10" Row_format="Fixed" Rows="3" Avg_row_length="7" Data_length="21" Max_data_length="1970324836974591" Index_length="1024" Data_free="0" Create_time="--TIME--" Update_time="--TIME--" Collation="latin1_swedish_ci" Create_options="" Comment="" />
+		<options Name="t2" Engine="MyISAM" Version="10" Row_format="Fixed" Rows="3" Avg_row_length="7" Data_length="21" Max_data_length="1970324836974591" Index_length="1024" Data_free="0" Auto_increment="1" Create_time="--TIME--" Update_time="--TIME--" Collation="latin1_swedish_ci" Create_options="" Comment="" />
 	</table_structure>
 <!-- 
 -
@@ -4838,7 +4805,7 @@ END
 	<table_structure name="v1">
 		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
 		<field Field="c2" Type="varchar(20)" Null="YES" Key="" Extra="" Comment="" />
-		<options Name="v1" Comment="VIEW" />
+		<options Name="v1" Rows="0" Avg_row_length="0" Data_length="0" Max_data_length="0" Index_length="0" Data_free="0" Create_time="--TIME--" Comment="VIEW" />
 	</table_structure>
 <!-- 
 -
@@ -4848,7 +4815,7 @@ END
  -->
 	<table_structure name="v2">
 		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
-		<options Name="v2" Comment="VIEW" />
+		<options Name="v2" Rows="0" Avg_row_length="0" Data_length="0" Max_data_length="0" Index_length="0" Data_free="0" Create_time="--TIME--" Comment="VIEW" />
 	</table_structure>
 <!-- 
 -
@@ -4919,7 +4886,7 @@ Warning	1287	Using GRANT for creating new user is deprecated and will be removed
 	<table_structure name="t1">
 		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
 		<field Field="c2" Type="varchar(20)" Null="YES" Key="" Extra="" Comment="" />
-		<options Name="t1" Engine="MyISAM" Version="10" Row_format="Dynamic" Rows="3" Avg_row_length="20" Data_length="60" Max_data_length="281474976710655" Index_length="1024" Data_free="0" Create_time="--TIME--" Update_time="--TIME--" Collation="latin1_swedish_ci" Create_options="" Comment="" />
+		<options Name="t1" Engine="MyISAM" Version="10" Row_format="Dynamic" Rows="3" Avg_row_length="20" Data_length="60" Max_data_length="281474976710655" Index_length="1024" Data_free="0" Auto_increment="1" Create_time="--TIME--" Update_time="--TIME--" Collation="latin1_swedish_ci" Create_options="" Comment="" />
 	</table_structure>
 	<table_data name="t1">
 	<row>
@@ -4937,7 +4904,7 @@ Warning	1287	Using GRANT for creating new user is deprecated and will be removed
 	</table_data>
 	<table_structure name="t2">
 		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
-		<options Name="t2" Engine="MyISAM" Version="10" Row_format="Fixed" Rows="3" Avg_row_length="7" Data_length="21" Max_data_length="1970324836974591" Index_length="1024" Data_free="0" Create_time="--TIME--" Update_time="--TIME--" Collation="latin1_swedish_ci" Create_options="" Comment="" />
+		<options Name="t2" Engine="MyISAM" Version="10" Row_format="Fixed" Rows="3" Avg_row_length="7" Data_length="21" Max_data_length="1970324836974591" Index_length="1024" Data_free="0" Auto_increment="1" Create_time="--TIME--" Update_time="--TIME--" Collation="latin1_swedish_ci" Create_options="" Comment="" />
 	</table_structure>
 	<table_data name="t2">
 	<row>
@@ -4972,11 +4939,11 @@ END
 	<table_structure name="v1">
 		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
 		<field Field="c2" Type="varchar(20)" Null="YES" Key="" Extra="" Comment="" />
-		<options Name="v1" Comment="VIEW" />
+		<options Name="v1" Rows="0" Avg_row_length="0" Data_length="0" Max_data_length="0" Index_length="0" Data_free="0" Create_time="--TIME--" Comment="VIEW" />
 	</table_structure>
 	<table_structure name="v2">
 		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
-		<options Name="v2" Comment="VIEW" />
+		<options Name="v2" Rows="0" Avg_row_length="0" Data_length="0" Max_data_length="0" Index_length="0" Data_free="0" Create_time="--TIME--" Comment="VIEW" />
 	</table_structure>
 	<events>
 		<event Event="e1" sql_mode="" time_zone="SYSTEM" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci">

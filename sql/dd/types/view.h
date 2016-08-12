@@ -27,6 +27,7 @@ namespace dd {
 class Object_type;
 class View_impl;
 class View_table;
+class View_routine;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -35,6 +36,7 @@ class View : virtual public Abstract_table
 public:
   static const Object_type &TYPE();
   typedef Collection<View_table*> View_tables;
+  typedef Collection<View_routine*> View_routines;
   typedef View_impl Impl;
 
 public:
@@ -136,6 +138,14 @@ public:
   virtual View_table *add_table() = 0;
 
   virtual const View_tables &tables() const = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // View_routine collection.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual View_routine *add_routine() = 0;
+
+  virtual const View_routines &routines() const = 0;
 
   /**
     Allocate a new object graph and invoke the copy contructor for

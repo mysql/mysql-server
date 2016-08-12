@@ -221,7 +221,11 @@ bool trans_begin(THD *thd, uint flags)
 /**
   Commit the current transaction, making its changes permanent.
 
-  @param thd     Current thread
+  @param[in] thd                       Current thread
+  @param[in] ignore_global_read_lock   Allow commit to complete even if a
+                                       global read lock is active. This can be
+                                       used to allow changes to internal tables
+                                       (e.g. slave status tables, analyze table).
 
   @retval FALSE  Success
   @retval TRUE   Failure
@@ -277,7 +281,12 @@ bool trans_commit(THD *thd, bool ignore_global_read_lock)
 
   @note A implicit commit does not releases existing table locks.
 
-  @param thd     Current thread
+  @param[in] thd                       Current thread
+  @param[in] ignore_global_read_lock   Allow commit to complete even if a
+                                       global read lock is active. This can be
+                                       used to allow changes to internal tables
+                                       (e.g. slave status tables, analyze table).
+
 
   @retval FALSE  Success
   @retval TRUE   Failure
@@ -429,7 +438,12 @@ bool trans_rollback_implicit(THD *thd)
         is based on counting locks, but if the user has used LOCK
         TABLES then that mechanism does not know to do the commit.
 
-  @param thd     Current thread
+  @param[in] thd                       Current thread
+  @param[in] ignore_global_read_lock   Allow commit to complete even if a
+                                       global read lock is active. This can be
+                                       used to allow changes to internal tables
+                                       (e.g. slave status tables, analyze table).
+
 
   @retval FALSE  Success
   @retval TRUE   Failure

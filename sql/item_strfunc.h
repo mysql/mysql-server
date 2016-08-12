@@ -1463,8 +1463,8 @@ public:
 class Item_func_internal_get_comment_or_error :public Item_str_func
 {
 public:
-  Item_func_internal_get_comment_or_error(const POS &pos, Item *a)
-    :Item_str_func(pos, a)
+  Item_func_internal_get_comment_or_error(const POS &pos, PT_item_list *list)
+    :Item_str_func(pos, list)
   {}
 
   virtual bool resolve_type(THD *thd)

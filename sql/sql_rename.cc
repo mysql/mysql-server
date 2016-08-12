@@ -19,6 +19,8 @@
 
 #include "sql_rename.h"
 
+
+#include "dd_sql_view.h"      // View_metadata_updater
 #include "log.h"              // query_logger
 #include "mysqld.h"           // lower_case_table_names
 #include "sql_base.h"         // tdc_remove_table,
@@ -175,6 +177,20 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     table_list= reverse_table_list(table_list);
 
     error= 1;
+  }
+
+  if (!error)
+  {
+    for (ren_table= table_list; ren_table;
+         ren_table= ren_table->next_local->next_local)
+    {
+      TABLE_LIST *new_table= ren_table->next_local;
+      DBUG_ASSERT(new_table);
+      if ((error= update_referencing_views_metadata(thd, ren_table,
+                                                    new_table->db,
+                                                    new_table->table_name)))
+        goto err;
+    }
   }
 
   if (!silent && !error)

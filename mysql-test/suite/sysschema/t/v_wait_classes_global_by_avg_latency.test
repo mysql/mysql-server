@@ -3,9 +3,8 @@
 # Tests for sys schema
 # Verify the sys.wait_classes_global_by_avg_latency view
 
-## WL6599_NEEDS_VIEW_COLUMNS
-## Ensure structure changes don't slip in
-#DESC sys.wait_classes_global_by_avg_latency;
+# Ensure structure changes don't slip in
+DESC sys.wait_classes_global_by_avg_latency;
 
 # Make sure view select does not error, but ignore results
 --disable_result_log
@@ -13,9 +12,8 @@ SELECT * FROM sys.wait_classes_global_by_avg_latency;
 --enable_result_log
 
 
-## WL6599_NEEDS_VIEW_COLUMNS
-## Ensure structure changes don't slip in
-#DESC sys.x$wait_classes_global_by_avg_latency;
+# Ensure structure changes don't slip in
+DESC sys.x$wait_classes_global_by_avg_latency;
 
 # Make sure view select does not error, but ignore results
 --disable_result_log

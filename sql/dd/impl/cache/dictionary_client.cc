@@ -35,6 +35,8 @@
 #include "dd/types/table.h"                  // Table
 #include "dd/types/tablespace.h"             // Tablespace
 #include "dd/types/view.h"                   // View
+#include "dd/types/view_table.h"             // View_table
+#include "dd/types/view_routine.h"           // View_routine
 #include "dd/types/table_stat.h"             // Table_stat
 #include "dd/types/index_stat.h"             // Index_stat
 #include "dd/impl/bootstrapper.h"            // bootstrap_stage
@@ -54,6 +56,8 @@
 #include "dd/impl/tables/tablespaces.h"      // create_name_key()
 #include "dd/impl/tables/table_partitions.h" // get_partition_table_id()
 #include "dd/impl/tables/triggers.h"         // dd::tables::Triggers
+#include "dd/impl/tables/view_table_usage.h" // create_name_key
+#include "dd/impl/tables/view_routine_usage.h" // create_name_key
 #include "dd/impl/types/object_table_definition_impl.h" // fs_name_case()
 #include "dd/impl/types/entity_object_impl.h"// Entity_object_impl
 
@@ -1702,6 +1706,63 @@ bool Dictionary_client::fetch_global_components(
 /* purecov: end */
 
 
+template <typename T>
+bool Dictionary_client::fetch_referencing_views_object_id(
+  const char *schema,
+  const char *tbl_or_sf_name,
+  std::vector<Object_id> *view_ids) const
+{
+  dd::Transaction_ro trx(m_thd, ISO_READ_COMMITTED);
+
+  // Register View_table_usage/View_routine_usage.
+  trx.otx.register_tables<T>();
+  Raw_table *view_usage_table= trx.otx.get_table<T>();
+  DBUG_ASSERT(view_usage_table);
+
+  // Open registered tables.
+  if (trx.otx.open_tables())
+  {
+    DBUG_ASSERT(m_thd->is_system_thread() ||
+                m_thd->killed ||
+                m_thd->is_error());
+    return true;
+  }
+
+  // Create the key based on the base table/ view/ stored function name.
+  std::unique_ptr<Object_key> object_key(
+    T::cache_partition_table_type::create_key_by_name(
+      std::string(Dictionary_impl::default_catalog_name()),
+      std::string(schema),
+      std::string(tbl_or_sf_name)));
+  std::unique_ptr<Raw_record_set> rs;
+  if (view_usage_table->open_record_set(object_key.get(), rs))
+  {
+    DBUG_ASSERT(m_thd->is_system_thread() ||
+                m_thd->killed ||
+                m_thd->is_error());
+    return true;
+  }
+
+  Raw_record *vtr= rs->current_record();
+  while (vtr)
+  {
+    /* READ VIEW ID */
+    Object_id id= vtr->read_int(T::cache_partition_table_type::FIELD_VIEW_ID);
+    view_ids->push_back(id);
+
+    if (rs->next(vtr))
+    {
+      DBUG_ASSERT(m_thd->is_system_thread() ||
+                  m_thd->killed ||
+                  m_thd->is_error());
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
 // Mark all objects acquired by this client as not being used anymore.
 size_t Dictionary_client::release()
 { return release(&m_registry); }
@@ -2028,6 +2089,16 @@ template bool Dictionary_client::fetch_schema_component_names<Abstract_table>(
 template bool Dictionary_client::fetch_schema_component_names<Event>(
     const Schema*,
     std::vector<std::string>*) const;
+
+template bool Dictionary_client::fetch_referencing_views_object_id<View_table>(
+    const char *schema,
+    const char *tbl_or_sf_name,
+    std::vector<Object_id> *view_ids) const;
+
+template bool Dictionary_client::fetch_referencing_views_object_id<View_routine>(
+    const char *schema,
+    const char *tbl_or_sf_name,
+    std::vector<Object_id> *view_ids) const;
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   const Abstract_table**);

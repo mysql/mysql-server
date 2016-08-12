@@ -167,23 +167,9 @@ public:
                       Alter_info *alter_info_arg,
                       List<Item> &select_fields,
                       enum_duplicates duplic,
-                      TABLE_LIST *select_tables_arg)
-    :Query_result_insert (thd,
-                          NULL, // table_list_par
-                          NULL, // table_par
-                          NULL, // target_columns
-                          &select_fields,
-                          NULL, // update_fields
-                          NULL, // update_values
-                          duplic),
-     create_table(table_arg),
-     create_info(create_info_par),
-     select_tables(select_tables_arg),
-     alter_info(alter_info_arg),
-     m_plock(NULL)
-  {}
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
+                      TABLE_LIST *select_tables_arg);
 
+  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   int binlog_show_create_table(TABLE **tables, uint count);
   void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);

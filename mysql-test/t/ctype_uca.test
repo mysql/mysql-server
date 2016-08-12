@@ -2,6 +2,9 @@
 --source include/have_myisam.inc
 # Some bugs in this test have MyISAM specific tests
 
+# Plugin 'InnoDB' has ref_count=1 after shutdown
+call mtr.add_suppression("Plugin \'InnoDB\'");
+
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings

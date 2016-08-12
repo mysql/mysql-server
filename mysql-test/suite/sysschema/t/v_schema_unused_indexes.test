@@ -3,9 +3,8 @@
 # Tests for sys schema
 # Verify the sys.schema_unused_indexes view
 
-## WL6599_NEEDS_VIEW_COLUMNS
-## Ensure structure changes don't slip in
-#DESC sys.schema_unused_indexes;
+# Ensure structure changes don't slip in
+DESC sys.schema_unused_indexes;
 
 # Make sure view select does not error, but ignore results
 --disable_result_log

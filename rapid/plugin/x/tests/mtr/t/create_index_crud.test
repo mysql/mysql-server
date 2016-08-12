@@ -1243,7 +1243,6 @@ Mysqlx.Sql.StmtExecute {
 
 -->noquiet
 
-
 -->sql
 ANALYZE TABLE xplugintest.col_myp337;
 SHOW INDEX from xplugintest.col_myp337 where Key_name rlike '^index_[12][0-9]*';

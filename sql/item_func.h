@@ -2183,8 +2183,8 @@ public:
 class Item_func_can_access_view : public Item_int_func
 {
 public:
-  Item_func_can_access_view(const POS &pos, Item *a, Item *b, Item *c)
-    : Item_int_func(pos, a, b, c)
+  Item_func_can_access_view(const POS &pos, Item *a, Item *b, Item *c, Item *d)
+    : Item_int_func(pos, a, b, c, d)
   {}
   longlong val_int();
   const char *func_name() const { return "can_access_view"; }
@@ -2333,6 +2333,18 @@ public:
 
   const char *func_name() const { return "internal_dd_char_length"; }
   longlong val_int();
+};
+
+class Item_func_internal_get_view_warning_or_error : public Item_int_func
+{
+public:
+  Item_func_internal_get_view_warning_or_error(const POS &pos,
+                                               PT_item_list *list)
+    : Item_int_func(pos, list)
+  {}
+  longlong val_int();
+  const char *func_name() const { return "internal_get_view_warning_or_error"; }
+  void fix_length_and_dec() { max_length= 1; maybe_null= 0; }
 };
 
 /**

@@ -1,3 +1,9 @@
+# Result differences depending on FS case sensitivity.
+if (!$require_case_insensitive_file_system)
+{
+  --source include/have_case_sensitive_file_system.inc
+}
+
 #
 --source include/not_embedded.inc
 
@@ -188,7 +194,8 @@ SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 10)
 --echo # lctn=0 will have table_name as utf8_bin, so we do not match
 --echo # capital information_schema name.
 SELECT COUNT(*)+IF(@@lower_case_table_names=0, 1, 0) FROM
-INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='INFORMATION_SCHEMA';
+INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='INFORMATION_SCHEMA' AND
+TABLE_NAME='TABLES';
 
 
 --echo #########################################################
@@ -260,27 +267,8 @@ CREATE DATABASE test1;
 --exec $MYSQL_DUMP --compact --opt -d --databases test1 >$MYSQLTEST_VARDIR/tmp/dump.sql
 --exec $MYSQL_DUMP --compact --opt -d test1 >$MYSQLTEST_VARDIR/tmp/dump.sql
 
---error 1
---exec $MYSQL_PUMP INFORMATION_SCHEMA TABLES
---error 1
---exec $MYSQL_PUMP INFORMATION_SCHEMA
---error 1
---exec $MYSQL_PUMP --databases INFORMATION_SCHEMA
---error 1
---exec $MYSQL_PUMP --databases INFORMATION_SCHEMA test1
---error 1
---exec $MYSQL_PUMP --include-databases=INFORMATION_SCHEMA
---error 1
---exec $MYSQL_PUMP --include-databases=test1,INFORMATION_SCHEMA
-
---echo # Following statements should pass as INFORMATION_SCHEMA db is not used.
---exec $MYSQL_PUMP --include-databases=test1 >$MYSQLTEST_VARDIR/tmp/dump.sql
---exec $MYSQL_PUMP test1 >$MYSQLTEST_VARDIR/tmp/dump.sql
---exec $MYSQL_PUMP --databases test1  >$MYSQLTEST_VARDIR/tmp/dump.sql
-
 DROP DATABASE test1;
 --remove_file $MYSQLTEST_VARDIR/tmp/dump.sql
-
 
 --echo ########################################################################
 --echo # In 5.7 code, MDL lock on the table being created in another session is
@@ -355,3 +343,50 @@ DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE t4;
 
+--echo #
+--echo # 6. Change in view IS_UDPATABLE value in I_S.views.
+--echo #
+
+CREATE TABLE t1 (c1 INT(11) DEFAULT NULL, c2 INT(11) DEFAULT NULL);
+INSERT INTO t1 VALUES(5, 5);
+
+CREATE VIEW v1 AS SELECT A.c1 AS c1 FROM t1 A
+                  WHERE EXISTS(SELECT B.c2 FROM t1 B WHERE (B.c2 = A.c1));
+
+--echo # View "v1" is non-updatable but "IS_UPDATABLE" column of I_S.views used
+--echo # show view as "updatable". Now we get correct value for is_updatable
+--echo # column for view "v1".
+SELECT table_name, is_updatable FROM INFORMATION_SCHEMA.VIEWS
+                                WHERE table_name = 'v1';
+
+INSERT INTO v1 VALUES (10);
+--error ER_NON_UPDATABLE_TABLE
+UPDATE v1 SET c1=25;
+--error ER_NON_UPDATABLE_TABLE
+DELETE FROM v1;
+
+--echo # Cleanup
+DROP TABLE t1;
+DROP VIEW v1;
+
+
+--echo ########################################################################
+--echo # In the 5.7 code while filling schema table "VIEWS", is_updatable column
+--echo # of view is evaluated to YES/NO depending on view is mergable and view
+--echo # has at least one updatable field in the view. 
+--echo # Even while creating view and storing values in new DD tables, is_updatable
+--echo # value is evaluated but there was no check to find view has at least
+--echo # one updatable field. Without this check v1 below was evaluated to
+--echo # updatable view instead of non-updatable.
+--echo # Added check to find minimum one updatable field in create view code to
+--echo # keep the behavior similar to 5.7.
+--echo ########################################################################
+
+CREATE TABLE t1(f1 int);
+CREATE VIEW v1 AS SELECT f1+1 AS a FROM t1;
+--echo # With out check for minimum one updatable field, is_updatable
+--echo # field for view v1 was evaluated to YES instead of NO here.
+SELECT table_name, is_updatable FROM INFORMATION_SCHEMA.VIEWS
+    WHERE table_schema != 'sys' ORDER BY table_name;
+DROP TABLE t1;
+DROP VIEW v1;

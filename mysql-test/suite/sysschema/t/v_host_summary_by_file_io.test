@@ -9,14 +9,13 @@ DESC sys.host_summary_by_file_io;
 # Make sure view select does not error, but ignore results
 --disable_result_log
 SELECT * FROM sys.host_summary_by_file_io;
-#--enable_result_log
+--enable_result_log
 
-## WL6599_NEEDS_VIEW_COLUMNS
-## Ensure structure changes don't slip in
-#DESC sys.x$host_summary_by_file_io;
+# Ensure structure changes don't slip in
+DESC sys.x$host_summary_by_file_io;
 
 # Make sure view select does not error, but ignore results
-#--disable_result_log
+--disable_result_log
 SELECT * FROM sys.x$host_summary_by_file_io;
 --enable_result_log
 

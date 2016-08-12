@@ -7228,40 +7228,40 @@ DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP TABLE t1;
 
-## WL6599_NEEDS_VIEW_COLUMNS
-## Bug#29408 Cannot find view in columns table if the selection contains a function
-##
-#delimiter |;
 #
-#create function f1()
-#    returns int(11)
-#not deterministic
-#contains sql
-#sql security definer
-#comment ''
-#begin
-#  declare x int(11);
-#  set x=-1;
-#   return x;
-#end|
-#                          
-#delimiter ;|
-#                  
-#create view v1 as select 1 as one, f1() as days;
-#                          
-#connect (bug29408, localhost, root,,*NO-ONE*);                     
-#connection bug29408;
+# Bug#29408 Cannot find view in columns table if the selection contains a function
 #
-#show create view test.v1;      
-#select column_name from information_schema.columns
-#where table_name='v1' and table_schema='test';
-#
-#disconnect bug29408;
-#--source include/wait_until_disconnected.inc
-#connection default;
-#
-#drop view v1;
-#drop function f1;
+delimiter |;
+
+create function f1()
+    returns int(11)
+not deterministic
+contains sql
+sql security definer
+comment ''
+begin
+  declare x int(11);
+  set x=-1;
+   return x;
+end|
+                          
+delimiter ;|
+                  
+create view v1 as select 1 as one, f1() as days;
+                          
+connect (bug29408, localhost, root,,*NO-ONE*);                     
+connection bug29408;
+
+show create view test.v1;      
+select column_name from information_schema.columns
+where table_name='v1' and table_schema='test' order by column_name;
+
+disconnect bug29408;
+--source include/wait_until_disconnected.inc
+connection default;
+
+drop view v1;
+drop function f1;
 
 #
 # Bug#13675: DATETIME/DATE type in store proc param seems to be converted as
@@ -7812,90 +7812,89 @@ delimiter ;$
 drop table t1;
 drop procedure p1;
 
-# WL6599_NEEDS_VIEW_COLUMNS
-#--echo # ------------------------------------------------------------------
-#--echo # -- End of 5.0 tests
-#--echo # ------------------------------------------------------------------
+--echo # ------------------------------------------------------------------
+--echo # -- End of 5.0 tests
+--echo # ------------------------------------------------------------------
+
+###########################################################################
+
 #
-############################################################################
+# Bug#20550: Stored function: wrong RETURN type metadata when used in a VIEW.
 #
-##
-## Bug#20550: Stored function: wrong RETURN type metadata when used in a VIEW.
-##
-#
-############################################################################
-#
-#--echo
-#
-#--echo #
-#--echo # Bug#20550.
-#--echo #
-#
-#--echo
-#
-#--echo #
-#--echo # - Prepare.
-#--echo #
-#
-#--echo
-#
-#--disable_warnings
-#DROP VIEW IF EXISTS v1;
-#DROP VIEW IF EXISTS v2;
-#DROP FUNCTION IF EXISTS f1;
-#DROP FUNCTION IF EXISTS f2;
-#--enable_warnings
-#
-#--echo
-#
-#--echo #
-#--echo # - Create required objects.
-#--echo #
-#
-#--echo
-#
-#CREATE FUNCTION f1() RETURNS VARCHAR(65525) RETURN 'Hello';
-#
-#--echo
-#
-#CREATE FUNCTION f2() RETURNS TINYINT RETURN 1;
-#
-#--echo
-#
-#CREATE VIEW v1 AS SELECT f1();
-#
-#--echo
-#
-#CREATE VIEW v2 AS SELECT f2();
-#
-#--echo
-#
-#--echo #
-#--echo # - Check.
-#--echo #
-#
-#--echo
-#
-#SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v1';
-#
-#--echo
-#
-#SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v2';
-#
-#--echo
-#
-#--echo #
-#--echo # - Cleanup.
-#--echo #
-#
-#--echo
-#
-#DROP FUNCTION f1;
-#DROP FUNCTION f2;
-#DROP VIEW v1;
-#DROP VIEW v2;
-#
-#--echo
+
+###########################################################################
+
+--echo
+
+--echo #
+--echo # Bug#20550.
+--echo #
+
+--echo
+
+--echo #
+--echo # - Prepare.
+--echo #
+
+--echo
+
+--disable_warnings
+DROP VIEW IF EXISTS v1;
+DROP VIEW IF EXISTS v2;
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+--enable_warnings
+
+--echo
+
+--echo #
+--echo # - Create required objects.
+--echo #
+
+--echo
+
+CREATE FUNCTION f1() RETURNS VARCHAR(65525) RETURN 'Hello';
+
+--echo
+
+CREATE FUNCTION f2() RETURNS TINYINT RETURN 1;
+
+--echo
+
+CREATE VIEW v1 AS SELECT f1();
+
+--echo
+
+CREATE VIEW v2 AS SELECT f2();
+
+--echo
+
+--echo #
+--echo # - Check.
+--echo #
+
+--echo
+
+SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v1';
+
+--echo
+
+SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v2';
+
+--echo
+
+--echo #
+--echo # - Cleanup.
+--echo #
+
+--echo
+
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP VIEW v1;
+DROP VIEW v2;
+
+--echo
 
 ###########################################################################
 

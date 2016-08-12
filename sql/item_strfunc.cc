@@ -33,7 +33,8 @@
 #include "item_strfunc.h"
 
 #include "base64.h"                  // base64_encode_max_arg_length
-#include "current_thd.h"
+#include "current_thd.h"             // current_thd
+#include "dd_sql_view.h"             // push_view_warning_or_error
 #include "my_aes.h"                  // MY_AES_IV_SIZE
 #include "my_md5.h"                  // MD5_HASH_SIZE
 #include "my_rnd.h"                  // my_rand_buffer
@@ -5347,28 +5348,64 @@ String *Item_func_internal_get_comment_or_error::val_str(String *str)
 {
   DBUG_ENTER("Item_func_internal_get_comment_or_error::val_str");
 
-  // Read tables.options
-  String option;
-  String *option_ptr;
   std::ostringstream oss("");
 
-  /*
-    There could be error generated due to INTERNAL_*() UDF calls
-    in I_S query. If there was a error found, we show that as
-    part of COMMENT field.
-  */
   THD *thd= current_thd;
-  if (!thd->lex->m_IS_dyn_stat_cache.error().empty())
+  String comment;
+  String *comment_ptr;
+  String table_type;
+  String *table_type_ptr;
+  if ((table_type_ptr= args[2]->val_str(&table_type)) != nullptr &&
+      strcmp(table_type_ptr->c_ptr_safe(), "VIEW") == 0)
   {
+    String schema;
+    String *schema_ptr;
+    String view;
+    String *view_ptr;
+    String options;
+    String *options_ptr;
+
+    if (((schema_ptr= args[0]->val_str(&schema)) != nullptr) &&
+        ((view_ptr= args[1]->val_str(&view)) != nullptr) &&
+        ((options_ptr= args[3]->val_str(&options)) != nullptr))
+    {
+      bool is_view_valid= true;
+      std::unique_ptr<dd::Properties>
+        view_options(dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
+
+      if (view_options->get_bool("view_valid", &is_view_valid))
+        DBUG_RETURN(0);
+
+      if (is_view_valid == false &&
+          thd->lex->sql_command != SQLCOM_SHOW_TABLES)
+      {
+        push_view_warning_or_error(current_thd,
+                                   schema_ptr->c_ptr_safe(),
+                                   view_ptr->c_ptr_safe());
+
+        // Append invalid view error message to comment.
+        oss << (thd->get_stmt_da()->sql_conditions()++)->message_text();
+      }
+      else
+        oss << "VIEW";
+    }
+  }
+  else if (!thd->lex->m_IS_dyn_stat_cache.error().empty())
+  {
+    /*
+      There could be error generated due to INTERNAL_*() UDF calls
+      in I_S query. If there was a error found, we show that as
+      part of COMMENT field.
+    */
     oss << thd->lex->m_IS_dyn_stat_cache.error();
   }
   else if (args[0]->type() == Item::NULL_ITEM)
   {
     null_value= 1;
   }
-  else if ((option_ptr=args[0]->val_str(&option)) != nullptr)
+  else if ((comment_ptr=args[4]->val_str(&comment)) != nullptr)
   {
-    oss << option_ptr->c_ptr_safe();
+    oss << comment_ptr->c_ptr_safe();
   }
   str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
 
