@@ -1483,24 +1483,25 @@ void update_variable_source(const char* opt_name, const char* value)
   }
 
   std::map<string, enum_variable_source>::iterator it= default_paths.find(path);
-  my_variable_sources source;
   if (it != default_paths.end())
   {
+    my_variable_sources source;
+    std::pair<std::map<string, my_variable_sources>::iterator,bool> ret;
+
     source.m_config_file_name= path;
     source.m_source= it->second;
+    ret= variables_hash.insert(std::pair<string,
+      my_variable_sources>(var_name, source));
+    /*
+     If value exists replace it with new path. ex: if there exists
+     same variables in my.cnf and mysqld-auto.cnf and specified in
+     command line options, then final entry into this hash will be
+     option name as key and mysqld-auto.cnf file path + PERSISTED
+     as value.
+    */
+    if (ret.second == false)
+      variables_hash[var_name]= source;
   }
-
-  std::pair<std::map<string, my_variable_sources>::iterator,bool> ret;
-  ret= variables_hash.insert(std::pair<string, my_variable_sources>(var_name, source));
-  /*
-    If value exists replace it with new path. ex: if there exists
-    same variables in my.cnf and mysqld-auto.cnf and specified in
-    command line options, then final entry into this hash will be
-    option name as key and mysqld-auto.cnf file path + PERSISTED
-    as value.
-  */
-  if (ret.second == false)
-    variables_hash[var_name]= source;
 }
 
 /**
