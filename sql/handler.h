@@ -23,6 +23,7 @@
 
 #include <fcntl.h>
 #include <float.h>
+#include <random>       // std::mt19937
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
@@ -616,6 +617,10 @@ enum enum_binlog_command {
   LOGCOM_ACL_NOTIFY
 };
 
+enum class enum_sampling_method
+{
+  SYSTEM
+};
 
 /* Bits in used_fields */
 #define HA_CREATE_USED_AUTO             (1L << 0)
@@ -3136,7 +3141,7 @@ public:
   /** Length of ref (1-8 or the clustered key length) */
   uint ref_length;
   FT_INFO *ft_handler;
-  enum {NONE=0, INDEX, RND} inited;
+  enum {NONE=0, INDEX, RND, SAMPLING} inited;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
   const Item *pushed_cond;
 
@@ -3178,6 +3183,8 @@ public:
   */
   PSI_table *m_psi;
 
+  std::mt19937 m_random_number_engine;
+  double m_sampling_percentage;
 private:
   /** Internal state of the batch instrumentation. */
   enum batch_mode_t
@@ -3585,6 +3592,10 @@ public:
 
   double index_in_memory_estimate(uint keyno) const;
 
+  int ha_sample_init(double sampling_percentage, int sampling_seed,
+                     enum_sampling_method sampling_method);
+  int ha_sample_next(uchar *buf);
+  int ha_sample_end();
 private:
   /**
     Make a guestimate for how much of a table or index is in a memory
@@ -4929,6 +4940,10 @@ private:
   */
   virtual bool is_record_buffer_wanted(ha_rows *const max_rows) const
   { *max_rows= 0; return false; }
+
+  virtual int sample_init();
+  virtual int sample_next(uchar *buf);
+  virtual int sample_end();
 protected:
   virtual int index_read(uchar *buf MY_ATTRIBUTE((unused)),
                          const uchar *key MY_ATTRIBUTE((unused)),

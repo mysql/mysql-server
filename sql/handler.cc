@@ -33,6 +33,7 @@
 #include <cmath>
 #include <cstring>
 #include <list>
+#include <random>                     // std::uniform_real_distribution
 #include <string>
 
 #include "auth_common.h"              // check_readonly() and SUPER_ACL
@@ -3050,6 +3051,81 @@ int handler::ha_rnd_pos(uchar *buf, uchar *pos)
   DBUG_RETURN(result);
 }
 
+
+
+int handler::ha_sample_init(double sampling_percentage, int sampling_seed,
+                            enum_sampling_method sampling_method)
+{
+  DBUG_ENTER("handler::ha_sample_init");
+  DBUG_ASSERT(sampling_percentage >= 0.0);
+  DBUG_ASSERT(sampling_percentage <= 100.0);
+  DBUG_ASSERT(inited == NONE);
+
+  // Initialise the random number generator.
+  m_random_number_engine.seed(sampling_seed);
+  m_sampling_percentage= sampling_percentage;
+
+  int result= sample_init();
+  inited= (result != 0) ? NONE : SAMPLING;
+  DBUG_RETURN(result);
+}
+
+
+int handler::ha_sample_end()
+{
+  DBUG_ENTER("handler::ha_sample_end");
+  DBUG_ASSERT(inited == SAMPLING);
+  inited= NONE;
+  DBUG_RETURN(sample_end());
+}
+
+
+int handler::ha_sample_next(uchar *buf)
+{
+  DBUG_ENTER("handler::ha_sample_next");
+  DBUG_ASSERT(inited == SAMPLING);
+
+  if (m_sampling_percentage == 0.0)
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+
+  m_update_generated_read_fields= table->has_gcol();
+
+  int result;
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, MAX_KEY, result,
+    { result= sample_next(buf); })
+
+  if (result == 0 && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(buf, table);
+    m_update_generated_read_fields= false;
+  }
+
+  DBUG_RETURN(result);
+}
+
+int handler::sample_init()
+{
+  return rnd_init(false);
+}
+
+
+int handler::sample_end()
+{
+  return rnd_end();
+}
+
+
+int handler::sample_next(uchar *buf)
+{
+  // Temporary set inited to RND, since we are calling rnd_next().
+  int res= rnd_next(buf);
+
+  std::uniform_real_distribution<double> rnd(0.0, 1.0);
+  while (!res && rnd(m_random_number_engine) > (m_sampling_percentage / 100.0))
+    res= rnd_next(buf);
+
+  return res;
+}
 
 /**
   Read [part of] row via [part of] index.
