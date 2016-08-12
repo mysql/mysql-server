@@ -1021,12 +1021,38 @@ static const uchar* check_get_key(const uchar *arg, size_t *length)
 
 void clear_and_init_db_cache()
 {
-  if (my_hash_inited(&db_cache))
-    my_hash_free(&db_cache);
+  my_hash_reset(&db_cache);
+}
 
-  (void)my_hash_init(&db_cache, &my_charset_utf8_bin,
-                     0, 0, get_grant_db, my_free,
-                     0, key_memory_acl_cache);
+
+/**
+  Insert a new entry in db_cache
+
+  @param thd [in]    Handle to THD object
+  @param entry [in]  Entry to be inserted in db_cache
+*/
+
+static void
+insert_entry_in_db_cache(THD *thd, acl_entry *entry)
+{
+  DBUG_ENTER("insert_entry_in_db_cache");
+  /* Either have WRITE lock or none at all */
+  DBUG_ASSERT(assert_acl_cache_write_lock(thd) ||
+              !assert_acl_cache_read_lock(thd));
+
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+
+  /*
+    In following cases release memory and return
+    1. Could not lock cache : This is ok because db_cache
+       second level cache anyways.
+    2. my_hash_insert returned error. This is likely because
+       someone already inserted a similar entry.
+  */
+  if (!acl_cache_lock.lock(false) ||
+      my_hash_insert(&db_cache, (uchar *)entry))
+    my_free(entry);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1117,7 +1143,8 @@ exit:
     entry->access=(db_access & host_access);
     entry->length=key_length;
     memcpy((uchar*) entry->key,key,key_length);
-    my_hash_insert(&db_cache, (uchar *) entry);
+    acl_cache_lock.unlock();
+    insert_entry_in_db_cache(thd, entry);
   }
   DBUG_PRINT("exit", ("access: 0x%lx", db_access & host_access));
   DBUG_RETURN(db_access & host_access);
@@ -1465,10 +1492,14 @@ my_bool acl_init(bool dont_read_acl_tables)
   my_bool return_val;
   DBUG_ENTER("acl_init");
 
-  acl_cache_initialized= true;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   init_acl_cache();
+
+  (void)my_hash_init(&db_cache, &my_charset_utf8_bin,
+                     0, 0, get_grant_db, my_free,
+                     0, key_memory_acl_cache);
 #endif
+  acl_cache_initialized= true;
 
   /*
     cache built-in native authentication plugins,
@@ -2113,17 +2144,17 @@ void acl_free(bool end)
   delete acl_proxy_users;
   acl_proxy_users= NULL;
   my_hash_free(&acl_check_hosts);
-  if (end)
+  if (!end)
+    clear_and_init_db_cache();
+  else
   {
-    if (acl_cache_initialized)
+    if (acl_cache_initialized == true)
     {
       my_hash_free(&db_cache);
       plugin_unlock(0, native_password_plugin);
       acl_cache_initialized= false;
     }
   }
-  else
-    clear_and_init_db_cache();
 }
 
 
