@@ -4928,7 +4928,15 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   }
 
   if (ERROR_INSERTED_CLEAR(5047) ||
-      ERROR_INSERTED(5079))
+      ERROR_INSERTED(5079) ||
+     (ERROR_INSERTED(5102) &&
+      LqhKeyReq::getNoTriggersFlag(Treqinfo)) ||
+     (ERROR_INSERTED(5103) &&
+      LqhKeyReq::getOperation(Treqinfo) == ZDELETE) ||
+     (ERROR_INSERTED(5104) &&
+      LqhKeyReq::getOperation(Treqinfo) == ZINSERT) ||
+     (ERROR_INSERTED(5105) &&
+      LqhKeyReq::getOperation(Treqinfo) == ZUPDATE))
   {
     jam();
     releaseSections(handle);
