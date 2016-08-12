@@ -426,7 +426,10 @@ int table_ews_global_by_event_name::index_next(void)
         {
           if (m_opened_index->match(table_class))
           {
-            make_table_io_row(table_class);
+            if (m_pos.m_index_2 == 1)
+              make_table_io_row(table_class);
+            else
+              make_table_lock_row(table_class);
             m_next_pos.set_after(&m_pos);
             return 0;
           }
