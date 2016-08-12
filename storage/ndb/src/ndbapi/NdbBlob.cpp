@@ -102,6 +102,7 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
   bt.setFragmentType(t->getFragmentType());
   bt.setFragmentCountType(t->getFragmentCountType());
   bt.setReadBackupFlag(t->getReadBackupFlag());
+  bt.setFullyReplicated(t->getFullyReplicated());
 
   if (t->getFragmentType() == NdbDictionary::Object::HashMapPartition)
   {
