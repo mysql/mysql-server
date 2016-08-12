@@ -1581,6 +1581,7 @@ PARTITION BY RANGE(id)
 (PARTITION p0  VALUES LESS THAN (10),
 PARTITION p1 VALUES LESS THAN (20),
 PARTITION p2 VALUES LESS THAN (30));
+analyze table t1;
 --replace_column 6 0 7 0 8 0 9 0 12 NULL 13 NULL 14 NULL
 SHOW TABLE STATUS;
 DROP TABLE t1;
@@ -1651,6 +1652,7 @@ partition by list (s1)
 insert into t1 values (null);
 insert into t1 values (null);
 insert into t1 values (null);
+analyze table t1;
 select auto_increment from information_schema.tables where table_name='t1';
 select * from t1;
 drop table t1;
@@ -1699,12 +1701,15 @@ drop table t1;
 #
 CREATE TABLE t1 (a int) PARTITION BY KEY(a);
 INSERT into t1 values (1), (2);
+analyze table t1;
 --replace_column 9 0 12 NULL 13 NULL 14 NULL
 SHOW TABLE STATUS;
 DELETE from t1 where a = 1;
+analyze table t1;
 --replace_column 9 0 12 NULL 13 NULL 14 NULL
 SHOW TABLE STATUS;
 ALTER TABLE t1 OPTIMIZE PARTITION p0;
+analyze table t1;
 --replace_column 12 NULL 13 NULL 14 NULL
 SHOW TABLE STATUS;
 DROP TABLE t1;
@@ -1916,6 +1921,7 @@ drop table t1;
 create table t1(a int auto_increment, b int, primary key (a, b)) 
   partition by hash(b) partitions 2;
 insert into t1 values (null, 1);
+analyze table t1;
 --replace_column 9 0 12 NULL 13 NULL 14 NULL
 show table status;
 drop table t1;
@@ -1923,6 +1929,7 @@ drop table t1;
 create table t1(a int auto_increment primary key)
   partition by key(a) partitions 2;
 insert into t1 values (null), (null), (null);
+analyze table t1;
 --replace_column 9 0 12 NULL 13 NULL 14 NULL
 show table status;
 drop table t1;

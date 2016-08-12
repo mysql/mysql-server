@@ -633,7 +633,7 @@ set sql_mode=no_engine_substitution;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create temporary table t2 (a int);
-call p_verify_status_increment(3, 0, 0, 0);
+call p_verify_status_increment(5, 0, 0, 0);
 SUCCESS
 
 set sql_mode=default;
@@ -886,7 +886,7 @@ call p_verify_status_increment(0, 0, 0, 0);
 SUCCESS
 
 drop view v1;
-call p_verify_status_increment(3, 0, 3, 0);
+call p_verify_status_increment(5, 0, 3, 0);
 SUCCESS
 
 #

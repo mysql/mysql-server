@@ -55,8 +55,8 @@ DROP TABLE T1;
 CREATE DATABASE `TEST_$1`;
 SHOW DATABASES LIKE "TEST%";
 Database (TEST%)
-TEST_$1
 test
+TEST_$1
 DROP DATABASE `test_$1`;
 CREATE TABLE T1 (a int) engine=innodb;
 INSERT INTO T1 VALUES (1);
@@ -174,7 +174,7 @@ create table myUC (i int);
 select TABLE_SCHEMA,TABLE_NAME FROM information_schema.TABLES
 where TABLE_SCHEMA ='mysqltest_LC2';
 TABLE_SCHEMA	TABLE_NAME
-mysqltest_lc2	myUC
+mysqltest_LC2	myUC
 use test;
 drop database mysqltest_LC2;
 #
@@ -229,7 +229,7 @@ create table t_bug44738_lowercase (i int) comment='Old comment';
 select table_schema, table_name, table_comment from information_schema.tables
 where table_schema like 'mysqltest_%' and table_name like 't_bug44738_%'
   order by table_name;
-table_schema	table_name	table_comment
+TABLE_SCHEMA	TABLE_NAME	TABLE_COMMENT
 mysqltest_UPPERCASE	t_bug44738_lowercase	Old comment
 mysqltest_UPPERCASE	t_bug44738_UPPERCASE	Old comment
 alter table t_bug44738_UPPERCASE comment='New comment';
@@ -240,7 +240,7 @@ alter table t_bug44738_lowercase comment='New comment';
 select table_schema, table_name, table_comment from information_schema.tables
 where table_schema like 'mysqltest_%' and table_name like 't_bug44738_%'
   order by table_name;
-table_schema	table_name	table_comment
+TABLE_SCHEMA	TABLE_NAME	TABLE_COMMENT
 mysqltest_UPPERCASE	t_bug44738_lowercase	New comment
 mysqltest_UPPERCASE	t_bug44738_UPPERCASE	New comment
 drop database mysqltest_UPPERCASE;
@@ -250,7 +250,7 @@ use test;
 create table t_bug44738_UPPERCASE (i int);
 select table_schema, table_name, table_comment from information_schema.tables
 where table_schema = 'test' and table_name like 't_bug44738_%';
-table_schema	table_name	table_comment
+TABLE_SCHEMA	TABLE_NAME	TABLE_COMMENT
 test	t_bug44738_UPPERCASE	
 drop table t_bug44738_UPPERCASE;
 # After the above DROP TABLE there are no entries in TDC which correspond

@@ -1,0 +1,131 @@
+use test;
+CREATE VIEW not_system_view AS
+SELECT name as table_name, mysql_version_id FROM mysql.tables;
+SHOW CREATE VIEW not_system_view;
+View	Create View	character_set_client	collation_connection
+not_system_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `not_system_view` AS select `mysql`.`tables`.`name` AS `table_name`,`mysql`.`tables`.`mysql_version_id` AS `mysql_version_id` from `mysql`.`tables`	latin1	latin1_swedish_ci
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+connect con1,localhost,root,,;
+START TRANSACTION;
+UPDATE mysql.tables SET mysql_version_id=2;
+connection default;
+SELECT table_name, version
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_name='db';
+TABLE_NAME	VERSION
+db	10
+SELECT table_name, mysql_version_id FROM not_system_view WHERE table_name='db';;
+connection con1;
+rollback;
+connection default;
+table_name	mysql_version_id
+db	80000
+commit;
+connection default;
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+connection con1;
+START TRANSACTION;
+UPDATE mysql.tables SET mysql_version_id=2;
+connection default;
+SELECT table_name, version
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_name='db';
+TABLE_NAME	VERSION
+db	10
+SELECT table_name, mysql_version_id
+FROM not_system_view
+WHERE table_name='db';
+table_name	mysql_version_id
+db	80000
+commit;
+connection con1;
+rollback;
+connection default;
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+connection con1;
+START TRANSACTION;
+UPDATE mysql.tables SET mysql_version_id=2;
+connection default;
+SELECT table_name, version
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_name='db';
+TABLE_NAME	VERSION
+db	10
+SELECT table_name, mysql_version_id
+FROM not_system_view
+WHERE table_name='db';
+table_name	mysql_version_id
+db	80000
+commit;
+connection con1;
+rollback;
+connection default;
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+connection con1;
+START TRANSACTION;
+UPDATE mysql.tables SET mysql_version_id=2;
+connection default;
+SELECT table_name, version
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_name='db';
+TABLE_NAME	VERSION
+db	10
+SELECT table_name, mysql_version_id
+FROM not_system_view
+WHERE table_name='db';
+table_name	mysql_version_id
+db	2
+commit;
+connection con1;
+rollback;
+connection default;
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+connection con1;
+START TRANSACTION;
+UPDATE mysql.tables SET mysql_version_id=2;
+connection default;
+SELECT table_name, version
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_name='db'
+  LOCK IN SHARE MODE;
+ERROR HY000: Information schema queries do not support the 'LOCK IN SHARE MODE' clause.
+SELECT table_name, version
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_name='db'
+  FOR UPDATE;
+ERROR HY000: Information schema queries do not support the 'FOR UPDATE' clause.
+connection con1;
+rollback;
+connection default;
+SELECT table_name, version
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_name='db'
+  LOCK IN SHARE MODE;
+ERROR HY000: Information schema queries do not support the 'LOCK IN SHARE MODE' clause.
+SELECT table_name, version
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_name='db'
+  FOR UPDATE;
+ERROR HY000: Information schema queries do not support the 'FOR UPDATE' clause.
+SELECT table_name, mysql_version_id
+FROM not_system_view
+WHERE table_name='db'
+  LOCK IN SHARE MODE;
+table_name	mysql_version_id
+db	80000
+SELECT table_name, mysql_version_id
+FROM not_system_view
+WHERE table_name='db'
+  FOR UPDATE;
+table_name	mysql_version_id
+db	80000
+commit;
+connection con1;
+disconnect con1;
+connection default;
+DROP VIEW not_system_view;

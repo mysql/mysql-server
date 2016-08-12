@@ -98,6 +98,11 @@ namespace dd { class Table; }
   This flag is used to instruct tdc_open_view() to check metadata version.
 */
 #define CHECK_METADATA_VERSION OPEN_TRIGGER_ONLY*2
+/**
+  This flag is used to instruct open_table() to open
+  TMP_TABLE_COLUMNS/KEYS I_S table only for the SHOW commands.
+*/
+#define OPEN_FOR_SHOW_ONLY     CHECK_METADATA_VERSION*2
 
 
 /*
@@ -343,6 +348,19 @@ extern HASH table_def_cache;
 TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
                                       const char *db_name,
                                       const char *table_name);
+
+/**
+  Check if the given db.table belongs to a IS view or a DD table.
+
+  @param    db             Database name.
+  @param    table_name     Table name.
+
+  @retval   true           If db.table belongs to a IS view or a DD table.
+  @retval   false          If db.table does not belongs to a IS view or a
+                           DD table.
+*/
+
+bool belongs_to_system_view(const char *db, const char *table_name);
 
 /**
   An abstract class for a strategy specifying how the prelocking

@@ -1,4 +1,3 @@
-
 ##############################################################################
 #
 #  List the test cases that are to be disabled temporarily.
@@ -10,3 +9,5 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+rpl_gtid.rpl_mts_until             : WL#6599 2016-03-13 gopshank WL6599_NEEDS_VIEW_COLUMNS
+rpl_gtid.rpl_current_user          : WL#6599 2016-03-13 gopshank WL6599_NEEDS_VIEW_COLUMNS

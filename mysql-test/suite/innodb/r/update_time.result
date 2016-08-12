@@ -3,10 +3,16 @@
 # correctly for InnoDB tables.
 #
 CREATE TABLE t (a INT) ENGINE=INNODB;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
 SELECT update_time FROM information_schema.tables WHERE table_name = 't';
-update_time
+UPDATE_TIME
 NULL
 INSERT INTO t VALUES (1);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
 SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
 AND update_time IS NOT NULL;
 COUNT(*)
@@ -30,6 +36,9 @@ SELECT COUNT(*) FROM information_schema.innodb_buffer_page
 WHERE table_name = '`test`.`t`';
 COUNT(*)
 0
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
 SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
 AND update_time IS NOT NULL;
 COUNT(*)
@@ -42,10 +51,16 @@ XA END 'xatrx';
 XA PREPARE 'xatrx';
 call mtr.add_suppression("Found 1 prepared XA transactions");
 # Kill and restart
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
 SELECT update_time FROM information_schema.tables WHERE table_name = 't';
-update_time
+UPDATE_TIME
 NULL
 XA COMMIT 'xatrx';
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
 SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
 AND update_time IS NOT NULL;
 COUNT(*)

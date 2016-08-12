@@ -21,7 +21,9 @@
 #include "binary_log_types.h"        // enum_field_types
 #include "handler.h"                 // legacy_db_type
 
-#include "dd/types/column.h"         // enum_column_types
+#include "sql_alter.h"               // Alter_info::enum_enable_or_disable
+#include "table.h"                   // ST_FIELD_INFO
+#include "dd/types/column.h"         // dd::enum_column_types
 
 class Create_field;
 class THD;
@@ -39,15 +41,6 @@ namespace dd {
 static const char FIELD_NAME_SEPARATOR_CHAR = ';';
 
 /**
-  Convert from old field type to new enum types for fields in DD framework.
-
-  @param type Old field type.
-
-  @retval New field type.
-*/
-dd::enum_column_types dd_get_new_field_type(enum_field_types type);
-
-/**
   Prepares a dd::Table object from mysql_prepare_create_table() output
   and updates DD tables accordingly.
 
@@ -58,6 +51,7 @@ dd::enum_column_types dd_get_new_field_type(enum_field_types type);
   @param create_fields  List of fields for the table.
   @param keyinfo        Array with descriptions of keys for the table.
   @param keys           Number of keys.
+  @param keys_onoff     Enable or disable keys.
   @param fk_keyinfo     Array with descriptions of foreign keys for the table.
   @param fk_keys        Number of foreign keys.
   @param file           handler instance for the table.
@@ -71,6 +65,7 @@ bool create_table(THD *thd,
                   HA_CREATE_INFO *create_info,
                   const List<Create_field> &create_fields,
                   const KEY *keyinfo, uint keys,
+                  Alter_info::enum_enable_or_disable keys_onoff,
                   const FOREIGN_KEY *fk_keyinfo, uint fk_keys,
                   handler *file);
 
@@ -86,6 +81,7 @@ bool create_table(THD *thd,
   @param create_fields  List of fields for the table.
   @param keyinfo        Array with descriptions of keys for the table.
   @param keys           Number of keys.
+  @param keys_onoff     Enable or disable keys.
   @param file           handler instance for the table.
 
   @returns constructed dd::Table object, or NULL in case of an error.
@@ -96,6 +92,7 @@ dd::Table *create_tmp_table(THD *thd,
                             HA_CREATE_INFO *create_info,
                             const List<Create_field> &create_fields,
                             const KEY *keyinfo, uint keys,
+                            Alter_info::enum_enable_or_disable keys_onoff,
                             handler *file);
 
 /**
@@ -288,6 +285,46 @@ bool check_storage_engine_flag(THD *thd, const TABLE_LIST *table_list,
 */
 bool recreate_table(THD *thd, const char *schema_name,
                     const char *table_name);
+
+/**
+  Update dd::Table::options keys_disabled=0/1 based on ALTER TABLE
+  ENABLE/DISABLE KEYS. This will be used by INFORMATION_SCHEMA.STATISTICS system
+  view.
+
+  @param[in]    thd         Thread context
+  @param[in]    schema_name Name of the schema
+  @param[in]    table_name  Name of the table
+  @param[in]    keys_onoff  Wheather keys are enabled or disabled.
+
+  @retval       false       Success
+  @retval       true        Error
+*/
+
+bool update_keys_disabled(THD *thd,
+                          const char *schema_name,
+                          const char *table_name,
+                          Alter_info::enum_enable_or_disable keys_onoff);
+
+/**
+  Function prepares string representing columns data type.
+  This is required for IS implementation which uses views on DD tables
+*/
+std::string get_sql_type_by_field_info(THD *thd,
+                                       enum_field_types field_type,
+                                       uint32 field_length,
+                                       const CHARSET_INFO *field_charset);
+
+/**
+  Convert field type from MySQL server type to new enum types in DD.
+  We have plans to retain both old and new enum values in DD tables so as
+  to handle client compatibility and information schema requirements.
+
+  @param[in]    type   MySQL server field type.
+
+  @retval  field type used by DD framework.
+*/
+
+enum_column_types get_new_field_type(enum_field_types type);
 
 /**
   Update real row format for the table in the data-dictionary with

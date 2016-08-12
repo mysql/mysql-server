@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -88,6 +88,17 @@ bool Dictionary_impl::init(bool install)
 
 ///////////////////////////////////////////////////////////////////////////
 
+bool Dictionary_impl::install_plugin_IS_table_metadata()
+{
+  DBUG_ASSERT(Dictionary_impl::instance());
+
+  return ::bootstrap::run_bootstrap_thread(
+           NULL, &bootstrap::store_plugin_IS_table_metadata,
+           SYSTEM_THREAD_DD_INITIALIZE);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 bool Dictionary_impl::shutdown()
 {
   if (!Dictionary_impl::s_instance)
@@ -128,10 +139,20 @@ const Object_table *Dictionary_impl::get_dd_table(
 bool Dictionary_impl::is_system_view_name(const std::string &schema_name,
                                           const std::string &table_name) const
 {
-  if (schema_name.compare(INFORMATION_SCHEMA_NAME.str) != 0)
+  // The System_views registry stores the view name in lowercase.
+  // So convert the input to lowercase before search.
+  char sch_name_buf[NAME_LEN + 1];
+  my_stpcpy(sch_name_buf, schema_name.c_str());
+  my_casedn_str(&my_charset_utf8_tolower_ci, sch_name_buf);
+
+  if (strcmp(sch_name_buf,INFORMATION_SCHEMA_NAME.str) != 0)
     return false;
 
-  return (System_views::instance()->find(schema_name, table_name) != NULL);
+  char tab_name_buf[NAME_LEN + 1];
+  my_stpcpy(tab_name_buf, table_name.c_str());
+  my_caseup_str(&my_charset_utf8_tolower_ci, tab_name_buf);
+
+  return (System_views::instance()->find(sch_name_buf, tab_name_buf) != NULL);
 }
 
 ///////////////////////////////////////////////////////////////////////////

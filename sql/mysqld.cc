@@ -414,6 +414,7 @@
 #endif
 
 #include "dd/dd.h"                      // dd::shutdown
+#include "dd/dictionary.h"              // dd::get_dictionary
 #include "dd/dd_kill_immunizer.h"       // dd::DD_kill_immunizer
 
 #include <mysql/components/my_service.h>  // my_service<>
@@ -1732,7 +1733,6 @@ void clean_up(bool print_message)
     bitmap_free(&slave_error_mask);
 #endif
   my_tz_free();
-  ignore_db_dirs_free();
   servers_free(1);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   acl_free(1);
@@ -3084,8 +3084,6 @@ int init_common_variables()
       mysql_init_variables())
     return 1;
 
-  ignore_db_dirs_init();
-
   {
     struct tm tm_tmp;
     localtime_r(&server_start_time,&tm_tmp);
@@ -3494,12 +3492,6 @@ int init_common_variables()
 #else
   use_temp_pool= 0;
 #endif
-
-  if (ignore_db_dirs_process_additions())
-  {
-    sql_print_error("An error occurred while storing ignore_db_dirs to a hash.");
-    return 1;
-  }
 
   /* create the data directory if requested */
   if (unlikely(opt_initialize) &&
@@ -4493,6 +4485,14 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
   dynamic_plugins_are_initialized= true;  /* Don't separate from init function */
+
+  // Store meta data of plugin schema tables into new DD
+  if (!opt_help && opt_initialize &&
+      dd::get_dictionary()->install_plugin_IS_table_metadata())
+  {
+    sql_print_error("Failed to store plugin metadata into dictionary tables.");
+    unireg_abort(1);
+  }
 
   Session_tracker session_track_system_variables_check;
   LEX_STRING var_list;
@@ -6268,11 +6268,6 @@ struct my_option my_long_options[]=
    &opt_super_large_pages, &opt_super_large_pages, 0,
    GET_BOOL, OPT_ARG, 0, 0, 1, 0, 1, 0},
 #endif
-  {"ignore-db-dir", OPT_IGNORE_DB_DIRECTORY,
-   "Specifies a directory to add to the ignore list when collecting "
-   "database names from the datadir. Put a blank argument to reset "
-   "the list accumulated so far.", 0, 0, 0, GET_STR, REQUIRED_ARG, 
-   0, 0, 0, 0, 0, 0},
   {"language", 'L',
    "Client error messages in given language. May be given as a full path. "
    "Deprecated. Use --lc-messages-dir instead.",
@@ -7969,21 +7964,6 @@ mysqld_get_one_option(int optid,
     */
     if (argument == NULL) /* no argument */
       log_error_dest= "";
-    break;
-
-  case OPT_IGNORE_DB_DIRECTORY:
-    if (*argument == 0)
-      ignore_db_dirs_reset();
-    else
-    {
-      if (push_ignored_db_dir(argument))
-      {
-        sql_print_error("Can't start server: "
-                        "cannot process --ignore-db-dir=%.*s", 
-                        FN_REFLEN, argument);
-        return 1;
-      }
-    }
     break;
 
   case OPT_EARLY_PLUGIN_LOAD:

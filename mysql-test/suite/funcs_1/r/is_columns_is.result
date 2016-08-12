@@ -357,7 +357,7 @@ FROM information_schema.columns
 WHERE table_schema = 'information_schema'
 AND table_name <> 'profiling' AND table_name not like 'innodb_%' AND table_name not like 'ndb%'
 AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH = 1
-ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
+ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML, DATA_TYPE;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 1.0000	longtext	utf8	utf8_general_ci
 SELECT DISTINCT
@@ -369,9 +369,8 @@ FROM information_schema.columns
 WHERE table_schema = 'information_schema'
 AND table_name <> 'profiling' AND table_name not like 'innodb_%' AND table_name not like 'ndb%'
 AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH <> 1
-ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
+ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML, DATA_TYPE;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
-3.0000	varchar	utf8	utf8_general_ci
 SELECT DISTINCT
 CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
 DATA_TYPE,
@@ -381,7 +380,7 @@ FROM information_schema.columns
 WHERE table_schema = 'information_schema'
 AND table_name <> 'profiling' AND table_name not like 'innodb_%' AND table_name not like 'ndb%'
 AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH IS NULL
-ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
+ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML, DATA_TYPE;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 NULL	bigint	NULL	NULL
 NULL	datetime	NULL	NULL
@@ -402,7 +401,7 @@ COLUMN_TYPE
 FROM information_schema.columns
 WHERE table_schema = 'information_schema'
 AND table_name <> 'profiling' AND table_name not like 'innodb_%' AND table_name not like 'ndb%'
-ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION;
+ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION, DATA_TYPE;
 COL_CML	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE
 3.0000	information_schema	CHARACTER_SETS	CHARACTER_SET_NAME	varchar	32	96	utf8	utf8_general_ci	varchar(32)
 3.0000	information_schema	CHARACTER_SETS	DEFAULT_COLLATE_NAME	varchar	32	96	utf8	utf8_general_ci	varchar(32)

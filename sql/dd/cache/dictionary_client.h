@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -805,6 +805,19 @@ public:
   template <typename T>
   void add_and_reset_id(T* object);
 
+
+  /**
+    Remove table statistics entries from mysql.table_stats and
+    mysql.index_stats.
+
+    @param schema_name  Schema name of the table
+    @param table_name   Table name of which stats should be cleaned.
+
+    @return true  - on failure
+    @return false - on success
+  */
+  bool remove_table_dynamic_statistics(const std::string &schema_name,
+                                       const std::string &table_name);
 
   /**
     Make a dictionary object sticky or not in the cache.

@@ -153,6 +153,16 @@ CREATE TABLE auto_incs.bigintcolunsigned (
 
 INSERT INTO auto_incs.bigintcolunsigned (foo) (SELECT foo FROM auto_incs.bigintcol);
 
+analyze table auto_incs.tinyintcol;
+analyze table auto_incs.tinyintcolunsigned;
+analyze table auto_incs.smallintcol;
+analyze table auto_incs.smallintcolunsigned;
+analyze table auto_incs.mediumintcol;
+analyze table auto_incs.mediumintcolunsigned;
+analyze table auto_incs.intcol;
+analyze table auto_incs.intcolunsigned;
+analyze table auto_incs.bigintcol;
+analyze table auto_incs.bigintcolunsigned;
 SELECT * FROM sys.schema_auto_increment_columns;
 
 DROP DATABASE auto_incs;

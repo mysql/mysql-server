@@ -6,6 +6,9 @@ CREATE SPATIAL INDEX idx2 on tab(c3 DESC) COMMENT 'wl6968';
 CREATE SPATIAL INDEX idx3 on tab(c4 ASC) KEY_BLOCK_SIZE=8 ;
 CREATE SPATIAL INDEX idx4 on tab(c5 DESC) KEY_BLOCK_SIZE=4 
 COMMENT 'Spatial index on Geometry type column';
+ANALYZE TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
 SHOW INDEXES FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 tab	0	PRIMARY	1	c1	A	0	NULL	NULL		BTREE			YES
@@ -474,6 +477,9 @@ CREATE SPATIAL INDEX idx2 on tab(c3 DESC) COMMENT 'wl6968';
 CREATE SPATIAL INDEX idx3 on tab(c4 ASC) KEY_BLOCK_SIZE=2 ;
 CREATE SPATIAL INDEX idx4 on tab(c5 DESC) KEY_BLOCK_SIZE=8 
 COMMENT 'Spatial index on Geometry type column';
+ANALYZE TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
 SHOW INDEXES FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 tab	1	idx1	1	c2	A	0	32	NULL		SPATIAL			YES
@@ -929,6 +935,9 @@ CREATE SPATIAL INDEX idx2 on tab(c3 DESC) COMMENT 'wl6968';
 CREATE SPATIAL INDEX idx3 on tab(c4 ASC) KEY_BLOCK_SIZE=16 ;
 CREATE SPATIAL INDEX idx4 on tab(c5 DESC) KEY_BLOCK_SIZE=16 
 COMMENT 'Spatial index on Geometry type column';
+ANALYZE TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
 SHOW INDEXES FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 tab	0	PRIMARY	1	c1	A	0	NULL	NULL		BTREE			YES
@@ -1366,6 +1375,9 @@ tab	CREATE TABLE `tab` (
   `c1` point NOT NULL,
   SPATIAL KEY `idx1` (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+ANALYZE TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
 SHOW INDEX FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 tab	1	idx1	1	c1	A	0	32	NULL		SPATIAL			YES

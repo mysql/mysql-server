@@ -523,12 +523,12 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
   ] /* steps */
 }	0	0
 SET GLOBAL tmp_table_size= @old_size;
-SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1;
+SELECT pool_id FROM information_schema.INNODB_BUFFER_PAGE LIMIT 1;
 pool_id
 0
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
-SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1	{
+SELECT pool_id FROM information_schema.INNODB_BUFFER_PAGE LIMIT 1	{
   "steps": [
     {
       "creating_tmp_table": {
@@ -546,7 +546,7 @@ SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `information_schema`.`innodb_buffer_page`.`POOL_ID` AS `pool_id` from `information_schema`.`innodb_buffer_page` limit 1"
+            "expanded_query": "/* select#1 */ select `information_schema`.`INNODB_BUFFER_PAGE`.`POOL_ID` AS `pool_id` from `information_schema`.`INNODB_BUFFER_PAGE` limit 1"
           }
         ] /* steps */
       } /* join_preparation */
@@ -558,7 +558,7 @@ SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1	{
           {
             "table_dependencies": [
               {
-                "table": "`information_schema`.`innodb_buffer_page`",
+                "table": "`information_schema`.`INNODB_BUFFER_PAGE`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -569,7 +569,7 @@ SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1	{
           {
             "rows_estimation": [
               {
-                "table": "`information_schema`.`innodb_buffer_page`",
+                "table": "`information_schema`.`INNODB_BUFFER_PAGE`",
                 "table_scan": {
                   "rows": 2,
                   "cost": 10
@@ -582,7 +582,7 @@ SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1	{
               {
                 "plan_prefix": [
                 ] /* plan_prefix */,
-                "table": "`information_schema`.`innodb_buffer_page`",
+                "table": "`information_schema`.`INNODB_BUFFER_PAGE`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -608,7 +608,7 @@ SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1	{
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
-                  "table": "`information_schema`.`innodb_buffer_page`",
+                  "table": "`information_schema`.`INNODB_BUFFER_PAGE`",
                   "attached": null
                 }
               ] /* attached_conditions_summary */
@@ -617,7 +617,7 @@ SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1	{
           {
             "refine_plan": [
               {
-                "table": "`information_schema`.`innodb_buffer_page`"
+                "table": "`information_schema`.`INNODB_BUFFER_PAGE`"
               }
             ] /* refine_plan */
           }
@@ -632,7 +632,7 @@ SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1	{
             "converting_tmp_table_to_ondisk": {
               "cause": "memory_table_size_exceeded",
               "tmp_table_info": {
-                "table": "`information_schema`.`innodb_buffer_page`",
+                "table": "`information_schema`.`INNODB_BUFFER_PAGE`",
                 "row_length": 6852,
                 "key_length": 0,
                 "unique_constraint": false,

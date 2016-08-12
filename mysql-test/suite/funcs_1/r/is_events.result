@@ -34,21 +34,21 @@ EVENT_NAME	varchar(64)	NO
 DEFINER	varchar(93)	NO			
 TIME_ZONE	varchar(64)	NO			
 EVENT_BODY	varchar(8)	NO			
-EVENT_DEFINITION	longtext	NO		NULL	
+EVENT_DEFINITION	varchar(65535)	NO			
 EVENT_TYPE	varchar(9)	NO			
-EXECUTE_AT	datetime	YES		NULL	
-INTERVAL_VALUE	varchar(256)	YES		NULL	
-INTERVAL_FIELD	varchar(18)	YES		NULL	
+EXECUTE_AT	datetime	YES			
+INTERVAL_VALUE	varchar(256)	YES			
+INTERVAL_FIELD	varchar(18)	YES			
 SQL_MODE	varchar(8192)	NO			
-STARTS	datetime	YES		NULL	
-ENDS	datetime	YES		NULL	
+STARTS	datetime	YES			
+ENDS	datetime	YES			
 STATUS	varchar(18)	NO			
 ON_COMPLETION	varchar(12)	NO			
-CREATED	datetime	NO		0000-00-00 00:00:00	
-LAST_ALTERED	datetime	NO		0000-00-00 00:00:00	
-LAST_EXECUTED	datetime	YES		NULL	
+CREATED	datetime	NO			
+LAST_ALTERED	datetime	NO			
+LAST_EXECUTED	datetime	YES			
 EVENT_COMMENT	varchar(64)	NO			
-ORIGINATOR	bigint(10)	NO		0	
+ORIGINATOR	bigint(10)	NO			
 CHARACTER_SET_CLIENT	varchar(32)	NO			
 COLLATION_CONNECTION	varchar(32)	NO			
 DATABASE_COLLATION	varchar(32)	NO			
@@ -88,21 +88,21 @@ EVENT_NAME	varchar(64)	NO
 DEFINER	varchar(93)	NO			
 TIME_ZONE	varchar(64)	NO			
 EVENT_BODY	varchar(8)	NO			
-EVENT_DEFINITION	longtext	NO		NULL	
+EVENT_DEFINITION	varchar(65535)	NO			
 EVENT_TYPE	varchar(9)	NO			
-EXECUTE_AT	datetime	YES		NULL	
-INTERVAL_VALUE	varchar(256)	YES		NULL	
-INTERVAL_FIELD	varchar(18)	YES		NULL	
+EXECUTE_AT	datetime	YES			
+INTERVAL_VALUE	varchar(256)	YES			
+INTERVAL_FIELD	varchar(18)	YES			
 SQL_MODE	varchar(8192)	NO			
-STARTS	datetime	YES		NULL	
-ENDS	datetime	YES		NULL	
+STARTS	datetime	YES			
+ENDS	datetime	YES			
 STATUS	varchar(18)	NO			
 ON_COMPLETION	varchar(12)	NO			
-CREATED	datetime	NO		0000-00-00 00:00:00	
-LAST_ALTERED	datetime	NO		0000-00-00 00:00:00	
-LAST_EXECUTED	datetime	YES		NULL	
+CREATED	datetime	NO			
+LAST_ALTERED	datetime	NO			
+LAST_EXECUTED	datetime	YES			
 EVENT_COMMENT	varchar(64)	NO			
-ORIGINATOR	bigint(10)	NO		0	
+ORIGINATOR	bigint(10)	NO			
 CHARACTER_SET_CLIENT	varchar(32)	NO			
 COLLATION_CONNECTION	varchar(32)	NO			
 DATABASE_COLLATION	varchar(32)	NO			

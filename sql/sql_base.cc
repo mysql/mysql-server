@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,6 +56,8 @@
 #include "rpl_rli.h"                  //Relay_log_information
 #endif
 
+#include "dd/dd.h"                    // dd::get_dictionary
+#include "dd/dictionary.h"            // dd::Dictionary
 #include "dd/dd_table.h"              // dd::table_exists
 #include "dd/dd_tablespace.h"         // dd::fill_table_and_parts_tablespace_name
 #include "dd/dd_trigger.h"            // dd::table_has_triggers
@@ -312,11 +314,15 @@ size_t get_table_def_key(const TABLE_LIST *table_list, const char **key)
     This call relies on the fact that TABLE_LIST::mdl_request::key object
     is properly initialized, so table definition cache can be produced
     from key used by MDL subsystem.
+    strcase is converted to strcasecmp because information_schema tables
+    can be accessed with lower case and upper case table names.
   */
-  DBUG_ASSERT(!strcmp(table_list->get_db_name(),
-                      table_list->mdl_request.key.db_name()) &&
-              !strcmp(table_list->get_table_name(),
-                      table_list->mdl_request.key.name()));
+  DBUG_ASSERT(!my_strcasecmp(system_charset_info,
+                             table_list->get_db_name(),
+                             table_list->mdl_request.key.db_name()) &&
+              !my_strcasecmp(system_charset_info,
+                             table_list->get_table_name(),
+                             table_list->mdl_request.key.name()));
 
   *key= (const char*)table_list->mdl_request.key.ptr() + 1;
   return table_list->mdl_request.key.length() - 1;
@@ -1360,23 +1366,35 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
   }
 }
 
+
+// Check if we are under LOCK TABLE mode, and not prelocking.
+static inline bool in_LTM(THD *thd)
+{
+  return (thd->locked_tables_mode == LTM_LOCK_TABLES ||
+          thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES);
+}
+
+// Check if the given db.table belongs to a IS view or a DD table.
+bool belongs_to_system_view(const char *db, const char *table_name)
+{
+  return (dd::get_dictionary()->is_dd_table_name(db, table_name) ||
+          dd::get_dictionary()->is_system_view_name(db, table_name));
+}
+
+
 /**
-  Performance Schema tables must be accessible independently of the LOCK TABLE
-  mode. These macros handle the special case of P_S tables being used under
-  LOCK TABLE mode.
+ Performance Schema tables must be accessible independently of the LOCK TABLE
+ mode. These macros handle the special case of P_S tables being used under
+ LOCK TABLE mode.
+ Check if the table belongs to the P_S, excluding setup and threads tables.
 */
+static inline bool belongs_to_p_s(TABLE_LIST *tl)
+{
+  return (!strcmp("performance_schema", tl->db) &&
+          strcmp(tl->table_name, "threads") &&
+          strstr(tl->table_name, "setup_") == NULL);
+}
 
-/* Check if we are under LOCK TABLE mode and not prelocking. */
-#define UNDER_LTM(thd) \
-  (thd->locked_tables_mode == LTM_LOCK_TABLES || \
-   thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES)
-
-/* Check if the table belongs to the P_S, excluding setup and threads tables. */
-#define BELONGS_TO_P_S_UNDER_LTM(thd, tl) \
-   (UNDER_LTM(thd) && \
-    (!strcmp("performance_schema", tl->db) && \
-     strcmp(tl->table_name, "threads") && \
-     strstr(tl->table_name, "setup_") == NULL))
 
 /*
   Close all tables used by the current substatement, or all tables
@@ -1483,8 +1501,13 @@ void close_thread_tables(THD *thd)
 
   if (thd->locked_tables_mode)
   {
-    /* Close P_S tables opened implicilty under LOCK TABLE mode. */
-    if (UNDER_LTM(thd))
+    /*
+      If we have
+      1) Implicitly opened some DD tables that belong to IS system
+         view executed in LOCK TABLE mode, then we should close them now.
+      2) Close P_S tables opened implicitly under LOCK TABLE mode.
+    */
+    if (in_LTM(thd))
     {
       for (TABLE **prev= &thd->open_tables; *prev; )
       {
@@ -1493,16 +1516,33 @@ void close_thread_tables(THD *thd)
         /* Ignore tables locked explicitly by LOCK TABLE. */
         if (!table->pos_in_locked_tables)
         {
-          /* Close P_S tables unless the query is inside of a SP/trigger. */
+          /*
+            We close tables only when all of following conditions satisfy,
+            - The table is not locked explicitly by user using LOCK TABLE command.
+            - We are not executing a IS queries as part of SF/Trigger.
+            - The table belongs to a new DD table.
+            OR
+            - Close P_S tables unless the query is inside of a SP/trigger.
+          */
+          TABLE_LIST *tbl_list= table->pos_in_table_list;
           if (!thd->in_sub_stmt &&
-              BELONGS_TO_P_S_UNDER_LTM(thd, table->pos_in_table_list))
+              (dd::get_dictionary()->is_dd_table_name(
+                     tbl_list->db, tbl_list->table_name) ||
+               belongs_to_p_s(table->pos_in_table_list)))
           {
             if (!table->s->tmp_table)
             {
               table->file->ha_index_or_rnd_end();
               table->set_keyread(FALSE);
               table->open_by_handler= 0;
-              table->file->ha_external_lock(thd, F_UNLCK);
+              /*
+                In case we have opened the DD table but the statement
+                fails before calling ha_external_lock() requesting
+                read lock in open_tables(), then we need to check
+                if we have really requested lock and then unlock.
+               */
+              if (table->file->get_lock_type() != F_UNLCK)
+                table->file->ha_external_lock(thd, F_UNLCK);
               close_thread_table(thd, prev);
               continue;
             }
@@ -1510,7 +1550,7 @@ void close_thread_tables(THD *thd)
 
         }
         prev= &table->next;
-      }
+      } // End of for
     }
 
     /* Ensure we are calling ha_reset() for all used tables */
@@ -2887,6 +2927,14 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
     DBUG_RETURN(true);
   }
 
+  /*
+    FLUSH TABLES is ignored for DD, I_S and P_S tables/views.
+    Hence setting MYSQL_OPEN_IGNORE_FLUSH flag.
+  */
+  if (belongs_to_system_view(table_list->db, table_list->table_name) ||
+      belongs_to_p_s(table_list))
+    flags|= MYSQL_OPEN_IGNORE_FLUSH;
+
   key_length= get_table_def_key(table_list, &key);
 
   /*
@@ -2894,11 +2942,30 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
     requested table in the list of pre-opened and locked tables. If the
     table is not there, return an error - we can't open not pre-opened
     tables in pre-locked/LOCK TABLES mode.
+
+    There is a special case where we allow opening not pre-opened tables
+    in LOCK TABLES mode for new DD tables. The reason is as following.
+    With new DD, IS system views need to be accessible in LOCK TABLE
+    mode without user explicitly calling LOCK TABLE on IS view or its
+    underlying DD tables. This is required to keep the old behavior the
+    MySQL server had without new DD.
+
+    In case user executes IS system view under LOCK TABLE mode
+    (LTM and not prelocking), then MySQL server implicitly opens system
+    view and related DD tables. Such DD tables are then implicitly closed
+    upon end of statement execution.
+
+    Our goal is to hide DD tables from users, so there is no possibility of
+    explicit locking DD table using LOCK TABLE. In case user does LOCK TABLE
+    on IS system view explicitly, MySQL server throws a error.
+
     TODO: move this block into a separate function.
   */
   if (thd->locked_tables_mode &&
       !(flags & MYSQL_OPEN_GET_NEW_TABLE) &&
-      !BELONGS_TO_P_S_UNDER_LTM(thd, table_list))
+      !(in_LTM(thd) &&
+        (belongs_to_system_view(table_list->db, table_list->table_name) ||
+         belongs_to_p_s(table_list))))
   {   // Using table locks
     TABLE *best_table= 0;
     int best_distance= INT_MIN;
@@ -3462,8 +3529,9 @@ table_found:
   table->init(thd, table_list);
 
   /* Request a read lock for implicitly opened P_S tables. */
-  if (BELONGS_TO_P_S_UNDER_LTM(thd, table_list) &&
-      table_list->table->file->get_lock_type() == F_UNLCK)
+  if (in_LTM(thd) &&
+      table_list->table->file->get_lock_type() == F_UNLCK &&
+      belongs_to_p_s(table_list))
   {
     table_list->table->file->ha_external_lock(thd, F_RDLCK);
   }
@@ -5381,7 +5449,9 @@ get_and_lock_tablespace_names(THD *thd,
          table->open_strategy == TABLE_LIST::OPEN_FOR_CREATE)      &&
         table->open_type != OT_TEMPORARY_ONLY                      &&
         !(table->open_type == OT_TEMPORARY_OR_BASE &&
-          is_temporary_table(table)))
+          is_temporary_table(table)) &&
+        !dd::get_dictionary()->is_system_view_name(table->db,
+                                                   table->table_name))
     {
       // We have basically three situations here:
       //
@@ -5961,7 +6031,65 @@ restart:
         tbl->reginfo.lock_type= tables->lock_type;
     }
 
-  }
+    /*
+      When we implicitly open DD tables used by a IS query in LOCK TABLE mode,
+      we do not go through mysql_lock_tables(), which sets lock type to use
+      by SE. Here, we request SE to use read lock for these implicitly opened
+      DD tables using ha_external_lock().
+    */
+    if (tbl && in_LTM(thd) &&
+        dd::get_dictionary()->is_dd_table_name(tables->db, tables->table_name))
+    {
+      DBUG_ASSERT(tbl->file->get_lock_type() == F_UNLCK);
+      tbl->file->init_table_handle_for_HANDLER();
+      tbl->file->ha_external_lock(thd, F_RDLCK);
+    }
+
+    /*
+      Check if this is a DD table used under a I_S view
+      then tell innodb to do non-locking reads on the table.
+    */
+    if (tbl && tables->referencing_view &&
+        tables->referencing_view->is_system_view)
+    {
+      /*
+        SELECT using a I_S system view with 'FOR UPDATE' and
+        'LOCK IN SHARED MODE' clause is not allowed.
+      */
+      if (tables->lock_type == TL_READ_WITH_SHARED_LOCKS)
+      {
+        my_error(ER_IS_QUERY_INVALID_CLAUSE, MYF(0), "LOCK IN SHARE MODE");
+        error= TRUE;
+        goto err;
+      }
+      // Allow I_S system views to be locked by LOCK TABLE command.
+      if (thd->lex->sql_command != SQLCOM_LOCK_TABLES &&
+          tables->lock_type >= TL_READ_NO_INSERT)
+      {
+        my_error(ER_IS_QUERY_INVALID_CLAUSE, MYF(0), "FOR UPDATE");
+        error= TRUE;
+        goto err;
+      }
+
+      /* Convey to InnoDB (the DD table's engine) to do non-locking reads.
+
+         It is assumed that all the tables used by I_S views are
+         always a DD table. If this is not true, then we might
+         need to invoke dd::Dictionary::is_dd_tablename() to make sure.
+       */
+      if (tbl->file->extra(HA_EXTRA_SKIP_SERIALIZABLE_DD_VIEW))
+      {
+        // Handler->extra() for innodb does not fail ever as of now.
+        // In case it is made to fail sometime later, we need to think
+        // about the kind of error to be report to user.
+        DBUG_ASSERT(0);
+
+        error= TRUE;
+        goto err;
+      }
+    }
+
+  } // End of for(;;)
 
 err:
   if (error && *table_to_open)

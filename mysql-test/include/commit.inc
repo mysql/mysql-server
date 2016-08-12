@@ -653,7 +653,7 @@ drop table t2;
 set sql_mode=no_engine_substitution;
 create temporary table t2 (a int);
 --disable_warnings
-call p_verify_status_increment(3, 0, 0, 0);
+call p_verify_status_increment(5, 0, 0, 0);
 --enable_warnings
 set sql_mode=default;
 --echo # 19. A function changes temp-trans-table.
@@ -878,7 +878,7 @@ call p_verify_status_increment(6, 0, 6, 0);
 commit;
 call p_verify_status_increment(0, 0, 0, 0);
 drop view v1;
-call p_verify_status_increment(3, 0, 3, 0);
+call p_verify_status_increment(5, 0, 3, 0);
 --enable_warnings
 
 --echo #

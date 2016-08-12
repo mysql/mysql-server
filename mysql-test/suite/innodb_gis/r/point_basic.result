@@ -323,10 +323,13 @@ POINT(200 200)
 POINT(200 200)
 POINT(200 200)
 # Check the information schema tables
-SELECT table_name, column_name, data_type, column_type FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name='gis_point' AND (column_name = 'p' OR column_name = 'g');
-table_name	column_name	data_type	column_type
-gis_point	p	point	point
+SELECT table_name, column_name, data_type, column_type
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE table_name='gis_point' AND (column_name = 'p' OR column_name = 'g')
+ORDER BY table_name, column_name;
+TABLE_NAME	COLUMN_NAME	DATA_TYPE	COLUMN_TYPE
 gis_point	g	point	point
+gis_point	p	point	point
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g';
 name	mtype	prtype	len
 p	14	1279	12

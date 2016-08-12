@@ -12,7 +12,7 @@ DROP TABLE IF EXISTS t1;
 CREATE TEMPORARY TABLE t1 AS SELECT @@global.init_slave AS my_column;
 DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
-my_column	varchar(74)	YES		NULL	
+my_column	varchar(74)	YES		NULL	NULL
 select length(my_column) from t1;
 length(my_column)
 85

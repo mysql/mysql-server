@@ -5634,13 +5634,6 @@ static Sys_var_uint Sys_host_cache_size(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
        ON_UPDATE(fix_host_cache_size));
 
-static Sys_var_charptr Sys_ignore_db_dirs(
-       "ignore_db_dirs",
-       "The list of directories to ignore when collecting database lists",
-       READ_ONLY GLOBAL_VAR(opt_ignore_db_dirs), 
-       NO_CMD_LINE,
-       IN_FS_CHARSET, DEFAULT(0));
-
 const Sys_var_multi_enum::ALIAS enforce_gtid_consistency_aliases[]=
 {
   { "OFF", 0 },
@@ -6066,6 +6059,17 @@ static Sys_var_mybool Sys_offline_mode(
        GLOBAL_VAR(offline_mode), CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        &PLock_offline_mode, NOT_IN_BINLOG,
        ON_CHECK(0), ON_UPDATE(handle_offline_mode));
+
+static const char *information_schema_stats_names[]= {"LATEST", "CACHED", NullS};
+static Sys_var_enum Sys_information_schema_stats(
+       "information_schema_stats",
+       "If this flag is set to CACHED, INFORMATON_SCHEMA retrieves "
+       "dynamic column statistics stored in dedicated tables. "
+       "If set to LATEST, the dynamic statistics will be read directly "
+       "from the storage engine.",
+       SESSION_VAR(information_schema_stats), CMD_LINE(REQUIRED_ARG),
+       information_schema_stats_names,
+       DEFAULT(static_cast<ulong>(dd::info_schema::enum_stats::CACHED)));
 
 static Sys_var_mybool Sys_log_builtin_as_identified_by_password(
        "log_builtin_as_identified_by_password",

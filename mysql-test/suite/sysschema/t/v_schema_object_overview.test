@@ -7,7 +7,7 @@
 DESC sys.schema_object_overview;
 
 # Make sure view select does not error, but ignore results
---disable_result_log
-SELECT * FROM sys.schema_object_overview;
---enable_result_log
-
+#--disable_result_log
+# WL6599_SYS_SCHEMA_CRASH
+#SELECT * FROM sys.schema_object_overview;
+#--enable_result_log

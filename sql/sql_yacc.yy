@@ -75,7 +75,9 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "parse_location.h"
 #include "parse_tree_helpers.h"
 #include "lex_token.h"
+#include "dd/info_schema/show.h"             // build_show_...
 #include "dd/types/abstract_table.h"         // TT_BASE_TABLE
+#include "sql_base.h"                        // find_temporary_table
 #include "item_cmpfunc.h"
 #include "item_geofunc.h"
 #include "item_json_func.h"
@@ -1250,6 +1252,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         filter_string
         select_item
         opt_where_clause
+        opt_where_clause_expr
         opt_having_clause
         opt_simple_limit
 
@@ -10472,10 +10475,19 @@ opt_all:
         ;
 
 opt_where_clause:
-          /* empty */  { $$= NULL; }
+        opt_where_clause_expr
+          {
+            if ($1 != NULL)
+              $$= new PTI_context<CTX_WHERE>(@$, $1);
+            else
+              $$= NULL;
+          }
+        ;
+
+opt_where_clause_expr: /* empty */  { $$= NULL; }
         | WHERE expr
           {
-            $$= new PTI_context<CTX_WHERE>(@$, $2);
+            $$= $2;
           }
         ;
 
@@ -11523,19 +11535,24 @@ show:
         ;
 
 show_param:
-           DATABASES opt_wild_or_where
+           DATABASES opt_wild_or_where_for_show
            {
-             LEX *lex= Lex;
-             lex->sql_command= SQLCOM_SHOW_DATABASES;
-             if (prepare_schema_table(YYTHD, lex, 0, SCH_SCHEMATA))
+             Lex->sql_command= SQLCOM_SHOW_DATABASES;
+             Item *where_cond= Select->where_cond();
+             Select->set_where_cond(NULL);
+             if (dd::info_schema::build_show_databases_query(
+                       @$, YYTHD, Lex->wild, where_cond) == nullptr)
                MYSQL_YYABORT;
            }
-         | opt_full TABLES opt_db opt_wild_or_where
+         | opt_full TABLES opt_db opt_wild_or_where_for_show
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_TABLES;
              lex->select_lex->db= $3;
-             if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_NAMES))
+             Item *where_cond= Select->where_cond();
+             Select->set_where_cond(NULL);
+             if (dd::info_schema::build_show_tables_query(@$, YYTHD, lex->wild,
+                                         where_cond, false) == nullptr)
                MYSQL_YYABORT;
            }
          | opt_full TRIGGERS_SYM opt_db opt_wild_or_where
@@ -11554,12 +11571,15 @@ show_param:
              if (prepare_schema_table(YYTHD, lex, 0, SCH_EVENTS))
                MYSQL_YYABORT;
            }
-         | TABLE_SYM STATUS_SYM opt_db opt_wild_or_where
+         | TABLE_SYM STATUS_SYM opt_db opt_wild_or_where_for_show
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_TABLE_STATUS;
              lex->select_lex->db= $3;
-             if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLES))
+             Item *where_cond= Select->where_cond();
+             Select->set_where_cond(NULL);
+             if (dd::info_schema::build_show_tables_query(@$, YYTHD, lex->wild,
+                                         where_cond, true) == nullptr)
                MYSQL_YYABORT;
            }
         | OPEN_SYM TABLES opt_db opt_wild_or_where
@@ -11587,14 +11607,40 @@ show_param:
           }
         | ENGINE_SYM ALL show_engine_param
           { Lex->create_info->db_type= NULL; }
-        | opt_full COLUMNS from_or_in table_ident opt_db opt_wild_or_where
+        | opt_full COLUMNS from_or_in table_ident opt_db opt_wild_or_where_for_show
           {
             LEX *lex= Lex;
+            LEX_STRING db;
             lex->sql_command= SQLCOM_SHOW_FIELDS;
             if ($5)
               $4->change_db($5);
-            if (prepare_schema_table(YYTHD, lex, $4, SCH_COLUMNS))
+
+            if ($4->db.str)
+              db.str= (char *) $4->db.str;
+            else if (lex->copy_db_to(&db.str, &db.length))
               MYSQL_YYABORT;
+
+            if (find_temporary_table(YYTHD, db.str, $4->table.str) != nullptr)
+            {
+              // Itemize the condition.
+              Item *cond= Select->where_cond();
+              if (cond)
+              {
+                ITEMIZE(cond, &cond);
+                Select->set_where_cond(cond);
+              }
+
+              if (prepare_schema_table(YYTHD, lex, $4, SCH_TMP_TABLE_COLUMNS))
+                MYSQL_YYABORT;
+            }
+            else
+            {
+               Item *where_cond= Select->where_cond();
+               Select->set_where_cond(NULL);
+               if (dd::info_schema::build_show_columns_query(
+                         @$, YYTHD, $4, lex->wild, where_cond) == nullptr)
+                  MYSQL_YYABORT;
+            }
           }
         | master_or_binary LOGS_SYM
           {
@@ -11628,18 +11674,37 @@ show_param:
           from_or_in            /* #2 */
           table_ident           /* #3 */
           opt_db                /* #4 */
-          opt_where_clause      /* #5 */
+          opt_where_clause_expr /* #5 */
           {
-            if ($5 != NULL)
-              ITEMIZE($5, &$5);
-            Select->set_where_cond($5);
-
             LEX *lex= Lex;
+            LEX_STRING db;
             lex->sql_command= SQLCOM_SHOW_KEYS;
             if ($4)
               $3->change_db($4);
-            if (prepare_schema_table(YYTHD, lex, $3, SCH_STATISTICS))
+
+            if ($3->db.str)
+              db.str= (char *) $3->db.str;
+            else if (lex->copy_db_to(&db.str, &db.length))
               MYSQL_YYABORT;
+
+            if (find_temporary_table(YYTHD, db.str, $3->table.str) != NULL)
+            {
+              if ($5 != NULL)
+              {
+                Item *where_context= new PTI_context<CTX_WHERE>(@$, $5);
+                ITEMIZE(where_context, &$5);
+              }
+              Select->set_where_cond($5);
+
+              if (prepare_schema_table(YYTHD, lex, $3, SCH_TMP_TABLE_KEYS))
+                MYSQL_YYABORT;
+            }
+            else
+            {
+               if (dd::info_schema::build_show_keys_query(
+                                      @$, YYTHD, $3, $5) == nullptr)
+                  MYSQL_YYABORT;
+            }
           }
         | opt_storage ENGINES_SYM
           {
@@ -11694,7 +11759,11 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, NULL, SCH_PROFILES) != 0)
               YYABORT;
           }
-        | opt_var_type STATUS_SYM opt_wild_or_where_for_show
+        | opt_var_type STATUS_SYM
+          {
+            Lex->sql_command= SQLCOM_SHOW_STATUS;
+          }
+          opt_wild_or_where_for_show
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
@@ -11727,14 +11796,17 @@ show_param:
           }
         | opt_full PROCESSLIST_SYM
           { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;}
-        | opt_var_type VARIABLES opt_wild_or_where_for_show
+        | opt_var_type VARIABLES
+          {
+            Lex->sql_command= SQLCOM_SHOW_VARIABLES;
+          }
+          opt_wild_or_where_for_show
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             if (show_compatibility_56)
             {
               /* 5.6, DEPRECATED */
-              lex->sql_command= SQLCOM_SHOW_VARIABLES;
               lex->option_type= $1;
               if (prepare_schema_table(YYTHD, lex, 0, SCH_VARIABLES))
                 MYSQL_YYABORT;
@@ -11758,18 +11830,22 @@ show_param:
               }
             }
           }
-        | charset opt_wild_or_where
+        | charset opt_wild_or_where_for_show
           {
-            LEX *lex= Lex;
-            lex->sql_command= SQLCOM_SHOW_CHARSETS;
-            if (prepare_schema_table(YYTHD, lex, 0, SCH_CHARSETS))
+            Lex->sql_command= SQLCOM_SHOW_CHARSETS;
+            Item *where_cond= Select->where_cond();
+            Select->set_where_cond(NULL);
+            if (dd::info_schema::build_show_character_set_query(
+                                  @$, YYTHD, Lex->wild, where_cond) == nullptr)
               MYSQL_YYABORT;
           }
-        | COLLATION_SYM opt_wild_or_where
+        | COLLATION_SYM opt_wild_or_where_for_show
           {
-            LEX *lex= Lex;
-            lex->sql_command= SQLCOM_SHOW_COLLATIONS;
-            if (prepare_schema_table(YYTHD, lex, 0, SCH_COLLATIONS))
+            Lex->sql_command= SQLCOM_SHOW_COLLATIONS;
+            Item *where_cond= Select->where_cond();
+            Select->set_where_cond(NULL);
+            if (dd::info_schema::build_show_collation_query(
+                                  @$, YYTHD, Lex->wild, where_cond) == nullptr)
               MYSQL_YYABORT;
           }
         | PRIVILEGES
@@ -11957,7 +12033,9 @@ opt_wild_or_where_for_show:
           }
         | WHERE expr
           {
-            if (show_compatibility_56)
+            if (show_compatibility_56 &&
+                (Lex->sql_command == SQLCOM_SHOW_STATUS ||
+                 Lex->sql_command == SQLCOM_SHOW_VARIABLES))
             {
               /*
                 This parsed tree fragment is added as part of a
@@ -11982,20 +12060,34 @@ opt_wild_or_where_for_show:
 
 /* A Oracle compatible synonym for show */
 describe:
-          describe_command table_ident
+          describe_command table_ident opt_describe_column
           {
             LEX *lex= Lex;
+            LEX_STRING db;
             lex->current_select()->parsing_place= CTX_SELECT_LIST;
             lex->sql_command= SQLCOM_SHOW_FIELDS;
             lex->select_lex->db= NULL;
             lex->verbose= 0;
-            if (prepare_schema_table(YYTHD, lex, $2, SCH_COLUMNS))
+
+            if ($2->db.str)
+              db.str= (char *) $2->db.str;
+            else if (lex->copy_db_to(&db.str, &db.length))
               MYSQL_YYABORT;
-          }
-          opt_describe_column
-          {
-            // Ensure we're resetting parsing context of the right select
-            DBUG_ASSERT(Select->parsing_place == CTX_SELECT_LIST);
+
+            if (find_temporary_table(YYTHD, db.str, $2->table.str) != NULL)
+            {
+              if (prepare_schema_table(YYTHD, lex, $2, SCH_TMP_TABLE_COLUMNS))
+                MYSQL_YYABORT;
+            }
+            else
+            {
+              if (dd::info_schema::build_show_columns_query(
+                    @$, YYTHD, $2, lex->wild, nullptr) == nullptr)
+                 MYSQL_YYABORT;
+            }
+
+            // WL#6599 opt_describe_column is handled during prepare
+            // stage in prepare_schema_dd_view instead of execution stage
             Select->parsing_place= CTX_NONE;
           }
         | describe_command opt_extended_describe

@@ -41,7 +41,9 @@ class Open_dictionary_tables_ctx
 {
 public:
   Open_dictionary_tables_ctx(THD *thd, thr_lock_type lock_type )
-    : m_thd(thd), m_lock_type(lock_type)
+    : m_thd(thd),
+      m_lock_type(lock_type),
+      m_ignore_global_read_lock(false)
   { }
 
   ~Open_dictionary_tables_ctx();
@@ -72,9 +74,21 @@ public:
 
   THD *get_thd() const { return m_thd; }
 
+  /**
+    Ignore global read lock when opening the tables.
+
+    @returns void.
+  */
+  void mark_ignore_global_read_lock()
+  {
+    if (m_lock_type == TL_WRITE)
+      m_ignore_global_read_lock= true;
+  }
+
 private:
   THD *m_thd;
   thr_lock_type m_lock_type;
+  bool m_ignore_global_read_lock;
   typedef std::map<std::string, Raw_table *> Object_table_map;
   Object_table_map m_tables;
 };

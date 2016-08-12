@@ -318,10 +318,11 @@ The following options may be given as the first argument:
  --ignore-builtin-innodb 
  IGNORED. This option will be removed in future releases.
  Disable initialization of builtin InnoDB plugin
- --ignore-db-dir=name 
- Specifies a directory to add to the ignore list when
- collecting database names from the datadir. Put a blank
- argument to reset the list accumulated so far.
+ --information-schema-stats=name 
+ If this flag is set to CACHED, INFORMATON_SCHEMA
+ retrieves dynamic column statistics stored in dedicated
+ tables. If set to LATEST, the dynamic statistics will be
+ read directly from the storage engine.
  --init-connect=name Command(s) that are executed for each new connection
  --init-file=name    Read SQL commands from this file at startup
  --init-slave=name   Command(s) that are executed by a slave server each time
@@ -1317,6 +1318,7 @@ gtid-mode OFF
 help TRUE
 host-cache-size 279
 ignore-builtin-innodb FALSE
+information-schema-stats CACHED
 init-connect 
 init-file (No default value)
 init-slave 
@@ -1444,7 +1446,7 @@ performance-schema-consumer-global-instrumentation TRUE
 performance-schema-consumer-statements-digest TRUE
 performance-schema-consumer-thread-instrumentation TRUE
 performance-schema-digests-size -1
-performance-schema-error-size 1038
+performance-schema-error-size 1040
 performance-schema-events-stages-history-long-size -1
 performance-schema-events-stages-history-size -1
 performance-schema-events-statements-history-long-size -1

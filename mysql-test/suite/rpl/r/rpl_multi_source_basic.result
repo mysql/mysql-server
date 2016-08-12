@@ -26,8 +26,8 @@ INSERT INTO db1.t1 VALUES (2);
 INSERT INTO db1.t1 VALUES (1);
 SHOW DATABASES;
 Database
-information_schema
 db1
+information_schema
 mtr
 mysql
 performance_schema
@@ -51,8 +51,8 @@ INSERT INTO db3.t1 VALUES (3*2);
 INSERT INTO db3.t1 VALUES (3*1);
 SHOW DATABASES;
 Database
-information_schema
 db3
+information_schema
 mtr
 mysql
 performance_schema
@@ -70,9 +70,9 @@ include/sync_slave_sql_with_master.inc
 #  Slave should have databases db1 and db3 and tables.
 SHOW DATABASES;
 Database
-information_schema
 db1
 db3
+information_schema
 mtr
 mysql
 performance_schema
@@ -136,10 +136,10 @@ include/sync_slave_sql_with_master.inc
 #
 SHOW DATABASES;
 Database
-information_schema
 db1
 db3
 dbcommon
+information_schema
 mtr
 mysql
 performance_schema

@@ -397,6 +397,8 @@ public:
 		HA_CREATE_INFO*		info,
 		uint			table_changes);
 
+private:
+
 	/** @name Multi Range Read interface @{ */
 
 	/** Initialize multi range read @see DsMrr_impl::dsmrr_init
@@ -464,8 +466,6 @@ private:
 	int change_active_index(uint keynr);
 
 	dberr_t innobase_lock_autoinc();
-
-	ulonglong innobase_peek_autoinc();
 
 	dberr_t innobase_set_max_autoinc(ulonglong auto_inc);
 
@@ -991,7 +991,7 @@ Need to exclude the NULL value if innodb_stats_method is set to "nulls_ignored"
 @return estimated record per key value */
 rec_per_key_t
 innodb_rec_per_key(
-	dict_index_t*	index,
+	const dict_index_t*	index,
 	ulint		i,
 	ha_rows		records);
 

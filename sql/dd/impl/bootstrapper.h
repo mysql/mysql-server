@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -194,6 +194,18 @@ bool initialize(THD *thd);
 */
 
 bool restart(THD *thd);
+
+
+/**
+  Iterate through all the plugins, and store IS table meta data
+  into dictionary, once during MySQL server bootstrap.
+
+  @param thd    Thread context.
+
+  @return       Upon failure, return true, otherwise false.
+*/
+bool store_plugin_IS_table_metadata(THD *thd);
+
 }
 }
 

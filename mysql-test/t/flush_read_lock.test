@@ -1857,7 +1857,7 @@ set autocommit= 1;
 --echo #       statements which are compatible with FTWRL in non-transactional
 --echo #       case are not compatible in case of transactional tables.
 --echo #
---echo # 39.1.a) ANALYZE TABLE for transactional table is incompatible with
+--echo # 39.1.a) ANALYZE TABLE for transactional table is compatible with
 --echo #         FTWRL.
 flush tables with read lock;
 --echo # Implicit commits are allowed under FTWRL.
@@ -1869,20 +1869,13 @@ connection $con_aux1;
 flush tables with read lock;
 --echo # Switching to connection 'default'.
 connection default;
---send analyze table t3_trans
+--echo # Analyze table for transactional table is compatible with FTWRL.
+analyze table t3_trans;
 --echo # Switching to connection '$con_aux1'.
 connection $con_aux1;
---echo # Check that ANALYZE TABLE is blocked.
-let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for commit lock" and
-        info = "analyze table t3_trans";
---source include/wait_condition.inc
 unlock tables;
 --echo # Switching to connection 'default'.
 connection default;
---echo # Reap ANALYZE TABLE
---reap
 
 --echo #
 --echo # 39.1.b) CHECK TABLE for transactional table is compatible with FTWRL.

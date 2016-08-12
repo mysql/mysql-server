@@ -60,7 +60,7 @@ const Object_type &Table::TYPE()
 
 Table_impl::Table_impl()
  :m_hidden(false),
-  m_se_private_id((ulonglong)-1),
+  m_se_private_id(INVALID_OBJECT_ID),
   m_se_private_data(new Properties_impl()),
   m_row_format(RF_FIXED),
   m_partition_type(PT_NONE),
@@ -374,6 +374,18 @@ bool Table_impl::store_attributes(Raw_record *r)
   //   - Store NULL in default subpartitioning if not set.
   //
 
+  /*
+    This is a temporary hack until WL#6391. Basically these
+    tables are being marked during bootstrap, and hence I_S does
+    not list them. But later during a ALTER TABLE or during
+    upgrade on these table, the hidden flag is lost. Hidding
+    metadata table is mostly solved in WL#6391.
+  */
+  if (schema_id() == (Object_id) 1 &&
+      m_hidden == false &&
+      !name().compare("character_sets"))
+    m_hidden= true;
+
   // Store field values
   return
     Abstract_table_impl::store_attributes(r) ||
@@ -384,7 +396,7 @@ bool Table_impl::store_attributes(Raw_record *r)
     r->store(Tables::FIELD_SE_PRIVATE_DATA, *m_se_private_data) ||
     r->store(Tables::FIELD_SE_PRIVATE_ID,
              m_se_private_id,
-             m_se_private_id == (ulonglong) -1) ||
+             m_se_private_id == (Object_id) -1) ||
     r->store(Tables::FIELD_ROW_FORMAT, m_row_format) ||
     r->store_ref_id(Tables::FIELD_TABLESPACE_ID, m_tablespace_id) ||
     r->store(Tables::FIELD_PARTITION_TYPE,

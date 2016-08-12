@@ -11,10 +11,12 @@
 
 CREATE TABLE t (a INT) ENGINE=INNODB;
 
+ANALYZE TABLE t;
 SELECT update_time FROM information_schema.tables WHERE table_name = 't';
 
 INSERT INTO t VALUES (1);
 
+ANALYZE TABLE t;
 SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
 AND update_time IS NOT NULL;
 
@@ -50,6 +52,7 @@ WHERE table_name = '`test`.`t`';
 
 # The result from this query will change once update_time becomes persistent
 # (WL#6917).
+ANALYZE TABLE t;
 SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
 AND update_time IS NOT NULL;
 
@@ -69,10 +72,12 @@ call mtr.add_suppression("Found 1 prepared XA transactions");
 
 --source include/kill_and_restart_mysqld.inc
 
+ANALYZE TABLE t;
 SELECT update_time FROM information_schema.tables WHERE table_name = 't';
 
 XA COMMIT 'xatrx';
 
+ANALYZE TABLE t;
 SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
 AND update_time IS NOT NULL;
 

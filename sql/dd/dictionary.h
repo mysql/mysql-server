@@ -52,6 +52,15 @@ public:
     const std::string &schema_name,
     const std::string &table_name) const = 0;
 
+  /**
+    Store metadata of plugin's information schema tables into
+    DD tables.
+
+    @return false - On success
+    @return true - On error
+  */
+  virtual bool install_plugin_IS_table_metadata() = 0;
+
 public:
   /////////////////////////////////////////////////////////////////////////
   // Auxiliary operations.

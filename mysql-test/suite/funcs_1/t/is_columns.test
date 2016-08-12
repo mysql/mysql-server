@@ -123,6 +123,7 @@ CREATE TABLE db_datadict.t1
    (f1 CHAR(10), f2 TEXT, f3 DATE, f4 INT AUTO_INCREMENT,
     UNIQUE INDEX MUL_IDX(f1,f3), PRIMARY KEY (f4))
 ENGINE = $other_engine_type;
+ANALYZE TABLE db_datadict.t1;
 CREATE VIEW db_datadict.v1 AS SELECT 1 AS f1, 1 AS f2;
 GRANT SELECT(f1, f2) ON db_datadict.t1 TO 'testuser1'@'localhost';
 GRANT SELECT(f2)     ON db_datadict.v1 TO 'testuser1'@'localhost';
@@ -132,6 +133,7 @@ eval
 CREATE TABLE db_datadict.t2
 (f1 CHAR(10), f2 TEXT, f3 DATE, f4 INT, PRIMARY KEY (f1,f4))
 ENGINE = $other_engine_type;
+ANALYZE TABLE db_datadict.t2;
 GRANT INSERT(f1, f2) ON db_datadict.t2 TO 'testuser2'@'localhost';
 
 let $my_select= SELECT * FROM information_schema.columns

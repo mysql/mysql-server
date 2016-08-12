@@ -934,12 +934,12 @@ struct TABLE_SHARE
    with a base table, a base table is replaced with a temporary
    table and so on.
 
+   @retval  0        For schema tables, DD tables and system views.
+            non-0    For bases tables, views and temporary tables.
+
    @sa TABLE_LIST::is_table_ref_id_equal()
   */
-  ulonglong get_table_ref_version() const
-  {
-    return (tmp_table == SYSTEM_TMP_TABLE) ? 0 : table_map_id.id();
-  }
+  ulonglong get_table_ref_version() const;
 
   /** Determine if the table is missing a PRIMARY KEY. */
   bool is_missing_primary_key() const
@@ -2598,7 +2598,11 @@ public:
 
   LEX_STRING view_body_utf8;
 
-   /* End of view definition context. */
+  // True, If this is a system view
+  bool is_system_view;
+
+  /* End of view definition context. */
+
   /* List of possible keys. Valid only for materialized derived tables/views. */
   List<Derived_key> derived_key_list;
 

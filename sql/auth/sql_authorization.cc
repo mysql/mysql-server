@@ -40,8 +40,9 @@
 #include "template_utils.h"
 #include "debug_sync.h"
 
-#include "dd/dd_table.h"                /* dd::table_exists */
-#include "dd/types/abstract_table.h"    /* dd::Abstract_table */
+#include "dd/dd_schema.h"               // dd::schema_exists
+#include "dd/dd_table.h"                // dd::table_exists
+#include "dd/types/abstract_table.h"    // dd::Abstract_table
 #include "prealloced_array.h"
 #include "current_thd.h"
 #include "m_string.h"
@@ -1266,23 +1267,30 @@ IS_internal_schema_access::lookup(const char *name) const
   return NULL;
 }
 
+bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
+                     TABLE_LIST *first_table)
+{
+  return select_precheck(thd, lex, tables, first_table, false);
+}
+
 /**
   Perform first stage of privilege checking for SELECT statement.
 
-  @param thd          Thread context.
-  @param lex          LEX for SELECT statement.
-  @param tables       List of tables used by statement.
-  @param first_table  First table in the main SELECT of the SELECT
-                      statement.
+  @param thd              Thread context.
+  @param lex              LEX for SELECT statement.
+  @param tables           List of tables used by statement.
+  @param first_table      First table in the main SELECT of the SELECT
+                          statement.
+  @param in_prepare_stage Flag to indicate if we are executing
+                          PREPARE stmt_name FROM ... statement.
 
   @retval FALSE - Success (column-level privilege checks might be required).
   @retval TRUE  - Failure, privileges are insufficient.
 */
 
 bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
-                     TABLE_LIST *first_table)
+                     TABLE_LIST *first_table, bool in_prepare_stage)
 {
-  DBUG_ENTER("select_precheck");
   bool res;
   /*
     lex->exchange != NULL implies SELECT .. INTO OUTFILE and this
@@ -1291,18 +1299,127 @@ bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
   ulong privileges_requested= lex->exchange ? SELECT_ACL | FILE_ACL :
                                               SELECT_ACL;
 
+  bool new_dd_show= false;
+  switch(lex->sql_command)
+  {
+    // For below show commands, perform check_show_access() call
+    case SQLCOM_SHOW_TABLES:
+    case SQLCOM_SHOW_TABLE_STATUS:
+    {
+      new_dd_show= true;
+
+      if (in_prepare_stage)
+        break;
+
+      // Acquire IX MDL lock on schema name.
+      MDL_request mdl_request;
+      MDL_REQUEST_INIT(&mdl_request, MDL_key::SCHEMA,
+                       lex->select_lex->db, "",
+                       MDL_INTENTION_EXCLUSIVE,
+                       MDL_TRANSACTION);
+      if (thd->mdl_context.acquire_lock(&mdl_request,
+                                        thd->variables.lock_wait_timeout))
+        return true;
+
+      // Stop if given database does not exist.
+      bool exists= false;
+      if(dd::schema_exists(thd, lex->select_lex->db, &exists))
+        return true;
+
+      if(!exists)
+      {
+        my_error(ER_BAD_DB_ERROR, MYF(0), lex->select_lex->db);
+        return true;
+      }
+
+      break;
+    }
+    case SQLCOM_SHOW_FIELDS:
+    case SQLCOM_SHOW_KEYS:
+      {
+        new_dd_show= true;
+
+        if (in_prepare_stage)
+          break;
+
+        enum enum_schema_tables schema_table_idx;
+        if (tables->schema_table)
+        {
+            schema_table_idx= get_schema_table_idx(tables->schema_table);
+            if (schema_table_idx == SCH_TMP_TABLE_COLUMNS ||
+                schema_table_idx == SCH_TMP_TABLE_KEYS)
+              break;
+        }
+
+        bool can_deadlock= thd->mdl_context.has_locks();
+        TABLE_LIST *dst_table;
+        dst_table= tables->schema_select_lex->table_list.first;
+        if (try_acquire_high_prio_shared_mdl_lock(thd, dst_table, can_deadlock))
+        {
+          /*
+            Some error occured (most probably we have been killed while
+            waiting for conflicting locks to go away), let the caller to
+            handle the situation.
+          */
+          return true;
+        }
+
+        if (dst_table->mdl_request.ticket == nullptr)
+        {
+          /*
+            We are in situation when we have encountered conflicting metadata
+            lock and deadlocks can occur due to waiting for it to go away.
+            So instead of waiting skip this table with an appropriate warning.
+          */
+          DBUG_ASSERT(can_deadlock);
+          my_error(ER_WARN_I_S_SKIPPED_TABLE, MYF(0),
+                   dst_table->db, dst_table->table_name);
+          return true;
+        }
+
+        // Stop if given database does not exist.
+        bool exists= false;
+        if(dd::schema_exists(thd, dst_table->db, &exists))
+          return true;
+
+        if(!exists)
+        {
+          my_error(ER_BAD_DB_ERROR, MYF(0), dst_table->db);
+          return true;
+        }
+
+        exists= false;
+        if(dd::table_exists<dd::Abstract_table>(thd->dd_client(),
+                                                dst_table->db,
+                                                dst_table->table_name,
+                                                &exists))
+          return true;
+
+        if(!exists)
+        {
+          my_error(ER_NO_SUCH_TABLE, MYF(0),
+                   dst_table->db,
+                   dst_table->table_name);
+          return true;
+        }
+        break;
+      }
+    default:
+      break;
+  }
+
   if (tables)
   {
     res= check_table_access(thd,
                             privileges_requested,
                             tables, FALSE, UINT_MAX, FALSE) ||
-         (first_table && first_table->schema_table_reformed &&
+         (first_table && (first_table->schema_table_reformed || new_dd_show) &&
           check_show_access(thd, first_table));
   }
   else
     res= check_access(thd, privileges_requested, any_db, NULL, NULL, 0, 0);
 
-  DBUG_RETURN(res);
+  return res;
 }
 
 
@@ -3352,7 +3469,12 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
 #endif
         continue;
       case ACL_INTERNAL_ACCESS_DENIED:
+      {
+        if (is_infoschema_db(t_ref->get_db_name()) &&
+            ((want_access & SELECT_ACL) || (want_access & LOCK_TABLES_ACL)))
+          continue;
         goto err;
+      }
       case ACL_INTERNAL_ACCESS_CHECK_GRANT:
         break;
       }
@@ -3462,6 +3584,9 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       if (!grant_table)
       {
         DBUG_PRINT("info",("Table %s didn't exist in the legacy table acl cache", t_ref->get_table_name()));
+        if (is_infoschema_db(t_ref->get_db_name()) &&
+            ((want_access & SELECT_ACL) || (want_access & LOCK_TABLES_ACL)))
+          continue;
         want_access &= ~t_ref->grant.privilege;
         goto err;                                 // No grants
       }
@@ -5172,6 +5297,10 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
     }
   }
 
+  // Allow SELECT privilege for INFORMATION_SCHEMA.
+  if (is_infoschema_db(db))
+    grant->privilege|= SELECT_ACL;
+
   DBUG_PRINT("info", ("privilege 0x%lx", grant->privilege));
   DBUG_VOID_RETURN;
 }
@@ -5603,15 +5732,9 @@ static bool check_show_access(THD *thd, TABLE_LIST *table)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   switch (get_schema_table_idx(table->schema_table)) {
-  case SCH_SCHEMATA:
-    return (specialflag & SPECIAL_SKIP_SHOW_DB) &&
-      check_global_access(thd, SHOW_DB_ACL);
-
-  case SCH_TABLE_NAMES:
-  case SCH_TABLES:
-  case SCH_VIEWS:
   case SCH_TRIGGERS:
   case SCH_EVENTS:
+
   {
     const char *dst_db_name= table->schema_select_lex->db;
 
@@ -5633,42 +5756,74 @@ static bool check_show_access(THD *thd, TABLE_LIST *table)
     return FALSE;
   }
 
-  case SCH_COLUMNS:
-  case SCH_STATISTICS:
-  {
-    TABLE_LIST *dst_table;
-    dst_table= table->schema_select_lex->table_list.first;
-
-    DBUG_ASSERT(dst_table);
-
-    /*
-      Open temporary tables to be able to detect them during privilege check.
-    */
-    if (open_temporary_tables(thd, dst_table))
-      return TRUE;
-
-    if (check_access(thd, SELECT_ACL, dst_table->db,
-                     &dst_table->grant.privilege,
-                     &dst_table->grant.m_internal,
-                     FALSE, FALSE))
-          return TRUE; /* Access denied */
-
-    /*
-      Check_grant will grant access if there is any column privileges on
-      all of the tables thanks to the fourth parameter (bool show_table).
-    */
-    if (check_grant(thd, SELECT_ACL, dst_table, TRUE, UINT_MAX, FALSE))
-      return TRUE; /* Access denied */
-
-    close_thread_tables(thd);
-    dst_table->table= NULL;
-
-    /* Access granted */
-    return FALSE;
-  }
   default:
     break;
   }
+
+  // perform privilege checking for show statements on new dd tables
+  switch(thd->lex->sql_command)
+  {
+    case SQLCOM_SHOW_DATABASES:
+    {
+      return (specialflag & SPECIAL_SKIP_SHOW_DB) &&
+        check_global_access(thd, SHOW_DB_ACL);
+    }
+    case SQLCOM_SHOW_TABLES:
+    case SQLCOM_SHOW_TABLE_STATUS:
+    {
+      const char *dst_db_name= thd->lex->select_lex->db;
+      if (!dst_db_name) break;
+
+      if (check_access(thd, SELECT_ACL, dst_db_name,
+                       &thd->col_access, NULL, FALSE, FALSE))
+        return TRUE;
+
+      if (!thd->col_access && check_grant_db(thd, dst_db_name))
+      {
+        my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
+                 thd->security_context()->priv_user().str,
+                 thd->security_context()->priv_host().str,
+                 dst_db_name);
+        return TRUE;
+      }
+      return FALSE;
+    }
+    case SQLCOM_SHOW_FIELDS:
+    case SQLCOM_SHOW_KEYS:
+    {
+      TABLE_LIST *dst_table;
+      dst_table= table->schema_select_lex->table_list.first;
+
+      DBUG_ASSERT(dst_table);
+      /*
+        Open temporary tables to be able to detect them during privilege check.
+      */
+      if (open_temporary_tables(thd, dst_table))
+        return TRUE;
+
+      if (check_access(thd, SELECT_ACL, dst_table->db,
+                       &dst_table->grant.privilege,
+                       &dst_table->grant.m_internal,
+                       FALSE, FALSE))
+            return TRUE; /* Access denied */
+
+      /*
+        Check_grant will grant access if there is any column privileges on
+        all of the tables thanks to the fourth parameter (bool show_table).
+      */
+      if (check_grant(thd, SELECT_ACL, dst_table, TRUE, UINT_MAX, FALSE))
+        return TRUE; /* Access denied */
+
+      close_thread_tables(thd);
+      dst_table->table= NULL;
+
+      /* Access granted */
+      return FALSE;
+    }
+    default:
+      break;
+  }
+
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
   return FALSE;
 }

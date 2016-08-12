@@ -412,19 +412,24 @@ DROP TABLESPACE ts1;
 --echo #
 call mtr.add_suppression("\\[Warning\\] InnoDB: Trying to access missing tablespace .*");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Missing .ibd file for table `test`\.`t1` .* ");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table .*");
 
 CREATE TABLE t1(c1 INT,c2 CHAR(1)) PARTITION BY KEY(c1) PARTITIONS 4;
 
 ALTER TABLE t1 DISCARD PARTITION p3 TABLESPACE;
+ANALYZE TABLE t1;
 SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
 
 ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
+ANALYZE TABLE t1;
 SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
 
 ALTER TABLE t1 DISCARD PARTITION p2 TABLESPACE;
+ANALYZE TABLE t1;
 SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
 
 ALTER TABLE t1 DISCARD PARTITION p0 TABLESPACE;
+ANALYZE TABLE t1;
 SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
 
 DROP TABLE t1;
@@ -432,6 +437,7 @@ DROP TABLE t1;
 CREATE TABLE t1(c1 INT,c2 CHAR(1)) PARTITION BY KEY(c1) PARTITIONS 4;
 
 ALTER TABLE t1 DISCARD TABLESPACE;
+ANALYZE TABLE t1;
 SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
 
 DROP TABLE t1;

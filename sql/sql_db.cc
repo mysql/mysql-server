@@ -156,13 +156,6 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
 {
   DBUG_ENTER("mysql_create_db");
 
-  /* do not create 'information_schema' db */
-  if (is_infoschema_db(db))
-  {
-    my_error(ER_DB_CREATE_EXISTS, MYF(0), db);
-    DBUG_RETURN(true);
-  }
-
   /*
     When creating the schema, we must lock the schema name without case (for
     correct MDL locking) when l_c_t_n == 2.

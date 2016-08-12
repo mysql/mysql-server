@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,11 +18,15 @@
 #include "handler.h"                          // dict_init_mode_t
 #include "log.h"                              // sql_print_warning()
 #include "mysql/mysql_lex_string.h"           // LEX_STRING
+#include "m_string.h"                         // STRING_WITH_LEN
 #include "sql_class.h"                        // THD
 #include "sql_prepare.h"                      // Ed_connection
+#include "sql_plugin.h"                       // plugin_foreach
+#include "sql_show.h"                         // get_schema_table()
 #include "transaction.h"                      // trans_rollback
 
 #include "dd/dd.h"                            // dd::create_object
+#include "dd/dd_table.h"                      // dd::get_sql_type_by_field_info
 #include "dd/properties.h"                    // dd::Properties
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/impl/dictionary_impl.h"          // dd::Dictionary_impl
@@ -36,6 +40,8 @@
 #include "dd/impl/types/table_impl.h"         // dd::Table_impl
 #include "dd/impl/types/tablespace_impl.h"    // dd::Table_impl
 #include "dd/types/object_table.h"            // dd::Object_table
+#include "dd/types/view.h"                    // dd::View
+#include "dd/types/column.h"                  // dd::Column
 #include "dd/types/object_table_definition.h" // dd::Object_table_definition
 #include "dd/types/tablespace_file.h"         // dd::Tablespace_file
 
@@ -70,6 +76,171 @@ bool end_transaction(THD *thd, bool error)
   // Close tables etc. and release MDL locks, regardless of error.
   thd->mdl_context.release_transactional_locks();
   return error;
+}
+
+
+bool store_single_schema_table_meta_data(THD *thd,
+                                         const dd::Schema *IS_schema_obj,
+                                         ST_SCHEMA_TABLE *schema_table)
+{
+  // Skip I_S tables that are hidden from users.
+  if (schema_table->hidden)
+    return false;
+
+  MDL_request db_mdl_request;
+  MDL_REQUEST_INIT(&db_mdl_request,
+                   MDL_key::SCHEMA, IS_schema_obj->name().c_str(), "",
+                   MDL_INTENTION_EXCLUSIVE,
+                   MDL_TRANSACTION);
+  if (thd->mdl_context.acquire_lock(&db_mdl_request,
+                                    thd->variables.lock_wait_timeout))
+    return true;
+
+  std::unique_ptr<dd::View> view_obj(IS_schema_obj->create_system_view(thd));
+
+  // column_type_utf8
+  const CHARSET_INFO* cs=
+    get_charset(system_charset_info->number, MYF(0));
+
+  // Set view properties
+  view_obj->set_client_collation_id(IS_schema_obj->default_collation_id());
+
+  view_obj->set_connection_collation_id(IS_schema_obj->default_collation_id());
+
+  view_obj->set_name(schema_table->table_name);
+
+  //
+  // Fill columns details
+  //
+  ST_FIELD_INFO *fields_info= schema_table->fields_info;
+  for (; fields_info->field_name; fields_info++)
+  {
+    dd::Column *col_obj= view_obj->add_column();
+
+    col_obj->set_name(fields_info->field_name);
+
+    /*
+      The 5.7 create_schema_table() creates Item_empty_string() item for
+      MYSQL_TYPE_STRING. Item_empty_string->field_type() maps to
+      MYSQL_TYPE_VARCHAR. So, we map MYSQL_TYPE_STRING to
+      MYSQL_TYPE_VARCHAR when storing metadata into DD.
+    */
+    enum_field_types ft= fields_info->field_type;
+    uint32 fl= fields_info->field_length;
+    if (fields_info->field_type == MYSQL_TYPE_STRING)
+    {
+      ft= MYSQL_TYPE_VARCHAR;
+      fl= fields_info->field_length * cs->mbmaxlen;
+    }
+
+    col_obj->set_type(dd::get_new_field_type(ft));
+
+    col_obj->set_char_length(fields_info->field_length);
+
+    col_obj->set_nullable(fields_info->field_flags & MY_I_S_MAYBE_NULL);
+
+    col_obj->set_unsigned(fields_info->field_flags & MY_I_S_UNSIGNED);
+
+    col_obj->set_zerofill(false);
+
+    // Collation ID
+    col_obj->set_collation_id(system_charset_info->number);
+
+    col_obj->set_column_type_utf8(
+               dd::get_sql_type_by_field_info(
+                 thd, ft, fl, cs));
+
+    col_obj->set_default_value_utf8(std::string(STRING_WITH_LEN("")));
+  }
+
+  // Acquire MDL on the view name.
+  MDL_request mdl_request;
+  MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE,
+                   IS_schema_obj->name().c_str(), view_obj->name().c_str(),
+                   MDL_EXCLUSIVE,
+                   MDL_TRANSACTION);
+  if (thd->mdl_context.acquire_lock(&mdl_request,
+                                    thd->variables.lock_wait_timeout))
+    return true;
+
+  // Store the metadata into DD
+  if (thd->dd_client()->store(view_obj.get()))
+    return true;
+
+  return false;
+}
+
+
+/**
+  @brief
+    Store metadata of schema tables into DD.
+
+  @param THD
+
+  @param plugin_ref
+    This function is invoked in two cases,
+    1) To store schema tables of MySQL server
+       - Pass plugin_ref as nullptr in this case.
+
+    2) To store schema tables of plugins
+       - plugin_foreach() function passes proper
+         plugin_ref.
+
+  @param p_trx
+    Read/Write DD transaction.
+
+  @return
+    false on success
+    true when fails to store the metadata.
+*/
+my_bool store_schema_table_meta_data(THD *thd, plugin_ref plugin, void *unused)
+{
+  // Fetch schema ID of IS schema.
+  const dd::Schema *IS_schema_obj= nullptr;
+  if (thd->dd_client()->acquire<dd::Schema>(INFORMATION_SCHEMA_NAME.str,
+                                            &IS_schema_obj))
+  {
+    return true;
+  }
+
+  if (plugin)
+  {
+    ST_SCHEMA_TABLE *schema_table= plugin_data<ST_SCHEMA_TABLE*>(plugin);
+    return store_single_schema_table_meta_data(thd,
+                                               IS_schema_obj,
+                                               schema_table);
+  }
+
+  ST_SCHEMA_TABLE *schema_tables= get_schema_table(SCH_FIRST);
+  for (; schema_tables->table_name; schema_tables++)
+  {
+    if(store_single_schema_table_meta_data(thd,
+                                           IS_schema_obj,
+                                           schema_tables))
+      return true;
+  }
+
+  return false;
+}
+
+
+/**
+  This function stores the meta data of IS tables into the DD tables.
+  Some IS tables are created as system views on DD tables,
+  for which meta data is populated automatically when the
+  view is created. This function handles the rest of the IS tables
+  that are not system views, i.e., elements in the ST_SCHEMA_TABLES
+  schema_tables[] array.
+
+  @param[in] thd      Thread context
+
+  @retval true        Error
+  @retval false       Success
+*/
+bool store_server_I_S_table_meta_data(THD *thd)
+{
+  bool error= store_schema_table_meta_data(thd, nullptr, nullptr);
+  return end_transaction(thd, error);
 }
 
 
@@ -368,6 +539,16 @@ bool store_meta_data(THD *thd)
 #endif
     // We must set the ID to INVALID to enable storing the object.
     sys_table_clone->set_id(INVALID_OBJECT_ID);
+
+  /*
+    This is a temporary hack until WL#6391. Basically these
+    tables are being marked during bootstrap, and hence I_S does
+    not list them. But we should not hide innodb_*_stats tables.
+    Hidding metadata table is mostly solved in WL#6391.
+  */
+    if (sys_table_clone->name().compare("innodb_table_stats") &&
+        sys_table_clone->name().compare("innodb_index_stats"))
+      sys_table_clone->set_hidden(true);
     if (thd->dd_client()->update(&sys_table,
                                  static_cast<Table*>(sys_table_clone.get())))
       return end_transaction(thd, true);
@@ -764,6 +945,7 @@ bool initialize(THD *thd)
                         d->get_target_dd_version()) ||
       populate_tables(thd) ||
       add_cyclic_foreign_keys(thd) ||
+      store_server_I_S_table_meta_data(thd) ||
       execute_query(thd, "SET FOREIGN_KEY_CHECKS= 1") ||
       verify_objects_sticky(thd))
     return true;
@@ -811,6 +993,27 @@ bool restart(THD *thd)
                         d->get_actual_dd_version(thd));
   return false;
 }
+
+
+bool store_plugin_IS_table_metadata(THD *thd)
+{
+  /*
+    Set tx_read_only to false to allow installing DD tables even
+    if the server is started with --transaction-read-only=true.
+  */
+  thd->variables.tx_read_only= false;
+  thd->tx_read_only= false;
+
+  Disable_autocommit_guard autocommit_guard(thd);
+
+  cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+  bool  error= plugin_foreach(thd, store_schema_table_meta_data,
+                              MYSQL_INFORMATION_SCHEMA_PLUGIN, nullptr);
+
+  return end_transaction(thd, error);
+}
+
 
 } // namespace bootstrap
 } // namespace dd

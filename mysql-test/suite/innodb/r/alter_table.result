@@ -1,4 +1,5 @@
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_CREATE_USER';
+SET SESSION information_schema_stats=latest;
 create table t1 (
 col1 int not null auto_increment primary key,
 col2 varchar(30) not null,
@@ -539,19 +540,19 @@ Warnings:
 Note	1031	Table storage engine for '#sql<temporary>' doesn't have this option
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
+t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE	disabled		YES
 alter table t1 modify a bigint, disable keys;
 Warnings:
 Note	1031	Table storage engine for '#sql<temporary>' doesn't have this option
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
+t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE	disabled		YES
 alter table t1 add b char(10), disable keys;
 Warnings:
 Note	1031	Table storage engine for '#sql<temporary>' doesn't have this option
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
+t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE	disabled		YES
 alter table t1 add c decimal(10,2), enable keys;
 Warnings:
 Note	1031	Table storage engine for '#sql<temporary>' doesn't have this option
@@ -613,7 +614,7 @@ Note	1031	Table storage engine for '#sql<temporary>' doesn't have this option
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
-t1	1	b	1	b	A	0	NULL	NULL	YES	BTREE			YES
+t1	1	b	1	b	A	0	NULL	NULL	YES	BTREE	disabled		YES
 "Change the type implying data copy"
 "The non-unique index will be disabled"
 alter table t1 modify a bigint, disable keys;
@@ -622,7 +623,7 @@ Note	1031	Table storage engine for '#sql<temporary>' doesn't have this option
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
-t1	1	b	1	b	A	0	NULL	NULL	YES	BTREE			YES
+t1	1	b	1	b	A	0	NULL	NULL	YES	BTREE	disabled		YES
 "Change again the type, but leave the indexes as_is"
 alter table t1 modify a int;
 show indexes from t1;

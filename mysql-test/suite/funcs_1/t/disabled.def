@@ -9,3 +9,39 @@
 #  Don't use any TAB characters for whitespace.
 #
 ##############################################################################
+funcs_1.innodb_views                    : WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.memory_views                    : WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_schemata                     : WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_views                        : WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_character_sets               : WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_coll_char_set_appl           : WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_collations                   : WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_key_column_usage             : WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_table_constraints            : WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_tables                       : WL6599_VIEWSTAT
+funcs_1.is_columns                      : WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.innodb_views                    : WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_basics_mixed                 : WL7167- Populate view column metainformation - Praveen.
+funcs_1.is_columns_innodb               : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_columns_is                   : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_columns_memory               : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_columns_myisam               : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_columns_mysql                : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_statistics                   : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_statistics_is                : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_tables_is                    : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_columns_is_embedded          : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_columns_myisam_embedded      : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_columns_mysql_embedded       : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_statistics_mysql_embedded    : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_table_constraints_mysql_embedded : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_tables_myisam_embedded       : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_tables_mysql_embedded        : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.myisam_views-big                : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_routines_embedded            : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_schemata_embedded            : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_tables_embedded              : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_triggers_embedded            : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_views_embedded               : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_views_embedded               : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS
+funcs_1.is_key_column_usage_embedded    : WL#6599 2016-07-06 gopshank WL6599_NEEDS_VIEW_COLUMNS

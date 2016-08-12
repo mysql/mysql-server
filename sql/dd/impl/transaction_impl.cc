@@ -86,7 +86,14 @@ bool Open_dictionary_tables_ctx::open_tables()
   // we try to commit/rollback transaction only at the end of
   // statement. This should avoid invoking DD calls once
   // thd->killed flag is set. Note sure completely.
-  const uint flags= (MYSQL_LOCK_IGNORE_TIMEOUT | MYSQL_OPEN_IGNORE_KILLED);
+  //
+  // FLUSH TABLES is ignored for the DD tables. Hence the setting
+  // the MYSQL_OPEN_IGNORE_FLUSH flag.
+
+  const uint flags= (MYSQL_LOCK_IGNORE_TIMEOUT |
+                     MYSQL_OPEN_IGNORE_KILLED |
+                     m_ignore_global_read_lock ?
+                       MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK : 0);
   uint counter;
 
   if (::open_tables(m_thd, &table_list, &counter, flags))

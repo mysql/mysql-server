@@ -22,6 +22,8 @@
 #include "table.h"                              // enum_schema_table_state
 #include "set_var.h"                            // enum_var_type
 
+#include "dd/object_id.h"                       // dd::Object_id
+
 /* Forward declarations */
 class JOIN;
 class sp_name;
@@ -78,6 +80,35 @@ enum find_files_result {
 #define IS_FILES_CHECKSUM            35
 #define IS_FILES_STATUS              36
 #define IS_FILES_EXTRA               37
+
+/* Define fields' indexes for COLUMNS of temporary tables */
+#define TMP_TABLE_COLUMNS_COLUMN_NAME           0
+#define TMP_TABLE_COLUMNS_COLUMN_TYPE           1
+#define TMP_TABLE_COLUMNS_COLLATION_NAME        2
+#define TMP_TABLE_COLUMNS_IS_NULLABLE           3
+#define TMP_TABLE_COLUMNS_COLUMN_KEY            4
+#define TMP_TABLE_COLUMNS_COLUMN_DEFAULT        5
+#define TMP_TABLE_COLUMNS_EXTRA                 6
+#define TMP_TABLE_COLUMNS_PRIVILEGES            7
+#define TMP_TABLE_COLUMNS_COLUMN_COMMENT        8
+#define TMP_TABLE_COLUMNS_GENERATION_EXPRESSION 9
+
+/* Define fields' indexes for KEYS of temporary tables */
+#define TMP_TABLE_KEYS_TABLE_NAME        0
+#define TMP_TABLE_KEYS_IS_NON_UNIQUE     1
+#define TMP_TABLE_KEYS_INDEX_SCHEMA      2
+#define TMP_TABLE_KEYS_INDEX_NAME        3
+#define TMP_TABLE_KEYS_SEQ_IN_INDEX      4
+#define TMP_TABLE_KEYS_COLUMN_NAME       5
+#define TMP_TABLE_KEYS_COLLATION         6
+#define TMP_TABLE_KEYS_CARDINALITY       7
+#define TMP_TABLE_KEYS_SUB_PART          8
+#define TMP_TABLE_KEYS_PACKED            9
+#define TMP_TABLE_KEYS_IS_NULLABLE       10
+#define TMP_TABLE_KEYS_INDEX_TYPE        11
+#define TMP_TABLE_KEYS_COMMENT           12
+#define TMP_TABLE_KEYS_INDEX_COMMENT     13
+#define TMP_TABLE_KEYS_IS_VISIBLE        14
 
 find_files_result find_files(THD *thd, List<LEX_STRING> *files, const char *db,
                              const char *path, const char *wild, bool dir,
@@ -144,8 +175,12 @@ int schema_table_store_record2(THD *thd, TABLE *table, bool make_ondisk);
 */
 bool convert_heap_table_to_ondisk(THD *thd, TABLE *table, int error);
 void initialize_information_schema_acl();
+int make_table_list(THD *thd, SELECT_LEX *sel,
+                           const LEX_CSTRING &db_name,
+                           const LEX_CSTRING &table_name);
 
 ST_SCHEMA_TABLE *find_schema_table(THD *thd, const char* table_name);
+ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx);
 int make_schema_select(THD *thd,  SELECT_LEX *sel,
                        enum enum_schema_tables schema_table_idx);
 int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list);
@@ -169,13 +204,11 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
 /* These functions were under INNODB_COMPATIBILITY_HOOKS */
 int get_quote_char_for_identifier(THD *thd, const char *name, size_t length);
 
-/* Handle the ignored database directories list for SHOW/I_S/initialize. */
-void ignore_db_dirs_init();
-void ignore_db_dirs_free();
-void ignore_db_dirs_reset();
-bool ignore_db_dirs_process_additions();
-bool push_ignored_db_dir(char *path);
-extern char *opt_ignore_db_dirs;
-bool is_in_ignore_db_dirs_list(const char *directory);
+bool
+try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
+                                      bool can_deadlock);
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+extern TYPELIB grant_types;
+#endif
 #endif /* SQL_SHOW_H */

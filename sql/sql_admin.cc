@@ -30,6 +30,7 @@
 #include "sp_rcontext.h"                     // sp_rcontext
 #include "sql_parse.h"                       // check_table_access
 #include "table_trigger_dispatcher.h"        // Table_trigger_dispatcher
+#include "dd/info_schema/stats.h"            // dd::info_schema::update_*
 #include "log.h"
 #include "myisam.h"                          // TT_USEFRM
 #include "mysqld.h"                          // key_file_misc
@@ -269,6 +270,13 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                                                             HA_CHECK_OPT *),
                               int check_view)
 {
+  /*
+    Prevent InnoDB from automatically committing InnoDB
+    transaction each time data-dictionary tables are closed after
+    being updated.
+  */
+  Disable_autocommit_guard autocommit_guard(thd);
+
   TABLE_LIST *table;
   SELECT_LEX *select= thd->lex->select_lex;
   List<Item> field_list;
@@ -280,6 +288,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     ((thd->variables.gtid_next.type == GTID_GROUP ||
       thd->variables.gtid_next.type == ANONYMOUS_GROUP) &&
     (!thd->skip_gtid_rollback));
+  bool ignore_grl_on_analyze= operator_func == &handler::ha_analyze;
   DBUG_ENTER("mysql_admin_table");
 
   field_list.push_back(item = new Item_empty_string("Table", NAME_CHAR_LEN*2));
@@ -549,8 +558,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       length= my_snprintf(buff, sizeof(buff), ER_THD(thd, ER_OPEN_AS_READONLY),
                           table_name);
       protocol->store(buff, length, system_charset_info);
-      trans_commit_stmt(thd);
-      trans_commit(thd);
+      trans_commit_stmt(thd, ignore_grl_on_analyze);
+      trans_commit(thd, ignore_grl_on_analyze);
       /* Make sure this table instance is not reused after the operation. */
       if (table->table)
         table->table->m_needs_reopen= true;
@@ -664,6 +673,26 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     DBUG_PRINT("admin", ("calling operator_func '%s'", operator_name));
     result_code = (table->table->file->*operator_func)(thd, check_opt);
     DBUG_PRINT("admin", ("operator_func returned: %d", result_code));
+
+    /*
+      ANALYZE statement calculates values for dynamic fields of
+      I_S.TABLES and I_S.STATISTICS table in table_stats and index_stats
+      table. This table is joined with new dd table to provide results
+      when I_S table is queried.
+      To get latest statistics of table or index, user should use analyze
+      table statement before querying I_S.TABLES or I_S.STATISTICS
+    */
+
+    if(!read_only && ignore_grl_on_analyze)
+    {
+      // Acquire the lock
+      if (dd::info_schema::update_table_stats(thd, table) ||
+          dd::info_schema::update_index_stats(thd, table))
+      {
+        result_code= HA_ADMIN_STATS_UPD_ERR;
+        goto send_result;
+      }
+    }
 
     /*
       push_warning() if the table version is lesser than current
@@ -783,8 +812,8 @@ send_result_message:
         reopen the table and do ha_innobase::analyze() on it.
         We have to end the row, so analyze could return more rows.
       */
-      trans_commit_stmt(thd);
-      trans_commit(thd);
+      trans_commit_stmt(thd, ignore_grl_on_analyze);
+      trans_commit(thd, ignore_grl_on_analyze);
       close_thread_tables(thd);
       thd->mdl_context.release_transactional_locks();
 
@@ -829,8 +858,8 @@ send_result_message:
       */
       if (thd->get_stmt_da()->is_ok())
         thd->get_stmt_da()->reset_diagnostics_area();
-      trans_commit_stmt(thd);
-      trans_commit(thd);
+      trans_commit_stmt(thd, ignore_grl_on_analyze);
+      trans_commit(thd, ignore_grl_on_analyze);
       close_thread_tables(thd);
       thd->mdl_context.release_transactional_locks();
       /* Clear references to TABLE and MDL_ticket after releasing them. */
@@ -925,6 +954,12 @@ send_result_message:
       break;
     }
 
+    case HA_ADMIN_STATS_UPD_ERR:
+      protocol->store(STRING_WITH_LEN("status"), system_charset_info);
+      protocol->store(STRING_WITH_LEN("Unable to write table statistics to DD tables"),
+                      system_charset_info);
+      break;
+
     default:				// Probably HA_ADMIN_INTERNAL_ERROR
       {
         char buf[MYSQL_ERRMSG_SIZE];
@@ -985,7 +1020,8 @@ send_result_message:
     }
     else
     {
-      if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
+      if (trans_commit_stmt(thd, ignore_grl_on_analyze) ||
+          trans_commit_implicit(thd, ignore_grl_on_analyze))
         goto err;
     }
     close_thread_tables(thd);
@@ -1114,6 +1150,13 @@ bool Sql_cmd_analyze_table::execute(THD *thd)
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table,
                          FALSE, UINT_MAX, FALSE))
     goto error;
+
+  DBUG_EXECUTE_IF("simulate_analyze_table_lock_wait_timeout_error",
+                  {
+                    my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+                    DBUG_RETURN(true);
+                  });
+
   thd->enable_slow_log= opt_log_slow_admin_statements;
   res= mysql_admin_table(thd, first_table, &thd->lex->check_opt,
                          "analyze", lock_type, 1, 0, 0, 0,

@@ -112,6 +112,12 @@ INSERT INTO tab6(col_1,col_2,col_3,col_4,col_5,col_6,col_7,col_8,col_9,col_10)
 VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9,@col_10);
 INSERT INTO tab6(col_1,col_2,col_3,col_4,col_5,col_6,col_7,col_8,col_9,col_10)
 VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9,@col_10);
+ANALYZE TABLE tab5;
+Table	Op	Msg_type	Msg_text
+test.tab5	analyze	status	OK
+ANALYZE TABLE tab6;
+Table	Op	Msg_type	Msg_text
+test.tab6	analyze	status	OK
 #diff the sizes of the No compressed table and high compressed table
 SET @size=(SELECT 
 (SELECT (SUM(DATA_LENGTH+INDEX_LENGTH)/1024/1024) 

@@ -2428,6 +2428,18 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
   }
 }
 
+
+ulonglong TABLE_SHARE::get_table_ref_version() const
+{
+  if (belongs_to_system_view(static_cast<const char *>(db.str),
+                             static_cast<const char *>(table_name.str)) ||
+      (tmp_table == SYSTEM_TMP_TABLE))
+    return 0;
+
+  return table_map_id.id();
+}
+
+
 Blob_mem_storage::Blob_mem_storage()
   : truncated_value(false)
 {

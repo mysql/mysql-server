@@ -1782,6 +1782,7 @@ show full columns from t2;
 show full columns from t2 from test like 'f%';
 --replace_column 8 #
 show full columns from t2 from test like 's%';
+analyze table t2;
 show keys from t2;
 
 drop table t4, t3, t2, t1;
@@ -2235,6 +2236,7 @@ drop table t1,t2;
 create table t1 (f1 int not null auto_increment primary key, f2 varchar(10));
 create table t11 like t1;
 insert into t1 values(1,""),(2,"");
+analyze table t1, t11;
 --replace_column 7 X 8 X 9 X 10 X 11 X 12 X 13 X 14 X
 show table status like 't1%';
 select 123 as a from t1 where f1 is null;

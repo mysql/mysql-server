@@ -153,7 +153,7 @@ drop table t1;
 drop table if exists t1;
 create table t1 (f1 int key) partition by key(f1) partitions 2;
 select create_options from information_schema.tables where table_schema="test";
-create_options
+CREATE_OPTIONS
 partitioned
 drop table t1;
 drop tablespace ts1;

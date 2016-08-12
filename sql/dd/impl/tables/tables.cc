@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,7 +55,8 @@ Tables::Tables()
                          "NOT NULL");
   m_target_def.add_field(FIELD_ENGINE,
                          "FIELD_ENGINE",
-                         "engine VARCHAR(64) NOT NULL");
+                         "engine VARCHAR(64) NOT NULL "
+                         "COLLATE utf8_general_ci");
   m_target_def.add_field(FIELD_MYSQL_VERSION_ID,
                          "FIELD_MYSQL_VERSION_ID",
                          "mysql_version_id INT UNSIGNED NOT NULL");
@@ -212,7 +213,7 @@ bool Tables::update_aux_key(Se_private_id_key *key,
 /* purecov: begin deadcode */
 Object_key *Tables::create_se_private_key(
   const std::string &engine,
-  ulonglong se_private_id)
+  Object_id se_private_id)
 {
   const int SE_PRIVATE_ID_INDEX_ID= 2;
 
@@ -236,7 +237,7 @@ Object_key *Tables::create_key_by_schema_id(
 
 ///////////////////////////////////////////////////////////////////////////
 
-ulonglong Tables::read_se_private_id(const Raw_record &r)
+Object_id Tables::read_se_private_id(const Raw_record &r)
 {
   return r.read_uint(Tables::FIELD_SE_PRIVATE_ID, -1);
 }

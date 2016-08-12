@@ -51,8 +51,8 @@ SET GLOBAL tmp_table_size= @old_size;
 
 # Temp tables for I_S tables. Uses HEAP temporary table. 
 # Converts it to MyISAM packed record format due to heap size limitation
-SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1;
---replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
+SELECT pool_id FROM information_schema.INNODB_BUFFER_PAGE LIMIT 1;
+--replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE innodb_buffer_page INNODB_BUFFER_PAGE
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc

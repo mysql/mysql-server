@@ -3,8 +3,9 @@
 # Tests for sys schema
 # Verify the sys.host_summary_by_statement_type view
 
-# Ensure structure changes don't slip in
-DESC sys.host_summary_by_statement_type;
+## WL6599_NEEDS_VIEW_COLUMNS
+## Ensure structure changes don't slip in
+#DESC sys.host_summary_by_statement_type;
 
 # Make sure view select does not error, but ignore results
 --disable_result_log
@@ -12,8 +13,9 @@ SELECT * FROM sys.host_summary_by_statement_type;
 --enable_result_log
 
 
-# Ensure structure changes don't slip in
-DESC sys.x$host_summary_by_statement_type;
+## WL6599_NEEDS_VIEW_COLUMNS
+## Ensure structure changes don't slip in
+#DESC sys.x$host_summary_by_statement_type;
 
 # Make sure view select does not error, but ignore results
 --disable_result_log

@@ -358,6 +358,418 @@ CREATE TABLE IF NOT EXISTS column_stats (
 COMMENT="Column statistics";
 
 --
+--
+-- INFORMATION SCHEMA VIEWS INSTALLATION
+--
+
+--
+-- INFORMATION_SCHEMA.COLLATIONS
+--
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.COLLATIONS AS
+  SELECT col.name AS COLLATION_NAME,
+         cs.name AS CHARACTER_SET_NAME,
+         col.id AS ID,
+         IF(EXISTS(SELECT * FROM mysql.character_sets
+                            WHERE mysql.character_sets.default_collation_id= col.id),
+            'Yes','') AS IS_DEFAULT,
+         IF(col.is_compiled,'Yes','') AS IS_COMPILED,
+         col.sort_length AS SORTLEN
+  FROM mysql.collations col JOIN mysql.character_sets cs ON col.character_set_id=cs.id;
+
+--
+-- INFORMATION_SCHEMA.CHARACTER_SETS
+--
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.CHARACTER_SETS as
+  SELECT cs.name AS CHARACTER_SET_NAME,
+         col.name AS DEFAULT_COLLATE_NAME,
+         cs.comment AS DESCRIPTION,
+         cs.mb_max_length AS MAXLEN
+  FROM mysql.character_sets cs JOIN mysql.collations col ON cs.default_collation_id = col.id;
+
+--
+-- INFORMATION_SCHEMA.COLLATION_CHARACTER_SET_APPLICABILITY
+--
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.COLLATION_CHARACTER_SET_APPLICABILITY AS
+  SELECT col.name AS COLLATION_NAME,
+         cs.name AS CHARACTER_SET_NAME
+  FROM mysql.character_sets cs JOIN mysql.collations col ON cs.id = col.character_set_id;
+
+--
+-- INFORMATION_SCHEMA.SCHEMATA
+--
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.SCHEMATA AS
+  SELECT cat.name AS CATALOG_NAME,
+    sch.name AS SCHEMA_NAME,
+    cs.name AS DEFAULT_CHARACTER_SET_NAME,
+    col.name AS DEFAULT_COLLATION_NAME,
+    NULL AS SQL_PATH
+  FROM mysql.schemata sch JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
+       JOIN mysql.collations col ON sch.default_collation_id = col.id
+       JOIN mysql.character_sets cs ON col.character_set_id= cs.id
+  WHERE CAN_ACCESS_DATABASE(sch.name);
+
+--
+-- INFORMATION_SCHEMA.TABLES
+--
+-- There are two definitions of information_schema.tables.
+-- 1. INFORMATION_SCHEMA.TABLES view which picks dynamic column
+--    statistics from mysql.table_stats which gets populated when
+--    we execute 'anaylze table' command.
+--
+-- 2. INFORMATION_SCHEMA.TABLES_DYNAMIC view which retrieves dynamic
+--    column statistics using a internal UDF which opens the user
+--    table and reads dynamic table statistics.
+--
+-- MySQL server uses definition 1) by default. The session variable
+-- information_schema_stats=latest would enable use of definition 2).
+--
+
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.TABLES AS
+  SELECT cat.name AS TABLE_CATALOG,
+    sch.name AS TABLE_SCHEMA,
+    tbl.name AS TABLE_NAME,
+    tbl.type AS TABLE_TYPE,
+    IF(tbl.type  = 'VIEW', NULL, tbl.engine) AS ENGINE,
+    IF(tbl.type = 'VIEW', NULL, 10 /* FRM_VER_TRUE_VARCHAR */) AS VERSION,
+    tbl.row_format AS ROW_FORMAT,
+    stat.table_rows AS TABLE_ROWS,
+    stat.avg_row_length AS AVG_ROW_LENGTH,
+    stat.data_length AS DATA_LENGTH,
+    stat.max_data_length AS MAX_DATA_LENGTH,
+    stat.index_length AS INDEX_LENGTH,
+    stat.data_free AS DATA_FREE,
+    stat.auto_increment AS AUTO_INCREMENT,
+    tbl.created AS CREATE_TIME,
+    stat.update_time AS UPDATE_TIME,
+    stat.check_time AS CHECK_TIME,
+    col.name AS TABLE_COLLATION,
+    stat.checksum AS CHECKSUM,
+    IF (tbl.type = 'VIEW', NULL, 
+        GET_DD_CREATE_OPTIONS(tbl.options,
+          IF(IFNULL(tbl.partition_expression,'NOT_PART_TBL')='NOT_PART_TBL', 0, 1)))
+        AS CREATE_OPTIONS,
+    IF (tbl.type = 'VIEW', 'VIEW', tbl.comment) AS TABLE_COMMENT
+  FROM mysql.tables tbl JOIN mysql.schemata sch ON tbl.schema_id=sch.id
+       JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
+       LEFT JOIN mysql.collations col ON tbl.collation_id=col.id
+       LEFT JOIN mysql.table_stats stat ON tbl.name=stat.table_name
+       AND sch.name=stat.schema_name
+  WHERE CAN_ACCESS_TABLE(sch.name, tbl.name) AND NOT tbl.hidden;
+
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.TABLES_DYNAMIC AS
+  SELECT cat.name AS TABLE_CATALOG,
+    sch.name AS TABLE_SCHEMA,
+    tbl.name AS TABLE_NAME,
+    tbl.type AS TABLE_TYPE,
+    IF(tbl.type  = 'VIEW', NULL, tbl.engine) AS ENGINE,
+    IF(tbl.type = 'VIEW', NULL, 10 /* FRM_VER_TRUE_VARCHAR */) AS VERSION,
+    tbl.row_format AS ROW_FORMAT,
+    INTERNAL_TABLE_ROWS(sch.name, tbl.name,
+                        IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),
+                        tbl.se_private_id) AS TABLE_ROWS,
+    INTERNAL_AVG_ROW_LENGTH(sch.name, tbl.name,
+                            IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),
+                            tbl.se_private_id) AS AVG_ROW_LENGTH,
+    INTERNAL_DATA_LENGTH(sch.name, tbl.name,
+                         IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),
+                         tbl.se_private_id) AS DATA_LENGTH,
+    INTERNAL_MAX_DATA_LENGTH(sch.name, tbl.name,
+                             IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),
+                             tbl.se_private_id) AS MAX_DATA_LENGTH,
+    INTERNAL_INDEX_LENGTH(sch.name, tbl.name,
+                          IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),
+                          tbl.se_private_id) AS INDEX_LENGTH,
+    INTERNAL_DATA_FREE(sch.name, tbl.name,
+                       IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),
+                       tbl.se_private_id) AS DATA_FREE,
+    INTERNAL_AUTO_INCREMENT(sch.name, tbl.name,
+                            IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),
+                            tbl.se_private_id) AS AUTO_INCREMENT,
+    tbl.created AS CREATE_TIME,
+    INTERNAL_UPDATE_TIME(sch.name, tbl.name,
+                         IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),
+                         tbl.se_private_id) AS UPDATE_TIME,
+    INTERNAL_CHECK_TIME(sch.name, tbl.name,
+                        IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),
+                        tbl.se_private_id) AS CHECK_TIME,
+    col.name AS TABLE_COLLATION,
+    INTERNAL_CHECKSUM(sch.name, tbl.name,
+                      IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),
+                      tbl.se_private_id) AS CHECKSUM,
+    IF (tbl.type = 'VIEW', NULL, 
+        GET_DD_CREATE_OPTIONS(tbl.options,
+          IF(IFNULL(tbl.partition_expression,'NOT_PART_TBL')='NOT_PART_TBL', 0, 1)))
+        AS CREATE_OPTIONS,
+    IF (tbl.type = 'VIEW', 'VIEW',
+        INTERNAL_GET_COMMENT_OR_ERROR(tbl.comment)) AS TABLE_COMMENT
+  FROM mysql.tables tbl JOIN mysql.schemata sch ON tbl.schema_id=sch.id
+       JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
+       LEFT JOIN mysql.collations col ON tbl.collation_id=col.id
+  WHERE CAN_ACCESS_TABLE(sch.name, tbl.name) AND NOT tbl.hidden;
+
+--
+-- INFORMATION_SCHEMA.COLUMNS
+--
+
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.COLUMNS AS
+  SELECT
+    cat.name AS TABLE_CATALOG,
+    sch.name AS TABLE_SCHEMA,
+    tbl.name AS TABLE_NAME,
+    col.name AS COLUMN_NAME,
+    col.ordinal_position AS ORDINAL_POSITION,
+    col.default_value_utf8 AS COLUMN_DEFAULT,
+    IF (col.is_nullable = 1, 'YES','NO') AS IS_NULLABLE,
+    SUBSTRING_INDEX(SUBSTRING_INDEX(col.column_type_utf8, '(', 1), ' ', 1) AS DATA_TYPE,
+    INTERNAL_DD_CHAR_LENGTH(col.type, col.char_length, coll.name, 0) AS CHARACTER_MAXIMUM_LENGTH,
+    INTERNAL_DD_CHAR_LENGTH(col.type, col.char_length, coll.name, 1) AS CHARACTER_OCTET_LENGTH,
+    IF (col.numeric_precision = 0, NULL, col.numeric_precision) AS NUMERIC_PRECISION,
+    IF (col.numeric_scale = 0 && col.numeric_precision = 0, NULL, col.numeric_scale) AS NUMERIC_SCALE,
+    col.datetime_precision AS DATETIME_PRECISION,
+    CASE col.type
+      WHEN 'MYSQL_TYPE_STRING' THEN (IF (cs.name='binary',NULL, cs.name))
+      WHEN 'MYSQL_TYPE_VAR_STRING' THEN (IF (cs.name='binary',NULL, cs.name))
+      WHEN 'MYSQL_TYPE_VARCHAR' THEN (IF (cs.name='binary',NULL, cs.name))
+      WHEN 'MYSQL_TYPE_TINY_BLOB' THEN (IF (cs.name='binary',NULL, cs.name))
+      WHEN 'MYSQL_TYPE_MEDIUM_BLOB' THEN (IF (cs.name='binary',NULL, cs.name))
+      WHEN 'MYSQL_TYPE_BLOB' THEN (IF (cs.name='binary',NULL, cs.name))
+      WHEN 'MYSQL_TYPE_LONG_BLOB' THEN (IF (cs.name='binary',NULL, cs.name))
+      WHEN 'MYSQL_TYPE_ENUM' THEN (IF (cs.name='binary',NULL, cs.name))
+      WHEN 'MYSQL_TYPE_SET' THEN (IF (cs.name='binary',NULL, cs.name))
+      ELSE NULL
+    END AS CHARACTER_SET_NAME,
+    CASE col.type
+      WHEN 'MYSQL_TYPE_STRING' THEN (IF (cs.name='binary',NULL, coll.name))
+      WHEN 'MYSQL_TYPE_VAR_STRING' THEN (IF (cs.name='binary',NULL, coll.name))
+      WHEN 'MYSQL_TYPE_VARCHAR' THEN (IF (cs.name='binary',NULL, coll.name))
+      WHEN 'MYSQL_TYPE_TINY_BLOB' THEN (IF (cs.name='binary',NULL, coll.name))
+      WHEN 'MYSQL_TYPE_MEDIUM_BLOB' THEN (IF (cs.name='binary',NULL, coll.name))
+      WHEN 'MYSQL_TYPE_BLOB' THEN (IF (cs.name='binary',NULL, coll.name))
+      WHEN 'MYSQL_TYPE_LONG_BLOB' THEN (IF (cs.name='binary',NULL, coll.name))
+      WHEN 'MYSQL_TYPE_ENUM' THEN (IF (cs.name='binary',NULL, coll.name))
+      WHEN 'MYSQL_TYPE_SET' THEN (IF (cs.name='binary',NULL, coll.name))
+      ELSE NULL
+    END AS COLLATION_NAME,
+    col.column_type_utf8 AS COLUMN_TYPE,
+    col.column_key AS COLUMN_KEY,
+    IF(IFNULL(col.generation_expression_utf8,'IS_NOT_GC')='IS_NOT_GC',
+       IF (col.is_auto_increment=TRUE,
+            CONCAT(IFNULL(CONCAT("on update ", col.update_option, " "),''),
+                    "auto_increment"),
+           IFNULL(CONCAT("on update ", col.update_option),'')),
+      IF(col.is_virtual, "VIRTUAL GENERATED", "STORED GENERATED")) AS EXTRA,
+    GET_DD_COLUMN_PRIVILEGES(sch.name, tbl.name, col.name) AS `PRIVILEGES`,
+    IFNULL(col.comment, "") AS COLUMN_COMMENT,
+    IFNULL(col.generation_expression_utf8, "") AS GENERATION_EXPRESSION
+  FROM mysql.columns col JOIN mysql.tables tbl ON col.table_id=tbl.id
+       JOIN mysql.schemata sch ON tbl.schema_id=sch.id
+       JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
+       JOIN mysql.collations coll ON col.collation_id=coll.id
+       JOIN mysql.character_sets cs ON coll.character_set_id= cs.id
+  WHERE CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name) AND NOT tbl.hidden;
+
+--
+-- INFORMATION_SCHEMA.STATISTICS
+--
+-- There are two definitions of information_schema.statistics.
+-- 1. INFORMATION_SCHEMA.STATISTICS view which picks dynamic column
+--    statistics from mysql.index_stats which gets populated when
+--    we execute 'anaylze table' command.
+--
+-- 2. INFORMATION_SCHEMA.STATISTICS_DYNAMIC view which retrieves dynamic
+--    column statistics using a internal UDF which opens the user
+--    table and reads dynamic table statistics.
+--
+-- MySQL server uses definition 1) by default. The session variable
+-- information_schema_stats=latest would enable use of definition 2).
+--
+
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.STATISTICS_BASE AS
+  (SELECT cat.name AS TABLE_CATALOG,
+    sch.name AS TABLE_SCHEMA,
+    tbl.name AS TABLE_NAME,
+    IF (idx.type = 'PRIMARY' OR idx.type = 'UNIQUE','0','1') AS NON_UNIQUE,
+    sch.name AS INDEX_SCHEMA,
+    idx.name AS INDEX_NAME,
+    icu.ordinal_position AS SEQ_IN_INDEX,
+    col.name AS COLUMN_NAME,
+    CASE WHEN icu.order = 'DESC' THEN 'D'
+         WHEN icu.order = 'ASC'  THEN 'A'
+         ELSE NULL END AS COLLATION,
+    GET_DD_INDEX_SUB_PART_LENGTH(icu.length, col.type, col.char_length,
+                                 col.collation_id, idx.options) AS SUB_PART,
+    NULL AS PACKED,
+    if (col.is_nullable = 1, 'YES','') AS NULLABLE,
+    CASE WHEN idx.type = 'SPATIAL' THEN 'SPATIAL'
+         WHEN idx.algorithm = 'SE_PRIVATE' THEN ''
+         ELSE idx.algorithm END AS INDEX_TYPE,
+    IF (idx.type = 'PRIMARY' OR idx.type = 'UNIQUE',
+        '',IF(INTERNAL_KEYS_DISABLED(sch.name, tbl.name, tbl.options),'disabled', ''))
+      AS COMMENT,
+    idx.comment AS INDEX_COMMENT,
+    IF (idx.is_visible, 'YES', 'NO') AS IS_VISIBLE,
+    idx.ordinal_position AS INDEX_ORDINAL_POSITION,
+    icu.ordinal_position AS COLUMN_ORDINAL_POSITION,
+    tbl.engine AS ENGINE,
+    tbl.se_private_id AS SE_PRIVATE_ID
+  FROM mysql.index_column_usage icu JOIN mysql.indexes idx ON idx.id=icu.index_id
+    JOIN mysql.tables tbl ON idx.table_id=tbl.id
+    JOIN mysql.columns col ON icu.column_id=col.id
+    JOIN mysql.schemata sch ON tbl.schema_id=sch.id
+    JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
+    JOIN mysql.collations coll ON tbl.collation_id=coll.id
+  WHERE CAN_ACCESS_TABLE(sch.name, tbl.name) AND NOT tbl.hidden);
+
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.STATISTICS AS
+ (SELECT TABLE_CATALOG,
+    TABLE_SCHEMA,
+    sb.TABLE_NAME AS `TABLE_NAME`,
+    NON_UNIQUE,
+    INDEX_SCHEMA,
+    sb.INDEX_NAME AS `INDEX_NAME`,
+    SEQ_IN_INDEX,
+    sb.COLUMN_NAME AS `COLUMN_NAME`,
+    COLLATION,
+    stat.cardinality AS CARDINALITY,
+    SUB_PART,
+    PACKED,
+    NULLABLE,
+    INDEX_TYPE,
+    COMMENT,
+    INDEX_COMMENT,
+    IS_VISIBLE
+  FROM information_schema.STATISTICS_BASE sb
+    LEFT JOIN mysql.index_stats stat
+                 ON sb.table_name=stat.table_name
+                and sb.table_schema=stat.schema_name
+                and sb.index_name=stat.index_name
+                and sb.column_name=stat.column_name);
+
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.STATISTICS_DYNAMIC AS
+ (SELECT TABLE_CATALOG,
+    TABLE_SCHEMA,
+    TABLE_NAME,
+    NON_UNIQUE,
+    INDEX_SCHEMA,
+    INDEX_NAME,
+    SEQ_IN_INDEX,
+    COLUMN_NAME,
+    COLLATION,
+    INTERNAL_INDEX_COLUMN_CARDINALITY(TABLE_SCHEMA,TABLE_NAME, INDEX_NAME,
+                                      INDEX_ORDINAL_POSITION,
+                                      COLUMN_ORDINAL_POSITION,
+                                      ENGINE,
+                                      SE_PRIVATE_ID)
+      AS CARDINALITY,
+    SUB_PART,
+    PACKED,
+    NULLABLE,
+    INDEX_TYPE,
+    COMMENT,
+    INDEX_COMMENT,
+    IS_VISIBLE
+  FROM INFORMATION_SCHEMA.STATISTICS_BASE);
+
+--
+-- INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+--
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.TABLE_CONSTRAINTS AS
+  (SELECT cat.name AS CONSTRAINT_CATALOG,
+          sch.name AS CONSTRAINT_SCHEMA,
+          CONVERT(idx.name USING utf8) AS CONSTRAINT_NAME,
+          sch.name AS TABLE_SCHEMA,
+          tbl.name AS TABLE_NAME,
+          IF (idx.type='PRIMARY', 'PRIMARY KEY', idx.type) AS CONSTRAINT_TYPE
+    FROM mysql.indexes idx JOIN mysql.tables tbl ON idx.table_id = tbl.id
+         JOIN mysql.schemata sch ON tbl.schema_id= sch.id
+         JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
+         AND idx.type IN ('PRIMARY', 'UNIQUE')
+    WHERE CAN_ACCESS_TABLE(sch.name, tbl.name) AND NOT tbl.hidden)
+  UNION
+  (SELECT cat.name AS CONSTRAINT_CATALOG,
+          sch.name AS CONSTRAINT_SCHEMA,
+          CONVERT(fk.name USING utf8)  AS CONSTRAINT_NAME,
+          sch.name AS TABLE_SCHEMA,
+          tbl.name AS TABLE_NAME,
+          'FOREIGN KEY' AS CONSTRAINT_TYPE
+    FROM mysql.foreign_keys fk JOIN mysql.tables tbl ON fk.table_id = tbl.id
+         JOIN mysql.schemata sch ON fk.schema_id= sch.id
+         JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
+    WHERE CAN_ACCESS_TABLE(sch.name, tbl.name) AND NOT tbl.hidden);
+
+
+--
+-- INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+--
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.KEY_COLUMN_USAGE AS
+  (SELECT cat.name AS CONSTRAINT_CATALOG,
+     sch.name AS CONSTRAINT_SCHEMA,
+     CONVERT(idx.name USING utf8) AS CONSTRAINT_NAME,
+     cat.name AS TABLE_CATALOG,
+     sch.name AS TABLE_SCHEMA,
+     tbl.name AS TABLE_NAME,
+     col.name AS COLUMN_NAME,
+     icu.ordinal_position AS ORDINAL_POSITION,
+     NULL AS POSITION_IN_UNIQUE_CONSTRAINT,
+     NULL AS REFERENCED_TABLE_SCHEMA,
+     NULL AS REFERENCED_TABLE_NAME,
+     NULL AS REFERENCED_COLUMN_NAME
+   FROM mysql.indexes idx JOIN mysql.tables tbl ON idx.table_id = tbl.id
+     JOIN mysql.schemata sch ON tbl.schema_id= sch.id
+     JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
+     JOIN mysql.index_column_usage icu ON icu.index_id=idx.id
+     JOIN mysql.columns col ON icu.column_id=col.id
+     AND idx.type IN ('PRIMARY', 'UNIQUE')
+   WHERE CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name) AND NOT tbl.hidden)
+  UNION
+  (SELECT cat.name AS CONSTRAINT_CATALOG,
+     sch.name AS CONSTRAINT_SCHEMA,
+     CONVERT(fk.name USING utf8) AS CONSTRAINT_NAME,
+     cat.name AS TABLE_CATALOG,
+     sch.name AS TABLE_SCHEMA,
+     tbl.name AS TABLE_NAME,
+     col.name AS COLUMN_NAME,
+     fkcu.ordinal_position AS ORDINAL_POSITION,
+     icu.ordinal_position AS POSITION_IN_UNIQUE_CONSTRAINT,
+     fk.referenced_table_schema AS REFERENCED_TABLE_SCHEMA,
+     fk.referenced_table_name AS REFERENCED_TABLE_NAME,
+     fkcu.referenced_column_name AS REFERENCED_COLUMN_NAME
+   FROM mysql.foreign_keys fk JOIN mysql.tables tbl ON fk.table_id = tbl.id
+     JOIN mysql.foreign_key_column_usage fkcu ON fkcu.foreign_key_id=fk.id
+     JOIN mysql.schemata sch ON fk.schema_id= sch.id
+     JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
+     JOIN mysql.columns col ON fkcu.column_id=col.id
+     JOIN mysql.indexes idx ON fk.unique_constraint_id=idx.id
+     JOIN mysql.index_column_usage icu ON idx.id=icu.index_id
+     AND icu.column_id=col.id
+   WHERE CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name) AND NOT tbl.hidden);
+
+--
+-- INFORMATION_SCHEMA.VIEWS
+--
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.VIEWS AS
+  SELECT cat.name AS TABLE_CATALOG,
+    sch.name AS TABLE_SCHEMA,
+    vw.name AS TABLE_NAME,
+    IF(CAN_ACCESS_VIEW(sch.name, vw.name, vw.view_definer) = TRUE,
+       vw.view_definition_utf8, '') AS VIEW_DEFINITION,
+    vw.view_check_option AS CHECK_OPTION,
+    vw.view_is_updatable AS IS_UPDATABLE,
+    vw.view_definer AS DEFINER,
+    IF (vw.view_security_type = 'DEFAULT', 'DEFINER', vw.view_security_type)
+      AS SECURITY_TYPE,
+    cs.name AS CHARACTER_SET_CLIENT,
+    conn_coll.name AS COLLATION_CONNECTION
+  FROM mysql.tables vw JOIN mysql.schemata sch ON vw.schema_id=sch.id
+       JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
+       JOIN mysql.collations conn_coll ON conn_coll.id= vw.view_connection_collation_id
+       JOIN mysql.collations client_coll ON client_coll.id= vw.view_client_collation_id
+       JOIN mysql.character_sets cs ON cs.id= client_coll.character_set_id
+  WHERE vw.type = 'VIEW' AND CAN_ACCESS_TABLE(sch.name, vw.name);
+
+-- END OF INFORMATION SCHEMA INSTALLATION
+
+
 -- PERFORMANCE SCHEMA INSTALLATION
 -- Note that this script is also reused by mysql_upgrade,
 -- so we have to be very careful here to not destroy any
@@ -3718,3 +4130,61 @@ SET @str=IF(@have_ndbinfo,'SET @@global.ndbinfo_offline=FALSE','SET @dummy = 0')
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
+
+--
+-- INFORMATION SCHEMA VIEWS implementing SHOW statements
+--
+
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.SHOW_STATISTICS AS
+  (SELECT
+    TABLE_SCHEMA as `Database`,
+    sb.TABLE_NAME AS `Table`,
+    NON_UNIQUE AS `Non_unique`,
+    sb.INDEX_NAME AS `Key_name`,
+    SEQ_IN_INDEX AS `Seq_in_index`,
+    sb.COLUMN_NAME AS `Column_name`,
+    COLLATION AS `Collation`,
+    stat.cardinality AS `Cardinality`,
+    SUB_PART AS `Sub_part`,
+    PACKED AS `Packed`,
+    NULLABLE AS `Null`,
+    INDEX_TYPE AS `Index_type`,
+    COMMENT AS `Comment`,
+    INDEX_COMMENT AS `Index_comment`,
+    IS_VISIBLE AS `Visible`,
+    INDEX_ORDINAL_POSITION,
+    COLUMN_ORDINAL_POSITION
+  FROM information_schema.STATISTICS_BASE sb
+    LEFT JOIN mysql.index_stats stat
+                 ON sb.table_name=stat.table_name
+                and sb.table_schema=stat.schema_name
+                and sb.index_name=stat.index_name
+                and sb.column_name=stat.column_name);
+
+
+CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.SHOW_STATISTICS_DYNAMIC AS
+  (SELECT
+    TABLE_SCHEMA as `Database`,
+    TABLE_NAME AS `Table`,
+    NON_UNIQUE AS `Non_unique`,
+    INDEX_NAME AS `Key_name`,
+    SEQ_IN_INDEX AS `Seq_in_index`,
+    COLUMN_NAME AS `Column_name`,
+    COLLATION AS `Collation`,
+    INTERNAL_INDEX_COLUMN_CARDINALITY(TABLE_SCHEMA, TABLE_NAME, INDEX_NAME,
+                                      INDEX_ORDINAL_POSITION,
+                                      COLUMN_ORDINAL_POSITION,
+                                      ENGINE,
+                                      SE_PRIVATE_ID)
+      AS `Cardinality`,
+    SUB_PART AS `Sub_part`,
+    PACKED AS `Packed`,
+    NULLABLE AS `Null`,
+    INDEX_TYPE AS `Index_type`,
+    COMMENT AS `Comment`,
+    INDEX_COMMENT AS `Index_comment`,
+    IS_VISIBLE AS `Visible`,
+    INDEX_ORDINAL_POSITION,
+    COLUMN_ORDINAL_POSITION
+  FROM information_schema.STATISTICS_BASE);
+

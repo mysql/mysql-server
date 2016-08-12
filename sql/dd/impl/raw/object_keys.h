@@ -23,8 +23,6 @@
 #include "dd/object_id.h"        // dd::Object_id
 #include "dd/impl/object_key.h"  // dd::Object_key
 
-extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
-
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
@@ -297,6 +295,121 @@ private:
   int m_second_column_no;
   ulonglong m_second_id;
 };
+
+///////////////////////////////////////////////////////////////////////////
+
+class Composite_char_key : public Object_key
+{
+public:
+  Composite_char_key(int index_no,
+                    uint first_column_no,
+                    std::string first_name,
+                    uint second_column_no,
+                    std::string second_name
+                   )
+   :m_index_no(index_no),
+    m_first_column_no(first_column_no),
+    m_first_name(first_name),
+    m_second_column_no(second_column_no),
+    m_second_name(second_name)
+  { }
+
+public:
+  virtual Raw_key *create_access_key(Raw_table *db_table) const;
+
+  virtual std::string str() const;
+
+private:
+  int m_index_no;
+
+  int m_first_column_no;
+  std::string m_first_name;
+
+  int m_second_column_no;
+  std::string m_second_name;
+};
+
+///////////////////////////////////////////////////////////////////////////
+
+class Composite_4char_key : public Object_key
+{
+public:
+  Composite_4char_key(int index_no,
+                    uint first_column_no,
+                    std::string first_name,
+                    uint second_column_no,
+                    std::string second_name,
+                    uint third_column_no,
+                    std::string third_name,
+                    uint fourth_column_no,
+                    std::string fourth_name
+                   )
+   :m_index_no(index_no),
+    m_first_column_no(first_column_no),
+    m_first_name(first_name),
+    m_second_column_no(second_column_no),
+    m_second_name(second_name),
+    m_third_column_no(third_column_no),
+    m_third_name(third_name),
+    m_fourth_column_no(fourth_column_no),
+    m_fourth_name(fourth_name)
+  { }
+
+public:
+  virtual Raw_key *create_access_key(Raw_table *db_table) const;
+
+  virtual std::string str() const;
+
+private:
+  int m_index_no;
+
+  int m_first_column_no;
+  std::string m_first_name;
+
+  int m_second_column_no;
+  std::string m_second_name;
+
+  int m_third_column_no;
+  std::string m_third_name;
+
+  int m_fourth_column_no;
+  std::string m_fourth_name;
+};
+
+///////////////////////////////////////////////////////////////////////////
+
+// Range key to find index statistics entries by table name.
+// in mysql.index_stats.
+class Index_stat_range_key : public Object_key
+{
+public:
+  Index_stat_range_key(int index_no,
+                       int schema_name_column_no,
+                       const std::string &schema_name,
+                       int table_name_column_no,
+                       const std::string &table_name)
+   :m_index_no(index_no),
+    m_schema_name_column_no(schema_name_column_no),
+    m_schema_name(schema_name),
+    m_table_name_column_no(table_name_column_no),
+    m_table_name(table_name)
+  { }
+
+public:
+  virtual Raw_key *create_access_key(Raw_table *db_table) const;
+
+  virtual std::string str() const;
+
+private:
+  int m_index_no;
+
+  int m_schema_name_column_no;
+  std::string m_schema_name;
+
+  int m_table_name_column_no;
+  std::string m_table_name;
+};
+
 
 ///////////////////////////////////////////////////////////////////////////
 

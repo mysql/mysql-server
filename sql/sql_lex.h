@@ -42,6 +42,7 @@
 #include "sql_signal.h"               // enum_condition_item_name
 #include "table.h"                    // TABLE_LIST
 #include "trigger_def.h"              // enum_trigger_action_time_type
+#include "dd/info_schema/stats.h"     // dd::info_schema::Statistics_cache
 #include "xa.h"                       // xa_option_words
 #include "select_lex_visitor.h"
 #include "parse_tree_hints.h"
@@ -3640,6 +3641,13 @@ public:
     }
     return FALSE;
   }
+
+  /**
+    IS schema queries read some dynamic table statistics from SE.
+    These statistics are cached, to avoid opening of table more
+    than once while preparing a single output record buffer.
+  */
+  dd::info_schema::Statistics_cache m_IS_dyn_stat_cache;
 
   bool accept(Select_lex_visitor *visitor);
 

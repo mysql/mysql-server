@@ -118,6 +118,7 @@ CREATE USER 'testuser3'@'localhost';
 eval
 CREATE TABLE db_datadict.tb1 (f1 INT, f2 INT, f3 INT)
 ENGINE = $engine_type;
+ANALYZE TABLE db_datadict.tb1;
 
 GRANT SELECT ON db_datadict.tb1 TO 'testuser1'@'localhost';
 GRANT ALL    ON db_datadict.tb1 TO 'testuser2'@'localhost' WITH GRANT OPTION;
@@ -134,10 +135,12 @@ connect (testuser1, localhost, testuser1, , db_datadict);
 eval
 CREATE TABLE tb2 (f1 DECIMAL)
 ENGINE = $engine_type;
+ANALYZE TABLE tb2;
 --replace_result $engine_type <engine_type>
 eval
 CREATE TABLE tb3 (f1 VARCHAR(200))
 ENGINE = $engine_type;
+ANALYZE TABLE tb3;
 GRANT SELECT ON db_datadict.tb3 to 'testuser3'@'localhost';
 GRANT INSERT ON db_datadict.tb3 to 'testuser2'@'localhost';
 CREATE VIEW v3 AS SELECT * FROM tb3;
@@ -255,6 +258,7 @@ eval
 CREATE TABLE test.t1_my_table (f1 BIGINT)
 DEFAULT CHARACTER SET latin1 COLLATE latin1_swedish_ci
 COMMENT = 'Initial Comment' ENGINE = $engine_type;
+ANALYZE TABLE test.t1_my_table;
 # Settings used in CREATE TABLE must be visible in information_schema.tables.
 --vertical_results
 --replace_column 5 "#ENG#"  7 "#RF#"  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "#CRT"  16 "#UT#" 17 "#CT#"  19 "#CS#"
@@ -266,6 +270,7 @@ WHERE table_name = 't1_my_table';
 SELECT table_name FROM information_schema.tables
 WHERE table_name LIKE 't1_my_table%';
 RENAME TABLE test.t1_my_table TO test.t1_my_tablex;
+ANALYZE TABLE test.t1_my_tablex;
 SELECT table_name FROM information_schema.tables
 WHERE table_name LIKE 't1_my_table%';
 #
@@ -284,6 +289,7 @@ WHERE table_name = 't1_my_tablex';
 eval
 ALTER TABLE db_datadict.t1_my_tablex
 ENGINE = $other_engine_type;
+ANALYZE TABLE db_datadict.t1_my_tablex;
 --replace_result $other_engine_type <other_engine_type>
 SELECT table_name, engine FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
@@ -292,6 +298,7 @@ WHERE table_name = 't1_my_tablex';
 SELECT table_name, table_rows FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 INSERT INTO db_datadict.t1_my_tablex VALUES(1),(2);
+ANALYZE TABLE db_datadict.t1_my_tablex;
 SELECT table_name, table_rows FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 #
@@ -321,6 +328,7 @@ SELECT table_name, AUTO_INCREMENT FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 ALTER TABLE db_datadict.t1_my_tablex
 ADD f2 BIGINT AUTO_INCREMENT, ADD PRIMARY KEY (f2);
+ANALYZE TABLE db_datadict.t1_my_tablex;
 SELECT table_name, AUTO_INCREMENT FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 #
@@ -328,6 +336,7 @@ WHERE table_name = 't1_my_tablex';
 SELECT table_name, ROW_FORMAT FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 ALTER TABLE db_datadict.t1_my_tablex ROW_FORMAT = dynamic;
+ANALYZE TABLE db_datadict.t1_my_tablex;
 SELECT table_name, ROW_FORMAT FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 #
@@ -335,6 +344,7 @@ WHERE table_name = 't1_my_tablex';
 SELECT table_name, checksum FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 ALTER TABLE db_datadict.t1_my_tablex CHECKSUM = 1;
+ANALYZE TABLE db_datadict.t1_my_tablex;
 SELECT table_name, checksum IS NOT NULL FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 SELECT UPDATE_TIME, checksum INTO @UPDATE_TIME, @checksum
@@ -343,6 +353,7 @@ WHERE table_name = 't1_my_tablex';
 #   Enforce a time difference bigger than the smallest unit (1 second).
 --real_sleep 1.1
 INSERT INTO db_datadict.t1_my_tablex SET f1 = 3;
+ANALYZE TABLE db_datadict.t1_my_tablex;
 FLUSH TABLES;
 SELECT UPDATE_TIME > @UPDATE_TIME
     AS "Is current UPDATE_TIME bigger than before last INSERT?"
@@ -369,6 +380,7 @@ WHERE table_name LIKE 't1_my_table%';
 eval
 CREATE TABLE test.t1_my_tablex (f1 BIGINT)
 ENGINE = $other_engine_type;
+ANALYZE TABLE test.t1_my_tablex;
 SELECT CREATE_TIME > @CREATE_TIME
     AS "Is current CREATE_TIME bigger than for the old dropped table?"
 FROM information_schema.tables
@@ -377,6 +389,8 @@ DROP TABLE test.t1_my_tablex;
 #
 # Check a VIEW
 CREATE VIEW test.t1_my_tablex AS SELECT 1;
+select * from mysql.table_stats where table_name='t1_my_tablex';
+ANALYZE TABLE test.t1_my_tablex;
 --vertical_results
 SELECT * FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
@@ -403,6 +417,7 @@ eval
 CREATE TABLE db_datadict.t1_my_tablex
 ENGINE = $engine_type AS
 SELECT 1;
+ANALYZE TABLE db_datadict.t1_my_tablex;
 SELECT table_name FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 DROP DATABASE db_datadict;
@@ -438,6 +453,7 @@ CREATE DATABASE db_datadict;
 eval
 CREATE TABLE db_datadict.t1 (f1 BIGINT)
 ENGINE = $engine_type;
+ANALYZE TABLE db_datadict.t1;
 
 --error ER_DBACCESS_DENIED_ERROR
 INSERT INTO information_schema.tables

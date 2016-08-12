@@ -409,6 +409,7 @@ mysql/help_relation
 mysql/help_topic
 mysql/index_column_usage
 mysql/index_partitions
+mysql/index_stats
 mysql/indexes
 mysql/innodb_index_stats
 mysql/innodb_table_stats
@@ -428,6 +429,7 @@ mysql/slave_worker_info
 mysql/st_spatial_reference_systems
 mysql/table_partition_values
 mysql/table_partitions
+mysql/table_stats
 mysql/tables
 mysql/tables_priv
 mysql/tablespace_files
@@ -1092,6 +1094,7 @@ mysql/help_relation
 mysql/help_topic
 mysql/index_column_usage
 mysql/index_partitions
+mysql/index_stats
 mysql/indexes
 mysql/innodb_index_stats
 mysql/innodb_table_stats
@@ -1111,6 +1114,7 @@ mysql/slave_worker_info
 mysql/st_spatial_reference_systems
 mysql/table_partition_values
 mysql/table_partitions
+mysql/table_stats
 mysql/tables
 mysql/tables_priv
 mysql/tablespace_files
@@ -1257,6 +1261,7 @@ mysql/help_relation
 mysql/help_topic
 mysql/index_column_usage
 mysql/index_partitions
+mysql/index_stats
 mysql/indexes
 mysql/innodb_index_stats
 mysql/innodb_table_stats
@@ -1276,6 +1281,7 @@ mysql/slave_worker_info
 mysql/st_spatial_reference_systems
 mysql/table_partition_values
 mysql/table_partitions
+mysql/table_stats
 mysql/tables
 mysql/tables_priv
 mysql/tablespace_files
@@ -1433,6 +1439,7 @@ mysql/help_relation
 mysql/help_topic
 mysql/index_column_usage
 mysql/index_partitions
+mysql/index_stats
 mysql/indexes
 mysql/innodb_index_stats
 mysql/innodb_table_stats
@@ -1452,6 +1459,7 @@ mysql/slave_worker_info
 mysql/st_spatial_reference_systems
 mysql/table_partition_values
 mysql/table_partitions
+mysql/table_stats
 mysql/tables
 mysql/tables_priv
 mysql/tablespace_files
@@ -1609,6 +1617,7 @@ mysql/help_relation
 mysql/help_topic
 mysql/index_column_usage
 mysql/index_partitions
+mysql/index_stats
 mysql/indexes
 mysql/innodb_index_stats
 mysql/innodb_table_stats
@@ -1628,6 +1637,7 @@ mysql/slave_worker_info
 mysql/st_spatial_reference_systems
 mysql/table_partition_values
 mysql/table_partitions
+mysql/table_stats
 mysql/tables
 mysql/tables_priv
 mysql/tablespace_files

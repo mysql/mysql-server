@@ -2260,7 +2260,7 @@ Warnings:
 Warning	1366	Incorrect string value: '\xF5\x80\x80\x80' for column 'utf8mb4_encoding' at row 1
 SELECT character_maximum_length, character_octet_length FROM information_schema.columns WHERE
 table_name= 't1' AND column_name= 'utf8mb4_encoding';
-character_maximum_length	character_octet_length
+CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH
 10	40
 DROP TABLE IF EXISTS t2;
 CREATE TABLE t2 (
@@ -2274,7 +2274,7 @@ Warnings:
 Warning	1366	Incorrect string value: '\xF4\x8F\xBF\xBF' for column 'utf8mb3_encoding' at row 1
 SELECT character_maximum_length, character_octet_length FROM information_schema.columns WHERE
 table_name= 't2' AND column_name= 'utf8mb3_encoding';
-character_maximum_length	character_octet_length
+CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH
 10	30
 UPDATE IGNORE t2 SET utf8mb3_encoding= x'f48fbfbd' where u_decimal= 42856;
 Warnings:

@@ -95,6 +95,8 @@ SET(DD_SOURCES
   dd/impl/raw/raw_record_set.cc
   dd/impl/raw/raw_table.cc
 
+  dd/impl/tables/table_stats.cc
+  dd/impl/tables/index_stats.cc
   dd/impl/tables/character_sets.cc
   dd/impl/tables/collations.cc
   dd/impl/tables/columns.cc
@@ -119,6 +121,8 @@ SET(DD_SOURCES
   dd/impl/tables/version.cc
   dd/impl/tables/view_table_usage.cc
 
+  dd/impl/types/index_stat_impl.cc
+  dd/impl/types/table_stat_impl.cc
   dd/impl/types/abstract_table_impl.cc
   dd/impl/types/charset_impl.cc
   dd/impl/types/collation_impl.cc
@@ -148,6 +152,10 @@ SET(DD_SOURCES
   dd/impl/types/view_impl.cc
   dd/impl/types/view_table_impl.cc
   dd/impl/types/weak_object_impl.cc
+
+  dd/info_schema/show.cc
+  dd/info_schema/show_query_builder.cc
+  dd/info_schema/stats.cc
 )
 
 SET(SQL_SHARED_SOURCES

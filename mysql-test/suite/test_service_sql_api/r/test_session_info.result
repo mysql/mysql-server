@@ -69,7 +69,7 @@ slave_worker_info
 num_cols      : 1
 nb rows       : 3
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 /*Session_1*/ USE information_schema
@@ -89,7 +89,7 @@ t1
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 ============================================================================================
@@ -112,7 +112,7 @@ slave_worker_info
 num_cols      : 1
 nb rows       : 3
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 Session 2's view
@@ -134,7 +134,7 @@ t1
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 ============================================================================================
@@ -420,7 +420,7 @@ slave_worker_info
 num_cols      : 1
 nb rows       : 3
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 /*Session_1*/ USE information_schema
@@ -440,7 +440,7 @@ t1
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 ============================================================================================
@@ -463,7 +463,7 @@ slave_worker_info
 num_cols      : 1
 nb rows       : 3
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 Session 2's view
@@ -485,7 +485,7 @@ t1
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 ============================================================================================

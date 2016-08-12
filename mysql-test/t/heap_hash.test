@@ -12,6 +12,7 @@ create table t1 (a int not null,b int not null, primary key using HASH (a)) engi
 insert into t1 values(1,1),(2,2),(3,3),(4,4);
 delete from t1 where a=1 or a=0;
 #show table status like "t1";
+analyze table t1;
 show keys from t1;
 select * from t1;
 select * from t1 where a=4;
@@ -236,6 +237,7 @@ insert into t1 (name) select name from t2;
 flush tables;
 select count(*) from t1 where name='Matt';
 explain select * from t1 ignore index (btree_idx) where name='matt';
+analyze table t1;
 show index from t1;
 
 show index from t1;
@@ -247,6 +249,7 @@ create table t3
   key (a,b)
 ) engine=heap;
 insert into t3 select name, name from t1;
+analyze table t3;
 show index from t3;
 show index from t3;
 

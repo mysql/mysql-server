@@ -1,9 +1,9 @@
 select schema_name from information_schema.schemata where schema_name not in ('sys', 'performance_schema');
-schema_name
-information_schema
-mtr
+SCHEMA_NAME
 mysql
+information_schema
 test
+mtr
 show tables in mysql where Tables_in_mysql != 'ndb_binlog_index';
 Tables_in_mysql
 column_stats

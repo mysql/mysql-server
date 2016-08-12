@@ -826,17 +826,6 @@ create table t1 (g geometry not null);
 insert into t1 values(default);
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 drop table t1;
-CREATE TABLE t1 (a GEOMETRY);
-CREATE VIEW v1 AS SELECT ST_GeomFromwkb(ST_ASBINARY(a)) FROM t1;
-CREATE VIEW v2 AS SELECT a FROM t1;
-DESCRIBE v1;
-Field	Type	Null	Key	Default	Extra
-ST_GeomFromwkb(ST_ASBINARY(a))	geometry	YES		NULL	
-DESCRIBE v2;
-Field	Type	Null	Key	Default	Extra
-a	geometry	YES		NULL	
-DROP VIEW v1,v2;
-DROP TABLE t1;
 create table t1 (name VARCHAR(100), square GEOMETRY);
 INSERT INTO t1 VALUES("center", ST_GeomFromText('POLYGON (( 0 0, 0 2, 2 2, 2 0, 0 0))'));
 INSERT INTO t1 VALUES("small",  ST_GeomFromText('POLYGON (( 0 0, 0 1, 1 1, 1 0, 0 0))'));
@@ -1040,17 +1029,6 @@ ALTER TABLE t2 ADD SPATIAL INDEX USING BTREE (col1);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USING BTREE (col1)' at line 1
 DROP TABLE t2;
 End of 5.0 tests
-create table t1 (f1 tinyint(1), f2 char(1), f3 varchar(1), f4 geometry, f5 datetime);
-create view v1 as select * from t1;
-desc v1;
-Field	Type	Null	Key	Default	Extra
-f1	tinyint(1)	YES		NULL	
-f2	char(1)	YES		NULL	
-f3	varchar(1)	YES		NULL	
-f4	geometry	YES		NULL	
-f5	datetime	YES		NULL	
-drop view v1;
-drop table t1;
 SELECT MultiPoint(12345,'');
 ERROR 22007: Illegal non geometric '12345' value found during parsing
 SELECT 1 FROM (SELECT GREATEST(1,GEOMETRYCOLLECTION('00000','00000')) b FROM DUAL) AS d WHERE (LINESTRING(d.b));

@@ -103,7 +103,7 @@ Object_id Table_partitions::read_table_id(const Raw_record &r)
 /* purecov: begin deadcode */
 Object_key *Table_partitions::create_se_private_key(
   const std::string &engine,
-  ulonglong se_private_id)
+  Object_id se_private_id)
 {
   const int SE_PRIVATE_ID_INDEX_ID= 3;
   const int ENGINE_COLUMN_NO=5;

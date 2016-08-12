@@ -1,3 +1,5 @@
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
 DROP DATABASE IF EXISTS db_datadict;
 CREATE DATABASE db_datadict;
 DROP   USER testuser1@localhost;
@@ -7,14 +9,14 @@ SELECT * FROM information_schema.statistics
 WHERE table_schema = 'mysql' AND table_name != 'ndb_binlog_index'
 ORDER BY table_schema, table_name, index_name, seq_in_index, column_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
+def	mysql	column_stats	0	mysql	PRIMARY	1	database_name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	column_stats	0	mysql	PRIMARY	2	table_name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	column_stats	0	mysql	PRIMARY	3	column_name	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	columns_priv	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	columns_priv	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	columns_priv	0	mysql	PRIMARY	3	User	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	columns_priv	0	mysql	PRIMARY	4	Table_name	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	columns_priv	0	mysql	PRIMARY	5	Column_name	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	column_stats	0	mysql	PRIMARY	1	database_name	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	column_stats	0	mysql	PRIMARY	2	table_name	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	column_stats	0	mysql	PRIMARY	3	column_name	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	component	0	mysql	PRIMARY	1	component_id	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	db	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	db	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE			YES
@@ -60,8 +62,8 @@ def	mysql	role_edges	0	mysql	PRIMARY	1	FROM_HOST	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	role_edges	0	mysql	PRIMARY	2	FROM_USER	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	role_edges	0	mysql	PRIMARY	3	TO_HOST	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	role_edges	0	mysql	PRIMARY	4	TO_USER	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	servers	0	mysql	PRIMARY	1	Server_name	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	server_cost	0	mysql	PRIMARY	1	cost_name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	servers	0	mysql	PRIMARY	1	Server_name	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	slave_master_info	0	mysql	PRIMARY	1	Channel_name	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	slave_relay_log_info	0	mysql	PRIMARY	1	Channel_name	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	slave_worker_info	0	mysql	PRIMARY	1	Channel_name	A	#CARD#	NULL	NULL		BTREE			YES

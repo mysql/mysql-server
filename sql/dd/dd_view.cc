@@ -25,6 +25,7 @@
 #include "dd/dictionary.h"                    // dd::Dictionary
 #include "dd/properties.h"                    // dd::Properties
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
+#include "dd/types/abstract_table.h"          // dd::enum_table_type
 #include "dd/types/schema.h"                  // dd::Schema
 #include "dd/types/view.h"                    // dd::View
 
@@ -328,6 +329,10 @@ void read_view(TABLE_LIST *view,
 
   // Get security type.
   view->view_suid= dd_get_old_view_security_type(view_obj.security_type());
+
+  // Mark true, if we are reading a system view.
+  view->is_system_view=
+    (view_obj.type() == dd::enum_table_type::SYSTEM_VIEW);
 
   // Get definition.
   std::string view_definition= view_obj.definition();

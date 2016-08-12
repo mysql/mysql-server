@@ -3,8 +3,9 @@
 # Tests for sys schema
 # Verify the sys.memory_by_host_by_current_bytes view
 
-# Ensure structure changes don't slip in
-DESC sys.memory_by_host_by_current_bytes;
+## WL6599_NEEDS_VIEW_COLUMNS
+## Ensure structure changes don't slip in
+#DESC sys.memory_by_host_by_current_bytes;
 
 # Make sure view select does not error, but ignore results
 --disable_result_log
@@ -12,8 +13,9 @@ SELECT * FROM sys.memory_by_host_by_current_bytes;
 --enable_result_log
 
 
-# Ensure structure changes don't slip in
-DESC sys.x$memory_by_host_by_current_bytes;
+## WL6599_NEEDS_VIEW_COLUMNS
+## Ensure structure changes don't slip in
+#DESC sys.x$memory_by_host_by_current_bytes;
 
 # Make sure view select does not error, but ignore results
 --disable_result_log

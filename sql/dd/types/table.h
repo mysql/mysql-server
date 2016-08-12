@@ -161,8 +161,8 @@ public:
   // se_private_id.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong se_private_id() const = 0;
-  virtual void set_se_private_id(ulonglong se_private_id) = 0;
+  virtual Object_id se_private_id() const = 0;
+  virtual void set_se_private_id(Object_id se_private_id) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Partition related.

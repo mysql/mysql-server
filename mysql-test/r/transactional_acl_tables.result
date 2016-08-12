@@ -1527,7 +1527,7 @@ WHERE table_schema = 'mysql' AND
 table_name IN ('user', 'db', 'columns_priv', 'procs_priv',
 'proxies_priv', 'tables_priv')
 ORDER BY table_name;
-table_name	engine
+TABLE_NAME	ENGINE
 columns_priv	MyISAM
 db	MyISAM
 procs_priv	MyISAM
@@ -1748,7 +1748,7 @@ WHERE table_schema = 'mysql' AND
 table_name IN ('user', 'db', 'columns_priv', 'procs_priv',
 'proxies_priv', 'tables_priv')
 ORDER BY table_name;
-table_name	engine
+TABLE_NAME	ENGINE
 columns_priv	MyISAM
 db	MyISAM
 procs_priv	MyISAM
@@ -1820,7 +1820,7 @@ WHERE table_schema = 'mysql' AND
 table_name IN ('user', 'db', 'columns_priv', 'procs_priv',
 'proxies_priv', 'tables_priv')
 ORDER BY table_name;
-table_name	engine
+TABLE_NAME	ENGINE
 columns_priv	InnoDB
 db	InnoDB
 procs_priv	InnoDB
@@ -1842,7 +1842,7 @@ WHERE table_schema = 'mysql' AND
 table_name IN ('user', 'db', 'columns_priv', 'procs_priv',
 'proxies_priv', 'tables_priv')
 ORDER BY table_name;
-table_name	engine
+TABLE_NAME	ENGINE
 columns_priv	MyISAM
 db	MyISAM
 procs_priv	MyISAM

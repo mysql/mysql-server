@@ -1560,6 +1560,11 @@ private:
     bool m_time_zone_used;
   };
 
+
+public:
+  enum enum_reset_lex { RESET_LEX, DO_NOT_RESET_LEX };
+
+private:
   /**
     Class representing read-only attachable transaction, encapsulates
     knowledge how to backup state of current transaction, start
@@ -1571,14 +1576,21 @@ private:
   {
   public:
     Attachable_trx(THD *thd, Attachable_trx *prev_trx);
+    Attachable_trx(THD *thd,
+                   Attachable_trx *prev_trx,
+                   enum_reset_lex reset_lex);
     virtual ~Attachable_trx();
     Attachable_trx *get_prev_attachable_trx() const
     { return m_prev_attachable_trx; };
     virtual bool is_read_only() const { return true; }
 
+    void init();
+
   protected:
     /// THD instance.
     THD *m_thd;
+
+    enum_reset_lex m_reset_lex;
 
     /**
       Attachable_trx which was active for the THD before when this
@@ -2892,6 +2904,8 @@ public:
     be only one active attachable transaction at a time).
   */
   void begin_attachable_ro_transaction();
+
+  void begin_attachable_transaction(enum_reset_lex reset_lex);
 
   /**
     Start a read-write attachable transaction.

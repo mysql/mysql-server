@@ -786,7 +786,8 @@ connection default;
 # Bug#44151 using handler commands on information_schema tables crashes server
 #
 USE information_schema;
---error ER_WRONG_USAGE
+--replace_result columns COLUMNS
+--error ER_WRONG_OBJECT
 HANDLER COLUMNS OPEN;
 USE test;
 

@@ -122,6 +122,15 @@ void Mysql_crawler::enumerate_database_objects(const Database& db)
 void Mysql_crawler::enumerate_tables(const Database& db)
 {
   Mysql::Tools::Base::Mysql_query_runner* runner= this->get_runner();
+
+  /*
+    Get statistics from SE by setting information_schema_stats=LATEST
+    for this session. This makes the queries IS queries retrieve latest
+    statistics and avoids getting outdated statistics.
+  */
+  std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*> t;
+  runner->run_query_store("SET SESSION information_schema_stats=latest", &t);
+
   std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*> tables;
 
   runner->run_query_store("SHOW TABLE STATUS FROM "

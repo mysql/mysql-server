@@ -17,7 +17,6 @@
 
 #include "dd_routine.h"                        // Routine methods
 
-#include "dd_table.h"                          // dd_get_new_field_type
 #include "sp_head.h"                           // sp_head
 #include "sp_pcontext.h"                       // sp_variable
 #include "sql_db.h"                            // get_default_db_collation
@@ -26,6 +25,7 @@
 
 #include "dd/properties.h"                     // dd::Properties
 #include "dd/cache/dictionary_client.h"        // dd::cache::Dictionary_client
+#include "dd/dd_table.h"                       // dd::get_new_field_type
 #include "dd/types/function.h"                 // dd::Function
 #include "dd/types/parameter.h"                // dd::Parameter
 #include "dd/types/parameter_type_element.h"   // dd::Parameter_type_element
@@ -130,7 +130,7 @@ static bool fill_dd_function_return_type(THD *thd, sp_head *sp, Function *sf)
   DBUG_ASSERT(return_field != NULL);
 
   // Set result data type.
-  sf->set_result_data_type(dd_get_new_field_type(return_field->sql_type));
+  sf->set_result_data_type(get_new_field_type(return_field->sql_type));
 
   // Set result is_zerofill flag.
   sf->set_result_zerofill(return_field->is_zerofill);
@@ -175,7 +175,7 @@ static bool fill_parameter_info_from_field(Create_field *field,
   DBUG_ENTER("fill_parameter_info_from_field");
 
   // Set data type.
-  param->set_data_type(dd_get_new_field_type(field->sql_type));
+  param->set_data_type(get_new_field_type(field->sql_type));
 
   // Set is_zerofill flag.
   param->set_zerofill(field->is_zerofill);

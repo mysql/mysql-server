@@ -29,6 +29,10 @@ namespace dd_schema_unittest {
   class SchemaTest;
 }
 
+namespace my_testing {
+  class Server_initializer;
+}
+
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
@@ -42,6 +46,7 @@ namespace cache {
 class Dictionary_impl : public Dictionary
 {
   friend class dd_schema_unittest::SchemaTest;
+  friend class my_testing::Server_initializer;
 
   /////////////////////////////////////////////////////////////////////////
   // Implementation details.
@@ -71,6 +76,8 @@ public:
 
   virtual const Object_table *get_dd_table(
     const std::string &schema_name, const std::string &table_name) const;
+
+  virtual bool install_plugin_IS_table_metadata();
 
 public:
   virtual bool is_dd_schema_name(const std::string &schema_name) const

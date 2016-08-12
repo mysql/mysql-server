@@ -59,7 +59,7 @@
 
 #include "dd/dd.h"                        // dd::get_dictionary
 #include "dd/dd_schema.h"                 // dd::schema_exists
-#include "dd/dd_table.h"                  // dd::drop_table
+#include "dd/dd_table.h"                  // dd::drop_table, dd::update_keys...
 #include "dd/dd_trigger.h"                // dd::table_has_triggers
 #include "dd/dictionary.h"                // dd::Dictionary
 #include "dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
@@ -1862,6 +1862,7 @@ void release_ddl_log()
   @param file          Handler to use
   @param no_ha_table   Indicates that only definitions needs to be created
                        and not a table in the storage engine.
+  @param keys_onoff    Enable or disable keys.
   @param[out] tmp_table_def  Placeholder for data-dictionary object for
                              temporary table which was created. It will
                              contain NULL for regular tables.
@@ -1874,9 +1875,10 @@ static bool rea_create_table(THD *thd, const char *path,
                              const char *db, const char *table_name,
                              HA_CREATE_INFO *create_info,
                              List<Create_field> &create_fields,
-                             uint keys, KEY *key_info, uint fk_keys,
-                             FOREIGN_KEY *fk_key_info, handler *file,
-                             bool no_ha_table,
+                             uint keys, KEY *key_info,
+                             Alter_info::enum_enable_or_disable keys_onoff,
+                             uint fk_keys, FOREIGN_KEY *fk_key_info,
+                             handler *file, bool no_ha_table,
                              dd::Table **tmp_table_def)
 {
   DBUG_ENTER("rea_create_table");
@@ -1890,7 +1892,7 @@ static bool rea_create_table(THD *thd, const char *path,
     {
       *tmp_table_def= dd::create_tmp_table(thd, db, table_name,
                                            create_info, create_fields,
-                                           key_info, keys, file);
+                                           key_info, keys, keys_onoff, file);
       if (!*tmp_table_def)
         DBUG_RETURN(true);
     }
@@ -1901,6 +1903,7 @@ static bool rea_create_table(THD *thd, const char *path,
                            create_fields,
                            key_info,
                            keys,
+                           keys_onoff,
                            fk_key_info,
                            fk_keys,
                            file))
@@ -2072,6 +2075,11 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
     if (!dd::get_dictionary()->is_dd_table_name(lpt->db, shadow_name) &&
         !dd::get_dictionary()->is_dd_table_name(lpt->db, lpt->table_name))
     {
+      Alter_info::enum_enable_or_disable keys_onoff=
+        ((lpt->alter_info->keys_onoff == Alter_info::LEAVE_AS_IS &&
+          lpt->table->file->indexes_are_disabled()) ? Alter_info::DISABLE :
+         lpt->alter_info->keys_onoff);
+
       if (dd::create_table(lpt->thd,
                            lpt->db,
                            shadow_name,
@@ -2079,6 +2087,7 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
                            lpt->alter_info->create_list,
                            lpt->key_info_buffer,
                            lpt->key_count,
+                           keys_onoff,
                            not_used1,
                            not_used2,
                            lpt->table->file))
@@ -5497,6 +5506,7 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field)
   @param[out] key_info       Array of KEY objects describing keys in table
                              which was created.
   @param[out] key_count      Number of keys in table which was created.
+  @param      keys_onoff     Enable or disable keys.
   @param[out] fk_key_info    Array of FOREIGN_KEY objects describing foreign
                              keys in table which was created.
   @param[out] fk_key_count   Number of foreign keys in table which was created.
@@ -5533,6 +5543,7 @@ bool create_table_impl(THD *thd,
                        bool *is_trans,
                        KEY **key_info,
                        uint *key_count,
+                       Alter_info::enum_enable_or_disable keys_onoff,
                        FOREIGN_KEY **fk_key_info,
                        uint *fk_key_count,
                        FOREIGN_KEY *existing_fk_info,
@@ -5872,7 +5883,7 @@ bool create_table_impl(THD *thd,
   */
   if (rea_create_table(thd, path, db, table_name,
                        create_info, alter_info->create_list,
-                       *key_count, *key_info, *fk_key_count,
+                       *key_count, *key_info, keys_onoff, *fk_key_count,
                        *fk_key_info, file, no_ha_table,
                        tmp_table_def))
     goto err;
@@ -6030,7 +6041,8 @@ bool mysql_create_table_no_lock(THD *thd,
   return create_table_impl(thd, db, table_name, table_name,
                            path, create_info, alter_info,
                            false, select_field_count, no_ha_table, is_trans,
-                           &not_used_1, &not_used_2, &not_used_3, &not_used_4,
+                           &not_used_1, &not_used_2, Alter_info::ENABLE,
+                           &not_used_3, &not_used_4,
                            NULL, 0,
                            &not_used_5);
 }
@@ -9636,6 +9648,23 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
       table->file->print_error(error, MYF(0));
       error= -1;
     }
+    else
+    {
+      /**
+        Update mysql.tables.options with keys_disabled=1/0 based on keys_onoff.
+        This will used by INFORMATION_SCHEMA.STATISTICS system view to display
+        keys were disabled.
+       */
+      if (dd::update_keys_disabled(thd, table_list->db, table_list->table_name,
+                                   keys_onoff))
+      {
+        table->file->print_error(error, MYF(0));
+        ha_rollback_trans(thd, false);
+        error= -1;
+      }
+      else
+        ha_commit_trans(thd, false, true);
+    }
   }
 
   if (!error && alter_ctx->is_table_renamed())
@@ -10319,6 +10348,10 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     ownership to the TABLE_SHARE of the temporary table.
   */
   dd::Table *tmp_table_def;
+  Alter_info::enum_enable_or_disable keys_onoff=
+    ((alter_info->keys_onoff == Alter_info::LEAVE_AS_IS &&
+      table->file->indexes_are_disabled()) ? Alter_info::DISABLE :
+     alter_info->keys_onoff);
 
   /*
     Take the X metadata lock on temporary name used for new version of
@@ -10345,7 +10378,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                            alter_ctx.get_tmp_path(),
                            create_info, alter_info,
                            true, 0, true, NULL,
-                           &key_info, &key_count,
+                           &key_info, &key_count, keys_onoff,
                            &fk_key_info, &fk_key_count,
                            alter_ctx.fk_info, alter_ctx.fk_count,
                            &tmp_table_def);

@@ -25,6 +25,7 @@
 #include "ft_global.h"         // ft_hints
 #include "my_thread_local.h"   // my_errno
 #include "thr_lock.h"          // thr_lock_type
+#include "dd/object_id.h"      // dd::Object_id
 #include "discrete_interval.h" // Discrete_interval
 #include "key.h"               // KEY
 #include "sql_bitmap.h"        // Key_map
@@ -73,6 +74,8 @@ typedef my_bool (*qc_engine_callback)(THD *thd, const char *table_key,
 typedef bool (stat_print_fn)(THD *thd, const char *type, size_t type_len,
                              const char *file, size_t file_len,
                              const char *status, size_t status_len);
+
+class ha_statistics;
 
 namespace AQP {
   class Join_plan;
@@ -127,6 +130,7 @@ extern ulong total_ha_2pc;
 #define HA_ADMIN_NEEDS_UPGRADE  -10
 #define HA_ADMIN_NEEDS_ALTER    -11
 #define HA_ADMIN_NEEDS_CHECK    -12
+#define HA_ADMIN_STATS_UPD_ERR  -13
 
 /**
    Return values for check_if_supported_inplace_alter().
@@ -766,17 +770,13 @@ class st_alter_tablespace : public Sql_alloc
 */
 enum enum_schema_tables
 {
-  SCH_CHARSETS= 0,
-  SCH_COLLATIONS,
-  SCH_COLLATION_CHARACTER_SET_APPLICABILITY,
-  SCH_COLUMNS,
-  SCH_COLUMN_PRIVILEGES,
+  SCH_FIRST=0,
+  SCH_COLUMN_PRIVILEGES=SCH_FIRST,
   SCH_ENGINES,
   SCH_EVENTS,
   SCH_FILES,
   SCH_GLOBAL_STATUS,
   SCH_GLOBAL_VARIABLES,
-  SCH_KEY_COLUMN_USAGE,
   SCH_OPEN_TABLES,
   SCH_OPTIMIZER_TRACE,
   SCH_PARAMETERS,
@@ -786,21 +786,32 @@ enum enum_schema_tables
   SCH_PROFILES,
   SCH_REFERENTIAL_CONSTRAINTS,
   SCH_PROCEDURES,
-  SCH_SCHEMATA,
   SCH_SCHEMA_PRIVILEGES,
   SCH_SESSION_STATUS,
   SCH_SESSION_VARIABLES,
-  SCH_STATISTICS,
   SCH_STATUS,
-  SCH_TABLES,
   SCH_TABLESPACES,
-  SCH_TABLE_CONSTRAINTS,
-  SCH_TABLE_NAMES,
   SCH_TABLE_PRIVILEGES,
   SCH_TRIGGERS,
   SCH_USER_PRIVILEGES,
   SCH_VARIABLES,
-  SCH_VIEWS
+  SCH_TMP_TABLE_COLUMNS,
+  SCH_TMP_TABLE_KEYS,
+  SCH_LAST=SCH_TMP_TABLE_KEYS
+};
+
+/*
+  New DD converts these I_S tables to system views.
+*/
+enum enum_schema_dd_views
+{
+  SCH_CHARSETS=0,
+  SCH_COLLATIONS,
+  SCH_SCHEMATA,
+  SCH_KEYS,
+  SCH_TABLES,
+  SCH_TABLE_STATUS,
+  SCH_COLUMNS
 };
 
 enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
@@ -1434,6 +1445,47 @@ typedef bool (*notify_alter_table_t)(THD *thd, const MDL_key *mdl_key,
 */
 typedef bool (*rotate_encryption_master_key_t)(void);
 
+/**
+  @brief
+  Retrieve ha_statistics from SE.
+
+  @param db_name                  Name of schema
+  @param table_name               Name of table
+  @param se_private_id            SE private id of the table.
+  @param flags                    Type of statistics to retrieve.
+  @param stats                    (OUT) Contains statistics read from SE.
+
+  @returns false on success,
+           true on failure
+*/
+typedef bool (*get_table_statistics_t)(const char *db_name,
+                                       const char *table_name,
+                                       dd::Object_id se_private_id,
+                                       uint flags,
+                                       ha_statistics *stats);
+
+/**
+  @brief
+  Retrieve index column cardinality from SE.
+
+  @param db_name                  Name of schema
+  @param table_name               Name of table
+  @param index_name               Name of index
+  @param index_ordinal_position   Position of index.
+  @param column_ordinal_position  Position of column in index.
+  @param se_private_id            SE private id of the table.
+  @param cardinality              (OUT) cardinality being returned by SE.
+
+  @returns false on success,
+           true on failure
+*/
+typedef bool (*get_index_column_cardinality_t)(const char *db_name,
+                                               const char *table_name,
+                                               const char *index_name,
+                                               uint index_ordinal_position,
+                                               uint column_ordinal_position,
+                                               dd::Object_id se_private_id,
+                                               ulonglong *cardinality);
 
 /**
   handlerton is a singleton structure - one instance per storage engine -
@@ -1576,6 +1628,10 @@ struct handlerton
   notify_exclusive_mdl_t notify_exclusive_mdl;
   notify_alter_table_t notify_alter_table;
   rotate_encryption_master_key_t rotate_encryption_master_key;
+
+  get_table_statistics_t get_table_statistics;
+  get_index_column_cardinality_t get_index_column_cardinality;
+
 
   /** Flag for Engine License. */
   uint32 license;
@@ -3394,6 +3450,8 @@ public:
     table= table_arg;
     table_share= share;
   }
+  const TABLE_SHARE* get_table_share() const { return table_share; }
+
   /* Estimates calculation */
 
   /**

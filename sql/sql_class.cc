@@ -118,8 +118,18 @@ void THD::Transaction_state::restore(THD *thd)
 }
 
 
-THD::Attachable_trx::Attachable_trx(THD *thd, Attachable_trx *prev_trx)
- : m_thd(thd), m_prev_attachable_trx(prev_trx)
+THD::Attachable_trx::Attachable_trx(THD *thd,
+                                    Attachable_trx *prev_trx)
+ : m_thd(thd), m_reset_lex(RESET_LEX), m_prev_attachable_trx(prev_trx)
+{ init(); }
+
+THD::Attachable_trx::Attachable_trx(THD *thd,
+                                    Attachable_trx *prev_trx,
+                                    enum_reset_lex reset_lex)
+ : m_thd(thd), m_reset_lex(reset_lex), m_prev_attachable_trx(prev_trx)
+{ init(); }
+
+void THD::Attachable_trx::init()
 {
   // The THD::transaction_rollback_request is expected to be unset in the
   // attachable transaction. It's weird to start attachable transaction when the
@@ -137,7 +147,8 @@ THD::Attachable_trx::Attachable_trx(THD *thd, Attachable_trx *prev_trx)
   //
   // Do NOT reset LEX if we're running tests. LEX is used by SELECT statements.
 
-  if (DBUG_EVALUATE_IF("use_attachable_trx", false, true))
+  bool reset= (m_reset_lex == RESET_LEX ? true : false);
+  if (DBUG_EVALUATE_IF("use_attachable_trx", false, reset))
   {
     m_thd->lex->reset_n_backup_query_tables_list(&m_trx_state.m_query_tables_list);
     m_thd->lex->sql_command= SQLCOM_SELECT;
@@ -235,7 +246,8 @@ THD::Attachable_trx::~Attachable_trx()
 
   m_thd->restore_backup_open_tables_state(&m_trx_state.m_open_tables_state);
 
-  if (DBUG_EVALUATE_IF("use_attachable_trx", false, true))
+  bool reset= (m_reset_lex == RESET_LEX ? true : false);
+  if (DBUG_EVALUATE_IF("use_attachable_trx", false, reset))
   {
     m_thd->lex->restore_backup_query_tables_list(
       &m_trx_state.m_query_tables_list);
@@ -2124,6 +2136,11 @@ void THD::restore_backup_open_tables_state(Open_tables_backup *backup)
 void THD::begin_attachable_ro_transaction()
 {
   m_attachable_trx= new Attachable_trx(this, m_attachable_trx);
+}
+
+void THD::begin_attachable_transaction(enum_reset_lex reset_lex)
+{
+  m_attachable_trx= new Attachable_trx(this, m_attachable_trx, reset_lex);
 }
 
 

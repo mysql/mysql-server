@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
 #include "auth_common.h"      // acl_authenticate
 #include "binlog.h"           // purge_master_logs
 #include "current_thd.h"
+#include "dd/dd.h"            // dd::get_dictionary
+#include "dd/dictionary.h"    // dd::Dictionary::is_system_view_name
 #include "debug_sync.h"       // DEBUG_SYNC
 #include "derror.h"           // ER_THD
 #include "error_handler.h"    // Strict_error_handler
@@ -1996,12 +1998,6 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   DBUG_ENTER("prepare_schema_table");
 
   switch (schema_table_idx) {
-  case SCH_SCHEMATA:
-    break;
-
-  case SCH_TABLE_NAMES:
-  case SCH_TABLES:
-  case SCH_VIEWS:
   case SCH_TRIGGERS:
   case SCH_EVENTS:
     {
@@ -2020,8 +2016,8 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
         DBUG_RETURN(1);
       break;
     }
-  case SCH_COLUMNS:
-  case SCH_STATISTICS:
+  case SCH_TMP_TABLE_COLUMNS:
+  case SCH_TMP_TABLE_KEYS:
   {
     DBUG_ASSERT(table_ident);
     TABLE_LIST **query_tables_last= lex->query_tables_last;
@@ -2047,16 +2043,11 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   case SCH_VARIABLES:
   case SCH_STATUS:
   case SCH_PROCEDURES:
-  case SCH_CHARSETS:
   case SCH_ENGINES:
-  case SCH_COLLATIONS:
-  case SCH_COLLATION_CHARACTER_SET_APPLICABILITY:
   case SCH_USER_PRIVILEGES:
   case SCH_SCHEMA_PRIVILEGES:
   case SCH_TABLE_PRIVILEGES:
   case SCH_COLUMN_PRIVILEGES:
-  case SCH_TABLE_CONSTRAINTS:
-  case SCH_KEY_COLUMN_USAGE:
   default:
     break;
   }
@@ -2417,8 +2408,6 @@ mysql_execute_command(THD *thd, bool first_level)
 
   thd->work_part_info= 0;
 
-  DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT) ||
-              thd->in_sub_stmt);
   /*
     Each statement or replication event which might produce deadlock
     should handle transaction rollback on its own. So by the start of
@@ -5575,11 +5564,19 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
   ptr->set_derived_unit(table->sel);
   if (!ptr->is_derived() && is_infoschema_db(ptr->db, ptr->db_length))
   {
+    dd::info_schema::convert_table_name_case(
+                       const_cast<char*>(ptr->db),
+                       const_cast<char*>(ptr->table_name));
+
+    bool is_system_view=
+      dd::get_dictionary()->is_system_view_name(ptr->db, ptr->table_name);
+
     ST_SCHEMA_TABLE *schema_table;
     if (ptr->updating &&
         /* Special cases which are processed by commands itself */
         lex->sql_command != SQLCOM_CHECK &&
-        lex->sql_command != SQLCOM_CHECKSUM)
+        lex->sql_command != SQLCOM_CHECKSUM &&
+        !(lex->sql_command == SQLCOM_CREATE_VIEW && is_system_view))
     {
       my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                thd->security_context()->priv_user().str,
@@ -5587,23 +5584,48 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
                INFORMATION_SCHEMA_NAME.str);
       DBUG_RETURN(0);
     }
-    schema_table= find_schema_table(thd, ptr->table_name);
-    if (!schema_table ||
-        (schema_table->hidden && 
-         ((sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0 || 
-          /*
-            this check is used for show columns|keys from I_S hidden table
-          */
-          lex->sql_command == SQLCOM_SHOW_FIELDS ||
-          lex->sql_command == SQLCOM_SHOW_KEYS)))
+    if (is_system_view)
     {
-      my_error(ER_UNKNOWN_TABLE, MYF(0),
-               ptr->table_name, INFORMATION_SCHEMA_NAME.str);
-      DBUG_RETURN(0);
+      /**
+        Pick the right IS system view definition based on session
+        variables information_schema_stats.
+      */
+      if (thd->lex->sql_command != SQLCOM_CREATE_VIEW &&
+          thd->variables.information_schema_stats ==
+          static_cast<ulong>(dd::info_schema::enum_stats::LATEST))
+      {
+          if(!my_strcasecmp(system_charset_info, ptr->table_name, "TABLES"))
+          {
+            ptr->table_name= thd->mem_strdup("TABLES_DYNAMIC");
+          }
+          else if(!my_strcasecmp(system_charset_info,
+                                 ptr->table_name, "STATISTICS"))
+          {
+            ptr->table_name= thd->mem_strdup("STATISTICS_DYNAMIC");
+          }
+          else if(!my_strcasecmp(system_charset_info,
+                                 ptr->table_name, "SHOW_STATISTICS"))
+          {
+            ptr->table_name= thd->mem_strdup("SHOW_STATISTICS_DYNAMIC");
+          }
+      }
     }
-    ptr->schema_table_name= const_cast<char*>(ptr->table_name);
-    ptr->schema_table= schema_table;
+    else
+    {
+      schema_table= find_schema_table(thd, ptr->table_name);
+      if (!schema_table ||
+          (schema_table->hidden &&
+           (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0))
+      {
+        my_error(ER_UNKNOWN_TABLE, MYF(0),
+                 ptr->table_name, INFORMATION_SCHEMA_NAME.str);
+        DBUG_RETURN(0);
+      }
+      ptr->schema_table_name= const_cast<char*>(ptr->table_name);
+      ptr->schema_table= schema_table;
+    }
   }
+
   ptr->select_lex= this;
   ptr->cacheable_table= 1;
   ptr->index_hints= index_hints_arg;

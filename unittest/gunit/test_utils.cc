@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,9 @@
 #include "opt_costconstantcache.h"              // optimizer cost constant cache
 #include "mysqld.h"                             // set_remaining_args
 #include "log.h"                                // query_logger
+
+#include "dd/impl/dictionary_impl.h"            // dd::Dictionary_impl
+
 
 namespace my_testing {
 
@@ -92,6 +95,16 @@ void Server_initializer::SetUp()
   m_thd->thread_stack= (char*) &stack_thd;
   m_thd->store_globals();
   lex_start(m_thd);
+
+  /*
+    With WL#6599, SELECT_LEX::add_table_to_list() will invoke
+    dd::Dictionary::is_system_view_name() method. E.g., the unit
+    test InsertDelayed would invoke above API. This requires us
+    to have a instance of dictionary_impl. We do not really need
+    to initialize dd::System_views for this test. Also, there can
+    be future test cases that need the same.
+  */
+  dd::Dictionary_impl::s_instance= new dd::Dictionary_impl();
 }
 
 void Server_initializer::TearDown()

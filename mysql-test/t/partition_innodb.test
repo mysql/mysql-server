@@ -462,10 +462,11 @@ DROP TABLE t1;
 # Bug #14673: Wrong InnoDB default row format
 #
 create table t1 (a int) engine=innodb partition by hash(a) ;
+analyze table t1;
 # Avg_row_length (col 6) and Data_length (col 7) vary depending
 # on the page size.  Data_free for InnoDB tablespace varies
 # depending on which tests have been run before this one.
---replace_column 6 # 7 # 10 # 12 #
+--replace_column 6 # 7 # 10 # 12 # 13 #
 show table status like 't1';
 drop table t1;
 
@@ -475,10 +476,11 @@ drop table t1;
 create table t1 (a int)
 engine = innodb
 partition by key (a);
+analyze table t1;
 # Avg_row_length (col 6) and Data_length (col 7) vary depending
 # on the page size.  Data_free for InnoDB tablespace varies
 # depending on which tests have been run before this one.
---replace_column 6 # 7 # 10 # 12 #
+--replace_column 6 # 7 # 10 # 12 # 13 #
 show table status;
 insert into t1 values (0), (1), (2), (3);
 analyze table t1;
@@ -492,10 +494,11 @@ drop table t1;
 create table t1 (a int auto_increment primary key)
 engine = innodb
 partition by key (a);
+analyze table t1;
 # Avg_row_length (col 6) and Data_length (col 7) vary depending
 # on the page size.  Data_free for InnoDB tablespace varies
 # depending on which tests have been run before this one.
---replace_column 6 # 7 # 10 # 12 #
+--replace_column 6 # 7 # 10 # 12 # 13 #
 show table status;
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
 analyze table t1;
@@ -1035,6 +1038,8 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (a int, PRIMARY KEY (a)) ENGINE=InnoDB
 PARTITION BY HASH (a) PARTITIONS 2;
+
+ANALYZE TABLE t1;
 
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE
 CREATE_TIME IS NOT NULL AND TABLE_NAME='t1';

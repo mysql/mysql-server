@@ -779,10 +779,13 @@ drop table t1;
 set @save_innodb_file_per_table= @@global.innodb_file_per_table;
 set @@global.innodb_file_per_table=0;
 create table t1 (id int) comment='this is a comment' engine=innodb;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select table_comment, data_free > 0 as data_free_is_set
 from information_schema.tables
 where table_schema='test' and table_name = 't1';
-table_comment	data_free_is_set
+TABLE_COMMENT	data_free_is_set
 this is a comment	1
 drop table t1;
 set @@global.innodb_file_per_table= @save_innodb_file_per_table;
@@ -796,6 +799,9 @@ c1 INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
 c2 INT(10) UNSIGNED DEFAULT NULL,
 PRIMARY KEY(c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=200;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't2';
 AUTO_INCREMENT
 200

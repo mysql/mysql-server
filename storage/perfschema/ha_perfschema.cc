@@ -1166,6 +1166,9 @@ end:
 
 static int compare_database_names(const char *name1, const char *name2)
 {
+  if (name1 == nullptr || name2 == nullptr)
+    return 1;
+
   if (lower_case_table_names)
     return native_strcasecmp(name1, name2);
   return strcmp(name1, name2);

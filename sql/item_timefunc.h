@@ -553,6 +553,9 @@ public:
   Item_temporal_func(const POS &pos, Item *a, Item *b, Item *c)
     :Item_func(pos, a, b, c)
   {}
+  Item_temporal_func(const POS &pos, Item *a, Item *b, Item *c, Item *d)
+    :Item_func(pos, a, b, c, d)
+  {}
 
   enum Item_result result_type () const
   {
@@ -735,6 +738,9 @@ public:
   { }
   Item_datetime_func(const POS &pos, Item *a,Item *b, Item *c)
     :Item_temporal_func(pos, a, b, c)
+  {}
+  Item_datetime_func(const POS &pos, Item *a,Item *b, Item *c, Item *d)
+    :Item_temporal_func(pos, a, b, c, d)
   {}
 
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
@@ -1753,6 +1759,32 @@ public:
   Item_func_last_day(const POS &pos, Item *a) :Item_date_func(pos, a)
   { maybe_null= 1; }
   const char *func_name() const { return "last_day"; }
+  bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date);
+};
+
+class Item_func_internal_update_time : public Item_datetime_func
+{
+  THD *thd;
+public:
+  Item_func_internal_update_time(const POS &pos,
+                                 Item *a, Item *b, Item *c, Item *d)
+    : Item_datetime_func(pos, a, b, c, d)
+  {}
+  const char *func_name() const { return "internal_update_time"; }
+  virtual bool resolve_type(THD *thd);
+  bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date);
+};
+
+class Item_func_internal_check_time : public Item_datetime_func
+{
+  THD *thd;
+public:
+  Item_func_internal_check_time(const POS &pos,
+                                 Item *a, Item *b, Item *c, Item *d)
+    : Item_datetime_func(pos, a, b, c, d)
+  {}
+  const char *func_name() const { return "internal_check_time"; }
+  virtual bool resolve_type(THD *thd);
   bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date);
 };
 

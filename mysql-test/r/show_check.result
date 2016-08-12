@@ -705,7 +705,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   `c2` int(11) NOT NULL,
-  PRIMARY KEY (`c1`),
+  PRIMARY KEY (`c1`) USING BTREE,
   KEY `c2` (`c2`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t1;

@@ -561,6 +561,14 @@ int mysql_audit_table_access_notify(THD *thd, TABLE_LIST *table)
   for (; table; table= table->next_global)
   {
     /*
+      Do not generate audit logs for opening DD tables when processing I_S
+      queries.
+    */
+    if (table->referencing_view &&
+        table->referencing_view->is_system_view)
+      continue;
+
+    /*
       Update-Multi query can have several updatable tables as well as readable
       tables. This is taken from table->updating field, which holds info,
       whether table is being updated or not. table->updating holds invalid

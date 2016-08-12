@@ -79,6 +79,15 @@ public:
   typedef Collection<Column_type_element*> Column_type_element_collection;
   typedef Column_impl Impl;
 
+  enum enum_column_key
+  {
+    CK_NONE= 1,
+    CK_PRIMARY,
+    CK_UNIQUE,
+    CK_MULTIPLE
+  };
+
+public:
   virtual ~Column()
   { };
 
@@ -167,6 +176,8 @@ public:
 
   virtual uint datetime_precision() const = 0;
   virtual void set_datetime_precision(uint datetime_precision) = 0;
+  virtual void set_datetime_precision_null(bool is_null) = 0;
+  virtual bool is_datetime_precision_null() const = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // has_no_default.
@@ -183,6 +194,16 @@ public:
   virtual void set_default_value(const std::string &default_value) = 0;
   virtual void set_default_value_null(bool is_null) = 0;
   virtual bool is_default_value_null() const = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // default_value_utf8
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const std::string &default_value_utf8() const = 0;
+  virtual void set_default_value_utf8(
+                 const std::string &default_value_utf8) = 0;
+  virtual void set_default_value_utf8_null(bool is_null) = 0;
+  virtual bool is_default_value_utf8_null() const = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // is virtual ?
@@ -259,6 +280,22 @@ public:
 
   virtual Properties &se_private_data() = 0;
   virtual bool set_se_private_data_raw(const std::string &se_private_data_raw) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // Column key type.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual void set_column_key(enum_column_key column_key) = 0;
+
+  virtual enum_column_key column_key() const = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // Column display type.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const std::string &column_type_utf8() const = 0;
+
+  virtual void set_column_type_utf8(const std::string &column_type_utf8) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Elements.

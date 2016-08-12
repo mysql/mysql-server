@@ -1245,6 +1245,7 @@ Mysqlx.Sql.StmtExecute {
 
 
 -->sql
+ANALYZE TABLE xplugintest.col_myp337;
 SHOW INDEX from xplugintest.col_myp337 where Key_name rlike '^index_[12][0-9]*';
 SHOW INDEX from xplugintest.col_myp337 where Key_name rlike '^index_[34][0-9]*';
 -->endsql

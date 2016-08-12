@@ -33,6 +33,7 @@ bool init(bool install)
   return Dictionary_impl::init(install);
 }
 
+///////////////////////////////////////////////////////////////////////////
 
 bool shutdown()
 {

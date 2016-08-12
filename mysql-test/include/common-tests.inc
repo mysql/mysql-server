@@ -1804,6 +1804,7 @@ show full columns from t2;
 show full columns from t2 from test like 'f%';
 --replace_column 8 #
 show full columns from t2 from test like 's%';
+analyze table t2;
 --replace_column 7 #
 show keys from t2;
 

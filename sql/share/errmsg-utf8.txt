@@ -7835,6 +7835,12 @@ ER_SRS_NOT_FOUND SR001
 ER_VARIABLE_NOT_PERSISTED
   eng "Variables cannot be persisted. Please retry."
 
+ER_IS_QUERY_INVALID_CLAUSE
+  eng "Information schema queries do not support the '%s' clause."
+
+ER_UNABLE_TO_STORE_STATISTICS
+  eng "Unable to store dynamic %s statistics into data dictionary."
+
 #
 #  End of 8.0 error messages.
 #

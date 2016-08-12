@@ -2337,6 +2337,7 @@ call bug4726()|
 drop procedure bug4726|
 drop table t3|
 drop procedure if exists bug4902|
+set SQL_BIG_SELECTS=1|
 create procedure bug4902()
 begin
 show charset like 'foo';
@@ -3391,10 +3392,11 @@ drop function if exists bug10055|
 create function bug10055(v char(255)) returns char(255) return lower(v)|
 select t.column_name, bug10055(t.column_name)
 from information_schema.columns as t
-where t.table_schema = 'test' and t.table_name = 't1'|
-column_name	bug10055(t.column_name)
-id	id
+where t.table_schema = 'test' and t.table_name = 't1'
+order by t.column_name|
+COLUMN_NAME	bug10055(t.column_name)
 data	data
+id	id
 drop function bug10055|
 drop procedure if exists bug12297|
 create procedure bug12297(lim int)
@@ -4771,7 +4773,7 @@ create procedure bug18344_2() begin end|
 use test|
 select schema_name from information_schema.schemata where 
 schema_name like 'bug18344%'|
-schema_name
+SCHEMA_NAME
 bug18344_012345678901
 bug18344_0123456789012
 select routine_name,routine_schema from information_schema.routines where
@@ -4785,7 +4787,7 @@ drop database bug18344_012345678901|
 drop database bug18344_0123456789012|
 select schema_name from information_schema.schemata where 
 schema_name like 'bug18344%'|
-schema_name
+SCHEMA_NAME
 select routine_name,routine_schema from information_schema.routines where
 routine_schema like 'bug18344%'|
 routine_name	routine_schema
@@ -6387,28 +6389,6 @@ DROP VIEW v1;
 DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP TABLE t1;
-create function f1()
-returns int(11)
-not deterministic
-contains sql
-sql security definer
-comment ''
-begin
-declare x int(11);
-set x=-1;
-return x;
-end|
-create view v1 as select 1 as one, f1() as days;
-show create view test.v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test`.`v1` AS select 1 AS `one`,`f1`() AS `days`	latin1	latin1_swedish_ci
-select column_name from information_schema.columns
-where table_name='v1' and table_schema='test';
-column_name
-one
-days
-drop view v1;
-drop function f1;
 
 # Bug#13675.
 
@@ -6777,56 +6757,6 @@ call p1$
 a	b
 drop table t1;
 drop procedure p1;
-# ------------------------------------------------------------------
-# -- End of 5.0 tests
-# ------------------------------------------------------------------
-
-#
-# Bug#20550.
-#
-
-#
-# - Prepare.
-#
-
-DROP VIEW IF EXISTS v1;
-DROP VIEW IF EXISTS v2;
-DROP FUNCTION IF EXISTS f1;
-DROP FUNCTION IF EXISTS f2;
-
-#
-# - Create required objects.
-#
-
-CREATE FUNCTION f1() RETURNS VARCHAR(65525) RETURN 'Hello';
-
-CREATE FUNCTION f2() RETURNS TINYINT RETURN 1;
-
-CREATE VIEW v1 AS SELECT f1();
-
-CREATE VIEW v2 AS SELECT f2();
-
-#
-# - Check.
-#
-
-SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v1';
-DATA_TYPE
-varchar
-
-SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v2';
-DATA_TYPE
-tinyint
-
-#
-# - Cleanup.
-#
-
-DROP FUNCTION f1;
-DROP FUNCTION f2;
-DROP VIEW v1;
-DROP VIEW v2;
-
 #
 # - Bug#24923: prepare.
 #

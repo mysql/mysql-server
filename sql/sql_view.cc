@@ -271,19 +271,23 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
     checked that we have not more privileges on correspondent column of view
     table (i.e. user will not get some privileges by view creation)
   */
-  if ((check_access(thd, CREATE_VIEW_ACL, view->db,
-                    &view->grant.privilege,
-                    &view->grant.m_internal,
-                    0, 0) ||
-       check_grant(thd, CREATE_VIEW_ACL, view, FALSE, 1, FALSE)) ||
-      (mode != enum_view_create_mode::VIEW_CREATE_NEW &&
-       (check_access(thd, DROP_ACL, view->db,
-                     &view->grant.privilege,
-                     &view->grant.m_internal,
-                     0, 0) ||
-        check_grant(thd, DROP_ACL, view, FALSE, 1, FALSE))))
-    goto err;
 
+  // Allow creation of views on information_schema only during bootstrap
+  if (!is_infoschema_db(view->db))
+  {
+    if ((check_access(thd, CREATE_VIEW_ACL, view->db,
+                      &view->grant.privilege,
+                      &view->grant.m_internal,
+                      0, 0) ||
+         check_grant(thd, CREATE_VIEW_ACL, view, FALSE, 1, FALSE)) ||
+        (mode != enum_view_create_mode::VIEW_CREATE_NEW &&
+         (check_access(thd, DROP_ACL, view->db,
+                       &view->grant.privilege,
+                       &view->grant.m_internal,
+                       0, 0) ||
+          check_grant(thd, DROP_ACL, view, FALSE, 1, FALSE))))
+      goto err;
+  }
   for (SELECT_LEX *sl= select_lex; sl; sl= sl->next_select())
   {
     for (TABLE_LIST *tbl= sl->get_table_list(); tbl; tbl= tbl->next_local)
@@ -1396,7 +1400,9 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
 
     if (old_lex->describe && is_explainable_query(old_lex->sql_command))
     {
-      if (view_ref->view_no_explain)
+      // EXPLAIN statement should be allowed on views created in
+      // information_schema
+      if (!is_infoschema_db(view_ref->db) && view_ref->view_no_explain)
       {
         my_error(ER_VIEW_NO_EXPLAIN, MYF(0));
         result= true;
@@ -1406,9 +1412,15 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
     else if ((old_lex->sql_command == SQLCOM_SHOW_CREATE) &&
              !view_ref->belong_to_view)
     {
-      if ((result= check_table_access(thd, SHOW_VIEW_ACL, view_ref, false,
-                                      UINT_MAX, false)))
+      // SHOW CREATE statement should be allowed on views created in
+      // information_schema
+      if (!is_infoschema_db(view_ref->db) &&
+          check_table_access(thd, SHOW_VIEW_ACL, view_ref, false, UINT_MAX,
+                             false))
+      {
+        result= true;
         DBUG_RETURN(true);
+      }
     }
   }
 

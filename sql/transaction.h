@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,12 +28,12 @@ void trans_reset_one_shot_chistics(THD *thd);
 void trans_track_end_trx(THD *thd);
 
 bool trans_begin(THD *thd, uint flags= 0);
-bool trans_commit(THD *thd);
-bool trans_commit_implicit(THD *thd);
+bool trans_commit(THD *thd, bool ignore_global_read_lock=false);
+bool trans_commit_implicit(THD *thd, bool ignore_global_read_lock=false);
 bool trans_rollback(THD *thd);
 bool trans_rollback_implicit(THD *thd);
 
-bool trans_commit_stmt(THD *thd);
+bool trans_commit_stmt(THD *thd, bool ignore_global_read_lock=false);
 bool trans_rollback_stmt(THD *thd);
 bool trans_commit_attachable(THD *thd);
 

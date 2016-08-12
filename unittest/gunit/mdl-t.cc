@@ -112,13 +112,19 @@ protected:
     mdl_init();
     m_mdl_context.init(this);
     EXPECT_FALSE(m_mdl_context.has_locks());
+    m_charset= system_charset_info;
+    system_charset_info = &my_charset_utf8_bin;
+    EXPECT_TRUE(system_charset_info != nullptr);
+
     MDL_REQUEST_INIT(&m_global_request,
                      MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
                      MDL_TRANSACTION);
+
   }
 
   void TearDown()
   {
+    system_charset_info= m_charset;
     m_mdl_context.destroy();
     mdl_destroy();
   }
@@ -139,6 +145,7 @@ protected:
   MDL_request        m_global_request;
   MDL_request_list   m_request_list;
 private:
+  CHARSET_INFO   *m_charset;
   GTEST_DISALLOW_COPY_AND_ASSIGN_(MDLTest);
 
   static void (*m_old_error_handler_hook)(uint, const char *, myf);

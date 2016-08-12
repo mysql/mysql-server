@@ -588,6 +588,7 @@ static int dump_databases(char **);
 static int dump_all_databases();
 static char *quote_name(const char *name, char *buff, my_bool force);
 char check_if_ignore_table(const char *table_name, char *table_type);
+bool is_infoschema_db(const char *db);
 static char *primary_key_fields(const char *table_name);
 static my_bool get_view_structure(char *table, char* db);
 static my_bool dump_all_views_in_db(char *database);
@@ -2872,9 +2873,12 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       */
       while ((row= mysql_fetch_row(result)))
       {
-        complete_insert|=
-          strcmp(row[SHOW_EXTRA], "STORED GENERATED") == 0 ||
-          strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED") == 0;
+        if (row[SHOW_EXTRA])
+        {
+          complete_insert|=
+            strcmp(row[SHOW_EXTRA], "STORED GENERATED") == 0 ||
+            strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED") == 0;
+        }
       }
       mysql_free_result(result);
 
@@ -2915,9 +2919,14 @@ static uint get_table_structure(char *table, char *db, char *table_type,
     colno= 0;
     while ((row= mysql_fetch_row(result)))
     {
-      real_columns[colno]=
-        strcmp(row[SHOW_EXTRA], "STORED GENERATED") != 0 &&
-        strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED") != 0;
+      if (row[SHOW_EXTRA])
+      {
+        real_columns[colno]=
+          strcmp(row[SHOW_EXTRA], "STORED GENERATED") != 0 &&
+          strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED") != 0;
+      }
+      else
+        real_columns[colno]= TRUE;
 
       if (real_columns[colno++] && complete_insert)
       {
@@ -2953,9 +2962,12 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       */
       while ((row= mysql_fetch_row(result)))
       {
-        complete_insert|=
-          strcmp(row[SHOW_EXTRA], "STORED GENERATED") == 0 ||
-          strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED") == 0;
+        if (row[SHOW_EXTRA])
+        {
+          complete_insert|=
+            strcmp(row[SHOW_EXTRA], "STORED GENERATED") == 0 ||
+            strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED") == 0;
+        }
       }
       mysql_free_result(result);
 
@@ -3013,9 +3025,14 @@ static uint get_table_structure(char *table, char *db, char *table_type,
     {
       ulong *lengths= mysql_fetch_lengths(result);
 
-      real_columns[colno]=
-        strcmp(row[SHOW_EXTRA], "STORED GENERATED") != 0 &&
-        strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED") != 0;
+      if (row[SHOW_EXTRA])
+      {
+        real_columns[colno]=
+          strcmp(row[SHOW_EXTRA], "STORED GENERATED") != 0 &&
+          strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED") != 0;
+      }
+      else
+        real_columns[colno]= TRUE;
 
       if (!real_columns[colno++])
         continue;
@@ -3057,7 +3074,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         }
         if (!row[SHOW_NULL][0])
           fputs(" NOT NULL", sql_file);
-        if (row[SHOW_EXTRA][0])
+        if (row[SHOW_EXTRA] && row[SHOW_EXTRA][0])
           fprintf(sql_file, " %s",row[SHOW_EXTRA]);
         check_io(sql_file);
       }
@@ -4435,6 +4452,9 @@ static int dump_databases(char **db_names)
 
   for (db= db_names ; *db ; db++)
   {
+    if (is_infoschema_db(*db))
+      die(EX_USAGE, "Dumping \'%s\' DB content is not supported", *db);
+
     if (dump_all_tables_in_db(*db))
       result=1;
   }
@@ -4859,6 +4879,9 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   MEM_ROOT root;
   char **dump_tables, **pos, **end;
   DBUG_ENTER("dump_selected_tables");
+
+  if (is_infoschema_db(db))
+    die(EX_USAGE, "Dumping \'%s\' DB content is not supported", db);
 
   if (init_dumping(db, init_dumping_tables))
     DBUG_RETURN(1);
@@ -5422,6 +5445,38 @@ char check_if_ignore_table(const char *table_name, char *table_type)
   }
   mysql_free_result(res);
   DBUG_RETURN(result);
+}
+
+
+/**
+  Check if the database is 'information_schema' and write a verbose message
+  stating that dumping the database is not supported.
+
+  @param  db        Database Name.
+
+  @retval true      If database should be ignored.
+  @retval false     If database shouldn't be ignored.
+*/
+
+bool is_infoschema_db(const char *db)
+{
+  DBUG_ENTER("is_infoschema_db");
+
+  /*
+    INFORMATION_SCHEMA DB content dump is only used to reload the data into
+    another tables for analysis purpose. This feature is not the core
+    responsibility of mysqldump tool. INFORMATION_SCHEMA DB content can even be
+    dumped using other methods like SELECT INTO OUTFILE... for such purpose.
+    Hence ignoring INFORMATION_SCHEMA DB here.
+  */
+  if (mysql_get_server_version(mysql) >= FIRST_INFORMATION_SCHEMA_VERSION &&
+      !my_strcasecmp(&my_charset_latin1, db, INFORMATION_SCHEMA_DB_NAME))
+  {
+    verbose_msg("Dumping \'%s\' DB content is not supported", db);
+    DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(false);
 }
 
 

@@ -35,6 +35,8 @@
 #include "dd/types/table.h"                  // Table
 #include "dd/types/tablespace.h"             // Tablespace
 #include "dd/types/view.h"                   // View
+#include "dd/types/table_stat.h"             // Table_stat
+#include "dd/types/index_stat.h"             // Index_stat
 #include "dd/impl/bootstrapper.h"            // bootstrap_stage
 #include "dd/impl/transaction_impl.h"        // Transaction_ro
 #include "dd/impl/raw/object_keys.h"         // Primary_id_key, ...
@@ -47,6 +49,8 @@
 #include "dd/impl/tables/schemata.h"         // create_name_key()
 #include "dd/impl/tables/spatial_reference_systems.h" // create_name_key()
 #include "dd/impl/tables/tables.h"           // create_name_key()
+#include "dd/impl/tables/table_stats.h"      // dd::Table_stats
+#include "dd/impl/tables/index_stats.h"      // dd::Index_stats
 #include "dd/impl/tables/tablespaces.h"      // create_name_key()
 #include "dd/impl/tables/table_partitions.h" // get_partition_table_id()
 #include "dd/impl/tables/triggers.h"         // dd::tables::Triggers
@@ -157,10 +161,19 @@ private:
     char table_name_buf[NAME_LEN + 1];
 
     if (schema)
-      return is_locked(thd, schema->name().c_str(),
-                       dd::Object_table_definition_impl::fs_name_case(table->name(),
-                                                                      table_name_buf),
-                       MDL_key::TABLE, lock_type);
+    {
+      if (!my_strcasecmp(system_charset_info,
+                         schema->name().c_str(),
+                         "information_schema"))
+        return is_locked(thd, schema->name().c_str(), table->name().c_str(),
+                         MDL_key::TABLE, lock_type);
+      else
+        return is_locked(thd, schema->name().c_str(),
+                         dd::Object_table_definition_impl::fs_name_case(
+                                                             table->name(),
+                                                             table_name_buf),
+                         MDL_key::TABLE, lock_type);
+    }
 
     return false;
   }
@@ -1162,6 +1175,153 @@ public:
   }
 };
 
+
+// Get names of index and column names from index statistics entries.
+static bool get_index_statistics_entries(THD *thd,
+                                  const std::string &schema_name,
+                                  const std::string &table_name,
+                                  std::vector<std::string> &index_names,
+                                  std::vector<std::string> &column_names)
+{
+  dd::Transaction_ro trx(thd, ISO_READ_COMMITTED);
+
+  // Open the DD tables holding dynamic table statistics.
+  trx.otx.register_tables<dd::Table_stat>();
+  trx.otx.register_tables<dd::Index_stat>();
+  if (trx.otx.open_tables())
+  {
+    DBUG_ASSERT(thd->is_error() || thd->killed);
+    return true;
+  }
+
+  // Create the range key based on schema and table name.
+  std::unique_ptr<Object_key> object_key(
+    dd::tables::Index_stats::create_range_key_by_table_name(
+                               schema_name, table_name));
+
+  Raw_table *table= trx.otx.get_table<dd::Index_stat>();
+  DBUG_ASSERT(table);
+
+  // Start the scan.
+  std::unique_ptr<Raw_record_set> rs;
+  if (table->open_record_set(object_key.get(), rs))
+  {
+    DBUG_ASSERT(thd->is_error() || thd->killed);
+    return true;
+  }
+
+  // Read each index entry.
+  Raw_record *r= rs->current_record();
+  while (r)
+  {
+    // Read index and column names.
+    index_names.push_back(r->read_str(tables::Index_stats::FIELD_INDEX_NAME));
+    column_names.push_back(r->read_str(tables::Index_stats::FIELD_COLUMN_NAME));
+
+    if (rs->next(r))
+    {
+      DBUG_ASSERT(thd->is_error() || thd->killed);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+/*
+  Remove the dynamic statistics stored in mysql.table_stats and
+  mysql.index_stats.
+*/
+bool Dictionary_client::remove_table_dynamic_statistics(
+                                          const std::string &schema_name,
+                                          const std::string &table_name)
+{
+  //
+  // Get list of index statistics entries.
+  //
+
+  std::vector<std::string> index_names, column_names;
+  if (get_index_statistics_entries(m_thd,
+                                   schema_name,
+                                   table_name,
+                                   index_names,
+                                   column_names))
+  {
+    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    return true;
+  }
+
+
+  //
+  // Drop index statistics entries for the table.
+  //
+
+  // Iterate and drop each index statistic entry, if exists.
+  if (!index_names.empty())
+  {
+    const Index_stat *idx_stat;
+    std::vector<std::string>::iterator it_idxs= index_names.begin();
+    std::vector<std::string>::iterator it_cols= column_names.begin();
+    while(it_idxs != index_names.end())
+    {
+      // Fetch the entry.
+      std::unique_ptr<Index_stat::name_key_type> key(
+        tables::Index_stats::create_object_key(schema_name,
+                                               table_name,
+                                               *it_idxs,
+                                               *it_cols));
+
+      if (Storage_adapter::get(m_thd, *key, ISO_READ_COMMITTED, &idx_stat))
+      {
+        DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+        return true;
+      }
+
+      // Drop the entry.
+      if (Storage_adapter::drop(m_thd, const_cast<Index_stat*>(idx_stat)))
+      {
+        DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+        return true;
+      }
+
+      delete idx_stat;
+      idx_stat= nullptr;
+
+      it_idxs++;
+      it_cols++;
+    }
+  }
+
+
+  //
+  // Drop the table statistics entry.
+  //
+
+  // Fetch the entry.
+  std::unique_ptr<Table_stat::name_key_type> key(
+    tables::Table_stats::create_object_key(schema_name, table_name));
+
+  const Table_stat *tab_stat;
+  if (Storage_adapter::get(m_thd, *key, ISO_READ_COMMITTED, &tab_stat))
+  {
+    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    return true;
+  }
+
+  // Drop the entry.
+  if (tab_stat && Storage_adapter::drop(m_thd, const_cast<Table_stat*>(tab_stat)))
+  {
+    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    return true;
+  }
+
+  delete tab_stat;
+
+  return false;
+}
+
+
 // Retrieve a schema- and table name by the se private id of the table.
 bool Dictionary_client::get_table_name_by_se_private_id(
                                     const std::string &engine,
@@ -1597,6 +1757,15 @@ bool Dictionary_client::store(T* object)
   return Storage_adapter::store(m_thd, object);
 }
 
+// Store a new dictionary object.
+template <>
+bool Dictionary_client::store(Table_stat* object)
+{ return Storage_adapter::store<Table_stat>(m_thd, object); }
+
+template <>
+bool Dictionary_client::store(Index_stat* object)
+{ return Storage_adapter::store<Index_stat>(m_thd, object); }
+
 
 // Replace a dictionary object by another and store it.
 template <typename T>
@@ -1995,6 +2164,8 @@ template bool Dictionary_client::update(const View**, View*, bool);
 template void Dictionary_client::set_sticky(const View*, bool);
 template bool Dictionary_client::is_sticky(const View*) const;
 
+template bool Dictionary_client::store(Table_stat*);
+template bool Dictionary_client::store(Index_stat*);
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   const Event**);

@@ -678,6 +678,8 @@ get_cached_schema_access(GRANT_INTERNAL_INFO *grant_internal_info,
 
 bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
                      TABLE_LIST *first_table);
+bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
+                     TABLE_LIST *first_table, bool in_prepare_stage);
 bool multi_delete_precheck(THD *thd, TABLE_LIST *tables);
 bool delete_precheck(THD *thd, TABLE_LIST *tables);
 bool lock_tables_precheck(THD *thd, TABLE_LIST *tables);

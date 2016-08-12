@@ -35,6 +35,7 @@ check table t1;
 select ST_astext(t1.g) from t1;
 
 # Show index.
+analyze table t1;
 --replace_column 7 #
 show indexes from t1;
 
