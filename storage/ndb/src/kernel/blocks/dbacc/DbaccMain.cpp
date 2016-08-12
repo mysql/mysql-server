@@ -7602,7 +7602,7 @@ bool Dbacc::getScanElement(Page8Ptr& pageptr,
   Uint32 conlen = containerhead.getLength();
   if (containerhead.getScanBits() & scanPtr.p->scanMask)
   { // Already scanned, go to next.
-    ndbassert(!containerhead.isScanInProgress());
+    ndbassert(!pageptr.p->checkScans(scanPtr.p->scanMask, conptr));
   }
   else
   {
