@@ -1,4 +1,3 @@
-# SETUP
 include/master-slave.inc
 [connection master]
 include/stop_slave.inc
@@ -9,12 +8,28 @@ include/start_slave.inc
 select THREAD_ID from performance_schema.replication_connection_status
 where CHANNEL_NAME = "channel_1"
   into @tid;
+
+====================================================================
+Testing index for columns CHANNEL_NAME
+====================================================================
 ############ Explain for Query ####################################
-explain select SERVICE_STATE
-from performance_schema.replication_connection_status
+explain select SERVICE_STATE 
+from performance_schema.replication_connection_status 
 where CHANNEL_NAME = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
+############ Explain for Query ####################################
+explain select SERVICE_STATE
+from performance_schema.replication_connection_status
+where CHANNEL_NAME > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	replication_connection_status	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SERVICE_STATE
+from performance_schema.replication_connection_status
+where CHANNEL_NAME < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	replication_connection_status	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
 explain select SERVICE_STATE
 from performance_schema.replication_connection_status
@@ -27,22 +42,30 @@ select SERVICE_STATE
 from performance_schema.replication_connection_status
 where CHANNEL_NAME = "channel_1";
 SERVICE_STATE
-ON
-show session status like "handler_read%";
-Variable_name	Value
-Handler_read_first	0
-Handler_read_key	1
-Handler_read_last	0
-Handler_read_next	0
-Handler_read_prev	0
-Handler_read_rnd	0
-Handler_read_rnd_next	0
+#
+OK: handler_read_key incremented
+
+====================================================================
+Testing index for columns THREAD_ID
+====================================================================
+############ Explain for Query ####################################
+explain select SERVICE_STATE 
+from performance_schema.replication_connection_status 
+where THREAD_ID = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	replication_connection_status	NULL	ref	THREAD_ID	THREAD_ID	9	const	#	100.00	Using where
 ############ Explain for Query ####################################
 explain select SERVICE_STATE
 from performance_schema.replication_connection_status
-where THREAD_ID = 9999;
+where THREAD_ID > "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	replication_connection_status	NULL	ref	THREAD_ID	THREAD_ID	9	const	#	100.00	NULL
+1	SIMPLE	replication_connection_status	NULL	ALL	THREAD_ID	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SERVICE_STATE
+from performance_schema.replication_connection_status
+where THREAD_ID < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	replication_connection_status	NULL	ALL	THREAD_ID	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
 explain select SERVICE_STATE
 from performance_schema.replication_connection_status
@@ -55,16 +78,7 @@ select SERVICE_STATE
 from performance_schema.replication_connection_status
 where THREAD_ID = @tid;
 SERVICE_STATE
-show session status like "handler_read%";
-Variable_name	Value
-Handler_read_first	0
-Handler_read_key	1
-Handler_read_last	0
-Handler_read_next	0
-Handler_read_prev	0
-Handler_read_rnd	0
-Handler_read_rnd_next	0
-# CLEANUP
+OK: handler_read_key incremented
 include/stop_slave.inc
 RESET SLAVE ALL;
 SET GLOBAL master_info_repository= "FILE";

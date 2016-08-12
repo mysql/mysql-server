@@ -3,55 +3,21 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
+#setup
+let $select_column = TOTAL_CONNECTIONS;
+let $table = performance_schema.hosts;
+
 create user foo@localhost;
 grant ALL on *.* to foo@localhost;
 connect(con, localhost, foo,,);
 
 # Test index on HOST
---disable_warnings
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select * from performance_schema.hosts
-  where host = 'localhost';
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select * from performance_schema.hosts
-  where host like "local%";
+let $column_count = 1;
+let $col1 = HOST;
+let $col1_act = "localhost";
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select * from performance_schema.hosts
-  where host = 'nohost';
-
---echo ############# Explain End #########################################
---enable_warnings
-
-flush status;
-
---replace_column 3 #
-select *
-  from performance_schema.hosts
-  where host = 'localhost';
-
-let $count1 = query_get_value(show session status like "handler_read_key", Value, 1);
-
---replace_column 3 #
-select *
-  from performance_schema.hosts
-  where host = 'localhost';
-
-let $count2 = query_get_value(show session status like "handler_read_key", Value, 1);
-
-if ($count1 < $count2)
-{
-  --echo OK: handler_read_key incremented
-}
-if ($count1 >= $count2)
-{
-  --echo ***ERROR*** handler_read_key: Before= $count1, After= $count2
-}
+--source ../include/idx_explain_test.inc
 
 # Cleanup
---connection default
 drop user foo@localhost;

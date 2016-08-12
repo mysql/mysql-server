@@ -3,6 +3,10 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
+#setup
+let $select_column = count(*);
+let $table = performance_schema.mutex_instances;
+
 create database explain_test_db;
 create table explain_test_db.explain_test_table (c int);
 lock table explain_test_db.explain_test_table write;
@@ -17,127 +21,43 @@ insert into explain_test_db.explain_test_table values ('1');
 --echo # Connection default
 --connection default
 
-select OBJECT_INSTANCE_BEGIN from performance_schema.mutex_instances
-  limit 1
-  into @oib;
-
-select NAME from performance_schema.mutex_instances
-  limit 1
-  into @name;
-
-select LOCKED_BY_THREAD_ID from performance_schema.mutex_instances
+select OBJECT_INSTANCE_BEGIN, NAME, LOCKED_BY_THREAD_ID
+  from performance_schema.mutex_instances
   where LOCKED_BY_THREAD_ID is not NULL
   limit 1
-  into @lbtid;
+  into @oib, @name, @lbtid;
 
---disable_warnings
 ###########################################################################
 # Test index on OBJECT_INSTANCE_BEGIN
 ###########################################################################
 
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select NAME from performance_schema.mutex_instances
-  where OBJECT_INSTANCE_BEGIN = '0000000';
+let $column_count = 1;
+let $col1 = OBJECT_INSTANCE_BEGIN;
+let $col1_act = @oib;
 
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select NAME from performance_schema.mutex_instances
-  where OBJECT_INSTANCE_BEGIN > 0 ;
-
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select NAME from performance_schema.mutex_instances
-  where OBJECT_INSTANCE_BEGIN < 0 ;
-
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select NAME from performance_schema.mutex_instances
-  where OBJECT_INSTANCE_BEGIN = @oib ;
-
---echo ############# Explain End #########################################
---enable_warnings
-
-flush status;
-
---replace_column 1 # 10 #
-select NAME from performance_schema.mutex_instances
-  where OBJECT_INSTANCE_BEGIN = @oib ;
-
-show session status like "handler_read%";
+--source ../include/idx_explain_test.inc
 
 ###########################################################################
 # Test index on NAME
 ###########################################################################
 
---disable_warnings
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.mutex_instances
-  where NAME = "impossible";
+let $column_count = 1;
+let $col1 = NAME;
+let $col1_act = @name;
 
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.mutex_instances
-  where NAME > "foo" ;
-
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.mutex_instances
-  where NAME < "bar" ;
-
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.mutex_instances
-  where NAME = @name ;
-
---echo ############# Explain End #########################################
---enable_warnings
-
-flush status;
-
---replace_column 1 # 10 #
-select OBJECT_INSTANCE_BEGIN from performance_schema.mutex_instances
-  where NAME = @name ;
-
-show session status like "handler_read%";
+--source ../include/idx_explain_test.inc
 
 ###########################################################################
 # Test index on LOCKED_BY_THREAD_ID
 ###########################################################################
 
---disable_warnings
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.mutex_instances
-  where LOCKED_BY_THREAD_ID = '9999';
+let $column_count = 1;
+let $col1 = LOCKED_BY_THREAD_ID;
+let $col1_act = @lbtid;
 
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.mutex_instances
-  where LOCKED_BY_THREAD_ID > 1 ;
+--source ../include/idx_explain_test.inc
 
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.mutex_instances
-  where LOCKED_BY_THREAD_ID < 1 ;
-
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.mutex_instances
-  where LOCKED_BY_THREAD_ID = @lbtid ;
-
---echo ############# Explain End #########################################
---enable_warnings
-
-flush status;
-
---replace_column 1 #
-select OBJECT_INSTANCE_BEGIN from performance_schema.mutex_instances
-  where LOCKED_BY_THREAD_ID = @lbtid ;
-
-show session status like "handler_read%";
-
+# Cleanup
 unlock tables;
 --echo # connection con1
 --connection con1
@@ -145,6 +65,6 @@ unlock tables;
 
 --echo # connection default
 --connection default
-
+--disconnect con1
 drop table explain_test_db.explain_test_table;
 drop database explain_test_db;

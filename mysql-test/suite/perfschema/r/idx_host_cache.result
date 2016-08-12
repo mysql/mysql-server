@@ -35,71 +35,77 @@ SELECT current_user() AS "";
 
 user4@santa.claus.ipv4.example.com
 SET global debug= default;
+
+====================================================================
+Testing index for columns IP
+====================================================================
 ############ Explain for Query ####################################
-explain select * from performance_schema.host_cache
-where IP < "1.1.1.1";
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	host_cache	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
-############ Explain for Query ####################################
-explain select * from performance_schema.host_cache
-where IP > "1.1.1.1";
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	host_cache	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
-############ Explain for Query ####################################
-explain select * from performance_schema.host_cache
+explain select SUM_CONNECT_ERRORS 
+from performance_schema.host_cache 
 where IP = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
 ############ Explain for Query ####################################
-explain select * from performance_schema.host_cache
+explain select SUM_CONNECT_ERRORS
+from performance_schema.host_cache
+where IP > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	host_cache	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_CONNECT_ERRORS
+from performance_schema.host_cache
+where IP < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	host_cache	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_CONNECT_ERRORS
+from performance_schema.host_cache
 where IP = "192.0.2.4";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	host_cache	NULL	const	PRIMARY	PRIMARY	194	const	#	100.00	NULL
+############# Explain End #########################################
 flush status;
-select HOST
+select SUM_CONNECT_ERRORS
 from performance_schema.host_cache
 where IP = "192.0.2.4";
-HOST
+SUM_CONNECT_ERRORS
 #
-show session status like "handler_read%";
-Variable_name	Value
-Handler_read_first	0
-Handler_read_key	1
-Handler_read_last	0
-Handler_read_next	0
-Handler_read_prev	0
-Handler_read_rnd	0
-Handler_read_rnd_next	0
+OK: handler_read_key incremented
+
+====================================================================
+Testing index for columns HOST
+====================================================================
 ############ Explain for Query ####################################
-explain select * from performance_schema.host_cache
-where host = 'nohost';
+explain select SUM_CONNECT_ERRORS 
+from performance_schema.host_cache 
+where HOST = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	host_cache	NULL	ref	HOST	HOST	768	const	#	100.00	NULL
 ############ Explain for Query ####################################
-explain select * from performance_schema.host_cache
-where host like "santa%";
+explain select SUM_CONNECT_ERRORS
+from performance_schema.host_cache
+where HOST > "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	host_cache	NULL	ALL	HOST	NULL	NULL	NULL	#	11.11	Using where
+1	SIMPLE	host_cache	NULL	ALL	HOST	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
-explain select * from performance_schema.host_cache
-where host = "santa.claus.ipv4.example.com";
+explain select SUM_CONNECT_ERRORS
+from performance_schema.host_cache
+where HOST < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	host_cache	NULL	ALL	HOST	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_CONNECT_ERRORS
+from performance_schema.host_cache
+where HOST = "santa.claus.ipv4.example.com";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	host_cache	NULL	ref	HOST	HOST	768	const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
-select IP
+select SUM_CONNECT_ERRORS
 from performance_schema.host_cache
-where host = "santa.claus.ipv4.example.com";
-IP
-192.0.2.4
-show session status like "handler_read%";
-Variable_name	Value
-Handler_read_first	0
-Handler_read_key	1
-Handler_read_last	0
-Handler_read_next	1
-Handler_read_prev	0
-Handler_read_rnd	0
-Handler_read_rnd_next	0
+where HOST = "santa.claus.ipv4.example.com";
+SUM_CONNECT_ERRORS
+#
+OK: handler_read_key incremented
 REVOKE SELECT ON test.* FROM 'user4'@'santa.claus.ipv4.example.com';
 DROP USER 'user4'@'santa.claus.ipv4.example.com';

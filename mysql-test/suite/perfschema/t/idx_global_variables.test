@@ -3,41 +3,14 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
+#setup
+let $select_column = VARIABLE_VALUE;
+let $table = performance_schema.global_variables;
+
 # Test index on VARIABLE_NAME
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select VARIABLE_NAME
-  from performance_schema.global_variables
-  where VARIABLE_NAME = "impossible";
+let $column_count = 1;
+let $col1 = VARIABLE_NAME;
+let $col1_act = "performance_schema";
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select VARIABLE_NAME
-  from performance_schema.global_variables
-  where VARIABLE_NAME = "performance_schema";
-
---echo ############# Explain End #########################################
-
-flush status;
-
-select *
-  from performance_schema.global_variables
-  where VARIABLE_NAME = "performance_schema";
-
-let $count1 = query_get_value(show session status like "handler_read_key", Value, 1);
-
-select *
-  from performance_schema.global_variables
-  where VARIABLE_NAME = "performance_schema";
-
-let $count2 = query_get_value(show session status like "handler_read_key", Value, 1);
-
-if ($count1 < $count2)
-{
-  --echo OK: handler_read_key incremented
-}
-if ($count1 >= $count2)
-{
-  --echo ***ERROR*** handler_read_key: Before= $count1, After= $count2
-}
+--source ../include/idx_explain_test.inc

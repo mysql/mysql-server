@@ -3,6 +3,9 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
+#setup
+let $select_column = ENABLED;
+let $table = performance_schema.setup_objects;
 
 let $olddb = `select database()`;
 create database explain_test_db;
@@ -21,75 +24,17 @@ insert into performance_schema.setup_objects values ('PROCEDURE',
 
 # Test index on OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
-  from performance_schema.setup_objects
-  where OBJECT_TYPE = 'PROCEDURE';
+let $column_count = 3;
+let $col1 = OBJECT_TYPE;
+let $col2 = OBJECT_SCHEMA;
+let $col3 = OBJECT_NAME;
+let $col1_act = "PROCEDURE";
+let $col2_act = "explain_test_db";
+let $col3_act = "explain_test_proc";
 
-eval use $olddb;
+--source ../include/idx_explain_test.inc
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select *
-  from performance_schema.setup_objects
-  where OBJECT_TYPE = 'PROCEDURE' and OBJECT_SCHEMA = 'explain_test_db';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select *
-  from performance_schema.setup_objects
-  where OBJECT_TYPE = 'PROCEDURE' and OBJECT_SCHEMA = 'explain_test_db'
-        and OBJECT_NAME = 'noobject';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
-  from performance_schema.setup_objects
-  where OBJECT_TYPE = 'NOTYPE' and OBJECT_SCHEMA = 'explain_test_db'
-        and OBJECT_NAME = 'explain_test_proc';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
-  from performance_schema.setup_objects
-  where OBJECT_TYPE = 'PROCEDURE' and OBJECT_SCHEMA = 'nodb'
-        and OBJECT_NAME = 'explain_test_proc';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
-  from performance_schema.setup_objects
-  where OBJECT_TYPE = 'PROCEDURE' and OBJECT_SCHEMA = 'explain_test_db'
-        and OBJECT_NAME = 'explain_test_proc';
-
---echo ############# Explain End #########################################
-
-flush status;
-
-select ENABLED, TIMED
-  from performance_schema.setup_objects
-  where OBJECT_TYPE = 'TABLE' and OBJECT_SCHEMA = 'explain_test_db'
-        and OBJECT_NAME = 'explain_test_proc';
-
-let $count1 = query_get_value(show session status like "handler_read_key", Value, 1);
-
-select ENABLED, TIMED
-  from performance_schema.setup_objects
-  where OBJECT_TYPE = 'PROCEDURE' and OBJECT_SCHEMA = 'explain_test_db'
-        and OBJECT_NAME = 'explain_test_proc';
-
-let $count2 = query_get_value(show session status like "handler_read_key", Value, 1);
-
-if ($count1 < $count2)
-{
-  --echo OK: handler_read_key incremented
-}
-if ($count1 >= $count2)
-{
-  --echo ***ERROR*** handler_read_key: Before= $count1, After= $count2
-}
-
+# Cleanup
 delete from performance_schema.setup_objects where object_schema = 'explain_test_db';
 drop table explain_test_db.explain_test_table;
 drop database explain_test_db;

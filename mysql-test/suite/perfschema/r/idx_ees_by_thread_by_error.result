@@ -2,64 +2,75 @@ select connection_id() into @conid;
 select thread_id from performance_schema.threads
 where PROCESSLIST_ID = @conid
 into @tid;
+
+====================================================================
+Testing index for columns THREAD_ID, ERROR_NUMBER
+====================================================================
 ############ Explain for Query ####################################
-explain select THREAD_ID, ERROR_NUMBER
+explain select SUM_ERROR_RAISED
 from performance_schema.events_errors_summary_by_thread_by_error
-where THREAD_ID = 1;
+where THREAD_ID = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	events_errors_summary_by_thread_by_error	NULL	ref	THREAD_ID	THREAD_ID	8	const	#	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select `performance_schema`.`events_errors_summary_by_thread_by_error`.`THREAD_ID` AS `THREAD_ID`,`performance_schema`.`events_errors_summary_by_thread_by_error`.`ERROR_NUMBER` AS `ERROR_NUMBER` from `performance_schema`.`events_errors_summary_by_thread_by_error` where (`performance_schema`.`events_errors_summary_by_thread_by_error`.`THREAD_ID` = 1)
+1	SIMPLE	events_errors_summary_by_thread_by_error	NULL	ref	THREAD_ID	THREAD_ID	8	const	#	100.00	Using where
 ############ Explain for Query ####################################
-explain select *
+explain select SUM_ERROR_RAISED
 from performance_schema.events_errors_summary_by_thread_by_error
-where THREAD_ID > 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	events_errors_summary_by_thread_by_error	NULL	ALL	THREAD_ID	NULL	NULL	NULL	#	33.33	Using where
-Warnings:
-Note	1003	/* select#1 */ select `performance_schema`.`events_errors_summary_by_thread_by_error`.`THREAD_ID` AS `THREAD_ID`,`performance_schema`.`events_errors_summary_by_thread_by_error`.`ERROR_NUMBER` AS `ERROR_NUMBER`,`performance_schema`.`events_errors_summary_by_thread_by_error`.`ERROR_NAME` AS `ERROR_NAME`,`performance_schema`.`events_errors_summary_by_thread_by_error`.`SQL_STATE` AS `SQL_STATE`,`performance_schema`.`events_errors_summary_by_thread_by_error`.`SUM_ERROR_RAISED` AS `SUM_ERROR_RAISED`,`performance_schema`.`events_errors_summary_by_thread_by_error`.`SUM_ERROR_HANDLED` AS `SUM_ERROR_HANDLED`,`performance_schema`.`events_errors_summary_by_thread_by_error`.`FIRST_SEEN` AS `FIRST_SEEN`,`performance_schema`.`events_errors_summary_by_thread_by_error`.`LAST_SEEN` AS `LAST_SEEN` from `performance_schema`.`events_errors_summary_by_thread_by_error` where (`performance_schema`.`events_errors_summary_by_thread_by_error`.`THREAD_ID` > 1)
-############ Explain for Query ####################################
-explain select *
-from performance_schema.events_errors_summary_by_thread_by_error
-where THREAD_ID < 1;
+where THREAD_ID > "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	events_errors_summary_by_thread_by_error	NULL	ALL	THREAD_ID	NULL	NULL	NULL	#	33.33	Using where
-Warnings:
-Note	1003	/* select#1 */ select `performance_schema`.`events_errors_summary_by_thread_by_error`.`THREAD_ID` AS `THREAD_ID`,`performance_schema`.`events_errors_summary_by_thread_by_error`.`ERROR_NUMBER` AS `ERROR_NUMBER`,`performance_schema`.`events_errors_summary_by_thread_by_error`.`ERROR_NAME` AS `ERROR_NAME`,`performance_schema`.`events_errors_summary_by_thread_by_error`.`SQL_STATE` AS `SQL_STATE`,`performance_schema`.`events_errors_summary_by_thread_by_error`.`SUM_ERROR_RAISED` AS `SUM_ERROR_RAISED`,`performance_schema`.`events_errors_summary_by_thread_by_error`.`SUM_ERROR_HANDLED` AS `SUM_ERROR_HANDLED`,`performance_schema`.`events_errors_summary_by_thread_by_error`.`FIRST_SEEN` AS `FIRST_SEEN`,`performance_schema`.`events_errors_summary_by_thread_by_error`.`LAST_SEEN` AS `LAST_SEEN` from `performance_schema`.`events_errors_summary_by_thread_by_error` where (`performance_schema`.`events_errors_summary_by_thread_by_error`.`THREAD_ID` < 1)
 ############ Explain for Query ####################################
-explain select THREAD_ID, ERROR_NUMBER
+explain select SUM_ERROR_RAISED
 from performance_schema.events_errors_summary_by_thread_by_error
-where THREAD_ID = 1 and ERROR_NUMBER = '0000';
+where THREAD_ID < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_errors_summary_by_thread_by_error	NULL	ALL	THREAD_ID	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_ERROR_RAISED
+from performance_schema.events_errors_summary_by_thread_by_error
+where THREAD_ID = @tid;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_errors_summary_by_thread_by_error	NULL	ref	THREAD_ID	THREAD_ID	8	const	#	100.00	Using where
+############ Explain for Query ####################################
+explain select SUM_ERROR_RAISED
+from performance_schema.events_errors_summary_by_thread_by_error
+where THREAD_ID = "impossible"
+    and ERROR_NUMBER = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
-Warnings:
-Note	1003	/* select#1 */ select NULL AS `THREAD_ID`,NULL AS `ERROR_NUMBER` from `performance_schema`.`events_errors_summary_by_thread_by_error` where ((NULL = '0000') and multiple equal(1, NULL))
 ############ Explain for Query ####################################
-explain select THREAD_ID, ERROR_NUMBER
+explain select SUM_ERROR_RAISED
 from performance_schema.events_errors_summary_by_thread_by_error
-where THREAD_ID = 99999 and ERROR_NUMBER = '1146';
+where THREAD_ID = @tid
+and ERROR_NUMBER = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
-Warnings:
-Note	1003	/* select#1 */ select NULL AS `THREAD_ID`,NULL AS `ERROR_NUMBER` from `performance_schema`.`events_errors_summary_by_thread_by_error` where ((NULL = '1146') and multiple equal(99999, NULL))
 ############ Explain for Query ####################################
-explain select THREAD_ID, ERROR_NUMBER
+explain select SUM_ERROR_RAISED
 from performance_schema.events_errors_summary_by_thread_by_error
-where THREAD_ID = 1 and ERROR_NUMBER = '1146';
+where THREAD_ID = @tid
+and ERROR_NUMBER > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_errors_summary_by_thread_by_error	NULL	ref	THREAD_ID	THREAD_ID	8	const	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_ERROR_RAISED
+from performance_schema.events_errors_summary_by_thread_by_error
+where THREAD_ID = @tid
+and ERROR_NUMBER < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_errors_summary_by_thread_by_error	NULL	ref	THREAD_ID	THREAD_ID	8	const	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_ERROR_RAISED
+from performance_schema.events_errors_summary_by_thread_by_error
+where THREAD_ID = @tid
+and ERROR_NUMBER = "1146";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	events_errors_summary_by_thread_by_error	NULL	const	THREAD_ID	THREAD_ID	13	const,const	#	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select '1' AS `THREAD_ID`,'1146' AS `ERROR_NUMBER` from `performance_schema`.`events_errors_summary_by_thread_by_error` where (('1146' = '1146'))
 ############# Explain End #########################################
 flush status;
-select  ERROR_NUMBER
+select SUM_ERROR_RAISED
 from performance_schema.events_errors_summary_by_thread_by_error
-where thread_id = @tid and ERROR_NUMBER = '1146';
-ERROR_NUMBER
-1146
-select  ERROR_NUMBER
-from performance_schema.events_errors_summary_by_thread_by_error
-where thread_id = @tid and ERROR_NUMBER = '1146';
-ERROR_NUMBER
-1146
+where THREAD_ID = @tid
+and ERROR_NUMBER = "1146";
+SUM_ERROR_RAISED
+#
 OK: handler_read_key incremented

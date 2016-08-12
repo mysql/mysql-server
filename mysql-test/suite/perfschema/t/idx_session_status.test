@@ -3,32 +3,13 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
+#setup
+let $select_column = VARIABLE_VALUE;
+let $table = performance_schema.session_status;
+
 # Test index on VARIABLE_NAME
+let $column_count = 1;
+let $col1 = VARIABLE_NAME;
+let $col1_act = "Performance_schema_users_lost";
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select VARIABLE_NAME
-  from performance_schema.session_status
-  where VARIABLE_NAME = "impossible";
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select VARIABLE_NAME
-  from performance_schema.session_status
-  where VARIABLE_NAME = "Performance_schema_users_lost";
-
---echo ############# Explain End #########################################
-
-flush status;
-
-select *
-  from performance_schema.session_status
-  where VARIABLE_NAME = "Performance_schema_users_lost";
-
-show session status like "handler_read%";
-
-select *
-  from performance_schema.session_status
-  where VARIABLE_NAME = "Performance_schema_users_lost";
-
-show session status like "handler_read%";
+--source ../include/idx_explain_test.inc

@@ -1,29 +1,36 @@
+
+====================================================================
+Testing index for columns VARIABLE_NAME
+====================================================================
 ############ Explain for Query ####################################
-explain select VARIABLE_NAME
-from performance_schema.global_variables
+explain select VARIABLE_VALUE 
+from performance_schema.global_variables 
 where VARIABLE_NAME = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
-Warnings:
-Note	1003	/* select#1 */ select NULL AS `VARIABLE_NAME` from `performance_schema`.`global_variables` where (NULL = 'impossible')
 ############ Explain for Query ####################################
-explain select VARIABLE_NAME
+explain select VARIABLE_VALUE
+from performance_schema.global_variables
+where VARIABLE_NAME > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	global_variables	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select VARIABLE_VALUE
+from performance_schema.global_variables
+where VARIABLE_NAME < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	global_variables	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select VARIABLE_VALUE
 from performance_schema.global_variables
 where VARIABLE_NAME = "performance_schema";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	global_variables	NULL	const	PRIMARY	PRIMARY	194	const	#	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select 'performance_schema' AS `VARIABLE_NAME` from `performance_schema`.`global_variables` where ('performance_schema' = 'performance_schema')
 ############# Explain End #########################################
 flush status;
-select *
+select VARIABLE_VALUE
 from performance_schema.global_variables
 where VARIABLE_NAME = "performance_schema";
-VARIABLE_NAME	VARIABLE_VALUE
-performance_schema	ON
-select *
-from performance_schema.global_variables
-where VARIABLE_NAME = "performance_schema";
-VARIABLE_NAME	VARIABLE_VALUE
-performance_schema	ON
+VARIABLE_VALUE
+#
 OK: handler_read_key incremented

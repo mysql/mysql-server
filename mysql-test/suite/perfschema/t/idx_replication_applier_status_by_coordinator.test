@@ -3,7 +3,10 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
---echo # SETUP
+#setup
+let $select_column = SERVICE_STATE;
+let $table = performance_schema.replication_applier_status_by_coordinator;
+
 --disable_warnings
 --source include/master-slave.inc
 
@@ -37,86 +40,23 @@ select CHANNEL_NAME, THREAD_ID
 # Test index on CHANNEL_NAME
 ###########################################################################
 
---disable_warnings
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select SERVICE_STATE
-  from performance_schema.replication_applier_status_by_coordinator
-  where CHANNEL_NAME = "impossible";
+let $column_count = 1;
+let $col1 = CHANNEL_NAME;
+let $col1_act = @c_name;
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select SERVICE_STATE
-  from performance_schema.replication_applier_status_by_coordinator
-  where CHANNEL_NAME > "foo";
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select SERVICE_STATE
-  from performance_schema.replication_applier_status_by_coordinator
-  where CHANNEL_NAME < "bar";
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select SERVICE_STATE
-  from performance_schema.replication_applier_status_by_coordinator
-  where CHANNEL_NAME = @c_name;
-
---echo ############# Explain End #########################################
---enable_warnings
-
-flush status;
-
---replace_column 1 #
-select SERVICE_STATE
-  from performance_schema.replication_applier_status_by_coordinator
-  where CHANNEL_NAME = @c_name;
-
-show session status like "handler_read%";
+--source ../include/idx_explain_test.inc
 
 ###########################################################################
 # Test index on THREAD_ID
 ###########################################################################
 
---disable_warnings
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select SERVICE_STATE
-  from performance_schema.replication_applier_status_by_coordinator
-  where THREAD_ID = '9999';
+let $column_count = 1;
+let $col1 = THREAD_ID;
+let $col1_act = @t_id;
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select SERVICE_STATE
-  from performance_schema.replication_applier_status_by_coordinator
-  where THREAD_ID > 1;
+--source ../include/idx_explain_test.inc
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select SERVICE_STATE
-  from performance_schema.replication_applier_status_by_coordinator
-  where THREAD_ID < 1;
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select SERVICE_STATE
-  from performance_schema.replication_applier_status_by_coordinator
-  where THREAD_ID = @t_id;
-
---echo ############# Explain End #########################################
---enable_warnings
-
-flush status;
-
---replace_column 1 #
-select SERVICE_STATE
-  from performance_schema.replication_applier_status_by_coordinator
-  where THREAD_ID = @t_id;
-
-show session status like "handler_read%";
-
-
--- echo # CLEANUP
+# Cleanup
 source include/stop_slave.inc;
 RESET SLAVE ALL;
 eval SET GLOBAL master_info_repository= "$save_master_info_repository";

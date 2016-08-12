@@ -3,84 +3,30 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
-select connection_id() into @conid;
+#setup
+let $select_column = count(*);
+let $table = performance_schema.cond_instances;
 
-select OBJECT_INSTANCE_BEGIN from performance_schema.cond_instances
+select OBJECT_INSTANCE_BEGIN, NAME from performance_schema.cond_instances
   limit 1
-  into @oib;
+  into @oib, @name;
 
-select NAME from performance_schema.cond_instances
-  limit 1
-  into @name;
-
---disable_warnings
 ###########################################################################
 # Test index on OBJECT_INSTANCE_BEGIN
 ###########################################################################
 
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select NAME from performance_schema.cond_instances
-  where OBJECT_INSTANCE_BEGIN = '0000000';
+let $column_count = 1;
+let $col1 = OBJECT_INSTANCE_BEGIN;
+let $col1_act = @oib;
 
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select NAME from performance_schema.cond_instances
-  where OBJECT_INSTANCE_BEGIN > 0 ;
-
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select NAME from performance_schema.cond_instances
-  where OBJECT_INSTANCE_BEGIN < 0 ;
-
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select NAME from performance_schema.cond_instances
-  where OBJECT_INSTANCE_BEGIN = @oib ;
-
---echo ############# Explain End #########################################
---enable_warnings
-
-flush status;
-
---replace_column 1 #
-select NAME from performance_schema.cond_instances
-  where OBJECT_INSTANCE_BEGIN = @oib ;
-
-show session status like "handler_read%";
+--source ../include/idx_explain_test.inc
 
 ###########################################################################
 # Test index on NAME
 ###########################################################################
 
---disable_warnings
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.cond_instances
-  where NAME = "impossible";
+let $column_count = 1;
+let $col1 = NAME;
+let $col1_act = @name;
 
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.cond_instances
-  where NAME > "foo" ;
-
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.cond_instances
-  where NAME < "bar" ;
-
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.cond_instances
-  where NAME = @name ;
-
---echo ############# Explain End #########################################
---enable_warnings
-
-flush status;
-
---replace_column 1 #
-select OBJECT_INSTANCE_BEGIN from performance_schema.cond_instances
-  where NAME = @name ;
-
-show session status like "handler_read%";
+--source ../include/idx_explain_test.inc

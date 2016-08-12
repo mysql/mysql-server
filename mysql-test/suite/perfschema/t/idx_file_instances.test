@@ -3,82 +3,30 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
-select FILE_NAME from performance_schema.file_instances
-  limit 1
-  into @fname;
+#setup
+let $select_column = count(*);
+let $table = performance_schema.file_instances;
 
-select EVENT_NAME from performance_schema.file_instances
+select FILE_NAME, EVENT_NAME from performance_schema.file_instances
   limit 1
-  into @ename;
+  into @fname, @ename;
 
---disable_warnings
 ###########################################################################
 # Test index on FILE_NAME
 ###########################################################################
 
---echo ############ Explain for Query ####################################
---replace_column 1 #
-explain select EVENT_NAME from performance_schema.file_instances
-  where FILE_NAME = "impossible";
+let $column_count = 1;
+let $col1 = FILE_NAME;
+let $col1_act = @fname;
 
---echo ############ Explain for Query ####################################
---replace_column 1 #
-explain select EVENT_NAME from performance_schema.file_instances
-  where FILE_NAME > "foo" ;
-
---echo ############ Explain for Query ####################################
---replace_column 1 #
-explain select EVENT_NAME from performance_schema.file_instances
-  where FILE_NAME < "bar" ;
-
---echo ############ Explain for Query ####################################
---replace_column 1 #
-explain select EVENT_NAME from performance_schema.file_instances
-  where FILE_NAME = @fname ;
-
---echo ############# Explain End #########################################
---enable_warnings
-
-flush status;
-
---replace_column 1 #
-select count(*) from performance_schema.file_instances
-  where FILE_NAME = @fname ;
-
-# show session status like "handler_read%";
+--source ../include/idx_explain_test.inc
 
 ###########################################################################
 # Test index on EVENT_NAME
 ###########################################################################
 
---disable_warnings
---echo ############ Explain for Query ####################################
---replace_column 1 #
-explain select FILE_NAME from performance_schema.file_instances
-  where EVENT_NAME = "impossible";
+let $column_count = 1;
+let $col1 = EVENT_NAME;
+let $col1_act = @ename;
 
---echo ############ Explain for Query ####################################
---replace_column 1 #
-explain select FILE_NAME from performance_schema.file_instances
-  where EVENT_NAME > "foo" ;
-
---echo ############ Explain for Query ####################################
---replace_column 1 #
-explain select FILE_NAME from performance_schema.file_instances
-  where EVENT_NAME < "bar" ;
-
---echo ############ Explain for Query ####################################
---replace_column 1 #
-explain select FILE_NAME from performance_schema.file_instances
-  where EVENT_NAME = @ename ;
-
---echo ############# Explain End #########################################
---enable_warnings
-
-flush status;
-
---replace_column 1 #
-select count(*) FILE_NAME from performance_schema.file_instances
-  where EVENT_NAME = @ename ;
-
-# show session status like "handler_read%";
+--source ../include/idx_explain_test.inc

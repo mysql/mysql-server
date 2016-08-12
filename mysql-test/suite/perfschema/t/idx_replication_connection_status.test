@@ -3,7 +3,10 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
---echo # SETUP
+#setup
+let $select_column = SERVICE_STATE;
+let $table = performance_schema.replication_connection_status;
+
 --disable_warnings
 --source include/master-slave.inc
 
@@ -30,59 +33,23 @@ select THREAD_ID from performance_schema.replication_connection_status
 # Test index on CHANNEL_NAME
 ###########################################################################
 
---disable_warnings
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select SERVICE_STATE
-  from performance_schema.replication_connection_status
-  where CHANNEL_NAME = "impossible";
+let $column_count = 1;
+let $col1 = CHANNEL_NAME;
+let $col1_act = "channel_1";
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select SERVICE_STATE
-  from performance_schema.replication_connection_status
-  where CHANNEL_NAME = "channel_1";
-
---echo ############# Explain End #########################################
---enable_warnings
-
-flush status;
-
-select SERVICE_STATE
-  from performance_schema.replication_connection_status
-  where CHANNEL_NAME = "channel_1";
-
-show session status like "handler_read%";
+--source ../include/idx_explain_test.inc
 
 ###########################################################################
 # Test index on THREAD_ID
 ###########################################################################
 
---disable_warnings
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select SERVICE_STATE
-  from performance_schema.replication_connection_status
-  where THREAD_ID = 9999;
+let $column_count = 1;
+let $col1 = THREAD_ID;
+let $col1_act = @tid;
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select SERVICE_STATE
-  from performance_schema.replication_connection_status
-  where THREAD_ID = @tid;
+--source ../include/idx_explain_test.inc
 
---echo ############# Explain End #########################################
---enable_warnings
-
-flush status;
-
-select SERVICE_STATE
-  from performance_schema.replication_connection_status
-  where THREAD_ID = @tid;
-
-show session status like "handler_read%";
-
--- echo # CLEANUP
+# Cleanup
 source include/stop_slave.inc;
 RESET SLAVE ALL;
 eval SET GLOBAL master_info_repository= "$save_master_info_repository";

@@ -3,6 +3,9 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
+#setup
+let $select_column = COUNT_STAR;
+let $table = performance_schema.table_io_waits_summary_by_index_usage;
 
 create database explain_test_db;
 create table explain_test_db.explain_test_table(a int, b int, PRIMARY KEY(a));
@@ -11,85 +14,22 @@ truncate table performance_schema.table_io_waits_summary_by_index_usage;
 insert into explain_test_db.explain_test_table values('1', '2');
 select * from explain_test_db.explain_test_table where a='1';
 
-# Test index on OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
---disable_warnings
+###########################################################################
+# Test index on OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
+###########################################################################
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
-  from performance_schema.table_io_waits_summary_by_index_usage
-  where OBJECT_TYPE = 'TABLE';
+let $column_count = 4;
+let $col1 = OBJECT_TYPE;
+let $col2 = OBJECT_SCHEMA;
+let $col3 = OBJECT_NAME;
+let $col4 = INDEX_NAME;
+let $col1_act = "TABLE";
+let $col2_act = "explain_test_db";
+let $col3_act = "explain_test_table";
+let $col4_act = "PRIMARY";
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select *
-  from performance_schema.table_io_waits_summary_by_index_usage
-  where OBJECT_TYPE = 'TABLE' and OBJECT_SCHEMA = 'explain_test_db';
+--source ../include/idx_explain_test.inc
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select *
-  from performance_schema.table_io_waits_summary_by_index_usage
-  where OBJECT_TYPE = 'TABLE' and OBJECT_SCHEMA = 'explain_test_db'
-        and OBJECT_NAME = 'noobject';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
-  from performance_schema.table_io_waits_summary_by_index_usage
-  where OBJECT_TYPE = 'NOTYPE' and OBJECT_SCHEMA = 'explain_test_db'
-        and OBJECT_NAME = 'explain_test_table';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
-  from performance_schema.table_io_waits_summary_by_index_usage
-  where OBJECT_TYPE = 'TABLE' and OBJECT_SCHEMA = 'nodb'
-        and OBJECT_NAME = 'explain_test_table';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
-  from performance_schema.table_io_waits_summary_by_index_usage
-  where OBJECT_TYPE = 'TABLE' and OBJECT_SCHEMA = 'explain_test_db'
-        and OBJECT_NAME = 'explain_test_table' and INDEX_NAME = 'impossible';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
-  from performance_schema.table_io_waits_summary_by_index_usage
-  where OBJECT_TYPE = 'TABLE' and OBJECT_SCHEMA = 'explain_test_db'
-        and OBJECT_NAME = 'explain_test_table' and INDEX_NAME = 'PRIMARY';
-
---enable_warnings
---echo ############# Explain End #########################################
-
-flush status;
-
---replace_column 1 #
-select COUNT_STAR
-  from performance_schema.table_io_waits_summary_by_index_usage
-  where OBJECT_TYPE = 'TABLE' and OBJECT_SCHEMA = 'explain_test_db'
-        and OBJECT_NAME = 'explain_test_table' and INDEX_NAME = 'impossible';
-
-let $count1 = query_get_value(show session status like "handler_read_key", Value, 1);
-
---replace_column 1 #
-select COUNT_STAR
-  from performance_schema.table_io_waits_summary_by_index_usage
-  where OBJECT_TYPE = 'TABLE' and OBJECT_SCHEMA = 'explain_test_db'
-        and OBJECT_NAME = 'explain_test_table' and INDEX_NAME = 'PRIMARY';
-
-let $count2 = query_get_value(show session status like "handler_read_key", Value, 1);
-
-if ($count1 < $count2)
-{
-  --echo OK: handler_read_key incremented
-}
-if ($count1 >= $count2)
-{
-  --echo ***ERROR*** handler_read_key: Before= $count1, After= $count2
-}
-
+# Cleanup
 drop table explain_test_db.explain_test_table;
 drop database explain_test_db;

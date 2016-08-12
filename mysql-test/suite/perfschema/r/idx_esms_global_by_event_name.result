@@ -1,26 +1,36 @@
+
+====================================================================
+Testing index for columns EVENT_NAME
+====================================================================
 ############ Explain for Query ####################################
-explain select EVENT_NAME
-from performance_schema.events_statements_summary_global_by_event_name
+explain select COUNT_STAR 
+from performance_schema.events_statements_summary_global_by_event_name 
 where EVENT_NAME = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
 ############ Explain for Query ####################################
-explain select EVENT_NAME
+explain select COUNT_STAR
+from performance_schema.events_statements_summary_global_by_event_name
+where EVENT_NAME > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_statements_summary_global_by_event_name	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select COUNT_STAR
+from performance_schema.events_statements_summary_global_by_event_name
+where EVENT_NAME < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_statements_summary_global_by_event_name	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select COUNT_STAR
 from performance_schema.events_statements_summary_global_by_event_name
 where EVENT_NAME = "statement/sql/select";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	events_statements_summary_global_by_event_name	NULL	const	PRIMARY	PRIMARY	386	const	#	100.00	NULL
 ############# Explain End #########################################
-truncate table performance_schema.events_statements_summary_global_by_event_name;
 flush status;
-select EVENT_NAME, COUNT_STAR
+select COUNT_STAR
 from performance_schema.events_statements_summary_global_by_event_name
 where EVENT_NAME = "statement/sql/select";
-EVENT_NAME	COUNT_STAR
-statement/sql/select	#
-select EVENT_NAME, COUNT_STAR
-from performance_schema.events_statements_summary_global_by_event_name
-where EVENT_NAME = "statement/sql/select";
-EVENT_NAME	COUNT_STAR
-statement/sql/select	#
+COUNT_STAR
+#
 OK: handler_read_key incremented

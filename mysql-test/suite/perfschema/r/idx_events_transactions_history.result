@@ -1,61 +1,82 @@
 create user foo@localhost;
 grant ALL on *.* to foo@localhost;
-update performance_schema.setup_consumers set ENABLED='YES' where NAME like "events_transactions_%";
-update performance_schema.setup_instruments set ENABLED='YES' where NAME = "transaction";
 truncate table performance_schema.events_transactions_history;
 # Connection 1
 select connection_id() into @conid;
 start transaction;
 rollback;
 # Default connection
+
+====================================================================
+Testing index for columns THREAD_ID, EVENT_ID
+====================================================================
 ############ Explain for Query ####################################
-explain select THREAD_ID, EVENT_ID
+explain select END_EVENT_ID
 from performance_schema.events_transactions_history
-where THREAD_ID = 1;
+where THREAD_ID = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	events_transactions_history	NULL	ref	PRIMARY	PRIMARY	8	const	#	100.00	NULL
+1	SIMPLE	events_transactions_history	NULL	ref	PRIMARY	PRIMARY	8	const	#	100.00	Using where
 ############ Explain for Query ####################################
-explain select *
+explain select END_EVENT_ID
 from performance_schema.events_transactions_history
-where THREAD_ID > 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	events_transactions_history	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
-############ Explain for Query ####################################
-explain select *
-from performance_schema.events_transactions_history
-where THREAD_ID < 1;
+where THREAD_ID > "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	events_transactions_history	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
-explain select THREAD_ID, EVENT_ID
+explain select END_EVENT_ID
 from performance_schema.events_transactions_history
-where THREAD_ID = 1 and EVENT_ID = '0';
+where THREAD_ID < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_transactions_history	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select END_EVENT_ID
+from performance_schema.events_transactions_history
+where THREAD_ID = @tid;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_transactions_history	NULL	ref	PRIMARY	PRIMARY	8	const	#	100.00	Using where
+############ Explain for Query ####################################
+explain select END_EVENT_ID
+from performance_schema.events_transactions_history
+where THREAD_ID = "impossible"
+    and EVENT_ID = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
 ############ Explain for Query ####################################
-explain select THREAD_ID, EVENT_ID
+explain select END_EVENT_ID
 from performance_schema.events_transactions_history
-where THREAD_ID = 99999 and EVENT_ID = @eid;
+where THREAD_ID = @tid
+and EVENT_ID = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
 ############ Explain for Query ####################################
-explain select THREAD_ID, EVENT_ID
+explain select END_EVENT_ID
 from performance_schema.events_transactions_history
-where THREAD_ID = @tid and EVENT_ID = @eid;
+where THREAD_ID = @tid
+and EVENT_ID > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_transactions_history	NULL	ref	PRIMARY	PRIMARY	8	const	#	33.33	Using where
+############ Explain for Query ####################################
+explain select END_EVENT_ID
+from performance_schema.events_transactions_history
+where THREAD_ID = @tid
+and EVENT_ID < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_transactions_history	NULL	ref	PRIMARY	PRIMARY	8	const	#	33.33	Using where
+############ Explain for Query ####################################
+explain select END_EVENT_ID
+from performance_schema.events_transactions_history
+where THREAD_ID = @tid
+and EVENT_ID = @eid;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	events_transactions_history	NULL	const	PRIMARY	PRIMARY	16	const,const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
-select EVENT_ID, EVENT_NAME
+select END_EVENT_ID
 from performance_schema.events_transactions_history
-where thread_id = @tid and EVENT_ID = @eid;
-EVENT_ID	EVENT_NAME
-#	transaction
-select EVENT_ID, EVENT_NAME
-from performance_schema.events_transactions_history
-where thread_id = @tid and EVENT_ID = @eid;
-EVENT_ID	EVENT_NAME
-#	transaction
+where THREAD_ID = @tid
+and EVENT_ID = @eid;
+END_EVENT_ID
+#
 OK: handler_read_key incremented
 commit;
 drop user foo@localhost;

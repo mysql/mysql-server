@@ -3,32 +3,14 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
+#setup
+let $select_column = ENABLED;
+let $table = performance_schema.setup_instruments;
+
 # Test index on NAME
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select NAME
-  from performance_schema.setup_instruments
-  where NAME = "impossible";
+let $column_count = 1;
+let $col1 = NAME;
+let $col1_act = "statement/sql/select";
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select NAME
-  from performance_schema.setup_instruments
-  where NAME = "statement/sql/select";
-
---echo ############# Explain End #########################################
-
-flush status;
-
-select *
-  from performance_schema.setup_instruments
-  where NAME = "statement/sql/select";
-
-show session status like "handler_read%";
-
-select *
-  from performance_schema.setup_instruments
-  where NAME = "statement/sql/select";
-
-show session status like "handler_read%";
+--source ../include/idx_explain_test.inc

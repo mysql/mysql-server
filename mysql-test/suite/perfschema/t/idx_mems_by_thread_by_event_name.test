@@ -3,72 +3,24 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
+#setup
+let $select_column = LOW_COUNT_USED;
+let $table = performance_schema.memory_summary_by_thread_by_event_name;
+
 select connection_id() into @conid;
 
 select thread_id from performance_schema.threads
   where PROCESSLIST_ID = @conid
   into @tid;
 
+###########################################################################
 # Test index on THREAD_ID, EVENT_NAME
-truncate table performance_schema.memory_summary_by_thread_by_event_name;
+###########################################################################
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select THREAD_ID, EVENT_NAME
-  from performance_schema.memory_summary_by_thread_by_event_name
-  where THREAD_ID = 1;
+let $column_count = 2;
+let $col1 = THREAD_ID;
+let $col2 = EVENT_NAME;
+let $col1_act = @tid;
+let $col2_act = "memory/sql/help";
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select *
-  from performance_schema.memory_summary_by_thread_by_event_name
-  where THREAD_ID > 1;
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select *
-  from performance_schema.memory_summary_by_thread_by_event_name
-  where THREAD_ID < 1;
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select THREAD_ID, EVENT_NAME
-  from performance_schema.memory_summary_by_thread_by_event_name
-  where THREAD_ID = 1 and EVENT_NAME = "impossible";
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select THREAD_ID, EVENT_NAME
-  from performance_schema.memory_summary_by_thread_by_event_name
-  where THREAD_ID = 99999 and EVENT_NAME = "memory/sql/help";
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select THREAD_ID, EVENT_NAME
-  from performance_schema.memory_summary_by_thread_by_event_name
-  where THREAD_ID = 1 and EVENT_NAME = "memory/sql/help";
-
---echo ############# Explain End #########################################
-
-flush status;
-
-select LOW_COUNT_USED
-  from performance_schema.memory_summary_by_thread_by_event_name
-  where thread_id = @tid and EVENT_NAME = "memory/sql/help";
-
-let $count1 = query_get_value(show session status like "handler_read_key", Value, 1);
-
-select LOW_COUNT_USED
-  from performance_schema.memory_summary_by_thread_by_event_name
-  where thread_id = @tid and EVENT_NAME = "memory/sql/help";
-
-let $count2 = query_get_value(show session status like "handler_read_key", Value, 1);
-
-if ($count1 < $count2)
-{
-  --echo OK: handler_read_key incremented
-}
-if ($count1 >= $count2)
-{
-  --echo ***ERROR*** handler_read_key: Before= $count1, After= $count2
-}
+--source ../include/idx_explain_test.inc

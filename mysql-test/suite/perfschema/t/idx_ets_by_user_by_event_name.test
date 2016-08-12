@@ -4,80 +4,24 @@
 --source include/have_perfschema.inc
 
 #setup
+let $select_column = COUNT_STAR;
+let $table = performance_schema.events_transactions_summary_by_user_by_event_name;
+
 create user foo@localhost;
 grant ALL on *.* to foo@localhost;
 connect(con, localhost, foo,,);
 
-select connection_id() into @conid;
-select thread_id from performance_schema.threads
-  where PROCESSLIST_ID = @conid
-  into @tid;
-
+###########################################################################
 # Test index on USER, EVENT_NAME
+###########################################################################
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select USER, EVENT_NAME
-  from performance_schema.events_transactions_summary_by_user_by_event_name
-  where USER = 'foo';
+let $column_count = 2;
+let $col1 = USER;
+let $col2 = EVENT_NAME;
+let $col1_act = "foo";
+let $col2_act = "transaction";
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select *
-  from performance_schema.events_transactions_summary_by_user_by_event_name
-  where USER != 'foo';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select *
-  from performance_schema.events_transactions_summary_by_user_by_event_name
-  where USER NOT LIKE 'foo';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select USER, EVENT_NAME
-  from performance_schema.events_transactions_summary_by_user_by_event_name
-  where USER = 'foo' and EVENT_NAME = "impossible";
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select USER, EVENT_NAME
-  from performance_schema.events_transactions_summary_by_user_by_event_name
-  where USER = 'nouser' and EVENT_NAME = "transaction";
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select USER, EVENT_NAME
-  from performance_schema.events_transactions_summary_by_user_by_event_name
-  where USER = 'foo' and EVENT_NAME = "transaction";
-
---echo ############# Explain End #########################################
-
-flush status;
-
---replace_column 2 #
-select EVENT_NAME, COUNT_STAR
-  from performance_schema.events_transactions_summary_by_thread_by_event_name
-  where thread_id = @tid and EVENT_NAME = "transaction";
-
-let $count1 = query_get_value(show session status like "handler_read_key", Value, 1);
-
---replace_column 2 #
-select EVENT_NAME, COUNT_STAR
-  from performance_schema.events_transactions_summary_by_thread_by_event_name
-  where thread_id = @tid and EVENT_NAME = "transaction";
-
-let $count2 = query_get_value(show session status like "handler_read_key", Value, 1);
-
-if ($count1 < $count2)
-{
-  --echo OK: handler_read_key incremented
-}
-if ($count1 >= $count2)
-{
-  --echo ***ERROR*** handler_read_key: Before= $count1, After= $count2
-}
+--source ../include/idx_explain_test.inc
 
 # Cleanup
---connection default
 drop user foo@localhost;

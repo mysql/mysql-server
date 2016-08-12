@@ -3,32 +3,14 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
+#setup
+let $select_column = ENABLED;
+let $table = performance_schema.setup_consumers;
+
 # Test index on NAME
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select NAME
-  from performance_schema.setup_consumers
-  where NAME = "impossible";
+let $column_count = 1;
+let $col1 = NAME;
+let $col1_act = "statements_digest";
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select NAME
-  from performance_schema.setup_consumers
-  where NAME = "statements_digest";
-
---echo ############# Explain End #########################################
-
-flush status;
-
-select *
-  from performance_schema.setup_consumers
-  where NAME = "statements_digest";
-
-show session status like "handler_read%";
-
-select *
-  from performance_schema.setup_consumers
-  where NAME = "statements_digest";
-
-show session status like "handler_read%";
+--source ../include/idx_explain_test.inc

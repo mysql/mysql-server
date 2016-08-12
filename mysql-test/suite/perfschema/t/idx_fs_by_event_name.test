@@ -3,35 +3,16 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
+#setup
+let $select_column = COUNT_STAR;
+let $table = performance_schema.file_summary_by_event_name;
+
+###########################################################################
 # Test index on EVENT_NAME
---disable_warnings
+###########################################################################
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select EVENT_NAME
-  from performance_schema.file_summary_by_event_name
-  where EVENT_NAME = "impossible";
+let $column_count = 1;
+let $col1 = EVENT_NAME;
+let $col1_act = "wait/io/file/sql/ERRMSG";
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select EVENT_NAME
-  from performance_schema.file_summary_by_event_name
-  where EVENT_NAME = "wait/io/file/sql/ERRMSG";
-
---enable_warnings
---echo ############# Explain End #########################################
-
-truncate table performance_schema.file_summary_by_event_name;
-flush status;
-
-select EVENT_NAME, COUNT_STAR
-  from performance_schema.file_summary_by_event_name
-  where EVENT_NAME = "wait/io/file/sql/ERRMSG";
-
-show session status like "handler_read%";
-
-select EVENT_NAME, COUNT_STAR
-  from performance_schema.file_summary_by_event_name
-  where EVENT_NAME = "wait/io/file/sql/ERRMSG";
-
-show session status like "handler_read%";
+--source ../include/idx_explain_test.inc

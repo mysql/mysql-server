@@ -3,63 +3,24 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
+#setup
+let $select_column = VARIABLE_VALUE;
+let $table = performance_schema.status_by_thread;
+
 select connection_id() into @conid;
 
 select thread_id from performance_schema.threads
   where PROCESSLIST_ID = @conid
   into @tid;
 
+###########################################################################
 # Test index on THREAD_ID, VARIABLE_NAME
---disable_warnings
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select *
-  from performance_schema.status_by_thread
-  where THREAD_ID = 1;
+###########################################################################
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select *
-  from performance_schema.status_by_thread
-  where THREAD_ID > 1;
+let $column_count = 2;
+let $col1 = THREAD_ID;
+let $col2 = VARIABLE_NAME;
+let $col1_act = @tid;
+let $col2_act = "Max_execution_time_exceeded";
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select *
-  from performance_schema.status_by_thread
-  where THREAD_ID < 1;
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select *
-  from performance_schema.status_by_thread
-  where THREAD_ID = 1 and VARIABLE_NAME = "impossible";
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select *
-  from performance_schema.status_by_thread
-  where THREAD_ID = 99999 and VARIABLE_NAME = "Max_execution_time_exceeded";
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select *
-  from performance_schema.status_by_thread
-  where THREAD_ID = @tid and VARIABLE_NAME = "Max_execution_time_exceeded";
-
---echo ############# Explain End #########################################
---enable_warnings
-
-flush status;
-
-select VARIABLE_VALUE
-  from performance_schema.status_by_thread
-  where thread_id = @tid and VARIABLE_NAME = "Max_execution_time_exceeded";
-
-show session status like "handler_read%";
-
-select VARIABLE_VALUE
-  from performance_schema.status_by_thread
-  where thread_id = @tid and VARIABLE_NAME = "Max_execution_time_exceeded";
-
-show session status like "handler_read%";
+--source ../include/idx_explain_test.inc

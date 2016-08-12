@@ -4,121 +4,119 @@ lock table explain_test_db.explain_test_table write;
 # Connection con1
 insert into explain_test_db.explain_test_table values ('1');
 # Connection default
-select OBJECT_INSTANCE_BEGIN from performance_schema.mutex_instances
-limit 1
-into @oib;
-select NAME from performance_schema.mutex_instances
-limit 1
-into @name;
-select LOCKED_BY_THREAD_ID from performance_schema.mutex_instances
+select OBJECT_INSTANCE_BEGIN, NAME, LOCKED_BY_THREAD_ID
+from performance_schema.mutex_instances
 where LOCKED_BY_THREAD_ID is not NULL
 limit 1
-into @lbtid;
+into @oib, @name, @lbtid;
+
+====================================================================
+Testing index for columns OBJECT_INSTANCE_BEGIN
+====================================================================
 ############ Explain for Query ####################################
-explain select NAME from performance_schema.mutex_instances
-where OBJECT_INSTANCE_BEGIN = '0000000';
+explain select count(*) 
+from performance_schema.mutex_instances 
+where OBJECT_INSTANCE_BEGIN = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-#	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
 ############ Explain for Query ####################################
-explain select NAME from performance_schema.mutex_instances
-where OBJECT_INSTANCE_BEGIN > 0 ;
+explain select count(*)
+from performance_schema.mutex_instances
+where OBJECT_INSTANCE_BEGIN > "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-#	SIMPLE	mutex_instances	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+1	SIMPLE	mutex_instances	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
-explain select NAME from performance_schema.mutex_instances
-where OBJECT_INSTANCE_BEGIN < 0 ;
+explain select count(*)
+from performance_schema.mutex_instances
+where OBJECT_INSTANCE_BEGIN < "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-#	SIMPLE	mutex_instances	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+1	SIMPLE	mutex_instances	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
-explain select NAME from performance_schema.mutex_instances
-where OBJECT_INSTANCE_BEGIN = @oib ;
+explain select count(*)
+from performance_schema.mutex_instances
+where OBJECT_INSTANCE_BEGIN = @oib;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-#	SIMPLE	mutex_instances	NULL	const	PRIMARY	PRIMARY	8	const	#	100.00	NULL
+1	SIMPLE	mutex_instances	NULL	const	PRIMARY	PRIMARY	8	const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
-select NAME from performance_schema.mutex_instances
-where OBJECT_INSTANCE_BEGIN = @oib ;
-NAME
+select count(*)
+from performance_schema.mutex_instances
+where OBJECT_INSTANCE_BEGIN = @oib;
+count(*)
 #
-show session status like "handler_read%";
-Variable_name	Value
-Handler_read_first	0
-Handler_read_key	1
-Handler_read_last	0
-Handler_read_next	0
-Handler_read_prev	0
-Handler_read_rnd	0
-Handler_read_rnd_next	0
+OK: handler_read_key incremented
+
+====================================================================
+Testing index for columns NAME
+====================================================================
 ############ Explain for Query ####################################
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.mutex_instances
+explain select count(*) 
+from performance_schema.mutex_instances 
 where NAME = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-#	SIMPLE	mutex_instances	NULL	ref	NAME	NAME	386	const	#	100.00	NULL
+1	SIMPLE	mutex_instances	NULL	ref	NAME	NAME	386	const	#	100.00	NULL
 ############ Explain for Query ####################################
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.mutex_instances
-where NAME > "foo" ;
+explain select count(*)
+from performance_schema.mutex_instances
+where NAME > "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-#	SIMPLE	mutex_instances	NULL	ALL	NAME	NULL	NULL	NULL	#	33.33	Using where
+1	SIMPLE	mutex_instances	NULL	ALL	NAME	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.mutex_instances
-where NAME < "bar" ;
+explain select count(*)
+from performance_schema.mutex_instances
+where NAME < "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-#	SIMPLE	mutex_instances	NULL	ALL	NAME	NULL	NULL	NULL	#	33.33	Using where
+1	SIMPLE	mutex_instances	NULL	ALL	NAME	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.mutex_instances
-where NAME = @name ;
+explain select count(*)
+from performance_schema.mutex_instances
+where NAME = @name;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-#	SIMPLE	mutex_instances	NULL	ref	NAME	NAME	386	const	#	100.00	NULL
+1	SIMPLE	mutex_instances	NULL	ref	NAME	NAME	386	const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
-select OBJECT_INSTANCE_BEGIN from performance_schema.mutex_instances
-where NAME = @name ;
-OBJECT_INSTANCE_BEGIN
+select count(*)
+from performance_schema.mutex_instances
+where NAME = @name;
+count(*)
 #
-show session status like "handler_read%";
-Variable_name	Value
-Handler_read_first	0
-Handler_read_key	1
-Handler_read_last	0
-Handler_read_next	1
-Handler_read_prev	0
-Handler_read_rnd	0
-Handler_read_rnd_next	0
+OK: handler_read_key incremented
+
+====================================================================
+Testing index for columns LOCKED_BY_THREAD_ID
+====================================================================
 ############ Explain for Query ####################################
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.mutex_instances
-where LOCKED_BY_THREAD_ID = '9999';
+explain select count(*) 
+from performance_schema.mutex_instances 
+where LOCKED_BY_THREAD_ID = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-#	SIMPLE	mutex_instances	NULL	ref	LOCKED_BY_THREAD_ID	LOCKED_BY_THREAD_ID	9	const	#	100.00	Using where
+1	SIMPLE	mutex_instances	NULL	ref	LOCKED_BY_THREAD_ID	LOCKED_BY_THREAD_ID	9	const	#	100.00	Using where
 ############ Explain for Query ####################################
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.mutex_instances
-where LOCKED_BY_THREAD_ID > 1 ;
+explain select count(*)
+from performance_schema.mutex_instances
+where LOCKED_BY_THREAD_ID > "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-#	SIMPLE	mutex_instances	NULL	ALL	LOCKED_BY_THREAD_ID	NULL	NULL	NULL	#	33.33	Using where
+1	SIMPLE	mutex_instances	NULL	ALL	LOCKED_BY_THREAD_ID	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.mutex_instances
-where LOCKED_BY_THREAD_ID < 1 ;
+explain select count(*)
+from performance_schema.mutex_instances
+where LOCKED_BY_THREAD_ID < "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-#	SIMPLE	mutex_instances	NULL	ALL	LOCKED_BY_THREAD_ID	NULL	NULL	NULL	#	33.33	Using where
+1	SIMPLE	mutex_instances	NULL	ALL	LOCKED_BY_THREAD_ID	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.mutex_instances
-where LOCKED_BY_THREAD_ID = @lbtid ;
+explain select count(*)
+from performance_schema.mutex_instances
+where LOCKED_BY_THREAD_ID = @lbtid;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-#	SIMPLE	mutex_instances	NULL	ref	LOCKED_BY_THREAD_ID	LOCKED_BY_THREAD_ID	9	const	#	100.00	Using where
+1	SIMPLE	mutex_instances	NULL	ref	LOCKED_BY_THREAD_ID	LOCKED_BY_THREAD_ID	9	const	#	100.00	Using where
 ############# Explain End #########################################
 flush status;
-select OBJECT_INSTANCE_BEGIN from performance_schema.mutex_instances
-where LOCKED_BY_THREAD_ID = @lbtid ;
-OBJECT_INSTANCE_BEGIN
+select count(*)
+from performance_schema.mutex_instances
+where LOCKED_BY_THREAD_ID = @lbtid;
+count(*)
 #
-show session status like "handler_read%";
-Variable_name	Value
-Handler_read_first	0
-Handler_read_key	1
-Handler_read_last	0
-Handler_read_next	1
-Handler_read_prev	0
-Handler_read_rnd	0
-Handler_read_rnd_next	0
+OK: handler_read_key incremented
 unlock tables;
 # connection con1
 # connection default

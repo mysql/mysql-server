@@ -4,64 +4,29 @@
 --source include/have_perfschema.inc
 
 #setup
+let $select_column = VARIABLE_VALUE;
+let $table = performance_schema.status_by_host;
+
 create user foo@localhost;
 grant ALL on *.* to foo@localhost;
 connect(con, localhost, foo,,);
 
+--echo # Connection con
+--connection con
+
 # Test index on HOST, VARIABLE_NAME
+let $column_count = 2;
+let $col1 = HOST;
+let $col2 = VARIABLE_NAME;
+let $col1_act = "localhost";
+let $col2_act = "Max_execution_time_exceeded";
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select HOST, VARIABLE_NAME
-  from performance_schema.status_by_host
-  where HOST = 'localhost';
+--source ../include/idx_explain_test.inc
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select *
-  from performance_schema.status_by_host
-  where HOST != 'localhost';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select *
-  from performance_schema.status_by_host
-  where HOST NOT LIKE 'localhost';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select HOST, VARIABLE_NAME
-  from performance_schema.status_by_host
-  where HOST = 'localhost' and VARIABLE_NAME = 'impossible';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select HOST, VARIABLE_NAME
-  from performance_schema.status_by_host
-  where HOST = 'nohost' and VARIABLE_NAME = 'Max_execution_time_exceeded';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select HOST, VARIABLE_NAME
-  from performance_schema.status_by_host
-  where HOST = 'localhost' and VARIABLE_NAME = 'Max_execution_time_exceeded';
-
---echo ############# Explain End #########################################
-
-flush status;
-
-select *
-  from performance_schema.status_by_host
-  where HOST = 'localhost' and VARIABLE_NAME = 'Max_execution_time_exceeded';
-
-show session status like "handler_read%";
-
-select *
-  from performance_schema.status_by_host
-  where HOST = 'localhost' and VARIABLE_NAME = 'Max_execution_time_exceeded';
-
-show session status like "handler_read%";
-
-# Cleanup
+--echo # Conenction default
 --connection default
+
+#Cleanup
+--disconnect con
 drop user foo@localhost;
+

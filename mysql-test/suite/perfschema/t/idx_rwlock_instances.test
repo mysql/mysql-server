@@ -3,13 +3,13 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
-select OBJECT_INSTANCE_BEGIN from performance_schema.rwlock_instances
-  limit 1
-  into @oib;
+#setup
+let $select_column = READ_LOCKED_BY_COUNT;
+let $table = performance_schema.rwlock_instances;
 
-select NAME from performance_schema.rwlock_instances
+select OBJECT_INSTANCE_BEGIN, NAME from performance_schema.rwlock_instances
   limit 1
-  into @name;
+  into @oib, @name;
 
 #TODO : How to get data for this column?
 select WRITE_LOCKED_BY_THREAD_ID  from performance_schema.rwlock_instances
@@ -17,110 +17,32 @@ select WRITE_LOCKED_BY_THREAD_ID  from performance_schema.rwlock_instances
   limit 1
   into @wlbtid;
 
---disable_warnings
 ###########################################################################
 # Test index on OBJECT_INSTANCE_BEGIN
 ###########################################################################
 
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select NAME from performance_schema.rwlock_instances
-  where OBJECT_INSTANCE_BEGIN = '0000000';
+let $column_count = 1;
+let $col1 = OBJECT_INSTANCE_BEGIN;
+let $col1_act = @oib;
 
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select NAME from performance_schema.rwlock_instances
-  where OBJECT_INSTANCE_BEGIN > 0 ;
-
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select NAME from performance_schema.rwlock_instances
-  where OBJECT_INSTANCE_BEGIN < 0 ;
-
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select NAME from performance_schema.rwlock_instances
-  where OBJECT_INSTANCE_BEGIN = @oib ;
-
---echo ############# Explain End #########################################
---enable_warnings
-
-flush status;
-
---replace_column 1 # 10 #
-select NAME from performance_schema.rwlock_instances
-  where OBJECT_INSTANCE_BEGIN = @oib ;
-
-show session status like "handler_read%";
+--source ../include/idx_explain_test.inc
 
 ###########################################################################
 # Test index on NAME
 ###########################################################################
 
---disable_warnings
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.rwlock_instances
-  where NAME = "impossible";
+let $column_count = 1;
+let $col1 = NAME;
+let $col1_act = @name;
 
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.rwlock_instances
-  where NAME > "foo" ;
-
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.rwlock_instances
-  where NAME < "bar" ;
-
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.rwlock_instances
-  where NAME = @name ;
-
---echo ############# Explain End #########################################
---enable_warnings
-
-flush status;
-
---replace_column 1 # 10 #
-select OBJECT_INSTANCE_BEGIN from performance_schema.rwlock_instances
-  where NAME = @name ;
-
-show session status like "handler_read%";
+--source ../include/idx_explain_test.inc
 
 ###########################################################################
 # Test index on WRITE_LOCKED_BY_THREAD_ID
 ###########################################################################
 
---disable_warnings
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.rwlock_instances
-  where WRITE_LOCKED_BY_THREAD_ID  = '9999';
+#let $column_count = 1;
+#let $col1 = WRITE_LOCKED_BY_THREAD_ID;
+#let $col1_act = @wlbtid;
 
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.rwlock_instances
-  where WRITE_LOCKED_BY_THREAD_ID  > 1 ;
-
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.rwlock_instances
-  where WRITE_LOCKED_BY_THREAD_ID  < 1 ;
-
---echo ############ Explain for Query ####################################
---replace_column 1 # 10 #
-explain select OBJECT_INSTANCE_BEGIN from performance_schema.rwlock_instances
-  where WRITE_LOCKED_BY_THREAD_ID  = @wlbtid ;
-
---echo ############# Explain End #########################################
---enable_warnings
-
-flush status;
-
---replace_column 1 #
-select OBJECT_INSTANCE_BEGIN from performance_schema.rwlock_instances
-  where WRITE_LOCKED_BY_THREAD_ID  = @wlbtid ;
-
-show session status like "handler_read%";
+#--source ../include/idx_explain_test.inc

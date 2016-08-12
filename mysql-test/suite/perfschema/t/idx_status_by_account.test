@@ -4,69 +4,30 @@
 --source include/have_perfschema.inc
 
 #setup
+let $select_column = VARIABLE_VALUE;
+let $table = performance_schema.status_by_account;
+
 create user foo@localhost;
 grant ALL on *.* to foo@localhost;
 connect(con, localhost, foo,,);
 
-select connection_id() into @conid;
-select thread_id from performance_schema.threads
-  where PROCESSLIST_ID = @conid
-  into @tid;
+--echo # Connection con
+--connection con
 
 # Test index on HOST, USER, VARIABLE_NAME
+let $column_count = 3;
+let $col1 = USER;
+let $col2 = HOST;
+let $col3 = VARIABLE_NAME;
+let $col1_act = "foo";
+let $col2_act = "localhost";
+let $col3_act = "Max_execution_time_exceeded";
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select HOST, USER, VARIABLE_NAME
-  from performance_schema.status_by_account
-  where HOST = 'localhost' and USER= 'foo';
+--source ../include/idx_explain_test.inc
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select *
-  from performance_schema.status_by_account
-  where HOST != 'localhost' and USER != 'foo';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select HOST, USER, VARIABLE_NAME
-  from performance_schema.status_by_account
-  where HOST = 'localhost' and USER= 'foo' and VARIABLE_NAME = 'impossible';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select HOST, USER, VARIABLE_NAME
-  from performance_schema.status_by_account
-  where HOST = 'localhost' and USER= 'nouser' and VARIABLE_NAME = 'Max_execution_time_exceeded';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select HOST, USER, VARIABLE_NAME
-  from performance_schema.status_by_account
-  where HOST = 'nohost' and USER= 'foo' and VARIABLE_NAME = 'Max_execution_time_exceeded';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select HOST, USER, VARIABLE_NAME
-  from performance_schema.status_by_account
-  where HOST = 'localhost' and USER= 'foo' and VARIABLE_NAME = 'Max_execution_time_exceeded';
-
---echo ############# Explain End #########################################
-
-flush status;
-
-select *
-  from performance_schema.status_by_account
-  where HOST = 'localhost' and USER= 'foo' and VARIABLE_NAME = 'Max_execution_time_exceeded';
-
-show session status like "handler_read%";
-
-select *
-  from performance_schema.status_by_account
-  where HOST = 'localhost' and USER= 'foo' and VARIABLE_NAME = 'Max_execution_time_exceeded';
-
-show session status like "handler_read%";
-
-# Cleanup
+--echo # Conenction default
 --connection default
+
+#Cleanup
+--disconnect con
 drop user foo@localhost;

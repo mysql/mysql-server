@@ -3,46 +3,23 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
+#setup
+let $select_column = TOTAL_CONNECTIONS;
+let $table = performance_schema.users;
+
 create user foo@localhost;
 grant ALL on *.* to foo@localhost;
 connect(con, localhost, foo,,);
 
-# Test index on HOST
---disable_warnings
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select * from performance_schema.users
-  where USER = 'foo';
+###########################################################################
+# Test index on USER
+###########################################################################
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select * from performance_schema.users
-  where USER like "foo%";
+let $column_count = 1;
+let $col1 = USER;
+let $col1_act = "foo";
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select * from performance_schema.users
-  where USER = 'nouser';
-
---echo ############# Explain End #########################################
---enable_warnings
-
-flush status;
-
---replace_column 3 #
-select *
-  from performance_schema.users
-  where USER = 'foo';
-
-show session status like "handler_read%";
-
---replace_column 3 #
-select *
-  from performance_schema.users
-  where USER = 'foo';
-
-show session status like "handler_read%";
+--source ../include/idx_explain_test.inc
 
 # Cleanup
---connection default
 drop user foo@localhost;

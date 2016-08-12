@@ -4,84 +4,26 @@
 --source include/have_perfschema.inc
 
 #setup
+let $select_column = SUM_ERROR_RAISED;
+let $table = performance_schema.events_errors_summary_by_account_by_error;
+
 create user foo@localhost;
 grant ALL on *.* to foo@localhost;
 connect(con, localhost, foo,,);
 
-select connection_id() into @conid;
-select thread_id from performance_schema.threads
-  where PROCESSLIST_ID = @conid
-  into @tid;
-
+###########################################################################
 # Test index on HOST, USER, ERROR_NUMBER
+###########################################################################
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select HOST, USER, ERROR_NUMBER
-  from performance_schema.events_errors_summary_by_account_by_error
-  where HOST = 'localhost' and USER= 'foo';
+let $column_count = 3;
+let $col1 = HOST;
+let $col2 = USER;
+let $col3 = ERROR_NUMBER;
+let $col1_act = "localhost";
+let $col2_act = "foo";
+let $col3_act = "1146";
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select *
-  from performance_schema.events_errors_summary_by_account_by_error
-  where HOST != 'localhost' and USER != 'foo';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select HOST, USER, ERROR_NUMBER
-  from performance_schema.events_errors_summary_by_account_by_error
-  where HOST = 'localhost' and USER= 'foo' and ERROR_NUMBER = '0000';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select HOST, USER, ERROR_NUMBER
-  from performance_schema.events_errors_summary_by_account_by_error
-  where HOST = 'nohost' and USER= 'nouser' and ERROR_NUMBER = '1146';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select HOST, USER, ERROR_NUMBER
-  from performance_schema.events_errors_summary_by_account_by_error
-  where HOST = 'localhost' and USER= 'nouser' and ERROR_NUMBER = '1146';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select HOST, USER, ERROR_NUMBER
-  from performance_schema.events_errors_summary_by_account_by_error
-  where HOST = 'nohost' and USER= 'foo' and ERROR_NUMBER = '1146';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select HOST, USER, ERROR_NUMBER
-  from performance_schema.events_errors_summary_by_account_by_error
-  where HOST = 'localhost' and USER= 'foo' and ERROR_NUMBER = '1146';
-
---echo ############# Explain End #########################################
-
-flush status;
-
-select ERROR_NUMBER
-  from performance_schema.events_errors_summary_by_thread_by_error
-  where thread_id = @tid and ERROR_NUMBER = '1146';
-
-let $count1 = query_get_value(show session status like "handler_read_key", Value, 1);
-
-select ERROR_NUMBER
-  from performance_schema.events_errors_summary_by_thread_by_error
-  where thread_id = @tid and ERROR_NUMBER = '1146';
-
-let $count2 = query_get_value(show session status like "handler_read_key", Value, 1);
-
-if ($count1 < $count2)
-{
-  --echo OK: handler_read_key incremented
-}
-if ($count1 >= $count2)
-{
-  --echo ***ERROR*** handler_read_key: Before= $count1, After= $count2
-}
+--source ../include/idx_explain_test.inc
 
 # Cleanup
---connection default
 drop user foo@localhost;

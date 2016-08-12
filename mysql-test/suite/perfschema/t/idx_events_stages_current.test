@@ -3,6 +3,10 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
+#setup
+let $select_column = count(*);
+let $table = performance_schema.events_stages_current;
+
 select connection_id() into @conid;
 
 let $tid = `select thread_id from performance_schema.threads
@@ -40,74 +44,19 @@ insert into explain_test_db.explain_test_table values('1');
 select EVENT_ID from performance_schema.events_stages_current where THREAD_ID = @tid_default limit 1 into @eid_default;
 --enable_query_log
 
+###########################################################################
 # Test index on THREAD_ID, EVENT_ID
+###########################################################################
 
---disable_warnings
+let $column_count = 2;
+let $col1 = THREAD_ID;
+let $col2 = EVENT_ID;
+let $col1_act = @tid_default;
+let $col2_act = @eid_default;
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select THREAD_ID, EVENT_ID
-  from performance_schema.events_stages_current
-  where THREAD_ID = 1;
+--source ../include/idx_explain_test.inc
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select *
-  from performance_schema.events_stages_current
-  where THREAD_ID > 1;
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select *
-  from performance_schema.events_stages_current
-  where THREAD_ID < 1;
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select THREAD_ID, EVENT_ID
-  from performance_schema.events_stages_current
-  where THREAD_ID = 1 and EVENT_ID = "impossible";
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select THREAD_ID, EVENT_ID
-  from performance_schema.events_stages_current
-  where THREAD_ID = 99999 and EVENT_ID = @eid_default;
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select THREAD_ID, EVENT_ID
-  from performance_schema.events_stages_current
-  where THREAD_ID = @tid_default and EVENT_ID = @eid_default;
-
---enable_warnings
---echo ############# Explain End #########################################
-
-flush status;
-
---replace_column 1 #
-select count(*)
-  from performance_schema.events_stages_current
-  where thread_id = @tid_default and EVENT_ID = @eid_default;
-
-let $count1 = query_get_value(show session status like "handler_read_key", Value, 1);
-
---replace_column 1 #
-select count(*)
-  from performance_schema.events_stages_current
-  where thread_id = @tid_default and EVENT_ID = @eid_default;
-
-let $count2 = query_get_value(show session status like "handler_read_key", Value, 1);
-
-if ($count1 < $count2)
-{
-  --echo OK: handler_read_key incremented
-}
-if ($count1 >= $count2)
-{
-  --echo ***ERROR*** handler_read_key: Before= $count1, After= $count2
-}
-
+# Cleanup
 commit;
 
 --echo # Default connection

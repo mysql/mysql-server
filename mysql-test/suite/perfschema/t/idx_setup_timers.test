@@ -3,7 +3,9 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
-# Test index on NAME
+#setup
+let $select_column = TIMER_NAME;
+let $table = performance_schema.setup_timers;
 
 # Set to a known state
 --disable_query_log
@@ -21,36 +23,17 @@ update performance_schema.setup_timers
 
 --enable_query_log
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select NAME
-  from performance_schema.setup_timers
-  where NAME = "impossible";
+# Test index on NAME
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select NAME
-  from performance_schema.setup_timers
-  where NAME = "statement";
+let $column_count = 1;
+let $col1 = NAME;
+let $col1_act = "statement";
 
---echo ############# Explain End #########################################
+--source ../include/idx_explain_test.inc
 
-flush status;
+# Cleanup 
 
-select *
-  from performance_schema.setup_timers
-  where NAME = "statement";
-
-show session status like "handler_read%";
-
-select *
-  from performance_schema.setup_timers
-  where NAME = "statement";
-
-show session status like "handler_read%";
-
-
-# Cleanup, restore to defaults
+# Restore to defaults
 
 --disable_query_log
 

@@ -1,46 +1,36 @@
+
+====================================================================
+Testing index for columns VARIABLE_NAME
+====================================================================
 ############ Explain for Query ####################################
-explain select VARIABLE_NAME
-from performance_schema.session_status
+explain select VARIABLE_VALUE 
+from performance_schema.session_status 
 where VARIABLE_NAME = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
-Warnings:
-Note	1003	/* select#1 */ select NULL AS `VARIABLE_NAME` from `performance_schema`.`session_status` where (NULL = 'impossible')
 ############ Explain for Query ####################################
-explain select VARIABLE_NAME
+explain select VARIABLE_VALUE
+from performance_schema.session_status
+where VARIABLE_NAME > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	session_status	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select VARIABLE_VALUE
+from performance_schema.session_status
+where VARIABLE_NAME < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	session_status	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select VARIABLE_VALUE
 from performance_schema.session_status
 where VARIABLE_NAME = "Performance_schema_users_lost";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	session_status	NULL	const	PRIMARY	PRIMARY	194	const	#	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select 'Performance_schema_users_lost' AS `VARIABLE_NAME` from `performance_schema`.`session_status` where ('Performance_schema_users_lost' = 'Performance_schema_users_lost')
 ############# Explain End #########################################
 flush status;
-select *
+select VARIABLE_VALUE
 from performance_schema.session_status
 where VARIABLE_NAME = "Performance_schema_users_lost";
-VARIABLE_NAME	VARIABLE_VALUE
-Performance_schema_users_lost	0
-show session status like "handler_read%";
-Variable_name	Value
-Handler_read_first	0
-Handler_read_key	1
-Handler_read_last	0
-Handler_read_next	0
-Handler_read_prev	0
-Handler_read_rnd	0
-Handler_read_rnd_next	0
-select *
-from performance_schema.session_status
-where VARIABLE_NAME = "Performance_schema_users_lost";
-VARIABLE_NAME	VARIABLE_VALUE
-Performance_schema_users_lost	0
-show session status like "handler_read%";
-Variable_name	Value
-Handler_read_first	0
-Handler_read_key	2
-Handler_read_last	0
-Handler_read_next	0
-Handler_read_prev	0
-Handler_read_rnd	0
-Handler_read_rnd_next	0
+VARIABLE_VALUE
+#
+OK: handler_read_key incremented

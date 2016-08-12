@@ -6,6 +6,10 @@
 --source include/not_windows_embedded.inc
 --source include/have_debug_sync.inc
 
+#setup
+let $select_column = SUM_CONNECT_ERRORS;
+let $table = performance_schema.host_cache;
+
 # Create an entry in the host_cache
 
 # [Warning] IP address '192.0.2.4' could not be resolved:
@@ -34,67 +38,22 @@ SET global debug= default;
 ###########################################################################
 # Test index on IP
 ###########################################################################
---disable_warnings
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select * from performance_schema.host_cache
-  where IP < "1.1.1.1";
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select * from performance_schema.host_cache
-  where IP > "1.1.1.1";
+let $column_count = 1;
+let $col1 = IP;
+let $col1_act = "192.0.2.4";
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select * from performance_schema.host_cache
-  where IP = "impossible";
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select * from performance_schema.host_cache
-  where IP = "192.0.2.4";
-
-flush status;
-
---replace_column 1 #
-select HOST
-  from performance_schema.host_cache
-  where IP = "192.0.2.4";
-
-show session status like "handler_read%";
-
+--source ../include/idx_explain_test.inc
 
 ###########################################################################
 # Test index on HOST
 ###########################################################################
---disable_warnings
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select * from performance_schema.host_cache
-  where host = 'nohost';
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select * from performance_schema.host_cache
-  where host like "santa%";
+let $column_count = 1;
+let $col1 = HOST;
+let $col1_act = "santa.claus.ipv4.example.com";
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select * from performance_schema.host_cache
-  where host = "santa.claus.ipv4.example.com";
-
---echo ############# Explain End #########################################
---enable_warnings
-
-flush status;
-
---replace_column 3 #
-select IP
-  from performance_schema.host_cache
-  where host = "santa.claus.ipv4.example.com";
-
-show session status like "handler_read%";
+--source ../include/idx_explain_test.inc
 
 # Cleanup
 REVOKE SELECT ON test.* FROM 'user4'@'santa.claus.ipv4.example.com';

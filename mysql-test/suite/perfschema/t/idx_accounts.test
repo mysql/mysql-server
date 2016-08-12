@@ -3,58 +3,25 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
+#setup
+let $select_column = TOTAL_CONNECTIONS;
+let $table = performance_schema.accounts;
+
 create user foo@localhost;
 grant ALL on *.* to foo@localhost;
 connect(con, localhost, foo,,);
 
-# Test index on HOST
+###########################################################################
+# Test index on USER, HOST
+###########################################################################
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select * from performance_schema.accounts
-  where USER = 'foo';
+let $column_count = 2;
+let $col1 = USER;
+let $col2 = HOST;
+let $col1_act = "foo";
+let $col2_act = "localhost";
 
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select * from performance_schema.accounts
-  where HOST = 'localhost';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select * from performance_schema.accounts
-  where USER like "foo%" and HOST = 'localhost';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select * from performance_schema.accounts
-  where USER = 'foo' and HOST = 'nohost';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select * from performance_schema.accounts
-  where USER = 'nouser' and HOST = 'localhost';
-
---echo ############ Explain for Query ####################################
---replace_column 10 #
-explain select * from performance_schema.accounts
-  where USER = 'foo' and HOST = 'localhost';
-
---echo ############# Explain End #########################################
-
-flush status;
-
-select *
-  from performance_schema.accounts
-  where USER = 'foo' and  HOST = 'localhost';
-
-show session status like "handler_read%";
-
-select *
-  from performance_schema.accounts
-  where USER = 'foo' and  HOST = 'localhost';
-
-show session status like "handler_read%";
+--source ../include/idx_explain_test.inc
 
 # Cleanup
---connection default
 drop user foo@localhost;
