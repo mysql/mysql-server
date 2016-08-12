@@ -412,37 +412,36 @@ commit;
 # Blobs with OI scan
 #  Bug #23703536 	NDB : READBACKUP OF BLOBS DOES NOT WORK VIA SCANS
 # 
-#--echo OI scan
-#--replace_column 4 # 10 # 11 #
-#explain select * from test.t2 where c > 6;
-#
-#--echo Error insert to ensure that TC requests are purely local
-#--exec $NDB_MGM --verbose=0 -e "ALL ERROR 8083"
-#
-#--disable_query_log
-#--disable_result_log
-#select * from test.t2 where c > 6;
-#--enable_result_log
-#--enable_query_log
-#
-#--exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
-#
+--echo OI scan
+--replace_column 4 # 10 # 11 #
+explain select * from test.t2 where c > 6;
+
+--echo Error insert to ensure that TC requests are purely local
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 8083"
+
+--disable_query_log
+--disable_result_log
+select * from test.t2 where c > 6;
+--enable_result_log
+--enable_query_log
+
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
 
 # Disabled due to problem reading ReadBackup 
 # Blobs with scan
 #  Bug #23703536 	NDB : READBACKUP OF BLOBS DOES NOT WORK VIA SCANS
-# 
-#--echo Table scan
-#--replace_column 4 # 10 # 11 #
-#explain select * from test.t2;
-#
-#--echo Error insert to ensure that TC requests are purely local
-#--exec $NDB_MGM --verbose=0 -e "ALL ERROR 8083"
-#
-#--disable_query_log
-#--disable_result_log
-#select * from test.t2;
-#--enable_result_log
-#--enable_query_log
-#
-#--exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
+ 
+--echo Table scan
+--replace_column 4 # 10 # 11 #
+explain select * from test.t2;
+
+--echo Error insert to ensure that TC requests are purely local
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 8083"
+
+--disable_query_log
+--disable_result_log
+select * from test.t2;
+--enable_result_log
+--enable_query_log
+
+--exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"

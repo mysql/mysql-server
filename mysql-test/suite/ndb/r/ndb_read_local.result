@@ -244,6 +244,24 @@ Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`t
 Error insert to ensure that TC requests are purely local
 
 
+OI scan
+explain select * from test.t2 where c > 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	#	range	c	c	5	NULL	#	#	Using where with pushed condition (`test`.`t2`.`c` > 6)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`c` > 6)
+Error insert to ensure that TC requests are purely local
+
+
+Table scan
+explain select * from test.t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	#	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2`
+Error insert to ensure that TC requests are purely local
+
+
 drop table test.t1;
 drop table test.t2;
 Test read-locality of READ-BACKUP
@@ -488,6 +506,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	#	ref	b	b	5	const	#	#	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 6)
+Error insert to ensure that TC requests are purely local
+
+
+OI scan
+explain select * from test.t2 where c > 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	#	range	c	c	5	NULL	#	#	Using where with pushed condition (`test`.`t2`.`c` > 6)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`c` > 6)
+Error insert to ensure that TC requests are purely local
+
+
+Table scan
+explain select * from test.t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	#	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2`
 Error insert to ensure that TC requests are purely local
 
 

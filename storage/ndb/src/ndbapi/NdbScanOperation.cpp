@@ -1557,7 +1557,6 @@ NdbScanOperation::setReadLockMode(LockMode lockMode)
   ScanTabReq::setLockMode(reqInfo, lockExcl);
   ScanTabReq::setHoldLockFlag(reqInfo, lockHoldMode);
   ScanTabReq::setReadCommittedFlag(reqInfo, readCommitted);
-  ScanTabReq::setReadCommittedBaseFlag(reqInfo, theReadCommittedBaseIndicator);
   req->requestInfo= reqInfo;
 }
 
@@ -2342,6 +2341,7 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   Uint32 reqInfo = req->requestInfo;
   ScanTabReq::setKeyinfoFlag(reqInfo, keyInfo);
   ScanTabReq::setNoDiskFlag(reqInfo, (m_flags & OF_NO_DISK) != 0);
+  ScanTabReq::setReadCommittedBaseFlag(reqInfo, theReadCommittedBaseIndicator);
 
   /* Set distribution key info if required */
   ScanTabReq::setDistributionKeyFlag(reqInfo, theDistrKeyIndicator_);
@@ -2516,7 +2516,9 @@ NdbScanOperation::doSendScan(int aProcessorId)
     Uint32 attrInfoLen = secs[1].sz;
     Uint32 keyInfoLen = (numSections == 3)? secs[2].sz : 0;
 
-    ScanTabReq* scanTabReq = (ScanTabReq*) theSCAN_TABREQ->getDataPtrSend();
+    ScanTabReq * scanTabReq = CAST_PTR(ScanTabReq,
+                                theSCAN_TABREQ->getDataPtrSend());
+
     Uint32 connectPtr = scanTabReq->apiConnectPtr;
     Uint32 transId1 = scanTabReq->transId1;
     Uint32 transId2 = scanTabReq->transId2;
