@@ -7276,6 +7276,17 @@ void Dbtc::execLQHKEYREF(Signal* signal)
           }
           goto do_ignore;
         }
+        case TriggerType::FULLY_REPLICATED_TRIGGER:
+        {
+          jam();
+          /**
+           * We have successfully inserted/updated/deleted in main
+           * fragment, but failed in a copy fragment. In this case
+           * we need to abort transaction. There are no error codes
+           * that makes this behaviour ok.
+           */
+          goto do_abort;
+        }
         case TriggerType::REORG_TRIGGER:
           jam();
           if (opType == ZINSERT && errCode == ZALREADYEXIST)
