@@ -213,7 +213,7 @@ private:
     RI_AI_IN_THIS_SHIFT  = 24, RI_AI_IN_THIS_MASK  =    7, /* legacy for short LQHKEYREQ */
     RI_CORR_FACTOR_VALUE = 24,
     RI_NORMAL_DIRTY      = 25,
-    RI_DEFERRED_CONSTAINTS = 26,
+    RI_DEFERRED_CONSTRAINTS = 26,
     RI_SAME_CLIENT_SHIFT = 27,
     RI_RETURN_AI_SHIFT   = 28,
     RI_MARKER_SHIFT      = 29,
@@ -665,13 +665,13 @@ inline
 void
 LqhKeyReq::setDeferredConstraints(UintR & requestInfo, UintR val){
   ASSERT_BOOL(val, "LqhKeyReq::setDeferredConstraints");
-  requestInfo |= (val << RI_DEFERRED_CONSTAINTS);
+  requestInfo |= (val << RI_DEFERRED_CONSTRAINTS);
 }
 
 inline
 UintR
 LqhKeyReq::getDeferredConstraints(const UintR & requestInfo){
-  return (requestInfo >> RI_DEFERRED_CONSTAINTS) & 1;
+  return (requestInfo >> RI_DEFERRED_CONSTRAINTS) & 1;
 }
 
 inline
