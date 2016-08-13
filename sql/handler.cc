@@ -69,7 +69,6 @@
 #include <cmath>
 #include <cstring>
 #include <string>
-#include <sstream>
 #include <boost/foreach.hpp>
 #include <boost/tokenizer.hpp>
 #include <boost/algorithm/string.hpp>
@@ -2700,20 +2699,6 @@ PSI_table_share *handler::ha_table_share_psi(const TABLE_SHARE *share) const
   return share->m_psi;
 }
 
-std::string key_to_text(const uchar *key, int key_len)
-{
-  const uchar *k= key;
-  std::stringstream s1;
-  if (key_len <=0) key_len= 50;
-  for (auto i= 0; i < key_len; i++, k++)
-  {
-    if (isprint(*k))
-      s1 << *k;
-    else
-      s1 << std::to_string(*k);
-  }
-  return s1.str();
-}
 
 /*
   Open database handler object.
@@ -2850,11 +2835,7 @@ int handler::ha_index_init(uint idx, bool sorted)
 {
   DBUG_EXECUTE_IF("ha_index_init_fail", return HA_ERR_TABLE_DEF_CHANGED;);
   int result;
-  THD *thd= current_thd;
-  std::string qstr(thd->query().str, thd->query().length);
   DBUG_ENTER("handler::ha_index_init");
-  DBUG_PRINT("", ("(index=%d)", idx));
-  DBUG_PRINT("", ("query=%s", qstr.c_str()));
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == NONE);
@@ -2903,11 +2884,7 @@ int handler::ha_rnd_init(bool scan)
 {
   DBUG_EXECUTE_IF("ha_rnd_init_fail", return HA_ERR_TABLE_DEF_CHANGED;);
   int result;
-  THD *thd= current_thd;
-  std::string qstr(thd->query().str, thd->query().length);
   DBUG_ENTER("handler::ha_rnd_init");
-  DBUG_PRINT("", ("(scan=%d)", scan));
-  DBUG_PRINT("", ("query=%s", qstr.c_str()));
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == NONE || (inited == RND && scan));
@@ -3037,9 +3014,7 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
                                enum ha_rkey_function find_flag)
 {
   int result;
-
   DBUG_ENTER("handler::ha_index_read_map");
-  DBUG_PRINT("", ("(index=%d, find_flag=%d, key=%s)", active_index, find_flag, key_to_text(key, 0).c_str()));
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == INDEX);
@@ -3063,7 +3038,6 @@ int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
 {
   int result;
   DBUG_ENTER("handler::ha_index_read_last_map");
-  DBUG_PRINT("", ("(index=%d, key=%s)", active_index, key_to_text(key, 0).c_str()));
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == INDEX);
@@ -3093,11 +3067,7 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
                                    enum ha_rkey_function find_flag)
 {
   int result;
-  THD *thd= current_thd;
-  std::string qstr(thd->query().str, thd->query().length);
   DBUG_ENTER("handler::ha_index_read_idx_map");
-  DBUG_PRINT("", ("(index=%d, key=%s)", active_index, key_to_text(key, 0).c_str()));
-  DBUG_PRINT("", ("query=%s", qstr.c_str()));
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(end_range == NULL);
@@ -3270,7 +3240,6 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
 {
   int result;
   DBUG_ENTER("handler::ha_index_next_same");
-  DBUG_PRINT("", ("(index=%d, key_len=%d, key=%s)", active_index, keylen, key_to_text(key, keylen).c_str()));
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == INDEX);
