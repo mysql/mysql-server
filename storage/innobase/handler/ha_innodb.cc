@@ -14808,6 +14808,8 @@ ha_innobase::get_extra_columns_and_keys(
 			col->set_type(dd::enum_column_types::LONGLONG);
 			col->set_nullable(false);
 			col->set_unsigned(true);
+			/* TODO: Check which collation id is correct */
+			col->set_collation_id(1);
 			fts_doc_id = col;
 		}
 
