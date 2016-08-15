@@ -1,5 +1,5 @@
 use mysql;
-SET SESSION debug= '+d,skip_dd_table_access_check';
+SET GLOBAL debug= '+d,skip_dd_table_access_check';
 #
 # Subset of definitions from tables, not including
 # timestamps, partitioning, view definitions and
@@ -447,4 +447,4 @@ index_id	ordinal_position	column_id	length	order	hidden
 81	1	281	8	ASC	0
 82	1	282	192	ASC	0
 83	1	283	8	ASC	0
-SET SESSION debug= '-d,skip_dd_table_access_check';
+SET GLOBAL debug= '-d,skip_dd_table_access_check';

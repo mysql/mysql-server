@@ -45,7 +45,10 @@
 # 4.4 Connect as root.
 # 4.5 Verify that the modified table is present.
 SET SESSION debug= '+d,skip_dd_table_access_check';
-SELECT comment FROM mysql.tables WHERE name='schemata';
+SELECT t.comment FROM mysql.tables AS t, mysql.schemata AS s WHERE
+t.name = 'schemata' AND
+t.schema_id = s.id AND
+s.name = 'mysql';
 comment
 Altered table
 SET SESSION debug= '-d,skip_dd_table_access_check';
