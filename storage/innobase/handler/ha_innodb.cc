@@ -15717,17 +15717,31 @@ validate_create_tablespace_info(
 	return(error);
 }
 
+/** Get the file name of a tablespace.
+@param[in]	dd_space	tablespace metadata
+@return file name */
+static
+const char*
+dd_tablespace_get_filename(const dd::Tablespace* dd_space)
+{
+	ut_ad(dd_space->id() != dd::INVALID_OBJECT_ID);
+	ut_ad(dd_space->files().size() == 1);
+	return((*dd_space->files().begin())->filename().c_str());
+}
+
 /** CREATE a tablespace.
 @param[in]	hton		Handlerton of InnoDB
 @param[in]	thd		Connection
 @param[in]	alter_info	How to do the command
+@param[in,out]	dd_space	Tablespace metadata
 @return MySQL error code*/
 static
 int
 innobase_create_tablespace(
 	handlerton*		hton,
 	THD*			thd,
-	st_alter_tablespace*	alter_info)
+	st_alter_tablespace*	alter_info,
+	dd::Tablespace*		dd_space)
 {
 	trx_t*		trx;
 	int		error;
@@ -15735,6 +15749,10 @@ innobase_create_tablespace(
 
 	DBUG_ENTER("innobase_create_tablespace");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
+
+	ut_ad(alter_info->tablespace_name == dd_space->name());
+	ut_ad(alter_info->data_file_name
+	      == dd_tablespace_get_filename(dd_space));
 
 	/* Be sure the input parameters are valid before continuing. */
 	error = validate_create_tablespace_info(thd, alter_info);
@@ -15807,6 +15825,14 @@ cleanup:
 	row_mysql_unlock_data_dictionary(trx);
 	trx_free_for_mysql(trx);
 
+	if (err == DB_SUCCESS) {
+		dd::Properties& p = dd_space->se_private_data();
+		p.set_uint32(dd_space_key_strings[DD_SPACE_ID],
+			     tablespace.space_id());
+		p.set_uint32(dd_space_key_strings[DD_SPACE_FLAGS],
+			     tablespace.flags());
+	}
+
 	DBUG_RETURN(error);
 }
 
@@ -15814,47 +15840,49 @@ cleanup:
 @param[in]	hton		Handlerton of InnoDB
 @param[in]	thd		Connection
 @param[in]	alter_info	How to do the command
+@param[in]	dd_space	Tablespace metadata
 @return MySQL error code*/
 static
 int
 innobase_drop_tablespace(
 	handlerton*		hton,
 	THD*			thd,
-	st_alter_tablespace*	alter_info)
+	st_alter_tablespace*	alter_info,
+	const dd::Tablespace*	dd_space)
 {
 	trx_t*		trx;
 	dberr_t		err;
 	int		error = 0;
-	space_id_t	space_id;
+	space_id_t	space_id = SPACE_UNKNOWN;
 
 	DBUG_ENTER("innobase_drop_tablespace");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
+
+	ut_ad(alter_info->tablespace_name == dd_space->name());
+	ut_ad(alter_info->data_file_name
+	      == dd_tablespace_get_filename(dd_space));
 
 	if (srv_read_only_mode) {
 		DBUG_RETURN(HA_ERR_INNODB_READ_ONLY);
 	}
 
-	error = validate_tablespace_name(alter_info->tablespace_name, false);
+	error = validate_tablespace_name(dd_space->name().c_str(), false);
 	if (error != 0) {
+		ut_ad(0);
 		DBUG_RETURN(error);
 	}
 
-	/* Be sure that this tablespace is known and valid. */
-	space_id = fil_space_get_id_by_name(alter_info->tablespace_name);
-	if (space_id == SPACE_UNKNOWN) {
-
-		space_id = dict_space_get_id(alter_info->tablespace_name);
-		if (space_id == SPACE_UNKNOWN) {
-			DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
-		}
-
-		/* The datafile is not open but the tablespace is in
-		sys_tablespaces, so we can try to drop the metadata. */
+	if (dd_space->se_private_data().get_uint32(
+		    dd_space_key_strings[DD_SPACE_ID], &space_id)) {
+		ut_ad(!"missing tablespace attributes");
+		my_error(ER_DROP_FILEGROUP_FAILED, MYF(0),
+			 dd_space->name().c_str());
+		DBUG_RETURN(HA_ERR_GENERIC);
 	}
 
-	/* The tablespace can only be dropped if it is empty. */
-	if (!dict_space_is_empty(space_id)) {
-		DBUG_RETURN(HA_ERR_TABLESPACE_IS_NOT_EMPTY);
+	/* Be sure that this tablespace is known and valid. */
+	if (space_id == SPACE_UNKNOWN) {
+		DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
 	}
 
 	/* Get the transaction associated with the current thd and make sure
@@ -15873,15 +15901,6 @@ innobase_drop_tablespace(
 	trx_start_if_not_started(trx, true);
 	row_mysql_lock_data_dictionary(trx);
 
-	/* Update SYS_TABLESPACES and SYS_DATAFILES */
-	err = dict_delete_tablespace_and_datafiles(space_id, trx);
-	if (err != DB_SUCCESS) {
-		ib::error() << "Unable to delete the dictionary entries"
-			" for tablespace `" << alter_info->tablespace_name
-			<< "`, Space ID " << space_id;
-		goto have_error;
-	}
-
 	/* Delete the physical files, fil_space_t & fil_node_t entries. */
 	err = fil_delete_tablespace(space_id, BUF_REMOVE_FLUSH_NO_WRITE);
 	switch (err) {
@@ -15893,9 +15912,8 @@ innobase_drop_tablespace(
 		break;
 	default:
 		ib::error() << "Unable to delete the tablespace `"
-			<< alter_info->tablespace_name
+			<< dd_space->name()
 			<< "`, Space ID " << space_id;
-have_error:
 		error = convert_error_code_to_mysql(err, 0, NULL);
 		trx_rollback_for_mysql(trx);
 	}
@@ -15929,11 +15947,15 @@ innobase_alter_tablespace(
 
 	switch (alter_info->ts_cmd_type) {
 	case CREATE_TABLESPACE:
-		error = innobase_create_tablespace(hton, thd, alter_info);
+		ut_ad(new_ts_def != NULL);
+		error = innobase_create_tablespace(hton, thd, alter_info,
+						   new_ts_def);
 		break;
 
 	case DROP_TABLESPACE:
-		error = innobase_drop_tablespace(hton, thd, alter_info);
+		ut_ad(old_ts_def != NULL);
+		error = innobase_drop_tablespace(hton, thd, alter_info,
+						 old_ts_def);
 		break;
 
 	default:
