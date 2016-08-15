@@ -15784,8 +15784,8 @@ innobase_create_tablespace(
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
 	ut_ad(alter_info->tablespace_name == dd_space->name());
-	ut_ad(alter_info->data_file_name
-	      == dd_tablespace_get_filename(dd_space));
+	ut_ad(strcmp(alter_info->data_file_name,
+		     dd_tablespace_get_filename(dd_space)) == 0);
 
 	/* Be sure the input parameters are valid before continuing. */
 	error = validate_create_tablespace_info(thd, alter_info);
@@ -15892,8 +15892,6 @@ innobase_drop_tablespace(
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
 	ut_ad(alter_info->tablespace_name == dd_space->name());
-	ut_ad(alter_info->data_file_name
-	      == dd_tablespace_get_filename(dd_space));
 
 	if (srv_read_only_mode) {
 		DBUG_RETURN(HA_ERR_INNODB_READ_ONLY);
