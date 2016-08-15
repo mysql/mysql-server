@@ -7444,7 +7444,7 @@ create_table_metadata(
 		m_table->flags2 |= DICT_TF2_TEMPORARY;
 	}
 
-	if (false /* TODO instrinsic */) {
+	if (false /* TODO intrinsic */) {
 		m_table->flags2 |= DICT_TF2_INTRINSIC;
 	}
 
@@ -7464,6 +7464,7 @@ create_table_metadata(
 		ut_ad(field->charset() == nullptr
 		      || field->charset()->number > 0);
 
+		/* TODO: Clean all these up */
 /*		if (!field->real_maybe_null()) {
 			prtype |= DATA_NOT_NULL;
 		}
