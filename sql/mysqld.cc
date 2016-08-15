@@ -652,7 +652,7 @@ my_thread_handle shutdown_thr_handle;
 uint host_cache_size;
 ulong log_error_verbosity= 3; // have a non-zero value during early start-up
 
-#if MYSQL_VERSION_ID >= 80001
+#if MYSQL_VERSION_ID >= 80002
 #error "show_compatibility_56 is to be removed in MySQL 8.0"
 #else
 /*
@@ -660,7 +660,7 @@ ulong log_error_verbosity= 3; // have a non-zero value during early start-up
   default value from Sys_show_compatibility_56 otherwise.
 */
 my_bool show_compatibility_56= TRUE;
-#endif /* MYSQL_VERSION_ID >= 80001 */
+#endif /* MYSQL_VERSION_ID >= 80002 */
 
 #if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
 ulong slow_start_timeout;
