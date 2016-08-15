@@ -9222,8 +9222,12 @@ bool resolve_const_item(THD *thd, Item **ref, Item *comp_item)
       return true;
     uint length=item->max_length;
     bool null_value=item->null_value;
-    new_item= (null_value ? (Item*) new Item_null(item->item_name) :
-               (Item*) new Item_int(item->item_name, result, length));
+    if (null_value)
+      new_item= new Item_null(item->item_name);
+    else if (item->unsigned_flag)
+      new_item= new Item_uint(item->item_name, result, length);
+    else
+      new_item= new Item_int(item->item_name, result, length);
     break;
   }
   case ROW_RESULT:
