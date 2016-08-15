@@ -7453,18 +7453,18 @@ create_table_metadata(
 	for (unsigned i = 0; i < n_mysql_cols; i++) {
 		const Field*	field = m_form->field[i];
 		unsigned	mtype;
-		unsigned	prtype = field->type();
+		unsigned	prtype;
 		unsigned	col_len = field->pack_length();
 
 		/* The MySQL type code has to fit in 8 bits
 		in the metadata stored in the InnoDB change buffer. */
-		ut_ad(prtype < DATA_NOT_NULL);
+		//ut_ad(prtype < DATA_NOT_NULL);
 		ut_ad(field->charset() == nullptr
 		      || field->charset()->number <= MAX_CHAR_COLL_NUM);
 		ut_ad(field->charset() == nullptr
 		      || field->charset()->number > 0);
 
-		if (!field->real_maybe_null()) {
+/*		if (!field->real_maybe_null()) {
 			prtype |= DATA_NOT_NULL;
 		}
 
@@ -7475,9 +7475,9 @@ create_table_metadata(
 		switch (field->real_type()) {
 		case MYSQL_TYPE_ENUM:
 		case MYSQL_TYPE_SET:
-			/* ENUM and SET have a field->type() of
-			string, but the data is actually internally
-			stored as INT UNSIGNED. */
+			// ENUM and SET have a field->type() of
+			// string, but the data is actually internally
+			// stored as INT UNSIGNED.
 		case MYSQL_TYPE_TIME:
 		case MYSQL_TYPE_DATETIME:
 		case MYSQL_TYPE_TIMESTAMP:
@@ -7491,10 +7491,10 @@ create_table_metadata(
 				prtype |= DATA_UNSIGNED;
 			}
 
-			/* NOTE that we only allow string
-			types in DATA_MYSQL and DATA_VARMYSQL */
+			// NOTE that we only allow string
+			// types in DATA_MYSQL and DATA_VARMYSQL
 			switch (field->type()) {
-			case MYSQL_TYPE_VARCHAR:/* MySQL 5.0.3 true VARCHAR */
+			case MYSQL_TYPE_VARCHAR:// MySQL 5.0.3 true VARCHAR
 				{
 					uint	lenlen = static_cast<
 						const Field_varstring*>(
@@ -7506,8 +7506,8 @@ create_table_metadata(
 							DATA_LONG_TRUE_VARCHAR;
 					}
 				}
-				/* fall through */
-			case MYSQL_TYPE_VAR_STRING:/* old VARCHAR */
+				// fall through
+			case MYSQL_TYPE_VAR_STRING:// old VARCHAR
 				prtype |= field->charset()->number << 16;
 				ut_ad((field->charset()
 				       == &my_charset_bin)
@@ -7575,6 +7575,36 @@ create_table_metadata(
 				ut_ad(!"invalid column type");
 			}
 		}
+*/
+		ulint	nulls_allowed;
+		ulint	unsigned_type;
+		ulint	binary_type;
+		ulint	long_true_varchar;
+		ulint	charset_no;
+		mtype = get_innobase_type_from_mysql_type(
+			&unsigned_type, field);
+
+		nulls_allowed = field->real_maybe_null() ? 0 : DATA_NOT_NULL;
+		binary_type = field->binary() ? DATA_BINARY_TYPE : 0;
+
+		charset_no = 0;
+		if (dtype_is_string_type(mtype)) {
+			charset_no = static_cast<ulint>(
+				field->charset()->number);
+		}
+
+		long_true_varchar = 0;
+		if (field->type() == MYSQL_TYPE_VARCHAR) {
+			col_len -= ((Field_varstring*) field)->length_bytes;
+
+			if (((Field_varstring*) field)->length_bytes == 2) {
+				long_true_varchar = DATA_LONG_TRUE_VARCHAR;
+			}
+		}
+
+		prtype = dtype_form_prtype(
+			(ulint) field->type() | nulls_allowed | unsigned_type
+			| binary_type | long_true_varchar, charset_no);
 
 		dict_mem_table_add_col(m_table, heap, field->field_name,
 				       mtype, prtype, col_len);	
