@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -83,6 +83,7 @@ typedef struct my_aio_result {
 #define MY_RESOLVE_LINK 128	/* my_realpath(); Only resolve links */
 #define MY_HOLD_ORIGINAL_MODES 128  /* my_copy() holds to file modes */
 #define MY_REDEL_MAKE_BACKUP 256
+#define MY_REDEL_NO_COPY_STAT 512 /* my_redel() doesn't call my_copystat() */
 #define MY_SEEK_NOT_DONE 32	/* my_lock may have to do a seek */
 #define MY_DONT_WAIT	64	/* my_lock() don't wait if can't lock */
 #define MY_ZEROFILL	32	/* my_malloc(), fill array with zero */
