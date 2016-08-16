@@ -7796,8 +7796,6 @@ dd_open_table(
 		dd_table, table, m_table, dd_table->name().c_str(),
 		NULL, zip_allowed, strict, thd, skip_mdl);
 
-	dict_table_load_dynamic_metadata(m_table);
-
 	mutex_exit(&dict_sys->mutex);
 
 	/* Now fill the space ID and Root page number for each index */
@@ -7857,6 +7855,12 @@ dd_open_table(
 		index->id = id;
                 index = index->next();
 	}
+
+	mutex_enter(&dict_sys->mutex);
+
+	dict_table_load_dynamic_metadata(m_table);
+
+	mutex_exit(&dict_sys->mutex);
 
 	return(m_table);
 }
@@ -13584,8 +13588,7 @@ index_bad:
 			push_warning_printf(
 				m_thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: ROW_FORMAT=%s is ignored for"
-				" TEMPORARY TABLE.",
+				"InnoDB: %s is ignored for TEMPORARY TABLE.",
 				get_row_format_name(row_type));
 
 			/* DYNAMIC row format is closer to COMPRESSED
@@ -13606,8 +13609,7 @@ index_bad:
 			push_warning_printf(
 				m_thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: ROW_FORMAT=%s requires"
-				" innodb_file_per_table.",
+				"InnoDB: %s requires innodb_file_per_table.",
 				get_row_format_name(row_type));
 		} else {
 			/* We can use this row_format. */
@@ -14545,7 +14547,9 @@ create_table_info_t::create_table_update_global_dd(
 		/* This is a data dictionary table, nothing to do now */
 	}
 
-	set_table_options(dd_table, table);
+	if (!dict_table_is_temporary(table)) {
+		set_table_options(dd_table, table);
+	}
 
 	write_dd_table(dd_space_id, dd_table, table);
 
