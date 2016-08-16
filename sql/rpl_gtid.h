@@ -2935,6 +2935,8 @@ public:
   */
   bool warn_or_err_on_modify_gtid_table(THD *thd, TABLE_LIST *table);
 #endif
+
+private:
   /**
     Remove the GTID owned by thread from owned GTIDs.
 
@@ -2953,8 +2955,6 @@ public:
     @param[in] thd - Thread for which owned groups are updated.
   */
   void update_gtids_impl(THD *thd, bool is_commit);
-
-private:
 #ifdef HAVE_GTID_NEXT_LIST
   /// Lock all SIDNOs owned by the given THD.
   void lock_owned_sidnos(const THD *thd);
@@ -3005,6 +3005,199 @@ private:
 #ifdef FRIEND_OF_GTID_STATE
   friend FRIEND_OF_GTID_STATE;
 #endif
+
+  /**
+    This is a sub task of update_on_rollback responsible only to handle
+    the case of a thread that needs to skip GTID operations when it has
+    "failed to commit".
+
+    Administrative commands [CHECK|REPAIR|OPTIMIZE|ANALYZE] TABLE
+    are written to the binary log even when they fail.  When the
+    commands fail, they will call update_on_rollback; later they will
+    write the binary log.  But we must not do any of the things in
+    update_gtids_impl if we are going to write the binary log.  So
+    these statements set the skip_gtid_rollback flag, which tells
+    update_on_rollback to return early.  When the statements are
+    written to the binary log they will call update_on_commit as
+    usual.
+
+    @param[in] thd - Thread to be evaluated.
+
+    @retval true The transaction should skip the rollback, false otherwise.
+  */
+  bool update_gtids_impl_check_skip_gtid_rollback(THD *thd);
+  /**
+    This is a sub task of update_gtids_impl responsible only to handle
+    the case of a thread that owns nothing and does not violate GTID
+    consistency.
+
+    If the THD does not own anything, there is nothing to do, so we can do an
+    early return of the update process. Except if there is a GTID consistency
+    violation; then we need to decrease the counter, so then we can continue
+    executing inside update_gtids_impl.
+
+    @param[in] thd - Thread to be evaluated.
+    @retval true The transaction can be skipped because it owns nothing and
+                 does not violate GTID consistency, false otherwise.
+  */
+  bool update_gtids_impl_do_nothing(THD *thd);
+  /**
+    This is a sub task of update_gtids_impl responsible only to evaluate
+    if the thread is committing in the middle of a statement by checking
+    THD's is_commit_in_middle_of_statement flag.
+
+    This flag is true for anonymous transactions, when the
+    'transaction' has been split into multiple transactions in the
+    binlog, and the present transaction is not the last one.
+
+    This means two things:
+
+    - We should not release anonymous ownership in case
+      gtid_next=anonymous.  If we did, it would be possible for user
+      to set GTID_MODE=ON from a concurrent transaction, making it
+      impossible to commit the current transaction.
+
+    - We should not decrease the counters for GTID-violating
+      statements.  If we did, it would be possible for a concurrent
+      client to set ENFORCE_GTID_CONSISTENCY=ON despite there is an
+      ongoing transaction that violates GTID consistency.
+
+    The flag is set in two cases:
+
+     1. We are committing the statement cache when there are more
+        changes in the transaction cache.
+
+        This happens either because a single statement in the
+        beginning of a transaction updates both transactional and
+        non-transactional tables, or because we are committing a
+        non-transactional update in the middle of a transaction when
+        binlog_direct_non_transactional_updates=1.
+
+        In this case, the flag is set further down in this function.
+
+     2. The statement is one of the special statements that may
+        generate multiple transactions: CREATE...SELECT, DROP TABLE,
+        DROP DATABASE. See comment for THD::owned_gtid in
+        sql/sql_class.h.
+
+        In this case, the THD::is_commit_in_middle_of_statement flag
+        is set by the caller and the flag becomes true here.
+
+    @param[in] thd - Thread to be evaluated.
+    @return The value of thread's is_commit_in_middle_of_statement flag.
+  */
+  bool update_gtids_impl_begin(THD *thd);
+  /**
+    Handle the case that the thread own a set of GTIDs.
+
+    This is a sub task of update_gtids_impl responsible only to handle
+    the case of a thread with a set of GTIDs being updated.
+
+    - Release ownership of the GTIDs owned by the THD. This removes
+      the GTID from Owned_gtids and clears the ownership status in the
+      THD object.
+    - Add the owned GTIDs to executed_gtids if the is_commit flag is set.
+    - Send a broadcast on the condition variable for the sidno which we
+      released ownership.
+
+    @param[in] thd - Thread for which owned GTID set should be updated.
+    @param[in] is_commit - If the thread is being updated by a commit.
+  */
+  void update_gtids_impl_own_gtid_set(THD *thd, bool is_commit);
+  /**
+    Lock a given sidno of a transaction being updated.
+
+    This is a sub task of update_gtids_impl responsible only to lock the
+    sidno of the GTID being updated.
+
+    @param[in] sidno - The sidno to be locked.
+  */
+  void update_gtids_impl_lock_sidno(rpl_sidno sidno);
+  /**
+    Handle the case that the thread own a single non-anonymous GTID.
+
+    This is a sub task of update_gtids_impl responsible only to handle
+    the case of a thread with a single non-anonymous GTID being updated
+    either for commit or rollback.
+
+    - Release ownership of the GTID owned by the THD. This removes
+      the GTID from Owned_gtids and clears the ownership status in the
+      THD object.
+    - Add the owned GTID to executed_gtids if the is_commit flag is set.
+    - Send a broadcast on the condition variable for the sidno which we
+      released ownership.
+
+    @param[in] thd - Thread to be updated that owns single non-anonymous GTID.
+    @param[in] is_commit - If the thread is being updated by a commit.
+  */
+  void update_gtids_impl_own_gtid(THD *thd, bool is_commit);
+  /**
+    Unlock a given sidno after broadcasting its changes.
+
+    This is a sub task of update_gtids_impl responsible only to
+    unlock the sidno of the GTID being updated after broadcasting
+    its changes.
+
+    @param[in] sidno - The sidno to be broadcasted and unlocked.
+  */
+  void update_gtids_impl_broadcast_and_unlock_sidno(rpl_sidno sidno);
+  /**
+    Handle the case that the thread owns ANONYMOUS GTID.
+
+    This is a sub task of update_gtids_impl responsible only to handle
+    the case of a thread with an ANONYMOUS GTID being updated.
+
+    - Release ownership of the anonymous GTID owned by the THD and clears
+      the ownership status in the THD object.
+    - Decrease counters of GTID-violating transactions.
+
+    @param[in] thd - Thread to be updated that owns anonymous GTID.
+    @param[in,out] more_trx - If the 'transaction' has been split into
+                              multiple transactions in the binlog.
+                              This is firstly assigned with the return of
+                              Gtid_state::update_gtids_impl_begin function, and
+                              its value can be set to true when
+                              Gtid_state::update_gtids_impl_anonymous_gtid
+                              detects more content on the transaction cache.
+  */
+  void update_gtids_impl_own_anonymous(THD* thd, bool *more_trx);
+  /**
+    Handle the case that the thread owns nothing.
+
+    This is a sub task of update_gtids_impl responsible only to handle
+    the case of a thread that owns nothing being updated.
+
+    There are two cases when this happens:
+    - Normally, it is a rollback of an automatic transaction, so
+      the is_commit is false and gtid_next=automatic.
+    - There is also a corner case. This case may happen for a transaction
+      that uses GTID_NEXT=AUTOMATIC, and violates GTID_CONSISTENCY, and
+      commits changes to the database, but does not write to the binary log,
+      so that no GTID is generated. An example is CREATE TEMPORARY TABLE
+      inside a transaction when binlog_format=row. Despite the thread does
+      not own anything, the GTID consistency violation makes it necessary to
+      call end_gtid_violating_transaction. Therefore
+      MYSQL_BIN_LOG::gtid_end_transaction will call
+      gtid_state->update_on_commit in this case, and subsequently we will
+      reach this case.
+
+    @param[in] thd - Thread to be updated that owns anonymous GTID.
+  */
+  void update_gtids_impl_own_nothing(THD *thd);
+  /**
+    Handle the final part of update_gtids_impl.
+
+    This is a sub task of update_gtids_impl responsible only to handle
+    the call to end_gtid_violating_transaction function when there is no
+    more transactions split after the current transaction.
+
+    @param[in] thd - Thread for which owned group is updated.
+    @param[in] more_trx - This is the value returned from
+                          Gtid_state::update_gtids_impl_begin and can be
+                          changed for transactions owning anonymous GTID at
+                          Gtid_state::update_gtids_impl_own_anonymous.
+  */
+  void update_gtids_impl_end(THD *thd, bool more_trx);
 };
 
 

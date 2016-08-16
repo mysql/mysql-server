@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -156,25 +156,8 @@ void Gtid_state::update_on_rollback(THD *thd)
 {
   DBUG_ENTER("Gtid_state::update_on_rollback");
 
-  /*
-    The administrative commands [CHECK|REPAIR|OPTIMIZE|ANALYZE] TABLE
-    are written to the binary log even when they fail.  When the
-    commands fail, they will call update_on_rollback; later they will
-    write the binary log.  But we must not do any of the things in
-    update_gtids_impl if we are going to write the binary log.  So
-    these statements set the skip_gtid_rollback flag, which tells
-    update_on_rollback to return early.  When the statements are
-    written to the binary log they will call update_on_commit as
-    usual.
-  */
-  if (thd->skip_gtid_rollback)
-  {
-    DBUG_PRINT("info", ("skipping gtid rollback because "
-                        "thd->skip_gtid_rollback is set"));
-    DBUG_VOID_RETURN;
-  }
-
-  update_gtids_impl(thd, false);
+  if (!update_gtids_impl_check_skip_gtid_rollback(thd))
+    update_gtids_impl(thd, false);
 
   DBUG_VOID_RETURN;
 }
@@ -184,65 +167,10 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
 {
   DBUG_ENTER("Gtid_state::update_gtids_impl");
 
-  /*
-    If we don't own anything, there is nothing to do, so we do an
-    early return.  Except if there is a GTID consistency violation;
-    then we need to decrement the counter, so then we go ahead and
-    call update_gtids_impl.
-  */
-  if (thd->owned_gtid.is_empty() && !thd->has_gtid_consistency_violation)
-  {
-    if (thd->variables.gtid_next.type == GTID_GROUP)
-      thd->variables.gtid_next.set_undefined();
-    DBUG_PRINT("info", ("skipping update_gtids_impl because "
-                        "thread does not own anything and does not violate "
-                        "gtid consistency"));
+  if (update_gtids_impl_do_nothing(thd))
     DBUG_VOID_RETURN;
-  }
 
-  /*
-    This variable is true for anonymous transactions, when the
-    'transaction' has been split into multiple transactions in the
-    binlog, and the present transaction is not the last one.
-
-    This means two things:
-
-    - We should not release anonymous ownership in case
-      gtid_next=anonymous.  If we did, it would be possible for user
-      to set GTID_MODE=ON from a concurrent transaction, making it
-      impossible to commit the current transaction.
-
-    - We should not decrease the counters for GTID-violating
-      statements.  If we did, it would be possible for a concurrent
-      client to set ENFORCE_GTID_CONSISTENCY=ON despite there is an
-      ongoing transaction that violates GTID consistency.
-
-    The flag is set in two cases:
-
-     1. We are committing the statement cache when there are more
-        changes in the transaction cache.
-
-        This happens either because a single statement in the
-        beginning of a transaction updates both transactional and
-        non-transactional tables, or because we are committing a
-        non-transactional update in the middle of a transaction when
-        binlog_direct_non_transactional_updates=1.
-
-        In this case, the flag is set further down in this function.
-
-     2. The statement is one of the special statements that may
-        generate multiple transactions: CREATE...SELECT, DROP TABLE,
-        DROP DATABASE. See comment for THD::owned_gtid in
-        sql/sql_class.h.
-
-        In this case, the THD::is_commit_in_middle_of_statement flag
-        is set by the caller and the flag becomes true here.
-  */
-  bool more_transactions_with_same_gtid_next=
-    thd->is_commit_in_middle_of_statement;
-  DBUG_PRINT("info", ("query='%s' thd->is_commit_in_middle_of_statement=%d",
-                      thd->query().str,
-                      thd->is_commit_in_middle_of_statement));
+  bool more_trx_with_same_gtid_next= update_gtids_impl_begin(thd);
 
   DEBUG_SYNC(thd, "update_gtid_state_before_global_sid_lock");
   global_sid_lock->rdlock();
@@ -250,138 +178,27 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
 
   if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_GTID_SET)
   {
-#ifdef HAVE_GTID_NEXT_LIST
-    rpl_sidno prev_sidno= 0;
-    Gtid_set::Gtid_iterator git(&thd->owned_gtid_set);
-    Gtid g= git.get();
-    while (g.sidno != 0)
-    {
-      if (g.sidno != prev_sidno)
-        sid_locks.lock(g.sidno);
-      owned_gtids.remove_gtid(g);
-      git.next();
-      g= git.get();
-      if (is_commit)
-        executed_gtids._add_gtid(g);
-    }
-
-    if (is_commit && !thd->owned_gtid_set.is_empty())
-      thd->rpl_thd_ctx.session_gtids_ctx().
-        notify_after_gtid_executed_update(thd);
-
-    thd->variables.gtid_next.set_undefined();
-    thd->owned_gtid.dbug_print(NULL,
-                               "set owned_gtid (clear; old was gtid_set) "
-                               "in update_gtids_impl");
-    thd->clear_owned_gtids();
-#else
-    DBUG_ASSERT(0);
-#endif
+    update_gtids_impl_own_gtid_set(thd, is_commit);
   }
   else if (thd->owned_gtid.sidno > 0)
   {
-    lock_sidno(thd->owned_gtid.sidno);
-    DBUG_ASSERT(!executed_gtids.contains_gtid(thd->owned_gtid));
-    owned_gtids.remove_gtid(thd->owned_gtid);
-
-    if (is_commit)
-    {
-      DBUG_EXECUTE_IF(
-        "rpl_gtid_update_on_commit_simulate_out_of_memory",
-        DBUG_SET("+d,rpl_gtid_get_free_interval_simulate_out_of_memory"););
-      /*
-        Any session adds transaction owned GTID into global executed_gtids.
-
-        If binlog is disabled, we report @@GLOBAL.GTID_PURGED from
-        executed_gtids, since @@GLOBAL.GTID_PURGED and @@GLOBAL.GTID_EXECUTED
-        are always same, so we did not save gtid into lost_gtids for every
-        transaction for improving performance.
-
-        If binlog is enabled and log_slave_updates is disabled, slave
-        SQL thread or slave worker thread adds transaction owned GTID
-        into global executed_gtids, lost_gtids and gtids_only_in_table.
-      */
-      executed_gtids._add_gtid(thd->owned_gtid);
-      thd->rpl_thd_ctx.session_gtids_ctx().
-        notify_after_gtid_executed_update(thd);
-      if (thd->slave_thread && opt_bin_log && !opt_log_slave_updates)
-      {
-        lost_gtids._add_gtid(thd->owned_gtid);
-        gtids_only_in_table._add_gtid(thd->owned_gtid);
-      }
-    }
-
-    broadcast_owned_sidnos(thd);
-    unlock_owned_sidnos(thd);
-
-    thd->clear_owned_gtids();
-    if (thd->variables.gtid_next.type == GTID_GROUP)
-    {
-      DBUG_ASSERT(!more_transactions_with_same_gtid_next);
-      thd->variables.gtid_next.set_undefined();
-    }
-    else
-    {
-      /*
-        Can be UNDEFINED for statements where
-        gtid_pre_statement_checks skips the test for undefined,
-        e.g. ROLLBACK.
-      */
-      DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP ||
-                  thd->variables.gtid_next.type == UNDEFINED_GROUP);
-    }
+    rpl_sidno sidno= thd->owned_gtid.sidno;
+    update_gtids_impl_lock_sidno(sidno);
+    update_gtids_impl_own_gtid(thd, is_commit);
+    update_gtids_impl_broadcast_and_unlock_sidno(sidno);
   }
   else if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
   {
-    DBUG_ASSERT(thd->variables.gtid_next.type == ANONYMOUS_GROUP ||
-                thd->variables.gtid_next.type == AUTOMATIC_GROUP);
-    /*
-      If there is more in the transaction cache, set
-      more_transactions_with_same_gtid_next to indicate this.
-
-      See comment for the declaration of
-      more_transactions_with_same_gtid_next.
-    */
-    if (opt_bin_log)
-    {
-      // Needed before is_binlog_cache_empty.
-      thd->binlog_setup_trx_data();
-      if (!thd->is_binlog_cache_empty(true))
-      {
-        more_transactions_with_same_gtid_next= true;
-        DBUG_PRINT("info", ("Transaction cache is non-empty: setting "
-                            "more_transaction_with_same_gtid_next="
-                            "true."));
-      }
-    }
-    if (!(more_transactions_with_same_gtid_next &&
-          thd->variables.gtid_next.type == ANONYMOUS_GROUP))
-    {
-      release_anonymous_ownership();
-      thd->clear_owned_gtids();
-    }
+    update_gtids_impl_own_anonymous(thd, &more_trx_with_same_gtid_next);
   }
   else
   {
-    /*
-      Nothing is owned.  There are two cases when this happens:
-
-      - Normally, it is a rollback of an automatic transaction, so
-        then is_commit is false and gtid_next=automatic.
-
-      - There is also a corner case. A transaction with an empty gtid
-        should call gtid_end_transaction(...) to check a possible
-        violation of gtid consistency on commit, if it has set
-        has_gtid_consistency_violation to true.
-    */
-    DBUG_ASSERT(!is_commit || thd->has_gtid_consistency_violation);
-    DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP);
+    update_gtids_impl_own_nothing(thd);
   }
 
   global_sid_lock->unlock();
 
-  if (!more_transactions_with_same_gtid_next)
-    end_gtid_violating_transaction(thd);
+  update_gtids_impl_end(thd, more_trx_with_same_gtid_next);
 
   thd->owned_gtid.dbug_print(NULL,
                              "set owned_gtid (clear) in update_gtids_impl");
@@ -865,3 +682,182 @@ bool Gtid_state::warn_or_err_on_modify_gtid_table(THD *thd, TABLE_LIST *table)
   DBUG_RETURN(ret);
 }
 #endif
+
+bool Gtid_state::update_gtids_impl_check_skip_gtid_rollback(THD *thd)
+{
+  if (thd->skip_gtid_rollback)
+  {
+    DBUG_PRINT("info", ("skipping gtid rollback because "
+                        "thd->skip_gtid_rollback is set"));
+    return true;
+  }
+  return false;
+}
+
+bool Gtid_state::update_gtids_impl_do_nothing(THD *thd)
+{
+  if (thd->owned_gtid.is_empty() && !thd->has_gtid_consistency_violation)
+  {
+    if (thd->variables.gtid_next.type == GTID_GROUP)
+      thd->variables.gtid_next.set_undefined();
+    DBUG_PRINT("info", ("skipping update_gtids_impl because "
+                        "thread does not own anything and does not violate "
+                        "gtid consistency"));
+
+    return true;
+  }
+  return false;
+}
+
+bool Gtid_state::update_gtids_impl_begin(THD *thd)
+{
+#ifndef DBUG_OFF
+  if (current_thd != thd)
+    mysql_mutex_lock(&thd->LOCK_thd_query);
+  DBUG_PRINT("info", ("query='%s' thd->is_commit_in_middle_of_statement=%d",
+                      thd->query().str,
+                      thd->is_commit_in_middle_of_statement));
+  if (current_thd != thd)
+    mysql_mutex_unlock(&thd->LOCK_thd_query);
+#endif
+  return thd->is_commit_in_middle_of_statement;
+}
+
+void Gtid_state::update_gtids_impl_own_gtid_set(THD *thd, bool is_commit)
+{
+#ifdef HAVE_GTID_NEXT_LIST
+  rpl_sidno prev_sidno= 0;
+  Gtid_set::Gtid_iterator git(&thd->owned_gtid_set);
+  Gtid g= git.get();
+  while (g.sidno != 0)
+  {
+    if (g.sidno != prev_sidno)
+      sid_locks.lock(g.sidno);
+    owned_gtids.remove_gtid(g);
+    git.next();
+    g= git.get();
+    if (is_commit)
+      executed_gtids._add_gtid(g);
+  }
+
+  if (is_commit && !thd->owned_gtid_set.is_empty())
+    thd->rpl_thd_ctx.session_gtids_ctx().
+      notify_after_gtid_executed_update(thd);
+
+  thd->variables.gtid_next.set_undefined();
+  thd->owned_gtid.dbug_print(NULL,
+                             "set owned_gtid (clear; old was gtid_set) "
+                             "in update_gtids_impl");
+  thd->clear_owned_gtids();
+#else
+  DBUG_ASSERT(0);
+#endif
+}
+
+void Gtid_state::update_gtids_impl_lock_sidno(rpl_sidno sidno)
+{
+  DBUG_ASSERT(sidno > 0);
+  DBUG_PRINT("info",("Locking sidno %d", sidno));
+  lock_sidno(sidno);
+}
+
+void Gtid_state::update_gtids_impl_own_gtid(THD *thd, bool is_commit)
+{
+  assert_sidno_lock_owner(thd->owned_gtid.sidno);
+  DBUG_ASSERT(!executed_gtids.contains_gtid(thd->owned_gtid));
+  owned_gtids.remove_gtid(thd->owned_gtid);
+
+  if (is_commit)
+  {
+    DBUG_EXECUTE_IF(
+      "rpl_gtid_update_on_commit_simulate_out_of_memory",
+      DBUG_SET("+d,rpl_gtid_get_free_interval_simulate_out_of_memory"););
+    /*
+      Any session adds transaction owned GTID into global executed_gtids.
+
+      If binlog is disabled, we report @@GLOBAL.GTID_PURGED from
+      executed_gtids, since @@GLOBAL.GTID_PURGED and @@GLOBAL.GTID_EXECUTED
+      are always same, so we did not save gtid into lost_gtids for every
+      transaction for improving performance.
+
+      If binlog is enabled and log_slave_updates is disabled, slave
+      SQL thread or slave worker thread adds transaction owned GTID
+      into global executed_gtids, lost_gtids and gtids_only_in_table.
+    */
+    executed_gtids._add_gtid(thd->owned_gtid);
+    thd->rpl_thd_ctx.session_gtids_ctx().
+      notify_after_gtid_executed_update(thd);
+    if (thd->slave_thread && opt_bin_log && !opt_log_slave_updates)
+    {
+      lost_gtids._add_gtid(thd->owned_gtid);
+      gtids_only_in_table._add_gtid(thd->owned_gtid);
+    }
+  }
+
+  thd->clear_owned_gtids();
+  if (thd->variables.gtid_next.type == GTID_GROUP)
+  {
+    DBUG_ASSERT(!thd->is_commit_in_middle_of_statement);
+    thd->variables.gtid_next.set_undefined();
+  }
+  else
+  {
+    /*
+      Can be UNDEFINED for statements where
+      gtid_pre_statement_checks skips the test for undefined,
+      e.g. ROLLBACK.
+    */
+    DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP ||
+                thd->variables.gtid_next.type == UNDEFINED_GROUP);
+  }
+}
+
+void Gtid_state::update_gtids_impl_broadcast_and_unlock_sidno(rpl_sidno sidno)
+{
+  DBUG_PRINT("info",("Unlocking sidno %d", sidno));
+  broadcast_sidno(sidno);
+  unlock_sidno(sidno);
+}
+
+void Gtid_state::update_gtids_impl_own_anonymous(THD* thd,
+                                                 bool *more_trx)
+{
+  DBUG_ASSERT(thd->variables.gtid_next.type == ANONYMOUS_GROUP ||
+              thd->variables.gtid_next.type == AUTOMATIC_GROUP);
+  /*
+    If there is more in the transaction cache, set more_trx to indicate this.
+
+    See comment for the update_gtids_impl_begin function.
+  */
+  if (opt_bin_log)
+  {
+    // Needed before is_binlog_cache_empty.
+    thd->binlog_setup_trx_data();
+    if (!thd->is_binlog_cache_empty(true))
+    {
+      *more_trx= true;
+      DBUG_PRINT("info", ("Transaction cache is non-empty: setting "
+                          "more_transaction_with_same_gtid_next="
+                          "true."));
+    }
+  }
+  if (!(*more_trx &&
+        thd->variables.gtid_next.type == ANONYMOUS_GROUP))
+  {
+    release_anonymous_ownership();
+    thd->clear_owned_gtids();
+  }
+}
+
+void Gtid_state::update_gtids_impl_own_nothing(THD *thd)
+{
+  DBUG_ASSERT(thd->commit_error != THD::CE_COMMIT_ERROR ||
+              thd->has_gtid_consistency_violation);
+  DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP);
+}
+
+void Gtid_state::update_gtids_impl_end(THD *thd, bool more_trx)
+{
+  if (!more_trx)
+    end_gtid_violating_transaction(thd);
+}
