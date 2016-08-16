@@ -7832,12 +7832,9 @@ dd_open_table(
 			m_table->space = sid;
 			fil_space_t*	space = fil_space_get(m_table->space);
 			if (space == nullptr) {
-				my_error(ER_TABLESPACE_MISSING, MYF(0),
-					 m_table->name.m_name);
-				mutex_enter(&dict_sys->mutex);
-				dict_table_remove_from_cache(m_table);
-				mutex_exit(&dict_sys->mutex);
-				return(NULL);
+				/* Mark the ibd file is missing */
+				m_table->ibd_file_missing = true;
+				return(m_table);
 			}
 			first_index = false;
 		}
