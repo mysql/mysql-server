@@ -1285,7 +1285,7 @@ int MYSQL_BIN_LOG::gtid_end_transaction(THD *thd)
            thd->owned_gtid.is_empty())
   {
     DBUG_ASSERT(thd->has_gtid_consistency_violation == false);
-    gtid_state->update_gtids_impl(thd, true);
+    gtid_state->update_on_commit(thd);
   }
 
   DBUG_RETURN(0);
