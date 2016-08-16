@@ -4226,7 +4226,8 @@ prepare_inplace_alter_table_global_dd(
 	dict_table_t*		new_table,
 	const dict_table_t*	old_table,
 	const Table*		old_dd_tab,
-	Table*			new_dd_tab)
+	Table*			new_dd_tab,
+	bool			need_rebuild)
 {
 	ha_innobase_inplace_ctx*ctx = static_cast<ha_innobase_inplace_ctx*>
 		(ha_alter_info->handler_ctx);
@@ -4238,7 +4239,7 @@ prepare_inplace_alter_table_global_dd(
 			       ->auto_increment_value);
 	}
 
-	if (innobase_need_rebuild(ha_alter_info)) {
+	if (need_rebuild) {
 		/* To rebuild, we wtite back the whole table */
 		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
 		dd::cache::Dictionary_client::Auto_releaser releaser(client);
@@ -5054,7 +5055,7 @@ op_ok:
 
 	if (prepare_inplace_alter_table_global_dd(
 		    ha_alter_info, ctx->new_table, user_table,
-		    old_dd_tab, new_dd_tab)) {
+		    old_dd_tab, new_dd_tab, new_clustered)) {
 		error = DB_ERROR;
 	}
 
@@ -6123,9 +6124,8 @@ err_exit:
 				ha_alter_info->handler_ctx);
 
 		DBUG_RETURN(prepare_inplace_alter_table_global_dd(
-			ha_alter_info, ctx->new_table,
-			ctx->old_table,
-			old_dd_tab, new_dd_tab));
+			ha_alter_info, ctx->new_table, ctx->old_table,
+			old_dd_tab, new_dd_tab, false));
 	}
 
 	/* If we are to build a full-text search index, check whether
