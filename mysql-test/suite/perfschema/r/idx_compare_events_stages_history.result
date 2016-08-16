@@ -79,7 +79,7 @@ SELECT * FROM performance_schema.events_stages_history WHERE thread_id = @target
 
 OK: Handler_read_key
 
-*** ERROR ***: Result set: Empty  Expected: Non-empty
+OK: Result set: Non-empty  Expected: Non-empty
 
 OK: Extra rows: 0  Missing rows: 0
 ========

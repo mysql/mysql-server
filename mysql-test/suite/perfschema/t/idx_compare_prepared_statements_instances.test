@@ -54,7 +54,7 @@ let $key_group = 1.1;
 let $key_group = 10.1;
 let $target_type  = PROCEDURE;
 let $target_schema = test;
-let $target_name  = SampeProc1;
+let $target_name  = SampleProc1;
 --source ../include/idx_compare_load.inc
 
 
