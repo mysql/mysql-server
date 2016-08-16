@@ -364,7 +364,9 @@ void element_map_test()
     // Template disambiguator necessary.
     const K *key= (*it)->template get_key<K>();
     if (key)
+    {
       ASSERT_TRUE(element_map.is_present(*key));
+    }
   }
 
   // Remove an element, and make sure the key
