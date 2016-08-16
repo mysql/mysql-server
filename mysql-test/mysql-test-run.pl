@@ -125,7 +125,6 @@ our $opt_vardir;                # Path to use for var/ dir
 my $path_vardir_trace;          # unix formatted opt_vardir for trace files
 my $opt_tmpdir;                 # Path to use for tmp/ dir
 my $opt_tmpdir_pid;
-my $opt_no_defaults;
 my $opt_start;
 my $opt_start_dirty;
 my $opt_start_exit;
@@ -3911,16 +3910,6 @@ sub default_mysqld {
   return $mysqld;
 }
 
-sub mysqld_default_arguments {
-  my ($mysqld, $args, $my_datadir)= @_;
-  mtr_add_arg($args, "--basedir=%s", $mysqld->value('basedir'));
-  mtr_add_arg($args, "--datadir=%s", "$my_datadir");
-  mtr_add_arg($args, "--lc-messages-dir=%s", $mysqld->value('lc-messages-dir'));
-  mtr_add_arg($args, "--secure-file-priv=%s", "$opt_vardir");
-  # overwrite the buffer size to 24M for certain tests to pass
-  mtr_add_arg($args, "--innodb_buffer_pool_size=24M");
-  mtr_add_arg($args, "--innodb-log-file-size=5M");
-}
 
 sub mysql_install_db {
   my ($mysqld, $datadir)= @_;
@@ -3939,7 +3928,13 @@ sub mysql_install_db {
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=%s", "$opt_vardir/tmp/");
   mtr_add_arg($args, "--core-file");
-  mysqld_default_arguments($mysqld, $args, $install_datadir);
+  mtr_add_arg($args, "--basedir=%s", $mysqld->value('basedir'));
+  mtr_add_arg($args, "--datadir=%s", "$install_datadir");
+  mtr_add_arg($args, "--lc-messages-dir=%s", $mysqld->value('lc-messages-dir'));
+  mtr_add_arg($args, "--secure-file-priv=%s", "$opt_vardir");
+  # overwrite the buffer size to 24M for certain tests to pass
+  mtr_add_arg($args, "--innodb_buffer_pool_size=24M");
+  mtr_add_arg($args, "--innodb-log-file-size=5M");
   # overwrite innodb_autoextend_increment to 8 for reducing the ibdata1 file size
   mtr_add_arg($args, "--innodb_autoextend_increment=8");
   if ( $opt_embedded_server )
@@ -5793,35 +5788,49 @@ sub mysqld_stop {
     );
 }
 
+# This subroutine is added to handle option file options which always
+# have to be passed before any other variables or command line options.
+sub arrange_option_files_options
+{
+  my ($args, $mysqld, $extra_opts, @options)= @_;
+
+  my @optionfile_options;
+  foreach my $arg (@$extra_opts)
+  {
+    if ( grep { $arg =~ $_ } @options )
+    {
+      push (@optionfile_options, $arg );
+    }
+  }
+
+  my $opt_no_defaults= grep(/^--no-defaults/, @optionfile_options);
+  my $opt_defaults_extra= grep(/^--defaults-extra-file/, @optionfile_options);
+  my $opt_defaults= grep(/^--defaults-file/, @optionfile_options);
+
+  if ( !$opt_defaults_extra && !$opt_defaults && !$opt_no_defaults )
+  {
+    mtr_add_arg($args, "--defaults-file=%s",  $path_config_file);
+  }
+
+  push(@$args, @optionfile_options);
+
+  # no-defaults has to be the first option provided to mysqld.
+  if ( $opt_no_defaults )
+  {
+    @$args= grep {!/^--defaults-group-suffix/} @$args;
+  }
+}
+
 
 sub mysqld_arguments ($$$) {
   my $args=              shift;
   my $mysqld=            shift;
   my $extra_opts=        shift;
+  my @options= ("--no-defaults", "--defaults-extra-file", "--defaults-file",
+                "--login-path", "--print-defaults");
 
-  $opt_no_defaults = grep(/^--no[-_]defaults/, @$extra_opts);
-  if ($opt_no_defaults)
-  {
-    unshift(@$args, "--no-defaults");
-    mysqld_default_arguments($mysqld, $args, $mysqld->value('datadir'));
-    mtr_add_arg($args, "--socket=%s", $mysqld->value('socket'));
-    mtr_add_arg($args, "--pid-file=%s", $mysqld->value('pid-file'));
-    mtr_add_arg($args, "--port=%s", $mysqld->value('port'));
-    # Add ssl related options to avoid server warnings while restarting
-    mtr_add_arg($args, "--ssl-cert=%s", "$glob_mysql_test_dir/std_data/server-cert.pem");
-    mtr_add_arg($args, "--ssl-key=%s", "$glob_mysql_test_dir/std_data/server-key.pem");
-  }
+  arrange_option_files_options($args, $mysqld, $extra_opts, @options);
 
-  else
-  {
-    my @defaults = grep(/^--defaults[-_]file=/, @$extra_opts);
-    if (@defaults > 0) {
-      mtr_add_arg($args, pop(@defaults))
-    }
-    else {
-    mtr_add_arg($args, "--defaults-file=%s",  $path_config_file);
-    }
-  }
   # When mysqld is run by a root user(euid is 0), it will fail
   # to start unless we specify what user to run as, see BUG#30630
   my $euid= $>;
@@ -5881,11 +5890,10 @@ sub mysqld_arguments ($$$) {
 
   foreach my $arg ( @$extra_opts )
   {
-    # Skip --defaults-file and --no-defaults options since they are handled above.
-    next if $arg =~ /^--defaults-file/;
-    next if $arg =~ /^--no-defaults/;
+    # Skip option file options because they are handled above
+    next if ( grep { $arg =~ $_ } @options);
 
-    if ($arg eq "--log[-_]error")
+    if ($arg =~ /--log[-_]error/)
     {
       $found_log_error= 1;
     }
