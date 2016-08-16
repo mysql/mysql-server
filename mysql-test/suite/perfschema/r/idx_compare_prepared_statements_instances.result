@@ -283,15 +283,15 @@ OK: Result set: Non-empty  Expected: Non-empty
 
 OK: Extra rows: 0  Missing rows: 0
 ========
-SELECT * FROM performance_schema.prepared_statements_instances WHERE owner_object_type = 'PROCEDURE' AND owner_object_schema = 'test' AND owner_object_name = 'SampeProc1'
+SELECT * FROM performance_schema.prepared_statements_instances WHERE owner_object_type = 'PROCEDURE' AND owner_object_schema = 'test' AND owner_object_name = 'SampleProc1'
 
 OK: Handler_read_key
 
-*** ERROR ***: Result set: Empty  Expected: Non-empty
+OK: Result set: Non-empty  Expected: Non-empty
 
 OK: Extra rows: 0  Missing rows: 0
 ========
-SELECT * FROM performance_schema.prepared_statements_instances WHERE owner_object_type = 'impossible' AND owner_object_schema = 'test' AND owner_object_name = 'SampeProc1'
+SELECT * FROM performance_schema.prepared_statements_instances WHERE owner_object_type = 'impossible' AND owner_object_schema = 'test' AND owner_object_name = 'SampleProc1'
 
 OK: Handler_read_key
 
