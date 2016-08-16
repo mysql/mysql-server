@@ -1478,8 +1478,6 @@ EXPLAIN
     }
   }
 }
-Warnings:
-Note	1003	/* select#1 */ select `character_sets`.`CHARACTER_SET_NAME` AS `CHARACTER_SET_NAME`,`character_sets`.`DEFAULT_COLLATE_NAME` AS `DEFAULT_COLLATE_NAME`,`character_sets`.`DESCRIPTION` AS `DESCRIPTION`,`character_sets`.`MAXLEN` AS `MAXLEN` from `information_schema`.`CHARACTER_SETS` `character_sets` order by `character_sets`.`CHARACTER_SET_NAME` limit 3
 select * from information_schema.character_sets order by 1 limit 3;
 CHARACTER_SET_NAME	DEFAULT_COLLATE_NAME	DESCRIPTION	MAXLEN
 armscii8	armscii8_general_ci	ARMSCII-8 Armenian	1

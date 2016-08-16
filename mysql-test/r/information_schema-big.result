@@ -18,7 +18,9 @@ c2.table_name = t.table_name AND
 c2.column_name LIKE '%SCHEMA%'
         )
 AND t.table_name NOT LIKE 'ndb%'
-  AND t.table_name NOT LIKE 'INNODB%';
+  AND t.table_name NOT LIKE 'INNODB%'
+  ORDER BY t.table_name COLLATE utf8_general_ci,
+c1.column_name COLLATE utf8_general_ci;
 TABLE_NAME	COLUMN_NAME
 CHARACTER_SETS	CHARACTER_SET_NAME
 COLLATIONS	COLLATION_NAME
@@ -71,7 +73,9 @@ c2.table_name = t.table_name AND
 c2.column_name LIKE '%SCHEMA%'
         )
 AND t.table_name NOT LIKE 'ndb%'
-  AND t.table_name NOT LIKE 'INNODB%';
+  AND t.table_name NOT LIKE 'INNODB%'
+  ORDER BY t.table_name COLLATE utf8_general_ci,
+c1.column_name COLLATE utf8_general_ci;
 TABLE_NAME	COLUMN_NAME
 CHARACTER_SETS	CHARACTER_SET_NAME
 COLLATIONS	COLLATION_NAME
