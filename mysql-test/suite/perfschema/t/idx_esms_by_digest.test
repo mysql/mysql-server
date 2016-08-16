@@ -2,6 +2,7 @@
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
+--source include/no_protocol.inc
 
 #setup
 let $select_column = COUNT_STAR;
