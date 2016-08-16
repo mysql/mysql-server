@@ -1468,6 +1468,53 @@ validate_user_plugin_records()
 }
 
 
+/**
+  Initialize roles structures from tables.
+
+  This function is called by acl_init and may fail to
+  initialize role structures if role_edges and/or
+  default_roles are not present.
+
+  @param thd [in] Handle to THD
+*/
+
+static
+void roles_init(THD *thd)
+{
+  TABLE_LIST tables[2];
+  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("role_edges"),
+                           "role_edges", TL_READ, MDL_SHARED_READ_ONLY);
+
+  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("default_roles"),
+                           "default_roles", TL_READ, MDL_SHARED_READ_ONLY);
+
+  tables[0].next_local=
+    tables[0].next_global= tables + 1;
+  tables[1].next_local=
+    tables[1].next_global= 0;
+  tables[0].open_type=
+  tables[1].open_type= OT_BASE_ONLY;
+
+  bool result= open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT);
+  if (!result)
+  {
+    check_acl_tables(tables, false);
+    commit_and_close_mysql_tables(thd);
+    result= roles_init_from_tables(thd);
+  }
+
+  if (result)
+  {
+   sql_print_warning("Could not load mysql.role_edges and "
+                     "mysql.default_roles tables. ACL DDLs "
+                     "will not work unless mysql_upgrade is "
+                     "executed.");
+  }
+}
+
+
 /*
   Initialize structures responsible for user/db-level privilege checking and
   load privilege information for them from tables in the 'mysql' database.
@@ -1540,7 +1587,7 @@ my_bool acl_init(bool dont_read_acl_tables)
     by zeros at startup.
   */
   return_val|= acl_reload(thd);
-  return_val|= roles_init_from_tables(thd);
+  roles_init(thd);
   thd->release_resources();
   delete thd;
 
@@ -2160,7 +2207,7 @@ void acl_free(bool end)
 
 bool check_engine_type_for_acl_table(THD *thd)
 {
-  TABLE_LIST tables[8];
+  TABLE_LIST tables[6];
 
   /*
     Open the following ACL tables to check their consistency.
@@ -2193,14 +2240,6 @@ bool check_engine_type_for_acl_table(THD *thd)
                            C_STRING_WITH_LEN("procs_priv"),
                            "procs_priv", TL_READ, MDL_SHARED_READ_ONLY);
 
-  tables[ACL_TABLES::TABLE_ROLE_EDGES].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("role_edges"),
-                           "role_edges", TL_READ, MDL_SHARED_READ_ONLY);
-
-  tables[ACL_TABLES::TABLE_DEFAULT_ROLES].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("default_roles"),
-                           "default_roles", TL_READ, MDL_SHARED_READ_ONLY);
-
   tables[ACL_TABLES::TABLE_USER].next_local=
     tables[ACL_TABLES::TABLE_USER].next_global= tables + 1;
   tables[ACL_TABLES::TABLE_DB].next_local=
@@ -2212,20 +2251,14 @@ bool check_engine_type_for_acl_table(THD *thd)
   tables[ACL_TABLES::TABLE_PROCS_PRIV].next_local=
     tables[ACL_TABLES::TABLE_PROCS_PRIV].next_global= tables + 5;
   tables[ACL_TABLES::TABLE_PROXIES_PRIV].next_local=
-    tables[ACL_TABLES::TABLE_PROXIES_PRIV].next_global= tables + 6;
-  tables[ACL_TABLES::TABLE_ROLE_EDGES].next_local=
-    tables[ACL_TABLES::TABLE_ROLE_EDGES].next_global= tables + 7;
-  tables[ACL_TABLES::TABLE_DEFAULT_ROLES].next_local=
-    tables[ACL_TABLES::TABLE_DEFAULT_ROLES].next_global= 0;
+    tables[ACL_TABLES::TABLE_PROXIES_PRIV].next_global= 0;
 
   tables[ACL_TABLES::TABLE_USER].open_type=
     tables[ACL_TABLES::TABLE_DB].open_type=
     tables[ACL_TABLES::TABLE_TABLES_PRIV].open_type=
     tables[ACL_TABLES::TABLE_COLUMNS_PRIV].open_type=
     tables[ACL_TABLES::TABLE_PROCS_PRIV].open_type=
-    tables[ACL_TABLES::TABLE_PROXIES_PRIV].open_type=
-    tables[ACL_TABLES::TABLE_ROLE_EDGES].open_type=
-    tables[ACL_TABLES::TABLE_DEFAULT_ROLES].open_type= OT_BASE_ONLY;
+    tables[ACL_TABLES::TABLE_PROXIES_PRIV].open_type= OT_BASE_ONLY;
 
   bool result= open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT);
   if (!result)
