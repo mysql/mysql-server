@@ -1,0 +1,41 @@
+# ==== Purpose and Implementation ====
+# Set binlog_group_commit_sync_delay to 1~9.
+# case1) Have binlog_group_commit_sync_no_delay_count > 1, and the number of
+# transaction commits less than binlog_group_commit_sync_no_delay_count, these
+# commits should not hang forever if no more commits come in;
+# case2) If binlog_group_commit_sync_no_delay_count = 0 transaction commits
+# should not hang forever;
+#
+# ==== References ====
+#
+# Bug#22891628: BINARY GROUP COMMIT HANGS WHEN BINLOG_GROUP_COMMIT_SYNC_DELAY
+# IS SET TO 1~9
+#
+###############################################################################
+--source include/have_log_bin.inc
+
+CREATE TABLE t(id INT PRIMARY KEY, v INT NOT NULL) ENGINE INNODB;
+
+INSERT INTO t VALUES(1, 100), (2, 100), (3, 100), (4, 100);
+--let $bgcd_saved=`SELECT @@GLOBAL.binlog_group_commit_sync_delay`
+##################### begin of case 1 ######################
+SET GLOBAL binlog_group_commit_sync_delay = 8;
+SET GLOBAL binlog_group_commit_sync_no_delay_count = 2;
+
+BEGIN;
+UPDATE t set v = v + 100 WHERE id = 1;
+COMMIT; # hangs here forever if no more commits come in
+
+###################### end of case 1 #######################
+
+##################### begin of case 2 ######################
+SET GLOBAL binlog_group_commit_sync_delay = 8;
+SET GLOBAL binlog_group_commit_sync_no_delay_count = 0;
+
+BEGIN;
+UPDATE t set v = v + 100 WHERE id = 3;
+COMMIT; # hangs here forever
+
+###################### end of case 2 #######################
+--eval SET GLOBAL binlog_group_commit_sync_delay=$bgcd_saved
+DROP TABLE t;
