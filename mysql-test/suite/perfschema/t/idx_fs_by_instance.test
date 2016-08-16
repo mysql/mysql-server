@@ -4,7 +4,7 @@
 --source include/have_perfschema.inc
 
 #setup
-let $select_column = COUNT_STAR;
+let $select_column = COUNT(*);
 let $table = performance_schema.file_summary_by_instance;
 
 select OBJECT_INSTANCE_BEGIN from performance_schema.file_summary_by_instance limit 1
