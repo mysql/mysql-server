@@ -306,14 +306,14 @@ INSERT INTO t1 VALUES (x) ;|
 DROP DATABASE db1_extended;
 SHOW CREATE FUNCTION db1_extended.f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`u1`@`localhost` FUNCTION `f1`() RETURNS int(11)
+f1	NO_AUTO_VALUE_ON_ZERO	CREATE DEFINER=`u1`@`localhost` FUNCTION `f1`() RETURNS int(11)
 BEGIN
 SET NAMES 'big5';
 RETURN (SELECT COUNT(*) FROM t1);
 END	utf8mb4	utf8mb4_general_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION db1_extended.f2;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`u1`@`localhost` FUNCTION `f2`() RETURNS int(11)
+f2	NO_AUTO_VALUE_ON_ZERO	CREATE DEFINER=`u1`@`localhost` FUNCTION `f2`() RETURNS int(11)
 BEGIN
 DECLARE n int;
 DECLARE m int;
@@ -323,7 +323,7 @@ RETURN n < m;
 END	utf8mb4	utf8mb4_general_ci	latin1_swedish_ci
 SHOW CREATE PROCEDURE db1_extended.p1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`u1`@`localhost` PROCEDURE `p1`()
+p1	NO_AUTO_VALUE_ON_ZERO	CREATE DEFINER=`u1`@`localhost` PROCEDURE `p1`()
 BEGIN
 SET @A= 20;
 SELECT 1;
@@ -332,19 +332,19 @@ SELECT 6, 7, 8;
 END	utf8mb4	utf8mb4_general_ci	latin1_swedish_ci
 SHOW CREATE PROCEDURE db1_extended.p2;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`u1`@`localhost` PROCEDURE `p2`(x int)
+p2	NO_AUTO_VALUE_ON_ZERO	CREATE DEFINER=`u1`@`localhost` PROCEDURE `p2`(x int)
 INSERT INTO t1 VALUES (x)	utf8mb4	utf8mb4_general_ci	latin1_swedish_ci
 DROP DATABASE db1_extended;
 SHOW CREATE FUNCTION db1_extended.f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
+f1	NO_AUTO_VALUE_ON_ZERO	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
 BEGIN
 SET NAMES 'big5';
 RETURN (SELECT COUNT(*) FROM t1);
 END	utf8mb4	utf8mb4_general_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION db1_extended.f2;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f2`() RETURNS int(11)
+f2	NO_AUTO_VALUE_ON_ZERO	CREATE DEFINER=`root`@`localhost` FUNCTION `f2`() RETURNS int(11)
 BEGIN
 DECLARE n int;
 DECLARE m int;
@@ -354,7 +354,7 @@ RETURN n < m;
 END	utf8mb4	utf8mb4_general_ci	latin1_swedish_ci
 SHOW CREATE PROCEDURE db1_extended.p1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+p1	NO_AUTO_VALUE_ON_ZERO	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 BEGIN
 SET @A= 20;
 SELECT 1;
@@ -363,7 +363,7 @@ SELECT 6, 7, 8;
 END	utf8mb4	utf8mb4_general_ci	latin1_swedish_ci
 SHOW CREATE PROCEDURE db1_extended.p2;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p2`(x int)
+p2	NO_AUTO_VALUE_ON_ZERO	CREATE DEFINER=`root`@`localhost` PROCEDURE `p2`(x int)
 INSERT INTO t1 VALUES (x)	utf8mb4	utf8mb4_general_ci	latin1_swedish_ci
 DROP DATABASE db1_extended;
 DROP USER u1@localhost;
