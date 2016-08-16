@@ -83,7 +83,7 @@ extern "C" {
     /** NDB_MGM_EVENT_CATEGORY_STARTUP */
     NDB_LE_NDBStopAborted = 18,
     /** NDB_MGM_EVENT_CATEGORY_STARTUP */
-    NDB_LE_LCPRestored = 85,
+    NDB_LE_LCPRestored = 86,
     /** NDB_MGM_EVENT_CATEGORY_STARTUP */
     NDB_LE_StartREDOLog = 19,
     /** NDB_MGM_EVENT_CATEGORY_STARTUP */
