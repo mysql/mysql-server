@@ -313,9 +313,17 @@ INSERT INTO t(j) VALUES
 (CAST(ST_GeomFromText('POINT(0 1)') AS JSON)),
 (CAST(CAST('1234abcd' AS BINARY) AS JSON));
 
+--disable_query_log
+# Minimal buffer size, to test merging as well
+set @@sort_buffer_size=32 * 1024;
+--enable_query_log
+
 # Now order the table on the JSON column.
 SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id;
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2;
+
 SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id;
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id limit 2 offset 2;
 
 # Ordering on a JSON expression should give the same result.
 SELECT JSON_EXTRACT(j, '$') AS je, JSON_TYPE(j) AS tp FROM t ORDER BY je, id;
@@ -323,9 +331,14 @@ SELECT JSON_EXTRACT(j, '$') AS je, JSON_TYPE(j) AS tp FROM t ORDER BY je, id;
 # Set max_sort_length as small as possible and order again. Since we'll now just
 # look at a prefix of the values, distinct values with a common prefix may order
 # as equal.
-SET @@max_sort_length=4;
+SET @@max_sort_length=8;
 SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id;
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2;
 SET @@max_sort_length=default;
+
+--disable_query_log
+set @@sort_buffer_size=default;
+--enable_query_log
 
 # GROUP BY uses a temporary for grouping, GROUP BY WITH ROLLUP uses filesort to
 # do the grouping.
@@ -3441,6 +3454,16 @@ DROP TABLE t;
 CREATE PROCEDURE p(a JSON) SELECT 1 WHERE a = 1;
 CALL p(NULL);
 DROP PROCEDURE p;
+
+#
+# Bug#21573154: ASSERTION `(KP1 + KP1_LEN) < (S1 + M_SIZE)
+#
+CREATE TABLE t1 (pk INT AUTO_INCREMENT KEY, f1 INT, fj JSON);
+INSERT INTO t1 VALUES(1, NULL, JSON_OBJECT('aaa','bbb'));
+INSERT INTO t1 VALUES(2, NULL, JSON_OBJECT('bbb','aaa'));
+SELECT * FROM t1 ORDER BY f1, pk, fj;
+
+DROP TABLE t1;
 
 # Local Variables:
 # mode: sql

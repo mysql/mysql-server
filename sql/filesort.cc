@@ -34,6 +34,7 @@
 #include "binary_log_types.h"
 #include "binlog_config.h"
 #include "bounded_queue.h"
+#include "cmp_varlen_keys.h"
 #include "current_thd.h"                // current_thd
 #include "debug_sync.h"
 #include "decimal.h"
@@ -48,6 +49,7 @@
 #include "log.h"
 #include "m_ctype.h"
 #include "malloc_allocator.h"
+#include "merge_many_buff.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
@@ -91,22 +93,27 @@ using std::min;
 
 namespace {
 
-struct Mem_compare
+struct Mem_compare_queue_key
 {
-  Mem_compare() : m_compare_length(0) {}
+  Mem_compare_queue_key() : m_compare_length(0), m_param(nullptr) {}
 
-  Mem_compare(const Mem_compare &that)
-    : m_compare_length(that.m_compare_length)
+  Mem_compare_queue_key(const Mem_compare_queue_key &that)
+    : m_compare_length(that.m_compare_length), m_param(that.m_param)
   {
   }
 
   bool operator()(const uchar *s1, const uchar *s2) const
   {
+    if (m_param)
+      return
+        cmp_varlen_keys(m_param->local_sortorder, s1, s2);
+
     // memcmp(s1, s2, 0) is guaranteed to return zero.
     return memcmp(s1, s2, m_compare_length) < 0;
   }
 
   size_t m_compare_length;
+  Sort_param *m_param;
 };
 }
 
@@ -118,7 +125,7 @@ static ha_rows find_all_keys(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
                              IO_CACHE *buffer_file,
                              IO_CACHE *chunk_file,
                              Bounded_queue<uchar *, uchar *, Sort_param,
-                                           Mem_compare> *pq,
+                                           Mem_compare_queue_key> *pq,
                              ha_rows *found_rows);
 static int write_keys(Sort_param *param, Filesort_info *fs_info,
                       uint count, IO_CACHE *buffer_file, IO_CACHE *tempfile);
@@ -141,13 +148,17 @@ static bool check_if_pq_applicable(Opt_trace_context *trace,
 
 
 void Sort_param::init_for_filesort(Filesort *file_sort,
+                                   Bounds_checked_array<st_sort_field> sf_array,
                                    uint sortlen, TABLE *table,
                                    ulong max_length_for_sort_data,
                                    ha_rows maxrows, bool sort_positions)
 {
   DBUG_ASSERT(max_rows == 0);   // function should not be called twice
-  sort_length= sortlen;
+  m_fixed_sort_length= sortlen;
   ref_length= table->file->ref_length;
+
+  local_sortorder= sf_array;
+
   if (!(table->file->ha_table_flags() & HA_FAST_KEY_READ) &&
       !table->fulltext_searched && !sort_positions)
   {
@@ -157,30 +168,38 @@ void Sort_param::init_for_filesort(Filesort *file_sort,
     */
     addon_fields=
       file_sort->get_addon_fields(max_length_for_sort_data,
-                                  table->field, sort_length, &addon_length,
+                                  table->field, m_fixed_sort_length,
+                                  &addon_length,
                                   &m_packable_length);
   }
   if (using_addon_fields())
   {
-    res_length= addon_length;
+    fixed_res_length= addon_length;
   }
   else
   {
-    res_length= ref_length;
+    fixed_res_length= ref_length;
     /* 
       The reference to the record is considered 
       as an additional sorted field
     */
-    sort_length+= ref_length;
+    m_fixed_sort_length+= ref_length;
+  }
+
+  m_num_varlen_keys= count_varlen_keys();
+  if (using_varlen_keys())
+  {
+    use_hash= true;
+    m_fixed_sort_length+= size_of_varlength_field;
   }
   /*
     Add hash at the end of sort key to order cut values correctly.
     Needed for GROUPing, rather than for ORDERing.
   */
   if (use_hash)
-    sort_length+= sizeof(ulonglong);
+    m_fixed_sort_length+= sizeof(ulonglong);
 
-  rec_length= sort_length + addon_length;
+  m_fixed_rec_length= m_fixed_sort_length + addon_length;
   max_rows= maxrows;
 }
 
@@ -191,11 +210,11 @@ void Sort_param::try_to_pack_addons(ulong max_length_for_sort_data)
       using_packed_addons())                    // already packed
     return;
 
-  if (!Addon_fields::can_pack_addon_fields(res_length))
+  if (!Addon_fields::can_pack_addon_fields(fixed_res_length))
     return;
 
   const uint sz= Addon_fields::size_of_length_field;
-  if (rec_length + sz > max_length_for_sort_data)
+  if (m_fixed_rec_length + sz > max_length_for_sort_data)
     return;
 
   // Heuristic: skip packing if potential savings are less than 10 bytes.
@@ -212,8 +231,72 @@ void Sort_param::try_to_pack_addons(ulong max_length_for_sort_data)
   m_using_packed_addons= true;
 
   addon_length+= sz;
-  res_length+= sz;
-  rec_length+= sz;
+  fixed_res_length+= sz;
+  m_fixed_rec_length+= sz;
+}
+
+
+int Sort_param::count_varlen_keys() const
+{
+  int retval= 0;
+  for (const auto &sf : local_sortorder)
+  {
+    if (sf.is_varlen)
+    {
+      ++retval;
+    }
+  }
+  return retval;
+}
+
+
+// static
+void Sort_param::store_varlen_key_length(uchar *p, uint sz)
+{
+  int4store(p, sz);
+}
+
+uchar* Sort_param::get_start_of_payload(uchar *p) const
+{
+  size_t offset= using_varlen_keys() ? uint4korr(p) : max_compare_length();
+  if (!using_addon_fields() && !using_varlen_keys())
+    offset-= ref_length; // The reference is also part of the sort key.
+  return p + offset;
+}
+
+// static
+uchar*
+Sort_param::get_start_of_payload(uint default_val, bool is_varlen, uchar *p)
+{
+  size_t offset= is_varlen ? uint4korr(p) : default_val;
+  return p + offset;
+}
+
+size_t Sort_param::get_record_length(uchar *p) const
+{
+  uchar *start_of_payload= get_start_of_payload(p);
+  uint size_of_payload= using_packed_addons() ?
+    Addon_fields::read_addon_length(start_of_payload) : fixed_res_length;
+  uchar *end_of_payload= start_of_payload + size_of_payload;
+  return end_of_payload - p;
+}
+
+void Sort_param::get_rec_and_res_len(uchar *record_start, uint *recl, uint *resl)
+{
+  if (!using_packed_addons() && !using_varlen_keys())
+  {
+    *recl= m_fixed_rec_length;
+    *resl= fixed_res_length;
+    return;
+  }
+  uchar *plen= get_start_of_payload(record_start);
+  if (using_packed_addons())
+    *resl= Addon_fields::read_addon_length(plen);
+  else
+    *resl= fixed_res_length;
+  DBUG_ASSERT(*resl <= fixed_res_length);
+  const uchar *record_end= plen + *resl;
+  *recl= static_cast<uint>(record_end - record_start);
 }
 
 
@@ -291,7 +374,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   IO_CACHE *outfile;   // Contains the final, sorted result.
   Sort_param param;
   bool multi_byte_charset;
-  Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare>
+  Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare_queue_key>
     pq((Malloc_allocator<uchar*>
         (key_memory_Filesort_info_record_pointers)));
   Opt_trace_context * const trace= &thd->opt_trace;
@@ -337,9 +420,9 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   error= 1;
 
   param.init_for_filesort(filesort,
+                          make_array(filesort->sortorder, s_length),
                           sortlength(thd, filesort->sortorder, s_length,
-                                     &multi_byte_charset,
-                                     &param.use_hash),
+                                     &multi_byte_charset),
                           table,
                           thd->variables.max_length_for_sort_data,
                           max_rows, sort_positions);
@@ -355,8 +438,9 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   num_rows= table->file->estimate_rows_upper_bound();
 
   if (multi_byte_charset &&
-      !(param.tmp_buffer= (char*) my_malloc(key_memory_Sort_param_tmp_buffer,
-                                            param.sort_length,MYF(MY_WME))))
+      !(param.tmp_buffer= (char*)
+        my_malloc(key_memory_Sort_param_tmp_buffer,
+                  param.max_compare_length(), MYF(MY_WME))))
     goto err;
 
   if (check_if_pq_applicable(trace, &param, &table_sort,
@@ -410,7 +494,8 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
     */
     const ulong min_sort_memory=
       max<ulong>(MIN_SORT_MEMORY,
-                 ALIGN_SIZE(MERGEBUFF2 * (param.rec_length + sizeof(uchar*))));
+                 ALIGN_SIZE(MERGEBUFF2 *
+                            (param.max_record_length() + sizeof(uchar*))));
     /*
       Cannot depend on num_rows. For external sort, space for upto MERGEBUFF2
       rows is required.
@@ -420,11 +505,13 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
 
     while (memory_available >= min_sort_memory)
     {
-      ha_rows keys= memory_available / (param.rec_length + sizeof(char*));
+      ha_rows keys=
+        memory_available / (param.max_record_length() + sizeof(char*));
       // If the table is empty, allocate space for one row.
       param.max_keys_per_buffer= (uint) min(num_rows > 0 ? num_rows : 1, keys);
 
-      table_sort.alloc_sort_buffer(param.max_keys_per_buffer, param.rec_length);
+      table_sort.alloc_sort_buffer(param.max_keys_per_buffer,
+                                   param.max_record_length());
       if (table_sort.sort_buffer_size() > 0)
         break;
       ulong old_memory_available= memory_available;
@@ -445,8 +532,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
     goto err;
 
   param.sort_form= table;
-  param.local_sortorder=
-    Bounds_checked_array<st_sort_field>(filesort->sortorder, s_length);
+
   // New scope, because subquery execution must be traced within an array.
   {
     Opt_trace_array ota(trace, "filesort_execution");
@@ -463,16 +549,30 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   num_chunks= static_cast<size_t>(my_b_tell(&chunk_file)) /
     sizeof(Merge_chunk);
 
-  Opt_trace_object(trace, "filesort_summary")
-    .add("rows", num_rows)
-    .add("examined_rows", param.examined_rows)
-    .add("number_of_tmp_files", num_chunks)
-    .add("sort_buffer_size", table_sort.sort_buffer_size())
-    .add_alnum("sort_mode",
-               param.using_packed_addons() ?
-               "<sort_key, packed_additional_fields>" :
-               param.using_addon_fields() ?
-               "<sort_key, additional_fields>" : "<sort_key, rowid>");
+  if (trace->is_started())
+  {
+    char buffer[100];
+    String sort_mode(buffer, sizeof(buffer), &my_charset_bin);
+    sort_mode.length(0);
+    sort_mode.append("<");
+    if (param.using_varlen_keys())
+      sort_mode.append("varlen_sort_key");
+    else
+      sort_mode.append("fixed_sort_key");
+    sort_mode.append(", ");
+    sort_mode.append(param.using_packed_addons() ?
+                     "packed_additional_fields" :
+                     param.using_addon_fields() ?
+                     "additional_fields" : "rowid");
+    sort_mode.append(">");
+
+    Opt_trace_object(trace, "filesort_summary")
+      .add("rows", num_rows)
+      .add("examined_rows", param.examined_rows)
+      .add("number_of_tmp_files", num_chunks)
+      .add("sort_buffer_size", table_sort.sort_buffer_size())
+      .add_alnum("sort_mode", sort_mode.c_ptr());
+  }
 
   if (num_chunks == 0)                   // The whole set is in memory
   {
@@ -505,7 +605,8 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
       for temporary key storage.
     */
     param.max_keys_per_buffer=
-      table_sort.sort_buffer_size() / param.rec_length;
+      static_cast<uint>(table_sort.sort_buffer_size() /
+                        param.max_record_length());
 
     if (merge_many_buff(thd, &param,
                         table_sort.get_raw_buf(),
@@ -639,21 +740,22 @@ uint Filesort::make_sortorder()
   ORDER *ord;
   DBUG_ENTER("make_sortorder");
 
-
   count=0;
   for (ord = order; ord; ord= ord->next)
     count++;
-  if (!sortorder)
-    sortorder= (st_sort_field*) sql_alloc(sizeof(st_sort_field) * (count + 1));
+  DBUG_ASSERT(count > 0);
+
+  const size_t sortorder_size= sizeof(*sortorder) * (count + 1);
+  if (sortorder == nullptr)
+    sortorder= static_cast<st_sort_field*>(sql_alloc(sortorder_size));
+  if (sortorder == nullptr)
+    DBUG_RETURN(0); /* purecov: inspected */
+  memset(sortorder, 0, sortorder_size);
+
   pos= sort= sortorder;
-
-  if (!pos)
-    DBUG_RETURN(0);
-
   for (ord= order; ord; ord= ord->next, pos++)
   {
     Item *const item= ord->item[0], *const real_item= item->real_item();
-    pos->field= 0; pos->item= 0;
     if (real_item->type() == Item::FIELD_ITEM)
     {
       /*
@@ -900,7 +1002,7 @@ static ha_rows find_all_keys(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
                              IO_CACHE *chunk_file,
                              IO_CACHE *tempfile,
                              Bounded_queue<uchar *, uchar *, Sort_param,
-                                           Mem_compare> *pq,
+                                           Mem_compare_queue_key> *pq,
                              ha_rows *found_rows)
 {
   int error,flag;
@@ -914,6 +1016,7 @@ static ha_rows find_all_keys(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
   bool skip_record;
   ha_rows num_records= 0;
   const bool packed_addon_fields= param->using_packed_addons();
+  const bool using_varlen_keys= param->using_varlen_keys();
 
   /*
     Set up an error handler for filesort. It is automatically pushed
@@ -1058,7 +1161,8 @@ static ha_rows find_all_keys(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
         uchar *start_of_rec= fs_info->get_next_record_pointer();
 
         const uint rec_sz= param->make_sortkey(start_of_rec, ref_pos);
-        if (packed_addon_fields && rec_sz != param->rec_length)
+        if ((packed_addon_fields || using_varlen_keys) &&
+            rec_sz != param->max_record_length())
           fs_info->adjust_next_record_pointer(rec_sz);
 
         idx++;
@@ -1173,18 +1277,10 @@ write_keys(Sort_param *param, Filesort_info *fs_info, uint count,
   }
   merge_chunk.set_rowcount(static_cast<ha_rows>(count));
 
-  const bool packed_addon_fields= param->using_packed_addons();
   for (uint ix= 0; ix < count; ++ix)
   {
-    uint rec_length;
     uchar *record= fs_info->get_sorted_record(ix);
-    if (packed_addon_fields)
-    {
-      rec_length= param->sort_length +
-        Addon_fields::read_addon_length(record + param->sort_length);
-    }
-    else
-      rec_length= param->rec_length;
+    size_t rec_length= param->get_record_length(record);
 
     if (my_b_write(tempfile, record, rec_length))
       DBUG_RETURN(1);                           /* purecov: inspected */
@@ -1256,8 +1352,11 @@ static void copy_native_longlong(uchar *to, size_t to_length,
                          nullable items.
 
   @param[in,out] hash    The hash key of the JSON values in the current row.
+
+  @returns
+    length of the key stored
 */
-static void MY_ATTRIBUTE((noinline))
+static uint MY_ATTRIBUTE((noinline))
 make_json_sort_key(Item *item, uchar *to, size_t length, ulonglong *hash)
 {
   DBUG_ASSERT(!item->maybe_null || to[-1] == 1);
@@ -1265,9 +1364,10 @@ make_json_sort_key(Item *item, uchar *to, size_t length, ulonglong *hash)
   Json_wrapper wr;
   if (item->val_json(&wr))
   {
-    // An error happened when reading the JSON value. Give up.
-    memset(to, 0, length);
-    return;
+    // An error occurred, no point to continue making key, set it to null.
+    if (item->maybe_null)
+      to[-1]= 0;
+    return 0;
   }
 
   if (item->null_value)
@@ -1279,23 +1379,21 @@ make_json_sort_key(Item *item, uchar *to, size_t length, ulonglong *hash)
     */
     if (item->maybe_null)
     {
-      memset(to - 1, 0, length + 1);
+      // Don't store anything but null flag.
+      to[-1]= 0;
+      return 0;
     }
-    else
-    {
-      /* purecov: begin inspected */
-      DBUG_PRINT("warning",
-                 ("Got null on something that shouldn't be null"));
-      DBUG_ABORT();
-      memset(to, 0, length);
-      /* purecov: end */
-    }
+    /* purecov: begin inspected */
+    DBUG_PRINT("warning",
+               ("Got null on something that shouldn't be null"));
+    DBUG_ABORT();
+    return 0;
+    /* purecov: end */
   }
-  else
-  {
-    wr.make_sort_key(to, length);
-    *hash= wr.make_hash_key(hash);
-  }
+
+  wr.make_sort_key(to, length);
+  *hash= wr.make_hash_key(hash);
+  return uint4korr(to);
 }
 
 
@@ -1305,11 +1403,17 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
   const st_sort_field *sort_field;
   ulonglong hash= 0;
 
+  if (using_varlen_keys())
+  {
+    to+= size_of_varlength_field;
+  }
   for (sort_field= local_sortorder.begin() ;
        sort_field != local_sortorder.end() ;
        sort_field++)
   {
     bool maybe_null= false;
+    uint actual_length= sort_field->length;
+
     if (sort_field->field)
     {
       Field *field= sort_field->field;
@@ -1318,6 +1422,12 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
       {
 	if (field->is_null())
 	{
+          if (sort_field->is_varlen)
+          {
+            // Don't store anything, except NULL flag, invert it here
+            *to++= sort_field->reverse ? 0xff : 0;
+            continue;
+          }
 	  if (sort_field->reverse)
 	    memset(to, 255, sort_field->length+1);
 	  else
@@ -1329,6 +1439,9 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
 	  *to++=1;
       }
       field->make_sort_key(to, sort_field->length);
+      if (sort_field->is_varlen)
+        actual_length= uint4korr(to);
+
       if (sort_field->field_type == MYSQL_TYPE_JSON)
       {
         DBUG_ASSERT(use_hash);
@@ -1356,7 +1469,8 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
             performance tests, even if those tests never execute the
             "else" branch.
           */
-          make_json_sort_key(item, to, sort_field->length, &hash);
+          actual_length=
+            make_json_sort_key(item, to, sort_field->length, &hash);
           break;
         }
 
@@ -1389,7 +1503,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
           }
           break;
         }
-        size_t length= res->length();
+        uint length= static_cast<uint>(res->length());
         if (sort_field->need_strxnfrm)
         {
           char *from=(char*) res->ptr();
@@ -1526,6 +1640,16 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
       if (maybe_null)
         to[-1]= ~to[-1];
       uint length= sort_field->length;
+      if (sort_field->is_varlen)
+      {
+        if (actual_length)
+        {
+          length= actual_length - VARLEN_PREFIX;
+          to+= VARLEN_PREFIX;
+        }
+        else
+          length= 0;
+      }
       while (length--)
       {
 	*to = (uchar) (~ *to);
@@ -1533,13 +1657,19 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
       }
     }
     else
-      to+= sort_field->length;
+      to+= actual_length;
   }
 
   if (use_hash)
   {
     int8store(to, hash);
     to+= 8;
+  }
+
+  if (using_varlen_keys())
+  {
+    Sort_param::store_varlen_key_length(orig_to,
+                                        static_cast<uint>(to - orig_to));
   }
 
   if (using_addon_fields())
@@ -1650,10 +1780,15 @@ static void register_used_fields(Sort_param *param)
   but we do not copy the actual sort-keys, as they are no longer needed.
   We could have kept the result in the sort buffere here as well,
   but the new buffer - containing only row references - is probably a
-  lot smaller. 
+  lot smaller.
 
   The result data will be unpacked by rr_unpack_from_buffer()
   or rr_from_pointers()
+
+  Note that rr_unpack_from_buffer() does not have access to a Sort_param.
+  It does however have access to a Filesort_info, which knows whether
+  we have variable sized keys or not.
+  TODO: consider templatizing rr_unpack_from_buffer on is_varlen or not.
 
   @param [in]     param      Sort parameters.
   @param          count      Number of records
@@ -1665,17 +1800,19 @@ static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort)
   uchar *to;
   DBUG_ENTER("save_index");
 
+  table_sort->set_sort_length(param->max_compare_length(),
+                              param->using_varlen_keys());
+
   table_sort->sort_buffer(param, count);
 
   if (param->using_addon_fields())
   {
     table_sort->sorted_result_in_fsbuf= true;
-    table_sort->set_sort_length(param->sort_length);
     DBUG_RETURN(0);
   }
 
   table_sort->sorted_result_in_fsbuf= false;
-  const size_t buf_size= param->res_length * count;
+  const size_t buf_size= param->fixed_res_length * count;
 
   DBUG_ASSERT(table_sort->sorted_result == NULL);
   if (!(to= table_sort->sorted_result=
@@ -1685,12 +1822,12 @@ static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort)
   table_sort->sorted_result_end=
     table_sort->sorted_result + buf_size;
 
-  uint res_length= param->res_length;
-  uint offset= param->rec_length - res_length;
+  uint res_length= param->fixed_res_length;
   for (uint ix= 0; ix < count; ++ix)
   {
     uchar *record= table_sort->get_sorted_record(ix);
-    memcpy(to, record + offset, res_length);
+    uchar *start_of_payload= param->get_start_of_payload(record);
+    memcpy(to, start_of_payload, res_length);
     to+= res_length;
   }
   DBUG_RETURN(0);
@@ -1756,7 +1893,7 @@ bool check_if_pq_applicable(Opt_trace_context *trace,
   trace_filesort
     .add("limit", param->max_rows)
     .add("rows_estimate", num_rows)
-    .add("row_size", param->rec_length)
+    .add("row_size", param->max_record_length())
     .add("memory_available", memory_available);
 
   if (param->max_rows + 2 >= UINT_MAX)
@@ -1766,7 +1903,7 @@ bool check_if_pq_applicable(Opt_trace_context *trace,
   }
 
   ulong num_available_keys=
-    memory_available / (param->rec_length + sizeof(char*));
+    memory_available / (param->max_record_length() + sizeof(char*));
   // We need 1 extra record in the buffer, when using PQ.
   param->max_keys_per_buffer= (uint) param->max_rows + 1;
 
@@ -1776,7 +1913,8 @@ bool check_if_pq_applicable(Opt_trace_context *trace,
     if (param->max_rows < num_rows/PQ_slowness )
     {
       filesort_info->
-        alloc_sort_buffer(param->max_keys_per_buffer, param->rec_length);
+        alloc_sort_buffer(param->max_keys_per_buffer,
+                          param->max_record_length());
       trace_filesort.add("chosen", true);
       DBUG_RETURN(filesort_info->sort_buffer_size() > 0);
     }
@@ -1793,7 +1931,7 @@ bool check_if_pq_applicable(Opt_trace_context *trace,
   if (param->max_keys_per_buffer < num_available_keys)
   {
     filesort_info->alloc_sort_buffer(param->max_keys_per_buffer,
-                                     param->rec_length);
+                                     param->max_record_length());
     trace_filesort.add("chosen", true);
     DBUG_RETURN(filesort_info->sort_buffer_size() > 0);
   }
@@ -1802,7 +1940,7 @@ bool check_if_pq_applicable(Opt_trace_context *trace,
   if (!keep_addon_fields && param->using_addon_fields())
   {
     const ulong row_length=
-      param->sort_length + param->ref_length + sizeof(char*);
+      param->max_compare_length() + param->ref_length + sizeof(char*);
     num_available_keys= memory_available / row_length;
 
     Opt_trace_object trace_addon(trace, "strip_additional_fields");
@@ -1846,17 +1984,19 @@ bool check_if_pq_applicable(Opt_trace_context *trace,
       }
 
       trace_addon.add("chosen", true);
-      filesort_info->alloc_sort_buffer(param->max_keys_per_buffer,
-                                       param->sort_length + param->ref_length);
+      filesort_info->
+        alloc_sort_buffer(param->max_keys_per_buffer,
+                          param->max_compare_length() + param->ref_length);
       if (filesort_info->sort_buffer_size() > 0)
       {
         // Make attached data to be references instead of fields.
         filesort_info->addon_fields= NULL;
         param->addon_fields= NULL;
 
-        param->res_length= param->ref_length;
-        param->sort_length+= param->ref_length;
-        param->rec_length= param->sort_length;
+        param->fixed_res_length= param->ref_length;
+        param->set_max_compare_length(param->max_compare_length() +
+                                      param->ref_length);
+        param->set_max_record_length(param->max_compare_length());
 
         DBUG_RETURN(true);
       }
@@ -1867,101 +2007,27 @@ bool check_if_pq_applicable(Opt_trace_context *trace,
 
 
 /**
-  Merges buffers to make < MERGEBUFF2 buffers.
-
-  @param thd
-  @param param        Sort parameters.
-  @param sort_buffer  The main memory buffer.
-  @param chunk_array  Array of chunk descriptors to merge.
-  @param [out] p_num_chunks The number of chunks left in the output file.
-  @param t_file       Where to store the result.
-*/
-int merge_many_buff(THD *thd, Sort_param *param, Sort_buffer sort_buffer,
-                    Merge_chunk_array chunk_array,
-                    size_t *p_num_chunks, IO_CACHE *t_file)
-{
-  uint i;
-  IO_CACHE t_file2,*from_file,*to_file,*temp;
-  DBUG_ENTER("merge_many_buff");
-
-  size_t num_chunks= chunk_array.size();
-  *p_num_chunks= num_chunks;
-
-  if (num_chunks <= MERGEBUFF2)
-    DBUG_RETURN(0);				/* purecov: inspected */
-  if (flush_io_cache(t_file) ||
-      open_cached_file(&t_file2,mysql_tmpdir,TEMP_PREFIX,DISK_BUFFER_SIZE,
-                       MYF(MY_WME)))
-    DBUG_RETURN(1);				/* purecov: inspected */
-
-  from_file= t_file ; to_file= &t_file2;
-  while (num_chunks > MERGEBUFF2)
-  {
-    if (reinit_io_cache(from_file,READ_CACHE,0L,0,0))
-      goto cleanup;
-    if (reinit_io_cache(to_file,WRITE_CACHE,0L,0,0))
-      goto cleanup;
-    Merge_chunk *last_chunk= chunk_array.begin();;
-    for (i=0 ; i < num_chunks - MERGEBUFF * 3 / 2 ; i+= MERGEBUFF)
-    {
-      if (merge_buffers(thd,
-                        param,                  // param
-                        from_file,              // from_file
-                        to_file,                // to_file
-                        sort_buffer,            // sort_buffer
-                        last_chunk++,           // last_chunk [out]
-                        Merge_chunk_array(&chunk_array[i], MERGEBUFF),
-                        0))                     // flag
-      goto cleanup;
-    }
-    if (merge_buffers(thd,
-                      param,
-                      from_file,
-                      to_file,
-                      sort_buffer,
-                      last_chunk++,
-                      Merge_chunk_array(&chunk_array[i], num_chunks - i),
-                      0))
-      break;					/* purecov: inspected */
-    if (flush_io_cache(to_file))
-      break;					/* purecov: inspected */
-    temp=from_file; from_file=to_file; to_file=temp;
-    setup_io_cache(from_file);
-    setup_io_cache(to_file);
-    num_chunks= last_chunk - chunk_array.begin();
-  }
-cleanup:
-  close_cached_file(to_file);			// This holds old result
-  if (to_file == t_file)
-  {
-    *t_file=t_file2;				// Copy result file
-    setup_io_cache(t_file);
-  }
-
-  *p_num_chunks= num_chunks;
-  DBUG_RETURN(num_chunks > MERGEBUFF2);  /* Return 1 if interrupted */
-} /* merge_many_buff */
-
-
-/**
   Read data to buffer.
 
   @returns
     (uint)-1 if something goes wrong
 */
-
+static
 uint read_to_buffer(IO_CACHE *fromfile,
                     Merge_chunk *merge_chunk,
                     Sort_param *param)
 {
   DBUG_ENTER("read_to_buffer");
-  uint rec_length= param->rec_length;
+  uint rec_length= param->max_record_length();
   ha_rows count;
+
+  const bool packed_addon_fields= param->using_packed_addons();
+  const bool using_varlen_keys= param->using_varlen_keys();
 
   if ((count= min(merge_chunk->max_keys(), merge_chunk->rowcount())))
   {
     size_t bytes_to_read;
-    if (param->using_packed_addons())
+    if (packed_addon_fields || using_varlen_keys)
     {
       count= merge_chunk->rowcount();
       bytes_to_read=
@@ -1983,7 +2049,7 @@ uint read_to_buffer(IO_CACHE *fromfile,
       DBUG_RETURN((uint) -1);			/* purecov: inspected */
 
     size_t num_bytes_read;
-    if (param->using_packed_addons())
+    if (packed_addon_fields || using_varlen_keys)
     {
       /*
         The last record read is most likely not complete here.
@@ -1994,16 +2060,29 @@ uint read_to_buffer(IO_CACHE *fromfile,
       uint ix= 0;
       for (; ix < count; ++ix)
       {
-        if (record + param->sort_length + Addon_fields::size_of_length_field >=
+        if (using_varlen_keys &&
+            (record + Sort_param::size_of_varlength_field)
+            >= merge_chunk->buffer_end())
+          break;                                // Incomplete record.
+
+        uchar *start_of_payload= param->get_start_of_payload(record);
+        if (start_of_payload >= merge_chunk->buffer_end())
+          break;                                // Incomplete record.
+
+        if (packed_addon_fields &&
+            start_of_payload + Addon_fields::size_of_length_field >=
             merge_chunk->buffer_end())
           break;                                // Incomplete record.
-        uchar *plen= record + param->sort_length;
-        uint res_length= Addon_fields::read_addon_length(plen);
-        if (plen + res_length >= merge_chunk->buffer_end())
+
+        const uint res_length= packed_addon_fields ?
+          Addon_fields::read_addon_length(start_of_payload) :
+          param->fixed_res_length;
+
+        if (start_of_payload + res_length >= merge_chunk->buffer_end())
           break;                                // Incomplete record.
+
         DBUG_ASSERT(res_length > 0);
-        record+= param->sort_length;
-        record+= res_length;
+        record= start_of_payload + res_length;
       }
       DBUG_ASSERT(ix > 0);
       count= ix;
@@ -2028,36 +2107,35 @@ uint read_to_buffer(IO_CACHE *fromfile,
 namespace {
 
 /**
-  This struct is used for merging chunks for filesort() and for Unique::get().
-  For filesort() we use memcmp to compare rows.
-  For Unique::get() we use the provided compare function.
+  This struct is used for merging chunks for filesort()
+  For filesort() with fixed-size keys we use memcmp to compare rows.
+  For variable length keys, we use cmp_varlen_keys to compare rows.
  */
-struct Merge_chunk_less
+struct Merge_chunk_greater
 {
   size_t m_len;
-  Sort_param::chunk_compare_fun m_fun;
-  Merge_chunk_compare_context *m_arg;
+  Sort_param *m_param;
 
-  // CTOR for filesort()
-  explicit Merge_chunk_less(size_t len)
-    : m_len(len), m_fun(NULL), m_arg(NULL)
+  // CTOR for filesort() with fixed-size keys
+  explicit Merge_chunk_greater(size_t len)
+    : m_len(len), m_param(nullptr)
   {}
 
-  // CTOR for Unique::get()
-  Merge_chunk_less(Sort_param::chunk_compare_fun fun,
-                   Merge_chunk_compare_context *arg)
-    : m_len(0), m_fun(fun), m_arg(arg)
+  // CTOR for filesort() with varlen keys
+  explicit Merge_chunk_greater(Sort_param *param)
+    : m_len(0), m_param(param)
   {}
 
   bool operator()(Merge_chunk *a, Merge_chunk *b)
   {
     uchar *key1= a->current_key();
     uchar *key2= b->current_key();
+    // Fixed len keys
     if (m_len)
       return memcmp(key1, key2, m_len) > 0;
 
-    if (m_fun)
-      return (*m_fun)(m_arg, key1, key2) > 0;
+    if (m_param)
+      return !cmp_varlen_keys(m_param->local_sortorder, key1, key2);
 
     // We can actually have zero-length sort key for filesort().
     return false;
@@ -2078,21 +2156,21 @@ struct Merge_chunk_less
   @param [out] last_chunk Store here Merge_chunk describing data written to
                         to_file.
   @param chunk_array    Array of chunks to merge.
-  @param flag
+  @param flag           0 - write full record, 1 - write addon/ref
 
   @returns
     0      OK
   @returns
     other  error
 */
-
+static
 int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
                   IO_CACHE *to_file, Sort_buffer sort_buffer,
                   Merge_chunk *last_chunk,
                   Merge_chunk_array chunk_array,
                   int flag)
 {
-  int error;
+  int error= 0;
   uint rec_length,res_length;
   size_t sort_length;
   ha_rows maxcount;
@@ -2100,8 +2178,6 @@ int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
   my_off_t to_start_filepos;
   uchar *strpos;
   Merge_chunk *merge_chunk;
-  Sort_param::chunk_compare_fun cmp;
-  Merge_chunk_compare_context *first_cmp_arg;
   volatile THD::killed_state *killed= &thd->killed;
   THD::killed_state not_killable;
   DBUG_ENTER("merge_buffers");
@@ -2113,38 +2189,24 @@ int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
     not_killable= THD::NOT_KILLED;
   }
 
-  error=0;
-  rec_length= param->rec_length;
-  res_length= param->res_length;
-  sort_length= param->sort_length;
-  const uint offset= (flag == 0) ? 0 : (rec_length - res_length);
-  maxcount= (ulong) (param->max_keys_per_buffer / chunk_array.size());
+  rec_length= param->max_record_length();
+  res_length= param->fixed_res_length;
+  sort_length= param->max_compare_length();
+  uint offset= (flag == 0) ? 0 : (rec_length - res_length);
+  maxcount= (param->max_keys_per_buffer / chunk_array.size());
   to_start_filepos= my_b_tell(to_file);
   strpos= sort_buffer.array();
-  org_max_rows=max_rows= param->max_rows;
+  org_max_rows= max_rows= param->max_rows;
 
   /* The following will fire if there is not enough space in sort_buffer */
-  DBUG_ASSERT(maxcount!=0);
+  DBUG_ASSERT(maxcount != 0);
 
-  const bool doing_unique= (param->unique_buff != NULL);
-  if (doing_unique)
-  {
-    cmp= param->compare;
-    first_cmp_arg= &param->cmp_context;
-  }
-  else
-  {
-    cmp= NULL;
-    first_cmp_arg= NULL;
-  }
-
-  Merge_chunk_less mcl=
-    doing_unique ?
-    Merge_chunk_less(cmp, first_cmp_arg) :
-    Merge_chunk_less(sort_length);
+  Merge_chunk_greater mcl=
+    param->using_varlen_keys() ? Merge_chunk_greater(param) :
+    Merge_chunk_greater(sort_length);
   Priority_queue<Merge_chunk*,
                  std::vector<Merge_chunk*, Malloc_allocator<Merge_chunk*> >,
-                 Merge_chunk_less>
+                 Merge_chunk_greater>
     queue(mcl,
           Malloc_allocator<Merge_chunk*>(key_memory_Filesort_info_merge));
 
@@ -2154,44 +2216,18 @@ int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
   for (merge_chunk= chunk_array.begin() ;
        merge_chunk != chunk_array.end() ; merge_chunk++)
   {
-    merge_chunk->set_buffer(strpos,
-                            strpos + (sort_buffer.size()/(chunk_array.size())));
+    const size_t chunk_sz= sort_buffer.size() / chunk_array.size();
+    merge_chunk->set_buffer(strpos, strpos + chunk_sz);
+
     merge_chunk->set_max_keys(maxcount);
-    strpos+=
-      (uint) (error= (int)read_to_buffer(from_file, merge_chunk, param));
-    merge_chunk->set_buffer_end(strpos);
+    strpos+= chunk_sz;
+    error= static_cast<int>(read_to_buffer(from_file, merge_chunk, param));
+
     if (error == -1)
       DBUG_RETURN(error);     /* purecov: inspected */
     // If less data in buffers than expected
     merge_chunk->set_max_keys(merge_chunk->mem_count());
     (void) queue.push(merge_chunk);
-  }
-
-  if (doing_unique)
-  {
-    DBUG_ASSERT(!param->using_packed_addons());
-    /* 
-       Called by Unique::get()
-       Copy the first argument to param->unique_buff for unique removal.
-       Store it also in 'to_file'.
-
-       This is safe as we know that there is always more than one element
-       in each block to merge (This is guaranteed by the Unique:: algorithm
-    */
-    merge_chunk= queue.top();
-    memcpy(param->unique_buff, merge_chunk->current_key(), rec_length);
-    if (my_b_write(to_file, merge_chunk->current_key(), rec_length))
-    {
-      DBUG_RETURN(1);                         /* purecov: inspected */
-    }
-    merge_chunk->advance_current_key(rec_length);
-    merge_chunk->decrement_mem_count();
-    if (!--max_rows)
-    {
-      error= 0;                                       /* purecov: inspected */
-      goto end;                                       /* purecov: inspected */
-    }
-    queue.update_top();                   // Top element has been used
   }
 
   while (queue.size() > 1)
@@ -2203,18 +2239,13 @@ int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
     for (;;)
     {
       merge_chunk= queue.top();
-      if (doing_unique)                         // Remove duplicates
-      {
-        DBUG_ASSERT(!param->using_packed_addons());
-        uchar *current_key= merge_chunk->current_key();
-        if (!(*cmp)(first_cmp_arg, param->unique_buff, current_key))
-          goto skip_duplicate;
-        memcpy(param->unique_buff, merge_chunk->current_key(), rec_length);
-      }
       {
         param->get_rec_and_res_len(merge_chunk->current_key(),
                                    &rec_length, &res_length);
         const uint bytes_to_write= (flag == 0) ? rec_length : res_length;
+
+        if (flag && param->using_varlen_keys())
+          offset= rec_length - res_length;
 
         DBUG_PRINT("info", ("write record at %llu len %u",
                             my_b_tell(to_file), bytes_to_write));
@@ -2230,7 +2261,6 @@ int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
         }
       }
 
-    skip_duplicate:
       merge_chunk->advance_current_key(rec_length);
       merge_chunk->decrement_mem_count();
       if (0 == merge_chunk->mem_count())
@@ -2256,20 +2286,6 @@ int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
                           sort_buffer.array() + sort_buffer.size());
   merge_chunk->set_max_keys(param->max_keys_per_buffer);
 
-  /*
-    As we know all entries in the buffer are unique, we only have to
-    check if the first one is the same as the last one we wrote
-  */
-  if (doing_unique)
-  {
-    uchar *current_key= merge_chunk->current_key();
-    if (!(*cmp)(first_cmp_arg, param->unique_buff, current_key))
-    {
-      merge_chunk->advance_current_key(rec_length); // Remove duplicate
-      merge_chunk->decrement_mem_count();
-    }
-  }
-
   do
   {
     if (merge_chunk->mem_count() > max_rows)
@@ -2284,6 +2300,10 @@ int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
       param->get_rec_and_res_len(merge_chunk->current_key(),
                                  &rec_length, &res_length);
       const uint bytes_to_write= (flag == 0) ? rec_length : res_length;
+ 
+      if (flag && param->using_varlen_keys())
+        offset= rec_length - res_length;
+
       if (my_b_write(to_file,
                      merge_chunk->current_key() + offset,
                      bytes_to_write))
@@ -2345,9 +2365,6 @@ static uint suffix_length(ulong string_length)
   @param s_length	          Number of items to sort
   @param[out] multi_byte_charset Set to 1 if we are using multi-byte charset
                                  (In which case we have to use strxnfrm())
-  @param[out] use_hash           Set to true when make_sortkey should
-                                 calculate and append hash for each sort key
-                                 @see Sort_param::make_sortkey()
 
   @note
     sortorder->length is updated for each sort item.
@@ -2360,17 +2377,16 @@ static uint suffix_length(ulong string_length)
 
 uint
 sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
-           bool *multi_byte_charset, bool *use_hash)
+           bool *multi_byte_charset)
 {
   uint total_length= 0;
   const CHARSET_INFO *cs;
   *multi_byte_charset= false;
-  *use_hash= false;
 
   for (; s_length-- ; sortorder++)
   {
-    sortorder->need_strxnfrm= 0;
-    sortorder->suffix_length= 0;
+    DBUG_ASSERT(sortorder->need_strxnfrm == 0);
+    DBUG_ASSERT(sortorder->suffix_length == 0);
     if (sortorder->field)
     {
       cs= sortorder->field->sort_charset();
@@ -2384,7 +2400,10 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
         sortorder->length= cs->coll->strnxfrmlen(cs, sortorder->length);
       }
       if (sortorder->field->maybe_null())
+      {
         total_length++;                       // Place for NULL marker
+        sortorder->maybe_null= true;
+      }
 
       if (sortorder->field->result_type() == STRING_RESULT &&
           !sortorder->field->is_temporal())
@@ -2394,7 +2413,7 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
 
       sortorder->field_type= sortorder->field->type();
       if (sortorder->field_type == MYSQL_TYPE_JSON)
-        *use_hash= true;
+        sortorder->is_varlen= true;
     }
     else
     {
@@ -2420,7 +2439,7 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
           sortorder->length+= sortorder->suffix_length;
         }
         if (sortorder->field_type == MYSQL_TYPE_JSON)
-          *use_hash= true;
+          sortorder->is_varlen= true;
 	break;
       case INT_RESULT:
 #if SIZEOF_LONG_LONG > 4
@@ -2445,7 +2464,10 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
 	break;
       }
       if (sortorder->item->maybe_null)
+      {
         total_length++;                       // Place for NULL marker
+        sortorder->maybe_null= true;
+      }
     }
     total_length+= sortorder->length;
   }

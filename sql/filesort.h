@@ -79,6 +79,6 @@ void change_double_for_sort(double nr,uchar *to);
 
 /// Declared here so we can unit test it.
 uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
-                bool *multi_byte_charset, bool *use_hash);
+                bool *multi_byte_charset);
 
 #endif /* FILESORT_INCLUDED */
