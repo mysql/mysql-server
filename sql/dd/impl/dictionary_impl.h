@@ -30,7 +30,7 @@ namespace dd_schema_unittest {
 }
 
 namespace my_testing {
-  class Server_initializer;
+  class DD_initializer;
 }
 
 namespace dd {
@@ -46,7 +46,7 @@ namespace cache {
 class Dictionary_impl : public Dictionary
 {
   friend class dd_schema_unittest::SchemaTest;
-  friend class my_testing::Server_initializer;
+  friend class my_testing::DD_initializer;
 
   /////////////////////////////////////////////////////////////////////////
   // Implementation details.
