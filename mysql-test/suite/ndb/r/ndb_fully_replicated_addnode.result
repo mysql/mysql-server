@@ -1,39 +1,42 @@
 CREATE TABLE t1 (
 a char(10) NOT NULL primary key,
-b int
+b int,
+c blob,
+unique key (b)
 ) comment='NDB_TABLE=FULLY_REPLICATED=1' ENGINE=ndbcluster;
 insert into t1 values
-('1',1), ('2',2), ('3',3), ('4',4),
-('5',5), ('6',6), ('7',7), ('8',8);
+('1',1,REPEAT('1',3000)), ('2',2,REPEAT('2',3000)), ('3',3,REPEAT('3',3000)),
+('4',4,REPEAT('4',3000)), ('5',5,REPEAT('5',3000)), ('6',6,REPEAT('6',3000)),
+('7',7,REPEAT('7',3000)), ('8',8,REPEAT('8',3000));
 create temporary table counters_at_startup
 select counter_name, sum(val) as val
 from ndbinfo.counters
 group by counter_name;
-select * from t1 where a = '1';
+select a,b from t1 where a = '1';
 a	b
 1	1
-select * from t1 where a = '2';
+select a,b from t1 where a = '2';
 a	b
 2	2
-select * from t1 where a = '3';
+select a,b from t1 where a = '3';
 a	b
 3	3
-select * from t1 where a = '4';
+select a,b from t1 where a = '4';
 a	b
 4	4
-select * from t1 where a = '5';
+select a,b from t1 where a = '5';
 a	b
 5	5
-select * from t1 where a = '6';
+select a,b from t1 where a = '6';
 a	b
 6	6
-select * from t1 where a = '7';
+select a,b from t1 where a = '7';
 a	b
 7	7
-select * from t1 where a = '8';
+select a,b from t1 where a = '8';
 a	b
 8	8
-select * from t1 where a in ('1', '2', '3', '4', '5', '6', '7', '8');
+select a,b from t1 where a in ('1', '2', '3', '4', '5', '6', '7', '8');
 a	b
 1	1
 2	2
@@ -43,7 +46,7 @@ a	b
 6	6
 7	7
 8	8
-select * from t1 where a in ('2', '3', '4', '5', '6', '7', '8');
+select a,b from t1 where a in ('2', '3', '4', '5', '6', '7', '8');
 a	b
 2	2
 3	3
@@ -52,7 +55,7 @@ a	b
 6	6
 7	7
 8	8
-select * from t1 where a in ('3', '4', '5', '6', '7', '8');
+select a,b from t1 where a in ('3', '4', '5', '6', '7', '8');
 a	b
 3	3
 4	4
@@ -60,25 +63,25 @@ a	b
 6	6
 7	7
 8	8
-select * from t1 where a in ('4', '5', '6', '7', '8');
+select a,b from t1 where a in ('4', '5', '6', '7', '8');
 a	b
 4	4
 5	5
 6	6
 7	7
 8	8
-select * from t1 where a in ('5', '6', '7', '8');
+select a,b from t1 where a in ('5', '6', '7', '8');
 a	b
 5	5
 6	6
 7	7
 8	8
-select * from t1 where a in ('6', '7', '8');
+select a,b from t1 where a in ('6', '7', '8');
 a	b
 6	6
 7	7
 8	8
-select * from t1 where a in ('7', '8');
+select a,b from t1 where a in ('7', '8');
 a	b
 7	7
 8	8
@@ -91,41 +94,16 @@ where s1.counter_name = s2.counter_name
 and ( s1.counter_name = 'LOCAL_READS' or s1.counter_name = 'READS' )
 order by 1;
 counter_name	diff
-LOCAL_READS	44
-READS	44
+LOCAL_READS	45
+READS	45
 drop table counters_at_startup;
+row
 -- t1 --
-Version: Any
-Fragment type: HashMapPartition
-K Value: 6
-Min load factor: 78
-Max load factor: 80
-Temporary table: no
-Number of attributes: 2
-Number of primary keys: 1
-Length of frm data: XXX
-Max Rows: 0
-Row Checksum: 1
-Row GCI: 1
-SingleUserMode: 0
-ForceVarPart: 1
-PartitionCount: 4
-FragmentCount: 4
-FragmentCountType: ONE_PER_LDM_PER_NODE_GROUP
-ExtraRowGciBits: 0
-ExtraRowAuthorBits: 0
-TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-4
 -- Attributes --
-a Char(10;latin1_swedish_ci) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Int NULL AT=FIXED ST=MEMORY DYNAMIC
--- Indexes -- 
-PRIMARY KEY(a) - UniqueHashIndex
-PRIMARY(a) - OrderedIndex
-
-NDBT_ProgramExit: 0 - OK
-
+-- NDB$BLOB_#_# --
+Table options: readbackup, fullyreplicated
+-- Attributes --
 Creating nodegroup
 alter table t1 algorithm=inplace, reorganize partition;
 set global ndb_data_node_neighbour = 1;
@@ -160,7 +138,7 @@ set global ndb_data_node_neighbour = 3;
 create table c as select node_id, fragment_num, tot_frag_scans
 from `ndbinfo`.`operations_per_fragment`
   where fq_name = 'test/def/t1';
-select * from t1 where a = 1;
+select a,b from t1 where a = 1;
 a	b
 1	1
 select distinct o.node_id
@@ -174,7 +152,7 @@ set global ndb_data_node_neighbour = 4;
 create table c as select node_id, fragment_num, tot_frag_scans
 from `ndbinfo`.`operations_per_fragment`
   where fq_name = 'test/def/t1';
-select * from t1;
+select a,b from t1;
 a	b
 1	1
 2	2
@@ -217,31 +195,31 @@ create temporary table counters_at_startup
 select counter_name, sum(val) as val
 from ndbinfo.counters
 group by counter_name;
-select * from t1 where a = '1';
+select a,b from t1 where a = '1';
 a	b
 1	1
-select * from t1 where a = '2';
+select a,b from t1 where a = '2';
 a	b
 2	2
-select * from t1 where a = '3';
+select a,b from t1 where a = '3';
 a	b
 3	3
-select * from t1 where a = '4';
+select a,b from t1 where a = '4';
 a	b
 4	4
-select * from t1 where a = '5';
+select a,b from t1 where a = '5';
 a	b
 5	5
-select * from t1 where a = '6';
+select a,b from t1 where a = '6';
 a	b
 6	6
-select * from t1 where a = '7';
+select a,b from t1 where a = '7';
 a	b
 7	7
-select * from t1 where a = '8';
+select a,b from t1 where a = '8';
 a	b
 8	8
-select * from t1 where a in ('1', '2', '3', '4', '5', '6', '7', '8');
+select a,b from t1 where a in ('1', '2', '3', '4', '5', '6', '7', '8');
 a	b
 1	1
 2	2
@@ -251,7 +229,7 @@ a	b
 6	6
 7	7
 8	8
-select * from t1 where a in ('2', '3', '4', '5', '6', '7', '8');
+select a,b from t1 where a in ('2', '3', '4', '5', '6', '7', '8');
 a	b
 2	2
 3	3
@@ -260,7 +238,7 @@ a	b
 6	6
 7	7
 8	8
-select * from t1 where a in ('3', '4', '5', '6', '7', '8');
+select a,b from t1 where a in ('3', '4', '5', '6', '7', '8');
 a	b
 3	3
 4	4
@@ -268,25 +246,25 @@ a	b
 6	6
 7	7
 8	8
-select * from t1 where a in ('4', '5', '6', '7', '8');
+select a,b from t1 where a in ('4', '5', '6', '7', '8');
 a	b
 4	4
 5	5
 6	6
 7	7
 8	8
-select * from t1 where a in ('5', '6', '7', '8');
+select a,b from t1 where a in ('5', '6', '7', '8');
 a	b
 5	5
 6	6
 7	7
 8	8
-select * from t1 where a in ('6', '7', '8');
+select a,b from t1 where a in ('6', '7', '8');
 a	b
 6	6
 7	7
 8	8
-select * from t1 where a in ('7', '8');
+select a,b from t1 where a in ('7', '8');
 a	b
 7	7
 8	8
@@ -302,38 +280,13 @@ counter_name	diff
 LOCAL_READS	43
 READS	43
 drop table counters_at_startup;
+row
 -- t1 --
-Version: Any
-Fragment type: HashMapPartition
-K Value: 6
-Min load factor: 78
-Max load factor: 80
-Temporary table: no
-Number of attributes: 2
-Number of primary keys: 1
-Length of frm data: XXX
-Max Rows: 0
-Row Checksum: 1
-Row GCI: 1
-SingleUserMode: 0
-ForceVarPart: 1
-PartitionCount: 4
-FragmentCount: 8
-FragmentCountType: ONE_PER_LDM_PER_NODE_GROUP
-ExtraRowGciBits: 0
-ExtraRowAuthorBits: 0
-TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
-a Char(10;latin1_swedish_ci) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Int NULL AT=FIXED ST=MEMORY DYNAMIC
--- Indexes -- 
-PRIMARY KEY(a) - UniqueHashIndex
-PRIMARY(a) - OrderedIndex
-
-NDBT_ProgramExit: 0 - OK
-
+-- NDB$BLOB_#_# --
+Table options: readbackup, fullyreplicated
+-- Attributes --
 Creating nodegroup
 Creating nodegroup
 alter table t1 algorithm=inplace, reorganize partition;
