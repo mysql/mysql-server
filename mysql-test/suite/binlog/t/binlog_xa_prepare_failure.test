@@ -12,6 +12,7 @@
 #      It should fail with UNKNOWN XID error instead of ASSERT.
 #  5) Repeat step 2 and 4 with different failure points.
 ###############################################################################
+--source include/have_debug.inc
 --source include/have_log_bin.inc
 
 # Initial setup
