@@ -1,0 +1,424 @@
+Test that fully-replicated tables are still functioning
+correctly after various restart types.
+Checks read-locality, and copy-fragment maintenance
+ndb_fully_replicated_restart2.inc (NR)
+Create FR table
+use test;
+create table test.t1 (
+a int primary key, 
+b int, 
+c int, 
+d int,
+unique(c), key(d))
+comment="NDB_TABLE=FULLY_REPLICATED=1" engine=ndb;
+Put some stuff into it
+*************************
+Pre-restart checks
+*************************
+Check row count
+select @row_count:=count(1) from test.t1;
+@row_count:=count(1)
+5120
+Show physical rows per logical row (NoOfReplicas * NumNodeGroups)
+select @prpr:=floor(sum(fixed_elem_count) / @row_count) as phys_rows_per_row 
+from ndbinfo.memory_per_fragment 
+where fq_name='test/def/t1';
+phys_rows_per_row
+4
+Check row count
+select @row_count:=count(1) from test.t1;
+@row_count:=count(1)
+5120
+Check Physical row count against expected
+select floor(@row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where fq_name='test/def/t1';
+expected_phys_rows	actual_phys_rows	diff
+20480	20480	0
+Check UI physical row count against expected
+select floor(@row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+expected_phys_rows	actual_phys_rows	diff
+20480	20480	0
+Delete some data
+delete from test.t1 limit 512;
+Show new logical row count
+select @new_row_count:=count(1) from test.t1;
+@new_row_count:=count(1)
+4608
+Check new Physical row count against expected
+select floor(@new_row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where fq_name='test/def/t1';
+expected_phys_rows	actual_phys_rows	diff
+18432	18432	0
+Check UI physical row count against expected
+select floor(@new_row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+expected_phys_rows	actual_phys_rows	diff
+18432	18432	0
+Insert some data
+Show new logical row count
+select @new_row_count:=count(1) from test.t1;
+@new_row_count:=count(1)
+5408
+Check new Physical row count against expected
+select floor(@new_row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where fq_name='test/def/t1';
+expected_phys_rows	actual_phys_rows	diff
+21632	21632	0
+Check UI physical row count against expected
+select floor(@new_row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+expected_phys_rows	actual_phys_rows	diff
+21632	21632	0
+Show read-locality at all data nodes
+create table test.t2(a int primary key) engine=ndb;
+insert into test.t2 values (1);
+create table nodes(id int primary key);
+Expect that the transaction ran on all 4 nodes :
+select count(1) from nodes;
+count(1)
+4
+drop table nodes;
+drop table test.t2;
+Now perform a rolling restart
+Node 1
+Node 2
+Node 3
+Node 4
+--- Wait to establish connection
+**************************
+Post-restart checks
+**************************
+Check row count
+select @row_count:=count(1) from test.t1;
+@row_count:=count(1)
+5408
+Check Physical row count against expected
+select floor(@row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where fq_name='test/def/t1';
+expected_phys_rows	actual_phys_rows	diff
+21632	21632	0
+Check UI physical row count against expected
+select floor(@row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+expected_phys_rows	actual_phys_rows	diff
+21632	21632	0
+Delete some data
+delete from test.t1 limit 512;
+Show new logical row count
+select @new_row_count:=count(1) from test.t1;
+@new_row_count:=count(1)
+4896
+Check new Physical row count against expected
+select floor(@new_row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where fq_name='test/def/t1';
+expected_phys_rows	actual_phys_rows	diff
+19584	19584	0
+Check UI physical row count against expected
+select floor(@new_row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+expected_phys_rows	actual_phys_rows	diff
+19584	19584	0
+Insert some data
+Show new logical row count
+select @new_row_count:=count(1) from test.t1;
+@new_row_count:=count(1)
+5696
+Check new Physical row count against expected
+select floor(@new_row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where fq_name='test/def/t1';
+expected_phys_rows	actual_phys_rows	diff
+22784	22784	0
+Check UI physical row count against expected
+select floor(@new_row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+expected_phys_rows	actual_phys_rows	diff
+22784	22784	0
+Show read-locality at all data nodes
+create table test.t2(a int primary key) engine=ndb;
+insert into test.t2 values (1);
+create table nodes(id int primary key);
+Expect that the transaction ran on all 4 nodes :
+select count(1) from nodes;
+count(1)
+4
+drop table nodes;
+drop table test.t2;
+Delete the lot
+delete from test.t1 limit 1024;
+delete from test.t1 limit 1024;
+delete from test.t1 limit 1024;
+delete from test.t1 limit 1024;
+delete from test.t1 limit 1024;
+delete from test.t1 limit 1024;
+select @new_row_count:=count(1) from test.t1;
+@new_row_count:=count(1)
+0
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='test/def/t1';
+sum(fixed_elem_count)
+0
+Check new Physical row count against expected
+select floor(@new_row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where fq_name='test/def/t1';
+expected_phys_rows	actual_phys_rows	diff
+0	0	0
+Check UI physical row count against expected
+select floor(@new_row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+expected_phys_rows	actual_phys_rows	diff
+0	0	0
+drop table test.t1;
+ndb_fully_replicated_restart2.inc (SRTO)
+Create FR table
+use test;
+create table test.t1 (
+a int primary key, 
+b int, 
+c int, 
+d int,
+unique(c), key(d))
+comment="NDB_TABLE=FULLY_REPLICATED=1" engine=ndb;
+Put some stuff into it
+*************************
+Pre-restart checks
+*************************
+Check row count
+select @row_count:=count(1) from test.t1;
+@row_count:=count(1)
+5120
+Show physical rows per logical row (NoOfReplicas * NumNodeGroups)
+select @prpr:=floor(sum(fixed_elem_count) / @row_count) as phys_rows_per_row 
+from ndbinfo.memory_per_fragment 
+where fq_name='test/def/t1';
+phys_rows_per_row
+4
+Check row count
+select @row_count:=count(1) from test.t1;
+@row_count:=count(1)
+5120
+Check Physical row count against expected
+select floor(@row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where fq_name='test/def/t1';
+expected_phys_rows	actual_phys_rows	diff
+20480	20480	0
+Check UI physical row count against expected
+select floor(@row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+expected_phys_rows	actual_phys_rows	diff
+20480	20480	0
+Delete some data
+delete from test.t1 limit 512;
+Show new logical row count
+select @new_row_count:=count(1) from test.t1;
+@new_row_count:=count(1)
+4608
+Check new Physical row count against expected
+select floor(@new_row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where fq_name='test/def/t1';
+expected_phys_rows	actual_phys_rows	diff
+18432	18432	0
+Check UI physical row count against expected
+select floor(@new_row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+expected_phys_rows	actual_phys_rows	diff
+18432	18432	0
+Insert some data
+Show new logical row count
+select @new_row_count:=count(1) from test.t1;
+@new_row_count:=count(1)
+5408
+Check new Physical row count against expected
+select floor(@new_row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where fq_name='test/def/t1';
+expected_phys_rows	actual_phys_rows	diff
+21632	21632	0
+Check UI physical row count against expected
+select floor(@new_row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+expected_phys_rows	actual_phys_rows	diff
+21632	21632	0
+Show read-locality at all data nodes
+create table test.t2(a int primary key) engine=ndb;
+insert into test.t2 values (1);
+create table nodes(id int primary key);
+Expect that the transaction ran on all 4 nodes :
+select count(1) from nodes;
+count(1)
+4
+drop table nodes;
+drop table test.t2;
+Now perform SR with takeover
+Node 1 restart -n
+Wait for Node 1 to enter NOSTART state
+Now make some change and trigger some LCP action
+Now bring down the other nodes
+Wait for them to come down
+Now start-em up
+Wait for SR to complete
+--- Wait to establish connection
+**************************
+Post-restart checks
+**************************
+Check row count
+select @row_count:=count(1) from test.t1;
+@row_count:=count(1)
+5408
+Check Physical row count against expected
+select floor(@row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where fq_name='test/def/t1';
+expected_phys_rows	actual_phys_rows	diff
+21632	21632	0
+Check UI physical row count against expected
+select floor(@row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+expected_phys_rows	actual_phys_rows	diff
+21632	21632	0
+Delete some data
+delete from test.t1 limit 512;
+Show new logical row count
+select @new_row_count:=count(1) from test.t1;
+@new_row_count:=count(1)
+4896
+Check new Physical row count against expected
+select floor(@new_row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where fq_name='test/def/t1';
+expected_phys_rows	actual_phys_rows	diff
+19584	19584	0
+Check UI physical row count against expected
+select floor(@new_row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+expected_phys_rows	actual_phys_rows	diff
+19584	19584	0
+Insert some data
+Show new logical row count
+select @new_row_count:=count(1) from test.t1;
+@new_row_count:=count(1)
+5696
+Check new Physical row count against expected
+select floor(@new_row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where fq_name='test/def/t1';
+expected_phys_rows	actual_phys_rows	diff
+22784	22784	0
+Check UI physical row count against expected
+select floor(@new_row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+expected_phys_rows	actual_phys_rows	diff
+22784	22784	0
+Show read-locality at all data nodes
+create table test.t2(a int primary key) engine=ndb;
+insert into test.t2 values (1);
+create table nodes(id int primary key);
+Expect that the transaction ran on all 4 nodes :
+select count(1) from nodes;
+count(1)
+4
+drop table nodes;
+drop table test.t2;
+Delete the lot
+delete from test.t1 limit 1024;
+delete from test.t1 limit 1024;
+delete from test.t1 limit 1024;
+delete from test.t1 limit 1024;
+delete from test.t1 limit 1024;
+delete from test.t1 limit 1024;
+select @new_row_count:=count(1) from test.t1;
+@new_row_count:=count(1)
+0
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='test/def/t1';
+sum(fixed_elem_count)
+0
+Check new Physical row count against expected
+select floor(@new_row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where fq_name='test/def/t1';
+expected_phys_rows	actual_phys_rows	diff
+0	0	0
+Check UI physical row count against expected
+select floor(@new_row_count * @prpr) as expected_phys_rows, 
+sum(fixed_elem_count) as actual_phys_rows, 
+@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
+from ndbinfo.memory_per_fragment 
+where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+expected_phys_rows	actual_phys_rows	diff
+0	0	0
+drop table test.t1;
