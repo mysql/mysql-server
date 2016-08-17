@@ -5701,18 +5701,22 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
   // for the DDSE tables, since this is expected by the upgrade
   // client. We must also allow DDL access for the initialize thread,
   // since this thread is creating the I_S views.
+  // Note that at this point, the mdl request for CREATE TABLE is still
+  // MDL_SHARED, so we must explicitly check for SQLCOM_CREATE_TABLE.
   const dd::Dictionary *dictionary= dd::get_dictionary();
   if (dictionary && !dictionary->is_dd_table_access_allowed(
              thd->is_dd_system_thread() || thd->is_initialize_system_thread(),
-             ptr->mdl_request.is_ddl_or_lock_tables_lock_request() &&
-               lex->sql_command != SQLCOM_CHECK &&
-               lex->sql_command != SQLCOM_ALTER_TABLE,
+             (ptr->mdl_request.is_ddl_or_lock_tables_lock_request() ||
+              (lex->sql_command == SQLCOM_CREATE_TABLE &&
+               ptr == lex->query_tables)) &&
+              lex->sql_command != SQLCOM_CHECK &&
+              lex->sql_command != SQLCOM_ALTER_TABLE,
              ptr->db, ptr->db_length, ptr->table_name))
   {
     // TODO: Allow access to 'st_spatial_reference_systems' until
     // dedicated DDL statements for adding reference systems are
     // implemented.
-    //  We must allow creation of the system views even for non-system
+    // We must allow creation of the system views even for non-system
     // threads since this is expected by the mysql_upgrade utility.
     if (!(lex->sql_command == SQLCOM_CREATE_VIEW &&
           dd::get_dictionary()->is_system_view_name(

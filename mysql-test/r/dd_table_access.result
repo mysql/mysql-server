@@ -46,6 +46,8 @@ CREATE TABLE mysql.version (i INTEGER);
 ERROR HY000: Access to system table 'mysql.version' is rejected.
 CREATE TABLE new_tab LIKE mysql.version;
 ERROR HY000: Access to system table 'mysql.version' is rejected.
+CREATE TABLE new_tab SELECT * FROM mysql.version;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
 ALTER TABLE mysql.version ADD COLUMN (new_col INTEGER);
 ERROR HY000: Access to system table 'mysql.version' is rejected.
 TRUNCATE TABLE mysql.version;
@@ -124,6 +126,8 @@ ERROR HY000: Access to system table 'mysql.version' is rejected.
 CREATE TABLE version (i INTEGER);
 ERROR HY000: Access to system table 'mysql.version' is rejected.
 CREATE TABLE new_tab LIKE version;
+ERROR HY000: Access to system table 'mysql.version' is rejected.
+CREATE TABLE new_tab SELECT * FROM version;
 ERROR HY000: Access to system table 'mysql.version' is rejected.
 ALTER TABLE version ADD COLUMN (new_col INTEGER);
 ERROR HY000: Access to system table 'mysql.version' is rejected.
@@ -204,6 +208,8 @@ CREATE TABLE mysql.indexes (i INTEGER);
 ERROR HY000: Access to system table 'mysql.indexes' is rejected.
 CREATE TABLE new_tab LIKE mysql.indexes;
 ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+CREATE TABLE new_tab SELECT * FROM mysql.indexes;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
 ALTER TABLE mysql.indexes ADD COLUMN (new_col INTEGER);
 ERROR HY000: Access to system table 'mysql.indexes' is rejected.
 TRUNCATE TABLE mysql.indexes;
@@ -283,6 +289,8 @@ CREATE TABLE indexes (i INTEGER);
 ERROR HY000: Access to system table 'mysql.indexes' is rejected.
 CREATE TABLE new_tab LIKE indexes;
 ERROR HY000: Access to system table 'mysql.indexes' is rejected.
+CREATE TABLE new_tab SELECT * FROM indexes;
+ERROR HY000: Access to system table 'mysql.indexes' is rejected.
 ALTER TABLE indexes ADD COLUMN (new_col INTEGER);
 ERROR HY000: Access to system table 'mysql.indexes' is rejected.
 TRUNCATE TABLE indexes;
@@ -342,8 +350,26 @@ UPDATE mysql.innodb_index_stats SET stat_description='Updated';
 SELECT stat_description FROM mysql.innodb_index_stats LIMIT 1;
 stat_description
 Updated
-# Check that we may not DROP mysql.innodb_index_stats.
+# Check that we may not DROP or CREATE mysql.innodb_index_stats.
 DROP TABLE mysql.innodb_index_stats;
+ERROR HY000: Access to system table 'mysql.innodb_index_stats' is rejected.
+CREATE TABLE mysql.innodb_index_stats(i INTEGER);
+ERROR HY000: Access to system table 'mysql.innodb_index_stats' is rejected.
+# Check that we may CREATE FROM mysql.innodb_index_stats.
+CREATE TABLE t1 SELECT * FROM mysql.innodb_index_stats;
+DROP TABLE t1;
+# Check that we may CREATE LIKE mysql.innodb_index_stats.
+CREATE TABLE t1 LIKE mysql.innodb_index_stats;
+DROP TABLE t1;
+# Check access from stored programs.
+CREATE PROCEDURE ddse_access() CREATE TABLE mysql.innodb_index_stats(i INTEGER);
+ERROR HY000: Access to system table 'mysql.innodb_index_stats' is rejected.
+CREATE PROCEDURE ddse_access() DROP TABLE mysql.innodb_index_stats(i INTEGER);
+ERROR HY000: Access to system table 'mysql.innodb_index_stats' is rejected.
+# Check access from prepared statements.
+PREPARE ps FROM 'CREATE TABLE mysql.innodb_index_stats(i INTEGER)';;
+ERROR HY000: Access to system table 'mysql.innodb_index_stats' is rejected.
+PREPARE ps FROM 'DROP TABLE mysql.innodb_index_stats';;
 ERROR HY000: Access to system table 'mysql.innodb_index_stats' is rejected.
 # But ALTER and CHECK is allowed.
 ALTER TABLE mysql.innodb_index_stats COMMENT 'Altered';
