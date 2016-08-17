@@ -459,16 +459,18 @@ TEST(SdiTest, Tablespace_API)
   api_test(ts);
 }
 
+#ifdef DBUG_OFF
 TEST(SdiTest, Serialization_perf)
 {
   std::unique_ptr<dd::Table> t(dd::create_object<dd::Table>());
   FANOUT= 20;
   mock_dd_obj(t.get());
 
-  for (int i= 0; i < 1000; ++i)
+  for (int i= 0; i < 1; ++i)
   {
     std::string sdi= dd::serialize(nullptr, *t, "perftest");
     EXPECT_GT(sdi.size(), 100000u);
   }
 }
+#endif /* DBUG_OFF */
 } // namespace sdi_unittest
