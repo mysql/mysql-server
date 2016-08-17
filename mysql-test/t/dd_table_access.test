@@ -43,9 +43,31 @@ if (!$TABLE)
   UPDATE mysql.innodb_index_stats SET stat_description='Updated';
   SELECT stat_description FROM mysql.innodb_index_stats LIMIT 1;
 
-  --echo # Check that we may not DROP mysql.innodb_index_stats.
+  --echo # Check that we may not DROP or CREATE mysql.innodb_index_stats.
   --error ER_NO_SYSTEM_TABLE_ACCESS
   DROP TABLE mysql.innodb_index_stats;
+  --error ER_NO_SYSTEM_TABLE_ACCESS
+  CREATE TABLE mysql.innodb_index_stats(i INTEGER);
+
+  --echo # Check that we may CREATE FROM mysql.innodb_index_stats.
+  CREATE TABLE t1 SELECT * FROM mysql.innodb_index_stats;
+  DROP TABLE t1;
+
+  --echo # Check that we may CREATE LIKE mysql.innodb_index_stats.
+  CREATE TABLE t1 LIKE mysql.innodb_index_stats;
+  DROP TABLE t1;
+
+  --echo # Check access from stored programs.
+  --error ER_NO_SYSTEM_TABLE_ACCESS
+  CREATE PROCEDURE ddse_access() CREATE TABLE mysql.innodb_index_stats(i INTEGER);
+  --error ER_NO_SYSTEM_TABLE_ACCESS
+  CREATE PROCEDURE ddse_access() DROP TABLE mysql.innodb_index_stats(i INTEGER);
+
+  --echo # Check access from prepared statements.
+  --error ER_NO_SYSTEM_TABLE_ACCESS
+  --eval PREPARE ps FROM 'CREATE TABLE mysql.innodb_index_stats(i INTEGER)';
+  --error ER_NO_SYSTEM_TABLE_ACCESS
+  --eval PREPARE ps FROM 'DROP TABLE mysql.innodb_index_stats';
 
   --echo # But ALTER and CHECK is allowed.
   ALTER TABLE mysql.innodb_index_stats COMMENT 'Altered';
@@ -88,6 +110,8 @@ if (!$TABLE)
 --eval CREATE TABLE $TABLE (i INTEGER)
 --error ER_NO_SYSTEM_TABLE_ACCESS
 --eval CREATE TABLE new_tab LIKE $TABLE
+--error ER_NO_SYSTEM_TABLE_ACCESS
+--eval CREATE TABLE new_tab SELECT * FROM $TABLE
 --error ER_NO_SYSTEM_TABLE_ACCESS
 --eval ALTER TABLE $TABLE ADD COLUMN (new_col INTEGER)
 --error ER_NO_SYSTEM_TABLE_ACCESS
