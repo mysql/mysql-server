@@ -9,7 +9,6 @@
 #   Read_Backup and FullyReplicated on 1 NG clusters.
 #
 # TODO : Same test for FullyReplicated on > 1 NG clusters...
-# TODO : UK combinations : But UK is currently broken
 
 --echo Tests on T1 (!Blobs)
 --echo Put some data in.
@@ -286,9 +285,6 @@ select a.a, a.d, b.d
 
 
 
-# DISABLED as Unique keys do not receive 'Read Backup' option from their
-# related tables Bug #23702848 	NDB : READBACKUP BEHAVIOUR WITH UNIQUE INDEXES
-#
 --echo Pushed scan originating sub-lookups
 --echo Table scan to get a.d, feeding uk lookups of b.b
 --replace_column 4 # 10 # 11 #
@@ -408,10 +404,6 @@ commit;
 
 --exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
 
-# Disabled due to problem reading ReadBackup 
-# Blobs with OI scan
-#  Bug #23703536 	NDB : READBACKUP OF BLOBS DOES NOT WORK VIA SCANS
-# 
 --echo OI scan
 --replace_column 4 # 10 # 11 #
 explain select * from test.t2 where c > 6;
@@ -427,10 +419,6 @@ select * from test.t2 where c > 6;
 
 --exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
 
-# Disabled due to problem reading ReadBackup 
-# Blobs with scan
-#  Bug #23703536 	NDB : READBACKUP OF BLOBS DOES NOT WORK VIA SCANS
- 
 --echo Table scan
 --replace_column 4 # 10 # 11 #
 explain select * from test.t2;
