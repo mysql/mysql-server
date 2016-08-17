@@ -667,6 +667,11 @@ bool Unix_socket::create_lockfile()
     close(fd);
     sql_print_error("Could not write unix socket lock file %s errno %d.",
                     lock_filename.c_str(), errno);
+
+    if (unlink(lock_filename.c_str()) == -1)
+      sql_print_error("Could not remove unix socket lock file %s errno %d.",
+                      lock_filename.c_str(), errno);
+
     return true;
   }
 
@@ -675,6 +680,11 @@ bool Unix_socket::create_lockfile()
     close(fd);
     sql_print_error("Could not sync unix socket lock file %s errno %d.",
                     lock_filename.c_str(), errno);
+
+    if (unlink(lock_filename.c_str()) == -1)
+      sql_print_error("Could not remove unix socket lock file %s errno %d.",
+                      lock_filename.c_str(), errno);
+
     return true;
   }
 
@@ -682,6 +692,11 @@ bool Unix_socket::create_lockfile()
   {
     sql_print_error("Could not close unix socket lock file %s errno %d.",
                     lock_filename.c_str(), errno);
+
+    if (unlink(lock_filename.c_str()) == -1)
+      sql_print_error("Could not remove unix socket lock file %s errno %d.",
+                      lock_filename.c_str(), errno);
+
     return true;
   }
   return false;
