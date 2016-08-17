@@ -468,8 +468,8 @@ inline static void set_table_access_subclass(
 
   @return Abort execution on 'true', otherwise continue execution.
 */
-int mysql_audit_notify(THD *thd, mysql_event_table_access_subclass_t subclass,
-                       const char *subclass_name, TABLE_LIST *table)
+static int mysql_audit_notify(THD *thd, mysql_event_table_access_subclass_t subclass,
+                              const char *subclass_name, TABLE_LIST *table)
 {
   LEX_CSTRING str;
   mysql_event_table_access event;

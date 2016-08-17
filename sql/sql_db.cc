@@ -37,9 +37,9 @@
 #include "sql_cache.h"       // query_cache
 #include "sql_class.h"       // THD
 #include "sql_handler.h"     // mysql_ha_rm_tables
-#include "sql_rename.h"      // mysql_rename_tables
 #include "sql_table.h"       // build_table_filename
 #include "table.h"           // TABLE_LIST
+#include "transaction.h"     // trans_rollback_stmt
 
 #include "dd/dd.h"                      // dd::get_dictionary()
 #include "dd/dd_schema.h"               // dd::create_schema
@@ -437,6 +437,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
   std::vector<TABLE_LIST*> dropped_atomic;
 #endif
   bool dropped_non_atomic= false;
+  std::set<handlerton*> post_ddl_htons;
 
   DBUG_ENTER("mysql_rm_db");
 
@@ -466,10 +467,10 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
                           ER_THD(thd, ER_DB_DROP_EXISTS), db.str);
       if (write_rm_db_to_binlog(thd, db))
         DBUG_RETURN(true);
-      /*
-        Rely on commit at the end of the statement to commit changes
-        to binary log.
-      */
+
+      if (trans_commit_stmt(thd) ||  trans_commit_implicit(thd))
+        DBUG_RETURN(true);
+
       goto dropped_ok;
     }
   }
@@ -527,7 +528,8 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
   thd->push_internal_handler(&err_handler);
   if (tables)
     error= mysql_rm_table_no_locks(thd, tables, true, false, true,
-                                   &dropped_non_atomic, &dropped_atomic);
+                                   &dropped_non_atomic, &post_ddl_htons,
+                                   &dropped_atomic);
 
   DBUG_EXECUTE_IF("rm_db_fail_after_dropping_tables",
                   {
@@ -569,33 +571,51 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
   }
   thd->pop_internal_handler();
 
+  /*
+    If database exists and there was no error we should
+    write statement to binary log and remove DD entry.
+  */
   if (!error)
-  {
-    /*
-      If database exists and there was no error we should
-      write statement to binary log and remove DD entry.
-    */
+    error= write_rm_db_to_binlog(thd, db);
 
-    if (write_rm_db_to_binlog(thd, db))
-      DBUG_RETURN(true);
+  // Call to dd::drop_schema() implicitly commits transaction.
+  if (!error)
+    error= dd::drop_schema(thd, db.str);
 
-    // Call to dd::drop_schema() implicitly commits transaction.
-    if (dd::drop_schema(thd, db.str))
-      DBUG_RETURN(true);
+  /*
+    In case of error rollback the transaction in order to revert
+    changes which are possible to rollback (e.g. removal of tables
+    in SEs supporting atomic DDL, events and routines).
+  */
+#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
+  thd->skip_gtid_rollback= true;
+#endif
+  if (error)
+    trans_rollback_stmt(thd);
+#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
+  thd->skip_gtid_rollback= false;
+#endif
 
-    // WWL7743/TODO/FIXME. Call handlerton::post_ddl() hook here.
+  /*
+    Call post-DDL handlerton hook. For engines supporting atomic DDL
+    tables' files are removed from disk on this step.
+  */
+  for (handlerton *hton: post_ddl_htons)
+    hton->post_ddl(thd);
 
-    /*
-      If the directory is a symbolic link, remove the link first, then
-      remove the directory the symbolic link pointed at.
+  /*
+    Now we can try removing database directory.
 
-      QQ: Should we treat this as a warning/note/error to error log
-          but send OK to client in this case?
-    */
-    if (rm_dir_w_symlink(path, true))
-      DBUG_RETURN(true);
-  }
-  else
+    If the directory is a symbolic link, remove the link first, then
+    remove the directory the symbolic link pointed at.
+
+    QQ: Should we treat this as a warning/note/error to error log
+        but send OK to client in this case?
+  */
+  if (!error && rm_dir_w_symlink(path, true))
+    DBUG_RETURN(true);
+
+  if (error)
   {
     if (mysql_bin_log.is_open())
     {
@@ -997,7 +1017,7 @@ err:
                         take ownership of the name (the caller must not free
                         the allocated memory). If the name is NULL, we're
                         going to switch to NULL db.
-  @param new_db_access  Privileges of the new database.
+  @param new_db_access  Privileges of the new database. (with roles)
   @param new_db_charset Character set of the new database.
 */
 
@@ -1044,7 +1064,8 @@ static void mysql_change_db_impl(THD *thd,
   /* 2. Update security context. */
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  thd->security_context()->set_db_access(new_db_access);
+  /* Cache the effective schema level privilege with roles applied */
+  thd->security_context()->cache_current_db_access(new_db_access);
 #endif
 
   /* 3. Update db-charset environment variables. */
@@ -1206,7 +1227,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   LEX_CSTRING new_db_file_name_cstr;
 
   Security_context *sctx= thd->security_context();
-  ulong db_access= sctx->db_access();
+  ulong db_access= sctx->current_db_access();
   const CHARSET_INFO *db_default_cl= NULL;
 
   DBUG_ENTER("mysql_change_db");
@@ -1281,18 +1302,26 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
       mysql_change_db_impl(thd, NULL_CSTR, 0, thd->variables.collation_server);
     DBUG_RETURN(true);
   }
-
+  new_db_file_name_cstr.str= new_db_file_name.str;
+  new_db_file_name_cstr.length= new_db_file_name.length;
   DBUG_PRINT("info",("Use database: %s", new_db_file_name.str));
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  db_access= sctx->check_access(DB_ACLS) ?
-    DB_ACLS :
-    acl_get(sctx->host().str,
-            sctx->ip().str,
-            sctx->priv_user().str,
-            new_db_file_name.str,
-            false) | sctx->master_access();
-
+  if (sctx->get_active_roles()->size() == 0)
+  {
+    db_access= sctx->check_access(DB_ACLS) ?
+      DB_ACLS :
+      acl_get(sctx->host().str,
+              sctx->ip().str,
+              sctx->priv_user().str,
+              new_db_file_name.str,
+              false) | sctx->master_access();
+  }
+  else
+  {
+    db_access= sctx->db_acl(new_db_file_name_cstr) | sctx->master_access();
+  }
+  
   if (!force_switch &&
       !(db_access & DB_ACLS) &&
       check_grant_db(thd, new_db_file_name.str))
@@ -1357,13 +1386,10 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   }
 
   db_default_cl= db_default_cl ? db_default_cl : thd->collation();
-
   /*
     NOTE: in mysql_change_db_impl() new_db_file_name is assigned to THD
     attributes and will be freed in THD::~THD().
   */
-  new_db_file_name_cstr.str= new_db_file_name.str;
-  new_db_file_name_cstr.length= new_db_file_name.length;
   mysql_change_db_impl(thd, new_db_file_name_cstr, db_access, db_default_cl);
 
 done:

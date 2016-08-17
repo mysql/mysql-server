@@ -25,6 +25,7 @@
 #include "mdl.h"           // MDL_wait_for_subgraph
 #include "enum_query_type.h" // enum_query_type
 #include "opt_costmodel.h" // Cost_model_table
+#include "record_buffer.h" // Record_buffer
 #include "sql_bitmap.h"    // Bitmap
 #include "sql_sort.h"      // Filesort_info
 #include "table_id.h"      // Table_id
@@ -1078,6 +1079,10 @@ public:
   uchar *write_row_record;		/* Used as optimisation in
 					   THD::write_row */
   uchar *insert_values;                  /* used by INSERT ... UPDATE */
+
+  /// Buffer for use in multi-row reads. Initially empty.
+  Record_buffer m_record_buffer{0, 0, nullptr};
+
   /* 
     Map of keys that can be used to retrieve all data from this table 
     needed by the query without reading the row.
@@ -1338,7 +1343,7 @@ public:
                                            uint key_parts= 0);
   void mark_columns_used_by_index(uint index);
   void mark_auto_increment_column(void);
-  void mark_columns_needed_for_update(THD *thd);
+  void mark_columns_needed_for_update(THD *thd, bool mark_binlog_columns);
   void mark_columns_needed_for_delete(THD *thd);
   void mark_columns_needed_for_insert(THD *thd);
   void mark_columns_per_binlog_row_image(THD *thd);
@@ -1689,11 +1694,15 @@ typedef struct	st_lex_user {
   LEX_CSTRING host;
   LEX_CSTRING plugin;
   LEX_CSTRING auth;
+  /* Below attributes defines the context in which this token parsed */
   bool uses_identified_by_clause;
   bool uses_identified_with_clause;
   bool uses_authentication_string_clause;
   bool uses_identified_by_password_clause;
+  bool opt_if_not_exists;
   LEX_ALTER alter_status;
+
+  static st_lex_user *alloc(THD *thd, LEX_STRING *user, LEX_STRING *host);
 } LEX_USER;
 
 
@@ -1796,9 +1805,6 @@ struct TABLE_LIST
                      MDL_key::TABLE, db, table_name,
                      mdl_type_for_dml(lock_type),
                      MDL_TRANSACTION);
-    callback_func= 0;
-    opt_hints_table= NULL;
-    opt_hints_qb= NULL;
   }
 
 
@@ -2114,7 +2120,7 @@ struct TABLE_LIST
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *find_view_security_context(THD *thd);
-  bool prepare_view_securety_context(THD *thd);
+  bool prepare_view_security_context(THD *thd);
 #endif
 
   /// Cleanup for re-execution in a prepared statement or a stored procedure.
@@ -2640,7 +2646,7 @@ private:
   /**
      Optimized copy of m_join_cond (valid for one single
      execution). Initialized by SELECT_LEX::get_optimizable_conditions().
-     @todo it would be good to reset it in reinit_before_use(), if
+     @todo it would be goo dto reset it in reinit_before_use(), if
      reinit_stmt_before_use() had a loop including join nests.
   */
   Item          *m_join_cond_optim;
@@ -2903,8 +2909,9 @@ static inline void tmp_restore_column_map(MY_BITMAP *bitmap,
 
 /* The following is only needed for debugging */
 
-static inline my_bitmap_map *dbug_tmp_use_all_columns(TABLE *table,
-                                                      MY_BITMAP *bitmap)
+static inline
+my_bitmap_map *dbug_tmp_use_all_columns(TABLE *table MY_ATTRIBUTE((unused)),
+                                        MY_BITMAP *bitmap MY_ATTRIBUTE((unused)))
 {
 #ifndef DBUG_OFF
   return tmp_use_all_columns(table, bitmap);
@@ -2913,8 +2920,9 @@ static inline my_bitmap_map *dbug_tmp_use_all_columns(TABLE *table,
 #endif
 }
 
-static inline void dbug_tmp_restore_column_map(MY_BITMAP *bitmap,
-                                               my_bitmap_map *old)
+static inline
+void dbug_tmp_restore_column_map(MY_BITMAP *bitmap MY_ATTRIBUTE((unused)),
+                                 my_bitmap_map *old MY_ATTRIBUTE((unused)))
 {
 #ifndef DBUG_OFF
   tmp_restore_column_map(bitmap, old);
@@ -2926,10 +2934,11 @@ static inline void dbug_tmp_restore_column_map(MY_BITMAP *bitmap,
   Variant of the above : handle both read and write sets.
   Provide for the possiblity of the read set being the same as the write set
 */
-static inline void dbug_tmp_use_all_columns(TABLE *table,
-                                            my_bitmap_map **save,
-                                            MY_BITMAP *read_set,
-                                            MY_BITMAP *write_set)
+static inline
+void dbug_tmp_use_all_columns(TABLE *table MY_ATTRIBUTE((unused)),
+                              my_bitmap_map **save MY_ATTRIBUTE((unused)),
+                              MY_BITMAP *read_set MY_ATTRIBUTE((unused)),
+                              MY_BITMAP *write_set MY_ATTRIBUTE((unused)))
 {
 #ifndef DBUG_OFF
   save[0]= read_set->bitmap;
@@ -2940,9 +2949,10 @@ static inline void dbug_tmp_use_all_columns(TABLE *table,
 }
 
 
-static inline void dbug_tmp_restore_column_maps(MY_BITMAP *read_set,
-                                                MY_BITMAP *write_set,
-                                                my_bitmap_map **old)
+static inline
+void dbug_tmp_restore_column_maps(MY_BITMAP *read_set MY_ATTRIBUTE((unused)),
+                                  MY_BITMAP *write_set MY_ATTRIBUTE((unused)),
+                                  my_bitmap_map **old MY_ATTRIBUTE((unused)))
 {
 #ifndef DBUG_OFF
   tmp_restore_column_map(read_set, old[0]);

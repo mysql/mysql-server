@@ -20,7 +20,11 @@
 #ifndef _MYSQLX_CRUD_H_
 #define _MYSQLX_CRUD_H_
 
-#include "mysqlx.h"
+#include "ngs_common/protocol_protobuf.h"
+#include <boost/enable_shared_from_this.hpp>
+#include <boost/shared_ptr.hpp>
+#include <stdexcept>
+
 
 namespace Mysqlx
 {
@@ -43,6 +47,8 @@ namespace mysqlx
 {
   class Table;
   class Collection;
+  class Session;
+  class Result;
 
   typedef boost::shared_ptr<Table> TableRef;
   typedef boost::shared_ptr<Collection> CollectionRef;
@@ -80,6 +86,26 @@ namespace mysqlx
     void insert_bound_values(::google::protobuf::RepeatedPtrField< ::Mysqlx::Datatypes::Scalar >* target);
     void init_bound_values();
     void validate_bind_placeholder(const std::string& name);
+  };
+
+  // -------------------------------------------------------
+
+  class Document
+  {
+  public:
+    Document();
+    explicit Document(const std::string &doc, bool expression = false, const std::string &id = "");
+    Document(const Document &doc);
+
+    std::string &str() const { return *m_data; }
+    std::string id() const { return m_id; }
+    bool is_expression() const { return m_expression; }
+    void reset(const std::string &doc, bool expression = false, const std::string &id = "");
+
+  private:
+    boost::shared_ptr<std::string> m_data;
+    bool m_expression;
+    std::string m_id;
   };
 
   // -------------------------------------------------------

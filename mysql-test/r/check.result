@@ -19,6 +19,14 @@ test.v1	check	status	OK
 test.t2	check	status	OK
 drop view v1;
 drop table t1, t2;
+SET @@GLOBAL.default_tmp_storage_engine = MyISAM;
+SET @@session.default_tmp_storage_engine = MyISAM;
+SELECT @@global.default_tmp_storage_engine;
+@@global.default_tmp_storage_engine
+MyISAM
+SELECT @@session.default_tmp_storage_engine;
+@@session.default_tmp_storage_engine
+MyISAM
 CREATE TEMPORARY TABLE t1(a INT);
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -26,6 +34,22 @@ test.t1	check	status	OK
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
+DROP TABLE t1;
+SET @@global.default_tmp_storage_engine = InnoDB;
+SET @@session.default_tmp_storage_engine = InnoDB;
+SELECT @@global.default_tmp_storage_engine;
+@@global.default_tmp_storage_engine
+InnoDB
+SELECT @@session.default_tmp_storage_engine;
+@@session.default_tmp_storage_engine
+InnoDB
+CREATE TEMPORARY TABLE t1(a INT);
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	note	The storage engine for the table doesn't support repair
 DROP TABLE t1;
 #
 # Bug#56422 CHECK TABLE run when the table is locked reports corruption

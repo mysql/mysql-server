@@ -3198,6 +3198,27 @@ protected:
 };
 
 
+class Create_func_current_role : public Create_func_arg0
+{
+public:
+  virtual Item *create(THD *thd);
+
+  static Create_func_current_role s_singleton;
+protected:
+  Create_func_current_role() {}
+  virtual ~Create_func_current_role() {}
+};
+
+class Create_func_roles_graphml : public Create_func_arg0
+{
+public:
+	virtual Item *create(THD *thd);
+	static Create_func_roles_graphml s_singleton;
+protected:
+	Create_func_roles_graphml() {}
+	virtual ~Create_func_roles_graphml() {}
+};
+
 /*
 =============================================================================
   IMPLEMENTATION
@@ -6656,6 +6677,22 @@ Create_func_year_week::create_native(THD *thd, LEX_STRING name,
 }
 
 
+Create_func_current_role Create_func_current_role::s_singleton;
+
+Item*
+Create_func_current_role::create(THD *thd)
+{
+  return new (thd->mem_root) Item_func_current_role(POS());
+}
+
+Create_func_roles_graphml Create_func_roles_graphml::s_singleton;
+
+Item*
+Create_func_roles_graphml::create(THD *thd)
+{
+	return new (thd->mem_root) Item_func_roles_graphml(POS());
+}
+
 struct Native_func_registry
 {
   LEX_STRING name;
@@ -6707,6 +6744,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("COS") }, BUILDER(Create_func_cos)},
   { { C_STRING_WITH_LEN("COT") }, BUILDER(Create_func_cot)},
   { { C_STRING_WITH_LEN("CRC32") }, BUILDER(Create_func_crc32)},
+  { { C_STRING_WITH_LEN("CURRENT_ROLE") }, BUILDER(Create_func_current_role)},
   { { C_STRING_WITH_LEN("DATEDIFF") }, BUILDER(Create_func_datediff)},
   { { C_STRING_WITH_LEN("DATE_FORMAT") }, BUILDER(Create_func_date_format)},
   { { C_STRING_WITH_LEN("DAYNAME") }, BUILDER(Create_func_dayname)},
@@ -6819,6 +6857,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("RELEASE_ALL_LOCKS") }, BUILDER(Create_func_release_all_locks) },
   { { C_STRING_WITH_LEN("RELEASE_LOCK") }, BUILDER(Create_func_release_lock) },
   { { C_STRING_WITH_LEN("REVERSE") }, BUILDER(Create_func_reverse)},
+  { { C_STRING_WITH_LEN("ROLES_GRAPHML") }, BUILDER(Create_func_roles_graphml) },
   { { C_STRING_WITH_LEN("ROUND") }, BUILDER(Create_func_round)},
   { { C_STRING_WITH_LEN("RPAD") }, BUILDER(Create_func_rpad)},
   { { C_STRING_WITH_LEN("RTRIM") }, BUILDER(Create_func_rtrim)},
@@ -7045,7 +7084,6 @@ create_func_cast(THD *thd, const POS &pos, Item *a, Cast_target cast_target,
   Cast_type type;
   type.target= cast_target;
   type.charset= cs;
-  type.type_flags= 0;
   type.length= NULL;
   type.dec= NULL;
   return create_func_cast(thd, pos, a, &type);

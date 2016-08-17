@@ -190,8 +190,8 @@ dict_create_sys_columns_tuple(
 		num_base = v_col->num_base;
 		v_col_no = column->ind;
 	} else {
-		column = dict_table_get_nth_col(table, i);
-		ut_ad(!dict_col_is_virtual(column));
+		column = table->get_col(i);
+		ut_ad(!column->is_virtual());
 	}
 
 	sys_columns = dict_sys->sys_columns;
@@ -232,7 +232,7 @@ dict_create_sys_columns_tuple(
         if (i >= table->n_def) {
 		col_name = dict_table_get_v_col_name(table, i - table->n_def);
 	} else {
-		col_name = dict_table_get_col_name(table, i);
+		col_name = table->get_col_name(i);
 	}
 
 	dfield_set_data(dfield, col_name, ut_strlen(col_name));
@@ -454,7 +454,7 @@ dict_build_tablespace_for_table(
 	bool		needs_file_per_table;
 	char*		filepath;
 
-	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
+	ut_ad(mutex_own(&dict_sys->mutex) || table->is_intrinsic());
 
 	needs_file_per_table
 		= DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_FILE_PER_TABLE);
@@ -468,7 +468,7 @@ dict_build_tablespace_for_table(
 	if (needs_file_per_table) {
 		/* Temporary table would always reside in the same
 		shared temp tablespace. */
-		ut_ad(!dict_table_is_temporary(table));
+		ut_ad(!table->is_temporary());
 		/* This table will need a new tablespace. */
 
 		ut_ad(DICT_TF_GET_ZIP_SSIZE(table->flags) == 0
@@ -550,7 +550,7 @@ dict_build_tablespace_for_table(
 
 			ut_ad(table->space == fil_space_get_id_by_name(
 				table->tablespace()));
-		} else if (dict_table_is_temporary(table)) {
+		} else if (table->is_temporary()) {
 			/* Use the shared temporary tablespace.
 			Note: The temp tablespace supports all non-Compressed
 			row formats whereas the system tablespace only
@@ -747,13 +747,13 @@ dict_create_sys_fields_tuple(
 	ut_ad(heap);
 
 	for (j = 0; j < index->n_fields; j++) {
-		if (dict_index_get_nth_field(index, j)->prefix_len > 0) {
+		if (index->get_field(j)->prefix_len > 0) {
 			index_contains_column_prefix_field = TRUE;
 			break;
 		}
 	}
 
-	field = dict_index_get_nth_field(index, fld_no);
+	field = index->get_field(fld_no);
 
 	sys_fields = dict_sys->sys_fields;
 
@@ -874,7 +874,7 @@ dict_build_index_def_step(
 	node->table = table;
 
 	ut_ad((UT_LIST_GET_LEN(table->indexes) > 0)
-	      || dict_index_is_clust(index));
+	      || index->is_clustered());
 
 	dict_hdr_get_new_id(NULL, &index->id, NULL, table, false);
 
@@ -906,7 +906,7 @@ dict_build_index_def(
 	dict_index_t*		index,	/*!< in/out: index */
 	trx_t*			trx)	/*!< in/out: InnoDB transaction handle */
 {
-	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
+	ut_ad(mutex_own(&dict_sys->mutex) || table->is_intrinsic());
 
 	if (trx->table_id == 0) {
 		/* Record only the first table id. */
@@ -914,9 +914,9 @@ dict_build_index_def(
 	}
 
 	ut_ad((UT_LIST_GET_LEN(table->indexes) > 0)
-	      || dict_index_is_clust(index));
+	      || index->is_clustered());
 
-	if (!dict_table_is_intrinsic(table)) {
+	if (!table->is_intrinsic()) {
 		dict_hdr_get_new_id(NULL, &index->id, NULL, table, false);
 	} else {
 		/* Index are re-loaded in process of creation using id.
@@ -1048,8 +1048,7 @@ dict_create_index_tree_in_mem(
 	mtr_t		mtr;
 	ulint		page_no = FIL_NULL;
 
-	ut_ad(mutex_own(&dict_sys->mutex)
-	      || dict_table_is_intrinsic(index->table));
+	ut_ad(mutex_own(&dict_sys->mutex) || index->table->is_intrinsic());
 
 	if (index->type == DICT_FTS) {
 		/* FTS index does not need an index tree */
@@ -1155,9 +1154,8 @@ dict_drop_temporary_table_index(
 	const dict_index_t*	index,
 	page_no_t		root_page_no)
 {
-	ut_ad(mutex_own(&dict_sys->mutex)
-	      || dict_table_is_intrinsic(index->table));
-	ut_ad(dict_table_is_temporary(index->table));
+	ut_ad(mutex_own(&dict_sys->mutex) || index->table->is_intrinsic());
+	ut_ad(index->table->is_temporary());
 	ut_ad(index->page == FIL_NULL);
 
 	space_id_t		space = index->space;
@@ -1986,7 +1984,7 @@ dict_index_has_col_by_name(
 	const dict_index_t*	index)
 {
         for (ulint i = 0; i < index->n_fields; i++) {
-                dict_field_t*   field = dict_index_get_nth_field(index, i);
+                dict_field_t*   field = index->get_field(i);
 
 		if (strcmp(field->name, col_name) == 0) {
 			return(true);
@@ -2042,9 +2040,9 @@ dict_foreign_has_col_as_base_col(
 		}
 
 		for (ulint j = 0; j < v_col->num_base; j++) {
-			if (strcmp(col_name, dict_table_get_col_name(
-					   table,
-					   v_col->base_col[j]->ind)) == 0) {
+			if (strcmp(col_name,
+				   table->get_col_name(v_col->base_col[j]->ind))
+			    == 0) {
 				return(true);
 			}
 		}
@@ -2071,9 +2069,9 @@ dict_foreign_base_for_stored(
 		dict_s_col_t	s_col = *it;
 
 		for (ulint j = 0; j < s_col.num_base; j++) {
-			if (strcmp(col_name, dict_table_get_col_name(
-						table,
-						s_col.base_col[j]->ind)) == 0) {
+			if (strcmp(col_name,
+				   table->get_col_name(s_col.base_col[j]->ind))
+			    == 0) {
 				return(true);
 			}
 		}
@@ -2185,10 +2183,9 @@ dict_create_add_foreigns_to_dictionary(
 	dict_foreign_t*	foreign;
 	dberr_t		error;
 
-	ut_ad(mutex_own(&dict_sys->mutex)
-	      || dict_table_is_intrinsic(table));
+	ut_ad(mutex_own(&dict_sys->mutex) || table->is_intrinsic());
 
-	if (dict_table_is_intrinsic(table)) {
+	if (table->is_intrinsic()) {
 		goto exit_loop;
 	}
 
@@ -2472,7 +2469,7 @@ dict_table_assign_new_id(
 	dict_table_t*	table,
 	trx_t*		trx)
 {
-	if (dict_table_is_intrinsic(table)) {
+	if (table->is_intrinsic()) {
 		/* There is no significance of this table->id (if table is
 		intrinsic) so assign it default instead of something meaningful
 		to avoid confusion.*/
@@ -2565,8 +2562,8 @@ dict_sdi_create_idx_in_mem(
 		DICT_CLUSTERED |DICT_UNIQUE | DICT_SDI, 2);
 	ut_ad(temp_index);
 
-	dict_mem_index_add_field(temp_index, "id", 0);
-	dict_mem_index_add_field(temp_index, "type", 0);
+	temp_index->add_field("id", 0);
+	temp_index->add_field("type", 0);
 
 	temp_index->table = table;
 

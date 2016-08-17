@@ -1652,7 +1652,7 @@ btr_search_move_or_delete_hash_entries(
 		return;
 	}
 
-	ut_ad(!dict_table_is_intrinsic(index->table));
+	ut_ad(!index->table->is_intrinsic());
 
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_X));
 	ut_ad(rw_lock_own(&(new_block->lock), RW_LOCK_X));

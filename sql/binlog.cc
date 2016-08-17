@@ -2158,7 +2158,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
   {
     if (thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
         thd->lex->select_lex->item_list.elements && /* With select */
-        !(thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
+        !(thd->lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
         thd->is_current_stmt_binlog_format_row())
     {
       /*
@@ -2634,7 +2634,7 @@ File open_binlog_file(IO_CACHE *log, const char *log_file_name, const char **err
   DBUG_ENTER("open_binlog_file");
 
   if ((file= mysql_file_open(key_file_binlog,
-                             log_file_name, O_RDONLY | O_BINARY | O_SHARE,
+                             log_file_name, O_RDONLY,
                              MYF(MY_WME))) < 0)
   {
     sql_print_error("Failed to open log (file '%s', errno %d)",
@@ -3453,7 +3453,7 @@ bool MYSQL_BIN_LOG::open(
 {
   File file= -1;
   my_off_t pos= 0;
-  int open_flags= O_CREAT | O_BINARY;
+  int open_flags= O_CREAT;
   DBUG_ENTER("MYSQL_BIN_LOG::open");
 
   write_error= 0;
@@ -3567,7 +3567,7 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
 
   if ((index_file_nr= mysql_file_open(m_key_file_log_index,
                                       index_file_name,
-                                      O_RDWR | O_CREAT | O_BINARY,
+                                      O_RDWR | O_CREAT,
                                       MYF(MY_WME))) < 0 ||
        mysql_file_sync(index_file_nr, MYF(MY_WME)) ||
        init_io_cache_ext(&index_file, index_file_nr,
@@ -5051,7 +5051,7 @@ int MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file(bool need_lock_index
 recoverable_err:
   if ((fd= mysql_file_open(key_file_binlog_index,
                            index_file_name,
-                           O_RDWR | O_CREAT | O_BINARY,
+                           O_RDWR | O_CREAT,
                            MYF(MY_WME))) < 0 ||
            mysql_file_sync(fd, MYF(MY_WME)) ||
            init_io_cache_ext(&index_file, fd, IO_SIZE, READ_CACHE,
@@ -5626,7 +5626,7 @@ int MYSQL_BIN_LOG::open_crash_safe_index_file()
 
   if (!my_b_inited(&crash_safe_index_file))
   {
-    if ((file= my_open(crash_safe_index_file_name, O_RDWR | O_CREAT | O_BINARY,
+    if ((file= my_open(crash_safe_index_file_name, O_RDWR | O_CREAT,
                        MYF(MY_WME))) < 0  ||
         init_io_cache(&crash_safe_index_file, file, IO_SIZE, WRITE_CACHE,
                       0, 0, MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)))
@@ -6066,7 +6066,7 @@ int MYSQL_BIN_LOG::open_purge_index_file(bool destroy)
 
   if (!my_b_inited(&purge_index_file))
   {
-    if ((file= my_open(purge_index_file_name, O_RDWR | O_CREAT | O_BINARY,
+    if ((file= my_open(purge_index_file_name, O_RDWR | O_CREAT,
                        MYF(MY_WME))) < 0  ||
         init_io_cache(&purge_index_file, file, IO_SIZE,
                       (destroy ? WRITE_CACHE : READ_CACHE),
@@ -7965,7 +7965,7 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
     if (valid_pos > 0)
     {
       if ((file= mysql_file_open(key_file_binlog, log_name,
-                                 O_RDWR | O_BINARY, MYF(MY_WME))) < 0)
+                                 O_RDWR, MYF(MY_WME))) < 0)
       {
         sql_print_error("Failed to open the crashed binlog file "
                         "when master server is recovering it.");
@@ -9843,6 +9843,24 @@ static bool inline fulltext_unsafe_set(TABLE_SHARE *s)
   }
   return FALSE;
 }
+#ifndef DBUG_OFF
+const char * get_locked_tables_mode_name(enum_locked_tables_mode locked_tables_mode)
+{
+   switch (locked_tables_mode)
+   {
+   case LTM_NONE:
+     return "LTM_NONE";
+   case LTM_LOCK_TABLES:
+     return "LTM_LOCK_TABLES";
+   case LTM_PRELOCKED:
+     return "LTM_PRELOCKED";
+   case LTM_PRELOCKED_UNDER_LOCK_TABLES:
+     return "LTM_PRELOCKED_UNDER_LOCK_TABLES";
+   default:
+     return "Unknown table lock mode";
+   }
+}
+#endif
 
 /**
   Decide on logging format to use for the statement and issue errors
@@ -9953,7 +9971,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
   DBUG_PRINT("info", ("lex->get_stmt_unsafe_flags(): 0x%x",
                       lex->get_stmt_unsafe_flags()));
 
-  DEBUG_SYNC(current_thd, "begin_decide_logging_format");
+  if (!is_attachable_ro_transaction_active())
+    DEBUG_SYNC(current_thd, "begin_decide_logging_format");
 
   reset_binlog_local_stmt_filter();
 
@@ -10203,7 +10222,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
 
       if (lex->sql_command != SQLCOM_CREATE_TABLE ||
           (lex->sql_command == SQLCOM_CREATE_TABLE &&
-          (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)))
+          (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)))
       {
         if (table->table->s->tmp_table)
           lex->set_stmt_accessed_table(trans ? LEX::STMT_READS_TEMP_TRANS_TABLE :
@@ -10502,7 +10521,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     }
   }
 
-  DEBUG_SYNC(current_thd, "end_decide_logging_format");
+  if (!is_attachable_ro_transaction_active())
+    DEBUG_SYNC(current_thd, "end_decide_logging_format");
 
   DBUG_RETURN(0);
 }
@@ -10624,14 +10644,14 @@ bool THD::is_ddl_gtid_compatible()
              ("SQLCOM_CREATE:%d CREATE-TMP:%d SELECT:%d SQLCOM_DROP:%d DROP-TMP:%d trx:%d",
               lex->sql_command == SQLCOM_CREATE_TABLE,
               (lex->sql_command == SQLCOM_CREATE_TABLE &&
-               (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)),
+               (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)),
               lex->select_lex->item_list.elements,
               lex->sql_command == SQLCOM_DROP_TABLE,
               (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary),
               in_multi_stmt_transaction_mode()));
 
   if (lex->sql_command == SQLCOM_CREATE_TABLE &&
-      !(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
+      !(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
       lex->select_lex->item_list.elements)
   {
     /*
@@ -10646,7 +10666,7 @@ bool THD::is_ddl_gtid_compatible()
     DBUG_RETURN(ret);
   }
   else if ((lex->sql_command == SQLCOM_CREATE_TABLE &&
-            (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) != 0) ||
+            (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) != 0) ||
            (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary))
   {
     /*

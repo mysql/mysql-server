@@ -228,7 +228,7 @@ ibool
 page_zip_available(
 /*===============*/
 	const page_zip_des_t*	page_zip,/*!< in: compressed page */
-	ibool			is_clust,/*!< in: TRUE if clustered index */
+	bool			is_clust,/*!< in: TRUE if clustered index */
 	ulint			length,	/*!< in: combined size of the record */
 	ulint			create)	/*!< in: nonzero=add the record to
 					the heap */
@@ -372,7 +372,7 @@ void
 page_zip_dir_add_slot(
 /*==================*/
 	page_zip_des_t*	page_zip,	/*!< in/out: compressed page */
-	ulint		is_clustered);	/*!< in: nonzero for clustered index,
+	bool		is_clustered);	/*!< in: nonzero for clustered index,
 					zero for others */
 
 /***********************************************************//**

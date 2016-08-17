@@ -191,17 +191,6 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   ENDIF()
 ENDIF()
 
-# Set -O1 on Solaris x86 to avoid exhausting virtual memory when
-# compiling
-IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_SYSTEM_NAME MATCHES "SunOS")
-  IF(CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-    ADD_COMPILE_FLAGS(
-      ../sql/gis/srs/wkt_parser.cc
-      COMPILE_FLAGS "-O1"
-    )
-  ENDIF()
-ENDIF()
-
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
 # there

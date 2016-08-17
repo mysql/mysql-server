@@ -535,6 +535,129 @@ struct dict_col_t{
 					this column. Our current max limit is
 					3072 (REC_VERSION_56_MAX_INDEX_COL_LEN)
 					bytes. */
+
+#ifndef UNIV_HOTBACKUP
+	/** Returns the minimum size of the column.
+	@return minimum size */
+	ulint get_min_size() const
+	{
+		return(dtype_get_min_size_low(mtype, prtype, len, mbminmaxlen));
+	}
+
+	/** Returns the maximum size of the column.
+	@return maximum size */
+	ulint get_max_size() const
+	{
+		return(dtype_get_max_size_low(mtype, len));
+	}
+
+	/** Check if a column is a virtual column
+	@return true if it is a virtual column, false otherwise */
+	bool is_virtual() const
+	{
+		return(prtype & DATA_VIRTUAL);
+	}
+
+	/** Gets the column data type.
+	@param[out] type	data type */
+	void copy_type(dtype_t* type) const
+	{
+		ut_ad(type != NULL);
+
+		type->mtype = mtype;
+		type->prtype = prtype;
+		type->len = len;
+		type->mbminmaxlen = mbminmaxlen;
+	}
+
+	/** Gets the minimum number of bytes per character.
+	@return minimum multi-byte char size, in bytes */
+	ulint get_mbminlen() const
+	{
+		return(DATA_MBMINLEN(mbminmaxlen));
+	}
+
+	/** Gets the maximum number of bytes per character.
+	@return maximum multi-byte char size, in bytes */
+	ulint get_mbmaxlen() const
+	{
+		return(DATA_MBMAXLEN(mbminmaxlen));
+	}
+
+	/** Sets the minimum and maximum number of bytes per character.
+	@param[in] mbminlen	minimum multi byte character size, in bytes
+	@param[in] mbmaxlen	mAXimum multi-byte character size, in bytes */
+	void set_mbminmaxlen(ulint mbminlen, ulint mbmaxlen)
+	{
+		ut_ad(mbminlen < DATA_MBMAX);
+		ut_ad(mbmaxlen < DATA_MBMAX);
+		ut_ad(mbminlen <= mbmaxlen);
+
+		mbminmaxlen = DATA_MBMINMAXLEN(mbminlen, mbmaxlen);
+	}
+
+#endif /* !UNIV_HOTBACKUP*/
+
+	/** Returns the size of a fixed size column, 0 if not a fixed size column.
+	@param[in] comp		nonzero=ROW_FORMAT=COMPACT
+	@return fixed size, or 0 */
+	ulint get_fixed_size(ulint comp) const
+	{
+		return(dtype_get_fixed_size_low(mtype, prtype, len,
+			mbminmaxlen, comp));
+	}
+
+	/** Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a column.
+	For fixed length types it is the fixed length of the type, otherwise 0.
+	@param[in] comp		nonzero=ROW_FORMAT=COMPACT
+	@return SQL null storage size in ROW_FORMAT=REDUNDANT */
+	ulint get_null_size(ulint comp) const
+	{
+		return(get_fixed_size(comp));
+	}
+
+	/** Check whether the col is used in spatial index or regular index.
+	@return spatial status */
+	spatial_status_t get_spatial_status() const
+	{
+		spatial_status_t	spatial_status = SPATIAL_NONE;
+
+		/* Column is not a part of any index. */
+		if (!ord_part) {
+			return(spatial_status);
+		}
+
+		if (DATA_GEOMETRY_MTYPE(mtype)) {
+			if (max_prefix == 0) {
+				spatial_status = SPATIAL_ONLY;
+			} else {
+				/* Any regular index on a geometry column
+				should have a prefix. */
+				spatial_status = SPATIAL_MIXED;
+			}
+		}
+
+		return(spatial_status);
+	}
+
+#ifdef UNIV_DEBUG
+	/** Assert that a column and a data type match.
+	param[in] type		data type
+	@return true */
+	bool assert_equal(const dtype_t* type) const
+	{
+		ut_ad(type);
+
+		ut_ad(mtype == type->mtype);
+		ut_ad(prtype == type->prtype);
+		//ut_ad(col->len == type->len);
+# ifndef UNIV_HOTBACKUP
+		ut_ad(mbminmaxlen == type->mbminmaxlen);
+# endif /* !UNIV_HOTBACKUP */
+
+		return true;
+	}
+#endif /* UNIV_DEBUG */
 };
 
 /** Index information put in a list of virtual column structure. Index
@@ -981,7 +1104,98 @@ struct dict_index_t{
 			const_cast<const dict_index_t*>(this)->next()));
 	}
 
+	/** Check whether the index is corrupted.
+	@return true if index is corrupted, otherwise false */
+	bool is_corrupted() const
+	{
+		ut_ad(magic_n == DICT_INDEX_MAGIC_N);
+
+		return(type & DICT_CORRUPT);
+	}
+
+	/* Check whether the index is the clustered index
+	@return nonzero for clustered index, zero for other indexes */
+
+	bool is_clustered() const
+	{
+		ut_ad(magic_n == DICT_INDEX_MAGIC_N);
+
+		return(type & DICT_CLUSTERED);
+	}
+
+	/** Returns the minimum data size of an index record.
+	@return minimum data size in bytes */
+	ulint get_min_size() const
+	{
+		ulint	size	= 0;
+
+		for (unsigned i = 0; i < n_fields; i++) {
+			size += get_col(i)->get_min_size();
+		}
+
+		return(size);
+	}
+
 #endif /* !UNIV_HOTBACKUP */
+
+	/** Check whether index can be used by transaction
+	@param[in] trx		transaction*/
+	bool is_usable(const trx_t* trx) const;
+
+	/** Adds a field definition to an index. NOTE: does not take a copy
+	of the column name if the field is a column. The memory occupied
+	by the column name may be released only after publishing the index.
+	@param[in] name		column name
+	@param[in] prefix_len	0 or the column prefix length in a MySQL index
+				like INDEX (textcol(25)) */
+	void add_field(const char* name, ulint prefix_len)
+	{
+		dict_field_t*	field;
+
+		ut_ad(magic_n == DICT_INDEX_MAGIC_N);
+
+		n_def++;
+
+		field =  get_field(n_def - 1);
+
+		field->name = name;
+		field->prefix_len = (unsigned int) prefix_len;
+	}
+
+	/** Gets the nth field of an index.
+	@param[in] pos	position of field
+	@return pointer to field object */
+	dict_field_t* get_field(ulint pos) const
+	{
+		ut_ad(pos < n_def);
+		ut_ad(magic_n == DICT_INDEX_MAGIC_N);
+
+		return(fields + pos);
+	}
+
+	/** Gets pointer to the nth column in an index.
+	@param[in] pos	position of the field
+	@return column */
+	const dict_col_t* get_col(ulint pos) const;
+
+	/** Gets the column number the nth field in an index.
+	@param[in] pos	position of the field
+	@return column number */
+	ulint get_col_no(ulint pos) const;
+
+	/** Returns the position of a system column in an index.
+	@param[in] type		DATA_ROW_ID, ...
+	@return position, ULINT_UNDEFINED if not contained */
+	ulint get_sys_col_pos(ulint type) const;
+
+	/** Looks for column n in an index.
+	@param[in]	n		column number
+	@param[in]	inc_prefix	true=consider column prefixes too
+	@param[in]	is_virtual	true==virtual column
+	@return position in internal representation of the index;
+	ULINT_UNDEFINED if not contained */
+	ulint get_col_pos(
+		ulint n, bool inc_prefix=false, bool is_virtual=false) const;
 };
 
 /** The status of online index creation */
@@ -1750,6 +1964,130 @@ public:
 			const_cast<const dict_table_t*>(this)
 			->first_index()));
 	}
+
+	/** Check whether the table is corrupted.
+	@return true if the table is corrupted, otherwise false */
+	bool is_corrupted() const
+	{
+		ut_ad(magic_n == DICT_TABLE_MAGIC_N);
+
+		const dict_index_t*	index = first_index();
+
+		/* It is possible that this table is only half created, in which case
+		the clustered index may be NULL.  If the clustered index is corrupted,
+		the table is corrupt.  We do not consider the table corrupt if only
+		a secondary index is corrupt. */
+		ut_ad(index == NULL || index->is_clustered());
+
+		return(index != NULL && index->type & DICT_CORRUPT);
+	}
+
+
+	/** Returns a column's name.
+	@param[in] col_nr	column number
+	@return column name. NOTE: not guaranteed to stay valid if table is
+	modified in any way (columns added, etc.). */
+	const char* get_col_name(ulint col_nr) const
+	{
+		ut_ad(col_nr < n_def);
+		ut_ad(magic_n == DICT_TABLE_MAGIC_N);
+
+		const char* s = col_names;
+		if (s) {
+			for (ulint i = 0; i < col_nr; i++) {
+				s += strlen(s) + 1;
+			}
+		}
+
+		return(s);
+	}
+
+	/**Gets the nth column of a table.
+	@param[in] pos	position of column
+	@return pointer to column object */
+	dict_col_t* get_col(ulint pos) const
+	{
+		ut_ad(pos < n_def);
+		ut_ad(magic_n == DICT_TABLE_MAGIC_N);
+
+		return(cols + pos);
+	}
+
+	/** Gets the number of user-defined non-virtual columns in a table
+	in the dictionary cache.
+	@return number of user-defined (e.g., not ROW_ID) non-virtual columns
+	of a table */
+	ulint get_n_user_cols() const
+	{
+		ut_ad(magic_n == DICT_TABLE_MAGIC_N);
+
+		return(n_cols - get_n_sys_cols());
+	}
+
+	/** Gets the number of system columns in a table.
+	For intrinsic table on ROW_ID column is added for all other
+	tables TRX_ID and ROLL_PTR are all also appeneded.
+	@return number of system (e.g., ROW_ID) columns of a table */
+	ulint get_n_sys_cols() const
+	{
+		ut_ad(magic_n == DICT_TABLE_MAGIC_N);
+
+		return (is_intrinsic() ? DATA_ITT_N_SYS_COLS : DATA_N_SYS_COLS);
+	}
+
+	/** Gets the number of all non-virtual columns (also system) in a table
+	in the dictionary cache.
+	@return number of non-virtual columns of a table */
+	ulint get_n_cols() const
+	{
+		ut_ad(magic_n == DICT_TABLE_MAGIC_N);
+
+		return(n_cols);
+	}
+
+	/** Gets the given system column of a table.
+	@param[in] sys DATA_ROW_ID, ...
+	@return pointer to column object */
+	dict_col_t*  get_sys_col(ulint sys) const
+	{
+		dict_col_t*	col;
+
+		ut_ad(sys < get_n_sys_cols());
+		ut_ad(magic_n == DICT_TABLE_MAGIC_N);
+
+		col = get_col(n_cols - get_n_sys_cols() + sys);
+		ut_ad(col->mtype == DATA_SYS);
+		ut_ad(col->prtype == (sys | DATA_NOT_NULL));
+
+		return(col);
+	}
+
+	/** Determine if this is a temporary table. */
+	bool is_temporary() const
+	{
+		ut_ad(magic_n == DICT_TABLE_MAGIC_N);
+		return(flags2 & DICT_TF2_TEMPORARY);
+	}
+
+	/** Determine whether the table is intrinsic.
+	An intrinsic table is a special kind of temporary table that
+	is invisible to the end user. It can be created internally by InnoDB,
+	the MySQL server layer or other modules connected to InnoDB in order
+	to gather and use data as part of a larger task. Since access to it
+	must be as fast as possible, it does not need UNDO semantics, system
+	fields DB_TRX_ID & DB_ROLL_PTR, doublewrite, checksum, insert buffer,
+	use of the shared data dictionary, locking, or even a transaction.
+	In short, these are not ACID tables at all, just temporary data stored
+	and manipulated during a larger process.*/
+	bool is_intrinsic() const
+	{
+		if (flags2 & DICT_TF2_INTRINSIC) {
+			ut_ad(is_temporary());
+			return(true);
+		}
+
+		return(false);
+	}
 };
 
 /** Persistent dynamic metadata type, there should be 1 to 1
@@ -2206,34 +2544,6 @@ dict_table_autoinc_own(
 	return(mutex_own(table->autoinc_mutex));
 }
 #endif /* UNIV_DEBUG */
-
-/** Check whether the col is used in spatial index or regular index.
-@param[in]	col	column to check
-@return spatial status */
-inline
-spatial_status_t
-dict_col_get_spatial_status(
-	const dict_col_t*	col)
-{
-	spatial_status_t	spatial_status = SPATIAL_NONE;
-
-	/* Column is not a part of any index. */
-	if (!col->ord_part) {
-		return(spatial_status);
-	}
-
-	if (DATA_GEOMETRY_MTYPE(col->mtype)) {
-		if (col->max_prefix == 0) {
-			spatial_status = SPATIAL_ONLY;
-		} else {
-			/* Any regular index on a geometry column
-			should have a prefix. */
-			spatial_status = SPATIAL_MIXED;
-		}
-	}
-
-	return(spatial_status);
-}
 
 #include "dict0mem.ic"
 

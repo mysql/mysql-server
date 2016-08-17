@@ -213,7 +213,7 @@ bool stmt_causes_implicit_commit(const THD *thd, uint mask)
   case SQLCOM_ALTER_TABLE:
   case SQLCOM_CREATE_TABLE:
     /* If CREATE TABLE of non-temporary table, do implicit commit */
-    skip= (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE);
+    skip= (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE);
     break;
   case SQLCOM_SET_OPTION:
     /* Implicitly commit a transaction started by a SET statement */
@@ -412,9 +412,14 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_RENAME_USER]=       CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_DROP_USER]=         CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_ALTER_USER]=        CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_ALTER_USER_DEFAULT_ROLE]= CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_GRANT]=             CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_GRANT_ROLE]=        CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE_ALL]=        CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_REVOKE_ROLE]=       CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_DROP_ROLE]=         CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_CREATE_ROLE]=       CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_OPTIMIZE]=          CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_ALTER_INSTANCE]=    CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
@@ -449,12 +454,17 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CHECK]=     CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
 
   sql_command_flags[SQLCOM_CREATE_USER]|=       CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_CREATE_ROLE]|=       CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_USER]|=         CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_DROP_ROLE]|=         CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_RENAME_USER]|=       CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_USER]|=        CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_REVOKE]|=            CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_REVOKE_ALL]|=        CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_REVOKE_ROLE]|=       CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_GRANT]|=             CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_GRANT_ROLE]|=        CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ALTER_USER_DEFAULT_ROLE]|=  CF_AUTO_COMMIT_TRANS;
 
   sql_command_flags[SQLCOM_ASSIGN_TO_KEYCACHE]= CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_PRELOAD_KEYS]=       CF_AUTO_COMMIT_TRANS;
@@ -546,9 +556,11 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_ALTER_EVENT]|=      CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_DROP_EVENT]|=       CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_CREATE_USER]|=      CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_CREATE_ROLE]|=      CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_RENAME_USER]|=      CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_ALTER_USER]|=       CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_DROP_USER]|=        CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_DROP_ROLE]|=        CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_CREATE_SERVER]|=    CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_ALTER_SERVER]|=     CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_DROP_SERVER]|=      CF_DISALLOW_IN_RO_TRANS;
@@ -564,8 +576,10 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_REPAIR]|=           CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_OPTIMIZE]|=         CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_GRANT]|=            CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_GRANT_ROLE]|=       CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_REVOKE]|=           CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_REVOKE_ALL]|=       CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_REVOKE_ROLE]|=      CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_INSTALL_PLUGIN]|=   CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]|= CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_ALTER_INSTANCE]|=   CF_DISALLOW_IN_RO_TRANS;
@@ -709,6 +723,12 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_EXPLAIN_OTHER]|=           CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_SHOW_CREATE_USER]|=        CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_SET_PASSWORD]|=            CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_DROP_ROLE]|=               CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_CREATE_ROLE]|=             CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SET_ROLE]|=                CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_GRANT_ROLE]|=              CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_REVOKE_ROLE]|=             CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_ALTER_USER_DEFAULT_ROLE]|= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_END]|=                     CF_ALLOW_PROTOCOL_PLUGIN;
 
   /*
@@ -782,7 +802,7 @@ static bool sqlcom_needs_autocommit_off(const LEX *lex)
 {
   return (sql_command_flags[lex->sql_command] & CF_NEEDS_AUTOCOMMIT_OFF) ||
           (lex->sql_command == SQLCOM_CREATE_TABLE &&
-           ! (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)) ||
+           ! (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)) ||
           (lex->sql_command == SQLCOM_DROP_TABLE && ! lex->drop_temporary);
 }
 
@@ -1053,11 +1073,11 @@ static my_bool deny_updates_if_read_only_option(THD *thd,
 
   const my_bool create_temp_tables= 
     (lex->sql_command == SQLCOM_CREATE_TABLE) &&
-    (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE);
+    (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE);
 
    const my_bool create_real_tables=
      (lex->sql_command == SQLCOM_CREATE_TABLE) &&
-     !(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE);
+     !(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE);
 
   const my_bool drop_temp_tables= 
     (lex->sql_command == SQLCOM_DROP_TABLE) &&
@@ -2379,9 +2399,7 @@ mysql_execute_command(THD *thd, bool first_level)
   TABLE_LIST *const first_table= select_lex->get_table_list();
   /* list of all tables in query */
   TABLE_LIST *all_tables;
-  /* most outer SELECT_LEX_UNIT of query */
-  SELECT_LEX_UNIT *const unit= lex->unit;
-  DBUG_ASSERT(select_lex->master_unit() == unit);
+  DBUG_ASSERT(select_lex->master_unit() == lex->unit);
   DBUG_ENTER("mysql_execute_command");
   /* EXPLAIN OTHER isn't explainable command, but can have describe flag. */
   DBUG_ASSERT(!lex->describe || is_explainable_query(lex->sql_command) ||
@@ -2761,7 +2779,7 @@ mysql_execute_command(THD *thd, bool first_level)
 
     break;
   }
-case SQLCOM_PREPARE:
+  case SQLCOM_PREPARE:
   {
     mysql_sql_stmt_prepare(thd);
     break;
@@ -2930,290 +2948,16 @@ case SQLCOM_PREPARE:
     {
       if (check_global_access(thd, PROCESS_ACL))
         goto error;
-      res = ha_show_status(thd, lex->create_info.db_type, HA_ENGINE_STATUS);
+      res = ha_show_status(thd, lex->create_info->db_type, HA_ENGINE_STATUS);
       break;
     }
   case SQLCOM_SHOW_ENGINE_MUTEX:
     {
       if (check_global_access(thd, PROCESS_ACL))
         goto error;
-      res = ha_show_status(thd, lex->create_info.db_type, HA_ENGINE_MUTEX);
+      res = ha_show_status(thd, lex->create_info->db_type, HA_ENGINE_MUTEX);
       break;
     }
-  case SQLCOM_CREATE_TABLE:
-  {
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    bool link_to_local;
-    TABLE_LIST *create_table= first_table;
-    TABLE_LIST *select_tables= lex->create_last_non_select_table->next_global;
-
-    /*
-      Code below (especially in mysql_create_table() and Query_result_create
-      methods) may modify HA_CREATE_INFO structure in LEX, so we have to
-      use a copy of this structure to make execution prepared statement-
-      safe. A shallow copy is enough as this code won't modify any memory
-      referenced from this structure.
-    */
-    HA_CREATE_INFO create_info(lex->create_info);
-    /*
-      We need to copy alter_info for the same reasons of re-execution
-      safety, only in case of Alter_info we have to do (almost) a deep
-      copy.
-    */
-    Alter_info alter_info(lex->alter_info, thd->mem_root);
-
-    if (thd->is_fatal_error)
-    {
-      /* If out of memory when creating a copy of alter_info. */
-      res= 1;
-      goto end_with_restore_list;
-    }
-
-    if ((res= create_table_precheck(thd, select_tables, create_table)))
-      goto end_with_restore_list;
-
-    /* Might have been updated in create_table_precheck */
-    create_info.alias= create_table->alias;
-
-    /*
-      Assign target tablespace name to enable locking in lock_table_names().
-      Reject invalid names.
-    */
-    if (create_info.tablespace)
-    {
-      if (check_tablespace_name(create_info.tablespace) != Ident_name_check::OK)
-        goto end_with_restore_list;
-
-      if (!thd->make_lex_string(&create_table->target_tablespace_name,
-                                create_info.tablespace,
-                                strlen(create_info.tablespace), false))
-      {
-        my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
-        goto end_with_restore_list;
-      }
-    }
-
-    // Reject invalid tablespace names specified for partitions.
-    if (check_partition_tablespace_names(thd->lex->part_info))
-      goto end_with_restore_list;
-
-    /* Fix names if symlinked or relocated tables */
-    if (prepare_index_and_data_dir_path(thd, &create_info.data_file_name,
-                                        &create_info.index_file_name,
-                                        create_table->table_name))
-      goto end_with_restore_list;
-
-    /*
-      If no engine type was given, work out the default now
-      rather than at parse-time.
-    */
-    if (!(create_info.used_fields & HA_CREATE_USED_ENGINE))
-      create_info.db_type= create_info.options & HA_LEX_CREATE_TMP_TABLE ?
-              ha_default_temp_handlerton(thd) : ha_default_handlerton(thd);
-    /*
-      If we are using SET CHARSET without DEFAULT, add an implicit
-      DEFAULT to not confuse old users. (This may change).
-    */
-    if ((create_info.used_fields &
-	 (HA_CREATE_USED_DEFAULT_CHARSET | HA_CREATE_USED_CHARSET)) ==
-	HA_CREATE_USED_CHARSET)
-    {
-      create_info.used_fields&= ~HA_CREATE_USED_CHARSET;
-      create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
-      create_info.default_table_charset= create_info.table_charset;
-      create_info.table_charset= 0;
-    }
-
-    {
-      partition_info *part_info= thd->lex->part_info;
-      if (part_info && !(part_info= thd->lex->part_info->get_clone(true)))
-      {
-        res= -1;
-        goto end_with_restore_list;
-      }
-      thd->work_part_info= part_info;
-    }
-
-    if (select_lex->item_list.elements)		// With select
-    {
-      Query_result *result;
-
-      /*
-        CREATE TABLE...IGNORE/REPLACE SELECT... can be unsafe, unless
-        ORDER BY PRIMARY KEY clause is used in SELECT statement. We therefore
-        use row based logging if mixed or row based logging is available.
-        TODO: Check if the order of the output of the select statement is
-        deterministic. Waiting for BUG#42415
-      */
-      if(lex->is_ignore())
-        lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_CREATE_IGNORE_SELECT);
-      
-      if(lex->duplicates == DUP_REPLACE)
-        lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_CREATE_REPLACE_SELECT);
-
-      /*
-        If:
-        a) we inside an SP and there was NAME_CONST substitution,
-        b) binlogging is on (STMT mode),
-        c) we log the SP as separate statements
-        raise a warning, as it may cause problems
-        (see 'NAME_CONST issues' in 'Binary Logging of Stored Programs')
-       */
-      if (thd->query_name_consts && 
-          mysql_bin_log.is_open() &&
-          thd->variables.binlog_format == BINLOG_FORMAT_STMT &&
-          !mysql_bin_log.is_query_in_union(thd, thd->query_id))
-      {
-        List_iterator_fast<Item> it(select_lex->item_list);
-        Item *item;
-        uint splocal_refs= 0;
-        /* Count SP local vars in the top-level SELECT list */
-        while ((item= it++))
-        {
-          if (item->is_splocal())
-            splocal_refs++;
-        }
-        /*
-          If it differs from number of NAME_CONST substitution applied,
-          we may have a SOME_FUNC(NAME_CONST()) in the SELECT list,
-          that may cause a problem with binary log (see BUG#35383),
-          raise a warning. 
-        */
-        if (splocal_refs != thd->query_name_consts)
-          push_warning(thd, 
-                       Sql_condition::SL_WARNING,
-                       ER_UNKNOWN_ERROR,
-"Invoked routine ran a statement that may cause problems with "
-"binary log, see 'NAME_CONST issues' in 'Binary Logging of Stored Programs' "
-"section of the manual.");
-      }
-      
-      unit->set_limit(select_lex);
-
-      /*
-        Disable non-empty MERGE tables with CREATE...SELECT. Too
-        complicated. See Bug #26379. Empty MERGE tables are read-only
-        and don't allow CREATE...SELECT anyway.
-      */
-      if (create_info.used_fields & HA_CREATE_USED_UNION)
-      {
-        my_error(ER_WRONG_OBJECT, MYF(0), create_table->db,
-                 create_table->table_name, "BASE TABLE");
-        res= 1;
-        goto end_with_restore_list;
-      }
-
-      if (!(res= open_tables_for_query(thd, all_tables, false)))
-      {
-        /* The table already exists */
-        if (create_table->table || create_table->is_view())
-        {
-          if (create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS)
-          {
-            push_warning_printf(thd, Sql_condition::SL_NOTE,
-                                ER_TABLE_EXISTS_ERROR,
-                                ER_THD(thd, ER_TABLE_EXISTS_ERROR),
-                                create_info.alias);
-            my_ok(thd);
-          }
-          else
-          {
-            my_error(ER_TABLE_EXISTS_ERROR, MYF(0), create_info.alias);
-            res= 1;
-          }
-          goto end_with_restore_list;
-        }
-
-        /*
-          Remove target table from main select and name resolution
-          context. This can't be done earlier as it will break view merging in
-          statements like "CREATE TABLE IF NOT EXISTS existing_view SELECT".
-        */
-        lex->unlink_first_table(&link_to_local);
-
-        /* Updating any other table is prohibited in CTS statement */
-        for (TABLE_LIST *table= lex->query_tables; table;
-             table= table->next_global)
-          if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
-          {
-            lex->link_first_table_back(create_table, link_to_local);
-
-            res= 1;
-            my_error(ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT, MYF(0),
-                     table->table_name, create_info.alias);
-            goto end_with_restore_list;
-          }
-
-        /*
-          Query_result_create is currently not re-execution friendly and
-          needs to be created for every execution of a PS/SP.
-        */
-        if ((result= new Query_result_create(thd,
-                                             create_table,
-                                             &create_info,
-                                             &alter_info,
-                                             select_lex->item_list,
-                                             lex->duplicates,
-                                             select_tables)))
-        {
-          Ignore_error_handler ignore_handler;
-          Strict_error_handler strict_handler;
-          if (thd->lex->is_ignore())
-            thd->push_internal_handler(&ignore_handler);
-          else if (thd->is_strict_mode())
-            thd->push_internal_handler(&strict_handler);
-
-          /*
-            CREATE from SELECT give its SELECT_LEX for SELECT,
-            and item_list belong to SELECT
-          */
-          res= handle_query(thd, lex, result, SELECT_NO_UNLOCK, 0);
-
-          if (thd->lex->is_ignore() || thd->is_strict_mode())
-            thd->pop_internal_handler();
-
-          delete result;
-        }
-
-        lex->link_first_table_back(create_table, link_to_local);
-      }
-    }
-    else
-    {
-      Strict_error_handler strict_handler;
-      /* Push Strict_error_handler */
-      if (!thd->lex->is_ignore() && thd->is_strict_mode())
-        thd->push_internal_handler(&strict_handler);
-      /* regular create */
-      if (create_info.options & HA_LEX_CREATE_TABLE_LIKE)
-      {
-        /* CREATE TABLE ... LIKE ... */
-        res= mysql_create_like_table(thd, create_table, select_tables,
-                                     &create_info);
-      }
-      else
-      {
-        /* Regular CREATE TABLE */
-        res= mysql_create_table(thd, create_table,
-                                &create_info, &alter_info);
-      }
-      /* Pop Strict_error_handler */
-      if (!thd->lex->is_ignore() && thd->is_strict_mode())
-        thd->pop_internal_handler();
-      if (!res)
-      {
-        /* in case of create temp tables if @@session_track_state_change is
-           ON then send session state notification in OK packet */
-        if(create_info.options & HA_LEX_CREATE_TMP_TABLE &&
-           thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
-          thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, NULL);
-        my_ok(thd);
-      }
-    }
-
-end_with_restore_list:
-    break;
-  }
   case SQLCOM_CREATE_INDEX:
     /* Fall through */
   case SQLCOM_DROP_INDEX:
@@ -3407,7 +3151,7 @@ end_with_restore_list:
         goto error;
     }
 
-    if (mysql_rename_tables(thd, first_table, 0))
+    if (mysql_rename_tables(thd, first_table))
       goto error;
     break;
   }
@@ -3535,16 +3279,11 @@ end_with_restore_list:
   case SQLCOM_INSERT:
   case SQLCOM_REPLACE_SELECT:
   case SQLCOM_INSERT_SELECT:
-  {
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    DBUG_ASSERT(lex->m_sql_cmd != NULL);
-    res= lex->m_sql_cmd->execute(thd);
-    break;
-  }
   case SQLCOM_DELETE:
   case SQLCOM_DELETE_MULTI:
   case SQLCOM_UPDATE:
   case SQLCOM_UPDATE_MULTI:
+  case SQLCOM_CREATE_TABLE:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     DBUG_ASSERT(lex->m_sql_cmd != NULL);
@@ -3582,14 +3321,11 @@ end_with_restore_list:
         thd->security_context()->priv_user().str),
       lex->verbose);
     break;
-  case SQLCOM_SHOW_PRIVILEGES:
-    res= mysqld_show_privileges(thd);
-    break;
   case SQLCOM_SHOW_ENGINE_LOGS:
     {
       if (check_access(thd, FILE_ACL, any_db, NULL, NULL, 0, 0))
 	goto error;
-      res= ha_show_status(thd, lex->create_info.db_type, HA_ENGINE_LOGS);
+      res= ha_show_status(thd, lex->create_info->db_type, HA_ENGINE_LOGS);
       break;
     }
   case SQLCOM_CHANGE_DB:
@@ -3666,7 +3402,6 @@ end_with_restore_list:
 
     break;
   }
-
   case SQLCOM_SET_PASSWORD:
   {
     List<set_var_base> *lex_var_list= &lex->var_list;
@@ -3788,7 +3523,7 @@ end_with_restore_list:
       it, we need to use a copy of LEX::create_info to make execution
       prepared statement- safe.
     */
-    HA_CREATE_INFO create_info(lex->create_info);
+    HA_CREATE_INFO create_info(*lex->create_info);
     res= mysql_create_db(thd, (lower_case_table_names == 2 ? alias :
                                lex->name.str), &create_info);
     break;
@@ -3841,7 +3576,7 @@ end_with_restore_list:
       it, we need to use a copy of LEX::create_info to make execution
       prepared statement- safe.
     */
-    HA_CREATE_INFO create_info(lex->create_info);
+    HA_CREATE_INFO create_info(*lex->create_info);
     res= mysql_alter_db(thd, lex->name.str, &create_info);
     break;
   }
@@ -3851,7 +3586,7 @@ end_with_restore_list:
                     my_error(ER_UNKNOWN_ERROR, MYF(0)); goto error;);
     if (check_and_convert_db_name(&lex->name, true) != Ident_name_check::OK)
       break;
-    res= mysqld_show_create_db(thd, lex->name.str, &lex->create_info);
+    res= mysqld_show_create_db(thd, lex->name.str, lex->create_info);
     break;
   }
   case SQLCOM_CREATE_EVENT:
@@ -3874,7 +3609,7 @@ end_with_restore_list:
     switch (lex->sql_command) {
     case SQLCOM_CREATE_EVENT:
     {
-      bool if_not_exists= (lex->create_info.options &
+      bool if_not_exists= (lex->create_info->options &
                            HA_LEX_CREATE_IF_NOT_EXISTS);
       res= Events::create_event(thd, lex->event_parse_data, if_not_exists);
       break;
@@ -3946,8 +3681,8 @@ end_with_restore_list:
         check_global_access(thd,CREATE_USER_ACL))
       break;
     /* Conditionally writes to binlog */
-    HA_CREATE_INFO create_info(lex->create_info);
-    if (!(res = mysql_create_user(thd, lex->users_list, create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS)))
+    HA_CREATE_INFO create_info(*lex->create_info);
+    if (!(res = mysql_create_user(thd, lex->users_list, create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS, false)))
       my_ok(thd);
     break;
   }
@@ -3959,6 +3694,7 @@ end_with_restore_list:
     /* Conditionally writes to binlog */
     if (!(res = mysql_drop_user(thd, lex->users_list, lex->drop_if_exists)))
       my_ok(thd);
+
     break;
   }
   case SQLCOM_RENAME_USER:
@@ -4190,17 +3926,9 @@ end_with_restore_list:
     break;
   }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  case SQLCOM_SHOW_GRANTS:
+  case SQLCOM_SHOW_PRIVILEGES:
   {
-    LEX_USER *grant_user= get_current_user(thd, lex->grant_user);
-    if (!grant_user)
-      goto error;
-    if (!strcmp(thd->security_context()->priv_user().str,
-                grant_user->user.str) ||
-        !check_access(thd, SELECT_ACL, "mysql", NULL, NULL, 1, 0))
-    {
-      res = mysql_show_grants(thd, grant_user);
-    }
+    mysqld_show_privileges(thd);
     break;
   }
   case SQLCOM_SHOW_CREATE_USER:
@@ -4823,6 +4551,13 @@ end_with_restore_list:
   case SQLCOM_UNINSTALL_COMPONENT:
   case SQLCOM_SHUTDOWN:
   case SQLCOM_ALTER_INSTANCE:
+  case SQLCOM_CREATE_ROLE:
+  case SQLCOM_DROP_ROLE:
+  case SQLCOM_SET_ROLE:
+  case SQLCOM_GRANT_ROLE:
+  case SQLCOM_REVOKE_ROLE:
+  case SQLCOM_ALTER_USER_DEFAULT_ROLE:
+  case SQLCOM_SHOW_GRANTS:
     DBUG_ASSERT(lex->m_sql_cmd != NULL);
     res= lex->m_sql_cmd->execute(thd);
     break;
@@ -5079,6 +4814,7 @@ finish:
 
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
 {
+  DBUG_ENTER("execute_sqlcom_select");
   LEX	*lex= thd->lex;
   bool statement_timer_armed= false;
   bool res;
@@ -5108,21 +4844,21 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
       */
       Query_result *const result= new Query_result_send(thd);
       if (!result)
-        return true; /* purecov: inspected */
+        DBUG_RETURN(true); /* purecov: inspected */
       res= handle_query(thd, lex, result, 0, 0);
     }
     else
     {
       Query_result *result= lex->result;
       if (!result && !(result= new Query_result_send(thd)))
-        return true;                            /* purecov: inspected */
+        DBUG_RETURN(true);                            /* purecov: inspected */
       Query_result *save_result= result;
       Query_result *analyse_result= NULL;
       if (lex->proc_analyse)
       {
         if ((result= analyse_result=
              new Query_result_analyse(thd, result, lex->proc_analyse)) == NULL)
-          return true;
+          DBUG_RETURN(true);
       }
       res= handle_query(thd, lex, result, 0, 0);
       delete analyse_result;
@@ -5136,58 +4872,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
     reset_statement_timer(thd);
 
   DEBUG_SYNC(thd, "after_table_open");
-  return res;
-}
-
-
-/****************************************************************************
-	Check stack size; Send error if there isn't enough stack to continue
-****************************************************************************/
-
-
-#if STACK_DIRECTION < 0
-#define used_stack(A,B) (long) (A - B)
-#else
-#define used_stack(A,B) (long) (B - A)
-#endif
-
-#ifndef DBUG_OFF
-long max_stack_used;
-#endif
-
-/**
-  @note
-  Note: The 'buf' parameter is necessary, even if it is unused here.
-  - fix_fields functions has a "dummy" buffer large enough for the
-    corresponding exec. (Thus we only have to check in fix_fields.)
-  - Passing to check_stack_overrun() prevents the compiler from removing it.
-*/
-bool check_stack_overrun(const THD *thd, long margin,
-			 uchar *buf MY_ATTRIBUTE((unused)))
-{
-  long stack_used;
-  DBUG_ASSERT(thd == current_thd);
-  if ((stack_used=used_stack(thd->thread_stack,(char*) &stack_used)) >=
-      (long) (my_thread_stack_size - margin))
-  {
-    /*
-      Do not use stack for the message buffer to ensure correct
-      behaviour in cases we have close to no stack left.
-    */
-    char* ebuff= new (std::nothrow) char[MYSQL_ERRMSG_SIZE];
-    if (ebuff) {
-      my_snprintf(ebuff, MYSQL_ERRMSG_SIZE,
-                  ER_THD(thd, ER_STACK_OVERRUN_NEED_MORE),
-                  stack_used, my_thread_stack_size, margin);
-      my_message(ER_STACK_OVERRUN_NEED_MORE, ebuff, MYF(ME_FATALERROR));
-      delete [] ebuff;
-    }
-    return 1;
-  }
-#ifndef DBUG_OFF
-  max_stack_used= max(max_stack_used, stack_used);
-#endif
-  return 0;
+  DBUG_RETURN(res);
 }
 
 
@@ -5325,6 +5010,14 @@ void THD::reset_for_next_command()
              ("is_current_stmt_binlog_format_row(): %d",
               thd->is_current_stmt_binlog_format_row()));
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    /*
+      In case we're processing multiple statements we need to checkout a new
+      acl access map here as the global acl version might have increased due to
+      a grant/revoke or flush.
+    */
+    thd->security_context()->checkout_access_maps();
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -5646,15 +5339,18 @@ bool mysql_test_parse_for_slave(THD *thd)
     Return 0 if ok
 */
 
-bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
-		       char *length, char *decimals,
-		       uint type_modifier,
-		       Item *default_value, Item *on_update_value,
-                       LEX_STRING *comment,
-		       char *change,
-                       List<String> *interval_list, const CHARSET_INFO *cs,
-		       uint uint_geom_type,
-                       Generated_column *gcol_info)
+bool Alter_info::add_field(THD *thd,
+                           const LEX_STRING *field_name,
+                           enum_field_types type,
+		           const char *length, const char *decimals,
+		           uint type_modifier,
+		           Item *default_value, Item *on_update_value,
+                           LEX_STRING *comment,
+		           const char *change,
+                           List<String> *interval_list, const CHARSET_INFO *cs,
+		           uint uint_geom_type,
+                           Generated_column *gcol_info,
+                           const char *opt_after)
 {
   Create_field *new_field;
   LEX  *lex= thd->lex;
@@ -5748,16 +5444,12 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
     DBUG_RETURN(1);
 
   lex->alter_info.create_list.push_back(new_field);
-  lex->last_field=new_field;
+  if (opt_after != NULL)
+  {
+    lex->alter_info.flags |= Alter_info::ALTER_COLUMN_ORDER;
+    new_field->after=(char*) (opt_after);
+  }
   DBUG_RETURN(0);
-}
-
-
-/** Store position for column in ALTER TABLE .. ADD column. */
-
-void store_position_for_column(const char *name)
-{
-  current_thd->lex->last_field->after=(char*) (name);
 }
 
 
@@ -6329,6 +6021,20 @@ void add_join_on(TABLE_LIST *b, Item *expr)
 }
 
 
+const CHARSET_INFO *get_bin_collation(const CHARSET_INFO *cs)
+{
+  const CHARSET_INFO *ret= get_charset_by_csname(cs->csname,
+                                                 MY_CS_BINSORT, MYF(0));
+  if (ret)
+    return ret;
+
+  char tmp[65];
+  strmake(strmake(tmp, cs->csname, sizeof(tmp) - 4), STRING_WITH_LEN("_bin"));
+  my_error(ER_UNKNOWN_COLLATION, MYF(0), tmp);
+  return NULL;
+}
+
+
 /**
   kill on thread.
 
@@ -6634,7 +6340,7 @@ void create_table_set_open_action_and_adjust_tables(LEX *lex)
 {
   TABLE_LIST *create_table= lex->query_tables;
 
-  if (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)
+  if (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)
     create_table->open_type= OT_TEMPORARY_ONLY;
   else
     create_table->open_type= OT_BASE_ONLY;
@@ -6756,7 +6462,7 @@ LEX_USER *create_default_definer(THD *thd)
 
 LEX_USER *get_current_user(THD *thd, LEX_USER *user)
 {
-  if (!user->user.str)  // current_user
+  if (!user || !user->user.str)  // current_user
   {
     LEX_USER *default_definer= create_default_definer(thd);
     if (default_definer)
@@ -7223,3 +6929,24 @@ merge_charset_and_collation(const CHARSET_INFO *cs, const CHARSET_INFO *cl)
   return cs;
 }
 
+
+bool merge_sp_var_charset_and_collation(const CHARSET_INFO **to,
+                                        const CHARSET_INFO *cs,
+                                        const CHARSET_INFO *cl)
+{
+  if (cs)
+  {
+    *to= merge_charset_and_collation(cs, cl);
+    return *to == NULL;
+  }
+
+  if (cl)
+  {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+        "COLLATE with no CHARACTER SET in SP parameters, RETURNS, DECLARE");
+    return true;
+  }
+
+  *to= NULL;
+  return false;
+}

@@ -103,6 +103,5 @@ if ($size1 == $size2)
 }
 
 --remove_file $BOOTSTRAP_SQL
-# Remove residue files and data folder of page size 32K
 let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1;
 --source include/cleanup_folder.inc

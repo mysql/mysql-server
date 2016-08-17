@@ -1,6 +1,7 @@
 #
 # Test for persistent corrupt bit for corrupted index and table
 #
+--source include/no_valgrind_without_big.inc
 --source include/have_innodb.inc
 --source include/not_embedded.inc
 # This test needs debug server

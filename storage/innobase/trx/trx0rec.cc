@@ -306,9 +306,8 @@ trx_undo_read_v_idx_low(
 			TODO: in the future, it might be worth to add
 			checks on other indexes */
 			if (index->id == id) {
-				const dict_col_t* col = dict_index_get_nth_col(
-					index, pos);
-				ut_ad(dict_col_is_virtual(col));
+				const dict_col_t* col = index->get_col(pos);
+				ut_ad(col->is_virtual());
 				const dict_v_col_t*	vcol = reinterpret_cast<
 					const dict_v_col_t*>(col);
 				*col_pos = vcol->v_pos;
@@ -471,7 +470,7 @@ trx_undo_page_report_insert(
 	byte*		ptr;
 	ulint		i;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
 			       + TRX_UNDO_PAGE_TYPE) == TRX_UNDO_INSERT);
 
@@ -568,6 +567,21 @@ trx_undo_rec_get_pars(
 	return(const_cast<byte*>(ptr));
 }
 
+/** Reads from an undo log record the table ID
+@param[in]	undo_rec	Undo log record
+@return the table ID */
+table_id_t
+trx_undo_rec_get_table_id(const trx_undo_rec_t* undo_rec)
+{
+	const byte*	ptr = undo_rec + 3;
+
+	/* Skip the UNDO number */
+	mach_read_next_much_compressed(&ptr);
+
+	/* Read the table ID */
+	return(mach_read_next_much_compressed(&ptr));
+}
+
 /** Read from an undo log record a non-virtual column value.
 @param[in,out]	ptr		pointer to remaining part of the undo record
 @param[in,out]	field		stored field
@@ -642,7 +656,7 @@ trx_undo_rec_get_row_ref(
 	ulint		i;
 
 	ut_ad(index && ptr && ref && heap);
-	ut_a(dict_index_is_clust(index));
+	ut_a(index->is_clustered());
 
 	ref_len = dict_index_get_n_unique(index);
 
@@ -681,7 +695,7 @@ trx_undo_rec_skip_row_ref(
 	ulint	i;
 
 	ut_ad(index && ptr);
-	ut_a(dict_index_is_clust(index));
+	ut_a(index->is_clustered());
 
 	ref_len = dict_index_get_n_unique(index);
 
@@ -913,7 +927,7 @@ trx_undo_page_report_modify(
 				+ BTR_EXTERN_FIELD_REF_SIZE];
 	bool		first_v_col = true;
 
-	ut_a(dict_index_is_clust(index));
+	ut_a(index->is_clustered());
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
 			       + TRX_UNDO_PAGE_TYPE) == TRX_UNDO_UPDATE);
@@ -922,7 +936,7 @@ trx_undo_page_report_modify(
 	/* If table instance is temporary then select noredo rseg as changes
 	to undo logs don't need REDO logging given that they are not
 	restored on restart as corresponding object doesn't exist on restart.*/
-	undo_ptr = dict_table_is_temporary(index->table)
+	undo_ptr = index->table->is_temporary()
 		   ? &trx->rsegs.m_noredo : &trx->rsegs.m_redo;
 
 	first_free = mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
@@ -973,8 +987,7 @@ trx_undo_page_report_modify(
 
 	/* Store the values of the system columns */
 	field = rec_get_nth_field(rec, offsets,
-				  dict_index_get_sys_col_pos(
-					  index, DATA_TRX_ID), &flen);
+				  index->get_sys_col_pos(DATA_TRX_ID), &flen);
 	ut_ad(flen == DATA_TRX_ID_LEN);
 
 	trx_id = trx_read_trx_id(field);
@@ -989,8 +1002,7 @@ trx_undo_page_report_modify(
 	ptr += mach_u64_write_compressed(ptr, trx_id);
 
 	field = rec_get_nth_field(rec, offsets,
-				  dict_index_get_sys_col_pos(
-					  index, DATA_ROLL_PTR), &flen);
+				  index->get_sys_col_pos(DATA_ROLL_PTR), &flen);
 	ut_ad(flen == DATA_ROLL_PTR_LEN);
 
 	ptr += mach_u64_write_compressed(ptr, trx_read_roll_ptr(field));
@@ -1005,7 +1017,7 @@ trx_undo_page_report_modify(
 
 		/* The ordering columns must not be stored externally. */
 		ut_ad(!rec_offs_nth_extern(offsets, i));
-		ut_ad(dict_index_get_nth_col(index, i)->ord_part);
+		ut_ad(index->get_col(i)->ord_part);
 
 		if (trx_undo_left(undo_page, ptr) < 5) {
 
@@ -1127,9 +1139,8 @@ trx_undo_page_report_modify(
 			}
 
 			if (!is_virtual && rec_offs_nth_extern(offsets, pos)) {
-				const dict_col_t*	col
-					= dict_index_get_nth_col(index, pos);
-				ulint			prefix_len
+				const dict_col_t* col = index->get_col(pos);
+				ulint	prefix_len
 					= dict_max_field_len_store_undo(
 						table, col);
 
@@ -1231,11 +1242,11 @@ trx_undo_page_report_modify(
 
 		ptr += 2;
 
-		for (col_no = 0; col_no < dict_table_get_n_cols(table);
+		for (col_no = 0; col_no < table->get_n_cols();
 		     col_no++) {
 
 			const dict_col_t*	col
-				= dict_table_get_nth_col(table, col_no);
+				= table->get_col(col_no);
 
 			if (col->ord_part) {
 				ulint			pos;
@@ -1249,8 +1260,7 @@ trx_undo_page_report_modify(
 					return(0);
 				}
 
-				pos = dict_index_get_nth_col_pos(index,
-								 col_no);
+				pos = index->get_col_pos(col_no);
 				ptr += mach_write_compressed(ptr, pos);
 
 				/* Save the old value of field */
@@ -1259,8 +1269,7 @@ trx_undo_page_report_modify(
 
 				if (rec_offs_nth_extern(offsets, pos)) {
 					const dict_col_t*	col =
-						dict_index_get_nth_col(
-							index, pos);
+							index->get_col(pos);
 					ulint			prefix_len =
 						dict_max_field_len_store_undo(
 							table, col);
@@ -1269,8 +1278,7 @@ trx_undo_page_report_modify(
 
 
 					spatial_status =
-						dict_col_get_spatial_status(
-							col);
+						col->get_spatial_status();
 
 					/* If there is a spatial index on it,
 					log its MBR */
@@ -1493,7 +1501,7 @@ trx_undo_update_rec_get_update(
 	bool		is_undo_log = true;
 	ulint		n_skip_field = 0;
 
-	ut_a(dict_index_is_clust(index));
+	ut_a(index->is_clustered());
 
 	if (type != TRX_UNDO_DEL_MARK_REC) {
 		n_fields = mach_read_next_compressed(&ptr);
@@ -1514,7 +1522,7 @@ trx_undo_update_rec_get_update(
 	trx_write_trx_id(buf, trx_id);
 
 	upd_field_set_field_no(upd_field,
-			       dict_index_get_sys_col_pos(index, DATA_TRX_ID),
+			       index->get_sys_col_pos(DATA_TRX_ID),
 			       index, trx);
 	dfield_set_data(&(upd_field->new_val), buf, DATA_TRX_ID_LEN);
 
@@ -1525,7 +1533,7 @@ trx_undo_update_rec_get_update(
 	trx_write_roll_ptr(buf, roll_ptr);
 
 	upd_field_set_field_no(
-		upd_field, dict_index_get_sys_col_pos(index, DATA_ROLL_PTR),
+		upd_field, index->get_sys_col_pos(DATA_ROLL_PTR),
 		index, trx);
 	dfield_set_data(&(upd_field->new_val), buf, DATA_ROLL_PTR_LEN);
 
@@ -1683,15 +1691,15 @@ trx_undo_rec_get_partial_row(
 	ut_ad(ptr);
 	ut_ad(row);
 	ut_ad(heap);
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 
 	*row = dtuple_create_with_vcol(
-		heap, dict_table_get_n_cols(index->table),
+		heap, index->table->get_n_cols(),
 		dict_table_get_n_v_cols(index->table));
 
 	/* Mark all columns in the row uninitialized, so that
 	we can distinguish missing fields from fields that are SQL NULL. */
-	for (ulint i = 0; i < dict_table_get_n_cols(index->table); i++) {
+	for (ulint i = 0; i < index->table->get_n_cols(); i++) {
 		dfield_get_type(dtuple_get_nth_field(*row, i))
 			->mtype = DATA_MISSING;
 	}
@@ -1736,15 +1744,12 @@ trx_undo_rec_get_partial_row(
 			col = &vcol->m_col;
 			col_no = dict_col_get_no(col);
 			dfield = dtuple_get_nth_v_field(*row, vcol->v_pos);
-			dict_col_copy_type(
-				&vcol->m_col,
-				dfield_get_type(dfield));
+			vcol->m_col.copy_type(dfield_get_type(dfield));
 		} else {
-			col = dict_index_get_nth_col(index, field_no);
+			col = index->get_col(field_no);
 			col_no = dict_col_get_no(col);
 			dfield = dtuple_get_nth_field(*row, col_no);
-			dict_col_copy_type(
-				dict_table_get_nth_col(index->table, col_no),
+			index->table->get_col(col_no)->copy_type(
 				dfield_get_type(dfield));
 		}
 
@@ -1762,8 +1767,7 @@ trx_undo_rec_get_partial_row(
 
 			/* Keep compatible with 5.7.9 format. */
 			if (spatial_status == SPATIAL_UNKNOWN) {
-				spatial_status =
-					dict_col_get_spatial_status(col);
+				spatial_status = col->get_spatial_status();
 			}
 
 			switch (spatial_status) {
@@ -1903,7 +1907,7 @@ trx_undo_report_row_operation(
 	int		loop_count	= 0;
 #endif /* UNIV_DEBUG */
 
-	ut_a(dict_index_is_clust(index));
+	ut_a(index->is_clustered());
 	ut_ad(!rec || rec_offs_validate(rec, index, offsets));
 
 	if (flags & BTR_NO_UNDO_LOG_FLAG) {
@@ -1920,7 +1924,7 @@ trx_undo_report_row_operation(
 
 	trx = thr_get_trx(thr);
 
-	bool	is_temp_table = dict_table_is_temporary(index->table);
+	bool	is_temp_table = index->table->is_temporary();
 
 	/* Temporary tables do not go into INFORMATION_SCHEMA.TABLES,
 	so do not bother adding it to the list of modified tables by
@@ -2053,7 +2057,7 @@ trx_undo_report_row_operation(
 				mtr_commit(&mtr);
 				mtr_start(&mtr);
 
-				if (dict_table_is_temporary(index->table)) {
+				if (index->table->is_temporary()) {
 					mtr.set_log_mode(MTR_LOG_NO_REDO);
 				} else {
 					mtr.set_undo_space(
@@ -2097,7 +2101,7 @@ trx_undo_report_row_operation(
 
 		ut_ad(++loop_count < 2);
 		mtr_start(&mtr);
-		if (dict_table_is_temporary(index->table)) {
+		if (index->table->is_temporary()) {
 			mtr.set_log_mode(MTR_LOG_NO_REDO);
 		} else {
 			mtr.set_undo_space(undo_ptr->rseg->space);
@@ -2281,7 +2285,7 @@ trx_undo_prev_version_build(
 	      || mtr_memo_contains_page(index_mtr, index_rec,
 					MTR_MEMO_PAGE_X_FIX));
 	ut_ad(rec_offs_validate(rec, index, offsets));
-	ut_a(dict_index_is_clust(index));
+	ut_a(index->is_clustered());
 
 	roll_ptr = row_get_rec_roll_ptr(rec, index, offsets);
 
@@ -2296,8 +2300,7 @@ trx_undo_prev_version_build(
 
 	/* REDO rollback segment are used only for non-temporary objects.
 	For temporary objects NON-REDO rollback segments are used. */
-	bool is_redo_rseg =
-		dict_table_is_temporary(index->table) ? false : true;
+	bool is_redo_rseg = !index->table->is_temporary() ;
 
 	ut_ad(!index->table->skip_alter_undo);
 
@@ -2440,7 +2443,7 @@ trx_undo_prev_version_build(
 		if (!(*vrow)) {
 			*vrow = dtuple_create_with_vcol(
 				v_heap ? v_heap : heap,
-				dict_table_get_n_cols(index->table),
+				index->table->get_n_cols(),
 				dict_table_get_n_v_cols(index->table));
 			dtuple_init_v_fld(*vrow);
 		}
@@ -2523,9 +2526,7 @@ trx_undo_read_v_cols(
 
 			if (!in_purge
 			    || dfield_get_type(dfield)->mtype == DATA_MISSING) {
-				dict_col_copy_type(
-					&vcol->m_col,
-					dfield_get_type(dfield));
+				vcol->m_col.copy_type(dfield_get_type(dfield));
 				dfield_set_data(dfield, field, len);
 			}
 		}

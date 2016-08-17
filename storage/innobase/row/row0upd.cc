@@ -373,9 +373,9 @@ row_upd_index_entry_sys_field(
 	byte*		field;
 	ulint		pos;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 
-	pos = dict_index_get_sys_col_pos(index, type);
+	pos = index->get_sys_col_pos(type);
 
 	dfield = dtuple_get_nth_field(entry, pos);
 	field = static_cast<byte*>(dfield_get_data(dfield));
@@ -432,10 +432,8 @@ row_upd_changes_field_size_or_external(
 			this fix also to 4.0. The merge to 5.0 will be made
 			manually immediately after we commit this to 4.1. */
 
-			new_len = dict_col_get_sql_null_size(
-				dict_index_get_nth_col(index,
-						       upd_field->field_no),
-				0);
+			new_len = index->get_col(upd_field->field_no)
+				->get_null_size(0);
 		}
 
 		old_len = rec_offs_nth_size(offsets, upd_field->field_no);
@@ -570,12 +568,11 @@ row_upd_write_sys_vals_to_log(
 				in mlog */
 	mtr_t*		mtr MY_ATTRIBUTE((unused))) /*!< in: mtr */
 {
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(mtr);
 
 	log_ptr += mach_write_compressed(log_ptr,
-					 dict_index_get_sys_col_pos(
-						 index, DATA_TRX_ID));
+					index->get_sys_col_pos(DATA_TRX_ID));
 
 	trx_write_roll_ptr(log_ptr, roll_ptr);
 	log_ptr += DATA_ROLL_PTR_LEN;
@@ -807,7 +804,7 @@ row_upd_build_sec_rec_difference_binary(
 	ulint		i;
 
 	/* This function is used only for a secondary index */
-	ut_a(!dict_index_is_clust(index));
+	ut_a(!index->is_clustered());
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(rec_offs_n_fields(offsets) == dtuple_get_n_fields(entry));
 	ut_ad(!rec_offs_any_extern(offsets));
@@ -892,17 +889,16 @@ row_upd_build_difference_binary(
 	rec_offs_init(offsets_);
 
 	/* This function is used only for a clustered index */
-	ut_a(dict_index_is_clust(index));
+	ut_a(index->is_clustered());
 	ut_ad(!index->table->skip_alter_undo);
 
 	update = upd_create(n_fld + n_v_fld, heap);
 
 	n_diff = 0;
 
-	trx_id_pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
-	ut_ad(dict_table_is_intrinsic(index->table)
-	      || (dict_index_get_sys_col_pos(index, DATA_ROLL_PTR)
-			== trx_id_pos + 1));
+	trx_id_pos = index->get_sys_col_pos(DATA_TRX_ID);
+	ut_ad(index->table->is_intrinsic()
+	      || (index->get_sys_col_pos(DATA_ROLL_PTR) == trx_id_pos + 1));
 
 	if (!offsets) {
 		offsets = rec_get_offsets(rec, index, offsets_,
@@ -927,7 +923,7 @@ row_upd_build_difference_binary(
 
 			/* DB_ROLL_PTR */
 			if (i == trx_id_pos + 1
-			    && !dict_table_is_intrinsic(index->table)) {
+			    && !index->table->is_intrinsic()) {
 				continue;
 			}
 		}
@@ -1217,9 +1213,9 @@ row_upd_index_replace_new_col_vals_index_pos(
 		const dict_col_t*	col;
 		const upd_field_t*	uf;
 
-		field = dict_index_get_nth_field(index, i);
-		col = dict_field_get_col(field);
-		if (dict_col_is_virtual(col)) {
+		field = index->get_field(i);
+		col = field->col;
+		if (col->is_virtual()) {
 			const dict_v_col_t*	vcol = reinterpret_cast<
 							const dict_v_col_t*>(
 								col);
@@ -1272,9 +1268,9 @@ row_upd_index_replace_new_col_vals(
 		const dict_col_t*	col;
 		const upd_field_t*	uf;
 
-		field = dict_index_get_nth_field(index, i);
-		col = dict_field_get_col(field);
-		if (dict_col_is_virtual(col)) {
+		field = index->get_field(i);
+		col = field->col;
+		if (col->is_virtual()) {
 			const dict_v_col_t*	vcol = reinterpret_cast<
 							const dict_v_col_t*>(
 								col);
@@ -1314,7 +1310,7 @@ row_upd_set_vcol_data(
 	dfield_t*	dfield = dtuple_get_nth_v_field(row, vcol->v_pos);
 
 	if (dfield_get_type(dfield)->mtype == DATA_MISSING) {
-		dict_col_copy_type(&vcol->m_col, dfield_get_type(dfield));
+		vcol->m_col.copy_type(dfield_get_type(dfield));
 
 		dfield_set_data(dfield, field, len);
 	}
@@ -1469,7 +1465,7 @@ row_upd_replace(
 	ut_ad(row);
 	ut_ad(ext);
 	ut_ad(index);
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(update);
 	ut_ad(heap);
 	ut_ad(update->validate());
@@ -1477,7 +1473,7 @@ row_upd_replace(
 
 	n_cols = dtuple_get_n_fields(row);
 	table = index->table;
-	ut_ad(n_cols == dict_table_get_n_cols(table));
+	ut_ad(n_cols == table->get_n_cols());
 
 	ext_cols = static_cast<ulint*>(
 		mem_heap_alloc(heap, n_cols * sizeof *ext_cols));
@@ -1489,7 +1485,7 @@ row_upd_replace(
 	for (col_no = 0; col_no < n_cols; col_no++) {
 
 		const dict_col_t*	col
-			= dict_table_get_nth_col(table, col_no);
+			= table->get_col(col_no);
 		const ulint		clust_pos
 			= dict_col_get_clust_pos(col, index);
 		dfield_t*		dfield;
@@ -1580,15 +1576,13 @@ row_upd_changes_ord_field_binary_func(
 		dfield_t		dfield_ext;
 		ulint			dfield_len;
 		const byte*		buf;
-		bool			is_virtual;
 		const dict_v_col_t*	vcol = NULL;
 
-		ind_field = dict_index_get_nth_field(index, i);
-		col = dict_field_get_col(ind_field);
+		ind_field = index->get_field(i);
+		col = ind_field->col;
 		col_no = dict_col_get_no(col);
-		is_virtual = dict_col_is_virtual(col);
 
-		if (is_virtual) {
+		if (col->is_virtual()) {
 			vcol = reinterpret_cast<const dict_v_col_t*>(col);
 
 			upd_field = upd_get_field_by_field_no(
@@ -1609,7 +1603,7 @@ row_upd_changes_ord_field_binary_func(
 			return(TRUE);
 		}
 
-		if (is_virtual) {
+		if (col->is_virtual()) {
 			dfield = dtuple_get_nth_v_field(
 				row,  vcol->v_pos);
 		} else {
@@ -1639,7 +1633,7 @@ row_upd_changes_ord_field_binary_func(
 
 			ut_ad(dfield->data != NULL
 			      && dfield->len > GEO_DATA_HEADER_SIZE);
-			ut_ad(dict_col_get_spatial_status(col) != SPATIAL_NONE);
+			ut_ad(col->get_spatial_status() != SPATIAL_NONE);
 
 			/* Get the old mbr. */
 			if (dfield_is_ext(dfield)) {
@@ -1756,7 +1750,7 @@ row_upd_changes_ord_field_binary_func(
 			dfield_len = dfield_get_len(dfield);
 			ut_a(dfield_len > BTR_EXTERN_FIELD_REF_SIZE);
 			dfield_len -= BTR_EXTERN_FIELD_REF_SIZE;
-			ut_a(dict_index_is_clust(index)
+			ut_a(index->is_clustered()
 			     || ind_field->prefix_len <= dfield_len);
 
 			buf = static_cast<byte*>(dfield_get_data(dfield));
@@ -1806,8 +1800,8 @@ row_upd_changes_some_index_ord_field_binary(
 				return(TRUE);
 			}
 		} else {
-			if (dict_field_get_col(dict_index_get_nth_field(
-				index, upd_field->field_no))->ord_part) {
+			if (index->get_field(upd_field->field_no)->col
+					->ord_part) {
 				return(TRUE);
 			}
 		}
@@ -1835,7 +1829,7 @@ row_upd_changes_doc_id(
 
 	/* Convert from index-specific column number to table-global
 	column number. */
-	col_no = dict_index_get_nth_col_no(clust_index, upd_field->field_no);
+	col_no = clust_index->get_col_no(upd_field->field_no);
 
 	return(col_no == fts->doc_col);
 }
@@ -1863,8 +1857,7 @@ row_upd_changes_fts_column(
 
 		/* Convert from index-specific column number to table-global
 		column number. */
-		col_no = dict_index_get_nth_col_no(clust_index,
-						   upd_field->field_no);
+		col_no = clust_index->get_col_no(upd_field->field_no);
 		return(dict_table_is_fts_column(fts->indexes, col_no, false));
 	}
 
@@ -1902,8 +1895,8 @@ row_upd_changes_first_fields_binary(
 		const dict_col_t*	col;
 		ulint			col_pos;
 
-		ind_field = dict_index_get_nth_field(index, i);
-		col = dict_field_get_col(ind_field);
+		ind_field = index->get_field(i);
+		col = ind_field->col;
 		col_pos = dict_col_get_clust_pos(col, clust_index);
 
 		ut_a(ind_field->prefix_len == 0);
@@ -2182,7 +2175,7 @@ row_upd_sec_index_entry(
 	entry = row_build_index_entry(node->row, node->ext, index, heap);
 	ut_a(entry);
 
-	if (!dict_table_is_intrinsic(index->table)) {
+	if (!index->table->is_intrinsic()) {
 		log_free_check();
 	}
 
@@ -2196,11 +2189,11 @@ row_upd_sec_index_entry(
 	server or connection lifetime and so REDO information is not needed
 	on restart for recovery.
 	Disable locking as temp-tables are not shared across connection. */
-	if (dict_table_is_temporary(index->table)) {
+	if (index->table->is_temporary()) {
 		flags |= BTR_NO_LOCKING_FLAG;
 		mtr.set_log_mode(MTR_LOG_NO_REDO);
 
-		if (dict_table_is_intrinsic(index->table)) {
+		if (index->table->is_intrinsic()) {
 			flags |= BTR_NO_UNDO_LOG_FLAG;
 		}
 	}
@@ -2240,7 +2233,7 @@ row_upd_sec_index_entry(
 		are no foreign key constraints referring to the index.
 		Change buffering is disabled for temporary tables and
 		spatial index. */
-		mode = (referenced || dict_table_is_temporary(index->table)
+		mode = (referenced || index->table->is_temporary()
 			|| dict_index_is_spatial(index))
 			? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			: BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
@@ -2255,7 +2248,7 @@ row_upd_sec_index_entry(
 		are no foreign key constraints referring to the index.
 		Change buffering is disabled for temporary tables and
 		spatial index. */
-		mode = (referenced || dict_table_is_temporary(index->table)
+		mode = (referenced || index->table->is_temporary()
 			|| dict_index_is_spatial(index))
 			? BTR_MODIFY_LEAF
 			: BTR_MODIFY_LEAF | BTR_DELETE_MARK;
@@ -2389,7 +2382,7 @@ row_upd_sec_step(
 {
 	ut_ad((node->state == UPD_NODE_UPDATE_ALL_SEC)
 	      || (node->state == UPD_NODE_UPDATE_SOME_SEC));
-	ut_ad(!dict_index_is_clust(node->index));
+	ut_ad(!node->index->is_clustered());
 
 	if (node->state == UPD_NODE_UPDATE_ALL_SEC
 	    || row_upd_changes_ord_field_binary(node->index, node->update,
@@ -2519,7 +2512,7 @@ row_upd_clust_rec_by_insert(
 	ulint*		offsets			= NULL;
 
 	ut_ad(node);
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 
 	trx = thr_get_trx(thr);
 	table = node->table;
@@ -2674,7 +2667,7 @@ row_upd_check_autoinc_counter(
 	}
 
 	if (!dict_table_has_autoinc_col(table)
-	    || dict_table_is_temporary(table)
+	    || table->is_temporary()
 	    || node->row == NULL) {
 
 		return;
@@ -2704,8 +2697,7 @@ row_upd_check_autoinc_counter(
 	the column number in the table instead. */
 	old_counter = row_get_autoinc_counter(
 		node->row,
-		dict_index_get_nth_col_no(
-			index, table->autoinc_field_no));
+		index->get_col_no(table->autoinc_field_no));
 
 	/* We just check if the updated counter is bigger than
 	the old one, which may result in more redo logs, since
@@ -2744,7 +2736,7 @@ row_upd_clust_rec(
 	AutoIncLogMtr	autoinc_mtr(mtr);
 
 	ut_ad(node);
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(!thr_get_trx(thr)->in_rollback);
 
 	pcur = node->pcur;
@@ -2803,11 +2795,11 @@ row_upd_clust_rec(
 	server or connection lifetime and so REDO information is not needed
 	on restart for recovery.
 	Disable locking as temp-tables are not shared across connection. */
-	if (dict_table_is_temporary(index->table)) {
+	if (index->table->is_temporary()) {
 		flags |= BTR_NO_LOCKING_FLAG;
 		autoinc_mtr.get_mtr()->set_log_mode(MTR_LOG_NO_REDO);
 
-		if (dict_table_is_intrinsic(index->table)) {
+		if (index->table->is_intrinsic()) {
 			flags |= BTR_NO_UNDO_LOG_FLAG;
 		}
 	}
@@ -2899,7 +2891,7 @@ row_upd_del_mark_clust_rec(
 	dberr_t		err;
 
 	ut_ad(node);
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(node->is_delete);
 
 	pcur = node->pcur;
@@ -2969,11 +2961,11 @@ row_upd_clust_step(
 	server or connection lifetime and so REDO information is not needed
 	on restart for recovery.
 	Disable locking as temp-tables are not shared across connection. */
-	if (dict_table_is_temporary(index->table)) {
+	if (index->table->is_temporary()) {
 		flags |= BTR_NO_LOCKING_FLAG;
 		mtr.set_log_mode(MTR_LOG_NO_REDO);
 
-		if (dict_table_is_intrinsic(index->table)) {
+		if (index->table->is_intrinsic()) {
 			flags |= BTR_NO_UNDO_LOG_FLAG;
 		}
 	}
@@ -3180,7 +3172,7 @@ row_upd(
 	switch (node->state) {
 	case UPD_NODE_UPDATE_CLUSTERED:
 	case UPD_NODE_INSERT_CLUSTERED:
-		if (!dict_table_is_intrinsic(node->table)) {
+		if (!node->table->is_intrinsic()) {
 			log_free_check();
 		}
 		err = row_upd_clust_step(node, thr);

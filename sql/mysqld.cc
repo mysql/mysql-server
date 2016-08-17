@@ -76,7 +76,7 @@
 
   @subsection infra_basic_container Container
 
-  See #DYNAMIC_ARRAY, #LIST, #I_P_List, #HASH, #LF_HASH.
+  See #DYNAMIC_ARRAY, #List, #I_P_List, HASH (#st_hash), #LF_HASH.
 
   @subsection infra_basic_syncho Synchronization
 
@@ -207,11 +207,41 @@
 /**
   @page PAGE_EXTENDING Extending MySQL
 
+  Components
+  ----------
+
+  MySQL 8.0 introduces support for extending the server through components.
+  Components can communicate with other components through service APIs.
+  And can provide implementations of service APIs for other components to use.
+  All components are equal and can communicate with all other components.
+  Service implementations can be found by name via a registry service handle
+  which is passed to the component initialization function.
+  There can be multiple service API implementations for a single service API.
+  One of them is the default implementation.
+  Service API are stateless by definition. If they need to handle state or
+  object instances they need to do so by using factory methods and instance
+  handles.
+
+  To ease up transition to the component model the current server
+  functionality (server proper and plugins) is contained within
+  a dedicated built in server component. The server component currently
+  contains all of the functionality provided by the server and
+  classical server plugins.
+
+  More components can be installed via the "INSTALL COMPONENT" SQL command.
+
+  The component infrastructure is designed as a replacement for the classical
+  MySQL plugin system as it does not suffer from some of the limitations of it
+  and provides better isolation for the component code.
+
+  See @subpage PAGE_COMPONENTS.
+
   Plugins and Services
   --------------------
 
   As of MySQL 5.1 the server functionality can be extended through
-  installing (dynamically or statically linked) extra code modules.
+  installing (dynamically or statically linked) extra code modules
+  called plugins.
 
   The server defines a set of well known plugin APIs that the modules
   can implement.
@@ -234,14 +264,6 @@
   separate binaries.
 
   To learn how to create these user defined functions see @subpage page_ext_udf
-
-  @section extending_component Components
-
-  The MySQL Server 8.0 introduces Components that will be used for
-  "componentization" as a replacement for the old MySQL plugin system for new
-  plug-in development.
-
-  See @subpage PAGE_COMPONENTS.
 */
 
 
@@ -475,7 +497,6 @@ const char *my_localhost= "localhost";
 
 bool opt_large_files= sizeof(my_off_t) > 4;
 static my_bool opt_autocommit; ///< for --autocommit command-line option
-
 /*
   Used with --help for detailed option
 */
@@ -970,6 +991,7 @@ mysql_cond_t COND_server_started;
 mysql_mutex_t LOCK_reset_gtid_table;
 mysql_mutex_t LOCK_compress_gtid_table;
 mysql_cond_t COND_compress_gtid_table;
+mysql_mutex_t LOCK_group_replication_handler;
 #if !defined (EMBEDDED_LIBRARY) && !defined(_WIN32)
 mysql_mutex_t LOCK_socket_listener_active;
 mysql_cond_t COND_socket_listener_active;
@@ -1030,7 +1052,6 @@ Checkable_rwlock *global_sid_lock= NULL;
 Sid_map *global_sid_map= NULL;
 Gtid_state *gtid_state= NULL;
 Gtid_table_persistor *gtid_table_persistor= NULL;
-
 
 void set_remaining_args(int argc, char **argv)
 {
@@ -1810,6 +1831,9 @@ void clean_up(bool print_message)
     my_timer_deinitialize();
 
   have_statement_timeout= SHOW_OPTION_DISABLED;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    shutdown_acl_cache();
+#endif
 
   log_syslog_exit();
 
@@ -2592,15 +2616,6 @@ extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused)))
 #endif // !EMBEDDED_LIBRARY
 
 
-#if defined(HAVE_BACKTRACE) && defined(HAVE_ABI_CXA_DEMANGLE)
-#include <cxxabi.h>
-extern "C" char *my_demangle(const char *mangled_name, int *status)
-{
-  return abi::__cxa_demangle(mangled_name, NULL, NULL, status);
-}
-#endif
-
-
 /**
   All global error messages are sent here where the first one is stored
   for the client.
@@ -2758,6 +2773,7 @@ SHOW_VAR com_status_vars[]= {
   {"alter_table",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_TABLE]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_tablespace",     (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_TABLESPACE]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_user",           (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_USER]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"alter_user_default_role", (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_USER_DEFAULT_ROLE]), SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"analyze",              (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ANALYZE]),                    SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"begin",                (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_BEGIN]),                      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"binlog",               (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_BINLOG_BASE64_EVENT]),        SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -2773,6 +2789,7 @@ SHOW_VAR com_status_vars[]= {
   {"create_function",      (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_SPFUNCTION]),          SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"create_index",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_INDEX]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"create_procedure",     (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_PROCEDURE]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"create_role",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_ROLE]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"create_server",        (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_SERVER]),              SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"create_table",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_TABLE]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"create_trigger",       (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_TRIGGER]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -2788,6 +2805,7 @@ SHOW_VAR com_status_vars[]= {
   {"drop_function",        (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_FUNCTION]),              SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_index",           (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_INDEX]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_procedure",       (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_PROCEDURE]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"drop_role",            (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_ROLE]),                  SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_server",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_SERVER]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_table",           (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_TABLE]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_trigger",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_TRIGGER]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -2799,6 +2817,7 @@ SHOW_VAR com_status_vars[]= {
   {"flush",                (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_FLUSH]),                      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"get_diagnostics",      (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_GET_DIAGNOSTICS]),            SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"grant",                (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_GRANT]),                      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"grant_roles",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_GRANT_ROLE]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"ha_close",             (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_HA_CLOSE]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"ha_open",              (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_HA_OPEN]),                    SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"ha_read",              (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_HA_READ]),                    SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -2825,12 +2844,14 @@ SHOW_VAR com_status_vars[]= {
   {"resignal",             (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_RESIGNAL]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"revoke",               (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_REVOKE]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"revoke_all",           (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_REVOKE_ALL]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"revoke_roles",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_REVOKE_ROLE]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"rollback",             (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ROLLBACK]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"rollback_to_savepoint",(char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ROLLBACK_TO_SAVEPOINT]),      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"savepoint",            (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SAVEPOINT]),                  SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"select",               (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SELECT]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"set_option",           (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SET_OPTION]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"set_password",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SET_PASSWORD]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"set_role",             (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SET_ROLE]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"signal",               (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SIGNAL]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"show_binlog_events",   (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SHOW_BINLOG_EVENTS]),         SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"show_binlogs",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SHOW_BINLOGS]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -3582,6 +3603,8 @@ static int init_thread_environment()
                    &LOCK_compress_gtid_table, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_compress_gtid_table,
                   &COND_compress_gtid_table);
+  mysql_mutex_init(key_LOCK_group_replication_handler,
+                   &LOCK_group_replication_handler, MY_MUTEX_INIT_FAST);
 #ifndef EMBEDDED_LIBRARY
   Events::init_mutexes();
 #if defined(_WIN32)
@@ -3664,7 +3687,7 @@ static int warn_one(const char *file_name)
   char *issuer= NULL;
   char *subject= NULL;
 
-  if (!(fp= my_fopen(file_name, O_RDONLY | O_BINARY, MYF(MY_WME))))
+  if (!(fp= my_fopen(file_name, O_RDONLY | MY_FOPEN_BINARY, MYF(MY_WME))))
   {
     sql_print_error("Error opening CA certificate file");
     return 1;
@@ -6551,6 +6574,15 @@ static int show_aborted_connects(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
+static int show_acl_cache_items_count(THD *thd, SHOW_VAR *var, char *buff)
+{
+  var->type= SHOW_LONG;
+  var->value= buff;
+  long *value= reinterpret_cast<long*>(buff);
+  *value= static_cast<long>(get_global_acl_cache_size());
+  return 0;
+}
+
 
 static int show_connection_errors_max_connection(THD *thd, SHOW_VAR *var,
                                                  char *buff)
@@ -7208,6 +7240,7 @@ SHOW_VAR status_vars[]= {
   {"Aborted_clients",          (char*) &aborted_threads,                              SHOW_LONG,               SHOW_SCOPE_GLOBAL},
 #ifndef EMBEDDED_LIBRARY
   {"Aborted_connects",         (char*) &show_aborted_connects,                        SHOW_FUNC,               SHOW_SCOPE_GLOBAL},
+  {"Acl_cache_items_count",    (char*) &show_acl_cache_items_count,                   SHOW_FUNC,               SHOW_SCOPE_GLOBAL},
 #endif
 #ifdef HAVE_REPLICATION
 #ifndef DBUG_OFF
@@ -7684,6 +7717,7 @@ mysqld_get_one_option(int optid,
     break;
   case 'b':
     strmake(mysql_home,argument,sizeof(mysql_home)-1);
+    mysql_home_ptr= mysql_home;
     break;
   case 'C':
     if (default_collation_name == compiled_default_collation_name)
@@ -9003,6 +9037,8 @@ PSI_cond_key key_object_loading_cond; // TODO need to initialize
 PSI_mutex_key key_mts_temp_table_LOCK;
 PSI_mutex_key key_mts_gaq_LOCK;
 PSI_mutex_key key_thd_timer_mutex;
+PSI_mutex_key key_LOCK_group_replication_handler;
+
 #ifdef HAVE_REPLICATION
 PSI_mutex_key key_commit_order_manager_mutex;
 PSI_mutex_key key_mutex_slave_worker_hash;
@@ -9096,7 +9132,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_mutex_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0, 0},
 #endif
   { &key_LOCK_offline_mode, "LOCK_offline_mode", PSI_FLAG_GLOBAL, 0},
-  { &key_LOCK_default_password_lifetime, "LOCK_default_password_lifetime", PSI_FLAG_GLOBAL, 0}
+  { &key_LOCK_default_password_lifetime, "LOCK_default_password_lifetime", PSI_FLAG_GLOBAL, 0},
+  { &key_LOCK_group_replication_handler, "LOCK_group_replication_handler", PSI_FLAG_GLOBAL, 0}
 };
 #endif // !EMBEDDED_LIBRARY
 

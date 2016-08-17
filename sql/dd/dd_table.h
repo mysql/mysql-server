@@ -61,6 +61,8 @@ dd::enum_column_types dd_get_new_field_type(enum_field_types type);
   @param create_fields      List of fields for the table.
   @param keyinfo            Array with descriptions of keys for the table.
   @param keys               Number of keys.
+  @param fk_keyinfo         Array with descriptions of foreign keys for the table.
+  @param fk_keys            Number of foreign keys.
   @param file               handler instance for the table.
   @param commit_dd_changes  Indicates whether change should be committed
                             (WL7743/TODO: consider if this parameter is
@@ -77,6 +79,8 @@ std::unique_ptr<Table> create_table(THD *thd,
                                     HA_CREATE_INFO *create_info,
                                     const List<Create_field> &create_fields,
                                     const KEY *keyinfo, uint keys,
+                                    const FOREIGN_KEY *fk_keyinfo,
+                                    uint fk_keys,
                                     handler *file,
                                     bool commit_dd_changes,
                                     bool store_sdi);
@@ -104,6 +108,28 @@ std::unique_ptr<dd::Table> create_tmp_table(THD *thd,
                              const List<Create_field> &create_fields,
                              const KEY *keyinfo, uint keys,
                              handler *file);
+
+/**
+  Add foreign keys to a given table. This is used by ALTER TABLE
+  to restore existing foreign keys towards the end of the statement.
+  This is needed to avoid problems with duplicate foreign key names
+  while we have to definitions of the same table.
+
+  @param thd            Thread handle.
+  @param schema_name    Database name.
+  @param table_name     Table name.
+  @param fk_keyinfo     Array of foreign key information
+  @param fk_keys        Number of foreign keys to add.
+  @param commit_dd_changes  Indicates whether change should be committed.
+
+  @retval false on success
+  @retval true on failure
+*/
+bool add_foreign_keys(THD *thd,
+                      const char *schema_name,
+                      const char *table_name,
+                      const FOREIGN_KEY *fk_keyinfo, uint fk_keys,
+                      bool commit_dd_changes);
 
 //////////////////////////////////////////////////////////////////////////
 // Function common to 'table' and 'view' objects

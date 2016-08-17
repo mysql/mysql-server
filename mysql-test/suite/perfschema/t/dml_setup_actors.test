@@ -62,7 +62,7 @@ update performance_schema.setup_actors
 
 --error ER_WRONG_PERFSCHEMA_USAGE
 update performance_schema.setup_actors
-  set role='ILLEGAL';
+  set `role`='ILLEGAL';
 
 # update on ENABLED column is allowed
 update performance_schema.setup_actors

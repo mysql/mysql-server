@@ -60,6 +60,7 @@ C_MODE_END
 
 #include <cmath>                     // isnan
 
+
 using std::min;
 using std::max;
 
@@ -1804,6 +1805,38 @@ String *Item_func_substr_index::val_str(String *str)
   return (&tmp_value);
 }
 
+void Item_func_roles_graphml::print(String *str, enum_query_type query_type)
+{
+  str->append(func_name());
+  str->append("()");
+}
+
+bool Item_func_roles_graphml::fix_fields(THD *thd, Item **ref)
+{
+  Item_str_func::fix_fields(thd, ref);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (thd->security_context()->check_access(SUPER_ACL, false))
+    roles_graphml(&m_str);
+  else
+    m_str.set(STRING_WITH_LEN("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                              "<graphml />"), system_charset_info);
+#else
+  m_str.set(STRING_WITH_LEN("Not supported in embedded mode"),
+            system_charset_info);
+#endif
+  return false;  
+}
+
+String *Item_func_roles_graphml::val_str(String *str)
+{
+  if (str != 0)
+  {
+    str->copy(m_str);
+    return str;
+  }
+  return &m_str;
+}
+
 /*
 ** The trim functions are extension to ANSI SQL because they trim substrings
 ** They ltrim() and rtrim() functions are optimized for 1 byte strings
@@ -2318,7 +2351,7 @@ String *Item_func_database::val_str(String *str)
 bool Item_func_user::init(const char *user, const char *host)
 {
   DBUG_ASSERT(fixed == 1);
-
+  DBUG_ASSERT(host != 0);
   // For system threads (e.g. replication SQL thread) user may be empty
   if (user)
   {
@@ -2331,8 +2364,8 @@ bool Item_func_user::init(const char *user, const char *host)
       return TRUE;
     }
 
-    res_length=cs->cset->snprintf(cs, (char*)str_value.ptr(), (uint) res_length,
-                                  "%s@%s", user, host);
+    res_length=cs->cset->snprintf(cs, (char*)str_value.ptr(),
+                                    (uint) res_length, "%s@%s", user, host);
     str_value.length((uint) res_length);
     str_value.mark_as_const();
   }
@@ -2360,6 +2393,57 @@ bool Item_func_user::fix_fields(THD *thd, Item **ref)
                thd->m_main_security_ctx.host_or_ip().str));
 }
 
+bool Item_func_current_role::fix_fields(THD *thd, Item **ref)
+{
+  Item_str_func::fix_fields(thd, ref);
+  return false;
+}
+
+String *Item_func_current_role::val_str(String* str)
+{
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  THD *thd= current_thd;
+  Security_context *ctx= thd->security_context();
+  /*
+    We need the order of the current roles to stay consistent across platforms
+    so we copy the list of active roles here and sort the list.
+    Copying is crucial as the std::sort algorithms operates on pointers and
+    not on values which cause all references to become invalid.
+  */
+  List_of_auth_id_refs roles= *(ctx->get_active_roles());
+  if (roles.size() == 0)
+  {
+    m_active_role.set_ascii("NONE", 4);
+    str->copy(m_active_role);
+    return str;
+  }
+  std::sort(roles.begin(), roles.end());
+  bool first= true;
+  for(List_of_auth_id_refs::iterator it= roles.begin(); it != roles.end();
+      ++it)
+  {
+    if (!first)
+    {
+      m_active_role.append(',');
+    }
+    else
+    {
+      first= false;
+    }
+    append_identifier(thd, &m_active_role, it->first.str, it->first.length);
+    m_active_role.append("@");
+    append_identifier(thd, &m_active_role, it->second.str, it->second.length);
+  }
+#else
+  m_active_role.set_ascii("NONE", 4);
+#endif
+  if (str != 0)
+  {
+    str->copy(m_active_role);
+    return str;
+  }
+  return &m_active_role;
+}
 
 bool Item_func_current_user::itemize(Parse_context *pc, Item **res)
 {

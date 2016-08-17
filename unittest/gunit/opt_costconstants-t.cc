@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -222,7 +222,7 @@ private:
   the expected default values.
 */
 
-void validate_default_server_cost_constants(const Server_cost_constants *cost)
+static void validate_default_server_cost_constants(const Server_cost_constants *cost)
 {
   EXPECT_EQ(cost->row_evaluate_cost(), default_row_evaluate_cost);
   EXPECT_EQ(cost->key_compare_cost(), default_key_compare_cost);

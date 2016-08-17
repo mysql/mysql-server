@@ -1,5 +1,3 @@
-drop table if exists t1,t2;
-drop database if exists mysqltest;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_CREATE_USER';
 create table t1 (
 col1 int not null auto_increment primary key,
@@ -369,10 +367,6 @@ ERROR 42000: Incorrect table name ''
 rename table t1 to ``;
 ERROR 42000: Incorrect table name ''
 drop table t1;
-drop table if exists t1, t2;
-Warnings:
-Note	1051	Unknown table 'test.t1'
-Note	1051	Unknown table 'test.t2'
 create table t1 ( a varchar(10) not null primary key ) engine=innodb;
 create table t2 ( a varchar(10) not null primary key ) engine=merge union=(t1);
 flush tables;
@@ -535,25 +529,32 @@ create table t1 ( a timestamp );
 alter table t1 add unique ( a(1) );
 ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
 drop table t1;
-drop table if exists t1;
 create table t1 (a int, key(a));
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
 "this used not to disable the index"
 alter table t1 modify a int, disable keys;
+Warnings:
+Note	1031	Table storage engine for '#sql<temporary>' doesn't have this option
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
 alter table t1 modify a bigint, disable keys;
+Warnings:
+Note	1031	Table storage engine for '#sql<temporary>' doesn't have this option
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
 alter table t1 add b char(10), disable keys;
+Warnings:
+Note	1031	Table storage engine for '#sql<temporary>' doesn't have this option
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
 alter table t1 add c decimal(10,2), enable keys;
+Warnings:
+Note	1031	Table storage engine for '#sql<temporary>' doesn't have this option
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
@@ -576,12 +577,16 @@ t1	0	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
 "If no copy on noop change, this won't touch the data file"
 "Unique index, no change"
 alter table t1 modify a int, disable keys;
+Warnings:
+Note	1031	Table storage engine for '#sql<temporary>' doesn't have this option
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
 "Change the type implying data copy"
 "Unique index, no change"
 alter table t1 modify a bigint, disable keys;
+Warnings:
+Note	1031	Table storage engine for '#sql<temporary>' doesn't have this option
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
@@ -603,6 +608,8 @@ t1	1	b	1	b	A	0	NULL	NULL	YES	BTREE			YES
 "If no copy on noop change, this won't touch the data file"
 "The non-unique index will be disabled"
 alter table t1 modify a int, disable keys;
+Warnings:
+Note	1031	Table storage engine for '#sql<temporary>' doesn't have this option
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
@@ -610,6 +617,8 @@ t1	1	b	1	b	A	0	NULL	NULL	YES	BTREE			YES
 "Change the type implying data copy"
 "The non-unique index will be disabled"
 alter table t1 modify a bigint, disable keys;
+Warnings:
+Note	1031	Table storage engine for '#sql<temporary>' doesn't have this option
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
@@ -642,8 +651,6 @@ ERROR 3D000: No database selected
 alter table test.t1 rename test.t1;
 use test;
 drop table t1;
-DROP TABLE IF EXISTS bug24219;
-DROP TABLE IF EXISTS bug24219_2;
 CREATE TABLE bug24219 (a INT, INDEX(a));
 SHOW INDEX FROM bug24219;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
@@ -655,7 +662,6 @@ SHOW INDEX FROM bug24219_2;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 bug24219_2	1	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
 DROP TABLE bug24219_2;
-drop table if exists table_24562;
 create table table_24562(
 section int,
 subsection int,
@@ -946,7 +952,6 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 drop table t1;
 End of 5.0 tests
-drop table if exists t1, t2, t3;
 create table t1 (i int);
 create table t3 (j int);
 insert into t1 values ();
@@ -1000,7 +1005,6 @@ Two
 Three
 Four
 drop tables t1, t3;
-DROP TABLE IF EXISTS `t+1`, `t+2`;
 CREATE TABLE `t+1` (c1 INT);
 ALTER TABLE  `t+1` RENAME `t+2`;
 CREATE TABLE `t+1` (c1 INT);
@@ -1065,8 +1069,6 @@ Table	Create Table
   `c1` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE `#sql2`, `@0023sql1`;
-DROP TABLE IF EXISTS t1;
-DROP TABLE IF EXISTS t2;
 CREATE TABLE t1 (
 int_field INTEGER UNSIGNED NOT NULL,
 char_field CHAR(10),
@@ -1133,7 +1135,6 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (id int, c int) character set latin1;
 INSERT INTO t1 VALUES (1,1);
 ALTER TABLE t1 CHANGE c d int;
@@ -1152,7 +1153,6 @@ ALTER TABLE t1 CHANGE d c varchar(10);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 DROP TABLE t1;
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (id int, c int) character set utf8;
 INSERT INTO t1 VALUES (1,1);
 ALTER TABLE t1 CHANGE c d int;
@@ -1204,7 +1204,6 @@ DROP TABLE t1;
 #
 # Bug#45567: Fast ALTER TABLE broken for enum and set
 #
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a ENUM('a1','a2'));
 INSERT INTO t1 VALUES ('a1'),('a2');
 # No copy: No modification
@@ -1282,10 +1281,9 @@ DROP TABLE t1;
 # Test for bug #12652385 - "61493: REORDERING COLUMNS TO POSITION
 #                           FIRST CAN CAUSE DATA TO BE CORRUPTED".
 #
-drop table if exists t1;
-# Use MyISAM engine as the fact that InnoDB doesn't support
-# in-place ALTER TABLE in cases when columns are being renamed
-# hides some bugs.
+#
+# Test ALTER TABLE by changing the column order
+#
 create table t1 (i int, j int) engine=innodb;
 insert into t1 value (1, 2);
 # First, test for original problem described in the bug report.
@@ -1336,7 +1334,6 @@ DROP TABLE t1;
 # Test for bug #53820 "ALTER a MEDIUMINT column table causes full
 #                      table copy".
 #
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a INT, b MEDIUMINT);
 INSERT INTO t1 VALUES (1, 1), (2, 2);
 # The below ALTER should not copy table and so no rows should
@@ -1348,7 +1345,6 @@ DROP TABLE t1;
 #
 # Bug#11754461 CANNOT ALTER TABLE WHEN KEY PREFIX TOO LONG
 #
-DROP DATABASE IF EXISTS db1;
 CREATE DATABASE db1 CHARACTER SET utf8;
 CREATE TABLE db1.t1 (bar TINYTEXT, KEY (bar(100)));
 ALTER TABLE db1.t1 ADD baz INT;
@@ -1357,7 +1353,6 @@ DROP DATABASE db1;
 # Bug#11938039 RE-EXECUTION OF FRM-ONLY ALTER TABLE WITH RENAME
 #              CLAUSE FAILS OR ABORTS SERVER.
 #
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt1 from 'alter table t1 alter column a set default 1, rename to t2';
 execute stmt1;
@@ -1385,11 +1380,8 @@ DROP TABLE t1;
 #
 # Single thread tests.
 # See innodb_mysql_sync.test for multi thread tests.
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1(a INT PRIMARY KEY, b INT) engine=InnoDB;
-CREATE TABLE m1(a INT PRIMARY KEY, b INT) engine=MyISAM;
 INSERT INTO t1 VALUES (1,1), (2,2);
-INSERT INTO m1 VALUES (1,1), (2,2);
 #
 # 1: Test ALGORITHM keyword
 #
@@ -1415,15 +1407,23 @@ Warnings:
 Warning	1831	Duplicate index 'i4' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE t1 ADD INDEX i5(b), ALGORITHM= INVALID;
 ERROR HY000: Unknown ALGORITHM 'INVALID'
-ALTER TABLE m1 ENABLE KEYS;
+ALTER TABLE t1 ENABLE KEYS;
 affected rows: 0
-ALTER TABLE m1 ENABLE KEYS, ALGORITHM= DEFAULT;
+Warnings:
+Note	1031	Table storage engine for 't1' doesn't have this option
+ALTER TABLE t1 ENABLE KEYS, ALGORITHM= DEFAULT;
 affected rows: 0
-ALTER TABLE m1 ENABLE KEYS, ALGORITHM= COPY;
+Warnings:
+Note	1031	Table storage engine for 't1' doesn't have this option
+ALTER TABLE t1 ENABLE KEYS, ALGORITHM= COPY;
 affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
-ALTER TABLE m1 ENABLE KEYS, ALGORITHM= INPLACE;
+info: Records: 2  Duplicates: 0  Warnings: 1
+Warnings:
+Note	1031	Table storage engine for '#sql' doesn't have this option
+ALTER TABLE t1 ENABLE KEYS, ALGORITHM= INPLACE;
 affected rows: 0
+Warnings:
+Note	1031	Table storage engine for 't1' doesn't have this option
 ALTER TABLE t1 DROP INDEX i1, DROP INDEX i2, DROP INDEX i3, DROP INDEX i4;
 #
 # 2: Test ALGORITHM + old_alter_table
@@ -1482,12 +1482,16 @@ Warnings:
 Warning	1831	Duplicate index 'i4' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE t1 ADD INDEX i5(b), LOCK= INVALID;
 ERROR HY000: Unknown LOCK type 'INVALID'
-ALTER TABLE m1 ENABLE KEYS, LOCK= DEFAULT;
-ALTER TABLE m1 ENABLE KEYS, LOCK= NONE;
+ALTER TABLE t1 ENABLE KEYS, LOCK= DEFAULT;
+Warnings:
+Note	1031	Table storage engine for 't1' doesn't have this option
+ALTER TABLE t1 ENABLE KEYS, LOCK= NONE;
 ERROR 0A000: LOCK=NONE/SHARED is not supported for this operation. Try LOCK=EXCLUSIVE.
-ALTER TABLE m1 ENABLE KEYS, LOCK= SHARED;
+ALTER TABLE t1 ENABLE KEYS, LOCK= SHARED;
 ERROR 0A000: LOCK=NONE/SHARED is not supported for this operation. Try LOCK=EXCLUSIVE.
-ALTER TABLE m1 ENABLE KEYS, LOCK= EXCLUSIVE;
+ALTER TABLE t1 ENABLE KEYS, LOCK= EXCLUSIVE;
+Warnings:
+Note	1031	Table storage engine for 't1' doesn't have this option
 ALTER TABLE t1 DROP INDEX i1, DROP INDEX i2, DROP INDEX i3, DROP INDEX i4;
 #
 # 5: Test ALGORITHM + LOCK
@@ -1517,21 +1521,27 @@ affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 1
 Warnings:
 Warning	1831	Duplicate index 'i6' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
-ALTER TABLE m1 ENABLE KEYS, ALGORITHM= INPLACE, LOCK= NONE;
+ALTER TABLE t1 ENABLE KEYS, ALGORITHM= INPLACE, LOCK= NONE;
 ERROR 0A000: LOCK=NONE/SHARED is not supported for this operation. Try LOCK=EXCLUSIVE.
-ALTER TABLE m1 ENABLE KEYS, ALGORITHM= INPLACE, LOCK= SHARED;
+ALTER TABLE t1 ENABLE KEYS, ALGORITHM= INPLACE, LOCK= SHARED;
 ERROR 0A000: LOCK=NONE/SHARED is not supported for this operation. Try LOCK=EXCLUSIVE.
-ALTER TABLE m1 ENABLE KEYS, ALGORITHM= INPLACE, LOCK= EXCLUSIVE;
+ALTER TABLE t1 ENABLE KEYS, ALGORITHM= INPLACE, LOCK= EXCLUSIVE;
 affected rows: 0
-ALTER TABLE m1 ENABLE KEYS, ALGORITHM= COPY, LOCK= NONE;
+Warnings:
+Note	1031	Table storage engine for 't1' doesn't have this option
+ALTER TABLE t1 ENABLE KEYS, ALGORITHM= COPY, LOCK= NONE;
 ERROR 0A000: LOCK=NONE is not supported. Reason: COPY algorithm requires a lock. Try LOCK=SHARED.
-ALTER TABLE m1 ENABLE KEYS, ALGORITHM= COPY, LOCK= SHARED;
+ALTER TABLE t1 ENABLE KEYS, ALGORITHM= COPY, LOCK= SHARED;
 affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
-ALTER TABLE m1 ENABLE KEYS, ALGORITHM= COPY, LOCK= EXCLUSIVE;
+info: Records: 2  Duplicates: 0  Warnings: 1
+Warnings:
+Note	1031	Table storage engine for '#sql' doesn't have this option
+ALTER TABLE t1 ENABLE KEYS, ALGORITHM= COPY, LOCK= EXCLUSIVE;
 affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
-DROP TABLE t1, m1;
+info: Records: 2  Duplicates: 0  Warnings: 1
+Warnings:
+Note	1031	Table storage engine for '#sql' doesn't have this option
+DROP TABLE t1;
 #
 # 6: Possible deadlock involving thr_lock.c
 #
@@ -1561,267 +1571,139 @@ DROP TABLE t1;
 # --enable_info allows us to see how many rows were updated
 # by ALTER TABLE. in-place will show 0 rows, while copy > 0.
 #
-DROP TABLE IF EXISTS ti1, ti2, ti3, tm1, tm2, tm3;
 # Single operation tests
 CREATE TABLE ti1(a INT NOT NULL, b INT, c INT) engine=InnoDB;
-CREATE TABLE tm1(a INT NOT NULL, b INT, c INT) engine=MyISAM;
 CREATE TABLE ti2(a INT PRIMARY KEY AUTO_INCREMENT, b INT, c INT) engine=InnoDB;
-CREATE TABLE tm2(a INT PRIMARY KEY AUTO_INCREMENT, b INT, c INT) engine=MyISAM;
 INSERT INTO ti1 VALUES (1,1,1), (2,2,2);
 INSERT INTO ti2 VALUES (1,1,1), (2,2,2);
-INSERT INTO tm1 VALUES (1,1,1), (2,2,2);
-INSERT INTO tm2 VALUES (1,1,1), (2,2,2);
 ALTER TABLE ti1;
-affected rows: 0
-ALTER TABLE tm1;
 affected rows: 0
 ALTER TABLE ti1 ADD COLUMN d VARCHAR(200);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 ADD COLUMN d VARCHAR(200);
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 ADD COLUMN d2 VARCHAR(200);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 ADD COLUMN d2 VARCHAR(200);
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 ADD COLUMN e ENUM('a', 'b') FIRST;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 ADD COLUMN e ENUM('a', 'b') FIRST;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 ADD COLUMN f INT AFTER a;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 ADD COLUMN f INT AFTER a;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
-ALTER TABLE ti1 ADD INDEX ii1(b);
+ALTER TABLE ti1 ADD INDEX im1(b);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 ADD INDEX im1(b);
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
-ALTER TABLE ti1 ADD UNIQUE INDEX ii2 (c);
+ALTER TABLE ti1 ADD UNIQUE INDEX im2 (c);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 ADD UNIQUE INDEX im2 (c);
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
-ALTER TABLE ti1 ADD FULLTEXT INDEX ii3 (d);
+ALTER TABLE ti1 ADD FULLTEXT INDEX im3 (d);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 1
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
-ALTER TABLE tm1 ADD FULLTEXT INDEX im3 (d);
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
-ALTER TABLE ti1 ADD FULLTEXT INDEX ii4 (d2);
+ALTER TABLE ti1 ADD FULLTEXT INDEX im4 (d2);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 ADD FULLTEXT INDEX im4 (d2);
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 ADD PRIMARY KEY(a), ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB presently supports one FULLTEXT index creation at a time. Try ALGORITHM=COPY.
 ALTER TABLE ti1 ADD PRIMARY KEY(a);
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 ADD PRIMARY KEY(a);
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
-ALTER TABLE ti1 DROP INDEX ii3;
+ALTER TABLE ti1 DROP INDEX im3;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 DROP INDEX im3;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 DROP COLUMN d2;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 DROP COLUMN d2;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
-ALTER TABLE ti1 ADD CONSTRAINT fi1 FOREIGN KEY (b) REFERENCES ti2(a);
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 ADD CONSTRAINT fm1 FOREIGN KEY (b) REFERENCES tm2(a);
+ALTER TABLE ti1 ADD CONSTRAINT fm1 FOREIGN KEY (b) REFERENCES ti2(a);
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 ALTER COLUMN b SET DEFAULT 1;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 ALTER COLUMN b SET DEFAULT 1;
-affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 ALTER COLUMN b DROP DEFAULT;
-affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 ALTER COLUMN b DROP DEFAULT;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 CHANGE COLUMN f g INT;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 CHANGE COLUMN f g INT;
-affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 CHANGE COLUMN g h VARCHAR(20);
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 CHANGE COLUMN g h VARCHAR(20);
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 MODIFY COLUMN e ENUM('a', 'b', 'c');
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 MODIFY COLUMN e ENUM('a', 'b', 'c');
-affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 MODIFY COLUMN e INT;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 MODIFY COLUMN e INT;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 MODIFY COLUMN e INT AFTER h;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 MODIFY COLUMN e INT AFTER h;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 MODIFY COLUMN e INT FIRST;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 MODIFY COLUMN e INT FIRST;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 MODIFY COLUMN c INT NOT NULL;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 MODIFY COLUMN c INT NOT NULL;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 MODIFY COLUMN c INT NULL;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 MODIFY COLUMN c INT NULL;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 MODIFY COLUMN h VARCHAR(30);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 MODIFY COLUMN h VARCHAR(30);
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 MODIFY COLUMN h VARCHAR(30) AFTER d;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 MODIFY COLUMN h VARCHAR(30) AFTER d;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 DROP COLUMN h;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 DROP COLUMN h;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
-ALTER TABLE ti1 DROP INDEX ii2;
+ALTER TABLE ti1 DROP INDEX im2;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 DROP INDEX im2;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 DROP PRIMARY KEY;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 DROP PRIMARY KEY;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
-ALTER TABLE ti1 DROP FOREIGN KEY fi1;
+ALTER TABLE ti1 DROP FOREIGN KEY fm1;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 DROP FOREIGN KEY fm1;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 RENAME TO ti3;
-affected rows: 0
-ALTER TABLE tm1 RENAME TO tm3;
 affected rows: 0
 ALTER TABLE ti3 RENAME TO ti1;
 affected rows: 0
-ALTER TABLE tm3 RENAME TO tm1;
-affected rows: 0
 ALTER TABLE ti1 ORDER BY b;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 ORDER BY b;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 CONVERT TO CHARACTER SET utf16;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 CONVERT TO CHARACTER SET utf16;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 DEFAULT CHARACTER SET utf8;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 DEFAULT CHARACTER SET utf8;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 FORCE;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 FORCE;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 AUTO_INCREMENT 3;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 AUTO_INCREMENT 3;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 AVG_ROW_LENGTH 10;
-affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 AVG_ROW_LENGTH 10;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 CHECKSUM 1;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 CHECKSUM 1;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 COMMENT 'test';
-affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 COMMENT 'test';
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 MAX_ROWS 100;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 MAX_ROWS 100;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 MIN_ROWS 1;
-affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 MIN_ROWS 1;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 PACK_KEYS 1;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 PACK_KEYS 1;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
-DROP TABLE ti1, ti2, tm1, tm2;
+DROP TABLE ti1, ti2;
 # Tests of >1 operation (InnoDB)
 CREATE TABLE ti1(a INT PRIMARY KEY AUTO_INCREMENT, b INT) engine=InnoDB;
 INSERT INTO ti1(b) VALUES (1), (2);
@@ -1854,7 +1736,7 @@ DROP TABLE tm1;
 # Bug#11815557 60269: MYSQL SHOULD REJECT ATTEMPTS TO CREATE SYSTEM
 #                     TABLES IN INCORRECT ENGINE
 #
-# Note: This test assumes that only MyISAM and InnoDB supports system tables.
+# Note: This test assumes that only InnoDB supports system tables.
 #       If other engines are made to support system tables,
 #       then this test needs to be updated
 #
@@ -2166,7 +2048,7 @@ create table t1 (i int, key k(i)) engine=innodb;
 insert into t1 values (1);
 create table t2 (i int, key k(i)) engine=memory;
 insert into t2 values (1);
-# MyISAM and Heap should be able to handle key renaming in-place.
+# InnoDB should be able to handle key renaming in-place.
 alter table t1 algorithm=inplace, rename key k to kk;
 alter table t2 algorithm=inplace, rename key k to kk;
 show create table t1;

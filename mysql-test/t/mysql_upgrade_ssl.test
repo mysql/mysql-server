@@ -1,6 +1,7 @@
 
 # mysql_upgrade tests requiring SSL support
 
+-- source include/no_valgrind_without_big.inc
 -- source include/have_ssl_communication.inc
 -- source include/mysql_upgrade_preparation.inc
 
@@ -22,6 +23,7 @@ CREATE TEMPORARY TABLE tmp_user AS (SELECT * FROM mysql.user);
 
 # Create 5.6 mysql.user table layout
 
+--source include/user_58_to_57.inc
 --source include/user_57_to_56.inc
 
 --echo # "Manualy" create user with sha256 password
@@ -49,6 +51,7 @@ DROP USER 'user_sha_pass_wp'@'%';
 # Restore mysql.user content
 TRUNCATE TABLE mysql.user;
 INSERT INTO mysql.user SELECT * FROM tmp_user;
+FLUSH PRIVILEGES;
 DROP TABLE tmp_user;
 
 --source include/mysql_upgrade_cleanup.inc

@@ -5,6 +5,7 @@ mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
+mysql.default_roles                                OK
 mysql.engine_cost                                  OK
 mysql.func                                         OK
 mysql.general_log                                  OK
@@ -18,6 +19,7 @@ mysql.innodb_table_stats                           OK
 mysql.plugin                                       OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
@@ -42,6 +44,8 @@ DROP TABLE IF EXISTS tmp_user;
 Warnings:
 Note	1051	Unknown table 'test.tmp_user'
 CREATE TEMPORARY TABLE tmp_user AS (SELECT * FROM mysql.user);
+ALTER TABLE mysql.user DROP COLUMN Drop_role_priv;
+ALTER TABLE mysql.user DROP COLUMN Create_role_priv;
 ALTER TABLE mysql.user ADD COLUMN Password
 char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL
 AFTER user;
@@ -65,6 +69,7 @@ mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
+mysql.default_roles                                OK
 mysql.engine_cost                                  OK
 mysql.func                                         OK
 mysql.general_log                                  OK
@@ -78,6 +83,7 @@ mysql.innodb_table_stats                           OK
 mysql.plugin                                       OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
@@ -98,4 +104,5 @@ sys.sys_config                                     OK
 DROP USER 'user_sha_pass_wp'@'%';
 TRUNCATE TABLE mysql.user;
 INSERT INTO mysql.user SELECT * FROM tmp_user;
+FLUSH PRIVILEGES;
 DROP TABLE tmp_user;

@@ -29,7 +29,7 @@
 static CHARSET_INFO all_charsets[512];
 
 
-void
+static void
 print_array(FILE *f, const char *set, const char *name, const uchar *a, int n)
 {
   int i;
@@ -46,7 +46,7 @@ print_array(FILE *f, const char *set, const char *name, const uchar *a, int n)
 }
 
 
-void
+static void
 print_array16(FILE *f, const char *set, const char *name, const uint16 *a, int n)
 {
   int i;
@@ -76,7 +76,7 @@ static int get_charset_number(const char *charset_name)
   return 0;
 }
 
-char *mdup(const char *src, uint len)
+static char *mdup(const char *src, uint len)
 {
   char *dst=(char*)malloc(len);
   if (!dst)
@@ -206,7 +206,7 @@ is_case_sensitive(CHARSET_INFO *cs)
 }
 
 
-void dispcset(FILE *f,CHARSET_INFO *cs)
+static void dispcset(FILE *f,CHARSET_INFO *cs)
 {
   fprintf(f,"{\n");
   fprintf(f,"  %d,%d,%d,\n",cs->number,0,0);

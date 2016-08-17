@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,61 +82,6 @@ Item_splocal* create_item_for_sp_var(THD *thd,
 #endif
 
   return item;
-}
-
-
-/**
-   Report syntax error if the sel query block can't be parenthesized
-
-   @return false if successful, true if an error was reported. In the latter
-   case parsing should stop.
- */
-bool setup_select_in_parentheses(SELECT_LEX *sel)
-{
-  DBUG_ASSERT(sel->braces);
-  if (sel->linkage == UNION_TYPE &&
-      !sel->master_unit()->first_select()->braces &&
-      sel->master_unit()->first_select()->linkage ==
-      UNION_TYPE)
-  {
-    my_syntax_error(ER_THD(current_thd, ER_SYNTAX_ERROR));
-    return true;
-  }
-  if (sel->linkage == UNION_TYPE &&
-      sel->olap != UNSPECIFIED_OLAP_TYPE &&
-      sel->master_unit()->fake_select_lex)
-  {
-    my_error(ER_WRONG_USAGE, MYF(0), "CUBE/ROLLUP", "ORDER BY");
-    return true;
-  }
-  return false;
-}
-
-
-/**
-  @brief Push an error message into MySQL diagnostic area with line
-  and position information.
-
-  This function provides semantic action implementers with a way
-  to push the famous "You have a syntax error near..." error
-  message into the diagnostic area, which is normally produced only if
-  a parse error is discovered internally by the Bison generated
-  parser.
-*/
-
-void my_syntax_error(const char *s)
-{
-  THD *thd= current_thd;
-  Lex_input_stream *lip= & thd->m_parser_state->m_lip;
-
-  const char *yytext= lip->get_tok_start();
-  if (!yytext)
-    yytext= "";
-
-  /* Push an error into the diagnostic area */
-  ErrConvString err(yytext, thd->variables.character_set_client);
-  my_printf_error(ER_PARSE_ERROR,  ER_THD(thd, ER_PARSE_ERROR), MYF(0), s,
-                  err.ptr(), lip->yylineno);
 }
 
 
@@ -432,4 +377,43 @@ bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr)
   return false;
 }
 
+/**
+  Resolve engine by its name
 
+  @param        thd            Thread handler.
+  @param        name           Engine's name.
+  @param        is_temp_table  True if temporary table.
+  @param        strict         Force error if engine is unknown(*).
+  @param[out]   ret            Engine object or NULL(**).
+
+  @returns true if error is reported(**), otherwise false.
+
+  @note *) NO_ENGINE_SUBSTITUTION sql_mode overrides the @c strict parameter.
+  @note **) If @c strict if false and engine is unknown, the function outputs
+            a warning, sets @c ret to NULL and returns false (success).
+*/
+bool resolve_engine(THD *thd,
+                    const LEX_STRING &name,
+                    bool is_temp_table,
+                    bool strict,
+                    handlerton **ret)
+{
+  plugin_ref plugin= ha_resolve_by_name(thd, &name, is_temp_table);
+  if (plugin)
+  {
+    *ret= plugin_data<handlerton*>(plugin);
+    return false;
+  }
+
+  if (strict || (thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION))
+  {
+    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), name.str);
+    return true;
+  }
+  push_warning_printf(thd, Sql_condition::SL_WARNING,
+                      ER_UNKNOWN_STORAGE_ENGINE,
+                      ER_THD(thd, ER_UNKNOWN_STORAGE_ENGINE),
+                      name.str);
+  *ret= NULL;
+  return false;
+}

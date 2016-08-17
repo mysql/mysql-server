@@ -102,6 +102,10 @@ def	mysql	db	mysql	PRIMARY
 def	mysql	db	mysql	PRIMARY
 def	mysql	db	mysql	PRIMARY
 def	mysql	db	mysql	User
+def	mysql	default_roles	mysql	PRIMARY
+def	mysql	default_roles	mysql	PRIMARY
+def	mysql	default_roles	mysql	PRIMARY
+def	mysql	default_roles	mysql	PRIMARY
 def	mysql	engine_cost	mysql	PRIMARY
 def	mysql	engine_cost	mysql	PRIMARY
 def	mysql	engine_cost	mysql	PRIMARY
@@ -134,6 +138,10 @@ def	mysql	proxies_priv	mysql	PRIMARY
 def	mysql	proxies_priv	mysql	PRIMARY
 def	mysql	proxies_priv	mysql	PRIMARY
 def	mysql	proxies_priv	mysql	Grantor
+def	mysql	role_edges	mysql	PRIMARY
+def	mysql	role_edges	mysql	PRIMARY
+def	mysql	role_edges	mysql	PRIMARY
+def	mysql	role_edges	mysql	PRIMARY
 def	mysql	server_cost	mysql	PRIMARY
 def	mysql	servers	mysql	PRIMARY
 def	mysql	slave_master_info	mysql	PRIMARY
@@ -205,10 +213,10 @@ def	db_datadict_2	t4	1	db_datadict_2	f2_ind	1	f2	A	0	NULL	NULL	YES	BTREE			YES
 def	db_datadict_2	t4	0	db_datadict_2	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
-GRANT USAGE ON *.* TO 'testuser1'@'localhost'
+GRANT USAGE ON *.* TO `testuser1`@`localhost`
 SHOW GRANTS FOR 'testuser2'@'localhost';
 Grants for testuser2@localhost
-GRANT USAGE ON *.* TO 'testuser2'@'localhost'
+GRANT USAGE ON *.* TO `testuser2`@`localhost`
 # Establish connection testuser1 (user=testuser1)
 SELECT * FROM information_schema.statistics
 WHERE table_schema LIKE 'db_datadict%'
@@ -216,19 +224,19 @@ ORDER BY table_schema,table_name,index_name,seq_in_index,column_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
-GRANT USAGE ON *.* TO 'testuser1'@'localhost'
+GRANT USAGE ON *.* TO `testuser1`@`localhost`
 SHOW GRANTS FOR 'testuser2'@'localhost';
-ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'mysql'
+ERROR 42000: SELECT command denied to user 'testuser1'@'localhost' for table 'user'
 # Establish connection testuser2 (user=testuser2)
 SELECT * FROM information_schema.statistics
 WHERE table_schema LIKE 'db_datadict%'
 ORDER BY table_schema,table_name,index_name,seq_in_index,column_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
 SHOW GRANTS FOR 'testuser1'@'localhost';
-ERROR 42000: Access denied for user 'testuser2'@'localhost' to database 'mysql'
+ERROR 42000: SELECT command denied to user 'testuser2'@'localhost' for table 'user'
 SHOW GRANTS FOR 'testuser2'@'localhost';
 Grants for testuser2@localhost
-GRANT USAGE ON *.* TO 'testuser2'@'localhost'
+GRANT USAGE ON *.* TO `testuser2`@`localhost`
 # Switch to connection default
 GRANT SELECT ON db_datadict.t1 TO 'testuser1'@'localhost' WITH GRANT OPTION;
 GRANT SELECT(f1,f5) ON db_datadict_2.t3 TO 'testuser1'@'localhost';
@@ -248,12 +256,12 @@ def	db_datadict_2	t4	1	db_datadict_2	f2_ind	1	f2	A	0	NULL	NULL	YES	BTREE			YES
 def	db_datadict_2	t4	0	db_datadict_2	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
-GRANT SELECT (f5, f1) ON `db_datadict_2`.`t3` TO 'testuser1'@'localhost'
-GRANT SELECT ON `db_datadict`.`t1` TO 'testuser1'@'localhost' WITH GRANT OPTION
-GRANT USAGE ON *.* TO 'testuser1'@'localhost'
+GRANT SELECT (`f1`, `f5`) ON `db_datadict_2`.`t3` TO `testuser1`@`localhost`
+GRANT SELECT ON `db_datadict`.`t1` TO `testuser1`@`localhost` WITH GRANT OPTION
+GRANT USAGE ON *.* TO `testuser1`@`localhost`
 SHOW GRANTS FOR 'testuser2'@'localhost';
 Grants for testuser2@localhost
-GRANT USAGE ON *.* TO 'testuser2'@'localhost'
+GRANT USAGE ON *.* TO `testuser2`@`localhost`
 # Switch to connection testuser1
 SELECT * FROM information_schema.statistics
 WHERE table_schema LIKE 'db_datadict%'
@@ -267,27 +275,27 @@ def	db_datadict_2	t3	0	db_datadict_2	f5	1	f5	A	0	NULL	NULL	YES	BTREE			YES
 def	db_datadict_2	t3	0	db_datadict_2	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
-GRANT SELECT (f5, f1) ON `db_datadict_2`.`t3` TO 'testuser1'@'localhost'
-GRANT SELECT ON `db_datadict`.`t1` TO 'testuser1'@'localhost' WITH GRANT OPTION
-GRANT USAGE ON *.* TO 'testuser1'@'localhost'
+GRANT SELECT (`f1`, `f5`) ON `db_datadict_2`.`t3` TO `testuser1`@`localhost`
+GRANT SELECT ON `db_datadict`.`t1` TO `testuser1`@`localhost` WITH GRANT OPTION
+GRANT USAGE ON *.* TO `testuser1`@`localhost`
 SHOW GRANTS FOR 'testuser2'@'localhost';
-ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'mysql'
+ERROR 42000: SELECT command denied to user 'testuser1'@'localhost' for table 'user'
 # Switch to connection testuser2
 SELECT * FROM information_schema.statistics
 WHERE table_schema LIKE 'db_datadict%'
 ORDER BY table_schema,table_name,index_name,seq_in_index,column_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
 SHOW GRANTS FOR 'testuser1'@'localhost';
-ERROR 42000: Access denied for user 'testuser2'@'localhost' to database 'mysql'
+ERROR 42000: SELECT command denied to user 'testuser2'@'localhost' for table 'user'
 SHOW GRANTS FOR 'testuser2'@'localhost';
 Grants for testuser2@localhost
-GRANT USAGE ON *.* TO 'testuser2'@'localhost'
+GRANT USAGE ON *.* TO `testuser2`@`localhost`
 # Switch to connection default
 REVOKE SELECT,GRANT OPTION ON db_datadict.t1 FROM 'testuser1'@'localhost';
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
-GRANT SELECT (f5, f1) ON `db_datadict_2`.`t3` TO 'testuser1'@'localhost'
-GRANT USAGE ON *.* TO 'testuser1'@'localhost'
+GRANT SELECT (`f1`, `f5`) ON `db_datadict_2`.`t3` TO `testuser1`@`localhost`
+GRANT USAGE ON *.* TO `testuser1`@`localhost`
 # Switch to connection testuser1
 SELECT * FROM information_schema.statistics
 WHERE table_schema LIKE 'db_datadict%'
@@ -299,8 +307,8 @@ def	db_datadict_2	t3	0	db_datadict_2	f5	1	f5	A	0	NULL	NULL	YES	BTREE			YES
 def	db_datadict_2	t3	0	db_datadict_2	PRIMARY	1	f1	A	0	NULL	NULL		BTREE			YES
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
-GRANT SELECT (f5, f1) ON `db_datadict_2`.`t3` TO 'testuser1'@'localhost'
-GRANT USAGE ON *.* TO 'testuser1'@'localhost'
+GRANT SELECT (`f1`, `f5`) ON `db_datadict_2`.`t3` TO `testuser1`@`localhost`
+GRANT USAGE ON *.* TO `testuser1`@`localhost`
 # Switch to connection default and close connections testuser1, testuser2
 DROP USER 'testuser1'@'localhost';
 DROP USER 'testuser2'@'localhost';

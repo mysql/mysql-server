@@ -61,6 +61,7 @@ ENDIF()
 MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc COMPONENT Test)
 SET_SOURCE_FILES_PROPERTIES(mysqltest.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
 TARGET_LINK_LIBRARIES(mysqltest mysqlclient regex)
+ADD_DEPENDENCIES(mysqltest GenError GenClientError)
 
 ADD_CONVENIENCE_LIBRARY(mysqlcheck_core check/mysqlcheck_core.cc)
 TARGET_LINK_LIBRARIES(mysqlcheck_core mysqlclient)

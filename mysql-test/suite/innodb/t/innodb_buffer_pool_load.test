@@ -82,7 +82,7 @@ let $wait_condition =
 
 # Show the status, interesting if the above timed out
 --disable_warnings
---replace_regex /[0-9]{6}[[:space:]]+[0-9]{1,2}:[0-9]{2}:[0-9]{2}/TIMESTAMP_NOW/
+--replace_regex /^Buffer pool\(s\) load completed.*|^Loading buffer pool\(s\) from.*|^Loaded .* pages.*/Buffer pool load completed or still running/
 SELECT variable_value
 FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
@@ -144,7 +144,7 @@ let $wait_condition =
 
 # Show the status, interesting if the above timed out
 --disable_warnings
---replace_regex /[0-9]{6}[[:space:]]+[0-9]{1,2}:[0-9]{2}:[0-9]{2}/TIMESTAMP_NOW/
+--replace_regex /^Buffer pool\(s\) load completed.*|^Loading buffer pool\(s\) from.*|^Loaded .* pages.*/Buffer pool load completed or still running/
 SELECT variable_value
 FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
@@ -216,7 +216,7 @@ let $wait_condition =
 --source include/wait_condition.inc
 
 --disable_warnings
---replace_regex /[0-9]{6}[[:space:]]+[0-9]{1,2}:[0-9]{2}:[0-9]{2}/TIMESTAMP_NOW/
+--replace_regex /^Buffer pool\(s\) load completed.*|^Loading buffer pool\(s\) from.*|^Loaded .* pages.*/Buffer pool load completed or still running/
 SELECT variable_value
 FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';

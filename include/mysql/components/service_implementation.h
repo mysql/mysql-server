@@ -62,6 +62,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
   @param args a list of arguments in parenthesis.
 */
 #define DEFINE_BOOL_METHOD(name, args) \
-  DEFINE_METHOD(bool, name, args)
+  DEFINE_METHOD(mysql_service_status_t, name, args)
 
 #endif /* SERVICE_IMPLEMENTATION_H */

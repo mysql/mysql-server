@@ -20,8 +20,8 @@ select @@global.read_only;
 0
 show grants;
 Grants for pfsuser@localhost
-GRANT USAGE ON *.* TO 'pfsuser'@'localhost'
-GRANT SELECT, UPDATE ON `performance_schema`.* TO 'pfsuser'@'localhost'
+GRANT USAGE ON *.* TO `pfsuser`@`localhost`
+GRANT SELECT, UPDATE ON `performance_schema`.* TO `pfsuser`@`localhost`
 select * from performance_schema.setup_instruments;
 update performance_schema.setup_instruments set enabled='NO';
 update performance_schema.setup_instruments set enabled='YES';
@@ -33,8 +33,8 @@ select @@global.read_only;
 1
 show grants;
 Grants for pfsuser@localhost
-GRANT USAGE ON *.* TO 'pfsuser'@'localhost'
-GRANT SELECT, UPDATE ON `performance_schema`.* TO 'pfsuser'@'localhost'
+GRANT USAGE ON *.* TO `pfsuser`@`localhost`
+GRANT SELECT, UPDATE ON `performance_schema`.* TO `pfsuser`@`localhost`
 select * from performance_schema.setup_instruments;
 update performance_schema.setup_instruments set enabled='NO';
 update performance_schema.setup_instruments set enabled='YES';
@@ -47,8 +47,8 @@ select @@global.read_only;
 1
 show grants;
 Grants for pfsuser@localhost
-GRANT SUPER ON *.* TO 'pfsuser'@'localhost'
-GRANT SELECT, UPDATE ON `performance_schema`.* TO 'pfsuser'@'localhost'
+GRANT SUPER ON *.* TO `pfsuser`@`localhost`
+GRANT SELECT, UPDATE ON `performance_schema`.* TO `pfsuser`@`localhost`
 select * from performance_schema.setup_instruments;
 update performance_schema.setup_instruments set enabled='NO';
 update performance_schema.setup_instruments set enabled='YES';

@@ -40,10 +40,6 @@ Created 3/26/1996 Heikki Tuuri
 /** The global data structure coordinating a purge */
 extern trx_purge_t*	purge_sys;
 
-/** A dummy undo record used as a return value when we have a whole undo log
-which needs no purge */
-extern trx_undo_rec_t	trx_purge_dummy_rec;
-
 /********************************************************************//**
 Calculates the file address of an undo log header when we have the file
 address of its history list node.
@@ -150,8 +146,10 @@ struct purge_iter_t {
 of undo tablespace. */
 namespace undo {
 
-	typedef std::vector<space_id_t>		undo_spaces_t;
-	typedef	std::vector<trx_rseg_t*>	rseg_for_trunc_t;
+	using undo_spaces_t = std::vector<ulint, ut_allocator<ulint>>;
+
+	using rseg_for_trunc_t = std::vector<
+		trx_rseg_t*, ut_allocator<trx_rseg_t*>>;
 
 	/** Magic Number to indicate truncate action is complete. */
 	const ib_uint32_t			s_magic = 76845412;
@@ -197,13 +195,12 @@ namespace undo {
 			:
 			m_undo_for_trunc(SPACE_UNKNOWN),
 			m_rseg_for_trunc(),
+			m_scan_start(srv_undo_space_id_start),
 			m_purge_rseg_truncate_frequency(
 				static_cast<ulint>(
 				srv_purge_rseg_truncate_frequency))
 		{
-			if (srv_undo_tablespace_ids.size() > 0) {
-				m_scan_start = srv_undo_tablespace_ids.begin();
-			}
+			/* Do Nothing. */
 		}
 
 		/** Clear the cached rollback segment. Normally done
@@ -227,19 +224,6 @@ namespace undo {
 		void mark(space_id_t undo_id)
 		{
 			m_undo_for_trunc = undo_id;
-
-			/** Round robin way of selecting undo tablespaces
-			to track it for truncate operation. Once we reach
-			the end of list of undo tablespace id, move back
-			to first undo tablespace id. */
-
-			if ((undo_id + 1) >
-				srv_undo_tablespace_ids[
-					srv_undo_tablespaces_active - 1]) {
-				m_scan_start = srv_undo_tablespace_ids.begin();
-			} else {
-				m_scan_start++;
-			}
 
 			/* We found an UNDO-tablespace to truncate so set the
 			local purge rseg truncate frequency to 1. This will help
@@ -294,7 +278,13 @@ namespace undo {
 		@return	id of UNDO tablespace to start scanning from. */
 		space_id_t get_scan_start() const
 		{
-			return(*m_scan_start);
+			return(m_scan_start);
+		}
+
+		/** Set the tablespace id to start scanning from. */
+		void set_scan_start(space_id_t	space_id)
+		{
+			m_scan_start = space_id;
 		}
 
 		/** Check if the tablespace needs fix-up (based on presence of
@@ -373,10 +363,9 @@ namespace undo {
 		truncate. */
 		rseg_for_trunc_t	m_rseg_for_trunc;
 
-		/** Start scanning for UNDO tablespace from this
-		vector iterator. This is to avoid bias selection
-		of one tablespace always. */
-		std::vector<space_id_t>::iterator	m_scan_start;
+		/** Start scanning for UNDO tablespace from this space_id.
+		This is to avoid bias selection of one tablespace always. */
+		space_id_t		m_scan_start;
 
 		/** Rollback segment(s) purge frequency. This is local
 		value maintained along with global value. It is set to global
@@ -472,12 +461,9 @@ struct trx_purge_t{
 
 	undo::Truncate	undo_trunc;	/*!< Track UNDO tablespace marked
 					for truncate. */
-};
 
-/** Info required to purge a record */
-struct trx_purge_rec_t {
-	trx_undo_rec_t*	undo_rec;	/*!< Record to purge */
-	roll_ptr_t	roll_ptr;	/*!< File pointr to UNDO record */
+	mem_heap_t*	heap;		/*!< Heap for reading the undo log
+					records */
 };
 
 /**

@@ -298,7 +298,11 @@ private:
 class Until_view_id : public Until_option
 {
 public:
-  Until_view_id(Relay_log_info *rli) : Until_option(rli) {}
+  Until_view_id(Relay_log_info *rli)
+    : Until_option(rli),
+      until_view_id_found(false),
+      until_view_id_commit_found(false)
+  {}
 
   /**
      Initialize the view_id when starting the slave.

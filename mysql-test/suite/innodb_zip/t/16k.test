@@ -548,7 +548,7 @@ DELETE FROM t4_purge;
 # We need to activate the purge thread.
 # Instead of doing a --sleep 10 now,  do it once at the end.
 
-# Bug#12637786 - Assertion hit; ut_ad(dict_index_is_clust(index));
+# Bug#12637786 - Assertion hit; ut_ad(index->is_clustered());
 # A secondary index tuple is found to be too long to fit into a page.
 # This test is not in innodb_8k or innodb_4k since the bug is not about
 # page size.  It just tests the condition that caused the assertion.

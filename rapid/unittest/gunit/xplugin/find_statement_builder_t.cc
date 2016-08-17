@@ -42,9 +42,10 @@ public:
   using Find_statement_builder::add_table_projection;
   using Find_statement_builder::add_document_projection;
   using Find_statement_builder::add_grouping;
+  using Find_statement_builder::add_grouping_criteria;
   using Find_statement_builder::Projection_list;
   using Find_statement_builder::Grouping_list;
-  using Find_statement_builder::Having;
+  using Find_statement_builder::Grouping_criteria;
 };
 
 
@@ -199,20 +200,7 @@ TEST_F(Find_statement_builder_test, add_projection_document_two_member_items_pla
 TEST_F(Find_statement_builder_test, add_gruping_empty)
 {
   Find_statement_builder_impl::Grouping_list group;
-  Find_statement_builder_impl::Having having;
-  ASSERT_NO_THROW(builder.add_grouping(group, having));
-  EXPECT_EQ("", query.get());
-}
-
-
-TEST_F(Find_statement_builder_test, add_gruping_empty_ignore_having)
-{
-  Find_statement_builder_impl::Grouping_list group;
-  Find_statement_builder_impl::Having having;
-  having <<  "type: OPERATOR operator {name: '>'"
-      "param {type: IDENT identifier {name: 'A'}}"
-      "param {type: LITERAL literal {type: V_DOUBLE v_double: 1.0}}}";
-  ASSERT_NO_THROW(builder.add_grouping(group, having));
+  ASSERT_NO_THROW(builder.add_grouping(group));
   EXPECT_EQ("", query.get());
 }
 
@@ -221,8 +209,7 @@ TEST_F(Find_statement_builder_test, add_gruping_one_item)
 {
   Find_statement_builder_impl::Grouping_list group;
   *group.Add() << "type: IDENT identifier { name: 'alpha' }";
-  Find_statement_builder_impl::Having having;
-  ASSERT_NO_THROW(builder.add_grouping(group, having));
+  ASSERT_NO_THROW(builder.add_grouping(group));
   EXPECT_EQ(" GROUP BY `alpha`", query.get());
 }
 
@@ -232,8 +219,7 @@ TEST_F(Find_statement_builder_test, add_gruping_two_items)
   Find_statement_builder_impl::Grouping_list group;
   *group.Add() << "type: IDENT identifier { name: 'alpha' }";
   *group.Add() << "type: IDENT identifier { name: 'beta' }";
-  Find_statement_builder_impl::Having having;
-  ASSERT_NO_THROW(builder.add_grouping(group, having));
+  ASSERT_NO_THROW(builder.add_grouping(group));
   EXPECT_EQ(" GROUP BY `alpha`,`beta`", query.get());
 }
 
@@ -245,37 +231,32 @@ TEST_F(Find_statement_builder_test, add_gruping_two_items_placeholder)
   Find_statement_builder_impl::Grouping_list group;
   *group.Add() << "type: IDENT identifier { name: 'alpha' }";
   *group.Add() << "type: PLACEHOLDER position: 0";
-  Find_statement_builder_impl::Having having;
-  ASSERT_NO_THROW(builder.add_grouping(group, having));
+  ASSERT_NO_THROW(builder.add_grouping(group));
   EXPECT_EQ(" GROUP BY `alpha`,2", query.get());
 }
 
 
-TEST_F(Find_statement_builder_test, add_gruping_and_having)
+TEST_F(Find_statement_builder_test, add_gruping_criteria)
 {
-  Find_statement_builder_impl::Grouping_list group;
-  *group.Add() << "type: IDENT identifier { name: 'alpha' }";
-  Find_statement_builder_impl::Having having;
-  having << "type: OPERATOR operator {name: '>'"
+  Find_statement_builder_impl::Grouping_criteria criteria;
+  criteria << "type: OPERATOR operator {name: '>'"
       "param {type: IDENT identifier {name: 'alpha'}}"
       "param {type: LITERAL literal {type: V_DOUBLE v_double: 1.0}}}";
-  ASSERT_NO_THROW(builder.add_grouping(group, having));
-  EXPECT_EQ(" GROUP BY `alpha` HAVING (`alpha` > 1)", query.get());
+  ASSERT_NO_THROW(builder.add_grouping_criteria(criteria));
+  EXPECT_EQ(" HAVING (`alpha` > 1)", query.get());
 }
 
 
-TEST_F(Find_statement_builder_test, add_gruping_and_having_placeholder)
+TEST_F(Find_statement_builder_test, add_gruping_criteria_placeholder)
 {
   *args.Add() << "type: V_DOUBLE v_double: 2.3";
 
-  Find_statement_builder_impl::Grouping_list group;
-  *group.Add() << "type: IDENT identifier { name: 'alpha' }";
-  Find_statement_builder_impl::Having having;
-  having << "type: OPERATOR operator {name: '>'"
+  Find_statement_builder_impl::Grouping_criteria criteria;
+  criteria << "type: OPERATOR operator {name: '>'"
       "param {type: IDENT identifier {name: 'alpha'}}"
       "param {type: PLACEHOLDER position: 0}}";
-  ASSERT_NO_THROW(builder.add_grouping(group, having));
-  EXPECT_EQ(" GROUP BY `alpha` HAVING (`alpha` > 2.3)", query.get());
+  ASSERT_NO_THROW(builder.add_grouping_criteria(criteria));
+  EXPECT_EQ(" HAVING (`alpha` > 2.3)", query.get());
 }
 
 
@@ -341,7 +322,7 @@ TEST_F(Find_statement_builder_test, add_statement_document_no_grouping)
 }
 
 
-TEST_F(Find_statement_builder_test, add_statement_document_with_grouping)
+TEST_F(Find_statement_builder_test, add_statement_document_with_grouping_and_criteria)
 {
   msg <<
       "collection {name: 'xtable' schema: 'xschema'}"
@@ -357,10 +338,10 @@ TEST_F(Find_statement_builder_test, add_statement_document_with_grouping)
       "                                                {type: V_DOUBLE"
       "                                             v_double: 1.0}}}}"
       "order {expr {type: IDENT identifier {document_path {type: MEMBER "
-      "                                                     value: 'gamma'}}}"
+      "                                                     value: 'beta'}}}"
       "       direction: DESC} "
       "grouping {type: IDENT identifier {document_path {type: MEMBER "
-      "                                                  value: 'beta'}}}"
+      "                                                  value: 'alpha'}}}"
       "grouping_criteria {type: OPERATOR "
       "          operator {name: '<' "
       "                    param {type: IDENT identifier {document_path {type: MEMBER "
@@ -375,15 +356,15 @@ TEST_F(Find_statement_builder_test, add_statement_document_with_grouping)
       "SELECT JSON_EXTRACT(doc,'$.alpha') AS `zeta` "
       "FROM `xschema`.`xtable` "
       "WHERE (JSON_EXTRACT(doc,'$.delta') > 1) "
-      "GROUP BY JSON_EXTRACT(doc,'$.beta') "
-      "HAVING (JSON_EXTRACT(doc,'$.lambda') < 2) "
-      "ORDER BY JSON_EXTRACT(doc,'$.gamma') DESC"
-      ") AS `_DERIVED_TABLE_`",
+      "GROUP BY JSON_EXTRACT(doc,'$.alpha') "
+      "ORDER BY JSON_EXTRACT(doc,'$.beta') DESC"
+      ") AS `_DERIVED_TABLE_` "
+      "HAVING (JSON_EXTRACT(doc,'$.lambda') < 2)",
       query.get());
 }
 
 
-TEST_F(Find_statement_builder_test, add_statement_document_with_more_grouping)
+TEST_F(Find_statement_builder_test, add_statement_document_with_grouping)
 {
   msg <<
       "collection {name: 'xtable' schema: 'xschema'}"
@@ -395,16 +376,16 @@ TEST_F(Find_statement_builder_test, add_statement_document_with_more_grouping)
       "                                                             value: 'gama'}}}"
       "            alias: 'ksi'} "
       "grouping {type: IDENT identifier {document_path {type: MEMBER "
-      "                                                  value: 'beta'}}}"
+      "                                                  value: 'alpha'}}}"
       "grouping {type: IDENT identifier {document_path {type: MEMBER "
-      "                                                  value: 'theta'}}}";
+      "                                                  value: 'gama'}}}";
   builder.set_document_model();
   ASSERT_NO_THROW(builder.add_statement());
   EXPECT_EQ(
       "SELECT JSON_OBJECT('zeta', `_DERIVED_TABLE_`.`zeta`,'ksi', `_DERIVED_TABLE_`.`ksi`) AS doc FROM ("
       "SELECT JSON_EXTRACT(doc,'$.alpha') AS `zeta`,JSON_EXTRACT(doc,'$.gama') AS `ksi` "
       "FROM `xschema`.`xtable` "
-      "GROUP BY JSON_EXTRACT(doc,'$.beta'),JSON_EXTRACT(doc,'$.theta')"
+      "GROUP BY JSON_EXTRACT(doc,'$.alpha'),JSON_EXTRACT(doc,'$.gama')"
       ") AS `_DERIVED_TABLE_`",
       query.get());
 }

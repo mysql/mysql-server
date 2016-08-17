@@ -381,8 +381,8 @@ ib_read_tuple(
 			ulint			col_no;
 			const dict_field_t*	index_field;
 
-			index_field = dict_index_get_nth_field(index, i);
-			col = dict_field_get_col(index_field);
+			index_field = index->get_field(i);
+			col = index_field->col;
 			col_no = dict_col_get_no(col);
 
 			dfield = dtuple_get_nth_field(dtuple, col_no);
@@ -833,8 +833,7 @@ ib_create_cursor(
 			++prebuilt->trx->n_mysql_tables_in_use;
 
 			 prebuilt->index_usable =
-				row_merge_is_index_usable(
-					prebuilt->trx, prebuilt->index);
+				 prebuilt->index->is_usable(prebuilt->trx);
 
 			/* Assign a read view if the transaction does
 			not have it yet */
@@ -1226,7 +1225,7 @@ ib_insert_query_graph_create(
 		node->ins->select = NULL;
 		node->ins->values_list = NULL;
 
-		row = dtuple_create(heap, dict_table_get_n_cols(table));
+		row = dtuple_create(heap, table->get_n_cols());
 		dict_table_copy_types(row, table);
 
 		ut_ad(!dict_table_have_virtual_index(table));
@@ -1528,7 +1527,7 @@ ib_execute_update_query_graph(
 
 	node = q_proc->node.upd;
 
-	ut_a(dict_index_is_clust(pcur->btr_cur.index));
+	ut_a(pcur->btr_cur.index->is_clustered());
 	btr_pcur_copy_stored_position(node->pcur, pcur);
 
 	ut_a(node->pcur->rel_pos == BTR_PCUR_ON);
@@ -1583,7 +1582,7 @@ ib_cursor_update_row(
 	const ib_tuple_t*old_tuple = (const ib_tuple_t*) ib_old_tpl;
 	const ib_tuple_t*new_tuple = (const ib_tuple_t*) ib_new_tpl;
 
-	if (dict_index_is_clust(prebuilt->index)) {
+	if (prebuilt->index->is_clustered()) {
 		pcur = cursor->prebuilt->pcur;
 	} else if (prebuilt->need_to_access_clustered) {
 		pcur = cursor->prebuilt->clust_pcur;
@@ -2362,10 +2361,10 @@ ib_col_get_name(
 	const char*	name;
 	ib_cursor_t*    cursor = (ib_cursor_t*) ib_crsr;
 	dict_table_t*	table = cursor->prebuilt->table;
-	dict_col_t*     col = dict_table_get_nth_col(table, i);
+	dict_col_t*     col = table->get_col(i);
 	ulint           col_no = dict_col_get_no(col);
 
-	name = dict_table_get_col_name(table, col_no);
+	name = table->get_col_name(col_no);
 
 	return(name);
 }
@@ -2376,15 +2375,15 @@ Get an index field name from the cursor.
 const char*
 ib_get_idx_field_name(
 /*==================*/
-	ib_crsr_t       ib_crsr,        /*!< in: InnoDB cursor instance */
+	ib_crsr_t	ib_crsr,	/*!< in: InnoDB cursor instance */
 	ib_ulint_t	i)		/*!< in: column index in tuple */
 {
-	ib_cursor_t*    cursor = (ib_cursor_t*) ib_crsr;
+	ib_cursor_t*	cursor = (ib_cursor_t*) ib_crsr;
 	dict_index_t*	index = cursor->prebuilt->index;
-	dict_field_t* 	field;
+	dict_field_t*	field;
 
 	if (index) {
-		field = dict_index_get_nth_field(cursor->prebuilt->index, i);
+		field = cursor->prebuilt->index->get_field(i);
 
 		if (field) {
 			return(field->name);
@@ -2825,7 +2824,7 @@ ib_clust_read_tuple_create(
 
 	index = cursor->prebuilt->table->first_index();
 
-	n_cols = dict_table_get_n_cols(cursor->prebuilt->table);
+	n_cols = cursor->prebuilt->table->get_n_cols();
 	return(ib_row_tuple_new(index, n_cols));
 }
 
@@ -2841,7 +2840,7 @@ ib_tuple_get_n_user_cols(
 
 	if (tuple->type == TPL_TYPE_ROW) {
 		return(static_cast<ib_ulint_t>(
-			dict_table_get_n_user_cols(tuple->index->table)));
+			(tuple->index->table->get_n_user_cols())));
 	}
 
 	return(static_cast<ib_ulint_t>(
@@ -3221,9 +3220,9 @@ ib_sdi_create_search_tuple(
 	ib_crsr_t		ib_crsr,
 	const dd::sdi_key_t*	sdi_key)
 {
-	ut_ad(dict_index_get_nth_field(ib_crsr->prebuilt->index, 0)->fixed_len
+	ut_ad(ib_crsr->prebuilt->index->get_field(0)->fixed_len
 	      == dd::SDI_KEY_LEN);
-	ut_ad(dict_index_get_nth_field(ib_crsr->prebuilt->index, 1)->fixed_len
+	ut_ad(ib_crsr->prebuilt->index->get_field(1)->fixed_len
 	      == dd::SDI_TYPE_LEN);
 
 	ib_tpl_t	key_tpl = ib_clust_search_tuple_create(ib_crsr);
@@ -3247,9 +3246,9 @@ ib_sdi_create_insert_tuple(
 	const void*		sdi,
 	uint64_t		sdi_len)
 {
-	ut_ad(dict_index_get_nth_field(ib_crsr->prebuilt->index, 0)->fixed_len
+	ut_ad(ib_crsr->prebuilt->index->get_field(0)->fixed_len
 	      == dd::SDI_KEY_LEN);
-	ut_ad(dict_index_get_nth_field(ib_crsr->prebuilt->index, 1)->fixed_len
+	ut_ad(ib_crsr->prebuilt->index->get_field(1)->fixed_len
 	      == dd::SDI_TYPE_LEN);
 
 	ib_tpl_t	tuple = ib_clust_read_tuple_create(ib_crsr);

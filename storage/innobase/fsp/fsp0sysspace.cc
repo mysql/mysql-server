@@ -122,7 +122,7 @@ SysTablespace::parse_units(char*& ptr)
 		break;
 	}
 
-	return(static_cast<page_no_t>((megs * 1024 * 1024) / UNIV_PAGE_SIZE));
+	return(static_cast<page_no_t>(megs * (1024 * 1024 / UNIV_PAGE_SIZE)));
 }
 
 /** Parse the input params and populate member variables.

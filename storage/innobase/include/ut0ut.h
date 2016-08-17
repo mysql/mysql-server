@@ -243,6 +243,26 @@ purposes.
 ulint
 ut_time_ms(void);
 /*============*/
+#ifdef _WIN32
+/** Initialize counter frequency and offset values used by high resolution
+timing functions on Windows. */
+void
+ut_win_init_time();
+
+/** Return the system time using a high resolution clock.
+Upon successful completion, the value 0 is returned; otherwise the
+value -1 is returned and the global variable errno is set to indicate the
+error.
+@param[out]	sec		seconds since the Epoch
+@param[out]	ms		microseconds since the Epoch+*sec
+@return 0 on success, -1 otherwise */
+int
+ut_high_res_usectime(
+	ulint*	sec,
+	ulint*	ms);
+#else
+#define ut_high_res_usectime	ut_usectime
+#endif /* _WIN32 */
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************//**

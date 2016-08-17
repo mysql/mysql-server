@@ -3256,3 +3256,45 @@ disconnect con1;
 SELECT 1 AS res;
 
 connection default;
+
+--echo #
+--echo # Bug#23743035: ADD A COPY_FILES_WILDCARD COMMAND
+--echo #
+
+--mkdir $MYSQLTEST_VARDIR/copy1/
+--mkdir $MYSQLTEST_VARDIR/copy2/
+
+# Copy multiple files using a pattern
+--copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/copy1/ word*
+--copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/copy1/ load*
+--copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/copy1/ *.txt
+--list_files $MYSQLTEST_VARDIR/copy1/
+
+# Copy all the files from the directory if no pattern is provided
+--copy_files_wildcard $MYSQLTEST_VARDIR/copy1/ $MYSQLTEST_VARDIR/copy2/
+--list_files $MYSQLTEST_VARDIR/copy2/
+
+# Overwriting of files is allowed
+--copy_files_wildcard $MYSQLTEST_VARDIR/copy2/ $MYSQLTEST_VARDIR/copy1/ *.txt
+
+# Files in the directory are not matched by the pattern provided
+--error 1
+--copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/copy1/ abc*
+
+# Source directory does not exist
+--error 1
+--copy_files_wildcard $MYSQLTEST_VARDIR/abc/ $MYSQLTEST_VARDIR/copy1/
+
+--remove_files_wildcard $MYSQLTEST_VARDIR/copy2/
+# Source directory does not have any files in it
+--error 1
+--copy_files_wildcard $MYSQLTEST_VARDIR/copy2/ $MYSQLTEST_VARDIR/copy1/
+
+--remove_files_wildcard $MYSQLTEST_VARDIR/copy1/
+--rmdir $MYSQLTEST_VARDIR/copy1/
+
+# Destination directory does not exist
+--error 1
+--copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/copy1/ *
+
+--rmdir $MYSQLTEST_VARDIR/copy2/

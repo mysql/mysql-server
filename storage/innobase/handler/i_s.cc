@@ -105,6 +105,9 @@ static buf_page_desc_t	i_s_page_type[] = {
 	{"COMPRESSED_BLOB2", FIL_PAGE_TYPE_ZBLOB2},
 	{"UNKNOWN", I_S_PAGE_TYPE_UNKNOWN},
 	{"PAGE_IO_COMPRESSED", FIL_PAGE_COMPRESSED},
+	{"PAGE_IO_ENCRYPTED", FIL_PAGE_ENCRYPTED},
+	{"PAGE_IO_COMPRESSED_ENCRYPTED", FIL_PAGE_COMPRESSED_AND_ENCRYPTED},
+	{"ENCRYPTED_RTREE", FIL_PAGE_ENCRYPTED_RTREE},
 	{"SDI_BLOB", FIL_PAGE_SDI_BLOB},
 	{"SDI_COMPRESSED_BLOB", FIL_PAGE_SDI_ZBLOB},
 	{"RTREE_INDEX", I_S_PAGE_TYPE_RTREE},
@@ -2998,13 +3001,20 @@ i_s_fts_deleted_generic_fill(
 		DBUG_RETURN(0);
 	}
 
+	/* Prevent DDL to drop fts aux tables. */
+	rw_lock_s_lock(dict_operation_lock);
+
 	user_table = dict_table_open_on_name(
 		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
+		rw_lock_s_unlock(dict_operation_lock);
+
 		DBUG_RETURN(0);
 	} else if (!dict_table_has_fts_index(user_table)) {
 		dict_table_close(user_table, FALSE, FALSE);
+
+		rw_lock_s_unlock(dict_operation_lock);
 
 		DBUG_RETURN(0);
 	}
@@ -3037,6 +3047,8 @@ i_s_fts_deleted_generic_fill(
 	fts_doc_ids_free(deleted);
 
 	dict_table_close(user_table, FALSE, FALSE);
+
+	rw_lock_s_unlock(dict_operation_lock);
 
 	DBUG_RETURN(0);
 }
@@ -3860,10 +3872,15 @@ i_s_fts_index_table_fill(
 		DBUG_RETURN(0);
 	}
 
+	/* Prevent DDL to drop fts aux tables. */
+	rw_lock_s_lock(dict_operation_lock);
+
 	user_table = dict_table_open_on_name(
 		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
+		rw_lock_s_unlock(dict_operation_lock);
+
 		DBUG_RETURN(0);
 	}
 
@@ -3875,6 +3892,8 @@ i_s_fts_index_table_fill(
 	}
 
 	dict_table_close(user_table, FALSE, FALSE);
+
+	rw_lock_s_unlock(dict_operation_lock);
 
 	DBUG_RETURN(0);
 }
@@ -4013,15 +4032,24 @@ i_s_fts_config_fill(
 		DBUG_RETURN(0);
 	}
 
+	DEBUG_SYNC_C("i_s_fts_config_fille_check");
+
 	fields = table->field;
+
+	/* Prevent DDL to drop fts aux tables. */
+	rw_lock_s_lock(dict_operation_lock);
 
 	user_table = dict_table_open_on_name(
 		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
+		rw_lock_s_unlock(dict_operation_lock);
+
 		DBUG_RETURN(0);
 	} else if (!dict_table_has_fts_index(user_table)) {
 		dict_table_close(user_table, FALSE, FALSE);
+
+		rw_lock_s_unlock(dict_operation_lock);
 
 		DBUG_RETURN(0);
 	}
@@ -4077,6 +4105,8 @@ i_s_fts_config_fill(
 	trx_free_for_background(trx);
 
 	dict_table_close(user_table, FALSE, FALSE);
+
+	rw_lock_s_unlock(dict_operation_lock);
 
 	DBUG_RETURN(0);
 }
@@ -4297,7 +4327,7 @@ i_s_innodb_temp_table_info_fill_table(
 	     table != NULL;
 	     table = UT_LIST_GET_NEXT(table_LRU, table)) {
 
-		if (!dict_table_is_temporary(table)) {
+		if (!table->is_temporary()) {
 			continue;
 		}
 
@@ -7202,7 +7232,7 @@ i_s_dict_fill_sys_columns(
 
 	OK(field_store_string(fields[SYS_COLUMN_NAME], col_name));
 
-	if (dict_col_is_virtual(column)) {
+	if (column->is_virtual()) {
 		ulint	pos = dict_create_v_col_pos(nth_v_col, column->ind);
 		OK(fields[SYS_COLUMN_POSITION]->store(pos, true));
 	} else {
@@ -8838,8 +8868,7 @@ i_s_files_table_fill(
 			space = NULL;
 			continue;
 		case FIL_TYPE_TABLESPACE:
-			if (!is_system_tablespace(space()->id)
-			    && srv_is_undo_tablespace(space()->id)) {
+			if (srv_is_undo_tablespace(space()->id)) {
 				type = "UNDO LOG";
 				break;
 			} /* else fall through for TABLESPACE */

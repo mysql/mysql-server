@@ -93,6 +93,8 @@ st_vio::st_vio(uint flags)
   remote= sockaddr_storage();
 #ifdef USE_PPOLL_IN_VIO
   sigemptyset(&signal_mask);
+#elif defined(HAVE_KQUEUE)
+  kq_fd= -1;
 #endif
   if (flags & VIO_BUFFERED_READ)
     read_buffer= (char*) my_malloc(key_memory_vio_read_buffer,
@@ -104,18 +106,34 @@ st_vio::~st_vio()
 {
   my_free(read_buffer);
   read_buffer= nullptr;
+#ifdef HAVE_KQUEUE
+  if (kq_fd != -1)
+    close(kq_fd);
+#endif
 }
 
 /*
  * Helper to fill most of the Vio* with defaults.
  */
 
-static void vio_init(Vio *vio, enum enum_vio_type type,
+static bool vio_init(Vio *vio, enum enum_vio_type type,
                      my_socket sd, uint flags)
 {
   DBUG_PRINT("enter vio_init", ("type: %d sd: %d  flags: %d", type, sd, flags));
 
   mysql_socket_setfd(&vio->mysql_socket, sd);
+
+#ifdef HAVE_KQUEUE
+  DBUG_ASSERT(type == VIO_TYPE_TCPIP || type == VIO_TYPE_SOCKET
+              || type == VIO_TYPE_SSL);
+  vio->kq_fd= kqueue();
+  if (vio->kq_fd == -1)
+  {
+    DBUG_PRINT("vio_init", ("kqueue failed with errno: %d", errno));
+    return true;
+  }
+#endif
+
   vio->localhost= flags & VIO_LOCALHOST;
   vio->type= type;
 
@@ -135,7 +153,7 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
     vio->io_wait        =no_io_wait;
     vio->is_connected   =vio_is_connected_pipe;
     vio->has_data       =has_no_data;
-    return;
+    return false;
   }
 #ifndef EMBEDDED_LIBRARY
   if (type == VIO_TYPE_SHARED_MEMORY)
@@ -153,7 +171,7 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
     vio->io_wait        =no_io_wait;
     vio->is_connected   =vio_is_connected_shared_memory;
     vio->has_data       =has_no_data;
-    return;
+    return false;
   }
 #endif /* !EMBEDDED_LIBRARY */
 #endif /* _WIN32 */
@@ -174,7 +192,7 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
     vio->is_connected   =vio_is_connected;
     vio->has_data       =vio_ssl_has_data;
     vio->timeout        =vio_socket_timeout;
-    return;
+    return false;
   }
 #endif /* HAVE_OPENSSL */
   vio->viodelete        =vio_delete;
@@ -191,6 +209,8 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
   vio->is_connected     =vio_is_connected;
   vio->timeout          =vio_socket_timeout;
   vio->has_data         =vio->read_buffer ? vio_buff_has_data : has_no_data;
+
+  return false;
 }
 
 
@@ -230,7 +250,8 @@ my_bool vio_reset(Vio* vio, enum enum_vio_type type,
   /* The only supported rebind is from a socket-based transport type. */
   DBUG_ASSERT(vio->type == VIO_TYPE_TCPIP || vio->type == VIO_TYPE_SOCKET);
 
-  vio_init(&new_vio, type, sd, flags);
+  if (vio_init(&new_vio, type, sd, flags))
+    DBUG_RETURN(TRUE);
 
   /* Preserve perfschema info for this connection */
   new_vio.mysql_socket.m_psi= vio->mysql_socket.m_psi;
@@ -261,9 +282,14 @@ my_bool vio_reset(Vio* vio, enum enum_vio_type type,
       Close socket only when it is not equal to the new one.
     */
     if (sd != mysql_socket_getfd(vio->mysql_socket))
+    {
       if (vio->inactive == false)
         vio->vioshutdown(vio);
- 
+    }
+#ifdef HAVE_KQUEUE
+    else
+      close(vio->kq_fd);
+#endif
     /*
       Overwrite existing Vio structure
       Note that the assignment operator is disabled: *vio= new_vio; 
@@ -272,9 +298,13 @@ my_bool vio_reset(Vio* vio, enum enum_vio_type type,
     */
     vio->~st_vio();
     memcpy(vio, &new_vio, sizeof(*vio));
-    new_vio.read_buffer= nullptr;             // Disable DTOR actions.
+    // Disable DTOR actions.
+    new_vio.read_buffer= nullptr;
+#ifdef HAVE_KQUEUE
+    new_vio.kq_fd= -1;
+#endif
   }
- 
+
   DBUG_RETURN(ret);
 }
 
@@ -296,10 +326,15 @@ Vio *mysql_socket_vio_new(MYSQL_SOCKET mysql_socket,
   my_socket sd= mysql_socket_getfd(mysql_socket);
   DBUG_ENTER("mysql_socket_vio_new");
   DBUG_PRINT("enter", ("sd: %d", sd));
-  
+
+
   if ((vio= internal_vio_create(flags)))
   {
-    vio_init(vio, type, sd, flags);
+    if (vio_init(vio, type, sd, flags))
+    {
+      internal_vio_delete(vio);
+      DBUG_RETURN(nullptr);
+    }
     vio->mysql_socket= mysql_socket;
   }
   DBUG_RETURN(vio);
@@ -328,7 +363,12 @@ Vio *vio_new_win32pipe(HANDLE hPipe)
   DBUG_ENTER("vio_new_handle");
   if ((vio= internal_vio_create(VIO_LOCALHOST)))
   {
-    vio_init(vio, VIO_TYPE_NAMEDPIPE, 0, VIO_LOCALHOST);
+    if (vio_init(vio, VIO_TYPE_NAMEDPIPE, 0, VIO_LOCALHOST))
+    {
+      internal_vio_delete(vio);
+      DBUG_RETURN(nullptr);
+    }
+
     /* Create an object for event notification. */
     vio->overlapped.hEvent= CreateEvent(NULL, FALSE, FALSE, NULL);
     if (vio->overlapped.hEvent == NULL)
@@ -351,7 +391,11 @@ Vio *vio_new_win32shared_memory(HANDLE handle_file_map, HANDLE handle_map,
   DBUG_ENTER("vio_new_win32shared_memory");
   if ((vio = internal_vio_create(VIO_LOCALHOST)))
   {
-    vio_init(vio, VIO_TYPE_SHARED_MEMORY, 0, VIO_LOCALHOST);
+    if (vio_init(vio, VIO_TYPE_SHARED_MEMORY, 0, VIO_LOCALHOST))
+    {
+      internal_vio_delete(vio);
+      DBUG_RETURN(nullptr);
+    }
     vio->handle_file_map= handle_file_map;
     vio->handle_map= reinterpret_cast<char*>(handle_map);
     vio->event_server_wrote= event_server_wrote;

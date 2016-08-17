@@ -418,10 +418,6 @@ private:
 public:
   Gtid *get_last_gtid_queued() { return &last_gtid_queued; }
   void set_last_gtid_queued(Gtid &gtid) { last_gtid_queued= gtid; }
-  void set_last_gtid_queued(rpl_sidno sno, rpl_gno gtidno)
-  {
-    last_gtid_queued.set(sno, gtidno);
-  }
   void clear_last_gtid_queued() { last_gtid_queued.clear(); }
 
   /*
@@ -499,7 +495,6 @@ public:
   */
   void wait_until_no_reference(THD *thd);
 };
-int change_master_server_id_cmp(ulong *id1, ulong *id2);
 
 #endif /* HAVE_REPLICATION */
 #endif /* RPL_MI_H */

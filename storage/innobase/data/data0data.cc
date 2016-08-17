@@ -534,7 +534,7 @@ dtuple_convert_big_rec(
 	ulint		local_len;
 	ulint		local_prefix_len;
 
-	if (!dict_index_is_clust(index)) {
+	if (!index->is_clustered()) {
 		return(NULL);
 	}
 
@@ -585,7 +585,7 @@ dtuple_convert_big_rec(
 			ulint	savings;
 
 			dfield = dtuple_get_nth_field(entry, i);
-			ifield = dict_index_get_nth_field(index, i);
+			ifield = index->get_field(i);
 
 			/* Skip fixed-length, NULL, externally stored,
 			or short columns */
@@ -642,7 +642,7 @@ skip_field:
 		from locally stored data. */
 
 		dfield = dtuple_get_nth_field(entry, longest_i);
-		ifield = dict_index_get_nth_field(index, longest_i);
+		ifield = index->get_field(longest_i);
 		local_prefix_len = local_len - BTR_EXTERN_FIELD_REF_SIZE;
 
 		vector->append(

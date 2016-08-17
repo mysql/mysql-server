@@ -11,7 +11,7 @@ values ('localhost', 'user3', '%', 'YES', 'YES');
 insert into performance_schema.setup_actors
 values ('hostb', '%', '%', 'YES', 'YES');
 select * from performance_schema.setup_actors
-order by USER, HOST, ROLE;
+order by USER, HOST, `ROLE`;
 HOST	USER	ROLE	ENABLED	HISTORY
 hostb	%	%	YES	YES
 hosta	user1	%	YES	YES
@@ -103,7 +103,7 @@ thread/sql/one_connection	FOREGROUND	NO	user4	localhost
 insert into performance_schema.setup_actors
 values ('localhost', '%', '%', 'YES', 'YES');
 select * from performance_schema.setup_actors
-order by USER, HOST, ROLE;
+order by USER, HOST, `ROLE`;
 HOST	USER	ROLE	ENABLED	HISTORY
 hostb	%	%	YES	YES
 localhost	%	%	YES	YES

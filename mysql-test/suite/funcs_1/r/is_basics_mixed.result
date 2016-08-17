@@ -127,7 +127,7 @@ CREATE USER 'testuser1'@'localhost';
 GRANT ALL ON *.* TO testuser1@localhost;
 SHOW GRANTS FOR testuser1@localhost;
 Grants for testuser1@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'testuser1'@'localhost'
+GRANT ALL PRIVILEGES ON *.* TO `testuser1`@`localhost`
 # Establish connection testuser1 (user=testuser1)
 USE information_schema;
 CREATE TABLE schemata                              ( c1 INT );

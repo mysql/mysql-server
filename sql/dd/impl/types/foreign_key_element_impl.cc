@@ -55,8 +55,6 @@ const Object_type &Foreign_key_element::TYPE()
 // Foreign_key_element_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-// Foreign keys not supported in the Global DD yet
-/* purecov: begin deadcode */
 const Foreign_key &Foreign_key_element_impl::foreign_key() const
 {
   return *m_foreign_key;
@@ -127,12 +125,15 @@ bool Foreign_key_element_impl::restore_attributes(const Raw_record &r)
 
 bool Foreign_key_element_impl::store_attributes(Raw_record *r)
 {
-  return r->store(Foreign_key_column_usage::FIELD_ORDINAL_POSITION, m_ordinal_position) ||
-         r->store(Foreign_key_column_usage::FIELD_FOREIGN_KEY_ID, m_foreign_key->id()) ||
-         r->store(Foreign_key_column_usage::FIELD_COLUMN_ID, m_column->id()) ||
-         r->store(Foreign_key_column_usage::FIELD_REFERENCED_COLUMN_NAME, m_referenced_column_name);
+  return r->store(Foreign_key_column_usage::FIELD_ORDINAL_POSITION,
+                  m_ordinal_position) ||
+         r->store(Foreign_key_column_usage::FIELD_FOREIGN_KEY_ID,
+                  m_foreign_key->id()) ||
+         r->store(Foreign_key_column_usage::FIELD_COLUMN_ID,
+                  m_column->id()) ||
+         r->store(Foreign_key_column_usage::FIELD_REFERENCED_COLUMN_NAME,
+                  m_referenced_column_name);
 }
-/* purecov: end */
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -179,7 +180,6 @@ void Foreign_key_element_impl::debug_print(std::string &outb) const
 
 ///////////////////////////////////////////////////////////////////////////
 
-/* purecov: begin deadcode */
 Object_key *Foreign_key_element_impl::create_primary_key() const
 {
   return Foreign_key_column_usage::create_primary_key(
@@ -210,7 +210,6 @@ Foreign_key_element_impl(const Foreign_key_element_impl &src,
     m_ordinal_position(src.m_ordinal_position),
     m_referenced_column_name(src.m_referenced_column_name)
 {}
-/* purecov: end */
 
 ///////////////////////////////////////////////////////////////////////////
 // Foreign_key_element_type implementation.

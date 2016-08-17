@@ -428,16 +428,6 @@ public:
  
     void clean() { order= NULL; src= ESC_none; flags= ESP_none; }
 
-    void set_flag(Explain_sort_property flag)
-    {
-      DBUG_ASSERT(order);
-      flags|= flag;
-    }
-    void reset_flag(Explain_sort_property flag) { flags&= ~flag; }
-    bool get_flag(Explain_sort_property flag) const {
-      DBUG_ASSERT(order);
-      return flags & flag;
-    }
     int get_flags() const { DBUG_ASSERT(order); return flags; }
   };
 
@@ -581,7 +571,6 @@ public:
   void exec();
   bool prepare_result();
   bool destroy();
-  void restore_tmp();
   bool alloc_func_list();
   bool make_sum_func_list(List<Item> &all_fields,
                           List<Item> &send_fields,
@@ -656,9 +645,6 @@ public:
   MY_ATTRIBUTE((warn_unused_result))
   bool clear();
 
-  bool save_join_tab();
-  void restore_join_tab();
-  bool init_save_join_tab();
   /**
     Return whether the caller should send a row even if the join 
     produced no rows if:
@@ -727,13 +713,7 @@ private:
 
   /// Final execution plan state. Currently used only for EXPLAIN
   enum_plan_state plan_state;
-  /**
-    Send current query result set to the client. To be called from JOIN::execute
 
-    @note       Explain skips this call during JOIN::execute() execution
-  */
-  void send_data();
-  
   /**
     Create a temporary table to be used for processing DISTINCT/ORDER
     BY/GROUP BY.
@@ -753,11 +733,6 @@ private:
   bool create_intermediate_table(QEP_TAB *tab, List<Item> *tmp_table_fields,
                                  ORDER_with_src &tmp_table_group,
                                  bool save_sum_fields);
-  /**
-    Create the first temporary table to be used for processing DISTINCT/ORDER
-    BY/GROUP BY.
-  */
-  bool create_first_intermediate_table();
   /**
     Optimize distinct when used on a subset of the tables.
 

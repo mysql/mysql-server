@@ -1,3 +1,4 @@
+--source include/no_valgrind_without_big.inc
 --disable_warnings
 let $ENGINE=`select variable_value from performance_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 if ($ENGINE == "MyISAM")

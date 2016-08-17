@@ -64,7 +64,7 @@ GRANT INSERT,UPDATE ON processlist TO current_user;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 SHOW GRANTS;
 Grants for root@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 CREATE INDEX i_processlist ON processlist (user);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
@@ -130,7 +130,7 @@ GRANT INSERT,UPDATE ON processlist TO current_user;
 ERROR 42000: Access denied for user 'ddicttestuser1'@'localhost' to database 'information_schema'
 SHOW GRANTS;
 Grants for ddicttestuser1@localhost
-GRANT USAGE ON *.* TO 'ddicttestuser1'@'localhost'
+GRANT USAGE ON *.* TO `ddicttestuser1`@`localhost`
 CREATE INDEX i_processlist ON processlist (user);
 ERROR 42000: Access denied for user 'ddicttestuser1'@'localhost' to database 'information_schema'
 DROP TABLE processlist;
@@ -164,7 +164,7 @@ SHOW/SELECT shows only the processes (1) of the user.
 ####################################################################################
 SHOW GRANTS;
 Grants for ddicttestuser1@localhost
-GRANT PROCESS ON *.* TO 'ddicttestuser1'@'localhost'
+GRANT PROCESS ON *.* TO `ddicttestuser1`@`localhost`
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	STATE	SHOW processlist
@@ -177,7 +177,7 @@ SHOW/SELECT shows all processes/threads.
 ####################################################################################
 SHOW GRANTS;
 Grants for ddicttestuser1@localhost
-GRANT PROCESS ON *.* TO 'ddicttestuser1'@'localhost'
+GRANT PROCESS ON *.* TO `ddicttestuser1`@`localhost`
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	STATE	SHOW processlist
@@ -209,7 +209,7 @@ SHOW/SELECT shows all processes/threads.
 ####################################################################################
 SHOW GRANTS;
 Grants for @localhost
-GRANT PROCESS ON *.* TO ''@'localhost'
+GRANT PROCESS ON *.* TO ``@`localhost`
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID		HOST_NAME	information_schema	Query	TIME	STATE	SHOW processlist
@@ -234,7 +234,7 @@ ddicttestuser1 are visible.
 ####################################################################################
 SHOW GRANTS;
 Grants for ddicttestuser1@localhost
-GRANT USAGE ON *.* TO 'ddicttestuser1'@'localhost'
+GRANT USAGE ON *.* TO `ddicttestuser1`@`localhost`
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	STATE	SHOW processlist
@@ -257,7 +257,7 @@ Again only the processes of the anonymous user are visible.
 ####################################################################################
 SHOW GRANTS FOR ''@'localhost';
 Grants for @localhost
-GRANT USAGE ON *.* TO ''@'localhost'
+GRANT USAGE ON *.* TO ``@`localhost`
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 ID		HOST_NAME	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist
@@ -273,7 +273,7 @@ Only the processes of ddicttestuser1 user are visible.
 ####################################################################################
 SHOW GRANTS FOR 'ddicttestuser1'@'localhost';
 Grants for ddicttestuser1@localhost
-GRANT SUPER ON *.* TO 'ddicttestuser1'@'localhost'
+GRANT SUPER ON *.* TO `ddicttestuser1`@`localhost`
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	STATE	SHOW processlist
@@ -298,7 +298,7 @@ Only the processes of ddicttestuser1 are visible.
 ####################################################################################
 SHOW GRANTS FOR 'ddicttestuser1'@'localhost';
 Grants for ddicttestuser1@localhost
-GRANT USAGE ON *.* TO 'ddicttestuser1'@'localhost'
+GRANT USAGE ON *.* TO `ddicttestuser1`@`localhost`
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	STATE	SHOW processlist
@@ -324,7 +324,7 @@ Try to grant PROCESS privilege to user ddicttestuser2 without having it.
 ####################################################################################
 SHOW GRANTS FOR 'ddicttestuser1'@'localhost';
 Grants for ddicttestuser1@localhost
-GRANT SUPER ON *.* TO 'ddicttestuser1'@'localhost' WITH GRANT OPTION
+GRANT SUPER ON *.* TO `ddicttestuser1`@`localhost` WITH GRANT OPTION
 GRANT PROCESS ON *.* TO 'ddicttestuser2'@'localhost';
 ERROR 28000: Access denied for user 'ddicttestuser1'@'localhost' (using password: YES)
 ####################################################################################
@@ -338,7 +338,7 @@ Grant PROCESS privilege to user ddicttestuser2
 ####################################################################################
 SHOW GRANTS FOR 'ddicttestuser1'@'localhost';
 Grants for ddicttestuser1@localhost
-GRANT PROCESS, SUPER ON *.* TO 'ddicttestuser1'@'localhost' WITH GRANT OPTION
+GRANT PROCESS, SUPER ON *.* TO `ddicttestuser1`@`localhost` WITH GRANT OPTION
 GRANT PROCESS ON *.* TO 'ddicttestuser2'@'localhost';
 ####################################################################################
 10.4 New connection con200 (ddicttestuser2 with PROCESS privilege)
@@ -346,7 +346,7 @@ ddicttestuser2 has now the PROCESS privilege and sees all connections
 ####################################################################################
 SHOW GRANTS FOR 'ddicttestuser2'@'localhost';
 Grants for ddicttestuser2@localhost
-GRANT PROCESS ON *.* TO 'ddicttestuser2'@'localhost'
+GRANT PROCESS ON *.* TO `ddicttestuser2`@`localhost`
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID		HOST_NAME	information_schema	Sleep	TIME		NULL
@@ -384,7 +384,7 @@ ddicttestuser2 has no more the PROCESS privilege and can only see own connects
 ####################################################################################
 SHOW GRANTS;
 Grants for ddicttestuser2@localhost
-GRANT USAGE ON *.* TO 'ddicttestuser2'@'localhost'
+GRANT USAGE ON *.* TO `ddicttestuser2`@`localhost`
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID	ddicttestuser2	HOST_NAME	information_schema	Query	TIME	STATE	SHOW processlist
@@ -405,7 +405,7 @@ He is also unable to GRANT the PROCESS privilege to ddicttestuser2
 ####################################################################################
 SHOW GRANTS FOR 'ddicttestuser1'@'localhost';
 Grants for ddicttestuser1@localhost
-GRANT USAGE ON *.* TO 'ddicttestuser1'@'localhost'
+GRANT USAGE ON *.* TO `ddicttestuser1`@`localhost`
 GRANT PROCESS ON *.* TO 'ddicttestuser2'@'localhost';
 ERROR 28000: Access denied for user 'ddicttestuser1'@'localhost' (using password: YES)
 SHOW processlist;
@@ -442,7 +442,7 @@ Therefore the missing SELECT privilege does not affect SELECTs on PROCESSLIST.
 ####################################################################################
 SHOW GRANTS FOR 'ddicttestuser1'@'localhost';
 Grants for ddicttestuser1@localhost
-GRANT USAGE ON *.* TO 'ddicttestuser1'@'localhost'
+GRANT USAGE ON *.* TO `ddicttestuser1`@`localhost`
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	STATE	SHOW processlist

@@ -579,7 +579,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 USE test;
 SHOW GRANTS FOR CURRENT_USER;
 Grants for root@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 SET GLOBAL event_scheduler = ON;
 CREATE TABLE events_test.event_log
@@ -593,9 +593,9 @@ GRANT create, insert, select, event ON events_test.* TO evtest1@localhost;
 GRANT select,insert ON test.* TO evtest1@localhost;
 SHOW GRANTS FOR evtest1@localhost;
 Grants for evtest1@localhost
-GRANT USAGE ON *.* TO 'evtest1'@'localhost'
-GRANT SELECT, INSERT ON `test`.* TO 'evtest1'@'localhost'
-GRANT SELECT, INSERT, CREATE, EVENT ON `events_test`.* TO 'evtest1'@'localhost'
+GRANT USAGE ON *.* TO `evtest1`@`localhost`
+GRANT SELECT, INSERT ON `test`.* TO `evtest1`@`localhost`
+GRANT SELECT, INSERT, CREATE, EVENT ON `events_test`.* TO `evtest1`@`localhost`
 connection e1;
 CREATE EVENT ev_sched_1823 ON SCHEDULE EVERY 2 SECOND
 DO BEGIN

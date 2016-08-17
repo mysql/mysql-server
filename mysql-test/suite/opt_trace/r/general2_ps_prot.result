@@ -1561,6 +1561,10 @@ call p1()	{
   "steps": [
   ] /* steps */
 }	0	0
+call p1()	{
+  "steps": [
+  ] /* steps */
+}	0	0
 jump_if_not 2(2) exists(select 1)	{
   "steps": [
     {
@@ -2062,6 +2066,20 @@ set optimizer_trace_offset=0, optimizer_trace_limit=100;
 call p1((select a from t1 limit 1));
 select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+call p1((select a from t1 limit 1))	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 2,
+        "steps": [
+          {
+            "expanded_query": "/* select#2 */ select `t1`.`a` from `t1` limit 1"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    }
+  ] /* steps */
+}	0	0
 call p1((select a from t1 limit 1))	{
   "steps": [
     {

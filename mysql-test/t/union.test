@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Test of unions
 #
@@ -15,6 +10,8 @@ CREATE TABLE t1 (a int not null, b char (10) not null);
 insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
 CREATE TABLE t2 (a int not null, b char (10) not null);
 insert into t2 values (3,'c'),(4,'d'),(5,'f'),(6,'e');
+analyze table t1;
+analyze table t2;
 
 select a,b from t1 union distinct select a,b from t2;
 select a,b from t1 union all select a,b from t2;
@@ -27,9 +24,11 @@ select 't1',b,count(*) from t1 group by b UNION select 't2',b,count(*) from t2 g
 # Test alternate syntax for unions 
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 4;
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1);
+--replace_column 10 # 11 #
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
 --error 1250
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by t1.b;
+--replace_column 10 # 11 #
 explain extended (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
 select count(*) from (
 (select                      a,b from t1 limit 2)  union all (select a,b from t2 order by a)) q;
@@ -39,7 +38,7 @@ select count(*) from (
 select                      a,b from t1  union all select a,b from t2) q;
 select sql_calc_found_rows  a,b from t1  union all select a,b from t2 limit 2;
 select found_rows();
-
+--replace_column 10 # 11 #
 explain extended 
   select * from t1 where a in
     (select a from t1 union select a from t1 order by (select a))
@@ -47,7 +46,7 @@ explain extended
 #
 # Test some error conditions with UNION
 #
-
+--replace_column 10 # 11 #
 explain select a,b from t1 union all select a,b from t2;
 
 --error  1054
@@ -325,6 +324,8 @@ select length(version()) > 1 as `*` UNION select 2;
 
 create table t1 (a int);
 insert into t1 values (0), (3), (1), (2);
+analyze table t1;
+--replace_column 10 # 11 #
 explain (select * from t1) union (select * from t1) order by a;
 drop table t1;
 #
@@ -352,24 +353,27 @@ create table t1 (a int not null primary key auto_increment, b int, key(b));
 create table t2 (a int not null primary key auto_increment, b int);
 insert into t1 (b) values (1),(2),(2),(3);
 insert into t2 (b) values (10),(11),(12),(13);
+analyze table t1;
 
 explain extended (select * from t1 where a=1) union (select * from t2 where a=1);
 (select * from t1 where a=5) union (select * from t2 where a=1);
 (select * from t1 where a=5 and a=6) union (select * from t2 where a=1);
 (select t1.a,t1.b from t1,t2 where t1.a=5) union (select * from t2 where a=1);
 (select * from t1 where a=1) union (select t1.a,t2.a from t1,t2 where t1.a=t2.a);
+--replace_column 10 #
 explain (select * from t1 where a=1 and b=10) union (select straight_join t1.a,t2.a from t1,t2 where t1.a=t2.a);
+--replace_column 10 # 11 #
 explain (select * from t1 where a=1) union (select * from t1 where b=1);
 drop table t1,t2;
-create table t1 (   id int not null auto_increment, primary key (id)   ,user_name text );
-create table t2 (    id int not null auto_increment, primary key (id)   ,group_name text );
-create table t3 (    id int not null auto_increment, primary key (id)   ,user_id int   ,index user_idx (user_id)   ,foreign key (user_id) references users(id)   ,group_id int   ,index group_idx (group_id)   ,foreign key (group_id) references groups(id) );
-insert into t1 (user_name) values ('Tester');
-insert into t2 (group_name) values ('Group A');
-insert into t2 (group_name) values ('Group B');
+create table groups (id int not null auto_increment, primary key (id) ,user_name text );
+create table users (id int not null auto_increment, primary key (id) ,group_name text );
+create table t3 (id int not null auto_increment, primary key (id),user_id int,index user_idx (user_id),foreign key (user_id) references users(id),group_id int,index group_idx (group_id),foreign key (group_id) references groups(id) );
+insert into groups (user_name) values ('Tester');
+insert into users (group_name) values ('Group A');
+insert into users (group_name) values ('Group B');
 insert into t3 (user_id, group_id) values (1,1);
-select 1 'is_in_group', a.user_name, c.group_name, b.id from t1 a, t3 b, t2 c where a.id = b.user_id and b.group_id = c.id UNION  select 0 'is_in_group', a.user_name, c.group_name, null from t1 a, t2 c;
-drop table t1, t2, t3;
+select 1 'is_in_group', a.user_name, c.group_name, b.id from groups a, t3 b, users c where a.id = b.user_id and b.group_id = c.id UNION  select 0 'is_in_group', a.user_name, c.group_name, null from groups a, users c;
+drop table t3, users, groups;
 
 #
 # fix_fields problem
@@ -819,10 +823,23 @@ drop table t1;
 # Test that union with VARCHAR produces dynamic row tables
 #
 
+# Following scenario is to test the functionality of MyISAM
+
+create table t1 (a varchar(5)) engine=myisam;
+create table t2 engine=myisam select * from t1 union select 'abcdefghijkl';
+show create table t2;
+select row_format from information_schema.TABLES where table_schema="test" and table_name="t2";
+alter table t2 ROW_FORMAT=fixed;
+show create table t2;
+drop table t1,t2;
+
+# Following scenario is to test the functionality of InnoDB
+
 create table t1 (a varchar(5));
 create table t2 select * from t1 union select 'abcdefghijkl';
 show create table t2;
 select row_format from information_schema.TABLES where table_schema="test" and table_name="t2";
+--error ER_ILLEGAL_HA_CREATE_OPTION
 alter table t2 ROW_FORMAT=fixed;
 show create table t2;
 drop table t1,t2;

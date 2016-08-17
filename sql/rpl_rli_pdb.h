@@ -80,8 +80,6 @@ Slave_worker *get_least_occupied_worker(Relay_log_info *rli,
 
 #define SLAVE_INIT_DBS_IN_GROUP 4     // initial allocation for CGEP dynarray
 
-#define NUMBER_OF_FIELDS_TO_IDENTIFY_WORKER 2
-
 typedef struct st_slave_job_group
 {
   char *group_master_log_name;   // (actually redundant)

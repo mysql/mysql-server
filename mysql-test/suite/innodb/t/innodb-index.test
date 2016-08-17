@@ -210,15 +210,11 @@ commit;
 alter table t4 add constraint dc foreign key (a) references t1(a);
 --disable_info
 show create table t4;
-# mysqltest first does replace_regex, then replace_result
---replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLD_DATADIR ./ master-data/ ''
 # a foreign key 'test/dc' already exists
---error ER_DUP_KEY
+--error ER_FK_DUP_NAME
 alter table t3 add constraint dc foreign key (a) references t1(a);
 SET FOREIGN_KEY_CHECKS=0;
---error ER_FK_FAIL_ADD_SYSTEM
+--error ER_FK_DUP_NAME
 alter table t3 add constraint dc foreign key (a) references t1(a);
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 show create table t3;

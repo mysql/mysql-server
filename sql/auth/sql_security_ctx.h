@@ -1,7 +1,7 @@
 #ifndef SQL_SECURITY_CTX_INCLUDED
 #define SQL_SECURITY_CTX_INCLUDED
 
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,8 +21,15 @@
 #include "mysql_com.h"
 #include "sql_const.h"
 #include "auth/auth_acls.h"
+#include "auth/auth_common.h"
 
 #include <algorithm>
+#include <utility>
+#include <list>
+
+/* Forward declaration. Depends on sql_auth_cache.h (which depends on this file) */
+class Acl_map;
+struct Grant_table_aggregate;
 
 extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
@@ -74,11 +81,27 @@ public:
     DBUG_RETURN(user);
   }
 
-
   inline void set_user_ptr(const char *user_arg, const size_t user_arg_length);
 
   inline void assign_user(const char *user_arg, const size_t user_arg_length);
 
+ #ifndef NO_EMBEDDED_ACCESS_CHECKS
+  int activate_role(LEX_CSTRING user, LEX_CSTRING host,
+                    bool validate_access= false);
+  void clear_active_roles(void);
+  List_of_auth_id_refs *get_active_roles();
+  void checkout_access_maps(void);
+  ulong db_acl(LEX_CSTRING db, bool use_pattern_scan= true);
+  ulong procedure_acl(LEX_CSTRING db, LEX_CSTRING procedure_name);
+  ulong function_acl(LEX_CSTRING db, LEX_CSTRING procedure_name);
+  ulong table_acl(LEX_CSTRING db, LEX_CSTRING table);
+  Grant_table_aggregate table_and_column_acls(LEX_CSTRING db,
+                                              LEX_CSTRING table);
+  bool has_with_admin_acl(const LEX_CSTRING &role_name,
+                          const LEX_CSTRING &role_host);
+  bool any_sp_acl(const LEX_CSTRING &db);
+  bool any_table_acl(const LEX_CSTRING &db);
+#endif
 
   /**
     Getter method for member m_host.
@@ -225,17 +248,7 @@ public:
     and its length
   */
 
-  LEX_CSTRING priv_user() const
-  {
-    LEX_CSTRING priv_user;
-
-    DBUG_ENTER("Security_context::priv_user");
-
-    priv_user.str= m_priv_user;
-    priv_user.length= m_priv_user_length;
-
-    DBUG_RETURN(priv_user);
-  }
+  LEX_CSTRING priv_user() const;
 
 
   inline void assign_priv_user(const char *priv_user_arg,
@@ -309,7 +322,10 @@ public:
 
   void set_master_access(ulong master_access)
   {
+    DBUG_ENTER("set_master_access");
     m_master_access= master_access;
+    DBUG_PRINT("info",("Cached master access is %lu", m_master_access));
+    DBUG_VOID_RETURN;
   }
 
   /**
@@ -321,9 +337,9 @@ public:
     2) assign user's hostname to the context
     Whilst user name can be null, hostname cannot. This is why we can say that
     the full account has been assigned to the context when hostname is not
-    equal to empty string. 
+    equal to empty string.
 
-    @return Account assignment status 
+    @return Account assignment status
       @retval TRUE account has been assigned to the security context
       @retval FALSE account has not yet been assigned to the security context
   */
@@ -337,24 +353,31 @@ public:
     Check permission against m_master_access
   */
 
-  bool check_access(ulong want_access, bool match_any= false)
-  {
-    return (match_any ? (m_master_access & want_access) :
-                        ((m_master_access & want_access) == want_access));
-  }
-
+  /**
+    Check global access
+    @param want_access The required privileges
+    @param match_any if the security context must match all or any of the req.
+   *                 privileges.
+    @return True if the security context fulfills the access requirements.
+  */
+  bool check_access(ulong want_access, bool match_any= false);
 
   /**
-    Getter method for member m_db_access.
+   Returns the schema level effective privileges (with applied roles)
+   for the currently active schema.
   */
-
-  ulong db_access() const
+  ulong current_db_access() const
   {
     return m_db_access;
   }
 
 
-  void set_db_access(ulong db_access)
+  /**
+    Cache the schema level effective privileges (apply roles first!) for the
+    currently active schema.
+    @param db_access
+  */
+  void cache_current_db_access(ulong db_access)
   {
     m_db_access= db_access;
   }
@@ -381,11 +404,13 @@ public:
 
   void
   restore_security_context(THD *thd, Security_context *backup);
+
 #endif
   bool user_matches(Security_context *);
 
-private:
+  void logout();
   void init();
+private:
   void destroy();
   void copy_security_ctx(const Security_context &src_sctx);
 
@@ -441,6 +466,11 @@ private:
     effective user.
   */
   bool m_password_expired;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  List_of_auth_id_refs m_active_roles;
+  Acl_map *m_acl_map;
+  int m_map_checkout_count;
+#endif
 };
 
 

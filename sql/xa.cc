@@ -1047,7 +1047,7 @@ static const uchar *transaction_get_hash_key(const uchar *ptr, size_t *length)
   @param ptr  pointer to free
 */
 
-void transaction_free_hash(void *ptr)
+static void transaction_free_hash(void *ptr)
 {
   Transaction_ctx *transaction= (Transaction_ctx*)ptr;
   // Only time it's allocated is during recovery process.

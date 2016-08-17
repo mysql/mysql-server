@@ -172,45 +172,6 @@ void
 dict_table_persist_to_dd_table_buffer(
 	dict_table_t*	table);
 
-/*********************************************************************//**
-Gets the minimum number of bytes per character.
-@return minimum multi-byte char size, in bytes */
-UNIV_INLINE
-ulint
-dict_col_get_mbminlen(
-/*==================*/
-	const dict_col_t*	col)	/*!< in: column */
-	MY_ATTRIBUTE((warn_unused_result));
-/*********************************************************************//**
-Gets the maximum number of bytes per character.
-@return maximum multi-byte char size, in bytes */
-UNIV_INLINE
-ulint
-dict_col_get_mbmaxlen(
-/*==================*/
-	const dict_col_t*	col)	/*!< in: column */
-	MY_ATTRIBUTE((warn_unused_result));
-
-/** Sets the minimum and maximum number of bytes per character.
-@param[in,out]	col		column
-@param[in]	mbminlen	minimum multi-byte character size, in bytes
-@param[in]	mbmaxlen	maximum multi-byte character size, in bytes */
-UNIV_INLINE
-void
-dict_col_set_mbminmaxlen(
-	dict_col_t*	col,
-	ulint		mbminlen,
-	ulint		mbmaxlen);
-
-/** Gets the column data type.
-@param[in]	col	column
-@param[out]	type	data type */
-UNIV_INLINE
-void
-dict_col_copy_type(
-	const dict_col_t*	col,
-	dtype_t*		type);
-
 /**********************************************************************//**
 Determine bytes of column prefix to be stored in the undo log. Please
 note that if !dict_table_has_atomic_blobs(table), no prefix
@@ -236,59 +197,6 @@ dict_max_v_field_len_store_undo(
 	dict_table_t*		table,
 	ulint			col_no);
 
-#endif /* !UNIV_HOTBACKUP */
-#ifdef UNIV_DEBUG
-/*********************************************************************//**
-Assert that a column and a data type match.
-@return TRUE */
-UNIV_INLINE
-ibool
-dict_col_type_assert_equal(
-/*=======================*/
-	const dict_col_t*	col,	/*!< in: column */
-	const dtype_t*		type)	/*!< in: data type */
-	MY_ATTRIBUTE((warn_unused_result));
-#endif /* UNIV_DEBUG */
-#ifndef UNIV_HOTBACKUP
-/***********************************************************************//**
-Returns the minimum size of the column.
-@return minimum size */
-UNIV_INLINE
-ulint
-dict_col_get_min_size(
-/*==================*/
-	const dict_col_t*	col)	/*!< in: column */
-	MY_ATTRIBUTE((warn_unused_result));
-/***********************************************************************//**
-Returns the maximum size of the column.
-@return maximum size */
-UNIV_INLINE
-ulint
-dict_col_get_max_size(
-/*==================*/
-	const dict_col_t*	col)	/*!< in: column */
-	MY_ATTRIBUTE((warn_unused_result));
-/***********************************************************************//**
-Returns the size of a fixed size column, 0 if not a fixed size column.
-@return fixed size, or 0 */
-UNIV_INLINE
-ulint
-dict_col_get_fixed_size(
-/*====================*/
-	const dict_col_t*	col,	/*!< in: column */
-	ulint			comp)	/*!< in: nonzero=ROW_FORMAT=COMPACT  */
-	MY_ATTRIBUTE((warn_unused_result));
-/***********************************************************************//**
-Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a column.
-For fixed length types it is the fixed length of the type, otherwise 0.
-@return SQL null storage size in ROW_FORMAT=REDUNDANT */
-UNIV_INLINE
-ulint
-dict_col_get_sql_null_size(
-/*=======================*/
-	const dict_col_t*	col,	/*!< in: column */
-	ulint			comp)	/*!< in: nonzero=ROW_FORMAT=COMPACT  */
-	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Gets the column number.
 @return col->ind, table column position (starting from 0) */
@@ -701,7 +609,7 @@ dict_foreign_qualify_index(
 
 /* Skip corrupted index */
 #define dict_table_skip_corrupt_index(index)			\
-	while (index && dict_index_is_corrupted(index)) {	\
+	while (index && index->is_corrupted()) {	\
 		index = index->next();				\
 	}
 
@@ -711,16 +619,6 @@ do {								\
 	index = index->next();					\
 	dict_table_skip_corrupt_index(index);			\
 } while (0)
-
-/********************************************************************//**
-Check whether the index is the clustered index.
-@return nonzero for clustered index, zero for other indexes */
-UNIV_INLINE
-ulint
-dict_index_is_clust(
-/*================*/
-	const dict_index_t*	index)	/*!< in: index */
-	MY_ATTRIBUTE((warn_unused_result));
 
 /** Check if index is auto-generated clustered index.
 @param[in]	index	index
@@ -784,46 +682,10 @@ dict_table_get_all_fts_indexes(
 	dict_table_t*		table,
 	ib_vector_t*		indexes);
 
-/********************************************************************//**
-Gets the number of user-defined non-virtual columns in a table in the
-dictionary cache.
-@return number of user-defined (e.g., not ROW_ID) non-virtual
-columns of a table */
-UNIV_INLINE
-ulint
-dict_table_get_n_user_cols(
-/*=======================*/
-	const dict_table_t*	table)	/*!< in: table */
-	MY_ATTRIBUTE((warn_unused_result));
-/** Gets the number of user-defined virtual and non-virtual columns in a table
-in the dictionary cache.
-@param[in]	table	table
-@return number of user-defined (e.g., not ROW_ID) columns of a table */
 UNIV_INLINE
 ulint
 dict_table_get_n_tot_u_cols(
 	const dict_table_t*	table);
-/********************************************************************//**
-Gets the number of system columns in a table.
-For intrinsic table on ROW_ID column is added for all other
-tables TRX_ID and ROLL_PTR are all also appeneded.
-@return number of system (e.g., ROW_ID) columns of a table */
-UNIV_INLINE
-ulint
-dict_table_get_n_sys_cols(
-/*======================*/
-	const dict_table_t*	table)	/*!< in: table */
-	MY_ATTRIBUTE((warn_unused_result));
-/********************************************************************//**
-Gets the number of all non-virtual columns (also system) in a table
-in the dictionary cache.
-@return number of columns of a table */
-UNIV_INLINE
-ulint
-dict_table_get_n_cols(
-/*==================*/
-	const dict_table_t*	table)	/*!< in: table */
-	MY_ATTRIBUTE((warn_unused_result));
 
 /** Gets the number of virtual columns in a table in the dictionary cache.
 @param[in]	table	the table to check
@@ -879,17 +741,6 @@ dict_table_get_nth_v_col_mysql(
 	ulint			col_nr);
 
 #ifdef UNIV_DEBUG
-/********************************************************************//**
-Gets the nth column of a table.
-@return pointer to column object */
-UNIV_INLINE
-dict_col_t*
-dict_table_get_nth_col(
-/*===================*/
-	const dict_table_t*	table,	/*!< in: table */
-	ulint			pos)	/*!< in: position of column */
-	MY_ATTRIBUTE((warn_unused_result));
-
 /** Gets the nth virtual column of a table.
 @param[in]	table	table
 @param[in]	pos	position of virtual column
@@ -900,22 +751,7 @@ dict_table_get_nth_v_col(
 	const dict_table_t*	table,
 	ulint			pos);
 
-/********************************************************************//**
-Gets the given system column of a table.
-@return pointer to column object */
-UNIV_INLINE
-dict_col_t*
-dict_table_get_sys_col(
-/*===================*/
-	const dict_table_t*	table,	/*!< in: table */
-	ulint			sys)	/*!< in: DATA_ROW_ID, ... */
-	MY_ATTRIBUTE((warn_unused_result));
 #else /* UNIV_DEBUG */
-#define dict_table_get_nth_col(table, pos)	\
-((table)->cols + (pos))
-#define dict_table_get_sys_col(table, sys)	\
-((table)->cols + (table)->n_cols + (sys)	\
- - (dict_table_get_n_sys_cols(table)))
 /* Get nth virtual columns */
 #define dict_table_get_nth_v_col(table, pos)	((table)->v_cols + (pos))
 #endif /* UNIV_DEBUG */
@@ -929,17 +765,6 @@ dict_table_get_sys_col_no(
 	const dict_table_t*	table,	/*!< in: table */
 	ulint			sys)	/*!< in: DATA_ROW_ID, ... */
 	MY_ATTRIBUTE((warn_unused_result));
-#ifndef UNIV_HOTBACKUP
-/********************************************************************//**
-Returns the minimum data size of an index record.
-@return minimum data size in bytes */
-UNIV_INLINE
-ulint
-dict_index_get_min_size(
-/*====================*/
-	const dict_index_t*	index)	/*!< in: index */
-	MY_ATTRIBUTE((warn_unused_result));
-#endif /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 Check whether the table uses the compact page format.
 @return TRUE if table uses the compact page format */
@@ -1226,64 +1051,6 @@ dict_index_get_n_ordering_defined_by_user(
 	const dict_index_t*	index)	/*!< in: an internal representation
 					of index (in the dictionary cache) */
 	MY_ATTRIBUTE((warn_unused_result));
-#ifdef UNIV_DEBUG
-/********************************************************************//**
-Gets the nth field of an index.
-@return pointer to field object */
-UNIV_INLINE
-dict_field_t*
-dict_index_get_nth_field(
-/*=====================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			pos)	/*!< in: position of field */
-	MY_ATTRIBUTE((warn_unused_result));
-#else /* UNIV_DEBUG */
-# define dict_index_get_nth_field(index, pos) ((index)->fields + (pos))
-#endif /* UNIV_DEBUG */
-/********************************************************************//**
-Gets pointer to the nth column in an index.
-@return column */
-UNIV_INLINE
-const dict_col_t*
-dict_index_get_nth_col(
-/*===================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			pos)	/*!< in: position of the field */
-	MY_ATTRIBUTE((warn_unused_result));
-/********************************************************************//**
-Gets the column number of the nth field in an index.
-@return column number */
-UNIV_INLINE
-ulint
-dict_index_get_nth_col_no(
-/*======================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			pos)	/*!< in: position of the field */
-	MY_ATTRIBUTE((warn_unused_result));
-/********************************************************************//**
-Looks for column n in an index.
-@return position in internal representation of the index;
-ULINT_UNDEFINED if not contained */
-UNIV_INLINE
-ulint
-dict_index_get_nth_col_pos(
-/*=======================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			n)	/*!< in: column number */
-	MY_ATTRIBUTE((warn_unused_result));
-/********************************************************************//**
-Looks for column n in an index.
-@return position in internal representation of the index;
-ULINT_UNDEFINED if not contained */
-ulint
-dict_index_get_nth_col_or_prefix_pos(
-/*=================================*/
-	const dict_index_t*	index,		/*!< in: index */
-	ulint			n,		/*!< in: column number */
-	bool			inc_prefix,	/*!< in: TRUE=consider
-						column prefixes too */
-	bool			is_virtual)	/*!< in: is a virtual column */
-	MY_ATTRIBUTE((warn_unused_result));
 /********************************************************************//**
 Returns TRUE if the index contains a column or a prefix of that column.
 @return TRUE if contains the column or its prefix */
@@ -1329,16 +1096,6 @@ dict_table_mysql_pos_to_innodb(
 	const dict_table_t*	table,
 	ulint			n);
 
-/********************************************************************//**
-Returns the position of a system column in an index.
-@return position, ULINT_UNDEFINED if not contained */
-UNIV_INLINE
-ulint
-dict_index_get_sys_col_pos(
-/*=======================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			type)	/*!< in: DATA_ROW_ID, ... */
-	MY_ATTRIBUTE((warn_unused_result));
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Copies types of fields contained in index to tuple. */
@@ -1349,17 +1106,6 @@ dict_index_copy_types(
 	const dict_index_t*	index,		/*!< in: index */
 	ulint			n_fields);	/*!< in: number of
 						field types to copy */
-#endif /* !UNIV_HOTBACKUP */
-/*********************************************************************//**
-Gets the field column.
-@return field->col, pointer to the table column */
-UNIV_INLINE
-const dict_col_t*
-dict_field_get_col(
-/*===============*/
-	const dict_field_t*	field)	/*!< in: index field */
-	MY_ATTRIBUTE((warn_unused_result));
-#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 /**********************************************************************//**
 Checks that a tuple has n_fields_cmp value in a sensible range, so that
@@ -1786,24 +1532,6 @@ Closes the data dictionary module. */
 void
 dict_close(void);
 /*============*/
-#ifndef UNIV_HOTBACKUP
-/** Check whether the table is corrupted.
-@param[in]	table	table object
-@return true if the table is corrupted, otherwise false */
-UNIV_INLINE
-bool
-dict_table_is_corrupted(
-	const dict_table_t*	table);
-
-/** Check whether the index is corrupted.
-@param[in]	index	index object
-@return true if index is corrupted, otherwise false */
-UNIV_INLINE
-bool
-dict_index_is_corrupted(
-	const dict_index_t*	index);
-
-#endif /* !UNIV_HOTBACKUP */
 
 /** Wrapper for the system table used to buffer the persistent dynamic
 metadata.
@@ -1989,16 +1717,6 @@ dict_table_is_discarded(
 	MY_ATTRIBUTE((warn_unused_result));
 
 /********************************************************************//**
-Check if it is a temporary table.
-@return true if temporary table flag is set. */
-UNIV_INLINE
-bool
-dict_table_is_temporary(
-/*====================*/
-	const dict_table_t*	table)	/*!< in: table to check */
-	MY_ATTRIBUTE((warn_unused_result));
-
-/********************************************************************//**
 Check if it is a encrypted table.
 @return true if table encryption flag is set. */
 UNIV_INLINE
@@ -2006,24 +1724,6 @@ bool
 dict_table_is_encrypted(
 /*====================*/
 	const dict_table_t*	table)	/*!< in: table to check */
-	MY_ATTRIBUTE((warn_unused_result));
-
-/** Check whether the table is intrinsic.
-An intrinsic table is a special kind of temporary table that
-is invisible to the end user.  It is created internally by the MySQL server
-layer or other module connected to InnoDB in order to gather and use data
-as part of a larger task.  Since access to it must be as fast as possible,
-it does not need UNDO semantics, system fields DB_TRX_ID & DB_ROLL_PTR,
-doublewrite, checksum, insert buffer, use of the shared data dictionary,
-locking, or even a transaction.  In short, these are not ACID tables at all,
-just temporary
-
-@param[in]	table	table to check
-@return true if intrinsic table flag is set. */
-UNIV_INLINE
-bool
-dict_table_is_intrinsic(
-	const dict_table_t*	table)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Check whether the table is DDTableBuffer. See class DDTableBuffer
@@ -2139,14 +1839,6 @@ dict_index_t*
 dict_table_get_index_on_first_col(
 	dict_table_t*		table,
 	ulint			col_index);
-
-/** Check if a column is a virtual column
-@param[in]	col	column
-@return true if it is a virtual column, false otherwise */
-UNIV_INLINE
-bool
-dict_col_is_virtual(
-	const dict_col_t*	col);
 
 /** encode number of columns and number of virtual columns in one
 4 bytes value. We could do this because the number of columns in

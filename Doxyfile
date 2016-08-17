@@ -287,6 +287,9 @@ TAB_SIZE               = 8
 
 ALIASES                =
 
+ALIASES += SQL{1}="<small>\1</small>"
+ALIASES += B{1}="<b>\1</b>"
+
 # This tag can be used to specify a number of word-keyword mappings (TCL only).
 # A mapping has the form "name=value". For example adding "class=itcl::class"
 # will allow you to use the command class in the itcl::class meaning.

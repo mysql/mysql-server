@@ -2278,24 +2278,6 @@ bool sql_slave_killed(THD* thd, Relay_log_info* rli)
 }
 
 
-/*
-  skip_load_data_infile()
-
-  NOTES
-    This is used to tell a 3.23 master to break send_file()
-*/
-
-void skip_load_data_infile(NET *net)
-{
-  DBUG_ENTER("skip_load_data_infile");
-
-  (void)net_request_file(net, "/dev/null");
-  (void)my_net_read(net);                               // discard response
-  (void)net_write_command(net, 0, (uchar*) "", 0, (uchar*) "", 0); // ok
-  DBUG_VOID_RETURN;
-}
-
-
 bool net_request_file(NET* net, const char* fname)
 {
   DBUG_ENTER("net_request_file");
@@ -5877,7 +5859,20 @@ err:
   sql_print_information("Slave I/O thread exiting%s, read up to log '%s', position %s",
                         mi->get_for_channel_str(), mi->get_io_rpl_log_name(),
                         llstr(mi->get_master_log_pos(), llbuff));
+  /* At this point the I/O thread will not try to reconnect anymore. */
+  mi->is_stopping.atomic_set(1);
   (void) RUN_HOOK(binlog_relay_io, thread_stop, (thd, mi));
+  /*
+    Pause the IO thread and wait for 'continue_to_stop_io_thread'
+    signal to continue to shutdown the IO thread.
+  */
+  DBUG_EXECUTE_IF("pause_after_io_thread_stop_hook",
+                  {
+                    const char act[]= "now SIGNAL reached_stopping_io_thread "
+                                      "WAIT_FOR continue_to_stop_io_thread";
+                    DBUG_ASSERT(!debug_sync_set_action(thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
   thd->reset_query();
   thd->reset_db(NULL_CSTR);
   if (mysql)
@@ -5919,6 +5914,7 @@ err:
 
   mi->abort_slave= 0;
   mi->slave_running= 0;
+  mi->is_stopping.atomic_set(0);
   mysql_mutex_lock(&mi->info_thd_lock);
   mi->info_thd= NULL;
   mysql_mutex_unlock(&mi->info_thd_lock);
@@ -5994,7 +5990,7 @@ int check_temp_dir(char* tmp_file, const char *channel_name)
               "%s%s%s", tmp_file, channel_name, server_uuid);
   if ((fd= mysql_file_create(key_file_misc,
                              unique_tmp_file_name, CREATE_MODE,
-                             O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
+                             O_WRONLY | O_EXCL | O_NOFOLLOW,
                              MYF(MY_WME))) < 0)
   DBUG_RETURN(1);
 
@@ -7387,10 +7383,11 @@ llstr(rli->get_group_master_log_pos(), llbuff));
                         llstr(rli->get_group_master_log_pos(), llbuff));
 
  err:
-
+  /* At this point the SQL thread will not try to work anymore. */
+  rli->is_stopping.atomic_set(1);
   (void) RUN_HOOK(binlog_relay_io, applier_stop,
                   (thd, rli->mi,
-                   !rli->sql_thread_kill_accepted));
+                   rli->is_error() || !rli->sql_thread_kill_accepted));
 
   slave_stop_workers(rli, &mts_inited); // stopping worker pool
   delete rli->current_mts_submode;
@@ -7414,6 +7411,18 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   thd->reset_query();
   thd->reset_db(NULL_CSTR);
 
+  /*
+    Pause the SQL thread and wait for 'continue_to_stop_sql_thread'
+    signal to continue to shutdown the SQL thread.
+  */
+  DBUG_EXECUTE_IF("pause_after_sql_thread_stop_hook",
+                  {
+                    const char act[]= "now SIGNAL reached_stopping_sql_thread "
+                                      "WAIT_FOR continue_to_stop_sql_thread";
+                    DBUG_ASSERT(!debug_sync_set_action(thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
+
   THD_STAGE_INFO(thd, stage_waiting_for_slave_mutex_on_exit);
   mysql_mutex_lock(&rli->run_lock);
   /* We need data_lock, at least to wake up any waiting master_pos_wait() */
@@ -7421,6 +7430,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   DBUG_ASSERT(rli->slave_running == 1); // tracking buffer overrun
   /* When master_pos_wait() wakes up it will check this and terminate */
   rli->slave_running= 0;
+  rli->is_stopping.atomic_set(0);
   /* Forget the relay log's format */
   rli->set_rli_description_event(NULL);
   /* Wake up master_pos_wait() */
@@ -10485,7 +10495,10 @@ static void change_execute_options(LEX_MASTER_INFO* lex_mi, Master_info* mi)
                         connection retries.
 
   @param preserve_logs  If the decision of purging the logs should be always be
-                        false even if a relay log name is given to the method.
+                        false even if no relay log name/position is given to
+                        the method. The preserve_logs parameter will not be
+                        respected when the relay log info repository is not
+                        initialized.
 
   @retval 0   success
   @retval !=0 error
@@ -10601,7 +10614,9 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
   have_execute_option= have_change_master_execute_option(lex_mi,
                                                          &need_relay_log_purge);
 
-  if (preserve_logs && need_relay_log_purge)
+  if (need_relay_log_purge && /* If we should purge the logs for this channel */
+      preserve_logs &&        /* And we were asked to keep them */
+      mi->rli->inited)        /* And the channel was initialized properly */
   {
     need_relay_log_purge= false;
   }
@@ -10791,8 +10806,9 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
       */
       const char* msg;
       relay_log_purge= 0;
-      /* Relay log is already initialized */
 
+      /* Relay log must be already initialized */
+      DBUG_ASSERT(mi->rli->inited);
       if (mi->rli->init_relay_log_pos(mi->rli->get_group_relay_log_name(),
                                       mi->rli->get_group_relay_log_pos(),
                                       true/*we do need mi->rli->data_lock*/,
@@ -11163,11 +11179,15 @@ static int check_slave_sql_config_conflict(const Relay_log_info *rli)
   {
     const char* channel= const_cast<Relay_log_info*>(rli)->get_channel();
     if (slave_parallel_workers > 0 &&
+        (channel_mts_submode != MTS_PARALLEL_TYPE_LOGICAL_CLOCK ||
+         (channel_mts_submode == MTS_PARALLEL_TYPE_LOGICAL_CLOCK &&
+          !opt_slave_preserve_commit_order)) &&
         channel_map.is_group_replication_channel_name(channel, true))
     {
         my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
-                 "START SLAVE SQL_THREAD when SLAVE_PARALLEL_WORKERS > 0",
-                 channel);
+                 "START SLAVE SQL_THREAD when SLAVE_PARALLEL_WORKERS > 0 "
+                 "and SLAVE_PARALLEL_TYPE != LOGICAL_CLOCK "
+                 "or SLAVE_PRESERVE_COMMIT_ORDER != ON", channel);
         return ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED;
     }
   }
@@ -11175,80 +11195,6 @@ static int check_slave_sql_config_conflict(const Relay_log_info *rli)
   return 0;
 }
 
-
-/**
-  Checks if any slave threads of any channel is running in Multisource
-  replication.
-  @note: The caller shall possess channel_map lock before calling this function.
-
-  @param[in]        thread_mask       type of slave thread- IO/SQL or any
-  @param[in]        already_locked_mi the mi that has its run_lock already
-                                      taken.
-
-  @return
-    @retval          true               atleast one channel threads are running.
-    @retval          false              none of the the channels are running.
-*/
-bool is_any_slave_channel_running(int thread_mask,
-                                  Master_info* already_locked_mi)
-{
-  DBUG_ENTER("is_any_slave_channel_running");
-  Master_info *mi= 0;
-  bool is_running;
-
-  channel_map.assert_some_lock();
-
-  for (mi_map::iterator it= channel_map.begin(); it != channel_map.end(); it++)
-  {
-    mi= it->second;
-
-    if (mi)
-    {
-      if ((thread_mask & SLAVE_IO) != 0)
-      {
-        /*
-          start_slave() might call this function after already locking the
-          rli->run_lock for a slave channel that is going to be started.
-          In this case, we just assert that the lock is taken.
-        */
-        if (mi != already_locked_mi)
-          mysql_mutex_lock(&mi->run_lock);
-        else
-        {
-          mysql_mutex_assert_owner(&mi->run_lock);
-        }
-        is_running= mi->slave_running;
-        if (mi != already_locked_mi)
-          mysql_mutex_unlock(&mi->run_lock);
-        if (is_running)
-          DBUG_RETURN(true);
-      }
-
-      if ((thread_mask & SLAVE_SQL) != 0)
-      {
-        /*
-          start_slave() might call this function after already locking the
-          rli->run_lock for a slave channel that is going to be started.
-          In this case, we just assert that the lock is taken.
-        */
-        if (mi != already_locked_mi)
-          mysql_mutex_lock(&mi->rli->run_lock);
-        else
-        {
-          mysql_mutex_assert_owner(&mi->rli->run_lock);
-        }
-        is_running= mi->rli->slave_running;
-        if (mi != already_locked_mi)
-          mysql_mutex_unlock(&mi->rli->run_lock);
-        if (is_running)
-          DBUG_RETURN(true);
-      }
-    }
-
-  }
-
-  DBUG_RETURN(false);
-}
 
 #endif /* HAVE_REPLICATION */
 

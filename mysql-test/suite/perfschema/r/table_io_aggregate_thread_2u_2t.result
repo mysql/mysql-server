@@ -19,7 +19,7 @@ where user in ('user2', 'user4');
 delete from performance_schema.setup_objects
 where object_name='t2';
 select * from performance_schema.setup_actors
-order by USER, HOST, ROLE;
+order by USER, HOST, `ROLE`;
 HOST	USER	ROLE	ENABLED	HISTORY
 localhost	user1	%	YES	YES
 localhost	user3	%	YES	YES

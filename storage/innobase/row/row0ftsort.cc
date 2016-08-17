@@ -94,11 +94,11 @@ row_merge_create_fts_sort_index(
 	new_index->parser = index->parser;
 	new_index->is_ngram = index->is_ngram;
 
-	idx_field = dict_index_get_nth_field(index, 0);
+	idx_field = index->get_field(0);
 	charset = fts_index_get_charset(index);
 
 	/* The first field is on the Tokenized Word */
-	field = dict_index_get_nth_field(new_index, 0);
+	field = new_index->get_field(0);
 	field->name = NULL;
 	field->prefix_len = 0;
 	field->col = static_cast<dict_col_t*>(
@@ -116,7 +116,7 @@ row_merge_create_fts_sort_index(
 	field->fixed_len = 0;
 
 	/* Doc ID */
-	field = dict_index_get_nth_field(new_index, 1);
+	field = new_index->get_field(1);
 	field->name = NULL;
 	field->prefix_len = 0;
 	field->col = static_cast<dict_col_t*>(
@@ -157,7 +157,7 @@ row_merge_create_fts_sort_index(
 	field->col->mbminmaxlen = 0;
 
 	/* The third field is on the word's position in the original doc */
-	field = dict_index_get_nth_field(new_index, 2);
+	field = new_index->get_field(2);
 	field->name = NULL;
 	field->prefix_len = 0;
 	field->col = static_cast<dict_col_t*>(
@@ -761,8 +761,7 @@ fts_parallel_tokenization_thread(fts_psort_t* psort_info)
 	doc.charset = fts_index_get_charset(
 		psort_info->psort_common->dup->index);
 
-	idx_field = dict_index_get_nth_field(
-		psort_info->psort_common->dup->index, 0);
+	idx_field = psort_info->psort_common->dup->index->get_field(0);
 	word_dtype.prtype = idx_field->col->prtype;
 	word_dtype.mbminmaxlen = idx_field->col->mbminmaxlen;
 	word_dtype.mtype = (strcmp(doc.charset->name, "latin1_swedish_ci") == 0)

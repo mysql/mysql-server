@@ -1,6 +1,6 @@
 #ifndef SQL_DATA_CHANGE_INCLUDED
 #define SQL_DATA_CHANGE_INCLUDED
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -290,7 +290,7 @@ public:
      @note COPY_INFO::add_function_default_columns() must be called prior to
      invoking this function.
   */
-  bool function_defaults_apply(const TABLE *table) const
+  bool function_defaults_apply(const TABLE*) const
   {
     DBUG_ASSERT(m_function_default_columns != NULL);
     return !bitmap_is_clear_all(m_function_default_columns);

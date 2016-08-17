@@ -18,3 +18,4 @@ disable-force-if-open
 [ENV]
 MASTER_MYPORT=           @mysqld.1.port
 MASTER_MYSOCK=           @mysqld.1.socket
+MASTER_X_MYSOCK=         @mysqld.1.loose-mysqlx-socket

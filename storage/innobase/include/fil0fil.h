@@ -432,12 +432,13 @@ typedef	uint16_t	page_type_t;
 					in FIL_PAGE_TYPE is replaced with this
 					value when flushing pages. */
 #define FIL_PAGE_COMPRESSED	14	/*!< Compressed page */
-#define FIL_PAGE_SDI_BLOB	15	/*!< Uncompressed SDI BLOB page */
-#define FIL_PAGE_SDI_ZBLOB	16	/*!< Commpressed SDI BLOB page */
-#define FIL_PAGE_ENCRYPTED	17	/*!< Encrypted page */
-#define FIL_PAGE_COMPRESSED_AND_ENCRYPTED 18
+#define FIL_PAGE_ENCRYPTED	15	/*!< Encrypted page */
+#define FIL_PAGE_COMPRESSED_AND_ENCRYPTED 16
 					/*!< Compressed and Encrypted page */
-#define FIL_PAGE_ENCRYPTED_RTREE 19	/*!< Encrypted R-tree page */
+#define FIL_PAGE_ENCRYPTED_RTREE 17	/*!< Encrypted R-tree page */
+#define FIL_PAGE_SDI_BLOB	18	/*!< Uncompressed SDI BLOB page */
+#define FIL_PAGE_SDI_ZBLOB	19	/*!< Commpressed SDI BLOB page */
+
 
 /** Used by i_s.cc to index into the text description. */
 #define FIL_PAGE_TYPE_LAST	FIL_PAGE_SDI_ZBLOB

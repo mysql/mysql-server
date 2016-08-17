@@ -1495,7 +1495,7 @@ ibuf_dummy_index_add_col(
 			       dtype_get_prtype(type),
 			       dtype_get_len(type));
 	dict_index_add_col(index, index->table,
-			   dict_table_get_nth_col(index->table, i), len);
+			   index->table->get_col(i), len);
 }
 /********************************************************************//**
 Deallocates a dummy index for inserting a record to a non-clustered index. */
@@ -1855,7 +1855,7 @@ ibuf_entry_build(
 		entry_field = dtuple_get_nth_field(entry, i);
 		dfield_copy(field, entry_field);
 
-		ifield = dict_index_get_nth_field(index, i);
+		ifield = index->get_field(i);
 		/* Prefix index columns of fixed-length columns are of
 		fixed length.  However, in the function call below,
 		dfield_get_type(entry_field) contains the fixed length
@@ -3361,7 +3361,7 @@ ibuf_insert_low(
 	mtr_t		mtr;
 	mtr_t		bitmap_mtr;
 
-	ut_a(!dict_index_is_clust(index));
+	ut_a(!index->is_clustered());
 	ut_ad(!dict_index_is_spatial(index));
 	ut_ad(dtuple_check_typed(entry));
 	ut_ad(!no_counter || op == IBUF_OP_INSERT);
@@ -3694,7 +3694,7 @@ ibuf_insert(
 	ut_ad(dtuple_check_typed(entry));
 	ut_ad(page_id.space() != srv_tmp_space.space_id());
 
-	ut_a(!dict_index_is_clust(index));
+	ut_a(!index->is_clustered());
 
 	no_counter = use <= IBUF_USE_INSERT;
 

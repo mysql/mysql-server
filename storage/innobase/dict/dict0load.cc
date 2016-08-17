@@ -118,11 +118,9 @@ name_of_col_is(
 	ulint			i,	/*!< in: index field offset */
 	const char*		name)	/*!< in: name to compare to */
 {
-	ulint	tmp = dict_col_get_no(dict_field_get_col(
-					      dict_index_get_nth_field(
-						      index, i)));
+	ulint	tmp = dict_col_get_no(index->get_field(i)->col);
 
-	return(strcmp(name, dict_table_get_col_name(table, tmp)) == 0);
+	return(strcmp(name, table->get_col_name(tmp)) == 0);
 }
 #endif /* UNIV_DEBUG */
 
@@ -813,7 +811,7 @@ err_len:
 	}
 
 	if (column != NULL) {
-		*column = dict_table_get_nth_col(table, base);
+		*column = table->get_col(base);
 	}
 
 	return(NULL);
@@ -1065,8 +1063,8 @@ err_len:
 	}
 
 	if (index) {
-		dict_mem_index_add_field(
-			index, mem_heap_strdupl(heap, (const char*) field, len),
+		index->add_field(
+			mem_heap_strdupl(heap, (const char*) field, len),
 			prefix_len);
 	} else {
 		ut_a(sys_field);
@@ -2195,7 +2193,7 @@ dict_load_columns(
 
 			ut_a(table->fts->doc_col == ULINT_UNDEFINED);
 
-			col = dict_table_get_nth_col(table, i - n_skipped);
+			col = table->get_col(i - n_skipped);
 
 			ut_ad(col->len == sizeof(doc_id_t));
 
@@ -2425,7 +2423,7 @@ dict_load_indexes(
 		ut_ad(index);
 
 		/* Check whether the index is corrupted */
-		if (dict_index_is_corrupted(index)) {
+		if (index->is_corrupted()) {
 
 			ib::error() << "Index " << index->name
 				<< " of table " << table->name
@@ -2433,7 +2431,7 @@ dict_load_indexes(
 
 			if (!srv_load_corrupted
 			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)
-			    && dict_index_is_clust(index)) {
+			    && index->is_clustered()) {
 				dict_mem_index_free(index);
 
 				error = DB_INDEX_CORRUPT;
@@ -2471,7 +2469,7 @@ dict_load_indexes(
 			error = DB_UNSUPPORTED;
 			dict_mem_index_free(index);
 			goto func_exit;
-		} else if (!dict_index_is_clust(index)
+		} else if (!index->is_clustered()
 			   && NULL == table->first_index()) {
 
 			ib::error() << "Trying to load index " << index->name
@@ -2482,7 +2480,7 @@ dict_load_indexes(
 			error = DB_CORRUPTION;
 			goto func_exit;
 		} else if (dict_is_sys_table(table->id)
-			   && (dict_index_is_clust(index)
+			   && (index->is_clustered()
 			       || ((table == dict_sys->sys_tables)
 				   && !strcmp("ID_IND", index->name)))) {
 
@@ -2782,7 +2780,7 @@ dict_load_tablespace(
 	mem_heap_t*		heap,
 	dict_err_ignore_t	ignore_err)
 {
-	ut_ad(!dict_table_is_temporary(table));
+	ut_ad(!table->is_temporary());
 
 	/* The system tablespace is always available. */
 	if (is_system_tablespace(table->space)) {
@@ -3027,7 +3025,7 @@ err_exit:
 	/* Re-check like we do in dict_load_indexes() */
 	if (!srv_load_corrupted
 	    && !(index_load_err & DICT_ERR_IGNORE_CORRUPT)
-	    && dict_table_is_corrupted(table)) {
+	    && table->is_corrupted()) {
 		err = DB_INDEX_CORRUPT;
 	}
 
@@ -3108,7 +3106,7 @@ err_exit:
 
 		if (!srv_force_recovery
 		    || !index
-		    || !dict_index_is_clust(index)) {
+		    || !index->is_clustered()) {
 
 			dict_table_remove_from_cache(table);
 			table = NULL;
@@ -3122,7 +3120,7 @@ func_exit:
 	ut_ad(!table
 	      || ignore_err != DICT_ERR_IGNORE_NONE
 	      || table->ibd_file_missing
-	      || !dict_table_is_corrupted(table));
+	      || !table->is_corrupted());
 
 	if (table && table->fts) {
 		if (!(dict_table_has_fts_index(table)
@@ -3181,7 +3179,7 @@ dict_load_table_on_id(
 	sys_tables = dict_sys->sys_tables;
 	sys_table_ids = sys_tables->first_index()->next();
 	ut_ad(!dict_table_is_comp(sys_tables));
-	ut_ad(!dict_index_is_clust(sys_table_ids));
+	ut_ad(!sys_table_ids->is_clustered());
 	heap = mem_heap_create(256);
 
 	tuple  = dtuple_create(heap, 1);
@@ -3635,7 +3633,7 @@ dict_load_foreigns(
 	SYS_FOREIGN */
 
 	sec_index = sys_foreign->first_index()->next();
-	ut_ad(!dict_index_is_clust(sec_index));
+	ut_ad(!sec_index->is_clustered());
 start_load:
 
 	tuple = dtuple_create_from_mem(tuple_buf, sizeof(tuple_buf), 1, 0);

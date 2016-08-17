@@ -21,7 +21,6 @@
 #include "partition_info.h"                 // class partition_info etc.
 #include "sql_base.h"                       // open_and_lock_tables, etc
 #include "debug_sync.h"                     // DEBUG_SYNC
-#include "sql_base.h"                       // open_and_lock_tables
 #include "log.h"
 #include "partitioning/partition_handler.h" // Partition_handler
 #include "sql_class.h"                      // THD
@@ -47,7 +46,7 @@ bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd)
     referenced from this structure will be modified.
     @todo move these into constructor...
   */
-  HA_CREATE_INFO create_info(lex->create_info);
+  HA_CREATE_INFO create_info(*lex->create_info);
   Alter_info alter_info(lex->alter_info, thd->mem_root);
   ulong priv_needed= ALTER_ACL | DROP_ACL | INSERT_ACL | CREATE_ACL;
 
@@ -713,6 +712,9 @@ bool Sql_cmd_alter_table_exchange_partition::
       Do this before we downgrade metadata locks.
     */
     (void) trans_rollback_stmt(thd);
+    if ((part_table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+        part_table->file->ht->post_ddl)
+      part_table->file->ht->post_ddl(thd);
     (void) thd->locked_tables_list.reopen_tables(thd);
     DBUG_RETURN(true);
   }
@@ -725,14 +727,18 @@ bool Sql_cmd_alter_table_exchange_partition::
       dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
       const dd::Schema *part_sch_obj= NULL;
       const dd::Schema *swap_sch_obj= NULL;
+      handlerton *hton= part_table->file->ht;
 
       // Close TABLE instances which marked as old earlier.
       close_all_tables_for_name(thd, swap_table->s, false, NULL);
       close_all_tables_for_name(thd, part_table->s, false, NULL);
 
-      // Ensure that we re-open tables even in case of error.
-      auto rollback_reopen_lambda =
-        [](THD *thd)
+      /*
+        Ensure that we call post-DDL hook and re-open tables even
+        in case of error.
+      */
+      auto rollback_post_ddl_reopen_lambda =
+        [hton](THD *thd)
         {
           /*
             Rollback all possible changes to data-dictionary and SE which
@@ -740,11 +746,16 @@ bool Sql_cmd_alter_table_exchange_partition::
             reporting an error. Do this before we downgrade metadata locks.
           */
           (void) trans_rollback_stmt(thd);
+          /*
+            Call SE post DDL hook. This handles both rollback and commit cases.
+          */
+          if (hton->post_ddl)
+            hton->post_ddl(thd);
           (void) thd->locked_tables_list.reopen_tables(thd);
         };
 
-      std::unique_ptr<THD, decltype(rollback_reopen_lambda)>
-        rollback_reopen_guard(thd, rollback_reopen_lambda);
+      std::unique_ptr<THD, decltype(rollback_post_ddl_reopen_lambda)>
+        rollback_post_ddl_reopen_guard(thd, rollback_post_ddl_reopen_lambda);
 
       if (!thd->dd_client()->update_uncached_and_invalidate(
                                part_table_def.get()) &&
@@ -877,7 +888,6 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   TABLE_LIST *first_table= thd->lex->select_lex->table_list.first;
   Alter_info *alter_info= &thd->lex->alter_info;
   uint table_counter;
-  List<String> partition_names_list;
   Partition_handler *part_handler;
   DBUG_ENTER("Sql_cmd_alter_table_truncate_partition::execute");
 

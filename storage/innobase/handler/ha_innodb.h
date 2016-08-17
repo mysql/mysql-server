@@ -541,6 +541,15 @@ private:
 	/** Write Row Interface optimized for Intrinsic table. */
 	int intrinsic_table_write_row(uchar* record);
 
+	/** Find out if a Record_buffer is wanted by this handler, and what is
+	the maximum buffer size the handler wants.
+
+	@param[out] max_rows gets set to the maximum number of records to
+		    allocate space for in the buffer
+	@retval true   if the handler wants a buffer
+	@retval false  if the handler does not want a buffer */
+	virtual bool is_record_buffer_wanted(ha_rows* const max_rows) const;
+
 protected:
 	void update_thd(THD* thd);
 
@@ -1006,8 +1015,7 @@ innodb_base_col_setup_for_stored(
 #define innobase_is_v_fld(field) ((field)->gcol_info && !(field)->stored_in_db)
 
 /** Release temporary latches.
-Call this function when mysqld passes control to the client. That is to
-avoid deadlocks on the adaptive hash S-latch possibly held by thd. For more
+Call this function when mysqld passes control to the client. For more
 documentation, see handler.cc.
 @param[in]	hton	Handlerton.
 @param[in]	thd	MySQL thread.

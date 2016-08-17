@@ -77,7 +77,7 @@ public:
 
   virtual const Index &unique_constraint() const = 0;
 
-  virtual Index &unique_constraint() = 0;
+  virtual void set_unique_constraint(const Index *unique_constraint) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // match_option.
@@ -101,10 +101,17 @@ public:
   virtual void set_delete_rule(enum_rule delete_rule) = 0;
 
   /////////////////////////////////////////////////////////////////////////
+  // the catalog name of the referenced table.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const std::string &referenced_table_catalog_name() const = 0;
+  virtual void referenced_table_catalog_name(const std::string &name) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
   // the schema name of the referenced table.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &referenced_table_shema_name() const = 0;
+  virtual const std::string &referenced_table_schema_name() const = 0;
   virtual void referenced_table_schema_name(const std::string &name) = 0;
 
   /////////////////////////////////////////////////////////////////////////

@@ -333,7 +333,7 @@ bool Item_in_subselect::finalize_materialization_transform(JOIN *join)
   oto1.add("chosen", true);
 
   subselect_hash_sj_engine * const new_engine=
-    new subselect_hash_sj_engine(thd, this, old_engine_derived);
+    new subselect_hash_sj_engine(this, old_engine_derived);
   if (!new_engine)
     return true;
   if (new_engine->setup(unit->get_unit_column_types()))

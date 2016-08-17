@@ -2355,7 +2355,9 @@ srv_worker_thread()
 	ut_ad(!srv_read_only_mode);
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
+#ifdef UNIV_PFS_THREAD
 	THD*	thd = create_thd(false, true, true, srv_worker_thread_key);
+#endif /* UNIV_PFS_THREAD */
 
 	slot = srv_reserve_slot(SRV_WORKER);
 
@@ -2398,7 +2400,9 @@ srv_worker_thread()
 
 	rw_lock_x_unlock(&purge_sys->latch);
 
+#ifdef UNIV_PFS_THREAD
 	destroy_thd(thd);
+#endif /* UNIV_PFS_THREAD */
 }
 
 /*********************************************************************//**
@@ -2597,7 +2601,9 @@ srv_purge_coordinator_thread()
 {
 	srv_slot_t*	slot;
 
+#ifdef UNIV_PFS_THREAD
 	THD*	thd = create_thd(false, true, true, srv_purge_thread_key);
+#endif /* UNIV_PFS_THREAD */
 	ulint	n_total_purged = ULINT_UNDEFINED;
 
 	ut_ad(!srv_read_only_mode);
@@ -2696,7 +2702,9 @@ srv_purge_coordinator_thread()
 		srv_release_threads(SRV_WORKER, srv_n_purge_threads - 1);
 	}
 
+#ifdef UNIV_PFS_THREAD
 	destroy_thd(thd);
+#endif /* UNIV_PFS_THREAD */
 }
 
 /**********************************************************************//**
@@ -2784,30 +2792,17 @@ srv_purge_threads_active()
 }
 
 /** Check whether given space id is undo tablespace id
-@param[in]	space	space id to check
+@param[in]	space_id	space id to check
 @return true if it is undo tablespace else false. */
 bool
 srv_is_undo_tablespace(
-	space_id_t	space)
+	space_id_t	space_id)
 {
-	ulint   i = 0;
-
-	for (std::vector<space_id_t>::iterator it
-		= srv_undo_tablespace_ids.begin();
-	     it != srv_undo_tablespace_ids.end(); it++, i++) {
-
-		if (i >= srv_undo_tablespaces_open) {
-			break;
-		}
-
-		if (space == *it) {
-			return(true);
-		}
+	if (srv_undo_space_id_start == 0) {
+		return(false);
 	}
 
-	if (srv_undo_tablespaces_open == 0) {
-		return (srv_sys_space.space_id() == space);
-	}
-
-	return(false);
+	return(space_id >= srv_undo_space_id_start
+	       && space_id < (srv_undo_space_id_start
+			      + srv_undo_tablespaces_open));
 }

@@ -453,12 +453,17 @@ trx_rseg_array_init(
 	trx_rseg_create_instance(purge_queue);
 }
 
-/** Get the number of unique rollback tablespaces in use except space id 0.
+/********************************************************************
+Get the number of unique rollback tablespaces in use except space id 0.
 The last space id will be the sentinel value SPACE_UNKNOWN. The array
-will be sorted on space id.
+will be sorted on space id. Note: space_ids should have have space for
+TRX_SYS_N_RSEGS + 1 elements.
 @return number of unique rollback tablespaces in use. */
 ulint
-trx_rseg_get_n_undo_tablespaces()
+trx_rseg_get_n_undo_tablespaces(
+/*============================*/
+	space_id_t*		space_ids)	/*!< out: array of space ids of
+					UNDO tablespaces */
 {
 	ulint		i;
 	mtr_t		mtr;
@@ -471,7 +476,7 @@ trx_rseg_get_n_undo_tablespaces()
 
 	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
 		page_no_t	page_no;
-		space_id_t	space;
+		space_id_t	space_id;
 
 		page_no = trx_sysf_rseg_get_page_no(sys_header, i, &mtr);
 
@@ -479,17 +484,14 @@ trx_rseg_get_n_undo_tablespaces()
 			continue;
 		}
 
-		space = trx_sysf_rseg_get_space(sys_header, i, &mtr);
+		space_id = trx_sysf_rseg_get_space(sys_header, i, &mtr);
 
-		if (space != 0) {
+		if (space_id != 0) {
+			ulint	j;
 			ibool	found = FALSE;
 
-			for (std::vector<space_id_t>::iterator	it
-				= srv_undo_tablespace_ids.begin();
-			     it != srv_undo_tablespace_ids.end();
-			     it++) {
-
-				if (*it == space) {
+			for (j = 0; j < n_undo_tablespaces; ++j) {
+				if (space_ids[j] == space_id) {
 					found = TRUE;
 					break;
 				}
@@ -497,8 +499,7 @@ trx_rseg_get_n_undo_tablespaces()
 
 			if (!found) {
 				ut_a(n_undo_tablespaces <= i);
-				n_undo_tablespaces++;
-				srv_undo_tablespace_ids.push_back(space);
+				space_ids[n_undo_tablespaces++] = space_id;
 			}
 		}
 	}
@@ -507,9 +508,10 @@ trx_rseg_get_n_undo_tablespaces()
 
 	ut_a(n_undo_tablespaces <= TRX_SYS_N_RSEGS);
 
+	space_ids[n_undo_tablespaces] = SPACE_UNKNOWN;
+
 	if (n_undo_tablespaces > 0) {
-		std::sort(srv_undo_tablespace_ids.begin(),
-			  srv_undo_tablespace_ids.end());
+		std::sort(space_ids, space_ids + n_undo_tablespaces);
 	}
 
 	return(n_undo_tablespaces);

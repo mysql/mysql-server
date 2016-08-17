@@ -404,7 +404,7 @@ enum enum_commands {
   Q_LIST_FILES, Q_LIST_FILES_WRITE_FILE, Q_LIST_FILES_APPEND_FILE,
   Q_SEND_SHUTDOWN, Q_SHUTDOWN_SERVER,
   Q_RESULT_FORMAT_VERSION,
-  Q_MOVE_FILE, Q_REMOVE_FILES_WILDCARD, Q_SEND_EVAL,
+  Q_MOVE_FILE, Q_REMOVE_FILES_WILDCARD, Q_COPY_FILES_WILDCARD, Q_SEND_EVAL,
   Q_OUTPUT,                            /* redirect output to a file */
   Q_RESET_CONNECTION,
   Q_UNKNOWN,			       /* Unknown command.   */
@@ -509,6 +509,7 @@ const char *command_names[]=
   "result_format",
   "move_file",
   "remove_files_wildcard",
+  "copy_files_wildcard",
   "send_eval",
   "output",
   "reset_connection",
@@ -2047,7 +2048,7 @@ static int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
   DBUG_PRINT("enter", ("fname: %s", fname));
 
   if ((fd= create_temp_file(temp_file_path, TMPDIR,
-                            "tmp", O_CREAT | O_SHARE | O_RDWR,
+                            "tmp", O_CREAT | O_RDWR,
                             MYF(MY_WME))) < 0)
     die("Failed to create temporary file for ds");
 
@@ -3637,6 +3638,134 @@ static void do_copy_file(struct st_command *command)
 
 /*
   SYNOPSIS
+  do_copy_files_wildcard
+  command       command handle
+
+  DESCRIPTION
+  copy_file <from_directory> <to_directory> [<file_name_pattern>]
+  Copy files <from_directory> to <to_directory> optionally
+  matching <file_name_pattern>
+
+  NOTE! Will fail if no files match the <file_name_pattern>
+        Will fail if <from_directory> is empty and/or there are no
+        files in it.
+        Will fail if <from_directory> or <to_directory> or both do not exist.
+*/
+
+static void do_copy_files_wildcard(struct st_command * command)
+{
+  static DYNAMIC_STRING ds_source;
+  static DYNAMIC_STRING ds_destination;
+  static DYNAMIC_STRING ds_wild;
+
+  const struct command_arg copy_file_args[] = {
+    { "from_directory", ARG_STRING, TRUE, &ds_source,
+      "Directory to copy from" },
+    { "to_directory", ARG_STRING, TRUE, &ds_destination,
+      "Directory to copy to" },
+    { "filename", ARG_STRING, FALSE, &ds_wild, "File name pattern"}
+  };
+  DBUG_ENTER("do_copy_files_wildcard");
+
+  check_command_args(command, command->first_argument,
+                     copy_file_args,
+                     sizeof(copy_file_args)/sizeof(struct command_arg),
+                     ' ');
+
+  DBUG_PRINT("info", ("Copy files of %s to %s",
+                      ds_source.str, ds_destination.str));
+
+  DBUG_PRINT("info", ("listing directory: %s", ds_source.str));
+
+  int error= 0;
+  /* Note that my_dir sorts the list if not given any flags */
+  MY_DIR *dir_info= my_dir(ds_source.str, MYF(MY_DONT_SORT | MY_WANT_STAT));
+
+  /* Directory does not exist or access denied */
+  if (!dir_info)
+  {
+    error= 1;
+    goto end;
+  }
+
+  /* The directory exists but is empty */
+  if (dir_info->number_off_files == 2)
+  {
+    error= 1;
+    set_my_errno(ENOENT);
+    goto end;
+  }
+
+  char dir_separator[2];
+  dir_separator[0]= FN_LIBCHAR;
+  dir_separator[1]= 0;
+  dynstr_append(&ds_source, dir_separator);
+  dynstr_append(&ds_destination, dir_separator);
+
+  /* Set default wild chars for wild_compare, is changed in embedded mode */
+  set_wild_chars(1);
+
+  /* Storing the length of the path to the file, so it can be reused */
+  size_t source_file_length;
+  size_t dest_file_length;
+  dest_file_length= ds_destination.length;
+  source_file_length= ds_source.length;
+  uint match_count;
+  match_count= 0;
+
+  for (uint i= 0; i < dir_info->number_off_files; i++)
+  {
+    ds_source.length= source_file_length;
+    ds_destination.length= dest_file_length;
+    FILEINFO *file= dir_info->dir_entry + i;
+
+    /*
+      Copy only regular files, i.e. no directories etc.
+      if (!MY_S_ISREG(file->mystat->st_mode))
+      MY_S_ISREG does not work here on Windows, just skip directories
+    */
+    if (MY_S_ISDIR(file->mystat->st_mode))
+      continue;
+
+    /* Copy only those files which the pattern matches */
+    if (ds_wild.length && wild_compare(file->name, ds_wild.str, 0))
+      continue;
+
+    match_count++;
+    dynstr_append(&ds_source, file->name);
+    dynstr_append(&ds_destination, file->name);
+    DBUG_PRINT("info", ("Copying file: %s to %s",
+                        ds_source.str, ds_destination.str));
+
+    /* MY_HOLD_ORIGINAL_MODES prevents attempts to chown the file */
+    error= (my_copy(ds_source.str, ds_destination.str,
+                    MYF(MY_HOLD_ORIGINAL_MODES)) != 0);
+
+    if (error)
+      goto end;
+  }
+
+  /* Pattern did not match any files */
+  if (!match_count)
+  {
+    error= 1;
+    set_my_errno(ENOENT);
+  }
+
+end:
+  set_wild_chars(0);
+  my_dirend(dir_info);
+  handle_command_error(command, error);
+  dynstr_free(&ds_source);
+  dynstr_free(&ds_destination);
+  dynstr_free(&ds_wild);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  SYNOPSIS
   move_file_by_copy_delete
   from  path of source
   to    path of destination
@@ -4471,7 +4600,7 @@ static void do_perl(struct st_command *command)
 
     /* Create temporary file name */
     if ((fd= create_temp_file(temp_file_path, getenv("MYSQLTEST_VARDIR"),
-                              "tmp", O_CREAT | O_SHARE | O_RDWR,
+                              "tmp", O_CREAT | O_RDWR,
                               MYF(MY_WME))) < 0)
       die("Failed to create temporary file for perl command");
     my_close(fd, MYF(0));
@@ -7216,7 +7345,7 @@ static void read_embedded_server_arguments(const char *name)
     embedded_server_arg_count=1;
     embedded_server_args[0]= (char*) "";		/* Progname */
   }
-  if (!(file=my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(MY_WME))))
+  if (!(file=my_fopen(buff, O_RDONLY | MY_FOPEN_BINARY, MYF(MY_WME))))
     die("Failed to open file '%s'", buff);
 
   while (embedded_server_arg_count < MAX_EMBEDDED_SERVER_ARGS &&
@@ -8253,6 +8382,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
 {
   MYSQL_RES *res= NULL;     /* Note that here 'res' is meta data result set */
   MYSQL_STMT *stmt;
+  int err= 0;
   DYNAMIC_STRING ds_prepare_warnings= DYNAMIC_STRING();
   DYNAMIC_STRING ds_execute_warnings= DYNAMIC_STRING();
   DBUG_ENTER("run_query_stmt");
@@ -8337,13 +8467,104 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
           mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
   }
 
-  /*
-    If we got here the statement succeeded and was expected to do so,
-    get data. Note that this can still give errors found during execution!
-    Store the result of the query if if will return any fields
-  */
-  if (mysql_stmt_field_count(stmt) && mysql_stmt_store_result(stmt))
+  do
   {
+    /*
+      If we got here the statement succeeded and was expected to do so,
+      get data. Note that this can still give errors found during execution!
+      Store the result of the query if if will return any fields
+    */
+    if (mysql_stmt_field_count(stmt) && mysql_stmt_store_result(stmt))
+    {
+      handle_error(command, mysql_stmt_errno(stmt),
+                   mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt), ds);
+      goto end;
+    }
+
+    if (!disable_result_log)
+    {
+      /*
+        Not all statements creates a result set. If there is one we can
+        now create another normal result set that contains the meta
+        data. This set can be handled almost like any other non prepared
+        statement result set.
+      */
+      if ((res= mysql_stmt_result_metadata(stmt)) != NULL)
+      {
+        /* Take the column count from meta info */
+        MYSQL_FIELD *fields= mysql_fetch_fields(res);
+        uint num_fields= mysql_num_fields(res);
+
+        if (display_metadata)
+          append_metadata(ds, fields, num_fields);
+
+        if (!display_result_vertically)
+          append_table_headings(ds, fields, num_fields);
+
+        append_stmt_result(ds, stmt, fields, num_fields);
+
+        /* Free normal result set with meta data */
+        mysql_free_result(res);
+      }
+      else
+      {
+        /*
+	  This is a query without resultset
+        */
+      }
+
+      /*
+        Fetch info before fetching warnings, since it will be reset
+        otherwise.
+      */
+
+      if (!disable_info)
+        append_info(ds, mysql_affected_rows(stmt->mysql), mysql_info(mysql));
+
+      if (display_session_track_info)
+        append_session_track_info(ds, mysql);
+
+      /*
+        Add all warnings to the result. We can't do this if we are in
+        the middle of processing results from multi-statement, because
+        this will break protocol.
+      */
+      if (!disable_warnings && !mysql_more_results(stmt->mysql))
+      {
+        /* Get the warnings from execute */
+
+        /* Append warnings to ds - if there are any */
+        if (append_warnings(&ds_execute_warnings, mysql) ||
+            ds_execute_warnings.length ||
+            ds_prepare_warnings.length ||
+            ds_warnings->length)
+        {
+          /*
+            Clear prepare warnings if there are execute warnings,
+            since they are probably duplicated.
+          */
+          if (ds_execute_warnings.length &&
+              strstr(ds_execute_warnings.str, ds_prepare_warnings.str))
+            dynstr_set(&ds_prepare_warnings, NULL);
+
+          dynstr_append_mem(ds, "Warnings:\n", 10);
+          if (ds_warnings->length)
+            dynstr_append_mem(ds, ds_warnings->str,
+                              ds_warnings->length);
+          if (ds_prepare_warnings.length)
+            dynstr_append_mem(ds, ds_prepare_warnings.str,
+                              ds_prepare_warnings.length);
+          if (ds_execute_warnings.length)
+            dynstr_append_mem(ds, ds_execute_warnings.str,
+                              ds_execute_warnings.length);
+        }
+      }
+    }
+  } while((err= mysql_stmt_next_result(stmt)) == 0);
+
+  if (err > 0)
+  {
+    /* We got an error from mysql_stmt_next_result, maybe expected */
     handle_error(command, mysql_stmt_errno(stmt),
                  mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt), ds);
     goto end;
@@ -8351,78 +8572,6 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
 
   /* If we got here the statement was both executed and read successfully */
   handle_no_error(command);
-  if (!disable_result_log)
-  {
-    /*
-      Not all statements creates a result set. If there is one we can
-      now create another normal result set that contains the meta
-      data. This set can be handled almost like any other non prepared
-      statement result set.
-    */
-    if ((res= mysql_stmt_result_metadata(stmt)) != NULL)
-    {
-      /* Take the column count from meta info */
-      MYSQL_FIELD *fields= mysql_fetch_fields(res);
-      uint num_fields= mysql_num_fields(res);
-
-      if (display_metadata)
-        append_metadata(ds, fields, num_fields);
-
-      if (!display_result_vertically)
-        append_table_headings(ds, fields, num_fields);
-
-      append_stmt_result(ds, stmt, fields, num_fields);
-
-      mysql_free_result(res);     /* Free normal result set with meta data */
-
-      /*
-        Clear prepare warnings if there are execute warnings,
-        since they are probably duplicated.
-      */
-      if (ds_execute_warnings.length || mysql->warning_count)
-        dynstr_set(&ds_prepare_warnings, NULL);
-    }
-    else
-    {
-      /*
-	This is a query without resultset
-      */
-    }
-
-    /*
-      Fetch info before fetching warnings, since it will be reset
-      otherwise.
-    */
-
-    if (!disable_info)
-      append_info(ds, mysql_stmt_affected_rows(stmt), mysql_info(mysql));
-
-    if (display_session_track_info)
-      append_session_track_info(ds, mysql);
-
-    if (!disable_warnings)
-    {
-      /* Get the warnings from execute */
-
-      /* Append warnings to ds - if there are any */
-      if (append_warnings(&ds_execute_warnings, mysql) ||
-          ds_execute_warnings.length ||
-          ds_prepare_warnings.length ||
-          ds_warnings->length)
-      {
-        dynstr_append_mem(ds, "Warnings:\n", 10);
-        if (ds_warnings->length)
-          dynstr_append_mem(ds, ds_warnings->str,
-                            ds_warnings->length);
-        if (ds_prepare_warnings.length)
-          dynstr_append_mem(ds, ds_prepare_warnings.str,
-                            ds_prepare_warnings.length);
-        if (ds_execute_warnings.length)
-          dynstr_append_mem(ds, ds_execute_warnings.str,
-                            ds_execute_warnings.length);
-      }
-    }
-  }
 
 end:
   if (!disable_warnings)
@@ -8857,6 +9006,7 @@ void init_re(void)
     "[[:space:]]*KILL[[:space:]]|"
     "[[:space:]]*REVOKE[[:space:]]+ALL[[:space:]]+PRIVILEGES[[:space:]]|"
     "[[:space:]]*DO[[:space:]]|"
+    "[[:space:]]*CALL[[:space:]]|"
     "[[:space:]]*COMMIT[[:space:]]|"
     "[[:space:]]*SET[[:space:]]+OPTION[[:space:]]|"
     "[[:space:]]*SHOW[[:space:]]+CREATE[[:space:]]+TABLE[[:space:]]|"
@@ -9532,6 +9682,7 @@ int main(int argc, char **argv)
 	break;
       case Q_REMOVE_FILE: do_remove_file(command); break;
       case Q_REMOVE_FILES_WILDCARD: do_remove_files_wildcard(command); break;
+      case Q_COPY_FILES_WILDCARD: do_copy_files_wildcard(command); break;
       case Q_MKDIR: do_mkdir(command); break;
       case Q_RMDIR: do_rmdir(command); break;
       case Q_LIST_FILES: do_list_files(command); break;

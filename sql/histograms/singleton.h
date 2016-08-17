@@ -85,7 +85,7 @@ class Singleton : public Histogram
 {
 private:
   /// String representation of the histogram type SINGLETON.
-  static constexpr const char *SINGLETON_STR = "singleton";
+  static constexpr const char *singleton_str() { return "singleton"; }
 
   /// The buckets for this histogram [key, cumulative frequency].
   std::map<const T, double, Histogram_comparator,

@@ -35,7 +35,7 @@ SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCE
 Mysqlx.Connection.Close {
 }
 -->recvtype Mysqlx.Ok
--->peerdisc 1000 2000
+-->peerdisc 1000 5000
 -->endmacro
 
 

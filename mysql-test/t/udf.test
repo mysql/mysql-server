@@ -1,6 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
 --source include/have_udf.inc
 --source include/not_embedded.inc
 #
@@ -681,14 +678,27 @@ let $con1_id= `SELECT CONNECTION_ID()`;
 --connection default
 # Start a transaction and insert a new row into mysql.func.
 START TRANSACTION;
-INSERT INTO mysql.func(name, ret, dl, type) VALUES ('metaphon', 0, 'udf_example.so', 'function');
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval INSERT INTO mysql.func(name, ret, dl, type) VALUES ('metaphon', 0, '$UDF_EXAMPLE_LIB', 'function');
 
 --echo
 --echo # Connection: con1
 --connection con1
 # CREATE FUNCTION is expected to wait for the transaction in the other connection.
 # to finish.
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+let $is_windows = `select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows")`;
+if ($is_windows)
+{
+--replace_result udf_example.dll UDF_EXAMPLE_LIB
+--send CREATE FUNCTION metaphon RETURNS STRING SONAME "udf_example.dll";
+}
+
+if (!$is_windows)
+{
+--replace_result udf_example.so UDF_EXAMPLE_LIB
 --send CREATE FUNCTION metaphon RETURNS STRING SONAME "udf_example.so";
+}
 
 --echo
 --echo # Connection: default
@@ -716,8 +726,8 @@ DROP FUNCTION metaphon;
 --echo ###############################################################
 --echo # A.2. Checking lock-wait-timeout with DROP FUNCTION.
 --echo ###############################################################
-
-CREATE FUNCTION metaphon RETURNS STRING SONAME "udf_example.so";
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
 
 START TRANSACTION;
 SELECT name FROM mysql.func WHERE name ='metaphon' FOR UPDATE;
@@ -761,17 +771,20 @@ SELECT name FROM mysql.func WHERE name = 'metaphon';
 CREATE TABLE t1(a INT);
 START TRANSACTION;
 INSERT INTO t1 VALUES(1),(2),(3);
-CREATE FUNCTION metaphon RETURNS STRING SONAME "udf_example.so";
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
 
 --echo
 --echo # Connection: con1
 --connection con1
 SELECT * FROM t1;
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
 SELECT * FROM mysql.func;
 --echo
 --echo # Connection: default
 --connection default
 ROLLBACK;
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
 SELECT * FROM mysql.func;
 DROP FUNCTION metaphon;
 DROP TABLE t1;

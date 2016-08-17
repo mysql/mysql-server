@@ -82,7 +82,7 @@
 LEX_CSTRING native_password_plugin_name= {
   C_STRING_WITH_LEN("mysql_native_password")
 };
-  
+
 LEX_CSTRING sha256_password_plugin_name= {
   C_STRING_WITH_LEN("sha256_password")
 };
@@ -97,9 +97,11 @@ plugin_ref native_password_plugin;
 
 my_bool disconnect_on_expired_password= TRUE;
 
+extern bool initialized;
+
 /** Size of the header fields of an authentication packet. */
 #define AUTH_PACKET_HEADER_SIZE_PROTO_41    32
-#define AUTH_PACKET_HEADER_SIZE_PROTO_40    5  
+#define AUTH_PACKET_HEADER_SIZE_PROTO_40    5
 
 #if defined(HAVE_OPENSSL)
 #define MAX_CIPHER_LENGTH 1024
@@ -155,7 +157,7 @@ void
 Rsa_authentication_keys::get_key_file_path(char *key, String *key_file_path)
 {
   /*
-     If a fully qualified path is entered use that, else assume the keys are 
+     If a fully qualified path is entered use that, else assume the keys are
      stored in the data directory.
    */
   if (strchr(key, FN_LIBCHAR) != NULL
@@ -268,7 +270,7 @@ Rsa_authentication_keys::Rsa_authentication_keys()
   m_public_key= 0;
   m_pem_public_key= 0;
 }
-  
+
 
 void
 Rsa_authentication_keys::free_memory()
@@ -316,7 +318,7 @@ Rsa_authentication_keys::read_rsa_keys()
 {
   RSA *rsa_private_key_ptr= NULL;
   RSA *rsa_public_key_ptr= NULL;
-  char *pub_key_buff= NULL; 
+  char *pub_key_buff= NULL;
 
   if ((strlen(auth_rsa_private_key_path) == 0) &&
       (strlen(auth_rsa_public_key_path) == 0))
@@ -331,7 +333,7 @@ Rsa_authentication_keys::read_rsa_keys()
   */
   if (read_key_file(&rsa_private_key_ptr, true, NULL))
       return true;
-  
+
   /*
     Read public key in RSA format.
   */
@@ -361,7 +363,7 @@ Rsa_authentication_keys::read_rsa_keys()
     m_private_key= rsa_private_key_ptr;
     m_public_key= rsa_public_key_ptr;
 
-    delete [] pub_key_buff; 
+    delete [] pub_key_buff;
   }
   else
   {
@@ -370,7 +372,7 @@ Rsa_authentication_keys::read_rsa_keys()
 
     if (rsa_public_key_ptr)
     {
-      delete [] pub_key_buff; 
+      delete [] pub_key_buff;
       RSA_free(rsa_public_key_ptr);
     }
   }
@@ -383,7 +385,7 @@ Rsa_authentication_keys::read_rsa_keys()
 /**
  Initialize default authentication plugin based on command line options or
  configuration file settings.
- 
+
  @param plugin_name Name of the plugin
  @param plugin_name_length Length of the string
 */
@@ -444,7 +446,7 @@ bool auth_plugin_is_built_in(const char *plugin_name)
 
 
 /**
-  Only the plugins that are known to use the mysql.user table 
+  Only the plugins that are known to use the mysql.user table
   to store their passwords support password expiration atm.
   TODO: create a service and extend the plugin API to support
   password expiration for external plugins.
@@ -576,7 +578,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
 
   if (data_len)
   {
-    mpvio->cached_server_packet.pkt= (char*) memdup_root(mpvio->mem_root, 
+    mpvio->cached_server_packet.pkt= (char*) memdup_root(mpvio->mem_root,
                                                          data, data_len);
     mpvio->cached_server_packet.pkt_len= data_len;
   }
@@ -624,7 +626,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
   end= (char*) memcpy(end, data, AUTH_PLUGIN_DATA_PART_1_LENGTH);
   end+= AUTH_PLUGIN_DATA_PART_1_LENGTH;
   *end++= 0;
- 
+
   int2store(end, static_cast<uint16>(protocol->get_client_capabilities()));
   /* write server characteristics: up to 16 bytes allowed */
   end[2]= (char) default_charset_info->number;
@@ -652,7 +654,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
   using a different authentication plugin
 
   Packet format:
-   
+
     Bytes       Content
     -----       ----
     1           byte with the value 254
@@ -679,10 +681,10 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
 
   /*
     If we're dealing with an older client we can't just send a change plugin
-    packet to re-initiate the authentication handshake, because the client 
+    packet to re-initiate the authentication handshake, because the client
     won't understand it. The good thing is that we don't need to : the old client
     expects us to just check the user credentials here, which we can do by just reading
-    the cached data that are placed there by parse_com_change_user_packet() 
+    the cached data that are placed there by parse_com_change_user_packet()
     In this case we just do nothing and behave as if normal authentication
     should continue.
   */
@@ -691,11 +693,11 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
     DBUG_PRINT("info", ("old client sent a COM_CHANGE_USER"));
     DBUG_ASSERT(mpvio->cached_client_reply.pkt);
     /* get the status back so the read can process the cached result */
-    mpvio->status= MPVIO_EXT::RESTART; 
+    mpvio->status= MPVIO_EXT::RESTART;
     DBUG_RETURN(0);
   }
 
-  DBUG_PRINT("info", ("requesting client to use the %s plugin", 
+  DBUG_PRINT("info", ("requesting client to use the %s plugin",
                       client_auth_plugin));
   DBUG_RETURN(net_write_command(mpvio->protocol->get_net(),
                                 switch_plugin_request_buf[0],
@@ -716,7 +718,7 @@ bool acl_check_host(const char *host, const char *ip)
   mysql_mutex_lock(&acl_cache->lock);
   if (allow_all_hosts)
   {
-    
+
     mysql_mutex_unlock(&acl_cache->lock);
     return 0;
   }
@@ -771,7 +773,6 @@ static ACL_USER *decoy_user(const LEX_STRING &username,
   user->password_lifetime= 0;
   user->use_default_password_lifetime= true;
   user->account_locked= false;
-
   /*
     For now the common default account is used. Improvements might involve
     mapping a consistent hash of a username to a range of plugins.
@@ -783,7 +784,7 @@ static ACL_USER *decoy_user(const LEX_STRING &username,
 
 /**
    Finds acl entry in user database for authentication purposes.
-   
+
    Finds a user and copies it into mpvio. Reports an authentication
    failure if a user is not found.
 
@@ -802,7 +803,7 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio)
   for (ACL_USER *acl_user_tmp= acl_users->begin();
        acl_user_tmp != acl_users->end(); ++acl_user_tmp)
   {
-    if ((!acl_user_tmp->user || 
+    if ((!acl_user_tmp->user ||
          !strcmp(mpvio->auth_info.user_name, acl_user_tmp->user)) &&
         acl_user_tmp->host.compare_hostname(mpvio->host, mpvio->ip))
     {
@@ -815,9 +816,9 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio)
       if (auth_plugin_is_built_in(acl_user_tmp->plugin.str))
         mpvio->acl_user_plugin= mpvio->acl_user->plugin;
       else
-        make_lex_string_root(mpvio->mem_root, 
-                             &mpvio->acl_user_plugin, 
-                             acl_user_tmp->plugin.str, 
+        make_lex_string_root(mpvio->mem_root,
+                             &mpvio->acl_user_plugin,
+                             acl_user_tmp->plugin.str,
                              acl_user_tmp->plugin.length, 0);
       break;
     }
@@ -850,7 +851,7 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio)
   }
 
   mpvio->auth_info.auth_string= mpvio->acl_user->auth_string.str;
-  mpvio->auth_info.auth_string_length= 
+  mpvio->auth_info.auth_string_length=
     (unsigned long) mpvio->acl_user->auth_string.length;
   strmake(mpvio->auth_info.authenticated_as, mpvio->acl_user->user ?
           mpvio->acl_user->user : "", USERNAME_LENGTH);
@@ -1005,7 +1006,7 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
 #else  /* HAVE_OPENSSL */
   default:
     /*
-      If we don't have SSL but SSL is required for this user the 
+      If we don't have SSL but SSL is required for this user the
       authentication should fail.
     */
     return 1;
@@ -1106,14 +1107,14 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
     DBUG_RETURN(1);
   mpvio->auth_info.user_name_length= user_len;
 
-  if (make_lex_string_root(mpvio->mem_root, 
+  if (make_lex_string_root(mpvio->mem_root,
                            &mpvio->db, db_buff, db_len, 0) == 0)
     DBUG_RETURN(1); /* The error is set by make_lex_string(). */
 
   if (!initialized)
   {
     // if mysqld's been started with --skip-grant-tables option
-    strmake(mpvio->auth_info.authenticated_as, 
+    strmake(mpvio->auth_info.authenticated_as,
             mpvio->auth_info.user_name, USERNAME_LENGTH);
 
     mpvio->status= MPVIO_EXT::SUCCESS;
@@ -1146,9 +1147,9 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
     DBUG_RETURN(MY_TEST(packet_error));
 
   DBUG_PRINT("info", ("client_plugin=%s, restart", client_plugin));
-  /* 
-    Remember the data part of the packet, to present it to plugin in 
-    read_packet() 
+  /*
+    Remember the data part of the packet, to present it to plugin in
+    read_packet()
   */
   mpvio->cached_client_reply.pkt= passwd;
   mpvio->cached_client_reply.pkt_len= passwd_len;
@@ -1304,7 +1305,7 @@ char *get_56_lenc_string(char **buffer,
   );
 
   size_t len_len= (size_t)(*buffer - begin);
-  
+
   if (*string_length > *max_bytes_available - len_len)
     return NULL;
 
@@ -1325,7 +1326,7 @@ char *get_56_lenc_string(char **buffer,
   @note In case the length is zero, then the total size of the string is
     considered to be 1 byte; the size byte.
 
-  @note the maximum size of the string is 255 because the header is always 
+  @note the maximum size of the string is 255 because the header is always
     1 byte.
   @return pointer to first byte after the header in buffer.
     @retval NULL The buffer content is malformed
@@ -1387,14 +1388,14 @@ static size_t parse_client_handshake_packet(THD *thd, MPVIO_EXT *mpvio,
     buffer or we might read past the end of the buffer.
   */
   size_t bytes_remaining_in_packet= pkt_len;
-  
+
   /*
     Peek ahead on the client capability packet and determine which version of
     the protocol should be used.
   */
   if (bytes_remaining_in_packet < 2)
     return packet_error;
-    
+
   protocol->set_client_capabilities(uint2korr(end));
 
   /*
@@ -1411,15 +1412,15 @@ static size_t parse_client_handshake_packet(THD *thd, MPVIO_EXT *mpvio,
   }
 
   if (protocol->has_client_capability(CLIENT_PROTOCOL_41))
-    packet_has_required_size= bytes_remaining_in_packet >= 
+    packet_has_required_size= bytes_remaining_in_packet >=
       AUTH_PACKET_HEADER_SIZE_PROTO_41;
   else
     packet_has_required_size= bytes_remaining_in_packet >=
       AUTH_PACKET_HEADER_SIZE_PROTO_40;
-  
+
   if (!packet_has_required_size)
     return packet_error;
-  
+
   if (protocol->has_client_capability(CLIENT_PROTOCOL_41))
   {
     protocol->set_client_capabilities(uint4korr(end));
@@ -1448,7 +1449,7 @@ skip_to_ssl:
 #if defined(HAVE_OPENSSL)
   DBUG_PRINT("info", ("client capabilities: %lu",
                       protocol->get_client_capabilities()));
-  
+
   /*
     If client requested SSL then we must stop parsing, try to switch to SSL,
     and wait for the client to send a new handshake packet.
@@ -1484,7 +1485,7 @@ skip_to_ssl:
     }
     /* mark vio as encrypted */
     mpvio->vio_is_encrypted= 1;
-  
+
     /*
       A new packet was read and the statistics reflecting the remaining bytes
       in the packet must be updated.
@@ -1498,7 +1499,7 @@ skip_to_ssl:
     */
     if (protocol->has_client_capability(CLIENT_PROTOCOL_41))
     {
-      packet_has_required_size= bytes_remaining_in_packet >= 
+      packet_has_required_size= bytes_remaining_in_packet >=
         AUTH_PACKET_HEADER_SIZE_PROTO_41;
 #if !defined(DBUG_OFF)
       ssl_charset_code=
@@ -1511,7 +1512,7 @@ skip_to_ssl:
     }
     else
     {
-      packet_has_required_size= bytes_remaining_in_packet >= 
+      packet_has_required_size= bytes_remaining_in_packet >=
         AUTH_PACKET_HEADER_SIZE_PROTO_40;
       end= (char *)protocol->get_net()->read_pos
         + AUTH_PACKET_HEADER_SIZE_PROTO_40;
@@ -1651,7 +1652,7 @@ skip_to_ssl:
     user_len-= 2;
   }
 
-  if (make_lex_string_root(mpvio->mem_root, 
+  if (make_lex_string_root(mpvio->mem_root,
                            &mpvio->db, db, db_len, 0) == 0)
     return packet_error; /* The error is set by make_lex_string(). */
   if (mpvio->auth_info.user_name)
@@ -1680,7 +1681,7 @@ skip_to_ssl:
     /* An old client is connecting */
     client_plugin= native_password_plugin_name.str;
   }
-  
+
   /*
     if the acl_user needs a different plugin to authenticate
     (specified in GRANT ... AUTHENTICATED VIA plugin_name ..)
@@ -1733,15 +1734,15 @@ skip_to_ssl:
 
 /**
   Make sure that when sending plugin supplied data to the client they
-  are not considered a special out-of-band command, like e.g. 
+  are not considered a special out-of-band command, like e.g.
   \255 (error) or \254 (change user request packet) or \0 (OK).
-  To avoid this the server will send all plugin data packets "wrapped" 
+  To avoid this the server will send all plugin data packets "wrapped"
   in a command \1.
   Note that the client will continue sending its replies unrwapped.
 */
 
-static inline int 
-wrap_plguin_data_into_proper_command(NET *net, 
+static inline int
+wrap_plguin_data_into_proper_command(NET *net,
                                      const uchar *packet, int packet_len)
 {
   return net_write_command(net, 1, (uchar *) "", 0, packet, packet_len);
@@ -1773,13 +1774,13 @@ static int server_mpvio_write_packet(MYSQL_PLUGIN_VIO *param,
   Protocol_classic *protocol = mpvio->protocol;
 
   DBUG_ENTER("server_mpvio_write_packet");
-  /* 
-    Reset cached_client_reply if not an old client doing mysql_change_user, 
+  /*
+    Reset cached_client_reply if not an old client doing mysql_change_user,
     as this is where the password from COM_CHANGE_USER is stored.
   */
   if (!((!(protocol->has_client_capability(CLIENT_PLUGIN_AUTH))) &&
         mpvio->status == MPVIO_EXT::RESTART &&
-        mpvio->cached_client_reply.plugin == 
+        mpvio->cached_client_reply.plugin ==
         ((st_mysql_auth *) (plugin_decl(mpvio->plugin)->info))->client_auth_plugin
         ))
     mpvio->cached_client_reply.pkt= 0;
@@ -1936,10 +1937,10 @@ static int do_auth_once(THD *thd, const LEX_CSTRING &auth_plugin_name,
   }
 #endif /* EMBEDDED_LIBRARY */
 
-    
+
   mpvio->plugin= plugin;
   old_status= mpvio->status;
-  
+
   if (plugin)
   {
     st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
@@ -2206,7 +2207,7 @@ acl_authenticate(THD *thd, enum_server_command command)
   {
     /* mark the thd as having no scramble yet */
     mpvio.scramble[SCRAMBLE_LENGTH]= 1;
-    
+
     /*
      perform the first authentication attempt, with the default plugin.
      This sends the server handshake packet, reads the client reply
@@ -2364,9 +2365,10 @@ acl_authenticate(THD *thd, enum_server_command command)
 
       /* we're proxying : find the proxy user definition */
       mysql_mutex_lock(&acl_cache->lock);
-      acl_proxy_user= find_acl_user(proxy_user->get_proxied_host() ? 
+      acl_proxy_user= find_acl_user(proxy_user->get_proxied_host() ?
                                     proxy_user->get_proxied_host() : "",
-                                    mpvio.auth_info.authenticated_as, TRUE);
+                                    mpvio.auth_info.authenticated_as,
+                                    TRUE);
       if (!acl_proxy_user)
       {
         Host_errors errors;
@@ -2387,6 +2389,29 @@ acl_authenticate(THD *thd, enum_server_command command)
     sctx->set_master_access(acl_user->access);
     assign_priv_user_host(sctx, const_cast<ACL_USER *>(acl_user));
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    /* Assign default role */
+    {
+      List_of_auth_id_refs default_roles;
+      LOCK_grant_read_guard lock(thd);
+      mysql_mutex_lock(&acl_cache->lock);
+      Auth_id_ref authid= create_authid_from(acl_user);
+      get_default_roles(authid, &default_roles);
+      List_of_auth_id_refs::iterator it= default_roles.begin();
+      for(;it != default_roles.end(); ++it)
+      {
+        if (sctx->activate_role(it->first, it->second, true))
+        {
+          std::string roleidstr= create_authid_str_from(*it);
+          std::string authidstr= create_authid_str_from(acl_user);
+          sql_print_warning("Failed to activate default role %s for %s",
+                            roleidstr.c_str(), authidstr.c_str());
+        }
+      }
+      mysql_mutex_unlock(&acl_cache->lock);
+    }
+    sctx->checkout_access_maps();
+#endif
     if (!(sctx->check_access(SUPER_ACL)) && !thd->is_error())
     {
       mysql_mutex_lock(&LOCK_offline_mode);
@@ -2526,7 +2551,7 @@ acl_authenticate(THD *thd, enum_server_command command)
     set to 0 here because we don't have an active database yet (and we
     may not have an active database to set.
   */
-  sctx->set_db_access(0);
+  sctx->cache_current_db_access(0);
 
   /* Change a database if necessary */
   if (mpvio.db.length)
@@ -2792,7 +2817,7 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 #if defined(HAVE_OPENSSL)
 /**
   Interface for querying the MYSQL_PUBLIC_VIO about encryption state.
- 
+
 */
 
 static int my_vio_is_encrypted(MYSQL_PLUGIN_VIO *vio)
@@ -2804,16 +2829,16 @@ static int my_vio_is_encrypted(MYSQL_PLUGIN_VIO *vio)
 #ifndef HAVE_YASSL
 
 int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff)
-{ 
+{
   var->type= SHOW_CHAR;
   var->value= const_cast<char *>(g_rsa_keys.get_public_key_as_pem());
-    
+
   return 0;
 }
 
 void deinit_rsa_keys(void)
 {
-  g_rsa_keys.free_memory();  
+  g_rsa_keys.free_memory();
 }
 
 // Wraps a FILE handle, to ensure we always close it when returning.
@@ -2830,10 +2855,10 @@ public:
 };
 
 /**
-  Loads the RSA key pair from disk and store them in a global variable. 
- 
+  Loads the RSA key pair from disk and store them in a global variable.
+
  @see init_ssl()
- 
+
  @return Error code
    @retval false Success
    @retval true Error
@@ -2874,20 +2899,20 @@ void static inline auth_save_scramble(MYSQL_PLUGIN_VIO *vio, const char *scrambl
 }
 
 
-/** 
- 
+/**
+
  @param vio Virtual input-, output interface
  @param [out] info Connection information
- 
+
  Authenticate the user by receiving a RSA or TLS encrypted password and
  calculate a hash digest which should correspond to the user record digest
- 
+
  RSA keys are assumed to be pre-generated and supplied when server starts. If
  the client hasn't got a public key it can request one.
- 
+
  TLS certificates and keys are assumed to be pre-generated and supplied when
  server starts.
- 
+
 */
 
 static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
@@ -2976,15 +3001,15 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     */
     if (private_key == NULL || public_key == NULL)
     {
-      my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL, 
+      my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,
         "Authentication requires either RSA keys or SSL encryption");
       DBUG_RETURN(CR_ERROR);
     }
-      
+
 
     if ((cipher_length= g_rsa_keys.get_cipher_length()) > MAX_CIPHER_LENGTH)
     {
-      my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL, 
+      my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,
         "RSA key cipher length of %u is too long. Max value is %u.",
         g_rsa_keys.get_cipher_length(), MAX_CIPHER_LENGTH);
       DBUG_RETURN(CR_ERROR);
@@ -3013,7 +3038,7 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     */
     if (pkt_len != cipher_length)
       DBUG_RETURN(CR_ERROR);
-    
+
     /* Decrypt password */
     RSA_private_decrypt(cipher_length, pkt, plain_text, private_key,
                         RSA_PKCS1_OAEP_PADDING);
@@ -3023,7 +3048,7 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
                (char *) scramble, SCRAMBLE_LENGTH);
 
     /*
-      Set packet pointers and length for the hash digest function below 
+      Set packet pointers and length for the hash digest function below
     */
     pkt= plain_text;
     pkt_len= strlen((char *) plain_text) + 1; // include \0 intentionally.
@@ -3038,7 +3063,7 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
   /* A password was sent to an account without a password */
   if (info->auth_string_length == 0)
     DBUG_RETURN(CR_ERROR);
-  
+
   /*
     Fetch user authentication_string and extract the password salt
   */
@@ -3047,7 +3072,7 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
   if (extract_user_salt(&user_salt_begin, &user_salt_end) != CRYPT_SALT_LENGTH)
   {
     /* User salt is not correct */
-    my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL, 
+    my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,
       "Password salt for user '%s' is corrupt.",
       info->user_name);
     DBUG_RETURN(CR_ERROR);
@@ -3057,7 +3082,7 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
   my_crypt_genhash(stage2,
                      CRYPT_MAX_PASSWORD_SIZE,
                      (char *) pkt,
-                     pkt_len-1, 
+                     pkt_len-1,
                      user_salt_begin,
                      (const char **) 0);
 

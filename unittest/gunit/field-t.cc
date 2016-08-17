@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -528,8 +528,8 @@ public:
 };
 
 
-size_t mock_strnxfrm(const CHARSET_INFO *charset, uchar *, size_t dstlen, uint,
-                     const uchar *, size_t, uint)
+static size_t mock_strnxfrm(const CHARSET_INFO *charset, uchar *, size_t dstlen, uint,
+                            const uchar *, size_t, uint)
 {
   // CHARSET_INFO is not polymorphic, hence the abomination.
   static_cast<const Mock_charset*>(charset)->strnxfrm_called= true;
@@ -537,7 +537,7 @@ size_t mock_strnxfrm(const CHARSET_INFO *charset, uchar *, size_t dstlen, uint,
 }
 
 
-void test_integer_field(Field *field)
+static void test_integer_field(Field *field)
 {
   uchar from[MAX_FIELD_WIDTH], expected[MAX_FIELD_WIDTH];
   const int pack_length= field->pack_length();

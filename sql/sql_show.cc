@@ -403,11 +403,13 @@ static struct show_privileges_st sys_privileges[]=
   {"Alter routine", "Functions,Procedures",  "To alter or drop stored functions/procedures"},
   {"Create", "Databases,Tables,Indexes",  "To create new databases and tables"},
   {"Create routine","Databases","To use CREATE FUNCTION/PROCEDURE"},
+  {"Create role", "Server Admin", "To create new roles"},
   {"Create temporary tables","Databases","To use CREATE TEMPORARY TABLE"},
   {"Create view", "Tables",  "To create new views"},
   {"Create user", "Server Admin",  "To create new users"},
   {"Delete", "Tables",  "To delete existing rows"},
   {"Drop", "Databases,Tables", "To drop databases, tables, and views"},
+  {"Drop role", "Server Admin", "To drop roles"},
 #ifndef EMBEDDED_LIBRARY
   {"Event","Server Admin","To create, alter, drop and execute events"},
 #endif
@@ -1133,9 +1135,18 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   if (sctx->check_access(DB_ACLS))
     db_access=DB_ACLS;
   else
-    db_access= (acl_get(sctx->host().str, sctx->ip().str,
-                        sctx->priv_user().str, dbname, 0) |
-                sctx->master_access());
+  {
+    if (sctx->get_active_roles()->size() > 0 && dbname != 0)
+    {
+      db_access= sctx->db_acl({dbname, strlen(dbname)});
+    }
+    else
+    {
+      db_access= (acl_get(sctx->host().str, sctx->ip().str,
+                          sctx->priv_user().str, dbname, 0) |
+                  sctx->master_access());
+    }
+  }
   if (!(db_access & DB_ACLS) && check_grant_db(thd,dbname))
   {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
@@ -1293,6 +1304,54 @@ static const char *require_quotes(const char *name, size_t name_length)
   return 0;
 }
 
+/**
+  Convert and quote the given identifier if needed and append it to the
+  target string. If the given identifier is empty, it will be quoted.
+  This function always use the backtick as escape char and thus rid itself
+  of the THD dependency.
+
+  @param packet                target string
+  @param name                  the identifier to be appended
+  @param length                length of the appending identifier
+*/
+
+void
+append_identifier(String *packet, const char *name, size_t length)
+{
+  const char *name_end;
+  char quote_char= '`';
+
+  const CHARSET_INFO *cs_info= system_charset_info;
+  const char *to_name= name;
+  size_t to_length= length;
+
+  /*
+    The identifier must be quoted as it includes a quote character or
+   it's a keyword
+  */
+
+  (void) packet->reserve(to_length*2 + 2);
+  packet->append(&quote_char, 1, system_charset_info);
+
+  for (name_end= to_name+to_length ; to_name < name_end ; to_name+= to_length)
+  {
+    uchar chr= static_cast<uchar>(*to_name);
+    to_length= my_mbcharlen(cs_info, chr);
+    /*
+      my_mbcharlen can return 0 on a wrong multibyte
+      sequence. It is possible when upgrading from 4.0,
+      and identifier contains some accented characters.
+      The manual says it does not work. So we'll just
+      change length to 1 not to hang in the endless loop.
+    */
+    if (!to_length)
+      to_length= 1;
+    if (to_length == 1 && chr == static_cast<uchar>(quote_char))
+      packet->append(&quote_char, 1, system_charset_info);
+    packet->append(to_name, to_length, system_charset_info);
+  }
+  packet->append(&quote_char, 1, system_charset_info);
+}
 
 /**
   Convert and quote the given identifier if needed and append it to the
@@ -1402,6 +1461,15 @@ int get_quote_char_for_identifier(THD *thd, const char *name, size_t length)
   return '`';
 }
 
+
+void append_identifier(THD *thd, String *packet,
+                       const char *name, size_t length)
+{
+  if (thd == 0)
+    append_identifier(packet, name, length);
+  else
+    append_identifier(thd, packet, name, length, NULL, NULL);
+}
 
 /* Append directory name (if exists) to CREATE INFO */
 
@@ -4734,11 +4802,17 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   {
     DBUG_ASSERT(db_name->length <= NAME_LEN);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+    bool have_db_privileges= false;
+    if (sctx->get_active_roles()->size() > 0)
+    {
+      LEX_CSTRING const_db_name= {db_name->str, db_name->length};
+      have_db_privileges= sctx->db_acl(const_db_name) > 0 ? true:false;
+    }
     if (!(check_access(thd, SELECT_ACL, db_name->str,
                        &thd->col_access, NULL, 0, 1) ||
           (!thd->col_access && check_grant_db(thd, db_name->str))) ||
         sctx->check_access(DB_ACLS | SHOW_DB_ACL, true) ||
-        acl_get(sctx->host().str, sctx->ip().str,
+        have_db_privileges || acl_get(sctx->host().str, sctx->ip().str,
                 sctx->priv_user().str, db_name->str, 0))
 #endif
     {
@@ -4758,6 +4832,8 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
         continue;
       if (res)
         goto err;
+
+      DEBUG_SYNC(thd, "show_after_table_list_prep");
 
       List_iterator_fast<LEX_STRING> it_files(table_names);
       while ((table_name= it_files++))
@@ -4850,7 +4926,17 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   }
   error= 0;
 err:
-
+  /*
+    HACK
+    If view security context were used we need to drop the reference those now
+    or we will attempt to logout uninitialized security contexts during
+    query clean up.
+    TABLE_LIST::view_ctx allocation happens in parse_view_definition()
+    during table open. The allocation happens on thd->stmt_area
+   
+    TODO Why is the view security context allocated if it's not used?
+  */
+  thd->m_view_ctx_list.empty();
   free_root(&tmp_mem_root, MYF(0));
   thd->restore_backup_open_tables_state(&open_tables_state_backup);
 
@@ -7055,10 +7141,10 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
 
     /* Partition method*/
     switch (part_info->part_type) {
-    case RANGE_PARTITION:
-    case LIST_PARTITION:
+    case partition_type::RANGE:
+    case partition_type::LIST:
       tmp_res.length(0);
-      if (part_info->part_type == RANGE_PARTITION)
+      if (part_info->part_type == partition_type::RANGE)
         tmp_res.append(partition_keywords[PKW_RANGE].str,
                        partition_keywords[PKW_RANGE].length);
       else
@@ -7069,7 +7155,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
                        partition_keywords[PKW_COLUMNS].length);
       table->field[7]->store(tmp_res.ptr(), tmp_res.length(), cs);
       break;
-    case HASH_PARTITION:
+    case partition_type::HASH:
       tmp_res.length(0);
       if (part_info->linear_hash_ind)
         tmp_res.append(partition_keywords[PKW_LINEAR].str,
@@ -7142,7 +7228,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
       table->field[5]->set_notnull();
 
       /* Partition description */
-      if (part_info->part_type == RANGE_PARTITION)
+      if (part_info->part_type == partition_type::RANGE)
       {
         if (part_info->column_list)
         {
@@ -7168,7 +7254,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
         }
         table->field[11]->set_notnull();
       }
-      else if (part_info->part_type == LIST_PARTITION)
+      else if (part_info->part_type == partition_type::LIST)
       {
         List_iterator<part_elem_value> list_val_it(part_elem->list_val_list);
         part_elem_value *list_value;

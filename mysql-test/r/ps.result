@@ -1221,13 +1221,13 @@ SET @aux= "SELECT COUNT(*)
 prepare my_stmt from @aux;
 execute my_stmt;
 COUNT(*)
-45
+47
 execute my_stmt;
 COUNT(*)
-45
+47
 execute my_stmt;
 COUNT(*)
-45
+47
 deallocate prepare my_stmt;
 drop procedure if exists p1|
 drop table if exists t1|

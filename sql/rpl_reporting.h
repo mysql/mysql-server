@@ -164,8 +164,6 @@ private:
 
   char const *const m_thread_name;
 
-  char channel_str[100]; // FOR CHANNEL="max_64_size"
-
   // not implemented
   Slave_reporting_capability(const Slave_reporting_capability& rhs);
   Slave_reporting_capability& operator=(const Slave_reporting_capability& rhs);

@@ -215,57 +215,6 @@ public:
   bool execute_direct(Server_runnable *server_runnable);
 
   /**
-    Get the number of result set fields.
-
-    This method is valid only if we have a result:
-    execute_direct() has been called. Otherwise
-    the returned value is undefined.
-
-    @sa Documentation for C API function
-    mysql_field_count()
-  */
-  size_t get_field_count() const
-  {
-    return m_current_rset ? m_current_rset->get_field_count() : 0;
-  }
-
-  /**
-    Get the number of affected (deleted, updated)
-    rows for the current statement. Can be
-    used for statements with get_field_count() == 0.
-
-    @sa Documentation for C API function
-    mysql_affected_rows().
-  */
-  ulonglong get_affected_rows() const
-  {
-    return m_diagnostics_area.affected_rows();
-  }
-
-  /**
-    Get the last insert id, if any.
-
-    @sa Documentation for mysql_insert_id().
-  */
-  ulonglong get_last_insert_id() const
-  {
-    return m_diagnostics_area.last_insert_id();
-  }
-
-  /**
-    Get the total number of warnings for the last executed
-    statement. Note, that there is only one warning list even
-    if a statement returns multiple results.
-
-    @sa Documentation for C API function
-    mysql_num_warnings().
-  */
-  ulong get_warn_count() const
-  {
-    return m_diagnostics_area.warn_count(m_thd);
-  }
-
-  /**
     The following three members are only valid if execute_direct()
     or move_to_next_result() returned an error.
     They never fail, but if they are called when there is no
@@ -276,44 +225,6 @@ public:
 
   unsigned int get_last_errno() const
   { return m_diagnostics_area.mysql_errno(); }
-
-  const char *get_last_sqlstate() const
-  { return m_diagnostics_area.returned_sqlstate(); }
-
-  /**
-    Provided get_field_count() is not 0, this never fails. You don't
-    need to free the result set, this is done automatically when
-    you advance to the next result set or destroy the connection.
-    Not returning const because of List iterator not accepting
-    Should be used when you would like Ed_connection to manage
-    result set memory for you.
-  */
-  Ed_result_set *use_result_set() { return m_current_rset; }
-  /**
-    Provided get_field_count() is not 0, this never fails. You
-    must free the returned result set. This can be called only
-    once after execute_direct().
-    Should be used when you would like to get the results
-    and destroy the connection.
-  */
-  Ed_result_set *store_result_set();
-
-  /**
-    If the query returns multiple results, this method
-    can be checked if there is another result beyond the next
-    one.
-    Never fails.
-  */
-  bool has_next_result() const { return MY_TEST(m_current_rset->m_next_rset); }
-  /**
-    Only valid to call if has_next_result() returned true.
-    Otherwise the result is undefined.
-  */
-  bool move_to_next_result()
-  {
-    m_current_rset= m_current_rset->m_next_rset;
-    return MY_TEST(m_current_rset);
-  }
 
   ~Ed_connection() { free_old_result(); }
 private:
@@ -469,8 +380,7 @@ public:
   bool is_sql_prepare() const { return flags & (uint) IS_SQL_PREPARE; }
   void set_sql_prepare() { flags|= (uint) IS_SQL_PREPARE; }
   bool prepare(const char *packet, size_t packet_length);
-  bool execute_loop(String *expanded_query,
-                    bool open_cursor,
+  bool execute_loop(bool open_cursor,
                     uchar *packet_arg, uchar *packet_end_arg);
   bool execute_server_runnable(Server_runnable *server_runnable);
 #ifdef HAVE_PSI_PS_INTERFACE

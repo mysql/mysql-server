@@ -1121,7 +1121,8 @@ bool Srv_session::close()
   */
   query_logger.general_log_print(&thd, COM_QUIT, NullS);
   mysql_audit_notify(&thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_DISCONNECT), 0);
-
+  thd.security_context()->logout();
+  thd.m_view_ctx_list.empty();
   close_mysql_tables(&thd);
 
   thd.pop_diagnostics_area();

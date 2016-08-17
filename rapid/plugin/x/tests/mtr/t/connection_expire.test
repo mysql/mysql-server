@@ -124,7 +124,7 @@ EOF
 Mysqlx.Sql.StmtExecute {
   stmt: "create database xplugin;"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvtype Mysqlx.Error
 
 Mysqlx.Sql.StmtExecute {
   stmt: "create_collection"

@@ -404,7 +404,7 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
     rlb->append(STRING_WITH_LEN("ALTER USER "));
 
   if (thd->lex->sql_command == SQLCOM_CREATE_USER &&
-      thd->lex->create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS)
+      thd->lex->create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
     rlb->append(STRING_WITH_LEN("IF NOT EXISTS "));
   if (thd->lex->sql_command == SQLCOM_ALTER_USER &&
       thd->lex->drop_if_exists)

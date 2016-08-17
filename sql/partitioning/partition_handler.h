@@ -235,17 +235,6 @@ public:
                       but not setup, checked or fixed.
   */
   virtual void set_part_info(partition_info *part_info, bool early) = 0;
-  /**
-    Initialize partition.
-
-    @param mem_root  Memory root for memory allocations.
-
-    @return Operation status
-      @retval false  Success.
-      @retval true   Failure.
-  */
-  virtual bool initialize_partition(MEM_ROOT *mem_root) {return false;}
-
 
   /**
     Truncate partitions.
@@ -540,10 +529,6 @@ public:
     Integer and floating point fields use the binary character set by default.
   */
   static uint32 ph_calculate_key_hash_value(Field **field_array);
-  /** Get checksum for table.
-    @return Checksum or 0 if not supported (which also may be a correct checksum!).
-  */
-  ha_checksum ph_checksum() const;
 
   /**
     MODULE full table scan
@@ -574,7 +559,6 @@ public:
   int ph_rnd_end();
   int ph_rnd_next(uchar *buf);
   void ph_position(const uchar *record);
-  int ph_rnd_pos(uchar *buf, uchar *pos);
   int ph_rnd_pos_by_record(uchar *record);
 
   /** @} */
@@ -613,8 +597,6 @@ public:
   */
 
   int ph_index_init_setup(uint key_nr, bool sorted);
-  int ph_index_init(uint key_nr, bool sorted);
-  int ph_index_end();
   /*
     These methods are used to jump to next or previous entry in the index
     scan. There are also methods to jump to first and last entry.
@@ -906,9 +888,6 @@ private:
   virtual int rnd_next_in_part(uint part_id, uchar *buf) = 0;
   virtual int rnd_end_in_part(uint part_id, bool scan) = 0;
   virtual void position_in_last_part(uchar *ref, const uchar *row) = 0;
-  /* If ph_rnd_pos is used then this needs to be implemented! */
-  virtual int rnd_pos_in_part(uint part_id, uchar *buf, uchar *pos)
-  { DBUG_ASSERT(0); return HA_ERR_WRONG_COMMAND; }
   virtual int rnd_pos_by_record_in_last_part(uchar *row)
   {
     /*
@@ -916,10 +895,6 @@ private:
     */
     return m_handler->rnd_pos_by_record(row);
   }
-  virtual int index_init_in_part(uint part, uint keynr, bool sorted)
-  { DBUG_ASSERT(0); return HA_ERR_WRONG_COMMAND; }
-  virtual int index_end_in_part(uint part)
-  { DBUG_ASSERT(0); return HA_ERR_WRONG_COMMAND; }
   virtual int index_first_in_part(uint part, uchar *buf) = 0;
   virtual int index_last_in_part(uint part, uchar *buf) = 0;
   virtual int index_prev_in_part(uint part, uchar *buf) = 0;

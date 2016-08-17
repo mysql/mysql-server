@@ -648,7 +648,7 @@ put_nth_field(
 
 	data = rec_get_nth_field(rec, offsets, n, &data_len);
 
-	dict_field = dict_index_get_nth_field(index, n);
+	dict_field = index->get_field(n);
 
 	ret += row_raw_format((const char*) data, data_len,
 			      dict_field, buf, buf_size);

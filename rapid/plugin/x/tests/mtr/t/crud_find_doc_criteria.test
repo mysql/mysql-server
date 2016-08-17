@@ -43,33 +43,33 @@ Mysqlx.Crud.Find {
     }
   }
 }
-%ERROR%
+-->expecterror %ERROR%
 -->recvresult
 -->endmacro
 
 -->title * xcoll is corect collection
--->callmacro Find_value	xcoll	name:"_id"	1	-->echo OK
--->callmacro Find_value	xcoll	name:"_id"	no_data	-->echo OK
--->callmacro Find_value	xcoll	name:"doc"	no_data	-->echo OK
--->callmacro Find_value	xcoll	document_path{type:MEMBER value:"name"}	Anabel	-->echo OK
--->callmacro Find_value	xcoll	document_path{type:MEMBER value:"name"}	no_data	-->echo OK
--->callmacro Find_value	xcoll	name:"name"	no_data	-->expecterror 5121
+-->callmacro Find_value	xcoll	name:"_id"	1	0
+-->callmacro Find_value	xcoll	name:"_id"	no_data	0
+-->callmacro Find_value	xcoll	name:"doc"	no_data	0
+-->callmacro Find_value	xcoll	document_path{type:MEMBER value:"name"}	Anabel	0
+-->callmacro Find_value	xcoll	document_path{type:MEMBER value:"name"}	no_data	0
+-->callmacro Find_value	xcoll	name:"name"	no_data	5117
 
 -->title * ycoll is not corect collection; missing `doc` column
--->callmacro Find_value	ycoll	name:"_id"	1	-->expecterror 5156
--->callmacro Find_value	ycoll	name:"_id"	no_data	-->expecterror 5156
--->callmacro Find_value	ycoll	name:"doc"	no_data	-->expecterror 5156
--->callmacro Find_value	ycoll	document_path{type:MEMBER value:"name"}	Anabel	-->expecterror 5156
--->callmacro Find_value	ycoll	document_path{type:MEMBER value:"name"}	no_data	-->expecterror 5156
--->callmacro Find_value	ycoll	name:"name"	no_data	-->expecterror 5156
+-->callmacro Find_value	ycoll	name:"_id"	1	1054
+-->callmacro Find_value	ycoll	name:"_id"	no_data	5117
+-->callmacro Find_value	ycoll	name:"doc"	no_data	5117
+-->callmacro Find_value	ycoll	document_path{type:MEMBER value:"name"}	Anabel	5117
+-->callmacro Find_value	ycoll	document_path{type:MEMBER value:"name"}	no_data	5117
+-->callmacro Find_value	ycoll	name:"name"	no_data	5117
 
 -->title * zcoll is not corect collection; missing `_id` column
--->callmacro Find_value	zcoll	name:"_id"	1	-->expecterror 5156
--->callmacro Find_value	zcoll	name:"_id"	no_data	-->expecterror 5156
--->callmacro Find_value	zcoll	name:"doc"	no_data	-->echo OK
--->callmacro Find_value	zcoll	document_path{type:MEMBER value:"name"}	Anabel	-->echo OK
--->callmacro Find_value	zcoll	document_path{type:MEMBER value:"name"}	no_data	-->echo OK
--->callmacro Find_value	zcoll	name:"name"	no_data	-->expecterror 5121
+-->callmacro Find_value	zcoll	name:"_id"	1	1054
+-->callmacro Find_value	zcoll	name:"_id"	no_data	5117
+-->callmacro Find_value	zcoll	name:"doc"	no_data	0
+-->callmacro Find_value	zcoll	document_path{type:MEMBER value:"name"}	Anabel	0
+-->callmacro Find_value	zcoll	document_path{type:MEMBER value:"name"}	no_data	0
+-->callmacro Find_value	zcoll	name:"name"	no_data	5117
 EOF
 
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/crud_find_doc_criteria.tmp 2>&1

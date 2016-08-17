@@ -203,6 +203,11 @@ public:
       memset(ptr, 0, size);
     return ptr;
   }
+  template<typename T> T *alloc_typed()
+  {
+    void *m= alloc(sizeof(T));
+    return m == NULL ? NULL : new (m) T;
+  }
   inline char *mem_strdup(const char *str)
   { return strdup_root(mem_root,str); }
   inline char *strmake(const char *str, size_t size)
@@ -305,6 +310,8 @@ typedef I_List<Item_change_record> Item_change_list;
 /**
   Type of locked tables mode.
   See comment for THD::locked_tables_mode for complete description.
+  While adding new enum values add them to the getter method for this enum
+  declared below and defined in sql_class.cc as well.
 */
 
 enum enum_locked_tables_mode
@@ -315,6 +322,15 @@ enum enum_locked_tables_mode
   LTM_PRELOCKED_UNDER_LOCK_TABLES
 };
 
+#ifndef DBUG_OFF
+/**
+  Getter for the enum enum_locked_tables_mode
+  @param locked_tables_mode enum for types of locked tables mode
+
+  @return The string represantation of that enum value
+*/
+const char * get_locked_tables_mode_name(enum_locked_tables_mode locked_tables_mode);
+#endif
 
 /**
   Class that holds information about tables which were opened and locked
@@ -1019,7 +1035,8 @@ public:
 
   Security_context* security_context() const { return m_security_ctx; }
   void set_security_context(Security_context *sctx) { m_security_ctx= sctx; }
-
+  List<Security_context> m_view_ctx_list;
+  
   /*
     Points to info-string that we show in SHOW PROCESSLIST
     You are supposed to update thd->proc_info only if you have coded
@@ -3768,7 +3785,7 @@ public:
   Session_tracker session_tracker;
   Session_sysvar_resource_manager session_sysvar_res_mgr;
 
-  void parse_error_at(const YYLTYPE &location, const char *s= NULL);
+  void syntax_error_at(const YYLTYPE &location, const char *s= NULL);
 
   /**
     Send name and type of result to client.

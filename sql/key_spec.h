@@ -135,10 +135,10 @@ public:
 
   Foreign_key_spec(MEM_ROOT *mem_root,
                    const LEX_CSTRING &name_arg,
-                   List<Key_part_spec> &cols,
+                   List<Key_part_spec> cols,
                    const LEX_CSTRING &ref_db_arg,
                    const LEX_CSTRING &ref_table_arg,
-                   List<Key_part_spec> &ref_cols,
+                   List<Key_part_spec> *ref_cols,
                    fk_option delete_opt_arg,
                    fk_option update_opt_arg,
                    fk_match_opt match_opt_arg)
@@ -153,11 +153,14 @@ public:
     update_opt(update_opt_arg),
     match_opt(match_opt_arg)
   {
-    ref_columns.reserve(ref_cols.elements);
-    List_iterator<Key_part_spec> it(ref_cols);
-    const Key_part_spec *ref_column;
-    while ((ref_column= it++))
-      ref_columns.push_back(ref_column);
+    if (ref_cols)
+    {
+      ref_columns.reserve(ref_cols->elements);
+      List_iterator<Key_part_spec> it(*ref_cols);
+      const Key_part_spec *ref_column;
+      while ((ref_column= it++))
+        ref_columns.push_back(ref_column);
+    }
   }
 
   /**

@@ -184,7 +184,6 @@ public:
     The elements themselves are copied by pointer.
   */
   base_list(const base_list &rhs, MEM_ROOT *mem_root);
-  inline base_list(bool error) { }
   inline bool push_back(void *info)
   {
     if (((*last)=new list_node(info, &end_of_list)))
@@ -329,6 +328,7 @@ public:
   inline list_node* first_node() { return first;}
   inline void *head() { return first->info; }
   inline void **head_ref() { return first != &end_of_list ? &first->info : 0; }
+  inline void *back() { return (*last)->info; }
   inline bool is_empty() const { return first == &end_of_list ; }
   inline list_node *last_ref() { return &end_of_list; }
   friend class base_list_iterator;
@@ -547,6 +547,7 @@ public:
   }
   inline T* head() {return (T*) base_list::head(); }
   inline T** head_ref() {return (T**) base_list::head_ref(); }
+  inline T* back() {return (T*) base_list::back(); }
   inline T* pop()  {return (T*) base_list::pop(); }
   inline void concat(List<T> *list) { base_list::concat(list); }
   inline void disjoin(List<T> *list) { base_list::disjoin(list); }
@@ -594,14 +595,13 @@ public:
   inline T** ref(void)	    { return (T**) base_list_iterator::ref(); }
 };
 
-
 template <class T> class List_iterator_fast :public base_list_iterator
 {
 protected:
-  inline T *replace(T *a)   { return (T*) 0; }
-  inline T *replace(List<T> &a) { return (T*) 0; }
+  inline T *replace(T*)     { return (T*) 0; }
+  inline T *replace(List<T> &) { return (T*) 0; }
   inline void remove(void)  { }
-  inline void after(T *a)   { }
+  inline void after(T*)     { }
   inline T** ref(void)	    { return (T**) 0; }
 
 public:

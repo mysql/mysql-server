@@ -190,14 +190,14 @@ grant insert on t1 to usera@localhost;
 grant execute on procedure sptest.p1 to usera@localhost;
 show grants for usera@localhost;
 Grants for usera@localhost
-GRANT USAGE ON *.* TO 'usera'@'localhost'
-GRANT INSERT ON `test`.`t1` TO 'usera'@'localhost'
-GRANT EXECUTE ON PROCEDURE `sptest`.`p1` TO 'usera'@'localhost'
+GRANT USAGE ON *.* TO `usera`@`localhost`
+GRANT INSERT ON `test`.`t1` TO `usera`@`localhost`
+GRANT EXECUTE ON PROCEDURE `sptest`.`p1` TO `usera`@`localhost`
 grant execute on procedure sptest.p1 to userc@localhost with grant option;
 show grants for userc@localhost;
 Grants for userc@localhost
-GRANT USAGE ON *.* TO 'userc'@'localhost'
-GRANT EXECUTE ON PROCEDURE `sptest`.`p1` TO 'userc'@'localhost' WITH GRANT OPTION
+GRANT USAGE ON *.* TO `userc`@`localhost`
+GRANT EXECUTE ON PROCEDURE `sptest`.`p1` TO `userc`@`localhost` WITH GRANT OPTION
 call sptest.p1(1);
 grant execute on procedure sptest.p1 to userb@localhost;
 ERROR 42000: grant command denied to user 'usera'@'localhost' for routine 'sptest.p1'
@@ -226,16 +226,16 @@ userb@localhost	4
 grant all privileges on procedure sptest.p1 to userc@localhost;
 show grants for userc@localhost;
 Grants for userc@localhost
-GRANT USAGE ON *.* TO 'userc'@'localhost'
-GRANT EXECUTE, ALTER ROUTINE ON PROCEDURE `sptest`.`p1` TO 'userc'@'localhost' WITH GRANT OPTION
+GRANT USAGE ON *.* TO `userc`@`localhost`
+GRANT EXECUTE, ALTER ROUTINE ON PROCEDURE `sptest`.`p1` TO `userc`@`localhost` WITH GRANT OPTION
 show grants for userb@localhost;
 Grants for userb@localhost
-GRANT USAGE ON *.* TO 'userb'@'localhost'
-GRANT EXECUTE ON PROCEDURE `sptest`.`p1` TO 'userb'@'localhost'
+GRANT USAGE ON *.* TO `userb`@`localhost`
+GRANT EXECUTE ON PROCEDURE `sptest`.`p1` TO `userb`@`localhost`
 revoke all privileges on procedure sptest.p1 from userb@localhost;
 show grants for userb@localhost;
 Grants for userb@localhost
-GRANT USAGE ON *.* TO 'userb'@'localhost'
+GRANT USAGE ON *.* TO `userb`@`localhost`
 use test;
 drop database sptest;
 delete from mysql.user where user='usera' or user='userb' or user='userc';

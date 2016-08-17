@@ -449,7 +449,7 @@ class Load_log_processor
       {
 	sprintf(file_name_end,"-%x",version);
 	if ((res= my_create(filename,0,
-			    O_CREAT|O_EXCL|O_BINARY|O_WRONLY,MYF(0)))!=-1)
+			    O_CREAT | O_EXCL | O_WRONLY, MYF(0)))!=-1)
 	  return res;
       }
       return -1;
@@ -646,7 +646,7 @@ Exit_status Load_log_processor::process(Append_block_log_event *ae)
     File file;
     Exit_status retval= OK_CONTINUE;
     if (((file= my_open(fname,
-			O_APPEND|O_BINARY|O_WRONLY,MYF(MY_WME))) < 0))
+			O_APPEND | O_WRONLY, MYF(MY_WME))) < 0))
     {
       error("Failed opening file %s", fname);
       DBUG_RETURN(ERROR_STOP);
@@ -2514,7 +2514,8 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
         {
           if (result_file && (result_file != stdout))
             my_fclose(result_file, MYF(0));
-          if (!(result_file = my_fopen(log_file_name, O_WRONLY | O_BINARY,
+          if (!(result_file = my_fopen(log_file_name,
+                                       O_WRONLY | MY_FOPEN_BINARY,
                                        MYF(MY_WME))))
           {
             error("Could not create log file '%s'", log_file_name);
@@ -2791,7 +2792,7 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
   if (logname && strcmp(logname, "-") != 0)
   {
     /* read from normal file */
-    if ((fd = my_open(logname, O_RDONLY | O_BINARY, MYF(MY_WME))) < 0)
+    if ((fd = my_open(logname, O_RDONLY, MYF(MY_WME))) < 0)
       return ERROR_STOP;
     if (init_io_cache(file, fd, 0, READ_CACHE, start_position_mot, 0,
 		      MYF(MY_WME | MY_NABP)))
@@ -2814,7 +2815,7 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
       halting the function and printing an error message to stderr.
     */
 #if defined(_WIN32)
-    if (_setmode(fileno(stdin), O_BINARY) == -1)
+    if (_setmode(fileno(stdin), _O_BINARY) == -1)
     {
       error("Could not set binary mode on stdin.");
       return ERROR_STOP;
@@ -2953,7 +2954,8 @@ static int args_post_process(void)
   }
   else if (output_file)
   {
-    if (!(result_file = my_fopen(output_file, O_WRONLY | O_BINARY, MYF(MY_WME))))
+    if (!(result_file = my_fopen(output_file, O_WRONLY | MY_FOPEN_BINARY,
+                                 MYF(MY_WME))))
     {
       error("Could not create log file '%s'", output_file);
       DBUG_RETURN(ERROR_STOP);

@@ -11,6 +11,7 @@
 # Storage engine to be used in CREATE TABLE
 let $engine_type= MEMORY;
 
+--source include/no_valgrind_without_big.inc
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 

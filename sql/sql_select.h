@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -852,10 +852,6 @@ public:
 };
 
 
-typedef struct st_select_check {
-  uint const_ref,reg_ref;
-} SELECT_CHECK;
-
 /* Extern functions in sql_select.cc */
 void count_field_types(SELECT_LEX *select_lex, Temp_table_param *param, 
                        List<Item> &fields, bool reset_with_sum_func,
@@ -1092,11 +1088,6 @@ void calc_used_field_length(THD *thd,
                             uint *p_used_blobs,
                             bool *p_used_null_fields,
                             bool *p_used_uneven_bit_fields);
-
-inline bool optimizer_flag(THD *thd, uint flag)
-{ 
-  return (thd->variables.optimizer_switch & flag);
-}
 
 uint get_index_for_order(ORDER *order, QEP_TAB *tab,
                          ha_rows limit, bool *need_sort, bool *reverse);

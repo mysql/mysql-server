@@ -80,41 +80,72 @@ row_purge_step(
 
 /* Purge node structure */
 
-struct purge_node_t{
-	que_common_t	common;	/*!< node type: QUE_NODE_PURGE */
-	/*----------------------*/
+struct purge_node_t {
+
+	/** Info required to purge a record */
+	struct rec_t {
+
+		/** Record to purge */
+		trx_undo_rec_t*	undo_rec;
+
+		/** File pointer to UNDO record */
+		roll_ptr_t	roll_ptr;
+	};
+
+	using Recs = std::vector<rec_t, mem_heap_allocator<rec_t>>;
+
+	/** node type: QUE_NODE_PURGE */
+	que_common_t		common;
+
 	/* Local storage for this graph node */
-	roll_ptr_t	roll_ptr;/* roll pointer to undo log record */
-	ib_vector_t*    undo_recs;/*!< Undo recs to purge */
 
-	undo_no_t	undo_no;/*!< undo number of the record */
+	/** roll pointer to undo log record */
+	roll_ptr_t		roll_ptr;
 
-	ulint		rec_type;/*!< undo log record type: TRX_UNDO_INSERT_REC,
-				... */
-	dict_table_t*	table;	/*!< table where purge is done */
+	/** undo number of the record */
+	undo_no_t		undo_no;
 
-	ulint		cmpl_info;/* compiler analysis info of an update */
+	/** undo log record type: TRX_UNDO_INSERT_REC, ... */
+	ulint			rec_type;
 
-	upd_t*		update;	/*!< update vector for a clustered index
-				record */
-	dtuple_t*	ref;	/*!< NULL, or row reference to the next row to
-				handle */
-	dtuple_t*	row;	/*!< NULL, or a copy (also fields copied to
-				heap) of the indexed fields of the row to
-				handle */
-	dict_index_t*	index;	/*!< NULL, or the next index whose record should
-				be handled */
-	mem_heap_t*	heap;	/*!< memory heap used as auxiliary storage for
-				row; this must be emptied after a successful
-				purge of a row */
-	ibool		found_clust;/* TRUE if the clustered index record
-				determined by ref was found in the clustered
-				index, and we were able to position pcur on
-				it */
-	btr_pcur_t	pcur;	/*!< persistent cursor used in searching the
-				clustered index record */
-	ibool		done;	/* Debug flag */
-	trx_id_t	trx_id;	/*!< trx id for this purging record */
+	/** table where purge is done */
+	dict_table_t*		table;
+
+	/** compiler analysis info of an update */
+	ulint			cmpl_info;
+
+	/** update vector for a clustered index record */
+	upd_t*			update;
+
+	/** NULL, or row reference to the next row to handle */
+	dtuple_t*		ref;
+
+	/** NULL, or a copy (also fields copied to heap) of the indexed
+	fields of the row to handle */
+	dtuple_t*		row;
+
+	/** NULL, or the next index whose record should be handled */
+	dict_index_t*		index;
+
+	/** The heap is owned by purge_sys and is reset after a purge
+	batch has completed. */
+	mem_heap_t*		heap;
+
+	/** true if the clustered index record determined by ref was
+	found in the clustered index, and we were able to position pcur on it */
+	bool			found_clust;
+
+	/** persistent cursor used in searching the clustered index record */
+	btr_pcur_t		pcur;
+
+	/** Debug flag */
+	bool			done;
+
+	/** trx id for this purging record */
+	trx_id_t		trx_id;
+
+	/** Undo recs to purge */
+	Recs*			recs;
 
 #ifdef UNIV_DEBUG
 	/***********************************************************//**

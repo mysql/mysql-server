@@ -17,7 +17,6 @@
 
 #include "psi_memory_key.h"
 #include "sql_parse.h"                         // parse_sql
-#include "strfunc.h"                           // find_string_in_array
 #include "sql_db.h"                            // get_default_db_collation
 #include "sql_time.h"                          // interval_type_to_name
                                                // date_add_interval,

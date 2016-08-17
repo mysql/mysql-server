@@ -16,7 +16,6 @@ drop table if exists t1,t2;
 
 --disable_query_log
 --disable_result_log
-call mtr.add_suppression("Did not write failed .*");
 --enable_result_log
 --enable_query_log
 #connect (con1,localhost,root,,"");

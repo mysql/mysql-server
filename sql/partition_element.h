@@ -1,7 +1,7 @@
 #ifndef PARTITION_ELEMENT_INCLUDED
 #define PARTITION_ELEMENT_INCLUDED
 
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,11 +22,11 @@
 /**
  * An enum and a struct to handle partitioning and subpartitioning.
  */
-enum partition_type {
-  NOT_A_PARTITION= 0,
-  RANGE_PARTITION,
-  HASH_PARTITION,
-  LIST_PARTITION
+enum class partition_type {
+  NONE= 0,
+  RANGE,
+  HASH,
+  LIST
 };
 
 enum partition_state {

@@ -275,7 +275,7 @@ our $opt_resfile= $ENV{'MTR_RESULT_FILE'} || 0;
 my $opt_skip_core;
 
 our $opt_check_testcases= 1;
-our $opt_failcheck_testcases=0;
+our $opt_fail_check_testcases= 0;
 my $opt_mark_progress;
 our $opt_test_progress;
 my $opt_max_connections;
@@ -440,7 +440,6 @@ sub main {
     my $max_par= $ENV{MTR_MAX_PARALLEL} || 8;
     $opt_parallel= $max_par if ($opt_parallel > $max_par);
     $opt_parallel= $num_tests if ($opt_parallel > $num_tests);
-    $opt_parallel= 1 if (IS_WINDOWS and $sys_info->isvm());
     $opt_parallel= 1 if ($opt_parallel < 1);
     mtr_report("Using parallel: $opt_parallel");
   }
@@ -1062,7 +1061,7 @@ sub print_global_resfile {
   resfile_global("compress", $opt_compress ? 1 : 0);
   resfile_global("parallel", $opt_parallel);
   resfile_global("check-testcases", $opt_check_testcases ? 1 : 0);
-  resfile_global("failcheck-testcases", $opt_failcheck_testcases ? 1 : 0);
+  resfile_global("fail-check-testcases", $opt_fail_check_testcases ? 1 : 0);
   resfile_global("mysqld", \@opt_extra_mysqld_opt);
   resfile_global("bootstrap", \@opt_extra_bootstrap_opt);
   resfile_global("mysqltest", \@opt_extra_mysqltest_opt);
@@ -1161,7 +1160,7 @@ sub command_line_setup {
              # Test case authoring
              'record'                   => \$opt_record,
              'check-testcases!'         => \$opt_check_testcases,
-             'failcheck-testcases!'     => \$opt_failcheck_testcases,
+             'fail-check-testcases!'    => \$opt_fail_check_testcases,
              'mark-progress'            => \$opt_mark_progress,
              'test-progress'            => \$opt_test_progress,
 
@@ -1495,6 +1494,17 @@ sub command_line_setup {
       $opt_port_base-= $rem;
     }
     $opt_build_thread= $opt_port_base / 10 - 1000;
+  }
+
+  # --------------------------------------------------------------------------
+  # Check if both fail-check-testcases and no-check-testcases were used
+  # simultaneously
+  # --------------------------------------------------------------------------
+  if ( $opt_fail_check_testcases and !$opt_check_testcases )
+  {
+    # Turn OFF fail-check-testcases
+    mtr_report("Turning off --fail-check-testcases ");
+    $opt_fail_check_testcases= 0;
   }
 
   # --------------------------------------------------------------------------
@@ -1861,6 +1871,7 @@ sub command_line_setup {
     # Turn off check testcases to save time
     mtr_report("Turning off --check-testcases to save time when valgrinding");
     $opt_check_testcases = 0; 
+    $opt_fail_check_testcases= 0;
   }
 
   if ( $opt_helgrind )
@@ -1875,6 +1886,7 @@ sub command_line_setup {
     # Turn off check testcases to save time.
     mtr_report("Turning off --check-testcases to save time when helgrinding");
     $opt_check_testcases = 0;
+    $opt_fail_check_testcases= 0;
   }
 
   if ($opt_debug_common)
@@ -4192,7 +4204,7 @@ sub check_testcase($$)
 	{
 	  # Test failed, grab the report mysqltest has created
 	  my $report= mtr_grab_file($err_file);
-	  my $message=
+          my $message =
 	    "\nMTR's internal check of the test case '$tname' failed.
 This means that the test case does not preserve the state that existed
 before the test case was executed.  Most likely the test case did not
@@ -4200,13 +4212,15 @@ do a proper clean-up. It could also be caused by the previous test run
 by this thread, if the server wasn't restarted.
 This is the diff of the states of the servers before and after the
 test case was executed:\n";
-          if ($opt_failcheck_testcases) {
-            $tinfo->{comment}.=$message;
+          if ($opt_fail_check_testcases) {
+            $tinfo->{comment}.= $message;
             $tinfo->{comment}.= $report;
+            # Do not grab the log file since the test actually passed
+            $tinfo->{logfile}= "";
           }
           else {
-	  $tinfo->{check}.=$message;
-	  $tinfo->{check}.= $report;
+            $tinfo->{check}.= $message;
+            $tinfo->{check}.= $report;
           }
 
 	  # Check failed, mark the test case with that info
@@ -4725,13 +4739,18 @@ sub run_testcase ($) {
 	resfile_output($tinfo->{'warnings'}) if $opt_resfile;
       }
 
-      my $check_res=check_testcase($tinfo, "after") if !$res;
-      # Test succeeded but failed in check-test, failing the test in case
-      # option --failcheck-testcases had been passed
-      if (($res == 0) and $opt_failcheck_testcases) {
-        if ($check_res == 1) {
-          resfile_output($tinfo->{'comment'}) if $opt_resfile;
-          $res=1;
+      my $check_res;
+
+      if ( $opt_check_testcases and !restart_forced_by_test('force_restart') )
+      {
+        $check_res= check_testcase($tinfo, "after") if !$res;
+        # Test succeeded but failed in check-test, failing the test in case
+        # option --fail-check-testcases had been passed
+        if (($res == 0) and $opt_fail_check_testcases) {
+          if ($check_res == 1) {
+            resfile_output($tinfo->{'comment'}) if $opt_resfile;
+            $res= 1;
+          }
         }
       }
 
@@ -5641,13 +5660,11 @@ sub report_failure_and_restart ($) {
 	if ($tinfo->{logfile} !~ /\n/)
 	{
 	  # Show how far it got before suddenly failing
-          if ( !$tinfo->{'check_testcase_failed'} ) {
-            # Avoid MTR printing the following error message on
-            # windows for test timeout failures.
-            if (!$tinfo->{'timeout'} and !IS_WINDOWS)
-            {
-              $tinfo->{comment}.= "mysqltest failed but provided no output\n";
-            }
+          # Avoid MTR printing the following error message on
+          # windows for test timeout failures.
+          if (!$tinfo->{'timeout'} and !IS_WINDOWS)
+          {
+            $tinfo->{comment}.= "mysqltest failed but provided no output\n";
           }
 	  my $log_file_name= $opt_vardir."/log/".$tinfo->{shortname}.".log";
 	  if (-e $log_file_name) {
@@ -7336,7 +7353,7 @@ Options for test case authoring
 
   record TESTNAME       (Re)genereate the result file for TESTNAME
   check-testcases       Check testcases for sideeffects
-  failcheck-testcases   Fail testcases for sideeffects
+  fail-check-testcases  Fail testcases for sideeffects
   mark-progress         Log line number and elapsed time to <testname>.progress
   test-progress         Print the percentage of tests completed
 

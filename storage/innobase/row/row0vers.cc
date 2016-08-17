@@ -438,13 +438,12 @@ row_vers_non_vc_match(
 	dtuple_t* nentry = row_build_index_entry(row, ext, index, heap);
 
 	for (ulint i = 0; i < n_fields; i++) {
-		const dict_field_t*	ind_field = dict_index_get_nth_field(
-							index, i);
+		const dict_field_t*	ind_field = index->get_field(i);
 
 		const dict_col_t*	col = ind_field->col;
 
 		/* Only check non-virtual columns */
-		if (dict_col_is_virtual(col)) {
+		if (col->is_virtual()) {
 			continue;
 		}
 
@@ -478,10 +477,9 @@ row_vers_build_clust_v_col(
 {
 	mem_heap_t*	local_heap = NULL;
 	for (ulint i = 0; i < dict_index_get_n_fields(index); i++) {
-		const dict_field_t* ind_field = dict_index_get_nth_field(
-				index, i);
+		const dict_field_t* ind_field = index->get_field(i);
 
-		if (dict_col_is_virtual(ind_field->col)) {
+		if (ind_field->col->is_virtual()) {
 			const dict_v_col_t*       col;
 
 			col = reinterpret_cast<const dict_v_col_t*>(
@@ -577,10 +575,10 @@ row_vers_build_cur_vrow_low(
 
 		for (i = 0; i < entry_len; i++) {
 			const dict_field_t*	ind_field
-				 = dict_index_get_nth_field(index, i);
+				 = index->get_field(i);
 			const dict_col_t*	col = ind_field->col;
 
-			if (!dict_col_is_virtual(col)) {
+			if (!col->is_virtual()) {
 				continue;
 			}
 
@@ -713,11 +711,11 @@ row_vers_vc_matches_cluster(
 
 		for (i = 0; i < entry_len; i++) {
 			const dict_field_t*	ind_field
-				 = dict_index_get_nth_field(index, i);
+				 = index->get_field(i);
 			const dict_col_t*	col = ind_field->col;
 			field1 = dtuple_get_nth_field(ientry, i);
 
-			if (!dict_col_is_virtual(col)) {
+			if (!col->is_virtual()) {
 				continue;
 			}
 
@@ -1147,7 +1145,7 @@ row_vers_build_for_consistent_read(
 	byte*		buf;
 	dberr_t		err;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
 	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));
@@ -1259,7 +1257,7 @@ row_vers_build_for_semi_consistent_read(
 	byte*		buf;
 	trx_id_t	rec_trx_id	= 0;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
 	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));

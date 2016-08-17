@@ -13,12 +13,12 @@ Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 show grants for test@localhost;
 Grants for test@localhost
-GRANT USAGE ON *.* TO 'test'@'localhost'
-GRANT CREATE VIEW ON `test`.* TO 'test'@'localhost'
+GRANT USAGE ON *.* TO `test`@`localhost`
+GRANT CREATE VIEW ON `test`.* TO `test`@`localhost`
 revoke create view on test.* from test@localhost;
 show grants for test@localhost;
 Grants for test@localhost
-GRANT USAGE ON *.* TO 'test'@'localhost'
+GRANT USAGE ON *.* TO `test`@`localhost`
 drop user test@localhost;
 create database mysqltest;
 create table mysqltest.t1 (a int, b int);
@@ -2577,7 +2577,7 @@ SELECT * FROM test1.v1_middle;
 REVOKE SELECT(cs) ON test1.t1 FROM user1@localhost;
 SHOW GRANTS FOR user1@localhost;
 Grants for user1@localhost
-GRANT USAGE ON *.* TO 'user1'@'localhost'
+GRANT USAGE ON *.* TO `user1`@`localhost`
 SELECT * FROM test1.t1 LIMIT 1;
 cn	cs	ci	cu	cus
 0	0	0	w	s

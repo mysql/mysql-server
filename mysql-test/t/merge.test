@@ -2,6 +2,7 @@
 # Test of MERGE TABLES
 #
 # MERGE tables require MyISAM tables
+--source include/no_valgrind_without_big.inc
 --source include/have_myisam.inc 
 
 # Skip the test when log-bin is enabled due to presence of many unsafe statements

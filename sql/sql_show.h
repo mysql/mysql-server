@@ -92,10 +92,9 @@ int copy_event_to_schema_table(THD *thd, TABLE *sch_table,
 void append_identifier(THD *thd, String *packet, const char *name, size_t length,
                        const CHARSET_INFO *from_cs, const CHARSET_INFO *to_cs);
 
-inline void append_identifier(THD *thd, String *packet, const char *name, size_t length)
-{
-  append_identifier(thd, packet, name, length, NULL, NULL);
-}
+void append_identifier(THD *thd, String *packet, const char *name,
+                       size_t length);
+
 inline void append_identifier(THD *thd, String *packet, Simple_cstring str)
 {
   append_identifier(thd, packet, str.ptr(), str.length());

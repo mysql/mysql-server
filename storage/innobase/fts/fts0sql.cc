@@ -270,7 +270,7 @@ fts_get_select_columns_str(
 	for (i = 0; i < index->n_user_defined_cols; i++) {
 		char*           sel_str;
 
-		dict_field_t*   field = dict_index_get_nth_field(index, i);
+		dict_field_t*   field = index->get_field(i);
 
 		sel_str = mem_heap_printf(heap, "sel%lu", (ulong) i);
 

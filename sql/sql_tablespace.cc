@@ -20,6 +20,7 @@
 #include "sql_class.h"                          // THD
 #include "sql_table.h"                          // write_bin_log
 #include "table.h"                              // ident_name_check
+#include "transaction.h"                        // trans_commit_stmt
 
 #include "dd/dd_tablespace.h"                   // dd::create_tablespace
 #include "dd/cache/dictionary_client.h"         // dd::Dictionary_client
@@ -168,7 +169,7 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
       if (!(new_ts_def= dd::create_tablespace(thd, ts_info, hton,
                               !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL),
                               !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL))))
-        DBUG_RETURN(true);
+        goto err;
       break;
 
     case DROP_TABLESPACE:
@@ -210,7 +211,7 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
           dd::alter_tablespace(thd, ts_info, old_ts_def, new_ts_def.get()))
       {
         // Error should be reported already.
-        DBUG_RETURN(true);
+        goto err;
       }
       break;
 
@@ -324,7 +325,7 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
         */
         (void) dd::drop_tablespace(thd, old_ts_def, true, false);
       }
-      DBUG_RETURN(true);
+      goto err;
     }
 
     if (ts_info->ts_cmd_type == DROP_TABLESPACE)
@@ -332,7 +333,7 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
       if (dd::drop_tablespace(thd, old_ts_def,
                               !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL),
                               false))
-        DBUG_RETURN(true);
+        goto err;
     }
     else if (ts_info->ts_cmd_type == ALTER_TABLESPACE ||
              (ts_info->ts_cmd_type == CREATE_TABLESPACE &&
@@ -345,7 +346,7 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
       */
       if (dd::update_tablespace(thd, new_ts_def.get(),
                                 !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL)))
-        DBUG_RETURN(true);
+        goto err;
     }
   }
   else
@@ -358,7 +359,23 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
 
   if (write_bin_log(thd, false, thd->query().str, thd->query().length,
                     (hton->flags & HTON_SUPPORTS_ATOMIC_DDL)))
-    DBUG_RETURN(true);
+    goto err;
+
+  /* Commit the statement and call storage engine's post-DDL hook. */
+  if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
+    goto err;
+
+  if ((hton->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+      hton->post_ddl)
+    hton->post_ddl(thd);
 
   DBUG_RETURN(false);
+
+err:
+  trans_rollback_stmt(thd);
+  if ((hton->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+      hton->post_ddl)
+    hton->post_ddl(thd);
+
+  DBUG_RETURN(true);
 }

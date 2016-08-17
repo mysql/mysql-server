@@ -571,11 +571,11 @@ trx_sys_create_rsegs(
 		ulint	new_rsegs = n_rsegs - n_used;
 
 		for (i = 0; i < new_rsegs; ++i) {
-			space_id_t	space;
-			space = (n_spaces == 0) ? 0
-				: srv_undo_tablespace_ids[i % n_spaces];
+			space_id_t	space_id;
+			space_id = (n_spaces == 0) ? 0
+				: (srv_undo_space_id_start + i % n_spaces);
 
-			if (trx_rseg_create(space, 0) != NULL) {
+			if (trx_rseg_create(space_id, 0) != NULL) {
 				++n_used;
 				++n_redo_active;
 			} else {

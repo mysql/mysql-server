@@ -111,7 +111,7 @@ public:
             HA_HAS_RECORDS | HA_CAN_REPAIR |
             HA_FILE_BASED | HA_CAN_GEOMETRY);
   }
-  ulong index_flags(uint idx, uint part, bool all_parts) const
+  ulong index_flags(uint, uint, bool) const
   {
     return HA_ONLY_WHOLE_INDEX;
   }
@@ -159,7 +159,7 @@ public:
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
   void start_bulk_insert(ha_rows rows);
   int end_bulk_insert();
-  enum row_type get_real_row_type(const HA_CREATE_INFO *create_info) const
+  enum row_type get_real_row_type(const HA_CREATE_INFO*) const
   {
     return ROW_TYPE_COMPRESSED;
   }

@@ -45,9 +45,22 @@ class Mock_capability_handler: public Capability_handler
 public:
   MOCK_CONST_METHOD0(name, const std::string ());
   MOCK_CONST_METHOD0(is_supported, bool ());
-  MOCK_METHOD1(get, void (::Mysqlx::Datatypes::Any &));
   MOCK_METHOD1(set, bool (const ::Mysqlx::Datatypes::Any &));
-  MOCK_METHOD0(commit, void ());
+
+  // Workaround for GMOCK undefined behaviour with ResultHolder
+  MOCK_METHOD1(get_void, bool (::Mysqlx::Datatypes::Any &));
+  MOCK_METHOD0(commit_void, bool ());
+
+  void get(::Mysqlx::Datatypes::Any &any)
+  {
+    get_void(any);
+  }
+
+  void commit()
+  {
+    commit_void();
+  }
+
 };
 
 } // namespace test

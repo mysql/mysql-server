@@ -707,13 +707,11 @@ pars_resolve_exp_columns(
 	while (t_node) {
 		table = t_node->table;
 
-		n_cols = dict_table_get_n_cols(table);
+		n_cols = table->get_n_cols();
 
 		for (i = 0; i < n_cols; i++) {
-			const dict_col_t*	col
-				= dict_table_get_nth_col(table, i);
-			const char*		col_name
-				= dict_table_get_col_name(table, i);
+			const dict_col_t* col = table->get_col(i);
+			const char*	col_name = table->get_col_name(i);
 
 			if ((sym_node->name_len == ut_strlen(col_name))
 			    && (0 == ut_memcmp(sym_node->name, col_name,
@@ -725,10 +723,8 @@ pars_resolve_exp_columns(
 				sym_node->col_no = i;
 				sym_node->prefetch_buf = NULL;
 
-				dict_col_copy_type(
-					col,
-					dfield_get_type(&sym_node
-							->common.val));
+				col->copy_type(dfield_get_type(
+						&sym_node->common.val));
 
 				return;
 			}
@@ -830,9 +826,8 @@ pars_select_all_columns(
 	while (table_node) {
 		table = table_node->table;
 
-		for (i = 0; i < dict_table_get_n_user_cols(table); i++) {
-			const char*	col_name = dict_table_get_col_name(
-				table, i);
+		for (i = 0; i < table->get_n_user_cols(); i++) {
+			const char*	col_name = table->get_col_name(i);
 
 			col_node = sym_tab_add_id(pars_sym_tab_global,
 						  (byte*) col_name,
@@ -1140,15 +1135,13 @@ pars_process_assign_list(
 
 		col_sym = assign_node->col;
 
-		upd_field_set_field_no(upd_field, dict_index_get_nth_col_pos(
-					       clust_index, col_sym->col_no),
-				       clust_index, NULL);
+		upd_field_set_field_no(upd_field,
+				clust_index->get_col_pos(col_sym->col_no),
+				clust_index, NULL);
 		upd_field->exp = assign_node->val;
 
-		if (!dict_col_get_fixed_size(
-			    dict_index_get_nth_col(clust_index,
-						   upd_field->field_no),
-			    dict_table_is_comp(node->table))) {
+		if (!clust_index->get_col(upd_field->field_no)->get_fixed_size(
+			dict_table_is_comp(node->table))) {
 			changes_field_size = 0;
 		}
 
@@ -1241,7 +1234,7 @@ pars_update_statement(
 
 	plan->no_prefetch = TRUE;
 
-	if (!dict_index_is_clust(plan->index)) {
+	if (!plan->index->is_clustered()) {
 
 		plan->must_get_clust = TRUE;
 
@@ -1282,7 +1275,7 @@ pars_insert_statement(
 			       pars_sym_tab_global->heap);
 
 	row = dtuple_create(pars_sym_tab_global->heap,
-			    dict_table_get_n_cols(node->table));
+			    node->table->get_n_cols());
 
 	dict_table_copy_types(row, table_sym->table);
 
@@ -1294,7 +1287,7 @@ pars_insert_statement(
 		select->common.parent = node;
 
 		ut_a(que_node_list_get_len(select->select_list)
-		     == dict_table_get_n_user_cols(table_sym->table));
+		     == table_sym->table->get_n_user_cols());
 	}
 
 	node->values_list = values_list;
@@ -1303,7 +1296,7 @@ pars_insert_statement(
 		pars_resolve_exp_list_variables_and_types(NULL, values_list);
 
 		ut_a(que_node_list_get_len(values_list)
-		     == dict_table_get_n_user_cols(table_sym->table));
+		     == table_sym->table->get_n_user_cols());
 	}
 
 	return(node);
@@ -1913,7 +1906,7 @@ pars_create_index(
 	column = column_list;
 
 	while (column) {
-		dict_mem_index_add_field(index, column->name, 0);
+		index->add_field(column->name, 0);
 
 		column->resolved = TRUE;
 		column->token_type = SYM_COLUMN;

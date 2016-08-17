@@ -343,7 +343,7 @@ sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
   }
 
   if ((file= mysql_file_open(key_file_fileparser, file_name->str,
-                             O_RDONLY | O_SHARE, MYF(MY_WME))) < 0)
+                             O_RDONLY, MYF(MY_WME))) < 0)
   {
     DBUG_RETURN(0);
   }

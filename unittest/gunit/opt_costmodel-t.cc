@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,8 +56,8 @@ protected:
   Tests for temporary tables that are not dependent on hard coded cost
   constants.
 */
-void test_tmptable_cost(const Cost_model_server *cm,
-                        Cost_model_server::enum_tmptable_type tmp_table_type)
+static void test_tmptable_cost(const Cost_model_server *cm,
+                               Cost_model_server::enum_tmptable_type tmp_table_type)
 {
   const uint rows= 3;
 

@@ -100,7 +100,7 @@ session@localhost	session@localhost	*
 0 rows affected
 RUN show grants
 Grants for session@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'session'@'localhost'
+GRANT ALL PRIVILEGES ON *.* TO `session`@`localhost`
 0 rows affected
 RUN install plugin mysqlx soname '$MYSQLXPLUGIN'
 While executing install plugin mysqlx soname '$MYSQLXPLUGIN':
@@ -115,7 +115,7 @@ xplugin@localhost	xplugin@localhost	*
 0 rows affected
 RUN show grants
 Grants for xplugin@localhost
-GRANT USAGE ON *.* TO 'xplugin'@'localhost'
+GRANT USAGE ON *.* TO `xplugin`@`localhost`
 0 rows affected
 RUN install plugin mysqlx soname '$MYSQLXPLUGIN'
 While executing install plugin mysqlx soname '$MYSQLXPLUGIN':

@@ -211,7 +211,7 @@ namespace ngs
 
     Container *container()
     {
-      return m_ref;
+      return &m_ref;
     }
 
   private:
@@ -237,6 +237,17 @@ namespace ngs
       Mutex_lock lock(m_mutex);
 
       return value_to_check == m_value;
+    }
+
+    template<std::size_t NUM_OF_ELEMENTS>
+    bool is(const Variable_type (&expected_value)[NUM_OF_ELEMENTS])
+    {
+      Mutex_lock lock(m_mutex);
+
+      const Variable_type *begin_element = expected_value;
+      const Variable_type *end_element = expected_value + NUM_OF_ELEMENTS;
+
+      return find(begin_element, end_element, m_value);
     }
 
     bool exchange(const Variable_type expected_value, const Variable_type new_value)

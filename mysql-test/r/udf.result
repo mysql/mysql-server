@@ -565,10 +565,10 @@ SET innodb_lock_wait_timeout= 1;
 # A.1. Checking lock-wait-timeout with CREATE USER
 #######################################################
 START TRANSACTION;
-INSERT INTO mysql.func(name, ret, dl, type) VALUES ('metaphon', 0, 'udf_example.so', 'function');
+INSERT INTO mysql.func(name, ret, dl, type) VALUES ('metaphon', 0, 'UDF_EXAMPLE_LIB', 'function');
 
 # Connection: con1
-CREATE FUNCTION metaphon RETURNS STRING SONAME "udf_example.so";;
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";;
 
 # Connection: default
 ROLLBACK;
@@ -581,7 +581,7 @@ DROP FUNCTION metaphon;
 ###############################################################
 # A.2. Checking lock-wait-timeout with DROP FUNCTION.
 ###############################################################
-CREATE FUNCTION metaphon RETURNS STRING SONAME "udf_example.so";
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
 START TRANSACTION;
 SELECT name FROM mysql.func WHERE name ='metaphon' FOR UPDATE;
 name
@@ -605,7 +605,7 @@ name
 CREATE TABLE t1(a INT);
 START TRANSACTION;
 INSERT INTO t1 VALUES(1),(2),(3);
-CREATE FUNCTION metaphon RETURNS STRING SONAME "udf_example.so";
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
 
 # Connection: con1
 SELECT * FROM t1;
@@ -615,13 +615,13 @@ a
 3
 SELECT * FROM mysql.func;
 name	ret	dl	type
-metaphon	0	udf_example.so	function
+metaphon	0	UDF_EXAMPLE_LIB	function
 
 # Connection: default
 ROLLBACK;
 SELECT * FROM mysql.func;
 name	ret	dl	type
-metaphon	0	udf_example.so	function
+metaphon	0	UDF_EXAMPLE_LIB	function
 DROP FUNCTION metaphon;
 DROP TABLE t1;
 

@@ -4,12 +4,12 @@
 --disable_ps_protocol
 --disable_warnings
 --source include/not_embedded.inc
-call mtr.add_suppression("Cannot create keyring directory:");
 call mtr.add_suppression("\\[Error\\] Function 'keyring_file' already exists");
 call mtr.add_suppression("\\[Error\\] Couldn't load plugin named 'keyring_file' with soname 'keyring_file.so'.");
 call mtr.add_suppression("keyring_file_data cannot be set to new value as the keyring file cannot be created/accessed in the provided path");
 call mtr.add_suppression("\\[Error\\] Plugin keyring_file reported: 'keyring_file initialization failure.");
 call mtr.add_suppression("Plugin keyring_file reported: 'Could not create keyring directory The keyring_file will stay unusable until correct path to the keyring directory gets provided");
+call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
 
 # Installing keyring plugin.
 --replace_regex /\.dll/.so/

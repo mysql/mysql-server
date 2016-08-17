@@ -37,7 +37,7 @@
 #include "mysql/service_my_snprintf.h"
 #include "template_utils.h"
 #include "uca_data.h"
-#include "uca800_data.h"
+#include "uca900_data.h"
 
 #include <algorithm>
 #include <iterator>
@@ -433,7 +433,7 @@ static const char vietnamese[]=
    " << \\u1EF5 <<< \\u1EF4";
 
 /* German Phonebook */
-static const char de_phonebook_cldr_29[]=
+static const char de_pb_cldr_29[]=
   "&AE << \\u00E4 <<< \\u00C4 "
   "&OE << \\u00F6 <<< \\u00D6 "
   "&UE << \\u00FC <<< \\u00DC ";
@@ -561,7 +561,7 @@ static const char sk_cldr_29[]=
   "&Z < \\u017E <<< \\u017D";
 
 /* Spanish (Traditional) */
-static const char es_traditional_cldr_29[]=
+static const char es_trad_cldr_29[]=
   "&N <  \\u00F1 <<< \\u00D1 "
   "&C <  ch      <<< Ch      <<< CH "
   "&l <  ll      <<< Ll      <<< LL";
@@ -664,7 +664,7 @@ static const char si_cldr_29[]=
 
 /* Vietnamese */
 static const char vi_cldr_29[]=
-  "&\\u0300 < \\u0309 <<  \\u0303 << \\u0301 <<  \\u0323 "
+  "&\\u0300 << \\u0309 <<  \\u0303 << \\u0301 <<  \\u0323 "
   "&a       < \\u0103 <<< \\u0102 <  \\u00E2 <<< \\u00C2 "
   "&d       < \\u0111 <<< \\u0110 "
   "&e       < \\u00EA <<< \\u00CA "
@@ -1037,9 +1037,9 @@ my_uca_scanner_contraction_find(my_uca_scanner *scanner, my_wc_t *wc)
         (cweight= my_uca_contraction_weight(&scanner->level->contractions,
                                             wc, clen)))
     {
-      if (scanner->cs->state & MY_CS_UCA_800)
+      if (scanner->cs->state & MY_CS_UCA_900)
       {
-        scanner->wbeg= cweight + MY_UCA_800_CE_SIZE;
+        scanner->wbeg= cweight + MY_UCA_900_CE_SIZE;
         scanner->num_of_ce= 8;
         scanner->num_of_ce_handled= 1;
       }
@@ -1079,9 +1079,9 @@ my_uca_previous_context_find(my_uca_scanner *scanner,
   {
     if (c->with_context && wc0 == c->ch[0] && wc1 == c->ch[1])
     {
-      if (scanner->cs->state & MY_CS_UCA_800)
+      if (scanner->cs->state & MY_CS_UCA_900)
       {
-        scanner->wbeg= c->weight + MY_UCA_800_CE_SIZE;
+        scanner->wbeg= c->weight + MY_UCA_900_CE_SIZE;
         scanner->num_of_ce= 8;
         scanner->num_of_ce_handled= 1;
       }
@@ -1128,12 +1128,12 @@ my_decompose_hangul_syllable(my_wc_t syllable, my_wc_t* jamo)
   return trailingjamo_index ? 3 : 2;
 }
 
-void my_put_jamo_weights(my_uca_scanner *scanner, my_wc_t *hangul_jamo,
-                         int jamo_cnt)
+static void my_put_jamo_weights(my_uca_scanner *scanner, my_wc_t *hangul_jamo,
+                                int jamo_cnt)
 {
   for (int jamoind= 0; jamoind < jamo_cnt; jamoind++)
   {
-    uint16 *implicit_weight= scanner->implicit + jamoind * MY_UCA_800_CE_SIZE;
+    uint16 *implicit_weight= scanner->implicit + jamoind * MY_UCA_900_CE_SIZE;
     int page, code;
     uint16 *jamo_weight_page;
     uint16 *jamo_weight;
@@ -1149,6 +1149,55 @@ void my_put_jamo_weights(my_uca_scanner *scanner, my_wc_t *hangul_jamo,
   scanner->implicit[9]= jamo_cnt;
 }
 
+static int
+my_uca_scanner_next_implicit_900(my_uca_scanner *scanner)
+{
+  my_wc_t hangul_jamo[HANGUL_JAMO_MAX_LENGTH];
+  int jamo_cnt;
+  scanner->code= (scanner->page << 8) + scanner->code;
+  if ((jamo_cnt= my_decompose_hangul_syllable(scanner->code, hangul_jamo)))
+  {
+    my_put_jamo_weights(scanner, hangul_jamo, jamo_cnt);
+    scanner->num_of_ce= jamo_cnt;
+    scanner->num_of_ce_handled= 1;
+    scanner->wbeg= scanner->implicit + MY_UCA_900_CE_SIZE;
+    return *scanner->implicit;
+  }
+  
+  if (scanner->code >= 0x17000 && scanner->code <= 0x18AFF) //Tangut character
+  {
+    scanner->page= 0xFB00;
+    scanner->implicit[3]= (scanner->code - 0x17000) | 0x8000;
+  }
+  else
+  {
+    scanner->page= scanner->page >> 7;
+    scanner->implicit[3]= (scanner->code & 0x7FFF) | 0x8000;
+    if ((scanner->code >= 0x3400 && scanner->code <= 0x4DB5) ||
+        (scanner->code >= 0x20000 && scanner->code <= 0x2A6D6) ||
+        (scanner->code >= 0x2A700 && scanner->code <= 0x2B734) ||
+        (scanner->code >= 0x2B740 && scanner->code <= 0x2B81D) ||
+        (scanner->code >= 0x2B820 && scanner->code <= 0x2CEA1))
+      scanner->page+= 0xFB80;
+    else if ((scanner->code >= 0x4E00 && scanner->code <= 0x9FD5) ||
+             (scanner->code >= 0xFA0E && scanner->code <= 0xFA29))
+      scanner->page+= 0xFB40;
+    else
+      scanner->page+= 0xFBC0;
+  }
+  scanner->implicit[1]= 0x0020;
+  scanner->implicit[2]= 0x0002;
+  scanner->implicit[4]= 0;
+  scanner->implicit[5]= 0;
+  scanner->implicit[9]= 2;
+  scanner->num_of_ce= 2;
+  scanner->num_of_ce_handled= 1;
+  scanner->wbeg= scanner->implicit + MY_UCA_900_CE_SIZE;
+  scanner->implicit[0]= scanner->page;
+
+  return scanner->page;
+}
+
 /**
   Return implicit UCA weight
   Used for characters that do not have assigned UCA weights.
@@ -1161,43 +1210,14 @@ void my_put_jamo_weights(my_uca_scanner *scanner, my_wc_t *hangul_jamo,
 static inline int
 my_uca_scanner_next_implicit(my_uca_scanner *scanner)
 {
+  if (scanner->cs->state & MY_CS_UCA_900)
+    return my_uca_scanner_next_implicit_900(scanner);
+
   scanner->code= (scanner->page << 8) + scanner->code;
-  if (scanner->cs->state & MY_CS_UCA_800)
-  {
-    my_wc_t hangul_jamo[HANGUL_JAMO_MAX_LENGTH];
-    int jamo_cnt;
-    if ((jamo_cnt= my_decompose_hangul_syllable(scanner->code, hangul_jamo)))
-    {
-      my_put_jamo_weights(scanner, hangul_jamo, jamo_cnt);
-      scanner->num_of_ce= jamo_cnt;
-      scanner->num_of_ce_handled= 1;
-      scanner->wbeg= scanner->implicit + MY_UCA_800_CE_SIZE;
-      return *scanner->implicit;
-    }
-    else
-    {
-      scanner->implicit[1]= 0x0020;
-      scanner->implicit[2]= 0x0002;
-      scanner->implicit[3]= (scanner->code & 0x7FFF) | 0x8000;
-      scanner->implicit[4]= 0;
-      scanner->implicit[5]= 0;
-      scanner->implicit[9]= 2;
-      scanner->num_of_ce= 2;
-      scanner->num_of_ce_handled= 1;
-      scanner->wbeg= scanner->implicit + MY_UCA_800_CE_SIZE;
-    }
-  }
-  else
-  {
-    scanner->implicit[1]= (scanner->code & 0x7FFF) | 0x8000;
-    scanner->implicit[2]= 0;
-    scanner->implicit[3]= 0;
-    scanner->implicit[4]= 0;
-    scanner->implicit[5]= 0;
-    scanner->implicit[9]= 0;
-    scanner->wbeg= scanner->implicit + 1;
-  }
-  
+  scanner->implicit[0]= (scanner->code & 0x7FFF) | 0x8000;
+  scanner->implicit[1]= 0;
+  scanner->wbeg= scanner->implicit;
+
   scanner->page= scanner->page >> 7;
   
   if (scanner->code >= 0x3400 && scanner->code <= 0x4DB5)
@@ -1207,7 +1227,6 @@ my_uca_scanner_next_implicit(my_uca_scanner *scanner)
   else
     scanner->page+= 0xFBC0;
   
-  scanner->implicit[0]= scanner->page;
   return scanner->page;
 }
 
@@ -1325,20 +1344,20 @@ static int my_uca_scanner_more_weight(my_uca_scanner *scanner)
   while (scanner->num_of_ce_handled < scanner->num_of_ce &&
          *scanner->wbeg == 0)
   {
-    scanner->wbeg+= MY_UCA_800_CE_SIZE;
+    scanner->wbeg+= MY_UCA_900_CE_SIZE;
     scanner->num_of_ce_handled++;
   }
   if (scanner->num_of_ce_handled < scanner->num_of_ce)
   {
     uint16 rtn= *scanner->wbeg;
-    scanner->wbeg+= MY_UCA_800_CE_SIZE;
+    scanner->wbeg+= MY_UCA_900_CE_SIZE;
     scanner->num_of_ce_handled++;
     return rtn; /* return the next weight from expansion     */
   }
   return -1;
 }
 
-static int my_uca_scanner_next_raw_800(my_uca_scanner *scanner)
+static int my_uca_scanner_next_raw_900(my_uca_scanner *scanner)
 {
   int remain_weight= my_uca_scanner_more_weight(scanner);
   if (remain_weight >= 0)
@@ -1414,7 +1433,7 @@ static int my_uca_scanner_next_raw_800(my_uca_scanner *scanner)
   } while (!scanner->wbeg[0]); /* Skip ignorable characters */
 
   uint16 rtn= *scanner->wbeg;
-  scanner->wbeg+= MY_UCA_800_CE_SIZE;
+  scanner->wbeg+= MY_UCA_900_CE_SIZE;
   scanner->num_of_ce_handled++;
   return rtn;
 }
@@ -1448,9 +1467,9 @@ my_apply_reorder_param(const Reorder_wt_rec(&wt_rec)[2 * UCA_MAX_CHAR_GRP],
   return weight;
 }
 
-static int my_uca_scanner_next_800(my_uca_scanner *scanner)
+static int my_uca_scanner_next_900(my_uca_scanner *scanner)
 {
-  int res= my_uca_scanner_next_raw_800(scanner);
+  int res= my_uca_scanner_next_raw_900(scanner);
   Coll_param *param= scanner->cs->coll_param;
   if (res > 0 && param && param->reorder_param)
     return my_apply_reorder_param(param->reorder_param->wt_rec,
@@ -1466,10 +1485,10 @@ static my_uca_scanner_handler my_any_uca_scanner_handler=
 };
 
 
-static my_uca_scanner_handler my_uca_800_scanner_handler=
+static my_uca_scanner_handler my_uca_900_scanner_handler=
 {
   my_uca_scanner_init_any,
-  my_uca_scanner_next_800
+  my_uca_scanner_next_900
 };
 /*
   Compares two strings according to the collation
@@ -1661,14 +1680,14 @@ static int my_strnncollsp_uca(const CHARSET_INFO *cs,
   return ( s_res - t_res );
 }
 
-static int my_strnncollsp_uca_800(const CHARSET_INFO *cs,
+static int my_strnncollsp_uca_900(const CHARSET_INFO *cs,
                                   const uchar *s, size_t slen,
                                   const uchar *t, size_t tlen)
 {
   my_uca_scanner sscanner, tscanner;
   int s_res, t_res;
 
-  my_uca_scanner_handler *scanner_handler= &my_uca_800_scanner_handler;
+  my_uca_scanner_handler *scanner_handler= &my_uca_900_scanner_handler;
 
   scanner_handler->init(&sscanner, cs, &cs->uca->level[0], s, slen);
   scanner_handler->init(&tscanner, cs, &cs->uca->level[0], t, tlen);
@@ -1868,13 +1887,13 @@ static int my_uca_charcmp(const CHARSET_INFO *cs, my_wc_t wc1, my_wc_t wc2)
   length1= cs->uca->level[0].lengths[wc1 >> MY_UCA_PSHIFT]; /* W3-TODO */
   length2= cs->uca->level[0].lengths[wc2 >> MY_UCA_PSHIFT];
   
-  if ((cs->state & MY_CS_UCA_800) && !(cs->state & MY_CS_CSSORT))
+  if ((cs->state & MY_CS_UCA_900) && !(cs->state & MY_CS_CSSORT))
   {
     size_t weightind = 0;
     while (weightind < length1 && weightind < length2)
     {
       if (weight1[weightind] == weight2[weightind])
-        weightind+= MY_UCA_800_CE_SIZE;
+        weightind+= MY_UCA_900_CE_SIZE;
       else
         return 1;
     }
@@ -3289,7 +3308,7 @@ my_coll_rule_parse(MY_COLL_RULES *rules,
 }
 
 static size_t
-my_char_weight_put_800(CHARSET_INFO *cs,
+my_char_weight_put_900(CHARSET_INFO *cs,
                        MY_UCA_WEIGHT_LEVEL *dst,
                        uint16 *to, size_t to_length,
                        my_wc_t *str, size_t len)
@@ -3328,7 +3347,7 @@ my_char_weight_put_800(CHARSET_INFO *cs,
     }
 
     for (int weight_ind= 0 ;
-         weight_ind < ce_cnt * MY_UCA_800_CE_SIZE && count < to_length; )
+         weight_ind < ce_cnt * MY_UCA_900_CE_SIZE && count < to_length; )
     {
       *to++= *from++;
       count++;
@@ -3337,8 +3356,8 @@ my_char_weight_put_800(CHARSET_INFO *cs,
     total_ce_cnt+= ce_cnt;
   }
 
-  if (total_ce_cnt > (MY_UCA_MAX_WEIGHT_SIZE - 1) / MY_UCA_800_CE_SIZE)
-    total_ce_cnt= (MY_UCA_MAX_WEIGHT_SIZE - 1) / MY_UCA_800_CE_SIZE;
+  if (total_ce_cnt > (MY_UCA_MAX_WEIGHT_SIZE - 1) / MY_UCA_900_CE_SIZE)
+    total_ce_cnt= (MY_UCA_MAX_WEIGHT_SIZE - 1) / MY_UCA_900_CE_SIZE;
   to[to_length - count]= total_ce_cnt;
   return total_ce_cnt;
 }
@@ -3367,8 +3386,8 @@ my_char_weight_put(CHARSET_INFO *cs,
   size_t count;
   if (!to_length)
     return 0;
-  if (cs->state & MY_CS_UCA_800)
-    return my_char_weight_put_800(cs, dst, to, to_length, str, len);
+  if (cs->state & MY_CS_UCA_900)
+    return my_char_weight_put_900(cs, dst, to, to_length, str, len);
 
   to_length--; /* Without trailing zero */
   for (count= 0; len; )
@@ -3457,8 +3476,8 @@ apply_shift(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
             uint16 *to, size_t nweights)
 {
   /* Apply level difference. */
-  int uca_weight_cnt= (cs->state & MY_CS_UCA_800)
-                       ? MY_UCA_800_CE_SIZE : 1;
+  int uca_weight_cnt= (cs->state & MY_CS_UCA_900)
+                       ? MY_UCA_900_CE_SIZE : 1;
   if (nweights)
   {
     to[(nweights - 1) * uca_weight_cnt]+= r->diff[level];
@@ -3673,7 +3692,7 @@ init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
 static int
 my_coll_rule_adjust(const CHARSET_INFO *cs, MY_COLL_RULES *rules)
 {
-  if (!(cs->state & MY_CS_UCA_800))
+  if (!(cs->state & MY_CS_UCA_900))
     return 0;
   /*
     For shift on primary weight, there might be no enough room
@@ -3896,7 +3915,7 @@ my_coll_add_inherit_rules(const CHARSET_INFO *cs, MY_COLL_RULES *rules,
 static int
 my_coll_check_rule_and_inherit(const CHARSET_INFO *cs, MY_COLL_RULES *rules)
 {
-  if (!(cs->state & MY_CS_UCA_800))
+  if (!(cs->state & MY_CS_UCA_900))
     return 0;
   /*
     Character can combine with marks to be a new character. For example,
@@ -4066,7 +4085,7 @@ static void my_prepare_reorder(CHARSET_INFO *cs)
 */
 static bool my_prepare_coll_param(CHARSET_INFO *cs)
 {
-  if (!(cs->state & MY_CS_UCA_800) || !cs->coll_param)
+  if (!(cs->state & MY_CS_UCA_900) || !cs->coll_param)
     return false;
 
   my_prepare_reorder(cs);
@@ -4208,16 +4227,16 @@ static size_t my_strnxfrm_any_uca(const CHARSET_INFO *cs,
                          dst, dstlen, nweights, src, srclen, flags);
 }
 
-static int my_strnncoll_uca_800(const CHARSET_INFO *cs,
+static int my_strnncoll_uca_900(const CHARSET_INFO *cs,
                                 const uchar *s, size_t slen,
                                 const uchar *t, size_t tlen,
                                 my_bool t_is_prefix)
 {
-  return my_strnncoll_uca(cs, &my_uca_800_scanner_handler,
+  return my_strnncoll_uca(cs, &my_uca_900_scanner_handler,
                           s, slen, t, tlen, t_is_prefix);
 }
 
-static void my_hash_sort_uca_800(const CHARSET_INFO *cs,
+static void my_hash_sort_uca_900(const CHARSET_INFO *cs,
                                  const uchar *s, size_t slen,
                                  ulong *n1, ulong *n2)
 {
@@ -4225,7 +4244,7 @@ static void my_hash_sort_uca_800(const CHARSET_INFO *cs,
   my_uca_scanner scanner;
   ulong tmp1;
   ulong tmp2;
-  my_uca_scanner_handler *scanner_handler= &my_uca_800_scanner_handler;
+  my_uca_scanner_handler *scanner_handler= &my_uca_900_scanner_handler;
 
   slen= cs->cset->lengthsp(cs, (char*) s, slen);
   scanner_handler->init(&scanner, cs, &cs->uca->level[0], s, slen);
@@ -4248,7 +4267,7 @@ static void my_hash_sort_uca_800(const CHARSET_INFO *cs,
   *n2= tmp2;
 }
 
-static size_t my_strnxfrm_uca_800(const CHARSET_INFO *cs,
+static size_t my_strnxfrm_uca_900(const CHARSET_INFO *cs,
                                   uchar *dst, size_t dstlen, uint nweights,
                                   const uchar *src, size_t srclen, uint flags)
 {
@@ -4256,7 +4275,7 @@ static size_t my_strnxfrm_uca_800(const CHARSET_INFO *cs,
   uchar *de= dst + dstlen;
   int   s_res;
   my_uca_scanner scanner;
-  my_uca_scanner_handler *scanner_handler= &my_uca_800_scanner_handler;
+  my_uca_scanner_handler *scanner_handler= &my_uca_900_scanner_handler;
   scanner_handler->init(&scanner, cs, &cs->uca->level[0], src, srclen);
 
   for (; dst < de && nweights &&
@@ -5219,18 +5238,18 @@ MY_COLLATION_HANDLER my_collation_any_uca_handler =
     my_propagate_complex
 };
 
-MY_COLLATION_HANDLER my_collation_uca_800_handler =
+MY_COLLATION_HANDLER my_collation_uca_900_handler =
 {
     my_coll_init_uca,	/* init */
-    my_strnncoll_uca_800,
-    my_strnncollsp_uca_800,
-    my_strnxfrm_uca_800,
+    my_strnncoll_uca_900,
+    my_strnncollsp_uca_900,
+    my_strnxfrm_uca_900,
     my_strnxfrmlen_simple,
     my_like_range_mb,
     my_wildcmp_uca,
     my_strcasecmp_uca,
     my_instr_mb,
-    my_hash_sort_uca_800,
+    my_hash_sort_uca_900,
     my_propagate_complex
 };
 
@@ -8774,13 +8793,13 @@ CHARSET_INFO my_charset_gb18030_unicode_520_ci=
     &my_collation_gb18030_uca_handler
 };
 
-MY_UCA_INFO my_uca_v800=
+MY_UCA_INFO my_uca_v900=
 {
   {
     {
       0x10FFFF,      /* maxchar           */
-      uca800_length,
-      uca800_weight,
+      uca900_length,
+      uca900_weight,
       {              /* Contractions:     */
         0,           /*   nitems          */
         NULL,        /*   item            */
@@ -8809,13 +8828,13 @@ MY_UCA_INFO my_uca_v800=
 };
 
 
-#define MY_CS_UTF8MB4_UCA_800_FLAGS (MY_CS_UTF8MB4_UCA_FLAGS|MY_CS_UCA_800)
-CHARSET_INFO my_charset_utf8mb4_800_ai_ci=
+#define MY_CS_UTF8MB4_UCA_900_FLAGS (MY_CS_UTF8MB4_UCA_FLAGS|MY_CS_UCA_900)
+CHARSET_INFO my_charset_utf8mb4_0900_ai_ci=
 {
   255, 0, 0,            /* number       */
-  MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
+  MY_CS_UTF8MB4_UCA_900_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_800_ai_ci",/* name */
+  MY_UTF8MB4 "_0900_ai_ci",/* name */
   "",                 /* comment      */
   NULL,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -8823,10 +8842,10 @@ CHARSET_INFO my_charset_utf8mb4_800_ai_ci=
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */
   NULL,               /* sort_order   */
-  &my_uca_v800,       /* uca_800      */
+  &my_uca_v900,       /* uca_900      */
   NULL,               /* tab_to_uni   */
   NULL,               /* tab_from_uni */
-  &my_unicase_unicode800,/* caseinfo     */
+  &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
   8,                  /* strxfrm_multiply */
@@ -8842,26 +8861,26 @@ CHARSET_INFO my_charset_utf8mb4_800_ai_ci=
   1,                  /* levels_for_compare */
   1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_800_handler
+  &my_collation_uca_900_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_de_phonebook_800_ai_ci=
+CHARSET_INFO my_charset_utf8mb4_de_pb_0900_ai_ci=
 {
   256, 0, 0,            /* number       */
-  MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
+  MY_CS_UTF8MB4_UCA_900_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_de_phonebook_800_ai_ci",/* name */
+  MY_UTF8MB4 "_de_pb_0900_ai_ci",/* name */
   "",                 /* comment      */
-  de_phonebook_cldr_29,/* tailoring    */
+  de_pb_cldr_29,      /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */
   NULL,               /* sort_order   */
-  &my_uca_v800,       /* uca_800          */
+  &my_uca_v900,       /* uca_900          */
   NULL,               /* tab_to_uni   */
   NULL,               /* tab_from_uni */
-  &my_unicase_unicode800,/* caseinfo     */
+  &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
   8,                  /* strxfrm_multiply */
@@ -8877,15 +8896,15 @@ CHARSET_INFO my_charset_utf8mb4_de_phonebook_800_ai_ci=
   1,                  /* levels_for_compare */
   1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_800_handler
+  &my_collation_uca_900_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_is_800_ai_ci=
+CHARSET_INFO my_charset_utf8mb4_is_0900_ai_ci=
 {
   257, 0, 0,            /* number       */
-  MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
+  MY_CS_UTF8MB4_UCA_900_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_is_800_ai_ci",/* name */
+  MY_UTF8MB4 "_is_0900_ai_ci",/* name */
   "",                 /* comment      */
   is_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -8893,10 +8912,10 @@ CHARSET_INFO my_charset_utf8mb4_is_800_ai_ci=
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */
   NULL,               /* sort_order   */
-  &my_uca_v800,       /* uca_800          */
+  &my_uca_v900,       /* uca          */
   NULL,               /* tab_to_uni   */
   NULL,               /* tab_from_uni */
-  &my_unicase_unicode800,/* caseinfo     */
+  &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
   8,                  /* strxfrm_multiply */
@@ -8912,15 +8931,15 @@ CHARSET_INFO my_charset_utf8mb4_is_800_ai_ci=
   1,                  /* levels_for_compare */
   1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_800_handler
+  &my_collation_uca_900_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_lv_800_ai_ci=
+CHARSET_INFO my_charset_utf8mb4_lv_0900_ai_ci=
 {
   258, 0, 0,            /* number       */
-  MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
+  MY_CS_UTF8MB4_UCA_900_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_lv_800_ai_ci",/* name */
+  MY_UTF8MB4 "_lv_0900_ai_ci",/* name */
   "",                 /* comment      */
   lv_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -8928,10 +8947,10 @@ CHARSET_INFO my_charset_utf8mb4_lv_800_ai_ci=
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */
   NULL,               /* sort_order   */
-  &my_uca_v800,       /* uca_800          */
+  &my_uca_v900,       /* uca          */
   NULL,               /* tab_to_uni   */
   NULL,               /* tab_from_uni */
-  &my_unicase_unicode800,/* caseinfo     */
+  &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
   8,                  /* strxfrm_multiply */
@@ -8947,15 +8966,15 @@ CHARSET_INFO my_charset_utf8mb4_lv_800_ai_ci=
   1,                  /* levels_for_compare */
   1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_800_handler
+  &my_collation_uca_900_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_ro_800_ai_ci=
+CHARSET_INFO my_charset_utf8mb4_ro_0900_ai_ci=
 {
   259, 0, 0,          /* number       */
-  MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
+  MY_CS_UTF8MB4_UCA_900_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_ro_800_ai_ci",/* name */
+  MY_UTF8MB4 "_ro_0900_ai_ci",/* name */
   "",                 /* comment      */
   ro_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -8963,10 +8982,10 @@ CHARSET_INFO my_charset_utf8mb4_ro_800_ai_ci=
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */
   NULL,               /* sort_order   */
-  &my_uca_v800,       /* uca_800          */
+  &my_uca_v900,       /* uca          */
   NULL,               /* tab_to_uni   */
   NULL,               /* tab_from_uni */
-  &my_unicase_unicode800,/* caseinfo     */
+  &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
   8,                  /* strxfrm_multiply */
@@ -8982,15 +9001,15 @@ CHARSET_INFO my_charset_utf8mb4_ro_800_ai_ci=
   1,                  /* levels_for_compare */
   1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_800_handler
+  &my_collation_uca_900_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_sl_800_ai_ci=
+CHARSET_INFO my_charset_utf8mb4_sl_0900_ai_ci=
 {
   260, 0, 0,            /* number       */
-  MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
+  MY_CS_UTF8MB4_UCA_900_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_sl_800_ai_ci",/* name */
+  MY_UTF8MB4 "_sl_0900_ai_ci",/* name */
   "",                 /* comment      */
   sl_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -8998,10 +9017,10 @@ CHARSET_INFO my_charset_utf8mb4_sl_800_ai_ci=
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */
   NULL,               /* sort_order   */
-  &my_uca_v800,       /* uca_800          */
+  &my_uca_v900,       /* uca          */
   NULL,               /* tab_to_uni   */
   NULL,               /* tab_from_uni */
-  &my_unicase_unicode800,/* caseinfo     */
+  &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
   8,                  /* strxfrm_multiply */
@@ -9017,15 +9036,15 @@ CHARSET_INFO my_charset_utf8mb4_sl_800_ai_ci=
   1,                  /* levels_for_compare */
   1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_800_handler
+  &my_collation_uca_900_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_pl_800_ai_ci=
+CHARSET_INFO my_charset_utf8mb4_pl_0900_ai_ci=
 {
   261, 0, 0,            /* number       */
-  MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
+  MY_CS_UTF8MB4_UCA_900_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_pl_800_ai_ci",/* name */
+  MY_UTF8MB4 "_pl_0900_ai_ci",/* name */
   "",                 /* comment      */
   pl_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -9033,10 +9052,10 @@ CHARSET_INFO my_charset_utf8mb4_pl_800_ai_ci=
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */
   NULL,               /* sort_order   */
-  &my_uca_v800,       /* uca_800          */
+  &my_uca_v900,       /* uca          */
   NULL,               /* tab_to_uni   */
   NULL,               /* tab_from_uni */
-  &my_unicase_unicode800,/* caseinfo     */
+  &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
   8,                  /* strxfrm_multiply */
@@ -9052,15 +9071,15 @@ CHARSET_INFO my_charset_utf8mb4_pl_800_ai_ci=
   1,                  /* levels_for_compare */
   1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_800_handler
+  &my_collation_uca_900_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_et_800_ai_ci=
+CHARSET_INFO my_charset_utf8mb4_et_0900_ai_ci=
 {
   262, 0, 0,            /* number       */
-  MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
+  MY_CS_UTF8MB4_UCA_900_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_et_800_ai_ci",/* name */
+  MY_UTF8MB4 "_et_0900_ai_ci",/* name */
   "",                 /* comment      */
   et_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -9068,10 +9087,10 @@ CHARSET_INFO my_charset_utf8mb4_et_800_ai_ci=
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */
   NULL,               /* sort_order   */
-  &my_uca_v800,       /* uca_800          */
+  &my_uca_v900,       /* uca          */
   NULL,               /* tab_to_uni   */
   NULL,               /* tab_from_uni */
-  &my_unicase_unicode800,/* caseinfo     */
+  &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
   8,                  /* strxfrm_multiply */
@@ -9087,15 +9106,15 @@ CHARSET_INFO my_charset_utf8mb4_et_800_ai_ci=
   1,                  /* levels_for_compare */
   1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_800_handler
+  &my_collation_uca_900_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_es_800_ai_ci=
+CHARSET_INFO my_charset_utf8mb4_es_0900_ai_ci=
 {
   263, 0, 0,            /* number       */
-  MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
+  MY_CS_UTF8MB4_UCA_900_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_es_800_ai_ci",/* name */
+  MY_UTF8MB4 "_es_0900_ai_ci",/* name */
   "",                 /* comment      */
   spanish,            /* tailoring    */
   NULL,               /* coll_param   */
@@ -9103,10 +9122,10 @@ CHARSET_INFO my_charset_utf8mb4_es_800_ai_ci=
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */
   NULL,               /* sort_order   */
-  &my_uca_v800,       /* uca_800          */
+  &my_uca_v900,       /* uca          */
   NULL,               /* tab_to_uni   */
   NULL,               /* tab_from_uni */
-  &my_unicase_unicode800,/* caseinfo     */
+  &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
   8,                  /* strxfrm_multiply */
@@ -9122,15 +9141,15 @@ CHARSET_INFO my_charset_utf8mb4_es_800_ai_ci=
   1,                  /* levels_for_compare */
   1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_800_handler
+  &my_collation_uca_900_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_sv_800_ai_ci=
+CHARSET_INFO my_charset_utf8mb4_sv_0900_ai_ci=
 {
   264, 0, 0,            /* number       */
-  MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
+  MY_CS_UTF8MB4_UCA_900_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_sv_800_ai_ci",/* name */
+  MY_UTF8MB4 "_sv_0900_ai_ci",/* name */
   "",                 /* comment      */
   sv_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -9138,10 +9157,10 @@ CHARSET_INFO my_charset_utf8mb4_sv_800_ai_ci=
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */
   NULL,               /* sort_order   */
-  &my_uca_v800,       /* uca_800          */
+  &my_uca_v900,       /* uca          */
   NULL,               /* tab_to_uni   */
   NULL,               /* tab_from_uni */
-  &my_unicase_unicode800,/* caseinfo     */
+  &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
   8,                  /* strxfrm_multiply */
@@ -9157,15 +9176,15 @@ CHARSET_INFO my_charset_utf8mb4_sv_800_ai_ci=
   1,                  /* levels_for_compare */
   1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_800_handler
+  &my_collation_uca_900_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_tr_800_ai_ci=
+CHARSET_INFO my_charset_utf8mb4_tr_0900_ai_ci=
 {
   265, 0, 0,            /* number       */
-  MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
+  MY_CS_UTF8MB4_UCA_900_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_tr_800_ai_ci",/* name */
+  MY_UTF8MB4 "_tr_0900_ai_ci",/* name */
   "",                 /* comment      */
   tr_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -9173,10 +9192,10 @@ CHARSET_INFO my_charset_utf8mb4_tr_800_ai_ci=
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */
   NULL,               /* sort_order   */
-  &my_uca_v800,       /* uca_800          */
+  &my_uca_v900,       /* uca          */
   NULL,               /* tab_to_uni   */
   NULL,               /* tab_from_uni */
-  &my_unicase_unicode800,/* caseinfo     */
+  &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
   8,                  /* strxfrm_multiply */
@@ -9192,15 +9211,15 @@ CHARSET_INFO my_charset_utf8mb4_tr_800_ai_ci=
   1,                  /* levels_for_compare */
   1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_800_handler
+  &my_collation_uca_900_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_cs_800_ai_ci=
+CHARSET_INFO my_charset_utf8mb4_cs_0900_ai_ci=
 {
   266, 0, 0,            /* number       */
-  MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
+  MY_CS_UTF8MB4_UCA_900_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_cs_800_ai_ci",/* name */
+  MY_UTF8MB4 "_cs_0900_ai_ci",/* name */
   "",                 /* comment      */
   cs_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -9208,10 +9227,10 @@ CHARSET_INFO my_charset_utf8mb4_cs_800_ai_ci=
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */
   NULL,               /* sort_order   */
-  &my_uca_v800,       /* uca_800          */
+  &my_uca_v900,       /* uca          */
   NULL,               /* tab_to_uni   */
   NULL,               /* tab_from_uni */
-  &my_unicase_unicode800,/* caseinfo     */
+  &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
   8,                  /* strxfrm_multiply */
@@ -9227,15 +9246,15 @@ CHARSET_INFO my_charset_utf8mb4_cs_800_ai_ci=
   1,                  /* levels_for_compare */
   1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_800_handler
+  &my_collation_uca_900_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_da_800_ai_ci=
+CHARSET_INFO my_charset_utf8mb4_da_0900_ai_ci=
 {
   267, 0, 0,            /* number       */
-  MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
+  MY_CS_UTF8MB4_UCA_900_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_da_800_ai_ci",/* name */
+  MY_UTF8MB4 "_da_0900_ai_ci",/* name */
   "",                 /* comment      */
   da_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -9243,10 +9262,10 @@ CHARSET_INFO my_charset_utf8mb4_da_800_ai_ci=
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */
   NULL,               /* sort_order   */
-  &my_uca_v800,       /* uca_800      */
+  &my_uca_v900,       /* uca          */
   NULL,               /* tab_to_uni   */
   NULL,               /* tab_from_uni */
-  &my_unicase_unicode800,/* caseinfo     */
+  &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
   8,                  /* strxfrm_multiply */
@@ -9262,15 +9281,15 @@ CHARSET_INFO my_charset_utf8mb4_da_800_ai_ci=
   1,                  /* levels_for_compare */
   1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_800_handler
+  &my_collation_uca_900_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_lt_800_ai_ci=
+CHARSET_INFO my_charset_utf8mb4_lt_0900_ai_ci=
 {
   268, 0, 0,            /* number       */
-  MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
+  MY_CS_UTF8MB4_UCA_900_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_lt_800_ai_ci",/* name */
+  MY_UTF8MB4 "_lt_0900_ai_ci",/* name */
   "",                 /* comment      */
   lt_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -9278,10 +9297,10 @@ CHARSET_INFO my_charset_utf8mb4_lt_800_ai_ci=
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */
   NULL,               /* sort_order   */
-  &my_uca_v800,       /* uca_800      */
+  &my_uca_v900,       /* uca          */
   NULL,               /* tab_to_uni   */
   NULL,               /* tab_from_uni */
-  &my_unicase_unicode800,/* caseinfo     */
+  &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
   8,                  /* strxfrm_multiply */
@@ -9297,15 +9316,15 @@ CHARSET_INFO my_charset_utf8mb4_lt_800_ai_ci=
   1,                  /* levels_for_compare */
   1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_800_handler
+  &my_collation_uca_900_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_sk_800_ai_ci=
+CHARSET_INFO my_charset_utf8mb4_sk_0900_ai_ci=
 {
   269, 0, 0,            /* number       */
-  MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
+  MY_CS_UTF8MB4_UCA_900_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_sk_800_ai_ci",/* name */
+  MY_UTF8MB4 "_sk_0900_ai_ci",/* name */
   "",                 /* comment      */
   sk_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -9313,10 +9332,10 @@ CHARSET_INFO my_charset_utf8mb4_sk_800_ai_ci=
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */
   NULL,               /* sort_order   */
-  &my_uca_v800,       /* uca_800      */
+  &my_uca_v900,       /* uca          */
   NULL,               /* tab_to_uni   */
   NULL,               /* tab_from_uni */
-  &my_unicase_unicode800,/* caseinfo     */
+  &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
   8,                  /* strxfrm_multiply */
@@ -9332,26 +9351,26 @@ CHARSET_INFO my_charset_utf8mb4_sk_800_ai_ci=
   1,                  /* levels_for_compare */
   1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_800_handler
+  &my_collation_uca_900_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_es_traditional_800_ai_ci=
+CHARSET_INFO my_charset_utf8mb4_es_trad_0900_ai_ci=
 {
   270, 0, 0,            /* number       */
-  MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
+  MY_CS_UTF8MB4_UCA_900_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_es_traditional_800_ai_ci",/* name */
+  MY_UTF8MB4 "_es_trad_0900_ai_ci",/* name */
   "",                 /* comment      */
-  es_traditional_cldr_29,/* tailoring    */
+  es_trad_cldr_29,    /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */
   NULL,               /* sort_order   */
-  &my_uca_v800,       /* uca_800          */
+  &my_uca_v900,       /* uca          */
   NULL,               /* tab_to_uni   */
   NULL,               /* tab_from_uni */
-  &my_unicase_unicode800,/* caseinfo     */
+  &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
   8,                  /* strxfrm_multiply */
@@ -9367,15 +9386,15 @@ CHARSET_INFO my_charset_utf8mb4_es_traditional_800_ai_ci=
   1,                  /* levels_for_compare */
   1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_800_handler
+  &my_collation_uca_900_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_la_800_ai_ci=
+CHARSET_INFO my_charset_utf8mb4_la_0900_ai_ci=
 {
   271, 0, 0,            /* number       */
-  MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
+  MY_CS_UTF8MB4_UCA_900_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_la_800_ai_ci",/* name */
+  MY_UTF8MB4 "_la_0900_ai_ci",/* name */
   "",                 /* comment      */
   roman,              /* tailoring    */
   NULL,               /* coll_param   */
@@ -9383,10 +9402,10 @@ CHARSET_INFO my_charset_utf8mb4_la_800_ai_ci=
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */
   NULL,               /* sort_order   */
-  &my_uca_v800,       /* uca_800      */
+  &my_uca_v900,       /* uca          */
   NULL,               /* tab_to_uni   */
   NULL,               /* tab_from_uni */
-  &my_unicase_unicode800,/* caseinfo     */
+  &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
   8,                  /* strxfrm_multiply */
@@ -9402,16 +9421,16 @@ CHARSET_INFO my_charset_utf8mb4_la_800_ai_ci=
   1,                  /* levels_for_compare */
   1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_800_handler
+  &my_collation_uca_900_handler
 };
 
 #if 0
-CHARSET_INFO my_charset_utf8mb4_fa_800_ai_ci=
+CHARSET_INFO my_charset_utf8mb4_fa_0900_ai_ci=
 {
   272, 0, 0,            /* number       */
-  MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
+  MY_CS_UTF8MB4_UCA_900_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_fa_800_ai_ci",/* name */
+  MY_UTF8MB4 "_fa_0900_ai_ci",/* name */
   "",                 /* comment      */
   fa_cldr_29,         /* tailoring    */
   &fa_coll_param,     /* coll_param   */
@@ -9419,10 +9438,10 @@ CHARSET_INFO my_charset_utf8mb4_fa_800_ai_ci=
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */
   NULL,               /* sort_order   */
-  &my_uca_v800,       /* uca_800      */
+  &my_uca_v900,       /* uca          */
   NULL,               /* tab_to_uni   */
   NULL,               /* tab_from_uni */
-  &my_unicase_unicode800,/* caseinfo     */
+  &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
   8,                  /* strxfrm_multiply */
@@ -9438,16 +9457,16 @@ CHARSET_INFO my_charset_utf8mb4_fa_800_ai_ci=
   1,                  /* levels_for_compare */
   1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_800_handler
+  &my_collation_uca_900_handler
 };
 #endif
 
-CHARSET_INFO my_charset_utf8mb4_eo_800_ai_ci=
+CHARSET_INFO my_charset_utf8mb4_eo_0900_ai_ci=
 {
   273, 0, 0,            /* number       */
-  MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
+  MY_CS_UTF8MB4_UCA_900_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_eo_800_ai_ci",/* name */
+  MY_UTF8MB4 "_eo_0900_ai_ci",/* name */
   "",                 /* comment      */
   esperanto,          /* tailoring    */
   NULL,               /* coll_param   */
@@ -9455,10 +9474,10 @@ CHARSET_INFO my_charset_utf8mb4_eo_800_ai_ci=
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */
   NULL,               /* sort_order   */
-  &my_uca_v800,       /* uca_800      */
+  &my_uca_v900,       /* uca          */
   NULL,               /* tab_to_uni   */
   NULL,               /* tab_from_uni */
-  &my_unicase_unicode800,/* caseinfo     */
+  &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
   8,                  /* strxfrm_multiply */
@@ -9474,15 +9493,15 @@ CHARSET_INFO my_charset_utf8mb4_eo_800_ai_ci=
   1,                  /* levels_for_compare */
   1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_800_handler
+  &my_collation_uca_900_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_hu_800_ai_ci=
+CHARSET_INFO my_charset_utf8mb4_hu_0900_ai_ci=
 {
   274, 0, 0,            /* number       */
-  MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
+  MY_CS_UTF8MB4_UCA_900_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_hu_800_ai_ci",/* name */
+  MY_UTF8MB4 "_hu_0900_ai_ci",/* name */
   "",                 /* comment      */
   hu_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -9490,10 +9509,10 @@ CHARSET_INFO my_charset_utf8mb4_hu_800_ai_ci=
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */
   NULL,               /* sort_order   */
-  &my_uca_v800,       /* uca_800      */
+  &my_uca_v900,       /* uca          */
   NULL,               /* tab_to_uni   */
   NULL,               /* tab_from_uni */
-  &my_unicase_unicode800,/* caseinfo     */
+  &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
   8,                  /* strxfrm_multiply */
@@ -9509,15 +9528,15 @@ CHARSET_INFO my_charset_utf8mb4_hu_800_ai_ci=
   1,                  /* levels_for_compare */
   1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_800_handler
+  &my_collation_uca_900_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_hr_800_ai_ci=
+CHARSET_INFO my_charset_utf8mb4_hr_0900_ai_ci=
 {
   275, 0, 0,            /* number       */
-  MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
+  MY_CS_UTF8MB4_UCA_900_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_hr_800_ai_ci",/* name */
+  MY_UTF8MB4 "_hr_0900_ai_ci",/* name */
   "",                 /* comment      */
   hr_cldr_29,         /* tailoring    */
   &hr_coll_param,     /* coll_param   */
@@ -9525,10 +9544,10 @@ CHARSET_INFO my_charset_utf8mb4_hr_800_ai_ci=
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */
   NULL,               /* sort_order   */
-  &my_uca_v800,       /* uca_800      */
+  &my_uca_v900,       /* uca          */
   NULL,               /* tab_to_uni   */
   NULL,               /* tab_from_uni */
-  &my_unicase_unicode800,/* caseinfo     */
+  &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
   8,                  /* strxfrm_multiply */
@@ -9544,16 +9563,16 @@ CHARSET_INFO my_charset_utf8mb4_hr_800_ai_ci=
   1,                  /* levels_for_compare */
   1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_800_handler
+  &my_collation_uca_900_handler
 };
 
 #if 0
-CHARSET_INFO my_charset_utf8mb4_si_800_ai_ci=
+CHARSET_INFO my_charset_utf8mb4_si_0900_ai_ci=
 {
   276, 0, 0,            /* number       */
-  MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
+  MY_CS_UTF8MB4_UCA_900_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_si_800_ai_ci",/* name */
+  MY_UTF8MB4 "_si_0900_ai_ci",/* name */
   "",                 /* comment      */
   si_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -9561,10 +9580,10 @@ CHARSET_INFO my_charset_utf8mb4_si_800_ai_ci=
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */
   NULL,               /* sort_order   */
-  &my_uca_v800,       /* uca_800      */
+  &my_uca_v900,       /* uca          */
   NULL,               /* tab_to_uni   */
   NULL,               /* tab_from_uni */
-  &my_unicase_unicode800,/* caseinfo     */
+  &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
   8,                  /* strxfrm_multiply */
@@ -9580,16 +9599,16 @@ CHARSET_INFO my_charset_utf8mb4_si_800_ai_ci=
   1,                  /* levels_for_compare */
   1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_800_handler
+  &my_collation_uca_900_handler
 };
 #endif
 
-CHARSET_INFO my_charset_utf8mb4_vi_800_ai_ci=
+CHARSET_INFO my_charset_utf8mb4_vi_0900_ai_ci=
 {
   277, 0, 0,            /* number       */
-  MY_CS_UTF8MB4_UCA_800_FLAGS,/* state    */
+  MY_CS_UTF8MB4_UCA_900_FLAGS,/* state    */
   MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_vi_800_ai_ci",/* name */
+  MY_UTF8MB4 "_vi_0900_ai_ci",/* name */
   "",                 /* comment      */
   vi_cldr_29,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -9597,10 +9616,10 @@ CHARSET_INFO my_charset_utf8mb4_vi_800_ai_ci=
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */
   NULL,               /* sort_order   */
-  &my_uca_v800,       /* uca_800      */
+  &my_uca_v900,       /* uca          */
   NULL,               /* tab_to_uni   */
   NULL,               /* tab_from_uni */
-  &my_unicase_unicode800,/* caseinfo     */
+  &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
   8,                  /* strxfrm_multiply */
@@ -9616,5 +9635,5 @@ CHARSET_INFO my_charset_utf8mb4_vi_800_ai_ci=
   1,                  /* levels_for_compare */
   1,                  /* levels_for_order   */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_800_handler
+  &my_collation_uca_900_handler
 };

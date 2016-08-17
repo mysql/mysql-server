@@ -80,11 +80,12 @@ TEST_F(ColumnsTest, ColumnsConstIterator)
   c5->set_name("col4");
 
   const dd::Column *found_c3= get_column("Col3");
-  const dd::Column *found_c4= get_column("col3");
+  // Column names are case insensitive
+  const dd::Column *found_c3_2= get_column("col3");
   const dd::Column *found_c5= get_column("col4");
 
   EXPECT_TRUE(found_c3 == c3);
-  EXPECT_TRUE(found_c4 == c4);
+  EXPECT_TRUE(found_c3_2 == c3);
   EXPECT_TRUE(found_c5 == c5);
 
 }

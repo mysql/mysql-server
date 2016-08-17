@@ -128,7 +128,7 @@ btr_pcur_store_position(
 	} else {
 		ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_S_FIX)
 		      || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX)
-		      || dict_table_is_intrinsic(index->table));
+		      || index->table->is_intrinsic());
 	}
 #endif /* UNIV_DEBUG */
 
@@ -274,7 +274,7 @@ btr_pcur_restore_position_func(
 	     || latch_mode == BTR_MODIFY_LEAF
 	     || latch_mode == BTR_SEARCH_PREV
 	     || latch_mode == BTR_MODIFY_PREV)
-            && !dict_table_is_intrinsic(cursor->btr_cur.index->table)) {
+            && !cursor->btr_cur.index->table->is_intrinsic()) {
 		/* Try optimistic restoration. */
 
 		if (!buf_pool_is_obsolete(cursor->withdraw_clock)
@@ -431,7 +431,7 @@ btr_pcur_move_to_next_page(
 
 	/* For intrinsic tables we avoid taking any latches as table is
 	accessed by only one thread at any given time. */
-	if (dict_table_is_intrinsic(table)) {
+	if (table->is_intrinsic()) {
 		mode = BTR_NO_LATCHES;
 	}
 
@@ -511,8 +511,8 @@ btr_pcur_move_backward_from_page(
 
 	/* For intrinsic table we don't do optimistic restore and so there is
 	no left block that is pinned that needs to be released. */
-	if (!dict_table_is_intrinsic(
-		btr_cur_get_index(btr_pcur_get_btr_cur(cursor))->table)) {
+	if (!btr_cur_get_index(
+		btr_pcur_get_btr_cur(cursor))->table->is_intrinsic()) {
 
 		if (prev_page_no == FIL_NULL) {
 		} else if (btr_pcur_is_before_first_on_page(cursor)) {

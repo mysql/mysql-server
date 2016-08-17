@@ -93,6 +93,7 @@ static const ulint FTS_DEADLOCK_RETRY_WAIT = 100000;
 /** variable to record innodb_fts_internal_tbl_name for information
 schema table INNODB_FTS_INSERTED etc. */
 char* fts_internal_tbl_name		= NULL;
+char* fts_internal_tbl_name2		= NULL;
 
 /** InnoDB default stopword list:
 There are different versions of stopwords, the stop words listed
@@ -950,7 +951,7 @@ fts_index_get_charset(
 	dict_field_t*		field;
 	ulint			prtype;
 
-	field = dict_index_get_nth_field(index, 0);
+	field = index->get_field(0);
 	prtype = field->col->prtype;
 
 	charset = fts_get_charset(prtype);
@@ -961,7 +962,7 @@ fts_index_get_charset(
 	for (i = 1; i < index->n_fields; i++) {
 		CHARSET_INFO*   fld_charset;
 
-		field = dict_index_get_nth_field(index, i);
+		field = index->get_field(i);
 		prtype = field->col->prtype;
 
 		fld_charset = fts_get_charset(prtype);
@@ -1814,9 +1815,9 @@ fts_create_one_common_table(
 			new_table->space, DICT_UNIQUE|DICT_CLUSTERED, 1);
 
 		if (!is_config) {
-			dict_mem_index_add_field(index, "doc_id", 0);
+			index->add_field("doc_id", 0);
 		} else {
-			dict_mem_index_add_field(index, "key", 0);
+			index->add_field("key", 0);
 		}
 
 		/* We save and restore trx->dict_operation because
@@ -1937,7 +1938,7 @@ fts_create_common_tables(
 	index = dict_mem_index_create(
 		name, FTS_DOC_ID_INDEX_NAME, table->space,
 		DICT_UNIQUE, 1);
-	dict_mem_index_add_field(index, FTS_DOC_ID_COL_NAME, 0);
+	index->add_field(FTS_DOC_ID_COL_NAME, 0);
 
 	op = trx_get_dict_operation(trx);
 
@@ -1988,7 +1989,7 @@ fts_create_one_index_table(
 			table_name, fts_table->table,
 			FTS_AUX_INDEX_TABLE_NUM_COLS);
 
-	field = dict_index_get_nth_field(index, 0);
+	field = index->get_field(0);
 	charset = fts_get_charset(field->col->prtype);
 
 	dict_mem_table_add_col(new_table, heap, "word",
@@ -2025,8 +2026,8 @@ fts_create_one_index_table(
 		dict_index_t*	index = dict_mem_index_create(
 			table_name, "FTS_INDEX_TABLE_IND", new_table->space,
 			DICT_UNIQUE|DICT_CLUSTERED, 2);
-		dict_mem_index_add_field(index, "word", 0);
-		dict_mem_index_add_field(index, "first_doc_id", 0);
+		index->add_field("word", 0);
+		index->add_field("first_doc_id", 0);
 
 		trx_dict_op_t op = trx_get_dict_operation(trx);
 
@@ -3323,8 +3324,8 @@ fts_fetch_doc_from_rec(
 	num_field = dict_index_get_n_fields(index);
 
 	for (i = 0; i < num_field; i++) {
-		ifield = dict_index_get_nth_field(index, i);
-		col = dict_field_get_col(ifield);
+		ifield = index->get_field(i);
+		col = ifield->col;
 		clust_pos = dict_col_get_clust_pos(col, clust_index);
 
 		if (!get_doc->index_cache->charset) {
@@ -3398,8 +3399,8 @@ fts_fetch_doc_from_tuple(
 		ulint			pos;
 		dfield_t*		field;
 
-		ifield = dict_index_get_nth_field(index, i);
-		col = dict_field_get_col(ifield);
+		ifield = index->get_field(i);
+		col = ifield->col;
 		pos = dict_col_get_no(col);
 		field = dtuple_get_nth_field(tuple, pos);
 
@@ -3755,7 +3756,7 @@ fts_get_max_doc_id(
 		return(0);
 	}
 
-	dfield = dict_index_get_nth_field(index, 0);
+	dfield = index->get_field(0);
 
 #if 0 /* This can fail when renaming a column to FTS_DOC_ID_COL_NAME. */
 	ut_ad(innobase_strcasecmp(FTS_DOC_ID_COL_NAME, dfield->name) == 0);
@@ -4513,7 +4514,7 @@ fts_sync_table(
 	ut_ad(table->fts);
 
 	if (!dict_table_is_discarded(table) && table->fts->cache
-	    && !dict_table_is_corrupted(table)) {
+	    && !table->is_corrupted()) {
 		err = fts_sync(table->fts->cache->sync,
 			       unlock_cache, wait, has_dict);
 	}
@@ -5355,8 +5356,7 @@ fts_get_doc_id_from_rec(
 	offsets = rec_get_offsets(
 		rec, index, offsets, ULINT_UNDEFINED, &my_heap);
 
-	col_no = dict_col_get_index_pos(
-		&table->cols[table->fts->doc_col], index);
+	col_no = index->get_col_pos(table->fts->doc_col);
 
 	ut_ad(col_no != ULINT_UNDEFINED);
 
@@ -5556,8 +5556,7 @@ fts_update_doc_id(
 
 	if (error == DB_SUCCESS) {
 		dict_index_t*	clust_index;
-		dict_col_t*	col = dict_table_get_nth_col(
-			table, table->fts->doc_col);
+		dict_col_t*	col = table->get_col(table->fts->doc_col);
 
 		ufield->exp = NULL;
 
@@ -5566,7 +5565,7 @@ fts_update_doc_id(
 		clust_index = table->first_index();
 
 		ufield->field_no = dict_col_get_clust_pos(col, clust_index);
-		dict_col_copy_type(col, dfield_get_type(&ufield->new_val));
+		col->copy_type(dfield_get_type(&ufield->new_val));
 
 		/* It is possible we update record that has
 		not yet be sync-ed from last crash. */
@@ -6614,12 +6613,42 @@ fts_check_corrupt_index(
 		if (index->id == aux_table->index_id) {
 			ut_ad(index->type & DICT_FTS);
 			dict_table_close(table, true, false);
-			return(dict_index_is_corrupted(index));
+			return(index->is_corrupted());
 		}
 	}
 
 	dict_table_close(table, true, false);
 	return(0);
+}
+
+/* Get parent table name if it's a fts aux table
+@param[in]	aux_table_name	aux table name
+@param[in]	aux_table_len	aux table length
+@return parent table name, or NULL */
+char*
+fts_get_parent_table_name(
+	const char*	aux_table_name,
+	ulint		aux_table_len)
+{
+	fts_aux_table_t	aux_table;
+	char*		parent_table_name = NULL;
+
+	if (fts_is_aux_table_name(&aux_table, aux_table_name, aux_table_len)) {
+		dict_table_t*	parent_table;
+
+		parent_table = dict_table_open_on_id(
+			aux_table.parent_id, TRUE, DICT_TABLE_OP_NORMAL);
+
+		if (parent_table != NULL) {
+			parent_table_name = mem_strdupl(
+				parent_table->name.m_name,
+				strlen(parent_table->name.m_name));
+
+			dict_table_close(parent_table, TRUE, FALSE);
+		}
+	}
+
+	return(parent_table_name);
 }
 
 /** Check the validity of the parent table.
@@ -7332,7 +7361,7 @@ fts_valid_stopword_table(
 	} else {
 		const char*     col_name;
 
-		col_name = dict_table_get_col_name(table, 0);
+		col_name = table->get_col_name(0);
 
 		if (ut_strcmp(col_name, "value")) {
 			ib::error() << "Invalid column name for stopword"
@@ -7342,7 +7371,7 @@ fts_valid_stopword_table(
 			return(NULL);
 		}
 
-		col = dict_table_get_nth_col(table, 0);
+		col = table->get_col(0);
 
 		if (col->mtype != DATA_VARCHAR
 		    && col->mtype != DATA_VARMYSQL) {
@@ -7747,7 +7776,7 @@ fts_check_corrupt(
 
 		if (aux_table == NULL) {
 			dict_set_corrupted(base_table->first_index());
-			ut_ad(dict_table_is_corrupted(base_table));
+			ut_ad(base_table->is_corrupted());
 			sane = false;
 			continue;
 		}
@@ -7761,7 +7790,7 @@ fts_check_corrupt(
 			/* Check if auxillary table needed for FTS is sane. */
 			if (aux_table_index->page == FIL_NULL) {
 				dict_set_corrupted(base_table->first_index());
-				ut_ad(dict_table_is_corrupted(base_table));
+				ut_ad(base_table->is_corrupted());
 				sane = false;
 			}
 		}

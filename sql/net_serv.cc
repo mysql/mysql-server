@@ -245,13 +245,20 @@ net_should_retry(NET *net, uint *retry_count)
 {
   my_bool retry;
 
+#ifndef MYSQL_SERVER
   /*
-    In the non-thread safe client library, or in the server,
-    interrupted I/O operations are retried up to a limit.
+    In the  client library, interrupted I/O operations are always retried.
+    Otherwise, it's either a timeout or an unrecoverable error.
+  */
+  retry= vio_should_retry(net->vio);
+#else
+  /*
+    In the server, interrupted I/O operations are retried up to a limit.
     In this scenario, pthread_kill can be used to wake up
     (interrupt) threads waiting for I/O.
   */
   retry= vio_should_retry(net->vio) && ((*retry_count)++ < net->retry_count);
+#endif
 
   return retry;
 }

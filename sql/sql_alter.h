@@ -22,8 +22,10 @@
 #include "prealloced_array.h" // Prealloced_array
 #include "sql_cmd.h"  // Sql_cmd
 #include "sql_list.h" // List
+#include "binary_log_types.h" // enum_field_types
 
 class Create_field;
+class FOREIGN_KEY;
 class Item;
 class Key_spec;
 class String;
@@ -386,6 +388,21 @@ public:
 
   bool set_requested_lock(const LEX_STRING *str);
 
+  bool add_field(THD *thd,
+                 const LEX_STRING *field_name,
+                 enum enum_field_types type,
+                 const char *length,
+                 const char *decimal,
+                 uint type_modifier,
+                 Item *default_value,
+                 Item *on_update_value,
+                 LEX_STRING *comment,
+                 const char *change,
+                 List<String> *interval_list,
+                 const CHARSET_INFO *cs,
+                 uint uint_geom_type,
+                 class Generated_column *gcol_info,
+                 const char *opt_after);
 private:
   Alter_info &operator=(const Alter_info &rhs); // not implemented
   Alter_info(const Alter_info &rhs);            // not implemented
@@ -443,6 +460,15 @@ public:
   const char   *new_name;
   const char   *new_alias;
   char         tmp_name[80];
+
+  /*
+    Used to temporarily store pre-existing foreign keys during ALTER TABLE
+    These FKs can't be part of the temporary table as they will then cause
+    the unique name constraint to be violated. The FKs will be added back
+    to the table at the end of ALTER TABLE.
+  */
+  FOREIGN_KEY  *fk_info;
+  uint         fk_count;
 
 private:
   char new_filename[FN_REFLEN + 1];

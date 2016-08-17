@@ -35,8 +35,6 @@ class Open_dictionary_tables_ctx;
 class Foreign_key_element_impl : public Weak_object_impl,
                                  public Foreign_key_element
 {
-// Foreign keys not supported in the Global DD yet
-/* purecov: begin deadcode */
 public:
   Foreign_key_element_impl()
     : m_foreign_key(NULL),
@@ -91,8 +89,8 @@ public:
   virtual const Column &column() const
   { return *m_column; }
 
-  virtual Column &column()
-  { return *m_column; }
+  virtual void set_column(const Column *column)
+  { m_column= column; }
 
   /////////////////////////////////////////////////////////////////////////
   // ordinal_position.
@@ -100,6 +98,9 @@ public:
 
   virtual uint ordinal_position() const
   { return m_ordinal_position; }
+
+  virtual void set_ordinal_position(int ordinal_position)
+  { m_ordinal_position= ordinal_position; }
 
   /////////////////////////////////////////////////////////////////////////
   // referenced column name.
@@ -132,10 +133,9 @@ public:
 
 private:
   Foreign_key_impl *m_foreign_key;
-  Column *m_column;
+  const Column *m_column;
   uint m_ordinal_position;
   std::string m_referenced_column_name;
-/* purecov: end */
 };
 
 ///////////////////////////////////////////////////////////////////////////

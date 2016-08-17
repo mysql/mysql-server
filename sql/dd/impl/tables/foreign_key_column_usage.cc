@@ -47,9 +47,9 @@ Foreign_key_column_usage::Foreign_key_column_usage()
                          "referenced_column_name VARCHAR(64) NOT NULL "
                          "COLLATE utf8_tolower_ci");
 
+  m_target_def.add_index("PRIMARY KEY(foreign_key_id, ordinal_position)");
   m_target_def.add_index("UNIQUE KEY(foreign_key_id, column_id, "
                          "referenced_column_name)");
-  m_target_def.add_index("UNIQUE KEY(foreign_key_id, ordinal_position)");
 
   m_target_def.add_foreign_key("FOREIGN KEY (foreign_key_id) REFERENCES "
                                "foreign_keys(id)");
@@ -57,8 +57,6 @@ Foreign_key_column_usage::Foreign_key_column_usage()
                                "columns(id)");
 }
 
-// Foreign keys not supported in the Global DD yet
-/* purecov: begin deadcode */
 ///////////////////////////////////////////////////////////////////////////
 
 Object_key *Foreign_key_column_usage::create_key_by_foreign_key_id(Object_id fk_id)
@@ -79,7 +77,6 @@ Object_key *Foreign_key_column_usage::create_primary_key(
 }
 
 ///////////////////////////////////////////////////////////////////////////
-/* purecov: end */
 
 }
 }

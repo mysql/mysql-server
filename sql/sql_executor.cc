@@ -36,6 +36,7 @@
 #include "opt_trace.h"        // Opt_trace_object
 #include "psi_memory_key.h"
 #include "query_result.h"     // Query_result
+#include "record_buffer.h"    // Record_buffer
 #include "sql_base.h"         // fill_record
 #include "sql_join_buffer.h"  // st_cache_field
 #include "sql_optimizer.h"    // JOIN
@@ -88,6 +89,9 @@ static int join_read_linked_next(READ_RECORD *info);
 static int do_sj_reset(SJ_TMP_TABLE *sj_tbl);
 static bool cmp_buffer_with_ref(THD *thd, TABLE *table, TABLE_REF *tab_ref);
 static bool alloc_group_fields(JOIN *join, ORDER *group);
+
+/// Maximum amount of space (in bytes) to allocate for a Record_buffer.
+static constexpr size_t MAX_RECORD_BUFFER_SIZE= 128 * 1024; // 128KB
 
 
 void Temp_table_param::cleanup(void)
@@ -859,6 +863,152 @@ Next_select_func JOIN::get_end_select_func()
   }
   DBUG_PRINT("info",("Using end_send"));
   return end_send;
+}
+
+
+/**
+  Find out how many bytes it takes to store the smallest prefix which
+  covers all the columns that will be read from a table.
+
+  @param qep_tab the table to read
+  @return the size of the smallest prefix that covers all records to be
+          read from the table
+*/
+static size_t record_prefix_size(const QEP_TAB *qep_tab)
+{
+  const TABLE *table= qep_tab->table();
+  const Field *last_field= nullptr;
+
+  // Go through all the columns in the read_set, and find the last field.
+  for (auto f= table->field, end= table->field + table->s->fields; f < end; ++f)
+  {
+    if (bitmap_is_set(table->read_set, (*f)->field_index) &&
+        (last_field == nullptr || last_field->ptr < (*f)->ptr))
+      last_field= *f;
+  }
+
+  /*
+    If this is an index merge, the primary key columns may be required
+    for positioning in a later stage, even though they are not in the
+    read_set here. Allocate space for them in case they are needed.
+  */
+  if (qep_tab->type() == JT_INDEX_MERGE &&
+      !table->s->is_missing_primary_key() &&
+      (table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION))
+  {
+    const KEY &key= table->key_info[table->s->primary_key];
+    for (auto kp= key.key_part, end= kp + key.user_defined_key_parts;
+         kp < end; ++kp)
+    {
+      const Field *f= table->field[kp->fieldnr - 1];
+      if (last_field == nullptr || last_field->ptr < f->ptr)
+        last_field= f;
+    }
+  }
+
+  // If no column is read (for example, SELECT 1 FROM t), the prefix is 0.
+  if (last_field == nullptr)
+    return 0;
+
+  return last_field->offset(table->record[0]) + last_field->pack_length();
+}
+
+
+/**
+  Allocate a data buffer that the storage engine can use for fetching
+  batches of records.
+
+  A buffer is only allocated if ha_is_record_buffer_wanted() returns true
+  for the handler, and the scan in question is of a kind that could be
+  expected to benefit from fetching records in batches.
+
+  @param tab the table to read
+  @retval true if an error occurred when allocating the buffer
+  @retval false if a buffer was successfully allocated, or if a buffer
+  was not attempted allocated
+*/
+static bool set_record_buffer(const QEP_TAB *tab)
+{
+  TABLE *const table= tab->table();
+
+  DBUG_ASSERT(table->file->inited);
+  DBUG_ASSERT(table->file->ha_get_record_buffer() == nullptr);
+
+  // Skip temporary tables.
+  if (tab->position() == nullptr)
+    return false;
+
+  // Don't allocate a buffer for loose index scan.
+  if (tab->quick_optim() && tab->quick_optim()->is_loose_index_scan())
+    return false;
+
+  // Only create a buffer if the storage engine wants it.
+  ha_rows max_rows= 0;
+  if (!table->file->ha_is_record_buffer_wanted(&max_rows) || max_rows == 0)
+    return false;
+
+  // How many rows do we expect to fetch?
+  double rows_to_fetch= tab->position()->rows_fetched;
+
+  /*
+    If this is the outer table of a join and there is a limit defined
+    on the query block, adjust the buffer size accordingly.
+  */
+  const JOIN *const join= tab->join();
+  if (tab->idx() == 0 && join->m_select_limit != HA_POS_ERROR)
+  {
+    /*
+      Estimated number of rows returned by the join per qualifying row
+      in the outer table.
+    */
+    double fanout= 1.0;
+    for (uint i= 1; i < join->primary_tables; i++)
+    {
+      const auto p= join->qep_tab[i].position();
+      fanout*= p->rows_fetched * p->filter_effect;
+    }
+
+    /*
+      The number of qualifying rows to read from the outer table in
+      order to reach the limit is limit / fanout. Divide by
+      filter_effect to get the total number of qualifying and
+      non-qualifying rows to fetch to reach the limit.
+    */
+    rows_to_fetch= std::min(rows_to_fetch,
+                            join->m_select_limit / fanout /
+                            tab->position()->filter_effect);
+  }
+
+  ha_rows rows_in_buffer= static_cast<ha_rows>(std::ceil(rows_to_fetch));
+
+  // No need for a multi-row buffer if we don't expect multiple rows.
+  if (rows_in_buffer <= 1)
+    return false;
+
+  /*
+    How much space do we need to allocate for each record? Enough to
+    hold all columns from the beginning and up to the last one in the
+    read set. We don't need to allocate space for unread columns at
+    the end of the record.
+  */
+  const size_t record_size= record_prefix_size(tab);
+
+  // Do not allocate a buffer whose total size exceeds MAX_RECORD_BUFFER_SIZE.
+  if (record_size > 0)
+    rows_in_buffer= std::min<ha_rows>(MAX_RECORD_BUFFER_SIZE / record_size,
+                                      rows_in_buffer);
+
+  // Do not allocate space for more rows than the handler asked for.
+  rows_in_buffer= std::min(rows_in_buffer, max_rows);
+
+  const auto bufsize= Record_buffer::buffer_size(rows_in_buffer, record_size);
+  const auto ptr= static_cast<uchar*>(table->in_use->alloc(bufsize));
+  if (ptr == nullptr)
+    return true;                /* purecov: inspected */
+
+  table->m_record_buffer= Record_buffer{rows_in_buffer, record_size, ptr};
+  table->file->ha_set_record_buffer(&table->m_record_buffer);
+  return false;
 }
 
 
@@ -1815,6 +1965,33 @@ int report_handler_error(TABLE *table, int error)
 }
 
 
+/**
+  Initialize an index scan and the record buffer to use in the scan.
+
+  @param qep_tab the table to read
+  @param file    the handler to initialize
+  @param idx     the index to use
+  @param sorted  use the sorted order of the index
+  @retval true   if an error occurred
+  @retval false  on success
+*/
+static bool init_index_and_record_buffer(const QEP_TAB *qep_tab, handler *file,
+                                         uint idx, bool sorted)
+{
+  if (file->inited)
+    return false;                               // OK, already initialized
+
+  int error= file->ha_index_init(idx, sorted);
+  if (error != 0)
+  {
+    (void) report_handler_error(qep_tab->table(), error);
+    return true;
+  }
+
+  return set_record_buffer(qep_tab);
+}
+
+
 int safe_index_read(QEP_TAB *tab)
 {
   int error;
@@ -2237,12 +2414,9 @@ join_read_always_key(QEP_TAB *tab)
   TABLE *table= tab->table();
 
   /* Initialize the index first */
-  if (!table->file->inited &&
-      (error= table->file->ha_index_init(tab->ref().key, tab->use_order())))
-  {
-    (void) report_handler_error(table, error);
+  if (init_index_and_record_buffer(tab, table->file,
+                                   tab->ref().key, tab->use_order()))
     return 1;
-  }
 
   /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
   TABLE_REF *ref= &tab->ref();
@@ -2278,12 +2452,9 @@ join_read_last_key(QEP_TAB *tab)
   int error;
   TABLE *table= tab->table();
 
-  if (!table->file->inited &&
-      (error= table->file->ha_index_init(tab->ref().key, tab->use_order())))
-  {
-    (void) report_handler_error(table, error);
-    return 1;
-  }
+  if (init_index_and_record_buffer(tab, table->file,
+                                   tab->ref().key, tab->use_order()))
+    return 1;                                   /* purecov: inspected */
   if (cp_buffer_from_ref(tab->join()->thd, table, &tab->ref()))
     return -1;
   if ((error=table->file->ha_index_read_last_map(table->record[0],
@@ -2465,6 +2636,12 @@ int join_init_read_record(QEP_TAB *tab)
   if (tab->filesort && tab->sort_table())     // Sort table.
     return 1;
 
+  /*
+    Only attempt to allocate a record buffer the first time the handler is
+    initialized.
+  */
+  const bool first_init= !tab->table()->file->inited;
+
   if (tab->quick() && (error= tab->quick()->reset()))
   {
     /* Ensures error status is propageted back to client */
@@ -2474,6 +2651,9 @@ int join_init_read_record(QEP_TAB *tab)
   if (init_read_record(&tab->read_record, tab->join()->thd, NULL, tab,
                        1, 1, FALSE))
     return 1;
+
+  if (first_init && tab->table()->file->inited && set_record_buffer(tab))
+    return 1;                                   /* purecov: inspected */
 
   return (*tab->read_record.read_record)(&tab->read_record);
 }
@@ -2627,12 +2807,9 @@ join_read_first(QEP_TAB *tab)
   tab->read_record.record=table->record[0];
   tab->read_record.read_record=join_read_next;
 
-  if (!table->file->inited &&
-      (error= table->file->ha_index_init(tab->index(), tab->use_order())))
-  {
-    (void) report_handler_error(table, error);
+  if (init_index_and_record_buffer(tab, table->file,
+                                   tab->index(), tab->use_order()))
     return 1;
-  }
   if ((error= table->file->ha_index_first(tab->table()->record[0])))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
@@ -2664,12 +2841,9 @@ join_read_last(QEP_TAB *tab)
   tab->read_record.read_record=join_read_prev;
   tab->read_record.table=table;
   tab->read_record.record=table->record[0];
-  if (!table->file->inited &&
-      (error= table->file->ha_index_init(tab->index(), tab->use_order())))
-  {
-    (void) report_handler_error(table, error);
-    return 1;
-  }
+  if (init_index_and_record_buffer(tab, table->file,
+                                   tab->index(), tab->use_order()))
+    return 1;                                   /* purecov: inspected */
   if ((error= table->file->ha_index_last(table->record[0])))
     return report_handler_error(table, error);
   return 0;

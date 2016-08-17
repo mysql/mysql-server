@@ -286,8 +286,6 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
 bool reset_slave_cmd(THD *thd);
 bool show_slave_status_cmd(THD *thd);
 bool flush_relay_logs_cmd(THD *thd);
-bool is_any_slave_channel_running(int thread_mask,
-                                  Master_info* already_locked_mi=NULL);
 
 bool flush_relay_logs(Master_info *mi);
 int reset_slave(THD *thd, Master_info* mi, bool reset_all);
@@ -320,7 +318,6 @@ int remove_info(Master_info* mi);
 int flush_master_info(Master_info* mi, bool force);
 void add_slave_skip_errors(const char* arg);
 void set_slave_skip_errors(char** slave_skip_errors_ptr);
-int register_slave_on_master(MYSQL* mysql);
 int add_new_channel(Master_info** mi, const char* channel,
                     enum_channel_type channel_type= SLAVE_REPLICATION_CHANNEL);
 /**
@@ -379,10 +376,6 @@ bool start_slave_thread(
                         volatile ulong *slave_run_id,
                         Master_info *mi);
 
-/* retrieve table from master and copy to slave*/
-int fetch_master_table(THD* thd, const char* db_name, const char* table_name,
-		       Master_info* mi, MYSQL* mysql, bool overwrite);
-
 bool show_slave_status(THD* thd, Master_info* mi);
 bool show_slave_status(THD* thd);
 bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
@@ -390,17 +383,14 @@ bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
 bool rpl_master_erroneous_autoinc(THD* thd);
 
 const char *print_slave_db_safe(const char *db);
-void skip_load_data_infile(NET* net);
 
 void end_slave(); /* release slave threads */
 void delete_slave_info_objects(); /* clean up slave threads data */
-void clear_slave_error(Relay_log_info* rli);
 void lock_slave_threads(Master_info* mi);
 void unlock_slave_threads(Master_info* mi);
 void init_thread_mask(int* mask,Master_info* mi,bool inverse);
 void set_slave_thread_options(THD* thd);
 void set_slave_thread_default_charset(THD *thd, Relay_log_info const *rli);
-int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli);
 int rotate_relay_log(Master_info* mi);
 bool queue_event(Master_info* mi,const char* buf, ulong event_len);
 
@@ -408,21 +398,15 @@ extern "C" void *handle_slave_io(void *arg);
 extern "C" void *handle_slave_sql(void *arg);
 bool net_request_file(NET* net, const char* fname);
 
-extern LIST master_list;
 extern my_bool replicate_same_server_id;
 
 extern int disconnect_slave_event_count, abort_slave_event_count ;
 
 /* the master variables are defaults read from my.cnf or command line */
-extern uint master_port, master_connect_retry, report_port;
-extern char * master_user, *master_password, *master_host;
+extern uint report_port;
 extern char *master_info_file, *relay_log_info_file, *report_user;
 extern char *report_host, *report_password;
 
-extern my_bool master_ssl;
-extern char *master_ssl_ca, *master_ssl_capath, *master_ssl_cert, *master_tls_version;
-extern char *master_ssl_cipher, *master_ssl_key;
-       
 bool mts_recovery_groups(Relay_log_info *rli);
 bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
                             bool force, bool need_data_lock);

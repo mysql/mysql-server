@@ -9187,13 +9187,12 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
         Item_field *const fld= (Item_field*) item;
         const char *field_table_name= field_iterator.get_table_name();
-
         if (!tables->schema_table && 
-            !(fld->have_privileges=
-              (get_column_grant(thd, field_iterator.grant(),
-                                field_iterator.get_db_name(),
-                                field_table_name, fld->field_name) &
-               VIEW_ANY_ACL)))
+           !(fld->have_privileges=
+             (get_column_grant(thd, field_iterator.grant(),
+                               field_iterator.get_db_name(),
+                               field_table_name, fld->field_name) &
+              VIEW_ANY_ACL)))
         {
           my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0), "ANY",
                    thd->security_context()->priv_user().str,

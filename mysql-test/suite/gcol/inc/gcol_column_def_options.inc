@@ -18,6 +18,8 @@
 --echo # Section 1. Wrong column definition options
 --echo #            - DEFAULT <value>
 --echo #            - AUTO_INCREMENT
+--echo #            - SERIAL DEFAULT VALUE
+--echo #            - ON UPDATE NOW ...
 
 --echo # NOT NULL
 create table t1 (a int, b int generated always as (a+1) virtual not null);
@@ -55,19 +57,35 @@ alter table t1 add column (h int generated always as (a+1) virtual, i int as(5) 
 drop table t1;
 
 --echo # DEFAULT
---error 1064
+--error ER_WRONG_USAGE
 create table t1 (a int, b int generated always as (a+1) virtual default 0);
 create table t1 (a int);
---error 1064
+--error ER_WRONG_USAGE
 alter table t1 add column b int generated always as (a+1) virtual default 0;
 drop table t1;
 
 --echo # AUTO_INCREMENT
---error 1064
+--error ER_WRONG_USAGE
 create table t1 (a int, b int generated always as (a+1) virtual AUTO_INCREMENT);
 create table t1 (a int);
---error 1064
+--error ER_WRONG_USAGE
 alter table t1 add column b int generated always as (a+1) virtual AUTO_INCREMENT;
+drop table t1;
+
+--echo # SERIAL DEFAULT VALUE
+--error ER_WRONG_USAGE
+create table t1 (a int, b int generated always as (a+1) virtual SERIAL DEFAULT VALUE);
+create table t1 (a int);
+--error ER_WRONG_USAGE
+alter table t1 add column b int generated always as (a+1) virtual SERIAL DEFAULT VALUE;
+drop table t1;
+
+--echo # ON UPDATE
+--error ER_WRONG_USAGE
+create table t1 (a int, b int generated always as (a+1) virtual ON UPDATE NOW());
+create table t1 (a int);
+--error ER_WRONG_USAGE
+alter table t1 add column b int generated always as (a+1) virtual ON UPDATE NOW();
 drop table t1;
 
 --echo # [PRIMARY] KEY

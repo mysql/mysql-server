@@ -1673,7 +1673,7 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
   if (select_lex->item_list.elements)
   {
     /* Base table and temporary table are not in the same name space. */
-    if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
+    if (!(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE))
       create_table->open_type= OT_BASE_ONLY;
 
     if (open_tables_for_query(stmt->thd, lex->query_tables,
@@ -2010,9 +2010,13 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_ASSIGN_TO_KEYCACHE:
   case SQLCOM_PRELOAD_KEYS:
   case SQLCOM_GRANT:
+  case SQLCOM_GRANT_ROLE:
   case SQLCOM_REVOKE:
+  case SQLCOM_REVOKE_ROLE:
   case SQLCOM_KILL:
   case SQLCOM_ALTER_INSTANCE:
+  case SQLCOM_SET_ROLE:
+  case SQLCOM_ALTER_USER_DEFAULT_ROLE:
     break;
 
   case SQLCOM_PREPARE:
@@ -2435,6 +2439,13 @@ bool reinit_stmt_before_use(THD *thd, LEX *lex)
   }
 
   /*
+    m_view_ctx_list contains all the view tables view_ctx objects and must
+    be emptied now since it's going to be re-populated below as we reiterate
+    over all query_tables and call TABLE_LIST::prepare_security().
+  */
+  thd->m_view_ctx_list.empty();
+
+  /*
     TODO: When the new table structure is ready, then have a status bit
     to indicate the table is altered, and re-do the setup_*
     and open the tables back.
@@ -2536,8 +2547,6 @@ static void reset_stmt_params(Prepared_statement *stmt)
 void mysqld_stmt_execute(THD *thd, ulong stmt_id, ulong flags, uchar *params,
                          ulong params_length)
 {
-  /* Query text for binary, general or slow log, if any of them is open */
-  String expanded_query;
   Prepared_statement *stmt;
   Protocol *save_protocol= thd->get_protocol();
   bool open_cursor;
@@ -2570,8 +2579,7 @@ void mysqld_stmt_execute(THD *thd, ulong stmt_id, ulong flags, uchar *params,
 
   MYSQL_EXECUTE_PS(thd->m_statement_psi, stmt->m_prepared_stmt);
 
-  stmt->execute_loop(&expanded_query, open_cursor, params,
-                    params + params_length);
+  stmt->execute_loop(open_cursor, params, params + params_length);
   thd->set_protocol(save_protocol);
 
   sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
@@ -2606,8 +2614,6 @@ void mysql_sql_stmt_execute(THD *thd)
   LEX *lex= thd->lex;
   Prepared_statement *stmt;
   const LEX_CSTRING &name= lex->prepared_stmt_name;
-  /* Query text for binary, general or slow log, if any of them is open */
-  String expanded_query;
   DBUG_ENTER("mysql_sql_stmt_execute");
   DBUG_PRINT("info", ("EXECUTE: %.*s\n", (int) name.length, name.str));
 
@@ -2628,7 +2634,7 @@ void mysql_sql_stmt_execute(THD *thd)
 
   MYSQL_EXECUTE_PS(thd->m_statement_psi, stmt->m_prepared_stmt);
 
-  (void) stmt->execute_loop(&expanded_query, FALSE, NULL, NULL);
+  (void) stmt->execute_loop(FALSE, NULL, NULL);
 
   DBUG_VOID_RETURN;
 }
@@ -3510,8 +3516,7 @@ Prepared_statement::set_parameters(String *expanded_query,
 */
 
 bool
-Prepared_statement::execute_loop(String *expanded_query,
-                                 bool open_cursor,
+Prepared_statement::execute_loop(bool open_cursor,
                                  uchar *packet,
                                  uchar *packet_end)
 {
@@ -3519,6 +3524,8 @@ Prepared_statement::execute_loop(String *expanded_query,
   Reprepare_observer reprepare_observer;
   bool error;
   int reprepare_attempt= 0;
+  /* Query text for binary, general or slow log, if any of them is open */
+  String expanded_query;
 
   /* Check if we got an error when sending long data */
   if (state == Query_arena::STMT_ERROR)
@@ -3529,7 +3536,7 @@ Prepared_statement::execute_loop(String *expanded_query,
 
   DBUG_ASSERT(!thd->get_stmt_da()->is_set());
 
-  if (set_parameters(expanded_query, packet, packet_end))
+  if (set_parameters(&expanded_query, packet, packet_end))
     return TRUE;
 
   if (unlikely(thd->security_context()->password_expired() &&
@@ -3563,7 +3570,7 @@ reexecute:
 
   thd->push_reprepare_observer(stmt_reprepare_observer);
 
-  error= execute(expanded_query, open_cursor) || thd->is_error();
+  error= execute(&expanded_query, open_cursor) || thd->is_error();
 
   thd->pop_reprepare_observer();
 
@@ -3867,9 +3874,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
                           &cur_db_changed))
   {
     flags&= ~ (uint) IS_IN_USE;
-    mysql_mutex_lock(&thd->LOCK_thd_data);
-    thd->lex= stmt_backup.lex();
-    mysql_mutex_unlock(&thd->LOCK_thd_data);
+    stmt_backup.restore_thd(thd, this);
     return TRUE;
   }
 
@@ -3881,9 +3886,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), expanded_query->length());
     flags&= ~ (uint) IS_IN_USE;
-    mysql_mutex_lock(&thd->LOCK_thd_data);
-    thd->lex= stmt_backup.lex();
-    mysql_mutex_unlock(&thd->LOCK_thd_data);
+    stmt_backup.restore_thd(thd, this);
     return TRUE;
   }
 
@@ -3977,13 +3980,17 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     cleanup_stmt();
 
   /*
-    Expanded query is needed for slow logging, so we want thd->query
-    to point at it even after we restore from backup. This is ok, as
-    expanded query was allocated in thd->mem_root.
+   Note that we cannot call restore_thd() here as that would overwrite
+   the expanded query in THD::m_query_string, which is needed for is
+   needed for slow logging. Use alloc_query() to make sure the query
+   is allocated on the correct MEM_ROOT, since otherwise
+   THD::m_query_string could end up as a dangling pointer
+   (i.e. pointer to freed memory) once the PS MEM_ROOT is freed.
   */
   mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->lex= stmt_backup.lex();
   mysql_mutex_unlock(&thd->LOCK_thd_data);
+  alloc_query(thd, thd->query().str, thd->query().length);
 
   thd->stmt_arena= old_stmt_arena;
 
@@ -4180,50 +4187,6 @@ Ed_connection::add_result_set(Ed_result_set *ed_result_set)
     m_current_rset= m_rsets= ed_result_set;
 }
 
-
-/**
-  Release ownership of the current result set to the client.
-
-  Since we use a simple linked list for result sets,
-  this method uses a linear search of the previous result
-  set to exclude the released instance from the list.
-
-  @todo Use double-linked list, when this is really used.
-
-  XXX: This has never been tested with more than one result set!
-
-  @pre There must be a result set.
-*/
-
-Ed_result_set *
-Ed_connection::store_result_set()
-{
-  Ed_result_set *ed_result_set;
-
-  DBUG_ASSERT(m_current_rset);
-
-  if (m_current_rset == m_rsets)
-  {
-    /* Assign the return value */
-    ed_result_set= m_current_rset;
-    /* Exclude the return value from the list. */
-    m_current_rset= m_rsets= m_rsets->m_next_rset;
-  }
-  else
-  {
-    Ed_result_set *prev_rset= m_rsets;
-    /* Assign the return value. */
-    ed_result_set= m_current_rset;
-
-    /* Exclude the return value from the list */
-    while (prev_rset->m_next_rset != m_current_rset)
-      prev_rset= ed_result_set->m_next_rset;
-    m_current_rset= prev_rset->m_next_rset= m_current_rset->m_next_rset;
-  }
-  ed_result_set->m_next_rset= NULL; /* safety */
-
-  return ed_result_set;
-}
 
 /*************************************************************************
 * Protocol_local

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,7 +71,7 @@ protected:
 
 /** Wrapper function which simplify usage of debug_sync_set_action(). */
 
-bool debug_sync_set_action(THD *thd, const char *sync)
+static bool debug_sync_set_action(THD *thd, const char *sync)
 {
   return debug_sync_set_action(thd, sync, strlen(sync));
 }

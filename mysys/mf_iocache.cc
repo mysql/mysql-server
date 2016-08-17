@@ -1662,7 +1662,7 @@ void die(const char* fmt, ...)
   exit(1);
 }
 
-int open_file(const char* fname, IO_CACHE* info, int cache_size)
+static int open_file(const char* fname, IO_CACHE* info, int cache_size)
 {
   int fd;
   if ((fd=my_open(fname,O_CREAT | O_RDWR,MYF(MY_WME))) < 0)
@@ -1672,7 +1672,7 @@ int open_file(const char* fname, IO_CACHE* info, int cache_size)
   return fd;
 }
 
-void close_file(IO_CACHE* info)
+static void close_file(IO_CACHE* info)
 {
   end_io_cache(info);
   my_close(info->file, MYF(MY_WME));

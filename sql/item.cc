@@ -3499,17 +3499,6 @@ my_decimal *Item_string::val_decimal(my_decimal *decimal_value)
 }
 
 
-bool Item_null::itemize(Parse_context *pc, Item **res)
-{
-  if (skip_itemize(res))
-    return false;
-  if (super::itemize(pc, res))
-    return true;
-  pc->thd->lex->type|= EXPLICIT_NULL_FLAG;
-  return false;
-}
-
-
 bool Item_null::eq(const Item *item, bool binary_cmp) const
 { return item->type() == type(); }
 
@@ -6496,7 +6485,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
     break;					// Blob handled outside of case
   case MYSQL_TYPE_GEOMETRY:
     field= new Field_geom(max_length, maybe_null,
-                          item_name.ptr(), table->s, get_geometry_type());
+                          item_name.ptr(), get_geometry_type());
     break;
   case MYSQL_TYPE_JSON:
     field= new Field_json(max_length, maybe_null, item_name.ptr());
@@ -10793,4 +10782,26 @@ bool Item_ident::is_column_not_in_fd(uchar *arg)
 {
   Group_check *const gc= reinterpret_cast<Group_check *>(arg);
   return gc->do_ident_check(this, 0, Group_check::CHECK_COLUMN);
+}
+
+/**
+   The aim here is to find a real_item() which is of type Item_field.
+*/
+bool Item_ref::repoint_const_outer_ref(uchar *arg)
+{
+  *(pointer_cast<bool*>(arg))= true;
+  return false;
+}
+
+/**
+   If this object is the real_item of an Item_ref, repoint the result_field to
+   field.
+*/
+bool Item_field::repoint_const_outer_ref(uchar *arg)
+{
+  bool *is_outer_ref= pointer_cast<bool*>(arg);
+  if (*is_outer_ref)
+    result_field= field;
+  *is_outer_ref= false;
+  return false;
 }

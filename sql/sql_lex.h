@@ -80,6 +80,9 @@ const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
 class Opt_hints_global;
 class Opt_hints_qb;
 
+enum class partition_type; // from partition_element.h
+enum class enum_key_algorithm; // from partition_info.h
+
 #ifdef MYSQL_SERVER
 /*
   There are 8 different type of table access so there is no more than
@@ -1468,6 +1471,12 @@ public:
     @return Pointer to reference of the added item
   */
   Item **add_hidden_item(Item *item);
+
+  bool add_tables(THD *thd,
+                  const Trivial_array<Table_ident *> *tables,
+                  ulong table_options,
+                  thr_lock_type lock_type,
+                  enum_mdl_type mdl_type);
 };
 typedef class SELECT_LEX SELECT_LEX;
 
@@ -1483,7 +1492,6 @@ struct Cast_type
 {
   Cast_target target;
   const CHARSET_INFO *charset;
-  ulong type_flags;
   const char *length;
   const char *dec;
 };
@@ -1612,6 +1620,41 @@ enum PT_joined_table_type
 };
 
 
+enum class Ternary_option { DEFAULT, ON, OFF };
+
+
+enum class On_duplicate { ERROR, IGNORE_DUP, REPLACE_DUP };
+
+
+enum class Virtual_or_stored { VIRTUAL, STORED };
+
+
+enum class Field_option : ulong
+{
+  NONE= 0,
+  UNSIGNED= UNSIGNED_FLAG,
+  ZEROFILL_UNSIGNED=UNSIGNED_FLAG | ZEROFILL_FLAG
+};
+
+
+enum class Int_type : ulong
+{
+  INT=       MYSQL_TYPE_LONG,
+  TINYINT=   MYSQL_TYPE_TINY,
+  SMALLINT=  MYSQL_TYPE_SHORT,
+  MEDIUMINT= MYSQL_TYPE_INT24,
+  BIGINT=    MYSQL_TYPE_LONGLONG,
+};
+
+
+enum class Numeric_type : ulong
+{
+  DECIMAL= MYSQL_TYPE_NEWDECIMAL,
+  FLOAT=   MYSQL_TYPE_FLOAT,
+  DOUBLE=  MYSQL_TYPE_DOUBLE,
+};
+
+
 union YYSTYPE {
   /*
     Hint parser section (sql_hints.yy)
@@ -1636,18 +1679,19 @@ union YYSTYPE {
   Table_ident *table;
   char *simple_string;
   Item *item;
+  Item_num *item_num;
   List<Item> *item_list;
   List<String> *string_list;
   String *string;
   Key_part_spec *key_part;
-  TABLE_LIST *table_list;
+  Trivial_array<Table_ident *> *table_list;
   udf_func *udf;
   LEX_USER *lex_user;
+  List<LEX_USER> *user_list;
   struct sys_var_with_base variable;
   enum enum_var_type var_type;
   keytype key_type;
   enum ha_key_alg key_alg;
-  handlerton *db_type;
   enum row_type row_type;
   enum ha_rkey_function ha_rkey_mode;
   enum_ha_read_modes ha_read_mode;
@@ -1656,8 +1700,8 @@ union YYSTYPE {
   struct
   {
     const CHARSET_INFO *charset;
-    ulong type_flags;
-  } charset_with_flags;
+    bool force_binary;
+  } charset_with_opt_binary;
   struct
   {
     const char *length;
@@ -1767,10 +1811,10 @@ union YYSTYPE {
   class PT_hint_list *optimizer_hints;
   enum alter_instance_action_enum alter_instance_action;
   class PT_index_definition_stmt *index_definition_stmt;
-  class PT_table_constraint_def *inline_index_definition;
+  class PT_table_constraint_def *table_constraint_def;
   List<Key_part_spec> *index_column_list;
   struct {
-    LEX_STRING name;
+    class PT_field_ident *name;
     class PT_base_index_option *type;
   } index_name_and_type;
   class PT_base_index_option *index_option;
@@ -1778,6 +1822,74 @@ union YYSTYPE {
   PT_base_index_option *index_type;
   Mem_root_array_YY<LEX_STRING> lex_str_list;
   bool visibility;
+  class PT_partition_option *partition_option;
+  Trivial_array<PT_partition_option *> *partition_option_list;
+  class PT_subpartition *sub_part_definition;
+  Trivial_array<PT_subpartition *> *sub_part_list;
+  class PT_part_value_item *part_value_item;
+  Trivial_array<PT_part_value_item *> *part_value_item_list;
+  class PT_part_value_item_list_paren *part_value_item_list_paren;
+  Trivial_array<PT_part_value_item_list_paren *> *part_value_list;
+  class PT_part_values *part_values;
+  struct {
+    partition_type type;
+    PT_part_values *values;
+  } opt_part_values;
+  class PT_part_definition *part_definition;
+  Trivial_array<PT_part_definition *> *part_def_list;
+  List<char> *name_list; // TODO: merge with string_list
+  enum_key_algorithm opt_key_algo;
+  class PT_sub_partition *opt_sub_part;
+  class PT_part_type_def *part_type_def;
+  class PT_partition *partition_clause;
+  class PT_add_partition *add_partition_rule;
+  struct {
+    decltype(HA_CHECK_OPT::flags) flags;
+    decltype(HA_CHECK_OPT::sql_flags) sql_flags;
+  } mi_type;
+  enum_drop_mode opt_restrict;
+  Ternary_option ternary_option;
+  class PT_create_table_option *create_table_option;
+  Trivial_array<PT_create_table_option *> *create_table_options;
+  On_duplicate on_duplicate;
+  class PT_column_attr_base *col_attr;
+  column_format_type column_format;
+  ha_storage_media storage_media;
+  Trivial_array<PT_column_attr_base *> *col_attr_list;
+  Virtual_or_stored virtual_or_stored;
+  Field_option field_option;
+  Int_type int_type;
+  class PT_type *type;
+  Numeric_type numeric_type;
+  struct {
+    const char *expr_start;
+    Item *expr;
+  } sp_default;
+  class PT_field_def_base *field_def;
+  class PT_check_constraint *check_constraint;
+  struct {
+    fk_option fk_update_opt;
+    fk_option fk_delete_opt;
+  } fk_options;
+  fk_match_opt opt_match_clause;
+  List<Key_part_spec> *reference_list;
+  struct {
+    Table_ident *table_name;
+    List<Key_part_spec> *reference_list;
+    fk_match_opt fk_match_option;
+    fk_option fk_update_opt;
+    fk_option fk_delete_opt;
+  } fk_references;
+  class PT_field_ident *field_ident;
+  class PT_column_def *column_def;
+  class PT_table_element *table_element;
+  Trivial_array<PT_table_element *> *table_element_list;
+  struct {
+    Trivial_array<PT_create_table_option *> *opt_create_table_options;
+    PT_partition *opt_partitioning;
+    On_duplicate on_duplicate;
+    PT_query_expression *opt_query_expression;
+  } create_table_tail;
 };
 
 #endif
@@ -2549,6 +2661,16 @@ class Lex_input_stream
 public:
 
   /**
+    Constructor
+
+    @param grammar_selector_token_arg   See grammar_selector_token.
+  */
+
+  explicit Lex_input_stream(uint grammar_selector_token_arg)
+  : grammar_selector_token(grammar_selector_token_arg)
+  {}
+
+  /**
      Object initializer. Must be called before usage.
 
      @retval FALSE OK
@@ -2990,6 +3112,17 @@ public:
   */
   sql_digest_state* m_digest;
 
+  /**
+    The synthetic 1st token to prepend token stream with.
+
+    This token value tricks parser to simulate multiple %start-ing points.
+    Currently the grammar is aware of 3 such synthetic tokens:
+    1. GRAMMAR_SELECTOR_PART for partitioning stuff from DD,
+    2. GRAMMAR_SELECTOR_GCOL for generated column stuff from DD,
+    3. GRAMMAR_SELECTOR_EXPR for generic single expressions from DD/.frm.
+  */
+  const uint grammar_selector_token;
+
   bool text_string_is_7bit() const { return !(tok_bitmap & 0x80); }
 };
 
@@ -3034,7 +3167,6 @@ public:
   }
   /// @return true if this is an EXPLAIN statement
   bool is_explain() const { return (describe & DESCRIBE_NORMAL); }
-  char *length,*dec,*change;
   LEX_STRING name;
   char *help_arg;
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
@@ -3042,8 +3174,8 @@ public:
   String *wild;
   sql_exchange *exchange;
   Query_result *result;
-  Item *default_value, *on_update_value;
-  LEX_STRING comment, ident;
+  LEX_STRING binlog_stmt_arg; ///< Argument of the BINLOG event statement.
+  LEX_STRING ident;
   LEX_USER *grant_user;
   LEX_ALTER alter_password;
   THD *thd;
@@ -3056,8 +3188,6 @@ public:
   typedef Prealloced_array<plugin_ref,
     INITIAL_LEX_PLUGIN_LIST_SIZE, true> Plugins_array;
   Plugins_array plugins;
-
-  const CHARSET_INFO *charset;
 
   /// Table being inserted into (may be a view)
   TABLE_LIST *insert_table;
@@ -3086,8 +3216,6 @@ public:
   */
   LEX_USER *definer;
 
-  List<Key_part_spec> ref_list;
-  List<String>	      interval_list;
   List<LEX_USER>      users_list;
   List<LEX_COLUMN>    columns;
 
@@ -3182,11 +3310,10 @@ public:
   */
   Proc_analyse_params *proc_analyse;
   SQL_I_List<TABLE_LIST> auxiliary_table_list, save_list;
-  Create_field	      *last_field;
   Item_sum *in_sum_func;
   udf_func udf;
   HA_CHECK_OPT   check_opt;			// check/repair options
-  HA_CREATE_INFO create_info;
+  HA_CREATE_INFO *create_info;
   KEY_CREATE_INFO key_create_info;
   LEX_MASTER_INFO mi;				// used by CHANGE MASTER
   LEX_SLAVE_CONNECTION slave_connection;
@@ -3216,14 +3343,6 @@ public:
     syntax error back.
   */
   bool expr_allows_subselect;
-  /*
-    A special command "PARSE_VCOL_EXPR" is defined for the parser
-    to translate an expression statement of a generated column
-    (stored in the *.frm file as a string) into an Item object.
-    The following flag is used to prevent other applications to use
-    this command.
-  */
-  bool parse_gcol_expr;
 
   enum SSL_type ssl_type;			/* defined in violite.h */
   enum enum_duplicates duplicates;
@@ -3235,11 +3354,7 @@ public:
   /// QUERY ID for SHOW PROFILE and EXPLAIN CONNECTION
   my_thread_id query_id;
   uint profile_options;
-  uint uint_geom_type;
   uint grant, grant_tot_col, which_columns;
-  enum fk_match_opt fk_match_option;
-  enum fk_option fk_update_opt;
-  enum fk_option fk_delete_opt;
   uint slave_thd_opt, start_transaction_opt;
   int select_number;                     ///< Number of query block (by EXPLAIN)
   uint8 describe;
@@ -3649,9 +3764,19 @@ struct Parser_input
 */
 class Parser_state
 {
+protected:
+  /**
+    Constructor for special parsers of partial SQL clauses (DD)
+
+    @param grammar_selector_token   See Lex_input_stream::grammar_selector_token
+  */
+  explicit Parser_state(uint grammar_selector_token) :
+    m_input(), m_lip(grammar_selector_token), m_yacc(), m_comment(false)
+  {}
+
 public:
   Parser_state() :
-    m_input(), m_lip(), m_yacc(), m_comment(false)
+    m_input(), m_lip(-1), m_yacc(), m_comment(false)
   {}
 
   /**
@@ -3694,6 +3819,43 @@ public:
 private:
   bool m_comment;                ///< True if current query contains comments
 };
+
+
+/**
+  Parser state for partition expression parser (.frm/DD stuff)
+*/
+class Partition_expr_parser_state : public Parser_state
+{
+public:
+  Partition_expr_parser_state();
+
+  partition_info *result;
+};
+
+
+/**
+  Parser state for generated column expression parser (.frm/DD stuff)
+*/
+class Gcol_expr_parser_state : public Parser_state
+{
+public:
+  Gcol_expr_parser_state();
+
+  Generated_column *result;
+};
+
+
+/**
+  Parser state for single expression parser (.frm/DD stuff)
+*/
+class Expression_parser_state: public Parser_state
+{
+public:
+  Expression_parser_state();
+
+  Item *result;
+};
+
 
 extern sql_digest_state *
 digest_add_token(sql_digest_state *state, uint token, LEX_YYSTYPE yylval);

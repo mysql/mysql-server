@@ -434,11 +434,13 @@ static bool is_stmt_innocent(const THD *thd)
     (sql_command != SQLCOM_BINLOG_BASE64_EVENT);
   bool is_set=
     (sql_command == SQLCOM_SET_OPTION);
+  bool is_set_role=
+    sql_command == SQLCOM_SET_ROLE;
   bool is_select= (sql_command == SQLCOM_SELECT);
   bool is_do= (sql_command == SQLCOM_DO);
   bool is_empty= (sql_command == SQLCOM_EMPTY_QUERY);
   return
-    (is_set || is_select || is_do || is_show || is_empty) &&
+    (is_set || is_set_role || is_select || is_do || is_show || is_empty) &&
     !lex->uses_stored_routines();
 }
 

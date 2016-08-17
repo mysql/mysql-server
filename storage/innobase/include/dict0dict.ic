@@ -32,152 +32,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "sync0rw.h"
 #include "fsp0sysspace.h"
 
-/*********************************************************************//**
-Gets the minimum number of bytes per character.
-@return minimum multi-byte char size, in bytes */
-UNIV_INLINE
-ulint
-dict_col_get_mbminlen(
-/*==================*/
-	const dict_col_t*	col)	/*!< in: column */
-{
-	return(DATA_MBMINLEN(col->mbminmaxlen));
-}
-/*********************************************************************//**
-Gets the maximum number of bytes per character.
-@return maximum multi-byte char size, in bytes */
-UNIV_INLINE
-ulint
-dict_col_get_mbmaxlen(
-/*==================*/
-	const dict_col_t*	col)	/*!< in: column */
-{
-	return(DATA_MBMAXLEN(col->mbminmaxlen));
-}
-/*********************************************************************//**
-Sets the minimum and maximum number of bytes per character. */
-UNIV_INLINE
-void
-dict_col_set_mbminmaxlen(
-/*=====================*/
-	dict_col_t*	col,		/*!< in/out: column */
-	ulint		mbminlen,	/*!< in: minimum multi-byte
-					character size, in bytes */
-	ulint		mbmaxlen)	/*!< in: minimum multi-byte
-					character size, in bytes */
-{
-	ut_ad(mbminlen < DATA_MBMAX);
-	ut_ad(mbmaxlen < DATA_MBMAX);
-	ut_ad(mbminlen <= mbmaxlen);
-
-	col->mbminmaxlen = DATA_MBMINMAXLEN(mbminlen, mbmaxlen);
-}
-/*********************************************************************//**
-Gets the column data type. */
-UNIV_INLINE
-void
-dict_col_copy_type(
-/*===============*/
-	const dict_col_t*	col,	/*!< in: column */
-	dtype_t*		type)	/*!< out: data type */
-{
-	ut_ad(col != NULL);
-	ut_ad(type != NULL);
-
-	type->mtype = col->mtype;
-	type->prtype = col->prtype;
-	type->len = col->len;
-	type->mbminmaxlen = col->mbminmaxlen;
-}
-/** Check if a column is a virtual column
-@param[in]      col     column
-@return true if it is a virtual column, false otherwise */
-UNIV_INLINE
-bool
-dict_col_is_virtual(
-	const dict_col_t*	col)
-{
-	return(col->prtype & DATA_VIRTUAL);
-}
-
 #endif /* !UNIV_HOTBACKUP */
-
-#ifdef UNIV_DEBUG
-/*********************************************************************//**
-Assert that a column and a data type match.
-@return TRUE */
-UNIV_INLINE
-ibool
-dict_col_type_assert_equal(
-/*=======================*/
-	const dict_col_t*	col,	/*!< in: column */
-	const dtype_t*		type)	/*!< in: data type */
-{
-	ut_ad(col);
-	ut_ad(type);
-
-	ut_ad(col->mtype == type->mtype);
-	ut_ad(col->prtype == type->prtype);
-	//ut_ad(col->len == type->len);
-# ifndef UNIV_HOTBACKUP
-	ut_ad(col->mbminmaxlen == type->mbminmaxlen);
-# endif /* !UNIV_HOTBACKUP */
-
-	return(TRUE);
-}
-#endif /* UNIV_DEBUG */
-
-#ifndef UNIV_HOTBACKUP
-/***********************************************************************//**
-Returns the minimum size of the column.
-@return minimum size */
-UNIV_INLINE
-ulint
-dict_col_get_min_size(
-/*==================*/
-	const dict_col_t*	col)	/*!< in: column */
-{
-	return(dtype_get_min_size_low(col->mtype, col->prtype, col->len,
-				      col->mbminmaxlen));
-}
-/***********************************************************************//**
-Returns the maximum size of the column.
-@return maximum size */
-UNIV_INLINE
-ulint
-dict_col_get_max_size(
-/*==================*/
-	const dict_col_t*	col)	/*!< in: column */
-{
-	return(dtype_get_max_size_low(col->mtype, col->len));
-}
-#endif /* !UNIV_HOTBACKUP */
-/***********************************************************************//**
-Returns the size of a fixed size column, 0 if not a fixed size column.
-@return fixed size, or 0 */
-UNIV_INLINE
-ulint
-dict_col_get_fixed_size(
-/*====================*/
-	const dict_col_t*	col,	/*!< in: column */
-	ulint			comp)	/*!< in: nonzero=ROW_FORMAT=COMPACT */
-{
-	return(dtype_get_fixed_size_low(col->mtype, col->prtype, col->len,
-					col->mbminmaxlen, comp));
-}
-/***********************************************************************//**
-Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a column.
-For fixed length types it is the fixed length of the type, otherwise 0.
-@return SQL null storage size in ROW_FORMAT=REDUNDANT */
-UNIV_INLINE
-ulint
-dict_col_get_sql_null_size(
-/*=======================*/
-	const dict_col_t*	col,	/*!< in: column */
-	ulint			comp)	/*!< in: nonzero=ROW_FORMAT=COMPACT  */
-{
-	return(dict_col_get_fixed_size(col, comp));
-}
 
 /*********************************************************************//**
 Gets the column number.
@@ -206,7 +61,7 @@ dict_col_get_clust_pos(
 
 	ut_ad(col);
 	ut_ad(clust_index);
-	ut_ad(dict_index_is_clust(clust_index));
+	ut_ad(clust_index->is_clustered());
 
 	for (i = 0; i < clust_index->n_def; i++) {
 		const dict_field_t*	field = &clust_index->fields[i];
@@ -240,21 +95,6 @@ dict_col_get_index_pos(
 	}
 
 	return(ULINT_UNDEFINED);
-}
-
-/********************************************************************//**
-Check whether the index is the clustered index.
-@return nonzero for clustered index, zero for other indexes */
-UNIV_INLINE
-ulint
-dict_index_is_clust(
-/*================*/
-	const dict_index_t*	index)	/*!< in: index */
-{
-	ut_ad(index);
-	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-
-	return(index->type & DICT_CLUSTERED);
 }
 
 /** Check if index is auto-generated clustered index.
@@ -347,23 +187,6 @@ dict_index_is_sec_or_ibuf(
 	return(!(type & DICT_CLUSTERED) || (type & DICT_IBUF));
 }
 
-/********************************************************************//**
-Gets the number of user-defined non-virtual columns in a table in the
-dictionary cache.
-@return number of user-defined (e.g., not ROW_ID) non-virtual
-columns of a table */
-UNIV_INLINE
-ulint
-dict_table_get_n_user_cols(
-/*=======================*/
-	const dict_table_t*	table)	/*!< in: table */
-{
-	ut_ad(table);
-	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-
-	return(table->n_cols - dict_table_get_n_sys_cols(table));
-}
-
 /** Gets the number of user-defined virtual and non-virtual columns in a table
 in the dictionary cache.
 @param[in]	table	table
@@ -376,41 +199,7 @@ dict_table_get_n_tot_u_cols(
 	ut_ad(table);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
-	return(dict_table_get_n_user_cols(table)
-	       + dict_table_get_n_v_cols(table));
-}
-/********************************************************************//**
-Gets the number of system columns in a table.
-For intrinsic table on ROW_ID column is added for all other
-tables TRX_ID and ROLL_PTR are all also appeneded.
-@return number of system (e.g., ROW_ID) columns of a table */
-UNIV_INLINE
-ulint
-dict_table_get_n_sys_cols(
-/*======================*/
-	const dict_table_t*	table MY_ATTRIBUTE((unused)))	/*!< in: table */
-{
-	ut_ad(table);
-	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-
-	return(dict_table_is_intrinsic(table)
-	       ? DATA_ITT_N_SYS_COLS : DATA_N_SYS_COLS);
-}
-
-/********************************************************************//**
-Gets the number of all non-virtual columns (also system) in a table
-in the dictionary cache.
-@return number of non-virtual columns of a table */
-UNIV_INLINE
-ulint
-dict_table_get_n_cols(
-/*==================*/
-	const dict_table_t*	table)	/*!< in: table */
-{
-	ut_ad(table);
-	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-
-	return(table->n_cols);
+	return(table->get_n_user_cols() + dict_table_get_n_v_cols(table));
 }
 
 /** Gets the number of virtual columns in a table in the dictionary cache.
@@ -497,23 +286,6 @@ dict_table_n_rows_dec(
 }
 
 #ifdef UNIV_DEBUG
-/********************************************************************//**
-Gets the nth column of a table.
-@return pointer to column object */
-UNIV_INLINE
-dict_col_t*
-dict_table_get_nth_col(
-/*===================*/
-	const dict_table_t*	table,	/*!< in: table */
-	ulint			pos)	/*!< in: position of column */
-{
-	ut_ad(table);
-	ut_ad(pos < table->n_def);
-	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-
-	return((dict_col_t*) (table->cols) + pos);
-}
-
 /** Gets the nth virtual column of a table.
 @param[in]	table	table
 @param[in]	pos	position of virtual column
@@ -530,31 +302,6 @@ dict_table_get_nth_v_col(
 
 	return(static_cast<dict_v_col_t*>(table->v_cols) + pos);
 }
-
-/********************************************************************//**
-Gets the given system column of a table.
-@return pointer to column object */
-UNIV_INLINE
-dict_col_t*
-dict_table_get_sys_col(
-/*===================*/
-	const dict_table_t*	table,	/*!< in: table */
-	ulint			sys)	/*!< in: DATA_ROW_ID, ... */
-{
-	dict_col_t*	col;
-
-	ut_ad(table);
-	ut_ad(sys < dict_table_get_n_sys_cols(table));
-	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-
-	col = dict_table_get_nth_col(table, table->n_cols
-				     - dict_table_get_n_sys_cols(table)
-				     + sys);
-	ut_ad(col->mtype == DATA_SYS);
-	ut_ad(col->prtype == (sys | DATA_NOT_NULL));
-
-	return(col);
-}
 #endif /* UNIV_DEBUG */
 
 /********************************************************************//**
@@ -568,10 +315,10 @@ dict_table_get_sys_col_no(
 	ulint			sys)	/*!< in: DATA_ROW_ID, ... */
 {
 	ut_ad(table);
-	ut_ad(sys < dict_table_get_n_sys_cols(table));
+	ut_ad(sys < table->get_n_sys_cols());
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
-	return(table->n_cols - dict_table_get_n_sys_cols(table) + sys);
+	return(table->n_cols - table->get_n_sys_cols() + sys);
 }
 
 /********************************************************************//**
@@ -1093,7 +840,7 @@ dict_index_get_n_unique_in_tree(
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 	ut_ad(index->cached);
 
-	if (dict_index_is_clust(index)) {
+	if (index->is_clustered()) {
 
 		return(dict_index_get_n_unique(index));
 	}
@@ -1144,23 +891,6 @@ dict_index_get_n_ordering_defined_by_user(
 }
 
 #ifdef UNIV_DEBUG
-/********************************************************************//**
-Gets the nth field of an index.
-@return pointer to field object */
-UNIV_INLINE
-dict_field_t*
-dict_index_get_nth_field(
-/*=====================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			pos)	/*!< in: position of field */
-{
-	ut_ad(index);
-	ut_ad(pos < index->n_def);
-	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-
-	return((dict_field_t*) (index->fields) + pos);
-}
-
 /** Check if a table is a temporary table with compressed row format,
 we should always expect false.
 @param[in]	table	table
@@ -1170,7 +900,7 @@ bool
 dict_table_is_compressed_temporary(
 	const dict_table_t*	table)
 {
-	if (dict_table_is_temporary(table)) {
+	if (table->is_temporary()) {
 		ut_ad(fsp_is_system_temporary(table->space));
 
 		return(dict_table_page_size(table).is_compressed());
@@ -1180,106 +910,7 @@ dict_table_is_compressed_temporary(
 }
 #endif /* UNIV_DEBUG */
 
-/********************************************************************//**
-Returns the position of a system column in an index.
-@return position, ULINT_UNDEFINED if not contained */
-UNIV_INLINE
-ulint
-dict_index_get_sys_col_pos(
-/*=======================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			type)	/*!< in: DATA_ROW_ID, ... */
-{
-	ut_ad(index);
-	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-	ut_ad(!dict_index_is_ibuf(index));
-
-	if (dict_index_is_clust(index)) {
-
-		return(dict_col_get_clust_pos(
-			       dict_table_get_sys_col(index->table, type),
-			       index));
-	}
-
-	return(dict_index_get_nth_col_pos(
-		       index, dict_table_get_sys_col_no(index->table, type)));
-}
-
-/*********************************************************************//**
-Gets the field column.
-@return field->col, pointer to the table column */
-UNIV_INLINE
-const dict_col_t*
-dict_field_get_col(
-/*===============*/
-	const dict_field_t*	field)	/*!< in: index field */
-{
-	ut_ad(field);
-
-	return(field->col);
-}
-
-/********************************************************************//**
-Gets pointer to the nth column in an index.
-@return column */
-UNIV_INLINE
-const dict_col_t*
-dict_index_get_nth_col(
-/*===================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			pos)	/*!< in: position of the field */
-{
-	return(dict_field_get_col(dict_index_get_nth_field(index, pos)));
-}
-
-/********************************************************************//**
-Gets the column number the nth field in an index.
-@return column number */
-UNIV_INLINE
-ulint
-dict_index_get_nth_col_no(
-/*======================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			pos)	/*!< in: position of the field */
-{
-	return(dict_col_get_no(dict_index_get_nth_col(index, pos)));
-}
-
-/********************************************************************//**
-Looks for column n in an index.
-@return position in internal representation of the index;
-ULINT_UNDEFINED if not contained */
-UNIV_INLINE
-ulint
-dict_index_get_nth_col_pos(
-/*=======================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			n)	/*!< in: column number */
-{
-	return(dict_index_get_nth_col_or_prefix_pos(index, n, false, false));
-}
-
 #ifndef UNIV_HOTBACKUP
-/********************************************************************//**
-Returns the minimum data size of an index record.
-@return minimum data size in bytes */
-UNIV_INLINE
-ulint
-dict_index_get_min_size(
-/*====================*/
-	const dict_index_t*	index)	/*!< in: index */
-{
-	ulint	n	= dict_index_get_n_fields(index);
-	ulint	size	= 0;
-
-	while (n--) {
-		size += dict_col_get_min_size(dict_index_get_nth_col(index,
-								     n));
-	}
-
-	return(size);
-}
-
 /*********************************************************************//**
 Gets the space id of the root of the index tree.
 @return space id */
@@ -1430,7 +1061,7 @@ dict_index_is_online_ddl(
 	const dict_index_t*	index)	/*!< in: index */
 {
 #ifdef UNIV_DEBUG
-	if (dict_index_is_clust(index)) {
+	if (index->is_clustered()) {
 		switch (dict_index_get_online_status(index)) {
 		case ONLINE_INDEX_CREATION:
 			return(true);
@@ -1550,39 +1181,6 @@ dict_table_prevent_eviction(
 	}
 }
 
-/** Check whether the table is corrupted.
-@param[in]	table	table object
-@return true if the table is corrupted, otherwise false */
-UNIV_INLINE
-bool
-dict_table_is_corrupted(
-	const dict_table_t*	table)
-{
-	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-
-	const dict_index_t*	index = table->first_index();
-
-	/* If we can't get the index, it must be a table in a half created
-        state, because we only load table with clustered index into memory.
-	And we don't consider it as a corrupted table */
-	ut_ad(index == NULL || dict_index_is_clust(index));
-
-	return(index != NULL && index->type & DICT_CORRUPT);
-}
-
-/** Check whether the index is corrupted.
-@param[in]	index	index object
-@return true if index is corrupted, otherwise false */
-UNIV_INLINE
-bool
-dict_index_is_corrupted(
-	const dict_index_t*	index)
-{
-	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-
-	return(index->type & DICT_CORRUPT);
-}
-
 /********************************************************************//**
 Check if the tablespace for the table has been discarded.
 @return true if the tablespace has been discarded. */
@@ -1596,18 +1194,6 @@ dict_table_is_discarded(
 }
 
 /********************************************************************//**
-Check if it is a temporary table.
-@return true if temporary table flag is set. */
-UNIV_INLINE
-bool
-dict_table_is_temporary(
-/*====================*/
-	const dict_table_t*	table)	/*!< in: table to check */
-{
-	return(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY));
-}
-
-/********************************************************************//**
 Check if it is a encrypted table.
 @return true if table encrypted flag is set. */
 UNIV_INLINE
@@ -1617,31 +1203,6 @@ dict_table_is_encrypted(
 	const dict_table_t*	table)	/*!< in: table to check */
 {
 	return(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_ENCRYPTION));
-}
-
-/** Check whether the table is intrinsic.
-An intrinsic table is a special kind of temporary table that
-is invisible to the end user.  It can be created internally by InnoDB, the MySQL
-server layer or other modules connected to InnoDB in order to gather and use
-data as part of a larger task.  Since access to it must be as fast as possible,
-it does not need UNDO semantics, system fields DB_TRX_ID & DB_ROLL_PTR,
-doublewrite, checksum, insert buffer, use of the shared data dictionary,
-locking, or even a transaction.  In short, these are not ACID tables at all,
-just temporary data stored and manipulated during a larger process.
-
-@param[in]	table	table to check
-@return true if intrinsic table flag is set. */
-UNIV_INLINE
-bool
-dict_table_is_intrinsic(
-	const dict_table_t*	table)
-{
-	if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_INTRINSIC)) {
-		ut_ad(dict_table_is_temporary(table));
-		return(true);
-	}
-
-	return(false);
 }
 
 /** Check whether the table is DDTableBuffer. See class DDTableBuffer
@@ -1681,8 +1242,7 @@ bool
 dict_table_is_locking_disabled(
 	const dict_table_t*	table)
 {
-	return(dict_table_is_intrinsic(table)
-	       || dict_table_is_table_buffer(table));
+	return(table->is_intrinsic() || dict_table_is_table_buffer(table));
 }
 
 /********************************************************************//**
@@ -1694,7 +1254,7 @@ dict_disable_redo_if_temporary(
 	const dict_table_t*	table,	/*!< in: table to check */
 	mtr_t*			mtr)	/*!< out: mini-transaction */
 {
-	if (dict_table_is_temporary(table)) {
+	if (table->is_temporary()) {
 		mtr_set_log_mode(mtr, MTR_LOG_NO_REDO);
 	}
 }
@@ -1747,7 +1307,7 @@ dict_table_get_index_on_first_col(
 {
 	ut_ad(col_index < table->n_cols);
 
-	dict_col_t* column = dict_table_get_nth_col(table, col_index);
+	dict_col_t* column = table->get_col(col_index);
 
 	for (dict_index_t* index = table->first_index();
 		index != NULL; index = index->next()) {
@@ -1799,7 +1359,7 @@ inline
 ulint
 dict_table_t::get_ref_count() const
 {
-	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(this));
+	ut_ad(mutex_own(&dict_sys->mutex) || is_intrinsic());
 	return(n_ref_count);
 }
 
@@ -1808,7 +1368,7 @@ inline
 void
 dict_table_t::acquire()
 {
-	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(this));
+	ut_ad(mutex_own(&dict_sys->mutex) || is_intrinsic());
 	++n_ref_count;
 }
 
@@ -1817,7 +1377,7 @@ inline
 void
 dict_table_t::release()
 {
-	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(this));
+	ut_ad(mutex_own(&dict_sys->mutex) || is_intrinsic());
 	ut_ad(n_ref_count > 0);
 	--n_ref_count;
 }

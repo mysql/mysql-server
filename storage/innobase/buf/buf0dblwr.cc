@@ -597,7 +597,7 @@ buf_dblwr_process(void)
 
 			if (block.is_corrupted()) {
 
-				ib::warn() << "Database page corruption or"
+				ib::info() << "Database page corruption or"
 					<< " a failed file read of page "
 					<< page_id
 					<< ". Trying to recover it from the"

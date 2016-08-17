@@ -908,7 +908,6 @@ void close_connection(THD *thd, uint sql_errno,
 
   if (sql_errno)
     net_send_error(thd, sql_errno, ER_DEFAULT(sql_errno));
-
   thd->disconnect(server_shutdown);
 
   MYSQL_CONNECTION_DONE((int) sql_errno, thd->thread_id());
@@ -923,6 +922,7 @@ void close_connection(THD *thd, uint sql_errno,
                        AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_DISCONNECT),
                        sql_errno);
 
+  thd->security_context()->logout();
   DBUG_VOID_RETURN;
 }
 

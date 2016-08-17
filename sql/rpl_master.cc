@@ -741,7 +741,7 @@ bool show_binlogs(THD* thd)
     {
       /* this is an old log, open it and find the size */
       if ((file= mysql_file_open(key_file_binlog,
-                                 fname, O_RDONLY | O_SHARE | O_BINARY,
+                                 fname, O_RDONLY,
                                  MYF(0))) >= 0)
       {
         file_length= (ulonglong) mysql_file_seek(file, 0L, MY_SEEK_END, MYF(0));

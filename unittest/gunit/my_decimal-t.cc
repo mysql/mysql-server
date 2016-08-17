@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -154,10 +154,10 @@ TEST_F(DecimalTest, Multiply)
 
     thus, there's no requirement for M or N to be integers
  */
-int decimal_modulo(uint mask,
-                   my_decimal *res,
-                   const my_decimal *m,
-                   const my_decimal *n)
+static int decimal_modulo(uint mask,
+                          my_decimal *res,
+                          const my_decimal *m,
+                          const my_decimal *n)
 {
   my_decimal abs_m(*m);
   my_decimal abs_n(*n);

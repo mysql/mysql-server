@@ -46,6 +46,9 @@ Created 5/7/1996 Heikki Tuuri
 
 #include <set>
 
+/* Flag to enable/disable deadlock detector. */
+my_bool	innobase_deadlock_detect = TRUE;
+
 /** Total number of cached record locks */
 static const ulint	REC_LOCK_CACHE = 8;
 
@@ -75,7 +78,7 @@ public:
 	@return id of transaction chosen as victim or 0 */
 	static const trx_t* check_and_resolve(
 		const lock_t*	lock,
-		const trx_t*	trx);
+		trx_t*		trx);
 
 private:
 	/** Do a shallow copy. Default destructor OK.
@@ -350,7 +353,7 @@ lock_clust_rec_cons_read_sees(
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
 	ReadView*	view)	/*!< in: consistent read view */
 {
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(page_rec_is_user_rec(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
@@ -358,8 +361,8 @@ lock_clust_rec_cons_read_sees(
 	transactions from different connections cannot simultaneously
 	operate on same temp-table and so read of temp-table is
 	always consistent read. */
-	if (srv_read_only_mode || dict_table_is_temporary(index->table)) {
-		ut_ad(view == 0 || dict_table_is_temporary(index->table));
+	if (srv_read_only_mode || index->table->is_temporary()) {
+		ut_ad(view == 0 || index->table->is_temporary());
 		return(true);
 	}
 
@@ -399,7 +402,7 @@ lock_sec_rec_cons_read_sees(
 
 		return(false);
 
-	} else if (dict_table_is_temporary(index->table)) {
+	} else if (index->table->is_temporary()) {
 
 		/* Temp-tables are not shared across connections and multiple
 		transactions from different connections cannot simultaneously
@@ -1094,7 +1097,7 @@ lock_sec_rec_some_has_impl(
 
 	ut_ad(!lock_mutex_own());
 	ut_ad(!trx_sys_mutex_own());
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 	ut_ad(page_rec_is_user_rec(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
@@ -1456,25 +1459,8 @@ RecLock::deadlock_check(lock_t* lock)
 	ut_ad(lock->trx == m_trx);
 	ut_ad(trx_mutex_own(m_trx));
 
-	bool	async_rollback = m_trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC;
-
-	/* This is safe, because DeadlockChecker::check_and_resolve()
-	is invoked when a lock wait is enqueued for the currently
-	running transaction. Because m_trx is a running transaction
-	(it is not currently suspended because of a lock wait),
-	its state can only be changed by this thread, which is
-	currently associated with the transaction. */
-
-	trx_mutex_exit(m_trx);
-
-	/* If transaction is marked for ASYNC rollback then we should
-	not allow it to wait for another lock causing possible deadlock.
-	We return current transaction as deadlock victim here. */
-
-	const trx_t*	victim_trx = async_rollback ? m_trx
-			: DeadlockChecker::check_and_resolve(lock, m_trx);
-
-	trx_mutex_enter(m_trx);
+	const trx_t*	victim_trx =
+			DeadlockChecker::check_and_resolve(lock, m_trx);
 
 	/* Check the outcome of the deadlock test. It is possible that
 	the transaction that blocked our lock was rolled back and we
@@ -1635,7 +1621,7 @@ lock_rec_add_to_queue(
 #ifdef UNIV_DEBUG
 	ut_ad(lock_mutex_own());
 	ut_ad(caller_owns_trx_mutex == trx_mutex_own(trx));
-	ut_ad(dict_index_is_clust(index)
+	ut_ad(index->is_clustered()
 	      || dict_index_get_online_status(index) != ONLINE_INDEX_CREATION);
 	switch (type_mode & LOCK_MODE_MASK) {
 	case LOCK_X:
@@ -1748,7 +1734,7 @@ lock_rec_lock_fast(
 	ut_ad(mode - (LOCK_MODE_MASK & mode) == LOCK_GAP
 	      || mode - (LOCK_MODE_MASK & mode) == 0
 	      || mode - (LOCK_MODE_MASK & mode) == LOCK_REC_NOT_GAP);
-	ut_ad(dict_index_is_clust(index) || !dict_index_is_online_ddl(index));
+	ut_ad(index->is_clustered() || !dict_index_is_online_ddl(index));
 
 	DBUG_EXECUTE_IF("innodb_report_deadlock", return(LOCK_REC_FAIL););
 
@@ -1828,7 +1814,7 @@ lock_rec_lock_slow(
 	ut_ad(mode - (LOCK_MODE_MASK & mode) == LOCK_GAP
 	      || mode - (LOCK_MODE_MASK & mode) == 0
 	      || mode - (LOCK_MODE_MASK & mode) == LOCK_REC_NOT_GAP);
-	ut_ad(dict_index_is_clust(index) || !dict_index_is_online_ddl(index));
+	ut_ad(index->is_clustered() || !dict_index_is_online_ddl(index));
 
 	DBUG_EXECUTE_IF("innodb_report_deadlock", return(DB_DEADLOCK););
 
@@ -1916,7 +1902,7 @@ lock_rec_lock(
 	ut_ad(mode - (LOCK_MODE_MASK & mode) == LOCK_GAP
 	      || mode - (LOCK_MODE_MASK & mode) == LOCK_REC_NOT_GAP
 	      || mode - (LOCK_MODE_MASK & mode) == 0);
-	ut_ad(dict_index_is_clust(index) || !dict_index_is_online_ddl(index));
+	ut_ad(index->is_clustered() || !dict_index_is_online_ddl(index));
 
 	/* We try a simplified and faster subroutine for the most
 	common cases */
@@ -3772,25 +3758,8 @@ lock_table_enqueue_waiting(
 	/* Enqueue the lock request that will wait to be granted */
 	lock = lock_table_create(table, mode | LOCK_WAIT, trx);
 
-	bool	async_rollback = trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC;
-	/* Release the mutex to obey the latching order.
-	This is safe, because DeadlockChecker::check_and_resolve()
-	is invoked when a lock wait is enqueued for the currently
-	running transaction. Because trx is a running transaction
-	(it is not currently suspended because of a lock wait),
-	its state can only be changed by this thread, which is
-	currently associated with the transaction. */
-
-	trx_mutex_exit(trx);
-
-	/* If transaction is marked for ASYNC rollback then we should
-	not allow it to wait for another lock causing possible deadlock.
-	We return current transaction as deadlock victim here. */
-
-	const trx_t*	victim_trx = async_rollback ? trx
-			: DeadlockChecker::check_and_resolve(lock, trx);
-
-	trx_mutex_enter(trx);
+	const trx_t*	victim_trx =
+			DeadlockChecker::check_and_resolve(lock, trx);
 
 	if (victim_trx != 0) {
 		ut_ad(victim_trx == trx);
@@ -3880,7 +3849,7 @@ lock_table(
 	locking overhead */
 	if ((flags & BTR_NO_LOCKING_FLAG)
 	    || srv_read_only_mode
-	    || dict_table_is_temporary(table)) {
+	    || table->is_temporary()) {
 
 		return(DB_SUCCESS);
 	}
@@ -5289,7 +5258,7 @@ lock_rec_queue_validate(
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(!page_rec_is_comp(rec) == !rec_offs_comp(offsets));
 	ut_ad(lock_mutex_own() == locked_lock_trx_sys);
-	ut_ad(!index || dict_index_is_clust(index)
+	ut_ad(!index || index->is_clustered()
 	      || !dict_index_is_online_ddl(index));
 
 	heap_no = page_rec_get_heap_no(rec);
@@ -5324,7 +5293,7 @@ lock_rec_queue_validate(
 
 		/* Nothing we can do */
 
-	} else if (dict_index_is_clust(index)) {
+	} else if (index->is_clustered()) {
 		trx_id_t	trx_id;
 
 		/* Unlike the non-debug code, this invariant can only succeed
@@ -5680,7 +5649,7 @@ lock_rec_insert_check_and_lock(
 {
 	ut_ad(block->frame == page_align(rec));
 	ut_ad(!dict_index_is_online_ddl(index)
-	      || dict_index_is_clust(index)
+	      || index->is_clustered()
 	      || (flags & BTR_CREATE_FLAG));
 	ut_ad(mtr->is_named_space(index->space));
 
@@ -5689,7 +5658,7 @@ lock_rec_insert_check_and_lock(
 		return(DB_SUCCESS);
 	}
 
-	ut_ad(!dict_table_is_temporary(index->table));
+	ut_ad(!index->table->is_temporary());
 
 	dberr_t		err;
 	lock_t*		lock;
@@ -5715,7 +5684,7 @@ lock_rec_insert_check_and_lock(
 
 		lock_mutex_exit();
 
-		if (inherit_in && !dict_index_is_clust(index)) {
+		if (inherit_in && !index->is_clustered()) {
 			/* Update the page max trx id field */
 			page_update_max_trx_id(block,
 					       buf_block_get_page_zip(block),
@@ -5771,7 +5740,7 @@ lock_rec_insert_check_and_lock(
 		err = DB_SUCCESS;
 		/* fall through */
 	case DB_SUCCESS:
-		if (!inherit_in || dict_index_is_clust(index)) {
+		if (!inherit_in || index->is_clustered()) {
 			break;
 		}
 
@@ -5867,7 +5836,7 @@ lock_rec_convert_impl_to_expl(
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(!page_rec_is_comp(rec) == !rec_offs_comp(offsets));
 
-	if (dict_index_is_clust(index)) {
+	if (index->is_clustered()) {
 		trx_id_t	trx_id;
 
 		trx_id = lock_clust_rec_some_has_impl(rec, index, offsets);
@@ -5920,14 +5889,14 @@ lock_clust_rec_modify_check_and_lock(
 	ulint	heap_no;
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(block->frame == page_align(rec));
 
 	if (flags & BTR_NO_LOCKING_FLAG) {
 
 		return(DB_SUCCESS);
 	}
-	ut_ad(!dict_table_is_temporary(index->table));
+	ut_ad(!index->table->is_temporary());
 
 	heap_no = rec_offs_comp(offsets)
 		? rec_get_heap_no_new(rec)
@@ -5981,7 +5950,7 @@ lock_sec_rec_modify_check_and_lock(
 	dberr_t	err;
 	ulint	heap_no;
 
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 	ut_ad(!dict_index_is_online_ddl(index) || (flags & BTR_CREATE_FLAG));
 	ut_ad(block->frame == page_align(rec));
 	ut_ad(mtr->is_named_space(index->space));
@@ -5990,7 +5959,7 @@ lock_sec_rec_modify_check_and_lock(
 
 		return(DB_SUCCESS);
 	}
-	ut_ad(!dict_table_is_temporary(index->table));
+	ut_ad(!index->table->is_temporary());
 
 	heap_no = page_rec_get_heap_no(rec);
 
@@ -6072,7 +6041,7 @@ lock_sec_rec_read_check_and_lock(
 	dberr_t	err;
 	ulint	heap_no;
 
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 	ut_ad(!dict_index_is_online_ddl(index));
 	ut_ad(block->frame == page_align(rec));
 	ut_ad(page_rec_is_user_rec(rec) || page_rec_is_supremum(rec));
@@ -6081,7 +6050,7 @@ lock_sec_rec_read_check_and_lock(
 
 	if ((flags & BTR_NO_LOCKING_FLAG)
 	    || srv_read_only_mode
-	    || dict_table_is_temporary(index->table)) {
+	    || index->table->is_temporary()) {
 
 		return(DB_SUCCESS);
 	}
@@ -6151,7 +6120,7 @@ lock_clust_rec_read_check_and_lock(
 	dberr_t	err;
 	ulint	heap_no;
 
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(index->is_clustered());
 	ut_ad(block->frame == page_align(rec));
 	ut_ad(page_rec_is_user_rec(rec) || page_rec_is_supremum(rec));
 	ut_ad(gap_mode == LOCK_ORDINARY || gap_mode == LOCK_GAP
@@ -6160,7 +6129,7 @@ lock_clust_rec_read_check_and_lock(
 
 	if ((flags & BTR_NO_LOCKING_FLAG)
 	    || srv_read_only_mode
-	    || dict_table_is_temporary(index->table)) {
+	    || index->table->is_temporary()) {
 
 		return(DB_SUCCESS);
 	}
@@ -6415,7 +6384,7 @@ lock_get_table(
 {
 	switch (lock_get_type_low(lock)) {
 	case LOCK_REC:
-		ut_ad(dict_index_is_clust(lock->index)
+		ut_ad(lock->index->is_clustered()
 		      || !dict_index_is_online_ddl(lock->index));
 		return(lock->index->table);
 	case LOCK_TABLE:
@@ -6460,7 +6429,7 @@ lock_rec_get_index(
 	const lock_t*	lock)	/*!< in: lock */
 {
 	ut_a(lock_get_type_low(lock) == LOCK_REC);
-	ut_ad(dict_index_is_clust(lock->index)
+	ut_ad(lock->index->is_clustered()
 	      || !dict_index_is_online_ddl(lock->index));
 
 	return(lock->index);
@@ -6476,7 +6445,7 @@ lock_rec_get_index_name(
 	const lock_t*	lock)	/*!< in: lock */
 {
 	ut_a(lock_get_type_low(lock) == LOCK_REC);
-	ut_ad(dict_index_is_clust(lock->index)
+	ut_ad(lock->index->is_clustered()
 	      || !dict_index_is_online_ddl(lock->index));
 
 	return(lock->index->name);
@@ -6793,7 +6762,7 @@ lock_table_locks_lookup(
 
 			if (lock_get_type_low(lock) == LOCK_REC) {
 				ut_ad(!dict_index_is_online_ddl(lock->index)
-				      || dict_index_is_clust(lock->index));
+				      || lock->index->is_clustered());
 				if (lock->index->table == table) {
 					return(lock);
 				}
@@ -6948,10 +6917,10 @@ lock_trx_has_rec_x_lock(
 
 	lock_mutex_enter();
 	ut_a(lock_table_has(trx, table, LOCK_IX)
-	     || dict_table_is_temporary(table));
+	     || table->is_temporary());
 	ut_a(lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP,
 			       block, heap_no, trx)
-	     || dict_table_is_temporary(table));
+	     || table->is_temporary());
 	lock_mutex_exit();
 	return(true);
 }
@@ -7354,16 +7323,36 @@ and rolling it back. It will attempt to resolve all deadlocks. The returned
 transaction id will be the joining transaction instance or NULL if some other
 transaction was chosen as a victim and rolled back or no deadlock found.
 
-@param lock lock the transaction is requesting
-@param trx transaction requesting the lock
+@param[in]	lock lock the transaction is requesting
+@param[in,out]	trx transaction requesting the lock
 
 @return transaction instanace chosen as victim or 0 */
 const trx_t*
-DeadlockChecker::check_and_resolve(const lock_t* lock, const trx_t* trx)
+DeadlockChecker::check_and_resolve(const lock_t* lock, trx_t* trx)
 {
 	ut_ad(lock_mutex_own());
+	ut_ad(trx_mutex_own(trx));
 	check_trx_state(trx);
 	ut_ad(!srv_read_only_mode);
+
+	/* If transaction is marked for ASYNC rollback then we should
+	not allow it to wait for another lock causing possible deadlock.
+	We return current transaction as deadlock victim here. */
+	if (trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC) {
+		return(trx);
+	} else if (!innobase_deadlock_detect) {
+		return(NULL);
+	}
+
+	/*  Release the mutex to obey the latching order.
+	This is safe, because DeadlockChecker::check_and_resolve()
+	is invoked when a lock wait is enqueued for the currently
+	running transaction. Because m_trx is a running transaction
+	(it is not currently suspended because of a lock wait),
+	its state can only be changed by this thread, which is
+	currently associated with the transaction. */
+
+	trx_mutex_exit(trx);
 
 	const trx_t*	victim_trx;
 
@@ -7388,7 +7377,7 @@ DeadlockChecker::check_and_resolve(const lock_t* lock, const trx_t* trx)
 
 			break;
 
-		} else if (victim_trx != 0 && victim_trx != trx) {
+		} else if (victim_trx != NULL && victim_trx != trx) {
 
 			ut_ad(victim_trx == checker.m_wait_lock->trx);
 
@@ -7408,6 +7397,8 @@ DeadlockChecker::check_and_resolve(const lock_t* lock, const trx_t* trx)
 
 		lock_deadlock_found = true;
 	}
+
+	trx_mutex_enter(trx);
 
 	return(victim_trx);
 }

@@ -470,7 +470,7 @@ Archive_share *ha_archive::get_share(const char *table_name, int *rc)
       anything but reading... open it for write and we will generate null
       compression writes).
     */
-    if (!(azopen(&archive_tmp, tmp_share->data_file_name, O_RDONLY|O_BINARY)))
+    if (!(azopen(&archive_tmp, tmp_share->data_file_name, O_RDONLY)))
     {
       delete tmp_share;
       *rc= my_errno() ? my_errno() : HA_ERR_CRASHED;
@@ -506,8 +506,7 @@ int Archive_share::init_archive_writer()
     a gzip file that can be both read and written we keep a writer open
     that is shared amoung all open tables.
   */
-  if (!(azopen(&archive_write, data_file_name,
-               O_RDWR|O_BINARY)))
+  if (!(azopen(&archive_write, data_file_name, O_RDWR)))
   {
     DBUG_PRINT("ha_archive", ("Could not open archive write file"));
     crashed= true;
@@ -547,7 +546,7 @@ int ha_archive::init_archive_reader()
   */
   if (!archive_reader_open)
   {
-    if (!(azopen(&archive, share->data_file_name, O_RDONLY|O_BINARY)))
+    if (!(azopen(&archive, share->data_file_name, O_RDONLY)))
     {
       DBUG_PRINT("ha_archive", ("Could not open archive read file"));
       share->crashed= TRUE;
@@ -566,7 +565,7 @@ int ha_archive::init_archive_reader()
   Init out lock.
   We open the file we will read from.
 */
-int ha_archive::open(const char *name, int mode, uint open_options,
+int ha_archive::open(const char *name, int, uint open_options,
                      const dd::Table *)
 {
   int rc= 0;
@@ -733,7 +732,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   if (!(mysql_file_stat(arch_key_file_data, name_buff, &file_stat, MYF(0))))
   {
     set_my_errno(0);
-    if (!(azopen(&create_stream, name_buff, O_CREAT|O_RDWR|O_BINARY)))
+    if (!(azopen(&create_stream, name_buff, O_CREAT | O_RDWR)))
     {
       error= errno;
       goto error2;
@@ -809,7 +808,7 @@ int ha_archive::real_write_row(uchar *buf, azio_stream *writer)
   the bytes required for the length in the header.
 */
 
-uint32 ha_archive::max_row_length(const uchar *buf)
+uint32 ha_archive::max_row_length(const uchar*)
 {
   uint32 length= (uint32)(table->s->reclength + table->s->fields*2);
   length+= ARCHIVE_ROW_HEADER_SIZE;
@@ -930,8 +929,7 @@ error:
 }
 
 
-void ha_archive::get_auto_increment(ulonglong offset, ulonglong increment,
-                                    ulonglong nb_desired_values,
+void ha_archive::get_auto_increment(ulonglong, ulonglong, ulonglong,
                                     ulonglong *first_value,
                                     ulonglong *nb_reserved_values)
 {
@@ -940,7 +938,7 @@ void ha_archive::get_auto_increment(ulonglong offset, ulonglong increment,
 }
 
 /* Initialized at each key walk (called multiple times unlike rnd_init()) */
-int ha_archive::index_init(uint keynr, bool sorted)
+int ha_archive::index_init(uint keynr, bool)
 {
   DBUG_ENTER("ha_archive::index_init");
   active_index= keynr;
@@ -965,7 +963,7 @@ int ha_archive::index_read(uchar *buf, const uchar *key,
 
 
 int ha_archive::index_read_idx(uchar *buf, uint index, const uchar *key,
-                                 uint key_len, enum ha_rkey_function find_flag)
+                               uint key_len, enum ha_rkey_function)
 {
   int rc;
   bool found= 0;
@@ -1289,7 +1287,7 @@ end:
   needed.
 */
 
-void ha_archive::position(const uchar *record)
+void ha_archive::position(const uchar*)
 {
   DBUG_ENTER("ha_archive::position");
   my_store_ptr(ref, ref_length, current_position);
@@ -1344,7 +1342,7 @@ int ha_archive::repair(THD* thd, HA_CHECK_OPT* check_opt)
   The table can become fragmented if data was inserted, read, and then
   inserted again. What we do is open up the file and recompress it completely. 
 */
-int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
+int ha_archive::optimize(THD*, HA_CHECK_OPT* check_opt)
 {
   int rc= 0;
   azio_stream writer;
@@ -1372,7 +1370,7 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   fn_format(writer_filename, share->table_name, "", ARN, 
             MY_REPLACE_EXT | MY_UNPACK_FILENAME);
 
-  if (!(azopen(&writer, writer_filename, O_CREAT|O_RDWR|O_BINARY)))
+  if (!(azopen(&writer, writer_filename, O_CREAT | O_RDWR)))
   {
     share->in_optimize= false;
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
@@ -1601,7 +1599,7 @@ int ha_archive::info(uint flag)
     @return != 0 Error
 */
 
-int ha_archive::extra(enum ha_extra_function operation)
+int ha_archive::extra(enum ha_extra_function operation MY_ATTRIBUTE((unused)))
 {
   int ret= 0;
   DBUG_ENTER("ha_archive::extra");
@@ -1684,15 +1682,13 @@ bool ha_archive::is_crashed() const
 /**
   @brief Check for upgrade
 
-  @param[in]  check_opt  check options
-
   @return Completion status
     @retval HA_ADMIN_OK            No upgrade required
     @retval HA_ADMIN_CORRUPT       Cannot read meta-data
     @retval HA_ADMIN_NEEDS_UPGRADE Upgrade required
 */
 
-int ha_archive::check_for_upgrade(HA_CHECK_OPT *check_opt)
+int ha_archive::check_for_upgrade(HA_CHECK_OPT*)
 {
   DBUG_ENTER("ha_archive::check_for_upgrade");
   if (init_archive_reader())
@@ -1707,7 +1703,7 @@ int ha_archive::check_for_upgrade(HA_CHECK_OPT *check_opt)
   Simple scan of the tables to make sure everything is ok.
 */
 
-int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
+int ha_archive::check(THD* thd, HA_CHECK_OPT*)
 {
   int rc= 0;
   const char *old_proc_info;

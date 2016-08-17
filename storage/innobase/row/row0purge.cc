@@ -65,18 +65,21 @@ row_purge_node_create(
 	que_thr_t*	parent,
 	mem_heap_t*	heap)
 {
-	purge_node_t*	node;
-
 	ut_ad(parent != NULL);
 	ut_ad(heap != NULL);
+
+	purge_node_t*	node;
 
 	node = static_cast<purge_node_t*>(
 		mem_heap_zalloc(heap, sizeof(*node)));
 
 	node->common.type = QUE_NODE_PURGE;
 	node->common.parent = parent;
-	node->done = TRUE;
+	node->done = true;
+
 	node->heap = mem_heap_create(256);
+
+	node->recs = nullptr;
 
 	return(node);
 }
@@ -96,7 +99,8 @@ row_purge_reposition_pcur(
 	if (node->found_clust) {
 		ut_ad(node->validate_pcur());
 
-		node->found_clust = btr_pcur_restore_position(mode, &node->pcur, mtr);
+		node->found_clust = btr_pcur_restore_position(
+			mode, &node->pcur, mtr);
 
 	} else {
 		node->found_clust = row_search_on_row_ref(
@@ -261,7 +265,7 @@ row_purge_poss_sec(
 	bool	can_delete;
 	mtr_t	mtr;
 
-	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!index->is_clustered());
 	mtr_start(&mtr);
 
 	can_delete = !row_purge_reposition_pcur(BTR_SEARCH_LEAF, node, &mtr)
@@ -444,7 +448,7 @@ row_purge_remove_sec_if_poss_leaf(
 		}
 
 		/* Change buffering is disabled for temporary tables. */
-		mode = (dict_table_is_temporary(index->table))
+		mode = (index->table->is_temporary())
 			? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			: BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			| BTR_DELETE;
@@ -456,7 +460,7 @@ row_purge_remove_sec_if_poss_leaf(
 
 		/* Change buffering is disabled for temporary tables
 		and spatial index. */
-		mode = (dict_table_is_temporary(index->table)
+		mode = (index->table->is_temporary()
 			|| dict_index_is_spatial(index))
 			? BTR_MODIFY_LEAF
 			: BTR_MODIFY_LEAF | BTR_DELETE;
@@ -762,7 +766,7 @@ skip_secondaries:
 			/* If table is temp then it can't have its undo log
 			residing in rollback segment with REDO log enabled. */
 			bool is_redo_rseg =
-				dict_table_is_temporary(node->table)
+				node->table->is_temporary()
 				? false : true;
 			rseg = trx_sys_get_nth_rseg(
 				trx_sys, rseg_id, is_redo_rseg);
@@ -911,7 +915,7 @@ try_again:
 
 	/* Disable purging for temp-tables as they are short-lived
 	and no point in re-organzing such short lived tables */
-	if (dict_table_is_temporary(node->table)) {
+	if (node->table->is_temporary()) {
 		goto close_exit;
 	}
 
@@ -928,7 +932,7 @@ try_again:
 	clust_index = node->table->first_index();
 
 	if (clust_index == NULL
-	    || dict_index_is_corrupted(clust_index)) {
+	    || clust_index->is_corrupted()) {
 		/* The table was corrupt in the data dictionary.
 		dict_set_corrupted() works on an index, and
 		we do not have an index to call it with. */
@@ -947,18 +951,19 @@ err_exit:
 		goto close_exit;
 	}
 
-	ptr = trx_undo_rec_get_row_ref(ptr, clust_index, &(node->ref),
-				       node->heap);
+	ptr = trx_undo_rec_get_row_ref(
+		ptr, clust_index, &(node->ref), node->heap);
 
 	trx = thr_get_trx(thr);
 
-	ptr = trx_undo_update_rec_get_update(ptr, clust_index, type, trx_id,
-					     roll_ptr, info_bits, trx,
-					     node->heap, &(node->update));
+	ptr = trx_undo_update_rec_get_update(
+		ptr, clust_index, type, trx_id, roll_ptr, info_bits, trx,
+		node->heap, &(node->update));
 
 	/* Read to the partial row the fields that occur in indexes */
 
 	if (!(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
+
 		ptr = trx_undo_rec_get_partial_row(
 			ptr, clust_index, &node->row,
 			type == TRX_UNDO_UPD_DEL_REC,
@@ -1052,39 +1057,41 @@ row_purge(
 	trx_undo_rec_t*	undo_rec,	/*!< in: record to purge */
 	que_thr_t*	thr)		/*!< in: query thread */
 {
-	if (undo_rec != &trx_purge_dummy_rec) {
-		bool	updated_extern;
+	bool	updated_extern;
 
-		while (row_purge_parse_undo_rec(
-			       node, undo_rec, &updated_extern, thr)) {
+	while (row_purge_parse_undo_rec(node, undo_rec, &updated_extern, thr)) {
 
-			bool purged = row_purge_record(
-				node, undo_rec, thr, updated_extern);
+		bool purged;
 
-			rw_lock_s_unlock(dict_operation_lock);
+		purged = row_purge_record(node, undo_rec, thr, updated_extern);
 
-			if (purged
-			    || srv_shutdown_state != SRV_SHUTDOWN_NONE) {
-				return;
-			}
+		rw_lock_s_unlock(dict_operation_lock);
 
-			/* Retry the purge in a second. */
-			os_thread_sleep(1000000);
+		if (purged || srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+			return;
 		}
+
+		/* Retry the purge in a second. */
+		os_thread_sleep(1000000);
 	}
 }
 
-/***********************************************************//**
-Reset the purge query thread. */
-UNIV_INLINE
+/** Explicitly call the destructor, this is to get around Clang bug#12350.
+@param[in,out]	p		Instance on which to call the destructor */
+template<typename T>
 void
-row_purge_end(
-/*==========*/
-	que_thr_t*	thr)	/*!< in: query thread */
+call_destructor(T* p)
+{
+	p->~T();
+}
+
+/** Reset the purge query thread.
+@param[in,out]	thr		The query thread to execute */
+static
+void
+row_purge_end(que_thr_t* thr)
 {
 	purge_node_t*	node;
-
-	ut_ad(thr);
 
 	node = static_cast<purge_node_t*>(thr->run_node);
 
@@ -1092,35 +1099,42 @@ row_purge_end(
 
 	thr->run_node = que_node_get_parent(node);
 
-	node->undo_recs = NULL;
+	if (node->recs != nullptr) {
 
-	node->done = TRUE;
+		ut_ad(node->recs->empty());
+
+		/* Note: We call the destructor explicitly here, but don't
+		want to free the memory. The Recs (and rows contained within)
+		were allocated from the purge_sys->heap */
+
+		call_destructor(node->recs);
+
+		node->recs = nullptr;
+	}
+
+	node->done = true;
 
 	ut_a(thr->run_node != NULL);
 
 	mem_heap_empty(node->heap);
 }
 
-/***********************************************************//**
-Does the purge operation for a single undo log record. This is a high-level
+/** Does the purge operation for a single undo log record. This is a high-level
 function used in an SQL execution graph.
-@return query thread to run next or NULL */
+@param[in,out]	thr		The query thread to execute
+@return query thread to run next or nullptr */
 que_thr_t*
-row_purge_step(
-/*===========*/
-	que_thr_t*	thr)	/*!< in: query thread */
+row_purge_step(que_thr_t* thr)
 {
 	purge_node_t*	node;
 
-	ut_ad(thr);
-
 	node = static_cast<purge_node_t*>(thr->run_node);
 
-	node->table = NULL;
-	node->row = NULL;
-	node->ref = NULL;
-	node->index = NULL;
-	node->update = NULL;
+	node->table = nullptr;
+	node->row = nullptr;
+	node->ref = nullptr;
+	node->index = nullptr;
+	node->update = nullptr;
 	node->found_clust = FALSE;
 	node->rec_type = ULINT_UNDEFINED;
 	node->cmpl_info = ULINT_UNDEFINED;
@@ -1129,21 +1143,22 @@ row_purge_step(
 
 	ut_ad(que_node_get_type(node) == QUE_NODE_PURGE);
 
-	if (!(node->undo_recs == NULL || ib_vector_is_empty(node->undo_recs))) {
-		trx_purge_rec_t*purge_rec;
+	if (node->recs != nullptr && !node->recs->empty()) {
+		purge_node_t::rec_t	rec;
 
-		purge_rec = static_cast<trx_purge_rec_t*>(
-			ib_vector_pop(node->undo_recs));
+		rec = node->recs->back();
+		node->recs->pop_back();
 
-		node->roll_ptr = purge_rec->roll_ptr;
+		node->roll_ptr = rec.roll_ptr;
 
-		row_purge(node, purge_rec->undo_rec, thr);
+		row_purge(node, rec.undo_rec, thr);
 
-		if (ib_vector_is_empty(node->undo_recs)) {
+		if (node->recs->empty()) {
 			row_purge_end(thr);
 		} else {
 			thr->run_node = node;
 		}
+
 	} else {
 		row_purge_end(thr);
 	}
