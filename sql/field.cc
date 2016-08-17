@@ -8774,7 +8774,7 @@ Field_json::store(const char *from, size_t length, const CHARSET_INFO *cs)
     return TYPE_ERR_BAD_VALUE;
   }
 
-  if (json_binary::serialize(dom.get(), &value))
+  if (json_binary::serialize(table->in_use, dom.get(), &value))
     return TYPE_ERR_BAD_VALUE;
 
   return store_binary(value.ptr(), value.length());
@@ -8870,7 +8870,7 @@ type_conversion_status Field_json::store_json(Json_wrapper *json)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
 
-  if (json->to_binary(&value))
+  if (json->to_binary(table->in_use, &value))
     return TYPE_ERR_BAD_VALUE;
 
   return store_binary(value.ptr(), value.length());

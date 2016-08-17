@@ -386,7 +386,8 @@ TEST_F(JsonDomTest, BasicTest)
   EXPECT_EQ(null_dom, dom.get());
 }
 
-void vet_wrapper_length(char * text, size_t expected_length )
+void vet_wrapper_length(const THD *thd, const char *text,
+                        size_t expected_length)
 {
   const char *msg;
   size_t msg_offset;
@@ -397,7 +398,7 @@ void vet_wrapper_length(char * text, size_t expected_length )
     << "Wrapped DOM: " << text << "\n";
 
   String  serialized_form;
-  EXPECT_FALSE(json_binary::serialize(dom, &serialized_form));
+  EXPECT_FALSE(json_binary::serialize(thd, dom, &serialized_form));
   json_binary::Value binary=
     json_binary::parse_binary(serialized_form.ptr(),
                               serialized_form.length());
@@ -451,27 +452,27 @@ TEST_F(JsonDomTest, WrapperTest)
   w_5.steal(&w_7); // should deallocate w_5's original
 
   // scalars
-  vet_wrapper_length((char *) "false", 1);
-  vet_wrapper_length((char *) "true", 1);
-  vet_wrapper_length((char *) "null", 1);
-  vet_wrapper_length((char *) "1.1", 1);
-  vet_wrapper_length((char *) "\"hello world\"", 1);
+  vet_wrapper_length(thd, "false", 1);
+  vet_wrapper_length(thd, "true", 1);
+  vet_wrapper_length(thd, "null", 1);
+  vet_wrapper_length(thd, "1.1", 1);
+  vet_wrapper_length(thd, "\"hello world\"", 1);
 
   // objects
-  vet_wrapper_length((char *) "{}", 0);
-  vet_wrapper_length((char *) "{ \"a\" : 100 }", 1);
-  vet_wrapper_length((char *) "{ \"a\" : 100, \"b\" : 200 }", 2);
+  vet_wrapper_length(thd, "{}", 0);
+  vet_wrapper_length(thd, "{ \"a\" : 100 }", 1);
+  vet_wrapper_length(thd, "{ \"a\" : 100, \"b\" : 200 }", 2);
 
   // arrays
-  vet_wrapper_length((char *) "[]", 0);
-  vet_wrapper_length((char *) "[ 100 ]", 1);
-  vet_wrapper_length((char *) "[ 100, 200 ]", 2);
+  vet_wrapper_length(thd, "[]", 0);
+  vet_wrapper_length(thd, "[ 100 ]", 1);
+  vet_wrapper_length(thd, "[ 100, 200 ]", 2);
 
   // nested objects
-  vet_wrapper_length((char *) "{ \"a\" : 100, \"b\" : { \"c\" : 300 } }", 2);
+  vet_wrapper_length(thd, "{ \"a\" : 100, \"b\" : { \"c\" : 300 } }", 2);
 
   // nested arrays
-  vet_wrapper_length((char *) "[ 100, [ 200, 300 ] ]", 2);
+  vet_wrapper_length(thd, "[ 100, [ 200, 300 ] ]", 2);
 }
 
 void vet_merge(char * left_text, char * right_text, std::string expected )

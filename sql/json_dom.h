@@ -1198,11 +1198,13 @@ public:
 
   /**
     Get the wrapped contents in binary value form.
+
+    @param[in]     thd  current session
     @param[in,out] str  a string that will be filled with the binary value
     @retval false on success
     @retval true  on error
   */
-  bool to_binary(String *str) const;
+  bool to_binary(const THD *thd, String *str) const;
 
   /**
     Format the JSON value to an external JSON string in buffer in
