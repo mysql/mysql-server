@@ -350,19 +350,6 @@ TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
                                       const char *table_name);
 
 /**
-  Check if the given db.table belongs to a IS view or a DD table.
-
-  @param    db             Database name.
-  @param    table_name     Table name.
-
-  @retval   true           If db.table belongs to a IS view or a DD table.
-  @retval   false          If db.table does not belongs to a IS view or a
-                           DD table.
-*/
-
-bool belongs_to_system_view(const char *db, const char *table_name);
-
-/**
   An abstract class for a strategy specifying how the prelocking
   algorithm should extend the prelocking set while processing
   already existing elements in the set.

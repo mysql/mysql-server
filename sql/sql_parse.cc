@@ -5571,7 +5571,7 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
                        const_cast<char*>(ptr->db),
                        const_cast<char*>(ptr->table_name));
 
-    bool is_system_view=
+    ptr->is_system_view=
       dd::get_dictionary()->is_system_view_name(ptr->db, ptr->table_name);
 
     ST_SCHEMA_TABLE *schema_table;
@@ -5579,7 +5579,7 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
         /* Special cases which are processed by commands itself */
         lex->sql_command != SQLCOM_CHECK &&
         lex->sql_command != SQLCOM_CHECKSUM &&
-        !(lex->sql_command == SQLCOM_CREATE_VIEW && is_system_view))
+        !(lex->sql_command == SQLCOM_CREATE_VIEW && ptr->is_system_view))
     {
       my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                thd->security_context()->priv_user().str,
@@ -5587,7 +5587,7 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
                INFORMATION_SCHEMA_NAME.str);
       DBUG_RETURN(0);
     }
-    if (is_system_view)
+    if (ptr->is_system_view)
     {
       /**
         Pick the right IS system view definition based on session

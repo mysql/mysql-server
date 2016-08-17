@@ -3518,6 +3518,8 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
                             stab->table_name_length + 1,
                             stab->lock_type, mdl_lock_type);
 
+      table->is_system_view=
+        dd::get_dictionary()->is_system_view_name(table->db, table->table_name);
       table->cacheable_table= 1;
       table->prelocking_placeholder= 1;
       table->belong_to_view= belong_to_view;

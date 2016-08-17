@@ -185,23 +185,29 @@ bool Dictionary_impl::is_dd_table_access_allowed(
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Dictionary_impl::is_system_view_name(const std::string &schema_name,
-                                          const std::string &table_name) const
+bool Dictionary_impl::is_system_view_name(const char *schema_name,
+                                          const char *table_name) const
 {
-  // The System_views registry stores the view name in lowercase.
-  // So convert the input to lowercase before search.
-  char sch_name_buf[NAME_LEN + 1];
-  my_stpcpy(sch_name_buf, schema_name.c_str());
-  my_casedn_str(&my_charset_utf8_tolower_ci, sch_name_buf);
-
-  if (strcmp(sch_name_buf,INFORMATION_SCHEMA_NAME.str) != 0)
+  /*
+    TODO One possible improvement here could be to try and use the variant
+    of is_infoschema_db() that takes length as a parameter. Then, if the
+    schema name length is different, this can quickly be used to conclude
+    that this is indeed not a system view, without having to do a strcmp at
+    all.
+  */
+  if (schema_name == nullptr ||
+      table_name == nullptr ||
+      is_infoschema_db(schema_name) == false)
     return false;
 
+  // The System_views registry stores the view name in lowercase.
+  // So convert the input to lowercase before search.
   char tab_name_buf[NAME_LEN + 1];
-  my_stpcpy(tab_name_buf, table_name.c_str());
-  my_caseup_str(&my_charset_utf8_tolower_ci, tab_name_buf);
+  my_stpcpy(tab_name_buf, table_name);
+  my_caseup_str(system_charset_info, tab_name_buf);
 
-  return (System_views::instance()->find(sch_name_buf, tab_name_buf) != NULL);
+  return (System_views::instance()->find(INFORMATION_SCHEMA_NAME.str,
+                                         tab_name_buf) != NULL);
 }
 
 ///////////////////////////////////////////////////////////////////////////
