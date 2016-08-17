@@ -130,13 +130,14 @@ INSTALL COMPONENT "file://component_example_component1", "file://component_examp
 --error ER_COMPONENTS_CANT_LOAD
 INSTALL COMPONENT "file://component_example_component3", "file://component_example_component2";
 INSTALL COMPONENT "file://component_example_component3";
-SELECT * FROM mysql.component;
+--echo # all three components should present
+SELECT COUNT(*) FROM mysql.component;
 
 --error ER_COMPONENTS_UNLOAD_DUPLICATE_IN_GROUP
 UNINSTALL COMPONENT "file://component_example_component2", "file://component_example_component2";
 UNINSTALL COMPONENT "file://component_example_component1", "file://component_example_component2", "file://component_example_component3";
-
-SELECT * FROM mysql.component;
+--echo # zero components should present
+SELECT COUNT(*) FROM mysql.component;
 
 --echo #
 --echo # Checking component persistance code. Install a component, shutdown
