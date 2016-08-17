@@ -145,7 +145,7 @@ public:
   virtual bool is_default(THD *thd, set_var *var);
   virtual longlong get_min_value() { return option.min_value; }
   virtual ulonglong get_max_value() { return option.max_value; }
-  virtual void set_arg_source(get_opt_arg_source *src) {}
+  virtual void set_arg_source(get_opt_arg_source*) {}
   enum_variable_source get_source() { return source.m_source; }
   const char* get_source_name() { return source.m_name; }
   void set_source(enum_variable_source src) { option.arg_source->m_source= src; }

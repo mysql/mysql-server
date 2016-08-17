@@ -1322,7 +1322,7 @@ public:
   enum_explain_type type();
 
   /// Lookup for a type string
-  const char *get_type_str(const THD *thd)
+  const char *get_type_str()
   { return type_str[static_cast<int>(type())]; }
   static const char *get_type_str(enum_explain_type type)
   { return type_str[static_cast<int>(type)]; }
@@ -3868,14 +3868,16 @@ struct st_lex_local: public LEX
     return sql_alloc(size);
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg= std::nothrow) throw ()
+                            const std::nothrow_t &arg MY_ATTRIBUTE((unused))
+                            = std::nothrow) throw ()
   {
     return alloc_root(mem_root, size);
   }
-  static void operator delete(void *ptr,size_t size)
+  static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
+                              size_t size MY_ATTRIBUTE((unused)))
   { TRASH(ptr, size); }
-  static void operator delete(void *ptr, MEM_ROOT *mem_root,
-                              const std::nothrow_t &arg) throw ()
+  static void operator delete(void*, MEM_ROOT*,
+                              const std::nothrow_t&) throw ()
   { /* Never called */ }
 };
 

@@ -848,7 +848,7 @@ int ha_myisammrg::attach_children(void)
       if (check_definition(keyinfo, recinfo, keys, recs,
                            u_table->table->s->keyinfo, u_table->table->s->rec,
                            u_table->table->s->base.keys,
-                           u_table->table->s->base.fields, false, NULL))
+                           u_table->table->s->base.fields, false))
       {
         DBUG_PRINT("error", ("table definition mismatch: '%s'",
                              u_table->table->filename));
@@ -1176,7 +1176,7 @@ int ha_myisammrg::index_next_same(uchar * buf,
 }
 
 
-int ha_myisammrg::rnd_init(bool scan)
+int ha_myisammrg::rnd_init(bool)
 {
   DBUG_ASSERT(this->file->children_attached);
   return myrg_reset(file);
@@ -1208,7 +1208,7 @@ int ha_myisammrg::rnd_pos(uchar * buf, uchar *pos)
   return error;
 }
 
-void ha_myisammrg::position(const uchar *record)
+void ha_myisammrg::position(const uchar*)
 {
   DBUG_ASSERT(this->file->children_attached);
   ulonglong row_position= myrg_position(file);
@@ -1368,7 +1368,7 @@ int ha_myisammrg::extra_opt(enum ha_extra_function operation, ulong cache_size)
   return myrg_extra(file, operation, (void*) &cache_size);
 }
 
-int ha_myisammrg::external_lock(THD *thd, int lock_type)
+int ha_myisammrg::external_lock(THD*, int lock_type)
 {
   /*
     This can be called with no children attached. E.g. FLUSH TABLES
@@ -1391,9 +1391,9 @@ uint ha_myisammrg::lock_count(void) const
 }
 
 
-THR_LOCK_DATA **ha_myisammrg::store_lock(THD *thd,
+THR_LOCK_DATA **ha_myisammrg::store_lock(THD*,
 					 THR_LOCK_DATA **to,
-					 enum thr_lock_type lock_type)
+					 enum thr_lock_type)
 {
   return to;
 }
@@ -1475,8 +1475,7 @@ err:
 }
 
 
-int ha_myisammrg::create(const char *name, TABLE *form,
-			 HA_CREATE_INFO *create_info)
+int ha_myisammrg::create(const char *name, TABLE*, HA_CREATE_INFO *create_info)
 {
   char buff[FN_REFLEN];
   const char **table_names, **pos;
@@ -1588,8 +1587,7 @@ void ha_myisammrg::append_create_info(String *packet)
 }
 
 
-bool ha_myisammrg::check_if_incompatible_data(HA_CREATE_INFO *info,
-					      uint table_changes)
+bool ha_myisammrg::check_if_incompatible_data(HA_CREATE_INFO *, uint)
 {
   /*
     For myisammrg, we should always re-generate the mapping file as this
@@ -1599,7 +1597,7 @@ bool ha_myisammrg::check_if_incompatible_data(HA_CREATE_INFO *info,
 }
 
 
-int ha_myisammrg::check(THD* thd, HA_CHECK_OPT* check_opt)
+int ha_myisammrg::check(THD*, HA_CHECK_OPT*)
 {
   return this->file->children_attached ? HA_ADMIN_OK : HA_ADMIN_CORRUPT;
 }
@@ -1612,7 +1610,7 @@ int ha_myisammrg::records(ha_rows *num_rows)
 }
 
 
-static int myisammrg_panic(handlerton *hton, ha_panic_function flag)
+static int myisammrg_panic(handlerton*, ha_panic_function flag)
 {
   return myrg_panic(flag);
 }

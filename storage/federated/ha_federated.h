@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -156,7 +156,7 @@ public:
     index up to and including 'part'.
   */
     /* fix server to be able to get remote server index flags */
-  ulong index_flags(uint inx, uint part, bool all_parts) const
+  ulong index_flags(uint, uint, bool) const
   {
     return (HA_READ_NEXT | HA_READ_RANGE | HA_READ_AFTER_KEY);
   }
@@ -184,7 +184,7 @@ public:
   /*
     The next method will never be called if you do not implement indexes.
   */
-  double read_time(uint index, uint ranges, ha_rows rows) 
+  double read_time(uint, uint, ha_rows rows)
   {
     /*
       Per Brian, this number is bugus, but this method must be implemented,

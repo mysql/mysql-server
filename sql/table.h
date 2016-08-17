@@ -2295,7 +2295,7 @@ struct TABLE_LIST
 
     @param privilege   Privileges granted for this table.
   */
-  void set_privileges(ulong privilege)
+  void set_privileges(ulong privilege MY_ATTRIBUTE((unused)))
   {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     grant.privilege|= privilege;

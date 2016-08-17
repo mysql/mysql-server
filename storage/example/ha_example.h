@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -105,7 +105,9 @@ public:
     If all_parts is set, MySQL wants to know the flags for the combined
     index, up to and including 'part'.
   */
-  ulong index_flags(uint inx, uint part, bool all_parts) const
+  ulong index_flags(uint inx MY_ATTRIBUTE((unused)),
+                    uint part MY_ATTRIBUTE((unused)),
+                    bool all_parts MY_ATTRIBUTE((unused))) const
   {
     return 0;
   }

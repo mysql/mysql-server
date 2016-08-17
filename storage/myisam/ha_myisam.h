@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,8 +45,7 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
 int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
                      uint t1_keys, uint t1_recs,
                      MI_KEYDEF *t2_keyinfo, MI_COLUMNDEF *t2_recinfo,
-                     uint t2_keys, uint t2_recs, bool strict,
-                     TABLE *table_arg);
+                     uint t2_keys, uint t2_recs, bool strict);
 
 C_MODE_START
 ICP_RESULT index_cond_func_myisam(void *arg);
@@ -82,7 +81,7 @@ class ha_myisam: public handler
   int index_end();
   int rnd_end();
 
-  ulong index_flags(uint inx, uint part, bool all_parts) const
+  ulong index_flags(uint inx, uint, bool) const
   {
     if (table_share->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT)
       return 0;

@@ -733,19 +733,16 @@ void shutdown_acl_cache();
 bool is_granted_role(LEX_CSTRING user, LEX_CSTRING host,
                      LEX_CSTRING role, LEX_CSTRING role_host);
 #else
-inline bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables)
+inline bool check_one_table_access(THD*, ulong, TABLE_LIST*)
 { return false; }
-inline bool check_single_table_access(THD *thd, ulong privilege,
-			   TABLE_LIST *tables, bool no_errors)
+inline bool check_single_table_access(THD*, ulong, TABLE_LIST *, bool)
 { return false; }
-inline bool check_routine_access(THD *thd,ulong want_access,const char *db,
-                                 char *name, bool is_proc, bool no_errors)
+inline bool check_routine_access(THD*, ulong, const char*, char*, bool, bool)
 { return false; }
 
 bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
 
-inline bool check_some_routine_access(THD *thd, const char *db,
-                                      const char *name, bool is_proc)
+inline bool check_some_routine_access(THD*, const char*, const char*, bool)
 { return false; }
 inline bool check_access(THD *, ulong, const char *, ulong *save_priv,
                          GRANT_INTERNAL_INFO *, bool, bool)
@@ -755,10 +752,7 @@ inline bool check_access(THD *, ulong, const char *, ulong *save_priv,
   return false;
 }
 inline bool
-check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
-                   bool any_combination_of_privileges_will_do,
-                   uint number,
-                   bool no_errors)
+check_table_access(THD*, ulong, TABLE_LIST*, bool, uint, bool)
 { return false; }
 #endif /*NO_EMBEDDED_ACCESS_CHECKS*/
 

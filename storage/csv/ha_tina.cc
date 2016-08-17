@@ -200,7 +200,7 @@ static int tina_init_func(void *p)
   return 0;
 }
 
-static int tina_done_func(void *p)
+static int tina_done_func(void*)
 {
   my_hash_free(&tina_open_tables);
   mysql_mutex_destroy(&tina_mutex);
@@ -212,7 +212,7 @@ static int tina_done_func(void *p)
 /*
   Simple lock controls.
 */
-static TINA_SHARE *get_share(const char *table_name, TABLE *table)
+static TINA_SHARE *get_share(const char *table_name, TABLE*)
 {
   TINA_SHARE *share;
   char meta_file_name[FN_REFLEN];
@@ -543,7 +543,7 @@ ha_tina::ha_tina(handlerton *hton, TABLE_SHARE *table_arg)
   Encode a buffer into the quoted format.
 */
 
-int ha_tina::encode_quote(uchar *buf)
+int ha_tina::encode_quote(uchar*)
 {
   char attribute_buffer[1024];
   String attribute(attribute_buffer, sizeof(attribute_buffer),
@@ -870,7 +870,7 @@ err:
   for CSV engine. For more details see mysys/thr_lock.c
 */
 
-void tina_get_status(void* param, int concurrent_insert)
+void tina_get_status(void* param, int)
 {
   ha_tina *tina= (ha_tina*) param;
   tina->get_status();
@@ -883,7 +883,7 @@ void tina_update_status(void* param)
 }
 
 /* this should exist and return 0 for concurrent insert to work */
-my_bool tina_check_status(void* param)
+my_bool tina_check_status(void*)
 {
   return 0;
 }
@@ -950,7 +950,7 @@ void ha_tina::update_status()
   this will not be called for every request. Any sort of positions
   that need to be reset should be kept in the ::extra() call.
 */
-int ha_tina::open(const char *name, int mode, uint open_options)
+int ha_tina::open(const char *name, int, uint open_options)
 {
   DBUG_ENTER("ha_tina::open");
 
@@ -1069,7 +1069,7 @@ int ha_tina::open_update_temp_file_if_needed()
   This will be called in a table scan right before the previous ::rnd_next()
   call.
 */
-int ha_tina::update_row(const uchar * old_data, uchar * new_data)
+int ha_tina::update_row(const uchar*, uchar * new_data)
 {
   int size;
   int rc= -1;
@@ -1116,7 +1116,7 @@ err:
   The table will then be deleted/positioned based on the ORDER (so RANDOM,
   DESC, ASC).
 */
-int ha_tina::delete_row(const uchar * buf)
+int ha_tina::delete_row(const uchar*)
 {
   DBUG_ENTER("ha_tina::delete_row");
   ha_statistic_increment(&System_status_var::ha_delete_count);
@@ -1198,7 +1198,7 @@ int ha_tina::init_data_file()
 
 */
 
-int ha_tina::rnd_init(bool scan)
+int ha_tina::rnd_init(bool)
 {
   DBUG_ENTER("ha_tina::rnd_init");
 
@@ -1271,7 +1271,7 @@ end:
   its just a position. Look at the bdb code if you want to see a case
   where something other then a number is stored.
 */
-void ha_tina::position(const uchar *record)
+void ha_tina::position(const uchar*)
 {
   DBUG_ENTER("ha_tina::position");
   my_store_ptr(ref, ref_length, current_position);
@@ -1302,7 +1302,7 @@ int ha_tina::rnd_pos(uchar * buf, uchar *pos)
   Currently this table handler doesn't implement most of the fields
   really needed. SHOW also makes use of this data
 */
-int ha_tina::info(uint flag)
+int ha_tina::info(uint)
 {
   DBUG_ENTER("ha_tina::info");
   /* This is a lie, but you don't want the optimizer to see zero or 1 */
@@ -1486,7 +1486,6 @@ error:
   SYNOPSIS
     repair()
     thd         The thread, performing repair
-    check_opt   The options for repair. We do not use it currently.
 
   DESCRIPTION
     If the file is empty, change # of rows in the file and complete recovery.
@@ -1498,7 +1497,7 @@ error:
          rows (after the first bad one) as well.
 */
 
-int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
+int ha_tina::repair(THD* thd, HA_CHECK_OPT*)
 {
   char repaired_fname[FN_REFLEN];
   uchar *buf;
@@ -1663,7 +1662,7 @@ int ha_tina::delete_all_rows()
   Called by the database to lock the table. Keep in mind that this
   is an internal lock.
 */
-THR_LOCK_DATA **ha_tina::store_lock(THD *thd,
+THR_LOCK_DATA **ha_tina::store_lock(THD *,
                                     THR_LOCK_DATA **to,
                                     enum thr_lock_type lock_type)
 {
@@ -1679,7 +1678,7 @@ THR_LOCK_DATA **ha_tina::store_lock(THD *thd,
 */
 
 int ha_tina::create(const char *name, TABLE *table_arg,
-                    HA_CREATE_INFO *create_info)
+                    HA_CREATE_INFO*)
 {
   char name_buff[FN_REFLEN];
   File create_file;
@@ -1718,7 +1717,7 @@ int ha_tina::create(const char *name, TABLE *table_arg,
   DBUG_RETURN(0);
 }
 
-int ha_tina::check(THD* thd, HA_CHECK_OPT* check_opt)
+int ha_tina::check(THD* thd, HA_CHECK_OPT*)
 {
   int rc= 0;
   uchar *buf;
@@ -1767,8 +1766,7 @@ int ha_tina::check(THD* thd, HA_CHECK_OPT* check_opt)
 }
 
 
-bool ha_tina::check_if_incompatible_data(HA_CREATE_INFO *info,
-					   uint table_changes)
+bool ha_tina::check_if_incompatible_data(HA_CREATE_INFO *, uint)
 {
   return COMPATIBLE_DATA_YES;
 }

@@ -33,7 +33,7 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
                             HP_CREATE_INFO *hp_create_info);
 
 
-static int heap_panic(handlerton *hton, ha_panic_function flag)
+static int heap_panic(handlerton*, ha_panic_function flag)
 {
   return hp_panic(flag);
 }
@@ -151,7 +151,7 @@ int ha_heap::close(void)
     with '\'-delimited path.
 */
 
-handler *ha_heap::clone(const char *name, MEM_ROOT *mem_root)
+handler *ha_heap::clone(const char*, MEM_ROOT *mem_root)
 {
   handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type());
   if (new_handler && !new_handler->ha_open(table, file->s->name, table->db_stat,
@@ -398,7 +398,7 @@ int ha_heap::rnd_pos(uchar * buf, uchar *pos)
   return error;
 }
 
-void ha_heap::position(const uchar *record)
+void ha_heap::position(const uchar*)
 {
   *(HEAP_PTR*) ref= heap_position(file);	// Ref is aligned
 }
@@ -472,7 +472,7 @@ int ha_heap::reset_auto_increment(ulonglong value)
 }
 
 
-int ha_heap::external_lock(THD *thd, int lock_type)
+int ha_heap::external_lock(THD*, int)
 {
   return 0;					// No external locking
 }
@@ -585,7 +585,7 @@ int ha_heap::indexes_are_disabled(void)
   return heap_indexes_are_disabled(file);
 }
 
-THR_LOCK_DATA **ha_heap::store_lock(THD *thd,
+THR_LOCK_DATA **ha_heap::store_lock(THD*,
 				    THR_LOCK_DATA **to,
 				    enum thr_lock_type lock_type)
 {
@@ -613,7 +613,7 @@ int ha_heap::delete_table(const char *name)
 }
 
 
-void ha_heap::drop_table(const char *name)
+void ha_heap::drop_table(const char*)
 {
   file->s->delete_on_close= 1;
   close();
@@ -795,8 +795,7 @@ void ha_heap::update_create_info(HA_CREATE_INFO *create_info)
     create_info->auto_increment_value= stats.auto_increment_value;
 }
 
-void ha_heap::get_auto_increment(ulonglong offset, ulonglong increment,
-                                 ulonglong nb_desired_values,
+void ha_heap::get_auto_increment(ulonglong, ulonglong, ulonglong,
                                  ulonglong *first_value,
                                  ulonglong *nb_reserved_values)
 {

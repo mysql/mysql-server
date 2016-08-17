@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -58,14 +58,15 @@ public:
     @retval false Success
     @retval true  Error
   */
-  virtual bool change_query_result(Query_result *new_result)
+  virtual bool
+  change_query_result(Query_result *new_result MY_ATTRIBUTE((unused)))
   {
     return false;
   }
   /// @return true if an interceptor object is needed for EXPLAIN
   virtual bool need_explain_interceptor() const { return false; }
 
-  virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+  virtual int prepare(List<Item>&, SELECT_LEX_UNIT *u)
   {
     unit= u;
     return 0;
@@ -80,7 +81,8 @@ public:
   { return fields.elements; }
   virtual bool send_result_set_metadata(List<Item> &list, uint flags)=0;
   virtual bool send_data(List<Item> &items)=0;
-  virtual bool initialize_tables (JOIN *join=0) { return false; }
+  virtual bool initialize_tables(JOIN*)
+  { return false; }
   virtual void send_error(uint errcode,const char *err)
   { my_message(errcode, err, MYF(0)); }
   virtual bool send_eof()=0;
@@ -125,8 +127,9 @@ class Query_result_interceptor: public Query_result
 {
 public:
   Query_result_interceptor(THD *thd) : Query_result(thd) {}
-  uint field_count(List<Item> &fields) const { return 0; }
-  bool send_result_set_metadata(List<Item> &fields, uint flag) { return false; }
+  uint field_count(List<Item>&) const { return 0; }
+  bool send_result_set_metadata(List<Item>&, uint flag MY_ATTRIBUTE((unused)))
+  { return false; }
 };
 
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,7 +97,7 @@ public:
             HA_NO_COPY_ON_ALTER |
             HA_DUPLICATE_POS);
   }
-  ulong index_flags(uint inx, uint part, bool all_parts) const
+  ulong index_flags(uint inx, uint, bool) const
   {
     return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?
             0 : HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE |
