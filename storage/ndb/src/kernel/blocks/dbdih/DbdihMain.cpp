@@ -13013,13 +13013,18 @@ Dbdih::sendAddFragreq(Signal* signal,
     req->totalFragments = fragCount;
     req->startGci = SYSFILE->newestRestorableGCI;
     req->logPartId = fragPtr.p->m_log_part_id;
-    req->changeMask = 0;
-    req->partitionId = fragId % tabPtr.p->partitionCount;
 
-    if (connectPtr.p->connectState == ConnectRecord::ALTER_TABLE)
+    if (connectPtr.p->connectState != ConnectRecord::ALTER_TABLE)
+    {
+      jam();
+      req->changeMask = 0;
+      req->partitionId = fragId % tabPtr.p->partitionCount;
+    }
+    else /* connectState == ALTER_TABLE */
     {
       jam();
       req->changeMask = connectPtr.p->m_alter.m_changeMask;
+      req->partitionId = fragId % connectPtr.p->m_alter.m_partitionCount;
     }
 
     sendSignal(DBDICT_REF, GSN_ADD_FRAGREQ, signal, 
