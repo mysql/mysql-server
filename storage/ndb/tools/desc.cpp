@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -376,7 +376,11 @@ void print_part_info(Ndb* pNdb, NdbDictionary::Table const* pTab)
     if (pOp == NULL)
       break;
     
-    int rs = pOp->readTuples(NdbOperation::LM_CommittedRead); 
+    int rs = pOp->readTuples(NdbOperation::LM_CommittedRead,
+                             0 /* scan_flags */,
+                             1 /* parallel */,
+                             0 /* batch */);
+
     if (rs != 0)
       break;
     
