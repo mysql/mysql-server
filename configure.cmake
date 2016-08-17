@@ -814,12 +814,6 @@ CHECK_INCLUDE_FILES(numa.h HAVE_NUMA_H)
 CHECK_INCLUDE_FILES(numaif.h HAVE_NUMAIF_H)
 
 IF(HAVE_NUMA_H AND HAVE_NUMAIF_H)
-  OPTION(WITH_NUMA "Explicitly set NUMA memory allocation policy" ON)
-ELSE()
-  OPTION(WITH_NUMA "Explicitly set NUMA memory allocation policy" OFF)
-ENDIF()
-
-IF(WITH_NUMA AND HAVE_NUMA_H AND HAVE_NUMAIF_H)
     SET(SAVE_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
     SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} numa)
     CHECK_C_SOURCE_COMPILES(
@@ -838,8 +832,23 @@ ELSE()
     SET(HAVE_LIBNUMA 0)
 ENDIF()
 
+IF(NOT HAVE_LIBNUMA)
+  MESSAGE(STATUS "NUMA library missing or required version not available")
+ENDIF()
+
+IF(HAVE_LIBNUMA AND HAVE_NUMA_H AND HAVE_NUMAIF_H)
+   OPTION(WITH_NUMA "Explicitly set NUMA memory allocation policy" ON)
+ELSE()
+   OPTION(WITH_NUMA "Explicitly set NUMA memory allocation policy" OFF)
+ENDIF()
+
 IF(WITH_NUMA AND NOT HAVE_LIBNUMA)
   # Forget it in cache, abort the build.
   UNSET(WITH_NUMA CACHE)
   MESSAGE(FATAL_ERROR "Could not find numa headers/libraries")
+ENDIF()
+
+IF(HAVE_LIBNUMA AND NOT WITH_NUMA)
+   SET(HAVE_LIBNUMA 0)
+   MESSAGE(STATUS "Disabling NUMA on user's request")
 ENDIF()
