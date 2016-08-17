@@ -32,6 +32,7 @@ Raw_table::Raw_table(thr_lock_type lock_type,
                               name.length(),
                               name.c_str(),
                               lock_type);
+  m_table_list.is_dd_ctx_table= true;
 }
 
 ///////////////////////////////////////////////////////////////////////////

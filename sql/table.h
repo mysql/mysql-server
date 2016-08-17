@@ -482,7 +482,15 @@ enum enum_table_category
     a GLOBAL READ LOCK or a GLOBAL READ_ONLY in effect.
     Gtid table is cached in the table cache.
   */
-  TABLE_CATEGORY_GTID=8
+  TABLE_CATEGORY_GTID=8,
+
+  /**
+    A data dictionary table.
+    Table's with this category will skip checking the
+    TABLE_SHARE versions because these table structures
+    are fixed upon server bootstrap.
+  */
+  TABLE_CATEGORY_DICTIONARY=9
 };
 typedef enum enum_table_category TABLE_CATEGORY;
 
@@ -2600,6 +2608,9 @@ public:
 
   // True, If this is a system view
   bool is_system_view;
+
+  // True, If this is a dictionary table.
+  bool is_dd_ctx_table;
 
   /* End of view definition context. */
 

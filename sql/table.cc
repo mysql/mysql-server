@@ -47,6 +47,8 @@
 #include "table_trigger_dispatcher.h"    // Table_trigger_dispatcher
 #include "template_utils.h"              // down_cast
 
+#include "dd/dd.h"                       // dd::get_dictionary
+#include "dd/dictionary.h"               // dd::Dictionary
 #include "dd/types/table.h"              // dd::Table
 #include "dd/types/view.h"               // dd::View
 
@@ -328,6 +330,9 @@ TABLE_CATEGORY get_table_category(const LEX_STRING &db,
                        name.str) == 0))
       return TABLE_CATEGORY_GTID;
 
+    if (dd::get_dictionary()->is_dd_table_name(MYSQL_SCHEMA_NAME.str,
+                                               name.str))
+      return TABLE_CATEGORY_DICTIONARY;
   }
 
   return TABLE_CATEGORY_USER;
@@ -2431,9 +2436,10 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
 
 ulonglong TABLE_SHARE::get_table_ref_version() const
 {
-  if (belongs_to_system_view(static_cast<const char *>(db.str),
-                             static_cast<const char *>(table_name.str)) ||
-      (tmp_table == SYSTEM_TMP_TABLE))
+  if (table_category == TABLE_CATEGORY_DICTIONARY ||
+      tmp_table == SYSTEM_TMP_TABLE ||
+      (is_view && view_object &&
+       view_object->type() == dd::enum_table_type::SYSTEM_VIEW))
     return 0;
 
   return table_map_id.id();

@@ -93,8 +93,8 @@ public:
                                           size_t schema_length,
                                           const char *table_name) const;
 
-  virtual bool is_system_view_name(const std::string &schema_name,
-                                   const std::string &table_name) const;
+  virtual bool is_system_view_name(const char *schema_name,
+                                   const char *table_name) const;
 
 public:
   static Object_id default_catalog_id()

@@ -1374,11 +1374,26 @@ static inline bool in_LTM(THD *thd)
           thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES);
 }
 
-// Check if the given db.table belongs to a IS view or a DD table.
-bool belongs_to_system_view(const char *db, const char *table_name)
+
+/**
+  Check if the given TABLE_LIST belongs to a a DD table.
+
+  The function checks whether the table is a DD table being used in the
+  context of a DD transaction, or whether it is referred by a system view.
+  Then, it implies that if either of these two conditions hold, then this
+  is a DD table. If in case this is a DD table being used in some other
+  situation, then this function does not return 'true'. We do not know if
+  there is such a situation right now.
+
+  @param    tl             TABLE_LIST point to the table.
+
+  @retval   true           If table belongs to a DD table.
+  @retval   false          If table does not.
+*/
+static bool belongs_to_dd_table(const TABLE_LIST *tl)
 {
-  return (dd::get_dictionary()->is_dd_table_name(db, table_name) ||
-          dd::get_dictionary()->is_system_view_name(db, table_name));
+  return (tl->is_dd_ctx_table ||
+          (tl->referencing_view && tl->referencing_view->is_system_view));
 }
 
 
@@ -1526,8 +1541,7 @@ void close_thread_tables(THD *thd)
           */
           TABLE_LIST *tbl_list= table->pos_in_table_list;
           if (!thd->in_sub_stmt &&
-              (dd::get_dictionary()->is_dd_table_name(
-                     tbl_list->db, tbl_list->table_name) ||
+              (belongs_to_dd_table(tbl_list) ||
                belongs_to_p_s(table->pos_in_table_list)))
           {
             if (!table->s->tmp_table)
@@ -2931,7 +2945,8 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
     FLUSH TABLES is ignored for DD, I_S and P_S tables/views.
     Hence setting MYSQL_OPEN_IGNORE_FLUSH flag.
   */
-  if (belongs_to_system_view(table_list->db, table_list->table_name) ||
+  if (table_list->is_system_view ||
+      belongs_to_dd_table(table_list) ||
       belongs_to_p_s(table_list))
     flags|= MYSQL_OPEN_IGNORE_FLUSH;
 
@@ -2964,7 +2979,8 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
   if (thd->locked_tables_mode &&
       !(flags & MYSQL_OPEN_GET_NEW_TABLE) &&
       !(in_LTM(thd) &&
-        (belongs_to_system_view(table_list->db, table_list->table_name) ||
+        (table_list->is_system_view ||
+         belongs_to_dd_table(table_list) ||
          belongs_to_p_s(table_list))))
   {   // Using table locks
     TABLE *best_table= 0;
@@ -5450,8 +5466,7 @@ get_and_lock_tablespace_names(THD *thd,
         table->open_type != OT_TEMPORARY_ONLY                      &&
         !(table->open_type == OT_TEMPORARY_OR_BASE &&
           is_temporary_table(table)) &&
-        !dd::get_dictionary()->is_system_view_name(table->db,
-                                                   table->table_name))
+        !table->is_system_view)
     {
       // We have basically three situations here:
       //
@@ -6037,8 +6052,7 @@ restart:
       by SE. Here, we request SE to use read lock for these implicitly opened
       DD tables using ha_external_lock().
     */
-    if (tbl && in_LTM(thd) &&
-        dd::get_dictionary()->is_dd_table_name(tables->db, tables->table_name))
+    if (tbl && in_LTM(thd) && belongs_to_dd_table(tables))
     {
       DBUG_ASSERT(tbl->file->get_lock_type() == F_UNLCK);
       tbl->file->init_table_handle_for_HANDLER();

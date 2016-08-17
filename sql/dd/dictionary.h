@@ -114,8 +114,8 @@ public:
     @returns true -  If given table name is a system view.
     @returns false - If table name is not a system view.
   */
-  virtual bool is_system_view_name(const std::string &schema_name,
-                                   const std::string &table_name) const = 0;
+  virtual bool is_system_view_name(const char *schema_name,
+                                   const char *table_name) const = 0;
 
 public:
   // Destructor to cleanup data dictionary instance upon server shutdown.
