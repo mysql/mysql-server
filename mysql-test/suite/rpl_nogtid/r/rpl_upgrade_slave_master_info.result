@@ -104,20 +104,20 @@ CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/start_slave.inc [FOR CHANNEL 'channel_1']
 [connection server_2]
 INSERT INTO t1 VALUES (3);
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+include/stop_slave.inc [FOR CHANNEL 'channel_1']
 CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_LOG_FILE='FILE', MASTER_LOG_POS=POS FOR CHANNEL 'channel_2';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/start_slave.inc [FOR CHANNEL 'channel_2']
 [connection server_2]
 INSERT INTO t1 VALUES (4);
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
+include/stop_slave.inc [FOR CHANNEL 'channel_2']
 ALTER TABLE slave_master_info
 MODIFY Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL
 COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication'

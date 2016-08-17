@@ -5,7 +5,7 @@
 # ==== Usage ====
 #
 # [--let $use_gtids= 1]
-# [--let $rpl_channel_name= 1]
+# [--let $rpl_channel_name= 'NAME']
 # [--let $slave_timeout= NUMBER]
 # [--let $rpl_debug= 1]
 # --source include/sync_slave_sql_with_io.inc
@@ -28,6 +28,10 @@
 
 
 --let $include_filename= sync_slave_sql_with_io.inc
+if ($rpl_channel_name)
+{
+  --let $include_filename= $include_filename [FOR CHANNEL $rpl_channel_name]
+}
 --source include/begin_include_file.inc
 
 --source include/save_io_thread_pos.inc

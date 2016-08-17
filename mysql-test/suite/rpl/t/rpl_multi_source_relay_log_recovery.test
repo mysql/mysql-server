@@ -96,7 +96,7 @@ START SLAVE;
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 
@@ -104,7 +104,7 @@ START SLAVE;
 --let $rpl_connection_name= server_3
 --source include/rpl_connection.inc
 
---let $rpl_channel_name= channel_3
+--let $rpl_channel_name= 'channel_3'
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 
@@ -114,7 +114,7 @@ START SLAVE;
 --connection server_1
 DROP DATABASE d1_1;
 DROP DATABASE d2_1;
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 
@@ -122,7 +122,7 @@ DROP DATABASE d2_1;
 --connection server_3
 DROP DATABASE d1_3;
 DROP DATABASE d2_3;
---let $rpl_channel_name= channel_3
+--let $rpl_channel_name= 'channel_3'
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 

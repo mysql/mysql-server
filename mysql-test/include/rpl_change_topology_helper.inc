@@ -109,7 +109,7 @@ if (!$_rpl_change_topology_helper_skip)
     }
     if ($rpl_multi_source)
     {
-      eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $_rpl_change_topology_helper_port, MASTER_USER = 'root', $_rpl_change_topology_helper_position MASTER_CONNECT_RETRY = 1 FOR CHANNEL '$rpl_channel_name';
+      eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $_rpl_change_topology_helper_port, MASTER_USER = 'root', $_rpl_change_topology_helper_position MASTER_CONNECT_RETRY = 1 FOR CHANNEL $rpl_channel_name;
     }
 
 }
@@ -127,7 +127,7 @@ if ($_rpl_change_topology_helper_skip)
         }
         if ($rpl_multi_source)
         {
-          eval CHANGE MASTER TO MASTER_AUTO_POSITION=0 FOR CHANNEL '$rpl_channel_name';
+          eval CHANGE MASTER TO MASTER_AUTO_POSITION=0 FOR CHANNEL $rpl_channel_name;
         }
       }
   }
@@ -138,7 +138,7 @@ if (!$_rpl_change_topology_helper_skip)
 {
   # This un-configures the server so that it's not a slave.
   # After BUG#28796, such configuration is not possible any more.
-  #CHANGE MASTER TO MASTER_HOST = '' FOR CHANNEL '$rpl_channel_name';
+  #CHANGE MASTER TO MASTER_HOST = '' FOR CHANNEL $rpl_channel_name;
 }
 
 

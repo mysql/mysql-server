@@ -9,7 +9,7 @@
 # [--let $show_sql_error= 1]
 # [--let $slave_skip_counter= 1]
 # [--let $not_switch_connection= 1]
-# [--let $rpl_channel_name= NAME]
+# [--let $rpl_channel_name= 'NAME']
 # [--let $rpl_debug= 1]
 # [--let $slave_timeout= NUMBER]
 # --source include/wait_for_slave_sql_error_and_skip.inc
@@ -42,6 +42,10 @@
 
 
 --let $include_filename= wait_for_slave_sql_error_and_skip.inc [errno=$slave_sql_errno]
+if ($rpl_channel_name)
+{
+  --let $include_filename= wait_for_slave_sql_error_and_skip.inc [errno=$slave_sql_errno FOR CHANNEL $rpl_channel_name]
+}
 --source include/begin_include_file.inc
 
 

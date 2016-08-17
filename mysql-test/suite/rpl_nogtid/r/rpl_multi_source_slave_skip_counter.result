@@ -25,7 +25,7 @@ include/rpl_for_each_connection.inc [include/wait_for_slave_sql_to_stop.inc]
 #
 [connection server_2]
 include/stop_slave.inc
-include/start_slave.inc
+include/start_slave.inc [FOR CHANNEL 'channel_1']
 1
 include/assert.inc [check that channel_1's Skip_Counter is 0.]
 include/assert.inc [check that sql_slave_skip_counter is 0]
@@ -46,5 +46,5 @@ include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_start.inc]
 include/assert.inc [All two IO threads are running after START SLAVE IO_THREAD]
 SET GLOBAL sql_slave_skip_counter= 0;
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL  'channel_1';
-RESET SLAVE ALL FOR CHANNEL  'channel_3';
+RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET SLAVE ALL FOR CHANNEL 'channel_3';

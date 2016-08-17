@@ -22,32 +22,32 @@ CREATE TABLE db2.t (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=innodb;
 CREATE DATABASE db1;
 CREATE TABLE db1.t (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=innodb;
 CREATE TABLE t1m (a INT) ENGINE=myisam;
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 LOCK TABLES t1m WRITE;
-include/wait_for_slave_sql_error.inc [errno=1205]
-include/wait_for_slave_sql_to_stop.inc
-include/start_slave_sql.inc
-include/wait_for_slave_sql_error.inc [errno=1205]
-include/wait_for_slave_sql_to_stop.inc
-include/start_slave_sql.inc
-include/wait_for_slave_sql_error.inc [errno=1205]
+include/wait_for_slave_sql_error.inc [errno=1205 FOR CHANNEL 'channel_1']
+include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'channel_1']
+include/start_slave_sql.inc [FOR CHANNEL 'channel_1']
+include/wait_for_slave_sql_error.inc [errno=1205 FOR CHANNEL 'channel_1']
+include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'channel_1']
+include/start_slave_sql.inc [FOR CHANNEL 'channel_1']
+include/wait_for_slave_sql_error.inc [errno=1205 FOR CHANNEL 'channel_1']
 include/rpl_restart_server.inc [server_number=2]
-include/wait_for_slave_sql_to_stop.inc
-include/start_slave_sql.inc
-include/wait_for_slave_sql_error.inc [errno=1205]
+include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'channel_1']
+include/start_slave_sql.inc [FOR CHANNEL 'channel_1']
+include/wait_for_slave_sql_error.inc [errno=1205 FOR CHANNEL 'channel_1']
 include/rpl_restart_server.inc [server_number=2]
-include/wait_for_slave_sql_to_stop.inc
-include/start_slave_sql.inc
+include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'channel_1']
+include/start_slave_sql.inc [FOR CHANNEL 'channel_1']
 UNLOCK TABLES;
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 DROP TABLE t1m;
 DROP DATABASE db4;
 DROP DATABASE db3;
 DROP DATABASE db2;
 DROP DATABASE db1;
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 SET @@global.innodb_lock_wait_timeout=@save.innodb_lock_wait_timeout;
 SET @@global.slave_transaction_retries= @save.slave_transaction_retries;
 SET @@global.max_relay_log_size= @save.max_relay_log_size;
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL  'channel_1';
+RESET SLAVE ALL FOR CHANNEL 'channel_1';
