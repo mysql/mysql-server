@@ -3319,3 +3319,44 @@ connection default;
 # Directory doesn't exist, should fail
 --error 1
 --force-rmdir $MYSQLTEST_VARDIR/bug24316799
+
+--echo #
+--echo # Bug#21046241 : MTR CONNECT() NOT WORKING FOR TCP AND SOCKET PROTOCOL OPTIONS
+--echo #
+
+# TCP protocol, should pass
+--connect(tcp_con,localhost,root,,,,,TCP)
+
+# Disabling the query log and result log to make the test run on
+# both non-windows and windows platforms without any result mismatch.
+--disable_query_log
+--disable_result_log
+--let $os_version = `SELECT CONVERT(@@version_compile_os using latin1) NOT IN ("Win32","Win64","Windows")`
+
+# Socket protocol on non-windows platform, should pass
+if ($os_version)
+{
+  --connect(sock_con,localhost,root,,,,$MASTER_MYSOCK,SOCKET)
+}
+
+# Socket protocol on windows, should fail
+if (!$os_version)
+{
+  --error CR_CONN_UNKNOW_PROTOCOL
+  --connect(sock_con,localhost,root,,,,$MASTER_MYSOCK,SOCKET)
+}
+
+# Checking windows connection protocols on non-windows platforms
+# Should throw 'Wrong protocol' error
+if ($os_version)
+{
+  --let $shm_name= query_get_value("SHOW GLOBAL VARIABLES LIKE 'shared_memory_base_name'", Value, 1)
+  --error CR_CONN_UNKNOW_PROTOCOL
+  --connect(shm_con,localhost,root,,,,$shm_name,SHM)
+
+  --error CR_CONN_UNKNOW_PROTOCOL
+  --connect(pipe_con,localhost,root,,,,,PIPE)
+}
+
+--enable_result_log
+--enable_query_log

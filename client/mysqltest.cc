@@ -6126,7 +6126,8 @@ do_handle_error:
    * COMPRESS - use compression if available
    * SHM - use shared memory if available
    * PIPE - use named pipe if available
-
+   * SOCKET - use socket protocol
+   * TCP - use tcp protocol
 */
 
 static void do_connect(struct st_command *command)
@@ -6149,7 +6150,7 @@ static void do_connect(struct st_command *command)
   static DYNAMIC_STRING ds_sock;
   static DYNAMIC_STRING ds_options;
   static DYNAMIC_STRING ds_default_auth;
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if !defined (EMBEDDED_LIBRARY)
   static DYNAMIC_STRING ds_shm;
 #endif
   const struct command_arg connect_args[] = {
@@ -6180,7 +6181,7 @@ static void do_connect(struct st_command *command)
       die("Illegal argument for port: '%s'", ds_port.str);
   }
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if !defined (EMBEDDED_LIBRARY)
   /* Shared memory */
   init_dynamic_string(&ds_shm, ds_sock.str, 0, 0);
 #endif
@@ -6209,6 +6210,7 @@ static void do_connect(struct st_command *command)
 
   /* Options */
   con_options= ds_options.str;
+  my_bool con_socket=0, con_tcp= 0;
   while (*con_options)
   {
     char* end;
@@ -6229,6 +6231,10 @@ static void do_connect(struct st_command *command)
       con_shm= 1;
     else if (!strncmp(con_options, "CLEARTEXT", 9))
       con_cleartext_enable= 1;
+    else if (!strncmp(con_options, "SOCKET", 6))
+      con_socket= 1;
+    else if (!strncmp(con_options, "TCP", 3))
+      con_tcp= 1;
     else
       die("Illegal option to connect: %.*s", 
           (int) (end - con_options), con_options);
@@ -6293,33 +6299,53 @@ static void do_connect(struct st_command *command)
 
   if (con_pipe && !con_ssl)
   {
-#if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
+#if !defined(EMBEDDED_LIBRARY)
     opt_protocol= MYSQL_PROTOCOL_PIPE;
 #endif
   }
 
 #ifndef EMBEDDED_LIBRARY
   if (opt_protocol)
+  {
     mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
+    /*
+      Resetting the opt_protocol value to 0 to avoid the
+      possible failure in the next connect() command.
+    */
+    opt_protocol= 0;
+  }
 #endif
 
   if (con_shm)
   {
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if !defined (EMBEDDED_LIBRARY)
     uint protocol= MYSQL_PROTOCOL_MEMORY;
     if (!ds_shm.length)
       die("Missing shared memory base name");
+
     mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME, ds_shm.str);
     mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
 #endif
   }
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if !defined (EMBEDDED_LIBRARY)
   else if (shared_memory_base_name)
   {
     mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
                   shared_memory_base_name);
   }
 #endif
+
+  if (con_socket)
+  {
+    uint protocol= MYSQL_PROTOCOL_SOCKET;
+    mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
+  }
+
+  if (con_tcp)
+  {
+    uint protocol= MYSQL_PROTOCOL_TCP;
+    mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
+  }
 
   /* Use default db name */
   if (ds_database.length == 0)
@@ -6373,7 +6399,7 @@ static void do_connect(struct st_command *command)
   dynstr_free(&ds_sock);
   dynstr_free(&ds_options);
   dynstr_free(&ds_default_auth);
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if !defined (EMBEDDED_LIBRARY)
   dynstr_free(&ds_shm);
 #endif
   DBUG_VOID_RETURN;

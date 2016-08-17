@@ -15,7 +15,15 @@ GRANT ALL ON *.* TO 'root'@'127.0.0.1', 'root'@'::1' WITH GRANT OPTION;
 if ($extra_root_users_for_slave)
 {
   --echo # connecting to a slave to add accounts root@127.0.0.1, root@::1
-  connect (slave_init_con,localhost,root,,test,$SLAVE_MYPORT,$SLAVE_MYSOCK,PIPE);
+  let $os_version = `SELECT CONVERT(@@version_compile_os using latin1) NOT IN ("Win32","Win64","Windows")`;
+  if ($os_version)
+  {
+    connect (slave_init_con,localhost,root,,test,$SLAVE_MYPORT,$SLAVE_MYSOCK);
+  }
+  if (!$os_version)
+  {
+    connect (slave_init_con,localhost,root,,test,$SLAVE_MYPORT,$SLAVE_MYSOCK,PIPE);
+  }
 
   CREATE USER IF NOT EXISTS 'root'@'127.0.0.1';
   CREATE USER IF NOT EXISTS 'root'@'::1';
