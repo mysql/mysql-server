@@ -4276,7 +4276,6 @@ prepare_inplace_alter_table_global_dd(
 				dd::create_object<dd::Tablespace>());
 			if (create_table_info_t::create_dd_tablespace(
 				    client, thd, dd_space.get(),
-				    old_dd_tab->name().c_str(),
 				    new_table->space)) {
 				ut_a(false);
 				return(true);

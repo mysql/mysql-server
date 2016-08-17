@@ -841,11 +841,14 @@ public:
 		const char*     name,
 		ibool           set_lower_case);
 
+	static void dd_tablespace_set_name(
+		dd::Tablespace*	dd_space,
+		space_id_t	space);
+
 	static bool create_dd_tablespace(
 		dd::cache::Dictionary_client*	dd_client,
 		THD*				thd,
 		dd::Tablespace*			dd_space,
-		const char*			name,
 		space_id_t			space);
 
 	template<typename Table>

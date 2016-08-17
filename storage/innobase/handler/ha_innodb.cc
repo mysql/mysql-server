@@ -139,6 +139,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Handler name for InnoDB */
 static constexpr char handler_name[] = "InnoDB";
 
+/** InnoDB file-per-table tablespace name prefix */
+static constexpr char file_per_table_prefix[] = "innodb_file_per_table";
+
 /** TRUE if we don't have DDTableBuffer in the system tablespace,
 this should be due to we run the server against old data files.
 Please do NOT change this when server is running.
@@ -14321,15 +14324,31 @@ create_table_info_t::create_table_update_dict()
 	DBUG_RETURN(0);
 }
 
+/** Initialize an implicit tablespace name.
+@param[in,out]	dd_space	tablespace metadata
+@param[in]	space		internal space id */
+void
+create_table_info_t::dd_tablespace_set_name(
+	dd::Tablespace*	dd_space,
+	space_id_t	space)
+{
+	ut_ad(space != SPACE_UNKNOWN);
+
+	char		name[11 + sizeof file_per_table_prefix];
+
+	snprintf(name, sizeof name, "%s.%u",
+		 file_per_table_prefix, space);
+	dd_space->set_name(name);
+}
+
 bool
 create_table_info_t::create_dd_tablespace(
 	dd::cache::Dictionary_client*	dd_client,
 	THD*				thd,
 	dd::Tablespace*			dd_space,
-	const char*			name,
 	space_id_t			space)
 {
-        dd_space->set_name(name);
+	dd_tablespace_set_name(dd_space, space);
 
         if (dd::acquire_exclusive_tablespace_mdl(
                     thd, dd_space->name().c_str(), true)) {
@@ -14341,7 +14360,8 @@ create_table_info_t::create_dd_tablespace(
 
 	dd_space->set_engine(handler_name);
 	dd::Properties& p       = dd_space->se_private_data();
-	p.set_uint32(dd_space_key_strings[DD_SPACE_ID], static_cast<uint32>(space));
+	p.set_uint32(dd_space_key_strings[DD_SPACE_ID],
+		     static_cast<uint32>(space));
 	p.set_uint32(dd_space_key_strings[DD_SPACE_FLAGS], flags);
 	dd::Tablespace_file*    dd_file = dd_space->add_file();
 	dd_file->set_filename(path);
@@ -14494,11 +14514,9 @@ create_table_info_t::create_table_update_global_dd(
 		std::unique_ptr<dd::Tablespace> dd_space(
 			dd::create_object<dd::Tablespace>());
 
-		/* For prototype only, quickly get the table name */
-		const char* name = strrchr(table->name.m_name, '/') + 1;
 		/* This means user table and file_per_table */
 		if (create_dd_tablespace(client, m_thd, dd_space.get(),
-					 name, table->space)) {
+					 table->space)) {
 			dict_table_close(table, FALSE, FALSE);
 			DBUG_RETURN(HA_ERR_GENERIC);
 		}
@@ -15566,7 +15584,8 @@ ha_innobase::delete_table(
 	}
 
 	if (err == DB_SUCCESS && !tmp_table && file_per_table) {
-		dd::Object_id   dd_space_id = (*dd_table->indexes().begin())->tablespace_id();
+		dd::Object_id   dd_space_id = (*dd_table->indexes().begin())
+			->tablespace_id();
 		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
 		dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
