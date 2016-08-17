@@ -4,16 +4,17 @@ b varchar(255),
 c int,
 primary key(a,b),
 key(b),
-unique (c)) engine=ndb comment='NDB_TABLE=ALLNODES' partition by key(a) ;
-Warnings:
-Warning	1478	NDB_TABLE= : unknown modifier: ALLNODES
+unique (c)) engine=ndb comment='NDB_TABLE=FULLY_REPLICATED=1' partition by key(a) ;
 CREATE TABLE t2 (
 a int,
 b varchar(255),
 c int,
 primary key(a,b),
 key(b),
-unique (c)) engine=ndb comment='NDB_TABLE=FULLY_REPLICATED=1' partition by key(a) ;
+unique (c)) engine=ndb comment='NDB_TABLE=JUNK' partition by key(a) ;
+Warnings:
+Warning	1478	NDB_TABLE= : unknown modifier: JUNK
+drop table t2;
 -- t1 --
 Version: Any
 Fragment type: HashMapPartition
@@ -29,13 +30,13 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-PartitionCount: 8
+PartitionCount: 4
 FragmentCount: 8
-FragmentCountType: ONE_PER_LDM_PER_NODE
+FragmentCountType: ONE_PER_LDM_PER_NODE_GROUP
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup, fullyreplicated
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -214,17 +215,8 @@ a	b	c
 8	row 8	18
 9	row 9	19
 rollback;
-drop table t1, t2;
+drop table t1;
 CREATE TABLE t1 (
-a int,
-b varchar(255),
-c int,
-primary key(a,b),
-key(b),
-unique (c)) engine=ndb comment='NDB_TABLE=ALLNODES' partition by key(a) ;
-Warnings:
-Warning	1478	NDB_TABLE= : unknown modifier: ALLNODES
-CREATE TABLE t2 (
 a int,
 b varchar(255),
 c int,
@@ -287,4 +279,4 @@ a	b	c
 8	row 8	18
 9	row 9	19
 rollback;
-drop table t1, t2;
+drop table t1;

@@ -13062,6 +13062,24 @@ Dbdih::sendAddFragreq(Signal* signal,
      * the principle is still the same.
      */
 
+    /**
+      * Don't expect to be adding tables due to e.g. user action
+      * during NR or SR, so we init the CopyFragmentList here
+      */
+    if (( getNodeState().getSystemRestartInProgress() ||
+          getNodeState().getNodeRestartInProgress() ) &&
+        (tabPtr.p->m_flags & TabRecord::TF_FULLY_REPLICATED) != 0)
+    {
+      jam();
+      for(Uint32 fragId = 0; fragId < tabPtr.p->totalfragments; fragId++)
+      {
+        jam();
+        FragmentstorePtr fragPtr;
+        getFragstore(tabPtr.p, fragId, fragPtr);
+        insertCopyFragmentList(tabPtr.p, fragPtr.p, fragId);
+      }
+    }
+
     DiAddTabConf * const conf = (DiAddTabConf*)signal->getDataPtr();
     conf->senderData = connectPtr.p->userpointer;
     sendSignal(connectPtr.p->userblockref, GSN_DIADDTABCONF, signal,
