@@ -13835,6 +13835,17 @@ create_table_info_t::set_tablespace_type(
 	general or system tablespace. */
 	m_use_shared_space = tablespace_is_shared_space(m_create_info);
 
+	/* Need adjustment for the intermediate table created during
+	ALTER TABLE...COPY. This is because m_create_info->tablespace
+	may say it's 'innodb_system', but if current innodb_file_per_table
+	is ON, we still have to create the table in file-per-table tablespace */
+	if (m_use_shared_space && m_innodb_file_per_table
+	    && row_is_mysql_tmp_table_name(m_table_name)
+	    && strcmp(m_create_info->tablespace, reserved_system_space_name)
+	       == 0) {
+		m_use_shared_space = false;
+	}
+
 	/** Allow file_per_table for this table either because:
 	1) the setting innodb_file_per_table=on,
 	2) the table being altered is currently file_per_table
@@ -13845,10 +13856,6 @@ create_table_info_t::set_tablespace_type(
 		|| tablespace_is_file_per_table(m_create_info);
 
 	bool is_temp = m_create_info->options & HA_LEX_CREATE_TMP_TABLE;
-
-	/* Note whether this table will be created using a shared,
-	general or system tablespace. */
-	m_use_shared_space = tablespace_is_shared_space(m_create_info);
 
 	/* Ignore the current innodb_file_per_table setting if we are
 	creating a temporary table or if the
@@ -13985,9 +13992,9 @@ create_table_info_t::prepare_create_table(
 
 	ut_ad(m_form->s->row_type == m_create_info->row_type);
 
-	set_tablespace_type(false);
-
 	normalize_table_name(m_table_name, name);
+
+	set_tablespace_type(false);
 
 	/* Validate the create options if innodb_strict_mode is set.
 	Do not use the regular message for ER_ILLEGAL_HA_CREATE_OPTION
