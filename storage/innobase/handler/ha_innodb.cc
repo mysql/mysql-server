@@ -7850,6 +7850,13 @@ dd_open_table(
 
 	mutex_exit(&dict_sys->mutex);
 
+	if (m_table->is_corrupted()) {
+		mutex_enter(&dict_sys->mutex);
+		dict_table_remove_from_cache(m_table);
+		mutex_exit(&dict_sys->mutex);
+		return(NULL);
+	}
+
 	return(m_table);
 }
 
@@ -7928,10 +7935,19 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 					nullptr, ib_table, dd_tab, false,
 					thd))) {
 						set_my_errno(ENOENT);
-						DBUG_RETURN(1);
+						DBUG_RETURN(
+							HA_ERR_NO_SUCH_TABLE);
 				}
+			} else if (ib_table->is_corrupted()) {
+				mutex_enter(&dict_sys->mutex);
+				dict_table_remove_from_cache(ib_table);
+				mutex_exit(&dict_sys->mutex);
+				ib_table = NULL;
 			}
-			ib_table->n_ref_count++;
+
+			if (ib_table != NULL) {
+				ib_table->n_ref_count++;
+			}
 		} else {
 			ib_table = open_dict_table(name, norm_name, is_part,
                                            ignore_err);
