@@ -52,6 +52,7 @@ struct AlterTableReq {
   f = Add fragment(s)
   r = Reorg fragment(s)
   R = Changed Read Backup flag
+  x = Read Backup Subop flag (used to alter read backup on indexes)
 
            1111111111222222222233
  01234567890123456789012345678901
@@ -72,10 +73,22 @@ struct AlterTableReq {
 #define REORG_SUMA_FILTER (12)
 #define FRAGMENT_COUNT_TYPE_SHIFT (13)
 #define READ_BACKUP_SHIFT (14)
+#define READ_BACKUP_SUBOP_SHIFT (15)
 
  /**
    * Getters and setters
    */ 
+
+  /**
+   * These are that flags that can be set from the NDB API
+   * as part of an online alter table (inplace).
+   * We can change the name of a table,
+   * we can change the frm file of a table,
+   * we can change the read backup flag of a table,
+   * we can add attributes to a table and
+   * we can change the fragment count type of a table,
+   * we can add fragments to the table.
+   */
   static Uint8 getNameFlag(const UintR & changeMask);
   static void setNameFlag(UintR &  changeMask, Uint32 nameFlg);
   static Uint8 getFrmFlag(const UintR & changeMask);
@@ -84,16 +97,35 @@ struct AlterTableReq {
   static void setFragDataFlag(UintR &  changeMask, Uint32 fragFlg);
   static Uint8 getRangeListFlag(const UintR & changeMask);
   static void setRangeListFlag(UintR &  changeMask, Uint32 rangeFlg);
-  static Uint8 getTsNameFlag(const UintR & changeMask);
-  static void setTsNameFlag(UintR &  changeMask, Uint32 tsNameFlg);
-  static Uint8 getTsFlag(const UintR & changeMask);
-  static void setTsFlag(UintR &  changeMask, Uint32 tsFlg);
   static Uint8 getAddAttrFlag(const UintR & changeMask);
   static void setAddAttrFlag(UintR &  changeMask, Uint32 tsFlg);
   static Uint8 getAddFragFlag(const UintR & changeMask);
   static void setAddFragFlag(UintR &  changeMask, Uint32 tsFlg);
+  static void setReadBackupFlag(UintR & changeMask, Uint32 tsFlg);
+  static Uint8 getReadBackupFlag(const UintR & changeMask);
+
+  /**
+   * These flags are never used.
+   */
+  static Uint8 getTsNameFlag(const UintR & changeMask);
+  static void setTsNameFlag(UintR &  changeMask, Uint32 tsNameFlg);
+  static Uint8 getTsFlag(const UintR & changeMask);
+  static void setTsFlag(UintR &  changeMask, Uint32 tsFlg);
+
+  /**
+   * The getReorgFragFlag is set by DICT when the hashmap changes
+   * as part of reorganise of partitions. It should not be set
+   * by the NDB API, it is set by DICT.
+   */
   static Uint8 getReorgFragFlag(const UintR & changeMask);
   static void setReorgFragFlag(UintR &  changeMask, Uint32 tsFlg);
+
+  /**
+   * The flags below are al defined as part of DICT subops. This means
+   * that they should not be set by the NDB API. They are set in the
+   * subops handling in DICT as part of executing the ALTER_TABLE_REQ
+   * signal from the NDB API.
+   */
   static Uint8 getReorgCommitFlag(const UintR & changeMask);
   static void setReorgCommitFlag(UintR &  changeMask, Uint32 tsFlg);
   static Uint8 getReorgCompleteFlag(const UintR & changeMask);
@@ -104,15 +136,31 @@ struct AlterTableReq {
   static void setReorgSumaFilterFlag(UintR &  changeMask, Uint32 tsFlg);
   static void setFragmentCountTypeFlag(UintR & changeMask, Uint32 tsFlg);
   static Uint8 getFragmentCountTypeFlag(const UintR & changeMask);
-  static void setReadBackupFlag(UintR & changeMask, Uint32 tsFlg);
-  static Uint8 getReadBackupFlag(const UintR & changeMask);
+  static void setReadBackupSubOpFlag(UintR & changeMask, Uint32 tsFlg);
+  static Uint8 getReadBackupSubOpFlag(const UintR & changeMask);
 
-  static bool getReorgSubOp(const UintR & changeMask){
+  static bool getSubOp(const UintR & changeMask)
+  {
+    return
+      getReorgCommitFlag(changeMask) ||
+      getReorgCompleteFlag(changeMask) ||
+      getReorgSumaEnableFlag(changeMask) ||
+      getReorgSumaFilterFlag(changeMask) ||
+      getReadBackupSubOpFlag(changeMask);
+  }
+
+  static bool getReorgSubOp(const UintR & changeMask)
+  {
     return
       getReorgCommitFlag(changeMask) ||
       getReorgCompleteFlag(changeMask) ||
       getReorgSumaEnableFlag(changeMask) ||
       getReorgSumaFilterFlag(changeMask);
+  }
+  static bool getReadBackupAnyFlag(const UintR & changeMask)
+  {
+    return getReadBackupFlag(changeMask) ||
+           getReadBackupSubOpFlag(changeMask);
   }
 };
 
@@ -295,6 +343,18 @@ inline
 void
 AlterTableReq::setReadBackupFlag(UintR & changeMask, Uint32 rbFlag){
   changeMask |= (rbFlag << READ_BACKUP_SHIFT);
+}
+
+inline
+Uint8
+AlterTableReq::getReadBackupSubOpFlag(const UintR & changeMask){
+  return (Uint8)((changeMask >> READ_BACKUP_SUBOP_SHIFT) & 1);
+}
+
+inline
+void
+AlterTableReq::setReadBackupSubOpFlag(UintR & changeMask, Uint32 rbFlag){
+  changeMask |= (rbFlag << READ_BACKUP_SUBOP_SHIFT);
 }
 
 struct AlterTableConf {
