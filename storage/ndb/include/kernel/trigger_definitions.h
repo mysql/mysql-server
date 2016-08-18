@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2008 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -154,6 +153,10 @@ struct TriggerInfo {
     switch (val) {
     case TriggerType::SECONDARY_INDEX:
       return "SECONDARY_INDEX";
+    case TriggerType::FK_PARENT:
+      return "FK_PARENT";
+    case TriggerType::FK_CHILD:
+      return "FK_CHILD";
     case TriggerType::SUBSCRIPTION:
       return "SUBSCRIPTION";
     case TriggerType::READ_ONLY_CONSTRAINT:
@@ -162,6 +165,8 @@ struct TriggerInfo {
       return "ORDERED_INDEX";
     case TriggerType::SUBSCRIPTION_BEFORE:
       return "SUBSCRIPTION_BEFORE";
+    case TriggerType::REORG_TRIGGER:
+      return "REORG_TRIGGER";
     }
     return "UNKNOWN";
   }
