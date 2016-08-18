@@ -135,14 +135,14 @@ public:
 	/** Initialize the external field reference to zeroes. */
 	void set_null()
 	{
-		memset(m_ref, 0x00, BTR_EXTERN_FIELD_REF_SIZE);
+		memset(m_ref, 0x00, SIZE);
 	}
 
 	/** Check if the field reference is made of zeroes.
 	@return true if field reference is made of zeroes, false otherwise. */
 	bool is_null() const
 	{
-		return(memcmp(field_ref_zero, m_ref, BTR_EXTERN_FIELD_REF_SIZE) == 0);
+		return(memcmp(field_ref_zero, m_ref, SIZE) == 0);
 	}
 
 	/** Set the ownership flag in the blob reference.
@@ -290,6 +290,9 @@ public:
 		return(::page_align(m_ref));
 	}
 #endif /* UNIV_DEBUG */
+
+	/** The size of an LOB reference object (in bytes) */
+	static const uint SIZE = BTR_EXTERN_FIELD_REF_SIZE;
 
 private:
 	/** Pointing to a memory of size BTR_EXTERN_FIELD_REF_SIZE */
@@ -1579,13 +1582,11 @@ struct Reader
 	:
 	m_rctx(ctx),
 	m_cur_block(NULL),
-	m_copied_len(0),
-	m_part_len(0),
-	m_copy_len(0)
+	m_copied_len(0)
 	{}
 
-	/** Fetch the complete or prefix of the uncompressed BLOB
-	@return bytes of BLOB data fetched. */
+	/** Fetch the complete or prefix of the uncompressed LOB data.
+	@return bytes of LOB data fetched. */
 	ulint fetch();
 
 	/** Fetch one BLOB page. */
@@ -1596,14 +1597,10 @@ struct Reader
 	/** Buffer block of the current BLOB page */
 	buf_block_t*	m_cur_block;
 
-	/** Bytes of BLOB data that has been copied. */
+	/** Total bytes of LOB data that has been copied from multiple
+	LOB pages. This is a cumulative value.  When this value reaches
+	m_rctx.m_len, then the read operation is completed. */
 	ulint		m_copied_len;
-
-	/** Bytes of BLOB data available in the current BLOB page. */
-	ulint		m_part_len;
-
-	/** Bytes of BLOB data obtained from the current BLOB page. */
-	ulint		m_copy_len;
 };
 
 /** The context information when the delete operation on LOB is
