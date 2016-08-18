@@ -2609,7 +2609,12 @@ public:
   // True, If this is a system view
   bool is_system_view;
 
-  // True, If this is a dictionary table.
+  /*
+    Set to 'true' if this is a DD table being opened in the context of a
+    dictionary operation. Note that when 'false', this may still be a DD
+    table when opened in a non-DD context, e.g. as part of an I_S view
+    query.
+  */
   bool is_dd_ctx_table;
 
   /* End of view definition context. */
