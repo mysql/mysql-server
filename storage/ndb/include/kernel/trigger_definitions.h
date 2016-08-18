@@ -154,6 +154,10 @@ struct TriggerInfo {
     switch (val) {
     case TriggerType::SECONDARY_INDEX:
       return "SECONDARY_INDEX";
+    case TriggerType::FK_PARENT:
+      return "FK_PARENT";
+    case TriggerType::FK_CHILD:
+      return "FK_CHILD";
     case TriggerType::SUBSCRIPTION:
       return "SUBSCRIPTION";
     case TriggerType::READ_ONLY_CONSTRAINT:
@@ -162,6 +166,8 @@ struct TriggerInfo {
       return "ORDERED_INDEX";
     case TriggerType::SUBSCRIPTION_BEFORE:
       return "SUBSCRIPTION_BEFORE";
+    case TriggerType::REORG_TRIGGER:
+      return "REORG_TRIGGER";
     case TriggerType::FULLY_REPLICATED_TRIGGER:
       return "FULLY_REPLICATED";
     }
