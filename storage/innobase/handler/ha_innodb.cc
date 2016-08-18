@@ -16249,10 +16249,6 @@ innobase_rename_table(
 			ut_a(false);
 		}
 
-		/* We may name it as innodb_file_per_table.* to reduce rename,
-		or at least we should include the schema name to make it
-		unique */
-		dd_space->set_name(to_table->name());
 		ut_ad(dd_space->files().size() == 1);
 		dd::Tablespace_file*	dd_file = const_cast<
 			dd::Tablespace_file*>(*(dd_space->files().begin()));
