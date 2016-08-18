@@ -968,26 +968,36 @@ SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@s
 ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100)))
 POINT(15 25)
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 100. Calculations in function st_difference will be done in SRID 0.
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000)));
 ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000)))
 POINT(15 25)
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 20000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 20000. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 20000. Calculations in function st_difference will be done in SRID 0.
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456)));
 ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456)))
 POINT(15 25)
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 123456. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 123456. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 123456. Calculations in function st_difference will be done in SRID 0.
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575)));
 ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575)))
 POINT(15 25)
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 1048575. Calculations in function st_difference will be done in SRID 0.
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295)));
 ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295)))
 POINT(15 25)
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 4294967295. Calculations in function st_difference will be done in SRID 0.
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1)));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
@@ -1006,11 +1016,15 @@ SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEX
 ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,1048576)))
 POINT(15 25)
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 1048576. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1048576. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 1048576. Calculations in function st_difference will be done in SRID 0.
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575)));
 ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575)))
 POINT(15 25)
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 1048575. Calculations in function st_difference will be done in SRID 0.
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0)));
 ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0)))
@@ -1686,6 +1700,8 @@ ST_GEOMFROMTEXT('POINT(0 0)', 11000000)
 ))
 GEOMETRYCOLLECTION EMPTY
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 11000000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 11000000. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 11000000. Calculations in function st_difference will be done in SRID 0.
 # Unparseable SRS definition (should fail)
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,

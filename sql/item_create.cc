@@ -721,30 +721,63 @@ public:
   }
 };
 
+
+// While wl9435 is still in production we need two seperate classes here
+template<typename Geometry_from_wkt, enum Geometry_from_wkt::Functype Functype>
+class Geometry_instantiator1
+{
+public:
+  static const uint Min_argcount= 1;
+  static const uint Max_argcount= 3;
+
+  Item *instantiate(THD *thd, PT_item_list *args)
+  {
+    switch (args->elements()) {
+    case 1:
+      return new (thd->mem_root)Geometry_from_wkt(POS(), (*args)[0], Functype);
+    case 2:
+      return new (thd->mem_root)
+        Geometry_from_wkt(POS(), (*args)[0], (*args)[1], Functype);
+    case 3:
+      return new (thd->mem_root)
+        Geometry_from_wkt(POS(), (*args)[0], (*args)[1], (*args)[2], Functype);
+    default:
+      DBUG_ASSERT(false);
+      return nullptr;
+    }
+  }
+};
+
+
 using txt_ft = Item_func_geometry_from_text::Functype;
 using I_txt = Item_func_geometry_from_text;
 template<typename Geometry_class, enum Geometry_class::Functype Functype>
 using G_i = Geometry_instantiator<Geometry_class, Functype>;
 
-using Geomcollfromtext_instantiator= G_i<I_txt, txt_ft::GEOMCOLLFROMTEXT>;
-using Geomcollfromtxt_instantiator= G_i<I_txt, txt_ft::GEOMCOLLFROMTXT>;
-using Geometrycollectionfromtext_instantiator=
-  G_i<I_txt, txt_ft::GEOMETRYCOLLECTIONFROMTEXT>;
-using Geometryfromtext_instantiator= G_i<I_txt, txt_ft::GEOMETRYFROMTEXT>;
-using Geomfromtext_instantiator= G_i<I_txt, txt_ft::GEOMFROMTEXT>;
-using Linefromtext_instantiator= G_i<I_txt, txt_ft::LINEFROMTEXT>;
-using Linestringfromtext_instantiator= G_i<I_txt, txt_ft::LINESTRINGFROMTEXT>;
-using Mlinefromtext_instantiator= G_i<I_txt, txt_ft::MLINEFROMTEXT>;
-using Mpointfromtext_instantiator= G_i<I_txt, txt_ft::MPOINTFROMTEXT>;
-using Mpolyfromtext_instantiator= G_i<I_txt, txt_ft::MPOLYFROMTEXT>;
-using Multilinestringfromtext_instantiator=
-  G_i<I_txt, txt_ft::MULTILINESTRINGFROMTEXT>;
-using Multipointfromtext_instantiator= G_i<I_txt, txt_ft::MULTIPOINTFROMTEXT>;
-using Multipolygonfromtext_instantiator=
-  G_i<I_txt, txt_ft::MULTIPOLYGONFROMTEXT>;
-using Pointfromtext_instantiator= G_i<I_txt, txt_ft::POINTFROMTEXT>;
-using Polyfromtext_instantiator= G_i<I_txt, txt_ft::POLYFROMTEXT>;
-using Polygonfromtext_instantiator= G_i<I_txt, txt_ft::POLYGONFROMTEXT>;
+// While worklog 9435 is still in production we need two types here
+template<typename Geometry_from_wkt, enum Geometry_from_wkt::Functype Functype>
+using G_i1 = Geometry_instantiator1<Geometry_from_wkt, Functype>;
+
+typedef G_i1<I_txt, txt_ft::GEOMCOLLFROMTEXT> Geomcollfromtext_instantiator;
+typedef G_i1<I_txt, txt_ft::GEOMCOLLFROMTXT> Geomcollfromtxt_instantiator;
+typedef G_i1<I_txt, txt_ft::GEOMETRYCOLLECTIONFROMTEXT>
+Geometrycollectionfromtext_instantiator;
+typedef G_i1<I_txt, txt_ft::GEOMETRYFROMTEXT> Geometryfromtext_instantiator;
+typedef G_i1<I_txt, txt_ft::GEOMFROMTEXT> Geomfromtext_instantiator;
+typedef G_i1<I_txt, txt_ft::LINEFROMTEXT> Linefromtext_instantiator;
+typedef G_i1<I_txt, txt_ft::LINESTRINGFROMTEXT> Linestringfromtext_instantiator;
+typedef G_i1<I_txt, txt_ft::MLINEFROMTEXT> Mlinefromtext_instantiator;
+typedef G_i1<I_txt, txt_ft::MPOINTFROMTEXT> Mpointfromtext_instantiator;
+typedef G_i1<I_txt, txt_ft::MPOLYFROMTEXT> Mpolyfromtext_instantiator;
+typedef G_i1<I_txt, txt_ft::MULTILINESTRINGFROMTEXT>
+Multilinestringfromtext_instantiator;
+typedef G_i1<I_txt, txt_ft::MULTIPOINTFROMTEXT> Multipointfromtext_instantiator;
+typedef G_i1<I_txt, txt_ft::MULTIPOLYGONFROMTEXT>
+Multipolygonfromtext_instantiator;
+typedef G_i1<I_txt, txt_ft::POINTFROMTEXT> Pointfromtext_instantiator;
+typedef G_i1<I_txt, txt_ft::POLYFROMTEXT> Polyfromtext_instantiator;
+typedef G_i1<I_txt, txt_ft::POLYGONFROMTEXT> Polygonfromtext_instantiator;
+
 
 using wkb_ft = Item_func_geometry_from_wkb::Functype;
 using I_wkb = Item_func_geometry_from_wkb;
