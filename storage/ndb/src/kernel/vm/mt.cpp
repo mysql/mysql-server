@@ -5300,6 +5300,7 @@ execute_signals(thr_data *selfptr,
       if (read_index == write_index)
       {
         /* No more available now. */
+        selfptr->m_stat.m_exec_cnt += num_signals;
         return num_signals;
       }
       else
