@@ -21,6 +21,21 @@ CREATE TABLE t2 (
 
 drop table t2;
 
+# bug#23330359 - a DICT bug on alter table
+# done in same restart test to save runtime
+
+CREATE TABLE t2 (
+  a int,
+  b varchar(255),
+  c int not null,
+  primary key (a,b),
+  unique key (b,a)
+) engine=ndb
+  comment='NDB_TABLE=FULLY_REPLICATED=1'
+  partition by key(a);
+
+alter table t2 algorithm=inplace, add unique index (c);
+
 --let ndb_desc_opts= -d test t1
 --source suite/ndb/include/ndb_desc_print.inc
 
@@ -125,7 +140,8 @@ insert into t1 values (0, "row 0", 0),(1, "row 1", 1);
 select * from t1 order by 1;
 rollback;
 
-drop table t1;
+drop table t1,t2;
+
 CREATE TABLE t1 (
   a int,
   b varchar(255),
@@ -133,6 +149,18 @@ CREATE TABLE t1 (
   primary key(a,b),
   key(b),
   unique (c)) engine=ndb comment='NDB_TABLE=FULLY_REPLICATED=1' partition by key(a) ;
+
+CREATE TABLE t2 (
+  a int,
+  b varchar(255),
+  c int not null,
+  primary key (a,b),
+  unique key (b,a)
+) engine=ndb
+  comment='NDB_TABLE=FULLY_REPLICATED=1'
+  partition by key(a);
+
+alter table t2 algorithm=inplace, add unique index (c);
 
 insert into t1 values
 (0, "row 0", 0),(1, "row 1", 1),
@@ -190,4 +218,4 @@ select * from t1 order by 1;
 rollback;
 
 # cleanup
-drop table t1;
+drop table t1,t2;
