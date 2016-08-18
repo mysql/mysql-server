@@ -16252,7 +16252,7 @@ innobase_rename_table(
 
 		dd::Tablespace*	dd_space = const_cast<dd::Tablespace*>(space);
 		if (dd::acquire_exclusive_tablespace_mdl(
-			    thd, to_table->name().c_str(), false)) {
+			    thd, dd_space->name().c_str(), false)) {
 			ut_a(false);
 		}
 
