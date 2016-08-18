@@ -1922,10 +1922,6 @@ recv_parse_or_apply_log_rec_body(
 		/* Allow anything in page_type when creating a page. */
 		ptr = trx_undo_parse_page_init(ptr, end_ptr, page, mtr);
 		break;
-	case MLOG_UNDO_HDR_DISCARD:
-		ut_ad(!page || page_type == FIL_PAGE_UNDO_LOG);
-		ptr = trx_undo_parse_discard_latest(ptr, end_ptr, page, mtr);
-		break;
 	case MLOG_UNDO_HDR_CREATE:
 	case MLOG_UNDO_HDR_REUSE:
 		ut_ad(!page || page_type == FIL_PAGE_UNDO_LOG);
@@ -4538,9 +4534,6 @@ get_mlog_string(mlog_id_t type)
 
 	case MLOG_UNDO_INIT:
 		return("MLOG_UNDO_INIT");
-
-	case MLOG_UNDO_HDR_DISCARD:
-		return("MLOG_UNDO_HDR_DISCARD");
 
 	case MLOG_UNDO_HDR_REUSE:
 		return("MLOG_UNDO_HDR_REUSE");
