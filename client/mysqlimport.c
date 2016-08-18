@@ -431,7 +431,7 @@ static void lock_table(MYSQL *mysql, int tablecount, char **raw_tablename)
 {
   DYNAMIC_STRING query;
   int i;
-  char tablename[FN_REFLEN];
+  char tablename[FN_REFLEN], *pos;
 
   if (verbose)
     fprintf(stdout, "Locking tables for write\n");
@@ -439,8 +439,14 @@ static void lock_table(MYSQL *mysql, int tablecount, char **raw_tablename)
   for (i=0 ; i < tablecount ; i++)
   {
     fn_format(tablename, raw_tablename[i], "", "", 1 | 2);
-    dynstr_append(&query, tablename);
-    dynstr_append(&query, " WRITE,");
+    dynstr_append(&query, "`");
+    for (pos= tablename; *pos; pos++)
+    {
+      if (*pos == '`')
+        dynstr_append(&query, "`");
+      dynstr_append_mem(&query, pos, 1);
+    }
+    dynstr_append(&query, "` WRITE,");
   }
   if (mysql_real_query(mysql, query.str, (ulong)(query.length-1)))
     db_error(mysql); /* We shall countinue here, if --force was given */
