@@ -35,7 +35,8 @@ FROM information_schema.tables WHERE table_name in ('t1', 't2');
 TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CHECKSUM	UPDATE_TIME	CHECK_TIME
 24	682	16384	0	0	0	58	NULL	#	NULL
 24	13	416	3659174697238527	2048	104	33	NULL	#	NULL
-SELECT * FROM information_schema.statistics WHERE table_name='t3';
+SELECT * FROM information_schema.statistics WHERE table_name='t3'
+ORDER BY index_name, seq_in_index;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
 def	test	t3	1	test	f0	1	f0	A	32	NULL	NULL		BTREE			YES
 def	test	t3	1	test	f1	1	f1	A	4	NULL	NULL	YES	BTREE			YES
@@ -50,7 +51,8 @@ FROM information_schema.tables WHERE table_name in ('t1', 't2');
 TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CHECKSUM	UPDATE_TIME	CHECK_TIME
 24	682	16384	0	0	0	58	NULL	#	NULL
 24	13	416	3659174697238527	2048	104	33	NULL	#	NULL
-SELECT * FROM information_schema.statistics WHERE table_name='t3';
+SELECT * FROM information_schema.statistics WHERE table_name='t3'
+ORDER BY index_name, seq_in_index;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
 def	test	t3	1	test	f0	1	f0	A	32	NULL	NULL		BTREE			YES
 def	test	t3	1	test	f1	1	f1	A	4	NULL	NULL	YES	BTREE			YES
@@ -71,9 +73,9 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 t1	0	PRIMARY	1	f2	A	0	NULL	NULL		BTREE			YES
 t1	0	f1	1	f1	A	0	NULL	NULL	YES	BTREE			YES
 SELECT * FROM information_schema.tmp_tables_columns;
-ERROR 42S02: Unknown table 'tmp_tables_columns' in information_schema
+ERROR 42S02: Unknown table 'TMP_TABLES_COLUMNS' in information_schema
 SELECT * FROM information_schema.tmp_tables_keys;
-ERROR 42S02: Unknown table 'tmp_tables_keys' in information_schema
+ERROR 42S02: Unknown table 'TMP_TABLES_KEYS' in information_schema
 DROP TEMPORARY TABLE t1;
 CREATE TABLE t1 (f1 int);
 SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE

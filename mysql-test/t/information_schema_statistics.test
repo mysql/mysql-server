@@ -44,7 +44,8 @@ SELECT table_rows, avg_row_length, data_length, max_data_length, index_length,
        data_free, auto_increment, checksum, update_time, check_time
 FROM information_schema.tables WHERE table_name in ('t1', 't2');
 
-SELECT * FROM information_schema.statistics WHERE table_name='t3';
+SELECT * FROM information_schema.statistics WHERE table_name='t3'
+ORDER BY index_name, seq_in_index;
 
 --echo Case 2: IS query uses UDF's to read dynamic table statistics
 SET SESSION information_schema_stats=latest;
@@ -54,7 +55,8 @@ SELECT table_rows, avg_row_length, data_length, max_data_length, index_length,
        data_free, auto_increment, checksum, update_time, check_time
 FROM information_schema.tables WHERE table_name in ('t1', 't2');
 
-SELECT * FROM information_schema.statistics WHERE table_name='t3';
+SELECT * FROM information_schema.statistics WHERE table_name='t3'
+ORDER BY index_name, seq_in_index;
 
 SET SESSION information_schema_stats=cached;
 
