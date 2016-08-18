@@ -21840,7 +21840,8 @@ Uint32 Dblqh::checkIfExecLog(Signal* signal)
   tabptr.i = tcConnectptr.p->tableref;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   if (getFragmentrec(signal, tcConnectptr.p->fragmentid) &&
-      (table_version_major(tabptr.p->schemaVersion) == table_version_major(tcConnectptr.p->schemaVersion))) {
+      (table_version_major(tabptr.p->schemaVersion) ==
+       table_version_major(tcConnectptr.p->schemaVersion))) {
     if (fragptr.p->execSrStatus != Fragrecord::IDLE) {
       if (fragptr.p->execSrNoReplicas > logPartPtr.p->execSrExecuteIndex) {
         ndbrequire((fragptr.p->execSrNoReplicas - 1) < MAX_REPLICAS);

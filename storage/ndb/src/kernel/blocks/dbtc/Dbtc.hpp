@@ -1192,7 +1192,9 @@ public:
     bool checkTable(Uint32 schemaVersion) const {
       return !get_dropping() &&
 	((/** normal transaction path */
-          get_enabled() && table_version_major(schemaVersion) == table_version_major(currentSchemaVersion)) 
+          get_enabled() &&
+          table_version_major(schemaVersion) ==
+          table_version_major(currentSchemaVersion)) 
          ||
          (/** 
            * unique index is relaxed for DbUtil and transactions ongoing

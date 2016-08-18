@@ -59,3 +59,30 @@ create table test.t2 (a int primary key,
 
 drop table test.t1;
 drop table test.t2;
+
+--echo Test read-locality after ALTER TABLE into READ-BACKUP
+
+create table test.t1 (a int primary key, 
+                      b int, 
+                      c int, 
+                      d int, 
+                      unique(b) using hash, 
+                      key(c), 
+                      key(a,c)) 
+   engine=ndb;
+
+create table test.t2 (a int primary key,
+                      b int,
+                      c int,
+                      d text,
+                      unique(b) using hash,
+                      key(c))
+   engine=ndb;
+
+alter table t1 algorithm=inplace, comment="NDB_TABLE=READ_BACKUP=1";
+alter table t2 algorithm=inplace, comment="NDB_TABLE=READ_BACKUP=1";
+
+--source ndb_read_local.inc
+
+drop table test.t1;
+drop table test.t2;

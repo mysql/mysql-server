@@ -2960,6 +2960,8 @@ private:
     // used for creating subops for add partitions, wrt ordered index
     bool m_sub_reorg_commit;
     bool m_sub_reorg_complete;
+    bool m_sub_read_backup;
+    Uint32 m_sub_read_backup_ptr;
     bool m_sub_add_frag;
     Uint32 m_sub_add_frag_index_ptr;
     bool m_sub_reorg_trigger;
@@ -2978,6 +2980,8 @@ private:
       m_blockNo[2] = DBSPJ;
       m_blockNo[3] = DBTC;
       m_blockIndex = 0;
+      m_sub_read_backup = false;
+      m_sub_read_backup_ptr = RNIL;
       m_sub_add_frag_index_ptr = RNIL;
       m_sub_add_frag = false;
       m_sub_reorg_commit = false;
@@ -3010,6 +3014,8 @@ private:
   //
   void alterTable_abortParse(Signal*, SchemaOpPtr);
   void alterTable_abortPrepare(Signal*, SchemaOpPtr);
+
+  void alterTable_toReadBackup(Signal *signal, SchemaOpPtr op_ptr);
 
   void alterTable_toCopyData(Signal* signal, SchemaOpPtr op_ptr);
   void alterTable_fromCopyData(Signal*, Uint32 op_key, Uint32 ret);

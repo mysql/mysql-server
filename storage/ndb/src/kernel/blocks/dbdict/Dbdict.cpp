@@ -9482,6 +9482,17 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
     return;
   }
 
+  if (AlterTableReq::getReadBackupSubOpFlag(impl_req->changeMask))
+  {
+    jam();
+    /**
+     * Changing ReadBackupFlag on an index doesn't require a
+     * change of the table version, so keep the old one.
+     */
+    impl_req->newTableVersion = impl_req->tableVersion;
+    return;
+  }
+
   // parse new table definition into new table record
   TableRecordPtr newTablePtr;
   {
@@ -10049,6 +10060,51 @@ Dbdict::alterTable_subOps(Signal* signal, SchemaOpPtr op_ptr)
     }
   }
 
+  if (AlterTableReq::getReadBackupFlag(impl_req->changeMask))
+  {
+    jam();
+    if (alterTabPtr.p->m_sub_read_backup == false)
+    {
+      jam();
+      TableRecordPtr tabPtr;
+      TableRecordPtr indexPtr;
+      bool ok = find_object(tabPtr, impl_req->tableId);
+      ndbrequire(ok);
+      LocalTableRecord_list list(c_tableRecordPool_, tabPtr.p->m_indexes);
+      Uint32 ptrI = alterTabPtr.p->m_sub_read_backup_ptr;
+
+      if (ptrI == RNIL)
+      {
+        jam();
+        list.first(indexPtr);
+      }
+      else
+      {
+        jam();
+        list.getPtr(indexPtr, ptrI);
+        list.next(indexPtr);
+      }
+      if (indexPtr.isNull())
+      {
+        jam();
+        alterTabPtr.p->m_sub_read_backup = true;
+      }
+      else
+      {
+        jam();
+        Callback c = {
+          safe_cast(&Dbdict::alterTable_fromAlterIndex),
+          op_ptr.p->op_key
+        };
+        op_ptr.p->m_callback = c;
+
+        alterTabPtr.p->m_sub_read_backup_ptr = indexPtr.i;
+        alterTable_toReadBackup(signal, op_ptr);
+        return true;
+      }
+    }
+  }
+
   if (AlterTableReq::getReorgFragFlag(impl_req->changeMask))
   {
     if (alterTabPtr.p->m_sub_reorg_commit == false)
@@ -10185,6 +10241,34 @@ Dbdict::alterTable_toAlterIndex(Signal* signal,
                              AlterIndxImplReq::AlterIndexAddPartition);
   sendSignal(reference(), GSN_ALTER_INDX_REQ, signal,
              AlterIndxReq::SignalLength, JBB);
+}
+
+void
+Dbdict::alterTable_toReadBackup(Signal* signal,
+                                SchemaOpPtr op_ptr)
+{
+  jam();
+  AlterTableRecPtr alterTabPtr;
+  getOpRec(op_ptr, alterTabPtr);
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  D("alterTable_toReadBackup");
+
+  TableRecordPtr indexPtr;
+  c_tableRecordPool_.getPtr(indexPtr, alterTabPtr.p->m_sub_read_backup_ptr);
+  ndbrequire(!indexPtr.isNull());
+
+  AlterTableReq* req = (AlterTableReq*)signal->getDataPtrSend();
+  req->clientRef = reference();
+  req->clientData = op_ptr.p->op_key;
+  req->transId = trans_ptr.p->m_transId;
+  req->transKey = trans_ptr.p->trans_key;
+  req->requestInfo = 0;
+  req->tableId = indexPtr.p->tableId;
+  req->tableVersion = indexPtr.p->tableVersion;
+  req->changeMask = 0;
+  AlterTableReq::setReadBackupSubOpFlag(req->changeMask, 1);
+  sendSignal(reference(), GSN_ALTER_TABLE_REQ, signal,
+             AlterTableReq::SignalLength, JBB);
 }
 
 void
@@ -10492,11 +10576,11 @@ Dbdict::alterTable_prepare(Signal* signal, SchemaOpPtr op_ptr)
   const AlterTabReq* impl_req = &alterTabPtr.p->m_request;
 
 
-  if (AlterTableReq::getReorgSubOp(impl_req->changeMask))
+  if (AlterTableReq::getSubOp(impl_req->changeMask))
   {
     jam();
 
-    D("alterTable_prepare (reorgSubOp)" << *op_ptr.p);
+    D("alterTable_prepare (SubOp)" << *op_ptr.p);
     /**
      * Get DIH connectPtr for future commit
      */
@@ -10773,7 +10857,7 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
   {
     jam();
     // main-op
-    ndbrequire(AlterTableReq::getReorgSubOp(impl_req->changeMask) == false);
+    ndbrequire(AlterTableReq::getSubOp(impl_req->changeMask) == false);
 
     const OpSection& tabInfoSec =
       getOpSection(op_ptr, CreateTabReq::DICT_TAB_INFO);
@@ -10888,6 +10972,14 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
     }
   }
 
+  /**
+   * We need to commit in all blocks since all blocks need to update the
+   * table schema version. Subops is an exception to this since the main
+   * operation will take care of the setting of the schema version.
+   * Also the ReorgFragFlag is an exception as explained below.
+   * So the subops only need to commit in those blocks where they actually
+   * perform some work.
+   */
   alterTabPtr.p->m_blockIndex = 0;
   alterTabPtr.p->m_blockNo[0] = DBLQH;
   alterTabPtr.p->m_blockNo[1] = DBDIH;
@@ -10897,7 +10989,9 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
   if (AlterTableReq::getReorgFragFlag(impl_req->changeMask))
   {
     /**
-     * DIH is next op
+     * When ReorgFragFlag is set we have created a subop with the flag
+     * ReorgCommit set. This subop will commit in DBDIH, so we will skip
+     * DBDIH at this point.
      */
     D("alterTable_commit: getReorgFragFlag set");
     TableRecordPtr newTablePtr;
@@ -10905,6 +10999,17 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
     c_tableRecordPool_.getPtr(newTablePtr);
     tablePtr.p->hashMapObjectId = newTablePtr.p->hashMapObjectId;
     tablePtr.p->hashMapVersion = newTablePtr.p->hashMapVersion;
+    alterTabPtr.p->m_blockNo[1] = RNIL;
+  }
+  else if (AlterTableReq::getReadBackupSubOpFlag(impl_req->changeMask))
+  {
+    jam();
+    tablePtr.p->m_bits |= TableRecord::TR_ReadBackup;
+    /**
+     * Alter online of read backup on indexes only needed in
+     * DBTC and DBSPJ.
+     */
+    alterTabPtr.p->m_blockNo[0] = RNIL;
     alterTabPtr.p->m_blockNo[1] = RNIL;
   }
   else if (AlterTableReq::getReorgCommitFlag(impl_req->changeMask))
@@ -10923,6 +11028,10 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
            AlterTableReq::getReorgSumaFilterFlag(impl_req->changeMask))
   {
     jam();
+    /**
+     * These subops only perform an action in the Complete phase, so the
+     * commit phase is empty for them.
+     */
     D("alterTable_commit: getReorg....Flag set");
     sendTransConf(signal, op_ptr);
     return;
@@ -11026,7 +11135,7 @@ Dbdict::alterTable_fromCommitComplete(Signal* signal,
     return;
   }
 
-  if (AlterTableReq::getReorgSubOp(impl_req->changeMask))
+  if (AlterTableReq::getSubOp(impl_req->changeMask))
   {
     jam();
     sendTransConf(signal, op_ptr);
@@ -11197,7 +11306,7 @@ Dbdict::alterTable_abortParse(Signal* signal, SchemaOpPtr op_ptr)
   getOpRec(op_ptr, alterTabPtr);
   const AlterTabReq* impl_req = &alterTabPtr.p->m_request;
 
-  if (AlterTableReq::getReorgSubOp(impl_req->changeMask))
+  if (AlterTableReq::getSubOp(impl_req->changeMask))
   {
     jam();
     sendTransConf(signal, op_ptr);
@@ -11233,7 +11342,7 @@ Dbdict::alterTable_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
   getOpRec(op_ptr, alterTabPtr);
   const AlterTabReq* impl_req = &alterTabPtr.p->m_request;
 
-  if (AlterTableReq::getReorgSubOp(impl_req->changeMask))
+  if (AlterTableReq::getSubOp(impl_req->changeMask))
   {
     jam();
 
