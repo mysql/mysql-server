@@ -14104,7 +14104,11 @@ void Dbtc::releaseApiCon(Signal* signal, UintR TapiConnectPtr)
   TlocalApiConnectptr.p->apiConnectstate = CS_DISCONNECTED;
   ndbassert(TlocalApiConnectptr.p->m_transaction_nodes.isclear());
   ndbassert(TlocalApiConnectptr.p->apiScanRec == RNIL);
-  ndbassert(TlocalApiConnectptr.p->cascading_scans_count == 0);
+  /* ndbassert(TlocalApiConnectptr.p->cascading_scans_count == 0);
+   * Not a valid assert, as we can abort a transaction, and release a connection
+   * while triggered cascading scans are still in-flight
+   */
+  TlocalApiConnectptr.p->cascading_scans_count = 0;
   TlocalApiConnectptr.p->ndbapiBlockref = 0;
   TlocalApiConnectptr.p->transid[0] = 0;
   TlocalApiConnectptr.p->transid[1] = 0;
@@ -18489,6 +18493,15 @@ void
 Dbtc::execSCAN_TABCONF(Signal* signal)
 {
   jamEntry();
+
+  if (ERROR_INSERTED(8109))
+  {
+    jam();
+    /* Hang around */
+    sendSignalWithDelay(cownref, GSN_SCAN_TABCONF, signal, 100, signal->getLength());
+    return;
+  }
+
   const ScanTabConf * conf = CAST_CONSTPTR(ScanTabConf, signal->getDataPtr());
 
   Uint32 transId[] = {
@@ -18768,6 +18781,15 @@ void
 Dbtc::execSCAN_TABREF(Signal* signal)
 {
   jamEntry();
+
+  if (ERROR_INSERTED(8109))
+  {
+    jam();
+    /* Hang around */
+    sendSignalWithDelay(cownref, GSN_SCAN_TABREF, signal, 100, signal->getLength());
+    return;
+  }
+
 
   const ScanTabRef * ref = CAST_CONSTPTR(ScanTabRef, signal->getDataPtr());
 
