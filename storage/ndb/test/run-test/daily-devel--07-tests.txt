@@ -40,6 +40,12 @@ args: -n ArbitrationWithApiNodeFailure T1
 
 cmd: testSystemRestart
 args: -n StaleNodeTakeoverDuringSR T1
+max-time : 300
+
+cmd: testFK
+args: -n AbortWithSlowChildScans T1
+max-time : 180
+
 
 cmd: testNdbApi
 args: -n CheckTransId T1
