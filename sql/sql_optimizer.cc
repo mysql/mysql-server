@@ -3795,6 +3795,9 @@ static bool build_equal_items_for_cond(THD *thd, Item *cond, Item **retcond,
   COND_EQUAL cond_equal;
   cond_equal.upper_levels= inherited;
 
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, NULL))
+    return true;                          // Fatal error flag is set!
+
   const enum Item::Type cond_type= cond->type();
   if (cond_type == Item::COND_ITEM)
   {
