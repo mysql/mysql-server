@@ -15,6 +15,16 @@ unique (c)) engine=ndb comment='NDB_TABLE=JUNK' partition by key(a) ;
 Warnings:
 Warning	1478	NDB_TABLE= : unknown modifier: JUNK
 drop table t2;
+CREATE TABLE t2 (
+a int,
+b varchar(255),
+c int not null,
+primary key (a,b),
+unique key (b,a)
+) engine=ndb
+comment='NDB_TABLE=FULLY_REPLICATED=1'
+  partition by key(a);
+alter table t2 algorithm=inplace, add unique index (c);
 -- t1 --
 Version: Any
 Fragment type: HashMapPartition
@@ -215,7 +225,7 @@ a	b	c
 8	row 8	18
 9	row 9	19
 rollback;
-drop table t1;
+drop table t1,t2;
 CREATE TABLE t1 (
 a int,
 b varchar(255),
@@ -223,6 +233,16 @@ c int,
 primary key(a,b),
 key(b),
 unique (c)) engine=ndb comment='NDB_TABLE=FULLY_REPLICATED=1' partition by key(a) ;
+CREATE TABLE t2 (
+a int,
+b varchar(255),
+c int not null,
+primary key (a,b),
+unique key (b,a)
+) engine=ndb
+comment='NDB_TABLE=FULLY_REPLICATED=1'
+  partition by key(a);
+alter table t2 algorithm=inplace, add unique index (c);
 insert into t1 values
 (0, "row 0", 0),(1, "row 1", 1),
 (2, "row 2", 2),(3, "row 3", 3),
@@ -279,4 +299,4 @@ a	b	c
 8	row 8	18
 9	row 9	19
 rollback;
-drop table t1;
+drop table t1,t2;

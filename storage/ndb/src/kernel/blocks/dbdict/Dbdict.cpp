@@ -9522,6 +9522,13 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
     ndbrequire(newTablePtr.p->partitionCount != 0);
   }
 
+  // API does not pass fullyReplicatedTriggerId, copy it here
+  if ((tablePtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0)
+  {
+    Uint32 fullyReplicatedTriggerId = tablePtr.p->fullyReplicatedTriggerId;
+    ndbrequire(fullyReplicatedTriggerId != RNIL);
+    newTablePtr.p->fullyReplicatedTriggerId = fullyReplicatedTriggerId;
+  }
 
   {
     /**
