@@ -2491,7 +2491,6 @@ sub find_plugin($$)
     mtr_file_exists(vs_config_dirs($location,$plugin_filename),
                     "$basedir/lib/plugin/".$plugin_filename,
                     "$basedir/lib64/plugin/".$plugin_filename,
-                    "$basedir/$location/.libs/".$plugin_filename,
                     "$basedir/lib/mysql/plugin/".$plugin_filename,
                     "$basedir/lib64/mysql/plugin/".$plugin_filename,
                     );
@@ -2573,21 +2572,6 @@ sub environment_setup {
     # Use the --client-libdir passed on commandline
     push(@ld_library_paths, "$path_client_libdir");
   }
-  else
-  {
-    # Setup LD_LIBRARY_PATH so the libraries from this distro/clone
-    # are used in favor of the system installed ones
-    if ( $source_dist )
-    {
-      push(@ld_library_paths, "$basedir/libmysql/.libs/",
-	   "$basedir/libmysql_r/.libs/",
-	   "$basedir/zlib/.libs/");
-    }
-    else
-    {
-      push(@ld_library_paths, "$basedir/lib", "$basedir/lib/mysql");
-    }
-  }
 
   # --------------------------------------------------------------------------
   # Add the path where libndbclient can be found
@@ -2595,44 +2579,24 @@ sub environment_setup {
   if ( $ndbcluster_enabled )
   {
     push(@ld_library_paths,  
-	 "$basedir/storage/ndb/src/.libs",
 	 "$basedir/storage/ndb/src");
   }
 
   # Plugin settings should no longer be added here, instead
   # place definitions in include/plugin.defs.
   # See comment in that file for details.
-  # --------------------------------------------------------------------------
-  # Valgrind need to be run with debug libraries otherwise it's almost
-  # impossible to add correct supressions, that means if "/usr/lib/debug"
-  # is available, it should be added to
-  # LD_LIBRARY_PATH
-  #
-  # But pthread is broken in libc6-dbg on Debian <= 3.1 (see Debian
-  # bug 399035, http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=399035),
-  # so don't change LD_LIBRARY_PATH on that platform.
-  # --------------------------------------------------------------------------
-  my $debug_libraries_path= "/usr/lib/debug";
-  my $deb_version;
-  if (  $opt_valgrind and -d $debug_libraries_path and
-        (! -e '/etc/debian_version' or
-	 ($deb_version=
-	    mtr_grab_file('/etc/debian_version')) !~ /^[0-9]+\.[0-9]$/ or
-         $deb_version > 3.1 ) )
+  if ( @ld_library_paths )
   {
-    push(@ld_library_paths, $debug_libraries_path);
+    $ENV{'LD_LIBRARY_PATH'}= join(":", @ld_library_paths,
+				  $ENV{'LD_LIBRARY_PATH'} ?
+				  split(':', $ENV{'LD_LIBRARY_PATH'}) : ());
+    mtr_warning("LD_LIBRARY_PATH: $ENV{'LD_LIBRARY_PATH'}");
+
+    $ENV{'DYLD_LIBRARY_PATH'}= join(":", @ld_library_paths,
+				    $ENV{'DYLD_LIBRARY_PATH'} ?
+				    split(':', $ENV{'DYLD_LIBRARY_PATH'}) : ());
+    mtr_debug("DYLD_LIBRARY_PATH: $ENV{'DYLD_LIBRARY_PATH'}");
   }
-
-  $ENV{'LD_LIBRARY_PATH'}= join(":", @ld_library_paths,
-				$ENV{'LD_LIBRARY_PATH'} ?
-				split(':', $ENV{'LD_LIBRARY_PATH'}) : ());
-  mtr_debug("LD_LIBRARY_PATH: $ENV{'LD_LIBRARY_PATH'}");
-
-  $ENV{'DYLD_LIBRARY_PATH'}= join(":", @ld_library_paths,
-				  $ENV{'DYLD_LIBRARY_PATH'} ?
-				  split(':', $ENV{'DYLD_LIBRARY_PATH'}) : ());
-  mtr_debug("DYLD_LIBRARY_PATH: $ENV{'DYLD_LIBRARY_PATH'}");
-
   $ENV{'UMASK'}=              "0660"; # The octal *string*
   $ENV{'UMASK_DIR'}=          "0770"; # The octal *string*
 
