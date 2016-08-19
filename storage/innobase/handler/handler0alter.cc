@@ -4303,16 +4303,25 @@ prepare_inplace_alter_table_global_dd(
 
                 /* Now all index metadata are ready in dict_index_t(s),
 		copy them into dd::Index(es) */
-		dict_index_t*           new_idx = new_table->first_index();
+		bool	first = true;
 		for (dd::Index* idx : *new_dd_tab->indexes()) {
-			if (strcmp(idx->name().c_str(), new_idx->name) != 0) {
-				/* The order should be the same.
-				TODO: Report error */
+			/* The order could be different because all unique
+			dd::Index(es) would be in front of other indexes */
+			dict_index_t*	new_idx;
+			for (new_idx = new_table->first_index();
+			     !first
+			     && new_idx != NULL
+			     && strcmp(idx->name().c_str(), new_idx->name) != 0;
+			     new_idx = new_idx->next()) {
 			}
+
+			ut_a(new_idx != NULL);
 
 			create_table_info_t::write_dd_index(
 				dd_space_id, idx, new_idx);
 			new_idx = new_idx->next();
+
+			first = false;
 		}
 	}
 

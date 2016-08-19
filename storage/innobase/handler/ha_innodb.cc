@@ -7413,6 +7413,10 @@ create_table_metadata(
 		m_table->flags2 |= DICT_TF2_USE_FILE_PER_TABLE;
 	}
 
+	if (!blob_prefix) {
+		m_table->flags |= (1 << DICT_TF_POS_ATOMIC_BLOBS);
+	}
+
 	if (zip_ssize) {
 		/* TODO, fill this */
 	}
