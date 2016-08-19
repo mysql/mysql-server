@@ -313,11 +313,11 @@ explain select a.ROUTINE_NAME from information_schema.ROUTINES a,
 information_schema.SCHEMATA b where
 a.ROUTINE_SCHEMA = CONVERT(b.SCHEMA_NAME USING UTF8);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	#	NULL	index	PRIMARY	name	194	NULL	#	100.00	Using index
-1	SIMPLE	#	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using join buffer (Block Nested Loop)
-1	SIMPLE	#	NULL	ALL	catalog_id,default_collation_id	NULL	NULL	NULL	#	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	#	NULL	eq_ref	PRIMARY,character_set_id	PRIMARY	8	mysql.sch.default_collation_id	#	100.00	NULL
-1	SIMPLE	#	NULL	eq_ref	PRIMARY	PRIMARY	8	mysql.col.character_set_id	#	100.00	Using index
+1	SIMPLE	#	NULL	index	PRIMARY	name	194	NULL	#	#	Using index
+1	SIMPLE	#	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using join buffer (Block Nested Loop)
+1	SIMPLE	#	NULL	ALL	catalog_id,default_collation_id	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	#	NULL	eq_ref	PRIMARY,character_set_id	PRIMARY	8	mysql.sch.default_collation_id	#	#	NULL
+1	SIMPLE	#	NULL	eq_ref	PRIMARY	PRIMARY	8	mysql.col.character_set_id	#	#	Using index
 Warnings:
 Note	1003	#
 select count(*) from information_schema.ROUTINES where routine_schema='test';
@@ -382,10 +382,10 @@ sys
 test
 explain select * from v0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	#	NULL	index	PRIMARY	name	194	NULL	1	100.00	Using index; Using temporary; Using filesort
-1	SIMPLE	#	NULL	ALL	catalog_id,default_collation_id	NULL	NULL	NULL	6	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	#	NULL	eq_ref	PRIMARY,character_set_id	PRIMARY	8	mysql.sch.default_collation_id	1	100.00	NULL
-1	SIMPLE	#	NULL	eq_ref	PRIMARY	PRIMARY	8	mysql.col.character_set_id	1	100.00	Using index
+1	SIMPLE	#	NULL	index	PRIMARY	name	194	NULL	#	#	Using index; Using temporary; Using filesort
+1	SIMPLE	#	NULL	ALL	catalog_id,default_collation_id	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	#	NULL	eq_ref	PRIMARY,character_set_id	PRIMARY	8	mysql.sch.default_collation_id	#	#	NULL
+1	SIMPLE	#	NULL	eq_ref	PRIMARY	PRIMARY	8	mysql.col.character_set_id	#	#	Using index
 Warnings:
 Note	1003	#
 create view v1 (c) as select table_name from information_schema.tables
@@ -2118,3 +2118,13 @@ disconnect con1;
 # Clean up.
 connection default;
 DROP VIEW v1;
+#
+# WL#6599: New Data Dictionary and I_S Integration.
+#
+# Test case to check if ndbinfo schema is listed by I_S when ndbcluster
+# is not running.
+#
+SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'ndbinfo';
+SCHEMA_NAME
+SELECT table_name FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'ndbinfo';
+TABLE_NAME

@@ -1556,10 +1556,14 @@ void MDL_request::init_with_source(MDL_key::enum_mdl_namespace mdl_namespace,
                        const char *src_file,
                        uint src_line)
 {
-  // We make sure that I_S tables names are always provided in CAPS.
+#if !defined(DBUG_OFF)
+  // Make sure all I_S tables (except ndb tables) are in CAPITAL letters.
+  bool is_ndb_table= (name_arg && (strncmp(name_arg, "ndb", 3) == 0));
   DBUG_ASSERT(mdl_namespace != MDL_key::TABLE ||
               my_strcasecmp(system_charset_info, "information_schema", db_arg) ||
+              is_ndb_table ||
               !name_arg || my_isupper(system_charset_info, name_arg[0]));
+#endif
 
   key.mdl_key_init(mdl_namespace, db_arg, name_arg);
   type= mdl_type_arg;

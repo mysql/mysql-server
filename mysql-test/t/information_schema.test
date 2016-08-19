@@ -179,7 +179,7 @@ show function status where db='test';
 select a.ROUTINE_NAME from information_schema.ROUTINES a,
 information_schema.SCHEMATA b where
 a.ROUTINE_SCHEMA = CONVERT(b.SCHEMA_NAME USING UTF8) AND b.SCHEMA_NAME='test';
---replace_column 3 # 10 #
+--replace_column 3 # 10 # 11 #
 explain select a.ROUTINE_NAME from information_schema.ROUTINES a,
 information_schema.SCHEMATA b where
 a.ROUTINE_SCHEMA = CONVERT(b.SCHEMA_NAME USING UTF8);
@@ -222,7 +222,7 @@ show create procedure sel2;
 #
 create view v0 (c) as select schema_name from information_schema.schemata order by schema_name;
 select * from v0;
---replace_column 3 #
+--replace_column 3 # 10 # 11 #
 explain select * from v0;
 create view v1 (c) as select table_name from information_schema.tables
 where table_name="v1" order by table_name;
@@ -1946,3 +1946,15 @@ disconnect con1;
 connection default;
 DROP VIEW v1;
 --disable_connect_log
+
+
+--echo #
+--echo # WL#6599: New Data Dictionary and I_S Integration.
+--echo #
+--echo # Test case to check if ndbinfo schema is listed by I_S when ndbcluster
+--echo # is not running.
+--echo #
+#'ndbinfo' schema should not be listed when ndbcluster is not running.
+SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'ndbinfo';
+# tables of ndbinfo schema should not be listed.
+SELECT table_name FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'ndbinfo';

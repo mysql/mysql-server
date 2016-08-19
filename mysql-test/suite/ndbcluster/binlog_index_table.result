@@ -4,7 +4,8 @@ TABLE_SCHEMA	TABLE_NAME
 mysql	ndb_binlog_index
 select ORDINAL_POSITION, COLUMN_NAME, COLUMN_TYPE, COLUMN_DEFAULT,
 IS_NULLABLE from information_schema.columns
-where TABLE_SCHEMA = 'mysql' and TABLE_NAME = 'ndb_binlog_index';
+where TABLE_SCHEMA = 'mysql' and TABLE_NAME = 'ndb_binlog_index'
+  order by ORDINAL_POSITION;
 ORDINAL_POSITION	COLUMN_NAME	COLUMN_TYPE	COLUMN_DEFAULT	IS_NULLABLE
 1	Position	bigint(20) unsigned	NULL	NO
 2	File	varchar(255)	NULL	NO
