@@ -2172,6 +2172,8 @@ end:
   thd->variables.sql_mode= old_sql_mode;
   if (table_schema)
     delete table_schema;
+  DBUG_EXECUTE_IF("induce_acl_load_failure",
+                  return_val= TRUE;);
   DBUG_RETURN(return_val);
 }
 
@@ -2180,7 +2182,6 @@ end:
 
 void acl_free(bool end)
 {
-  shutdown_acl_cache();
   free_root(&global_acl_memory,MYF(0));
   delete acl_users;
   acl_users= NULL;
@@ -2195,6 +2196,7 @@ void acl_free(bool end)
     clear_and_init_db_cache();
   else
   {
+    shutdown_acl_cache();
     if (acl_cache_initialized == true)
     {
       my_hash_free(&db_cache);
