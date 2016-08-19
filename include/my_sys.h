@@ -21,6 +21,7 @@
 */
 
 #include "my_global.h"
+#include "my_psi_config.h"              /* IWYU pragma: keep */
 #include "m_ctype.h"                    /* CHARSET_INFO */
 #include "my_alloc.h"                   /* USED_MEM */
 

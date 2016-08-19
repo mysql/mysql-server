@@ -16,16 +16,7 @@
 #ifndef MYSQL_PSI_BASE_H
 #define MYSQL_PSI_BASE_H
 
-#ifndef MY_GLOBAL_INCLUDED
-/*
-  Make sure a .c or .cc file contains an include to my_global.h first.
-  When this include is missing, all the #ifdef HAVE_XXX have no effect,
-  and the resulting binary won't build, or won't link,
-  or will crash at runtime
-  since various structures will have different binary definitions.
-*/
-#error "You must include my_global.h in the code for the build to be correct."
-#endif
+#include "my_psi_config.h"
 
 #ifdef __cplusplus
 extern "C" {
