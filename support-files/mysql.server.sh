@@ -246,11 +246,6 @@ extra_args=""
 if test -r "$basedir/my.cnf"
 then
   extra_args="-e $basedir/my.cnf"
-else
-  if test -r "$datadir/my.cnf"
-  then
-    extra_args="-e $datadir/my.cnf"
-  fi
 fi
 
 parse_server_arguments `$print_defaults $extra_args mysqld server mysql_server mysql.server`
