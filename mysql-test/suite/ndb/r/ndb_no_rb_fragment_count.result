@@ -662,10 +662,18 @@ node_id	fragment_num	block_instance
 1	1	2
 1	2	3
 1	3	4
+1	4	1
+1	5	2
+1	6	3
+1	7	4
 2	0	1
 2	1	2
 2	2	3
 2	3	4
+2	4	1
+2	5	2
+2	6	3
+2	7	4
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name like '%unique' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance
@@ -673,10 +681,18 @@ node_id	fragment_num	block_instance
 1	1	2
 1	2	3
 1	3	4
+1	4	1
+1	5	2
+1	6	3
+1	7	4
 2	0	1
 2	1	2
 2	2	3
 2	3	4
+2	4	1
+2	5	2
+2	6	3
+2	7	4
 alter table t1 algorithm=inplace,
 comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
 show create table t1;
@@ -715,10 +731,18 @@ node_id	fragment_num	block_instance
 1	1	2
 1	2	3
 1	3	4
+1	4	1
+1	5	2
+1	6	3
+1	7	4
 2	0	1
 2	1	2
 2	2	3
 2	3	4
+2	4	1
+2	5	2
+2	6	3
+2	7	4
 drop table t1;
 create table t1 (a bigint primary key, b bigint unique) engine ndb;
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
