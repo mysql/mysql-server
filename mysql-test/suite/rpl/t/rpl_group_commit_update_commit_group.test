@@ -22,10 +22,12 @@
 # this might generate unnecessary overhead when the system is loaded.
 #
 # As the bug fix makes a group of transactions to acquire the sidno_lock only
-# once at the commit stage, this test case will create a group of 10
-# transactions to commit and will observe the performance schema data about the
-# sidno_lock, asserting that the amount of "hits" on COUNT_STAR is 11
-# (1 per transaction on FLUSH stage + 1 for the whole group on COMMIT stage).
+# once at the flush stage and only once at the commit stage, this test case will
+# create a group of 10 transactions to commit and will observe the performance
+# schema data about the sidno_lock, asserting that the amount of "hits" on
+# COUNT_STAR is 2:
+# - 1 for the whole group on FLUSH stage;
+# - 1 for the whole group on COMMIT stage.
 #
 # ==== Related Bugs and Worklogs ====
 #
@@ -91,12 +93,14 @@ while ($i <= $group_size)
 }
 
 # There will be one "hit" per transaction on FLUSH stage
---let $sidno_lock_count_star= $group_size
+--let $sidno_lock_count_star= 1
 # There will be one "hit" per commit group on COMMIT stage
 --inc $sidno_lock_count_star
 
 --let $assert_text= The group commit should acquire sidno_lock for $sidno_lock_count_star times
 --let $assert_cond= [ SELECT COUNT_STAR = $sidno_lock_count_star FROM performance_schema.events_waits_summary_by_instance WHERE EVENT_NAME = "wait/synch/mutex/sql/Gtid_state" AND COUNT_STAR > 0 ]
+--let $extra_debug_info= Current COUNT_STAR for wait/synch/mutex/sql/Gtid_state
+--let $extra_debug_eval= COUNT_STAR FROM performance_schema.events_waits_summary_by_instance WHERE EVENT_NAME = "wait/synch/mutex/sql/Gtid_state" AND COUNT_STAR > 0
 --source include/assert.inc
 
 # Cleanup

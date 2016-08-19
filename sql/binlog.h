@@ -808,6 +808,14 @@ public:
   bool write_event(Log_event* event_info);
   bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data,
                    class Binlog_event_writer *writer);
+  /**
+    Assign automatic generated GTIDs for all commit group threads in the flush
+    stage having gtid_next.type == AUTOMATIC_GROUP.
+
+    @param first_seen The first thread seen entering the flush stage.
+    @return Returns false if succeeds, otherwise true is returned.
+  */
+  bool assign_automatic_gtids_to_flush_group(THD *first_seen);
   bool write_gtid(THD *thd, binlog_cache_data *cache_data,
                   class Binlog_event_writer *writer);
 
