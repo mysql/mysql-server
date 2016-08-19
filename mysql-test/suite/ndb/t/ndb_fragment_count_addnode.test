@@ -113,7 +113,7 @@ select @cnt_t3_1 > @cnt_t3_0;
 select @cnt_t4_1 > @cnt_t4_0;
 select @cnt_t5_1 > @cnt_t5_0;
 
-let $i = 100;
+let $i = 200;
 --disable_query_log
 while ($i) {
   eval insert into t1 values ($i, '$i');
