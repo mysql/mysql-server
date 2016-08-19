@@ -10409,33 +10409,17 @@ void ha_ndbcluster::append_create_info(String *packet)
       switch (fctype)
       {
         case NdbDictionary::Object::FragmentCount_OnePerLDMPerNode:
-        {
-          if (read_backup)
-          {
-            push_warning_printf(thd, Sql_condition::SL_WARNING,
-              ER_GET_ERRMSG,
-              ER(ER_GET_ERRMSG),
-              4503,
-              "Table property is "
-              "FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE"
-              " but not in comment",
-              "NDB");
-          }
           break;
-        }
         case NdbDictionary::Object::FragmentCount_OnePerLDMPerNodeGroup:
         {
-          if (!read_backup)
-          {
-            push_warning_printf(thd, Sql_condition::SL_WARNING,
-              ER_GET_ERRMSG,
-              ER(ER_GET_ERRMSG),
-              4503,
-              "Table property is "
-              "FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE_GROUP"
-              " but not in comment",
-              "NDB");
-          }
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
+            ER_GET_ERRMSG,
+            ER(ER_GET_ERRMSG),
+            4503,
+            "Table property is "
+            "FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE_GROUP"
+            " but not in comment",
+            "NDB");
           break;
         }
         case NdbDictionary::Object::FragmentCount_OnePerNode:
@@ -10938,24 +10922,6 @@ int ha_ndbcluster::create(const char *name,
     }
     else if (use_read_backup)
     {
-      if (!mod_frags->m_found && !is_alter)
-      {
-        /**
-         * Default for tables with no read of backup is one per ldm per
-         * node to ensure that we don't get imbalanced loads on the
-         * different nodes and ldms in the cluster. For tables with
-         * read backup there will be much smaller difference on usage
-         * of the fragments, so here we only have one fragment per node
-         * group and per ldm to avoid splitting the table into too many
-         * parts.
-         *
-         * We won't do this for ALTER TABLE table algorithm=copy
-         * since the end result of an ALTER TABLE should not
-         * change by the algorithm. Also it makes no sense to
-         * change the table fragmentation silently.
-         */
-        fctype = NdbDictionary::Object::FragmentCount_OnePerLDMPerNodeGroup;
-      }
       tab.setReadBackupFlag(true);
     }
   }
