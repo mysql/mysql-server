@@ -35,6 +35,6 @@ TRUNCATE performance_schema.events_waits_summary_by_instance;
 [connection server_1_8]
 [connection server_1_9]
 [connection server_1_10]
-include/assert.inc [The group commit should acquire sidno_lock for 11 times]
+include/assert.inc [The group commit should acquire sidno_lock for 2 times]
 DROP TABLE t1;
 include/rpl_end.inc

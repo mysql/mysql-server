@@ -2713,13 +2713,24 @@ public:
     @param THD The thread.
     @param specified_sidno Externaly generated sidno.
     @param specified_gno   Externaly generated gno.
+    @param[in,out] locked_sidno This parameter should be used when there is
+                                a need of generating many GTIDs without having
+                                to acquire/release a sidno_lock many times.
+                                The caller must hold global_sid_lock and unlock
+                                the locked_sidno after invocation when
+                                locked_sidno > 0 if locked_sidno!=NULL.
+                                The caller must not hold global_sid_lock when
+                                locked_sidno==NULL.
+                                See comments on function code to more details.
 
     @return RETURN_STATUS_OK or RETURN_STATUS_ERROR. Error can happen
     in case of out of memory or if the range of GNOs was exhausted.
   */
   enum_return_status generate_automatic_gtid(THD *thd,
                                              rpl_sidno specified_sidno= 0,
-                                             rpl_gno specified_gno= 0);
+                                             rpl_gno specified_gno= 0,
+                                             rpl_sidno *locked_sidno= NULL);
+
   /// Locks a mutex for the given SIDNO.
   void lock_sidno(rpl_sidno sidno) { sid_locks.lock(sidno); }
   /// Unlocks a mutex for the given SIDNO.
