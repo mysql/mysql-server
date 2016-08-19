@@ -1219,10 +1219,46 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
                                             &table_exists))
               break;
 
-            // Remove table from DD
-            if (table_exists &&
-                dd::drop_table<dd::Table>(thd, db, table_name))
-              break;
+            if (table_exists)
+            {
+              if (ddl_log_entry->action_type == DDL_LOG_REPLACE_ACTION)
+              {
+                char from_db[NAME_LEN + 1];
+                char from_table_name[NAME_LEN + 1];
+
+                if (path_to_db_and_table_name(ddl_log_entry->from_name,
+                                              from_db,
+                                              from_table_name))
+                  break;
+
+                table_exists= false;
+
+                if (dd::table_exists<dd::Table>(thd->dd_client(),
+                                                from_db,
+                                                from_table_name,
+                                                &table_exists))
+                  break;
+
+                /*
+                  If there are both temporary table and original table
+                  and we are handling ALTER TABLE ... DROP PARTITION then
+                  move triggers from original partitioned table to the
+                  temporary table. Moved triggers will be later restored
+                  for the original table while calling dd::rename_table
+                  in the next alternative DDL_LOG_RENAME_ACTION.
+                */
+                if (table_exists &&
+                    dd::move_triggers(thd, db, table_name,
+                                      from_db, from_table_name))
+                  break;
+              }
+              else
+              {
+                //  Remove table from DD
+                if (dd::drop_table<dd::Table>(thd, db, table_name))
+                  break;
+              }
+            }
           }
         }
         else
@@ -1639,27 +1675,6 @@ bool deactivate_ddl_log_entry(uint entry_no)
 
 
 /**
-  Sync ddl log file.
-
-  @return Operation status
-    @retval TRUE        Error
-    @retval FALSE       Success
-*/
-
-static bool sync_ddl_log()
-{
-  bool error;
-  DBUG_ENTER("sync_ddl_log");
-
-  mysql_mutex_lock(&LOCK_gdl);
-  error= sync_ddl_log_no_lock();
-  mysql_mutex_unlock(&LOCK_gdl);
-
-  DBUG_RETURN(error);
-}
-
-
-/**
   Release a log memory entry.
   @param log_entry                Log memory entry to release
 */
@@ -1985,7 +2000,6 @@ size_t build_table_shadow_filename(char *buff, size_t bufflen,
     lpt                    Struct carrying many parameters needed for this
                            method
     flags                  Flags as defined below
-      WFRM_INSTALL_SHADOW       If set we should install the new frm
       WFRM_PACK_FRM             If set we should pack the frm file and delete
                                 the frm file
 
@@ -2007,7 +2021,6 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
     We set tmp_table to avoid get errors on naming of primary key index.
   */
   int error= 0;
-  char path[FN_REFLEN+1];
   char shadow_path[FN_REFLEN+1];
   char *shadow_name;
   char *part_syntax_buf;
@@ -2115,62 +2128,6 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       mem_alloc_error(length);
       DBUG_RETURN(true);
     }
-  }
-  if (flags & WSDI_INSTALL_SHADOW)
-  {
-    partition_info *part_info= lpt->part_info;
-    Partition_handler *part_handler= lpt->table->file->get_partition_handler();
-    if (part_handler && part_info)
-    {
-      part_handler->set_part_info(part_info, false);
-    }
-    /*
-      Build the file name
-    */
-    build_table_filename(path, sizeof(path) - 1, lpt->db,
-                         lpt->table_name, "", 0);
-    /*
-      When we are changing to use new definition we need to ensure that we
-      don't collide with another thread in process to open the par file.
-      We start by deleting the possible .par file. Then we
-      write to the DDL log that we have completed the delete phase by
-      increasing the phase of the log entry. Next step is to rename the
-      new new .par file to the real name. After
-      completing this we write a new phase to the log entry that will
-      deactivate it.
-    */
-    if (lpt->table->file->ha_create_handler_files(path, shadow_path,
-                                                  CHF_DELETE_FLAG, NULL) ||
-        deactivate_ddl_log_entry(lpt->part_info->frm_log_entry->entry_pos) ||
-        (sync_ddl_log(), FALSE) ||
-        lpt->table->file->ha_create_handler_files(path, shadow_path,
-                                                  CHF_RENAME_FLAG, NULL))
-    {
-      error= 1;
-      goto err;
-    }
-    // TODO: Should this be here or somewhere else? (and where should the rollback be?)
-    // TODO: Also add this to the ddl_log!!!
-    // Delete table details from new DD
-    if (error == 0 &&
-        !dd::get_dictionary()->is_dd_table_name(lpt->db, shadow_name) &&
-        !dd::get_dictionary()->is_dd_table_name(lpt->db, lpt->table_name))
-    {
-      if (dd::rename_table<dd::Table>(lpt->thd,
-                                      lpt->db,
-                                      shadow_name,
-                                      lpt->db,
-                                      lpt->table_name, true))
-      {
-        error= 1;
-        goto err;
-      }
-    }
-
-err:
-    deactivate_ddl_log_entry(lpt->part_info->frm_log_entry->entry_pos);
-    lpt->part_info->frm_log_entry= NULL;
-    (void) sync_ddl_log();
   }
 
   if (old_part_info)
