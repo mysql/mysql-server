@@ -6,6 +6,9 @@
 # expected binaries it uses.
 #
 --echo Run mysql_upgrade once
+# Filter out ndb_binlog_index to mask differences due to running with or without
+# ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 # It should have created a file in the MySQL Servers datadir
@@ -45,6 +48,9 @@ CREATE ROLE r1;
 GRANT SELECT ON *.* TO u1;
 
 --echo # Run mysql_upgrade
+# Filter out ndb_binlog_index to mask differences due to running with or without
+# ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 SHOW CREATE TABLE mysql.role_edges;

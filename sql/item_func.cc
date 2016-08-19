@@ -9105,6 +9105,55 @@ bool Item_func_version::itemize(Parse_context *pc, Item **res)
 
 
 /**
+  Check if schema and table are hidden by NDB engine.
+
+  @param    thd           Thread handle.
+  @param    schema_name   Schema name.
+  @param    table_name    Table name.
+
+  @retval   true          If schema and table are hidden by NDB.
+  @retval   false         If schema and table are not hidden by NDB.
+*/
+
+static inline bool is_hidden_by_ndb(THD *thd, const String *schema_name,
+                                    const String *table_name)
+{
+  if (!strncmp(schema_name->ptr(), "ndb", 3))
+  {
+    List<LEX_STRING> list;
+
+    // Check if schema is of ndb and if it is hidden by it.
+    LEX_STRING sch_name= schema_name->lex_string();
+    list.push_back(&sch_name);
+    ha_find_files(thd, nullptr, nullptr, nullptr,
+                  true, &list);
+    if (list.elements == 0)
+    {
+      // Schema is hidden by ndb engine.
+      return true;
+    }
+
+    // Check if table is hidden by ndb.
+    if (table_name != nullptr)
+    {
+      list.empty();
+      LEX_STRING tbl_name= table_name->lex_string();
+      list.push_back(&tbl_name);
+      ha_find_files(thd, schema_name->ptr(), nullptr, nullptr,
+                    false, &list);
+      if (list.elements == 0)
+      {
+        // Table is hidden by ndb engine.
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+
+/**
   @brief
     INFORMATION_SCHEMA picks metadata from new DD using system views.
     In order for INFORMATION_SCHEMA to skip listing database for which
@@ -9129,17 +9178,24 @@ longlong Item_func_can_access_database::val_int()
   String *schema_name_ptr;
   if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr)
   {
+    // Make sure we have safe string to access.
+    schema_name_ptr->c_ptr_safe();
+
     // Skip INFORMATION_SCHEMA database
-    if (is_infoschema_db(schema_name_ptr->c_ptr_safe()))
+    if (is_infoschema_db(schema_name_ptr->ptr()))
       DBUG_RETURN(true);
 
-    // Check access
+    // Check if schema is hidden.
     THD *thd= current_thd;
+    if (is_hidden_by_ndb(thd, schema_name_ptr, nullptr))
+      DBUG_RETURN(false);
+
+    // Check access
     Security_context *sctx= thd->security_context();
     if (!(sctx->master_access() & (DB_ACLS | SHOW_DB_ACL) ||
           acl_get(thd, sctx->host().str, sctx->ip().str,
-                  sctx->priv_user().str, schema_name_ptr->c_ptr_safe(), 0) ||
-          !check_grant_db(thd, schema_name_ptr->c_ptr_safe()))
+                  sctx->priv_user().str, schema_name_ptr->ptr(), 0) ||
+          !check_grant_db(thd, schema_name_ptr->ptr()))
        )
     {
       have_access= false;
@@ -9177,24 +9233,31 @@ longlong Item_func_can_access_table::val_int()
   if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
       (table_name_ptr=args[1]->val_str(&table_name)) != nullptr)
   {
+    // Make sure we have safe string to access.
+    schema_name_ptr->c_ptr_safe();
+    table_name_ptr->c_ptr_safe();
+
     // Skip INFORMATION_SCHEMA database
-    if (is_infoschema_db(schema_name_ptr->c_ptr_safe()))
+    if (is_infoschema_db(schema_name_ptr->ptr()))
       DBUG_RETURN(true);
 
-    // Check access
+    // Check if table is hidden.
     THD *thd= current_thd;
-    ulong db_access= 0;
+    if (is_hidden_by_ndb(thd, schema_name_ptr, table_name_ptr))
+      DBUG_RETURN(false);
 
-    check_access(thd, SELECT_ACL, schema_name_ptr->c_ptr_safe(),
+    // Check access
+    ulong db_access= 0;
+    check_access(thd, SELECT_ACL, schema_name_ptr->ptr(),
                  &db_access, nullptr, 0, 1);
 
     if (!(db_access & TABLE_ACLS))
     {
       TABLE_LIST table_list;
       memset(&table_list, 0, sizeof (table_list));
-      table_list.db= (char*) schema_name_ptr->c_ptr_safe();
+      table_list.db= (char*) schema_name_ptr->ptr();
       table_list.db_length= schema_name_ptr->length();
-      table_list.table_name= table_name_ptr->c_ptr_safe();
+      table_list.table_name= table_name_ptr->ptr();
       table_list.table_name_length= table_name_ptr->length();
       table_list.grant.privilege= db_access;
 
@@ -9242,21 +9305,30 @@ longlong Item_func_can_access_column::val_int()
       (table_name_ptr=args[1]->val_str(&table_name)) != nullptr &&
       (column_name_ptr=args[2]->val_str(&column_name)) != nullptr)
   {
+    // Make sure we have safe string to access.
+    schema_name_ptr->c_ptr_safe();
+    table_name_ptr->c_ptr_safe();
+    column_name_ptr->c_ptr_safe();
+
     // Skip INFORMATION_SCHEMA database
-    if (is_infoschema_db(schema_name_ptr->c_ptr_safe()))
+    if (is_infoschema_db(schema_name_ptr->ptr()))
       DBUG_RETURN(true);
 
-    // Check access
+    // Check if table is hidden.
     THD *thd= current_thd;
+    if (is_hidden_by_ndb(thd, schema_name_ptr, table_name_ptr))
+      DBUG_RETURN(false);
+
+    // Check access
     GRANT_INFO grant_info;
     memset(&grant_info, 0, sizeof (grant_info));
 
-    check_access(thd, SELECT_ACL, schema_name_ptr->c_ptr_safe(),
+    check_access(thd, SELECT_ACL, schema_name_ptr->ptr(),
                  &grant_info.privilege, nullptr, 0, 1);
     uint col_access= get_column_grant(thd, &grant_info,
-                                      schema_name_ptr->c_ptr_safe(),
-                                      table_name_ptr->c_ptr_safe(),
-                                      column_name_ptr->c_ptr_safe()
+                                      schema_name_ptr->ptr(),
+                                      table_name_ptr->ptr(),
+                                      column_name_ptr->ptr()
                                      ) & COL_ACLS;
     if (!col_access)
     {

@@ -20,6 +20,9 @@ CALL mtr.add_suppression("The mysql.component table is missing or has an incorre
 # Basic test that we can run mysql_upgrde and that it finds the expected
 # binaries it uses.
 --echo Run mysql_upgrade once
+# Filter out ndb_binlog_index to mask differences due to running with or without
+# ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 # It should have created a file in the MySQL Servers datadir
@@ -38,6 +41,9 @@ DROP TABLE mysql.component;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --echo # running mysql_upgrade
+# Filter out ndb_binlog_index to mask differences due to running with or without
+# ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 --source include/have_example_component.inc
 INSTALL COMPONENT "file://component_example_component1";

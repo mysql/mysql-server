@@ -157,7 +157,9 @@ SELECT table_name AS 'table_name'
 
 CREATE VIEW v1 AS SELECT table_name
   FROM information_schema.tables
-  WHERE table_schema LIKE 'information_schema' AND table_name NOT LIKE 'INNODB%'
+  WHERE table_schema LIKE 'information_schema'
+        AND table_name NOT LIKE 'INNODB%'
+        AND table_name NOT LIKE 'ndb%'
   ORDER BY table_name COLLATE UTF8_GENERAL_CI;
 SELECT * FROM v1;
 DROP VIEW v1;

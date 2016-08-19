@@ -164,7 +164,7 @@ bool convert_table_name_case(char *db, char *table_name)
   if (db && is_infoschema_db(db))
   {
     my_casedn_str(system_charset_info, db);
-    if (table_name)
+    if (table_name && strncmp(table_name, "ndb", 3))
         my_caseup_str(system_charset_info, table_name);
 
     return true;
