@@ -46,7 +46,8 @@ IF(CMAKE_SIZEOF_VOID_P MATCHES 8)
   SET(SYSTEM_TYPE "Win64")
   SET(MYSQL_MACHINE_TYPE "x86_64")
 ELSE()
-  SET(SYSTEM_TYPE "Win32")
+  MESSAGE(FATAL_ERROR "32 bit Windows builds are not supported. "
+       "Clean the build dir and rebuild using -G \"${CMAKE_GENERATOR} Win64\"")
 ENDIF()
 
 # Target Windows 7 / Windows Server 2008 R2 or later, i.e _WIN32_WINNT_WIN7
