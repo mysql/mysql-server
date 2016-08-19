@@ -782,11 +782,15 @@ bool add_cyclic_foreign_keys(THD *thd)
     if (thd->dd_client()->acquire(std::string(MYSQL_SCHEMA_NAME.str),
                                   (*it)->entity()->name(), &table))
       return true;
-    std::unique_ptr<Table_impl> table_clone(
-            dynamic_cast<Table_impl*>(table->clone()));
-    table_clone->set_hidden((*it)->entity()->hidden());
-    if (thd->dd_client()->store(static_cast<Table*>(table_clone.get())))
-      return end_transaction(thd, true);
+
+    if (table->hidden() != (*it)->entity()->hidden())
+    {
+      std::unique_ptr<Table_impl> table_clone(
+              dynamic_cast<Table_impl*>(table->clone()));
+      table_clone->set_hidden((*it)->entity()->hidden());
+      if (thd->dd_client()->store(static_cast<Table*>(table_clone.get())))
+        return end_transaction(thd, true);
+    }
     end_transaction(thd, false);
   }
 
