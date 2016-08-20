@@ -4211,6 +4211,60 @@ dd_copy_private(
 	ut_ad(j == new_table.indexes()->end());
 }
 
+template<typename Index>
+static MY_ATTRIBUTE((warn_unused_result))
+dict_index_t*
+find_index(
+	Alter_inplace_info*	ha_alter_info,
+	dict_table_t*		new_table,
+	Index*			new_dd_idx)
+{
+	/* If the name is PRIMARY, return the first index directly,
+	because the internal index name could be 'GEN_CLUST_INDEX'.
+	It could be possible that the primary key name is not PRIMARY,
+	because it's an implicitly upgraded unique index. We have to
+	search all the indexes */
+	if (new_dd_idx->name() == "PRIMARY") {
+		return(new_table->first_index());
+	}
+
+	/* The order could be different because all unique dd::Index(es)
+	would be in front of other indexes. */
+	dict_index_t*	new_idx;
+	for (new_idx = new_table->first_index();
+	     new_idx != NULL
+	     && strcmp(new_dd_idx->name().c_str(), new_idx->name) != 0;
+	     new_idx = new_idx->next()) {}
+
+	if (new_idx == NULL) {
+		/* This could be due to a renaming of index */
+		ha_innobase_inplace_ctx* ctx =
+			reinterpret_cast<ha_innobase_inplace_ctx*>(
+			ha_alter_info->handler_ctx);
+		ut_a(ctx->num_to_rename != 0);
+
+		const char*	old_idx_name = NULL;
+		for (ulint i = 0; i < ctx->num_to_rename; ++i) {
+			KEY_PAIR* pair = &ha_alter_info->index_rename_buffer[i];
+
+			if (strcmp(new_dd_idx->name().c_str(),
+				   pair->new_key->name) == 0) {
+				old_idx_name = pair->old_key->name;
+				break;
+                        }
+		}
+
+		for (new_idx = new_table->first_index()->next();
+		     new_idx != NULL
+		     && strcmp(new_idx->name, old_idx_name) != 0;
+		     new_idx = new_idx->next()) {}
+
+		ut_a(new_idx != NULL);
+	}
+
+	return(new_idx);
+}
+
 template<typename Table>
 static MY_ATTRIBUTE((warn_unused_result))
 bool
@@ -4303,25 +4357,13 @@ prepare_inplace_alter_table_global_dd(
 
                 /* Now all index metadata are ready in dict_index_t(s),
 		copy them into dd::Index(es) */
-		bool	first = true;
 		for (dd::Index* idx : *new_dd_tab->indexes()) {
-			/* The order could be different because all unique
-			dd::Index(es) would be in front of other indexes */
-			dict_index_t*	new_idx;
-			for (new_idx = new_table->first_index();
-			     !first
-			     && new_idx != NULL
-			     && strcmp(idx->name().c_str(), new_idx->name) != 0;
-			     new_idx = new_idx->next()) {
-			}
-
-			ut_a(new_idx != NULL);
+			const dict_index_t*	new_idx = find_index(
+				ha_alter_info, new_table, idx);
 
 			create_table_info_t::write_dd_index(
 				dd_space_id, idx, new_idx);
 			new_idx = new_idx->next();
-
-			first = false;
 		}
 	}
 
