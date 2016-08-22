@@ -9172,7 +9172,6 @@ longlong Item_func_can_access_database::val_int()
   DBUG_ENTER("Item_func_can_access_database::val_int");
   bool have_access= true;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   // Read schema_name
   String schema_name;
   String *schema_name_ptr;
@@ -9181,14 +9180,15 @@ longlong Item_func_can_access_database::val_int()
     // Make sure we have safe string to access.
     schema_name_ptr->c_ptr_safe();
 
-    // Skip INFORMATION_SCHEMA database
-    if (is_infoschema_db(schema_name_ptr->ptr()))
-      DBUG_RETURN(true);
-
     // Check if schema is hidden.
     THD *thd= current_thd;
     if (is_hidden_by_ndb(thd, schema_name_ptr, nullptr))
       DBUG_RETURN(false);
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    // Skip INFORMATION_SCHEMA database
+    if (is_infoschema_db(schema_name_ptr->ptr()))
+      DBUG_RETURN(true);
 
     // Check access
     Security_context *sctx= thd->security_context();
@@ -9200,8 +9200,8 @@ longlong Item_func_can_access_database::val_int()
     {
       have_access= false;
     }
-  }
 #endif
+  }
 
   DBUG_RETURN(have_access);
 }
@@ -9224,7 +9224,6 @@ longlong Item_func_can_access_table::val_int()
   DBUG_ENTER("Item_func_can_access_table::val_int");
   bool have_access= true;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   // Read schema_name, table_name
   String schema_name;
   String *schema_name_ptr;
@@ -9237,14 +9236,15 @@ longlong Item_func_can_access_table::val_int()
     schema_name_ptr->c_ptr_safe();
     table_name_ptr->c_ptr_safe();
 
-    // Skip INFORMATION_SCHEMA database
-    if (is_infoschema_db(schema_name_ptr->ptr()))
-      DBUG_RETURN(true);
-
     // Check if table is hidden.
     THD *thd= current_thd;
     if (is_hidden_by_ndb(thd, schema_name_ptr, table_name_ptr))
       DBUG_RETURN(false);
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    // Skip INFORMATION_SCHEMA database
+    if (is_infoschema_db(schema_name_ptr->ptr()))
+      DBUG_RETURN(true);
 
     // Check access
     ulong db_access= 0;
@@ -9267,8 +9267,8 @@ longlong Item_func_can_access_table::val_int()
         have_access= false;
       }
     }
-  }
 #endif
+  }
 
   DBUG_RETURN(have_access);
 }
@@ -9293,31 +9293,35 @@ longlong Item_func_can_access_column::val_int()
   DBUG_ENTER("Item_func_can_access_column::val_int");
   bool have_access= true;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   // Read schema_name, table_name
   String schema_name;
   String *schema_name_ptr;
   String table_name;
   String *table_name_ptr;
-  String column_name;
-  String *column_name_ptr;
   if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
-      (table_name_ptr=args[1]->val_str(&table_name)) != nullptr &&
-      (column_name_ptr=args[2]->val_str(&column_name)) != nullptr)
+      (table_name_ptr=args[1]->val_str(&table_name)) != nullptr)
   {
     // Make sure we have safe string to access.
     schema_name_ptr->c_ptr_safe();
     table_name_ptr->c_ptr_safe();
-    column_name_ptr->c_ptr_safe();
-
-    // Skip INFORMATION_SCHEMA database
-    if (is_infoschema_db(schema_name_ptr->ptr()))
-      DBUG_RETURN(true);
 
     // Check if table is hidden.
     THD *thd= current_thd;
     if (is_hidden_by_ndb(thd, schema_name_ptr, table_name_ptr))
       DBUG_RETURN(false);
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    // Read column_name.
+    String column_name;
+    String *column_name_ptr;
+    if ((column_name_ptr=args[2]->val_str(&column_name)) == nullptr)
+      DBUG_RETURN(true);
+    // Make sure we have safe string to access.
+    column_name_ptr->c_ptr_safe();
+
+    // Skip INFORMATION_SCHEMA database
+    if (is_infoschema_db(schema_name_ptr->ptr()))
+      DBUG_RETURN(true);
 
     // Check access
     GRANT_INFO grant_info;
@@ -9334,8 +9338,8 @@ longlong Item_func_can_access_column::val_int()
     {
       have_access= false;
     }
-  }
 #endif
+  }
 
   DBUG_RETURN(have_access);
 }
