@@ -15584,11 +15584,6 @@ ha_innobase::delete_table(
 		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
 		dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
-		if (dd::acquire_exclusive_tablespace_mdl(
-			    thd, name, false)) {
-			ut_a(false);
-		}
-
 		const dd::Tablespace*	dd_space;
 		if (client->acquire_uncached_uncommitted<dd::Tablespace>(
 			    dd_space_id, &dd_space)) {
