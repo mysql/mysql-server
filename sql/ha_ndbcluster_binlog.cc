@@ -1062,8 +1062,6 @@ private:
   uint32 m_save_val;
 };
 
-extern int ndb_setup_complete;
-extern pthread_cond_t COND_ndb_setup_complete;
 
 /*
    ndb_notify_tables_writable
@@ -1075,7 +1073,7 @@ static void ndb_notify_tables_writable()
 {
   pthread_mutex_lock(&ndbcluster_mutex);
   ndb_setup_complete= 1;
-  pthread_cond_broadcast(&COND_ndb_setup_complete);
+  pthread_cond_broadcast(&ndbcluster_cond);
   pthread_mutex_unlock(&ndbcluster_mutex);
 }
 
