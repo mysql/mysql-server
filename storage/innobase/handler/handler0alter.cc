@@ -4236,11 +4236,12 @@ find_index(
 	     && strcmp(new_dd_idx->name().c_str(), new_idx->name) != 0;
 	     new_idx = new_idx->next()) {}
 
+	ha_innobase_inplace_ctx* ctx =
+		reinterpret_cast<ha_innobase_inplace_ctx*>(
+			ha_alter_info->handler_ctx);
+
 	if (new_idx == NULL) {
 		/* This could be due to a renaming of index */
-		ha_innobase_inplace_ctx* ctx =
-			reinterpret_cast<ha_innobase_inplace_ctx*>(
-			ha_alter_info->handler_ctx);
 		ut_a(ctx->num_to_rename != 0);
 
 		const char*	old_idx_name = NULL;
@@ -4260,6 +4261,16 @@ find_index(
 		     new_idx = new_idx->next()) {}
 
 		ut_a(new_idx != NULL);
+	} else if (ctx->num_to_add_index != 0 && ctx->num_to_drop_index != 0) {
+		/* Have to check if this is a DROP INDEX name, ADD INDEX name */
+		dict_index_t*	index = new_idx;
+		for (index = new_idx->next();
+		     index != NULL && strcmp(index->name, new_idx->name) != 0;
+		     index = index->next()) {}
+
+		if (index != NULL && index->trx_id > new_idx->trx_id) {
+			new_idx = index;
+		}
 	}
 
 	return(new_idx);
