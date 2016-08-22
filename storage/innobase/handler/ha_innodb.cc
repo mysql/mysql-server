@@ -14800,7 +14800,6 @@ ha_innobase::get_extra_columns_and_keys(
 		if (fts_doc_id) {
 			if (fts_doc_id->type()
 			    != dd::enum_column_types::LONGLONG
-			    || !fts_doc_id->is_unsigned()
 			    || fts_doc_id->is_nullable()
 			    || fts_doc_id->name() != FTS_DOC_ID_COL_NAME) {
 				my_error(ER_INNODB_FT_WRONG_DOCID_COLUMN,
