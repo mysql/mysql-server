@@ -17,11 +17,15 @@
 /* UTF8 according RFC 2279 */
 /* Written by Alexander Barkov <bar@udm.net> */
 
-#include <my_global.h>
-#include "m_string.h"
-#include "m_ctype.h"
 #include <errno.h>
-#include "my_uctype.h"
+#include <my_global.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "m_ctype.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_uctype.h"  // IWYU pragma: keep
 
 #ifndef EILSEQ
 #define EILSEQ ENOENT

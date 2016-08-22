@@ -16,12 +16,19 @@
 
 /* UCS2 support. Written by Alexander Barkov <bar@mysql.com> */
 
+#include <errno.h>
+#include <limits.h>
 #include <my_global.h>
 #include <my_sys.h>
-#include "m_string.h"
-#include "m_ctype.h"
-#include <errno.h>
 #include <stdarg.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
 
 
 

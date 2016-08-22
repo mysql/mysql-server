@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,6 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
+#ifndef BYTE_ORDER_GENERIC_X86_INCLUDED
+#define BYTE_ORDER_GENERIC_X86_INCLUDED
+
 /**
   @@file include/byte_order_generic_x86.h
   Optimized functions for the x86 architecture (_WIN32 included).
@@ -20,6 +23,14 @@
   x86 handles misaligned reads and writes just fine, so suppress
   UBSAN warnings for these functions.
 */
+
+// IWYU pragma: private, include "my_byteorder.h"
+
+#include "my_global.h"
+
+#ifndef MY_BYTEORDER_INCLUDED
+#error This file should never be #included directly; use my_byteorder.h.
+#endif
 
 static inline int16  sint2korr(const uchar *A) SUPPRESS_UBSAN;
 static inline int16  sint2korr(const uchar *A) { return *((int16*) A); }
@@ -56,3 +67,5 @@ static inline void int8store(uchar *T, ulonglong A)
 {
   *((ulonglong*) T)= A;
 }
+
+#endif /* BYTE_ORDER_GENERIC_X86_INCLUDED */

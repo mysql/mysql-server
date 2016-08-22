@@ -32,15 +32,19 @@
 
 
 #include <my_global.h>
-#include "m_string.h"
-#include "m_ctype.h"
-#include "mysql/service_my_snprintf.h"
-#include "template_utils.h"
-#include "uca_data.h"
-#include "uca900_data.h"
-
+#include <string.h>
+#include <sys/types.h>
 #include <algorithm>
 #include <iterator>
+
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "mysql/service_my_snprintf.h"
+#include "str_uca_type.h"
+#include "template_utils.h"
+#include "uca900_data.h"
+#include "uca_data.h"
 
 MY_UCA_INFO my_uca_v400=
 {

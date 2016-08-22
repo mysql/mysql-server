@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,9 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <limits.h>
+#include <m_string.h>  // IWYU pragma: keep
 #include <my_global.h>
 #include <my_sys.h>            /* Needed for MY_ERRNO_ERANGE */
-#include <m_string.h>
+#include <sys/types.h>
 
 #define MAX_NEGATIVE_NUMBER	((ulonglong) 0x8000000000000000LL)
 #define INIT_CNT  9

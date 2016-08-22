@@ -19,9 +19,13 @@
 
 
 #include <my_global.h>
-#include "m_string.h"
-#include "m_ctype.h"
+#include <string.h>
+#include <sys/types.h>
 #include <algorithm>
+
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_compiler.h"
 
 static const uchar ctype_bin[]=
 {
