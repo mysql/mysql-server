@@ -861,9 +861,21 @@ srv_undo_tablespaces_init(
 			break;
 		}
 
+		/** Note the first undo tablespace id in case of
+		no active undo tablespace. */
+		if (n_undo_tablespaces == 0) {
+			srv_undo_space_id_start = id;
+		}
+
 		++n_undo_tablespaces;
 
 		++*n_opened;
+	}
+
+	/** Explictly specify the srv_undo_space_id_start
+	as zero when there are no undo tablespaces. */
+	if (n_undo_tablespaces == 0) {
+		srv_undo_space_id_start = 0;
 	}
 
 	/* If the user says that there are fewer than what we find we
