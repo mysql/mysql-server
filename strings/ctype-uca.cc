@@ -689,6 +689,8 @@ typedef struct my_uca_scanner_st
   const CHARSET_INFO *cs;
   int num_of_ce_handled;
   int num_of_ce;
+  uint max_char_toscan;
+  uint char_index;
 } my_uca_scanner;
 
 /*
@@ -699,7 +701,7 @@ typedef struct my_uca_scanner_handler_st
 {
   void (*init)(my_uca_scanner *scanner, const CHARSET_INFO *cs, 
                const MY_UCA_WEIGHT_LEVEL *level,
-               const uchar *str, size_t length);
+               const uchar *str, size_t length, uint max_char_toscan);
   int (*next)(my_uca_scanner *scanner);
 } my_uca_scanner_handler;
 
@@ -1238,7 +1240,8 @@ static void
 my_uca_scanner_init_any(my_uca_scanner *scanner,
                         const CHARSET_INFO *cs,
                         const MY_UCA_WEIGHT_LEVEL *level,
-                        const uchar *str, size_t length)
+                        const uchar *str, size_t length,
+                        uint max_char_toscan)
 {
   /* Note, no needs to initialize scanner->wbeg */
   scanner->sbeg= str;
@@ -1248,6 +1251,8 @@ my_uca_scanner_init_any(my_uca_scanner *scanner,
   scanner->cs= cs;
   scanner->num_of_ce_handled= 0;
   scanner->num_of_ce= 0;
+  scanner->max_char_toscan= max_char_toscan;
+  scanner->char_index= 0;
 }
 
 static int my_uca_scanner_next_any(my_uca_scanner *scanner)
@@ -1267,6 +1272,8 @@ static int my_uca_scanner_next_any(my_uca_scanner *scanner)
     my_wc_t wc[MY_UCA_MAX_CONTRACTION];
     int mblen;
 
+    if (scanner->char_index >= scanner->max_char_toscan)
+      return -1;
     /* Get next character */
     if (((mblen= scanner->cs->cset->mb_wc(scanner->cs, wc,
                                           scanner->sbeg,
@@ -1274,6 +1281,7 @@ static int my_uca_scanner_next_any(my_uca_scanner *scanner)
       return -1;
 
     scanner->sbeg+= mblen;
+    scanner->char_index++;
     if (wc[0] > scanner->level->maxchar)
     {
       /* Return 0xFFFD as weight for all characters outside BMP */
@@ -1542,8 +1550,8 @@ static int my_strnncoll_uca(const CHARSET_INFO *cs,
   int s_res;
   int t_res;
   
-  scanner_handler->init(&sscanner, cs, &cs->uca->level[0], s, slen);
-  scanner_handler->init(&tscanner, cs, &cs->uca->level[0], t, tlen);
+  scanner_handler->init(&sscanner, cs, &cs->uca->level[0], s, slen, slen);
+  scanner_handler->init(&tscanner, cs, &cs->uca->level[0], t, tlen, tlen);
   
   do
   {
@@ -1638,8 +1646,8 @@ static int my_strnncollsp_uca(const CHARSET_INFO *cs,
   my_uca_scanner sscanner, tscanner;
   int s_res, t_res;
   
-  scanner_handler->init(&sscanner, cs, &cs->uca->level[0], s, slen);
-  scanner_handler->init(&tscanner, cs, &cs->uca->level[0], t, tlen);
+  scanner_handler->init(&sscanner, cs, &cs->uca->level[0], s, slen, slen);
+  scanner_handler->init(&tscanner, cs, &cs->uca->level[0], t, tlen, tlen);
   
   do
   {
@@ -1689,8 +1697,8 @@ static int my_strnncollsp_uca_900(const CHARSET_INFO *cs,
 
   my_uca_scanner_handler *scanner_handler= &my_uca_900_scanner_handler;
 
-  scanner_handler->init(&sscanner, cs, &cs->uca->level[0], s, slen);
-  scanner_handler->init(&tscanner, cs, &cs->uca->level[0], t, tlen);
+  scanner_handler->init(&sscanner, cs, &cs->uca->level[0], s, slen, slen);
+  scanner_handler->init(&tscanner, cs, &cs->uca->level[0], t, tlen, tlen);
 
   do
   {
@@ -1765,7 +1773,7 @@ static void my_hash_sort_uca(const CHARSET_INFO *cs,
   ulong tmp2;
 
   slen= cs->cset->lengthsp(cs, (char*) s, slen);
-  scanner_handler->init(&scanner, cs, &cs->uca->level[0], s, slen);
+  scanner_handler->init(&scanner, cs, &cs->uca->level[0], s, slen, slen);
 
   tmp1= *n1;
   tmp2= *n2;
@@ -1825,15 +1833,16 @@ my_strnxfrm_uca(const CHARSET_INFO *cs,
   uchar *de= dst + dstlen;
   int   s_res;
   my_uca_scanner scanner;
-  scanner_handler->init(&scanner, cs, &cs->uca->level[0], src, srclen);
+  scanner_handler->init(&scanner, cs, &cs->uca->level[0], src, srclen,
+                        nweights);
   
-  for (; dst < de && nweights &&
-         (s_res= scanner_handler->next(&scanner)) > 0 ; nweights--)
+  while (dst < de && (s_res= scanner_handler->next(&scanner)) > 0)
   {
     *dst++= s_res >> 8;
     if (dst < de)
       *dst++= s_res & 0xFF;
   }
+  nweights-= scanner.char_index;
   
   if (dst < de && nweights && (flags & MY_STRXFRM_PAD_WITH_SPACE))
   {
@@ -4247,7 +4256,7 @@ static void my_hash_sort_uca_900(const CHARSET_INFO *cs,
   my_uca_scanner_handler *scanner_handler= &my_uca_900_scanner_handler;
 
   slen= cs->cset->lengthsp(cs, (char*) s, slen);
-  scanner_handler->init(&scanner, cs, &cs->uca->level[0], s, slen);
+  scanner_handler->init(&scanner, cs, &cs->uca->level[0], s, slen, slen);
 
   tmp1= *n1;
   tmp2= *n2;
@@ -4276,7 +4285,7 @@ static size_t my_strnxfrm_uca_900(const CHARSET_INFO *cs,
   int   s_res;
   my_uca_scanner scanner;
   my_uca_scanner_handler *scanner_handler= &my_uca_900_scanner_handler;
-  scanner_handler->init(&scanner, cs, &cs->uca->level[0], src, srclen);
+  scanner_handler->init(&scanner, cs, &cs->uca->level[0], src, srclen, srclen);
 
   for (; dst < de && nweights &&
          (s_res= scanner_handler->next(&scanner)) >= 0;)
