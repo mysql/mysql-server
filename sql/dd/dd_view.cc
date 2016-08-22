@@ -679,6 +679,8 @@ bool update_view_status(THD *thd, const char *schema_name,
   dd::Properties *view_options= &new_view->options();
   view_options->set_bool("view_valid", status);
 
+  Disable_gtid_state_update_guard disabler(thd);
+
   // Update DD tables.
   if (thd->dd_client()->update(&view, new_view.get()))
   {
