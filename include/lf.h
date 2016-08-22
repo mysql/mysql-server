@@ -16,7 +16,10 @@
 #ifndef _lf_h
 #define _lf_h
 
-#include <my_atomic.h>
+#include "my_global.h"
+#include "my_atomic.h"
+#include "my_sys.h"
+#include "hash.h"
 
 C_MODE_START
 
@@ -111,13 +114,12 @@ typedef struct {
 typedef struct {
   void * volatile pin[LF_PINBOX_PINS];
   LF_PINBOX *pinbox;
-  void  **stack_ends_here;
   void  *purgatory;
   uint32 purgatory_count;
   uint32 volatile link;
 /* we want sizeof(LF_PINS) to be 64 to avoid false sharing */
-#if SIZEOF_INT*2+SIZEOF_CHARP*(LF_PINBOX_PINS+3) != 64
-  char pad[64-sizeof(uint32)*2-sizeof(void*)*(LF_PINBOX_PINS+3)];
+#if SIZEOF_INT*2+SIZEOF_CHARP*(LF_PINBOX_PINS+2) != 64
+  char pad[64-sizeof(uint32)*2-sizeof(void*)*(LF_PINBOX_PINS+2)];
 #endif
 } LF_PINS;
 
@@ -210,15 +212,6 @@ lock_wrap(lf_alloc_new, void *,
           (LF_PINS *pins),
           (pins),
           &pins->pinbox->pinarray.lock)
-
-C_MODE_END
-
-/*
-  extendible hash, lf_hash.c
-*/
-#include <hash.h>
-
-C_MODE_START
 
 #define LF_HASH_UNIQUE 1
 
