@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -727,9 +727,12 @@ private:
 
 static const char ndbcluster_hton_name[]= "ndbcluster";
 static const int ndbcluster_hton_name_length=sizeof(ndbcluster_hton_name)-1;
-extern int ndbcluster_terminating;
 
-#include "ndb_util_thread.h"
-extern Ndb_util_thread ndb_util_thread;
+// Global handler synchronization
+extern pthread_mutex_t ndbcluster_mutex;
+extern pthread_cond_t  ndbcluster_cond;
+
+extern int ndb_setup_complete;
+
 
 int ndb_to_mysql_error(const NdbError *ndberr);
