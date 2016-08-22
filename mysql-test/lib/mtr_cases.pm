@@ -169,6 +169,7 @@ sub collect_test_cases ($$$$) {
           if ( @this_case )
           {
             push (@$cases, @this_case);
+            $found= 1;
           }
           else
           {
