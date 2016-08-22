@@ -1038,9 +1038,6 @@ ndb_schema_table__create(THD *thd)
 }
 
 
-extern int ndb_setup_complete;
-extern mysql_cond_t COND_ndb_setup_complete;
-
 /*
    ndb_notify_tables_writable
    
@@ -1051,7 +1048,7 @@ static void ndb_notify_tables_writable()
 {
   mysql_mutex_lock(&ndbcluster_mutex);
   ndb_setup_complete= 1;
-  mysql_cond_broadcast(&COND_ndb_setup_complete);
+  mysql_cond_broadcast(&ndbcluster_cond);
   mysql_mutex_unlock(&ndbcluster_mutex);
 }
 

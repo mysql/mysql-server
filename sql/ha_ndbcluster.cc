@@ -449,17 +449,16 @@ uint ha_ndbcluster::alter_flags(uint flags) const
 static int ndbcluster_inited= 0;
 
 /* 
-   Indicator and CONDVAR used to delay client and slave
+   Indicator used to delay client and slave
    connections until Ndb has Binlog setup
    (bug#46955)
 */
-int ndb_setup_complete= 0;
-mysql_cond_t COND_ndb_setup_complete; // Signal with ndbcluster_mutex
-
+int ndb_setup_complete= 0; // Use ndbcluster_mutex & ndbcluster_cond
 extern Ndb* g_ndb;
 
 /// Handler synchronization
 mysql_mutex_t ndbcluster_mutex;
+mysql_cond_t  ndbcluster_cond;
 
 /// Table lock handling
 HASH ndbcluster_open_tables;
@@ -13752,18 +13751,38 @@ static bool is_supported_system_table(const char *db,
 /* Call back after cluster connect */
 static int connect_callback()
 {
-  mysql_mutex_lock(&ndb_util_thread.LOCK);
+  mysql_mutex_lock(&ndbcluster_mutex);
   update_status_variables(NULL, &g_ndb_status,
                           g_ndb_cluster_connection);
-  mysql_cond_broadcast(&ndb_util_thread.COND);
-  mysql_mutex_unlock(&ndb_util_thread.LOCK);
+
+  mysql_cond_broadcast(&ndbcluster_cond);
+  mysql_mutex_unlock(&ndbcluster_mutex);
   return 0;
+}
+
+bool ndbcluster_is_connected(uint max_wait_sec)
+{
+  mysql_mutex_lock(&ndbcluster_mutex);
+  bool connected=
+    !(!g_ndb_status.cluster_node_id && ndbcluster_hton->slot != ~(uint)0);
+
+  if (!connected)
+  {
+    /* ndb not connected yet */
+    struct timespec abstime;
+    set_timespec(&abstime, max_wait_sec);
+    mysql_cond_timedwait(&ndbcluster_cond, &ndbcluster_mutex, &abstime);
+    connected=
+      !(!g_ndb_status.cluster_node_id && ndbcluster_hton->slot != ~(uint)0);
+  }
+  mysql_mutex_unlock(&ndbcluster_mutex);
+  return connected;
 }
 
 /**
  * Components
  */
-Ndb_util_thread ndb_util_thread;
+static Ndb_util_thread ndb_util_thread;
 Ndb_index_stat_thread ndb_index_stat_thread;
 
 extern THD * ndb_create_thd(char * stackptr);
@@ -13780,7 +13799,7 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
   while (max_wait &&
          (!ndb_setup_complete || !ndb_index_stat_thread.is_setup_complete()))
   {
-    int rc= mysql_cond_timedwait(&COND_ndb_setup_complete,
+    int rc= mysql_cond_timedwait(&ndbcluster_cond,
                                  &ndbcluster_mutex,
                                  &abstime);
     if (rc)
@@ -13938,7 +13957,7 @@ int ndbcluster_init(void* p)
   }
 
   mysql_mutex_init(PSI_INSTRUMENT_ME, &ndbcluster_mutex, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(PSI_INSTRUMENT_ME, &COND_ndb_setup_complete);
+  mysql_cond_init(PSI_INSTRUMENT_ME, &ndbcluster_cond);
   ndb_dictionary_is_mysqld= 1;
   ndb_setup_complete= 0;
   ndbcluster_hton= (handlerton *)p;
@@ -14128,7 +14147,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
   ndb_index_stat_thread.deinit();
 
   mysql_mutex_destroy(&ndbcluster_mutex);
-  mysql_cond_destroy(&COND_ndb_setup_complete);
+  mysql_cond_destroy(&ndbcluster_cond);
 
   // Cleanup NdbApi
   ndb_end_internal(1);
@@ -17157,15 +17176,16 @@ Ndb_util_thread::do_run()
   /*
     Wait for cluster to start
   */
-  mysql_mutex_lock(&LOCK);
-  while (!g_ndb_status.cluster_node_id && (ndbcluster_hton->slot != ~(uint)0))
+  while (!ndbcluster_is_connected(1))
   {
     /* ndb not connected yet */
-    mysql_cond_wait(&COND, &LOCK);
     if (is_stop_requested())
+    {
+      /* Terminated with a stop_request */
+      mysql_mutex_lock(&LOCK);
       goto ndb_util_thread_end;
+    }
   }
-  mysql_mutex_unlock(&LOCK);
 
   /* Get thd_ndb for this thread */
   if (!(thd_ndb= Thd_ndb::seize(thd)))
