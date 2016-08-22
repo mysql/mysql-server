@@ -519,6 +519,100 @@ static int make_iso8601_timestamp(char *buf, ulonglong utime= 0)
 }
 
 
+bool is_valid_log_name(const char *name, size_t len)
+{
+  if (len > 3)
+  {
+    const char *tail= name + len - 4;
+    if (my_strcasecmp(system_charset_info, tail, ".ini") == 0 ||
+        my_strcasecmp(system_charset_info, tail, ".cnf") == 0)
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+
+/**
+  Get the real log file name, and possibly reopen file.
+
+  The implementation is platform dependent due to differences in how this is
+  supported:
+
+  On Windows, we get the actual path based on the file descriptor. This path is
+  copied into the supplied buffer. The 'file' parameter is returned without
+  re-opening.
+
+  On other platforms, we use realpath() to get the path with symbolic links
+  expanded. Then, we close the file, and reopen the real path using the
+  O_NOFOLLOW flag. This will reject folowing symbolic links.
+
+  @param          file                  File descriptor.
+  @param          log_file_key          Key for P_S instrumentation.
+  @param          open_flags            Flags to use for opening the file.
+  @param          opened_file_name      Name of the open fd.
+  @param [out]    real_file_name        Buffer for actual name of the fd.
+
+  @retval file descriptor to open file with 'real_file_name', or '-1'
+          in case of errors.
+*/
+
+static File mysql_file_real_name_reopen(File file,
+#ifdef HAVE_PSI_INTERFACE
+                                        PSI_file_key log_file_key,
+#endif
+                                        int open_flags,
+                                        const char *opened_file_name,
+                                        char *real_file_name)
+{
+  DBUG_ASSERT(file);
+  DBUG_ASSERT(opened_file_name);
+  DBUG_ASSERT(real_file_name);
+
+#ifdef _WIN32
+  /* On Windows, O_NOFOLLOW is not supported. Verify real path from fd. */
+  DWORD real_length= GetFinalPathNameByHandle(my_get_osfhandle(file),
+                                              real_file_name,
+                                              FN_REFLEN,
+                                              FILE_NAME_OPENED);
+
+  /* May ret 0 if e.g. on a ramdisk. Ignore - return open file and name. */
+  if (real_length == 0)
+  {
+    strcpy(real_file_name, opened_file_name);
+    return file;
+  }
+
+  if (real_length > FN_REFLEN)
+  {
+    mysql_file_close(file, MYF(0));
+    return -1;
+  }
+
+  return file;
+#else
+  /* On *nix, get realpath, open realpath with O_NOFOLLOW. */
+  if (realpath(opened_file_name, real_file_name) == NULL)
+  {
+    (void) mysql_file_close(file, MYF(0));
+    return -1;
+  }
+
+  if (mysql_file_close(file, MYF(0)))
+    return -1;
+
+  /* Make sure the real path is not too long. */
+  if (strlen(real_file_name) > FN_REFLEN)
+    return -1;
+
+  return mysql_file_open(log_file_key, real_file_name,
+                         open_flags | O_NOFOLLOW,
+                         MYF(MY_WME));
+#endif //_WIN32
+}
+
+
 bool File_query_log::open()
 {
   File file= -1;
@@ -552,11 +646,35 @@ bool File_query_log::open()
 
   db[0]= 0;
 
+  /* First, open the file to make sure it exists. */
   if ((file= mysql_file_open(m_log_file_key,
                              log_file_name,
                              O_CREAT | O_BINARY | O_WRONLY | O_APPEND,
                              MYF(MY_WME))) < 0)
     goto err;
+
+#ifdef _WIN32
+  char real_log_file_name[FN_REFLEN];
+#else
+  /* File name must have room for PATH_MAX. Checked against F_REFLEN later. */
+  char real_log_file_name[PATH_MAX];
+#endif // _Win32
+
+  /* Reopen and get real path. */
+  if ((file= mysql_file_real_name_reopen(file,
+#ifdef HAVE_PSI_INTERFACE
+                                         m_log_file_key,
+#endif
+                                         O_CREAT | O_BINARY | O_WRONLY | O_APPEND,
+                                         log_file_name, real_log_file_name)) < 0)
+    goto err;
+
+  if (!is_valid_log_name(real_log_file_name, strlen(real_log_file_name)))
+  {
+    sql_print_error("Invalid log file name after expanding symlinks: '%s'",
+                    real_log_file_name);
+    goto err;
+  }
 
   if ((pos= mysql_file_tell(file, MYF(MY_WME))) == MY_FILEPOS_ERROR)
   {
