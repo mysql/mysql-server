@@ -558,6 +558,16 @@ extern Query_logger query_logger;
 char *make_query_log_name(char *buff, enum_log_table_type log_type);
 
 /**
+  Check given log name against certain blacklisted names/extensions.
+
+  @param name     Log name to check
+  @param len      Length of log name
+
+  @returns true if name is valid, false otherwise.
+*/
+bool is_valid_log_name(const char *name, size_t len);
+
+/**
   Check whether we need to write the current statement (or its rewritten
   version if it exists) to the slow query log.
   As a side-effect, a digest of suppressed statements may be written.
