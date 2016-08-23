@@ -13860,6 +13860,7 @@ create_table_info_t::set_tablespace_type(
 	may say it's 'innodb_system', but if current innodb_file_per_table
 	is ON, we still have to create the table in file-per-table tablespace */
 	if (m_use_shared_space && m_innodb_file_per_table
+	    && m_table_name != NULL
 	    && row_is_mysql_tmp_table_name(m_table_name)
 	    && strcmp(m_create_info->tablespace, reserved_system_space_name)
 	       == 0) {
