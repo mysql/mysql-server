@@ -328,6 +328,7 @@ SET(SERVER_TESTS
   dd_properties
   dd_sdi
   dd_schema
+  dd_string_type
   dd_table
   dd_cache
   debug_sync
@@ -379,8 +380,9 @@ SET(SERVER_TESTS
 
 SET(SQL_GUNIT_LIB_SOURCE 
   ${CMAKE_SOURCE_DIR}/sql/filesort_utils.cc 
-  ${CMAKE_SOURCE_DIR}/sql/mdl.cc 
-  ${CMAKE_SOURCE_DIR}/sql/sql_list.cc 
+  ${CMAKE_SOURCE_DIR}/sql/mdl.cc
+  ${CMAKE_SOURCE_DIR}/sql/sql_list.cc
+  ${CMAKE_SOURCE_DIR}/sql/stateless_allocator.cc
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
   ${CMAKE_SOURCE_DIR}/sql/thr_malloc.cc
   )
