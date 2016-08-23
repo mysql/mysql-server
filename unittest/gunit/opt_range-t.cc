@@ -1831,12 +1831,12 @@ TEST_F(OptRangeTest, CombineAlways)
   {
     Mock_SEL_ARG always(SEL_ARG::ALWAYS, INITIAL_USE_COUNT, INITIAL_USE_COUNT),
       key_range(SEL_ARG::KEY_RANGE, INITIAL_USE_COUNT, INITIAL_USE_COUNT);
-    EXPECT_TRUE(key_and(&param, &key_range, &always, 0) == &key_range);
+    EXPECT_TRUE(key_and(&param, &key_range, &always) == &key_range);
   }
   {
     Mock_SEL_ARG always(SEL_ARG::ALWAYS, INITIAL_USE_COUNT, INITIAL_USE_COUNT),
       key_range(SEL_ARG::KEY_RANGE, INITIAL_USE_COUNT, INITIAL_USE_COUNT);
-    EXPECT_TRUE(key_and(&param, &always, &key_range, 0) == &key_range);
+    EXPECT_TRUE(key_and(&param, &always, &key_range) == &key_range);
   }
 }
 

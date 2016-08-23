@@ -1230,8 +1230,7 @@ static SEL_TREE null_sel_tree(SEL_TREE::IMPOSSIBLE, &null_root, 0);
 
 static SEL_ARG *sel_add(SEL_ARG *key1,SEL_ARG *key2);
 static SEL_ARG *key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2);
-static SEL_ARG *key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2,
-                        uint clone_flag);
+static SEL_ARG *key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2);
 static bool get_range(SEL_ARG **e1,SEL_ARG **e2,SEL_ARG *root1);
 bool get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
                     SEL_ARG *key_tree, uchar *min_key,uint min_key_flag,
@@ -7798,11 +7797,6 @@ sel_add(SEL_ARG *key1, SEL_ARG *key2)
   return key1;
 }
 
-#define CLONE_KEY1_MAYBE 1
-#define CLONE_KEY2_MAYBE 2
-#define swap_clone_flag(A) ((A & 1) << 1) | ((A & 2) >> 1)
-
-
 static SEL_TREE *
 tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
 {
@@ -7842,14 +7836,9 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
     SEL_ARG *key1= tree1->release_key(idx);
     SEL_ARG *key2= tree2->release_key(idx);
 
-    uint flag=0;
     if (key1 || key2)
     {
-      if (key1 && !key1->simple_key())
-	flag|=CLONE_KEY1_MAYBE;
-      if (key2 && !key2->simple_key())
-	flag|=CLONE_KEY2_MAYBE;
-      SEL_ARG *new_key= key_and(param, key1, key2, flag);
+      SEL_ARG *new_key= key_and(param, key1, key2);
       tree1->set_key(idx, new_key);
       if (new_key)
       {
@@ -8134,14 +8123,15 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
   will not have its use_count increased; you are supposed to do
   that yourself when you connect it to a root.
 
+  @param param Range analysis context (needed to track if we have allocated
+               too many SEL_ARGs)
   @param key1 Root of first tree to AND together
   @param key2 Root of second tree to AND together
   @return Root of (key1 AND key2)
 */
 
 static SEL_ARG *
-and_all_keys(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, 
-             uint clone_flag)
+and_all_keys(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
 {
   SEL_ARG *next;
 
@@ -8179,7 +8169,7 @@ and_all_keys(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2,
         The more complicated case; there's already another AND clause,
         so we cannot connect key2 to key1 directly, but need to recurse.
       */
-      SEL_ARG *tmp= key_and(param, next->release_next_key_part(), key2, clone_flag);
+      SEL_ARG *tmp= key_and(param, next->release_next_key_part(), key2);
       next->set_next_key_part(tmp);
       if (tmp && tmp->type == SEL_ARG::IMPOSSIBLE)
       {
@@ -8226,7 +8216,7 @@ and_all_keys(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2,
 */
 
 static SEL_ARG *
-key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
+key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
 {
   if (param->has_errors())
     return 0;
@@ -8249,19 +8239,17 @@ key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
     if (key1->part > key2->part)
     {
       std::swap(key1, key2);
-      clone_flag=swap_clone_flag(clone_flag);
     }
     DBUG_ASSERT(key1->part < key2->part);
-    return and_all_keys(param, key1, key2, clone_flag);
+    return and_all_keys(param, key1, key2);
   }
 
-  if (((clone_flag & CLONE_KEY2_MAYBE) &&
-       !(clone_flag & CLONE_KEY1_MAYBE) &&
+  if ((!key2->simple_key() &&
+       key1->simple_key() &&
        key2->type != SEL_ARG::MAYBE_KEY) ||
       key1->type == SEL_ARG::MAYBE_KEY)
   {						// Put simple key in key2
     std::swap(key1, key2);
-    clone_flag=swap_clone_flag(clone_flag);
   }
 
   /* If one of the key is MAYBE_KEY then the found region may be smaller */
@@ -8276,7 +8264,7 @@ key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
     if (key1->type == SEL_ARG::MAYBE_KEY)
     {						// Both are maybe key
       SEL_ARG *new_part = key_and(param, key1->release_next_key_part(),
-                                  key2->next_key_part, clone_flag);
+                                  key2->next_key_part);
       key1->set_next_key_part(new_part);
       return key1;
     }
@@ -8285,7 +8273,7 @@ key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
       key1->maybe_smaller();
       if (key2->next_key_part)
       {
-	return and_all_keys(param, key1, key2, clone_flag);
+	return and_all_keys(param, key1, key2);
       }
       else
       {
@@ -8327,8 +8315,7 @@ key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
       it does not overwrite either of them), so we keep their use_counts
       intact here.
     */
-    SEL_ARG *next=key_and(param, e1->next_key_part, e2->next_key_part,
-                          clone_flag);
+    SEL_ARG *next=key_and(param, e1->next_key_part, e2->next_key_part);
     if (next && next->type == SEL_ARG::IMPOSSIBLE)
       next->free_tree();
     else
