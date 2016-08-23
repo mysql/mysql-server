@@ -15905,7 +15905,6 @@ innobase_drop_tablespace(
 
 	error = validate_tablespace_name(dd_space->name().c_str(), false);
 	if (error != 0) {
-		ut_ad(0);
 		DBUG_RETURN(error);
 	}
 
