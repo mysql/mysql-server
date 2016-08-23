@@ -456,7 +456,8 @@ public:
 	m_op(OPCODE_UNKNOWN)
 	{
 		ut_ad(m_pcur == NULL || rec_offs_validate());
-		ut_ad(m_block == NULL || m_block->frame == page_align(m_rec));
+		ut_ad(m_block == NULL || m_rec == NULL
+		      || m_block->frame == page_align(m_rec));
 		ut_ad(m_pcur == NULL || m_rec == btr_pcur_get_rec(m_pcur));
 	}
 
@@ -750,10 +751,16 @@ public:
 	}
 
 	/** Get the table object.
-	@return table object */
+	@return table object or NULL. */
 	dict_table_t*	table() const
 	{
-		return(m_pcur->index()->table);
+		dict_table_t*	result = nullptr;
+
+		if (m_pcur != nullptr && m_pcur->index() != nullptr) {
+			result = m_pcur->index()->table;
+		}
+
+		return(result);
 	}
 
 	/** Get the space id.
@@ -1603,7 +1610,11 @@ struct Reader
 taking place. */
 struct DeleteContext : public BtrContext
 {
-	DeleteContext(byte *field_ref) : m_blobref(field_ref)
+	DeleteContext(byte *field_ref)
+	:
+	m_blobref(field_ref),
+	m_page_size(table() == nullptr ? get_page_size()
+		: dict_table_page_size(table()))
 	{}
 
 	DeleteContext(
@@ -1615,14 +1626,16 @@ struct DeleteContext : public BtrContext
 	BtrContext(btr),
 	m_blobref(field_ref),
 	m_field_no(field_no),
-	m_rollback(rollback)
+	m_rollback(rollback),
+	m_page_size(table() == nullptr ? get_page_size()
+		: dict_table_page_size(table()))
 	{}
 
 	/** Determine if it is compressed page format.
 	@return true if compressed. */
 	bool is_compressed() const
 	{
-		return(get_page_zip() != NULL);
+		return(m_page_size.is_compressed());
 	}
 
 	/** Check if tablespace supports atomic blobs.
@@ -1668,6 +1681,20 @@ struct DeleteContext : public BtrContext
 	/** Is this operation part of rollback? */
 	bool	m_rollback;
 
+	page_size_t	m_page_size;
+
+private:
+	/** Obtain the page size from the tablespace flags.
+	@return the page size. */
+	page_size_t get_page_size() const
+	{
+		bool	found;
+		space_id_t	space_id = m_blobref.space_id();
+		const page_size_t& tmp = fil_space_get_page_size(
+			space_id, &found);
+		ut_ad(found);
+		return(tmp);
+	}
 };
 
 /* Delete a LOB */
@@ -1693,28 +1720,7 @@ public:
 
 	/** Free the LOB object.
 	@return DB_SUCCESS on success. */
-	dberr_t	destroy()
-	{
-		dberr_t	err(DB_SUCCESS);
-
-		if (!can_free()) {
-			return(DB_SUCCESS);
-		}
-
-		if (dict_index_is_online_ddl(m_ctx.index())) {
-			row_log_table_blob_free(m_ctx.index(),
-						m_ctx.m_blobref.page_no());
-		}
-
-		while (m_ctx.m_blobref.page_no() == FIL_NULL) {
-			err = free_first_page();
-			if (err != DB_SUCCESS) {
-				break;
-			}
-		}
-
-		return(err);
-	}
+	dberr_t	destroy();
 
 	/** Free the first page of the BLOB and update the BLOB reference
 	in the clustered index.
