@@ -431,7 +431,7 @@ TYPED_TEST(STLAllocTestBasicStringTemplate, OutOfMemTest)
 
   // Set flag to force allocation failure
   simulate_failed_allocation= true;
-  ASSERT_THROW(x+= "some more text", std::bad_alloc);
+  ASSERT_THROW(x.reserve(1000), std::bad_alloc);
 }
 
 } // namespace stlalloc_unittest
