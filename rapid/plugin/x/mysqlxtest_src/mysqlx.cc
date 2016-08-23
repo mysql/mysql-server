@@ -1526,12 +1526,12 @@ boost::shared_ptr<Row> Result::next()
   if (m_state == ReadStmtOk)
     read_stmt_ok();
 
-    if (m_state != ReadDone)
-    {
-      ret_val = read_row();
+  if (m_state != ReadDone)
+  {
+    ret_val = read_row();
 
-  if (m_state == ReadStmtOk)
-    read_stmt_ok();
+    if (m_state == ReadStmtOk)
+      read_stmt_ok();
     }
   }
 

@@ -815,7 +815,7 @@ bool mysql_update(THD *thd,
                                                TRG_EVENT_UPDATE, 0))
         break; /* purecov: inspected */
 
-        found++;
+      found++;
 
         if (!records_are_comparable(table) || compare_records(table))
         {
