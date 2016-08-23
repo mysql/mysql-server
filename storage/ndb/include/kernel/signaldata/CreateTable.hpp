@@ -83,6 +83,7 @@ struct CreateTableRef {
     FeatureRequiresUpgrade = 794,
     WrongFragmentCountTypeFullyReplicated = 797,
     NoLoggingDiskTable = 798,
+    NonDefaultPartitioningWithNoPartitions = 799,
     TooManyFragments = 1224
   };
 

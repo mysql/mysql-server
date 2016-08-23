@@ -36,79 +36,79 @@ create temporary table counters_at_startup
 select counter_name, sum(val) as val
 from ndbinfo.counters
 group by counter_name;
-select a,b from t1 where a = '1';
-a	b
-1	1
-select a,b from t1 where a = '2';
-a	b
-2	2
-select a,b from t1 where a = '3';
-a	b
-3	3
-select a,b from t1 where a = '4';
-a	b
-4	4
-select a,b from t1 where a = '5';
-a	b
-5	5
-select a,b from t1 where a = '6';
-a	b
-6	6
-select a,b from t1 where a = '7';
-a	b
-7	7
-select a,b from t1 where a = '8';
-a	b
-8	8
-select a,b from t1 where a in ('1', '2', '3', '4', '5', '6', '7', '8');
-a	b
-1	1
-2	2
-3	3
-4	4
-5	5
-6	6
-7	7
-8	8
-select a,b from t1 where a in ('2', '3', '4', '5', '6', '7', '8');
-a	b
-2	2
-3	3
-4	4
-5	5
-6	6
-7	7
-8	8
-select a,b from t1 where a in ('3', '4', '5', '6', '7', '8');
-a	b
-3	3
-4	4
-5	5
-6	6
-7	7
-8	8
-select a,b from t1 where a in ('4', '5', '6', '7', '8');
-a	b
-4	4
-5	5
-6	6
-7	7
-8	8
-select a,b from t1 where a in ('5', '6', '7', '8');
-a	b
-5	5
-6	6
-7	7
-8	8
-select a,b from t1 where a in ('6', '7', '8');
-a	b
-6	6
-7	7
-8	8
-select a,b from t1 where a in ('7', '8');
-a	b
-7	7
-8	8
+select a,b,LENGTH(c) from t1 where a = '1';
+a	b	LENGTH(c)
+1	1	3000
+select a,b,LENGTH(c) from t1 where a = '2';
+a	b	LENGTH(c)
+2	2	3000
+select a,b,LENGTH(c) from t1 where a = '3';
+a	b	LENGTH(c)
+3	3	3000
+select a,b,LENGTH(c) from t1 where a = '4';
+a	b	LENGTH(c)
+4	4	3000
+select a,b,LENGTH(c) from t1 where a = '5';
+a	b	LENGTH(c)
+5	5	3000
+select a,b,LENGTH(c) from t1 where a = '6';
+a	b	LENGTH(c)
+6	6	3000
+select a,b,LENGTH(c) from t1 where a = '7';
+a	b	LENGTH(c)
+7	7	3000
+select a,b,LENGTH(c) from t1 where a = '8';
+a	b	LENGTH(c)
+8	8	3000
+select a,b,LENGTH(c) from t1 where a in ('1', '2', '3', '4', '5', '6', '7', '8');
+a	b	LENGTH(c)
+1	1	3000
+2	2	3000
+3	3	3000
+4	4	3000
+5	5	3000
+6	6	3000
+7	7	3000
+8	8	3000
+select a,b,LENGTH(c) from t1 where a in ('2', '3', '4', '5', '6', '7', '8');
+a	b	LENGTH(c)
+2	2	3000
+3	3	3000
+4	4	3000
+5	5	3000
+6	6	3000
+7	7	3000
+8	8	3000
+select a,b,LENGTH(c) from t1 where a in ('3', '4', '5', '6', '7', '8');
+a	b	LENGTH(c)
+3	3	3000
+4	4	3000
+5	5	3000
+6	6	3000
+7	7	3000
+8	8	3000
+select a,b,LENGTH(c) from t1 where a in ('4', '5', '6', '7', '8');
+a	b	LENGTH(c)
+4	4	3000
+5	5	3000
+6	6	3000
+7	7	3000
+8	8	3000
+select a,b,LENGTH(c) from t1 where a in ('5', '6', '7', '8');
+a	b	LENGTH(c)
+5	5	3000
+6	6	3000
+7	7	3000
+8	8	3000
+select a,b,LENGTH(c) from t1 where a in ('6', '7', '8');
+a	b	LENGTH(c)
+6	6	3000
+7	7	3000
+8	8	3000
+select a,b,LENGTH(c) from t1 where a in ('7', '8');
+a	b	LENGTH(c)
+7	7	3000
+8	8	3000
 select s1.counter_name, s2.val - s1.val as diff
 from counters_at_startup s1,
 (select counter_name, sum(val) as val
@@ -118,8 +118,8 @@ where s1.counter_name = s2.counter_name
 and ( s1.counter_name = 'LOCAL_READS' or s1.counter_name = 'READS' )
 order by 1;
 counter_name	diff
-LOCAL_READS	45
-READS	45
+LOCAL_READS	131
+READS	131
 drop table counters_at_startup;
 row
 -- t1 --
@@ -195,36 +195,38 @@ set global ndb_data_node_neighbour = 3;
 create table c as select node_id, fragment_num, tot_frag_scans
 from `ndbinfo`.`operations_per_fragment`
   where fq_name = 'test/def/t1';
-select a,b from t1 where a = 1;
-a	b
-1	1
+select a,b,LENGTH(c) from t1 where a = 1;
+a	b	LENGTH(c)
+1	1	3000
 select distinct o.node_id
 from `ndbinfo`.`operations_per_fragment` o join c
 on o.node_id = c.node_id and o.fragment_num = c.fragment_num
 where fq_name = 'test/def/t1' and o.tot_frag_scans > c.tot_frag_scans;
 node_id
-3
+1
+2
 drop table c;
 set global ndb_data_node_neighbour = 4;
 create table c as select node_id, fragment_num, tot_frag_scans
 from `ndbinfo`.`operations_per_fragment`
   where fq_name = 'test/def/t1';
-select a,b from t1;
-a	b
-1	1
-2	2
-3	3
-4	4
-5	5
-6	6
-7	7
-8	8
+select a,b,LENGTH(c) from t1;
+a	b	LENGTH(c)
+1	1	3000
+2	2	3000
+3	3	3000
+4	4	3000
+5	5	3000
+6	6	3000
+7	7	3000
+8	8	3000
 select distinct o.node_id
 from `ndbinfo`.`operations_per_fragment` o join c
 on o.node_id = c.node_id and o.fragment_num = c.fragment_num
 where fq_name = 'test/def/t1' and o.tot_frag_scans > c.tot_frag_scans;
 node_id
-4
+1
+2
 drop table c;
 set global ndb_data_node_neighbour = 0;
 select node_id, fragment_num, fixed_elem_count
@@ -252,79 +254,79 @@ create temporary table counters_at_startup
 select counter_name, sum(val) as val
 from ndbinfo.counters
 group by counter_name;
-select a,b from t1 where a = '1';
-a	b
-1	1
-select a,b from t1 where a = '2';
-a	b
-2	2
-select a,b from t1 where a = '3';
-a	b
-3	3
-select a,b from t1 where a = '4';
-a	b
-4	4
-select a,b from t1 where a = '5';
-a	b
-5	5
-select a,b from t1 where a = '6';
-a	b
-6	6
-select a,b from t1 where a = '7';
-a	b
-7	7
-select a,b from t1 where a = '8';
-a	b
-8	8
-select a,b from t1 where a in ('1', '2', '3', '4', '5', '6', '7', '8');
-a	b
-1	1
-2	2
-3	3
-4	4
-5	5
-6	6
-7	7
-8	8
-select a,b from t1 where a in ('2', '3', '4', '5', '6', '7', '8');
-a	b
-2	2
-3	3
-4	4
-5	5
-6	6
-7	7
-8	8
-select a,b from t1 where a in ('3', '4', '5', '6', '7', '8');
-a	b
-3	3
-4	4
-5	5
-6	6
-7	7
-8	8
-select a,b from t1 where a in ('4', '5', '6', '7', '8');
-a	b
-4	4
-5	5
-6	6
-7	7
-8	8
-select a,b from t1 where a in ('5', '6', '7', '8');
-a	b
-5	5
-6	6
-7	7
-8	8
-select a,b from t1 where a in ('6', '7', '8');
-a	b
-6	6
-7	7
-8	8
-select a,b from t1 where a in ('7', '8');
-a	b
-7	7
-8	8
+select a,b,LENGTH(c) from t1 where a = '1';
+a	b	LENGTH(c)
+1	1	3000
+select a,b,LENGTH(c) from t1 where a = '2';
+a	b	LENGTH(c)
+2	2	3000
+select a,b,LENGTH(c) from t1 where a = '3';
+a	b	LENGTH(c)
+3	3	3000
+select a,b,LENGTH(c) from t1 where a = '4';
+a	b	LENGTH(c)
+4	4	3000
+select a,b,LENGTH(c) from t1 where a = '5';
+a	b	LENGTH(c)
+5	5	3000
+select a,b,LENGTH(c) from t1 where a = '6';
+a	b	LENGTH(c)
+6	6	3000
+select a,b,LENGTH(c) from t1 where a = '7';
+a	b	LENGTH(c)
+7	7	3000
+select a,b,LENGTH(c) from t1 where a = '8';
+a	b	LENGTH(c)
+8	8	3000
+select a,b,LENGTH(c) from t1 where a in ('1', '2', '3', '4', '5', '6', '7', '8');
+a	b	LENGTH(c)
+1	1	3000
+2	2	3000
+3	3	3000
+4	4	3000
+5	5	3000
+6	6	3000
+7	7	3000
+8	8	3000
+select a,b,LENGTH(c) from t1 where a in ('2', '3', '4', '5', '6', '7', '8');
+a	b	LENGTH(c)
+2	2	3000
+3	3	3000
+4	4	3000
+5	5	3000
+6	6	3000
+7	7	3000
+8	8	3000
+select a,b,LENGTH(c) from t1 where a in ('3', '4', '5', '6', '7', '8');
+a	b	LENGTH(c)
+3	3	3000
+4	4	3000
+5	5	3000
+6	6	3000
+7	7	3000
+8	8	3000
+select a,b,LENGTH(c) from t1 where a in ('4', '5', '6', '7', '8');
+a	b	LENGTH(c)
+4	4	3000
+5	5	3000
+6	6	3000
+7	7	3000
+8	8	3000
+select a,b,LENGTH(c) from t1 where a in ('5', '6', '7', '8');
+a	b	LENGTH(c)
+5	5	3000
+6	6	3000
+7	7	3000
+8	8	3000
+select a,b,LENGTH(c) from t1 where a in ('6', '7', '8');
+a	b	LENGTH(c)
+6	6	3000
+7	7	3000
+8	8	3000
+select a,b,LENGTH(c) from t1 where a in ('7', '8');
+a	b	LENGTH(c)
+7	7	3000
+8	8	3000
 select s1.counter_name, s2.val - s1.val as diff
 from counters_at_startup s1,
 (select counter_name, sum(val) as val
@@ -334,8 +336,8 @@ where s1.counter_name = s2.counter_name
 and ( s1.counter_name = 'LOCAL_READS' or s1.counter_name = 'READS' )
 order by 1;
 counter_name	diff
-LOCAL_READS	43
-READS	43
+LOCAL_READS	129
+READS	129
 drop table counters_at_startup;
 row
 -- t1 --

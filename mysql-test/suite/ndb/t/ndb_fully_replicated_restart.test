@@ -5,9 +5,11 @@ CREATE TABLE t1 (
   a int,
   b varchar(255),
   c int,
+  d blob,
   primary key(a,b),
   key(b),
-  unique (c)) engine=ndb comment='NDB_TABLE=FULLY_REPLICATED=1' partition by key(a) ;
+  unique (c)) engine=ndb comment='NDB_TABLE=FULLY_REPLICATED=1,FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP' partition by key(a) ;
+show warnings;
 
 # Test that invalid table comment creates a warning
 # Todo put in a different 'syntax check' testcase?
@@ -15,11 +17,21 @@ CREATE TABLE t2 (
   a int,
   b varchar(255),
   c int,
+  d blob,
   primary key(a,b),
   key(b),
   unique (c)) engine=ndb comment='NDB_TABLE=JUNK' partition by key(a) ;
 
 drop table t2;
+
+--error 1478
+CREATE TABLE t2 (
+  a int,
+  b varchar(255),
+  c int,
+  primary key(a,b),
+  key(b),
+  unique (c)) engine=ndb comment='NDB_TABLE=FULLY_REPLICATED=1,FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE_GROUP' partition by key(a) ;
 
 # bug#23330359 - a DICT bug on alter table
 # done in same restart test to save runtime
@@ -36,27 +48,32 @@ CREATE TABLE t2 (
 
 alter table t2 algorithm=inplace, add unique index (c);
 
---let ndb_desc_opts= -d test t1
---source suite/ndb/include/ndb_desc_print.inc
+let $ndb_desc_opts= -b -i -d test t1;
+source suite/ndb/include/ndb_desc_print.inc;
 
 insert into t1 values
-(0, "row 0", 0),(1, "row 1", 1),
-(2, "row 2", 2),(3, "row 3", 3),
-(4, "row 4", 4),(5, "row 5", 5),
-(6, "row 6", 6),(7, "row 7", 7),
-(8, "row 8", 8),(9, "row 9", 9);
+(0, "row 0", 0, REPEAT("qubit#0",500)),
+(1, "row 1", 1, REPEAT("qubit#1",500)),
+(2, "row 2", 2, REPEAT("qubit#2",500)),
+(3, "row 3", 3, REPEAT("qubit#3",500)),
+(4, "row 4", 4, REPEAT("qubit#4",500)),
+(5, "row 5", 5, REPEAT("qubit#5",500)),
+(6, "row 6", 6, REPEAT("qubit#6",500)),
+(7, "row 7", 7, REPEAT("qubit#7",500)),
+(8, "row 8", 8, REPEAT("qubit#8",500)),
+(9, "row 9", 9, REPEAT("qubit#9",500));
 
-select * from t1 order by 1;
+select a,b,c,LENGTH(d) from t1 order by 1;
 
 begin;
 # pk lookup
-select * from t1 where a = 7;
+select a,b,c,LENGTH(d) from t1 where a = 7;
 # uk lookup
-select * from t1 where c = 9;
+select a,b,c,LENGTH(d) from t1 where c = 9;
 # table scan
-select * from t1 order by 1;
+select a,b,c,LENGTH(d) from t1 order by 1;
 # index scan
-select * from t1 where a < 5 order by a;
+select a,b,c,LENGTH(d) from t1 where a < 5 order by a;
 # pk update
 update t1 set b = 'pk update' where a = 3;
 # scan update
@@ -69,9 +86,9 @@ delete from t1 where a = 7;
 delete from t1 where c = 17;
 # index scan delete
 delete from t1 where a < 5;
-select * from t1 order by 1;
-insert into t1 values (0, "row 0", 0),(1, "row 1", 1);
-select * from t1 order by 1;
+select a,b,c,LENGTH(d) from t1 order by 1;
+insert into t1 values (0, "row 0", 0, REPEAT("qubit#0",500)),(1, "row 1", 1, REPEAT("qubit#1",500));
+select a,b,c,LENGTH(d) from t1 order by 1;
 rollback;
 
 --echo "Stop node 1"
@@ -83,13 +100,13 @@ rollback;
 
 begin;
 # pk lookup
-select * from t1 where a = 7;
+select a,b,c,LENGTH(d) from t1 where a = 7;
 # uk lookup
-select * from t1 where c = 9;
+select a,b,c,LENGTH(d) from t1 where c = 9;
 # table scan
-select * from t1 order by 1;
+select a,b,c,LENGTH(d) from t1 order by 1;
 # index scan
-select * from t1 where a < 5 order by a;
+select a,b,c,LENGTH(d) from t1 where a < 5 order by a;
 # pk update
 update t1 set b = 'pk update' where a = 3;
 # scan update
@@ -102,9 +119,9 @@ delete from t1 where a = 7;
 delete from t1 where c = 17;
 # index scan delete
 delete from t1 where a < 5;
-select * from t1 order by 1;
-insert into t1 values (0, "row 0", 0),(1, "row 1", 1);
-select * from t1 order by 1;
+select a,b,c,LENGTH(d) from t1 order by 1;
+insert into t1 values (0, "row 0", 0, REPEAT("qubit#0",500)),(1, "row 1", 1, REPEAT("qubit#1",500));
+select a,b,c,LENGTH(d) from t1 order by 1;
 rollback;
 
 --echo "Start node 1"
@@ -116,13 +133,13 @@ rollback;
 
 begin;
 # pk lookup
-select * from t1 where a = 7;
+select a,b,c,LENGTH(d) from t1 where a = 7;
 # uk lookup
-select * from t1 where c = 9;
+select a,b,c,LENGTH(d) from t1 where c = 9;
 # table scan
-select * from t1 order by 1;
+select a,b,c,LENGTH(d) from t1 order by 1;
 # index scan
-select * from t1 where a < 5 order by a;
+select a,b,c,LENGTH(d) from t1 where a < 5 order by a;
 # pk update
 update t1 set b = 'pk update' where a = 3;
 # scan update
@@ -135,9 +152,9 @@ delete from t1 where a = 7;
 delete from t1 where c = 17;
 # index scan delete
 delete from t1 where a < 5;
-select * from t1 order by 1;
-insert into t1 values (0, "row 0", 0),(1, "row 1", 1);
-select * from t1 order by 1;
+select a,b,c,LENGTH(d) from t1 order by 1;
+insert into t1 values (0, "row 0", 0, REPEAT("qubit#0",500)),(1, "row 1", 1, REPEAT("qubit#1",500));
+select a,b,c,LENGTH(d) from t1 order by 1;
 rollback;
 
 drop table t1,t2;
@@ -146,6 +163,7 @@ CREATE TABLE t1 (
   a int,
   b varchar(255),
   c int,
+  d blob,
   primary key(a,b),
   key(b),
   unique (c)) engine=ndb comment='NDB_TABLE=FULLY_REPLICATED=1' partition by key(a) ;
@@ -163,11 +181,16 @@ CREATE TABLE t2 (
 alter table t2 algorithm=inplace, add unique index (c);
 
 insert into t1 values
-(0, "row 0", 0),(1, "row 1", 1),
-(2, "row 2", 2),(3, "row 3", 3),
-(4, "row 4", 4),(5, "row 5", 5),
-(6, "row 6", 6),(7, "row 7", 7),
-(8, "row 8", 8),(9, "row 9", 9);
+(0, "row 0", 0, REPEAT("qubit#0",500)),
+(1, "row 1", 1, REPEAT("qubit#1",500)),
+(2, "row 2", 2, REPEAT("qubit#2",500)),
+(3, "row 3", 3, REPEAT("qubit#3",500)),
+(4, "row 4", 4, REPEAT("qubit#4",500)),
+(5, "row 5", 5, REPEAT("qubit#5",500)),
+(6, "row 6", 6, REPEAT("qubit#6",500)),
+(7, "row 7", 7, REPEAT("qubit#7",500)),
+(8, "row 8", 8, REPEAT("qubit#8",500)),
+(9, "row 9", 9, REPEAT("qubit#9",500));
 
 --echo "Restart cluster"
 
@@ -193,13 +216,13 @@ insert into t1 values
 
 begin;
 # pk lookup
-select * from t1 where a = 7;
+select a,b,c,LENGTH(d) from t1 where a = 7;
 # uk lookup
-select * from t1 where c = 9;
+select a,b,c,LENGTH(d) from t1 where c = 9;
 # table scan
-select * from t1 order by 1;
+select a,b,c,LENGTH(d) from t1 order by 1;
 # index scan
-select * from t1 where a < 5 order by a;
+select a,b,c,LENGTH(d) from t1 where a < 5 order by a;
 # pk update
 update t1 set b = 'pk update' where a = 3;
 # scan update
@@ -212,9 +235,9 @@ delete from t1 where a = 7;
 delete from t1 where c = 17;
 # index scan delete
 delete from t1 where a < 5;
-select * from t1 order by 1;
-insert into t1 values (0, "row 0", 0),(1, "row 1", 1);
-select * from t1 order by 1;
+select a,b,c,LENGTH(d) from t1 order by 1;
+insert into t1 values (0, "row 0", 0, REPEAT("qubit#0",500)),(1, "row 1", 1, REPEAT("qubit#1",500));
+select a,b,c,LENGTH(d) from t1 order by 1;
 rollback;
 
 # cleanup

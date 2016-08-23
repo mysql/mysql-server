@@ -80,7 +80,7 @@ ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-16
+HashMap: DEFAULT-HASHMAP-3840-4
 -- Attributes --
 a Char(10;latin1_swedish_ci) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Int NOT NULL AT=FIXED ST=MEMORY
@@ -117,7 +117,7 @@ ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-16
+HashMap: DEFAULT-HASHMAP-3840-4
 -- Attributes --
 a Char(10;latin1_swedish_ci) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Int NOT NULL AT=FIXED ST=MEMORY

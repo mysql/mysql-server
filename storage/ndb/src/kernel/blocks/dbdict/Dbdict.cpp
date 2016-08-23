@@ -5892,32 +5892,62 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
   if (tablePtr.p->fragmentType == DictTabInfo::HashMapPartition &&
       tablePtr.p->hashMapObjectId == RNIL)
   {
-    Uint32 fragments = tablePtr.p->fragmentCount;
-    if (fragments == 0)
+    jam();
+    if (tablePtr.p->fragmentCount == 0)
     {
       jam();
-      tablePtr.p->fragmentCount = fragments =
+      /**
+       * Since api only can clear fragment count, assume partition count should
+       * be cleared to.
+       */
+      tablePtr.p->partitionCount = 0;
+      /**
+       * No hashmap nor fragment count indicates default partitioning
+       */
+      assert(tablePtr.p->fragmentCountType != NDB_FRAGMENT_COUNT_SPECIFIC);
+      tabRequire(tablePtr.p->fragmentCountType != NDB_FRAGMENT_COUNT_SPECIFIC,
+                 CreateTableRef::NonDefaultPartitioningWithNoPartitions);
+      tablePtr.p->fragmentCount =
         get_default_fragments(signal,
                               tablePtr.p->fragmentCountType,
                               0);
     }
+    tabRequire(tablePtr.p->fragmentCount <= MAX_NDB_PARTITIONS,
+               CreateTableRef::TooManyFragments);
 
-    tabRequire(fragments <= MAX_NDB_PARTITIONS,
+    if (tablePtr.p->partitionCount == 0)
+    {
+      if ((tablePtr.p->m_bits & TableRecord::TR_FullyReplicated) == 0)
+      {
+        jam();
+        tablePtr.p->partitionCount = tablePtr.p->fragmentCount;
+      }
+      else
+      {
+        jam();
+        tablePtr.p->partitionCount =
+          get_default_partitions_fully_replicated(signal,
+                                                  tablePtr.p->fragmentCountType);
+      }
+    }
+    Uint32 partitions = tablePtr.p->partitionCount;
+
+    tabRequire(partitions <= MAX_NDB_PARTITIONS,
                CreateTableRef::TooManyFragments);
 
     char buf[MAX_TAB_NAME_SIZE+1];
     BaseString::snprintf(buf, sizeof(buf), "DEFAULT-HASHMAP-%u-%u",
                          c_default_hashmap_size,
-                         fragments);
+                         partitions);
     DictObject* dictObj = get_object(buf);
-    if (dictObj && dictObj->m_type == DictTabInfo::HashMap)
-    {
-      jam();
-      HashMapRecordPtr hm_ptr;
-      ndbrequire(find_object(hm_ptr, dictObj->m_id));
-      tablePtr.p->hashMapObjectId = hm_ptr.p->m_object_id;
-      tablePtr.p->hashMapVersion = hm_ptr.p->m_object_version;
-    }
+    tabRequire(dictObj && dictObj->m_type == DictTabInfo::HashMap,
+               CreateTableRef::InvalidHashMap);
+
+    jam();
+    HashMapRecordPtr hm_ptr;
+    ndbrequire(find_object(hm_ptr, dictObj->m_id));
+    tablePtr.p->hashMapObjectId = hm_ptr.p->m_object_id;
+    tablePtr.p->hashMapVersion = hm_ptr.p->m_object_version;
   }
 
   if (tablePtr.p->fragmentType == DictTabInfo::HashMapPartition)
@@ -5935,16 +5965,16 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
 
     if (tablePtr.p->fragmentCount == 0)
     {
-      jam();
-      tablePtr.p->fragmentCount = mapptr.p->m_fragments;
+      tablePtr.p->fragmentCount =
+        get_default_fragments(signal,
+                              tablePtr.p->fragmentCountType,
+                              0);
     }
-    else
+    if (tablePtr.p->partitionCount == 0)
     {
-      tabRequire(mapptr.p->m_fragments == tablePtr.p->fragmentCount,
-                 CreateTableRef::InvalidHashMap);
+      tablePtr.p->partitionCount = mapptr.p->m_fragments;
     }
   }
-
   {
     LocalRope frm(c_rope_pool, tablePtr.p->frmData);
     tabRequire(frm.assign(c_tableDesc.FrmData, c_tableDesc.FrmLen),
@@ -6044,9 +6074,14 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
           jam();
           if (!restart)
           {
+            tablePtr.p->fragmentCount =
+              get_default_fragments(signal,
+                                    tablePtr.p->fragmentCountType,
+                                    0);
             tablePtr.p->partitionCount =
-              get_default_fragments_fully_replicated(signal,
-                                       tablePtr.p->fragmentCountType);
+              get_default_partitions_fully_replicated(
+                  signal,
+                  tablePtr.p->fragmentCountType);
           }
           D("Fully replicated table, partitionCount: " <<
             tablePtr.p->partitionCount <<
@@ -6810,7 +6845,16 @@ Dbdict::create_fragmentation(Signal* signal,
      */
     tabPtr.p->primaryTableId = RNIL;
   }
-  frag_req->partitionCount = tabPtr.p->partitionCount;
+  if ((tabPtr.p->m_bits & TableRecord::TR_FullyReplicated) == 0 ||
+      frag_req->noOfFragments == 0)
+  {
+    frag_req->partitionCount = frag_req->noOfFragments;
+  }
+  else
+  {
+    assert(tabPtr.p->partitionCount != 0);
+    frag_req->partitionCount = tabPtr.p->partitionCount;
+  }
 
   EXECUTE_DIRECT(DBDICT, GSN_CREATE_FRAGMENTATION_REQ, signal,
                  CreateFragmentationReq::SignalLength);
@@ -9805,6 +9849,24 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
     else
     {
       D("No hashmap change");
+      if ((newTablePtr.p->m_bits & TableRecord::TR_FullyReplicated) == 0)
+      {
+        jam();
+        // Non fully replicate tables do not need to move any data.
+      }
+      else
+      {
+        jam();
+        // Fully replicated still need to copy data to copy fragments.
+        const Uint32 newFragmentCount =
+          get_default_fragments(signal,
+                                newTablePtr.p->fragmentCountType,
+                                0);
+        if (newFragmentCount != tablePtr.p->fragmentCount)
+        {
+          AlterTableReq::setReorgFragFlag(impl_req->changeMask, 1);
+        }
+      }
     }
 
     if (master)
@@ -13120,7 +13182,12 @@ Dbdict::createIndex_toCreateTable(Signal* signal, SchemaOpPtr op_ptr)
       tablePtr.p->fragmentType == DictTabInfo::HashMapPartition)
   {
     w.add(DictTabInfo::FragmentCount, tablePtr.p->fragmentCount);
+    w.add(DictTabInfo::PartitionCount, tablePtr.p->partitionCount);
     w.add(DictTabInfo::FragmentCountType, tablePtr.p->fragmentCountType);
+    ndbrequire(tablePtr.p->hashMapObjectId != RNIL &&
+               ~tablePtr.p->hashMapObjectId != 0);
+    w.add(DictTabInfo::HashMapObjectId, tablePtr.p->hashMapObjectId);
+    w.add(DictTabInfo::HashMapVersion, tablePtr.p->hashMapVersion);
   }
 
   w.add(DictTabInfo::TableTypeVal, createIndexPtr.p->m_request.indexType);
@@ -25418,7 +25485,6 @@ Dbdict::createNodegroup_subOps(Signal* signal, SchemaOpPtr op_ptr)
   {
     jam();
     createNodegroupRecPtr.p->m_map_created = true;
-
     /**
      * This is a bit cheating...
      *   it would be better to handle "object-exists"
@@ -25428,6 +25494,21 @@ Dbdict::createNodegroup_subOps(Signal* signal, SchemaOpPtr op_ptr)
 
     /**
      * Creating a hashmap suitable for default.
+     *
+     * Application may either provide a hashmap when a table is created or let
+     * data nodes choose the default hashmap.
+     *
+     * For unique index on tables with user defined partitioning the
+     * application can not choose a hashmap, but the data nodes must select the
+     * default hashmap.
+     *
+     * For unique index on hashmap partitioned tables, the unique index will
+     * use the same hashmap as its base table.
+     *
+     * When a node group are added, the default hashmap changes accordingly.
+     * But to ensure that the new default hashmap do exist if an application
+     * creates a table or an unique index without specifying a hashmap it will
+     * be created here.
      *
      * If default fragment count type for read backup is changed to not be the
      * same as default for normal tables, a default hashmap for read backup
@@ -33166,8 +33247,8 @@ Dbdict::get_default_fragments(Signal* signal,
 }
 
 Uint32
-Dbdict::get_default_fragments_fully_replicated(Signal* signal,
-                                               Uint32 fragmentCountType)
+Dbdict::get_default_partitions_fully_replicated(Signal* signal,
+                                                Uint32 fragmentCountType)
 {
   jam();
 
@@ -33250,6 +33331,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
      */
     Uint32 buckets = impl_req->buckets;
     Uint32 fragments;
+    Uint32 partitions;
     Uint32 fragmentCountType = impl_req->fragments;
     switch(fragmentCountType) {
     case 0:
@@ -33262,7 +33344,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
        * and later.
        */
       jam();
-      fragmentCountType = NDB_DEFAULT_FRAGMENT_COUNT_TYPE;
+      fragmentCountType = NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE;
       /* Fall through */
     case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE:
     case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP:
@@ -33272,9 +33354,28 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
       fragments = get_default_fragments(signal,
                                         fragmentCountType,
                                         0);
+      if (impl_req->requestType & CreateHashMapReq::CreateForOneNodegroup)
+      {
+        partitions = get_default_partitions_fully_replicated(signal,
+                                                             fragmentCountType);
+      }
+      else
+      {
+        partitions = fragments;
+      }
       break;
     default:
-      fragments = impl_req->fragments;
+      if(impl_req->requestType & CreateHashMapReq::CreateForOneNodegroup)
+      {
+        jam();
+        /**
+         * FragmentCountSpecific is not supported for fully replicated.
+         * And if it was fragment count is unknown.
+         */
+        setError(error, CreateTableRef::WrongFragmentCountTypeFullyReplicated,__LINE__);
+        return;
+      }
+      partitions = fragments = impl_req->fragments;
       fragmentCountType = NDB_FRAGMENT_COUNT_SPECIFIC;
       break;
     }
@@ -33295,8 +33396,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
     BaseString::snprintf(hm.HashMapName, sizeof(hm.HashMapName),
                          "DEFAULT-HASHMAP-%u-%u",
                          buckets,
-                         fragments);
-
+                         partitions);
     if (buckets == 0 || buckets > Hash2FragmentMap::MAX_MAP)
     {
       jam();
@@ -33307,7 +33407,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
     hm.HashMapBuckets = buckets;
     for (Uint32 i = 0; i<buckets; i++)
     {
-      hm.HashMapValues[i] = (i % fragments);
+      hm.HashMapValues[i] = (i % partitions);
     }
 
     /**
