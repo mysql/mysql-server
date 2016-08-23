@@ -4785,8 +4785,8 @@ public:
   Uint32 get_default_fragments(Signal*,
                                Uint32 fragmentCountType,
                                Uint32 extra_nodegroups);
-  Uint32 get_default_fragments_fully_replicated(Signal *signal,
-                                                Uint32 fragmentCountType);
+  Uint32 get_default_partitions_fully_replicated(Signal *signal,
+                                                 Uint32 fragmentCountType);
   void wait_gcp(Signal* signal, SchemaOpPtr op_ptr, Uint32 flags);
 
   void block_substartstop(Signal* signal, SchemaOpPtr op_ptr);

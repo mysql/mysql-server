@@ -598,9 +598,9 @@ Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Int NULL AT=FIXED ST=MEMORY DYNAMIC
-c Int NULL AT=FIXED ST=MEMORY DYNAMIC
-d Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_3 DYNAMIC
+b Int NULL AT=FIXED ST=MEMORY
+c Int NULL AT=FIXED ST=MEMORY
+d Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_3
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -1801,7 +1801,6 @@ Error insert to ensure that TC requests are purely local
 drop table hints;
 delete from t1;
 delete from t2;
-Connected to Management Server at: localhost:13000
 Nodegroup 1 created
 alter table t1 algorithm=copy, reorganize partition;
 Warnings:
@@ -2627,7 +2626,6 @@ Tests on T2 (Blobs)
 drop table hints;
 delete from t1;
 delete from t2;
-Connected to Management Server at: localhost:13000
 Nodegroup 2 created
 alter table t1 algorithm=copy, reorganize partition;
 Warnings:

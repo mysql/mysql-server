@@ -3395,19 +3395,34 @@ NdbDictInterface::createTable(Ndb & ndb,
       /**
        * Make sure that hashmap exists (i.e after upgrade or similar)
        */
-      Uint32 fragmentCount = impl.getFragmentCountType();
-      if (fragmentCount == NDB_FRAGMENT_COUNT_SPECIFIC)
+      Uint32 fragCountType_partCount = impl.getFragmentCountType();
+      int req_type = CreateHashMapReq::CreateDefault |
+                     CreateHashMapReq::CreateIfNotExists;
+      if (!impl.getFullyReplicated())
       {
-        fragmentCount = impl.getFragmentCount();
+        if (fragCountType_partCount == NDB_FRAGMENT_COUNT_SPECIFIC)
+        {
+          // For non fully replicated table partition count is fragment count.
+          fragCountType_partCount = impl.getFragmentCount();
+        }
       }
-      assert(fragmentCount != 0);
+      else
+      {
+        if (fragCountType_partCount == NDB_FRAGMENT_COUNT_SPECIFIC)
+        {
+          m_error.code = 797; // WrongFragmentCountTypeFullyReplicated
+          DBUG_RETURN(-1);
+        }
+        req_type |= CreateHashMapReq::CreateForOneNodegroup;
+      }
+      assert(fragCountType_partCount != 0);
       DBUG_PRINT("info", ("FragmentCountType: create_hashmap: %x",
-                          fragmentCount));
+                          fragCountType_partCount));
       NdbHashMapImpl hashmap;
-      ret = create_hashmap(hashmap, &hashmap,
-                           CreateHashMapReq::CreateDefault |
-                           CreateHashMapReq::CreateIfNotExists,
-                           fragmentCount);
+      ret = create_hashmap(hashmap,
+                           &hashmap,
+                           req_type,
+                           fragCountType_partCount);
       if (ret)
       {
         DBUG_RETURN(ret);
@@ -9255,7 +9270,7 @@ int
 NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
                                  NdbDictObjectImpl* obj,
                                  Uint32 flags,
-                                 Uint32 fragmentCount)
+                                 Uint32 fragCountType_partCount)
 {
   {
     DictHashMapInfo::HashMap* hm = new DictHashMapInfo::HashMap(); 
@@ -9301,7 +9316,7 @@ NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
   req->requestInfo |= m_tx.requestFlags();
   req->transId = m_tx.transId();
   req->transKey = m_tx.transKey();
-  req->fragments = fragmentCount;
+  req->fragments = fragCountType_partCount;
   req->buckets = 0; // not used from here
 
   LinearSectionPtr ptr[3];
@@ -9327,7 +9342,7 @@ NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
   });
   DBUG_PRINT("info", ("CREATE_HASH_MAP_REQ: cnt: %u, fragments: %x",
              seccnt, req->fragments));
-  assert(fragmentCount != 0);
+  assert(fragCountType_partCount != 0);
   int ret = dictSignal(&tSignal, ptr, seccnt,
 		       0, // master
 		       WAIT_CREATE_INDX_REQ,

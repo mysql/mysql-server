@@ -96,7 +96,7 @@ let $bug_ui = 1;
 # node group
 let $bug_blob = 1;
 
---exec $NDB_MGM -e'create nodegroup 3,4'
+--exec $NDB_MGM --verbose=0 -e'create nodegroup 3,4'
 # Due to Bug#13714258 UNIQUE INDEXES NOT REORGANISED BY ONLINE TABLE REORG
 # inplace reorganize partition can not be used.  As work around recreate tables
 # using copy instead.
@@ -109,7 +109,7 @@ alter table t2 algorithm=inplace, reorganize partition;
 
 --source ndb_read_local.inc
 
---exec $NDB_MGM -e'create nodegroup 5,6'
+--exec $NDB_MGM --verbose=0 -e'create nodegroup 5,6'
 # Due to Bug#13714258 UNIQUE INDEXES NOT REORGANISED BY ONLINE TABLE REORG
 # inplace reorganize partition can not be used.  As work around recreate tables
 # using copy instead.

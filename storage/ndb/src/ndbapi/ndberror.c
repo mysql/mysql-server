@@ -591,6 +591,7 @@ ErrorBundle ErrorCodes[] = {
   { 794,  DMEC, AE, "Schema feature requires data node upgrade" },
   { 796,  DMEC, SE, "Out of schema transaction memory" },
   { 798,  DMEC, AE, "A disk table must not be specified as no logging" },
+  { 799,  HA_WRONG_CREATE_OPTION, SE, "Non default partitioning without partitions" },
 
   /**
    * FunctionNotImplemented

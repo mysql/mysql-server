@@ -12294,12 +12294,11 @@ Dbdih::init_next_replica_node(
  *             theData[25..] is used.
  *
  *         HashMapPartition - Hashmap to use is given by map_ptr_i which must
- *             be set (not RNIL).  If noOfFragment is set it must be same as
- *             the hashmaps partition count (m_fragments).  If noOfFragment is
- *             zero it is set to the hashmaps partition count.
- *             Note, the latter is wrong for fully replicated tables in that
- *             case it is partitionCount that should be equal to the hashmaps
- *             partition count.
+ *             be set (not RNIL).  Both noOfFragments and partitionCount must
+ *             be set.  Further more partitionCount must be equal to hashmaps
+ *             partition count (m_fragments).
+ *             For fully replicated tables, noOfFragments should be a multiple
+ *             of partitionCount.
  *
  *   fragmentCountType - Determines how the number of fragments depends on
  *       cluster configuration such as number of replicas, number of
@@ -12318,7 +12317,7 @@ Dbdih::init_next_replica_node(
  *       count is taken from old fragmentation for table.
  *
  *   partitionCount - New partition count.  For non fully replicated tables
- *       partitionCount must be same as noOfFrgments.  For fully replicated
+ *       partitionCount must be same as noOfFragments.  For fully replicated
  *       tables partitionCount must be the same as the old partitionCount.
  *
  *   map_ptr_i - Is not used from signal but taken from old fragmentation.
@@ -12416,27 +12415,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           use_specific_fragment_count = true;
         }
         break;
-      case DictTabInfo::HashMapPartition:
-      {
-        jam();
-        ndbrequire(map_ptr_i != RNIL);
-        Ptr<Hash2FragmentMap> ptr;
-        g_hash_map.getPtr(ptr, map_ptr_i);
-        if (noOfFragments == 0)
-        {
-          jam();
-          noOfFragments = ptr.p->m_fragments;
-        }
-        else if (noOfFragments != ptr.p->m_fragments)
-        {
-          jam();
-          err = CreateFragmentationRef::InvalidFragmentationType;
-          break;
-        }
-        set_default_node_groups(signal, noOfFragments);
-        break;
-      }
-      default:
+      case DictTabInfo::UserDefined:
         jam();
         use_specific_fragment_count = true;
         if (noOfFragments == 0)
@@ -12445,6 +12424,28 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           err = CreateFragmentationRef::InvalidFragmentationType;
         }
         break;
+      case DictTabInfo::HashMapPartition:
+      {
+        jam();
+        ndbrequire(map_ptr_i != RNIL);
+        Ptr<Hash2FragmentMap> ptr;
+        g_hash_map.getPtr(ptr, map_ptr_i);
+        if (noOfFragments == 0 ||
+            partitionCount != ptr.p->m_fragments ||
+            noOfFragments % partitionCount != 0)
+        {
+          jam();
+          err = CreateFragmentationRef::InvalidFragmentationType;
+          break;
+        }
+        set_default_node_groups(signal, noOfFragments);
+        break;
+      }
+      case DictTabInfo::DistrKeyOrderedIndex:
+        jam();
+      default:
+        jam();
+        err = CreateFragmentationRef::InvalidFragmentationType;
       }
       if (err)
         break;
@@ -14955,11 +14956,11 @@ loop:
        */
       thrjam(jambuf);
       g_hash_map.getPtr(ptr, map_ptr_i);
-      fragId = ptr.p->m_map[hashValue % tabPtr.p->partitionCount];
+      const Uint32 partId = ptr.p->m_map[hashValue % ptr.p->m_cnt];
       if (anyNode == 2)
       {
         thrjam(jambuf);
-        fragId = findFirstNewFragment(tabPtr.p, fragPtr, fragId, jambuf);
+        fragId = findFirstNewFragment(tabPtr.p, fragPtr, partId, jambuf);
         if (fragId == RNIL)
         {
           conf->zero = 0;
@@ -14968,6 +14969,7 @@ loop:
           goto check_exit;
         }
       }
+      else fragId = partId;
     }
   }
   else if (tabPtr.p->method == TabRecord::LINEAR_HASH)
