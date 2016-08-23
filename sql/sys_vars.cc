@@ -63,6 +63,7 @@
 #include "sql_tmp_table.h"               // internal_tmp_disk_storage_engine
 #include "sql_time.h"                    // global_date_format
 #include "table_cache.h"                 // Table_cache_manager
+#include "template_utils.h"              // pointer_cast
 #include "transaction.h"                 // trans_commit_stmt
 #include "rpl_write_set_handler.h"       // transaction_write_set_hashing_algorithms
 #include "rpl_group_replication.h"       // is_group_replication_running
@@ -1331,16 +1332,40 @@ static bool check_charset_not_null(sys_var *self, THD *thd, set_var *var)
 {
   return check_charset(self, thd, var) || check_not_null(self, thd, var);
 }
-static Sys_var_struct Sys_character_set_system(
+
+namespace {
+struct Get_name
+{
+  explicit Get_name(const CHARSET_INFO *ci) : m_ci(ci) {}
+  uchar* get_name()
+  {
+    return const_cast<uchar*>(pointer_cast<const uchar*>(m_ci->name));
+  }
+  const CHARSET_INFO *m_ci;
+};
+
+struct Get_csname
+{
+  explicit Get_csname(const CHARSET_INFO *ci) : m_ci(ci) {}
+  uchar* get_name()
+  {
+    return const_cast<uchar*>(pointer_cast<const uchar*>(m_ci->csname));
+  }
+  const CHARSET_INFO *m_ci;
+};
+
+} // namespace
+
+static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_system(
        "character_set_system", "The character set used by the server "
        "for storing identifiers",
        READ_ONLY GLOBAL_VAR(system_charset_info), NO_CMD_LINE,
-       offsetof(CHARSET_INFO, csname), DEFAULT(0));
+       DEFAULT(0));
 
-static Sys_var_struct Sys_character_set_server(
+static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_server(
        "character_set_server", "The default character set",
        SESSION_VAR(collation_server), NO_CMD_LINE,
-       offsetof(CHARSET_INFO, csname), DEFAULT(&default_charset_info),
+       DEFAULT(&default_charset_info),
        NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_charset_not_null));
 
 static bool check_charset_db(sys_var *self, THD *thd, set_var *var)
@@ -1359,11 +1384,11 @@ static bool update_deprecated(sys_var *self, THD *thd, enum_var_type type)
                       self->name.str);
   return false;
 }
-static Sys_var_struct Sys_character_set_database(
+static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_database(
        "character_set_database",
        " The character set used by the default database",
        SESSION_VAR(collation_database), NO_CMD_LINE,
-       offsetof(CHARSET_INFO, csname), DEFAULT(&default_charset_info),
+       DEFAULT(&default_charset_info),
        NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_charset_db),
        ON_UPDATE(update_deprecated));
 
@@ -1384,34 +1409,34 @@ static bool fix_thd_charset(sys_var *self, THD *thd, enum_var_type type)
     thd->update_charset();
   return false;
 }
-static Sys_var_struct Sys_character_set_client(
+static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_client(
        "character_set_client", "The character set for statements "
        "that arrive from the client",
        SESSION_VAR(character_set_client), NO_CMD_LINE,
-       offsetof(CHARSET_INFO, csname), DEFAULT(&default_charset_info),
+       DEFAULT(&default_charset_info),
        NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_cs_client),
        ON_UPDATE(fix_thd_charset));
 
-static Sys_var_struct Sys_character_set_connection(
+static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_connection(
        "character_set_connection", "The character set used for "
        "literals that do not have a character set introducer and for "
        "number-to-string conversion",
        SESSION_VAR(collation_connection), NO_CMD_LINE,
-       offsetof(CHARSET_INFO, csname), DEFAULT(&default_charset_info),
+       DEFAULT(&default_charset_info),
        NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_charset_not_null),
        ON_UPDATE(fix_thd_charset));
 
-static Sys_var_struct Sys_character_set_results(
+static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_results(
        "character_set_results", "The character set used for returning "
        "query results to the client",
        SESSION_VAR(character_set_results), NO_CMD_LINE,
-       offsetof(CHARSET_INFO, csname), DEFAULT(&default_charset_info),
+       DEFAULT(&default_charset_info),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_charset));
 
-static Sys_var_struct Sys_character_set_filesystem(
+static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_filesystem(
        "character_set_filesystem", "The filesystem character set",
        SESSION_VAR(character_set_filesystem), NO_CMD_LINE,
-       offsetof(CHARSET_INFO, csname), DEFAULT(&character_set_filesystem),
+       DEFAULT(&character_set_filesystem),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_charset_not_null),
        ON_UPDATE(fix_thd_charset));
 
@@ -1454,11 +1479,11 @@ static bool check_collation_not_null(sys_var *self, THD *thd, set_var *var)
   }
   return check_not_null(self, thd, var);
 }
-static Sys_var_struct Sys_collation_connection(
+static Sys_var_struct<CHARSET_INFO, Get_name> Sys_collation_connection(
        "collation_connection", "The collation of the connection "
        "character set",
        SESSION_VAR(collation_connection), NO_CMD_LINE,
-       offsetof(CHARSET_INFO, name), DEFAULT(&default_charset_info),
+       DEFAULT(&default_charset_info),
        NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_collation_not_null),
        ON_UPDATE(fix_thd_charset));
 
@@ -1470,18 +1495,18 @@ static bool check_collation_db(sys_var *self, THD *thd, set_var *var)
     var->save_result.ptr= thd->db_charset;
   return false;
 }
-static Sys_var_struct Sys_collation_database(
+static Sys_var_struct<CHARSET_INFO, Get_name> Sys_collation_database(
        "collation_database", "The collation of the database "
        "character set",
        SESSION_VAR(collation_database), NO_CMD_LINE,
-       offsetof(CHARSET_INFO, name), DEFAULT(&default_charset_info),
+       DEFAULT(&default_charset_info),
        NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_collation_db),
        ON_UPDATE(update_deprecated));
 
-static Sys_var_struct Sys_collation_server(
+static Sys_var_struct<CHARSET_INFO, Get_name> Sys_collation_server(
        "collation_server", "The server default collation",
        SESSION_VAR(collation_server), NO_CMD_LINE,
-       offsetof(CHARSET_INFO, name), DEFAULT(&default_charset_info),
+       DEFAULT(&default_charset_info),
        NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_collation_not_null));
 
 static const char *concurrent_insert_names[]= {"NEVER", "AUTO", "ALWAYS", 0};
@@ -5600,17 +5625,30 @@ static bool check_locale(sys_var *self, THD *thd, set_var *var)
   }
   return false;
 }
-static Sys_var_struct Sys_lc_messages(
+
+namespace {
+struct Get_locale_name
+{
+  explicit Get_locale_name(const MY_LOCALE *ml) : m_ml(ml) {}
+  uchar *get_name()
+  {
+    return const_cast<uchar*>(pointer_cast<const uchar*>(m_ml->name));
+  }
+  const MY_LOCALE *m_ml;
+};
+} // namespace
+
+static Sys_var_struct<MY_LOCALE, Get_locale_name> Sys_lc_messages(
        "lc_messages", "Set the language used for the error messages",
        SESSION_VAR(lc_messages), NO_CMD_LINE,
-       my_offsetof(MY_LOCALE, name), DEFAULT(&my_default_lc_messages),
+       DEFAULT(&my_default_lc_messages),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_locale));
 
-static Sys_var_struct Sys_lc_time_names(
+static Sys_var_struct<MY_LOCALE, Get_locale_name> Sys_lc_time_names(
        "lc_time_names", "Set the language used for the month "
        "names and the days of the week",
        SESSION_VAR(lc_time_names), NO_CMD_LINE,
-       my_offsetof(MY_LOCALE, name), DEFAULT(&my_default_lc_time_names),
+       DEFAULT(&my_default_lc_time_names),
        NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_locale));
 
 static Sys_var_tz Sys_time_zone(

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -58,6 +58,8 @@ struct PFS_events
   const char *m_source_file;
   /** Location of the instrumentation in the source code (line number). */
   uint m_source_line;
+
+  PFS_events &operator=(const PFS_events &rhs)= default;
 };
 
 #endif

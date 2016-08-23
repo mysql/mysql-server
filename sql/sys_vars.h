@@ -1922,24 +1922,23 @@ public:
   represented as structures, have names, and possibly can be referred to by
   numbers.  Examples: character sets, collations, locales,
 
-  Class specific constructor arguments:
-    ptrdiff_t name_offset  - offset of the 'name' field in the structure
-
   Backing store: void*
+  @tparam Struct_type type of struct being wrapped
+  @tparam Name_getter must provide Name_getter(Struct_type*).get_name()
 
   @note
   As every such a structure requires special treatment from my_getopt,
   these variables don't support command-line equivalents, any such
   command-line options should be added manually to my_long_options in mysqld.cc
 */
+template<typename Struct_type, typename Name_getter>
 class Sys_var_struct: public sys_var
 {
-  ptrdiff_t name_offset; // offset to the 'name' property in the structure
 public:
   Sys_var_struct(const char *name_arg,
           const char *comment, int flag_args, ptrdiff_t off, size_t size,
           CMD_LINE getopt,
-          ptrdiff_t name_off, void *def_val, PolyLock *lock=0,
+          void *def_val, PolyLock *lock=0,
           enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
           on_check_function on_check_func=0,
           on_update_function on_update_func=0,
@@ -1948,8 +1947,7 @@ public:
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, SHOW_CHAR, (intptr)def_val,
               lock, binlog_status_arg, on_check_func, on_update_func,
-              substitute, parse_flag),
-      name_offset(name_off)
+              substitute, parse_flag)
   {
     option.var_type= GET_STR;
     /*
@@ -1986,13 +1984,13 @@ public:
   { return type != INT_RESULT && type != STRING_RESULT; }
   uchar *session_value_ptr(THD *running_thd, THD *target_thd, LEX_STRING *base)
   {
-    uchar *ptr= session_var(target_thd, uchar*);
-    return ptr ? *(uchar**)(ptr+name_offset) : 0;
+    const Struct_type *ptr= session_var(target_thd, const Struct_type*);
+    return ptr ? Name_getter(ptr).get_name() : nullptr;
   }
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
   {
-    uchar *ptr= global_var(uchar*);
-    return ptr ? *(uchar**)(ptr+name_offset) : 0;
+    const Struct_type *ptr= global_var(const Struct_type*);
+    return ptr ? Name_getter(ptr).get_name() : nullptr;
   }
 };
 
