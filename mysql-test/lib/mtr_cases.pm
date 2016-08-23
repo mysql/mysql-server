@@ -169,36 +169,38 @@ sub collect_test_cases ($$$$) {
           if ( @this_case )
           {
             push (@$cases, @this_case);
-            $found= 1;
           }
           else
           {
 	    mtr_error("Could not find '$tname' in '$sname' suite");
           }
         }
-        elsif ( !$opt_reorder )
+        else
         {
-          # If --no-reorder is passed and if suite was not part of name,
-          # search in all the suites
-          foreach my $suite (split(",", $suites))
+          if ( !$opt_reorder )
           {
-            my @this_case = collect_one_suite($suite, [ $tname ]);
-            if ( @this_case )
+            # If --no-reorder is passed and if suite was not part of name,
+            # search in all the suites
+            foreach my $suite (split(",", $suites))
             {
-              push (@$cases, @this_case);
-              $found= 1;
-            }
-            @this_case= collect_one_suite("i_".$suite, [ $tname ]);
-            if ( @this_case )
-            {
-              push (@$cases, @this_case);
-              $found= 1;
+              my @this_case = collect_one_suite($suite, [ $tname ]);
+              if ( @this_case )
+              {
+                push (@$cases, @this_case);
+                $found= 1;
+              }
+              @this_case= collect_one_suite("i_".$suite, [ $tname ]);
+              if ( @this_case )
+              {
+                push (@$cases, @this_case);
+                $found= 1;
+              }
             }
           }
-        }
-        if ( !$found )
-        {
-          mtr_error("Could not find '$tname' in '$suites' suite(s)");
+          if ( !$found )
+          {
+            mtr_error("Could not find '$tname' in '$suites' suite(s)");
+          }
         }
       }
     }
