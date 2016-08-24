@@ -1367,6 +1367,8 @@ typedef bool (*dict_recover_t)(dict_recovery_mode_t dict_recovery_mode,
                             lock is to be acquired/was released.
   @param notification_type  Indicates whether this is pre-acquire or
                             post-release notification.
+  @param victimized        'true' if locking failed as we were selected
+                            as a victim in order to avoid possible deadlocks.
 
   @note Notification is done only for objects from TABLESPACE, SCHEMA,
         TABLE, FUNCTION, PROCEDURE, TRIGGER and EVENT namespaces.
@@ -1388,7 +1390,8 @@ typedef bool (*dict_recover_t)(dict_recovery_mode_t dict_recovery_mode,
           True - if it has failed/lock should not be acquired.
 */
 typedef bool (*notify_exclusive_mdl_t)(THD *thd, const MDL_key *mdl_key,
-                                       ha_notification_type notification_type);
+                                       ha_notification_type notification_type,
+                                       bool *victimized);
 
 /**
   Notify/get permission from storage engine before or after execution of
@@ -5384,7 +5387,8 @@ void ha_set_normalized_disabled_se_str(const std::string &disabled_se_str);
 bool ha_is_storage_engine_disabled(handlerton *se_engine);
 
 bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
-                             ha_notification_type notification_type);
+                             ha_notification_type notification_type,
+                             bool *victimized);
 bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
                            ha_notification_type notification_type);
 
