@@ -44,7 +44,8 @@ public:
   virtual bool is_connected() { return true; }
   virtual THD* get_thd()   { return NULL; }
 
-  virtual bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key)
+  virtual bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key,
+                                                 bool *victimized)
   { return false; }
   virtual void notify_hton_post_release_exclusive(const MDL_key *mdl_key)
   { }
