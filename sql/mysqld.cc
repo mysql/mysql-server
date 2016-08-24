@@ -3474,6 +3474,22 @@ int init_common_variables()
                       "--slow-query-log-file option, log tables are used. "
                       "To enable logging to files use the --log-output=file option.");
 
+  if (opt_general_logname &&
+      !is_valid_log_name(opt_general_logname, strlen(opt_general_logname)))
+  {
+    sql_print_error("Invalid value for --general_log_file: %s",
+                    opt_general_logname);
+    return 1;
+  }
+
+  if (opt_slow_logname &&
+      !is_valid_log_name(opt_slow_logname, strlen(opt_slow_logname)))
+  {
+    sql_print_error("Invalid value for --slow_query_log_file: %s",
+                    opt_slow_logname);
+    return 1;
+  }
+
 #define FIX_LOG_VAR(VAR, ALT)                                   \
   if (!VAR || !*VAR)                                            \
     VAR= ALT;
