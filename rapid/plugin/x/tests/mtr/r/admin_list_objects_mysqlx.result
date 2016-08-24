@@ -47,6 +47,24 @@ nothing	int(11)	YES		null
 name	type
 books	TABLE
 command ok
+name	type
+books	TABLE
+fakecoll	VIEW
+mytable	TABLE
+mytable2	TABLE
+myview	VIEW
+command ok
+
+0 rows affected
+name	type
+fakecoll	VIEW
+mytable	TABLE
+mytable2	TABLE
+myview	VIEW
+command ok
+name	type
+processlist	VIEW
+command ok
 Mysqlx.Ok {
   msg: "bye!"
 }

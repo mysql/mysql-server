@@ -1155,9 +1155,9 @@ ngs::Error_code xpl::Admin_command_handler::list_objects(Command_arguments &args
 
   Query_string_builder qb;
   qb.put("SELECT T.table_name AS name, "
-    "IF(ANY_VALUE(T.table_type)='VIEW', 'VIEW', "
+    "IF(ANY_VALUE(T.table_type) LIKE '%VIEW', 'VIEW', "
     "IF(COUNT(*) = ").put(COUNT_DOC).put(" + ").put(COUNT_ID).put(" + ").put(COUNT_GEN).put(", 'COLLECTION', 'TABLE')) AS type "
-    "FROM information_schema.tables AS T LEFT JOIN information_schema.columns AS C USING (table_name)"
+    "FROM information_schema.tables AS T LEFT JOIN information_schema.columns AS C USING (table_schema,table_name)"
     "WHERE T.table_schema = ");
   if (schema.empty())
     qb.put("schema()");

@@ -65,6 +65,18 @@ USE xtest
 -->stmtadmin list_objects	{"pattern":"books"}
 -->recvresult
 
+
+-->stmtadmin list_objects
+-->recvresult
+-->stmtsql DROP TABLE xtest.books
+-->recvresult
+-->stmtadmin list_objects
+-->recvresult
+
+
+-->stmtadmin list_objects	{"schema":"sys", "pattern":"processlist"}
+-->recvresult
+
 EOF
 
 --exec $MYSQLXTEST -uroot --password='' --file=$xtest_file 2>&1
