@@ -847,11 +847,14 @@ fill_dd_index_elements_from_key_parts(const dd::Table *tab_obj,
         }
         break;
       case dd::Index::IT_MULTIPLE:
+      case dd::Index::IT_FULLTEXT:
+      case dd::Index::IT_SPATIAL:
         if (key_part == key_parts)
           const_cast<dd::Column*>(key_col_obj)->set_column_key(
                                                   dd::Column::CK_MULTIPLE);
         break;
       default:
+        DBUG_ASSERT(!"Invalid index type");
         break;
       }
     }
