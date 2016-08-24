@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -577,6 +577,16 @@ void sql_perror(const char *message);
 bool flush_error_log();
 
 char *make_log_name(char *buff, const char *name, const char* log_ext);
+
+/**
+  Check given log name against certain blacklisted names/extensions.
+
+  @param name     Log name to check
+  @param len      Length of log name
+
+  @returns true if name is valid, false otherwise.
+*/
+bool is_valid_log_name(const char *name, size_t len);
 
 extern LOGGER logger;
 
