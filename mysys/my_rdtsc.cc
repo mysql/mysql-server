@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -113,8 +113,6 @@ ulonglong my_timer_cycles(void)
                         "orq %%rdx,%%rax"
                         : "=a" (result) :: "%edx");
   return result;
-#elif defined(_WIN32) && defined(_M_IX86)
-  __asm {rdtsc};
 #elif defined(_WIN64) && defined(_M_X64)
   /* For 64-bit Windows: unsigned __int64 __rdtsc(); */
   return __rdtsc();
@@ -464,8 +462,6 @@ extern "C" void my_timer_init(MY_TIMER_INFO *mti)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_X86;
 #elif defined(__GNUC__) && defined(__x86_64__)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_X86_64;
-#elif defined(_WIN32) && defined(_M_IX86)
-  mti->cycles.routine= MY_TIMER_ROUTINE_ASM_X86_WIN;
 #elif defined(_WIN64) && defined(_M_X64)
   mti->cycles.routine= MY_TIMER_ROUTINE_RDTSC;
 #elif defined(__GNUC__) && defined(__ia64__)

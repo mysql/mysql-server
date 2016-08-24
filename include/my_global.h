@@ -313,17 +313,6 @@ static inline int is_directory_separator(char c)
 /* Some defines of functions for portability */
 
 #ifdef _WIN32
-#if !defined(_WIN64)
-inline double my_ulonglong2double(unsigned long long value)
-{
-  long long nr=(long long) value;
-  if (nr >= 0)
-    return (double) nr;
-  return (18446744073709551616.0 + (double) nr);
-}
-#define ulonglong2double my_ulonglong2double
-#define my_off_t2double  my_ulonglong2double
-#endif /* _WIN64 */
 inline unsigned long long my_double2ulonglong(double d)
 {
   double t= d - (double) 0x8000000000000000ULL;

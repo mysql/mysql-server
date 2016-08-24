@@ -463,11 +463,7 @@ inline void setup_fpu()
     point, double values will be stored and processed in 64 bits anyway.
   */
 #if defined(__i386__) && !defined(__SSE2_MATH__)
-#if defined(_WIN32)
-#if !defined(_WIN64)
-  _control87(_PC_53, MCW_PC);
-#endif /* !_WIN64 */
-#else /* !_WIN32 */
+#if !defined(_WIN32)
   fpu_control_t cw;
   _FPU_GETCW(cw);
   cw= (cw & ~_FPU_EXTENDED) | _FPU_DOUBLE;
