@@ -620,6 +620,9 @@ ulonglong Statistics_cache::read_stat_by_open_table(
    */
   lex->sql_command= SQLCOM_SELECT;
 
+  DBUG_EXECUTE_IF("simulate_kill_query_on_open_table",
+                  DBUG_SET("+d,kill_query_on_open_table_from_tz_find"););
+
   // Push deadlock error handler.
   thd->push_internal_handler(&mdl_deadlock_error_handler);
 
@@ -630,6 +633,8 @@ ulonglong Statistics_cache::read_stat_by_open_table(
 
   thd->pop_internal_handler();
 
+  DBUG_EXECUTE_IF("simulate_kill_query_on_open_table",
+                  DBUG_SET("-d,kill_query_on_open_table_from_tz_find"););
   DEBUG_SYNC(thd, "after_open_table_mdl_shared_to_fetch_stats");
 
   if (!open_result && table_list->is_view_or_derived())
@@ -645,30 +650,45 @@ ulonglong Statistics_cache::read_stat_by_open_table(
    */
   lex->sql_command= old_lex->sql_command;
 
-  if (open_result && thd->is_error())
+  if (open_result)
   {
-    /*
-      Hide error for a non-existing table.
-      For example, this error can occur when we use a where condition
-      with a db name and table, but the table does not exist.
-     */
-    if (!(thd->get_stmt_da()->mysql_errno() == ER_NO_SUCH_TABLE) &&
-        !(thd->get_stmt_da()->mysql_errno() == ER_WRONG_OBJECT))
-      push_warning(thd, Sql_condition::SL_WARNING,
-                   thd->get_stmt_da()->mysql_errno(),
-                   thd->get_stmt_da()->message_text());
+    DBUG_ASSERT(thd->is_error() || thd->is_killed());
 
-    /* Cache empty statistics when we see a error.
-       This will make sure,
+    if (thd->is_error())
+    {
+      /*
+        Hide error for a non-existing table.
+        For example, this error can occur when we use a where condition
+        with a db name and table, but the table does not exist.
+      */
+      if (!(thd->get_stmt_da()->mysql_errno() == ER_NO_SUCH_TABLE) &&
+          !(thd->get_stmt_da()->mysql_errno() == ER_WRONG_OBJECT))
+        push_warning(thd, Sql_condition::SL_WARNING,
+                     thd->get_stmt_da()->mysql_errno(),
+                     thd->get_stmt_da()->message_text());
 
-       1. You will not invoke open_tables_for_query() gain.
+      /* Cache empty statistics when we see a error.
+         This will make sure,
 
-       2. You will not see junk values for statistics in results.
-    */
-    cache_stats(schema_name_ptr, table_name_ptr, ha_stat);
+         1. You will not invoke open_tables_for_query() gain.
 
-    m_error= thd->get_stmt_da()->message_text();
-    thd->clear_error();
+         2. You will not see junk values for statistics in results.
+      */
+      cache_stats(schema_name_ptr, table_name_ptr, ha_stat);
+
+      m_error= thd->get_stmt_da()->message_text();
+      thd->clear_error();
+    }
+    else
+    {
+      /*
+        Table open fails even when query or connection is killed. In this
+        case Diagnostics_area might not be set. So just returning error from
+        here. Query is later terminated by call to send_kill_message() when
+        we check thd->killed flag.
+      */
+      error= -1;
+    }
 
     goto end;
   }
