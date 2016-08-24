@@ -368,12 +368,15 @@ static bool open_views_and_update_metadata(
     if (mysql_register_view(thd, view, enum_view_create_mode::VIEW_ALTER))
     {
       view_lex->unit->cleanup(true);
+      lex_end(view_lex);
       thd->lex= org_lex;
       DBUG_RETURN(true);
     }
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->get_db_name(),
                      view->get_table_name(), false);
+
     view_lex->unit->cleanup(true);
+    lex_end(view_lex);
     thd->lex= org_lex;
   }
 
