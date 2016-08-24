@@ -3075,14 +3075,17 @@ public:
   virtual void notify_shared_lock(MDL_context_owner *ctx_in_use,
                                   bool needs_thr_lock_abort);
 
-  virtual bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key)
+  virtual bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key,
+                                                 bool *victimized)
   {
-    return ha_notify_exclusive_mdl(this, mdl_key, HA_NOTIFY_PRE_EVENT);
+    return ha_notify_exclusive_mdl(this, mdl_key, HA_NOTIFY_PRE_EVENT,
+                                   victimized);
   }
 
   virtual void notify_hton_post_release_exclusive(const MDL_key *mdl_key)
   {
-    ha_notify_exclusive_mdl(this, mdl_key, HA_NOTIFY_POST_EVENT);
+    bool unused_arg;
+    ha_notify_exclusive_mdl(this, mdl_key, HA_NOTIFY_POST_EVENT, &unused_arg);
   }
 
   /**
