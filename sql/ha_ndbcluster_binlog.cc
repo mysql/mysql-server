@@ -523,7 +523,6 @@ static void ndbcluster_binlog_wait(THD *thd)
     thd->proc_info = "Waiting for ndbcluster binlog update to "
 	"reach current position";
 
-    const Uint64 start_handled_epoch = ndb_latest_handled_binlog_epoch;
    /*
      Highest epoch that a transaction against Ndb has received
      as part of commit processing *in this thread*. This is a
@@ -539,6 +538,8 @@ static void ndbcluster_binlog_wait(THD *thd)
     int count = 30;
 
     mysql_mutex_lock(&injector_mutex);
+    const Uint64 start_handled_epoch = ndb_latest_handled_binlog_epoch;
+
     while (!thd->killed && count && ndb_binlog_running &&
            (ndb_latest_handled_binlog_epoch == 0 ||
             ndb_latest_handled_binlog_epoch < session_last_committed_epoch))
@@ -1539,7 +1540,7 @@ setup(void)
 
     /* Signal injector thread that all is setup */
     ndb_binlog_tables_inited= TRUE;
-    mysql_cond_signal(&injector_cond);
+    mysql_cond_broadcast(&injector_cond);
 
     DBUG_ASSERT(ndb_schema_dist_is_ready());
     return true;     // Setup completed -> OK
@@ -2171,7 +2172,7 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
 
   /* Signal ha_ndbcluster::delete/rename_table that drop is done */
   DBUG_PRINT("info", ("signal that drop is done"));
-  (void) mysql_cond_signal(&injector_cond);
+  mysql_cond_broadcast(&injector_cond);
 
   ndb_tdc_close_cached_table(thd, dbname, tabname);
 
@@ -3886,7 +3887,7 @@ public:
     {
       /* Remove all subscribers for node */
       m_schema_dist_data.report_data_node_failure(pOp->getNdbdNodeId());
-      (void) mysql_cond_signal(&injector_cond);
+      mysql_cond_broadcast(&injector_cond);
       break;
     }
 
@@ -3894,7 +3895,7 @@ public:
     {
       /* Add node as subscriber */
       m_schema_dist_data.report_subscribe(pOp->getNdbdNodeId(), pOp->getReqNodeId());
-      (void) mysql_cond_signal(&injector_cond);
+      mysql_cond_broadcast(&injector_cond);
       break;
     }
 
@@ -3902,7 +3903,7 @@ public:
     {
       /* Remove node as subscriber */
       m_schema_dist_data.report_unsubscribe(pOp->getNdbdNodeId(), pOp->getReqNodeId());
-      (void) mysql_cond_signal(&injector_cond);
+      mysql_cond_broadcast(&injector_cond);
       break;
     }
 
@@ -5274,7 +5275,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     ndb_apply_status_share= get_share(share);
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra  use_count: %u",
                              share->key_string(), share->use_count));
-    (void) mysql_cond_signal(&injector_cond);
+    mysql_cond_broadcast(&injector_cond);
     DBUG_ASSERT(get_thd_ndb(thd)->check_option(Thd_ndb::ALLOW_BINLOG_SETUP));
   }
   else if (do_ndb_schema_share)
@@ -5283,7 +5284,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     ndb_schema_share= get_share(share);
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra  use_count: %u",
                              share->key_string(), share->use_count));
-    (void) mysql_cond_signal(&injector_cond);
+    mysql_cond_broadcast(&injector_cond);
     DBUG_ASSERT(get_thd_ndb(thd)->check_option(Thd_ndb::ALLOW_BINLOG_SETUP));
   }
 
@@ -6479,7 +6480,7 @@ Ndb_binlog_thread::do_run()
   {
     delete thd;
     mysql_mutex_unlock(&injector_mutex);
-    mysql_cond_signal(&injector_cond);
+    mysql_cond_broadcast(&injector_cond);
     DBUG_VOID_RETURN;
   }
 
@@ -6519,7 +6520,7 @@ restart_cluster_failure:
   {
     log_error("Creating Thd_ndb object failed");
     mysql_mutex_unlock(&injector_mutex);
-    mysql_cond_signal(&injector_cond);
+    mysql_cond_broadcast(&injector_cond);
     goto err;
   }
 
@@ -6529,7 +6530,7 @@ restart_cluster_failure:
   {
     log_error("Creating schema Ndb object failed");
     mysql_mutex_unlock(&injector_mutex);
-    mysql_cond_signal(&injector_cond);
+    mysql_cond_broadcast(&injector_cond);
     goto err;
   }
   log_info("Created schema Ndb object, reference: 0x%x, name: '%s'",
@@ -6542,7 +6543,7 @@ restart_cluster_failure:
   {
     log_error("Creating injector Ndb object failed");
     mysql_mutex_unlock(&injector_mutex);
-    mysql_cond_signal(&injector_cond);
+    mysql_cond_broadcast(&injector_cond);
     goto err;
   }
   log_info("Created injector Ndb object, reference: 0x%x, name: '%s'",
@@ -6553,7 +6554,7 @@ restart_cluster_failure:
   {
     log_error("Setting ventbuffer free percent failed");
     mysql_mutex_unlock(&injector_mutex);
-    mysql_cond_signal(&injector_cond);
+    mysql_cond_broadcast(&injector_cond);
     goto err;
   }
 
@@ -6578,7 +6579,7 @@ restart_cluster_failure:
 
   /* Thread start up completed  */
   mysql_mutex_unlock(&injector_mutex);
-  mysql_cond_signal(&injector_cond);
+  mysql_cond_broadcast(&injector_cond);
 
   log_verbose(1, "Wait for server start completed");
   /*
@@ -7350,7 +7351,6 @@ restart_cluster_failure:
           ndb_latest_applied_binlog_epoch= current_epoch;
           break;
         } //while (trans.good())
-        ndb_latest_handled_binlog_epoch= current_epoch;
 
         /*
           NOTE: There are possible more i_pOp available.
@@ -7366,7 +7366,14 @@ restart_cluster_failure:
 
     free_root(&mem_root, MYF(0));
     *root_ptr= old_root;
-    ndb_latest_handled_binlog_epoch= current_epoch;
+
+    if (current_epoch > ndb_latest_handled_binlog_epoch)
+    {
+      Mutex_guard injector_mutex_g(injector_mutex);
+      ndb_latest_handled_binlog_epoch= current_epoch;
+      // Signal ndbcluster_binlog_wait'ers
+      mysql_cond_broadcast(&injector_cond);
+    }
 
     // If all eventOp subscriptions has been teared down,
     // the binlog thread should now restart.
@@ -7485,7 +7492,7 @@ restart_cluster_failure:
   delete thd;
 
   ndb_binlog_running= FALSE;
-  (void) mysql_cond_signal(&injector_cond);
+  mysql_cond_broadcast(&injector_cond);
 
   log_info("Stopped");
 
