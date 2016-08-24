@@ -119,6 +119,9 @@ namespace TaoCrypt {
 
 
 
+#ifdef _WIN32
+    #undef max // avoid name clash
+#endif
 // general MAX
 template<typename T> inline
 const T& max(const T& a, const T& b)
