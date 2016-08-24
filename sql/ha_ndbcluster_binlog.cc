@@ -535,7 +535,6 @@ static void ndbcluster_binlog_wait(THD *thd)
     thd->proc_info = "Waiting for ndbcluster binlog update to "
 	"reach current position";
 
-    const Uint64 start_handled_epoch = ndb_latest_handled_binlog_epoch;
    /*
      Highest epoch that a transaction against Ndb has received
      as part of commit processing *in this thread*. This is a
@@ -551,6 +550,8 @@ static void ndbcluster_binlog_wait(THD *thd)
     int count = 30;
 
     pthread_mutex_lock(&injector_mutex);
+    const Uint64 start_handled_epoch = ndb_latest_handled_binlog_epoch;
+
     while (!thd->killed && count && ndb_binlog_running &&
            (ndb_latest_handled_binlog_epoch == 0 ||
             ndb_latest_handled_binlog_epoch < session_last_committed_epoch))
@@ -1543,7 +1544,7 @@ ndb_binlog_setup(THD *thd)
 
     /* Signal injector thread that all is setup */
     ndb_binlog_tables_inited= TRUE;
-    pthread_cond_signal(&injector_cond);
+    pthread_cond_broadcast(&injector_cond);
 
     DBUG_ASSERT(ndb_schema_dist_is_ready());
     return true;     // Setup completed -> OK
@@ -2133,7 +2134,7 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
 
   /* Signal ha_ndbcluster::delete/rename_table that drop is done */
   DBUG_PRINT("info", ("signal that drop is done"));
-  (void) pthread_cond_signal(&injector_cond);
+  pthread_cond_broadcast(&injector_cond);
 
   ndb_tdc_close_cached_table(thd, dbname, tabname);
 
@@ -5106,7 +5107,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     ndb_apply_status_share= get_share(share);
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra  use_count: %u",
                              share->key, share->use_count));
-    (void) pthread_cond_signal(&injector_cond);
+    pthread_cond_broadcast(&injector_cond);
     DBUG_ASSERT(get_thd_ndb(thd)->options & TNO_ALLOW_BINLOG_SETUP);
   }
   else if (do_ndb_schema_share)
@@ -5115,7 +5116,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     ndb_schema_share= get_share(share);
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra  use_count: %u",
                              share->key, share->use_count));
-    (void) pthread_cond_signal(&injector_cond);
+    pthread_cond_broadcast(&injector_cond);
     DBUG_ASSERT(get_thd_ndb(thd)->options & TNO_ALLOW_BINLOG_SETUP);
   }
 
@@ -6317,7 +6318,7 @@ Ndb_binlog_thread::do_run()
   {
     delete thd;
     pthread_mutex_unlock(&injector_mutex);
-    pthread_cond_signal(&injector_cond);
+    pthread_cond_broadcast(&injector_cond);
     DBUG_VOID_RETURN;
   }
   lex_start(thd);
@@ -6363,7 +6364,7 @@ restart_cluster_failure:
   {
     log_error("Creating Thd_ndb object failed");
     pthread_mutex_unlock(&injector_mutex);
-    pthread_cond_signal(&injector_cond);
+    pthread_cond_broadcast(&injector_cond);
     goto err;
   }
 
@@ -6373,7 +6374,7 @@ restart_cluster_failure:
   {
     log_error("Creating schema Ndb object failed");
     pthread_mutex_unlock(&injector_mutex);
-    pthread_cond_signal(&injector_cond);
+    pthread_cond_broadcast(&injector_cond);
     goto err;
   }
   log_info("Created schema Ndb object, reference: 0x%x, name: '%s'",
@@ -6386,7 +6387,7 @@ restart_cluster_failure:
   {
     log_error("Creating injector Ndb object failed");
     pthread_mutex_unlock(&injector_mutex);
-    pthread_cond_signal(&injector_cond);
+    pthread_cond_broadcast(&injector_cond);
     goto err;
   }
   log_info("Created injector Ndb object, reference: 0x%x, name: '%s'",
@@ -6397,7 +6398,7 @@ restart_cluster_failure:
   {
     log_error("Setting ventbuffer free percent failed");
     pthread_mutex_unlock(&injector_mutex);
-    pthread_cond_signal(&injector_cond);
+    pthread_cond_broadcast(&injector_cond);
     goto err;
   }
 
@@ -6421,7 +6422,7 @@ restart_cluster_failure:
 
   /* Thread start up completed  */
   pthread_mutex_unlock(&injector_mutex);
-  pthread_cond_signal(&injector_cond);
+  pthread_cond_broadcast(&injector_cond);
 
   log_verbose(1, "Wait for server start completed");
   /*
@@ -7191,7 +7192,6 @@ restart_cluster_failure:
           ndb_latest_applied_binlog_epoch= current_epoch;
           break;
         } //while (trans.good())
-        ndb_latest_handled_binlog_epoch= current_epoch;
 
         /*
           NOTE: There are possible more i_pOp available.
@@ -7207,7 +7207,14 @@ restart_cluster_failure:
 
     free_root(&mem_root, MYF(0));
     *root_ptr= old_root;
-    ndb_latest_handled_binlog_epoch= current_epoch;
+
+    if (current_epoch > ndb_latest_handled_binlog_epoch)
+    {
+      Mutex_guard injector_mutex_g(injector_mutex);
+      ndb_latest_handled_binlog_epoch= current_epoch;
+      // Signal ndbcluster_binlog_wait'ers
+      pthread_cond_broadcast(&injector_cond);
+    }
 
     // If all eventOp subscriptions has been teared down,
     // the binlog thread should now restart.
@@ -7326,7 +7333,7 @@ restart_cluster_failure:
   delete thd;
 
   ndb_binlog_running= FALSE;
-  (void) pthread_cond_signal(&injector_cond);
+  pthread_cond_broadcast(&injector_cond);
 
   log_info("Stopped");
 
