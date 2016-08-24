@@ -3063,10 +3063,11 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
   {
     mysql_mdl_set_status(ticket->m_psi, MDL_ticket::PRE_ACQUIRE_NOTIFY);
 
-    if (m_owner->notify_hton_pre_acquire_exclusive(key))
+    bool victimized;
+    if (m_owner->notify_hton_pre_acquire_exclusive(key, &victimized))
     {
       MDL_ticket::destroy(ticket);
-      my_error(ER_LOCK_REFUSED_BY_ENGINE, MYF(0));
+      my_error(victimized ? ER_LOCK_DEADLOCK : ER_LOCK_REFUSED_BY_ENGINE, MYF(0));
       return TRUE;
     }
     ticket->m_hton_notified= true;
@@ -3401,10 +3402,11 @@ MDL_context::clone_ticket(MDL_request *mdl_request)
 
     mysql_mdl_set_status(ticket->m_psi, MDL_ticket::PRE_ACQUIRE_NOTIFY);
 
-    if (m_owner->notify_hton_pre_acquire_exclusive(&mdl_request->key))
+    bool victimized;
+    if (m_owner->notify_hton_pre_acquire_exclusive(&mdl_request->key, &victimized))
     {
       MDL_ticket::destroy(ticket);
-      my_error(ER_LOCK_REFUSED_BY_ENGINE, MYF(0));
+      my_error(victimized ? ER_LOCK_DEADLOCK : ER_LOCK_REFUSED_BY_ENGINE, MYF(0));
       return TRUE;
     }
     ticket->m_hton_notified= true;
@@ -4754,6 +4756,42 @@ bool MDL_context::has_locks(MDL_key::enum_mdl_namespace mdl_namespace) const
   }
   return false;
 }
+
+
+/**
+  Do we hold any locks which are possibly being waited
+  for by another MDL_context?
+
+  @retval TRUE  A lock being 'waited_for' was found.
+  @retval FALSE No one waits for the lock(s) we hold.
+
+  @note Should only be called from the thread which
+        owns the MDL_context
+*/
+
+bool MDL_context::has_locks_waited_for() const
+{
+  MDL_ticket *ticket;
+
+  for (int i=0; i < MDL_DURATION_END; i++)
+  {
+    const enum_mdl_duration duration= static_cast<enum_mdl_duration>(i);
+    Ticket_iterator it(m_tickets[duration]);
+    while ((ticket= it++))
+    {
+      MDL_lock *const lock= ticket->m_lock;
+
+      mysql_prlock_rdlock(&lock->m_rwlock);
+      const bool has_waiters= !lock->m_waiting.is_empty();
+      mysql_prlock_unlock(&lock->m_rwlock);
+
+      if (!has_waiters)
+        return true;
+    }
+  }
+  return false;
+}
+
 
 
 /**

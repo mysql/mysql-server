@@ -8425,9 +8425,17 @@ bool handler::my_eval_gcolumn_expr(THD *thd, TABLE *table,
 
 struct HTON_NOTIFY_PARAMS
 {
+  HTON_NOTIFY_PARAMS(const MDL_key *mdl_key,
+                     ha_notification_type mdl_type)
+    : key(mdl_key), notification_type(mdl_type),
+      some_htons_were_notified(false),
+      victimized(false)
+  {}
+
   const MDL_key *key;
   const ha_notification_type notification_type;
   bool some_htons_were_notified;
+  bool victimized;
 };
 
 
@@ -8440,7 +8448,8 @@ notify_exclusive_mdl_helper(THD *thd, plugin_ref plugin, void *arg)
     HTON_NOTIFY_PARAMS *params= reinterpret_cast<HTON_NOTIFY_PARAMS*>(arg);
 
     if (hton->notify_exclusive_mdl(thd, params->key,
-                                   params->notification_type))
+                                   params->notification_type,
+                                   &params->victimized))
     {
       // Ignore failures from post event notification.
       if (params->notification_type == HA_NOTIFY_PRE_EVENT)
@@ -8463,6 +8472,8 @@ notify_exclusive_mdl_helper(THD *thd, plugin_ref plugin, void *arg)
                             lock is to be acquired/was released.
   @param notification_type  Indicates whether this is pre-acquire or
                             post-release notification.
+  @param victimized        'true' if locking failed as we were selected
+                            as a victim in order to avoid possible deadlocks.
 
   @note @see handlerton::notify_exclusive_mdl for details about
         calling convention and error reporting.
@@ -8472,12 +8483,15 @@ notify_exclusive_mdl_helper(THD *thd, plugin_ref plugin, void *arg)
 */
 
 bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
-                             ha_notification_type notification_type)
+                             ha_notification_type notification_type,
+                             bool *victimized)
 {
-  HTON_NOTIFY_PARAMS params = {mdl_key, notification_type, false};
+  HTON_NOTIFY_PARAMS params(mdl_key, notification_type);
+  *victimized = false;
   if (plugin_foreach(thd, notify_exclusive_mdl_helper,
                      MYSQL_STORAGE_ENGINE_PLUGIN, &params))
   {
+    *victimized = params.victimized;
     /*
       If some SE hasn't given its permission to acquire lock and some SEs
       has given their permissions, we need to notify the latter group about
@@ -8487,8 +8501,7 @@ bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
     if (notification_type == HA_NOTIFY_PRE_EVENT &&
         params.some_htons_were_notified)
     {
-      HTON_NOTIFY_PARAMS rollback_params = {mdl_key, HA_NOTIFY_POST_EVENT,
-                                            false};
+      HTON_NOTIFY_PARAMS rollback_params(mdl_key, HA_NOTIFY_POST_EVENT);
       (void) plugin_foreach(thd, notify_exclusive_mdl_helper,
                             MYSQL_STORAGE_ENGINE_PLUGIN, &rollback_params);
     }
@@ -8539,7 +8552,7 @@ notify_alter_table_helper(THD *thd, plugin_ref plugin, void *arg)
 bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
                            ha_notification_type notification_type)
 {
-  HTON_NOTIFY_PARAMS params = {mdl_key, notification_type, false};
+  HTON_NOTIFY_PARAMS params(mdl_key, notification_type);
 
   if (plugin_foreach(thd, notify_alter_table_helper,
                      MYSQL_STORAGE_ENGINE_PLUGIN, &params))
@@ -8553,8 +8566,7 @@ bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
     if (notification_type == HA_NOTIFY_PRE_EVENT &&
         params.some_htons_were_notified)
     {
-      HTON_NOTIFY_PARAMS rollback_params = {mdl_key, HA_NOTIFY_POST_EVENT,
-                                            false};
+      HTON_NOTIFY_PARAMS rollback_params(mdl_key, HA_NOTIFY_POST_EVENT);
       (void) plugin_foreach(thd, notify_alter_table_helper,
                             MYSQL_STORAGE_ENGINE_PLUGIN, &rollback_params);
     }
