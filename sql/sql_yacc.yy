@@ -5492,6 +5492,12 @@ part_name:
           {
             partition_info *part_info= Lex->part_info;
             partition_element *p_elem= part_info->curr_part_elem;
+            if (check_string_char_length(to_lex_cstring($1), "", NAME_CHAR_LEN,
+                                         system_charset_info, true))
+            {
+              my_error(ER_TOO_LONG_IDENT, MYF(0), $1.str);
+              MYSQL_YYABORT;
+            }
             p_elem->partition_name= $1.str;
           }
         ;
@@ -5788,7 +5794,15 @@ sub_part_definition:
 
 sub_name:
           ident_or_text
-          { Lex->part_info->curr_part_elem->partition_name= $1.str; }
+          {
+            if (check_string_char_length(to_lex_cstring($1), "", NAME_CHAR_LEN,
+                                         system_charset_info, true))
+            {
+              my_error(ER_TOO_LONG_IDENT, MYF(0), $1.str);
+              MYSQL_YYABORT;
+            }
+            Lex->part_info->curr_part_elem->partition_name= $1.str;
+          }
         ;
 
 opt_part_options:
