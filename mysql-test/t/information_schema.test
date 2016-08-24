@@ -1958,3 +1958,32 @@ DROP VIEW v1;
 SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'ndbinfo';
 # tables of ndbinfo schema should not be listed.
 SELECT table_name FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'ndbinfo';
+
+
+--echo #
+--echo # WL#6599: New Data Dictionary and I_S Integration.
+--echo #
+--echo # Test case to check INFORMATION_SCHEMA.COLUMNS.COLUMN_KEY
+--echo # value if reported for FULLTEXT and SPATIAL index.
+--echo #
+CREATE TABLE t1 (
+c1 INT,
+c2 INT,
+c3 CHAR(255),
+c4 CHAR(255),
+c5 CHAR(255),
+c6 POINT NOT NULL,
+c7 GEOMETRY NOT NULL,
+SPATIAL INDEX(c7),
+PRIMARY KEY (c1, c6),
+KEY c2_key (c2),
+FULLTEXT KEY c3_fts (c3),
+FULLTEXT KEY c4_fts (c4, c5));
+
+SELECT COLUMN_NAME, IS_NULLABLE,
+       DATA_TYPE, COLLATION_NAME, COLUMN_KEY
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA='test';
+SHOW COLUMNS FROM t1;
+
+DROP TABLE t1;
