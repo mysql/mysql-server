@@ -20,18 +20,54 @@
    (We will refer to this code as to elsie-code further.)
 */
 
+#ifdef TZINFO2SQL
+#define DISABLE_PSI_FILE 1
+#endif
+
 #include "tztime.h"
 
+#include <fcntl.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <time.h>
+
+#include "field.h"
+#include "handler.h"
+#include "key.h"
+#include "m_ctype.h"
 #include "m_string.h"          // strmake
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_dir.h"
+#include "my_global.h"
+#include "my_sys.h"
 #include "my_time.h"           // MY_TIME_T_MIN
-#include "tzfile.h"            // TZ_MAX_REV_RANGES
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/service_my_snprintf.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_servers.h"
+#include "system_variables.h"
 #include "template_utils.h"
+#include "thr_lock.h"
+#include "thr_malloc.h"
+#include "thr_mutex.h"
+#include "tzfile.h"            // TZ_MAX_REV_RANGES
 
 #if !defined(TZINFO2SQL)
-#include "hash.h"              // HASH
 #include "debug_sync.h"        // DEBUG_SYNC
+#include "hash.h"              // HASH
 #include "log.h"               // sql_print_error
 #include "mysqld.h"            // global_system_variables
 #include "sql_base.h"          // close_trans_system_tables
@@ -42,6 +78,7 @@
 #endif
 
 #include <algorithm>
+
 using std::min;
 
 

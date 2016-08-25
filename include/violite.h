@@ -22,6 +22,8 @@
 #ifndef vio_violite_h_
 #define	vio_violite_h_
 
+#include "my_config.h"
+
 #include <my_thread.h> /* my_thread_handle */
 #include <pfs_socket_provider.h>
 #include <mysql/psi/mysql_socket.h>

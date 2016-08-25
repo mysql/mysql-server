@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -21,8 +21,15 @@
 
 #ifndef _my_time_h_
 #define _my_time_h_
+#include <limits.h>
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_config.h"
 #include "my_global.h"
 #include "mysql_time.h"
+
+struct timeval;
 
 C_MODE_START
 

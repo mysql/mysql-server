@@ -23,6 +23,7 @@
 #include "my_global.h"
 #include "my_psi_config.h"              /* IWYU pragma: keep */
 #include "m_ctype.h"                    /* CHARSET_INFO */
+#include "m_string.h"                   /* STRING_WITH_LEN */
 #include "my_alloc.h"                   /* USED_MEM */
 
 #ifdef HAVE_ALLOCA_H
@@ -49,6 +50,7 @@
 #include "mysql/psi/mysql_cond.h"       /* mysql_cond_t */
 
 #include "mysql/psi/psi_file.h"         /* PSI_file_service_t */
+#include "mysql/psi/psi_memory.h"       /* PSI_memory_service_t */
 #include "mysql/psi/psi_socket.h"       /* PSI_socket_service_t */
 #include "mysql/psi/psi_stage.h"        /* PSI_stage_info */
 #include "mysql/psi/psi_statement.h"    /* PSI_statement_service_t */

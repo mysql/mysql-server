@@ -23,6 +23,8 @@
 
 #include "mysql/psi/psi_stage.h"
 
+#include "pfs_stage_provider.h"
+
 #ifndef PSI_STAGE_CALL
 #define PSI_STAGE_CALL(M) psi_stage_service->M
 #endif

@@ -47,6 +47,8 @@
   (e.g. my_atomic_add64, my_atomic_fas32, my_atomic_casptr).
 */
 
+#include "my_config.h"
+
 /*
   We choose implementation as follows:
   ------------------------------------

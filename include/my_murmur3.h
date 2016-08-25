@@ -1,7 +1,7 @@
 #ifndef MY_MURMUR3_INCLUDED
 #define MY_MURMUR3_INCLUDED
 
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 */
 
 #include <my_global.h>
+#include <stddef.h>
 
 C_MODE_START
 

@@ -20,6 +20,12 @@
   @file include/my_dbug.h
 */
 
+#include "my_compiler.h"
+
+#if !defined(DBUG_OFF)
+#include <stdio.h>
+#endif
+
 #ifdef  __cplusplus
 extern "C" {
 #endif

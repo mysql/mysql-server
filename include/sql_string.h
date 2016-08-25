@@ -22,14 +22,21 @@
   @file include/sql_string.h
 */
 
-#include "my_global.h"
+#include <string.h>
+#include <sys/types.h>
+#include <new>
+
 #include "m_ctype.h"                         // my_convert
 #include "m_string.h"                        // LEX_CSTRING
+#include "my_alloc.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
 #include "my_sys.h"                          // alloc_root
 #include "mysql/mysql_lex_string.h"          // LEX_STRING
+#include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"       // my_free
-
-#include <string.h>
 
 typedef struct st_mysql_lex_string LEX_STRING;
 
@@ -128,6 +135,7 @@ public:
 
 
 class String;
+
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_io_cache IO_CACHE;
 typedef struct st_mem_root MEM_ROOT;
