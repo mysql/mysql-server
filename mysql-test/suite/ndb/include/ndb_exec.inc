@@ -39,7 +39,9 @@ create temporary table ndb_exec_output (
 );
 eval
   load data local infile '$ndb_exec_file'
-  into table ndb_exec_output (row);
+  into table ndb_exec_output
+  fields terminated by '\r'
+  (row,@dummy);
 replace_regex $ndb_exec_replace;
 eval
   select $ndb_exec_project
