@@ -6077,6 +6077,8 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
     {
       switch (tablePtr.p->partitionBalance)
       {
+        case NDB_PARTITION_BALANCE_FOR_RP_BY_NODE:
+        case NDB_PARTITION_BALANCE_FOR_RP_BY_LDM:
         case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
         case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
         {
@@ -6102,9 +6104,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
         {
           jam();
           /**
-           * Cannot create fully replicated tables with other
-           * than 1 partition per node group or one partition per
-           * LDM in each node group.
+           * Cannot create fully replicated tables with specific fragment count
            */
           parseP->errorCode =
             CreateTableRef::WrongPartitionBalanceFullyReplicated;
@@ -25541,21 +25541,12 @@ Dbdict::createNodegroup_subOps(Signal* signal, SchemaOpPtr op_ptr)
      * creates a table or an unique index without specifying a hashmap it will
      * be created here.
      *
-     * If default partition balance for read backup is changed to not be the
-     * same as default for normal tables, a default hashmap for read backup
-     * tables must be created too.
-     *
      * For fully replicated tables the hashmap will be created if needed by
      * ndbapi.
      *
      * And unique indexes on tables using user defined partitioning can not be
      * fully replicated, so no need to create a hashmap for that case either.
      */
-
-    /**
-     */
-    NDB_STATIC_ASSERT(NDB_DEFAULT_PARTITION_BALANCE ==
-                        NDB_DEFAULT_PARTITION_BALANCE_READ_BACKUP);
 
     Uint32 buckets = c_default_hashmap_size;
     Uint32 fragments = get_default_fragments(signal,
