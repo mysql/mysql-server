@@ -504,11 +504,30 @@ int prepare_record(TABLE *const table, const MY_BITMAP *cols, const bool check)
   */
   
   DBUG_PRINT_BITSET("debug", "cols: %s", cols);
+  /**
+    Save a reference to the original write set bitmaps.
+    We will need this to restore the bitmaps at the end.
+  */
+  MY_BITMAP *old_write_set= table->write_set;
+  /**
+    Just to be sure that tmp_set is currently not in use as
+    the read_set already.
+  */
+  DBUG_ASSERT(table->write_set != &table->tmp_set);
+  /* set the temporary write_set */
+  table->column_bitmaps_set_no_signal(table->read_set,
+                                      &table->tmp_set);
+  /**
+    Set table->write_set bits for all the columns as they
+    will be checked in set_default() function.
+  */
+  bitmap_set_all(table->write_set);
+
   for (Field **field_ptr= table->field; *field_ptr; ++field_ptr)
   {
-    if ((uint) (field_ptr - table->field) >= cols->n_bits ||
-        !bitmap_is_set(cols, field_ptr - table->field))
-    {   
+    uint field_index= (uint) (field_ptr - table->field);
+    if (field_index >= cols->n_bits || !bitmap_is_set(cols, field_index))
+    {
       Field *const f= *field_ptr;
       if ((f->flags &  NO_DEFAULT_VALUE_FLAG) &&
           (f->real_type() != MYSQL_TYPE_ENUM))
@@ -520,8 +539,16 @@ int prepare_record(TABLE *const table, const MY_BITMAP *cols, const bool check)
                             ER(ER_NO_DEFAULT_FOR_FIELD),
                             f->field_name);
       }
+      else if (f->has_insert_default_function())
+      {
+        f->set_default();
+      }
     }
   }
+
+  /* set the write_set back to original*/
+  table->column_bitmaps_set_no_signal(table->read_set,
+                                      old_write_set);
 
   DBUG_RETURN(0);
 }
