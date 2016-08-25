@@ -20,6 +20,7 @@
 #include "opt_costconstantcache.h"         // init_optimizer_cost_module
 #include "sql_class.h"                     // THD
 
+#include "dd/dd.h"                         // enum_dd_init_type
 #include "dd/cache/dictionary_client.h"    // dd::Dictionary_client
 #include "dd/impl/bootstrapper.h"          // dd::Bootstrapper
 #include "dd/impl/system_registry.h"       // dd::System_tables
@@ -45,16 +46,20 @@ const std::string Dictionary_impl::DEFAULT_CATALOG_NAME("def");
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Dictionary_impl::init(bool install)
+bool Dictionary_impl::init(enum_dd_init_type dd_init)
 {
-  DBUG_ASSERT(!Dictionary_impl::s_instance);
+  if (dd_init == enum_dd_init_type::DD_INITIALIZE ||
+      dd_init == enum_dd_init_type::DD_RESTART_OR_UPGRADE)
+  {
+    DBUG_ASSERT(!Dictionary_impl::s_instance);
 
-  if (Dictionary_impl::s_instance)
-    return false; /* purecov: inspected */
+    if (Dictionary_impl::s_instance)
+      return false; /* purecov: inspected */
 
-  std::unique_ptr<Dictionary_impl> d(new Dictionary_impl());
+    std::unique_ptr<Dictionary_impl> d(new Dictionary_impl());
 
-  Dictionary_impl::s_instance= d.release();
+    Dictionary_impl::s_instance= d.release();
+  }
 
 #ifndef EMBEDDED_LIBRARY
   acl_init(true);
@@ -64,17 +69,44 @@ bool Dictionary_impl::init(bool install)
     Initialize the cost model, but delete it after the dd is initialized.
     This is because the cost model is needed for the dd initialization, but
     it must be re-initialized later after the plugins have been initialized.
+    Upgrade process needs heap engine initialized, hence parameter 'true'
+    is passed to the function.
   */
-  init_optimizer_cost_module(false);
+  init_optimizer_cost_module(true);
 
-  /* Install or start the dictionary depending on bootstrapping option */
+  /*
+    Install or start or upgrade the dictionary
+    depending on bootstrapping option.
+  */
+
   bool result= false;
-  if (install)
+
+  // Creation of Data Dictionary through current server
+  if (dd_init == enum_dd_init_type::DD_INITIALIZE)
     result= ::bootstrap::run_bootstrap_thread(NULL, &bootstrap::initialize,
                                               SYSTEM_THREAD_DD_INITIALIZE);
-  else
-    result= ::bootstrap::run_bootstrap_thread(NULL, &bootstrap::restart,
-                                              SYSTEM_THREAD_DD_RESTART);
+
+  /*
+    Creation of Dictionary Tables in old Data Directory
+    This function also takes care of normal server restart.
+  */
+  else if (dd_init == enum_dd_init_type::DD_RESTART_OR_UPGRADE)
+    result= ::bootstrap::run_bootstrap_thread(NULL,
+                         &bootstrap::upgrade_do_pre_checks_and_initialize_dd,
+                         SYSTEM_THREAD_DD_INITIALIZE);
+
+  // Populate metadata in DD tables from old data directory and do cleanup.
+  else if (dd_init == enum_dd_init_type::DD_POPULATE_UPGRADE)
+    result= ::bootstrap::run_bootstrap_thread(NULL,
+                         &bootstrap::upgrade_fill_dd_and_finalize,
+                         SYSTEM_THREAD_DD_INITIALIZE);
+
+
+  // Delete DD tables and do cleanup in case of error in upgrade
+  else if (dd_init == enum_dd_init_type::DD_DELETE)
+    result= ::bootstrap::run_bootstrap_thread(NULL,
+                         &bootstrap::delete_dictionary_and_cleanup,
+                         SYSTEM_THREAD_DD_INITIALIZE);
 
   /* Now that the dd is initialized, delete the cost model. */
   delete_optimizer_cost_module();
@@ -120,7 +152,15 @@ uint Dictionary_impl::get_target_dd_version()
 ///////////////////////////////////////////////////////////////////////////
 
 uint Dictionary_impl::get_actual_dd_version(THD *thd)
-{ return dd::tables::Version::instance().get_actual_dd_version(thd); }
+{
+  bool not_used;
+  return dd::tables::Version::instance().get_actual_dd_version(thd, &not_used);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+uint Dictionary_impl::get_actual_dd_version(THD *thd, bool *not_used)
+{ return dd::tables::Version::instance().get_actual_dd_version(thd, not_used); }
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -326,6 +366,24 @@ bool has_exclusive_tablespace_mdl(THD *thd,
                           MDL_EXCLUSIVE);
 }
 
+bool acquire_exclusive_table_mdl(THD *thd,
+                                 const char *schema_name,
+                                 const char *table_name,
+                                 bool no_wait,
+                                 MDL_ticket **out_mdl_ticket)
+{
+  return acquire_mdl(thd, MDL_key::TABLE, schema_name, table_name, no_wait,
+                           MDL_EXCLUSIVE, MDL_EXPLICIT, out_mdl_ticket);
+}
+
+bool acquire_exclusive_schema_mdl(THD *thd,
+                                 const char *schema_name,
+                                 bool no_wait,
+                                 MDL_ticket **out_mdl_ticket)
+{
+  return acquire_mdl(thd, MDL_key::SCHEMA, schema_name, "", no_wait,
+                           MDL_EXCLUSIVE, MDL_EXPLICIT, out_mdl_ticket);
+}
 
 void release_mdl(THD *thd, MDL_ticket *mdl_ticket)
 {

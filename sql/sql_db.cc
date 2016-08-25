@@ -201,9 +201,14 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   bool store_in_dd= true;
   bool schema_exists= (mysql_file_stat(key_file_misc,
                                        path, &stat_info, MYF(0)) != NULL);
-  if (thd->is_dd_system_thread() && !opt_initialize &&
+  if (thd->is_dd_system_thread() && (!opt_initialize || dd_upgrade_flag) &&
       dd::get_dictionary()->is_dd_schema_name(db))
   {
+    /*
+      CREATE SCHEMA statement is being executed from bootstrap thread.
+      Server should either be in restart mode or upgrade mode to create only
+      dd::Schema object for the dictionary cache.
+    */
     if (!schema_exists)
     {
       sql_print_error("System schema directory does not exist.");
@@ -226,6 +231,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
                         ER_THD(thd, ER_DB_CREATE_EXISTS), db);
     store_in_dd= false;
   }
+  // Don't create folder inside data directory in case we are upgrading.
   else
   {
     if (my_errno() != ENOENT)
@@ -235,7 +241,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
                my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
       DBUG_RETURN(true);
     }
-    if (my_mkdir(path,0777,MYF(0)) < 0)
+    if (my_mkdir(path, 0777, MYF(0)) < 0)
     {
       char errbuf[MYSQL_ERRMSG_SIZE];
       my_error(ER_CANT_CREATE_DB, MYF(0), db, my_errno(),
@@ -296,7 +302,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     if (!create_info->default_table_charset)
       create_info->default_table_charset= thd->variables.collation_server;
 
-    if (dd::create_schema(thd, db, create_info))
+    if (dd::create_schema(thd, db, create_info->default_table_charset))
     {
       /*
         We could be here due an deadlock or some error reported
@@ -344,7 +350,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     Do the change in the dd first to catch failures that should prevent
     writing binlog.
   */
-  if (dd::alter_schema(thd, db, create_info))
+  if (dd::alter_schema(thd, db, create_info->default_table_charset))
   {
     // The error has been reported already.
     DBUG_RETURN(true);

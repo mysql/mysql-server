@@ -87,7 +87,7 @@ public:
 public:
   bool execute(THD *thd);
 
-  bool parse(THD *thd);
+  bool parse(THD *thd, bool is_upgrade);
 
   void add_tables_and_routines(THD *thd,
                                Query_tables_list *prelocking_ctx,
@@ -213,6 +213,15 @@ public:
   ~Trigger();
 
 private:
+  void set_trigger_name(const LEX_CSTRING &trigger_name)
+  { m_trigger_name= trigger_name; }
+
+  void set_trigger_def(const LEX_CSTRING &trigger_def)
+  { m_definition= trigger_def; }
+
+  void set_trigger_def_utf8(const LEX_CSTRING &trigger_def_utf8)
+  { m_definition_utf8= trigger_def_utf8; }
+
   void set_parse_error_message(const char *error_message)
   {
     m_has_parse_error= true;

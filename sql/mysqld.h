@@ -290,6 +290,8 @@ extern "C" MYSQL_PLUGIN_IMPORT char **orig_argv;
 extern my_thread_attr_t connection_attrib;
 extern my_bool old_mode;
 extern my_bool avoid_temporal_upgrade;
+extern my_bool dd_upgrade_flag;
+extern my_bool dd_upgrade_skip_se;
 extern LEX_STRING opt_init_connect, opt_init_slave;
 #ifndef EMBEDDED_LIBRARY
 extern ulong connection_errors_internal;
@@ -444,6 +446,7 @@ extern PSI_file_key key_file_relaylog;
 extern PSI_file_key key_file_relaylog_cache;
 extern PSI_file_key key_file_relaylog_index;
 extern PSI_file_key key_file_relaylog_index_cache;
+extern PSI_file_key key_file_sdi;
 
 extern PSI_socket_key key_socket_tcpip;
 extern PSI_socket_key key_socket_unix;

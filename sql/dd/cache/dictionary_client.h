@@ -802,6 +802,22 @@ public:
   template <typename T>
   bool update_and_invalidate(T* object);
 
+
+  /**
+    This function is a wrapper to the function below.
+
+    It calls add_and_reset_id() with value 'false' for the
+    second parameter.
+
+    @tparam T        Dictionary object type.
+    @param  object   Object to be added to the shared cache
+                     and the object registry.
+  */
+
+  template <typename T>
+  void add_and_reset_id(T* object);
+
+
   /**
     Add a new dictionary object and assign an id.
 
@@ -811,6 +827,8 @@ public:
     client and added to the local registry. The object must be released
     afterwards,
 
+    The id should reset to 1 if we have cleared DD cache.
+
     @note This function is only to be used during server start.
 
     @note The new object will be owned by the shared cache. Thus, the
@@ -818,13 +836,14 @@ public:
           object must be released in the same way as other dictionary
           objects.
 
-    @tparam T       Dictionary object type.
-    @param  object  Object to be added to the shared cache
-                    and the object registry.
+    @tparam T        Dictionary object type.
+    @param  reset_id Reset id to 1
+    @param  object   Object to be added to the shared cache
+                     and the object registry.
   */
 
   template <typename T>
-  void add_and_reset_id(T* object);
+  void add_and_reset_id(T* object, bool reset_id);
 
 
   /**

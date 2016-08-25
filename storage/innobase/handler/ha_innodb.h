@@ -75,6 +75,12 @@ public:
 
 	row_type get_real_row_type(const HA_CREATE_INFO *create_info) const;
 
+	/** Get the row type from the storage engine.  If this method returns
+	ROW_TYPE_NOT_USED, the information in HA_CREATE_INFO should be used.
+	This method has been added to handle upgrade scenario. It will be
+	removed in the future. */
+	row_type get_row_type_for_upgrade() const;
+
 	const char* table_type() const;
 
 	enum ha_key_alg get_default_index_algorithm() const

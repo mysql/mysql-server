@@ -1954,6 +1954,14 @@ bool Dictionary_client::update_and_invalidate(T* object)
 template <typename T>
 void Dictionary_client::add_and_reset_id(T* object)
 {
+  bool reset_id= false;
+  add_and_reset_id(object, reset_id);
+}
+
+// Add a new dictionary object.
+template <typename T>
+void Dictionary_client::add_and_reset_id(T* object, bool reset_id)
+{
   // This may be called only during the initial stages of bootstrapping.
   DBUG_ASSERT(m_thd->is_dd_system_thread() &&
               bootstrap::stage() < bootstrap::BOOTSTRAP_CREATED);
@@ -1970,6 +1978,11 @@ void Dictionary_client::add_and_reset_id(T* object)
 
   // Assign a temporary unique id. This is needed to have unique cache keys.
   static dd::Object_id next_id= 1;
+
+  // Reset id to 1 in the case we have cleared DD objects from Cache
+  if (reset_id)
+    next_id= 1;
+
   dynamic_cast<dd::Entity_object_impl*>(object->impl())->set_id(next_id++);
 
   // Add it to the shared cache.
@@ -2111,6 +2124,7 @@ template bool Dictionary_client::acquire_uncached(const std::string&,
 template bool Dictionary_client::drop(const Abstract_table*);
 template bool Dictionary_client::store(Abstract_table*);
 template void Dictionary_client::add_and_reset_id(Abstract_table*);
+template void Dictionary_client::add_and_reset_id(Abstract_table*, bool);
 template bool Dictionary_client::update(const Abstract_table**,
                                         Abstract_table*, bool);
 template void Dictionary_client::set_sticky(const Abstract_table*, bool);
@@ -2124,6 +2138,7 @@ template bool Dictionary_client::acquire<dd::Charset>(std::string const&,
 template bool Dictionary_client::drop(const Charset*);
 template bool Dictionary_client::store(Charset*);
 template void Dictionary_client::add_and_reset_id(Charset*);
+template void Dictionary_client::add_and_reset_id(Charset*, bool);
 template bool Dictionary_client::update(const Charset**, Charset*, bool);
 template void Dictionary_client::set_sticky(const Charset*, bool);
 template bool Dictionary_client::is_sticky(const Charset*) const;
@@ -2140,6 +2155,7 @@ template bool Dictionary_client::acquire(const std::string &,
 template bool Dictionary_client::drop(const Collation*);
 template bool Dictionary_client::store(Collation*);
 template void Dictionary_client::add_and_reset_id(Collation*);
+template void Dictionary_client::add_and_reset_id(Collation*, bool);
 template bool Dictionary_client::update(const Collation**, Collation*, bool);
 template void Dictionary_client::set_sticky(const Collation*, bool);
 template bool Dictionary_client::is_sticky(const Collation*) const;
@@ -2155,6 +2171,7 @@ template bool Dictionary_client::acquire_uncached(const std::string&,
 template bool Dictionary_client::drop(const Schema*);
 template bool Dictionary_client::store(Schema*);
 template void Dictionary_client::add_and_reset_id(Schema*);
+template void Dictionary_client::add_and_reset_id(Schema*, bool);
 template bool Dictionary_client::update(const Schema**, Schema*, bool);
 template void Dictionary_client::set_sticky(const Schema*, bool);
 template bool Dictionary_client::is_sticky(const Schema*) const;
@@ -2171,6 +2188,8 @@ template bool Dictionary_client::acquire_uncached(
 template bool Dictionary_client::drop(const Spatial_reference_system*);
 template bool Dictionary_client::store(Spatial_reference_system*);
 template void Dictionary_client::add_and_reset_id(Spatial_reference_system*);
+template void Dictionary_client::add_and_reset_id(Spatial_reference_system*,
+                                                  bool);
 template bool Dictionary_client::update(const Spatial_reference_system**,
                                         Spatial_reference_system*, bool);
 template void Dictionary_client::set_sticky(const Spatial_reference_system*,
@@ -2195,6 +2214,7 @@ template bool Dictionary_client::drop(const Table*);
 template bool Dictionary_client::store(Table*);
 template bool Dictionary_client::update_and_invalidate(Table*);
 template void Dictionary_client::add_and_reset_id(Table*);
+template void Dictionary_client::add_and_reset_id(Table*, bool);
 template bool Dictionary_client::update(const Table**, Table*, bool);
 template void Dictionary_client::set_sticky(const Table*, bool);
 template bool Dictionary_client::is_sticky(const Table*) const;
@@ -2213,6 +2233,7 @@ template bool Dictionary_client::drop(const Tablespace*);
 template bool Dictionary_client::store(Tablespace*);
 template bool Dictionary_client::update_and_invalidate(Tablespace*);
 template void Dictionary_client::add_and_reset_id(Tablespace*);
+template void Dictionary_client::add_and_reset_id(Tablespace*, bool);
 template bool Dictionary_client::update(const Tablespace**, Tablespace*, bool);
 template void Dictionary_client::set_sticky(const Tablespace*, bool);
 template bool Dictionary_client::is_sticky(const Tablespace*) const;
@@ -2231,6 +2252,7 @@ template bool Dictionary_client::acquire_uncached(const std::string&,
 template bool Dictionary_client::drop(const View*);
 template bool Dictionary_client::store(View*);
 template void Dictionary_client::add_and_reset_id(View*);
+template void Dictionary_client::add_and_reset_id(View*, bool);
 template bool Dictionary_client::update(const View**, View*, bool);
 template void Dictionary_client::set_sticky(const View*, bool);
 template bool Dictionary_client::is_sticky(const View*) const;
@@ -2252,6 +2274,7 @@ template bool Dictionary_client::drop(const Event*);
 template bool Dictionary_client::store(Event*);
 template bool Dictionary_client::update(const Event**, Event*, bool);
 template void Dictionary_client::add_and_reset_id(Event*);
+template void Dictionary_client::add_and_reset_id(Event*, bool);
 template void Dictionary_client::set_sticky(const Event*, bool);
 template bool Dictionary_client::is_sticky(const Event*) const;
 
@@ -2270,6 +2293,7 @@ template bool Dictionary_client::drop(const Function*);
 template bool Dictionary_client::store(Function*);
 template bool Dictionary_client::update(const Function**, Function*,  bool);
 template void Dictionary_client::add_and_reset_id(Function*);
+template void Dictionary_client::add_and_reset_id(Function*, bool);
 template void Dictionary_client::set_sticky(const Function*, bool);
 template bool Dictionary_client::is_sticky(const Function*) const;
 
@@ -2288,6 +2312,7 @@ template bool Dictionary_client::drop(const Procedure*);
 template bool Dictionary_client::store(Procedure*);
 template bool Dictionary_client::update(const Procedure**, Procedure*, bool);
 template void Dictionary_client::add_and_reset_id(Procedure*);
+template void Dictionary_client::add_and_reset_id(Procedure*, bool);
 template void Dictionary_client::set_sticky(const Procedure*, bool);
 template bool Dictionary_client::is_sticky(const Procedure*) const;
 

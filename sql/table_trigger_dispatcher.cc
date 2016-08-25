@@ -445,7 +445,8 @@ bool Table_trigger_dispatcher::check_n_load(THD *thd, bool names_only)
                         &triggers))
     return true;
 
-  parse_triggers(thd, &triggers);
+  // 'false' flag for 'is_upgrade' as we read Trigger from DD.
+  parse_triggers(thd, &triggers, false);
 
   // Create m_unparseable_triggers if needed.
 
@@ -611,12 +612,15 @@ Trigger *Table_trigger_dispatcher::find_trigger(const LEX_STRING &trigger_name)
 /**
   Parse trigger definition statements (CREATE TRIGGER).
 
-  @param [in] thd       Thread context
-  @param [in] triggers  List of triggers to parse
+  @param [in] thd         Thread context
+  @param [in] is_upgrade  Flag to indicate that trigger being parsed is read
+                          from .TRG file in case of upgrade.
+  @param [in] triggers    List of triggers to parse
 */
 
 void Table_trigger_dispatcher::parse_triggers(THD *thd,
-                                              List<Trigger> *triggers)
+                                              List<Trigger> *triggers,
+                                              bool is_upgrade)
 {
   List_iterator<Trigger> it(*triggers);
 
@@ -627,7 +631,7 @@ void Table_trigger_dispatcher::parse_triggers(THD *thd,
     if (!t)
       break;
 
-    bool fatal_parse_error= t->parse(thd);
+    bool fatal_parse_error= t->parse(thd, is_upgrade);
 
     /*
       There are two kinds of parse errors here:
@@ -661,6 +665,17 @@ void Table_trigger_dispatcher::parse_triggers(THD *thd,
 
       if (t->has_parse_error())
         set_parse_error_message(t->get_parse_error_message());
+
+      /*
+        In case we are upgrading, call set_parse_error_message() to set
+        m_has_unparseable_trigger in case of fatal errors too. As return type
+        of this function is void, we use m_has_unparseable_trigger to check
+        for any errors in Trigger upgrade upgrade.
+      */
+      if (is_upgrade && fatal_parse_error)
+      {
+        set_parse_error_message("Fatal Error in Parsing Trigger.");
+      }
 
       if (fatal_parse_error)
       {

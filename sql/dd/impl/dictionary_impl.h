@@ -37,6 +37,7 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
+enum class enum_dd_init_type;
 namespace cache {
   class Dictionary_client;
 }
@@ -56,7 +57,7 @@ private:
   static Dictionary_impl *s_instance;
 
 public:
-  static bool init(bool install);
+  static bool init(enum_dd_init_type dd_init);
   static bool shutdown();
 
   static Dictionary_impl *instance();
@@ -73,6 +74,8 @@ public:
   static uint get_target_dd_version();
 
   virtual uint get_actual_dd_version(THD *thd);
+
+  virtual uint get_actual_dd_version(THD *thd, bool *exists);
 
   virtual const Object_table *get_dd_table(
     const std::string &schema_name, const std::string &table_name) const;

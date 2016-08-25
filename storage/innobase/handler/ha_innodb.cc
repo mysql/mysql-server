@@ -5340,6 +5340,38 @@ ha_innobase::get_real_row_type(const HA_CREATE_INFO *create_info) const
 	}
 }
 
+/*************************************************************************//**
+** InnoDB database tables
+*****************************************************************************/
+
+/** Get the record format from the data dictionary.
+@return one of ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT,
+ROW_TYPE_COMPRESSED, ROW_TYPE_DYNAMIC.
+This method is added to handle upgrade.
+It will be removed in future. */
+
+enum row_type
+ha_innobase::get_row_type_for_upgrade() const
+{
+	if (m_prebuilt && m_prebuilt->table) {
+		const ulint	flags = m_prebuilt->table->flags;
+
+		switch (dict_tf_get_rec_format(flags)) {
+		case REC_FORMAT_REDUNDANT:
+			return(ROW_TYPE_REDUNDANT);
+		case REC_FORMAT_COMPACT:
+			return(ROW_TYPE_COMPACT);
+		case REC_FORMAT_COMPRESSED:
+			return(ROW_TYPE_COMPRESSED);
+		case REC_FORMAT_DYNAMIC:
+			return(ROW_TYPE_DYNAMIC);
+		}
+	}
+
+	ut_ad(0);
+	return(ROW_TYPE_NOT_USED);
+}
+
 /****************************************************************//**
 Get the table flags to use for the statement.
 @return table flags */

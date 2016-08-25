@@ -274,24 +274,28 @@ event_exists(dd::cache::Dictionary_client *dd_client,
 /**
   Set Event attributes.
 
-  @param    thd           THD context.
-  @param    event         Pointer to Event Object.
-  @param    event_name    Event name.
-  @param    event_data    Parsed Event Data.
-  @param    sp            Pointer to Stored Program Head.
-  @param    is_update     true if existing Event objects attributes set
-                          else false.
+  @param    thd               THD context.
+  @param    event             Pointer to Event Object.
+  @param    event_name        Event name.
+  @param    event_body        Event body.
+  @param    event_body_utf8   Event body utf8.
+  @param    definer           Definer of event.
+  @param    event_data        Parsed Event Data.
+  @param    is_update         true if existing Event objects attributes set
+                              else false.
 */
 
 static void set_event_attributes(THD *thd, Event *event,
                                  const std::string &event_name,
+                                 const std::string &event_body,
+                                 const std::string &event_body_utf8,
+                                 const LEX_USER *definer,
                                  Event_parse_data *event_data,
-                                 sp_head *sp, bool is_update)
+                                 bool is_update)
 {
   // Set Event name and definer.
   event->set_name(event_name);
-  event->set_definer(thd->lex->definer->user.str,
-                         thd->lex->definer->host.str);
+  event->set_definer(definer->user.str, definer->host.str);
 
   // Set Event on completion and status.
   event->set_on_completion(get_on_completion(event_data->on_completion));
@@ -303,8 +307,8 @@ static void set_event_attributes(THD *thd, Event *event,
   if (event_data->body_changed)
   {
     event->set_sql_mode(thd->variables.sql_mode);
-    event->set_definition_utf8(sp->m_body_utf8.str);
-    event->set_definition(sp->m_body.str);
+    event->set_definition_utf8(event_body_utf8);
+    event->set_definition(event_body);
   }
 
   // Set Event scheduling attributes.
@@ -375,7 +379,10 @@ static void set_event_attributes(THD *thd, Event *event,
 bool create_event(THD *thd,
                   const std::string &schema_name,
                   const std::string &event_name,
-                  Event_parse_data *event_data, sp_head *sp)
+                  const std::string &event_body,
+                  const std::string &event_body_utf8,
+                  const LEX_USER *definer,
+                  Event_parse_data *event_data)
 {
   DBUG_ENTER("dd::create_event");
 
@@ -398,7 +405,8 @@ bool create_event(THD *thd,
   std::unique_ptr<dd::Event> event(sch_obj->create_event(thd));
 
   // Set Event attributes.
-  set_event_attributes(thd, event.get(), event_name, event_data, sp, false);
+  set_event_attributes(thd, event.get(), event_name, event_body,
+                       event_body_utf8, definer, event_data, false);
 
   if (client->store(event.get()))
   {
@@ -413,9 +421,12 @@ bool create_event(THD *thd,
 
 
 bool update_event(THD *thd, const Event *event,
-                  Event_parse_data *event_data, sp_head *sp,
                   const std::string &new_db_name,
-                  const std::string &new_event_name)
+                  const std::string &new_event_name,
+                  const std::string &new_event_body,
+                  const std::string &new_event_body_utf8,
+                  const LEX_USER *definer,
+                  Event_parse_data *event_data)
 {
   DBUG_ENTER("dd::update_event");
   DBUG_ASSERT(event != nullptr);
@@ -446,7 +457,8 @@ bool update_event(THD *thd, const Event *event,
   // Set the altered event attributes.
   set_event_attributes(thd, new_event.get(),
                        new_event_name != "" ? new_event_name : event->name(),
-                       event_data, sp, true);
+                       new_event_body, new_event_body_utf8, definer,
+                       event_data, true);
 
   if (thd->dd_client()->update(&event, new_event.get()))
   {

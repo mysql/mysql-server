@@ -11137,6 +11137,7 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
   is_zerofill(false),       // Init to avoid UBSAN warnings
   is_unsigned(false),       // Init to avoid UBSAN warnings
   treat_bit_as_char(false),  // Init to avoid valgrind warnings in opt. build
+  pack_length_override(0),
   gcol_info(old_field->gcol_info),
   stored_in_db(old_field->stored_in_db)
 {

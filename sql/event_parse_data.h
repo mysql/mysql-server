@@ -116,7 +116,8 @@ public:
     DBUG_VOID_RETURN;
   }
 
-  ~Event_parse_data();
+  ~Event_parse_data()
+  {};
 
 private:
 

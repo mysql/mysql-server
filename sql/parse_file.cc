@@ -25,6 +25,9 @@
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
 
+// Dummy unknown key hook.
+File_parser_dummy_hook file_parser_dummy_hook;
+
 
 /**
   Write string with escaping.
@@ -817,5 +820,37 @@ list_err:
     contains less parameters.
   */
 
+  DBUG_RETURN(FALSE);
+}
+
+/**
+  Dummy unknown key hook.
+
+  @param[in,out] unknown_key       reference on the line with unknown
+                                   parameter and the parsing point
+  @param[in] base                  base address for parameter writing
+                                   (structure like TABLE)
+  @param[in] mem_root              MEM_ROOT for parameters allocation
+  @param[in] end                   the end of the configuration
+
+  @note
+    This hook used to catch no longer supported keys and process them for
+    backward compatibility, but it will not slow down processing of modern
+    format files.
+    This hook does nothing except debug output.
+
+  @retval
+    FALSE OK
+  @retval
+    TRUE  Error
+*/
+
+bool
+File_parser_dummy_hook::process_unknown_string(const char *&unknown_key,
+                                               uchar* base, MEM_ROOT *mem_root,
+                                               const char *end)
+{
+  DBUG_ENTER("file_parser_dummy_hook::process_unknown_string");
+  DBUG_PRINT("info", ("Unknown key: '%60s'", unknown_key));
   DBUG_RETURN(FALSE);
 }

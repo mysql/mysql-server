@@ -4271,7 +4271,8 @@ int handler::ha_check_for_upgrade(HA_CHECK_OPT *check_opt)
 }
 
 
-int handler::check_old_types()
+// Function identifies any old data type present in table.
+int check_table_for_old_types(const TABLE *table)
 {
   Field** field;
 
@@ -4439,7 +4440,7 @@ int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
 
   if (table->s->mysql_version < MYSQL_VERSION_ID)
   {
-    if ((error= check_old_types()))
+    if ((error= check_table_for_old_types(table)))
       return error;
     error= ha_check_for_upgrade(check_opt);
     if (error && (error != HA_ADMIN_NEEDS_CHECK))

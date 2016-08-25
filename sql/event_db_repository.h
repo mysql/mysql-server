@@ -28,6 +28,42 @@ struct TABLE_LIST;
 typedef struct st_mysql_lex_string LEX_STRING;
 typedef long my_time_t;
 
+/*
+  Fields in mysql.event table in 5.7. This enum is used to
+  read and update mysql.events dictionary table during upgrade
+  scenario.
+
+  Note:  This enum should not be used for other purpose
+         as it will be removed eventually.
+*/
+enum enum_events_table_field
+{
+  ET_FIELD_DB = 0,
+  ET_FIELD_NAME,
+  ET_FIELD_BODY,
+  ET_FIELD_DEFINER,
+  ET_FIELD_EXECUTE_AT,
+  ET_FIELD_INTERVAL_EXPR,
+  ET_FIELD_TRANSIENT_INTERVAL,
+  ET_FIELD_CREATED,
+  ET_FIELD_MODIFIED,
+  ET_FIELD_LAST_EXECUTED,
+  ET_FIELD_STARTS,
+  ET_FIELD_ENDS,
+  ET_FIELD_STATUS,
+  ET_FIELD_ON_COMPLETION,
+  ET_FIELD_SQL_MODE,
+  ET_FIELD_COMMENT,
+  ET_FIELD_ORIGINATOR,
+  ET_FIELD_TIME_ZONE,
+  ET_FIELD_CHARACTER_SET_CLIENT,
+  ET_FIELD_COLLATION_CONNECTION,
+  ET_FIELD_DB_COLLATION,
+  ET_FIELD_BODY_UTF8,
+  ET_FIELD_COUNT
+};
+
+
 /**
   @addtogroup Event_Scheduler
   @{

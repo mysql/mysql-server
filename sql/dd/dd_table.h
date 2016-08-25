@@ -42,6 +42,38 @@ static const char FIELD_NAME_SEPARATOR_CHAR = ';';
 
 /**
   Prepares a dd::Table object from mysql_prepare_create_table() output
+  and updates DD tables. This function creates a user table, as opposed
+  to create_table() which can handle system tables as well.
+
+  @param thd            Thread handle
+  @param schema_name    Schema name.
+  @param table_name     Table name.
+  @param create_info    HA_CREATE_INFO describing the table to be created.
+  @param create_fields  List of fields for the table.
+  @param keyinfo        Array with descriptions of keys for the table.
+  @param keys           Number of keys.
+  @param keys_onoff     keys ON or OFF
+  @param fk_keyinfo     Array with descriptions of foreign keys for the table.
+  @param fk_keys        Number of foreign keys.
+  @param file           handler instance for the table.
+
+  @retval 0 on success.
+  @retval 1 on failure.
+*/
+bool create_dd_user_table(THD *thd,
+                          const std::string &schema_name,
+                          const std::string &table_name,
+                          HA_CREATE_INFO *create_info,
+                          const List<Create_field> &create_fields,
+                          const KEY *keyinfo,
+                          uint keys,
+                          Alter_info::enum_enable_or_disable keys_onoff,
+                          const FOREIGN_KEY *fk_keyinfo,
+                          uint fk_keys,
+                          handler *file);
+
+/**
+  Prepares a dd::Table object from mysql_prepare_create_table() output
   and updates DD tables accordingly.
 
   @param thd            Thread handle
@@ -339,6 +371,21 @@ enum_column_types get_new_field_type(enum_field_types type);
   @retval       true        Error
 */
 bool fix_row_type(THD *thd, TABLE_SHARE *share);
+
+/**
+  Update row format for the table with the value
+  value supplied by caller function.
+
+  @pre There must be an exclusive MDL lock on the table.
+
+  @param[in]    thd              Thread context.
+  @param[in]    share            TABLE_SHARE for the table.
+  @param[in]    correct_row_type row_type to be set.
+
+  @retval       false       Success
+  @retval       true        Error
+*/
+bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type);
 
 /**
   Move all triggers from a table to another.

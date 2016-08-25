@@ -247,7 +247,10 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
   }
 
   DBUG_RETURN(dd::create_event(thd, parse_data->dbname.str,
-                               parse_data->name.str, parse_data, sp));
+                               parse_data->name.str,
+                               sp->m_body.str, sp->m_body_utf8.str,
+                               thd->lex->definer,
+                               parse_data));
 }
 
 
@@ -314,9 +317,12 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   }
 
   // Update Event in the data dictionary with altered event object attributes.
-  if (dd::update_event(thd, event, parse_data, sp,
-                       new_dbname != nullptr ? new_dbname->str : "",
-                       new_name != nullptr ? new_name->str : ""))
+  if (dd::update_event(thd, event, new_dbname != nullptr ? new_dbname->str : "",
+                       new_name != nullptr ? new_name->str : "",
+                       (parse_data->body_changed) ? sp->m_body.str : event->definition(),
+                       (parse_data->body_changed) ? sp->m_body_utf8.str :
+                                                    event->definition_utf8(),
+                       thd->lex->definer, parse_data))
   {
     DBUG_RETURN(true);
   }
