@@ -4,6 +4,30 @@ b int,
 c blob,
 unique key (b)
 ) comment='NDB_TABLE=FULLY_REPLICATED=1' ENGINE=ndbcluster;
+use ndbinfo;
+select tab_partitions, tab_fragments from table_distribution_status as tds join dict_obj_info as doi where tds.table_id = doi.id and doi.fq_name = 'test/def/t1';
+tab_partitions	tab_fragments
+4	4
+select partition_id, fragment_id, partition_order, log_part_id, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1';
+partition_id	fragment_id	partition_order	log_part_id	preferred_primary
+0	0	0	0	1
+1	1	0	1	2
+2	2	0	2	1
+3	3	0	3	2
+select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1';
+fragment_id	replica_node_id
+0	1
+0	2
+1	2
+1	1
+2	1
+2	2
+3	2
+3	1
+select read_backup, fully_replicated from table_info as ti join dict_obj_info as doi where ti.table_id = doi.id and doi.fq_name = 'test/def/t1';
+read_backup	fully_replicated
+1	1
+use test;
 insert into t1 values
 ('1',1,REPEAT('1',3000)), ('2',2,REPEAT('2',3000)), ('3',3,REPEAT('3',3000)),
 ('4',4,REPEAT('4',3000)), ('5',5,REPEAT('5',3000)), ('6',6,REPEAT('6',3000)),
@@ -106,6 +130,39 @@ Table options: readbackup, fullyreplicated
 -- Attributes --
 Creating nodegroup
 alter table t1 algorithm=inplace, reorganize partition;
+use ndbinfo;
+select tab_partitions, tab_fragments from table_distribution_status as tds join dict_obj_info as doi where tds.table_id = doi.id and doi.fq_name = 'test/def/t1';
+tab_partitions	tab_fragments
+4	8
+select partition_id, fragment_id, log_part_id, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1';
+partition_id	fragment_id	log_part_id	preferred_primary
+0	0	0	1
+1	1	1	2
+2	2	2	1
+3	3	3	2
+0	4	0	3
+1	5	1	4
+2	6	2	3
+3	7	3	4
+select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1';
+fragment_id	replica_node_id
+0	1
+0	2
+1	2
+1	1
+2	1
+2	2
+3	2
+3	1
+4	3
+4	4
+5	4
+5	3
+6	3
+6	4
+7	4
+7	3
+use test;
 set global ndb_data_node_neighbour = 1;
 create table c as select node_id, fragment_num, tot_frag_scans
 from `ndbinfo`.`operations_per_fragment`

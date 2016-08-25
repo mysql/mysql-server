@@ -261,6 +261,19 @@ desc server_transactions;
 desc cluster_operations;
 desc server_operations;
 
+select count(*) from table_distribution_status;
+select count(*) from ndb$table_distribution_status_all;
+select count(*) from table_fragments;
+select count(*) from ndb$table_fragments_all;
+select count(*) from table_replicas;
+select count(*) from ndb$table_replicas_all;
+desc table_distribution_status;
+desc ndb$table_distribution_status_all;
+desc table_fragments;
+desc ndb$table_fragments_all;
+desc table_replicas;
+desc ndb$table_replicas_all;
+
 create table t1 (a int primary key) engine = ndb;
 begin;
 insert into t1 values (1);

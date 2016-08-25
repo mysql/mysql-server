@@ -7043,6 +7043,234 @@ void Dbdih::execDBINFO_SCANREQ(Signal *signal)
     }
     break;
   }
+  case Ndbinfo::TABLE_DIST_STATUS_TABLEID:
+  case Ndbinfo::TABLE_DIST_STATUS_ALL_TABLEID:
+  {
+    jam();
+    TabRecordPtr tabPtr;
+    tabPtr.i = cursor->data[0];
+    if (!isMaster() && req.tableId == Ndbinfo::TABLE_DIST_STATUS_TABLEID)
+    {
+      jam();
+      break;
+    }
+    for ( ; tabPtr.i < ctabFileSize ; tabPtr.i++)
+    {
+      jamLine(tabPtr.i);
+      ptrAss(tabPtr, tabRecord);
+      if (tabPtr.p->tabStatus != TabRecord::TS_IDLE)
+      {
+        jam();
+        Ndbinfo::Row row(signal, req);
+        row.write_uint32(cownNodeId);
+        row.write_uint32(tabPtr.i);
+        row.write_uint32(tabPtr.p->tabCopyStatus);
+        row.write_uint32(tabPtr.p->tabUpdateState);
+        row.write_uint32(tabPtr.p->tabLcpStatus);
+        row.write_uint32(tabPtr.p->tabStatus);
+        row.write_uint32(tabPtr.p->tabStorage);
+        row.write_uint32(tabPtr.p->tableType);
+        row.write_uint32(tabPtr.p->partitionCount);
+        row.write_uint32(tabPtr.p->totalfragments);
+        row.write_uint32(tabPtr.p->m_scan_count[0]);
+        row.write_uint32(tabPtr.p->m_scan_count[1]);
+        row.write_uint32(tabPtr.p->m_scan_reorg_flag);
+        ndbinfo_send_row(signal, req, row, rl);
+        if (rl.need_break(req))
+        {
+          jam();
+          ndbinfo_send_scan_break(signal, req, rl, tabPtr.i + 1);
+          return;
+        }
+      }
+    }
+    break;
+  }
+  case Ndbinfo::TABLE_FRAGMENTS_TABLEID:
+  case Ndbinfo::TABLE_FRAGMENTS_ALL_TABLEID:
+  {
+    jam();
+    TabRecordPtr tabPtr;
+    FragmentstorePtr fragPtr;
+    tabPtr.i = cursor->data[0] & 0xFFFF;
+    Uint32 fragId = cursor->data[0] >> 16;
+    if (!isMaster() && req.tableId == Ndbinfo::TABLE_FRAGMENTS_TABLEID)
+    {
+      jam();
+      break;
+    }
+    for ( ; tabPtr.i < ctabFileSize ; tabPtr.i++)
+    {
+      jamLine(tabPtr.i);
+      ptrAss(tabPtr, tabRecord);
+      if (tabPtr.p->tabStatus != TabRecord::TS_IDLE &&
+          (DictTabInfo::isTable(tabPtr.p->tableType) ||
+           DictTabInfo::isUniqueIndex(tabPtr.p->tableType)))
+      {
+        for ( ; fragId < tabPtr.p->totalfragments ; fragId++)
+        {
+          jamLine(fragId);
+          getFragstore(tabPtr.p, fragId, fragPtr);
+          Ndbinfo::Row row(signal, req);
+          row.write_uint32(cownNodeId);
+          row.write_uint32(tabPtr.i);
+          row.write_uint32(fragPtr.p->m_log_part_id);
+          row.write_uint32(fragPtr.p->fragId);
+          if ((tabPtr.p->m_flags & TabRecord::TF_FULLY_REPLICATED) == 0)
+          {
+            row.write_uint32(0);
+          }
+          else
+          {
+            row.write_uint32(findPartitionOrder(tabPtr.p, fragPtr));
+          }
+
+          row.write_uint32(fragPtr.p->m_log_part_id);
+          row.write_uint32(fragPtr.p->fragReplicas);
+          row.write_uint32(fragPtr.p->activeNodes[0]);
+          row.write_uint32(fragPtr.p->preferredPrimary);
+
+          if (fragPtr.p->noStoredReplicas > 1)
+          {
+            row.write_uint32(fragPtr.p->activeNodes[1]);
+          }
+          else
+          {
+            row.write_uint32(0);
+          }
+
+          if (fragPtr.p->noStoredReplicas > 2)
+          {
+            row.write_uint32(fragPtr.p->activeNodes[2]);
+          }
+          else
+          {
+            row.write_uint32(0);
+          }
+
+          if (fragPtr.p->noStoredReplicas > 3)
+          {
+            row.write_uint32(fragPtr.p->activeNodes[3]);
+          }
+          else
+          {
+            row.write_uint32(0);
+          }
+
+          row.write_uint32(fragPtr.p->noStoredReplicas);
+          row.write_uint32(fragPtr.p->noOldStoredReplicas);
+          row.write_uint32(fragPtr.p->noLcpReplicas);
+          ndbinfo_send_row(signal, req, row, rl);
+          if (rl.need_break(req))
+          {
+            jam();
+            Uint32 new_cursor = tabPtr.i + ((fragId + 1) << 16);
+            ndbinfo_send_scan_break(signal, req, rl, new_cursor);
+            return;
+          }
+        }
+      }
+      fragId = 0;
+    }
+    break;
+  }
+  case Ndbinfo::TABLE_REPLICAS_TABLEID:
+  case Ndbinfo::TABLE_REPLICAS_ALL_TABLEID:
+  {
+    jam();
+    TabRecordPtr tabPtr;
+    FragmentstorePtr fragPtr;
+    ReplicaRecordPtr replicaPtr;
+    tabPtr.i = cursor->data[0] & 0xFFFF;
+    Uint32 fragId = cursor->data[0] >> 16;
+    if (!isMaster() && req.tableId == Ndbinfo::TABLE_REPLICAS_TABLEID)
+    {
+      jam();
+      break;
+    }
+    for ( ; tabPtr.i < ctabFileSize ; tabPtr.i++)
+    {
+      jamLine(tabPtr.i);
+      ptrAss(tabPtr, tabRecord);
+      if (tabPtr.p->tabStatus != TabRecord::TS_IDLE &&
+          (DictTabInfo::isTable(tabPtr.p->tableType) ||
+           DictTabInfo::isUniqueIndex(tabPtr.p->tableType)))
+      {
+        jamLine(fragId);
+        jamLine(tabPtr.p->totalfragments);
+        jamLine(tabPtr.p->partitionCount);
+        for ( ; fragId < tabPtr.p->totalfragments ; fragId++)
+        {
+          jamLine(fragId);
+          getFragstore(tabPtr.p, fragId, fragPtr);
+          for (Uint32 i = 0; i < 2; i++)
+          {
+            if (i == 0)
+            {
+              jam();
+              replicaPtr.i = fragPtr.p->storedReplicas;
+            }
+            else
+            {
+              jam();
+              replicaPtr.i = fragPtr.p->oldStoredReplicas;
+            }
+            while (replicaPtr.i != RNIL)
+            {
+              jam();
+              Ndbinfo::Row row(signal, req);
+              c_replicaRecordPool.getPtr(replicaPtr);
+              row.write_uint32(cownNodeId);
+              row.write_uint32(tabPtr.i);
+              row.write_uint32(fragPtr.p->fragId);
+              row.write_uint32(replicaPtr.p->initialGci);
+              row.write_uint32(replicaPtr.p->procNode);
+              row.write_uint32(replicaPtr.p->lcpOngoingFlag);
+              row.write_uint32(replicaPtr.p->noCrashedReplicas);
+              Uint32 lastId = 0;
+              Uint32 maxLcpId = 0;
+              for (Uint32 j = 0; j < MAX_LCP_USED; j++)
+              {
+                jam();
+                if (replicaPtr.p->lcpStatus[j] == ZVALID)
+                {
+                  jam();
+                  if (replicaPtr.p->lcpId[j] > maxLcpId)
+                  {
+                    jam();
+                    lastId = j;
+                    maxLcpId = replicaPtr.p->lcpId[j];
+                  }
+                }
+              }
+              Uint32 prevId = prevLcpNo(lastId);
+              row.write_uint32(replicaPtr.p->maxGciStarted[lastId]);
+              row.write_uint32(replicaPtr.p->maxGciCompleted[lastId]);
+              row.write_uint32(replicaPtr.p->lcpId[lastId]);
+              row.write_uint32(replicaPtr.p->maxGciStarted[prevId]);
+              row.write_uint32(replicaPtr.p->maxGciCompleted[prevId]);
+              row.write_uint32(replicaPtr.p->lcpId[prevId]);
+              Uint32 last_replica_id = replicaPtr.p->noCrashedReplicas;
+              row.write_uint32(replicaPtr.p->createGci[last_replica_id]);
+              row.write_uint32(replicaPtr.p->replicaLastGci[last_replica_id]);
+              row.write_uint32(i == 0 ? 1 : 0);
+              ndbinfo_send_row(signal, req, row, rl);
+              replicaPtr.i = replicaPtr.p->nextPool;
+            }
+          }
+          if (rl.need_break(req))
+          {
+            jam();
+            Uint32 new_cursor = tabPtr.i + ((fragId + 1) << 16);
+            ndbinfo_send_scan_break(signal, req, rl, new_cursor);
+            return;
+          }
+        }
+        fragId = 0;
+      }
+    }
+    break;
+  }
   default:
     break;
   }
@@ -14733,6 +14961,28 @@ Dbdih::make_node_not_usable(NodeRecord *nodePtr)
   m_node_view_lock.write_lock();
   nodePtr->useInTransactions = false;
   m_node_view_lock.write_unlock();
+}
+
+Uint32
+Dbdih::findPartitionOrder(const TabRecord *tabPtrP,
+                          FragmentstorePtr fragPtr)
+{
+  Uint32 order = 0;
+  FragmentstorePtr tempFragPtr;
+  Uint32 fragId = fragPtr.p->m_log_part_id;
+  do
+  {
+    jam();
+    getFragstore(tabPtrP, fragId, tempFragPtr);
+    if (fragPtr.p == tempFragPtr.p)
+    {
+      jam();
+      return order;
+    }
+    fragId = fragPtr.p->nextCopyFragment;
+    order++;
+  } while (fragId != RNIL);
+  return RNIL;
 }
 
 Uint32
