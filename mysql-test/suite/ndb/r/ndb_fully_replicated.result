@@ -83,7 +83,7 @@ Table options: readbackup, fullyreplicated
 HashMap: DEFAULT-HASHMAP-3840-16
 -- Attributes --
 a Char(10;latin1_swedish_ci) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Int NOT NULL AT=FIXED ST=MEMORY DYNAMIC
+b Int NOT NULL AT=FIXED ST=MEMORY
 c Int NULL AT=FIXED ST=MEMORY DYNAMIC
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
@@ -120,7 +120,7 @@ Table options: readbackup, fullyreplicated
 HashMap: DEFAULT-HASHMAP-3840-16
 -- Attributes --
 a Char(10;latin1_swedish_ci) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Int NOT NULL AT=FIXED ST=MEMORY DYNAMIC
+b Int NOT NULL AT=FIXED ST=MEMORY
 c Int NULL AT=FIXED ST=MEMORY DYNAMIC
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
