@@ -10145,43 +10145,11 @@ adjusted_frag_count(Ndb* ndb,
 static const NdbDictionary::Object::PartitionBalance g_default_partition_balance =
   NdbDictionary::Object::PartitionBalance_ForRPByLDM;
 
-/**
- * Default for tables with no read of backup is one per ldm per
- * node to ensure that we don't get imbalanced loads on the
- * different nodes and ldms in the cluster. For tables with
- * read backup there will be much smaller difference on usage
- * of the fragments, so here we only have one fragment per node
- * group and per ldm to avoid splitting the table into too many
- * parts.
- *
- * We won't do this for ALTER TABLE table algorithm=copy
- * since the end result of an ALTER TABLE should not
- * change by the algorithm. Also it makes no sense to
- * change the table fragmentation silently.
- */
-static const NdbDictionary::Object::PartitionBalance g_default_partition_balance_RB =
-  NdbDictionary::Object::PartitionBalance_ForRPByLDM;
-
-/**
- * For Fully replicated tables we use
- * PartitionBalance_ForRAByLDM as default setting.
- * This means that we will have one partition in each LDM
- * and that there is one copy in each data node although
- * technically each node group will have its own set of
- * partitions, these partitions are maintained using
- * the Fully replicated triggers. This means that all writes
- * always start in the main node group for the table. When
- * the update has acquired all locks it will use a trigger
- * mechanism to spread to all other nodes in the cluster.
- */
-static const NdbDictionary::Object::PartitionBalance g_default_partition_balance_FR =
-  NdbDictionary::Object::PartitionBalance_ForRAByLDM;
-
 static
 bool
 parsePartitionBalance(THD *thd,
                        const NDB_Modifier * mod,
-                       NdbDictionary::Object::PartitionBalance * fct)
+                       NdbDictionary::Object::PartitionBalance * part_bal)
 {
   if (mod->m_found == false)
     return false; // OK
@@ -10208,9 +10176,9 @@ parsePartitionBalance(THD *thd,
     return false;
   }
 
-  if (fct)
+  if (part_bal)
   {
-    * fct = ret;
+    * part_bal = ret;
   }
   return true;
 }
@@ -10419,13 +10387,8 @@ void ha_ndbcluster::append_create_info(String *packet)
 
       /**
        * The default partition balance need not be visible in comment.
-       *
-       * The default partition balance is different whether table is
-       * READ_BACKUP or FULLY_REPLICATED or not.
        */
       const NdbDictionary::Object::PartitionBalance default_partition_balance =
-        tab->getFullyReplicated() ? g_default_partition_balance_FR :
-        read_backup ? g_default_partition_balance_RB :
         g_default_partition_balance;
 
       if (part_bal != default_partition_balance)
@@ -10877,35 +10840,6 @@ int ha_ndbcluster::create(const char *name,
       }
       tab.setReadBackupFlag(true);
       tab.setFullyReplicated(true);
-
-      if (part_bal !=
-            NdbDictionary::Object::PartitionBalance_ForRAByNode &&
-          part_bal !=
-            NdbDictionary::Object::PartitionBalance_ForRAByLDM)
-      {
-        if (!mod_frags->m_found)
-        {
-          part_bal = g_default_partition_balance_FR;
-        }
-        else
-        {
-          /**
-           * PartitionBalance == PartitionBalance_ForRPByNode and
-           * PartitionBalance == PartitionBalance_ForRPByLDM
-           * isn't allowed to be mixed with FullyReplicated = true
-           * since that would make us store 2 copies of each row
-           * per node and this is quite obviously not desirable.
-           * So we can have at most 1 partition per LDM per node
-           * group. We support 1 partition per node group and one
-           * partition per LDM per node group.
-           */
-          my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
-                   ndbcluster_hton_name,
-          "FULLY_REPLICATED=1 doesn't support this PARTITION_BALANCE");
-          result = HA_WRONG_CREATE_OPTION;
-          goto abort_return;
-        }
-      }
     }
     else if (use_read_backup)
     {
@@ -18472,10 +18406,10 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
   const NDB_Modifier* mod_fully_replicated =
     table_modifiers.get("FULLY_REPLICATED");
 
-  NdbDictionary::Object::PartitionBalance fct =
+  NdbDictionary::Object::PartitionBalance part_bal =
     g_default_partition_balance;
   if (parsePartitionBalance(thd /* for pushing warning */,
-                             mod_frags, &fct) == false)
+                             mod_frags, &part_bal) == false)
   {
     /**
      * unable to parse => modifier which is not found
@@ -18564,17 +18498,17 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
     }
     new_tab->setFragmentCount(0);
     new_tab->setFragmentData(0,0);
-    new_tab->setPartitionBalance(fct);
+    new_tab->setPartitionBalance(part_bal);
     DBUG_PRINT("info", ("parse_comment_changes: PartitionBalance: %s",
                         new_tab->getPartitionBalanceString()));
   }
   else
   {
-    fct = old_tab->getPartitionBalance();
+    part_bal = old_tab->getPartitionBalance();
   }
   if (old_tab->getFullyReplicated())
   {
-    if (fct != old_tab->getPartitionBalance())
+    if (part_bal != old_tab->getPartitionBalance())
     {
       /**
        * We cannot change partition balance inplace for fully

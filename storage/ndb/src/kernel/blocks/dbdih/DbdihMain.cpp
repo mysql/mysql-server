@@ -12696,8 +12696,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
          * Next node group for next fragment
          */
         if (noOfFragments == partitionCount ||
-            use_specific_fragment_count ||
-            ((logPart + 1) == globalData.ndbLogParts))
+            ((fragNo + 1) % partitionCount == 0))
         {
           /**
            * Change to new node group for
@@ -24105,16 +24104,11 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
     break;
   case CheckNodeGroups::GetDefaultFragmentsFullyReplicated:
     jamNoBlock();
-    switch(sd->partitionBalance)
-    {
-    case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
-    case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
-      ok = true;
-      sd->output = getFragmentCount(sd->partitionBalance,
-                                    1,
-                                    cnoReplicas,
-                                    getFragmentsPerNode());
-    }
+    ok = true;
+    sd->output = getFragmentCount(sd->partitionBalance,
+                                  1,
+                                  cnoReplicas,
+                                  getFragmentsPerNode());
     break;
   }
   ndbrequire(ok);

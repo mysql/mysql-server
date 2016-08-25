@@ -22,6 +22,14 @@ drop table t2;
 CREATE TABLE t2 (
 a int,
 b varchar(255),
+c int,
+primary key(a,b),
+key(b),
+unique (c)) engine=ndb comment='NDB_TABLE=FULLY_REPLICATED=1,PARTITION_BALANCE=FOR_RA_BY_LDM' partition by key(a) ;
+DROP TABLE t2;
+CREATE TABLE t2 (
+a int,
+b varchar(255),
 c int not null,
 primary key (a,b),
 unique key (b,a)
