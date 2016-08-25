@@ -27,6 +27,7 @@
 #include <gtest/gtest.h>
 
 #include "mdl.h"
+#include "mysqld.h"
 #include <mysqld_error.h>
 
 #include "thr_malloc.h"
