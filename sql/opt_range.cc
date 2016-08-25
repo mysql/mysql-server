@@ -9101,7 +9101,7 @@ SEL_ARG::insert(SEL_ARG *key)
 {
   SEL_ARG *element, **par= NULL, *last_element= NULL;
 
-  DBUG_ASSERT(this->parent == nullptr);
+  // DBUG_ASSERT(this->parent == nullptr);
   DBUG_ASSERT(this != null_element);
   for (element= this; element != null_element ; )
   {
@@ -9191,7 +9191,7 @@ SEL_ARG::tree_delete(SEL_ARG *key)
   DBUG_ENTER("tree_delete");
 
   root=this;
-  DBUG_ASSERT(this->parent == nullptr);
+  // DBUG_ASSERT(this->parent == nullptr);
 
   /* Unlink from list */
   if (key->prev)
@@ -9288,7 +9288,7 @@ SEL_ARG::rb_insert(SEL_ARG *leaf)
 {
   SEL_ARG *y,*par,*par2,*root;
   root= this;
-  DBUG_ASSERT(!root->parent);
+  // DBUG_ASSERT(!root->parent);
   DBUG_ASSERT(root->color == BLACK);
 
   leaf->color=RED;
