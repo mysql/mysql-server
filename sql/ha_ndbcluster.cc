@@ -113,7 +113,7 @@ static MYSQL_SYSVAR_ENUM(
   "for ROW_FORMAT.",
   NULL,                                /* check func. */
   NULL,                                /* update func. */
-  NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC,   /* default */
+  NDB_DEFAULT_COLUMN_FORMAT_FIXED,     /* default */
   &default_column_format_typelib       /* typelib */
 );
 
