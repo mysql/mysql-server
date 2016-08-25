@@ -134,7 +134,7 @@ drop table c;
 
 set global ndb_data_node_neighbour = 0;
 
-select node_id, fragment_num, fixed_elem_count
+select node_id, fragment_num, fixed_elem_count > 0
 from `ndbinfo`.`memory_per_fragment`
 where fq_name = 'test/def/t1'
 order by node_id, fragment_num;
@@ -204,7 +204,7 @@ source suite/ndb/include/ndb_exec.inc;
 
 alter table t1 algorithm=inplace, reorganize partition;
 
-select node_id, fragment_num, fixed_elem_count
+select node_id, fragment_num, fixed_elem_count > 0
 from `ndbinfo`.`memory_per_fragment`
 where fq_name = 'test/def/t1'
 order by node_id, fragment_num;
