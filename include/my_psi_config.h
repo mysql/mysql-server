@@ -21,7 +21,7 @@
   @file include/my_psi_config.h
   Defines various enable/disable and HAVE_ macros related to the
   performance schema instrumentation system, without pulling in
-  any system #include files like "my_global.h" does (which breaks the
+  any system \#include files like "my_global.h" does (which breaks the
   ABI checker).
 
 */
