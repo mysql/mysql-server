@@ -111,273 +111,6 @@ static Check_table_intact table_intact;
 
 
 /**
-  Column definitions for 5.7 mysql.event table (5.7.13 and up).
-*/
-const TABLE_FIELD_TYPE event_table_fields[ET_FIELD_COUNT] =
-{
-  {
-    { C_STRING_WITH_LEN("db") },
-    { C_STRING_WITH_LEN("char(64)") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("name") },
-    { C_STRING_WITH_LEN("char(64)") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("body") },
-    { C_STRING_WITH_LEN("longblob") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("definer") },
-    { C_STRING_WITH_LEN("char(93)") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("execute_at") },
-    { C_STRING_WITH_LEN("datetime") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("interval_value") },
-    { C_STRING_WITH_LEN("int(11)") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("interval_field") },
-    { C_STRING_WITH_LEN("enum('YEAR','QUARTER','MONTH','DAY',"
-    "'HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR',"
-    "'DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND',"
-    "'DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND',"
-    "'SECOND_MICROSECOND')") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("created") },
-    { C_STRING_WITH_LEN("timestamp") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("modified") },
-    { C_STRING_WITH_LEN("timestamp") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("last_executed") },
-    { C_STRING_WITH_LEN("datetime") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("starts") },
-    { C_STRING_WITH_LEN("datetime") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("ends") },
-    { C_STRING_WITH_LEN("datetime") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("status") },
-    { C_STRING_WITH_LEN("enum('ENABLED','DISABLED','SLAVESIDE_DISABLED')") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("on_completion") },
-    { C_STRING_WITH_LEN("enum('DROP','PRESERVE')") },
-    {NULL, 0}
-   },
-  {
-    { C_STRING_WITH_LEN("sql_mode") },
-    { C_STRING_WITH_LEN("set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES',"
-    "'IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION',"
-    "'NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB',"
-    "'NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40',"
-    "'ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES',"
-    "'STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES',"
-    "'ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER',"
-    "'HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("comment") },
-    { C_STRING_WITH_LEN("char(64)") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("originator") },
-    { C_STRING_WITH_LEN("int(10)") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("time_zone") },
-    { C_STRING_WITH_LEN("char(64)") },
-    { C_STRING_WITH_LEN("latin1") }
-  },
-  {
-    { C_STRING_WITH_LEN("character_set_client") },
-    { C_STRING_WITH_LEN("char(32)") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("collation_connection") },
-    { C_STRING_WITH_LEN("char(32)") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("db_collation") },
-    { C_STRING_WITH_LEN("char(32)") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("body_utf8") },
-    { C_STRING_WITH_LEN("longblob") },
-    { NULL, 0 }
-  }
-};
-
-static const TABLE_FIELD_DEF
-  event_table_def= {ET_FIELD_COUNT, event_table_fields};
-
-
-/**
-  Column definitions for 5.7 mysql.event table (before 5.7.13).
-*/
-
-static
-const TABLE_FIELD_TYPE event_table_fields_old[ET_FIELD_COUNT] =
-{
-  {
-    { C_STRING_WITH_LEN("db") },
-    { C_STRING_WITH_LEN("char(64)") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("name") },
-    { C_STRING_WITH_LEN("char(64)") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("body") },
-    { C_STRING_WITH_LEN("longblob") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("definer") },
-    { C_STRING_WITH_LEN("char(77)") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("execute_at") },
-    { C_STRING_WITH_LEN("datetime") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("interval_value") },
-    { C_STRING_WITH_LEN("int(11)") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("interval_field") },
-    { C_STRING_WITH_LEN("enum('YEAR','QUARTER','MONTH','DAY',"
-    "'HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR',"
-    "'DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND',"
-    "'DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND',"
-    "'SECOND_MICROSECOND')") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("created") },
-    { C_STRING_WITH_LEN("timestamp") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("modified") },
-    { C_STRING_WITH_LEN("timestamp") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("last_executed") },
-    { C_STRING_WITH_LEN("datetime") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("starts") },
-    { C_STRING_WITH_LEN("datetime") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("ends") },
-    { C_STRING_WITH_LEN("datetime") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("status") },
-    { C_STRING_WITH_LEN("enum('ENABLED','DISABLED','SLAVESIDE_DISABLED')") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("on_completion") },
-    { C_STRING_WITH_LEN("enum('DROP','PRESERVE')") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("sql_mode") },
-    { C_STRING_WITH_LEN("set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES',"
-    "'IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION',"
-    "'NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB',"
-    "'NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40',"
-    "'ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES',"
-    "'STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES',"
-    "'ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER',"
-    "'HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("comment") },
-    { C_STRING_WITH_LEN("char(64)") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("originator") },
-    { C_STRING_WITH_LEN("int(10)") },
-    {NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("time_zone") },
-    { C_STRING_WITH_LEN("char(64)") },
-    { C_STRING_WITH_LEN("latin1") }
-  },
-  {
-    { C_STRING_WITH_LEN("character_set_client") },
-    { C_STRING_WITH_LEN("char(32)") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("collation_connection") },
-    { C_STRING_WITH_LEN("char(32)") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("db_collation") },
-    { C_STRING_WITH_LEN("char(32)") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("body_utf8") },
-    { C_STRING_WITH_LEN("longblob") },
-    { NULL, 0 }
-  }
-};
-
-
-static const TABLE_FIELD_DEF
-  event_table_def_old= {ET_FIELD_COUNT, event_table_fields_old};
-
-
-/**
   Column definitions for 5.7 mysql.proc table (5.7.13 and up).
 */
 static const
@@ -2593,6 +2326,273 @@ bool migrate_schema_to_dd(THD *thd, const char *dbname)
 
 
 #ifndef EMBEDDED_LIBRARY
+/**
+  Column definitions for 5.7 mysql.event table (5.7.13 and up).
+*/
+const TABLE_FIELD_TYPE event_table_fields[ET_FIELD_COUNT] =
+{
+  {
+    { C_STRING_WITH_LEN("db") },
+    { C_STRING_WITH_LEN("char(64)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("name") },
+    { C_STRING_WITH_LEN("char(64)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("body") },
+    { C_STRING_WITH_LEN("longblob") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("definer") },
+    { C_STRING_WITH_LEN("char(93)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("execute_at") },
+    { C_STRING_WITH_LEN("datetime") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("interval_value") },
+    { C_STRING_WITH_LEN("int(11)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("interval_field") },
+    { C_STRING_WITH_LEN("enum('YEAR','QUARTER','MONTH','DAY',"
+    "'HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR',"
+    "'DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND',"
+    "'DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND',"
+    "'SECOND_MICROSECOND')") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("created") },
+    { C_STRING_WITH_LEN("timestamp") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("modified") },
+    { C_STRING_WITH_LEN("timestamp") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("last_executed") },
+    { C_STRING_WITH_LEN("datetime") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("starts") },
+    { C_STRING_WITH_LEN("datetime") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("ends") },
+    { C_STRING_WITH_LEN("datetime") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("status") },
+    { C_STRING_WITH_LEN("enum('ENABLED','DISABLED','SLAVESIDE_DISABLED')") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("on_completion") },
+    { C_STRING_WITH_LEN("enum('DROP','PRESERVE')") },
+    {NULL, 0}
+   },
+  {
+    { C_STRING_WITH_LEN("sql_mode") },
+    { C_STRING_WITH_LEN("set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES',"
+    "'IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION',"
+    "'NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB',"
+    "'NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40',"
+    "'ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES',"
+    "'STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES',"
+    "'ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER',"
+    "'HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("comment") },
+    { C_STRING_WITH_LEN("char(64)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("originator") },
+    { C_STRING_WITH_LEN("int(10)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("time_zone") },
+    { C_STRING_WITH_LEN("char(64)") },
+    { C_STRING_WITH_LEN("latin1") }
+  },
+  {
+    { C_STRING_WITH_LEN("character_set_client") },
+    { C_STRING_WITH_LEN("char(32)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("collation_connection") },
+    { C_STRING_WITH_LEN("char(32)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("db_collation") },
+    { C_STRING_WITH_LEN("char(32)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("body_utf8") },
+    { C_STRING_WITH_LEN("longblob") },
+    { NULL, 0 }
+  }
+};
+
+static const TABLE_FIELD_DEF
+  event_table_def= {ET_FIELD_COUNT, event_table_fields};
+
+
+/**
+  Column definitions for 5.7 mysql.event table (before 5.7.13).
+*/
+
+static
+const TABLE_FIELD_TYPE event_table_fields_old[ET_FIELD_COUNT] =
+{
+  {
+    { C_STRING_WITH_LEN("db") },
+    { C_STRING_WITH_LEN("char(64)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("name") },
+    { C_STRING_WITH_LEN("char(64)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("body") },
+    { C_STRING_WITH_LEN("longblob") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("definer") },
+    { C_STRING_WITH_LEN("char(77)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("execute_at") },
+    { C_STRING_WITH_LEN("datetime") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("interval_value") },
+    { C_STRING_WITH_LEN("int(11)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("interval_field") },
+    { C_STRING_WITH_LEN("enum('YEAR','QUARTER','MONTH','DAY',"
+    "'HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR',"
+    "'DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND',"
+    "'DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND',"
+    "'SECOND_MICROSECOND')") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("created") },
+    { C_STRING_WITH_LEN("timestamp") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("modified") },
+    { C_STRING_WITH_LEN("timestamp") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("last_executed") },
+    { C_STRING_WITH_LEN("datetime") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("starts") },
+    { C_STRING_WITH_LEN("datetime") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("ends") },
+    { C_STRING_WITH_LEN("datetime") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("status") },
+    { C_STRING_WITH_LEN("enum('ENABLED','DISABLED','SLAVESIDE_DISABLED')") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("on_completion") },
+    { C_STRING_WITH_LEN("enum('DROP','PRESERVE')") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("sql_mode") },
+    { C_STRING_WITH_LEN("set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES',"
+    "'IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION',"
+    "'NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB',"
+    "'NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40',"
+    "'ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES',"
+    "'STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES',"
+    "'ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER',"
+    "'HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("comment") },
+    { C_STRING_WITH_LEN("char(64)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("originator") },
+    { C_STRING_WITH_LEN("int(10)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("time_zone") },
+    { C_STRING_WITH_LEN("char(64)") },
+    { C_STRING_WITH_LEN("latin1") }
+  },
+  {
+    { C_STRING_WITH_LEN("character_set_client") },
+    { C_STRING_WITH_LEN("char(32)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("collation_connection") },
+    { C_STRING_WITH_LEN("char(32)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("db_collation") },
+    { C_STRING_WITH_LEN("char(32)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("body_utf8") },
+    { C_STRING_WITH_LEN("longblob") },
+    { NULL, 0 }
+  }
+};
+
+
+static const TABLE_FIELD_DEF
+  event_table_def_old= {ET_FIELD_COUNT, event_table_fields_old};
+
+
 /**
    Load the charset and time zone information for an event.
 */
