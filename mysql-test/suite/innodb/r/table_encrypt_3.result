@@ -1403,5 +1403,12 @@ c2	RIGHT(c3,20)	c4
 1961	19611961196119611961	{"key_a": 1, "key_b": 2, "key_c": 3}
 1952	19521952195219521952	{"key_a": 21, "key_b": 22, "key_c": 23}
 DROP DATABASE tde_db;
+#
+# Bug#24404091 FAILING ASSERTION: !SRV_READ_ONLY_MODE ||
+# M_IMPL.M_LOG_MODE == MTR_LOG_NO_REDO
+#
+# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH --innodb_read_only=1
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+ERROR HY000: InnoDB is in read only mode.
 # restart:
 SET GLOBAL innodb_file_per_table=1;
