@@ -3607,6 +3607,11 @@ public:
       save_copy_field_end= copy_field_end= NULL;
     }
   }
+  void free_copy_field_data()
+  {
+    for (Copy_field *ptr= copy_field ; ptr != copy_field_end ; ptr++)
+      ptr->tmp.free();
+  }
 };
 
 class select_union :public select_result_interceptor
