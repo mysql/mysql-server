@@ -306,13 +306,15 @@ static bool fill_routine_parameters_info(THD *thd, sp_head *sp,
 
   @param[in]  thd        Thread handle.
   @param[in]  sp         Stored routine object.
+  @param[in]  definer    Definer of the routine.
   @param[out] routine    dd::Routine object to be prepared from the sp_head.
 
   @retval false  ON SUCCESS
   @retval true   ON FAILURE
 */
 
-static bool fill_dd_routine_info(THD *thd, sp_head *sp, Routine *routine)
+static bool fill_dd_routine_info(THD *thd, sp_head *sp, Routine *routine,
+                                 const LEX_USER *definer)
 {
   DBUG_ENTER("fill_dd_routine_info");
 
@@ -376,8 +378,8 @@ static bool fill_dd_routine_info(THD *thd, sp_head *sp, Routine *routine)
   routine->set_security_type(sec_type);
 
   // Set definer.
-  routine->set_definer(thd->lex->definer->user.str,
-                       thd->lex->definer->host.str);
+  routine->set_definer(definer->user.str,
+                       definer->host.str);
 
   // Set sql_mode.
   routine->set_sql_mode(thd->variables.sql_mode);
@@ -411,7 +413,8 @@ static bool fill_dd_routine_info(THD *thd, sp_head *sp, Routine *routine)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-enum_sp_return_code create_routine(THD *thd, const Schema *schema, sp_head *sp)
+enum_sp_return_code create_routine(THD *thd, const Schema *schema, sp_head *sp,
+                                   const LEX_USER *definer)
 {
   DBUG_ENTER("dd::create_routine");
 
@@ -426,7 +429,7 @@ enum_sp_return_code create_routine(THD *thd, const Schema *schema, sp_head *sp)
       DBUG_RETURN(SP_STORE_FAILED);
 
     // Fill routine object.
-    if (fill_dd_routine_info(thd, sp, func.get()))
+    if (fill_dd_routine_info(thd, sp, func.get(), definer))
       DBUG_RETURN(SP_STORE_FAILED);
 
     // Store routine metadata in DD table.
@@ -440,7 +443,7 @@ enum_sp_return_code create_routine(THD *thd, const Schema *schema, sp_head *sp)
     std::unique_ptr<Procedure> proc(schema->create_procedure(thd));
 
     // Fill routine object.
-    if (fill_dd_routine_info(thd, sp, proc.get()))
+    if (fill_dd_routine_info(thd, sp, proc.get(), definer))
       DBUG_RETURN(SP_STORE_FAILED);
 
     // Store routine metadata in DD table.

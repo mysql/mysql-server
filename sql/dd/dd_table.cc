@@ -20,6 +20,7 @@
 #include "debug_sync.h"                       // DEBUG_SYNC
 #include "default_values.h"                   // max_pack_length
 #include "log.h"                              // sql_print_error
+#include "mysqld.h"                           // dd_upgrade_skip_se
 #include "partition_info.h"                   // partition_info
 #include "psi_memory_key.h"                   // key_memory_frm
 #include "sql_class.h"                        // THD
@@ -572,7 +573,7 @@ fill_dd_columns_from_create_fields(THD *thd,
                  std::string(gc_expr_for_IS.ptr(), gc_expr_for_IS.length()));
     }
 
-    if (field->comment.str)
+    if (field->comment.str && field->comment.length)
       col_obj->set_comment(std::string(field->comment.str,
                                        field->comment.length));
 
@@ -1894,7 +1895,7 @@ static bool fill_dd_table_from_create_info(THD *thd,
   }
 
   // Comments
-  if (create_info->comment.str)
+  if (create_info->comment.str && create_info->comment.length)
     tab_obj->set_comment(std::string(create_info->comment.str,
                                      create_info->comment.length));
 
@@ -2007,15 +2008,28 @@ static bool fill_dd_table_from_create_info(THD *thd,
 
   table_options->set_uint32("key_block_size", create_info->key_block_size);
 
-  if (create_info->connect_string.str)
-    table_options->set("connection_string", create_info->connect_string.str);
+  if (create_info->connect_string.str && create_info->connect_string.length)
+  {
+    std::string connect_string;
+    connect_string.assign(create_info->connect_string.str,
+                          create_info->connect_string.length);
+    table_options->set("connection_string", connect_string);
+  }
 
-  if (create_info->compress.str)
-    table_options->set("compress", create_info->compress.str);
+  if (create_info->compress.str && create_info->compress.length)
+  {
+    std::string compress;
+    compress.assign(create_info->compress.str, create_info->compress.length);
+    table_options->set("compress", compress);
+  }
 
-  if (create_info->encrypt_type.str)
-    table_options->set("encrypt_type", create_info->encrypt_type.str);
-
+  if (create_info->encrypt_type.str && create_info->encrypt_type.length)
+  {
+    std::string encrypt_type;
+    encrypt_type.assign(create_info->encrypt_type.str,
+                        create_info->encrypt_type.length);
+    table_options->set("encrypt_type", encrypt_type);
+  }
   // Storage media
   if (create_info->storage_media > HA_SM_DEFAULT)
     table_options->set_uint32("storage", create_info->storage_media);
@@ -2114,28 +2128,48 @@ static bool create_dd_system_table(THD *thd,
                                      fk_keyinfo, fk_keys, file))
     return true;
 
-  // Get the se private data for the DD table
-  if (file->ha_get_se_private_data(tab_obj, dd_table.default_dd_version(thd)))
-    return true;
+  /*
+    Get the se private data for the DD table
+
+    In upgrade scenario, to check the existence of version table,
+    version table is tried to open. This requires dd::Table object
+    for version table. Creation of version table inside Storage Engine
+    should be avoided during the existance check. We skip fetching
+    se_private_id from SE during this process. This is done as
+    a work around to reset variables in InnoDB as it is done for
+    dictionary cache and dictionary object ids.
+
+    TODO: This should be fixed as preparation for InnoDB dictionary upgrade.
+  */
+  if (!dd_upgrade_skip_se)
+  {
+    if (file->ha_get_se_private_data(tab_obj,
+                                     dd_table.default_dd_version(thd)))
+      return true;
+  }
+
+  // Reset id if we are creating version DD table.
+  bool reset_id= (strcmp(table_name.c_str(), "version") == 0);
 
   // "Store" the object in the shared cache, and make it sticky.
-  thd->dd_client()->add_and_reset_id(tab_obj);
+  thd->dd_client()->add_and_reset_id(tab_obj, reset_id);
   thd->dd_client()->set_sticky(tab_obj, true);
+
   return false;
 }
 
 
-static bool create_dd_user_table(THD *thd,
-                                 const std::string &schema_name,
-                                 const std::string &table_name,
-                                 HA_CREATE_INFO *create_info,
-                                 const List<Create_field> &create_fields,
-                                 const KEY *keyinfo,
-                                 uint keys,
-                                 Alter_info::enum_enable_or_disable keys_onoff,
-                                 const FOREIGN_KEY *fk_keyinfo,
-                                 uint fk_keys,
-                                 handler *file)
+bool create_dd_user_table(THD *thd,
+                          const std::string &schema_name,
+                          const std::string &table_name,
+                          HA_CREATE_INFO *create_info,
+                          const List<Create_field> &create_fields,
+                          const KEY *keyinfo,
+                          uint keys,
+                          Alter_info::enum_enable_or_disable keys_onoff,
+                          const FOREIGN_KEY *fk_keyinfo,
+                          uint fk_keys,
+                          handler *file)
 {
   // Verify that this is not a dd table.
   DBUG_ASSERT(!dd::get_dictionary()->is_dd_table_name(schema_name,
@@ -2783,6 +2817,25 @@ std::string get_sql_type_by_field_info(THD *thd,
 
 bool fix_row_type(THD *thd, TABLE_SHARE *share)
 {
+  HA_CREATE_INFO create_info;
+  create_info.row_type= share->row_type;
+  create_info.table_options= share->db_options_in_use;
+
+  handler *file= get_new_handler(share, thd->mem_root, share->db_type());
+  if (!file)
+    return true;
+
+  row_type correct_row_type= file->get_real_row_type(&create_info);
+
+  bool error= fix_row_type(thd, share, correct_row_type);
+
+  delete file;
+  return error;
+}
+
+
+bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type)
+{
   Disable_autocommit_guard autocommit_guard(thd);
   dd::Schema_MDL_locker mdl_locker(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
@@ -2815,18 +2868,7 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share)
 
   std::unique_ptr<dd::Table> new_table_def(old_table_def->clone());
 
-  HA_CREATE_INFO create_info;
-  create_info.row_type= share->row_type;
-  create_info.table_options= share->db_options_in_use;
-
-  handler *file= get_new_handler(share, thd->mem_root, share->db_type());
-  if (!file)
-    return true;
-
-  row_type correct_row_type= file->get_real_row_type(&create_info);
   new_table_def->set_row_format(dd_get_new_row_format(correct_row_type));
-
-  delete file;
 
   if (thd->dd_client()->update(&old_table_def, new_table_def.get()) ||
       store_sdi(thd, new_table_def.get(), sch))

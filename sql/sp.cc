@@ -51,69 +51,76 @@
 
 /* Used in error handling only */
 #define SP_TYPE_STRING(LP) \
-  ((LP)->sphead->m_type == enum_sp_type::FUNCTION ? "FUNCTION" : "PROCEDURE")
+  ((LP)->m_type == enum_sp_type::FUNCTION ? "FUNCTION" : "PROCEDURE")
 static bool
 create_string(THD *thd, String *buf,
-	      enum_sp_type sp_type,
-	      const char *db, size_t dblen,
-	      const char *name, size_t namelen,
-	      const char *params, size_t paramslen,
-	      const char *returns, size_t returnslen,
-	      const char *body, size_t bodylen,
-	      st_sp_chistics *chistics,
+              enum_sp_type sp_type,
+              const char *db, size_t dblen,
+              const char *name, size_t namelen,
+              const char *params, size_t paramslen,
+              const char *returns, size_t returnslen,
+              const char *body, size_t bodylen,
+              st_sp_chistics *chistics,
               const LEX_CSTRING &definer_user,
               const LEX_CSTRING &definer_host,
               sql_mode_t sql_mode);
 
-static enum_sp_return_code
-db_load_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp,
-                sql_mode_t sql_mode, const char *params, const char *returns,
-                const char *body, st_sp_chistics *chistics,
-                const char *definer_user, const char *definer_host,
-                longlong created, longlong modified,
-                Stored_program_creation_ctx *creation_ctx);
+/**************************************************************************
+  Fetch stored routines and events creation_ctx for upgrade.
+**************************************************************************/
+
+bool load_charset(MEM_ROOT *mem_root,
+                  Field *field,
+                  const CHARSET_INFO *dflt_cs,
+                  const CHARSET_INFO **cs)
+{
+  String cs_name;
+
+  if (get_field(mem_root, field, &cs_name))
+  {
+    *cs= dflt_cs;
+    return true;
+  }
+
+  *cs= get_charset_by_csname(cs_name.c_ptr(), MY_CS_PRIMARY, MYF(0));
+
+  if (*cs == NULL)
+  {
+    *cs= dflt_cs;
+    return true;
+  }
+
+  return false;
+}
 
 
 /*************************************************************************/
 
-/**
-  Stored_routine_creation_ctx -- creation context of stored routines
-  (stored procedures and functions).
-*/
 
-class Stored_routine_creation_ctx : public Stored_program_creation_ctx,
-                                    public Sql_alloc
+bool load_collation(MEM_ROOT *mem_root,
+                    Field *field,
+                    const CHARSET_INFO *dflt_cl,
+                    const CHARSET_INFO **cl)
 {
-public:
-  static Stored_routine_creation_ctx*
-  create_routine_creation_ctx(THD *thd, const dd::Routine *routine);
+  String cl_name;
 
-public:
-  virtual Stored_program_creation_ctx *clone(MEM_ROOT *mem_root)
+  if (get_field(mem_root, field, &cl_name))
   {
-    return new (mem_root) Stored_routine_creation_ctx(m_client_cs,
-                                                      m_connection_cl,
-                                                      m_db_cl);
+    *cl= dflt_cl;
+    return true;
   }
 
-protected:
-  virtual Object_creation_ctx *create_backup_ctx(THD *thd) const
+  *cl= get_charset_by_name(cl_name.c_ptr(), MYF(0));
+
+  if (*cl == NULL)
   {
-    DBUG_ENTER("Stored_routine_creation_ctx::create_backup_ctx");
-    DBUG_RETURN(new Stored_routine_creation_ctx(thd));
+    *cl= dflt_cl;
+    return true;
   }
 
-private:
-  Stored_routine_creation_ctx(THD *thd)
-    : Stored_program_creation_ctx(thd)
-  { }
+  return false;
+}
 
-  Stored_routine_creation_ctx(const CHARSET_INFO *client_cs,
-                              const CHARSET_INFO *connection_cl,
-                              const CHARSET_INFO *db_cl)
-    : Stored_program_creation_ctx(client_cs, connection_cl, db_cl)
-  { }
-};
 
 /**************************************************************************
   Stored_routine_creation_ctx implementation.
@@ -140,6 +147,80 @@ Stored_routine_creation_ctx::create_routine_creation_ctx(
   return new Stored_routine_creation_ctx(client_cs, connection_cl, db_cl);
 }
 
+/*************************************************************************/
+
+Stored_routine_creation_ctx *
+Stored_routine_creation_ctx::load_from_db(THD *thd,
+                                          const sp_name *name,
+                                          TABLE *proc_tbl)
+{
+  // Load character set/collation attributes.
+
+  const CHARSET_INFO *client_cs;
+  const CHARSET_INFO *connection_cl;
+  const CHARSET_INFO *db_cl;
+
+  const char *db_name= thd->strmake(name->m_db.str, name->m_db.length);
+  const char *sr_name= thd->strmake(name->m_name.str, name->m_name.length);
+
+  bool invalid_creation_ctx= false;
+
+  if (load_charset(thd->mem_root,
+                   proc_tbl->field[MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT],
+                   thd->variables.character_set_client,
+                   &client_cs))
+  {
+    sql_print_warning("Stored routine '%s'.'%s': invalid value "
+                      "in column mysql.proc.character_set_client.",
+                      db_name,
+                      sr_name);
+
+    invalid_creation_ctx= true;
+  }
+
+  if (load_collation(thd->mem_root,
+                     proc_tbl->field[MYSQL_PROC_FIELD_COLLATION_CONNECTION],
+                     thd->variables.collation_connection,
+                     &connection_cl))
+  {
+    sql_print_warning("Stored routine '%s'.'%s': invalid value "
+                      "in column mysql.proc.collation_connection.",
+                      db_name,
+                      sr_name);
+
+    invalid_creation_ctx= true;
+  }
+
+  if (load_collation(thd->mem_root,
+                     proc_tbl->field[MYSQL_PROC_FIELD_DB_COLLATION],
+                     NULL,
+                     &db_cl))
+  {
+    sql_print_warning("Stored routine '%s'.'%s': invalid value "
+                      "in column mysql.proc.db_collation.",
+                      db_name,
+                      sr_name);
+
+    invalid_creation_ctx= true;
+  }
+
+  if (invalid_creation_ctx)
+  {
+    sql_print_warning("Invalid creation context '%s.%s'.", db_name, sr_name);
+  }
+
+  /*
+    If we failed to retrieve the database collation, load the default one
+    from the disk.
+  */
+
+  if (!db_cl)
+    get_default_db_collation(thd, name->m_db.str, &db_cl);
+
+  /* Create the context. */
+
+  return new Stored_routine_creation_ctx(client_cs, connection_cl, db_cl);
+}
 
 /**
   Acquire Shared MDL lock on the routine object.
@@ -408,7 +489,7 @@ private:
 };
 
 
-static enum_sp_return_code
+enum_sp_return_code
 db_load_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp,
                 sql_mode_t sql_mode, const char *params, const char *returns,
                 const char *body, st_sp_chistics *sp_chistics,
@@ -547,14 +628,15 @@ sp_returns_type(THD *thd, String &result, sp_head *sp)
 /**
   Creates a stored routine.
 
-  @param thd  Thread context.
-  @param sp   Stored routine object to store.
+  @param thd     Thread context.
+  @param sp      Stored routine object to store.
+  @param definer Definer of the SP.
 
   @retval false success
   @retval true  error
 */
 
-bool sp_create_routine(THD *thd, sp_head *sp)
+bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer)
 {
   DBUG_ENTER("sp_create_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",
@@ -571,8 +653,7 @@ bool sp_create_routine(THD *thd, sp_head *sp)
                                              MDL_key::PROCEDURE;
   if (lock_object_name(thd, mdl_type, sp->m_db.str, sp->m_name.str))
   {
-    my_error(ER_SP_STORE_FAILED, MYF(0),
-             SP_TYPE_STRING(thd->lex),sp->m_name.str);
+    my_error(ER_SP_STORE_FAILED, MYF(0), SP_TYPE_STRING(sp),sp->m_name.str);
     DBUG_RETURN(true);
   }
   DEBUG_SYNC(thd, "after_acquiring_mdl_lock_on_routine");
@@ -601,8 +682,7 @@ bool sp_create_routine(THD *thd, sp_head *sp)
     DBUG_RETURN(true);
   if (sr != NULL)
   {
-    my_error(ER_SP_ALREADY_EXISTS, MYF(0),
-             SP_TYPE_STRING(thd->lex), sp->m_name.str);
+    my_error(ER_SP_ALREADY_EXISTS, MYF(0), SP_TYPE_STRING(sp), sp->m_name.str);
     DBUG_RETURN(true);
   }
 
@@ -693,11 +773,10 @@ bool sp_create_routine(THD *thd, sp_head *sp)
   }
 
   // Create a stored routine.
-  enum_sp_return_code sp_error= dd::create_routine(thd, schema, sp);
+  enum_sp_return_code sp_error= dd::create_routine(thd, schema, sp, definer);
   if (sp_error != SP_OK)
   {
-    my_error(ER_SP_STORE_FAILED, MYF(0),
-             SP_TYPE_STRING(thd->lex), sp->m_name.str);
+    my_error(ER_SP_STORE_FAILED, MYF(0), SP_TYPE_STRING(sp), sp->m_name.str);
     DBUG_RETURN(true);
   }
 
@@ -727,12 +806,11 @@ bool sp_create_routine(THD *thd, sp_head *sp)
                        sp->m_params.str, sp->m_params.length,
                        retstr.c_ptr(), retstr.length(),
                        sp->m_body.str, sp->m_body.length,
-                       sp->m_chistics, thd->lex->definer->user,
-                       thd->lex->definer->host,
-                       thd->variables.sql_mode))
+                       sp->m_chistics, definer->user,
+                       definer->host, thd->variables.sql_mode))
     {
       my_error(ER_SP_STORE_FAILED, MYF(0),
-               SP_TYPE_STRING(thd->lex), sp->m_name.str);
+               SP_TYPE_STRING(sp), sp->m_name.str);
       DBUG_RETURN(true);
     }
 
@@ -752,7 +830,7 @@ bool sp_create_routine(THD *thd, sp_head *sp)
     if (error)
     {
       my_error(ER_SP_STORE_FAILED, MYF(0),
-               SP_TYPE_STRING(thd->lex), sp->m_name.str);
+               SP_TYPE_STRING(sp), sp->m_name.str);
       DBUG_RETURN(true);
     }
   }

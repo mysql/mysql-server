@@ -625,7 +625,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     if (operator_func == &handler::ha_repair &&
         !(check_opt->sql_flags & TT_USEFRM))
     {
-      if ((table->table->file->check_old_types() == HA_ADMIN_NEEDS_ALTER) ||
+      if ((check_table_for_old_types(table->table) == HA_ADMIN_NEEDS_ALTER) ||
           (table->table->file->ha_check_for_upgrade(check_opt) ==
            HA_ADMIN_NEEDS_ALTER))
       {

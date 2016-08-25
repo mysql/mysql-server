@@ -174,6 +174,7 @@ void Shared_multi_map<T>::shutdown()
          m_element_pool.begin();
        it != m_element_pool.end(); ++it)
     delete(*it);
+   m_element_pool.clear();
 }
 
 

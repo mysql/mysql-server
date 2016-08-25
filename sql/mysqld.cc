@@ -4462,11 +4462,32 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   */
   init_update_queries();
 
-  /* Initialize DD, plugin_register_dynamic_and_init_all() needs it */
-  if (!opt_help && dd::init(opt_initialize))
+  /*
+    plugin_register_dynamic_and_init_all() needs DD initialized.
+    Initialize DD to create data directory using current server.
+  */
+  if (opt_initialize)
   {
-    sql_print_error("Data Dictionary initialization failed.");
-    unireg_abort(1);
+    if(!opt_help && dd::init(dd::enum_dd_init_type::DD_INITIALIZE))
+    {
+      sql_print_error("Data Dictionary initialization failed.");
+      unireg_abort(1);
+    }
+  }
+  else
+  {
+    /*
+      Initialize DD in case of upgrade and normal normal server restart.
+      It is detected if we are starting on old data directory or current
+      data directory. If it is old data directory, DD tables are created.
+      If server is starting on data directory with DD tables, DD is initialized.
+    */
+    if (!opt_help &&
+        dd::init(dd::enum_dd_init_type::DD_RESTART_OR_UPGRADE))
+    {
+      sql_print_error("Data Dictionary initialization failed.");
+      unireg_abort(1);
+    }
   }
 
   /*
@@ -4481,16 +4502,26 @@ a file name for --log-bin-index option", opt_binlog_index_name);
                   (opt_help ? (PLUGIN_INIT_SKIP_INITIALIZATION |
                                PLUGIN_INIT_SKIP_PLUGIN_TABLE) : 0)))
   {
+    // Delete all DD tables in case of error in initializing plugins.
+    (void)dd::init(dd::enum_dd_init_type::DD_DELETE);
     sql_print_error("Failed to initialize dynamic plugins.");
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
   dynamic_plugins_are_initialized= true;  /* Don't separate from init function */
 
   // Store meta data of plugin schema tables into new DD
-  if (!opt_help && opt_initialize &&
+  if (!opt_help && (opt_initialize || dd_upgrade_flag) &&
       dd::get_dictionary()->install_plugin_IS_table_metadata())
   {
     sql_print_error("Failed to store plugin metadata into dictionary tables.");
+    unireg_abort(1);
+  }
+
+  // Populate DD tables with meta data from 5.7 in case of upgrade
+  if (!opt_help && dd_upgrade_flag &&
+      dd::init(dd::enum_dd_init_type::DD_POPULATE_UPGRADE))
+  {
+    sql_print_error("Failed to Populate DD tables.");
     unireg_abort(1);
   }
 

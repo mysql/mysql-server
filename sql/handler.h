@@ -3709,6 +3709,17 @@ public:
   }
 
   /**
+    Get the row type from the storage engine for upgrade. If this method
+    returns ROW_TYPE_NOT_USED, the information in HA_CREATE_INFO should be
+    used.
+    This function is temporarily added to handle case of upgrade. It should
+    not be used in any other use case. This function will be removed in future.
+    This function was handler::get_row_type() in mysql-5.7.
+  */
+  virtual enum row_type get_row_type_for_upgrade() const
+  { return ROW_TYPE_NOT_USED; }
+
+  /**
     Get default key algorithm for SE. It is used when user has not provided
     algorithm explicitly or when algorithm specified is not supported by SE.
   */
@@ -4048,7 +4059,6 @@ public:
   */
 
   virtual void update_create_info(HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) {}
-  int check_old_types();
   virtual int assign_to_keycache(THD*, HA_CHECK_OPT*)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   virtual int preload_keys(THD*, HA_CHECK_OPT*)
@@ -5108,6 +5118,21 @@ protected:
 };
 
 
+/**
+  Function identifies any old data type present in table.
+
+  This function was handler::check_old_types().
+  Function is not part of SE API. It is now converted to
+  auxiliary standalone function.
+
+  @param[in]  table    TABLE object
+
+  @retval 0            ON SUCCESS
+  @retval error code   ON FAILURE
+*/
+
+int check_table_for_old_types(const TABLE *table);
+
 /*
   A Disk-Sweep MRR interface implementation
 
@@ -5396,5 +5421,6 @@ bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
 
 int commit_owned_gtids(THD *thd, bool all, bool *need_clear_ptr);
 int commit_owned_gtid_by_partial_command(THD *thd);
+int check_table_for_old_types(const TABLE *table);
 
 #endif /* HANDLER_INCLUDED */

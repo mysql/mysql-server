@@ -162,6 +162,8 @@ public:
 
   void print_upgrade_warnings(THD *thd);
 
+  void parse_triggers(THD *thd, List<Trigger> *triggers, bool is_upgrade);
+
 private:
   MEM_ROOT *get_mem_root()
   { return m_subject_table ? &m_subject_table->mem_root : &m_mem_root; }
@@ -169,8 +171,6 @@ private:
   Trigger_chain *create_trigger_chain(
     enum_trigger_event_type event,
     enum_trigger_action_time_type action_time);
-
-  void parse_triggers(THD *thd, List<Trigger> *triggers);
 
   bool prepare_record1_accessors();
 

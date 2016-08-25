@@ -24,13 +24,17 @@
 
 namespace dd {
 
-bool init(bool install)
+bool init(enum_dd_init_type dd_init)
 {
-  cache::Shared_dictionary_cache::init();
-  System_tables::instance()->init();
-  System_views::instance()->init();
+  if (dd_init == enum_dd_init_type::DD_INITIALIZE ||
+      dd_init == enum_dd_init_type::DD_RESTART_OR_UPGRADE)
+  {
+    cache::Shared_dictionary_cache::init();
+    System_tables::instance()->init();
+    System_views::instance()->init();
+  }
 
-  return Dictionary_impl::init(install);
+  return Dictionary_impl::init(dd_init);
 }
 
 ///////////////////////////////////////////////////////////////////////////

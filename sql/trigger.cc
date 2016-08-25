@@ -526,21 +526,34 @@ bool Trigger::create_full_trigger_definition(THD *thd,
 /**
   Parse CREATE TRIGGER statement.
 
-  @param [in] thd   Thread context
+  @param [in] thd         Thread context
+  @param [in] is_upgrade  Flag to indicate that trigger being parsed is read
+                          from .TRG file in case of upgrade.
 
   @return true if a fatal parse error happened (the parser failed to extract
   even the trigger name), false otherwise (Trigger::has_parse_error() might
   still return true in this case).
 */
 
-bool Trigger::parse(THD *thd)
+bool Trigger::parse(THD *thd, bool is_upgrade)
 {
   sql_mode_t sql_mode_saved= thd->variables.sql_mode;
   thd->variables.sql_mode= m_sql_mode;
 
   Parser_state parser_state;
   String full_trigger_definition;
-  if (create_full_trigger_definition(thd, &full_trigger_definition))
+
+  // Trigger definition contains full trigger statement in .TRG file.
+  if (is_upgrade)
+  {
+    if (full_trigger_definition.append(get_definition().str,
+                                       get_definition().length))
+    {
+      thd->variables.sql_mode= sql_mode_saved;
+      return true;
+    }
+  }
+  else if (create_full_trigger_definition(thd, &full_trigger_definition))
   {
     thd->variables.sql_mode= sql_mode_saved;
     return true;
@@ -621,13 +634,64 @@ bool Trigger::parse(THD *thd)
 
   DBUG_ASSERT(!parse_error || (parse_error && lex.sphead == NULL));
 
-  // That's it in case of parse error.
+ // That's it in case of parse error.
 
   if (parse_error)
   {
     // Remember parse error message.
     set_parse_error_message(error_handler.get_error_message());
     goto cleanup;
+  }
+
+  /*
+    Set trigger name, event and action time for upgrade scenario.
+    .TRG file does not contain these fields explicitly. Their value
+    can be determined while parsing the trigger definition.
+  */
+  if (is_upgrade)
+  {
+    const LEX_STRING *trigger_name_ptr= NULL;
+    const LEX_STRING *trigger_body_ptr= NULL;
+    const LEX_STRING *trigger_body_utf8_ptr= NULL;
+
+    trigger_name_ptr= &lex.spname->m_name;
+    trigger_body_ptr= &lex.sphead->m_body;
+    trigger_body_utf8_ptr= &lex.sphead->m_body_utf8;
+
+    // Make a copy of trigger name and set it.
+    LEX_STRING s, def, def_utf8;
+    if (!lex_string_copy(m_mem_root, &s, *trigger_name_ptr))
+    {
+      fatal_error= true;
+      goto cleanup;
+    }
+
+    if (!lex_string_copy(m_mem_root, &def, *trigger_body_ptr))
+    {
+      fatal_error= true;
+      goto cleanup;
+    }
+
+    if (!lex_string_copy(m_mem_root, &def_utf8, *trigger_body_utf8_ptr))
+    {
+      fatal_error= true;
+      goto cleanup;
+    }
+
+    const LEX_CSTRING trigger_name= {s.str, s.length};
+    const LEX_CSTRING trigger_def= {def.str, def.length};
+    const LEX_CSTRING trigger_def_utf8= {def_utf8.str, def_utf8.length};
+
+    set_trigger_name(trigger_name);
+    set_trigger_def(trigger_def);
+    set_trigger_def_utf8(trigger_def_utf8);
+
+    // Set correct m_event and m_action_time.
+    DBUG_ASSERT(m_event == TRG_EVENT_MAX);
+    DBUG_ASSERT(m_action_time == TRG_ACTION_MAX);
+
+    m_event= lex.sphead->m_trg_chistics.event;
+    m_action_time= lex.sphead->m_trg_chistics.action_time;
   }
 
   DBUG_ASSERT(m_event == lex.sphead->m_trg_chistics.event);

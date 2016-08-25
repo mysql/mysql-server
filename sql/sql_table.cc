@@ -1939,13 +1939,14 @@ static bool rea_create_table(THD *thd, const char *path,
     goto err;
 
   if (!no_ha_table &&
-       ha_create_table(thd, path, db, table_name, create_info,
-                       false, false, *tmp_table_def))
+      ha_create_table(thd, path, db, table_name, create_info,
+                      false, false, *tmp_table_def))
   {
     (void) file->ha_create_handler_files(path, NULL, CHF_DELETE_FLAG,
                                          create_info);
     goto err;
   }
+
   DBUG_RETURN(false);
 
 err:
@@ -2773,7 +2774,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                              !dont_log_query);
 
       /* No error if non existent table and 'IF EXIST' clause or view */
-      if ((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) && 
+      if ((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) &&
           (if_exists || hton == NULL))
       {
         error= 0;
@@ -2784,7 +2785,13 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         /* the table is referenced by a foreign key constraint */
         foreign_key_error= 1;
       }
-      if (!error || error == ENOENT || error == HA_ERR_NO_SUCH_TABLE)
+
+      /*
+         Don't delete entry from DD in case we are dropping
+         DD tables in case of upgrade.
+      */
+      if ((!error || error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) &&
+          !dd_upgrade_flag)
       {
         if (!delete_ordinary_table_details_from_dd(thd, table,
                                                    drop_view))
@@ -3268,8 +3275,8 @@ static bool check_interval_length(const char *col_name,
   @return true if error, false if ok
 */
 
-static bool prepare_pack_create_field(THD *thd, Create_field *sql_field,
-                                      longlong table_flags)
+bool prepare_pack_create_field(THD *thd, Create_field *sql_field,
+                               longlong table_flags)
 {
   unsigned int dup_val_count;
   DBUG_ENTER("prepare_pack_create_field");
@@ -3828,26 +3835,10 @@ static bool prepare_enum_field(THD *thd, Create_field *sql_field)
 }
 
 
-/**
-  Prepares the column definitions for table creation.
-
-  @param thd                       Thread object.
-  @param create_info               Create information.
-  @param[in,out] create_list       List of columns to create.
-  @param[in,out] select_field_pos  Position where the SELECT columns start
-                                   for CREATE TABLE ... SELECT.
-  @param file                      The handler for the new table.
-  @param[in,out] sql_field         Create_field to populate.
-  @param field_no                  Column number.
-
-  @retval false   OK
-  @retval true    error
-*/
-
-static bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
-                                 List<Create_field> *create_list,
-                                 int *select_field_pos, handler *file,
-                                 Create_field *sql_field, int field_no)
+bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
+                          List<Create_field> *create_list,
+                          int *select_field_pos, handler *file,
+                          Create_field *sql_field, int field_no)
 {
   DBUG_ENTER("prepare_create_field");
   DBUG_ASSERT(create_list);
@@ -5993,10 +5984,24 @@ bool mysql_create_table_no_lock(THD *thd,
     }
   }
 
-  // Don't create the DD tables in the DDSE unless installing the DD
+  /*
+    Don't create the DD tables in the DDSE unless installing the DD.
+
+    In upgrade scenario, to check the existence of version table,
+    we try to open it. This requires dd::Table object for this table.
+    To create this object we run CREATE TABLE statement for the table
+    but avoid creation of table inside SE. If version table is not
+    found, we create it inside SE on later steps.
+  */
+
+  bool is_stats_table= (!strcmp(db, "mysql")) &&
+                       ((!(strcmp(table_name, "innodb_table_stats")) ||
+                        !(strcmp(table_name, "innodb_index_stats"))));
+
   bool no_ha_table= false;
-  if (!opt_initialize &&
-        dd::get_dictionary()->is_dd_table_name(db, table_name))
+  if ((!opt_initialize || dd_upgrade_skip_se ||
+      (dd_upgrade_flag && is_stats_table)) &&
+      dd::get_dictionary()->is_dd_table_name(db, table_name))
     no_ha_table= true;
 
   return create_table_impl(thd, db, table_name, table_name,

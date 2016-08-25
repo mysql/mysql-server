@@ -71,6 +71,7 @@ SET(DD_SOURCES
   dd/dd_tablespace.cc
   dd/dd_trigger.cc
   dd/dd_view.cc
+  dd/dd_upgrade.cc
 
   dd/impl/bootstrapper.cc
   dd/impl/dd.cc

@@ -4065,7 +4065,7 @@ mysql_execute_command(THD *thd, bool first_level)
     */
     thd->binlog_invoker();
 
-    if (! (res= sp_create_routine(thd, lex->sphead)))
+    if (! (res= sp_create_routine(thd, lex->sphead, thd->lex->definer)))
     {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       /* only add privileges if really neccessary */

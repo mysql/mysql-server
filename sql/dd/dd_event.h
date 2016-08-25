@@ -26,6 +26,7 @@
 class Event_parse_data;
 class sp_head;
 class THD;
+typedef struct st_lex_user LEX_USER;
 
 using sql_mode_t= ulonglong;
 
@@ -86,37 +87,45 @@ bool event_exists(dd::cache::Dictionary_client *dd_client,
 /**
    Create an event object and commit it to DD Table Events.
 
-   @param thd            Thread handle
-   @param schema_name    Database name
-   @param event_name     Event name
-   @param event_data     Event information obtained from parser.
-   @param sp             SP head
+   @param thd              Thread handle
+   @param schema_name      Database name
+   @param event_name       Event name
+   @param event_body       Event body.
+   @param event_body_utf8  Event body in utf8 format.
+   @param definer          Definer of the event.
+   @param event_data       Event information obtained from parser.
 
    @retval true  Event creation failed.
    @retval false Event creation succeeded.
 */
 bool create_event(THD *thd, const std::string &schema_name,
-                  const std::string &event_name, Event_parse_data *event_data,
-                  sp_head *sp);
+                  const std::string &event_name, const std::string &event_body,
+                  const std::string &event_body_utf8, const LEX_USER *definer,
+                  Event_parse_data *event_data);
 
 /**
   Create or update a event object and commit it to
   DD Table Events.
 
-  @param thd            Thread handle
-  @param event          Event to update.
-  @param event_data     Event information obtained from parser.
-  @param sp             SP head
-  @param new_db_name    Updated db name.
-  @param new_event_name Updated Event name.
+  @param thd                 Thread handle
+  @param event               Event to update.
+  @param new_db_name         Updated db name.
+  @param new_event_name      Updated Event name.
+  @param new_event_body      Updated Event body.
+  @param new_event_body_utf8 Updated Event body in utf8 format.
+  @param definer             Definer of the event.
+  @param event_data          Event information obtained from parser.
 
   @retval true  Event updation failed.
   @retval false Event updation succeeded.
 */
 bool update_event(THD *thd, const Event *event,
-                  Event_parse_data *event_data,
-                  sp_head *sp, const std::string &new_db_name,
-                  const std::string &new_event_name);
+                  const std::string &new_db_name,
+                  const std::string &new_event_name,
+                  const std::string &new_event_body,
+                  const std::string &new_event_body_utf8,
+                  const LEX_USER *definer,
+                  Event_parse_data *event_data);
 
 /**
   Update time related fields of Event object.

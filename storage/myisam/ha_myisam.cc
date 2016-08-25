@@ -485,8 +485,16 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
                             MY_TEST(t2_keyinfo[i].flag & HA_SPATIAL)));
        DBUG_RETURN(1);
     }
-    if (t1_keyinfo[i].key_alg != t2_keyinfo[i].key_alg ||
-        t1_keyinfo[i].keysegs != t2_keyinfo[i].keysegs)
+    if (!(t1_keyinfo[i].key_alg == t2_keyinfo[i].key_alg ||
+          /*
+            Pre-8.0 server stored HA_KEY_ALG_HASH value for MyISAM tables
+            but treated it as HA_KEY_ALG_BTREE. Starting from 8.0 we store
+            correct algorithm value in the data-dictionary. So we have to
+            relax our check in order to be able to open old tables in 8.0.
+          */
+         (t1_keyinfo[i].key_alg == HA_KEY_ALG_BTREE &&
+          t2_keyinfo[i].key_alg == HA_KEY_ALG_HASH)) ||
+         t1_keyinfo[i].keysegs != t2_keyinfo[i].keysegs)
     {
       DBUG_PRINT("error", ("Key %d has different definition", i));
       DBUG_PRINT("error", ("t1_keysegs=%d, t1_key_alg=%d",
