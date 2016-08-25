@@ -51,7 +51,7 @@ HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Varchar(255;latin1_swedish_ci) PRIMARY KEY AT=SHORT_VAR ST=MEMORY
-c Int NULL AT=FIXED ST=MEMORY DYNAMIC
+c Int NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(a, b) - UniqueHashIndex
 PRIMARY(a, b) - OrderedIndex
