@@ -446,6 +446,7 @@ void Dbdict::execDBINFO_SCANREQ(Signal *signal)
     break;
   }
   case Ndbinfo::DICT_OBJ_INFO_TABLEID:
+  case Ndbinfo::STORED_TABLES_TABLEID:
   {
     jam();
     if (c_masterNodeId != getOwnNodeId())
@@ -512,19 +513,56 @@ void Dbdict::execDBINFO_SCANREQ(Signal *signal)
           parentObjType = ltd.getTableType(); // System or user table.
         }
       }
-      
-      Ndbinfo::Row row(signal, req);
-      
-      /* Write values */
-      row.write_uint32(ltd.getTableType());
-      row.write_uint32(ltd.getTableId());
-      row.write_uint32(version);
-      row.write_uint32(ltd.getTableState());
-      row.write_uint32(parentObjType);
-      row.write_uint32(parentObjId);
-      row.write_string(nameBuff); /* FQ name */
-      
-      ndbinfo_send_row(signal, req, row, rl);
+      if (req.tableId == Ndbinfo::DICT_OBJ_INFO_TABLEID)
+      {
+        jam(); 
+        Ndbinfo::Row row(signal, req);
+        /* Write values */
+        row.write_uint32(ltd.getTableType());
+        row.write_uint32(ltd.getTableId());
+        row.write_uint32(version);
+        row.write_uint32(ltd.getTableState());
+        row.write_uint32(parentObjType);
+        row.write_uint32(parentObjId);
+        row.write_string(nameBuff); /* FQ name */
+        ndbinfo_send_row(signal, req, row, rl);
+      }
+      else
+      {
+        jam();
+        jamLine(ltd.getTableId());
+        if (DictTabInfo::isTable(ltd.getTableType()) ||
+            DictTabInfo::isUniqueIndex(ltd.getTableType()))
+        {
+          TableRecordPtr tabPtr;
+          bool ok = find_object(tabPtr, ltd.getTableId());
+          ndbrequire(ok);
+          ndbrequire(req.tableId == Ndbinfo::STORED_TABLES_TABLEID)
+          jam();
+          Ndbinfo::Row row(signal, req);
+          row.write_uint32(getOwnNodeId());
+          row.write_uint32(ltd.getTableId());
+          row.write_uint32((tabPtr.p->m_bits & TableRecord::TR_Logged) == 0 ? 0 : 1);
+          row.write_uint32((tabPtr.p->m_bits & TableRecord::TR_RowGCI) == 0 ? 0 : 1);
+          row.write_uint32((tabPtr.p->m_bits & TableRecord::TR_RowChecksum) == 0 ? 0 : 1);
+          row.write_uint32((tabPtr.p->m_bits & TableRecord::TR_Temporary) == 0 ? 0 : 1);
+          row.write_uint32((tabPtr.p->m_bits & TableRecord::TR_ForceVarPart) == 0 ? 0 : 1);
+          row.write_uint32((tabPtr.p->m_bits & TableRecord::TR_ReadBackup) == 0 ? 0 : 1);
+          row.write_uint32((tabPtr.p->m_bits & TableRecord::TR_FullyReplicated) == 0 ? 0 : 1);
+          row.write_uint32(tabPtr.p->m_extra_row_gci_bits);
+          row.write_uint32(tabPtr.p->m_extra_row_author_bits);
+          row.write_uint32(tabPtr.p->storageType);
+          row.write_uint32(tabPtr.p->hashMapObjectId);
+          row.write_uint32(tabPtr.p->hashMapVersion);
+          row.write_uint32(tabPtr.p->tableVersion);
+          row.write_uint32(tabPtr.p->fragmentType);
+          row.write_uint32(tabPtr.p->fragmentCountType);
+          row.write_uint32(tabPtr.p->gciTableCreated);
+          row.write_uint32(tabPtr.p->m_read_locked);
+          row.write_uint32(tabPtr.p->singleUserMode);
+          ndbinfo_send_row(signal, req, row, rl);
+        }
+      }
 
       const Uint32 oldBucket = iter.bucket;
       done = !c_obj_name_hash.next(iter);

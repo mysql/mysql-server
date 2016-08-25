@@ -8,6 +8,13 @@ CREATE TABLE t1 (
   unique key (b)
 ) comment='NDB_TABLE=FULLY_REPLICATED=1' ENGINE=ndbcluster;
 
+use ndbinfo;
+select tab_partitions, tab_fragments from table_distribution_status as tds join dict_obj_info as doi where tds.table_id = doi.id and doi.fq_name = 'test/def/t1';
+select partition_id, fragment_id, partition_order, log_part_id, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1';
+select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1';
+select read_backup, fully_replicated from table_info as ti join dict_obj_info as doi where ti.table_id = doi.id and doi.fq_name = 'test/def/t1';
+use test;
+
 insert into t1 values
 ('1',1,REPEAT('1',3000)), ('2',2,REPEAT('2',3000)), ('3',3,REPEAT('3',3000)),
 ('4',4,REPEAT('4',3000)), ('5',5,REPEAT('5',3000)), ('6',6,REPEAT('6',3000)),
@@ -72,6 +79,12 @@ source suite/ndb/include/ndb_exec.inc;
 --exec $NDB_MGM -e "create nodegroup 3,4" > /dev/null
 
 alter table t1 algorithm=inplace, reorganize partition;
+
+use ndbinfo;
+select tab_partitions, tab_fragments from table_distribution_status as tds join dict_obj_info as doi where tds.table_id = doi.id and doi.fq_name = 'test/def/t1';
+select partition_id, fragment_id, log_part_id, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1';
+select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1';
+use test;
 
 set global ndb_data_node_neighbour = 1;
 create table c as select node_id, fragment_num, tot_frag_scans

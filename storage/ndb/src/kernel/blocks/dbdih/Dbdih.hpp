@@ -636,34 +636,34 @@ public:
      * State for copying table description into pages
      */
     enum CopyStatus {
-      CS_IDLE,
-      CS_SR_PHASE1_READ_PAGES,
-      CS_SR_PHASE2_READ_TABLE,
-      CS_SR_PHASE3_COPY_TABLE,
-      CS_REMOVE_NODE,
-      CS_LCP_READ_TABLE,
-      CS_COPY_TAB_REQ,
-      CS_COPY_NODE_STATE,
-      CS_ADD_TABLE_MASTER,
-      CS_ADD_TABLE_SLAVE,
-      CS_INVALIDATE_NODE_LCP,
-      CS_ALTER_TABLE,
-      CS_COPY_TO_SAVE
-      ,CS_GET_TABINFO
+      CS_IDLE = 0,
+      CS_SR_PHASE1_READ_PAGES = 1,
+      CS_SR_PHASE2_READ_TABLE = 2,
+      CS_SR_PHASE3_COPY_TABLE = 3,
+      CS_REMOVE_NODE = 4,
+      CS_LCP_READ_TABLE = 5,
+      CS_COPY_TAB_REQ = 6,
+      CS_COPY_NODE_STATE = 7,
+      CS_ADD_TABLE_MASTER = 8,
+      CS_ADD_TABLE_SLAVE = 9,
+      CS_INVALIDATE_NODE_LCP = 10,
+      CS_ALTER_TABLE = 11,
+      CS_COPY_TO_SAVE = 12
+      ,CS_GET_TABINFO = 13
     };
     /**
      * State for copying pages to disk
      */
     enum UpdateState {
-      US_IDLE,
-      US_LOCAL_CHECKPOINT,
-      US_LOCAL_CHECKPOINT_QUEUED,
-      US_REMOVE_NODE,
-      US_COPY_TAB_REQ,
-      US_ADD_TABLE_MASTER,
-      US_ADD_TABLE_SLAVE,
-      US_INVALIDATE_NODE_LCP,
-      US_CALLBACK
+      US_IDLE = 0,
+      US_LOCAL_CHECKPOINT = 1,
+      US_LOCAL_CHECKPOINT_QUEUED = 2,
+      US_REMOVE_NODE = 3,
+      US_COPY_TAB_REQ = 4,
+      US_ADD_TABLE_MASTER = 5,
+      US_ADD_TABLE_SLAVE = 6,
+      US_INVALIDATE_NODE_LCP = 7,
+      US_CALLBACK = 8
     };
     enum TabLcpStatus {
       TLS_ACTIVE = 1,
@@ -1653,6 +1653,8 @@ private:
   Uint32 findLocalFragment(const TabRecord *,
                            Ptr<Fragmentstore> & fragPtr,
                            EmulatedJamBuffer *jambuf);
+  Uint32 findPartitionOrder(const TabRecord *tabPtrP,
+                            FragmentstorePtr fragPtr);
   Uint32 findFirstNewFragment(const TabRecord *,
                               Ptr<Fragmentstore> & fragPtr,
                               Uint32 fragId,
