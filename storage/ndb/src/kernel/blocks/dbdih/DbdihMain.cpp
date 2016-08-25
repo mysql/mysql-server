@@ -15106,7 +15106,7 @@ Dbdih::findPartitionOrder(const TabRecord *tabPtrP,
       jam();
       return order;
     }
-    fragId = fragPtr.p->nextCopyFragment;
+    fragId = tempFragPtr.p->nextCopyFragment;
     order++;
   } while (fragId != RNIL);
   return RNIL;
