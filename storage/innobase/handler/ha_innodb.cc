@@ -16525,7 +16525,7 @@ ha_innobase::get_auto_increment(
 	if (increment > 1 && thd_sql_command(m_user_thd) != SQLCOM_ALTER_TABLE
 	    && autoinc < col_max_value) {
 
-		ulint prev_auto_inc = autoinc;
+		ulonglong	prev_auto_inc = autoinc;
 
 		autoinc = ((autoinc - 1) + increment - offset)/ increment;
 
