@@ -1362,6 +1362,8 @@ run_again:
 
 	row_ins_step(thr);
 
+	DEBUG_SYNC_C("ib_after_row_insert_step");
+
 	err = trx->error_state;
 
 	if (err != DB_SUCCESS) {
