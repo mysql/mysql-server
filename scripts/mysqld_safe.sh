@@ -322,7 +322,7 @@ set_malloc_lib() {
 
   if [ "$malloc_lib" = tcmalloc ]; then
     malloc_lib=
-    for libdir in $(echo $malloc_dirs); do
+    for libdir in `echo $malloc_dirs`; do
       for flavor in _minimal '' _and_profiler _debug; do
         tmp="$libdir/libtcmalloc$flavor.so"
         #log_notice "DEBUG: Checking for malloc lib '$tmp'"
@@ -349,7 +349,7 @@ set_malloc_lib() {
       fi
 
       # Restrict to a the list in $malloc_dirs above
-      case "$(dirname "$malloc_lib")" in
+      case "`dirname "$malloc_lib"`" in
         /usr/lib) ;;
         /usr/lib64) ;;
         /usr/lib/i386-linux-gnu) ;;
