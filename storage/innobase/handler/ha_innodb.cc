@@ -139,9 +139,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Handler name for InnoDB */
 static constexpr char handler_name[] = "InnoDB";
 
-/** InnoDB file-per-table tablespace name prefix */
-static constexpr char file_per_table_prefix[] = "innodb_file_per_table";
-
 /** TRUE if we don't have DDTableBuffer in the system tablespace,
 this should be due to we run the server against old data files.
 Please do NOT change this when server is running.
@@ -7411,14 +7408,16 @@ create_table_metadata(
 
 	if (m_implicit) {
 		m_table->flags2 |= DICT_TF2_USE_FILE_PER_TABLE;
+	} else {
+		m_table->flags |= (1 << DICT_TF_POS_SHARED_SPACE);
 	}
 
 	if (!blob_prefix) {
 		m_table->flags |= (1 << DICT_TF_POS_ATOMIC_BLOBS);
 	}
 
-	if (zip_ssize) {
-		/* TODO, fill this */
+	if (zip_ssize != 0) {
+		m_table->flags |= (zip_ssize << DICT_TF_POS_ZIP_SSIZE);
 	}
 
 	if (fulltext) {
@@ -7764,15 +7763,15 @@ dd_open_table(
 	table_id_t id = dd_table->se_private_id();
 	bool	implicit = !(id < NUM_HARD_CODED_TABLES);
 
-#if 0
-	/* TODO: this is relying on tablespace name contains
-	"innodb_file_per_table" */
 	if (implicit) {
-		implicit = dd_tablespace_is_implicit(
+		if (dd_tablespace_is_implicit(
 			client, dd_first_index(dd_table)->tablespace_id(),
-			&implicit);
+			&implicit)) {
+			my_error(ER_TABLESPACE_MISSING, MYF(0),
+				 dd_table->name().c_str());
+			return(NULL);
+		}
 	}
-#endif
 
 	const bool      zip_allowed = srv_page_size <= UNIV_ZIP_SIZE_MAX;
 	const bool	strict = false;
@@ -12989,8 +12988,7 @@ create_table_info_t::create_options_are_invalid()
 			push_warning_printf(
 				m_thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: ROW_FORMAT=%s requires"
-				" innodb_file_per_table.",
+				"InnoDB: %s requires innodb_file_per_table.",
 				get_row_format_name(row_format));
 			ret = "ROW_FORMAT";
 		}
@@ -13002,7 +13000,7 @@ create_table_info_t::create_options_are_invalid()
 			push_warning_printf(
 				m_thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: cannot specify ROW_FORMAT = %s"
+				"InnoDB: cannot specify %s"
 				" with KEY_BLOCK_SIZE.",
 				get_row_format_name(row_format));
 			ret = "KEY_BLOCK_SIZE";
@@ -14331,10 +14329,10 @@ create_table_info_t::dd_tablespace_set_name(
 {
 	ut_ad(space != SPACE_UNKNOWN);
 
-	char		name[11 + sizeof file_per_table_prefix];
+	char		name[11 + sizeof reserved_implicit_name];
 
 	snprintf(name, sizeof name, "%s.%u",
-		 file_per_table_prefix, space);
+		 reserved_implicit_name, space);
 	dd_space->set_name(name);
 }
 

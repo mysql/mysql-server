@@ -9,7 +9,7 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-innodb.alter_crash        : WL#7016 2015-05-11 jhauglid Uses functionality removed by WL#8186. To be enabled when WL#7016 is impemented
+alter_crash        : WL#7016 2015-05-11 jhauglid Uses functionality removed by WL#8186. To be enabled when WL#7016 is impemented
 # For more details on tags WL6378_* refer sql/dd/mtr_readme.txt
 innodb_wl6501_crash_1     : WL#6795 2015-11-06 jhauglid WL6795_WL7016_RECOVERY
 innodb_wl6501_crash_2     : WL#6795 2015-11-06 jhauglid WL6795_WL7016_RECOVERY
@@ -35,6 +35,7 @@ innodb-wl6445-1           : mysql-trunk-meta-sync disables it, waiting for a fix
 
 innodb_upd_stats_if_needed_not_inited : mysql-trunk-meta-sync disables it, waiting for FK fix
 create_tablespace         : mysql-trunk-meta-sync disables it, waiting for FK fix
+create_tablespace_16k     : mysql-trunk-meta-sync disables it, waiting for FK fix
 
 virtual_fk_restart        : mysql-trunk-meta-sync disables it, waiting for virtual column fix
 table_encrypt_3           : mysql-trunk-meta-sync disables it, waiting for virtual column fix
@@ -42,9 +43,6 @@ table_encrypt_3           : mysql-trunk-meta-sync disables it, waiting for virtu
 table_encrypt_4           : mysql-trunk-meta-sync disables it, waiting for IMPORT/EXPORT tablespace fix
 innodb-wl5522-debug       : mysql-trunk-meta-sync disables it, waiting for IMPORT/EXPORT tablespace fix
 innodb-wl5980-discard     : mysql-trunk-meta-sync disables it, waiting for IMPORT/EXPORT tablespace fix
-
-blob-crash                : mysql-trunk-meta-sync disables it, to handle the compression correctly during dd_open_table
-create_tablespace_16k     : mysql-trunk-meta-sync disables it, to handle the compression correctly during dd_open_table
 
 innodb_bulk_create_index_debug : mysql-trunk-meta-sync disables it, tablespaces are not crash-safe for now
 
