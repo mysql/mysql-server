@@ -17476,7 +17476,7 @@ ha_innobase::get_auto_increment(
 	if (increment > 1 && m_prebuilt->table->skip_alter_undo == false
 	    && autoinc < col_max_value) {
 
-		ulint prev_auto_inc = autoinc;
+		ulonglong	prev_auto_inc = autoinc;
 
 		autoinc = ((autoinc - 1) + increment - offset)/ increment;
 
