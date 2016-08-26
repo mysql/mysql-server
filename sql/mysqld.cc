@@ -4403,10 +4403,12 @@ int mysqld_main(int argc, char **argv)
     exit(MYSQLD_ABORT_EXIT);
   }
 
-  if (opt_daemonize && (isatty(STDOUT_FILENO) || isatty(STDERR_FILENO)))
+  if (opt_daemonize && log_error_dest == disabled_my_option &&
+      (isatty(STDOUT_FILENO) || isatty(STDERR_FILENO)))
   {
-    fprintf(stderr, "Please set appopriate redirections for "
-                    "standard output and/or standard error in daemon mode.\n");
+    fprintf(stderr, "Please enable --log-error option or set appropriate "
+                    "redirections for standard output and/or standard error "
+                    "in daemon mode.\n");
     exit(MYSQLD_ABORT_EXIT);
   }
 
