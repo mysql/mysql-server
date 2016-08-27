@@ -32,9 +32,9 @@ class Parameters : public Object_table_impl
 public:
   static const Parameters &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("parameters");
+    static String_type s_table_name("parameters");
     return s_table_name;
   }
 
@@ -60,7 +60,7 @@ public:
 public:
   Parameters();
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Parameters::table_name(); }
 
 public:

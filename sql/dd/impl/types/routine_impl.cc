@@ -17,6 +17,7 @@
 
 #include "my_user.h"                             // parse_user
 
+#include "dd/string_type.h"                      // dd::String_type
 #include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
 #include "dd/impl/raw/object_keys.h"             // Primary_id_key
 #include "dd/impl/raw/raw_record.h"              // Raw_record
@@ -24,7 +25,6 @@
 #include "dd/impl/tables/routines.h"             // Routines
 #include "dd/impl/types/parameter_impl.h"        // Parameter_impl
 
-#include <sstream>
 
 using dd::tables::Routines;
 using dd::tables::Parameters;
@@ -156,7 +156,7 @@ bool Routine_impl::restore_attributes(const Raw_record &r)
 
   // Read definer user/host
   {
-    std::string definer= r.read_str(Routines::FIELD_DEFINER);
+    String_type definer= r.read_str(Routines::FIELD_DEFINER);
 
     char user_name_holder[USERNAME_LENGTH + 1];
     LEX_STRING user_name= { user_name_holder, USERNAME_LENGTH };
@@ -179,7 +179,7 @@ bool Routine_impl::restore_attributes(const Raw_record &r)
 
 bool Routine_impl::store_attributes(Raw_record *r)
 {
-  std::stringstream definer;
+  dd::Stringstream_type definer;
   definer << m_definer_user << '@' << m_definer_host;
 
   return store_id(r, Routines::FIELD_ID) ||
@@ -213,9 +213,9 @@ bool Routine::update_id_key(id_key_type *key, Object_id id)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Routine_impl::debug_print(std::string &outb) const
+void Routine_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
   << "id: {OID: " << id() << "}; "
   << "m_name: " << name() << "; "
@@ -240,7 +240,7 @@ void Routine_impl::debug_print(std::string &outb) const
 
   for (const Parameter *f : parameters())
   {
-    std::string ob;
+    String_type ob;
     f->debug_print(ob);
     ss << ob;
   }

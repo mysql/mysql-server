@@ -152,7 +152,7 @@ bool Spatial_reference_system::update_id_key(id_key_type *key, Object_id id)
 ///////////////////////////////////////////////////////////////////////////
 
 bool Spatial_reference_system::update_name_key(name_key_type *key,
-                                               const std::string &name)
+                                               const String_type &name)
 {
   return Spatial_reference_systems::update_object_key(key,
                       Dictionary_impl::instance()->default_catalog_id(),

@@ -106,9 +106,9 @@ bool Table_stat_impl::store_attributes(Raw_record *r)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Table_stat_impl::debug_print(std::string &outb) const
+void Table_stat_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
     << "TABLE STAT OBJECT: { "
     << "m_schema_name: " <<  m_schema_name << "; "

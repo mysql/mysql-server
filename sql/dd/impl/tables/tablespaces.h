@@ -31,9 +31,9 @@ class Tablespaces : public Dictionary_object_table_impl
 public:
   static const Tablespaces &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("tablespaces");
+    static String_type s_table_name("tablespaces");
     return s_table_name;
   }
 
@@ -51,14 +51,14 @@ public:
 public:
   Tablespaces();
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Tablespaces::table_name(); }
 
   virtual Dictionary_object *create_dictionary_object(const Raw_record &) const;
 
 public:
   static bool update_object_key(Global_name_key *key,
-                                const std::string &tablespace_name);
+                                const String_type &tablespace_name);
 };
 
 ///////////////////////////////////////////////////////////////////////////

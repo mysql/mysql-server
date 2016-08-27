@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,7 +96,7 @@ bool Charset::update_id_key(id_key_type *key, Object_id id)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Charset::update_name_key(name_key_type *key, const std::string &name)
+bool Charset::update_name_key(name_key_type *key, const String_type &name)
 { return Character_sets::update_object_key(key, name); }
 
 ///////////////////////////////////////////////////////////////////////////

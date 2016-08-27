@@ -170,7 +170,7 @@ Collations::create_dictionary_object(const Raw_record &) const
 
 bool Collations::update_object_key(
   Global_name_key *key,
-  const std::string &collation_name)
+  const String_type &collation_name)
 {
   key->update(FIELD_NAME, collation_name);
   return false;

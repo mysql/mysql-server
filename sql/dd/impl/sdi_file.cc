@@ -19,12 +19,11 @@
 #include "sql_const.h"            // CREATE_MODE
 #include "sql_class.h"            // THD
 
+#include "dd/string_type.h"       // dd::String_type
 #include "dd/impl/sdi_utils.h"    // dd::sdi_util::checked_return
 #include "dd/types/schema.h"      // dd::Schema
 #include "dd/types/table.h"       // dd::Table
 
-#include <string>
-#include <sstream>
 
 /**
   @file
@@ -40,7 +39,7 @@ using namespace dd::sdi_utils;
 extern PSI_file_key key_file_sdi;
 namespace {
 
-bool write_sdi_file(const std::string &fname, const dd::sdi_t &sdi)
+bool write_sdi_file(const dd::String_type &fname, const MYSQL_LEX_CSTRING &sdi)
 {
   File sdif= mysql_file_create(key_file_sdi, fname.c_str(), CREATE_MODE,
                                O_WRONLY | O_TRUNC, MYF(MY_FAE));
@@ -53,8 +52,8 @@ bool write_sdi_file(const std::string &fname, const dd::sdi_t &sdi)
   }
 
   size_t bw= mysql_file_write(sdif,
-                              reinterpret_cast<const uchar*>(sdi.c_str()),
-                              sdi.size(), MYF(MY_FNABP));
+                              reinterpret_cast<const uchar*>(sdi.str),
+                              sdi.length, MYF(MY_FNABP));
 
   if (bw == MY_FILE_ERROR)
   {
@@ -69,7 +68,7 @@ bool write_sdi_file(const std::string &fname, const dd::sdi_t &sdi)
   return checked_return(mysql_file_close(sdif, MYF(MY_FAE)));
 }
 
-bool sdi_file_exists(const std::string &fname, bool *res)
+bool sdi_file_exists(const dd::String_type &fname, bool *res)
 {
 #ifndef _WIN32
 
@@ -111,10 +110,10 @@ bool sdi_file_exists(const std::string &fname, bool *res)
 namespace dd {
 namespace sdi_file {
 
-std::string sdi_filename(const dd::Entity_object *eo,
-                         const std::string &schema)
+String_type sdi_filename(const dd::Entity_object *eo,
+                         const String_type &schema)
 {
-  typedef std::string::const_iterator CHARIT;
+  typedef String_type::const_iterator CHARIT;
   const CHARIT begin= eo->name().begin();
   const CHARIT end= eo->name().end();
   CHARIT i= begin;
@@ -126,8 +125,8 @@ std::string sdi_filename(const dd::Entity_object *eo,
     ++count;
   }
 
-  std::ostringstream fnamestr;
-  fnamestr << std::string(begin, i) << "_" << eo->id();
+  Stringstream_type fnamestr;
+  fnamestr << String_type(begin, i) << "_" << eo->id();
 
   char path[FN_REFLEN+1];
   bool was_truncated= false;
@@ -136,28 +135,28 @@ std::string sdi_filename(const dd::Entity_object *eo,
                        ".SDI", 0, &was_truncated);
   DBUG_ASSERT(!was_truncated);
 
-  return std::string(path);
+  return String_type(path);
 }
 
-bool store(THD *thd, const dd::sdi_t &sdi, const dd::Schema *schema)
+bool store(THD *thd, const MYSQL_LEX_CSTRING &sdi, const dd::Schema *schema)
 {
   return checked_return(write_sdi_file(sdi_filename(schema, ""), sdi));
 }
 
-bool store(THD *thd, handlerton*, const dd::sdi_t &sdi, const dd::Table *table,
+bool store(THD *thd, handlerton*, const MYSQL_LEX_CSTRING &sdi, const dd::Table *table,
            const dd::Schema *schema)
 {
   return checked_return(write_sdi_file(sdi_filename(table,
                                                     schema->name()), sdi));
 }
 
-bool remove(const std::string &fname)
+bool remove(const String_type &fname)
 {
   return checked_return(mysql_file_delete(key_file_sdi, fname.c_str(),
                                           MYF(MY_FAE)));
 }
 
-static bool remove_sdi_file_if_exists(const std::string &fname)
+static bool remove_sdi_file_if_exists(const String_type &fname)
 {
   bool file_exists= false;
   if (sdi_file_exists(fname, &file_exists))
@@ -175,14 +174,14 @@ static bool remove_sdi_file_if_exists(const std::string &fname)
 
 bool remove(THD *thd, const dd::Schema *schema)
 {
-  std::string sdi_fname= sdi_filename(schema, "");
+  String_type sdi_fname= sdi_filename(schema, "");
   return checked_return(remove_sdi_file_if_exists(sdi_fname));
 }
 
 bool remove(THD *thd, handlerton*, const dd::Table *table,
             const dd::Schema *schema)
 {
-  std::string sdi_fname= sdi_filename(table, schema->name());
+  String_type sdi_fname= sdi_filename(table, schema->name());
   return checked_return(remove_sdi_file_if_exists(sdi_fname));
 }
 }

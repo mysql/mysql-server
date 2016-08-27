@@ -17,7 +17,8 @@
 #define DD__BOOTSTRAPPER_INCLUDED
 
 #include "my_global.h"
-#include <string>
+
+#include "dd/string_type.h"                    // dd::String_type
 
 class THD;
 
@@ -31,7 +32,7 @@ class THD;
   @retval false  Success.
   @retval true   Error.
 */
-bool execute_query(THD *thd, const std::string &q_buf);
+bool execute_query(THD *thd, const dd::String_type &q_buf);
 
 
 /**

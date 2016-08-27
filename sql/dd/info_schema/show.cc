@@ -229,7 +229,7 @@ build_show_databases_query(const POS &pos,
     C_STRING_WITH_LEN("Database") };
 
   // Build the alias 'Database (<dbname>%)'
-  std::string alias;
+  String_type alias;
   alias.append(alias_database.str);
   if (wild)
   {
@@ -490,7 +490,7 @@ build_show_tables_query(const POS &pos,
     Build the alias 'Tables_in_<dbname> %' we are building
     SHOW TABLES and not SHOW TABLE STATUS
   */
-  std::string alias;
+  String_type alias;
 
   if (include_status_fields)
   {

@@ -21,8 +21,8 @@
 
 #include "dd/dictionary.h"           // dd::Dictionary
 #include "dd/object_id.h"            // dd::Object_id
+#include "dd/string_type.h"          // dd::String_type
 
-#include <string>
 #include <memory>
 
 namespace dd_schema_unittest {
@@ -78,16 +78,16 @@ public:
   virtual uint get_actual_dd_version(THD *thd, bool *exists);
 
   virtual const Object_table *get_dd_table(
-    const std::string &schema_name, const std::string &table_name) const;
+    const String_type &schema_name, const String_type &table_name) const;
 
   virtual bool install_plugin_IS_table_metadata();
 
 public:
-  virtual bool is_dd_schema_name(const std::string &schema_name) const
+  virtual bool is_dd_schema_name(const String_type &schema_name) const
   { return (schema_name == MYSQL_SCHEMA_NAME.str); }
 
-  virtual bool is_dd_table_name(const std::string &schema_name,
-                               const std::string &table_name) const
+  virtual bool is_dd_table_name(const String_type &schema_name,
+                               const String_type &table_name) const
   { return (get_dd_table(schema_name, table_name) != NULL); }
 
   virtual bool is_dd_table_access_allowed(bool is_dd_internal_thread,
@@ -103,12 +103,12 @@ public:
   static Object_id default_catalog_id()
   { return DEFAULT_CATALOG_ID; }
 
-  static const std::string &default_catalog_name()
+  static const String_type &default_catalog_name()
   { return DEFAULT_CATALOG_NAME; }
 
 private:
   static Object_id DEFAULT_CATALOG_ID;
-  static const std::string DEFAULT_CATALOG_NAME;
+  static const String_type DEFAULT_CATALOG_NAME;
 };
 
 ///////////////////////////////////////////////////////////////////////////

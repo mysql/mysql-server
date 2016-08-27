@@ -52,7 +52,7 @@ public:
 
   virtual bool restore_attributes(const Raw_record &r);
 
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
   void set_ordinal_position(uint ordinal_position)
   { }
@@ -65,30 +65,30 @@ public:
   // routine catalog.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &routine_catalog() const
+  virtual const String_type &routine_catalog() const
   { return m_routine_catalog; }
 
-  virtual void set_routine_catalog(const std::string &sf_catalog)
+  virtual void set_routine_catalog(const String_type &sf_catalog)
   { m_routine_catalog= sf_catalog; }
 
   /////////////////////////////////////////////////////////////////////////
   // routine schema.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &routine_schema() const
+  virtual const String_type &routine_schema() const
   { return m_routine_schema; }
 
-  virtual void set_routine_schema(const std::string &sf_schema)
+  virtual void set_routine_schema(const String_type &sf_schema)
   { m_routine_schema= sf_schema; }
 
   /////////////////////////////////////////////////////////////////////////
   // routine name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &routine_name() const
+  virtual const String_type &routine_name() const
   { return m_routine_name; }
 
-  virtual void set_routine_name(const std::string &sf_name)
+  virtual void set_routine_name(const String_type &sf_name)
   { m_routine_name= sf_name; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -122,9 +122,9 @@ public:
   virtual bool has_new_primary_key() const;
 
 private:
-  std::string m_routine_catalog;
-  std::string m_routine_schema;
-  std::string m_routine_name;
+  String_type m_routine_catalog;
+  String_type m_routine_schema;
+  String_type m_routine_name;
 
   // References to other objects
   View_impl *m_view;

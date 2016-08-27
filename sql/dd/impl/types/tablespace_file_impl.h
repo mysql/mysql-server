@@ -61,7 +61,7 @@ public:
 
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
   void set_ordinal_position(uint ordinal_position)
   { m_ordinal_position= ordinal_position; }
@@ -78,10 +78,10 @@ public:
   // filename.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &filename() const
+  virtual const String_type &filename() const
   { return m_filename; }
 
-  virtual void set_filename(const std::string &filename)
+  virtual void set_filename(const String_type &filename)
   { m_filename= filename; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -95,7 +95,7 @@ public:
   { return *m_se_private_data; }
 
   virtual bool set_se_private_data_raw(
-    const std::string &se_private_data_raw);
+    const String_type &se_private_data_raw);
 
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()
@@ -131,7 +131,7 @@ private:
   // Fields
   uint m_ordinal_position;
 
-  std::string m_filename;
+  String_type m_filename;
   std::unique_ptr<Properties> m_se_private_data;
 
   // References to other objects

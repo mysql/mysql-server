@@ -51,7 +51,7 @@ protected:
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
 public:
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
 public:
   /////////////////////////////////////////////////////////////////////////
@@ -90,7 +90,7 @@ public:
   virtual Properties &options()
   { return *m_options; }
 
-  virtual bool set_options_raw(const std::string &options_raw);
+  virtual bool set_options_raw(const String_type &options_raw);
 
   /////////////////////////////////////////////////////////////////////////
   // created.
@@ -126,9 +126,9 @@ public:
 
   Column *get_column(Object_id column_id);
 
-  const Column *get_column(const std::string name) const;
+  const Column *get_column(const String_type name) const;
 
-  Column *get_column(const std::string name);
+  Column *get_column(const String_type name);
 
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()
@@ -139,9 +139,9 @@ public:
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
   { return Entity_object_impl::is_persistent(); }
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Entity_object_impl::name(); }
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const String_type &name)
   { Entity_object_impl::set_name(name); }
 
 protected:

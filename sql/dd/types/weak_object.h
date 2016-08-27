@@ -17,8 +17,7 @@
 #define DD__WEAK_OBJECT_INCLUDED
 
 #include "my_global.h"
-
-#include <string> // XXX: temporary, debug-only
+#include "dd/string_type.h"  // dd::String_type XXX: temporary, debug-only
 
 namespace dd {
 
@@ -44,7 +43,7 @@ class Weak_object
 {
 public:
   // XXX: temporary, debug-only.
-  virtual void debug_print(std::string &outb) const = 0;
+  virtual void debug_print(String_type &outb) const = 0;
 
 public:
   Weak_object()
@@ -64,11 +63,11 @@ private:
 ///////////////////////////////////////////////////////////////////////////
 
 /** Pretty-printer of data dictionary objects */
-struct debug_printer : public std::string
+struct debug_printer : public String_type
 {
 	/** Constructor
 	@param o	object to pretty-print */
-	explicit debug_printer(const dd::Weak_object& o) : std::string()
+	explicit debug_printer(const dd::Weak_object& o) : String_type()
 	{
 		o.debug_print(*this);
 	}

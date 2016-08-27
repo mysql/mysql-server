@@ -285,7 +285,7 @@ bool prepare_default_value(THD *thd, uchar *buf, const TABLE &table,
   col_obj->set_default_value_null(regfield->is_null());
   if (!col_obj->is_default_value_null())
   {
-    std::string default_value;
+    dd::String_type default_value;
     default_value.assign(reinterpret_cast<char*>(buf + 1), field.pack_length);
 
     // Append leftover bits as the last byte of the default value.

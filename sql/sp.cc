@@ -341,11 +341,11 @@ db_find_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp)
   prepare_sp_chistics_from_dd_routine(routine, &sp_chistics);
 
   // prepare stored routine's return type string.
-  std::string return_type_str;
+  dd::String_type return_type_str;
   prepare_return_type_string_from_dd_routine(thd, routine, &return_type_str);
 
   // prepare stored routine's parameters string.
-  std::string params_str;
+  dd::String_type params_str;
   prepare_params_string_from_dd_routine(thd, routine, &params_str);
 
   // Create stored routine creation context from the dd::Routine object.
@@ -1250,7 +1250,7 @@ static bool show_create_routine_from_dd_routine(THD *thd,
   prepare_sp_chistics_from_dd_routine(routine, &sp_chistics);
 
   // prepare stored routine return type string.
-  std::string return_type_str;
+  dd::String_type return_type_str;
   prepare_return_type_string_from_dd_routine(thd, routine, &return_type_str);
 
   // Prepare stored routine definition string.
@@ -1989,11 +1989,11 @@ sp_load_for_information_schema(THD *thd, LEX_CSTRING db_name,
     return NULL;
 
   // Prepare stored routine return type string.
-  std::string return_type_str;
+  dd::String_type return_type_str;
   prepare_return_type_string_from_dd_routine(thd, routine, &return_type_str);
 
   // Prepare stored routine parameter's string.
-  std::string params_str;
+  dd::String_type params_str;
   prepare_params_string_from_dd_routine(thd, routine, &params_str);
 
   // Dummy Routine body.

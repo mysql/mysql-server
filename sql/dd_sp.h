@@ -47,7 +47,7 @@ void prepare_sp_chistics_from_dd_routine(const dd::Routine *routine,
 
 void prepare_return_type_string_from_dd_routine(THD *thd,
                                                 const dd::Routine *routine,
-                                                std::string *return_type_str);
+                                                dd::String_type *return_type_str);
 
 
 /**
@@ -63,7 +63,7 @@ void prepare_return_type_string_from_dd_routine(THD *thd,
 
 void prepare_params_string_from_dd_routine(THD *thd,
                                            const dd::Routine *routine,
-                                           std::string *params_str);
+                                           dd::String_type *params_str);
 
 
 /**

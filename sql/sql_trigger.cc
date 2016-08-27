@@ -50,7 +50,7 @@ bool add_table_for_trigger(THD *thd,
 
   DBUG_ENTER("add_table_for_trigger");
 
-  std::string table_name;
+  dd::String_type table_name;
   bool trigger_found;
   if (dd::get_table_name_for_trigger(thd, db_name.str,
                                      trigger_name.str,

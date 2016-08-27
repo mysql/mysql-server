@@ -250,8 +250,8 @@ static Event::enum_interval_field get_enum_interval_field(
 
 bool
 event_exists(dd::cache::Dictionary_client *dd_client,
-             const std::string &schema_name,
-             const std::string &event_name,
+             const String_type &schema_name,
+             const String_type &event_name,
              bool *exists)
 {
   DBUG_ENTER("dd::event_exists");
@@ -286,9 +286,9 @@ event_exists(dd::cache::Dictionary_client *dd_client,
 */
 
 static void set_event_attributes(THD *thd, Event *event,
-                                 const std::string &event_name,
-                                 const std::string &event_body,
-                                 const std::string &event_body_utf8,
+                                 const String_type &event_name,
+                                 const String_type &event_body,
+                                 const String_type &event_body_utf8,
                                  const LEX_USER *definer,
                                  Event_parse_data *event_data,
                                  bool is_update)
@@ -355,7 +355,7 @@ static void set_event_attributes(THD *thd, Event *event,
     DBUG_ASSERT(is_update);
 
   if (event_data->comment.str != nullptr)
-    event->set_comment(std::string(event_data->comment.str));
+    event->set_comment(String_type(event_data->comment.str));
 
   // Set collation relate attributes.
   event->set_client_collation_id(
@@ -377,10 +377,10 @@ static void set_event_attributes(THD *thd, Event *event,
 
 
 bool create_event(THD *thd,
-                  const std::string &schema_name,
-                  const std::string &event_name,
-                  const std::string &event_body,
-                  const std::string &event_body_utf8,
+                  const String_type &schema_name,
+                  const String_type &event_name,
+                  const String_type &event_body,
+                  const String_type &event_body_utf8,
                   const LEX_USER *definer,
                   Event_parse_data *event_data)
 {
@@ -421,10 +421,10 @@ bool create_event(THD *thd,
 
 
 bool update_event(THD *thd, const Event *event,
-                  const std::string &new_db_name,
-                  const std::string &new_event_name,
-                  const std::string &new_event_body,
-                  const std::string &new_event_body_utf8,
+                  const String_type &new_db_name,
+                  const String_type &new_event_name,
+                  const String_type &new_event_body,
+                  const String_type &new_event_body_utf8,
                   const LEX_USER *definer,
                   Event_parse_data *event_data)
 {

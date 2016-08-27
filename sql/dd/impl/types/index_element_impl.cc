@@ -135,9 +135,9 @@ Index_element_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Index_element_impl::debug_print(std::string &outb) const
+void Index_element_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
     << "INDEX ELEMENT OBJECT: { "
     << "m_index: {OID: " << m_index->id() << "}; "

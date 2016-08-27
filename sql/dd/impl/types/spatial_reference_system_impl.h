@@ -105,10 +105,10 @@ public:
   // organization
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &organization() const override
+  virtual const String_type &organization() const override
   { return m_organization; }
 
-  virtual void set_organization(const std::string &organization) override
+  virtual void set_organization(const String_type &organization) override
   { m_organization= organization; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -126,10 +126,10 @@ public:
   // definition
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &definition() const override
+  virtual const String_type &definition() const override
   { return m_definition; }
 
-  virtual void set_definition(const std::string &definition) override
+  virtual void set_definition(const String_type &definition) override
   { m_definition= definition; }
 
   virtual bool is_projected() const override
@@ -142,10 +142,10 @@ public:
   // description
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &description() const override
+  virtual const String_type &description() const override
   { return m_description; }
 
-  virtual void set_description(const std::string &description) override
+  virtual void set_description(const String_type &description) override
   { m_description= description; }
 
   // Fix "inherits ... via dominance" warnings
@@ -157,30 +157,30 @@ public:
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const override
   { return Entity_object_impl::is_persistent(); }
-  virtual const std::string &name() const override
+  virtual const String_type &name() const override
   { return Entity_object_impl::name(); }
-  virtual void set_name(const std::string &name) override
+  virtual void set_name(const String_type &name) override
   { Entity_object_impl::set_name(name); }
 
 public:
-  virtual void debug_print(std::string &outb) const override
+  virtual void debug_print(String_type &outb) const override
   {
     char outbuf[1024];
     sprintf(outbuf, "SPATIAL REFERENCE SYSTEM OBJECT: id= {OID: %lld}, "
             "name= %s, m_created= %llu, m_last_altered= %llu",
             id(), name().c_str(), m_created, m_last_altered);
-    outb= std::string(outbuf);
+    outb= String_type(outbuf);
   }
 
 private:
   // Fields
   ulonglong m_created;
   ulonglong m_last_altered;
-  std::string m_organization;
+  String_type m_organization;
   srid_t m_organization_coordsys_id;
-  std::string m_definition;
+  String_type m_definition;
   std::unique_ptr<gis::srs::Spatial_reference_system> m_parsed_definition;
-  std::string m_description;
+  String_type m_description;
 
   Spatial_reference_system *clone() const override
   {

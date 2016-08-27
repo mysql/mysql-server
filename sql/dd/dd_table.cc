@@ -26,6 +26,7 @@
 #include "sql_class.h"                        // THD
 #include "sql_partition.h"                    // expr_to_string
 #include "sql_table.h"                        // primary_key_name
+#include "strfunc.h"                          // lex_cstring_handle
 #include "transaction.h"                      // trans_commit
 
 #include "dd/dd.h"                            // dd::get_dictionary
@@ -222,10 +223,10 @@ dd::enum_column_types get_new_field_type(enum_field_types type)
   @param[in]   table           TABLE object.
   @param[in]   field           Column information.
 
-  @return std::string representing column type.
+  @return dd::String_type representing column type.
 */
 
-static std::string get_sql_type_by_create_field(TABLE *table,
+static dd::String_type get_sql_type_by_create_field(TABLE *table,
                                                 Create_field *field)
 {
   DBUG_ENTER("get_sql_type_by_create_field");
@@ -254,7 +255,7 @@ static std::string get_sql_type_by_create_field(TABLE *table,
   String type(tmp, sizeof(tmp), system_charset_info);
   fld->sql_type(type);
 
-  std::string col_display_str(type.ptr(), type.length());
+  dd::String_type col_display_str(type.ptr(), type.length());
 
   DBUG_RETURN(col_display_str);
 }
@@ -358,7 +359,7 @@ static void prepare_default_value_string(THD *thd,
 }
 
 
-static std::string now_with_opt_decimals(uint decimals)
+static dd::String_type now_with_opt_decimals(uint decimals)
 {
   char buff[17 + 1 + 1 + 1 + 1];
   String val(buff, sizeof(buff), &my_charset_bin);
@@ -366,7 +367,7 @@ static std::string now_with_opt_decimals(uint decimals)
   val.append("CURRENT_TIMESTAMP");
   if (decimals > 0)
     val.append_parenthesized(decimals);
-  return std::string(val.ptr(), val.length());
+  return dd::String_type(val.ptr(), val.length());
 }
 
 
@@ -562,7 +563,7 @@ fill_dd_columns_from_create_fields(THD *thd,
       char buffer[128];
       String gc_expr(buffer, sizeof(buffer), &my_charset_bin);
       field->gcol_info->print_expr(thd, &gc_expr);
-      col_obj->set_generation_expression(std::string(gc_expr.ptr(),
+      col_obj->set_generation_expression(dd::String_type(gc_expr.ptr(),
                                                      gc_expr.length()));
 
       // Prepare UTF expression for IS.
@@ -570,11 +571,11 @@ fill_dd_columns_from_create_fields(THD *thd,
       convert_and_print(&gc_expr, &gc_expr_for_IS, system_charset_info);
 
       col_obj->set_generation_expression_utf8(
-                 std::string(gc_expr_for_IS.ptr(), gc_expr_for_IS.length()));
+                 dd::String_type(gc_expr_for_IS.ptr(), gc_expr_for_IS.length()));
     }
 
     if (field->comment.str && field->comment.length)
-      col_obj->set_comment(std::string(field->comment.str,
+      col_obj->set_comment(dd::String_type(field->comment.str,
                                        field->comment.length));
 
     // Collation ID
@@ -666,7 +667,7 @@ fill_dd_columns_from_create_fields(THD *thd,
 
         //  Copy type_lengths[i] bytes including '\0'
         //  This helps store typelib names that are of different charsets.
-        std::string interval_name(*pos, field->interval->type_lengths[i]);
+        dd::String_type interval_name(*pos, field->interval->type_lengths[i]);
         elem_obj->set_name(interval_name);
 
         i++;
@@ -708,7 +709,7 @@ fill_dd_columns_from_create_fields(THD *thd,
     String def_val;
     prepare_default_value_string(thd, buf, &table, *field, col_obj, &def_val);
     if (def_val.ptr() != nullptr)
-      col_obj->set_default_value_utf8(std::string(def_val.ptr(),
+      col_obj->set_default_value_utf8(dd::String_type(def_val.ptr(),
                                                   def_val.length()));
   }
 
@@ -1057,7 +1058,7 @@ void fill_dd_indexes_from_keyinfo(THD *thd,
     idx_obj->set_generated(key->flags & HA_GENERATED_KEY);
 
     if (key->comment.str)
-      idx_obj->set_comment(std::string(key->comment.str,
+      idx_obj->set_comment(dd::String_type(key->comment.str,
                                        key->comment.length));
 
     idx_obj->set_engine(tab_obj->engine());
@@ -1250,10 +1251,10 @@ static bool fill_dd_foreign_keys_from_create_fields(dd::Table *tab_obj,
     fk_obj->referenced_table_catalog_name(
       Dictionary_impl::instance()->default_catalog_name());
 
-    fk_obj->referenced_table_schema_name(std::string(key->ref_db.str,
+    fk_obj->referenced_table_schema_name(dd::String_type(key->ref_db.str,
                                                      key->ref_db.length));
 
-    fk_obj->referenced_table_name(std::string(key->ref_table.str,
+    fk_obj->referenced_table_name(dd::String_type(key->ref_table.str,
                                               key->ref_table.length));
 
     for (uint i= 0; i < key->key_parts; i++)
@@ -1263,14 +1264,14 @@ static bool fill_dd_foreign_keys_from_create_fields(dd::Table *tab_obj,
       fk_col_obj->set_ordinal_position(i);
 
       const dd::Column *column=
-        tab_obj->get_column(std::string(key->key_part[i].str,
+        tab_obj->get_column(dd::String_type(key->key_part[i].str,
                                         key->key_part[i].length));
 
       DBUG_ASSERT(column);
       fk_col_obj->set_column(column);
 
       fk_col_obj->referenced_column_name(
-        std::string(key->fk_key_part[i].str, key->fk_key_part[i].length));
+        dd::String_type(key->fk_key_part[i].str, key->fk_key_part[i].length));
     }
 
   }
@@ -1390,7 +1391,7 @@ static bool fill_dd_tablespace_id_or_name(THD *thd,
   @return false on success, else true.
 */
 
-static bool get_field_list_str(std::string &str, List<char> *name_list)
+static bool get_field_list_str(dd::String_type &str, List<char> *name_list)
 {
   List_iterator<char> it(*name_list);
   const char *name;
@@ -1464,7 +1465,7 @@ static bool add_part_col_vals(partition_info *part_info,
       {
         return true;
       }
-      std::string std_str(val_str.ptr(), val_str.length());
+      dd::String_type std_str(val_str.ptr(), val_str.length());
       val_obj->set_value_utf8(std_str);
     }
   }
@@ -1563,7 +1564,7 @@ static bool fill_dd_partition_from_create_info(THD *thd,
     /* Set partition_expression */
     if (part_info->list_of_part_fields)
     {
-      std::string str;
+      dd::String_type str;
       if (get_field_list_str(str, &part_info->part_field_list))
         return true;
       tab_obj->set_partition_expression(str);
@@ -1573,7 +1574,7 @@ static bool fill_dd_partition_from_create_info(THD *thd,
       /* column_list also has list_of_part_fields set! */
       DBUG_ASSERT(!part_info->column_list);
       /* TODO-PARTITION: use part_info->part_expr->print() instead! */
-      std::string str(part_info->part_func_string,
+      dd::String_type str(part_info->part_func_string,
                       part_info->part_func_len);
       tab_obj->set_partition_expression(str);
     }
@@ -1620,7 +1621,7 @@ static bool fill_dd_partition_from_create_info(THD *thd,
       /* Set subpartition_expression */
       if (part_info->list_of_subpart_fields)
       {
-        std::string str;
+        dd::String_type str;
         if (get_field_list_str(str, &part_info->subpart_field_list))
           return true;
         tab_obj->set_subpartition_expression(str);
@@ -1628,7 +1629,7 @@ static bool fill_dd_partition_from_create_info(THD *thd,
       else
       {
         /* TODO-PARTITION: use part_info->subpart_expr->print() instead! */
-        std::string str(part_info->subpart_func_string,
+        dd::String_type str(part_info->subpart_func_string,
                         part_info->subpart_func_len);
         tab_obj->set_subpartition_expression(str);
       }
@@ -1861,7 +1862,7 @@ static Table::enum_row_format dd_get_new_row_format(row_type old_format)
 /** Fill dd::Table object from mysql_prepare_create_table() output. */
 static bool fill_dd_table_from_create_info(THD *thd,
                                            dd::Table *tab_obj,
-                                           const std::string &table_name,
+                                           const dd::String_type &table_name,
                                            const HA_CREATE_INFO *create_info,
                                            const List<Create_field> &create_fields,
                                            const KEY *keyinfo,
@@ -1896,7 +1897,7 @@ static bool fill_dd_table_from_create_info(THD *thd,
 
   // Comments
   if (create_info->comment.str && create_info->comment.length)
-    tab_obj->set_comment(std::string(create_info->comment.str,
+    tab_obj->set_comment(dd::String_type(create_info->comment.str,
                                      create_info->comment.length));
 
   //
@@ -2010,7 +2011,7 @@ static bool fill_dd_table_from_create_info(THD *thd,
 
   if (create_info->connect_string.str && create_info->connect_string.length)
   {
-    std::string connect_string;
+    dd::String_type connect_string;
     connect_string.assign(create_info->connect_string.str,
                           create_info->connect_string.length);
     table_options->set("connection_string", connect_string);
@@ -2018,14 +2019,14 @@ static bool fill_dd_table_from_create_info(THD *thd,
 
   if (create_info->compress.str && create_info->compress.length)
   {
-    std::string compress;
+    dd::String_type compress;
     compress.assign(create_info->compress.str, create_info->compress.length);
     table_options->set("compress", compress);
   }
 
   if (create_info->encrypt_type.str && create_info->encrypt_type.length)
   {
-    std::string encrypt_type;
+    dd::String_type encrypt_type;
     encrypt_type.assign(create_info->encrypt_type.str,
                         create_info->encrypt_type.length);
     table_options->set("encrypt_type", encrypt_type);
@@ -2090,7 +2091,7 @@ static bool fill_dd_table_from_create_info(THD *thd,
 
 
 static bool create_dd_system_table(THD *thd,
-                                   const std::string &table_name,
+                                   const dd::String_type &table_name,
                                    HA_CREATE_INFO *create_info,
                                    const List<Create_field> &create_fields,
                                    const KEY *keyinfo,
@@ -2103,7 +2104,7 @@ static bool create_dd_system_table(THD *thd,
   // Retrieve the system schema.
   const Schema *system_schema= NULL;
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  if (thd->dd_client()->acquire(std::string(MYSQL_SCHEMA_NAME.str),
+  if (thd->dd_client()->acquire(dd::String_type(MYSQL_SCHEMA_NAME.str),
                                 &system_schema))
   {
     // Error is reported by the dictionary subsystem.
@@ -2160,8 +2161,8 @@ static bool create_dd_system_table(THD *thd,
 
 
 bool create_dd_user_table(THD *thd,
-                          const std::string &schema_name,
-                          const std::string &table_name,
+                          const dd::String_type &schema_name,
+                          const dd::String_type &table_name,
                           HA_CREATE_INFO *create_info,
                           const List<Create_field> &create_fields,
                           const KEY *keyinfo,
@@ -2220,8 +2221,8 @@ bool create_dd_user_table(THD *thd,
 
 
 bool create_table(THD *thd,
-                  const std::string &schema_name,
-                  const std::string &table_name,
+                  const dd::String_type &schema_name,
+                  const dd::String_type &table_name,
                   HA_CREATE_INFO *create_info,
                   const List<Create_field> &create_fields,
                   const KEY *keyinfo,
@@ -2245,8 +2246,8 @@ bool create_table(THD *thd,
 
 
 dd::Table *create_tmp_table(THD *thd,
-                            const std::string &schema_name,
-                            const std::string &table_name,
+                            const dd::String_type &schema_name,
+                            const dd::String_type &table_name,
                             HA_CREATE_INFO *create_info,
                             const List<Create_field> &create_fields,
                             const KEY *keyinfo,
@@ -2285,8 +2286,8 @@ dd::Table *create_tmp_table(THD *thd,
 
 
 bool add_foreign_keys(THD *thd,
-                      const std::string &schema_name,
-                      const std::string &table_name,
+                      const dd::String_type &schema_name,
+                      const dd::String_type &table_name,
                       const FOREIGN_KEY *fk_keyinfo, uint fk_keys)
 {
   DBUG_ENTER("dd::add_foreign_keys");
@@ -2622,10 +2623,8 @@ bool table_legacy_db_type(THD *thd, const char *schema_name,
   }
 
   // Get engine by name
-  LEX_CSTRING se_name;
-  se_name.str= table->engine().c_str();
-  se_name.length= table->engine().length();
-  plugin_ref tmp_plugin= ha_resolve_by_name_raw(thd, se_name);
+  plugin_ref tmp_plugin=
+    ha_resolve_by_name_raw(thd, lex_cstring_handle(table->engine()));
 
   // Return DB_TYPE_UNKNOWN and no error if engine is not loaded.
   *db_type= ha_legacy_type(tmp_plugin ? plugin_data<handlerton*>(tmp_plugin) :
@@ -2670,7 +2669,8 @@ bool table_storage_engine(THD *thd, const TABLE_LIST *table_list,
   DBUG_ASSERT(hton);
 
   // Get engine by name
-  plugin_ref tmp_plugin= ha_resolve_by_name_raw(thd, table->engine());
+  plugin_ref tmp_plugin=
+      ha_resolve_by_name_raw(thd, lex_cstring_handle(table->engine()));
   if (!tmp_plugin)
   {
     my_error(ER_STORAGE_ENGINE_NOT_LOADED, MYF(0), schema_name, table_name);
@@ -2788,10 +2788,10 @@ bool update_keys_disabled(THD *thd,
   @param[in]   field_length    Column length.
   @param[in]   field_charset   Column charset.
 
-  @return std::string representing column type.
+  @return dd::String_type representing column type.
 */
 
-std::string get_sql_type_by_field_info(THD *thd,
+dd::String_type get_sql_type_by_field_info(THD *thd,
                                        enum_field_types field_type,
                                        uint32 field_length,
                                        const CHARSET_INFO *field_charset)

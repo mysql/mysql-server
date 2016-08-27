@@ -55,7 +55,7 @@ public:
 
   virtual bool store_attributes(Raw_record *r);
 
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
 public:
   /////////////////////////////////////////////////////////////////////////
@@ -82,26 +82,26 @@ public:
   // definition/utf8.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &definition() const
+  virtual const String_type &definition() const
   { return m_definition; }
 
-  virtual void set_definition(const std::string &definition)
+  virtual void set_definition(const String_type &definition)
   { m_definition= definition; }
 
-  virtual const std::string &definition_utf8() const
+  virtual const String_type &definition_utf8() const
   { return m_definition_utf8; }
 
-  virtual void set_definition_utf8(const std::string &definition_utf8)
+  virtual void set_definition_utf8(const String_type &definition_utf8)
   { m_definition_utf8= definition_utf8; }
 
   /////////////////////////////////////////////////////////////////////////
   // parameter_str
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &parameter_str() const
+  virtual const String_type &parameter_str() const
   { return m_parameter_str; }
 
-  virtual void set_parameter_str(const std::string &parameter_str)
+  virtual void set_parameter_str(const String_type &parameter_str)
   { m_parameter_str= parameter_str; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -148,14 +148,14 @@ public:
   // definer.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &definer_user() const
+  virtual const String_type &definer_user() const
   { return m_definer_user; }
 
-  virtual const std::string &definer_host() const
+  virtual const String_type &definer_host() const
   { return m_definer_host; }
 
-  virtual void set_definer(const std::string &username,
-                           const std::string &hostname)
+  virtual void set_definer(const String_type &username,
+                           const String_type &hostname)
   {
     m_definer_user= username;
     m_definer_host= hostname;
@@ -207,10 +207,10 @@ public:
   // comment.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &comment() const
+  virtual const String_type &comment() const
   { return m_comment; }
 
-  virtual void set_comment(const std::string &comment)
+  virtual void set_comment(const String_type &comment)
   { m_comment= comment; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -231,9 +231,9 @@ public:
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
   { return Entity_object_impl::is_persistent(); }
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Entity_object_impl::name(); }
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const String_type &name)
   { Entity_object_impl::set_name(name); }
 
 private:
@@ -247,12 +247,12 @@ private:
   ulonglong m_created;
   ulonglong m_last_altered;
 
-  std::string m_definition;
-  std::string m_definition_utf8;
-  std::string m_parameter_str;
-  std::string m_definer_user;
-  std::string m_definer_host;
-  std::string m_comment;
+  String_type m_definition;
+  String_type m_definition_utf8;
+  String_type m_parameter_str;
+  String_type m_definer_user;
+  String_type m_definer_host;
+  String_type m_comment;
 
   // Collections.
 

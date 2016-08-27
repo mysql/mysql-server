@@ -101,9 +101,9 @@ public:
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
   { return Entity_object_impl::is_persistent(); }
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Entity_object_impl::name(); }
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const String_type &name)
   { Entity_object_impl::set_name(name); }
 
 public:
@@ -121,7 +121,7 @@ public:
   virtual View *create_system_view(THD *thd) const;
 
 public:
-  virtual void debug_print(std::string &outb) const
+  virtual void debug_print(String_type &outb) const
   {
     char outbuf[1024];
     sprintf(outbuf, "SCHEMA OBJECT: id= {OID: %lld}, name= %s, "
@@ -130,7 +130,7 @@ public:
       id(), name().c_str(),
       m_default_collation_id,
       m_created, m_last_altered);
-    outb= std::string(outbuf);
+    outb= String_type(outbuf);
   }
 
 private:

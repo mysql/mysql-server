@@ -49,7 +49,6 @@
 #include "dd/types/tablespace_file.h"         // dd::Tablespace_file
 
 #include <vector>
-#include <string>
 #include <memory>
 
 /*
@@ -86,7 +85,7 @@ my_bool dd_upgrade_skip_se= false;
 
 
 // Execute a single SQL query.
-bool execute_query(THD *thd, const std::string &q_buf)
+bool execute_query(THD *thd, const dd::String_type &q_buf)
 {
   Ed_connection con(thd);
   LEX_STRING str;
@@ -196,7 +195,7 @@ bool store_single_schema_table_meta_data(THD *thd,
                dd::get_sql_type_by_field_info(
                  thd, ft, fl, cs));
 
-    col_obj->set_default_value_utf8(std::string(STRING_WITH_LEN("")));
+    col_obj->set_default_value_utf8(dd::String_type(STRING_WITH_LEN("")));
   }
 
   // Acquire MDL on the view name.
@@ -400,17 +399,17 @@ bool DDSE_dict_recover(THD *thd,
 // Create and use the dictionary schema.
 bool create_dd_schema(THD *thd)
 {
-  return execute_query(thd, std::string("CREATE SCHEMA ") +
-                            std::string(MYSQL_SCHEMA_NAME.str) +
-                            std::string(" DEFAULT COLLATE ") +
-                            std::string(default_charset_info->name))
-  || execute_query(thd, std::string("USE ") +
-                          std::string(MYSQL_SCHEMA_NAME.str));
+  return execute_query(thd, dd::String_type("CREATE SCHEMA ") +
+                            dd::String_type(MYSQL_SCHEMA_NAME.str) +
+                            dd::String_type(" DEFAULT COLLATE ") +
+                            dd::String_type(default_charset_info->name))
+  || execute_query(thd, dd::String_type("USE ") +
+                          dd::String_type(MYSQL_SCHEMA_NAME.str));
 }
 
 
 // CREATE stats table with 5.7 definition in case of upgrade
-static const std::string stats_table_def(std::string name)
+static const dd::String_type stats_table_def(dd::String_type name)
 {
   if (strcmp(name.c_str(), "innodb_table_stats") == 0)
     return ("  CREATE TABLE innodb_table_stats (\n"
@@ -477,7 +476,7 @@ bool create_tables(THD *thd, bool is_dd_upgrade)
     const Object_table_definition *table_def=
             (*it)->entity()->table_definition(thd);
 
-    std::string name= (*it)->entity()->name();
+    dd::String_type name= (*it)->entity()->name();
 
     // Create stats table with 5.7 definition in case of upgrade
     if (is_dd_upgrade &&
@@ -564,9 +563,9 @@ bool store_meta_data(THD *thd)
   const Schema *sys_schema= nullptr;
   const Tablespace *sys_tspace= nullptr;
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  if (thd->dd_client()->acquire(std::string(MYSQL_SCHEMA_NAME.str),
+  if (thd->dd_client()->acquire(dd::String_type(MYSQL_SCHEMA_NAME.str),
                                 &sys_schema) ||
-      thd->dd_client()->acquire(std::string(MYSQL_TABLESPACE_NAME.str),
+      thd->dd_client()->acquire(dd::String_type(MYSQL_TABLESPACE_NAME.str),
                                 &sys_tspace))
     return end_transaction(thd, true);
 
@@ -680,9 +679,9 @@ bool read_meta_data(THD *thd)
   const Schema *sys_schema= nullptr;
   const Tablespace *sys_tspace= nullptr;
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  if (thd->dd_client()->acquire(std::string(MYSQL_SCHEMA_NAME.str),
+  if (thd->dd_client()->acquire(dd::String_type(MYSQL_SCHEMA_NAME.str),
                                 &sys_schema) ||
-      thd->dd_client()->acquire(std::string(MYSQL_TABLESPACE_NAME.str),
+      thd->dd_client()->acquire(dd::String_type(MYSQL_TABLESPACE_NAME.str),
                                 &sys_tspace))
     return end_transaction(thd, true);
 
@@ -699,7 +698,7 @@ bool read_meta_data(THD *thd)
        it != System_tables::instance()->end(); ++it)
   {
     const dd::Table *table= nullptr;
-    if (thd->dd_client()->acquire(std::string(MYSQL_SCHEMA_NAME.str),
+    if (thd->dd_client()->acquire(dd::String_type(MYSQL_SCHEMA_NAME.str),
                                   (*it)->entity()->name(), &table))
       return end_transaction(thd, true);
     sys_tables.push_back(table);
@@ -707,7 +706,7 @@ bool read_meta_data(THD *thd)
 
   // Read and update the system schema object from disk.
   const Schema *stored_sys_schema= nullptr;
-  if (thd->dd_client()->acquire_uncached(std::string(MYSQL_SCHEMA_NAME.str),
+  if (thd->dd_client()->acquire_uncached(dd::String_type(MYSQL_SCHEMA_NAME.str),
                                          &stored_sys_schema))
     return end_transaction(thd, true);
 
@@ -736,7 +735,7 @@ bool read_meta_data(THD *thd)
   if (sys_tspace)
   {
     const Tablespace *stored_sys_tspace= nullptr;
-    if (thd->dd_client()->acquire_uncached(std::string(MYSQL_TABLESPACE_NAME.str),
+    if (thd->dd_client()->acquire_uncached(dd::String_type(MYSQL_TABLESPACE_NAME.str),
                                            &stored_sys_tspace))
       return end_transaction(thd, true);
 
@@ -833,8 +832,8 @@ bool populate_tables(THD *thd)
     if (table_def == nullptr)
       return end_transaction(thd, true);
 
-    std::vector<std::string> stmt= table_def->dml_populate_statements();
-    for (std::vector<std::string>::iterator stmt_it= stmt.begin();
+    std::vector<dd::String_type> stmt= table_def->dml_populate_statements();
+    for (std::vector<dd::String_type>::iterator stmt_it= stmt.begin();
            stmt_it != stmt.end() && !error; ++stmt_it)
       error= execute_query(thd, *stmt_it);
 
@@ -869,7 +868,7 @@ bool add_cyclic_foreign_keys(THD *thd)
 
     // Acquire the table object, maintain table hiding.
     const dd::Table *table= nullptr;
-    if (thd->dd_client()->acquire(std::string(MYSQL_SCHEMA_NAME.str),
+    if (thd->dd_client()->acquire(dd::String_type(MYSQL_SCHEMA_NAME.str),
                                   (*it)->entity()->name(), &table))
       return true;
 
@@ -1255,8 +1254,8 @@ bool upgrade_fill_dd_and_finalize(THD *thd)
 {
   bool error= false;
 
-  std::vector<std::string> db_name;
-  std::vector<std::string>::iterator it;
+  std::vector<dd::String_type> db_name;
+  std::vector<dd::String_type>::iterator it;
 
   if (find_schema_from_datadir(thd, &db_name))
   {
@@ -1343,7 +1342,7 @@ bool upgrade_fill_dd_and_finalize(THD *thd)
   }
 
   // Write the server version to indicate completion of upgrade.
-  std::string update_version_query= "UPDATE mysql.version SET version=" +
+  dd::String_type update_version_query= "UPDATE mysql.version SET version=" +
                                     std::to_string(d->get_target_dd_version());
 
   error= execute_query(thd, update_version_query);

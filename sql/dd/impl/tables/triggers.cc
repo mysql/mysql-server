@@ -65,7 +65,7 @@ Object_id Triggers::read_table_id(const Raw_record &r)
 
 bool Triggers::get_trigger_table_id(THD *thd,
                                     Object_id schema_id,
-                                    const std::string &trigger_name,
+                                    const String_type &trigger_name,
                                     Object_id *oid)
 {
   DBUG_ENTER("Triggers::get_trigger_table_id");

@@ -111,10 +111,10 @@ public:
   // value.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &value_utf8() const
+  virtual const String_type &value_utf8() const
   { return m_value_utf8; }
 
-  virtual void set_value_utf8(const std::string &value)
+  virtual void set_value_utf8(const String_type &value)
   { m_value_utf8= value; }
 
 ////////////////////////////////////////////////////////////////
@@ -158,7 +158,7 @@ public:
   }
 
 public:
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
 public:
   virtual Object_key *create_primary_key() const;
@@ -172,7 +172,7 @@ private:
   uint m_list_num;
   uint m_column_num;
 
-  std::string m_value_utf8;
+  String_type m_value_utf8;
 
   // References to other objects
   Partition_impl *m_partition;

@@ -20,6 +20,7 @@
 #include "sql_class.h"                         // THD
 
 #include "dd/properties.h"                     // Properties
+#include "dd/string_type.h"                    // dd::Stringstream_type
 #include "dd/types/parameter.h"                // dd::Parameter
 #include "dd/types/parameter_type_element.h"   // dd::Parameter_type_element
 
@@ -121,7 +122,7 @@ static void prepare_type_string_from_dd_param(THD *thd,
     for (const dd::Parameter_type_element *pe : param->elements())
     {
       // Read the enum/set element name
-      std::string element_name= pe->name();
+      dd::String_type element_name= pe->name();
 
       uint pos= pe->index() - 1;
       interval->type_lengths[pos]=
@@ -178,7 +179,7 @@ static void prepare_type_string_from_dd_param(THD *thd,
 
 void prepare_return_type_string_from_dd_routine(THD *thd,
                                                 const dd::Routine *routine,
-                                                std::string *return_type_str)
+                                                dd::String_type *return_type_str)
 {
   DBUG_ENTER("prepare_return_type_string_from_dd_routine");
 
@@ -213,13 +214,13 @@ void prepare_return_type_string_from_dd_routine(THD *thd,
 
 void prepare_params_string_from_dd_routine(THD *thd,
                                            const dd::Routine *routine,
-                                           std::string *params_str)
+                                           dd::String_type *params_str)
 {
   DBUG_ENTER("prepare_params_string_from_dd_routine");
 
   *params_str= "";
 
-  std::stringstream params_ss;
+  dd::Stringstream_type params_ss;
 
   for (const dd::Parameter *param : routine->parameters())
   {

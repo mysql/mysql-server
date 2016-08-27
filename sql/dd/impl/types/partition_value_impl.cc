@@ -151,9 +151,9 @@ Partition_value_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Partition_value_impl::debug_print(std::string &outb) const
+void Partition_value_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
     << "PARTITION_VALUE OBJECT: { "
     << "m_partition: {OID: " << m_partition->id() << "}; "

@@ -18,7 +18,7 @@
 
 #include "my_global.h"
 
-#include <string>
+#include "dd/string_type.h"                    // dd::String_type
 
 class THD;
 
@@ -44,7 +44,7 @@ class Object_table_definition;
 class Object_table
 {
 public:
-  virtual const std::string &name() const = 0;
+  virtual const String_type &name() const = 0;
 
   /**
     Get the definition for the dictionary table for the submitted

@@ -18,10 +18,11 @@
 
 #include "my_global.h"
 
+#include "dd/string_type.h"                    // dd::String_type
+
 #include <vector>
 #include <map>
 #include <utility>
-#include <string>
 
 namespace dd {
 
@@ -161,7 +162,7 @@ public:
     @param entity       Entity which is classified and registered.
   */
 
-  void add(const std::string &schema_name, const std::string &entity_name,
+  void add(const String_type &schema_name, const String_type &entity_name,
            P property, T *entity)
   {
     // Create a new key and make sure it does not already exist.
@@ -194,8 +195,8 @@ public:
                          object pointed to by the wrapper element.
   */
 
-  const T *find_entity(const std::string &schema_name,
-                       const std::string &entity_name) const
+  const T *find_entity(const String_type &schema_name,
+                       const String_type &entity_name) const
   {
     // Create a new key. This is only used for lookup, so it is allocated
     // on the stack.
@@ -225,8 +226,8 @@ public:
                          the property associated with the key.
   */
 
-  const P *find_property(const std::string &schema_name,
-                         const std::string &entity_name) const
+  const P *find_property(const String_type &schema_name,
+                         const String_type &entity_name) const
   {
     // Create a new key. This is only used for lookup, so it is allocated
     // on the stack.
@@ -377,7 +378,7 @@ public:
 private:
   // The actual registry is referred and delegated to rather than
   // being inherited from.
-  typedef Entity_registry<std::pair<const std::string, const std::string>,
+  typedef Entity_registry<std::pair<const String_type, const String_type>,
           const Object_table, Types,
           type_name, true> System_table_registry_type;
   System_table_registry_type m_registry;
@@ -392,18 +393,18 @@ public:
   void init();
 
   // Add a new system table by delegation to the wrapped registry.
-  void add(const std::string &schema_name, const std::string &table_name,
+  void add(const String_type &schema_name, const String_type &table_name,
            Types type, const Object_table *table)
   { m_registry.add(schema_name, table_name, type, table); }
 
   // Find a system table by delegation to the wrapped registry.
-  const Object_table *find_table(const std::string &schema_name,
-                           const std::string &table_name) const
+  const Object_table *find_table(const String_type &schema_name,
+                           const String_type &table_name) const
   { return m_registry.find_entity(schema_name, table_name); }
 
   // Find a system table by delegation to the wrapped registry.
-  const Types *find_type(const std::string &schema_name,
-                         const std::string &table_name) const
+  const Types *find_type(const String_type &schema_name,
+                         const String_type &table_name) const
   { return m_registry.find_property(schema_name, table_name); }
 
   Const_iterator begin() const
@@ -464,7 +465,7 @@ public:
 private:
   // The actual registry is referred and delegated to rather than
   // being inherited from.
-  typedef Entity_registry<std::pair<const std::string, const std::string>,
+  typedef Entity_registry<std::pair<const String_type, const String_type>,
           System_view, Types, type_name, true> System_view_registry_type;
   System_view_registry_type m_registry;
 
@@ -478,7 +479,7 @@ public:
   void init();
 
   // Add a new system view by delegation to the wrapped registry.
-  void add(const std::string &schema_name, const std::string &view_name,
+  void add(const String_type &schema_name, const String_type &view_name,
            Types type)
   {
     m_registry.add(schema_name, view_name, type,
@@ -486,8 +487,8 @@ public:
   }
 
   // Find a system view by delegation to the wrapped registry.
-  const System_view *find(const std::string &schema_name,
-                          const std::string &view_name) const
+  const System_view *find(const String_type &schema_name,
+                          const String_type &view_name) const
   { return m_registry.find_entity(schema_name, view_name); }
 
   Const_iterator begin() const
@@ -551,7 +552,7 @@ public:
 private:
   // The actual registry is referred and delegated to rather than
   // being inherited from.
-  typedef Entity_registry<std::pair<const std::string, const std::string>,
+  typedef Entity_registry<std::pair<const String_type, const String_type>,
           System_tablespace, Types,
           type_name, true> System_tablespace_registry_type;
   System_tablespace_registry_type m_registry;
@@ -563,14 +564,14 @@ public:
   static System_tablespaces *instance();
 
   // Add a new system tablespace by delegation to the wrapped registry.
-  void add(const std::string &tablespace_name, Types type)
+  void add(const String_type &tablespace_name, Types type)
   {
     m_registry.add("", tablespace_name, type,
                    new (std::nothrow) System_tablespace());
   }
 
   // Find a system tablespace by delegation to the wrapped registry.
-  const System_tablespace *find(const std::string &tablespace_name) const
+  const System_tablespace *find(const String_type &tablespace_name) const
   { return m_registry.find_entity("", tablespace_name); }
 
   Const_iterator begin() const

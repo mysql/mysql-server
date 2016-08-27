@@ -59,7 +59,7 @@ public:
   { return update_name_key(key, name()); }
 
   static bool update_name_key(name_key_type *key,
-                              const std::string &name);
+                              const String_type &name);
 
   virtual bool update_aux_key(aux_key_type *key) const
   { return true; }

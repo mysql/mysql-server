@@ -18,6 +18,7 @@
 #include "mysqld_error.h"                            // ER_*
 
 #include "dd/properties.h"                           // Needed for destructor
+#include "dd/string_type.h"                          // dd::String_type
 #include "dd/impl/sdi_impl.h"                        // sdi read/write functions
 #include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"                  // Raw_record
@@ -27,7 +28,6 @@
 #include "dd/types/column.h"                         // Column
 
 #include <memory>
-#include <sstream>
 
 
 using dd::tables::Foreign_key_column_usage;
@@ -163,9 +163,9 @@ Foreign_key_element_impl::deserialize(Sdi_rcontext *rctx,
 
 ///////////////////////////////////////////////////////////////////////////
 /* purecov: begin inspected */
-void Foreign_key_element_impl::debug_print(std::string &outb) const
+void Foreign_key_element_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
     << "FOREIGN_KEY_ELEMENT OBJECT: { "
     << "m_foreign_key: {OID: " << m_foreign_key->id() << "}; "

@@ -20,10 +20,10 @@
 
 #include "sql_class.h"                // THD::killed_state
 
+#include "dd/string_type.h"           // dd::String_type
 #include "dd/types/object_type.h"     // dd::Object_type
 #include "dd/dd_kill_immunizer.h"     // dd::DD_kill_immunizer
 
-#include <string>
 #include <map>
 
 class THD;
@@ -48,7 +48,7 @@ public:
 
   ~Open_dictionary_tables_ctx();
 
-  Raw_table *get_table(const std::string &name) const;
+  Raw_table *get_table(const String_type &name) const;
 
   template <typename T>
   Raw_table *get_table() const
@@ -70,7 +70,7 @@ public:
   */
   bool open_tables();
 
-  void add_table(const std::string &name);
+  void add_table(const String_type &name);
 
   THD *get_thd() const { return m_thd; }
 
@@ -89,7 +89,7 @@ private:
   THD *m_thd;
   thr_lock_type m_lock_type;
   bool m_ignore_global_read_lock;
-  typedef std::map<std::string, Raw_table *> Object_table_map;
+  typedef std::map<String_type, Raw_table *> Object_table_map;
   Object_table_map m_tables;
 };
 

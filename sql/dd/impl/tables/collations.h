@@ -31,9 +31,9 @@ class Collations : public Dictionary_object_table_impl
 public:
   static const Collations &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("collations");
+    static String_type s_table_name("collations");
     return s_table_name;
   }
 public:
@@ -51,14 +51,14 @@ public:
 
   virtual bool populate(THD *thd) const;
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Collations::table_name(); }
 
   virtual Dictionary_object *create_dictionary_object(const Raw_record &) const;
 
 public:
   static bool update_object_key(Global_name_key *key,
-                                const std::string &collation_name);
+                                const String_type &collation_name);
 };
 
 ///////////////////////////////////////////////////////////////////////////

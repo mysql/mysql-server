@@ -69,7 +69,7 @@ Tablespaces::create_dictionary_object(const Raw_record &) const
 ///////////////////////////////////////////////////////////////////////////
 
 bool Tablespaces::update_object_key(Global_name_key *key,
-                                    const std::string &tablespace_name)
+                                    const String_type &tablespace_name)
 {
   key->update(FIELD_NAME, tablespace_name);
   return false;

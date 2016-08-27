@@ -159,7 +159,7 @@ public:
                                    Index_impl *index);
 
 public:
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
 public:
   virtual Object_key *create_primary_key() const;

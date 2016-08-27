@@ -33,9 +33,9 @@ class Table_partitions : public Object_table_impl
 public:
   static const Table_partitions &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("table_partitions");
+    static String_type s_table_name("table_partitions");
     return s_table_name;
   }
 
@@ -58,7 +58,7 @@ public:
 public:
   Table_partitions();
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Table_partitions::table_name(); }
 
 public:
@@ -67,12 +67,12 @@ public:
   static ulonglong read_table_id(const Raw_record &r);
 
   static Object_key *create_se_private_key(
-    const std::string &engine,
+    const String_type &engine,
     Object_id se_private_id);
 
   static bool get_partition_table_id(
     THD *thd,
-    const std::string &engine,
+    const String_type &engine,
     ulonglong se_private_id,
     Object_id *oid);
 

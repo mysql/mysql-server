@@ -15,10 +15,10 @@
 
 #include "dd/impl/tables/schemata.h"
 
-#include "dd/impl/raw/object_keys.h"  // Parent_id_range_key
-#include "dd/impl/types/schema_impl.h"                  // dd::Schema_impl
+#include "dd/string_type.h"             // dd::String_type
+#include "dd/impl/raw/object_keys.h"    // Parent_id_range_key
+#include "dd/impl/types/schema_impl.h"  // dd::Schema_impl
 
-#include <string>
 
 namespace dd {
 namespace tables {
@@ -44,7 +44,7 @@ Schemata::Schemata()
   m_target_def.add_field(FIELD_NAME,
                          "FIELD_NAME",
                          "name VARCHAR(64) NOT NULL COLLATE " +
-                         std::string(Object_table_definition_impl::
+                         String_type(Object_table_definition_impl::
                                      fs_name_collation()->name));
   m_target_def.add_field(FIELD_DEFAULT_COLLATION_ID,
                          "FIELD_DEFAULT_COLLATION_ID",
@@ -75,7 +75,7 @@ Schemata::Schemata()
 
 bool Schemata::update_object_key(Item_name_key *key,
                                  Object_id catalog_id,
-                                 const std::string &schema_name)
+                                 const String_type &schema_name)
 {
   char buf[NAME_LEN + 1];
   key->update(FIELD_CATALOG_ID, catalog_id, FIELD_NAME,

@@ -52,10 +52,10 @@ public:
   { return (m_id != INVALID_OBJECT_ID); }
   /* purecov: end */
 
-  virtual const std::string &name() const override
+  virtual const String_type &name() const override
   { return m_name; }
 
-  virtual void set_name(const std::string &name) override
+  virtual void set_name(const String_type &name) override
   { m_name= name; }
 
   virtual Object_key *create_primary_key() const override;
@@ -91,7 +91,7 @@ private:
 
   Object_id m_id;
 
-  std::string m_name;
+  String_type m_name;
 
   /**
     Indicates that object is guaranteed to have ID which doesn't exist in

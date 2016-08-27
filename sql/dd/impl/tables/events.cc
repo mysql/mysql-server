@@ -156,7 +156,7 @@ Events::Events()
 
 bool Events::update_object_key(Item_name_key *key,
                                Object_id schema_id,
-                               const std::string &event_name)
+                               const String_type &event_name)
 {
   char buf[NAME_LEN + 1];
   my_stpcpy(buf, event_name.c_str());

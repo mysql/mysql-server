@@ -61,8 +61,8 @@ static const char FIELD_NAME_SEPARATOR_CHAR = ';';
   @retval 1 on failure.
 */
 bool create_dd_user_table(THD *thd,
-                          const std::string &schema_name,
-                          const std::string &table_name,
+                          const String_type &schema_name,
+                          const String_type &table_name,
                           HA_CREATE_INFO *create_info,
                           const List<Create_field> &create_fields,
                           const KEY *keyinfo,
@@ -92,8 +92,8 @@ bool create_dd_user_table(THD *thd,
   @retval ER_CANT_CREATE_TABLE, ER_TABLE_EXISTS_ERROR on failure.
 */
 bool create_table(THD *thd,
-                  const std::string &schema_name,
-                  const std::string &table_name,
+                  const String_type &schema_name,
+                  const String_type &table_name,
                   HA_CREATE_INFO *create_info,
                   const List<Create_field> &create_fields,
                   const KEY *keyinfo, uint keys,
@@ -119,8 +119,8 @@ bool create_table(THD *thd,
   @returns constructed dd::Table object, or NULL in case of an error.
 */
 dd::Table *create_tmp_table(THD *thd,
-                            const std::string &schema_name,
-                            const std::string &table_name,
+                            const String_type &schema_name,
+                            const String_type &table_name,
                             HA_CREATE_INFO *create_info,
                             const List<Create_field> &create_fields,
                             const KEY *keyinfo, uint keys,
@@ -143,8 +143,8 @@ dd::Table *create_tmp_table(THD *thd,
   @retval true on failure
 */
 bool add_foreign_keys(THD *thd,
-                      const std::string &schema_name,
-                      const std::string &table_name,
+                      const String_type &schema_name,
+                      const String_type &table_name,
                       const FOREIGN_KEY *fk_keyinfo, uint fk_keys);
 
 //////////////////////////////////////////////////////////////////////////
@@ -341,7 +341,7 @@ bool update_keys_disabled(THD *thd,
   Function prepares string representing columns data type.
   This is required for IS implementation which uses views on DD tables
 */
-std::string get_sql_type_by_field_info(THD *thd,
+String_type get_sql_type_by_field_info(THD *thd,
                                        enum_field_types field_type,
                                        uint32 field_length,
                                        const CHARSET_INFO *field_charset);

@@ -50,7 +50,7 @@ public:
 
   virtual bool store_attributes(Raw_record *r) override;
 
-  virtual void debug_print(std::string &outb) const override;
+  virtual void debug_print(String_type &outb) const override;
 
   void set_ordinal_position(uint ordinal_position)
   {
@@ -126,17 +126,17 @@ public:
   // action_statement/utf8.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &action_statement() const override
+  virtual const String_type &action_statement() const override
   { return m_action_statement; }
 
-  virtual void set_action_statement(const std::string
+  virtual void set_action_statement(const String_type
                                     &action_statement) override
   { m_action_statement= action_statement; }
 
-  virtual const std::string &action_statement_utf8() const override
+  virtual const String_type &action_statement_utf8() const override
   { return m_action_statement_utf8; }
 
-  virtual void set_action_statement_utf8(const std::string
+  virtual void set_action_statement_utf8(const String_type
                                          &action_statement_utf8) override
   { m_action_statement_utf8= action_statement_utf8; }
 
@@ -174,14 +174,14 @@ public:
   // definer.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &definer_user() const override
+  virtual const String_type &definer_user() const override
   { return m_definer_user; }
 
-  virtual const std::string &definer_host() const override
+  virtual const String_type &definer_host() const override
   { return m_definer_host; }
 
-  virtual void set_definer(const std::string &username,
-                           const std::string &hostname) override
+  virtual void set_definer(const String_type &username,
+                           const String_type &hostname) override
   {
     m_definer_user= username;
     m_definer_host= hostname;
@@ -225,10 +225,10 @@ public:
   virtual bool is_persistent() const override
   { return Entity_object_impl::is_persistent(); }
 
-  virtual const std::string &name() const override
+  virtual const String_type &name() const override
   { return Entity_object_impl::name(); }
 
-  virtual void set_name(const std::string &name) override
+  virtual void set_name(const String_type &name) override
   { Entity_object_impl::set_name(name); }
 
 public:
@@ -260,10 +260,10 @@ private:
   timeval m_created;
   timeval m_last_altered;
 
-  std::string m_action_statement_utf8;
-  std::string m_action_statement;
-  std::string m_definer_user;
-  std::string m_definer_host;
+  String_type m_action_statement_utf8;
+  String_type m_action_statement;
+  String_type m_definer_user;
+  String_type m_definer_host;
 
   // References to tightly-coupled objects.
 

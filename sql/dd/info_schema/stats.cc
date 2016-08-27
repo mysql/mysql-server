@@ -58,8 +58,8 @@ bool update_table_stats(THD *thd, TABLE_LIST *table)
   // Create a object to be stored.
   std::unique_ptr<Table_stat> ts_obj(create_object<Table_stat>());
 
-  ts_obj->set_schema_name(std::string(table->db, strlen(table->db)));
-  ts_obj->set_table_name(std::string(table->alias, strlen(table->alias)));
+  ts_obj->set_schema_name(String_type(table->db, strlen(table->db)));
+  ts_obj->set_table_name(String_type(table->alias, strlen(table->alias)));
   ts_obj->set_table_rows(file->stats.records);
   ts_obj->set_avg_row_length(file->stats.mean_rec_length);
   ts_obj->set_data_length(file->stats.data_file_length);
@@ -137,10 +137,10 @@ bool update_index_stats(THD *thd, TABLE_LIST *table)
       else
         records= -1; // Treated as NULL
 
-      obj->set_schema_name(std::string(table->db, strlen(table->db)));
-      obj->set_table_name(std::string(table->alias, strlen(table->alias)));
-      obj->set_index_name(std::string(key_info->name, strlen(key_info->name)));
-      obj->set_column_name(std::string(str, strlen(str)));
+      obj->set_schema_name(String_type(table->db, strlen(table->db)));
+      obj->set_table_name(String_type(table->alias, strlen(table->alias)));
+      obj->set_index_name(String_type(key_info->name, strlen(key_info->name)));
+      obj->set_column_name(String_type(str, strlen(str)));
       obj->set_cardinality((ulonglong) records);
 
       // Store the object

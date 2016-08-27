@@ -87,7 +87,7 @@ Spatial_reference_systems::create_dictionary_object(const Raw_record &) const
 
 bool Spatial_reference_systems::update_object_key(Item_name_key *key,
                                                   Object_id catalog_id,
-                                                  const std::string &name)
+                                                  const String_type &name)
 {
   // Construct a lowercase version of the key. The collation of the
   // name column is also accent insensitive, but we don't have a

@@ -432,10 +432,10 @@ static void fill_dd_view_tables(View *view_obj, const TABLE_LIST *view,
     view_table_obj->set_table_catalog(Dictionary_impl::default_catalog_name());
 
     // View table schema
-    view_table_obj->set_table_schema(std::string(db_name.str, db_name.length));
+    view_table_obj->set_table_schema(String_type(db_name.str, db_name.length));
 
     // View table name
-    view_table_obj->set_table_name(std::string(table_name.str,
+    view_table_obj->set_table_name(String_type(table_name.str,
                                                table_name.length));
   }
 
@@ -468,10 +468,10 @@ static void fill_dd_view_routines(
     view_sf_obj->set_routine_catalog(Dictionary_impl::default_catalog_name());
 
     // View routine schema
-    view_sf_obj->set_routine_schema(std::string(sf.m_db.str, sf.m_db.length));
+    view_sf_obj->set_routine_schema(String_type(sf.m_db.str, sf.m_db.length));
 
     // View routine name
-    view_sf_obj->set_routine_name(std::string(sf.m_name.str, sf.m_name.length));
+    view_sf_obj->set_routine_name(String_type(sf.m_name.str, sf.m_name.length));
   }
 
   DBUG_VOID_RETURN;
@@ -518,10 +518,10 @@ bool create_view(THD *thd,
   view_obj->set_definer(view->definer.user.str, view->definer.host.str);
 
   // View definition.
-  view_obj->set_definition(std::string(view->select_stmt.str,
+  view_obj->set_definition(String_type(view->select_stmt.str,
                                        view->select_stmt.length));
 
-  view_obj->set_definition_utf8(std::string(view->view_body_utf8.str,
+  view_obj->set_definition_utf8(String_type(view->view_body_utf8.str,
                                             view->view_body_utf8.length));
 
   // Set updatable.
@@ -573,7 +573,7 @@ bool create_view(THD *thd,
   view->timestamp.length= PARSE_FILE_TIMESTAMPLENGTH;
 
   dd::Properties *view_options= &view_obj->options();
-  view_options->set("timestamp", std::string(view->timestamp.str,
+  view_options->set("timestamp", String_type(view->timestamp.str,
                                              view->timestamp.length));
   view_options->set_bool("view_valid", true);
 
@@ -608,20 +608,20 @@ void read_view(TABLE_LIST *view,
                MEM_ROOT *mem_root)
 {
   // Fill TABLE_LIST 'view' with view details.
-  std::string definer_user= view_obj.definer_user();
+  String_type definer_user= view_obj.definer_user();
   view->definer.user.length= definer_user.length();
   view->definer.user.str= (char*) strmake_root(mem_root,
                                                definer_user.c_str(),
                                                definer_user.length());
 
-  std::string definer_host= view_obj.definer_host();
+  String_type definer_host= view_obj.definer_host();
   view->definer.host.length= definer_host.length();
   view->definer.host.str= (char*) strmake_root(mem_root,
                                                definer_host.c_str(),
                                                definer_host.length());
 
   // View definition body.
-  std::string vd_utf8= view_obj.definition_utf8();
+  String_type vd_utf8= view_obj.definition_utf8();
   view->view_body_utf8.length= vd_utf8.length();
   view->view_body_utf8.str= (char*) strmake_root(mem_root,
                                                  vd_utf8.c_str(),
@@ -644,7 +644,7 @@ void read_view(TABLE_LIST *view,
     (view_obj.type() == dd::enum_table_type::SYSTEM_VIEW);
 
   // Get definition.
-  std::string view_definition= view_obj.definition();
+  String_type view_definition= view_obj.definition();
   view->select_stmt.length= view_definition.length();
   view->select_stmt.str= (char*) strmake_root(mem_root,
                                          view_definition.c_str(),

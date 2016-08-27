@@ -43,7 +43,7 @@ public:
   { }
 
 public:
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
   virtual const Dictionary_object_table &object_table() const
   { return Index_stat::OBJECT_TABLE(); }
@@ -59,40 +59,40 @@ public:
   // schema name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &schema_name() const
+  virtual const String_type &schema_name() const
   { return m_schema_name; }
 
-  virtual void set_schema_name(const std::string &schema_name)
+  virtual void set_schema_name(const String_type &schema_name)
   { m_schema_name= schema_name; }
 
   /////////////////////////////////////////////////////////////////////////
   // table name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &table_name() const
+  virtual const String_type &table_name() const
   { return m_table_name; }
 
-  virtual void set_table_name(const std::string &table_name)
+  virtual void set_table_name(const String_type &table_name)
   { m_table_name= table_name; }
 
   /////////////////////////////////////////////////////////////////////////
   // index name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &index_name() const
+  virtual const String_type &index_name() const
   { return m_index_name; }
 
-  virtual void set_index_name(const std::string &index_name)
+  virtual void set_index_name(const String_type &index_name)
   { m_index_name= index_name; }
 
   /////////////////////////////////////////////////////////////////////////
   // column name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &column_name() const
+  virtual const String_type &column_name() const
   { return m_column_name; }
 
-  virtual void set_column_name(const std::string &column_name)
+  virtual void set_column_name(const String_type &column_name)
   { m_column_name= column_name; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -111,10 +111,10 @@ public:
 
 private:
   // Fields
-  std::string m_schema_name;
-  std::string m_table_name;
-  std::string m_index_name;
-  std::string m_column_name;
+  String_type m_schema_name;
+  String_type m_table_name;
+  String_type m_index_name;
+  String_type m_column_name;
 
   ulonglong m_cardinality;
 

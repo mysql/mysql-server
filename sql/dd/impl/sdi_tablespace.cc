@@ -19,6 +19,7 @@
 #include "dd/dd_tablespace.h"            // dd::get_tablespace_name
 #include "dd/dictionary.h"               // dd::acquire_shared_tablespace_mdl
 #include "dd/properties.h"               // dd::Properties
+#include "dd/string_type.h"              // dd::String_type
 #include "dd/sdi.h"                      // dd::serialize
 #include "dd/cache/dictionary_client.h"  // dd::Dictionary_client
 #include "dd/impl/sdi_utils.h"           // sdi_utils::checked_return
@@ -26,7 +27,6 @@
 #include "dd/types/table.h"              // dd::Table
 #include "dd/types/tablespace.h"         // dd::Tablespace
 
-#include <string>
 
 /**
   @file
@@ -123,8 +123,8 @@ bool operator==(const dd::sdi_key_t &a, const dd::sdi_key_t &b)
 
 namespace dd {
 namespace sdi_tablespace {
-bool store(THD *thd, handlerton *hton, const sdi_t &sdi, const Schema *schema,
-           const Table *table)
+bool store(THD *thd, handlerton *hton, const MYSQL_LEX_CSTRING &sdi,
+           const Schema *schema, const Table *table)
 {
   dd::cache::Dictionary_client::Auto_releaser scope_releaser(thd->dd_client());
   const Tablespace *tablespace= nullptr;
@@ -140,11 +140,11 @@ bool store(THD *thd, handlerton *hton, const sdi_t &sdi, const Schema *schema,
   }
   const dd::sdi_key_t schema_key= get_sdi_key(*schema);
   return checked_return(hton->sdi_set(*tablespace, &schema_key,
-                                      sdi.c_str(), sdi.size())) ||
+                                      sdi.str, sdi.length)) ||
     checked_return(hton->sdi_flush(*tablespace));
 }
 
-bool store(THD *thd, handlerton *hton, const dd::sdi_t &sdi,
+bool store(THD *thd, handlerton *hton, const MYSQL_LEX_CSTRING &sdi,
            const dd::Table *table, const dd::Schema *schema)
 {
   dd::cache::Dictionary_client::Auto_releaser scope_releaser(thd->dd_client());
@@ -191,8 +191,8 @@ bool store(THD *thd, handlerton *hton, const dd::sdi_t &sdi,
   }
 
   const dd::sdi_key_t table_key= get_sdi_key(*table);
-  if (hton->sdi_set(*tablespace, &table_key, sdi.c_str(),
-                    sdi.size()))
+  if (hton->sdi_set(*tablespace, &table_key, sdi.str,
+                    sdi.length))
   {
     return true;
   }
@@ -202,7 +202,8 @@ bool store(THD *thd, handlerton *hton, const dd::sdi_t &sdi,
 }
 
 
-bool store(handlerton *hton, const sdi_t &sdi, const Tablespace *tablespace)
+bool store(handlerton *hton, const MYSQL_LEX_CSTRING &sdi,
+           const Tablespace *tablespace)
 {
   DBUG_ASSERT(hton->db_type == DB_TYPE_INNODB);
   DBUG_ASSERT(hton->sdi_set != nullptr);
@@ -211,7 +212,7 @@ bool store(handlerton *hton, const sdi_t &sdi, const Tablespace *tablespace)
     return false; // FIXME - needs wl#7141
   }
   const dd::sdi_key_t key= get_sdi_key(*tablespace);
-  if (hton->sdi_set(*tablespace, &key, sdi.c_str(), sdi.size()))
+  if (hton->sdi_set(*tablespace, &key, sdi.str, sdi.length))
   {
     return true;
   }

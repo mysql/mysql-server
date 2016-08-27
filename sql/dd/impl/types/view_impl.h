@@ -55,7 +55,7 @@ public:
 
   virtual bool store_attributes(Raw_record *r);
 
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
 public:
   /////////////////////////////////////////////////////////////////////////
@@ -96,16 +96,16 @@ public:
   // definition/utf8.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &definition() const
+  virtual const String_type &definition() const
   { return m_definition; }
 
-  virtual void set_definition(const std::string &definition)
+  virtual void set_definition(const String_type &definition)
   { m_definition= definition; }
 
-  virtual const std::string &definition_utf8() const
+  virtual const String_type &definition_utf8() const
   { return m_definition_utf8; }
 
-  virtual void set_definition_utf8(const std::string &definition_utf8)
+  virtual void set_definition_utf8(const String_type &definition_utf8)
   { m_definition_utf8= definition_utf8; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -152,14 +152,14 @@ public:
   // definer.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &definer_user() const
+  virtual const String_type &definer_user() const
   { return m_definer_user; }
 
-  virtual const std::string &definer_host() const
+  virtual const String_type &definer_host() const
   { return m_definer_host; }
 
-  virtual void set_definer(const std::string &username,
-                           const std::string &hostname)
+  virtual void set_definer(const String_type &username,
+                           const String_type &hostname)
   {
     m_definer_user= username;
     m_definer_host= hostname;
@@ -192,9 +192,9 @@ public:
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
   { return Entity_object_impl::is_persistent(); }
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Entity_object_impl::name(); }
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const String_type &name)
   { Entity_object_impl::set_name(name); }
   virtual Object_id schema_id() const
   { return Abstract_table_impl::schema_id(); }
@@ -206,7 +206,7 @@ public:
   { return Abstract_table_impl::options(); }
   virtual Properties &options()
   { return Abstract_table_impl::options(); }
-  virtual bool set_options_raw(const std::string &options_raw)
+  virtual bool set_options_raw(const String_type &options_raw)
   { return Abstract_table_impl::set_options_raw(options_raw); }
   virtual ulonglong created() const
   { return Abstract_table_impl::created(); }
@@ -220,9 +220,9 @@ public:
   { return Abstract_table_impl::add_column(); }
   virtual const Column_collection &columns() const
   { return Abstract_table_impl::columns(); }
-  const Column *get_column(const std::string name) const
+  const Column *get_column(const String_type name) const
   { return Abstract_table_impl::get_column(name); }
-  Column *get_column(const std::string name)
+  Column *get_column(const String_type name)
   { return Abstract_table_impl::get_column(name); }
 
 private:
@@ -232,10 +232,10 @@ private:
   enum_algorithm     m_algorithm;
   enum_security_type m_security_type;
 
-  std::string m_definition;
-  std::string m_definition_utf8;
-  std::string m_definer_user;
-  std::string m_definer_host;
+  String_type m_definition;
+  String_type m_definition_utf8;
+  String_type m_definer_user;
+  String_type m_definer_host;
 
   View_tables   m_tables;
   View_routines m_routines;

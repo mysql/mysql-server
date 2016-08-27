@@ -21,6 +21,7 @@
 #include "stateless_allocator.h"        // Stateless_allocator
 
 #include <string>
+#include <sstream>
 
 namespace dd {
 /**

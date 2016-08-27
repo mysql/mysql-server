@@ -19,9 +19,8 @@
 #include "my_global.h"
 
 #include "my_time.h"             // interval_type
+#include "dd/string_type.h"      // dd::String_type
 #include "dd/types/event.h"      // dd::Event::enum_event_status
-
-#include <string>
 
 class Event_parse_data;
 class sp_head;
@@ -80,8 +79,8 @@ interval_type get_old_interval_type(Event::enum_interval_field interval_field);
    @retval      false        Success.
 */
 bool event_exists(dd::cache::Dictionary_client *dd_client,
-                  const std::string &schema_name,
-                  const std::string &name,
+                  const String_type &schema_name,
+                  const String_type &name,
                   bool *exists);
 
 /**
@@ -98,9 +97,9 @@ bool event_exists(dd::cache::Dictionary_client *dd_client,
    @retval true  Event creation failed.
    @retval false Event creation succeeded.
 */
-bool create_event(THD *thd, const std::string &schema_name,
-                  const std::string &event_name, const std::string &event_body,
-                  const std::string &event_body_utf8, const LEX_USER *definer,
+bool create_event(THD *thd, const String_type &schema_name,
+                  const String_type &event_name, const String_type &event_body,
+                  const String_type &event_body_utf8, const LEX_USER *definer,
                   Event_parse_data *event_data);
 
 /**
@@ -120,10 +119,10 @@ bool create_event(THD *thd, const std::string &schema_name,
   @retval false Event updation succeeded.
 */
 bool update_event(THD *thd, const Event *event,
-                  const std::string &new_db_name,
-                  const std::string &new_event_name,
-                  const std::string &new_event_body,
-                  const std::string &new_event_body_utf8,
+                  const String_type &new_db_name,
+                  const String_type &new_event_name,
+                  const String_type &new_event_body,
+                  const String_type &new_event_body_utf8,
                   const LEX_USER *definer,
                   Event_parse_data *event_data);
 

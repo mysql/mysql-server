@@ -212,7 +212,7 @@ static bool fill_parameter_info_from_field(Create_field *field,
       // Create enum/set object.
       Parameter_type_element  *elem_obj= param->add_element();
 
-      std::string interval_name(*pos, field->interval->type_lengths[i]);
+      String_type interval_name(*pos, field->interval->type_lengths[i]);
 
       elem_obj->set_name(interval_name);
     }

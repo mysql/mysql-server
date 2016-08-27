@@ -65,7 +65,7 @@ static inline LEX_STRING make_lex_string(MEM_ROOT *mem_root, const char *str)
 
 
 static inline LEX_STRING make_lex_string(MEM_ROOT *mem_root,
-                                         const std::string &str)
+                                         const dd::String_type &str)
 {
   LEX_STRING lex_str;
   lex_str.str= strmake_root(mem_root, str.c_str(), str.length());
@@ -75,7 +75,7 @@ static inline LEX_STRING make_lex_string(MEM_ROOT *mem_root,
 
 
 static inline LEX_CSTRING make_lex_cstring(MEM_ROOT *mem_root,
-                                           const std::string &str)
+                                           const dd::String_type &str)
 {
   LEX_CSTRING lex_cstr;
   lex_cstr.str= strmake_root(mem_root, str.c_str(), str.length());
@@ -347,7 +347,7 @@ Event_job_data::fill_event_info(THD *thd, const dd::Event &event_obj,
   m_schema_name= make_lex_string(&mem_root, schema_name);
   m_event_name= make_lex_string(&mem_root, event_obj.name());
 
-  std::string tmp(event_obj.definer_user());
+  dd::String_type tmp(event_obj.definer_user());
   tmp.append("@");
   tmp.append(event_obj.definer_host());
   m_definer= make_lex_string(&mem_root, tmp);
@@ -384,7 +384,7 @@ Event_queue_element::fill_event_info(THD *thd, const dd::Event &event_obj,
   m_schema_name= make_lex_string(&mem_root, schema_name);
   m_event_name=make_lex_string(&mem_root, event_obj.name());
 
-  std::string tmp(event_obj.definer_user());
+  dd::String_type tmp(event_obj.definer_user());
   tmp.append("@");
   tmp.append(event_obj.definer_host());
 

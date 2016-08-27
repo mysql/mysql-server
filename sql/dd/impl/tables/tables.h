@@ -34,9 +34,9 @@ class Tables : public Dictionary_object_table_impl
 public:
   static const Tables &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("tables");
+    static String_type s_table_name("tables");
     return s_table_name;
   }
 
@@ -79,7 +79,7 @@ public:
 public:
   Tables();
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Tables::table_name(); }
 
   virtual Dictionary_object *create_dictionary_object(
@@ -88,19 +88,19 @@ public:
 public:
   static bool update_object_key(Item_name_key *key,
                                 Object_id schema_id,
-                                const std::string &table_name);
+                                const String_type &table_name);
 
   static bool update_aux_key(Se_private_id_key *key,
-                             const std::string &engine,
+                             const String_type &engine,
                              ulonglong se_private_id);
 
-  static Object_key *create_se_private_key(const std::string &engine,
+  static Object_key *create_se_private_key(const String_type &engine,
                                            Object_id se_private_id);
 
   static Object_key *create_key_by_schema_id(Object_id schema_id);
 
   static bool max_se_private_id(Open_dictionary_tables_ctx *otx,
-                                const std::string &engine,
+                                const String_type &engine,
                                 ulonglong *max_id);
 
   static ulonglong read_se_private_id(const Raw_record &r);

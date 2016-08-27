@@ -40,9 +40,9 @@ public:
 
   virtual bool update_routine_name_key(name_key_type *key,
                                        Object_id schema_id,
-                                       const std::string &name) const;
+                                       const String_type &name) const;
 
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()
@@ -53,9 +53,9 @@ public:
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
   { return Entity_object_impl::is_persistent(); }
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Entity_object_impl::name(); }
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const String_type &name)
   { Entity_object_impl::set_name(name); }
   virtual const Dictionary_object_table &object_table() const
   { return Routine_impl::object_table(); }
@@ -65,17 +65,17 @@ public:
   { Routine_impl::set_schema_id(schema_id); }
   virtual enum_routine_type type() const
   { return Routine_impl::type(); }
-  virtual const std::string &definition() const
+  virtual const String_type &definition() const
   { return Routine_impl::definition(); }
-  virtual void set_definition(const std::string &definition)
+  virtual void set_definition(const String_type &definition)
   { Routine_impl::set_definition(definition); }
-  virtual const std::string &definition_utf8() const
+  virtual const String_type &definition_utf8() const
   { return Routine_impl::definition_utf8(); }
-  virtual void set_definition_utf8(const std::string &definition_utf8)
+  virtual void set_definition_utf8(const String_type &definition_utf8)
   { Routine_impl::set_definition_utf8(definition_utf8); }
-  virtual const std::string &parameter_str() const
+  virtual const String_type &parameter_str() const
   { return Routine_impl::parameter_str(); }
-  virtual void set_parameter_str(const std::string &parameter_str)
+  virtual void set_parameter_str(const String_type &parameter_str)
   { Routine_impl::set_parameter_str(parameter_str); }
   virtual bool is_deterministic() const
   { return Routine_impl::is_deterministic(); }
@@ -93,12 +93,12 @@ public:
   { return Routine_impl::sql_mode(); }
   virtual void set_sql_mode(ulonglong sm)
   { Routine_impl::set_sql_mode(sm); }
-  virtual const std::string &definer_user() const
+  virtual const String_type &definer_user() const
   { return Routine_impl::definer_user(); }
-  virtual const std::string &definer_host() const
+  virtual const String_type &definer_host() const
   { return Routine_impl::definer_host(); }
-  virtual void set_definer(const std::string &username,
-                           const std::string &hostname)
+  virtual void set_definer(const String_type &username,
+                           const String_type &hostname)
   { Routine_impl::set_definer(username, hostname); }
   virtual Object_id client_collation_id() const
   { return Routine_impl::client_collation_id(); }
@@ -120,9 +120,9 @@ public:
   { return Routine_impl::last_altered(); }
   virtual void set_last_altered(ulonglong last_altered)
   { Routine_impl::set_last_altered(last_altered); }
-  virtual const std::string &comment() const
+  virtual const String_type &comment() const
   { return Routine_impl::comment(); }
-  virtual void set_comment(const std::string &comment)
+  virtual void set_comment(const String_type &comment)
   { Routine_impl::set_comment(comment); }
   virtual Parameter *add_parameter()
   { return Routine_impl::add_parameter(); }

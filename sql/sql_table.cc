@@ -8468,7 +8468,7 @@ static fk_match_opt to_fk_match_opt(dd::Foreign_key::enum_match_option match)
 
 static void to_lex_cstring(MEM_ROOT *mem_root,
                            LEX_CSTRING *target,
-                           const std::string &source)
+                           const dd::String_type &source)
 {
   target->str= strmake_root(mem_root, source.c_str(), source.length() + 1);
   target->length= source.length();

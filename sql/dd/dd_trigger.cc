@@ -35,7 +35,7 @@
 #include "trigger.h"                     // Trigger
 #include "tztime.h"                      // Time_zone
 
-#include <string>                        // std::string
+#include "dd/string_type.h"              // dd::String_type
 
 namespace dd
 {
@@ -122,23 +122,23 @@ get_dd_action_timing(const ::Trigger *new_trigger)
 static bool fill_in_dd_trigger_object(THD *thd, const ::Trigger *new_trigger,
                                       Trigger *dd_trig_obj)
 {
-  dd_trig_obj->set_name(std::string(new_trigger->get_trigger_name().str,
+  dd_trig_obj->set_name(String_type(new_trigger->get_trigger_name().str,
                                     new_trigger->get_trigger_name().length));
   dd_trig_obj->set_definer(
-    std::string(new_trigger->get_definer_user().str,
+    String_type(new_trigger->get_definer_user().str,
                 new_trigger->get_definer_user().length),
-    std::string(new_trigger->get_definer_host().str,
+    String_type(new_trigger->get_definer_host().str,
                 new_trigger->get_definer_host().length));
 
   dd_trig_obj->set_event_type(get_dd_event_type(new_trigger));
   dd_trig_obj->set_action_timing(get_dd_action_timing(new_trigger));
 
   dd_trig_obj->set_action_statement(
-    std::string(new_trigger->get_definition().str,
+    String_type(new_trigger->get_definition().str,
                 new_trigger->get_definition().length));
 
   dd_trig_obj->set_action_statement_utf8(
-    std::string(new_trigger->get_definition_utf8().str,
+    String_type(new_trigger->get_definition_utf8().str,
                 new_trigger->get_definition_utf8().length));
 
   dd_trig_obj->set_sql_mode(new_trigger->get_sql_mode());
@@ -548,7 +548,7 @@ bool check_trigger_exists(THD *thd,
     return true;
   }
 
-  std::string table_name;
+  String_type table_name;
   if (dd_client->get_table_name_by_trigger_name(sch_obj->id(),
                                                 trigger_name,
                                                 &table_name))
@@ -689,7 +689,7 @@ bool drop_all_triggers(THD *thd,
 bool get_table_name_for_trigger(THD *thd,
                                 const char *schema_name,
                                 const char *trigger_name,
-                                std::string *table_name,
+                                String_type *table_name,
                                 bool *trigger_found,
                                 bool push_warning_if_not_exist)
 {

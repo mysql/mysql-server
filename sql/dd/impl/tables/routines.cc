@@ -203,7 +203,7 @@ Dictionary_object *Routines::create_dictionary_object(
 bool Routines::update_object_key(Routine_name_key *key,
                                  Object_id schema_id,
                                  Routine::enum_routine_type type,
-                                 const std::string &routine_name)
+                                 const String_type &routine_name)
 {
   key->update(FIELD_SCHEMA_ID, schema_id,
               FIELD_TYPE, type,

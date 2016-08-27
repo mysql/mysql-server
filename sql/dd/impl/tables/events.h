@@ -31,9 +31,9 @@ class Events : public Dictionary_object_table_impl
 public:
   static const Events &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("events");
+    static String_type s_table_name("events");
     return s_table_name;
   }
 
@@ -66,14 +66,14 @@ public:
 
   Events();
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Events::table_name(); }
 
   virtual Dictionary_object *create_dictionary_object(const Raw_record &) const;
 
   static bool update_object_key(Item_name_key *key,
                                 Object_id schema_id,
-                                const std::string &event_name);
+                                const String_type &event_name);
 
   static Object_key *create_key_by_schema_id(Object_id schema_id);
 };

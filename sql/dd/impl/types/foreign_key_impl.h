@@ -73,7 +73,7 @@ public:
 
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
-  void debug_print(std::string &outb) const;
+  void debug_print(String_type &outb) const;
 
 public:
   void set_ordinal_position(uint ordinal_position)
@@ -141,30 +141,30 @@ public:
   // the catalog name of the referenced table.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &referenced_table_catalog_name() const
+  virtual const String_type &referenced_table_catalog_name() const
   { return m_referenced_table_catalog_name; }
 
-  virtual void referenced_table_catalog_name(const std::string &name)
+  virtual void referenced_table_catalog_name(const String_type &name)
   { m_referenced_table_catalog_name= name; }
 
   /////////////////////////////////////////////////////////////////////////
   // the schema name of the referenced table.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &referenced_table_schema_name() const
+  virtual const String_type &referenced_table_schema_name() const
   { return m_referenced_table_schema_name; }
 
-  virtual void referenced_table_schema_name(const std::string &name)
+  virtual void referenced_table_schema_name(const String_type &name)
   { m_referenced_table_schema_name= name; }
 
   /////////////////////////////////////////////////////////////////////////
   // the name of the referenced table.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &referenced_table_name() const
+  virtual const String_type &referenced_table_name() const
   { return m_referenced_table_name; }
 
-  virtual void referenced_table_name(const std::string &name)
+  virtual void referenced_table_name(const String_type &name)
   { m_referenced_table_name= name; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -185,9 +185,9 @@ public:
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
   { return Entity_object_impl::is_persistent(); }
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Entity_object_impl::name(); }
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const String_type &name)
   { Entity_object_impl::set_name(name); }
 
 public:
@@ -206,9 +206,9 @@ private:
 
   const Index *m_unique_constraint;
 
-  std::string m_referenced_table_catalog_name;
-  std::string m_referenced_table_schema_name;
-  std::string m_referenced_table_name;
+  String_type m_referenced_table_catalog_name;
+  String_type m_referenced_table_schema_name;
+  String_type m_referenced_table_name;
 
   Table_impl *m_table;
 

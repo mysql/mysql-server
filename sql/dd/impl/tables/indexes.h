@@ -32,9 +32,9 @@ class Indexes : public Object_table_impl
 public:
   static const Indexes &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("indexes");
+    static String_type s_table_name("indexes");
     return s_table_name;
   }
 
@@ -61,7 +61,7 @@ public:
 public:
   Indexes();
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Indexes::table_name(); }
 
 public:

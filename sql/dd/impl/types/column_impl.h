@@ -68,7 +68,7 @@ public:
 
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
-  void debug_print(std::string &outb) const;
+  void debug_print(String_type &outb) const;
 
   void set_ordinal_position(uint ordinal_position)
   { m_ordinal_position= ordinal_position; }
@@ -221,10 +221,10 @@ public:
   // default_value (binary).
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &default_value() const
+  virtual const String_type &default_value() const
   { return m_default_value; }
 
-  virtual void set_default_value(const std::string &default_value)
+  virtual void set_default_value(const String_type &default_value)
   {
     m_default_value_null= false;
     m_default_value= default_value;
@@ -240,10 +240,10 @@ public:
   // default_value_utf8
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &default_value_utf8() const
+  virtual const String_type &default_value_utf8() const
   { return m_default_value_utf8; }
 
-  virtual void set_default_value_utf8(const std::string &default_value_utf8)
+  virtual void set_default_value_utf8(const String_type &default_value_utf8)
   {
     m_default_value_utf8_null= false;
     m_default_value_utf8= default_value_utf8;
@@ -271,10 +271,10 @@ public:
   // generation_expression (binary).
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &generation_expression() const
+  virtual const String_type &generation_expression() const
   { return m_generation_expression; }
 
-  virtual void set_generation_expression(const std::string
+  virtual void set_generation_expression(const String_type
                                          &generation_expression)
   { m_generation_expression= generation_expression; }
 
@@ -285,10 +285,10 @@ public:
   // generation_expression_utf8
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &generation_expression_utf8() const
+  virtual const String_type &generation_expression_utf8() const
   { return m_generation_expression_utf8; }
 
-  virtual void set_generation_expression_utf8(const std::string
+  virtual void set_generation_expression_utf8(const String_type
                                               &generation_expression_utf8)
   { m_generation_expression_utf8= generation_expression_utf8; }
 
@@ -299,30 +299,30 @@ public:
   // default_option.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &default_option() const
+  virtual const String_type &default_option() const
   { return m_default_option; }
 
-  virtual void set_default_option(const std::string &default_option)
+  virtual void set_default_option(const String_type &default_option)
   { m_default_option= default_option; }
 
   /////////////////////////////////////////////////////////////////////////
   // update_option.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &update_option() const
+  virtual const String_type &update_option() const
   { return m_update_option; }
 
-  virtual void set_update_option(const std::string &update_option)
+  virtual void set_update_option(const String_type &update_option)
   { m_update_option= update_option; }
 
   /////////////////////////////////////////////////////////////////////////
   // Comment.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &comment() const
+  virtual const String_type &comment() const
   { return m_comment; }
 
-  virtual void set_comment(const std::string &comment)
+  virtual void set_comment(const String_type &comment)
   { m_comment= comment; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -345,7 +345,7 @@ public:
   virtual Properties &options()
   { return *m_options; }
 
-  virtual bool set_options_raw(const std::string &options_raw);
+  virtual bool set_options_raw(const String_type &options_raw);
 
   /////////////////////////////////////////////////////////////////////////
   // se_private_data.
@@ -357,7 +357,7 @@ public:
   virtual Properties &se_private_data()
   { return *m_se_private_data; }
 
-  virtual bool set_se_private_data_raw(const std::string &se_private_data_raw);
+  virtual bool set_se_private_data_raw(const String_type &se_private_data_raw);
 
   /////////////////////////////////////////////////////////////////////////
   // Column key type.
@@ -388,10 +388,10 @@ public:
   // Column display type
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &column_type_utf8() const
+  virtual const String_type &column_type_utf8() const
   { return m_column_type_utf8; }
 
-  virtual void set_column_type_utf8(const std::string &column_type_utf8)
+  virtual void set_column_type_utf8(const String_type &column_type_utf8)
   { m_column_type_utf8= column_type_utf8; }
 
   virtual size_t elements_count() const
@@ -406,9 +406,9 @@ public:
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
   { return Entity_object_impl::is_persistent(); }
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Entity_object_impl::name(); }
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const String_type &name)
   { Entity_object_impl::set_name(name); }
 
 public:
@@ -451,16 +451,16 @@ private:
   bool m_has_no_default;
 
   bool m_default_value_null;
-  std::string m_default_value;
+  String_type m_default_value;
   bool m_default_value_utf8_null;
-  std::string m_default_value_utf8;
+  String_type m_default_value_utf8;
 
-  std::string m_default_option;
-  std::string m_update_option;
-  std::string m_comment;
+  String_type m_default_option;
+  String_type m_update_option;
+  String_type m_comment;
 
-  std::string m_generation_expression;
-  std::string m_generation_expression_utf8;
+  String_type m_generation_expression;
+  String_type m_generation_expression_utf8;
 
   std::unique_ptr<Properties> m_options;
   std::unique_ptr<Properties> m_se_private_data;
@@ -471,7 +471,7 @@ private:
 
   Column_type_element_collection m_elements;
 
-  std::string m_column_type_utf8;
+  String_type m_column_type_utf8;
 
   // References to loosely-coupled objects.
 

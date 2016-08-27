@@ -65,8 +65,7 @@ namespace dd {
   class  Tablespace;
   typedef struct sdi_key sdi_key_t;
   typedef struct sdi_vector sdi_vector_t;
-  typedef std::string sdi_t;
-};
+}
 
 typedef my_bool (*qc_engine_callback)(THD *thd, const char *table_key,
                                       uint key_length,
@@ -1188,7 +1187,7 @@ typedef uint32 (*sdi_get_num_copies_t)(const dd::Tablespace &tablespace);
     @retval true otherwise.
 */
 typedef bool (*store_schema_sdi_t)(THD *thd, handlerton *hton,
-                                   const dd::sdi_t &sdi,
+                                   const LEX_CSTRING &sdi,
                                    const dd::Schema *schema,
                                    const dd::Table *table);
 
@@ -1201,7 +1200,7 @@ typedef bool (*store_schema_sdi_t)(THD *thd, handlerton *hton,
     @retval true otherwise.
 */
 typedef bool (*store_table_sdi_t)(THD *thd, handlerton *hton,
-                                  const dd::sdi_t &sdi,
+                                  const LEX_CSTRING &sdi,
                                   const dd::Table *table,
                                   const dd::Schema *schema);
 
@@ -5245,7 +5244,6 @@ handlerton *ha_default_temp_handlerton(THD *thd);
   @return plugin or NULL if not found.
 */
 plugin_ref ha_resolve_by_name_raw(THD *thd, const LEX_CSTRING &name);
-plugin_ref ha_resolve_by_name_raw(THD *thd, const std::string &name);
 plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name,
                               bool is_temp_table);
 plugin_ref ha_lock_engine(THD *thd, const handlerton *hton);

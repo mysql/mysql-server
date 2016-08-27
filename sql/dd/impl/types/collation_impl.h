@@ -94,20 +94,20 @@ public:
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
   { return Entity_object_impl::is_persistent(); }
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Entity_object_impl::name(); }
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const String_type &name)
   { Entity_object_impl::set_name(name); }
 
 public:
-  virtual void debug_print(std::string &outb) const
+  virtual void debug_print(String_type &outb) const
   {
     char outbuf[1024];
     sprintf(outbuf, "COLLATION OBJECT: id= {OID: %lld}, name= %s,"
       "charset_id= {OID: %lld}, is_compiled= %d, sort_length= %u",
       id(), name().c_str(), m_charset_id,
       m_is_compiled, m_sort_length);
-    outb= std::string(outbuf);
+    outb= String_type(outbuf);
   }
 
 private:

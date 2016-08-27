@@ -92,8 +92,8 @@ public:
   // comment.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &comment() const = 0;
-  virtual void set_comment(const std::string &comment) = 0;
+  virtual const String_type &comment() const = 0;
+  virtual void set_comment(const String_type &comment) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Options.
@@ -102,7 +102,7 @@ public:
   virtual const Properties &options() const = 0;
 
   virtual Properties &options() = 0;
-  virtual bool set_options_raw(const std::string &options_raw) = 0;
+  virtual bool set_options_raw(const String_type &options_raw) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // se_private_data.
@@ -111,7 +111,7 @@ public:
   virtual const Properties &se_private_data() const = 0;
 
   virtual Properties &se_private_data() = 0;
-  virtual bool set_se_private_data_raw(const std::string &se_private_data_raw) = 0;
+  virtual bool set_se_private_data_raw(const String_type &se_private_data_raw) = 0;
   virtual void set_se_private_data(const Properties &se_private_data)= 0;
 
   /////////////////////////////////////////////////////////////////////////
@@ -125,8 +125,8 @@ public:
   // Engine.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &engine() const = 0;
-  virtual void set_engine(const std::string &engine) = 0;
+  virtual const String_type &engine() const = 0;
+  virtual void set_engine(const String_type &engine) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Index type.

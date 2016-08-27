@@ -32,9 +32,9 @@ class Table_partition_values : public Object_table_impl
 public:
   static const Table_partition_values &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("table_partition_values");
+    static String_type s_table_name("table_partition_values");
     return s_table_name;
   }
 
@@ -51,7 +51,7 @@ public:
 public:
   Table_partition_values();
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Table_partition_values::table_name(); }
 
 public:

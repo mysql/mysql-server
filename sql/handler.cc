@@ -392,25 +392,6 @@ plugin_ref ha_resolve_by_name_raw(THD *thd, const LEX_CSTRING &name)
 }
 
 
-/**
-  Resolve handlerton plugin by name, without checking for "DEFAULT" or
-  HTON_NOT_USER_SELECTABLE.
-
-  @param thd  Thread context.
-  @param name Plugin name.
-
-  @return plugin or NULL if not found.
-*/
-plugin_ref ha_resolve_by_name_raw(THD *thd, const  std::string &name)
-{
-  LEX_CSTRING se_name;
-  se_name.str= name.c_str();
-  se_name.length= name.length();
-
-  return ha_resolve_by_name_raw(thd, se_name);
-}
-
-
 /** @brief
   Return the storage engine handlerton for the supplied name
   

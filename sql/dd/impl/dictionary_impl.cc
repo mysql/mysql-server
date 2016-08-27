@@ -42,7 +42,7 @@ Dictionary_impl *Dictionary_impl::instance()
 }
 
 Object_id Dictionary_impl::DEFAULT_CATALOG_ID= 1;
-const std::string Dictionary_impl::DEFAULT_CATALOG_NAME("def");
+const String_type Dictionary_impl::DEFAULT_CATALOG_NAME("def");
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -165,8 +165,8 @@ uint Dictionary_impl::get_actual_dd_version(THD *thd, bool *not_used)
 ///////////////////////////////////////////////////////////////////////////
 
 const Object_table *Dictionary_impl::get_dd_table(
-  const std::string &schema_name,
-  const std::string &table_name) const
+  const String_type &schema_name,
+  const String_type &table_name) const
 {
   if (!is_dd_schema_name(schema_name))
     return NULL;
@@ -213,8 +213,8 @@ bool Dictionary_impl::is_dd_table_access_allowed(
     return true;
 
   // Now we need to get the table type.
-  const std::string schema_str(schema_name);
-  const std::string table_str(table_name);
+  const String_type schema_str(schema_name);
+  const String_type table_str(table_name);
   const System_tables::Types *table_type= System_tables::instance()->
                                find_type(schema_str, table_str);
 

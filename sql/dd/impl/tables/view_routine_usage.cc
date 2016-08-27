@@ -41,12 +41,12 @@ View_routine_usage::View_routine_usage()
   m_target_def.add_field(FIELD_ROUTINE_CATALOG,
                          "FIELD_ROUTINE_CATALOG",
                          "routine_catalog VARCHAR(64) NOT NULL COLLATE " +
-                         std::string(Object_table_definition_impl::
+                         String_type(Object_table_definition_impl::
                                      fs_name_collation()->name));
   m_target_def.add_field(FIELD_ROUTINE_SCHEMA,
                          "FIELD_ROUTINE_SCHEMA",
                          "routine_schema VARCHAR(64) NOT NULL COLLATE " +
-                         std::string(Object_table_definition_impl::
+                         String_type(Object_table_definition_impl::
                                      fs_name_collation()->name));
   m_target_def.add_field(FIELD_ROUTINE_NAME,
                          "FIELD_ROUTINE_NAME",
@@ -74,9 +74,9 @@ Object_key *View_routine_usage::create_key_by_view_id(
 
 Object_key *View_routine_usage::create_primary_key(
   Object_id view_id,
-  const std::string &routine_catalog,
-  const std::string &routine_schema,
-  const std::string &routine_name)
+  const String_type &routine_catalog,
+  const String_type &routine_schema,
+  const String_type &routine_name)
 {
   const int index_no= 0;
 
@@ -94,9 +94,9 @@ Object_key *View_routine_usage::create_primary_key(
 ///////////////////////////////////////////////////////////////////////////
 
 Object_key *View_routine_usage::create_key_by_name(
-  const std::string &routine_catalog,
-  const std::string &routine_schema,
-  const std::string &routine_name)
+  const String_type &routine_catalog,
+  const String_type &routine_schema,
+  const String_type &routine_name)
 {
   const int index_no= 1;
 

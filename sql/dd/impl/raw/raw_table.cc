@@ -25,7 +25,7 @@ namespace dd {
 ///////////////////////////////////////////////////////////////////////////
 
 Raw_table::Raw_table(thr_lock_type lock_type,
-                     const std::string &name)
+                     const String_type &name)
 {
   m_table_list.init_one_table(STRING_WITH_LEN("mysql"),
                               name.c_str(),

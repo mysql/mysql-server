@@ -154,7 +154,7 @@ Dictionary_object *Character_sets::create_dictionary_object(const Raw_record &) 
 
 bool Character_sets::update_object_key(
   Global_name_key *key,
-  const std::string &charset_name)
+  const String_type &charset_name)
 {
   key->update(FIELD_NAME, charset_name);
   return false;

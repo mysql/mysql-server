@@ -110,9 +110,9 @@ bool View_table_impl::store_attributes(Raw_record *r)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void View_table_impl::debug_print(std::string &outb) const
+void View_table_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
     << "VIEW TABLE OBJECT: { "
     << "m_view: {OID: " << m_view->id() << "}; "

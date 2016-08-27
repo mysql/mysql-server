@@ -830,7 +830,7 @@ bool Dictionary_client::acquire_uncached_uncommitted(Object_id id,
 
 // Retrieve an object by its name.
 template <typename T>
-bool Dictionary_client::acquire(const std::string &object_name,
+bool Dictionary_client::acquire(const String_type &object_name,
                                 const T** object)
 {
   // Create the name key for the object.
@@ -869,7 +869,7 @@ bool Dictionary_client::acquire(const std::string &object_name,
 
 // Retrieve an object by its name without caching it.
 template <typename T>
-bool Dictionary_client::acquire_uncached(const std::string &object_name,
+bool Dictionary_client::acquire_uncached(const String_type &object_name,
                                          const T** object)
 {
   // Create the name key for the object.
@@ -908,8 +908,8 @@ bool Dictionary_client::acquire_uncached(const std::string &object_name,
 
 // Retrieve an object by its schema- and object name.
 template <typename T>
-bool Dictionary_client::acquire(const std::string &schema_name,
-                                const std::string &object_name,
+bool Dictionary_client::acquire(const String_type &schema_name,
+                                const String_type &object_name,
                                 const T** object)
 {
   // We must make sure the schema is released and unlocked in the right order.
@@ -968,8 +968,8 @@ bool Dictionary_client::acquire(const std::string &schema_name,
 // Retrieve an object by its schema- and object name. Return as double
 // pointer to base type.
 template <typename T>
-bool Dictionary_client::acquire(const std::string &schema_name,
-                                const std::string &object_name,
+bool Dictionary_client::acquire(const String_type &schema_name,
+                                const String_type &object_name,
                                 const typename T::cache_partition_type** object)
 {
   // We must make sure the schema is released and unlocked in the right order.
@@ -1021,8 +1021,8 @@ bool Dictionary_client::acquire(const std::string &schema_name,
 
 // Retrieve an object by its schema- and object name without caching it.
 template <typename T>
-bool Dictionary_client::acquire_uncached(const std::string &schema_name,
-                                         const std::string &object_name,
+bool Dictionary_client::acquire_uncached(const String_type &schema_name,
+                                         const String_type &object_name,
                                          const T** object)
 {
   // We must make sure the schema is released and unlocked in the right order.
@@ -1080,7 +1080,7 @@ bool Dictionary_client::acquire_uncached(const std::string &schema_name,
 
 // Retrieve a table object by its se private id.
 bool Dictionary_client::acquire_uncached_table_by_se_private_id(
-                                      const std::string &engine,
+                                      const String_type &engine,
                                       Object_id se_private_id,
                                       const Table **table)
 {
@@ -1125,7 +1125,7 @@ bool Dictionary_client::acquire_uncached_table_by_se_private_id(
 // Retrieve a table object by its partition se private id.
 /* purecov: begin deadcode */
 bool Dictionary_client::acquire_uncached_table_by_partition_se_private_id(
-                          const std::string &engine,
+                          const String_type &engine,
                           Object_id se_partition_id,
                           const Table **table)
 {
@@ -1182,10 +1182,10 @@ public:
 
 // Get names of index and column names from index statistics entries.
 static bool get_index_statistics_entries(THD *thd,
-                                  const std::string &schema_name,
-                                  const std::string &table_name,
-                                  std::vector<std::string> &index_names,
-                                  std::vector<std::string> &column_names)
+                                  const String_type &schema_name,
+                                  const String_type &table_name,
+                                  std::vector<String_type> &index_names,
+                                  std::vector<String_type> &column_names)
 {
   dd::Transaction_ro trx(thd, ISO_READ_COMMITTED);
 
@@ -1238,14 +1238,14 @@ static bool get_index_statistics_entries(THD *thd,
   mysql.index_stats.
 */
 bool Dictionary_client::remove_table_dynamic_statistics(
-                                          const std::string &schema_name,
-                                          const std::string &table_name)
+                                          const String_type &schema_name,
+                                          const String_type &table_name)
 {
   //
   // Get list of index statistics entries.
   //
 
-  std::vector<std::string> index_names, column_names;
+  std::vector<String_type> index_names, column_names;
   if (get_index_statistics_entries(m_thd,
                                    schema_name,
                                    table_name,
@@ -1265,8 +1265,8 @@ bool Dictionary_client::remove_table_dynamic_statistics(
   if (!index_names.empty())
   {
     const Index_stat *idx_stat;
-    std::vector<std::string>::iterator it_idxs= index_names.begin();
-    std::vector<std::string>::iterator it_cols= column_names.begin();
+    std::vector<String_type>::iterator it_idxs= index_names.begin();
+    std::vector<String_type>::iterator it_cols= column_names.begin();
     while(it_idxs != index_names.end())
     {
       // Fetch the entry.
@@ -1328,10 +1328,10 @@ bool Dictionary_client::remove_table_dynamic_statistics(
 
 // Retrieve a schema- and table name by the se private id of the table.
 bool Dictionary_client::get_table_name_by_se_private_id(
-                                    const std::string &engine,
+                                    const String_type &engine,
                                     Object_id se_private_id,
-                                    std::string *schema_name,
-                                    std::string *table_name)
+                                    String_type *schema_name,
+                                    String_type *table_name)
 {
   // Objects to be acquired.
   const Table *tab_obj= NULL;
@@ -1382,10 +1382,10 @@ bool Dictionary_client::get_table_name_by_se_private_id(
 // Retrieve a schema- and table name by the se private id of the partition.
 /* purecov: begin deadcode */
 bool Dictionary_client::get_table_name_by_partition_se_private_id(
-                                      const std::string &engine,
+                                      const String_type &engine,
                                       Object_id se_partition_id,
-                                      std::string *schema_name,
-                                      std::string *table_name)
+                                      String_type *schema_name,
+                                      String_type *table_name)
 {
   const Table *tab_obj= NULL;
   const Schema *sch_obj= NULL;
@@ -1432,8 +1432,8 @@ bool Dictionary_client::get_table_name_by_partition_se_private_id(
 
 bool Dictionary_client::get_table_name_by_trigger_name(
                           Object_id schema_id,
-                          const std::string &trigger_name,
-                          std::string *table_name)
+                          const String_type &trigger_name,
+                          String_type *table_name)
 {
   DBUG_ASSERT(table_name != nullptr);
   *table_name= "";
@@ -1487,7 +1487,7 @@ bool Dictionary_client::get_table_name_by_trigger_name(
 
 // Get the highest currently used se private id for the table objects.
 /* purecov: begin deadcode */
-bool Dictionary_client::get_tables_max_se_private_id(const std::string &engine,
+bool Dictionary_client::get_tables_max_se_private_id(const String_type &engine,
                                                      Object_id *max_id)
 {
   dd::Transaction_ro trx(m_thd, ISO_READ_COMMITTED);
@@ -1510,7 +1510,7 @@ bool Dictionary_client::get_tables_max_se_private_id(const std::string &engine,
 template <typename T>
 bool Dictionary_client::fetch_schema_component_names(
     const Schema *schema,
-    std::vector<std::string> *names) const
+    std::vector<String_type> *names) const
 {
   DBUG_ASSERT(names);
 
@@ -1731,9 +1731,9 @@ bool Dictionary_client::fetch_referencing_views_object_id(
   // Create the key based on the base table/ view/ stored function name.
   std::unique_ptr<Object_key> object_key(
     T::cache_partition_table_type::create_key_by_name(
-      std::string(Dictionary_impl::default_catalog_name()),
-      std::string(schema),
-      std::string(tbl_or_sf_name)));
+      String_type(Dictionary_impl::default_catalog_name()),
+      String_type(schema),
+      String_type(tbl_or_sf_name)));
   std::unique_ptr<Raw_record_set> rs;
   if (view_usage_table->open_record_set(object_key.get(), rs))
   {
@@ -2097,11 +2097,11 @@ template bool Dictionary_client::fetch_global_components(
 
 template bool Dictionary_client::fetch_schema_component_names<Abstract_table>(
     const Schema*,
-    std::vector<std::string>*) const;
+    std::vector<String_type>*) const;
 
 template bool Dictionary_client::fetch_schema_component_names<Event>(
     const Schema*,
-    std::vector<std::string>*) const;
+    std::vector<String_type>*) const;
 
 template bool Dictionary_client::fetch_referencing_views_object_id<View_table>(
     const char *schema,
@@ -2115,11 +2115,11 @@ template bool Dictionary_client::fetch_referencing_views_object_id<View_routine>
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   const Abstract_table**);
-template bool Dictionary_client::acquire<Abstract_table>(const std::string&,
-                                         const std::string&,
+template bool Dictionary_client::acquire<Abstract_table>(const String_type&,
+                                         const String_type&,
                                          const Abstract_table**);
-template bool Dictionary_client::acquire_uncached(const std::string&,
-                                                  const std::string&,
+template bool Dictionary_client::acquire_uncached(const String_type&,
+                                                  const String_type&,
                                                   const Abstract_table**);
 template bool Dictionary_client::drop(const Abstract_table*);
 template bool Dictionary_client::store(Abstract_table*);
@@ -2132,7 +2132,7 @@ template bool Dictionary_client::is_sticky(const Abstract_table*) const;
 template void Dictionary_client::dump<Abstract_table>() const;
 
 template bool Dictionary_client::acquire(Object_id, dd::Charset const**);
-template bool Dictionary_client::acquire<dd::Charset>(std::string const&,
+template bool Dictionary_client::acquire<dd::Charset>(String_type const&,
                                                       dd::Charset const**);
 
 template bool Dictionary_client::drop(const Charset*);
@@ -2150,7 +2150,7 @@ template bool Dictionary_client::acquire_uncached(Object_id,
 template bool Dictionary_client::acquire(Object_id, dd::Collation const**);
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   const Collation**);
-template bool Dictionary_client::acquire(const std::string &,
+template bool Dictionary_client::acquire(const String_type &,
                                          const Collation**);
 template bool Dictionary_client::drop(const Collation*);
 template bool Dictionary_client::store(Collation*);
@@ -2166,7 +2166,7 @@ template bool Dictionary_client::acquire(Object_id, dd::Schema const**);
 /* purecov: end */
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   const Schema**);
-template bool Dictionary_client::acquire_uncached(const std::string&,
+template bool Dictionary_client::acquire_uncached(const String_type&,
                                                   const Schema**);
 template bool Dictionary_client::drop(const Schema*);
 template bool Dictionary_client::store(Schema*);
@@ -2183,7 +2183,7 @@ template bool Dictionary_client::acquire_uncached(
     Object_id,
     const Spatial_reference_system**);
 template bool Dictionary_client::acquire_uncached(
-    const std::string&,
+    const String_type&,
     const Spatial_reference_system**);
 template bool Dictionary_client::drop(const Spatial_reference_system*);
 template bool Dictionary_client::store(Spatial_reference_system*);
@@ -2204,11 +2204,11 @@ template bool Dictionary_client::acquire_uncached_uncommitted(Object_id,
                                                   const Table**);
 template bool Dictionary_client::acquire(Object_id,
                                          const Table**);
-template bool Dictionary_client::acquire(const std::string&,
-                                         const std::string&,
+template bool Dictionary_client::acquire(const String_type&,
+                                         const String_type&,
                                          const Table**);
-template bool Dictionary_client::acquire_uncached(const std::string&,
-                                                  const std::string&,
+template bool Dictionary_client::acquire_uncached(const String_type&,
+                                                  const String_type&,
                                                   const Table**);
 template bool Dictionary_client::drop(const Table*);
 template bool Dictionary_client::store(Table*);
@@ -2223,9 +2223,9 @@ template bool Dictionary_client::acquire_uncached(Object_id,
                                                   const Tablespace**);
 template bool Dictionary_client::acquire_uncached_uncommitted(Object_id,
                                                             const Tablespace**);
-template bool Dictionary_client::acquire(const std::string&,
+template bool Dictionary_client::acquire(const String_type&,
                                          const Tablespace**);
-template bool Dictionary_client::acquire_uncached(const std::string&,
+template bool Dictionary_client::acquire_uncached(const String_type&,
                                                   const Tablespace**);
 template bool Dictionary_client::acquire(Object_id,
                                          const Tablespace**);
@@ -2243,11 +2243,11 @@ template bool Dictionary_client::acquire_uncached(Object_id,
                                                   const View**);
 template bool Dictionary_client::acquire(Object_id,
                                          const View**);
-template bool Dictionary_client::acquire(const std::string&,
-                                         const std::string&,
+template bool Dictionary_client::acquire(const String_type&,
+                                         const String_type&,
                                          const View**);
-template bool Dictionary_client::acquire_uncached(const std::string&,
-                                                  const std::string&,
+template bool Dictionary_client::acquire_uncached(const String_type&,
+                                                  const String_type&,
                                                   const View**);
 template bool Dictionary_client::drop(const View*);
 template bool Dictionary_client::store(View*);
@@ -2264,11 +2264,11 @@ template bool Dictionary_client::acquire_uncached(Object_id,
                                                   const Event**);
 template bool Dictionary_client::acquire(Object_id,
                                          const Event**);
-template bool Dictionary_client::acquire<Event>(const std::string&,
-                                                const std::string&,
+template bool Dictionary_client::acquire<Event>(const String_type&,
+                                                const String_type&,
                                                 const Event**);
-template bool Dictionary_client::acquire_uncached(const std::string&,
-                                                  const std::string&,
+template bool Dictionary_client::acquire_uncached(const String_type&,
+                                                  const String_type&,
                                                   const Event**);
 template bool Dictionary_client::drop(const Event*);
 template bool Dictionary_client::store(Event*);
@@ -2283,11 +2283,11 @@ template bool Dictionary_client::acquire_uncached(Object_id,
                                                   const Function**);
 template bool Dictionary_client::acquire(Object_id,
                                          const Function**);
-template bool Dictionary_client::acquire(const std::string&,
-                                         const std::string&,
+template bool Dictionary_client::acquire(const String_type&,
+                                         const String_type&,
                                          const Function**);
-template bool Dictionary_client::acquire_uncached(const std::string&,
-                                                  const std::string&,
+template bool Dictionary_client::acquire_uncached(const String_type&,
+                                                  const String_type&,
                                                   const Function**);
 template bool Dictionary_client::drop(const Function*);
 template bool Dictionary_client::store(Function*);
@@ -2302,11 +2302,11 @@ template bool Dictionary_client::acquire_uncached(Object_id,
                                                   const Procedure**);
 template bool Dictionary_client::acquire(Object_id,
                                          const Procedure**);
-template bool Dictionary_client::acquire(const std::string&,
-                                         const std::string&,
+template bool Dictionary_client::acquire(const String_type&,
+                                         const String_type&,
                                          const Procedure**);
-template bool Dictionary_client::acquire_uncached(const std::string&,
-                                                  const std::string&,
+template bool Dictionary_client::acquire_uncached(const String_type&,
+                                                  const String_type&,
                                                   const Procedure**);
 template bool Dictionary_client::drop(const Procedure*);
 template bool Dictionary_client::store(Procedure*);
@@ -2320,12 +2320,12 @@ template bool Dictionary_client::drop(const Routine*);
 template bool Dictionary_client::update(const Routine**, Routine*, bool);
 
 template bool Dictionary_client::acquire<Function>(
-  const std::string&,
-  const std::string&,
+  const String_type&,
+  const String_type&,
   const Function::cache_partition_type**);
 template bool Dictionary_client::acquire<Procedure>(
-  const std::string&,
-  const std::string&,
+  const String_type&,
+  const String_type&,
   const Procedure::cache_partition_type**);
 
 template bool Dictionary_client::acquire_uncached(Object_id,

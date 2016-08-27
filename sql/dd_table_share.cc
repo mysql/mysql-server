@@ -23,6 +23,7 @@
 #include "sql_partition.h"                    // generate_partition_syntax
 #include "sql_plugin.h"                       // plugin_unlock
 #include "sql_table.h"                        // primary_key_name
+#include "strfunc.h"                          // lex_cstring_handle
 
 #include "dd/dd.h"                            // dd::get_dictionary
 #include "dd/dd_table.h"                      // dd::abstract_table_type
@@ -553,7 +554,8 @@ static row_type dd_get_old_row_format(dd::Table::enum_row_format new_format)
 static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share, const dd::Table *tab_obj)
 {
   // Read table engine type
-  plugin_ref tmp_plugin= ha_resolve_by_name_raw(thd, tab_obj->engine());
+  plugin_ref tmp_plugin=
+    ha_resolve_by_name_raw(thd, lex_cstring_handle(tab_obj->engine()));
   if (tmp_plugin)
   {
 #ifndef DBUG_OFF
@@ -712,7 +714,7 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share, const dd::Table *ta
     return true;
 
   // Read comment
-  std::string comment= tab_obj->comment();
+  dd::String_type comment= tab_obj->comment();
   if (comment.length())
   {
     share->comment.str= strmake_root(&share->mem_root,
@@ -792,7 +794,7 @@ static bool fill_column_from_dd(TABLE_SHARE *share,
   //
 
   // Column name
-  std::string s= col_obj->name();
+  dd::String_type s= col_obj->name();
   DBUG_ASSERT(!s.empty());
   name= strmake_root(&share->mem_root, s.c_str(), s.length());
   name[s.length()]= '\0';
@@ -910,7 +912,7 @@ static bool fill_column_from_dd(TABLE_SHARE *share,
     for (const dd::Column_type_element *ce : col_obj->elements())
     {
       // Read the enum/set element name
-      std::string element_name= ce->name();
+      dd::String_type element_name= ce->name();
 
       uint pos= ce->index() - 1;
       interval->type_lengths[pos]= static_cast<uint>(element_name.length());
@@ -931,7 +933,7 @@ static bool fill_column_from_dd(TABLE_SHARE *share,
     gcol_info->set_field_stored(!col_obj->is_virtual());
 
     // Read generation expression.
-    std::string gc_expr= col_obj->generation_expression();
+    dd::String_type gc_expr= col_obj->generation_expression();
 
     /*
       Place the expression's text into the TABLE_SHARE. Field objects of
@@ -1003,7 +1005,7 @@ static bool fill_column_from_dd(TABLE_SHARE *share,
   reg_field->set_column_format(field_column_format);
 
   // Comments
-  std::string comment= col_obj->comment();
+  dd::String_type comment= col_obj->comment();
   reg_field->comment.length= comment.length();
   if (reg_field->comment.length)
   {
@@ -1219,7 +1221,7 @@ static bool fill_index_from_dd(TABLE_SHARE *share, const dd::Index *idx_obj,
   KEY *keyinfo= share->key_info + key_nr;
 
   // Read index name
-  const std::string &name= idx_obj->name();
+  const dd::String_type &name= idx_obj->name();
   if (!name.empty())
   {
     if (name.length())
@@ -1320,7 +1322,7 @@ static bool fill_index_from_dd(TABLE_SHARE *share, const dd::Index *idx_obj,
   if (idx_options->exists("parser_name"))
   {
     LEX_CSTRING parser_name;
-    std::string pn= idx_options->value_cstr("parser_name");
+    dd::String_type pn= idx_options->value_cstr("parser_name");
 
     DBUG_ASSERT(!pn.empty());
 
@@ -1341,7 +1343,7 @@ static bool fill_index_from_dd(TABLE_SHARE *share, const dd::Index *idx_obj,
   }
 
   // Read comment
-  std::string comment= idx_obj->comment();
+  dd::String_type comment= idx_obj->comment();
   keyinfo->comment.length= comment.length();
 
   if (keyinfo->comment.length)
@@ -1534,9 +1536,9 @@ static bool fill_indexes_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
 
 static char *copy_option_string(MEM_ROOT *mem_root,
                                 const dd::Properties &options,
-                                const std::string &key)
+                                const dd::String_type &key)
 {
-  std::string tmp_str;
+  dd::String_type tmp_str;
   options.get(key, tmp_str);
   if (tmp_str.length())
   {
@@ -1668,7 +1670,7 @@ static bool setup_partition_from_dd(THD *thd,
                                     const dd::Partition *part_obj,
                                     bool is_subpart)
 {
-  std::string comment= part_obj->comment();
+  dd::String_type comment= part_obj->comment();
   if (comment.length())
   {
     part_elem->part_comment= strdup_root(mem_root, comment.c_str());
@@ -1847,12 +1849,12 @@ static bool setup_partition_from_dd(THD *thd,
 */
 
 static bool set_field_list(MEM_ROOT *mem_root,
-                           std::string &str,
+                           dd::String_type &str,
                            List<char> *field_list)
 {
-  std::string field_name;
-  std::string::const_iterator it(str.begin());
-  std::string::const_iterator end(str.end());
+  dd::String_type field_name;
+  dd::String_type::const_iterator it(str.begin());
+  dd::String_type::const_iterator end(str.end());
 
   while (it != end)
   {
@@ -1924,8 +1926,9 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
   part_info= new (&share->mem_root) partition_info;
 
   handlerton *hton=
-    plugin_data<handlerton *>(ha_resolve_by_name_raw(thd,
-                                                     tab_obj->engine()));
+    plugin_data<handlerton *>
+    (ha_resolve_by_name_raw(thd,
+                            lex_cstring_handle(tab_obj->engine())));
   DBUG_ASSERT(hton && ha_storage_engine_is_enabled(hton));
   part_info->default_engine_type= hton;
   if (!part_info->default_engine_type)
@@ -2016,7 +2019,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
     return true;
   }
 
-  std::string part_expr= tab_obj->partition_expression();
+  dd::String_type part_expr= tab_obj->partition_expression();
   if (part_info->list_of_part_fields)
   {
     if (set_field_list(&share->mem_root,
@@ -2034,7 +2037,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
                                              part_expr.c_str());
     part_info->part_func_len= part_expr.length();
   }
-  std::string subpart_expr= tab_obj->subpartition_expression();
+  dd::String_type subpart_expr= tab_obj->subpartition_expression();
   part_info->subpart_func_len= subpart_expr.length();
   if (part_info->subpart_func_len)
   {

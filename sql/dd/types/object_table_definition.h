@@ -18,8 +18,9 @@
 
 #include "my_global.h"
 
+#include "dd/string_type.h"                    // dd::String_type
+
 #include <vector>
-#include <string>
 
 namespace dd {
 
@@ -48,21 +49,21 @@ public:
 
     @return String containing the SQL DDL statement for the target table.
    */
-  virtual std::string build_ddl_create_table() const= 0;
+  virtual String_type build_ddl_create_table() const= 0;
 
   /**
     Get the SQL DDL statement for adding foreign keys for the table.
 
     @return String containing the SQL DDL statement for adding foreign keys.
    */
-  virtual std::string build_ddl_add_cyclic_foreign_keys() const= 0;
+  virtual String_type build_ddl_add_cyclic_foreign_keys() const= 0;
 
   /**
     Get the SQL DML statements for populating the table.
 
     @return Vector of strings containing SQL DML statements
    */
-  virtual const std::vector<std::string> &dml_populate_statements() const= 0;
+  virtual const std::vector<String_type> &dml_populate_statements() const= 0;
 
   /**
     Get dd version of the meta data representing the object table.

@@ -20,8 +20,6 @@
 
 #include "dd/object_id.h"     // Object_id
 
-#include <string>
-
 class MDL_ticket;
 class THD;
 typedef struct st_ha_create_information HA_CREATE_INFO;

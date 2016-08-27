@@ -58,17 +58,17 @@ public:
 
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
 public:
   /////////////////////////////////////////////////////////////////////////
   // comment.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &comment() const
+  virtual const String_type &comment() const
   { return m_comment; }
 
-  virtual void set_comment(const std::string &comment)
+  virtual void set_comment(const String_type &comment)
   { m_comment= comment; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -81,7 +81,7 @@ public:
   virtual Properties &options()
   { return *m_options; }
 
-  virtual bool set_options_raw(const std::string &options_raw);
+  virtual bool set_options_raw(const String_type &options_raw);
 
   /////////////////////////////////////////////////////////////////////////
   // se_private_data.
@@ -93,16 +93,16 @@ public:
   virtual Properties &se_private_data()
   { return *m_se_private_data; }
 
-  virtual bool set_se_private_data_raw(const std::string &se_private_data_raw);
+  virtual bool set_se_private_data_raw(const String_type &se_private_data_raw);
 
   /////////////////////////////////////////////////////////////////////////
   // m_engine.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &engine() const
+  virtual const String_type &engine() const
   { return m_engine; }
 
-  virtual void set_engine(const std::string &engine)
+  virtual void set_engine(const String_type &engine)
   { m_engine= engine; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -111,7 +111,7 @@ public:
 
   virtual Tablespace_file *add_file();
 
-  virtual bool remove_file(std::string data_file);
+  virtual bool remove_file(String_type data_file);
 
   virtual const Tablespace_file_collection &files() const
   { return m_files; }
@@ -125,18 +125,18 @@ public:
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
   { return Entity_object_impl::is_persistent(); }
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Entity_object_impl::name(); }
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const String_type &name)
   { Entity_object_impl::set_name(name); }
 
 private:
   // Fields
 
-  std::string m_comment;
+  String_type m_comment;
   std::unique_ptr<Properties> m_options;
   std::unique_ptr<Properties> m_se_private_data;
-  std::string m_engine;
+  String_type m_engine;
 
   // Collections.
 

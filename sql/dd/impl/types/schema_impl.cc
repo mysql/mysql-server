@@ -145,7 +145,7 @@ bool Schema::update_id_key(id_key_type *key, Object_id id)
 ///////////////////////////////////////////////////////////////////////////
 
 bool Schema::update_name_key(name_key_type *key,
-                             const std::string &name)
+                             const String_type &name)
 {
   return Schemata::update_object_key(key,
                       Dictionary_impl::instance()->default_catalog_id(),

@@ -593,12 +593,12 @@ bool Events::lock_schema_events(THD *thd, const char *db)
     DBUG_RETURN(true);
   }
 
-  std::vector<std::string> event_names;
+  std::vector<dd::String_type> event_names;
   if (thd->dd_client()->fetch_schema_component_names<dd::Event>(sch_obj, &event_names))
     DBUG_RETURN(true);
 
   MDL_request_list mdl_requests;
-  for (std::vector<std::string>::const_iterator name= event_names.begin();
+  for (std::vector<dd::String_type>::const_iterator name= event_names.begin();
        name != event_names.end(); ++name)
   {
     // Event names are case insensitive, so convert to lower case.

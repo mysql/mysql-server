@@ -85,10 +85,10 @@ public:
   // Name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return m_name; }
 
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const String_type &name)
   { m_name= name; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -111,7 +111,7 @@ public:
   { return Weak_object_impl::impl(); }
 
 public:
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
 protected:
   virtual Object_key *create_primary_key() const;
@@ -119,7 +119,7 @@ protected:
 
 protected:
   // Fields
-  std::string m_name;
+  String_type m_name;
   uint m_index;
 
   // References to other objects

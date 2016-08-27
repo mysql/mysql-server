@@ -18,14 +18,15 @@
 
 class THD;
 struct handlerton;
+struct st_mysql_const_lex_string;
 
 namespace dd {
 namespace sdi_tablespace {
-bool store(THD *thd, handlerton *hton, const sdi_t &sdi, const Schema *schema,
+bool store(THD *thd, handlerton *hton, const st_mysql_const_lex_string &sdi, const Schema *schema,
            const Table *table);
-bool store(THD *thd, handlerton*, const sdi_t &sdi, const Table *table,
+bool store(THD *thd, handlerton*, const st_mysql_const_lex_string &sdi, const Table *table,
            const dd::Schema *schema);
-bool store(handlerton *hton, const sdi_t &sdi, const Tablespace *tablespace);
+bool store(handlerton *hton, const st_mysql_const_lex_string &sdi, const Tablespace *tablespace);
 
 bool remove(THD *thd, handlerton *hton, const Schema *schema,
             const Table *table);

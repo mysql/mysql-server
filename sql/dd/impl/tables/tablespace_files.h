@@ -32,9 +32,9 @@ class Tablespace_files : public Object_table_impl
 public:
   static const Tablespace_files &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("tablespace_files");
+    static String_type s_table_name("tablespace_files");
     return s_table_name;
   }
 
@@ -50,7 +50,7 @@ public:
 public:
   Tablespace_files();
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Tablespace_files::table_name(); }
 
 public:

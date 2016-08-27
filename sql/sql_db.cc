@@ -427,7 +427,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
 
   // Reject dropping the system schema except for system threads.
   if (!thd->is_dd_system_thread() &&
-      dd::get_dictionary()->is_dd_schema_name(std::string(db.str)))
+      dd::get_dictionary()->is_dd_schema_name(dd::String_type(db.str)))
   {
     my_error(ER_NO_SYSTEM_SCHEMA_ACCESS, MYF(0), db.str);
     DBUG_RETURN(true);

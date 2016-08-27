@@ -94,11 +94,11 @@ public:
   // action_statement
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &action_statement() const = 0;
-  virtual void set_action_statement(const std::string &action_statement) = 0;
+  virtual const String_type &action_statement() const = 0;
+  virtual void set_action_statement(const String_type &action_statement) = 0;
 
-  virtual const std::string &action_statement_utf8() const = 0;
-  virtual void set_action_statement_utf8(const std::string
+  virtual const String_type &action_statement_utf8() const = 0;
+  virtual void set_action_statement_utf8(const String_type
                                          &action_statement_utf8) = 0;
 
   /////////////////////////////////////////////////////////////////////////
@@ -126,10 +126,10 @@ public:
   // definer.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &definer_user() const = 0;
-  virtual const std::string &definer_host() const = 0;
-  virtual void set_definer(const std::string &username,
-                           const std::string &hostname) = 0;
+  virtual const String_type &definer_user() const = 0;
+  virtual const String_type &definer_host() const = 0;
+  virtual void set_definer(const String_type &username,
+                           const String_type &hostname) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // collations.

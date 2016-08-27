@@ -37,7 +37,7 @@ public:
 
   static bool update_name_key(name_key_type *key,
                               Object_id schema_id,
-                              const std::string &name);
+                              const String_type &name);
 
 public:
   virtual ~Function()

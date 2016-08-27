@@ -41,29 +41,29 @@ public:
   // schema name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &schema_name() const = 0;
-  virtual void set_schema_name(const std::string &schema_name) = 0;
+  virtual const String_type &schema_name() const = 0;
+  virtual void set_schema_name(const String_type &schema_name) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // table name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &table_name() const = 0;
-  virtual void set_table_name(const std::string &table_name) = 0;
+  virtual const String_type &table_name() const = 0;
+  virtual void set_table_name(const String_type &table_name) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // index name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &index_name() const = 0;
-  virtual void set_index_name(const std::string &index_name) = 0;
+  virtual const String_type &index_name() const = 0;
+  virtual void set_index_name(const String_type &index_name) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // column name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &column_name() const = 0;
-  virtual void set_column_name(const std::string &column_name) = 0;
+  virtual const String_type &column_name() const = 0;
+  virtual void set_column_name(const String_type &column_name) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // cardinality.

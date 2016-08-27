@@ -95,14 +95,14 @@ bool Parameter_type_element_impl::store_attributes(Raw_record *r)
 ///////////////////////////////////////////////////////////////////////////
 
 /* purecov: begin deadcode */
-void Parameter_type_element_impl::debug_print(std::string &outb) const
+void Parameter_type_element_impl::debug_print(String_type &outb) const
 {
   char outbuf[1024];
   sprintf(outbuf, "%s: "
     "name=%s, parameter_id={OID: %lld}, ordinal_position= %u",
     object_table().name().c_str(),
     m_name.c_str(), m_parameter->id(), m_index);
-  outb= std::string(outbuf);
+  outb= String_type(outbuf);
 }
 /* purecov: end */
 

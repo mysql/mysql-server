@@ -52,7 +52,7 @@ public:
   { }
 
 public:
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
   virtual const Dictionary_object_table &object_table() const
   { return Table_stat::OBJECT_TABLE(); }
@@ -68,20 +68,20 @@ public:
   // schema name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &schema_name() const
+  virtual const String_type &schema_name() const
   { return m_schema_name; }
 
-  virtual void set_schema_name(const std::string &schema_name)
+  virtual void set_schema_name(const String_type &schema_name)
   { m_schema_name= schema_name; }
 
   /////////////////////////////////////////////////////////////////////////
   // table name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &table_name() const
+  virtual const String_type &table_name() const
   { return m_table_name; }
 
-  virtual void set_table_name(const std::string &table_name)
+  virtual void set_table_name(const String_type &table_name)
   { m_table_name= table_name; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -191,8 +191,8 @@ public:
 
 private:
   // Fields
-  std::string m_schema_name;
-  std::string m_table_name;
+  String_type m_schema_name;
+  String_type m_table_name;
 
   ulonglong m_table_rows;
   ulonglong m_avg_row_length;

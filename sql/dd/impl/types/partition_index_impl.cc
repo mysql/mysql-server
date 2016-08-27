@@ -17,6 +17,7 @@
 
 #include "mysqld_error.h"                     // ER_*
 
+#include "dd/string_type.h"                   // dd::String_type
 #include "dd/impl/properties_impl.h"          // Properties_impl
 #include "dd/impl/sdi_impl.h"                 // sdi read/write functions
 #include "dd/impl/transaction_impl.h"         // Open_dictionary_tables_ctx
@@ -24,8 +25,6 @@
 #include "dd/impl/tables/index_partitions.h"  // Index_partitions
 #include "dd/impl/types/partition_impl.h"     // Partition_impl
 #include "dd/impl/types/table_impl.h"         // Table_impl
-
-#include <sstream>
 
 
 using dd::tables::Index_partitions;
@@ -96,7 +95,7 @@ Index &Partition_index_impl::index()
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Partition_index_impl::set_options_raw(const std::string &options_raw)
+bool Partition_index_impl::set_options_raw(const String_type &options_raw)
 {
   Properties *properties=
     Properties_impl::parse_properties(options_raw);
@@ -111,7 +110,7 @@ bool Partition_index_impl::set_options_raw(const std::string &options_raw)
 ///////////////////////////////////////////////////////////////////////////
 
 bool Partition_index_impl::set_se_private_data_raw(
-                             const std::string &se_private_data_raw)
+                             const String_type &se_private_data_raw)
 {
   Properties *properties=
     Properties_impl::parse_properties(se_private_data_raw);
@@ -223,9 +222,9 @@ Partition_index_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Partition_index_impl::debug_print(std::string &outb) const
+void Partition_index_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
     << "PARTITION INDEX OBJECT: { "
     << "m_partition: {OID: " << m_partition->id() << "}; "

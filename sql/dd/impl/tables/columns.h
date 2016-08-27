@@ -32,9 +32,9 @@ class Columns : public Object_table_impl
 public:
   static const Columns &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("columns");
+    static String_type s_table_name("columns");
     return s_table_name;
   }
 
@@ -74,7 +74,7 @@ public:
 public:
   Columns();
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Columns::table_name(); }
 
 public:

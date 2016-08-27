@@ -52,7 +52,7 @@ public:
 
   virtual bool restore_attributes(const Raw_record &r);
 
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
   void set_ordinal_position(uint ordinal_position)
   { }
@@ -65,30 +65,30 @@ public:
   //table_catalog.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &table_catalog() const
+  virtual const String_type &table_catalog() const
   { return m_table_catalog; }
 
-  virtual void set_table_catalog(const std::string &table_catalog)
+  virtual void set_table_catalog(const String_type &table_catalog)
   { m_table_catalog= table_catalog; }
 
   /////////////////////////////////////////////////////////////////////////
   //table_schema.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &table_schema() const
+  virtual const String_type &table_schema() const
   { return m_table_schema; }
 
-  virtual void set_table_schema(const std::string &table_schema)
+  virtual void set_table_schema(const String_type &table_schema)
   { m_table_schema= table_schema; }
 
   /////////////////////////////////////////////////////////////////////////
   //table_name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &table_name() const
+  virtual const String_type &table_name() const
   { return m_table_name; }
 
-  virtual void set_table_name(const std::string &table_name)
+  virtual void set_table_name(const String_type &table_name)
   { m_table_name= table_name; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -122,9 +122,9 @@ public:
   virtual bool has_new_primary_key() const;
 
 private:
-  std::string m_table_catalog;
-  std::string m_table_schema;
-  std::string m_table_name;
+  String_type m_table_catalog;
+  String_type m_table_schema;
+  String_type m_table_name;
 
   // References to other objects
   View_impl *m_view;

@@ -18,6 +18,7 @@
 #include "mysqld_error.h"                   // ER_*
 #include "mysql_version.h"                  // MYSQL_VERSION_ID
 
+#include "dd/string_type.h"                 // dd::String_type
 #include "dd/impl/properties_impl.h"        // Properties_impl
 #include "dd/impl/sdi_impl.h"               // sdi read/write functions
 #include "dd/impl/transaction_impl.h"       // Open_dictionary_tables_ctx
@@ -27,9 +28,6 @@
 #include "dd/impl/tables/tables.h"          // Tables
 #include "dd/impl/types/column_impl.h"      // Column_impl
 #include "dd/types/view.h"                  // View
-
-
-#include <sstream>
 
 
 using dd::tables::Columns;
@@ -68,7 +66,7 @@ Abstract_table_impl::Abstract_table_impl()
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Abstract_table_impl::set_options_raw(const std::string &options_raw)
+bool Abstract_table_impl::set_options_raw(const String_type &options_raw)
 {
   Properties *properties=
     Properties_impl::parse_properties(options_raw);
@@ -223,14 +221,14 @@ bool Abstract_table_impl::deserialize(Sdi_rcontext *rctx,
 
 bool Abstract_table::update_name_key(name_key_type *key,
                                      Object_id schema_id,
-                                     const std::string &name)
+                                     const String_type &name)
 { return Tables::update_object_key(key, schema_id, name); }
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Abstract_table_impl::debug_print(std::string &outb) const
+void Abstract_table_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
     << "ABSTRACT TABLE OBJECT: { "
     << "id: {OID: " << id() << "}; "
@@ -245,7 +243,7 @@ void Abstract_table_impl::debug_print(std::string &outb) const
   {
     for (const Column *c : m_columns)
     {
-      std::string s;
+      String_type s;
       c->debug_print(s);
       ss << s << " | ";
     }
@@ -296,7 +294,7 @@ const Column *Abstract_table_impl::get_column(Object_id column_id) const
 
 ///////////////////////////////////////////////////////////////////////////
 
-Column *Abstract_table_impl::get_column(const std::string name)
+Column *Abstract_table_impl::get_column(const String_type name)
 {
   for (Column *c : m_columns)
   {
@@ -312,7 +310,7 @@ Column *Abstract_table_impl::get_column(const std::string name)
 
 ///////////////////////////////////////////////////////////////////////////
 
-const Column *Abstract_table_impl::get_column(const std::string name) const
+const Column *Abstract_table_impl::get_column(const String_type name) const
 {
   for (const Column *c : m_columns)
   {

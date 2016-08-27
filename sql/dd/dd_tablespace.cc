@@ -75,7 +75,7 @@ fill_table_and_parts_tablespace_names(THD *thd,
   if (table_obj->partition_type() != dd::Table::PT_NONE)
   {
     // Iterate through tablespace names used by partition.
-    std::string ts_name;
+    String_type ts_name;
     for (const dd::Partition *part_obj : table_obj->partitions())
     {
       const char *tablespace= NULL;
@@ -102,7 +102,7 @@ bool get_tablespace_name(THD *thd, const T *obj,
   //
   // Read Tablespace
   //
-  std::string name;
+  String_type name;
 
   if (System_tablespaces::instance()->find(MYSQL_TABLESPACE_NAME.str) &&
       dd::get_dictionary()->is_dd_table_name(MYSQL_SCHEMA_NAME.str,

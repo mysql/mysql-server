@@ -64,10 +64,10 @@
 
 namespace dd {
 
-const std::string ISL_EXT= ".isl";
-const std::string PAR_EXT= ".par";
-const std::string OPT_EXT= ".opt";
-const std::string SDI_EXT= ".SDI";
+const String_type ISL_EXT= ".isl";
+const String_type PAR_EXT= ".par";
+const String_type OPT_EXT= ".opt";
+const String_type SDI_EXT= ".SDI";
 const char *TRN_EXT= ".TRN";
 const char *TRG_EXT= ".TRG";
 
@@ -351,7 +351,7 @@ static const TABLE_FIELD_DEF
   proc_table_def_old= {MYSQL_PROC_FIELD_COUNT, proc_table_fields_old};
 
 
-const std::vector<std::string> dd_table_names=
+const std::vector<String_type> dd_table_names=
     { "version", "character_sets", "collations", "tablespaces",
       "tablespace_files", "catalogs", "schemata",
       "st_spatial_reference_systems", "tables", "view_table_usage",
@@ -839,7 +839,7 @@ class Upgrade_MDL_guard
 
   THD *m_thd;
 public:
-  bool acquire_lock(const std::string &db_name, const std::string &table_name)
+  bool acquire_lock(const String_type &db_name, const String_type &table_name)
   {
     return dd::acquire_exclusive_schema_mdl(m_thd, db_name.c_str(),
                                             false, &m_mdl_ticket_schema) ||
@@ -1112,8 +1112,8 @@ static File_option view_parameters[]=
 */
 static bool create_unlinked_view(THD *thd,
                                  TABLE_LIST *view_ref,
-                                 const std::string &db_name,
-                                 const std::string &view_name)
+                                 const String_type &db_name,
+                                 const String_type &view_name)
 {
   SELECT_LEX *backup_select= thd->lex->select_lex;
   TABLE_LIST *saved_query_tables= thd->lex->query_tables;
@@ -1155,8 +1155,8 @@ static bool create_unlinked_view(THD *thd,
 static void create_alter_view_stmt(THD *thd,
                                    TABLE_LIST *view_ref,
                                    String *str,
-                                   const std::string &db_name,
-                                   const std::string &view_name)
+                                   const String_type &db_name,
+                                   const String_type &view_name)
 {
   str->append(STRING_WITH_LEN("ALTER "));
   view_store_options(thd, view_ref, str);
@@ -1192,8 +1192,8 @@ static void create_alter_view_stmt(THD *thd,
 
 */
 static bool fix_view_cols_and_deps(THD *thd, TABLE_LIST *view_ref,
-                                   const std::string &db_name,
-                                   const std::string &view_name,
+                                   const String_type &db_name,
+                                   const String_type &view_name,
                                    MEM_ROOT *mem_root)
 {
   bool error= false;
@@ -1233,11 +1233,11 @@ static bool fix_view_cols_and_deps(THD *thd, TABLE_LIST *view_ref,
   db_query.append(STRING_WITH_LEN("USE "));
   append_identifier(thd, &db_query, db_name.c_str(), db_name.length());
 
-  std::string change_db_query(db_query.ptr(), db_query.length());
+  String_type change_db_query(db_query.ptr(), db_query.length());
   error= execute_query(thd, change_db_query);
 
   // Execute ALTER view statement to create the view dependency entry in DD.
-  std::string query(full_view_definition.ptr(), full_view_definition.length());
+  String_type query(full_view_definition.ptr(), full_view_definition.length());
   if (!error)
     error= execute_query(thd, query);
 
@@ -1279,8 +1279,8 @@ static bool fix_view_cols_and_deps(THD *thd, TABLE_LIST *view_ref,
 
 static bool migrate_view_to_dd(THD *thd,
                                const FRM_context &frm_context,
-                               const std::string &db_name,
-                               const std::string &view_name,
+                               const String_type &db_name,
+                               const String_type &view_name,
                                MEM_ROOT *mem_root,
                                bool is_fix_view_cols_and_deps)
 {
@@ -1610,8 +1610,8 @@ static bool fill_partition_info_for_upgrade(THD *thd,
 
 static bool add_triggers_to_table(THD *thd,
                                   TABLE *table,
-                                  const std::string &schema_name,
-                                  const std::string &table_name)
+                                  const String_type &schema_name,
+                                  const String_type &table_name)
 {
   List<Trigger> m_triggers;
   if (Trigger_loader::trg_file_exists(schema_name.c_str(),
@@ -1796,8 +1796,8 @@ static bool fix_generated_columns_for_upgrade(THD *thd,
 */
 
 static bool migrate_table_to_dd(THD *thd,
-                                const std::string &schema_name,
-                                const std::string &table_name,
+                                const String_type &schema_name,
+                                const String_type &table_name,
                                 bool is_fix_view_cols_and_deps)
 {
   int error= 0;
@@ -3275,7 +3275,7 @@ bool find_files_with_metadata(THD *thd, const char *dbname,
 {
   uint i;
   MY_DIR *a;
-  std::string path;
+  String_type path;
   bool error= false;
 
   path.assign(mysql_real_data_home);
@@ -3288,7 +3288,7 @@ bool find_files_with_metadata(THD *thd, const char *dbname,
   }
   for (i = 0; i < (uint)a->number_off_files; i++)
   {
-    std::string file;
+    String_type file;
 
     file.assign(a->dir_entry[i].name);
     if (file.at(0)  == '.')
@@ -3296,7 +3296,7 @@ bool find_files_with_metadata(THD *thd, const char *dbname,
 
     if(!MY_S_ISDIR(a->dir_entry[i].mystat->st_mode))
     {
-      std::string file_ext;
+      String_type file_ext;
       char schema_name[NAME_LEN + 1];
       char table_name[NAME_LEN + 1];
 
@@ -3361,7 +3361,7 @@ bool find_files_with_metadata(THD *thd, const char *dbname,
   Scans datadir for databases and lists all the database names.
 */
 
-bool find_schema_from_datadir(THD *thd, std::vector<std::string> *db_name)
+bool find_schema_from_datadir(THD *thd, std::vector<String_type> *db_name)
 {
   MY_DIR *a;
   uint i;
@@ -3394,7 +3394,7 @@ bool find_schema_from_datadir(THD *thd, std::vector<std::string> *db_name)
   to backup_metadata_57 folder upgrade upgrade is successful.
 */
 
-static bool check_file_extension(const std::string &extn)
+static bool check_file_extension(const String_type &extn)
 {
   // Check for extensions
   if (extn.size() < 4)
@@ -3417,11 +3417,11 @@ void create_metadata_backup(THD *thd)
 {
   uint i;
   MY_DIR *a, *b;
-  std::string path;
+  String_type path;
   char to_path[FN_REFLEN];
   char from_path[FN_REFLEN];
 
-  std::vector<std::string> db_name;
+  std::vector<String_type> db_name;
 
   (void) execute_query(thd,
                        "RENAME TABLE mysql.proc TO mysql.proc_backup_57");
@@ -3454,7 +3454,7 @@ void create_metadata_backup(THD *thd)
   // Scan all files and folders in data directory.
   for (i = 0; i < (uint) a->number_off_files; i++)
   {
-    std::string file;
+    String_type file;
 
     file.assign(a->dir_entry[i].name);
     if (file.at(0)  == '.')
@@ -3468,7 +3468,7 @@ void create_metadata_backup(THD *thd)
     }
     else
     {
-      std::string file_ext;
+      String_type file_ext;
 
       if (file.size() < 4)
         continue;
@@ -3492,9 +3492,9 @@ void create_metadata_backup(THD *thd)
   }
 
   // Iterate through the databases list
-  for (std::string str: db_name)
+  for (String_type str: db_name)
   {
-    std::string dir_name= str.c_str();
+    String_type dir_name= str.c_str();
     char dir_path[FN_REFLEN];
 
     if (fn_format(dir_path, dir_name.c_str(), path.c_str(),  "",
@@ -3522,13 +3522,13 @@ void create_metadata_backup(THD *thd)
     // Scan all files and folders in data directory.
     for (i = 0; i < (uint) b->number_off_files; i++)
     {
-      std::string file;
+      String_type file;
       file.assign(b->dir_entry[i].name);
 
       if ((file.at(0)  == '.') || (file.size() < 4))
         continue;
 
-      std::string file_ext;
+      String_type file_ext;
       file_ext.assign(file.c_str() + file.size() - 4);
 
        // Get the name without the file extension.
@@ -3561,7 +3561,7 @@ void create_metadata_backup(THD *thd)
 
 bool check_for_dd_tables()
 {
-  for (const std::string &table_name : dd_table_names)
+  for (const String_type &table_name : dd_table_names)
   {
     char path[FN_REFLEN+1];
     bool not_used;
@@ -3591,9 +3591,9 @@ void drop_dd_tables_and_sdi_files(THD *thd)
 
   error= execute_query(thd, "SET FOREIGN_KEY_CHECKS= 0");
 
-  for (const std::string &table_name : dd_table_names)
+  for (const String_type &table_name : dd_table_names)
   {
-    std::string query;
+    String_type query;
     query.assign("DROP TABLE mysql.");
     query= query + table_name;
     // Try to delete all DD tables even if error occurs.
@@ -3608,7 +3608,7 @@ void drop_dd_tables_and_sdi_files(THD *thd)
 
   // Iterate in data directory and delete all .SDI files
   MY_DIR *a, *b;
-  std::string path;
+  String_type path;
 
   path.assign(mysql_real_data_home);
 
@@ -3622,7 +3622,7 @@ void drop_dd_tables_and_sdi_files(THD *thd)
   // Scan all files and folders in data directory.
   for (i = 0; i < (uint)a->number_off_files; i++)
   {
-    std::string file;
+    String_type file;
 
     file.assign(a->dir_entry[i].name);
     if (file.at(0)  == '.')
@@ -3648,13 +3648,13 @@ void drop_dd_tables_and_sdi_files(THD *thd)
       // Scan all files and folders in data directory.
       for (j = 0; j < (uint)b->number_off_files; j++)
       {
-        std::string file2;
+        String_type file2;
         file2.assign(b->dir_entry[j].name);
 
         if ((file2.at(0)  == '.') || (file2.size() < 4))
           continue;
 
-        std::string file_ext;
+        String_type file_ext;
         file_ext.assign(file2.c_str() + file2.size() - 4);
         if (file_ext.compare(0, 4, SDI_EXT) == 0)
         {
@@ -3674,7 +3674,7 @@ void drop_dd_tables_and_sdi_files(THD *thd)
     else
     {
       // Delete .SDI files in data directory created for schema.
-      std::string file_ext;
+      String_type file_ext;
       if (file.size() < 4)
         continue;
       file_ext.assign(file.c_str() + file.size() - 4);

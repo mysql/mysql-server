@@ -18,6 +18,7 @@
 #include "mysqld_error.h"                            // ER_*
 #include "current_thd.h"                             // current_thd
 
+#include "dd/string_type.h"                          // dd::String_type
 #include "dd/impl/object_key.h"                      // Needed for destructor
 #include "dd/impl/properties_impl.h"                 // Properties_impl
 #include "dd/impl/sdi_impl.h"                        // sdi read/write functions
@@ -33,8 +34,6 @@
 #include "dd/impl/types/partition_impl.h"            // Partition_impl
 #include "dd/impl/types/trigger_impl.h"              // Trigger_impl
 #include "dd/types/column.h"                         // Column
-
-#include <sstream>
 
 using dd::tables::Foreign_keys;
 using dd::tables::Indexes;
@@ -81,7 +80,7 @@ Table_impl::~Table_impl()
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Table_impl::set_se_private_data_raw(const std::string &se_private_data_raw)
+bool Table_impl::set_se_private_data_raw(const String_type &se_private_data_raw)
 {
   Properties *properties=
     Properties_impl::parse_properties(se_private_data_raw);
@@ -478,12 +477,12 @@ Table_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Table_impl::debug_print(std::string &outb) const
+void Table_impl::debug_print(String_type &outb) const
 {
-  std::string s;
+  String_type s;
   Abstract_table_impl::debug_print(s);
 
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
     << "TABLE OBJECT: { "
     << s
@@ -506,7 +505,7 @@ void Table_impl::debug_print(std::string &outb) const
   {
     for (const Partition *i : partitions())
     {
-      std::string s;
+      String_type s;
       i->debug_print(s);
       ss << s << " | ";
     }
@@ -517,7 +516,7 @@ void Table_impl::debug_print(std::string &outb) const
   {
     for (const Index *i : indexes())
     {
-      std::string s;
+      String_type s;
       i->debug_print(s);
       ss << s << " | ";
     }
@@ -528,7 +527,7 @@ void Table_impl::debug_print(std::string &outb) const
   {
     for (const Foreign_key *fk : foreign_keys())
     {
-      std::string s;
+      String_type s;
       fk->debug_print(s);
       ss << s << " | ";
     }
@@ -539,7 +538,7 @@ void Table_impl::debug_print(std::string &outb) const
   {
     for (const Trigger *trig : triggers())
     {
-      std::string s;
+      String_type s;
       trig->debug_print(s);
       ss << s << " | ";
     }
@@ -828,7 +827,7 @@ void Table_impl::drop_trigger(const Trigger *trigger)
 ///////////////////////////////////////////////////////////////////////////
 
 bool Table::update_aux_key(aux_key_type *key,
-                           const std::string &engine,
+                           const String_type &engine,
                            Object_id se_private_id)
 {
   if (se_private_id != INVALID_OBJECT_ID)

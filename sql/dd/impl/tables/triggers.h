@@ -37,9 +37,9 @@ public:
     return *s_instance;
   }
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("triggers");
+    static String_type s_table_name("triggers");
     return s_table_name;
   }
 
@@ -173,7 +173,7 @@ public:
                                  "REFERENCES collations(id)");
   }
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Triggers::table_name(); }
 
 public:
@@ -215,7 +215,7 @@ public:
 
   static bool get_trigger_table_id(THD *thd,
                                    Object_id schema_id,
-                                   const std::string &trigger_name,
+                                   const String_type &trigger_name,
                                    Object_id *oid);
 
 

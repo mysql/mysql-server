@@ -21,7 +21,7 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-const std::string Properties_impl::EMPTY_STR= "";
+const String_type Properties_impl::EMPTY_STR= "";
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -41,13 +41,13 @@ Properties_impl::Properties_impl()
   @return                pointer to new Property_impl object
     @retval NULL         if an error occurred
 */
-Properties *Properties::parse_properties(const std::string &raw_properties)
+Properties *Properties::parse_properties(const String_type &raw_properties)
 { return Properties_impl::parse_properties(raw_properties); }
 
-Properties *Properties_impl::parse_properties(const std::string &raw_properties)
+Properties *Properties_impl::parse_properties(const String_type &raw_properties)
 {
   Properties *tmp= new (std::nothrow) Properties_impl();
-  std::string::const_iterator it= raw_properties.begin();
+  String_type::const_iterator it= raw_properties.begin();
 
   if (eat_pairs(it, raw_properties.end(), tmp))
   {
@@ -70,9 +70,9 @@ Properties *Properties_impl::parse_properties(const std::string &raw_properties)
   @return string containing all escaped key value pairs
 */
 
-const std::string Properties_impl::raw_string() const
+const String_type Properties_impl::raw_string() const
 {
-  std::string str("");
+  String_type str("");
   str.reserve(16*m_map->size());
 
   // Iterate over all map entries
@@ -89,7 +89,7 @@ const std::string Properties_impl::raw_string() const
 
 ///////////////////////////////////////////////////////////////////////////
 
-Properties *parse_properties(const std::string &str)
+Properties *parse_properties(const String_type &str)
 {
   return Properties_impl::parse_properties(str);
 }

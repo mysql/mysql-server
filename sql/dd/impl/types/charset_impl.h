@@ -79,10 +79,10 @@ public:
   // comment
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &comment() const
+  virtual const String_type &comment() const
   { return m_comment; }
 
-  virtual void set_comment(std::string comment)
+  virtual void set_comment(String_type comment)
   { m_comment= comment; }
 
   // Fix "inherits ... via dominance" warnings
@@ -94,13 +94,13 @@ public:
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
   { return Entity_object_impl::is_persistent(); }
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Entity_object_impl::name(); }
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const String_type &name)
   { Entity_object_impl::set_name(name); }
 
 public:
-  virtual void debug_print(std::string &outb) const
+  virtual void debug_print(String_type &outb) const
   {
     char outbuf[1024];
     sprintf(outbuf, "CHARSET OBJECT: {OID: %lld}, name= %s, "
@@ -108,12 +108,12 @@ public:
                     "comment= %s", id(), name().c_str(),
                     m_default_collation_id,
                     m_mb_max_length, m_comment.c_str());
-    outb= std::string(outbuf);
+    outb= String_type(outbuf);
   }
 
 private:
   uint m_mb_max_length;
-  std::string m_comment;
+  String_type m_comment;
 
   Object_id m_default_collation_id;
 

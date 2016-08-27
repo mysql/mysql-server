@@ -185,8 +185,8 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
 
   for (uint idx= 0; idx < view_ids.size(); idx++)
   {
-    std::string view_name;
-    std::string schema_name;
+    dd::String_type view_name;
+    dd::String_type schema_name;
     // Get schema name and view name from the object id of the view.
     {
       const dd::View *view= nullptr;

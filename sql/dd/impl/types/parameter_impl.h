@@ -64,7 +64,7 @@ public:
 
   virtual bool restore_attributes(const Raw_record &r);
 
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
   void set_ordinal_position(uint ordinal_position)
   { m_ordinal_position= ordinal_position; }
@@ -202,7 +202,7 @@ public:
   virtual Properties &options()
   { return *m_options; }
 
-  virtual bool set_options_raw(const std::string &options_raw);
+  virtual bool set_options_raw(const String_type &options_raw);
 
   /////////////////////////////////////////////////////////////////////////
   // routine.
@@ -237,9 +237,9 @@ public:
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
   { return Entity_object_impl::is_persistent(); }
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Entity_object_impl::name(); }
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const String_type &name)
   { Entity_object_impl::set_name(name); }
 
 public:

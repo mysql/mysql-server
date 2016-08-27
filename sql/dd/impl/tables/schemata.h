@@ -20,8 +20,6 @@
 
 #include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
 
-#include <string>
-
 namespace dd {
 namespace tables {
 
@@ -32,9 +30,9 @@ class Schemata : public Dictionary_object_table_impl
 public:
   static const Schemata &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("schemata");
+    static String_type s_table_name("schemata");
     return s_table_name;
   }
 
@@ -52,7 +50,7 @@ public:
 public:
   Schemata();
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Schemata::table_name(); }
 
   virtual Dictionary_object *create_dictionary_object(const Raw_record &) const;
@@ -60,7 +58,7 @@ public:
 public:
   static bool update_object_key(Item_name_key *key,
                                 Object_id catalog_id,
-                                const std::string &schema_name);
+                                const String_type &schema_name);
 
   static Object_key *create_key_by_catalog_id(Object_id catalog_id);
 };

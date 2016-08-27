@@ -70,7 +70,7 @@ bool find_files_with_metadata(THD *thd, const char *dbname,
   @retval false  ON SUCCESS
   @retval true   ON FAILURE
 */
-bool find_schema_from_datadir(THD *thd, std::vector<std::string> *db_name);
+bool find_schema_from_datadir(THD *thd, std::vector<String_type> *db_name);
 
 /**
   Get collation id for database collation from db.opt file.

@@ -19,6 +19,7 @@
 #include "error_handler.h"                           // Internal_error_handler
 
 #include "dd/properties.h"                           // Needed for destructor
+#include "dd/string_type.h"                          // dd::String_type
 #include "dd/impl/sdi_impl.h"                        // sdi read/write functions
 #include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"                  // Raw_record
@@ -28,8 +29,6 @@
 #include "dd/impl/types/table_impl.h"                // Table_impl
 #include "dd/types/index.h"                          // Index
 #include "dd/types/column.h"                         // Column::name()
-
-#include <sstream>
 
 
 using dd::tables::Foreign_keys;
@@ -297,9 +296,9 @@ Foreign_key_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
 ///////////////////////////////////////////////////////////////////////////
 
 /* purecov: begin inspected */
-void Foreign_key_impl::debug_print(std::string &outb) const
+void Foreign_key_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
     << "FOREIGN_KEY OBJECT: { "
     << "m_id: {OID: " << id() << "}; "
@@ -312,7 +311,7 @@ void Foreign_key_impl::debug_print(std::string &outb) const
   {
     for (const Foreign_key_element *e : elements())
     {
-      std::string ob;
+      String_type ob;
       e->debug_print(ob);
       ss << ob;
     }

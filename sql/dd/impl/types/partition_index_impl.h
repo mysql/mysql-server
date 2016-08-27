@@ -62,7 +62,7 @@ public:
 
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
-  void debug_print(std::string &outb) const;
+  void debug_print(String_type &outb) const;
 
   void set_ordinal_position(uint ordinal_position)
   { }
@@ -100,7 +100,7 @@ public:
   virtual Properties &options()
   { return *m_options; }
 
-  virtual bool set_options_raw(const std::string &options_raw);
+  virtual bool set_options_raw(const String_type &options_raw);
 
   /////////////////////////////////////////////////////////////////////////
   // se_private_data.
@@ -112,7 +112,7 @@ public:
   virtual Properties &se_private_data()
   { return *m_se_private_data; }
 
-  virtual bool set_se_private_data_raw(const std::string &se_private_data_raw);
+  virtual bool set_se_private_data_raw(const String_type &se_private_data_raw);
 
   virtual void set_se_private_data(const Properties &se_private_data);
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 #include "my_global.h"
 #include "table.h"               // TABLE_LIST
 
+#include "dd/string_type.h"      // dd::String_type
+
 #include <memory>
 
 namespace dd {
@@ -37,7 +39,7 @@ class Transaction;
 class Raw_table
 {
 public:
-  Raw_table(thr_lock_type lock_type, const std::string &name);
+  Raw_table(thr_lock_type lock_type, const String_type &name);
 
   virtual ~Raw_table()
   { }
