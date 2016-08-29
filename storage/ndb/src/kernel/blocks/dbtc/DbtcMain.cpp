@@ -16746,12 +16746,37 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
        * 1 LQHKEYREQ per trigger, rather one LQHKEYREQ per node group
        * the table is stored in. This is handled in
        * executeFullyReplicatedTrigger.
+       *
+       * We add one here also for fully replicated triggers, this
+       * represents the operation to scan for fragments to update, so
+       * if there are no triggers to fire then this will be decremented
+       * even with no actual triggers being fired. In addition one will
+       * be added for each fragment that the fully replicated trigger
+       * will update.
+       *
+       * Foreign key child triggers will issue one read on the parent
+       * table, so this will always be one operation.
+       *
+       * Foreign key parent triggers will either issue one operation
+       * against a PK or UK index in which case this add is sufficient.
+       * It can also issue an index scan in which case several rows might
+       * be found. In this case the scan is the one represented by this
+       * add of the triggerExecutionCount, in addition each resulting
+       * PK UPDATE/DELETE will add one more to the triggerExecutionCount.
+       *
+       * Unique index triggers will issue one operation for DELETEs and
+       * INSERTs which is represented by this add, for updates there will
+       * be one INSERT and one DELETE issued which causes one more to be
+       * added as part of trigger execution.
+       *
+       * Finally we also have REORG triggers that fires, in this case we
+       * increment it here and if the TCKEYREQ execution decides that
+       * the reorg trigger doesn't need to be executed it will call
+       * trigger_op_finished before returning from execTCKEYREQ. Otherwise
+       * it will be called as usual on receiving LQHKEYCONF for the
+       * triggered operation.
        */
-      if (trigPtr.p->triggerType != TriggerType::FULLY_REPLICATED_TRIGGER)
-      {
-        jam();
-        opPtr.p->triggerExecutionCount++; // Default 1 LQHKEYREQ per trigger
-      }
+      opPtr.p->triggerExecutionCount++; // Default 1 LQHKEYREQ per trigger
       // Insert fired trigger in execution queue
       {
         LocalDLFifoList<TcFiredTriggerData>
@@ -20482,22 +20507,15 @@ Dbtc::executeFullyReplicatedTrigger(Signal* signal,
   if (fragId == RNIL)
   {
     jam();
-    if (opPtr->p->triggerExecutionCount == 0)
-    {
-      /**
-       * This can happen in cases where there is only one node group, in this
-       * case the fully replicated trigger will have nothing to do since there
-       * are no more node groups to replicate to. We haven't incremented
-       * triggerExecutionCount for fully replicated triggers, so need to check
-       * if done here.
-       */
-      jam();
-      continueTriggeringOp(signal, opPtr->p);
-    }
     /**
-     * No more fragments to update, we're done and we can stop firing off more
-     * triggers.
+     * It is possible that the trigger is executed and done when arriving here.
+     * This can happen in cases where there is only one node group, in this
+     * case the fully replicated trigger will have nothing to do since there
+     * are no more node groups to replicate to. We haven't incremented
+     * triggerExecutionCount for fully replicated triggers, so need to check
+     * if done here.
      */
+    trigger_op_finished(signal, *transPtr, RNIL, opPtr->p, 0);
     return true;
   }
   /* Save fragId for next time we request the next fragId. */
