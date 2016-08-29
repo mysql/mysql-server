@@ -1806,7 +1806,9 @@ private:
                            Uint32 triggerPtrI,
                            TcConnectRecord* triggeringOp,
                            Uint32 returnCode);
-  void continueTriggeringOp(Signal* signal, TcConnectRecord* trigOp);
+  void continueTriggeringOp(Signal* signal,
+                            TcConnectRecord* trigOp,
+                            ApiConnectRecordPtr);
 
   void executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr);
   void waitToExecutePendingTrigger(Signal* signal, ApiConnectRecordPtr transPtr);
