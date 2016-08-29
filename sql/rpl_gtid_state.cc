@@ -43,7 +43,7 @@ int Gtid_state::clear(THD *thd)
     thd->clear_error();
     ret= 0;
   }
-
+  next_free_gno= 1;
   DBUG_RETURN(ret);
 }
 
@@ -433,7 +433,32 @@ rpl_gno Gtid_state::get_automatic_gno(rpl_sidno sidno) const
 {
   DBUG_ENTER("Gtid_state::get_automatic_gno");
   Gtid_set::Const_interval_iterator ivit(&executed_gtids, sidno);
-  Gtid next_candidate= { sidno, 1 };
+  /*
+    When assigning new automatic GTIDs, we can optimize the assignment by start
+    searching an available GNO from the "supposed" next free one instead of
+    starting from 1.
+
+    This is useful mostly on systems having many transactions committing in
+    group asking for automatic GTIDs. When a GNO is assigned to be owned by a
+    transaction, it is not removed from the free intervals, but will be added
+    to the owned_gtids set. In this way, picking up the actual first free GNO
+    would often lead to getting a GNO already owned by other thread. This can
+    lead to many "tries" of getting a free and not owned yet GNO (a thread
+    would try N times, N being the sum of transactions in the FLUSH stage plus
+    the transactions in the COMMIT stage that didn't released their ownership
+    yet).
+
+    The optimization just set next_free_gno variable to the last assigned
+    GNO + 1, as this would be the common case without having transactions
+    rolling back. This is done at Gtid_state::generate_automatic_gtid.
+
+    In order to fill the gaps of GTID_EXECUTED when a transaction rolls back
+    releasing the ownership of a GTID, we check if the released GNO is smaller
+    than the next_free_gno at Gtid_state::update_gtids_impl_own_gtid function
+    to set next_free_gno with the "released" GNO in this case.
+  */
+  Gtid next_candidate= { sidno,
+                         sidno == get_server_sidno() ? next_free_gno : 1 };
   while (true)
   {
     const Gtid_set::Interval *iv= ivit.get();
@@ -441,6 +466,7 @@ rpl_gno Gtid_state::get_automatic_gno(rpl_sidno sidno) const
     while (next_candidate.gno < next_interval_start &&
            DBUG_EVALUATE_IF("simulate_gno_exhausted", false, true))
     {
+      DBUG_PRINT("debug",("Checking availability of gno= %llu", next_candidate.gno));
       if (owned_gtids.get_owner(next_candidate) == 0)
         DBUG_RETURN(next_candidate.gno);
       next_candidate.gno++;
@@ -451,7 +477,8 @@ rpl_gno Gtid_state::get_automatic_gno(rpl_sidno sidno) const
       my_error(ER_GNO_EXHAUSTED, MYF(0));
       DBUG_RETURN(-1);
     }
-    next_candidate.gno= iv->end;
+    if (next_candidate.gno <= iv->end)
+      next_candidate.gno= iv->end;
     ivit.next();
   }
 }
@@ -495,7 +522,12 @@ enum_return_status Gtid_state::generate_automatic_gtid(THD *thd,
     lock_sidno(automatic_gtid.sidno);
 
     if (automatic_gtid.gno == 0)
+    {
       automatic_gtid.gno= get_automatic_gno(automatic_gtid.sidno);
+      if (automatic_gtid.sidno == get_server_sidno() &&
+          automatic_gtid.gno != -1)
+        next_free_gno= automatic_gtid.gno + 1;
+    }
 
     if (automatic_gtid.gno != -1)
       acquire_ownership(thd, automatic_gtid);
@@ -623,7 +655,7 @@ int Gtid_state::init()
 {
   DBUG_ENTER("Gtid_state::init()");
 
-  global_sid_lock->assert_some_lock();
+  global_sid_lock->assert_some_wrlock();
 
   rpl_sid server_sid;
   if (server_sid.parse(server_uuid) != 0)
@@ -632,7 +664,7 @@ int Gtid_state::init()
   if (sidno <= 0)
     DBUG_RETURN(1);
   server_sidno= sidno;
-
+  next_free_gno= 1;
   DBUG_RETURN(0);
 }
 
@@ -874,6 +906,12 @@ void Gtid_state::update_gtids_impl_own_gtid(THD *thd, bool is_commit)
       lost_gtids._add_gtid(thd->owned_gtid);
       gtids_only_in_table._add_gtid(thd->owned_gtid);
     }
+  }
+  else
+  {
+    if (thd->owned_gtid.sidno == server_sidno &&
+        next_free_gno > thd->owned_gtid.gno)
+      next_free_gno= thd->owned_gtid.gno;
   }
 
   thd->clear_owned_gtids();

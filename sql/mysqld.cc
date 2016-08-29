@@ -4677,7 +4677,7 @@ int mysqld_main(int argc, char **argv)
     regardless to avoid possible future bugs if gtid_state ever
     needs to do anything else.
   */
-  global_sid_lock->rdlock();
+  global_sid_lock->wrlock();
   int gtid_ret= gtid_state->init();
   global_sid_lock->unlock();
 
