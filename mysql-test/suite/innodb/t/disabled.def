@@ -59,8 +59,3 @@ autoinc_persist_debug     : mysql-trunk-meta-sync disables it, partitioning
 partition                 : mysql-trunk-meta-sync disables it, partitioning
 tablespace_per_table      : mysql-trunk-meta-sync disables it, partitioning
 innodb-import-partition   : mysql-trunk-meta-sync disables it, partitioning
-
-# Sporadically failed
-alter_table_redundant     : Sporadically failed due to error/warnings
-temporary_table           : Sporadically failed due to error/warnings
-xa_recovery               : Sporadically failed due to error/warnings

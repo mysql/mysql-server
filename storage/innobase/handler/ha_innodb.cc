@@ -15930,6 +15930,15 @@ innobase_drop_tablespace(
 	trx_start_if_not_started(trx, true);
 	row_mysql_lock_data_dictionary(trx);
 
+	/* Update SYS_TABLESPACES and SYS_DATAFILES */
+	err = dict_delete_tablespace_and_datafiles(space_id, trx);
+	if (err != DB_SUCCESS) {
+		ib::error() << "Unable to delete the dictionary entries"
+			" for tablespace `" << alter_info->tablespace_name
+			<< "`, Space ID " << space_id;
+		goto have_error;
+	}
+
 	/* Delete the physical files, fil_space_t & fil_node_t entries. */
 	err = fil_delete_tablespace(space_id, BUF_REMOVE_FLUSH_NO_WRITE);
 	switch (err) {
@@ -15943,6 +15952,7 @@ innobase_drop_tablespace(
 		ib::error() << "Unable to delete the tablespace `"
 			<< dd_space->name()
 			<< "`, Space ID " << space_id;
+have_error:
 		error = convert_error_code_to_mysql(err, 0, NULL);
 		trx_rollback_for_mysql(trx);
 	}
