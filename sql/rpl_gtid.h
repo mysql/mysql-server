@@ -2674,6 +2674,27 @@ private:
     @retval >0 The GNO for the GTID.
   */
   rpl_gno get_automatic_gno(rpl_sidno sidno) const;
+  /**
+    The next_free_gno variable will be set with the supposed next free GNO
+    every time a new GNO is delivered automatically or when a transaction is
+    rolled back, releasing a GNO smaller than the last one delivered.
+    It was introduced in an optimization of Gtid_state::get_automatic_gno and
+    Gtid_state::generate_automatic_gtid functions.
+
+    Locking scheme
+
+    This variable can be read and modified in four places:
+    - During server startup, holding global_sid_lock.wrlock;
+    - By a client thread holding global_sid_lock.wrlock (doing a RESET MASTER);
+    - By a client thread calling MYSQL_BIN_LOG::write_gtid function (often the
+      group commit FLUSH stage leader). It will call
+      Gtid_state::generate_automatic_gtid, that will acquire
+      global_sid_lock.rdlock and lock_sidno(get_server_sidno()) when getting a
+      new automatically generated GTID;
+    - By a client thread rolling back, holding global_sid_lock.rdlock
+      and lock_sidno(get_server_sidno()).
+  */
+  rpl_gno next_free_gno;
 public:
   /**
     Return the last executed GNO for a given SIDNO, e.g.
