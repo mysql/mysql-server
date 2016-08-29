@@ -104,6 +104,18 @@ TEST_F(Update_statement_builder_test, add_table_operation_two_items)
 }
 
 
+TEST_F(Update_statement_builder_test, add_table_operation_two_items_same_source)
+{
+  Update_statement_builder_impl::Operation_list operation;
+  *operation.Add() << "source {name: 'xfield'}"
+      "operation: SET " + value_1;;
+  *operation.Add() << "source {name: 'xfield'}"
+      "operation: SET "  + value_2;
+  EXPECT_NO_THROW(builder.add_table_operation(operation));
+  EXPECT_EQ("`xfield`=1,`xfield`='two'", query.get());
+}
+
+
 TEST_F(Update_statement_builder_test, add_table_operation_two_items_placeholder)
 {
   *args.Add() << "type: V_DOUBLE v_double: 2.2";
