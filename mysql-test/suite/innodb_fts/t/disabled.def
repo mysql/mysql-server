@@ -9,4 +9,4 @@
 #
 ##############################################################################
 
-tablespace_location : mysql-trunk-meta-sync disables it, waiting for FK fix(server issue).
+tablespace_location : WL#9525 disables it, waiting for FK fix(server issue).

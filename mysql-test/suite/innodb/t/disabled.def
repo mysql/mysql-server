@@ -24,38 +24,38 @@ analyze_table           @solaris  : Bug#22607584 2016-03-01 Shaohua Failing too 
 
 
 # Disabled list(Due to server issues)
-innodb_misc1              : mysql-trunk-meta-sync disables it, waiting for a fix from WL#7743, which make rollback of CREATE...SELECT correct
-innodb_mysql              : mysql-trunk-meta-sync disables it, waiting for a fix from WL#7743, which make rollback of CREATE...SELECT correct
-innodb_upd_stats_if_needed_not_inited : mysql-trunk-meta-sync disables it, waiting for FK fix
-create_tablespace         : mysql-trunk-meta-sync disables it, waiting for FK fix
-create_tablespace_16k     : mysql-trunk-meta-sync disables it, waiting for FK fix
+innodb_misc1              : WL#9525 disables it, waiting for a fix from WL#7743, which make rollback of CREATE...SELECT correct
+innodb_mysql              : WL#9525 disables it, waiting for a fix from WL#7743, which make rollback of CREATE...SELECT correct
+innodb_upd_stats_if_needed_not_inited : WL#9525 disables it, waiting for FK fix
+create_tablespace         : WL#9525 disables it, waiting for FK fix
+create_tablespace_16k     : WL#9525 disables it, waiting for FK fix
 
 (Due to InnoDB issues)
-virtual_fk_restart        : mysql-trunk-meta-sync disables it, waiting for virtual column fix
-table_encrypt_3           : mysql-trunk-meta-sync disables it, waiting for virtual column fix
+virtual_fk_restart        : WL#9525 disables it, waiting for virtual column fix
+table_encrypt_3           : WL#9525 disables it, waiting for virtual column fix
 
-table_encrypt_4           : mysql-trunk-meta-sync disables it, waiting for IMPORT/EXPORT tablespace fix
-innodb-wl5522-debug       : mysql-trunk-meta-sync disables it, waiting for IMPORT/EXPORT tablespace fix
-innodb-wl5980-discard     : mysql-trunk-meta-sync disables it, waiting for IMPORT/EXPORT tablespace fix
+table_encrypt_4           : WL#9525 disables it, waiting for IMPORT/EXPORT tablespace fix
+innodb-wl5522-debug       : WL#9525 disables it, waiting for IMPORT/EXPORT tablespace fix
+innodb-wl5980-discard     : WL#9525 disables it, waiting for IMPORT/EXPORT tablespace fix
 
-innodb_bulk_create_index_debug : mysql-trunk-meta-sync disables it, tablespaces are not crash-safe for now
+innodb_bulk_create_index_debug : WL#9525 disables it, tablespaces are not crash-safe for now
 
-row_format_redundant      : mysql-trunk-meta-sync disables it, waiting for FTS fix
-innodb-wl6445-1           : mysql-trunk-meta-sync disables it, waiting for FTS fix
+row_format_redundant      : WL#9525 disables it, waiting for FTS fix
+innodb-wl6445-1           : WL#9525 disables it, waiting for FTS fix
 
-table_encrypt_5           : mysql-trunk-meta-sync disables it, waiting for virtual column and encryption working
-table_encrypt_1           : mysql-trunk-meta-sync disables it, waiting for encryption fix
-table_encrypt_debug       : mysql-trunk-meta-sync disables it, waiting for encryption fix
+table_encrypt_5           : WL#9525 disables it, waiting for virtual column and encryption working
+table_encrypt_1           : WL#9525 disables it, waiting for encryption fix
+table_encrypt_debug       : WL#9525 disables it, waiting for encryption fix
 
-create_tablespace_debug   : mysql-trunk-meta-sync disables it, it is related to other SEs, maybe just remove it
+create_tablespace_debug   : WL#9525 disables it, it is related to other SEs, maybe just remove it
 
-innodb-multiple-tablespaces : mysql-trunk-meta-sync disables it, DATA DIRECTORY should be stored properly
+innodb-multiple-tablespaces : WL#9525 disables it, DATA DIRECTORY should be stored properly
 
 # Partitioning issues
-innodb_tablespace         : mysql-trunk-meta-sync disables it, partitioning
-update_time_wl6658        : mysql-trunk-meta-sync disables it, partitioning
-virtual_basic             : mysql-trunk-meta-sync disables it, partitioning
-autoinc_persist_debug     : mysql-trunk-meta-sync disables it, partitioning
-partition                 : mysql-trunk-meta-sync disables it, partitioning
-tablespace_per_table      : mysql-trunk-meta-sync disables it, partitioning
-innodb-import-partition   : mysql-trunk-meta-sync disables it, partitioning
+innodb_tablespace         : WL#9525 disables it, partitioning
+update_time_wl6658        : WL#9525 disables it, partitioning
+virtual_basic             : WL#9525 disables it, partitioning
+autoinc_persist_debug     : WL#9525 disables it, partitioning
+partition                 : WL#9525 disables it, partitioning
+tablespace_per_table      : WL#9525 disables it, partitioning
+innodb-import-partition   : WL#9525 disables it, partitioning
