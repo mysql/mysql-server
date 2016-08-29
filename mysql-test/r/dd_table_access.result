@@ -341,15 +341,25 @@ ERROR HY000: Access to system table 'mysql.indexes' is rejected.
 #
 ALTER TABLE t ADD CONSTRAINT FOREIGN KEY (pk) REFERENCES indexes (id);;
 ERROR HY000: Access to system table 'mysql.indexes' is rejected.
-DROP TABLE t;
+# Turn off innodb_stats_auto_recalc to avoid conflicting updates.
+SET @@global.innodb_stats_auto_recalc= OFF;
 # Check that we may query and update mysql.innodb_index_stats.
-SELECT stat_description FROM mysql.innodb_index_stats LIMIT 1;
-stat_description
-database_name
-UPDATE mysql.innodb_index_stats SET stat_description='Updated';
-SELECT stat_description FROM mysql.innodb_index_stats LIMIT 1;
+SELECT @old_description:= stat_description FROM  mysql.innodb_index_stats
+WHERE database_name= 'mysql' AND table_name= 't' AND
+index_name= 'PRIMARY' AND stat_name= 'size';
+@old_description:= stat_description
+Number of pages in the index
+UPDATE mysql.innodb_index_stats SET stat_description= 'Updated'
+    WHERE database_name= 'mysql' AND table_name= 't' AND
+index_name= 'PRIMARY' AND stat_name= 'size';
+SELECT stat_description FROM mysql.innodb_index_stats
+WHERE database_name= 'mysql' AND table_name= 't' AND
+index_name= 'PRIMARY' AND stat_name= 'size';
 stat_description
 Updated
+UPDATE mysql.innodb_index_stats SET stat_description= @old_description
+WHERE database_name= 'mysql' AND table_name= 't' AND
+index_name= 'PRIMARY' AND stat_name= 'size';
 # Check that we may not DROP or CREATE mysql.innodb_index_stats.
 DROP TABLE mysql.innodb_index_stats;
 ERROR HY000: Access to system table 'mysql.innodb_index_stats' is rejected.
@@ -380,3 +390,6 @@ innodb_index_stats	Altered
 CHECK TABLE mysql.innodb_index_stats;
 Table	Op	Msg_type	Msg_text
 mysql.innodb_index_stats	check	status	OK
+# Reset innodb_stats_auto_recalc.
+SET @@global.innodb_stats_auto_recalc= default;
+DROP TABLE t;
