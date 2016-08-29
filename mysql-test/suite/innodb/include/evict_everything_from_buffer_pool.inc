@@ -12,7 +12,7 @@
 CREATE TABLE _big (a TEXT) ENGINE=INNODB;
 -- let $bp_size = `SELECT @@innodb_buffer_pool_size`
 -- echo # Buffer pool size: $bp_size bytes
--- let $table_size = `SELECT ROUND($bp_size * 1.1)`
+-- let $table_size = `SELECT ROUND($bp_size * 2.0)`
 -- echo # Creating and dropping a table with size: $table_size bytes
 -- let $row_size = 1024
 -- let $i = `SELECT ROUND($table_size / $row_size)`
