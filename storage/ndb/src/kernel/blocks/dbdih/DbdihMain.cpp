@@ -14698,7 +14698,7 @@ Dbdih::execDROP_FRAG_CONF(Signal* signal)
  * scanning.
  *
  * For each row we receive we get a TRANSID_AI with the attribute information
- * and KEYINFO20 with the keyinformation. Based on this information we create
+ * and KEYINFO20 with the key information. Based on this information we create
  * a SUB_TABLE_DATA signal and pass this to TRIX for execution by DBUTIL.
  * We send it to DBUTIL in a UTIL_EXECUTE_REQ signal referring to the prepared
  * transaction in DBUTIL. Each row is executed as a separate Scan Take Over
