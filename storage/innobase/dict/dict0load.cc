@@ -2771,9 +2771,8 @@ dict_load_table(
 
 /** Opens a tablespace for dict_load_table_one()
 @param[in,out]	table		A table that refers to the tablespace to open
-@param[in]	heap		A memory heap
+@param[in,out]	heap		A memory heap
 @param[in]	ignore_err	Whether to ignore an error. */
-UNIV_INLINE
 void
 dict_load_tablespace(
 	dict_table_t*		table,

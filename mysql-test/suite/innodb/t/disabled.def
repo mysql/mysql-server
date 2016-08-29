@@ -23,20 +23,14 @@ innodb.log_corruption_1 @windows  : Bug#22680868 2016-02-08 Erlend Failing too o
 analyze_table           @solaris  : Bug#22607584 2016-03-01 Shaohua Failing too often on PB2 due to timeout
 
 
-# Disabled list
-table_encrypt_5           : mysql-trunk-meta-sync disables it, waiting for virtual column and encryption working
+# Disabled list(Due to server issues)
 innodb_misc1              : mysql-trunk-meta-sync disables it, waiting for a fix from WL#7743, which make rollback of CREATE...SELECT correct
 innodb_mysql              : mysql-trunk-meta-sync disables it, waiting for a fix from WL#7743, which make rollback of CREATE...SELECT correct
-
-innodb_bug-13628249       : mysql-trunk-meta-sync disables it, waiting for a fix that ibd file should be tried to open directly
-innodb_force_recovery     : mysql-trunk-meta-sync disables it, waiting for a fix that ibd file should be tried to open directly
-table_encrypt_1           : mysql-trunk-meta-sync disables it, waiting for a fix that ibd file should be tried to open directly
-innodb-wl6445-1           : mysql-trunk-meta-sync disables it, waiting for a fix that ibd file should be tried to open directly
-
 innodb_upd_stats_if_needed_not_inited : mysql-trunk-meta-sync disables it, waiting for FK fix
 create_tablespace         : mysql-trunk-meta-sync disables it, waiting for FK fix
 create_tablespace_16k     : mysql-trunk-meta-sync disables it, waiting for FK fix
 
+(Due to InnoDB issues)
 virtual_fk_restart        : mysql-trunk-meta-sync disables it, waiting for virtual column fix
 table_encrypt_3           : mysql-trunk-meta-sync disables it, waiting for virtual column fix
 
@@ -47,7 +41,10 @@ innodb-wl5980-discard     : mysql-trunk-meta-sync disables it, waiting for IMPOR
 innodb_bulk_create_index_debug : mysql-trunk-meta-sync disables it, tablespaces are not crash-safe for now
 
 row_format_redundant      : mysql-trunk-meta-sync disables it, waiting for FTS fix
+innodb-wl6445-1           : mysql-trunk-meta-sync disables it, waiting for FTS fix
 
+table_encrypt_5           : mysql-trunk-meta-sync disables it, waiting for virtual column and encryption working
+table_encrypt_1           : mysql-trunk-meta-sync disables it, waiting for encryption fix
 table_encrypt_debug       : mysql-trunk-meta-sync disables it, waiting for encryption fix
 
 create_tablespace_debug   : mysql-trunk-meta-sync disables it, it is related to other SEs, maybe just remove it

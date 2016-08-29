@@ -88,6 +88,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0boot.h"
 #include "dict0crea.h"
 #include "dict0dict.h"
+#include "dict0load.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
 #include "fil0fil.h"
@@ -7819,12 +7820,11 @@ dd_open_table(
 		if (first_index) {
 			ut_ad(m_table->space == 0);
 			m_table->space = sid;
-			fil_space_t*	space = fil_space_get(m_table->space);
-			if (space == nullptr) {
-				/* Mark the ibd file is missing */
-				m_table->ibd_file_missing = true;
-				return(m_table);
-			}
+
+			mem_heap_t*	heap = mem_heap_create(200);
+			dict_load_tablespace(m_table, heap,
+					     DICT_ERR_IGNORE_NONE);
+			mem_heap_free(heap);
 			first_index = false;
 		}
 

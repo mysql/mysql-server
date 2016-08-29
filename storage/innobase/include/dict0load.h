@@ -337,6 +337,16 @@ dict_replace_tablespace_and_filepath(
 	const char*	filepath,
 	ulint		fsp_flags);
 
+/** Opens a tablespace for dict_load_table_one()
+@param[in,out]	table		A table that refers to the tablespace to open
+@param[in,out]	heap		A memory heap
+@param[in]	ignore_err	Whether to ignore an error. */
+void
+dict_load_tablespace(
+	dict_table_t*           table,
+	mem_heap_t*		heap,
+	dict_err_ignore_t	ignore_err);
+
 #include "dict0load.ic"
 
 #endif
