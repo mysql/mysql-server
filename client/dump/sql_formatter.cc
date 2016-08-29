@@ -21,7 +21,8 @@
 #include "stored_procedure.h"
 #include "privilege.h"
 #include <boost/algorithm/string.hpp>
-#include <boost/chrono.hpp>
+#include <chrono>
+#include <sstream>
 
 using namespace Mysql::Tools::Dump;
 
@@ -246,8 +247,8 @@ void Sql_formatter::format_database_start(
 void Sql_formatter::format_dump_end(Dump_end_dump_task* dump_start_dump_task)
 {
   std::ostringstream out;
-  std::time_t sys_time = boost::chrono::system_clock::to_time_t(
-    boost::chrono::system_clock::now());
+  std::time_t sys_time = std::chrono::system_clock::to_time_t(
+    std::chrono::system_clock::now());
   // Convert to calendar time.
   std::string time_string = std::ctime(&sys_time);
   boost::trim(time_string);
@@ -271,8 +272,8 @@ void Sql_formatter::format_dump_start(
   Dump_start_dump_task* dump_start_dump_task)
 {
   // Convert to system time.
-  std::time_t sys_time = boost::chrono::system_clock::to_time_t(
-    boost::chrono::system_clock::now());
+  std::time_t sys_time = std::chrono::system_clock::to_time_t(
+    std::chrono::system_clock::now());
   // Convert to calendar time.
   std::string time_string = std::ctime(&sys_time);
   // Skip trailing newline
