@@ -817,12 +817,9 @@ row_log_table_low_redundant(
 
 	mrec_size = ROW_LOG_HEADER_SIZE + size + (extra_size >= 0x80);
 
-	if (ventry && ventry->n_v_fields > 0) {
-		ulint	v_extra = 0;
-		mrec_size += rec_get_converted_size_temp(
-			index, NULL, 0, ventry, &v_extra);
-
+	if (num_v) {
 		if (o_ventry) {
+			ulint	v_extra = 0;
 			mrec_size += rec_get_converted_size_temp(
 				index, NULL, 0, o_ventry, &v_extra);
 		}
@@ -875,11 +872,7 @@ row_log_table_low_redundant(
 			ventry);
 		b += size;
 
-		if (ventry && ventry->n_v_fields > 0) {
-			rec_convert_dtuple_to_temp(
-				b, new_index, NULL, 0, ventry);
-			b += mach_read_from_2(b);
-
+		if (num_v) {
 			if (o_ventry) {
 				rec_convert_dtuple_to_temp(
 					b, new_index, NULL, 0, o_ventry);
@@ -940,6 +933,13 @@ row_log_table_low(
 	ut_ad(fil_page_get_type(page_align(rec)) == FIL_PAGE_INDEX);
 	ut_ad(page_is_leaf(page_align(rec)));
 	ut_ad(!page_is_comp(page_align(rec)) == !rec_offs_comp(offsets));
+	/* old_pk=row_log_table_get_pk() [not needed in INSERT] is a prefix
+	of the clustered index record (PRIMARY KEY,DB_TRX_ID,DB_ROLL_PTR),
+	with no information on virtual columns */
+	ut_ad(!old_pk || !insert);
+	ut_ad(!old_pk || old_pk->n_v_fields == 0);
+	ut_ad(!o_ventry || !insert);
+	ut_ad(!o_ventry || ventry);
 
 	if (dict_index_is_corrupted(index)
 	    || !dict_index_is_online_ddl(index)
@@ -993,7 +993,7 @@ row_log_table_low(
 
 		old_pk_size = rec_get_converted_size_temp(
 			new_index, old_pk->fields, old_pk->n_fields,
-			old_pk, &old_pk_extra_size);
+			NULL, &old_pk_extra_size);
 		ut_ad(old_pk_extra_size < 0x100);
 		mrec_size += 1/*old_pk_extra_size*/ + old_pk_size;
 	}
