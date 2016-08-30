@@ -3585,8 +3585,22 @@ NdbDictionaryImpl::alterBlobTables(const NdbTableImpl & old_tab,
       }
     }
 
+    bool read_backup_change = false;
+    if (new_tab.getReadBackupFlag() != old_tab.getReadBackupFlag())
+    {
+      read_backup_change = true;
+      if (new_tab.getReadBackupFlag())
+      {
+        new_bt.setReadBackupFlag(true);
+      }
+      else
+      {
+        new_bt.setReadBackupFlag(false);
+      }
+    }
+
     Uint32 changeMask = 0;
-    if (name_change || frag_change)
+    if (name_change || frag_change || read_backup_change)
     {
       int ret = m_receiver.alterTable(m_ndb, bt.m_impl, new_bt.m_impl, changeMask);
       if (ret != 0)
@@ -3595,6 +3609,7 @@ NdbDictionaryImpl::alterBlobTables(const NdbTableImpl & old_tab,
       }
       assert(!name_change || AlterTableReq::getNameFlag(changeMask));
       assert(!frag_change || AlterTableReq::getAddFragFlag(changeMask));
+      assert(!read_backup_change || AlterTableReq::getReadBackupFlag(changeMask));
     }
   }
   DBUG_RETURN(0);

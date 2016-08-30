@@ -9574,11 +9574,8 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
   if (AlterTableReq::getReadBackupSubOpFlag(impl_req->changeMask))
   {
     jam();
-    /**
-     * Changing ReadBackupFlag on an index doesn't require a
-     * change of the table version, so keep the old one.
-     */
-    impl_req->newTableVersion = impl_req->tableVersion;
+    impl_req->newTableVersion =
+      alter_obj_inc_schema_version(tablePtr.p->tableVersion);
     return;
   }
 
@@ -11121,7 +11118,9 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
   else if (AlterTableReq::getReadBackupSubOpFlag(impl_req->changeMask))
   {
     jam();
-    tablePtr.p->m_bits |= TableRecord::TR_ReadBackup;
+    tablePtr.p->m_bits ^= TableRecord::TR_ReadBackup;
+    tablePtr.p->tableVersion = impl_req->newTableVersion;
+    tablePtr.p->gciTableCreated = impl_req->gci;
     /**
      * Alter online of read backup on indexes only needed in
      * DBTC and DBSPJ.
