@@ -1942,15 +1942,15 @@ void partition_info::print_no_partition_found(THD *thd, TABLE *table_arg)
 
 /*
   Set fields related to partition expression
-  SYNOPSIS
-    set_part_expr()
-    start_token               Start of partition function string
-    item_ptr                  Pointer to item tree
-    end_token                 End of partition function string
-    is_subpart                Subpartition indicator
-  RETURN VALUES
-    TRUE                      Memory allocation error
-    FALSE                     Success
+
+  @param start_token    Start of partition function string
+  @param item_ptr       Pointer to item tree
+  @param end_token      End of partition function string
+  @param is_subpart     Subpartition indicator
+
+  @retval true          Memory allocation error or
+                        Invalid character string
+  @retval false         Success
 */
 
 bool partition_info::set_part_expr(char *start_token, Item *item_ptr,
@@ -1962,8 +1962,22 @@ bool partition_info::set_part_expr(char *start_token, Item *item_ptr,
   if (!func_string)
   {
     mem_alloc_error(expr_len);
-    return TRUE;
+    return true;
   }
+
+  size_t valid_length;
+  bool dummy_len_err;
+  if (validate_string(system_charset_info, func_string, expr_len,
+                      &valid_length, &dummy_len_err))
+  {
+    char hexbuf[7];
+    octet2hex(hexbuf, func_string + valid_length,
+              std::min<size_t>(expr_len - valid_length, 3));
+    my_error(ER_INVALID_CHARACTER_STRING, MYF(0), system_charset_info->csname,
+             hexbuf);
+    return true;
+  }
+
   if (is_subpart)
   {
     list_of_subpart_fields= FALSE;
@@ -1978,7 +1992,7 @@ bool partition_info::set_part_expr(char *start_token, Item *item_ptr,
     part_func_string= func_string;
     part_func_len= expr_len;
   }
-  return FALSE;
+  return false;
 }
 
 
