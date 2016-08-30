@@ -3000,8 +3000,6 @@ pfs_start_table_io_wait_v1(PSI_table_locker_state *state,
 
   PFS_thread *pfs_thread= my_thread_get_THR_PFS();
 
-  DBUG_ASSERT(pfs_thread == pfs_table->m_thread_owner);
-
   uint flags;
   ulonglong timer_start= 0;
 
@@ -3104,8 +3102,6 @@ pfs_start_table_lock_wait_v1(PSI_table_locker_state *state,
     return NULL;
 
   PFS_thread *pfs_thread= my_thread_get_THR_PFS();
-
-  DBUG_ASSERT(pfs_thread == pfs_table->m_thread_owner);
 
   PFS_TL_LOCK_TYPE lock_type;
 
