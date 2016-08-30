@@ -853,7 +853,7 @@ static my_bool rm_dir_w_symlink(const char *org_path, my_bool send_error)
   char *path= tmp_path;
   DBUG_ENTER("rm_dir_w_symlink");
   unpack_filename(tmp_path, org_path);
-#ifdef HAVE_READLINK
+#ifndef _WIN32
   int error;
   char tmp2_path[FN_REFLEN];
 

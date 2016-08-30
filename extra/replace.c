@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -1072,7 +1072,7 @@ static int convert_file(REPLACE *rep, char * name)
   int error;
   FILE *in,*out;
   char dir_buff[FN_REFLEN], tempname[FN_REFLEN], *org_name = name;
-#ifdef HAVE_READLINK
+#ifndef _WIN32
   char link_name[FN_REFLEN];
 #endif
   File temp_file;
@@ -1080,7 +1080,7 @@ static int convert_file(REPLACE *rep, char * name)
   DBUG_ENTER("convert_file");
 
   /* check if name is a symlink */
-#ifdef HAVE_READLINK  
+#ifndef _WIN32
   org_name= (my_enable_symlinks &&
              !my_readlink(link_name, name, MYF(0))) ? link_name : name;
 #endif

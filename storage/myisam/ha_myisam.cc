@@ -2084,14 +2084,14 @@ int ha_myisam::create(const char *name, TABLE *table_arg,
                                  share->avg_row_length);
   create_info.language= share->table_charset->number;
 
-#ifdef HAVE_READLINK
+#ifndef _WIN32
   if (my_enable_symlinks)
   {
     create_info.data_file_name= ha_create_info->data_file_name;
     create_info.index_file_name= ha_create_info->index_file_name;
   }
   else
-#endif /* HAVE_READLINK */
+#endif /* !_WIN32 */
   {
     if (ha_create_info->data_file_name)
       push_warning_printf(table_arg->in_use, Sql_condition::SL_WARNING,
