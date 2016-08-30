@@ -53,12 +53,7 @@ create table test.t2 (a int primary key,
 alter table t1 algorithm=inplace, comment="NDB_TABLE=READ_BACKUP=1";
 alter table t2 algorithm=inplace, comment="NDB_TABLE=READ_BACKUP=1";
 
-# Bug#24424459 READBACKUP PROPERTY NOT PROPAGATED TO UI AND BLOB TABLES IN ALTER TABLE
-# Blob table do not get Table options: readbackup
-# But rndb_read_local.inc tests seems to work for blobs, a bit strange.
-# Use commented ndb_desc_opts below to see Table options for blob table too.
-# let $ndb_desc_opts= -b -i -d test t2;
-let $ndb_desc_opts= -i -d test t2;
+let $ndb_desc_opts= -b -i -d test t2;
 source suite/ndb/include/ndb_desc_print.inc;
 --source ndb_read_local.inc
 
