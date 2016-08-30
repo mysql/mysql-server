@@ -211,4 +211,30 @@ vbcol
 11
 ac
 drop table ibstd_14;
+#
+# Bug#22018745 CORRUPTION IN ONLINE TABLE REBUILD
+# (ROW_FORMAT=REDUNDANT, INDEXED VIRTUAL COLUMN)
+#
+CREATE TABLE t (
+b char(5) PRIMARY KEY,
+v char(3) GENERATED ALWAYS AS (substr(b,1,3)) VIRTUAL, KEY(v)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT;
+SET DEBUG_SYNC='row_log_table_apply1_before SIGNAL prepared WAIT_FOR apply';
+OPTIMIZE TABLE t;
+SET DEBUG_SYNC='now WAIT_FOR prepared';
+INSERT INTO t SET b='fubar';
+BEGIN;
+DELETE FROM t;
+ROLLBACK;
+SET DEBUG_SYNC='now SIGNAL apply';
+Table	Op	Msg_type	Msg_text
+test.t	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t	optimize	status	OK
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+SELECT * FROM t;
+b	v
+fubar	fub
+DROP TABLE t;
 SET DEBUG_SYNC = 'RESET';
