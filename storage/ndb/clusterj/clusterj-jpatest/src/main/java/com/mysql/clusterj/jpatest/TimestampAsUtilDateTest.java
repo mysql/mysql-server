@@ -85,7 +85,7 @@ public class TimestampAsUtilDateTest extends AbstractJPABaseTest {
     /** Subclasses override this method to provide values for rows (i) and columns (j) */
     @Override
     protected Object getColumnValue(int i, int j) {
-        return new Date(getMillisFor(1980, 0, i + 1, 0, 0, j));
+        return new Date(getMillisFor(1980, 1, i + 1, 0, 0, j));
     }
 
     @Override
@@ -95,13 +95,13 @@ public class TimestampAsUtilDateTest extends AbstractJPABaseTest {
     }
 
     public void testWriteJDBCReadJPA() {
-        // writeJDBCreadJPA();
-        // failOnError();
+         writeJDBCreadJPA();
+         failOnError();
     }
 
     public void testWriteJPAReadJDBC() {
-        // writeJPAreadJDBC();
-        // failOnError();
+         writeJPAreadJDBC();
+         failOnError();
    }
 
     public void testWriteJDBCReadJDBC() {
