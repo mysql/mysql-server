@@ -48,10 +48,11 @@ install_db () {
 
     [ -d "$datadir" ] || install -d -m 0751 -o@MYSQLD_USER@ -g@MYSQLD_USER@ "$datadir" || exit 1
 
-    if [ ! -e "$log" -a ! -h "$log" -a -O "$(dirname "$log")" ]; then
-	touch "$log"
-	chmod 0640 "$log"
-	chown @MYSQLD_USER@:@MYSQLD_USER@ "$log" || exit 1
+    if [ ! -e "$log" -a ! -h "$log" -a x$(dirname "$log") = "x/var/log" ]; then
+	case $(basename "$log") in
+	    mysql*.log) install /dev/null -m0640 -o@MYSQLD_USER@ -g@MYSQLD_USER@ "$log" ;;
+	    *) ;;
+	esac
     fi
 
     if [ -x /usr/sbin/restorecon ]; then
