@@ -1372,6 +1372,15 @@ public:
 };
 
 
+class Item_func_swap_xy : public Item_geometry_func
+{
+public:
+  Item_func_swap_xy(const POS &pos, Item *a) : Item_geometry_func(pos, a) {}
+  const char *func_name() const { return "st_swapxy"; }
+  String *val_str(String *);
+};
+
+
 class Item_func_numgeometries: public Item_int_func
 {
   String value;

@@ -5728,6 +5728,42 @@ double Item_func_get_y::val_real()
 }
 
 
+String *Item_func_swap_xy::val_str(String *str)
+{
+  DBUG_ASSERT(maybe_null);
+  String *swkb= args[0]->val_str(str);
+
+  if ((null_value= (args[0]->null_value)))
+  {
+    return nullptr;
+  }
+
+  if (!swkb)
+  {
+    /*
+      We've already found out that args[0]->null_value is false.
+      Therefore, swkb should never be null.
+    */
+    DBUG_ASSERT(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  Geometry *geom= nullptr;
+  Geometry_buffer buffer;
+  str->copy(*swkb);
+  if (!(geom= Geometry::construct(&buffer, str)))
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  geom->reverse_coordinates();
+
+  return str;
+}
+
+
 template <typename Coordsys>
 double Item_func_area::bg_area(const Geometry *geom)
 {

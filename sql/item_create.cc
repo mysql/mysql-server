@@ -1790,6 +1790,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_SRID") }, SQL_FACTORY(Srid_instantiator) },
   { { C_STRING_WITH_LEN("ST_STARTPOINT") }, SQL_FN(Item_func_startpoint, 1) },
   { { C_STRING_WITH_LEN("ST_SYMDIFFERENCE") }, SQL_FACTORY(Symdifference_instantiator) },
+  { { C_STRING_WITH_LEN("ST_SWAPXY") }, SQL_FN(Item_func_swap_xy, 1) },
   { { C_STRING_WITH_LEN("ST_TOUCHES") }, SQL_FACTORY(St_touches_instantiator) },
   { { C_STRING_WITH_LEN("ST_UNION") }, SQL_FACTORY(Union_instantiator) },
   { { C_STRING_WITH_LEN("ST_VALIDATE") }, SQL_FN(Item_func_validate, 1) },
