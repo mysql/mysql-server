@@ -815,6 +815,19 @@ RestoreDataIterator::RestoreDataIterator(const RestoreMetaData & md, void (* _fr
   m_row_bitfield_len = 0;
 }
 
+
+bool
+RestoreDataIterator::validateRestoreDataIterator()
+{
+    if (!m_bitfield_storage_ptr)
+    {
+        err << "m_bitfield_storage_ptr is NULL" << endl;
+        return false;
+    }
+    return true;
+}
+
+
 RestoreDataIterator::~RestoreDataIterator()
 {
   free_bitfield_storage();
@@ -1344,6 +1357,17 @@ BackupFile::BackupFile(void (* _free_data_callback)())
 #ifdef ERROR_INSERT
   m_error_insert = 0;
 #endif
+}
+
+bool
+BackupFile::validateBackupFile()
+{
+    if (!m_buffer)
+    {
+        err << "m_buffer is NULL" << endl;
+        return false;
+    }
+    return true;
 }
 
 BackupFile::~BackupFile()
