@@ -126,12 +126,14 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
       17020, 17021, 17022, // lookup_send() encounter dead node -> NodeFailure
       17030, 17031, 17032, // LQHKEYREQ reply is LQHKEYREF('Invalid..')
       17040, 17041, 17042, // lookup_parent_row -> OutOfQueryMemory
+      17043,
       17050, 17051, 17052, 17053, // parseDA -> outOfSectionMem
       17060, 17061, 17062, 17063, // scanIndex_parent_row -> outOfSectionMem
       17070, 17071, 17072, // lookup_send.dupsec -> outOfSectionMem
       17080, 17081, 17082, // lookup_parent_row -> OutOfQueryMemory
       17120, 17121, // execTRANSID_AI -> OutOfRowMemory
-      17130,        // sendSignal(DIH_SCAN_GET_NODES_REQ)  -> import() failed
+      17122,
+      17130, 17131, // sendSignal(DIH_SCAN_GET_NODES_REQ)  -> import() failed
       7234,         // sendSignal(DIH_SCAN_GET_NODES_CONF) -> import() failed (DIH)
       17510,        // random failure when allocating section memory
       17520, 17521  // failure (+random) from ::checkTableError()
@@ -169,6 +171,7 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
     addMask(ctx, (1 << stepNo), "Running");
     i++;
   }
+  restarter.insertErrorInAllNodes(0);
   g_info << endl;
   return NDBT_OK;
 }
@@ -222,6 +225,7 @@ runScanJoinError(NDBT_Context* ctx, NDBT_Step* step){
       17020, 17021, 17022, // lookup_send() encounter dead node -> NodeFailure
       17030, 17031, 17032, // LQHKEYREQ reply is LQHKEYREF('Invalid..')
       17040, 17041, 17042, // lookup_parent_row -> OutOfQueryMemory
+      17043,
       17050, 17051, 17052, 17053, // parseDA -> outOfSectionMem
       17060, 17061, 17062, 17063, // scanIndex_parent_row -> outOfSectionMem
       17070, 17071, 17072, // lookup_send.dupsec -> outOfSectionMem
@@ -230,6 +234,8 @@ runScanJoinError(NDBT_Context* ctx, NDBT_Step* step){
       17100, // scanFrag_sends invalid schema version, to get a SCAN_FRAGREF
       17110, 17111, 17112, // scanIndex_sends invalid schema version, to get a SCAN_FRAGREF
       17120, 17121, // execTRANSID_AI -> OutOfRowMemory
+      17122,
+      17130, 17131, // sendSignal(DIH_SCAN_GET_NODES_REQ) -> import() failed
       17510,        // random failure when allocating section memory
       17520, 17521  // failure (+random) from TableRecord::checkTableError()
   }; 
@@ -264,7 +270,7 @@ runScanJoinError(NDBT_Context* ctx, NDBT_Step* step){
     addMask(ctx, (1 << stepNo), "Running");
     i++;
   }
-
+  restarter.insertErrorInAllNodes(0);
   g_info << endl;
   return NDBT_OK;
 }

@@ -75,3 +75,10 @@ cmd: testSystemRestart
 args: -n to T1
 max-time: 1800
 
+cmd: testSpj
+args: -n ScanJoinError
+max-time: 600
+
+cmd: testSpj
+args: -n LookupJoinError T6 I1 I3
+max-time: 600
