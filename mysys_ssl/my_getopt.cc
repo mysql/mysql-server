@@ -443,13 +443,13 @@ int my_handle_options(int *argc, char ***argv,
               }
               else
                 *((my_bool*) value)= ret;
-              /* set variables source */
-              setval_source(optp, (void*)optp->arg_source);
             }
             if (get_one_option && get_one_option(optp->id, optp,
                                *((my_bool*) value) ?
                                enabled_my_option : disabled_my_option))
               return EXIT_ARGUMENT_INVALID;
+            /* set variables source */
+            setval_source(optp, (void*)optp->arg_source);
 	    continue;
 	  }
 	  argument= optend;

@@ -445,8 +445,8 @@ bool Persisted_variables_cache::set_persist_options(bool what_options)
         is loaded and continue with remaining persisted variables
       */
       m_persist_plugin_hash[iter->first]= iter->second;
-      my_message_local(WARNING_LEVEL, "currently unknown variable '%s' \
-                       was read from the persisted config file",
+      my_message_local(WARNING_LEVEL, "currently unknown variable '%s'"
+                       "was read from the persisted config file",
                        var_name.c_str());
       continue;
     }
