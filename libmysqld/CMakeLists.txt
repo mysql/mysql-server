@@ -13,8 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-ADD_DEFINITIONS(-DMYSQL_SERVER -DEMBEDDED_LIBRARY
- ${SSL_DEFINES})
+ADD_DEFINITIONS(-DMYSQL_SERVER -DEMBEDDED_LIBRARY -DNO_EMBEDDED_ACCESS_CHECKS)
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include 

@@ -23,9 +23,6 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}
                     ${SSL_INCLUDE_DIRS})
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
-IF (SSL_DEFINES)
-  ADD_DEFINITIONS(${SSL_DEFINES})
-ENDIF()
 
 #
 # Maintainer: keep this list sorted, to avoid merge collisions.

@@ -25,10 +25,6 @@
 
 #include "my_config.h"
 
-#define __STDC_LIMIT_MACROS	/* Enable C99 limit macros */
-#define __STDC_FORMAT_MACROS	/* Enable C99 printf format macros */
-#define _USE_MATH_DEFINES       /* Get access to M_PI, M_E, etc. in math.h */
-
 #ifdef _WIN32
 /* Include common headers.*/
 # include <winsock2.h>
@@ -520,13 +516,6 @@ typedef char		my_bool; /* Small bool */
 #else
 #define MYSQL_PLUGIN_IMPORT
 #endif
-
-#ifdef EMBEDDED_LIBRARY
-#define NO_EMBEDDED_ACCESS_CHECKS
-/* Things we don't need in the embedded version of MySQL */
-#undef HAVE_OPENSSL
-#endif /* EMBEDDED_LIBRARY */
-
 
 enum loglevel {
    ERROR_LEVEL=       0,

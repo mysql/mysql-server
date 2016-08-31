@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -22,7 +22,6 @@
 #include <my_config.h>
 
 /* System headers */
-#define __STDC_FORMAT_MACROS 
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>

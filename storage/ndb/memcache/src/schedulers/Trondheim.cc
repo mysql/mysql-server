@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2015, Oracle and/or its affiliates. All rights
+ Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -23,7 +23,6 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <sys/errno.h>
-#define __STDC_FORMAT_MACROS 
 #include <inttypes.h>
 
 /* Memcache headers */
