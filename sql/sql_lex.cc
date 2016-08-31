@@ -3028,7 +3028,17 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type) const
       }
       else
       {
-        append_identifier(thd, str, table_name, table_name_length);
+        /**
+         Fix for printing empty string when internal_table_name is
+         used. Actual length of internal_table_name cannot be reduced
+         as server expects a valid string of length atleast 1 for any
+         table. So while printing we use the correct length of the
+         table_name i.e 0 when internal_table_name is used.
+        */
+        if (table_name != internal_table_name)
+          append_identifier(thd, str, table_name, table_name_length);
+        else
+          append_identifier(thd, str, table_name, 0);
         cmp_name= table_name;
       }
       if (partition_names && partition_names->elements)
