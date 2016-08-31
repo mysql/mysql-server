@@ -296,7 +296,8 @@ INSERT INTO t1 VALUES (1,1),(1,2),(1,0),(1,3);
 # -- enable_query_log
 
 --echo
---echo # Test trace for "access_type_changed 'ref' to 'range'"
+--echo # Test trace for unreliable_ref_cost_and_range_uses_more_keyparts to
+--echo # ignore ref access on index with overly optimistic cost-estimate
 EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a; 
 --echo
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
