@@ -5774,7 +5774,7 @@ INSERT INTO t1 VALUES (1,1),(1,2),(1,0),(1,3);
 # Test trace for "access_type_changed 'ref' to 'range'"
 EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	PRIMARY,b	PRIMARY	4	const	2	50.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	PRIMARY,b	PRIMARY	8	NULL	2	100.00	Using where; Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select max(`test`.`t1`.`b`) AS `MAX(b)`,`test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` = 1) and (`test`.`t1`.`b` < 2)) group by `test`.`t1`.`a`
 
@@ -5999,6 +5999,121 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
             ] /* considered_execution_plans */
           },
           {
+            "rerunning_range_optimizer_for_single_index": [
+              {
+                "table_scan": {
+                  "rows": 4,
+                  "cost": 3.9
+                } /* table_scan */,
+                "potential_range_indexes": [
+                  {
+                    "index": "PRIMARY",
+                    "usable": true,
+                    "key_parts": [
+                      "a",
+                      "b"
+                    ] /* key_parts */
+                  },
+                  {
+                    "index": "b",
+                    "usable": false,
+                    "cause": "not_applicable"
+                  }
+                ] /* potential_range_indexes */,
+                "best_covering_index_scan": {
+                  "index": "b",
+                  "cost": 1.8044,
+                  "chosen": true
+                } /* best_covering_index_scan */,
+                "setup_range_conditions": [
+                ] /* setup_range_conditions */,
+                "group_index_range": {
+                  "potential_group_range_indexes": [
+                    {
+                      "index": "PRIMARY",
+                      "covering": true,
+                      "index_dives_for_eq_ranges": true,
+                      "ranges": [
+                        "1 <= a <= 1 AND b < 2"
+                      ] /* ranges */,
+                      "rows": 2,
+                      "cost": 1.6
+                    }
+                  ] /* potential_group_range_indexes */
+                } /* group_index_range */,
+                "best_group_range_summary": {
+                  "type": "index_group",
+                  "index": "PRIMARY",
+                  "group_attribute": "b",
+                  "min_aggregate": false,
+                  "max_aggregate": true,
+                  "distinct_aggregate": false,
+                  "rows": 2,
+                  "cost": 1.6,
+                  "key_parts_used_for_access": [
+                    "a"
+                  ] /* key_parts_used_for_access */,
+                  "ranges": [
+                    "1 <= a <= 1 AND b < 2"
+                  ] /* ranges */,
+                  "chosen": true
+                } /* best_group_range_summary */,
+                "analyzing_range_alternatives": {
+                  "range_scan_alternatives": [
+                    {
+                      "index": "PRIMARY",
+                      "ranges": [
+                        "1 <= a <= 1 AND b < 2"
+                      ] /* ranges */,
+                      "index_dives_for_eq_ranges": true,
+                      "rowid_ordered": true,
+                      "using_mrr": false,
+                      "index_only": true,
+                      "rows": 2,
+                      "cost": 2.41,
+                      "chosen": false,
+                      "cause": "cost"
+                    }
+                  ] /* range_scan_alternatives */,
+                  "analyzing_roworder_intersect": {
+                    "usable": false,
+                    "cause": "too_few_roworder_scans"
+                  } /* analyzing_roworder_intersect */
+                } /* analyzing_range_alternatives */,
+                "chosen_range_access_summary": {
+                  "range_access_plan": {
+                    "type": "index_group",
+                    "index": "PRIMARY",
+                    "group_attribute": "b",
+                    "min_aggregate": false,
+                    "max_aggregate": true,
+                    "distinct_aggregate": false,
+                    "rows": 2,
+                    "cost": 1.6,
+                    "key_parts_used_for_access": [
+                      "a"
+                    ] /* key_parts_used_for_access */,
+                    "ranges": [
+                      "1 <= a <= 1 AND b < 2"
+                    ] /* ranges */
+                  } /* range_access_plan */,
+                  "rows_for_plan": 2,
+                  "cost_for_plan": 1.6,
+                  "chosen": true
+                } /* chosen_range_access_summary */
+              } /* range_analysis */
+            ] /* rerunning_range_optimizer_for_single_index */
+          },
+          {
+            "access_type_changed": {
+              "table": "`t1`",
+              "index": "PRIMARY",
+              "old_type": "ref",
+              "new_type": "range",
+              "cause": "uses_more_keyparts"
+            } /* access_type_changed */
+          },
+          {
             "attaching_conditions_to_tables": {
               "original_condition": "((`t1`.`a` = 1) and (`t1`.`b` < 2))",
               "attached_conditions_computation": [
@@ -6006,7 +6121,7 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "(`t1`.`b` < 2)"
+                  "attached": "((`t1`.`a` = 1) and (`t1`.`b` < 2))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */

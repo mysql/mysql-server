@@ -700,6 +700,11 @@ public:
   /// @returns semijoin strategy for this table.
   uint get_sj_strategy() const;
 
+  /**
+    Setting this flag means ref is using lesser number of key parts than range
+    and it borrows range's row estimate.
+  */
+  bool dodgy_ref_cost;
 private:
   JOIN_TAB(const JOIN_TAB&);            // not defined
   JOIN_TAB& operator=(const JOIN_TAB&); // not defined
@@ -727,7 +732,8 @@ JOIN_TAB::JOIN_TAB() :
     emb_sj_nest(NULL),
     embedding_map(0),
     join_cache_flags(0),
-    reversed_access(false)
+    reversed_access(false),
+    dodgy_ref_cost(false)
 {
 }
 
