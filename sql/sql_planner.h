@@ -108,7 +108,7 @@ private:
   /// True if we found a complete plan using only allowed semijoin strategies.
   bool found_plan_with_allowed_sj;
 
-  inline Key_use* find_best_ref(const JOIN_TAB  *tab,
+  inline Key_use* find_best_ref(JOIN_TAB  *tab,
                                 const table_map remaining_tables,
                                 const uint idx,
                                 const double prefix_rowcount,
