@@ -340,6 +340,7 @@ this many index pages, there are 2 ways to calculate statistics:
   table/index are not found in the innodb database */
 UNIV_INTERN unsigned long long	srv_stats_transient_sample_pages = 8;
 UNIV_INTERN my_bool		srv_stats_persistent = TRUE;
+UNIV_INTERN my_bool		srv_stats_include_delete_marked = FALSE;
 UNIV_INTERN unsigned long long	srv_stats_persistent_sample_pages = 20;
 UNIV_INTERN my_bool		srv_stats_auto_recalc = TRUE;
 
