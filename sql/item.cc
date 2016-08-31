@@ -3337,8 +3337,11 @@ void Item_string::print(String *str, enum_query_type query_type)
     str->append("?");
     return;
   }
+
   const bool print_introducer=
-    !(query_type & QT_WITHOUT_INTRODUCERS) && is_cs_specified();
+    (query_type & QT_FORCE_INTRODUCERS) ||
+    (!(query_type & QT_WITHOUT_INTRODUCERS) && is_cs_specified());
+
   if (print_introducer)
   {
     str->append('_');
