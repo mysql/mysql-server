@@ -4427,15 +4427,15 @@ Dbspj::lookup_resume(Signal* signal,
 
   ndbassert(treeNodePtr.p->m_bits & TreeNode::T_EXEC_SEQUENTIAL);
   ndbassert(treeNodePtr.p->m_parentPtrI != RNIL);
-  ndbassert(!treeNodePtr.p->m_deferred.isEmpty());
-  ndbassert(!requestPtr.p->m_completed_nodes.get(treeNodePtr.p->m_node_no));
 
   if (unlikely(requestPtr.p->m_state & Request::RS_ABORTING))
   {
     jam();
     return;
   }
-
+  ndbassert(!treeNodePtr.p->m_deferred.isEmpty());
+  ndbassert(!requestPtr.p->m_completed_nodes.get(treeNodePtr.p->m_node_no));
+ 
   Uint32 corrVal;
   {
     LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
@@ -4711,6 +4711,14 @@ Dbspj::lookup_abort(Signal* signal,
                     Ptr<TreeNode> treeNodePtr)
 {
   jam();
+
+  // Discard all deferred operations
+  LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
+  {
+    Local_correlation_list correlations(pool, treeNodePtr.p->m_deferred.m_correlations);
+    correlations.release();
+  }
+  treeNodePtr.p->m_deferred.init();
 }
 
 Uint32
