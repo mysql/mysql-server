@@ -16,11 +16,17 @@
 #ifndef DD__PROPERTIES_IMPL_INCLUDED
 #define DD__PROPERTIES_IMPL_INCLUDED
 
-#include "my_global.h"
-#include "my_sys.h"                // strmake_root
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
 
 #include "dd/properties.h"         // dd::Properties
 #include "dd/string_type.h"        // dd::String_type
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"                // strmake_root
 
 #include <memory>
 

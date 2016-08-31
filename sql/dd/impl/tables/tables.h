@@ -16,14 +16,20 @@
 #ifndef DD_TABLES__TABLES_INCLUDED
 #define DD_TABLES__TABLES_INCLUDED
 
-#include "my_global.h"
+#include <string>
 
-#include "dd/object_id.h"                               // dd::Object_id
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
+#include "dd/object_id.h"                               // dd::Object_id
+#include "my_global.h"
 
 namespace dd {
 
 class Object_key;
+class Dictionary_object;
+class Item_name_key;
+class Open_dictionary_tables_ctx;
+class Se_private_id_key;
 
 namespace tables {
 

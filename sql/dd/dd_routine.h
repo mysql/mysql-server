@@ -19,11 +19,16 @@
 #define DD_ROUTINE_INCLUDED
 
 #include "my_global.h"
-
 #include "sp.h"               // enum_sp_return_code
+#include "sql_lex.h"
+
+class THD;
+class sp_head;
+class sp_name;
 
 namespace dd {
   class Schema;
+class Routine;
 
 namespace cache
 {

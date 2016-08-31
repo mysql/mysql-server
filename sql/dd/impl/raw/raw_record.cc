@@ -15,11 +15,21 @@
 
 #include "dd/impl/raw/raw_record.h"
 
-#include "field.h"                  // Field
-#include "table.h"                  // TABLE
-#include "tztime.h"                 // Time_zone_offset
+#include <stddef.h>
 
 #include "dd/properties.h"          // dd::Properties
+#include "field.h"                  // Field
+#include "handler.h"
+#include "m_ctype.h"
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_time.h"
+#include "mysql_time.h"
+#include "sql_const.h"
+#include "sql_string.h"
+#include "table.h"                  // TABLE
+#include "tztime.h"                 // Time_zone_offset
 
 namespace dd {
 

@@ -15,32 +15,33 @@
 
 #include "dd/collection.h"
 
+#include <memory>     // std::unique_ptr
+
 #include "dd/impl/object_key.h"         // Needed for destructor
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/raw/raw_record_set.h" // dd::Raw_record_set
 #include "dd/impl/raw/raw_table.h"      // dd::Raw_table
 
-#include "dd/impl/types/abstract_table_impl.h"
-#include "dd/impl/types/column_impl.h"
-#include "dd/impl/types/column_type_element_impl.h"
-#include "dd/impl/types/foreign_key_impl.h"
-#include "dd/impl/types/foreign_key_element_impl.h"
-#include "dd/impl/types/index_impl.h"
-#include "dd/impl/types/index_element_impl.h"
-#include "dd/impl/types/parameter_impl.h"
-#include "dd/impl/types/parameter_type_element_impl.h"
-#include "dd/impl/types/partition_impl.h"
-#include "dd/impl/types/partition_index_impl.h"
-#include "dd/impl/types/partition_value_impl.h"
-#include "dd/impl/types/routine_impl.h"
-#include "dd/impl/types/table_impl.h"
-#include "dd/impl/types/tablespace_impl.h"
-#include "dd/impl/types/tablespace_file_impl.h"
-#include "dd/impl/types/view_impl.h"
-#include "dd/impl/types/view_routine_impl.h"
-#include "dd/impl/types/view_table_impl.h"
-#include "dd/impl/types/trigger_impl.h"
-
-#include <memory>     // std::unique_ptr
+#include "dd/impl/types/abstract_table_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/column_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/column_type_element_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/foreign_key_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/foreign_key_element_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/index_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/index_element_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/parameter_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/parameter_type_element_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/partition_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/partition_index_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/partition_value_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/routine_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/table_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/tablespace_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/tablespace_file_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/view_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/view_routine_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/view_table_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/trigger_impl.h"  // IWYU pragma: keep
 
 namespace dd {
 

@@ -15,11 +15,23 @@
 
 #include "dd/impl/types/parameter_type_element_impl.h"
 
-#include "dd/impl/transaction_impl.h"              // Open_dictionary_tables_ctx
+#include <stdio.h>
+
 #include "dd/impl/raw/raw_record.h"                // Raw_record
 #include "dd/impl/tables/parameter_type_elements.h"// Parameter_type_elements
+#include "dd/impl/transaction_impl.h"              // Open_dictionary_tables_ctx
 #include "dd/impl/types/parameter_impl.h"          // Parameter_impl
+#include "dd/types/object_table.h"
 #include "dd/types/parameter_type_element.h"       // Parameter_type_element
+#include "dd/types/weak_object.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+
+namespace dd {
+class Object_key;
+class Parameter;
+}  // namespace dd
 
 using dd::tables::Parameter_type_elements;
 

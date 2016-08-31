@@ -16,12 +16,18 @@
 #ifndef DD_TABLES__EVENTS_INCLUDED
 #define DD_TABLES__EVENTS_INCLUDED
 
-#include "my_global.h"
+#include <string>
 
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
+#include "dd/object_id.h"
+#include "my_global.h"
 
 namespace dd {
 class Object_key;
+class Dictionary_object;
+class Item_name_key;
+
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////

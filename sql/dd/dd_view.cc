@@ -15,27 +15,50 @@
 
 #include "dd_view.h"
 
-#include "dd_table_share.h"                   // dd_get_mysql_charset
-#include "item_func.h"                        // Item_func
-#include "log.h"                              // sql_print_error, sql_print_..
-#include "parse_file.h"                       // PARSE_FILE_TIMESTAMPLENGTH
-#include "sql_class.h"                        // THD
-#include "sql_tmp_table.h"                    // create_tmp_field
-#include "transaction.h"                      // trans_commit
-#include "sp_head.h"                          // sp_name
-#include "sp.h"                               // Sroutine_hash_entry
+#include <string.h>
+#include <time.h>
+#include <memory>
+#include <string>
 
+#include "binary_log_types.h"
+#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/dd.h"                            // dd::get_dictionary
 #include "dd/dd_table.h"                      // fill_dd_columns_from_create_*
 #include "dd/dictionary.h"                    // dd::Dictionary
-#include "dd/properties.h"                    // dd::Properties
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/impl/dictionary_impl.h"          // default_catalog_name
+#include "dd/properties.h"                    // dd::Properties
 #include "dd/types/abstract_table.h"          // dd::enum_table_type
 #include "dd/types/schema.h"                  // dd::Schema
 #include "dd/types/view.h"                    // dd::View
-#include "dd/types/view_table.h"              // dd::View_table
 #include "dd/types/view_routine.h"            // dd::View_routine
+#include "dd/types/view_table.h"              // dd::View_table
+#include "dd_table_share.h"                   // dd_get_mysql_charset
+#include "field.h"
+#include "handler.h"
+#include "item.h"
+#include "item_func.h"                        // Item_func
+#include "key.h"
+#include "log.h"                              // sql_print_error, sql_print_..
+#include "mdl.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "parse_file.h"                       // PARSE_FILE_TIMESTAMPLENGTH
+#include "session_tracker.h"
+#include "sp.h"                               // Sroutine_hash_entry
+#include "sp_head.h"                          // sp_name
+#include "sql_class.h"                        // THD
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_tmp_table.h"                    // create_tmp_field
+#include "system_variables.h"
+#include "table.h"
+#include "transaction.h"                      // trans_commit
 
 namespace dd {
 

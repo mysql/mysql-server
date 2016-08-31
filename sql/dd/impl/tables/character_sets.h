@@ -16,12 +16,18 @@
 #ifndef DD_TABLES__CHARACTER_SETS_INCLUDED
 #define DD_TABLES__CHARACTER_SETS_INCLUDED
 
-#include "my_global.h"
+#include <string>
 
 #include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
+#include "my_global.h"
+
+class THD;
 
 namespace dd {
 class Global_name_key;
+class Dictionary_object;
+class Raw_record;
+
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////

@@ -15,9 +15,22 @@
 
 #include "dd/info_schema/show.h"
 
-#include "dd/dd.h"                             // dd::get_dictionary
-#include "dd/dictionary.h"                     // dd::Dictionary::is_system_view_name
+#include <string.h>
+#include <string>
+
 #include "dd/info_schema/show_query_builder.h" // Select_lex_builder
+#include "dd/info_schema/stats.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_sqlcommand.h"
+#include "mysqld.h"
+#include "session_tracker.h"
+#include "sql_class.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_string.h"
+#include "table.h"
+#include "thr_lock.h"
 
 namespace dd {
 namespace info_schema {

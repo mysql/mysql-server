@@ -15,26 +15,42 @@
 
 #include "dd/impl/types/partition_impl.h"
 
-#include "mysqld_error.h"                          // ER_*
+#include <stddef.h>
+#include <sstream>
 
 #include "dd/string_type.h"                        // dd::String_type
 #include "dd/impl/properties_impl.h"               // Properties_impl
-#include "dd/impl/sdi_impl.h"                      // sdi read/write functions
-#include "dd/impl/transaction_impl.h"              // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"                // Raw_record
+#include "dd/impl/sdi_impl.h"                      // sdi read/write functions
 #include "dd/impl/tables/index_partitions.h"       // Index_partitions
-#include "dd/impl/tables/table_partitions.h"       // Table_partitions
 #include "dd/impl/tables/table_partition_values.h" // Table_partition_values
+#include "dd/impl/tables/table_partitions.h"       // Table_partitions
+#include "dd/impl/transaction_impl.h"              // Open_dictionary_tables_ctx
 #include "dd/impl/types/partition_index_impl.h"    // Partition_index_impl
 #include "dd/impl/types/partition_value_impl.h"    // Partition_value_impl
 #include "dd/impl/types/table_impl.h"              // Table_impl
-
+#include "dd/properties.h"
+#include "dd/types/object_table.h"
+#include "dd/types/partition_index.h"
+#include "dd/types/partition_value.h"
+#include "dd/types/weak_object.h"
+#include "m_string.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"                          // ER_*
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
 
 using dd::tables::Index_partitions;
 using dd::tables::Table_partitions;
 using dd::tables::Table_partition_values;
 
 namespace dd {
+
+class Index;
+class Sdi_rcontext;
+class Sdi_wcontext;
+class Table;
 
 ///////////////////////////////////////////////////////////////////////////
 // Partition implementation.

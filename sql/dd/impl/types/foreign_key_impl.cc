@@ -15,26 +15,39 @@
 
 #include "dd/impl/types/foreign_key_impl.h"
 
-#include "mysqld_error.h"                            // ER_*
-#include "error_handler.h"                           // Internal_error_handler
+#include <stddef.h>
+#include <sstream>
 
-#include "dd/properties.h"                           // Needed for destructor
-#include "dd/string_type.h"                          // dd::String_type
-#include "dd/impl/sdi_impl.h"                        // sdi read/write functions
-#include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"                  // Raw_record
-#include "dd/impl/tables/foreign_keys.h"             // Foreign_keys
+#include "dd/impl/sdi_impl.h"                        // sdi read/write functions
 #include "dd/impl/tables/foreign_key_column_usage.h" // Foreign_key_column_usage
+#include "dd/impl/tables/foreign_keys.h"             // Foreign_keys
+#include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
 #include "dd/impl/types/foreign_key_element_impl.h"  // Foreign_key_element_impl
 #include "dd/impl/types/table_impl.h"                // Table_impl
+#include "dd/properties.h"                           // Needed for destructor
+#include "dd/string_type.h"                          // dd::String_type
+#include "dd/types/foreign_key_element.h"
 #include "dd/types/index.h"                          // Index
-#include "dd/types/column.h"                         // Column::name()
-
+#include "dd/types/object_table.h"
+#include "dd/types/weak_object.h"
+#include "error_handler.h"                           // Internal_error_handler
+#include "m_string.h"
+#include "my_global.h"
+#include "mysqld_error.h"                            // ER_*
+#include "my_sys.h"
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
+#include "sql_class.h"
+#include "sql_error.h"
 
 using dd::tables::Foreign_keys;
 using dd::tables::Foreign_key_column_usage;
 
 namespace dd {
+
+class Sdi_rcontext;
+class Sdi_wcontext;
 
 ///////////////////////////////////////////////////////////////////////////
 // Foreign_key implementation.

@@ -16,16 +16,32 @@
 #ifndef DD__TRIGGER_IMPL_INCLUDED
 #define DD__TRIGGER_IMPL_INCLUDED
 
-#include "my_global.h"
+#include "my_config.h"
 
+#if HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <sys/types.h>
+#include <new>
+#include <string>
+
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
+#include "dd/impl/types/table_impl.h"          // dd::Table_impl
+#include "dd/impl/types/weak_object_impl.h"
+#include "dd/object_id.h"
 #include "dd/types/object_type.h"              // dd::Object_type
 #include "dd/types/trigger.h"                  // dd::Trigger
-#include "dd/impl/types/table_impl.h"          // dd::Table_impl
+#include "my_global.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
+
+class Object_table;
+class Open_dictionary_tables_ctx;
+class Table;
+class Weak_object;
 
 class Trigger_impl : virtual public Entity_object_impl,
                      virtual public Trigger

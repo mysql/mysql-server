@@ -16,15 +16,21 @@
 #ifndef DD__SPATIAL_REFERENCE_SYSTEM_IMPL_INCLUDED
 #define DD__SPATIAL_REFERENCE_SYSTEM_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <stdio.h>
+#include <memory>                             // std::unique_ptr
+#include <new>
+#include <string>
 
-#include "gis/srs/srs.h"                      // gis::srs::Spatial_reference_...
 #include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "dd/impl/types/weak_object_impl.h"
+#include "dd/object_id.h"
+#include "dd/sdi_fwd.h"
 #include "dd/types/dictionary_object_table.h" // dd::Dictionary_object_table
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/spatial_reference_system.h"// dd:Spatial_reference_system
-
-#include <memory>                             // std::unique_ptr
+#include "dd/types/weak_object.h"
+#include "gis/srs/srs.h"                      // gis::srs::Spatial_reference_...
+#include "my_global.h"
 
 class THD;
 
@@ -33,6 +39,9 @@ namespace dd {
 ///////////////////////////////////////////////////////////////////////////
 
 class Raw_record;
+class Open_dictionary_tables_ctx;
+class Sdi_rcontext;
+class Sdi_wcontext;
 
 ///////////////////////////////////////////////////////////////////////////
 

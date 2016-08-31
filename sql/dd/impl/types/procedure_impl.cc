@@ -15,10 +15,13 @@
 
 #include "dd/impl/types/procedure_impl.h"
 
-#include "dd/string_type.h"                      // dd::String_type
-#include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
+#include <sstream>
+
 #include "dd/impl/tables/routines.h"             // Routines
+#include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
+#include "dd/string_type.h"                      // dd::String_type
 #include "dd/types/parameter.h"                  // Parameter
+#include "dd/types/weak_object.h"
 
 using dd::tables::Routines;
 

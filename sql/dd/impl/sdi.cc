@@ -15,30 +15,47 @@
 
 #include "dd/sdi.h"
 
-#include "handler.h"              // ha_resolve_by_name_raw
-#include "m_string.h"             // STRING_WITH_LEN
-#include "sql_class.h"            // THD
-#include "strfunc.h"              // lex_cstring_handle
+#include <rapidjson/document.h>     // rapidjson::GenericValue
+#include <rapidjson/prettywriter.h> // rapidjson::PrettyWriter
+#include <stddef.h>
+#include <stdint.h>
+#include <sys/types.h>
+#include <vector>
 
-#include "dd/dd.h"                      // dd::create_object
-#include "dd/dd_tablespace.h"           // dd::get_tablespace_name
-#include "dd/sdi_file.h"                // dd::sdi_file::store
-#include "dd/sdi_tablespace.h"          // dd::sdi_tablespace::store
 #include "dd/cache/dictionary_client.h" // dd::Dictionary_client
 #include "dd/impl/dictionary_impl.h"    // dd::Dictionary_impl::get_target_dd_version
 #include "dd/impl/sdi_impl.h"           // sdi read/write functions
 #include "dd/impl/sdi_utils.h"          // dd::checked_return
+#include "dd/object_id.h"
+#include "dd/sdi_file.h"                // dd::sdi_file::store
+#include "dd/sdi_fwd.h"
+#include "dd/sdi_tablespace.h"          // dd::sdi_tablespace::store
+#include "dd/types/abstract_table.h"
 #include "dd/types/column.h"            // dd::Column
 #include "dd/types/index.h"             // dd::Index
-#include "dd/types/object_type.h"       // dd::create_object needs this
 #include "dd/types/schema.h"            // dd::Schema
 #include "dd/types/table.h"             // dd::Table
 #include "dd/types/tablespace.h"        // dd::Tablespace
+#include "handler.h"              // ha_resolve_by_name_raw
+#include "handler.h"              // ha_resolve_by_name_raw
+#include "m_string.h"             // STRING_WITH_LEN
+#include "m_string.h"             // STRING_WITH_LEN
+#include "mdl.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "prealloced_array.h"
+#include "rapidjson/stringbuffer.h"
+#include "sql_class.h"            // THD
+#include "sql_class.h"            // THD
+#include "sql_plugin_ref.h"
+#include "strfunc.h"              // lex_cstring_handle
+#include "template_utils.h"
 
-#include <rapidjson/document.h>     // rapidjson::GenericValue
-#include <rapidjson/prettywriter.h> // rapidjson::PrettyWriter
-
-#include <iostream>
+namespace dd {
+class Weak_object;
+}  // namespace dd
 
 /**
   @defgroup sdi Serialized Dictionary Information

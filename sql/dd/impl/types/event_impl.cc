@@ -15,15 +15,19 @@
 
 #include "dd/impl/types/event_impl.h"
 
-#include "my_user.h"                             // parse_user
-#include "mysqld_error.h"                        // ER_*
+#include <sstream>
 
-#include "dd/string_type.h"                      // dd::String_type
-#include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
 #include "dd/impl/raw/object_keys.h"             // Primary_id_key
 #include "dd/impl/raw/raw_record.h"              // Raw_record
 #include "dd/impl/tables/events.h"               // Events
-
+#include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
+#include "dd/string_type.h"                      // dd::String_type
+#include "dd/types/weak_object.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"                        // ER_*
+#include "mysqld.h"
+#include "my_sys.h"
+#include "my_user.h"                             // parse_user
 
 using dd::tables::Events;
 

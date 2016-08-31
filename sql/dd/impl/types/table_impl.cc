@@ -15,25 +15,38 @@
 
 #include "dd/impl/types/table_impl.h"
 
-#include "mysqld_error.h"                            // ER_*
-#include "current_thd.h"                             // current_thd
+#include <string.h>
+#include <sstream>
 
-#include "dd/string_type.h"                          // dd::String_type
+#include "current_thd.h"                             // current_thd
 #include "dd/impl/object_key.h"                      // Needed for destructor
 #include "dd/impl/properties_impl.h"                 // Properties_impl
-#include "dd/impl/sdi_impl.h"                        // sdi read/write functions
-#include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"                  // Raw_record
+#include "dd/impl/sdi_impl.h"                        // sdi read/write functions
 #include "dd/impl/tables/foreign_keys.h"             // Foreign_keys
 #include "dd/impl/tables/indexes.h"                  // Indexes
-#include "dd/impl/tables/tables.h"                   // Tables
 #include "dd/impl/tables/table_partitions.h"         // Table_partitions
+#include "dd/impl/tables/tables.h"                   // Tables
 #include "dd/impl/tables/triggers.h"                 // Triggers
+#include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
 #include "dd/impl/types/foreign_key_impl.h"          // Foreign_key_impl
 #include "dd/impl/types/index_impl.h"                // Index_impl
 #include "dd/impl/types/partition_impl.h"            // Partition_impl
 #include "dd/impl/types/trigger_impl.h"              // Trigger_impl
+#include "dd/properties.h"
+#include "dd/string_type.h"                          // dd::String_type
 #include "dd/types/column.h"                         // Column
+#include "dd/types/foreign_key.h"
+#include "dd/types/index.h"
+#include "dd/types/partition.h"
+#include "dd/types/weak_object.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "mysqld_error.h"                            // ER_*
+#include "my_sys.h"
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
+#include "sql_class.h"
 
 using dd::tables::Foreign_keys;
 using dd::tables::Indexes;
@@ -42,6 +55,9 @@ using dd::tables::Table_partitions;
 using dd::tables::Triggers;
 
 namespace dd {
+
+class Sdi_rcontext;
+class Sdi_wcontext;
 
 ///////////////////////////////////////////////////////////////////////////
 // Table implementation.

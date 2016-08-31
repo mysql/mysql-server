@@ -15,16 +15,24 @@
 
 #include "dd/impl/dictionary_impl.h"
 
-#include "auth_common.h"                   // acl_init
-#include "bootstrap.h"                     // bootstrap::bootstrap_functor
-#include "opt_costconstantcache.h"         // init_optimizer_cost_module
-#include "sql_class.h"                     // THD
+#include <string.h>
+#include <memory>
 
-#include "dd/dd.h"                         // enum_dd_init_type
+#include "auth_common.h"                   // acl_init
+#include "binlog_event.h"
+#include "bootstrap.h"                     // bootstrap::bootstrap_functor
 #include "dd/cache/dictionary_client.h"    // dd::Dictionary_client
+#include "dd/dd.h"                         // enum_dd_init_type
 #include "dd/impl/bootstrapper.h"          // dd::Bootstrapper
 #include "dd/impl/system_registry.h"       // dd::System_tables
 #include "dd/impl/tables/version.h"        // get_actual_dd_version()
+#include "m_ctype.h"
+#include "mdl.h"
+#include "my_dbug.h"
+#include "mysql/thread_type.h"
+#include "opt_costconstantcache.h"         // init_optimizer_cost_module
+#include "sql_class.h"                     // THD
+#include "system_variables.h"
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -33,6 +41,8 @@ namespace dd {
 ///////////////////////////////////////////////////////////////////////////
 // Implementation details.
 ///////////////////////////////////////////////////////////////////////////
+
+class Object_table;
 
 Dictionary_impl *Dictionary_impl::s_instance= NULL;
 

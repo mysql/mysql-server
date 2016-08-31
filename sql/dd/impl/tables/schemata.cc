@@ -15,12 +15,24 @@
 
 #include "dd/impl/tables/schemata.h"
 
-#include "dd/string_type.h"             // dd::String_type
-#include "dd/impl/raw/object_keys.h"    // Parent_id_range_key
-#include "dd/impl/types/schema_impl.h"  // dd::Schema_impl
+#include <new>
+#include <string>
 
+#include "dd/impl/raw/object_keys.h"    // Parent_id_range_key
+#include "dd/impl/raw/object_keys.h"  // Parent_id_range_key
+#include "dd/impl/types/object_table_definition_impl.h"
+#include "dd/impl/types/schema_impl.h"                  // dd::Schema_impl
+#include "dd/impl/types/schema_impl.h"  // dd::Schema_impl
+#include "dd/string_type.h"             // dd::String_type
+#include "mysql_com.h"
+#include "system_variables.h"
 
 namespace dd {
+
+class Dictionary_object;
+class Object_key;
+class Raw_record;
+
 namespace tables {
 
 const Schemata &Schemata::instance()

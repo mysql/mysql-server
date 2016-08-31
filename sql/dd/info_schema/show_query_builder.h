@@ -17,9 +17,16 @@
 #define SQL_DD_SHOW_QUERY_BUILDER_H
 
 #include "m_string.h"                  // C_STRING_WITH_LEN
+#include "mem_root_array.h"
 #include "mysql/mysql_lex_string.h"    // LEX_STRING
+#include "mysqld.h"
+#include "parse_tree_node_base.h"
 #include "parse_tree_nodes.h"          // PT_select_item_list
 #include "sql_class.h"                 // THD
+
+class Item;
+class SELECT_LEX;
+class String;
 
 namespace dd {
 namespace info_schema {

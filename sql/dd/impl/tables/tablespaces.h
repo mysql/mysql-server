@@ -16,12 +16,16 @@
 #ifndef DD_TABLES__TABLESPACES_INCLUDED
 #define DD_TABLES__TABLESPACES_INCLUDED
 
-#include "my_global.h"
+#include <string>
 
 #include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
+#include "my_global.h"
 
 namespace dd {
 class Global_name_key;
+class Dictionary_object;
+class Raw_record;
+
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////

@@ -15,6 +15,11 @@
 
 #include "dd/cache/local_multi_map.h"
 
+#include <stddef.h>
+
+#include "dd/cache/multi_map_base.h"
+#include "my_dbug.h"
+
 #include "cache_element.h"                    // Cache_element
 #include "dd/types/abstract_table.h"          // Abstract_table
 #include "dd/types/charset.h"                 // Charset

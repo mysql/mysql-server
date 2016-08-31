@@ -16,19 +16,30 @@
 #ifndef DD__PARTITION_VALUE_IMPL_INCLUDED
 #define DD__PARTITION_VALUE_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+#include <new>
+#include <string>
 
 #include "dd/impl/types/weak_object_impl.h"  // dd::Weak_object_impl
+#include "dd/sdi_fwd.h"
 #include "dd/types/object_type.h"            // dd::Object_type
 #include "dd/types/partition_value.h"        // dd::Partition_value
+#include "my_global.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
+class Open_dictionary_tables_ctx;
 class Partition_impl;
 class Raw_record;
-class Open_dictionary_tables_ctx;
+class Object_key;
+class Object_table;
+class Partition;
+class Sdi_rcontext;
+class Sdi_wcontext;
+class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 

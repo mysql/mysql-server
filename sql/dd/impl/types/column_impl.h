@@ -16,23 +16,37 @@
 #ifndef DD__COLUMN_IMPL_INCLUDED
 #define DD__COLUMN_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+#include <memory>   // std::unique_ptr
+#include <new>
+#include <string>
 
-#include "dd/properties.h"                    // dd::Properties
 #include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "dd/impl/types/weak_object_impl.h"
+#include "dd/object_id.h"
+#include "dd/properties.h"                    // dd::Properties
+#include "dd/sdi_fwd.h"
 #include "dd/types/column.h"                  // dd::Column
 #include "dd/types/column_type_element.h"     // dd::Column_type_element
 #include "dd/types/object_type.h"             // dd::Object_type
-
-#include <memory>   // std::unique_ptr
+#include "my_dbug.h"
+#include "my_global.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Abstract_table_impl;
-class Raw_record;
 class Open_dictionary_tables_ctx;
+class Raw_record;
+class Abstract_table;
+class Column_type_element;
+class Object_table;
+class Properties;
+class Sdi_rcontext;
+class Sdi_wcontext;
+class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 

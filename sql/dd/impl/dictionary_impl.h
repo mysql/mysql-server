@@ -16,14 +16,24 @@
 #ifndef DD__DICTIONARY_IMPL_INCLUDED
 #define DD__DICTIONARY_IMPL_INCLUDED
 
-#include "my_global.h"
-#include "table.h"                   // MYSQL_SCHEMA_NAME
+#include <stddef.h>
+#include <sys/types.h>
+#include <memory>
+#include <string>
 
 #include "dd/dictionary.h"           // dd::Dictionary
 #include "dd/object_id.h"            // dd::Object_id
 #include "dd/string_type.h"          // dd::String_type
+#include "m_string.h"
+#include "my_global.h"
+#include "table.h"                   // MYSQL_SCHEMA_NAME
 
 #include <memory>
+
+class THD;
+namespace dd {
+class Object_table;
+}  // namespace dd
 
 namespace dd_schema_unittest {
   class SchemaTest;

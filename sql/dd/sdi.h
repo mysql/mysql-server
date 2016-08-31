@@ -16,8 +16,9 @@
 #ifndef DD__SDI_INCLUDED
 #define DD__SDI_INCLUDED
 
-#include "my_global.h"
+#include <string>
 
+#include "my_global.h"
 #include "dd/string_type.h"                    // dd::String_type
 
 class THD;
@@ -32,6 +33,7 @@ struct handlerton;
 */
 
 namespace dd {
+
 class Schema;
 class Table;
 class Tablespace;

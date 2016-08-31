@@ -16,6 +16,11 @@
 #include "dd/impl/tables/index_stats.h"
 
 #include "dd/impl/raw/object_keys.h"
+#include "dd/impl/types/object_table_definition_impl.h"
+
+namespace dd {
+class Object_key;
+}  // namespace dd
 
 namespace dd {
 namespace tables {

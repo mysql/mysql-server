@@ -15,16 +15,23 @@
 
 #include "dd/impl/types/routine_impl.h"
 
-#include "my_user.h"                             // parse_user
+#include <new>
+#include <sstream>
 
-#include "dd/string_type.h"                      // dd::String_type
-#include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
 #include "dd/impl/raw/object_keys.h"             // Primary_id_key
 #include "dd/impl/raw/raw_record.h"              // Raw_record
 #include "dd/impl/tables/parameters.h"           // Parameters
 #include "dd/impl/tables/routines.h"             // Routines
+#include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
 #include "dd/impl/types/parameter_impl.h"        // Parameter_impl
-
+#include "dd/string_type.h"                      // dd::String_type
+#include "dd/types/parameter.h"
+#include "dd/types/weak_object.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "mysqld.h"
+#include "my_sys.h"
+#include "my_user.h"                             // parse_user
 
 using dd::tables::Routines;
 using dd::tables::Parameters;

@@ -16,47 +16,69 @@
 #include "dd_table.h"
 
 #include "current_thd.h"
-#include "dd_table_share.h"                   // is_suitable_for_primary_key
-#include "debug_sync.h"                       // DEBUG_SYNC
-#include "default_values.h"                   // max_pack_length
-#include "log.h"                              // sql_print_error
-#include "mysqld.h"                           // dd_upgrade_skip_se
-#include "partition_info.h"                   // partition_info
-#include "psi_memory_key.h"                   // key_memory_frm
-#include "sql_class.h"                        // THD
-#include "sql_partition.h"                    // expr_to_string
-#include "sql_table.h"                        // primary_key_name
-#include "strfunc.h"                          // lex_cstring_handle
-#include "transaction.h"                      // trans_commit
-
+#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/dd.h"                            // dd::get_dictionary
 #include "dd/dd_schema.h"                     // dd::Schema_MDL_locker
 #include "dd/dictionary.h"                    // dd::Dictionary
+// TODO: Avoid exposing dd/impl headers in public files.
+#include "dd/impl/dictionary_impl.h"          // default_catalog_name
+#include "dd/impl/utils.h"                    // dd::escape
 #include "dd/properties.h"                    // dd::Properties
 #include "dd/sdi.h"                           // dd::store_sdi
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
+#include "dd_table_share.h"                   // is_suitable_for_primary_key
+#include "dd/types/abstract_table.h"
 #include "dd/types/column.h"                  // dd::Column
 #include "dd/types/column_type_element.h"     // dd::Column_type_element
-#include "dd/types/foreign_key.h"             // dd::Foreign_key
 #include "dd/types/foreign_key_element.h"     // dd::Foreign_key_element
-#include "dd/types/index.h"                   // dd::Index
+#include "dd/types/foreign_key.h"             // dd::Foreign_key
 #include "dd/types/index_element.h"           // dd::Index_element
+#include "dd/types/index.h"                   // dd::Index
 #include "dd/types/object_table.h"            // dd::Object_table
-#include "dd/types/object_table_definition.h" // dd::Object_table_definition
 #include "dd/types/partition.h"               // dd::Partition
 #include "dd/types/partition_value.h"         // dd::Partition_value
 #include "dd/types/schema.h"                  // dd::Schema
 #include "dd/types/table.h"                   // dd::Table
 #include "dd/types/tablespace.h"              // dd::Tablespace
-#include "dd/types/view.h"                    // dd::View
+#include "debug_sync.h"                       // DEBUG_SYNC
+#include "default_values.h"                   // max_pack_length
+#include "field.h"
+#include "item.h"
+#include "key.h"
+#include "key_spec.h"
+#include "log.h"                              // sql_print_error
+#include "m_ctype.h"
+#include "mdl.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "mysqld.h"                           // dd_upgrade_skip_se
+#include "mysql/service_mysql_alloc.h"
+#include "my_sys.h"
+#include "partition_element.h"
+#include "partition_info.h"                   // partition_info
+#include "psi_memory_key.h"                   // key_memory_frm
+#include "query_options.h"
+#include "session_tracker.h"
+#include "sql_class.h"                        // THD
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_list.h"
+#include "sql_partition.h"                    // expr_to_string
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "sql_table.h"                        // primary_key_name
+#include "strfunc.h"                          // lex_cstring_handle
+#include "table.h"
+#include "transaction.h"                      // trans_commit
+#include "typelib.h"
 
-
-// TODO: Avoid exposing dd/impl headers in public files.
-#include "dd/impl/utils.h"                    // dd::escape
-#include "dd/impl/dictionary_impl.h"          // default_catalog_name
-
+#include <string.h>
+#include <algorithm>
 #include <memory>                             // unique_ptr
-
 
 // Explicit instanciation of some template functions
 template bool dd::drop_table<dd::Abstract_table>(THD *thd,

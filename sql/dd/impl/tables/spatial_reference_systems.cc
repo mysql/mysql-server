@@ -15,8 +15,19 @@
 
 #include "dd/impl/tables/spatial_reference_systems.h"
 
+#include <string.h>
+#include <new>
+
 #include "dd/impl/raw/object_keys.h"                    // Parent_id_range_key
+#include "dd/impl/types/object_table_definition_impl.h"
 #include "dd/impl/types/spatial_reference_system_impl.h"// dd::Spatial_refere...
+#include "m_ctype.h"
+
+namespace dd {
+class Dictionary_object;
+class Object_key;
+class Raw_record;
+}  // namespace dd
 
 namespace dd {
 namespace tables {

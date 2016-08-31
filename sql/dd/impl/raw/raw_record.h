@@ -16,13 +16,20 @@
 #ifndef DD__RAW_RECORD_INCLUDED
 #define DD__RAW_RECORD_INCLUDED
 
-#include "my_global.h"
+#include "my_config.h"
+
+#if HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <sys/types.h>
+#include <string>
 
 #include "dd/object_id.h"      // dd::Object_id
 #include "dd/string_type.h"    // dd::String_type
 
-struct TABLE;
 class Field;
+struct TABLE;
+
 typedef long my_time_t;
 
 namespace dd {

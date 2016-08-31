@@ -16,23 +16,38 @@
 #ifndef DD__PARTITION_IMPL_INCLUDED
 #define DD__PARTITION_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <sys/types.h>
+#include <memory>
+#include <new>
+#include <string>
 
+#include "dd/collection.h"
 #include "dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
+#include "dd/impl/types/weak_object_impl.h"
+#include "dd/object_id.h"
+#include "dd/sdi_fwd.h"
 #include "dd/types/object_type.h"              // dd::Object_type
 #include "dd/types/partition.h"                // dd::Partition
 #include "dd/types/partition_index.h"          // dd::Partition_index
 #include "dd/types/partition_value.h"          // dd::Partition_value
-
-#include <memory>
+#include "my_global.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
+class Open_dictionary_tables_ctx;
 class Raw_record;
 class Table_impl;
-class Open_dictionary_tables_ctx;
+class Index;
+class Object_table;
+class Partition_index;
+class Partition_value;
+class Properties;
+class Sdi_rcontext;
+class Sdi_wcontext;
+class Table;
+class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 

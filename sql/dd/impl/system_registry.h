@@ -16,14 +16,19 @@
 #ifndef DD__SYSTEM_REGISTRY_INCLUDED
 #define DD__SYSTEM_REGISTRY_INCLUDED
 
-#include "my_global.h"
+#include <stdio.h>
 
-#include "mysqld_error.h"                      // ER_NO_SYSTEM_TABLE_...
-#include "dd/string_type.h"                    // dd::String_type
-
-#include <vector>
 #include <map>
+#include <new>
+#include <string>
 #include <utility>
+#include <vector>
+
+#include "dd/string_type.h"                    // dd::String_type
+#include "dd/types/object_table.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "mysqld_error.h"                      // ER_NO_SYSTEM_TABLE_...
 
 namespace dd {
 

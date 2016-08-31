@@ -15,20 +15,26 @@
 
 #include "dd/impl/types/view_impl.h"
 
-#include "my_user.h"                          // parse_user
-#include "mysqld_error.h"                     // ER_*
+#include <sstream>
 
-#include "dd/properties.h"                     // Needed for destructor
-#include "dd/string_type.h"                    // dd::String_type
-#include "dd/impl/transaction_impl.h"          // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"            // Raw_record
 #include "dd/impl/tables/tables.h"             // Tables
 #include "dd/impl/tables/view_routine_usage.h" // View_routine_usage
 #include "dd/impl/tables/view_table_usage.h"   // View_table_usage
+#include "dd/impl/transaction_impl.h"          // Open_dictionary_tables_ctx
 #include "dd/impl/types/view_routine_impl.h"   // View_routine_impl
 #include "dd/impl/types/view_table_impl.h"     // View_table_impl
+#include "dd/properties.h"                     // Needed for destructor
+#include "dd/string_type.h"                    // dd::String_type
 #include "dd/types/column.h"                   // Column
-
+#include "dd/types/view_routine.h"
+#include "dd/types/view_table.h"
+#include "dd/types/weak_object.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"                     // ER_*
+#include "mysqld.h"
+#include "my_sys.h"
+#include "my_user.h"                          // parse_user
 
 using dd::tables::Tables;
 using dd::tables::View_table_usage;

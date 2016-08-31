@@ -16,6 +16,9 @@
 #ifndef DD_TABLES__VERSION_INCLUDED
 #define DD_TABLES__VERSION_INCLUDED
 
+#include <sys/types.h>
+#include <string>
+
 #include "dd/impl/types/object_table_impl.h"
 
 class THD;

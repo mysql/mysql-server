@@ -16,7 +16,12 @@
 #ifndef DD_INFO_SCHEMA_INCLUDED
 #define DD_INFO_SCHEMA_INCLUDED
 
+#include <sys/types.h>
+#include <string>
+
+#include "dd/object_id.h"
 #include "handler.h"                        // ha_statistics
+#include "my_global.h"
 #include "sql_string.h"                     // String
 #include "dd/string_type.h"                 // dd::String_type
 

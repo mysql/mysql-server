@@ -16,11 +16,20 @@
 #ifndef DD_TABLES__INDEX_STATS_INCLUDED
 #define DD_TABLES__INDEX_STATS_INCLUDED
 
-#include "dd/string_type.h"                              // dd::String_type
+#include <new>
+#include <string>
+
 #include "dd/impl/types/dictionary_object_table_impl.h"
 #include "dd/impl/types/index_stat_impl.h"
+#include "dd/string_type.h"                              // dd::String_type
+#include "dd/types/index_stat.h"
 
 namespace dd {
+
+class Dictionary_object;
+class Object_key;
+class Raw_record;
+
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////

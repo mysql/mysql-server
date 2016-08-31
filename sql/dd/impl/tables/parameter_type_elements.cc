@@ -15,7 +15,10 @@
 
 #include "dd/impl/tables/parameter_type_elements.h"
 
+#include <new>
+
 #include "dd/impl/raw/object_keys.h"  // Parent_id_range_key
+#include "dd/impl/types/object_table_definition_impl.h"
 
 namespace dd {
 namespace tables {

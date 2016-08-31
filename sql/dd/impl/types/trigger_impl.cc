@@ -15,21 +15,26 @@
 
 #include "dd/impl/types/trigger_impl.h"
 
-#include "my_user.h"                             // parse_user
-#include "mysqld_error.h"                        // ER_*
-#include "current_thd.h"                         // current_thd
-#include "tztime.h"                              // Time_zone
+#include <sstream>
 
-#include "dd/string_type.h"                      // dd::String_type
 #include "dd/impl/properties_impl.h"             // Properties_impl
 #include "dd/impl/raw/raw_record.h"              // Raw_record
-#include "dd/impl/raw/object_keys.h"             // Primary_id_key
 #include "dd/impl/tables/triggers.h"             // Triggers
 #include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
+#include "dd/string_type.h"                      // dd::String_type
+#include "dd/types/object_table.h"
+#include "dd/types/weak_object.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"                        // ER_*
+#include "my_sys.h"
+#include "my_user.h"                             // parse_user
+#include "sql_class.h"
 
 using dd::tables::Triggers;
 
 namespace dd {
+
+class Table;
 
 ///////////////////////////////////////////////////////////////////////////
 // Trigger implementation.

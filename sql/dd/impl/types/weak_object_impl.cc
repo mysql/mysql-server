@@ -15,17 +15,20 @@
 
 #include "dd/impl/types/weak_object_impl.h"
 
-#include "mysqld_error.h"                 // ER_*
-#include "log.h"                          // sql_print_error
+#include <memory>
+#include <string>
 
-#include "dd/types/entity_object.h"       // Entity_object
-#include "dd/types/object_table.h"        // Object_table
 #include "dd/impl/object_key.h"           // Needed for destructor
-#include "dd/impl/transaction_impl.h"     // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"       // Raw_record
 #include "dd/impl/raw/raw_table.h"        // Raw_table
-
-#include <memory>
+#include "dd/impl/transaction_impl.h"     // Open_dictionary_tables_ctx
+#include "dd/types/entity_object.h"       // Entity_object
+#include "dd/types/object_table.h"        // Object_table
+#include "log.h"                          // sql_print_error
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"                 // ER_*
 
 namespace dd {
 

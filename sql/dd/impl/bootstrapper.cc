@@ -15,26 +15,23 @@
 
 #include "bootstrapper.h"
 
-#include "handler.h"                          // dict_init_mode_t
-#include "log.h"                              // sql_print_warning()
-#include "mysql/mysql_lex_string.h"           // LEX_STRING
-#include "m_string.h"                         // STRING_WITH_LEN
-#include "sql_class.h"                        // THD
-#include "sql_prepare.h"                      // Ed_connection
-#include "sql_plugin.h"                       // plugin_foreach
-#include "sql_show.h"                         // get_schema_table()
-#include "transaction.h"                      // trans_rollback
+#include <stddef.h>
+#include <sys/types.h>
+#include <memory>
+#include <new>
+#include <string>
+#include <utility>
+#include <vector>
 
-#include "dd/dd.h"                            // dd::create_object
-#include "dd/dd_table.h"                      // dd::get_sql_type_by_field_info
-#include "dd/dd_schema.h"                     // dd::schema_exists
-#include "dd/dd_upgrade.h"                    // dd::migrate_event_to_dd
-#include "dd/properties.h"                    // dd::Properties
+#include "binary_log_types.h"
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
+#include "dd/dd.h"                            // dd::create_object
+#include "dd/dd_schema.h"                     // dd::schema_exists
+#include "dd/dd_table.h"                      // dd::get_sql_type_by_field_info
+#include "dd/dd_upgrade.h"                    // dd::migrate_event_to_dd
 #include "dd/impl/cache/shared_dictionary_cache.h"// Shared_dictionary_cache
 #include "dd/impl/dictionary_impl.h"          // dd::Dictionary_impl
 #include "dd/impl/system_registry.h"          // dd::System_tables
-#include "dd/impl/cache/storage_adapter.h"    // dd::cache::Storage_adapter
 #include "dd/impl/tables/character_sets.h"    // dd::tables::Character_sets
 #include "dd/impl/tables/collations.h"        // dd::tables::Collations
 #include "dd/impl/tables/version.h"           // dd::tables::Version
@@ -42,11 +39,38 @@
 #include "dd/impl/types/schema_impl.h"        // dd::Schema_impl
 #include "dd/impl/types/table_impl.h"         // dd::Table_impl
 #include "dd/impl/types/tablespace_impl.h"    // dd::Table_impl
-#include "dd/types/object_table.h"            // dd::Object_table
-#include "dd/types/view.h"                    // dd::View
+#include "dd/object_id.h"
+#include "dd/properties.h"                    // dd::Properties
 #include "dd/types/column.h"                  // dd::Column
 #include "dd/types/object_table_definition.h" // dd::Object_table_definition
+#include "dd/types/object_table.h"            // dd::Object_table
+#include "dd/types/schema.h"
+#include "dd/types/table.h"
 #include "dd/types/tablespace_file.h"         // dd::Tablespace_file
+#include "dd/types/tablespace.h"
+#include "dd/types/view.h"                    // dd::View
+#include "handler.h"                          // dict_init_mode_t
+#include "log.h"                              // sql_print_warning()
+#include "m_ctype.h"
+#include "mdl.h"
+#include "m_string.h"                         // STRING_WITH_LEN
+#include "my_dbug.h"
+#include "my_global.h"
+#include "mysqld_error.h"
+#include "mysqld.h"
+#include "mysql/plugin.h"
+#include "my_sys.h"
+#include "sql_class.h"                        // THD
+#include "sql_error.h"
+#include "sql_list.h"
+#include "sql_plugin.h"                       // plugin_foreach
+#include "sql_plugin_ref.h"
+#include "sql_prepare.h"                      // Ed_connection
+#include "sql_profile.h"
+#include "sql_show.h"                         // get_schema_table()
+#include "system_variables.h"
+#include "table.h"
+#include "transaction.h"                      // trans_rollback
 
 #include <vector>
 #include <memory>
@@ -92,7 +116,6 @@ bool execute_query(THD *thd, const dd::String_type &q_buf)
   thd->make_lex_string(&str, q_buf.c_str(), q_buf.length(), false);
   return con.execute_direct(str);
 }
-
 
 using namespace dd;
 

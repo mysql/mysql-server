@@ -16,19 +16,26 @@
 #ifndef DD__PARAMETER_TYPE_ELEMENT_IMPL_INCLUDED
 #define DD__PARAMETER_TYPE_ELEMENT_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <sys/types.h>
+#include <new>
+#include <string>
 
 #include "dd/impl/types/weak_object_impl.h"   // dd::Weak_object_impl
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/parameter_type_element.h"  // dd::Parameter_type_element
+#include "my_global.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Raw_record;
 class Open_dictionary_tables_ctx;
 class Parameter_impl;
+class Raw_record;
+class Object_key;
+class Object_table;
+class Parameter;
+class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 

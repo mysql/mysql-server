@@ -15,12 +15,26 @@
 
 #include "dd/impl/tables/tables.h"
 
+#include <memory>
+#include <new>
+
 #include "dd/dd.h"                         // dd::create_object
-#include "dd/impl/transaction_impl.h"      // dd::Open_dictionary_tables_ctx
+#include "dd/impl/object_key.h"
 #include "dd/impl/raw/object_keys.h"       // dd::Item_name_key
 #include "dd/impl/raw/raw_record.h"        // dd::Raw_record
 #include "dd/impl/raw/raw_table.h"         // dd::Raw_table
+#include "dd/impl/transaction_impl.h"      // dd::Open_dictionary_tables_ctx
+#include "dd/impl/types/object_table_definition_impl.h"
+#include "dd/types/abstract_table.h"
+#include "dd/types/table.h"
 #include "dd/types/view.h"                 // dd::View
+#include "my_dbug.h"
+#include "mysql_com.h"
+#include "system_variables.h"
+
+namespace dd {
+class Dictionary_object;
+}  // namespace dd
 
 namespace dd {
 namespace tables {

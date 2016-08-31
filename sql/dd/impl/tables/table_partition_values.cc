@@ -15,15 +15,20 @@
 
 #include "dd/impl/tables/table_partition_values.h"
 
-#include "my_base.h"                        // HA_WHOLE_KEY
-#include "field.h"                          // Field
+#include <new>
+#include <sstream>      // std::stringstream
 
-#include "dd/string_type.h"                 // dd::String_type
 #include "dd/impl/object_key.h"             // dd::Object_key
 #include "dd/impl/raw/object_keys.h"        // dd::Parent_id_range_key
 #include "dd/impl/raw/raw_key.h"            // dd::Raw_key
 #include "dd/impl/raw/raw_table.h"          // dd::Raw_table
-
+#include "dd/impl/types/object_table_definition_impl.h"
+#include "dd/string_type.h"                 // dd::String_type
+#include "field.h"                          // Field
+#include "key.h"
+#include "my_base.h"                        // HA_WHOLE_KEY
+#include "my_global.h"
+#include "table.h"
 
 namespace dd {
 namespace tables {

@@ -16,10 +16,15 @@
 #ifndef DD__COLLECTION_IMPL_INCLUDED
 #define DD__COLLECTION_IMPL_INCLUDED
 
-#include "my_global.h"
-
+#include <stddef.h>
+#include <sys/types.h>
 #include <algorithm>
+#include <iterator>
+#include <type_traits>
 #include <vector>
+
+#include "my_dbug.h"
+#include "my_global.h"
 
 namespace dd {
 

@@ -16,10 +16,9 @@
 #ifndef DD__WEAK_OBJECT_IMPL_INCLUDED
 #define DD__WEAK_OBJECT_IMPL_INCLUDED
 
-#include "my_global.h"
-
 #include "dd/object_id.h"          // Object_id
 #include "dd/types/weak_object.h"  // dd::Weak_object
+#include "my_global.h"
 
 namespace dd {
 
@@ -28,9 +27,9 @@ namespace dd {
 class Entity_object;
 class Object_key;
 class Object_table;
+class Open_dictionary_tables_ctx;
 class Raw_new_record;
 class Raw_record;
-class Open_dictionary_tables_ctx;
 
 
 ///////////////////////////////////////////////////////////////////////////

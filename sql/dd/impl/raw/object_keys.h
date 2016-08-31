@@ -16,19 +16,21 @@
 #ifndef DD__OBJECT_KEYS_INCLUDED
 #define DD__OBJECT_KEYS_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+#include <string>
 
-#include "m_ctype.h"
-
-#include "dd/object_id.h"        // dd::Object_id
 #include "dd/impl/object_key.h"  // dd::Object_key
+#include "dd/object_id.h"        // dd::Object_id
+#include "m_ctype.h"
+#include "my_global.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-struct Raw_key;
 class Raw_table;
+struct Raw_key;
 
 ///////////////////////////////////////////////////////////////////////////
 

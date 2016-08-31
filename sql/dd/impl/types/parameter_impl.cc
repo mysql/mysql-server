@@ -15,15 +15,22 @@
 
 #include "dd/impl/types/parameter_impl.h"
 
-#include "dd/string_type.h"                           // dd::String_type
+#include <sstream>
+
 #include "dd/impl/properties_impl.h"                  // Properties_impl
-#include "dd/impl/transaction_impl.h"                 // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"                   // Raw_record
 #include "dd/impl/tables/parameters.h"                // Parameters
 #include "dd/impl/tables/parameter_type_elements.h"   // Parameter_type_elements
+#include "dd/impl/transaction_impl.h"                 // Open_dictionary_tables_ctx
 #include "dd/impl/types/parameter_type_element_impl.h"// Parameter_type_element_impl
 #include "dd/impl/types/routine_impl.h"               // Routine_impl
-
+#include "dd/string_type.h"                           // dd::String_type
+#include "dd/types/object_table.h"
+#include "dd/types/parameter_type_element.h"
+#include "dd/types/weak_object.h"
+#include "my_global.h"
+#include "mysqld_error.h"
+#include "my_sys.h"
 
 using dd::tables::Parameters;
 using dd::tables::Parameter_type_elements;

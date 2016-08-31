@@ -16,23 +16,33 @@
 #ifndef DD_TABLE_INCLUDED
 #define DD_TABLE_INCLUDED
 
-#include "my_global.h"
+#include <sys/types.h>
+#include <string>
 
 #include "binary_log_types.h"        // enum_field_types
-#include "handler.h"                 // legacy_db_type
-
-#include "sql_alter.h"               // Alter_info::enum_enable_or_disable
-#include "table.h"                   // ST_FIELD_INFO
 #include "dd/types/column.h"         // dd::enum_column_types
+#include "handler.h"                 // legacy_db_type
+#include "my_global.h"
+#include "sql_alter.h"               // Alter_info::enum_enable_or_disable
+#include "system_variables.h"
+#include "table.h"                   // ST_FIELD_INFO
 
 class Create_field;
+class FOREIGN_KEY;
 class THD;
+namespace dd {
+class Abstract_table;
+}  // namespace dd
+struct TABLE_LIST;
+struct TABLE_SHARE;
+
 typedef struct st_ha_create_information HA_CREATE_INFO;
 class KEY;
 template <class T> class List;
 
 namespace dd {
   class Table;
+
   enum class enum_table_type;
   namespace cache {
     class Dictionary_client;

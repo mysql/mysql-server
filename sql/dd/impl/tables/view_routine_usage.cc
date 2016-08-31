@@ -15,7 +15,11 @@
 
 #include "dd/impl/tables/view_routine_usage.h"
 
+#include <new>
+
 #include "dd/impl/raw/object_keys.h"      // dd::Parent_id_range_key
+#include "dd/impl/types/object_table_definition_impl.h"
+#include "system_variables.h"
 
 namespace dd {
 namespace tables {

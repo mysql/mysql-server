@@ -15,9 +15,8 @@
 
 #include "dd/impl/system_registry.h"
 
-#include "table.h"                                   // MYSQL_SYSTEM_SCHEMA
+#include <stddef.h>
 
-#include "dd/properties.h"                           // Needed for destructor
 #include "dd/impl/tables/catalogs.h"                 // Catalog
 #include "dd/impl/tables/character_sets.h"           // Character_sets
 #include "dd/impl/tables/collations.h"               // Collations
@@ -30,8 +29,8 @@
 #include "dd/impl/tables/index_partitions.h"         // Index_partitions
 #include "dd/impl/tables/index_stats.h"              // Index_stats
 #include "dd/impl/tables/indexes.h"                  // Indexes
-#include "dd/impl/tables/parameters.h"               // Parameters
 #include "dd/impl/tables/parameter_type_elements.h"  // Parameter_type_elements
+#include "dd/impl/tables/parameters.h"               // Parameters
 #include "dd/impl/tables/routines.h"                 // Routines
 #include "dd/impl/tables/schemata.h"                 // Schemata
 #include "dd/impl/tables/spatial_reference_systems.h"// Spatial_reference_systems
@@ -45,6 +44,8 @@
 #include "dd/impl/tables/version.h"                  // Version
 #include "dd/impl/tables/view_routine_usage.h"       // View_routine_usage
 #include "dd/impl/tables/view_table_usage.h"         // View_table_usage
+#include "m_string.h"
+#include "table.h"                                   // MYSQL_SYSTEM_SCHEMA
 
 using namespace dd::tables;
 

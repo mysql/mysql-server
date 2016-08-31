@@ -16,11 +16,20 @@
 #ifndef DD_TABLES__TRIGGERS_INCLUDED
 #define DD_TABLES__TRIGGERS_INCLUDED
 
-#include "my_global.h"
+#include <string>
 
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
+#include "dd/impl/types/object_table_definition_impl.h"
 #include "dd/impl/types/object_table_impl.h"            // dd::Object_table_i...
 #include "dd/impl/types/trigger_impl.h"                 // dd::Trigger_impl
+#include "dd/object_id.h"
+#include "my_global.h"
+
+class THD;
+namespace dd {
+class Object_key;
+}  // namespace dd
 
 
 namespace dd {

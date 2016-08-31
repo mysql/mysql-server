@@ -15,12 +15,29 @@
 
 #include "dd/impl/tables/character_sets.h"
 
-#include "sql_class.h"                            // THD
+#include <stddef.h>
+#include <new>
+#include <set>
+#include <vector>
 
-#include "dd/dd.h"                                // dd::create_object
 #include "dd/cache/dictionary_client.h"           // dd::cache::Dictionary_...
+#include "dd/dd.h"                                // dd::create_object
 #include "dd/impl/raw/object_keys.h"              // Global_name_key
 #include "dd/impl/types/charset_impl.h"           // dd::Charset_impl
+#include "dd/impl/types/object_table_definition_impl.h"
+#include "dd/object_id.h"
+#include "dd/types/charset.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_statement.h"
+#include "sql_class.h"                            // THD
+#include "template_utils.h"
+
+namespace dd {
+class Dictionary_object;
+class Raw_record;
+}  // namespace dd
 
 namespace dd {
 namespace tables {

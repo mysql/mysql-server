@@ -15,27 +15,33 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "dd_trigger.h"
+
+#include <string.h>
+#include <memory>
+#include <string>                        // std::string
+
 #include "dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
-#include "dd/dictionary.h"               // dd::Dictionary
 #include "dd/dd.h"                       // dd::get_dictionary
 #include "dd/dd_schema.h"                // dd::Schema_MDL_locker
-#include "dd_table_share.h"              // dd_get_mysql_charset
+#include "dd/dictionary.h"               // dd::Dictionary
+#include "dd/types/schema.h"
 #include "dd/types/table.h"              // dd::Table
 #include "dd/types/trigger.h"            // dd::Trigger
-
-#include "my_alloc.h"                    // MEM_ROOT
+#include "dd_table_share.h"              // dd_get_mysql_charset
+#include "my_dbug.h"
+#include "my_global.h"
 #include "my_sys.h"                      // my_error, resolve_collation
-#include "my_time.h"                     // TIME_to_ulonglong_datetime
-#include "mysqld_error.h"                // ER_UNKNOWN_COLLATION
 #include "mysql/psi/mysql_sp.h"          // MYSQL_DROP_SP
-
+#include "mysql/psi/mysql_statement.h"
+#include "mysqld_error.h"                // ER_UNKNOWN_COLLATION
 #include "sql_class.h"                   // THD
+#include "sql_lex.h"
 #include "sql_list.h"                    // List
+#include "sql_servers.h"
+#include "system_variables.h"
+#include "table.h"
 #include "transaction.h"                 // trans_commit, trans_rollback
 #include "trigger.h"                     // Trigger
-#include "tztime.h"                      // Time_zone
-
-#include "dd/string_type.h"              // dd::String_type
 
 namespace dd
 {

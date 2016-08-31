@@ -16,13 +16,21 @@
 #ifndef DD_CACHE__DICTIONARY_CLIENT_INCLUDED
 #define DD_CACHE__DICTIONARY_CLIENT_INCLUDED
 
+#include <stddef.h>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "dd/object_id.h"
+#include "my_dbug.h"
 #include "my_global.h"                        // DBUG_ASSERT() etc.
 #include "object_registry.h"                  // Object_registry
 
-#include <memory>
-#include <vector>
-
 class THD;
+namespace dd {
+class Schema;
+class Table;
+}  // namespace dd
 
 namespace dd {
 namespace cache {
@@ -77,6 +85,8 @@ namespace cache {
         error has occurred, the error has been reported, either by the
         client itself, or by the dictionary subsystem.
 */
+
+template <typename T> class Cache_element;
 
 class Dictionary_client
 {

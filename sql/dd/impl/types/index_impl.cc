@@ -15,24 +15,38 @@
 
 #include "dd/impl/types/index_impl.h"
 
-#include "mysqld_error.h"                       // ER_*
+#include <stddef.h>
+#include <sstream>
 
 #include "dd/string_type.h"                     // dd::String_type
 #include "dd/impl/properties_impl.h"            // Properties_impl
-#include "dd/impl/sdi_impl.h"                   // sdi read/write functions
-#include "dd/impl/transaction_impl.h"           // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"             // Raw_record
-#include "dd/impl/tables/indexes.h"             // Indexes
+#include "dd/impl/sdi_impl.h"                   // sdi read/write functions
 #include "dd/impl/tables/index_column_usage.h"  // Index_column_usage
+#include "dd/impl/tables/indexes.h"             // Indexes
+#include "dd/impl/transaction_impl.h"           // Open_dictionary_tables_ctx
 #include "dd/impl/types/index_element_impl.h"   // Index_element_impl
 #include "dd/impl/types/table_impl.h"           // Table_impl
-#include "dd/types/column.h"                    // Column::name()
-
+#include "dd/properties.h"
+#include "dd/types/index_element.h"
+#include "dd/types/object_table.h"
+#include "dd/types/weak_object.h"
+#include "m_string.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"                       // ER_*
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
 
 using dd::tables::Indexes;
 using dd::tables::Index_column_usage;
 
 namespace dd {
+
+class Column;
+class Sdi_rcontext;
+class Sdi_wcontext;
+class Table;
 
 ///////////////////////////////////////////////////////////////////////////
 // Index implementation.

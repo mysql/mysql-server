@@ -16,15 +16,23 @@
 #ifndef DD__PARAMETER_IMPL_INCLUDED
 #define DD__PARAMETER_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+#include <memory>   // std::unique_ptr
+#include <new>
+#include <string>
 
-#include "dd/properties.h"                    // dd::Properties
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "dd/impl/types/weak_object_impl.h"
+#include "dd/object_id.h"
+#include "dd/properties.h"                    // dd::Properties
+#include "dd/types/column.h"
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/parameter.h"               // dd::Parameter
 #include "dd/types/parameter_type_element.h"  // dd::Parameter_type_element
-
-#include <memory>   // std::unique_ptr
+#include "my_dbug.h"
+#include "my_global.h"
 
 namespace dd {
 
@@ -32,6 +40,10 @@ namespace dd {
 
 class Routine;
 class Routine_impl;
+class Object_table;
+class Open_dictionary_tables_ctx;
+class Parameter_type_element;
+class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 

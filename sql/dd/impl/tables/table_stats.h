@@ -17,13 +17,20 @@
 #define DD_TABLES__TABLE_STATS_INCLUDED
 
 
+#include <new>
+#include <string>
+
+#include "dd/impl/raw/object_keys.h"          // Composite_char_key
 #include "dd/impl/types/dictionary_object_table_impl.h"
                                               // Dictionary_object_table_impl
 #include "dd/impl/types/table_stat_impl.h"    // Table_stat
-#include "dd/impl/raw/object_keys.h"          // Composite_char_key
-
+#include "dd/types/table_stat.h"
 
 namespace dd {
+
+class Dictionary_object;
+class Raw_record;
+
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////

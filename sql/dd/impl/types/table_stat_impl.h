@@ -16,21 +16,27 @@
 #ifndef DD__TABLE_STAT_IMPL_INCLUDED
 #define DD__TABLE_STAT_IMPL_INCLUDED
 
+#include <memory>
+#include <new>
+#include <string>
+
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
 #include "dd/types/dictionary_object_table.h" // dd::Dictionary_object_table
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/table_stat.h"              // dd::Table_stat
-
-#include <memory>
+#include "my_global.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
+class Charset;
 class Raw_table;
 class Transaction;
-
-class Charset;
+class Object_key;
+class Open_dictionary_tables_ctx;
+class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 

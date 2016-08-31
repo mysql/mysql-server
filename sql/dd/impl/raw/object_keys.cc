@@ -15,14 +15,18 @@
 
 #include "dd/impl/raw/object_keys.h"
 
-#include "my_base.h"                   // HA_WHOLE_KEY
-#include "field.h"                     // Field
-#include "key.h"                       // KEY
-#include "table.h"                     // TABLE
+#include <new>
+#include <sstream>
 
-#include "dd/string_type.h"            // dd::String_type
 #include "dd/impl/raw/raw_key.h"       // dd::Raw_key
 #include "dd/impl/raw/raw_table.h"     // dd::Raw_table
+#include "dd/string_type.h"            // dd::String_type
+#include "field.h"                     // Field
+#include "key.h"                       // KEY
+#include "m_ctype.h"
+#include "my_base.h"                   // HA_WHOLE_KEY
+#include "my_dbug.h"
+#include "table.h"                     // TABLE
 
 namespace dd {
 

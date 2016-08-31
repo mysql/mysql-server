@@ -13,14 +13,19 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/tables/index_stats.h"    // Index_stats::
+#include <ostream>
 
-#include "dd/impl/types/index_stat_impl.h"
-
-#include "dd/impl/object_key.h"            // Object_key
 #include "dd/impl/raw/object_keys.h"       // Composite_4char_key
 #include "dd/impl/raw/raw_record.h"        // raw_record
+#include "dd/impl/tables/index_stats.h"    // Index_stats::
 #include "dd/impl/transaction_impl.h"      // Open_dictionary_tables_ctx
+#include "dd/impl/types/index_stat_impl.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+
+namespace dd {
+class Object_key;
+}  // namespace dd
 
 using dd::tables::Index_stats;
 

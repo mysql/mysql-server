@@ -16,12 +16,18 @@
 #ifndef DD__SCHEMA_IMPL_INCLUDED
 #define DD__SCHEMA_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <stdio.h>
+#include <new>
+#include <string>
 
 #include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "dd/impl/types/weak_object_impl.h"
+#include "dd/object_id.h"
+#include "dd/sdi_fwd.h"
 #include "dd/types/dictionary_object_table.h" // dd::Dictionary_object_table
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/schema.h"                  // dd:Schema
+#include "my_global.h"
 
 class THD;
 
@@ -29,8 +35,16 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
+class Event;
+class Function;
+class Open_dictionary_tables_ctx;
+class Procedure;
 class Raw_record;
+class Sdi_rcontext;
+class Sdi_wcontext;
 class Table;
+class View;
+class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 

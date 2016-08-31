@@ -15,10 +15,17 @@
 
 #include "dd/impl/transaction_impl.h"
 
-#include "sql_base.h"                        // MYSQL_LOCK_IGNORE_TIMEOUT
+#include <stddef.h>
+#include <new>
+#include <utility>
 
-#include "dd/properties.h"                   // Needed for destructor
 #include "dd/impl/raw/raw_table.h"           // dd::Raw_table
+#include "my_dbug.h"
+#include "query_options.h"
+#include "sql_base.h"                        // MYSQL_LOCK_IGNORE_TIMEOUT
+#include "sql_lex.h"
+#include "system_variables.h"
+#include "table.h"
 
 namespace dd {
 

@@ -16,18 +16,27 @@
 #ifndef DD__ROUTINE_IMPL_INCLUDED
 #define DD__ROUTINE_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <memory>                              // std::unique_ptr
+#include <string>
 
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
+#include "dd/impl/types/weak_object_impl.h"
+#include "dd/object_id.h"
 #include "dd/types/dictionary_object_table.h"  // dd::Dictionary_object_table
 #include "dd/types/object_type.h"              // dd::Object_type
 #include "dd/types/parameter.h"                // dd::Parameter
 #include "dd/types/routine.h"                  // dd::Routine
-
-#include <memory>                              // std::unique_ptr
+#include "dd/types/view.h"
+#include "my_dbug.h"
+#include "my_global.h"
 
 namespace dd {
-  class Parameter_collection;
+class Parameter_collection;
+class Open_dictionary_tables_ctx;
+class Parameter;
+class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 

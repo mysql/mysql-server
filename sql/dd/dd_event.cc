@@ -15,15 +15,25 @@
 
 #include "dd_event.h"
 
-#include "event_parse_data.h"   // Event_parse_data
-#include "log.h"                // sql_print_error
-#include "sp_head.h"            // sp_head
-#include "sql_db.h"             // get_default_db_collation
-#include "sql_class.h"          // THD
-#include "transaction.h"        // trans_commit
-#include "tztime.h"             // Time_zone
+#include <memory>
 
 #include "dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
+#include "dd/types/schema.h"
+#include "event_parse_data.h"   // Event_parse_data
+#include "key.h"
+#include "log.h"                // sql_print_error
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "sp_head.h"            // sp_head
+#include "sql_admin.h"
+#include "sql_class.h"          // THD
+#include "sql_db.h"             // get_default_db_collation
+#include "sql_lex.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "transaction.h"        // trans_commit
+#include "tztime.h"             // Time_zone
 
 
 namespace dd {

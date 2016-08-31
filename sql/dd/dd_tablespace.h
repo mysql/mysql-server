@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,12 +16,12 @@
 #ifndef DD_TABLESPACE_INCLUDED
 #define DD_TABLESPACE_INCLUDED
 
+#include "lock.h"                    // Tablespace_hash_set
+#include "my_alloc.h"
 #include "my_global.h"
 
-#include "lock.h"                    // Tablespace_hash_set
-
-class st_alter_tablespace;
 class THD;
+class st_alter_tablespace;
 struct handlerton;
 
 namespace dd {

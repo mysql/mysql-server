@@ -15,13 +15,23 @@
 
 #include "dd/impl/types/spatial_reference_system_impl.h"
 
-#include "gis/srs/srs.h"                   // gis::srs::parse_wkt
+#include <stdint.h>
+
 #include "dd/impl/dictionary_impl.h"       // Dictionary_impl
-#include "dd/impl/sdi_impl.h"              // sdi read/write functions
-#include "dd/impl/transaction_impl.h"      // Open_dictionary_tables_ctx
 #include "dd/impl/raw/object_keys.h"       // id_key_type
 #include "dd/impl/raw/raw_record.h"        // Raw_record
+#include "dd/impl/sdi_impl.h"              // sdi read/write functions
 #include "dd/impl/tables/spatial_reference_systems.h" // Spatial_reference_sy...
+#include "dd/impl/transaction_impl.h"      // Open_dictionary_tables_ctx
+#include "gis/srs/srs.h"                   // gis::srs::parse_wkt
+#include "m_string.h"
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
+
+namespace dd {
+class Sdi_rcontext;
+class Sdi_wcontext;
+}  // namespace dd
 
 using dd::tables::Spatial_reference_systems;
 

@@ -15,6 +15,9 @@
 
 #include "dd/impl/properties_impl.h"
 
+#include <stddef.h>
+#include <new>
+
 #include "dd/impl/utils.h"     // eat_pairs
 
 namespace dd {

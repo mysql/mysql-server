@@ -16,19 +16,26 @@
 #ifndef DD__CHARSET_IMPL_INCLUDED
 #define DD__CHARSET_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <stdio.h>
+#include <sys/types.h>
+#include <new>
+#include <string>
 
 #include "dd/impl/types/entity_object_impl.h"  // dd::Entity_object_imp
+#include "dd/impl/types/weak_object_impl.h"
+#include "dd/object_id.h"
 #include "dd/types/charset.h"                  // dd::Charset
 #include "dd/types/dictionary_object_table.h"  // dd::Dictionary_object_table
 #include "dd/types/object_type.h"              // dd::Object_type
+#include "my_global.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Raw_record;
 class Open_dictionary_tables_ctx;
+class Raw_record;
+class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 

@@ -15,20 +15,30 @@
 
 #include "dd_tablespace.h"
 
-#include "sql_class.h"                        // THD
-#include "transaction.h"                      // trans_commit
+#include <stddef.h>
+#include <memory>
+#include <string>
 
+#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/dd.h"                            // dd::create_object
 #include "dd/dictionary.h"                    // dd::Dictionary::is_dd_table...
+#include "dd/impl/system_registry.h"          // dd::System_tablespaces
+#include "dd/object_id.h"
 #include "dd/properties.h"                    // dd::Properties
 #include "dd/sdi.h"                           // dd::store_sdi
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "dd/impl/system_registry.h"          // dd::System_tablespaces
-#include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/partition.h"               // dd::Partition
 #include "dd/types/table.h"                   // dd::Table
-#include "dd/types/tablespace_file.h"         // dd::Tablespace_file
 #include "dd/types/tablespace.h"              // dd::Tablespace
+#include "dd/types/tablespace_file.h"         // dd::Tablespace_file
+#include "handler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "sql_class.h"                        // THD
+#include "sql_plugin_ref.h"
+#include "table.h"
+#include "transaction.h"                      // trans_commit
 
 namespace dd {
 

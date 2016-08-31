@@ -16,6 +16,7 @@
 #include "dd/impl/tables/table_stats.h"
 
 #include "dd/impl/raw/object_keys.h"   // Composite_char_key
+#include "dd/impl/types/object_table_definition_impl.h"
 
 namespace dd {
 namespace tables {

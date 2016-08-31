@@ -16,11 +16,19 @@
 #ifndef DD_TABLES__SCHEMATA_INCLUDED
 #define DD_TABLES__SCHEMATA_INCLUDED
 
-#include "my_global.h"
+#include <string>
 
 #include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
+#include "dd/object_id.h"
+#include "my_global.h"
 
 namespace dd {
+
+class Dictionary_object;
+class Item_name_key;
+class Object_key;
+class Raw_record;
+
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////

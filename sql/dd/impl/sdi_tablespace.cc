@@ -14,19 +14,20 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#include "sql_class.h"                   // THD
-
-#include "dd/dd_tablespace.h"            // dd::get_tablespace_name
-#include "dd/dictionary.h"               // dd::acquire_shared_tablespace_mdl
-#include "dd/properties.h"               // dd::Properties
-#include "dd/string_type.h"              // dd::String_type
-#include "dd/sdi.h"                      // dd::serialize
 #include "dd/cache/dictionary_client.h"  // dd::Dictionary_client
+#include "dd/dd_tablespace.h"            // dd::get_tablespace_name
 #include "dd/impl/sdi_utils.h"           // sdi_utils::checked_return
+#include "dd/properties.h"               // dd::Properties
+#include "dd/sdi.h"                      // dd::serialize
+#include "dd/string_type.h"              // dd::String_type
 #include "dd/types/schema.h"             // dd::Schema
 #include "dd/types/table.h"              // dd::Table
 #include "dd/types/tablespace.h"         // dd::Tablespace
-
+#include "handler.h"
+#include "mdl.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "sql_class.h"                   // THD
 
 /**
   @file

@@ -16,14 +16,18 @@
 #ifndef DD_TABLES__TABLE_PARTITIONS_INCLUDED
 #define DD_TABLES__TABLE_PARTITIONS_INCLUDED
 
+#include <string>
+
+#include "dd/impl/types/object_table_impl.h" // dd::Object_table_impl
+#include "dd/object_id.h"                    // dd::Object_id
 #include "my_global.h"
 
-#include "dd/object_id.h"                    // dd::Object_id
-#include "dd/impl/types/object_table_impl.h" // dd::Object_table_impl
+class THD;
 
 namespace dd {
   class Object_key;
   class Raw_record;
+
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////

@@ -16,19 +16,41 @@
 #ifndef DD__TABLE_IMPL_INCLUDED
 #define DD__TABLE_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <sys/types.h>
+#include <memory>
+#include <new>
+#include <string>
 
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/abstract_table_impl.h" // dd::Abstract_table_impl
+#include "dd/impl/types/entity_object_impl.h"
+#include "dd/impl/types/weak_object_impl.h"
+#include "dd/object_id.h"
+#include "dd/sdi_fwd.h"
+#include "dd/types/abstract_table.h"
 #include "dd/types/dictionary_object_table.h"  // dd::Dictionary_object_table
 #include "dd/types/foreign_key.h"              // dd::Foreign_key
 #include "dd/types/index.h"                    // dd::Index
+#include "dd/types/object_type.h"
 #include "dd/types/partition.h"                // dd::Partition
 #include "dd/types/table.h"                    // dd:Table
 #include "dd/types/trigger.h"                  // dd::Trigger
+#include "my_global.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
+
+class Column;
+class Foreign_key;
+class Index;
+class Open_dictionary_tables_ctx;
+class Partition;
+class Properties;
+class Sdi_rcontext;
+class Sdi_wcontext;
+class Trigger_impl;
+class Weak_object;
 
 class Table_impl : public Abstract_table_impl,
                    public Table

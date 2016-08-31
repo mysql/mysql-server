@@ -15,13 +15,21 @@
 
 #include "dd/impl/types/view_routine_impl.h"
 
-#include "mysqld_error.h"                      // ER_*
+#include <ostream>
 
-#include "dd/properties.h"                     // Needed for destructor
-#include "dd/impl/transaction_impl.h"          // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"            // Raw_record
 #include "dd/impl/tables/view_routine_usage.h" // View_routine_usage
+#include "dd/impl/transaction_impl.h"          // Open_dictionary_tables_ctx
 #include "dd/impl/types/view_impl.h"           // View_impl
+#include "dd/types/object_table.h"
+#include "dd/types/weak_object.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"                      // ER_*
+
+namespace dd {
+class Object_key;
+}  // namespace dd
 
 using dd::tables::View_routine_usage;
 

@@ -16,6 +16,11 @@
 #ifndef DD__VIEW_ROUTINE_IMPL_INCLUDED
 #define DD__VIEW_ROUTINE_IMPL_INCLUDED
 
+#include <sys/types.h>
+#include <new>
+#include <string>
+
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/weak_object_impl.h"  // dd::Weak_object_impl
 #include "dd/types/object_type.h"            // dd::Object_type
 #include "dd/types/view_routine.h"           // dd::View_routine
@@ -26,6 +31,10 @@ namespace dd {
 
 class View;
 class View_impl;
+class Object_key;
+class Object_table;
+class Open_dictionary_tables_ctx;
+class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 

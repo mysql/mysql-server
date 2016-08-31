@@ -16,16 +16,25 @@
 #ifndef DD__EVENT_IMPL_INCLUDED
 #define DD__EVENT_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <sys/types.h>
+#include <new>
+#include <string>
 
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
+#include "dd/impl/types/weak_object_impl.h"
+#include "dd/object_id.h"
 #include "dd/types/dictionary_object_table.h"  // dd::Dictionary_object_table
 #include "dd/types/event.h"                    // dd::Event
 #include "dd/types/object_type.h"              // dd::Object_type
+#include "my_global.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
+
+class Open_dictionary_tables_ctx;
+class Weak_object;
 
 class Event_impl : public Entity_object_impl,
                    public Event

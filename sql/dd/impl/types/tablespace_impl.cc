@@ -15,22 +15,35 @@
 
 #include "dd/impl/types/tablespace_impl.h"
 
-#include "mysqld_error.h"                        // ER_*
+#include <string.h>
+#include <sstream>
 
 #include "dd/string_type.h"                      // dd::String_type
 #include "dd/impl/properties_impl.h"             // Properties_impl
-#include "dd/impl/sdi_impl.h"                    // sdi read/write functions
-#include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
 #include "dd/impl/raw/object_keys.h"             // Primary_id_key
 #include "dd/impl/raw/raw_record.h"              // Raw_record
-#include "dd/impl/tables/tablespaces.h"          // Tablespaces
+#include "dd/impl/sdi_impl.h"                    // sdi read/write functions
 #include "dd/impl/tables/tablespace_files.h"     // Tablespace_files
+#include "dd/impl/tables/tablespaces.h"          // Tablespaces
+#include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
 #include "dd/impl/types/tablespace_file_impl.h"  // Tablespace_file_impl
+#include "dd/properties.h"
+#include "dd/types/tablespace_file.h"
+#include "dd/types/weak_object.h"
+#include "m_string.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"                        // ER_*
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
 
 using dd::tables::Tablespaces;
 using dd::tables::Tablespace_files;
 
 namespace dd {
+
+class Sdi_rcontext;
+class Sdi_wcontext;
 
 ///////////////////////////////////////////////////////////////////////////
 // Tablespace implementation.

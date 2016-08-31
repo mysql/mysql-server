@@ -15,10 +15,16 @@
 
 #include "dd/info_schema/show_query_builder.h" // Select_lex_builder
 
-#include "m_string.h"                          // C_STRING_WITH_LEN
 #include "item_cmpfunc.h"                      // Item_func_like
+#include "item_func.h"
+#include "m_string.h"                          // C_STRING_WITH_LEN
+#include "my_dbug.h"
+#include "parse_tree_helpers.h"
 #include "parse_tree_items.h"                  // PTI_simple_ident_ident
 #include "sql_lex.h"                           // Query_options
+#include "sql_string.h"
+
+class Item;
 
 
 namespace dd {
