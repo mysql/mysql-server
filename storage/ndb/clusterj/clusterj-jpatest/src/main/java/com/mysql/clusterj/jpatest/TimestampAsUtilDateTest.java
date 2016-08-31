@@ -47,6 +47,7 @@ create index idx_timestamp_not_null_btree on timestamptypes(timestamp_not_null_b
 create unique index idx_timestamp_not_null_both on timestamptypes(timestamp_not_null_both);
 
  */
+@org.junit.Ignore
 public class TimestampAsUtilDateTest extends AbstractJPABaseTest {
 
     @Override
