@@ -5757,6 +5757,7 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
                                Name_resolution_context *context)
 {
   Item *field= *field_ref;
+  const char *table_name;
   DBUG_ENTER("create_view_field");
 
   if (view->schema_table_reformed)
@@ -5779,15 +5780,36 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
   }
 
   /*
+    Original table name of a field is calculated as follows:
+    - For a view or base table, the view or base table name.
+    - For a derived table, the base table name.
+    - For an expression that is not a simple column reference, an empty string.
+  */
+  if (view->is_derived())
+  {
+    while (field->type() == Item::REF_ITEM)
+    {
+      field= down_cast<Item_ref *>(field)->ref[0];
+    }
+    if (field->type() == Item::FIELD_ITEM)
+      table_name= down_cast<Item_field *>(field)->table_name;
+    else
+      table_name= "";
+  }
+  else
+  {
+    table_name= view->table_name;
+  }
+  /*
     @note Creating an Item_direct_view_ref object on top of an Item_field
           means that the underlying Item_field object may be shared by
           multiple occurrences of superior fields. This is a vulnerable
           practice, so special precaution must be taken to avoid programming
           mistakes, such as forgetting to mark the use of a field in both
           read_set and write_set (may happen e.g in an UPDATE statement).
-  */ 
+  */
   Item *item= new Item_direct_view_ref(context, field_ref,
-                                       view->alias, view->table_name,
+                                       view->alias, table_name,
                                        name, view);
   DBUG_RETURN(item);
 }

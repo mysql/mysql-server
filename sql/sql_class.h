@@ -5090,7 +5090,7 @@ public:
     /* We must have a table name here as this is used with add_table_to_list */
     db= EMPTY_CSTR;                    /* a subject to casedn_str */
     table.str= internal_table_name;
-    table.length=1;
+    table.length= 1;
   }
   // True if we can tell from syntax that this is an unnamed derived table.
   bool is_derived_table() const { return MY_TEST(sel); }
