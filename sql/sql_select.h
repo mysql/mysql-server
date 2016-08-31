@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -769,6 +769,12 @@ public:
   /** TRUE <=> remove duplicates on this table. */
   bool distinct;
 
+  /**
+    Setting this flag means ref is using lesser number of key parts than range
+    and it borrows range's row estimate.
+  */
+  bool dodgy_ref_cost;
+
   /** Clean up associated table after query execution, including resources */
   void cleanup();
   inline bool is_using_loose_index_scan()
@@ -968,7 +974,8 @@ st_join_table::st_join_table()
     ref_array(NULL),
     send_records(0),
     having(NULL),
-    distinct(false)
+    distinct(false),
+    dodgy_ref_cost(false)
 {
   /**
     @todo Add constructor to READ_RECORD.
