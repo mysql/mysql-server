@@ -2902,6 +2902,7 @@ Dbspj::execTRANSID_AI(Signal* signal)
   TransIdAI * req = (TransIdAI *)signal->getDataPtr();
   Uint32 ptrI = req->connectPtr;
   //Uint32 transId[2] = { req->transId[0], req->transId[1] };
+  const Uint32 Tnode = refToNode(signal->getSendersBlockRef());
 
   Ptr<TreeNode> treeNodePtr;
   m_treenode_pool.getPtr(treeNodePtr, ptrI);
@@ -2960,7 +2961,8 @@ Dbspj::execTRANSID_AI(Signal* signal)
     );
 
     if (ERROR_INSERTED(17120) ||
-       (ERROR_INSERTED(17121) && treeNodePtr.p->m_parentPtrI != RNIL))
+       (ERROR_INSERTED(17121) && treeNodePtr.p->m_parentPtrI != RNIL) ||
+       (ERROR_INSERTED(17122) && refToNode(signal->getSendersBlockRef()) != getOwnNodeId()))
     {
       jam();
       CLEAR_ERROR_INSERT_VALUE;
@@ -2972,6 +2974,9 @@ Dbspj::execTRANSID_AI(Signal* signal)
       abort(signal, requestPtr, err);
     }
   }
+
+  // 'sendersBlockRef' used by ::execTRANSID_AI, and should be intact
+  ndbassert(Tnode == refToNode(signal->getSendersBlockRef()));
 
   ndbrequire(treeNodePtr.p->m_info&&treeNodePtr.p->m_info->m_execTRANSID_AI);
 
@@ -4506,10 +4511,12 @@ Dbspj::lookup_row(Signal* signal,
      * - 17040: Fail on any lookup_parent_row()
      * - 17041: Fail on lookup_parent_row() if 'isLeaf'
      * - 17042: Fail on lookup_parent_row() if treeNode not root 
+     * - 17043: Fail after last outstanding signal received.
      */
     if (ERROR_INSERTED(17040) ||
        (ERROR_INSERTED(17041) && treeNodePtr.p->isLeaf()) ||
-       (ERROR_INSERTED(17042) && treeNodePtr.p->m_parentPtrI != RNIL))
+       (ERROR_INSERTED(17042) && treeNodePtr.p->m_parentPtrI != RNIL) ||
+       (ERROR_INSERTED(17043) && requestPtr.p->m_outstanding == 0))
     {
       jam();
       CLEAR_ERROR_INSERT_VALUE;
@@ -6138,6 +6145,13 @@ Dbspj::scanindex_sendDihGetNodesReq(Signal* signal,
       req->fragItem[fragCnt].senderData = fragPtr.i;
       req->fragItem[fragCnt].fragId = fragPtr.p->m_fragId;
       fragCnt++;
+
+      // Force multiple rounds of DIH_SCAN_GET_NODES_REQ + random import fail.
+      if (ERROR_INSERTED(17131) && fragCnt >= 1)
+      {
+        jam();
+        break;
+      }
     }
   }
 
@@ -6155,10 +6169,12 @@ Dbspj::scanindex_sendDihGetNodesReq(Signal* signal,
      */
     Ptr<SectionSegment> fragReq;
     Uint32 len = fragCnt*DihScanGetNodesReq::FragItem::Length;
-    if (ERROR_INSERTED_CLEAR(17130) ||
+    if (ERROR_INSERTED(17130) ||
+	(ERROR_INSERTED(17131) && ((rand() % 3) == 0)) ||
         unlikely(!import(fragReq, (Uint32*)req->fragItem, len)))
     {
       jam();
+      CLEAR_ERROR_INSERT_VALUE;
       return DbspjErr::OutOfSectionMemory;
     }
 
