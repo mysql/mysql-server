@@ -1643,6 +1643,19 @@ main(int argc, char** argv)
       }
         
       RestoreDataIterator dataIter(metaData, &free_data_callback);
+
+      if (!dataIter.validateBackupFile())
+      {
+          err << "Unable to allocate memory for BackupFile constructor" << endl;
+          exitHandler(NDBT_FAILED);
+      }
+
+
+      if (!dataIter.validateRestoreDataIterator())
+      {
+          err << "Unable to allocate memory for RestoreDataIterator constructor" << endl;
+          exitHandler(NDBT_FAILED);
+      }
       
       Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
       info << timestamp << " [restore_data]" << " Read data file header" << endl;
