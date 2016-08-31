@@ -602,7 +602,7 @@ bool set_and_validate_user_attributes(THD *thd,
 
 /* sql_auth_cache */
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
-int wild_case_compare(CHARSET_INFO *cs, const char *str, size_t str_len, 
+int wild_case_compare(CHARSET_INFO *cs, const char *str, size_t str_len,
                       const char *wildstr, size_t wildstr_len);
 bool hostname_requires_resolving(const char *hostname);
 my_bool acl_init(bool dont_read_acl_tables);
@@ -776,8 +776,6 @@ typedef enum ssl_artifacts_status
 } ssl_artifacts_status;
 
 ulong get_global_acl_cache_size();
-
-bool roles_init_from_tables(THD *thd, bool use_mutex_lock);
 #endif /* EMBEDDED_LIBRARY */
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)

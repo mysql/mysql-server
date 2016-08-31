@@ -322,4 +322,5 @@ bool roles_rename_authid(THD *thd, TABLE *edge_table, TABLE *defaults_table,
                          LEX_USER *user_from, LEX_USER *user_to);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
+bool populate_roles_caches(THD *thd, TABLE_LIST * tablelst);
 #endif /* AUTH_INTERNAL_INCLUDED */
