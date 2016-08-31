@@ -804,7 +804,6 @@ fi
 %attr(644, root, root) %{_datadir}/mysql/audit_log_filter_linux_install.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
@@ -812,7 +811,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_okv.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
@@ -1141,7 +1139,7 @@ fi
 %endif # cluster
 
 %changelog
-* Thu Jun 05 2016 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.0-0.1
+* Sun Jun 05 2016 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.0-0.1
 - Change the version number to 8.0.0
 - Add manual page for ibd2sdi utility
 - Adapt MySQL server 5.7 packaging to MySQL Cluster 7.5
