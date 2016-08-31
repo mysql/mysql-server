@@ -371,6 +371,7 @@ protected:
 public:
   bool readHeader();
   bool validateFooter();
+  bool validateBackupFile();
 
   const char * getPath() const { return m_path;}
   const char * getFilename() const { return m_fileName;}
@@ -452,6 +453,7 @@ public:
   // Read data file fragment header
   bool readFragmentHeader(int & res, Uint32 *fragmentId);
   bool validateFragmentFooter();
+  bool validateRestoreDataIterator();
 
   const TupleS *getNextTuple(int & res);
   TableS *getCurrentTable();
