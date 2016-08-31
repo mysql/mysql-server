@@ -1126,9 +1126,14 @@ ngs::Error_code is_schema_selected_and_exists(xpl::Sql_data_context &da, const s
 const char* const COUNT_DOC = "COUNT(CASE WHEN (column_name = 'doc' "
                               "AND data_type = 'json') THEN 1 ELSE NULL END)";
 const char* const COUNT_ID = "COUNT(CASE WHEN (column_name = '_id' "
-                             "AND generation_expression = 'json_unquote(json_extract(`doc`,\\\\''$._id\\\\''))') THEN 1 ELSE NULL END)";
+                             "AND generation_expression RLIKE "
+                             "'json_unquote[[.(.]]json_extract[[.(.]]`doc`,"
+                             "(_[[:alnum:]]+)?" // Character set introducer.
+                             "[[.\\\\.]]''[[.$.]][[...]]_id[[.\\\\.]]''[[.).]][[.).]]') "
+                             "THEN 1 ELSE NULL END)";
 const char* const COUNT_GEN = "COUNT(CASE WHEN (column_name != '_id' "
                               "AND generation_expression RLIKE '^(json_unquote[[.(.]])?json_extract[[.(.]]`doc`,"
+                              "(_[[:alnum:]]+)?" // Character set introducer.
                               "[[.\\\\.]]''[[.$.]]([[...]][^[:space:][...]]+)+[[.\\\\.]]''[[.).]]{1,2}$') THEN 1 ELSE NULL END)";
 } // namespace
 

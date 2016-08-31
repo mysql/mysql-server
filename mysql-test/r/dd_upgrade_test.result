@@ -293,7 +293,7 @@ SHOW CREATE TABLE test.jemp;
 Table	Create Table
 jemp	CREATE TABLE `jemp` (
   `c` json DEFAULT NULL,
-  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,'$.id')) VIRTUAL,
+  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,_latin1'$.id')) VIRTUAL,
   KEY `i` (`g`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE test.t_gen_stored_myisam;
@@ -313,7 +313,7 @@ SHOW CREATE TABLE test.jemp_myisam;
 Table	Create Table
 jemp_myisam	CREATE TABLE `jemp_myisam` (
   `c` json DEFAULT NULL,
-  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,'$.id')) VIRTUAL
+  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,_latin1'$.id')) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, VERSION, ROW_FORMAT
 FROM INFORMATION_SCHEMA.tables WHERE table_schema='test';
