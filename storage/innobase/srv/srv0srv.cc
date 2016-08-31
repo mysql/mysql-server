@@ -366,6 +366,7 @@ this many index pages, there are 2 ways to calculate statistics:
   table/index are not found in the innodb database */
 unsigned long long	srv_stats_transient_sample_pages = 8;
 my_bool		srv_stats_persistent = TRUE;
+my_bool		srv_stats_include_delete_marked = FALSE;
 unsigned long long	srv_stats_persistent_sample_pages = 20;
 my_bool		srv_stats_auto_recalc = TRUE;
 
