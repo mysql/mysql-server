@@ -32,7 +32,7 @@ select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
 
 alter table t1 algorithm=copy,
-  comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 select count(*) into @cnt_one_per_ldm_per_node
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't1';
@@ -41,7 +41,7 @@ select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
 
 alter table t1 algorithm=copy,
-  comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE_GROUP";
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
 select count(*) into @cnt_one_per_ldm_per_nodegroup
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't1';
@@ -50,7 +50,7 @@ select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
 
 alter table t1 algorithm=copy,
-  comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE";
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
 select count(*) into @cnt_one_per_node
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't1';
@@ -59,7 +59,7 @@ select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
 
 alter table t1 algorithm=copy,
-  comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP";
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 select count(*) into @cnt_one_per_nodegroup
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't1';
@@ -85,22 +85,22 @@ select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
 
 create table t2 (a bigint, b bigint, c bigint, d bigint, primary key (a,b,c,d))
-  engine=ndb comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+  engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t2' order by node_id, fragment_num, block_instance;
 
 create table t3 (a bigint, b bigint, c bigint, d bigint, primary key (a,b,c,d))
-  engine=ndb comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE_GROUP";
+  engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t3' order by node_id, fragment_num, block_instance;
 
 create table t4 (a bigint, b bigint, c bigint, d bigint, primary key (a,b,c,d))
-  engine=ndb comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE";
+  engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t4' order by node_id, fragment_num, block_instance;
 
 create table t5 (a bigint, b bigint, c bigint, d bigint, primary key (a,b,c,d))
-  engine=ndb comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP";
+  engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t5' order by node_id, fragment_num, block_instance;
 
@@ -126,7 +126,7 @@ where table_schema = 'test' and table_name = 't5';
 
 ##
 #
-# reorganize partitions work for FRAGMENT_COUNT_TYPE
+# reorganize partitions work for PARTITION_BALANCE
 #   but should do nothing in these cases
 #
 alter table t1 algorithm=inplace, reorganize partition;
@@ -244,9 +244,9 @@ drop table t1;
 #
 # to add partitions to t2, we can go from low number to a high number.
 create table t1 (a bigint, b bigint, c bigint, d bigint, primary key (a,b,c,d))
-  engine=ndb comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+  engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 alter table t1 algorithm=inplace,
-  comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 select count(*) into @cnt_t1_3
 from information_schema.partitions
@@ -264,21 +264,21 @@ select @cnt_t1_0 < @cnt_t1_4;
 drop table t1;
 
 create table t1 (a bigint, b bigint, c bigint, d bigint, primary key (a,b,c,d))
-  engine=ndb comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+  engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 alter table t1 algorithm=inplace,
-  comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP";
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 
 alter table t1 algorithm=copy,
-  comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP,NOLOGGING=1";
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE,NOLOGGING=1";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
 
 show create table t1;
 
 alter table t1 algorithm=inplace,
-  comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE";
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
 
@@ -291,7 +291,7 @@ select @cnt_t1_5;
 show create table t1;
 
 alter table t1 algorithm=inplace,
-  comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE_GROUP";
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
 
@@ -304,7 +304,7 @@ select @cnt_t1_6;
 show create table t1;
 
 alter table t1 algorithm=inplace,
-  comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
 
@@ -325,32 +325,32 @@ drop table t1;
 create table t1 (a bigint primary key, b bigint storage disk) engine ndb
   comment="NDB_TABLE=NOLOGGING=1";
 
-#Verify that unique indexes gets also correct fragment count type
+#Verify that unique indexes gets also correct partition balance
 create table t2 (a bigint primary key, b bigint unique) engine ndb
-  comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP";
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t2' order by node_id, fragment_num, block_instance;
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name like '%unique' order by node_id, fragment_num, block_instance;
 
-#Verify that unique indexes gets also correct fragment count type also after
+#Verify that unique indexes gets also correct partition balance also after
 #alter table with copy algorithm
 alter table t2 algorithm=copy,
-  COMMENT="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE";
+  COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t2' order by node_id, fragment_num, block_instance;
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name like '%unique' order by node_id, fragment_num, block_instance;
 drop table t2;
 
-#Verify that unique indexes gets also correct fragment count type also after
+#Verify that unique indexes gets also correct partition balance also after
 #alter table with inplace algorithm. In fact it doesn't since unique indexes
 #are not reorganised as part of ALTER TABLE reorg, this is a known bug that
 #should be fixed.
 create table t2 (a bigint primary key, b bigint unique) engine ndb
-  comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP";
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 alter table t2 algorithm=inplace,
-  COMMENT="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE";
+  COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t2' order by node_id, fragment_num, block_instance;
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
@@ -367,7 +367,7 @@ select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name like '%unique' order by node_id, fragment_num, block_instance;
 
 alter table t1 algorithm=inplace,
-  comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 show create table t1;
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;

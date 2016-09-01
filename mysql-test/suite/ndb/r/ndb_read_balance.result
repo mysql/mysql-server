@@ -202,7 +202,7 @@ TABLE	PRIMARY
 
 *******************************************************
 ndb_read_balance.inc
-Table comment : NDB_TABLE=READ_BACKUP=1,FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE
+Table comment : NDB_TABLE=READ_BACKUP=1,PARTITION_BALANCE=FOR_RP_BY_LDM
 Keys : 40
 Test_step : 5
 Expect : Read Backup, Mix of Primary + Backup, except where locks are used
@@ -210,7 +210,7 @@ Expect : Read Backup, Mix of Primary + Backup, except where locks are used
 
 Create table with int pk, unique secondary int and key int columns
 Expect that secondary unique is distributed in the same way as main table
-CREATE TABLE test.t1 (a int, b int, c int, d int, primary key (a), unique(b) using hash, key(c)) comment='NDB_TABLE=READ_BACKUP=1,FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE' engine=ndb;;
+CREATE TABLE test.t1 (a int, b int, c int, d int, primary key (a), unique(b) using hash, key(c)) comment='NDB_TABLE=READ_BACKUP=1,PARTITION_BALANCE=FOR_RP_BY_LDM' engine=ndb;;
 Warnings:
 Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
 Check that all fragments are in-use, else raise key count

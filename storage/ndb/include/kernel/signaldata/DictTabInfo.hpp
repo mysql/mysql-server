@@ -125,7 +125,7 @@ public:
     TableTemporaryFlag = 28,  //Default not Temporary
     ForceVarPartFlag   = 29,
 
-    FragmentCountType  = 127,
+    PartitionBalance  = 127,
     FragmentCount      = 128, // No of fragments in table (!fragment replicas)
     FragmentDataLen    = 129,
     FragmentData       = 130, // CREATE_FRAGMENTATION reply
@@ -388,7 +388,7 @@ public:
     */
     Uint32 FrmLen;
     char   FrmData[MAX_FRM_DATA_SIZE];
-    Uint32 FragmentCountType;
+    Uint32 PartitionBalance;
     Uint32 FragmentCount;
     Uint32 ReplicaDataLen;
     Uint16 ReplicaData[MAX_FRAGMENT_DATA_ENTRIES];

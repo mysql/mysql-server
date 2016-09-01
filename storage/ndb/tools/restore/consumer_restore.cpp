@@ -2674,8 +2674,8 @@ BackupRestore::table(const TableS & table){
 
     if (copy.getFragmentType() == NdbDictionary::Object::HashMapPartition)
     {
-      switch(copy.getFragmentCountType()) {
-      case NdbDictionary::Object::FragmentCount_Specific:
+      switch(copy.getPartitionBalance()) {
+      case NdbDictionary::Object::PartitionBalance_Specific:
       {
         /**
          * The only specific information we have in specific hash map
@@ -2692,12 +2692,12 @@ BackupRestore::table(const TableS & table){
         copy.setHashMap(nullMap);
         break;
       }
-      case NdbDictionary::Object::FragmentCount_OnePerLDMPerNode:
-      case NdbDictionary::Object::FragmentCount_OnePerLDMPerNodeGroup:
-      case NdbDictionary::Object::FragmentCount_OnePerNode:
-      case NdbDictionary::Object::FragmentCount_OnePerNodeGroup:
+      case NdbDictionary::Object::PartitionBalance_ForRPByLDM:
+      case NdbDictionary::Object::PartitionBalance_ForRAByLDM:
+      case NdbDictionary::Object::PartitionBalance_ForRPByNode:
+      case NdbDictionary::Object::PartitionBalance_ForRAByNode:
         /**
-         * Use the FragmentCountType to resize table for this cluster...
+         * Use the PartitionBalance to resize table for this cluster...
          *   set "null" hashmap
          */
         NdbDictionary::HashMap nullMap;

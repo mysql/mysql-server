@@ -176,35 +176,35 @@ public:
 
     /**
      * This enum defines values that are usable with
-     *   Table::setFragmentCountType
+     *   Table::setPartitionBalance
      */
-    enum FragmentCountType {
+    enum PartitionBalance {
       /**
        * Use a specific value set using setFragmentCount
        */
-      FragmentCount_Specific = NDB_FRAGMENT_COUNT_SPECIFIC,
+      PartitionBalance_Specific = NDB_PARTITION_BALANCE_SPECIFIC,
 
       /**
        * Use one fragment per LDM per node
        *   (current default)
        */
-      FragmentCount_OnePerLDMPerNode = NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE,
+      PartitionBalance_ForRPByLDM = NDB_PARTITION_BALANCE_FOR_RP_BY_LDM,
 
       /**
        * Use one fragment per LDM per nodegroup
        */
-      FragmentCount_OnePerLDMPerNodeGroup =
-        NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP,
+      PartitionBalance_ForRAByLDM =
+        NDB_PARTITION_BALANCE_FOR_RA_BY_LDM,
 
       /**
        * Use one fragment per node
        */
-      FragmentCount_OnePerNode = NDB_FRAGMENT_COUNT_ONE_PER_NODE,
+      PartitionBalance_ForRPByNode = NDB_PARTITION_BALANCE_FOR_RP_BY_NODE,
 
       /**
        * Use one fragment per node group
        */
-      FragmentCount_OnePerNodeGroup = NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP,
+      PartitionBalance_ForRAByNode = NDB_PARTITION_BALANCE_FOR_RA_BY_NODE,
     };
 
   private:
@@ -914,7 +914,7 @@ public:
 
     /**
      * Set fragment count
-     *   also sets FragmentCount_Specific
+     *   also sets PartitionBalance_Specific
      */
     void setFragmentCount(Uint32);
 
@@ -932,17 +932,17 @@ public:
     /**
      * Set fragment count using cluster agnostics defines
      */
-    void setFragmentCountType(NdbDictionary::Object::FragmentCountType);
+    void setPartitionBalance(NdbDictionary::Object::PartitionBalance);
 
     /**
-     * Get fragment count type
+     * Get partition balance
      */
-    NdbDictionary::Object::FragmentCountType getFragmentCountType() const;
+    NdbDictionary::Object::PartitionBalance getPartitionBalance() const;
 
     /**
-     * Get fragment count type string
+     * Get partition balance string
      */
-    const char* getFragmentCountTypeString() const;
+    const char* getPartitionBalanceString() const;
 
     /**
      * Set fragmentation type

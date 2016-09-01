@@ -60,9 +60,9 @@ order by 1;
 drop table counters_at_startup;
 
 # Due to yet unfiled bug:
-# FragmentCountType is wrong for unique index and blob table.
+# PartitionBalance is wrong for unique index and blob table.
 # Remove this comment and re-record when indexes and blob table have:
-# FragmentCountType: ONE_PER_LDM_PER_NODE
+# PartitionBalance: FOR_RP_BY_LDM
 # Table options: readbackup, fullyreplicated
 # --let ndb_desc_opts= -b -i -d test t1
 # --source suite/ndb/include/ndb_desc_print.inc

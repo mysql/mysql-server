@@ -163,7 +163,7 @@ c VARCHAR ( 11 ) NOT NULL ,
 PRIMARY KEY ( a ) ,
 INDEX ( b )
 ) ENGINE = NDB
-  COMMENT="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+  COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
  
 INSERT INTO t1 (a ,b ,c) VALUES 
 (NULL , '1', 'test'), (NULL , '2', 'test'), (NULL , '1', 'test'), 
@@ -205,7 +205,7 @@ create table t1(vc varchar(16), i int, vc2 varchar(1024)
   , KEY i1(i)
   , KEY i2(vc)
  )  ENGINE=ndbcluster
-    COMMENT="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+    COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into t1 values
 ('1',1,'1'), ('2',2,'2'), ('3',3,'3'), ('4',1,'4'), ('5',2,'5'),
@@ -240,7 +240,7 @@ create table t2(vc varchar(16), i int, vc2 varchar(1024)
   , KEY i1(i)
   , KEY i2(vc)
  )  ENGINE=ndbcluster
-    COMMENT="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+    COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into t2 select * from t1;
 analyze table t2;

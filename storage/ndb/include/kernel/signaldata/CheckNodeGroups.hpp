@@ -39,7 +39,7 @@ public:
 
   union {
     Uint32 blockRef;              // sender's node id
-    Uint32 fragmentCountType;     // For GetDefaultFragments
+    Uint32 partitionBalance;     // For GetDefaultFragments
   };
 
   union {

@@ -12257,7 +12257,7 @@ Dbdih::init_next_replica_node(
  *   senderData        = RNIL
  *   requestInfo  Must be set!
  *   fragmentationType = 0
- *   fragmentCountType = 0
+ *   partitionBalance = 0
  *   primaryTableId    = RNIL
  *   noOfFragments     = 0
  *   partitionCount    = 0
@@ -12301,7 +12301,7 @@ Dbdih::init_next_replica_node(
  *             For fully replicated tables, noOfFragments should be a multiple
  *             of partitionCount.
  *
- *   fragmentCountType - Determines how the number of fragments depends on
+ *   partitionBalance - Determines how the number of fragments depends on
  *       cluster configuration such as number of replicas, number of
  *       nodegroups, and, number of LDM per node.  The parameter is only used
  *       for HashMapPartition.
@@ -12345,8 +12345,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
   const Uint32 primaryTableId = req->primaryTableId;
   const Uint32 map_ptr_i = req->map_ptr_i;
   const Uint32 flags = req->requestInfo;
-  const Uint32 fragmentCountType = req->fragmentCountType;
-  const Uint32 partitionCount = req->partitionCount;
+  const Uint32 partitionBalance = req->partitionBalance;
+  Uint32 partitionCount = req->partitionCount;
   Uint32 err = 0;
   bool use_specific_fragment_count = false;
   const Uint32 defaultFragments =
@@ -12358,8 +12358,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
   {
     D("CREATE_FRAGMENTATION_REQ: " <<
       " primaryTableId: " << primaryTableId <<
-      " fragmentCountType: " <<
-        getFragmentCountTypeString(fragmentCountType) <<
+      " partitionBalance: " <<
+        getPartitionBalanceString(partitionBalance) <<
       " fragType: " << fragType <<
       " noOfFragments: " << noOfFragments);
   }
@@ -12379,6 +12379,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       case DictTabInfo::AllNodesSmallTable:
         jam();
         noOfFragments = defaultFragments;
+        partitionCount = noOfFragments;
         set_default_node_groups(signal, noOfFragments);
         break;
       case DictTabInfo::AllNodesMediumTable:
@@ -12386,6 +12387,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         noOfFragments = 2 * defaultFragments;
         if (noOfFragments > maxFragments)
           noOfFragments = maxFragments;
+        partitionCount = noOfFragments;
         set_default_node_groups(signal, noOfFragments);
         break;
       case DictTabInfo::AllNodesLargeTable:
@@ -12393,11 +12395,13 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         noOfFragments = 4 * defaultFragments;
         if (noOfFragments > maxFragments)
           noOfFragments = maxFragments;
+        partitionCount = noOfFragments;
         set_default_node_groups(signal, noOfFragments);
         break;
       case DictTabInfo::SingleFragment:
         jam();
         noOfFragments = 1;
+        partitionCount = noOfFragments;
         use_specific_fragment_count = true;
         set_default_node_groups(signal, noOfFragments);
         break;
@@ -12465,11 +12469,11 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       if ((DictTabInfo::FragmentType)fragType == DictTabInfo::HashMapPartition)
       {
         jam();
-        if (fragmentCountType != NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE)
+        if (partitionBalance != NDB_PARTITION_BALANCE_FOR_RP_BY_LDM)
         {
           jam();
           /**
-           * The default partitioned table using ONE_PER_LDM_PER_NODE will
+           * The default partitioned table using FOR_RP_BY_LDM will
            * distribute exactly one primary replica to each LDM in each node,
            * so no need to use the information from other table creations to
            * define the primary replica node mapping. For all other tables
@@ -12479,16 +12483,16 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
            */
           next_replica_node = &c_next_replica_node;
         }
-        switch (fragmentCountType)
+        switch (partitionBalance)
         {
-          case NDB_FRAGMENT_COUNT_ONE_PER_NODE:
-          case NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP:
+          case NDB_PARTITION_BALANCE_FOR_RP_BY_NODE:
+          case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
           {
             /**
              * Table will only use one log part, we will try spreading over
              * different log parts, however the variable isn't persistent, so
              * recommendation is to use only small tables for these
-             * fragment count types.
+             * partition balances.
              *
              * One per node type will use one LDM per replica since fragment
              * count is higher.
@@ -12497,8 +12501,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
             use_specific_fragment_count = true;
             break;
           }
-          case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE:
-          case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP:
+          case NDB_PARTITION_BALANCE_FOR_RP_BY_LDM:
+          case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
           {
             /**
              * These tables will spread over all LDMs and over all node
@@ -12516,7 +12520,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
             next_log_part = (~0);
             break;
           }
-          case NDB_FRAGMENT_COUNT_SPECIFIC:
+          case NDB_PARTITION_BALANCE_SPECIFIC:
           {
             jam();
             use_specific_fragment_count = true;
@@ -12830,8 +12834,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
          *
          * So the next fragment always seeks out the most empty node group and
          * adds the fragment there. When new node groups exists and we haven't
-         * changed the fragment count type then all new fragments will end up
-         * in the new node groups. If we change fragment count type we will
+         * changed the partition balance then all new fragments will end up
+         * in the new node groups. If we change partition balance we will
          * also add new fragments to existing node groups.
          *
          * LDM Dimension:
@@ -12839,8 +12843,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
          * We will ensure that we have an even distribution on the LDMs in the
          * nodes by ensuring that we have knowledge of which LDMs we primarily
          * used in the original table. This is necessary to support ALTER TABLE
-         * from FRAGMENT_COUNT_ONE_PER_NODE to
-         * FRAGMENT_COUNT_ONE_PER_NODE_GROUP e.g. FRAGMENT_COUNT_ONE_PER_NODE
+         * from PARTITION_BALANCE_FOR_RP_BY_NODE to
+         * PARTITION_BALANCE_FOR_RA_BY_NODE e.g. PARTITION_BALANCE_FOR_RP_BY_NODE
          * could have used any LDMs. So it is important to ensure that we
          * spread evenly over all LDMs also after the ALTER TABLE. We do this
          * by always finding the LDM in the node with the minimum number of
@@ -12857,8 +12861,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
          * --------------------------
          * We make an effort to spread the primary replicas around amongst the
          * nodes in each node group and LDM. We need to spread both regarding
-         * nodes and with regard to LDM. When we use fragment count type
-         * ONE_PER_LDM_PER_NODE we will spread on all LDMs in all nodes for
+         * nodes and with regard to LDM. When we use partition balance
+         * FOR_RP_BY_LDM we will spread on all LDMs in all nodes for
          * the table itself, so we don't need to use the DIH copy of the
          * next primary replica to use. For all other tables we will start by
          * reading what is already in the table, if the table itself has
@@ -12876,17 +12880,17 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         Uint32 next_log_part = 0;
         bool use_old_variant = true;
 
-        switch(fragmentCountType)
+        switch(partitionBalance)
         {
-          case NDB_FRAGMENT_COUNT_SPECIFIC:
-          case NDB_FRAGMENT_COUNT_ONE_PER_NODE:
-          case NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP:
+          case NDB_PARTITION_BALANCE_SPECIFIC:
+          case NDB_PARTITION_BALANCE_FOR_RP_BY_NODE:
+          case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
           {
             jam();
             break;
           }
-          case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE:
-          case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP:
+          case NDB_PARTITION_BALANCE_FOR_RP_BY_LDM:
+          case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
           {
             jam();
             use_old_variant = false;
@@ -12932,7 +12936,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           /* Select primary replica node */
           Uint32 primary_node;
           if (tmp_next_replica_node_set[NGPtr.i][logPart] ||
-              fragmentCountType == NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE)
+              partitionBalance == NDB_PARTITION_BALANCE_FOR_RP_BY_LDM)
           {
             jam();
             Uint32 node_index = (*next_replica_node)[NGPtr.i][logPart];
@@ -15272,7 +15276,7 @@ Dbdih::start_scan_on_table(TabRecordPtr tabPtr,
      * For Fully replicated tables the totalfragments means the total
      * number of fragments including the copy fragment. Here however
      * we should respond with the real fragment count which is either
-     * 1 or the number of LDMs dependent on which fragment count type
+     * 1 or the number of LDMs dependent on which partition balance
      * the table was created with.
      *
      * partitionCount works also for other tables. We always scan
@@ -23886,17 +23890,17 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
   case CheckNodeGroups::GetDefaultFragments:
     jamNoBlock();
     ok = true;
-    sd->output = getFragmentCount(sd->fragmentCountType, sd->extraNodeGroups);
+    sd->output = getFragmentCount(sd->partitionBalance, sd->extraNodeGroups);
     break;
   case CheckNodeGroups::GetDefaultFragmentsFullyReplicated:
     jamNoBlock();
-    switch(sd->fragmentCountType)
+    switch(sd->partitionBalance)
     {
-    case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP:
+    case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
       ok = true;
       sd->output = getFragmentsPerNode();
       break;
-    case NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP:
+    case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
       ok = true;
       sd->output = 1;
       break;
@@ -23911,7 +23915,7 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
 }//Dbdih::execCHECKNODEGROUPSREQ()
 
 Uint32
-Dbdih::getFragmentCount(Uint32 fragmentCountType, Uint32 extraNodeGroups)
+Dbdih::getFragmentCount(Uint32 partitionBalance, Uint32 extraNodeGroups)
 {
   /**
    * this is actually MIN(#ldm) for each node in cluster
@@ -23919,14 +23923,14 @@ Dbdih::getFragmentCount(Uint32 fragmentCountType, Uint32 extraNodeGroups)
   Uint32 ldms = getFragmentsPerNode();
   Uint32 nodeGroups = cnoOfNodeGroups + extraNodeGroups;
 
-  switch(fragmentCountType) {
-  case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE:
+  switch(partitionBalance) {
+  case NDB_PARTITION_BALANCE_FOR_RP_BY_LDM:
     return nodeGroups * cnoReplicas * ldms;
-  case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP:
+  case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
     return nodeGroups * ldms;
-  case NDB_FRAGMENT_COUNT_ONE_PER_NODE:
+  case NDB_PARTITION_BALANCE_FOR_RP_BY_NODE:
     return nodeGroups * cnoReplicas;
-  case NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP:
+  case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
     return nodeGroups;
   }
   ndbrequire(false);

@@ -8,7 +8,7 @@ CREATE TABLE t1 (
   d blob,
   primary key(a,b),
   key(b),
-  unique (c)) engine=ndb comment='NDB_TABLE=FULLY_REPLICATED=1,FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP' partition by key(a) ;
+  unique (c)) engine=ndb comment='NDB_TABLE=FULLY_REPLICATED=1,PARTITION_BALANCE=FOR_RA_BY_NODE' partition by key(a) ;
 show warnings;
 
 # Test that invalid table comment creates a warning
@@ -31,7 +31,7 @@ CREATE TABLE t2 (
   c int,
   primary key(a,b),
   key(b),
-  unique (c)) engine=ndb comment='NDB_TABLE=FULLY_REPLICATED=1,FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE_GROUP' partition by key(a) ;
+  unique (c)) engine=ndb comment='NDB_TABLE=FULLY_REPLICATED=1,PARTITION_BALANCE=FOR_RA_BY_LDM' partition by key(a) ;
 
 # bug#23330359 - a DICT bug on alter table
 # done in same restart test to save runtime

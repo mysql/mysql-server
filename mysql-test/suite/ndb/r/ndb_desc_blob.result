@@ -18,7 +18,7 @@ SingleUserMode: 0
 ForceVarPart: 1
 PartitionCount: 8
 FragmentCount: 8
-FragmentCountType: ONE_PER_LDM_PER_NODE
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -58,7 +58,7 @@ SingleUserMode: 0
 ForceVarPart: 1
 PartitionCount: 8
 FragmentCount: 8
-FragmentCountType: ONE_PER_LDM_PER_NODE
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -98,7 +98,7 @@ SingleUserMode: 0
 ForceVarPart: 0
 PartitionCount: 8
 FragmentCount: 8
-FragmentCountType: ONE_PER_LDM_PER_NODE
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -132,7 +132,7 @@ SingleUserMode: 0
 ForceVarPart: 0
 PartitionCount: 8
 FragmentCount: 8
-FragmentCountType: ONE_PER_LDM_PER_NODE
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -166,7 +166,7 @@ SingleUserMode: 0
 ForceVarPart: 0
 PartitionCount: 8
 FragmentCount: 8
-FragmentCountType: ONE_PER_LDM_PER_NODE
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -201,7 +201,7 @@ SingleUserMode: 0
 ForceVarPart: 0
 PartitionCount: 8
 FragmentCount: 8
-FragmentCountType: ONE_PER_LDM_PER_NODE
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -235,7 +235,7 @@ SingleUserMode: 0
 ForceVarPart: 0
 PartitionCount: 8
 FragmentCount: 8
-FragmentCountType: ONE_PER_LDM_PER_NODE
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -269,7 +269,7 @@ SingleUserMode: 0
 ForceVarPart: 0
 PartitionCount: 8
 FragmentCount: 8
-FragmentCountType: ONE_PER_LDM_PER_NODE
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved

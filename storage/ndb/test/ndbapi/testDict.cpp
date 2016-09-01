@@ -7857,7 +7857,7 @@ runFailAddPartition(NDBT_Context* ctx, NDBT_Step* step)
   NdbDictionary::Table altered = * org;
   altered.setFragmentCount(org->getFragmentCount() +
                            restarter.getNumDbNodes());
-  altered.setFragmentCountType(NdbDictionary::Object::FragmentCount_Specific);
+  altered.setPartitionBalance(NdbDictionary::Object::PartitionBalance_Specific);
 
   if (pDic->beginSchemaTrans())
   {
@@ -7972,8 +7972,8 @@ runTableAddPartition(NDBT_Context* ctx, NDBT_Step* step){
     NdbDictionary::Table newTable= *oldTable;
 
     newTable.setFragmentCount(2 * oldTable->getFragmentCount());
-    newTable.setFragmentCountType(
-      NdbDictionary::Object::FragmentCount_Specific);
+    newTable.setPartitionBalance(
+      NdbDictionary::Object::PartitionBalance_Specific);
     CHECK2(dict->alterTable(*oldTable, newTable) == 0,
            "TableAddAttrs failed");
 
@@ -8357,8 +8357,8 @@ runBug46585(NDBT_Context* ctx, NDBT_Step* step)
 
     NdbDictionary::Table altered = * org;
     altered.setFragmentCount(org->getFragmentCount() + 1);
-    altered.setFragmentCountType(
-      NdbDictionary::Object::FragmentCount_Specific);
+    altered.setPartitionBalance(
+      NdbDictionary::Object::PartitionBalance_Specific);
     ndbout_c("alter from %u to %u partitions",
              org->getFragmentCount(),
              altered.getFragmentCount());
@@ -9987,8 +9987,8 @@ runBug14645319(NDBT_Context* ctx, NDBT_Step* step)
       }
       else
       {
-        new_tab.setFragmentCountType(
-          NdbDictionary::Object::FragmentCount_Specific);
+        new_tab.setPartitionBalance(
+          NdbDictionary::Object::PartitionBalance_Specific);
       }
 
       result = pDic->beginSchemaTrans();

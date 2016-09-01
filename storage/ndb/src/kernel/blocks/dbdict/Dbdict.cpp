@@ -556,7 +556,7 @@ void Dbdict::execDBINFO_SCANREQ(Signal *signal)
           row.write_uint32(tabPtr.p->hashMapVersion);
           row.write_uint32(tabPtr.p->tableVersion);
           row.write_uint32(tabPtr.p->fragmentType);
-          row.write_uint32(tabPtr.p->fragmentCountType);
+          row.write_uint32(tabPtr.p->partitionBalance);
           row.write_uint32(tabPtr.p->gciTableCreated);
           row.write_uint32(tabPtr.p->m_read_locked);
           row.write_uint32(tabPtr.p->singleUserMode);
@@ -904,7 +904,7 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
   w.add(DictTabInfo::MaxRowsHigh, tablePtr.p->maxRowsHigh);
   w.add(DictTabInfo::DefaultNoPartFlag, tablePtr.p->defaultNoPartFlag);
   w.add(DictTabInfo::LinearHashFlag, tablePtr.p->linearHashFlag);
-  w.add(DictTabInfo::FragmentCountType, tablePtr.p->fragmentCountType);
+  w.add(DictTabInfo::PartitionBalance, tablePtr.p->partitionBalance);
   w.add(DictTabInfo::FragmentCount, tablePtr.p->fragmentCount);
   w.add(DictTabInfo::MinRowsLow, tablePtr.p->minRowsLow);
   w.add(DictTabInfo::MinRowsHigh, tablePtr.p->minRowsHigh);
@@ -2660,7 +2660,7 @@ void Dbdict::initialiseTableRecord(TableRecordPtr tablePtr, Uint32 tableId)
   tablePtr.p->gciTableCreated = 0;
   tablePtr.p->noOfAttributes = ZNIL;
   tablePtr.p->noOfNullAttr = 0;
-  tablePtr.p->fragmentCountType = NDB_DEFAULT_FRAGMENT_COUNT_TYPE;
+  tablePtr.p->partitionBalance = NDB_DEFAULT_PARTITION_BALANCE;
   tablePtr.p->fragmentCount = 0;
   tablePtr.p->partitionCount = 0;
   /*
@@ -5726,29 +5726,29 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
         buf_ptr+= strlen(no_log_str);
       }
       {
-        const char *fc_str = NULL;
-        switch (c_tableDesc.FragmentCountType)
+        const char *pb_str = NULL;
+        switch (c_tableDesc.PartitionBalance)
         {
-          case NDB_FRAGMENT_COUNT_SPECIFIC:
-            fc_str = " FC_SPEC";
+          case NDB_PARTITION_BALANCE_SPECIFIC:
+            pb_str = " PB_SPEC";
             break;
-          case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE:
-            fc_str = " FC_OPLPN";
+          case NDB_PARTITION_BALANCE_FOR_RP_BY_LDM:
+            pb_str = " PB_RPL";
             break;
-          case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP:
-            fc_str = " FC_OPLPNG";
+          case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
+            pb_str = " PB_RAL";
             break;
-          case NDB_FRAGMENT_COUNT_ONE_PER_NODE:
-            fc_str = " FC_OPN";
+          case NDB_PARTITION_BALANCE_FOR_RP_BY_NODE:
+            pb_str = " PB_RPN";
             break;
-          case NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP:
-            fc_str = " FC_OPNG";
+          case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
+            pb_str = " PB_RPNG";
             break;
           default:
             ndbrequire(false);
         }
-        strcpy(buf_ptr, fc_str);
-        buf_ptr+= strlen(fc_str);
+        strcpy(buf_ptr, pb_str);
+        buf_ptr+= strlen(pb_str);
       }
       if (c_tableDesc.FullyReplicatedFlag)
       {
@@ -5823,7 +5823,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
   tablePtr.p->fragmentType = (DictTabInfo::FragmentType)c_tableDesc.FragmentType;
   tablePtr.p->tableType = (DictTabInfo::TableType)c_tableDesc.TableType;
   tablePtr.p->kValue = c_tableDesc.TableKValue;
-  tablePtr.p->fragmentCountType = c_tableDesc.FragmentCountType;
+  tablePtr.p->partitionBalance = c_tableDesc.PartitionBalance;
   tablePtr.p->fragmentCount = c_tableDesc.FragmentCount;
   tablePtr.p->m_tablespace_id = c_tableDesc.TablespaceId;
   tablePtr.p->maxRowsLow = c_tableDesc.MaxRowsLow;
@@ -5859,22 +5859,22 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
     /**
      * We don't use default partitioning, so must be specific.
      */
-    if (tablePtr.p->fragmentCountType !=
-        NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE)
+    if (tablePtr.p->partitionBalance !=
+        NDB_PARTITION_BALANCE_FOR_RP_BY_LDM)
     {
-      ndbrequire(tablePtr.p->fragmentCountType ==
-                 NDB_FRAGMENT_COUNT_SPECIFIC);
+      ndbrequire(tablePtr.p->partitionBalance ==
+                 NDB_PARTITION_BALANCE_SPECIFIC);
     }
     else
     {
       /**
-       * This will happen when an old table created before fragmentCountType
+       * This will happen when an old table created before partitionBalance
        * was introduced AND also setting a specific number of partitions.
        * We set it to specific partitioning as it should be. This is
        * upgrade code.
        */
       jam();
-      tablePtr.p->fragmentCountType = NDB_FRAGMENT_COUNT_SPECIFIC;
+      tablePtr.p->partitionBalance = NDB_PARTITION_BALANCE_SPECIFIC;
     }
   }
 
@@ -5904,12 +5904,12 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
       /**
        * No hashmap nor fragment count indicates default partitioning
        */
-      assert(tablePtr.p->fragmentCountType != NDB_FRAGMENT_COUNT_SPECIFIC);
-      tabRequire(tablePtr.p->fragmentCountType != NDB_FRAGMENT_COUNT_SPECIFIC,
+      assert(tablePtr.p->partitionBalance != NDB_PARTITION_BALANCE_SPECIFIC);
+      tabRequire(tablePtr.p->partitionBalance != NDB_PARTITION_BALANCE_SPECIFIC,
                  CreateTableRef::NonDefaultPartitioningWithNoPartitions);
       tablePtr.p->fragmentCount =
         get_default_fragments(signal,
-                              tablePtr.p->fragmentCountType,
+                              tablePtr.p->partitionBalance,
                               0);
     }
     tabRequire(tablePtr.p->fragmentCount <= MAX_NDB_PARTITIONS,
@@ -5927,7 +5927,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
         jam();
         tablePtr.p->partitionCount =
           get_default_partitions_fully_replicated(signal,
-                                                  tablePtr.p->fragmentCountType);
+                                                  tablePtr.p->partitionBalance);
       }
     }
     Uint32 partitions = tablePtr.p->partitionCount;
@@ -5967,7 +5967,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
     {
       tablePtr.p->fragmentCount =
         get_default_fragments(signal,
-                              tablePtr.p->fragmentCountType,
+                              tablePtr.p->partitionBalance,
                               0);
     }
     if (tablePtr.p->partitionCount == 0)
@@ -6066,27 +6066,27 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
   {
     if ((tablePtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0)
     {
-      switch (tablePtr.p->fragmentCountType)
+      switch (tablePtr.p->partitionBalance)
       {
-        case NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP:
-        case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP:
+        case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
+        case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
         {
           jam();
           if (!restart)
           {
             tablePtr.p->fragmentCount =
               get_default_fragments(signal,
-                                    tablePtr.p->fragmentCountType,
+                                    tablePtr.p->partitionBalance,
                                     0);
             tablePtr.p->partitionCount =
               get_default_partitions_fully_replicated(
                   signal,
-                  tablePtr.p->fragmentCountType);
+                  tablePtr.p->partitionBalance);
           }
           D("Fully replicated table, partitionCount: " <<
             tablePtr.p->partitionCount <<
-            " fragmentCountType = " <<
-            getFragmentCountTypeString(tablePtr.p->fragmentCountType));
+            " partitionBalance = " <<
+            getPartitionBalanceString(tablePtr.p->partitionBalance));
           break;
         }
         default:
@@ -6098,15 +6098,15 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
            * LDM in each node group.
            */
           parseP->errorCode =
-            CreateTableRef::WrongFragmentCountTypeFullyReplicated;
+            CreateTableRef::WrongPartitionBalanceFullyReplicated;
           parseP->errorLine = __LINE__;
           D("Creating fully replicated table failed. " <<
             "Error Code " << parseP->errorCode <<
             " Line: " << parseP->errorLine <<
             " partitionCount: " <<
             tablePtr.p->partitionCount <<
-            " fragmentCountType = " <<
-            getFragmentCountTypeString(tablePtr.p->fragmentCountType));
+            " partitionBalance = " <<
+            getPartitionBalanceString(tablePtr.p->partitionBalance));
           break;
         }
       }
@@ -6130,8 +6130,8 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
   D("handleTabInfoInit: tableId = " << tablePtr.i <<
     "fragmentCount = " << tablePtr.p->fragmentCount <<
     " partitionCount = " << tablePtr.p->partitionCount <<
-    " fragmentCountType = " <<
-      getFragmentCountTypeString(tablePtr.p->fragmentCountType));
+    " partitionBalance = " <<
+      getPartitionBalanceString(tablePtr.p->partitionBalance));
 
   if(parseP->errorCode != 0)
   {
@@ -6770,7 +6770,7 @@ Dbdict::get_fragmentation(Signal* signal, Uint32 tableId)
   req->noOfFragments = 0;
   req->primaryTableId = tableId;
   req->requestInfo = CreateFragmentationReq::RI_GET_FRAGMENTATION;
-  req->fragmentCountType = 0; /* Ignored for get_fragmentation */
+  req->partitionBalance = 0; /* Ignored for get_fragmentation */
   req->partitionCount = 0; /* Ignored for get_fragmentation */
   EXECUTE_DIRECT(DBDICT, GSN_CREATE_FRAGMENTATION_REQ, signal,
                  CreateFragmentationReq::SignalLength);
@@ -6793,7 +6793,7 @@ Dbdict::create_fragmentation(Signal* signal,
   frag_req->noOfFragments = tabPtr.p->fragmentCount;
   frag_req->fragmentationType = tabPtr.p->fragmentType;
   frag_req->requestInfo = flags;
-  frag_req->fragmentCountType = tabPtr.p->fragmentCountType;
+  frag_req->partitionBalance = tabPtr.p->partitionBalance;
 
   if (tabPtr.p->hashMapObjectId != RNIL)
   {
@@ -9765,7 +9765,7 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
       list.next(attrPtr);
     }
   }
-  if (tablePtr.p->fragmentCountType != newTablePtr.p->fragmentCountType &&
+  if (tablePtr.p->partitionBalance != newTablePtr.p->partitionBalance &&
       ((newTablePtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0))
   {
     jam();
@@ -9800,7 +9800,7 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
       return;
     }
 
-    if (newTablePtr.p->fragmentCountType != NDB_FRAGMENT_COUNT_SPECIFIC)
+    if (newTablePtr.p->partitionBalance != NDB_PARTITION_BALANCE_SPECIFIC)
     {
       jam();
 
@@ -9808,7 +9808,7 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
        * verify that fragment count is not decreasing.
        */
       Uint32 cnt0 = get_default_fragments(signal,
-                                          newTablePtr.p->fragmentCountType,
+                                          newTablePtr.p->partitionBalance,
                                           0);
       if (newTablePtr.p->fragmentCount > cnt0)
       {
@@ -9857,7 +9857,7 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
         // Fully replicated still need to copy data to copy fragments.
         const Uint32 newFragmentCount =
           get_default_fragments(signal,
-                                newTablePtr.p->fragmentCountType,
+                                newTablePtr.p->partitionBalance,
                                 0);
         if (newFragmentCount != tablePtr.p->fragmentCount)
         {
@@ -11066,9 +11066,9 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
       tablePtr.p->fragmentCount = newTablePtr.p->fragmentCount;
       newTablePtr.p->fragmentCount = save;
       
-      Uint32 save_fctype = tablePtr.p->fragmentCountType;
-      tablePtr.p->fragmentCountType = newTablePtr.p->fragmentCountType;
-      newTablePtr.p->fragmentCountType = save_fctype;
+      Uint32 save_part_bal = tablePtr.p->partitionBalance;
+      tablePtr.p->partitionBalance = newTablePtr.p->partitionBalance;
+      newTablePtr.p->partitionBalance = save_part_bal;
 
       Uint32 save_rfc = tablePtr.p->partitionCount;
       tablePtr.p->partitionCount = newTablePtr.p->partitionCount;
@@ -13181,7 +13181,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, SchemaOpPtr op_ptr)
   }
   w.add(DictTabInfo::FragmentTypeVal, createIndexPtr.p->m_fragmentType);
   // Inherit fragment count if main table is also hashmap partitioned.
-  // Also inherit fragment count type of main table to ensure that it
+  // Also inherit partition balance of main table to ensure that it
   // gets the same partitioning.
   // Otherwise better do use default.
   if ((DictTabInfo::FragmentType)createIndexPtr.p->m_fragmentType ==
@@ -13190,7 +13190,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, SchemaOpPtr op_ptr)
   {
     w.add(DictTabInfo::FragmentCount, tablePtr.p->fragmentCount);
     w.add(DictTabInfo::PartitionCount, tablePtr.p->partitionCount);
-    w.add(DictTabInfo::FragmentCountType, tablePtr.p->fragmentCountType);
+    w.add(DictTabInfo::PartitionBalance, tablePtr.p->partitionBalance);
     ndbrequire(tablePtr.p->hashMapObjectId != RNIL &&
                ~tablePtr.p->hashMapObjectId != 0);
     w.add(DictTabInfo::HashMapObjectId, tablePtr.p->hashMapObjectId);
@@ -25522,7 +25522,7 @@ Dbdict::createNodegroup_subOps(Signal* signal, SchemaOpPtr op_ptr)
      * creates a table or an unique index without specifying a hashmap it will
      * be created here.
      *
-     * If default fragment count type for read backup is changed to not be the
+     * If default partition balance for read backup is changed to not be the
      * same as default for normal tables, a default hashmap for read backup
      * tables must be created too.
      *
@@ -25535,12 +25535,12 @@ Dbdict::createNodegroup_subOps(Signal* signal, SchemaOpPtr op_ptr)
 
     /**
      */
-    NDB_STATIC_ASSERT(NDB_DEFAULT_FRAGMENT_COUNT_TYPE ==
-                        NDB_DEFAULT_FRAGMENT_COUNT_TYPE_READ_BACKUP);
+    NDB_STATIC_ASSERT(NDB_DEFAULT_PARTITION_BALANCE ==
+                        NDB_DEFAULT_PARTITION_BALANCE_READ_BACKUP);
 
     Uint32 buckets = c_default_hashmap_size;
     Uint32 fragments = get_default_fragments(signal,
-                                             NDB_DEFAULT_FRAGMENT_COUNT_TYPE,
+                                             NDB_DEFAULT_PARTITION_BALANCE,
                                              1);
     char buf[MAX_TAB_NAME_SIZE+1];
     BaseString::snprintf(buf, sizeof(buf), "DEFAULT-HASHMAP-%u-%u",
@@ -33266,7 +33266,7 @@ Dbdict::execCREATE_HASH_MAP_REQ(Signal* signal)
 
 Uint32
 Dbdict::get_default_fragments(Signal* signal,
-                              Uint32 fragmentCountType,
+                              Uint32 partitionBalance,
                               Uint32 extranodegroups)
 {
   jam();
@@ -33274,7 +33274,7 @@ Dbdict::get_default_fragments(Signal* signal,
   CheckNodeGroups * sd = CAST_PTR(CheckNodeGroups, signal->getDataPtrSend());
   sd->extraNodeGroups = extranodegroups;
   sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::GetDefaultFragments;
-  sd->fragmentCountType = fragmentCountType;
+  sd->partitionBalance = partitionBalance;
   EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal,
 		 CheckNodeGroups::SignalLength);
   jamEntry();
@@ -33283,7 +33283,7 @@ Dbdict::get_default_fragments(Signal* signal,
 
 Uint32
 Dbdict::get_default_partitions_fully_replicated(Signal* signal,
-                                                Uint32 fragmentCountType)
+                                                Uint32 partitionBalance)
 {
   jam();
 
@@ -33291,7 +33291,7 @@ Dbdict::get_default_partitions_fully_replicated(Signal* signal,
   sd->extraNodeGroups = 0;
   sd->requestType = CheckNodeGroups::Direct |
                     CheckNodeGroups::GetDefaultFragmentsFullyReplicated;
-  sd->fragmentCountType = fragmentCountType;
+  sd->partitionBalance = partitionBalance;
   EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal,
 		 CheckNodeGroups::SignalLength);
   jamEntry();
@@ -33360,39 +33360,39 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
     }
 
     /**
-     * impl_req->fragments contains either fragmentCountType or
+     * impl_req->fragments contains either partitionBalance or
      * the number of fragments when specific number of fragments
      * have been specified.
      */
     Uint32 buckets = impl_req->buckets;
     Uint32 fragments;
     Uint32 partitions;
-    Uint32 fragmentCountType = impl_req->fragments;
-    switch(fragmentCountType) {
+    Uint32 partitionBalance = impl_req->fragments;
+    switch(partitionBalance) {
     case 0:
       /**
        * Most likely a table is created from 7.4 or earlier version.
-       * We will replace the 0 with the default fragment count type
+       * We will replace the 0 with the default partition balance
        * and continue as if everything is ok. All tables in 7.4 and
-       * earlier are either of type ONE_PER_LDM_PER_NODE or
+       * earlier are either of type FOR_RP_BY_LDM or
        * SPECIFIC. The other types can only be created using 7.5.2
        * and later.
        */
       jam();
-      fragmentCountType = NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE;
+      partitionBalance = NDB_PARTITION_BALANCE_FOR_RP_BY_LDM;
       /* Fall through */
-    case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE:
-    case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP:
-    case NDB_FRAGMENT_COUNT_ONE_PER_NODE:
-    case NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP:
+    case NDB_PARTITION_BALANCE_FOR_RP_BY_LDM:
+    case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
+    case NDB_PARTITION_BALANCE_FOR_RP_BY_NODE:
+    case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
       jam();
       fragments = get_default_fragments(signal,
-                                        fragmentCountType,
+                                        partitionBalance,
                                         0);
       if (impl_req->requestType & CreateHashMapReq::CreateForOneNodegroup)
       {
         partitions = get_default_partitions_fully_replicated(signal,
-                                                             fragmentCountType);
+                                                             partitionBalance);
       }
       else
       {
@@ -33404,21 +33404,21 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
       {
         jam();
         /**
-         * FragmentCountSpecific is not supported for fully replicated.
+         * PartitionBalance_Specific is not supported for fully replicated.
          * And if it was fragment count is unknown.
          */
-        setError(error, CreateTableRef::WrongFragmentCountTypeFullyReplicated,__LINE__);
+        setError(error, CreateTableRef::WrongPartitionBalanceFullyReplicated,__LINE__);
         return;
       }
       partitions = fragments = impl_req->fragments;
-      fragmentCountType = NDB_FRAGMENT_COUNT_SPECIFIC;
+      partitionBalance = NDB_PARTITION_BALANCE_SPECIFIC;
       break;
     }
     if (g_trace)
     {
-      g_eventLogger->info("HashMap: fragments: %u, fragmentCountType: %s",
+      g_eventLogger->info("HashMap: fragments: %u, partitionBalance: %s",
                           fragments,
-                          getFragmentCountTypeString(fragmentCountType));
+                          getPartitionBalanceString(partitionBalance));
     }
 
     if (fragments > MAX_NDB_PARTITIONS)

@@ -428,7 +428,7 @@ public:
     RopeHandle ngData;
     RopeHandle rangeData;
 
-    Uint32 fragmentCountType;
+    Uint32 partitionBalance;
     Uint32 fragmentCount;
     Uint32 partitionCount;
     Uint32 m_tablespace_id;
@@ -4783,10 +4783,10 @@ public:
   NdbNodeBitmask c_sub_startstop_lock;
 
   Uint32 get_default_fragments(Signal*,
-                               Uint32 fragmentCountType,
+                               Uint32 partitionBalance,
                                Uint32 extra_nodegroups);
   Uint32 get_default_partitions_fully_replicated(Signal *signal,
-                                                 Uint32 fragmentCountType);
+                                                 Uint32 partitionBalance);
   void wait_gcp(Signal* signal, SchemaOpPtr op_ptr, Uint32 flags);
 
   void block_substartstop(Signal* signal, SchemaOpPtr op_ptr);

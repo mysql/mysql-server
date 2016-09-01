@@ -668,7 +668,7 @@ NdbTableImpl::init(){
   m_minLoadFactor= 78;
   m_maxLoadFactor= 80;
   m_keyLenInWords= 0;
-  m_fragmentCountType = NdbDictionary::Object::FragmentCount_OnePerLDMPerNode;
+  m_partitionBalance = NdbDictionary::Object::PartitionBalance_ForRPByLDM;
   m_fragmentCount= 0;
   m_partitionCount = 0;
   m_index= NULL;
@@ -706,8 +706,8 @@ NdbTableImpl::init(){
     {
       m_read_backup = 1;
       m_fully_replicated = 1;
-      m_fragmentCountType =
-        NdbDictionary::Object::FragmentCount_OnePerLDMPerNodeGroup;
+      m_partitionBalance =
+        NdbDictionary::Object::PartitionBalance_ForRAByLDM;
     }
   }
 #endif
@@ -756,7 +756,7 @@ NdbTableImpl::equal(const NdbTableImpl& obj) const
     DBUG_RETURN(false);
   }
 
-  if (m_fragmentCountType != obj.m_fragmentCountType)
+  if (m_partitionBalance != obj.m_partitionBalance)
   {
     DBUG_RETURN(false);
   }
@@ -1019,7 +1019,7 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_keyLenInWords = org.m_keyLenInWords;
   m_fragmentCount = org.m_fragmentCount;
   m_partitionCount = org.m_partitionCount;
-  m_fragmentCountType = org.m_fragmentCountType;
+  m_partitionBalance = org.m_partitionBalance;
   m_single_user_mode = org.m_single_user_mode;
   m_extra_row_gci_bits = org.m_extra_row_gci_bits;
   m_extra_row_author_bits = org.m_extra_row_author_bits;
@@ -3018,18 +3018,18 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   impl->m_storageType = tableDesc->TableStorageType;
   impl->m_extra_row_gci_bits = tableDesc->ExtraRowGCIBits;
   impl->m_extra_row_author_bits = tableDesc->ExtraRowAuthorBits;
-  impl->m_fragmentCountType =
-    (NdbDictionary::Object::FragmentCountType)tableDesc->FragmentCountType;
+  impl->m_partitionBalance =
+    (NdbDictionary::Object::PartitionBalance)tableDesc->PartitionBalance;
   impl->m_read_backup = tableDesc->ReadBackupFlag == 0 ? false : true;
   impl->m_partitionCount = tableDesc->PartitionCount;
   impl->m_fully_replicated =
     tableDesc->FullyReplicatedFlag == 0 ? false : true;
 
 
-  DBUG_PRINT("info", ("m_logging: %u, fragmentCountType: %d"
+  DBUG_PRINT("info", ("m_logging: %u, partitionBalance: %d"
                       " m_read_backup %u, tableVersion: %u",
                       impl->m_logging,
-                      impl->m_fragmentCountType,
+                      impl->m_partitionBalance,
                       impl->m_read_backup,
                       impl->m_version));
 
@@ -3395,34 +3395,34 @@ NdbDictInterface::createTable(Ndb & ndb,
       /**
        * Make sure that hashmap exists (i.e after upgrade or similar)
        */
-      Uint32 fragCountType_partCount = impl.getFragmentCountType();
+      Uint32 partitionBalance_Count = impl.getPartitionBalance();
       int req_type = CreateHashMapReq::CreateDefault |
                      CreateHashMapReq::CreateIfNotExists;
       if (!impl.getFullyReplicated())
       {
-        if (fragCountType_partCount == NDB_FRAGMENT_COUNT_SPECIFIC)
+        if (partitionBalance_Count == NDB_PARTITION_BALANCE_SPECIFIC)
         {
           // For non fully replicated table partition count is fragment count.
-          fragCountType_partCount = impl.getFragmentCount();
+          partitionBalance_Count = impl.getFragmentCount();
         }
       }
       else
       {
-        if (fragCountType_partCount == NDB_FRAGMENT_COUNT_SPECIFIC)
+        if (partitionBalance_Count == NDB_PARTITION_BALANCE_SPECIFIC)
         {
-          m_error.code = 797; // WrongFragmentCountTypeFullyReplicated
+          m_error.code = 797; // WrongPartitionBalanceFullyReplicated
           DBUG_RETURN(-1);
         }
         req_type |= CreateHashMapReq::CreateForOneNodegroup;
       }
-      assert(fragCountType_partCount != 0);
-      DBUG_PRINT("info", ("FragmentCountType: create_hashmap: %x",
-                          fragCountType_partCount));
+      assert(partitionBalance_Count != 0);
+      DBUG_PRINT("info", ("PartitionBalance: create_hashmap: %x",
+                          partitionBalance_Count));
       NdbHashMapImpl hashmap;
       ret = create_hashmap(hashmap,
                            &hashmap,
                            req_type,
-                           fragCountType_partCount);
+                           partitionBalance_Count);
       if (ret)
       {
         DBUG_RETURN(ret);
@@ -3565,15 +3565,15 @@ NdbDictionaryImpl::alterBlobTables(const NdbTableImpl & old_tab,
     }
     if (!frag_change)
     {
-      if (new_bt.getFragmentCountType() == old_tab.getFragmentCountType() &&
-          new_bt.getFragmentCountType() != new_tab.getFragmentCountType())
+      if (new_bt.getPartitionBalance() == old_tab.getPartitionBalance() &&
+          new_bt.getPartitionBalance() != new_tab.getPartitionBalance())
       {
         frag_change = true;
       }
     }
     if (frag_change)
     {
-      new_bt.setFragmentCountType(new_tab.getFragmentCountType());
+      new_bt.setPartitionBalance(new_tab.getPartitionBalance());
       new_bt.setFragmentType(new_tab.getFragmentType());
       new_bt.setDefaultNoPartitionsFlag(new_tab.getDefaultNoPartitionsFlag());
       new_bt.setFragmentCount(new_tab.getFragmentCount());
@@ -3718,43 +3718,43 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
   }
 
   /**
-   * FragmentCountType can change with alter table if it increases the
+   * PartitionBalance can change with alter table if it increases the
    * the number of fragments or the number stays the same. Changing to
    * a smaller number of fragments does however not work as this
    * requires drop partition to work.
    */
 
-  if (impl.m_fragmentCountType != old_impl.m_fragmentCountType)
+  if (impl.m_partitionBalance != old_impl.m_partitionBalance)
   {
     bool ok;
     if (old_impl.m_fully_replicated)
     {
       /**
-       * Currently do not support changing fragment count type of
+       * Currently do not support changing partition balance of
        * fully replicated tables.
        */
       ok = false;
     }
-    else if (old_impl.m_fragmentCountType ==
-               NdbDictionary::Object::FragmentCount_Specific)
+    else if (old_impl.m_partitionBalance ==
+               NdbDictionary::Object::PartitionBalance_Specific)
     {
       ok = false;
     }
-    else if (impl.m_fragmentCountType ==
-               NdbDictionary::Object::FragmentCount_Specific)
+    else if (impl.m_partitionBalance ==
+               NdbDictionary::Object::PartitionBalance_Specific)
     {
       ok = true;
     }
-    else if (old_impl.m_fragmentCountType ==
-               NdbDictionary::Object::FragmentCount_OnePerNodeGroup)
+    else if (old_impl.m_partitionBalance ==
+               NdbDictionary::Object::PartitionBalance_ForRAByNode)
     {
       ok = true;
     }
-    else if (old_impl.m_fragmentCountType ==
-               NdbDictionary::Object::FragmentCount_OnePerNode)
+    else if (old_impl.m_partitionBalance ==
+               NdbDictionary::Object::PartitionBalance_ForRPByNode)
     {
-      if (impl.m_fragmentCountType !=
-            NdbDictionary::Object::FragmentCount_OnePerNodeGroup)
+      if (impl.m_partitionBalance !=
+            NdbDictionary::Object::PartitionBalance_ForRAByNode)
       {
         ok = true;
       }
@@ -3763,13 +3763,13 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
         ok = false;
       }
     }
-    else if (old_impl.m_fragmentCountType ==
-             NdbDictionary::Object::FragmentCount_OnePerLDMPerNodeGroup)
+    else if (old_impl.m_partitionBalance ==
+             NdbDictionary::Object::PartitionBalance_ForRAByLDM)
     {
-      if (impl.m_fragmentCountType !=
-            NdbDictionary::Object::FragmentCount_OnePerNodeGroup &&
-          impl.m_fragmentCountType !=
-            NdbDictionary::Object::FragmentCount_OnePerNode)
+      if (impl.m_partitionBalance !=
+            NdbDictionary::Object::PartitionBalance_ForRAByNode &&
+          impl.m_partitionBalance !=
+            NdbDictionary::Object::PartitionBalance_ForRPByNode)
       {
         ok = true;
       }
@@ -3781,7 +3781,7 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
     else
     {
       /**
-       * Unknown fragment count type
+       * Unknown partition balance
        */
       ok = false;
     }
@@ -3790,7 +3790,7 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
       goto invalid_alter_table;
     }
     AlterTableReq::setAddFragFlag(change_mask, true);
-    AlterTableReq::setFragmentCountTypeFlag(change_mask, true);
+    AlterTableReq::setPartitionBalanceFlag(change_mask, true);
   }
   if (impl.m_fragmentCount != old_impl.m_fragmentCount)
   {
@@ -3798,7 +3798,7 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
       goto invalid_alter_table;
     AlterTableReq::setAddFragFlag(change_mask, true);
   }
-  else if (AlterTableReq::getFragmentCountTypeFlag(change_mask))
+  else if (AlterTableReq::getPartitionBalanceFlag(change_mask))
   {
     ; // Already handled above
   }
@@ -3980,7 +3980,7 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
     memcpy(tmpTab->RangeListData, impl.m_range.getBase(),4*impl.m_range.size());
   }
 
-  tmpTab->FragmentCountType = (Uint32)impl.m_fragmentCountType;
+  tmpTab->PartitionBalance = (Uint32)impl.m_partitionBalance;
   tmpTab->FragmentCount= impl.m_fragmentCount;
   tmpTab->PartitionCount = impl.m_partitionCount;
   tmpTab->TableLoggedFlag = impl.m_logging;
@@ -9285,7 +9285,7 @@ int
 NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
                                  NdbDictObjectImpl* obj,
                                  Uint32 flags,
-                                 Uint32 fragCountType_partCount)
+                                 Uint32 partitionBalance_Count)
 {
   {
     DictHashMapInfo::HashMap* hm = new DictHashMapInfo::HashMap(); 
@@ -9331,7 +9331,7 @@ NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
   req->requestInfo |= m_tx.requestFlags();
   req->transId = m_tx.transId();
   req->transKey = m_tx.transKey();
-  req->fragments = fragCountType_partCount;
+  req->fragments = partitionBalance_Count;
   req->buckets = 0; // not used from here
 
   LinearSectionPtr ptr[3];
@@ -9357,7 +9357,7 @@ NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
   });
   DBUG_PRINT("info", ("CREATE_HASH_MAP_REQ: cnt: %u, fragments: %x",
              seccnt, req->fragments));
-  assert(fragCountType_partCount != 0);
+  assert(partitionBalance_Count != 0);
   int ret = dictSignal(&tSignal, ptr, seccnt,
 		       0, // master
 		       WAIT_CREATE_INDX_REQ,

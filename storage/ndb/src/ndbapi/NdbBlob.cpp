@@ -100,7 +100,7 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
   bt.m_tablespace_id = t->m_tablespace_id;
   bt.m_tablespace_version = t->m_tablespace_version;
   bt.setFragmentType(t->getFragmentType());
-  bt.setFragmentCountType(t->getFragmentCountType());
+  bt.setPartitionBalance(t->getPartitionBalance());
   bt.setReadBackupFlag(t->getReadBackupFlag());
   bt.setFullyReplicated(t->getFullyReplicated());
 

@@ -71,7 +71,7 @@ struct AlterTableReq {
 #define REORG_COMPLETE_SHIFT (10)
 #define REORG_SUMA_ENABLE (11)
 #define REORG_SUMA_FILTER (12)
-#define FRAGMENT_COUNT_TYPE_SHIFT (13)
+#define PARTITION_BALANCE_SHIFT (13)
 #define READ_BACKUP_SHIFT (14)
 #define READ_BACKUP_SUBOP_SHIFT (15)
 
@@ -86,7 +86,7 @@ struct AlterTableReq {
    * we can change the frm file of a table,
    * we can change the read backup flag of a table,
    * we can add attributes to a table and
-   * we can change the fragment count type of a table,
+   * we can change the partition balance of a table,
    * we can add fragments to the table.
    */
   static Uint8 getNameFlag(const UintR & changeMask);
@@ -134,8 +134,8 @@ struct AlterTableReq {
   static void setReorgSumaEnableFlag(UintR &  changeMask, Uint32 tsFlg);
   static Uint8 getReorgSumaFilterFlag(const UintR & changeMask);
   static void setReorgSumaFilterFlag(UintR &  changeMask, Uint32 tsFlg);
-  static void setFragmentCountTypeFlag(UintR & changeMask, Uint32 tsFlg);
-  static Uint8 getFragmentCountTypeFlag(const UintR & changeMask);
+  static void setPartitionBalanceFlag(UintR & changeMask, Uint32 tsFlg);
+  static Uint8 getPartitionBalanceFlag(const UintR & changeMask);
   static void setReadBackupSubOpFlag(UintR & changeMask, Uint32 tsFlg);
   static Uint8 getReadBackupSubOpFlag(const UintR & changeMask);
 
@@ -323,14 +323,14 @@ AlterTableReq::setReorgSumaFilterFlag(UintR & changeMask, Uint32 reorgAttrFlg){
 
 inline
 Uint8
-AlterTableReq::getFragmentCountTypeFlag(const UintR & changeMask){
-  return (Uint8)((changeMask >> FRAGMENT_COUNT_TYPE_SHIFT) & 1);
+AlterTableReq::getPartitionBalanceFlag(const UintR & changeMask){
+  return (Uint8)((changeMask >> PARTITION_BALANCE_SHIFT) & 1);
 }
 
 inline
 void
-AlterTableReq::setFragmentCountTypeFlag(UintR & changeMask, Uint32 fctFlag){
-  changeMask |= (fctFlag << FRAGMENT_COUNT_TYPE_SHIFT);
+AlterTableReq::setPartitionBalanceFlag(UintR & changeMask, Uint32 fctFlag){
+  changeMask |= (fctFlag << PARTITION_BALANCE_SHIFT);
 }
 
 inline
