@@ -1396,6 +1396,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
     case MY_LEX_ESCAPE:
       if (lip->yyGet() == 'N')
       {					// Allow \N as shortcut for NULL
+        push_deprecated_warn(thd, "\\N", "NULL");
 	yylval->lex_str.str=(char*) "\\N";
 	yylval->lex_str.length=2;
 	return NULL_SYM;
