@@ -33,7 +33,7 @@ static int faultToInject = 0;
 
 enum faultsToInject {
   FI_START = 17001,
-  FI_END = 17530
+  FI_END = 17531
 };
 
 int
@@ -283,7 +283,11 @@ runJoin(NDBT_Context* ctx, NDBT_Step* step){
   int queries = records/joinlevel;
   int until_stopped = ctx->getProperty("UntilStopped", (Uint32)0);
   int inject_err = ctx->getProperty("ErrorCode");
+  int accept_error = ctx->getProperty("AcceptError");
   Uint32 stepNo = step->getStepNo();
+
+  // Either handle error myself, or let Hugo retry
+  Uint32 maxRetries = (accept_error != 0) ? 1 : 100;
 
   int i = 0;
   HugoQueryBuilder qb1(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_SCAN);
@@ -292,8 +296,8 @@ runJoin(NDBT_Context* ctx, NDBT_Step* step){
   qb2.setJoinLevel(joinlevel);
   const NdbQueryDef * q1 = qb1.createQuery();
   const NdbQueryDef * q2 = qb2.createQuery();
-  HugoQueries hugoTrans1(* q1);
-  HugoQueries hugoTrans2(* q2);
+  HugoQueries hugoTrans1(* q1, maxRetries);
+  HugoQueries hugoTrans2(* q2, maxRetries);
   NdbRestarter restarter;
 
   if (inject_err)
@@ -304,18 +308,27 @@ runJoin(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
     }
   }
+  int ret =  NDBT_OK;
   while ((i<loops || until_stopped) && !ctx->isTestStopped())
   {
     g_info << i << ": ";
     if (hugoTrans1.runScanQuery(GETNDB(step)))
     {
-      g_info << endl;
-      return NDBT_FAILED;
+      const NdbError err = hugoTrans1.getNdbError();
+      if (err.code != accept_error)
+      {
+        ret = NDBT_FAILED;
+        break;
+      }
     }
     if (hugoTrans2.runLookupQuery(GETNDB(step), queries))
     {
-      g_info << endl;
-      return NDBT_FAILED;
+      const NdbError err = hugoTrans2.getNdbError();
+      if (err.code != accept_error)
+      {
+        ret = NDBT_FAILED;
+        break;
+      }
     }
     i++;
     addMask(ctx, (1 << stepNo), "Running");
@@ -325,7 +338,7 @@ runJoin(NDBT_Context* ctx, NDBT_Step* step){
   {
     restarter.insertErrorInAllNodes(0);
   }
-  return NDBT_OK;
+  return ret;
 }
 
 int
@@ -1511,6 +1524,16 @@ TESTCASE("bug#23049170",
   INITIALIZER(runLoadTable);
   STEPS(runAbortedJoin, 6);
   STEP(runRestarter);
+  FINALIZER(runClearTable);
+}
+TESTCASE("bug#23048816",
+         "Test handling of out of section memory during signal receive. "
+         "Should REF/abort query, not crash SPJ node")
+{
+  INITIALIZER(runLoadTable);
+  TC_PROPERTY("ErrorCode", 17531);
+  TC_PROPERTY("AcceptError", 20006);
+  STEPS(runJoin, 2);
   FINALIZER(runClearTable);
 }
 TESTCASE("LookupJoinError", ""){

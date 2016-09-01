@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -201,8 +201,7 @@ dupSection(SPC_ARG Uint32& copyFirstIVal, Uint32 srcFirstIVal)
 }
 
 bool ErrorImportActive = false;
-extern int ErrorSignalReceive;
-extern int ErrorMaxSegmentsToSeize;
+extern Uint32 ErrorMaxSegmentsToSeize;
 
 /**
  * appendToSection
@@ -246,8 +245,7 @@ appendToSection(SPC_ARG Uint32& firstSegmentIVal, const Uint32* src, Uint32 len)
     /* Simulate running out of segments */
     if (ErrorImportActive)
     {
-      if ((ErrorSignalReceive == 1) && 
-          (ErrorMaxSegmentsToSeize == 0))
+      if (ErrorMaxSegmentsToSeize == 0)
       {
         ndbout_c("append exhausted on first segment");
         return false;
@@ -305,8 +303,7 @@ appendToSection(SPC_ARG Uint32& firstSegmentIVal, const Uint32* src, Uint32 len)
     /* Simulate running out of segments */
     if (ErrorImportActive)
     {
-      if ((ErrorSignalReceive == 1) && 
-          (0 == remainSegs--))
+      if (0 == remainSegs--)
       {
         ndbout_c("Append exhausted on segment %d", ErrorMaxSegmentsToSeize);
         firstPtr.p->m_lastSegment= prevPtr.i;
@@ -347,8 +344,7 @@ import(SPC_ARG Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
   /* Simulate running out of segments */
   if (ErrorImportActive)
   {
-    if ((ErrorSignalReceive == 1) &&
-        (ErrorMaxSegmentsToSeize == 0))
+    if (ErrorMaxSegmentsToSeize == 0)
     {
       ndbout_c("Import exhausted on first segment");
       return false;
@@ -389,8 +385,7 @@ import(SPC_ARG Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
     /* Simulate running out of segments */
     if (ErrorImportActive)
     {
-      if ((ErrorSignalReceive == 1) &&
-          (0 == remainSegs--))
+      if (0 == remainSegs--)
       {
         ndbout_c("Import exhausted on segment %d", 
                  ErrorMaxSegmentsToSeize);

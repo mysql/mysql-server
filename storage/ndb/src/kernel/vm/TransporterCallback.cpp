@@ -46,8 +46,8 @@ SectionSegmentPool g_sectionSegmentPool;
 /* Instance debugging vars
  * Set from DBTC
  */
-int ErrorSignalReceive= 0;
-int ErrorMaxSegmentsToSeize= 0;
+Uint32 ErrorSignalReceive= 0;      //Block to inject signal errors into
+Uint32 ErrorMaxSegmentsToSeize= 0;
 
 /**
  * This variable controls if ErrorSignalReceive/ErrorMaxSegmentsToSeize
@@ -175,7 +175,25 @@ TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
   setResOwner(0x1 << 16 | header->theVerId_signalNumber);
 #endif
 
-  ErrorImportActive = true;
+#if defined(ERROR_INSERT)
+  if (secCount > 0)
+  {
+    const Uint32 receiverBlock = blockToMain(header->theReceiversBlockNumber);
+    if (unlikely(ErrorSignalReceive == receiverBlock))
+    {
+#ifdef NDBD_MULTITHREADED
+      // MT cant set the *global* 'ErrorImportActive' as would have caused
+      // import in *any thread* to fail randomly.
+      ndbout_c("::deliver_signal() simulate 'import' failure of long signals");
+      ok &= false;
+#else
+      // Will fail inside import below
+      ErrorImportActive = true;
+#endif
+    }
+  }
+#endif
+
   switch(secCount){
   case 3:
     ok &= import(SPC_CACHE_ARG secPtr[2], ptr[2].p, ptr[2].sz);
@@ -184,7 +202,9 @@ TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
   case 1:
     ok &= import(SPC_CACHE_ARG secPtr[0], ptr[0].p, ptr[0].sz);
   }
+#if defined(ERROR_INSERT)
   ErrorImportActive = false;
+#endif
 
   /**
    * Check that we haven't received a too long signal
