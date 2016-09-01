@@ -49,6 +49,7 @@
 #define JAM_FILE_ID 479
 
 extern EventLogger* g_eventLogger;
+extern Uint32 ErrorSignalReceive;
 
 #ifdef VM_TRACE
 
@@ -94,30 +95,70 @@ void Dbspj::execSIGNAL_DROPPED_REP(Signal* signal)
   }
 
   const SignalDroppedRep* rep = (SignalDroppedRep*) &signal->theData[0];
-  Uint32 originalGSN= rep->originalGsn;
+  const Uint32 originalGSN= rep->originalGsn;
 
   DEBUG("SignalDroppedRep received for GSN " << originalGSN);
 
   switch(originalGSN) {
-  case GSN_SCAN_FRAGREQ:
+  case GSN_LQHKEYREQ:  //TC -> SPJ
+  {
+    jam();
+    const LqhKeyReq * const truncatedLqhKeyReq =
+      reinterpret_cast<const LqhKeyReq*>(&rep->originalData[0]);
+
+    handle_early_lqhkey_ref(signal, truncatedLqhKeyReq,
+                            DbspjErr::OutOfSectionMemory);
+    break;
+  }
+  case GSN_SCAN_FRAGREQ: //TC -> SPJ
   {
     jam();
     /* Get information necessary to send SCAN_FRAGREF back to TC */
     // TODO : Handle dropped signal fragments
 
     const ScanFragReq * const truncatedScanFragReq = 
-      (ScanFragReq *) &rep->originalData[0];
+      reinterpret_cast<const ScanFragReq*>(&rep->originalData[0]);
 
     handle_early_scanfrag_ref(signal, truncatedScanFragReq,
                               DbspjErr::OutOfSectionMemory);
     break;
   }
+  case GSN_TRANSID_AI: //TUP -> SPJ
+  {
+    jam();
+    const TransIdAI * const truncatedTransIdAI = 
+      reinterpret_cast<const TransIdAI*>(&rep->originalData[0]);
+    const Uint32 ptrI = truncatedTransIdAI->connectPtr;
+
+    Ptr<TreeNode> treeNodePtr;
+    m_treenode_pool.getPtr(treeNodePtr, ptrI);
+    Ptr<Request> requestPtr;
+    m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+  
+    /**
+     * Register signal as arrived -> 'done' if this completed this treeNode
+     */ 
+    ndbassert(treeNodePtr.p->m_info&&treeNodePtr.p->m_info->m_countSignal);
+    (this->*(treeNodePtr.p->m_info->m_countSignal))(signal,
+                                                    requestPtr,
+                                                    treeNodePtr);
+
+    abort(signal, requestPtr, DbspjErr::OutOfSectionMemory);
+    break;
+  }
   default:
     jam();
-    /* Don't expect dropped signals for other GSNs
-     */
+    /* Don't expect dropped signals for other GSNs */
     SimulatedBlock::execSIGNAL_DROPPED_REP(signal);
-  };
+  }
+
+#ifdef ERROR_INSERT
+  if (ErrorSignalReceive == DBSPJ)
+  {
+    jam();
+    ErrorSignalReceive= 0;
+  }
+#endif
 
   return;
 }
@@ -1070,6 +1111,12 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
   if (ERROR_INSERTED(17014))
   {
     ndbrequire(refToNode(signal->getSendersBlockRef()) == getOwnNodeId());
+  }
+  if (ERROR_INSERTED(17531))
+  {
+    /* Takes effect for *next* 'long' SPJ signal. Fails to alloc mem section */
+    jam();
+    ErrorSignalReceive= DBSPJ;
   }
 
   const ScanFragReq * req = (ScanFragReq *)&signal->theData[0];

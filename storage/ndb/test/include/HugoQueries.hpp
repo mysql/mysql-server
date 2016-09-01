@@ -61,6 +61,7 @@ protected:
 
   void allocRows(int batch);
 
+  void clearNdbError();
   void setNdbError(const NdbError& error);
 
   const NdbQueryDef* m_query_def;
