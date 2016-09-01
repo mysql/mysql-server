@@ -172,8 +172,8 @@ operator<<(NdbOut& out, Dbtc::ScanFragRec::ScanFragState state){
 }
 #endif
 
-extern int ErrorSignalReceive;
-extern int ErrorMaxSegmentsToSeize;
+extern Uint32 ErrorSignalReceive;
+extern Uint32 ErrorMaxSegmentsToSeize;
 
 void
 Dbtc::updateBuddyTimer(ApiConnectRecordPtr apiPtr)
@@ -3169,17 +3169,17 @@ void Dbtc::execTCKEYREQ(Signal* signal)
 
   if (ERROR_INSERTED(8065))
   {
-    ErrorSignalReceive= 1;
+    ErrorSignalReceive= DBTC;
     ErrorMaxSegmentsToSeize= 10;
   }
   if (ERROR_INSERTED(8066))
   {
-    ErrorSignalReceive= 1;
+    ErrorSignalReceive= DBTC;
     ErrorMaxSegmentsToSeize= 1;
   }
   if (ERROR_INSERTED(8067))
   {
-    ErrorSignalReceive= 1;
+    ErrorSignalReceive= DBTC;
     ErrorMaxSegmentsToSeize= 0;
   }
   if (ERROR_INSERTED(8068))
@@ -3190,7 +3190,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     DEBUG("Max segments to seize cleared");
   }
 #ifdef ERROR_INSERT
-  if (ErrorSignalReceive)
+  if (ErrorSignalReceive == DBTC)
     DEBUG("Max segments to seize : " 
           << ErrorMaxSegmentsToSeize);
 #endif
