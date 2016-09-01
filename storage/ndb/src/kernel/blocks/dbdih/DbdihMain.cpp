@@ -10871,7 +10871,8 @@ void Dbdih::removeNodeFromTable(Signal* signal,
 }
   
 void
-Dbdih::removeNodeFromTablesComplete(Signal* signal, Uint32 nodeId){
+Dbdih::removeNodeFromTablesComplete(Signal* signal, Uint32 nodeId)
+{
   jam();
 
   /**
@@ -12760,6 +12761,9 @@ Dbdih::execDROP_TAB_REQ(Signal* signal)
   jamEntry();
   DropTabReq* req = (DropTabReq*)signal->getDataPtr();
 
+  D("DROP_TAB_REQ: " << req->tableId);
+  CRASH_INSERTION(7248);
+
   TabRecordPtr tabPtr;
   tabPtr.i = req->tableId;
   ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
@@ -12827,6 +12831,9 @@ Dbdih::execDROP_TAB_REQ(Signal* signal)
     case TabRecord::TLS_WRITING_TO_FILE:
       ok = true;
       jam();
+      g_eventLogger->info("DROP_TAB_REQ: tab: %u, tabLcpStatus: %u",
+                          tabPtr.i,
+                          tabPtr.p->tabLcpStatus);
       break;
       return;
     case TabRecord::TLS_ACTIVE:
@@ -12835,6 +12842,9 @@ Dbdih::execDROP_TAB_REQ(Signal* signal)
 
       tabPtr.p->tabLcpStatus = TabRecord::TLS_COMPLETED;
 
+      g_eventLogger->info("DROP_TAB_REQ: tab: %u, tabLcpStatus set to %u",
+                          tabPtr.i,
+                          tabPtr.p->tabLcpStatus);
       /**
        * First check if all fragments are done
        */
@@ -18359,7 +18369,7 @@ void Dbdih::startNextChkpt(Signal* signal)
 	    nodePtr.p->queuedChkpt[i].fragId = curr.fragmentId;
 	    nodePtr.p->queuedChkpt[i].replicaPtr = replicaPtr.i;
 	    nodePtr.p->noOfQueuedChkpt = i + 1;
-	  } 
+	  }
 	  else 
 	  {
 	    jam();
@@ -18735,7 +18745,7 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
      * LCP_FRAG_REP while processing a master takeover.
      *
      * In old code we were blocked from coming here for LCP_FRAG_REPs since
-     * we enusred that we don't proceed here until all nodes have sent
+     * we ensured that we don't proceed here until all nodes have sent
      * their EMPTY_LCP_CONF to us. So we keep ndbrequire to ensure that
      * we come here only when running the new master take over code.
      */
@@ -18759,28 +18769,77 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
     ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
     
     const Uint32 outstanding = nodePtr.p->noOfStartedChkpt;
-    ndbrequire(outstanding > 0);
-    bool found = false;
-    for (Uint32 i = 0; i < outstanding; i++)
+    if (outstanding > 0)
     {
+      jam();
+      bool found = false;
+      for (Uint32 i = 0; i < outstanding; i++)
+      {
+        if (found)
+        {
+          jam();
+          nodePtr.p->startedChkpt[i - 1] = nodePtr.p->startedChkpt[i];
+          continue;
+        }
+        if(nodePtr.p->startedChkpt[i].tableId != tableId ||
+           nodePtr.p->startedChkpt[i].fragId != fragId)
+        {
+          jam();
+          continue;
+        }
+        jam();
+        found = true;
+      }
       if (found)
       {
         jam();
-        nodePtr.p->startedChkpt[i - 1] = nodePtr.p->startedChkpt[i];
-        continue;
+        nodePtr.p->noOfStartedChkpt--;
+        checkStartMoreLcp(signal, nodeId);
+        return;
       }
-      if(nodePtr.p->startedChkpt[i].tableId != tableId ||
-         nodePtr.p->startedChkpt[i].fragId != fragId)
+    }
+    const Uint32 outstanding_queued = nodePtr.p->noOfQueuedChkpt;
+    if (outstanding_queued > 0)
+    {
+      jam();
+      bool found = false;
+      for (Uint32 i = 0; i < outstanding_queued; i++)
+      {
+        if (found)
+        {
+          jam();
+          nodePtr.p->queuedChkpt[i - 1] = nodePtr.p->queuedChkpt[i];
+          continue;
+        }
+        if(nodePtr.p->queuedChkpt[i].tableId != tableId ||
+           nodePtr.p->queuedChkpt[i].fragId != fragId)
+        {
+          jam();
+          continue;
+        }
+        jam();
+        found = true;
+      }
+      if (found)
       {
         jam();
-        continue;
+        nodePtr.p->noOfQueuedChkpt--;
+        return;
       }
-      jam();
-      found = true;
     }
-    ndbrequire(found);
-    nodePtr.p->noOfStartedChkpt--;
-    checkStartMoreLcp(signal, nodeId);
+    /**
+     * In a master takeover situation we might have the fragment replica
+     * placed in the queue as well. It is possible that the old master
+     * did send LCP_FRAG_ORD and it is now arriving here.
+     *
+     * We start by checking the queued list, if it is in neither the
+     * queued nor in the started list, then the table is dropped. There
+     * is also one more obscure variant when the old master had a deeper
+     * queue than we have, in that case we could come here, to handle
+     * that we only assert on that the table is dropped.
+     */
+    ndbassert(tabPtr.p->tabStatus == TabRecord::TS_IDLE ||
+              tabPtr.p->tabStatus == TabRecord::TS_DROPPING);
   }
 }
 
@@ -19061,8 +19120,14 @@ void Dbdih::checkLcpCompletedLab(Signal* signal)
     return;
   }
   
+  /**
+   * We only wait for completion of tables that are not in a dropping state.
+   * This is to avoid that LCPs are being blocked by dropped tables. There
+   * could be bugs in reporting dropped tables properly.
+   */
   TabRecordPtr tabPtr;
-  for (tabPtr.i = 0; tabPtr.i < ctabFileSize; tabPtr.i++) {
+  for (tabPtr.i = 0; tabPtr.i < ctabFileSize; tabPtr.i++)
+  {
     //jam(); Removed as it flushed all other jam traces.
     ptrAss(tabPtr, tabRecord);
     if (tabPtr.p->tabLcpStatus != TabRecord::TLS_COMPLETED)
@@ -19078,7 +19143,7 @@ void Dbdih::checkLcpCompletedLab(Signal* signal)
   if(c_lcpState.lcpStatus == LCP_TAB_COMPLETED)
   {
     /**
-     * We'r done
+     * We're done
      */
 
     c_lcpState.setLcpStatus(LCP_TAB_SAVED, __LINE__);
@@ -25183,8 +25248,12 @@ Dbdih::dihGetInstanceKey(Uint32 tabId, Uint32 fragId)
   tTabPtr.i = tabId;
   ptrCheckGuard(tTabPtr, ctabFileSize, tabRecord);
   FragmentstorePtr tFragPtr;
+loop:
+  Uint32 tab_val = tTabPtr.p->m_lock.read_lock();
   getFragstore(tTabPtr.p, fragId, tFragPtr);
   Uint32 instanceKey = dihGetInstanceKey(tFragPtr);
+  if (unlikely(!tTabPtr.p->m_lock.read_unlock(tab_val)))
+    goto loop;
   return instanceKey;
 }
 
