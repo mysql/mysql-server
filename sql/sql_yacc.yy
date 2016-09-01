@@ -12956,6 +12956,8 @@ simple_ident_q:
           }
         | '.' ident '.' ident
           {
+            push_deprecated_warn(YYTHD, ".<table>.<column>",
+                                 "the table.column name without a dot prefix");
             $$= NEW_PTN PTI_simple_ident_q_3d(@$, NULL, $2.str, $4.str);
           }
         | ident '.' ident '.' ident
@@ -12992,7 +12994,11 @@ field_ident:
             }
             $$=$3;
           }
-        | '.' ident { $$=$2;} /* For Delphi */
+        | '.' ident /* For Delphi */
+          {
+            push_deprecated_warn(YYTHD, ".<column>", "the column name without a dot prefix");
+            $$=$2;
+          }
         ;
 
 table_ident:
@@ -13015,6 +13021,7 @@ table_ident:
         | '.' ident
           {
             /* For Delphi */
+            push_deprecated_warn(YYTHD, ".<table>", "the table name without a dot prefix");
             $$= NEW_PTN Table_ident(to_lex_cstring($2));
             if ($$ == NULL)
               MYSQL_YYABORT;
