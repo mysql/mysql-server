@@ -39,7 +39,7 @@
 /**
   Auxiliary function for constructing a  user list string.
   This function is used for error reporting and logging.
- 
+
   @param thd     Thread context
   @param str     A String to store the user list.
   @param user    A LEX_USER which will be appended into user list.
@@ -67,7 +67,7 @@ void append_user(THD *thd, String *str, LEX_USER *user, bool comma= true,
         memcmp(user->plugin.str, native_password_plugin_name.str,
                user->plugin.length))
     {
-      /** 
+      /**
           The plugin identifier is allowed to be specified,
           both with and without quote marks. We log it with
           quotes always.
@@ -627,7 +627,7 @@ bool set_and_validate_user_attributes(THD *thd,
   @param host Hostname
   @param user User name
   @param new_password New password hash for host\@user
- 
+
   Note : it will also reset the change_password flag.
   This is safe to do unconditionally since the simple userless form
   SET PASSWORD = 'text' will be the only allowed form when
@@ -691,7 +691,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   }
 
   DBUG_ASSERT(acl_user->plugin.length != 0);
-  
+
   if (!(combo=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
     DBUG_RETURN(true);
 
@@ -730,7 +730,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (opt_log_builtin_as_identified_by_password &&
       thd->slave_thread)
     combo->uses_identified_by_clause= false;
-    
+
   if (set_and_validate_user_attributes(thd, combo, what_to_set, true))
   {
     result= 1;
@@ -959,7 +959,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
 
       case PROXY_USERS_ACL:
         acl_proxy_user->set_user(&global_acl_memory, user_to->user.str);
-        acl_proxy_user->host.update_hostname((user_to->host.str && *user_to->host.str) ? 
+        acl_proxy_user->host.update_hostname((user_to->host.str && *user_to->host.str) ?
                                              strdup_root(&global_acl_memory, user_to->host.str) : NULL);
         break;
       }
@@ -1284,7 +1284,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
   while ((tmp_user_name= user_list++))
   {
     /*
-      Ignore the current user as it already exists. 
+      Ignore the current user as it already exists.
     */
     if (!(user_name= get_current_user(thd, tmp_user_name)))
     {
@@ -1475,10 +1475,12 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
              wrong_users.c_ptr_safe());
   }
 
+  if (!thd->is_error())
+    result= populate_roles_caches(thd, (tables + ACL_TABLES::TABLE_ROLE_EDGES));
+
   result= log_and_commit_acl_ddl(thd, transactional_tables);
 
   thd->variables.sql_mode= old_sql_mode;
-  (void) roles_init_from_tables(thd);
   DBUG_RETURN(result);
 }
 
@@ -1532,7 +1534,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     }
     acl_cache_lock.unlock();
   }
-  
+
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to
@@ -1556,13 +1558,13 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     {
       result= 1;
       continue;
-    }  
+    }
     tmp_user_to= user_list++;
     if (!(user_to= get_current_user(thd, tmp_user_to)))
     {
       result= 1;
       continue;
-    }  
+    }
     DBUG_ASSERT(user_to != 0); /* Syntax enforces pairs of users. */
 
     /*
@@ -1605,16 +1607,18 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
                         tables[ACL_TABLES::TABLE_DEFAULT_ROLES].table,
                         user_from, user_to);
   }
- 
+
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
   rebuild_check_host();
 
   if (result && !thd->is_error())
     my_error(ER_CANNOT_USER, MYF(0), "RENAME USER", wrong_users.c_ptr_safe());
-  
+
+  if (!thd->is_error())
+    result= populate_roles_caches(thd, (tables + ACL_TABLES::TABLE_ROLE_EDGES));
+
   result= log_and_commit_acl_ddl(thd, transactional_tables);
 
-  (void) roles_init_from_tables(thd);
   DBUG_RETURN(result);
 }
 

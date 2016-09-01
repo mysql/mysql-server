@@ -13,15 +13,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
 
 #include "my_getopt.h"
+#include "my_global.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
-
-#include <stdlib.h>
+#include "mysql/psi/mysql_mutex.h"
 
 class Cost_constant_cache;
 

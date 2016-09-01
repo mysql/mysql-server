@@ -221,7 +221,7 @@ SET PERSIST concurrent_insert=ALWAYS;
 { "mysql_server": {"concurrent_insert": "ALWAYS" , "long_query_time": "2.999999" , "max_connections": "99" } }
 SET PERSIST max_connections=DEFAULT;
 SET PERSIST concurrent_insert=AUTO;
-{ "mysql_server": {"long_query_time": "2.999999" } }
+{ "mysql_server": {"concurrent_insert": "AUTO" , "long_query_time": "2.999999" } }
 # negative tests persist session only variables
 SET @@persist.sql_log_bin=0;
 ERROR 42000: Variable 'sql_log_bin' can't be set to the value of '0'
@@ -259,7 +259,7 @@ SELECT @@global.foreign_key_checks;
 1
 SET PERSIST foreign_key_checks=0;
 SET PERSIST flush_time=2;
-{ "mysql_server": {"flush_time": "2" , "foreign_key_checks": "OFF" , "long_query_time": "2.999999" , "max_heap_table_size": "999424" , "slave_net_timeout": "124" , "sort_buffer_size": "256000" } }# Restart server with persisted-globals-load=0
+{ "mysql_server": {"concurrent_insert": "AUTO" , "flush_time": "2" , "foreign_key_checks": "OFF" , "long_query_time": "2.999999" , "max_heap_table_size": "999424" , "slave_net_timeout": "124" , "sort_buffer_size": "256000" } }# Restart server with persisted-globals-load=0
 # should have default values
 SELECT @@global.sort_buffer_size;
 @@global.sort_buffer_size
@@ -308,6 +308,23 @@ SELECT @@global.persisted_globals_load;
 @@global.persisted_globals_load
 0
 # Restart server with persisted-globals-load=1
+#
+# Bug24522064: SET PERSIST WRITES DEFAULT VALUES TO MYSQLD-AUTO.CNF
+#              RATHER THAN REMOVING THEM
+#
+SET PERSIST max_connections=151;
+SET PERSIST block_encryption_mode= "aes-128-ecb";
+# should have all variables persisted
+{ "mysql_server": {"block_encryption_mode": "aes-128-ecb" , "max_connections": "151" } }SET PERSIST max_connections=DEFAULT;
+SET PERSIST block_encryption_mode= DEFAULT;
+# should be empty
+{ "mysql_server": { } }SET PERSIST innodb_fast_shutdown=DEFAULT, read_only= DEFAULT;
+SET PERSIST join_buffer_size= DEFAULT;
+# should be empty
+{ "mysql_server": { } }SET PERSIST innodb_fast_shutdown=1, read_only= OFF;
+SET PERSIST join_buffer_size= 262144;
+# should have all variables persisted
+{ "mysql_server": {"innodb_fast_shutdown": "1" , "join_buffer_size": "262144" , "read_only": "OFF" } }# Restart server with all defaults
 SELECT 'END OF TEST';
 END OF TEST
 END OF TEST

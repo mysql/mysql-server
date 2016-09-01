@@ -8666,9 +8666,11 @@ Encryption::decrypt(
 	}
 
 	default:
-		ib::error()
-			<< "Encryption algorithm support missing: "
-			<< Encryption::to_string(m_type);
+		if (!type.is_dblwr_recover()) {
+			ib::error()
+				<< "Encryption algorithm support missing: "
+				<< Encryption::to_string(m_type);
+		}
 
 		if (block != NULL) {
 			os_free_block(block);

@@ -17,10 +17,21 @@
 #ifndef TEST_UTILS_INCLUDED
 #define TEST_UTILS_INCLUDED
 
+#include <string.h>
+#include <sys/types.h>
+
 #include "error_handler.h"
-#include "sql_error.h"
-#include "sql_class.h"
+#include "gtest/gtest.h"
+#include "my_compiler.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "set_var.h"
+#include "sql_class.h"
+#include "sql_error.h"
+
+class THD;
+class my_decimal;
 
 extern thread_local_key_t THR_MALLOC;
 extern thread_local_key_t THR_THD;

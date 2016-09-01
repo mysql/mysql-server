@@ -117,7 +117,8 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar)
   } tmp_var;
   sys_var *system_var= setvar->var;
 
-  bool is_default= system_var->is_default(thd, setvar);
+  /* check if it is SET PERSIST X=DEFAULT; */
+  bool is_default= (setvar->value ? 0 : 1);
 
   const char* var_name=
     Persisted_variables_cache::get_variable_name(system_var);
@@ -148,12 +149,12 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar)
       m_persist_hash[tmp_var.name]= tmp_var.value;
   }
   /*
-    if not present insert into hash, even if it is DEFAULT value
-    may be user wants default values to be set if the same variable
-    is set as part of command line or any other option file
+    if not present insert into hash, if it is default literal value
+    but not DEFAULT keyword
   */
   else
   {
+    if (!is_default)
     m_persist_hash[tmp_var.name]= tmp_var.value;
   }
   mysql_mutex_unlock(&m_LOCK_persist_hash);
@@ -445,8 +446,8 @@ bool Persisted_variables_cache::set_persist_options(bool what_options)
         is loaded and continue with remaining persisted variables
       */
       m_persist_plugin_hash[iter->first]= iter->second;
-      my_message_local(WARNING_LEVEL, "currently unknown variable '%s' \
-                       was read from the persisted config file",
+      my_message_local(WARNING_LEVEL, "Currently unknown variable '%s'"
+                       "was read from the persisted config file",
                        var_name.c_str());
       continue;
     }

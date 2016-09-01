@@ -112,6 +112,22 @@ where VARIABLE_NAME = 'innodb_default_row_format';
 VARIABLE_NAME	VARIABLE_SOURCE
 innodb_default_row_format	DYNAMIC
 # Restart server
+select VARIABLE_NAME, VARIABLE_SOURCE
+from performance_schema.variables_info
+where VARIABLE_NAME = 'innodb_fast_shutdown' OR
+VARIABLE_NAME = 'innodb_file_per_table';
+VARIABLE_NAME	VARIABLE_SOURCE
+innodb_fast_shutdown	COMPILED
+innodb_file_per_table	COMPILED
+# Restart server
+select VARIABLE_NAME, VARIABLE_SOURCE
+from performance_schema.variables_info
+where VARIABLE_NAME = 'innodb_fast_shutdown' OR
+VARIABLE_NAME = 'innodb_file_per_table';
+VARIABLE_NAME	VARIABLE_SOURCE
+innodb_fast_shutdown	COMMAND_LINE
+innodb_file_per_table	COMMAND_LINE
+# Restart server
 SELECT 'END OF TEST';
 END OF TEST
 END OF TEST

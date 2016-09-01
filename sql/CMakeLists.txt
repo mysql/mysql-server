@@ -83,6 +83,7 @@ SET(DD_SOURCES
   dd/impl/sdi.cc
   dd/impl/sdi_file.cc
   dd/impl/sdi_tablespace.cc
+  dd/impl/string_type.cc
 
   dd/impl/cache/dictionary_client.cc
   dd/impl/cache/local_multi_map.cc
@@ -355,6 +356,7 @@ SET(SQL_SHARED_SOURCES
   sql_union.cc
   sql_update.cc
   sql_view.cc
+  stateless_allocator.cc
   strfunc.cc
   sys_vars.cc
   sys_vars_resource_mgr.cc
@@ -751,6 +753,7 @@ ADD_CUSTOM_COMMAND(
 MYSQL_ADD_EXECUTABLE(mysql_tzinfo_to_sql tztime.cc)
 SET_TARGET_PROPERTIES(mysql_tzinfo_to_sql PROPERTIES COMPILE_FLAGS "-DTZINFO2SQL")
 TARGET_LINK_LIBRARIES(mysql_tzinfo_to_sql mysys mysys_ssl)
+ADD_DEPENDENCIES(mysql_tzinfo_to_sql GenError)
 
 ADD_CUSTOM_TARGET( 
         GenServerSource

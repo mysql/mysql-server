@@ -21,10 +21,16 @@
 #ifndef MY_THREAD_INCLUDED
 #define MY_THREAD_INCLUDED
 
+#include <errno.h>
+#include <stddef.h>
+
+#include "my_compiler.h"
+#include "my_config.h"
 #include "my_global.h"              /* my_bool */
 
 #if !defined(_WIN32)
-#include <pthread.h>
+#include <pthread.h>                // IWYU pragma: export
+#include <sched.h>                  // sched_yield
 #endif
 
 #ifndef ETIME

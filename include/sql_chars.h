@@ -22,7 +22,10 @@
 #ifndef SQL_LEX_CHARS_INCLUDED
 #define SQL_LEX_CHARS_INCLUDED
 
+#include "my_compiler.h"
 #include "my_global.h"
+
+struct charset_info_st;
 
 enum MY_ATTRIBUTE((__packed__)) my_lex_states
 {

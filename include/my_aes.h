@@ -22,6 +22,8 @@
   Wrapper to give simple interface for MySQL to AES standard encryption.
 */
 
+#include "my_global.h"
+
 C_MODE_START
 
 /** AES IV size is 16 bytes for all supported ciphers except ECB */

@@ -20,6 +20,7 @@
 #ifndef TAP_H
 #define TAP_H
 
+#include "my_compiler.h"
 #include "my_global.h"
 
 /*

@@ -872,8 +872,8 @@ Inserter::write_first_page(
 	write_into_page(field);
 
 	const ulint	field_no = field.field_no;
-	byte*	field_ref = btr_rec_get_field_ref(m_ctx->rec(),
-						m_ctx->get_offsets(), field_no);
+	byte*	field_ref = btr_rec_get_field_ref(
+		m_ctx->rec(), m_ctx->get_offsets(), field_no);
 	ref_t	blobref(field_ref);
 
 	blobref.set_length(field.len - m_remaining, mtr);
@@ -1119,6 +1119,16 @@ btr_blob_get_part_len(const byte* blob_header)
 void Reader::fetch_page()
 {
 	mtr_t	mtr;
+
+	/* Bytes of LOB data available in the current LOB page. */
+	ulint	part_len;
+
+	/* Bytes of LOB data obtained from the current LOB page. */
+	ulint	copy_len;
+
+	ut_ad(m_rctx.m_page_no != FIL_NULL);
+	ut_ad(m_rctx.m_page_no > 0);
+
 	mtr_start(&mtr);
 
 	m_cur_block = buf_page_get(
@@ -1131,36 +1141,42 @@ void Reader::fetch_page()
 				     page, TRUE);
 
 	byte*	blob_header = page + m_rctx.m_offset;
-	m_part_len = btr_blob_get_part_len(blob_header);
-	m_copy_len = ut_min(m_part_len, m_rctx.m_len - m_copied_len);
+	part_len = btr_blob_get_part_len(blob_header);
+	copy_len = ut_min(part_len, m_rctx.m_len - m_copied_len);
 
 	memcpy(m_rctx.m_buf + m_copied_len, blob_header + BTR_BLOB_HDR_SIZE,
-	       m_copy_len);
+	       copy_len);
 
-	m_copied_len += m_copy_len;
+	m_copied_len += copy_len;
 	m_rctx.m_page_no = btr_blob_get_next_page_no(blob_header);
 	mtr_commit(&mtr);
 	m_rctx.m_offset = FIL_PAGE_DATA;
 }
 
-/** Fetch the complete or prefix of the uncompressed BLOB.
-@return bytes of BLOB data fetched. */
+/** Fetch the complete or prefix of the uncompressed LOB data.
+@return bytes of LOB data fetched. */
 ulint	Reader::fetch()
 {
-	while (true)
+	if (m_rctx.m_blobref.is_null()) {
+		ut_ad(m_copied_len == 0);
+		return(m_copied_len);
+	}
+
+	while (m_copied_len < m_rctx.m_len)
 	{
 		if (m_rctx.m_page_no == FIL_NULL) {
+			/* End of LOB has been reached. */
 			break;
 		}
 
 		fetch_page();
-
-		if (m_part_len != m_copy_len) {
-			break;
-		}
-
-		ut_ad(m_copied_len <= m_rctx.m_len);
 	}
+
+	/* Assure that we have fetched the requested amount or the LOB
+	has ended. */
+	ut_ad(m_copied_len == m_rctx.m_len
+	      || m_rctx.m_page_no == FIL_NULL);
+
 	return(m_copied_len);
 }
 

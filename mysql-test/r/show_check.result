@@ -930,21 +930,21 @@ set names utf8;
 ----------------------------------------------------------------
 SHOW CHARACTER SET LIKE 'utf8';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	mysql	*	CHARACTER_SETS	Charset	Charset	253	192	4	N	20485	0	33
-def	mysql	*	CHARACTER_SETS	Description	Description	253	6144	13	N	4225	0	33
-def	mysql	*	CHARACTER_SETS	Default collation	Default collation	253	192	15	N	20485	0	33
-def	mysql	*	CHARACTER_SETS	Maxlen	Maxlen	3	10	1	N	36897	0	63
+def	mysql	cs	CHARACTER_SETS	Charset	Charset	253	192	4	N	20485	0	33
+def	mysql	cs	CHARACTER_SETS	Description	Description	253	6144	13	N	4225	0	33
+def	mysql	col	CHARACTER_SETS	Default collation	Default collation	253	192	15	N	20485	0	33
+def	mysql	cs	CHARACTER_SETS	Maxlen	Maxlen	3	10	1	N	36897	0	63
 Charset	Description	Default collation	Maxlen
 utf8	UTF-8 Unicode	utf8_general_ci	3
 ----------------------------------------------------------------
 SHOW COLLATION LIKE 'latin1_bin';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def		*	COLLATIONS	Collation	Collation	253	192	10	N	4097	0	33
-def		*	COLLATIONS	Charset	Charset	253	192	6	N	4097	0	33
-def		*	COLLATIONS	Id	Id	8	20	2	N	32801	0	63
-def		*	COLLATIONS	Default	Default	253	9	0	N	1	0	33
-def		*	COLLATIONS	Compiled	Compiled	253	9	3	N	1	0	33
-def		*	COLLATIONS	Sortlen	Sortlen	3	10	1	N	36897	0	63
+def		COLLATIONS	COLLATIONS	Collation	Collation	253	192	10	N	4097	0	33
+def		COLLATIONS	COLLATIONS	Charset	Charset	253	192	6	N	4097	0	33
+def		COLLATIONS	COLLATIONS	Id	Id	8	20	2	N	32801	0	63
+def		COLLATIONS	COLLATIONS	Default	Default	253	9	0	N	1	0	33
+def		COLLATIONS	COLLATIONS	Compiled	Compiled	253	9	3	N	1	0	33
+def		COLLATIONS	COLLATIONS	Sortlen	Sortlen	3	10	1	N	36897	0	63
 Collation	Charset	Id	Default	Compiled	Sortlen
 latin1_bin	latin1	47		Yes	1
 ----------------------------------------------------------------

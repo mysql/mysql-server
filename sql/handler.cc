@@ -111,8 +111,9 @@
           case PSI_BATCH_MODE_NONE:                           \
           {                                                   \
             PSI_table_locker *sub_locker= NULL;               \
+            PSI_table_locker_state reentrant_safe_state;      \
             sub_locker= PSI_TABLE_CALL(start_table_io_wait)   \
-              (& m_psi_locker_state, m_psi, OP, INDEX,        \
+              (& reentrant_safe_state, m_psi, OP, INDEX,      \
                __FILE__, __LINE__);                           \
             PAYLOAD                                           \
             if (sub_locker != NULL)                           \

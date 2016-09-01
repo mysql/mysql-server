@@ -19,11 +19,8 @@
 
 /**
   @file include/my_global.h
-  This include file should be included first in every header file.
-
-  This makes sure my_config.h is included to get platform specific
-  symbols defined and it makes sure a lot of platform/compiler
-  differences are mitigated.
+  This include file used to be included first in every header file.
+  It is no longer the case, and it should be split up.
 */
 
 #include "my_config.h"

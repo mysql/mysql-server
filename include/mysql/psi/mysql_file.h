@@ -44,6 +44,8 @@
 
 #include "mysql/psi/psi_file.h"
 
+#include "pfs_file_provider.h"
+
 #ifndef PSI_FILE_CALL
 #define PSI_FILE_CALL(M) psi_file_service->M
 #endif

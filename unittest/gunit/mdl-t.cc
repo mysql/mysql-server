@@ -28,11 +28,10 @@
 
 #include "mdl.h"
 #include "mysqld.h"
-#include <mysqld_error.h>
-
+#include "mysqld_error.h"
+#include "test_mdl_context_owner.h"
 #include "thr_malloc.h"
 #include "thread_utils.h"
-#include "test_mdl_context_owner.h"
 
 /*
   Mock thd_wait_begin/end functions

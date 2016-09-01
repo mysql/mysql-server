@@ -23,6 +23,8 @@
 
 #include "mysql/psi/psi_transaction.h"
 
+#include "pfs_transaction_provider.h"
+
 #ifndef PSI_TRANSACTION_CALL
 #define PSI_TRANSACTION_CALL(M) psi_transaction_service->M
 #endif

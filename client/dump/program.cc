@@ -26,7 +26,7 @@
 #include "mysql_crawler.h"
 #include "i_chain_maker.h"
 #include "mysqldump_tool_chain_maker.h"
-#include <boost/chrono.hpp>
+#include <chrono>
 
 using namespace Mysql::Tools::Dump;
 
@@ -171,8 +171,8 @@ int Program::execute(std::vector<std::string> positional_options)
 
   Simple_id_generator* id_generator= new Simple_id_generator();
 
-  boost::chrono::high_resolution_clock::time_point start_time=
-    boost::chrono::high_resolution_clock::now();
+  std::chrono::high_resolution_clock::time_point start_time=
+    std::chrono::high_resolution_clock::now();
 
   I_progress_watcher* progress_watcher= NULL;
 
@@ -211,9 +211,10 @@ int Program::execute(std::vector<std::string> positional_options)
 
   if (!get_error_code())
   {
-    std::cerr << "Dump completed in " <<
-      boost::chrono::duration_cast<boost::chrono::milliseconds>(
-      boost::chrono::high_resolution_clock::now() - start_time) << std::endl;
+    std::cerr << "Dump completed in "
+      << std::chrono::duration_cast<std::chrono::milliseconds>(
+           std::chrono::high_resolution_clock::now() - start_time).count()
+      << std::endl;
   }
   return get_error_code();
 }

@@ -194,3 +194,21 @@ select * from t1 where c3 between '2002-01-01' and '2002-12-31';
 
 drop table t1;
 
+--echo #
+--echo #
+--echo #  BUG#22152229 - ASSERTION FAILED: RC == TYPE_OK, FILE .\DD\IMPL\RAW\RAW_RECORD.CC
+--echo #
+--echo #
+
+SET NAMES utf8;
+let $c= `SELECT UNHEX('C8')`;
+--error ER_INVALID_CHARACTER_STRING
+eval CREATE TABLE T (a INT) PARTITION BY HASH('$c') PARTITIONS 1;
+
+CREATE TABLE T (a INT) ENGINE=InnoDB;
+--error ER_INVALID_CHARACTER_STRING
+eval ALTER TABLE T PARTITION BY HASH('$c') PARTITIONS 1;
+DROP TABLE T;
+
+SET NAMES default;
+

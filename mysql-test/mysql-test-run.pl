@@ -309,6 +309,7 @@ my $opt_strace_server;
 our $opt_user = "root";
 
 our $opt_valgrind= 0;
+my $opt_discover= 0;
 my $opt_sanitize= 0;
 my $opt_valgrind_mysqld= 0;
 my $opt_valgrind_clients= 0;
@@ -1103,6 +1104,7 @@ sub print_global_resfile {
   resfile_global("gcov", $opt_gcov ? 1 : 0);
   resfile_global("gprof", $opt_gprof ? 1 : 0);
   resfile_global("valgrind", $opt_valgrind ? 1 : 0);
+  resfile_global("discover", $opt_discover ? 1 : 0);
   resfile_global("sanitize", $opt_sanitize ? 1 : 0);
   resfile_global("callgrind", $opt_callgrind ? 1 : 0);
   resfile_global("helgrind", $opt_helgrind ? 1 : 0);
@@ -1246,6 +1248,7 @@ sub command_line_setup {
              # Coverage, profiling etc
              'gcov'                     => \$opt_gcov,
              'gprof'                    => \$opt_gprof,
+             'discover'                 => \$opt_discover,
              'sanitize'                 => \$opt_sanitize,
              'valgrind|valgrind-all'    => \$opt_valgrind,
 	     'valgrind-clients'         => \$opt_valgrind_clients,
@@ -2880,6 +2883,14 @@ sub environment_setup {
 
   # Make sure LeakSanitizer exits if leaks are found
   $ENV{'LSAN_OPTIONS'}= "exitcode=42" if $opt_sanitize;
+
+  # Make sure discover exits if failures are found
+  # Disabled here for now, the -w option only supports '%p'
+  #   we need another wildcard to substitute the name of the executable.
+  # $ENV{'SUNW_DISCOVER_OPTIONS'}= "-X -f" if $opt_discover;
+  # $ENV{'LD_PRELOAD_64'}=
+  #    "/opt/developerstudio12.5/lib/compilers/sparcv9/libdiscoverADI.so"
+  #      if $opt_discover;
 
   # Add dir of this perl to aid mysqltest in finding perl
   my $perldir= dirname($^X);
@@ -6010,6 +6021,17 @@ sub mysqld_start ($$) {
 
   if ( defined $exe )
   {
+    if ($opt_discover)
+    {
+      # We do not want to monitor my_safe_process,
+      # but we *do* want to monitor mysqld
+      push(@opt_mysqld_envs,
+	   "SUNW_DISCOVER_OPTIONS=-X -f -w $opt_vardir/log/mysqld.%p.txt");
+      push(@opt_mysqld_envs,
+	   "LD_PRELOAD_64=/opt/developerstudio12.5/lib/compilers/sparcv9/libdiscoverADI.so");
+#      delete $ENV{'SUNW_DISCOVER_OPTIONS'};
+#      delete $ENV{'LD_PRELOAD_64'}
+    }
     $mysqld->{'proc'}= My::SafeProcess->new
       (
        name          => $mysqld->name(),
@@ -7527,6 +7549,9 @@ Misc options
   warnings              Scan the log files for warnings. Use --nowarnings
                         to turn off.
 
+  discover              Preload libdiscoverADI.so when starting mysqld.
+                        Reports from discover in <vardir>/log/mysqld.%p.txt
+                        Only supported on SPARC-M7 machines
   sanitize              Scan server log files for warnings from various
                         sanitizers. Assumes that you have built with
                         -DWITH_ASAN or -DWITH_UBSAN
