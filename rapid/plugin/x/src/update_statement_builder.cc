@@ -280,7 +280,7 @@ void xpl::Update_statement_builder::add_table_operation_items(Operation_iterator
   case UpdateOperation::SET:
     if (begin->source().document_path_size() != 0)
       throw ngs::Error_code(ER_X_BAD_COLUMN_TO_UPDATE, "Invalid column name to update");
-    m_builder.put_each(begin, end, Add_field_with_value(m_builder));
+    m_builder.put_list(begin, end, Add_field_with_value(m_builder));
     break;
 
   case UpdateOperation::ITEM_REMOVE:

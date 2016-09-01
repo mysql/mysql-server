@@ -63,20 +63,25 @@ public:
       return *this;
     }
 
+    template<typename I, typename Op>
+    const Builder &put_list(I begin, I end, Op generate) const
+    {
+      if (end - begin == 0)
+        return *this;
+
+      generate(*begin);
+      for (++begin; begin != end; ++begin)
+      {
+        m_qb.put(",");
+        generate(*begin);
+      }
+      return *this;
+    }
+
     template<typename L, typename Op>
     const Builder &put_list(const L &list, Op generate) const
     {
-      if (list.size() == 0)
-        return *this;
-
-      typename L::const_iterator p = list.begin();
-      generate(*p);
-      for (++p; p != list.end(); ++p)
-      {
-        m_qb.put(",");
-        generate(*p);
-      }
-      return *this;
+      return put_list(list.begin(), list.end(), generate);
     }
 
     const Builder &put_list(const ::google::protobuf::RepeatedPtrField<Expression_generator::Expr> &list) const
