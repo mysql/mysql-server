@@ -78,3 +78,7 @@ max-time: 600
 cmd: testSpj
 args: -n LookupJoinError T6 I1 I3
 max-time: 600
+
+cmd: testDict
+args: -n DropWithTakeover T1 T2
+max-time: 1800
