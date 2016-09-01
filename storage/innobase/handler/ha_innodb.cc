@@ -7348,6 +7348,7 @@ create_table_metadata(
 	bool				m_implicit)
 {
 	mem_heap_t*	heap;
+	bool		is_encrypted = false;
 
 	ut_ad(m_thd != nullptr);
 	ut_ad(norm_name != nullptr);
@@ -7362,24 +7363,21 @@ create_table_metadata(
 		return(NULL);
 	}
 
-
-#if 0//WL#7141 TODO: these should be tablespace attributes and be used!
-	std::string	compress;
-	std::string	encrypt;
-	if (dd_part != nullptr) {
-		dd_part->table().options().get("compress", compress);
-		dd_part->table().options().get("encrypt", encrypt);
+	/* TODO: these should be tablespace attributes and be used!*/
+	/* Check compression option. */
+	if (!m_form->s->compress.length
+	    && !Compression::is_none(m_form->s->compress.str)) {
+		/* TODO: check fil_node_t::punch_hole too,
+		and maybe issue a warning when compression is not feasible?*/
 	}
 
-	if (!compress.empty()) {
-		// TODO: check fil_node_t::punch_hole too,
-		// and maybe issue a warning when compression is not feasible?
+	/* Set encryption option. */
+	char*	encryption = m_form->s->encrypt_type.str;
+	if (!Encryption::is_none(encryption)) {
+		ut_ad(innobase_strcasecmp(encryption, "y") == 0);
+		is_encrypted = true;
 	}
-	if (!encrypt.empty() && !Encryption.is_none(encrypt.c_str())) {
-		my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
-		invalid = true;
-	}
-#endif
+
 	const unsigned	n_mysql_cols = m_form->s->fields;
 
 	const bool	fulltext = dd_part != nullptr
@@ -7402,6 +7400,10 @@ create_table_metadata(
 		norm_name, 0, n_cols, 0, 0, 0);
 
 	m_table->id = dd_part->se_private_id();
+
+	if (is_encrypted) {
+		DICT_TF2_FLAG_SET(m_table, DICT_TF2_ENCRYPTION);
+	}
 
 	if (!is_redundant) {
 		m_table->flags |= DICT_TF_COMPACT;

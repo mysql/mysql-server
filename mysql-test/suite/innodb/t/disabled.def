@@ -44,7 +44,6 @@ row_format_redundant      : WL#9525 disables it, waiting for FTS fix
 innodb-wl6445-1           : WL#9525 disables it, waiting for FTS fix
 
 table_encrypt_5           : WL#9525 disables it, waiting for virtual column and encryption working
-table_encrypt_1           : WL#9525 disables it, waiting for encryption fix
 table_encrypt_debug       : WL#9525 disables it, waiting for encryption fix
 
 create_tablespace_debug   : WL#9525 disables it, it is related to other SEs, maybe just remove it
