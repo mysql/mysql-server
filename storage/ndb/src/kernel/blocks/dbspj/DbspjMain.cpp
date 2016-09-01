@@ -48,6 +48,7 @@
 #define JAM_FILE_ID 479
 
 extern EventLogger* g_eventLogger;
+extern Uint32 ErrorSignalReceive;
 
 #ifdef VM_TRACE
 
@@ -117,6 +118,14 @@ void Dbspj::execSIGNAL_DROPPED_REP(Signal* signal)
      */
     SimulatedBlock::execSIGNAL_DROPPED_REP(signal);
   };
+
+#ifdef ERROR_INSERT
+  if (ErrorSignalReceive == DBSPJ)
+  {
+    jam();
+    ErrorSignalReceive= 0;
+  }
+#endif
 
   return;
 }
@@ -1017,6 +1026,13 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
   {
     jam();
     return;
+  }
+
+  if (ERROR_INSERTED(17531))
+  {
+    /* Takes effect for *next* 'long' SPJ signal. Fails to alloc mem section */
+    jam();
+    ErrorSignalReceive= DBSPJ;
   }
 
   const ScanFragReq * req = (ScanFragReq *)&signal->theData[0];
