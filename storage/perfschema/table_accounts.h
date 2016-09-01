@@ -43,6 +43,24 @@ struct row_accounts
   PFS_connection_stat_row m_connection_stat;
 };
 
+class PFS_index_accounts_by_user_host : public PFS_index_accounts
+{
+public:
+  PFS_index_accounts_by_user_host()
+    : PFS_index_accounts(&m_key_1, &m_key_2),
+    m_key_1("USER"), m_key_2("HOST")
+  {}
+
+  ~PFS_index_accounts_by_user_host()
+  {}
+
+  virtual bool match(PFS_account *pfs);
+
+private:
+  PFS_key_user m_key_1;
+  PFS_key_host m_key_2;
+};
+
 /** Table PERFORMANCE_SCHEMA.ACCOUNTS. */
 class table_accounts : public cursor_by_account
 {
@@ -58,14 +76,14 @@ protected:
                               unsigned char *buf,
                               Field **fields,
                               bool read_all);
-
-
 protected:
   table_accounts();
 
 public:
   ~table_accounts()
   {}
+
+  int index_init(uint idx, bool sorted);
 
 private:
   virtual void make_row(PFS_account *pfs);

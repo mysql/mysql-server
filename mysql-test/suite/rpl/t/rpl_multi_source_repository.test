@@ -129,7 +129,7 @@ SET @@GLOBAL.relay_log_info_repository = "TABLE";
 # Delete channel_3 and restart server with FILE
 #
 # Stop slave for channel_3
---let $rpl_channel_name= channel_3
+--let $rpl_channel_name= 'channel_3'
 --source include/stop_slave.inc
 
 # Reset slave for channel_3

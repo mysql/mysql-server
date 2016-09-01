@@ -2,7 +2,7 @@
 # this is a test for error 1032 in count(distinct) + group by, introduced in 
 # mysql-4.1
 #
-
+--source include/not_valgrind.inc
 --source include/big_test.inc
 
 --disable_warnings

@@ -34,7 +34,7 @@
 #include "sql_time.h"        // make_truncated_value_warning
 #include "strfunc.h"         // check_word
 #include "tztime.h"          // Time_zone
-#include "template_utils.h"
+#include "dd/object_id.h"    // dd::Object_id
 
 #include <time.h>
 
@@ -3457,3 +3457,117 @@ bool Item_func_last_day::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)
   datetime_to_date(ltime);
   return false;
 }
+
+bool Item_func_internal_update_time::resolve_type(THD *thd)
+{
+  thd= current_thd;
+  uint8 dec= 0;
+  fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH, dec);
+  maybe_null= 1;
+  thd->time_zone_used= 1;
+
+  return false;
+}
+
+bool Item_func_internal_update_time::get_date(MYSQL_TIME *ltime,
+                                              my_time_flags_t fuzzy_date
+                                              MY_ATTRIBUTE((unused)))
+{
+  DBUG_ENTER("Item_func_internal_update_time::get_date");
+
+  String schema_name;
+  String *schema_name_ptr;
+  String table_name;
+  String *table_name_ptr;
+  String engine_name;
+  String *engine_name_ptr;
+  ulonglong unixtime= 0;
+
+  if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
+      (table_name_ptr=args[1]->val_str(&table_name)) != nullptr &&
+      (engine_name_ptr=args[2]->val_str(&engine_name)) != nullptr &&
+      ! is_infoschema_db(schema_name_ptr->c_ptr_safe()))
+  {
+    dd::Object_id se_private_id= (dd::Object_id) args[3]->val_uint();
+    THD *thd= current_thd;
+
+    // Make sure we have safe string to access.
+    schema_name_ptr->c_ptr_safe();
+    table_name_ptr->c_ptr_safe();
+    engine_name_ptr->c_ptr_safe();
+
+    unixtime= thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
+                *schema_name_ptr,
+                *table_name_ptr,
+                *engine_name_ptr,
+                se_private_id,
+                dd::info_schema::enum_statistics_type::TABLE_UPDATE_TIME);
+    if (unixtime)
+    {
+      null_value= 0;
+      thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t) unixtime);
+      DBUG_RETURN(false);
+    }
+  }
+
+  null_value= 1;
+  DBUG_RETURN(true);
+}
+
+
+bool Item_func_internal_check_time::resolve_type(THD *thd)
+{
+  thd= current_thd;
+  uint8 dec= 0;
+  fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH, dec);
+  maybe_null= 1;
+  thd->time_zone_used= 1;
+
+  return false;
+}
+
+bool Item_func_internal_check_time::get_date(MYSQL_TIME *ltime,
+                                             my_time_flags_t fuzzy_date
+                                             MY_ATTRIBUTE((unused)))
+{
+  DBUG_ENTER("Item_func_internal_check_time::get_date");
+
+  String schema_name;
+  String *schema_name_ptr;
+  String table_name;
+  String *table_name_ptr;
+  String engine_name;
+  String *engine_name_ptr;
+  ulonglong unixtime= 0;
+
+  if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
+      (table_name_ptr=args[1]->val_str(&table_name)) != nullptr &&
+      (engine_name_ptr=args[2]->val_str(&engine_name)) != nullptr &&
+      ! is_infoschema_db(schema_name_ptr->c_ptr_safe()))
+  {
+    dd::Object_id se_private_id= (dd::Object_id) args[3]->val_uint();
+    THD *thd= current_thd;
+
+    // Make sure we have safe string to access.
+    schema_name_ptr->c_ptr_safe();
+    table_name_ptr->c_ptr_safe();
+    engine_name_ptr->c_ptr_safe();
+
+    unixtime= thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
+                *schema_name_ptr,
+                *table_name_ptr,
+                *engine_name_ptr,
+                se_private_id,
+                dd::info_schema::enum_statistics_type::CHECK_TIME);
+    if (unixtime)
+    {
+      null_value= 0;
+      thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t) unixtime);
+      DBUG_RETURN(false);
+    }
+  }
+
+  null_value= 1;
+  DBUG_RETURN(true);
+}
+

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,6 +60,20 @@ public:
   virtual bool process_unknown_string(const char *&unknown_key, uchar* base,
                                       MEM_ROOT *mem_root, const char *end)= 0;
 };
+
+
+/**
+  Dummy hook for parsers which do not need hook for unknown keys.
+*/
+class File_parser_dummy_hook: public Unknown_key_hook
+{
+public:
+  File_parser_dummy_hook() {}                 /* Remove gcc warning */
+  virtual bool process_unknown_string(const char *&unknown_key, uchar* base,
+                                      MEM_ROOT *mem_root, const char *end);
+};
+
+extern File_parser_dummy_hook file_parser_dummy_hook;
 
 
 bool get_file_options_ulllist(const char *&ptr, const char *end,

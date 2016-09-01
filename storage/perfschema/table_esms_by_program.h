@@ -29,6 +29,25 @@
   @{
 */
 
+class PFS_index_esms_by_program : public PFS_engine_index
+{
+public:
+  PFS_index_esms_by_program()
+    : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
+    m_key_1("OBJECT_TYPE"), m_key_2("OBJECT_SCHEMA"), m_key_3("OBJECT_NAME")
+  {}
+
+  ~PFS_index_esms_by_program()
+  {}
+
+  virtual bool match(PFS_program *pfs);
+
+private:
+  PFS_key_object_type_enum m_key_1;
+  PFS_key_object_schema m_key_2;
+  PFS_key_object_name m_key_3;
+};
+
 /**
   A row of table
   PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_SUMMARY_BY_PROGRAM.
@@ -67,9 +86,13 @@ public:
   static int delete_all_rows();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
 protected:
   virtual int read_row_values(TABLE *table,
@@ -100,6 +123,8 @@ private:
   PFS_simple_index m_pos;
   /** Next position. */
   PFS_simple_index m_next_pos;
+
+  PFS_index_esms_by_program *m_opened_index;
 };
 
 /** @} */

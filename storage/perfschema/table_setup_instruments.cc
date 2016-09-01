@@ -71,6 +71,25 @@ table_setup_instruments::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_setup_instruments::match_view(uint view)
+{
+  if (m_fields >= 1)
+  {
+    return m_key.match_view(view);
+  }
+  return true;
+}
+
+bool PFS_index_setup_instruments::match(PFS_instr_class *klass)
+{
+  if (m_fields >= 1)
+  {
+    return m_key.match(klass);
+  }
+
+  return true;
+}
+
 PFS_engine_table* table_setup_instruments::create(void)
 {
   return new table_setup_instruments();
@@ -264,6 +283,113 @@ int table_setup_instruments::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
+int table_setup_instruments::index_init(uint idx, bool sorted)
+{
+  PFS_index_setup_instruments *result;
+
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_setup_instruments);
+
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_setup_instruments::index_next(void)
+{
+  PFS_instr_class *instr_class= NULL;
+  PFS_builtin_memory_class *pfs_builtin;
+  bool update_enabled;
+  bool update_timed;
+
+  /* Do not advertise hard coded instruments when disabled. */
+  if (! pfs_initialized)
+    return HA_ERR_END_OF_FILE;
+
+  for (m_pos.set_at(&m_next_pos);
+       m_pos.has_more_view();
+       m_pos.next_view())
+  {
+    if (!m_opened_index->match_view(m_pos.m_index_1))
+      continue;
+
+    do
+    {
+      update_enabled= true;
+      update_timed= true;
+
+      switch (m_pos.m_index_1)
+      {
+      case pos_setup_instruments::VIEW_MUTEX:
+        instr_class= find_mutex_class(m_pos.m_index_2);
+        break;
+      case pos_setup_instruments::VIEW_RWLOCK:
+        instr_class= find_rwlock_class(m_pos.m_index_2);
+        break;
+      case pos_setup_instruments::VIEW_COND:
+        instr_class= find_cond_class(m_pos.m_index_2);
+        break;
+      case pos_setup_instruments::VIEW_THREAD:
+        /* Not used yet  */
+        break;
+      case pos_setup_instruments::VIEW_FILE:
+        instr_class= find_file_class(m_pos.m_index_2);
+        break;
+      case pos_setup_instruments::VIEW_TABLE:
+        instr_class= find_table_class(m_pos.m_index_2);
+        break;
+      case pos_setup_instruments::VIEW_STAGE:
+        instr_class= find_stage_class(m_pos.m_index_2);
+        break;
+      case pos_setup_instruments::VIEW_STATEMENT:
+        instr_class= find_statement_class(m_pos.m_index_2);
+        break;
+      case pos_setup_instruments::VIEW_TRANSACTION:
+        instr_class= find_transaction_class(m_pos.m_index_2);
+        break;
+      case pos_setup_instruments::VIEW_SOCKET:
+        instr_class= find_socket_class(m_pos.m_index_2);
+        break;
+      case pos_setup_instruments::VIEW_IDLE:
+        instr_class= find_idle_class(m_pos.m_index_2);
+        break;
+      case pos_setup_instruments::VIEW_BUILTIN_MEMORY:
+        update_enabled= false;
+        update_timed= false;
+        pfs_builtin= find_builtin_memory_class(m_pos.m_index_2);
+        if (pfs_builtin != NULL)
+          instr_class= & pfs_builtin->m_class;
+        else
+          instr_class= NULL;
+        break;
+      case pos_setup_instruments::VIEW_MEMORY:
+        update_timed= false;
+        instr_class= find_memory_class(m_pos.m_index_2);
+        break;
+      case pos_setup_instruments::VIEW_METADATA:
+        instr_class= find_metadata_class(m_pos.m_index_2);
+        break;
+      case pos_setup_instruments::VIEW_ERROR:
+        update_timed= false;
+        instr_class= find_error_class(m_pos.m_index_2);
+        break;
+      }
+      if (instr_class)
+      {
+        if (m_opened_index->match(instr_class))
+        {
+          make_row(instr_class, update_enabled, update_timed);
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
+        m_pos.m_index_2++;
+      }
+    } while (instr_class != NULL);
+  }
+
+  return HA_ERR_END_OF_FILE;
+}
+
 void table_setup_instruments::make_row(PFS_instr_class *klass, bool update_enabled, bool update_timed)
 {
   m_row.m_instr_class= klass;
@@ -395,4 +521,3 @@ int table_setup_instruments::update_row_values(TABLE *table,
 
   return 0;
 }
-

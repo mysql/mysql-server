@@ -2,6 +2,8 @@
 --echo # WL#8697: Invisible Indexes
 --echo #
 
+SET SESSION information_schema_stats=latest;
+
 --echo # Test of ALTER INDEX syntax.
 
 CREATE TABLE t1 ( a INT, KEY (a) );

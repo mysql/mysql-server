@@ -1413,7 +1413,7 @@ set autocommit= 1;
 #       statements which are compatible with FTWRL in non-transactional
 #       case are not compatible in case of transactional tables.
 #
-# 39.1.a) ANALYZE TABLE for transactional table is incompatible with
+# 39.1.a) ANALYZE TABLE for transactional table is compatible with
 #         FTWRL.
 flush tables with read lock;
 # Implicit commits are allowed under FTWRL.
@@ -1425,14 +1425,13 @@ unlock tables;
 # Switching to connection 'con1'.
 flush tables with read lock;
 # Switching to connection 'default'.
+# Analyze table for transactional table is compatible with FTWRL.
 analyze table t3_trans;
-# Switching to connection 'con1'.
-# Check that ANALYZE TABLE is blocked.
-unlock tables;
-# Switching to connection 'default'.
-# Reap ANALYZE TABLE
 Table	Op	Msg_type	Msg_text
 test.t3_trans	analyze	status	OK
+# Switching to connection 'con1'.
+unlock tables;
+# Switching to connection 'default'.
 #
 # 39.1.b) CHECK TABLE for transactional table is compatible with FTWRL.
 #         Although it does implicit commit at the end of statement it

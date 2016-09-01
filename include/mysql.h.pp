@@ -84,7 +84,7 @@ enum SERVER_STATUS_flags_enum
   SERVER_SESSION_STATE_CHANGED= (1UL << 14)
 };
 typedef struct st_net {
-  void *vio;
+  void* vio;
   unsigned char *buff,*buff_end,*write_pos,*read_pos;
   my_socket fd;
   unsigned long remain_in_buf,length, buf_length, where_b;
@@ -139,7 +139,7 @@ enum enum_session_state_type
   SESSION_TRACK_TRANSACTION_CHARACTERISTICS,
   SESSION_TRACK_TRANSACTION_STATE
 };
-my_bool my_net_init(NET *net, void *vio);
+my_bool my_net_init(NET *net, void* vio);
 void my_net_local_init(NET *net);
 void net_end(NET *net);
 void net_clear(NET *net, my_bool check_buffer);
@@ -270,7 +270,42 @@ int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
 #include "typelib.h"
 #include "my_alloc.h"
 #include "mysql/psi/psi_memory.h"
+#include "my_psi_config.h"
+#include "my_config.h"
 typedef unsigned int PSI_memory_key;
+struct PSI_thread;
+struct PSI_memory_bootstrap
+{
+  void* (*get_interface)(int version);
+};
+typedef struct PSI_memory_bootstrap PSI_memory_bootstrap;
+struct PSI_memory_info_v1
+{
+  PSI_memory_key *m_key;
+  const char *m_name;
+  int m_flags;
+};
+typedef struct PSI_memory_info_v1 PSI_memory_info_v1;
+typedef void (*register_memory_v1_t)
+  (const char *category, struct PSI_memory_info_v1 *info, int count);
+typedef PSI_memory_key (*memory_alloc_v1_t)
+  (PSI_memory_key key, size_t size, struct PSI_thread ** owner);
+typedef PSI_memory_key (*memory_realloc_v1_t)
+  (PSI_memory_key key, size_t old_size, size_t new_size, struct PSI_thread ** owner);
+typedef PSI_memory_key (*memory_claim_v1_t)
+  (PSI_memory_key key, size_t size, struct PSI_thread ** owner);
+typedef void (*memory_free_v1_t)
+  (PSI_memory_key key, size_t size, struct PSI_thread * owner);
+struct PSI_memory_service_v1
+{
+  register_memory_v1_t register_memory;
+  memory_alloc_v1_t memory_alloc;
+  memory_realloc_v1_t memory_realloc;
+  memory_claim_v1_t memory_claim;
+  memory_free_v1_t memory_free;
+};
+typedef struct PSI_memory_service_v1 PSI_memory_service_t;
+typedef struct PSI_memory_info_v1 PSI_memory_info;
 typedef struct st_used_mem
 {
   struct st_used_mem *next;

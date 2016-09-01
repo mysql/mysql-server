@@ -116,7 +116,7 @@ t13
 t2
 t3
 SELECT table_name FROM information_schema.views WHERE table_schema='test';
-table_name
+TABLE_NAME
 v1
 v11
 SELECT trigger_name, event_manipulation, event_object_table FROM information_schema.triggers WHERE trigger_schema='test';
@@ -277,7 +277,7 @@ t13
 t2
 t3
 SELECT table_name FROM information_schema.views WHERE table_schema='test';
-table_name
+TABLE_NAME
 v1
 v11
 SELECT trigger_name, event_manipulation, event_object_table FROM information_schema.triggers WHERE trigger_schema='test';

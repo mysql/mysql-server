@@ -33,6 +33,25 @@
   @{
 */
 
+class PFS_index_ees_by_thread_by_error : public PFS_engine_index
+{
+public:
+  PFS_index_ees_by_thread_by_error()
+    : PFS_engine_index(&m_key_1, &m_key_2),
+      m_key_1("THREAD_ID"), m_key_2("ERROR_NUMBER")
+  {}
+
+  ~PFS_index_ees_by_thread_by_error()
+  {}
+
+  virtual bool match(PFS_thread *pfs);
+  virtual bool match_error_index(uint error_index);
+
+private:
+  PFS_key_thread_id m_key_1;
+  PFS_key_error_number m_key_2;
+};
+
 /**
   A row of table
   PERFORMANCE_SCHEMA.EVENTS_ERRORS_SUMMARY_BY_THREAD_BY_ERROR.
@@ -49,36 +68,33 @@ struct row_ees_by_thread_by_error
   Position of a cursor on
   PERFORMANCE_SCHEMA.EVENTS_ERRORS_SUMMARY_BY_THREAD_BY_ERROR.
   Index 1 on thread (0 based).
-  Index 2 on error class (1 based).
-  Index 3 on error (0 based)
+  Index 2 on error (0 based)
 */
 struct pos_ees_by_thread_by_error
-: public PFS_triple_index
+: public PFS_double_index
 {
   pos_ees_by_thread_by_error()
-    : PFS_triple_index(0, 1, 0)
+    : PFS_double_index(0, 0)
   {}
 
   inline void reset(void)
   {
     m_index_1= 0;
-    m_index_2= 1;
-    m_index_3= 0;
+    m_index_2= 0;
   }
 
   inline void next_thread(void)
   {
     m_index_1++;
-    m_index_2= 1;
-    m_index_3= 0;
+    m_index_2= 0;
   }
 
   inline bool has_more_error(void)
-  { return (m_index_3 < max_server_errors); }
+  { return (m_index_2 < max_server_errors); }
 
   inline void next_error(void)
   {
-    m_index_3++;
+    m_index_2++;
   }
 };
 
@@ -92,10 +108,14 @@ public:
   static int delete_all_rows();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
   virtual int rnd_init(bool scan);
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
 protected:
   virtual int read_row_values(TABLE *table,
@@ -105,12 +125,13 @@ protected:
 
   table_ees_by_thread_by_error();
 
+
 public:
   ~table_ees_by_thread_by_error()
   {}
 
 protected:
-  void make_row(PFS_thread *thread, PFS_error_class *klass, int error_index);
+  void make_row(PFS_thread *thread, int error_index);
 
 private:
   /** Table share lock. */
@@ -126,6 +147,8 @@ private:
   pos_ees_by_thread_by_error m_pos;
   /** Next position. */
   pos_ees_by_thread_by_error m_next_pos;
+
+  PFS_index_ees_by_thread_by_error *m_opened_index;
 };
 
 /** @} */

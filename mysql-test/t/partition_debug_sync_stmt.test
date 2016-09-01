@@ -19,6 +19,7 @@ SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
 INSERT INTO t1 VALUES (5);
 --echo # Not really a bug, since no row has been assigned the number between
 --echo # this and the next auto_inc value.
+ANALYZE TABLE t1;
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 SET DEBUG_SYNC="now SIGNAL release";
 
@@ -26,6 +27,7 @@ SET DEBUG_SYNC="now SIGNAL release";
 connection default;
 --echo # Reaping INSERT INTO t1 VALUES (3), (NULL), (4);
 reap;
+ANALYZE TABLE t1;
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 
 --echo # Test with generating an auto inc value in Con1
@@ -40,6 +42,7 @@ SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
 INSERT INTO t1 VALUES (NULL);
 --echo # Not really a bug, since no row has been assigned the number between
 --echo # this and the next auto_inc value.
+ANALYZE TABLE t1;
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 SET DEBUG_SYNC="now SIGNAL release";
 
@@ -63,6 +66,7 @@ send INSERT INTO t1 SELECT * FROM t2;
 connection con1;
 SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
 INSERT INTO t1 VALUES (5);
+ANALYZE TABLE t1;
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 SET DEBUG_SYNC="now SIGNAL release";
 
@@ -84,6 +88,7 @@ SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
 INSERT INTO t1 VALUES (NULL);
 --echo # Not really a bug, since no row has been assigned the number between
 --echo # this and the next auto_inc value.
+ANALYZE TABLE t1;
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 SET DEBUG_SYNC="now SIGNAL release";
 

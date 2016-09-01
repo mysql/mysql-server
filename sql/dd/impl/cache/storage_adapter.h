@@ -27,6 +27,7 @@
 #include "mysql/psi/mysql_thread.h"          // mysql_mutex_t, mysql_cond_t
 #include "dd/cache/object_registry.h"        // Object_registry
 #include "dd/impl/cache/cache_element.h"     // Cache_element
+
 #endif /* DBUG_OFF */
 
 class THD;
@@ -36,6 +37,10 @@ namespace dd_cache_unittest {
 }
 
 namespace dd {
+
+class Table_stat;
+class Index_stat;
+
 namespace cache {
 
 
@@ -129,6 +134,20 @@ private:
     mysql_mutex_unlock(&m_lock);
     return false;
   }
+
+  /*
+    DD objects dd::Table_stat and dd::Index_stat are not cached,
+    because these objects are only updated and never read by DD
+    API's. Information schema system views use these DD tables
+    to project table/index statistics. As these objects are
+    not in DD cache, it cannot make it to fake store also and
+    hence cannot be tested in gunit framework too.
+  */
+  bool fake_store(THD *thd, Table_stat *object)
+  { return true; }
+
+  bool fake_store(THD *thd, Index_stat *object)
+  { return true; }
 #endif
 
 public:

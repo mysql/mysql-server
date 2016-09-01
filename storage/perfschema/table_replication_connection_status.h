@@ -25,6 +25,7 @@
 
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
+#include "table_helper.h"
 
 #ifdef HAVE_REPLICATION
 
@@ -96,6 +97,59 @@ struct st_row_connect_status {
 
 #endif /* HAVE_REPLICATION */
 
+class PFS_index_rpl_connection_status : public PFS_engine_index
+{
+public:
+  PFS_index_rpl_connection_status(PFS_engine_key *key)
+    : PFS_engine_index(key)
+  {}
+
+  ~PFS_index_rpl_connection_status()
+  {}
+
+#ifdef HAVE_REPLICATION
+  virtual bool match(Master_info *mi) = 0;
+#endif
+};
+
+class PFS_index_rpl_connection_status_by_channel
+  : public PFS_index_rpl_connection_status
+{
+public:
+  PFS_index_rpl_connection_status_by_channel()
+    : PFS_index_rpl_connection_status(&m_key),
+    m_key("CHANNEL_NAME")
+  {}
+
+  ~PFS_index_rpl_connection_status_by_channel()
+  {}
+
+#ifdef HAVE_REPLICATION
+  virtual bool match(Master_info *mi);
+#endif
+private:
+  PFS_key_name m_key;
+};
+
+class PFS_index_rpl_connection_status_by_thread
+  : public PFS_index_rpl_connection_status
+{
+public:
+  PFS_index_rpl_connection_status_by_thread()
+    : PFS_index_rpl_connection_status(&m_key),
+    m_key("THREAD_ID")
+  {}
+
+  ~PFS_index_rpl_connection_status_by_thread()
+  {}
+
+#ifdef HAVE_REPLICATION
+  virtual bool match(Master_info *mi);
+#endif
+private:
+  PFS_key_thread_id m_key;
+};
+
 /** Table PERFORMANCE_SCHEMA.REPLICATION_CONNECTION_STATUS. */
 class table_replication_connection_status: public PFS_engine_table
 {
@@ -142,9 +196,16 @@ public:
   static PFS_engine_table_share m_share;
   static PFS_engine_table* create();
   static ha_rows get_row_count();
+  virtual void reset_position(void);
+
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
+
+private:
+  PFS_index_rpl_connection_status *m_opened_index;
 
 };
 

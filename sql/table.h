@@ -482,7 +482,15 @@ enum enum_table_category
     a GLOBAL READ LOCK or a GLOBAL READ_ONLY in effect.
     Gtid table is cached in the table cache.
   */
-  TABLE_CATEGORY_GTID=8
+  TABLE_CATEGORY_GTID=8,
+
+  /**
+    A data dictionary table.
+    Table's with this category will skip checking the
+    TABLE_SHARE versions because these table structures
+    are fixed upon server bootstrap.
+  */
+  TABLE_CATEGORY_DICTIONARY=9
 };
 typedef enum enum_table_category TABLE_CATEGORY;
 
@@ -934,12 +942,12 @@ struct TABLE_SHARE
    with a base table, a base table is replaced with a temporary
    table and so on.
 
+   @retval  0        For schema tables, DD tables and system views.
+            non-0    For bases tables, views and temporary tables.
+
    @sa TABLE_LIST::is_table_ref_id_equal()
   */
-  ulonglong get_table_ref_version() const
-  {
-    return (tmp_table == SYSTEM_TMP_TABLE) ? 0 : table_map_id.id();
-  }
+  ulonglong get_table_ref_version() const;
 
   /** Determine if the table is missing a PRIMARY KEY. */
   bool is_missing_primary_key() const
@@ -2295,7 +2303,7 @@ struct TABLE_LIST
 
     @param privilege   Privileges granted for this table.
   */
-  void set_privileges(ulong privilege)
+  void set_privileges(ulong privilege MY_ATTRIBUTE((unused)))
   {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     grant.privilege|= privilege;
@@ -2480,6 +2488,13 @@ public:
   LEX_CSTRING   view_name;              ///< saved view name
   LEX_STRING    timestamp;              ///< GMT time stamp of last operation
   st_lex_user   definer;                ///< definer of view
+  /*
+    This variable in is only used to read .frm file for views.
+    It should not be used any where else in the code. It is only used
+    in upgrade scenario for migrating old data directory to be compatible
+    with current server. It will be removed in future release.
+  */
+  ulonglong     file_version;           ///< version of file's field set
   /**
     @note: This field is currently not reliable when read from dictionary:
     If an underlying view is changed, updatable_view is not changed,
@@ -2598,7 +2613,19 @@ public:
 
   LEX_STRING view_body_utf8;
 
-   /* End of view definition context. */
+  // True, If this is a system view
+  bool is_system_view;
+
+  /*
+    Set to 'true' if this is a DD table being opened in the context of a
+    dictionary operation. Note that when 'false', this may still be a DD
+    table when opened in a non-DD context, e.g. as part of an I_S view
+    query.
+  */
+  bool is_dd_ctx_table;
+
+  /* End of view definition context. */
+
   /* List of possible keys. Valid only for materialized derived tables/views. */
   List<Derived_key> derived_key_list;
 
@@ -2966,6 +2993,29 @@ size_t max_row_length(TABLE *table, const uchar *data);
 
 void init_mdl_requests(TABLE_LIST *table_list);
 
+/**
+   Unpack the definition of a virtual column. Parses the text obtained from
+   TABLE_SHARE and produces an Item.
+
+  @param thd                  Thread handler
+  @param table                Table with the checked field
+  @param field                Pointer to Field object
+  @param is_create_table      Indicates that table is opened as part
+                              of CREATE or ALTER and does not yet exist in SE
+  @param error_reported       updated flag for the caller that no other error
+                              messages are to be generated.
+
+  @retval TRUE Failure.
+  @retval FALSE Success.
+*/
+
+bool unpack_gcol_info(THD *thd,
+                      TABLE *table,
+                      Field *field,
+                      bool is_create_table,
+                      bool *error_reported);
+
+
 int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
                           TABLE *outparam, bool is_create_table,
@@ -3088,6 +3138,79 @@ inline bool is_temporary_table(TABLE_LIST *tl)
 
   return tl->table->s->tmp_table != NO_TMP_TABLE;
 }
+
+//////////////////////////////////////////////////////////////////////////
+
+/*
+  NOTE:
+  These structures are added to read .frm file in upgrade scenario.
+
+  They should not be used any where else in the code.
+  They will be removed in future release.
+  Any new code should not be added in this section.
+*/
+
+
+/**
+  These members were removed from TABLE_SHARE as they are not used in
+  in the code. open_binary_frm() uses these members while reading
+  .frm files.
+*/
+class FRM_context
+{
+public:
+  FRM_context()
+    : default_part_db_type(NULL), null_field_first(false), stored_fields(0),
+      view_def(NULL), frm_version(0), fieldnames()
+  {}
+
+  handlerton *default_part_db_type;
+  bool null_field_first;
+  uint stored_fields;                   /* Number of stored fields
+                                           (i.e. without generated-only ones) */
+
+  enum utype  { NONE,DATE,SHIELD,NOEMPTY,CASEUP,PNR,BGNR,PGNR,YES,NO,REL,
+                CHECK,EMPTY,UNKNOWN_FIELD,CASEDN,NEXT_NUMBER,INTERVAL_FIELD,
+                BIT_FIELD, TIMESTAMP_OLD_FIELD, CAPITALIZE, BLOB_FIELD,
+                TIMESTAMP_DN_FIELD, TIMESTAMP_UN_FIELD, TIMESTAMP_DNUN_FIELD,
+                GENERATED_FIELD= 128 };
+
+  /**
+    For shares representing views File_parser object with view
+    definition read from .FRM file.
+  */
+  const File_parser *view_def;
+  uchar frm_version;
+  TYPELIB fieldnames;                   /* Pointer to fieldnames */
+};
+
+
+/**
+  Create TABLE_SHARE from .frm file.
+
+  FRM_context object is used to store the value removed from
+  TABLE_SHARE. These values are used only for .frm file parsing.
+
+  @param[in]  thd                       Thread handle.
+  @param[in]  path                      Path of the frm file.
+  @param[out] share                     TABLE_SHARE to be populated.
+  @param[out] frm_context               FRM_context object.
+  @param[in]  db                        Database name.
+  @param[in]  table                     Table name.
+  @param[in]  is_fix_view_cols_and_deps Fix view column data, table
+                                        and routine dependency.
+
+  @retval TABLE_SHARE  ON SUCCESS
+  @retval NULL         ON FAILURE
+*/
+bool create_table_share_for_upgrade(THD *thd,
+                                    const char *path,
+                                    TABLE_SHARE *share,
+                                    FRM_context *frm_context,
+                                    const char *db,
+                                    const char *table,
+                                    bool is_fix_view_cols_and_deps);
+//////////////////////////////////////////////////////////////////////////
 
 #endif /* MYSQL_CLIENT */
 

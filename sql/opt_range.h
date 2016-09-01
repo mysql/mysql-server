@@ -1036,4 +1036,10 @@ void store_key_image_to_rec(Field *field, uchar *ptr, uint len);
 
 extern String null_string;
 
+/// Global initialization of the null_element. Call on server start.
+void range_optimizer_init();
+
+/// Global destruction of the null_element. Call on server stop.
+void range_optimizer_free();
+
 #endif

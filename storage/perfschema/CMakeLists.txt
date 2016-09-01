@@ -145,6 +145,7 @@ table_tiws_by_table.h
 table_tlws_by_table.h
 table_users.h
 table_uvar_by_thread.h
+table_variables_info.h
 cursor_by_thread_connect_attr.h
 table_session_connect.h
 table_session_connect_attrs.h
@@ -168,6 +169,7 @@ pfs_autosize.cc
 pfs_buffer_container.cc
 pfs_builtin_memory.cc
 pfs_check.cc
+pfs_column_types.cc
 pfs_column_values.cc
 pfs_con_slice.cc
 pfs_defaults.cc
@@ -267,6 +269,7 @@ table_tiws_by_table.cc
 table_tlws_by_table.cc
 table_users.cc
 table_uvar_by_thread.cc
+table_variables_info.cc
 cursor_by_thread_connect_attr.cc
 table_session_connect.cc
 table_session_connect_attrs.cc

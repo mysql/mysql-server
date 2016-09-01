@@ -42,10 +42,7 @@ SELECT user FROM mysql.user where user='u1';
 --error ER_PASSWORD_NO_MATCH
 GRANT SELECT(a) ON t1 TO u1@h, u2@h;
 --echo #
---echo # The SELECT privilege on column a is granted to u1@h,
---echo # which means that GRANT can be failed partially when
---echo # granting an available privilege to both an existent
---echo # user and a non-existent user.
+--echo # u1@h should not have been granted any permission
 --echo #
 SELECT user, column_name, column_priv FROM mysql.columns_priv;
 --echo #
@@ -61,14 +58,6 @@ SELECT user, column_name, column_priv FROM mysql.columns_priv;
 --echo #
 --let $binlog_start= $saved_master_pos
 --source include/show_binlog_events.inc
-
-# The incident event cteated by GRANT statement will cause a failure when
-# calling show_binlog_events.inc again. That is the reason we put the
-# GRANT statement in an independent test file. You can see the error when
-# executing the following three lines.
-#--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
-#--let $binlog_start= $saved_master_pos
-#--source include/show_binlog_events.inc
 
 DROP USER u1@h;
 DROP TABLE t1;

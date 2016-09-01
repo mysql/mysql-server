@@ -111,6 +111,16 @@ void expect_null(T *t)
   EXPECT_EQ(t_null, t);
 }
 
+/*
+  A class which wraps the necessary setup/teardown logic for
+  Data Dictionary.
+*/
+class DD_initializer
+{
+public:
+  static void SetUp();
+  static void TearDown();
+};
 
 }  // namespace my_testing
 

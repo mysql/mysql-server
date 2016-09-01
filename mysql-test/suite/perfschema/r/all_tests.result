@@ -7,6 +7,8 @@ insert into t2 select concat('ddl_', table_name, '.test') from information_schem
 where table_schema='performance_schema';
 insert into t2 select concat('dml_', table_name, '.test') from information_schema.tables
 where table_schema='performance_schema';
+insert into t2 select concat('idx_', table_name, '.test') from information_schema.tables
+where table_schema='performance_schema';
 update t2 set test_name= replace(test_name, "events_waits_summary_", "ews_");
 update t2 set test_name= replace(test_name, "events_stages_summary_", "esgs_");
 update t2 set test_name= replace(test_name, "events_statements_summary_", "esms_");

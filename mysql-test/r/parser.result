@@ -2051,6 +2051,9 @@ CREATE        INDEX n_index USING btree ON t1( n ) USING btree;
 CREATE        INDEX x_index USING btree ON t1( o ) USING rtree;
 ERROR 42000: Too many key parts specified; max 1 parts allowed
 CREATE        INDEX o_index USING rtree ON t1( o ) USING btree;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	b_index	1	b	A	0	NULL	NULL	YES	BTREE			YES

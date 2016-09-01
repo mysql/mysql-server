@@ -427,6 +427,33 @@ IF (ENABLE_GPROF AND NOT WIN32 AND NOT APPLE)
     "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} -pg")
 ENDIF()
 
+# Use gold if available and not explicitly disabled.
+IF(WIN32)
+  # Feature tests are expensive on Windows, and we only support MSVC,
+  # which does not use gold. Thus, default to off to save the test.
+  OPTION(USE_LD_GOLD "Use GNU gold linker" OFF)
+ELSE()
+  OPTION(USE_LD_GOLD "Use GNU gold linker" ON)
+ENDIF()
+IF (USE_LD_GOLD)
+  # These tests will give a false negative on some Clang versions,
+  # since there is no easy way in CMake to check for a linker flag
+  # without reimplementing CheckCXXSourceCompiles, and
+  # CheckCXXSourceCompiles tends to compile and link in two steps
+  # (which causes warning output about unused flags, which we interpret
+  # as the flag not existing).
+  MY_CHECK_C_COMPILER_FLAG("-fuse-ld=gold" C_RESULT)
+  MY_CHECK_CXX_COMPILER_FLAG("-fuse-ld=gold" CXX_RESULT)
+  IF (C_RESULT AND CXX_RESULT)
+    IF (HAVE_REAL_DTRACE_INSTRUMENTING)
+      MESSAGE(WARNING " gold is not compatible with DTrace - using regular ld")
+    ELSE()
+      SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -fuse-ld=gold")
+      SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -fuse-ld=gold")
+    ENDIF()
+  ENDIF()
+ENDIF()
+
 OPTION(ENABLED_LOCAL_INFILE
  "If we should enable LOAD DATA LOCAL by default" ${IF_WIN})
 MARK_AS_ADVANCED(ENABLED_LOCAL_INFILE)
@@ -765,6 +792,8 @@ GET_PROPERTY(cwd_definitions DIRECTORY PROPERTY COMPILE_DEFINITIONS)
 MESSAGE(STATUS "COMPILE_DEFINITIONS: ${cwd_definitions}")
 MESSAGE(STATUS "CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
 MESSAGE(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
+MESSAGE(STATUS "CMAKE_C_LINK_FLAGS: ${CMAKE_C_LINK_FLAGS}")
+MESSAGE(STATUS "CMAKE_CXX_LINK_FLAGS: ${CMAKE_CXX_LINK_FLAGS}")
 IF(CMAKE_BUILD_TYPE AND CMAKE_GENERATOR MATCHES "Makefiles")
   STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKEBT)
   MESSAGE(STATUS "CMAKE_C_FLAGS_${CMAKEBT}: ${CMAKE_C_FLAGS_${CMAKEBT}}")

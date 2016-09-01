@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2016 Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -68,7 +68,7 @@ BEGIN
 
   -- Dump all databases, there should be none
   -- except those that was created during bootstrap
-  SELECT * FROM INFORMATION_SCHEMA.SCHEMATA;
+  SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
 
   -- Dump all tablespaces, there should be none
   SELECT * FROM INFORMATION_SCHEMA.FILES WHERE 
@@ -76,7 +76,8 @@ BEGIN
 
   -- The test database should not contain any tables
   SELECT table_name AS tables_in_test FROM INFORMATION_SCHEMA.TABLES
-    WHERE table_schema='test';
+    WHERE table_schema='test'
+    ORDER BY TABLE_NAME;
 
   -- Show "mysql" database, tables and columns
   SELECT CONCAT(table_schema, '.', table_name) AS tables_in_mysql
@@ -90,7 +91,7 @@ BEGIN
          collation_name, column_type, column_key, extra, column_comment
     FROM INFORMATION_SCHEMA.COLUMNS
       WHERE table_schema='mysql' AND table_name != 'ndb_apply_status'
-        ORDER BY columns_in_mysql;
+        ORDER BY columns_in_mysql, column_name;
 
   -- Dump all events, there should be none
   SELECT * FROM INFORMATION_SCHEMA.EVENTS;
@@ -112,7 +113,8 @@ BEGIN
          CHARACTER_SET_CLIENT,COLLATION_CONNECTION,DATABASE_COLLATION
     FROM INFORMATION_SCHEMA.ROUTINES;
   -- Dump all views, only those in the sys schema should exist
-  SELECT * FROM INFORMATION_SCHEMA.VIEWS;
+  SELECT * FROM INFORMATION_SCHEMA.VIEWS
+    ORDER BY TABLE_SCHEMA, TABLE_NAME;
 
   SHOW GLOBAL STATUS LIKE 'slave_open_temp_tables';
 

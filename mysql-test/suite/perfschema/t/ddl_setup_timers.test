@@ -15,3 +15,6 @@ ALTER TABLE performance_schema.setup_timers ADD INDEX test_index(NAME);
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index ON performance_schema.setup_timers(NAME);
 
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `PRIMARY`
+  ON performance_schema.setup_timers;

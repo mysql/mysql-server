@@ -160,6 +160,7 @@ WHERE ticket2.id = ticket2.ticket and
 
 # Check that we get 'fulltext' index in SHOW CREATE
 
+ANALYZE TABLE t2;
 show keys from t2;
 show create table t2;
 

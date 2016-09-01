@@ -7,3 +7,6 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_
 CREATE UNIQUE INDEX test_index
 ON performance_schema.events_transactions_summary_by_thread_by_event_name(THREAD_ID);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+DROP INDEX `PRIMARY`
+  ON performance_schema.events_transactions_summary_by_thread_by_event_name;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'

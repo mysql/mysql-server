@@ -4787,12 +4787,22 @@ fil_io(
 		mutex_exit(&fil_system->mutex);
 
 		if (!req_type.ignore_missing()) {
-			ib::error()
-				<< "Trying to do I/O to a tablespace which"
-				" does not exist. I/O type: "
-				<< (req_type.is_read() ? "read" : "write")
-				<< ", page: " << page_id
-				<< ", I/O length: " << len << " bytes";
+			if (space == NULL) {
+				ib::error()
+					<< "Trying to do I/O on a tablespace"
+					<< " which does not exist. I/O type: "
+					<< (req_type.is_read()
+					    ? "read" : "write")
+					<< ", page: " << page_id
+					<< ", I/O length: " << len << " bytes";
+			} else {
+				ib::error()
+					<< "Trying to do async read on a"
+					<< " tablespace which is being deleted."
+					<< " Tablespace name: \"" << space->name
+					<< "\", page: " << page_id
+					<< ", read length: " << len << " bytes";
+			}
 		}
 
 		return(DB_TABLESPACE_DELETED);

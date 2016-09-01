@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,13 +71,16 @@ Column_impl::Column_impl()
   m_numeric_scale(0),
   m_numeric_scale_null(true),
   m_datetime_precision(0),
+  m_datetime_precision_null(true),
   m_has_no_default(false),
   m_default_value_null(true),
+  m_default_value_utf8_null(true),
   m_options(new Properties_impl()),
   m_se_private_data(new Properties_impl()),
   m_table(NULL),
   m_elements(),
-  m_collation_id(INVALID_OBJECT_ID)
+  m_collation_id(INVALID_OBJECT_ID),
+  m_column_key(CK_NONE)
 { }
 
 Column_impl::Column_impl(Abstract_table_impl *table)
@@ -94,13 +97,16 @@ Column_impl::Column_impl(Abstract_table_impl *table)
   m_numeric_scale(0),
   m_numeric_scale_null(true),
   m_datetime_precision(0),
+  m_datetime_precision_null(true),
   m_has_no_default(false),
   m_default_value_null(true),
+  m_default_value_utf8_null(true),
   m_options(new Properties_impl()),
   m_se_private_data(new Properties_impl()),
   m_table(table),
   m_elements(),
-  m_collation_id(INVALID_OBJECT_ID)
+  m_collation_id(INVALID_OBJECT_ID),
+  m_column_key(CK_NONE)
 { }
 
 Column_impl::~Column_impl()
@@ -245,13 +251,16 @@ bool Column_impl::restore_attributes(const Raw_record &r)
   m_numeric_scale_null=      r.is_null(Columns::FIELD_NUMERIC_SCALE);
   m_numeric_scale=           r.read_uint(Columns::FIELD_NUMERIC_SCALE);
   m_datetime_precision=      r.read_uint(Columns::FIELD_DATETIME_PRECISION);
+  m_datetime_precision_null= r.is_null(Columns::FIELD_DATETIME_PRECISION);
   m_ordinal_position=        r.read_uint(Columns::FIELD_ORDINAL_POSITION);
   m_char_length=             r.read_uint(Columns::FIELD_CHAR_LENGTH);
 
   m_has_no_default=     r.read_bool(Columns::FIELD_HAS_NO_DEFAULT);
   m_default_value_null= r.is_null(Columns::FIELD_DEFAULT_VALUE);
-  m_default_value=      r.read_str(Columns::FIELD_DEFAULT_VALUE, "");
-  m_comment=            r.read_str(Columns::FIELD_COMMENT);
+  m_default_value= r.read_str(Columns::FIELD_DEFAULT_VALUE, "");
+  m_default_value_utf8_null= r.is_null(Columns::FIELD_DEFAULT_VALUE_UTF8);
+  m_default_value_utf8= r.read_str(Columns::FIELD_DEFAULT_VALUE_UTF8, "");
+  m_comment=         r.read_str(Columns::FIELD_COMMENT);
 
   m_is_virtual= r.read_bool(Columns::FIELD_IS_VIRTUAL);
   m_generation_expression=
@@ -268,6 +277,10 @@ bool Column_impl::restore_attributes(const Raw_record &r)
 
   set_default_option(r.read_str(Columns::FIELD_DEFAULT_OPTION, ""));
   set_update_option(r.read_str(Columns::FIELD_UPDATE_OPTION, ""));
+
+  m_column_key= (enum_column_key) r.read_int(Columns::FIELD_COLUMN_KEY);
+
+  m_column_type_utf8= r.read_str(Columns::FIELD_COLUMN_TYPE_UTF8);
 
   return false;
 }
@@ -302,12 +315,17 @@ bool Column_impl::store_attributes(Raw_record *r)
     r->store(Columns::FIELD_CHAR_LENGTH, static_cast<uint>(m_char_length)) ||
     r->store(Columns::FIELD_NUMERIC_PRECISION, m_numeric_precision) ||
     r->store(Columns::FIELD_NUMERIC_SCALE, m_numeric_scale, m_numeric_scale_null) ||
-    r->store(Columns::FIELD_DATETIME_PRECISION, m_datetime_precision) ||
+    r->store(Columns::FIELD_DATETIME_PRECISION,
+             m_datetime_precision,
+             m_datetime_precision_null) ||
     r->store_ref_id(Columns::FIELD_COLLATION_ID, m_collation_id) ||
     r->store(Columns::FIELD_HAS_NO_DEFAULT, m_has_no_default) ||
     r->store(Columns::FIELD_DEFAULT_VALUE,
              m_default_value,
              m_default_value_null) ||
+    r->store(Columns::FIELD_DEFAULT_VALUE_UTF8,
+             m_default_value_utf8,
+             m_default_value_utf8_null) ||
     r->store(Columns::FIELD_DEFAULT_OPTION,
              m_default_option, m_default_option.empty()) ||
     r->store(Columns::FIELD_UPDATE_OPTION,
@@ -323,11 +341,13 @@ bool Column_impl::store_attributes(Raw_record *r)
     r->store(Columns::FIELD_COMMENT, m_comment) ||
     r->store(Columns::FIELD_HIDDEN, m_hidden) ||
     r->store(Columns::FIELD_OPTIONS, *m_options) ||
-    r->store(Columns::FIELD_SE_PRIVATE_DATA, *m_se_private_data);
+    r->store(Columns::FIELD_SE_PRIVATE_DATA, *m_se_private_data) ||
+    r->store(Columns::FIELD_COLUMN_KEY, m_column_key) ||
+    r->store(Columns::FIELD_COLUMN_TYPE_UTF8, m_column_type_utf8);
 }
 
 ///////////////////////////////////////////////////////////////////////////
-static_assert(Columns::FIELD_SE_PRIVATE_DATA==24,
+static_assert(Columns::FIELD_SE_PRIVATE_DATA==25,
               "Columns definition has changed, review (de)ser memfuns!");
 void
 Column_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
@@ -358,6 +378,8 @@ Column_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
   write(w, m_generation_expression_utf8, STRING_WITH_LEN("generation_expression_utf8"));
   write_properties(w, m_options, STRING_WITH_LEN("options"));
   write_properties(w, m_se_private_data, STRING_WITH_LEN("se_private_data"));
+  write_enum(w, m_column_key, STRING_WITH_LEN("column_key"));
+  write(w, m_column_type_utf8, STRING_WITH_LEN("column_type_utf8"));
   serialize_each(wctx, w, m_elements, STRING_WITH_LEN("elements"));
   write(w, m_collation_id, STRING_WITH_LEN("collation_id"));
   w->EndObject();
@@ -392,6 +414,8 @@ Column_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
   read(&m_generation_expression_utf8, val, "generation_expression_utf8");
   read_properties(&m_options, val, "options");
   read_properties(&m_se_private_data, val, "se_private_data");
+  read_enum(&m_column_key, val, "column_key");
+  read(&m_column_type_utf8, val, "column_type_utf8");
 
   deserialize_each(rctx, [this] () { return add_element(); },
                    val, "elements");
@@ -422,9 +446,11 @@ void Column_impl::debug_print(std::string &outb) const
     << "m_numeric_precision: " << m_numeric_precision << "; "
     << "m_numeric_scale: " << m_numeric_scale << "; "
     << "m_datetime_precision: " << m_datetime_precision << "; "
+    << "m_datetime_precision_null: " << m_datetime_precision_null << "; "
     << "m_collation_id: {OID: " << m_collation_id << "}; "
     << "m_has_no_default: " << m_has_no_default << "; "
     << "m_default_value: <excluded from output>" << "; "
+    << "m_default_value_utf8: " << m_default_value_utf8 << "; "
     << "m_default_option: " << m_default_option << "; "
     << "m_update_option: " << m_update_option << "; "
     << "m_is_auto_increment: " <<  m_is_auto_increment << "; "
@@ -433,7 +459,9 @@ void Column_impl::debug_print(std::string &outb) const
     << "m_generation_expression: " << m_generation_expression << "; "
     << "m_generation_expression_utf8: " << m_generation_expression_utf8 << "; "
     << "m_hidden: " << m_hidden << "; "
-    << "m_options: " << m_options->raw_string() << "; ";
+    << "m_options: " << m_options->raw_string() << "; "
+    << "m_column_key: " << m_column_key << "; "
+    << "m_column_type_utf8: " << m_column_type_utf8 << "; ";
 
   if (m_type == enum_column_types::ENUM || m_type == enum_column_types::SET)
   {
@@ -483,9 +511,12 @@ Column_impl::Column_impl(const Column_impl &src, Abstract_table_impl *parent)
     m_numeric_scale(src.m_numeric_scale),
     m_numeric_scale_null(src.m_numeric_scale_null),
     m_datetime_precision(src.m_datetime_precision),
+    m_datetime_precision_null(src.m_datetime_precision_null),
     m_has_no_default(src.m_has_no_default),
     m_default_value_null(src.m_default_value_null),
     m_default_value(src.m_default_value),
+    m_default_value_utf8_null(src.m_default_value_utf8_null),
+    m_default_value_utf8(src.m_default_value_utf8),
     m_default_option(src.m_default_option),
     m_update_option(src.m_update_option), m_comment(src.m_comment),
     m_generation_expression(src.m_generation_expression),
@@ -494,7 +525,9 @@ Column_impl::Column_impl(const Column_impl &src, Abstract_table_impl *parent)
     m_se_private_data(Properties_impl::
                       parse_properties(src.m_se_private_data->raw_string())),
     m_table(parent), m_elements(),
-    m_collation_id(src.m_collation_id)
+    m_column_type_utf8(src.m_column_type_utf8),
+    m_collation_id(src.m_collation_id),
+    m_column_key(src.m_column_key)
 {
   m_elements.deep_copy(src.m_elements, this);
 }

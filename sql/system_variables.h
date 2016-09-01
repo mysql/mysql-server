@@ -269,6 +269,9 @@ struct System_variables
   my_bool session_track_schema;
   my_bool session_track_state_change;
   ulong   session_track_transaction_info;
+
+  ulong information_schema_stats; // see dd::info_schema::enum_information_...
+
   /**
     Compatibility option to mark the pre MySQL-5.6.4 temporals columns using
     the old format using comments for SHOW CREATE TABLE and in I_S.COLUMNS

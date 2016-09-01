@@ -8,16 +8,17 @@ Warning	1681	Updating 'character_set_database' is deprecated. It will be made re
 CREATE DATABASE `ﾆﾎﾝｺﾞ`;
 CREATE DATABASE `日本語`;
 CREATE DATABASE `龔龖龗`;
-SELECT schema_name from information_schema.schemata where schema_name <> 'mtr';
-schema_name
+SELECT schema_name from information_schema.schemata
+where schema_name <> 'mtr' order by schema_name;
+SCHEMA_NAME
 information_schema
-日本語
-龔龖龗
-ﾆﾎﾝｺﾞ
 mysql
 performance_schema
 sys
 test
+日本語
+龔龖龗
+ﾆﾎﾝｺﾞ
 USE `ﾆﾎﾝｺﾞ`;
 USE `日本語`;
 USE `龔龖龗`;

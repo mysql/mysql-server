@@ -20,4 +20,21 @@
 
 extern const TABLE_FIELD_DEF mysql_db_table_def;
 
+/**  Enum for ACL tables */
+typedef enum ACL_TABLES
+{
+  TABLE_USER= 0,
+  TABLE_DB,
+  TABLE_TABLES_PRIV,
+  TABLE_COLUMNS_PRIV,
+  TABLE_PROCS_PRIV,
+  TABLE_PROXIES_PRIV,
+  TABLE_ROLE_EDGES,
+  TABLE_DEFAULT_ROLES,
+  LAST_ENTRY  /* Must always be at the end */
+} ACL_TABLES;
+
+int handle_grant_table(THD *thd, TABLE_LIST *tables, ACL_TABLES table_no, bool drop,
+                       LEX_USER *user_from, LEX_USER *user_to);
+
 #endif /* SQL_USER_TABLE_INCLUDED */

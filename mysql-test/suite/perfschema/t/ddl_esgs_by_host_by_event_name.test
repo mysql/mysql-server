@@ -17,3 +17,6 @@ ALTER TABLE performance_schema.events_stages_summary_by_host_by_event_name
 CREATE UNIQUE INDEX test_index
   ON performance_schema.events_stages_summary_by_host_by_event_name(HOSTNAME);
 
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `HOST`
+  ON performance_schema.events_stages_summary_by_host_by_event_name;

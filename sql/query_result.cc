@@ -71,13 +71,6 @@ bool Query_result_send::send_data(List<Item> &items)
     DBUG_RETURN(false);
   }
 
-  /*
-    We may be passing the control from mysqld to the client: release the
-    InnoDB adaptive hash S-latch to avoid thread deadlocks if it was reserved
-    by thd
-  */
-  ha_release_temporary_latches(thd);
-
   protocol->start_row();
   if (thd->send_result_set_row(&items))
   {
@@ -91,13 +84,6 @@ bool Query_result_send::send_data(List<Item> &items)
 
 bool Query_result_send::send_eof()
 {
-  /* 
-    We may be passing the control from mysqld to the client: release the
-    InnoDB adaptive hash S-latch to avoid thread deadlocks if it was reserved
-    by thd 
-  */
-  ha_release_temporary_latches(thd);
-
   /* 
     Don't send EOF if we're in error condition (which implies we've already
     sent or are sending an error)

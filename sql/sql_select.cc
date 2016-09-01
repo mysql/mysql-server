@@ -3582,9 +3582,11 @@ bool JOIN::make_tmp_tables_info()
       Create temporary table for use in a single execution.
       (Will be reused if this is a subquery that is executed several times
        for one execution of the statement)
+      Don't use tmp table grouping for json aggregate funcs as it's
+      very ineffective.
     */
     ORDER_with_src tmp_group;
-    if (!simple_group && !(test_flags & TEST_NO_KEY_GROUP))
+    if (!simple_group && !(test_flags & TEST_NO_KEY_GROUP) && !with_json_agg)
       tmp_group= group_list;
       
     tmp_table_param.hidden_field_count= 

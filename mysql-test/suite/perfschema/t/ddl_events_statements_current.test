@@ -14,3 +14,6 @@ ALTER TABLE performance_schema.events_statements_current ADD INDEX test_index(EV
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index ON performance_schema.events_statements_current(EVENT_ID);
 
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `PRIMARY`
+  ON performance_schema.events_statements_current;

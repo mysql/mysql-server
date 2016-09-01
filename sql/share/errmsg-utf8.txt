@@ -5614,8 +5614,7 @@ ER_SP_BAD_VAR_SHADOW 42000
         eng "Variable '%-.64s' must be quoted with `...`, or renamed"
         ger "Variable '%-.64s' muss mit `...` geschützt oder aber umbenannt werden"
 ER_TRG_NO_DEFINER
-        eng "No definer attribute for trigger '%-.192s'.'%-.192s'. The trigger will be activated under the authorization of the invoker, which may have insufficient privileges. Please recreate the trigger."
-        ger "Kein Definierer-Attribut für Trigger '%-.192s'.'%-.192s'. Der Trigger wird mit der Autorisierung des Aufrufers aktiviert, der möglicherweise keine zureichenden Berechtigungen hat. Bitte legen Sie den Trigger neu an."
+        eng "No definer attribute for trigger '%-.192s'.'%-.192s'. It's disallowed to create trigger without definer."
 ER_OLD_FILE_FORMAT
         eng "'%-.192s' has an old format, you should re-create the '%s' object(s)"
         ger "'%-.192s' hat altes Format, Sie sollten die '%s'-Objekt(e) neu erzeugen"
@@ -7790,7 +7789,7 @@ ER_COMPONENTS_LOAD_CANT_INITIALIZE
   pol "Metoda inicjalizująca dostarczona przez komponent '%.192s' nie zakończyła się z powodzeniem."
 
 ER_COMPONENTS_UNLOAD_NOT_LOADED
-  eng "Component specified by URN '%.192s' to unload have not been loaded before."
+  eng "Component specified by URN '%.192s' to unload has not been loaded before."
   pol "Komponent podany do odłączenia przez URN '%.192s' nie był wcześniej załadowany."
 
 ER_COMPONENTS_UNLOAD_CANT_DEINITIALIZE
@@ -7802,7 +7801,7 @@ ER_COMPONENTS_CANT_RELEASE_SERVICE
   pol "Zwolnienie wcześniej pozyskanej implementacji usługi nie powiodło się."
 
 ER_COMPONENTS_UNLOAD_CANT_UNREGISTER_SERVICE
-  eng "Unregistration of service implementation '%.192s' provided by component '%.192s' performed failed during unloading of the component."
+  eng "Unregistration of service implementation '%.192s' provided by component '%.192s' failed during unloading of the component."
   pol "Wyrejstrowanie implementacji usługi '%.192s' dostarczonej przez komponent '%.192s' wykonywane podczas odłączania komponentu nie zakończyła się z powodzeniem."
 
 ER_COMPONENTS_CANT_UNLOAD
@@ -7826,6 +7825,30 @@ ER_COMPONENTS_UNLOAD_DUPLICATE_IN_GROUP
 
 ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS
   eng "@@GLOBAL.GTID_PURGED cannot be changed: %s"
+
+ER_CANNOT_LOCK_USER_MANAGEMENT_CACHES
+  eng "Can not lock user management caches for processing."
+
+ER_SRS_NOT_FOUND SR001
+  eng "There's no spatial reference system with SRID %u."
+
+ER_VARIABLE_NOT_PERSISTED
+  eng "Variables cannot be persisted. Please retry."
+
+ER_IS_QUERY_INVALID_CLAUSE
+  eng "Information schema queries do not support the '%s' clause."
+
+ER_UNABLE_TO_STORE_STATISTICS
+  eng "Unable to store dynamic %s statistics into data dictionary."
+
+ER_NO_SYSTEM_SCHEMA_ACCESS
+  eng "Access to system schema '%.64s' is rejected."
+
+ER_NO_SYSTEM_TABLESPACE_ACCESS
+  eng "Access to system tablespace '%.64s' is rejected."
+
+ER_NO_SYSTEM_TABLE_ACCESS
+  eng "Access to system table '%.64s.%.64s' is rejected."
 
 ER_TOO_LONG_TABLESPACE_COMMENT
   eng "Comment for tablespace '%-.64s' is too long (max = %lu)"

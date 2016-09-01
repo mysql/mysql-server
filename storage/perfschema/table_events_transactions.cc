@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -211,6 +211,26 @@ table_events_transactions_history_long::m_share=
   false, /* checked */
   false  /* perpetual */
 };
+
+bool PFS_index_events_transactions::match(PFS_thread *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key_1.match(pfs))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_events_transactions::match(PFS_events *pfs)
+{
+  if (m_fields >= 2)
+  {
+    if (!m_key_2.match(pfs))
+      return false;
+  }
+  return true;
+}
 
 table_events_transactions_common::table_events_transactions_common
 (const PFS_engine_table_share *share, void *pos)
@@ -570,6 +590,50 @@ int table_events_transactions_current::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
+int table_events_transactions_current::index_init(uint idx, bool sorted)
+{
+  m_normalizer= time_normalizer::get(transaction_timer);
+
+  PFS_index_events_transactions *result;
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_events_transactions);
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_events_transactions_current::index_next(void)
+{
+  PFS_thread *pfs_thread;
+  PFS_events_transactions *transaction;
+  bool has_more_thread= true;
+
+  for (m_pos.set_at(&m_next_pos);
+       has_more_thread;
+       m_pos.next())
+  {
+    pfs_thread= global_thread_container.get(m_pos.m_index, &has_more_thread);
+    if (pfs_thread != NULL)
+    {
+      if (m_opened_index->match(pfs_thread))
+      {
+        transaction= &pfs_thread->m_transaction_current;
+        if (m_opened_index->match(transaction))
+        {
+          make_row(transaction);
+          if (m_row_exists)
+          {
+            m_next_pos.set_after(&m_pos);
+            return 0;
+          }
+        }
+      }
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
+}
+
 int table_events_transactions_current::delete_all_rows(void)
 {
   reset_events_transactions_current();
@@ -673,6 +737,73 @@ int table_events_transactions_history::rnd_pos(const void *pos)
   }
 
   return HA_ERR_RECORD_DELETED;
+}
+
+int table_events_transactions_history::index_init(uint idx, bool sorted)
+{
+  m_normalizer= time_normalizer::get(transaction_timer);
+
+  PFS_index_events_transactions *result;
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_events_transactions);
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_events_transactions_history::index_next(void)
+{
+  PFS_thread *pfs_thread;
+  PFS_events_transactions *transaction;
+  bool has_more_thread= true;
+
+  if (events_transactions_history_per_thread == 0)
+    return HA_ERR_END_OF_FILE;
+
+  for (m_pos.set_at(&m_next_pos);
+       has_more_thread;
+       m_pos.next_thread())
+  {
+    pfs_thread= global_thread_container.get(m_pos.m_index_1, &has_more_thread);
+    if (pfs_thread != NULL)
+    {
+      if (m_opened_index->match(pfs_thread))
+      {
+        do
+        {
+          if (m_pos.m_index_2 >= events_transactions_history_per_thread)
+          {
+            /* This thread does not have more (full) history */
+            break;
+          }
+
+          if (!pfs_thread->m_transactions_history_full &&
+              (m_pos.m_index_2 >= pfs_thread->m_transactions_history_index))
+          {
+            /* This thread does not have more (not full) history */
+            break;
+          }
+
+          transaction= &pfs_thread->m_transactions_history[m_pos.m_index_2];
+          if (transaction->m_class != NULL)
+          {
+            if (m_opened_index->match(transaction))
+            {
+              make_row(transaction);
+              if (m_row_exists)
+              {
+                m_next_pos.set_after(&m_pos);
+                return 0;
+              }
+            }
+            m_pos.set_after(&m_pos);
+          }
+        } while (transaction->m_class != NULL);
+      }
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
 }
 
 int table_events_transactions_history::delete_all_rows(void)

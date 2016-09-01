@@ -16,3 +16,6 @@ ALTER TABLE performance_schema.events_errors_summary_by_thread_by_error ADD INDE
 CREATE UNIQUE INDEX test_index
   ON performance_schema.events_errors_summary_by_thread_by_error(THREAD_ID);
 
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `THREAD_ID`
+  ON performance_schema.events_errors_summary_by_thread_by_error;

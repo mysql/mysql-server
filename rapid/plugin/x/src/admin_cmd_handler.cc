@@ -1126,10 +1126,10 @@ ngs::Error_code is_schema_selected_and_exists(xpl::Sql_data_context &da, const s
 const char* const COUNT_DOC = "COUNT(CASE WHEN (column_name = 'doc' "
                               "AND data_type = 'json') THEN 1 ELSE NULL END)";
 const char* const COUNT_ID = "COUNT(CASE WHEN (column_name = '_id' "
-                             "AND generation_expression = 'json_unquote(json_extract(`doc`,''$._id''))') THEN 1 ELSE NULL END)";
+                             "AND generation_expression = 'json_unquote(json_extract(`doc`,\\\\''$._id\\\\''))') THEN 1 ELSE NULL END)";
 const char* const COUNT_GEN = "COUNT(CASE WHEN (column_name != '_id' "
                               "AND generation_expression RLIKE '^(json_unquote[[.(.]])?json_extract[[.(.]]`doc`,"
-                              "''[[.$.]]([[...]][^[:space:][...]]+)+''[[.).]]{1,2}$') THEN 1 ELSE NULL END)";
+                              "[[.\\\\.]]''[[.$.]]([[...]][^[:space:][...]]+)+[[.\\\\.]]''[[.).]]{1,2}$') THEN 1 ELSE NULL END)";
 } // namespace
 
 
@@ -1154,18 +1154,18 @@ ngs::Error_code xpl::Admin_command_handler::list_objects(Command_arguments &args
     return error;
 
   Query_string_builder qb;
-  qb.put("SELECT C.table_name AS name, "
-    "IF(ANY_VALUE(T.table_type)='VIEW', 'VIEW', "
+  qb.put("SELECT T.table_name AS name, "
+    "IF(ANY_VALUE(T.table_type) LIKE '%VIEW', 'VIEW', "
     "IF(COUNT(*) = ").put(COUNT_DOC).put(" + ").put(COUNT_ID).put(" + ").put(COUNT_GEN).put(", 'COLLECTION', 'TABLE')) AS type "
-    "FROM information_schema.columns AS C LEFT JOIN information_schema.tables AS T USING (table_name)"
-    "WHERE C.table_schema = ");
+    "FROM information_schema.tables AS T LEFT JOIN information_schema.columns AS C USING (table_schema,table_name)"
+    "WHERE T.table_schema = ");
   if (schema.empty())
     qb.put("schema()");
   else
     qb.quote_string(schema);
   if (!pattern.empty())
-    qb.put(" AND C.table_name LIKE ").quote_string(pattern);
-  qb.put(" GROUP BY C.table_name ORDER BY C.table_name");
+    qb.put(" AND T.table_name LIKE ").quote_string(pattern);
+  qb.put(" GROUP BY T.table_name ORDER BY T.table_name");
 
   Sql_data_context::Result_info info;
   error = m_da.execute_sql_and_stream_results(qb.get(), false, info);

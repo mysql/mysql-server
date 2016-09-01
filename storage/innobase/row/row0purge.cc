@@ -813,7 +813,7 @@ skip_secondaries:
 				- BTR_EXTERN_FIELD_REF_SIZE;
 
 			lob::BtrContext	btr_ctx(
-				&mtr, NULL, index, NULL, NULL, NULL);
+				&mtr, NULL, index, NULL, NULL, block);
 
 			lob::DeleteContext ctx(btr_ctx,
 				field_ref, 0, false);

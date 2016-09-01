@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -64,6 +64,36 @@ C_MODE_START
 */
 enum get_opt_arg_type { NO_ARG, OPT_ARG, REQUIRED_ARG };
 
+/**
+  Enumeration of the my_option::arg_source.m_source attribute. This enum values
+  define how system variables are set. For example if a variable is set by
+  global option file /etc/my.cnf then my_option::arg_source.m_source
+  will be set to GLOBAL, or if a variable is set from command line then
+  my_option::arg_source.m_source will hold value as COMMAND_LINE.
+*/
+enum enum_variable_source
+{
+  COMPILED= 1,
+  GLOBAL,
+  SERVER,
+  EXPLICIT,
+  EXTRA,
+  MYSQL_USER,
+  LOGIN,
+  COMMAND_LINE,
+  PERSISTED,
+  DYNAMIC
+};
+
+struct get_opt_arg_source
+{
+  /**
+    config file path OR compiled default values
+  */
+  const char* m_name;
+  enum enum_variable_source m_source;
+};
+
 struct st_typelib;
 
 struct my_option
@@ -99,7 +129,8 @@ struct my_option
   longlong   def_value;                 /**< Default value */
   longlong   min_value;                 /**< Min allowed value (for numbers) */
   ulonglong  max_value;                 /**< Max allowed value (for numbers) */
-  longlong   sub_size;                  /**< Unused                          */
+  struct get_opt_arg_source *arg_source;/**< Represents source/path from where this
+                                             variable is set. */
   long       block_size;                /**< Value should be a mult. of this (for numbers) */
   void       *app_type;                 /**< To be used by an application */
 };
@@ -144,6 +175,8 @@ ulonglong max_of_int_range(int var_type);
 
 ulonglong getopt_double2ulonglong(double);
 double getopt_ulonglong2double(ulonglong);
+int findopt(char *, uint, const struct my_option **);
+
 
 C_MODE_END
 

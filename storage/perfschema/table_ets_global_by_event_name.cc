@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -136,6 +136,16 @@ table_ets_global_by_event_name::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_ets_global_by_event_name::match(PFS_instr_class *instr_class)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(instr_class))
+      return false;
+  }
+  return true;
+}
+
 PFS_engine_table*
 table_ets_global_by_event_name::create(void)
 {
@@ -210,6 +220,41 @@ table_ets_global_by_event_name::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
+int table_ets_global_by_event_name::index_init(uint idx, bool sorted)
+{
+  m_normalizer= time_normalizer::get(transaction_timer);
+
+  PFS_index_ets_global_by_event_name *result= NULL;
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_ets_global_by_event_name);
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_ets_global_by_event_name::index_next(void)
+{
+  PFS_transaction_class *transaction_class;
+
+  m_pos.set_at(&m_next_pos);
+
+  do
+  {
+    transaction_class= find_transaction_class(m_pos.m_index);
+    if (transaction_class)
+    {
+      if (m_opened_index->match(transaction_class))
+      {
+        make_row(transaction_class);
+        m_next_pos.set_after(&m_pos);
+        return 0;
+      }
+      m_pos.m_index++;
+    }
+  } while (transaction_class != NULL);
+
+  return HA_ERR_END_OF_FILE;
+}
 
 void table_ets_global_by_event_name
 ::make_row(PFS_transaction_class *klass)

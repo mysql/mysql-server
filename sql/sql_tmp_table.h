@@ -40,7 +40,7 @@ template<typename Element_type, bool has_trivial_destructor, typename Parent>
   class Mem_root_array;
 template <class T> class List;
 typedef struct st_columndef MI_COLUMNDEF;
-typedef struct st_key KEY;
+class KEY;
 typedef struct st_order ORDER;
 
 

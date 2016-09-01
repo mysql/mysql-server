@@ -52,6 +52,15 @@ public:
     const std::string &schema_name,
     const std::string &table_name) const = 0;
 
+  /**
+    Store metadata of plugin's information schema tables into
+    DD tables.
+
+    @return false - On success
+    @return true - On error
+  */
+  virtual bool install_plugin_IS_table_metadata() = 0;
+
 public:
   /////////////////////////////////////////////////////////////////////////
   // Auxiliary operations.
@@ -61,6 +70,8 @@ public:
     Check if the given schema name is 'mysql', which where
     the DD tables are stored.
 
+    @param schema_name    Schema name to check.
+
     @returns true - If schema_name is 'mysql'
     @returns false - If schema_name is not 'mysql'
   */
@@ -69,6 +80,9 @@ public:
   /**
     Check if given table name is a dictionary table name.
 
+    @param schema_name    Schema name to check.
+    @param table_name     Table name to check.
+
     @returns true -  If given table name is a dictionary table.
     @returns false - If table name is not a dictionary table.
   */
@@ -76,13 +90,32 @@ public:
                                 const std::string &table_name) const = 0;
 
   /**
+    Check if given table name can be accessed by the given thread type.
+
+    @param is_dd_internal_thread    'true' if this is a DD internal
+                                    thread.
+    @param is_ddl_statement         'true' if this is a DDL statement.
+    @param schema_name              Schema name to check.
+    @param schema_length            Length of schema name to check.
+    @param table_name               Table name to check.
+
+    @returns true -  If given table name is accessible by the thread type.
+    @returns false - If table name is not accessible.
+  */
+  virtual bool is_dd_table_access_allowed(bool is_dd_internal_thread,
+                                          bool is_ddl_statement,
+                                          const char *schema_name,
+                                          size_t schema_length,
+                                          const char *table_name) const= 0;
+
+  /**
     Check if given table name is a system view name.
 
     @returns true -  If given table name is a system view.
     @returns false - If table name is not a system view.
   */
-  virtual bool is_system_view_name(const std::string &schema_name,
-                                   const std::string &table_name) const = 0;
+  virtual bool is_system_view_name(const char *schema_name,
+                                   const char *table_name) const = 0;
 
 public:
   // Destructor to cleanup data dictionary instance upon server shutdown.
@@ -218,6 +251,45 @@ bool has_shared_tablespace_mdl(THD *thd,
 bool has_exclusive_tablespace_mdl(THD *thd,
                                   const char *tablespace_name);
 
+
+/**
+  Acquire exclusive metadata lock on the given table name with
+  explicit duration.
+
+  @param[in]  thd              THD to which lock belongs to.
+  @param[in]  schema_name      Schema name
+  @param[in]  table_name       Table name
+  @param[in]  no_wait          Use try_acquire_lock() if no_wait is true.
+                               else use acquire_lock() with
+                               thd->variables.lock_wait_timeout timeout value.
+  @param[out] out_mdl_ticket   A pointer to MDL_ticket upon successful lock
+                               attempt.
+*/
+
+bool acquire_exclusive_table_mdl(THD *thd,
+                                 const char *schema_name,
+                                 const char *table_name,
+                                 bool no_wait,
+                                 MDL_ticket **out_mdl_ticket);
+
+
+/**
+  Acquire exclusive metadata lock on the given schema name with
+  explicit duration.
+
+  @param[in]  thd              THD to which lock belongs to.
+  @param[in]  schema_name      Schema name
+  @param[in]  no_wait          Use try_acquire_lock() if no_wait is true.
+                               else use acquire_lock() with
+                               thd->variables.lock_wait_timeout timeout value.
+  @param[out] out_mdl_ticket   A pointer to MDL_ticket upon successful lock
+                               attempt.
+*/
+
+bool acquire_exclusive_schema_mdl(THD *thd,
+                                 const char *schema_name,
+                                 bool no_wait,
+                                 MDL_ticket **out_mdl_ticket);
 
 /**
   @brief

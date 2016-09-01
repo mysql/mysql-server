@@ -198,11 +198,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   struct _finddata_t find;
   ushort	mode;
   char		tmp_path[FN_REFLEN],*tmp_file,attrib;
-#ifdef _WIN64
   __int64       handle;
-#else
-  long		handle;
-#endif
   void          *rawmem= NULL;
 
   DBUG_ENTER("my_dir");

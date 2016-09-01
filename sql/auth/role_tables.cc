@@ -243,6 +243,14 @@ bool roles_init_from_tables(THD *thd)
     DBUG_RETURN(true);
   }
 
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
+  if (!acl_cache_lock.lock())
+  {
+    close_all_role_tables(thd);
+    DBUG_RETURN(true);
+  }
+
+
   if (!tablelst[0].table->key_info || !tablelst[1].table->key_info)
   {
     TABLE *table= ((!tablelst[0].table->key_info) ? tablelst[0].table :
@@ -252,7 +260,7 @@ bool roles_init_from_tables(THD *thd)
     close_all_role_tables(thd);
     DBUG_RETURN(true);
   }
-  mysql_mutex_lock(&acl_cache->lock);
+
   TABLE *table= tablelst[0].table;
   table->use_all_columns();
   if (init_read_record(&read_record_info, thd, table,
@@ -260,7 +268,6 @@ bool roles_init_from_tables(THD *thd)
   {
     my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
              table->s->table_name.str);
-    mysql_mutex_unlock(&acl_cache->lock);
     close_all_role_tables(thd);
     DBUG_RETURN(true);
   }
@@ -294,7 +301,6 @@ bool roles_init_from_tables(THD *thd)
                       to_user,
                       to_host);
       rebuild_vertex_index(thd);
-      mysql_mutex_unlock(&acl_cache->lock);
       end_read_record(&read_record_info);
       close_all_role_tables(thd);
       free_root(&tmp_mem, MYF(0));
@@ -313,7 +319,6 @@ bool roles_init_from_tables(THD *thd)
              table->s->table_name.str);
 
     rebuild_vertex_index(thd);
-    mysql_mutex_unlock(&acl_cache->lock);
     end_read_record(&read_record_info);
     close_all_role_tables(thd);
     free_root(&tmp_mem, MYF(0));
@@ -342,7 +347,6 @@ bool roles_init_from_tables(THD *thd)
   close_all_role_tables(thd);
   free_root(&tmp_mem, MYF(0));
   rebuild_vertex_index(thd);
-  mysql_mutex_unlock(&acl_cache->lock);
   DBUG_RETURN(false);
 }
 #endif

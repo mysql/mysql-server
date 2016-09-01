@@ -21,9 +21,8 @@
 #include "dd/impl/types/abstract_table_impl.h" // dd::Abstract_table_impl
 #include "dd/types/dictionary_object_table.h"  // dd::Dictionary_object_table
 #include "dd/types/view.h"                     // dd::View
+#include "dd/types/view_routine.h"             // dd::View_routine
 #include "dd/types/view_table.h"               // dd::View_table
-
-#include <memory>   // std::unique_ptr
 
 typedef struct charset_info_st CHARSET_INFO;
 
@@ -175,6 +174,15 @@ public:
   virtual const View_tables &tables() const
   { return m_tables; }
 
+  /////////////////////////////////////////////////////////////////////////
+  // View_routine collection.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual View_routine *add_routine();
+
+  virtual const View_routines &routines() const
+  { return m_routines; }
+
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()
   { return Weak_object_impl::impl(); }
@@ -229,9 +237,8 @@ private:
   std::string m_definer_user;
   std::string m_definer_host;
 
-  // Collections.
-
-  View_tables m_tables;
+  View_tables   m_tables;
+  View_routines m_routines;
 
   // References.
 

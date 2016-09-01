@@ -2281,7 +2281,7 @@ buf_LRU_block_remove_hashed(
 			const ulint	type = fil_page_get_type(frame);
 
 			if ((type == FIL_PAGE_INDEX || type == FIL_PAGE_RTREE)
-			    && page_is_leaf(frame) == 0) {
+			    && page_is_leaf(frame)) {
 
 				uint32_t	space_id = bpage->id.space();
 

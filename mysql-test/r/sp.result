@@ -2337,6 +2337,7 @@ call bug4726()|
 drop procedure bug4726|
 drop table t3|
 drop procedure if exists bug4902|
+set SQL_BIG_SELECTS=1|
 create procedure bug4902()
 begin
 show charset like 'foo';
@@ -3391,10 +3392,11 @@ drop function if exists bug10055|
 create function bug10055(v char(255)) returns char(255) return lower(v)|
 select t.column_name, bug10055(t.column_name)
 from information_schema.columns as t
-where t.table_schema = 'test' and t.table_name = 't1'|
-column_name	bug10055(t.column_name)
-id	id
+where t.table_schema = 'test' and t.table_name = 't1'
+order by t.column_name|
+COLUMN_NAME	bug10055(t.column_name)
 data	data
+id	id
 drop function bug10055|
 drop procedure if exists bug12297|
 create procedure bug12297(lim int)
@@ -4771,7 +4773,7 @@ create procedure bug18344_2() begin end|
 use test|
 select schema_name from information_schema.schemata where 
 schema_name like 'bug18344%'|
-schema_name
+SCHEMA_NAME
 bug18344_012345678901
 bug18344_0123456789012
 select routine_name,routine_schema from information_schema.routines where
@@ -4785,7 +4787,7 @@ drop database bug18344_012345678901|
 drop database bug18344_0123456789012|
 select schema_name from information_schema.schemata where 
 schema_name like 'bug18344%'|
-schema_name
+SCHEMA_NAME
 select routine_name,routine_schema from information_schema.routines where
 routine_schema like 'bug18344%'|
 routine_name	routine_schema
@@ -6403,10 +6405,10 @@ show create view test.v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test`.`v1` AS select 1 AS `one`,`f1`() AS `days`	latin1	latin1_swedish_ci
 select column_name from information_schema.columns
-where table_name='v1' and table_schema='test';
-column_name
-one
+where table_name='v1' and table_schema='test' order by column_name;
+COLUMN_NAME
 days
+one
 drop view v1;
 drop function f1;
 
@@ -6812,7 +6814,7 @@ CREATE VIEW v2 AS SELECT f2();
 
 SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v1';
 DATA_TYPE
-varchar
+text
 
 SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v2';
 DATA_TYPE

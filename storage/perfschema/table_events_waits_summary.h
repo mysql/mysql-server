@@ -46,6 +46,49 @@ struct row_events_waits_summary_by_instance
   PFS_stat_row m_stat;
 };
 
+class PFS_index_events_waits_summary_by_instance : public PFS_index_all_instr
+{
+public:
+  PFS_index_events_waits_summary_by_instance()
+    : PFS_index_all_instr(&m_key),
+    m_key("OBJECT_INSTANCE_BEGIN")
+  {}
+
+  ~PFS_index_events_waits_summary_by_instance()
+  {}
+
+  virtual bool match(PFS_mutex *pfs);
+  virtual bool match(PFS_rwlock *pfs);
+  virtual bool match(PFS_cond *pfs);
+  virtual bool match(PFS_file *pfs);
+  virtual bool match(PFS_socket *pfs);
+
+private:
+  PFS_key_object_instance m_key;
+};
+
+class PFS_index_events_waits_summary_by_event_name : public PFS_index_all_instr
+{
+public:
+  PFS_index_events_waits_summary_by_event_name()
+    : PFS_index_all_instr(&m_key),
+    m_key("EVENT_NAME")
+  {}
+
+  ~PFS_index_events_waits_summary_by_event_name()
+  {}
+
+  virtual bool match(PFS_mutex *pfs);
+  virtual bool match(PFS_rwlock *pfs);
+  virtual bool match(PFS_cond *pfs);
+  virtual bool match(PFS_file *pfs);
+  virtual bool match(PFS_socket *pfs);
+  virtual bool match_view(uint view);
+
+private:
+  PFS_key_event_name m_key;
+};
+
 /** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_INSTANCE. */
 class table_events_waits_summary_by_instance : public table_all_instr
 {
@@ -54,6 +97,7 @@ public:
   static PFS_engine_table_share m_share;
   static PFS_engine_table* create();
   static int delete_all_rows();
+  int index_init(uint idx, bool sorted);
 
 protected:
   void make_instr_row(PFS_instr *pfs, PFS_instr_class *klass,

@@ -80,6 +80,29 @@ table_setup_actors::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_setup_actors::match(PFS_setup_actor *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key_1.match(pfs))
+      return false;
+  }
+
+  if (m_fields >= 2)
+  {
+    if (!m_key_2.match(pfs))
+      return false;
+  }
+
+  if (m_fields >= 3)
+  {
+    if (!m_key_3.match(pfs))
+      return false;
+  }
+
+  return true;
+}
+
 PFS_engine_table* table_setup_actors::create()
 {
   return new table_setup_actors();
@@ -197,6 +220,43 @@ int table_setup_actors::rnd_pos(const void *pos)
   }
 
   return HA_ERR_RECORD_DELETED;
+}
+
+int table_setup_actors::index_init(uint idx, bool sorted)
+{
+  PFS_index_setup_actors *result= NULL;
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_setup_actors);
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_setup_actors::index_next()
+{
+  PFS_setup_actor *pfs;
+
+  m_pos.set_at(&m_next_pos);
+  PFS_setup_actor_iterator it= global_setup_actor_container.iterate(m_pos.m_index);
+
+  do
+  {
+    pfs= it.scan_next(&m_pos.m_index);
+    if (pfs != NULL)
+    {
+      if (m_opened_index->match(pfs))
+      {
+        make_row(pfs);
+        if (m_row_exists)
+        {
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
+      }
+    }
+  } while (pfs != NULL);
+
+  return HA_ERR_END_OF_FILE;
 }
 
 void table_setup_actors::make_row(PFS_setup_actor *pfs)

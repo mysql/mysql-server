@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,8 @@
 #include "dd/types/table.h"                   // Table
 #include "dd/types/tablespace.h"              // Tablespace
 #include "dd/types/view.h"                    // View
+#include "dd/types/table_stat.h"              // Table_stat
+#include "dd/types/index_stat.h"              // Index_stat
 #include "dd/types/dictionary_object.h"       // Dictionary_object
 #include "dd/types/dictionary_object_table.h" // Dictionary_object_table
 #include "dd/impl/bootstrapper.h"             // bootstrap::stage
@@ -51,6 +53,24 @@ Storage_adapter* Storage_adapter::fake_instance()
 }
 
 bool Storage_adapter::s_use_fake_storage= false;
+
+template <>
+bool Storage_adapter::fake_get
+                (THD *, const Table_stat::name_key_type &k, const Table_stat **o)
+{ return false; }
+
+template <>
+bool Storage_adapter::fake_get
+                (THD *, const Index_stat::name_key_type &k, const Index_stat **o)
+{ return false; }
+
+template <>
+bool Storage_adapter::fake_drop(THD *thd, const Table_stat *object)
+{ return false; }
+
+template <>
+bool Storage_adapter::fake_drop(THD *thd, const Index_stat *object)
+{ return false; }
 #endif
 
 // Get a dictionary object from persistent storage.
@@ -299,6 +319,17 @@ template bool Storage_adapter::get<Tablespace::aux_key_type, Tablespace>
         enum_tx_isolation, const Tablespace **);
 template bool Storage_adapter::drop(THD *, const Tablespace*);
 template bool Storage_adapter::store(THD *, Tablespace*);
+
+template bool Storage_adapter::get<Table_stat::name_key_type, Table_stat>
+                (THD *, const Table_stat::name_key_type &,
+                 enum_tx_isolation, const Table_stat **);
+template bool Storage_adapter::store(THD *, Table_stat*);
+template bool Storage_adapter::drop(THD *, const Table_stat*);
+template bool Storage_adapter::get<Index_stat::name_key_type, Index_stat>
+                (THD *, const Index_stat::name_key_type &,
+                 enum_tx_isolation, const Index_stat **);
+template bool Storage_adapter::store(THD *, Index_stat*);
+template bool Storage_adapter::drop(THD *, const Index_stat*);
 
 } // namespace cache
 } // namespace dd

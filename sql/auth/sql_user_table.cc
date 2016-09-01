@@ -35,8 +35,10 @@
 #include "tztime.h"
 #include "sql_time.h"
 #include "crypt_genhash_impl.h"         /* CRYPT_MAX_PASSWORD_SIZE */
-#include "item_func.h"          // mqh_used
-#include "sql_update.h"         // compare_records
+#include "item_func.h"                  /* mqh_used */
+#include "sql_update.h"                 /* compare_records */
+#include "binlog.h"                     /* mysql_bin_log.is_open() */
+#include "sql_table.h"                  /* write_bin_log */
 
 static const
 TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
@@ -239,6 +241,31 @@ ulong get_access(TABLE *form, uint fieldnr, uint *next_field)
 
 
 /**
+
+  Notify handlerton(s) that privileges have changed
+
+  Interested handlertons may use this notification to update
+  its own privilege structures as well as propagating
+  the changing query to other destinations.
+
+*/
+
+static
+void acl_notify_htons(THD* thd, const char* query, size_t query_length)
+{
+  DBUG_ENTER("acl_notify_htons");
+  DBUG_PRINT("enter", ("db: %s", thd->db().str));
+  DBUG_PRINT("enter", ("query: '%s', length: %zu", query, query_length));
+
+  ha_binlog_log_query(thd, NULL, LOGCOM_ACL_NOTIFY,
+                      query, query_length,
+                      thd->db().str, "");
+  DBUG_VOID_RETURN;
+}
+
+
+
+/**
   Commit or rollback ACL statement (and transaction),
   close tables which it has opened and release metadata locks.
 
@@ -249,7 +276,10 @@ ulong get_access(TABLE *form, uint fieldnr, uint *next_field)
   @retval True  - Error.
 */
 
-bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction)
+static
+bool acl_end_trans_and_close_tables(THD *thd,
+                                    bool rollback_transaction,
+                                    bool notify_htons)
 {
   bool result;
 
@@ -304,30 +334,191 @@ bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction)
     (void) grant_reload(thd);
     (void) roles_init_from_tables(thd);
   }
+  else if (notify_htons)
+  {
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
+  }
 
   return result;
 }
 
+/*
+  Helper function for rewriting query
 
-/**
-  Notify handlerton(s) that privileges have changed
-
-  Interested handlertons may use this notification to update
-  its own privilege structures as well as propagating
-  the changing query to other destinations.
-
+  @param thd          Handle to THD object
+  @param extra_user   Users which were not proccessed by ddl
+  @param for_binlog   Purpose of rewriting the query
 */
 
-void acl_notify_htons(THD* thd, const char* query, size_t query_length)
+static
+void rewrite_acl_ddl(THD *thd,
+                     std::set<LEX_USER *> *extra_users,
+                     bool for_binlog)
 {
-  DBUG_ENTER("acl_notify_htons");
-  DBUG_PRINT("enter", ("db: %s", thd->db().str));
-  DBUG_PRINT("enter", ("query: '%s', length: %zu", query, query_length));
+  DBUG_ENTER("rewrite_acl_ddl");
+  DBUG_ASSERT(thd);
+  String * rlb= NULL;
 
-  ha_binlog_log_query(thd, NULL, LOGCOM_ACL_NOTIFY,
-                      query, query_length,
-                      thd->db().str, "");
+  enum_sql_command command= thd->lex->sql_command;
+  /*rewrite the query */
+  rlb= &thd->rewritten_query;
+  switch (command)
+  {
+    case SQLCOM_CREATE_USER:
+    case SQLCOM_ALTER_USER:
+      rlb->mem_free();
+      mysql_rewrite_create_alter_user(thd, rlb, extra_users, for_binlog);
+      break;
+    case SQLCOM_GRANT:
+      rlb->mem_free();
+      mysql_rewrite_grant(thd, rlb);
+      break;
+    case SQLCOM_SET_PASSWORD:
+      rlb->mem_free();
+      mysql_rewrite_set_password(thd, rlb, extra_users, for_binlog);
+      break;
+    /*
+      We don't attempt to rewrite any of the following because they do
+      not contain credential information.
+    */
+    case SQLCOM_DROP_USER:
+    case SQLCOM_REVOKE_ALL:
+    case SQLCOM_REVOKE:
+    case SQLCOM_RENAME_USER:
+    case SQLCOM_CREATE_ROLE:
+    case SQLCOM_DROP_ROLE:
+    case SQLCOM_GRANT_ROLE:
+    case SQLCOM_REVOKE_ROLE:
+    case SQLCOM_ALTER_USER_DEFAULT_ROLE:
+    case SQLCOM_CREATE_SPFUNCTION:
+    case SQLCOM_CREATE_PROCEDURE:
+    case SQLCOM_CREATE_FUNCTION:
+    case SQLCOM_DROP_PROCEDURE:
+    case SQLCOM_DROP_FUNCTION:
+      break;
+    default:
+      DBUG_ASSERT(false);
+      break;
+  }
   DBUG_VOID_RETURN;
+}
+
+
+/*
+  Function to handle rewriting and bin logging of ACL ddl.
+  Assumption : Error if any has already been raised.
+
+  Effect : In case of rollback, acl caches will be reloaded.
+
+  @param thd                    Handle to THD object.
+                                Requried for query rewriting
+  @param transactional_table    Nature of ACL tables
+  @param extra_users            Users which were not processed
+  @param extra error            Used in cases where error handler
+                                is suppressed.
+  @param write_to_binlog        Skip writing to binlog.
+                                Used for routine grants while
+                                creating routine.
+  @param notify_htons           Should hton be notified or not
+
+  @returns status of log and commit
+    @retval 0 Successfully committed. Optionally : written to binlog.
+    @retval 1 If an error is raised at any stage
+*/
+
+bool log_and_commit_acl_ddl(THD *thd,
+                            bool transactional_tables,
+                            std::set<LEX_USER *> *extra_users, /* = NULL */
+                            bool extra_error, /* = true */
+                            bool write_to_binlog, /* = true */
+                            bool notify_htons) /* = true */
+{
+  bool result= false;
+  LEX_CSTRING query;
+  enum_sql_command command;
+  size_t num_extra_users= extra_users ? extra_users->size() : 0;
+  DBUG_ENTER("logn_ddl_to_binlog");
+
+  DBUG_ASSERT(thd);
+  result= thd->is_error() || extra_error || thd->transaction_rollback_request;
+
+  if (!result)
+    rewrite_acl_ddl(thd, extra_users, true);
+
+  /* Write to binlog only if there is no error */
+  if (write_to_binlog && !result)
+  {
+    command= thd->lex->sql_command;
+    if (mysql_bin_log.is_open())
+    {
+      query.str= thd->rewritten_query.length() ?
+        thd->rewritten_query.c_ptr_safe() :
+        thd->query().str;
+
+      query.length= thd->rewritten_query.length() ?
+        thd->rewritten_query.length() :
+        thd->query().length;
+
+      /* Write to binary log */
+      result= (write_bin_log(thd, false,
+                           query.str, query.length,
+                           transactional_tables) != 0) ? true : false;
+
+
+      /*
+        Log warning about extra users in case of
+        CREATE USER IF NOT EXISTS/ALTER USER IF EXISTS
+      */
+      if ((command == SQLCOM_CREATE_USER || command == SQLCOM_ALTER_USER) &&
+          !result && num_extra_users)
+      {
+        String warn_user;
+        bool comma= false;
+        bool log_warning= false;
+        for (LEX_USER * extra_user : *extra_users)
+        {
+          /*
+            Consider for warning if one of the following is true:
+            1. If SQLCOM_CREATE_USER, IDENTIFIED WITH clause is not used
+            2. If SQLCOM_ALTER_USER, IDENTIFIED WITH cluase is not used
+            but IDENTIFIED BY/IDENTIFIED BY PASSWORD is used.
+          */
+          if (!extra_user->uses_identified_with_clause &&
+            (command == SQLCOM_CREATE_USER ||
+             extra_user->uses_identified_by_clause ||
+             extra_user->uses_identified_by_password_clause))
+          {
+            append_user(thd, &warn_user, extra_user, comma, false);
+            comma= true;
+            log_warning= true;
+          }
+        }
+        if (log_warning)
+          sql_print_warning("Following users were specified in %s but they "
+                            "%s. Corresponding entry in binary log used default "
+                            "authentication plugin '%s' to rewrite authentication "
+                            "information(if any) for them: %s",
+                            command == SQLCOM_CREATE_USER ?
+                            "CREATE USER IF NOT EXISTS" :
+                            "ALTER USER IF EXISTS",
+                            command == SQLCOM_CREATE_USER ?
+                            "already exist" : "do not exist",
+                            default_auth_plugin_name.str,
+                            warn_user.c_ptr_safe());
+
+        warn_user.mem_free();
+      }
+    }
+
+    /* rewrite for general log only if there were extra users */
+    if (num_extra_users)
+      rewrite_acl_ddl(thd, extra_users, false);
+  }
+
+  if (acl_end_trans_and_close_tables(thd, result, notify_htons))
+    result= 1;
+
+  DBUG_RETURN(result);
 }
 
 
@@ -480,8 +671,8 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
   struct timeval password_change_timestamp= {0, 0};
   DBUG_ENTER("replace_user_table");
 
-  mysql_mutex_assert_owner(&acl_cache->lock);
-  
+  DBUG_ASSERT(assert_acl_cache_write_lock(thd));
+
   if (!table->key_info)
   {
     my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
@@ -530,6 +721,13 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
       goto end;
     }
 
+    if (thd->lex->sql_command == SQLCOM_ALTER_USER)
+    {
+      /* Entry should have existsed since this is ALTER USER */
+      error= 1;
+      goto end;
+    }
+
     optimize_plugin_compare_by_pointer(&combo->plugin);
     builtin_plugin= auth_plugin_is_built_in(combo->plugin.str);
 
@@ -573,6 +771,16 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
      */
 
     old_row_exists = 1;
+
+    /* Check if there is such a user in user table in memory? */
+
+    if (!find_acl_user(combo->host.str,combo->user.str, FALSE))
+    {
+      my_error(ER_PASSWORD_NO_MATCH, MYF(0));
+      error= -1;
+      goto end;
+    }
+
     store_record(table,record[1]);			// Save copy for update
 
     /* 1. resolve plugins in the LEX_USER struct if needed */
@@ -861,7 +1069,7 @@ end:
         (my_time_t)password_change_timestamp.tv_sec);
     else
       password_change_time.time_type= MYSQL_TIMESTAMP_ERROR;
-    acl_cache->clear(1);			// Clear privilege cache
+    clear_and_init_db_cache();			// Clear privilege cache
     if (old_row_exists)
       acl_update_user(combo->user.str, combo->host.str,
 		      lex->ssl_type,
@@ -1035,7 +1243,7 @@ int replace_db_table(TABLE *table, const char *db,
     }
   }
 
-  acl_cache->clear(1);                          // Clear privilege cache
+  clear_and_init_db_cache();             // Clear privilege cache
   if (old_row_exists)
     acl_update_db(combo.user.str,combo.host.str,db,rights);
   else
@@ -1195,7 +1403,7 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
     }
   }
 
-  acl_cache->clear(1);                          // Clear privilege cache
+  clear_and_init_db_cache();             // Clear privilege cache
   if (old_row_exists)
   {
     new_grant.init(user->host.str, user->user.str,
@@ -1878,19 +2086,11 @@ table_error:
   Open the grant tables.
 
   @param          thd                   The current thread.
-  @param[in,out]  tables                Array of GRANT_TABLES table list elements
+  @param[in,out]  tables                Array of ACL_TABLES::LAST_ENTRY
+                                        table list elements
                                         which will be used for opening tables.
   @param[out]     transactional_tables  Set to true if one of grant tables is
                                         transactional, false otherwise.
-
-  @note
-    Tables are numbered as follows:
-    0 user
-    1 db
-    2 tables_priv
-    3 columns_priv
-    4 procs_priv
-    5 proxies_priv
 
   @retval  1    Skip GRANT handling during replication.
   @retval  0    OK.
@@ -1921,34 +2121,34 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables)
                          C_STRING_WITH_LEN("user"), "user",
                          TL_WRITE, MDL_SHARED_NO_READ_WRITE);
 
-  (tables + 1)->init_one_table(C_STRING_WITH_LEN("mysql"),
+  (tables + ACL_TABLES::TABLE_DB)->init_one_table(C_STRING_WITH_LEN("mysql"),
                                C_STRING_WITH_LEN("db"), "db",
                                TL_WRITE, MDL_SHARED_NO_READ_WRITE);
 
-  (tables + 2)->init_one_table(C_STRING_WITH_LEN("mysql"),
+  (tables + ACL_TABLES::TABLE_TABLES_PRIV)->init_one_table(C_STRING_WITH_LEN("mysql"),
                                C_STRING_WITH_LEN("tables_priv"),
                                "tables_priv",
                                TL_WRITE, MDL_SHARED_NO_READ_WRITE);
 
-  (tables + 3)->init_one_table(C_STRING_WITH_LEN("mysql"),
+  (tables + ACL_TABLES::TABLE_COLUMNS_PRIV)->init_one_table(C_STRING_WITH_LEN("mysql"),
                                C_STRING_WITH_LEN("columns_priv"),
                                "columns_priv",
                                TL_WRITE, MDL_SHARED_NO_READ_WRITE);
 
-  (tables + 4)->init_one_table(C_STRING_WITH_LEN("mysql"),
+  (tables + ACL_TABLES::TABLE_PROCS_PRIV)->init_one_table(C_STRING_WITH_LEN("mysql"),
                                C_STRING_WITH_LEN("procs_priv"),
                                "procs_priv",
                                TL_WRITE, MDL_SHARED_NO_READ_WRITE);
 
-  (tables + 5)->init_one_table(C_STRING_WITH_LEN("mysql"),
+  (tables + ACL_TABLES::TABLE_PROXIES_PRIV)->init_one_table(C_STRING_WITH_LEN("mysql"),
                                C_STRING_WITH_LEN("proxies_priv"),
                                "proxies_priv",
                                TL_WRITE, MDL_SHARED_NO_READ_WRITE);
-  (tables + 6)->init_one_table(C_STRING_WITH_LEN("mysql"),
+  (tables + ACL_TABLES::TABLE_ROLE_EDGES)->init_one_table(C_STRING_WITH_LEN("mysql"),
                                C_STRING_WITH_LEN("role_edges"),
                                "role_edges",
                                TL_WRITE, MDL_SHARED_NO_READ_WRITE);
-  (tables + 7)->init_one_table(C_STRING_WITH_LEN("mysql"),
+  (tables + ACL_TABLES::TABLE_DEFAULT_ROLES)->init_one_table(C_STRING_WITH_LEN("mysql"),
                                C_STRING_WITH_LEN("default_roles"),
                                "default_roles",
                                TL_WRITE, MDL_SHARED_NO_READ_WRITE);
@@ -1972,15 +2172,26 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables)
       The tables must be marked "updating" so that tables_ok() takes them into
       account in tests.
     */
-    tables[0].updating= tables[1].updating= tables[2].updating=
-      tables[3].updating= tables[4].updating= tables[5].updating=
-      tables[6].updating= tables[7].updating= 1;
+    tables[ACL_TABLES::TABLE_USER].updating=
+      tables[ACL_TABLES::TABLE_DB].updating=
+      tables[ACL_TABLES::TABLE_TABLES_PRIV].updating=
+      tables[ACL_TABLES::TABLE_COLUMNS_PRIV].updating=
+      tables[ACL_TABLES::TABLE_PROCS_PRIV].updating=
+      tables[ACL_TABLES::TABLE_PROXIES_PRIV].updating=
+      tables[ACL_TABLES::TABLE_ROLE_EDGES].updating=
+      tables[ACL_TABLES::TABLE_DEFAULT_ROLES].updating= 1;
     
     if (!(thd->sp_runtime_ctx || rpl_filter->tables_ok(0, tables)))
       DBUG_RETURN(1);
-    tables[0].updating= tables[1].updating= tables[2].updating=
-      tables[3].updating= tables[4].updating= tables[5].updating=
-      tables[6].updating= tables[7].updating= 0;
+
+    tables[ACL_TABLES::TABLE_USER].updating=
+      tables[ACL_TABLES::TABLE_DB].updating=
+      tables[ACL_TABLES::TABLE_TABLES_PRIV].updating=
+      tables[ACL_TABLES::TABLE_COLUMNS_PRIV].updating=
+      tables[ACL_TABLES::TABLE_PROCS_PRIV].updating=
+      tables[ACL_TABLES::TABLE_PROXIES_PRIV].updating=
+      tables[ACL_TABLES::TABLE_ROLE_EDGES].updating=
+      tables[ACL_TABLES::TABLE_DEFAULT_ROLES].updating= 0;
   }
 #endif
 
@@ -1992,7 +2203,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables)
   if (check_acl_tables(tables, true))
     DBUG_RETURN(-1);
 
-  for (uint i= 0; i < GRANT_TABLES; ++i)
+  for (uint i= 0; i < ACL_TABLES::LAST_ENTRY; ++i)
     *transactional_tables= (*transactional_tables ||
                             (tables[i].table &&
                              tables[i].table->file->has_transactions()));
@@ -2080,21 +2291,13 @@ static int modify_grant_table(TABLE *table, Field *host_field,
   Update in grant table if drop is false and user_to is not NULL.
   Search in grant table if drop is false and user_to is NULL.
 
-  @note
-  Tables are numbered as follows:
-  0 user
-  1 db
-  2 tables_priv
-  3 columns_priv
-  4 procs_priv
-
   @return  Operation result
     @retval  0    OK, but no record matched.
     @retval  < 0  Error.
     @retval  > 0  At least one record matched.
 */
 
-int handle_grant_table(THD *thd, TABLE_LIST *tables, uint table_no, bool drop,
+int handle_grant_table(THD *thd, TABLE_LIST *tables, ACL_TABLES table_no, bool drop,
                        LEX_USER *user_from, LEX_USER *user_to)
 {
   int result= 0;

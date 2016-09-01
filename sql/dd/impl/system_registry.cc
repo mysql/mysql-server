@@ -28,6 +28,7 @@
 #include "dd/impl/tables/foreign_keys.h"             // Foreign_keys
 #include "dd/impl/tables/index_column_usage.h"       // Index_column_usage
 #include "dd/impl/tables/index_partitions.h"         // Index_partitions
+#include "dd/impl/tables/index_stats.h"              // Index_stats
 #include "dd/impl/tables/indexes.h"                  // Indexes
 #include "dd/impl/tables/parameters.h"               // Parameters
 #include "dd/impl/tables/parameter_type_elements.h"  // Parameter_type_elements
@@ -36,10 +37,13 @@
 #include "dd/impl/tables/spatial_reference_systems.h"// Spatial_reference_systems
 #include "dd/impl/tables/table_partition_values.h"   // Table_partition_values
 #include "dd/impl/tables/table_partitions.h"         // Table_partitions
+#include "dd/impl/tables/table_stats.h"              // Table_stats
 #include "dd/impl/tables/tables.h"                   // Tables
 #include "dd/impl/tables/tablespace_files.h"         // Tablespace_files
 #include "dd/impl/tables/tablespaces.h"              // Tablespaces
+#include "dd/impl/tables/triggers.h"                 // Triggers
 #include "dd/impl/tables/version.h"                  // Version
+#include "dd/impl/tables/view_routine_usage.h"       // View_routine_usage
 #include "dd/impl/tables/view_table_usage.h"         // View_table_usage
 
 using namespace dd::tables;
@@ -92,6 +96,7 @@ void System_tables::init()
   register_system_table<Spatial_reference_systems>();
   register_system_table<Tables>();
   register_system_table<View_table_usage>();
+  register_system_table<View_routine_usage>();
   register_system_table<Columns>();
   register_system_table<Indexes>();
   register_system_table<Index_column_usage>();
@@ -101,10 +106,13 @@ void System_tables::init()
   register_system_table<Table_partitions>();
   register_system_table<Table_partition_values>();
   register_system_table<Index_partitions>();
+  register_system_table<Table_stats>();
+  register_system_table<Index_stats>();
   register_system_table<Events>();
   register_system_table<Routines>();
   register_system_table<Parameters>();
   register_system_table<Parameter_type_elements>();
+  register_system_table<Triggers>();
 }
 
 void System_views::init()
@@ -115,61 +123,17 @@ void System_views::init()
     "COLLATIONS",
     "COLLATION_CHARACTER_SET_APPLICABILITY",
     "COLUMNS",
-    "COLUMN_PRIVILEGES",
-    "ENGINES",
-    "EVENTS",
-    "FILES",
-    "GLOBAL_STATUS",
-    "SESSION_STATUS",
-    "GLOBAL_VARIABLES",
-    "SESSION_VARIABLES",
     "KEY_COLUMN_USAGE",
-    "OPTIMIZER_TRACE",
-    "PARAMETERS",
-    "PARTITIONS",
-    "PLUGINS",
-    "PROCESSLIST",
-    "PROFILING",
-    "REFERENTIAL_CONSTRAINTS",
-    "ROUTINES",
     "SCHEMATA",
-    "SCHEMA_PRIVILEGES",
+    "SHOW_STATISTICS",
+    "SHOW_STATISTICS_DYNAMIC",
+    "STATISTICS_BASE",
+    "STATISTICS_DYNAMIC",
     "STATISTICS",
-    "TABLES",
-    "TABLESPACES",
     "TABLE_CONSTRAINTS",
-    "TABLE_PRIVILEGES",
-    "TRIGGERS",
-    "USER_PRIVILEGES",
+    "TABLES",
+    "TABLES_DYNAMIC",
     "VIEWS",
-    "INNODB_CMP",
-    "INNODB_CMP_RESET",
-    "INNODB_CMP_PER_INDEX",
-    "INNODB_CMPMEM",
-    "INNODB_CMPMEM_RESET",
-    "INNODB_TRX",
-    "INNODB_LOCKS",
-    "INNODB_LOCK_WAITS",
-    "INNODB_SYS_TABLES",
-    "INNODB_SYS_INDEXES",
-    "INNODB_SYS_COLUMNS",
-    "INNODB_SYS_FIELDS",
-    "INNODB_SYS_FOREIGN",
-    "INNODB_SYS_FOREIGN_COLS",
-    "INNODB_SYS_TABLESTATS",
-    "INNODB_SYS_DATAFILES",
-    "INNODB_SYS_TABLESPACES",
-    "INNODB_BUFFER_PAGE",
-    "INNODB_BUFFER_PAGE_LRU",
-    "INNODB_BUFFER_POOL_STATS",
-    "INNODB_METRICS",
-    "INNODB_FT_CONFIG",
-    "INNODB_FT_DEFAULT_STOPWORD",
-    "INNODB_FT_INDEX_TABLE",
-    "INNODB_FT_INDEX_CACHE",
-    "INNODB_FT_DELETED",
-    "INNODB_FT_BEING_DELETED",
-    "INNODB_TEMP_TABLE_INFO",
     nullptr
   };
   for (int i= 0; system_view_names[i] != NULL; ++i)

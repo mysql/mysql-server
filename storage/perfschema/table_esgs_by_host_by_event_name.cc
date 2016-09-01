@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -91,6 +91,26 @@ table_esgs_by_host_by_event_name::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_esgs_by_host_by_event_name::match(PFS_host *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key_1.match(pfs))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_esgs_by_host_by_event_name::match(PFS_instr_class *instr_class)
+{
+  if (m_fields >= 2)
+  {
+    if (!m_key_2.match(instr_class))
+      return false;
+  }
+  return true;
+}
+
 PFS_engine_table*
 table_esgs_by_host_by_event_name::create(void)
 {
@@ -177,6 +197,54 @@ table_esgs_by_host_by_event_name::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
+int table_esgs_by_host_by_event_name::index_init(uint idx, bool sorted)
+{
+  m_normalizer= time_normalizer::get(stage_timer);
+
+  PFS_index_esgs_by_host_by_event_name *result= NULL;
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_esgs_by_host_by_event_name);
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_esgs_by_host_by_event_name::index_next(void)
+{
+  PFS_host *host;
+  PFS_stage_class *stage_class;
+  bool has_more_host= true;
+
+  for (m_pos.set_at(&m_next_pos);
+       has_more_host;
+       m_pos.next_host())
+  {
+    host= global_host_container.get(m_pos.m_index_1, & has_more_host);
+    if (host != NULL)
+    {
+      if (m_opened_index->match(host))
+      {
+        do
+        {
+          stage_class= find_stage_class(m_pos.m_index_2);
+          if (stage_class)
+          {
+            if (m_opened_index->match(stage_class))
+            {
+              make_row(host, stage_class);
+              m_next_pos.set_after(&m_pos);
+              return 0;
+            }
+            m_pos.m_index_2++;
+          }
+        } while (stage_class != NULL);
+      }
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
+}
+
 void table_esgs_by_host_by_event_name
 ::make_row(PFS_host *host, PFS_stage_class *klass)
 {
@@ -238,4 +306,3 @@ int table_esgs_by_host_by_event_name
 
   return 0;
 }
-

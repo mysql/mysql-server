@@ -107,6 +107,9 @@ VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9,@col_10);
 dec $i;
 }
 
+ANALYZE TABLE tab5;
+ANALYZE TABLE tab6;
+
 -- echo #diff the sizes of the No compressed table and high compressed table
 SET @size=(SELECT 
 (SELECT (SUM(DATA_LENGTH+INDEX_LENGTH)/1024/1024) 

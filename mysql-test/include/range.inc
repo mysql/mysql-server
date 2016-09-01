@@ -2398,4 +2398,44 @@ SET range_optimizer_max_mem_size= @orig_range_optimizer_max_mem_size;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug #23623110: REFACTOR USE_COUNT IN THE RANGE OPTIMIZER
+--echo #
+--echo # Tests deleting nodes in tree_delete() not from the end of the
+--echo # linked list.
+--echo #
+
+CREATE TABLE t1 (
+ pk INTEGER,
+ PRIMARY KEY (pk)
+);
+
+SELECT * FROM t1 WHERE pk IN (3, 8) OR pk NOT IN (2);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #23623110: REFACTOR USE_COUNT IN THE RANGE OPTIMIZER
+--echo #
+--echo # Tests deleting nodes in tree_delete() not from the end of the
+--echo # linked list.
+--echo #
+--echo # Indirectly tests ORing with a tree that has a nonzero refcount,
+--echo # where nodes are also being skipped over. (There was a bug in
+--echo # refcounting such trees earlier.)
+--echo #
+
+CREATE TABLE t1 (
+ col_int_key int,
+ pk int NOT NULL,
+ col_int int,
+ KEY test_idx (pk,col_int_key,col_int)
+);
+
+SELECT * FROM t1 WHERE
+    (col_int_key >= 6 AND pk > 6) OR
+    (pk > 2 AND col_int_key = 7 AND col_int > 6);
+
+DROP TABLE t1;
+
+--echo #
 

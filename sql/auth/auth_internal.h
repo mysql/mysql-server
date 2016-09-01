@@ -81,15 +81,7 @@ std::string create_authid_str_from(const LEX_CSTRING &user,
 std::string create_authid_str_from(const Auth_id_ref &user);
 Auth_id_ref create_authid_from(const LEX_USER *user);
 Auth_id_ref create_authid_from(const ACL_USER *user);
-/**
-  Wrapper class which simplifies read guard usage for LOCK_grant.
-*/
-class LOCK_grant_read_guard : public Partitioned_rwlock_read_guard
-{
-public:
-  explicit LOCK_grant_read_guard(THD *thd);
-  LOCK_grant_read_guard(unsigned long id);
-};
+
 #endif
 
 /* sql_authentication */
@@ -104,6 +96,8 @@ get_cached_table_access(GRANT_INTERNAL_INFO *grant_internal_info,
 
 /* sql_auth_cache */
 ulong get_sort(uint count,...);
+bool assert_acl_cache_read_lock(THD *thd);
+bool assert_acl_cache_write_lock(THD *thd);
 
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -153,11 +147,10 @@ void acl_insert_db(const char *user, const char *host, const char *db,
                    ulong privileges);
 bool update_sctx_cache(Security_context *sctx, ACL_USER *acl_user_ptr,
                        bool expired);
+void clear_and_init_db_cache();
 
 /* sql_user_table */
 ulong get_access(TABLE *form,uint fieldnr, uint *next_field);
-bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction);
-void acl_notify_htons(THD* thd, const char* query, size_t query_length);
 int replace_db_table(TABLE *table, const char *db,
                      const LEX_USER &combo,
                      ulong rights, bool revoke_grant);
@@ -182,8 +175,6 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
                           const char *db, const char *routine_name,
                           bool is_proc, ulong rights, bool revoke_grant);
 int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables);
-int handle_grant_table(THD *thd, TABLE_LIST *tables, uint table_no, bool drop,
-                       LEX_USER *user_from, LEX_USER *user_to);
 int replace_roles_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
                              const LEX_USER *role,
                              bool with_grant_arg,
@@ -191,6 +182,12 @@ int replace_roles_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
 
 void acl_print_ha_error(int handler_error);
 bool check_acl_tables(TABLE_LIST *tables, bool report_error);
+bool log_and_commit_acl_ddl(THD *thd,
+                            bool transactional_tables,
+                            std::set<LEX_USER *> *extra_users= NULL,
+                            bool extra_error= false,
+                            bool log_to_binlog= true,
+                            bool notify_htons= true);
 /* sql_authorization */
 bool is_privileged_user_for_credential_change(THD *thd);
 void rebuild_vertex_index(THD *thd);

@@ -12688,11 +12688,17 @@ a	b
 2	NULL
 DROP TABLE t1;
 CREATE TABLE t1(a INT, b BLOB) ENGINE=archive;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
 SELECT DATA_LENGTH, AVG_ROW_LENGTH FROM
 INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1' AND TABLE_SCHEMA='test';
 DATA_LENGTH	AVG_ROW_LENGTH
 88	15
 INSERT INTO t1 VALUES(1, 'sampleblob1'),(2, 'sampleblob2');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
 SELECT DATA_LENGTH, AVG_ROW_LENGTH FROM
 INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1' AND TABLE_SCHEMA='test';
 DATA_LENGTH	AVG_ROW_LENGTH

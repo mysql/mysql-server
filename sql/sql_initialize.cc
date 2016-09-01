@@ -254,8 +254,6 @@ void Compiled_in_command_iterator::end(void)
   If it exists, is empty and the process can write into it
   no action is taken and the directory is accepted.
   Otherwise an error is thrown.
-  "Empty" means no files other than the ones starting with "."
-  or in the --ignore-db list.
 
   @param  data_home  the normalized path to the data directory
   @return status
@@ -286,8 +284,7 @@ bool initialize_create_data_directory(const char *data_home)
     for (uint i=0; i < dir->number_off_files; i++)
     {
       FILEINFO *file= dir->dir_entry + i;
-      if (file->name[0] != '.' &&
-          !is_in_ignore_db_dirs_list(file->name))
+      if (file->name[0] != '.')
       {
         no_files= false;
         break;

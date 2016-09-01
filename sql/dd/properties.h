@@ -28,6 +28,8 @@ typedef struct st_mem_root MEM_ROOT;
 
 namespace dd {
 
+class Properties;
+
 ///////////////////////////////////////////////////////////////////////////
 
 
@@ -77,6 +79,10 @@ namespace dd {
 
 class Properties
 {
+public:
+  // A wrapper for Properties_impl::parse_properties()
+  static Properties *parse_properties(const std::string &raw_properties);
+
 public:
   typedef std::map<std::string, std::string> Map;
   typedef std::map<std::string, std::string>::size_type size_type;

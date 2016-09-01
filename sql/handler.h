@@ -25,6 +25,7 @@
 #include "ft_global.h"         // ft_hints
 #include "my_thread_local.h"   // my_errno
 #include "thr_lock.h"          // thr_lock_type
+#include "dd/object_id.h"      // dd::Object_id
 #include "discrete_interval.h" // Discrete_interval
 #include "key.h"               // KEY
 #include "sql_bitmap.h"        // Key_map
@@ -80,6 +81,8 @@ typedef bool (stat_print_fn)(THD *thd, const char *type, size_t type_len,
                              const char *file, size_t file_len,
                              const char *status, size_t status_len);
 
+class ha_statistics;
+
 namespace AQP {
   class Join_plan;
 }
@@ -133,6 +136,7 @@ extern ulong total_ha_2pc;
 #define HA_ADMIN_NEEDS_UPGRADE  -10
 #define HA_ADMIN_NEEDS_ALTER    -11
 #define HA_ADMIN_NEEDS_CHECK    -12
+#define HA_ADMIN_STATS_UPD_ERR  -13
 
 /**
    Return values for check_if_supported_inplace_alter().
@@ -772,17 +776,13 @@ class st_alter_tablespace : public Sql_alloc
 */
 enum enum_schema_tables
 {
-  SCH_CHARSETS= 0,
-  SCH_COLLATIONS,
-  SCH_COLLATION_CHARACTER_SET_APPLICABILITY,
-  SCH_COLUMNS,
-  SCH_COLUMN_PRIVILEGES,
+  SCH_FIRST=0,
+  SCH_COLUMN_PRIVILEGES=SCH_FIRST,
   SCH_ENGINES,
   SCH_EVENTS,
   SCH_FILES,
   SCH_GLOBAL_STATUS,
   SCH_GLOBAL_VARIABLES,
-  SCH_KEY_COLUMN_USAGE,
   SCH_OPEN_TABLES,
   SCH_OPTIMIZER_TRACE,
   SCH_PARAMETERS,
@@ -792,21 +792,32 @@ enum enum_schema_tables
   SCH_PROFILES,
   SCH_REFERENTIAL_CONSTRAINTS,
   SCH_PROCEDURES,
-  SCH_SCHEMATA,
   SCH_SCHEMA_PRIVILEGES,
   SCH_SESSION_STATUS,
   SCH_SESSION_VARIABLES,
-  SCH_STATISTICS,
   SCH_STATUS,
-  SCH_TABLES,
   SCH_TABLESPACES,
-  SCH_TABLE_CONSTRAINTS,
-  SCH_TABLE_NAMES,
   SCH_TABLE_PRIVILEGES,
   SCH_TRIGGERS,
   SCH_USER_PRIVILEGES,
   SCH_VARIABLES,
-  SCH_VIEWS
+  SCH_TMP_TABLE_COLUMNS,
+  SCH_TMP_TABLE_KEYS,
+  SCH_LAST=SCH_TMP_TABLE_KEYS
+};
+
+/*
+  New DD converts these I_S tables to system views.
+*/
+enum enum_schema_dd_views
+{
+  SCH_CHARSETS=0,
+  SCH_COLLATIONS,
+  SCH_SCHEMATA,
+  SCH_KEYS,
+  SCH_TABLES,
+  SCH_TABLE_STATUS,
+  SCH_COLUMNS
 };
 
 enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
@@ -1039,8 +1050,6 @@ typedef void (*binlog_log_query_t)(handlerton *hton, THD *thd,
                                    const char *query, uint query_length,
                                    const char *db, const char *table_name);
 
-typedef int (*release_temporary_latches_t)(handlerton *hton, THD *thd);
-
 typedef int (*discover_t)(handlerton *hton, THD* thd, const char *db,
                           const char *name,
                           uchar **frmblob,
@@ -1056,19 +1065,6 @@ typedef int (*table_exists_in_engine_t)(handlerton *hton, THD* thd, const char *
 
 typedef int (*make_pushed_join_t)(handlerton *hton, THD* thd,
                                   const AQP::Join_plan* plan);
-
-/**
-  List of all system tables specific to the SE.
-  Array element would look like below,
-   { "<database_name>", "<system table name>" },
-  The last element MUST be,
-   { (const char*)NULL, (const char*)NULL }
-
-  @see ha_example_system_tables in ha_example.cc
-
-  This interface is optional, so every SE need not implement it.
-*/
-typedef const char* (*system_database_t)();
 
 /**
   Check if the given db.tablename is a system table for this SE.
@@ -1381,6 +1377,8 @@ typedef bool (*dict_recover_t)(dict_recovery_mode_t dict_recovery_mode,
                             lock is to be acquired/was released.
   @param notification_type  Indicates whether this is pre-acquire or
                             post-release notification.
+  @param victimized        'true' if locking failed as we were selected
+                            as a victim in order to avoid possible deadlocks.
 
   @note Notification is done only for objects from TABLESPACE, SCHEMA,
         TABLE, FUNCTION, PROCEDURE, TRIGGER and EVENT namespaces.
@@ -1402,7 +1400,8 @@ typedef bool (*dict_recover_t)(dict_recovery_mode_t dict_recovery_mode,
           True - if it has failed/lock should not be acquired.
 */
 typedef bool (*notify_exclusive_mdl_t)(THD *thd, const MDL_key *mdl_key,
-                                       ha_notification_type notification_type);
+                                       ha_notification_type notification_type,
+                                       bool *victimized);
 
 /**
   Notify/get permission from storage engine before or after execution of
@@ -1445,6 +1444,48 @@ typedef bool (*notify_alter_table_t)(THD *thd, const MDL_key *mdl_key,
 typedef bool (*rotate_encryption_master_key_t)(void);
 
 /**
+  @brief
+  Retrieve ha_statistics from SE.
+
+  @param db_name                  Name of schema
+  @param table_name               Name of table
+  @param se_private_id            SE private id of the table.
+  @param flags                    Type of statistics to retrieve.
+  @param stats                    (OUT) Contains statistics read from SE.
+
+  @returns false on success,
+           true on failure
+*/
+typedef bool (*get_table_statistics_t)(const char *db_name,
+                                       const char *table_name,
+                                       dd::Object_id se_private_id,
+                                       uint flags,
+                                       ha_statistics *stats);
+
+/**
+  @brief
+  Retrieve index column cardinality from SE.
+
+  @param db_name                  Name of schema
+  @param table_name               Name of table
+  @param index_name               Name of index
+  @param index_ordinal_position   Position of index.
+  @param column_ordinal_position  Position of column in index.
+  @param se_private_id            SE private id of the table.
+  @param cardinality              (OUT) cardinality being returned by SE.
+
+  @returns false on success,
+           true on failure
+*/
+typedef bool (*get_index_column_cardinality_t)(const char *db_name,
+                                               const char *table_name,
+                                               const char *index_name,
+                                               uint index_ordinal_position,
+                                               uint column_ordinal_position,
+                                               dd::Object_id se_private_id,
+                                               ulonglong *cardinality);
+
+/**
   Perform post-commit/rollback cleanup after DDL statement (e.g. in
   case of DROP TABLES really remove table files from disk).
 
@@ -1457,6 +1498,7 @@ typedef bool (*rotate_encryption_master_key_t)(void);
         statement with error.
 */
 typedef void (*post_ddl_t)(THD *thd);
+
 
 /**
   handlerton is a singleton structure - one instance per storage engine -
@@ -1540,12 +1582,10 @@ struct handlerton
 
   binlog_func_t binlog_func;
   binlog_log_query_t binlog_log_query;
-  release_temporary_latches_t release_temporary_latches;
   discover_t discover;
   find_files_t find_files;
   table_exists_in_engine_t table_exists_in_engine;
   make_pushed_join_t make_pushed_join;
-  system_database_t system_database;
   is_supported_system_table_t is_supported_system_table;
 
   /*
@@ -1599,6 +1639,10 @@ struct handlerton
   notify_exclusive_mdl_t notify_exclusive_mdl;
   notify_alter_table_t notify_alter_table;
   rotate_encryption_master_key_t rotate_encryption_master_key;
+
+  get_table_statistics_t get_table_statistics;
+  get_index_column_cardinality_t get_index_column_cardinality;
+
   post_ddl_t post_ddl;
 
   /** Flag for Engine License. */
@@ -3447,6 +3491,8 @@ public:
     table= table_arg;
     table_share= share;
   }
+  const TABLE_SHARE* get_table_share() const { return table_share; }
+
   /* Estimates calculation */
 
   /**
@@ -3716,6 +3762,17 @@ public:
            ((create_info->table_options & HA_OPTION_PACK_RECORD) ?
              ROW_TYPE_DYNAMIC : ROW_TYPE_FIXED);
   }
+
+  /**
+    Get the row type from the storage engine for upgrade. If this method
+    returns ROW_TYPE_NOT_USED, the information in HA_CREATE_INFO should be
+    used.
+    This function is temporarily added to handle case of upgrade. It should
+    not be used in any other use case. This function will be removed in future.
+    This function was handler::get_row_type() in mysql-5.7.
+  */
+  virtual enum row_type get_row_type_for_upgrade() const
+  { return ROW_TYPE_NOT_USED; }
 
   /**
     Get default key algorithm for SE. It is used when user has not provided
@@ -4057,7 +4114,6 @@ public:
   */
 
   virtual void update_create_info(HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) {}
-  int check_old_types();
   virtual int assign_to_keycache(THD*, HA_CHECK_OPT*)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   virtual int preload_keys(THD*, HA_CHECK_OPT*)
@@ -5176,6 +5232,21 @@ protected:
 };
 
 
+/**
+  Function identifies any old data type present in table.
+
+  This function was handler::check_old_types().
+  Function is not part of SE API. It is now converted to
+  auxiliary standalone function.
+
+  @param[in]  table    TABLE object
+
+  @retval 0            ON SUCCESS
+  @retval error code   ON FAILURE
+*/
+
+int check_table_for_old_types(const TABLE *table);
+
 /*
   A Disk-Sweep MRR interface implementation
 
@@ -5381,9 +5452,6 @@ extern "C" int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);
 int ha_resize_key_cache(KEY_CACHE *key_cache);
 int ha_change_key_cache(KEY_CACHE *old_key_cache, KEY_CACHE *new_key_cache);
 
-/* report to InnoDB that control passes to the client */
-int ha_release_temporary_latches(THD *thd);
-
 /* transactions: interface to handlerton functions */
 int ha_start_consistent_snapshot(THD *thd);
 int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock= false);
@@ -5460,11 +5528,13 @@ void ha_set_normalized_disabled_se_str(const std::string &disabled_se_str);
 bool ha_is_storage_engine_disabled(handlerton *se_engine);
 
 bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
-                             ha_notification_type notification_type);
+                             ha_notification_type notification_type,
+                             bool *victimized);
 bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
                            ha_notification_type notification_type);
 
 int commit_owned_gtids(THD *thd, bool all, bool *need_clear_ptr);
 int commit_owned_gtid_by_partial_command(THD *thd);
+int check_table_for_old_types(const TABLE *table);
 
 #endif /* HANDLER_INCLUDED */

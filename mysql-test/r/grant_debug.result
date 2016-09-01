@@ -30,3 +30,43 @@ DROP USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_lo
 DROP USER user_name_robert_golebiowski1234@localhost;
 DROP USER some_user@localhost;
 DROP DATABASE db_1;
+#
+# If acl_load() fails unexpectedly we shouldn't delete the acl cache
+#
+use test;
+CREATE ROLE r1,r2;
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+GRANT all on *.* to u1@localhost;
+GRANT r1,r2 TO u1@localhost;
+GRANT ALL ON *.* TO r1;
+SHOW GRANTS FOR u1@localhost USING r1;
+Grants for u1@localhost
+GRANT ALL PRIVILEGES ON *.* TO `u1`@`localhost`
+GRANT `r1`@`%`,`r2`@`%` TO `u1`@`localhost`
+ALTER USER u1@localhost DEFAULT ROLE r1;
+SET DEBUG='+d,induce_acl_load_failure';
+GRANT r1 TO r2;
+FLUSH PRIVILEGES;
+ERROR HY000: Unknown error
+SHOW GRANTS;
+Grants for u1@localhost
+GRANT ALL PRIVILEGES ON *.* TO `u1`@`localhost`
+GRANT `r1`@`%`,`r2`@`%` TO `u1`@`localhost`
+REVOKE r1 FROM r2;
+SET DEBUG='+d,induce_acl_load_failure';
+FLUSH PRIVILEGES;
+ERROR HY000: Unknown error
+# Grant should not have changed
+SHOW GRANTS FOR u1@localhost USING r1;
+Grants for u1@localhost
+GRANT ALL PRIVILEGES ON *.* TO `u1`@`localhost`
+GRANT `r1`@`%`,`r2`@`%` TO `u1`@`localhost`
+# Grant should not have changed
+SHOW GRANTS;
+Grants for u1@localhost
+GRANT ALL PRIVILEGES ON *.* TO `u1`@`localhost`
+GRANT `r1`@`%`,`r2`@`%` TO `u1`@`localhost`
+SET DEBUG='-d,induce_acl_load_failure';
+FLUSH PRIVILEGES;
+DROP USER u1@localhost;
+DROP ROLE r1,r2;

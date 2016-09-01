@@ -274,11 +274,13 @@ drop user 'mysqltest_1a', 'mysqltest_2a', 'mysqltest_3a';
 create user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
 create user 'mysqltest_1a', 'mysqltest_2', 'mysqltest_3a';
 ERROR HY000: Operation CREATE USER failed for 'mysqltest_2'@'%'
+create user 'mysqltest_1a', 'mysqltest_3a';
 rename user 'mysqltest_1a' to 'mysqltest_1b', 'mysqltest_2a' TO 'mysqltest_2b', 'mysqltest_3a' TO 'mysqltest_3b';
 ERROR HY000: Operation RENAME USER failed for 'mysqltest_2a'@'%'
 drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
 drop user 'mysqltest_1b', 'mysqltest_2b', 'mysqltest_3b';
-ERROR HY000: Operation DROP USER failed for 'mysqltest_2b'@'%'
+ERROR HY000: Operation DROP USER failed for 'mysqltest_1b'@'%','mysqltest_2b'@'%','mysqltest_3b'@'%'
+drop user 'mysqltest_1a', 'mysqltest_3a';
 create user 'mysqltest_2' identified by 'Mysqltest-2';
 drop user 'mysqltest_2' identified by 'Mysqltest-2';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'identified by 'Mysqltest-2'' at line 1

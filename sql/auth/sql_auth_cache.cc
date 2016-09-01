@@ -36,7 +36,10 @@
 #include "role_tables.h"
 #include "debug_sync.h"
 #include "template_utils.h"
-#include "current_thd.h"
+#include "current_thd.h"        // current_thd
+#include "sql_thd_internal_api.h"  // create_thd
+#include "error_handler.h"      // Internal_error_handler
+#include "sql_user_table.h"
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 
@@ -48,7 +51,7 @@ using std::min;
 PSI_mutex_key key_LOCK_acl_cache_flush;
 PSI_mutex_info all_acl_cache_mutexes[]=
 { {&key_LOCK_acl_cache_flush, "LOCK_acl_cache_flush", PSI_FLAG_GLOBAL, 0} };
-Acl_cache *g_acl_cache;
+Acl_cache *g_acl_cache= NULL;
 Acl_cache *get_global_acl_cache() { return g_acl_cache; }
 ulong get_global_acl_cache_size() { return g_acl_cache->size(); }
 void init_acl_cache();
@@ -80,25 +83,17 @@ Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE> *acl_proxy_users= NULL;
 Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *acl_dbs= NULL;
 Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE> *acl_wild_hosts= NULL;
 Db_access_map acl_db_map;
-Default_roles *g_default_roles;
+Default_roles *g_default_roles= NULL;
 
 HASH column_priv_hash, proc_priv_hash, func_priv_hash;
-hash_filo *acl_cache;
+HASH db_cache;
 HASH acl_check_hosts;
 
 bool initialized=0;
+bool acl_cache_initialized= false;
 bool allow_all_hosts=1;
 uint grant_version=0; /* Version of priv tables */
 my_bool validate_user_plugins= TRUE;
-/**
-  Flag to track if rwlocks in ACL subsystem were initialized.
-  Necessary because acl_free() can be called in some error scenarios
-  without prior call to acl_init().
-*/
-bool rwlocks_initialized= false;
-
-const uint LOCK_GRANT_PARTITIONS= 32;
-Partitioned_rwlock LOCK_grant;
 
 #define IP_ADDR_STRLEN (3 + 1 + 3 + 1 + 3 + 1 + 3)
 #define ACL_KEY_LENGTH (IP_ADDR_STRLEN + 1 + NAME_LEN + \
@@ -863,7 +858,7 @@ find_acl_user(const char *host, const char *user, my_bool exact)
   DBUG_ENTER("find_acl_user");
   DBUG_PRINT("enter",("host: '%s'  user: '%s'",host,user));
 
-  mysql_mutex_assert_owner(&acl_cache->lock);
+  DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
 
   if (likely(acl_users))
   {
@@ -897,6 +892,7 @@ find_acl_user(const char *host, const char *user, my_bool exact)
 
   SYNOPSIS
     is_acl_user()
+    thd                  Handle to THD
     host                 host name
     user                 user name
 
@@ -905,17 +901,19 @@ find_acl_user(const char *host, const char *user, my_bool exact)
    TRUE   there are such user
 */
 
-bool is_acl_user(const char *host, const char *user)
+bool is_acl_user(THD *thd, const char *host, const char *user)
 {
-  bool res;
+  bool res= true;
 
   /* --skip-grants */
   if (!initialized)
-    return TRUE;
+    return res;
 
-  mysql_mutex_lock(&acl_cache->lock);
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
+  if (!acl_cache_lock.lock(false))
+    return res;
+
   res= find_acl_user(host, user, TRUE) != NULL;
-  mysql_mutex_unlock(&acl_cache->lock);
   return res;
 }
 
@@ -1005,7 +1003,7 @@ acl_find_proxy_user(const char *user, const char *host, const char *ip,
 }
 
 
-static const uchar* acl_entry_get_key(const uchar *arg, size_t *length)
+static const uchar* get_grant_db(const uchar *arg, size_t *length)
 {
   const acl_entry *entry= pointer_cast<const acl_entry*>(arg);
   *length=(uint) entry->length;
@@ -1021,14 +1019,61 @@ static const uchar* check_get_key(const uchar *arg, size_t *length)
 }
 
 
-/*
-  Get privilege for a host, user and db combination
+void clear_and_init_db_cache()
+{
+  my_hash_reset(&db_cache);
+}
 
-  as db_is_pattern changes the semantics of comparison,
-  acl_cache is not used if db_is_pattern is set.
+
+/**
+  Insert a new entry in db_cache
+
+  @param thd [in]    Handle to THD object
+  @param entry [in]  Entry to be inserted in db_cache
 */
 
-ulong acl_get(const char *host, const char *ip,
+static void
+insert_entry_in_db_cache(THD *thd, acl_entry *entry)
+{
+  DBUG_ENTER("insert_entry_in_db_cache");
+  /* Either have WRITE lock or none at all */
+  DBUG_ASSERT(assert_acl_cache_write_lock(thd) ||
+              !assert_acl_cache_read_lock(thd));
+
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+
+  /*
+    In following cases release memory and return
+    1. Could not lock cache : This is ok because db_cache
+       second level cache anyways.
+    2. my_hash_insert returned error. This is likely because
+       someone already inserted a similar entry.
+  */
+  if (!acl_cache_lock.lock(false) ||
+      my_hash_insert(&db_cache, (uchar *)entry))
+    my_free(entry);
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Get privilege for a host, user, and db
+  combination.
+
+  @note db_cache is not used if db_is_pattern
+  is set.
+
+  @param thd   Thread handler
+  @param host  Host name
+  @param ip    Ip
+  @param user  user name
+  @param db    We look for the ACL of this database
+  @param db_is_pattern
+
+  @return Database ACL
+*/
+
+ulong acl_get(THD *thd, const char *host, const char *ip,
               const char *user, const char *db, my_bool db_is_pattern)
 {
   ulong host_access= ~(ulong)0, db_access= 0;
@@ -1046,8 +1091,10 @@ ulong acl_get(const char *host, const char *ip,
   */
   if (copy_length >= ACL_KEY_LENGTH)
     DBUG_RETURN(0);
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
+  if (!acl_cache_lock.lock(false))
+    DBUG_RETURN(db_access);
 
-  mysql_mutex_lock(&acl_cache->lock);
   end=my_stpcpy((tmp_db=my_stpcpy(my_stpcpy(key, ip ? ip : "")+1,user)+1),db);
   if (lower_case_table_names)
   {
@@ -1055,11 +1102,11 @@ ulong acl_get(const char *host, const char *ip,
     db=tmp_db;
   }
   key_length= (size_t) (end-key);
-  if (!db_is_pattern && (entry=(acl_entry*) acl_cache->search((uchar*) key,
-                                                              key_length)))
+  if (!db_is_pattern && (entry=(acl_entry*) my_hash_search(&db_cache,
+                                                           (uchar*) key,
+                                                           key_length)))
   {
     db_access=entry->access;
-    mysql_mutex_unlock(&acl_cache->lock);
     DBUG_PRINT("exit", ("access: 0x%lx", db_access));
     DBUG_RETURN(db_access);
   }
@@ -1096,9 +1143,9 @@ exit:
     entry->access=(db_access & host_access);
     entry->length=key_length;
     memcpy((uchar*) entry->key,key,key_length);
-    acl_cache->add(entry);
+    acl_cache_lock.unlock();
+    insert_entry_in_db_cache(thd, entry);
   }
-  mysql_mutex_unlock(&acl_cache->lock);
   DBUG_PRINT("exit", ("access: 0x%lx", db_access & host_access));
   DBUG_RETURN(db_access & host_access);
 }
@@ -1186,6 +1233,7 @@ void rebuild_check_host(void)
 
   SYNOPSIS
     acl_getroot()
+      thd                Handle to THD
       sctx               Context which should be initialized
       user               user name
       host               host name
@@ -1197,7 +1245,7 @@ void rebuild_check_host(void)
     TRUE   Error
 */
 
-bool acl_getroot(Security_context *sctx, char *user, char *host,
+bool acl_getroot(THD *thd, Security_context *sctx, char *user, char *host,
                  char *ip, const char *db)
 {
   int res= 1;
@@ -1211,6 +1259,7 @@ bool acl_getroot(Security_context *sctx, char *user, char *host,
   sctx->set_host_ptr(host, host ? strlen(host) : 0);
   sctx->set_ip_ptr(ip, ip? strlen(ip) : 0);
   sctx->set_host_or_ip_ptr();
+
   if (!initialized)
   {
     /*
@@ -1219,18 +1268,16 @@ bool acl_getroot(Security_context *sctx, char *user, char *host,
     sctx->skip_grants();
     DBUG_RETURN(FALSE);
   }
-  /*
-    LOCK_grant protects g_default_roles
-    HACK: The thd is just use as a hash partitioner and can be anything.
-   */
-  
-  LOCK_grant_read_guard lock(reinterpret_cast<unsigned long>(&res));
-  mysql_mutex_lock(&acl_cache->lock);
 
   sctx->set_master_access(0);
   sctx->cache_current_db_access(0);
   sctx->assign_priv_user("", 0);
   sctx->assign_priv_host("", 0);
+
+  Acl_cache_lock_guard acl_cache_lock(thd,
+                                      Acl_cache_lock_mode::READ_MODE);
+  if (!acl_cache_lock.lock(false))
+    DBUG_RETURN(TRUE);
 
   /*
      Find acl entry in user database.
@@ -1258,7 +1305,7 @@ bool acl_getroot(Security_context *sctx, char *user, char *host,
     sctx->clear_active_roles();
     List_of_auth_id_refs default_roles;
     Auth_id_ref authid= create_authid_from(acl_user);
-    /* Needs LOCK_grant read lock */
+    /* Needs Acl_cache_lock_guard in read mode */
     get_default_roles(authid, &default_roles);
     List_of_auth_id_refs::iterator it= default_roles.begin();
     for(;it != default_roles.end(); ++it)
@@ -1296,7 +1343,7 @@ bool acl_getroot(Security_context *sctx, char *user, char *host,
 
     sctx->set_password_expired(acl_user->password_expired);
   } // end if
-  mysql_mutex_unlock(&acl_cache->lock);
+ 
   if (acl_user && sctx->get_active_roles()->size() > 0)
   {
     sctx->checkout_access_maps();
@@ -1421,6 +1468,53 @@ validate_user_plugin_records()
 }
 
 
+/**
+  Initialize roles structures from tables.
+
+  This function is called by acl_init and may fail to
+  initialize role structures if role_edges and/or
+  default_roles are not present.
+
+  @param thd [in] Handle to THD
+*/
+
+static
+void roles_init(THD *thd)
+{
+  TABLE_LIST tables[2];
+  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("role_edges"),
+                           "role_edges", TL_READ, MDL_SHARED_READ_ONLY);
+
+  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("default_roles"),
+                           "default_roles", TL_READ, MDL_SHARED_READ_ONLY);
+
+  tables[0].next_local=
+    tables[0].next_global= tables + 1;
+  tables[1].next_local=
+    tables[1].next_global= 0;
+  tables[0].open_type=
+  tables[1].open_type= OT_BASE_ONLY;
+
+  bool result= open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT);
+  if (!result)
+  {
+    check_acl_tables(tables, false);
+    commit_and_close_mysql_tables(thd);
+    result= roles_init_from_tables(thd);
+  }
+
+  if (result)
+  {
+   sql_print_warning("Could not load mysql.role_edges and "
+                     "mysql.default_roles tables. ACL DDLs "
+                     "will not work unless mysql_upgrade is "
+                     "executed.");
+  }
+}
+
+
 /*
   Initialize structures responsible for user/db-level privilege checking and
   load privilege information for them from tables in the 'mysql' database.
@@ -1444,21 +1538,15 @@ my_bool acl_init(bool dont_read_acl_tables)
   THD  *thd;
   my_bool return_val;
   DBUG_ENTER("acl_init");
-  #ifndef NO_EMBEDDED_ACCESS_CHECKS
-    init_acl_cache();
-  #endif
-  acl_cache= new hash_filo(key_memory_acl_cache,
-                           ACL_CACHE_SIZE, 0,
-                           acl_entry_get_key,
-                           my_free,
-                           &my_charset_utf8_bin);
 
-  LOCK_grant.init(LOCK_GRANT_PARTITIONS
-#ifdef HAVE_PSI_INTERFACE
-                  , key_rwlock_LOCK_grant
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  init_acl_cache();
+
+  (void)my_hash_init(&db_cache, &my_charset_utf8_bin,
+                     0, 0, get_grant_db, my_free,
+                     0, key_memory_acl_cache);
 #endif
-                  );
-  rwlocks_initialized= true;
+  acl_cache_initialized= true;
 
   /*
     cache built-in native authentication plugins,
@@ -1499,7 +1587,7 @@ my_bool acl_init(bool dont_read_acl_tables)
     by zeros at startup.
   */
   return_val|= acl_reload(thd);
-  return_val|= roles_init_from_tables(thd);
+  roles_init(thd);
   thd->release_resources();
   delete thd;
 
@@ -1553,8 +1641,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 
   grant_version++; /* Privileges updated */
 
-
-  acl_cache->clear(1);                          // Clear locked hostname cache
+  clear_and_init_db_cache();             // Clear locked hostname cache
 
   init_sql_alloc(key_memory_acl_mem,
                  &global_acl_memory, ACL_ALLOC_BLOCK_SIZE, 0);
@@ -2085,6 +2172,8 @@ end:
   thd->variables.sql_mode= old_sql_mode;
   if (table_schema)
     delete table_schema;
+  DBUG_EXECUTE_IF("induce_acl_load_failure",
+                  return_val= TRUE;);
   DBUG_RETURN(return_val);
 }
 
@@ -2093,7 +2182,6 @@ end:
 
 void acl_free(bool end)
 {
-  shutdown_acl_cache();
   free_root(&global_acl_memory,MYF(0));
   delete acl_users;
   acl_users= NULL;
@@ -2105,17 +2193,15 @@ void acl_free(bool end)
   acl_proxy_users= NULL;
   my_hash_free(&acl_check_hosts);
   if (!end)
-    acl_cache->clear(1); /* purecov: inspected */
+    clear_and_init_db_cache();
   else
   {
-    if (rwlocks_initialized)
+    shutdown_acl_cache();
+    if (acl_cache_initialized == true)
     {
+      my_hash_free(&db_cache);
       plugin_unlock(0, native_password_plugin);
-      delete acl_cache;
-      acl_cache=0;
-
-      LOCK_grant.destroy();
-      rwlocks_initialized= false;
+      acl_cache_initialized= false;
     }
   }
 }
@@ -2123,7 +2209,7 @@ void acl_free(bool end)
 
 bool check_engine_type_for_acl_table(THD *thd)
 {
-  TABLE_LIST tables[8];
+  TABLE_LIST tables[6];
 
   /*
     Open the following ACL tables to check their consistency.
@@ -2132,50 +2218,49 @@ bool check_engine_type_for_acl_table(THD *thd)
     with other code.
   */
 
-  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
+  tables[ACL_TABLES::TABLE_USER].init_one_table(C_STRING_WITH_LEN("mysql"),
                            C_STRING_WITH_LEN("user"),
                            "user", TL_READ, MDL_SHARED_READ_ONLY);
 
-  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
+  tables[ACL_TABLES::TABLE_DB].init_one_table(C_STRING_WITH_LEN("mysql"),
                            C_STRING_WITH_LEN("db"),
                            "db", TL_READ, MDL_SHARED_READ_ONLY);
 
-  tables[2].init_one_table(C_STRING_WITH_LEN("mysql"),
+  tables[ACL_TABLES::TABLE_TABLES_PRIV].init_one_table(C_STRING_WITH_LEN("mysql"),
                            C_STRING_WITH_LEN("proxies_priv"),
                            "proxies_priv", TL_READ, MDL_SHARED_READ_ONLY);
 
-  tables[3].init_one_table(C_STRING_WITH_LEN("mysql"),
+  tables[ACL_TABLES::TABLE_COLUMNS_PRIV].init_one_table(C_STRING_WITH_LEN("mysql"),
                            C_STRING_WITH_LEN("tables_priv"),
                            "tables_priv", TL_READ, MDL_SHARED_READ_ONLY);
 
-  tables[4].init_one_table(C_STRING_WITH_LEN("mysql"),
+  tables[ACL_TABLES::TABLE_PROCS_PRIV].init_one_table(C_STRING_WITH_LEN("mysql"),
                            C_STRING_WITH_LEN("columns_priv"),
                            "columns_priv", TL_READ, MDL_SHARED_READ_ONLY);
 
-  tables[5].init_one_table(C_STRING_WITH_LEN("mysql"),
+  tables[ACL_TABLES::TABLE_PROXIES_PRIV].init_one_table(C_STRING_WITH_LEN("mysql"),
                            C_STRING_WITH_LEN("procs_priv"),
                            "procs_priv", TL_READ, MDL_SHARED_READ_ONLY);
 
-  tables[6].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("role_edges"),
-                           "role_edges", TL_READ, MDL_SHARED_READ_ONLY);
+  tables[ACL_TABLES::TABLE_USER].next_local=
+    tables[ACL_TABLES::TABLE_USER].next_global= tables + 1;
+  tables[ACL_TABLES::TABLE_DB].next_local=
+    tables[ACL_TABLES::TABLE_DB].next_global= tables + 2;
+  tables[ACL_TABLES::TABLE_TABLES_PRIV].next_local=
+    tables[ACL_TABLES::TABLE_TABLES_PRIV].next_global= tables + 3;
+  tables[ACL_TABLES::TABLE_COLUMNS_PRIV].next_local=
+    tables[ACL_TABLES::TABLE_COLUMNS_PRIV].next_global= tables + 4;
+  tables[ACL_TABLES::TABLE_PROCS_PRIV].next_local=
+    tables[ACL_TABLES::TABLE_PROCS_PRIV].next_global= tables + 5;
+  tables[ACL_TABLES::TABLE_PROXIES_PRIV].next_local=
+    tables[ACL_TABLES::TABLE_PROXIES_PRIV].next_global= 0;
 
-  tables[7].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("default_roles"),
-                           "default_roles", TL_READ, MDL_SHARED_READ_ONLY);
-
-  tables[0].next_local= tables[0].next_global= tables + 1;
-  tables[1].next_local= tables[1].next_global= tables + 2;
-  tables[2].next_local= tables[2].next_global= tables + 3;
-  tables[3].next_local= tables[3].next_global= tables + 4;
-  tables[4].next_local= tables[4].next_global= tables + 5;
-  tables[5].next_local= tables[5].next_global= tables + 6;
-  tables[6].next_local= tables[6].next_global= tables + 7;
-  tables[7].next_local= tables[7].next_global= 0;
-
-  tables[0].open_type= tables[1].open_type= tables[2].open_type= OT_BASE_ONLY;
-  tables[3].open_type= tables[4].open_type= tables[5].open_type= OT_BASE_ONLY;
-  tables[6].open_type= tables[7].open_type= OT_BASE_ONLY;
+  tables[ACL_TABLES::TABLE_USER].open_type=
+    tables[ACL_TABLES::TABLE_DB].open_type=
+    tables[ACL_TABLES::TABLE_TABLES_PRIV].open_type=
+    tables[ACL_TABLES::TABLE_COLUMNS_PRIV].open_type=
+    tables[ACL_TABLES::TABLE_PROCS_PRIV].open_type=
+    tables[ACL_TABLES::TABLE_PROXIES_PRIV].open_type= OT_BASE_ONLY;
 
   bool result= open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT);
   if (!result)
@@ -2226,8 +2311,14 @@ my_bool acl_reload(THD *thd)
   TABLE_LIST tables[3];
 
   MEM_ROOT old_mem;
-  bool old_initialized;
   my_bool return_val= TRUE;
+  Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *old_acl_users= NULL;
+  Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *old_acl_dbs= NULL;
+  Prealloced_array<ACL_PROXY_USER,
+    ACL_PREALLOC_SIZE> *old_acl_proxy_users = NULL;
+  Acl_cache_lock_guard acl_cache_lock(thd,
+                                      Acl_cache_lock_mode::WRITE_MODE);
+ 
   DBUG_ENTER("acl_reload");
 
   /*
@@ -2270,17 +2361,15 @@ my_bool acl_reload(THD *thd)
       sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
                       thd->get_stmt_da()->message_text());
     }
-    commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
+    goto end;
   }
 
-  if ((old_initialized=initialized))
-    mysql_mutex_lock(&acl_cache->lock);
+  if (!acl_cache_lock.lock())
+    goto end;
 
-  Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *old_acl_users= acl_users;
-  Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *old_acl_dbs= acl_dbs;
-  Prealloced_array<ACL_PROXY_USER,
-                   ACL_PREALLOC_SIZE> *old_acl_proxy_users = acl_proxy_users;
+  old_acl_users= acl_users;
+  old_acl_dbs= acl_dbs;
+  old_acl_proxy_users = acl_proxy_users;
 
   acl_users= new Prealloced_array<ACL_USER,
                                   ACL_PREALLOC_SIZE>(key_memory_acl_mem);
@@ -2312,9 +2401,8 @@ my_bool acl_reload(THD *thd)
     delete old_acl_dbs;
     delete old_acl_proxy_users;
   }
-  if (old_initialized)
-    mysql_mutex_unlock(&acl_cache->lock);
 
+end:
   commit_and_close_mysql_tables(thd);
   get_global_acl_cache()->increase_version();
   DEBUG_SYNC(thd, "after_acl_reload");
@@ -2325,7 +2413,7 @@ my_bool acl_reload(THD *thd)
 void acl_insert_proxy_user(ACL_PROXY_USER *new_value)
 {
   DBUG_ENTER("acl_insert_proxy_user");
-  mysql_mutex_assert_owner(&acl_cache->lock);
+  DBUG_ASSERT(assert_acl_cache_write_lock(current_thd));
   acl_proxy_users->push_back(*new_value);
   std::sort(acl_proxy_users->begin(), acl_proxy_users->end(), ACL_compare());
   DBUG_VOID_RETURN;
@@ -2761,6 +2849,9 @@ my_bool grant_reload(THD *thd)
   HASH old_column_priv_hash;
   MEM_ROOT old_mem;
   my_bool return_val= 1;
+  Acl_cache_lock_guard acl_cache_lock(thd,
+                                      Acl_cache_lock_mode::WRITE_MODE);
+  
   DBUG_ENTER("grant_reload");
 
   /* Don't do anything if running with --skip-grant-tables */
@@ -2785,10 +2876,6 @@ my_bool grant_reload(THD *thd)
   tables[1].next_local= tables[1].next_global= tables+2;
   tables[0].open_type= tables[1].open_type= tables[2].open_type= OT_BASE_ONLY;
 
-  /*
-    To avoid deadlocks we should obtain table locks before
-    obtaining LOCK_grant rwlock.
-  */
   if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     if (! is_expected_or_transient_error(thd))
@@ -2799,7 +2886,8 @@ my_bool grant_reload(THD *thd)
     goto end;
   }
 
-  LOCK_grant.wrlock();
+  if (!acl_cache_lock.lock())
+    goto end;
 
   old_column_priv_hash= column_priv_hash;
 
@@ -2831,7 +2919,6 @@ my_bool grant_reload(THD *thd)
     grant_version++;
     get_global_acl_cache()->increase_version();
   }
-  LOCK_grant.wrunlock();
 
 end:
   commit_and_close_mysql_tables(thd);
@@ -2853,7 +2940,7 @@ void acl_update_user(const char *user, const char *host,
                      ulong what_is_set)
 {
   DBUG_ENTER("acl_update_user");
-  mysql_mutex_assert_owner(&acl_cache->lock);
+  DBUG_ASSERT(assert_acl_cache_write_lock(current_thd));
   for (ACL_USER *acl_user= acl_users->begin();
        acl_user != acl_users->end(); ++acl_user)
   {
@@ -2962,7 +3049,7 @@ void acl_insert_user(const char *user, const char *host,
   DBUG_ENTER("acl_insert_user");
   ACL_USER acl_user;
 
-  mysql_mutex_assert_owner(&acl_cache->lock);
+  DBUG_ASSERT(assert_acl_cache_write_lock(current_thd));
   /*
      All accounts can authenticate per default. This will change when
      we add a new field to the user table.
@@ -3030,9 +3117,8 @@ void acl_insert_user(const char *user, const char *host,
 
 void acl_update_proxy_user(ACL_PROXY_USER *new_value, bool is_revoke)
 {
-  mysql_mutex_assert_owner(&acl_cache->lock);
-
   DBUG_ENTER("acl_update_proxy_user");
+  DBUG_ASSERT(assert_acl_cache_write_lock(current_thd));
   for (ACL_PROXY_USER *acl_user= acl_proxy_users->begin();
        acl_user != acl_proxy_users->end(); ++acl_user)
   {
@@ -3057,7 +3143,7 @@ void acl_update_proxy_user(ACL_PROXY_USER *new_value, bool is_revoke)
 void acl_update_db(const char *user, const char *host, const char *db,
                    ulong privileges)
 {
-  mysql_mutex_assert_owner(&acl_cache->lock);
+  DBUG_ASSERT(assert_acl_cache_write_lock(current_thd));
 
   for (ACL_DB *acl_db= acl_dbs->begin(); acl_db < acl_dbs->end(); )
   {
@@ -3099,14 +3185,14 @@ void acl_update_db(const char *user, const char *host, const char *db,
     privileges          Bitmap of privileges
 
   NOTES
-    acl_cache->lock must be locked when calling this
+    Acl caches must be locked
 */
 
 void acl_insert_db(const char *user, const char *host, const char *db,
                    ulong privileges)
 {
   ACL_DB acl_db;
-  mysql_mutex_assert_owner(&acl_cache->lock);
+  DBUG_ASSERT(assert_acl_cache_write_lock(current_thd));
   acl_db.user= strdup_root(&global_acl_memory,user);
   acl_db.host.update_hostname(*host ? strdup_root(&global_acl_memory, host) : 0);
   acl_db.db= strdup_root(&global_acl_memory, db);
@@ -3117,17 +3203,17 @@ void acl_insert_db(const char *user, const char *host, const char *db,
 }
 
 
-void get_mqh(const char *user, const char *host, USER_CONN *uc)
+void get_mqh(THD *thd, const char *user, const char *host, USER_CONN *uc)
 {
   ACL_USER *acl_user;
-  mysql_mutex_lock(&acl_cache->lock);
+  Acl_cache_lock_guard acl_cache_lock(thd,
+                                      Acl_cache_lock_mode::READ_MODE);
 
-  if (initialized && (acl_user= find_acl_user(host,user, FALSE)))
+  if (initialized && acl_cache_lock.lock(false) &&
+      (acl_user= find_acl_user(host,user, FALSE)))
     uc->user_resources= acl_user->user_resource;
   else
     memset(&uc->user_resources, 0, sizeof(uc->user_resources));
-
-  mysql_mutex_unlock(&acl_cache->lock);
 }
 
 
@@ -3279,7 +3365,16 @@ Acl_map::Acl_map(Security_context *sctx, uint64 ver)  :
   m_reference_count(0), m_version(ver)
 {
   DBUG_ENTER("Acl_map::Acl_map");
-  mysql_mutex_lock(&acl_cache->lock);
+  Acl_cache_lock_guard acl_cache_lock(current_thd,
+                                      Acl_cache_lock_mode::READ_MODE);
+  if (!acl_cache_lock.lock(false))
+  {
+    DBUG_PRINT("error",("Acl_map could not be constructed for user %s@%s => "
+               "Could not lock Acl caches.",
+               sctx->priv_user().str,
+               sctx->priv_host().str));
+    DBUG_VOID_RETURN;
+  }
   m_global_acl= 0;
   const ACL_USER *acl_user=
     find_acl_user(sctx->priv_host().str,
@@ -3291,7 +3386,6 @@ Acl_map::Acl_map(Security_context *sctx, uint64 ver)  :
                         "No such user",
                         sctx->priv_user().str,
                         sctx->priv_host().str));
-    mysql_mutex_unlock(&acl_cache->lock);
     DBUG_VOID_RETURN;
   }
   List_of_granted_roles granted_roles;
@@ -3305,7 +3399,6 @@ Acl_map::Acl_map(Security_context *sctx, uint64 ver)  :
                             &m_func_acls,
                             &granted_roles,
                             &m_with_admin_acls);
-  mysql_mutex_unlock(&acl_cache->lock);
   DBUG_VOID_RETURN;
 }
 
@@ -3576,16 +3669,221 @@ void init_acl_cache()
 
 void shutdown_acl_cache()
 {
-
-  if (rwlocks_initialized == false)
+  if (!acl_cache_initialized)
     return;
+
   /* This should clean up all remaining Acl_cache items */
   g_acl_cache->increase_version();
   DBUG_ASSERT(g_acl_cache->size() == 0);
   delete g_acl_cache;
   delete g_default_roles;
+  g_acl_cache= NULL;
+  g_default_roles= NULL;
   roles_delete_graph();
 }
 
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
+/* Constants used by Acl_cache_lock_guard */
+static const ulong ACL_CACHE_LOCK_TIMEOUT= 3600UL;
+static const MDL_key ACL_CACHE_KEY(MDL_key::ACL_CACHE, "", "");
+
+/**
+  Internal_error_hanlder subclass to suppress ER_LOCK_DEADLOCK and
+  ER_LOCK_WAIT_TIMEOUT.
+  Instead, we will use Acl_cache_lock_guard::lock()
+  to raise ER_CANNOT_LOCK_USER_MANAGEMENT_CACHES error.
+*/
+class Acl_cache_error_handler : public Internal_error_handler
+{
+public:
+
+  /**
+    Handle an error condition
+
+    @param [in] thd           THD handle
+    @param [in] sql_errno     Error raised by MDL subsystem
+    @param [in] sqlstate      SQL state. Unused.
+    @param [in] level         Severity level. Unused.
+    @param [in] msg           Message string. Unused.
+  */
+
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char *sqlstate MY_ATTRIBUTE((unused)),
+                                Sql_condition::enum_severity_level *level MY_ATTRIBUTE((unused)),
+                                const char *msg MY_ATTRIBUTE((unused)))
+  {
+    return (sql_errno == ER_LOCK_DEADLOCK ||
+            sql_errno == ER_LOCK_WAIT_TIMEOUT);
+  }
+};
+
+
+/*
+  MDL_release_locks_visitor subclass to release MDL for ACL_CACHE.
+*/
+class Release_acl_cache_locks : public MDL_release_locks_visitor
+{
+public:
+  /**
+    Lock releaser.
+    Check details of given key and see it is of type ACL_CACHE
+    and if key name it matches with m_partition. If so, release it.
+
+    @param [in] ticket      MDL Ticket returned by MDL subsystem
+
+    @returns Whether ticket matches our criteria or not
+      @retval true  Ticket matches
+      @retval false Ticket does not match
+  */
+
+  virtual bool release(MDL_ticket *ticket)
+  {
+    return ticket->get_key()->mdl_namespace() == MDL_key::ACL_CACHE;
+  }
+};
+
+
+/**
+  Acl_cache_lock_guard constructor.
+
+  @param [in] thd             THD Handle.
+  @param [in] mode            Lock mode
+
+*/
+
+Acl_cache_lock_guard::Acl_cache_lock_guard(THD *thd,
+                                           Acl_cache_lock_mode mode)
+  : m_thd(thd),
+    m_mode(mode),
+    m_locked(false)
+{
+  DBUG_ASSERT(thd);
+};
+
+
+/**
+  Explicitly take lock on Acl_cache_lock_cache object.
+  If cache was already locked, just return.
+
+  @param raise_error [in]  Whether to raise error if we fail to acquire lock
+
+  @returns status of lock
+    @retval true Lock was acquired/already acquired.
+    @retval false There was some problem acquiring lock.
+*/
+
+bool
+Acl_cache_lock_guard::lock(bool raise_error) /* = true */
+{
+  DBUG_ASSERT(!m_locked);
+
+  if (already_locked())
+    return true;
+
+  /* If we do not have MDL, we should not be holding LOCK_open */
+  mysql_mutex_assert_not_owner(&LOCK_open);
+
+  MDL_request lock_request;
+  MDL_REQUEST_INIT_BY_KEY(&lock_request, &ACL_CACHE_KEY,
+                          m_mode == Acl_cache_lock_mode::READ_MODE ?
+                          MDL_SHARED : MDL_EXCLUSIVE,
+                          MDL_EXPLICIT);
+  Acl_cache_error_handler handler;
+  m_thd->push_internal_handler(&handler);
+  m_locked= !m_thd->mdl_context.acquire_lock(&lock_request,
+                                             ACL_CACHE_LOCK_TIMEOUT);
+  m_thd->pop_internal_handler();
+
+  if (!m_locked && raise_error)
+    my_error(ER_CANNOT_LOCK_USER_MANAGEMENT_CACHES, MYF(0));
+  return m_locked;
+}
+
+
+/**
+  Explicitly unlock all acquired locks.
+*/
+
+void
+Acl_cache_lock_guard::unlock()
+{
+  /*
+    It is possible that we did not take any lock. E.g.
+    1. Function 1 : Take shared lock on ACL caches
+    2. Function 1 : Take Lock_open
+    3. Call Function 2
+    4. Function 2 : Try to acquire shared lock on ACL
+    caches again
+
+    In such cases, at 4, we do not actually take
+    MDL because it will be in conflict with LOCK_open
+
+    If unlock() is called as part of destructor or
+    directly in Function 2 above, we should
+    not release any locks because we never acquired
+    any in the first place.
+  */
+  if (m_locked)
+  {
+    Release_acl_cache_locks lock_visitor;
+    m_thd->mdl_context.release_locks(&lock_visitor);
+    m_locked= false;
+  }
+}
+
+
+/**
+  Check whether lock is already obtained or not.
+
+  @returns lock status
+    @retval true  Lock has already been taken.
+    @retval false No lock is taken with this Acl_cache_lock_guard object
+*/
+
+bool
+Acl_cache_lock_guard::already_locked()
+{
+  return
+    m_thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::ACL_CACHE,
+                                                   "", "",
+                                                   m_mode == Acl_cache_lock_mode::READ_MODE ?
+                                                   MDL_SHARED : MDL_EXCLUSIVE);
+}
+
+
+/**
+  Assert that thread owns MDL_SHARED on partition specific to the thread
+
+  @param thd [in]    Thread for which lock is to be checked
+
+  @returns thread owns required lock or not
+    @retval true    Thread owns lock
+    @retval false   Thread does not own lock
+*/
+
+bool assert_acl_cache_read_lock(THD *thd)
+{
+  return thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::ACL_CACHE,
+                                                      "", "",
+                                                      MDL_SHARED);
+}
+
+
+/**
+  Assert that thread owns MDL_EXCLUSIVE on all partitions
+
+  @param thd [in]    Thread for which lock is to be checked
+
+  @returns thread owns required lock or not
+    @retval true    Thread owns lock
+    @retval false   Thread does not own lock
+*/
+
+bool assert_acl_cache_write_lock(THD *thd)
+{
+  return thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::ACL_CACHE,
+                                                      "", "",
+                                                      MDL_EXCLUSIVE);
+}

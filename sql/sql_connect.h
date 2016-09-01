@@ -83,7 +83,7 @@ typedef struct user_conn {
 
 void init_max_user_conn(void);
 void free_max_user_conn(void);
-void reset_mqh(LEX_USER *lu, bool get_them);
+void reset_mqh(THD *thd, LEX_USER *lu, bool get_them);
 bool check_mqh(THD *thd, uint check_command);
 void decrease_user_connections(USER_CONN *uc);
 void release_user_connection(THD *thd);

@@ -7,7 +7,7 @@ Create Table	CREATE TABLE `test_ps_auto_recalc` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_auto_recalc';
-create_options	
+CREATE_OPTIONS	
 ALTER TABLE test_ps_auto_recalc STATS_AUTO_RECALC=1;
 # restart
 SHOW CREATE TABLE test_ps_auto_recalc;
@@ -18,7 +18,7 @@ Create Table	CREATE TABLE `test_ps_auto_recalc` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_AUTO_RECALC=1
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_auto_recalc';
-create_options	stats_auto_recalc=1
+CREATE_OPTIONS	stats_auto_recalc=1
 DROP TABLE test_ps_auto_recalc;
 CREATE TABLE test_ps_auto_recalc (a INT, PRIMARY KEY (a)) ENGINE=INNODB
 STATS_AUTO_RECALC=default;
@@ -30,7 +30,7 @@ Create Table	CREATE TABLE `test_ps_auto_recalc` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_auto_recalc';
-create_options	
+CREATE_OPTIONS	
 DROP TABLE test_ps_auto_recalc;
 CREATE TABLE test_ps_auto_recalc (a INT, PRIMARY KEY (a)) ENGINE=INNODB
 STATS_AUTO_RECALC=0;
@@ -43,7 +43,7 @@ Create Table	CREATE TABLE `test_ps_auto_recalc` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_AUTO_RECALC=0
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_auto_recalc';
-create_options	stats_auto_recalc=0
+CREATE_OPTIONS	stats_auto_recalc=0
 ALTER TABLE test_ps_auto_recalc STATS_AUTO_RECALC=1;
 # restart
 SHOW CREATE TABLE test_ps_auto_recalc;
@@ -54,7 +54,7 @@ Create Table	CREATE TABLE `test_ps_auto_recalc` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_AUTO_RECALC=1
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_auto_recalc';
-create_options	stats_auto_recalc=1
+CREATE_OPTIONS	stats_auto_recalc=1
 DROP TABLE test_ps_auto_recalc;
 CREATE TABLE test_ps_auto_recalc (a INT, PRIMARY KEY (a)) ENGINE=INNODB
 STATS_AUTO_RECALC=1;
@@ -67,7 +67,7 @@ Create Table	CREATE TABLE `test_ps_auto_recalc` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_AUTO_RECALC=1
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_auto_recalc';
-create_options	stats_auto_recalc=1
+CREATE_OPTIONS	stats_auto_recalc=1
 ALTER TABLE test_ps_auto_recalc STATS_AUTO_RECALC=0;
 # restart
 SHOW CREATE TABLE test_ps_auto_recalc;
@@ -78,5 +78,5 @@ Create Table	CREATE TABLE `test_ps_auto_recalc` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_AUTO_RECALC=0
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_auto_recalc';
-create_options	stats_auto_recalc=0
+CREATE_OPTIONS	stats_auto_recalc=0
 DROP TABLE test_ps_auto_recalc;

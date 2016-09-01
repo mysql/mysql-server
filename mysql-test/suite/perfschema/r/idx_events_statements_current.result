@@ -1,0 +1,79 @@
+select connection_id() into @conid;
+truncate table performance_schema.events_statements_current;
+truncate table performance_schema.events_statements_history;
+select 1;
+1
+1
+# Connection 1
+
+====================================================================
+Testing index for columns THREAD_ID, EVENT_ID
+====================================================================
+############ Explain for Query ####################################
+explain select END_EVENT_ID
+from performance_schema.events_statements_current
+where THREAD_ID = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_statements_current	NULL	ref	PRIMARY	PRIMARY	8	const	#	100.00	Using where
+############ Explain for Query ####################################
+explain select END_EVENT_ID
+from performance_schema.events_statements_current
+where THREAD_ID > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_statements_current	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select END_EVENT_ID
+from performance_schema.events_statements_current
+where THREAD_ID < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_statements_current	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select END_EVENT_ID
+from performance_schema.events_statements_current
+where THREAD_ID = @tid_default;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_statements_current	NULL	ref	PRIMARY	PRIMARY	8	const	#	100.00	Using where
+############ Explain for Query ####################################
+explain select END_EVENT_ID
+from performance_schema.events_statements_current
+where THREAD_ID = "impossible"
+    and EVENT_ID = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
+############ Explain for Query ####################################
+explain select END_EVENT_ID
+from performance_schema.events_statements_current
+where THREAD_ID = @tid_default
+and EVENT_ID = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
+############ Explain for Query ####################################
+explain select END_EVENT_ID
+from performance_schema.events_statements_current
+where THREAD_ID = @tid_default
+and EVENT_ID > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_statements_current	NULL	ref	PRIMARY	PRIMARY	8	const	#	33.33	Using where
+############ Explain for Query ####################################
+explain select END_EVENT_ID
+from performance_schema.events_statements_current
+where THREAD_ID = @tid_default
+and EVENT_ID < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_statements_current	NULL	ref	PRIMARY	PRIMARY	8	const	#	33.33	Using where
+############ Explain for Query ####################################
+explain select END_EVENT_ID
+from performance_schema.events_statements_current
+where THREAD_ID = @tid_default
+and EVENT_ID = @eid_default;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_statements_current	NULL	const	PRIMARY	PRIMARY	16	const,const	#	100.00	NULL
+############# Explain End #########################################
+flush status;
+select END_EVENT_ID
+from performance_schema.events_statements_current
+where THREAD_ID = @tid_default
+and EVENT_ID = @eid_default;
+END_EVENT_ID
+#
+OK: handler_read_key incremented

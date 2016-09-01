@@ -63,6 +63,7 @@
 #include "sql_tmp_table.h"               // internal_tmp_disk_storage_engine
 #include "sql_time.h"                    // global_date_format
 #include "table_cache.h"                 // Table_cache_manager
+#include "template_utils.h"              // pointer_cast
 #include "transaction.h"                 // trans_commit_stmt
 #include "rpl_write_set_handler.h"       // transaction_write_set_hashing_algorithms
 #include "rpl_group_replication.h"       // is_group_replication_running
@@ -894,7 +895,7 @@ static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
   if (check_has_super(self, thd, var))
     return true;
 
-  if (var->type == OPT_GLOBAL)
+  if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST)
     return false;
 
   /*
@@ -948,7 +949,7 @@ static bool fix_binlog_format_after_update(sys_var *self, THD *thd,
 static bool prevent_global_rbr_exec_mode_idempotent(sys_var *self, THD *thd,
                                                     set_var *var )
 {
-  if (var->type == OPT_GLOBAL)
+  if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST)
   {
     my_error(ER_LOCAL_VARIABLE, MYF(0), self->name.str);
     return true;
@@ -1029,7 +1030,7 @@ static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var)
   if (check_has_super(self, thd, var))
     return true;
 
-  if (var->type == OPT_GLOBAL)
+  if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST)
     return false;
 
    /*
@@ -1331,16 +1332,40 @@ static bool check_charset_not_null(sys_var *self, THD *thd, set_var *var)
 {
   return check_charset(self, thd, var) || check_not_null(self, thd, var);
 }
-static Sys_var_struct Sys_character_set_system(
+
+namespace {
+struct Get_name
+{
+  explicit Get_name(const CHARSET_INFO *ci) : m_ci(ci) {}
+  uchar* get_name()
+  {
+    return const_cast<uchar*>(pointer_cast<const uchar*>(m_ci->name));
+  }
+  const CHARSET_INFO *m_ci;
+};
+
+struct Get_csname
+{
+  explicit Get_csname(const CHARSET_INFO *ci) : m_ci(ci) {}
+  uchar* get_name()
+  {
+    return const_cast<uchar*>(pointer_cast<const uchar*>(m_ci->csname));
+  }
+  const CHARSET_INFO *m_ci;
+};
+
+} // namespace
+
+static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_system(
        "character_set_system", "The character set used by the server "
        "for storing identifiers",
        READ_ONLY GLOBAL_VAR(system_charset_info), NO_CMD_LINE,
-       offsetof(CHARSET_INFO, csname), DEFAULT(0));
+       DEFAULT(0));
 
-static Sys_var_struct Sys_character_set_server(
+static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_server(
        "character_set_server", "The default character set",
        SESSION_VAR(collation_server), NO_CMD_LINE,
-       offsetof(CHARSET_INFO, csname), DEFAULT(&default_charset_info),
+       DEFAULT(&default_charset_info),
        NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_charset_not_null));
 
 static bool check_charset_db(sys_var *self, THD *thd, set_var *var)
@@ -1359,11 +1384,11 @@ static bool update_deprecated(sys_var *self, THD *thd, enum_var_type type)
                       self->name.str);
   return false;
 }
-static Sys_var_struct Sys_character_set_database(
+static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_database(
        "character_set_database",
        " The character set used by the default database",
        SESSION_VAR(collation_database), NO_CMD_LINE,
-       offsetof(CHARSET_INFO, csname), DEFAULT(&default_charset_info),
+       DEFAULT(&default_charset_info),
        NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_charset_db),
        ON_UPDATE(update_deprecated));
 
@@ -1384,34 +1409,34 @@ static bool fix_thd_charset(sys_var *self, THD *thd, enum_var_type type)
     thd->update_charset();
   return false;
 }
-static Sys_var_struct Sys_character_set_client(
+static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_client(
        "character_set_client", "The character set for statements "
        "that arrive from the client",
        SESSION_VAR(character_set_client), NO_CMD_LINE,
-       offsetof(CHARSET_INFO, csname), DEFAULT(&default_charset_info),
+       DEFAULT(&default_charset_info),
        NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_cs_client),
        ON_UPDATE(fix_thd_charset));
 
-static Sys_var_struct Sys_character_set_connection(
+static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_connection(
        "character_set_connection", "The character set used for "
        "literals that do not have a character set introducer and for "
        "number-to-string conversion",
        SESSION_VAR(collation_connection), NO_CMD_LINE,
-       offsetof(CHARSET_INFO, csname), DEFAULT(&default_charset_info),
+       DEFAULT(&default_charset_info),
        NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_charset_not_null),
        ON_UPDATE(fix_thd_charset));
 
-static Sys_var_struct Sys_character_set_results(
+static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_results(
        "character_set_results", "The character set used for returning "
        "query results to the client",
        SESSION_VAR(character_set_results), NO_CMD_LINE,
-       offsetof(CHARSET_INFO, csname), DEFAULT(&default_charset_info),
+       DEFAULT(&default_charset_info),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_charset));
 
-static Sys_var_struct Sys_character_set_filesystem(
+static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_filesystem(
        "character_set_filesystem", "The filesystem character set",
        SESSION_VAR(character_set_filesystem), NO_CMD_LINE,
-       offsetof(CHARSET_INFO, csname), DEFAULT(&character_set_filesystem),
+       DEFAULT(&character_set_filesystem),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_charset_not_null),
        ON_UPDATE(fix_thd_charset));
 
@@ -1454,11 +1479,11 @@ static bool check_collation_not_null(sys_var *self, THD *thd, set_var *var)
   }
   return check_not_null(self, thd, var);
 }
-static Sys_var_struct Sys_collation_connection(
+static Sys_var_struct<CHARSET_INFO, Get_name> Sys_collation_connection(
        "collation_connection", "The collation of the connection "
        "character set",
        SESSION_VAR(collation_connection), NO_CMD_LINE,
-       offsetof(CHARSET_INFO, name), DEFAULT(&default_charset_info),
+       DEFAULT(&default_charset_info),
        NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_collation_not_null),
        ON_UPDATE(fix_thd_charset));
 
@@ -1470,18 +1495,18 @@ static bool check_collation_db(sys_var *self, THD *thd, set_var *var)
     var->save_result.ptr= thd->db_charset;
   return false;
 }
-static Sys_var_struct Sys_collation_database(
+static Sys_var_struct<CHARSET_INFO, Get_name> Sys_collation_database(
        "collation_database", "The collation of the database "
        "character set",
        SESSION_VAR(collation_database), NO_CMD_LINE,
-       offsetof(CHARSET_INFO, name), DEFAULT(&default_charset_info),
+       DEFAULT(&default_charset_info),
        NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_collation_db),
        ON_UPDATE(update_deprecated));
 
-static Sys_var_struct Sys_collation_server(
+static Sys_var_struct<CHARSET_INFO, Get_name> Sys_collation_server(
        "collation_server", "The server default collation",
        SESSION_VAR(collation_server), NO_CMD_LINE,
-       offsetof(CHARSET_INFO, name), DEFAULT(&default_charset_info),
+       DEFAULT(&default_charset_info),
        NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_collation_not_null));
 
 static const char *concurrent_insert_names[]= {"NEVER", "AUTO", "ALWAYS", 0};
@@ -1848,7 +1873,7 @@ static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var)
   }
 #endif
 
-  if (var->type == OPT_GLOBAL &&
+  if ((var->type == OPT_GLOBAL || var->type == OPT_PERSIST) &&
       global_system_variables.binlog_format != BINLOG_FORMAT_ROW)
   {
     my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), var->var->name.str);
@@ -2213,7 +2238,7 @@ static Sys_var_uint Sys_lower_case_table_names(
 
 static bool session_readonly(sys_var *self, THD *thd, set_var *var)
 {
-  if (var->type == OPT_GLOBAL)
+  if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST)
     return false;
   my_error(ER_VARIABLE_IS_READONLY, MYF(0), "SESSION",
            self->name.str, "GLOBAL");
@@ -2340,7 +2365,7 @@ static Sys_var_long Sys_max_digest_length(
 
 static bool check_max_delayed_threads(sys_var *self, THD *thd, set_var *var)
 {
-  return var->type != OPT_GLOBAL &&
+  return (var->type != OPT_GLOBAL && var->type != OPT_PERSIST) &&
          var->save_result.ulonglong_value != 0 &&
          var->save_result.ulonglong_value !=
                            global_system_variables.max_insert_delayed_threads;
@@ -2409,7 +2434,8 @@ static Sys_var_uint Sys_pseudo_thread_id(
 
 static bool fix_max_join_size(sys_var *self, THD *thd, enum_var_type type)
 {
-  System_variables *sv= type == OPT_GLOBAL ? &global_system_variables : &thd->variables;
+  System_variables *sv= (type == OPT_GLOBAL || type == OPT_PERSIST)
+       ? &global_system_variables : &thd->variables;
   if (sv->max_join_size == HA_POS_ERROR)
     sv->option_bits|= OPTION_BIG_SELECTS;
   else
@@ -2560,7 +2586,7 @@ static Sys_var_ulong Sys_net_buffer_length(
 
 static bool fix_net_read_timeout(sys_var *self, THD *thd, enum_var_type type)
 {
-  if (type != OPT_GLOBAL)
+  if (type != OPT_GLOBAL && type != OPT_PERSIST)
   {
     // net_buffer_length is a specific property for the classic protocols
     if (!thd->is_classic_protocol())
@@ -2584,7 +2610,7 @@ static Sys_var_ulong Sys_net_read_timeout(
 
 static bool fix_net_write_timeout(sys_var *self, THD *thd, enum_var_type type)
 {
-  if (type != OPT_GLOBAL)
+  if (type != OPT_GLOBAL && type != OPT_PERSIST)
   {
     // net_read_timeout is a specific property for the classic protocols
     if (!thd->is_classic_protocol())
@@ -2608,7 +2634,7 @@ static Sys_var_ulong Sys_net_write_timeout(
 
 static bool fix_net_retry_count(sys_var *self, THD *thd, enum_var_type type)
 {
-  if (type != OPT_GLOBAL)
+  if (type != OPT_GLOBAL && type != OPT_PERSIST)
   {
     // net_write_timeout is a specific property for the classic protocols
     if (!thd->is_classic_protocol())
@@ -2715,7 +2741,7 @@ static Sys_var_ulong Sys_range_optimizer_max_mem_size(
 static bool
 limit_parser_max_mem_size(sys_var *self, THD *thd, set_var *var)
 {
-  if (var->type == OPT_GLOBAL)
+  if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST)
     return false;
   ulonglong val= var->save_result.ulonglong_value;
   if (val > global_system_variables.parser_max_mem_size)
@@ -3182,7 +3208,7 @@ static Sys_var_ulong Sys_multi_range_count(
 
 static bool fix_thd_mem_root(sys_var *self, THD *thd, enum_var_type type)
 {
-  if (type != OPT_GLOBAL)
+  if (type != OPT_GLOBAL && type != OPT_PERSIST)
     reset_root_defaults(thd->mem_root,
                         thd->variables.query_alloc_block_size,
                         thd->variables.query_prealloc_size);
@@ -3264,7 +3290,7 @@ static Sys_var_charptr Sys_tmpdir(
 
 static bool fix_trans_mem_root(sys_var *self, THD *thd, enum_var_type type)
 {
-  if (type != OPT_GLOBAL)
+  if (type != OPT_GLOBAL && type != OPT_PERSIST)
     thd->get_transaction()->init_mem_root_defaults(
         thd->variables.trans_alloc_block_size,
         thd->variables.trans_prealloc_size);
@@ -4106,7 +4132,7 @@ static bool check_sql_mode(sys_var *self, THD *thd, set_var *var)
 }
 static bool fix_sql_mode(sys_var *self, THD *thd, enum_var_type type)
 {
-  if (type != OPT_GLOBAL)
+  if (type != OPT_GLOBAL && type != OPT_PERSIST)
   {
     /* Update thd->server_status */
     if (thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
@@ -4618,7 +4644,7 @@ static Sys_var_charptr Sys_time_format(
 
 static bool fix_autocommit(sys_var *self, THD *thd, enum_var_type type)
 {
-  if (type == OPT_GLOBAL)
+  if (type == OPT_GLOBAL || type == OPT_PERSIST)
   {
     if (global_system_variables.option_bits & OPTION_AUTOCOMMIT)
       global_system_variables.option_bits&= ~OPTION_NOT_AUTOCOMMIT;
@@ -4729,7 +4755,7 @@ static bool check_sql_log_bin(sys_var *self, THD *thd, set_var *var)
   if (check_has_super(self, thd, var))
     return TRUE;
 
-  if (var->type == OPT_GLOBAL)
+  if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST)
     return TRUE;
 
   /* If in a stored function/trigger, it's too late to change sql_log_bin. */
@@ -5084,6 +5110,14 @@ static bool check_log_path(sys_var *self, THD *thd, set_var *var)
 
   if (!var->save_result.string_value.str)
     return true;
+
+  if (!is_valid_log_name(var->save_result.string_value.str,
+                         var->save_result.string_value.length))
+  {
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0),
+             self->name.str, var->save_result.string_value.str);
+    return true;
+  }
 
   if (var->save_result.string_value.length > FN_REFLEN)
   { // path is too long
@@ -5599,17 +5633,30 @@ static bool check_locale(sys_var *self, THD *thd, set_var *var)
   }
   return false;
 }
-static Sys_var_struct Sys_lc_messages(
+
+namespace {
+struct Get_locale_name
+{
+  explicit Get_locale_name(const MY_LOCALE *ml) : m_ml(ml) {}
+  uchar *get_name()
+  {
+    return const_cast<uchar*>(pointer_cast<const uchar*>(m_ml->name));
+  }
+  const MY_LOCALE *m_ml;
+};
+} // namespace
+
+static Sys_var_struct<MY_LOCALE, Get_locale_name> Sys_lc_messages(
        "lc_messages", "Set the language used for the error messages",
        SESSION_VAR(lc_messages), NO_CMD_LINE,
-       my_offsetof(MY_LOCALE, name), DEFAULT(&my_default_lc_messages),
+       DEFAULT(&my_default_lc_messages),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_locale));
 
-static Sys_var_struct Sys_lc_time_names(
+static Sys_var_struct<MY_LOCALE, Get_locale_name> Sys_lc_time_names(
        "lc_time_names", "Set the language used for the month "
        "names and the days of the week",
        SESSION_VAR(lc_time_names), NO_CMD_LINE,
-       my_offsetof(MY_LOCALE, name), DEFAULT(&my_default_lc_time_names),
+       DEFAULT(&my_default_lc_time_names),
        NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_locale));
 
 static Sys_var_tz Sys_time_zone(
@@ -5632,13 +5679,6 @@ static Sys_var_uint Sys_host_cache_size(
        BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
        ON_UPDATE(fix_host_cache_size));
-
-static Sys_var_charptr Sys_ignore_db_dirs(
-       "ignore_db_dirs",
-       "The list of directories to ignore when collecting database lists",
-       READ_ONLY GLOBAL_VAR(opt_ignore_db_dirs), 
-       NO_CMD_LINE,
-       IN_FS_CHARSET, DEFAULT(0));
 
 const Sys_var_multi_enum::ALIAS enforce_gtid_consistency_aliases[]=
 {
@@ -6066,6 +6106,17 @@ static Sys_var_mybool Sys_offline_mode(
        &PLock_offline_mode, NOT_IN_BINLOG,
        ON_CHECK(0), ON_UPDATE(handle_offline_mode));
 
+static const char *information_schema_stats_names[]= {"LATEST", "CACHED", NullS};
+static Sys_var_enum Sys_information_schema_stats(
+       "information_schema_stats",
+       "If this flag is set to CACHED, INFORMATON_SCHEMA retrieves "
+       "dynamic column statistics stored in dedicated tables. "
+       "If set to LATEST, the dynamic statistics will be read directly "
+       "from the storage engine.",
+       SESSION_VAR(information_schema_stats), CMD_LINE(REQUIRED_ARG),
+       information_schema_stats_names,
+       DEFAULT(static_cast<ulong>(dd::info_schema::enum_stats::CACHED)));
+
 static Sys_var_mybool Sys_log_builtin_as_identified_by_password(
        "log_builtin_as_identified_by_password",
        "Controls logging of CREATE/ALTER/GRANT and SET PASSWORD user statements "
@@ -6103,3 +6154,14 @@ static Sys_var_charptr Sys_disabled_storage_engines(
        READ_ONLY GLOBAL_VAR(opt_disabled_storage_engines),
        CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
        DEFAULT(""));
+
+static Sys_var_mybool Sys_persisted_globals_load(
+       "persisted_globals_load",
+       "When this option is enabled, config file mysqld-auto.cnf is read "
+       "and applied to server, else this file is ignored even if present.",
+       READ_ONLY GLOBAL_VAR(persisted_globals_load),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
+       NO_MUTEX_GUARD,
+       NOT_IN_BINLOG,
+       ON_CHECK(0),
+       ON_UPDATE(0));

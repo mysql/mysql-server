@@ -75,6 +75,12 @@ public:
 
 	row_type get_real_row_type(const HA_CREATE_INFO *create_info) const;
 
+	/** Get the row type from the storage engine.  If this method returns
+	ROW_TYPE_NOT_USED, the information in HA_CREATE_INFO should be used.
+	This method has been added to handle upgrade scenario. It will be
+	removed in the future. */
+	row_type get_row_type_for_upgrade() const;
+
 	const char* table_type() const;
 
 	enum ha_key_alg get_default_index_algorithm() const
@@ -444,6 +450,8 @@ public:
 		HA_CREATE_INFO*		info,
 		uint			table_changes);
 
+private:
+
 	/** @name Multi Range Read interface @{ */
 
 	/** Initialize multi range read @see DsMrr_impl::dsmrr_init
@@ -511,8 +519,6 @@ private:
 	int change_active_index(uint keynr);
 
 	dberr_t innobase_lock_autoinc();
-
-	ulonglong innobase_peek_autoinc();
 
 	dberr_t innobase_set_max_autoinc(ulonglong auto_inc);
 
@@ -965,17 +971,6 @@ innodb_base_col_setup_for_stored(
 /** whether this is a computed virtual column */
 #define innobase_is_v_fld(field) ((field)->gcol_info && !(field)->stored_in_db)
 
-/** Release temporary latches.
-Call this function when mysqld passes control to the client. For more
-documentation, see handler.cc.
-@param[in]	hton	Handlerton.
-@param[in]	thd	MySQL thread.
-@return 0 */
-int
-innobase_release_temporary_latches(
-	handlerton*	hton,
-	THD*		thd);
-
 /** Always normalize table name to lower case on Windows */
 #ifdef _WIN32
 #define normalize_table_name(norm_name, name)           \
@@ -1038,7 +1033,7 @@ Need to exclude the NULL value if innodb_stats_method is set to "nulls_ignored"
 @return estimated record per key value */
 rec_per_key_t
 innodb_rec_per_key(
-	dict_index_t*	index,
+	const dict_index_t*	index,
 	ulint		i,
 	ha_rows		records);
 

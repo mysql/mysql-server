@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -233,6 +233,75 @@ table_prepared_stmt_instances::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_prepared_stmt_instances_by_instance::match(const PFS_prepared_stmt *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(pfs))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_prepared_stmt_instances_by_owner_thread::match(const  PFS_prepared_stmt *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key_1.match_owner(pfs))
+      return false;
+  }
+
+  if (m_fields >= 2)
+  {
+    if (!m_key_2.match_owner(pfs))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_prepared_stmt_instances_by_statement_id::match(const  PFS_prepared_stmt *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(pfs))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_prepared_stmt_instances_by_statement_name::match(const  PFS_prepared_stmt *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(pfs))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_prepared_stmt_instances_by_owner_object::match(const  PFS_prepared_stmt *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key_1.match(pfs))
+      return false;
+  }
+
+  if (m_fields >= 2)
+  {
+    if (!m_key_2.match(pfs))
+      return false;
+  }
+
+  if (m_fields >= 3)
+  {
+    if (!m_key_3.match(pfs))
+      return false;
+  }
+  return true;
+}
+
+
 PFS_engine_table*
 table_prepared_stmt_instances::create(void)
 {
@@ -297,6 +366,61 @@ table_prepared_stmt_instances::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
+int table_prepared_stmt_instances::index_init(uint idx, bool sorted)
+{
+  PFS_index_prepared_stmt_instances *result= NULL;
+
+  switch(idx)
+  {
+  case 0:
+    result= PFS_NEW(PFS_index_prepared_stmt_instances_by_instance);
+    break;
+  case 1:
+    result= PFS_NEW(PFS_index_prepared_stmt_instances_by_owner_thread);
+    break;
+  case 2:
+    result= PFS_NEW(PFS_index_prepared_stmt_instances_by_statement_id);
+    break;
+  case 3:
+    result= PFS_NEW(PFS_index_prepared_stmt_instances_by_statement_name);
+    break;
+  case 4:
+    result= PFS_NEW(PFS_index_prepared_stmt_instances_by_owner_object);
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_prepared_stmt_instances::index_next(void)
+{
+  PFS_prepared_stmt* pfs;
+  bool has_more= true;
+
+  for (m_pos.set_at(&m_next_pos);
+       has_more;
+       m_pos.next())
+  {
+    pfs = global_prepared_stmt_container.get(m_pos.m_index, &has_more);
+
+    if (pfs != NULL)
+    {
+      if (m_opened_index->match(pfs))
+      {
+        make_row(pfs);
+        m_next_pos.set_after(&m_pos);
+        return 0;
+      }
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
+}
 
 void table_prepared_stmt_instances::make_row(PFS_prepared_stmt* prepared_stmt)
 {

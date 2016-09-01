@@ -52,6 +52,84 @@ struct row_metadata_lock
   PFS_object_row m_object;
 };
 
+class PFS_index_metadata_locks : public PFS_engine_index
+{
+public:
+  PFS_index_metadata_locks(PFS_engine_key *key_1)
+    : PFS_engine_index(key_1)
+  {}
+
+  PFS_index_metadata_locks(PFS_engine_key *key_1,
+                          PFS_engine_key *key_2)
+    : PFS_engine_index(key_1, key_2)
+  {}
+
+  PFS_index_metadata_locks(PFS_engine_key *key_1,
+                          PFS_engine_key *key_2,
+                          PFS_engine_key *key_3)
+    : PFS_engine_index(key_1, key_2, key_3)
+  {}
+
+  ~PFS_index_metadata_locks()
+  {}
+
+  virtual bool match(const PFS_metadata_lock *pfs) = 0;
+};
+
+class PFS_index_metadata_locks_by_instance : public PFS_index_metadata_locks
+{
+public:
+  PFS_index_metadata_locks_by_instance()
+    : PFS_index_metadata_locks(&m_key),
+    m_key("OBJECT_INSTANCE_BEGIN")
+  {}
+
+  ~PFS_index_metadata_locks_by_instance()
+  {}
+
+  virtual bool match(const PFS_metadata_lock *pfs);
+
+private:
+  PFS_key_object_instance m_key;
+};
+
+class PFS_index_metadata_locks_by_object : public PFS_index_metadata_locks
+{
+public:
+  PFS_index_metadata_locks_by_object()
+    : PFS_index_metadata_locks(&m_key_1, &m_key_2, &m_key_3),
+    m_key_1("OBJECT_TYPE"), m_key_2("OBJECT_SCHEMA"), m_key_3("OBJECT_NAME")
+  {}
+
+  ~PFS_index_metadata_locks_by_object()
+  {}
+
+  virtual bool match(const PFS_metadata_lock *pfs);
+
+private:
+  PFS_key_object_type m_key_1;
+  PFS_key_object_schema m_key_2;
+  PFS_key_object_name m_key_3;
+};
+
+class PFS_index_metadata_locks_by_owner : public PFS_index_metadata_locks
+{
+public:
+  PFS_index_metadata_locks_by_owner()
+    : PFS_index_metadata_locks(&m_key_1, &m_key_2),
+    m_key_1("OWNER_THREAD_ID"), m_key_2("OWNER_EVENT_ID")
+  {}
+
+  ~PFS_index_metadata_locks_by_owner()
+  {}
+
+  virtual bool match(const PFS_metadata_lock *pfs);
+
+private:
+  PFS_key_thread_id m_key_1;
+  PFS_key_event_id m_key_2;
+};
+
 /** Table PERFORMANCE_SCHEMA.METADATA_LOCKS. */
 class table_metadata_locks : public PFS_engine_table
 {
@@ -61,16 +139,19 @@ public:
   static PFS_engine_table* create();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
 private:
   virtual int read_row_values(TABLE *table,
                               unsigned char *buf,
                               Field **fields,
                               bool read_all);
-
   table_metadata_locks();
 
 public:
@@ -93,6 +174,9 @@ private:
   PFS_simple_index m_pos;
   /** Next position. */
   PFS_simple_index m_next_pos;
+
+protected:
+  PFS_index_metadata_locks *m_opened_index;
 };
 
 /** @} */

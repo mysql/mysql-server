@@ -1,3 +1,5 @@
+CALL mtr.add_suppression('Following users were specified in CREATE USER IF NOT EXISTS but they already exist');
+CALL mtr.add_suppression('Following users were specified in ALTER USER IF EXISTS but they do not exist');
 DELETE FROM mysql.user WHERE user = 'wl8540';
 FLUSH PRIVILEGES;
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';

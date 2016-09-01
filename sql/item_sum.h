@@ -25,6 +25,7 @@
 #include "sql_alloc.h"      // Sql_alloc
 #include "sql_udf.h"        // udf_handler
 #include "mem_root_array.h"
+#include "json_dom.h"       // Json_wrapper
 
 class Item_sum;
 class Aggregator_distinct;
@@ -368,9 +369,21 @@ public:
   bool has_with_distinct()     const { return with_distinct; }
 
   enum Sumfunctype
-  { COUNT_FUNC, COUNT_DISTINCT_FUNC, SUM_FUNC, SUM_DISTINCT_FUNC, AVG_FUNC,
-    AVG_DISTINCT_FUNC, MIN_FUNC, MAX_FUNC, STD_FUNC,
-    VARIANCE_FUNC, SUM_BIT_FUNC, UDF_SUM_FUNC, GROUP_CONCAT_FUNC
+  {
+    COUNT_FUNC,          // COUNT
+    COUNT_DISTINCT_FUNC, // COUNT (DISTINCT)
+    SUM_FUNC,            // SUM
+    SUM_DISTINCT_FUNC,   // SUM (DISTINCT)
+    AVG_FUNC,            // AVG
+    AVG_DISTINCT_FUNC,   // AVG (DISTINCT)
+    MIN_FUNC,            // MIN
+    MAX_FUNC,            // MAX
+    STD_FUNC,            // STD/STDDEV/STDDEV_POP
+    VARIANCE_FUNC,       // VARIANCE/VAR_POP and VAR_SAMP
+    SUM_BIT_FUNC,        // BIT_AND, BIT_OR and BIT_XOR
+    UDF_SUM_FUNC,        // user defined functions
+    GROUP_CONCAT_FUNC,   // GROUP_CONCAT
+    JSON_AGG_FUNC,       // JSON_ARRAYAGG and JSON_OBJECTAGG
   };
 
   Item **ref_by;  ///< pointer to a ref to the object used to register it
@@ -414,6 +427,15 @@ public:
      forced_const(false)
   {
     args[0]=a;
+    init_aggregator();
+  }
+
+  Item_sum(const POS &pos, Item *a, Item *b)
+    :super(pos), next(nullptr), quick_group(true), arg_count(2), args(tmp_args),
+     forced_const(false)
+  {
+    args[0]= a;
+    args[1]= b;
     init_aggregator();
   }
 
@@ -962,6 +984,82 @@ public:
       MYSQL_TYPE_LONGLONG : MYSQL_TYPE_VAR_STRING;
   }
   const char *func_name() const { DBUG_ASSERT(0); return "sum_bit_field"; }
+};
+
+
+/// Common abstraction for Item_sum_json_array and Item_sum_json_object
+class Item_sum_json : public Item_sum
+{
+protected:
+  /// String used when reading JSON binary values or JSON text values.
+  String m_value;
+  /// String used for converting JSON text values to utf8mb4 charset.
+  String m_conversion_buffer;
+  /// Wrapper around the container (object/array) which accumulates the value.
+  Json_wrapper m_wrapper;
+
+public:
+  Item_sum_json(THD *thd, Item_sum *item)
+    : Item_sum(thd, item)
+  {}
+  Item_sum_json(const POS &pos, Item *a)
+    : Item_sum(pos, a)
+  {}
+  Item_sum_json(const POS &pos, Item *a, Item *b)
+    : Item_sum(pos, a, b)
+  {}
+
+  virtual bool fix_fields(THD *thd, Item **pItem) override;
+  enum_field_types field_type() const override { return MYSQL_TYPE_JSON; }
+  virtual enum Sumfunctype sum_func() const override { return JSON_AGG_FUNC; }
+  virtual Item_result result_type() const override { return STRING_RESULT; }
+
+  virtual double val_real() override;
+  virtual longlong val_int() override;
+  virtual String *val_str(String *str) override;
+  virtual bool val_json(Json_wrapper *wr) override;
+  virtual my_decimal *val_decimal(my_decimal *decimal_buffer) override;
+  virtual bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
+  virtual bool get_time(MYSQL_TIME *ltime) override;
+
+  virtual void reset_field() override;
+  virtual void update_field() override;
+};
+
+
+/// Implements aggregation of values into an array.
+class Item_sum_json_array : public Item_sum_json
+{
+  /// Accumulates the final value.
+  Json_array m_json_array;
+public:
+  Item_sum_json_array(THD *thd, Item_sum *item)
+    : Item_sum_json(thd, item) { }
+  Item_sum_json_array(const POS &pos, Item *a)
+    : Item_sum_json(pos, a) { }
+  virtual const char *func_name() const override { return "json_arrayagg("; }
+  virtual void clear() override;
+  virtual bool add() override;
+  virtual Item *copy_or_same(THD* thd) override;
+};
+
+
+/// Implements aggregation of values into an object.
+class Item_sum_json_object : public Item_sum_json
+{
+  /// Accumulates the final value.
+  Json_object m_json_object;
+  /// Buffer used to get the value of the key.
+  String m_tmp_key_value;
+public:
+  Item_sum_json_object(THD *thd, Item_sum *item)
+    : Item_sum_json(thd, item) { }
+  Item_sum_json_object(const POS &pos, Item *a, Item *b)
+    : Item_sum_json(pos, a, b) { }
+  virtual const char *func_name() const override { return "json_objectagg("; }
+  virtual void clear() override;
+  virtual bool add() override;
+  virtual Item *copy_or_same(THD* thd) override;
 };
 
 

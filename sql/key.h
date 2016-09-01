@@ -95,12 +95,14 @@ typedef float rec_per_key_t;
 /**
   If the "in memory estimate" for a table (in
   ha_statistics.table_in_mem_estimate) or index (in
-  st_key::m_in_memory_estimate) is not known or not set by the storage
+  KEY::m_in_memory_estimate) is not known or not set by the storage
   engine, then it should have the following value.
 */
 #define IN_MEMORY_ESTIMATE_UNKNOWN -1.0
 
-typedef struct st_key {
+class KEY
+{
+public:
   /** Tot length of key */
   uint	key_length;
   /** dupp key and pack flags */
@@ -320,7 +322,7 @@ public:
 
     m_in_memory_estimate= in_memory_estimate;
   }
-} KEY;
+};
 
 
 int find_ref_key(KEY *key, uint key_count, uchar *record, Field *field,

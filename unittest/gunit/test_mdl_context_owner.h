@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,7 +44,8 @@ public:
   virtual bool is_connected() { return true; }
   virtual THD* get_thd()   { return NULL; }
 
-  virtual bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key)
+  virtual bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key,
+                                                 bool *victimized)
   { return false; }
   virtual void notify_hton_post_release_exclusive(const MDL_key *mdl_key)
   { }

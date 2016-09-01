@@ -474,12 +474,12 @@ utf8_maxuserid_ci	utf8	2047			8
 show collation like '%test%';
 Collation	Charset	Id	Default	Compiled	Sortlen
 latin1_test	latin1	99		Yes	1
-utf8_test_ci	utf8	353			8
 ucs2_test_ci	ucs2	358			8
-utf8mb4_test_ci	utf8mb4	326			8
-utf8mb4_test_400_ci	utf8mb4	328			8
 utf16_test_ci	utf16	327			8
 utf32_test_ci	utf32	391			8
+utf8mb4_test_400_ci	utf8mb4	328			8
+utf8mb4_test_ci	utf8mb4	326			8
+utf8_test_ci	utf8	353			8
 show collation like 'ucs2_vn_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen
 ucs2_vn_ci	ucs2	359			8

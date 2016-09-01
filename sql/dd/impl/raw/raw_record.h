@@ -64,6 +64,20 @@ public:
 
   bool store_time(int field_no, my_time_t val, bool is_null= false);
 
+  /**
+    Store timeval at field specified by field_no into the record.
+
+    @param field_no  Field position in the record.
+    @param tv        Time value to store.
+
+    @returns
+     false on success
+     true on failure
+  */
+
+  bool store_timestamp(int field_no, const timeval &tv);
+
+
 public:
   bool is_null(int field_no) const;
 
@@ -85,6 +99,18 @@ public:
   { return read_int(field_no) != 0; }
 
   my_time_t read_time(int field_no) const;
+
+  /**
+    Read timeval stored at field specified by field_no from the record.
+
+    @param field_no  Field position in the record.
+
+    @returns
+      timeval stored at field_no.
+  */
+
+  timeval read_timestamp(int field_no) const;
+
 
 protected:
   void set_null(int field_no, bool is_null);

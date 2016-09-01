@@ -59,11 +59,12 @@ unittest/gunit/innodb/CMakeLists.txt */
 
 #ifdef TEST_TBB
 #include <tbb/concurrent_hash_map.h>
-#endif
+#endif /* TEST_TBB */
 
 #define __STDC_LIMIT_MACROS
 
 #include <gtest/gtest.h>
+#include <thread>
 
 #include "univ.i"
 
@@ -529,6 +530,7 @@ run_multi_threaded(
 	hash = new ut_lock_free_hash_t(initial_hash_size, true);
 #endif
 
+	std::thread**		threads = new std::thread*[n_threads];
 	thread_params_t*	params = new thread_params_t[n_threads];
 
 	hash_insert(hash, n_common, 0);
@@ -541,12 +543,13 @@ run_multi_threaded(
 		params[i].n_common = n_common;
 		params[i].n_priv_per_thread = n_priv_per_thread;
 
-		os_thread_create(0, thread_func, &params[i]);
+		threads[i] = new std::thread(thread_func, &params[i]);
 	}
 
 	/* Wait for all threads to exit. */
-	while (os_thread_count.load(std::memory_order_relaxed) > 0) {
-		os_thread_sleep(100000 /* 0.1 sec */);
+	for (uintptr_t i = 0; i < n_threads; i++) {
+		threads[i]->join();
+		delete threads[i];
 	}
 
 	hash_check_inserted(hash, n_common, 0);
@@ -556,6 +559,7 @@ run_multi_threaded(
 #endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
 
 	delete[] params;
+	delete[] threads;
 
 	delete hash;
 	my_delete_thread_local_key(ut_rnd_ulint_counter_key);

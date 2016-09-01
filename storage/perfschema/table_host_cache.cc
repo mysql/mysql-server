@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -197,6 +197,26 @@ table_host_cache::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_host_cache_by_ip::match(const row_host_cache *row)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(row->m_ip, row->m_ip_length))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_host_cache_by_host::match(const row_host_cache *row)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(row->m_hostname, row->m_hostname_length))
+      return false;
+  }
+  return true;
+}
+
 PFS_engine_table* table_host_cache::create(void)
 {
   table_host_cache *t= new table_host_cache();
@@ -288,7 +308,7 @@ end:
 
 void table_host_cache::make_row(Host_entry *entry, row_host_cache *row)
 {
-  row->m_ip_length= strlen(entry->ip_key);
+  row->m_ip_length= (uint)strlen(entry->ip_key);
   strcpy(row->m_ip, entry->ip_key);
   row->m_hostname_length= entry->m_hostname_length;
   if (row->m_hostname_length > 0)
@@ -363,6 +383,52 @@ int table_host_cache::rnd_pos(const void *pos)
   DBUG_ASSERT(m_pos.m_index < m_row_count);
   m_row= &m_all_rows[m_pos.m_index];
   return 0;
+}
+
+int table_host_cache::index_init(uint idx, bool sorted)
+{
+  PFS_index_host_cache *result= NULL;
+
+  switch(idx)
+  {
+  case 0:
+    result= PFS_NEW(PFS_index_host_cache_by_ip);
+    break;
+  case 1:
+    result= PFS_NEW(PFS_index_host_cache_by_host);
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_host_cache::index_next(void)
+{
+  int result;
+
+  for (m_pos.set_at(&m_next_pos);
+       m_pos.m_index < m_row_count;
+       m_pos.next())
+  {
+    m_row= &m_all_rows[m_pos.m_index];
+
+    if (m_opened_index->match(m_row))
+    {
+      m_next_pos.set_after(&m_pos);
+      result= 0;
+      return result;
+    }
+  }
+
+  m_row= NULL;
+  result= HA_ERR_END_OF_FILE;
+
+  return result;
 }
 
 int table_host_cache::read_row_values(TABLE *table,

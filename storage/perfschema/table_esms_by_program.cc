@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -218,6 +218,29 @@ table_esms_by_program::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_esms_by_program::match(PFS_program *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key_1.match(pfs->m_type))
+      return false;
+  }
+
+  if (m_fields >= 2)
+  {
+    if (!m_key_2.match(pfs))
+      return false;
+  }
+
+  if (m_fields >= 3)
+  {
+    if (!m_key_3.match(pfs))
+      return false;
+  }
+
+  return true;
+}
+
 PFS_engine_table*
 table_esms_by_program::create(void)
 {
@@ -282,6 +305,43 @@ table_esms_by_program::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
+int table_esms_by_program::index_init(uint idx, bool sorted)
+{
+  PFS_index_esms_by_program *result= NULL;
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_esms_by_program);
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_esms_by_program::index_next(void)
+{
+  PFS_program* pfs;
+  bool has_more_program= true;
+
+  for (m_pos.set_at(&m_next_pos);
+       has_more_program;
+       m_pos.next())
+  {
+    pfs= global_program_container.get(m_pos.m_index, &has_more_program);
+
+    if (pfs != NULL)
+    {
+      if (m_opened_index->match(pfs))
+      {
+        make_row(pfs);
+        if (m_row_exists)
+        {
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
+      }
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
+}
 
 void table_esms_by_program::make_row(PFS_program* program)
 {
@@ -327,7 +387,7 @@ int table_esms_by_program
     Set the null bits. It indicates how many fields could be null
     in the table.
   */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  DBUG_ASSERT(table->s->null_bytes == 0);
   buf[0]= 0;
 
   for (; (f= *fields) ; fields++)
@@ -372,4 +432,3 @@ int table_esms_by_program
 
   return 0;
 }
-

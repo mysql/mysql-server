@@ -49,6 +49,9 @@ SET @@SESSION.foreign_key_checks = @old_foreign_key_checks;
 #
 CREATE TABLE t1 (a INT PRIMARY KEY NOT NULL AUTO_INCREMENT);
 INSERT INTO t1 VALUES (NULL), (NULL);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't1';
 AUTO_INCREMENT
 3
@@ -57,6 +60,9 @@ a
 1
 2
 TRUNCATE TABLE t1;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't1';
 AUTO_INCREMENT
 1

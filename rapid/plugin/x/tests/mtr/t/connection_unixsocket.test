@@ -82,6 +82,11 @@ Mysqlx.Crud.Find {
 
 EOF
 
+# Server was started with UNIX socket support
+# Check if UNIX socket file and lock file exist
+--file_exists $MASTER_X_MYSOCK
+--file_exists $MASTER_X_MYSOCK.lock
+
 --error 1
 --exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -uuser_127_0_0_1 --password='' --file=$MYSQL_TMP_DIR/basic_connection.tmp 2>&1
 --error 1
@@ -166,6 +171,15 @@ EOF
 let $restart_parameters = restart: --mysqlx-socket=$MYSQL_TMP_DIR/valid_mysqlx.sock;
 --source include/restart_mysqld.inc
 
+# MySQL Server was started with new UNIX socket file for X Plugin
+# Check if old UNIX socket file was removed and lockfile
+--error 1
+--file_exists $MASTER_X_MYSOCK
+--error 1
+--file_exists $MASTER_X_MYSOCK.lock
+
+# Check if the X Plugin is accessable through 
+# new file
 --exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/valid_mysqlx.sock -uroot --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
 
 ## Postamble

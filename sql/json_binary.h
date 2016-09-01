@@ -138,6 +138,7 @@
 
 class Json_dom;
 class String;
+class THD;
 
 namespace json_binary
 {
@@ -147,12 +148,13 @@ namespace json_binary
   the destination string, replacing any content already in the
   destination string.
 
+  @param[in]     thd   THD handle
   @param[in]     dom   the input DOM tree
   @param[in,out] dest  the destination string
   @retval false on success
   @retval true if an error occurred
 */
-bool serialize(const Json_dom *dom, String *dest);
+bool serialize(const THD *thd, const Json_dom *dom, String *dest);
 
 /**
   Class used for reading JSON values that are stored in the binary
@@ -189,7 +191,7 @@ public:
   Value key(size_t pos) const;
   enum_field_types field_type() const;
   Value lookup(const char *key, size_t len) const;
-  bool raw_binary(String *buf) const;
+  bool raw_binary(const THD *thd, String *buf) const;
 
   /** Constructor for values that represent literals or errors. */
   explicit Value(enum_type t);

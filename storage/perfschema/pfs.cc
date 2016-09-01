@@ -1604,11 +1604,13 @@ static int build_prefix(const LEX_STRING *prefix, const char *category,
     return 1;
   }
 
-  /* output = prefix + category + '/' */
+  /* output = prefix + '/' + category + '/' */
   memcpy(out_ptr, prefix->str, prefix_length);
   out_ptr+= prefix_length;
   if (len > 0)
   {
+    *out_ptr= '/';
+    out_ptr++;
     memcpy(out_ptr, category, len);
     out_ptr+= len;
     *out_ptr= '/';

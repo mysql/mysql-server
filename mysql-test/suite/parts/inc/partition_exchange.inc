@@ -57,6 +57,7 @@ UPDATE t SET a = 17 WHERE a = 25;
 -- disable_query_log
 -- disable_result_log
 ANALYZE TABLE tp;
+ANALYZE TABLE t;
 -- enable_result_log
 -- enable_query_log
 SELECT PARTITION_NAME, IF(TABLE_ROWS, 'YES', 'NO') AS HAVE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA ='test' AND TABLE_NAME = 'tp';

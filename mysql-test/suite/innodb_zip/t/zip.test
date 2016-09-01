@@ -5,7 +5,7 @@ let $per_table=`select @@innodb_file_per_table`;
 SET @save_innodb_stats_on_metadata=@@global.innodb_stats_on_metadata;
 
 
---let $query_i_s = SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql' AND table_schema != 'sys' AND table_schema != 'PERFORMANCE_SCHEMA' AND table_schema != 'information_schema';
+--let $query_i_s = SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql' AND table_schema != 'sys' AND table_schema != 'PERFORMANCE_SCHEMA' AND table_schema != 'information_schema' ORDER BY table_schema, table_name;
 
 set session innodb_strict_mode=0;
 set global innodb_file_per_table=off;
@@ -40,18 +40,23 @@ create table t13(a int primary key) engine=innodb
 row_format=compressed;
 create table t14(a int primary key) engine=innodb key_block_size=9;
 
+analyze table t0 ,t00 ,t1 ,t2 ,t3 ,t4 ,t5 ,t6 ,t7 ,t8 ,t9 ,t10 ,t11 ,t12 ,t13 ,t14;
+
 --replace_result 16384 {valid} 8192 {valid} 4096 {valid} 2048 {valid}
 --eval $query_i_s
 
 drop table t0,t00,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14;
 alter table t1 key_block_size=0;
 alter table t1 row_format=dynamic;
+analyze table t1;
 --replace_result 16384 {valid} 8192 {valid} 4096 {valid}
 --eval $query_i_s
 alter table t1 row_format=compact;
+analyze table t1;
 --replace_result 16384 {valid} 8192 {valid} 4096 {valid}
 --eval $query_i_s
 alter table t1 row_format=redundant;
+analyze table t1;
 --replace_result 16384 {valid} 8192 {valid} 4096 {valid}
 --eval $query_i_s
 drop table t1;
@@ -154,6 +159,14 @@ create table t9 (id int primary key) engine = innodb row_format = dynamic;
 create table t10(id int primary key) engine = innodb row_format = compact;
 create table t11(id int primary key) engine = innodb row_format = redundant;
 
+analyze table t1;
+analyze table t3;
+analyze table t4;
+analyze table t5;
+analyze table t8;
+analyze table t9;
+analyze table t10;
+analyze table t11;
 --replace_result 16384 {valid} 8192 {valid} 4096 {valid} 2048 {valid}
 --eval $query_i_s
 drop table t1, t3, t4, t5, t8, t9, t10, t11;
@@ -179,6 +192,9 @@ show warnings;
 
 create table t5 (id int primary key) engine = innodb
 key_block_size = 4 row_format = default;
+
+analyze table t1;
+analyze table t5;
 
 --replace_result 16384 {valid} 8192 {valid} 4096 {valid}
 --eval $query_i_s
@@ -226,6 +242,9 @@ create table t7 (id int primary key) engine = innodb row_format = dynamic;
 create table t8 (id int primary key) engine = innodb row_format = compact;
 create table t9 (id int primary key) engine = innodb row_format = redundant;
 
+analyze table t7;
+analyze table t8;
+analyze table t9;
 --replace_result 16384 {valid} 8192 {valid} 4096 {valid}
 --eval $query_i_s
 drop table t7, t8, t9;
@@ -234,6 +253,9 @@ set global innodb_file_per_table = on;
 
 create table t8 (id int primary key) engine = innodb row_format = compact;
 create table t9 (id int primary key) engine = innodb row_format = redundant;
+
+analyze table t8;
+analyze table t9;
 
 --replace_result 16384 {valid} 8192 {valid} 4096 {valid}
 --eval $query_i_s

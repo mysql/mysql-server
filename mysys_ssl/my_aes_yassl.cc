@@ -213,7 +213,7 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
 }
 
 
-int my_aes_get_size(uint32 source_length, my_aes_opmode opmode)
+int my_aes_get_size(uint32 source_length, my_aes_opmode)
 {
   return MY_AES_BLOCK_SIZE * (source_length / MY_AES_BLOCK_SIZE)
     + MY_AES_BLOCK_SIZE;

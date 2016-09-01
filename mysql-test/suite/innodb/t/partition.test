@@ -54,12 +54,15 @@ DROP TABLE t0;
 
 ANALYZE TABLE t1;
 EXPLAIN SELECT * FROM t1 WHERE a BETWEEN 1 AND 450 AND b BETWEEN 1 AND 10;
---echo # Pull performance_schema.session_status into data-dictionary cache.
---disable_result_log
---disable_query_log
-SHOW CREATE TABLE performance_schema.session_status;
---enable_query_log
---enable_result_log
+
+--disable_warnings
+# Access session_status, so that the session_status metadata is accessed and
+# kept in DD cache. Else the HANDLER_READ_KEY would increment more than
+# required.
+SELECT * FROM performance_schema.session_status
+WHERE VARIABLE_NAME LIKE 'dummy';
+--enable_warnings
+
 FLUSH STATUS;
 --sorted_result
 SELECT * FROM t1 WHERE a BETWEEN 1 AND 450 AND b BETWEEN 1 AND 10;
@@ -418,19 +421,24 @@ DROP TABLESPACE ts1;
 --echo #
 call mtr.add_suppression("\\[Warning\\] InnoDB: Trying to access missing tablespace .*");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Missing .ibd file for table `test`\.`t1` .* ");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table .*");
 
 CREATE TABLE t1(c1 INT,c2 CHAR(1)) PARTITION BY KEY(c1) PARTITIONS 4;
 
 ALTER TABLE t1 DISCARD PARTITION p3 TABLESPACE;
+ANALYZE TABLE t1;
 SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
 
 ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
+ANALYZE TABLE t1;
 SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
 
 ALTER TABLE t1 DISCARD PARTITION p2 TABLESPACE;
+ANALYZE TABLE t1;
 SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
 
 ALTER TABLE t1 DISCARD PARTITION p0 TABLESPACE;
+ANALYZE TABLE t1;
 SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
 
 DROP TABLE t1;
@@ -438,6 +446,7 @@ DROP TABLE t1;
 CREATE TABLE t1(c1 INT,c2 CHAR(1)) PARTITION BY KEY(c1) PARTITIONS 4;
 
 ALTER TABLE t1 DISCARD TABLESPACE;
+ANALYZE TABLE t1;
 SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
 
 DROP TABLE t1;

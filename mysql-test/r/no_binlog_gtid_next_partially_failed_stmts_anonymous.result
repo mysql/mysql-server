@@ -25,8 +25,8 @@ DROP USER u1@h, u2@h;
 ERROR HY000: Operation DROP USER failed for 'u2'@'h'
 #
 # When binlog is disabled, verify that we can set
-# GTID_NEXT to 'ANONYMOUS' after the partially failed
-# DROP USER statement consumed its 'ANONYMOUS' gtid.
+# GTID_NEXT to 'ANONYMOUS' after the failed DROP USER
+# statement  did not consumed its 'ANONYMOUS' gtid.
 #
 SET GTID_NEXT = 'ANONYMOUS';
 CREATE VIEW v1 as SELECT 1;
@@ -39,3 +39,4 @@ ERROR 42S02: Unknown table 'test.v2'
 # DROP USER statement consumed its 'ANONYMOUS' gtid.
 #
 SET GTID_NEXT = 'ANONYMOUS';
+DROP USER u1@h;

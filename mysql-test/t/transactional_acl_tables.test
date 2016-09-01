@@ -1242,7 +1242,8 @@ CREATE USER user2@localhost, user3@localhost;
 DROP USER no_user@localhost, user3@localhost,
           no_user1@localhost, user2@localhost,
           no_user2@localhost;
-SHOW WARNINGS;
+
+DROP USER user2@localhost, user3@localhost;
 
 SELECT user, host FROM mysql.user where user like 'user%';
 
@@ -1303,7 +1304,7 @@ SET debug="+d,wl7158_handle_grant_table_1";
 RENAME USER user7@localhost TO user7_1@localhost;
 SET debug="-d,wl7158_handle_grant_table_1";
 
-DROP USER user7@localhost, user8@localhost;
+DROP USER user7@localhost;
 
 --echo
 --echo ####################################################################
@@ -1319,9 +1320,6 @@ CREATE USER user2@localhost;
 CREATE USER user2@localhost;
 
 # 3. Mixed test cases
-# For CREATE USER statement, the current behavior is to ignore the failed
-# component and continue the statement execution. In the end, the statement
-# will report a list of failed components.
 
 --error ER_CANNOT_USER
 CREATE USER user3@localhost, user2@localhost, user4@localhost;
@@ -1329,7 +1327,7 @@ SHOW WARNINGS;
 
 SELECT user, host FROM mysql.user where user like 'user%';
 
-DROP USER user2@localhost, user3@localhost, user4@localhost;
+DROP USER user2@localhost, user3@localhost;
 
 --echo
 --echo ####################################################################
@@ -1401,9 +1399,6 @@ SELECT user, column_name, column_priv FROM mysql.columns_priv;
 --error ER_PASSWORD_NO_MATCH
 GRANT SELECT(b) ON t1 TO u1@h, u2@h, u3@h;
 SHOW WARNINGS;
-SELECT user, column_name, column_priv FROM mysql.columns_priv;
-
-REVOKE SELECT(b) ON t1 FROM u1@h, u3@h;
 SELECT user, column_name, column_priv FROM mysql.columns_priv;
 
 --echo

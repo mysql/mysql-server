@@ -1781,6 +1781,9 @@ PARTITION BY RANGE(id)
 (PARTITION p0  VALUES LESS THAN (10),
 PARTITION p1 VALUES LESS THAN (20),
 PARTITION p2 VALUES LESS THAN (30));
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SHOW TABLE STATUS;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	InnoDB	10	Dynamic	0	0	0	0	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
@@ -1835,8 +1838,11 @@ partition p3 values in (3));
 insert into t1 values (null);
 insert into t1 values (null);
 insert into t1 values (null);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select auto_increment from information_schema.tables where table_name='t1';
-auto_increment
+AUTO_INCREMENT
 4
 select * from t1;
 s1
@@ -1880,10 +1886,16 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 CREATE TABLE t1 (a int) PARTITION BY KEY(a);
 INSERT into t1 values (1), (2);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SHOW TABLE STATUS;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	InnoDB	10	Dynamic	2	8192	16384	0	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 DELETE from t1 where a = 1;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SHOW TABLE STATUS;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	InnoDB	10	Dynamic	1	16384	16384	0	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
@@ -1891,6 +1903,9 @@ ALTER TABLE t1 OPTIMIZE PARTITION p0;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
 test.t1	optimize	status	OK
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SHOW TABLE STATUS;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	InnoDB	10	Dynamic	1	16384	16384	0	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
@@ -2076,6 +2091,9 @@ drop table t1;
 create table t1(a int auto_increment, b int, primary key (a, b)) 
 partition by hash(b) partitions 2;
 insert into t1 values (null, 1);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	InnoDB	10	Dynamic	1	32768	32768	0	0	0	2	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
@@ -2083,6 +2101,9 @@ drop table t1;
 create table t1(a int auto_increment primary key)
 partition by key(a) partitions 2;
 insert into t1 values (null), (null), (null);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	InnoDB	10	Dynamic	3	10922	32768	0	0	0	4	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	

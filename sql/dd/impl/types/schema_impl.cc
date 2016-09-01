@@ -290,6 +290,16 @@ View *Schema_impl::create_system_view(THD *thd MY_ATTRIBUTE((unused))) const
   v->set_system_view(true);
   v->set_schema_id(this->id());
 
+  // Get statement start time.
+  MYSQL_TIME curtime;
+  thd->variables.time_zone->gmt_sec_to_TIME(&curtime,
+                                            thd->query_start_in_secs());
+  ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
+
+  v->set_created(ull_curtime);
+  v->set_last_altered(ull_curtime);
+
+
   return v.release();
 }
 

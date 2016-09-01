@@ -8,6 +8,7 @@
 # Try to restrat the datadir1 server ,expect an error
 # #########################################################
 --source include/not_embedded.inc
+--source include/have_debug.inc
 
 let $MYSQLD_BASEDIR= `select @@basedir`;
 let $START_PAGE_SIZE= `select @@innodb_page_size`;
@@ -54,6 +55,7 @@ let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --innodb_log_file_size
 --let $restart_parameters="restart: --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE --innodb_undo_tablespaces=5 --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR1 --innodb_undo_directory=$MYSQLD_UNDO_DATADIR1 --datadir=$MYSQLD_DATADIR1"
 --source include/start_mysqld.inc
 
+SET GLOBAL innodb_master_thread_disabled_debug=1;
 --source include/no_checkpoint_start.inc
 CREATE TABLE tab1(c1 INT, c2 VARCHAR(30));
 

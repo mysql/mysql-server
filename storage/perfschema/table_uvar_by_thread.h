@@ -133,6 +133,25 @@ struct pos_uvar_by_thread
   }
 };
 
+class PFS_index_uvar_by_thread : public PFS_engine_index
+{
+public:
+  PFS_index_uvar_by_thread()
+    : PFS_engine_index(&m_key_1, &m_key_2),
+    m_key_1("THREAD_ID"), m_key_2("VARIABLE_NAME")
+  {}
+
+  ~PFS_index_uvar_by_thread()
+  {}
+
+  virtual bool match(PFS_thread *pfs);
+  virtual bool match(const User_variable *pfs);
+
+private:
+  PFS_key_thread_id m_key_1;
+  PFS_key_variable_name m_key_2;
+};
+
 /** Table PERFORMANCE_SCHEMA.USER_VARIABLES_BY_THREAD. */
 class table_uvar_by_thread : public PFS_engine_table
 {
@@ -144,9 +163,13 @@ public:
   static PFS_engine_table* create();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
 protected:
   virtual int read_row_values(TABLE *table,
@@ -180,6 +203,8 @@ private:
   pos_t m_pos;
   /** Next position. */
   pos_t m_next_pos;
+
+  PFS_index_uvar_by_thread *m_opened_index;
 };
 
 /** @} */

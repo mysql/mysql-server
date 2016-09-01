@@ -36,7 +36,7 @@ struct TABLE_LIST;
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_bitmap MY_BITMAP;
 typedef struct st_ha_create_information HA_CREATE_INFO;
-typedef struct st_key KEY;
+class KEY;
 typedef struct st_key_range key_range;
 typedef struct st_mysql_lex_string LEX_STRING;
 template <class T> class List;

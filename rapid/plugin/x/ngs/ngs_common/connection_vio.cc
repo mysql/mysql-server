@@ -291,14 +291,14 @@ Ssl_context::Ssl_context()
 {
 }
 
-void Ssl_context::setup(const char* tls_version,
-                        const char* ssl_key,
-                        const char* ssl_ca,
-                        const char* ssl_capath,
-                        const char* ssl_cert,
-                        const char* ssl_cipher,
-                        const char* ssl_crl,
-                        const char* ssl_crlpath)
+bool Ssl_context::setup(const char *tls_version,
+                        const char *ssl_key,
+                        const char *ssl_ca,
+                        const char *ssl_capath,
+                        const char *ssl_cert,
+                        const char *ssl_cipher,
+                        const char *ssl_crl,
+                        const char *ssl_crlpath)
 {
   enum_ssl_init_error error = SSL_INITERR_NOERROR;
 
@@ -313,10 +313,12 @@ void Ssl_context::setup(const char* tls_version,
   if (NULL == m_ssl_acceptor)
   {
     log_warning("Failed at SSL configuration: \"%s\"", sslGetErrString(error));
-    return;
+    return false;
   }
 
   m_options.reset(new Options_context_ssl(m_ssl_acceptor));
+
+  return true;
 }
 
 
@@ -349,6 +351,20 @@ void Connection_vio::close_socket(my_socket &fd)
 
     fd = INVALID_SOCKET;
   }
+}
+
+void Connection_vio::unlink_unix_socket_file(const std::string &unix_socket_file)
+{
+  if (unix_socket_file.empty())
+    return;
+
+  if (!m_system_operations)
+    return;
+
+  const std::string unix_socket_lockfile = get_lockfile_name(unix_socket_file);
+
+  (void) m_system_operations->unlink(unix_socket_file.c_str());
+  (void) m_system_operations->unlink(unix_socket_lockfile.c_str());
 }
 
 void Connection_vio::get_error(int& err, std::string& strerr)
@@ -395,7 +411,7 @@ my_socket Connection_vio::accept(my_socket sock, struct sockaddr* addr, socklen_
   return res;
 }
 
-my_socket Connection_vio::create_and_bind_socket(const unsigned short port, std::string &error_message)
+my_socket Connection_vio::create_and_bind_socket(const unsigned short port, std::string &error_message, const uint32 backlog)
 {
   int err;
   std::string errstr;
@@ -434,7 +450,7 @@ my_socket Connection_vio::create_and_bind_socket(const unsigned short port, std:
     return INVALID_SOCKET;
   }
 
-  if (m_socket_operations->listen(result, 9999) < 0)
+  if (m_socket_operations->listen(result, backlog) < 0)
   {
     // lets decide later if its an error or not
     get_error(err, errstr);
@@ -451,7 +467,7 @@ my_socket Connection_vio::create_and_bind_socket(const unsigned short port, std:
   return result;
 }
 
-my_socket Connection_vio::create_and_bind_socket(const std::string &unix_socket_file, std::string &error_message)
+my_socket Connection_vio::create_and_bind_socket(const std::string &unix_socket_file, std::string &error_message, const uint32 backlog)
 {
 #if defined(HAVE_SYS_UN_H)
   struct sockaddr_un addr;
@@ -519,7 +535,7 @@ my_socket Connection_vio::create_and_bind_socket(const std::string &unix_socket_
   umask(old_mask);
 
   // listen
-  if (m_socket_operations->listen(listener_socket, 9999) < 0)
+  if (m_socket_operations->listen(listener_socket, backlog) < 0)
   {
     get_error(err, errstr);
 
@@ -547,7 +563,7 @@ bool Connection_vio::create_lockfile(const std::string &unix_socket_file, std::s
   char buffer[8];
   const char x_prefix = 'X';
   const pid_t cur_pid= m_system_operations->getpid();
-  std::string lock_filename= unix_socket_file + ".lock";
+  const std::string lock_filename= get_lockfile_name(unix_socket_file);
 
   compile_time_assert(sizeof(pid_t) == 4);
   int retries= 3;
@@ -681,6 +697,11 @@ bool Connection_vio::create_lockfile(const std::string &unix_socket_file, std::s
   }
   return true;
 #endif // defined(HAVE_SYS_UN_H)
+}
+
+std::string Connection_vio::get_lockfile_name(const std::string &unix_socket_file)
+{
+  return unix_socket_file+ ".lock";
 }
 
 Socket_operations_interface::Unique_ptr Connection_vio::m_socket_operations;

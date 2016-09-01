@@ -109,7 +109,7 @@ public:
             HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
             HA_CAN_REPAIR);
   }
-  ulong index_flags(uint idx, uint part, bool all_parts) const
+  ulong index_flags(uint, uint, bool) const
   {
     /*
       We will never have indexes so this will never be called(AKA we return

@@ -16,12 +16,19 @@
 
 /* UCS2 support. Written by Alexander Barkov <bar@mysql.com> */
 
+#include <errno.h>
+#include <limits.h>
 #include <my_global.h>
 #include <my_sys.h>
-#include "m_string.h"
-#include "m_ctype.h"
-#include <errno.h>
 #include <stdarg.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
 
 
 
@@ -802,9 +809,9 @@ my_strtoll10_mb2(const CHARSET_INFO *cs,
     res= cs->cset->mb_wc(cs, &wc, (const uchar *) s, (const uchar *) n_end);
     if (res <= 0)
       break;
-    s+= res;
     if ((c= (wc - '0')) > 9)
       goto end_i;
+    s+= res;
     i= i*10+c;
   }
   if (s == end)
@@ -821,9 +828,9 @@ my_strtoll10_mb2(const CHARSET_INFO *cs,
     res= cs->cset->mb_wc(cs, &wc, (const uchar *) s, (const uchar *) end);
     if (res <= 0)
       goto no_conv;
-    s+= res;
     if ((c= (wc - '0')) > 9)
       goto end_i_and_j;
+    s+= res;
     j= j*10+c;
   } while (s != n_end);
   if (s == end)
@@ -835,9 +842,9 @@ my_strtoll10_mb2(const CHARSET_INFO *cs,
   res= cs->cset->mb_wc(cs, &wc, (const uchar *) s, (const uchar *) end);
   if (res <= 0)
     goto no_conv;
-  s+= res;
   if ((c= (wc - '0')) > 9)
     goto end3;
+  s+= res;
 
   /* Handle the next 1 or 2 digits and store them in k */
   k=c;
@@ -846,9 +853,9 @@ my_strtoll10_mb2(const CHARSET_INFO *cs,
   res= cs->cset->mb_wc(cs, &wc, (const uchar *) s, (const uchar *) end);
   if (res <= 0)
     goto no_conv;
-  s+= res;
   if ((c= (wc - '0')) > 9)
     goto end4;
+  s+= res;
   k= k*10+c;
   *endptr= (char*) s;
 

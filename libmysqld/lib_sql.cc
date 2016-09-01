@@ -1,5 +1,5 @@
 /*
- * Copyright (c)  2000, 2014
+ * Copyright (c)  2000, 2016
  * SWsoft  company
  *
  * Modifications copyright (c) 2001, 2016. Oracle and/or its affiliates.
@@ -30,6 +30,7 @@
 #include "mysqld.h"
 #include "mysqld_embedded.h"
 #include "mysqld_thd_manager.h"
+#include "persisted_variable.h"         // Persisted_variables_cache
 #include "rpl_filter.h"
 #include "sql_class.h"
 #include "sql_db.h"
@@ -483,6 +484,9 @@ MYSQL_METHODS embedded_methods=
 
 char **		copy_arguments_ptr= 0;
 
+/* cache for persisted variables */
+static Persisted_variables_cache persisted_variables_cache;
+
 int init_embedded_server(int argc, char **argv, char **groups)
 {
   /*
@@ -537,11 +541,16 @@ int init_embedded_server(int argc, char **argv, char **groups)
   orig_argv= *argvp;
   if (load_defaults("my", (const char **)groups, argcp, argvp))
     return 1;
+
+  /* Initialize variables cache for persisted variables */
+  persisted_variables_cache.init();
+
   defaults_argc= *argcp;
   defaults_argv= *argvp;
   remaining_argc= *argcp;
   remaining_argv= *argvp;
 
+  init_variable_default_paths();
   /* Must be initialized early for comparison of options name */
   system_charset_info= &my_charset_utf8_general_ci;
   sys_var_init();
@@ -652,6 +661,13 @@ int init_embedded_server(int argc, char **argv, char **groups)
   if (! opt_initialize)
   {
     check_performance_schema();
+  }
+
+  /* set all persistent options */
+  if (persisted_variables_cache.set_persist_options())
+  {
+    sql_print_error("Setting persistent options failed.");
+    return 1;
   }
 
   start_handle_manager();

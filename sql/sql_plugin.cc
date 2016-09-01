@@ -34,6 +34,7 @@
 #include "my_default.h"        // free_defaults
 #include "mysqld.h"            // files_charset_info
 #include "psi_memory_key.h"
+#include "persisted_variable.h"// Persisted_variables_cache
 #include "records.h"           // READ_RECORD
 #include "sql_audit.h"         // mysql_audit_acquire_plugins
 #include "sql_base.h"          // close_mysql_tables
@@ -480,6 +481,11 @@ public:
   virtual void global_save_default(THD *thd, set_var *var) {}
   bool session_update(THD *thd, set_var *var);
   bool global_update(THD *thd, set_var *var);
+  bool is_default(THD *thd, set_var *var);
+  longlong get_min_value();
+  ulonglong get_max_value();
+  void set_arg_source(get_opt_arg_source *src)
+  { source.m_name= src->m_name; source.m_source= src->m_source; }
 };
 
 
@@ -3099,6 +3105,11 @@ void alloc_and_copy_thd_dynamic_variables(THD *thd, bool global_lock)
 
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
 
+  if (global_lock)
+    mysql_mutex_lock(&LOCK_global_system_variables);
+
+  mysql_mutex_assert_owner(&LOCK_global_system_variables);
+
   /*
     MAINTAINER:
     The following assert is wrong on purpose, useful to debug
@@ -3111,11 +3122,6 @@ void alloc_and_copy_thd_dynamic_variables(THD *thd, bool global_lock)
                thd->variables.dynamic_variables_ptr,
                global_variables_dynamic_size,
                MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
-
-  if (global_lock)
-    mysql_mutex_lock(&LOCK_global_system_variables);
-
-  mysql_mutex_assert_owner(&LOCK_global_system_variables);
 
   /*
     Debug hook which allows tests to check that this code is not
@@ -3755,6 +3761,99 @@ bool sys_var_pluginvar::global_update(THD *thd, set_var *var)
   return rc;
 }
 
+bool sys_var_pluginvar::is_default(THD *thd, set_var *var)
+{
+  void *tgt= real_value_ptr(thd, var->type);
+
+  switch (plugin_var->flags & (PLUGIN_VAR_TYPEMASK | PLUGIN_VAR_THDLOCAL))
+  {
+    case PLUGIN_VAR_INT:
+      return (((sysvar_uint_t*) plugin_var)->def_val == *(uint *)tgt);
+    case PLUGIN_VAR_LONG:
+      return (((sysvar_ulong_t*) plugin_var)->def_val == *(ulong *)tgt);
+    case PLUGIN_VAR_LONGLONG:
+      return
+        (((sysvar_ulonglong_t*) plugin_var)->def_val == *(ulonglong *)tgt);
+    case PLUGIN_VAR_ENUM:
+      return (((sysvar_enum_t*) plugin_var)->def_val == *(ulong *)tgt);
+    case PLUGIN_VAR_SET:
+      return (((sysvar_set_t*) plugin_var)->def_val == *(ulong *)tgt);
+    case PLUGIN_VAR_BOOL:
+      return (((sysvar_bool_t*) plugin_var)->def_val == *(my_bool *)tgt);
+    case PLUGIN_VAR_STR:
+      return
+        !strcmp((char*)(((sysvar_str_t*) plugin_var)->def_val),*(char **)tgt);
+    case PLUGIN_VAR_DOUBLE:
+      return (((sysvar_double_t*) plugin_var)->def_val == *(double *)tgt);
+    case PLUGIN_VAR_INT | PLUGIN_VAR_THDLOCAL:
+      return (((thdvar_uint_t*) plugin_var)->def_val == *(uint *)tgt);
+    case PLUGIN_VAR_LONG | PLUGIN_VAR_THDLOCAL:
+      return (((thdvar_ulong_t*) plugin_var)->def_val == *(ulong *)tgt);
+    case PLUGIN_VAR_LONGLONG | PLUGIN_VAR_THDLOCAL:
+      return
+        (((thdvar_ulonglong_t*) plugin_var)->def_val == *(ulonglong *)tgt);
+    case PLUGIN_VAR_ENUM | PLUGIN_VAR_THDLOCAL:
+      return (((thdvar_enum_t*) plugin_var)->def_val == *(ulong *)tgt);
+    case PLUGIN_VAR_SET | PLUGIN_VAR_THDLOCAL:
+      return (((thdvar_set_t*) plugin_var)->def_val == *(ulong *)tgt);
+    case PLUGIN_VAR_BOOL | PLUGIN_VAR_THDLOCAL:
+      return (((thdvar_bool_t*) plugin_var)->def_val == *(my_bool *)tgt);
+    case PLUGIN_VAR_STR | PLUGIN_VAR_THDLOCAL:
+      return
+        !strcmp((char*)(((thdvar_str_t*) plugin_var)->def_val),*(char **)tgt);
+    case PLUGIN_VAR_DOUBLE | PLUGIN_VAR_THDLOCAL:
+      return (((thdvar_double_t*) plugin_var)->def_val == *(double *)tgt);
+  }
+  return 0;
+}
+
+longlong sys_var_pluginvar::get_min_value()
+{
+  switch (plugin_var->flags & (PLUGIN_VAR_TYPEMASK | PLUGIN_VAR_THDLOCAL))
+  {
+    case PLUGIN_VAR_INT:
+      return ((sysvar_uint_t*) plugin_var)->min_val;
+    case PLUGIN_VAR_LONG:
+      return ((sysvar_ulong_t*) plugin_var)->min_val;
+    case PLUGIN_VAR_LONGLONG:
+      return ((sysvar_ulonglong_t*) plugin_var)->min_val;
+    case PLUGIN_VAR_DOUBLE:
+      return ((sysvar_double_t*) plugin_var)->min_val;
+    case PLUGIN_VAR_INT | PLUGIN_VAR_THDLOCAL:
+      return ((thdvar_uint_t*) plugin_var)->min_val;
+    case PLUGIN_VAR_LONG | PLUGIN_VAR_THDLOCAL:
+      return ((thdvar_ulong_t*) plugin_var)->min_val;
+    case PLUGIN_VAR_LONGLONG | PLUGIN_VAR_THDLOCAL:
+      return ((thdvar_ulonglong_t*) plugin_var)->min_val;
+    case PLUGIN_VAR_DOUBLE | PLUGIN_VAR_THDLOCAL:
+      return ((thdvar_double_t*) plugin_var)->min_val;
+  }
+  return 0;
+}
+
+ulonglong sys_var_pluginvar::get_max_value()
+{
+  switch (plugin_var->flags & (PLUGIN_VAR_TYPEMASK | PLUGIN_VAR_THDLOCAL))
+  {
+    case PLUGIN_VAR_INT:
+      return ((sysvar_uint_t*) plugin_var)->max_val;
+    case PLUGIN_VAR_LONG:
+      return ((sysvar_ulong_t*) plugin_var)->max_val;
+    case PLUGIN_VAR_LONGLONG:
+      return ((sysvar_ulonglong_t*) plugin_var)->max_val;
+    case PLUGIN_VAR_DOUBLE:
+      return ((sysvar_double_t*) plugin_var)->max_val;
+    case PLUGIN_VAR_INT | PLUGIN_VAR_THDLOCAL:
+      return ((thdvar_uint_t*) plugin_var)->max_val;
+    case PLUGIN_VAR_LONG | PLUGIN_VAR_THDLOCAL:
+      return ((thdvar_ulong_t*) plugin_var)->max_val;
+    case PLUGIN_VAR_LONGLONG | PLUGIN_VAR_THDLOCAL:
+      return ((thdvar_ulonglong_t*) plugin_var)->max_val;
+    case PLUGIN_VAR_DOUBLE | PLUGIN_VAR_THDLOCAL:
+      return ((thdvar_double_t*) plugin_var)->max_val;
+  }
+  return 0;
+}
 
 #define OPTION_SET_LIMITS(type, options, opt) \
   options->var_type= type; \
@@ -3774,8 +3873,6 @@ bool sys_var_pluginvar::global_update(THD *thd, set_var *var)
 static void plugin_opt_set_limits(struct my_option *options,
                                   const st_mysql_sys_var *opt)
 {
-  options->sub_size= 0;
-
   switch (opt->flags & (PLUGIN_VAR_TYPEMASK |
                         PLUGIN_VAR_UNSIGNED | PLUGIN_VAR_THDLOCAL)) {
   /* global system variables */
@@ -3964,6 +4061,13 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
                       (uchar **)alloc_root(mem_root, sizeof(ulong));
     *((ulong*) options[0].value)= (ulong) options[0].def_value;
 
+    options[0].arg_source= options[1].arg_source=
+      (get_opt_arg_source *)alloc_root(mem_root, sizeof(get_opt_arg_source));
+    memset(options[0].arg_source, 0, sizeof(get_opt_arg_source));
+    options[0].arg_source->m_name= options[1].arg_source->m_name= 0;
+    options[0].arg_source->m_source= options[1].arg_source->m_source=
+      enum_variable_source::COMPILED;
+
     options+= 2;
   }
 
@@ -4146,6 +4250,13 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
                                                         optnamelen + 1);
     options[1].comment= 0; /* Hidden from the help text */
     strxmov(option_name_ptr, plugin_dash.str, optname, NullS);
+
+    options[0].arg_source= options[1].arg_source=
+      (get_opt_arg_source *)alloc_root(mem_root, sizeof(get_opt_arg_source));
+    memset(options[0].arg_source, 0, sizeof(get_opt_arg_source));
+    options[0].arg_source->m_name= options[1].arg_source->m_name= 0;
+    options[0].arg_source->m_source= options[1].arg_source->m_source=
+      enum_variable_source::COMPILED;
 
     options+= 2;
   }
@@ -4332,6 +4443,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
   for (opt= tmp->plugin->system_vars; opt && *opt; opt++)
   {
     st_mysql_sys_var *o;
+    const my_option** optp= (const my_option**)&opts;
     if (((o= *opt)->flags & PLUGIN_VAR_NOSYSVAR))
       continue;
     if ((var= find_bookmark(plugin_name.str, o->name, o->flags)))
@@ -4346,6 +4458,9 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
       v= new (mem_root) sys_var_pluginvar(&chain, varname, o);
     }
     DBUG_ASSERT(v); /* check that an object was actually constructed */
+
+    if (findopt((char*)o->name, strlen(o->name), optp))
+      v->set_arg_source((*optp)->arg_source);
   } /* end for */
   if (chain.first)
   {
@@ -4357,6 +4472,21 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
       goto err;
     }
     tmp->system_vars= chain.first;
+  }
+
+  /*
+    Once server is started and if there are few persisted plugin variables
+    which needs to be handled, we do it here.
+  */
+  if (mysqld_server_started)
+  {
+    Persisted_variables_cache *pv= Persisted_variables_cache::get_instance();
+    if (pv && pv->set_persist_options(TRUE))
+    {
+       sql_print_error("Setting persistent options for plugin '%s' failed.",
+                       tmp->name.str);
+       goto err;
+    }
   }
   DBUG_RETURN(0);
   

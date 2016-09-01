@@ -343,7 +343,42 @@ void mysql_string_free(mysql_string_handle);
 void mysql_string_iterator_free(mysql_string_iterator_handle);
 #include <mysql/service_mysql_alloc.h>
 #include "mysql/psi/psi_memory.h"
+#include "my_psi_config.h"
+#include "my_config.h"
 typedef unsigned int PSI_memory_key;
+struct PSI_thread;
+struct PSI_memory_bootstrap
+{
+  void* (*get_interface)(int version);
+};
+typedef struct PSI_memory_bootstrap PSI_memory_bootstrap;
+struct PSI_memory_info_v1
+{
+  PSI_memory_key *m_key;
+  const char *m_name;
+  int m_flags;
+};
+typedef struct PSI_memory_info_v1 PSI_memory_info_v1;
+typedef void (*register_memory_v1_t)
+  (const char *category, struct PSI_memory_info_v1 *info, int count);
+typedef PSI_memory_key (*memory_alloc_v1_t)
+  (PSI_memory_key key, size_t size, struct PSI_thread ** owner);
+typedef PSI_memory_key (*memory_realloc_v1_t)
+  (PSI_memory_key key, size_t old_size, size_t new_size, struct PSI_thread ** owner);
+typedef PSI_memory_key (*memory_claim_v1_t)
+  (PSI_memory_key key, size_t size, struct PSI_thread ** owner);
+typedef void (*memory_free_v1_t)
+  (PSI_memory_key key, size_t size, struct PSI_thread * owner);
+struct PSI_memory_service_v1
+{
+  register_memory_v1_t register_memory;
+  memory_alloc_v1_t memory_alloc;
+  memory_realloc_v1_t memory_realloc;
+  memory_claim_v1_t memory_claim;
+  memory_free_v1_t memory_free;
+};
+typedef struct PSI_memory_service_v1 PSI_memory_service_t;
+typedef struct PSI_memory_info_v1 PSI_memory_info;
 typedef int myf_t;
 typedef void * (*mysql_malloc_t)(PSI_memory_key key, size_t size, myf_t flags);
 typedef void * (*mysql_realloc_t)(PSI_memory_key key, void *ptr, size_t size, myf_t flags);

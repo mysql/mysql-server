@@ -183,12 +183,15 @@ bool mysql_persistent_dynamic_loader_imp::init(void* thdp)
     READ_RECORD read_record_info;
     int res;
 
+    mysql_persistent_dynamic_loader_imp::group_id= 0;
+
     /* Open component table and scan read all records. */
     if (open_component_table(thd, TL_READ, &component_table, NULL))
     {
       push_warning(thd, Sql_condition::SL_WARNING,
         ER_COMPONENT_TABLE_INCORRECT,
         ER_THD(thd, ER_COMPONENT_TABLE_INCORRECT));
+      mysql_persistent_dynamic_loader_imp::is_initialized= true;
       return false;
     }
 
@@ -213,8 +216,6 @@ bool mysql_persistent_dynamic_loader_imp::init(void* thdp)
         ER_THD(thd, ER_COMPONENT_TABLE_INCORRECT));
       return false;
     }
-
-    mysql_persistent_dynamic_loader_imp::group_id= 0;
 
     /* All read records will be aggregated in groups by group ID. */
     std::map<uint64, std::vector<std::string> > component_groups;
@@ -317,6 +318,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
 
     if (!mysql_persistent_dynamic_loader_imp::is_initialized)
     {
+      my_error(ER_COMPONENT_TABLE_INCORRECT, MYF(0));
       return true;
     }
 
@@ -417,6 +419,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
 
     if (!mysql_persistent_dynamic_loader_imp::is_initialized)
     {
+      my_error(ER_COMPONENT_TABLE_INCORRECT, MYF(0));
       return true;
     }
 

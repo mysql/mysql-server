@@ -123,6 +123,7 @@ create table t1 (n1 int not null, n2 int, n3 int, n4 float,
                 key (n3, n4, n1, n2),
                 key (n4, n1, n2, n3) );
 alter table t1 disable keys;
+analyze table t1;
 show keys from t1;
 #let $1=10000;
 let $1=10;
@@ -132,6 +133,7 @@ while ($1)
  dec $1;
 }
 alter table t1 enable keys;
+analyze table t1;
 show keys from t1;
 drop table t1;
 
@@ -142,6 +144,7 @@ drop table t1;
 create table t1 (i int unsigned not null auto_increment primary key);
 alter table t1 rename t2;
 alter table t2 rename t1, add c char(10) comment "no comment";
+analyze table t1;
 show columns from t1;
 drop table t1;
 
@@ -173,6 +176,7 @@ CREATE TABLE t1 (
 ALTER TABLE t1 DISABLE KEYS;
 LOCK TABLES t1 WRITE;
 INSERT INTO t1 VALUES ('localhost','root'),('localhost',''),('games','monty');
+analyze table t1;
 SHOW INDEX FROM t1;
 ALTER TABLE t1 ENABLE KEYS;
 UNLOCK TABLES;
@@ -191,11 +195,14 @@ CREATE TABLE t1 (
 ) ENGINE=MyISAM;
 
 ALTER TABLE t1 DISABLE KEYS;
+analyze table t1;
 SHOW INDEX FROM t1;
 LOCK TABLES t1 WRITE;
 INSERT INTO t1 VALUES ('localhost','root'),('localhost','');
+analyze table t1;
 SHOW INDEX FROM t1;
 ALTER TABLE t1 ENABLE KEYS;
+analyze table t1;
 SHOW INDEX FROM t1;
 UNLOCK TABLES;
 CHECK TABLES t1;
@@ -219,6 +226,7 @@ CREATE TABLE t1 (
 
 LOCK TABLES t1 WRITE;
 ALTER TABLE t1 DISABLE KEYS;
+analyze table t1;
 SHOW INDEX FROM t1;
 DROP TABLE t1;
 
@@ -251,14 +259,17 @@ drop table if exists t1, t2;
 
 create table t1 (a int, b int, c int, d int, e int, f int, g int, h int,i int, primary key (a,b,c,d,e,f,g,i,h)) engine=MyISAM;
 insert into t1 (a) values(1);
+analyze table t1;
 --replace_column 7 X 8 X 9 X 10 X 11 X 12 X 13 X 14 X
 show table status like 't1';
 alter table t1 modify a int;
+analyze table t1;
 --replace_column 7 X 8 X 9 X 10 X 11 X 12 X 13 X 14 X
 show table status like 't1';
 drop table t1;
 create table t1 (a int not null, b int not null, c int not null, d int not null, e int not null, f int not null, g int not null, h int not null,i int not null, primary key (a,b,c,d,e,f,g,i,h)) engine=MyISAM;
 insert into t1 (a) values(1);
+analyze table t1;
 --replace_column 7 X 8 X 9 X 10 X 11 X 12 X 13 X 14 X
 show table status like 't1';
 drop table t1;
@@ -374,59 +385,74 @@ drop table t1;
 #
 
 create table t1 (a int, key(a));
+analyze table t1;
 show indexes from t1;
 --echo "this used not to disable the index"
 alter table t1 modify a int, disable keys;
+analyze table t1;
 show indexes from t1;
 
 alter table t1 enable keys;
+analyze table t1;
 show indexes from t1;
 
 alter table t1 modify a bigint, disable keys;
+analyze table t1;
 show indexes from t1;
 
 alter table t1 enable keys;
+analyze table t1;
 show indexes from t1;
 
 alter table t1 add b char(10), disable keys;
+analyze table t1;
 show indexes from t1;
 
 alter table t1 add c decimal(10,2), enable keys;
+analyze table t1;
 show indexes from t1;
 
 --echo "this however did"
 alter table t1 disable keys;
+analyze table t1;
 show indexes from t1;
 
 desc t1;
 
 alter table t1 add d decimal(15,5);
 --echo "The key should still be disabled"
+analyze table t1;
 show indexes from t1;
 
 drop table t1;
 
 --echo "Now will test with one unique index"
 create table t1(a int, b char(10), unique(a));
+analyze table t1;
 show indexes from t1;
 alter table t1 disable keys;
+analyze table t1;
 show indexes from t1;
 alter table t1 enable keys;
 
 --echo "If no copy on noop change, this won't touch the data file"
 --echo "Unique index, no change"
 alter table t1 modify a int, disable keys;
+analyze table t1;
 show indexes from t1;
 
 --echo "Change the type implying data copy"
 --echo "Unique index, no change"
 alter table t1 modify a bigint, disable keys;
+analyze table t1;
 show indexes from t1;
 
 alter table t1 modify a bigint;
+analyze table t1;
 show indexes from t1;
 
 alter table t1 modify a int;
+analyze table t1;
 show indexes from t1;
 
 drop table t1;
@@ -435,26 +461,32 @@ drop table t1;
 create table t1(a int, b char(10), unique(a), key(b));
 show indexes from t1;
 alter table t1 disable keys;
+analyze table t1;
 show indexes from t1;
 alter table t1 enable keys;
 
 --echo "If no copy on noop change, this won't touch the data file"
 --echo "The non-unique index will be disabled"
 alter table t1 modify a int, disable keys;
+analyze table t1;
 show indexes from t1;
 alter table t1 enable keys;
+analyze table t1;
 show indexes from t1;
 
 --echo "Change the type implying data copy"
 --echo "The non-unique index will be disabled"
 alter table t1 modify a bigint, disable keys;
+analyze table t1;
 show indexes from t1;
 
 --echo "Change again the type, but leave the indexes as_is"
 alter table t1 modify a int;
+analyze table t1;
 show indexes from t1;
 --echo "Try the same. When data is no copied on similar tables, this is noop"
 alter table t1 modify a int;
+analyze table t1;
 show indexes from t1;
 
 drop table t1;
@@ -507,6 +539,7 @@ DROP TABLE t1;
 
 CREATE TABLE bug24219 (a INT, INDEX(a));
 
+analyze table t1;
 SHOW INDEX FROM bug24219;
 
 ALTER TABLE bug24219 RENAME TO bug24219_2, DISABLE KEYS;
@@ -859,6 +892,7 @@ CREATE TABLE t1 (
 
 DESCRIBE t1;
 
+analyze table t1;
 SHOW INDEXES FROM t1;
 
 INSERT INTO t1 VALUES (1, "edno"), (1, "edno"), (2, "dve"), (3, "tri"), (5, "pet"); 
@@ -941,9 +975,11 @@ while ($count)
 }
 --enable_query_log
 
+analyze table t1;
 select index_length into @unpaked_keys_size from
 information_schema.tables where table_name='t1';
 alter table t1 pack_keys=1;
+analyze table t1;
 select index_length into @paked_keys_size from
 information_schema.tables where table_name='t1';
 select (@unpaked_keys_size > @paked_keys_size);
@@ -951,6 +987,7 @@ select (@unpaked_keys_size > @paked_keys_size);
 select max_data_length into @orig_max_data_length from
 information_schema.tables where table_name='t1';
 alter table t1 max_rows=100;
+analyze table t1;
 select max_data_length into @changed_max_data_length from
 information_schema.tables where table_name='t1';
 select (@orig_max_data_length > @changed_max_data_length);
@@ -1625,27 +1662,34 @@ drop table t1, t2;
 --echo # After the patch, the alter table reflects the new
 --echo # index comment or the lack of comment for the indexes.
 CREATE TABLE t1(fld1 int, key key1(fld1));
+analyze table t1;
 SHOW INDEX FROM t1;
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'test';
 SHOW INDEX FROM t1;
 DROP TABLE t1;
 
 CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'test');
+analyze table t1;
 SHOW INDEX FROM t1;
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1);
+analyze table t1;
 SHOW INDEX FROM t1;
 DROP TABLE t1;
 
 CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'test');
+analyze table t1;
 SHOW INDEX FROM t1;
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'success';
+analyze table t1;
 SHOW INDEX FROM t1;
 DROP TABLE t1;
 
 # Alter the comment, but keep the same comment length
 CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'old comment');
+analyze table t1;
 SHOW INDEX FROM t1;
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'new comment';
+analyze table t1;
 SHOW INDEX FROM t1;
 DROP TABLE t1; 
 
@@ -1656,17 +1700,21 @@ DROP TABLE t1;
 --echo #Without the patch, the ALTER TABLE to change the index
 --echo #comment using INPLACE algorithm reports an error.
 CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'test') ENGINE= MyISAM;
+analyze table t1;
 SHOW INDEX FROM t1;
 --echo # No error is expected ,because there is no actual change in the table structure
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1), ALGORITHM=INPLACE;
+analyze table t1;
 SHOW INDEX FROM t1;
 DROP TABLE t1;
 
 # Alter the comment, but keep the same comment length
 CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'old comment') ENGINE=MyISAM;
+analyze table t1;
 SHOW INDEX FROM t1;
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'new comment',
 ALGORITHM= INPLACE;
+analyze table t1;
 SHOW INDEX FROM t1;
 DROP TABLE t1;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 #include "pfs_buffer_container.h"
 #include "pfs_builtin_memory.h"
 #include "m_string.h"
+#include "template_utils.h"
 
 PFS_ALIGNED size_t events_statements_history_long_size= 0;
 /** Consumer flag for table EVENTS_STATEMENTS_CURRENT. */
@@ -144,7 +145,10 @@ static inline void copy_events_statements(PFS_events_statements *dest,
                                           const PFS_events_statements *source)
 {
   /* Copy all attributes except SQL TEXT and DIGEST */
-  memcpy(dest, source, my_offsetof(PFS_events_statements, m_sqltext));
+  dest->PFS_events::operator=(*source);
+  memcpy(&dest->m_sp_type, &source->m_sp_type,
+         pointer_cast<const char*>(&source->m_sqltext) -
+         pointer_cast<const char*>(&source->m_sp_type));
 
   /* Copy SQL TEXT */
   int sqltext_length= source->m_sqltext_length;

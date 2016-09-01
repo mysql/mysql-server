@@ -52,19 +52,25 @@ enum fk_match_opt {
 };
 
 
-typedef struct st_key_create_information
+class KEY_CREATE_INFO
 {
-  enum ha_key_alg algorithm;
+public:
+  enum ha_key_alg algorithm= HA_KEY_ALG_SE_SPECIFIC;
   /**
     A flag which indicates that index algorithm was explicitly specified
     by user.
   */
-  bool is_algorithm_explicit;
-  ulong block_size;
-  LEX_CSTRING parser_name;
-  LEX_CSTRING comment;
-  bool is_visible;
-} KEY_CREATE_INFO;
+  bool is_algorithm_explicit= false;
+  ulong block_size= 0;
+  LEX_CSTRING parser_name= {NullS, 0};
+  LEX_CSTRING comment= {NullS, 0};
+  bool is_visible= true;
+
+  KEY_CREATE_INFO()= default;
+
+  explicit KEY_CREATE_INFO(bool is_visible_arg) : is_visible(is_visible_arg) {}
+};
+
 
 extern KEY_CREATE_INFO default_key_create_info;
 

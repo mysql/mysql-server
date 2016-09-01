@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,6 +51,19 @@ public:
 
   bool check_n_load(THD *thd, bool names_only);
 
+
+  /**
+    Load triggers without their parsing.
+
+    @param thd          current thread context
+
+    @return Operation status.
+      @retval false Success
+      @retval true  Failure
+  */
+
+  bool load_triggers(THD *thd);
+
 private:
   Table_trigger_dispatcher(TABLE *subject_table);
 
@@ -61,8 +74,21 @@ public:
   Table_trigger_field_support *get_trigger_field_support()
   { return this; }
 
-  List<Trigger> &get_trigger_list()
-  { return m_triggers; }
+
+  /**
+    Store all trigger objects in a list passed as an argument.
+
+    @param[out] triggers  Pointer to a list that will be filled by instances of
+                          class Trigger.
+
+    @return
+       @retval nullptr in case of OOM error
+       @retval NOT NULL pointer to List<Trigger> passed in argument
+               filled by Trigger objects.
+
+  */
+
+  List<Trigger>* fill_and_return_trigger_list(List<Trigger> *triggers);
 
   /**
     Checks if there is a broken trigger for this table.
@@ -136,12 +162,7 @@ public:
 
   void print_upgrade_warnings(THD *thd);
 
-  bool rename_subject_table(THD *thd,
-                                 const char *old_db_name,
-                                 const char *new_db_name,
-                                 const char *old_table_name_str,
-                                 const char *new_table_name_str);
-
+  void parse_triggers(THD *thd, List<Trigger> *triggers, bool is_upgrade);
 
 private:
   MEM_ROOT *get_mem_root()
@@ -151,11 +172,7 @@ private:
     enum_trigger_event_type event,
     enum_trigger_action_time_type action_time);
 
-  void parse_triggers(THD *thd);
-
   bool prepare_record1_accessors();
-
-  bool rebuild_trigger_list();
 
   /**
     Remember a parse error that occurred while parsing trigger definitions
@@ -229,21 +246,6 @@ private:
     NULL, so there should be a place to store the subject table name.
   */
   LEX_STRING m_subject_table_name;
-
-  /**
-    List of all triggers associated with a table.
-
-    There is no guarantee to have any particular order in this list, so this
-    list must not be used when the order is important.
-
-    The thing is that this list is used to load triggers, so right after loading
-    it has the right order. However, later the list might get unordered because
-    of create/drop operations.
-
-    This list also contains triggers with parse errors. Such triggers are not
-    stored in m_trigger_map.
-  */
-  List<Trigger> m_triggers;
 
   /// Triggers grouped by event, action_time.
   Trigger_chain *m_trigger_map[TRG_EVENT_MAX][TRG_ACTION_MAX];

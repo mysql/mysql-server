@@ -90,7 +90,8 @@ void Mysql_object_reader::read_table_rows_task(
     "SELECT `COLUMN_NAME`, `EXTRA` FROM " +
     this->get_quoted_object_full_name("INFORMATION_SCHEMA", "COLUMNS") +
     "WHERE TABLE_SCHEMA ='" + runner->escape_string(table->get_schema()) +
-    "' AND TABLE_NAME ='" + runner->escape_string(table->get_name()) + "'",
+    "' AND TABLE_NAME ='" + runner->escape_string(table->get_name()) + "'" +
+    " ORDER BY ORDINAL_POSITION ",
     &columns);
 
   std::string column_names;

@@ -17,3 +17,6 @@ ALTER TABLE performance_schema.status_by_account
 CREATE UNIQUE INDEX test_index
   ON performance_schema.status_by_account(VARIABLE_NAME);
 
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `ACCOUNT`
+  ON performance_schema.status_by_account;

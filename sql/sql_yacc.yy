@@ -75,7 +75,9 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "parse_location.h"
 #include "parse_tree_helpers.h"
 #include "lex_token.h"
+#include "dd/info_schema/show.h"             // build_show_...
 #include "dd/types/abstract_table.h"         // TT_BASE_TABLE
+#include "sql_base.h"                        // find_temporary_table
 #include "item_cmpfunc.h"
 #include "item_geofunc.h"
 #include "item_json_func.h"
@@ -83,6 +85,8 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql_component.h"
 #include "parse_tree_hints.h"
 #include "derror.h"
+#include "sql_trigger.h"                     // Sql_cmd_create_trigger,
+                                             // Sql_cmd_create_trigger
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
@@ -420,6 +424,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
    For each token, please include in the same line a comment that contains
    the following tags:
+   SQL-2015-R : Reserved keyword as per SQL-2015 draft
    SQL-2003-R : Reserved keyword as per SQL-2003
    SQL-2003-N : Non Reserved keyword as per SQL-2003
    SQL-1999-R : Reserved keyword as per SQL-1999
@@ -1118,6 +1123,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
    Tokens from MySQL 8.0
 */
 %token  JSON_UNQUOTED_SEPARATOR_SYM   /* MYSQL */
+%token  PERSIST_SYM
 %token  ROLE_SYM                      /* SQL-1999-R */
 %token  ADMIN_SYM                     /* SQL-1999-R */
 %token  INVISIBLE_SYM
@@ -1127,6 +1133,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  GRAMMAR_SELECTOR_EXPR         /* synthetic token: starts single expr. */
 %token  GRAMMAR_SELECTOR_GCOL       /* synthetic token: starts generated col. */
 %token  GRAMMAR_SELECTOR_PART      /* synthetic token: starts partition expr. */
+%token  JSON_OBJECTAGG                /* SQL-2015-R */
+%token  JSON_ARRAYAGG                 /* SQL-2015-R */
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -1247,6 +1255,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         filter_string
         select_item
         opt_where_clause
+        opt_where_clause_expr
         opt_having_clause
         opt_simple_limit
 
@@ -1264,7 +1273,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         ident_list ident_list_arg
 
 %type <var_type>
-        option_type opt_var_type opt_var_ident_type
+        option_type opt_var_type opt_var_ident_type opt_set_var_ident_type
 
 %type <key_type>
         normal_key_type opt_unique constraint_key_type spatial
@@ -1294,8 +1303,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <cast_type> cast_type
 
-%type <symbol> keyword keyword_sp keyword_role
-        keyword_role_aux1 keyword_role_aux2
+%type <symbol> ident_keyword label_keyword role_keyword
+        role_or_label_keyword role_or_ident_keyword
 
 %type <lex_user> user grant_user user_func role
 
@@ -7673,6 +7682,8 @@ alter_list_item:
                                           $6))
               MYSQL_YYABORT;
             lex->alter_info.flags|= Alter_info::ALTER_CHANGE_COLUMN;
+            if ($5->default_value)
+               lex->alter_info.flags|= Alter_info::ALTER_CHANGE_COLUMN_DEFAULT;
             Lex->create_last_non_select_table= Lex->last_table();
           }
         | MODIFY_SYM opt_column field_ident
@@ -7697,6 +7708,8 @@ alter_list_item:
                                           $5))
               MYSQL_YYABORT;
             lex->alter_info.flags|= Alter_info::ALTER_CHANGE_COLUMN;
+            if ($4->default_value)
+               lex->alter_info.flags|= Alter_info::ALTER_CHANGE_COLUMN_DEFAULT;
             Lex->create_last_non_select_table= Lex->last_table();
           }
         | DROP opt_column field_ident opt_restrict
@@ -9756,6 +9769,14 @@ sum_expr:
           {
             $$= NEW_PTN Item_sum_or(@$, $3);
           }
+        | JSON_ARRAYAGG '(' in_sum_expr ')'
+          {
+            $$= NEW_PTN Item_sum_json_array(@$, $3);
+          }
+        | JSON_OBJECTAGG '(' in_sum_expr ',' in_sum_expr ')'
+          {
+            $$= NEW_PTN Item_sum_json_object(@$, $3, $5);
+          }
         | BIT_XOR  '(' in_sum_expr ')'
           {
             $$= NEW_PTN Item_sum_xor(@$, $3);
@@ -10469,10 +10490,19 @@ opt_all:
         ;
 
 opt_where_clause:
-          /* empty */  { $$= NULL; }
+        opt_where_clause_expr
+          {
+            if ($1 != NULL)
+              $$= new PTI_context<CTX_WHERE>(@$, $1);
+            else
+              $$= NULL;
+          }
+        ;
+
+opt_where_clause_expr: /* empty */  { $$= NULL; }
         | WHERE expr
           {
-            $$= new PTI_context<CTX_WHERE>(@$, $2);
+            $$= $2;
           }
         ;
 
@@ -10959,6 +10989,7 @@ drop:
             lex->sql_command= SQLCOM_DROP_TRIGGER;
             lex->drop_if_exists= $3;
             lex->spname= $4;
+            Lex->m_sql_cmd= new (YYTHD->mem_root) Sql_cmd_drop_trigger();
           }
         | DROP TABLESPACE_SYM tablespace_name drop_ts_options_list
           {
@@ -11519,19 +11550,24 @@ show:
         ;
 
 show_param:
-           DATABASES opt_wild_or_where
+           DATABASES opt_wild_or_where_for_show
            {
-             LEX *lex= Lex;
-             lex->sql_command= SQLCOM_SHOW_DATABASES;
-             if (prepare_schema_table(YYTHD, lex, 0, SCH_SCHEMATA))
+             Lex->sql_command= SQLCOM_SHOW_DATABASES;
+             Item *where_cond= Select->where_cond();
+             Select->set_where_cond(NULL);
+             if (dd::info_schema::build_show_databases_query(
+                       @$, YYTHD, Lex->wild, where_cond) == nullptr)
                MYSQL_YYABORT;
            }
-         | opt_full TABLES opt_db opt_wild_or_where
+         | opt_full TABLES opt_db opt_wild_or_where_for_show
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_TABLES;
              lex->select_lex->db= $3;
-             if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_NAMES))
+             Item *where_cond= Select->where_cond();
+             Select->set_where_cond(NULL);
+             if (dd::info_schema::build_show_tables_query(@$, YYTHD, lex->wild,
+                                         where_cond, false) == nullptr)
                MYSQL_YYABORT;
            }
          | opt_full TRIGGERS_SYM opt_db opt_wild_or_where
@@ -11550,12 +11586,15 @@ show_param:
              if (prepare_schema_table(YYTHD, lex, 0, SCH_EVENTS))
                MYSQL_YYABORT;
            }
-         | TABLE_SYM STATUS_SYM opt_db opt_wild_or_where
+         | TABLE_SYM STATUS_SYM opt_db opt_wild_or_where_for_show
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_TABLE_STATUS;
              lex->select_lex->db= $3;
-             if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLES))
+             Item *where_cond= Select->where_cond();
+             Select->set_where_cond(NULL);
+             if (dd::info_schema::build_show_tables_query(@$, YYTHD, lex->wild,
+                                         where_cond, true) == nullptr)
                MYSQL_YYABORT;
            }
         | OPEN_SYM TABLES opt_db opt_wild_or_where
@@ -11583,14 +11622,40 @@ show_param:
           }
         | ENGINE_SYM ALL show_engine_param
           { Lex->create_info->db_type= NULL; }
-        | opt_full COLUMNS from_or_in table_ident opt_db opt_wild_or_where
+        | opt_full COLUMNS from_or_in table_ident opt_db opt_wild_or_where_for_show
           {
             LEX *lex= Lex;
+            LEX_STRING db;
             lex->sql_command= SQLCOM_SHOW_FIELDS;
             if ($5)
               $4->change_db($5);
-            if (prepare_schema_table(YYTHD, lex, $4, SCH_COLUMNS))
+
+            if ($4->db.str)
+              db.str= (char *) $4->db.str;
+            else if (lex->copy_db_to(&db.str, &db.length))
               MYSQL_YYABORT;
+
+            if (find_temporary_table(YYTHD, db.str, $4->table.str) != nullptr)
+            {
+              // Itemize the condition.
+              Item *cond= Select->where_cond();
+              if (cond)
+              {
+                ITEMIZE(cond, &cond);
+                Select->set_where_cond(cond);
+              }
+
+              if (prepare_schema_table(YYTHD, lex, $4, SCH_TMP_TABLE_COLUMNS))
+                MYSQL_YYABORT;
+            }
+            else
+            {
+               Item *where_cond= Select->where_cond();
+               Select->set_where_cond(NULL);
+               if (dd::info_schema::build_show_columns_query(
+                         @$, YYTHD, $4, lex->wild, where_cond) == nullptr)
+                  MYSQL_YYABORT;
+            }
           }
         | master_or_binary LOGS_SYM
           {
@@ -11624,18 +11689,37 @@ show_param:
           from_or_in            /* #2 */
           table_ident           /* #3 */
           opt_db                /* #4 */
-          opt_where_clause      /* #5 */
+          opt_where_clause_expr /* #5 */
           {
-            if ($5 != NULL)
-              ITEMIZE($5, &$5);
-            Select->set_where_cond($5);
-
             LEX *lex= Lex;
+            LEX_STRING db;
             lex->sql_command= SQLCOM_SHOW_KEYS;
             if ($4)
               $3->change_db($4);
-            if (prepare_schema_table(YYTHD, lex, $3, SCH_STATISTICS))
+
+            if ($3->db.str)
+              db.str= (char *) $3->db.str;
+            else if (lex->copy_db_to(&db.str, &db.length))
               MYSQL_YYABORT;
+
+            if (find_temporary_table(YYTHD, db.str, $3->table.str) != NULL)
+            {
+              if ($5 != NULL)
+              {
+                Item *where_context= new PTI_context<CTX_WHERE>(@$, $5);
+                ITEMIZE(where_context, &$5);
+              }
+              Select->set_where_cond($5);
+
+              if (prepare_schema_table(YYTHD, lex, $3, SCH_TMP_TABLE_KEYS))
+                MYSQL_YYABORT;
+            }
+            else
+            {
+               if (dd::info_schema::build_show_keys_query(
+                                      @$, YYTHD, $3, $5) == nullptr)
+                  MYSQL_YYABORT;
+            }
           }
         | opt_storage ENGINES_SYM
           {
@@ -11690,7 +11774,11 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, NULL, SCH_PROFILES) != 0)
               YYABORT;
           }
-        | opt_var_type STATUS_SYM opt_wild_or_where_for_show
+        | opt_var_type STATUS_SYM
+          {
+            Lex->sql_command= SQLCOM_SHOW_STATUS;
+          }
+          opt_wild_or_where_for_show
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
@@ -11723,14 +11811,17 @@ show_param:
           }
         | opt_full PROCESSLIST_SYM
           { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;}
-        | opt_var_type VARIABLES opt_wild_or_where_for_show
+        | opt_var_type VARIABLES
+          {
+            Lex->sql_command= SQLCOM_SHOW_VARIABLES;
+          }
+          opt_wild_or_where_for_show
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             if (show_compatibility_56)
             {
               /* 5.6, DEPRECATED */
-              lex->sql_command= SQLCOM_SHOW_VARIABLES;
               lex->option_type= $1;
               if (prepare_schema_table(YYTHD, lex, 0, SCH_VARIABLES))
                 MYSQL_YYABORT;
@@ -11754,18 +11845,22 @@ show_param:
               }
             }
           }
-        | charset opt_wild_or_where
+        | charset opt_wild_or_where_for_show
           {
-            LEX *lex= Lex;
-            lex->sql_command= SQLCOM_SHOW_CHARSETS;
-            if (prepare_schema_table(YYTHD, lex, 0, SCH_CHARSETS))
+            Lex->sql_command= SQLCOM_SHOW_CHARSETS;
+            Item *where_cond= Select->where_cond();
+            Select->set_where_cond(NULL);
+            if (dd::info_schema::build_show_character_set_query(
+                                  @$, YYTHD, Lex->wild, where_cond) == nullptr)
               MYSQL_YYABORT;
           }
-        | COLLATION_SYM opt_wild_or_where
+        | COLLATION_SYM opt_wild_or_where_for_show
           {
-            LEX *lex= Lex;
-            lex->sql_command= SQLCOM_SHOW_COLLATIONS;
-            if (prepare_schema_table(YYTHD, lex, 0, SCH_COLLATIONS))
+            Lex->sql_command= SQLCOM_SHOW_COLLATIONS;
+            Item *where_cond= Select->where_cond();
+            Select->set_where_cond(NULL);
+            if (dd::info_schema::build_show_collation_query(
+                                  @$, YYTHD, Lex->wild, where_cond) == nullptr)
               MYSQL_YYABORT;
           }
         | PRIVILEGES
@@ -11945,7 +12040,7 @@ opt_wild_or_where:
 
 opt_wild_or_where_for_show:
           /* empty */
-        | LIKE TEXT_STRING_sys
+        | LIKE TEXT_STRING_literal
           {
             Lex->wild= NEW_PTN String($2.str, $2.length, system_charset_info);
             if (Lex->wild == NULL)
@@ -11953,7 +12048,9 @@ opt_wild_or_where_for_show:
           }
         | WHERE expr
           {
-            if (show_compatibility_56)
+            if (show_compatibility_56 &&
+                (Lex->sql_command == SQLCOM_SHOW_STATUS ||
+                 Lex->sql_command == SQLCOM_SHOW_VARIABLES))
             {
               /*
                 This parsed tree fragment is added as part of a
@@ -11978,20 +12075,34 @@ opt_wild_or_where_for_show:
 
 /* A Oracle compatible synonym for show */
 describe:
-          describe_command table_ident
+          describe_command table_ident opt_describe_column
           {
             LEX *lex= Lex;
+            LEX_STRING db;
             lex->current_select()->parsing_place= CTX_SELECT_LIST;
             lex->sql_command= SQLCOM_SHOW_FIELDS;
             lex->select_lex->db= NULL;
             lex->verbose= 0;
-            if (prepare_schema_table(YYTHD, lex, $2, SCH_COLUMNS))
+
+            if ($2->db.str)
+              db.str= (char *) $2->db.str;
+            else if (lex->copy_db_to(&db.str, &db.length))
               MYSQL_YYABORT;
-          }
-          opt_describe_column
-          {
-            // Ensure we're resetting parsing context of the right select
-            DBUG_ASSERT(Select->parsing_place == CTX_SELECT_LIST);
+
+            if (find_temporary_table(YYTHD, db.str, $2->table.str) != NULL)
+            {
+              if (prepare_schema_table(YYTHD, lex, $2, SCH_TMP_TABLE_COLUMNS))
+                MYSQL_YYABORT;
+            }
+            else
+            {
+              if (dd::info_schema::build_show_columns_query(
+                    @$, YYTHD, $2, lex->wild, nullptr) == nullptr)
+                 MYSQL_YYABORT;
+            }
+
+            // WL#6599 opt_describe_column is handled during prepare
+            // stage in prepare_schema_dd_view instead of execution stage
             Select->parsing_place= CTX_NONE;
           }
         | describe_command opt_extended_describe
@@ -12899,7 +13010,7 @@ TEXT_STRING_filesystem:
 
 ident:
           IDENT_sys    { $$=$1; }
-        | keyword
+        | ident_keyword
           {
             THD *thd= YYTHD;
             $$.str= thd->strmake($1.str, $1.length);
@@ -12911,7 +13022,7 @@ ident:
 
 role_ident:
           IDENT_sys
-        | keyword_role
+        | role_keyword
           {
             $$.str= YYTHD->strmake($1.str, $1.length);
             if ($$.str == NULL)
@@ -12922,7 +13033,7 @@ role_ident:
 
 label_ident:
           IDENT_sys    { $$=$1; }
-        | keyword_sp
+        | label_keyword
           {
             THD *thd= YYTHD;
             $$.str= thd->strmake($1.str, $1.length);
@@ -12981,26 +13092,28 @@ role:
           }
         ;
 
-/* Keywords that we allow for identifiers (except SP labels).
+/*
+  Non-reserved keywords that we allow for identifiers (except SP labels).
 
-   Also see statement-specific rules:
-   * keyword_sp,
-   * keyword_role
+  Also see statement-specific rules:
+    * label_keyword,
+    * role_keyword
+
+  We allow the use of some non-reserved keywords as identifiers, SP labels and
+  roles, but the three sets of keywords are different and yet
+  overlapping. Hence we need a somewhat complicated set of rules for all
+  possible intersections of these sets: role_or_ident_keyword,
+  role_or_label_keyword.
 */
-keyword:
-          keyword_sp            {}
-        | keyword_role_aux2     {}
+ident_keyword:
+          label_keyword         {}
+        | role_or_ident_keyword {}
         | EXECUTE_SYM           {}
         | SHUTDOWN              {}
         ;
 
-/*
-  This is a subset of non-reserved keywords.
-  We allow keyword_role_aux2 for role identifiers in addition to
-  keyword_role_aux1.
-  Also see a comment above the keyword_role rule.
-*/
-keyword_role_aux2:
+// These are the non-reserved keywords which may be used for roles or idents.
+role_or_ident_keyword:
           ACCOUNT_SYM           {}
         | ASCII_SYM             {}
         | ALWAYS_SYM            {}
@@ -13059,13 +13172,13 @@ keyword_role_aux2:
         ;
 
 /*
- * Keywords that we allow for labels in SPs.
- * Anything that's the beginning of a statement or characteristics
- * must be in keyword above, otherwise we get (harmful) shift/reduce
- * conflicts.
- */
-keyword_sp:
-          keyword_role_aux1        {}
+  Keywords that we allow for labels in SPs.
+  Anything that's the beginning of a statement or characteristics
+  must be in keyword above, otherwise we get (harmful) shift/reduce
+  conflicts.
+*/
+label_keyword:
+          role_or_label_keyword    {}
         | EVENT_SYM                {}
         | FILE_SYM                 {}
         | NONE_SYM                 {}
@@ -13076,13 +13189,8 @@ keyword_sp:
         | SUPER_SYM                {}
         ;
 
-/*
-  This is a subset of non-reserved keywords in keyword_sp.
-  We allow keyword_role_aux1 for role identifiers in addition to
-  keyword_role_aux2.
-  Also see a comment above the keyword_role rule.
-*/
-keyword_role_aux1:
+// These are the non-reserved keywords which may be used for roles or SP labels.
+role_or_label_keyword:
           ACTION                   {}
         | ADDDATE_SYM              {}
         | AFTER_SYM                {}
@@ -13402,26 +13510,25 @@ keyword_role_aux1:
         | YEAR_SYM                 {}
         ;
 
-/* Keywords that we allow for role names.
+/*
+  Non-reserved keywords that we allow for role names.
 
-   To not introduce new grammar conflicts, the following keyword tokens are
-   not welcome as role names:
-        EVENT_SYM
-        EXECUTE_SYM
-        FILE_SYM
-        PROCESS
-        PROXY_SYM
-        RELOAD
-        REPLICATION
-        SHUTDOWN
-        SUPER_SYM
+  In order not to introduce new grammar conflicts, the following keyword tokens are
+  not welcome as role names:
 
-  Note: this rule is a combination of keyword & keyword_sp rules (excluding
-        keywords above).
+    EVENT_SYM
+    EXECUTE_SYM
+    FILE_SYM
+    PROCESS
+    PROXY_SYM
+    RELOAD
+    REPLICATION
+    SHUTDOWN
+    SUPER_SYM
 */
-keyword_role:
-          keyword_role_aux1
-        | keyword_role_aux2
+role_keyword:
+          role_or_label_keyword
+        | role_or_ident_keyword
         ;
 
 /*
@@ -13567,6 +13674,7 @@ option_value:
 
 option_type:
           GLOBAL_SYM  { $$=OPT_GLOBAL; }
+        | PERSIST_SYM { $$=OPT_PERSIST; }
         | LOCAL_SYM   { $$=OPT_SESSION; }
         | SESSION_SYM { $$=OPT_SESSION; }
         ;
@@ -13584,6 +13692,14 @@ opt_var_ident_type:
         | LOCAL_SYM '.'   { $$=OPT_SESSION; }
         | SESSION_SYM '.' { $$=OPT_SESSION; }
         ;
+
+opt_set_var_ident_type:
+          /* empty */     { $$=OPT_DEFAULT; }
+        | PERSIST_SYM '.' { $$=OPT_PERSIST; }
+        | GLOBAL_SYM '.'  { $$=OPT_GLOBAL; }
+        | LOCAL_SYM '.'   { $$=OPT_SESSION; }
+        | SESSION_SYM '.' { $$=OPT_SESSION; }
+         ;
 
 // Option values with preceding option_type.
 option_value_following_option_type:
@@ -13605,7 +13721,8 @@ option_value_no_option_type:
           {
             $$= NEW_PTN PT_option_value_no_option_type_user_var($2, $4);
           }
-        | '@' '@' opt_var_ident_type internal_variable_name equal set_expr_or_default
+        | '@' '@' opt_set_var_ident_type internal_variable_name equal
+          set_expr_or_default
           {
             $$= NEW_PTN PT_option_value_no_option_type_sys_var($3, $4, $6);
           }
@@ -14776,14 +14893,13 @@ trigger_follows_precedes_clause:
             /* empty */
             {
               $$.ordering_clause= TRG_ORDER_NONE;
-              $$.anchor_trigger_name.str= NULL;
-              $$.anchor_trigger_name.length= 0;
+              $$.anchor_trigger_name= NULL_CSTR;
             }
           |
             trigger_action_order ident_or_text
             {
               $$.ordering_clause= $1;
-              $$.anchor_trigger_name= $2;
+              $$.anchor_trigger_name= { $2.str, $2.length };
             }
           ;
 
@@ -14808,23 +14924,6 @@ trigger_tail:
               MYSQL_YYABORT;
             }
 
-            lex->raw_trg_on_table_name_begin= @5.raw.start;
-            lex->raw_trg_on_table_name_end= @7.raw.start;
-
-            if (@10.is_empty())
-            {
-              /*
-                @10.is_empty() is true when a clause PRECEDES/FOLLOWS is absent.
-              */
-              lex->trg_ordering_clause_begin= NULL;
-              lex->trg_ordering_clause_end= NULL;
-            }
-            else
-            {
-              lex->trg_ordering_clause_begin= @10.cpp.start;
-              lex->trg_ordering_clause_end= @10.cpp.end;
-            }
-
             sp_head *sp= sp_start_parsing(thd, enum_sp_type::TRIGGER, $2);
 
             if (!sp)
@@ -14844,8 +14943,7 @@ trigger_tail:
 
             memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
             sp->m_chistics= &lex->sp_chistics;
-
-            sp->set_body_start(thd, @9.cpp.end);
+            sp->set_body_start(thd, @10.cpp.end);
           }
           sp_proc_stmt /* $12 */
           { /* $13 */
@@ -14871,6 +14969,8 @@ trigger_tail:
                                                     TL_READ_NO_INSERT,
                                                     MDL_SHARED_NO_WRITE))
               MYSQL_YYABORT;
+
+            Lex->m_sql_cmd= new (YYTHD->mem_root) Sql_cmd_create_trigger();
           }
         ;
 

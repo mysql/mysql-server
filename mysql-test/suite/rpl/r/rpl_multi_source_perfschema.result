@@ -51,7 +51,7 @@ include/assert.inc [service state of coordinator shall be ON]
 #
 #  Stop the slave on channel_1 and verify that rows are still instact
 #
-include/stop_slave.inc
+include/stop_slave.inc [FOR CHANNEL 'channel_1']
 #
 # Test case 5: Verify that selects work on named channels even
 #              after a channel is stopped. test that service state is OFF
@@ -100,7 +100,7 @@ LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00
 #
 # Test case 7: Delete channel_3 and count the number of rows in each table.
 #
-include/stop_slave.inc
+include/stop_slave.inc [FOR CHANNEL 'channel_3']
 RESET SLAVE ALL FOR CHANNEL 'channel_3';
 include/assert.inc [there shall be 1 in replication connection_configuration table after a channel is deleted.]
 include/assert.inc [there shall be 1 in replication connection_status table after a channel is deleted.]

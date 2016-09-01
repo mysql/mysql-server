@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,20 @@ bool create_view(THD *thd, TABLE_LIST *view,
 /** Read view metadata from dd.views into TABLE_LIST */
 void read_view(TABLE_LIST *view, const dd::View &view_ref,
                MEM_ROOT *mem_root);
+
+/**
+  Update view status(valid/invalid) value in dd.views.options.
+
+  @param   thd          Thread handle.
+  @param   schema_name  Schema name.
+  @param   view_name    View name.
+  @param   status       View status(valid/invalid).
+
+  @retval  false        On Success.
+  @retval  true         On Failure.
+*/
+bool update_view_status(THD *thd, const char *schema_name,
+                        const char *view_name, bool status);
 
 } // namespace dd
 #endif // DD_VIEW_INCLUDED

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -276,6 +276,30 @@ private:
     error. We use this flag to choose when to give error and when warning.
   */
   enum_set_select_behavior m_set_select_behavior;
+};
+
+//////////////////////////////////////////////////////////////////////////
+
+/**
+  After retrieving the tablespace name, the tablespace name is validated.
+  If the name is invalid, it is ignored. The function used to validate
+  the name, 'check_tablespace_name()', emits errors. In the context of
+  retrieving tablespace names, the errors must be ignored. This error handler
+  makes sure this is done.
+*/
+
+class Tablespace_name_error_handler : public Internal_error_handler
+{
+public:
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char *sqlstate,
+                        Sql_condition::enum_severity_level *level,
+                        const char *msg)
+  {
+    return (sql_errno == ER_WRONG_TABLESPACE_NAME ||
+            sql_errno == ER_TOO_LONG_IDENT);
+  }
 };
 
 

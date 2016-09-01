@@ -47,6 +47,10 @@ public:
 
   const char *table_type(void) const { return pfs_engine_name; }
 
+  const char *index_type(uint key_number);
+
+  const char **bas_ext(void) const;
+
   /** Capabilities of the performance schema tables. */
   ulonglong table_flags(void) const
   {
@@ -71,27 +75,45 @@ public:
       records.
     */
     return HA_NO_TRANSACTIONS | HA_REC_NOT_IN_SEQ | HA_NO_AUTO_INCREMENT |
-      HA_PRIMARY_KEY_REQUIRED_FOR_DELETE;
+      HA_PRIMARY_KEY_REQUIRED_FOR_DELETE | HA_NULL_IN_KEY | HA_NULL_PART_KEY;
   }
 
   /**
     Operations supported by indexes.
-    None, there are no indexes.
   */
-  ulong index_flags(uint , uint , bool ) const
-  { return 0; }
+  ulong index_flags(uint idx, uint part, bool all_parts) const;
+
+  const Key_map *keys_to_use_for_scanning()
+  {
+    return(&key_map_full);
+  }
+
+  enum ha_key_alg get_default_index_algorithm() const
+  {
+    return HA_KEY_ALG_HASH;
+  }
 
   uint max_supported_record_length(void) const
   { return HA_MAX_REC_LENGTH; }
 
   uint max_supported_keys(void) const
-  { return 0; }
+  { return MAX_KEY; }
 
   uint max_supported_key_parts(void) const
-  { return 0; }
+  { return MAX_REF_PARTS; }
 
   uint max_supported_key_length(void) const
-  { return 0; }
+  { return MAX_KEY_LENGTH; }
+
+  uint max_supported_key_part_length() const
+  { return MAX_KEY_LENGTH; }
+
+  int index_init(uint index, bool sorted);
+  int index_end();
+  int index_read(uchar *buf, const uchar *key,
+                 uint key_len, enum ha_rkey_function find_flag);
+  int index_next(uchar *buf);
+  int index_next_same(uchar *buf, const uchar *key, uint keylen);
 
   ha_rows estimate_rows_upper_bound(void)
   { return HA_POS_ERROR; }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -588,6 +588,24 @@ public:
 
 
   /**
+    Retrieve a table name of a given trigger name and schema id.
+
+    @param        schema_id        schema id of the trigger.
+    @param        trigger_name     Name of the trigger.
+    @param  [out] table_name       Name of the table for which
+                                   trigger belongs to. Empty string if
+                                   there is no such trigger.
+
+    @retval      false    No error.
+    @retval      true     Error.
+  */
+
+  bool get_table_name_by_trigger_name(Object_id schema_id,
+                                      const std::string &trigger_name,
+                                      std::string *table_name);
+
+
+  /**
     Get the highest currently used se private id for the table objects.
 
     @param       engine        Name of the engine storing the table.
@@ -667,6 +685,27 @@ public:
 
   template <typename T>
   bool fetch_global_components(std::vector<const T*> *coll) const;
+
+
+  /**
+    Fetch Object ids of all the views referencing base table/ view/ stored
+    function name specified in "schema"."name".
+
+    @tparam       T               Type of the object (View_table/View_routine)
+                                  to retrieve view names for.
+    @param        schema          Schema name.
+    @param        tbl_or_sf_name  Base table/ View/ Stored function name.
+    @param[out]   view_ids        Vector to store Object ids of all the views
+                                  referencing schema.name.
+
+    @return      true   Failure (error is reported).
+    @return      false  Success.
+  */
+  template <typename T>
+  bool fetch_referencing_views_object_id(
+    const char *schema,
+    const char *tbl_or_sf_name,
+    std::vector<Object_id> *view_ids) const;
 
 
   /**
@@ -796,6 +835,22 @@ public:
   template <typename T>
   bool update_uncached_and_invalidate(T* object);
 
+
+  /**
+    This function is a wrapper to the function below.
+
+    It calls add_and_reset_id() with value 'false' for the
+    second parameter.
+
+    @tparam T        Dictionary object type.
+    @param  object   Object to be added to the shared cache
+                     and the object registry.
+  */
+
+  template <typename T>
+  void add_and_reset_id(T* object);
+
+
   /**
     Add a new dictionary object and assign an id.
 
@@ -805,6 +860,8 @@ public:
     client and added to the local registry. The object must be released
     afterwards,
 
+    The id should reset to 1 if we have cleared DD cache.
+
     @note This function is only to be used during server start.
 
     @note The new object will be owned by the shared cache. Thus, the
@@ -812,14 +869,28 @@ public:
           object must be released in the same way as other dictionary
           objects.
 
-    @tparam T       Dictionary object type.
-    @param  object  Object to be added to the shared cache
-                    and the object registry.
+    @tparam T        Dictionary object type.
+    @param  reset_id Reset id to 1
+    @param  object   Object to be added to the shared cache
+                     and the object registry.
   */
 
   template <typename T>
-  void add_and_reset_id(T* object);
+  void add_and_reset_id(T* object, bool reset_id);
 
+
+  /**
+    Remove table statistics entries from mysql.table_stats and
+    mysql.index_stats.
+
+    @param schema_name  Schema name of the table
+    @param table_name   Table name of which stats should be cleaned.
+
+    @return true  - on failure
+    @return false - on success
+  */
+  bool remove_table_dynamic_statistics(const std::string &schema_name,
+                                       const std::string &table_name);
 
   /**
     Make a dictionary object sticky or not in the cache.

@@ -57,6 +57,7 @@ mysql/triggers_ibfk_2	mysql/triggers	mysql/tables	1	0
 mysql/triggers_ibfk_3	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_4	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_5	mysql/triggers	mysql/collations	1	0
+mysql/view_routine_usage_ibfk_1	mysql/view_routine_usage	mysql/tables	1	0
 mysql/view_table_usage_ibfk_1	mysql/view_table_usage	mysql/tables	1	0
 test/fk_1	test/child	test/parent	1	6
 SELECT * FROM information_schema.INNODB_SYS_FOREIGN_COLS;
@@ -104,6 +105,7 @@ mysql/triggers_ibfk_2	table_id	id	0
 mysql/triggers_ibfk_3	client_collation_id	id	0
 mysql/triggers_ibfk_4	connection_collation_id	id	0
 mysql/triggers_ibfk_5	schema_collation_id	id	0
+mysql/view_routine_usage_ibfk_1	view_id	id	0
 mysql/view_table_usage_ibfk_1	view_id	id	0
 test/fk_1	a2	b	0
 ALTER TABLE child ADD CONSTRAINT fk_1 FOREIGN KEY (a2)
@@ -185,6 +187,7 @@ mysql/triggers_ibfk_2	mysql/triggers	mysql/tables	1	0
 mysql/triggers_ibfk_3	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_4	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_5	mysql/triggers	mysql/collations	1	0
+mysql/view_routine_usage_ibfk_1	mysql/view_routine_usage	mysql/tables	1	0
 mysql/view_table_usage_ibfk_1	mysql/view_table_usage	mysql/tables	1	0
 test/fk_1	test/child	test/parent	1	6
 test/fk_10	test/child	test/parent	2	5
@@ -235,6 +238,7 @@ mysql/triggers_ibfk_2	table_id	id	0
 mysql/triggers_ibfk_3	client_collation_id	id	0
 mysql/triggers_ibfk_4	connection_collation_id	id	0
 mysql/triggers_ibfk_5	schema_collation_id	id	0
+mysql/view_routine_usage_ibfk_1	view_id	id	0
 mysql/view_table_usage_ibfk_1	view_id	id	0
 test/fk_1	a2	b	0
 test/fk_10	a1	a	0
@@ -315,6 +319,7 @@ mysql/triggers_ibfk_2	mysql/triggers	mysql/tables	1	0
 mysql/triggers_ibfk_3	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_4	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_5	mysql/triggers	mysql/collations	1	0
+mysql/view_routine_usage_ibfk_1	mysql/view_routine_usage	mysql/tables	1	0
 mysql/view_table_usage_ibfk_1	mysql/view_table_usage	mysql/tables	1	0
 test/fk_1	test/child	test/parent	1	6
 test/fk_10	test/child	test/parent	2	5
@@ -366,6 +371,7 @@ mysql/triggers_ibfk_2	table_id	id	0
 mysql/triggers_ibfk_3	client_collation_id	id	0
 mysql/triggers_ibfk_4	connection_collation_id	id	0
 mysql/triggers_ibfk_5	schema_collation_id	id	0
+mysql/view_routine_usage_ibfk_1	view_id	id	0
 mysql/view_table_usage_ibfk_1	view_id	id	0
 test/fk_1	a2	b	0
 test/fk_10	a1	a	0
@@ -409,6 +415,7 @@ mysql/help_relation
 mysql/help_topic
 mysql/index_column_usage
 mysql/index_partitions
+mysql/index_stats
 mysql/indexes
 mysql/innodb_index_stats
 mysql/innodb_table_stats
@@ -428,6 +435,7 @@ mysql/slave_worker_info
 mysql/st_spatial_reference_systems
 mysql/table_partition_values
 mysql/table_partitions
+mysql/table_stats
 mysql/tables
 mysql/tables_priv
 mysql/tablespace_files
@@ -440,6 +448,7 @@ mysql/time_zone_transition_type
 mysql/triggers
 mysql/user
 mysql/version
+mysql/view_routine_usage
 mysql/view_table_usage
 test/child
 test/parent
@@ -506,6 +515,7 @@ mysql/triggers_ibfk_2	mysql/triggers	mysql/tables	1	0
 mysql/triggers_ibfk_3	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_4	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_5	mysql/triggers	mysql/collations	1	0
+mysql/view_routine_usage_ibfk_1	mysql/view_routine_usage	mysql/tables	1	0
 mysql/view_table_usage_ibfk_1	mysql/view_table_usage	mysql/tables	1	0
 test/fk_1	test/child	test/parent	1	6
 test/fk_10	test/child	test/parent	2	5
@@ -557,6 +567,7 @@ mysql/triggers_ibfk_2	table_id	id	0
 mysql/triggers_ibfk_3	client_collation_id	id	0
 mysql/triggers_ibfk_4	connection_collation_id	id	0
 mysql/triggers_ibfk_5	schema_collation_id	id	0
+mysql/view_routine_usage_ibfk_1	view_id	id	0
 mysql/view_table_usage_ibfk_1	view_id	id	0
 test/fk_1	a2	b	0
 test/fk_10	a1	a	0
@@ -627,6 +638,7 @@ mysql/triggers_ibfk_2	mysql/triggers	mysql/tables	1	0
 mysql/triggers_ibfk_3	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_4	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_5	mysql/triggers	mysql/collations	1	0
+mysql/view_routine_usage_ibfk_1	mysql/view_routine_usage	mysql/tables	1	0
 mysql/view_table_usage_ibfk_1	mysql/view_table_usage	mysql/tables	1	0
 test/fk_1	test/child	test/parent	1	6
 test/fk_10	test/child	test/parent	2	5
@@ -678,6 +690,7 @@ mysql/triggers_ibfk_2	table_id	id	0
 mysql/triggers_ibfk_3	client_collation_id	id	0
 mysql/triggers_ibfk_4	connection_collation_id	id	0
 mysql/triggers_ibfk_5	schema_collation_id	id	0
+mysql/view_routine_usage_ibfk_1	view_id	id	0
 mysql/view_table_usage_ibfk_1	view_id	id	0
 test/fk_1	a2	b	0
 test/fk_10	a1	a	0
@@ -750,6 +763,7 @@ mysql/triggers_ibfk_2	mysql/triggers	mysql/tables	1	0
 mysql/triggers_ibfk_3	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_4	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_5	mysql/triggers	mysql/collations	1	0
+mysql/view_routine_usage_ibfk_1	mysql/view_routine_usage	mysql/tables	1	0
 mysql/view_table_usage_ibfk_1	mysql/view_table_usage	mysql/tables	1	0
 test/fk_1	test/child	test/parent	1	6
 test/fk_10	test/child	test/parent	2	5
@@ -803,6 +817,7 @@ mysql/triggers_ibfk_2	table_id	id	0
 mysql/triggers_ibfk_3	client_collation_id	id	0
 mysql/triggers_ibfk_4	connection_collation_id	id	0
 mysql/triggers_ibfk_5	schema_collation_id	id	0
+mysql/view_routine_usage_ibfk_1	view_id	id	0
 mysql/view_table_usage_ibfk_1	view_id	id	0
 test/fk_1	a2	b	0
 test/fk_10	a1	a	0
@@ -883,6 +898,7 @@ mysql/triggers_ibfk_2	mysql/triggers	mysql/tables	1	0
 mysql/triggers_ibfk_3	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_4	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_5	mysql/triggers	mysql/collations	1	0
+mysql/view_routine_usage_ibfk_1	mysql/view_routine_usage	mysql/tables	1	0
 mysql/view_table_usage_ibfk_1	mysql/view_table_usage	mysql/tables	1	0
 test/fk_4	test/child	test/parent	1	5
 SELECT * FROM information_schema.INNODB_SYS_FOREIGN_COLS;
@@ -930,6 +946,7 @@ mysql/triggers_ibfk_2	table_id	id	0
 mysql/triggers_ibfk_3	client_collation_id	id	0
 mysql/triggers_ibfk_4	connection_collation_id	id	0
 mysql/triggers_ibfk_5	schema_collation_id	id	0
+mysql/view_routine_usage_ibfk_1	view_id	id	0
 mysql/view_table_usage_ibfk_1	view_id	id	0
 test/fk_4	a2	b	0
 SET foreign_key_checks = 1;
@@ -1012,6 +1029,7 @@ mysql/triggers_ibfk_2	mysql/triggers	mysql/tables	1	0
 mysql/triggers_ibfk_3	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_4	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_5	mysql/triggers	mysql/collations	1	0
+mysql/view_routine_usage_ibfk_1	mysql/view_routine_usage	mysql/tables	1	0
 mysql/view_table_usage_ibfk_1	mysql/view_table_usage	mysql/tables	1	0
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
@@ -1058,6 +1076,7 @@ mysql/triggers_ibfk_2	table_id	id	0
 mysql/triggers_ibfk_3	client_collation_id	id	0
 mysql/triggers_ibfk_4	connection_collation_id	id	0
 mysql/triggers_ibfk_5	schema_collation_id	id	0
+mysql/view_routine_usage_ibfk_1	view_id	id	0
 mysql/view_table_usage_ibfk_1	view_id	id	0
 SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, information_schema.innodb_sys_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
 name	name
@@ -1092,6 +1111,7 @@ mysql/help_relation
 mysql/help_topic
 mysql/index_column_usage
 mysql/index_partitions
+mysql/index_stats
 mysql/indexes
 mysql/innodb_index_stats
 mysql/innodb_table_stats
@@ -1111,6 +1131,7 @@ mysql/slave_worker_info
 mysql/st_spatial_reference_systems
 mysql/table_partition_values
 mysql/table_partitions
+mysql/table_stats
 mysql/tables
 mysql/tables_priv
 mysql/tablespace_files
@@ -1123,6 +1144,7 @@ mysql/time_zone_transition_type
 mysql/triggers
 mysql/user
 mysql/version
+mysql/view_routine_usage
 mysql/view_table_usage
 test/child
 test/parent
@@ -1175,6 +1197,7 @@ mysql/triggers_ibfk_2	mysql/triggers	mysql/tables	1	0
 mysql/triggers_ibfk_3	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_4	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_5	mysql/triggers	mysql/collations	1	0
+mysql/view_routine_usage_ibfk_1	mysql/view_routine_usage	mysql/tables	1	0
 mysql/view_table_usage_ibfk_1	mysql/view_table_usage	mysql/tables	1	0
 test/fk_1	test/child	test/parent	1	6
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
@@ -1222,6 +1245,7 @@ mysql/triggers_ibfk_2	table_id	id	0
 mysql/triggers_ibfk_3	client_collation_id	id	0
 mysql/triggers_ibfk_4	connection_collation_id	id	0
 mysql/triggers_ibfk_5	schema_collation_id	id	0
+mysql/view_routine_usage_ibfk_1	view_id	id	0
 mysql/view_table_usage_ibfk_1	view_id	id	0
 test/fk_1	a2	b	0
 SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, information_schema.innodb_sys_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
@@ -1257,6 +1281,7 @@ mysql/help_relation
 mysql/help_topic
 mysql/index_column_usage
 mysql/index_partitions
+mysql/index_stats
 mysql/indexes
 mysql/innodb_index_stats
 mysql/innodb_table_stats
@@ -1276,6 +1301,7 @@ mysql/slave_worker_info
 mysql/st_spatial_reference_systems
 mysql/table_partition_values
 mysql/table_partitions
+mysql/table_stats
 mysql/tables
 mysql/tables_priv
 mysql/tablespace_files
@@ -1288,6 +1314,7 @@ mysql/time_zone_transition_type
 mysql/triggers
 mysql/user
 mysql/version
+mysql/view_routine_usage
 mysql/view_table_usage
 test/child
 test/parent
@@ -1351,6 +1378,7 @@ mysql/triggers_ibfk_2	mysql/triggers	mysql/tables	1	0
 mysql/triggers_ibfk_3	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_4	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_5	mysql/triggers	mysql/collations	1	0
+mysql/view_routine_usage_ibfk_1	mysql/view_routine_usage	mysql/tables	1	0
 mysql/view_table_usage_ibfk_1	mysql/view_table_usage	mysql/tables	1	0
 test/fk_1	test/child	test/parent	1	6
 SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
@@ -1398,6 +1426,7 @@ mysql/triggers_ibfk_2	table_id	id	0
 mysql/triggers_ibfk_3	client_collation_id	id	0
 mysql/triggers_ibfk_4	connection_collation_id	id	0
 mysql/triggers_ibfk_5	schema_collation_id	id	0
+mysql/view_routine_usage_ibfk_1	view_id	id	0
 mysql/view_table_usage_ibfk_1	view_id	id	0
 test/fk_1	a2	b	0
 SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, information_schema.innodb_sys_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
@@ -1433,6 +1462,7 @@ mysql/help_relation
 mysql/help_topic
 mysql/index_column_usage
 mysql/index_partitions
+mysql/index_stats
 mysql/indexes
 mysql/innodb_index_stats
 mysql/innodb_table_stats
@@ -1452,6 +1482,7 @@ mysql/slave_worker_info
 mysql/st_spatial_reference_systems
 mysql/table_partition_values
 mysql/table_partitions
+mysql/table_stats
 mysql/tables
 mysql/tables_priv
 mysql/tablespace_files
@@ -1464,6 +1495,7 @@ mysql/time_zone_transition_type
 mysql/triggers
 mysql/user
 mysql/version
+mysql/view_routine_usage
 mysql/view_table_usage
 test/child
 test/parent
@@ -1527,6 +1559,7 @@ mysql/triggers_ibfk_2	mysql/triggers	mysql/tables	1	0
 mysql/triggers_ibfk_3	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_4	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_5	mysql/triggers	mysql/collations	1	0
+mysql/view_routine_usage_ibfk_1	mysql/view_routine_usage	mysql/tables	1	0
 mysql/view_table_usage_ibfk_1	mysql/view_table_usage	mysql/tables	1	0
 test/fk_1	test/child	test/parent	1	6
 SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
@@ -1574,6 +1607,7 @@ mysql/triggers_ibfk_2	table_id	id	0
 mysql/triggers_ibfk_3	client_collation_id	id	0
 mysql/triggers_ibfk_4	connection_collation_id	id	0
 mysql/triggers_ibfk_5	schema_collation_id	id	0
+mysql/view_routine_usage_ibfk_1	view_id	id	0
 mysql/view_table_usage_ibfk_1	view_id	id	0
 test/fk_1	a3	b	0
 SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, information_schema.innodb_sys_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
@@ -1609,6 +1643,7 @@ mysql/help_relation
 mysql/help_topic
 mysql/index_column_usage
 mysql/index_partitions
+mysql/index_stats
 mysql/indexes
 mysql/innodb_index_stats
 mysql/innodb_table_stats
@@ -1628,6 +1663,7 @@ mysql/slave_worker_info
 mysql/st_spatial_reference_systems
 mysql/table_partition_values
 mysql/table_partitions
+mysql/table_stats
 mysql/tables
 mysql/tables_priv
 mysql/tablespace_files
@@ -1640,6 +1676,7 @@ mysql/time_zone_transition_type
 mysql/triggers
 mysql/user
 mysql/version
+mysql/view_routine_usage
 mysql/view_table_usage
 test/child
 test/parent
@@ -1729,6 +1766,7 @@ mysql/triggers_ibfk_2	mysql/triggers	mysql/tables	1	0
 mysql/triggers_ibfk_3	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_4	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_5	mysql/triggers	mysql/collations	1	0
+mysql/view_routine_usage_ibfk_1	mysql/view_routine_usage	mysql/tables	1	0
 mysql/view_table_usage_ibfk_1	mysql/view_table_usage	mysql/tables	1	0
 test/fk_a	test/child	test/parent	1	6
 test/fk_b	test/child	test/parent	1	0
@@ -1777,6 +1815,7 @@ mysql/triggers_ibfk_2	table_id	id	0
 mysql/triggers_ibfk_3	client_collation_id	id	0
 mysql/triggers_ibfk_4	connection_collation_id	id	0
 mysql/triggers_ibfk_5	schema_collation_id	id	0
+mysql/view_routine_usage_ibfk_1	view_id	id	0
 mysql/view_table_usage_ibfk_1	view_id	id	0
 test/fk_a	a2_new	b	0
 test/fk_b	a1_new	a	0
@@ -1842,6 +1881,7 @@ mysql/triggers_ibfk_2	mysql/triggers	mysql/tables	1	0
 mysql/triggers_ibfk_3	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_4	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_5	mysql/triggers	mysql/collations	1	0
+mysql/view_routine_usage_ibfk_1	mysql/view_routine_usage	mysql/tables	1	0
 mysql/view_table_usage_ibfk_1	mysql/view_table_usage	mysql/tables	1	0
 test/fk_a	test/child	test/parent	1	6
 test/fk_b	test/child	test/parent	1	0
@@ -1890,6 +1930,7 @@ mysql/triggers_ibfk_2	table_id	id	0
 mysql/triggers_ibfk_3	client_collation_id	id	0
 mysql/triggers_ibfk_4	connection_collation_id	id	0
 mysql/triggers_ibfk_5	schema_collation_id	id	0
+mysql/view_routine_usage_ibfk_1	view_id	id	0
 mysql/view_table_usage_ibfk_1	view_id	id	0
 test/fk_a	a2_new	b	0
 test/fk_b	a1_new	a	0
@@ -1958,6 +1999,7 @@ mysql/triggers_ibfk_2	mysql/triggers	mysql/tables	1	0
 mysql/triggers_ibfk_3	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_4	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_5	mysql/triggers	mysql/collations	1	0
+mysql/view_routine_usage_ibfk_1	mysql/view_routine_usage	mysql/tables	1	0
 mysql/view_table_usage_ibfk_1	mysql/view_table_usage	mysql/tables	1	0
 test/fk_a	test/child	test/parent	1	6
 test/fk_b	test/child	test/parent	1	0
@@ -2009,6 +2051,7 @@ mysql/triggers_ibfk_2	table_id	id	0
 mysql/triggers_ibfk_3	client_collation_id	id	0
 mysql/triggers_ibfk_4	connection_collation_id	id	0
 mysql/triggers_ibfk_5	schema_collation_id	id	0
+mysql/view_routine_usage_ibfk_1	view_id	id	0
 mysql/view_table_usage_ibfk_1	view_id	id	0
 test/fk_a	a2_new	b	0
 test/fk_b	a1_new	a	0
@@ -2077,6 +2120,7 @@ mysql/triggers_ibfk_2	mysql/triggers	mysql/tables	1	0
 mysql/triggers_ibfk_3	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_4	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_5	mysql/triggers	mysql/collations	1	0
+mysql/view_routine_usage_ibfk_1	mysql/view_routine_usage	mysql/tables	1	0
 mysql/view_table_usage_ibfk_1	mysql/view_table_usage	mysql/tables	1	0
 SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
@@ -2123,6 +2167,7 @@ mysql/triggers_ibfk_2	table_id	id	0
 mysql/triggers_ibfk_3	client_collation_id	id	0
 mysql/triggers_ibfk_4	connection_collation_id	id	0
 mysql/triggers_ibfk_5	schema_collation_id	id	0
+mysql/view_routine_usage_ibfk_1	view_id	id	0
 mysql/view_table_usage_ibfk_1	view_id	id	0
 ALTER TABLE child ADD PRIMARY KEY idx (a1),
 ADD CONSTRAINT fk_new_1 FOREIGN KEY (a1) REFERENCES parent(b),
@@ -2187,6 +2232,7 @@ mysql/triggers_ibfk_2	mysql/triggers	mysql/tables	1	0
 mysql/triggers_ibfk_3	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_4	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_5	mysql/triggers	mysql/collations	1	0
+mysql/view_routine_usage_ibfk_1	mysql/view_routine_usage	mysql/tables	1	0
 mysql/view_table_usage_ibfk_1	mysql/view_table_usage	mysql/tables	1	0
 test/fk_new_1	test/child	test/parent	1	0
 test/fk_new_2	test/child	test/parent	1	0
@@ -2236,6 +2282,7 @@ mysql/triggers_ibfk_2	table_id	id	0
 mysql/triggers_ibfk_3	client_collation_id	id	0
 mysql/triggers_ibfk_4	connection_collation_id	id	0
 mysql/triggers_ibfk_5	schema_collation_id	id	0
+mysql/view_routine_usage_ibfk_1	view_id	id	0
 mysql/view_table_usage_ibfk_1	view_id	id	0
 test/fk_new_1	a1	b	0
 test/fk_new_2	a2	a	0
@@ -2308,6 +2355,7 @@ mysql/triggers_ibfk_2	mysql/triggers	mysql/tables	1	0
 mysql/triggers_ibfk_3	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_4	mysql/triggers	mysql/collations	1	0
 mysql/triggers_ibfk_5	mysql/triggers	mysql/collations	1	0
+mysql/view_routine_usage_ibfk_1	mysql/view_routine_usage	mysql/tables	1	0
 mysql/view_table_usage_ibfk_1	mysql/view_table_usage	mysql/tables	1	0
 test/e	test/t2	test/t3	1	0
 test/fw	test/t2	test/t3	1	0
@@ -2356,6 +2404,7 @@ mysql/triggers_ibfk_2	table_id	id	0
 mysql/triggers_ibfk_3	client_collation_id	id	0
 mysql/triggers_ibfk_4	connection_collation_id	id	0
 mysql/triggers_ibfk_5	schema_collation_id	id	0
+mysql/view_routine_usage_ibfk_1	view_id	id	0
 mysql/view_table_usage_ibfk_1	view_id	id	0
 test/e	d	a	0
 test/fw	c	a	0

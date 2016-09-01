@@ -2,6 +2,13 @@
 --source include/not_embedded.inc
 --source include/have_no_undo_tablespaces.inc
 
+--echo #
+--echo # This file contains bootstrap test cases that do not
+--echo # need to be run with a debug build. See also the 
+--echo # test file 'dd_bootstrap_debug.test' for debug
+--echo # test cases.
+--echo #
+
 let BASEDIR=    `select @@basedir`;
 let DDIR=       $MYSQL_TMP_DIR/dd_bootstrap_test;
 let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
@@ -21,160 +28,29 @@ CALL mtr.add_suppression("InnoDB: New log files created");
 --source include/wait_until_disconnected.inc
 
 --echo #
---echo # 1. Try restart after setting an invalid version.
---echo # ------------------------------------------------
-
---echo # 1.1 Create bootstrap file.
-write_file $BOOTSTRAP_SQL;
-  CREATE SCHEMA test;
-  UPDATE mysql.version SET version= version + 1;
-EOF
-
---echo # 1.2 First start the server with --initialize, and update the version.
---exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
-
---echo # 1.3 Restart the server against DDIR - should fail.
---error 1
---exec $MYSQLD $extra_args --datadir=$DDIR
-
---echo # 1.4 Look for warning.
-perl;
-  use strict;
-  my $log= $ENV{'MYSQLD_LOG'} or die;
-  open(FILE, "$log") or die;
-  my $c_w= grep(/.Warning. Data Dictionary version/gi,<FILE>);
-  print "#     Dictionary version warning found $c_w times.\n";
-  close(FILE);
-EOF
-
---echo # 1.5 Delete bootstrap file, log file and datadir.
-remove_file $BOOTSTRAP_SQL;
-remove_file $MYSQLD_LOG;
---perl
-  use File::Path 'rmtree';
-  $DDIR=$ENV{"DDIR"};
-  rmtree([ "$DDIR" ]);
-EOF
-
---echo #
---echo # 2. Try restart after dropping the version table.
---echo # ------------------------------------------------
-
---echo # 2.1 Create bootstrap file.
-write_file $BOOTSTRAP_SQL;
-  CREATE SCHEMA test;
-  DROP TABLE mysql.version;
-EOF
-
---echo # 2.2 First start the server with --initialize, and drop the version table: Should fail.
---error 1
---exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
-
---echo # 2.3 Look for error.
-perl;
-  use strict;
-  my $log= $ENV{'MYSQLD_LOG'} or die;
-  open(FILE, "$log") or die;
-  my $c_e= grep(/.ERROR. ....  Unknown table 'mysql.version'/gi,<FILE>);
-  print "#     Drop table error found $c_e times.\n";
-  close(FILE);
-EOF
-
---echo # 2.4 Restart the server against DDIR - should fail.
---error 1
---exec $MYSQLD $extra_args --datadir=$DDIR
-
---echo # 2.5 Look for error.
-perl;
-  use strict;
-  my $log= $ENV{'MYSQLD_LOG'} or die;
-  open(FILE, "$log") or die;
-  my $c_e= grep(/.ERROR. Data Dictionary initialization failed./gi,<FILE>);
-  print "#     Data Dictionary initialization error found $c_e times.\n";
-  close(FILE);
-EOF
-
---echo # 2.6 Delete bootstrap file, log file and datadir.
-remove_file $BOOTSTRAP_SQL;
-remove_file $MYSQLD_LOG;
---perl
-  use File::Path 'rmtree';
-  $DDIR=$ENV{"DDIR"};
-  rmtree([ "$DDIR" ]);
-EOF
-
---echo #
---echo # 3. Try restart after dropping the tables table.
---echo # -----------------------------------------------
-
---echo # 3.1 Create bootstrap file.
-write_file $BOOTSTRAP_SQL;
-  CREATE SCHEMA test;
-  SET FOREIGN_KEY_CHECKS= 0;
-  DROP TABLE mysql.tables;
-EOF
-
---echo # 3.2 First start the server with --initialize, and drop the tables table: Should fail.
---error 1
---exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
-
---echo # 3.3 Look for error.
-perl;
-  use strict;
-  my $log= $ENV{'MYSQLD_LOG'} or die;
-  open(FILE, "$log") or die;
-  my $c_e= grep(/.ERROR. ....  Unknown table 'mysql.tables'/gi,<FILE>);
-  print "#     Drop table error found $c_e times.\n";
-  close(FILE);
-EOF
-
---echo # 3.4 Restart the server against DDIR - should fail.
---error 1
---exec $MYSQLD $extra_args --datadir=$DDIR
-
---echo # 3.5 Look for error.
-perl;
-  use strict;
-  my $log= $ENV{'MYSQLD_LOG'} or die;
-  open(FILE, "$log") or die;
-  my $c_e= grep(/.ERROR. Data Dictionary initialization failed./gi,<FILE>);
-  print "#     Data Dictionary initialization error found $c_e times.\n";
-  close(FILE);
-EOF
-
---echo # 3.6 Delete bootstrap file, log file and datadir.
-remove_file $BOOTSTRAP_SQL;
-remove_file $MYSQLD_LOG;
---perl
-  use File::Path 'rmtree';
-  $DDIR=$ENV{"DDIR"};
-  rmtree([ "$DDIR" ]);
-EOF
-
---echo #
---echo # 4. Try restart after dropping the time_zone_transition_type table.
+--echo # 1. Try restart after dropping the time_zone_transition_type table.
 --echo # ------------------------------------------------------------------
 
---echo # 4.1 Create bootstrap file.
+--echo # 1.1 Create bootstrap file.
 write_file $BOOTSTRAP_SQL;
   CREATE SCHEMA test;
   DROP TABLE mysql.time_zone_transition_type;
 EOF
 
---echo # 4.2 First start the server with --initialize, and drop the time_zone_transition_type table.
+--echo # 1.2 First start the server with --initialize, and drop the time_zone_transition_type table.
 --exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
 
---echo # 4.3 Restart the server against DDIR - should succeed.
+--echo # 1.3 Restart the server against DDIR - should succeed.
 --exec echo "restart: --datadir=$DDIR --no-console --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
---echo # 4.4 Shut server down.
+--echo # 1.4 Shut server down.
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
 
---echo # 4.5 Look for warning.
+--echo # 1.5 Look for warning.
 perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
@@ -184,7 +60,7 @@ perl;
   close(FILE);
 EOF
 
---echo # 4.6 Delete bootstrap file, log file and datadir.
+--echo # 1.6 Delete bootstrap file, log file and datadir.
 remove_file $BOOTSTRAP_SQL;
 remove_file $MYSQLD_LOG;
 --perl
@@ -194,20 +70,20 @@ remove_file $MYSQLD_LOG;
 EOF
 
 --echo #
---echo # 5. Try restart after deleting the version tablespace.
+--echo # 2. Try restart after deleting the version tablespace.
 --echo # -----------------------------------------------------
 
---echo # 5.1 First start the server with --initialize.
+--echo # 2.1 First start the server with --initialize.
 --exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR
 
---echo # 5.2 Delete the physical tablespace file for mysql.version.
+--echo # 2.2 Delete the physical tablespace file for mysql.version.
 remove_file $DDIR/mysql/version.ibd;
 
---echo # 5.3 Restart the server against DDIR - should fail.
+--echo # 2.3 Restart the server against DDIR - should fail.
 --error 1
 --exec $MYSQLD $extra_args --datadir=$DDIR
 
---echo # 5.4 Look for error.
+--echo # 2.4 Look for error.
 perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
@@ -217,7 +93,7 @@ perl;
   close(FILE);
 EOF
 
---echo # 5.5 Delete log file and datadir.
+--echo # 2.5 Delete log file and datadir.
 remove_file $MYSQLD_LOG;
 --perl
   use File::Path 'rmtree';
@@ -226,58 +102,16 @@ remove_file $MYSQLD_LOG;
 EOF
 
 --echo #
---echo # 6. Try restart after altering the schemata table.
---echo # -------------------------------------------------
-
---echo # 6.1 Create bootstrap file.
-write_file $BOOTSTRAP_SQL;
-  CREATE SCHEMA test;
-  ALTER TABLE mysql.schemata COMMENT 'Altered table';
-EOF
-
---echo # 6.2 First start the server with --initialize, and alter the schemata table.
---exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
-
---echo # 6.3 Restart the server against DDIR.
---exec echo "restart: --datadir=$DDIR --no-console --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
-
---echo # 6.4 Connect as root.
-connect(root_con,localhost,root,,mysql);
-
---echo # 6.5 Verify that the modified table is present.
-SELECT comment FROM mysql.tables WHERE name='schemata';
-
---echo # 6.6 Shut server down.
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
-
---echo # 6.7 Close the test connection.
-connection default;
-disconnect root_con;
-
---echo # 6.8 Delete bootstrap file, log file and datadir.
-remove_file $BOOTSTRAP_SQL;
-remove_file $MYSQLD_LOG;
---perl
-  use File::Path 'rmtree';
-  $DDIR=$ENV{"DDIR"};
-  rmtree([ "$DDIR" ]);
-EOF
-
---echo #
---echo # 7. Try restart on a non-existing datadir.
+--echo # 3. Try restart on a non-existing datadir.
 --echo # -----------------------------------------
 
---echo # 7.1 Restart the server against non-existing DDIR - should fail.
+--echo # 3.1 Restart the server against non-existing DDIR - should fail.
 # Note that the error happens before log-error is setup, so we must redirect
 # stderr to get log messages for analysis below.
 --error 1
 --exec $MYSQLD $extra_args --datadir=$DDIR > $MYSQLD_LOG 2>&1
 
---echo # 7.2 Look for error.
+--echo # 3.2 Look for error.
 perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
@@ -287,7 +121,7 @@ perl;
   close(FILE);
 EOF
 
---echo # 7.3 Delete log file and datadir.
+--echo # 3.3 Delete log file and datadir.
 remove_file $MYSQLD_LOG;
 --perl
   use File::Path 'rmtree';
@@ -296,16 +130,16 @@ remove_file $MYSQLD_LOG;
 EOF
 
 --echo #
---echo # 8. Try restart on an empty datadir (non-existing mysql dir).
+--echo # 4. Try restart on an empty datadir (non-existing mysql dir).
 --echo # ------------------------------------------------------------
 
 --mkdir $DDIR
 
---echo # 8.1 Restart the server against existing but empty DDIR - should fail.
+--echo # 4.1 Restart the server against existing but empty DDIR - should fail.
 --error 3
 --exec $MYSQLD $extra_args --datadir=$DDIR
 
---echo # 8.2 Look for error.
+--echo # 4.2 Look for error.
 perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
@@ -315,7 +149,7 @@ perl;
   close(FILE);
 EOF
 
---echo # 8.3 Delete log file and datadir.
+--echo # 4.3 Delete log file and datadir.
 remove_file $MYSQLD_LOG;
 --perl
   use File::Path 'rmtree';
@@ -324,17 +158,17 @@ remove_file $MYSQLD_LOG;
 EOF
 
 --echo #
---echo # 9. Try restart on an empty mysql dir.
+--echo # 5. Try restart on an empty mysql dir.
 --echo # -------------------------------------
 
 --mkdir $DDIR
 --mkdir $DDIR/mysql
 
---echo # 9.1 Restart the server against existing but empty mysql dir - should fail.
+--echo # 5.1 Restart the server against existing but empty mysql dir - should fail.
 --error 3
 --exec $MYSQLD $extra_args --datadir=$DDIR
 
---echo # 9.2 Look for error.
+--echo # 5.2 Look for error.
 perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
@@ -344,7 +178,7 @@ perl;
   close(FILE);
 EOF
 
---echo # 9.3 Delete log file and datadir.
+--echo # 5.3 Delete log file and datadir.
 remove_file $MYSQLD_LOG;
 --perl
   use File::Path 'rmtree';

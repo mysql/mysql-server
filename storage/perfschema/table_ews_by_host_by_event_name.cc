@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -90,6 +90,34 @@ table_ews_by_host_by_event_name::m_share=
   false, /* checked */
   false  /* perpetual */
 };
+
+bool PFS_index_ews_by_host_by_event_name::match(PFS_host *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key_1.match(pfs))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_ews_by_host_by_event_name::match_view(uint view)
+{
+  if (m_fields >= 2)
+  {
+    return m_key_2.match_view(view);
+  }
+  return true;
+}
+
+bool PFS_index_ews_by_host_by_event_name::match(PFS_instr_class *instr_class)
+{
+  if (m_fields >= 2)
+  {
+    return m_key_2.match(instr_class);
+  }
+  return true;
+}
 
 PFS_engine_table*
 table_ews_by_host_by_event_name::create(void)
@@ -237,6 +265,90 @@ table_ews_by_host_by_event_name::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
+int table_ews_by_host_by_event_name::index_init(uint idx, bool sorted)
+{
+  PFS_index_ews_by_host_by_event_name *result= NULL;
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_ews_by_host_by_event_name);
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_ews_by_host_by_event_name::index_next(void)
+{
+  PFS_host *host;
+  PFS_instr_class *instr_class;
+  bool has_more_host= true;
+
+  for (m_pos.set_at(&m_next_pos);
+       has_more_host;
+       m_pos.next_host())
+  {
+    host= global_host_container.get(m_pos.m_index_1, &has_more_host);
+    if (host != NULL)
+    {
+      if (m_opened_index->match(host))
+      {
+        for ( ;
+             m_pos.has_more_view();
+             m_pos.next_view())
+        {
+          if (!m_opened_index->match_view(m_pos.m_index_2))
+            continue;
+
+          do
+          {
+            switch (m_pos.m_index_2)
+            {
+            case pos_ews_by_host_by_event_name::VIEW_MUTEX:
+              instr_class= find_mutex_class(m_pos.m_index_3);
+              break;
+            case pos_ews_by_host_by_event_name::VIEW_RWLOCK:
+              instr_class= find_rwlock_class(m_pos.m_index_3);
+              break;
+            case pos_ews_by_host_by_event_name::VIEW_COND:
+              instr_class= find_cond_class(m_pos.m_index_3);
+              break;
+            case pos_ews_by_host_by_event_name::VIEW_FILE:
+              instr_class= find_file_class(m_pos.m_index_3);
+              break;
+            case pos_ews_by_host_by_event_name::VIEW_TABLE:
+              instr_class= find_table_class(m_pos.m_index_3);
+              break;
+            case pos_ews_by_host_by_event_name::VIEW_SOCKET:
+              instr_class= find_socket_class(m_pos.m_index_3);
+              break;
+            case pos_ews_by_host_by_event_name::VIEW_IDLE:
+              instr_class= find_idle_class(m_pos.m_index_3);
+              break;
+            case pos_ews_by_host_by_event_name::VIEW_METADATA:
+              instr_class= find_metadata_class(m_pos.m_index_3);
+              break;
+            default:
+              instr_class= NULL;
+              DBUG_ASSERT(false);
+              break;
+            }
+            if (instr_class != NULL)
+            {
+              if (m_opened_index->match(instr_class))
+              {
+                make_row(host, instr_class);
+                m_next_pos.set_after(&m_pos);
+                return 0;
+              }
+              m_pos.set_after(&m_pos);
+            }
+          } while (instr_class != NULL);
+        }
+      }
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
+}
+
 void table_ews_by_host_by_event_name
 ::make_row(PFS_host *host, PFS_instr_class *klass)
 {
@@ -300,4 +412,3 @@ int table_ews_by_host_by_event_name
 
   return 0;
 }
-

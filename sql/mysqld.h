@@ -290,6 +290,8 @@ extern "C" MYSQL_PLUGIN_IMPORT char **orig_argv;
 extern my_thread_attr_t connection_attrib;
 extern my_bool old_mode;
 extern my_bool avoid_temporal_upgrade;
+extern my_bool dd_upgrade_flag;
+extern my_bool dd_upgrade_skip_se;
 extern LEX_STRING opt_init_connect, opt_init_slave;
 #ifndef EMBEDDED_LIBRARY
 extern ulong connection_errors_internal;
@@ -308,6 +310,7 @@ extern ulong log_error_verbosity;
 
 /** System variable show_compatibility_56. */
 extern my_bool show_compatibility_56;
+extern my_bool persisted_globals_load;
 
 extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
 
@@ -381,7 +384,6 @@ extern PSI_mutex_key key_commit_order_manager_mutex;
 extern PSI_mutex_key key_mutex_slave_worker_hash;
 #endif
 
-extern PSI_rwlock_key key_rwlock_LOCK_grant;
 extern PSI_rwlock_key key_rwlock_LOCK_logger;
 extern PSI_rwlock_key key_rwlock_query_cache_query_lock;
 extern PSI_rwlock_key key_rwlock_channel_map_lock;
@@ -444,6 +446,7 @@ extern PSI_file_key key_file_relaylog;
 extern PSI_file_key key_file_relaylog_cache;
 extern PSI_file_key key_file_relaylog_index;
 extern PSI_file_key key_file_relaylog_index_cache;
+extern PSI_file_key key_file_sdi;
 
 extern PSI_socket_key key_socket_tcpip;
 extern PSI_socket_key key_socket_unix;

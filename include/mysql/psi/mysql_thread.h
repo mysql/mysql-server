@@ -55,6 +55,7 @@
 
 #include "my_thread.h"
 #include "my_thread_local.h"
+#include "my_psi_config.h"  // IWYU pragma: keep
 #include "mysql/psi/psi_thread.h"
 #ifdef MYSQL_SERVER
 #ifndef MYSQL_DYNAMIC_PLUGIN

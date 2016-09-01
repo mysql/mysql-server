@@ -131,7 +131,7 @@ let $message= Testcase 3.5.4.3:;
 	Drop trigger mysql.trg3;
 
 # database does not exist
-	--error ER_TRG_DOES_NOT_EXIST
+	--error ER_BAD_DB_ERROR
 	Drop trigger tbx.trg3;
 
 #cleanup
@@ -357,9 +357,9 @@ let $message= Testcase 3.5.6.3:;
 #       since if they have been created, not dropping them will affect following
 #       tests.
 	--disable_warnings
-	--error 0, ER_TRG_DOES_NOT_EXIST
+	--error 0, ER_BAD_DB_ERROR
 	drop trigger tb3.trg3_1;
-	--error 0, ER_TRG_DOES_NOT_EXIST
+	--error 0, ER_BAD_DB_ERROR
 	drop trigger tb3.trg3_2;
 	--enable_warnings
 
@@ -413,9 +413,9 @@ let $message= Testcase 3.5.7.4:;
 #       since if they have been created, not dropping them will affect following
 #       tests.
 	--disable_warnings
-	--error 0, ER_TRG_DOES_NOT_EXIST
+	--error 0, ER_BAD_DB_ERROR
 	drop trigger tb3.trg4_1;
-	--error 0, ER_TRG_DOES_NOT_EXIST
+	--error 0, ER_BAD_DB_ERROR
 	drop trigger tb3.trg4_2;
 	--enable_warnings
 

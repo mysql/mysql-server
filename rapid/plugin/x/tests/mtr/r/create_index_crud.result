@@ -2100,6 +2100,10 @@ Mysqlx.Sql.StmtExecuteOk {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.col_myp337
+Table	Op	Msg_type	Msg_text
+xplugintest.col_myp337	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX from xplugintest.col_myp337 where Key_name rlike '^index_[12][0-9]*'
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 col_myp337	0	index_11	1	$ix_t11_r_7ED2EEDDC197ED77968204C8668FFC142B3F8878	A	0	11	null		BTREE			YES

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -74,17 +74,10 @@ innodb.partition                       WL6378_ALTER_PARTITION_TABLESPACE
 // TEST COMMENTED IN-LINE WITHIN .test FILES
 ///////////////////////////////////////////////////////////////////
 
-/* LOW
-  Direct modification of system tables which will be disallowed.
-  Revisit after WL6391
-*/
-i_main.plugin_auth                     WL6378_MODIFIES_SYSTEM_TABLE
-
 /*
   Allow dump/restore of innodb_index_stats and innodb_table_stats.
   See Bug#22655287
 */
-main.mysqldump                         WL6378_DDL_ON_DD_TABLE
 sysschema.mysqldump                    WL6378_DDL_ON_DD_TABLE
 
 /** MEDIUM - Joh
@@ -94,8 +87,34 @@ sysschema.mysqldump                    WL6378_DDL_ON_DD_TABLE
 */
 main.lock_sync                         WL6378_DEBUG_SYNC
 
+
+///////////////////////////////////////////////////////////////////
+// TESTS DISABLED DUE TO WL6599
+///////////////////////////////////////////////////////////////////
+
 /*
-  WL#6599
-  Disabled for valgrind because of I_S timeout. Retry after WL#6599
+  Metadata of IS tables of thread pool plugin seem to be missing
+  from DD tables.
 */
-main.get_table_share
+thread_pool.thread_pool_i_s : Enabled by WL9495.
+
+// Hangs after 5 contineous run using ./mtr --repeat=30 - Thayu
+i_innodb.innodb_bug14150372 : WL6599_INNODB_SPORADIC
+
+Restrictions OR waiting for WL/Bug fixes:
+=========================================
+
+/*
+  We cannot call ANALYZE TABLE under innodb read only mode now.
+  This would be a restrictions with wl6599. It is recommended
+  to use 'information_schema_stats=latest' to get latest
+  statistics in read only mode.
+
+  Not sure if we can remove the ANALYZE statements in the test
+  case. Need to check with Satya (Innodb)?
+
+  "Bug#21611899 creating table on non-innodb engine when
+   innodb-read-only option is set"
+  
+*/
+i_innodb.innodb_bug16083211   : WL6599_ANALYZE_READONLY

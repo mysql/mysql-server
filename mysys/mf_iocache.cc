@@ -1678,7 +1678,7 @@ static void close_file(IO_CACHE* info)
   my_close(info->file, MYF(MY_WME));
 }
 
-int main(int argc, char** argv)
+int main(int, char** argv)
 {
   IO_CACHE sra_cache; /* SEQ_READ_APPEND */
   MY_STAT status;

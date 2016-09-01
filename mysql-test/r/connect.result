@@ -32,7 +32,6 @@ time_zone_leap_second
 time_zone_name
 time_zone_transition
 time_zone_transition_type
-triggers
 user
 show tables;
 Tables_in_test
@@ -77,7 +76,6 @@ time_zone_leap_second
 time_zone_name
 time_zone_transition
 time_zone_transition_type
-triggers
 user
 show tables;
 Tables_in_test
@@ -311,6 +309,14 @@ ALTER USER
 invalid_user@localhost,
 must_change@localhost PASSWORD EXPIRE;
 ERROR HY000: Operation ALTER USER failed for 'invalid_user'@'localhost'
+SELECT password_expired FROM mysql.user
+WHERE user='must_change' and host = 'localhost';
+password_expired
+N
+SELECT USER();
+USER()
+must_change@localhost
+ALTER USER must_change@localhost PASSWORD EXPIRE;
 SELECT password_expired FROM mysql.user
 WHERE user='must_change' and host = 'localhost';
 password_expired

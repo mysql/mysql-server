@@ -368,7 +368,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NULL         MYSQL_TYPE_TIMESTAMP
     MYSQL_TYPE_LONGLONG,    MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_LONGLONG     MYSQL_TYPE_INT24
-    MYSQL_TYPE_LONGLONG,    MYSQL_TYPE_LONG,
+    MYSQL_TYPE_LONGLONG,    MYSQL_TYPE_LONGLONG,
   //MYSQL_TYPE_DATE         MYSQL_TYPE_TIME
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_DATETIME     MYSQL_TYPE_YEAR
@@ -8774,7 +8774,7 @@ Field_json::store(const char *from, size_t length, const CHARSET_INFO *cs)
     return TYPE_ERR_BAD_VALUE;
   }
 
-  if (json_binary::serialize(dom.get(), &value))
+  if (json_binary::serialize(table->in_use, dom.get(), &value))
     return TYPE_ERR_BAD_VALUE;
 
   return store_binary(value.ptr(), value.length());
@@ -8870,7 +8870,7 @@ type_conversion_status Field_json::store_json(Json_wrapper *json)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
 
-  if (json->to_binary(&value))
+  if (json->to_binary(table->in_use, &value))
     return TYPE_ERR_BAD_VALUE;
 
   return store_binary(value.ptr(), value.length());
@@ -11178,6 +11178,7 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
   is_zerofill(false),       // Init to avoid UBSAN warnings
   is_unsigned(false),       // Init to avoid UBSAN warnings
   treat_bit_as_char(false),  // Init to avoid valgrind warnings in opt. build
+  pack_length_override(0),
   gcol_info(old_field->gcol_info),
   stored_in_db(old_field->stored_in_db)
 {

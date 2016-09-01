@@ -19,6 +19,9 @@ IF(NOT CMAKE_CROSSCOMPILING)
  TARGET_LINK_LIBRARIES(comp_sql)
 ENDIF()
 
+# Add compiler information, for easier debugging of output from mysql_config.
+SET(COMPILER_ID_AND_VERSION
+  "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 
 # Build mysql_fix_privilege_tables.sql (concatenate 2 sql scripts)
 IF(NOT WIN32 OR CMAKE_CROSSCOMPILING)
@@ -394,21 +397,8 @@ IF(WITH_EMBEDDED_SERVER)
   GET_TARGET_PROPERTY(LIBEMBED_OS_OUTPUT_NAME mysqlserver OUTPUT_NAME)
 ENDIF()
 
-# As per Solaris Studio documentation, these three libraries need to be
-# added explicitly for cc when using -std=c++11
-IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
-  SET(CLIENT_LIBS "${CLIENT_LIBS} -lstdc++ -lgcc_s -lCrunG3")
-ENDIF()
-
 SET(CONFIG_CLIENT_LIBS "${CLIENT_LIBS}")
-IF(QUOTED_CMAKE_C_LINK_FLAGS)
-  SET(CONFIG_CLIENT_LIBS "${CONFIG_CLIENT_LIBS} ${QUOTED_CMAKE_C_LINK_FLAGS}")
-ENDIF()
-
 SET(CONFIG_EMBEDD_LIBS "${EMBEDD_LIBS}")
-IF(QUOTED_CMAKE_CXX_LINK_FLAGS)
-  SET(CONFIG_EMBEDD_LIBS "${CONFIG_EMBEDD_LIBS} ${QUOTED_CMAKE_CXX_LINK_FLAGS}")
-ENDIF()
 
 SET(LIBMYSQLD_LIBS_USAGE "
         --libmysqld-libs [$embedded_libs]")

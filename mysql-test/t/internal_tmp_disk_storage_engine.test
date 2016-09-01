@@ -155,7 +155,9 @@ select * from t1 where t1.a in (select a from t2) order by 1, 2;
 set optimizer_switch= @tmp_optimizer_switch;
 
 #system table
+--disable_warnings
 explain format=json select * from information_schema.character_sets order by 1 limit 3;
+--enable_warnings
 select * from information_schema.character_sets order by 1 limit 3;
 
 #muti-update

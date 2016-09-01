@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -72,6 +72,27 @@ table_status_by_host::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_status_by_host::match(PFS_host *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key_1.match(pfs))
+      return false;
+  }
+
+  return true;
+}
+
+bool PFS_index_status_by_host::match(const Status_variable *pfs)
+{
+  if (m_fields >= 2)
+  {
+    if (!m_key_2.match(pfs))
+      return false;
+  }
+  return true;
+}
+
 PFS_engine_table*
 table_status_by_host::create(void)
 {
@@ -98,7 +119,8 @@ ha_rows table_status_by_host::get_row_count(void)
 
 table_status_by_host::table_status_by_host()
   : PFS_engine_table(&m_share, &m_pos),
-    m_status_cache(true), m_row_exists(false), m_pos(), m_next_pos()
+    m_status_cache(true), m_row_exists(false), m_pos(), m_next_pos(),
+    m_context(NULL)
 {}
 
 void table_status_by_host::reset_position(void)
@@ -112,21 +134,11 @@ int table_status_by_host::rnd_init(bool scan)
   if (show_compatibility_56)
     return 0;
 
-  /*
-    Build array of SHOW_VARs from the global status array prior to materializing
-    threads in rnd_next() or rnd_pos().
-  */
+  /* Build array of SHOW_VARs from the global status array. */
   m_status_cache.initialize_client_session();
 
-  /* Use the current number of status variables to detect changes. */
+  /* Record the version of the global status variable array, store in TLS. */
   ulonglong status_version= m_status_cache.get_status_array_version();
-
-  /*
-    The table context holds the current version of the global status array
-    and a record of which hosts were materialized. If scan == true, then
-    allocate a new context from mem_root and store in TLS. If scan == false,
-    then restore from TLS.
-  */
   m_context= (table_status_by_host_context *)current_thd->alloc(sizeof(table_status_by_host_context));
   new(m_context) table_status_by_host_context(status_version, !scan);
   return 0;
@@ -137,12 +149,14 @@ int table_status_by_host::rnd_next(void)
   if (show_compatibility_56)
     return HA_ERR_END_OF_FILE;
 
-  /* If status array changes, exit with warning. */ // TODO: Issue warning
-  if (!m_context->versions_match())
+  if (m_context && !m_context->versions_match())
+  {
+    status_variable_warning();
     return HA_ERR_END_OF_FILE;
+  }
 
   /*
-    For each user, build a cache of status variables using totals from all
+    For each host, build a cache of status variables using totals from all
     threads associated with the host.
   */
   bool has_more_host= true;
@@ -155,10 +169,6 @@ int table_status_by_host::rnd_next(void)
 
     if (m_status_cache.materialize_host(pfs_host) == 0)
     {
-      /* Mark this host as materialized. */
-      m_context->set_item(m_pos.m_index_1);
-
-      /* Get the next status variable. */
       const Status_variable *stat_var= m_status_cache.get(m_pos.m_index_2);
       if (stat_var != NULL)
       {
@@ -177,21 +187,18 @@ table_status_by_host::rnd_pos(const void *pos)
   if (show_compatibility_56)
     return 0;
 
-  /* If status array changes, exit with warning. */ // TODO: Issue warning
-  if (!m_context->versions_match())
+  if (m_context && !m_context->versions_match())
+  {
+    status_variable_warning();
     return HA_ERR_END_OF_FILE;
+  }
 
   set_position(pos);
   DBUG_ASSERT(m_pos.m_index_1 < global_host_container.get_row_count());
 
   PFS_host *pfs_host= global_host_container.get(m_pos.m_index_1);
 
-  /*
-    Only materialize threads that were previously materialized by rnd_next().
-    If a host cannot be rematerialized, then do nothing.
-  */
-  if (m_context->is_item_set(m_pos.m_index_1) &&
-      m_status_cache.materialize_host(pfs_host) == 0)
+  if (m_status_cache.materialize_host(pfs_host) == 0)
   {
     const Status_variable *stat_var= m_status_cache.get(m_pos.m_index_2);
     if (stat_var != NULL)
@@ -201,6 +208,79 @@ table_status_by_host::rnd_pos(const void *pos)
     }
   }
   return HA_ERR_RECORD_DELETED;
+}
+
+int table_status_by_host::index_init(uint idx, bool sorted)
+{
+  if (show_compatibility_56)
+    return 0;
+
+  /* Build array of SHOW_VARs from the global status array prior to materializing. */
+  m_status_cache.initialize_client_session();
+
+  /* Record the version of the global status variable array, store in TLS. */
+  ulonglong status_version= m_status_cache.get_status_array_version();
+  m_context= (table_status_by_host_context *)current_thd->alloc(sizeof(table_status_by_host_context));
+  new(m_context) table_status_by_host_context(status_version, false);
+
+  PFS_index_status_by_host *result= NULL;
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_status_by_host);
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_status_by_host::index_next(void)
+{
+  if (show_compatibility_56)
+    return HA_ERR_END_OF_FILE;
+
+  if (m_context && !m_context->versions_match())
+  {
+    status_variable_warning();
+    return HA_ERR_END_OF_FILE;
+  }
+
+  /*
+    For each host, build a cache of status variables using totals from all
+    threads associated with the host.
+  */
+  bool has_more_host= true;
+
+  for (m_pos.set_at(&m_next_pos);
+       has_more_host;
+       m_pos.next_host())
+  {
+    PFS_host *pfs_host= global_host_container.get(m_pos.m_index_1, &has_more_host);
+
+    if (pfs_host != NULL)
+    {
+      if (m_opened_index->match(pfs_host))
+      {
+        if (m_status_cache.materialize_host(pfs_host) == 0)
+        {
+          const Status_variable *stat_var;
+          do
+          {
+            stat_var= m_status_cache.get(m_pos.m_index_2);
+            if (stat_var != NULL)
+            {
+              if (m_opened_index->match(stat_var))
+              {
+                make_row(pfs_host, stat_var);
+                m_next_pos.set_after(&m_pos);
+                return 0;
+              }
+              m_pos.m_index_2++;
+            }
+          } while (stat_var != NULL);
+        }
+      }
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
 }
 
 void table_status_by_host

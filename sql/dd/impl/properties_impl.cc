@@ -41,6 +41,8 @@ Properties_impl::Properties_impl()
   @return                pointer to new Property_impl object
     @retval NULL         if an error occurred
 */
+Properties *Properties::parse_properties(const std::string &raw_properties)
+{ return Properties_impl::parse_properties(raw_properties); }
 
 Properties *Properties_impl::parse_properties(const std::string &raw_properties)
 {

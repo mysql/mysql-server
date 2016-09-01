@@ -60,6 +60,17 @@ void Shared_dictionary_cache::shutdown()
 }
 
 
+// Don't call this function anywhere except upgrade scenario.
+void Shared_dictionary_cache::reset_schema_cache()
+{
+
+  instance()->m_map<Abstract_table>()->shutdown();
+  instance()->m_map<Schema>()->shutdown();
+  instance()->m_map<Abstract_table>()->set_capacity(max_connections);
+  instance()->m_map<Schema>()->set_capacity(schema_def_size);
+}
+
+
 // Get an element from the cache, given the key.
 template <typename K, typename T>
 bool Shared_dictionary_cache::get(THD *thd, const K &key,

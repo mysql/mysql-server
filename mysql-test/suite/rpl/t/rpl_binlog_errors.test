@@ -85,7 +85,7 @@ eval SET GLOBAL debug=IF(LENGTH('$old_debug') > 0, CONCAT('$old_debug', ":d,erro
 -- error ER_NO_UNIQUE_LOGFILE
 FLUSH LOGS;
 -- echo # assert: must show one binlog
---list_files $MYSQLD_DATADIR *master-bin.0*
+--list_files $MYSQLD_DATADIR *master-bin.??????
 
 ### ACTION: clean up and move to next test
 --disable_query_log
