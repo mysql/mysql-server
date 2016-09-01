@@ -13914,6 +13914,7 @@ int ndbcluster_init(void* p)
   {
     /* Don't schema-distribute 'mysqld --initialize' of data dictionary */
     sql_print_information("NDB: '--initialize' -> ndbcluster plugin disabled");
+    ((handlerton *)p)->state = SHOW_OPTION_DISABLED;
     DBUG_ASSERT(!ha_storage_engine_is_enabled(static_cast<handlerton*>(p)));
     DBUG_RETURN(0); // Return before init will disable ndbcluster-SE.
   }
