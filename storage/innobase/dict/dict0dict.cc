@@ -3549,7 +3549,6 @@ dict_foreign_find_index(
 		if (types_idx != index
 		    && !(index->type & DICT_FTS)
 		    && !dict_index_is_spatial(index)
-		    && !dict_index_has_virtual(index)
 		    && !index->to_be_dropped
 		    && dict_foreign_qualify_index(
 			    table, col_names, columns, n_cols,
@@ -6644,8 +6643,6 @@ dict_foreign_qualify_index(
 
 		field = index->get_field(i);
 		col_no = dict_col_get_no(field->col);
-
-		ut_ad(!field->col->is_virtual());
 
 		if (field->prefix_len != 0) {
 			/* We do not accept column prefix
