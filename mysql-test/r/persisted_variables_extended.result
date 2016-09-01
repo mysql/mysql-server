@@ -33,7 +33,7 @@ SET @@persist.event_scheduler=DEFAULT;
 SET PERSIST slave_compressed_protocol=DEFAULT;
 { "mysql_server": { } }# Setting DEFAULT value for variable with PERSIT,
 SET PERSIST read_only=DEFAULT, PERSIST innodb_fast_shutdown=DEFAULT;
-{ "mysql_server": {"innodb_fast_shutdown": "1" , "read_only": "OFF" } }SET PERSIST read_only=DEFAULT;
+{ "mysql_server": { } }SET PERSIST read_only=DEFAULT;
 SET PERSIST innodb_fast_shutdown=DEFAULT;
 { "mysql_server": { } }# Setting multiple variables value as PERSIST.
 SET PERSIST innodb_checksum_algorithm=strict_crc32,
@@ -167,7 +167,7 @@ VARIABLE_NAME	VARIABLE_SOURCE	MIN_VALUE	MAX_VALUE
 block_encryption_mode	PERSISTED	0	0
 ft_boolean_syntax	PERSISTED	0	0
 innodb_max_dirty_pages_pct	PERSISTED	0	99
-log_syslog_tag	PERSISTED	0	0
+log_syslog_tag	COMPILED	0	0
 SELECT @@global.innodb_fast_shutdown;
 @@global.innodb_fast_shutdown
 0
@@ -237,7 +237,7 @@ SET PERSIST log_output =       'FILE,TABLE';
 SET PERSIST general_log=       'ON';
 SET PERSIST innodb_io_capacity=225;
 SET PERSIST innodb_flush_sync=DEFAULT;
-{ "mysql_server": {"autocommit": "OFF" , "block_encryption_mode": "aes-128-ecb" , "ft_boolean_syntax": "+ -><()~*:\"\"&|" , "general_log": "ON" , "innodb_checksum_algorithm": "strict_crc32" , "innodb_default_row_format": "compact" , "innodb_fast_shutdown": "0" , "innodb_flush_log_at_trx_commit": "0" , "innodb_flush_sync": "ON" , "innodb_io_capacity": "225" , "innodb_max_dirty_pages_pct": "80.990000" , "join_buffer_size": "262144" , "log_bin_trust_function_creators": "ON" , "log_output": "FILE,TABLE" , "log_syslog_tag": "" , "max_connections": "500" , "sql_mode": "NO_KEY_OPTIONS" } }SELECT VARIABLE_NAME, VARIABLE_SOURCE
+{ "mysql_server": {"autocommit": "OFF" , "block_encryption_mode": "aes-128-ecb" , "ft_boolean_syntax": "+ -><()~*:\"\"&|" , "general_log": "ON" , "innodb_checksum_algorithm": "strict_crc32" , "innodb_default_row_format": "compact" , "innodb_fast_shutdown": "0" , "innodb_flush_log_at_trx_commit": "0" , "innodb_io_capacity": "225" , "innodb_max_dirty_pages_pct": "80.990000" , "join_buffer_size": "262144" , "log_bin_trust_function_creators": "ON" , "log_output": "FILE,TABLE" , "max_connections": "500" , "sql_mode": "NO_KEY_OPTIONS" } }SELECT VARIABLE_NAME, VARIABLE_SOURCE
 FROM performance_schema.variables_info
 WHERE VARIABLE_NAME IN('innodb_io_capacity','innodb_flush_sync');
 VARIABLE_NAME	VARIABLE_SOURCE
