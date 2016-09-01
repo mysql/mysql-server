@@ -9142,7 +9142,7 @@ struct NDB_Modifier ndb_table_modifiers[] =
   { NDB_Modifier::M_BOOL, STRING_WITH_LEN("NOLOGGING"), 0, {0} },
   { NDB_Modifier::M_BOOL, STRING_WITH_LEN("READ_BACKUP"), 0, {0} },
   { NDB_Modifier::M_BOOL, STRING_WITH_LEN("FULLY_REPLICATED"), 0, {0} },
-  { NDB_Modifier::M_STRING, STRING_WITH_LEN("FRAGMENT_COUNT_TYPE"), 0, {0} },
+  { NDB_Modifier::M_STRING, STRING_WITH_LEN("PARTITION_BALANCE"), 0, {0} },
   { NDB_Modifier::M_BOOL, 0, 0, 0, {0} }
 };
 
@@ -10144,44 +10144,44 @@ adjusted_frag_count(Ndb* ndb,
 
 static
 bool
-parseFragmentCountType(THD *thd,
+parsePartitionBalance(THD *thd,
                        const NDB_Modifier * mod,
-                       NdbDictionary::Object::FragmentCountType * fct)
+                       NdbDictionary::Object::PartitionBalance * fct)
 {
   if (mod->m_found == false)
     return false; // OK
 
-  NdbDictionary::Object::FragmentCountType ret;
-  if (mod->m_val_str.len == (sizeof("ONE_PER_LDM_PER_NODE") - 1) &&
-           strncmp(mod->m_val_str.str, "ONE_PER_LDM_PER_NODE",
-                   (sizeof("ONE_PER_LDM_PER_NODE") - 1)) == 0)
+  NdbDictionary::Object::PartitionBalance ret;
+  if (mod->m_val_str.len == (sizeof("FOR_RP_BY_LDM") - 1) &&
+           strncmp(mod->m_val_str.str, "FOR_RP_BY_LDM",
+                   (sizeof("FOR_RP_BY_LDM") - 1)) == 0)
   {
-    ret = NdbDictionary::Object::FragmentCount_OnePerLDMPerNode;
+    ret = NdbDictionary::Object::PartitionBalance_ForRPByLDM;
   }
-  else if (mod->m_val_str.len == (sizeof("ONE_PER_LDM_PER_NODE_GROUP") - 1) &&
-           strncmp(mod->m_val_str.str, "ONE_PER_LDM_PER_NODE_GROUP",
-                   (sizeof("ONE_PER_LDM_PER_NODE_GROUP") - 1)) == 0)
+  else if (mod->m_val_str.len == (sizeof("FOR_RA_BY_LDM") - 1) &&
+           strncmp(mod->m_val_str.str, "FOR_RA_BY_LDM",
+                   (sizeof("FOR_RA_BY_LDM") - 1)) == 0)
   {
-    ret = NdbDictionary::Object::FragmentCount_OnePerLDMPerNodeGroup;
+    ret = NdbDictionary::Object::PartitionBalance_ForRAByLDM;
   }
-  else if (mod->m_val_str.len == (sizeof("ONE_PER_NODE") - 1) &&
-           strncmp(mod->m_val_str.str, "ONE_PER_NODE",
-                   (sizeof("ONE_PER_NODE") - 1)) == 0)
+  else if (mod->m_val_str.len == (sizeof("FOR_RP_BY_NODE") - 1) &&
+           strncmp(mod->m_val_str.str, "FOR_RP_BY_NODE",
+                   (sizeof("FOR_RP_BY_NODE") - 1)) == 0)
   {
-    ret = NdbDictionary::Object::FragmentCount_OnePerNode;
+    ret = NdbDictionary::Object::PartitionBalance_ForRPByNode;
   }
-  else if (mod->m_val_str.len == (sizeof("ONE_PER_NODE_GROUP") - 1) &&
-           strncmp(mod->m_val_str.str, "ONE_PER_NODE_GROUP",
-                   (sizeof("ONE_PER_NODE_GROUP") - 1)) == 0)
+  else if (mod->m_val_str.len == (sizeof("FOR_RA_BY_NODE") - 1) &&
+           strncmp(mod->m_val_str.str, "FOR_RA_BY_NODE",
+                   (sizeof("FOR_RA_BY_NODE") - 1)) == 0)
   {
-    ret = NdbDictionary::Object::FragmentCount_OnePerNodeGroup;
+    ret = NdbDictionary::Object::PartitionBalance_ForRAByNode;
   }
   else
   {
-    DBUG_PRINT("info", ("FragmentCountType: %s not supported",
+    DBUG_PRINT("info", ("PartitionBalance: %s not supported",
                         mod->m_val_str.str));
     /**
-     * Comment section contains a fragment count type we cannot
+     * Comment section contains a partition balance we cannot
      * recognize, we will print warning about this and will
      * not change the comment string.
      */
@@ -10234,24 +10234,24 @@ void ha_ndbcluster::append_create_info(String *packet)
   ndb->setDatabaseName(table_share->db.str);
   Ndb_table_guard ndbtab_g(dict, table_share->table_name.str);
   const NdbDictionary::Table * tab = ndbtab_g.get_table();
-  NdbDictionary::Object::FragmentCountType fctype = tab->getFragmentCountType();
+  NdbDictionary::Object::PartitionBalance part_bal = tab->getPartitionBalance();
   bool logged_table = tab->getLogging();
   bool read_backup = tab->getReadBackupFlag();
 
   DBUG_PRINT("info", ("append_create_info: comment: %s, logged_table = %u,"
-                      " fctype = %d",
+                      " part_bal = %d",
                       table_share->comment.length == 0 ?
                       "NULL" : table_share->comment.str,
                       logged_table,
-                      fctype));
+                      part_bal));
   if (table_share->comment.length == 0 &&
-      fctype == NdbDictionary::Object::FragmentCount_Specific &&
+      part_bal == NdbDictionary::Object::PartitionBalance_Specific &&
       !read_backup &&
       logged_table)
   {
     /**
      * No comment set by user
-     * The fragment count type is default and thus no need to set
+     * The partition balance is default and thus no need to set
      * The table is logged which is default and thus no need to set
      * The table is not using read backup which is default
      */
@@ -10263,10 +10263,10 @@ void ha_ndbcluster::append_create_info(String *packet)
    * settings already in the comment string, no need to set a
    * property already set in the comment string.
    */
-  NdbDictionary::Object::FragmentCountType comment_fctype =
-    NdbDictionary::Object::FragmentCount_OnePerLDMPerNode;
+  NdbDictionary::Object::PartitionBalance comment_part_bal =
+    NdbDictionary::Object::PartitionBalance_ForRPByLDM;
 
-  bool comment_fctype_set = false;
+  bool comment_part_bal_set = false;
   bool comment_logged_table_set = false;
   bool comment_read_backup_set = false;
 
@@ -10281,7 +10281,7 @@ void ha_ndbcluster::append_create_info(String *packet)
                           table_share->comment.length);
     const NDB_Modifier *mod_nologging = table_modifiers.get("NOLOGGING");
     const NDB_Modifier *mod_read_backup = table_modifiers.get("READ_BACKUP");
-    const NDB_Modifier *mod_frags = table_modifiers.get("FRAGMENT_COUNT_TYPE");
+    const NDB_Modifier *mod_frags = table_modifiers.get("PARTITION_BALANCE");
 
     if (mod_nologging->m_found)
     {
@@ -10299,11 +10299,11 @@ void ha_ndbcluster::append_create_info(String *packet)
     }
     if (mod_frags->m_found)
     {
-      if (parseFragmentCountType(thd /* for pushing warning */,
+      if (parsePartitionBalance(thd /* for pushing warning */,
                                  mod_frags,
-                                 &comment_fctype))
+                                 &comment_part_bal))
       {
-        if (comment_fctype != fctype)
+        if (comment_part_bal != part_bal)
         {
           /**
            * The table property and the comment on the table differs.
@@ -10315,12 +10315,12 @@ void ha_ndbcluster::append_create_info(String *packet)
                               ER(ER_GET_ERRMSG),
                               4501,
                               "Table property is not the same as in"
-                              " comment for FRAGMENT_COUNT_TYPE"
+                              " comment for PARTITION_BALANCE"
                               " property",
                               "NDB");
         }
       }
-      comment_fctype_set = true;
+      comment_part_bal_set = true;
     }
   }
   DBUG_PRINT("info", ("comment_read_backup_set: %u, comment_read_backup: %u",
@@ -10329,9 +10329,9 @@ void ha_ndbcluster::append_create_info(String *packet)
   DBUG_PRINT("info", ("comment_logged_table_set: %u, comment_logged_table: %u",
                       comment_logged_table_set,
                       comment_logged_table));
-  DBUG_PRINT("info", ("comment_fctype_set: %u, comment_fctype: %d",
-                      comment_fctype_set,
-                      comment_fctype));
+  DBUG_PRINT("info", ("comment_part_bal_set: %u, comment_part_bal: %d",
+                      comment_part_bal_set,
+                      comment_part_bal));
   if (!comment_read_backup_set)
   {
     if (read_backup)
@@ -10392,9 +10392,9 @@ void ha_ndbcluster::append_create_info(String *packet)
                         " comment for NOLOGGING property",
                         "NDB");
   }
-  if (!comment_fctype_set)
+  if (!comment_part_bal_set)
   {
-    if (fctype != NdbDictionary::Object::FragmentCount_Specific)
+    if (part_bal != NdbDictionary::Object::PartitionBalance_Specific)
     {
       /**
        * There is a table property not reflected in the COMMENT string,
@@ -10403,46 +10403,46 @@ void ha_ndbcluster::append_create_info(String *packet)
        * In this case the table property will stay, so we print this in
        * the SHOW CREATE TABLE comment string.
        *
-       * The default fragment count type differs for tables with
+       * The default partition balance differs for tables with
        * READ_BACKUP flag set. It is rather one per ldm per node group
        * to avoid having too many fragments.
        */
-      switch (fctype)
+      switch (part_bal)
       {
-        case NdbDictionary::Object::FragmentCount_OnePerLDMPerNode:
+        case NdbDictionary::Object::PartitionBalance_ForRPByLDM:
           break;
-        case NdbDictionary::Object::FragmentCount_OnePerLDMPerNodeGroup:
+        case NdbDictionary::Object::PartitionBalance_ForRAByLDM:
         {
           push_warning_printf(thd, Sql_condition::SL_WARNING,
             ER_GET_ERRMSG,
             ER(ER_GET_ERRMSG),
             4503,
             "Table property is "
-            "FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE_GROUP"
+            "PARTITION_BALANCE=FOR_RA_BY_LDM"
             " but not in comment",
             "NDB");
           break;
         }
-        case NdbDictionary::Object::FragmentCount_OnePerNode:
+        case NdbDictionary::Object::PartitionBalance_ForRPByNode:
         {
           push_warning_printf(thd, Sql_condition::SL_WARNING,
             ER_GET_ERRMSG,
             ER(ER_GET_ERRMSG),
             4503,
             "Table property is "
-            "FRAGMENT_COUNT_TYPE=ONE_PER_NODE"
+            "PARTITION_BALANCE=FOR_RP_BY_NODE"
             " but not in comment",
             "NDB");
           break;
         }
-        case NdbDictionary::Object::FragmentCount_OnePerNodeGroup:
+        case NdbDictionary::Object::PartitionBalance_ForRAByNode:
         {
           push_warning_printf(thd, Sql_condition::SL_WARNING,
             ER_GET_ERRMSG,
             ER(ER_GET_ERRMSG),
             4503,
             "Table property is "
-            "FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP"
+            "PARTITION_BALANCE=FOR_RA_BY_NODE"
             " but not in comment",
             "NDB");
           break;
@@ -10461,7 +10461,7 @@ void ha_ndbcluster::append_create_info(String *packet)
                               ER_GET_ERRMSG,
                               ER(ER_GET_ERRMSG),
                               4503,
-                              "Table property FRAGMENT_COUNT_TYPE is set to"
+                              "Table property PARTITION_BALANCE is set to"
                               " an unknown value, could be an upgrade issue"
                               "NDB");
         }
@@ -10679,30 +10679,30 @@ int ha_ndbcluster::create(const char *name,
   table_modifiers.parse(thd, "NDB_TABLE=", create_info->comment.str,
                         create_info->comment.length);
   const NDB_Modifier * mod_nologging = table_modifiers.get("NOLOGGING");
-  const NDB_Modifier * mod_frags = table_modifiers.get("FRAGMENT_COUNT_TYPE");
+  const NDB_Modifier * mod_frags = table_modifiers.get("PARTITION_BALANCE");
   const NDB_Modifier * mod_read_backup = table_modifiers.get("READ_BACKUP");
   const NDB_Modifier * mod_fully_replicated =
     table_modifiers.get("FULLY_REPLICATED");
-  NdbDictionary::Object::FragmentCountType fctype =
-    NdbDictionary::Object::FragmentCount_OnePerLDMPerNode;
-  if (parseFragmentCountType(thd /* for pushing warning */,
+  NdbDictionary::Object::PartitionBalance part_bal =
+    NdbDictionary::Object::PartitionBalance_ForRPByLDM;
+  if (parsePartitionBalance(thd /* for pushing warning */,
                              mod_frags,
-                             &fctype) == false)
+                             &part_bal) == false)
   {
     /**
      * unable to parse => modifier which is not found
      */
     mod_frags = table_modifiers.notfound();
   }
-  else if (ndbd_support_fragment_count_type(
+  else if (ndbd_support_partition_balance(
             ndb->getMinDbNodeVersion()) == 0)
   {
     /**
-     * NDB_TABLE=FRAGMENT_COUNT_TYPE not supported by data nodes.
+     * NDB_TABLE=PARTITION_BALANCE not supported by data nodes.
      */
     my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
              ndbcluster_hton_name,
-             "FRAGMENT_COUNT_TYPE not supported by current data node versions");
+             "PARTITION_BALANCE not supported by current data node versions");
     DBUG_RETURN(HA_WRONG_CREATE_OPTION);
   }
 
@@ -10880,16 +10880,16 @@ int ha_ndbcluster::create(const char *name,
       tab.setReadBackupFlag(true);
       tab.setFullyReplicated(true);
 
-      if (fctype !=
-            NdbDictionary::Object::FragmentCount_OnePerNodeGroup &&
-          tab.getFragmentCountType() !=
-            NdbDictionary::Object::FragmentCount_OnePerLDMPerNodeGroup)
+      if (part_bal !=
+            NdbDictionary::Object::PartitionBalance_ForRAByNode &&
+          tab.getPartitionBalance() !=
+            NdbDictionary::Object::PartitionBalance_ForRAByLDM)
       {
         if (!mod_frags->m_found)
         {
           /**
            * For Fully replicated tables we use
-           * FragmentCount_OnePerLDMPerNodeGroup as default setting.
+           * PartitionBalance_ForRAByLDM as default setting.
            * This means that we will have one partition in each LDM
            * and that there is one copy in each data node although
            * technically each node group will have its own set of
@@ -10899,13 +10899,13 @@ int ha_ndbcluster::create(const char *name,
            * the update has acquired all locks it will use a trigger
            * mechanism to spread to all other nodes in the cluster.
            */
-          fctype = NdbDictionary::Object::FragmentCount_OnePerLDMPerNodeGroup;
+          part_bal = NdbDictionary::Object::PartitionBalance_ForRAByLDM;
         }
         else
         {
           /**
-           * FragmentCountType == FragmentCount_OnePerNode and
-           * FragmentCountType == FragmentCount_OnePerLDMPerNode
+           * PartitionBalance == PartitionBalance_ForRPByNode and
+           * PartitionBalance == PartitionBalance_ForRPByLDM
            * isn't allowed to be mixed with FullyReplicated = true
            * since that would make us store 2 copies of each row
            * per node and this is quite obviously not desirable.
@@ -10915,7 +10915,7 @@ int ha_ndbcluster::create(const char *name,
            */
           my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
                    ndbcluster_hton_name,
-          "FULLY_REPLICATED=1 doesn't support this FRAGMENT_COUNT_TYPE");
+          "FULLY_REPLICATED=1 doesn't support this PARTITION_BALANCE");
           result = HA_WRONG_CREATE_OPTION;
           goto abort_return;
         }
@@ -11159,7 +11159,7 @@ int ha_ndbcluster::create(const char *name,
   {
     /**
      * Fully replicated are only supported on hash map partitions
-     * with standard fragment count types, no user defined partitioning
+     * with standard partition balances, no user defined partitioning
      * fragment count.
      *
      * We expect that ndbapi fail on create table with error 797
@@ -11168,7 +11168,7 @@ int ha_ndbcluster::create(const char *name,
   }
   if (tab.getFragmentType() == NDBTAB::HashMapPartition && 
       tab.getDefaultNoPartitionsFlag() &&
-      !mod_frags->m_found && // Let FRAGMENT_COUNT_TYPE override max_rows
+      !mod_frags->m_found && // Let PARTITION_BALANCE override max_rows
       !tab.getFullyReplicated() && //Ignore max_rows for fully replicated
       (create_info->max_rows != 0 || create_info->min_rows != 0))
   {
@@ -11187,7 +11187,7 @@ int ha_ndbcluster::create(const char *name,
     tab.setFragmentCount(reported_frags);
     tab.setDefaultNoPartitionsFlag(false);
     tab.setFragmentData(0, 0);
-    tab.setFragmentCountType(NdbDictionary::Object::FragmentCount_Specific);
+    tab.setPartitionBalance(NdbDictionary::Object::PartitionBalance_Specific);
   }
 
   // Check for HashMap
@@ -11199,7 +11199,7 @@ int ha_ndbcluster::create(const char *name,
      */
     tab.setFragmentCount(0);
     tab.setFragmentData(0, 0);
-    tab.setFragmentCountType(fctype);
+    tab.setPartitionBalance(part_bal);
   }
   else if (tab.getFragmentType() == NDBTAB::HashMapPartition)
   {
@@ -17879,7 +17879,7 @@ create_table_set_up_partition_info(partition_info *part_info,
 
     ndbtab.setFragmentCount(fd_index);
     ndbtab.setFragmentData(frag_data, fd_index);
-    ndbtab.setFragmentCountType(NdbDictionary::Object::FragmentCount_Specific);
+    ndbtab.setPartitionBalance(NdbDictionary::Object::PartitionBalance_Specific);
   }
   DBUG_RETURN(0);
 }
@@ -18235,7 +18235,7 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
      {
        DBUG_PRINT("info", ("Adding partition (%u)", part_info->num_parts));
        new_tab.setFragmentCount(part_info->num_parts);
-       new_tab.setFragmentCountType(NdbDictionary::Object::FragmentCount_Specific);
+       new_tab.setPartitionBalance(NdbDictionary::Object::PartitionBalance_Specific);
        if (new_tab.getFullyReplicated())
        {
          DBUG_PRINT("info", ("Add partition isn't supported on fully"
@@ -18274,7 +18274,7 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
        new_tab.setFragmentCount(reported_frags);
        new_tab.setDefaultNoPartitionsFlag(false);
        new_tab.setFragmentData(0, 0);
-       new_tab.setFragmentCountType(NdbDictionary::Object::FragmentCount_Specific);
+       new_tab.setPartitionBalance(NdbDictionary::Object::PartitionBalance_Specific);
      }
 
      if (dict->supportedAlterTable(*old_tab, new_tab))
@@ -18480,14 +18480,14 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
   table_modifiers.parse(thd, "NDB_TABLE=", create_info->comment.str,
                         create_info->comment.length);
   const NDB_Modifier* mod_nologging = table_modifiers.get("NOLOGGING");
-  const NDB_Modifier* mod_frags = table_modifiers.get("FRAGMENT_COUNT_TYPE");
+  const NDB_Modifier* mod_frags = table_modifiers.get("PARTITION_BALANCE");
   const NDB_Modifier* mod_read_backup = table_modifiers.get("READ_BACKUP");
   const NDB_Modifier* mod_fully_replicated =
     table_modifiers.get("FULLY_REPLICATED");
 
-  NdbDictionary::Object::FragmentCountType fct =
-    NdbDictionary::Object::FragmentCount_OnePerLDMPerNode;
-  if (parseFragmentCountType(thd /* for pushing warning */,
+  NdbDictionary::Object::PartitionBalance fct =
+    NdbDictionary::Object::PartitionBalance_ForRPByLDM;
+  if (parsePartitionBalance(thd /* for pushing warning */,
                              mod_frags, &fct) == false)
   {
     /**
@@ -18495,15 +18495,15 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
      */
     mod_frags = table_modifiers.notfound();
   }
-  else if (ndbd_support_fragment_count_type(
+  else if (ndbd_support_partition_balance(
             get_thd_ndb(thd)->ndb->getMinDbNodeVersion()) == 0)
   {
     /**
-     * NDB_TABLE=FRAGMENT_COUNT_TYPE not supported by data nodes.
+     * NDB_TABLE=PARTITION_BALANCE not supported by data nodes.
      */
     my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
              ndbcluster_hton_name,
-             "FRAGMENT_COUNT_TYPE not supported by current data node versions");
+             "PARTITION_BALANCE not supported by current data node versions");
     DBUG_RETURN(true);
   }
   if (mod_nologging->m_found)
@@ -18575,20 +18575,20 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
     }
     new_tab->setFragmentCount(0);
     new_tab->setFragmentData(0,0);
-    new_tab->setFragmentCountType(fct);
-    DBUG_PRINT("info", ("parse_comment_changes: FragmentCountType: %s",
-                        new_tab->getFragmentCountTypeString()));
+    new_tab->setPartitionBalance(fct);
+    DBUG_PRINT("info", ("parse_comment_changes: PartitionBalance: %s",
+                        new_tab->getPartitionBalanceString()));
   }
   else
   {
-    fct = old_tab->getFragmentCountType();
+    fct = old_tab->getPartitionBalance();
   }
   if (old_tab->getFullyReplicated())
   {
-    if (fct != old_tab->getFragmentCountType())
+    if (fct != old_tab->getPartitionBalance())
     {
       /**
-       * We cannot change fragment count type inplace for fully
+       * We cannot change partition balance inplace for fully
        * replicated tables.
        */
       int res = HA_ALTER_INPLACE_NOT_SUPPORTED;
@@ -18781,8 +18781,8 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
       partition_info *part_info= altered_table->part_info;
       DBUG_PRINT("info", ("Adding partition (%u)", part_info->num_parts));
       new_tab->setFragmentCount(part_info->num_parts);
-      new_tab->setFragmentCountType(
-        NdbDictionary::Object::FragmentCount_Specific);
+      new_tab->setPartitionBalance(
+        NdbDictionary::Object::PartitionBalance_Specific);
     }
     else if (comment_changed &&
              parse_comment_changes(new_tab,
@@ -18814,7 +18814,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
       new_tab->setFragmentCount(reported_frags);
       new_tab->setDefaultNoPartitionsFlag(false);
       new_tab->setFragmentData(0, 0);
-      new_tab->setFragmentCountType(NdbDictionary::Object::FragmentCount_Specific);
+      new_tab->setPartitionBalance(NdbDictionary::Object::PartitionBalance_Specific);
     }
     
     int res= dict->prepareHashMap(*old_tab, *new_tab);
@@ -18898,9 +18898,9 @@ int ha_ndbcluster::alter_frm(const char *file,
     
     NdbDictionary::Table *new_tab= alter_data->new_table;
 
-    NdbDictionary::Object::FragmentCountType fctype;
-    fctype = new_tab->getFragmentCountType();
-    DBUG_PRINT("info", ("New table fragmentCountType = %d", fctype));
+    NdbDictionary::Object::PartitionBalance part_bal;
+    part_bal = new_tab->getPartitionBalance();
+    DBUG_PRINT("info", ("New table partitionBalance = %d", part_bal));
 
     new_tab->setFrm(pack_data, (Uint32)pack_length);
     if (dict->alterTableGlobal(*old_tab, *new_tab))

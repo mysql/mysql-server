@@ -864,7 +864,7 @@ DECLARE_NDBINFO_TABLE(STORED_TABLES, 20) =
     {"hashmap_version",             Ndbinfo::Number,   "Hashmap version"},
     {"table_version",               Ndbinfo::Number,   "Table version"},
     {"fragment_type",               Ndbinfo::Number,   "Type of fragmentation"},
-    {"fragment_count_type",         Ndbinfo::Number,   "Fragment Count type"},
+    {"partition_balance",         Ndbinfo::Number,   "Partition balance"},
     {"create_gci",                  Ndbinfo::Number,   "GCI in which table was created"},
     {"backup_locked",               Ndbinfo::Number,   "Locked for backup"},
     {"single_user_mode",            Ndbinfo::Number,   "Is single user mode active"}

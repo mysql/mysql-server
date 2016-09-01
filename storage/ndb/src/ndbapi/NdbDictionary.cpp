@@ -769,32 +769,32 @@ NdbDictionary::Table::getPartitionCount() const
 }
 
 void
-NdbDictionary::Table::setFragmentCountType(NdbDictionary::Object::FragmentCountType arg)
+NdbDictionary::Table::setPartitionBalance(NdbDictionary::Object::PartitionBalance arg)
 {
-  m_impl.m_fragmentCountType = arg;
+  m_impl.m_partitionBalance = arg;
 }
 
-NdbDictionary::Object::FragmentCountType
-NdbDictionary::Table::getFragmentCountType() const
+NdbDictionary::Object::PartitionBalance
+NdbDictionary::Table::getPartitionBalance() const
 {
-  return m_impl.m_fragmentCountType;
+  return m_impl.m_partitionBalance;
 }
 
 const char*
-NdbDictionary::Table::getFragmentCountTypeString() const
+NdbDictionary::Table::getPartitionBalanceString() const
 {
-  switch (m_impl.m_fragmentCountType)
+  switch (m_impl.m_partitionBalance)
   {
-    case FragmentCount_Specific:
+    case PartitionBalance_Specific:
       return "SPECIFIC";
-    case FragmentCount_OnePerLDMPerNode:
-      return "ONE_PER_LDM_PER_NODE";
-    case FragmentCount_OnePerLDMPerNodeGroup:
-      return "ONE_PER_LDM_PER_NODE_GROUP";
-    case FragmentCount_OnePerNode:
-      return "ONE_PER_NODE";
-    case FragmentCount_OnePerNodeGroup:
-      return "ONE_PER_NODE_GROUP";
+    case PartitionBalance_ForRPByLDM:
+      return "FOR_RP_BY_LDM";
+    case PartitionBalance_ForRAByLDM:
+      return "FOR_RA_BY_LDM";
+    case PartitionBalance_ForRPByNode:
+      return "FOR_RP_BY_NODE";
+    case PartitionBalance_ForRAByNode:
+      return "FOR_RA_BY_NODE";
   }
   return "unknown";
 }
@@ -2068,7 +2068,7 @@ NdbDictionary::Dictionary::prepareHashMap(const Table& oldTableF,
     // Table definitions from data nodes always have partition count set.
     Uint32 oldcnt = oldTable.getPartitionCount();
     Uint32 newcnt;
-    if (newTable.getFragmentCountType() == NdbDictionary::Table::FragmentCount_Specific)
+    if (newTable.getPartitionBalance() == NdbDictionary::Table::PartitionBalance_Specific)
     {
       if (newTable.getFullyReplicated())
       {
@@ -2076,7 +2076,7 @@ NdbDictionary::Dictionary::prepareHashMap(const Table& oldTableF,
          * Applications can not yet specify partition count only fragment
          * count, which are different for fully replicated tables.
          */
-        m_impl.m_error.code = 797; // WrongFragmentCountTypeFullyReplicated
+        m_impl.m_error.code = 797; // WrongPartitionBalanceFullyReplicated
         return -1;
       }
       /**
@@ -2106,7 +2106,7 @@ NdbDictionary::Dictionary::prepareHashMap(const Table& oldTableF,
       int ret = m_impl.m_receiver.create_hashmap(NdbHashMapImpl::getImpl(newmapF),
                                                  &NdbDictObjectImpl::getImpl(tmp),
                                                  flags,
-                                                 newTable.getFragmentCountType());
+                                                 newTable.getPartitionBalance());
       if (ret)
       {
         return ret;
@@ -2166,7 +2166,7 @@ NdbDictionary::Dictionary::prepareHashMap(const Table& oldTableF,
     else if (newTable.getFullyReplicated())
     {
       // Fully replicated tables may not change partition count.
-      m_impl.m_error.code = 797; // WrongFragmentCountTypeFullyReplicated
+      m_impl.m_error.code = 797; // WrongPartitionBalanceFullyReplicated
       return -1;
     }
 
@@ -4141,7 +4141,7 @@ NdbDictionary::Dictionary::createHashMap(const HashMap& map, ObjectId * dst)
            m_impl.m_receiver.create_hashmap(NdbHashMapImpl::getImpl(map),
                                             &NdbDictObjectImpl::getImpl(*dst),
                                             0,
-                     NdbDictionary::Object::FragmentCount_OnePerLDMPerNode));
+                     NdbDictionary::Object::PartitionBalance_ForRPByLDM));
   return ret;
 }
 
@@ -4432,7 +4432,7 @@ NdbOut& operator <<(class NdbOut&, NdbDictionary::Table const& tab)
   ndbout << "ForceVarPart: " << tab.getForceVarPart() << endl;
   ndbout << "PartitionCount: " << tab.getPartitionCount() << endl;
   ndbout << "FragmentCount: " << tab.getFragmentCount() << endl;
-  ndbout << "FragmentCountType: " << tab.getFragmentCountTypeString() << endl;
+  ndbout << "PartitionBalance: " << tab.getPartitionBalanceString() << endl;
   ndbout << "ExtraRowGciBits: " << tab.getExtraRowGciBits() << endl;
   ndbout << "ExtraRowAuthorBits: " << tab.getExtraRowAuthorBits() << endl;
   ndbout << "TableStatus: " << tab.getObjectStatus() << endl;

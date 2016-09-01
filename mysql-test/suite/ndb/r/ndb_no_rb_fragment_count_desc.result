@@ -1,12 +1,12 @@
 create table t1 (a bigint, primary key (a)) engine=ndb;
 create table t2 (a bigint, primary key (a)) engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create table t3 (a bigint, primary key (a)) engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE_GROUP";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
 create table t4 (a bigint, primary key (a)) engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
 create table t5 (a bigint, primary key (a)) engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 -- t1 --
 Version: Any
 Fragment type: HashMapPartition
@@ -24,7 +24,7 @@ SingleUserMode: 0
 ForceVarPart: 1
 PartitionCount: 8
 FragmentCount: 8
-FragmentCountType: ONE_PER_LDM_PER_NODE
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -52,7 +52,7 @@ SingleUserMode: 0
 ForceVarPart: 1
 PartitionCount: 8
 FragmentCount: 8
-FragmentCountType: ONE_PER_LDM_PER_NODE
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -80,7 +80,7 @@ SingleUserMode: 0
 ForceVarPart: 1
 PartitionCount: 4
 FragmentCount: 4
-FragmentCountType: ONE_PER_LDM_PER_NODE_GROUP
+PartitionBalance: FOR_RA_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -108,7 +108,7 @@ SingleUserMode: 0
 ForceVarPart: 1
 PartitionCount: 2
 FragmentCount: 2
-FragmentCountType: ONE_PER_NODE
+PartitionBalance: FOR_RP_BY_NODE
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -136,7 +136,7 @@ SingleUserMode: 0
 ForceVarPart: 1
 PartitionCount: 1
 FragmentCount: 1
-FragmentCountType: ONE_PER_NODE_GROUP
+PartitionBalance: FOR_RA_BY_NODE
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved

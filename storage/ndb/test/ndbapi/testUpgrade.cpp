@@ -56,8 +56,8 @@ int CMT_createTableHook(Ndb* ndb,
     if (fragCount > 0)
     {
       table.setFragmentCount(fragCount);
-      table.setFragmentCountType(
-        NdbDictionary::Object::FragmentCount_Specific);
+      table.setPartitionBalance(
+        NdbDictionary::Object::PartitionBalance_Specific);
     }
     
     ndbout << "Creating " << buf 

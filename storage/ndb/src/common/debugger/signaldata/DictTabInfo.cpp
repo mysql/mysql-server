@@ -48,7 +48,7 @@ DictTabInfo::TableMapping[] = {
   DTIMAP(Table, CustomTriggerId, CustomTriggerId),
   DTIMAP2(Table, FrmLen, FrmLen, 0, MAX_FRM_DATA_SIZE),
   DTIMAPB(Table, FrmData, FrmData, 0, MAX_FRM_DATA_SIZE, FrmLen),
-  DTIMAP(Table, FragmentCountType, FragmentCountType),
+  DTIMAP(Table, PartitionBalance, PartitionBalance),
   DTIMAP2(Table, FragmentCount, FragmentCount, 0, MAX_NDB_PARTITIONS),
   DTIMAP2(Table, ReplicaDataLen, ReplicaDataLen, 0, MAX_FRAGMENT_DATA_BYTES),
   DTIMAPB(Table, ReplicaData, ReplicaData, 0, MAX_FRAGMENT_DATA_BYTES, ReplicaDataLen),
@@ -170,7 +170,7 @@ DictTabInfo::Table::init(){
   memset(ReplicaData, 0, sizeof(ReplicaData));
   memset(RangeListData, 0, sizeof(RangeListData));
   memset(TablespaceData, 0, sizeof(TablespaceData));
-  FragmentCountType = NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE;
+  PartitionBalance = NDB_PARTITION_BALANCE_FOR_RP_BY_LDM;
   FragmentCount = 0;
   PartitionCount = 0;
   TablespaceId = RNIL;

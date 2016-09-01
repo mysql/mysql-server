@@ -109,7 +109,7 @@ CREATE TABLE t2 (
   c int unsigned,
   UNIQUE (b, c) USING HASH	
 ) engine=ndbcluster
-  comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 
 insert t2 values(1,1,NULL),(2,2,2),(3,3,NULL),(4,4,4),(5,5,NULL),(6,6,6),(7,7,NULL),(8,3,NULL),(9,3,NULL);
@@ -524,10 +524,10 @@ drop table t1;
 # of prev. full_table_scan()
 #
 create table t1 (pk int primary key, a int) engine=ndb
-  comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create table t2 (pk int primary key, uq int, a int, 
    unique key ix(uq,a) USING HASH) engine=ndb
-  comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into t2 values
    (0,0,0), (1,1,0), (2,2,0), (3,3,0), (4,4,0),
@@ -566,7 +566,7 @@ drop table t1,t2;
 CREATE TABLE t1 (
   i int
 ) ENGINE=ndbcluster
-COMMENT="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 INSERT INTO t1 VALUES (1);
 
@@ -574,7 +574,7 @@ CREATE TABLE t2 (
   col_int_unique int,
   UNIQUE KEY ix1 (col_int_unique) USING HASH
 ) ENGINE=ndbcluster
-COMMENT="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 INSERT INTO t2 VALUES (42);
 

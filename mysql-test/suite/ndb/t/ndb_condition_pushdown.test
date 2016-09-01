@@ -41,7 +41,7 @@ CREATE TABLE t1 (
   time_stamp timestamp,
   PRIMARY KEY (auto)
 ) engine=ndb
-  comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into t1 values 
 (NULL,"aaaa","aaaa",0xAAAA,0xAAAA,-1,-1,-1,-1,-1,1.1,1.1,1.1,1,1,1,1,1, 
@@ -63,18 +63,18 @@ insert into t1 values
 
 CREATE TABLE t2 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 int unsigned,   attr3 VARCHAR(10) )
 ENGINE=ndbcluster
-COMMENT="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into t2 values (0,0,0, "a"),(1,1,1,"b"),(2,2,NULL,NULL),(3,3,3,"d"),(4,4,4,"e"),(5,5,5,"f");
 
 CREATE TABLE  t3 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 bigint unsigned, attr3 tinyint unsigned,  attr4 VARCHAR(10) )
 ENGINE=ndbcluster
-COMMENT="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into t3 values (0,0,0,0,"a"),(1,1,9223372036854775803,1,"b"),(2,2,9223372036854775804,2,"c"),(3,3,9223372036854775805,3,"d"),(4,4,9223372036854775806,4,"e"),(5,5,9223372036854775807,5,"f");
 
 CREATE TABLE  t4 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 bigint unsigned, attr3 tinyint unsigned,  attr4 VARCHAR(10) , KEY (attr1)) ENGINE=ndbcluster
-COMMENT="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into t4 values (0,0,0,0,"a"),(1,1,9223372036854775803,1,"b"),(2,2,9223372036854775804,2,"c"),(3,3,9223372036854775805,3,"d"),(4,4,9223372036854775806,4,"e"),(5,5,9223372036854775807,5,"f");
 
@@ -1683,7 +1683,7 @@ select * from t3 left join t4 on t4.attr2 = t3.attr2 where t4.attr1 > 1 and t4.a
 # bug#15722
 create table t5 (a int primary key auto_increment, b tinytext not null) 
 engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t5 (b) values ('jonas'), ('jensing'), ('johan');
 set @@optimizer_switch='engine_condition_pushdown=off';
 select * from t5 where b like '%jo%' order by a;
@@ -1708,7 +1708,7 @@ select auto from t1 where date_time not like '1902-02-02 %' order by auto;
 drop table t1;
 create table t1 (a int, b varchar(3), primary key using hash(a))
 engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (1,'a'), (2,'ab'), (3,'abc');
 # in TUP the constants 'ab' 'abc' were expected in varchar format
 # "like" returned error which became "false"
@@ -1782,7 +1782,7 @@ PRIMARY KEY (id),
 KEY NodeAlias_identifies_1_Node (nodeId),
 KEY NodeAlias_KeyIndex (aliasKey)
 ) engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into NodeAlias VALUES(null, 2 , '49', '49',  0,'2008-03-07 14:54:59');
 insert into NodeAlias VALUES(null, 3 , '49' , '49' , 0 , '2008-03-07 14:55:24');
@@ -2106,7 +2106,7 @@ drop table t1;
 
 create table t1 (a int primary key, b varchar(5000) character set latin1)
 engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (0, 'I just cant beg you, any-more');
 select * from t1 where b="value";
 
@@ -2253,7 +2253,7 @@ drop table balerno;
 
 # bug#49459 Incorrect handling of too long string in condition pushdown
 create table t (pk int primary key, x varchar(1)) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t values (0,"a");
 set @@optimizer_switch='engine_condition_pushdown=off';
 select * from t where x <> "aa";
@@ -2298,7 +2298,7 @@ drop table t;
 
 # Bug#57735 BETWEEN in pushed condition cause garbage to be read in ::unpack_record() 
 create table t (pk int primary key, x int) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t values (0,0),(1,1),(2,2),(3,3),(4,4),(5,5);
 set @@optimizer_switch = 'engine_condition_pushdown=on';
 --replace_column 10 # 11 #
@@ -2312,7 +2312,7 @@ drop table t;
 # Bug#53360 No result for requests using LIKE condition on ENUM fields
 set @@optimizer_switch = 'engine_condition_pushdown=on';
 create table t (x enum ('yes','yep','no')) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t values ('yes'),('yep'),('no');
 --replace_column 10 # 11 #
 explain select * from t where x like 'yes' order by x;
@@ -2333,7 +2333,7 @@ create table tx (
   d int not null,
   primary key (`a`,`b`)
 ) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 --replace_column 10 # 11 #
 explain extended select * from tx join tx as t2 on tx.c=1 where t2.c=1;
@@ -2371,10 +2371,10 @@ drop table tx;
 set @@optimizer_switch = 'engine_condition_pushdown=on';
 
 create table t (pk int, i int) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t values (1,3), (3,6), (6,9), (9,1);
 create table subq (pk int, i int) engine = ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into subq values (1,3), (3,6), (6,9), (9,1);
 
 # 'Explain extended' to verify that only 'subq.i=3' is pushed
@@ -2472,7 +2472,7 @@ drop table t;
 # Bug #13604447 61064: SELECT QUERIES USING ESCAPE SYNTAX FAIL
 create table escapetest ( emailaddress varchar(255) default null, id int not
 null default '0') engine=ndbcluster
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into escapetest values('test_data@test.org', 1);
 --replace_column 10 # 11 #
 explain select * from escapetest where emailaddress like "test_%";
@@ -2485,7 +2485,7 @@ drop table escapetest;
 # Bug#15923467 LIKE FUNCTION NOT WORK.
 
 create table a(a varchar(7)) engine=ndb charset=utf8
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into a values ('abcdefg');
 
@@ -2514,7 +2514,7 @@ drop table t1;
 --echo # Verify there is no push down support for char(0)
 --echo # 
 create table t1(a int, b char(0)) engine=ndbcluster
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values(1,''), (2, NULL);
 --replace_column 10 # 11 #
 explain select * from t1 where b = '';

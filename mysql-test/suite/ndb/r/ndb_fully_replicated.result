@@ -75,7 +75,7 @@ SingleUserMode: 0
 ForceVarPart: 1
 PartitionCount: 4
 FragmentCount: 16
-FragmentCountType: ONE_PER_LDM_PER_NODE_GROUP
+PartitionBalance: FOR_RA_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -112,7 +112,7 @@ SingleUserMode: 0
 ForceVarPart: 1
 PartitionCount: 4
 FragmentCount: 16
-FragmentCountType: ONE_PER_LDM_PER_NODE_GROUP
+PartitionBalance: FOR_RA_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved

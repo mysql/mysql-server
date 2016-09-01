@@ -35,7 +35,7 @@ node_id	fragment_num	block_instance
 4	13	3
 4	15	4
 create table t2 (id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t2' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance
@@ -72,7 +72,7 @@ node_id	fragment_num	block_instance
 4	13	3
 4	15	4
 create table t3 (id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE_GROUP";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t3' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance
@@ -93,7 +93,7 @@ node_id	fragment_num	block_instance
 4	5	3
 4	7	4
 create table t4 (id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t4' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance
@@ -106,7 +106,7 @@ node_id	fragment_num	block_instance
 4	1	1
 4	3	2
 create table t5 (id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb
-comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP";
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t5' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance
@@ -359,7 +359,7 @@ SingleUserMode: 0
 ForceVarPart: 1
 PartitionCount: 24
 FragmentCount: 24
-FragmentCountType: ONE_PER_LDM_PER_NODE
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved

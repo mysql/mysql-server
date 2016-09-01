@@ -2,7 +2,7 @@
 # Fragment type: HashMapPartition
 # PartitionCount: 8
 # FragmentCount: 8
-# FragmentCountType: ONE_PER_LDM_PER_NODE
+# PartitionBalance: FOR_RP_BY_LDM
 # Table options:
 # HashMap: DEFAULT-HASHMAP-3840-8
 
