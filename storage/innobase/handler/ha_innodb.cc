@@ -7364,18 +7364,23 @@ create_table_metadata(
 	}
 
 	/* TODO: these should be tablespace attributes and be used!*/
-	/* Check compression option. */
-	if (!m_form->s->compress.length
-	    && !Compression::is_none(m_form->s->compress.str)) {
-		/* TODO: check fil_node_t::punch_hole too,
-		and maybe issue a warning when compression is not feasible?*/
-	}
+	std::string     encrypt;
+	std::string     compress;
+	if (dd_part != nullptr) {
+		dd_part->table().options().get("compress", compress);
+		dd_part->table().options().get("encrypt_type", encrypt);
 
-	/* Set encryption option. */
-	char*	encryption = m_form->s->encrypt_type.str;
-	if (!Encryption::is_none(encryption)) {
-		ut_ad(innobase_strcasecmp(encryption, "y") == 0);
-		is_encrypted = true;
+		/* Check compression option. */
+		if (!Compression::is_none(compress.c_str())) {
+			/* TODO: check fil_node_t::punch_hole too, and maybe
+			issue a warning when compression is not feasible?*/
+		}
+
+		/* Set encryption option. */
+		if (!Encryption::is_none(encrypt.c_str())) {
+			ut_ad(innobase_strcasecmp(encrypt.c_str(), "y") == 0);
+			is_encrypted = true;
+		}
 	}
 
 	const unsigned	n_mysql_cols = m_form->s->fields;
