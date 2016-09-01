@@ -12572,10 +12572,6 @@ simple_ident_q:
           {
             $$= NEW_PTN PTI_simple_ident_q_2d(@$, $1.str, $3.str);
           }
-        | '.' ident '.' ident
-          {
-            $$= NEW_PTN PTI_simple_ident_q_3d(@$, NULL, $2.str, $4.str);
-          }
         | ident '.' ident '.' ident
           {
             $$= NEW_PTN PTI_simple_ident_q_3d(@$, $1.str, $3.str, $5.str);
@@ -12596,13 +12592,6 @@ table_ident:
             else {
               $$= NEW_PTN Table_ident(to_lex_cstring($1), to_lex_cstring($3));
             }
-            if ($$ == NULL)
-              MYSQL_YYABORT;
-          }
-        | '.' ident
-          {
-            /* For Delphi */
-            $$= NEW_PTN Table_ident(to_lex_cstring($2));
             if ($$ == NULL)
               MYSQL_YYABORT;
           }

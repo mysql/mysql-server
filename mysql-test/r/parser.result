@@ -988,7 +988,7 @@ DROP TABLE t1;
 SET default_storage_engine=a.myisam;
 ERROR 42000: Incorrect argument type to variable 'default_storage_engine'
 SET default_storage_engine = .a.MyISAM;
-ERROR 42000: Incorrect argument type to variable 'default_storage_engine'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.a.MyISAM' at line 1
 SET default_storage_engine = a.b.MyISAM;
 ERROR 42000: Incorrect argument type to variable 'default_storage_engine'
 SET default_storage_engine = `a`.MyISAM;
