@@ -3714,7 +3714,6 @@ public:
                                 Sql_condition::enum_severity_level *level MY_ATTRIBUTE((unused)),
                                 const char *msg MY_ATTRIBUTE((unused)))
   {
-    DBUG_ASSERT(sql_errno != ER_LOCK_DEADLOCK);
     return (sql_errno == ER_LOCK_DEADLOCK ||
             sql_errno == ER_LOCK_WAIT_TIMEOUT);
   }
