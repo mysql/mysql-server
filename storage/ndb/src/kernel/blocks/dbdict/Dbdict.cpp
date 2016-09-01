@@ -11445,9 +11445,17 @@ bool Dbdict::buildListTablesData(const DictObject& dictObject,
 
       ndbrequire(tablePtr.p->primaryTableId != RNIL);
       TableRecordPtr primTablePtr;
-      ndbrequire(find_object(primTablePtr, tablePtr.p->primaryTableId));
-      parentObjectType = primTablePtr.p->tableType;
-      parentObjectId = primTablePtr.p->tableId;
+      if (find_object(primTablePtr, tablePtr.p->primaryTableId))
+      {
+        jam();
+        parentObjectType = primTablePtr.p->tableType;
+        parentObjectId = primTablePtr.p->tableId;
+      }
+      else
+      {
+        jam();
+        ndbrequire(tablePtr.p->indexState == TableRecord::IS_DROPPING);
+      }
     }
     // Logging status
     if (! (tablePtr.p->m_bits & TableRecord::TR_Logged)) {
@@ -20948,8 +20956,7 @@ Dbdict::execDICT_TAKEOVER_REQ(Signal* signal)
      LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
      bool pending_op = list.first(op_ptr);
      if (pending_op &&
-         (trans_ptr.p->m_state == SchemaTrans::TS_COMPLETING ||
-          trans_ptr.p->m_state == SchemaTrans::TS_ENDING))
+         trans_ptr.p->m_state == SchemaTrans::TS_ENDING)
      {
        jam();
        /*
@@ -21026,16 +21033,21 @@ Dbdict::execDICT_TAKEOVER_REQ(Signal* signal)
        else
        {
          jam();
+         bool last =  list.last(op_ptr);
 #ifdef VM_TRACE
          ndbout_c("Op %u, state %u, rollforward %u/%u, rollback %u/%u",op_ptr.p->op_key,op_ptr.p->m_state, rollforward_op,  rollforward_op_state, rollback_op,  rollback_op_state);
 #endif
          /*
            Find the starting point for a roll forward, the first
            operation found with a lower state than the previous.
+           If are at the end of the list set the last operation
+           as starting point for roll-forward.
          */
-         if (SchemaOp::weight(op_ptr.p->m_state) <
-             SchemaOp::weight(rollforward_op_state))
+         if ((SchemaOp::weight(op_ptr.p->m_state) <
+              SchemaOp::weight(rollforward_op_state)) ||
+             ((rollforward_op == 0) && last))
          {
+           jam();
            rollforward_op = op_ptr.p->op_key;
            rollforward_op_state = op_ptr.p->m_state;
          }
@@ -21046,6 +21058,7 @@ Dbdict::execDICT_TAKEOVER_REQ(Signal* signal)
          if (SchemaOp::weight(op_ptr.p->m_state) >=
              SchemaOp::weight(rollback_op_state))
          {
+           jam();
            rollback_op = op_ptr.p->op_key;
            rollback_op_state = op_ptr.p->m_state;
          }
@@ -28267,6 +28280,7 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
     /**
      * Send RT_START
      */
+    D("SCHEMA_TRANS_IMPL_REQ: RT_START sent");
     {
       trans_ptr.p->m_ref_nodes.clear();
       NodeReceiverGroup rg(DBDICT, trans_ptr.p->m_nodes);
@@ -28555,6 +28569,7 @@ Dbdict::handleClientReq(Signal* signal, SchemaOpPtr op_ptr,
     ndbrequire(ok);
   }
 
+  D("SCHEMA_TRANS_IMPL_REQ: RT_PARSE sent");
   if (ERROR_INSERTED(6141))
   {
     /*
@@ -28995,6 +29010,7 @@ Dbdict::trans_prepare_start(Signal* signal, SchemaTransPtr trans_ptr)
     return;
   }
 
+  D("SCHEMA_TRANS_IMPL_REQ: RT_FLUSH_PREPARE sent");
   if (ERROR_INSERTED(6142))
   {
     /*
@@ -29075,6 +29091,7 @@ Dbdict::trans_prepare_next(Signal* signal,
     ndbrequire(ok);
   }
 
+  D("SCHEMA_TRANS_IMPL_REQ: RT_PREPARE sent");
   if (ERROR_INSERTED(6143))
   {
     jam();
@@ -29280,6 +29297,7 @@ Dbdict::trans_abort_parse_next(Signal* signal,
     ndbrequire(ok);
   }
 
+  D("SCHEMA_TRANS_IMPL_REQ: RT_ABORT_PARSE sent");
   if (ERROR_INSERTED(6144))
   {
     jam();
@@ -29470,6 +29488,7 @@ Dbdict::trans_abort_prepare_next(Signal* signal,
     ndbrequire(ok);
   }
 
+  D("SCHEMA_TRANS_IMPL_REQ: RT_ABORT_PREPARE sent");
   if (ERROR_INSERTED(6145))
   {
     jam();
@@ -29605,6 +29624,7 @@ Dbdict::trans_rollback_sp_next(Signal* signal,
     ndbrequire(ok);
   }
 
+  D("SCHEMA_TRANS_IMPL_REQ: RT_ABORT_PARSE sent");
   if (ERROR_INSERTED(6144))
   {
     jam();
@@ -29729,6 +29749,7 @@ Dbdict::trans_commit_start(Signal* signal, SchemaTransPtr trans_ptr)
     ndbrequire(ok);
   }
 
+  D("SCHEMA_TRANS_IMPL_REQ: RT_FLUSH_COMMIT sent");
   if (ERROR_INSERTED(6146))
   {
     jam();
@@ -29981,6 +30002,7 @@ Dbdict::trans_commit_next(Signal* signal,
     ndbrequire(ok);
   }
 
+  D("SCHEMA_TRANS_IMPL_REQ: RT_COMMIT sent");
   if (ERROR_INSERTED(6147))
   {
     LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
@@ -30187,6 +30209,7 @@ Dbdict::trans_complete_start(Signal* signal, SchemaTransPtr trans_ptr)
     ndbrequire(ok);
   }
 
+  D("SCHEMA_TRANS_IMPL_REQ: RT_FLUSH_COMPLETE sent");
   if (ERROR_INSERTED(6148))
   {
     jam();
@@ -30268,6 +30291,8 @@ Dbdict::trans_complete_next(Signal* signal,
     ndbrequire(ok);
   }
 
+  const OpInfo& info = getOpInfo(op_ptr);
+  D("SCHEMA_TRANS_IMPL_REQ: RT_COMPLETE sent " << info.m_opType);
   if (ERROR_INSERTED(6149))
   {
     jam();
@@ -30294,8 +30319,18 @@ Dbdict::trans_complete_next(Signal* signal,
   req->opKey = op_ptr.p->op_key;
   req->requestInfo = SchemaTransImplReq::RT_COMPLETE;
   req->transId = trans_ptr.p->m_transId;
-  sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
-             SchemaTransImplReq::SignalLength, JBB);
+  if (!ERROR_INSERTED(6223) || memcmp(info.m_opType, "DTa", 4) != 0)
+  {
+    sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
+               SchemaTransImplReq::SignalLength, JBB);
+  }
+  else
+  {
+    /* Only happens for DROP_TAB_REQ operations */
+    D("7248: Only sending SCHEMA_TRANS_IMPL_REQ to self before crash");
+    sendSignal(reference(), GSN_SCHEMA_TRANS_IMPL_REQ, signal,
+               SchemaTransImplReq::SignalLength, JBB);
+  }
 }
 
 void
@@ -30374,6 +30409,7 @@ Dbdict::trans_end_start(Signal* signal, SchemaTransPtr trans_ptr)
 			5000, 2);
   }
 
+  D("SCHEMA_TRANS_IMPL_REQ: RT_END sent");
   if (ERROR_INSERTED(6050))
   {
     /**
