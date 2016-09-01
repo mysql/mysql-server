@@ -9287,14 +9287,16 @@ Encryption::decrypt(
 	}
 
 	default:
+		if (!type.is_dblwr_recover()) {
 #if !defined(UNIV_INNOCHECKSUM)
-		ib::error()
-			<< "Encryption algorithm support missing: "
-			<< Encryption::to_string(m_type);
+			ib::error()
+				<< "Encryption algorithm support missing: "
+				<< Encryption::to_string(m_type);
 #else
-		fprintf(stderr, "Encryption algorithm support missing: %s\n",
-			Encryption::to_string(m_type));
+			fprintf(stderr, "Encryption algorithm support missing: %s\n",
+				Encryption::to_string(m_type));
 #endif /* !UNIV_INNOCHECKSUM */
+		}
 
 		if (block != NULL) {
 			os_free_block(block);
