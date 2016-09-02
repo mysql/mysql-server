@@ -1342,8 +1342,9 @@ bool upgrade_fill_dd_and_finalize(THD *thd)
   }
 
   // Write the server version to indicate completion of upgrade.
-  dd::String_type update_version_query= "UPDATE mysql.version SET version=" +
-                                    std::to_string(d->get_target_dd_version());
+  dd::String_type update_version_query= "UPDATE mysql.version SET version=";
+  std::string tdv= std::to_string(d->get_target_dd_version());
+  update_version_query.append(tdv.begin(), tdv.end());
 
   error= execute_query(thd, update_version_query);
   // Commit the statement based population.

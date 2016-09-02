@@ -1798,13 +1798,14 @@ public:
   If an error occurs, no object is allocated.
 
   @param[in] srid Spatial reference system ID to use when reporting errors
-  @param[in] str WKT string in UTF-8
+  @param[in] begin Start of WKT string in UTF-8
+  @param[in] end End of WKT string
   @param[out] result Spatial reference system
 
   @retval true An error has occurred
   @retval false Success
 */
-bool parse_wkt(srid_t srid, std::string *str,
+bool parse_wkt(srid_t srid, const char *begin, const char *end,
                Spatial_reference_system **result);
 
 }}

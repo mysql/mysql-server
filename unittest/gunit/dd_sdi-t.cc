@@ -71,7 +71,7 @@ static void mock_properties(dd::Properties &p, uint64 size)
 {
   for (uint64 i= 0; i < size; ++i)
   {
-    p.set_uint64(boost::lexical_cast<std::string>(i), i);
+    p.set_uint64(boost::lexical_cast<dd::String_type>(i), i);
   }
 }
 
@@ -265,23 +265,23 @@ private:
 };
 
 
-bool diff(const std::string &expected, std::string actual)
+bool diff(const dd::String_type &expected, dd::String_type actual)
 {
   if (actual == expected)
   {
     return false;
   }
-  typedef std::string::const_iterator csit_t;
+  typedef dd::String_type::const_iterator csit_t;
   typedef std::pair<csit_t, csit_t> diff_t_;
   csit_t expected_end= expected.end();
   actual.resize(expected.size());
   csit_t actual_end= actual.end();
   diff_t_ diff= std::mismatch(expected.begin(), expected.end(), actual.begin());
 
-  std::cout << std::string(expected.begin(), diff.first) << "\n@ offset "
+  std::cout << dd::String_type(expected.begin(), diff.first) << "\n@ offset "
             << diff.first - expected.begin() << ":\n< "
-            << std::string(diff.first, expected_end) << "\n---\n> " <<
-    std::string(diff.second, actual_end) << std::endl;
+            << dd::String_type(diff.first, expected_end) << "\n---\n> " <<
+    dd::String_type(diff.second, actual_end) << std::endl;
   return true;
 }
 
@@ -300,17 +300,17 @@ void deserialize_callback(dd::Sdi_rcontext *rctx, dd::Weak_object *wo,
 }
 
 template <typename T>
-std::string serialize(const T *dd_obj)
+dd::String_type serialize(const T *dd_obj)
 {
   dd::RJ_StringBuffer buf;
   dd::Sdi_writer w(buf);
   setup_wctx(serialize_callback<T>, dd_obj, &w);
-  return std::string(buf.GetString(), buf.GetSize());
+  return dd::String_type(buf.GetString(), buf.GetSize());
 }
 
 
 template <typename T>
-T* deserialize(const std::string &sdi)
+T* deserialize(const dd::String_type &sdi)
 {
   T *dst_obj= dd::create_object<T>();
   dd::RJ_Document doc;
@@ -320,12 +320,12 @@ T* deserialize(const std::string &sdi)
 }
 
 template <class T>
-std::string api_serialize(const T *tp)
+dd::String_type api_serialize(const T *tp)
 {
   return dd::serialize(*tp);
 }
 
-std::string api_serialize(const dd::Table *table)
+dd::String_type api_serialize(const dd::Table *table)
 {
   return dd::serialize(nullptr, *table, "api_schema");
 }
@@ -333,12 +333,12 @@ std::string api_serialize(const dd::Table *table)
 
 template <typename T>
 void verify(T *dd_obj) {
-  std::string sdi= serialize(dd_obj);
+  dd::String_type sdi= serialize(dd_obj);
 //  std::cout << "Verifying json: \n" << sdi << std::endl;
   ASSERT_GT(sdi.size(), 0u);
 // Commented out due to UB when accessing DOM after deserialization
 //  std::unique_ptr<T> dst_obj(deserialize<T>(sdi));
-//  std::string dst_sdi= serialize(dst_obj.get());
+//  dd::String_type dst_sdi= serialize(dst_obj.get());
 //  EXPECT_EQ(dst_sdi, sdi);
 }
 
@@ -468,7 +468,7 @@ TEST(SdiTest, Serialization_perf)
 
   for (int i= 0; i < 1; ++i)
   {
-    std::string sdi= dd::serialize(nullptr, *t, "perftest");
+    dd::String_type sdi= dd::serialize(nullptr, *t, "perftest");
     EXPECT_GT(sdi.size(), 100000u);
   }
 }

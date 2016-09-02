@@ -5284,12 +5284,12 @@ String *Item_func_get_dd_create_options::val_str(String *str)
 
     if (p->exists("compress"))
     {
-      std::string opt_value;
+      dd::String_type opt_value;
       p->get("compress", opt_value);
       if (!opt_value.empty())
       {
         if (opt_value.size() > 7)
-          opt_value.erase(7, std::string::npos);
+          opt_value.erase(7, dd::String_type::npos);
         ptr=my_stpcpy(ptr, " COMPRESSION=\"");
         ptr=my_stpcpy(ptr, opt_value.c_str());
         ptr=my_stpcpy(ptr, "\"");

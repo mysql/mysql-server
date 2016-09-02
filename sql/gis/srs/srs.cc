@@ -1151,10 +1151,10 @@ static bool create_projected_srs(srid_t srid,
 }
 
 
-bool gis::srs::parse_wkt(srid_t srid, std::string *str,
+bool gis::srs::parse_wkt(srid_t srid, const char *begin, const char *end,
                          Spatial_reference_system **result)
 {
-  if (str == nullptr || str->empty())
+  if (begin == nullptr || begin == end)
   {
     my_error(ER_SRS_PARSE_ERROR, MYF(0), srid);
     return true;
@@ -1163,7 +1163,7 @@ bool gis::srs::parse_wkt(srid_t srid, std::string *str,
   namespace wp = gis::srs::wkt_parser;
 
   wp::Coordinate_system cs;
-  bool res= wp::parse_wkt(srid, str, &cs);
+  bool res= wp::parse_wkt(srid, begin, end, &cs);
 
   if (!res)
   {

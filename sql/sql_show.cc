@@ -3706,12 +3706,12 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
       return 2;
     }
 
-    std::vector<std::string> component_names;
+    std::vector<dd::String_type> component_names;
     if (thd->dd_client()->fetch_schema_component_names<dd::Abstract_table>(sch_obj,
       &component_names))
       return 1;
 
-    for(std::vector<std::string>::const_iterator name= component_names.begin();
+    for(std::vector<dd::String_type>::const_iterator name= component_names.begin();
         name != component_names.end(); ++name)
     {
       if (lookup_field_vals->table_value.str)
@@ -8388,7 +8388,7 @@ TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name)
     return nullptr;
   }
 
-  std::string table_name;
+  dd::String_type table_name;
   if (dd_client->get_table_name_by_trigger_name(sch_obj->id(),
                                                 trg_name->m_name.str,
                                                 &table_name))

@@ -74,7 +74,11 @@ bool Spatial_reference_system_impl::restore_attributes(const Raw_record &r)
 
   gis::srs::Spatial_reference_system *srs= nullptr;
   // parse_wkt() will only allocate memory if successful.
-  error= gis::srs::parse_wkt(id(), &m_definition, &srs);
+  error=
+    gis::srs::parse_wkt(id(),
+                        &m_definition.front(),
+                        &m_definition.back()+1,
+                        &srs);
   if (!error)
     m_parsed_definition.reset(srs);
 
@@ -134,7 +138,11 @@ bool Spatial_reference_system_impl::deserialize(Sdi_rcontext *rctx,
 
   gis::srs::Spatial_reference_system *srs= nullptr;
   // parse_wkt() will only allocate memory if successful.
-  bool error= gis::srs::parse_wkt(id(), &m_definition, &srs);
+  bool error=
+    gis::srs::parse_wkt(id(),
+                        &m_definition.front(),
+                        &m_definition.back()+1,
+                        &srs);
   if (!error)
     m_parsed_definition.reset(srs);
 

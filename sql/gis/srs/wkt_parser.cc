@@ -315,24 +315,24 @@ struct Grammar : qi::grammar<Iterator, Coordinate_system(), Skipper>
 
 bool gis::srs::wkt_parser::parse_wkt(
   srid_t srid,
-  std::string *str,
+  const char *begin,
+  const char *end,
   gis::srs::wkt_parser::Coordinate_system *cs)
 {
   // gis::srs::parse_wkt() should have filtered these out already
-  DBUG_ASSERT(str != nullptr && !str->empty());
+  DBUG_ASSERT(begin != nullptr && begin != end);
 
   namespace wp= gis::srs::wkt_parser;
 
   bool res= false;
-  std::string::iterator it= str->begin();
-  std::string::iterator end= str->end();
+  const char *it= begin;
 
-  std::string::iterator delimiter= str->end();
+  const char *delimiter= end;
   delimiter--;
-  while (delimiter > str->begin() && std::isspace(*delimiter))
+  while (delimiter > begin && std::isspace(*delimiter))
     delimiter--;
 
-  wp::Grammar<std::string::iterator,
+  wp::Grammar<decltype(delimiter),
               boost::spirit::ascii::space_type> g(*delimiter);
 
   try
