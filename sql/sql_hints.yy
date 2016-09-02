@@ -63,6 +63,10 @@
 %token SUBQUERY_HINT
 %token DERIVED_MERGE_HINT
 %token NO_DERIVED_MERGE_HINT
+%token JOIN_PREFIX_HINT
+%token JOIN_SUFFIX_HINT
+%token JOIN_ORDER_HINT
+%token JOIN_FIXED_ORDER_HINT
 
 /* Other tokens */
 
@@ -283,6 +287,55 @@ qb_level_hint:
           SUBQUERY_HINT '(' opt_qb_name subquery_strategy ')'
           {
             $$= NEW_PTN PT_qb_level_hint($3, TRUE, SUBQUERY_HINT_ENUM, $4);
+            if ($$ == NULL)
+              YYABORT; // OOM
+          }
+          |
+          JOIN_PREFIX_HINT '(' opt_hint_param_table_list ')'
+          {
+            $$= NEW_PTN PT_qb_level_hint(NULL_CSTR, TRUE, JOIN_PREFIX_HINT_ENUM, $3);
+            if ($$ == NULL)
+              YYABORT; // OOM
+          }
+          |
+          JOIN_PREFIX_HINT '(' HINT_ARG_QB_NAME opt_hint_param_table_list_empty_qb ')'
+          {
+            $$= NEW_PTN PT_qb_level_hint($3, TRUE, JOIN_PREFIX_HINT_ENUM, $4);
+            if ($$ == NULL)
+              YYABORT; // OOM
+          }
+          |
+          JOIN_SUFFIX_HINT '(' opt_hint_param_table_list ')'
+          {
+            $$= NEW_PTN PT_qb_level_hint(NULL_CSTR, TRUE, JOIN_SUFFIX_HINT_ENUM, $3);
+            if ($$ == NULL)
+              YYABORT; // OOM
+          }
+          |
+          JOIN_SUFFIX_HINT '(' HINT_ARG_QB_NAME opt_hint_param_table_list_empty_qb ')'
+          {
+            $$= NEW_PTN PT_qb_level_hint($3, TRUE, JOIN_SUFFIX_HINT_ENUM, $4);
+            if ($$ == NULL)
+              YYABORT; // OOM
+          }
+          |
+          JOIN_ORDER_HINT '(' opt_hint_param_table_list ')'
+          {
+            $$= NEW_PTN PT_qb_level_hint(NULL_CSTR, TRUE, JOIN_ORDER_HINT_ENUM, $3);
+            if ($$ == NULL)
+              YYABORT; // OOM
+          }
+          |
+          JOIN_ORDER_HINT '(' HINT_ARG_QB_NAME opt_hint_param_table_list_empty_qb ')'
+          {
+            $$= NEW_PTN PT_qb_level_hint($3, TRUE, JOIN_ORDER_HINT_ENUM, $4);
+            if ($$ == NULL)
+              YYABORT; // OOM
+          }
+          |
+          JOIN_FIXED_ORDER_HINT '(' opt_qb_name  ')'
+          {
+            $$= NEW_PTN PT_qb_level_hint($3, TRUE, JOIN_FIXED_ORDER_HINT_ENUM, 0);
             if ($$ == NULL)
               YYABORT; // OOM
           }

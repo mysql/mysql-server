@@ -121,6 +121,8 @@ class PT_qb_level_hint : public PT_hint
   const LEX_CSTRING qb_name;
   /** Bit mask of arguments to hint. */
   uint args;
+  /** List of tables specified in join order hint */
+  Hint_param_table_list table_list;
 
   typedef PT_hint super;
 public:
@@ -128,6 +130,13 @@ public:
                    enum opt_hints_enum hint_type_arg, uint arg)
     : PT_hint(hint_type_arg, switch_state_arg),
       qb_name(qb_name_arg), args(arg)
+  {}
+
+  PT_qb_level_hint(const LEX_CSTRING qb_name_arg, bool switch_state_arg,
+                   enum opt_hints_enum hint_type_arg,
+                   const Hint_param_table_list &table_list_arg)
+    : PT_hint(hint_type_arg, switch_state_arg),
+    qb_name(qb_name_arg), args(0), table_list(table_list_arg)
   {}
 
   uint get_args() const { return args; }
@@ -150,6 +159,10 @@ public:
     @param str             Pointer to String object
   */
   virtual void append_args(THD *thd, String *str) const;
+  virtual Hint_param_table_list *get_table_list()
+  {
+    return &table_list;
+  }
 };
 
 

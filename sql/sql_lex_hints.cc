@@ -157,6 +157,10 @@ void Hint_scanner::add_hint_token_digest()
       case SUBQUERY_HINT:
       case DERIVED_MERGE_HINT:
       case NO_DERIVED_MERGE_HINT:
+      case JOIN_PREFIX_HINT:
+      case JOIN_SUFFIX_HINT:
+      case JOIN_ORDER_HINT:
+      case JOIN_FIXED_ORDER_HINT:
         break;
       default:
         DBUG_ASSERT(false);
