@@ -1370,11 +1370,14 @@ void Field_num::prepend_zeros(String *value)
   int diff;
   if ((diff= (int) (field_length - value->length())) > 0)
   {
-    memmove(const_cast<char*>(value->ptr()) + field_length - value->length(),
-            value->ptr(), value->length());
-    memset(const_cast<char*>(value->ptr()), '0', diff);
-    value->length(field_length);
-    (void) value->c_ptr_quick();		// Avoid warnings in purify
+    const bool error= value->mem_realloc(field_length);
+    if (!error)
+    {
+      memmove(const_cast<char*>(value->ptr()) + field_length - value->length(),
+              value->ptr(), value->length());
+      memset(const_cast<char*>(value->ptr()), '0', diff);
+      value->length(field_length);
+    }
   }
 }
 
