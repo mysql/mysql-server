@@ -18519,10 +18519,11 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
     if (old_tab->getFullyReplicated() &&
         (!mod_read_backup->m_val_bool))
     {
-      int res = HA_ALTER_INPLACE_NOT_SUPPORTED;
-      set_my_errno(res);
-      my_error(res, MYF(0), 0);
-      return true;
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
+               "ALGORITHM=INPLACE",
+               "READ_BACKUP off with FULLY_REPLICATED on",
+               "ALGORITHM=COPY");
+      DBUG_RETURN(true);
     }
     new_tab->setReadBackupFlag(mod_read_backup->m_val_bool);
   }
@@ -18537,14 +18538,15 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
       my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
                ndbcluster_hton_name,
          "FULLY_REPLICATED not supported by current data node versions");
-      return true;
+      DBUG_RETURN(true);
     }
     if (!old_tab->getFullyReplicated())
     {
-      int res = HA_ALTER_INPLACE_NOT_SUPPORTED;
-      set_my_errno(res);
-      my_error(res, MYF(0), 0);
-      return true;
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
+               "ALGORITHM=INPLACE",
+               "Turning FULLY_REPLICATED on after create",
+               "ALGORITHM=COPY");
+      DBUG_RETURN(true);
     }
   }
   /**
@@ -18577,10 +18579,11 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
        * We cannot change partition balance inplace for fully
        * replicated tables.
        */
-      int res = HA_ALTER_INPLACE_NOT_SUPPORTED;
-      set_my_errno(res);
-      my_error(res, MYF(0), 0);
-      return true; /* Error */
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
+               "ALGORITHM=INPLACE",
+               "Changing PARTITION_BALANCE with FULLY_REPLICATED on",
+               "ALGORITHM=COPY");
+      DBUG_RETURN(true); /* Error */
     }
     max_rows_changed = false;
   }

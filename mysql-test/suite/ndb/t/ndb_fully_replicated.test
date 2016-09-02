@@ -65,6 +65,32 @@ alter table t1 algorithm=copy;
 --let ndb_desc_opts= -d test t1
 --source suite/ndb/include/ndb_desc_print.inc
 
+drop table t1;
+
+###
+#
+# illegal alter tables
+#
+create table t1 (
+  x int primary key,
+  y blob,
+  z int,
+  unique key (z)
+) engine=ndbcluster;
+
+--error 1846
+alter table t1 algorithm=inplace, comment="NDB_TABLE=FULLY_REPLICATED=1";
+alter table t1 algorithm=copy, comment="NDB_TABLE=FULLY_REPLICATED=1";
+
+--error 1846
+alter table t1 algorithm=inplace, comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+
+--error 1846
+alter table t1 algorithm=inplace, comment="NDB_TABLE=READ_BACKUP=0";
+
+drop table t1;
+
+###
 #
 # illegal creates
 #
@@ -87,6 +113,3 @@ create table t2 (
 ENGINE=ndbcluster
 comment='NDB_TABLE=FULLY_REPLICATED=1'
 PARTITION BY HASH(b);
-
-drop table t1;
-
