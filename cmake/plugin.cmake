@@ -188,7 +188,7 @@ MACRO(MYSQL_ADD_PLUGIN)
         PARENT_SCOPE)
     ENDIF()
 
-  ELSEIF(NOT WITHOUT_${plugin} AND NOT ARG_STATIC_ONLY  AND NOT WITHOUT_DYNAMIC_PLUGINS)
+  ELSEIF(NOT WITHOUT_${plugin} AND NOT ARG_STATIC_ONLY  AND NOT DISABLE_SHARED)
     IF(NOT ARG_MODULE_OUTPUT_NAME)
       IF(ARG_STORAGE_ENGINE)
         SET(ARG_MODULE_OUTPUT_NAME "ha_${target}")
@@ -204,15 +204,6 @@ MACRO(MYSQL_ADD_PLUGIN)
       COMPILE_DEFINITIONS "MYSQL_DYNAMIC_PLUGIN")
     TARGET_LINK_LIBRARIES (${target} mysqlservices)
 
-    GET_TARGET_PROPERTY(LINK_FLAGS ${target} LINK_FLAGS)
-    IF(NOT LINK_FLAGS)
-      # Avoid LINK_FLAGS-NOTFOUND
-      SET(LINK_FLAGS)
-    ENDIF()
-    SET_TARGET_PROPERTIES(${target} PROPERTIES
-      LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS} ${LINK_FLAGS} "
-    )
-
     # Plugin uses symbols defined in mysqld executable.
     # Some operating systems like Windows and OSX and are pretty strict about 
     # unresolved symbols. Others are less strict and allow unresolved symbols
@@ -221,7 +212,7 @@ MACRO(MYSQL_ADD_PLUGIN)
     # Thus we skip TARGET_LINK_LIBRARIES on Linux, as it would only generate
     # an additional dependency.
     # Use MYSQL_PLUGIN_IMPORT for static data symbols to be exported.
-    IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    IF(WIN32 OR APPLE)
       TARGET_LINK_LIBRARIES (${target} mysqld ${ARG_LINK_LIBRARIES})
     ENDIF()
     ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
@@ -273,10 +264,12 @@ ENDMACRO()
 # subdirectories, configure sql_builtin.cc
 MACRO(CONFIGURE_PLUGINS)
   FILE(GLOB dirs_storage ${CMAKE_SOURCE_DIR}/storage/*)
-  FILE(GLOB dirs_plugin ${CMAKE_SOURCE_DIR}/plugin/*)
-  IF(WITH_RAPID)
-    FILE(GLOB dirs_rapid_plugin ${CMAKE_SOURCE_DIR}/rapid/plugin/*)
-  ENDIF(WITH_RAPID)
+  IF(NOT DISABLE_SHARED)
+    FILE(GLOB dirs_plugin ${CMAKE_SOURCE_DIR}/plugin/*)
+    IF(WITH_RAPID)
+      FILE(GLOB dirs_rapid_plugin ${CMAKE_SOURCE_DIR}/rapid/plugin/*)
+    ENDIF(WITH_RAPID)
+  ENDIF()
   
   FOREACH(dir ${dirs_storage} ${dirs_plugin} ${dirs_rapid_plugin})
     IF (EXISTS ${dir}/CMakeLists.txt)

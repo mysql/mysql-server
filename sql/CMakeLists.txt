@@ -627,14 +627,11 @@ IF(APPLE)
   ENDIF() 
 ENDIF() 
 
-IF(NOT WITHOUT_DYNAMIC_PLUGINS)
+IF(NOT DISABLE_SHARED)
   SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
   GET_TARGET_PROPERTY(mysqld_link_flags mysqld LINK_FLAGS)
   IF(NOT mysqld_link_flags)
     SET(mysqld_link_flags)
-  ENDIF()
-  IF (MINGW)
-    SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "${mysqld_link_flags} -Wl,--export-all-symbols")
   ENDIF()
   IF(MSVC)
     # Set module definition file.
@@ -651,10 +648,7 @@ IF(NOT WITHOUT_DYNAMIC_PLUGINS)
       FILE(TO_NATIVE_PATH ${LOC} LOC)
       SET (LIB_LOCATIONS ${LIB_LOCATIONS} ${LOC}) 
     ENDFOREACH (CORELIB ${MYSQLD_CORE_LIBS})
-    SET(_PLATFORM x86)
-    IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
-      SET(_PLATFORM  x64)
-    ENDIF()
+    SET(_PLATFORM  x64)
     ADD_CUSTOM_COMMAND(TARGET mysqld PRE_LINK
       COMMAND echo ${_PLATFORM} && cscript ARGS //nologo ${PROJECT_SOURCE_DIR}/win/create_def_file.js
                   ${_PLATFORM}  ${LIB_LOCATIONS} > mysqld.def 
@@ -666,18 +660,7 @@ ENDIF()
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
 TARGET_LINK_LIBRARIES(mysqld sql binlog rpl master slave sql mysys mysys_ssl binlogevents_static)
 
-# Provide plugins with minimal set of libraries
-SET(INTERFACE_LIBS ${LIBRT})
-IF(INTERFACE_LIBS)
- SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_INTERFACE_LIBRARIES 
-  "${INTERFACE_LIBS}")
-ENDIF()
-
-# On Solaris, some extra effort is required in order to get dtrace probes
-# from static libraries
-DTRACE_INSTRUMENT_STATIC_LIBS(mysqld 
- "sql;mysys;mysys_ssl;${MYSQLD_STATIC_PLUGIN_LIBS};${MYSQLD_STATIC_COMPONENT_LIBS}")
- 
+DTRACE_INSTRUMENT(mysqld) 
 
 SET(WITH_MYSQLD_LDFLAGS "" CACHE STRING "Additional linker flags for mysqld")
 MARK_AS_ADVANCED(WITH_MYSQLD_LDFLAGS)
@@ -779,8 +762,6 @@ IF(NOT DISABLE_SHARED)
   ELSE()
     # udf_example is using safemutex exported by mysqld
     TARGET_LINK_LIBRARIES(udf_example mysqld)
-    SET_TARGET_PROPERTIES(udf_example
-      PROPERTIES LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS}")
   ENDIF()
 ENDIF()
 
@@ -791,9 +772,6 @@ IF(NOT DISABLE_SHARED)
     SET_TARGET_PROPERTIES(locking_service
       PROPERTIES LINK_FLAGS
       "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/locking_service.def")
-  ELSE()
-    SET_TARGET_PROPERTIES(locking_service
-      PROPERTIES LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS}")
   ENDIF()
 ENDIF()
 

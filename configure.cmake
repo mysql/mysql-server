@@ -25,24 +25,6 @@ INCLUDE (CheckCXXSourceRuns)
 INCLUDE (CheckSymbolExists)
 
 
-# WITH_PIC options.Not of much use, PIC is taken care of on platforms
-# where it makes sense anyway.
-IF(UNIX)
-  IF(APPLE)  
-    # OSX  executable are always PIC
-    SET(WITH_PIC ON)
-  ELSE()
-    OPTION(WITH_PIC "Generate PIC objects" OFF)
-    IF(WITH_PIC)
-      SET(CMAKE_C_FLAGS 
-        "${CMAKE_C_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS}")
-      SET(CMAKE_CXX_FLAGS 
-        "${CMAKE_CXX_FLAGS} ${CMAKE_SHARED_LIBRARY_CXX_FLAGS}")
-    ENDIF()
-  ENDIF()
-ENDIF()
-
-
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCXX)
   ## We will be using gcc to generate .so files
   ## Add C flags (e.g. -m64) to CMAKE_SHARED_LIBRARY_C_FLAGS
@@ -204,17 +186,6 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
   SET(QUOTED_CMAKE_CXX_LINK_FLAGS
     "${QUOTED_CMAKE_CXX_LINK_FLAGS} -lstdc++ -lgcc_s -lCrunG3 -lc ")
 ENDIF()
-
-IF(CMAKE_COMPILER_IS_GNUCXX)
-  IF (CMAKE_EXE_LINKER_FLAGS MATCHES " -static " 
-     OR CMAKE_EXE_LINKER_FLAGS MATCHES " -static$")
-     SET(WITHOUT_DYNAMIC_PLUGINS TRUE)
-  ENDIF()
-ENDIF()
-
-IF(WITHOUT_DYNAMIC_PLUGINS)
-  MESSAGE("Dynamic plugins are disabled.")
-ENDIF(WITHOUT_DYNAMIC_PLUGINS)
 
 # Same for structs, setting HAVE_STRUCT_<name> instead
 FUNCTION(MY_CHECK_STRUCT_SIZE type defbase)
