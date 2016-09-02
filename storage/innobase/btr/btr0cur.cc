@@ -3874,6 +3874,7 @@ btr_cur_update_in_place(
 		rw_lock_x_lock(btr_get_search_latch(index));
 	}
 
+	assert_block_ahi_valid(block);
 	row_upd_rec_in_place(rec, index, offsets, update, page_zip);
 
 	if (is_hashed) {

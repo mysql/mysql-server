@@ -878,6 +878,7 @@ buf_block_modify_clock_inc(
 					     RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
 	}
 #endif /* UNIV_DEBUG */
+	assert_block_ahi_valid(block);
 
 	block->modify_clock++;
 }
