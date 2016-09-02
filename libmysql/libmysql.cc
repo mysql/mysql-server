@@ -765,7 +765,7 @@ MYSQL_FIELD *cli_list_fields(MYSQL *mysql)
     return NULL;
 
   mysql->field_count= (uint) query->rows;
-  result= unpack_fields(mysql, query->data,&mysql->field_alloc,
+  result= unpack_fields(mysql, query->data, mysql->field_alloc,
                         mysql->field_count, 1, mysql->server_capabilities);
   free_rows(query);
   return result;
@@ -784,6 +784,7 @@ mysql_list_fields(MYSQL *mysql, const char *table, const char *wild)
 {
   MYSQL_RES   *result;
   MYSQL_FIELD *fields;
+  MEM_ROOT    *new_root;
   char	     buff[258],*end;
   DBUG_ENTER("mysql_list_fields");
   DBUG_PRINT("enter",("table: '%s'  wild: '%s'",table,wild ? wild : ""));
@@ -795,14 +796,23 @@ mysql_list_fields(MYSQL *mysql, const char *table, const char *wild)
       !(fields= (*mysql->methods->list_fields)(mysql)))
     DBUG_RETURN(NULL);
 
+  if (!(new_root = (MEM_ROOT *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                          sizeof(MEM_ROOT),
+					  MYF(MY_WME | MY_ZEROFILL))))
+    DBUG_RETURN(NULL);
   if (!(result = (MYSQL_RES *) my_malloc(PSI_NOT_INSTRUMENTED,
                                          sizeof(MYSQL_RES),
 					 MYF(MY_WME | MY_ZEROFILL))))
+  {
+    my_free(new_root);
     DBUG_RETURN(NULL);
+  }
+
 
   result->methods= mysql->methods;
-  result->field_alloc= std::move(mysql->field_alloc);
+  result->field_alloc= mysql->field_alloc;
   mysql->fields=0;
+  mysql->field_alloc= new_root;
   result->field_count = mysql->field_count;
   result->fields= fields;
   result->eof=1;
@@ -1474,7 +1484,7 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
     if (!(cli_read_metadata(mysql, param_count, 7)))
       DBUG_RETURN(1);
     /* free memory allocated by cli_read_metadata() for parameters data */
-    free_root(&mysql->field_alloc, MYF(0));
+    free_root(mysql->field_alloc, MYF(0));
   }
 
   if (field_count != 0)
@@ -1483,7 +1493,7 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
       mysql->server_status|= SERVER_STATUS_IN_TRANS;
 
     MYSQL_TRACE_STAGE(mysql, WAIT_FOR_FIELD_DEF);
-    if (!(stmt->fields= cli_read_metadata_ex(mysql, &stmt->mem_root,
+    if (!(stmt->fields= cli_read_metadata_ex(mysql, stmt->mem_root,
                                              field_count, 7)))
       DBUG_RETURN(1);
   }
@@ -1543,16 +1553,24 @@ mysql_stmt_init(MYSQL *mysql)
       !(stmt->extension=
           (MYSQL_STMT_EXT *) my_malloc(PSI_NOT_INSTRUMENTED,
                                        sizeof (MYSQL_STMT_EXT),
-                                       MYF(MY_WME | MY_ZEROFILL))))
+                                       MYF(MY_WME | MY_ZEROFILL))) ||
+      !(stmt->mem_root=
+          (MEM_ROOT *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                 sizeof (MEM_ROOT),
+                                 MYF(MY_WME | MY_ZEROFILL))) ||
+      !(stmt->result.alloc=
+          (MEM_ROOT *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                 sizeof (MEM_ROOT),
+                                 MYF(MY_WME | MY_ZEROFILL))))
   {
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
     my_free(stmt);
     DBUG_RETURN(NULL);
   }
 
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &stmt->mem_root, 2048, 2048);
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &stmt->result.alloc, 4096, 4096);
-  stmt->result.alloc.min_malloc= sizeof(MYSQL_ROWS);
+  init_alloc_root(PSI_NOT_INSTRUMENTED, stmt->mem_root, 2048, 2048);
+  init_alloc_root(PSI_NOT_INSTRUMENTED, stmt->result.alloc, 4096, 4096);
+  stmt->result.alloc->min_malloc= sizeof(MYSQL_ROWS);
   mysql->stmts= list_add(mysql->stmts, &stmt->list);
   stmt->list.data= stmt;
   stmt->state= MYSQL_STMT_INIT_DONE;
@@ -1635,7 +1653,7 @@ mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, ulong length)
     */
     stmt->bind_param_done= stmt->bind_result_done= FALSE;
     stmt->param_count= stmt->field_count= 0;
-    free_root(&stmt->mem_root, MYF(MY_KEEP_PREALLOC));
+    free_root(stmt->mem_root, MYF(MY_KEEP_PREALLOC));
     free_root(&stmt->extension->fields_mem_root, MYF(0));
 
     int4store(buff, stmt->stmt_id);
@@ -1673,7 +1691,7 @@ mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, ulong length)
     or stmt->params when checking for existence of placeholders or
     result set.
   */
-  if (!(stmt->params= (MYSQL_BIND *) alloc_root(&stmt->mem_root,
+  if (!(stmt->params= (MYSQL_BIND *) alloc_root(stmt->mem_root,
 						sizeof(MYSQL_BIND)*
                                                 (stmt->param_count +
                                                  stmt->field_count))))
@@ -2098,7 +2116,7 @@ static inline int add_binary_row(NET *net, MYSQL_STMT *stmt, ulong pkt_len, MYSQ
   MYSQL_ROWS *row;
   uchar *cp= net->read_pos;
   MYSQL_DATA *result= &stmt->result;
-  if (!(row= (MYSQL_ROWS*) alloc_root(&result->alloc,
+  if (!(row= (MYSQL_ROWS*) alloc_root(result->alloc,
                                       sizeof(MYSQL_ROWS) + pkt_len - 1)))
   {
     set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate, NULL);
@@ -2392,7 +2410,7 @@ stmt_read_row_from_cursor(MYSQL_STMT *stmt, unsigned char **row)
     uchar buff[4 /* statement id */ +
                4 /* number of rows to fetch */];
 
-    free_root(&result->alloc, MYF(MY_KEEP_PREALLOC));
+    free_root(result->alloc, MYF(MY_KEEP_PREALLOC));
     result->data= NULL;
     result->rows= 0;
     /* Send row request to the server */
@@ -4615,7 +4633,7 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
 
   if ((*mysql->methods->read_binary_rows)(stmt))
   {
-    free_root(&result->alloc, MYF(MY_KEEP_PREALLOC));
+    free_root(result->alloc, MYF(MY_KEEP_PREALLOC));
     result->data= NULL;
     result->rows= 0;
     mysql->status= MYSQL_STATUS_READY;
@@ -4727,7 +4745,7 @@ static my_bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags)
     if (flags & RESET_STORE_RESULT)
     {
       /* Result buffered */
-      free_root(&result->alloc, MYF(MY_KEEP_PREALLOC));
+      free_root(result->alloc, MYF(MY_KEEP_PREALLOC));
       result->data= NULL;
       result->rows= 0;
       stmt->data_cursor= NULL;
@@ -4810,8 +4828,8 @@ my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
   int rc= 0;
   DBUG_ENTER("mysql_stmt_close");
 
-  free_root(&stmt->result.alloc, MYF(0));
-  free_root(&stmt->mem_root, MYF(0));
+  free_root(stmt->result.alloc, MYF(0));
+  free_root(stmt->mem_root, MYF(0));
   free_root(&stmt->extension->fields_mem_root, MYF(0));
 
   if (mysql)
@@ -4847,6 +4865,8 @@ my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
     }
   }
 
+  my_free(stmt->result.alloc);
+  my_free(stmt->mem_root);
   my_free(stmt->extension);
   my_free(stmt);
 

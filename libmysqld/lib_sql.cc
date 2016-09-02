@@ -99,7 +99,8 @@ static void embedded_get_error(MYSQL *mysql, MYSQL_DATA *data)
   strmake(net->last_error, ei->info, sizeof(net->last_error)-1);
   memcpy(net->sqlstate, ei->sqlstate, sizeof(net->sqlstate));
   mysql->server_status= ei->server_status;
-  free_root(&data->alloc, MYF(0));
+  free_root(data->alloc, MYF(0));
+  my_free(data->alloc);
   my_free(data);
 }
 
@@ -234,7 +235,7 @@ static MYSQL_FIELD *emb_list_fields(MYSQL *mysql)
     return 0;
   res= ((THD*) mysql->thd)->cur_data;
   ((THD*) mysql->thd)->cur_data= 0;
-  mysql->field_alloc= std::move(res->alloc);
+  mysql->field_alloc= res->alloc;
   my_free(res);
   mysql->status= MYSQL_STATUS_READY;
   return mysql->fields;
@@ -262,7 +263,7 @@ static my_bool emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
       mysql->server_status|= SERVER_STATUS_IN_TRANS;
 
     stmt->fields= mysql->fields;
-    stmt->mem_root= std::move(res->alloc);
+    stmt->mem_root= res->alloc;
     mysql->fields= NULL;
     my_free(res);
   }
@@ -321,7 +322,10 @@ static my_bool emb_read_query_result(MYSQL *mysql)
     thd->cur_data= res;
   }
   else
+  {
+    my_free(res->alloc);
     my_free(res);
+  }
 
   return 0;
 }
@@ -376,6 +380,7 @@ static int emb_read_binary_rows(MYSQL_STMT *stmt)
     return 1;
   }
   stmt->result= std::move(*data);
+  my_free(data->alloc);
   my_free(data);
   set_stmt_errmsg(stmt, &stmt->mysql->net);
   return 0;
@@ -717,7 +722,7 @@ void init_embedded_mysql(MYSQL *mysql, int client_flag)
   thd->mysql= mysql;
   mysql->server_version= server_version;
   mysql->client_flag= client_flag;
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &mysql->field_alloc, 8192, 0);
+  init_alloc_root(PSI_NOT_INSTRUMENTED, mysql->field_alloc, 8192, 0);
 }
 
 /**
@@ -957,6 +962,12 @@ static char *dup_str_aux(MEM_ROOT *root, const char *from, size_t length,
 
 MYSQL_DATA *THD::alloc_new_dataset()
 {
+  MEM_ROOT *alloc = (MEM_ROOT *)my_malloc(PSI_NOT_INSTRUMENTED,
+                                          sizeof(MEM_ROOT),
+                                          MYF(MY_WME | MY_ZEROFILL));
+  if (alloc == nullptr)
+    return nullptr;
+
   MYSQL_DATA *data;
   struct embedded_query_result *emb_data;
   if (!my_multi_malloc(PSI_NOT_INSTRUMENTED,
@@ -964,13 +975,17 @@ MYSQL_DATA *THD::alloc_new_dataset()
                        &data, sizeof(*data),
                        &emb_data, sizeof(*emb_data),
                        NULL))
-    return NULL;
+  {
+    my_free(alloc);
+    return nullptr;
+  }
 
   emb_data->prev_ptr= &data->data;
   cur_data= data;
   *data_tail= data;
   data_tail= &emb_data->next;
   data->embedded_info= emb_data;
+  data->alloc= alloc;
   return data;
 }
 
@@ -1024,7 +1039,7 @@ int Protocol_classic::begin_dataset()
   MYSQL_DATA *data= m_thd->alloc_new_dataset();
   if (!data)
     return 1;
-  alloc= &data->alloc;
+  alloc= data->alloc;
   init_alloc_root(PSI_NOT_INSTRUMENTED, alloc, 8192, 0); /* Assume rowlength < 8192 */
   alloc->min_malloc=sizeof(MYSQL_ROWS);
   return 0;
@@ -1174,7 +1189,7 @@ bool Protocol_classic::start_result_metadata(uint num_cols, uint flags,
   sending_flags= flags;
   data= m_thd->cur_data;
   data->fields= field_count= num_cols;
-  field_alloc= &data->alloc;
+  field_alloc= data->alloc;
 
   client_field=
     (MYSQL_FIELD *) alloc_root(field_alloc, sizeof(MYSQL_FIELD) * field_count);
