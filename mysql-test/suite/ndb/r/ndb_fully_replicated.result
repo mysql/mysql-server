@@ -131,6 +131,21 @@ b(b, a) - OrderedIndex
 
 NDBT_ProgramExit: 0 - OK
 
+drop table t1;
+create table t1 (
+x int primary key,
+y blob,
+z int,
+unique key (z)
+) engine=ndbcluster;
+alter table t1 algorithm=inplace, comment="NDB_TABLE=FULLY_REPLICATED=1";
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Turning FULLY_REPLICATED on after create. Try ALGORITHM=COPY.
+alter table t1 algorithm=copy, comment="NDB_TABLE=FULLY_REPLICATED=1";
+alter table t1 algorithm=inplace, comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Changing PARTITION_BALANCE with FULLY_REPLICATED on. Try ALGORITHM=COPY.
+alter table t1 algorithm=inplace, comment="NDB_TABLE=READ_BACKUP=0";
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: READ_BACKUP off with FULLY_REPLICATED on. Try ALGORITHM=COPY.
+drop table t1;
 CREATE TABLE t2 (
 a char(10) NOT NULL primary key,
 b int not null,
@@ -149,4 +164,3 @@ ENGINE=ndbcluster
 comment='NDB_TABLE=FULLY_REPLICATED=1'
 PARTITION BY HASH(b);
 ERROR HY000: Got error 797 'Wrong fragment count for fully replicated table' from NDBCLUSTER
-drop table t1;
