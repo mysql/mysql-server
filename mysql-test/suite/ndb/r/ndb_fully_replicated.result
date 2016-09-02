@@ -164,3 +164,9 @@ ENGINE=ndbcluster
 comment='NDB_TABLE=FULLY_REPLICATED=1'
 PARTITION BY HASH(b);
 ERROR HY000: Got error 797 'Wrong fragment count for fully replicated table' from NDBCLUSTER
+create table t1 (
+a char(10) NOT NULL primary key,
+b int not null)
+ENGINE=ndbcluster;
+alter table t1 algorithm=copy, comment='NDB_TABLE=FULLY_REPLICATED=1,PARTITION_BALANCE=FOR_RA_BY_LDM';
+drop table t1;

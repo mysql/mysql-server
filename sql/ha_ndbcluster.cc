@@ -10880,7 +10880,7 @@ int ha_ndbcluster::create(const char *name,
 
       if (part_bal !=
             NdbDictionary::Object::PartitionBalance_ForRAByNode &&
-          tab.getPartitionBalance() !=
+          part_bal !=
             NdbDictionary::Object::PartitionBalance_ForRAByLDM)
       {
         if (!mod_frags->m_found)
