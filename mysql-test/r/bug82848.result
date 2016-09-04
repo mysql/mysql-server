@@ -1,0 +1,12 @@
+RESET MASTER;
+USE test;
+CREATE TABLE t1 (id SERIAL);
+FLUSH LOGS;
+PURGE BINARY LOGS BEFORE NOW();
+Warnings:
+Warning	1868	file ./master-bin.000002 was not purged because it is the active log file.
+INSERT INTO t1 VALUES(NULL),(NULL),(NULL);
+RESET MASTER;
+# restart
+1
+DROP TABLE t1;
