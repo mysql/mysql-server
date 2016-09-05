@@ -39,6 +39,7 @@ protected:
   void add_projection(const Projection_list &projection) const;
   void add_values(const Row_list &values) const;
   void add_row(const Field_list &row, int size) const;
+  const Field_list &get_row_fields(const Insert::TypedRow &row) const { return row.field(); }
 
   const Insert &m_msg;
 };

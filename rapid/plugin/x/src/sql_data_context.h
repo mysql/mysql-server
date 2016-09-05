@@ -39,7 +39,7 @@
 namespace ngs
 {
   class IOptions_session;
-  typedef boost::shared_ptr<IOptions_session> IOptions_session_ptr;
+  typedef ngs::shared_ptr<IOptions_session> IOptions_session_ptr;
   class Protocol_encoder;
 }  // namespace ngs
 
@@ -47,7 +47,7 @@ namespace ngs
 namespace xpl
 {
 
-typedef boost::function<bool (const std::string &password_hash)> On_user_password_hash;
+typedef ngs::function<bool (const std::string &password_hash)> On_user_password_hash;
 typedef Buffering_command_delegate::Field_value Field_value;
 typedef Buffering_command_delegate::Row_data    Row_data;
 
@@ -110,7 +110,7 @@ public:
   bool is_killed();
   bool is_acl_disabled();
   bool is_api_ready();
-  bool wait_api_ready(boost::function<bool()> exiting);
+  bool wait_api_ready(ngs::function<bool()> exiting);
   bool password_expired() const { return m_password_expired; }
 
   const char* authenticated_user() const { return m_user; }

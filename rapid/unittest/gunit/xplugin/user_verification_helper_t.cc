@@ -15,15 +15,9 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 
-#include <cstdio>
-#include <cstdlib>
-#include <fstream>
 #include <string>
-#include <iostream>
 
-#include <boost/function.hpp>
-#include <boost/bind.hpp>
-#include <boost/scoped_ptr.hpp>
+#include "ngs_common/smart_ptr.h"
 
 #include "user_verification_helper.h"
 
@@ -55,10 +49,10 @@ namespace xpl
     public:
       User_verification_test()
       {
-        m_hash_check = boost::bind(&Mock_hash_verification::check_hash, &m_hash, _1);
+        m_hash_check = ngs::bind(&Mock_hash_verification::check_hash, &m_hash, ngs::placeholders::_1);
 
         m_mock_options.reset(new testing::StrictMock<ngs::test::Mock_options_session>());
-        m_options = boost::static_pointer_cast<ngs::IOptions_session>(m_mock_options);
+        m_options = ngs::static_pointer_cast<ngs::IOptions_session>(m_mock_options);
         m_sut.reset(new User_verification_helper(m_hash_check, m_field_types, USER_IP, m_options, ngs::Connection_tls));
       }
 
@@ -100,15 +94,15 @@ namespace xpl
       }
 
       ::testing::StrictMock<Mock_hash_verification> m_hash;
-      boost::function<bool (const std::string &)> m_hash_check;
+      ngs::function<bool (const std::string &)> m_hash_check;
 
-      boost::shared_ptr<ngs::IOptions_session> m_options;
-      boost::shared_ptr<testing::StrictMock<ngs::test::Mock_options_session> > m_mock_options;
+      ngs::shared_ptr<ngs::IOptions_session> m_options;
+      ngs::shared_ptr<testing::StrictMock<ngs::test::Mock_options_session> > m_mock_options;
 
       Command_delegate::Field_types m_field_types;
       Row_data m_row_data;
 
-      boost::scoped_ptr<User_verification_helper> m_sut;
+      ngs::unique_ptr<User_verification_helper> m_sut;
     };
 
     class User_verification_dbuser_param_valid_test : public User_verification_test, public testing::WithParamInterface<std::string>

@@ -45,206 +45,206 @@ public:
   {
     Common_status_variables::reset();
 
-    my_atomic_store64(&m_sessions_count, 0);
-    my_atomic_store64(&m_worker_thread_count, 0);
-    my_atomic_store64(&m_active_worker_thread_count, 0);
-    my_atomic_store64(&m_closed_sessions_count, 0);
-    my_atomic_store64(&m_sessions_fatal_errors_count, 0);
-    my_atomic_store64(&m_init_errors_count, 0);
-    my_atomic_store64(&m_accepted_connections_count, 0);
-    my_atomic_store64(&m_closed_connections_count, 0);
-    my_atomic_store64(&m_connection_errors_count, 0);
-    my_atomic_store64(&m_connection_reject_count, 0);
-    my_atomic_store64(&m_connection_accept_errors_count, 0);
-    my_atomic_store64(&m_accepted_sessions_count, 0);
-    my_atomic_store64(&m_rejected_sessions_count, 0);
-    my_atomic_store64(&m_killed_sessions_count, 0);
+    m_sessions_count.store(0);
+    m_worker_thread_count.store(0);
+    m_active_worker_thread_count.store(0);
+    m_closed_sessions_count.store(0);
+    m_sessions_fatal_errors_count.store(0);
+    m_init_errors_count.store(0);
+    m_accepted_connections_count.store(0);
+    m_closed_connections_count.store(0);
+    m_connection_errors_count.store(0);
+    m_connection_reject_count.store(0);
+    m_connection_accept_errors_count.store(0);
+    m_accepted_sessions_count.store(0);
+    m_rejected_sessions_count.store(0);
+    m_killed_sessions_count.store(0);
   }
 
 
   void increment_sessions_count()
   {
-    my_atomic_add64(&m_sessions_count, 1);
+    ++m_sessions_count;
   }
 
 
   void decrement_sessions_count()
   {
-    my_atomic_add64(&m_sessions_count, -1);
+    --m_sessions_count;
   }
 
 
   long long get_sessions_count()
   {
-    return my_atomic_load64(&m_sessions_count);
+    return m_sessions_count.load();
   }
 
 
   void increment_worker_thread_count()
   {
-    my_atomic_add64(&m_worker_thread_count, 1);
+    ++m_worker_thread_count;
   }
 
 
   void decrement_worker_thread_count()
   {
-    my_atomic_add64(&m_worker_thread_count, -1);
+    --m_worker_thread_count;
   }
 
 
   long long get_worker_thread_count()
   {
-    return my_atomic_load64(&m_worker_thread_count);
+    return m_worker_thread_count.load();
   }
 
 
   void increment_active_worker_thread_count()
   {
-    my_atomic_add64(&m_active_worker_thread_count, 1);
+    ++m_active_worker_thread_count;
   }
 
 
   void decrement_active_worker_thread_count()
   {
-    my_atomic_add64(&m_active_worker_thread_count, -1);
+    --m_active_worker_thread_count;
   }
 
 
   long long get_active_worker_thread_count()
   {
-    return my_atomic_load64(&m_active_worker_thread_count);
+    return m_active_worker_thread_count.load();
   }
 
 
   void increment_closed_sessions_count()
   {
-    my_atomic_add64(&m_closed_sessions_count, 1);
+    ++m_closed_sessions_count;
   }
 
 
   long long get_closed_sessions_count()
   {
-    return my_atomic_load64(&m_closed_sessions_count);
+    return m_closed_sessions_count.load();
   }
 
 
   void increment_sessions_fatal_errors_count()
   {
-    my_atomic_add64(&m_sessions_fatal_errors_count, 1);
+    ++m_sessions_fatal_errors_count;
   }
 
 
   long long get_sessions_fatal_errors_count()
   {
-    return my_atomic_load64(&m_sessions_fatal_errors_count);
+    return m_sessions_fatal_errors_count.load();
   }
 
 
   void increment_init_errors_count()
   {
-    my_atomic_add64(&m_init_errors_count, 1);
+    ++m_init_errors_count;
   }
 
 
   long long get_init_errors_count()
   {
-    return my_atomic_load64(&m_init_errors_count);
+    return m_init_errors_count.load();
   }
 
 
   void increment_closed_connections_count()
   {
-    my_atomic_add64(&m_closed_connections_count, 1);
+    ++m_closed_connections_count;
   }
 
 
   long long get_closed_connections_count()
   {
-    return my_atomic_load64(&m_closed_connections_count);
+    return m_closed_connections_count.load();
   }
 
 
   void increment_accepted_connections_count()
   {
-    my_atomic_add64(&m_accepted_connections_count, 1);
+    ++m_accepted_connections_count;
   }
 
 
   long long get_accepted_connections_count()
   {
-    return my_atomic_load64(&m_accepted_connections_count);
+    return m_accepted_connections_count.load();
   }
 
 
   void increment_connection_errors_count()
   {
-    my_atomic_add64(&m_connection_errors_count, 1);
+    ++m_connection_errors_count;
   }
 
 
   long long get_connection_errors_count()
   {
-    return my_atomic_load64(&m_connection_errors_count);
+    return m_connection_errors_count.load();
   }
 
 
   void increment_connection_accept_errors_count()
   {
-    my_atomic_add64(&m_connection_accept_errors_count, 1);
+    ++m_connection_accept_errors_count;
   }
 
 
   long long get_connection_accept_errors_count()
   {
-    return my_atomic_load64(&m_connection_accept_errors_count);
+    return m_connection_accept_errors_count.load();
   }
 
 
   void increment_connection_reject_count()
   {
-    my_atomic_add64(&m_connection_reject_count, 1);
+    ++m_connection_reject_count;
   }
 
 
   long long get_rejected_connections_count()
   {
-    return my_atomic_load64(&m_connection_reject_count);
+    return m_connection_reject_count.load();
   }
 
 
   void increment_accepted_sessions_count()
   {
-    my_atomic_add64(&m_accepted_sessions_count, 1);
+    ++m_accepted_sessions_count;
   }
 
 
   long long get_accepted_sessions_count()
   {
-    return my_atomic_load64(&m_accepted_sessions_count);
+    return m_accepted_sessions_count.load();
   }
 
 
   void increment_rejected_sessions_count()
   {
-    my_atomic_add64(&m_rejected_sessions_count, 1);
+    ++m_rejected_sessions_count;
   }
 
 
   long long get_rejected_sessions_count()
   {
-    return my_atomic_load64(&m_rejected_sessions_count);
+    return m_rejected_sessions_count.load();
   }
 
 
   void increment_killed_sessions_count()
   {
-    my_atomic_add64(&m_killed_sessions_count, 1);
+    ++m_killed_sessions_count;
   }
 
 
   long long get_killed_sessions_count()
   {
-    return my_atomic_load64(&m_killed_sessions_count);
+    return m_killed_sessions_count.load();
   }
 
 
@@ -258,20 +258,20 @@ private:
   Global_status_variables(const Global_status_variables &);
   Global_status_variables &operator=(const Global_status_variables &);
 
-  volatile int64 m_sessions_count;
-  volatile int64 m_worker_thread_count;
-  volatile int64 m_active_worker_thread_count;
-  volatile int64 m_closed_sessions_count;
-  volatile int64 m_sessions_fatal_errors_count;
-  volatile int64 m_init_errors_count;
-  volatile int64 m_accepted_connections_count;
-  volatile int64 m_closed_connections_count;
-  volatile int64 m_connection_errors_count;
-  volatile int64 m_connection_reject_count;
-  volatile int64 m_connection_accept_errors_count;
-  volatile int64 m_accepted_sessions_count;
-  volatile int64 m_rejected_sessions_count;
-  volatile int64 m_killed_sessions_count;
+  volatile ngs::atomic<int64> m_sessions_count;
+  volatile ngs::atomic<int64> m_worker_thread_count;
+  volatile ngs::atomic<int64> m_active_worker_thread_count;
+  volatile ngs::atomic<int64> m_closed_sessions_count;
+  volatile ngs::atomic<int64> m_sessions_fatal_errors_count;
+  volatile ngs::atomic<int64> m_init_errors_count;
+  volatile ngs::atomic<int64> m_accepted_connections_count;
+  volatile ngs::atomic<int64> m_closed_connections_count;
+  volatile ngs::atomic<int64> m_connection_errors_count;
+  volatile ngs::atomic<int64> m_connection_reject_count;
+  volatile ngs::atomic<int64> m_connection_accept_errors_count;
+  volatile ngs::atomic<int64> m_accepted_sessions_count;
+  volatile ngs::atomic<int64> m_rejected_sessions_count;
+  volatile ngs::atomic<int64> m_killed_sessions_count;
 };
 
 

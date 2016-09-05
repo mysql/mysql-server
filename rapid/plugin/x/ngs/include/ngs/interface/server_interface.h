@@ -22,7 +22,7 @@
 
 #include "ngs/protocol_authentication.h"
 
-#include <boost/shared_ptr.hpp>
+#include "ngs_common/smart_ptr.h"
 
 namespace ngs
 {
@@ -43,14 +43,14 @@ public:
 
   virtual void get_authentication_mechanisms(std::vector<std::string> &auth_mech, Client_interface &client) = 0;
 
-  virtual boost::shared_ptr<Scheduler_dynamic> get_worker_scheduler() const = 0;
+  virtual ngs::shared_ptr<Scheduler_dynamic> get_worker_scheduler() const = 0;
   virtual Authentication_handler_ptr           get_auth_handler(const std::string &name, Session_interface *session) = 0;
-  virtual boost::shared_ptr<Protocol_config>   get_config() const = 0;
+  virtual ngs::shared_ptr<Protocol_config>   get_config() const = 0;
   virtual Mutex &get_client_exit_mutex() = 0;
 
   virtual Ssl_context *ssl_context() const = 0;
 
-  virtual boost::shared_ptr<Session_interface> create_session(Client_interface &client,
+  virtual ngs::shared_ptr<Session_interface> create_session(Client_interface &client,
                                                     Protocol_encoder &proto,
                                                     int session_id) = 0;
   virtual bool is_running() = 0;

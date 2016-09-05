@@ -20,6 +20,8 @@
 #include "ngs/time_socket_events.h"
 #include "ngs/interface/connection_acceptor_interface.h"
 #include "ngs_common/connection_vio.h"
+#include <algorithm>
+
 using namespace ngs;
 
 class Connection_acceptor_socket : public Connection_acceptor_interface
@@ -70,7 +72,7 @@ private:
 
 struct Time_and_socket_events::Timer_data
 {
-  boost::function<bool ()> callback;
+  ngs::function<bool ()> callback;
   event ev;
   timeval tv;
   Time_and_socket_events *self;
@@ -85,7 +87,7 @@ struct Time_and_socket_events::Timer_data
 
 struct Time_and_socket_events::Socket_data
 {
-  boost::function<void (Connection_acceptor_interface &)> callback;
+  ngs::function<void (Connection_acceptor_interface &)> callback;
   event ev;
   MYSQL_SOCKET socket;
 
@@ -119,7 +121,7 @@ Time_and_socket_events::~Time_and_socket_events()
 
 }
 
-bool Time_and_socket_events::listen(MYSQL_SOCKET sock, boost::function<void (Connection_acceptor_interface &)> callback)
+bool Time_and_socket_events::listen(MYSQL_SOCKET sock, ngs::function<void (Connection_acceptor_interface &)> callback)
 {
   m_socket_events.push_back(ngs::allocate_object<Socket_data>());
   Socket_data *socket_event = m_socket_events.back();
@@ -140,7 +142,7 @@ the server is stopped or the callback returns false.
 
 NOTE: This method may only be called from the same thread as the event loop.
 */
-void Time_and_socket_events::add_timer(const std::size_t delay_ms, boost::function<bool ()> callback)
+void Time_and_socket_events::add_timer(const std::size_t delay_ms, ngs::function<bool ()> callback)
 {
   Timer_data *data = ngs::allocate_object<Timer_data>();
   data->tv.tv_sec = static_cast<long>(delay_ms / 1000);

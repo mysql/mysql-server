@@ -19,8 +19,6 @@
 
 #include <string>
 
-#include <boost/scoped_ptr.hpp>
-
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "mock/connection.h"
@@ -55,7 +53,7 @@ namespace ngs
         m_connection_vio->set_system_operations(NULL);
       }
 
-      boost::scoped_ptr<Connection_vio> m_connection_vio;
+      ngs::unique_ptr<Connection_vio> m_connection_vio;
       Ssl_context m_ssl_context;
       Mock_socket_operations *m_mock_socket_operations;
       Mock_system_operations *m_mock_system_operations;

@@ -20,7 +20,6 @@
 #ifndef _NGS_CAPABILITIES_CONFIGURATOR_H_
 #define _NGS_CAPABILITIES_CONFIGURATOR_H_
 
-#include <boost/function.hpp>
 #include <string>
 #include <vector>
 

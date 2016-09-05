@@ -87,7 +87,6 @@ namespace ngs
   };
 
   typedef ngs::Memory_instrumented<Request>::Unique_ptr Request_unique_ptr;
-
 } // namespace ngs
 
 #endif // _NGS_MESSAGE_H_

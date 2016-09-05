@@ -16,7 +16,6 @@
  */
 
 
-
 #include "insert_statement_builder.h"
 #include "query_string_builder.h"
 #include "mysqld_error.h"
