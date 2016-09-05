@@ -1421,6 +1421,8 @@ DROP TABLE t1;
 DROP DATABASE IF EXISTS db1;
 CREATE DATABASE db1 CHARACTER SET utf8;
 CREATE TABLE db1.t1 (bar TINYTEXT, KEY (bar(100)));
+ERROR 42000: Specified key was too long; max key length is 255 bytes
+CREATE TABLE db1.t1 (bar TINYTEXT, KEY (bar(85)));
 ALTER TABLE db1.t1 ADD baz INT;
 DROP DATABASE db1;
 # Additional coverage for refactoring which is made as part
@@ -3496,4 +3498,29 @@ t1	CREATE TABLE `t1` (
   `fld2` char(10) CHARACTER SET gbk DEFAULT NULL,
   PRIMARY KEY (`fld1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
+DROP TABLE t1;
+#
+# Bug#22740093: ERROR 1071 (42000): SPECIFIED KEY WAS TOO LONG
+#               ERROR WHILE DROPPING INDEX IN 5.7
+#
+CREATE TABLE t1(id INT PRIMARY KEY,
+name TINYTEXT,
+KEY nameloc (name(64))
+) DEFAULT CHARSET=utf8mb4;
+ERROR 42000: Specified key was too long; max key length is 255 bytes
+CREATE TABLE t1(id INT PRIMARY KEY,
+name TINYTEXT,
+KEY nameloc (name(63))
+) DEFAULT CHARSET=utf8mb4;
+ALTER TABLE t1 FORCE;
+ALTER TABLE t1 ADD INDEX idx (name(64), id);
+ERROR 42000: Specified key was too long; max key length is 255 bytes
+ALTER TABLE t1 ADD INDEX idx (name(63), id);
+DROP TABLE t1;
+CREATE TABLE t1(id INT PRIMARY KEY,
+name TEXT,
+KEY nameloc (name(64))
+) DEFAULT CHARSET=utf8mb4;
+ALTER TABLE t1 MODIFY COLUMN name TINYTEXT;
+ERROR 42000: Specified key was too long; max key length is 255 bytes
 DROP TABLE t1;
