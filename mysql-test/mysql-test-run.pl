@@ -2891,6 +2891,8 @@ sub environment_setup {
   # $ENV{'LD_PRELOAD_64'}=
   #    "/opt/developerstudio12.5/lib/compilers/sparcv9/libdiscoverADI.so"
   #      if $opt_discover;
+  # Tell tests that we are running --discover
+  $ENV{'RUNNING_SUNW_DISCOVER'} = 1 if $opt_discover;
 
   # Add dir of this perl to aid mysqltest in finding perl
   my $perldir= dirname($^X);
