@@ -1153,22 +1153,6 @@ static inline bool is_timer_applicable_to_statement(THD *thd)
 
 
 /**
-  Get the maximum execution time for a statement.
-
-  @return Length of time in milliseconds.
-
-  @remark A zero timeout means that no timeout should be
-          applied to this particular statement.
-
-*/
-static inline ulong get_max_execution_time(THD *thd)
-{
-  return (thd->lex->max_execution_time ? thd->lex->max_execution_time :
-                                        thd->variables.max_execution_time);
-}
-
-
-/**
   Perform one connection-level (COM_XXXX) command.
 
   @param thd             connection handle
