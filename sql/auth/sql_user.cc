@@ -365,11 +365,14 @@ err:
    3. Identify what all fields needs to be updated in mysql.user
       table based on user definition.
 
+   If the is_role flag is set, the password validation is not used.
+
   @param thd          Thread context
   @param Str          user on which attributes has to be applied
   @param what_to_set  User attributes
   @param is_privileged_user     Whether caller has CREATE_USER_ACL
                                 or UPDATE_ACL over mysql.*
+  @param is_role      CREATE ROLE was used to create the authid.
 
   @retval 0 ok
   @retval 1 ERROR;
@@ -378,7 +381,8 @@ err:
 bool set_and_validate_user_attributes(THD *thd,
                                       LEX_USER *Str,
                                       ulong &what_to_set,
-                                      bool is_privileged_user)
+                                      bool is_privileged_user,
+                                      bool is_role)
 {
   bool user_exists= false;
   ACL_USER *acl_user;
@@ -572,9 +576,12 @@ bool set_and_validate_user_attributes(THD *thd,
   /*
     If auth string is specified, change it to hash.
     Validate empty credentials for new user ex: CREATE USER u1;
+    We skip authentication string generation if the issued statement was
+    CREATE ROLE.
   */
-  if (Str->uses_identified_by_clause ||
-      (Str->auth.length == 0 && !user_exists))
+  if (!is_role &&
+      (Str->uses_identified_by_clause ||
+       (Str->auth.length == 0 && !user_exists)))
   {
     st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
     inbuf= Str->auth.str;
@@ -604,9 +611,18 @@ bool set_and_validate_user_attributes(THD *thd,
   }
 
   /* Validate hash string */
-  if(Str->uses_identified_by_password_clause ||
-     Str->uses_authentication_string_clause)
+  if((Str->uses_identified_by_password_clause ||
+      Str->uses_authentication_string_clause))
   {
+    /*
+      The statement CREATE ROLE calls mysql_create_user() with a set of 
+      lexicographic parameters: users_identified_by_password_caluse= false etc
+      It also sets is_role= true. We don't have to check this parameter here
+      since we're already know that the above parameters will be false
+      but we place an extra assert here to remind us about the complex
+      interdependencies if mysql_create_user() is refactored.
+    */
+    DBUG_ASSERT(!is_role);
     st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
     if (auth->validate_authentication_string((char*)Str->auth.str,
                                              Str->auth.length))
@@ -731,7 +747,7 @@ bool change_password(THD *thd, const char *host, const char *user,
       thd->slave_thread)
     combo->uses_identified_by_clause= false;
 
-  if (set_and_validate_user_attributes(thd, combo, what_to_set, true))
+  if (set_and_validate_user_attributes(thd, combo, what_to_set, true, false))
   {
     result= 1;
     goto end;
@@ -1294,7 +1310,8 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
       continue;
     }
 
-    if (set_and_validate_user_attributes(thd, user_name, what_to_update, true))
+    if (set_and_validate_user_attributes(thd, user_name, what_to_update, true,
+                                         is_role))
     {
       result= 1;
       append_user(thd, &wrong_users, user_name, wrong_users.length() > 0,
@@ -1691,7 +1708,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
     user_from->alter_status= thd->lex->alter_password;
 
     if (set_and_validate_user_attributes(thd, user_from, what_to_alter,
-                                         is_privileged_user))
+                                         is_privileged_user, false))
     {
       result= 1;
       continue;

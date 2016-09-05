@@ -1353,6 +1353,8 @@ bool Sql_cmd_create_role::execute(THD *thd)
     role->alter_status.update_password_expired_fields= true;
     role->alter_status.use_default_password_lifetime= true;
     role->alter_status.update_password_expired_column= true;
+    role->auth.str= 0;
+    role->auth.length= 0;
   }
   if (!(mysql_create_user(thd, *const_cast<List<LEX_USER > * >(roles),
                           if_not_exists, true)))

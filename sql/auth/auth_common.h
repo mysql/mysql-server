@@ -595,11 +595,6 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists);
 bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists);
 bool mysql_rename_user(THD *thd, List <LEX_USER> &list);
 
-bool set_and_validate_user_attributes(THD *thd,
-                                      LEX_USER *Str,
-                                      ulong &what_to_set,
-                                      bool is_privileged_user);
-
 /* sql_auth_cache */
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
 int wild_case_compare(CHARSET_INFO *cs, const char *str, size_t str_len,
