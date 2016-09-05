@@ -17,9 +17,6 @@
 
 #include "callback_command_delegate.h"
 
-#include <boost/bind.hpp>
-#include <boost/scoped_ptr.hpp>
-
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
@@ -93,9 +90,9 @@ public:
   void create_sut_with_callback_mock()
   {
     Callback_command_delegate::Start_row_callback start_row =
-        boost::bind(&Mock_callback_commands::start_row, &m_mock_callbacks);
+        ngs::bind(&Mock_callback_commands::start_row, &m_mock_callbacks);
     Callback_command_delegate::End_row_callback end_row =
-        boost::bind(&Mock_callback_commands::end_row, &m_mock_callbacks, _1);
+        ngs::bind(&Mock_callback_commands::end_row, &m_mock_callbacks, ngs::placeholders::_1);
 
     m_sut.reset(new Callback_command_delegate(start_row, end_row));
   }
@@ -193,7 +190,7 @@ public:
   }
 
   StrictMock<Mock_callback_commands> m_mock_callbacks;
-  boost::scoped_ptr<Command_delegate> m_sut;
+  ngs::unique_ptr<Command_delegate> m_sut;
 };
 
 

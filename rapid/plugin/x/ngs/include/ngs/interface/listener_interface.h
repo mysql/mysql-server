@@ -22,7 +22,6 @@
 
 #include "violite.h"
 #include "ngs/thread.h"
-#include <boost/function.hpp>
 
 #if defined(WIN32)
 #define WIN32_OR_UNIX(W,L) W
@@ -42,7 +41,7 @@ class Listener_interface
 {
 public:
   typedef Sync_variable<State_listener> Sync_variable_state;
-  typedef boost::function<void(Connection_acceptor_interface &)> On_connection;
+  typedef ngs::function<void(Connection_acceptor_interface &)> On_connection;
 
   virtual ~Listener_interface() {};
 

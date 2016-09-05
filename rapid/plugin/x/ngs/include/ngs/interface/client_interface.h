@@ -20,7 +20,7 @@
 #ifndef _NGS_CLIENT_INTERFACE_H_
 #define _NGS_CLIENT_INTERFACE_H_
 
-#include "ngs/ngs_types.h"
+#include "ngs_common/posix_time.h"
 #include "ngs/interface/session_interface.h"
 #include "ngs_common/connection_vio.h"
 
@@ -71,7 +71,7 @@ public:
   virtual Client_state  get_state() const = 0;
   virtual bool          supports_expired_passwords() = 0;
 
-  virtual boost::shared_ptr<Session_interface> session() = 0;
+  virtual ngs::shared_ptr<Session_interface> session() = 0;
 
 public:
   virtual void on_session_reset(Session_interface &s) = 0;

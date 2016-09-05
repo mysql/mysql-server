@@ -93,7 +93,7 @@ void xpl::Find_statement_builder::add_projection(const Projection_list &projecti
 
 void xpl::Find_statement_builder::add_table_projection(const Projection_list &projection) const
 {
-  m_builder.put_list(projection, boost::bind(&Find_statement_builder::add_table_projection_item, this, _1));
+  m_builder.put_list(projection, ngs::bind(&Find_statement_builder::add_table_projection_item, this, ngs::placeholders::_1));
 }
 
 
@@ -123,7 +123,7 @@ void xpl::Find_statement_builder::add_document_object(const Projection_list &pro
                                                       const Object_item_adder &adder) const
 {
   m_builder.put("JSON_OBJECT(")
-      .put_list(projection, boost::bind(adder, this, _1))
+      .put_list(projection, ngs::bind(adder, this, ngs::placeholders::_1))
       .put(") AS doc");
 }
 

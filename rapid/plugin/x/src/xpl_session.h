@@ -22,7 +22,6 @@
 
 #include <string>
 #include <vector>
-#include <boost/scoped_ptr.hpp>
 #include "ngs/client_session.h"
 
 #include "sql_data_context.h"

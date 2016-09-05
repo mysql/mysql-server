@@ -14,11 +14,8 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 
-#include <boost/bind.hpp>
 #include <boost/range/begin.hpp>
 #include <boost/range/end.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/scoped_ptr.hpp>
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -55,13 +52,13 @@ using namespace ::testing;
 class CapabilitiesConfiguratorTestSuite : public Test
 {
 public:
-  typedef boost::shared_ptr<StrictMock<Mock_capability_handler> > Mock_ptr;
+  typedef ngs::shared_ptr<StrictMock<Mock_capability_handler> > Mock_ptr;
 
   void SetUp()
   {
     for(int i = 0; i < NUMBER_OF_HANDLERS; ++i)
     {
-      mock_handlers.push_back(boost::make_shared< StrictMock<Mock_capability_handler> >());
+      mock_handlers.push_back(ngs::make_shared< StrictMock<Mock_capability_handler> >());
     }
 
     std::vector<Capability_handler_ptr> handlers(mock_handlers.begin(), mock_handlers.end());
@@ -183,7 +180,7 @@ public:
 
   std::vector<Mock_ptr> mock_handlers;
 
-  boost::scoped_ptr<Capabilities_configurator> sut;
+  ngs::unique_ptr<Capabilities_configurator> sut;
 };
 
 
@@ -214,7 +211,7 @@ TEST_F(CapabilitiesConfiguratorTestSuite, get_returnsOnlySupportedCaps)
 
 TEST_F(CapabilitiesConfiguratorTestSuite, prepareSet_errorErrorAndCommitDoesNothing_whenOneUnknownCapability)
 {
-  boost::scoped_ptr<Capabilities> caps(new Capabilities());
+  ngs::unique_ptr<Capabilities> caps(new Capabilities());
 
   Capability * cap = caps->add_capabilities();
 
@@ -230,7 +227,7 @@ TEST_F(CapabilitiesConfiguratorTestSuite, prepareSet_errorErrorAndCommitDoesNoth
 
 TEST_F(CapabilitiesConfiguratorTestSuite, prepareSet_success_whenAllRequestedCapsSucceded)
 {
-  boost::scoped_ptr<Capabilities> caps(new Capabilities());
+  ngs::unique_ptr<Capabilities> caps(new Capabilities());
   std::vector<Mock_ptr>           supported_handlers;
 
   std::for_each(mock_handlers.begin(), mock_handlers.end(), default_get_name(NAMES));
@@ -249,7 +246,7 @@ TEST_F(CapabilitiesConfiguratorTestSuite, prepareSet_success_whenAllRequestedCap
 
 TEST_F(CapabilitiesConfiguratorTestSuite, prepareSet_FailsAndCommitDoesNothing_whenAnyCapsFailsLast)
 {
-  boost::scoped_ptr<Capabilities> caps(new Capabilities());
+  ngs::unique_ptr<Capabilities> caps(new Capabilities());
   std::vector<Mock_ptr>           supported_handlers;
 
   std::for_each(mock_handlers.begin(), mock_handlers.end(), default_get_name(NAMES));
@@ -268,8 +265,8 @@ TEST_F(CapabilitiesConfiguratorTestSuite, prepareSet_FailsAndCommitDoesNothing_w
 
 TEST_F(CapabilitiesConfiguratorTestSuite, prepareSet_FailsAndCommitDoesNothing_whenAnyCapsFailsFirst)
 {
-  boost::scoped_ptr<Capabilities> caps(new Capabilities());
-  std::vector<Mock_ptr>           supported_handlers;
+  ngs::unique_ptr<Capabilities> caps(new Capabilities());
+  std::vector<Mock_ptr> supported_handlers;
 
   std::for_each(mock_handlers.begin(), mock_handlers.end(), default_get_name(NAMES));
 

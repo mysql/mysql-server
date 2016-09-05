@@ -38,8 +38,6 @@
 #pragma warning (disable : 4018 4996)
 #endif
 
-#include <boost/function.hpp>
-
 #if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
 #pragma GCC diagnostic pop
 #elif defined _MSC_VER

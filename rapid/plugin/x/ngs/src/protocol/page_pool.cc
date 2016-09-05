@@ -26,7 +26,6 @@
 #include "ngs/memory.h"
 
 #include "my_global.h"
-#include "my_atomic.h"
 #include "ngs/log.h"
 
 using namespace ngs;
@@ -48,9 +47,9 @@ Page_pool::Page_pool(const int32_t page_size)
 Page_pool::Page_pool(const Pool_config &pool_config)
 : m_pages_max(pool_config.pages_max),
   m_pages_cache_max(pool_config.pages_cache_max),
-  m_pages_allocated(0),
   m_pages_cached(0),
-  m_page_size(pool_config.page_size)
+  m_page_size(pool_config.page_size),
+  m_pages_allocated(0)
 {
 }
 
@@ -65,9 +64,9 @@ Page_pool::~Page_pool()
 Resource<Page> Page_pool::allocate()
 {
   // The code is valid only in case when the method is called only by one thread at a time
-  if (m_pages_max != 0 && my_atomic_add32(&m_pages_allocated, 1) > m_pages_max - 1)
+  if (m_pages_max != 0 && (++m_pages_allocated > m_pages_max - 1))
   {
-    my_atomic_add32(&m_pages_allocated, -1);
+    --m_pages_allocated;
     throw No_more_pages_exception();
   }
 
@@ -88,7 +87,7 @@ void Page_pool::deallocate(Page *page)
 {
   // multiple threads
   if (m_pages_max != 0)
-    my_atomic_add32(&m_pages_allocated, -1);
+    --m_pages_allocated;
 
   page->~Page();
 

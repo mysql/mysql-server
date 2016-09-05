@@ -21,7 +21,7 @@
 #define _XPL_COMMON_STATUS_VARIABLES_H_
 
 #include "my_global.h"
-#include "my_atomic.h"
+#include "ngs_common/atomic.h"
 
 
 namespace xpl
@@ -39,356 +39,356 @@ public:
 
   void reset()
   {
-    my_atomic_store64(&m_stmt_execute_sql, 0);
-    my_atomic_store64(&m_stmt_execute_xplugin, 0);
-    my_atomic_store64(&m_stmt_execute_mysqlx, 0);
-    my_atomic_store64(&m_crud_insert, 0);
-    my_atomic_store64(&m_crud_update, 0);
-    my_atomic_store64(&m_crud_find, 0);
-    my_atomic_store64(&m_crud_delete, 0);
-    my_atomic_store64(&m_expect_open, 0);
-    my_atomic_store64(&m_expect_close, 0);
-    my_atomic_store64(&m_stmt_create_collection, 0);
-    my_atomic_store64(&m_stmt_ensure_collection, 0);
-    my_atomic_store64(&m_stmt_create_collection_index, 0);
-    my_atomic_store64(&m_stmt_drop_collection, 0);
-    my_atomic_store64(&m_stmt_drop_collection_index, 0);
-    my_atomic_store64(&m_stmt_list_objects, 0);
-    my_atomic_store64(&m_stmt_enable_notices, 0);
-    my_atomic_store64(&m_stmt_disable_notices, 0);
-    my_atomic_store64(&m_stmt_list_notices, 0);
-    my_atomic_store64(&m_stmt_list_clients, 0);
-    my_atomic_store64(&m_stmt_kill_client, 0);
-    my_atomic_store64(&m_stmt_ping, 0);
-    my_atomic_store64(&m_bytes_sent, 0);
-    my_atomic_store64(&m_bytes_received, 0);
-    my_atomic_store64(&m_errors_sent, 0);
-    my_atomic_store64(&m_rows_sent, 0);
-    my_atomic_store64(&m_notice_warning_sent, 0);
-    my_atomic_store64(&m_notice_other_sent, 0);
+    m_stmt_execute_sql.store(0);
+    m_stmt_execute_xplugin.store(0);
+    m_stmt_execute_mysqlx.store(0);
+    m_crud_insert.store(0);
+    m_crud_update.store(0);
+    m_crud_find.store(0);
+    m_crud_delete.store(0);
+    m_expect_open.store(0);
+    m_expect_close.store(0);
+    m_stmt_create_collection.store(0);
+    m_stmt_ensure_collection.store(0);
+    m_stmt_create_collection_index.store(0);
+    m_stmt_drop_collection.store(0);
+    m_stmt_drop_collection_index.store(0);
+    m_stmt_list_objects.store(0);
+    m_stmt_enable_notices.store(0);
+    m_stmt_disable_notices.store(0);
+    m_stmt_list_notices.store(0);
+    m_stmt_list_clients.store(0);
+    m_stmt_kill_client.store(0);
+    m_stmt_ping.store(0);
+    m_bytes_sent.store(0);
+    m_bytes_received.store(0);
+    m_errors_sent.store(0);
+    m_rows_sent.store(0);
+    m_notice_warning_sent.store(0);
+    m_notice_other_sent.store(0);
   }
 
 
   void inc_stmt_execute_sql()
   {
-    my_atomic_add64(&m_stmt_execute_sql, 1);
+    ++m_stmt_execute_sql;
   }
 
 
   long long get_stmt_execute_sql() const
   {
-    return my_atomic_load64(&m_stmt_execute_sql);
+    return m_stmt_execute_sql.load();
   }
 
 
   void inc_stmt_execute_xplugin()
   {
-    my_atomic_add64(&m_stmt_execute_xplugin, 1);
+    ++m_stmt_execute_xplugin;
   }
 
 
   void inc_stmt_execute_mysqlx()
   {
-    my_atomic_add64(&m_stmt_execute_mysqlx, 1);
+    ++m_stmt_execute_mysqlx;
   }
 
 
   long long get_stmt_execute_xplugin() const
   {
-    return my_atomic_load64(&m_stmt_execute_xplugin);
+    return m_stmt_execute_xplugin.load();
   }
 
 
   long long get_stmt_execute_mysqlx() const
   {
-    return my_atomic_load64(&m_stmt_execute_mysqlx);
+    return m_stmt_execute_mysqlx.load();
   }
 
 
   void inc_crud_insert()
   {
-    my_atomic_add64(&m_crud_insert, 1);
+    ++m_crud_insert;
   }
 
 
   long long get_crud_insert() const
   {
-    return my_atomic_load64(&m_crud_insert);
+    return m_crud_insert.load();
   }
 
 
   void inc_crud_update()
   {
-    my_atomic_add64(&m_crud_update, 1);
+    ++m_crud_update;
   }
 
 
   long long get_crud_update() const
   {
-    return my_atomic_load64(&m_crud_update);
+    return m_crud_update.load();
   }
 
 
   void inc_crud_find()
   {
-    my_atomic_add64(&m_crud_find, 1);
+    ++m_crud_find;
   }
 
 
   long long get_crud_find() const
   {
-    return my_atomic_load64(&m_crud_find);
+    return m_crud_find.load();
   }
 
 
   void inc_crud_delete()
   {
-    my_atomic_add64(&m_crud_delete, 1);
+    ++m_crud_delete;
   }
 
 
   long long get_crud_delete() const
   {
-    return my_atomic_load64(&m_crud_delete);
+    return m_crud_delete.load();
   }
 
 
   void inc_expect_open()
   {
-    my_atomic_add64(&m_expect_open, 1);
+    ++m_expect_open;
   }
 
 
   long long get_expect_open() const
   {
-    return my_atomic_load64(&m_expect_open);
+    return m_expect_open.load();
   }
 
 
   void inc_expect_close()
   {
-    my_atomic_add64(&m_expect_close, 1);
+    ++m_expect_close;
   }
 
 
   long long get_expect_close() const
   {
-    return my_atomic_load64(&m_expect_close);
+    return m_expect_close.load();
   }
 
 
   void inc_stmt_create_collection()
   {
-    my_atomic_add64(&m_stmt_create_collection, 1);
+    ++m_stmt_create_collection;
   }
 
 
   void inc_stmt_ensure_collection()
   {
-    my_atomic_add64(&m_stmt_ensure_collection, 1);
+    ++m_stmt_ensure_collection;
   }
 
 
   long long get_stmt_create_collection() const
   {
-    return my_atomic_load64(&m_stmt_create_collection);
+    return m_stmt_create_collection.load();
   }
 
 
   long long get_stmt_ensure_collection() const
   {
-    return my_atomic_load64(&m_stmt_ensure_collection);
+    return m_stmt_ensure_collection.load();
   }
 
 
   void inc_stmt_create_collection_index()
   {
-    my_atomic_add64(&m_stmt_create_collection_index, 1);
+    ++m_stmt_create_collection_index;
   }
 
 
   long long get_stmt_create_collection_index() const
   {
-    return my_atomic_load64(&m_stmt_create_collection_index);
+    return m_stmt_create_collection_index.load();
   }
 
 
   void inc_stmt_drop_collection()
   {
-    my_atomic_add64(&m_stmt_drop_collection, 1);
+    ++m_stmt_drop_collection;
   }
 
 
   long long get_stmt_drop_collection() const
   {
-    return my_atomic_load64(&m_stmt_drop_collection);
+    return m_stmt_drop_collection.load();
   }
 
 
   void inc_stmt_drop_collection_index()
   {
-    my_atomic_add64(&m_stmt_drop_collection_index, 1);
+    ++m_stmt_drop_collection_index;
   }
 
 
   long long get_stmt_drop_collection_index() const
   {
-    return my_atomic_load64(&m_stmt_drop_collection_index);
+    return m_stmt_drop_collection_index.load();
   }
 
 
   void inc_stmt_list_objects()
   {
-    my_atomic_add64(&m_stmt_list_objects, 1);
+    ++m_stmt_list_objects;
   }
 
 
   long long get_stmt_list_objects() const
   {
-    return my_atomic_load64(&m_stmt_list_objects);
+    return m_stmt_list_objects.load();
   }
 
 
   void inc_stmt_enable_notices()
   {
-    my_atomic_add64(&m_stmt_enable_notices, 1);
+    ++m_stmt_enable_notices;
   }
 
 
   long long get_stmt_enable_notices() const
   {
-    return my_atomic_load64(&m_stmt_enable_notices);
+    return m_stmt_enable_notices.load();
   }
 
 
   void inc_stmt_disable_notices()
   {
-    my_atomic_add64(&m_stmt_disable_notices, 1);
+    ++m_stmt_disable_notices;
   }
 
 
   long long get_stmt_disable_notices() const
   {
-    return my_atomic_load64(&m_stmt_disable_notices);
+    return m_stmt_disable_notices.load();
   }
 
 
   void inc_stmt_list_notices()
   {
-    my_atomic_add64(&m_stmt_list_notices, 1);
+    ++m_stmt_list_notices;
   }
 
 
   long long get_stmt_list_notices() const
   {
-    return my_atomic_load64(&m_stmt_list_notices);
+    return m_stmt_list_notices.load();
   }
 
 
   void inc_stmt_list_clients()
   {
-    my_atomic_add64(&m_stmt_list_clients, 1);
+    ++m_stmt_list_clients;
   }
 
 
   long long get_stmt_list_clients() const
   {
-    return my_atomic_load64(&m_stmt_list_clients);
+    return m_stmt_list_clients.load();
   }
 
 
   void inc_stmt_kill_client()
   {
-    my_atomic_add64(&m_stmt_kill_client, 1);
+    ++m_stmt_kill_client;
   }
 
 
   long long get_stmt_kill_client() const
   {
-    return my_atomic_load64(&m_stmt_kill_client);
+    return m_stmt_kill_client.load();
   }
 
   void inc_stmt_ping()
   {
-    my_atomic_add64(&m_stmt_ping, 1);
+    ++m_stmt_ping;
   }
 
 
   long long get_stmt_ping() const
   {
-    return my_atomic_load64(&m_stmt_ping);
+    return m_stmt_ping.load();
   }
 
 
   void inc_bytes_sent(long bytes_sent)
   {
-    my_atomic_add64(&m_bytes_sent, bytes_sent);
+    m_bytes_sent += bytes_sent;
   }
 
 
   long long get_bytes_sent() const
   {
-    return my_atomic_load64(&m_bytes_sent);
+    return m_bytes_sent.load();
   }
 
 
   void inc_bytes_received(long bytes_received)
   {
-    my_atomic_add64(&m_bytes_received, bytes_received);
+    m_bytes_received += bytes_received;
   }
 
 
   long long get_bytes_received() const
   {
-    return my_atomic_load64(&m_bytes_received);
+    return m_bytes_received.load();
   }
 
 
   void inc_errors_sent()
   {
-    my_atomic_add64(&m_errors_sent, 1);
+    ++m_errors_sent;
   }
 
 
   long long get_errors_sent() const
   {
-    return my_atomic_load64(&m_errors_sent);
+    return m_errors_sent.load();
   }
 
 
   void inc_rows_sent()
   {
-    my_atomic_add64(&m_rows_sent, 1);
+    ++m_rows_sent;
   }
 
 
   long long get_rows_sent() const
   {
-    return my_atomic_load64(&m_rows_sent);
+    return m_rows_sent.load();
   }
 
 
   void inc_notice_warning_sent()
   {
-    my_atomic_add64(&m_notice_warning_sent, 1);
+    ++m_notice_warning_sent;
   }
 
 
   long long get_notice_warning_sent() const
   {
-    return my_atomic_load64(&m_notice_warning_sent);
+    return m_notice_warning_sent.load();
   }
 
 
   void inc_notice_other_sent()
   {
-    my_atomic_add64(&m_notice_other_sent, 1);
+    ++m_notice_other_sent;
   }
 
 
   long long get_notice_other_sent() const
   {
-    return my_atomic_load64(&m_notice_other_sent);
+    return m_notice_other_sent.load();
   }
 
 
@@ -396,33 +396,33 @@ private:
   Common_status_variables(const Common_status_variables &);
   Common_status_variables &operator=(const Common_status_variables &);
 
-  mutable volatile int64 m_stmt_execute_sql;
-  mutable volatile int64 m_stmt_execute_xplugin;
-  mutable volatile int64 m_stmt_execute_mysqlx;
-  mutable volatile int64 m_crud_insert;
-  mutable volatile int64 m_crud_update;
-  mutable volatile int64 m_crud_find;
-  mutable volatile int64 m_crud_delete;
-  mutable volatile int64 m_expect_open;
-  mutable volatile int64 m_expect_close;
-  mutable volatile int64 m_stmt_create_collection;
-  mutable volatile int64 m_stmt_ensure_collection;
-  mutable volatile int64 m_stmt_create_collection_index;
-  mutable volatile int64 m_stmt_drop_collection;
-  mutable volatile int64 m_stmt_drop_collection_index;
-  mutable volatile int64 m_stmt_list_objects;
-  mutable volatile int64 m_stmt_enable_notices;
-  mutable volatile int64 m_stmt_disable_notices;
-  mutable volatile int64 m_stmt_list_notices;
-  mutable volatile int64 m_stmt_list_clients;
-  mutable volatile int64 m_stmt_kill_client;
-  mutable volatile int64 m_stmt_ping;
-  mutable volatile int64 m_bytes_sent;
-  mutable volatile int64 m_bytes_received;
-  mutable volatile int64 m_errors_sent;
-  mutable volatile int64 m_rows_sent;
-  mutable volatile int64 m_notice_warning_sent;
-  mutable volatile int64 m_notice_other_sent;
+  mutable volatile ngs::atomic<int64> m_stmt_execute_sql;
+  mutable volatile ngs::atomic<int64> m_stmt_execute_xplugin;
+  mutable volatile ngs::atomic<int64> m_stmt_execute_mysqlx;
+  mutable volatile ngs::atomic<int64> m_crud_insert;
+  mutable volatile ngs::atomic<int64> m_crud_update;
+  mutable volatile ngs::atomic<int64> m_crud_find;
+  mutable volatile ngs::atomic<int64> m_crud_delete;
+  mutable volatile ngs::atomic<int64> m_expect_open;
+  mutable volatile ngs::atomic<int64> m_expect_close;
+  mutable volatile ngs::atomic<int64> m_stmt_create_collection;
+  mutable volatile ngs::atomic<int64> m_stmt_ensure_collection;
+  mutable volatile ngs::atomic<int64> m_stmt_create_collection_index;
+  mutable volatile ngs::atomic<int64> m_stmt_drop_collection;
+  mutable volatile ngs::atomic<int64> m_stmt_drop_collection_index;
+  mutable volatile ngs::atomic<int64> m_stmt_list_objects;
+  mutable volatile ngs::atomic<int64> m_stmt_enable_notices;
+  mutable volatile ngs::atomic<int64> m_stmt_disable_notices;
+  mutable volatile ngs::atomic<int64> m_stmt_list_notices;
+  mutable volatile ngs::atomic<int64> m_stmt_list_clients;
+  mutable volatile ngs::atomic<int64> m_stmt_kill_client;
+  mutable volatile ngs::atomic<int64> m_stmt_ping;
+  mutable volatile ngs::atomic<int64> m_bytes_sent;
+  mutable volatile ngs::atomic<int64> m_bytes_received;
+  mutable volatile ngs::atomic<int64> m_errors_sent;
+  mutable volatile ngs::atomic<int64> m_rows_sent;
+  mutable volatile ngs::atomic<int64> m_notice_warning_sent;
+  mutable volatile ngs::atomic<int64> m_notice_other_sent;
 };
 
 

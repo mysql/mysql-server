@@ -146,7 +146,7 @@ ngs::Error_code Sql_data_context::set_connection_type(const ngs::Connection_type
   return ngs::Error_code();
 }
 
-bool Sql_data_context::wait_api_ready(boost::function<bool()> exiting)
+bool Sql_data_context::wait_api_ready(ngs::function<bool()> exiting)
 {
   bool result = is_api_ready();
 

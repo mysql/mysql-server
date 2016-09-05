@@ -22,8 +22,6 @@
 #define _NGS_CONNECTION_VIO_H_
 
 
-#include <boost/function.hpp>
-#include <boost/scoped_ptr.hpp>
 #include "ngs/memory.h"
 #include "ngs/thread.h"
 #include "my_global.h"
@@ -167,8 +165,8 @@ private:
 };
 
 
-typedef boost::shared_ptr<Connection_vio> Connection_ptr;
-typedef ngs::Memory_instrumented<Ssl_context>::Unique_ptr    Ssl_context_unique_ptr;
+typedef ngs::shared_ptr<Connection_vio> Connection_ptr;
+typedef ngs::Memory_instrumented<Ssl_context>::Unique_ptr Ssl_context_unique_ptr;
 
 } // namespace ngs
 
