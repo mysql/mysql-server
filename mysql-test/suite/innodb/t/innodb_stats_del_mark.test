@@ -30,9 +30,7 @@ INSERT INTO t1 (val) SELECT VAL from t1;
 INSERT INTO t1 (val) SELECT VAL from t1;
 INSERT INTO t1 (val) SELECT VAL from t1;
 INSERT INTO t1 (val) SELECT VAL from t1;
-
 SELECT COUNT(*) FROM t1;
-ANALYZE TABLE t1;
 
 connect(con1, localhost, root,,);
 
@@ -44,6 +42,9 @@ send SELECT COUNT(*) FROM t1;
 
 --echo Connection Default
 connection default;
+# To make test determinstic in case stats calculation is not
+# triggered we will call analyze table
+analyze table t1;
 let $row_count= query_get_value(EXPLAIN SELECT * FROM t1 WHERE val=4, rows,1);
 if ($row_count > 20000)
 {
@@ -74,30 +75,32 @@ CREATE TABLE t2 (id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
 connection con1;
 
 START TRANSACTION;
-INSERT INTO t2 (val) VALUES (CEIL(RAND()*20));
-INSERT INTO t2 (val) SELECT CEIL(RAND()*20) FROM t2;
-INSERT INTO t2 (val) SELECT CEIL(RAND()*20) FROM t2;
-INSERT INTO t2 (val) SELECT CEIL(RAND()*20) FROM t2;
-INSERT INTO t2 (val) SELECT CEIL(RAND()*20) FROM t2;
-INSERT INTO t2 (val) SELECT CEIL(RAND()*20) FROM t2;
-INSERT INTO t2 (val) SELECT CEIL(RAND()*20) FROM t2;
-INSERT INTO t2 (val) SELECT CEIL(RAND()*20) FROM t2;
-INSERT INTO t2 (val) SELECT CEIL(RAND()*20) FROM t2;
-INSERT INTO t2 (val) SELECT CEIL(RAND()*20) FROM t2;
-INSERT INTO t2 (val) SELECT CEIL(RAND()*20) FROM t2;
-INSERT INTO t2 (val) SELECT CEIL(RAND()*20) FROM t2;
-INSERT INTO t2 (val) SELECT CEIL(RAND()*20) FROM t2;
-INSERT INTO t2 (val) SELECT CEIL(RAND()*20) FROM t2;
-INSERT INTO t2 (val) SELECT CEIL(RAND()*20) FROM t2;
-INSERT INTO t2 (val) SELECT CEIL(RAND()*20) FROM t2;
-INSERT INTO t2 (val) SELECT CEIL(RAND()*20) FROM t2;
-INSERT INTO t2 (val) SELECT CEIL(RAND()*20) FROM t2;
-INSERT INTO t2 (val) SELECT CEIL(RAND()*20) FROM t2;
+
+INSERT INTO t2 (val) VALUES (4);
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
 send SELECT COUNT(*) FROM t2;
 
 --echo Connection default
 connection default;
 select count(*) from t2;
+analyze table t2;
 let $row_count= query_get_value(EXPLAIN SELECT * FROM t2 WHERE val=4, rows,1);
 if ($row_count > 20000)
 {
