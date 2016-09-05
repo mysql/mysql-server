@@ -4436,7 +4436,6 @@ row_drop_table_for_mysql(
 	preserve existing behaviour we remove the locks but ideally we
 	shouldn't have to. There should never be record locks on a table
 	that is going to be dropped. */
-
 	if (table->get_ref_count() == 0) {
 		/* We don't take lock on intrinsic table so nothing to remove.*/
 		if (!table->is_intrinsic()) {

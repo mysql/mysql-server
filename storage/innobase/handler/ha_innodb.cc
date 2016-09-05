@@ -136,6 +136,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /* for ha_innopart, Native InnoDB Partitioning. */
 #include "ha_innopart.h"
 #include <bitset>
+#include "sql_base.h" // OPEN_FRM_FILE_ONLY
+#include "dict0dd.h"
 
 /** Handler name for InnoDB */
 static constexpr char handler_name[] = "InnoDB";
@@ -396,6 +398,19 @@ static
 void
 innobase_fts_close_ranking(
 	FT_INFO*	fts_hdl);
+
+/** Function used to loop a thread (for debugging/instrumentation
+purpose). */
+void
+srv_debug_loop(void)
+{
+	ibool set = TRUE;
+
+	while (set) {
+		os_thread_yield();
+	}
+}
+
 /** Find and Retrieve the FTS Relevance Ranking result for doc with doc_id
 of m_prebuilt->fts_doc_id
 @param[in,out]	fts_hdl	FTS handler
@@ -7870,7 +7885,585 @@ dd_open_table(
 	return(m_table);
 }
 
+/** Acquire a metadata lock.
+@param[in,out]	thd	current thread
+@param[out]	mdl	metadata lock
+@param[in]	db	schema name
+@param[in]	table	table name
+@retval	false if acquired
+@retval	true if failed (my_error() will have been called) */
+static
+bool
+dd_mdl_acquire(
+	THD*			thd,
+	MDL_ticket**		mdl,
+	const char*		db,
+	const char*		table)
+{
+	return(dd::acquire_shared_table_mdl(thd, db, table, false, mdl));
+}
 
+/** Release a metadata lock.
+@param[in,out]	thd	current thread
+@param[in,out]	mdl	metadata lock */
+void
+dd_mdl_release(
+	THD*		thd,
+	MDL_ticket**	mdl)
+{
+	ut_ad(*mdl != nullptr);
+	dd::release_mdl(thd, *mdl);
+	*mdl = nullptr;
+}
+
+/** Parse a table name
+@param[in]	tbl_name	table name including database and table name
+@param[in,out]	db_buf		database name buffer to be filled
+@param[in,out]	tbl_buf		table name buffer to be filled */
+static
+void
+innobase_parse_tbl_name(
+	const char*	tbl_name,
+	char*		db_buf,
+	char*		tbl_buf)
+{
+	ulint		db_len = dict_get_db_name_len(tbl_name);
+
+	ut_ad(db_len < NAME_LEN);
+	memcpy(db_buf, tbl_name, db_len);
+	db_buf[db_len] = 0;
+	memcpy(tbl_buf, tbl_name + db_len + 1,
+	       strlen(tbl_name) - db_len - 1);
+	tbl_buf[strlen(tbl_name) - db_len - 1] = 0;
+}
+
+
+/** Instantiate an InnoDB in-memory table metadata (dict_table_t)
+based on a Global DD object.
+@param[in,out]	client		data dictionary client
+@param[in]	dd_table	Global DD table object
+@param[in]	dd_part		Global DD partition or subpartition, or NULL
+@param[in]	tbl_name	table name, or NULL if not known
+@param[in,out]	uncached	NULL if the table should be added to the cache;
+				if not, *uncached=true will be assigned
+				when ib_table was allocated but not cached
+				(used during delete_table and rename_table)
+@param[out]	table		InnoDB table (NULL if not found or loadable)
+@param[in]	skip_mdl	whether meta-data locking is skipped
+@return	error code
+@retval	0	on success */
+int
+dd_table_open_on_dd_obj(
+	dd::cache::Dictionary_client*	client,
+	const dd::Table&		dd_table,
+	const dd::Partition*		dd_part,
+	const char*			tbl_name,
+	bool*				uncached,
+	dict_table_t*&			table,
+	bool				skip_mdl,
+	THD*				thd)
+{
+	ut_ad(dd_part == nullptr || &dd_part->table() == &dd_table);
+	ut_ad(dd_part == nullptr
+	      || dd_table.se_private_id() == dd::INVALID_OBJECT_ID);
+	ut_ad(dd_part == nullptr
+	      || dd_table.partition_type() != dd::Table::PT_NONE);
+	ut_ad(dd_part == nullptr
+	      || dd_part->level() == (dd_part->parent() != nullptr));
+	ut_ad(dd_part == nullptr
+	      || ((dd_part->table().subpartition_type() != dd::Table::ST_NONE)
+		  == (dd_part->parent() != nullptr)));
+	ut_ad(dd_part == nullptr
+	      || dd_part->parent() == nullptr
+	      || dd_part->parent()->level() == 0);
+	ut_ad(!skip_mdl || tbl_name == nullptr);
+#if UNIV_DEBUG
+	if (tbl_name) {
+		char	db_buf[NAME_LEN + 1];
+		char	tbl_buf[NAME_LEN + 1];
+
+		innobase_parse_tbl_name(tbl_name, db_buf, tbl_buf);
+		ut_ad(strcmp(dd_table.name().c_str(), tbl_buf) == 0);
+		ut_ad(dd::has_shared_table_mdl(thd, db_buf, tbl_buf));
+	}	
+#endif /* UNIV_DEBUG */
+
+	int			error		= 0;
+	const uint64		table_id	= dd_part == nullptr
+		? dd_table.se_private_id()
+		: dd_part->se_private_id();
+	const ulint		fold		= ut_fold_ull(table_id);
+	const bool		is_temp
+		= (table_id > NUM_HARD_CODED_TABLES)
+		&& !dd_table.is_persistent();
+
+	ut_ad(table_id != dd::INVALID_OBJECT_ID);
+
+	mutex_enter(&dict_sys->mutex);
+
+	HASH_SEARCH(id_hash, dict_sys->table_id_hash, fold,
+                    dict_table_t*, table, ut_ad(table->cached),
+                    table->id == table_id);
+
+
+	if (table == nullptr) {
+		ut_ad(!is_temp);
+	} else {
+		if (uncached == nullptr) {
+			ut_ad(!table->is_corrupted());
+		}
+
+		if (table != nullptr) {
+			table->acquire();
+		}
+	}
+
+	mutex_exit(&dict_sys->mutex);
+
+#if 0
+	ut_ad(table == nullptr
+	      || (dd_part == nullptr
+		  ? dd_table_check(dd_table, *table, true)
+		  : dd_table_check(*dd_part, *table, true)));
+#endif
+
+	if (table || error) {
+		return(error);
+	}
+
+	TABLE_SHARE		ts;
+	const dd::Schema*	schema;
+	const char*		table_cache_key;
+	size_t			table_cache_key_len;
+
+	if (tbl_name != nullptr) {
+		schema = nullptr;
+		table_cache_key = tbl_name;
+		table_cache_key_len = dict_get_db_name_len(tbl_name);
+	} else {
+		error = client->acquire_uncached<dd::Schema>(
+			dd_table.schema_id(), &schema);
+
+		if (error) {
+			return(error);
+		}
+
+		table_cache_key = schema->name().c_str();
+		table_cache_key_len = schema->name().size();
+	}
+
+	init_tmp_table_share(thd,
+			     &ts, table_cache_key, table_cache_key_len,
+			     dd_table.name().c_str(), ""/* file name */);
+
+	error = open_table_def(thd, &ts, false, &dd_table);
+
+	if (!error) {
+		TABLE	td;
+
+		error = open_table_from_share(thd, &ts,
+					      dd_table.name().c_str(),
+					      0, OPEN_FRM_FILE_ONLY, 0,
+					      &td, false, &dd_table);
+		if (!error) {
+#if 0
+			error = dd_part == nullptr
+				? dd_convert_table(
+					client, &td, nullptr, uncached, table,
+					dd_table, skip_mdl)
+				: dd_convert_part(
+					client, &td, uncached, table,
+					*dd_part, skip_mdl);
+#endif
+			char		tmp_name[2 * (NAME_LEN + 1)];
+			const char*	tab_namep;
+
+			if (tbl_name) {
+				tab_namep = tbl_name;
+			} else {
+				snprintf(tmp_name, sizeof tmp_name,
+					 "%s/%s", schema->name().c_str(),
+					 dd_table.name().c_str());
+				tab_namep = tmp_name;
+			}
+
+			table = dd_open_table(
+				client, &td, tab_namep, uncached, table,
+				&dd_table, skip_mdl, thd);
+			mutex_enter(&dict_sys->mutex);
+			table->acquire();
+			mutex_exit(&dict_sys->mutex);
+			dict_stats_init(table);
+		}
+
+		closefrm(&td, false);
+	}
+
+	free_table_share(&ts);
+	delete schema;
+
+	return(error);
+}
+
+/** Load an InnoDB table definition by InnoDB table ID.
+@param[in,out]	thd		current thread
+@param[in,out]	mdl		metadata lock;
+nullptr if we are resurrecting table IX locks in recovery
+@param[in]	tbl_name	table name for already granted MDL,
+or nullptr if mdl==nullptr or *mdl==nullptr
+@param[in]	table_id	InnoDB table or partition ID
+@return	InnoDB table
+@retval	nullptr	if the table is not found, or there was an error */
+static
+dict_table_t*
+dd_table_open_on_id_low(
+	THD*			thd,
+	MDL_ticket**		mdl,
+	const char*		tbl_name,
+	table_id_t		table_id)
+{
+	ut_ad(thd == nullptr || thd == current_thd);
+#ifdef UNIV_DEBUG
+	btrsea_sync_check	check(false);
+	ut_ad(!sync_check_iterate(check));
+#endif
+	ut_ad(!srv_is_being_shutdown);
+
+	if (thd == nullptr) {
+		ut_ad(mdl == nullptr);
+		thd = current_thd;
+	}
+
+#if UNIV_DEBUG
+	char	db_buf[NAME_LEN + 1];
+	char	tbl_buf[NAME_LEN + 1];
+
+	if (tbl_name) {
+		innobase_parse_tbl_name(tbl_name, db_buf, tbl_buf);
+		ut_ad(dd::has_shared_table_mdl(thd, db_buf, tbl_buf));
+	}	
+#endif /* UNIV_DEBUG */
+
+	const dd::Table*				dd_table;
+	const dd::Partition*				dd_part	= nullptr;
+	dd::cache::Dictionary_client*			dc
+		= dd::get_dd_client(thd);
+	dd::cache::Dictionary_client::Auto_releaser	releaser(dc);
+
+	for (;;) {
+		std::string	schema;
+		std::string	tablename;
+		if (dc->get_table_name_by_se_private_id(handler_name,
+							table_id,
+							&schema, &tablename)) {
+			return(nullptr);
+		}
+
+		const bool	not_table = schema.empty();
+
+		if (not_table) {
+			if (dc->get_table_name_by_partition_se_private_id(
+				    handler_name, table_id,
+				    &schema, &tablename)
+			    || schema.empty()) {
+				return(nullptr);
+			}
+		}
+
+		if (mdl != nullptr) {
+			if (*mdl == reinterpret_cast<MDL_ticket*>(-1)) {
+				*mdl = nullptr;
+			}
+
+			ut_ad((*mdl == nullptr) == (!tbl_name));
+#ifdef UNIV_DEBUG
+			if (*mdl != nullptr) {
+
+				ut_ad (strcmp(schema.c_str(), db_buf) == 0);
+				ut_ad(strcmp(tablename.c_str(), tbl_buf) == 0);
+			}
+#endif
+
+			if (*mdl == nullptr && dd_mdl_acquire(
+				    thd, mdl,
+				    schema.c_str(), tablename.c_str())) {
+				return(nullptr);
+			}
+
+			ut_ad(*mdl != nullptr);
+		}
+
+		if (dc->acquire_uncached(schema, tablename, &dd_table)
+		    || dd_table == nullptr) {
+			delete dd_table;
+			if (mdl != nullptr) {
+				dd_mdl_release(thd, mdl);
+			}
+			return(nullptr);
+		}
+
+		const bool	is_part
+			= (dd_table->partition_type() != dd::Table::PT_NONE);
+		bool		same_name = not_table == is_part
+			&& (not_table || dd_table->se_private_id() == table_id)
+			&& dd_table->engine() == handler_name;
+
+		if (same_name && is_part) {
+			auto end = dd_table->partitions().end();
+			auto i = std::search_n(
+				dd_table->partitions().begin(), end, 1,
+				table_id,
+				[](const dd::Partition* p, table_id_t id)
+				{
+					return(p->se_private_id() == id);
+				});
+
+			if (i == end) {
+				same_name = false;
+			} else {
+				dd_part = *i;
+				/* TODO: NEW_DD, unquote after partition
+				WL#9162 is ported
+				ut_ad(dd_part_is_stored(dd_part)); */
+			}
+		}
+
+		if (mdl != nullptr && !same_name) {
+			dd_mdl_release(thd, mdl);
+			delete dd_table;
+			continue;
+		}
+
+		ut_ad(same_name);
+		break;
+	}
+
+	ut_ad(dd_part != nullptr
+	      || dd_table->se_private_id() == table_id);
+	ut_ad(dd_part == nullptr || dd_table == &dd_part->table());
+	ut_ad(dd_part == nullptr || dd_part->se_private_id() == table_id);
+
+	dict_table_t*	ib_table = nullptr;
+
+	dd_table_open_on_dd_obj(
+		dc, *dd_table, dd_part, tbl_name, nullptr,
+		ib_table, mdl == nullptr/*, table */, thd);
+
+	delete dd_table;
+	return(ib_table);
+}
+
+/** Check if access to a table should be refused.
+@param[in,out]	table	InnoDB table or partition
+@return	error code
+@retval	0	on success */
+static MY_ATTRIBUTE((warn_unused_result))
+int
+dd_check_corrupted(dict_table_t*& table)
+{
+	char	db_buf[NAME_LEN + 1];
+	char	tbl_buf[NAME_LEN + 1];
+
+	innobase_parse_tbl_name(table->name.m_name, db_buf, tbl_buf);
+
+	if (table->is_corrupted()) {
+		my_error(ER_TABLE_CORRUPT, MYF(0), db_buf, tbl_buf);
+		table = nullptr;
+		return(HA_ERR_TABLE_CORRUPT);
+	}
+
+	dict_index_t* index = table->first_index();
+	if (fil_space_get(index->space) == nullptr) {
+		// TODO: use index&table name
+		my_error(ER_TABLESPACE_MISSING, MYF(0), table->name.m_name);
+		table = nullptr;
+		return(HA_ERR_TABLESPACE_MISSING);
+	}
+
+	/* Ignore missing tablespaces for secondary indexes. */
+	while ((index = index->next())) {
+		if (!index->is_corrupted()
+		    && fil_space_get(index->space) == nullptr) {
+			dict_set_corrupted(index);
+		}
+	}
+
+	return(0);
+}
+
+/** Open a persistent InnoDB table based on InnoDB table id, and
+held Shared MDL lock on it.
+@param[in]      table_id        table identifier
+@param[in,out]  thd             current MySQL connection (for mdl)
+@param[in,out]  mdl             metadata lock (*mdl set if table_id was found);
+mdl=NULL if we are resurrecting table IX locks in recovery
+@return table
+@retval NULL if the table does not exist or cannot be opened */
+dict_table_t*
+dd_table_open_on_id(
+        table_id_t      table_id,
+        THD*            thd,
+        MDL_ticket**    mdl)
+{
+	dict_table_t*   ib_table;
+	const ulint     fold = ut_fold_ull(table_id);
+
+	mutex_enter(&dict_sys->mutex);
+	HASH_SEARCH(id_hash, dict_sys->table_id_hash, fold,
+		    dict_table_t*, ib_table, ut_ad(ib_table->cached),
+		    ib_table->id == table_id);
+	if (ib_table == NULL) {
+		mutex_exit(&dict_sys->mutex);
+		ib_table = dd_table_open_on_id_low(thd, mdl, nullptr, table_id);
+	} else if (mdl == nullptr || ib_table->is_temporary()) {
+		if (dd_check_corrupted(ib_table)) {
+			ut_ad(ib_table == nullptr);
+		} else {
+			ib_table->acquire();
+		}
+		mutex_exit(&dict_sys->mutex);
+	} else {
+		char	db_buf[NAME_LEN + 1];
+		char	tbl_buf[NAME_LEN + 1];
+
+		for (;;) {
+			mutex_exit(&dict_sys->mutex);
+			innobase_parse_tbl_name(
+				ib_table->name.m_name, db_buf, tbl_buf);
+			ut_ad(!ib_table->is_temporary());
+
+			if (dd_mdl_acquire(thd, mdl, db_buf, tbl_buf)) {
+				return(nullptr);
+			}
+
+			/* Re-lookup the table after acquiring MDL. */
+			mutex_enter(&dict_sys->mutex);
+			HASH_SEARCH(
+				id_hash, dict_sys->table_id_hash, fold,
+				dict_table_t*, ib_table,
+				ut_ad(ib_table->cached),
+				ib_table->id == table_id);
+			if (ib_table != nullptr) {
+				if (dd_check_corrupted(ib_table)) {
+                                        ut_ad(ib_table == nullptr);
+                                } else {
+					ib_table->acquire();
+				}
+			}
+
+			mutex_exit(&dict_sys->mutex);
+			break;
+		}
+
+		ut_ad(*mdl != nullptr);
+
+		if (ib_table == nullptr) {
+			char	tbl_name[2 * (NAME_LEN + 1)];
+			snprintf(tbl_name, sizeof tbl_name,
+				 "%s/%s", db_buf, tbl_buf);
+
+			ib_table = dd_table_open_on_id_low(
+				thd, mdl, tbl_name, table_id);
+
+			if (ib_table == nullptr && *mdl != nullptr) {
+				dd_mdl_release(thd, mdl);
+			}
+		}
+	}
+
+	if (ib_table != nullptr) {
+		if (!ib_table->stat_initialized) {
+			dict_stats_init(ib_table);
+		}
+		ut_ad(ib_table->stat_initialized);
+		ut_ad(ib_table->n_ref_count > 0);
+		MONITOR_INC(MONITOR_TABLE_REFERENCE);
+	}
+
+	return(ib_table);
+}
+
+/** Open an internal handle to a persistent InnoDB table by name.
+@param[in,out]	thd	current thread
+@param[out]	mdl	metadata lock
+@param[in]	name	InnoDB table name
+@return handle to non-partitioned table
+@retval NULL if the table does not exist */
+dict_table_t*
+dd_table_open_on_name(
+	THD*			thd,
+	MDL_ticket**		mdl,
+	const char*		name)
+{
+	DBUG_ENTER("dd_table_open_on_name");
+	ut_ad(thd == current_thd);
+#ifdef UNIV_DEBUG
+	btrsea_sync_check       check(false);
+	ut_ad(!sync_check_iterate(check));
+#endif
+	ut_ad(!srv_is_being_shutdown);
+
+	char	db_buf[NAME_LEN + 1];
+	char	tbl_buf[NAME_LEN + 1];
+
+	innobase_parse_tbl_name(name, db_buf, tbl_buf);
+
+	if (dd_mdl_acquire(thd, mdl, db_buf, tbl_buf)) {
+		DBUG_RETURN(nullptr);
+	}
+
+	const dd::Table*		dd_table = nullptr;
+	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
+	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
+
+	dict_table_t*			table;
+
+	if (client->acquire(db_buf, tbl_buf, &dd_table)
+	    || dd_table == nullptr) {
+		table = nullptr;
+	} else {
+		if (dd_table->se_private_id() == dd::INVALID_OBJECT_ID) {
+			/* This must be a partitioned table. */
+			ut_ad(!dd_table->partitions().empty());
+			table = nullptr;
+		} else {
+			ut_ad(dd_table->partitions().empty());
+			dd_table_open_on_dd_obj(
+				client, *dd_table, nullptr, name,
+				nullptr, table, false, thd);
+		}
+	}
+
+	if (table == nullptr) {
+		dd_mdl_release(thd, mdl);
+	}
+
+        DBUG_RETURN(table);
+}
+
+/** Close an internal InnoDB table handle.
+@param[in,out]  table           InnoDB table handle
+@param[in,out]  thd             current MySQL connection (for mdl)
+@param[in,out]  mdl             metadata lock (will be set NULL) */
+void
+dd_table_close(
+	dict_table_t*	table,
+	THD*		thd,
+	MDL_ticket**	mdl)
+{
+	ut_ad(!table->is_intrinsic());
+
+	dict_table_close(table, false, false);
+
+	const bool is_temp = table->is_temporary();
+
+	MONITOR_DEC(MONITOR_TABLE_REFERENCE);
+
+	if (!is_temp && mdl != nullptr
+	    && (*mdl != reinterpret_cast<MDL_ticket*>(-1))) {
+		dd_mdl_release(thd, mdl);
+	}
+}
 
 /** Open an InnoDB table.
 @param[in]	name	table name
@@ -13193,6 +13786,138 @@ static const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("proxies_priv", 1),
 	INNODB_DD_TABLE("sys_config", 1),
 };
+
+
+//FIXME Check whether need to enable this
+#if 0
+/** Check that the engine-private parts of a data dictionary entry
+match the InnoDB-internal representation.
+@tparam		Index		dd::Index or dd::Partition_index
+@param[in]	dd_index	Global Data Dictionary metadata
+@param[in]	index		InnoDB index metadata
+@param[in]	handler_flags	ALTER operation in progress (0 to ignore)
+@return true (abort on mismatch) */
+template<typename Index>
+bool
+dd_index_check(
+	const Index&				dd_index,
+	const dict_index_t&			index,
+	Alter_inplace_info::HA_ALTER_FLAGS	handler_flags)
+{
+	const dd::Properties&	p = dd_index.se_private_data();
+
+	uint64			id;
+	uint32			root;
+	uint64			trx_id;
+
+	/* dd::cache::Dictionary_client may open DD tables,
+	and ha_innobase::open() invokes dict_sys->enter() */
+	ut_ad(!mutex_own(&dict_sys->mutex));
+	//ut_ad(dd_index_data_is_valid(p));
+	ut_ad(!p.get_uint64(dd_index_key_strings[DD_INDEX_ID], &id));
+	ut_ad(!p.get_uint32(dd_index_key_strings[DD_INDEX_ROOT], &root));
+	ut_ad(!p.get_uint64(dd_index_key_strings[DD_INDEX_TRX_ID], &trx_id));
+
+	ut_ad(root == index.root());
+	ut_ad(id == index.id);
+	ut_ad(trx_id == index.trx_id);
+	ut_ad(dd_index.name() == index.name()
+	      || (handler_flags & Alter_inplace_info::RENAME_INDEX));
+	ut_ad(root > 1);
+	ut_ad(root != FIL_NULL);
+	ut_ad(id != 0);
+	ut_ad(((trx_id == 0) == dict_sys_t::hardcoded(index.table->id))
+	      || index.table->is_temporary());
+
+	unsigned	n_fields = 0;
+	for (const dd::Index_element* e : dd_index.index().elements()) {
+		const dict_field_t* f = index.get_field(n_fields++);
+		ut_ad(e->column().name() == f->name(&index)
+		      || (handler_flags
+			  & Alter_inplace_info::ALTER_COLUMN_NAME));
+		ut_ad(e->order() == dd::Index_element::ORDER_ASC);
+		ut_ad(e->length() != 0);
+#if 1 // WL#7141 TODO: make this stricter
+		if (e->is_hidden()) {// TODO: same logic for hidden columns!
+			// ut_ad(!dd_index_element_is_prefix(e));
+		} else if (dd_index_element_is_prefix(e)) {
+			// ut_ad(e->length() == f->prefix_len);
+		} else if (e->length() == ~0U/* unlimited */) {
+			ut_ad(!f->is_prefix());
+			ut_ad(f->fixed_len == 0);
+		} else if (Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH
+			   & handler_flags) {
+		} else {
+			ut_ad(!f->is_prefix());
+			ut_ad(e->length() == f->col->len
+			      || f->col->mtype == DATA_INT/*FIXME*/);
+		}
+#endif
+	}
+
+	ut_ad(n_fields == index.n_fields());
+	FilSpace space(index.space_id());
+	ut_ad(space() != nullptr);
+	ut_ad(index.space_id() == space->id);
+	ut_ad(dd_index.tablespace_id() == space->dd_id);
+
+	return(true);
+}
+
+template bool dd_index_check<dd::Index>(
+	const dd::Index&,const dict_index_t&,
+	Alter_inplace_info::HA_ALTER_FLAGS);
+template bool dd_index_check<dd::Partition_index>(
+	const dd::Partition_index&,const dict_index_t&,
+	Alter_inplace_info::HA_ALTER_FLAGS);
+
+/** Check that the engine-private parts of a data dictionary entry
+match the InnoDB-internal representation.
+@tparam		Table		dd::Table or dd::Partition
+@param[in]	dd_part		Global Data Dictionary metadata
+@param[in]	table		InnoDB metadata
+@param[in]	only_committed	whether to only include committed indexes
+@return whether the two definitions match */
+template<typename Table>
+bool
+dd_table_check(
+	const Table&		dd_part,
+	const dict_table_t&	table,
+	bool			only_committed)
+{
+	const dict_index_t*	index	= table.first_index();
+
+	ut_ad(dd_part.se_private_id() == table.id);
+	ut_ad(index->is_committed());
+	ut_ad(!dict_sys_t::hardcoded(table.id)
+	      || dd_part.name() == innodb_dd_table[table.id].name);
+	ut_ad(dd_table_data_is_valid(dd_table(dd_part).se_private_data()));
+
+	for (auto i : dd_part.indexes()) {
+		if (index == nullptr) {
+			/* Index count mismatch */
+			ut_ad(false);
+			return(false);
+		}
+
+		//dd_index_check(*i, *index);
+
+		do {
+			index = index->next();
+		} while (only_committed
+			 && index != nullptr && !index->is_committed());
+	}
+
+	/* Check for index count mismatch */
+	ut_ad(index == nullptr);
+	return(index == nullptr);
+}
+
+template bool dd_table_check<dd::Table>(
+	const dd::Table&,const dict_table_t&,bool);
+template bool dd_table_check<dd::Partition>(
+	const dd::Partition&,const dict_table_t&,bool);
+#endif
 
 /** Number of hard-coded data dictionary tables */
 static const uint innodb_dd_table_size

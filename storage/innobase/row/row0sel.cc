@@ -59,6 +59,7 @@ Created 12/19/1997 Heikki Tuuri
 #include "srv0mon.h"
 #include "ut0new.h"
 #include "lob0lob.h"
+#include "dict0dd.h"
 
 /* Maximum number of rows to prefetch; MySQL interface has another parameter */
 #define SEL_MAX_N_PREFETCH	16

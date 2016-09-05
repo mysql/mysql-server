@@ -69,6 +69,7 @@ Smart ALTER TABLE
 #include "ha_innodb.h"
 #include "ut0new.h"
 #include "ut0stage.h"
+#include "dict0dd.h"
 
 /* For supporting Native InnoDB Partitioning. */
 #include "partition_info.h"

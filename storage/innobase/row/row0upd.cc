@@ -53,6 +53,7 @@ Created 12/27/1996 Heikki Tuuri
 #include "lob0lob.h"
 #include <algorithm>
 #include "current_thd.h"
+#include "dict0dd.h"
 
 /* What kind of latch and lock can we assume when the control comes to
    -------------------------------------------------------------------
@@ -255,10 +256,11 @@ row_upd_check_references_constraints(
 			dict_table_t*	ref_table = NULL;
 
 			if (foreign_table == NULL) {
+				MDL_ticket*	mdl;
 
-				ref_table = dict_table_open_on_name(
-					foreign->foreign_table_name_lookup,
-					FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+				ref_table = dd_table_open_on_name(
+					trx->mysql_thd, &mdl,
+					foreign->foreign_table_name_lookup);
 			}
 
 			/* NOTE that if the thread ends up waiting for a lock

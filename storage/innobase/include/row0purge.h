@@ -111,6 +111,12 @@ struct purge_node_t {
 	/** table where purge is done */
 	dict_table_t*		table;
 
+	/** MDL ticket for the table name */
+        MDL_ticket*             mdl;
+
+        /** MySQL table instance, or NULL if !table->has_index_on_virtual() */
+        TABLE*                  mysql_table;
+
 	/** compiler analysis info of an update */
 	ulint			cmpl_info;
 

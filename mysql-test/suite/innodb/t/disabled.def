@@ -58,3 +58,6 @@ autoinc_persist_debug     : WL#9525 disables it, partitioning
 partition                 : WL#9525 disables it, partitioning
 tablespace_per_table      : WL#9525 disables it, partitioning
 innodb-import-partition   : WL#9525 disables it, partitioning
+
+#encrytion
+table_encrypt_kill	  : crash after encryption enabled

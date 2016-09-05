@@ -46,6 +46,11 @@ Created 3/14/1997 Heikki Tuuri
 #include "mysqld.h"
 #include "lob0lob.h"
 
+#include "current_thd.h"
+#include "sql_base.h"
+#include "table.h"
+#include "dict0dd.h"
+
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
 is enough space in the redo log before for that operation. This is
@@ -138,8 +143,6 @@ row_purge_remove_clust_if_poss_low(
 	ulint*			offsets;
 	ulint			offsets_[REC_OFFS_NORMAL_SIZE];
 	rec_offs_init(offsets_);
-
-	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_S));
 
 	index = node->table->first_index();
 
@@ -692,7 +695,6 @@ row_purge_upd_exist_or_extern_func(
 {
 	mem_heap_t*	heap;
 
-	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_S));
 	ut_ad(!node->table->skip_alter_undo);
 
 	if (node->rec_type == TRX_UNDO_UPD_DEL_REC
@@ -836,16 +838,20 @@ skip_secondaries:
 
 /***********************************************************//**
 Parses the row reference and other info in a modify undo log record.
+@param[in,out]	node		row undo node
+@param[in]	undo_rec	undo record to purge
+@param[out]	updated_extern	whether an externally stored field was updated
+@param[in,out]	thd		current thread
+@param[in,out]	thr		execution thread
 @return true if purge operation required */
 static
 bool
 row_purge_parse_undo_rec(
-/*=====================*/
-	purge_node_t*		node,		/*!< in: row undo node */
-	trx_undo_rec_t*		undo_rec,	/*!< in: record to purge */
-	bool*			updated_extern, /*!< out: true if an externally
-						stored field was updated */
-	que_thr_t*		thr)		/*!< in: query thread */
+	purge_node_t*		node,
+	trx_undo_rec_t*		undo_rec,
+	bool*			updated_extern,
+	THD*			thd,
+	que_thr_t*		thr)
 {
 	dict_index_t*	clust_index;
 	byte*		ptr;
@@ -881,12 +887,34 @@ row_purge_parse_undo_rec(
 #ifdef INNODB_DD_VC_SUPPORT
 try_again:
 #endif /* INNODB_DD_VC_SUPPORT */
-	/* Prevent DROP TABLE etc. from running when we are doing the purge
-	for this row */
-	rw_lock_s_lock_inline(dict_operation_lock, 0, __FILE__, __LINE__);
 
-	node->table = dict_table_open_on_id(
-		table_id, FALSE, DICT_TABLE_OP_NORMAL);
+	/* FIX_ME: NEW_DD, this is temporary solution as the system
+	tables are not yet coming with InnoDB private data */
+	if (table_id <= 70) {
+		node->table = dict_table_open_on_id(
+			table_id, FALSE, DICT_TABLE_OP_NORMAL);
+	} else {
+		for (;;) {
+			const auto no_mdl = reinterpret_cast<MDL_ticket*>(-1);
+			node->mdl = no_mdl;
+
+			node->table = dd_table_open_on_id(
+				table_id, thd, &node->mdl);
+				//table_id, thd, NULL);
+
+			if (node->table != nullptr) {
+				break;
+			}
+
+			if (node->mdl == no_mdl) {
+				/* The table has been dropped: no need
+				to do purge */
+				node->mdl = nullptr;
+				goto err_exit;
+			}
+		}
+        }
+
 
 	if (node->table == NULL) {
 		/* The table has been dropped: no need to do purge */
@@ -900,7 +928,6 @@ try_again:
 		if (!mysqld_server_started) {
 
 			dict_table_close(node->table, FALSE, FALSE);
-			rw_lock_s_unlock(dict_operation_lock);
 			if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
 				return(false);
 			}
@@ -937,9 +964,14 @@ try_again:
 		dict_set_corrupted() works on an index, and
 		we do not have an index to call it with. */
 close_exit:
-		dict_table_close(node->table, FALSE, FALSE);
+		/* Purge requires no changes to indexes: we may return */
+		if (node->table->id <= 70) {
+			dict_table_close(node->table, FALSE, FALSE);
+			node->table = NULL;
+		} else  {
+			dd_table_close(node->table, thd, &node->mdl);
+		}
 err_exit:
-		rw_lock_s_unlock(dict_operation_lock);
 		return(false);
 	}
 
@@ -947,7 +979,6 @@ err_exit:
 	    && (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)
 	    && !*updated_extern) {
 
-		/* Purge requires no changes to indexes: we may return */
 		goto close_exit;
 	}
 
@@ -975,18 +1006,23 @@ err_exit:
 
 /***********************************************************//**
 Purges the parsed record.
+@param[in,out]  node            row purge node
+@param[in]      undo_rec        undo record to purge
+@param[in,out]  thr             query thread
+@param[in]      updated_extern  whether external columns were updated
+@param[in,out]  thd             current thread
 @return true if purged, false if skipped */
 static MY_ATTRIBUTE((warn_unused_result))
 bool
 row_purge_record_func(
 /*==================*/
-	purge_node_t*	node,		/*!< in: row purge node */
-	trx_undo_rec_t*	undo_rec,	/*!< in: record to purge */
+	purge_node_t*	node,
+	trx_undo_rec_t*	undo_rec,
 #ifdef UNIV_DEBUG
-	const que_thr_t*thr,		/*!< in: query thread */
+	const que_thr_t*thr,
 #endif /* UNIV_DEBUG */
-	bool		updated_extern)	/*!< in: whether external columns
-					were updated */
+	bool		updated_extern,
+	THD*		thd)
 {
 	dict_index_t*	clust_index;
 	bool		purged		= true;
@@ -1030,19 +1066,28 @@ row_purge_record_func(
 	}
 
 	if (node->table != NULL) {
-		dict_table_close(node->table, FALSE, FALSE);
-		node->table = NULL;
+		if (node->mysql_table != nullptr) {
+                        close_thread_tables(thd);
+                        node->mysql_table = nullptr;
+                }
+
+		if (node->table->id <= 70) {
+			dict_table_close(node->table, FALSE, FALSE);
+			node->table = NULL;
+		} else  {
+	                dd_table_close(node->table, thd, &node->mdl);
+                }
 	}
 
 	return(purged);
 }
 
 #ifdef UNIV_DEBUG
-# define row_purge_record(node,undo_rec,thr,updated_extern)	\
-	row_purge_record_func(node,undo_rec,thr,updated_extern)
+# define row_purge_record(node,undo_rec,thr,updated_extern,thd)	\
+	row_purge_record_func(node,undo_rec,thr,updated_extern,thd)
 #else /* UNIV_DEBUG */
-# define row_purge_record(node,undo_rec,thr,updated_extern)	\
-	row_purge_record_func(node,undo_rec,updated_extern)
+# define row_purge_record(node,undo_rec,thr,updated_extern,thd)	\
+	row_purge_record_func(node,undo_rec,updated_extern,thd)
 #endif /* UNIV_DEBUG */
 
 /***********************************************************//**
@@ -1058,14 +1103,15 @@ row_purge(
 	que_thr_t*	thr)		/*!< in: query thread */
 {
 	bool	updated_extern;
+	THD*	thd = current_thd;
 
-	while (row_purge_parse_undo_rec(node, undo_rec, &updated_extern, thr)) {
+	while (row_purge_parse_undo_rec(
+			node, undo_rec, &updated_extern, thd, thr)) {
 
 		bool purged;
 
-		purged = row_purge_record(node, undo_rec, thr, updated_extern);
-
-		rw_lock_s_unlock(dict_operation_lock);
+		purged = row_purge_record(
+			node, undo_rec, thr, updated_extern, thd);
 
 		if (purged || srv_shutdown_state != SRV_SHUTDOWN_NONE) {
 			return;
