@@ -1559,12 +1559,50 @@ public:
     return (this->*processor)(arg);
   }
 
+  /**
+    Perform a generic transformation of the Item tree, by adding zero or
+    more additional Item objects to it.
+
+    @param transformer  Transformer function
+    @param[in,out] arg  Pointer to struct used by transformer function
+
+    @returns Returned item tree after transformation, NULL if error
+
+    @details
+
+    Transformation is performed as follows:
+
+    transform()
+    {
+      transform children if any;
+      return this->*some_transformer(...);
+    }
+
+    Note that unlike Item::compile(), transform() does not support an analyzer
+    function, ie. all children are unconditionally invoked.
+
+    @todo Let compile() handle all transformations during optimization, and
+          let transform() handle transformations during preparation only.
+          Then there would be no need to call change_item_tree() during
+          transformation.
+  */
   virtual Item* transform(Item_transformer transformer, uchar *arg);
 
-  /*
-    This function performs a generic "compilation" of the Item tree.
-    The process of compilation is assumed to go as follows: 
-    
+  /**
+    Perform a generic "compilation" of the Item tree, ie transform the Item tree
+    by adding zero or more Item objects to it.
+
+    @param analyzer      Analyzer function, see details section
+    @param[in,out] arg_p Pointer to struct used by analyzer function
+    @param transformer   Transformer function, see details section
+    @param[in,out] arg_t Pointer to struct used by transformer function
+
+    @returns Returned item tree after transformation, NULL if error
+
+    @details
+
+    The process of this transformation is assumed to be as follows:
+
     compile()
     { 
       if (this->*some_analyzer(...))
@@ -1580,6 +1618,12 @@ public:
     bottom-up. If no transformation is applied, the item is returned unchanged.
     A transformation error is indicated by returning a NULL pointer. Notice
     that the analyzer function should never cause an error.
+
+    The function is supposed to be used during the optimization stage of
+    query execution. All new allocations are recorded using
+    THD::change_item_tree() so that they can be rolled back after execution.
+
+    @todo Pass THD to compile() function, thus no need to use current_thd.
   */
   virtual Item* compile(Item_analyzer analyzer, uchar **arg_p,
                         Item_transformer transformer, uchar *arg_t)
@@ -4936,9 +4980,9 @@ public:
   Item *copy_or_same(THD*) { return this; }
   Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
   void cleanup();
+  void set_required_privilege(bool rw);
 
 private:
-  void set_required_privilege(bool rw);
   bool set_value(THD *thd, sp_rcontext *ctx, Item **it);
 
 public:

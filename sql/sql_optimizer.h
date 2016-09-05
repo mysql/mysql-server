@@ -530,7 +530,15 @@ public:
   */
   uint current_ref_item_slice;
 
-  const char *zero_result_cause; ///< not 0 if exec must return zero result
+  /**
+    <> NULL if optimization has determined that execution will produce an
+    empty result before aggregation, contains a textual explanation on why
+    result is empty. Implicitly grouped queries may still produce an
+    aggregation row.
+    @todo - suggest to set to "Preparation determined that query is empty"
+            when SELECT_LEX::is_empty_query() is true.
+  */
+  const char *zero_result_cause;
 
   /**
      True if, at this stage of processing, subquery materialization is allowed
@@ -900,7 +908,10 @@ private:
   void test_skip_sort();
 };
 
-/// RAII class to ease the call of LEX::mark_broken() if error.
+/**
+  RAII class to ease the call of LEX::mark_broken() if error.
+  Used during preparation and optimization of DML queries.
+*/
 class Prepare_error_tracker
 {
 public:

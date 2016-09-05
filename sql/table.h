@@ -2001,6 +2001,12 @@ struct TABLE_LIST
   void set_insertable() { m_insertable= true; }
 
   /**
+    Set table as readonly, ie it is neither updatable, insertable nor
+    deletable during this statement.
+  */
+  void set_readonly() { m_updatable= false; m_insertable= false; }
+
+  /**
     Return true if this is a view or derived table that is defined over
     more than one base table, and false otherwise.
   */
@@ -2533,7 +2539,12 @@ private:
   bool          m_insertable;           /* VIEW/TABLE can be inserted into */
 public:
   bool		straight;		/* optimize with prev table */
-  bool          updating;               /* for replicate-do/ignore table */
+  /**
+    True for tables and views being changed in a data change statement.
+    Also used by replication to filter out statements that can be ignored,
+    especially important for multi-table UPDATE and DELETE.
+  */
+  bool          updating;
   bool		force_index;		/* prefer index over table scan */
   bool          ignore_leaves;          /* preload only non-leaf nodes */
   table_map     dep_tables;             /* tables the table depends on      */

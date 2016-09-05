@@ -20,6 +20,8 @@
 #include "current_thd.h"
 #include "dd/dd.h"            // dd::get_dictionary
 #include "dd/dictionary.h"    // dd::Dictionary::is_system_view_name
+#include "dd/dd_schema.h"     // dd::schema_exists
+#include "dd/dd_table.h"      // dd::table_exists
 #include "debug_sync.h"       // DEBUG_SYNC
 #include "derror.h"           // ER_THD
 #include "error_handler.h"    // Strict_error_handler
@@ -96,7 +98,7 @@ using std::max;
    (LP)->sql_command == SQLCOM_DROP_FUNCTION ? \
    "FUNCTION" : "PROCEDURE")
 
-static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
+static bool execute_show(THD *thd, TABLE_LIST *all_tables);
 static void sql_kill(THD *thd, my_thread_id id, bool only_kill_query);
 
 const LEX_STRING command_name[]={
@@ -509,9 +511,11 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_DROP_INDEX]|=      CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_UPDATE]|=          CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_UPDATE_MULTI]|=    CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_INSERT]|=          CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_INSERT_SELECT]|=   CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_DELETE]|=          CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_DELETE_MULTI]|=    CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_REPLACE]|=         CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_REPLACE_SELECT]|=  CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_SELECT]|=          CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_SET_OPTION]|=      CF_PREOPEN_TMP_TABLES;
@@ -1161,51 +1165,6 @@ static inline ulong get_max_execution_time(THD *thd)
 {
   return (thd->lex->max_execution_time ? thd->lex->max_execution_time :
                                         thd->variables.max_execution_time);
-}
-
-
-/**
-  Set the time until the currently running statement is aborted.
-
-  @param  thd   Thread (session) context.
-
-  @return true if the timer was armed.
-*/
-static inline bool set_statement_timer(THD *thd)
-{
-  ulong max_execution_time= get_max_execution_time(thd);
-
-  /**
-    whether timer can be set for the statement or not should be checked before
-    calling set_statement_timer function.
-  */
-  DBUG_ASSERT(is_timer_applicable_to_statement(thd) == true);
-  DBUG_ASSERT(thd->timer == NULL);
-
-  thd->timer= thd_timer_set(thd, thd->timer_cache, max_execution_time);
-  thd->timer_cache= NULL;
-
-  if (thd->timer)
-    thd->status_var.max_execution_time_set++;
-  else
-    thd->status_var.max_execution_time_set_failed++;
-
-  return thd->timer;
-}
-
-
-/**
-  Deactivate the timer associated with the statement that was executed.
-
-  @param  thd   Thread (session) context.
-*/
-
-void reset_statement_timer(THD *thd)
-{
-  DBUG_ASSERT(thd->timer);
-  /* Cache the timer object if it can be reused. */
-  thd->timer_cache= thd_timer_reset(thd->timer);
-  thd->timer= NULL;
 }
 
 
@@ -2724,8 +2683,8 @@ mysql_execute_command(THD *thd, bool first_level)
     System_status_var old_status_var= thd->status_var;
     thd->initial_status_var= &old_status_var;
 
-    if (!(res= select_precheck(thd, lex, all_tables, first_table)))
-      res= execute_sqlcom_select(thd, all_tables);
+    if (!(res= show_precheck(thd, lex, true)))
+      res= execute_show(thd, all_tables);
 
     /* Don't log SHOW STATUS commands to slow query log */
     thd->server_status&= ~(SERVER_QUERY_NO_INDEX_USED |
@@ -2762,17 +2721,16 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_SHOW_COLLATIONS:
   case SQLCOM_SHOW_STORAGE_ENGINES:
   case SQLCOM_SHOW_PROFILE:
-  case SQLCOM_SELECT:
   {
     DBUG_EXECUTE_IF("use_attachable_trx",
                     thd->begin_attachable_ro_transaction(););
 
     thd->clear_current_query_costs();
 
-    res= select_precheck(thd, lex, all_tables, first_table);
+    res= show_precheck(thd, lex, true);
 
     if (!res)
-      res= execute_sqlcom_select(thd, all_tables);
+      res= execute_show(thd, all_tables);
 
     thd->save_current_query_costs();
 
@@ -2796,9 +2754,6 @@ mysql_execute_command(THD *thd, bool first_level)
     mysql_sql_stmt_close(thd);
     break;
   }
-  case SQLCOM_DO:
-    res= mysql_do(thd, lex);
-    break;
 
   case SQLCOM_EMPTY_QUERY:
     my_ok(thd);
@@ -4154,119 +4109,7 @@ mysql_execute_command(THD *thd, bool first_level)
     }
     break; /* break super switch */
   } /* end case group bracket */
-  case SQLCOM_CALL:
-    {
-      sp_head *sp;
 
-      /* Here we check for the execute privilege on stored procedure. */
-      if (check_routine_access(thd, EXECUTE_ACL, lex->spname->m_db.str,
-                               lex->spname->m_name.str,
-                               lex->sql_command == SQLCOM_CALL, 0))
-        goto error;
-
-      /*
-        This will cache all SP and SF and open and lock all tables
-        required for execution.
-      */
-      if (check_table_access(thd, SELECT_ACL, all_tables, FALSE,
-                             UINT_MAX, FALSE) ||
-          open_and_lock_tables(thd, all_tables, 0))
-       goto error;
-
-      /*
-        By this moment all needed SPs should be in cache so no need to look 
-        into DB. 
-      */
-      if (!(sp= sp_find_routine(thd, enum_sp_type::PROCEDURE, lex->spname,
-                                &thd->sp_proc_cache, TRUE)))
-      {
-	my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PROCEDURE",
-                 lex->spname->m_qname.str);
-	goto error;
-      }
-      else
-      {
-	ha_rows select_limit;
-        /* bits that should be cleared in thd->server_status */
-	uint bits_to_be_cleared= 0;
-        /*
-          Check that the stored procedure doesn't contain Dynamic SQL
-          and doesn't return result sets: such stored procedures can't
-          be called from a function or trigger.
-        */
-        if (thd->in_sub_stmt)
-        {
-          const char *where= (thd->in_sub_stmt & SUB_STMT_TRIGGER ?
-                              "trigger" : "function");
-          if (sp->is_not_allowed_in_function(where))
-            goto error;
-        }
-
-#ifndef EMBEDDED_LIBRARY
-        if (mysql_audit_notify(thd,
-                              AUDIT_EVENT(MYSQL_AUDIT_STORED_PROGRAM_EXECUTE),
-                              lex->spname->m_db.str,
-                              lex->spname->m_name.str,
-                              NULL))
-        {
-          goto error;
-        }
-#endif /* !EMBEDDED_LIBRARY */
-
-	if (sp->m_flags & sp_head::MULTI_RESULTS)
-	{
-	  if (!thd->get_protocol()->has_client_capability(CLIENT_MULTI_RESULTS))
-	  {
-            /*
-              The client does not support multiple result sets being sent
-              back
-            */
-	    my_error(ER_SP_BADSELECT, MYF(0), sp->m_qname.str);
-	    goto error;
-	  }
-          /*
-            If SERVER_MORE_RESULTS_EXISTS is not set,
-            then remember that it should be cleared
-          */
-	  bits_to_be_cleared= (~thd->server_status &
-                               SERVER_MORE_RESULTS_EXISTS);
-	  thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
-	}
-
-	if (check_routine_access(thd, EXECUTE_ACL,
-				 sp->m_db.str, sp->m_name.str, TRUE, FALSE))
-	{
-	  goto error;
-	}
-	select_limit= thd->variables.select_limit;
-	thd->variables.select_limit= HA_POS_ERROR;
-
-        /*
-          We never write CALL statements into binlog:
-           - If the mode is non-prelocked, each statement will be logged
-             separately.
-           - If the mode is prelocked, the invoking statement will care
-             about writing into binlog.
-          So just execute the statement.
-        */
-	res= sp->execute_procedure(thd, &lex->call_value_list);
-
-	thd->variables.select_limit= select_limit;
-
-        thd->server_status&= ~bits_to_be_cleared;
-
-	if (!res)
-        {
-          my_ok(thd, (thd->get_row_count_func() < 0) ? 0 : thd->get_row_count_func());
-        }
-	else
-        {
-          DBUG_ASSERT(thd->is_error() || thd->killed);
-	  goto error;		// Substatement should already have sent error
-        }
-      }
-      break;
-    }
   case SQLCOM_ALTER_PROCEDURE:
   case SQLCOM_ALTER_FUNCTION:
     {
@@ -4551,6 +4394,9 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_UNINSTALL_COMPONENT:
   case SQLCOM_SHUTDOWN:
   case SQLCOM_ALTER_INSTANCE:
+  case SQLCOM_SELECT:
+  case SQLCOM_DO:
+  case SQLCOM_CALL:
   case SQLCOM_CREATE_ROLE:
   case SQLCOM_DROP_ROLE:
   case SQLCOM_SET_ROLE:
@@ -4812,9 +4658,149 @@ finish:
   DBUG_RETURN(res || thd->is_error());
 }
 
-static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
+/**
+  Do special checking for SHOW statements.
+
+  @param thd              Thread context.
+  @param lex              LEX for SHOW statement.
+  @param lock             If true, lock metadata for schema objects
+
+  @returns false if check is successful, true if error
+*/
+
+bool show_precheck(THD *thd, LEX *lex, bool lock)
 {
-  DBUG_ENTER("execute_sqlcom_select");
+  bool new_dd_show= false;
+
+  TABLE_LIST *const tables= lex->query_tables;
+
+  switch (lex->sql_command)
+  {
+    // For below show commands, perform check_show_access() call
+    case SQLCOM_SHOW_DATABASES:
+      new_dd_show= true;
+      break;
+
+    case SQLCOM_SHOW_TABLES:
+    case SQLCOM_SHOW_TABLE_STATUS:
+    {
+      new_dd_show= true;
+
+      if (!lock)
+        break;
+
+      // Acquire IX MDL lock on schema name.
+      MDL_request mdl_request;
+      MDL_REQUEST_INIT(&mdl_request, MDL_key::SCHEMA,
+                       lex->select_lex->db, "",
+                       MDL_INTENTION_EXCLUSIVE,
+                       MDL_TRANSACTION);
+      if (thd->mdl_context.acquire_lock(&mdl_request,
+                                        thd->variables.lock_wait_timeout))
+        return true;
+
+      // Stop if given database does not exist.
+      bool exists= false;
+      if (dd::schema_exists(thd, lex->select_lex->db, &exists))
+        return true;
+
+      if (!exists)
+      {
+        my_error(ER_BAD_DB_ERROR, MYF(0), lex->select_lex->db);
+        return true;
+      }
+
+      break;
+    }
+    case SQLCOM_SHOW_FIELDS:
+    case SQLCOM_SHOW_KEYS:
+      {
+        new_dd_show= true;
+
+        if (!lock)
+          break;
+
+        enum enum_schema_tables schema_table_idx;
+        if (tables->schema_table)
+        {
+          schema_table_idx= get_schema_table_idx(tables->schema_table);
+          if (schema_table_idx == SCH_TMP_TABLE_COLUMNS ||
+              schema_table_idx == SCH_TMP_TABLE_KEYS)
+            break;
+        }
+
+        bool can_deadlock= thd->mdl_context.has_locks();
+        TABLE_LIST *dst_table= tables->schema_select_lex->table_list.first;
+        if (try_acquire_high_prio_shared_mdl_lock(thd, dst_table, can_deadlock))
+        {
+          /*
+            Some error occured (most probably we have been killed while
+            waiting for conflicting locks to go away), let the caller to
+            handle the situation.
+          */
+          return true;
+        }
+
+        if (dst_table->mdl_request.ticket == nullptr)
+        {
+          /*
+            We are in situation when we have encountered conflicting metadata
+            lock and deadlocks can occur due to waiting for it to go away.
+            So instead of waiting skip this table with an appropriate warning.
+          */
+          DBUG_ASSERT(can_deadlock);
+          my_error(ER_WARN_I_S_SKIPPED_TABLE, MYF(0),
+                   dst_table->db, dst_table->table_name);
+          return true;
+        }
+
+        // Stop if given database does not exist.
+        bool exists= false;
+        if (dd::schema_exists(thd, dst_table->db, &exists))
+          return true;
+
+        if (!exists)
+        {
+          my_error(ER_BAD_DB_ERROR, MYF(0), dst_table->db);
+          return true;
+        }
+
+        exists= false;
+        if (dd::table_exists<dd::Abstract_table>(thd->dd_client(),
+                                                 dst_table->db,
+                                                 dst_table->table_name,
+                                                 &exists))
+          return true;
+
+        if (!exists)
+        {
+          my_error(ER_NO_SUCH_TABLE, MYF(0),
+                   dst_table->db,
+                   dst_table->table_name);
+          return true;
+        }
+        break;
+      }
+    default:
+      break;
+  }
+
+  if (tables != NULL)
+  {
+    if (check_table_access(thd, SELECT_ACL, tables, false, UINT_MAX, false))
+      return true;
+
+    if ((tables->schema_table_reformed || new_dd_show) &&
+        check_show_access(thd, tables))
+      return true;
+  }
+  return false;
+}
+
+
+static bool execute_show(THD *thd, TABLE_LIST *all_tables)
+{
+  DBUG_ENTER("execute_show");
   LEX	*lex= thd->lex;
   bool statement_timer_armed= false;
   bool res;
@@ -4871,7 +4857,6 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
   if (statement_timer_armed && thd->timer)
     reset_statement_timer(thd);
 
-  DEBUG_SYNC(thd, "after_table_open");
   DBUG_RETURN(res);
 }
 
@@ -5031,18 +5016,21 @@ void THD::reset_for_next_command()
 
   @param pc                     Current parse context
   @param var_name		Variable name
+
+  @returns false if success, true if error
+
+  @todo - replace this function with one that generates a PT_select node
+          and performs MAKE_CMD on it.
 */
 
-void create_select_for_variable(Parse_context *pc, const char *var_name)
+bool create_select_for_variable(Parse_context *pc, const char *var_name)
 {
-  THD *thd= pc->thd;
-  LEX *lex;
   LEX_STRING tmp, null_lex_string;
-  Item *var;
-  char buff[MAX_SYS_VAR_LENGTH*2+4+8], *end;
+  char buff[MAX_SYS_VAR_LENGTH*2+4+8];
   DBUG_ENTER("create_select_for_variable");
 
-  lex= thd->lex;
+  THD *thd= pc->thd;
+  LEX *lex= thd->lex;
   lex->sql_command= SQLCOM_SELECT;
   tmp.str= (char*) var_name;
   tmp.length=strlen(var_name);
@@ -5051,24 +5039,17 @@ void create_select_for_variable(Parse_context *pc, const char *var_name)
     We set the name of Item to @@session.var_name because that then is used
     as the column name in the output.
   */
-  if ((var= get_system_var(pc, OPT_SESSION, tmp, null_lex_string)))
-  {
-    end= strxmov(buff, "@@session.", var_name, NullS);
-    var->item_name.copy(buff, end - buff);
-    add_item_to_list(thd, var);
-  }
-  DBUG_VOID_RETURN;
+  Item *var= get_system_var(pc, OPT_SESSION, tmp, null_lex_string);
+  if (var == NULL)
+    DBUG_RETURN(true);                      /* purecov: inspected */
+
+  char *end= strxmov(buff, "@@session.", var_name, NullS);
+  var->item_name.copy(buff, end - buff);
+  add_item_to_list(thd, var);
+
+  DBUG_RETURN(false);
 }
 
-
-void mysql_init_multi_delete(LEX *lex)
-{
-  lex->select_lex->select_limit= 0;
-  lex->unit->select_limit_cnt= HA_POS_ERROR;
-  lex->select_lex->table_list.save_and_clear(&lex->auxiliary_table_list);
-  lex->query_tables= NULL;
-  lex->query_tables_last= &lex->query_tables;
-}
 
 /*
   When you modify mysql_parse(), you may need to mofify

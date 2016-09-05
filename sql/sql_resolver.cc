@@ -39,9 +39,6 @@
 #include "sql_test.h"            // print_where
 #include "template_utils.h"
 
-
-static void propagate_nullability(List<TABLE_LIST> *tables, bool nullable);
-
 static const Item::enum_walk walk_subquery=
   Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
 
@@ -161,7 +158,7 @@ bool SELECT_LEX::prepare(THD *thd)
 
   Mem_root_array<Item_exists_subselect *, true>
     sj_candidates_local(thd->mem_root);
-  sj_candidates= &sj_candidates_local;
+  set_sj_candidates(&sj_candidates_local);
 
   /*
     Item and Item_field CTORs will both increment some counters
@@ -362,10 +359,10 @@ bool SELECT_LEX::prepare(THD *thd)
   if (olap == ROLLUP_TYPE && resolve_rollup(thd))
     DBUG_RETURN(true); /* purecov: inspected */
 
-  if (!sj_candidates->empty() && flatten_subqueries())
+  if (has_sj_candidates() && flatten_subqueries())
     DBUG_RETURN(true);
 
-  sj_candidates= NULL;
+  set_sj_candidates(NULL);
 
   if (outer_select() == NULL ||
       (parent_lex->sql_command == SQLCOM_SET_OPTION &&
@@ -507,6 +504,10 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune)
                            tbl->join_cond() ? tbl->join_cond() :
                                               m_where_cond))
         DBUG_RETURN(true); /* purecov: inspected */
+
+      if (tbl->table->all_partitions_pruned_away &&
+          !tbl->is_inner_table_of_outer_join())
+        set_empty_query();
     }
   }
 
@@ -650,6 +651,7 @@ bool subquery_allows_materialization(Item_in_subselect *predicate,
   Make list of leaf tables of join table tree
 
   @param list    pointer to pointer on list first element
+                 Must be set to NULL before first (recursive) call
   @param tables  table list
 
   @returns pointer on pointer to next_leaf of last element
@@ -743,7 +745,8 @@ bool SELECT_LEX::setup_tables(THD *thd, TABLE_LIST *tables,
                !tables || 
                (context.table_list && context.first_name_resolution_table));
 
-  make_leaf_tables(&leaf_tables, tables);
+  leaf_tables= NULL;
+  (void)make_leaf_tables(&leaf_tables, tables);
 
   TABLE_LIST *first_select_table= NULL;
   if (select_insert)
@@ -803,7 +806,12 @@ bool SELECT_LEX::setup_tables(THD *thd, TABLE_LIST *tables,
       partitioned_table_count++;
   }
 
-  if (opt_hints_qb)
+  /*
+    @todo - consider calling this from SELECT::prepare() instead.
+    It might save the test on select_insert to prevent check_unresolved()
+    from being called twice for INSERT ... SELECT.
+  */
+  if (opt_hints_qb && !select_insert)
     opt_hints_qb->check_unresolved(thd);
  
   DBUG_RETURN(false);
@@ -2602,7 +2610,7 @@ bool SELECT_LEX::flatten_subqueries()
 {
   DBUG_ENTER("flatten_subqueries");
 
-  DBUG_ASSERT(!sj_candidates->empty());
+  DBUG_ASSERT(has_sj_candidates());
 
   Item_exists_subselect **subq,
     **subq_begin= sj_candidates->begin(),
@@ -2751,7 +2759,7 @@ bool SELECT_LEX::flatten_subqueries()
   @param tables  List of tables and join nests, start at top_join_list
   @param nullable  true: Set all underlying tables as nullable
 */
-static void propagate_nullability(List<TABLE_LIST> *tables, bool nullable)
+void propagate_nullability(List<TABLE_LIST> *tables, bool nullable)
 {
   List_iterator<TABLE_LIST> li(*tables);
   TABLE_LIST *tr;

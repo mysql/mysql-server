@@ -2376,7 +2376,7 @@ ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'cu' i
 UPDATE test1.v1_cross SET cus='x' WHERE cus='0';
 ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cus' in table 'v1_cross'
 UPDATE test1.v1_cross, test1.single SET cus='x' WHERE cus='0';
-ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'cus' in table 'v1_cross'
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cus' in table 'v1_cross'
 UPDATE test1.v1_cross SET cn='x';
 ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_cross'
 UPDATE test1.v1_cross, test1.single SET cn='x';
@@ -2392,7 +2392,7 @@ ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'ci' i
 UPDATE test1.v1_cross SET cu='x' WHERE cn='0';
 ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_cross'
 UPDATE test1.v1_cross, test1.single SET cu='x' WHERE cn='0';
-ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'cu' in table 'v1_cross'
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_cross'
 INSERT INTO test1.v1_cross(ci) VALUES('x');
 ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'ci' in table 'v1_cross'
 INSERT INTO test1.v1_cross(ci) SELECT 'x' FROM test1.single;

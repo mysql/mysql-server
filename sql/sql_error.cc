@@ -852,7 +852,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
   ulonglong idx= 0;
   Protocol *protocol=thd->get_protocol();
 
-  unit->set_limit(sel);
+  unit->set_limit(thd, sel);
 
   Diagnostics_area::Sql_condition_iterator it= first_da->sql_conditions();
   while (!rc && (err= it++))

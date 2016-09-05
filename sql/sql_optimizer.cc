@@ -194,7 +194,7 @@ JOIN::optimize()
 
   set_optimized();
 
-  tables_list= select_lex->get_table_list();
+  tables_list= select_lex->leaf_tables;
 
   // The base ref items from query block are assigned as JOIN's ref items
   ref_items[REF_SLICE_BASE]= select_lex->base_ref_items;
@@ -5183,10 +5183,6 @@ bool JOIN::init_planner_arrays()
       table->file->print_error(err, MYF(0));
       return true;
     }
-    table->quick_keys.clear_all();
-    table->possible_quick_keys.clear_all();
-    table->reginfo.not_exists_optimize= false;
-    memset(table->const_key_parts, 0, sizeof(key_part_map)*table->s->keys);
     all_table_map|= tl->map();
     tab->set_join(this);
 

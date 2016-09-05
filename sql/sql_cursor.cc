@@ -71,6 +71,10 @@ public:
     :Query_result_union(thd),
      result(result_arg), materialized_cursor(0) {}
   virtual bool send_result_set_metadata(List<Item> &list, uint flags);
+  virtual void cleanup()
+  {
+    table= NULL;  // Pass table object to Materialized_cursor
+  }
 };
 
 

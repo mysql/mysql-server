@@ -2978,8 +2978,6 @@ String *Item_func_make_set::val_str(String *str)
 
 Item *Item_func_make_set::transform(Item_transformer transformer, uchar *arg)
 {
-  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
-
   Item *new_item= item->transform(transformer, arg);
   if (!new_item)
     return 0;

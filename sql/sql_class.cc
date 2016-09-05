@@ -455,6 +455,7 @@ THD::THD(bool enable_plugins)
   m_sent_row_count= 0L;
   current_found_rows= 0;
   previous_found_rows= 0;
+  current_changed_rows= 0;
   is_operating_gtid_table_implicitly= false;
   is_operating_substatement_implicitly= false;
   m_row_count_func= -1;
@@ -1538,6 +1539,8 @@ void THD::cleanup_after_query()
   if (rli_slave)
     rli_slave->cleanup_after_query();
 #endif
+  // Set the default "cute" mode for the execution environment:
+  count_cuted_fields= CHECK_FIELD_IGNORE;
 }
 
 LEX_CSTRING *
@@ -1867,8 +1870,9 @@ void THD::end_statement()
   DBUG_ENTER("end_statement");
   /* Cleanup SQL processing state to reuse this statement in next query. */
   lex_end(lex);
-  delete lex->result;
-  lex->result= 0;
+  //@todo Check lifetime of Query_result objects.
+  //delete lex->result;
+  lex->result= NULL;           // Prepare for next statement
   /* Note that free_list is freed in cleanup_after_query() */
 
   /*

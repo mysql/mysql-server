@@ -19,17 +19,51 @@
 
 /**
   @file sql/sql_select.h
-
-  Classes to use when handling where clause
 */
 
 
 #include "my_global.h"
+#include "probes_mysql.h"
 #include "item_cmpfunc.h"             // Item_cond_and
 #include "sql_class.h"                // THD
 #include "sql_opt_exec_shared.h"      // join_type
+#include "sql_cmd_dml.h"              // Sql_cmd_dml
 
 #include <functional>
+
+class Sql_cmd_select : public Sql_cmd_dml
+{
+public:
+  explicit Sql_cmd_select(Query_result *result_arg) : Sql_cmd_dml()
+  {
+    result= result_arg;
+  }
+
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_SELECT;
+  }
+
+  virtual bool is_data_change_stmt() const { return false; }
+
+protected:
+  virtual bool precheck(THD *thd);
+
+  virtual bool prepare_inner(THD *thd);
+
+#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
+  virtual void start_stmt_dtrace(char *query)
+  {
+    MYSQL_SELECT_START(query);
+  }
+  virtual void end_stmt_dtrace(int status, ulonglong rows, ulonglong changed)
+  {
+    MYSQL_SELECT_DONE(status, rows);
+  }
+#endif
+
+};
+
 /**
    Returns a constant of type 'type' with the 'A' lowest-weight bits set.
    Example: LOWER_BITS(uint, 3) == 7.
@@ -1077,6 +1111,10 @@ protected:
 bool error_if_full_join(JOIN *join);
 bool handle_query(THD *thd, LEX *lex, Query_result *result,
                   ulonglong added_options, ulonglong removed_options);
+
+// Statement timeout function(s)
+bool set_statement_timer(THD *thd);
+void reset_statement_timer(THD *thd);
 
 void free_underlaid_joins(THD *thd, SELECT_LEX *select);
 

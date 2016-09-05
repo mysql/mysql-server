@@ -4409,6 +4409,11 @@ void TABLE_LIST::reset()
   table->force_index_order= table->force_index_group= 0;
   table->covering_keys= table->s->keys_for_keyread;
   table->merge_keys.clear_all();
+  table->quick_keys.clear_all();
+  table->possible_quick_keys.clear_all();
+  table->set_keyread(false);
+  table->reginfo.not_exists_optimize= false;
+  memset(table->const_key_parts, 0, sizeof(key_part_map)*table->s->keys);
 }
 
 
@@ -4765,6 +4770,7 @@ bool TABLE_LIST::set_insert_values(MEM_ROOT *mem_root)
 {
   if (table)
   {
+    DBUG_ASSERT(table->insert_values == NULL);
     if (!table->insert_values &&
         !(table->insert_values= (uchar *)alloc_root(mem_root,
                                                     table->s->rec_buff_length)))

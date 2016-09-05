@@ -41,7 +41,7 @@
 #include "rpl_mi.h"              // Master_info
 #include "rpl_msr.h"             // channel_map
 #include "rpl_rli.h"             // Relay_log_info
-#include "sp.h"                  // sp_find_routine
+#include "sp.h"                  // sp_setup_routine
 #include "sp_head.h"             // sp_name
 #include "sql_audit.h"           // audit_global_variable
 #include "sql_base.h"            // Internal_error_handler_holder
@@ -379,26 +379,18 @@ void Item_func::traverse_cond(Cond_traverser traverser,
     the old item is substituted for a new one.
     After this the transformer is applied to the root node
     of the Item_func object. 
-  @param transformer   the transformer callback function to be applied to
-                       the nodes of the tree of the object
-  @param argument      parameter to be passed to the transformer
-
-  @return
-    Item returned as the result of transformation of the root node
 */
 
 Item *Item_func::transform(Item_transformer transformer, uchar *argument)
 {
-  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
-
   if (arg_count)
   {
     Item **arg,**arg_end;
     for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
     {
       Item *new_item= (*arg)->transform(transformer, argument);
-      if (!new_item)
-	return 0;
+      if (new_item == NULL)
+        return NULL;                 /* purecov: inspected */
 
       /*
         THD::change_item_tree() should be called only if the tree was
@@ -419,24 +411,13 @@ Item *Item_func::transform(Item_transformer transformer, uchar *argument)
   callback functions.
 
     First the function applies the analyzer to the root node of
-    the Item_func object. Then if the analizer succeeeds (returns TRUE)
+    the Item_func object. Then if the analyzer succeeeds (returns TRUE)
     the function recursively applies the compile method to each argument
     of the Item_func node.
     If the call of the method for an argument item returns a new item
     the old item is substituted for a new one.
     After this the transformer is applied to the root node
     of the Item_func object. 
-
-  @param analyzer      the analyzer callback function to be applied to the
-                       nodes of the tree of the object
-  @param[in,out] arg_p parameter to be passed to the processor
-  @param transformer   the transformer callback function to be applied to the
-                       nodes of the tree of the object
-  @param arg_t         parameter to be passed to the transformer
-
-  @return              Item returned as result of transformation of the node,
-                       the same item if no transformation applied, or NULL if
-                       transformation caused an error.
 */
 
 Item *Item_func::compile(Item_analyzer analyzer, uchar **arg_p,
@@ -8660,8 +8641,8 @@ Item_func_sp::init_result_field(THD *thd)
   Internal_error_handler_holder<View_error_handler, TABLE_LIST>
     view_handler(thd, context->view_error_handler,
                  context->view_error_handler_arg);
-  if (!(m_sp= sp_find_routine(thd, enum_sp_type::FUNCTION, m_name,
-                               &thd->sp_func_cache, TRUE)))
+  if (!(m_sp= sp_setup_routine(thd, enum_sp_type::FUNCTION, m_name,
+                               &thd->sp_func_cache)))
   {
     my_missing_function_error (m_name->m_name, m_name->m_qname.str);
     DBUG_RETURN(TRUE);

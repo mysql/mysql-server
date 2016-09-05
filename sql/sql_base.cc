@@ -40,6 +40,7 @@
 #include "sql_hset.h"                 // Hash_set
 #include "sql_parse.h"                // is_update_query
 #include "sql_prepare.h"              // Reprepare_observer
+#include "sql_select.h"               // reset_statement_timer
 #include "sql_show.h"                 // append_identifier
 #include "sql_table.h"                // build_table_filename
 #include "sql_tmp_table.h"            // free_tmp_table
@@ -9076,6 +9077,14 @@ bool resolve_var_assignments(THD *thd, LEX *lex)
                                 to a base table column
 
   @returns false if success, true if error
+
+  @note The function checks updatability/insertability for the table before
+        checking column privileges, for consistent error reporting.
+        This has consequences for columns that are specified to be updated:
+        The column is first resolved without privilege check.
+        This check is followed by an updatablity/insertability check.
+        Finally, a column privilege check is run, and the column is marked
+        for update.
 */
 
 bool setup_fields(THD *thd, Ref_item_array ref_item_array,
@@ -9088,7 +9097,8 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array,
   SELECT_LEX *const select= thd->lex->current_select();
   const enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
   nesting_map save_allow_sum_func= thd->lex->allow_sum_func;
-  Column_privilege_tracker column_privilege(thd, want_privilege);
+  Column_privilege_tracker column_privilege(thd, column_update ?
+                                                 0 : want_privilege);
 
   // Function can only be used to set up one specific operation:
   DBUG_ASSERT(want_privilege == 0 ||
@@ -9098,7 +9108,7 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array,
   DBUG_ASSERT(! (column_update && (want_privilege & SELECT_ACL)));
   if (want_privilege & SELECT_ACL)
     thd->mark_used_columns= MARK_COLUMNS_READ;
-  else if (want_privilege & (INSERT_ACL | UPDATE_ACL))
+  else if (want_privilege & (INSERT_ACL | UPDATE_ACL) && !column_update)
     thd->mark_used_columns= MARK_COLUMNS_WRITE;
   else
     thd->mark_used_columns= MARK_COLUMNS_NONE;
@@ -9144,11 +9154,43 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array,
       ref[0]= item;
       ref.pop_front();
     }
-    if (column_update && item->field_for_view_update() == NULL)
+    if (column_update)
     {
-      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->item_name.ptr());
-      DBUG_RETURN(true);
-    }
+      Item_field *const field= item->field_for_view_update();
+      if (field == NULL)
+      {
+        my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->item_name.ptr());
+        DBUG_RETURN(true);
+      }
+      TABLE_LIST *tr= field->table_ref;
+      if ((want_privilege & UPDATE_ACL) && !tr->is_updatable())
+      {
+        my_error(ER_NON_UPDATABLE_TABLE, MYF(0), tr->alias, "UPDATE");
+        DBUG_RETURN(true);
+      }
+      if ((want_privilege & INSERT_ACL) && !tr->is_insertable())
+      {
+        /* purecov: begin inspected */
+        /*
+          Generally unused as long as INSERT only can be applied against
+          one base table, for which the INSERT privileges are checked in
+          Sql_cmd_insert_base::prepare_inner()
+        */
+        my_error(ER_NON_INSERTABLE_TABLE, MYF(0), tr->alias, "INSERT");
+        DBUG_RETURN(true);
+        /* purecov: end */
+      }
+      if (want_privilege & (INSERT_ACL | UPDATE_ACL))
+      {
+        Column_privilege_tracker column_privilege(thd, want_privilege);
+        if (item->walk(&Item::check_column_privileges, Item::WALK_PREFIX,
+                       pointer_cast<uchar *>(thd)))
+          DBUG_RETURN(true);
+      }
+      Mark_field mf(MARK_COLUMNS_WRITE);
+      item->walk(&Item::mark_field_in_map, Item::WALK_POSTFIX,
+                 pointer_cast<uchar *>(&mf));
+   }
     if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
 	sum_func_list)
       item->split_sum_func(thd, ref_item_array, *sum_func_list);

@@ -1149,7 +1149,11 @@ public:
       assert_plan_is_locked_if_other();
       return is_ps;
     }
-
+    bool is_single_table_plan() const
+    {
+      assert_plan_is_locked_if_other();
+      return lex->m_sql_cmd->is_single_table_plan();
+    }
     void set_modification_plan(Modification_plan *plan_arg);
 
   } query_plan;
@@ -1826,6 +1830,11 @@ public:
   */
   ulonglong  current_found_rows;
 
+  /**
+    Number of rows changed in currently executing statement.
+    Applicable for UPDATE statements only.
+  */
+  ulonglong  current_changed_rows;
   /*
     Indicate if the gtid_executed table is being operated implicitly
     within current transaction. This happens because we are inserting

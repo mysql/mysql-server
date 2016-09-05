@@ -213,8 +213,15 @@ JOIN::exec()
 
   THD_STAGE_INFO(thd, stage_sending_data);
   DBUG_PRINT("info", ("%s", thd->proc_info));
-  query_result->send_result_set_metadata(*fields,
-                                   Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
+  if (query_result->send_result_set_metadata(*fields,
+                                             Protocol::SEND_NUM_ROWS |
+                                             Protocol::SEND_EOF))
+  {
+    /* purecov: begin inspected */
+    error= 1;
+    DBUG_VOID_RETURN;
+    /* purecov: end */
+  }
   error= do_select(this);
   /* Accumulate the counts from all join iterations of all join parts. */
   thd->inc_examined_row_count(examined_rows);

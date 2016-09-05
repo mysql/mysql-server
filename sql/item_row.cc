@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -223,13 +223,11 @@ bool Item_row::walk(Item_processor processor, enum_walk walk, uchar *arg)
 
 Item *Item_row::transform(Item_transformer transformer, uchar *arg)
 {
-  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
-
   for (uint i= 0; i < arg_count; i++)
   {
     Item *new_item= items[i]->transform(transformer, arg);
-    if (!new_item)
-      return 0;
+    if (new_item == NULL)
+      return NULL;                 /* purecov: inspected */
 
     /*
       THD::change_item_tree() should be called only if the tree was

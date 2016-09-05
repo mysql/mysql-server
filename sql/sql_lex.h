@@ -716,7 +716,8 @@ public:
   bool is_executed() const { return executed; }
   bool change_query_result(Query_result_interceptor *result,
                            Query_result_interceptor *old_result);
-  void set_limit(SELECT_LEX *values);
+  bool prepare_limit(THD *thd, SELECT_LEX *provider);
+  bool set_limit(THD *thd, SELECT_LEX *provider);
   void set_thd(THD *thd_arg) { thd= thd_arg; }
 
   inline bool is_union () const;
@@ -838,6 +839,18 @@ public:
 
   /// @return the active query options
   ulonglong active_options() const { return m_active_options; }
+
+  /**
+    Set associated tables as read_only, ie. they cannot be inserted into,
+    updated or deleted from during this statement.
+    Commonly used for query blocks that are part of derived tables or
+    views that are materialized.
+  */
+  void set_tables_readonly()
+  {
+    for (TABLE_LIST *tr= get_table_list(); tr != NULL; tr= tr->next_local)
+      tr->set_readonly();
+  }
 
 private:
   /**
@@ -1267,6 +1280,8 @@ public:
     Evaluate offset item if necessary.
 
     @return Number of rows to skip.
+
+    @todo Integrate better with SELECT_LEX_UNIT::set_limit()
   */
   ha_rows get_offset();
   /**
@@ -1275,6 +1290,8 @@ public:
    Evaluate limit item if necessary.
 
    @return Limit of rows in result.
+
+   @todo Integrate better with SELECT_LEX_UNIT::set_limit()
   */
   ha_rows get_limit();
 
@@ -1309,6 +1326,20 @@ public:
   /// Return true if this query block is part of a UNION
   bool is_part_of_union() const { return master_unit()->is_union(); }
 
+  /**
+    @return true if query block is found during preparation to produce no data.
+    Notice that if query is implicitly grouped, an aggregation row will
+    still be returned.
+  */
+  bool is_empty_query() const { return m_empty_query; }
+
+  /// Set query block as returning no data
+  /// @todo This may also be set when we have an always false WHERE clause
+  void set_empty_query()
+  {
+    DBUG_ASSERT(join == NULL);
+    m_empty_query= true;
+  }
   /*
     For MODE_ONLY_FULL_GROUP_BY we need to know if
     this query block is the aggregation query of at least one aggregate
@@ -1379,6 +1410,12 @@ private:
   bool m_agg_func_used;
   bool m_json_agg_func_used;
 
+  /**
+    True if query block does not generate any rows before aggregation,
+    determined during preparation (not optimization).
+  */
+  bool m_empty_query;
+
   /// Helper for fix_prepare_information()
   void fix_prepare_information_for_order(THD *thd,
                                          SQL_I_List<ORDER> *list,
@@ -1403,7 +1440,15 @@ private:
   bool resolve_subquery(THD *thd);
   bool resolve_rollup(THD *thd);
   bool change_group_ref(THD *thd, Item_func *expr, bool *changed);
+public:
   bool flatten_subqueries();
+  void set_sj_candidates(Mem_root_array<Item_exists_subselect*, true> *sj_cand)
+  { sj_candidates= sj_cand; }
+
+  bool has_sj_candidates() const
+  { return sj_candidates != NULL && !sj_candidates->empty(); }
+
+private:
   bool setup_wild(THD *thd);
   bool setup_order_final(THD *thd, int hidden_order_field_count);
   bool setup_group(THD *thd);
@@ -3304,7 +3349,7 @@ public:
     Argument values for PROCEDURE ANALYSE(); is NULL for other queries
   */
   Proc_analyse_params *proc_analyse;
-  SQL_I_List<TABLE_LIST> auxiliary_table_list, save_list;
+  SQL_I_List<TABLE_LIST> save_list;
   Item_sum *in_sum_func;
   udf_func udf;
   HA_CHECK_OPT   check_opt;			// check/repair options

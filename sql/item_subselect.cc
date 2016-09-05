@@ -232,7 +232,11 @@ bool Item_in_subselect::finalize_exists_transform(SELECT_LEX *select_lex)
   if (!(unit->global_parameters()->select_limit= new Item_int(1)))
     return true;
 
-  unit->set_limit(unit->global_parameters());
+  if (unit->prepare_limit(unit->thd, unit->global_parameters()))
+    return true;                 /* purecov: inspected */
+
+  if (unit->set_limit(unit->thd, unit->global_parameters()))
+    return true;                 /* purecov: inspected */
 
   select_lex->join->allow_outer_refs= true;   // for JOIN::set_prefix_tables()
   exec_method= EXEC_EXISTS;
@@ -1517,6 +1521,7 @@ bool Item_exists_subselect::resolve_type(THD *thd)
    max_columns= engine->cols();
    if (exec_method == EXEC_EXISTS)
    {
+     Prepared_stmt_arena_holder ps_arena_holder(unit->thd);
      /*
        We need only 1 row to determine existence.
        Note that if the subquery is "SELECT1 UNION SELECT2" then this is not
@@ -2956,17 +2961,23 @@ bool subselect_single_select_engine::prepare()
 {
   if (item->unit->is_prepared())
     return false;
-  THD * const thd= item->unit->thd;
+
+  SELECT_LEX_UNIT *const unit= item->unit;
+  THD * const thd= unit->thd;
 
   DBUG_ASSERT(result);
 
   select_lex->set_query_result(result);
   select_lex->make_active_options(SELECT_NO_UNLOCK, 0);
 
-  item->unit->set_prepared();
+  if (unit->prepare_limit(thd, unit->global_parameters()))
+    return true;                 /* purecov: inspected */
+
   SELECT_LEX *save_select= thd->lex->current_select();
   thd->lex->set_current_select(select_lex);
   const bool ret= select_lex->prepare(thd);
+  if (!ret)
+    unit->set_prepared();
   thd->lex->set_current_select(save_select);
   return ret;
 }
@@ -3115,6 +3126,10 @@ bool subselect_single_select_engine::exec()
     item->reset_value_registration();
     QEP_TAB *changed_tabs[MAX_TABLES];
     QEP_TAB **last_changed_tab= changed_tabs;
+
+    if (unit->set_limit(thd, unit->global_parameters()))
+      DBUG_RETURN(true);                 /* purecov: inspected */
+
     if (item->have_guarded_conds())
     {
       /*

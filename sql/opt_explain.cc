@@ -1148,23 +1148,17 @@ bool Explain_join::explain_modify_flags()
     and thus are safe to read.
   */
   switch (query_plan->get_command()) {
+  case SQLCOM_UPDATE:
   case SQLCOM_UPDATE_MULTI:
-    if (!bitmap_is_clear_all(&table->def_write_set) &&
+    if (table->pos_in_table_list->updating &&
         table->s->table_category != TABLE_CATEGORY_TEMPORARY)
       fmt->entry()->mod_type= MT_UPDATE;
     break;
+  case SQLCOM_DELETE:
   case SQLCOM_DELETE_MULTI:
-    for (TABLE_LIST *at= query_plan->get_lex()->auxiliary_table_list.first;
-         at;
-         at= at->next_local)
-    {
-      if (at->correspondent_table->is_updatable() &&
-          at->correspondent_table->updatable_base_table()->table == table)
-      {
-        fmt->entry()->mod_type= MT_DELETE;
-        break;
-      }
-    }
+    if (table->pos_in_table_list->updating &&
+        table->s->table_category != TABLE_CATEGORY_TEMPORARY)
+      fmt->entry()->mod_type= MT_DELETE;
     break;
   case SQLCOM_INSERT_SELECT:
     if (table == query_plan->get_lex()->insert_table_leaf->table)
@@ -2384,28 +2378,12 @@ void mysql_explain_other(THD *thd)
     goto err;
   }
   DEBUG_SYNC(thd, "explain_other_got_thd");
-  // Get topmost query
-  switch(qp->get_command())
-  {
-    case SQLCOM_UPDATE_MULTI:
-    case SQLCOM_DELETE_MULTI:
-    case SQLCOM_REPLACE_SELECT:
-    case SQLCOM_INSERT_SELECT:
-    case SQLCOM_SELECT:
-      res= explain_query(thd, qp->get_lex()->unit);
-      break;
-    case SQLCOM_UPDATE:
-    case SQLCOM_DELETE:
-    case SQLCOM_INSERT:
-    case SQLCOM_REPLACE:
+
+  if (qp->is_single_table_plan())
       res= explain_single_table_modification(thd, qp->get_modification_plan(),
-                                             qp->get_lex()->unit->first_select());
-      break;
-    default:
-      DBUG_ASSERT(0); /* purecov: inspected */
-      send_ok= true; /* purecov: inspected */
-      break;
-  }
+             qp->get_lex()->unit->first_select());
+  else
+      res= explain_query(thd, qp->get_lex()->unit);
 
 err:
   if (unlock_thd_data)

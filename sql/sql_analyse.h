@@ -348,7 +348,10 @@ public:
     max_treemem(params->max_treemem)
   {}
 
-  ~Query_result_analyse() { cleanup(); }
+  ~Query_result_analyse()
+  {
+    DBUG_ASSERT(f_info == NULL && rows == 0);
+  }
 
   virtual void cleanup();
   virtual uint field_count(List<Item> &) const

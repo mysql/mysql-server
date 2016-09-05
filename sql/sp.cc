@@ -1436,10 +1436,6 @@ bool sp_show_create_routine(THD *thd, enum_sp_type type, sp_name *name)
 sp_head *sp_find_routine(THD *thd, enum_sp_type type, sp_name *name,
                          sp_cache **cp, bool cache_only)
 {
-  sp_head *sp;
-  ulong depth= (type == enum_sp_type::PROCEDURE ?
-                thd->variables.max_sp_recursion_depth :
-                0);
   DBUG_ENTER("sp_find_routine");
   DBUG_PRINT("enter", ("name:  %.*s.%.*s  type: %d  cache only %d",
                        static_cast<int>(name->m_db.length),
@@ -1449,78 +1445,112 @@ sp_head *sp_find_routine(THD *thd, enum_sp_type type, sp_name *name,
                        static_cast<int>(type),
                        cache_only));
 
-  if ((sp= sp_cache_lookup(cp, name)))
-  {
-    ulong level;
-    sp_head *new_sp;
+  sp_head *sp= sp_cache_lookup(cp, name);
+  if (sp != NULL)
+    DBUG_RETURN(sp);
 
-    DBUG_PRINT("info", ("found: %p", sp));
-    if (sp->m_first_free_instance)
-    {
-      DBUG_PRINT("info", ("first free: %p  level: %lu  flags %x",
-                          sp->m_first_free_instance,
-                          sp->m_first_free_instance->m_recursion_level,
-                          sp->m_first_free_instance->m_flags));
-      DBUG_ASSERT(!(sp->m_first_free_instance->m_flags & sp_head::IS_INVOKED));
-      if (sp->m_first_free_instance->m_recursion_level > depth)
-      {
-        recursion_level_error(thd, sp);
-        DBUG_RETURN(0);
-      }
-      DBUG_RETURN(sp->m_first_free_instance);
-    }
-
-    /*
-      Actually depth could be +1 than the actual value in case a SP calls
-      SHOW CREATE PROCEDURE. Hence, the linked list could hold up to one more
-      instance.
-    */
-
-    level= sp->m_last_cached_sp->m_recursion_level + 1;
-    if (level > depth)
-    {
-      recursion_level_error(thd, sp);
-      DBUG_RETURN(0);
-    }
-
-    const char *returns= "";
-    String retstr(64);
-    retstr.set_charset(sp->get_creation_ctx()->get_client_cs());
-    if (type == enum_sp_type::FUNCTION)
-    {
-      sp_returns_type(thd, retstr, sp);
-      returns= retstr.ptr();
-    }
-
-    if (db_load_routine(thd, type, name, &new_sp, sp->m_sql_mode,
-                        sp->m_params.str, returns,
-                        sp->m_body.str, sp->m_chistics,
-                        sp->m_definer_user.str, sp->m_definer_host.str,
-                        sp->m_created, sp->m_modified,
-                        sp->get_creation_ctx()) == SP_OK)
-    {
-      sp->m_last_cached_sp->m_next_cached_sp= new_sp;
-      new_sp->m_recursion_level= level;
-      new_sp->m_first_instance= sp;
-      sp->m_last_cached_sp= sp->m_first_free_instance= new_sp;
-      DBUG_PRINT("info", ("added level: %p, level: %lu, flags %x",
-                          new_sp, new_sp->m_recursion_level,
-                          new_sp->m_flags));
-      DBUG_RETURN(new_sp);
-    }
-    DBUG_RETURN(0);
-  }
   if (!cache_only)
   {
     if (db_find_routine(thd, type, name, &sp) == SP_OK)
     {
       sp_cache_insert(cp, sp);
-      DBUG_PRINT("info", ("added new: %p, level: %lu, flags %x",
-                          sp, sp->m_recursion_level,
+      DBUG_PRINT("info", ("added new: 0x%lx, level: %lu, flags %x",
+                          (ulong)sp, sp->m_recursion_level,
                           sp->m_flags));
     }
   }
   DBUG_RETURN(sp);
+}
+
+
+/**
+  Setup a cached routine for execution
+
+  @param thd          thread context
+  @param type         type of object (FUNCTION or PROCEDURE)
+  @param name         name of procedure
+  @param cp           hash to look routine in
+
+  @retval
+    NonNULL pointer to sp_head object for the procedure
+  @retval
+    NULL    in case of error.
+*/
+
+sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
+                          sp_cache **cp)
+{
+  DBUG_ENTER("sp_setup_routine");
+  DBUG_PRINT("enter", ("name:  %.*s.%.*s  type: %d ",
+                       static_cast<int>(name->m_db.length),
+                       name->m_db.str,
+                       static_cast<int>(name->m_name.length),
+                       name->m_name.str,
+                       static_cast<int>(type)));
+
+  sp_head *sp= sp_cache_lookup(cp, name);
+  if (sp == NULL)
+    DBUG_RETURN(NULL);
+
+  DBUG_PRINT("info", ("found: 0x%lx", (ulong)sp));
+
+  const ulong depth= type == enum_sp_type::PROCEDURE ?
+                     thd->variables.max_sp_recursion_depth : 0;
+
+  if (sp->m_first_free_instance)
+  {
+    DBUG_PRINT("info", ("first free: 0x%lx  level: %lu  flags %x",
+                        (ulong)sp->m_first_free_instance,
+                        sp->m_first_free_instance->m_recursion_level,
+                        sp->m_first_free_instance->m_flags));
+    DBUG_ASSERT(!(sp->m_first_free_instance->m_flags & sp_head::IS_INVOKED));
+    if (sp->m_first_free_instance->m_recursion_level > depth)
+    {
+      recursion_level_error(thd, sp);
+      DBUG_RETURN(NULL);
+    }
+    DBUG_RETURN(sp->m_first_free_instance);
+  }
+
+  /*
+    Actually depth could be +1 than the actual value in case a SP calls
+    SHOW CREATE PROCEDURE. Hence, the linked list could hold up to one more
+    instance.
+  */
+
+  ulong level= sp->m_last_cached_sp->m_recursion_level + 1;
+  if (level > depth)
+  {
+    recursion_level_error(thd, sp);
+    DBUG_RETURN(NULL);
+  }
+
+  const char *returns= "";
+  String retstr(64);
+  retstr.set_charset(sp->get_creation_ctx()->get_client_cs());
+  if (type == enum_sp_type::FUNCTION)
+  {
+    sp_returns_type(thd, retstr, sp);
+    returns= retstr.ptr();
+  }
+
+  sp_head *new_sp;
+  if (db_load_routine(thd, type, name, &new_sp, sp->m_sql_mode,
+                      sp->m_params.str, returns,
+                      sp->m_body.str, sp->m_chistics,
+                      sp->m_definer_user.str, sp->m_definer_host.str,
+                      sp->m_created, sp->m_modified,
+                      sp->get_creation_ctx()) != SP_OK)
+    DBUG_RETURN(NULL);
+
+  sp->m_last_cached_sp->m_next_cached_sp= new_sp;
+  new_sp->m_recursion_level= level;
+  new_sp->m_first_instance= sp;
+  sp->m_last_cached_sp= sp->m_first_free_instance= new_sp;
+  DBUG_PRINT("info", ("added level: 0x%lx, level: %lu, flags %x",
+                      (ulong)new_sp, new_sp->m_recursion_level,
+                      new_sp->m_flags));
+  DBUG_RETURN(new_sp);
 }
 
 

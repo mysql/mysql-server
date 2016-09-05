@@ -21,10 +21,10 @@
 #include "parse_tree_helpers.h"      // PT_item_list
 #include "parse_tree_hints.h"
 #include "sp_head.h"                 // sp_head
+#include "query_result.h"            // Query_result
 #include "sql_class.h"               // THD
 #include "sql_lex.h"                 // LEX
 #include "sql_parse.h"               // add_join_natural
-#include "sql_update.h"              // Sql_cmd_update
 #include "sql_admin.h"               // Sql_cmd_shutdown etc.
 #include "sql_cmd_ddl_table.h"       // Sql_cmd_create_table
 #include "mysqld.h"                  // table_alias_charset
@@ -1379,9 +1379,11 @@ class PT_into_destination : public Parse_tree_node
   typedef Parse_tree_node super;
   POS m_pos;
 
-public:
-  PT_into_destination(const POS &pos) : m_pos(pos) {}
+protected:
+  PT_into_destination(const POS &pos): m_pos(pos)
+  {}
 
+public:
   virtual bool contextualize(Parse_context *pc)
   {
     if (super::contextualize(pc))
@@ -1438,6 +1440,7 @@ public:
     lex->exchange->cs= charset;
     lex->exchange->field.merge_field_separators(field_term);
     lex->exchange->line.merge_line_separators(line_term);
+
     return false;
   }
 };
@@ -1972,6 +1975,8 @@ public:
       contextualize_safe(pc, m_into);
   }
 
+  virtual Sql_cmd *make_cmd(THD *thd);
+
 private:
   enum_sql_command m_sql_command;
   PT_query_expression *m_qe;
@@ -1997,6 +2002,7 @@ class PT_delete : public PT_statement
   Item *opt_where_clause;
   PT_order *opt_order_clause;
   Item *opt_delete_limit_clause;
+  SQL_I_List<TABLE_LIST> delete_tables;
 
 public:
   // single-table DELETE node constructor:
@@ -2069,8 +2075,7 @@ class PT_update : public PT_statement
   Item *opt_where_clause;
   PT_order *opt_order_clause;
   Item *opt_limit_clause;
-
-  Sql_cmd_update sql_cmd;
+  bool multitable;
 
 public:
   PT_update(PT_hint_list *opt_hints_arg,
@@ -2096,6 +2101,8 @@ public:
   virtual bool contextualize(Parse_context *pc);
 
   virtual Sql_cmd *make_cmd(THD *thd);
+
+  bool is_multitable() const { return multitable; }
 };
 
 
@@ -2182,6 +2189,27 @@ public:
 
 private:
   bool has_select() const { return insert_query_expression != NULL; }
+};
+
+
+class PT_call : public PT_statement
+{
+  typedef PT_statement super;
+
+  sp_name *proc_name;
+  PT_item_list *opt_expr_list;
+
+public:
+  PT_call(sp_name *proc_name_arg,
+          PT_item_list *opt_expr_list_arg)
+  : proc_name(proc_name_arg),
+    opt_expr_list(opt_expr_list_arg)
+  {
+  }
+
+  virtual bool contextualize(Parse_context *pc);
+
+  virtual Sql_cmd *make_cmd(THD *thd);
 };
 
 

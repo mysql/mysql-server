@@ -13,9 +13,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_base.h"                   /* open_normal_and_derived_tables */
+#include "sql_base.h"                   /* open_and_lock_tables */
 #include "key_spec.h"                   /* Key_spec */
-#include "sql_table.h"                  /* build_table_filename */
 #include "sql_show.h"                   /* append_identifier */
 #include "sql_view.h"                   /* VIEW_ANY_ACL */
 #include "rpl_filter.h"                 /* rpl_filter */
@@ -23,14 +22,11 @@
                                         /* any_db */
 #include "binlog.h"                     /* mysql_bin_log */
 #include "sp.h"                         /* sp_exist_routines */
-#include "sql_insert.h"                 /* Sql_cmd_insert_base */
 #include "log.h"                        /* sql_print_warning */
-#include "sql_class.h"
-#include "derror.h"
-#include "mysqld.h"
-
-#include "error_handler.h"
-#include "sql_update.h"
+#include "sql_class.h"                  /* THD */
+#include "derror.h"                     /* ER_THD */
+#include "mysqld.h"                     /* lower_case_table_names */
+#include "error_handler.h"              /* error_handler */
 #include "auth_internal.h"
 #include "sql_auth_cache.h"
 #include "sql_authentication.h"
@@ -40,7 +36,6 @@
 #include "template_utils.h"
 #include "debug_sync.h"
 
-#include "dd/dd_schema.h"               // dd::schema_exists
 #include "dd/dd_table.h"                // dd::table_exists
 #include "dd/types/abstract_table.h"    // dd::Abstract_table
 #include "prealloced_array.h"
@@ -87,7 +82,6 @@ uint command_lengths[]=
 const char *any_db="*any*";	// Special symbol for check_access
 
 
-static bool check_show_access(THD *thd, TABLE_LIST *table);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 static bool check_routine_level_acl(THD *thd, const char *db,
                                     const char *name, bool is_proc);
@@ -1265,354 +1259,6 @@ IS_internal_schema_access::lookup(const char *name) const
 {
   /* There are no per table rules for the information schema. */
   return NULL;
-}
-
-bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
-                     TABLE_LIST *first_table)
-{
-  return select_precheck(thd, lex, tables, first_table, false);
-}
-
-/**
-  Perform first stage of privilege checking for SELECT statement.
-
-  @param thd              Thread context.
-  @param lex              LEX for SELECT statement.
-  @param tables           List of tables used by statement.
-  @param first_table      First table in the main SELECT of the SELECT
-                          statement.
-  @param in_prepare_stage Flag to indicate if we are executing
-                          PREPARE stmt_name FROM ... statement.
-
-  @retval FALSE - Success (column-level privilege checks might be required).
-  @retval TRUE  - Failure, privileges are insufficient.
-*/
-
-bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
-                     TABLE_LIST *first_table, bool in_prepare_stage)
-{
-  bool res;
-  /*
-    lex->exchange != NULL implies SELECT .. INTO OUTFILE and this
-    requires FILE_ACL access.
-  */
-  ulong privileges_requested= lex->exchange ? SELECT_ACL | FILE_ACL :
-                                              SELECT_ACL;
-
-  bool new_dd_show= false;
-  switch(lex->sql_command)
-  {
-    // For below show commands, perform check_show_access() call
-    case SQLCOM_SHOW_DATABASES:
-      new_dd_show= true;
-      break;
-
-    case SQLCOM_SHOW_TABLES:
-    case SQLCOM_SHOW_TABLE_STATUS:
-    {
-      new_dd_show= true;
-
-      if (in_prepare_stage)
-        break;
-
-      // Acquire IX MDL lock on schema name.
-      MDL_request mdl_request;
-      MDL_REQUEST_INIT(&mdl_request, MDL_key::SCHEMA,
-                       lex->select_lex->db, "",
-                       MDL_INTENTION_EXCLUSIVE,
-                       MDL_TRANSACTION);
-      if (thd->mdl_context.acquire_lock(&mdl_request,
-                                        thd->variables.lock_wait_timeout))
-        return true;
-
-      // Stop if given database does not exist.
-      bool exists= false;
-      if(dd::schema_exists(thd, lex->select_lex->db, &exists))
-        return true;
-
-      if(!exists)
-      {
-        my_error(ER_BAD_DB_ERROR, MYF(0), lex->select_lex->db);
-        return true;
-      }
-
-      break;
-    }
-    case SQLCOM_SHOW_FIELDS:
-    case SQLCOM_SHOW_KEYS:
-      {
-        new_dd_show= true;
-
-        if (in_prepare_stage)
-          break;
-
-        enum enum_schema_tables schema_table_idx;
-        if (tables->schema_table)
-        {
-            schema_table_idx= get_schema_table_idx(tables->schema_table);
-            if (schema_table_idx == SCH_TMP_TABLE_COLUMNS ||
-                schema_table_idx == SCH_TMP_TABLE_KEYS)
-              break;
-        }
-
-        bool can_deadlock= thd->mdl_context.has_locks();
-        TABLE_LIST *dst_table;
-        dst_table= tables->schema_select_lex->table_list.first;
-        if (try_acquire_high_prio_shared_mdl_lock(thd, dst_table, can_deadlock))
-        {
-          /*
-            Some error occured (most probably we have been killed while
-            waiting for conflicting locks to go away), let the caller to
-            handle the situation.
-          */
-          return true;
-        }
-
-        if (dst_table->mdl_request.ticket == nullptr)
-        {
-          /*
-            We are in situation when we have encountered conflicting metadata
-            lock and deadlocks can occur due to waiting for it to go away.
-            So instead of waiting skip this table with an appropriate warning.
-          */
-          DBUG_ASSERT(can_deadlock);
-          my_error(ER_WARN_I_S_SKIPPED_TABLE, MYF(0),
-                   dst_table->db, dst_table->table_name);
-          return true;
-        }
-
-        // Stop if given database does not exist.
-        bool exists= false;
-        if(dd::schema_exists(thd, dst_table->db, &exists))
-          return true;
-
-        if(!exists)
-        {
-          my_error(ER_BAD_DB_ERROR, MYF(0), dst_table->db);
-          return true;
-        }
-
-        exists= false;
-        if(dd::table_exists<dd::Abstract_table>(thd->dd_client(),
-                                                dst_table->db,
-                                                dst_table->table_name,
-                                                &exists))
-          return true;
-
-        if(!exists)
-        {
-          my_error(ER_NO_SUCH_TABLE, MYF(0),
-                   dst_table->db,
-                   dst_table->table_name);
-          return true;
-        }
-        break;
-      }
-    default:
-      break;
-  }
-
-  if (tables)
-  {
-    res= check_table_access(thd,
-                            privileges_requested,
-                            tables, FALSE, UINT_MAX, FALSE) ||
-         (first_table && (first_table->schema_table_reformed || new_dd_show) &&
-          check_show_access(thd, first_table));
-  }
-  else
-    res= check_access(thd, privileges_requested, any_db, NULL, NULL, 0, 0);
-
-  return res;
-}
-
-
-/**
-  Multi update query pre-check.
-
-  @param thd    Thread handler
-  @param tables	Global/local table list (have to be the same)
-
-  @retval
-    FALSE OK
-  @retval
-    TRUE  Error
-*/
-
-bool Sql_cmd_update::multi_update_precheck(THD *thd, TABLE_LIST *tables)
-{
-  LEX *lex= thd->lex;
-  DBUG_ENTER("multi_update_precheck");
-
-  /*
-    Ensure that we have UPDATE or SELECT privilege for each table
-    The exact privilege is checked in mysql_multi_update()
-  */
-  for (TABLE_LIST *table= tables; table; table= table->next_local)
-  {
-    /*
-      "uses_materialization()" covers the case where a prepared statement is
-      executed and a view is decided to be materialized during preparation.
-    */
-    if (table->is_derived() || table->uses_materialization())
-      table->grant.privilege= SELECT_ACL;
-    else if ((check_access(thd, UPDATE_ACL, table->db,
-                           &table->grant.privilege,
-                           &table->grant.m_internal,
-                           0, 1) ||
-              check_grant(thd, UPDATE_ACL, table, FALSE, 1, TRUE)) &&
-             (check_access(thd, SELECT_ACL, table->db,
-                           &table->grant.privilege,
-                           &table->grant.m_internal,
-                           0, 0) ||
-              check_grant(thd, SELECT_ACL, table, FALSE, 1, FALSE)))
-      DBUG_RETURN(TRUE);
-
-    table->table_in_first_from_clause= 1;
-  }
-  /*
-    Is there tables of subqueries?
-  */
-  if (lex->select_lex != lex->all_selects_list)
-  {
-    DBUG_PRINT("info",("Checking sub query list"));
-    for (TABLE_LIST *table= tables; table; table= table->next_global)
-    {
-      if (!table->table_in_first_from_clause)
-      {
-	if (check_access(thd, SELECT_ACL, table->db,
-                         &table->grant.privilege,
-                         &table->grant.m_internal,
-                         0, 0) ||
-	    check_grant(thd, SELECT_ACL, table, FALSE, 1, FALSE))
-	  DBUG_RETURN(TRUE);
-      }
-    }
-  }
-
-  DBUG_RETURN(FALSE);
-}
-
-
-/**
-  Multi delete query pre-check.
-
-  @param thd            Thread handler
-  @param tables         Global/local table list
-
-  @retval
-    FALSE OK
-  @retval
-    TRUE  error
-*/
-
-bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
-{
-  SELECT_LEX *select_lex= thd->lex->select_lex;
-  TABLE_LIST *aux_tables= thd->lex->auxiliary_table_list.first;
-  TABLE_LIST **save_query_tables_own_last= thd->lex->query_tables_own_last;
-  DBUG_ENTER("multi_delete_precheck");
-
-  /* sql_yacc guarantees that tables and aux_tables are not zero */
-  DBUG_ASSERT(aux_tables != 0);
-  if (check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE))
-    DBUG_RETURN(TRUE);
-
-  /*
-    Since aux_tables list is not part of LEX::query_tables list we
-    have to juggle with LEX::query_tables_own_last value to be able
-    call check_table_access() safely.
-  */
-  thd->lex->query_tables_own_last= 0;
-  if (check_table_access(thd, DELETE_ACL, aux_tables, FALSE, UINT_MAX, FALSE))
-  {
-    thd->lex->query_tables_own_last= save_query_tables_own_last;
-    DBUG_RETURN(TRUE);
-  }
-  thd->lex->query_tables_own_last= save_query_tables_own_last;
-
-  if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) &&
-      !select_lex->where_cond())
-  {
-    my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0));
-    DBUG_RETURN(TRUE);
-  }
-  DBUG_RETURN(FALSE);
-}
-
-
-/**
-  simple UPDATE query pre-check.
-
-  @param thd		Thread handler
-  @param tables	Global table list
-
-  @retval
-    FALSE OK
-  @retval
-    TRUE  Error
-*/
-
-bool Sql_cmd_update::update_precheck(THD *thd, TABLE_LIST *tables)
-{
-  DBUG_ENTER("update_precheck");
-  const bool res= check_one_table_access(thd, UPDATE_ACL, tables);
-  DBUG_RETURN(res);
-}
-
-
-/**
-  simple DELETE query pre-check.
-
-  @param thd		Thread handler
-  @param tables	Global table list
-
-  @retval
-    FALSE  OK
-  @retval
-    TRUE   error
-*/
-
-bool delete_precheck(THD *thd, TABLE_LIST *tables)
-{
-  DBUG_ENTER("delete_precheck");
-  if (check_one_table_access(thd, DELETE_ACL, tables))
-    DBUG_RETURN(TRUE);
-  /* Set privilege for the WHERE clause */
-  tables->set_want_privilege(SELECT_ACL);
-  DBUG_RETURN(FALSE);
-}
-
-
-/**
-  simple INSERT query pre-check.
-
-  @param thd		Thread handler
-  @param tables	Global table list
-
-  @retval
-    FALSE  OK
-  @retval
-    TRUE   error
-*/
-
-bool Sql_cmd_insert_base::insert_precheck(THD *thd, TABLE_LIST *tables)
-{
-  LEX *lex= thd->lex;
-  DBUG_ENTER("insert_precheck");
-
-  /*
-    Check that we have modify privileges for the first table and
-    select privileges for the rest
-  */
-  ulong privilege= (INSERT_ACL |
-                    (lex->duplicates == DUP_REPLACE ? DELETE_ACL : 0) |
-                    (insert_value_list.elements ? UPDATE_ACL : 0));
-
-  if (check_one_table_access(thd, privilege, tables))
-    DBUG_RETURN(TRUE);
-
-  DBUG_RETURN(FALSE);
 }
 
 
@@ -5713,6 +5359,7 @@ is_privileged_user_for_credential_change(THD *thd)
 }
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
+
 /**
   Check if user has enough privileges for execution of SHOW statement,
   which was converted to query to one of I_S tables.
@@ -5724,7 +5371,7 @@ is_privileged_user_for_credential_change(THD *thd)
   @retval TRUE  - Failure.
 */
 
-static bool check_show_access(THD *thd, TABLE_LIST *table)
+bool check_show_access(THD *thd, TABLE_LIST *table)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   switch (get_schema_table_idx(table->schema_table)) {
@@ -5823,8 +5470,6 @@ static bool check_show_access(THD *thd, TABLE_LIST *table)
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
   return FALSE;
 }
-
-
 /**
   check for global access and give descriptive error message if it fails.
 
@@ -6442,6 +6087,7 @@ Auth_id_ref create_authid_from(const ACL_USER *user)
   return id;
 }
 
+
 std::string create_authid_str_from(const Role_id &user)
 {
   std::string tmp;
@@ -6549,6 +6195,7 @@ int mysql_set_role_default(THD *thd)
   }
   return ret;
 }
+
 
 /**
    Activates all granted role in the current security context

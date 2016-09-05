@@ -177,7 +177,8 @@ bool Sql_cmd_create_table::execute(THD *thd)
 "section of the manual.");
     }
     
-    unit->set_limit(select_lex);
+    if (unit->set_limit(thd, select_lex))
+      return true;
 
     /*
       Disable non-empty MERGE tables with CREATE...SELECT. Too

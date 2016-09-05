@@ -676,12 +676,6 @@ const ACL_internal_schema_access *
 get_cached_schema_access(GRANT_INTERNAL_INFO *grant_internal_info,
                          const char *schema_name);
 
-bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
-                     TABLE_LIST *first_table);
-bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
-                     TABLE_LIST *first_table, bool in_prepare_stage);
-bool multi_delete_precheck(THD *thd, TABLE_LIST *tables);
-bool delete_precheck(THD *thd, TABLE_LIST *tables);
 bool lock_tables_precheck(THD *thd, TABLE_LIST *tables);
 bool create_table_precheck(THD *thd, TABLE_LIST *tables,
                            TABLE_LIST *create_table);
@@ -756,6 +750,7 @@ check_table_access(THD*, ulong, TABLE_LIST*, bool, uint, bool)
 { return false; }
 #endif /*NO_EMBEDDED_ACCESS_CHECKS*/
 
+bool check_show_access(THD *thd, TABLE_LIST *table);
 bool check_global_access(THD *thd, ulong want_access);
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS

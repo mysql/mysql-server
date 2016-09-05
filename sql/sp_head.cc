@@ -1384,8 +1384,8 @@ delimiter ;
   @note We do not have a debugger,
   so this is old school printf-like debugging into a table.
 
-  By setting a breakpoint in #Sql_cmd_insert::mysql_insert in the server,
-  the current thread stack at the first insert will look like this:
+  By setting a breakpoint in #Sql_cmd_insert_values::execute_inner in
+  the server, the current thread stack at the first insert will look like this:
 
   @todo Refresh the stack
 
@@ -2805,10 +2805,12 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
   DBUG_ENTER("sp_head::execute_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
 
-  if (args->elements != params)
+  uint arg_count= args != NULL ? args->elements : 0;
+
+  if (arg_count != params)
   {
     my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0), "PROCEDURE",
-             m_qname.str, params, args->elements);
+             m_qname.str, params, arg_count);
     DBUG_RETURN(true);
   }
 
@@ -2871,8 +2873,6 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
           err_status= TRUE;
           break;
         }
-
-        srp->set_required_privilege(spvar->mode == sp_variable::MODE_INOUT);
       }
 
       if (spvar->mode == sp_variable::MODE_OUT)

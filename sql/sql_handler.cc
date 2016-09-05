@@ -507,7 +507,8 @@ bool Sql_cmd_handler_read::execute(THD *thd)
   */
 
   /* Get limit counters from SELECT_LEX. */
-  unit->set_limit(select_lex);
+  unit->prepare_limit(thd, select_lex);
+  unit->set_limit(thd, select_lex);
   select_limit_cnt= unit->select_limit_cnt;
   offset_limit_cnt= unit->offset_limit_cnt;
 

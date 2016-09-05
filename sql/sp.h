@@ -185,6 +185,9 @@ bool lock_db_routines(THD *thd, const char *db);
 sp_head *sp_find_routine(THD *thd, enum_sp_type type, sp_name *name,
                          sp_cache **cp, bool cache_only);
 
+sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
+                         sp_cache **cp);
+
 enum_sp_return_code sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
                                      bool lookup_only, sp_head **sp);
 

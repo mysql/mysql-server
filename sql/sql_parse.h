@@ -85,9 +85,8 @@ bool is_log_table_write_query(enum enum_sql_command command);
 bool alloc_query(THD *thd, const char *packet, size_t packet_length);
 void mysql_parse(THD *thd, Parser_state *parser_state);
 void mysql_reset_thd_for_next_command(THD *thd);
-void create_select_for_variable(Parse_context *pc, const char *var_name);
+bool create_select_for_variable(Parse_context *pc, const char *var_name);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);
-void mysql_init_multi_delete(LEX *lex);
 int mysql_execute_command(THD *thd, bool first_level= false);
 bool do_command(THD *thd);
 bool dispatch_command(THD *thd, const COM_DATA *com_data,
@@ -109,14 +108,12 @@ Item *negate_expression(Parse_context *pc, Item *expr);
 const CHARSET_INFO *get_bin_collation(const CHARSET_INFO *cs);
 void killall_non_super_threads(THD *thd);
 bool shutdown(THD *thd, enum mysql_enum_shutdown_level level);
+bool show_precheck(THD *thd, LEX *lex, bool lock);
 
 /* Variables */
 
 extern uint sql_command_flags[];
 extern const LEX_STRING command_name[];
-
-// Statement timeout function(s)
-void reset_statement_timer(THD *thd);
 
 inline bool is_supported_parser_charset(const CHARSET_INFO *cs)
 {
