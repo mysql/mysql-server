@@ -10434,10 +10434,10 @@ void ha_ndbcluster::append_create_info(String *packet)
         if (pbname != NULL)
         {
           char msg[200];
-          snprintf(msg,
-                   sizeof(msg),
-                   "Table property is PARTITION_BALANCE=%s but not in comment",
-                   pbname);
+          my_snprintf(msg,
+                      sizeof(msg),
+                      "Table property is PARTITION_BALANCE=%s but not in comment",
+                      pbname);
           push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_GET_ERRMSG,
                               ER(ER_GET_ERRMSG),
