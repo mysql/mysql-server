@@ -1002,7 +1002,7 @@ public:
       Make a copy of mem_root as TABLE object is allocated within its
       own mem_root and free_root() updates its argument.
     */
-    MEM_ROOT m_root= *m_mem_root;
+    MEM_ROOT m_root= std::move(*m_mem_root);
     free_root(&m_root, MYF(0));
   }
 };

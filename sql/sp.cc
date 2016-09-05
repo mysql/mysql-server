@@ -2097,7 +2097,7 @@ sp_head *sp_start_parsing(THD *thd,
   if (!rawmem)
     return NULL;
 
-  sp_head *sp= new (rawmem) sp_head(own_root, sp_type);
+  sp_head *sp= new (rawmem) sp_head(std::move(own_root), sp_type);
 
   // 2. start_parsing_sp_body()
 

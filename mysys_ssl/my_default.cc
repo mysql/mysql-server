@@ -759,7 +759,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
 
   (*argc)+= my_args.size() + args_sep;
   *argv= res;
-  *(MEM_ROOT*) ptr= alloc;			/* Save alloc root for free */
+  *(MEM_ROOT*) ptr= std::move(alloc);           /* Save alloc root for free */
 
   if (default_directories)
     *default_directories= dirs;
