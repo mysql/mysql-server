@@ -171,8 +171,8 @@ static uint getrounds(const char *s)
   The crypt format is assumed to be $a$bbbb$cccccc\0 and the salt is found
   by counting the delimiters and marking begin and end.
 
-   @param salt_being[in]  Pointer to start of crypt passwd
-   @param salt_being[out] Pointer to first byte of the salt
+   @param salt_begin[in]  Pointer to start of crypt passwd
+   @param salt_begin[out] Pointer to first byte of the salt
    @param salt_end[in]    Pointer to the last byte in passwd
    @param salt_end[out]   Pointer to the byte immediatly following the salt ($)
 
