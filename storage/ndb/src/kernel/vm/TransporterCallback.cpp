@@ -181,15 +181,7 @@ TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
     const Uint32 receiverBlock = blockToMain(header->theReceiversBlockNumber);
     if (unlikely(ErrorSignalReceive == receiverBlock))
     {
-#ifdef NDBD_MULTITHREADED
-      // MT cant set the *global* 'ErrorImportActive' as would have caused
-      // import in *any thread* to fail randomly.
-      ndbout_c("::deliver_signal() simulate 'import' failure of long signals");
-      ok &= false;
-#else
-      // Will fail inside import below
       ErrorImportActive = true;
-#endif
     }
   }
 #endif
