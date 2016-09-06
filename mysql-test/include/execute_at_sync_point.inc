@@ -15,7 +15,7 @@
 # [--let $auxiliary_connection= CONNECTION_NAME]
 # [--let $quiet= [0|1|2]]
 # [--let $sync_point_timeout= N]
-# --source include/execute_statement_at_sync_point.inc
+# --source include/execute_at_sync_point.inc
 #
 # Parameters:
 #

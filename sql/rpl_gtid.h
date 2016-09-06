@@ -57,6 +57,7 @@ extern PSI_memory_key key_memory_Owned_gtids_to_string;
 extern PSI_memory_key key_memory_Gtid_state_to_string;
 extern PSI_memory_key key_memory_Group_cache_to_string;
 extern PSI_memory_key key_memory_Gtid_set_Interval_chunk;
+extern PSI_memory_key key_memory_Gtid_state_group_commit_sidno;
 
 /**
   This macro is used to check that the given character, pointed to by the
@@ -2368,7 +2369,8 @@ public:
     executed_gtids(sid_map, sid_lock),
     gtids_only_in_table(sid_map, sid_lock),
     previous_gtids_logged(sid_map, sid_lock),
-    owned_gtids(sid_lock) {}
+    owned_gtids(sid_lock),
+    commit_group_sidnos(key_memory_Gtid_state_group_commit_sidno) {}
   /**
     Add @@GLOBAL.SERVER_UUID to this binlog's Sid_map.
 
@@ -2429,6 +2431,26 @@ public:
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status acquire_ownership(THD *thd, const Gtid &gtid);
+  /**
+    This function updates both the THD and the Gtid_state to reflect that
+    the transaction set of transactions has ended, and it does this for the
+    whole commit group (by following the thd->next_to_commit pointer).
+
+    It will:
+
+    - Clean up the thread state when a thread owned GTIDs is empty.
+    - Release ownership of all GTIDs owned by the THDs. This removes
+      the GTIDs from Owned_gtids and clears the ownership status in the
+      THDs object.
+    - Add the owned GTIDs to executed_gtids when the thread is committing.
+    - Decrease counters of GTID-violating transactions.
+    - Send a broadcast on the condition variable for every sidno for
+      which we released ownership.
+
+    @param first_thd The first thread of the group commit that needs GTIDs to
+                     be updated.
+  */
+  void update_commit_group(THD *first_thd);
   /**
     Remove the GTID owned by thread from owned GTIDs, stating that
     thd->owned_gtid was committed.
@@ -3114,6 +3136,22 @@ private:
   */
   void update_gtids_impl_lock_sidno(rpl_sidno sidno);
   /**
+
+    Locks the sidnos of all the GTIDs of the commit group starting on the
+    transaction passed as parameter.
+
+    This is a sub task of update_commit_group responsible only to lock the
+    sidno(s) of the GTID(s) being updated.
+
+    The function should follow thd->next_to_commit to lock all sidnos of all
+    transactions being updated in a group.
+
+    @param[in] thd - Thread that owns the GTID(s) to be updated or leader
+                     of the commit group in the case of a commit group
+                     update.
+  */
+  void update_gtids_impl_lock_sidnos(THD *thd);
+  /**
     Handle the case that the thread own a single non-anonymous GTID.
 
     This is a sub task of update_gtids_impl responsible only to handle
@@ -3141,6 +3179,14 @@ private:
     @param[in] sidno - The sidno to be broadcasted and unlocked.
   */
   void update_gtids_impl_broadcast_and_unlock_sidno(rpl_sidno sidno);
+  /**
+    Unlocks all locked sidnos after broadcasting their changes.
+
+    This is a sub task of update_commit_group responsible only to
+    unlock the sidno(s) of the GTID(s) being updated after broadcasting
+    their changes.
+  */
+  void update_gtids_impl_broadcast_and_unlock_sidnos();
   /**
     Handle the case that the thread owns ANONYMOUS GTID.
 
@@ -3198,6 +3244,35 @@ private:
                           Gtid_state::update_gtids_impl_own_anonymous.
   */
   void update_gtids_impl_end(THD *thd, bool more_trx);
+  /**
+    This array is used by Gtid_state_update_gtids_impl* functions.
+
+    The array items (one per sidno of the sid_map) will be set as true for
+    each sidno that requires to be locked when updating a set of GTIDs
+    (at Gtid_set::update_gtids_impl_lock_sidnos).
+
+    The array items will be set false at
+    Gtid_set::update_gtids_impl_broadcast_and_unlock_sidnos.
+
+    It is used to so that lock, unlock, and broadcast operations are only
+    called once per sidno per commit group, instead of once per transaction.
+
+    Its access is protected by:
+    - global_sid_lock->wrlock when growing and cleaning up;
+    - MYSQL_BIN_LOG::LOCK_commit when setting true/false on array items.
+  */
+  Prealloced_array<bool, 8, true> commit_group_sidnos;
+  /**
+    Ensure that commit_group_sidnos have room for the SIDNO passed as
+    parameter.
+
+    This function must only be called in one place:
+    Gtid_state::ensure_sidno().
+
+    @param sidno The SIDNO.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status ensure_commit_group_sidnos(rpl_sidno sidno);
 };
 
 
