@@ -1801,11 +1801,16 @@ struct buf_block_t{
 					or btr_search_own_all(). */
 # define assert_block_ahi_empty(block)					\
 	ut_a(os_atomic_increment_ulint(&(block)->n_pointers, 0) == 0)
+# define assert_block_ahi_empty_on_init(block) do {			\
+	UNIV_MEM_VALID(&(block)->n_pointers, sizeof (block)->n_pointers); \
+	assert_block_ahi_empty(block);					\
+} while (0)
 # define assert_block_ahi_valid(block)					\
 	ut_a((block)->index						\
 	     || os_atomic_increment_ulint(&(block)->n_pointers, 0) == 0)
 #else /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 # define assert_block_ahi_empty(block) /* nothing */
+# define assert_block_ahi_empty_on_init(block) /* nothing */
 # define assert_block_ahi_valid(block) /* nothing */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	unsigned	curr_n_fields:10;/*!< prefix length for hash indexing:
