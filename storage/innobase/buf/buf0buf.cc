@@ -777,7 +777,7 @@ buf_block_init(
 
 	/* This function should only be executed at database startup or by
 	buf_pool_resize(). Either way, adaptive hash index must not exist. */
-	assert_block_ahi_empty(block);
+	assert_block_ahi_empty_on_init(block);
 
 	block->frame = frame;
 
@@ -1470,7 +1470,7 @@ buf_page_realloc(
 		/* This code should only be executed by buf_pool_resize(),
 		while the adaptive hash index is disabled. */
 		assert_block_ahi_empty(block);
-		assert_block_ahi_empty(new_block);
+		assert_block_ahi_empty_on_init(new_block);
 		ut_ad(!block->index);
 		new_block->index	= NULL;
 		new_block->n_hash_helps	= 0;
@@ -3156,7 +3156,7 @@ buf_block_init_low(
 {
 	/* No adaptive hash index entries may point to a previously
 	unused (and now freshly allocated) block. */
-	assert_block_ahi_empty(block);
+	assert_block_ahi_empty_on_init(block);
 	block->index		= NULL;
 	block->made_dirty_with_no_latch = false;
 	block->skip_flush_check = false;
