@@ -386,6 +386,19 @@ err:
 }
 
 
+#if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
+void Sql_cmd_select::start_stmt_dtrace(char *query)
+{
+  MYSQL_SELECT_START(query);
+}
+void Sql_cmd_select::end_stmt_dtrace(int status,
+                                     ulonglong rows, ulonglong changed)
+{
+  MYSQL_SELECT_DONE(status, rows);
+}
+#endif
+
+
 /**
   Prepare a SELECT statement.
 */

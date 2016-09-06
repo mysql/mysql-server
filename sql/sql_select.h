@@ -52,14 +52,8 @@ protected:
   virtual bool prepare_inner(THD *thd);
 
 #if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
-  virtual void start_stmt_dtrace(char *query)
-  {
-    MYSQL_SELECT_START(query);
-  }
-  virtual void end_stmt_dtrace(int status, ulonglong rows, ulonglong changed)
-  {
-    MYSQL_SELECT_DONE(status, rows);
-  }
+  virtual void start_stmt_dtrace(char *query);
+  virtual void end_stmt_dtrace(int status, ulonglong rows, ulonglong changed);
 #endif
 
 };
