@@ -585,8 +585,9 @@ struct mysql_row_templ_t {
 					ROW_MYSQL_WHOLE_ROW */
 	ulint	icp_rec_field_no;	/*!< field number of the column in an
 					Innobase record in the current index;
-					not defined unless
-					index condition pushdown is used */
+					only defined for columns that could be
+					used to evaluate a pushed down index
+					condition and/or end-range condition */
 	ulint	mysql_col_offset;	/*!< offset of the column in the MySQL
 					row format */
 	ulint	mysql_col_len;		/*!< length of the column in the MySQL

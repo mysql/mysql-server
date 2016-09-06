@@ -3568,13 +3568,18 @@ protected:
   bool in_range_check_pushed_down;
 
 public:  
-  /*
+  /**
     End value for a range scan. If this is NULL the range scan has no
     end value. Should also be NULL when there is no ongoing range scan.
     Used by the read_range() functions and also evaluated by pushed
     index conditions.
   */
   key_range *end_range;
+  /**
+    Flag which tells if #end_range contains a virtual generated column.
+    The content is invalid when #end_range is @c nullptr.
+  */
+  bool m_virt_gcol_in_end_range= false;
   uint errkey;				/* Last dup key */
   uint key_used_on_scan;
   uint active_index;
