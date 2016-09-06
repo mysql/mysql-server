@@ -4,6 +4,8 @@
 --echo #
 
 --source include/big_test.inc
+--source include/not_valgrind.inc
+
 --echo "Test 1:- Uncommited delete test"
 CREATE TABLE t1 (id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
 		 val INT UNSIGNED NOT NULL,
