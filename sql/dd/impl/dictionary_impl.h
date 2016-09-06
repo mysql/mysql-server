@@ -90,6 +90,9 @@ public:
                                const String_type &table_name) const
   { return (get_dd_table(schema_name, table_name) != NULL); }
 
+  virtual int table_type_error_code(const String_type &schema_name,
+                                    const String_type &table_name) const;
+
   virtual bool is_dd_table_access_allowed(bool is_dd_internal_thread,
                                           bool is_ddl_statement,
                                           const char *schema_name,

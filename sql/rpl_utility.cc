@@ -635,6 +635,9 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
                          table->s->db.str, table->s->table_name.str));
     rli->report(ERROR_LEVEL, ER_NO_SYSTEM_TABLE_ACCESS,
                 ER_THD(thd, ER_NO_SYSTEM_TABLE_ACCESS),
+                ER_THD(thd, dictionary->
+                              table_type_error_code(table->s->db.str,
+                                                    table->s->table_name.str)),
                 table->s->db.str, table->s->table_name.str);
     return false;
   }

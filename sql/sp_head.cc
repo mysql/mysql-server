@@ -16,25 +16,25 @@
 
 #include "sp_head.h"
 
+#include "auth_common.h"       // *_ACL
+#include "binlog.h"
+#include "derror.h"            // ER_THD
+#include "log_event.h"         // append_query_string, Query_log_event
 #include "mysqld.h"            // atomic_global_query_id
+#include "opt_trace.h"         // opt_trace_disable_etc
 #include "probes_mysql.h"
 #include "psi_memory_key.h"
-#include "sql_show.h"          // append_identifier
-#include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
-#include "auth_common.h"       // *_ACL
-#include "log_event.h"         // append_query_string, Query_log_event
-#include "binlog.h"
-
-#include "sp_instr.h"
 #include "sp.h"
+#include "sp_cache.h"
+#include "sp_instr.h"
 #include "sp_pcontext.h"
 #include "sp_rcontext.h"
-#include "sp_cache.h"
-#include "sql_parse.h"         // cleanup_items
 #include "sql_base.h"          // close_thread_tables
+#include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
+#include "sql_parse.h"         // cleanup_items
+#include "sql_show.h"          // append_identifier
 #include "template_utils.h"    // pointer_cast
 #include "transaction.h"       // trans_commit_stmt
-#include "opt_trace.h"         // opt_trace_disable_etc
 
 #include <my_user.h>           // parse_user
 #include "mysql/psi/mysql_statement.h"
@@ -3377,8 +3377,11 @@ bool sp_head::merge_table_list(THD *thd,
                  table->mdl_request.is_ddl_or_lock_tables_lock_request(),
                  table->db, table->db_length, table->table_name))
       {
-        my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0), table->db,
-                 table->table_name);
+        my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0),
+                 ER_THD(thd,
+                        dictionary->table_type_error_code(table->db,
+                                                          table->table_name)),
+                 table->db, table->table_name);
         return true;
       }
 

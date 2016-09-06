@@ -91,6 +91,21 @@ public:
                                 const String_type &table_name) const = 0;
 
   /**
+    Get the error code representing the type name string for a dictionary
+    or system table.
+
+    Necessary to support localization of error messages.
+
+    @param schema_name    Schema name to check.
+    @param table_name     Table name to check.
+
+    @returns The error code representing the type name associated with the table,
+             for being used in error messages.
+  */
+  virtual int table_type_error_code(const String_type &schema_name,
+                                    const String_type &table_name) const = 0;
+
+  /**
     Check if given table name can be accessed by the given thread type.
 
     @param is_dd_internal_thread    'true' if this is a DD internal

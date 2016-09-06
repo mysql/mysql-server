@@ -101,7 +101,11 @@ bool Foreign_key_spec::validate(THD *thd, List<Create_field> &table_fields) cons
                                thd->is_dd_system_thread(),
                                true, db_str, db_length, ref_table.str))
   {
-    my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0), db_str, ref_table.str);
+    my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0),
+             ER_THD(thd,
+                    dictionary->table_type_error_code(db_str,
+                                                      ref_table.str)),
+             db_str, ref_table.str);
     DBUG_RETURN(true);
   }
 

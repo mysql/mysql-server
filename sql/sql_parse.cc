@@ -5689,7 +5689,10 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
                                   lex->query_tables->table_name)) &&
         strcmp(ptr->table_name, "st_spatial_reference_systems"))
     {
-      my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0), ptr->db, ptr->table_name);
+      my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0),
+               ER_THD(thd, dictionary->table_type_error_code(ptr->db,
+                                                             ptr->table_name)),
+               ptr->db, ptr->table_name);
     }
   }
 

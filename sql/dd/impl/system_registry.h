@@ -18,6 +18,7 @@
 
 #include "my_global.h"
 
+#include "mysqld_error.h"                      // ER_NO_SYSTEM_TABLE_...
 #include "dd/string_type.h"                    // dd::String_type
 
 #include <vector>
@@ -375,6 +376,17 @@ public:
     }
   }
 
+  // Map from system table type to error code for localized error messages.
+  static int type_name_error_code(Types type)
+  {
+    switch (type)
+    {
+      case Types::CORE: return ER_NO_SYSTEM_TABLE_ACCESS_FOR_DICTIONARY_TABLE;
+      case Types::DDSE: return ER_NO_SYSTEM_TABLE_ACCESS_FOR_SYSTEM_TABLE;
+      default:          return ER_NO_SYSTEM_TABLE_ACCESS_FOR_TABLE;
+    }
+  }
+
 private:
   // The actual registry is referred and delegated to rather than
   // being inherited from.
@@ -402,7 +414,7 @@ public:
                            const String_type &table_name) const
   { return m_registry.find_entity(schema_name, table_name); }
 
-  // Find a system table by delegation to the wrapped registry.
+  // Find a system table type by delegation to the wrapped registry.
   const Types *find_type(const String_type &schema_name,
                          const String_type &table_name) const
   { return m_registry.find_property(schema_name, table_name); }
