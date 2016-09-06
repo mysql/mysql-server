@@ -169,6 +169,7 @@ let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
 let $args=--loose-console --core-file > $SEARCH_FILE 2>&1;
 
 # Stop the server
+SET GLOBAL innodb_fast_shutdown=0;
 --source include/shutdown_mysqld.inc
 
 --echo "test misc 1"
