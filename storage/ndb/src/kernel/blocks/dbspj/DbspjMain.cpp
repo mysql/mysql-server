@@ -50,6 +50,7 @@
 
 extern EventLogger* g_eventLogger;
 extern Uint32 ErrorSignalReceive;
+extern Uint32 ErrorMaxSegmentsToSeize;
 
 #ifdef VM_TRACE
 
@@ -157,6 +158,7 @@ void Dbspj::execSIGNAL_DROPPED_REP(Signal* signal)
   {
     jam();
     ErrorSignalReceive= 0;
+    ErrorMaxSegmentsToSeize= 3;
   }
 #endif
 
