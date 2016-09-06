@@ -326,7 +326,11 @@ set_malloc_lib() {
 
   if [ "$malloc_lib" = tcmalloc ]; then
     malloc_lib=
+<<<<<<< HEAD
     for libdir in `echo $malloc_dirs`; do
+=======
+    for libdir in $(echo $malloc_dirs); do
+>>>>>>> mysql-5.7.15-release
       for flavor in _minimal '' _and_profiler _debug; do
         tmp="$libdir/libtcmalloc$flavor.so"
         #log_notice "DEBUG: Checking for malloc lib '$tmp'"
