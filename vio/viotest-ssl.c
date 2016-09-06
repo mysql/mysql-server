@@ -99,7 +99,7 @@ int main(int argc, char **argv)
 
   client_vio = (Vio*)my_malloc(sizeof(struct st_vio),MYF(0));
   client_vio->sd = sv[0];
-  sslconnect(ssl_connector,client_vio,&ssl_error);
+  sslconnect(ssl_connector,client_vio,&ssl_error, "the_hostname");
   server_vio = (Vio*)my_malloc(sizeof(struct st_vio),MYF(0));
   server_vio->sd = sv[1];
   sslaccept(ssl_acceptor,server_vio,&ssl_error);
