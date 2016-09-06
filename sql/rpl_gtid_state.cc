@@ -21,6 +21,7 @@
 #include "sql_class.h"             // THD
 #include "debug_sync.h"            // DEBUG_SYNC
 
+PSI_memory_key key_memory_Gtid_state_group_commit_sidno;
 
 int Gtid_state::clear(THD *thd)
 {
@@ -140,6 +141,58 @@ void Gtid_state::broadcast_owned_sidnos(const THD *thd)
   }
 }
 
+
+void Gtid_state::update_commit_group(THD *first_thd)
+{
+  DBUG_ENTER("Gtid_state::update_commit_group");
+
+  /*
+    We are going to loop in all sessions of the group commit in order to avoid
+    being taking and releasing the global_sid_lock and sidno_lock for each
+    session.
+  */
+  DEBUG_SYNC(first_thd, "update_gtid_state_before_global_sid_lock");
+  global_sid_lock->rdlock();
+  DEBUG_SYNC(first_thd, "update_gtid_state_after_global_sid_lock");
+
+  update_gtids_impl_lock_sidnos(first_thd);
+
+  for (THD *thd= first_thd; thd != NULL; thd= thd->next_to_commit)
+  {
+    bool is_commit= (thd->commit_error != THD::CE_COMMIT_ERROR);
+
+    if (update_gtids_impl_do_nothing(thd) ||
+        (!is_commit && update_gtids_impl_check_skip_gtid_rollback(thd)))
+      continue;
+
+    bool more_trx_with_same_gtid_next= update_gtids_impl_begin(thd);
+
+    if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_GTID_SET)
+    {
+      update_gtids_impl_own_gtid_set(thd, is_commit);
+    }
+    else if (thd->owned_gtid.sidno > 0)
+    {
+      update_gtids_impl_own_gtid(thd, is_commit);
+    }
+    else if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
+    {
+      update_gtids_impl_own_anonymous(thd, &more_trx_with_same_gtid_next);
+    }
+    else
+    {
+      update_gtids_impl_own_nothing(thd);
+    }
+
+    update_gtids_impl_end(thd, more_trx_with_same_gtid_next);
+  }
+
+  update_gtids_impl_broadcast_and_unlock_sidnos();
+
+  global_sid_lock->unlock();
+
+  DBUG_VOID_RETURN;
+}
 
 void Gtid_state::update_on_commit(THD *thd)
 {
@@ -516,6 +569,7 @@ enum_return_status Gtid_state::ensure_sidno()
     PROPAGATE_REPORTED_ERROR(lost_gtids.ensure_sidno(sidno));
     PROPAGATE_REPORTED_ERROR(owned_gtids.ensure_sidno(sidno));
     PROPAGATE_REPORTED_ERROR(sid_locks.ensure_index(sidno));
+    PROPAGATE_REPORTED_ERROR(ensure_commit_group_sidnos(sidno));
     sidno= sid_map->get_max_sidno();
     DBUG_ASSERT(executed_gtids.get_max_sidno() >= sidno);
     DBUG_ASSERT(gtids_only_in_table.get_max_sidno() >= sidno);
@@ -523,6 +577,7 @@ enum_return_status Gtid_state::ensure_sidno()
     DBUG_ASSERT(lost_gtids.get_max_sidno() >= sidno);
     DBUG_ASSERT(owned_gtids.get_max_sidno() >= sidno);
     DBUG_ASSERT(sid_locks.get_max_index() >= sidno);
+    DBUG_ASSERT(commit_group_sidnos.size() >= (unsigned int)sidno);
   }
   RETURN_OK;
 }
@@ -761,6 +816,33 @@ void Gtid_state::update_gtids_impl_lock_sidno(rpl_sidno sidno)
   lock_sidno(sidno);
 }
 
+void Gtid_state::update_gtids_impl_lock_sidnos(THD *first_thd)
+{
+  /* Define which sidnos should be locked to be updated */
+  for (THD *thd= first_thd; thd != NULL; thd= thd->next_to_commit)
+  {
+    if (thd->owned_gtid.sidno > 0)
+    {
+      DBUG_PRINT("info",("Setting sidno %d to be locked",
+                         thd->owned_gtid.sidno));
+      commit_group_sidnos[thd->owned_gtid.sidno]= true;
+    }
+    else if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_GTID_SET)
+#ifdef HAVE_GTID_NEXT_LIST
+      for (rpl_sidno i= 1; i < thd->owned_gtid_set.max_sidno; i++)
+        if (owned_gtid_set.contains_sidno(i))
+          commit_group_sidnos[i]= true;
+#else
+      DBUG_ASSERT(0);
+#endif
+  }
+
+  /* Take the sidno_locks in order */
+  for (rpl_sidno i= 1; i < (rpl_sidno)commit_group_sidnos.size(); i++)
+    if (commit_group_sidnos[i])
+      update_gtids_impl_lock_sidno(i);
+}
+
 void Gtid_state::update_gtids_impl_own_gtid(THD *thd, bool is_commit)
 {
   assert_sidno_lock_owner(thd->owned_gtid.sidno);
@@ -819,6 +901,16 @@ void Gtid_state::update_gtids_impl_broadcast_and_unlock_sidno(rpl_sidno sidno)
   unlock_sidno(sidno);
 }
 
+void Gtid_state::update_gtids_impl_broadcast_and_unlock_sidnos()
+{
+  for (rpl_sidno i= 1; i < (rpl_sidno)commit_group_sidnos.size(); i++)
+    if (commit_group_sidnos[i])
+    {
+      update_gtids_impl_broadcast_and_unlock_sidno(i);
+      commit_group_sidnos[i]= false;
+    }
+}
+
 void Gtid_state::update_gtids_impl_own_anonymous(THD* thd,
                                                  bool *more_trx)
 {
@@ -860,4 +952,24 @@ void Gtid_state::update_gtids_impl_end(THD *thd, bool more_trx)
 {
   if (!more_trx)
     end_gtid_violating_transaction(thd);
+}
+
+enum_return_status Gtid_state::ensure_commit_group_sidnos(rpl_sidno sidno)
+{
+  DBUG_ENTER("Gtid_state::ensure_commit_group_sidnos");
+  sid_lock->assert_some_wrlock();
+  /*
+    As we use the sidno as index of commit_group_sidnos and there is no
+    sidno=0, the array size must be at least sidno + 1.
+  */
+  while ((commit_group_sidnos.size()) < (size_t)sidno + 1)
+  {
+    if (commit_group_sidnos.push_back(false))
+      goto error;
+  }
+  RETURN_OK;
+error:
+  BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
+  RETURN_REPORTED_ERROR;
+
 }

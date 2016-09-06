@@ -9177,6 +9177,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_Gtid_set_Interval_chunk, "Gtid_set::Interval_chunk", 0},
   { &key_memory_Owned_gtids_sidno_to_hash, "Owned_gtids::sidno_to_hash", 0},
   { &key_memory_Sid_map_Node, "Sid_map::Node", 0},
+  { &key_memory_Gtid_state_group_commit_sidno, "Gtid_state::group_commit_sidno_locks", 0},
   { &key_memory_Mutex_cond_array_Mutex_cond, "Mutex_cond_array::Mutex_cond", 0},
   { &key_memory_TABLE_RULE_ENT, "TABLE_RULE_ENT", 0},
 

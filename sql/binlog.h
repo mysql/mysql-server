@@ -108,7 +108,11 @@ public:
       return m_first == NULL;
     }
 
-    /** Append a linked list of threads to the queue */
+    /**
+      Append a linked list of threads to the queue.
+      @retval true The queue was empty before this operation.
+      @retval false The queue was non-empty before this operation.
+    */
     bool append(THD *first);
 
     /**

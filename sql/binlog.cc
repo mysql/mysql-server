@@ -1868,8 +1868,28 @@ Stage_manager::enroll_for(StageID stage, THD *thd, mysql_mutex_t *stage_mutex)
     mysql_mutex_unlock(stage_mutex);
 
 #ifndef DBUG_OFF
-  if (stage == Stage_manager::SYNC_STAGE)
+  DBUG_PRINT("info", ("This is a leader thread: %d (0=n 1=y)", leader));
+
+  DEBUG_SYNC(thd, "after_enrolling_for_stage");
+
+  switch (stage)
+  {
+  case Stage_manager::FLUSH_STAGE:
+    DEBUG_SYNC(thd, "bgc_after_enrolling_for_flush_stage");
+    break;
+  case Stage_manager::SYNC_STAGE:
     DEBUG_SYNC(thd, "bgc_after_enrolling_for_sync_stage");
+    break;
+  case Stage_manager::COMMIT_STAGE:
+    DEBUG_SYNC(thd, "bgc_after_enrolling_for_commit_stage");
+    break;
+  default:
+    // not reached
+    DBUG_ASSERT(0);
+  }
+
+  DBUG_EXECUTE_IF("assert_leader", DBUG_ASSERT(leader););
+  DBUG_EXECUTE_IF("assert_follower", DBUG_ASSERT(!leader););
 #endif
 
   /*
@@ -1911,7 +1931,7 @@ THD *Stage_manager::Mutex_queue::fetch_and_empty()
   DBUG_PRINT("info", ("m_first: 0x%llx, &m_first: 0x%llx, m_last: 0x%llx",
                        (ulonglong) m_first, (ulonglong) &m_first,
                        (ulonglong) m_last));
-  DBUG_ASSERT(m_first || m_last == &m_first);
+  DBUG_PRINT("info", ("fetched queue of %d transactions", my_atomic_load32(&m_size)));
   DBUG_PRINT("return", ("result: 0x%llx", (ulonglong) result));
   DBUG_ASSERT(my_atomic_load32(&m_size) >= 0);
   my_atomic_store32(&m_size, 0);
@@ -8411,17 +8431,17 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first)
     DBUG_PRINT("debug", ("commit_error: %d, flags.pending: %s",
                          head->commit_error,
                          YESNO(head->get_transaction()->m_flags.pending)));
+  }
 
-    /*
-      Handle the GTID of the thread.
-      gtid_executed table is kept updated even though transactions fail to be
-      logged. That's required  by slave auto positioning.
-    */
-    if (head->commit_error != THD::CE_COMMIT_ERROR)
-      gtid_state->update_on_commit(head);
-    else
-      gtid_state->update_on_rollback(head);
+  /*
+    Handle the GTID of the threads.
+    gtid_executed table is kept updated even though transactions fail to be
+    logged. That's required by slave auto positioning.
+  */
+  gtid_state->update_commit_group(first);
 
+  for (THD *head= first ; head ; head = head->next_to_commit)
+  {
     /*
       Decrement the prepared XID counter after storage engine commit.
       We also need decrement the prepared XID when encountering a
