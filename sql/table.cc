@@ -6517,7 +6517,7 @@ bool TABLE_LIST::process_index_hints(TABLE *tbl)
 {
   /* initialize the result variables */
   tbl->keys_in_use_for_query= tbl->keys_in_use_for_group_by= 
-    tbl->keys_in_use_for_order_by= tbl->s->keys_in_use;
+    tbl->keys_in_use_for_order_by= tbl->s->usable_indexes();
 
   /* index hint list processing */
   if (index_hints)

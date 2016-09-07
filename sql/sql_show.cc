@@ -1912,7 +1912,7 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
     }
 
     if (!key_info->is_visible)
-      packet->append(STRING_WITH_LEN(" /*!50800 INVISIBLE */"));
+      packet->append(STRING_WITH_LEN(" /*!80000 INVISIBLE */"));
   }
 }
 

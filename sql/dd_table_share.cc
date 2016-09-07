@@ -1402,6 +1402,7 @@ static bool fill_indexes_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
 
   share->keys_for_keyread.init(0);
   share->keys_in_use.init();
+  share->visible_indexes.init();
 
   // Allocate and fill KEY objects.
   if (share->keys)
@@ -1474,8 +1475,9 @@ static bool fill_indexes_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
 
       index_at_pos[key_nr]= idx_obj;
 
+      share->keys_in_use.set_bit(key_nr);
       if (idx_obj->is_visible())
-        share->keys_in_use.set_bit(key_nr);
+        share->visible_indexes.set_bit(key_nr);
 
       key_nr++;
     }

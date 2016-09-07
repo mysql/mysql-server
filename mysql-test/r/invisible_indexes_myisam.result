@@ -6,15 +6,15 @@ SET SESSION information_schema_stats=latest;
 CREATE TABLE t1 ( a INT, KEY (a) );
 SHOW KEYS FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
 ALTER TABLE t1 ALTER INDEX a INVISIBLE;
 SHOW KEYS FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			NO
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			NO
 ALTER TABLE t1 ALTER INDEX a VISIBLE;
 SHOW KEYS FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
 DROP TABLE t1;
 # Test of CREATE INDEX syntax with invisible indexes.
 CREATE TABLE t1 ( a INT, b INT );
@@ -25,10 +25,10 @@ Warning	1831	Duplicate index 'b_visible' defined on the table 'test.t1'. This is
 CREATE INDEX a_b_invisible ON t1(a, b) INVISIBLE;
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a_invisible	1	a	A	0	NULL	NULL	YES	BTREE			NO
-t1	1	b_visible	1	a	A	0	NULL	NULL	YES	BTREE			YES
-t1	1	a_b_invisible	1	a	A	0	NULL	NULL	YES	BTREE			NO
-t1	1	a_b_invisible	2	b	A	0	NULL	NULL	YES	BTREE			NO
+t1	1	a_invisible	1	a	A	NULL	NULL	NULL	YES	BTREE			NO
+t1	1	b_visible	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
+t1	1	a_b_invisible	1	a	A	NULL	NULL	NULL	YES	BTREE			NO
+t1	1	a_b_invisible	2	b	A	NULL	NULL	NULL	YES	BTREE			NO
 DROP TABLE t1;
 # Test that invisible indexes are not used.
 CREATE TABLE t1 ( a INT, KEY (a) );
@@ -38,7 +38,7 @@ INSERT INTO t2 SELECT * FROM t1;
 ANALYZE TABLE t1, t2;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-test.t2	analyze	status	OK
+test.t2	analyze	status	Table is already up to date
 EXPLAIN SELECT a FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	a	5	NULL	5	100.00	Using index
@@ -75,20 +75,20 @@ b INT, INDEX (b) INVISIBLE
 );
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
-t1	1	b	1	b	A	0	NULL	NULL	YES	BTREE			NO
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE			NO
 ALTER TABLE t1 RENAME INDEX a TO a1;
 ALTER TABLE t1 RENAME INDEX b TO b1;
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a1	1	a	A	0	NULL	NULL	YES	BTREE			YES
-t1	1	b1	1	b	A	0	NULL	NULL	YES	BTREE			NO
+t1	1	a1	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
+t1	1	b1	1	b	A	NULL	NULL	NULL	YES	BTREE			NO
 ALTER TABLE t1 ALTER INDEX a1 INVISIBLE;
 ALTER TABLE t1 ALTER INDEX b1 VISIBLE;
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a1	1	a	A	0	NULL	NULL	YES	BTREE			NO
-t1	1	b1	1	b	A	0	NULL	NULL	YES	BTREE			YES
+t1	1	a1	1	a	A	NULL	NULL	NULL	YES	BTREE			NO
+t1	1	b1	1	b	A	NULL	NULL	NULL	YES	BTREE			YES
 DROP TABLE t1;
 # Test of SHOW CREATE TABLE.
 CREATE TABLE t1 (
@@ -108,7 +108,7 @@ t1	CREATE TABLE `t1` (
   KEY `a` (`a`),
   KEY `b` (`b`) /*!80000 INVISIBLE */,
   KEY `c` (`c`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1;
 # Test that primary key indexes can't be made invisible.
 CREATE TABLE t1 ( a INT, PRIMARY KEY (a) INVISIBLE );
@@ -153,8 +153,8 @@ ALTER TABLE t1 ALTER INDEX a INVISIBLE, ALTER INDEX a VISIBLE;
 ALTER TABLE t1 ALTER INDEX a INVISIBLE, ALTER INDEX b VISIBLE;
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			NO
-t1	1	b	1	b	A	0	NULL	NULL	YES	BTREE			YES
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			NO
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE			YES
 #
 # Various combinations of RENAME INDEX and ALTER INDEX ... INVISIBLE.
 #
@@ -188,7 +188,7 @@ affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
+test.t1	analyze	status	Table is already up to date
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	A	3	NULL	NULL	YES	BTREE			YES
@@ -198,7 +198,7 @@ affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
+test.t1	analyze	status	Table is already up to date
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	A	3	NULL	NULL	YES	BTREE			NO
@@ -208,7 +208,7 @@ affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
+test.t1	analyze	status	Table is already up to date
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	A	3	NULL	NULL	YES	BTREE			YES
@@ -257,9 +257,9 @@ ERROR HY000: A primary key index cannot be invisible
 EXPLAIN
 SELECT * FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	a	4	NULL	1	100.00	Using index
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
+Note	1003	/* select#1 */ select NULL AS `a` from `test`.`t1`
 SELECT * FROM t1;
 a
 DROP TABLE t1;
@@ -299,12 +299,12 @@ DROP TABLE t1, t2;
 CREATE TEMPORARY TABLE t1 ( a INT, KEY (a) INVISIBLE );
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			NO
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			NO
 EXPLAIN SELECT a FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
+Note	1003	/* select#1 */ select NULL AS `a` from `test`.`t1`
 DROP TABLE t1;
 #
 # Invisible spatial indexes.
@@ -316,7 +316,7 @@ SPATIAL KEY(g)
 );
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
+test.t1	analyze	status	Table is already up to date
 # There appears to be a bug causing the cardinality number to fluctuate
 # for spatial indexes.
 EXPLAIN SELECT *
@@ -351,12 +351,12 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ("collections");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where; Ft_hints: sorted
+1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections'))
 EXPLAIN SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ("collections" IN BOOLEAN MODE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where; Ft_hints: no_ranking
+1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections' in boolean mode))
 ALTER TABLE t1 ALTER INDEX a INVISIBLE;
@@ -367,11 +367,14 @@ t1	1	a	2	b	NULL	1	1	NULL	YES	FULLTEXT			NO
 EXPLAIN SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ("collections");
 ERROR HY000: Can't find FULLTEXT index matching the column list
 EXPLAIN SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ("collections" IN BOOLEAN MODE);
-ERROR HY000: Can't find FULLTEXT index matching the column list
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections' in boolean mode))
 SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ("collections");
 ERROR HY000: Can't find FULLTEXT index matching the column list
 SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ("collections" IN BOOLEAN MODE);
-ERROR HY000: Can't find FULLTEXT index matching the column list
+a	b
 DROP TABLE t1;
 #
 # Invisible indexes on AUTO_INCREMENT columns.
@@ -396,94 +399,3 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 DROP TABLE t1;
-#
-# Tests that don't work on MyISAM ( native partitioning, indexes on
-# generated columns, etc.)
-#
-#
-# Partitioning on keys with an invisible index, invisible indexes over
-# partitioned tables.
-#
-CREATE TABLE t1 (
-a CHAR(2) NOT NULL,
-b CHAR(2) NOT NULL,
-c INT(10) UNSIGNED NOT NULL,
-d VARCHAR(255) DEFAULT NULL,
-e VARCHAR(1000) DEFAULT NULL,
-KEY (a) INVISIBLE,
-KEY (b)
-) PARTITION BY KEY (a) PARTITIONS 20;
-INSERT INTO t1 (a, b, c, d, e) VALUES
-('07', '03', 343, '1', '07_03_343'),
-('01', '04', 343, '2', '01_04_343'),
-('01', '06', 343, '3', '01_06_343'),
-('01', '07', 343, '4', '01_07_343'),
-('01', '08', 343, '5', '01_08_343'),
-('01', '09', 343, '6', '01_09_343'),
-('03', '03', 343, '7', '03_03_343'),
-('03', '06', 343, '8', '03_06_343'),
-('03', '07', 343, '9', '03_07_343'),
-('04', '03', 343, '10', '04_03_343'),
-('04', '06', 343, '11', '04_06_343'),
-('05', '03', 343, '12', '05_03_343'),
-('11', '03', 343, '13', '11_03_343'),
-('11', '04', 343, '14', '11_04_343');
-ANALYZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
-EXPLAIN SELECT a FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19	ALL	NULL	NULL	NULL	NULL	14	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
-EXPLAIN SELECT b FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19	index	NULL	b	2	NULL	14	100.00	Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1`
-EXPLAIN SELECT * FROM t1 WHERE a = '04';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p9	ALL	NULL	NULL	NULL	NULL	8	33.33	Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e` from `test`.`t1` where (`test`.`t1`.`a` = '04')
-ALTER TABLE t1 ALTER INDEX a VISIBLE;
-EXPLAIN SELECT a FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19	index	NULL	a	2	NULL	14	100.00	Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
-EXPLAIN SELECT * FROM t1 WHERE a = '04';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p9	ref	a	a	2	const	2	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e` from `test`.`t1` where (`test`.`t1`.`a` = '04')
-ALTER TABLE t1 ALTER INDEX b INVISIBLE;
-EXPLAIN SELECT b FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19	ALL	NULL	NULL	NULL	NULL	14	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1`
-DROP TABLE t1;
-CREATE TABLE t1 ( a INT GENERATED ALWAYS AS (1), KEY (a) INVISIBLE );
-SHOW INDEXES FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			NO
-EXPLAIN SELECT a FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
-DROP TABLE t1;
-#
-# Test that referential constraints implemented by the indexes are still
-# enforced while the index is invisible.
-#
-CREATE TABLE t1p ( a INT KEY );
-CREATE TABLE t1c ( t1p_a INT );
-ALTER TABLE t1c ADD CONSTRAINT FOREIGN KEY ( t1p_a ) REFERENCES t1p( a );
-ALTER TABLE t1c ALTER INDEX t1p_a INVISIBLE;
-INSERT INTO t1c VALUES ( 1 );
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t1c`, CONSTRAINT `t1c_ibfk_1` FOREIGN KEY (`t1p_a`) REFERENCES `t1p` (`a`))
-SELECT * FROM t1c;
-t1p_a
-DROP TABLE t1c, t1p;
