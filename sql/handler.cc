@@ -1986,8 +1986,22 @@ int ha_rollback_low(THD *thd, bool all)
   /*
     Thanks to possibility of MDL deadlock rollback request can come even if
     transaction hasn't been started in any transactional storage engine.
+
+    It is possible to have a call of ha_rollback_low() while handling
+    failure from ha_prepare() and an error in Daignostics_area still
+    wasn't set. Therefore it is required to check that an error in
+    Diagnostics_area is set before calling the method XID_STATE::set_error().
+
+    If it wasn't done it would lead to failure of the assertion
+      DBUG_ASSERT(m_status == DA_ERROR)
+    in the method Diagnostics_area::mysql_errno().
+
+    In case ha_prepare is failed and an error wasn't set in Diagnostics_area
+    the error ER_XA_RBROLLBACK is set in the Diagnostics_area from
+    the method Sql_cmd_xa_prepare::trans_xa_prepare() when non-zero result code
+    returned by ha_prepare() is handled.
   */
-  if (all && thd->transaction_rollback_request)
+  if (all && thd->transaction_rollback_request && thd->is_error())
     trn_ctx->xid_state()->set_error(thd);
 
   (void) RUN_HOOK(transaction, after_rollback, (thd, all));
