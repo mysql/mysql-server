@@ -32,6 +32,7 @@
 #include <mysqld_error.h>
 #include <sql_common.h>
 #include <m_ctype.h>
+#include <mf_wcomp.h>   // wild_compare
 #include <my_dir.h>
 #include <hash.h>
 #include <stdarg.h>
@@ -3445,41 +3446,6 @@ static int do_modify_var(struct st_command *command,
 
 /*
   SYNOPSIS
-  set_wild_chars
-  set  true to set * etc. as wild char, false to reset
-
-  DESCRIPTION
-  Auxiliary function to set "our" wild chars before calling wild_compare
-  This is needed because the default values are changed to SQL syntax
-  in mysqltest_embedded.
-*/
-
-static void set_wild_chars (my_bool set)
-{
-  static char old_many= 0, old_one, old_prefix;
-
-  if (set) 
-  {
-    if (wild_many == '*') return; // No need
-    old_many= wild_many;
-    old_one= wild_one;
-    old_prefix= wild_prefix;
-    wild_many= '*';
-    wild_one= '?';
-    wild_prefix= 0;
-  }
-  else 
-  {
-    if (! old_many) return;	// Was not set
-    wild_many= old_many;
-    wild_one= old_one;
-    wild_prefix= old_prefix;
-  }
-}
-
-
-/*
-  SYNOPSIS
   do_remove_file
   command	called command
 
@@ -3566,9 +3532,6 @@ static void do_remove_files_wildcard(struct st_command *command)
   dir_separator[1]= 0;
   dynstr_append(&ds_file_to_remove, dir_separator);
   
-  /* Set default wild chars for wild_compare, is changed in embedded mode */
-  set_wild_chars(1);
-  
   size_t length;
   /* Storing the length of the path to the file, so it can be reused */
   length= ds_file_to_remove.length;
@@ -3582,7 +3545,7 @@ static void do_remove_files_wildcard(struct st_command *command)
     if (MY_S_ISDIR(file->mystat->st_mode))
       continue;
     if (ds_wild.length &&
-        wild_compare(file->name, ds_wild.str, 0))
+        wild_compare_full(file->name, ds_wild.str, false, 0, '?', '*'))
       continue;
     /* Not required as the var ds_file_to_remove.length already has the
        length in canonnicalized form */
@@ -3594,7 +3557,6 @@ static void do_remove_files_wildcard(struct st_command *command)
     if (error)
       break;
   }
-  set_wild_chars(0);
   my_dirend(dir_info);
 
 end:
@@ -3723,9 +3685,6 @@ static void do_copy_files_wildcard(struct st_command * command)
   dynstr_append(&ds_source, dir_separator);
   dynstr_append(&ds_destination, dir_separator);
 
-  /* Set default wild chars for wild_compare, is changed in embedded mode */
-  set_wild_chars(1);
-
   /* Storing the length of the path to the file, so it can be reused */
   size_t source_file_length;
   size_t dest_file_length;
@@ -3749,7 +3708,8 @@ static void do_copy_files_wildcard(struct st_command * command)
       continue;
 
     /* Copy only those files which the pattern matches */
-    if (ds_wild.length && wild_compare(file->name, ds_wild.str, 0))
+    if (ds_wild.length &&
+        wild_compare_full(file->name, ds_wild.str, false, 0, '?', '*'))
       continue;
 
     match_count++;
@@ -3774,7 +3734,6 @@ static void do_copy_files_wildcard(struct st_command * command)
   }
 
 end:
-  set_wild_chars(0);
   my_dirend(dir_info);
   handle_command_error(command, error);
   dynstr_free(&ds_source);
@@ -4132,7 +4091,6 @@ static int get_list_files(DYNAMIC_STRING *ds, const DYNAMIC_STRING *ds_dirname,
   /* Note that my_dir sorts the list if not given any flags */
   if (!(dir_info= my_dir(ds_dirname->str, MYF(0))))
     DBUG_RETURN(1);
-  set_wild_chars(1);
   for (i= 0; i < (uint) dir_info->number_off_files; i++)
   {
     file= dir_info->dir_entry + i;
@@ -4141,12 +4099,11 @@ static int get_list_files(DYNAMIC_STRING *ds, const DYNAMIC_STRING *ds_dirname,
          (file->name[1] == '.' && file->name[2] == '\0')))
       continue;                               /* . or .. */
     if (ds_wild && ds_wild->length &&
-        wild_compare(file->name, ds_wild->str, 0))
+        wild_compare_full(file->name, ds_wild->str, false, 0, '?', '*'))
       continue;
     replace_dynstr_append(ds, file->name);
     dynstr_append(ds, "\n");
   }
-  set_wild_chars(0);
   my_dirend(dir_info);
   DBUG_RETURN(0);
 }

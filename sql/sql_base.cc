@@ -42,6 +42,7 @@
 #include "log.h"                      // sql_print_error
 #include "log_event.h"                // Query_log_event
 #include "m_ctype.h"
+#include "mf_wcomp.h"                 // wild_one, wild_many
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"

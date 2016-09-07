@@ -66,6 +66,7 @@
 #include "mdl.h"
 #include "mem_root_array.h"
 #include "mutex_lock.h"                     // Mutex_lock
+#include "mf_wcomp.h"                       // wild_compare,wild_one,wild_many
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_command.h"

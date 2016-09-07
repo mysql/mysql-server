@@ -25,6 +25,7 @@
 #include "item.h"                       // Item
 #include "m_ctype.h"
 #include "m_string.h"
+#include "mf_wcomp.h"                   // wild_one, wild_many
 #include "my_dbug.h"
 #include "my_global.h"
 #include "my_sys.h"

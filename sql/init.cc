@@ -46,8 +46,6 @@ void unireg_init(ulong options)
   error_handler_hook = my_message_stderr;
   set_connection_events_loop_aborted(false);
 
-  wild_many='%'; wild_one='_'; wild_prefix='\\'; /* Change to sql syntax */
-
   current_pid=(ulong) getpid();		/* Save for later ref */
   my_init_time();			/* Init time-functions (read zone) */
 

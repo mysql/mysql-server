@@ -19,6 +19,7 @@
 
 
 #include <m_ctype.h>
+#include <mf_wcomp.h>     // wild_compare_full, wild_one, wild_any
 #include <sql_class.h>
 
 namespace strings_utf8_unittest {
@@ -214,6 +215,200 @@ TEST_F(StringsUTF8Test, MyIsmbcharUtf8)
 
   /* Not testing for illegal charaters as same is tested in above test case */
 
+}
+
+template <size_t SIZE>
+struct SL
+{
+  const char *b;
+  SL(const char *be)
+    : b(be) {}
+
+  size_t len() const { return SIZE-1; }
+  const char *e() const noexcept { return b+len(); }
+};
+
+template <size_t SIZE>
+SL<SIZE> mk_sl(const char (&sl)[SIZE])
+{
+  return SL<SIZE>(sl);
+}
+
+
+TEST_F(StringsUTF8Test, WildCmpSelf)
+{
+  auto input= mk_sl("xx");
+  EXPECT_EQ(0, my_wildcmp(system_charset_info, input.b, input.e(),
+                          input.b, input.e(),
+                          '\\', '?', '*'));
+}
+
+// Testing One (?)
+TEST_F(StringsUTF8Test, WildCmpPrefixOne)
+{
+  auto input= mk_sl("xx");
+  auto pat= mk_sl("?x");
+  EXPECT_EQ(0, my_wildcmp(system_charset_info, input.b, input.e(),
+                          pat.b, pat.e(),
+                          '\\', '?', '*'));
+}
+
+TEST_F(StringsUTF8Test, WildCmpSuffixOne)
+{
+  auto input= mk_sl("xx");
+  auto pat= mk_sl("x?");
+  EXPECT_EQ(0, my_wildcmp(system_charset_info, input.b, input.e(),
+                          pat.b, pat.e(),
+                          '\\', '?', '*'));
+}
+
+
+// Negative tests
+TEST_F(StringsUTF8Test, WildCmpNoPatternNoMatch)
+{
+  auto input= mk_sl("xx");
+  auto nopat= mk_sl("yy");
+  EXPECT_EQ(1, my_wildcmp(system_charset_info, input.b, input.e(),
+                          nopat.b, nopat.e(),
+                          '\\', '?', '*'));
+}
+
+TEST_F(StringsUTF8Test, WildCmpPrefixOneNoMatch)
+{
+  const char *input= "xx";
+  const char *badpat= "?y";
+  EXPECT_EQ(1, my_wildcmp(system_charset_info, input, input+2,
+                          badpat, badpat+2,
+                          '\\', '?', '*'));
+}
+TEST_F(StringsUTF8Test, WildCmpSuffixOneNoMatch)
+{
+  const char *input= "abcxx";
+  const char *badpat= "x*";
+  EXPECT_EQ(1, my_wildcmp(system_charset_info, input, input+5,
+                          badpat, badpat+2,
+                          '\\', '?', '*'));
+}
+
+
+
+// Testing Many (*)
+TEST_F(StringsUTF8Test, WildCmpPrefixMany)
+{
+  auto input= mk_sl("abcxx");
+  auto pat= mk_sl("*x");
+  EXPECT_EQ(0, my_wildcmp(system_charset_info, input.b, input.e(),
+                          pat.b, pat.e(),
+                          '\\', '?', '*'));
+}
+
+TEST_F(StringsUTF8Test, WildCmpSuffixMany)
+{
+  auto input= mk_sl("xxabc");
+  auto pat= mk_sl("x*");
+  EXPECT_EQ(0, my_wildcmp(system_charset_info, input.b, input.e(),
+                          pat.b, pat.e(),
+                          '\\', '?', '*'));
+  EXPECT_EQ(0, wild_compare_full(input.b,
+                            pat.b, false,
+                            '\\', '?', '*'));
+}
+
+
+// Negative tests
+TEST_F(StringsUTF8Test, WildCmpPrefixManyNoMatch)
+{
+  auto input= mk_sl("abcxx");
+  auto badpat= mk_sl("a*xy");
+  EXPECT_EQ(-1, my_wildcmp(system_charset_info, input.b, input.e(),
+                           badpat.b, badpat.e(),
+                           '\\', '?', '*'));
+
+  EXPECT_EQ(-1, my_wildcmp((&my_charset_latin1), input.b, input.e(),
+                           badpat.b, badpat.e(),
+                           '\\', '?', '*'));
+
+  // Note 1, not -1
+  EXPECT_EQ(1, wild_compare_full(input.b, badpat.b, true,
+                            '\\', '?', '*'));
+}
+
+TEST_F(StringsUTF8Test, WildCmpSuffixManyNoMatch)
+{
+  auto input= mk_sl("abcxx");
+  auto badpat= mk_sl("y*");
+  EXPECT_EQ(1, my_wildcmp(system_charset_info, input.b, input.e(),
+                          badpat.b, badpat.e(),
+                          '\\', '?', '*'));
+  EXPECT_EQ(1, wild_compare_full(input.b, badpat.b, true,
+                            '\\', '?', '*'));
+}
+
+TEST_F(StringsUTF8Test, WildComparePrefixMany)
+{
+  EXPECT_EQ(0, wild_compare_full("xyz_", "*_", true, '\\', '?', '*'));
+  EXPECT_EQ(1, wild_compare_full("xyz_", "*a", true, '\\', '?', '*'));
+}
+
+TEST_F(StringsUTF8Test, WildCompareSuffixOne)
+{
+  EXPECT_EQ(0, wild_compare_full("x_", "x?", true, '\\', '?', '*'));
+  EXPECT_EQ(1, wild_compare_full("zz", "x?", true, '\\', '?', '*'));
+}
+
+TEST_F(StringsUTF8Test, WildCompareSuffixMany)
+{
+  EXPECT_EQ(0, wild_compare_full("xyz_", "x*", true, '\\', '?', '*'));
+  EXPECT_EQ(1, wild_compare_full("xyz_", "a*", true, '\\', '?', '*'));
+}
+
+template <class INPUT, class PATTERN>
+void test_cmp_vs_compare(int exp_cmp, int exp_compare,
+                         int exp_compare_str_is_pat,
+                         const INPUT &input, const PATTERN &pattern,
+                         char wo, char wm)
+{
+  EXPECT_EQ(exp_cmp, my_wildcmp(&my_charset_latin1, input.b, input.e(),
+                            pattern.b, pattern.e(), '\\', wo, wm));
+  EXPECT_EQ(exp_compare, wild_compare_full(input.b, pattern.b, false, '\\', wo,
+                                           wm));
+  EXPECT_EQ(exp_compare_str_is_pat, wild_compare_full(input.b, pattern.b, true,
+                                                      '\\', wo, wm));
+}
+
+TEST_F(StringsUTF8Test, EscapedWildOne)
+{
+  test_cmp_vs_compare(1, 1, 0, mk_sl("my\\_1"), mk_sl("my\\_1"), '_', '%');
+}
+
+TEST_F(StringsUTF8Test, EscapedWildOnePlainPattern)
+{
+  test_cmp_vs_compare(0, 0, 1, mk_sl("my_1"), mk_sl("my\\_1"), '_', '%');
+}
+
+TEST_F(StringsUTF8Test, StrIsPatternEscapes)
+{
+  EXPECT_EQ(1, wild_compare("my\\_", "my\\_", false));
+  EXPECT_EQ(0, wild_compare("my\\_", "my\\\\\\_", false));
+  EXPECT_EQ(0, wild_compare("my\\_", "my\\_", true));
+}
+
+TEST_F(StringsUTF8Test, StrIsPatternSupersetPattern)
+{
+  EXPECT_EQ(0, wild_compare("xa_a", "xa%a", true));
+  EXPECT_EQ(0, wild_compare("xaaa%", "xa%", true));
+  EXPECT_EQ(0, wild_compare("my\\_1", "my\\_%", true));
+}
+
+TEST_F(StringsUTF8Test, StrIsPatternUnescapedVsEscaped)
+{
+  EXPECT_EQ(1, wild_compare("my_1", "my\\_1", true));
+  EXPECT_EQ(1, wild_compare("my_1", "my%\\_1", true));
+}
+
+TEST_F(StringsUTF8Test, MultiWildMany)
+{
+  EXPECT_EQ(0, wild_compare_full("t4.ibd", "t4*.ibd*", false, 0, '?', '*'));
 }
 
 class StringsUTF8mb4Test : public ::testing::Test

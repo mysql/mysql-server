@@ -49,6 +49,7 @@
 #include "log_event.h"                      // Rows_log_event
 #include "m_ctype.h"
 #include "mdl.h"
+#include "mf_wcomp.h"                       // wild_one, wild_many
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"

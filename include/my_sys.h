@@ -284,7 +284,7 @@ extern int my_umask_dir;
 extern ulong	my_default_record_cache_size;
 extern my_bool  my_disable_locking,
                 my_enable_symlinks;
-extern char	wild_many,wild_one,wild_prefix;
+
 extern const char *charsets_dir;
 
 enum cache_type
@@ -702,8 +702,6 @@ extern char * my_path(char * to,const char *progname,
 			 const char *own_pathname_part);
 extern char * my_load_path(char * to, const char *path,
 			      const char *own_path_prefix);
-extern int wild_compare(const char *str,const char *wildstr,
-                        pbool str_is_pattern);
 extern my_bool array_append_string_unique(const char *str,
                                           const char **array, size_t size);
 extern void get_date(char * to,int timeflag,time_t use_time);

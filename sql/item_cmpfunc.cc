@@ -41,6 +41,7 @@
 #include "key.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "mf_wcomp.h"           // wild_one, wild_many
 #include "my_bitmap.h"
 #include "my_sqlcommand.h"
 #include "mysql/psi/mysql_statement.h"
