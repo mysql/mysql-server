@@ -234,7 +234,7 @@ static MYSQL_FIELD *emb_list_fields(MYSQL *mysql)
     return 0;
   res= ((THD*) mysql->thd)->cur_data;
   ((THD*) mysql->thd)->cur_data= 0;
-  mysql->field_alloc= std::move(res->alloc);
+  mysql->field_alloc= res->alloc;
   my_free(res);
   mysql->status= MYSQL_STATUS_READY;
   return mysql->fields;
@@ -262,7 +262,7 @@ static my_bool emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
       mysql->server_status|= SERVER_STATUS_IN_TRANS;
 
     stmt->fields= mysql->fields;
-    stmt->mem_root= std::move(res->alloc);
+    stmt->mem_root= res->alloc;
     mysql->fields= NULL;
     my_free(res);
   }
@@ -375,7 +375,7 @@ static int emb_read_binary_rows(MYSQL_STMT *stmt)
     set_stmt_errmsg(stmt, &stmt->mysql->net);
     return 1;
   }
-  stmt->result= std::move(*data);
+  stmt->result= *data;
   my_free(data);
   set_stmt_errmsg(stmt, &stmt->mysql->net);
   return 0;

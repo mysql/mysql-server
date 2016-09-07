@@ -27,7 +27,6 @@
 #include "malloc_allocator.h"
 
 #include <algorithm>
-#include <memory>
 
 class JOIN;
 class Item_sum;
@@ -477,7 +476,7 @@ protected:
   int cmp_prev(QUICK_RANGE *range);
   bool row_in_ranges();
 public:
-  std::shared_ptr<MEM_ROOT> alloc;
+  MEM_ROOT alloc;
 
   QUICK_RANGE_SELECT(THD *thd, TABLE *table,uint index_arg,bool no_alloc,
                      MEM_ROOT *parent_alloc, bool *create_error);

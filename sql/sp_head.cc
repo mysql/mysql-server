@@ -1663,8 +1663,8 @@ void sp_head::destroy(sp_head *sp)
   if (!sp)
     return;
 
-  /* Pull out main_mem_root as free_root will free the sp */
-  MEM_ROOT own_root= std::move(sp->main_mem_root);
+  /* Make a copy of main_mem_root as free_root will free the sp */
+  MEM_ROOT own_root= sp->main_mem_root;
 
   sp->~sp_head();
 
@@ -1672,7 +1672,7 @@ void sp_head::destroy(sp_head *sp)
 }
 
 
-sp_head::sp_head(MEM_ROOT &&mem_root, enum_sp_type type)
+sp_head::sp_head(MEM_ROOT mem_root, enum_sp_type type)
  :Query_arena(&main_mem_root, STMT_INITIALIZED_FOR_SP),
   m_type(type),
   m_flags(0),
@@ -1687,7 +1687,7 @@ sp_head::sp_head(MEM_ROOT &&mem_root, enum_sp_type type)
   m_first_free_instance(NULL),
   m_last_cached_sp(NULL),
   m_trg_list(NULL),
-  main_mem_root(std::move(mem_root)),
+  main_mem_root(mem_root),
   m_root_parsing_ctx(NULL),
   m_instructions(&main_mem_root),
   m_sp_cache_version(0),

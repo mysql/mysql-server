@@ -1608,13 +1608,12 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
   if (!no_alloc && !parent_alloc)
   {
     // Allocates everything through the internal memroot
-    alloc.reset(new MEM_ROOT);
     init_sql_alloc(key_memory_quick_range_select_root,
-                   alloc.get(), thd->variables.range_alloc_block_size, 0);
-    thd->mem_root= alloc.get();
+                   &alloc, thd->variables.range_alloc_block_size, 0);
+    thd->mem_root= &alloc;
   }
-  else if (alloc != nullptr)
-    memset(alloc.get(), 0, sizeof(*alloc));
+  else
+    memset(&alloc, 0, sizeof(alloc));
   file= head->file;
   record= head->record[0];
 
@@ -1673,8 +1672,7 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
         delete file;
       }
     }
-    if (alloc != nullptr)
-      free_root(alloc.get(),MYF(0));
+    free_root(&alloc,MYF(0));
     my_free(column_bitmap.bitmap);
   }
   my_free(mrr_buf_desc);
@@ -10412,7 +10410,7 @@ get_quick_select(PARAM *param,uint idx,SEL_ARG *key_tree, uint mrr_flags,
       quick->mrr_flags= mrr_flags;
       quick->mrr_buf_size= mrr_buf_size;
       quick->key_parts=(KEY_PART*)
-        memdup_root(parent_alloc? parent_alloc : quick->alloc.get(),
+        memdup_root(parent_alloc? parent_alloc : &quick->alloc,
                     (char*) param->key[idx],
                     sizeof(KEY_PART) *
                     actual_key_parts(&param->
@@ -10733,7 +10731,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   range->flag= (ref->key_length == key_info->key_length ? EQ_RANGE : 0);
 
   if (!(quick->key_parts=key_part=(KEY_PART *)
-	alloc_root(quick->alloc.get(), sizeof(KEY_PART)*ref->key_parts)))
+	alloc_root(&quick->alloc,sizeof(KEY_PART)*ref->key_parts)))
     goto err;
 
   for (part=0 ; part < ref->key_parts ;part++,key_part++)

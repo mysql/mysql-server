@@ -547,7 +547,7 @@ void TABLE_SHARE::destroy()
     Make a copy since the share is allocated in its own root,
     and free_root() updates its argument after freeing the memory.
   */
-  MEM_ROOT own_root= std::move(mem_root);
+  MEM_ROOT own_root= mem_root;
   free_root(&own_root, MYF(0));
   DBUG_VOID_RETURN;
 }

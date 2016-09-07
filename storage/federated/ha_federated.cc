@@ -1567,7 +1567,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
       goto error;
 
     share->use_count= 0;
-    share->mem_root= std::move(mem_root);
+    share->mem_root= mem_root;
 
     DBUG_PRINT("info",
                ("share->select_query %s", share->select_query));
@@ -1601,6 +1601,7 @@ error:
 
 static int free_share(FEDERATED_SHARE *share)
 {
+  MEM_ROOT mem_root= share->mem_root;
   DBUG_ENTER("free_share");
 
   mysql_mutex_lock(&federated_mutex);
@@ -1609,7 +1610,6 @@ static int free_share(FEDERATED_SHARE *share)
     my_hash_delete(&federated_open_tables, (uchar*) share);
     thr_lock_delete(&share->lock);
     mysql_mutex_destroy(&share->mutex);
-    MEM_ROOT mem_root = std::move(share->mem_root);
     free_root(&mem_root, MYF(0));
   }
   mysql_mutex_unlock(&federated_mutex);

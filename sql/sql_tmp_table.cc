@@ -833,8 +833,8 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   memset(default_field, 0, sizeof(Field*) * (field_count + 1));
   memset(from_field, 0, sizeof(Field*)*(field_count + 1));
 
-  // This invokes (the synthesized) st_mem_root &operator=(const st_mem_root&&)
-  table->mem_root= std::move(own_root);
+  // This invokes (the synthesized) st_mem_root &operator=(const st_mem_root&)
+  table->mem_root= own_root;
   mem_root_save= thd->mem_root;
   thd->mem_root= &table->mem_root;
   copy_func->set_mem_root(&table->mem_root);
@@ -1675,7 +1675,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   memset(table, 0, sizeof(*table));
   memset(reg_field, 0, sizeof(Field*) * 3);
 
-  table->mem_root= std::move(own_root);
+  table->mem_root= own_root;
   mem_root_save= thd->mem_root;
   thd->mem_root= &table->mem_root;
 
@@ -2418,7 +2418,7 @@ bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
 void
 free_tmp_table(THD *thd, TABLE *entry)
 {
-  MEM_ROOT own_root= std::move(entry->mem_root);
+  MEM_ROOT own_root= entry->mem_root;
   const char *save_proc_info;
   DBUG_ENTER("free_tmp_table");
   DBUG_PRINT("enter",("table: %s",entry->alias));
@@ -2513,11 +2513,8 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
     DBUG_RETURN(1);
   }
 
-  // TODO: Figure out if we can do this with a move constructor instead.
-  memcpy(&new_table, table, sizeof(*table));
-  clear_alloc_root(&table->mem_root);
-  memcpy(&share, table->s, sizeof(*table->s));
-  clear_alloc_root(&table->s->mem_root);
+  new_table= *table;
+  share= *table->s;
   share.ha_share= NULL;
   new_table.s= &share;
   switch (internal_tmp_disk_storage_engine)
@@ -2630,8 +2627,8 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
   plugin_unlock(0, table->s->db_plugin);
   share.db_plugin= my_plugin_lock(0, &share.db_plugin);
   new_table.s= table->s;                       // Keep old share
-  *table= std::move(new_table);
-  *table->s= std::move(share);
+  *table= new_table;
+  *table->s= share;
   /* Update quick select, if any. */
   {
     QEP_TAB *tab= table->reginfo.qep_tab;
@@ -2667,6 +2664,6 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
  err2:
   delete new_table.file;
   thd_proc_info(thd, save_proc_info);
-  table->mem_root= std::move(new_table.mem_root);
+  table->mem_root= new_table.mem_root;
   DBUG_RETURN(1);
 }

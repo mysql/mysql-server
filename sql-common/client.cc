@@ -4970,7 +4970,7 @@ my_bool mysql_reconnect(MYSQL *mysql)
   memset(&mysql->options, 0, sizeof(mysql->options));
   mysql->free_me=0;
   mysql_close(mysql);
-  *mysql=std::move(tmp_mysql);
+  *mysql=tmp_mysql;
   net_clear(&mysql->net, 1);
   mysql->affected_rows= ~(my_ulonglong) 0;
   DBUG_RETURN(0);
@@ -5329,10 +5329,11 @@ MYSQL_RES * STDCALL mysql_store_result(MYSQL *mysql)
   mysql->affected_rows= result->row_count= result->data->rows;
   result->data_cursor=	result->data->data;
   result->fields=	mysql->fields;
-  result->field_alloc=	std::move(mysql->field_alloc);
+  result->field_alloc= mysql->field_alloc;
   result->field_count=	mysql->field_count;
   /* The rest of result members is zerofilled in my_malloc */
   mysql->fields=0;				/* fields is now in result */
+  clear_alloc_root(&mysql->field_alloc);
   /* just in case this was mistakenly called after mysql_stmt_execute() */
   mysql->unbuffered_fetch_owner= 0;
   DBUG_RETURN(result);				/* Data fetched */
@@ -5376,12 +5377,13 @@ static MYSQL_RES * cli_use_result(MYSQL *mysql)
     DBUG_RETURN(0);
   }
   result->fields=	mysql->fields;
-  result->field_alloc=	std::move(mysql->field_alloc);
+  result->field_alloc= mysql->field_alloc;
   result->field_count=	mysql->field_count;
   result->current_field=0;
   result->handle=	mysql;
   result->current_row=	0;
   mysql->fields=0;			/* fields is now in result */
+  clear_alloc_root(&mysql->field_alloc);
   mysql->status=MYSQL_STATUS_USE_RESULT;
   mysql->unbuffered_fetch_owner= &result->unbuffered_fetch_cancelled;
   DBUG_RETURN(result);			/* Data is read to be fetched */
