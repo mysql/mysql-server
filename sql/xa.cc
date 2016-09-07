@@ -763,6 +763,12 @@ bool Sql_cmd_xa_prepare::trans_xa_prepare(THD *thd)
     DBUG_ASSERT(thd->m_transaction_psi == NULL);
 #endif
 
+    /*
+      Reset rm_error in case ha_prepare() returned error,
+      so thd->transaction.xid structure gets reset
+      by THD::transaction::cleanup().
+    */
+    thd->get_transaction()->xid_state()->reset_error();
     cleanup_trans_state(thd);
     xid_state->set_state(XID_STATE::XA_NOTR);
     thd->get_transaction()->cleanup();
