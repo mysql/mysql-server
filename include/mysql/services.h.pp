@@ -576,3 +576,8 @@ int my_key_fetch(const char *, char **, const char *, void **,
                  size_t *);
 int my_key_remove(const char *, const char *);
 int my_key_generate(const char *, const char *, const char *, size_t);
+#include <mysql/service_plugin_registry.h>
+#include <mysql/components/services/registry.h>
+#include <mysql/components/service.h>
+typedef int mysql_service_status_t;
+#include <stdint.h>

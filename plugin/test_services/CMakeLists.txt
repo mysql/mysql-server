@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,4 +21,7 @@ MYSQL_ADD_PLUGIN(test_services test_services.cc
 
 MYSQL_ADD_PLUGIN(test_services_thread test_services_threaded.cc
   MODULE_ONLY MODULE_OUTPUT_NAME "libtest_services_threaded")
+
+MYSQL_ADD_PLUGIN(test_services_plugin_registry test_services_plugin_registry.cc
+  MODULE_ONLY)
 

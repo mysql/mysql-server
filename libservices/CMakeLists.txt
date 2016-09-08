@@ -32,7 +32,8 @@ SET(MYSQLSERVICES_SOURCES
   rpl_transaction_ctx_service.c
   rpl_transaction_write_set_service.c
   security_context_service.c
-  mysql_keyring_service.c)
+  mysql_keyring_service.c
+  plugin_registry_service.c)
 
 ADD_CONVENIENCE_LIBRARY(mysqlservices ${MYSQLSERVICES_SOURCES})
 IF(INSTALL_STATIC_LIBRARIES)
