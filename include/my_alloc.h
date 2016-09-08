@@ -25,6 +25,7 @@
 #define ALLOC_MAX_BLOCK_USAGE_BEFORE_DROP	10
 
 #ifndef MYSQL_ABI_CHECK
+#include <string.h>
 #include "my_global.h"
 #endif
 #include "mysql/psi/psi_memory.h"
@@ -43,6 +44,25 @@ typedef struct st_used_mem
 
 typedef struct st_mem_root
 {
+#if defined(__cplusplus) && (__cplusplus >= 201103L || defined(_MSC_VER))
+  // Make the class movable but not copyable.
+  st_mem_root() {}
+  st_mem_root(const st_mem_root &) = delete;
+  st_mem_root(st_mem_root &&other) {
+    memcpy(this, &other, sizeof(*this));
+    other.free= other.used= other.pre_alloc= nullptr;
+    other.min_malloc= 0;
+  }
+
+  st_mem_root& operator= (const st_mem_root &) = delete;
+  st_mem_root& operator= (st_mem_root &&other) {
+    memcpy(this, &other, sizeof(*this));
+    other.free= other.used= other.pre_alloc= nullptr;
+    other.min_malloc= 0;
+    return *this;
+  }
+#endif
+
   USED_MEM *free;                  /* blocks with free memory in it */
   USED_MEM *used;                  /* blocks almost without free memory */
   USED_MEM *pre_alloc;             /* preallocated block */

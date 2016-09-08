@@ -193,7 +193,7 @@ Server_side_cursor::~Server_side_cursor()
 void Server_side_cursor::operator delete(void *ptr, size_t size)
 {
   Server_side_cursor *cursor= (Server_side_cursor*) ptr;
-  MEM_ROOT own_root= *cursor->mem_root;
+  MEM_ROOT own_root= std::move(*cursor->mem_root);
 
   DBUG_ENTER("Server_side_cursor::operator delete");
   TRASH(ptr, size);
@@ -376,9 +376,8 @@ void Materialized_cursor::close()
     We need to grab table->mem_root to prevent free_tmp_table from freeing:
     the cursor object was allocated in this memory.
   */
-  main_mem_root= table->mem_root;
+  main_mem_root= std::move(table->mem_root);
   mem_root= &main_mem_root;
-  clear_alloc_root(&table->mem_root);
   free_tmp_table(table->in_use, table);
   table= 0;
 }

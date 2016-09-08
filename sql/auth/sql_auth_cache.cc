@@ -2379,7 +2379,10 @@ my_bool acl_reload(THD *thd)
     new Prealloced_array<ACL_PROXY_USER,
                          ACL_PREALLOC_SIZE>(key_memory_acl_mem);
 
-  old_mem= global_acl_memory;
+  // acl_load() overwrites global_acl_memory, so we need to free it.
+  // However, we can't do that immediately, because acl_load() might fail,
+  // and then we'd need to keep it.
+  old_mem= std::move(global_acl_memory);
   delete acl_wild_hosts;
   acl_wild_hosts= NULL;
   my_hash_free(&acl_check_hosts);
@@ -2391,7 +2394,7 @@ my_bool acl_reload(THD *thd)
     acl_users= old_acl_users;
     acl_dbs= old_acl_dbs;
     acl_proxy_users= old_acl_proxy_users;
-    global_acl_memory= old_mem;
+    global_acl_memory= std::move(old_mem);
     init_check_host();
   }
   else
@@ -2895,7 +2898,7 @@ my_bool grant_reload(THD *thd)
     Create a new memory pool but save the current memory pool to make an undo
     opertion possible in case of failure.
   */
-  old_mem= memex;
+  old_mem= std::move(memex);
   init_sql_alloc(key_memory_acl_memex,
                  &memex, ACL_ALLOC_BLOCK_SIZE, 0);
   /*
@@ -2910,7 +2913,7 @@ my_bool grant_reload(THD *thd)
     my_hash_free(&column_priv_hash);
     free_root(&memex,MYF(0));
     column_priv_hash= old_column_priv_hash;     /* purecov: deadcode */
-    memex= old_mem;                             /* purecov: deadcode */
+    memex= std::move(old_mem);                  /* purecov: deadcode */
   }
   else
   {                                             //Reload successful

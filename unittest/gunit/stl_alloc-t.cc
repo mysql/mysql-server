@@ -72,6 +72,19 @@ public:
     m_mem_root.error_handler= NULL;
   }
 
+  /*
+    Allocators before C++17 need to be copy-constructible, and libc++ enforces
+    this (libstdc++ is fine with them being move-only). As a hack, we implement
+    copying the MEM_ROOT here; this type is never used outside of unit tests.
+
+    Note that this will stop working if MEM_ROOT grows a destructor.
+  */
+  Memroot_allocator_wrapper(const Memroot_allocator_wrapper &other)
+    : Memroot_allocator<T>(&m_mem_root)
+  {
+    memcpy(&m_mem_root, &other.m_mem_root, sizeof(m_mem_root));
+  }
+
   ~Memroot_allocator_wrapper()
   {
     free_root(&m_mem_root, MYF(0));

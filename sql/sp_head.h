@@ -899,7 +899,7 @@ public:
 
 private:
   /// Use sp_start_parsing() to create instances of sp_head.
-  sp_head(MEM_ROOT mem_root, enum_sp_type type);
+  sp_head(MEM_ROOT &&mem_root, enum_sp_type type);
 
   /// Use destroy() to destoy instances of sp_head.
   ~sp_head();

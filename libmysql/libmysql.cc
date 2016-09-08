@@ -51,6 +51,8 @@
 #define INADDR_NONE	-1
 #endif
 
+#include <memory>
+
 #include <sql_common.h>
 #include "client_settings.h"
 #include "mysql_trace.h"
@@ -799,7 +801,7 @@ mysql_list_fields(MYSQL *mysql, const char *table, const char *wild)
     DBUG_RETURN(NULL);
 
   result->methods= mysql->methods;
-  result->field_alloc=mysql->field_alloc;
+  result->field_alloc= std::move(mysql->field_alloc);
   mysql->fields=0;
   result->field_count = mysql->field_count;
   result->fields= fields;

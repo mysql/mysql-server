@@ -3640,10 +3640,10 @@ void Ed_result_set::operator delete(void *ptr, size_t size) throw ()
   if (ptr)
   {
     /*
-      Make a stack copy, otherwise free_root() will attempt to
+      Move into the stack, otherwise free_root() will attempt to
       write to freed memory.
     */
-    MEM_ROOT own_root= ((Ed_result_set*) ptr)->m_mem_root;
+    MEM_ROOT own_root= std::move(((Ed_result_set*) ptr)->m_mem_root);
     free_root(&own_root, MYF(0));
   }
 }
@@ -3663,7 +3663,7 @@ void Ed_result_set::operator delete(void *ptr, size_t size) throw ()
 Ed_result_set::Ed_result_set(List<Ed_row> *rows_arg,
                              size_t column_count_arg,
                              MEM_ROOT *mem_root_arg)
-  :m_mem_root(*mem_root_arg),
+  :m_mem_root(std::move(*mem_root_arg)),
   m_column_count(column_count_arg),
   m_rows(rows_arg),
   m_next_rset(NULL)
