@@ -1460,7 +1460,7 @@ performance-schema-max-file-classes 80
 performance-schema-max-file-handles 32768
 performance-schema-max-file-instances -1
 performance-schema-max-index-stat -1
-performance-schema-max-memory-classes 350
+performance-schema-max-memory-classes 450
 performance-schema-max-metadata-locks -1
 performance-schema-max-mutex-classes 200
 performance-schema-max-mutex-instances -1
