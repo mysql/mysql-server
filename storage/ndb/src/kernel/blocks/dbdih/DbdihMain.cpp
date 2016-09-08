@@ -12880,6 +12880,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         Uint32 next_log_part = 0;
         bool use_old_variant = true;
 
+        bool const fully_replicated = (noOfFragments != partitionCount);
+
         switch(partitionBalance)
         {
           case NDB_PARTITION_BALANCE_SPECIFIC:
@@ -12903,14 +12905,18 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
             break;
           }
         }
+        Uint32 node;
+        NGPtr.i = RNIL;
         for (Uint32 i = primTabPtr.p->totalfragments; i<noOfFragments; i++)
         {
           jam();
-          Uint32 node = find_min_index(tmp_fragments_per_node, 
-                                       NDB_ARRAY_SIZE(tmp_fragments_per_node),
-                                       0);
-
-          NGPtr.i = getNodeGroup(node);
+          if (!fully_replicated || (i % partitionCount == 0))
+          {
+            node = find_min_index(tmp_fragments_per_node,
+                                  NDB_ARRAY_SIZE(tmp_fragments_per_node),
+                                  0);
+            NGPtr.i = getNodeGroup(node);
+          }
           ptrCheckGuard(NGPtr, MAX_NDB_NODE_GROUPS, nodeGroupRecord);
           Uint32 logPart;
           if (use_old_variant)
