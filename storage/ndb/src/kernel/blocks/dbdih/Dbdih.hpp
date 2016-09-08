@@ -1300,6 +1300,10 @@ private:
   void execALTER_TAB_REQ(Signal* signal);
 
   void execCREATE_FRAGMENTATION_REQ(Signal*);
+  bool verify_fragmentation(Uint16* fragments,
+                            Uint32 partition_count,
+                            Uint32 partition_balance,
+                            Uint32 ldm_count) const;
   
   void waitDropTabWritingToFile(Signal *, TabRecordPtr tabPtr);
   void checkDropTabComplete(Signal *, TabRecordPtr tabPtr);

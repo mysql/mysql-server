@@ -12998,6 +12998,16 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
     fragments[0]= noOfReplicas;
     fragments[1]= noOfFragments;
 
+    if (flags == CreateFragmentationReq::RI_ADD_FRAGMENTS ||
+        flags == CreateFragmentationReq::RI_CREATE_FRAGMENTATION)
+    {
+      if (!verify_fragmentation(fragments, partitionCount, partitionBalance, getFragmentsPerNode()))
+      {
+        err = CreateFragmentationRef::InvalidFragmentationType;
+        break;
+      }
+    }
+
     if(senderRef != 0)
     {
       /**
@@ -13022,6 +13032,194 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
   } while(false);
   // Always ACK/NACK (here NACK)
   signal->theData[0] = err;
+}
+
+bool Dbdih::verify_fragmentation(Uint16* fragments,
+                                 Uint32 partition_count,
+                                 Uint32 partition_balance,
+                                 Uint32 ldm_count) const
+{
+  jam();
+  bool fatal = false;
+  bool suboptimal = false;
+
+  Uint32 const replica_count = fragments[0];
+  Uint32 const fragment_count = fragments[1];
+  /**
+   * Note below expression can not deduce table is fully replicated or not if
+   * a single node groups is in use, in which case
+   * fragment_count == partition_count also for fully replicated tables.
+   */
+  bool const is_fully_replicated = (fragment_count > partition_count);
+
+  Uint16 fragments_per_node[MAX_NDB_NODES];
+  Uint16 primary_replica_per_node[MAX_NDB_NODES];
+  Uint16 fragments_per_ldm[MAX_NDB_NODES][NDBMT_MAX_WORKER_INSTANCES];
+  Uint16 primary_replica_per_ldm[MAX_NDB_NODES][NDBMT_MAX_WORKER_INSTANCES];
+
+  bzero(fragments_per_node, sizeof(fragments_per_node));
+  bzero(fragments_per_ldm, sizeof(fragments_per_ldm));
+  bzero(primary_replica_per_node, sizeof(primary_replica_per_node));
+  bzero(primary_replica_per_ldm, sizeof(primary_replica_per_ldm));
+
+  /**
+   * For fully replicated tables one partition can have several copy fragments.
+   * The following conditions must be satisfied:
+   * 1) No node have two copy fragments for same partition.
+   * 2) The partition id that a fragment belongs to is calculated as module
+   *    partition count.
+   * 3) The main copy fragment of a partition have the same id as the partition.
+   * 4) Fragments with consequtive id belonging to partition 0 upto partition
+   *    count - 1, are in this function called a partition set and should have
+   *    its replicas in one nodegroup.
+   * 1) must always be satisfied also in future implementations. 2) and 3) may
+   * be relaxed in future. 4) is not necessary, but as long as 2) and 3) must
+   * be satisfied ensuring 4) is an easy condition to remember.
+   */
+
+  /**
+   * partition_nodes indicates for each partition what nodes have a copy
+   * fragment.  This is used to detect if two fragments for same partition is
+   * located on same node, ie breakage of condition 1) above.
+   * This also depends on condition 2) above.
+   */
+  NdbNodeBitmask partition_nodes[MAX_NDB_PARTITIONS];
+
+  /**
+   * partition_set_for_node keep track what partition_set (as in condition 4)
+   * above) are located on a node.  Only one partition set per node is allowed.
+   * This toghether with the fact that all nodes in same nodegroup share
+   * fragments ensures condition 4) above.
+   * ~0 are used as a still unset partition set indicator.
+   */
+  Uint32 partition_set_for_node[MAX_NDB_NODES];
+  for (Uint32 node = 0; node < MAX_NDB_NODES; node++)
+  {
+    partition_set_for_node[node] = ~Uint32(0);
+  }
+
+  for(Uint32 fragment_id = 0; fragment_id < fragment_count; fragment_id++)
+  {
+    jam();
+    Uint32 const partition_id = fragment_id % partition_count;
+    Uint32 const partition_set = fragment_id / partition_count;
+    Uint32 const log_part_id = fragments[2 + fragment_id * (1 + replica_count)];
+    Uint32 const ldm = (log_part_id % ldm_count);
+    for(Uint32 replica_id = 0; replica_id < replica_count; replica_id++)
+    {
+      jam();
+      Uint32 const node =
+          fragments[2 + fragment_id * (1 + replica_count) + 1 + replica_id];
+      fragments_per_node[node]++;
+      fragments_per_ldm[node][ldm]++;
+      if (replica_id == 0)
+      {
+        jam();
+        primary_replica_per_node[node]++;
+        primary_replica_per_ldm[node][ldm]++;
+      }
+
+      if (partition_set_for_node[node] == ~Uint32(0))
+      {
+        jam();
+        partition_set_for_node[node] = partition_set;
+      }
+      if (partition_set_for_node[node] != partition_set)
+      {
+        jam();
+        fatal = true;
+        ndbassert(!"Copy fragments from different partition set on same node");
+      }
+
+      if (partition_nodes[partition_id].get(node))
+      {
+        jam();
+        fatal = true;
+        ndbassert(!"Two copy fragments for same partition on same node");
+      }
+      partition_nodes[partition_id].set(node);
+    }
+  }
+
+  /**
+   * Below counters for number of fragments (for ra) or primary replicas (for
+   * rp) there are per ldm or node.
+   *
+   * ~0 is used to indicate unset value. 0 is used if there are conflicting
+   * counts, in other word there is an unbalance.
+   */
+
+  Uint32 balance_for_ra_by_ldm_count = ~Uint32(0);
+  Uint32 balance_for_ra_by_node_count = ~Uint32(0);
+  Uint32 balance_for_rp_by_ldm_count = ~Uint32(0);
+  Uint32 balance_for_rp_by_node_count = ~Uint32(0);
+  for (Uint32 node = 1; node < MAX_NDB_NODES; node++)
+  {
+    jam();
+    if (balance_for_ra_by_node_count != 0 &&
+        fragments_per_node[node] != 0 &&
+        fragments_per_node[node] != balance_for_ra_by_node_count)
+    {
+      if (balance_for_ra_by_node_count == ~Uint32(0))
+        balance_for_ra_by_node_count = fragments_per_node[node];
+      else
+        balance_for_ra_by_node_count = 0;
+    }
+    if (balance_for_rp_by_node_count != 0 &&
+        primary_replica_per_node[node] != 0 &&
+        primary_replica_per_node[node] != balance_for_rp_by_node_count)
+    {
+      if (balance_for_rp_by_node_count == ~Uint32(0))
+        balance_for_rp_by_node_count = primary_replica_per_node[node];
+      else
+        balance_for_rp_by_node_count = 0;
+    }
+    for (Uint32 ldm = 0; ldm < NDBMT_MAX_WORKER_INSTANCES; ldm ++)
+    {
+      if (balance_for_ra_by_ldm_count != 0 &&
+          fragments_per_ldm[node][ldm] != 0 &&
+          fragments_per_ldm[node][ldm] != balance_for_ra_by_ldm_count)
+      {
+        if (balance_for_ra_by_ldm_count == ~Uint32(0))
+          balance_for_ra_by_ldm_count = fragments_per_ldm[node][ldm];
+        else
+          balance_for_ra_by_ldm_count = 0;
+      }
+      if (balance_for_rp_by_ldm_count != 0 &&
+          primary_replica_per_ldm[node][ldm] != 0 &&
+          primary_replica_per_ldm[node][ldm] != balance_for_rp_by_ldm_count)
+      {
+        if (balance_for_rp_by_ldm_count == ~Uint32(0))
+          balance_for_rp_by_ldm_count = primary_replica_per_ldm[node][ldm];
+        else
+          balance_for_rp_by_ldm_count = 0;
+      }
+    }
+  }
+  switch (partition_balance)
+  {
+  case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
+    jam();
+    suboptimal = (balance_for_ra_by_node_count == 0);
+    break;
+  case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
+    jam();
+    suboptimal = (balance_for_ra_by_ldm_count == 0);
+    break;
+  case NDB_PARTITION_BALANCE_FOR_RP_BY_NODE:
+    jam();
+    suboptimal = (balance_for_rp_by_node_count == 0);
+    break;
+  case NDB_PARTITION_BALANCE_FOR_RP_BY_LDM:
+    jam();
+    suboptimal = (balance_for_rp_by_ldm_count == 0);
+    break;
+  default:
+    jam();
+  }
+  ndbassert(!fatal);
+  // Allow suboptimal until we have a way to choose to allow it or not
+  return !fatal;
 }
 
 void Dbdih::insertCopyFragmentList(TabRecord *tabPtr,
