@@ -21033,19 +21033,15 @@ Dbdict::execDICT_TAKEOVER_REQ(Signal* signal)
        else
        {
          jam();
-         bool last =  list.last(op_ptr);
 #ifdef VM_TRACE
          ndbout_c("Op %u, state %u, rollforward %u/%u, rollback %u/%u",op_ptr.p->op_key,op_ptr.p->m_state, rollforward_op,  rollforward_op_state, rollback_op,  rollback_op_state);
 #endif
          /*
            Find the starting point for a roll forward, the first
            operation found with a lower state than the previous.
-           If are at the end of the list set the last operation
-           as starting point for roll-forward.
          */
-         if ((SchemaOp::weight(op_ptr.p->m_state) <
-              SchemaOp::weight(rollforward_op_state)) ||
-             ((rollforward_op == 0) && last))
+         if (SchemaOp::weight(op_ptr.p->m_state) <
+             SchemaOp::weight(rollforward_op_state))
          {
            jam();
            rollforward_op = op_ptr.p->op_key;
@@ -21755,13 +21751,27 @@ void Dbdict::check_takeover_replies(Signal* signal)
     */
     if (trans_ptr.p->m_master_recovery_state == SchemaTrans::TRS_ROLLFORWARD)
     {
-      jam();
-      SchemaOpPtr rollforward_op_ptr;
-      ndbrequire(findSchemaOp(rollforward_op_ptr, trans_ptr.p->m_rollforward_op));
-      trans_ptr.p->m_curr_op_ptr_i = rollforward_op_ptr.i;
+      if (trans_ptr.p->m_rollforward_op == 0)
+      {
+        jam();
+        SchemaOpPtr first_op_ptr;
+        LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
+        list.first(first_op_ptr);
+        trans_ptr.p->m_curr_op_ptr_i = first_op_ptr.i;
 #ifdef VM_TRACE
-      ndbout_c("execDICT_TAKEOVER_CONF: Transaction %u rolled forward starting at %u(%u)", trans_ptr.p->trans_key,  trans_ptr.p->m_rollforward_op, trans_ptr.p->m_curr_op_ptr_i);
+        ndbout_c("execDICT_TAKEOVER_CONF: Transaction %u rolled forward, but nothing to do", trans_ptr.p->trans_key);
 #endif
+      }
+      else
+      {
+        jam();
+        SchemaOpPtr rollforward_op_ptr;
+        ndbrequire(findSchemaOp(rollforward_op_ptr, trans_ptr.p->m_rollforward_op));
+        trans_ptr.p->m_curr_op_ptr_i = rollforward_op_ptr.i;
+#ifdef VM_TRACE
+        ndbout_c("execDICT_TAKEOVER_CONF: Transaction %u rolled forward starting at %u(%u)", trans_ptr.p->trans_key,  trans_ptr.p->m_rollforward_op, trans_ptr.p->m_curr_op_ptr_i);
+#endif
+      }
     }
     else // if (trans_ptr.p->master_recovery_state == SchemaTrans::TRS_ROLLBACK)
     {
