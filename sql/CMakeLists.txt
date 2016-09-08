@@ -342,7 +342,7 @@ SET(SQL_SHARED_SOURCES
   sql_show.cc
   sql_show_status.cc
   sql_signal.cc
-  sql_state.c
+  sql_state.cc
   sql_table.cc
   sql_tablespace.cc
   sql_test.cc
@@ -386,7 +386,7 @@ SET(SQL_SOURCE
   ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
   ../extra/lz4/xxhash.c
-  ../libmysql/errmsg.c
+  ../libmysql/errmsg.cc
   ../sql-common/client.cc
   ../sql-common/client_plugin.c
   ../sql-common/my_time.c

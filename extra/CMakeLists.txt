@@ -34,7 +34,7 @@ IF(NOT CMAKE_CROSSCOMPILING)
 ENDIF()
 
 ADD_EXECUTABLE(comp_client_err
-  comp_client_err.cc ${CMAKE_SOURCE_DIR}/libmysql/errmsg.c)
+  comp_client_err.cc ${CMAKE_SOURCE_DIR}/libmysql/errmsg.cc)
 TARGET_LINK_LIBRARIES(comp_client_err mysys mysys_ssl)
 
 ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/include/mysqlclient_ername.h

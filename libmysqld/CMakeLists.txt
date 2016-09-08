@@ -63,8 +63,8 @@ SET(SQL_EMBEDDED_SOURCES
   ${GEN_YACC_SOURCES}
   ../extra/lz4/xxhash.c
   ../client/get_password.c
-  ../libmysql/errmsg.c
-  ../libmysql/libmysql.c
+  ../libmysql/errmsg.cc
+  ../libmysql/libmysql.cc
   ../sql-common/client.cc
   ../sql-common/client_plugin.c
   ../sql-common/my_time.c 

@@ -30,6 +30,8 @@
 #include <signal.h>
 #include <time.h>
 #include "my_thread_local.h"
+#include "template_utils.h"
+
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>
 #endif
@@ -402,8 +404,8 @@ my_bool handle_local_infile(MYSQL *mysql, const char *net_filename)
   }
 
   /* copy filename into local memory and allocate read buffer */
-  if (!(buf=my_malloc(PSI_NOT_INSTRUMENTED,
-                      packet_length, MYF(0))))
+  if (!(buf=pointer_cast<char*>(my_malloc(PSI_NOT_INSTRUMENTED,
+                                          packet_length, MYF(0)))))
   {
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
     DBUG_RETURN(1);
@@ -439,7 +441,7 @@ my_bool handle_local_infile(MYSQL *mysql, const char *net_filename)
       set_mysql_error(mysql, CR_SERVER_LOST, unknown_sqlstate);
       goto err;
     }
-    MYSQL_TRACE(PACKET_SENT, mysql, (readcount));
+    MYSQL_TRACE(PACKET_SENT, mysql, (static_cast<size_t>(readcount)));
   }
 
   /* Send empty packet to mark end of file */
@@ -615,7 +617,12 @@ default_local_infile_error(void *ptr, char *error_msg, uint error_msg_len)
 }
 
 
-void
+/*
+  Explicit extern "C" because otherwise solaris studio thinks
+  that the function pointer arguments have C++ linkage,
+  and then it overloads the declaration in include/mysql.h
+ */
+extern "C" void
 mysql_set_local_infile_handler(MYSQL *mysql,
                                int (*local_infile_init)(void **, const char *,
                                void *),
@@ -825,11 +832,10 @@ int STDCALL
 mysql_shutdown(MYSQL *mysql,
                enum mysql_enum_shutdown_level shutdown_level MY_ATTRIBUTE((unused)))
 {
-  DBUG_ENTER("mysql_shutdown");
   if (mysql_get_server_version(mysql) < 50709)
-    DBUG_RETURN(simple_command(mysql, COM_SHUTDOWN_DEPRECATED, 0, 1, 0));
+    return simple_command(mysql, COM_DEPRECATED_1, 0, 1, 0);
   else
-    DBUG_RETURN(mysql_real_query(mysql, C_STRING_WITH_LEN("shutdown")));
+    return mysql_real_query(mysql, C_STRING_WITH_LEN("shutdown"));
 }
 
 int STDCALL
@@ -2254,8 +2260,8 @@ int cli_stmt_execute(MYSQL_STMT *stmt)
     }
     length= (ulong) (net->write_pos - net->buff);
     /* TODO: Look into avoding the following memdup */
-    if (!(param_data= my_memdup(PSI_NOT_INSTRUMENTED,
-                                net->buff, length, MYF(0))))
+    if (!(param_data= pointer_cast<char*>(my_memdup(PSI_NOT_INSTRUMENTED,
+                                                    net->buff, length, MYF(0)))))
     {
       set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate, NULL);
       DBUG_RETURN(1);
@@ -3219,7 +3225,7 @@ static void read_binary_date(MYSQL_TIME *tm, uchar **pos)
 static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
                                          size_t length)
 {
-  uchar *buffer= param->buffer;
+  uchar *buffer= pointer_cast<uchar*>(param->buffer);
   char *endptr= value + length;
 
   /*
@@ -3353,7 +3359,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
 static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
                                        longlong value, my_bool is_unsigned)
 {
-  uchar *buffer= param->buffer;
+  uchar *buffer= pointer_cast<uchar*>(param->buffer);
 
   switch (param->buffer_type) {
   case MYSQL_TYPE_NULL: /* do nothing */
@@ -3462,7 +3468,7 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
 static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
                                         double value, my_gcvt_arg_type type)
 {
-  uchar *buffer= param->buffer;
+  uchar *buffer= pointer_cast<uchar*>(param->buffer);
   double val64 = (value < 0 ? -floor(-value) : floor(value));
 
   switch (param->buffer_type) {
@@ -3597,7 +3603,7 @@ static void fetch_datetime_with_conversion(MYSQL_BIND *param,
     /* No error: time and date are compatible with datetime */
     break;
   case MYSQL_TYPE_YEAR:
-    shortstore(param->buffer, my_time->year);
+    shortstore(pointer_cast<uchar*>(param->buffer), my_time->year);
     *param->error= 1;
     break;
   case MYSQL_TYPE_FLOAT:
@@ -3781,7 +3787,7 @@ static void fetch_result_short(MYSQL_BIND *param, MYSQL_FIELD *field,
 {
   my_bool field_is_unsigned= MY_TEST(field->flags & UNSIGNED_FLAG);
   ushort data= (ushort) sint2korr(*row);
-  shortstore(param->buffer, data);
+  shortstore(pointer_cast<uchar*>(param->buffer), data);
   *param->error= param->is_unsigned != field_is_unsigned && data > INT_MAX16;
   *row+= 2;
 }
@@ -3792,7 +3798,7 @@ static void fetch_result_int32(MYSQL_BIND *param,
 {
   my_bool field_is_unsigned= MY_TEST(field->flags & UNSIGNED_FLAG);
   uint32 data= (uint32) sint4korr(*row);
-  longstore(param->buffer, data);
+  longstore(pointer_cast<uchar*>(param->buffer), data);
   *param->error= param->is_unsigned != field_is_unsigned && data > INT_MAX32;
   *row+= 4;
 }
@@ -3804,7 +3810,7 @@ static void fetch_result_int64(MYSQL_BIND *param,
   my_bool field_is_unsigned= MY_TEST(field->flags & UNSIGNED_FLAG);
   ulonglong data= (ulonglong) sint8korr(*row);
   *param->error= param->is_unsigned != field_is_unsigned && data > LLONG_MAX;
-  longlongstore(param->buffer, data);
+  longlongstore(pointer_cast<uchar*>(param->buffer), data);
   *row+= 8;
 }
 
@@ -3814,7 +3820,7 @@ static void fetch_result_float(MYSQL_BIND *param,
 {
   float value;
   float4get(&value,*row);
-  floatstore(param->buffer, value);
+  floatstore(pointer_cast<uchar*>(param->buffer), value);
   *row+= 4;
 }
 
@@ -3824,7 +3830,7 @@ static void fetch_result_double(MYSQL_BIND *param,
 {
   double value;
   float8get(&value,*row);
-  doublestore(param->buffer, value);
+  doublestore(pointer_cast<uchar*>(param->buffer), value);
   *row+= 8;
 }
 
