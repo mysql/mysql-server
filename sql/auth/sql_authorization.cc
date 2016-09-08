@@ -98,7 +98,7 @@ bool clear_default_roles(THD *thd, TABLE *table, LEX_USER *user,
   @param thd Thread handler
   @param authid_role The role which should be revoked
   @param authid_user The user who will get its role revoked
-  @param user_vert [out] The vertex descriptor of the user
+  @param [out] user_vert The vertex descriptor of the user
 
   @return Success state
     @retval true No such user
@@ -274,7 +274,7 @@ bool revoke_all_roles_from_user(THD *thd, TABLE *edge_table,
   @param thd Thread handle
   @param table A table handler
   @param user_from The name of the ACL_USER which will be renamed.
-  @param granted_roles [out] A list of roles that were successfully revoked.
+  @param [out] granted_roles A list of roles that were successfully revoked.
 
   @return success state
     @retval true En error occurred
@@ -474,7 +474,7 @@ bool roles_rename_authid(THD *thd, TABLE *edge_table, TABLE *defaults_table,
   @param thd Thread handler
   @param want_access An ACL
   @param acl_user The associated user which carries the ACL
-  @param global [out] The resulting string
+  @param [out] global The resulting string
 
 */
 
@@ -5651,7 +5651,7 @@ bool check_if_granted_role(LEX_CSTRING user, LEX_CSTRING host,
   @param v Vertex descriptor of the authid which might have a granted role
   @param role User name part of an authid
   @param role_host Host name part of an authid
-  @param found_vertex [out] The corresponding vertex of the granted role.
+  @param [out] found_vertex The corresponding vertex of the granted role.
 
   @return Success state
    @retval true The role is granted and the corresponding vertex is returned.
@@ -5699,7 +5699,7 @@ bool find_if_granted_role(Role_vertex_descriptor v,
   The list of granted roles is /appended/ to the out variable.
 
   @param v A valid vertex descriptor from the global roles graph
-  @param granted_roles [out] A list of authorization IDs
+  @param [out] granted_roles A list of authorization IDs
 */
 void get_granted_roles(Role_vertex_descriptor &v,
                        List_of_granted_roles *granted_roles)
@@ -5739,7 +5739,7 @@ void get_granted_roles(Role_vertex_descriptor &v,
 
   @param thd The thread context
   @param user The authid to check for granted roles
-  @param granted_roles [out] A list of granted authids
+  @param [out] granted_roles A list of granted authids
 */
 
 void get_granted_roles(THD *thd, LEX_USER *user,
@@ -5758,7 +5758,7 @@ void get_granted_roles(THD *thd, LEX_USER *user,
   Shallow copy a list of default role authorization IDs from an Role_id storage
 
   @param acl_user A valid authID for which we want the default roles.
-  @param authlist [out] The target list to be populated. Optional if 0
+  @param [out] authlist The target list to be populated. Optional if 0
 
 */
 
@@ -5783,7 +5783,7 @@ void get_default_roles(const Auth_id_ref &acl_user,
   @param thd Thread handler
   @param table Open table handler
   @param user_auth_id A reference to the authorization ID to clear
-  @param default_roles [out] The vector to which the removed roles are copied.
+  @param [out] default_roles The vector to which the removed roles are copied.
 
   @return
    @retval true An error occurred.

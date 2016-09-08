@@ -1028,8 +1028,8 @@ void clear_and_init_db_cache()
 /**
   Insert a new entry in db_cache
 
-  @param thd [in]    Handle to THD object
-  @param entry [in]  Entry to be inserted in db_cache
+  @param [in] thd    Handle to THD object
+  @param [in] entry  Entry to be inserted in db_cache
 */
 
 static void
@@ -1475,7 +1475,7 @@ validate_user_plugin_records()
   initialize role structures if role_edges and/or
   default_roles are not present.
 
-  @param thd [in] Handle to THD
+  @param [in] thd Handle to THD
 */
 
 static
@@ -3286,8 +3286,8 @@ const uchar *hash_key(const uchar *el, size_t *length)
   Allocate a new cache key based on active roles, current user and
   global cache version
  
-  @param out_key [out] The resulting key
-  @param key_len [out] Key length
+  @param [out] out_key The resulting key
+  @param [out] key_len Key length
   @param version Global Acl_cache version
   @param uid The authorization ID of the current user
   @param active_roles The active roles of the current user
@@ -3767,7 +3767,7 @@ Acl_cache_lock_guard::Acl_cache_lock_guard(THD *thd,
   Explicitly take lock on Acl_cache_lock_cache object.
   If cache was already locked, just return.
 
-  @param raise_error [in]  Whether to raise error if we fail to acquire lock
+  @param [in] raise_error  Whether to raise error if we fail to acquire lock
 
   @returns status of lock
     @retval true Lock was acquired/already acquired.
@@ -3856,7 +3856,7 @@ Acl_cache_lock_guard::already_locked()
 /**
   Assert that thread owns MDL_SHARED on partition specific to the thread
 
-  @param thd [in]    Thread for which lock is to be checked
+  @param [in] thd    Thread for which lock is to be checked
 
   @returns thread owns required lock or not
     @retval true    Thread owns lock
@@ -3874,7 +3874,7 @@ bool assert_acl_cache_read_lock(THD *thd)
 /**
   Assert that thread owns MDL_EXCLUSIVE on all partitions
 
-  @param thd [in]    Thread for which lock is to be checked
+  @param [in] thd    Thread for which lock is to be checked
 
   @returns thread owns required lock or not
     @retval true    Thread owns lock

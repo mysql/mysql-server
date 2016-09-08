@@ -217,8 +217,8 @@ bool modify_default_roles_in_table(THD *thd, TABLE *table,
   Assumes that tables are opened and requried locks are taken.
   Assumes that caller will close the tables.
 
-  @param thd [in] Handle to THD object
-  @param tablelst [in] Roles tables
+  @param [in] thd      Handle to THD object
+  @param [in] tablelst Roles tables
 
   @returns status of cache update
     @retval false Success
