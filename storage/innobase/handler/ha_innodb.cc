@@ -72,6 +72,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dd/types/object_type.h"
 #include "dd/types/tablespace_file.h"
 #include "dd_table_share.h"
+#include "dd/types/foreign_key.h"
+#include "dd/types/foreign_key_element.h"
 
 /* Include necessary InnoDB headers */
 #include "api0api.h"
@@ -6998,7 +7000,23 @@ create_index_metadata(
 			return(HA_ERR_INDEX_COL_TOO_LONG);
 		}
 
-		dict_col_t*	col = &table->cols[field->field_index];
+		dict_col_t*	col = NULL;
+
+		if (innobase_is_v_fld(field)) {
+			dict_v_col_t*	v_col = dict_table_get_nth_v_col_mysql(
+					table, field->field_index);
+			col = reinterpret_cast<dict_col_t*>(v_col);
+		} else {
+			ulint	t_num_v = 0;
+			for (ulint z = 0; z < field->field_index; z++) {
+				if (innobase_is_v_fld(form->field[z])) {
+					t_num_v++;
+				}
+			}
+
+			col = &table->cols[field->field_index - t_num_v];
+		}
+ 
 		dict_index_add_col(index, table, col, prefix_len);
 	}
 
@@ -7416,8 +7434,21 @@ create_table_metadata(
 		return(NULL);
 	}
 
+	ulint	n_v_cols = 0;
+
+	/* Find out the number of virtual columns */
+	for (ulint i = 0; i < m_form->s->fields; i++) {
+                Field*  field = m_form->field[i];
+
+		if (innobase_is_v_fld(field)) {
+			n_v_cols++;
+		}
+	}
+
+	ut_ad(n_v_cols <= n_cols);
+
 	dict_table_t*	m_table = dict_mem_table_create(
-		norm_name, 0, n_cols, 0, 0, 0);
+		norm_name, 0, n_cols, n_v_cols, 0, 0);
 
 	m_table->id = dd_part->se_private_id();
 
@@ -7617,12 +7648,56 @@ create_table_metadata(
 			}
 		}
 
-		prtype = dtype_form_prtype(
-			(ulint) field->type() | nulls_allowed | unsigned_type
-			| binary_type | long_true_varchar, charset_no);
+		ulint	is_virtual = (innobase_is_v_fld(field))
+					? DATA_VIRTUAL : 0;
 
-		dict_mem_table_add_col(m_table, heap, field->field_name,
-				       mtype, prtype, col_len);	
+		bool    is_stored = innobase_is_s_fld(field);
+
+		if (!is_virtual) {
+			prtype = dtype_form_prtype(
+				(ulint) field->type() | nulls_allowed
+				| unsigned_type | binary_type
+				| long_true_varchar, charset_no);
+			dict_mem_table_add_col(m_table, heap, field->field_name,
+					       mtype, prtype, col_len);	
+		} else {
+			prtype = dtype_form_prtype(
+				(ulint) field->type() | nulls_allowed
+				| unsigned_type | binary_type
+				| long_true_varchar | is_virtual, charset_no);
+			dict_mem_table_add_v_col(
+				m_table, heap, field->field_name, mtype,
+				prtype, col_len, i,
+				field->gcol_info->non_virtual_base_columns());
+		}
+
+		if (is_stored) {
+			ut_ad(!is_virtual);
+			/* Added stored column in m_s_cols list. */
+			dict_mem_table_add_s_col(
+				m_table,
+				field->gcol_info->non_virtual_base_columns());
+		}
+	}
+
+	ulint	j = 0;
+
+	if (m_table->n_v_cols > 0) {
+		for (unsigned i = 0; i < n_mysql_cols; i++) {
+			dict_v_col_t*	v_col;
+
+			Field*  field = m_form->field[i];
+
+			if (!innobase_is_v_fld(field)) {
+				continue;
+			}
+
+			v_col = dict_table_get_nth_v_col(m_table, j);
+
+			j++;
+
+			innodb_base_col_setup(m_table, field, v_col);
+		}
 	}
 
 	if (add_doc_id) {
