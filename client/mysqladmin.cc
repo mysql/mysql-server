@@ -1554,8 +1554,10 @@ static my_bool get_pidfile(MYSQL *mysql, char *pidfile)
 
   if (mysql_query(mysql, "SHOW VARIABLES LIKE 'pid_file'"))
   {
-    my_printf_error(0, "query failed; error: '%s'", error_flags,
-		    mysql_error(mysql));
+    my_printf_error(mysql_errno(mysql),
+                    "The query to get the server's pid file failed,"
+                    " error: '%s'. Continuing.", error_flags,
+                    mysql_error(mysql));
   }
   result = mysql_store_result(mysql);
   if (result)
