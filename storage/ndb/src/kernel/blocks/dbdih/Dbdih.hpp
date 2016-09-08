@@ -288,6 +288,7 @@ public:
      * find local fragments.
      */
     Uint32 fragId;
+    Uint32 partition_id;
     Uint32 nextCopyFragment;
     
     Uint8 distributionKey;

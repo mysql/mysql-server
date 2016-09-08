@@ -7114,7 +7114,7 @@ void Dbdih::execDBINFO_SCANREQ(Signal *signal)
           Ndbinfo::Row row(signal, req);
           row.write_uint32(cownNodeId);
           row.write_uint32(tabPtr.i);
-          row.write_uint32(fragPtr.p->m_log_part_id);
+          row.write_uint32(fragPtr.p->partition_id);
           row.write_uint32(fragPtr.p->fragId);
           if ((tabPtr.p->m_flags & TabRecord::TF_FULLY_REPLICATED) == 0)
           {
@@ -13024,11 +13024,11 @@ void Dbdih::insertCopyFragmentList(TabRecord *tabPtr,
 {
   Uint32 found_fragid = RNIL;
   FragmentstorePtr locFragPtr;
-  Uint32 logPartId = fragPtr->m_log_part_id;
+  Uint32 partition_id = fragPtr->partition_id;
   for (Uint32 i = 0; i < tabPtr->totalfragments; i++)
   {
     getFragstore(tabPtr, i, locFragPtr);
-    if (locFragPtr.p->m_log_part_id == logPartId)
+    if (locFragPtr.p->partition_id == partition_id)
     {
       if (fragPtr == locFragPtr.p)
       {
@@ -13248,6 +13248,7 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
     getFragstore(tabPtr.p, fragId, fragPtr);
     fragPtr.p->m_log_part_id = fragments[index++];
     fragPtr.p->preferredPrimary = fragments[index];
+    fragPtr.p->partition_id = fragId % tabPtr.p->partitionCount;
 
     ndbrequire(fragPtr.p->m_log_part_id < NDBMT_MAX_WORKER_INSTANCES);
 
@@ -13441,6 +13442,7 @@ Dbdih::sendAddFragreq(Signal* signal,
         jam();
         FragmentstorePtr fragPtr;
         getFragstore(tabPtr.p, fragId, fragPtr);
+        fragPtr.p->partition_id = fragId % tabPtr.p->partitionCount;
         insertCopyFragmentList(tabPtr.p, fragPtr.p, fragId);
       }
     }
@@ -14029,6 +14031,7 @@ Dbdih::add_fragments_to_table(Ptr<TabRecord> tabPtr, const Uint16 buf[])
     fragPtr.p->m_log_part_id = buf[2+(1 + replicas)*i];
     ndbrequire(fragPtr.p->m_log_part_id < NDBMT_MAX_WORKER_INSTANCES);
     fragPtr.p->preferredPrimary = buf[2+(1 + replicas)*i + 1];
+    fragPtr.p->partition_id = fragId % tabPtr.p->partitionCount;
 
     inc_ng_refcount(getNodeGroup(fragPtr.p->preferredPrimary));
 
@@ -15111,7 +15114,7 @@ Dbdih::findPartitionOrder(const TabRecord *tabPtrP,
 {
   Uint32 order = 0;
   FragmentstorePtr tempFragPtr;
-  Uint32 fragId = fragPtr.p->m_log_part_id;
+  Uint32 fragId = fragPtr.p->partition_id;
   do
   {
     jam();
@@ -23099,6 +23102,7 @@ void Dbdih::initFragstore(FragmentstorePtr fragPtr, Uint32 fragId)
   fragPtr.p->storedReplicas = RNIL;
   fragPtr.p->oldStoredReplicas = RNIL;
   fragPtr.p->m_log_part_id = RNIL; /* To ensure not used uninited */
+  fragPtr.p->partition_id = ~Uint32(0); /* To ensure not used uninited */
   
   fragPtr.p->noStoredReplicas = 0;
   fragPtr.p->noOldStoredReplicas = 0;
