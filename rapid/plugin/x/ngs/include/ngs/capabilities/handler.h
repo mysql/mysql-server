@@ -28,7 +28,7 @@
 
 namespace ngs
 {
-  class Client;
+  class Client_interface;
 
 
   class Capability_handler

@@ -10979,3 +10979,25 @@ bool Item_ident::is_column_not_in_fd(uchar *arg)
   Group_check *const gc= reinterpret_cast<Group_check *>(arg);
   return gc->do_ident_check(this, 0, Group_check::CHECK_COLUMN);
 }
+
+/**
+   The aim here is to find a real_item() which is of type Item_field.
+*/
+bool Item_ref::repoint_const_outer_ref(uchar *arg)
+{
+  *(pointer_cast<bool*>(arg))= true;
+  return false;
+}
+
+/**
+   If this object is the real_item of an Item_ref, repoint the result_field to
+   field.
+*/
+bool Item_field::repoint_const_outer_ref(uchar *arg)
+{
+  bool *is_outer_ref= pointer_cast<bool*>(arg);
+  if (*is_outer_ref)
+    result_field= field;
+  *is_outer_ref= false;
+  return false;
+}

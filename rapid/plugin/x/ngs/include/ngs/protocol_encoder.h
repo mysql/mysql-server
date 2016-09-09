@@ -57,7 +57,7 @@ namespace ngs
 
     Protocol_encoder(const boost::shared_ptr<Connection_vio> &socket,
                      Error_handler ehandler,
-                     IProtocol_monitor &pmon);
+                     Protocol_monitor_interface &pmon);
 
     virtual ~Protocol_encoder();
 
@@ -104,7 +104,7 @@ namespace ngs
     virtual bool send_message(int8_t type, const Message &message, bool force_buffer_flush = false);
     virtual void on_error(int error);
 
-    virtual IProtocol_monitor &get_protocol_monitor();
+    virtual Protocol_monitor_interface &get_protocol_monitor();
 
     static void log_protobuf(const char *direction_name, Request &request);
     static void log_protobuf(const char *direction_name, const Message *request);
@@ -126,7 +126,7 @@ namespace ngs
     ngs::Page_pool m_pool;
     boost::shared_ptr<Connection_vio> m_socket;
     Error_handler m_error_handler;
-    IProtocol_monitor *m_protocol_monitor;
+    Protocol_monitor_interface *m_protocol_monitor;
 
     Output_buffer_unique_ptr m_buffer;
 

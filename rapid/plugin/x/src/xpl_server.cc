@@ -26,6 +26,7 @@
 #include "xpl_client.h"
 #include "xpl_session.h"
 #include "xpl_system_variables.h"
+#include "xpl_listener_factory.h"
 #include "mysql_variables.h"
 #include "mysql_show_variable_wrapper.h"
 #include "sql_data_result.h"
@@ -35,11 +36,13 @@
 #include "ngs/scheduler.h"
 #include "ngs/protocol_authentication.h"
 #include "ngs/protocol/protocol_config.h"
+#include "ngs/interface/listener_interface.h"
+#include "ngs/server_acceptors.h"
 #include <mysql/plugin.h>
-#include <mysql/service_my_plugin_log.h>
 #include "my_atomic.h"
 #include "my_thread_local.h"
 #include "mysql/service_ssl_wrapper.h"
+#include "mysqlx_version.h"
 
 #if !defined(HAVE_YASSL)
 #include <openssl/err.h>
@@ -88,7 +91,7 @@ private:
 };
 
 
-class Worker_scheduler_monitor : public ngs::Scheduler_dynamic::Monitor
+class Worker_scheduler_monitor : public ngs::Scheduler_dynamic::Monitor_interface
 {
 public:
   virtual void on_worker_thread_create()
@@ -117,20 +120,17 @@ xpl::Server* xpl::Server::instance;
 ngs::RWLock  xpl::Server::instance_rwl;
 bool         xpl::Server::exiting = false;
 
-
-xpl::Server::Server(my_socket tcp_socket, boost::shared_ptr<ngs::Scheduler_dynamic> wscheduler,
-                    boost::shared_ptr<ngs::Protocol_config> config)
+xpl::Server::Server(boost::shared_ptr<ngs::Server_acceptors> acceptors, boost::shared_ptr<ngs::Scheduler_dynamic> wscheduler,
+                    boost::shared_ptr<ngs::Protocol_config> config,
+                    const std::string &unix_socket_or_named_pipe)
 : m_client_id(0),
   m_num_of_connections(0),
   m_config(config),
+  m_acceptors(acceptors),
   m_wscheduler(wscheduler),
-  m_server(tcp_socket, wscheduler, this, config)
-{
-  m_acceptor_thread.thread = 0;
-}
-
-
-xpl::Server::~Server()
+  m_nscheduler(new ngs::Scheduler_dynamic("network", KEY_thread_x_acceptor)),
+  m_server(acceptors, m_nscheduler, wscheduler, this, config),
+  m_unix_socket_or_named_pipe(unix_socket_or_named_pipe)
 {
 }
 
@@ -170,8 +170,8 @@ bool xpl::Server::on_verify_server_state()
       }
     }
 
-    // stop the server, making the event loop stop looping around
-    m_server.stop();
+    const bool is_called_from_timeout_handler = true;
+    m_server.stop(is_called_from_timeout_handler);
 
     return false;
   }
@@ -179,21 +179,21 @@ bool xpl::Server::on_verify_server_state()
 }
 
 
-boost::shared_ptr<ngs::Client> xpl::Server::create_client(ngs::Connection_ptr connection)
+boost::shared_ptr<ngs::Client_interface> xpl::Server::create_client(ngs::Connection_ptr connection)
 {
-  return boost::make_shared<xpl::Client>(connection, &m_server, ++m_client_id, new xpl::Protocol_monitor());
+  return boost::make_shared<xpl::Client>(connection, boost::ref(m_server), ++m_client_id, new xpl::Protocol_monitor());
 }
 
 
-boost::shared_ptr<ngs::Session> xpl::Server::create_session(boost::shared_ptr<ngs::Client> client,
-                                                       ngs::Protocol_encoder *proto,
-                                                       Session::Session_id session_id)
+boost::shared_ptr<ngs::Session_interface> xpl::Server::create_session(ngs::Client_interface &client,
+                                                            ngs::Protocol_encoder &proto,
+                                                            Session::Session_id session_id)
 {
-  return boost::make_shared<xpl::Session>(boost::ref(*client), proto, session_id);
+  return boost::make_shared<xpl::Session>(boost::ref(client), &proto, session_id);
 }
 
 
-void xpl::Server::on_client_closed(boost::shared_ptr<ngs::Client> client)
+void xpl::Server::on_client_closed(const ngs::Client_interface &client)
 {
   Global_status_variables::instance().increment_closed_connections_count();
 
@@ -202,8 +202,10 @@ void xpl::Server::on_client_closed(boost::shared_ptr<ngs::Client> client)
 }
 
 
-bool xpl::Server::will_accept_client(boost::shared_ptr<ngs::Client> client)
+bool xpl::Server::will_accept_client(const ngs::Client_interface &client)
 {
+  Mutex_lock lock(m_accepting_mutex);
+
   ++m_num_of_connections;
 
   log_debug("num_of_connections: %i, max_num_of_connections: %i",(int)m_num_of_connections, (int)xpl::Plugin_system_variables::max_connections);
@@ -219,7 +221,7 @@ bool xpl::Server::will_accept_client(boost::shared_ptr<ngs::Client> client)
 }
 
 
-void xpl::Server::did_accept_client(boost::shared_ptr<ngs::Client> client)
+void xpl::Server::did_accept_client(const ngs::Client_interface &client)
 {
   Global_status_variables::instance().increment_accepted_connections_count();
 }
@@ -269,40 +271,47 @@ int xpl::Server::main(MYSQL_PLUGIN p)
 {
   xpl::plugin_handle = p;
 
+  uint32 listen_backlog = 50 + Plugin_system_variables::max_connections / 5;
+  if (listen_backlog > 900)
+    listen_backlog= 900;
+
   try
   {
     Global_status_variables::instance().reset();
 
     boost::shared_ptr<ngs::Scheduler_dynamic> thd_scheduler(new Session_scheduler("work", p));
 
-    my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL, "X plugin tcp connection enable at port %u.", Plugin_system_variables::xport);
+    Plugin_system_variables::setup_system_variable_from_env_or_compile_opt(
+        Plugin_system_variables::socket,
+        "MYSQLX_UNIX_PORT",
+        WIN32_OR_UNIX(MYSQLX_NAMEDPIPE, MYSQLX_UNIX_ADDR));
 
-    // Lets pre-create the socket, verify it later
-    my_socket tcp_socket = ngs::Connection_vio::create_and_bind_socket(Plugin_system_variables::xport);
+    Listener_factory listener_factory;
+    boost::shared_ptr<ngs::Server_acceptors> acceptors(
+        new ngs::Server_acceptors(listener_factory, Plugin_system_variables::port, Plugin_system_variables::socket, listen_backlog));
 
     instance_rwl.wlock();
 
     exiting = false;
-    instance = new Server(tcp_socket, thd_scheduler, boost::make_shared<ngs::Protocol_config>());
+    instance = new Server(acceptors, thd_scheduler, boost::make_shared<ngs::Protocol_config>(), Plugin_system_variables::socket);
 
-    const bool use_only_with_tls = true, use_only_in_raw_mode = false;
+    const bool use_only_through_secure_connection = true, use_only_in_non_secure_connection = false;
 
-    instance->server().add_authentication_mechanism("PLAIN",   Sasl_plain_auth::create,   use_only_with_tls);
-    instance->server().add_authentication_mechanism("MYSQL41", Sasl_mysql41_auth::create, use_only_in_raw_mode);
-    instance->server().add_authentication_mechanism("MYSQL41", Sasl_mysql41_auth::create, use_only_with_tls);
+    instance->server().add_authentication_mechanism("PLAIN",   Sasl_plain_auth::create,   use_only_through_secure_connection);
+    instance->server().add_authentication_mechanism("MYSQL41", Sasl_mysql41_auth::create, use_only_in_non_secure_connection);
+    instance->server().add_authentication_mechanism("MYSQL41", Sasl_mysql41_auth::create, use_only_through_secure_connection);
 
     instance->plugin_system_variables_changed();
 
     thd_scheduler->set_monitor(new Worker_scheduler_monitor);
     thd_scheduler->launch();
+    instance->m_nscheduler->launch();
 
     xpl::Plugin_system_variables::registry_callback(boost::bind(&Server::plugin_system_variables_changed, instance));
 
-    thread_create(KEY_thread_x_acceptor, &instance->m_acceptor_thread,
-                  &Server::net_thread, instance);
+    instance->m_nscheduler->post(boost::bind(&Server::net_thread, instance));
 
     instance_rwl.unlock();
-    my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL, "X plugin initialization successes");
   }
   catch(const std::exception &e)
   {
@@ -330,14 +339,7 @@ int xpl::Server::exit(MYSQL_PLUGIN p)
     // thus its going hand forever. Still we already changed the value of instance. Thus we should exit
     // successful
     instance->server().stop();
-
-    if (0 != instance->m_acceptor_thread.thread)
-    {
-      void *ret;
-      log_info("Waiting for acceptor thread to finish...");
-      ngs::thread_join(&instance->m_acceptor_thread, &ret);
-      log_info("Acceptor thread finished");
-    }
+    instance->m_nscheduler->stop();
 
     xpl::Plugin_system_variables::clean_callbacks();
 
@@ -498,10 +500,8 @@ void xpl::Server::create_mysqlx_user(Sql_data_context &context)
 }
 
 
-void *xpl::Server::net_thread(void *arg)
+void xpl::Server::net_thread()
 {
-  xpl::Server *self = (xpl::Server*)arg;
-
   srv_session_init_thread(xpl::plugin_handle);
 
 #if defined(__APPLE__)
@@ -510,21 +510,17 @@ void *xpl::Server::net_thread(void *arg)
   pthread_setname_np(pthread_self(), "xplugin_acceptor");
 #endif
 
-  if (self->on_net_startup())
+  if (on_net_startup())
   {
     log_info("Server starts handling incoming connections");
-    if (!self->m_server.run())
-    {
-      log_error("Error starting acceptor");
-    }
+    m_server.start();
     log_info("Stopped handling incoming connections");
-    self->on_net_shutdown();
+    on_net_shutdown();
   }
 
   ssl_wrapper_thread_cleanup();
 
   srv_session_deinit_thread();
-  return NULL;
 }
 
 
@@ -533,10 +529,22 @@ static xpl::Ssl_config choose_ssl_config(const bool mysqld_have_ssl,
     const xpl::Ssl_config & mysqlx_ssl)
 {
   if (!mysqlx_ssl.is_configured() && mysqld_have_ssl)
+  {
+    my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL,
+        "Using SSL configuration from MySQL Server");
+
     return mysqld_ssl;
+  }
 
   if (mysqlx_ssl.is_configured())
+  {
+    my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL,
+        "Using SSL configuration from Mysqlx Plugin");
     return mysqlx_ssl;
+  }
+
+  my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL,
+      "Neither MySQL Server nor Mysqlx Plugin has valid SSL configuration");
 
   return xpl::Ssl_config();
 }
@@ -563,8 +571,8 @@ bool xpl::Server::on_net_startup()
       create_mysqlx_user(sql_context);
 
     Sql_data_result sql_result(sql_context);
-    sql_result.query("SELECT @@skip_name_resolve, @@have_ssl='YES', @@ssl_key, @@ssl_ca,"
-                     "@@ssl_capath, @@ssl_cert, @@ssl_cipher, @@ssl_crl, @@ssl_crlpath, @@tls_version;");
+    sql_result.query("SELECT @@skip_networking, @@skip_name_resolve, @@have_ssl='YES', @@ssl_key, "
+                     "@@ssl_ca, @@ssl_capath, @@ssl_cert, @@ssl_cipher, @@ssl_crl, @@ssl_crlpath, @@tls_version;");
 
     sql_context.detach();
 
@@ -573,6 +581,8 @@ bool xpl::Server::on_net_startup()
     bool skip_networking = false;
     bool skip_name_resolve = false;
     char *tls_version = NULL;
+
+    sql_result.get_next_field(skip_networking);
     sql_result.get_next_field(skip_name_resolve);
     sql_result.get_next_field(mysqld_have_ssl);
     sql_result.get_next_field(ssl_config.ssl_key);
@@ -587,43 +597,35 @@ bool xpl::Server::on_net_startup()
     instance->start_verify_server_state_timer();
 
     ngs::Ssl_context_unique_ptr ssl_ctx(new ngs::Ssl_context());
-    try
-    {
-      ssl_config = choose_ssl_config(mysqld_have_ssl,
-                                     ssl_config,
-                                     xpl::Plugin_system_variables::ssl_config);
 
-#ifdef HAVE_YASSL
-      // YaSSL doesn't support CRL according to vio
-      const char *crl = NULL;
-      const char *crlpath = NULL;
-#else
-      const char *crl = ssl_config.ssl_crl;
-      const char *crlpath = ssl_config.ssl_crlpath;
-#endif
-      ssl_ctx->setup(tls_version,
-                     ssl_config.ssl_key,
-                     ssl_config.ssl_ca,
-                     ssl_config.ssl_capath,
-                     ssl_config.ssl_cert,
-                     ssl_config.ssl_cipher,
-                     crl, crlpath);
-      instance->server().set_ssl_context(boost::move(ssl_ctx));
-#if !defined(HAVE_YASSL)
-      my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL, "Using OpenSSL for TCP connections");
-#else
-      my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL, "Using YaSSL for TCP connections");
-#endif
-    }
-    catch (std::exception &e)
+    ssl_config = choose_ssl_config(mysqld_have_ssl,
+                                   ssl_config,
+                                   xpl::Plugin_system_variables::ssl_config);
+
+    // YaSSL doesn't support CRL according to vio
+    const char *crl = IS_YASSL_OR_OPENSSL(NULL, ssl_config.ssl_crl);
+    const char *crlpath = IS_YASSL_OR_OPENSSL(NULL, ssl_config.ssl_crlpath);
+
+    const bool ssl_setup_result = ssl_ctx->setup(tls_version, ssl_config.ssl_key,
+                                                 ssl_config.ssl_ca,
+                                                 ssl_config.ssl_capath,
+                                                 ssl_config.ssl_cert,
+                                                 ssl_config.ssl_cipher,
+                                                 crl, crlpath);
+
+    if (ssl_setup_result)
     {
-      throw ngs::Error_code(ER_X_SERVICE_ERROR, std::string("SSL context setup failed: \"") + e.what() + std::string("\""));
+      my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL,
+          "Using " IS_YASSL_OR_OPENSSL("YaSSL", "OpenSSL") " for TLS connections");
+    }
+    else
+    {
+      my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL,
+          "For more information, please see the Using Secure Connections with X Plugin section in the MySQL documentation.");
     }
 
-    if (!instance->server().prepare(skip_networking, skip_name_resolve))
-      throw ngs::Error_code(ER_X_SERVICE_ERROR, "Error preparing to accept connections");
-
-    return true;
+    if (instance->server().prepare(boost::move(ssl_ctx), skip_networking, skip_name_resolve, true))
+        return true;
   }
   catch (const ngs::Error_code &e)
   {
@@ -635,8 +637,6 @@ bool xpl::Server::on_net_startup()
     }
     log_error("%s", e.message.c_str());
   }
-
-  log_error("Delayed startup failed. Plugin is unable to accept connections.");
 
   instance->server().close_all_clients();
   instance->m_server.start_failed();
@@ -697,7 +697,7 @@ ngs::Error_code xpl::Server::kill_client(uint64_t client_id, Session &requester)
   // released in its thread (Scheduler, Client::run).
 
   if (found_client &&
-      ngs::Client::Client_closed != found_client->get_state())
+      ngs::Client_interface::Client_closed != found_client->get_state())
   {
     xpl::Client_ptr xpl_client =  boost::static_pointer_cast<xpl::Client>(found_client);
 
@@ -747,6 +747,15 @@ ngs::Error_code xpl::Server::kill_client(uint64_t client_id, Session &requester)
   return ngs::Error(ER_NO_SUCH_THREAD, "Unknown MySQLx client id %llu", static_cast<unsigned long long>(client_id));
 }
 
+std::string xpl::Server::get_socket_file()
+{
+  if (m_acceptors->was_unix_socket_or_named_pipe_configured())
+  {
+    return m_unix_socket_or_named_pipe;
+  }
+
+  return "";
+}
 
 struct Client_check_handler_thd
 {

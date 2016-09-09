@@ -2261,6 +2261,14 @@ public:
     const Type t= type();
     return t == FUNC_ITEM || t == COND_ITEM;
   }
+
+  /**
+    This function applies only to Item_field objects referred to by an Item_ref
+    object that has been marked as a const_item.
+
+    @param arg  Keep track of whether an Item_ref refers to an Item_field.
+  */
+  virtual bool repoint_const_outer_ref(uchar *arg) { return false; }
 private:
   virtual bool subq_opt_away_processor(uchar *arg) { return false; }
 };
@@ -2987,7 +2995,9 @@ public:
   { return m_alias_of_expr ||
       // maybe the qualifying table was given an alias ("t1 AS foo"):
       (field ? field->table->alias_name_used : false);
- }
+  }
+
+  bool repoint_const_outer_ref(uchar *arg);
 };
 
 class Item_null :public Item_basic_constant
@@ -4189,6 +4199,8 @@ public:
   {
     return (*ref)->created_by_in2exists();
   }
+
+  bool repoint_const_outer_ref(uchar *arg);
 };
 
 

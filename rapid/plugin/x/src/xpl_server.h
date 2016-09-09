@@ -26,13 +26,14 @@
 
 #include "ngs/server.h"
 #include "ngs/memory.h"
+#include "ngs/scheduler.h"
 #include "ngs_common/connection_vio.h"
-#include "xpl_client.h"
 #include "xpl_session.h"
 #include "mysql_show_variable_wrapper.h"
 #include "xpl_global_status_variables.h"
 
 #include <mysql/plugin.h>
+#include "xpl_client.h"
 
 
 namespace xpl
@@ -48,11 +49,10 @@ typedef boost::shared_ptr<Server> Server_ptr;
 class Server : public ngs::Server_delegate
 {
 public:
-  Server(my_socket tcp_socket,
+  Server(boost::shared_ptr<ngs::Server_acceptors> acceptors,
          boost::shared_ptr<ngs::Scheduler_dynamic> wscheduler,
-         boost::shared_ptr<ngs::Protocol_config> config);
-  virtual ~Server();
-
+         boost::shared_ptr<ngs::Protocol_config> config,
+         const std::string &unix_socket_or_named_pipe);
 
   static int main(MYSQL_PLUGIN p);
   static int exit(MYSQL_PLUGIN p);
@@ -62,6 +62,9 @@ public:
 
   template <typename ReturnType, ReturnType (ngs::IOptions_session::*method)()>
   static void session_status_variable(THD *thd, st_mysql_show_var *var, char *buff);
+
+  template <typename ReturnType, ReturnType (Server::*method)()>
+  static void global_status_variable_server_with_return(THD *thd, st_mysql_show_var *var, char *buff);
 
   template <void (Server::*method)(st_mysql_show_var *)>
   static void global_status_variable(THD *thd, st_mysql_show_var *var, char *buff);
@@ -81,6 +84,7 @@ public:
   ngs::Server &server() { return m_server; }
 
   ngs::Error_code kill_client(uint64_t client_id, Session &requester);
+  std::string get_socket_file();
 
   typedef ngs::Locked_container<Server, ngs::RWLock_readlock, ngs::RWLock> Server_with_lock;
   typedef Memory_new<Server_with_lock>::Unique_ptr Server_ref;
@@ -100,36 +104,38 @@ private:
   bool on_net_startup();
   void on_net_shutdown();
 
-  static void *net_thread(void *ctx);
+  void net_thread();
 
   void start_verify_server_state_timer();
   bool on_verify_server_state();
 
   void plugin_system_variables_changed();
 
-  virtual boost::shared_ptr<ngs::Client>  create_client(ngs::Connection_ptr connection);
-  virtual boost::shared_ptr<ngs::Session> create_session(boost::shared_ptr<ngs::Client> client,
-                                                         ngs::Protocol_encoder *proto,
-                                                         ngs::Session::Session_id session_id);
+  virtual boost::shared_ptr<ngs::Client_interface>  create_client(ngs::Connection_ptr connection);
+  virtual boost::shared_ptr<ngs::Session_interface> create_session(ngs::Client_interface &client,
+                                                                   ngs::Protocol_encoder &proto,
+                                                                   ngs::Session_interface::Session_id session_id);
 
-  virtual bool will_accept_client(boost::shared_ptr<ngs::Client> client);
-  virtual void did_accept_client(boost::shared_ptr<ngs::Client> client);
+  virtual bool will_accept_client(const ngs::Client_interface &client);
+  virtual void did_accept_client(const ngs::Client_interface &client);
   virtual void did_reject_client(ngs::Server_delegate::Reject_reason reason);
 
-  virtual void on_client_closed(boost::shared_ptr<ngs::Client> client);
+  virtual void on_client_closed(const ngs::Client_interface &client);
   virtual bool is_terminating() const;
 
   static Server*      instance;
   static ngs::RWLock  instance_rwl;
   static MYSQL_PLUGIN plugin_ref;
 
-  ngs::Thread_t               m_acceptor_thread;
-
-  ngs::Client::Client_id      m_client_id;
-  boost::atomics::atomic<int> m_num_of_connections;
+  ngs::Client_interface::Client_id          m_client_id;
+  boost::atomics::atomic<int>               m_num_of_connections;
   boost::shared_ptr<ngs::Protocol_config>   m_config;
+  boost::shared_ptr<ngs::Server_acceptors>  m_acceptors;
   boost::shared_ptr<ngs::Scheduler_dynamic> m_wscheduler;
-  ngs::Server                 m_server;
+  boost::shared_ptr<ngs::Scheduler_dynamic> m_nscheduler;
+  ngs::Mutex  m_accepting_mutex;
+  ngs::Server m_server;
+  std::string m_unix_socket_or_named_pipe;
 
   static bool exiting;
   static bool is_exiting();
@@ -183,6 +189,21 @@ void Server::global_status_variable(THD *thd, st_mysql_show_var *var, char *buff
   {
     Server* server_ptr = server->container();
     (server_ptr->*method)(var);
+  }
+}
+
+template <typename ReturnType, ReturnType (Server::*method)()>
+void Server::global_status_variable_server_with_return(THD *thd, st_mysql_show_var *var, char *buff)
+{
+  var->type= SHOW_UNDEF;
+  var->value= buff;
+
+  Server_ref server = get_instance();
+  if (server)
+  {
+    Server* server_ptr = server->container();
+    ReturnType result = (server_ptr->*method)();
+    mysqld::xpl_show_var(var).assign(result);
   }
 }
 
@@ -256,5 +277,11 @@ void Server::update_status_variable(xpl::Common_status_variables &status_variabl
 
 
 } // namespace xpl
+
+#ifdef HAVE_YASSL
+#define IS_YASSL_OR_OPENSSL(Y, O) Y
+#else // HAVE_YASSL
+#define IS_YASSL_OR_OPENSSL(Y, O) O
+#endif // HAVE_YASSL
 
 #endif  // _XPL_SERVER_H_

@@ -3,7 +3,9 @@
 # Modified : 19-08-2015 Lalit Choudhary
 
 --echo Preamble
+--source ../include/have_performance_schema_threads.inc
 --source ../include/xplugin_preamble.inc
+
 SET GLOBAL mysqlx_connect_timeout = 300;
 call mtr.add_suppression("Unsuccessful login attempt");
 
@@ -317,6 +319,16 @@ SHOW GLOBAL STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_ver
 
 --replace_regex /4294967295/-1/ /18446744073709551615/-1/
 --exec $MYSQLXTEST -u root --ssl-cipher="AES256-SHA"         --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem  --file=$MYSQL_TMP_DIR/mysqlx-status.tmp 2>&1
+
+
+# Lets confirm that Mysqlx plugin can't use TCP-IP connections without SSL as secure one
+call mtr.add_suppression("Plugin mysqlx reported: '.+: Unsuccessful login attempt: Secure transport required. To log in you must use TCP.SSL or UNIX socket connection.");
+SET GLOBAL require_secure_transport:=1;
+--error 1
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp --tls-version=TLSv1 --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem 2>&1
+SET GLOBAL require_secure_transport:=0;
+
 
 # Postamble
 UNINSTALL PLUGIN mysqlx;

@@ -51,6 +51,8 @@ typedef struct Trans_table_info {
   uint number_of_primary_keys;
   /// The db_type of the storage engine used by the table
   int db_type;
+  /// information to store if the table has foreign key with 'CASCADE' clause.
+  bool has_cascade_foreign_key;
 } Trans_table_info;
 
 /**
@@ -80,6 +82,7 @@ typedef struct Trans_context_info {
   // enum values in enum_mts_parallel_type
   ulong parallel_applier_type;
   ulong parallel_applier_workers;
+  bool parallel_applier_preserve_commit_order;
   enum_tx_isolation tx_isolation;  // enum values in enum_tx_isolation
 } Trans_context_info;
 
