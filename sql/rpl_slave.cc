@@ -4276,7 +4276,7 @@ static inline bool slave_sleep(THD *thd, time_t seconds,
   while (! (ret= func(thd, info)))
   {
     int error= mysql_cond_timedwait(cond, lock, &abstime);
-    if (error == ETIMEDOUT || error == ETIME)
+    if (is_timeout(error))
       break;
   }
 
@@ -9035,7 +9035,7 @@ static Log_event* next_event(Relay_log_info* rli)
 
             set_timespec_nsec(&waittime, period);
             ret= rli->relay_log.wait_for_update_relay_log(thd, &waittime);
-          } while ((ret == ETIMEDOUT || ret == ETIME) /* todo:remove */ &&
+          } while (is_timeout(ret) /* todo:remove */ &&
                    signal_cnt == rli->relay_log.signal_cnt && !thd->killed);
         }
         else

@@ -1953,7 +1953,7 @@ bool Slave_worker::worker_sleep(ulong seconds)
   while (!(ret= info_thd->killed || running_status != RUNNING))
   {
     int error= mysql_cond_timedwait(cond, lock, &abstime);
-    if (error == ETIMEDOUT || error == ETIME)
+    if (is_timeout(error))
       break;
   }
 

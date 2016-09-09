@@ -250,9 +250,7 @@ bool Scheduler_dynamic::wait_if_idle_then_delete_worker(ulonglong &thread_waitin
                                        (m_idle_worker_timeout - thread_waiting_for_delta_ms) *
                                        MILLI_TO_NANO);
 
-    const bool timeout = ETIMEDOUT == result || ETIME == result;
-
-    if (!timeout)
+    if (!is_timeout(result))
       return false;
   }
   else

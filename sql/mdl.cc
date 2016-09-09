@@ -1890,8 +1890,7 @@ MDL_wait::timed_wait(MDL_context_owner *owner, struct timespec *abs_timeout,
   owner->ENTER_COND(&m_COND_wait_status, &m_LOCK_wait_status,
                     wait_state_name, & old_stage);
   thd_wait_begin(NULL, THD_WAIT_META_DATA_LOCK);
-  while (!m_wait_status && !owner->is_killed() &&
-         wait_result != ETIMEDOUT && wait_result != ETIME)
+  while (!m_wait_status && !owner->is_killed() && !is_timeout(wait_result))
   {
     wait_result= mysql_cond_timedwait(&m_COND_wait_status, &m_LOCK_wait_status,
                                       abs_timeout);

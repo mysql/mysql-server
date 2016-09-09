@@ -57,6 +57,14 @@
 #define EXTERNC
 #endif
 
+static inline int is_timeout(int e) {
+#if ETIMEDOUT == ETIME
+  return e == ETIMEDOUT;
+#else
+  return e == ETIMEDOUT || e == ETIME;
+#endif
+}
+
 C_MODE_START
 
 #ifdef _WIN32

@@ -859,7 +859,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
       mysql_cond_wait(&data_cond, &data_lock);
     thd_wait_end(thd);
     DBUG_PRINT("info",("Got signal of master update or timed out"));
-    if (error == ETIMEDOUT || error == ETIME)
+    if (is_timeout(error))
     {
 #ifndef DBUG_OFF
       /*
@@ -1024,7 +1024,7 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set,
       mysql_cond_wait(&data_cond, &data_lock);
     thd_wait_end(thd);
     DBUG_PRINT("info",("Got signal of master update or timed out"));
-    if (error == ETIMEDOUT || error == ETIME)
+    if (is_timeout(error))
     {
 #ifndef DBUG_OFF
       /*

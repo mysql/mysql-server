@@ -5382,7 +5382,7 @@ int Interruptible_wait::wait(mysql_cond_t *cond, mysql_mutex_t *mutex)
       timeout= m_abs_timeout;
 
     error= mysql_cond_timedwait(cond, mutex, &timeout);
-    if (error == ETIMEDOUT || error == ETIME)
+    if (is_timeout(error))
     {
       /* Return error if timed out or connection is broken. */
       if (!cmp_timespec(&timeout, &m_abs_timeout) || !m_thd->is_connected())
@@ -6183,7 +6183,7 @@ longlong Item_func_sleep::val_int()
   while (!thd->killed)
   {
     error= timed_cond.wait(&cond, &LOCK_item_func_sleep);
-    if (error == ETIMEDOUT || error == ETIME)
+    if (is_timeout(error))
       break;
     error= 0;
   }

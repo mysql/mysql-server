@@ -1991,7 +1991,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
             DBUG_PRINT("debug_sync",
                        ("awoke from %s error: %d", sig_wait, error)); });
 
-        if (error == ETIMEDOUT || error == ETIME)
+        if (is_timeout(error))
         {
           // We should not make the statement fail, even if in strict mode.
           push_warning(thd, Sql_condition::SL_WARNING,

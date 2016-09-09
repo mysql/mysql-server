@@ -884,7 +884,7 @@ public:
     else
       mysql_cond_wait(&mutex_cond->cond, &mutex_cond->mutex);
     mysql_mutex_assert_owner(&mutex_cond->mutex);
-    DBUG_RETURN(error == ETIMEDOUT || error == ETIME);
+    DBUG_RETURN(is_timeout(error));
   }
 #ifndef MYSQL_CLIENT
   /// Execute THD::enter_cond for the n'th condition variable.

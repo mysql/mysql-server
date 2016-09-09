@@ -71,7 +71,7 @@ static void *handle_manager(void *arg MY_ATTRIBUTE((unused)))
     if (abort_manager)
       break;
 
-    if (error == ETIMEDOUT || error == ETIME)
+    if (is_timeout(error))
     {
       tdc_flush_unused_tables();
       error = 0;
