@@ -80,7 +80,7 @@ static bool test_plugin_registry(MYSQL_PLUGIN p)
   my_h_service h_reg= NULL;
   my_h_service h_ret_svc= NULL;
   int int_result= -1;
-  SERVICE_TYPE(registry_registration) *reg;
+  SERVICE_TYPE(registry_registration) *reg= NULL;
   SERVICE_TYPE(test_services_plugin_registry_service) *ret;
 
   enum { IDLE, REG_ACQUIRED, MY_SVC_REGISTERED,
