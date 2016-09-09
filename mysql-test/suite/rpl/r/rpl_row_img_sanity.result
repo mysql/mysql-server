@@ -639,6 +639,73 @@ DROP TABLE t;
 include/wait_for_slave_sql_error.inc [errno=1032]
 DROP TABLE t;
 include/rpl_reset.inc
+CON: 'master', IMG: 'FULL', RESTART SLAVE: 'N'
+SET SESSION binlog_row_image= 'FULL';
+SET GLOBAL binlog_row_image= 'FULL';
+FLUSH TABLES;
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	FULL
+CON: 'slave', IMG: 'FULL', RESTART SLAVE: 'Y'
+SET SESSION binlog_row_image= 'FULL';
+SET GLOBAL binlog_row_image= 'FULL';
+include/stop_slave.inc
+include/start_slave.inc
+FLUSH TABLES;
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	FULL
+CREATE TABLE t1(id INT PRIMARY KEY, a INT) ENGINE = INNODB;
+include/sync_slave_sql_with_master.inc
+INSERT INTO t1 (id, a) VALUES (1, 1);
+"Case: FULL - EXPLAIN output should not display Using temporary"
+EXPLAIN UPDATE t1 SET a=a+1 WHERE id < 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	1	Using where
+UPDATE t1 SET a=a+1 WHERE id < 2;
+CON: 'master', IMG: 'NOBLOB', RESTART SLAVE: 'N'
+SET SESSION binlog_row_image= 'NOBLOB';
+SET GLOBAL binlog_row_image= 'NOBLOB';
+FLUSH TABLES;
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	NOBLOB
+CON: 'slave', IMG: 'NOBLOB', RESTART SLAVE: 'Y'
+SET SESSION binlog_row_image= 'NOBLOB';
+SET GLOBAL binlog_row_image= 'NOBLOB';
+include/stop_slave.inc
+include/start_slave.inc
+FLUSH TABLES;
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	NOBLOB
+"Case: NOBLOB - EXPLAIN output should not display Using temporary"
+EXPLAIN UPDATE t1 SET a=a+1 WHERE id < 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	1	Using where
+UPDATE t1 SET a=a+1 WHERE id < 2;
+CON: 'master', IMG: 'MINIMAL', RESTART SLAVE: 'N'
+SET SESSION binlog_row_image= 'MINIMAL';
+SET GLOBAL binlog_row_image= 'MINIMAL';
+FLUSH TABLES;
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	MINIMAL
+CON: 'slave', IMG: 'MINIMAL', RESTART SLAVE: 'Y'
+SET SESSION binlog_row_image= 'MINIMAL';
+SET GLOBAL binlog_row_image= 'MINIMAL';
+include/stop_slave.inc
+include/start_slave.inc
+FLUSH TABLES;
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	MINIMAL
+EXPLAIN UPDATE t1 SET a=a+1 WHERE id < 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	1	Using where
+UPDATE t1 SET a=a+1 WHERE id < 2;
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
 SET GLOBAL binlog_row_image= @old_binlog_row_image;
 SET SESSION binlog_row_image= @old_binlog_row_image;
 SET GLOBAL binlog_row_image= @old_binlog_row_image;

@@ -2570,6 +2570,11 @@ server_def:
           ident_or_text
           OPTIONS_SYM '(' server_options_list ')'
           {
+            if ($2.length == 0)
+            {
+              my_error(ER_WRONG_VALUE, MYF(0), "server name", "");
+              MYSQL_YYABORT;
+            }
             Lex->server_options.server_name= $2.str;
             Lex->server_options.server_name_length= $2.length;
             Lex->server_options.scheme= $6.str;
