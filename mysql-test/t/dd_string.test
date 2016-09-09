@@ -54,9 +54,9 @@ CREATE TABLE diffs (EVENT_NAME VARCHAR(512), COUNT_ALLOC_DIFF BIGINT,
 
 --echo #
 --echo # Create percents table for simpler analysis
-CREATE TABLE percents (EVENT_NAME VARCHAR(512), ALLOC_PCT DECIMAL,
-                       FREE_PCT DECIMAL, BYTES_ALLOC_PCT DECIMAL,
-                       BYTES_FREE_PCT DECIMAL);
+CREATE TABLE percents (EVENT_NAME VARCHAR(512), ALLOC_PCT DECIMAL(10,3),
+                       FREE_PCT DECIMAL(10,3), BYTES_ALLOC_PCT DECIMAL(10,3),
+                       BYTES_FREE_PCT DECIMAL(10,3));
 
 INSERT INTO percents
   SELECT
@@ -79,13 +79,13 @@ SELECT
   baseline.COUNT_ALLOC AS 'BASE ALLOC',
   after_create.COUNT_ALLOC AS 'POST ALLOC',
   diffs.COUNT_ALLOC_DIFF AS DELTA,
-  percents.BYTES_ALLOC_PCT AS PCT_CHANGE,
+  percents.ALLOC_PCT AS PCT_CHANGE,
   'Exceeds threshold of +10%' AS REASON
 FROM baseline JOIN (after_create, diffs, percents) ON
   (baseline.EVENT_NAME = after_create.EVENT_NAME AND
    baseline.EVENT_NAME = diffs.EVENT_NAME AND
    baseline.EVENT_NAME = percents.EVENT_NAME)
-WHERE percents.ALLOC_PCT > 10;
+WHERE percents.ALLOC_PCT > 13;
 
 --echo #
 --echo # Checking increase in the number of bytes allocated (threshold 100%)
@@ -95,13 +95,13 @@ SELECT
   baseline.SUM_NUMBER_OF_BYTES_ALLOC AS 'BASE ALLOC BYTES',
   after_create.SUM_NUMBER_OF_BYTES_ALLOC AS 'POST ALLOC BYTES',
   diffs.SUM_NUMBER_OF_BYTES_ALLOC_DIFF AS DELTA,
-  percents.ALLOC_PCT AS PCT_CHANGE,
+  percents.BYTES_ALLOC_PCT AS PCT_CHANGE,
   'Exceeds threshold of +10%' AS REASON
 FROM baseline JOIN (after_create, diffs, percents) ON
   (baseline.EVENT_NAME = after_create.EVENT_NAME AND
    baseline.EVENT_NAME = diffs.EVENT_NAME AND
    baseline.EVENT_NAME = percents.EVENT_NAME)
-WHERE percents.ALLOC_PCT > 10;
+WHERE percents.BYTES_ALLOC_PCT > 10;
 
 --echo #
 --echo # Cleaning up
