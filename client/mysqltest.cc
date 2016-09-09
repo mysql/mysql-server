@@ -6213,31 +6213,36 @@ static void do_connect(struct st_command *command)
   my_bool con_socket=0, con_tcp= 0;
   while (*con_options)
   {
-    char* end;
-    /* Step past any spaces in beginning of option*/
+    /* Step past any spaces in beginning of option */
     while (*con_options && my_isspace(charset_info, *con_options))
-     con_options++;
+      con_options++;
+
     /* Find end of this option */
-    end= con_options;
+    char* end= con_options;
     while (*end && !my_isspace(charset_info, *end))
       end++;
-    if (!strncmp(con_options, "SSL", 3))
+
+    size_t con_option_len= end-con_options;
+    char cur_con_option[10];
+    strmake(cur_con_option, con_options, con_option_len);
+
+    if (!strcmp(cur_con_option, "SSL"))
       con_ssl= 1;
-    else if (!strncmp(con_options, "COMPRESS", 8))
+    else if (!strcmp(cur_con_option, "COMPRESS"))
       con_compress= 1;
-    else if (!strncmp(con_options, "PIPE", 4))
+    else if (!strcmp(cur_con_option, "PIPE"))
       con_pipe= 1;
-    else if (!strncmp(con_options, "SHM", 3))
+    else if (!strcmp(cur_con_option, "SHM"))
       con_shm= 1;
-    else if (!strncmp(con_options, "CLEARTEXT", 9))
+    else if (!strcmp(cur_con_option, "CLEARTEXT"))
       con_cleartext_enable= 1;
-    else if (!strncmp(con_options, "SOCKET", 6))
+    else if (!strcmp(cur_con_option, "SOCKET"))
       con_socket= 1;
-    else if (!strncmp(con_options, "TCP", 3))
+    else if (!strcmp(cur_con_option, "TCP"))
       con_tcp= 1;
     else
-      die("Illegal option to connect: %.*s", 
-          (int) (end - con_options), con_options);
+      die("Illegal option to connect: %s", cur_con_option);
+
     /* Process next option */
     con_options= end;
   }
