@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -676,13 +676,13 @@ net_real_write(NET *net,const uchar *packet, size_t len)
 		  my_progname);
 #endif /* EXTRA_DEBUG */
       }
-#if defined(THREAD_SAFE_CLIENT) && !defined(MYSQL_SERVER)
+#ifndef MYSQL_SERVER
       if (vio_errno(net->vio) == SOCKET_EINTR)
       {
 	DBUG_PRINT("warning",("Interrupted write. Retrying..."));
 	continue;
       }
-#endif /* defined(THREAD_SAFE_CLIENT) && !defined(MYSQL_SERVER) */
+#endif /* !defined(MYSQL_SERVER) */
       net->error= 2;				/* Close socket */
       net->last_errno= (interrupted ? ER_NET_WRITE_INTERRUPTED :
                                ER_NET_ERROR_ON_WRITE);
@@ -887,8 +887,9 @@ my_real_read(NET *net, size_t *complen)
 		    my_progname,vio_errno(net->vio));
 #endif /* EXTRA_DEBUG */
 	  }
-#if defined(THREAD_SAFE_CLIENT) && !defined(MYSQL_SERVER)
-	  if (vio_errno(net->vio) == SOCKET_EINTR)
+#ifndef MYSQL_SERVER
+	  if (static_cast<long>(length) < 0 &&
+              vio_errno(net->vio) == SOCKET_EINTR)
 	  {
 	    DBUG_PRINT("warning",("Interrupted read. Retrying..."));
 	    continue;

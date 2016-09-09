@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -849,6 +849,8 @@ int Gis_polygon::area(double *ar, const char **end_of_data) const
     if (no_data(data, 4))
       return 1;
     n_points= uint4korr(data);
+    if (n_points == 0)
+      return 1;
     if (not_enough_points(data, n_points))
       return 1;
     get_point(&prev_x, &prev_y, data+4);
