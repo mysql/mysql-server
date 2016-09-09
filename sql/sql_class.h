@@ -1562,6 +1562,8 @@ typedef I_List<Item_change_record> Item_change_list;
 /**
   Type of locked tables mode.
   See comment for THD::locked_tables_mode for complete description.
+  While adding new enum values add them to the getter method for this enum
+  declared below and defined in sql_class.cc as well.
 */
 
 enum enum_locked_tables_mode
@@ -1572,6 +1574,15 @@ enum enum_locked_tables_mode
   LTM_PRELOCKED_UNDER_LOCK_TABLES
 };
 
+#ifndef DBUG_OFF
+/**
+  Getter for the enum enum_locked_tables_mode
+  @param locked_tables_mode enum for types of locked tables mode
+
+  @return The string represantation of that enum value
+*/
+const char * get_locked_tables_mode_name(enum_locked_tables_mode locked_tables_mode);
+#endif
 
 /**
   Class that holds information about tables which were opened and locked

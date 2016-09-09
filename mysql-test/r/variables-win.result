@@ -1,0 +1,11 @@
+#
+# Bug #23747899: @@basedir sysvar value not normalized if set through
+#  the command line/ini file
+# There should be no slashes in @@basedir and just backslashes
+#   since it's normalized
+SELECT
+LOCATE('/', @@basedir) <> 0 AS have_slashes,
+LOCATE('\\', @@basedir) <> 0 AS have_backslashes;
+have_slashes	have_backslashes
+0	1
+End of the 5.6 tests

@@ -4120,6 +4120,22 @@ int init_common_variables()
   if (!opt_slow_logname || !*opt_slow_logname)
     opt_slow_logname= make_default_log_name(slow_logname_path, "-slow.log");
 
+  if (opt_logname &&
+      !is_valid_log_name(opt_logname, strlen(opt_logname)))
+  {
+    sql_print_error("Invalid value for --general_log_file: %s",
+                    opt_logname);
+    return 1;
+  }
+
+  if (opt_slow_logname &&
+      !is_valid_log_name(opt_slow_logname, strlen(opt_slow_logname)))
+  {
+    sql_print_error("Invalid value for --slow_query_log_file: %s",
+                    opt_slow_logname);
+    return 1;
+  }
+
 #if defined(ENABLED_DEBUG_SYNC)
   /* Initialize the debug sync facility. See debug_sync.cc. */
   if (debug_sync_init())
@@ -8427,6 +8443,7 @@ mysqld_get_one_option(int optid,
     break;
   case 'b':
     strmake(mysql_home,argument,sizeof(mysql_home)-1);
+    mysql_home_ptr= mysql_home;
     break;
   case 'C':
     if (default_collation_name == compiled_default_collation_name)
