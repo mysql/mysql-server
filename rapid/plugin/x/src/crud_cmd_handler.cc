@@ -55,7 +55,7 @@ ngs::Error_code xpl::Crud_command_handler::execute_crud_insert(Session &session,
     return error;
 
   Sql_data_context::Result_info info;
-  error = session.data_context().execute_sql_no_result(m_qb.get(), info);
+  error = session.data_context().execute_sql_no_result(m_qb.get().data(), m_qb.get().length(), info);
   if (error)
     return error_handling_insert(error, msg);
 
@@ -106,7 +106,7 @@ ngs::Error_code xpl::Crud_command_handler::execute_crud_update(Session &session,
     return error;
 
   Sql_data_context::Result_info info;
-  error = session.data_context().execute_sql_no_result(m_qb.get(), info);
+  error = session.data_context().execute_sql_no_result(m_qb.get().data(), m_qb.get().length(), info);
   if (error)
     return error_handling_update(error, msg);
 
@@ -146,7 +146,7 @@ ngs::Error_code xpl::Crud_command_handler::execute_crud_delete(Session &session,
     return error;
 
   Sql_data_context::Result_info info;
-  error = session.data_context().execute_sql_no_result(m_qb.get(), info);
+  error = session.data_context().execute_sql_no_result(m_qb.get().data(), m_qb.get().length(), info);
   if (error)
     return error;
 
@@ -170,7 +170,7 @@ ngs::Error_code xpl::Crud_command_handler::execute_crud_find(Session &session, c
     return error;
 
   Sql_data_context::Result_info info;
-  error = session.data_context().execute_sql_and_stream_results(m_qb.get(), false, info);
+  error = session.data_context().execute_sql_and_stream_results(m_qb.get().data(), m_qb.get().length(), false, info);
   if (error)
     return error_handling_find(error, msg);
 

@@ -23,15 +23,16 @@
 #include <boost/interprocess/smart_ptr/unique_ptr.hpp>
 #include <boost/function.hpp>
 #include <boost/none.hpp>
+#include <boost/make_shared.hpp>
 
-template <typename ArrayType>
-void Memory_delete_array(ArrayType* array_ptr)
+#include <mysql/plugin.h>
+
+namespace ngs
 {
-  delete[] array_ptr;
-}
+extern unsigned int x_psf_objects_key;
 
 template <typename Type>
-void Memory_delete(Type* ptr)
+void Custom_allocator_default_delete(Type* ptr)
 {
   delete ptr;
 }
@@ -50,7 +51,7 @@ struct Custom_allocator_with_check
 
   Custom_allocator_with_check()
   {
-    function = Memory_delete<Type>;
+    function = Custom_allocator_default_delete<Type>;
   }
 
   Custom_allocator_with_check(const boost::none_t &)
@@ -76,6 +77,7 @@ struct Custom_allocator_with_check
   typedef boost::interprocess::unique_ptr<Type, Custom_allocator_with_check<Type> > Unique_ptr;
 };
 
+// wrapper for boost unique ptr with default deallocator
 template<typename Type>
 struct Memory_new
 {
@@ -89,5 +91,161 @@ struct Memory_new
 
   typedef boost::interprocess::unique_ptr<Type, Unary_delete > Unique_ptr;
 };
+
+namespace detail
+{
+// PSF instrumented allocator class that can be used with STL objects
+template <class T>
+class PFS_allocator: public std::allocator<T>
+{
+public:
+  PFS_allocator()
+  {}
+
+  template <class U>
+  PFS_allocator(PFS_allocator<U> const &)
+  {}
+
+  template <class U>
+  struct rebind
+  {
+    typedef PFS_allocator<U> other;
+  };
+
+  T* allocate(size_t n, const void* hint = 0)
+  {
+    return reinterpret_cast<T*>
+          (my_malloc(x_psf_objects_key, sizeof(T) * n, MYF(MY_WME) ));
+  }
+
+  void deallocate(T* ptr, size_t)
+  {
+    my_free(ptr);
+  }
+};
+
+} // namespace detail
+
+// instrumented deallocator
+template <class T>
+void free_object(T* ptr)
+{
+  if (ptr != NULL)
+  {
+    ptr->~T();
+    my_free(ptr);
+  }
+}
+
+// set of instrumented object allocators for different parameters number
+template <typename T>
+T* allocate_object()
+{
+  return new ( my_malloc( x_psf_objects_key, sizeof(T), MYF(MY_WME) ) ) T();
+}
+
+template <typename T, typename Arg1>
+T* allocate_object(Arg1 const & arg1)
+{
+  return new ( my_malloc( x_psf_objects_key, sizeof(T), MYF(MY_WME) ) ) T(arg1);
+}
+
+template <typename T, typename Arg1, typename Arg2>
+T* allocate_object(Arg1 const & arg1, Arg2 const & arg2)
+{
+  return new ( my_malloc( x_psf_objects_key, sizeof(T), MYF(MY_WME) ) ) T(arg1, arg2);
+}
+
+template <typename T, typename Arg1, typename Arg2, typename Arg3>
+T* allocate_object(Arg1 const & arg1, Arg2 const & arg2, Arg3 const & arg3)
+{
+  return new ( my_malloc( x_psf_objects_key, sizeof(T), MYF(MY_WME) ) ) T(arg1, arg2, arg3);
+}
+
+template <typename T, typename Arg1, typename Arg2, typename Arg3, typename Arg4>
+T* allocate_object(Arg1 const & arg1, Arg2 const & arg2, Arg3 const & arg3, Arg4 const & arg4)
+{
+  return new ( my_malloc( x_psf_objects_key, sizeof(T), MYF(MY_WME) ) ) T(arg1, arg2, arg3, arg4);
+}
+
+template <typename T>
+boost::shared_ptr<T> allocate_shared()
+{
+  return boost::allocate_shared<T>(detail::PFS_allocator<T>());
+}
+
+template <typename T, typename Arg1>
+boost::shared_ptr<T> allocate_shared(Arg1 const & arg1)
+{
+  return boost::allocate_shared<T>(detail::PFS_allocator<T>(), arg1);
+}
+
+template <typename T, typename Arg1, typename Arg2>
+boost::shared_ptr<T> allocate_shared(Arg1 const & arg1, Arg2 const & arg2)
+{
+  return boost::allocate_shared<T>(detail::PFS_allocator<T>(), arg1, arg2);
+}
+
+template <typename T, typename Arg1, typename Arg2, typename Arg3>
+boost::shared_ptr<T> allocate_shared(Arg1 const & arg1, Arg2 const & arg2, Arg3 const & arg3)
+{
+  return boost::allocate_shared<T>(detail::PFS_allocator<T>(), arg1, arg2, arg3);
+}
+
+template <typename T, typename Arg1, typename Arg2, typename Arg3, typename Arg4>
+boost::shared_ptr<T> allocate_shared(Arg1 const & arg1, Arg2 const & arg2, Arg3 const & arg3, Arg4 const & arg4)
+{
+  return boost::allocate_shared<T>(detail::PFS_allocator<T>(), arg1, arg2, arg3, arg4);
+}
+
+// allocates array of selected type using mysql server instrumentation
+template <typename ArrayType>
+void allocate_array(ArrayType*& array_ptr, std::size_t size, unsigned int psf_key)
+{
+  array_ptr = reinterpret_cast<ArrayType*>
+                (my_malloc(psf_key, sizeof(ArrayType)*size, 0));
+}
+
+// reallocates array of selected type using mysql server instrumentation
+// does simple allocate if null pointer passed
+template <typename ArrayType>
+void reallocate_array(ArrayType*& array_ptr, std::size_t size, unsigned int psf_key)
+{
+  if (NULL == array_ptr)
+  {
+    ngs::allocate_array(array_ptr, size, psf_key);
+    return;
+  }
+
+  array_ptr = reinterpret_cast<ArrayType*>
+                (my_realloc(psf_key, array_ptr, sizeof(ArrayType)*size, 0));
+}
+
+// frees array of selected type using mysql server instrumentation
+template <typename ArrayType>
+void free_array(ArrayType* array_ptr)
+{
+  my_free(array_ptr);
+}
+
+// wrapper for boost unique ptr with instrumented default deallocator
+template<typename Type>
+struct Memory_instrumented
+{
+  struct Unary_delete
+  {
+    void operator() (Type *ptr)
+    {
+      free_object(ptr);
+    }
+  };
+
+  typedef boost::interprocess::unique_ptr<Type, Unary_delete > Unique_ptr;
+};
+
+// PSF instrumented string
+typedef std::basic_string<char, std::char_traits<char>, detail::PFS_allocator<char> > PFS_string;
+
+} // namespace ngs
 
 #endif // _NGS_MEMORY_H_

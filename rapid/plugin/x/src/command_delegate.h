@@ -73,6 +73,7 @@ namespace xpl
       m_streaming_metadata = false;
       m_field_types.clear();
       m_got_eof = false;
+      m_message = "";
     }
 
     const st_command_service_cbs *callbacks() const

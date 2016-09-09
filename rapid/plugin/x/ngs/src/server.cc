@@ -289,7 +289,7 @@ void Server::on_accept(Connection_acceptor_interface &connection_acceptor)
     return;
   }
 
-  Connection_ptr connection(new ngs::Connection_vio(*m_ssl_context, vio));
+  Connection_ptr connection(ngs::allocate_shared<ngs::Connection_vio>(boost::ref(*m_ssl_context), vio));
   boost::shared_ptr<Client_interface> client(m_delegate->create_client(connection));
 
   if (m_delegate->will_accept_client(*client))
@@ -299,7 +299,7 @@ void Server::on_accept(Connection_acceptor_interface &connection_acceptor)
     // connection accepted, add to client list and start handshake etc
     m_client_list.add(client);
 
-    Scheduler_dynamic::Task *task = new Scheduler_dynamic::Task(boost::bind(&ngs::Client_interface::run, client,
+    Scheduler_dynamic::Task *task = ngs::allocate_object<Scheduler_dynamic::Task>(boost::bind(&ngs::Client_interface::run, client,
                     m_skip_name_resolve));
 
     const uint64_t client_id = client->client_id_num();
@@ -309,7 +309,7 @@ void Server::on_accept(Connection_acceptor_interface &connection_acceptor)
     if (!m_worker_scheduler->post(task))
     {
       log_error("Internal error scheduling client for execution");
-      delete task;
+      ngs::free_object(task);
       m_client_list.remove(client_id);
     }
 

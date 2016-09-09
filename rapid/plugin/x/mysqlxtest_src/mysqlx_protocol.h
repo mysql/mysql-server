@@ -205,9 +205,9 @@ namespace mysqlx
       ca(NULL),
       ca_path(NULL),
       cert(NULL),
-      cipher(NULL)
+      cipher(NULL),
+      tls_version(NULL)
     {
-      tls_version = NULL;
     }
 
     const char *key;

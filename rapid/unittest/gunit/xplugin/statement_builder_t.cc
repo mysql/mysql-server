@@ -86,7 +86,7 @@ public:
 TEST_F(Statement_builder_test, build_no_throw)
 {
   EXPECT_EQ(ngs::Error_code(), builder.build());
-  EXPECT_EQ(std::string("ok"), query.get());
+  EXPECT_EQ(ngs::PFS_string("ok"), query.get());
 }
 
 
@@ -288,6 +288,7 @@ TEST_F(Statement_builder_test, add_limit_forbbiden_offset)
   limit << "row_count: 2 offset: 5";
   EXPECT_THROW(builder.add_limit(limit, true), ngs::Error_code);
 }
+
 
 } // namespace test
 } // namespace xpl

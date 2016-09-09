@@ -64,7 +64,7 @@ namespace xpl
 
       void setup_field_types(const char *value)
       {
-        Field_value *filed_value = new Field_value(value, strlen(value));
+        Field_value *filed_value = ngs::allocate_object<Field_value>(value, strlen(value));
         Command_delegate::Field_type field_type = {MYSQL_TYPE_STRING};
 
         m_row_data.fields.push_back(filed_value);
@@ -73,7 +73,7 @@ namespace xpl
 
       void setup_field_types(const longlong value)
       {
-        Field_value *filed_value = new Field_value(value);
+        Field_value *filed_value = ngs::allocate_object<Field_value>(value);
         Command_delegate::Field_type field_type = {MYSQL_TYPE_LONGLONG};
 
         m_row_data.fields.push_back(filed_value);
@@ -190,7 +190,7 @@ namespace xpl
       setup_db_user(USER_IP);
       setup_no_ssl();
 
-      delete m_row_data.fields[GetParam()];
+      ngs::free_object(m_row_data.fields[GetParam()]);
       m_row_data.fields[GetParam()] = NULL;
 
       ASSERT_FALSE((*m_sut)(m_row_data));

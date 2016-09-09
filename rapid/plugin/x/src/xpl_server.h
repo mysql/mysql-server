@@ -87,12 +87,12 @@ public:
   std::string get_socket_file();
 
   typedef ngs::Locked_container<Server, ngs::RWLock_readlock, ngs::RWLock> Server_with_lock;
-  typedef Memory_new<Server_with_lock>::Unique_ptr Server_ref;
+  typedef ngs::Memory_instrumented<Server_with_lock>::Unique_ptr Server_ref;
 
   static Server_ref get_instance()
   {
     //TODO: ngs::Locked_container add container that supports shared_ptrs
-    return instance ? Server_ref(new Server_with_lock(*instance, instance_rwl)) : Server_ref();
+    return instance ? Server_ref(ngs::allocate_object<Server_with_lock>(boost::ref(*instance), boost::ref(instance_rwl))) : Server_ref();
   }
 
 private:

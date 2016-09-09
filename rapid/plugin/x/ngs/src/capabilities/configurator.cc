@@ -51,7 +51,7 @@ void Capabilities_configurator::add_handler(Capability_handler_ptr handler)
 
 Capabilities *Capabilities_configurator::get()
 {
-  Capabilities          *result = new Capabilities();
+  Capabilities          *result = ngs::allocate_object<Capabilities>();
   Handler_ptrs_iterator  i = m_capabilities.begin();
 
   while (i !=m_capabilities.end())
