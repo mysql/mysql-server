@@ -137,7 +137,7 @@ start () {
 	rc_failed 6 ; rc_status -v ; rc_exit
     fi
 
-    $PROG --basedir=/usr --datadir="$datadir" --pid-file="$pidfile" >/dev/null 2>&1 &
+    $PROG --basedir=/usr --datadir="$datadir" --pid-file="$pidfile" >/dev/null &
     if pinger $! ; then
 	echo -n "Starting service MySQL:"
 	touch $lockfile
