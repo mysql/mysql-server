@@ -2044,6 +2044,10 @@ files_checked:
 
 		purge_queue = trx_sys_init_at_db_start();
 
+		DBUG_EXECUTE_IF("check_no_undo",
+				ut_ad(purge_queue->empty());
+				);
+
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys and trx lists were
 		initialized in trx_sys_init_at_db_start(). */
