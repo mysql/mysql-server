@@ -613,7 +613,7 @@ row_log_table_delete(
 		&old_pk_extra_size);
 	ut_ad(old_pk_extra_size < 0x100);
 
-	mrec_size = 4 + old_pk_size;
+	mrec_size = 6 + old_pk_size;
 
 	/* Log enough prefix of the BLOB unless both the
 	old and new table are in COMPACT or REDUNDANT format,
@@ -643,8 +643,8 @@ row_log_table_delete(
 		*b++ = static_cast<byte>(old_pk_extra_size);
 
 		/* Log the size of external prefix we saved */
-		mach_write_to_2(b, ext_size);
-		b += 2;
+		mach_write_to_4(b, ext_size);
+		b += 4;
 
 		rec_convert_dtuple_to_temp(
 			b + old_pk_extra_size, new_index,
@@ -2268,14 +2268,14 @@ row_log_table_apply_op(
 		break;
 
 	case ROW_T_DELETE:
-		/* 1 (extra_size) + 2 (ext_size) + at least 1 (payload) */
-		if (mrec + 4 >= mrec_end) {
+		/* 1 (extra_size) + 4 (ext_size) + at least 1 (payload) */
+		if (mrec + 6 >= mrec_end) {
 			return(NULL);
 		}
 
 		extra_size = *mrec++;
-		ext_size = mach_read_from_2(mrec);
-		mrec += 2;
+		ext_size = mach_read_from_4(mrec);
+		mrec += 4;
 		ut_ad(mrec < mrec_end);
 
 		/* We assume extra_size < 0x100 for the PRIMARY KEY prefix.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1494,6 +1494,78 @@ bool MYSQL_LOG::init_and_set_log_file_name(const char *log_name,
 }
 
 
+bool is_valid_log_name(const char *name, size_t len)
+{
+  if (len > 3)
+  {
+    const char *tail= name + len - 4;
+    if (my_strcasecmp(system_charset_info, tail, ".ini") == 0 ||
+        my_strcasecmp(system_charset_info, tail, ".cnf") == 0)
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+
+/**
+  Get the real log file name, and possibly reopen file.
+
+  Use realpath() to get the path with symbolic links
+  expanded. Then, close the file, and reopen the real path using the
+  O_NOFOLLOW flag. This will reject following symbolic links.
+
+  @param          file                  File descriptor.
+  @param          log_file_key          Key for P_S instrumentation.
+  @param          open_flags            Flags to use for opening the file.
+  @param          opened_file_name      Name of the open fd.
+
+  @retval file descriptor to open file with 'real_file_name', or '-1'
+          in case of errors.
+*/
+
+#ifndef _WIN32
+static File mysql_file_real_name_reopen(File file,
+#ifdef HAVE_PSI_INTERFACE
+                                        PSI_file_key log_file_key,
+#endif
+                                        int open_flags,
+                                        const char *opened_file_name)
+{
+  DBUG_ASSERT(file);
+  DBUG_ASSERT(opened_file_name);
+
+  /* Buffer for realpath must have capacity for PATH_MAX. */
+  char real_file_name[PATH_MAX];
+
+  /* Get realpath, validate, open realpath with O_NOFOLLOW. */
+  if (realpath(opened_file_name, real_file_name) == NULL)
+  {
+    (void) mysql_file_close(file, MYF(0));
+    return -1;
+  }
+
+  if (mysql_file_close(file, MYF(0)))
+    return -1;
+
+  if (strlen(real_file_name) > FN_REFLEN)
+    return -1;
+
+  if (!is_valid_log_name(real_file_name, strlen(real_file_name)))
+  {
+    sql_print_error("Invalid log file name after expanding symlinks: '%s'",
+                    real_file_name);
+    return -1;
+  }
+
+  return mysql_file_open(log_file_key, real_file_name,
+                         open_flags | O_NOFOLLOW,
+                         MYF(MY_WME | ME_WAITTANG));
+}
+#endif // _WIN32
+
+
 /*
   Open a (new) log file.
 
@@ -1563,6 +1635,18 @@ bool MYSQL_LOG::open(
                              log_file_name, open_flags,
                              MYF(MY_WME | ME_WAITTANG))) < 0)
     goto err;
+
+#ifndef _WIN32
+  /* Reopen and validate path. */
+  if ((log_type_arg == LOG_UNKNOWN || log_type_arg == LOG_NORMAL) &&
+      (file= mysql_file_real_name_reopen(file,
+#ifdef HAVE_PSI_INTERFACE
+                                         log_file_key,
+#endif
+                                         open_flags,
+                                         log_file_name)) < 0)
+    goto err;
+#endif // _WIN32
 
   if ((pos= mysql_file_tell(file, MYF(MY_WME))) == MY_FILEPOS_ERROR)
   {

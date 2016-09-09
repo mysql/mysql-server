@@ -452,7 +452,7 @@ int mysql_update(THD *thd,
   /* Update the table->file->stats.records number */
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
-  table->mark_columns_needed_for_update();
+  table->mark_columns_needed_for_update(false/*mark_binlog_columns=false*/);
   select= make_select(table, 0, 0, conds, 0, &error);
 
   { // Enter scope for optimizer trace wrapper
@@ -530,7 +530,7 @@ int mysql_update(THD *thd,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   used_key_is_modified|= partition_key_modified(table, table->write_set);
 #endif
-
+  table->mark_columns_per_binlog_row_image();
   using_filesort= order && (need_sort||used_key_is_modified);
   if (thd->lex->describe)
   {
@@ -1859,12 +1859,12 @@ multi_update::initialize_tables(JOIN *join)
     {
       if (safe_update_on_fly(thd, join->join_tab, table_ref, all_tables))
       {
-        table->mark_columns_needed_for_update();
+        table->mark_columns_needed_for_update(true/*mark_binlog_columns=true*/);
 	table_to_update= table;			// Update table on the fly
 	continue;
       }
     }
-    table->mark_columns_needed_for_update();
+    table->mark_columns_needed_for_update(true/*mark_binlog_columns=true*/);
 
     /*
       enable uncacheable flag if we update a view with check option
