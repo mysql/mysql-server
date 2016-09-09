@@ -119,7 +119,7 @@ void Scheduler_dynamic::stop()
       Task* task = NULL;
 
       if (m_tasks.pop(task))
-        delete task;
+        ngs::free_object(task);
     }
 
     m_worker_pending_cond.broadcast(m_worker_pending_mutex);
@@ -172,12 +172,13 @@ bool Scheduler_dynamic::post(Task* task)
 
 bool Scheduler_dynamic::post(const Task& task)
 {
-  Task *copy_task = new (std::nothrow) Task(task);
+  Task *copy_task = ngs::allocate_object<Task>(task);
 
   if (post(copy_task))
     return true;
 
-  delete copy_task;
+  ngs::free_object(copy_task);
+
   return false;
 }
 
@@ -188,7 +189,7 @@ bool Scheduler_dynamic::post_and_wait(const Task& task_to_be_posted)
 
   {
     ngs::Scheduler_dynamic::Task task = boost::bind(&Wait_for_signal::Signal_when_done::execute,
-                                                    boost::make_shared<ngs::Wait_for_signal::Signal_when_done>(boost::ref(future), task_to_be_posted));
+            ngs::allocate_shared<ngs::Wait_for_signal::Signal_when_done>(boost::ref(future), task_to_be_posted));
 
     if (!post(task))
     {
@@ -293,7 +294,7 @@ void *Scheduler_dynamic::worker()
 
         if (task_available && task)
         {
-          Memory_new<Task>::Unique_ptr task_ptr(task);
+          ngs::Memory_instrumented<Task>::Unique_ptr task_ptr(task);
           thread_waiting_time = TIME_VALUE_NOT_VALID;
 
           (*task_ptr)();

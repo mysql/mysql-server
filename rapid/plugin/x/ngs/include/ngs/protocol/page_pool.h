@@ -53,13 +53,13 @@ namespace ngs
     Page(uint32_t pcapacity = BUFFER_PAGE_SIZE)
     {
       capacity = pcapacity;
-      data = new char[capacity];
+      ngs::allocate_array(data, capacity, KEY_memory_x_recv_buffer);
       length = 0;
       references = 0;
       saved_length = 0;
     }
 
-    virtual ~Page() { Memory_delete_array(data); }
+    virtual ~Page() { ngs::free_array(data); }
 
     void aquire() {  ++references; }
     void release() { if (0 == --references) destroy(); }

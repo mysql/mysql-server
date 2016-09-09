@@ -52,7 +52,7 @@ Client::Client(ngs::Connection_ptr connection, ngs::Server_interface &server, Cl
 
 Client::~Client()
 {
-  delete m_protocol_monitor;
+  ngs::free_object(m_protocol_monitor);
 }
 
 
@@ -87,9 +87,9 @@ ngs::Capabilities_configurator *Client::capabilities_configurator()
   ngs::Capabilities_configurator *caps = ngs::Client::capabilities_configurator();
 
   // add our capabilities
-  caps->add_handler(boost::make_shared<ngs::Capability_readonly_value>("node_type", "mysql"));
-  caps->add_handler(boost::make_shared<ngs::Capability_readonly_value>("plugin.version", MYSQLX_PLUGIN_VERSION_STRING));
-  caps->add_handler(boost::make_shared<Cap_handles_expired_passwords>(boost::ref(*this)));
+  caps->add_handler(ngs::allocate_shared<ngs::Capability_readonly_value>("node_type", "mysql"));
+  caps->add_handler(ngs::allocate_shared<ngs::Capability_readonly_value>("plugin.version", MYSQLX_PLUGIN_VERSION_STRING));
+  caps->add_handler(ngs::allocate_shared<Cap_handles_expired_passwords>(boost::ref(*this)));
 
   return caps;
 }

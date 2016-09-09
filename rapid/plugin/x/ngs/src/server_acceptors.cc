@@ -126,7 +126,7 @@ Server_acceptors::Server_acceptors(
   m_unix_socket(listener_factory.create_unix_socket_listener(unix_socket_file_or_named_pipe, m_event, backlog)),
 #endif
   m_time_and_event_state(State_listener_initializing),
-  m_time_and_event_task(new Server_task_time_and_event(m_event, m_time_and_event_state))
+  m_time_and_event_task(ngs::allocate_shared<Server_task_time_and_event>(boost::ref(m_event), boost::ref(m_time_and_event_state)))
 {
 }
 
@@ -254,7 +254,7 @@ Server_tasks_interfaces Server_acceptors::create_server_tasks_for_listeners()
       continue;
     }
 
-    boost::shared_ptr<Server_task_interface> handler(new details::Server_task_listener(*listener));
+    boost::shared_ptr<Server_task_interface> handler(ngs::allocate_shared<details::Server_task_listener>(boost::ref(*listener)));
     handlers.push_back(handler);
   }
 

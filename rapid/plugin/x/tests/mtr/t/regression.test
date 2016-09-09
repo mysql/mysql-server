@@ -162,12 +162,21 @@ EOF
 -->title -Bug Crash when sending an invalid message of type Find, for example
 
 -->repeat 10
+
 -->newsession foo
 # send a Find message with missing fields
 -->binsend \x01\x00\x00\x00\x11
 # expect a protobuf decode error
 -->recverror 5000
 -->closesession abort
+
+-->newsession foo	-
+# send a CapabilitySet message with missing fields
+-->binsend \x01\x00\x00\x00\x02
+# expect a protobuf decode error
+-->recverror 5000
+-->closesession abort
+
 -->endrepeat
 
 EOF

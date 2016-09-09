@@ -25,7 +25,7 @@ using namespace ngs;
 class Connection_acceptor_socket : public Connection_acceptor_interface
 {
 public:
-  Connection_acceptor_socket(const my_socket listener)
+  Connection_acceptor_socket(const MYSQL_SOCKET listener)
   : m_socket_listener(listener)
   {
   }
@@ -36,22 +36,22 @@ public:
     sockaddr_storage accept_address;
     int err = 0;
     std::string strerr;
-    my_socket sock = INVALID_SOCKET;
+    MYSQL_SOCKET sock = {INVALID_SOCKET, NULL};
 
     for (int i = 0; i < MAX_ACCEPT_REATTEMPT; ++i)
     {
       socklen_t accept_len = sizeof(accept_address);
       sock = Connection_vio::accept(m_socket_listener, (struct sockaddr*)&accept_address, accept_len, err, strerr);
 
-      if (INVALID_SOCKET != sock)
+      if (INVALID_SOCKET != mysql_socket_getfd(sock))
         break;
     }
 
-    if (INVALID_SOCKET == sock)
+    if (INVALID_SOCKET == mysql_socket_getfd(sock))
       return NULL;
 
     const bool is_tcpip = (accept_address.ss_family == AF_INET || accept_address.ss_family == AF_INET6);
-    vio = vio_new(sock, is_tcpip ? VIO_TYPE_TCPIP : VIO_TYPE_SOCKET, 0);
+    vio = mysql_socket_vio_new(sock, is_tcpip ? VIO_TYPE_TCPIP : VIO_TYPE_SOCKET, 0);
     if (!vio)
       throw std::bad_alloc();
 
@@ -63,7 +63,7 @@ public:
   }
 
 private:
-  my_socket m_socket_listener;
+  MYSQL_SOCKET m_socket_listener;
   static const int MAX_ACCEPT_REATTEMPT = 10;
 };
 
@@ -78,7 +78,7 @@ struct Time_and_socket_events::Timer_data
   static void free(Timer_data *data)
   {
     evtimer_del(&data->ev);
-    delete data;
+    ngs::free_object(data);
   }
 };
 
@@ -87,11 +87,12 @@ struct Time_and_socket_events::Socket_data
 {
   boost::function<void (Connection_acceptor_interface &)> callback;
   event ev;
+  MYSQL_SOCKET socket;
 
   static void free(Socket_data *data)
   {
     event_del(&data->ev);
-    delete data;
+    ngs::free_object(data);
   }
 };
 
@@ -118,14 +119,15 @@ Time_and_socket_events::~Time_and_socket_events()
 
 }
 
-bool Time_and_socket_events::listen(my_socket s, boost::function<void (Connection_acceptor_interface &)> callback)
+bool Time_and_socket_events::listen(MYSQL_SOCKET sock, boost::function<void (Connection_acceptor_interface &)> callback)
 {
-  m_socket_events.push_back(new Socket_data());
+  m_socket_events.push_back(ngs::allocate_object<Socket_data>());
   Socket_data *socket_event = m_socket_events.back();
 
   socket_event->callback = callback;
+  socket_event->socket = sock;
 
-  event_set(&socket_event->ev, static_cast<int>(s), EV_READ|EV_PERSIST, &Time_and_socket_events::socket_data_avaiable, socket_event);
+  event_set(&socket_event->ev, static_cast<int>(mysql_socket_getfd(sock)), EV_READ|EV_PERSIST, &Time_and_socket_events::socket_data_avaiable, socket_event);
   event_base_set(m_evbase, &socket_event->ev);
 
   return 0 == event_add(&socket_event->ev, NULL);
@@ -140,7 +142,7 @@ NOTE: This method may only be called from the same thread as the event loop.
 */
 void Time_and_socket_events::add_timer(const std::size_t delay_ms, boost::function<bool ()> callback)
 {
-  Timer_data *data = new Timer_data();
+  Timer_data *data = ngs::allocate_object<Timer_data>();
   data->tv.tv_sec = static_cast<long>(delay_ms / 1000);
   data->tv.tv_usec = (delay_ms % 1000) * 1000;
   data->callback = callback;
@@ -175,7 +177,7 @@ void Time_and_socket_events::timeout_call(int sock, short which, void *arg)
       data->self->m_timer_events.erase(std::remove(data->self->m_timer_events.begin(), data->self->m_timer_events.end(), data),
                 data->self->m_timer_events.end());
     }
-    delete data;
+    ngs::free_object(data);
   }
   else
   {
@@ -187,6 +189,6 @@ void Time_and_socket_events::timeout_call(int sock, short which, void *arg)
 void Time_and_socket_events::socket_data_avaiable(int sock, short which, void *arg)
 {
   Socket_data *data = (Socket_data*)arg;
-  Connection_acceptor_socket acceptor(sock);
+  Connection_acceptor_socket acceptor(data->socket);
   data->callback(acceptor);
 }

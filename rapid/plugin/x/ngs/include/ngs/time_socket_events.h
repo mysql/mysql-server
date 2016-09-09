@@ -45,7 +45,7 @@ public:
   Time_and_socket_events();
   ~Time_and_socket_events();
 
-  bool listen(my_socket s, boost::function<void (Connection_acceptor_interface &)> callback);
+  bool listen(MYSQL_SOCKET s, boost::function<void (Connection_acceptor_interface &)> callback);
 
   void add_timer(const std::size_t delay_ms, boost::function<bool ()> callback);
   void loop();

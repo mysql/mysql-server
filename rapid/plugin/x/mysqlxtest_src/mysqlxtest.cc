@@ -53,6 +53,7 @@
 #include "mysqlx_session.h"
 #include "mysqlx_resultset.h"
 #include "mysqlx_error.h"
+#include "dummy_stream.h"
 
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
@@ -89,6 +90,7 @@ bool OPT_bindump = false;
 bool OPT_show_warnings = false;
 bool OPT_fatal_errors = false;
 bool OPT_verbose = false;
+bool OPT_query = true;
 #ifndef _WIN32
 bool OPT_color = false;
 #endif
@@ -107,6 +109,16 @@ static std::list<std::string> variables_to_unreplace;
 
 static void ignore_traces_from_libraries(enum loglevel ll, const char *format, va_list args)
 {
+}
+
+static std::ostream &get_stream_for_results(const bool force_quiet = false)
+{
+  if (OPT_query && !force_quiet)
+    return std::cout;
+
+  static Dummy_stream dummy;
+
+  return dummy;
 }
 
 static void replace_all(std::string &input, const std::string &to_find, const std::string &change_to)
@@ -192,7 +204,8 @@ static void dumpx(const mysqlx::Error &exc)
 
 static void print_columndata(const std::vector<mysqlx::ColumnMetadata> &meta);
 static void print_result_set(mysqlx::Result &result);
-static void print_result_set(mysqlx::Result &result, const std::vector<std::string> &columns, Value_callback value_callback = Value_callback());
+static void print_result_set(mysqlx::Result &result, const std::vector<std::string> &columns,
+                             Value_callback value_callback = Value_callback(), bool quiet = false);
 
 static std::string message_to_text(const mysqlx::Message &message);
 
@@ -837,7 +850,6 @@ public:
     m_commands["recvtype "]   = &Command::cmd_recvtype;
     m_commands["recverror "]  = &Command::cmd_recverror;
     m_commands["recvresult"]  = &Command::cmd_recvresult;
-    m_commands["recvresult "] = &Command::cmd_recvresult;
     m_commands["recvtovar "]  = &Command::cmd_recvtovar;
     m_commands["recvuntil "]  = &Command::cmd_recvuntil;
     m_commands["recvuntildisc"] = &Command::cmd_recv_all_until_disc;
@@ -878,6 +890,12 @@ public:
     m_commands["binsendoffset "] = &Command::cmd_binsendoffset;
     m_commands["callmacro "]   = &Command::cmd_callmacro;
     m_commands["import "]      = &Command::cmd_import;
+    m_commands["assert_eq "]      = &Command::cmd_assert_eq;
+    m_commands["assert_gt "]      = &Command::cmd_assert_gt;
+    m_commands["assert_ge "]      = &Command::cmd_assert_ge;
+    m_commands["query_result"]      = &Command::cmd_query;
+    m_commands["noquery_result"]      = &Command::cmd_noquery;
+    m_commands["wait_for "]      = &Command::cmd_wait_for;
   }
 
   bool is_command_syntax(const std::string &cmd) const
@@ -1070,11 +1088,16 @@ private:
 
       std::vector<std::string>::iterator i = std::find(columns.begin(), columns.end(), "print-columnsinfo");
       const bool print_colinfo = i != columns.end();
-      if (print_colinfo)
-        columns.erase(i);
+      if (print_colinfo) columns.erase(i);
+
+      i = std::find(columns.begin(), columns.end(), "be-quiet");
+      const bool quiet = i != columns.end();
+      if (quiet) columns.erase(i);
+
+      std::ostream &out = get_stream_for_results(quiet);
 
       result = context.connection()->recv_result();
-      print_result_set(*result, columns, value_callback);
+      print_result_set(*result, columns, value_callback, quiet);
 
       if (print_colinfo)
         print_columndata(*result->columnMetadata());
@@ -1082,21 +1105,21 @@ private:
       variables_to_unreplace.clear();
       int64_t x = result->affectedRows();
       if (x >= 0)
-        std::cout << x << " rows affected\n";
+        out << x << " rows affected\n";
       else
-        std::cout << "command ok\n";
+        out << "command ok\n";
       if (result->lastInsertId() > 0)
-        std::cout << "last insert id: " << result->lastInsertId() << "\n";
+        out << "last insert id: " << result->lastInsertId() << "\n";
       if (!result->infoMessage().empty())
-        std::cout << result->infoMessage() << "\n";
+        out << result->infoMessage() << "\n";
       {
         std::vector<mysqlx::Result::Warning> warnings(result->getWarnings());
         if (!warnings.empty())
-          std::cout << "Warnings generated:\n";
+          out << "Warnings generated:\n";
         for (std::vector<mysqlx::Result::Warning>::const_iterator w = warnings.begin();
             w != warnings.end(); ++w)
         {
-          std::cout << (w->is_note ? "NOTE" : "WARNING") << " | " << w->code << " | " << w->text << "\n";
+          out << (w->is_note ? "NOTE" : "WARNING") << " | " << w->code << " | " << w->text << "\n";
         }
       }
 
@@ -1679,10 +1702,14 @@ private:
 
   Result cmd_setsession(Execution_context &context, const std::string &args)
   {
-    if (!args.empty() && (args[0] == ' ' || args[0] == '\t'))
-      context.m_cm->set_active(args.substr(1));
+    std::string s = args;
+
+    replace_variables(s);
+
+    if (!s.empty() && (s[0] == ' ' || s[0] == '\t'))
+      context.m_cm->set_active(s.substr(1));
     else
-      context.m_cm->set_active(args);
+      context.m_cm->set_active(s);
     return Continue;
   }
 
@@ -1824,8 +1851,12 @@ private:
 
     std::string val = variables[argl[0]];
     char* c;
+    std::string inc_by = argl[1].c_str();
+
+    replace_variables(inc_by);
+
     long int_val = strtol(val.c_str(), &c, 10);
-    long int_n = strtol(argl[1].c_str(), &c, 10);
+    long int_n = strtol(inc_by.c_str(), &c, 10);
     int_val += int_n;
     val = boost::lexical_cast<std::string>(int_val);
     variables[argl[0]] = val;
@@ -1980,6 +2011,168 @@ private:
     if (Macro::call(context, args))
       return Continue;
     return Stop_with_failure;
+  }
+
+  Result cmd_assert_eq(Execution_context &context, const std::string &args)
+  {
+    std::vector<std::string> vargs;
+
+    boost::split(vargs, args, boost::is_any_of("\t"), boost::token_compress_on);
+
+    if (2 != vargs.size())
+    {
+      std::cerr << "Specified invalid number of arguments for command assert_eq:" << vargs.size() << " expecting 2\n";
+      return Stop_with_failure;
+    }
+
+    replace_variables(vargs[0]);
+    replace_variables(vargs[1]);
+
+    if (vargs[0] != vargs[1])
+    {
+      std::cerr << "Expecting '" << vargs[0] << "', but received '" << vargs[1] << "'\n";
+      return Stop_with_failure;
+    }
+
+    return Continue;
+  }
+
+  Result cmd_assert_gt(Execution_context &context, const std::string &args)
+  {
+    std::vector<std::string> vargs;
+
+    boost::split(vargs, args, boost::is_any_of("\t"), boost::token_compress_on);
+
+    if (2 != vargs.size())
+    {
+      std::cerr << "Specified invalid number of arguments for command assert_gt:" << vargs.size() << " expecting 2\n";
+      return Stop_with_failure;
+    }
+
+    replace_variables(vargs[0]);
+    replace_variables(vargs[1]);
+
+    if (atoi(vargs[0].c_str()) <= atoi(vargs[1].c_str()))
+    {
+      std::cerr << "Expecting '" << vargs[0] << "' to be greater than '" << vargs[1] << "'\n";
+      return Stop_with_failure;
+    }
+
+    return Continue;
+  }
+
+  Result cmd_assert_ge(Execution_context &context, const std::string &args)
+  {
+    std::vector<std::string> vargs;
+
+    boost::split(vargs, args, boost::is_any_of("\t"), boost::token_compress_on);
+
+    if (2 != vargs.size())
+    {
+      std::cerr << "Specified invalid number of arguments for command assert_gt:" << vargs.size() << " expecting 2\n";
+      return Stop_with_failure;
+    }
+
+    replace_variables(vargs[0]);
+    replace_variables(vargs[1]);
+
+    if (atoi(vargs[0].c_str()) < atoi(vargs[1].c_str()))
+    {
+      std::cerr << "Expecting '" << vargs[0] << "' to be greater or equal to '" << vargs[1] << "'\n";
+      return Stop_with_failure;
+    }
+
+    return Continue;
+  }
+
+  Result cmd_query(Execution_context &context, const std::string &args)
+  {
+    OPT_query = true;
+    return Continue;
+  }
+
+  Result cmd_noquery(Execution_context &context, const std::string &args)
+  {
+    OPT_query = false;
+    return Continue;
+  }
+
+  static void compare_variable_to(bool &match, std::string expected_value, std::string value)
+  {
+    if (expected_value == value)
+    {
+      match = true;
+    }
+  }
+
+  static void try_result(Result result)
+  {
+    if (result != Continue)
+      throw result;
+  }
+
+  template <typename T>
+  class Backup_and_restore
+  {
+  public:
+    Backup_and_restore(T &variable, const T &temporaru_value)
+    : m_variable(variable), m_value(variable)
+    {
+      m_variable = temporaru_value;
+    }
+
+    ~Backup_and_restore()
+    {
+      m_variable = m_value;
+    }
+
+  private:
+    T &m_variable;
+    T m_value;
+  };
+
+  Result cmd_wait_for(Execution_context &context, const std::string &args)
+  {
+    bool match = false;
+    const int countdown_start_value = 30;
+    int  countdown_retries = countdown_start_value;
+
+    std::vector<std::string> vargs;
+
+    boost::split(vargs, args, boost::is_any_of("\t"), boost::token_compress_on);
+
+    if (2 != vargs.size())
+    {
+      std::cerr << "Specified invalid number of arguments for command wait_for:" << vargs.size() << " expecting 2\n";
+      return Stop_with_failure;
+    }
+
+    try
+    {
+      while(!match && countdown_retries--)
+      {
+        Backup_and_restore<bool>        backup_and_restore_fatal_errors(OPT_fatal_errors, true);
+        Backup_and_restore<bool>        backup_and_restore_query(OPT_query, false);
+        Backup_and_restore<std::string> backup_and_restore_command_name(context.m_command_name, "sql");
+
+        try_result(cmd_stmtsql(context, vargs[1]));
+        try_result(cmd_recvresult(context, "", boost::bind(&Command::compare_variable_to, boost::ref(match), vargs[0], _1)));
+        try_result(cmd_sleep(context,"1"));
+      }
+    }
+    catch(const Result result)
+    {
+      std::cerr << "'Wait_for' failed because one of subsequent commands failed\n";
+      return  result;
+    }
+
+    if (!match)
+    {
+      std::cerr << "Query didn't return expected value, tried " << countdown_start_value << " retries\n";
+      return Stop_with_failure;
+    }
+
+    return Continue;
   }
 
   Result cmd_import(Execution_context &context, const std::string &args);
@@ -2204,12 +2397,15 @@ static void print_columndata(const std::vector<mysqlx::ColumnMetadata> &meta)
   }
 }
 
-static void print_result_set(mysqlx::Result &result, const std::vector<std::string> &columns, Value_callback value_callback)
+static void print_result_set(mysqlx::Result &result, const std::vector<std::string> &columns,
+                             Value_callback value_callback, bool quiet)
 {
   boost::shared_ptr<std::vector<mysqlx::ColumnMetadata> > meta(result.columnMetadata());
   std::vector<int> column_indexes;
   int column_index = -1;
   bool first = true;
+
+  std::ostream &out = get_stream_for_results(quiet);
 
   for (std::vector<mysqlx::ColumnMetadata>::const_iterator col = meta->begin();
       col != meta->end(); ++col)
@@ -2217,7 +2413,7 @@ static void print_result_set(mysqlx::Result &result, const std::vector<std::stri
     ++column_index;
 
     if (!first)
-      std::cout << "\t";
+      out << "\t";
     else
       first = false;
 
@@ -2225,9 +2421,9 @@ static void print_result_set(mysqlx::Result &result, const std::vector<std::stri
       continue;
 
     column_indexes.push_back(column_index);
-    std::cout << col->name;
+    out << col->name;
   }
-  std::cout << "\n";
+  out << "\n";
 
   for (;;)
   {
@@ -2240,7 +2436,7 @@ static void print_result_set(mysqlx::Result &result, const std::vector<std::stri
     {
       int field = (*i);
       if (field != 0)
-        std::cout << "\t";
+        out << "\t";
 
       std::string result = get_field_value(row, field, meta);
 
@@ -2249,9 +2445,9 @@ static void print_result_set(mysqlx::Result &result, const std::vector<std::stri
         value_callback(result);
         value_callback.clear();
       }
-      std::cout << result;
+      out << result;
     }
-    std::cout << "\n";
+    out << "\n";
   }
 }
 
@@ -2798,7 +2994,7 @@ public:
     std::cout << "  Encodes the text format protobuf message and sends it to the server (allows variables).\n";
     std::cout << "-->recv [quiet]\n";
     std::cout << "  Read and print (if not quiet) one message from the server\n";
-    std::cout << "-->recvresult [print-columnsinfo]\n";
+    std::cout << "-->recvresult [print-columnsinfo] [be-quiet]\n";
     std::cout << "  Read and print one resultset from the server; if print-columnsinfo is present also print short columns status\n";
     std::cout << "-->recvtovar <varname>\n";
     std::cout << "  Read and print one resultset from the server and sets the variable from first row\n";
@@ -2808,7 +3004,7 @@ public:
     std::cout << "  Read one message and print it, checking that its type is the specified one\n";
     std::cout << "-->recvuntil <msgtype>\n";
     std::cout << "  Read messages and print them, until a msg of the specified type (or Error) is received\n";
-    std::cout << "-->repeat <N>\n";
+    std::cout << "-->repeat <N> [<VARIABLE_NAME>]\n";
     std::cout << "  Begin block of instructions that should be repeated N times\n";
     std::cout << "-->endrepeat\n";
     std::cout << "  End block of instructions that should be repeated - next iteration\n";
@@ -2845,6 +3041,14 @@ public:
     std::cout << "  Activate the named session\n";
     std::cout << "-->closesession [abort]\n";
     std::cout << "  Close the active session (unless its the default session)\n";
+    std::cout << "-->wait_for <VALUE_EXPECTED>\t<SQL QUERY>\n";
+    std::cout << "   Wait until SQL query returns value matches expected value (time limit 30 second)\n";
+    std::cout << "-->assert_eq <VALUE_EXPECTED>\t<VALUE_TESTED>\n";
+    std::cout << "   Ensure that 'TESTED' value equals 'EXPECTED' by comparing strings lexicographically\n";
+    std::cout << "-->assert_gt <VALUE_EXPECTED>\t<VALUE_TESTED>\n";
+    std::cout << "   Ensure that 'TESTED' value is greater than 'EXPECTED' (only when the both are numeric values)\n";
+    std::cout << "-->assert_ge <VALUE_EXPECTED>\t<VALUE_TESTED>\n";
+    std::cout << "   Ensure that 'TESTED' value is greater  or equal to 'EXPECTED' (only when the both are numeric values)\n";
     std::cout << "-->varfile <varname> <datafile>\n";
     std::cout << "   Assigns the contents of the file to the named variable\n";
     std::cout << "-->varlet <varname> <value>\n";
@@ -2863,6 +3067,8 @@ public:
     std::cout << "   Dump given message to variable %MESSAGE_DUMP%\n";
     std::cout << "-->quiet/noquiet\n";
     std::cout << "   Toggle verbose messages\n";
+    std::cout << "-->query_result/noquery_result\n";
+    std::cout << "   Toggle visibility for query results\n";
     std::cout << "# comment\n";
   }
 
@@ -3292,6 +3498,7 @@ static std::istream &get_input(My_command_line_options &opt, std::ifstream &file
   if (opt.has_file)
   {
     file.open(opt.run_file.c_str());
+    file.rdbuf()->pubsetbuf(NULL, 0);
 
     if (!file.is_open())
     {

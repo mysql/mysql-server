@@ -46,7 +46,7 @@ public:
     const int args_size = args.size();
 
     if (0 == args_size)
-      return execute(da, proto, show_warnings, compact_metadata, query);
+      return execute(da, proto, show_warnings, compact_metadata, query.data(), query.length());
 
     m_qb.clear();
     m_qb.put(query);
@@ -63,13 +63,14 @@ public:
       return error;
     }
 
-    return execute(da, proto, show_warnings, compact_metadata, m_qb.get());
+    return execute(da, proto, show_warnings, compact_metadata, m_qb.get().data(), m_qb.get().length());
   }
 
-  ngs::Error_code execute(xpl::Sql_data_context &da, ngs::Protocol_encoder &proto, const bool show_warnings, const bool compact_metadata, const std::string &query)
+  ngs::Error_code execute(xpl::Sql_data_context &da, ngs::Protocol_encoder &proto, const bool show_warnings, const bool compact_metadata,
+      const char* query, std::size_t query_len)
   {
     xpl::Sql_data_context::Result_info info;
-    ngs::Error_code error = da.execute_sql_and_stream_results(query, compact_metadata, info);
+    ngs::Error_code error = da.execute_sql_and_stream_results(query, query_len, compact_metadata, info);
 
     if (!error)
     {

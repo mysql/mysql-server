@@ -44,7 +44,7 @@ Protocol_encoder::Protocol_encoder(const boost::shared_ptr<Connection_vio> &sock
   m_error_handler(ehandler),
   m_protocol_monitor(&pmon)
 {
-  m_buffer.reset(new Output_buffer(m_pool));
+  m_buffer.reset(ngs::allocate_object<Output_buffer>(boost::ref(m_pool)));
 }
 
 Protocol_encoder::~Protocol_encoder()

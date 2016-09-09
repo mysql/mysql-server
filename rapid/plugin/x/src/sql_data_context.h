@@ -120,17 +120,17 @@ public:
   ngs::Error_code execute_kill_sql_session(uint64_t mysql_session_id);
 
   // can only be executed once authenticated
-  virtual ngs::Error_code execute_sql_no_result(const std::string &sql, Result_info &r_info);
-  virtual ngs::Error_code execute_sql_and_collect_results(const std::string &sql,
+  virtual ngs::Error_code execute_sql_no_result(const char *sql, std::size_t sql_len, Result_info &r_info);
+  virtual ngs::Error_code execute_sql_and_collect_results(const char *sql, std::size_t sql_len,
                                                           std::vector<Command_delegate::Field_type> &r_types,
                                                           Buffering_command_delegate::Resultset &r_rows,
                                                           Result_info &r_info);
-  virtual ngs::Error_code execute_sql_and_process_results(const std::string &sql,
+  virtual ngs::Error_code execute_sql_and_process_results(const char *sql, std::size_t sql_len,
                                                           const Callback_command_delegate::Start_row_callback &start_row,
                                                           const Callback_command_delegate::End_row_callback &end_row,
                                                           Result_info &r_info);
-  virtual ngs::Error_code execute_sql_and_stream_results(const std::string &sql, bool compact_metadata,
-                                                         Result_info &r_info);
+  virtual ngs::Error_code execute_sql_and_stream_results(const char *sql, std::size_t sql_len,
+                                                         bool compact_metadata, Result_info &r_info);
 
 private:
 
