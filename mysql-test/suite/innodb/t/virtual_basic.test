@@ -708,8 +708,7 @@ INSERT INTO t1 VALUES (5,DEFAULT,9);
 
 SELECT * FROM t1;
 
-# FIX_ME_NEW_DD: Enable this after partition integration
-#ALTER TABLE t1 REMOVE PARTITIONING;
+ALTER TABLE t1 REMOVE PARTITIONING;
 
 DROP TABLE t1;
 
@@ -735,8 +734,7 @@ insert into `t#P#1` values (19,DEFAULT,8);
 create index idx on `t#P#1` (bt);
 insert into `t#P#1` values (5,DEFAULT,9);
 select * from `t#P#1`;
-# FIX_ME_NEW_DD: Enable this after partition integration
-#alter table `t#P#1` remove partitioning;
+alter table `t#P#1` remove partitioning;
 drop table `t#P#1`;
 
 LET $row_format=DYNAMIC;
@@ -869,8 +867,7 @@ col_date_key, col_time_key, col_datetime_key)
                 )  AUTO_INCREMENT=10 ENGINE=INNODB PARTITION BY
 KEY(col_int_key) PARTITIONS 3;
 
-# FIX_ME_NEW_DD: Enable this after partition integration
-#ALTER TABLE t DROP COLUMN `pk`;
+ALTER TABLE t DROP COLUMN `pk`;
 
 SHOW CREATE TABLE t;
 
