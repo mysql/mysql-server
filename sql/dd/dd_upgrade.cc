@@ -351,17 +351,6 @@ static const TABLE_FIELD_DEF
   proc_table_def_old= {MYSQL_PROC_FIELD_COUNT, proc_table_fields_old};
 
 
-const std::vector<String_type> dd_table_names=
-    { "version", "character_sets", "collations", "tablespaces",
-      "tablespace_files", "catalogs", "schemata",
-      "st_spatial_reference_systems", "tables", "view_table_usage",
-      "view_routine_usage", "columns", "indexes", "index_column_usage",
-      "column_type_elements", "foreign_keys", "foreign_key_column_usage",
-      "table_partitions", "table_partition_values", "index_partitions",
-      "events", "routines", "parameters", "parameter_type_elements",
-      "triggers", "table_stats", "index_stats" };
-
-
 /**
   Class to handle loading and parsing of Triggers.
   This class is nececssary for loading triggers in
@@ -3561,8 +3550,25 @@ void create_metadata_backup(THD *thd)
 
 bool check_for_dd_tables()
 {
-  for (const String_type &table_name : dd_table_names)
+  // Iterate over DD tables, check .frm files
+  for (System_tables::Const_iterator it= System_tables::instance()->begin();
+       it != System_tables::instance()->end();
+       ++it)
   {
+    String_type table_name= (*it)->entity()->name();
+    String_type schema_name(MYSQL_SCHEMA_NAME.str);
+
+    const System_tables::Types *table_type= System_tables::instance()->
+      find_type(schema_name, table_name);
+
+    bool is_stats_table= (table_type != nullptr) &&
+                         (*table_type != System_tables::Types::CORE);
+    is_stats_table &= (strcmp(table_name.c_str(), "innodb_table_stats") == 0) ||
+                      (strcmp(table_name.c_str(), "innodb_index_stats") == 0);
+
+    if (is_stats_table)
+      continue;
+
     char path[FN_REFLEN+1];
     bool not_used;
     build_table_filename(path, sizeof(path) - 1, "mysql", table_name.c_str(),
@@ -3584,15 +3590,33 @@ bool check_for_dd_tables()
   Drop all Data Dictionary tables and all .SDI files created during upgrade.
 */
 
-void drop_dd_tables_and_sdi_files(THD *thd)
+void drop_dd_tables_and_sdi_files(THD *thd,
+       const System_tables::Const_iterator &last_table)
 {
   uint i, j;
   bool error;
 
   error= execute_query(thd, "SET FOREIGN_KEY_CHECKS= 0");
 
-  for (const String_type &table_name : dd_table_names)
+  // Iterate over DD tables, delete tables
+  for (System_tables::Const_iterator it= System_tables::instance()->begin();
+       it != last_table;
+       ++it)
   {
+    String_type table_name= (*it)->entity()->name();
+    String_type schema_name(MYSQL_SCHEMA_NAME.str);
+
+    const System_tables::Types *table_type= System_tables::instance()->
+      find_type(schema_name, table_name);
+
+    bool is_stats_table= (table_type != nullptr) &&
+                         (*table_type != System_tables::Types::CORE);
+    is_stats_table &= (strcmp(table_name.c_str(), "innodb_table_stats") == 0) ||
+                      (strcmp(table_name.c_str(), "innodb_index_stats") == 0);
+
+    if (is_stats_table)
+      continue;
+
     String_type query;
     query.assign("DROP TABLE mysql.");
     query= query + table_name;

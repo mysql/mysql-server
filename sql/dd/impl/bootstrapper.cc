@@ -455,7 +455,8 @@ static const dd::String_type stats_table_def(dd::String_type name)
   definition. Later, ALTER command is executed to fix these table
   definitions.
 */
-bool create_tables(THD *thd, bool is_dd_upgrade)
+bool create_tables(THD *thd, bool is_dd_upgrade,
+                   System_tables::Const_iterator *last_table)
 {
   // Iterate over DD tables, create tables.
   System_tables::Const_iterator it= System_tables::instance()->begin();
@@ -473,17 +474,37 @@ bool create_tables(THD *thd, bool is_dd_upgrade)
 
   for (; it != System_tables::instance()->end(); ++it)
   {
+    /*
+      Creation of dictionary tables can fail in there is already a entry in
+      InnoDB dictionary with the same name as of dictionary table. The iterator
+      tracks number of dictionary tables created to delete the same number of
+      tables while aborting upgrade.
+    */
+    if (last_table != nullptr)
+      *last_table= it;
+
     const Object_table_definition *table_def=
             (*it)->entity()->table_definition(thd);
 
-    dd::String_type name= (*it)->entity()->name();
+    String_type table_name= (*it)->entity()->name();
+    String_type schema_name(MYSQL_SCHEMA_NAME.str);
 
-    // Create stats table with 5.7 definition in case of upgrade
-    if (is_dd_upgrade &&
-        (strcmp(name.c_str(), "innodb_table_stats") == 0 ||
-         strcmp(name.c_str(), "innodb_index_stats") == 0))
+    const System_tables::Types *table_type= System_tables::instance()->
+      find_type(schema_name, table_name);
+
+    /*
+      Create innodb stats table with 5.7 definition in case of upgrade.
+      Check for innodb stats table by string comparision as other plugins might
+      create dictionary tables.
+    */
+    bool is_stats_table= (table_type != nullptr) &&
+                         (*table_type != System_tables::Types::CORE);
+    is_stats_table &= (strcmp(table_name.c_str(), "innodb_table_stats") == 0) ||
+                      (strcmp(table_name.c_str(), "innodb_index_stats") == 0);
+
+    if (is_dd_upgrade && is_stats_table)
     {
-      if (execute_query(thd, stats_table_def(name)))
+      if (execute_query(thd, stats_table_def(table_name)))
         return true;
     }
 
@@ -491,6 +512,10 @@ bool create_tables(THD *thd, bool is_dd_upgrade)
              execute_query(thd, table_def->build_ddl_create_table()))
       return true;
   }
+
+  // Set iterator to end of system tables
+  if (last_table != nullptr)
+    *last_table= System_tables::instance()->end();
   bootstrap_stage= bootstrap::BOOTSTRAP_CREATED;
 
   return false;
@@ -1005,10 +1030,11 @@ enum_bootstrap_stage stage()
 
 // Initialize the data dictionary.
 static bool initialize_dictionary(THD *thd, bool is_dd_upgrade,
-                                  Dictionary_impl *d)
+                                  Dictionary_impl *d,
+                                  System_tables::Const_iterator *last_table)
 {
   if (create_dd_schema(thd) ||
-      create_tables(thd, is_dd_upgrade) ||
+      create_tables(thd, is_dd_upgrade, last_table) ||
       DDSE_dict_recover(thd, DICT_RECOVERY_INITIALIZE_SERVER,
                         d->get_target_dd_version()) ||
       execute_query(thd, "SET FOREIGN_KEY_CHECKS= 0") ||
@@ -1051,7 +1077,7 @@ bool initialize(THD *thd)
   */
   if (DDSE_dict_init(thd, DICT_INIT_CREATE_FILES,
                      d->get_target_dd_version()) ||
-      initialize_dictionary(thd, false, d))
+      initialize_dictionary(thd, false, d, nullptr))
     return true;
 
   DBUG_ASSERT(d->get_target_dd_version() == d->get_actual_dd_version(thd));
@@ -1080,7 +1106,7 @@ bool restart(THD *thd)
   cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   if (create_dd_schema(thd) ||
-      create_tables(thd, false) ||
+      create_tables(thd, false, nullptr) ||
       read_meta_data(thd) ||
       DDSE_dict_recover(thd, DICT_RECOVERY_RESTART_SERVER,
                         d->get_actual_dd_version(thd)) ||
@@ -1112,6 +1138,21 @@ bool store_plugin_IS_table_metadata(THD *thd)
 
   return end_transaction(thd, error);
 }
+
+
+// Delete dictionary tables
+static void delete_dictionary_and_cleanup(THD *thd,
+              const System_tables::Const_iterator &last_table)
+{
+  // Set flag to delete DD tables only in SE and not from DD cache.
+  dd_upgrade_flag= true;
+
+  // Delete DD tables and SDI files.
+  drop_dd_tables_and_sdi_files(thd, last_table);
+
+  dd_upgrade_flag= false;
+}
+
 
 // Initialize DD in case of upgrade.
 bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
@@ -1160,7 +1201,7 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
     This will create dd::Table objects for DD tables in DD cache.
     Tables will not be created inside SE.
   */
-  if (create_tables(thd, dd_upgrade_flag))
+  if (create_tables(thd, dd_upgrade_flag, nullptr))
     return true;
 
   // Disable InnoDB warning in case it does not find mysql.version table.
@@ -1215,10 +1256,10 @@ bool upgrade_do_pre_checks_and_initialize_dd(THD *thd)
   }
 
   bootstrap_stage= bootstrap::BOOTSTRAP_STARTED;
-
-  if (initialize_dictionary(thd, dd_upgrade_flag, d))
+  System_tables::Const_iterator last_table= System_tables::instance()->begin();
+  if (initialize_dictionary(thd, dd_upgrade_flag, d, &last_table))
   {
-    delete_dictionary_and_cleanup(thd);
+    delete_dictionary_and_cleanup(thd, last_table);
     return true;
   }
 
@@ -1391,18 +1432,14 @@ bool upgrade_fill_dd_and_finalize(THD *thd)
 }
 
 
-// Server Upgrade from 5.7
+// Delete Dictionary tables
 bool delete_dictionary_and_cleanup(THD *thd)
 {
-  // Set flag to delete DD tables only in SE and not from DD cache.
-  dd_upgrade_flag= true;
-
   // Delete DD tables and SDI files.
-  drop_dd_tables_and_sdi_files(thd);
-
-  dd_upgrade_flag= false;
+  delete_dictionary_and_cleanup(thd, System_tables::instance()->end());
   return false;
 }
+
 
 } // namespace bootstrap
 } // namespace dd

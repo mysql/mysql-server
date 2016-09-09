@@ -1954,6 +1954,24 @@ err:
   if (dd_table_created)
   {
     /*
+      Creation of Dictionary tables may fail inside SE if there is
+      already an entry for the table with the same name as dictionary
+      table in InnoDB dictionary. This might happen during upgrade from
+      5.7 or debug scenarios in current server.
+
+      In this case, DD entry and DD cache will not be cleared here.
+      Dictionary system will try to delete all dictionary tables.
+      Set OK status here to avoid the assert after statement execution
+      due to empty DA error status. Error will be handled by caller function.
+    */
+    if (dd_upgrade_flag &&
+        dd::get_dictionary()->is_dd_table_name(db, table_name))
+    {
+      my_ok(thd);
+      DBUG_RETURN(true);
+    }
+
+    /*
       We ignore error from dd_drop_table() as we anyway
       return 'true' failure below.
     */
