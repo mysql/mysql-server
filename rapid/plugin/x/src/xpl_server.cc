@@ -128,7 +128,7 @@ xpl::Server::Server(boost::shared_ptr<ngs::Server_acceptors> acceptors, boost::s
   m_config(config),
   m_acceptors(acceptors),
   m_wscheduler(wscheduler),
-  m_nscheduler(new ngs::Scheduler_dynamic("network", KEY_thread_x_acceptor)),
+  m_nscheduler(ngs::allocate_shared<ngs::Scheduler_dynamic>("network", KEY_thread_x_acceptor)),
   m_server(acceptors, m_nscheduler, wscheduler, this, config),
   m_unix_socket_or_named_pipe(unix_socket_or_named_pipe)
 {
@@ -162,11 +162,11 @@ bool xpl::Server::on_verify_server_state()
     if (m_wscheduler->is_running())
     {
       typedef ngs::Scheduler_dynamic::Task Task;
-      Task *task = new Task(boost::bind(&ngs::Server::close_all_clients, &m_server));
+      Task *task = ngs::allocate_object<Task>(boost::bind(&ngs::Server::close_all_clients, &m_server));
       if (!m_wscheduler->post(task))
       {
         log_debug("Unable to schedule closing all clients ");
-        delete task;
+        ngs::free_object(task);
       }
     }
 
@@ -181,7 +181,15 @@ bool xpl::Server::on_verify_server_state()
 
 boost::shared_ptr<ngs::Client_interface> xpl::Server::create_client(ngs::Connection_ptr connection)
 {
-  return boost::make_shared<xpl::Client>(connection, boost::ref(m_server), ++m_client_id, new xpl::Protocol_monitor());
+  boost::shared_ptr<ngs::Client_interface> result;
+
+  result = ngs::allocate_shared<xpl::Client>(
+                       connection,
+                       boost::ref(m_server),
+                       ++m_client_id,
+                       ngs::allocate_object<xpl::Protocol_monitor>());
+
+  return result;
 }
 
 
@@ -189,7 +197,8 @@ boost::shared_ptr<ngs::Session_interface> xpl::Server::create_session(ngs::Clien
                                                             ngs::Protocol_encoder &proto,
                                                             Session::Session_id session_id)
 {
-  return boost::make_shared<xpl::Session>(boost::ref(client), &proto, session_id);
+  return boost::shared_ptr<ngs::Session>(
+           ngs::allocate_shared<xpl::Session>(boost::ref(client), &proto, session_id));
 }
 
 
@@ -279,7 +288,7 @@ int xpl::Server::main(MYSQL_PLUGIN p)
   {
     Global_status_variables::instance().reset();
 
-    boost::shared_ptr<ngs::Scheduler_dynamic> thd_scheduler(new Session_scheduler("work", p));
+    boost::shared_ptr<ngs::Scheduler_dynamic> thd_scheduler(ngs::allocate_shared<Session_scheduler>("work", p));
 
     Plugin_system_variables::setup_system_variable_from_env_or_compile_opt(
         Plugin_system_variables::socket,
@@ -288,12 +297,12 @@ int xpl::Server::main(MYSQL_PLUGIN p)
 
     Listener_factory listener_factory;
     boost::shared_ptr<ngs::Server_acceptors> acceptors(
-        new ngs::Server_acceptors(listener_factory, Plugin_system_variables::port, Plugin_system_variables::socket, listen_backlog));
+        ngs::allocate_shared<ngs::Server_acceptors>(boost::ref(listener_factory), Plugin_system_variables::port, Plugin_system_variables::socket, listen_backlog));
 
     instance_rwl.wlock();
 
     exiting = false;
-    instance = new Server(acceptors, thd_scheduler, boost::make_shared<ngs::Protocol_config>(), Plugin_system_variables::socket);
+    instance = ngs::allocate_object<Server>(acceptors, thd_scheduler, ngs::allocate_shared<ngs::Protocol_config>(), Plugin_system_variables::socket);
 
     const bool use_only_through_secure_connection = true, use_only_in_non_secure_connection = false;
 
@@ -303,7 +312,7 @@ int xpl::Server::main(MYSQL_PLUGIN p)
 
     instance->plugin_system_variables_changed();
 
-    thd_scheduler->set_monitor(new Worker_scheduler_monitor);
+    thd_scheduler->set_monitor(ngs::allocate_object<Worker_scheduler_monitor>());
     thd_scheduler->launch();
     instance->m_nscheduler->launch();
 
@@ -353,7 +362,7 @@ int xpl::Server::exit(MYSQL_PLUGIN p)
 
   {
     ngs::RWLock_writelock slock(instance_rwl);
-    delete instance;
+    ngs::free_object(instance);
     instance = NULL;
   }
 
@@ -596,7 +605,7 @@ bool xpl::Server::on_net_startup()
 
     instance->start_verify_server_state_timer();
 
-    ngs::Ssl_context_unique_ptr ssl_ctx(new ngs::Ssl_context());
+    ngs::Ssl_context_unique_ptr ssl_ctx(ngs::allocate_object<ngs::Ssl_context>());
 
     ssl_config = choose_ssl_config(mysqld_have_ssl,
                                    ssl_config,

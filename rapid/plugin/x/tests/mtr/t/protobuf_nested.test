@@ -8,8 +8,11 @@
 
 ## It tests the limits of protobuf, we do not need any data in the collection
 
-
--->macro Send_message_with_repeated_nested_objects	%OBJECTS_TO_NEST%
+#
+# Number of protobuf object should be calculated from following equation
+#   NUMBER_OF_OBJECTS = 2 * NUMBER_OF_OBJECTS_TO_NEST
+#
+-->macro Send_crud_find_with_repeated_nested_objects	%OBJECTS_TO_NEST%
 -->varlet %NESTED_OBJECTS% 
 
 -->varlet %OBJECTS_TO_REPEAT% %OBJECTS_TO_NEST%
@@ -71,19 +74,22 @@ Mysqlx.Crud.Find {
 ## Current recursion limit is set to 100
 ## each repeated message in bellow macro contains two messages
 ## (it increases the current depth by 2)
--->newsession test_different_messages	root
--->echo Try to use value greater than the default limit 50 /2 => 25
--->callmacro Send_message_with_repeated_nested_objects	25
+-->newsession test_different_messages1	root
+-->echo Try to send number of objects less then X Protocol limit, 50 (2 * 25)
+-->callmacro Send_crud_find_with_repeated_nested_objects	25
 -->recvresult
 
--->echo Try to use value equal than the X Protocol limit 100 /2 => 50
--->callmacro Send_message_with_repeated_nested_objects	50
+-->echo Try to send number of objects equal to the X Protocol limit, 100 (2 * 50) 
+-->callmacro Send_crud_find_with_repeated_nested_objects	50
 -->recvresult
 
--->echo Try to use value greater than the X Protocol limit 102 /2 => 51
--->callmacro Send_message_with_repeated_nested_objects	51
+-->echo Try to send number of object more than the X Protocol limit 101 (2 * 51)
+-->callmacro Send_crud_find_with_repeated_nested_objects	51
 -->expecterror 5000
 -->recvresult
+#
+# After error 5000, connection is disconnected by the X Plugin, abort the client connection
+# it is in invalid state
 -->closesession abort
 
 EOF

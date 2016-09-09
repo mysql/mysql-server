@@ -28,7 +28,7 @@ namespace ngs
 {
 
 class Time_and_socket_events;
-typedef Memory_new<Listener_interface>::Unique_ptr Listener_interface_ptr;
+typedef Memory_instrumented<Listener_interface>::Unique_ptr Listener_interface_ptr;
 
 class Listener_factory_interface
 {

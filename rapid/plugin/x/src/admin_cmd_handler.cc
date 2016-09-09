@@ -317,9 +317,9 @@ ngs::Error_code create_collection_impl(xpl::Sql_data_context &da, const std::str
          ") CHARSET utf8mb4 ENGINE=InnoDB;");
 
   xpl::Sql_data_context::Result_info info;
-  const std::string &tmp(qb.get());
+  const ngs::PFS_string &tmp(qb.get());
   log_debug("CreateCollection: %s", tmp.c_str());
-  return da.execute_sql_no_result(tmp, info);
+  return da.execute_sql_no_result(tmp.c_str(), tmp.length(), info);
 }
 
 } // namespace
@@ -430,14 +430,14 @@ std::string get_type_prefix(const std::string &prefix, int type_arg, int type_ar
 typedef std::list<std::vector<std::string> > String_fields_values;
 
 
-ngs::Error_code query_string_columns(xpl::Sql_data_context &da, const std::string &sql,
+ngs::Error_code query_string_columns(xpl::Sql_data_context &da, const ngs::PFS_string &sql,
                                      std::vector<unsigned> &field_idxs, String_fields_values &ret_values)
 {
   xpl::Buffering_command_delegate::Resultset r_rows;
   std::vector<xpl::Command_delegate::Field_type> r_types;
   xpl::Sql_data_context::Result_info r_info;
 
-  ngs::Error_code err = da.execute_sql_and_collect_results(sql, r_types, r_rows, r_info);
+  ngs::Error_code err = da.execute_sql_and_collect_results(sql.data(), sql.length(), r_types, r_rows, r_info);
   if (err)
     return err;
 
@@ -591,7 +591,7 @@ bool table_column_exists(const std::string &schema_name, const std::string &tabl
       .quote_identifier(schema_name).dot().quote_identifier(table_name)
       .put(" WHERE Field = ").quote_string(column_name);
 
-  ngs::Error_code err = da.execute_sql_and_collect_results(qb.get(), r_types, r_rows, r_info);
+  ngs::Error_code err = da.execute_sql_and_collect_results(qb.get().data(), qb.get().length(), r_types, r_rows, r_info);
   if (err)
     return false;
 
@@ -813,9 +813,9 @@ ngs::Error_code xpl::Admin_command_handler::create_collection_index(Command_argu
   qb.put(")");
 
   Sql_data_context::Result_info info;
-  const std::string &tmp(qb.get());
+  const ngs::PFS_string &tmp(qb.get());
   log_debug("CreateCollectionIndex: %s", tmp.c_str());
-  error = m_da.execute_sql_no_result(tmp, info);
+  error = m_da.execute_sql_no_result(tmp.data(), tmp.length(), info);
   if (error)
   {
     // if we're creating a NOT NULL generated index/column and get a NULL error, it's
@@ -853,10 +853,10 @@ ngs::Error_code xpl::Admin_command_handler::drop_collection(Command_arguments &a
 
   qb.put("DROP TABLE ").quote_identifier(schema).dot().quote_identifier(collection);
 
-  const std::string &tmp(qb.get());
+  const ngs::PFS_string &tmp(qb.get());
   log_debug("DropCollection: %s", tmp.c_str());
   Sql_data_context::Result_info info;
-  error = m_da.execute_sql_no_result(tmp, info);
+  error = m_da.execute_sql_no_result(tmp.data(), tmp.length(), info);
   if (error)
     return error;
   m_da.proto().send_exec_ok();
@@ -911,7 +911,7 @@ ngs::Error_code get_index_virtual_column_names(const std::string &schema_name, c
         .quote_identifier(schema_name).dot().quote_identifier(table_name)
         .put(" WHERE Key_name <> ").quote_string(index_name)
         .put(" AND Column_name = ").quote_string((*it)[0]);
-    da.execute_sql_and_collect_results(qb.get(), r_types, r_rows, r_info);
+    da.execute_sql_and_collect_results(qb.get().data(), qb.get().length(), r_types, r_rows, r_info);
     if (r_rows.size() > 0)
     {
       ret_column_names.erase(it++);
@@ -979,10 +979,10 @@ ngs::Error_code xpl::Admin_command_handler::drop_collection_index(Command_argume
     qb.put(", DROP COLUMN ").quote_identifier((*it)[0]);
   }
 
-  const std::string &tmp(qb.get());
+  const ngs::PFS_string &tmp(qb.get());
   log_debug("DropCollectionIndex: %s", tmp.c_str());
   Sql_data_context::Result_info info;
-  error = m_da.execute_sql_no_result(tmp, info);
+  error = m_da.execute_sql_no_result(tmp.data(), tmp.length(), info);
   if (error)
     return error;
 
@@ -1119,7 +1119,7 @@ ngs::Error_code is_schema_selected_and_exists(xpl::Sql_data_context &da, const s
     qb.put(" FROM ").quote_identifier(schema);
 
   xpl::Sql_data_context::Result_info info;
-  return da.execute_sql_no_result(qb.get(), info);
+  return da.execute_sql_no_result(qb.get().data(), qb.get().length(), info);
 }
 
 
@@ -1168,7 +1168,7 @@ ngs::Error_code xpl::Admin_command_handler::list_objects(Command_arguments &args
   qb.put(" GROUP BY T.table_name ORDER BY T.table_name");
 
   Sql_data_context::Result_info info;
-  error = m_da.execute_sql_and_stream_results(qb.get(), false, info);
+  error = m_da.execute_sql_and_stream_results(qb.get().data(), qb.get().length(), false, info);
   if (error)
     return error;
 

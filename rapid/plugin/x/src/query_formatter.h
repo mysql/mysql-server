@@ -27,6 +27,7 @@
 #include <stdexcept>
 #include <sstream>
 #include <boost/lexical_cast.hpp>
+#include <ngs/memory.h>
 
 
 struct charset_info_st;
@@ -37,7 +38,7 @@ namespace xpl
   class Query_formatter
   {
   public:
-    Query_formatter(std::string &query, charset_info_st &charser);
+    Query_formatter(ngs::PFS_string &query, charset_info_st &charser);
 
     template <typename Value_type>
     class No_escape
@@ -91,7 +92,7 @@ namespace xpl
     void put_value_and_escape(const char *value, const std::size_t length);
     void validate_next_tag();
 
-    std::string     &m_query;
+    ngs::PFS_string      &m_query;
     charset_info_st &m_charset;
     std::size_t      m_last_tag_position;
   };

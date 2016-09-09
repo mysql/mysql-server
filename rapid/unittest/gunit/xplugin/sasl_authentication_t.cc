@@ -50,7 +50,7 @@ public:
     sut = Auth_type::create(mock_session.get());
 
     ON_CALL(mock_data_context, authenticate(_, _, _, _, _, _, _, _)).WillByDefault(Return(default_error));
-    EXPECT_CALL(mock_connection, options()).WillRepeatedly(Return(ngs::IOptions_session_ptr(mock_options_session.get(), Custom_allocator_with_check<ngs::IOptions_session>(boost::none))));
+    EXPECT_CALL(mock_connection, options()).WillRepeatedly(Return(ngs::IOptions_session_ptr(mock_options_session.get(), ngs::Custom_allocator_with_check<ngs::IOptions_session>(boost::none))));
     EXPECT_CALL(mock_connection, connection_type()).WillRepeatedly(Return(ngs::Connection_tls));
     EXPECT_CALL(mock_client, connection()).WillRepeatedly(ReturnRef(mock_connection));
     EXPECT_CALL(*mock_session, data_context()).WillRepeatedly(ReturnRef(mock_data_context));

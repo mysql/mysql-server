@@ -57,7 +57,7 @@ Page_pool::Page_pool(const Pool_config &pool_config)
 Page_pool::~Page_pool()
 {
   Mutex_lock lock(m_mutex);
-  std::for_each(m_pages_list.begin(), m_pages_list.end(), Memory_delete_array<char>);
+  std::for_each(m_pages_list.begin(), m_pages_list.end(), ngs::free_array<char>);
   m_pages_list.clear();
 }
 
@@ -77,7 +77,7 @@ Resource<Page> Page_pool::allocate()
   {
     size_t memory_to_allocate = m_page_size + sizeof(Page_memory_managed);
 
-    object_data = new char[memory_to_allocate];
+    ngs::allocate_array(object_data, memory_to_allocate, KEY_memory_x_send_buffer);
   }
 
   return Resource<Page>(new (object_data) Page_memory_managed(*this, m_page_size, object_data + sizeof(Page_memory_managed)));
@@ -94,7 +94,7 @@ void Page_pool::deallocate(Page *page)
 
   if (!push_page((char*)page))
   {
-    delete[] (char*)page;
+    ngs::free_array((char*)page);
   }
 }
 

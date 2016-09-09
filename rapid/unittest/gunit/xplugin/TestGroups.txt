@@ -2,6 +2,7 @@
 add_test(CapabilitiesConfiguratorTestSuite xplugin_unit_tests --gtest_filter=CapabilitiesConfiguratorTestSuite.*)
 add_test(row_builder xplugin_unit_tests --gtest_filter=row_builder.*)
 add_test(expect xplugin_unit_tests --gtest_filter=expect.*)
+add_test(Callback_command_delegate_testsuite xplugin_unit_tests --gtest_filter=Callback_command_delegate_testsuite.*)
 add_test(Ngs_sync_variable xplugin_unit_tests --gtest_filter=Ngs_sync_variable.*)
 add_test(Insert_statement_builder_test xplugin_unit_tests --gtest_filter=Insert_statement_builder_test.*)
 add_test(Statement_builder_test xplugin_unit_tests --gtest_filter=Statement_builder_test.*)

@@ -93,7 +93,7 @@ namespace ngs
 
     boost::posix_time::ptime m_accept_time;
 
-    Protocol_encoder *m_encoder;
+    ngs::Memory_instrumented<Protocol_encoder>::Unique_ptr m_encoder;
     std::string m_client_addr;
     std::string m_client_host;
     uint16      m_client_port;
@@ -114,6 +114,9 @@ namespace ngs
       Close_normal,
       Close_connect_timeout
     } m_close_reason;
+
+    char* m_msg_buffer;
+    size_t m_msg_buffer_size;
 
     Request_unique_ptr read_one_message(Error_code &ret_error);
 

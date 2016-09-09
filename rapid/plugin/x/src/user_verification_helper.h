@@ -39,7 +39,7 @@ namespace xpl
 
     bool operator() (const Row_data &row)
     {
-      bool require_secure_transport;
+      bool require_secure_transport = false;
       std::string db_user_hostname_or_ip_mask;
       std::string db_password_hash;
       bool is_account_not_locked = false;
@@ -111,7 +111,7 @@ namespace xpl
       return false;
     }
 
-    std::string get_sql(const char *user, const char *host) const
+    ngs::PFS_string get_sql(const char *user, const char *host) const
     {
       Query_string_builder qb;
 

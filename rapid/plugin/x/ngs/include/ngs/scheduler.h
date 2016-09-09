@@ -21,6 +21,7 @@
 #define _NGS_SCHEDULER_H_
 
 #include "ngs/thread.h"
+#include "ngs/memory.h"
 #include <boost/function.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/scoped_ptr.hpp>
@@ -159,7 +160,7 @@ namespace ngs
     lock_list<Task *> m_tasks;
     lock_list<Thread_t> m_threads;
     lock_list<my_thread_t> m_terminating_workers;
-    boost::scoped_ptr<Monitor_interface> m_monitor;
+    ngs::Memory_instrumented<Monitor_interface>::Unique_ptr m_monitor;
     PSI_thread_key m_thread_key;
   };
 }

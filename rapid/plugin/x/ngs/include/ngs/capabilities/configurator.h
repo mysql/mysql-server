@@ -27,6 +27,7 @@
 #include "ngs_common/protocol_protobuf.h"
 #include "ngs/capabilities/handler.h"
 #include "ngs/error_code.h"
+#include "ngs/memory.h"
 
 namespace ngs
 {

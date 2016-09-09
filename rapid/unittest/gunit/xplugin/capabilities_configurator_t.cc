@@ -104,7 +104,7 @@ public:
     std::for_each(supported_handlers.begin(), supported_handlers.end(), expect_get_name(NAMES));
     std::for_each(supported_handlers.begin(), supported_handlers.end(), expect_get_capability);
 
-    boost::scoped_ptr<Capabilities> cap(sut->get());
+    ngs::Memory_instrumented<Capabilities>::Unique_ptr cap(sut->get());
 
     ASSERT_TRUE(NULL != cap.get());
     ASSERT_EQ(static_cast<int>(supported_handlers.size()), cap->capabilities_size());
