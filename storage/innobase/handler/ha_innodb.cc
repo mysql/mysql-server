@@ -7999,9 +7999,12 @@ static
 void
 innobase_parse_tbl_name(
 	const char*	tbl_name,
-	char*		db_buf,
-	char*		tbl_buf)
+	char*		dd_db_name,
+	char*		dd_tbl_name)
 {
+	char	db_buf[MAX_DATABASE_NAME_LEN + 1];
+	char	tbl_buf[MAX_TABLE_NAME_LEN + 1];
+
 	ulint		db_len = dict_get_db_name_len(tbl_name);
 
 	ut_ad(db_len < NAME_LEN);
@@ -8010,6 +8013,9 @@ innobase_parse_tbl_name(
 	memcpy(tbl_buf, tbl_name + db_len + 1,
 	       strlen(tbl_name) - db_len - 1);
 	tbl_buf[strlen(tbl_name) - db_len - 1] = 0;
+
+	filename_to_tablename(db_buf, dd_db_name, MAX_DATABASE_NAME_LEN + 1);
+	filename_to_tablename(tbl_buf, dd_tbl_name, MAX_TABLE_NAME_LEN + 1);
 }
 
 
