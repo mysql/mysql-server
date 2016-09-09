@@ -23,7 +23,7 @@
 #include <boost/format.hpp>
 #include "expr_parser.h"
 #include "ngs_common/protocol_protobuf.h"
-#include "../compilerutils.h"
+#include "compilerutils.h"
 
 #include <memory>
 

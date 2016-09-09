@@ -1,1 +1,1 @@
---plugin_dir=$MYSQLXPLUGIN_DIR --plugin-load=$MYSQLXPLUGIN;
+--plugin_dir=$MYSQLXPLUGIN_DIR --plugin-load=$MYSQLXPLUGIN --loose-mysqlx-socket=

@@ -17,6 +17,11 @@
  * 02110-1301  USA
  */
 
+#if !defined(MYSQL_DYNAMIC_PLUGIN) && defined(WIN32) && !defined(XPLUGIN_UNIT_TESTS)
+// Needed for importing PERFORMANCE_SCHEMA plugin API.
+#define MYSQL_DYNAMIC_PLUGIN 1
+#endif // WIN32
+
 #include "admin_cmd_handler.h"
 #include "xpl_error.h"
 #include "sql_data_context.h"
@@ -1193,7 +1198,8 @@ bool is_collection(xpl::Sql_data_context &da, const std::string &schema, const s
     if (result.size() != 1)
     {
       log_debug("Unable to recognize '%s' as a collection; query result size: %lu",
-                std::string(schema.empty() ? name : schema + "." + name).c_str(), result.size());
+                std::string(schema.empty() ? name : schema + "." + name).c_str(),
+                static_cast<unsigned long>(result.size()));
       return false;
     }
     long int cnt = 0, doc = 0, id = 0, gen = 0;

@@ -3,9 +3,6 @@
 # Test should not be run for embedded server
 --source include/not_embedded.inc
 
-# We may throw this error when GRANT/REVOKE fails
-call mtr.add_suppression("Did not write failed");
-
 SET @old_debug= @@SESSION.debug;
 
 # mysql.user table

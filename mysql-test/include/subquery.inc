@@ -6616,3 +6616,53 @@ SELECT (NULL IS NULL) IN  (SELECT 1 FROM t1);
 
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#23049975: GROUP BY SENDING DIFFERENT RESULTS BETWEEN 5.6 AND 5.7
+--echo #
+
+CREATE TABLE t1 (
+ t1_id int NOT NULL auto_increment,
+ join_val int default NULL,
+ PRIMARY KEY (t1_id)
+);
+INSERT INTO t1 VALUES (1,5);
+
+CREATE TABLE t2 (
+ t2_id int NOT NULL auto_increment,
+ t2_val int default NULL,
+ join_val int NOT NULL,
+ PRIMARY KEY (t2_id)
+);
+INSERT INTO t2 VALUES (1,1,5);
+
+CREATE TABLE t3 (
+ t3_id int NOT NULL auto_increment,
+ t3_t1_val int default NULL,
+ t3_val double(15,2) default NULL,
+ PRIMARY KEY  (t3_id),
+ KEY t3_t1_id_idx (t3_t1_val)
+);
+INSERT INTO t3 VALUES (1,1,2.50);
+
+let query1=
+SELECT (SELECT t3.t3_val
+        FROM t3
+        WHERE t3.t3_t1_val = t1.t1_id) as CMS, t2.t2_val, t1.t1_id
+FROM t1 INNER JOIN t2 ON t1.join_val = t2.join_val
+WHERE t1.t1_id = 1 GROUP BY t2.t2_val;
+
+let query2=
+SELECT (SELECT t3.t3_val
+        FROM t3
+        WHERE t3.t3_t1_val = t1.t1_id * t1.t1_id) as CMS, t2.t2_val, t1.t1_id
+FROM t1 INNER JOIN t2 ON t1.join_val = t2.join_val
+WHERE t1.t1_id = 1 GROUP BY t2.t2_val;
+
+eval EXPLAIN $query1;
+eval $query1;
+
+eval EXPLAIN $query2;
+eval $query2;
+
+DROP TABLE t1, t2, t3;

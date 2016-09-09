@@ -9,8 +9,6 @@
 
 --source include/have_debug.inc
 
-call mtr.add_suppression("Did not write failed .* ");
-
 --echo #
 --echo # WL#9262: All system tables should support 32 character length user names
 --echo #

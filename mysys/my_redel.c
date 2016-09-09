@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,9 @@
 
 	  if MY_REDEL_MAKE_COPY is given, then the orginal file
 	  is renamed to org_name-'current_time'.BAK
+
+          if MY_REDEL_NO_COPY_STAT is given, stats are not copied
+          from org_name to tmp_name.
 	*/
 
 #define REDEL_EXT ".BAK"
@@ -44,8 +47,11 @@ int my_redel(const char *org_name, const char *tmp_name, myf MyFlags)
   DBUG_PRINT("my",("org_name: '%s' tmp_name: '%s'  MyFlags: %d",
 		   org_name,tmp_name,MyFlags));
 
-  if (my_copystat(org_name,tmp_name,MyFlags) < 0)
-    goto end;
+  if (!(MyFlags & MY_REDEL_NO_COPY_STAT))
+  {
+    if (my_copystat(org_name,tmp_name,MyFlags) < 0)
+      goto end;
+  }
   if (MyFlags & MY_REDEL_MAKE_BACKUP)
   {
     char name_buff[FN_REFLEN+20];    

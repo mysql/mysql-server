@@ -18,6 +18,8 @@
 #ifndef XPL_SYSTEM_VARIABLES_H
 #define XPL_SYSTEM_VARIABLES_H
 
+#include "my_global.h"
+#include "xpl_log.h"
 #include <boost/function.hpp>
 #include <vector>
 
@@ -37,15 +39,14 @@ struct Ssl_config
   Ssl_config();
 
   bool is_configured() const;
-//  void set_not_null_value();
 
-  char* ssl_key;
-  char* ssl_ca;
-  char* ssl_capath;
-  char* ssl_cert;
-  char* ssl_cipher;
-  char* ssl_crl;
-  char* ssl_crlpath;
+  char *ssl_key;
+  char *ssl_ca;
+  char *ssl_capath;
+  char *ssl_cert;
+  char *ssl_cipher;
+  char *ssl_crl;
+  char *ssl_crlpath;
 
 private:
   bool  has_value(const char *ptr) const;
@@ -57,11 +58,13 @@ class Plugin_system_variables
 {
 public:
   static int          max_connections;
-  static unsigned int xport;
+  static unsigned int port;
   static unsigned int min_worker_threads;
   static unsigned int idle_worker_thread_timeout;
   static unsigned int max_allowed_packet;
   static unsigned int connect_timeout;
+  static char        *socket;
+  static my_bool      named_pipe;
 
   static Ssl_config ssl_config;
 
@@ -75,11 +78,15 @@ public:
   static void update_func(THD *thd, st_mysql_sys_var *var,
                           void *tgt, const void *save);
 
+  static void setup_system_variable_from_env_or_compile_opt(char *&cnf_option, const char *env_variable, const char *compile_option);
+
 private:
   struct Executor
   {
     void operator() (const Value_changed_callback & callback) { callback(); };
   };
+
+  static const char *get_system_variable_impl(const char *cnf_option, const char *env_variable, const char *compile_option);
 
   static std::vector<Value_changed_callback> m_callbacks;
 };

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -425,12 +425,13 @@ int chk_size(MI_CHECK *param, MI_INFO *info);
 int chk_key(MI_CHECK *param, MI_INFO *info);
 int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend);
 int mi_repair(MI_CHECK *param, MI_INFO *info,
-	      char * name, int rep_quick);
-int mi_sort_index(MI_CHECK *param, MI_INFO *info, char * name);
+	      char * name, int rep_quick, my_bool no_copy_stat);
+int mi_sort_index(MI_CHECK *param, MI_INFO *info, char * name,
+                  my_bool no_copy_stat);
 int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info,
-		      const char * name, int rep_quick);
+		      const char * name, int rep_quick, my_bool no_copy_stat);
 int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
-		      const char * name, int rep_quick);
+                       const char * name, int rep_quick, my_bool no_copy_stat);
 int change_to_newfile(const char * filename, const char * old_ext,
 		      const char * new_ext, myf myflags);
 int lock_file(MI_CHECK *param, File file, my_off_t start, int lock_type,

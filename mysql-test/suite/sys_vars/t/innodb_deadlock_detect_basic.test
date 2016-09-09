@@ -1,0 +1,52 @@
+--source include/have_innodb.inc
+
+SET @start_global_value = @@global.innodb_deadlock_detect;
+SELECT @start_global_value;
+
+#
+# exists as global
+#
+--echo Valid values are 'ON' and 'OFF'
+select @@global.innodb_deadlock_detect in (0, 1);
+select @@global.innodb_deadlock_detect;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_deadlock_detect in (0, 1);
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_deadlock_detect;
+show global variables like 'innodb_deadlock_detect';
+show session variables like 'innodb_deadlock_detect';
+
+#
+# show that it's writable
+#
+set global innodb_deadlock_detect='OFF';
+--error ER_GLOBAL_VARIABLE
+set session innodb_deadlock_detect='OFF';
+select @@global.innodb_deadlock_detect;
+set @@global.innodb_deadlock_detect=1;
+select @@global.innodb_deadlock_detect;
+set global innodb_deadlock_detect=0;
+select @@global.innodb_deadlock_detect;
+set @@global.innodb_deadlock_detect='ON';
+select @@global.innodb_deadlock_detect;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_deadlock_detect=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_deadlock_detect=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_deadlock_detect=2;
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_deadlock_detect='AUTO';
+set global innodb_deadlock_detect=-3;
+select @@global.innodb_deadlock_detect;
+
+#
+# Cleanup
+#
+
+SET @@global.innodb_deadlock_detect = @start_global_value;
+SELECT @@global.innodb_deadlock_detect;

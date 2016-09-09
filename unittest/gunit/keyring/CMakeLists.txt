@@ -13,6 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+
 IF(NOT GMOCK_FOUND)
   RETURN()
 ENDIF()
@@ -24,6 +25,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/plugin/keyring
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/common
   ${CMAKE_SOURCE_DIR}/unittest/gunit
 )
 
@@ -49,9 +51,12 @@ IF (MERGE_UNITTESTS)
 
   SET(SRC_FILES ${merge_keyring_file_tests})
   LIST(APPEND SRC_FILES
-       ${CMAKE_SOURCE_DIR}/plugin/keyring/keyring_key.cc
+       ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
+       ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_container.cc
        ${CMAKE_SOURCE_DIR}/plugin/keyring/buffered_file_io.cc
-       ${CMAKE_SOURCE_DIR}/plugin/keyring/keys_container.cc)
+       ${CMAKE_SOURCE_DIR}/plugin/keyring/buffer.cc
+       ${CMAKE_SOURCE_DIR}/plugin/keyring/hash_to_buffer_serializer.cc
+       )
 
   IF(WIN32)
     LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
@@ -74,9 +79,11 @@ ELSE()
 
   FOREACH(test ${TESTS})
     SET(SRC_FILES ${test}-t.cc
-        ${CMAKE_SOURCE_DIR}/plugin/keyring/keyring_key.cc
+        ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
+        ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_container.cc
         ${CMAKE_SOURCE_DIR}/plugin/keyring/buffered_file_io.cc
-        ${CMAKE_SOURCE_DIR}/plugin/keyring/keys_container.cc
+        ${CMAKE_SOURCE_DIR}/plugin/keyring/buffer.cc
+        ${CMAKE_SOURCE_DIR}/plugin/keyring/hash_to_buffer_serializer.cc
         )
     IF(WIN32)
       LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)

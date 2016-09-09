@@ -67,6 +67,32 @@ public:
   MOCK_METHOD0(ssl_used_session_cache_entries, long ());
 };
 
+class Mock_socket_operations: public Socket_operations_interface
+{
+public:
+
+  MOCK_METHOD3(bind, int (const my_socket&, const struct sockaddr*, socklen_t));
+  MOCK_METHOD3(accept, my_socket(const my_socket&, struct sockaddr*, socklen_t*));
+  MOCK_METHOD3(socket, my_socket(int, int, int));
+  MOCK_METHOD2(listen, int(const my_socket&, int));
+  MOCK_METHOD0(get_socket_errno, int());
+};
+
+class Mock_system_operations: public System_operations_interface
+{
+public:
+  MOCK_METHOD3(open, int(const char*, int, int));
+  MOCK_METHOD1(close, int(int));
+  MOCK_METHOD3(read, int(int, void*, int));
+  MOCK_METHOD3(write, int(int, void*, int));
+  MOCK_METHOD1(fsync, int(int));
+  MOCK_METHOD1(unlink, int(const char*));
+  MOCK_METHOD0(getppid, int());
+  MOCK_METHOD0(getpid, int());
+  MOCK_METHOD2(kill, int(int, int));
+  MOCK_METHOD0(get_errno, int());
+};
+
 } // namespace test
 
 }  // namespace ngs

@@ -8142,5 +8142,69 @@ SELECT (NULL IS NULL) IN  (SELECT 1 FROM t1);
 (NULL IS NULL) IN  (SELECT 1 FROM t1)
 0
 DROP TABLE t1;
+#
+# Bug#23049975: GROUP BY SENDING DIFFERENT RESULTS BETWEEN 5.6 AND 5.7
+#
+CREATE TABLE t1 (
+t1_id int NOT NULL auto_increment,
+join_val int default NULL,
+PRIMARY KEY (t1_id)
+);
+INSERT INTO t1 VALUES (1,5);
+CREATE TABLE t2 (
+t2_id int NOT NULL auto_increment,
+t2_val int default NULL,
+join_val int NOT NULL,
+PRIMARY KEY (t2_id)
+);
+INSERT INTO t2 VALUES (1,1,5);
+CREATE TABLE t3 (
+t3_id int NOT NULL auto_increment,
+t3_t1_val int default NULL,
+t3_val double(15,2) default NULL,
+PRIMARY KEY  (t3_id),
+KEY t3_t1_id_idx (t3_t1_val)
+);
+INSERT INTO t3 VALUES (1,1,2.50);
+EXPLAIN SELECT (SELECT t3.t3_val
+FROM t3
+WHERE t3.t3_t1_val = t1.t1_id) as CMS, t2.t2_val, t1.t1_id
+FROM t1 INNER JOIN t2 ON t1.join_val = t2.join_val
+WHERE t1.t1_id = 1 GROUP BY t2.t2_val;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using temporary; Using filesort
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	t3	NULL	ref	t3_t1_id_idx	t3_t1_id_idx	5	const	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.t1_id' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t3`.`t3_val` from `test`.`t3` where (`test`.`t3`.`t3_t1_val` = '1')) AS `CMS`,`test`.`t2`.`t2_val` AS `t2_val`,'1' AS `t1_id` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`join_val` = '5')) group by `test`.`t2`.`t2_val`
+SELECT (SELECT t3.t3_val
+FROM t3
+WHERE t3.t3_t1_val = t1.t1_id) as CMS, t2.t2_val, t1.t1_id
+FROM t1 INNER JOIN t2 ON t1.join_val = t2.join_val
+WHERE t1.t1_id = 1 GROUP BY t2.t2_val;
+CMS	t2_val	t1_id
+2.50	1	1
+EXPLAIN SELECT (SELECT t3.t3_val
+FROM t3
+WHERE t3.t3_t1_val = t1.t1_id * t1.t1_id) as CMS, t2.t2_val, t1.t1_id
+FROM t1 INNER JOIN t2 ON t1.join_val = t2.join_val
+WHERE t1.t1_id = 1 GROUP BY t2.t2_val;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using temporary; Using filesort
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	t3	NULL	ref	t3_t1_id_idx	t3_t1_id_idx	5	const	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.t1_id' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.t1_id' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t3`.`t3_val` from `test`.`t3` where (`test`.`t3`.`t3_t1_val` = ('1' * '1'))) AS `CMS`,`test`.`t2`.`t2_val` AS `t2_val`,'1' AS `t1_id` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`join_val` = '5')) group by `test`.`t2`.`t2_val`
+SELECT (SELECT t3.t3_val
+FROM t3
+WHERE t3.t3_t1_val = t1.t1_id * t1.t1_id) as CMS, t2.t2_val, t1.t1_id
+FROM t1 INNER JOIN t2 ON t1.join_val = t2.join_val
+WHERE t1.t1_id = 1 GROUP BY t2.t2_val;
+CMS	t2_val	t1_id
+2.50	1	1
+DROP TABLE t1, t2, t3;
 set optimizer_switch=default;
 set optimizer_switch=default;

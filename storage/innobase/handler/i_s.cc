@@ -4033,6 +4033,8 @@ i_s_fts_config_fill(
 		DBUG_RETURN(0);
 	}
 
+	DEBUG_SYNC_C("i_s_fts_config_fille_check");
+
 	fields = table->field;
 
 	/* Prevent DDL to drop fts aux tables. */

@@ -349,4 +349,15 @@ int initialize_channel_service_interface();
 int channel_get_retrieved_gtid_set(const char* channel,
                                    char** retrieved_set);
 
+/**
+  Tells if the selected component of the channel is stopping or not.
+
+  @param channel  The channel name
+  @param type     The thread that should be checked.
+
+  @return is the channel (component) stopping
+    @retval true    Yes
+    @retval false   No, no type was specified or the channel does not exist.
+*/
+bool channel_is_stopping(const char* channel, enum_channel_thread_types type);
 #endif //RPL_SERVICE_INTERFACE_INCLUDE

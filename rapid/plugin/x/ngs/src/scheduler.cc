@@ -27,10 +27,9 @@
 
 #include "ngs/scheduler.h"
 #include "ngs/memory.h"
-#include "my_rdtsc.h"
-
-#define LOG_DOMAIN "ngs.client"
 #include "ngs/log.h"
+
+#include "my_rdtsc.h"
 
 
 using namespace ngs;
@@ -205,7 +204,7 @@ bool Scheduler_dynamic::post_and_wait(const Task& task_to_be_posted)
 
 
 // NOTE: Scheduler takes ownership of monitor.
-void Scheduler_dynamic::set_monitor(Monitor *monitor)
+void Scheduler_dynamic::set_monitor(Monitor_interface *monitor)
 {
   m_monitor.reset(monitor);
 }

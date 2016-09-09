@@ -1,0 +1,10 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+create user nonblank@localhost identified by 'nonblank';
+Test starts here
+Following commands should fail
+try login using mysqlx protocol when server started with skip-networking options and mysqlx loaded with non super user
+call mtr.add_suppression("Plugin mysqlx reported: .All I/O interfaces are disabled, X Protocol won't be accessible");
+drop user nonblank@localhost;
+UNINSTALL PLUGIN mysqlx;

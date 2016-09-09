@@ -37,7 +37,7 @@ namespace xpl
   {
   public:
 
-    static ngs::Authentication_handler_ptr create(ngs::Session *session)
+    static ngs::Authentication_handler_ptr create(ngs::Session_interface *session)
     {
       return Authentication_handler::wrap_ptr(new Sasl_mysql41_auth((xpl::Session*)session));
     }

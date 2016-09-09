@@ -5,8 +5,8 @@ source include/have_log_bin.inc;
 # WL#2540 replication event checksum
 #
 # Objectives of the test are:
-# to demo binlog events with CRC32 checksum in them and 
-# to prove show binlog events and mysqlbinlog are capable to handle 
+# to demo binlog events with CRC32 checksum in them and
+# to prove show binlog events and mysqlbinlog are capable to handle
 # the checksum.
 #
 
@@ -16,8 +16,8 @@ set @@global.binlog_checksum = CRC32;
 set @@global.master_verify_checksum = 1;
 let $MYSQLD_DATADIR= `select @@datadir`;
 
-reset master; 
---echo must be master-bin.000001 
+reset master;
+--echo must be master-bin.000001
 --source include/show_binary_logs.inc
 
 create table t1 (a int);
@@ -32,10 +32,11 @@ RESET MASTER;
 --source include/show_binlog_events.inc
 show tables;
 
-# clean-up 
+# clean-up
 
 drop table t1;
 set @@global.binlog_checksum = @save_binlog_checksum;
 set @@global.master_verify_checksum = @save_master_verify_checksum;
+--remove_file $MYSQLD_DATADIR/master-bin.saved
 
 --echo End of the tests

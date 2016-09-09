@@ -35,18 +35,18 @@ INCLUDE(mysqlx_protobuf.cmake)
 IF(NOT PROTOBUF_FOUND)
   MESSAGE(WARNING "Disabling mysqlx plugin.")
 ELSE()
+  INCLUDE(mysqlx_variables.cmake)
   INCLUDE(source_files.cmake)
-
-  INCLUDE(mysqlx_error.cmake)
+  INCLUDE(mysqlx_configure.cmake)
 
   SET(GENERATED_LITE_PROTO_FILES)
   # Generate protobuf-lite versions of proto files.
   FOREACH(PROTOBUF_MYSQLX_FILE ${PROTOBUF_MYSQLX_FILES})
     GET_FILENAME_COMPONENT(MYSQLX_NAME_WD ${PROTOBUF_MYSQLX_FILE} NAME)
     LIST(APPEND GENERATED_LITE_PROTO_FILES
-      ${CMAKE_CURRENT_BINARY_DIR}/protobuf_lite/${MYSQLX_NAME_WD})
+      ${CMAKE_CURRENT_BINARY_DIR}/generated/protobuf_lite/${MYSQLX_NAME_WD})
     ADD_CUSTOM_COMMAND(
-      OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/protobuf_lite/${MYSQLX_NAME_WD}"
+      OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/protobuf_lite/${MYSQLX_NAME_WD}"
       COMMAND ${CMAKE_COMMAND}
               -D CURRENT_BINARY_DIR="${CMAKE_CURRENT_BINARY_DIR}"
               -D PROTO_FILE="${PROTOBUF_MYSQLX_FILE}"
@@ -54,7 +54,7 @@ ELSE()
               -P ${CMAKE_CURRENT_SOURCE_DIR}/process_protobuf_file.cmake
       DEPENDS ${PROTOBUF_MYSQLX_FILE})
     SET_SOURCE_FILES_PROPERTIES(
-      "${CMAKE_CURRENT_BINARY_DIR}/protobuf_lite/${MYSQLX_NAME_WD}"
+      "${CMAKE_CURRENT_BINARY_DIR}/generated/protobuf_lite/${MYSQLX_NAME_WD}"
       PROPERTIES GENERATED TRUE)
   ENDFOREACH()
 
@@ -103,11 +103,11 @@ ELSE()
 
   IF(XPLUGIN_NO_LITE_PROTOBUF)
     SET(xplugin_PROTOBUF_SRC ${PROTO_SRCS} ${PROTO_HDRS})
-    SET(xplugin_PROTOBUF_DIR "${CMAKE_CURRENT_BINARY_DIR}/protobuf")
+    SET(xplugin_PROTOBUF_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/protobuf")
     SET(xplugin_PROTOBUF_LIB ${PROTOBUF_LIBRARY})
   ELSE()
     SET(xplugin_PROTOBUF_SRC ${PROTO_LITE_SRCS} ${PROTO_LITE_HDRS})
-    SET(xplugin_PROTOBUF_DIR "${CMAKE_CURRENT_BINARY_DIR}/protobuf_lite")
+    SET(xplugin_PROTOBUF_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/protobuf_lite")
     SET(xplugin_PROTOBUF_LIB ${PROTOBUF_LITE_LIBRARY})
   ENDIF()
 
@@ -132,7 +132,9 @@ ELSE()
     src/xpl_plugin.cc
     src/xpl_performance_schema.cc
     ${xplugin_SRC} ${xplugin_PROTOBUF_SRC}
-    COMPILE_FLAGS "-I${xplugin_PROTOBUF_DIR}")
+    COMPILE_FLAGS
+    "-I${xplugin_PROTOBUF_DIR}"
+    "-I${CMAKE_CURRENT_BINARY_DIR}/generated/")
 
   TARGET_LINK_LIBRARIES(xplugin ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES})
   IF(MSVC)
@@ -199,7 +201,8 @@ ELSE()
   ENDIF()
 
   GET_PROPERTY(OLD_COMPILE_FLAGS TARGET mysqlxtest PROPERTY COMPILE_FLAGS)
-  SET_PROPERTY(TARGET mysqlxtest PROPERTY COMPILE_FLAGS "${OLD_COMPILE_FLAGS} -I${CMAKE_CURRENT_BINARY_DIR}/protobuf")
+  SET_PROPERTY(TARGET mysqlxtest PROPERTY COMPILE_FLAGS
+    "${OLD_COMPILE_FLAGS} -I${CMAKE_CURRENT_BINARY_DIR}/generated/protobuf -I${CMAKE_CURRENT_BINARY_DIR}/generated/")
 
     GET_TARGET_PROPERTY(mysqlxtest_compile_definitions
       mysqlxtest COMPILE_DEFINITIONS)

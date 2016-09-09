@@ -2937,6 +2937,10 @@ static bool unpack_gcol_info_from_frm(THD *thd,
   /* Validate the Item tree. */
   status= fix_fields_gcol_func(thd, field);
 
+  // Permanent changes to the item_tree are completed.
+  if (!thd->lex->is_ps_or_view_context_analysis())
+    field->gcol_info->permanent_changes_completed= true;
+
   if (disable_strict_mode)
   {
     thd->pop_internal_handler();
@@ -4677,17 +4681,28 @@ bool TABLE::refix_gc_items(THD *thd)
       if (!vfield->gcol_info->expr_item->fixed)
       {
         bool res= false;
-        /**
-          We should keep all the newly-created Items during fixing fields
-          in the same life span as the ones created parsing the generated
-          expression string.
+        /*
+          The call to fix_fields_gcol_func() may create new item objects in the
+          item tree for the generated column expression. If these are permanent
+          changes to the item tree, the new items must have the same life-span
+          as the ones created during parsing of the generated expression
+          string. We achieve this by temporarily switching to use the TABLE's
+          mem_root if the permanent changes to the item tree haven't been
+          completed (by checking the status of
+          gcol_info->permanent_changes_completed) and this call is not part of
+          context analysis (like prepare or show create table).
         */
         Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
         Query_arena backup_arena;
         Query_arena gcol_arena(&vfield->table->mem_root,
                                Query_arena::STMT_CONVENTIONAL_EXECUTION);
-        thd->set_n_backup_active_arena(&gcol_arena, &backup_arena);
-        thd->stmt_arena= &gcol_arena;
+        if (!vfield->gcol_info->permanent_changes_completed &&
+            !thd->lex->is_ps_or_view_context_analysis())
+        {
+          thd->set_n_backup_active_arena(&gcol_arena, &backup_arena);
+          thd->stmt_arena= &gcol_arena;
+        }
+
         /* 
           Temporarily disable privileges check; already done when first fixed,
           and then based on definer's (owner's) rights: this thread has
@@ -4699,8 +4714,23 @@ bool TABLE::refix_gc_items(THD *thd)
         if (fix_fields_gcol_func(thd, vfield))
           res= true;
 
-        thd->stmt_arena= backup_stmt_arena_ptr;
-        thd->restore_active_arena(&gcol_arena, &backup_arena);
+        if (!vfield->gcol_info->permanent_changes_completed &&
+            !thd->lex->is_ps_or_view_context_analysis())
+        {
+          // Switch back to the original stmt_arena.
+          thd->stmt_arena= backup_stmt_arena_ptr;
+          thd->restore_active_arena(&gcol_arena, &backup_arena);
+
+          // Append the new items to the original item_free_list.
+          Item *item= vfield->gcol_info->item_free_list;
+          while (item->next)
+            item= item->next;
+          item->next= gcol_arena.free_list;
+
+          // Permanent changes to the item_tree are completed.
+          vfield->gcol_info->permanent_changes_completed= true;
+        }
+
         // Restore any privileges check
         thd->want_privilege= sav_want_priv;
         get_fields_in_item_tree= FALSE;
@@ -4708,12 +4738,6 @@ bool TABLE::refix_gc_items(THD *thd)
         /* error occurs */
         if (res)
           return res;
-
-        // We need append the new items to orignal item lists
-        Item *item= vfield->gcol_info->item_free_list;
-        while(item->next)
-          item= item->next;
-        item->next= gcol_arena.free_list;
       }
     }
   }
@@ -6343,7 +6367,7 @@ void TABLE::mark_columns_needed_for_delete()
     build a complete row). If this is the case, we mark all not
     updated columns to be read.
 
-    If this is no the case, we do like in the delete case and mark
+    If this is not the case, we do like in the delete case and mark
     if neeed, either the primary key column or all columns to be read.
     (see mark_columns_needed_for_delete() for details)
 
@@ -6351,17 +6375,29 @@ void TABLE::mark_columns_needed_for_delete()
     mark all USED key columns as 'to-be-read'. This allows the engine to
     loop over the given record to find all changed keys and doesn't have to
     retrieve the row again.
-    
+
     Unlike other similar methods, it doesn't mark fields used by triggers,
     that is the responsibility of the caller to do, by using
     Table_trigger_dispatcher::mark_used_fields(TRG_EVENT_UPDATE)!
+
+    Note: Marking additional columns as per binlog_row_image requirements will
+    influence query execution plan. For example in the case of
+    binlog_row_image=FULL the entire read_set and write_set needs to be flagged.
+    This will influence update query to think that 'used key is being modified'
+    and query will create a temporary table to process the update operation.
+    Which will result in performance degradation. Hence callers who don't want
+    their query execution to be influenced as per binlog_row_image requirements
+    can skip marking binlog specific columns here and they should make an
+    explicit call to 'mark_columns_per_binlog_row_image()' function to mark
+    binlog_row_image specific columns.
 */
 
-void TABLE::mark_columns_needed_for_update()
+void TABLE::mark_columns_needed_for_update(bool mark_binlog_columns)
 {
 
   DBUG_ENTER("mark_columns_needed_for_update");
-  mark_columns_per_binlog_row_image();
+  if (mark_binlog_columns)
+    mark_columns_per_binlog_row_image();
   if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE)
   {
     /* Mark all used key columns for read */

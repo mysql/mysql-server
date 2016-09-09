@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -248,8 +248,7 @@ static Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
                        If modify_item is 0 then fill_record() will update
                        the temporary table
 
-  @retval NULL On error. This also happens if the item is a prepared statement
-  parameter.
+  @retval NULL On error.
 
   @retval new_created field
 */
@@ -381,6 +380,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::REF_ITEM:
   case Item::NULL_ITEM:
   case Item::VARBIN_ITEM:
+  case Item::PARAM_ITEM:
     if (make_copy_field)
     {
       DBUG_ASSERT(((Item_result_field*)item)->result_field);
@@ -396,8 +396,6 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       break;
     result->set_derivation(item->collation.derivation);
     break;
-  case Item::PARAM_ITEM:
-    return NULL;
   default:					// Dosen't have to be stored
     DBUG_ASSERT(false);
     break;
@@ -962,8 +960,6 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
 
       if (!new_field)
       {
-        if (type == Item::PARAM_ITEM)
-          goto update_hidden;
         DBUG_ASSERT(thd->is_fatal_error);
         goto err;				// Got OOM
       }

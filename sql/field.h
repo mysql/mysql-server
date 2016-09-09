@@ -494,7 +494,7 @@ public:
     : expr_item(0), item_free_list(0),
     field_type(MYSQL_TYPE_LONG),
     stored_in_db(false), num_non_virtual_base_cols(0),
-    m_expr_str_mem_root(NULL)
+    m_expr_str_mem_root(NULL), permanent_changes_completed(false)
   {
     expr_str.str= NULL;
     expr_str.length= 0;
@@ -550,6 +550,13 @@ private:
 
   /// MEM_ROOT which provides memory storage for expr_str.str
   MEM_ROOT *m_expr_str_mem_root;
+
+public:
+  /**
+     Used to make sure permanent changes to the item tree of expr_item are
+     made only once.
+  */
+  bool permanent_changes_completed;
 };
 
 class Proto_field

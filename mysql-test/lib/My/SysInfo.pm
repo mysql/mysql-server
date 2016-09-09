@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -103,6 +103,40 @@ sub _kstat {
   return undef;
 }
 
+sub _sysctl {
+  my ($self)= @_;
+  my $ncpu= `sysctl hw.ncpu 2> /dev/null`;
+  if ($ncpu eq '') {
+  return undef;
+  }
+
+  my $cpuinfo= {};
+  $ncpu =~ s/\D//g;
+  my $list = `sysctl machdep.cpu | grep machdep\.cpu\.[^.]*: 2> /dev/null`;
+  my @lines= split('\n', $list);
+
+  foreach my $line (@lines) {
+    # Default value, the actual cpu values can be used to decrease this
+    # on slower cpus
+    $cpuinfo->{bogomips}= DEFAULT_BOGO_MIPS;
+
+    my ($statistic, $value)=
+    $line=~ /machdep\.cpu\.(.*):\s+(.*)/;
+    $cpuinfo->{$statistic}= $value;
+  }
+
+  for (1..$ncpu) {
+    my $temp_cpuinfo = $cpuinfo;
+    $temp_cpuinfo->{processor}= $_;
+    push(@{$self->{cpus}}, $temp_cpuinfo);
+  }
+
+  # At least one cpu should have been found
+  # if this method worked
+  if ( $self->{cpus} ) {
+    return $self;
+  }
+}
 
 sub _unamex {
   my ($self)= @_;
@@ -123,6 +157,7 @@ sub new {
     (
      \&_cpuinfo,
      \&_kstat,
+     \&_sysctl,
      \&_unamex,
    );
 
@@ -162,6 +197,9 @@ sub cpus {
 
 # Return the number of cpus found
 sub num_cpus {
+  if (IS_WINDOWS) {
+    return $ENV{NUMBER_OF_PROCESSORS} || 1;
+  }
   my ($self)= @_;
   return int(@{$self->{cpus}}) or
     confess "INTERNAL ERROR: No cpus in list";

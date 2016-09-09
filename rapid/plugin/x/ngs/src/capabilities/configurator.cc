@@ -17,17 +17,9 @@
  * 02110-1301  USA
  */
 
-
-#include "ngs/client.h"
 #include "ngs/capabilities/configurator.h"
 #include "ngs/ngs_error.h"
-
-#ifdef WITH_LOGGER
-#define LOG_DOMAIN "ngs.client"
-#include <logger/logger.h>
-#else
 #include "ngs/log.h"
-#endif
 
 
 namespace ngs

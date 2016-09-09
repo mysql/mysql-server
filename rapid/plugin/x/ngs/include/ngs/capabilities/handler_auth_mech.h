@@ -30,13 +30,13 @@
 namespace ngs
 {
 
-  class Client;
+  class Client_interface;
 
 
   class Capability_auth_mech : public Capability_handler
   {
   public:
-    Capability_auth_mech(Client& client) : m_client(client)
+    Capability_auth_mech(Client_interface& client) : m_client(client)
     {
     }
 
@@ -50,7 +50,7 @@ namespace ngs
 
   private:
 
-    Client& m_client;
+    Client_interface& m_client;
   };
 
 

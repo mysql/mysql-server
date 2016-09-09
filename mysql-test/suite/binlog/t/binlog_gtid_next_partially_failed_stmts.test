@@ -29,8 +29,6 @@
 # Make sure the test is repeatable
 RESET MASTER;
 
-call mtr.add_suppression("Did not write failed .* into binary log while storing table level and column level grants in the privilege tables");
-
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 
 CREATE TABLE t1(a INT, b INT);
@@ -58,7 +56,7 @@ SELECT user, column_name, column_priv FROM mysql.columns_priv;
 --echo #
 --replace_result $master_uuid MASTER_UUID
 --let $assert_text= Committed gtid MASTER_UUID:3 into @@GLOBAL.GTID_EXECUTED
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-3"
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-2"
 --source include/assert.inc
 --echo #
 --echo # Verify that the failed GRANT statement is not binlogged
@@ -89,7 +87,7 @@ SELECT user, column_name, column_priv FROM mysql.columns_priv;
 --echo #
 --replace_result $master_uuid MASTER_UUID
 --let $assert_text= Committed gtid MASTER_UUID:4 into @@GLOBAL.GTID_EXECUTED
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-4"
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-3"
 --source include/assert.inc
 --echo #
 --echo # Verify that the partially failed REVOKE statement is not binlogged
@@ -112,7 +110,7 @@ SELECT user FROM mysql.user where user='u1';
 --echo #
 --replace_result $master_uuid MASTER_UUID
 --let $assert_text= Committed gtid MASTER_UUID:5 into @@GLOBAL.GTID_EXECUTED
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-5"
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-4"
 --source include/assert.inc
 --echo #
 --echo # Verify that the partially failed DROP USER statement is binlogged
@@ -131,7 +129,7 @@ DROP VIEW v1, v2;
 --echo #
 --replace_result $master_uuid MASTER_UUID
 --let $assert_text= Committed gtid MASTER_UUID:7 into @@GLOBAL.GTID_EXECUTED
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-7"
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-6"
 --source include/assert.inc
 --echo #
 --echo # Verify that the partially failed DROP VIEW statement is binlogged
@@ -154,7 +152,7 @@ SHOW CREATE TABLE t1;
 --echo #
 --replace_result $master_uuid MASTER_UUID
 --let $assert_text= Does not generate MASTER_UUID:8 and commit it into @@GLOBAL.GTID_EXECUTED
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-7"
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-6"
 --source include/assert.inc
 --echo #
 --echo # Verify that the failed RENAME TABLE statement is not binlogged
@@ -175,7 +173,7 @@ OPTIMIZE TABLE t1, t_non_existent;
 --echo #
 --replace_result $master_uuid MASTER_UUID
 --let $assert_text= Committed gtid MASTER_UUID:8 into @@GLOBAL.GTID_EXECUTED
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-8"
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-7"
 --source include/assert.inc
 --echo #
 --echo # When optimizing a non-existent table, verify that the OPTIMIZE TABLE
@@ -197,7 +195,7 @@ ANALYZE TABLE t1, t_non_existent;
 --echo #
 --replace_result $master_uuid MASTER_UUID
 --let $assert_text= Committed gtid MASTER_UUID:9 into @@GLOBAL.GTID_EXECUTED
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-9"
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-8"
 --source include/assert.inc
 --echo #
 --echo # When analyzing a non-existent table, verify that the ANALYZE TABLE
@@ -219,7 +217,7 @@ REPAIR TABLE t1, t_non_existent;
 --echo #
 --replace_result $master_uuid MASTER_UUID
 --let $assert_text= Committed gtid MASTER_UUID:10 into @@GLOBAL.GTID_EXECUTED
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-10"
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-9"
 --source include/assert.inc
 --echo #
 --echo # When repairing a non-existent table, verify that the REPAIR TABLE
@@ -241,7 +239,7 @@ CHECKSUM TABLE t1, t_non_existent;
 --echo #
 --replace_result $master_uuid MASTER_UUID
 --let $assert_text= Does not generate MASTER_UUID:11 and commit it into @@GLOBAL.GTID_EXECUTED
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-10"
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-9"
 --source include/assert.inc
 --echo #
 --echo # When checksuming a non-existent table, verify that the CHECKSUM TABLE

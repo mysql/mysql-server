@@ -1,4 +1,3 @@
-call mtr.add_suppression("Did not write failed .* ");
 #
 # WL#9262: All system tables should support 32 character length user names
 #
