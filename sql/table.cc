@@ -5344,12 +5344,14 @@ void TABLE::mark_columns_needed_for_delete()
   @brief
   Mark columns needed for doing an update of a row
 
+  @param mark_binlog_columns if true, mark columns as per binlog_row_image
+                             requirements.
   @details
     Some engines needs to have all columns in an update (to be able to
     build a complete row). If this is the case, we mark all not
     updated columns to be read.
 
-    If this is no the case, we do like in the delete case and mark
+    If this is not the case, we do like in the delete case and mark
     if neeed, either the primary key column or all columns to be read.
     (see mark_columns_needed_for_delete() for details)
 
@@ -5357,17 +5359,30 @@ void TABLE::mark_columns_needed_for_delete()
     mark all USED key columns as 'to-be-read'. This allows the engine to
     loop over the given record to find all changed keys and doesn't have to
     retrieve the row again.
-    
+
     Unlike other similar methods, it doesn't mark fields used by triggers,
     that is the responsibility of the caller to do, by using
     Table_triggers_list::mark_used_fields(TRG_EVENT_UPDATE)!
+
+    Note: Marking additional columns as per binlog_row_image requirements will
+    influence query execution plan. For example in the case of
+    binlog_row_image=FULL the entire read_set and write_set needs to be flagged.
+    This will influence update query to think that 'used key is being modified'
+    and query will create a temporary table to process the update operation.
+    Which will result in performance degradation. Hence callers who don't want
+    their query execution to be influenced as per binlog_row_image requirements
+    can skip marking binlog specific columns here and they should make an
+    explicit call to 'mark_columns_per_binlog_row_image()' function to mark
+    binlog_row_image specific columns.
 */
 
-void TABLE::mark_columns_needed_for_update()
+void TABLE::mark_columns_needed_for_update(bool mark_binlog_columns)
 {
 
   DBUG_ENTER("mark_columns_needed_for_update");
-  mark_columns_per_binlog_row_image();
+
+  if (mark_binlog_columns)
+    mark_columns_per_binlog_row_image();
   if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE)
   {
     /* Mark all used key columns for read */
