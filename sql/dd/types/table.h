@@ -223,6 +223,8 @@ public:
 
   virtual const Partition_collection &partitions() const = 0;
 
+  virtual Partition_collection *partitions() = 0;
+
   virtual void fix_partitions() = 0;
 
   /**

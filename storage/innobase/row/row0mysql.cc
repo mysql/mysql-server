@@ -4885,7 +4885,7 @@ drop_all_foreign_keys_in_db(
 /** Drop a database for MySQL.
 @param[in]	name	database name which ends at '/'
 @param[in]	trx	transaction handle
-@param[out]	found	number of dropped tables/partitions
+@param[out]	found	number of dropped tables
 @return error code or DB_SUCCESS */
 dberr_t
 row_drop_database_for_mysql(
@@ -4897,7 +4897,6 @@ row_drop_database_for_mysql(
 	char*		table_name;
 	dberr_t		err	= DB_SUCCESS;
 	ulint		namelen	= strlen(name);
-	bool		is_partition = false;
 
 	ut_ad(found != NULL);
 
@@ -4906,15 +4905,8 @@ row_drop_database_for_mysql(
 	DBUG_PRINT("row_drop_database_for_mysql", ("db: '%s'", name));
 
 	ut_a(name != NULL);
-	/* Assert DB name or partition name. */
-	if (name[namelen - 1] == '#') {
-		ut_ad(name[namelen - 2] != '/');
-		is_partition = true;
-		trx->op_info = "dropping partitions";
-	} else {
-		ut_a(name[namelen - 1] == '/');
-		trx->op_info = "dropping database";
-	}
+	ut_a(name[namelen - 1] == '/');
+	trx->op_info = "dropping database";
 
 	*found = 0;
 
@@ -5019,7 +5011,7 @@ loop:
 	}
 
 	/* Partitioning does not yet support foreign keys. */
-	if (err == DB_SUCCESS && !is_partition) {
+	if (err == DB_SUCCESS) {
 		/* after dropping all tables try to drop all leftover
 		foreign keys in case orphaned ones exist */
 		err = drop_all_foreign_keys_in_db(name, trx);

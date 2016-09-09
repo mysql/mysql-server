@@ -42,6 +42,7 @@ Smart ALTER TABLE
 #include "dd/types/column.h"
 #include "dd/types/index_element.h"
 #include "dd/types/partition.h"
+#include "dd/types/partition_index.h"
 #include "dd/types/object_type.h"
 #include "dd/types/tablespace_file.h"
 #include "dd_table_share.h"
@@ -918,6 +919,104 @@ ha_innobase::check_if_supported_inplace_alter(
 	DBUG_RETURN(online
 		    ? HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE
 		    : HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE);
+}
+
+/** Allows InnoDB to update internal structures with concurrent
+writes blocked (provided that check_if_supported_inplace_alter()
+did not return HA_ALTER_INPLACE_NO_LOCK).
+This will be invoked before inplace_alter_table().
+
+@param[in]	altered_table	TABLE object for new version of table.
+@param[in,out]	ha_alter_info	Structure describing changes to be done
+by ALTER TABLE and holding data used during in-place alter.
+@param[in]	old_dd_tab	dd::Table object representing old
+version of the table
+@param[in,out]	new_dd_tab	dd::Table object representing new
+version of the table
+@retval	true Failure
+@retval	false Success */
+bool
+ha_innobase::prepare_inplace_alter_table(
+	TABLE*			altered_table,
+	Alter_inplace_info*	ha_alter_info,
+	const dd::Table*	old_dd_tab,
+	dd::Table*		new_dd_tab)
+{
+	DBUG_ENTER("ha_innobase::prepare_inplace_alter_table");
+	ut_ad(old_dd_tab != NULL);
+	ut_ad(new_dd_tab != NULL);
+
+	if (altered_table->found_next_number_field != NULL) {
+		dd_set_autoinc(new_dd_tab->se_private_data(),
+			       ha_alter_info->create_info
+			       ->auto_increment_value);
+	}
+
+	DBUG_RETURN(prepare_inplace_alter_table_impl<dd::Table>(
+		altered_table, ha_alter_info, old_dd_tab, new_dd_tab));
+}
+
+/** Alter the table structure in-place with operations
+specified using Alter_inplace_info.
+The level of concurrency allowed during this operation depends
+on the return value from check_if_supported_inplace_alter().
+
+@param[in]	altered_table	TABLE object for new version of table.
+@param[in,out]	ha_alter_info	Structure describing changes to be done
+by ALTER TABLE and holding data used during in-place alter.
+@param[in]	old_dd_tab	dd::Table object representing old
+version of the table
+@param[in,out]	new_dd_tab	dd::Table object representing new
+version of the table
+@retval	true Failure
+@retval	false Success */
+bool
+ha_innobase::inplace_alter_table(
+	TABLE*			altered_table,
+	Alter_inplace_info*	ha_alter_info,
+	const dd::Table*	old_dd_tab,
+	dd::Table*		new_dd_tab)
+{
+	DBUG_ENTER("ha_innobase::inplace_alter_table");
+	ut_ad(old_dd_tab != NULL);
+	ut_ad(new_dd_tab != NULL);
+
+	DBUG_RETURN(inplace_alter_table_impl<dd::Table>(
+		altered_table, ha_alter_info, old_dd_tab, new_dd_tab));
+}
+
+/** Commit or rollback the changes made during
+prepare_inplace_alter_table() and inplace_alter_table() inside
+the storage engine. Note that the allowed level of concurrency
+during this operation will be the same as for
+inplace_alter_table() and thus might be higher than during
+prepare_inplace_alter_table(). (E.g concurrent writes were
+blocked during prepare, but might not be during commit).
+
+@param[in]	altered_table	TABLE object for new version of table.
+@param[in,out]	ha_alter_info	Structure describing changes to be done
+by ALTER TABLE and holding data used during in-place alter.
+@param[in]	commit		True to commit or false to rollback.
+@param[in]	old_dd_tab	dd::Table object representing old
+version of the table
+@param[in,out]	new_dd_tab	dd::Table object representing new
+version of the table
+@retval	true Failure
+@retval	false Success */
+bool
+ha_innobase::commit_inplace_alter_table(
+	TABLE*			altered_table,
+	Alter_inplace_info*	ha_alter_info,
+	bool			commit,
+	const dd::Table*	old_dd_tab,
+	dd::Table*		new_dd_tab)
+{
+	DBUG_ENTER("ha_innobase::commit_inplace_alter_table");
+	ut_ad(old_dd_tab != NULL);
+	ut_ad(new_dd_tab != NULL);
+
+	DBUG_RETURN(commit_inplace_alter_table_impl<dd::Table>(
+		altered_table, ha_alter_info, commit, old_dd_tab, new_dd_tab));
 }
 
 /*************************************************************//**
@@ -4292,12 +4391,6 @@ prepare_inplace_alter_table_global_dd(
 		(ha_alter_info->handler_ctx);
 	THD*			thd = ctx->prebuilt->trx->mysql_thd;
 
-	if (dict_table_has_autoinc_col(new_table)) {
-		dd_set_autoinc(new_dd_tab->se_private_data(),
-			       ha_alter_info->create_info
-			       ->auto_increment_value);
-	}
-
 	if (need_rebuild) {
 		/* To rebuild, we wtite back the whole table */
 		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
@@ -4347,7 +4440,8 @@ prepare_inplace_alter_table_global_dd(
 			/* TODO: shared tablespace, nothing to do for now. */
 		}
 
-		create_table_info_t::set_table_options(new_dd_tab, new_table);
+		create_table_info_t::set_table_options(
+			new_dd_tab->table(), new_table);
 
 		create_table_info_t::write_dd_table(
 			dd_space_id, new_dd_tab, new_table);
@@ -4369,7 +4463,7 @@ prepare_inplace_alter_table_global_dd(
 
                 /* Now all index metadata are ready in dict_index_t(s),
 		copy them into dd::Index(es) */
-		for (dd::Index* idx : *new_dd_tab->indexes()) {
+		for (auto idx : *new_dd_tab->indexes()) {
 			const dict_index_t*	new_idx = find_index(
 				ha_alter_info, new_table, idx);
 
@@ -4396,8 +4490,8 @@ while preparing ALTER TABLE.
 @param add_fts_doc_id_idx Flag: add index FTS_DOC_ID_INDEX (FTS_DOC_ID)?
 
 @retval true Failure
-@retval false Success
-*/
+@retval false Success */
+template<typename Table>
 static MY_ATTRIBUTE((warn_unused_result))
 bool
 prepare_inplace_alter_table_dict(
@@ -4405,8 +4499,8 @@ prepare_inplace_alter_table_dict(
 	Alter_inplace_info*	ha_alter_info,
 	const TABLE*		altered_table,
 	const TABLE*		old_table,
-	const dd::Table*	old_dd_tab,
-	dd::Table*		new_dd_tab,
+	const Table*		old_dd_tab,
+	Table*			new_dd_tab,
 	const char*		table_name,
 	ulint			flags,
 	ulint			flags2,
@@ -5539,29 +5633,24 @@ alter_fill_stored_column(
 	}
 }
 
-/** Allows InnoDB to update internal structures with concurrent
-writes blocked (provided that check_if_supported_inplace_alter()
-did not return HA_ALTER_INPLACE_NO_LOCK).
-This will be invoked before inplace_alter_table().
-
-@param altered_table TABLE object for new version of table.
-@param ha_alter_info Structure describing changes to be done
+/** Implementation of prepare_inplace_alter_table()
+@param[in]	altered_table	TABLE object for new version of table.
+@param[in,out]	ha_alter_info	Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
-@param new_dd_tab    dd::Table object representing new version
-of the table. This parameter is a temporary workaround until
-WL#7743 is implemented.
-
-@retval true Failure
-@retval false Success
+@param[in]	old_dd_tab	dd::Table object representing old
+version of the table
+@param[in,out]	new_dd_tab	dd::Table object representing new
+version of the table
+@retval	true Failure
+@retval	false Success
 */
-
+template<typename Table>
 bool
-ha_innobase::prepare_inplace_alter_table(
-/*=====================================*/
+ha_innobase::prepare_inplace_alter_table_impl(
 	TABLE*			altered_table,
 	Alter_inplace_info*	ha_alter_info,
-	const dd::Table*	old_dd_tab,
-	dd::Table*		new_dd_tab)
+	const Table*		old_dd_tab,
+	Table*			new_dd_tab)
 {
 	dict_index_t**	drop_index = NULL;	/*!< Index to be dropped */
 	ulint		n_drop_index;	/*!< Number of indexes to drop */
@@ -5585,7 +5674,7 @@ ha_innobase::prepare_inplace_alter_table(
 	dict_s_col_list*s_cols			= NULL;
 	mem_heap_t*	s_heap			= NULL;
 
-	DBUG_ENTER("prepare_inplace_alter_table");
+	DBUG_ENTER("ha_innobase::prepare_inplace_alter_table_impl");
 	DBUG_ASSERT(!ha_alter_info->handler_ctx);
 	DBUG_ASSERT(ha_alter_info->create_info);
 	DBUG_ASSERT(!srv_read_only_mode);
@@ -5768,16 +5857,16 @@ check_if_ok_to_rename:
 	and COPY it needs to be updated to reflect correct row format. */
 	switch (dict_tf_get_rec_format(info.flags())) {
 	case REC_FORMAT_REDUNDANT:
-		new_dd_tab->set_row_format(dd::Table::RF_REDUNDANT);
+		new_dd_tab->table().set_row_format(dd::Table::RF_REDUNDANT);
 		break;
 	case REC_FORMAT_COMPACT:
-		new_dd_tab->set_row_format(dd::Table::RF_COMPACT);
+		new_dd_tab->table().set_row_format(dd::Table::RF_COMPACT);
 		break;
 	case REC_FORMAT_COMPRESSED:
-		new_dd_tab->set_row_format(dd::Table::RF_COMPRESSED);
+		new_dd_tab->table().set_row_format(dd::Table::RF_COMPRESSED);
 		break;
 	case REC_FORMAT_DYNAMIC:
-		new_dd_tab->set_row_format(dd::Table::RF_DYNAMIC);
+		new_dd_tab->table().set_row_format(dd::Table::RF_DYNAMIC);
 		break;
 	}
 
@@ -6362,27 +6451,24 @@ alter_templ_needs_rebuild(
 	return(false);
 }
 
-
-/** Alter the table structure in-place with operations
-specified using Alter_inplace_info.
-The level of concurrency allowed during this operation depends
-on the return value from check_if_supported_inplace_alter().
-
-@param altered_table TABLE object for new version of table.
-@param ha_alter_info Structure describing changes to be done
+/** Implementation of inplace_alter_table()
+@param[in]	altered_table	TABLE object for new version of table.
+@param[in,out]	ha_alter_info	Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
-
+@param[in]	old_dd_tab	dd::Table object representing old
+version of the table
+@param[in,out]	new_dd_tab	dd::Table object representing new
+version of the table
 @retval true Failure
 @retval false Success
 */
-
+template<typename Table>
 bool
-ha_innobase::inplace_alter_table(
-/*=============================*/
+ha_innobase::inplace_alter_table_impl(
 	TABLE*			altered_table,
 	Alter_inplace_info*	ha_alter_info,
-	const dd::Table*	old_dd_tab,
-	dd::Table*		new_dd_tab)
+	const Table*		old_dd_tab,
+	Table*			new_dd_tab)
 {
 	dberr_t			error;
 	dict_add_v_col_t*	add_v = NULL;
@@ -6390,7 +6476,7 @@ ha_innobase::inplace_alter_table(
 	dict_vcol_templ_t*	old_templ = NULL;
 	struct TABLE*		eval_table = altered_table;
 	bool			rebuild_templ = false;
-	DBUG_ENTER("inplace_alter_table");
+	DBUG_ENTER("ha_innobase::inplace_alter_table_impl");
 	DBUG_ASSERT(!srv_read_only_mode);
 
 	ut_ad(!rw_lock_own(dict_operation_lock, RW_LOCK_X));
@@ -8347,29 +8433,25 @@ do {								\
 # define DBUG_INJECT_CRASH(prefix, count)
 #endif
 
-/** Commit or rollback the changes made during
-prepare_inplace_alter_table() and inplace_alter_table() inside
-the storage engine. Note that the allowed level of concurrency
-during this operation will be the same as for
-inplace_alter_table() and thus might be higher than during
-prepare_inplace_alter_table(). (E.g concurrent writes were
-blocked during prepare, but might not be during commit).
-@param altered_table TABLE object for new version of table.
-@param ha_alter_info Structure describing changes to be done
+/** Implementation of commit_inplace_alter_table()
+@param[in]	altered_table	TABLE object for new version of table.
+@param[in,out]	ha_alter_info	Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
-@param commit true => Commit, false => Rollback.
-@retval true Failure
-@retval false Success
-*/
-
+@param[in]	commit		True to commit or false to rollback.
+@param[in]	old_dd_tab	dd::Table object representing old
+version of the table
+@param[in,out]	new_dd_tab	dd::Table object representing new
+version of the table
+@retval	true Failure
+@retval	false Success */
+template<typename Table>
 bool
-ha_innobase::commit_inplace_alter_table(
-/*====================================*/
+ha_innobase::commit_inplace_alter_table_impl(
 	TABLE*			altered_table,
 	Alter_inplace_info*	ha_alter_info,
 	bool			commit,
-	const dd::Table*	old_dd_tab,
-	dd::Table*		new_dd_tab)
+	const Table*		old_dd_tab,
+	Table*			new_dd_tab)
 {
 	dberr_t	error;
 	ha_innobase_inplace_ctx*ctx0;
@@ -8384,7 +8466,7 @@ ha_innobase::commit_inplace_alter_table(
 	uint	failure_inject_count	= 1;
 #endif /* UNIV_DEBUG */
 
-	DBUG_ENTER("commit_inplace_alter_table");
+	DBUG_ENTER("ha_innobase::commit_inplace_alter_table_impl");
 	DBUG_ASSERT(!srv_read_only_mode);
 	DBUG_ASSERT(!ctx0 || ctx0->prebuilt == m_prebuilt);
 	DBUG_ASSERT(!ctx0 || ctx0->old_table == m_prebuilt->table);
@@ -9270,29 +9352,24 @@ ha_innopart::prepare_inplace_alter_table(
 	/* Clean up all ins/upd nodes. */
 	clear_ins_upd_nodes();
 	/* Based on Sql_alloc class, return NULL for new on failure. */
-	ctx_parts = new ha_innopart_inplace_ctx(thd, m_tot_parts);
-	if (!ctx_parts) {
+	ctx_parts = UT_NEW_NOKEY(ha_innopart_inplace_ctx(thd, m_tot_parts));
+	if (ctx_parts == NULL) {
 		DBUG_RETURN(HA_ALTER_ERROR);
 	}
 
-	uint ctx_array_size = sizeof(inplace_alter_handler_ctx*)
-				* (m_tot_parts + 1);
-	ctx_parts->ctx_array =
-		static_cast<inplace_alter_handler_ctx**>(
-					ut_malloc(ctx_array_size,
-					mem_key_partitioning));
-	if (!ctx_parts->ctx_array) {
+	ctx_parts->ctx_array = UT_NEW_ARRAY_NOKEY(inplace_alter_handler_ctx*,
+						  m_tot_parts + 1);
+	if (ctx_parts->ctx_array == NULL) {
+		UT_DELETE(ctx_parts);
 		DBUG_RETURN(HA_ALTER_ERROR);
 	}
 
-	/* Set all to NULL, including the terminating one. */
-	memset(ctx_parts->ctx_array, 0, ctx_array_size);
+	ctx_parts->ctx_array[m_tot_parts] = NULL;
 
-	ctx_parts->prebuilt_array = static_cast<row_prebuilt_t**>(
-					ut_malloc(sizeof(row_prebuilt_t*)
-							* m_tot_parts,
-					mem_key_partitioning));
-	if (!ctx_parts->prebuilt_array) {
+	ctx_parts->prebuilt_array = UT_NEW_ARRAY_NOKEY(row_prebuilt_t*,
+						       m_tot_parts);
+	if (ctx_parts->prebuilt_array == NULL) {
+		UT_DELETE(ctx_parts);
 		DBUG_RETURN(HA_ALTER_ERROR);
 	}
 	/* For the first partition use the current prebuilt. */
@@ -9303,11 +9380,17 @@ ha_innopart::prepare_inplace_alter_table(
 	for (uint i = 1; i < m_tot_parts; i++) {
 		row_prebuilt_t* tmp_prebuilt;
 		tmp_prebuilt = row_create_prebuilt(
-					m_part_share->get_table_part(i),
-					table_share->reclength);
+			m_part_share->get_table_part(i),
+			table_share->reclength);
 		/* Use same trx as original prebuilt. */
 		tmp_prebuilt->trx = m_prebuilt->trx;
 		ctx_parts->prebuilt_array[i] = tmp_prebuilt;
+	}
+
+	if (altered_table->found_next_number_field != NULL) {
+		dd_set_autoinc(new_dd_tab->se_private_data(),
+			       ha_alter_info->create_info
+			       ->auto_increment_value);
 	}
 
 	const char*	save_tablespace =
@@ -9316,10 +9399,26 @@ ha_innopart::prepare_inplace_alter_table(
 	const char*     save_data_file_name =
 		ha_alter_info->create_info->data_file_name;
 
-	for (uint i = 0; i < m_tot_parts; i++) {
+	auto	oldp = old_dd_tab->partitions().begin();
+	auto	newp = new_dd_tab->partitions()->begin();
+
+	for (uint i = 0; i < m_tot_parts; ++oldp, ++newp) {
+		ut_ad(dd_part_is_stored(*oldp) == dd_part_is_stored(*newp));
+		if (!dd_part_is_stored(*newp)) {
+			continue;
+		}
+
 		m_prebuilt = ctx_parts->prebuilt_array[i];
-		ha_alter_info->handler_ctx = ctx_parts->ctx_array[i];
 		set_partition(i);
+
+		const dd::Partition*	old_part = *oldp;
+		dd::Partition*		new_part = *newp;
+		ut_ad(old_part != NULL);
+		ut_ad(new_part != NULL);
+		ut_ad(old_part->level() == new_part->level());
+		ut_ad(m_prebuilt->table->id == old_part->se_private_id());
+
+		ha_alter_info->handler_ctx = NULL;
 
 		/* Set the tablespace and data_file_name value of the
 		alter_info to the tablespace and data_file_name value
@@ -9333,16 +9432,17 @@ ha_innopart::prepare_inplace_alter_table(
 		ha_alter_info->create_info->data_file_name =
 			m_prebuilt->table->data_dir_path;
 
-		res = ha_innobase::prepare_inplace_alter_table(altered_table,
-							ha_alter_info,
-							old_dd_tab,
-							new_dd_tab);
+		res = prepare_inplace_alter_table_impl<dd::Partition>(
+			altered_table, ha_alter_info, old_part, new_part);
 		update_partition(i);
 		ctx_parts->ctx_array[i] = ha_alter_info->handler_ctx;
 		if (res) {
 			break;
 		}
+
+		++i;
 	}
+
 	m_prebuilt = ctx_parts->prebuilt_array[0];
 	ha_alter_info->handler_ctx = ctx_parts;
 	ha_alter_info->group_commit_ctx = ctx_parts->ctx_array;
@@ -9373,19 +9473,38 @@ ha_innopart::inplace_alter_table(
 	ha_innopart_inplace_ctx* ctx_parts;
 
 	ctx_parts = static_cast<ha_innopart_inplace_ctx*>(
-					ha_alter_info->handler_ctx);
-	for (uint i = 0; i < m_tot_parts; i++) {
+		ha_alter_info->handler_ctx);
+
+	if (ctx_parts == NULL) {
+		return(false);
+	}
+
+	auto	oldp = old_dd_tab->partitions().begin();
+	auto	newp = new_dd_tab->partitions()->begin();
+
+	for (uint i = 0; i < m_tot_parts; ++oldp, ++newp) {
+		ut_ad(dd_part_is_stored(*oldp) == dd_part_is_stored(*newp));
+		if (!dd_part_is_stored(*newp)) {
+			continue;
+		}
+
+		const dd::Partition*	old_part = *oldp;
+		dd::Partition*		new_part = *newp;
+
 		m_prebuilt = ctx_parts->prebuilt_array[i];
 		ha_alter_info->handler_ctx = ctx_parts->ctx_array[i];
 		set_partition(i);
-		res = ha_innobase::inplace_alter_table(altered_table,
-						ha_alter_info,
-						old_dd_tab, new_dd_tab);
+
+		res = inplace_alter_table_impl<dd::Partition>(
+			altered_table, ha_alter_info, old_part, new_part);
 		ut_ad(ctx_parts->ctx_array[i] == ha_alter_info->handler_ctx);
 		ctx_parts->ctx_array[i] = ha_alter_info->handler_ctx;
+
 		if (res) {
 			break;
 		}
+
+		++i;
 	}
 	m_prebuilt = ctx_parts->prebuilt_array[0];
 	ha_alter_info->handler_ctx = ctx_parts;
@@ -9419,21 +9538,27 @@ ha_innopart::commit_inplace_alter_table(
 
 	ctx_parts = static_cast<ha_innopart_inplace_ctx*>(
 					ha_alter_info->handler_ctx);
-	ut_ad(ctx_parts);
-	ut_ad(ctx_parts->prebuilt_array);
+
+	if (ctx_parts == NULL || ctx_parts->ctx_array == NULL
+	    || ctx_parts->prebuilt_array == NULL) {
+		ut_ad(!commit);
+		return(false);
+	}
+ 
 	ut_ad(ctx_parts->prebuilt_array[0] == m_prebuilt);
+
 	if (commit) {
 		/* Commit is done through first partition (group commit). */
 		ut_ad(ha_alter_info->group_commit_ctx == ctx_parts->ctx_array);
 		ha_alter_info->handler_ctx = ctx_parts->ctx_array[0];
 		set_partition(0);
-		res = ha_innobase::commit_inplace_alter_table(altered_table,
-							ha_alter_info,
-							commit,
-							old_dd_tab, new_dd_tab);
+		res = ha_innobase::commit_inplace_alter_table(
+			altered_table, ha_alter_info, commit,
+			old_dd_tab, new_dd_tab);
 		ut_ad(res || !ha_alter_info->group_commit_ctx);
 		goto end;
 	}
+
 	/* Rollback is done for each partition. */
 	for (uint i = 0; i < m_tot_parts; i++) {
 		m_prebuilt = ctx_parts->prebuilt_array[i];
@@ -9448,19 +9573,20 @@ ha_innopart::commit_inplace_alter_table(
 		ctx_parts->ctx_array[i] = ha_alter_info->handler_ctx;
 	}
 end:
-	/* Move the ownership of the new tables back to
-	the m_part_share. */
+	/* Move the ownership of the new tables back to the m_part_share. */
 	ha_innobase_inplace_ctx*	ctx;
 	for (uint i = 0; i < m_tot_parts; i++) {
 		/* TODO: Fix to only use one prebuilt (i.e. make inplace
 		alter partition aware instead of using multiple prebuilt
 		copies... */
 		ctx = static_cast<ha_innobase_inplace_ctx*>(
-					ctx_parts->ctx_array[i]);
-		if (ctx) {
+			ctx_parts->ctx_array[i]);
+		if (ctx != NULL) {
 			m_part_share->set_table_part(i, ctx->prebuilt->table);
 			ctx->prebuilt->table = NULL;
 			ctx_parts->prebuilt_array[i] = ctx->prebuilt;
+		} else {
+			break;
 		}
 	}
 	/* The above juggling of prebuilt must be reset here. */

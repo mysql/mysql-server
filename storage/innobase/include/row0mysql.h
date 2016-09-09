@@ -501,7 +501,7 @@ row_import_tablespace_for_mysql(
 /** Drop a database for MySQL.
 @param[in]	name	database name which ends at '/'
 @param[in]	trx	transaction handle
-@param[out]	found	number of dropped tables/partitions
+@param[out]	found	number of dropped tables
 @return error code or DB_SUCCESS */
 dberr_t
 row_drop_database_for_mysql(

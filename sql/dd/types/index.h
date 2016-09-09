@@ -66,6 +66,14 @@ public:
   virtual ~Index()
   { };
 
+  /** Dummy method to be able to use Partition_index and Index interchangeably
+  in templates. */
+  const Index &index() const
+  { return *this; }
+
+  Index &index()
+  { return *this; }
+
   /////////////////////////////////////////////////////////////////////////
   // Table.
   /////////////////////////////////////////////////////////////////////////

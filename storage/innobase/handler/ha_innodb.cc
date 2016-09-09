@@ -56,8 +56,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <my_bitmap.h>
 #include <mysql/service_thd_alloc.h>
 #include <mysql/service_thd_wait.h>
-#include <dd/types/tablespace.h>
-#include <dd/properties.h>
 
 #include "dd/dd.h"
 #include "dd/dictionary.h"
@@ -69,7 +67,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dd/types/column.h"
 #include "dd/types/index_element.h"
 #include "dd/types/partition.h"
+#include "dd/types/partition_index.h"
 #include "dd/types/object_type.h"
+#include "dd/types/tablespace.h"
 #include "dd/types/tablespace_file.h"
 #include "dd_table_share.h"
 #include "dd/types/foreign_key.h"
@@ -2828,7 +2828,6 @@ Gets the InnoDB transaction handle for a MySQL handler object, creates
 an InnoDB transaction struct if the corresponding MySQL thread struct still
 lacks one.
 @return InnoDB transaction handle */
-static inline
 trx_t*
 check_trx_exists(
 /*=============*/
@@ -15178,15 +15177,14 @@ create_table_info_t::create_dd_tablespace(
 	return(false);
 }
 
-template<typename Table>
 void
 create_table_info_t::set_table_options(
-	Table*		dd_table,
+	dd::Table&	dd_table,
 	dict_table_t*	table)
 {
         enum row_type   type;
         dd::Table::enum_row_format      rf;
-        dd::Properties& options = dd_table->options();
+        dd::Properties& options = dd_table.options();
 
         if (auto zip_ssize = DICT_TF_GET_ZIP_SSIZE(table->flags)) {
                 uint32  old_size;
@@ -15220,7 +15218,7 @@ create_table_info_t::set_table_options(
                 ut_ad(0);
         }
 
-        dd_table->set_row_format(rf);
+        dd_table.set_row_format(rf);
         if (options.exists("row_type")) {
                 options.set_uint32("row_type", type);
         }
@@ -15251,6 +15249,12 @@ create_table_info_t::write_dd_table(
         }	
 }
 
+template void create_table_info_t::write_dd_table<dd::Table>(
+	dd::Object_id, dd::Table*, dict_table_t*);
+
+template void create_table_info_t::write_dd_table<dd::Partition>(
+	dd::Object_id, dd::Partition*, dict_table_t*);
+
 template<typename Index>
 void
 create_table_info_t::write_dd_index(
@@ -15266,6 +15270,48 @@ create_table_info_t::write_dd_index(
 	p.set_uint64(dd_index_key_strings[DD_INDEX_TRX_ID], index->trx_id);
 }
 
+/** Get the explicit dd::Tablespace::id of a partition.
+@param[in]      table   non-partitioned table
+@return the explicit dd::Tablespace::id
+@retval dd::INVALID_OBJECT_ID   if there is no explicit tablespace */
+inline
+dd::Object_id
+dd_get_space_id(const dd::Table& table)
+{
+        ut_ad(table.partition_type() == dd::Table::PT_NONE);
+        return(table.tablespace_id());
+}
+
+/** Get the explicit dd::Tablespace::id of a partition.
+@param[in]      partition       partition or subpartition
+@return the explicit dd::Tablespace::id
+@retval dd::INVALID_OBJECT_ID   if there is no explicit tablespace */
+inline
+dd::Object_id
+dd_get_space_id(const dd::Partition& partition)
+{
+        ut_ad(dd_part_is_stored(&partition));
+        ut_ad(partition.table().partition_type() != dd::Table::PT_NONE);
+        ut_ad((partition.table().subpartition_type() == dd::Table::ST_NONE)
+              == (partition.parent() == nullptr));
+
+        dd::Object_id   id = partition.tablespace_id();
+        if (id == dd::INVALID_OBJECT_ID) { 
+                if (const dd::Partition* parent = partition.parent()) {
+                        /* If there is no explicit TABLESPACE for the
+                        subpartition, fall back to the TABLESPACE
+                        of the partition. */
+                        id = parent->tablespace_id();
+                }
+        }
+        if (id == dd::INVALID_OBJECT_ID) {
+                /* If there is no explicit TABLESPACE for the partition,
+                fall back to the TABLESPACE of the table. */ 
+                id = partition.table().tablespace_id();
+        }
+        return(id);  
+}
+
 /** Update the global data dictionary.
 @tparam		Table	dd::Table or dd::Partition
 @param[in]	table	table object
@@ -15276,8 +15322,6 @@ int
 create_table_info_t::create_table_update_global_dd(
 	Table*		dd_table)
 {
-	/* TODO: To make this work with partitioned table */
-
 	DBUG_ENTER("create_table_update_global_dd");
 
 	if (dd_table == NULL) {
@@ -15310,8 +15354,12 @@ create_table_info_t::create_table_update_global_dd(
 	1 for all the data dictionary tables;
 	2 for the tablespace of innodb_system;
 	3 for the tablespace specified with innodb_file_per_table explicitly
-	dd::INVALID_OBJECT_ID for no specified tablespace */
-	dd::Object_id	space_id = dd_table->tablespace_id();
+	dd::INVALID_OBJECT_ID for no specified tablespace
+	Considering the partitioned table, if it's not of innodb_file_per_table,
+	the tablespace id has to be got from its parent partition or the
+	table itself, because the tablespace attribute is inherited there */
+	dd::Object_id	space_id = dict_table_is_file_per_table(table) ?
+		dd_table->tablespace_id() : dd_get_space_id(*dd_table);
 	dd::Object_id	dd_space_id = dd::INVALID_OBJECT_ID;
 
 	/* TODO: Check for TEMPORARY TABLE */
@@ -15338,11 +15386,11 @@ create_table_info_t::create_table_update_global_dd(
 		ut_ad(DICT_TF_HAS_SHARED_SPACE(table->flags));
 
 		/* Currently the tablespace id is hard coded as 0 */
-		dd_space_id = dd_table->tablespace_id();
+		dd_space_id = dd_get_space_id(*dd_table);
 
 		const dd::Tablespace*	index_space = NULL;
 		if (client->acquire<dd::Tablespace>(
-			    dd_table->tablespace_id(), &index_space)) {
+			    dd_space_id, &index_space)) {
 			dict_table_close(table, FALSE, FALSE);
 			DBUG_RETURN(HA_ERR_GENERIC);
 		}
@@ -15374,7 +15422,7 @@ create_table_info_t::create_table_update_global_dd(
 	}
 
 	if (!table->is_temporary()) {
-		set_table_options(dd_table, table);
+		set_table_options(dd_table->table(), table);
 	}
 
 	write_dd_table(dd_space_id, dd_table, table);
@@ -15384,6 +15432,11 @@ create_table_info_t::create_table_update_global_dd(
 	DBUG_RETURN(0);
 }
 
+template int create_table_info_t::create_table_update_global_dd<dd::Table>(
+	dd::Table*);
+
+template int create_table_info_t::create_table_update_global_dd<dd::Partition>(
+	dd::Partition*);
 
 /** Allocate a new trx. */
 void
@@ -15764,7 +15817,7 @@ ha_innobase::get_se_private_data(
 #ifdef UNIV_DEBUG
 	{
 		/* These tables must not be partitioned. */
-		DBUG_ASSERT(dd_table->partitions().empty());
+		DBUG_ASSERT(dd_table->partitions()->empty());
 	}
 
 	const innodb_dd_table_t&	data = innodb_dd_table[n_tables];
@@ -15799,12 +15852,13 @@ ha_innobase::get_se_private_data(
 @param[in]	file_per_table	whether to create a tablespace too
 @return	error number
 @retval 0 on success */
+template<typename Table>
 int
-ha_innobase::create(
+ha_innobase::create_table_impl(
 	const char*		name,
 	TABLE*			form,
 	HA_CREATE_INFO*		create_info,
-	dd::Table*		dd_table,
+	Table*			dd_table,
 	bool			file_per_table)
 {
 	int		error;
@@ -15915,6 +15969,12 @@ cleanup:
 	DBUG_RETURN(error);
 }
 
+template int ha_innobase::create_table_impl<dd::Table>(
+	const char*, TABLE*, HA_CREATE_INFO*, dd::Table*, bool);
+
+template int ha_innobase::create_table_impl<dd::Partition>(
+        const char*, TABLE*, HA_CREATE_INFO*, dd::Partition*, bool);
+
 /** Create an InnoDB table.
 @param[in]	name		table name
 @param[in]	form		table structure
@@ -15933,7 +15993,8 @@ ha_innobase::create(
 	dict_sys mutex protection, and could be changed while creating the
 	table. So we read the current value here and make all further
 	decisions based on this. */
-	return(create(name, form, create_info, dd_table, srv_file_per_table));
+	return(create_table_impl(name, form, create_info, dd_table,
+				 srv_file_per_table));
 }
 
 /*****************************************************************//**
@@ -16142,7 +16203,7 @@ ha_innobase::truncate(dd::Table *dd_tab)
 			dd_index->se_private_data().clear();
 		}
 
-		error = create(name, table, &info, dd_tab,
+		error = create_table_impl(name, table, &info, dd_tab,
 				file_per_table);
 	}
 
@@ -16214,10 +16275,11 @@ ha_innobase::delete_table(
 @param[in]	sqlcom	type of operation that the DROP is part of
 @return	error number
 @retval 0 on success */
+template<typename Table>
 int
 ha_innobase::delete_table(
 	const char*		name,
-	const dd::Table*	dd_table,
+	const Table*		dd_table,
 	enum enum_sql_command	sqlcom)
 {
 	dberr_t	err;
@@ -16312,73 +16374,6 @@ ha_innobase::delete_table(
 	err = row_drop_table_for_mysql(
 		norm_name, trx, sqlcom, true, handler);
 
-	if (err == DB_TABLE_NOT_FOUND) {
-		/* Test to drop all tables which matches db/tablename + '#'.
-		Only partitions can have '#' as non-first character in
-		the table name!
-
-		Temporary table names always start with '#', partitions are
-		the only 'tables' that can have '#' after the first character
-		and table name must have length > 0. User tables cannot have
-		'#' since it would be translated to @0023. Therefor this should
-		only match partitions. */
-		uint	len = (uint) strlen(norm_name);
-		ulint	num_partitions;
-		ut_a(len < FN_REFLEN);
-		norm_name[len] = '#';
-		norm_name[len + 1] = 0;
-		err = row_drop_database_for_mysql(norm_name, trx,
-			&num_partitions);
-		norm_name[len] = 0;
-		if (num_partitions == 0
-		    && !row_is_mysql_tmp_table_name(norm_name)) {
-			table_name_t tbl_name;
-			tbl_name.m_name = norm_name;
-			ib::error() << "Table " << tbl_name <<
-				" does not exist in the InnoDB"
-				" internal data dictionary though MySQL is"
-				" trying to drop it. Have you copied the .frm"
-				" file of the table to the MySQL database"
-				" directory from another database? "
-				<< TROUBLESHOOTING_MSG;
-		}
-		if (num_partitions == 0) {
-			err = DB_TABLE_NOT_FOUND;
-		}
-	}
-
-	/* TODO: remove this when the conversion tool from ha_partition to
-	native innodb partitioning is completed */
-	if (err == DB_TABLE_NOT_FOUND
-	    && innobase_get_lower_case_table_names() == 1) {
-#ifdef _WIN32
-		char*	is_part = strstr(norm_name, "#p#");
-#else
-		char*	is_part = strstr(norm_name, "#P#");
-#endif /* _WIN32 */
-
-		if (is_part != NULL) {
-			char	par_case_name[FN_REFLEN];
-
-#ifndef _WIN32
-			/* Check for the table using lower
-			case name, including the partition
-			separator "P" */
-			strcpy(par_case_name, norm_name);
-			innobase_casedn_str(par_case_name);
-#else
-			/* On Windows platfrom, check
-			whether there exists table name in
-			system table whose name is
-			not being normalized to lower case */
-			create_table_info_t::normalize_table_name_low(
-				par_case_name, name, FALSE);
-#endif /* _WIN32 */
-			err = row_drop_table_for_mysql(
-				par_case_name, trx, sqlcom, true, handler);
-		}
-	}
-
 	if (handler == NULL) {
 		ut_ad(!srv_read_only_mode);
 		/* Flush the log to reduce probability that the .frm files and
@@ -16420,6 +16415,12 @@ ha_innobase::delete_table(
 
 	DBUG_RETURN(convert_error_code_to_mysql(err, 0, NULL));
 }
+
+template int ha_innobase::delete_table<dd::Table>(
+	const char*, const dd::Table*, enum enum_sql_command);
+
+template int ha_innobase::delete_table<dd::Partition>(
+	const char*, const dd::Partition*, enum enum_sql_command);
 
 /** Validate the parameters in st_alter_tablespace
 before using them in InnoDB tablespace functions.
@@ -16931,22 +16932,21 @@ innobase_drop_database(
 @param[in]	from_table	dd::Table of the table with old name
 @param[in,out]	to_table	dd::Table of the table with new name
 @return DB_SUCCESS or error code */
-inline MY_ATTRIBUTE((warn_unused_result))
+template<typename Table>
 dberr_t
-innobase_rename_table(
-/*==================*/
+ha_innobase::rename_table_impl(
 	THD*		thd,
 	trx_t*		trx,
 	const char*	from,
 	const char*	to,
-	const dd::Table*from_table,
-	const dd::Table*to_table)
+	const Table*	from_table,
+	const Table*	to_table)
 {
 	dberr_t	error;
 	char	norm_to[FN_REFLEN];
 	char	norm_from[FN_REFLEN];
 
-	DBUG_ENTER("innobase_rename_table");
+	DBUG_ENTER("ha_innobase::rename_table_impl");
 	DBUG_ASSERT(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
 
 	ut_ad(!srv_read_only_mode);
@@ -16971,78 +16971,6 @@ innobase_rename_table(
 	ut_a(trx->will_lock > 0);
 
 	error = row_rename_table_for_mysql(norm_from, norm_to, trx, TRUE);
-
-	if (error == DB_TABLE_NOT_FOUND) {
-		/* May be partitioned table, which consists of partitions
-		named table_name#P#partition_name[#SP#subpartition_name].
-
-		We are doing a DDL operation. */
-		++trx->will_lock;
-		trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
-		trx_start_if_not_started(trx, true);
-		error = row_rename_partitions_for_mysql(norm_from, norm_to,
-							trx);
-		if (error == DB_TABLE_NOT_FOUND) {
-			ib::error() << "Table " << ut_get_name(trx, norm_from)
-				<< " does not exist in the InnoDB internal"
-				" data dictionary though MySQL is trying to"
-				" rename the table. Have you copied the .frm"
-				" file of the table to the MySQL database"
-				" directory from another database? "
-				<< TROUBLESHOOTING_MSG;
-		}
-	}
-	if (error != DB_SUCCESS) {
-		if (error == DB_TABLE_NOT_FOUND
-		    && innobase_get_lower_case_table_names() == 1) {
-			char*	is_part = NULL;
-#ifdef _WIN32
-			is_part = strstr(norm_from, "#p#");
-#else
-			is_part = strstr(norm_from, "#P#");
-#endif /* _WIN32 */
-
-			if (is_part) {
-				char	par_case_name[FN_REFLEN];
-#ifndef _WIN32
-				/* Check for the table using lower
-				case name, including the partition
-				separator "P" */
-				strcpy(par_case_name, norm_from);
-				innobase_casedn_str(par_case_name);
-#else
-				/* On Windows platfrom, check
-				whether there exists table name in
-				system table whose name is
-				not being normalized to lower case */
-				create_table_info_t::normalize_table_name_low(
-					par_case_name, from, FALSE);
-#endif /* _WIN32 */
-				trx_start_if_not_started(trx, true);
-				error = row_rename_table_for_mysql(
-					par_case_name, norm_to, trx, TRUE);
-			}
-		}
-
-		if (error == DB_SUCCESS) {
-#ifndef _WIN32
-			sql_print_warning("Rename partition table %s"
-					  " succeeds after converting to lower"
-					  " case. The table may have"
-					  " been moved from a case"
-					  " in-sensitive file system.\n",
-					  norm_from);
-#else
-			sql_print_warning("Rename partition table %s"
-					  " succeeds after skipping the step to"
-					  " lower case the table name."
-					  " The table may have been"
-					  " moved from a case sensitive"
-					  " file system.\n",
-					  norm_from);
-#endif /* _WIN32 */
-		}
-	}
 
 	bool	rename_dd_filename = false;
 	char*	new_path = NULL;
@@ -17105,6 +17033,14 @@ innobase_rename_table(
 	DBUG_RETURN(error);
 }
 
+template dberr_t ha_innobase::rename_table_impl<dd::Table>(
+	THD*, trx_t*, const char*, const char*,
+	const dd::Table*, const dd::Table*);
+
+template dberr_t ha_innobase::rename_table_impl<dd::Partition>(
+	THD*, trx_t*, const char*, const char*,
+	const dd::Partition*, const dd::Partition*);
+
 /** Renames an InnoDB table
 @param[in]	from		old name of the table
 @param[in]	to		new name of the table
@@ -17145,8 +17081,8 @@ ha_innobase::rename_table(
 	++trx->will_lock;
 	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
-	dberr_t	error = innobase_rename_table(thd, trx, from, to,
-					      from_table, to_table);
+	dberr_t	error = rename_table_impl<dd::Table>(
+		thd, trx, from, to, from_table, to_table);
 
 	DEBUG_SYNC(thd, "after_innobase_rename_table");
 

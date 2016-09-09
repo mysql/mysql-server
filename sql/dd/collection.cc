@@ -284,6 +284,8 @@ template Parameter_type_element*&
 Collection<Parameter_type_element*>::Collection_iterator::operator*();
 template Partition*&
 Collection<Partition*>::Collection_iterator::operator*();
+template dd::Partition_index*&
+Collection<dd::Partition_index*>::Collection_iterator::operator*();
 template Tablespace_file*&
 Collection<Tablespace_file*>::Collection_iterator::operator*();
 

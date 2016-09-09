@@ -254,6 +254,9 @@ public:
   virtual const Partition_collection &partitions() const
   { return m_partitions; }
 
+  virtual Partition_collection *partitions()
+  { return &m_partitions; }
+
   const Partition *get_partition(Object_id partition_id) const
   { return const_cast<Table_impl *> (this)->get_partition(partition_id); }
 

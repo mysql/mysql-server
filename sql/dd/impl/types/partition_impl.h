@@ -195,6 +195,9 @@ public:
   virtual const Partition_indexes &indexes() const
   { return m_indexes; }
 
+  virtual Partition_indexes *indexes()
+  { return &m_indexes; }
+
   virtual const Partition *parent() const
   { return m_parent; }
   virtual void set_parent(const Partition *parent)

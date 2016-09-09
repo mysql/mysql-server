@@ -158,6 +158,18 @@ public:
 		dict_table_t*	ib_table,
 		const char*	name);
 
+	/** Create the postfix of a partitioned table name
+	@param[in,out]	partition_name	Buffer to write the postfix
+	@param[in]	size		Size of the buffer
+	@param[in]	dd_part		Partition
+	@return	the length of written postfix. */
+	static
+	size_t
+	create_partition_postfix(
+		char*			partition_name,
+		size_t			size,
+		const dd::Partition*	dd_part);
+
 private:
 	/** Disable default constructor. */
 	Ha_innopart_share() {};
@@ -171,6 +183,18 @@ private:
 		uint		part_id,
 		const char*	partition_name);
 };
+
+#if 1 // WL#7743/runtime TODO: implement dd::Partition::is_stored()
+/** Determine if a partition is materialized.
+@param[in]	part		partition
+@return whether the partition is materialized */
+inline bool dd_part_is_stored(
+	const dd::Partition*	part)
+{
+	return(part->table().subpartition_type() == dd::Table::ST_NONE
+	       || part->level() == 1);
+}
+#endif
 
 /** The class defining a partitioning aware handle to an InnoDB table.
 Based on ha_innobase and extended with
@@ -380,8 +404,30 @@ public:
 		HA_CREATE_INFO*		create_info,
 		dd::Table*		dd_tab);
 
+	/** Drop a table.
+	@param[in]	name		table name
+	@param[in,out]	dd_table	data dictionary table
+	@return error number
+	@retval 0 on success */
+	int delete_table(
+		const char*		name,
+		const dd::Table*	dd_table);
+
 	int
 	truncate(dd::Table *dd_tab);
+
+	/** Rename a table.
+	@param[in]	from		table name before rename
+	@param[in]	to		table name after rename
+	@param[in]	from_table	data dictionary table before rename
+	@param[in,out]	to_table	data dictionary table after rename
+	@return	error number
+	@retval	0 on success */
+	int rename_table(
+		const char*		from,
+		const char*		to,
+		const dd::Table*	from_table,
+		dd::Table*		to_table);
 
 	int
 	check(
@@ -1154,9 +1200,12 @@ private:
 	/** @} */
 
 	/** Truncate partition.
-	Called from Partition_handler::trunctate_partition(). */
+	Called from Partition_handler::trunctate_partition() or truncate().
+	@param[in,out]	dd_table	data dictionary table
+	@return	error number
+	@retval	0 on success */
 	int
-	truncate_partition_low(dd::Table *table_def);
+	truncate_partition_low(dd::Table *dd_table);
 
 	/** Change partitions according to ALTER TABLE ... PARTITION ...
 	Called from Partition_handler::change_partitions().

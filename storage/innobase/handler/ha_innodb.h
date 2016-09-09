@@ -263,21 +263,6 @@ public:
 	/** Create an InnoDB table.
 	@param[in]	name		table name in filename-safe encoding
 	@param[in]	form		table structure
-	@param[in]	create_info	more information
-	@param[in,out]	dd_table	data dictionary cache object
-	@param[in]	file_per_table	whether to create a tablespace too
-	@return error number
-	@retval 0 on success */
-	int create(
-		const char*		name,
-		TABLE*			form,
-		HA_CREATE_INFO*		create_info,
-		dd::Table*		dd_tab,
-		bool			file_per_table);
-
-	/** Create an InnoDB table.
-	@param[in]	name		table name in filename-safe encoding
-	@param[in]	form		table structure
 	@param[in]	create_info	more information on the table
 	@param[in,out]	dd_table	data dictionary cache object
 	@return error number
@@ -291,25 +276,12 @@ public:
 	/** Drop a table.
 	@param[in]	name		table name
 	@param[in,out]	dd_table	data dictionary table
-	@param[in,out]	dd_trx_rw	dictionary transaction
 	@return	error number
 	@retval 0 on success */
-	int delete_table(
+	virtual int delete_table(
 		const char*		name,
 		const dd::Table*	dd_table);
-protected:
-	/** Drop a table.
-	@param[in]	name		table name
-	@param[in,out]	dd_table	data dictionary table
-	@param[in,out]	dd_trx_rw	dictionary transaction
-	@param[in]	sqlcom	type of operation that the DROP is part of
-	@return	error number
-	@retval 0 on success */
-	int delete_table(
-		const char*		name,
-		const dd::Table*	dd_table,
-		enum enum_sql_command	sqlcom);
-public:
+
 	/** DROP and CREATE an InnoDB table.
 	@param[in,out]	dd_tab		dd::Table of the table to be truncated
 	@return	error number
@@ -399,15 +371,15 @@ public:
 	did not return HA_ALTER_INPLACE_NO_LOCK).
 	This will be invoked before inplace_alter_table().
 
-	@param altered_table TABLE object for new version of table.
-	@param ha_alter_info Structure describing changes to be done
+	@param[in]	altered_table	TABLE object for new version of table.
+	@param[in,out]	ha_alter_info	Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
-	@param new_dd_tab dd::Table object for the new version of
-	the table. To be adjusted by this call.
-
-	@retval true Failure
-	@retval false Success
-	*/
+	@param[in]	old_dd_tab	dd::Table object representing old
+	version of the table
+	@param[in,out]	new_dd_tab	dd::Table object representing new
+	version of the table
+	@retval	true Failure
+	@retval	false Success */
 	bool prepare_inplace_alter_table(
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info,
@@ -419,13 +391,15 @@ public:
 	The level of concurrency allowed during this operation depends
 	on the return value from check_if_supported_inplace_alter().
 
-	@param altered_table TABLE object for new version of table.
-	@param ha_alter_info Structure describing changes to be done
+	@param[in]	altered_table	TABLE object for new version of table.
+	@param[in,out]	ha_alter_info	Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
-
-	@retval true Failure
-	@retval false Success
-	*/
+	@param[in]	old_dd_tab	dd::Table object representing old
+	version of the table
+	@param[in,out]	new_dd_tab	dd::Table object representing new
+	version of the table
+	@retval	true Failure
+	@retval	false Success */
 	bool inplace_alter_table(
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info,
@@ -439,13 +413,17 @@ public:
 	inplace_alter_table() and thus might be higher than during
 	prepare_inplace_alter_table(). (E.g concurrent writes were
 	blocked during prepare, but might not be during commit).
-	@param altered_table TABLE object for new version of table.
-	@param ha_alter_info Structure describing changes to be done
+
+	@param[in]	altered_table	TABLE object for new version of table.
+	@param[in,out]	ha_alter_info	Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
-	@param commit true => Commit, false => Rollback.
-	@retval true Failure
-	@retval false Success
-	*/
+	@param[in]	commit		True to commit or false to rollback.
+	@param[in]	old_dd_tab	dd::Table object representing old
+	version of the table
+	@param[in,out]	new_dd_tab	dd::Table object representing new
+	version of the table
+	@retval	true Failure
+	@retval	false Success */
 	bool commit_inplace_alter_table(
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info,
@@ -578,6 +556,110 @@ protected:
 	doesn't give any clue that it is called at the end of a statement. */
 	int end_stmt();
 
+	/** Create an InnoDB table.
+	@param[in]	name		table name in filename-safe encoding
+	@param[in]	form		table structure
+	@param[in]	create_info	more information
+	@param[in,out]	dd_table	data dictionary cache object
+	@param[in]	file_per_table	whether to create a tablespace too
+	@return	error number
+	@retval	0 on success */
+	template<typename Table>
+	int create_table_impl(
+		const char*		name,
+		TABLE*			form,
+		HA_CREATE_INFO*		create_info,
+		Table*			dd_tab,
+		bool			file_per_table);
+
+	/** Drop a table.
+	@param[in]	name		table name
+	@param[in,out]	dd_table	data dictionary table
+	@param[in]	sqlcom		type of operation that the DROP
+					is part of
+	@return	error number
+	@retval	0 on success */
+	template<typename Table>
+        int delete_table(
+		const char*		name,
+		const Table*		dd_table,
+		enum enum_sql_command	sqlcom);
+
+	/** Renames an InnoDB table.
+	@param[in,out]	thd		THD object
+	@param[in,out]	trx		transaction
+	@param[in]	from		old name of the table
+	@param[in]	to		new name of the table
+	@param[in]	from_table	dd::Table or dd::Partition of the table
+	with old name
+	@param[in,out]	to_table	dd::Table or dd::Partition of the table
+	with new name
+	@return DB_SUCCESS or error code */
+	template<typename Table>
+	dberr_t
+	rename_table_impl(
+		THD*			thd,
+		trx_t*			trx,
+		const char*		from,
+		const char*		to,
+		const Table*		from_table,
+		const Table*		to_table);
+
+	/** Implementation of prepare_inplace_alter_table()
+	@param[in]	altered_table	TABLE object for new version of table.
+	@param[in,out]	ha_alter_info	Structure describing changes to be done
+	by ALTER TABLE and holding data used during in-place alter.
+	@param[in]	old_dd_tab	dd::Table object representing old
+	version of the table
+	@param[in,out]	new_dd_tab	dd::Table object representing new
+	version of the table
+	@retval	true Failure
+	@retval	false Success */
+	template<typename Table>
+	bool
+	prepare_inplace_alter_table_impl(
+		TABLE*			altered_table,
+		Alter_inplace_info*	ha_alter_info,
+		const Table*		old_dd_tab,
+		Table*			new_dd_tab);
+
+	/** Implementation of inplace_alter_table()
+	@param[in]	altered_table	TABLE object for new version of table.
+	@param[in,out]	ha_alter_info	Structure describing changes to be done
+	by ALTER TABLE and holding data used during in-place alter.
+	@param[in]	old_dd_tab	dd::Table object representing old
+	version of the table
+	@param[in,out]	new_dd_tab	dd::Table object representing new
+	version of the table
+	@retval	true Failure
+	@retval	false Success */
+	template<typename Table>
+	bool
+	inplace_alter_table_impl(
+		TABLE*			altered_table,
+		Alter_inplace_info*	ha_alter_info,
+		const Table*		old_dd_tab,
+		Table*			new_dd_tab);
+
+	/** Implementation of commit_inplace_alter_table()
+	@param[in]	altered_table	TABLE object for new version of table.
+	@param[in,out]	ha_alter_info	Structure describing changes to be done
+	by ALTER TABLE and holding data used during in-place alter.
+	@param[in]	commit		True to commit or false to rollback.
+	@param[in]	old_dd_tab	dd::Table object representing old
+	version of the table
+	@param[in,out]	new_dd_tab	dd::Table object representing new
+	version of the table
+	@retval	true Failure
+	@retval	false Success */
+	template<typename Table>
+	bool
+	commit_inplace_alter_table_impl(
+		TABLE*			altered_table,
+		Alter_inplace_info*	ha_alter_info,
+		bool			commit,
+		const Table*		old_dd_tab,
+		Table*			new_dd_tab);
 
 	/** The multi range read session object */
 	DsMrr_impl		m_ds_mrr;
@@ -647,6 +729,15 @@ Allocates an InnoDB transaction for a MySQL handler object.
 trx_t*
 innobase_trx_allocate(
 	MYSQL_THD	thd);	/*!< in: user thread handle */
+
+/** Gets the InnoDB transaction handle for a MySQL handler object, creates
+an InnoDB transaction struct if the corresponding MySQL thread struct still
+lacks one.
+@param[in]	thd	MySQL thd (connection) object
+@return InnoDB transaction handle */
+trx_t*
+check_trx_exists(
+	THD*	thd);
 
 /** Match index columns between MySQL and InnoDB.
 This function checks whether the index column information
@@ -860,9 +951,8 @@ public:
 		dd::Tablespace*			dd_space,
 		space_id_t			space);
 
-	template<typename Table>
 	static void set_table_options(
-		Table*		dd_table,
+		dd::Table&	dd_table,
 		dict_table_t*	table);
 
 	template<typename Table>
