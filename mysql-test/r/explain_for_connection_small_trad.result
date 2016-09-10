@@ -55,7 +55,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -2,2 +2,2 @@
- 1	SIMPLE	t1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	Using filesort
+ 1	SIMPLE	t1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 -1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	const	1	50.00	Using where; Using index
 +1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	const	1	100.00	Using where; Using index
 QUERY: SELECT * FROM t3 AS a INNER JOIN t3 AS b USING (id) WHERE a.ref < b.ref 

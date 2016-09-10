@@ -1495,7 +1495,7 @@ ibuf_dummy_index_add_col(
 			       dtype_get_prtype(type),
 			       dtype_get_len(type));
 	dict_index_add_col(index, index->table,
-			   index->table->get_col(i), len);
+			   index->table->get_col(i), len, true);
 }
 /********************************************************************//**
 Deallocates a dummy index for inserting a record to a non-clustered index. */
@@ -4049,7 +4049,7 @@ dump:
 				      		    &offsets, heap, mtr,
 						    &page_cur);
 
-		ut_ad(!cmp_dtuple_rec(entry, rec, offsets));
+		ut_ad(!cmp_dtuple_rec(entry, rec, index, offsets));
 		lock_rec_restore_from_page_infimum(block, rec, block);
 	} else {
 		offsets = NULL;

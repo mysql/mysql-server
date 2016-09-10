@@ -25,10 +25,10 @@ create table t2 (country_id int primary key, country char(20) not null);
 insert into t2 values (1, 'USA'),(2,'India'), (3,'Finland');
 select product, sum(profit) from t1 group by product;
 product	sum(profit)
-Calculator	275
 Computer	6900
-Phone	10
 TV	600
+Calculator	275
+Phone	10
 select product, sum(profit) from t1 group by product with rollup;
 product	sum(profit)
 Calculator	275
@@ -52,16 +52,16 @@ TV	600	120.00000
 NULL	7785	519.00000
 select product, country_id , year, sum(profit) from t1 group by product, country_id, year;
 product	country_id	year	sum(profit)
+Computer	2	2000	2700
+TV	1	1999	250
 Calculator	1	1999	50
-Calculator	1	2000	75
-Calculator	2	2000	150
 Computer	1	1999	2700
 Computer	1	2000	1500
-Computer	2	2000	2700
-Phone	3	2003	10
-TV	1	1999	250
 TV	1	2000	150
 TV	2	2000	200
+Calculator	1	2000	75
+Calculator	2	2000	150
+Phone	3	2003	10
 select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup;
 product	country_id	year	sum(profit)
 Calculator	1	1999	50

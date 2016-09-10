@@ -459,16 +459,16 @@ select sum(a), @arg00 from t1 where a > @arg01
 and b is not null group by substr(b,@arg02)
 having sum(a) <> @arg03 ;
 sum(a)	@arg00
-3	b
 1	b
+3	b
 4	b
 prepare stmt1 from ' select sum(a), ? from t1 where a > ?
 and b is not null group by substr(b,?)
 having sum(a) <> ? ';
 execute stmt1 using @arg00, @arg01, @arg02, @arg03;
 sum(a)	?
-3	b
 1	b
+3	b
 4	b
 test_sequence
 ------ join tests ------
@@ -1051,10 +1051,10 @@ group by b ' ;
 execute stmt1 using @arg00;
 sum(a) + 200	?
 210	1
-204	1
 201	1
-203	1
 202	1
+203	1
+204	1
 set @Oporto='Oporto' ;
 set @Lisboa='Lisboa' ;
 set @0=0 ;
@@ -1071,14 +1071,14 @@ union distinct
 select sum(a) + 200, @Lisboa from t1
 group by b ;
 the_sum	the_town
-204	Oporto
 201	Oporto
-203	Oporto
 202	Oporto
-204	Lisboa
+203	Oporto
+204	Oporto
 201	Lisboa
-203	Lisboa
 202	Lisboa
+203	Lisboa
+204	Lisboa
 prepare stmt1 from ' select sum(a) + 200 as the_sum, ? as the_town from t1
                      group by b
                      union distinct
@@ -1086,14 +1086,14 @@ prepare stmt1 from ' select sum(a) + 200 as the_sum, ? as the_town from t1
                      group by b ' ;
 execute stmt1 using @Oporto, @Lisboa;
 the_sum	the_town
-204	Oporto
 201	Oporto
-203	Oporto
 202	Oporto
-204	Lisboa
+203	Oporto
+204	Oporto
 201	Lisboa
-203	Lisboa
 202	Lisboa
+203	Lisboa
+204	Lisboa
 select sum(a) + 200 as the_sum, @Oporto as the_town from t1
 where a > @1
 group by b
@@ -1102,11 +1102,11 @@ select sum(a) + 200, @Lisboa from t1
 where a > @2
 group by b ;
 the_sum	the_town
-204	Oporto
-203	Oporto
 202	Oporto
-204	Lisboa
+203	Oporto
+204	Oporto
 203	Lisboa
+204	Lisboa
 prepare stmt1 from ' select sum(a) + 200 as the_sum, ? as the_town from t1
                      where a > ?
                      group by b
@@ -1116,11 +1116,11 @@ prepare stmt1 from ' select sum(a) + 200 as the_sum, ? as the_town from t1
                      group by b ' ;
 execute stmt1 using @Oporto, @1, @Lisboa, @2;
 the_sum	the_town
-204	Oporto
-203	Oporto
 202	Oporto
-204	Lisboa
+203	Oporto
+204	Oporto
 203	Lisboa
+204	Lisboa
 select sum(a) + 200 as the_sum, @Oporto as the_town from t1
 where a > @1
 group by b
@@ -1131,8 +1131,8 @@ where a > @2
 group by b 
 having avg(a) > @3;
 the_sum	the_town
-204	Oporto
 203	Oporto
+204	Oporto
 204	Lisboa
 prepare stmt1 from ' select sum(a) + 200 as the_sum, ? as the_town from t1
                      where a > ?
@@ -1145,8 +1145,8 @@ prepare stmt1 from ' select sum(a) + 200 as the_sum, ? as the_town from t1
                      having avg(a) > ? ';
 execute stmt1 using @Oporto, @1, @2, @Lisboa, @2, @3;
 the_sum	the_town
-204	Oporto
 203	Oporto
+204	Oporto
 204	Lisboa
 drop table if exists t2 ;
 create table t2 (s varchar(25), fulltext(s))

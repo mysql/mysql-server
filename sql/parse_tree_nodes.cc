@@ -1228,6 +1228,21 @@ static bool setup_index(keytype key_type,
       contextualize_nodes(lock_and_algorithm_options, pc))
     return true;
 
+  if ((key_type == KEYTYPE_FULLTEXT || key_type == KEYTYPE_SPATIAL))
+  {
+    List_iterator<Key_part_spec> li(*columns);
+    Key_part_spec *kp;
+    while((kp= li++))
+    {
+      if (!kp->is_ascending)
+      {
+        my_error(ER_WRONG_USAGE, MYF(0),"spatial or fulltext index",
+                 "descending index order");
+        return TRUE;
+      }
+    }
+  }
+
   Key_spec *key=
     new Key_spec(thd->mem_root, key_type, to_lex_cstring(name),
                  &lex->key_create_info, false, true, *columns);

@@ -237,6 +237,7 @@ insert into t1 values (1, NULL, NULL), (1, NULL, 'b'), (1, 1, NULL), (1, 1, 'b')
 explain select * from t1 where (a = 1 and b is null and c = 'b') or (a > 2) order by a desc;
 select * from t1 where (a = 1 and b is null and c = 'b') or (a > 2) order by a desc;
 explain select * from t1 where a >= 1 and a < 3 order by a desc;
+explain format=json select * from t1 where a >= 1 and a < 3 order by a desc;
 select * from t1 where a >= 1 and a < 3 order by a desc;
 explain select * from t1 where a = 1 order by a desc, b desc;
 select * from t1 where a = 1 order by a desc, b desc;
@@ -1606,14 +1607,14 @@ INSERT INTO t1 VALUES
 (8,  8, 8),
 (9,  9, 9);
 
-INSERT INTO t1 SELECT a + 10,  b, c FROM t1;
-INSERT INTO t1 SELECT a + 20,  b, c FROM t1;
-INSERT INTO t1 SELECT a + 40,  b, c FROM t1;
-INSERT INTO t1 SELECT a + 80,  b, c FROM t1;
-INSERT INTO t1 SELECT a + 160, b, c FROM t1;
-INSERT INTO t1 SELECT a + 320, b, c FROM t1;
-INSERT INTO t1 SELECT a + 640, b, c FROM t1;
-INSERT INTO t1 SELECT a + 1280, b, c FROM t1 LIMIT 80;
+INSERT INTO t1 SELECT a + 10,  b, c  + 10   FROM t1;
+INSERT INTO t1 SELECT a + 20,  b, c  + 20   FROM t1;
+INSERT INTO t1 SELECT a + 40,  b, c  + 40   FROM t1;
+INSERT INTO t1 SELECT a + 80,  b, c  + 80   FROM t1;
+INSERT INTO t1 SELECT a + 160, b, c  + 160  FROM t1;
+INSERT INTO t1 SELECT a + 320, b, c  + 320  FROM t1;
+INSERT INTO t1 SELECT a + 640, b, c  + 640  FROM t1;
+INSERT INTO t1 SELECT a + 1280, b, c + 1280 FROM t1 LIMIT 80;
 
 EXPLAIN
 SELECT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 9;

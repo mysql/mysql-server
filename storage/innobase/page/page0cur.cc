@@ -119,7 +119,8 @@ page_cur_try_search_shortcut(
 	low_match = up_match = std::min(*ilow_matched_fields,
 					*iup_matched_fields);
 
-	if (cmp_dtuple_rec_with_match(tuple, rec, offsets, &low_match) < 0) {
+	if (cmp_dtuple_rec_with_match(tuple, rec, index, offsets,
+				      &low_match) < 0) {
 		goto exit_func;
 	}
 
@@ -128,7 +129,7 @@ page_cur_try_search_shortcut(
 		offsets = rec_get_offsets(next_rec, index, offsets,
 					  dtuple_get_n_fields(tuple), &heap);
 
-		if (cmp_dtuple_rec_with_match(tuple, next_rec, offsets,
+		if (cmp_dtuple_rec_with_match(tuple, next_rec, index, offsets,
 					      &up_match) >= 0) {
 			goto exit_func;
 		}
@@ -531,7 +532,7 @@ page_cur_search_with_match(
 		}
 
 		cmp = cmp_dtuple_rec_with_match(
-			tuple, mid_rec, offsets, &cur_matched_fields);
+			tuple, mid_rec, index, offsets, &cur_matched_fields);
 
 		if (cmp > 0) {
 low_slot_match:
@@ -593,7 +594,7 @@ up_slot_match:
 		}
 
 		cmp = cmp_dtuple_rec_with_match(
-			tuple, mid_rec, offsets, &cur_matched_fields);
+			tuple, mid_rec, index, offsets, &cur_matched_fields);
 
 		if (cmp > 0) {
 low_rec_match:

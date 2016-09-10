@@ -323,7 +323,7 @@ ib_read_tuple(
 		/* This is a case of "read upto" certain value. Used for
 		index scan for "<" or "<=" case */
 		cmp = cmp_dtuple_rec_with_match(
-			cmp_tuple->ptr, rec, offsets, &match);
+			cmp_tuple->ptr, rec, index, offsets, &match);
 
 		if ((mode == IB_CUR_LE && cmp < 0)
 		    || (mode == IB_CUR_L && cmp <= 0)) {

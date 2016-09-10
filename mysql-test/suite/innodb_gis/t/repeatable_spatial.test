@@ -16,6 +16,7 @@ ENGINE=InnoDB;
 
 ALTER TABLE tab ADD SPATIAL INDEX idx2(c2 ASC);
 
+--error ER_WRONG_USAGE
 ALTER TABLE tab ADD SPATIAL KEY idx3(c3 DESC);
 
 ALTER TABLE tab ADD SPATIAL INDEX idx4(c4 ASC) COMMENT 'testing spatial index on Polygon';
@@ -131,6 +132,7 @@ ENGINE=InnoDB;
 
 ALTER TABLE tab ADD SPATIAL INDEX idx2(c2 ASC);
 
+--error ER_WRONG_USAGE
 ALTER TABLE tab ADD SPATIAL KEY idx3(c3 DESC);
 
 ALTER TABLE tab ADD SPATIAL INDEX idx4(c4 ASC) COMMENT 'testing spatial index on Polygon';

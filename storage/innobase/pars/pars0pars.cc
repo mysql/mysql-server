@@ -1906,7 +1906,8 @@ pars_create_index(
 	column = column_list;
 
 	while (column) {
-		index->add_field(column->name, 0);
+		/* The internal parser only supports ascending indexes. */
+		index->add_field(column->name, 0, true);
 
 		column->resolved = TRUE;
 		column->token_type = SYM_COLUMN;

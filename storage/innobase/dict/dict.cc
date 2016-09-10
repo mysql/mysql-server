@@ -39,7 +39,8 @@ dict_index_add_col(
 	dict_index_t*		index,		/*!< in/out: index */
 	const dict_table_t*	table,		/*!< in: table */
 	dict_col_t*		col,		/*!< in: column */
-	ulint			prefix_len)	/*!< in: column prefix length */
+	ulint			prefix_len,	/*!< in: column prefix length */
+	bool			is_ascending)	/*!< in: true=ASC, false=DESC */
 {
 	dict_field_t*	field;
 	const char*	col_name;
@@ -70,7 +71,7 @@ dict_index_add_col(
 		col_name = table->get_col_name(dict_col_get_no(col));
 	}
 
-	index->add_field(col_name, prefix_len);
+	index->add_field(col_name, prefix_len, is_ascending);
 
 	field = index->get_field(index->n_def - 1);
 

@@ -223,18 +223,18 @@ select t from t1 group by t;
 t
 NULL
 
-1
-a
 hello
 HELLO MY
+a
+1
 select b from t1 group by b;
 b
 NULL
 
+hello
 HELLO
 HELLO MY
 a
-hello
 set big_tables=1;
 select distinct t from t1;
 t
@@ -328,36 +328,36 @@ a	a	a	a
 1		NULL	1
 select t,count(*) from t1 group by t;
 t	count(*)
-NULL	2
 	1
-1	1
-a	1
 hello	2
 HELLO MY	1
+a	1
+1	1
+NULL	2
 select b,count(*) from t1 group by b;
 b	count(*)
-NULL	3
 	1
+hello	1
 HELLO	1
 HELLO MY	1
 a	1
-hello	1
+NULL	3
 select c,count(*) from t1 group by c;
 c	count(*)
 NULL	2
 	2
-a	1
 hello	2
 HELLO MY	1
+a	1
 select d,count(*) from t1 group by d;
 d	count(*)
 NULL	2
 	1
-1	1
+hello	1
 HELLO	1
 HELLO MY	1
 a	1
-hello	1
+1	1
 drop table t1;
 create table t1 (a text, unique (a(2100))) engine=myisam;
 ERROR 42000: Specified key was too long; max key length is 1000 bytes

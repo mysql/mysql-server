@@ -736,11 +736,11 @@ CREATE TABLE t1 (c VARCHAR(10)) DEFAULT CHARSET = utf8mb4;
 INSERT INTO t1 VALUES ('嬽仛砻'), ('櫶'), ('怑橷'), ('獣厘濸氻'), ('嚏'), ('𠻠'), ('怑橷');
 SELECT c, COUNT(c) FROM t1 GROUP BY c;
 c	COUNT(c)
-嚏	1
 嬽仛砻	1
-怑橷	2
 櫶	1
+怑橷	2
 獣厘濸氻	1
+嚏	1
 𠻠	1
 DROP TABLE t1;
 'Test for PS'

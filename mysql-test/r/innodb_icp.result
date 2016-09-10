@@ -358,7 +358,7 @@ WHERE ts BETWEEN '0000-00-00' AND '2010-00-01 00:00:00'
 ORDER BY ts DESC
 LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where; Backward index scan
 
 DROP TABLE t1;
 #

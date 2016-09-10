@@ -280,16 +280,16 @@ insert into t1 values
 (6, -1695.31), (6, 1003.77), (6, 499.72), (6, 191.82);
 explain select sum(b) s from t1 group by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select sum(`test`.`t1`.`b`) AS `s` from `test`.`t1` group by `test`.`t1`.`a`
 select sum(b) s from t1 group by a;
 s
 0.00
+-0.00
 100.00
+-0.00
 0.00
--0.00
--0.00
 0.00
 select sum(b) s from t1 group by a having s <> 0;
 s
@@ -300,9 +300,9 @@ s
 select sum(b) s from t1 group by a having s <=> 0;
 s
 0.00
+-0.00
+-0.00
 0.00
--0.00
--0.00
 0.00
 select sum(b) s from t1 group by a having s <=> 0 order by s;
 s

@@ -768,6 +768,7 @@ struct dict_field_t{
 	unsigned	fixed_len:10;	/*!< 0 or the fixed length of the
 					column if smaller than
 					DICT_ANTELOPE_MAX_INDEX_COL_LEN */
+	unsigned	is_ascending:1;	/*!< 0=DESC, 1=ASC */
 };
 
 /**********************************************************************//**
@@ -1147,8 +1148,9 @@ struct dict_index_t{
 	by the column name may be released only after publishing the index.
 	@param[in] name		column name
 	@param[in] prefix_len	0 or the column prefix length in a MySQL index
-				like INDEX (textcol(25)) */
-	void add_field(const char* name, ulint prefix_len)
+				like INDEX (textcol(25))
+	@param[in] is_ascending	true=ASC, false=DESC */
+	void add_field(const char* name, ulint prefix_len, bool	is_ascending)
 	{
 		dict_field_t*	field;
 
@@ -1160,6 +1162,7 @@ struct dict_index_t{
 
 		field->name = name;
 		field->prefix_len = (unsigned int) prefix_len;
+		field->is_ascending = is_ascending;
 	}
 
 	/** Gets the nth field of an index.
