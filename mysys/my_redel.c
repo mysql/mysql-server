@@ -1,5 +1,5 @@
-/*
-   Copyright (c) 2000, 2010, Oracle and/or its affiliates
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates
+   Copyright (c) 2009, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,7 +49,8 @@ int my_redel(const char *org_name, const char *tmp_name,
   DBUG_PRINT("my",("org_name: '%s' tmp_name: '%s'  MyFlags: %d",
 		   org_name,tmp_name,MyFlags));
 
-  if (my_copystat(org_name,tmp_name,MyFlags) < 0)
+  if (!my_disable_copystat_in_redel &&
+      my_copystat(org_name,tmp_name,MyFlags) < 0)
     goto end;
   if (MyFlags & MY_REDEL_MAKE_BACKUP)
   {

@@ -3455,6 +3455,7 @@ static int init_common_variables()
 
   max_system_variables.pseudo_thread_id= (ulong)~0;
   server_start_time= flush_status_time= my_time(0);
+  my_disable_copystat_in_redel= 1;
 
   rpl_filter= new Rpl_filter;
   binlog_filter= new Rpl_filter;
