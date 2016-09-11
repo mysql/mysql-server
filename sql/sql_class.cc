@@ -4736,9 +4736,11 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     {
       static const char *prelocked_mode_name[] = {
         "NON_PRELOCKED",
+        "LOCK_TABLES",
         "PRELOCKED",
         "PRELOCKED_UNDER_LOCK_TABLES",
       };
+      compile_time_assert(array_elements(prelocked_mode_name) == LTM_always_last);
       DBUG_PRINT("debug", ("prelocked_mode: %s",
                            prelocked_mode_name[locked_tables_mode]));
     }
