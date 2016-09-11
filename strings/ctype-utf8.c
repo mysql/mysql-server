@@ -1,5 +1,5 @@
 /* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
-   Copyright (c) 2009, 2013, Monty Program Ab
+   Copyright (c) 2009, 2016, MariaDB
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -1939,7 +1939,7 @@ MY_UNICASE_INFO *const my_unicase_turkish[256]=
 static inline void
 my_tosort_unicode(MY_UNICASE_INFO * const* uni_plane, my_wc_t *wc)
 {
-  int page= *wc >> 8;
+  uint page= *wc >> 8;
   if (page < 256)
   {
     if (uni_plane[page])
@@ -5024,7 +5024,7 @@ my_wc_mb_utf8mb4_no_range(CHARSET_INFO *cs __attribute__((unused)),
 static inline void
 my_tolower_utf8mb4(MY_UNICASE_INFO * const* uni_plane, my_wc_t *wc)
 {
-  int page= *wc >> 8;
+  uint page= *wc >> 8;
   if (page < 256 && uni_plane[page])
     *wc= uni_plane[page][*wc & 0xFF].tolower;
 }
@@ -5033,7 +5033,7 @@ my_tolower_utf8mb4(MY_UNICASE_INFO * const* uni_plane, my_wc_t *wc)
 static inline void
 my_toupper_utf8mb4(MY_UNICASE_INFO * const* uni_plane, my_wc_t *wc)
 {
-  int page= *wc >> 8;
+  uint page= *wc >> 8;
   if (page < 256 && uni_plane[page])
     *wc= uni_plane[page][*wc & 0xFF].toupper;
 }

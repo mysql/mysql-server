@@ -1,5 +1,5 @@
 /* Copyright (c) 2003, 2013, Oracle and/or its affiliates
-   Copyright (c) 2009, 2014, SkySQL Ab.
+   Copyright (c) 2009, 2016, MariaDB
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -1098,7 +1098,7 @@ my_uni_utf16(CHARSET_INFO *cs __attribute__((unused)),
 static inline void
 my_tolower_utf16(MY_UNICASE_INFO * const* uni_plane, my_wc_t *wc)
 {
-  int page= *wc >> 8;
+  uint page= *wc >> 8;
   if (page < 256 && uni_plane[page])
     *wc= uni_plane[page][*wc & 0xFF].tolower;
 }
@@ -1107,7 +1107,7 @@ my_tolower_utf16(MY_UNICASE_INFO * const* uni_plane, my_wc_t *wc)
 static inline void
 my_toupper_utf16(MY_UNICASE_INFO * const* uni_plane, my_wc_t *wc)
 {
-  int page= *wc >> 8;
+  uint page= *wc >> 8;
   if (page < 256 && uni_plane[page])
     *wc= uni_plane[page][*wc & 0xFF].toupper;
 }
@@ -1116,7 +1116,7 @@ my_toupper_utf16(MY_UNICASE_INFO * const* uni_plane, my_wc_t *wc)
 static inline void
 my_tosort_utf16(MY_UNICASE_INFO * const* uni_plane, my_wc_t *wc)
 {
-  int page= *wc >> 8;
+  uint page= *wc >> 8;
   if (page < 256)
   {
     if (uni_plane[page])
@@ -1727,7 +1727,7 @@ my_uni_utf32(CHARSET_INFO *cs __attribute__((unused)),
 static inline void
 my_tolower_utf32(MY_UNICASE_INFO * const* uni_plane, my_wc_t *wc)
 {
-  int page= *wc >> 8;
+  uint page= *wc >> 8;
   if (page < 256 && uni_plane[page])
     *wc= uni_plane[page][*wc & 0xFF].tolower;
 }
@@ -1736,7 +1736,7 @@ my_tolower_utf32(MY_UNICASE_INFO * const* uni_plane, my_wc_t *wc)
 static inline void
 my_toupper_utf32(MY_UNICASE_INFO * const* uni_plane, my_wc_t *wc)
 {
-  int page= *wc >> 8;
+  uint page= *wc >> 8;
   if (page < 256 && uni_plane[page])
     *wc= uni_plane[page][*wc & 0xFF].toupper;
 }
@@ -1745,7 +1745,7 @@ my_toupper_utf32(MY_UNICASE_INFO * const* uni_plane, my_wc_t *wc)
 static inline void
 my_tosort_utf32(MY_UNICASE_INFO *const* uni_plane, my_wc_t *wc)
 {
-  int page= *wc >> 8;
+  uint page= *wc >> 8;
   if (page < 256)
   {
     if (uni_plane[page])

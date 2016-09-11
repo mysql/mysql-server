@@ -876,6 +876,11 @@ SELECT CHAR_LENGTH(TRIM(BOTH 0x0001 FROM _utf32 0x00000061));
 SELECT CHAR_LENGTH(TRIM(BOTH 0x61 FROM _utf32 0x00000061));
 SELECT CHAR_LENGTH(TRIM(BOTH 0x00 FROM _utf32 0x00000061));
 
+#
+# potential signedness issue
+#
+select hex(lower(cast(0xffff0000 as char character set utf32))) as c;
+
 --echo #
 --echo # End of 5.5 tests
 --echo #
