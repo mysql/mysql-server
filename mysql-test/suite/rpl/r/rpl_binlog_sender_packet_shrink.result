@@ -1,0 +1,211 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+include/stop_dump_threads.inc
+CREATE TABLE t1 (a TEXT(1048576));
+include/sync_slave_sql_with_master.inc
+#
+# 1. Generate a big event to make the packet to grow
+#
+INSERT 1M byte string
+INSERT INTO t1 VALUES (REPEAT('a', 1048576));
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The packet should have grown 64 times after a 1M big event]
+#
+# 2. Generate 100 events with some having more then 4097
+#    bytes to ensure that the packet will shrink
+#
+INSERT 20 x 8K string (x 5 events: GTID, BEGIN, TABLE_MAP, ROWS, XID)
+INSERT INTO t1 VALUES (REPEAT('b', 8192));
+INSERT INTO t1 VALUES (REPEAT('b', 8192));
+INSERT INTO t1 VALUES (REPEAT('b', 8192));
+INSERT INTO t1 VALUES (REPEAT('b', 8192));
+INSERT INTO t1 VALUES (REPEAT('b', 8192));
+INSERT INTO t1 VALUES (REPEAT('b', 8192));
+INSERT INTO t1 VALUES (REPEAT('b', 8192));
+INSERT INTO t1 VALUES (REPEAT('b', 8192));
+INSERT INTO t1 VALUES (REPEAT('b', 8192));
+INSERT INTO t1 VALUES (REPEAT('b', 8192));
+INSERT INTO t1 VALUES (REPEAT('b', 8192));
+INSERT INTO t1 VALUES (REPEAT('b', 8192));
+INSERT INTO t1 VALUES (REPEAT('b', 8192));
+INSERT INTO t1 VALUES (REPEAT('b', 8192));
+INSERT INTO t1 VALUES (REPEAT('b', 8192));
+INSERT INTO t1 VALUES (REPEAT('b', 8192));
+INSERT INTO t1 VALUES (REPEAT('b', 8192));
+INSERT INTO t1 VALUES (REPEAT('b', 8192));
+INSERT INTO t1 VALUES (REPEAT('b', 8192));
+INSERT INTO t1 VALUES (REPEAT('b', 8192));
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The packet should be halved after 100 medium events]
+#
+# 3. Generate 700 events with some having less then 4096
+#    bytes to ensure that the packet will shrink to
+#    the minimum size.
+#
+INSERT 7 x 20 x 1K string (x 4 events: GTID, BEGIN, TABLE_MAP, ROWS, XID)
+Iteration 1: INSERT 25 x 1K string (x 4 events: GTID, BEGIN, QUERY, XID)
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Iteration 1: The packet should be halved after 100 small events]
+Iteration 2: INSERT 25 x 1K string (x 4 events: GTID, BEGIN, QUERY, XID)
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Iteration 2: The packet should be halved after 100 small events]
+Iteration 3: INSERT 25 x 1K string (x 4 events: GTID, BEGIN, QUERY, XID)
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Iteration 3: The packet should be halved after 100 small events]
+Iteration 4: INSERT 25 x 1K string (x 4 events: GTID, BEGIN, QUERY, XID)
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Iteration 4: The packet should be halved after 100 small events]
+Iteration 5: INSERT 25 x 1K string (x 4 events: GTID, BEGIN, QUERY, XID)
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Iteration 5: The packet should be halved after 100 small events]
+Iteration 6: INSERT 25 x 1K string (x 4 events: GTID, BEGIN, QUERY, XID)
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Iteration 6: The packet should be halved after 100 small events]
+Iteration 7: INSERT 25 x 1K string (x 4 events: GTID, BEGIN, QUERY, XID)
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+INSERT INTO t1 VALUES (REPEAT('c', 1024));
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Iteration 7: The packet should be halved after 100 small events]
+DROP TABLE t1;
+include/rpl_end.inc
