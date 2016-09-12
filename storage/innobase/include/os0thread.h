@@ -117,14 +117,25 @@ os_thread_create_func(
 	os_thread_id_t*		thread_id);	/*!< out: id of the created
 						thread, or NULL */
 
+/** Waits until the specified thread completes and joins it.
+Its return value is ignored.
+@param[in,out]	thread	thread to join */
+UNIV_INTERN
+void
+os_thread_join(
+	os_thread_t	thread);
+
 /*****************************************************************//**
 Exits the current thread. */
 UNIV_INTERN
 void
 os_thread_exit(
 /*===========*/
-	void*	exit_value)	/*!< in: exit value; in Windows this void*
+	void*	exit_value,	/*!< in: exit value; in Windows this void*
 				is cast as a DWORD */
+	bool	detach = true)	/*!< in: if true, the thread will be detached
+				right before exiting. If false, another thread
+				is responsible for joining this thread. */
 	UNIV_COLD MY_ATTRIBUTE((noreturn));
 /*****************************************************************//**
 Returns the thread identifier of current thread.
