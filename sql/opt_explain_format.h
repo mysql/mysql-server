@@ -73,6 +73,7 @@ enum Extra_tag
   ET_IMPOSSIBLE_ON_CONDITION,
   ET_PUSHED_JOIN,
   ET_FT_HINTS,
+  ET_BACKWARD_SCAN,
   //------------------------------------
   ET_total
 };

@@ -101,15 +101,12 @@ row_merge_create_fts_sort_index(
 	field = new_index->get_field(0);
 	field->name = NULL;
 	field->prefix_len = 0;
+	field->is_ascending = true;
 	field->col = static_cast<dict_col_t*>(
 		mem_heap_alloc(new_index->heap, sizeof(dict_col_t)));
 	field->col->len = FTS_MAX_WORD_LEN;
-
-	if (strcmp(charset->name, "latin1_swedish_ci") == 0) {
-		field->col->mtype = DATA_VARCHAR;
-	} else {
-		field->col->mtype = DATA_VARMYSQL;
-	}
+	field->col->mtype = (charset == &my_charset_latin1)
+		? DATA_VARCHAR : DATA_VARMYSQL;
 
 	field->col->prtype = idx_field->col->prtype | DATA_NOT_NULL;
 	field->col->mbminmaxlen = idx_field->col->mbminmaxlen;
@@ -119,6 +116,7 @@ row_merge_create_fts_sort_index(
 	field = new_index->get_field(1);
 	field->name = NULL;
 	field->prefix_len = 0;
+	field->is_ascending = true;
 	field->col = static_cast<dict_col_t*>(
 		mem_heap_alloc(new_index->heap, sizeof(dict_col_t)));
 	field->col->mtype = DATA_INT;
@@ -160,6 +158,7 @@ row_merge_create_fts_sort_index(
 	field = new_index->get_field(2);
 	field->name = NULL;
 	field->prefix_len = 0;
+	field->is_ascending = true;
 	field->col = static_cast<dict_col_t*>(
 		mem_heap_alloc(new_index->heap, sizeof(dict_col_t)));
 	field->col->mtype = DATA_INT;
@@ -764,8 +763,8 @@ fts_parallel_tokenization_thread(fts_psort_t* psort_info)
 	idx_field = psort_info->psort_common->dup->index->get_field(0);
 	word_dtype.prtype = idx_field->col->prtype;
 	word_dtype.mbminmaxlen = idx_field->col->mbminmaxlen;
-	word_dtype.mtype = (strcmp(doc.charset->name, "latin1_swedish_ci") == 0)
-				? DATA_VARCHAR : DATA_VARMYSQL;
+	word_dtype.mtype = (doc.charset == &my_charset_latin1)
+		? DATA_VARCHAR : DATA_VARMYSQL;
 
 	block = psort_info->merge_block;
 

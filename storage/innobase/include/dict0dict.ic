@@ -97,6 +97,27 @@ dict_col_get_index_pos(
 	return(ULINT_UNDEFINED);
 }
 
+/** Check whether the index consists of ascending columns only.
+@param[in]	index  index tree
+@return true for ascending-only, false if any descending column */
+UNIV_INLINE
+bool
+dict_index_is_asc(
+	const dict_index_t*	index)
+{
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+
+	for (ulint i = 0; i < index->n_def; i++) {
+		const dict_field_t*	field = &index->fields[i];
+
+		if (!field->is_ascending) {
+			return(false);
+		}
+	}
+
+	return(true);
+}
+
 /** Check if index is auto-generated clustered index.
 @param[in]	index	index
 

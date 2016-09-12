@@ -143,12 +143,12 @@ SELECT lock_mode, lock_type, lock_table, lock_index, lock_rec, lock_data
 FROM INFORMATION_SCHEMA.INNODB_LOCKS ORDER BY lock_data;
 
 SELECT lock_table, COUNT(*) FROM INFORMATION_SCHEMA.INNODB_LOCKS
-GROUP BY lock_table;
+GROUP BY lock_table ASC;
 
 set @save_sql_mode = @@sql_mode;
 SET SQL_MODE='ANSI_QUOTES';
 SELECT lock_table, COUNT(*) FROM INFORMATION_SCHEMA.INNODB_LOCKS
-GROUP BY lock_table;
+GROUP BY lock_table ASC;
 SET @@sql_mode=@save_sql_mode;
 
 # Release all the locks;

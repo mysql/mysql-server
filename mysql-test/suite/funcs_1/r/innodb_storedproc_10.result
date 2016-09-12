@@ -298,6 +298,7 @@ updated	xyz	1989-11-09	100	uvw	1000
 updated	xyz	2005-10-24	100	uvw	1000
 CALL sp_ins_upd();
 COUNT( f1 )	f1
+1	a`
 1	aaa
 1	abaa
 1	acaaa
@@ -307,9 +308,8 @@ COUNT( f1 )	f1
 1	agaaaaaaa
 1	a^aaaaaaaa
 1	a_aaaaaaaaa
-1	a`
-4	qwe
 4	updated
+4	qwe
 SELECT row_count();
 row_count()
 3

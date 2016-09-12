@@ -194,18 +194,18 @@ SELECT DISTINCT a, b
 FROM (SELECT * FROM t1 ORDER BY a, b) AS f
 GROUP BY a,c;
 a	b
-1	3
 1	1
-2	3
+1	3
 2	1
+2	3
 SELECT DISTINCT a, b, 0
 FROM (SELECT * FROM t1 ORDER BY a, b) AS f
 GROUP BY a,c;
 a	b	0
-1	3	0
 1	1	0
-2	3	0
+1	3	0
 2	1	0
+2	3	0
 SET @@optimizer_switch=@optimizer_switch_saved;
 DROP TABLE t1;
 #

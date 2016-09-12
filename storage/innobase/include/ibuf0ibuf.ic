@@ -28,6 +28,7 @@ Created 7/19/1997 Heikki Tuuri
 #include "fsp0types.h"
 #ifndef UNIV_HOTBACKUP
 #include "buf0lru.h"
+#include "dict0dict.h"
 
 /** An index page must contain at least UNIV_PAGE_SIZE /
 IBUF_PAGE_SIZE_PER_FREE_SPACE bytes of free space for ibuf to try to
@@ -129,6 +130,7 @@ ibuf_should_try(
 	       && ibuf->max_size != 0
 	       && !index->is_clustered()
 	       && !dict_index_is_spatial(index)
+	       && dict_index_is_asc(index)
 	       && index->table->quiesce == QUIESCE_NONE
 	       && (ignore_sec_unique || !dict_index_is_unique(index))
 	       && srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE);

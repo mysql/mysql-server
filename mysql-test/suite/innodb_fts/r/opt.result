@@ -326,8 +326,8 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 GROUP BY score;
 FTS_DOC_ID	score
-1	0.22764469683170319
 5	0.45528939366340637
+1	0.22764469683170319
 SHOW SESSION STATUS LIKE 'Handler_read%';
 Variable_name	Value
 Handler_read_first	0
@@ -335,7 +335,7 @@ Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
-Handler_read_rnd	2
+Handler_read_rnd	0
 Handler_read_rnd_next	3
 No sorting and no table access with LIMIT clause and only information
 from FTS result

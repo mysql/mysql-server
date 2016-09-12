@@ -38,6 +38,7 @@ dict_index_add_col(
 	dict_index_t*		index,		/*!< in/out: index */
 	const dict_table_t*	table,		/*!< in: table */
 	dict_col_t*		col,		/*!< in: column */
-	ulint			prefix_len);	/*!< in: column prefix length */
+	ulint			prefix_len,	/*!< in: column prefix length */
+	bool			is_ascending);	/*!< in: true=ASC, false=DESC */
 
 #endif

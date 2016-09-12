@@ -78,13 +78,27 @@ extern KEY_CREATE_INFO default_key_create_info;
 class Key_part_spec : public Sql_alloc
 {
 public:
-  const LEX_CSTRING field_name;
-  const uint length;
-
-  Key_part_spec(const LEX_CSTRING &name, uint len)
-    : field_name(name), length(len)
+  Key_part_spec(const LEX_CSTRING &name, uint len, bool asc= true)
+    : field_name(name), length(len), is_ascending(asc)
   {}
   bool operator==(const Key_part_spec& other) const;
+  /**
+    Construct a copy of this Key_part_spec. field_name is copied
+    by-pointer as it is known to never change. At the same time
+    'length' may be reset in mysql_prepare_create_table, and this
+    is why we supply it with a copy.
+
+    @return If out of memory, 0 is returned and an error is set in
+    THD.
+  */
+  Key_part_spec *clone(MEM_ROOT *mem_root) const
+  { return new (mem_root) Key_part_spec(*this); }
+  void set_ascending(bool asc) { is_ascending= asc; }
+
+  const LEX_CSTRING field_name;
+  const uint length;
+  /// TRUE <=> ascending, FALSE <=> descending.
+  bool is_ascending;
 };
 
 

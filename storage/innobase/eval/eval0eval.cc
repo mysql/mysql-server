@@ -143,11 +143,11 @@ eval_cmp_like(
 	switch (op) {
 	case IB_LIKE_PREFIX:
 		arg4 = que_node_get_next(arg3);
-		return(!cmp_dfield_dfield_like_prefix(que_node_get_val(arg1),
-						      que_node_get_val(arg4)));
+		return(cmp_dfield_dfield_eq_prefix(que_node_get_val(arg1),
+						   que_node_get_val(arg4)));
 	case IB_LIKE_EXACT:
 		return(!cmp_dfield_dfield(que_node_get_val(arg1),
-					  que_node_get_val(arg2)));
+					  que_node_get_val(arg2), true));
 	}
 
 	ut_error;
@@ -180,7 +180,7 @@ eval_cmp(
 	case PARS_NE_TOKEN:
 	case PARS_GE_TOKEN:
 		res = cmp_dfield_dfield(
-			que_node_get_val(arg1), que_node_get_val(arg2));
+			que_node_get_val(arg1), que_node_get_val(arg2), true);
 
 		switch (cmp_node->func) {
 		case '<':

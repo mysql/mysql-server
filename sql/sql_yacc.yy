@@ -6862,7 +6862,7 @@ index_type:
 key_list:
           key_list ',' key_part order_dir
           {
-            // The order is ignored.
+            $3->set_ascending($4);
             if ($1->push_back($3))
               MYSQL_YYABORT; // OOM
             $$= $1;
@@ -6873,6 +6873,7 @@ key_list:
             $$= new List<Key_part_spec>;
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
+            $1->set_ascending($2);
           }
         ;
 
@@ -10567,7 +10568,8 @@ alter_order_item:
             if (order == NULL)
               MYSQL_YYABORT;
             order->item_ptr= $1;
-            order->direction= ($2 == 1) ? ORDER::ORDER_ASC : ORDER::ORDER_DESC;
+            order->direction= ($2 != 0) ? ORDER::ORDER_ASC : ORDER::ORDER_DESC;
+            order->is_explicit= ($2 != 2);
             order->is_position= false;
             add_order_to_list(thd, order);
           }
@@ -10605,7 +10607,7 @@ order_list:
         ;
 
 order_dir:
-          /* empty */ { $$ =  1; }
+          /* empty */ { $$ =  2; }
         | ASC  { $$ =1; }
         | DESC { $$ =0; }
         ;
