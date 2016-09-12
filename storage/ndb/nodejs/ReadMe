@@ -1,0 +1,13 @@
+This is some sample application code illustrating Database Jones,
+including a pre-built jones-ndb for this version of MySQL Cluster.
+
+This jones-ndb is built using node.js, version 0.12.15.  It will not run with other versions of node. 
+
+For more information about Database Jones, see https://github.com/mysql/mysql-js
+
+npm install database-jones
+npm install jones-mysql
+
+
+
+Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
