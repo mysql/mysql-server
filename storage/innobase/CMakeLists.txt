@@ -85,6 +85,7 @@ SET(INNOBASE_SOURCES
 	handler/i_s.cc
 	handler/p_s.cc
 	ibuf/ibuf0ibuf.cc
+	lob/lob0fit.cc
 	lob/lob0lob.cc
 	lock/lock0iter.cc
 	lock/lock0prdt.cc

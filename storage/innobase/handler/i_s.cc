@@ -110,6 +110,7 @@ static buf_page_desc_t	i_s_page_type[] = {
 	{"ENCRYPTED_RTREE", FIL_PAGE_ENCRYPTED_RTREE},
 	{"SDI_BLOB", FIL_PAGE_SDI_BLOB},
 	{"SDI_COMPRESSED_BLOB", FIL_PAGE_SDI_ZBLOB},
+	{"COMPRESSED_BLOB3", FIL_PAGE_TYPE_ZBLOB3},
 	{"RTREE_INDEX", I_S_PAGE_TYPE_RTREE},
 	{"IBUF_INDEX", I_S_PAGE_TYPE_IBUF},
 	{"SDI_INDEX", I_S_PAGE_TYPE_SDI}
@@ -4939,6 +4940,7 @@ i_s_innodb_set_page_type(
 	switch (page_info->page_type) {
 	case FIL_PAGE_TYPE_ZBLOB:
 	case FIL_PAGE_TYPE_ZBLOB2:
+	case FIL_PAGE_TYPE_ZBLOB3:
 	case FIL_PAGE_SDI_ZBLOB:
 		page_info->page_num = mach_read_from_4(
 			frame + FIL_PAGE_OFFSET);
