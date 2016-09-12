@@ -2698,8 +2698,7 @@ void Generated_column::print_expr(THD *thd, String *out)
   sql_mode_t sql_mode= thd->variables.sql_mode;
   thd->variables.sql_mode&= ~MODE_ANSI_QUOTES;
   // Printing db and table name is useless
-  auto flags= enum_query_type(QT_NO_DB | QT_NO_TABLE | QT_FORCE_INTRODUCERS);
-  expr_item->print(out, flags);
+  expr_item->print(out, enum_query_type(QT_NO_DB | QT_NO_TABLE));
   thd->variables.sql_mode= sql_mode;
 }
 
