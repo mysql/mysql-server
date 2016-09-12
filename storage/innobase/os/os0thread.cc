@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -191,14 +191,38 @@ os_thread_create_func(
 #endif
 }
 
+/** Waits until the specified thread completes and joins it.
+Its return value is ignored.
+@param[in,out]	thread	thread to join */
+UNIV_INTERN
+void
+os_thread_join(
+	os_thread_t	thread)
+{
+#ifdef __WIN__
+	/* Do nothing. */
+#else
+#ifdef UNIV_DEBUG
+	const int	ret =
+#endif /* UNIV_DEBUG */
+	pthread_join(thread, NULL);
+
+	/* Waiting on already-quit threads is allowed. */
+	ut_ad(ret == 0 || ret == ESRCH);
+#endif /* __WIN__ */
+}
+
 /*****************************************************************//**
 Exits the current thread. */
 UNIV_INTERN
 void
 os_thread_exit(
 /*===========*/
-	void*	exit_value)	/*!< in: exit value; in Windows this void*
+	void*	exit_value,	/*!< in: exit value; in Windows this void*
 				is cast as a DWORD */
+	bool	detach)		/*!< in: if true, the thread will be detached
+				right before exiting. If false, another thread
+				is responsible for joining this thread. */
 {
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Thread exits, id %lu\n",
@@ -216,7 +240,9 @@ os_thread_exit(
 #ifdef __WIN__
 	ExitThread((DWORD) exit_value);
 #else
-	pthread_detach(pthread_self());
+	if (detach) {
+		pthread_detach(pthread_self());
+	}
 	pthread_exit(exit_value);
 #endif
 }

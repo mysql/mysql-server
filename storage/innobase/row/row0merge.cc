@@ -3774,6 +3774,13 @@ wait_again:
 						" exited when creating FTS"
 						" index '%s'",
 						indexes[i]->name);
+				} else {
+					for (j = 0; j < FTS_NUM_AUX_INDEX;
+					     j++) {
+
+						os_thread_join(merge_info[j]
+							       .thread_hdl);
+					}
 				}
 			} else {
 				/* This cannot report duplicates; an
