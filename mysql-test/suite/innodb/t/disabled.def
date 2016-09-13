@@ -34,6 +34,7 @@ create_tablespace_16k     : WL#9525 disables it, waiting for FK fix
 virtual_fk_restart        : WL#9533 disables it, waiting for FK fix
 
 table_encrypt_4           : WL#9525 disables it, waiting for IMPORT/EXPORT tablespace fix
+table_encrypt_debug       : WL#9525 disables it, waiting for IMPORT/EXPORT tablespace fix
 innodb-wl5522-debug       : WL#9525 disables it, waiting for IMPORT/EXPORT tablespace fix
 innodb-wl5980-discard     : WL#9525 disables it, waiting for IMPORT/EXPORT tablespace fix
 
@@ -42,17 +43,12 @@ innodb_bulk_create_index_debug : WL#9525 disables it, tablespaces are not crash-
 row_format_redundant      : WL#9525 disables it, waiting for FTS fix
 innodb-wl6445-1           : WL#9525 disables it, waiting for FTS fix
 
-table_encrypt_debug       : WL#9525 disables it, waiting for encryption fix
 
 create_tablespace_debug   : WL#9525 disables it, it is related to other SEs, maybe just remove it
 
 update_time_wl6658        : WL#9525 disables it, waiting for FK fix
 
 innodb-multiple-tablespaces : WL#9525 disables it, DATA DIRECTORY should be stored properly
-
-# encrytion
-table_encrypt_kill        : bug#24445137. Optimizer is fixing this
-table_encrypt_3           : bug#24445137. Optimizer is fixing this
 
 innodb_tablespace         : WL#9525 disables it, waiting for WL#9559
 partition                 : WL#9525 disables it, waiting for WL#9559
