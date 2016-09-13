@@ -13044,12 +13044,6 @@ bool Dbdih::verify_fragmentation(Uint16* fragments,
 
   Uint32 const replica_count = fragments[0];
   Uint32 const fragment_count = fragments[1];
-  /**
-   * Note below expression can not deduce table is fully replicated or not if
-   * a single node groups is in use, in which case
-   * fragment_count == partition_count also for fully replicated tables.
-   */
-  bool const is_fully_replicated = (fragment_count > partition_count);
 
   Uint16 fragments_per_node[MAX_NDB_NODES];
   Uint16 primary_replica_per_node[MAX_NDB_NODES];
