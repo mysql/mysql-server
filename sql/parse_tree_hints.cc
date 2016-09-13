@@ -14,10 +14,21 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "parse_tree_hints.h"
-#include "sql_class.h"
-#include "mysqld.h"        // table_alias_charset
-#include "sql_lex.h"
+
+#include <stddef.h>
+
 #include "derror.h"
+#include "item_subselect.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_sqlcommand.h"
+#include "mysqld.h"        // table_alias_charset
+#include "mysqld_error.h"
+#include "query_options.h"
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
 
 
 extern struct st_opt_hint_info opt_hint_info[];

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,8 +18,13 @@
 #ifndef NdbEventOperation_H
 #define NdbEventOperation_H
 
-class NdbGlobalEventBuffer;
+#include "NdbDictionary.hpp"
+#include "ndb_types.h"
+
+class NdbBlob;
 class NdbEventOperationImpl;
+class NdbGlobalEventBuffer;
+class NdbRecAttr;
 
 /**
  * @class NdbEventOperation

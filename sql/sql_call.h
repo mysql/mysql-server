@@ -16,10 +16,13 @@
 #ifndef SQL_CALL_INCLUDED
 #define SQL_CALL_INCLUDED
 
+#include "my_sqlcommand.h"
 #include "sql_cmd_dml.h"    // Sql_cmd_dml
-#include "sp_head.h"        // sp_name
 
+class Item;
 class THD;
+class sp_name;
+template <class T> class List;
 
 class Sql_cmd_call : public Sql_cmd_dml
 {

@@ -28,15 +28,35 @@
   - "profiling_history_size", integer, session + global, "Num queries stored?"
 */
 
-
+#include "my_config.h"
 #include "sql_profile.h"
-#include "my_sys.h"
-#include "psi_memory_key.h"
-#include "sql_show.h"                     // schema_table_store_record
-#include "sql_class.h"                    // THD
-#include "log.h"
 
+#include <string.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
 #include <algorithm>
+
+#include "binary_log_types.h"
+#include "decimal.h"
+#include "field.h"
+#include "item.h"
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_decimal.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "protocol.h"
+#include "psi_memory_key.h"
+#include "query_options.h"
+#include "sql_class.h"                    // THD
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_security_ctx.h"
+#include "sql_show.h"                     // schema_table_store_record
+#include "sql_string.h"
+#include "system_variables.h"
 
 using std::min;
 using std::max;

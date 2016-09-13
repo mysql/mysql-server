@@ -23,20 +23,20 @@
 
 #include "json_path.h"
 
+#include <algorithm>                            // any_of
+#include <memory>                               // unique_ptr
+#include <string>
+
 #include "json_dom.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_global.h"
 #include "psi_memory_key.h"           // key_memory_JSON
-#include "rapidjson/rapidjson.h"      // rapidjson::UTF8<char>::Decode
+#include "rapidjson/encodings.h"
 #include "rapidjson/memorystream.h"   // rapidjson::MemoryStream
 #include "sql_const.h"                // STRING_BUFFER_USUAL_SIZE
 #include "sql_string.h"               // String
 #include "template_utils.h"           // down_cast
-
-#include <m_ctype.h>
-
-#include <algorithm>                            // any_of
-#include <cwctype>
-#include <memory>                               // unique_ptr
-#include <string>
 
 // For use in Json_path::parse_path
 #define PARSER_RETURN(retval) { *status= retval; return charptr; }

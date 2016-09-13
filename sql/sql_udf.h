@@ -19,15 +19,20 @@
 
 /* This file defines structures needed by udf functions */
 
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "my_global.h"
-#include "mysql_com.h"               // Item_result
 #include "mysql/mysql_lex_string.h"  // LEX_STRING
+#include "mysql_com.h"               // Item_result
 #include "sql_alloc.h"               // Sql_alloc
 
 class Item;
 class Item_result_field;
-class my_decimal;
 class String;
+class THD;
+class my_decimal;
+
 typedef struct st_mysql_lex_string LEX_STRING;
 
 

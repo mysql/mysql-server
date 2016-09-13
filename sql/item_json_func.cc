@@ -17,16 +17,32 @@
 /* JSON Function items used by mysql */
 
 #include "item_json_func.h"
+
+#include <algorithm>            // std::fill
+#include <cstring>
+#include <new>
+#include <string>
+#include <utility>
+
 #include "current_thd.h"        // current_thd
 #include "item_cmpfunc.h"       // Item_func_like
+#include "item_subselect.h"
 #include "json_dom.h"
 #include "json_path.h"
+#include "m_string.h"
+#include "my_compare.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysqld_error.h"
 #include "prealloced_array.h"   // Prealloced_array
 #include "psi_memory_key.h"     // key_memory_JSON
 #include "sql_class.h"          // THD
+#include "sql_const.h"
 #include "sql_time.h"           // field_type_to_timestamp_type
 #include "template_utils.h"     // down_cast
-#include <algorithm>            // std::fill
+
+class PT_item_list;
 
 /** Helper routines */
 

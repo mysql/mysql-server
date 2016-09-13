@@ -16,9 +16,32 @@
 */
 
 #include "wkt_parser.h"
-#include "mysqld_error.h"                  // ER_*
-#include <m_ctype.h>                       // my_strcasecmp
+
+#include <cctype>
+
+#include <boost/concept/usage.hpp>
+#include <boost/fusion/adapted/struct/adapt_struct.hpp>
+#include <boost/fusion/iterator/deref.hpp>
+#include <boost/preprocessor/arithmetic/dec.hpp>
+#include <boost/preprocessor/arithmetic/inc.hpp>
+#include <boost/preprocessor/comparison/not_equal.hpp>
+#include <boost/preprocessor/control/expr_iif.hpp>
+#include <boost/preprocessor/control/iif.hpp>
+#include <boost/preprocessor/logical/bool.hpp>
+#include <boost/preprocessor/repetition/for.hpp>
+#include <boost/preprocessor/seq/elem.hpp>
+#include <boost/preprocessor/seq/size.hpp>
+#include <boost/preprocessor/tuple/elem.hpp>
+#include <boost/preprocessor/tuple/to_seq.hpp>
+#include <boost/preprocessor/variadic/elem.hpp>
+#include <boost/proto/operators.hpp>
 #include <boost/spirit/include/qi.hpp>
+
+#include "gis/srs/srs.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"                  // ER_*
 
 BOOST_FUSION_ADAPT_STRUCT(
   gis::srs::wkt_parser::Authority,

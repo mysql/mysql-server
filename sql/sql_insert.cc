@@ -19,27 +19,70 @@
 
 #include "sql_insert.h"
 
+#include <errno.h>
+#include <string.h>
+#include <map>
+#include <utility>
+
+#include "auth_acls.h"
 #include "auth_common.h"              // check_grant_all_columns
+#include "binary_log_types.h"
+#include "binlog.h"
 #include "dd_sql_view.h"              // update_referencing_views_metadata
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "derror.h"                   // ER_THD
+#include "discrete_interval.h"
+#include "field.h"
+#include "item.h"
+#include "key.h"
 #include "lock.h"                     // mysql_unlock_tables
+#include "m_string.h"
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
 #include "mysqld.h"                   // stage_update
+#include "mysqld_error.h"
 #include "opt_explain.h"              // Modification_plan
+#include "opt_explain_format.h"
+#include "partition_info.h"           // partition_info
+#include "prealloced_array.h"
+#include "protocol.h"
+#include "query_options.h"
 #include "rpl_rli.h"                  // Relay_log_info
 #include "rpl_slave.h"                // rpl_master_has_bug
+#include "session_tracker.h"
+#include "sql_alter.h"
+#include "sql_array.h"
 #include "sql_base.h"                 // setup_fields
 #include "sql_cache.h"                // query_cache
-#include "sql_resolver.h"             // validate_gc_assignment
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
 #include "sql_optimizer.h"            // Prepare_error_tracker
+#include "sql_plugin_ref.h"
+#include "sql_resolver.h"             // validate_gc_assignment
+#include "sql_security_ctx.h"
+#include "sql_servers.h"
 #include "sql_show.h"                 // store_create_info
+#include "sql_string.h"
 #include "sql_table.h"                // quick_rm_table
 #include "sql_tmp_table.h"            // create_tmp_field
 #include "sql_update.h"               // records_are_comparable
 #include "sql_view.h"                 // check_key_in_view
+#include "system_variables.h"
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "template_utils.h"
+#include "thr_lock.h"
+#include "thr_malloc.h"
 #include "transaction.h"              // trans_commit_stmt
-#include "partition_info.h"           // partition_info
+#include "transaction_info.h"
+#include "trigger_def.h"
 
 static bool check_view_insertability(THD *thd, TABLE_LIST *view,
                                      const TABLE_LIST *insert_table_ref);

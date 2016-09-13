@@ -17,13 +17,44 @@
 
 #include "rpl_gtid_persist.h"
 
+#include "my_config.h"
+
+#include <stddef.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#include <list>
+
+#include "control_events.h"
 #include "current_thd.h"
 #include "debug_sync.h"       // debug_sync_set_action
+#include "field.h"
+#include "handler.h"
+#include "key.h"
 #include "log.h"              // sql_print_error
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_command.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "my_thread.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_thread.h"
+#include "mysql/thread_type.h"
+#include "mysql_com.h"
+#include "mysqld.h"           // gtid_executed_compression_period
+#include "query_options.h"
 #include "replication.h"      // THD_ENTER_COND
 #include "sql_base.h"         // MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
 #include "sql_parse.h"        // mysql_reset_thd_for_next_command
-#include "mysqld.h"           // gtid_executed_compression_period
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "system_variables.h"
 
 using std::list;
 using std::string;

@@ -32,18 +32,24 @@
 
 #include "uniques.h"                            // Unique
 
+#include <string.h>
+#include <algorithm>
+#include <cmath>
+#include <new>
+#include <vector>
+
 #include "malloc_allocator.h"
 #include "my_tree.h"                            // element_count
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"                             // mysql_tmpdir
 #include "opt_costmodel.h"
 #include "priority_queue.h"
 #include "psi_memory_key.h"
 #include "sql_base.h"                           // TEMP_PREFIX
+#include "sql_const.h"
 #include "sql_sort.h"
 #include "table.h"
-
-#include <algorithm>
-#include <cmath>
 
 int unique_write_to_file(uchar* key, element_count count, Unique *unique)
 {

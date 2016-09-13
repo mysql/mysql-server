@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,14 +15,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ha_ndbcluster_glue.h"
-#include <ndbapi/NdbApi.hpp>
-#include <portlib/NdbTick.h>
 #include "ha_ndbcluster_connection.h"
-#include <kernel/ndb_limits.h>
 
-#include <util/Vector.hpp>
-#include <util/BaseString.hpp>
+#include "ha_ndbcluster_glue.h"
+#include "kernel/ndb_limits.h"
+#include "ndbapi/NdbApi.hpp"
+#include "portlib/NdbTick.h"
+#include "util/BaseString.hpp"
+#include "util/Vector.hpp"
 
 Ndb* g_ndb= NULL;
 Ndb_cluster_connection* g_ndb_cluster_connection= NULL;

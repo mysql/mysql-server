@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,12 +15,20 @@
 
 #include "sql_timer.h"
 
-#include "my_thread.h"          // my_thread_id
+#include <stddef.h>
+
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
 #include "my_timer.h"           // my_timer_t
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"             // key_thd_timer_mutex
 #include "mysqld_thd_manager.h" // Global_THD_manager
 #include "psi_memory_key.h"     // key_memory_thd_timer
 #include "sql_class.h"          // THD
+#include "thr_mutex.h"
 
 
 /**

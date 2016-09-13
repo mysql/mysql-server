@@ -15,20 +15,36 @@
 
 #include "rpl_write_set_handler.h"
 
-#include "my_global.h"
-#include "my_stacktrace.h" // my_safe_itoa
-#include "field.h"         // Field
-#include "psi_memory_key.h"
-#include "sql_class.h"     // THD
-#include "sql_list.h"      // List
-#include "table.h"         // TABLE
-
-#include "my_murmur3.h"    // murmur3_32
-#include "../extra/lz4/my_xxhash.h" // xxHash
-
+#include <string.h>
+#include <sys/types.h>
 #include <map>
 #include <string>
 #include <vector>
+
+#include "field.h"         // Field
+#include "handler.h"
+#include "key.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_murmur3.h"    // murmur3_32
+#include "my_stacktrace.h" // my_safe_itoa
+#include "mysql/service_mysql_alloc.h"
+#include "psi_memory_key.h"
+#include "rpl_transaction_write_set_ctx.h"
+#include "sql_class.h"     // THD
+#include "sql_const.h"
+#include "sql_list.h"      // List
+#include "sql_plugin_ref.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table.h"         // TABLE
+#include "transaction_info.h"
+#include "../extra/lz4/my_xxhash.h"  // IWYU pragma: keep
+#include "xxhash.h"
 
 #define NAME_READ_BUFFER_SIZE 1024
 #define HASH_STRING_SEPARATOR "½"

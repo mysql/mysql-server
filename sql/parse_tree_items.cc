@@ -15,10 +15,15 @@
 
 #include "parse_tree_items.h"
 
-#include "parse_tree_nodes.h"
+#include "auth_acls.h"
 #include "item_cmpfunc.h"          // Item_func_eq
+#include "my_sqlcommand.h"
 #include "mysqld.h"                // using_udf_functions
+#include "parse_tree_nodes.h"
+#include "sp.h"
 #include "sp_pcontext.h"           // sp_pcontext
+#include "table.h"
+#include "trigger_def.h"
 
 /**
   Helper to resolve the SQL:2003 Syntax exception 1) in @<in predicate@>.

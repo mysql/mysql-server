@@ -17,37 +17,68 @@
 
 #include "sp.h"
 
-#include "my_user.h"        // parse_user
-#include "mysql/psi/mysql_sp.h"
+#include <string.h>
+#include <algorithm>
+#include <new>
+#include <vector>
+
+#include "auth_acls.h"
 #include "auth_common.h"    // check_some_routine_access
 #include "binlog.h"         // mysql_bin_log
+#include "dd/cache/dictionary_client.h"        // dd::cache::Dictionary_client
+#include "dd/dd_routine.h"                     // dd routine methods.
+#include "dd/dd_schema.h"                      // dd::schema_exists
+#include "dd/string_type.h"
+#include "dd/types/routine.h"
 #include "dd_sp.h"          // prepare_sp_chistics_from_dd_routine
 #include "dd_sql_view.h"    // update_referencing_views_metadata
 #include "dd_table_share.h" // dd_get_mysql_charset
 #include "debug_sync.h"     // DEBUG_SYNC
-#include "derror.h"         // ER_THD
 #include "error_handler.h"  // Internal_error_handler
-#include "item_timefunc.h"  // Item_func_now_local
+#include "field.h"
+#include "handler.h"
 #include "key.h"            // key_copy
 #include "lock.h"           // lock_object_name
 #include "log.h"            // sql_print_warning
 #include "log_event.h"      // append_query_string
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_psi_config.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_sp.h"
+#include "mysql/psi/psi_base.h"
 #include "mysqld.h"         // trust_function_creators
+#include "mysqld_error.h"
+#include "protocol.h"
 #include "psi_memory_key.h" // key_memory_sp_head_main_root
+#include "set_var.h"
 #include "sp_cache.h"       // sp_cache_invalidate
 #include "sp_head.h"        // Stored_program_creation_ctx
 #include "sp_pcontext.h"    // sp_pcontext
-#include "sql_base.h"       // close_thread_tables
+#include "sql_const.h"
 #include "sql_db.h"         // get_default_db_collation
+#include "sql_error.h"
+#include "sql_list.h"
 #include "sql_parse.h"      // parse_sql
+#include "sql_security_ctx.h"
 #include "sql_show.h"       // append_identifier
+#include "sql_string.h"
 #include "sql_table.h"      // write_bin_log
+#include "system_variables.h"
+#include "table.h"
+#include "template_utils.h"
+#include "thr_lock.h"
+#include "thr_malloc.h"
+#include "transaction_info.h"
 
-#include "dd/dd_schema.h"                      // dd::schema_exists
-#include "dd/dd_routine.h"                     // dd routine methods.
-#include "dd/cache/dictionary_client.h"        // dd::cache::Dictionary_client
-#include "dd/types/function.h"                 // dd::Function
-#include "dd/types/procedure.h"                // dd::Procedure
+class sp_rcontext;
+namespace dd {
+class Schema;
+}  // namespace dd
+struct PSI_statement_locker;
+struct sql_digest_state;
 
 /* Used in error handling only */
 #define SP_TYPE_STRING(LP) \

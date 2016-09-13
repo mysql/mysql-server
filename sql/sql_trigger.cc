@@ -15,29 +15,47 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include "my_global.h"                // NO_EMBEDDED_ACCESS_CHECKS
-#include "sql_trigger.h"
+#include <stddef.h>
 
+#include "auth_acls.h"
 #include "auth_common.h"              // check_table_access
+#include "binlog.h"
+#include "dd/dd_trigger.h"            // dd::table_has_triggers
+#include "dd/string_type.h"
+#include "dd/types/abstract_table.h"  // dd::enum_table_type
+#include "debug_sync.h"               // DEBUG_SYNC
+#include "derror.h"                   // ER_THD
+#include "m_ctype.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_global.h"                // NO_EMBEDDED_ACCESS_CHECKS
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_sp.h"
+#include "mysql_com.h"
 #include "mysqld.h"                   // trust_function_creators
+#include "mysqld_error.h"
 #include "sp.h"                       // sp_add_to_query_tables()
+#include "sp_cache.h"                 // sp_invalidate_cache()
+#include "sp_head.h"                  // sp_name
 #include "sql_base.h"                 // find_temporary_table()
-#include "sql_table.h"                // build_table_filename()
+#include "sql_class.h"
+#include "sql_error.h"
                                       // write_bin_log()
 #include "sql_handler.h"              // mysql_ha_rm_tables()
-#include "sp_cache.h"                 // sp_invalidate_cache()
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_plugin.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "sql_table.h"                // build_table_filename()
+#include "sql_trigger.h"
+#include "system_variables.h"
+#include "table.h"
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "thr_lock.h"
 #include "transaction.h"              // trans_commit_stmt, trans_commit
 #include "trigger.h"                  // Trigger
-#include "binlog.h"
-#include "sp_head.h"                  // sp_name
-#include "derror.h"                   // ER_THD
-
-#include "dd/types/abstract_table.h"  // dd::enum_table_type
-#include "dd/dd_trigger.h"            // dd::table_has_triggers
-
-#include "mysql/psi/mysql_sp.h"
-#include "debug_sync.h"               // DEBUG_SYNC
 ///////////////////////////////////////////////////////////////////////////
 
 bool add_table_for_trigger(THD *thd,

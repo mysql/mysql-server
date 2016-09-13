@@ -15,13 +15,25 @@
 
 #include "rpl_record.h"
 
+#include <algorithm>
+
+#include "binary_log_types.h"
 #include "current_thd.h"
-#include "my_bitmap.h"        // MY_BITMAP
 #include "derror.h"           // ER_THD
 #include "field.h"            // Field
+#include "my_base.h"
+#include "my_bitmap.h"        // MY_BITMAP
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql_com.h"
 #include "mysqld.h"           // ER
+#include "mysqld_error.h"
 #include "rpl_rli.h"          // Relay_log_info
 #include "rpl_utility.h"      // table_def
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
 #include "table.h"            // TABLE
 #include "template_utils.h"   // down_cast
 

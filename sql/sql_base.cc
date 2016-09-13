@@ -17,61 +17,104 @@
 
 #include "sql_base.h"
 
+#include <fcntl.h>
+#include <limits.h>
+#include <string.h>
+#include <time.h>
+
+#include "auth_acls.h"
 #include "auth_common.h"              // check_table_access
 #include "binlog.h"                   // mysql_bin_log
+#include "check_stack.h"
+#include "dd/types/abstract_table.h"
 #include "dd_table_share.h"           // open_table_def
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "derror.h"                   // ER_THD
 #include "error_handler.h"            // Internal_error_handler
+#include "field.h"
+#include "handler.h"
+#include "item.h"
 #include "item_cmpfunc.h"             // Item_func_eq
-#include "log.h"                      // sql_print_error
+#include "item_func.h"
+#include "item_subselect.h"
+#include "key.h"
 #include "lock.h"                     // mysql_lock_remove
+#include "log.h"                      // sql_print_error
 #include "log_event.h"                // Query_log_event
+#include "m_ctype.h"
+#include "my_bitmap.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_dir.h"
+#include "my_psi_config.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "mysql/plugin.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/thread_type.h"
+#include "mysql_com.h"
 #include "mysqld.h"                   // slave_open_temp_tables
+#include "mysqld_error.h"
 #include "partition_info.h"           // partition_info
 #include "psi_memory_key.h"           // key_memory_TABLE
+#include "query_options.h"
+#include "rpl_gtid.h"
 #include "rpl_handler.h"              // RUN_HOOK
+#include "session_tracker.h"
 #include "sp.h"                       // Sroutine_hash_entry
 #include "sp_cache.h"                 // sp_cache_version
 #include "sp_head.h"                  // sp_head
+#include "sql_audit.h"                // mysql_audit_table_access_notify
 #include "sql_class.h"                // THD
+#include "sql_const.h"
 #include "sql_error.h"                // Sql_condition
 #include "sql_handler.h"              // mysql_ha_flush_tables
 #include "sql_hset.h"                 // Hash_set
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_parse.h"                // is_update_query
+#include "sql_plugin_ref.h"
 #include "sql_prepare.h"              // Reprepare_observer
+#include "sql_security_ctx.h"
 #include "sql_select.h"               // reset_statement_timer
 #include "sql_show.h"                 // append_identifier
+#include "sql_sort.h"
+#include "sql_string.h"
 #include "sql_table.h"                // build_table_filename
 #include "sql_tmp_table.h"            // free_tmp_table
 #include "sql_view.h"                 // mysql_make_view
+#include "system_variables.h"
 #include "table.h"                    // TABLE_LIST
 #include "table_cache.h"              // table_cache_manager
+#include "table_id.h"
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "template_utils.h"
+#include "thr_malloc.h"
+#include "thr_mutex.h"
 #include "transaction.h"              // trans_rollback_stmt
-#include "sql_audit.h"                // mysql_audit_table_access_notify
-#include "auth_common.h"
+#include "transaction_info.h"
+#include "xa.h"
 
 #ifdef HAVE_REPLICATION
 #include "rpl_rli.h"                  //Relay_log_information
 #endif
 
-#include "dd/dd.h"                    // dd::get_dictionary
-#include "dd/dictionary.h"            // dd::Dictionary
+#include <algorithm>
+
 #include "dd/dd_table.h"              // dd::table_exists
 #include "dd/dd_tablespace.h"         // dd::fill_table_and_parts_tablespace_name
 #include "dd/dd_trigger.h"            // dd::table_has_triggers
 #include "dd/types/table.h"           // dd::Table
-
-#include "pfs_table_provider.h"
-#include "mysql/psi/mysql_table.h"
-
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
-
-#include <algorithm>
 #include "mutex_lock.h"
+#include "mysql/psi/mysql_file.h"
+#include "pfs_table_provider.h"
 
 /**
   This internal handler is used to trap ER_NO_SUCH_TABLE and

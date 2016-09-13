@@ -15,19 +15,41 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "connection_handler_impl.h"
+#include <stddef.h>
+#include <sys/types.h>
+#include <list>
+#include <new>
 
 #include "channel_info.h"                // Channel_info
+#include "connection_handler_impl.h"
 #include "connection_handler_manager.h"  // Connection_handler_manager
+#include "log.h"                         // Error_log_throttle
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "my_thread.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_socket.h"
+#include "mysql/psi/mysql_thread.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/psi/psi_thread.h"
+#include "mysql_com.h"
 #include "mysqld.h"                      // max_connections
 #include "mysqld_error.h"                // ER_*
 #include "mysqld_thd_manager.h"          // Global_THD_manager
-#include "sql_audit.h"                   // mysql_audit_release
+#include "pfs_thread_provider.h"
+#include "protocol_classic.h"
 #include "sql_class.h"                   // THD
 #include "sql_connect.h"                 // close_connection
+#include "sql_error.h"
 #include "sql_parse.h"                   // do_command
 #include "sql_thd_internal_api.h"        // thd_set_thread_stack
-#include "log.h"                         // Error_log_throttle
+#include "thr_mutex.h"
+#include "violite.h"
 
 
 // Initialize static members

@@ -16,18 +16,22 @@
 #ifndef SPATIAL_INCLUDED
 #define SPATIAL_INCLUDED
 
-#include "my_global.h"
-#include "mysql/mysql_lex_string.h"     // LEX_STRING
-#include "sql_string.h"                 // String
-
-#include <vector>
+#include <float.h>
+#include <string.h>
+#include <sys/types.h>
 #include <algorithm>
-#include <stdexcept>
+#include <cstddef>
 #include <cstdlib>
-#include <utility>
-#include <memory>
-#include "inplace_vector.h"
+#include <iterator>
 
+#include "inplace_vector.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_mysql_alloc.h"
+#include "sql_string.h"                 // String
 
 class Gis_read_stream;
 

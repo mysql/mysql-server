@@ -16,10 +16,11 @@
 #ifndef STATELESS_ALLOCATOR_INCLUDED
 #define STATELESS_ALLOCATOR_INCLUDED
 
-#include "my_global.h"
-
-#include <new>
+#include <stddef.h>
 #include <limits>
+#include <new>
+
+#include "my_dbug.h"
 
 /**
   Functor struct which invokes my_free. Declared here as it is used as the

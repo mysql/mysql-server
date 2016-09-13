@@ -32,17 +32,13 @@
 
 #include "m_string.h"
 #include "mdl.h"              // enum_mdl_type
-#include "sql_cmd.h"          // Sql_cmd
 #include "my_sqlcommand.h"    // SQLCOM_CREATE_TRIGGER, SQLCOM_DROP_TRIGGER
-#include "sql_list.h"         // List
+#include "sql_cmd.h"          // Sql_cmd
 
-class THD;
-class MDL_ticket;
-
-struct TABLE_LIST;
-struct TABLE;
 class String;
-class Trigger;
+class THD;
+struct TABLE;
+struct TABLE_LIST;
 ///////////////////////////////////////////////////////////////////////////
 
 /**

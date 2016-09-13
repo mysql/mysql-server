@@ -15,21 +15,36 @@
 
 #include "parse_tree_nodes.h"
 
+#include <string.h>
+
+#include "dd/types/abstract_table.h" // dd::enum_table_type::BASE_TABLE
+#include "derror.h"         // ER_THD
+#include "key_spec.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "mysqld.h"         // global_system_variables
+#include "parse_tree_column_attrs.h" // PT_field_def_base
+#include "parse_tree_hints.h"
+#include "parse_tree_partitions.h" // PT_partition
+#include "prealloced_array.h"
+#include "query_options.h"
+#include "session_tracker.h"
+#include "sp.h"             // sp_add_used_routine
 #include "sp_instr.h"       // sp_instr_set
+#include "sp_pcontext.h"
+#include "sql_call.h"       // Sql_cmd_call...
+#include "sql_data_change.h"
 #include "sql_delete.h"     // Sql_cmd_delete...
-#include "sql_update.h"     // Sql_cmd_update...
+#include "sql_do.h"         // Sql_cmd_do...
+#include "sql_error.h"
 #include "sql_insert.h"     // Sql_cmd_insert...
 #include "sql_select.h"     // Sql_cmd_select...
-#include "sql_call.h"       // Sql_cmd_call...
-#include "sql_do.h"         // Sql_cmd_do...
-#include "mysqld.h"         // global_system_variables
-#include "sp_pcontext.h"
-#include "sp.h"             // sp_add_used_routine
-#include "key_spec.h"
-#include "derror.h"         // ER_THD
-#include "parse_tree_column_attrs.h" // PT_field_def_base
-#include "parse_tree_partitions.h" // PT_partition
-#include "dd/types/abstract_table.h" // dd::enum_table_type::BASE_TABLE
+#include "sql_string.h"
+#include "sql_update.h"     // Sql_cmd_update...
+#include "system_variables.h"
+#include "trigger_def.h"
+
+class Sql_cmd;
 
 
 PT_joined_table *PT_table_reference::add_cross_join(PT_cross_join* cj)

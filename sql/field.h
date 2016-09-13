@@ -24,6 +24,7 @@
 #include "my_time.h"                            // MYSQL_TIME_NOTE_TRUNCATED
 #include "binary_log_funcs.h"                   // my_time_binary_length
 #include "mysqld_error.h"                       // ER_*
+#include "sql_bitmap.h"
 #include "sql_error.h"                          // Sql_condition
 #include "sql_string.h"                         // String
 #include "table.h"                              // TABLE

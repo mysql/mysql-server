@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -14,9 +14,17 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "protocol_callback.h"
-#include "sql_class.h"
-#include <stdarg.h>
+
+#include <assert.h>
+
 #include "current_thd.h"
+#include "field.h"
+#include "mysql/psi/mysql_statement.h"
+#include "sql_class.h"
+#include "sql_error.h"
+
+class String;
+union COM_DATA;
 
 /**
   @file sql/protocol_callback.cc

@@ -16,8 +16,6 @@
 #ifndef SQL_DB_INCLUDED
 #define SQL_DB_INCLUDED
 
-#include "my_global.h"
-
 class THD;
 
 typedef struct charset_info_st CHARSET_INFO;

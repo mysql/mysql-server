@@ -15,13 +15,25 @@
 
 #include "my_decimal.h"
 
-#include "my_time.h"                            // TIME_to_ulonglong_date
-#include "mysql_time.h"                         // MYSQL_TIME
+#include "my_config.h"
+
+#include <stdio.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+
 #include "current_thd.h"                        // current_thd
+#include "decimal.h"
 #include "derror.h"                             // ER_THD
 #include "field.h"                              // my_charset_numeric
+#include "m_ctype.h"
+#include "my_sys.h"
+#include "my_time.h"                            // TIME_to_ulonglong_date
+#include "mysql_time.h"                         // MYSQL_TIME
 #include "mysqld_error.h"                       // ER_*
+#include "sql_const.h"
 #include "sql_error.h"                          // Sql_condition
+#include "system_variables.h"
 
 
 /**

@@ -13,12 +13,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_config.h"
+#include <algorithm>
+#include <new>
+
 #include "check_stack.h"
-#include "sql_class.h"
 #include "current_thd.h"
 #include "derror.h"
-#include <algorithm>
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "sql_class.h"
 
 /****************************************************************************
 	Check stack size; Send error if there isn't enough stack to continue

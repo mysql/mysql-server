@@ -15,9 +15,19 @@
 
 #include "error_handler.h"
 
+#include <errno.h>
+
+#include "key.h"
+#include "my_global.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
 #include "mysys_err.h"           // EE_*
 #include "sql_class.h"           // THD
+#include "sql_lex.h"
+#include "system_variables.h"
 #include "table.h"               // TABLE_LIST
+#include "transaction_info.h"
 
 
 /**

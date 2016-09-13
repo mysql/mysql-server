@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,73 +15,133 @@
 
 #include "sql_parse.h"
 
+#include <limits.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <algorithm>
+
+#include "auth_acls.h"
 #include "auth_common.h"      // acl_authenticate
+#include "binary_log_types.h"
 #include "binlog.h"           // purge_master_logs
+#include "binlog_event.h"
+#include "control_events.h"
 #include "current_thd.h"
 #include "dd/dd.h"            // dd::get_dictionary
-#include "dd/dictionary.h"    // dd::Dictionary::is_system_view_name
 #include "dd/dd_schema.h"     // dd::schema_exists
 #include "dd/dd_table.h"      // dd::table_exists
+#include "dd/dictionary.h"    // dd::Dictionary::is_system_view_name
+#include "dd/info_schema/stats.h"
 #include "debug_sync.h"       // DEBUG_SYNC
 #include "derror.h"           // ER_THD
+#include "discrete_interval.h"
+#include "dur_prop.h"
 #include "error_handler.h"    // Strict_error_handler
 #include "events.h"           // Events
+#include "field.h"
+#include "item.h"
+#include "item_cmpfunc.h"
+#include "item_func.h"
+#include "item_subselect.h"
 #include "item_timefunc.h"    // Item_func_unix_timestamp
 #include "key_spec.h"         // Key_spec
 #include "log.h"              // query_logger
 #include "log_event.h"        // slave_execute_deferred_events
+#include "m_ctype.h"
+#include "mdl.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "my_time.h"
+#include "mysql/com_data.h"
+#include "mysql/plugin_audit.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/psi/psi_statement.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"           // stage_execution_of_init_command
+#include "mysqld_error.h"
 #include "mysqld_thd_manager.h" // Find_thd_with_id
 #include "mysys_err.h"        // EE_CAPACITY_EXCEEDED
 #include "opt_explain.h"      // mysql_explain_other
 #include "opt_trace.h"        // Opt_trace_start
-#include "partition_info.h"   // partition_info
+#include "parse_location.h"
+#include "parse_tree_node_base.h"
+#include "prealloced_array.h"
+#include "probes_mysql.h"
+#include "protocol.h"
+#include "protocol_classic.h"
 #include "psi_memory_key.h"
-#include "probes_mysql.h"     // MYSQL_COMMAND_START
+#include "query_options.h"
+#include "query_result.h"
+#include "rpl_context.h"
 #include "rpl_filter.h"       // rpl_filter
 #include "rpl_group_replication.h" // group_replication_start
+#include "rpl_gtid.h"
 #include "rpl_master.h"       // register_slave
 #include "rpl_rli.h"          // mysql_show_relaylog_events
 #include "rpl_slave.h"        // change_master_cmd
+#include "session_tracker.h"
+#include "set_var.h"
 #include "sp.h"               // sp_create_routine
 #include "sp_cache.h"         // sp_cache_enforce_limit
 #include "sp_head.h"          // sp_head
 #include "sql_admin.h"        // mysql_assign_to_keycache
+#include "sql_alter.h"
 #include "sql_analyse.h"      // Query_result_analyse
 #include "sql_audit.h"        // MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER
 #include "sql_base.h"         // find_temporary_table
 #include "sql_binlog.h"       // mysql_client_binlog_statement
 #include "sql_cache.h"        // query_cache
+#include "sql_class.h"
+#include "sql_cmd.h"
 #include "sql_connect.h"      // decrease_user_connections
+#include "sql_const.h"
+#include "sql_data_change.h"
 #include "sql_db.h"           // mysql_change_db
-#include "sql_delete.h"       // mysql_delete
-#include "sql_do.h"           // mysql_do
+#include "sql_digest.h"
+#include "sql_digest_stream.h"
+#include "sql_error.h"
 #include "sql_handler.h"      // mysql_ha_rm_tables
 #include "sql_help.h"         // mysqld_help
-#include "sql_insert.h"       // Query_result_create
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_load.h"         // mysql_load
+#include "sql_plugin.h"
 #include "sql_prepare.h"      // mysql_stmt_execute
+#include "sql_profile.h"
 #include "sql_query_rewrite.h" // invoke_pre_parse_rewrite_plugins
 #include "sql_reload.h"       // reload_acl_and_cache
 #include "sql_rename.h"       // mysql_rename_tables
 #include "sql_rewrite.h"      // mysql_rewrite_query
+#include "sql_security_ctx.h"
 #include "sql_select.h"       // handle_query
 #include "sql_show.h"         // find_schema_table
+#include "sql_string.h"
 #include "sql_table.h"        // mysql_create_table
 #include "sql_tablespace.h"   // mysql_alter_tablespace
 #include "sql_test.h"         // mysql_print_status
-#include "sql_timer.h"        // thd_timer_set
 #include "sql_trigger.h"      // add_table_for_trigger
+#include "sql_udf.h"
 #include "sql_view.h"         // mysql_create_view
 #include "system_variables.h" // System_status_var
+#include "table.h"
 #include "table_cache.h"      // table_cache_manager
+#include "thr_lock.h"
 #include "transaction.h"      // trans_rollback_implicit
+#include "transaction_info.h"
+#include "violite.h"
 
-#include "dd/dd.h"            // get_dictionary
-#include "dd/dictionary.h"    // is_dd_table_access_allowed
+namespace dd {
+class Abstract_table;
+}  // namespace dd
+struct PSI_statement_locker;
 
-#include <algorithm>
-#include <sstream>
 using std::max;
 
 

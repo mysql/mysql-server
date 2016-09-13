@@ -20,15 +20,33 @@
 */
 
 
+#include <stddef.h>
+
+#include "auth_acls.h"
+#include "handler.h"
+#include "item.h"
+#include "my_base.h"
+#include "my_dbug.h"
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "my_sqlcommand.h"
+#include "opt_trace.h"                        // opt_trace_disable_etc
+#include "query_options.h"
+#include "sql_class.h"
+#include "sql_const.h"
 #include "sql_derived.h"
-#include "sql_select.h"
+#include "sql_executor.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_opt_exec_shared.h"
 #include "sql_optimizer.h"                    // JOIN
-#include "sql_view.h"                         // check_duplicate_names
-#include "auth_common.h"                      // SELECT_ACL
 #include "sql_tmp_table.h"                    // Tmp tables
 #include "sql_union.h"                        // Query_result_union
-#include "opt_trace.h"                        // opt_trace_disable_etc
+#include "sql_view.h"                         // check_duplicate_names
+#include "system_variables.h"
+#include "table.h"
+#include "temp_table_param.h"
+
+class Opt_trace_context;
 
 
 /**

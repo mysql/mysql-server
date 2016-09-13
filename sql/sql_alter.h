@@ -17,19 +17,30 @@
 #ifndef SQL_ALTER_TABLE_H
 #define SQL_ALTER_TABLE_H
 
-#include "my_global.h"
+#include <assert.h>
+#include <stddef.h>
+#include <sys/types.h>
 
+#include "binary_log_types.h" // enum_field_types
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sqlcommand.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/psi/psi_base.h"
 #include "prealloced_array.h" // Prealloced_array
+#include "sql_alloc.h"
 #include "sql_cmd.h"  // Sql_cmd
 #include "sql_list.h" // List
-#include "binary_log_types.h" // enum_field_types
+#include "thr_malloc.h"
 
 class Create_field;
 class FOREIGN_KEY;
 class Item;
 class Key_spec;
 class String;
+class THD;
 struct TABLE_LIST;
+
 typedef struct st_mysql_lex_string LEX_STRING;
 
 

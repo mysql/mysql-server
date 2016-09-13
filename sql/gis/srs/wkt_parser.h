@@ -18,10 +18,11 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 */
 
-#include "srs.h"
-#include <boost/variant.hpp>
 #include <string>
 #include <vector>
+
+#include <boost/variant/variant.hpp>
+#include "srs.h"
 
 namespace gis { namespace srs { namespace wkt_parser {
 

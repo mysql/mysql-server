@@ -110,31 +110,69 @@
 
 #include "opt_range.h"
 
+#include <fcntl.h>
+#include <float.h>
+#include <stdio.h>
+#include <string.h>
+#include <algorithm>
+#include <cmath>                 // std::log2
+#include <memory>
+#include <new>
+#include <queue>
+#include <set>
+
+#include "binary_log_types.h"
+#include "check_stack.h"
 #include "current_thd.h"
 #include "derror.h"              // ER_THD
 #include "error_handler.h"       // Internal_error_handler
 #include "filesort.h"            // filesort_free_buffers
+#include "item.h"
+#include "item_cmpfunc.h"
+#include "item_func.h"
+#include "item_row.h"
 #include "item_sum.h"            // Item_sum
 #include "key.h"                 // is_key_used
 #include "log.h"                 // sql_print_error
+#include "m_ctype.h"
+#include "malloc_allocator.h"
+#include "mem_root_array.h"
+#include "my_alloc.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "mysys_err.h"           // EE_CAPACITY_EXCEEDED
+#include "opt_costmodel.h"
+#include "opt_hints.h"           // hint_key_state
 #include "opt_statistics.h"      // guess_rec_per_key
 #include "opt_trace.h"           // Opt_trace_array
+#include "opt_trace_context.h"
 #include "partition_info.h"      // partition_info
 #include "psi_memory_key.h"
-#include "sql_partition.h"       // HA_USE_AUTO_PARTITION
+#include "set_var.h"
 #include "sql_base.h"            // free_io_cache
 #include "sql_class.h"           // THD
+#include "sql_error.h"
+#include "sql_executor.h"
+#include "sql_lex.h"
 #include "sql_opt_exec_shared.h" // QEP_shared_owner
 #include "sql_optimizer.h"       // JOIN
 #include "sql_parse.h"           // check_stack_overrun
+#include "sql_partition.h"       // HA_USE_AUTO_PARTITION
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_select.h"
+#include "sql_servers.h"
+#include "system_variables.h"
+#include "template_utils.h"
+#include "thr_malloc.h"
 #include "uniques.h"             // Unique
-#include "opt_hints.h"           // hint_key_state
-#include "mysys_err.h"           // EE_CAPACITY_EXCEEDED
-
-#include <algorithm>
-#include <cmath>                 // std::log2
-#include <queue>
-#include <set>
 
 using std::min;
 using std::max;
@@ -1250,13 +1288,9 @@ public:
 };
 
 class TABLE_READ_PLAN;
+  class TRP_GROUP_MIN_MAX;
   class TRP_RANGE;
   class TRP_ROR_INTERSECT;
-  class TRP_ROR_UNION;
-  class TRP_INDEX_MERGE;
-  class TRP_GROUP_MIN_MAX;
-
-struct st_ror_scan_info;
 
 static SEL_TREE * get_mm_parts(RANGE_OPT_PARAM *param,
                                Item_func *cond_func,Field *field,
@@ -3513,9 +3547,6 @@ free_mem:
   }
 
 */
-
-struct st_part_prune_param;
-struct st_part_opt_info;
 
 typedef void (*mark_full_part_func)(partition_info*, uint32);
 

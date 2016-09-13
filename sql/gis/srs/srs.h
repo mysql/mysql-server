@@ -18,10 +18,10 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 */
 
-#include <sql_string.h>
-#include <string>
 #include <cmath>
 #include <cstdint>
+
+#include "my_dbug.h"
 
 typedef std::uint32_t srid_t;
 
@@ -110,7 +110,9 @@ public:
 };
 
 
-namespace wkt_parser { struct Geographic_cs; }
+namespace wkt_parser {
+struct Geographic_cs;
+}  // namespace wkt_parser
 
 
 /// A geographic (longitude-latitude) spatial reference system.
@@ -191,7 +193,9 @@ public:
 };
 
 
-namespace wkt_parser { struct Projected_cs; }
+namespace wkt_parser {
+struct Projected_cs;
+}  // namespace wkt_parser
 
 
 /// A projected spatial reference system.

@@ -16,9 +16,20 @@
 #ifndef SQL_PARSE_INCLUDED
 #define SQL_PARSE_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "handler.h"                 // enum_schema_tables
+#include "key.h"
+#include "m_string.h"
+#include "my_command.h"
+#include "my_global.h"
+#include "my_sqlcommand.h"
+#include "mysql/psi/mysql_rwlock.h"
 #include "mysql_com.h"               // enum_server_command
+#include "system_variables.h"
+
+template <typename T> class SQL_I_List;
 
 /**
   @addtogroup GROUP_PARSER
@@ -26,19 +37,18 @@
 */
 
 class Comp_creator;
-class Generated_column;
 class Item;
 class Object_creation_ctx;
 class Parser_state;
+class THD;
 class Table_ident;
 struct LEX;
 struct Parse_context;
 struct TABLE_LIST;
-class THD;
 union COM_DATA;
+
 typedef struct st_lex_user LEX_USER;
 typedef struct st_order ORDER;
-class SELECT_LEX;
 
 
 extern "C" int test_if_data_home_dir(const char *dir);

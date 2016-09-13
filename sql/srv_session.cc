@@ -15,26 +15,50 @@
 */
 
 #include "srv_session.h"
-#include "my_dbug.h"
-#include "my_thread.h"
-#include "sql_class.h"
-#include "sql_base.h"            // close_mysql_tables
-#include "sql_connect.h"         // thd_init_client_charset
-#include "mysqld_thd_manager.h"  // Global_THD_manager
-#include "sql_audit.h"           // MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT
-#include "log.h"                 // Query log
-#include "my_thread_local.h"     // my_get_thread_local & my_set_thread_local
-#include "mysqld.h"              // current_thd
-#include "sql_parse.h"           // dispatch_command()
-#include "sql_thd_internal_api.h" // thd_set_thread_stack
-#include "rwlock_scoped_lock.h"
-#include "mutex_lock.h"
-#include "conn_handler/connection_handler_manager.h"
-#include "sql_plugin.h"
-#include "current_thd.h"
-#include "derror.h"             // ER_DEFAULT
 
+#include <stddef.h>
+#include <sys/types.h>
+#include <list>
 #include <map>
+#include <new>
+#include <utility>
+
+#include "conn_handler/connection_handler_manager.h"
+#include "current_thd.h"
+#include "decimal.h"
+#include "derror.h"             // ER_DEFAULT
+#include "log.h"                 // Query log
+#include "m_ctype.h"
+#include "mutex_lock.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "my_thread.h"
+#include "my_thread_local.h"     // my_get_thread_local & my_set_thread_local
+#include "mysql/plugin_audit.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_rwlock.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/psi/psi_rwlock.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysqld.h"              // current_thd
+#include "mysqld_error.h"
+#include "mysqld_thd_manager.h"  // Global_THD_manager
+#include "pfs_thread_provider.h"
+#include "rwlock_scoped_lock.h"
+#include "sql_audit.h"           // MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT
+#include "sql_base.h"            // close_mysql_tables
+#include "sql_class.h"
+#include "sql_connect.h"         // thd_init_client_charset
+#include "sql_list.h"
+#include "sql_parse.h"           // dispatch_command()
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_thd_internal_api.h" // thd_set_thread_stack
+#include "system_variables.h"
+#include "thr_mutex.h"
 
 /**
   @file
@@ -1161,8 +1185,6 @@ void Srv_session::set_detached()
   state= SRV_SESSION_DETACHED;
   thd_set_thread_stack(&thd, NULL);
 }
-
-#include "auth_common.h"
 
 int Srv_session::execute_command(enum enum_server_command command,
                                  const union COM_DATA * data,

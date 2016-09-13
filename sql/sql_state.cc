@@ -15,10 +15,12 @@
 
 /* Functions to map mysqld errno to sql_state */
 
-#include <my_global.h>
 #include <mysqld_error.h>
-#include "mysql_com.h"
-#include <string.h>
+#include <sys/types.h>
+
+// Hack needed due to mysql_com.h not including my_global.h.
+#include "my_global.h"  // IWYU pragma: keep
+#include "mysql_com.h"  // IWYU pragma: keep
 
 static const int NUM_SECTIONS=
   sizeof(errmsg_section_start) / sizeof(errmsg_section_start[0]);

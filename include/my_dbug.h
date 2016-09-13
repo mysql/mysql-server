@@ -23,6 +23,7 @@
 #include "my_compiler.h"
 
 #if !defined(DBUG_OFF)
+#include <assert.h>  // IWYU pragma: keep
 #include <stdio.h>
 #endif
 

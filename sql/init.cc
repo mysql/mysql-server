@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,11 +22,18 @@
 */
 
 #include "init.h"
-#include "my_sys.h"
-#include "mysqld.h"                    // connection_events_loop_aborted(), ...
-#include "my_time.h"                   // my_init_time
+
+#include "my_config.h"
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
 #include "m_string.h"                  // my_stpcpy
-#include <m_ctype.h>
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "my_time.h"                   // my_init_time
+#include "mysqld.h"                    // connection_events_loop_aborted(), ...
 
 #ifdef _WIN32
 #include <process.h> // getpid

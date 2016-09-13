@@ -21,10 +21,18 @@
 #include "equi_height.h"
 
 #include <cmath>            // std::lround
+#include <iterator>
+#include <new>
 
+#include "equi_height_bucket.h"
 #include "float_compare.h"
 #include "json_dom.h"       // Json_*
+#include "memroot_allocator.h"
 #include "my_base.h"        // ha_rows
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_global.h"
+#include "sql_string.h"
 
 namespace histograms {
 

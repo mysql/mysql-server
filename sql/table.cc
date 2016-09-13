@@ -16,49 +16,77 @@
 
 #include "table.h"
 
-#include "my_md5.h"                      // compute_md5_hash
-#include "myisam.h"                      // MI_MAX_KEY_LENGTH
-#include "mysql_version.h"               // MYSQL_VERSION_ID
+#include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <algorithm>
+#include <string>
 
+#include "auth_acls.h"
 #include "auth_common.h"                 // acl_getroot
 #include "binlog.h"                      // mysql_bin_log
+#include "binlog_event.h"
+#include "dd/dd.h"                       // dd::get_dictionary
+#include "dd/dictionary.h"               // dd::Dictionary
+#include "dd/types/abstract_table.h"
+#include "dd/types/table.h"              // dd::Table
+#include "dd/types/view.h"               // dd::View
 #include "debug_sync.h"                  // DEBUG_SYNC
 #include "derror.h"                      // ER_THD
 #include "error_handler.h"               // Strict_error_handler
+#include "field.h"
+#include "ft_global.h"
+#include "hash.h"
+#include "item.h"
 #include "item_cmpfunc.h"                // and_conds
 #include "key.h"                         // find_ref_key
 #include "log.h"                         // sql_print_warning
+#include "m_string.h"
+#include "my_byteorder.h"
+#include "my_decimal.h"
+#include "my_md5.h"                      // compute_md5_hash
+#include "my_md5_size.h"
+#include "my_psi_config.h"
+#include "my_sqlcommand.h"
+#include "my_thread_local.h"
+#include "myisam.h"                      // MI_MAX_KEY_LENGTH
+#include "mysql/plugin.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
+#include "mysql_version.h"               // MYSQL_VERSION_ID
 #include "mysqld.h"                      // reg_ext key_file_frm ...
+#include "mysqld_error.h"
 #include "opt_trace.h"                   // opt_trace_disable_if_no_security_...
 #include "parse_file.h"                  // sql_parse_prepare
 #include "partition_info.h"              // partition_info
+#include "pfs_table_provider.h"
 #include "psi_memory_key.h"
 #include "query_result.h"                // Query_result
+#include "session_tracker.h"
+#include "set_var.h"
 #include "sql_base.h"                    // OPEN_VIEW_ONLY
 #include "sql_class.h"                   // THD
+#include "sql_error.h"
+#include "sql_lex.h"
 #include "sql_parse.h"                   // check_stack_overrun
 #include "sql_partition.h"               // mysql_unpack_partition
 #include "sql_plugin.h"                  // plugin_unlock
+#include "sql_security_ctx.h"
 #include "sql_select.h"                  // actual_key_parts
+#include "sql_string.h"
 #include "sql_table.h"                   // build_table_filename
 #include "sql_tablespace.h"              // check_tablespace_name())
-#include "sql_view.h"                    // view_type
+#include "sql_udf.h"
 #include "strfunc.h"                     // find_type
 #include "table_cache.h"                 // table_cache_manager
 #include "table_trigger_dispatcher.h"    // Table_trigger_dispatcher
 #include "template_utils.h"              // down_cast
-
-#include "dd/dd.h"                       // dd::get_dictionary
-#include "dd/dictionary.h"               // dd::Dictionary
-#include "dd/types/table.h"              // dd::Table
-#include "dd/types/view.h"               // dd::View
-
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
-
-#include "pfs_table_provider.h"
-#include "mysql/psi/mysql_table.h"
-#include <iterator>
+#include "thr_malloc.h"
+#include "thr_mutex.h"
+#include "trigger_def.h"
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};

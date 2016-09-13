@@ -20,33 +20,70 @@
 
 #include "sql_load.h"
 
-#include "mysqld.h"                             // mysql_real_data_home
-#include "psi_memory_key.h"
-#include "sql_cache.h"                          // query_cache_*
-#include "sql_base.h"          // fill_record_n_invoke_before_triggers
-#include <my_dir.h>
-#include "sql_view.h"                           // check_key_in_view
-#include "sql_insert.h" // check_that_all_fields_are_given_values,
-                        // prepare_triggers_for_insert_stmt,
-                        // write_record
-#include "auth_common.h"// INSERT_ACL, UPDATE_ACL
-#include "log_event.h"  // Delete_file_log_event,
+#include <fcntl.h>
+#include <limits.h>
                         // Execute_load_query_log_event,
                         // LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F
-#include <m_ctype.h>
-#include "rpl_mi.h"
-#include "rpl_slave.h"
-#include "table_trigger_dispatcher.h"  // Table_trigger_dispatcher
-#include "sql_show.h"
-#include "item_timefunc.h"  // Item_func_now_local
-#include "rpl_rli.h"     // Relay_log_info
-#include "derror.h"
-#include "log.h"
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <algorithm>
 
-#include "pfs_file_provider.h"
+#include "auth_acls.h"
+#include "binlog.h"
+#include "derror.h"
+#include "field.h"
+#include "handler.h"
+#include "item_func.h"
+#include "item.h"
+#include "item_timefunc.h"  // Item_func_now_local
+#include "load_data_events.h"
+#include "log_event.h"  // Delete_file_log_event,
+#include "log.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_dir.h"
+#include "my_global.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "mysqld.h"                             // mysql_real_data_home
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/thread_type.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "protocol_classic.h"
+#include "psi_memory_key.h"
+#include "query_result.h"
+#include "rpl_rli.h"     // Relay_log_info
+#include "rpl_slave.h"
+#include "session_tracker.h"
+#include "sql_base.h"          // fill_record_n_invoke_before_triggers
+#include "sql_cache.h"                          // query_cache_*
+#include "sql_class.h"
+#include "sql_error.h"
+#include "sql_insert.h" // check_that_all_fields_are_given_values,
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_security_ctx.h"
+#include "sql_show.h"
+#include "sql_string.h"
+#include "sql_view.h"                           // check_key_in_view
+#include "system_variables.h"
+#include "table.h"
+#include "table_trigger_dispatcher.h"  // Table_trigger_dispatcher
+#include "thr_lock.h"
+#include "thr_malloc.h"
+#include "transaction_info.h"
+#include "trigger_def.h"
+
+#include "pfs_file_provider.h"  // IWYU pragma: keep
 #include "mysql/psi/mysql_file.h"
 
-#include <algorithm>
+class READ_INFO;
 
 using std::min;
 using std::max;

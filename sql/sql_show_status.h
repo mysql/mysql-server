@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,13 +16,12 @@
 #ifndef SQL_SHOW_STATUS_H
 #define SQL_SHOW_STATUS_H
 
-#include "my_global.h"
 #include "parse_tree_node_base.h"  // POS
 
 class Item;
+class SELECT_LEX;
 class String;
 class THD;
-class SELECT_LEX;
 
 SELECT_LEX*
 build_show_global_status(const POS &pos, THD *thd, const String *wild, Item *where_cond);

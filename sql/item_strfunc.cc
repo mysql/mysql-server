@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,45 +30,77 @@
 /* May include caustic 3rd-party defs. Use early, so it can override nothing. */
 #include "sha2.h"
 
-#include "item_strfunc.h"
+#include <algorithm>
+#include <cmath>                     // isnan
 
-#include "base64.h"                  // base64_encode_max_arg_length
-#include "current_thd.h"             // current_thd
-#include "dd_sql_view.h"             // push_view_warning_or_error
-#include "my_aes.h"                  // MY_AES_IV_SIZE
-#include "my_md5.h"                  // MD5_HASH_SIZE
-#include "my_rnd.h"                  // my_rand_buffer
-#include "mysqld.h"                  // LOCK_des_key_file
-#include "sha1.h"                    // SHA1_HASH_SIZE
+#include "auth_acls.h"
 #include "auth_common.h"             // check_password_policy
+#include "base64.h"                  // base64_encode_max_arg_length
+#include "binary_log_types.h"
+#include "current_thd.h"             // current_thd
+#include "dd/info_schema/stats.h"
+#include "dd/properties.h"           // dd::Properties
+#include "dd/string_type.h"
+#include "dd/types/column.h"         // dd::Column
+#include "dd_sql_view.h"             // push_view_warning_or_error
+#include "dd_table_share.h"          // dd_get_old_field_type
+#include "decimal.h"
 #include "derror.h"                  // ER_THD
 #include "des_key_file.h"            // st_des_keyblock
+#include "handler.h"
+#include "item_strfunc.h"
+#include "m_string.h"
+#include "my_aes.h"                  // MY_AES_IV_SIZE
+#include "my_base.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_dir.h"                  // For my_stat
+#include "my_md5.h"                  // MD5_HASH_SIZE
+#include "my_md5_size.h"
+#include "my_rnd.h"                  // my_rand_buffer
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "myisampack.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_password_policy.h"
+#include "mysqld.h"                  // LOCK_des_key_file
+#include "mysqld_error.h"
 #include "password.h"                // my_make_scrambled_password
-#include "spatial.h"                 // Geometry
+#include "rpl_gtid.h"
+#include "session_tracker.h"
+#include "sha1.h"                    // SHA1_HASH_SIZE
 #include "sql_class.h"               // THD
+#include "sql_error.h"
+#include "sql_lex.h"
 #include "sql_locale.h"              // my_locale_by_name
+#include "sql_security_ctx.h"
 #include "strfunc.h"                 // hexchar_to_int
-#include "dd/types/column.h"         // dd::Column
-#include "dd_table_share.h"          // dd_get_old_field_type
-#include "dd/properties.h"           // dd::Properties
+#include "template_utils.h"
+#include "typelib.h"
 #include "val_int_compare.h"         // Integer_value
+#include "zconf.h"
 
 C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
+
 C_MODE_END
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 #include "sql_show.h"  // grant_types
 #endif
 
-#include "template_utils.h"
-
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
-
-#include <algorithm>
+#include <atomic>
 #include <cmath>                     // isnan
+#include <memory>
+#include <ostream>
+#include <string>
+#include <utility>
+#include <vector>
 
+#include "mysql/psi/mysql_file.h"
 
 using std::min;
 using std::max;
@@ -4236,7 +4268,15 @@ bool Item_load_file::itemize(Parse_context *pc, Item **res)
 }
 
 
-#include <my_dir.h>				// For my_stat
+#include <fcntl.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <time.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 
 String *Item_load_file::val_str(String *str)
 {
@@ -4615,6 +4655,8 @@ longlong Item_func_crc32::val_int()
 }
 
 #include "zlib.h"
+
+template <class T> class List;
 
 String *Item_func_compress::val_str(String *str)
 {

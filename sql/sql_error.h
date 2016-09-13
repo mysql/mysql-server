@@ -16,14 +16,25 @@
 #ifndef SQL_ERROR_H
 #define SQL_ERROR_H
 
-#include "sql_list.h"
-#include "sql_string.h"                        /* String */
-#include "sql_plist.h" /* I_P_List */
-#include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
+#include <string.h>
+#include <sys/types.h>
+
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "mysql/mysql_lex_string.h"
 #include "mysql/service_my_snprintf.h"
+#include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
+#include "sql_alloc.h"
+#include "sql_list.h"
+#include "sql_plist.h" /* I_P_List */
+#include "sql_string.h"                        /* String */
 
 class THD;
 class my_decimal;
+
 typedef struct st_mysql_lex_string LEX_STRING;
 
 ///////////////////////////////////////////////////////////////////////////

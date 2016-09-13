@@ -16,11 +16,25 @@
 #ifdef HAVE_REPLICATION
 #include "rpl_mi.h"
 
+#include <stdlib.h>
+#include <string.h>
+#include <algorithm>
+
 #include "dynamic_ids.h"        // Server_ids
 #include "log.h"                // sql_print_error
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_version.h"
 #include "mysqld.h"             // sync_masterinfo_period
+#include "prealloced_array.h"
+#include "rpl_info_handler.h"
 #include "rpl_msr.h"            // channel_map
 #include "rpl_slave.h"          // master_retry_count
+#include "sql_class.h"
+
+class Relay_log_info;
 
 
 enum {

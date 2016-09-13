@@ -16,10 +16,13 @@
 #ifndef SQL_LOCALE_INCLUDED
 #define SQL_LOCALE_INCLUDED
 
+#include <sys/types.h>
+
 #include "my_global.h"                          /* uint */
 
 class MY_LOCALE_ERRMSGS;
 class THD;
+
 typedef struct st_typelib TYPELIB;
 
 class MY_LOCALE

@@ -15,11 +15,25 @@
 
 #include "opt_hints.h"
 
+#include <string.h>
+
 #include "derror.h"        // ER_THD
+#include "key.h"
+#include "m_ctype.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/service_my_snprintf.h"
 #include "mysqld.h"        // table_alias_charset
+#include "mysqld_error.h"
+#include "parse_tree_hints.h"
+#include "session_tracker.h"
 #include "sql_class.h"     // THD
+#include "sql_const.h"
 #include "sql_error.h"     // Sql_condition
 #include "sql_optimizer.h" // JOIN class
+#include "sql_security_ctx.h"
+#include "sql_select.h"
+#include "sql_servers.h"
+#include "table.h"
 
 /**
   Information about hints. Sould be

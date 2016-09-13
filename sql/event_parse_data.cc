@@ -16,11 +16,27 @@
 
 #include "event_parse_data.h"
 
+#include <string.h>
+
 #include "derror.h"                             // ER_THD
+#include "item.h"
 #include "item_timefunc.h"                      // get_interval_value
+#include "key.h"
+#include "my_decimal.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/thread_type.h"
 #include "mysqld.h"                             // server_id
+#include "mysqld_error.h"
+#include "session_tracker.h"
 #include "sp_head.h"                            // sp_name
+#include "sql_admin.h"
 #include "sql_class.h"                          // THD
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
 #include "sql_time.h"                           // TIME_to_timestamp
 
 

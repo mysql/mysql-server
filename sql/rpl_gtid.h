@@ -19,17 +19,17 @@
 #ifndef RPL_GTID_H_INCLUDED
 #define RPL_GTID_H_INCLUDED
 
-#include "my_global.h"
+#include <atomic>
+#include <list>
+
+#include "control_events.h"     // binary_log::Uuid
 #include "hash.h"               // HASH
 #include "my_atomic.h"          // my_atomic_add32
-#include "prealloced_array.h"   // Prealloced_array
-#include "control_events.h"     // binary_log::Uuid
-#include <list>
-#include "typelib.h"
+#include "my_global.h"
 #include "mysql/psi/mysql_rwlock.h" // mysql_rwlock_t
+#include "prealloced_array.h"   // Prealloced_array
 #include "template_utils.h"
-
-#include <atomic>
+#include "typelib.h"
 
 struct TABLE_LIST;
 

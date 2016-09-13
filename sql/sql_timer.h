@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,8 @@
 #ifndef SQL_TIMER_INCLUDED
 #define SQL_TIMER_INCLUDED
 
-#include "my_global.h"
-
 class THD;
+
 typedef struct st_thd_timer_info THD_timer_info;
 
 THD_timer_info *thd_timer_set(THD *, THD_timer_info *, unsigned long);

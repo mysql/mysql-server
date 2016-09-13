@@ -16,9 +16,26 @@
 #ifndef LOG_H
 #define LOG_H
 
-#include "my_global.h"
-#include "auth/sql_security_ctx.h"  // Security_context
+#include <stdarg.h>
+#include <stddef.h>
+#include <sys/types.h>
 
+#include "auth/sql_security_ctx.h"  // Security_context
+#include "my_command.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_rwlock.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql_com.h"
+#include "sql_string.h"
+#include "thr_malloc.h"
+
+class THD;
 struct TABLE_LIST;
 
 ////////////////////////////////////////////////////////////
@@ -73,9 +90,6 @@ struct TABLE_LIST;
     Number of queries not using indexes logged to the slow query log per min.
 */
 
-
-class Query_logger;
-class Log_to_file_event_handler;
 
 /** Type of the log table */
 enum enum_log_table_type

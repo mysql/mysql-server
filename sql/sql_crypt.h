@@ -1,7 +1,7 @@
 #ifndef SQL_CRYPT_INCLUDED
 #define SQL_CRYPT_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,8 +17,13 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#include "sql_alloc.h"
+#include <stddef.h>
+#include <sys/types.h>
+
+// Hack needed due to mysql_com.h not including my_global.h.
+#include "my_global.h"  // IWYU pragma: keep
 #include "mysql_com.h"                          /* rand_struct */
+#include "sql_alloc.h"
 
 /**
   WARNING: This class is deprecated and will be removed in the next

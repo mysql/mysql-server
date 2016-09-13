@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,24 @@
 */
 
 #include "init_net_server_extension.h"
-#include "sql_class.h"                  // THD
-#include "pfs_idle_provider.h"
+
+#include <stddef.h>
+
+#include "my_dbug.h"
+#include "my_global.h"
 #include "mysql/psi/mysql_idle.h"       // MYSQL_SOCKET_SET_STATE,
+#include "mysql/psi/mysql_socket.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/psi/psi_socket.h"
+#include "mysql/psi/psi_statement.h"
+#include "mysql_com.h"
+#include "mysql_com_server.h"
                                         // MYSQL_START_IDLE_WAIT
 #include "mysqld.h"                     // stage_starting
+#include "protocol_classic.h"
+#include "sql_class.h"                  // THD
+#include "sql_plugin.h"
+#include "violite.h"
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE     // TODO: << nonconformance with HAVE_PSI_INTERFACE
 PSI_statement_info stmt_info_new_packet;

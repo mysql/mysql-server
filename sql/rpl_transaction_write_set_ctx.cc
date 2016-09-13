@@ -15,10 +15,16 @@
 
 #include "rpl_transaction_write_set_ctx.h"
 
+#include <stddef.h>
+
+#include "my_dbug.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_mysql_alloc.h"
 #include "mysql/service_rpl_transaction_write_set.h" // Transaction_write_set
 #include "mysqld_thd_manager.h"                      // Global_THD_manager
-#include "sql_class.h"                               // THD
 #include "psi_memory_key.h"
+#include "sql_class.h"                               // THD
+#include "transaction_info.h"
 
 
 Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx()

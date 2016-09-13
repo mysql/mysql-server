@@ -16,49 +16,108 @@
 
 #include "log_event.h"
 
-#include "base64.h"            // base64_encode
+#include "my_config.h"
+
+#include <assert.h>
+#include <stdlib.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <algorithm>
+#include <map>
+#include <string>
+#include <utility>
+
+#include "base64.h"
 #include "binary_log_funcs.h"  // my_timestamp_binary_length
-#include "mysql/service_my_snprintf.h" // my_snprintf
-#include "mysql.h"             // MYSQL_OPT_MAX_ALLOWED_PACKET
+#include "binary_log_types.h"
+#include "debug_vars.h"
+#include "decimal.h"
+#include "m_ctype.h"
+#include "my_bitmap.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
 #include "my_decimal.h"        // my_decimal
 #include "my_time.h"           // MAX_DATE_STRING_REP_LENGTH
-#include "derror.h"            // ER_THD
+#include "mysql.h"             // MYSQL_OPT_MAX_ALLOWED_PACKET
+#include "mysql/service_my_snprintf.h" // my_snprintf
+#include "mysql_time.h"
+#include "rpl_tblmap.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table_id.h"
+#include "wrapper_functions.h"
 
 #ifdef MYSQL_CLIENT
 #include "mysqlbinlog.h"
 #endif
 
 #ifndef MYSQL_CLIENT
+
+#include <errno.h>
+#include <fcntl.h>
+#include <cstdint>
+#include <new>
+
+#include "auth/auth_common.h"
+#include "auth/sql_security_ctx.h"
+#include "binlog.h"
 #include "current_thd.h"
+#include "dd/types/abstract_table.h" // dd::enum_table_type
 #include "debug_sync.h"        // debug_sync_set_action
-#include "my_dir.h"            // my_dir
-#include "mysqld.h"            // lower_case_table_names server_uuid ...
+#include "derror.h"            // ER_THD
+#include "enum_query_type.h"
+#include "field.h"
+#include "handler.h"
 #include "item_func.h"         // Item_func_set_user_var
+#include "item.h"
+#include "key.h"
 #include "log.h"               // Log_throttle
+#include "mdl.h"
+#include "my_base.h"
+#include "my_command.h"
+#include "my_dir.h"            // my_dir
+#include "my_sqlcommand.h"
+#include "mysqld_error.h"
+#include "mysqld.h"            // lower_case_table_names server_uuid ...
+#include "mysql/plugin.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/psi/mysql_transaction.h"
+#include "mysql/psi/psi_statement.h"
+#include "pfs_file_provider.h"
+#include "prealloced_array.h"
+#include "protocol.h"
 #include "query_result.h"      // sql_exchange
 #include "rpl_mts_submode.h"   // Mts_submode
+#include "rpl_reporting.h"
 #include "rpl_rli.h"           // Relay_log_info
 #include "rpl_rli_pdb.h"       // Slave_job_group
 #include "rpl_slave.h"         // use_slave_mask
 #include "sql_base.h"          // close_thread_tables
+#include "sql_bitmap.h"
 #include "sql_cache.h"         // query_cache
+#include "sql_class.h"
+#include "sql_cmd.h"
+#include "sql_data_change.h"
 #include "sql_db.h"            // load_db_opt_by_name
+#include "sql_digest_stream.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"          // I_List
 #include "sql_load.h"          // mysql_load
 #include "sql_locale.h"        // my_locale_by_number
 #include "sql_parse.h"         // mysql_test_parse_for_slave
+#include "sql_plugin.h" // plugin_foreach
 #include "sql_show.h"          // append_identifier
+#include "table.h"
+#include "thr_lock.h"
 #include "transaction.h"       // trans_rollback_stmt
+#include "transaction_info.h"
 #include "tztime.h"            // Time_zone
 
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
-
-#include <mysql/psi/mysql_statement.h>
-#include "transaction_info.h"
-#include "sql_class.h"
-#include "mysql/psi/mysql_transaction.h"
-#include "sql_plugin.h" // plugin_foreach
-#include "dd/types/abstract_table.h" // dd::enum_table_type
 #define window_size Log_throttle::LOG_THROTTLE_WINDOW_SIZE
 Error_log_throttle
 slave_ignored_err_throttle(window_size,
@@ -68,16 +127,8 @@ slave_ignored_err_throttle(window_size,
                            " replicate-*-table rules\" got suppressed.");
 #endif /* MYSQL_CLIENT */
 
-#include <base64.h>
-#include <my_bitmap.h>
-#include <map>
-#include <string>
-#include "rpl_utility.h"
-/* This is necessary for the List manipuation */
-#include "sql_list.h"                           /* I_List */
-#include "hash.h"
-#include "sql_digest.h"
 #include "rpl_gtid.h"
+#include "rpl_utility.h"
 #include "xa_aux.h"
 
 extern "C" {

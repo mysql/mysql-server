@@ -84,44 +84,84 @@ When one supplies long data for a placeholder:
 */
 
 #include "sql_prepare.h"
+
+#include <limits.h>
+#include <stdio.h>
+#include <string.h>
+
+#include "auth_acls.h"
 #include "auth_common.h"        // check_table_access
+#include "binary_log_types.h"
+#include "binlog.h"
+#include "decimal.h"
 #include "derror.h"             // ER_THD
+#include "field.h"
+#include "handler.h"
+#include "hash.h"
+#include "item.h"
 #include "item_func.h"          // user_var_entry
 #include "log.h"                // query_logger
+#include "m_ctype.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_byteorder.h"
+#include "my_command.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_decimal.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "my_time.h"
+#include "mysql/plugin_audit.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_ps.h" // MYSQL_EXECUTE_PS
+#include "mysql_time.h"
 #include "mysqld.h"             // opt_general_log
+#include "mysqld_error.h"
 #include "opt_trace.h"          // Opt_trace_array
-#include "probes_mysql.h"       // MYSQL_QUERY_EXEC_START
+#include "probes_mysql.h"
+#include "protocol.h"
 #include "psi_memory_key.h"
 #include "set_var.h"            // set_var_base
 #include "sp.h"                 // Sroutine_hash_entry
 #include "sp_cache.h"           // sp_cache_enforce_limit
 #include "sql_analyse.h"        // Query_result_analyse
+#include "sql_audit.h"          // mysql_global_audit_mask
 #include "sql_base.h"           // open_tables_for_query, open_temporary_table
 #include "sql_cache.h"          // query_cache
+#include "sql_cmd.h"
+#include "sql_const.h"
 #include "sql_cursor.h"         // Server_side_cursor
 #include "sql_db.h"             // mysql_change_db
-#include "sql_delete.h"         // mysql_prepare_delete
+#include "sql_digest_stream.h"
 #include "sql_handler.h"        // mysql_ha_rm_tables
-#include "sql_insert.h"         // mysql_prepare_insert
+#include "sql_lex.h"
 #include "sql_parse.h"          // sql_command_flags
+#include "sql_profile.h"
 #include "sql_rewrite.h"        // mysql_rewrite_query
-#include "sql_update.h"         // mysql_prepare_update
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "sql_udf.h"
 #include "sql_view.h"           // create_view_precheck
+#include "system_variables.h"
+#include "table.h"
+#include "thr_malloc.h"
 #include "transaction.h"        // trans_rollback_implicit
-#include "mysql/psi/mysql_ps.h" // MYSQL_EXECUTE_PS
-#include "binlog.h"
-#include "sql_audit.h"          // mysql_global_audit_mask
-#include "sql_plugin.h"
+#include "violite.h"
 
 #ifdef EMBEDDED_LIBRARY
 /* include MYSQL_BIND headers */
-#include <mysql.h>
+#include "mysql.h"
 #else
-#include <mysql_com.h>
+#include "mysql_com.h"
 #endif
+#include <algorithm>
+
 #include "sql_query_rewrite.h"
 
-#include <algorithm>
+struct PSI_statement_locker;
+union COM_DATA;
+
 using std::max;
 using std::min;
 
@@ -140,8 +180,6 @@ private:
   LEX_STRING m_sql_text;
 };
 
-
-class Ed_connection;
 
 /**
   Protocol_local: a helper class to intercept the result

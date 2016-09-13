@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,11 +18,13 @@
 
 #include "my_global.h"          // ulong
 #include "query_result.h"       // Query_result_interceptor
+#include "table.h"
 #include "temp_table_param.h"   // Temp_table_param
 
-struct LEX;
-
+class Item;
 class SELECT_LEX_UNIT;
+class THD;
+template <class T> class List;
 
 class Query_result_union :public Query_result_interceptor
 {

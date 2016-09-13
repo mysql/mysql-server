@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,12 @@
 #ifndef TABLE_MAPPING_H
 #define TABLE_MAPPING_H
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "hash.h"        // HASH
+#include "my_alloc.h"
+#include "my_global.h"
 #include "template_utils.h"
 
 /* Forward declarations */
@@ -25,6 +29,7 @@
 struct TABLE;
 #else
 class Table_map_log_event;
+
 typedef Table_map_log_event TABLE;
 void free_table_map_log_event(TABLE *table);
 #endif

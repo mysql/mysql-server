@@ -25,13 +25,29 @@
 
 #include "sql_analyse.h"
 
+#include <float.h>
+#include <stdio.h>
+#include <string.h>
+#include <algorithm>
+
+#include "binary_log_types.h"
 #include "current_thd.h"     // current_thd
+#include "decimal.h"
+#include "field.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_sqlcommand.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
 #include "procedure.h"       // Item_proc
 #include "sql_class.h"       // THD
+#include "sql_const.h"
+#include "sql_security_ctx.h"
 #include "sql_yacc.h"        // DECIMAL_NUM
+#include "system_variables.h"
 #include "template_utils.h"  // pointer_cast
+#include "thr_malloc.h"
 
-#include <algorithm>
 using std::min;
 using std::max;
 

@@ -16,10 +16,24 @@
 #ifndef SQL_TIME_INCLUDED
 #define SQL_TIME_INCLUDED
 
+#include "my_config.h"
+
+#include <stddef.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <sys/types.h>
+
+#include "binary_log_types.h"
+#include "my_dbug.h"
 #include "my_global.h"                          /* ulong */
 #include "my_time.h"
 #include "mysql_time.h"                         /* timestamp_type */
 #include "sql_error.h"                          /* Sql_condition */
+#include "sql_string.h"
+
+class THD;
+class my_decimal;
 
 struct Date_time_format
 {

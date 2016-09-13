@@ -21,36 +21,52 @@
 
 /* Definitions for parameters to do with handler-routines */
 
-#include "my_global.h"
-#include "ft_global.h"         // ft_hints
-#include "my_thread_local.h"   // my_errno
-#include "thr_lock.h"          // thr_lock_type
+#include <fcntl.h>
+#include <float.h>
+#include <string.h>
+#include <sys/types.h>
+#include <time.h>
+#include <algorithm>
+#include <string>
+
 #include "dd/object_id.h"      // dd::Object_id
 #include "discrete_interval.h" // Discrete_interval
-#include "key.h"               // KEY
+#include "ft_global.h"         // ft_hints
+#include "hash.h"
+#include "key.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "my_thread_local.h"   // my_errno
+#include "mysql/psi/psi_table.h"
+#include "sql_alloc.h"
 #include "sql_bitmap.h"        // Key_map
 #include "sql_const.h"         // SHOW_COMP_OPTION
 #include "sql_list.h"          // SQL_I_List
 #include "sql_plugin_ref.h"    // plugin_ref
 #include "system_variables.h"  // System_status_var
-
-#include "mysql/psi/psi_table.h"
-
-#include <algorithm>
-#include <string>
+#include "thr_lock.h"          // thr_lock_type
+#include "typelib.h"
 
 class Alter_info;
-class handler;
+class Field;
 class Item;
-class partition_info;
 class Partition_handler;
 class Record_buffer;
 class SE_cost_constants;     // see opt_costconstants.h
 class String;
-struct handlerton;
+class THD;
+class handler;
+class partition_info;
 struct TABLE;
 struct TABLE_LIST;
 struct TABLE_SHARE;
+struct handlerton;
+
 typedef struct st_bitmap MY_BITMAP;
 typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
 typedef struct st_hash HASH;
@@ -63,6 +79,7 @@ namespace dd {
   class  Schema;
   class  Table;
   class  Tablespace;
+
   typedef struct sdi_key sdi_key_t;
   typedef struct sdi_vector sdi_vector_t;
 }

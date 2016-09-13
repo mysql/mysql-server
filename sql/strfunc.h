@@ -16,6 +16,9 @@
 #ifndef STRFUNC_INCLUDED
 #define STRFUNC_INCLUDED
 
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "my_global.h"                          /* ulonglong, uint */
 #include "mysql/mysql_lex_string.h"             // MYSQL_LEX_CSTRING
 

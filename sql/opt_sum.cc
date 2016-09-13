@@ -47,9 +47,33 @@
   (assuming a index for column d of table t2 is defined)
 */
 
-#include "key.h"                                // key_cmp_if_same
-#include "sql_select.h"
+#include <limits.h>
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "field.h"
+#include "ft_global.h"
+#include "handler.h"
+#include "item.h"
+#include "item_cmpfunc.h"
+#include "item_func.h"
 #include "item_sum.h"                           // Item_sum
+#include "key.h"                                // key_cmp_if_same
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysql_com.h"
+#include "sql_bitmap.h"
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_opt_exec_shared.h"
+#include "sql_select.h"
+#include "table.h"
 
 static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
                                 Item_field *item_field, Item *cond,

@@ -1,7 +1,7 @@
 #ifndef SQL_AUDIT_INCLUDED
 #define SQL_AUDIT_INCLUDED
 
-/* Copyright (c) 2007, 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <string.h>
+
+#include "m_string.h"
+#include "my_command.h"
 #include "my_global.h"
 #include "mysql/plugin_audit.h"
+#include "sql_plugin.h"
 #include "sql_security_ctx.h"       // Security_context
+
+class THD;
+struct TABLE_LIST;
 
 static const size_t MAX_USER_HOST_SIZE= 512;
 

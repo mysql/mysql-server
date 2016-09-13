@@ -29,15 +29,33 @@
 
 #include "sql_union.h"
 
+#include <string.h>
+#include <sys/types.h>
+
+#include "auth_acls.h"
 #include "current_thd.h"
-#include "sql_select.h"
-#include "sql_cursor.h"
-#include "sql_base.h"                           // fill_record
+#include "field.h"
 #include "filesort.h"                           // filesort_free_buffers
-#include "sql_tmp_table.h"                      // tmp tables
-#include "sql_optimizer.h"                      // JOIN
+#include "handler.h"
+#include "item.h"
+#include "item_subselect.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
 #include "opt_explain.h"                        // explain_no_table
 #include "opt_explain_format.h"
+#include "parse_tree_node_base.h"
+#include "query_options.h"
+#include "sql_base.h"                           // fill_record
+#include "sql_class.h"
+#include "sql_executor.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_optimizer.h"                      // JOIN
+#include "sql_select.h"
+#include "sql_tmp_table.h"                      // tmp tables
 
 
 int Query_result_union::prepare(List<Item> &list, SELECT_LEX_UNIT *u)

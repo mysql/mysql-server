@@ -15,12 +15,33 @@
 
 #include "rpl_info_table.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "dynamic_ids.h"            // Server_ids
+#include "field.h"
+#include "handler.h"
+#include "key.h"
 #include "log.h"                    // sql_print_error
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/thread_type.h"
+#include "mysql_com.h"
+#include "psi_memory_key.h"
 #include "rpl_info_table_access.h"  // Rpl_info_table_access
 #include "rpl_info_values.h"        // Rpl_info_values
+#include "set_var.h"
 #include "sql_class.h"              // THD
-#include "psi_memory_key.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table.h"
+#include "thr_lock.h"
 
 
 Rpl_info_table::Rpl_info_table(uint nparam,

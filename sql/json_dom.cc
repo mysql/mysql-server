@@ -14,27 +14,45 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "json_dom.h"
+
+#include <errno.h>
+#include <limits.h>
+#include <math.h>
+#include <stdint.h>
+#include <string.h>
+#include <sys/types.h>
+#include <algorithm>            // std::min, std::max
+#include <memory>               // std::unique_ptr
+
 #include "base64.h"
+#include "check_stack.h"
 #include "current_thd.h"        // current_thd
+#include "decimal.h"
 #include "derror.h"             // ER_THD
+#include "field.h"
 #include "json_path.h"
+#include "m_ctype.h"
 #include "m_string.h"           // my_gcvt, _dig_vec_lower
+#include "my_byteorder.h"
+#include "my_sys.h"
+#include "my_time.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
 #include "mysqld_error.h"       // ER_*
 #include "prealloced_array.h"   // Prealloced_array
 #include "psi_memory_key.h"     // key_memory_JSON
+#include "rapidjson/error/en.h"
+#include "rapidjson/error/error.h"
+#include "rapidjson/memorystream.h"
+#include "rapidjson/reader.h"
 #include "sql_class.h"          // THD
 #include "sql_const.h"          // STACK_MIN_SIZE
-#include "sql_parse.h"          // check_stack_overrun
+#include "sql_error.h"
+#include "sql_string.h"
 #include "sql_time.h"
+#include "system_variables.h"
 #include "template_utils.h"     // down_cast, pointer_cast
-
-#include "rapidjson/rapidjson.h"
-#include "rapidjson/reader.h"
-#include "rapidjson/memorystream.h"
-#include "rapidjson/error/en.h"
-
-#include <algorithm>            // std::min, std::max
-#include <memory>               // std::unique_ptr
 
 using namespace rapidjson;
 

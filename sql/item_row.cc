@@ -15,8 +15,17 @@
 
 #include "item_row.h"
 
+#include <stddef.h>
+
 #include "current_thd.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
 #include "sql_class.h"  // THD
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_string.h"
+#include "thr_malloc.h"
 
 Item_row::Item_row(const POS &pos, Item *head, List<Item> &tail):
   super(pos), used_tables_cache(0), not_null_tables_cache(0),

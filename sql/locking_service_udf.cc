@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,11 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
-#include "mysql_com.h"             // UDF_INIT
-#include "locking_service.h"       // acquire_locking_service_locks
-
 #include <string.h>
+#include <sys/types.h>
+
+#include "locking_service.h"       // acquire_locking_service_locks
+#include "my_global.h"
+#include "mysql/service_locking.h"
+#include "mysql_com.h"             // UDF_INIT
 
 /*
   These functions are provided as UDFs rather than built-in SQL functions

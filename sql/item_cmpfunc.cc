@@ -23,22 +23,44 @@
 
 #include "item_cmpfunc.h"
 
+#include <limits.h>
+#include <math.h>
+#include <algorithm>
+#include <functional>
+#include <type_traits>
+
 #include "aggregate_check.h"    // Distinct_check
+#include "check_stack.h"
 #include "current_thd.h"        // current_thd
+#include "decimal.h"
+#include "field.h"
+#include "item_json_func.h"     // json_value, get_json_atom_wrapper
 #include "item_subselect.h"     // Item_subselect
 #include "item_sum.h"           // Item_sum_hybrid
-#include "item_json_func.h"     // json_value, get_json_atom_wrapper
 #include "json_dom.h"           // Json_scalar_holder
+#include "key.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_bitmap.h"
+#include "my_sqlcommand.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql_time.h"
 #include "mysqld.h"             // log_10
+#include "mysqld_error.h"
 #include "opt_trace.h"          // Opt_trace_object
 #include "parse_tree_helpers.h" // PT_item_list
+#include "set_var.h"
+#include "sql_bitmap.h"
 #include "sql_class.h"          // THD
+#include "sql_error.h"
+#include "sql_executor.h"
+#include "sql_lex.h"
+#include "sql_opt_exec_shared.h"
 #include "sql_optimizer.h"      // JOIN
-#include "sql_parse.h"          // check_stack_overrun
+#include "sql_select.h"
+#include "sql_servers.h"
 #include "sql_time.h"           // str_to_datetime
-
-#include <algorithm>
-#include <type_traits>
+#include "thr_malloc.h"
 
 using std::min;
 using std::max;

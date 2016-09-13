@@ -23,21 +23,60 @@
 
 #include "item_subselect.h"
 
+#include <limits.h>
+#include <stdio.h>
+#include <string.h>
+#include <utility>
+
+#include "check_stack.h"
 #include "current_thd.h"         // current_thd
 #include "debug_sync.h"          // DEBUG_SYNC
+#include "decimal.h"
 #include "derror.h"              // ER_THD
+#include "field.h"
+#include "handler.h"
+#include "item_cmpfunc.h"
+#include "item_func.h"
 #include "item_sum.h"            // Item_sum_max
+#include "key.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_config.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
 #include "mysqld.h"              // in_left_expr_name
+#include "mysqld_error.h"
+#include "opt_explain_format.h"
 #include "opt_trace.h"           // OPT_TRACE_TRANSFORM
+#include "opt_trace_context.h"
 #include "parse_tree_nodes.h"    // PT_subquery
+#include "query_options.h"
+#include "query_result.h"
+#include "records.h"
 #include "sql_class.h"           // THD
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_executor.h"
 #include "sql_join_buffer.h"     // JOIN_CACHE
 #include "sql_lex.h"             // SELECT_LEX
+#include "sql_list.h"
+#include "sql_opt_exec_shared.h"
 #include "sql_optimizer.h"       // JOIN
-#include "sql_parse.h"           // check_stack_overrun
+#include "sql_plugin_ref.h"
+#include "sql_select.h"
+#include "sql_string.h"
 #include "sql_test.h"            // print_where
 #include "sql_tmp_table.h"       // free_tmp_table
 #include "sql_union.h"           // Query_result_union
+#include "system_variables.h"
+#include "table.h"
+#include "temp_table_param.h"
+#include "template_utils.h"
+#include "thr_lock.h"
+#include "thr_malloc.h"
+
+class Json_wrapper;
 
 Item_subselect::Item_subselect():
   Item_result_field(), value_assigned(0), traced_before(false),

@@ -22,14 +22,39 @@
 */
 
 
-#include "my_global.h"
-#include "probes_mysql.h"
-#include "item_cmpfunc.h"             // Item_cond_and
-#include "sql_class.h"                // THD
-#include "sql_opt_exec_shared.h"      // join_type
-#include "sql_cmd_dml.h"              // Sql_cmd_dml
-
+#include <limits.h>
+#include <stddef.h>
+#include <sys/types.h>
 #include <functional>
+
+#include "binary_log_types.h"
+#include "field.h"
+#include "item.h"
+#include "item_cmpfunc.h"             // Item_cond_and
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sqlcommand.h"
+#include "opt_costmodel.h"
+#include "set_var.h"
+#include "sql_alloc.h"
+#include "sql_bitmap.h"
+#include "sql_class.h"                // THD
+#include "sql_cmd_dml.h"              // Sql_cmd_dml
+#include "sql_const.h"
+#include "sql_lex.h"
+#include "sql_opt_exec_shared.h"      // join_type
+#include "system_variables.h"
+#include "table.h"
+
+class Item_func;
+class JOIN_TAB;
+class KEY;
+class QEP_TAB;
+class Query_result;
+class Temp_table_param;
+template <class T> class List;
 
 class Sql_cmd_select : public Sql_cmd_dml
 {
@@ -264,9 +289,6 @@ public:
 join_type calc_join_type(int quick_type);
 
 class JOIN;
-
-class JOIN_CACHE;
-class SJ_TMP_TABLE;
 
 #define SJ_OPT_NONE 0
 #define SJ_OPT_DUPS_WEEDOUT 1
@@ -540,10 +562,6 @@ typedef struct st_position : public Sql_alloc
     prefix_rowcount*= filter_effect;
   }
 } POSITION;
-
-struct st_cache_field;
-class QEP_operation;
-class Filesort;
 
 /**
    Use this in a function which depends on best_ref listing tables in the

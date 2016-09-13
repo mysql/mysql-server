@@ -24,37 +24,58 @@
 */
 
 #include "sql_select.h"
-#include "sql_do.h"
 
+#include <string.h>
+#include <algorithm>
+
+#include "auth_acls.h"
+#include "auth_common.h"         // *_ACL
 #include "current_thd.h"
-#include "sql_table.h"                          // primary_key_name
-#include "sql_derived.h"
-#include "opt_trace.h"
+#include "debug_sync.h"          // DEBUG_SYNC
+#include "enum_query_type.h"
+#include "error_handler.h"       // Ignore_error_handler
+#include "filesort.h"            // filesort_free_buffers
+#include "handler.h"
+#include "item_func.h"
+#include "item_subselect.h"
+#include "item_sum.h"            // Item_sum
 #include "key.h"                 // key_copy, key_cmp, key_cmp_if_same
 #include "lock.h"                // mysql_unlock_some_tables,
-                                 // mysql_unlock_read_tables
+#include "my_compiler.h"
+#include "my_decimal.h"
+#include "my_sys.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
 #include "mysqld.h"              // stage_init
-#include "sql_show.h"            // append_identifier
-#include "sql_base.h"
-#include "auth_common.h"         // *_ACL
-#include "opt_range.h"           // QUICK_SELECT_I
-#include "sql_test.h"            // misc. debug printing utilities
-#include "records.h"             // init_read_record, end_read_record
-#include "filesort.h"            // filesort_free_buffers
+#include "mysqld_error.h"
 #include "opt_explain.h"
-#include "sql_join_buffer.h"     // JOIN_CACHE
-#include "sql_optimizer.h"       // JOIN
-#include "sql_tmp_table.h"       // tmp tables
-#include "debug_sync.h"          // DEBUG_SYNC
-#include "error_handler.h"       // Ignore_error_handler
-#include "item_sum.h"            // Item_sum
-#include "sql_planner.h"         // calculate_condition_filter
+#include "opt_explain_format.h"
 #include "opt_hints.h"           // hint_key_state()
-#include "sql_cache.h"           // query_cache
+#include "opt_range.h"           // QUICK_SELECT_I
+#include "opt_trace.h"
+#include "probes_mysql.h"        // IWYU pragma: keep
+#include "query_options.h"
+#include "query_result.h"
+#include "records.h"             // init_read_record, end_read_record
 #include "sql_analyse.h"         // Query_result_analyse
+#include "sql_base.h"
+#include "sql_cache.h"           // query_cache
+#include "sql_do.h"
+#include "sql_executor.h"
+#include "sql_join_buffer.h"     // JOIN_CACHE
+#include "sql_list.h"
+#include "sql_optimizer.h"       // JOIN
+#include "sql_planner.h"         // calculate_condition_filter
+#include "sql_show.h"            // append_identifier
+#include "sql_sort.h"
+#include "sql_test.h"            // misc. debug printing utilities
 #include "sql_timer.h"           // thd_timer_set
+#include "sql_tmp_table.h"       // tmp tables
+#include "temp_table_param.h"
+#include "template_utils.h"
+#include "thr_lock.h"
 
-#include <algorithm>
+class Opt_trace_context;
 
 using std::max;
 using std::min;

@@ -15,36 +15,66 @@
 
 #include "sql_auth_cache.h"
 
-#include "m_string.h"           // LEX_CSTRING
-#include "mysql/plugin_auth.h"  // st_mysql_auth
+#include <stdarg.h>
+#include <stdlib.h>
+
+#include "auth_acls.h"
 #include "auth_common.h"        // ACL_internal_schema_access
 #include "auth_internal.h"      // auth_plugin_is_built_in
+#include "current_thd.h"        // current_thd
+#include "debug_sync.h"
+#include "error_handler.h"      // Internal_error_handler
 #include "field.h"              // Field
 #include "item_func.h"          // mqh_used
 #include "log.h"                // sql_print_warning
+#include "m_ctype.h"
+#include "m_string.h"           // LEX_CSTRING
+#include "mdl.h"
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "mysql/plugin.h"
+#include "mysql/plugin_auth.h"  // st_mysql_auth
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"             // my_localhost
+#include "mysqld_error.h"
 #include "psi_memory_key.h"     // key_memory_acl_mem
 #include "records.h"            // READ_RECORD
+#include "session_tracker.h"
+#include "set_var.h"
 #include "sql_authentication.h" // sha256_password_plugin_name
 #include "sql_base.h"           // open_and_lock_tables
 #include "sql_class.h"          // THD
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
 #include "sql_plugin.h"         // my_plugin_lock_by_name
-#include "sql_time.h"           // str_to_time_with_warn
-#include "table.h"              // TABLE
-#include "derror.h"
-#include "sql_table.h"
-#include "role_tables.h"
-#include "debug_sync.h"
-#include "template_utils.h"
-#include "current_thd.h"        // current_thd
+#include "sql_security_ctx.h"
+#include "sql_servers.h"
+#include "sql_string.h"
 #include "sql_thd_internal_api.h"  // create_thd
-#include "error_handler.h"      // Internal_error_handler
+#include "sql_time.h"           // str_to_time_with_warn
 #include "sql_user_table.h"
+#include "system_variables.h"
+#include "table.h"              // TABLE
+#include "template_utils.h"
+#include "thr_lock.h"
+#include "thr_malloc.h"
+#include "thr_mutex.h"
+#include "xa.h"
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 
 #include <algorithm>
 #include <functional>
+#include <utility>
+#include <vector>
+
 using std::min;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -57,6 +87,7 @@ ulong get_global_acl_cache_size() { return g_acl_cache->size(); }
 void init_acl_cache();
 extern Role_index_map *g_authid_to_vertex;
 extern Granted_roles_graph *g_granted_roles;
+#include <boost/property_map/property_map.hpp>
 #endif
 
 struct ACL_internal_schema_registry_entry

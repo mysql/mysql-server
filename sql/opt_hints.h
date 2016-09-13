@@ -21,17 +21,28 @@
 #ifndef OPT_HINTS_INCLUDED
 #define OPT_HINTS_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "enum_query_type.h"
 #include "item_subselect.h" // Item_exists_subselect
+#include "m_string.h"
 #include "mem_root_array.h" // Mem_root_array
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
 #include "sql_alloc.h"      // Sql_alloc
 #include "sql_bitmap.h"     // Bitmap
+#include "sql_plugin.h"
 #include "sql_show.h"       // append_identifier
 #include "sql_string.h"     // String
+#include "system_variables.h"
+#include "typelib.h"
 
+class JOIN;
 class Opt_hints_table;
-struct LEX;
-struct TABLE;
+class THD;
+struct TABLE_LIST;
 
 
 /**
@@ -122,9 +133,9 @@ public:
 };
 
 
+class Opt_hints_key;
 class PT_hint;
 class PT_hint_max_execution_time;
-class Opt_hints_key;
 
 
 /**

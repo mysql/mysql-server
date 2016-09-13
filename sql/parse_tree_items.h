@@ -16,14 +16,43 @@
 #ifndef PARSE_TREE_ITEMS_INCLUDED
 #define PARSE_TREE_ITEMS_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "binary_log_types.h"
+#include "field.h"
+#include "item.h"
 #include "item_create.h"        // Create_func
+#include "item_func.h"
+#include "item_strfunc.h"
+#include "item_subselect.h"
 #include "item_sum.h"           // Item_sum_count
 #include "item_timefunc.h"      // Item_func_now_local
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "my_time.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "parse_location.h"
 #include "parse_tree_helpers.h" // Parse_tree_item
-#include "sp.h"                 // sp_check_name
+#include "parse_tree_node_base.h"
+#include "protocol.h"
+#include "set_var.h"
 #include "sp_head.h"            // sp_head
+#include "sql_class.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_parse.h"          // negate_expression
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "sql_udf.h"
+#include "system_variables.h"
+
+class PT_subquery;
 
 class PTI_table_wild : public Parse_tree_item
 {

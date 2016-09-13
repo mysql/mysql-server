@@ -1,5 +1,5 @@
 /* -*- C++ -*- */
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
 #ifndef _SP_CACHE_H_
 #define _SP_CACHE_H_
 
+#include <sys/types.h>
+
 #include "my_global.h"                          /* ulong */
 
 /*
@@ -26,8 +28,8 @@
      then remains in the cache until deleted.
 */
 
-class sp_head;
 class sp_cache;
+class sp_head;
 class sp_name;
 
 /*

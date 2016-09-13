@@ -47,30 +47,68 @@
 
 #include "sql_partition.h"
 
+#include <assert.h>
+#include <limits.h>
+#include <string.h>
+#include <algorithm>
+
+#include "binary_log_types.h"
 #include "current_thd.h"
 #include "debug_sync.h"                 // DEBUG_SYNC
 #include "derror.h"                     // ER_THD
+#include "field.h"
 #include "item.h"                       // enum_monotoncity_info
 #include "item_func.h"                  // Item_func
+#include "key.h"
 #include "lock.h"                       // mysql_lock_remove
 #include "log.h"                        // sql_print_warning
+#include "m_string.h"
+#include "mdl.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/plugin.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
 #include "mysqld.h"                     // mysql_tmpdir
+#include "mysqld_error.h"
 #include "opt_range.h"                  // store_key_image_to_rec
-#include "sql_analyse.h"                // append_escaped
+#include "parse_tree_node_base.h"
 #include "partition_info.h"             // partition_info
 #include "partitioning/partition_handler.h" // Partition_handler
 #include "psi_memory_key.h"
+#include "query_options.h"
+#include "session_tracker.h"
+#include "sql_alter.h"
+#include "sql_analyse.h"                // append_escaped
 #include "sql_base.h"                   // wait_while_table_is_used
+#include "sql_bitmap.h"
 #include "sql_cache.h"                  // query_cache
 #include "sql_class.h"                  // THD
+#include "sql_const.h"
+#include "sql_digest_stream.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_parse.h"                  // parse_sql
+#include "sql_show.h"
+#include "sql_string.h"
 #include "sql_table.h"                  // build_table_filename
 #include "sql_tablespace.h"             // check_tablespace_name
+#include "system_variables.h"
+#include "table.h"
+#include "thr_malloc.h"
 
-#include "pfs_file_provider.h"
+#include "pfs_file_provider.h"  // IWYU pragma: keep
 #include "mysql/psi/mysql_file.h"
 
-#include <algorithm>
+struct PSI_statement_locker;
+
 using std::max;
 using std::min;
 

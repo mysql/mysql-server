@@ -17,6 +17,12 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "item_strfunc.h"     // Item_str_func
+#include "my_global.h"
+#include "parse_tree_node_base.h"
+#include "sql_string.h"
+
+class Item;
+class THD;
 
 /* This file defines all XML functions */
 

@@ -16,27 +16,35 @@
 #ifndef AUTH_COMMON_INCLUDED
 #define AUTH_COMMON_INCLUDED
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "auth_acls.h"                          /* ACL information */
-#include "sql_string.h"                         /* String */
-#include "mysql_com.h"                          /* enum_server_command */
-#include "sql_list.h"                           /* List */
-#include "template_utils.h"
+#include <stddef.h>
+#include <sys/types.h>
 #include <set>
-#include <vector>
-#include <list>
 #include <utility>
+#include <vector>
+
+#include "auth_acls.h"                          /* ACL information */
+#include "m_string.h"
+#include "my_command.h"
+#include "my_dbug.h"
+#include "my_config.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_string.h"                         /* String */
+#include "template_utils.h"
+#include "thr_malloc.h"
+
 /* Forward Declarations */
 class Alter_info;
 class Field_iterator_table_ref;
 class LEX_COLUMN;
 class THD;
+template <class T> class List;
+
 typedef struct st_grant_internal_info GRANT_INTERNAL_INFO;
 typedef struct st_lex_user LEX_USER;
 typedef struct st_ha_create_information HA_CREATE_INFO;
-struct GRANT_INFO;
 class Item;
-struct LEX;
+struct GRANT_INFO;
+
 typedef struct user_conn USER_CONN;
 class Security_context;
 struct TABLE;

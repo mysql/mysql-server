@@ -16,12 +16,16 @@
 #ifndef SQL_DO_INCLUDED
 #define SQL_DO_INCLUDED
 
+#include <sys/types.h>
+
 #include "my_global.h"
+#include "my_sqlcommand.h"
 #include "query_result.h"
 #include "sql_select.h"
 
+class Item;
 class THD;
-struct LEX;
+template <class T> class List;
 
 class Sql_cmd_do : public Sql_cmd_select
 {

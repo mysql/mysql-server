@@ -13,26 +13,48 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "derror.h"
-#include "rpl_rli.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <algorithm>
 
-#include "my_dir.h"                // MY_STAT
+#include "binlog_event.h"
+#include "debug_sync.h"
+#include "derror.h"
 #include "log.h"                   // sql_print_error
 #include "log_event.h"             // Log_event
+#include "m_ctype.h"
+#include "mdl.h"
+#include "my_dir.h"                // MY_STAT
+#include "my_sqlcommand.h"
+#include "my_thread.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/service_thd_wait.h"
+#include "mysql_com.h"
 #include "mysqld.h"                // sync_relaylog_period ...
-#include "rpl_group_replication.h" // set_group_replication_retrieved_certifi...
+#include "mysqld_error.h"
+#include "protocol.h"
 #include "rpl_info_factory.h"      // Rpl_info_factory
+#include "rpl_info_handler.h"
 #include "rpl_mi.h"                // Master_info
 #include "rpl_msr.h"               // channel_map
+#include "rpl_reporting.h"
+#include "rpl_rli.h"
 #include "rpl_rli_pdb.h"           // Slave_worker
+#include "rpl_slave.h"
+#include "rpl_trx_boundary_parser.h"
 #include "sql_base.h"              // close_thread_tables
+#include "sql_error.h"
+#include "sql_list.h"
 #include "strfunc.h"               // strconvert
+#include "thr_mutex.h"
 #include "transaction.h"           // trans_commit_stmt
-#include "debug_sync.h"
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
 
-#include <algorithm>
+class Item;
+
 using std::min;
 using std::max;
 

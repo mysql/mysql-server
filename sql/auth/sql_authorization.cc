@@ -13,46 +13,105 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_base.h"                   /* open_and_lock_tables */
-#include "key_spec.h"                   /* Key_spec */
-#include "sql_show.h"                   /* append_identifier */
-#include "sql_view.h"                   /* VIEW_ANY_ACL */
-#include "rpl_filter.h"                 /* rpl_filter */
-#include "sql_parse.h"                  /* get_current_user */
-                                        /* any_db */
-#include "binlog.h"                     /* mysql_bin_log */
-#include "sp.h"                         /* sp_exist_routines */
-#include "log.h"                        /* sql_print_warning */
-#include "sql_class.h"                  /* THD */
-#include "derror.h"                     /* ER_THD */
-#include "mysqld.h"                     /* lower_case_table_names */
-#include "error_handler.h"              /* error_handler */
+#include <limits.h>
+#include <string.h>
+#include <sys/types.h>
+#include <algorithm>
+#include <cstdlib>
+#include <iosfwd>
+#include <iterator>
+#include <map>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
+#include "auth_acls.h"
+#include "auth_common.h"
 #include "auth_internal.h"
+#include "current_thd.h"
+#include "dd/dd_table.h"                // dd::table_exists
+#include "debug_sync.h"
+#include "derror.h"                     /* ER_THD */
+#include "error_handler.h"              /* error_handler */
+#include "field.h"
+#include "handler.h"
+#include "hash.h"
+#include "item.h"
+#include "key.h"
+#include "key_spec.h"                   /* Key_spec */
+#include "log.h"                        /* sql_print_warning */
+#include "m_ctype.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
+#include "mysqld.h"                     /* lower_case_table_names */
+#include "mysqld_error.h"
+#include "prealloced_array.h"
+#include "protocol.h"
+#include "role_tables.h"
+#include "session_tracker.h"
+#include "sp.h"                         /* sp_exist_routines */
+#include "sql_admin.h"
+#include "sql_alter.h"
 #include "sql_auth_cache.h"
 #include "sql_authentication.h"
 #include "sql_authorization.h"
+#include "sql_base.h"                   /* open_and_lock_tables */
+#include "sql_class.h"                  /* THD */
+#include "sql_connect.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_parse.h"                  /* get_current_user */
+#include "sql_plugin.h"
+#include "sql_security_ctx.h"
+#include "sql_servers.h"
+#include "sql_show.h"                   /* append_identifier */
+#include "sql_string.h"
 #include "sql_user_table.h"
-#include "role_tables.h"
+#include "sql_view.h"                   /* VIEW_ANY_ACL */
+#include "system_variables.h"
+#include "table.h"
 #include "template_utils.h"
-#include "debug_sync.h"
+#include "thr_lock.h"
+#include "violite.h"
 
-#include "dd/dd_table.h"                // dd::table_exists
-#include "dd/types/abstract_table.h"    // dd::Abstract_table
-#include "prealloced_array.h"
-#include "current_thd.h"
-#include "m_string.h"
-
-#include <string>
-#include <map>
-#include <utility>
+class Item;
+namespace dd {
+class Abstract_table;
+}  // namespace dd
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-#include <boost/graph/adjacency_list.hpp>
+#include <boost/concept/usage.hpp>
 #include <boost/graph/adjacency_iterator.hpp>
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/breadth_first_search.hpp>
 #include <boost/graph/filtered_graph.hpp>
-#include <boost/graph/graph_traits.hpp>
 #include <boost/graph/graphml.hpp>
+#include <boost/graph/graph_traits.hpp>
+#include <boost/graph/named_function_params.hpp>
+#include <boost/graph/properties.hpp>
+#include <boost/iterator/iterator_facade.hpp>
+#include <boost/move/utility_core.hpp>
+#include <boost/property_map/dynamic_property_map.hpp>
+#include <boost/property_map/property_map.hpp>
+#include <boost/range/irange.hpp>
+#include <boost/smart_ptr/make_shared_object.hpp>
+#include <boost/smart_ptr/shared_ptr.hpp>
+#include <boost/tuple/tuple.hpp>
 
 #include "my_sys.h"
+
 Granted_roles_graph *g_granted_roles= 0;
 Role_index_map *g_authid_to_vertex= 0;
 static char g_active_dummy_user[]= "active dummy user";

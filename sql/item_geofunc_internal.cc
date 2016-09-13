@@ -13,8 +13,37 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <item_geofunc_internal.h>
+#include "item_geofunc_internal.h"
+
+#include <string.h>
+#include <algorithm>
+#include <exception>
+#include <iterator>
+#include <memory>
+
+#include <boost/geometry/algorithms/centroid.hpp>
+#include <boost/geometry/algorithms/is_valid.hpp>
+#include <boost/geometry/algorithms/overlaps.hpp>
+#include <boost/geometry/core/exception.hpp>
+#include <boost/geometry/index/predicates.hpp>
+#include <boost/iterator/iterator_facade.hpp>
+
+#include "item_func.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_byteorder.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "parse_tree_node_base.h"
 #include "sql_class.h"             // THD
+#include "system_variables.h"
+#include "template_utils.h"
+
+namespace dd {
+class Spatial_reference_system;
+}  // namespace dd
 
 
 bool Srs_fetcher::lock(Geometry::srid_t srid)

@@ -18,10 +18,10 @@
 #ifndef TRIGGER_CHAIN_H_INCLUDED
 #define TRIGGER_CHAIN_H_INCLUDED
 
-#include "my_global.h"
 #include "m_string.h"                       // LEX_STRING, LEX_CSTRING
 #include "sql_alloc.h"                      // Sql_alloc
 #include "sql_list.h"                       // List
+#include "thr_malloc.h"
 #include "trigger_def.h"                    // enum_trigger_order_type
 
 class Query_tables_list;
@@ -29,6 +29,7 @@ class THD;
 class Trigger;
 struct TABLE;
 struct TABLE_LIST;
+
 typedef struct st_bitmap MY_BITMAP;
 
 

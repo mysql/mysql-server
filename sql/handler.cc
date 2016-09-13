@@ -21,57 +21,93 @@
 
 #include "handler.h"
 
-#include "my_bit.h"                   // my_count_bits
-#include "myisam.h"                   // TT_FOR_UPGRADE
-#include "mysql_version.h"            // MYSQL_VERSION_ID
+#include <errno.h>
+#include <limits.h>
+#include <cmath>
+#include <cstring>
+#include <list>
+#include <string>
 
+#include <boost/algorithm/string/case_conv.hpp>
+#include <boost/foreach.hpp>
+#include <boost/iterator/iterator_facade.hpp>
+#include <boost/mpl/bool.hpp>
+#include <boost/mpl/bool_fwd.hpp>
+#include <boost/token_functions.hpp>
+#include <boost/tokenizer.hpp>
+
+#include "auth_common.h"              // check_readonly() and SUPER_ACL
+#include "binary_log_types.h"
+#include "binlog_event.h"
 #include "binlog.h"                   // mysql_bin_log
+#include "check_stack.h"
 #include "current_thd.h"
+#include "dd/dd.h"                    // dd::get_dictionary
+#include "dd/dictionary.h"            // dd:acquire_shared_table_mdl
+#include "dd/sdi_file.h"              // dd::sdi_file::store
 #include "dd_table_share.h"           // open_table_def
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "derror.h"                   // ER_DEFAULT
 #include "error_handler.h"            // Internal_error_handler
+#include "field.h"
+#include "item.h"
+#include "keycache.h"
 #include "lock.h"                     // MYSQL_LOCK
-#include "log.h"                      // sql_print_error
 #include "log_event.h"                // Write_rows_log_event
-#include "mysqld.h"                   // global_system_variables heap_hton ..
+#include "log.h"                      // sql_print_error
+#include "m_ctype.h"
+#include "mdl.h"
+#include "my_bit.h"                   // my_count_bits
 #include "my_bitmap.h"                // MY_BITMAP
-#include "probes_mysql.h"             // MYSQL_HANDLER_WRLOCK_START
+#include "my_check_opt.h"
+#include "myisam.h"                   // TT_FOR_UPGRADE
+#include "my_psi_config.h"
+#include "mysql_com.h"
+#include "my_sqlcommand.h"
+#include "mysqld_error.h"
+#include "mysqld.h"                   // global_system_variables heap_hton ..
+#include "mysql/plugin.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_transaction.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_version.h"            // MYSQL_VERSION_ID
 #include "opt_costconstantcache.h"    // reload_optimizer_cost_constants
+#include "opt_costmodel.h"
+#include "opt_hints.h"
+#include "pfs_table_provider.h"
+#include "prealloced_array.h"
+#include "probes_mysql.h"             // IWYU pragma: keep
+#include "protocol.h"
 #include "psi_memory_key.h"
+#include "query_options.h"
 #include "record_buffer.h"            // Record_buffer
+#include "rpl_filter.h"
+#include "rpl_gtid.h"
 #include "rpl_handler.h"              // RUN_HOOK
+#include "rpl_write_set_handler.h"    // add_pke
 #include "sdi_utils.h"                // import_serialized_meta_data
+#include "session_tracker.h"
+#include "sql_admin.h"
 #include "sql_base.h"                 // free_io_cache
+#include "sql_class.h"
+#include "sql_error.h"
+#include "sql_lex.h"
 #include "sql_parse.h"                // check_stack_overrun
 #include "sql_plugin.h"               // plugin_foreach
-#include "sql_table.h"                // build_table_filename
-#include "transaction.h"              // trans_commit_implicit
 #include "sql_select.h"               // actual_key_parts
-#include "rpl_write_set_handler.h"    // add_pke
-#include "auth_common.h"              // check_readonly() and SUPER_ACL
-
-#include "dd/dd.h"                    // dd::get_dictionary
-#include "dd/dictionary.h"            // dd:acquire_shared_table_mdl
-#include "dd/sdi_file.h"              // dd::sdi_file::store
-
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
-
-#include <pfs_table_provider.h>
-#include <mysql/psi/mysql_table.h>
-
-#include <pfs_transaction_provider.h>
-#include <mysql/psi/mysql_transaction.h>
-#include "opt_hints.h"
-
-#include <list>
-#include <cmath>
-#include <cstring>
-#include <string>
-#include <boost/foreach.hpp>
-#include <boost/tokenizer.hpp>
-#include <boost/algorithm/string.hpp>
+#include "sql_servers.h"
+#include "sql_string.h"
+#include "sql_table.h"                // build_table_filename
+#include "table.h"
+#include "tc_log.h"
+#include "template_utils.h"
+#include "thr_malloc.h"
+#include "transaction.h"              // trans_commit_implicit
+#include "transaction_info.h"
+#include "xa.h"
 
 /**
   @def MYSQL_TABLE_IO_WAIT
@@ -4869,7 +4905,6 @@ handler::ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info)
 
   @sa handler::get_se_private_data()
 */
-#include "dd/types/table.h"
 bool
 handler::ha_get_se_private_data(dd::Table *dd_table, uint dd_version)
 {

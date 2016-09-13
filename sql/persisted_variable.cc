@@ -14,13 +14,46 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "persisted_variable.h"
-#include "my_default.h"                 // check_file_permissions
-#include "json_path.h"
+
+#include <fcntl.h>
+#include <string.h>
+#include <sys/types.h>
+#include <memory>
+#include <new>
+#include <utility>
+
+#include "current_thd.h"
+#include "item.h"
 #include "json_dom.h"
 #include "log.h"                        // sql_print_error
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_default.h"                 // check_file_permissions
+#include "my_getopt.h"
+#include "my_sys.h"
+#include "my_thread.h"
+#include "mysql/plugin.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_file.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql_version.h"
+#include "mysqld.h"
+#include "mysqld_error.h"
+#include "pfs_mutex_provider.h"
+#include "set_var.h"
+#include "sql_class.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_plugin.h"
+#include "sql_security_ctx.h"
 #include "sql_show.h"
-#include "current_thd.h"
-#include "../mysys/mysys_priv.h"
+#include "sql_string.h"
+#include "strfunc.h"
+#include "sys_vars_shared.h"
+#include "thr_mutex.h"
 
 #ifdef HAVE_PSI_FILE_INTERFACE
 PSI_file_key key_persist_file_cnf;

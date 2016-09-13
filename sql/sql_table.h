@@ -16,17 +16,22 @@
 #ifndef SQL_TABLE_INCLUDED
 #define SQL_TABLE_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "binary_log_types.h"  // enum_field_types
+#include "my_global.h"
+#include "mysql/psi/mysql_mutex.h"
 
 class Alter_info;
 class Alter_table_ctx;
 class Create_field;
 class THD;
-struct handlerton;
 class handler;
 struct TABLE;
 struct TABLE_LIST;
+struct handlerton;
+
 typedef struct st_ha_check_opt HA_CHECK_OPT;
 typedef struct st_ha_create_information HA_CREATE_INFO;
 typedef struct st_lock_param_type ALTER_PARTITION_PARAM_TYPE;

@@ -15,16 +15,34 @@
 
 #include "query_result.h"
 
+#include "my_config.h"
+
+#include <fcntl.h>
+#include <limits.h>
+#include <string.h>
+#include <sys/stat.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#include <algorithm>
+
 #include "derror.h"            // ER_THD
+#include "item.h"
+#include "item_func.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_thread_local.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql_com.h"
+#include "mysqld.h"            // key_select_to_file
 #include "parse_tree_nodes.h"  // PT_select_var
+#include "protocol.h"
+#include "session_tracker.h"
 #include "sp_rcontext.h"       // sp_rcontext
 #include "sql_class.h"         // THD
-#include "mysqld.h"            // key_select_to_file
-
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
-
-#include <algorithm>
+#include "sql_const.h"
+#include "sql_error.h"
+#include "system_variables.h"
 
 using std::min;
 

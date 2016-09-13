@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,59 +35,59 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #define YYMAXDEPTH 3200                        /* Because of 64K stack */
 #define Lex (YYTHD->lex)
 #define Select Lex->current_select()
-#include "sql_parse.h"                        /* comp_*_creator */
-#include "sql_table.h"                        /* primary_key_name */
-#include "partition_info.h"                   /* partition_info */
-#include "sql_partition.h"                    /* mem_alloc_error */
 #include "auth_common.h"                      /* *_ACL */
-#include "password.h"       /* my_make_scrambled_password_323, my_make_scrambled_password */
-#include "sql_class.h"      /* Key_part_spec, enum_filetype */
-#include "rpl_slave.h"
-#include "rpl_msr.h"       /* multisource replication */
-#include "rpl_filter.h"
-#include "mysqld.h"        // slave_net_timeout national_charset_info ...
-#include "log_event.h"
-#include "lex_symbol.h"
+#include "dd/info_schema/show.h"             // build_show_...
+#include "dd/types/abstract_table.h"         // TT_BASE_TABLE
+#include "derror.h"
+#include "event_parse_data.h"
+#include "item_cmpfunc.h"
 #include "item_create.h"
+#include "item_geofunc.h"
+#include "item_json_func.h"
+#include "keycaches.h"
 #include "key_spec.h"
+#include "lex_symbol.h"
+#include "lex_token.h"
+#include "log_event.h"
+#include "myisam.h"
+#include "myisammrg.h"
+#include "mysqld.h"        // slave_net_timeout national_charset_info ...
+#include "opt_explain_json.h"
+#include "opt_explain_traditional.h"
+#include "parse_location.h"
+#include "parse_tree_helpers.h"
+#include "parse_tree_hints.h"
+#include "partition_info.h"                   /* partition_info */
+#include "password.h"       /* my_make_scrambled_password_323, my_make_scrambled_password */
+#include "rpl_filter.h"
+#include "rpl_msr.h"       /* multisource replication */
+#include "rpl_slave.h"
+#include "rpl_slave.h"                       // Sql_cmd_change_repl_filter
+#include "set_var.h"
+#include "sp.h"
 #include "sp_head.h"
 #include "sp_instr.h"
 #include "sp_pcontext.h"
 #include "sp_rcontext.h"
-#include "sp.h"
-#include "sql_select.h"                        // Sql_cmd_select...
-#include "sql_alter.h"                         // Sql_cmd_alter_table*
-#include "sql_truncate.h"                      // Sql_cmd_truncate_table
 #include "sql_admin.h"                         // Sql_cmd_analyze/Check..._table
-#include "sql_partition_admin.h"               // Sql_cmd_alter_table_*_part.
-#include "sql_handler.h"                       // Sql_cmd_handler_*
-#include "sql_signal.h"
-#include "sql_get_diagnostics.h"               // Sql_cmd_get_diagnostics
-#include "sql_servers.h"
-#include "event_parse_data.h"
-#include <myisam.h>
-#include <myisammrg.h>
-#include "keycaches.h"
-#include "set_var.h"
-#include "opt_explain_traditional.h"
-#include "opt_explain_json.h"
-#include "rpl_slave.h"                       // Sql_cmd_change_repl_filter
-#include "sql_show_status.h"                 // build_show_session_status, ...
-#include "parse_location.h"
-#include "parse_tree_helpers.h"
-#include "lex_token.h"
-#include "dd/info_schema/show.h"             // build_show_...
-#include "dd/types/abstract_table.h"         // TT_BASE_TABLE
+#include "sql_alter.h"                         // Sql_cmd_alter_table*
 #include "sql_base.h"                        // find_temporary_table
-#include "item_cmpfunc.h"
-#include "item_geofunc.h"
-#include "item_json_func.h"
-#include "sql_plugin.h"                      // plugin_is_ready
+#include "sql_class.h"      /* Key_part_spec, enum_filetype */
 #include "sql_component.h"
-#include "parse_tree_hints.h"
-#include "derror.h"
+#include "sql_get_diagnostics.h"               // Sql_cmd_get_diagnostics
+#include "sql_handler.h"                       // Sql_cmd_handler_*
+#include "sql_parse.h"                        /* comp_*_creator */
+#include "sql_partition_admin.h"               // Sql_cmd_alter_table_*_part.
+#include "sql_partition.h"                    /* mem_alloc_error */
+#include "sql_plugin.h"                      // plugin_is_ready
+#include "sql_select.h"                        // Sql_cmd_select...
+#include "sql_servers.h"
+#include "sql_show_status.h"                 // build_show_session_status, ...
+#include "sql_signal.h"
+#include "sql_table.h"                        /* primary_key_name */
 #include "sql_trigger.h"                     // Sql_cmd_create_trigger,
                                              // Sql_cmd_create_trigger
+#include "sql_truncate.h"                      // Sql_cmd_truncate_table
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER

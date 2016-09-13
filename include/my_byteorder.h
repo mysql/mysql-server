@@ -25,9 +25,9 @@
 */
 
 #if defined(__i386__) || defined(_WIN32) || defined(__x86_64__)
-#include "byte_order_generic_x86.h"
+#include "byte_order_generic_x86.h"  // IWYU pragma: export
 #else
-#include "byte_order_generic.h"
+#include "byte_order_generic.h"  // IWYU pragma: export
 #endif
 
 static inline int32 sint3korr(const uchar *A)
@@ -202,9 +202,9 @@ static inline void int8store(char *pT, ulonglong A)
   and M a pointer to byte.
 */
 #ifdef WORDS_BIGENDIAN
-#include "big_endian.h"
+#include "big_endian.h"  // IWYU pragma: export
 #else
-#include "little_endian.h"
+#include "little_endian.h"  // IWYU pragma: export
 #endif
 
 #ifdef __cplusplus

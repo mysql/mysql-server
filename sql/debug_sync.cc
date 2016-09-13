@@ -342,17 +342,49 @@
 
 #include "debug_sync.h"
 
-#if defined(ENABLED_DEBUG_SYNC)
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <algorithm>
+#include <vector>
 
-#include "log.h"
-#include "current_thd.h"
-#include "sql_class.h"
-#include "derror.h"
-#include "mysql/psi/mysql_memory.h"
+#include <boost/algorithm/string/classification.hpp>
+#include <boost/algorithm/string/split.hpp>
+#include <boost/algorithm/string/trim.hpp>
+#include <boost/concept/usage.hpp>
+#include <boost/iterator/iterator_facade.hpp>
+
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "my_thread.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysqld_error.h"
+#include "sql_error.h"
+#include "sql_string.h"
+#include "table.h"
+#include "thr_malloc.h"
+#include "thr_mutex.h"
+
+#if defined(ENABLED_DEBUG_SYNC)
 
 #include <set>
 #include <string>
-#include <boost/algorithm/string.hpp>
+
+#include "current_thd.h"
+#include "derror.h"
+#include "log.h"
+#include "mysql/psi/mysql_memory.h"
+#include "sql_class.h"
 
 using std::max;
 using std::min;

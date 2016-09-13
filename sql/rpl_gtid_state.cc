@@ -15,13 +15,28 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
-#include "rpl_gtid.h"
+#include <time.h>
 
+#include "control_events.h"
+#include "current_thd.h"
+#include "debug_sync.h"            // DEBUG_SYNC
+#include "mdl.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysqld.h"                // opt_bin_log
+#include "mysqld_error.h"
+#include "rpl_context.h"
+#include "rpl_gtid.h"
 #include "rpl_gtid_persist.h"      // gtid_table_persistor
 #include "sql_class.h"             // THD
-#include "debug_sync.h"            // DEBUG_SYNC
-#include "mysqld.h"                // opt_bin_log
-#include "current_thd.h"
+#include "sql_error.h"
+#include "sql_plugin.h"
+#include "system_variables.h"
+
+struct TABLE_LIST;
 
 PSI_memory_key key_memory_Gtid_state_group_commit_sidno;
 

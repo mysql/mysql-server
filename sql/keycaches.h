@@ -16,12 +16,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"
+#include <string.h>
 
-#include "sql_list.h"
 #include "keycache.h"
+#include "my_global.h"
+#include "my_sys.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/service_mysql_alloc.h"
+#include "sql_list.h"
+#include "thr_malloc.h"
 
 typedef struct st_mysql_lex_string LEX_STRING;
 

@@ -21,31 +21,69 @@
 
 #include "sql_update.h"
 
+#include <string.h>
+
+#include "auth_acls.h"
 #include "auth_common.h"              // check_grant, check_access
 #include "binlog.h"                   // mysql_bin_log
 #include "debug_sync.h"               // DEBUG_SYNC
-#include "my_bit.h"                   // my_count_bits
 #include "derror.h"                   // ER_THD
-#include "error_handler.h"            // View_error_handler
 #include "field.h"                    // Field
 #include "filesort.h"                 // Filesort
+#include "handler.h"
 #include "item.h"                     // Item
 #include "key.h"                      // is_key_used
+#include "m_ctype.h"
+#include "mem_root_array.h"
+#include "my_bit.h"                   // my_count_bits
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
 #include "mysqld.h"                   // stage_... mysql_tmpdir
+#include "mysqld_error.h"
 #include "opt_explain.h"              // Modification_plan
+#include "opt_explain_format.h"
 #include "opt_range.h"                // QUICK_SELECT_I
 #include "opt_trace.h"                // Opt_trace_object
+#include "parse_tree_node_base.h"
+#include "protocol.h"
 #include "psi_memory_key.h"
+#include "query_options.h"
 #include "records.h"                  // READ_RECORD
+#include "session_tracker.h"
+#include "sql_array.h"
 #include "sql_base.h"                 // check_record, fill_record
+#include "sql_bitmap.h"
 #include "sql_cache.h"                // query_cache
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_data_change.h"
+#include "sql_error.h"
+#include "sql_executor.h"
+#include "sql_opt_exec_shared.h"
 #include "sql_optimizer.h"            // build_equal_items, substitute_gc
+#include "sql_partition.h"            // partition_key_modified
 #include "sql_resolver.h"             // setup_order
+#include "sql_select.h"
+#include "sql_sort.h"
+#include "sql_string.h"
 #include "sql_tmp_table.h"            // create_tmp_table
 #include "sql_view.h"                 // check_key_in_view
+#include "system_variables.h"
 #include "table.h"                    // TABLE
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
-#include "sql_partition.h"            // partition_key_modified
+#include "temp_table_param.h"
+#include "template_utils.h"
+#include "transaction_info.h"
+#include "trigger_def.h"
+
+class COND_EQUAL;
+class Item_exists_subselect;
+class Opt_trace_context;
 
 bool Sql_cmd_update::precheck(THD *thd)
 {

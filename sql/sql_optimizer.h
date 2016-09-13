@@ -30,11 +30,32 @@
    Only such indexes are involved in range analysis.
 */
 
+#include <string.h>
+#include <sys/types.h>
+
+#include "field.h"
+#include "item.h"
+#include "item_subselect.h"
+#include "mem_root_array.h"
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
 #include "my_global.h"
 #include "opt_explain_format.h"                 // Explain_sort_clause
-#include "mem_root_array.h"
-#include "sql_select.h"                         // Key_use
+#include "sql_alloc.h"
+#include "sql_array.h"
+#include "sql_class.h"
 #include "sql_executor.h"                       // Next_select_func
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_opt_exec_shared.h"
+#include "sql_select.h"                         // Key_use
+#include "table.h"
+#include "temp_table_param.h"
+#include "template_utils.h"
+
+class COND_EQUAL;
+class Item_sum;
 
 typedef Bounds_checked_array<Item_null_result*> Item_null_array;
 

@@ -21,16 +21,19 @@
 #ifndef PARSE_TREE_HINTS_INCLUDED
 #define PARSE_TREE_HINTS_INCLUDED
 
-#include "my_config.h"
-#include "parse_tree_node_base.h"
-#include "sql_alloc.h"
-#include "sql_list.h"
-#include "mem_root_array.h"
-#include "sql_string.h"
-#include "sql_show.h"
-#include "opt_hints.h"
+#include <sys/types.h>
 
-struct LEX;
+#include "mem_root_array.h"
+#include "my_compiler.h"
+#include "my_global.h"
+#include "opt_hints.h"
+#include "parse_tree_node_base.h"
+#include "sql_plugin.h"
+#include "sql_show.h"
+#include "sql_string.h"
+#include "typelib.h"
+
+class THD;
 
 
 struct Hint_param_table

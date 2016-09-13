@@ -14,22 +14,45 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-/**
-  @file
+#include <stddef.h>
+#include <set>
+#include <utility>
+#include <vector>
 
-  @brief
-  This file defines implementations of GIS relation check functions.
-*/
-#include "my_config.h"
+#include <boost/concept/usage.hpp>
+#include <boost/geometry/algorithms/equals.hpp>
+#include <boost/geometry/algorithms/overlaps.hpp>
+#include <boost/geometry/geometries/box.hpp>
+#include <boost/geometry/index/rtree.hpp>
+#include <boost/iterator/iterator_facade.hpp>
+
 #include "current_thd.h"
+#include "derror.h"                            // ER_THD
+#include "item.h"
+#include "item_cmpfunc.h"
+#include "item_func.h"
+#include "item_geofunc.h"
 #include "item_geofunc_internal.h"
 #include "item_geofunc_relchecks_bgwrap.h"
-#include "derror.h"                            // ER_THD
-#include "sql_class.h"                         // THD
-#include "dd/types/spatial_reference_system.h"
-#include "dd/cache/dictionary_client.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "parse_tree_node_base.h"
+#include "spatial.h"
+#include "sql_error.h"
+#include "sql_string.h"
 
-#include <set>
+namespace boost {
+namespace geometry {
+namespace cs {
+struct cartesian;
+}  // namespace cs
+}  // namespace geometry
+}  // namespace boost
+namespace dd {
+class Spatial_reference_system;
+}  // namespace dd
 
 /*
   Functions for spatial relations

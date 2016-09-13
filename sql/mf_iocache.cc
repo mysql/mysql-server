@@ -33,8 +33,17 @@
 */
 
 #ifdef HAVE_REPLICATION
-#include "sql_class.h"                          // THD
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "current_thd.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "mysql_com.h"
+#include "protocol_classic.h"
+#include "sql_class.h"                          // THD
+#include "sql_string.h"
 
 extern "C" {
 

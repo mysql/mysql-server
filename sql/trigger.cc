@@ -16,20 +16,36 @@
 
 #include "trigger.h"
 
-#include "mysys_err.h"            // EE_OUTOFMEMORY
 #include "derror.h"               // ER_THD
 #include "error_handler.h"        // Internal_error_handler
-#include "mysqld.h"               // table_alias_charset
+#include "m_string.h"
+#include "mdl.h"
+#include "my_dbug.h"
+#include "my_psi_config.h"
+#include "mysql/psi/mysql_sp.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysqld_error.h"
+#include "mysys_err.h"            // EE_OUTOFMEMORY
 #include "sp.h"                   // sp_add_used_routine
 #include "sp_head.h"              // sp_name
+#include "sql_admin.h"
 #include "sql_class.h"            // THD
 #include "sql_db.h"               // get_default_db_collation
 #include "sql_error.h"            // Sql_condition
+#include "sql_lex.h"
 #include "sql_parse.h"            // parse_sql
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_servers.h"
 #include "sql_show.h"             // append_identifier
+#include "sql_string.h"
+#include "system_variables.h"
 #include "trigger_creation_ctx.h" // Trigger_creation_ctx
 
-#include "mysql/psi/mysql_sp.h"
+class sp_rcontext;
+struct PSI_statement_locker;
+struct sql_digest_state;
 
 
 ///////////////////////////////////////////////////////////////////////////

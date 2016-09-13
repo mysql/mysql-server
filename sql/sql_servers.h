@@ -16,14 +16,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "my_global.h"
+#include <stddef.h>
 
+#include "my_alloc.h"
+#include "my_sqlcommand.h"
 #include "mysql/mysql_lex_string.h" // LEX_STRING
 #include "sql_alloc.h"              // Sql_alloc
 #include "sql_cmd.h"                // Sql_cmd
 
 class THD;
 struct TABLE;
+
 typedef struct st_mem_root MEM_ROOT;
 typedef struct st_mysql_lex_string LEX_STRING;
 

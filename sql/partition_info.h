@@ -16,19 +16,32 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "handler.h"
 #include "lock.h"                             // Tablespace_hash_set
+#include "my_bitmap.h"
+#include "my_global.h"
 #include "partition_element.h"
+#include "sql_alloc.h"
 #include "sql_bitmap.h"                       // Bitmap
 #include "sql_data_change.h"                  // enum_duplicates
+#include "sql_list.h"
+
+class Field;
+class Item;
+class Partition_handler;
+class String;
+class THD;
+struct TABLE;
 
 #define NOT_A_PARTITION_ID UINT_MAX32
 
-class partition_info;
-class Partition_share;
-class COPY_INFO;
 class Create_field;
-struct st_partition_iter;
+class partition_info;
 struct TABLE_LIST;
+struct st_partition_iter;
 
 /**
   A "Get next" function for partition iterator.
@@ -96,8 +109,6 @@ typedef struct st_partition_iter
   partition_info *part_info;
 } PARTITION_ITERATOR;
 
-
-struct st_ddl_log_memory_entry;
 
 typedef struct {
   longlong list_value;

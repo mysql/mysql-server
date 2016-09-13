@@ -13,18 +13,32 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "my_global.h"
-#include <signal.h>
+#include "my_config.h"
 
-#include "sys_vars.h"
-#include "my_stacktrace.h"
+#include <signal.h>
+#include <sys/types.h>
+#include <time.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
 #include "connection_handler_manager.h"  // Connection_handler_manager
-#include "mysqld_thd_manager.h"          // Global_THD_manager
-#include "sql_class.h"
 #include "current_thd.h"                 // my_thread_get_THR_THD
+#include "keycache.h"
+#include "my_config.h"
+#include "my_global.h"
+#include "my_stacktrace.h"
+#include "my_sys.h"
+#include "mysqld.h"
+#include "mysqld_thd_manager.h"          // Global_THD_manager
+#include "session_tracker.h"
+#include "sql_class.h"
+#include "sql_const.h"
+#include "system_variables.h"
 
 #ifdef _WIN32
 #include <crtdbg.h>
+
 #define SIGNAL_FMT "exception 0x%x"
 #else
 #define SIGNAL_FMT "signal %d"

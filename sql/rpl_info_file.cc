@@ -15,12 +15,27 @@
 
 #include "rpl_info_file.h"
 
-#include "my_dir.h"            // MY_STAT
-#include "my_thread_local.h"   // my_errno
+#include "my_config.h"
+
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
 #include "dynamic_ids.h"       // Server_ids
 #include "log.h"               // sql_print_error
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_dir.h"            // MY_STAT
+#include "my_thread_local.h"   // my_errno
+#include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"            // mysql_data_home
 #include "psi_memory_key.h"
+#include "sql_string.h"
 
 
 int init_ulongvar_from_file(ulong* var, IO_CACHE* f, ulong default_val);

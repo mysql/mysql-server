@@ -16,6 +16,7 @@
 #include "rpl_info.h"
 
 #include "m_string.h"      // strmake
+#include "thr_mutex.h"
 
 Rpl_info::Rpl_info(const char* type
 #ifdef HAVE_PSI_INTERFACE

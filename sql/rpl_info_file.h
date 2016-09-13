@@ -16,11 +16,14 @@
 #ifndef RPL_INFO_FILE_H
 #define RPL_INFO_FILE_H
 
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "my_global.h"
 #include "my_sys.h"              // IO_CACHE
 #include "rpl_info_handler.h"    // Rpl_info_handler
 
-class Rpl_info_factory;
+class Server_ids;
 
 /**
   Defines a file hander.

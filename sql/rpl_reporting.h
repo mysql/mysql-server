@@ -16,9 +16,15 @@
 #ifndef RPL_REPORTING_H
 #define RPL_REPORTING_H
 
+#include <stdarg.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <time.h>
+
+#include "my_compiler.h"
 #include "my_global.h"
 #include "my_sys.h"                   // my_time
-#include "mysql/psi/mysql_thread.h"   // mysql_mutex_t
+#include "mysql/psi/mysql_mutex.h"
 
 
 /**

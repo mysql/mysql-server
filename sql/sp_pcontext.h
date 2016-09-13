@@ -1,5 +1,5 @@
 /* -*- C++ -*- */
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,10 +17,24 @@
 #ifndef _SP_PCONTEXT_H_
 #define _SP_PCONTEXT_H_
 
-#include "my_global.h"
-#include "mysql/mysql_lex_string.h"             // LEX_STRING
+#include <string.h>
+#include <sys/types.h>
+
+#include "binary_log_types.h"
 #include "field.h"                              // Create_field
 #include "mem_root_array.h"                     // Mem_root_array
+#include "my_dbug.h"
+#include "my_global.h"
+#include "mysql_com.h"
+#include "sql_alloc.h"
+#include "sql_error.h"
+#include "sql_list.h"
+#include "sql_plugin_ref.h"
+
+class Item;
+class String;
+class THD;
+class sp_pcontext;
 
 
 /// This class represents a stored program variable or a parameter

@@ -15,20 +15,34 @@
 
 
 #include "mdl.h"
-#include "debug_sync.h"
-#include "prealloced_array.h"
-#include <lf.h>
-#include <mysqld_error.h>
-#include <mysql/plugin.h>
-#include <mysql/service_thd_wait.h>
-#include <pfs_metadata_provider.h>
-#include <mysql/psi/mysql_mdl.h>
-#include <pfs_stage_provider.h>
-#include <mysql/psi/mysql_stage.h>
-#include <my_murmur3.h>
+
+#include <time.h>
 #include <algorithm>
 #include <functional>
+
+#include "pfs_metadata_provider.h"  // IWYU pragma: keep
+#include "mysql/psi/mysql_mdl.h"
+
+#include "pfs_stage_provider.h"  // IWYU pragma: keep
+#include "mysql/psi/mysql_stage.h"
+
+#include "debug_sync.h"
+#include "lf.h"
+#include "m_ctype.h"
+#include "my_atomic.h"
+#include "my_murmur3.h"
+#include "mysqld_error.h"
 #include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/psi/psi_rwlock.h"
+#include "mysql/service_thd_wait.h"
+#include "my_sys.h"
+#include "my_thread.h"
+#include "prealloced_array.h"
+#include "thr_malloc.h"
 
 extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 

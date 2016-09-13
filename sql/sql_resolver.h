@@ -16,16 +16,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
-
 class Item;
 class Item_in_subselect;
+class SELECT_LEX;
 class THD;
 struct TABLE;
 struct TABLE_LIST;
-class SELECT_LEX;
+
 typedef struct st_order ORDER;
 template <typename Element_type> class Bounds_checked_array;
+
 typedef Bounds_checked_array<Item*> Ref_item_array;
 template <class T> class List;
 

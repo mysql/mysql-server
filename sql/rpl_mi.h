@@ -16,17 +16,30 @@
 #ifndef RPL_MI_H
 #define RPL_MI_H
 
+#include <sys/types.h>
+#include <time.h>
+
+#include "m_string.h"
+#include "my_psi_config.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql_com.h"
+#include "sql_const.h"
+
+class Relay_log_info;
+class Rpl_info_handler;
+class Server_ids;
+class THD;
 #ifdef HAVE_REPLICATION
 
-#include "my_global.h"
 #include "binlog_event.h"            // enum_binlog_checksum_alg
 #include "log_event.h"               // Format_description_log_event
+#include "my_global.h"
 #include "rpl_gtid.h"                // Gtid
 #include "rpl_info.h"                // Rpl_info
 #include "rpl_trx_boundary_parser.h" // Transaction_boundary_parser
 
 typedef struct st_mysql MYSQL;
-class Rpl_info_factory;
 
 #define DEFAULT_CONNECT_RETRY 60
 

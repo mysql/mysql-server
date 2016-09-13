@@ -22,15 +22,33 @@
   Classes for query execution.
 */
 
+#include <string.h>
+#include <sys/types.h>
+
+#include "item.h"
+#include "my_base.h"
+#include "my_compiler.h"
 #include "my_global.h"
 #include "records.h"               // READ_RECORD
+#include "sql_alloc.h"
 #include "sql_class.h"             // THD
+#include "sql_lex.h"
 #include "sql_opt_exec_shared.h"   // QEP_shared_owner
+#include "sql_select.h"
+#include "table.h"
 #include "temp_table_param.h"      // Temp_table_param
 
+class Field;
+class Field_longlong;
+class Filesort;
+class Item_sum;
 class JOIN;
-class JOIN_TAB;
 class QEP_TAB;
+class QUICK_SELECT_I;
+struct st_cache_field;
+struct st_join_table;
+template <class T> class List;
+
 typedef struct st_columndef MI_COLUMNDEF;
 typedef struct st_table_ref TABLE_REF;
 typedef struct st_position POSITION;

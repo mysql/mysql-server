@@ -13,9 +13,23 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd_upgrade.h"
-#include "dd/impl/bootstrapper.h"             // execute_query
+#include <memory>
+#include <vector>
+#include <string>
 
+#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
+#include "dd/dd_event.h"                      // create_event
+#include "dd/dd.h"                            // dd::get_dictionary
+#include "dd/dd_schema.h"                     // create_schema
+#include "dd/dd_table.h"                      // create_dd_user_table
+#include "dd/dd_tablespace.h"                 // create_tablespace
+#include "dd/dd_trigger.h"                    // dd::create_trigger
+#include "dd/dd_view.h"                       // create_view
+#include "dd/impl/bootstrapper.h"             // execute_query
+#include "dd/impl/dictionary_impl.h"          // dd::Dictionary_impl
+#include "dd/types/object_type.h"             // dd::Object_type
+#include "dd/types/tablespace.h"              // dd::Tablespace
+#include "dd_upgrade.h"
 #include "derror.h"                           // ER_DEFAULT
 #include "event_db_repository.h"              // Events
 #include "event_parse_data.h"                 // Event_parse_data
@@ -23,44 +37,28 @@
 #include "lock.h"                             // Tablespace_hash_set
 #include "log.h"                              // sql_print_warning
 #include "mysqld.h"                           // mysql_real_data_home
+#include "mysql/psi/mysql_file.h"             // mysql_file_open
 #include "my_user.h"                          // parse_user
 #include "parse_file.h"                       // File_option
 #include "partition_info.h"                   // partition_info
-#include "sql_partition.h"                    // mysql_unpack_partition
-#include "sql_table.h"                        // build_tablename
-#include <mysql/psi/mysql_file.h>             // mysql_file_open
-#include <psi_memory_key.h>                   // key_memory_TABLE
-#include "sql_base.h"                         // open_tables
-#include "sql_parse.h"                        // check_string_char_length
-#include "sql_plugin.h"                       // plugin_unlock
+#include "psi_memory_key.h"                   // key_memory_TABLE
 #include "sp.h"                               // db_load_routine
 #include "sp_head.h"                          // sp_head
+#include "sql_base.h"                         // open_tables
 #include "sql_lex.h"                          // new_empty_query_block
+#include "sql_parse.h"                        // check_string_char_length
+#include "sql_partition.h"                    // mysql_unpack_partition
+#include "sql_plugin.h"                       // plugin_unlock
 #include "sql_prepare.h"                      // Ed_connection
 #include "sql_show.h"                         // view_store_options
+#include "sql_table.h"                        // build_tablename
 #include "sql_time.h"                         // interval_type_to_name
 #include "sql_view.h"                         // mysql_create_view
+#include "table.h"                            // Table_check_intact
+#include "table_trigger_dispatcher.h"         // Table_trigger_dispatcher
 #include "transaction.h"                      // trans_commit
 #include "trigger.h"                          // Trigger
-#include "table_trigger_dispatcher.h"         // Table_trigger_dispatcher
 #include "tztime.h"                           // my_tz_find
-#include "table.h"                            // Table_check_intact
-
-#include "dd/dd.h"                            // dd::get_dictionary
-#include "dd/dd_event.h"                      // create_event
-#include "dd/dd_schema.h"                     // create_schema
-#include "dd/dd_table.h"                      // create_dd_user_table
-#include "dd/dd_tablespace.h"                 // create_tablespace
-#include "dd/dd_trigger.h"                    // dd::create_trigger
-#include "dd/dd_view.h"                       // create_view
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "dd/impl/dictionary_impl.h"          // dd::Dictionary_impl
-#include "dd/types/object_type.h"             // dd::Object_type
-#include "dd/types/tablespace.h"              // dd::Tablespace
-
-#include <memory>
-#include <vector>
-#include <string>
 
 namespace dd {
 

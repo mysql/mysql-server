@@ -19,11 +19,25 @@
 */
 
 #include "opt_trace.h"
-#include "mysqld.h"    // system_charset_info
-#include "item.h"      // Item
-#include "sql_string.h" // String
-#include "m_string.h"  // _dig_vec_lower
+
+#include <stdio.h>
+#include <new>
+
 #include "current_thd.h"
+#include "enum_query_type.h"
+#include "handler.h"
+#include "item.h"      // Item
+#include "key.h"
+#include "m_string.h"  // _dig_vec_lower
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysqld_error.h"
+#include "prealloced_array.h"
+#include "sql_string.h" // String
+#include "system_variables.h"
+#include "table.h"
 
 #ifdef OPTIMIZER_TRACE
 

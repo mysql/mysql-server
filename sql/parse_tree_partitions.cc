@@ -13,10 +13,22 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_config.h"
+#include "derror.h"
+#include "item.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "parse_location.h"
 #include "parse_tree_partitions.h"
+#include "sql_alter.h"
 #include "sql_class.h"
+#include "sql_const.h"
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_parse.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
 
 Partition_parse_context::Partition_parse_context(
     THD *thd,

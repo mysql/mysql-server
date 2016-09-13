@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,15 +47,21 @@ launches the EXPLAIN process for "inner units" (==subqueries of this
 SELECT_LEX), by calling explain_unit() for each of them. 
 */
 
-#include <my_base.h>
+#include "my_base.h"
+#include "my_global.h"
 #include "opt_explain_format.h"
+#include "parse_tree_node_base.h"
 #include "query_result.h"                // Query_result_send
+#include "sys/types.h"
 
+class Item;
 class JOIN;
-struct TABLE;
-class THD;
-class SELECT_LEX_UNIT;
+class QEP_TAB;
 class SELECT_LEX;
+class SELECT_LEX_UNIT;
+class THD;
+struct TABLE;
+template <class T> class List;
 
 extern const char *join_type_str[];
 

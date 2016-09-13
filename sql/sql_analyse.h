@@ -19,11 +19,26 @@
 
 /* Analyse database */
 
+#include <math.h>
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "item.h"
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
 #include "my_global.h"
+#include "my_sys.h"
 #include "my_tree.h"          // TREE
 #include "query_result.h"     // Query_result_send
+#include "sql_alloc.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_string.h"
 
 class Item_proc;
+class THD;
 
 
 #define my_thd_charset	default_charset_info

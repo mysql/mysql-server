@@ -14,11 +14,34 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_cursor.h"
+
+#include <algorithm>
+
+#include "debug_sync.h"
+#include "field.h"
+#include "handler.h"
+#include "item.h"
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysql_com.h"
+#include "parse_tree_node_base.h"
 #include "probes_mysql.h"
+#include "protocol.h"
+#include "query_options.h"
+#include "query_result.h"
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_parse.h"                        // mysql_execute_command
 #include "sql_tmp_table.h"                   // tmp tables
-#include "debug_sync.h"
 #include "sql_union.h"                       // Query_result_union
+#include "system_variables.h"
+#include "table.h"
+
+struct PSI_statement_locker;
+struct sql_digest_state;
 
 /****************************************************************************
   Declarations.

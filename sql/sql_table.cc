@@ -19,65 +19,121 @@
 
 #include "sql_table.h"
 
-#include "m_string.h"                 // my_stpncpy
-#include "my_check_opt.h"             // T_EXTEND
+#include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <algorithm>
+#include <memory>
 
+#include "auth_acls.h"
 #include "auth_common.h"              // check_fk_parent_table_access
 #include "binlog.h"                   // mysql_bin_log
-#include "dd_sql_view.h"              // update_referencing_views_metadata
-#include "dd_table_share.h"           // open_table_def
-#include "debug_sync.h"               // DEBUG_SYNC
-#include "derror.h"                   // ER_THD
-#include "error_handler.h"            // Drop_table_error_handler
-#include "filesort.h"                 // Filesort
-#include "item_timefunc.h"            // Item_func_now_local
-#include "key.h"                      // KEY
-#include "key_spec.h"                 // Key_part_spec
-#include "lock.h"                     // mysql_lock_remove, lock_tablespace_names
-#include "log.h"                      // sql_print_error
-#include "mysqld.h"                   // lower_case_table_names
-#include "mysqld_error.h"             // ER_*
-#include "partition_info.h"           // partition_info
-#include "psi_memory_key.h"           // key_memory_gdl
-#include "records.h"                  // READ_RECORD
-#include "sdi_utils.h"                // create_serialized_meta_data
-#include "sp_head.h"                  // sp_head
-#include "sql_base.h"                 // lock_table_names
-#include "sql_cache.h"                // query_cache
-#include "sql_class.h"                // THD
-#include "sql_db.h"                   // get_default_db_collation
-#include "sql_executor.h"             // QEP_TAB_standalone
-#include "sql_parse.h"                // test_if_data_home_dir
-#include "sql_partition.h"            // ALTER_PARTITION_PARAM_TYPE
-#include "sql_resolver.h"             // setup_order
-#include "sql_tablespace.h"           // check_tablespace_name
-#include "sql_time.h"                 // make_truncated_value_warning
-#include "sql_trigger.h"              // change_trigger_table_name
-#include "strfunc.h"                  // find_type2
-#include "transaction.h"              // trans_commit_stmt
-
-#include "partitioning/partition_handler.h" // Partition_handler
-
+#include "binlog_event.h"
+#include "dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
 #include "dd/dd.h"                        // dd::get_dictionary
 #include "dd/dd_schema.h"                 // dd::schema_exists
 #include "dd/dd_table.h"                  // dd::drop_table, dd::update_keys...
 #include "dd/dd_trigger.h"                // dd::table_has_triggers
 #include "dd/dictionary.h"                // dd::Dictionary
-#include "dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
+#include "dd/string_type.h"
+#include "dd/types/abstract_table.h"
+#include "dd/types/column.h"
 #include "dd/types/foreign_key.h"         // dd::Foreign_key
 #include "dd/types/foreign_key_element.h" // dd::Foreign_key_element
 #include "dd/types/table.h"               // dd::Table
-
-#include "trigger.h"
+#include "dd_sql_view.h"              // update_referencing_views_metadata
+#include "dd_table_share.h"           // open_table_def
+#include "debug_sync.h"               // DEBUG_SYNC
+#include "derror.h"                   // ER_THD
+#include "error_handler.h"            // Drop_table_error_handler
+#include "field.h"
+#include "filesort.h"                 // Filesort
+#include "handler.h"
+#include "item.h"
+#include "item_timefunc.h"            // Item_func_now_local
+#include "key.h"                      // KEY
+#include "key_spec.h"                 // Key_part_spec
+#include "lock.h"                     // mysql_lock_remove, lock_tablespace_names
+#include "log.h"                      // sql_print_error
+#include "m_ctype.h"
+#include "m_string.h"                 // my_stpncpy
+#include "mdl.h"
+#include "mem_root_array.h"
+#include "my_base.h"
+#include "my_byteorder.h"
+#include "my_check_opt.h"             // T_EXTEND
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "my_time.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/thread_type.h"
+#include "mysql_com.h"
+#include "mysql_time.h"
+#include "mysqld.h"                   // lower_case_table_names
+#include "mysqld_error.h"             // ER_*
+#include "partition_element.h"
+#include "partition_info.h"           // partition_info
+#include "partitioning/partition_handler.h" // Partition_handler
+#include "pfs_table_provider.h"
+#include "prealloced_array.h"
+#include "protocol.h"
+#include "psi_memory_key.h"           // key_memory_gdl
+#include "query_options.h"
+#include "records.h"                  // READ_RECORD
+#include "rpl_gtid.h"
+#include "sdi_utils.h"                // create_serialized_meta_data
+#include "session_tracker.h"
+#include "sql_alter.h"
+#include "sql_base.h"                 // lock_table_names
+#include "sql_cache.h"                // query_cache
+#include "sql_class.h"                // THD
+#include "sql_const.h"
+#include "sql_db.h"                   // get_default_db_collation
+#include "sql_error.h"
+#include "sql_executor.h"             // QEP_TAB_standalone
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_parse.h"                // test_if_data_home_dir
+#include "sql_partition.h"            // ALTER_PARTITION_PARAM_TYPE
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
+#include "sql_resolver.h"             // setup_order
+#include "sql_show.h"
+#include "sql_sort.h"
+#include "sql_string.h"
+#include "sql_tablespace.h"           // check_tablespace_name
+#include "sql_time.h"                 // make_truncated_value_warning
+#include "sql_trigger.h"              // change_trigger_table_name
+#include "strfunc.h"                  // find_type2
+#include "system_variables.h"
+#include "table.h"
 #include "table_trigger_dispatcher.h"
+#include "template_utils.h"
+#include "thr_lock.h"
+#include "thr_malloc.h"
+#include "thr_mutex.h"
+#include "transaction.h"              // trans_commit_stmt
+#include "transaction_info.h"
+#include "trigger.h"
+#include "typelib.h"
+#include "xa.h"
 
-#include "pfs_file_provider.h"
+#include "pfs_file_provider.h"  // IWYU pragma: keep
 #include "mysql/psi/mysql_file.h"
 
-#include "pfs_table_provider.h"
+#include "pfs_stage_provider.h"  // IWYU pragma: keep
+#include "mysql/psi/mysql_stage.h"
+
+#include "pfs_table_provider.h"  // IWYU pragma: keep
 #include "mysql/psi/mysql_table.h"
 
-#include <algorithm>
 using std::max;
 using std::min;
 using binary_log::checksum_crc32;

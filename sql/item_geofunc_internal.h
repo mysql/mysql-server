@@ -16,34 +16,34 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-
 /**
   @file
 
   @brief
   This file defines common build blocks of GIS functions.
 */
-#include "my_config.h"
 
-#include <vector>
-#include <algorithm>
-#include <stdexcept>
-#include <memory>
+#include <stddef.h>
 #include <cmath>
+#include <utility>
+#include <vector>
 
-#include <m_ctype.h>
-#include "item_geofunc.h"
-#include "gis_bg_traits.h"
-
-#include "dd/types/spatial_reference_system.h"
-#include "dd/cache/dictionary_client.h"
-#include "sql_class.h" // THD
-
-// Boost.Geometry
-#include <boost/geometry/geometry.hpp>
+#include <boost/concept/usage.hpp>
+#include <boost/geometry/core/cs.hpp>
+#include <boost/geometry/core/tags.hpp>
 #include <boost/geometry/index/rtree.hpp>
-// Boost.Range
-#include <boost/range.hpp>
+
+#include "dd/cache/dictionary_client.h"
+#include "gis_bg_traits.h"
+#include "item_geofunc.h"
+#include "my_global.h"
+#include "spatial.h"
+#include "sql_class.h" // THD
+#include "sql_string.h"
+
+namespace dd {
+class Spatial_reference_system;
+}  // namespace dd
 
 
 // GCC requires typename whenever needing to access a type inside a template,

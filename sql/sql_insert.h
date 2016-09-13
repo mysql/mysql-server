@@ -16,12 +16,26 @@
 #ifndef SQL_INSERT_INCLUDED
 #define SQL_INSERT_INCLUDED
 
-#include "probes_mysql.h"
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "handler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sqlcommand.h"
+#include "probes_mysql.h"         // IWYU pragma: keep
 #include "query_result.h"         // Query_result_interceptor
 #include "sql_cmd_dml.h"          // Sql_cmd_dml
 #include "sql_data_change.h"      // enum_duplicates
+#include "sql_list.h"
+#include "table.h"
 
-struct TABLE_LIST;
+class Alter_info;
+class Field;
+class Item;
+class SELECT_LEX_UNIT;
+class THD;
+
 typedef List<Item> List_item;
 typedef struct st_mysql_lock MYSQL_LOCK;
 

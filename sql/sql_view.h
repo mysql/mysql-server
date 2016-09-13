@@ -16,13 +16,14 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"
+#include "auth_acls.h"
 
 class Item;
 class THD;
 struct TABLE_LIST;
 struct TABLE_SHARE;
 template <class T> class List;
+
 enum class enum_view_create_mode;
 
 bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,

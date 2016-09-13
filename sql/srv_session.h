@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -17,10 +17,20 @@
 #ifndef SRV_SESSION_H
 #define SRV_SESSION_H
 
+#include <stdint.h>
+
+#include "key.h"
+#include "my_command.h"
+#include "my_thread_local.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/service_command.h"
+#include "mysql/service_srv_session.h"
 #include "protocol_callback.h"
 #include "sql_class.h"
-#include "my_thread.h"           /* my_thread_id */
+#include "sql_error.h"
 #include "violite.h"             /* enum_vio_type */
+
+struct st_plugin_int;
 
 /**
   @file

@@ -15,20 +15,23 @@
 #ifndef MTS_SUBMODE_H
 #define MTS_SUBMODE_H
 
+#include <stddef.h>
+#include <sys/types.h>
+#include <utility>
+
+#include "binlog_event.h"      // SEQ_UNINIT
+#include "my_atomic.h"
 #include "my_global.h"
-#include "my_atomic.h"         // my_atomic_load64
 #include "my_thread_local.h"   // my_thread_id
 #include "prealloced_array.h"  // Prealloced_array
-#include "binlog_event.h"      // SEQ_UNINIT
 
 class Log_event;
-class Mts_submode_database;
-class Mts_submode_logical_clock;
 class Query_log_event;
 class Relay_log_info;
 class Slave_worker;
 class THD;
 struct TABLE;
+
 typedef Prealloced_array<Slave_worker*, 4> Slave_worker_array;
 
 enum enum_mts_parallel_type {

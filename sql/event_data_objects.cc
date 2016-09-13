@@ -15,27 +15,54 @@
 
 #include "event_data_objects.h"
 
+#include <string.h>
+
+#include "auth_acls.h"
+                                               // struct Time_zone
+#include "auth_common.h"                       // EVENT_ACL, SUPER_ACL
+#include "dd/dd_event.h"                       // dd::get_old_interval_type
+#include "dd/dd_schema.h"                      // dd::get_schema_name
+#include "dd/string_type.h"
+#include "dd/types/event.h"
+#include "derror.h"
+#include "event_parse_data.h"
+#include "events.h"
+                                               // append_identifier
+#include "log.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_sp.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysqld_error.h"
 #include "psi_memory_key.h"
+#include "sp_head.h"
+#include "sql_alloc.h"
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_parse.h"                         // parse_sql
-#include "sql_db.h"                            // get_default_db_collation
+#include "sql_plugin.h"
+#include "sql_security_ctx.h"
+#include "sql_servers.h"
+#include "sql_show.h"                          // append_definer,
+#include "sql_string.h"
 #include "sql_time.h"                          // interval_type_to_name
+#include "system_variables.h"
+#include "table.h"
+#include "thr_malloc.h"
                                                // date_add_interval,
                                                // calc_time_diff.
 #include "tztime.h"                            // my_tz_find, my_tz_OFFSET0
-                                               // struct Time_zone
-#include "auth_common.h"                       // EVENT_ACL, SUPER_ACL
-#include "events.h"
-#include "event_db_repository.h"
-#include "event_parse_data.h"
-#include "sp_head.h"
-#include "sql_show.h"                          // append_definer,
-                                               // append_identifier
-#include "log.h"
-#include "derror.h"
-#include "dd/dd_event.h"                       // dd::get_old_interval_type
-#include "dd/dd_schema.h"                      // dd::get_schema_name
 
-#include "mysql/psi/mysql_sp.h"
+class Item;
+struct PSI_statement_locker;
+struct sql_digest_state;
 
 /**
   @addtogroup Event_Scheduler

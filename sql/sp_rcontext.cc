@@ -15,14 +15,24 @@
 
 #include "sp_rcontext.h"
 
+#include <new>
+
 #include "derror.h"            // ER_THD
+#include "field.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_base.h"
+#include "mysqld_error.h"
+#include "protocol.h"
 #include "sp.h"                // sp_eval_instr
 #include "sp_instr.h"          // sp_instr
 #include "sp_pcontext.h"       // sp_pcontext
 #include "sql_class.h"         // THD
 #include "sql_cursor.h"        // mysql_open_cursor
+#include "sql_list.h"
 #include "sql_tmp_table.h"     // create_virtual_tmp_table
 #include "template_utils.h"    // delete_container_pointers
+
+class SELECT_LEX_UNIT;
 
 extern "C" void sql_alloc_error_handler(void);
 

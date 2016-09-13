@@ -16,7 +16,10 @@
 #ifndef SQL_INITIALIZE_H
 #define SQL_INITIALIZE_H 1
 
+#include <string>
+
 #include "bootstrap_impl.h"
+#include "my_global.h"
 
 class Compiled_in_command_iterator : public bootstrap::Command_iterator
 {

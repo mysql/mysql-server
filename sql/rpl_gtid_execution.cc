@@ -15,15 +15,26 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
-#include "rpl_gtid.h"
+#include <string.h>
+#include <sys/types.h>
 
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "mysql/psi/mysql_transaction.h"
+#include "mysql/thread_type.h"
+#include "mysqld.h"                           // connection_events_loop_aborted
+#include "mysqld_error.h"
+#include "rpl_gtid.h"
 #include "rpl_rli.h"                          // Relay_log_info
 #include "sql_class.h"                        // THD
+#include "sql_lex.h"
 #include "sql_parse.h"                        // stmt_causes_implicit_commit
-#include "mysqld.h"                           // connection_events_loop_aborted
-
-#include "pfs_transaction_provider.h"
-#include "mysql/psi/mysql_transaction.h"
+#include "sql_plugin.h"
+#include "system_variables.h"
 
 
 

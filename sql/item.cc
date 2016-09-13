@@ -16,25 +16,48 @@
 
 #include "item.h"
 
-#include "mysql.h"           // IS_NUM
+#include "my_config.h"
+
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <algorithm>
+#include <cmath>
+#include <utility>
+
 #include "aggregate_check.h" // Distinct_check
+#include "auth_acls.h"
 #include "auth_common.h"     // get_column_grant
 #include "current_thd.h"
+#include "decimal.h"
 #include "derror.h"          // ER_THD
 #include "error_handler.h"   // Internal_error_handler
 #include "item_cmpfunc.h"    // COND_EQUAL
 #include "item_create.h"     // create_temporal_literal
 #include "item_func.h"       // item_func_sleep_init
 #include "item_json_func.h"  // json_value
+#include "item_row.h"
 #include "item_strfunc.h"    // Item_func_conv_charset
+#include "item_subselect.h"
 #include "item_sum.h"        // Item_sum
 #include "json_dom.h"        // Json_wrapper
+#include "key.h"
 #include "log_event.h"       // append_query_string
+#include "mysql.h"           // IS_NUM
+#include "mysql/service_my_snprintf.h"
+#include "mysql_time.h"
 #include "mysqld.h"          // lower_case_table_names files_charset_info
+#include "protocol.h"
+#include "select_lex_visitor.h"
 #include "sp.h"              // sp_map_item_type
 #include "sp_rcontext.h"     // sp_rcontext
 #include "sql_base.h"        // view_ref_found
 #include "sql_class.h"       // THD
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_plugin.h"
+#include "sql_security_ctx.h"
 #include "sql_show.h"        // append_identifier
 #include "sql_time.h"        // Date_time_format
 #include "sql_view.h"        // VIEW_ANY_ACL

@@ -16,12 +16,21 @@
 */
 
 #include "srs.h"
-#include "wkt_parser.h"
-#include "mysqld_error.h"                  // ER_*
-#include <m_ctype.h>                       // my_strcasecmp
-#include <vector>
-#include <map>
+
+#include <stddef.h>
 #include <cmath>
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include <boost/variant/get.hpp>
+#include "m_ctype.h"                       // my_strcasecmp
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"                  // ER_*
+#include "wkt_parser.h"
 
 /**
   Extract projection parameter values from the parse tree and assign

@@ -19,19 +19,40 @@
 
 /* classes for sum functions */
 
-#include "my_global.h"
-#include "my_tree.h"        // TREE
-#include "item.h"           // Item_result_field
-#include "sql_alloc.h"      // Sql_alloc
-#include "sql_udf.h"        // udf_handler
-#include "mem_root_array.h"
-#include "json_dom.h"       // Json_wrapper
+#include <limits.h>
+#include <math.h>
+#include <stddef.h>
+#include <sys/types.h>
 
+#include "binary_log_types.h"
+#include "enum_query_type.h"
+#include "item.h"           // Item_result_field
+#include "json_dom.h"       // Json_wrapper
+#include "m_ctype.h"
+#include "m_string.h"
+#include "mem_root_array.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_global.h"
+#include "my_time.h"
+#include "my_tree.h"        // TREE
+#include "mysql_com.h"
+#include "parse_tree_node_base.h"
+#include "sql_alloc.h"      // Sql_alloc
+#include "sql_const.h"
+#include "sql_string.h"
+#include "sql_udf.h"        // udf_handler
+#include "system_variables.h"
+#include "table.h"
+#include "template_utils.h"
+
+class Field;
 class Item_sum;
-class Aggregator_distinct;
-class Aggregator_simple;
 class PT_item_list;
 class PT_order_list;
+class THD;
+class Temp_table_param;
 
 /**
   The abstract base class for the Aggregator_* classes.
@@ -1229,7 +1250,7 @@ class Item_sum_std :public Item_sum_variance
 
 // This class is a string or number function depending on num_func
 class Arg_comparator;
-class Item_cache;
+
 class Item_sum_hybrid :public Item_sum
 {
 protected:

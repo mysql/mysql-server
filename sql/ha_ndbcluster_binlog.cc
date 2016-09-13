@@ -15,35 +15,34 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ha_ndbcluster_glue.h"
+#include "NdbSleep.h"
+#include "binlog.h"
+#include "dd/types/abstract_table.h"
+#include "dd_table_share.h"
 #include "ha_ndbcluster.h"
+#include "ha_ndbcluster_binlog.h"
 #include "ha_ndbcluster_connection.h"
-#include "ndb_local_connection.h"
-#include "ndb_thd.h"
-#include "ndb_table_guard.h"
+#include "ha_ndbcluster_glue.h"
+#include "my_thread.h"
+#include "mysqld_thd_manager.h"  // Global_THD_manager
 #include "ndb_global_schema_lock.h"
 #include "ndb_global_schema_lock_guard.h"
-#include "ndb_tdc.h"
+#include "ndb_local_connection.h"
 #include "ndb_name_util.h"
-#include <NdbSleep.h>
-
-#include "rpl_injector.h"
+#include "ndb_table_guard.h"
+#include "ndb_tdc.h"
+#include "ndb_thd.h"
+#include "ndbapi/NdbDictionary.hpp"
+#include "ndbapi/ndb_cluster_connection.hpp"
 #include "rpl_filter.h"
+#include "rpl_injector.h"
+
 #if MYSQL_VERSION_ID > 50600
 #include "rpl_slave.h"
 #else
-#include "slave.h"
 #include "log_event.h"
+#include "slave.h"
 #endif
-#include "binlog.h"
-#include "ha_ndbcluster_binlog.h"
-#include <ndbapi/NdbDictionary.hpp>
-#include <ndbapi/ndb_cluster_connection.hpp>
-#include "mysqld_thd_manager.h"  // Global_THD_manager
-#include "dd_table_share.h"
-#include "dd/types/abstract_table.h"
-
-#include <my_thread.h>
 
 extern my_bool opt_ndb_log_orig;
 extern my_bool opt_ndb_log_bin;

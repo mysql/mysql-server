@@ -14,7 +14,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "auth_common.h"
+
+#include <string.h>
+
 #include "field.h"
+#include "table.h"
 
 bool
 Acl_load_user_table_schema_factory::is_old_user_table_schema(TABLE* table)

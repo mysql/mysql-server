@@ -16,18 +16,21 @@
 #ifndef FILESORT_INCLUDED
 #define FILESORT_INCLUDED
 
-#include "my_global.h"                          /* uint, uchar */
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "my_base.h"                            /* ha_rows */
+#include "my_dbug.h"
+#include "my_global.h"                          /* uint, uchar */
 #include "sql_alloc.h"                          /* Sql_alloc */
-class THD;
-struct TABLE;
-struct st_sort_field;
-struct st_order;
+
 class Addon_fields;
 class Field;
-
-
 class QEP_TAB;
+class THD;
+struct TABLE;
+struct st_order;
+struct st_sort_field;
 
 /**
   Sorting related info.

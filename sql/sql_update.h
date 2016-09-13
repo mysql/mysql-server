@@ -16,12 +16,25 @@
 #ifndef SQL_UPDATE_INCLUDED
 #define SQL_UPDATE_INCLUDED
 
-#include "probes_mysql.h"
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_base.h"
+#include "my_global.h"
+#include "my_sqlcommand.h"
+#include "probes_mysql.h"    // IWYU pragma: keep
 #include "query_result.h"    // Query_result_interceptor
 #include "sql_cmd_dml.h"     // Sql_cmd_dml
-#include "sql_data_change.h" // enum_duplicates
+#include "sql_lex.h"
+#include "sql_list.h"
 
+class COPY_INFO;
+class Copy_field;
 class Item;
+class JOIN;
+class THD;
+class Temp_table_param;
+struct TABLE;
 struct TABLE_LIST;
 
 bool records_are_comparable(const TABLE *table);

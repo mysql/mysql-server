@@ -17,6 +17,14 @@
 /* Execute DO statement */
 
 #include "sql_do.h"
+
+#include "item.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_list.h"
+#include "sql_string.h"
  
 
 bool Query_result_do::send_data(List<Item> &items)

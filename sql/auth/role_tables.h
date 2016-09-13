@@ -16,6 +16,12 @@
 #ifndef ROLE_TABLES_H
 #define	ROLE_TABLES_H
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+
+#include "auth_common.h"
+
+class THD;
+struct TABLE;
+
 bool modify_role_edges_in_table(THD *thd, TABLE *table, const Auth_id_ref &from_user,
                                   const Auth_id_ref &to_user, bool with_admin_option,
                                   bool delete_option);

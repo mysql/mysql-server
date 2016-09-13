@@ -16,14 +16,25 @@
 #ifndef SQL_DELETE_INCLUDED
 #define SQL_DELETE_INCLUDED
 
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "my_base.h"        // ha_rows
-#include "probes_mysql.h"
+#include "my_global.h"
+#include "my_sqlcommand.h"
+#include "probes_mysql.h"   // IWYU pragma: keep
 #include "query_result.h"   // Query_result_interceptor
 #include "sql_cmd_dml.h"    // Sql_cmd_dml
+#include "sql_lex.h"
 
+class Item;
+class JOIN;
 class THD;
 class Unique;
+struct TABLE;
 struct TABLE_LIST;
+template <class T> class List;
+template <typename T> class SQL_I_List;
 
 class Query_result_delete :public Query_result_interceptor
 {

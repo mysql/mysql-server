@@ -27,16 +27,36 @@
 
 #include "item_timefunc.h"
 
+#include "my_config.h"
+
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <time.h>
+
 #include "current_thd.h"
+#include "dd/info_schema/stats.h"
+#include "dd/object_id.h"    // dd::Object_id
+#include "decimal.h"
 #include "derror.h"          // ER_THD
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
 #include "sql_class.h"       // THD
+#include "sql_error.h"
+#include "sql_lex.h"
 #include "sql_locale.h"      // my_locale_en_US
+#include "sql_security_ctx.h"
 #include "sql_time.h"        // make_truncated_value_warning
 #include "strfunc.h"         // check_word
+#include "table.h"
+#include "template_utils.h"
 #include "tztime.h"          // Time_zone
-#include "dd/object_id.h"    // dd::Object_id
-
-#include <time.h>
 
 using std::min;
 using std::max;

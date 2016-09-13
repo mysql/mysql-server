@@ -16,8 +16,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <string.h>
+#include <sys/types.h>
+#include <algorithm>
+
+#include "handler.h"
+#include "my_byteorder.h"
 #include "my_global.h"
+#include "mysql/service_mysql_alloc.h"
 #include "sql_executor.h"  // QEP_operation
+
+class Field;
+class Item;
+class JOIN;
 
 
 /**

@@ -18,7 +18,7 @@
 #ifndef NDB_LOG_H
 #define NDB_LOG_H
 
-#include <my_global.h>
+#include "my_global.h"
 
 // Returns the current verbose level
 unsigned ndb_log_get_verbose_level(void);

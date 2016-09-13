@@ -16,19 +16,22 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include <string.h>
+#include <sys/types.h>
+#include <algorithm>
+
+#include "auth/auth_common.h"
+#include "m_string.h"
+#include "my_dbug.h"
 #include "my_global.h"
-#include "sql_string.h"
 #include "mysql_com.h"
 #include "sql_const.h"
-#include "auth/auth_acls.h"
-#include "auth/auth_common.h"
-
-#include <algorithm>
-#include <utility>
-#include <list>
+#include "sql_string.h"
+#include "thr_malloc.h"
 
 /* Forward declaration. Depends on sql_auth_cache.h (which depends on this file) */
 class Acl_map;
+class THD;
 struct Grant_table_aggregate;
 
 extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;

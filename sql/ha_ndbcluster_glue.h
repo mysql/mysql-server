@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,6 +45,7 @@
 #include "derror.h"         // ER_THD
 #include "sql_show.h"       // init_fill_schema_files_row,
                             // schema_table_store_record
+#include "my_global.h"
 
 
 #if MYSQL_VERSION_ID >= 50501

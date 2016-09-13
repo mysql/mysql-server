@@ -16,14 +16,31 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
-#include "json_path.h"          // Json_path
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "binary_log_types.h"
+#include "enum_query_type.h"
+#include "field.h"
+#include "item.h"
+#include "item_func.h"
 #include "item_strfunc.h"       // Item_str_func
+#include "json_path.h"          // Json_path
+#include "m_ctype.h"
 #include "mem_root_array.h"     // Mem_root_array
+#include "my_decimal.h"
+#include "my_global.h"
+#include "my_time.h"
+#include "mysql_com.h"
+#include "parse_tree_node_base.h"
 #include "prealloced_array.h"   // Prealloced_array
+#include "sql_string.h"
 
 class Item_func_like;
 class Json_scalar_holder;
+class Json_wrapper;
+class PT_item_list;
+class THD;
 
 /** For use by JSON_CONTAINS_PATH() and JSON_SEARCH() */
 enum enum_one_or_all_type

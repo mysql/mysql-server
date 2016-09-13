@@ -21,23 +21,56 @@
 
 #include "sql_delete.h"
 
+#include <limits.h>
+#include <string.h>
+
+#include "auth_acls.h"
+#include "auth_common.h"              // check_table_access
 #include "binlog.h"                   // mysql_bin_log
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "filesort.h"                 // Filesort
+#include "handler.h"
+#include "item.h"
+#include "key.h"
+#include "mem_root_array.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
+#include "mysqld.h"                   // stage_...
+#include "mysqld_error.h"
 #include "opt_explain.h"              // Modification_plan
+#include "opt_explain_format.h"
 #include "opt_range.h"                // prune_partitions
 #include "opt_trace.h"                // Opt_trace_object
 #include "psi_memory_key.h"
+#include "query_options.h"
 #include "records.h"                  // READ_RECORD
+#include "session_tracker.h"
 #include "sql_base.h"                 // update_non_unique_table_error
+#include "sql_bitmap.h"
 #include "sql_cache.h"                // query_cache
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_executor.h"
+#include "sql_list.h"
 #include "sql_optimizer.h"            // optimize_cond, substitute_gc
 #include "sql_resolver.h"             // setup_order
+#include "sql_select.h"
+#include "sql_sort.h"
+#include "sql_string.h"
 #include "sql_view.h"                 // check_key_in_view
-#include "uniques.h"                  // Unique
+#include "system_variables.h"
+#include "table.h"
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
-#include "auth_common.h"              // check_table_access
-#include "mysqld.h"                   // stage_...
+#include "thr_malloc.h"
+#include "transaction_info.h"
+#include "trigger_def.h"
+#include "uniques.h"                  // Unique
+
+class COND_EQUAL;
+class Item_exists_subselect;
+class Opt_trace_context;
 
 bool Sql_cmd_delete::precheck(THD *thd)
 {

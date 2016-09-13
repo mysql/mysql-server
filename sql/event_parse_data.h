@@ -17,6 +17,9 @@
 #ifndef _EVENT_PARSE_DATA_H_
 #define _EVENT_PARSE_DATA_H_
 
+#include <stddef.h>
+
+#include "my_dbug.h"
 #include "my_global.h"
 #include "my_time.h"                 // interval_type
 #include "mysql/mysql_lex_string.h"  // LEX_STRING
@@ -25,6 +28,7 @@
 class Item;
 class THD;
 class sp_name;
+
 typedef struct st_mysql_lex_string LEX_STRING;
 
 #define EVEX_GET_FIELD_FAILED   -2

@@ -16,27 +16,41 @@
 
 #define BINLOG_H_INCLUDED
 
-#include "sql_class.h"
-#include "my_global.h"
-#include "my_atomic.h"                 // my_atomic_load32
-#include "m_string.h"                  // llstr
-#include "mysql_com.h"                 // Item_result
+#include <atomic>
+#include <utility>
+
+#include <string.h>
+#include <sys/types.h>
+#include <time.h>
+
 #include "binlog_event.h"              // enum_binlog_checksum_alg
+#include "m_string.h"                  // llstr
+#include "my_atomic.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql_com.h"                 // Item_result
+#include "sql_string.h"
 #include "tc_log.h"                    // TC_LOG
+#include "thr_mutex.h"
 #include "rpl_gtid.h"                  // Gtid_set, Sid_map
 
-#include <atomic>
-
-class Relay_log_info;
-class Master_info;
-class Slave_worker;
 class Format_description_log_event;
-class Transaction_boundary_parser;
-class Rows_log_event;
-class Rows_query_log_event;
+class Gtid_set;
+class Ha_trx_info;
 class Incident_log_event;
 class Log_event;
-class Gtid_set;
+class Master_info;
+class Relay_log_info;
+class Rows_log_event;
+class Sid_map;
+class THD;
+class Transaction_boundary_parser;
+class binlog_cache_data;
 class user_var_entry;
 struct Gtid;
 

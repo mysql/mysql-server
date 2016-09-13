@@ -30,7 +30,7 @@
 
 #if !defined(_WIN32)
 #include <pthread.h>                // IWYU pragma: export
-#include <sched.h>                  // sched_yield
+#include <sched.h>                  // IWYU pragma: export
 #endif
 
 #ifndef ETIME

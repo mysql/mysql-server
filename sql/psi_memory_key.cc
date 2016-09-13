@@ -16,9 +16,10 @@
 #include "psi_memory_key.h"
 
 #include "my_global.h"
-#include "my_thread.h"                          // Needed by mysql_memory.h
-#include "mysql/psi/psi_base.h"                 // PSI_FLAG_GLOBAL
+#include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/psi_base.h"                 // PSI_FLAG_GLOBAL
+#include "mysql/psi/psi_memory.h"
 
 /*
   MAINTAINER: Please keep this list in order, to limit merge collisions.

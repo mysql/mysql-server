@@ -15,15 +15,20 @@
 
 #include "key_spec.h"
 
-#include "derror.h"      // ER_THD
-#include "field.h"       // Create_field
-#include "mysqld.h"      // system_charset_info
-#include "sql_class.h"   // THD
+#include <stddef.h>
+#include <algorithm>
 
 #include "dd/dd.h"         // dd::get_dictionary
 #include "dd/dictionary.h" // dd::Dictionary::check_dd...
-
-#include <algorithm>
+#include "derror.h"      // ER_THD
+#include "field.h"       // Create_field
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "sql_class.h"   // THD
+#include "sql_plugin.h"
+#include "sql_security_ctx.h"
 
 KEY_CREATE_INFO default_key_create_info;
 

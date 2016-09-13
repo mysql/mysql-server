@@ -16,8 +16,13 @@
 #ifndef RPL_INFO_DUMMY_H
 #define RPL_INFO_DUMMY_H
 
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "my_global.h"
 #include "rpl_info_handler.h"      // Rpl_info_handler
+
+class Server_ids;
 
 /**
   Defines a dummy handler that should only be internally accessed.

@@ -14,18 +14,34 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef RPL_RLI_PDB_H
-
 #define RPL_RLI_PDB_H
 
 #ifdef HAVE_REPLICATION
 
-#include "my_global.h"
-#include "my_bitmap.h"         // MY_BITMAP
-#include "prealloced_array.h"  // Prealloced_array
+#include <stdarg.h>
+#include <sys/types.h>
+#include <time.h>
+
+#include "binlog_event.h"
 #include "log_event.h"         // Format_description_log_event
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_mysql_alloc.h"
+#include "prealloced_array.h"  // Prealloced_array
+#include "rpl_gtid.h"
 #include "rpl_mts_submode.h"   // enum_mts_parallel_type
 #include "rpl_rli.h"           // Relay_log_info
 #include "rpl_slave.h"         // MTS_WORKER_UNDEF
+#include "sql_class.h"
+#include "system_variables.h"
+
+class Rpl_info_handler;
+class Slave_worker;
+struct TABLE;
 
 #ifndef DBUG_OFF
 extern ulong w_rr;

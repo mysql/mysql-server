@@ -1,5 +1,6 @@
 #ifndef SQL_TRUNCATE_INCLUDED
 #define SQL_TRUNCATE_INCLUDED
+
 /* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -15,8 +16,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
-#include "sql_cmd_dml.h"          // Sql_cmd_dml
+#include "my_sqlcommand.h"
+#include "sql_cmd.h"
 
 class MDL_ticket;
 class THD;

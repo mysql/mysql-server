@@ -16,6 +16,9 @@
 #include "semisync_master.h"
 #include "semisync_master_ack_receiver.h"
 
+#include "pfs_stage_provider.h"  // IWYU pragma: keep
+#include "mysql/psi/mysql_stage.h"
+
 extern ReplSemiSyncMaster repl_semisync;
 
 #ifdef HAVE_PSI_INTERFACE

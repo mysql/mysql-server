@@ -16,18 +16,49 @@
 /* Some general useful functions */
 
 #include "partition_info.h"                   // LIST_PART_ENTRY
-                                              // NOT_A_PARTITION_ID
-#include "sql_parse.h"                        // test_if_data_home_dir
+
+#include <limits.h>
+#include <stdio.h>
+#include <string.h>
+#include <algorithm>
+
+#include "auth_acls.h"
 #include "auth_common.h"                      // *_ACL
-#include "table.h"                            // TABLE_LIST
-#include "sql_base.h"                         // fill_record
-#include "table_trigger_dispatcher.h"         // Table_trigger_dispatcher
-#include "trigger_chain.h"                    // Trigger_chain
-#include "partitioning/partition_handler.h"   // PART_DEF_NAME, Partition_share
-#include "sql_class.h"                        // THD
 #include "derror.h"                           // ER_THD
-#include "sql_tablespace.h"                   // check_tablespace_name
 #include "error_handler.h"
+#include "field.h"
+#include "hash.h"
+#include "item.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/plugin.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "partitioning/partition_handler.h"   // PART_DEF_NAME, Partition_share
+#include "set_var.h"
+#include "sql_base.h"                         // fill_record
+#include "sql_class.h"                        // THD
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_parse.h"                        // test_if_data_home_dir
+#include "sql_partition.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "sql_tablespace.h"                   // check_tablespace_name
+#include "system_variables.h"
+#include "table.h"                            // TABLE_LIST
+#include "table_trigger_dispatcher.h"         // Table_trigger_dispatcher
+#include "template_utils.h"
+#include "thr_malloc.h"
+#include "trigger_chain.h"                    // Trigger_chain
+#include "trigger_def.h"
 
 
 // TODO: Create ::get_copy() for getting a deep copy.

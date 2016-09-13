@@ -13,18 +13,48 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "debug_sync.h"
-#include "rpl_rli_pdb.h"
+#include "my_config.h"
 
+#include <stdio.h>
+#include <string.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <algorithm>
+
+#include "binlog.h"
 #include "current_thd.h"
-#include "psi_memory_key.h"
+#include "debug_sync.h"
+#include "handler.h"
+#include "hash.h"
 #include "log.h"                            // sql_print_error
-#include "mysqld.h"                         // key_mutex_slave_parallel_worker
-#include "rpl_slave_commit_order_manager.h" // Commit_order_manager
-
-#include "pfs_file_provider.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_atomic.h"
+#include "my_bitmap.h"
+#include "my_compiler.h"
+#include "my_sys.h"
+#include "my_thread.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/thread_type.h"
+#include "mysqld.h"                         // key_mutex_slave_parallel_worker
+#include "mysqld_error.h"
+#include "psi_memory_key.h"
+#include "rpl_info_handler.h"
+#include "rpl_reporting.h"
+#include "rpl_rli_pdb.h"
+#include "rpl_slave_commit_order_manager.h" // Commit_order_manager
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_plugin_ref.h"
+#include "sql_string.h"
+#include "table.h"
 #include "template_utils.h"
+#include "thr_mutex.h"
+#include "transaction_info.h"
 
 #ifndef DBUG_OFF
   ulong w_rr= 0;

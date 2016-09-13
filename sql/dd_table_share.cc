@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,36 +15,64 @@
 
 #include "dd_table_share.h"
 
-#include "default_values.h"                   // prepare_default_value_buffer...
-#include "log.h"                              // sql_print_error
-#include "partition_element.h"                // partition_element
-#include "partition_info.h"                   // partition_info
-#include "sql_class.h"                        // THD
-#include "sql_partition.h"                    // generate_partition_syntax
-#include "sql_plugin.h"                       // plugin_unlock
-#include "sql_table.h"                        // primary_key_name
-#include "strfunc.h"                          // lex_cstring_handle
+#include <string.h>
+#include <algorithm>
+#include <string>
+#include <vector>
 
-#include "dd/dd.h"                            // dd::get_dictionary
+#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
+#include "dd/collection.h"
+#include "dd/dd_schema.h"                     // dd::schema_exists
 #include "dd/dd_table.h"                      // dd::abstract_table_type
 #include "dd/dd_tablespace.h"                 // dd::get_tablespace_name
-#include "dd/dd_schema.h"                     // dd::schema_exists
-#include "dd/dictionary.h"                    // dd::Dictionary
+// TODO: Avoid exposing dd/impl headers in public files.
+#include "dd/impl/utils.h"                    // dd::eat_str
 #include "dd/properties.h"                    // dd::Properties
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
+#include "dd/string_type.h"
+#include "dd/types/abstract_table.h"
 #include "dd/types/column.h"                  // dd::enum_column_types
 #include "dd/types/column_type_element.h"     // dd::Column_type_element
 #include "dd/types/index.h"                   // dd::Index
 #include "dd/types/index_element.h"           // dd::Index_element
-#include "dd/types/object_table_definition.h" // dd::Object_table_definition
 #include "dd/types/partition.h"               // dd::Partition
 #include "dd/types/partition_value.h"         // dd::Partition_value
 #include "dd/types/table.h"                   // dd::Table
+#include "default_values.h"                   // prepare_default_value_buffer...
+#include "field.h"
+#include "handler.h"
+#include "hash.h"
+#include "key.h"
+#include "log.h"                              // sql_print_error
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_compare.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "mysql/plugin.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "partition_element.h"                // partition_element
+#include "partition_info.h"                   // partition_info
+#include "session_tracker.h"
+#include "sql_bitmap.h"
+#include "sql_class.h"                        // THD
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_list.h"
+#include "sql_partition.h"                    // generate_partition_syntax
+#include "sql_plugin.h"                       // plugin_unlock
+#include "sql_plugin_ref.h"
+#include "sql_table.h"                        // primary_key_name
+#include "strfunc.h"                          // lex_cstring_handle
+#include "system_variables.h"
+#include "table.h"
+#include "typelib.h"
 
-// TODO: Avoid exposing dd/impl headers in public files.
-#include "dd/impl/utils.h"                    // dd::eat_str
-
-#include <memory>                             // unique_ptr
+namespace dd {
+class View;
+}  // namespace dd
 
 
 enum_field_types dd_get_old_field_type(dd::enum_column_types type)

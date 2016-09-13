@@ -19,22 +19,31 @@
 
 #include "sql_rename.h"
 
+#include <string.h>
 
+#include "dd/dd_table.h"      // dd::table_exists
+#include "dd/types/abstract_table.h" // dd::Abstract_table
 #include "dd_sql_view.h"      // View_metadata_updater
 #include "log.h"              // query_logger
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
 #include "mysqld.h"           // lower_case_table_names
+#include "mysqld_error.h"
 #include "sql_base.h"         // tdc_remove_table,
                               // lock_table_names,
 #include "sql_cache.h"        // query_cache
 #include "sql_class.h"        // THD
 #include "sql_handler.h"      // mysql_ha_rm_tables
+#include "sql_plugin.h"
 #include "sql_table.h"        // write_bin_log,
                               // build_table_filename
 #include "sql_trigger.h"      // change_trigger_table_name
 #include "sql_view.h"         // mysql_rename_view
+#include "system_variables.h"
+#include "table.h"
 
-#include "dd/dd_table.h"      // dd::table_exists
-#include "dd/types/abstract_table.h" // dd::Abstract_table
+struct handlerton;
 
 
 static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,

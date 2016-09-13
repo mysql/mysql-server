@@ -16,18 +16,51 @@
 #ifndef PARSE_TREE_NODES_INCLUDED
 #define PARSE_TREE_NODES_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "auth_common.h"
+#include "handler.h"
+#include "item.h"
+#include "item_create.h"
+#include "item_func.h"
+#include "key.h"
+#include "key_spec.h"
+#include "m_ctype.h"
+#include "mem_root_array.h"
+#include "my_base.h"
 #include "my_bit.h"                  // is_single_bit
-#include "parse_tree_helpers.h"      // PT_item_list
-#include "parse_tree_hints.h"
-#include "sp_head.h"                 // sp_head
-#include "query_result.h"            // Query_result
-#include "sql_class.h"               // THD
-#include "sql_lex.h"                 // LEX
-#include "sql_parse.h"               // add_join_natural
-#include "sql_admin.h"               // Sql_cmd_shutdown etc.
-#include "sql_cmd_ddl_table.h"       // Sql_cmd_create_table
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
 #include "mysqld.h"                  // table_alias_charset
+#include "mysqld_error.h"
+#include "parse_location.h"
+#include "parse_tree_helpers.h"      // PT_item_list
+#include "parse_tree_node_base.h"
+#include "query_result.h"            // Query_result
+#include "set_var.h"
+#include "sp_head.h"                 // sp_head
+#include "sql_admin.h"               // Sql_cmd_shutdown etc.
+#include "sql_alter.h"
+#include "sql_class.h"               // THD
+#include "sql_cmd_ddl_table.h"       // Sql_cmd_create_table
+#include "sql_lex.h"                 // LEX
+#include "sql_list.h"
+#include "sql_parse.h"               // add_join_natural
+#include "sql_security_ctx.h"
+#include "table.h"
+#include "thr_lock.h"
+
+class PT_field_def_base;
+class PT_hint_list;
+class PT_partition;
+class PT_query_expression;
+class PT_subquery;
+class Sql_cmd;
+class String;
+struct st_mysql_lex_string;
 
 /**
   @defgroup ptn  Parse tree nodes
@@ -87,9 +120,6 @@ bool contextualize_nodes(Mem_root_array_YY<Node_type *> nodes,
       return true;
   return false;
 }
-
-
-template<enum_parsing_context Context> class PTI_context;
 
 
 /**
@@ -260,8 +290,8 @@ public:
 };
 
 
-class PT_joined_table;
 class PT_cross_join;
+class PT_joined_table;
 
 
 class PT_table_reference : public Parse_tree_node

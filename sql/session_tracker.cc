@@ -16,12 +16,36 @@
 
 #include "session_tracker.h"
 
+#include <string.h>
+#include <new>
+
 #include "current_thd.h"
+#include "handler.h"
 #include "hash.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/thread_type.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
 #include "psi_memory_key.h"
+#include "query_options.h"
+#include "rpl_context.h"
 #include "rpl_gtid.h"
+#include "set_var.h"
 #include "sql_class.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_plugin.h"
 #include "sql_show.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "transaction_info.h"
 #include "xa.h"
 
 static void store_lenenc_string(String &to, const char *from,

@@ -16,19 +16,27 @@
 #ifndef SQL_SHOW_H
 #define SQL_SHOW_H
 
-#include "my_global.h"
+#include <stddef.h>
+#include <vector>
+
 #include "handler.h"                            // enum_schema_tables
+#include "my_global.h"
+#include "mysql/plugin.h"
+#include "set_var.h"                            // enum_var_type
+#include "sql_plugin.h"
 #include "sql_string.h"                         // Simple_cstring
 #include "table.h"                              // enum_schema_table_state
-#include "set_var.h"                            // enum_var_type
-
-#include "dd/object_id.h"                       // dd::Object_id
+#include "typelib.h"
 
 /* Forward declarations */
 class JOIN;
-class sp_name;
-struct System_status_var;
 class SELECT_LEX;
+class THD;
+class sp_name;
+struct LEX;
+struct System_status_var;
+template <class T> class List;
+
 // TODO: allocator based on my_malloc.
 typedef std::vector<st_mysql_show_var> Status_var_array;
 

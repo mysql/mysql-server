@@ -14,8 +14,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "table_cache.h"
+
+#include <stdio.h>
+#include <string.h>
+
+#include "m_ctype.h"
 #include "sql_test.h" // lock_descriptions[]
 #include "template_utils.h"
+#include "thr_lock.h"
+#include "thr_mutex.h"
 
 
 /**

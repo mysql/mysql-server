@@ -19,19 +19,37 @@
 #ifndef _opt_range_h
 #define _opt_range_h
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+#include <algorithm>
+#include <memory>
+#include <vector>
+
 #include "field.h"            // Field
+#include "handler.h"
+#include "key.h"
+#include "m_string.h"
+#include "malloc_allocator.h"  // IWYU pragma: keep
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_global.h"
 #include "prealloced_array.h" // Prealloced_array
 #include "priority_queue.h"   // Priority_queue
 #include "records.h"          // READ_RECORD
-#include "malloc_allocator.h"
+#include "sql_alloc.h"
+#include "sql_bitmap.h"
+#include "sql_const.h"
+#include "sql_list.h"
+#include "sql_string.h"
+#include "table.h"
+#include "typelib.h"
 
-#include <algorithm>
-#include <memory>
-
-class JOIN;
+class Item;
 class Item_sum;
+class JOIN;
 class Opt_trace_context;
+class THD;
 class Unique;
 
 typedef struct st_key_part {

@@ -26,27 +26,56 @@
 
 #include "sql_optimizer.h"
 
-#include "my_bit.h"              // my_count_bits
+#include <limits.h>
+#include <algorithm>
+#include <new>
+#include <utility>
+
 #include "abstract_query_plan.h" // Join_plan
+#include "binary_log_types.h"
+#include "check_stack.h"
 #include "debug_sync.h"          // DEBUG_SYNC
 #include "derror.h"              // ER_THD
+#include "enum_query_type.h"
+#include "ft_global.h"
+#include "handler.h"
+#include "item_cmpfunc.h"
+#include "item_func.h"
+#include "item_row.h"
 #include "item_sum.h"            // Item_sum
+#include "key.h"
 #include "lock.h"                // mysql_unlock_some_tables
+#include "m_ctype.h"
+#include "my_bit.h"              // my_count_bits
+#include "my_bitmap.h"
+#include "my_config.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql_com.h"
 #include "mysqld.h"              // stage_optimizing
+#include "mysqld_error.h"
+#include "opt_costmodel.h"
 #include "opt_explain.h"         // join_type_str
+#include "opt_hints.h"           // hint_table_state
 #include "opt_range.h"           // QUICK_SELECT_I
 #include "opt_trace.h"           // Opt_trace_object
+#include "opt_trace_context.h"
+#include "query_options.h"
+#include "query_result.h"
 #include "sql_base.h"            // init_ftfuncs
+#include "sql_bitmap.h"
 #include "sql_cache.h"           // query_cache
+#include "sql_const.h"
+#include "sql_error.h"
 #include "sql_join_buffer.h"     // JOIN_CACHE
-#include "sql_parse.h"           // check_stack_overrun
 #include "sql_planner.h"         // calculate_condition_filter
 #include "sql_resolver.h"        // subquery_allows_materialization
+#include "sql_string.h"
 #include "sql_test.h"            // print_where
 #include "sql_tmp_table.h"       // get_max_key_and_part_length
-#include "opt_hints.h"           // hint_table_state
+#include "system_variables.h"
+#include "thr_malloc.h"
 
-#include <algorithm>
 using std::max;
 using std::min;
 

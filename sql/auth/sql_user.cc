@@ -12,29 +12,58 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_parse.h"                  /* check_access */
-#include "rpl_filter.h"                 /* rpl_filter */
-#include "sql_base.h"                   /* MYSQL_LOCK_IGNORE_TIMEOUT */
-#include "sql_table.h"                  /* write_bin_log */
-#include "sql_plugin.h"                 /* lock_plugin_data etc. */
-#include "password.h"                   /* my_make_scrambled_password */
+#include <string.h>
+#include <sys/types.h>
+#include <set>
+
+#include "auth_acls.h"
+#include "auth_common.h"
+#include "handler.h"
+#include "hash.h"
+#include "item.h"
 #include "log_event.h"                  /* append_query_string */
-#include "key.h"                        /* key_copy, key_cmp_if_same */
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/plugin.h"
+#include "mysql/plugin_auth.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "password.h"                   /* my_make_scrambled_password */
+#include "protocol.h"
+#include "session_tracker.h"
+#include "sql_admin.h"
+#include "sql_class.h"
+#include "sql_connect.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_parse.h"                  /* check_access */
+#include "sql_plugin.h"                 /* lock_plugin_data etc. */
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table.h"
+#include "violite.h"
                                         /* key_restore */
 
 #include "auth_internal.h"
+#include "current_thd.h"
+#include "derror.h"                     /* ER_THD */
+#include "log.h"                        /* sql_print_warning */
+#include "mysqld.h"
+#include "prealloced_array.h"
 #include "sql_auth_cache.h"
 #include "sql_authentication.h"
-#include "role_tables.h"
 #include "sql_user_table.h"
-#include "prealloced_array.h"
-#include "tztime.h"
-#include "crypt_genhash_impl.h"         /* CRYPT_MAX_PASSWORD_SIZE */
-#include "derror.h"                     /* ER_THD */
-#include "mysqld.h"
-#include "log.h"                        /* sql_print_warning */
-
-#include "current_thd.h"
 
 /**
   Auxiliary function for constructing a  user list string.

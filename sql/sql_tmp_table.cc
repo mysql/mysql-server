@@ -20,24 +20,58 @@
 
 #include "sql_tmp_table.h"
 
-#include "myisam.h"               // MI_COLUMNDEF
+#include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <algorithm>
+#include <new>
+
+#include "auth_common.h"
+#include "binary_log_types.h"
+#include "current_thd.h"
 #include "debug_sync.h"           // DEBUG_SYNC
+#include "field.h"
 #include "filesort.h"             // filesort_free_buffers
+#include "handler.h"
 #include "item_func.h"            // Item_func
 #include "item_sum.h"             // Item_sum
+#include "key.h"
+#include "m_ctype.h"
+#include "m_string.h"
 #include "mem_root_array.h"       // Mem_root_array
+#include "my_bitmap.h"
+#include "my_compare.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "myisam.h"               // MI_COLUMNDEF
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
+#include "mysqld.h"               // heap_hton use_temp_pool
+#include "mysqld_error.h"
 #include "opt_range.h"            // QUICK_SELECT_I
 #include "opt_trace.h"            // Opt_trace_object
 #include "opt_trace_context.h"    // Opt_trace_context
 #include "psi_memory_key.h"
+#include "query_options.h"
 #include "sql_base.h"             // free_io_cache
+#include "sql_bitmap.h"
 #include "sql_class.h"            // THD
+#include "sql_const.h"
 #include "sql_executor.h"         // SJ_TMP_TABLE
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_plugin.h"           // plugin_unlock
-#include "current_thd.h"
-#include "mysqld.h"               // heap_hton use_temp_pool
-
-#include <algorithm>
+#include "sql_plugin_ref.h"
+#include "sql_servers.h"
+#include "system_variables.h"
+#include "temp_table_param.h"
+#include "template_utils.h"
+#include "thr_lock.h"
+#include "thr_malloc.h"
+#include "typelib.h"
 
 using std::max;
 using std::min;

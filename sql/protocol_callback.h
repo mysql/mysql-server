@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,8 +23,21 @@
 */
 
 
-#include "protocol.h"
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_command.h"
+#include "my_decimal.h"
+#include "my_global.h"
 #include "mysql/service_command.h"
+#include "protocol.h"
+#include "thr_malloc.h"
+#include "violite.h"
+
+class Proto_field;
+class Send_field;
+class String;
+union COM_DATA;
 
 class Protocol_callback : public Protocol
 {

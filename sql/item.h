@@ -16,16 +16,54 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "field.h"       // Derivation
-#include "my_decimal.h"  // my_decimal
-#include "parse_tree_node_base.h" // Parse_tree_node
-#include "sql_array.h"   // Bounds_checked_array
-#include "trigger_def.h" // enum_trigger_variable_type
-#include "table_trigger_field_support.h" // Table_trigger_field_support
-#include "mysql/service_parser.h"
+#include <float.h>
+#include <limits.h>
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+#include <new>
 
-class user_var_entry;
+#include "binary_log_types.h"
+#include "enum_query_type.h"
+#include "field.h"       // Derivation
+#include "handler.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_bitmap.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_decimal.h"  // my_decimal
+#include "my_global.h"
+#include "my_sys.h"
+#include "my_time.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "parse_tree_node_base.h" // Parse_tree_node
+#include "sql_alloc.h"
+#include "sql_array.h"   // Bounds_checked_array
+#include "sql_const.h"
+#include "sql_plugin_ref.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table.h"
+#include "table_trigger_field_support.h" // Table_trigger_field_support
+#include "template_utils.h"
+#include "thr_malloc.h"
+#include "trigger_def.h" // enum_trigger_variable_type
+#include "typelib.h"
+
+class Item;
+class Item_field;
 class Json_wrapper;
+class Protocol;
+class SELECT_LEX;
+class Security_context;
+class THD;
+class user_var_entry;
+template <class T> class List;
+template <class T> class List_iterator;
+template <typename T> class SQL_I_List;
 
 typedef Bounds_checked_array<Item*> Ref_item_array;
 
@@ -2509,6 +2547,7 @@ public:
 #define NO_CACHED_FIELD_INDEX ((uint)(-1))
 
 class SELECT_LEX;
+
 class Item_ident :public Item
 {
   typedef Item super;
@@ -2700,8 +2739,8 @@ public:
 };
 
 
-class Item_equal;
 class COND_EQUAL;
+class Item_equal;
 
 class Item_field :public Item_ident
 {
@@ -4266,6 +4305,7 @@ private:
 */
 
 class Item_sum;
+
 class Item_outer_ref :public Item_direct_ref
 {
 public:
@@ -5460,8 +5500,6 @@ public:
   }
 };
 
-
-class SELECT_LEX;
 
 extern Cached_item *new_Cached_item(THD *thd, Item *item,
                                     bool use_result_field);

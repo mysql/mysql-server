@@ -16,11 +16,25 @@
 #ifndef QUERY_RESULT_INCLUDED
 #define QUERY_RESULT_INCLUDED
 
-#include "my_global.h"
-#include "mysqld_error.h"       // ER_*
-#include "sql_lex.h"            // SELECT_LEX_UNIT
+#include <stddef.h>
+#include <sys/types.h>
 
+#include "item_create.h"
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"       // ER_*
+#include "sql_alloc.h"
+#include "sql_lex.h"            // SELECT_LEX_UNIT
+#include "sql_list.h"
+#include "sql_string.h"
+
+class Item;
+class Item_subselect;
 class JOIN;
+class PT_select_var;
 class THD;
 
 

@@ -22,45 +22,86 @@
 
 #include "item_func.h"
 
-#include "my_bit.h"              // my_count_bits
-#include "my_user.h"             // parse_user
+#include <string.h>
+#include <time.h>
+#include <algorithm>
+#include <cfloat>                // DBL_DIG
+#include <cmath>                 // std::log2
+#include <exception>             // std::exception subclasses
+#include <iosfwd>
+#include <memory>
+#include <new>
+#include <stdexcept>
+#include <string>
+
+#include "auth_acls.h"
 #include "auth_common.h"         // check_password_strength
 #include "binlog.h"              // mysql_bin_log
+#include "check_stack.h"
 #include "current_thd.h"         // current_thd
+#include "dd/info_schema/stats.h" // dd::info_schema::Statistics_cache
+#include "dd/object_id.h"
+#include "dd/properties.h"       // dd::Properties
 #include "dd_sql_view.h"         // push_view_warning_or_error
+#include "dd_table_share.h"      // dd_get_old_field_type
 #include "debug_sync.h"          // DEBUG_SYNC
 #include "derror.h"              // ER_THD
 #include "error_handler.h"       // Internal_error_handler
+#include "hash.h"
 #include "item_cmpfunc.h"        // get_datetime_value
+#include "item_create.h"
 #include "item_strfunc.h"        // Item_func_concat_ws
-#include <mysql/service_thd_wait.h>
+#include "json_dom.h"            // Json_wrapper
+#include "key.h"
+#include "log_event.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_bit.h"              // my_count_bits
+#include "my_bitmap.h"
+#include "my_psi_config.h"
+#include "my_sqlcommand.h"
+#include "my_thread.h"
+#include "my_user.h"             // parse_user
+#include "mysql/plugin.h"
+#include "mysql/plugin_audit.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/service_mysql_password_policy.h"
+#include "mysql/service_thd_wait.h"
 #include "mysqld.h"              // log_10 stage_user_sleep
 #include "parse_tree_helpers.h"  // PT_item_list
+#include "prealloced_array.h"
 #include "psi_memory_key.h"
 #include "query_result.h"        // sql_exchange
+#include "rpl_gtid.h"
 #include "rpl_mi.h"              // Master_info
 #include "rpl_msr.h"             // channel_map
 #include "rpl_rli.h"             // Relay_log_info
+#include "session_tracker.h"
 #include "sp.h"                  // sp_setup_routine
 #include "sp_head.h"             // sp_name
 #include "sql_audit.h"           // audit_global_variable
 #include "sql_base.h"            // Internal_error_handler_holder
+#include "sql_bitmap.h"
 #include "sql_class.h"           // THD
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_optimizer.h"       // JOIN
 #include "sql_parse.h"           // check_stack_overrun
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
 #include "sql_show.h"            // append_identifier
 #include "sql_time.h"            // TIME_from_longlong_packed
 #include "strfunc.h"             // find_type
-#include "dd/properties.h"       // dd::Properties
-#include "dd_table_share.h"      // dd_get_old_field_type
-#include "dd/info_schema/stats.h" // dd::info_schema::Statistics_cache
+#include "thr_mutex.h"
 #include "val_int_compare.h"     // Integer_value
-#include "json_dom.h"            // Json_wrapper
 
-#include <cfloat>                // DBL_DIG
-#include <cmath>                 // std::log2
-#include <exception>             // std::exception subclasses
-#include <functional>
+class Protocol;
+class sp_rcontext;
 
 using std::min;
 using std::max;

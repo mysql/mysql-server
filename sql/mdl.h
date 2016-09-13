@@ -15,19 +15,31 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_plist.h"
-#include <my_sys.h>
-#include <m_string.h>
-#include <mysql_com.h>
-
+#include <string.h>
+#include <sys/types.h>
 #include <algorithm>
+#include <new>
 
-class THD;
+#include "m_string.h"
+#include "my_alloc.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_psi_config.h"
+#include "mysql_com.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_rwlock.h"
+#include "mysql/psi/psi_stage.h"
+#include "my_sys.h"
+#include "sql_plist.h"
 
-struct MDL_key;
 class MDL_context;
 class MDL_lock;
 class MDL_ticket;
+class THD;
+struct MDL_key;
+
 typedef struct st_lf_pins LF_PINS;
 struct PSI_metadata_lock;
 

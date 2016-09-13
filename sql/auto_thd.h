@@ -16,7 +16,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #ifndef AUTO_THD_H
 #define AUTO_THD_H
 
+#include <sys/types.h>
+
 #include "error_handler.h"
+#include "my_compiler.h"
+#include "my_global.h"
+#include "sql_error.h"
 
 /**
   Self destroying THD.

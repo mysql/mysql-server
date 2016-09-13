@@ -16,18 +16,22 @@
 
 #include "spatial.h"
 
-#include "sql_string.h"                         // String
-#include "my_global.h"                          // REQUIRED for HAVE_* below
-#include "gstream.h"                            // Gis_read_stream
-#include "psi_memory_key.h"
-#include "gis_bg_traits.h"
-#include "mysqld_error.h"
-#include "prealloced_array.h"
-
 #include <cmath>                                // isfinite
 #include <map>
-#include <set>
+#include <memory>
+#include <new>
 #include <utility>
+
+#include "gis_bg_traits.h"
+#include "gstream.h"                            // Gis_read_stream
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_global.h"                          // REQUIRED for HAVE_* below
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "prealloced_array.h"
+#include "psi_memory_key.h"
+#include "sql_string.h"                         // String
 
 
 void *gis_wkb_alloc(size_t sz)

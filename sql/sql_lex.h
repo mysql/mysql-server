@@ -21,33 +21,82 @@
 #ifndef SQL_LEX_INCLUDED
 #define SQL_LEX_INCLUDED
 
-#include "my_global.h"
-#include "mem_root_array.h"           // Mem_root_array
-#include "prealloced_array.h"         // Prealloced_array
-#include "thr_lock.h"                 // thr_lock_type
-#include "violite.h"                  // SSL_type
+#include <string.h>
+#include <sys/types.h>
+#include <map>
+#include <new>
+#include <utility>
+
+#include "binary_log_types.h"
+#include "dd/info_schema/stats.h"     // dd::info_schema::Statistics_cache
+#include "enum_query_type.h"
+#include "field.h"
+#include "handler.h"
+#include "hash.h"
 #include "item.h"                     // Name_resolution_context
 #include "item_subselect.h"           // chooser_compare_func_creator
 #include "key_spec.h"                 // KEY_CREATE_INFO
 #include "lex_symbol.h"               // LEX_SYMBOL
+#include "m_string.h"
+#include "mdl.h"
+#include "mem_root_array.h"           // Mem_root_array
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "my_time.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql_com.h"
+#include "opt_hints.h"
+#include "parse_tree_hints.h"
 #include "parse_tree_node_base.h"     // enum_parsing_context
+#include "prealloced_array.h"         // Prealloced_array
 #include "query_options.h"            // OPTION_NO_CONST_TABLES
+#include "set_var.h"
+#include "sql_admin.h"
 #include "sql_alloc.h"                // Sql_alloc
-#include "sql_chars.h"
 #include "sql_alter.h"                // Alter_info
+#include "sql_array.h"
+#include "sql_chars.h"
 #include "sql_connect.h"              // USER_RESOURCES
+#include "sql_const.h"
 #include "sql_data_change.h"          // enum_duplicates
 #include "sql_get_diagnostics.h"      // Diagnostics_information
+#include "sql_list.h"
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
 #include "sql_servers.h"              // Server_options
 #include "sql_signal.h"               // enum_condition_item_name
+#include "sql_string.h"
 #include "table.h"                    // TABLE_LIST
+#include "thr_lock.h"                 // thr_lock_type
+#include "thr_malloc.h"
 #include "trigger_def.h"              // enum_trigger_action_time_type
-#include "dd/info_schema/stats.h"     // dd::info_schema::Statistics_cache
+#include "violite.h"                  // SSL_type
 #include "xa.h"                       // xa_option_words
-#include "select_lex_visitor.h"
-#include "parse_tree_hints.h"
-#include "sql_admin.h"
-#include <map>
+
+class Item_func_set_user_var;
+class Item_sum;
+class PT_base_index_option;
+class PT_column_attr_base;
+class PT_create_table_option;
+class PT_part_definition;
+class PT_part_value_item;
+class PT_part_value_item_list_paren;
+class PT_part_values;
+class PT_partition;
+class PT_partition_option;
+class PT_query_expression;
+class PT_subpartition;
+class PT_table_element;
+class PT_table_reference;
+class Protocol;
+class SELECT_LEX_UNIT;
+class Select_lex_visitor;
+class THD;
 
 #ifdef MYSQL_SERVER
 #include "item_create.h"              // Cast_target
@@ -56,30 +105,21 @@
 
 /* YACC and LEX Definitions */
 
-/* These may not be declared yet */
-class sql_exchange;
+class Event_parse_data;
+class Item_func;
+class Item_func_match;
+class Query_result_interceptor;
+class SELECT_LEX;
+class Sql_cmd;
+class partition_info;
 class sp_head;
 class sp_name;
-class sp_instr;
 class sp_pcontext;
-class st_alter_tablespace;
-class partition_info;
-class Event_parse_data;
-class set_var_base;
-class sys_var;
-class Item_func_match;
-class File_parser;
-class Key_part_spec;
-class Query_result_interceptor;
-class Item_func;
-class Sql_cmd;
-struct sql_digest_state;
+class sql_exchange;
 struct PSI_digest_locker;
-class SELECT_LEX;
+struct sql_digest_state;
 
 const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
-class Opt_hints_global;
-class Opt_hints_qb;
 
 enum class partition_type; // from partition_element.h
 enum class enum_key_algorithm; // from partition_info.h
@@ -153,6 +193,7 @@ struct sys_var_with_base
 
 #define YYSTYPE_IS_DECLARED 1
 union YYSTYPE;
+
 typedef YYSTYPE *LEX_YYSTYPE;
 
 // describe/explain types
@@ -547,11 +588,11 @@ public:
 */
 
 
-struct LEX;
-class THD;
-class Query_result;
 class JOIN;
+class Query_result;
 class Query_result_union;
+class THD;
+struct LEX;
 
 /**
   This class represents a query expression (one query block or

@@ -25,11 +25,29 @@
 
 #include "sql_join_buffer.h"
 
+#include <limits.h>
+#include <algorithm>
+
+#include "binary_log_types.h"
+#include "field.h"
+#include "item.h"
+#include "key.h"
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_dbug.h"
 #include "opt_trace.h"      // Opt_trace_object
 #include "psi_memory_key.h" // key_memory_JOIN_CACHE
+#include "records.h"
+#include "sql_bitmap.h"
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_opt_exec_shared.h"
 #include "sql_optimizer.h"  // JOIN
+#include "sql_select.h"
+#include "system_variables.h"
+#include "table.h"
+#include "thr_malloc.h"
 
-#include <algorithm>
 using std::max;
 using std::min;
 

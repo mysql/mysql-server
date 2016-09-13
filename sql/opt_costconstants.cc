@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,11 @@
 
 #include "opt_costconstants.h"
 
+#include "handler.h"
+#include "key.h"
+#include "m_ctype.h"
+#include "mysql/psi/psi_base.h"
+#include "sql_plugin_ref.h"
 #include "table.h"              // TABLE
 
 /**

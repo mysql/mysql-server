@@ -16,45 +16,74 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <string.h>
+#include <sys/types.h>
+
+#include "binary_log_types.h"
+#include "key.h"
+#include "m_ctype.h"
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "my_sys.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_table.h"
+#include "sql_alloc.h"
+#include "sql_const.h"
+#include "sql_list.h"
+#include "sql_plist.h"
+#include "sql_plugin_ref.h"
+#include "system_variables.h"
+#include "thr_lock.h"
+#include "typelib.h"
+
+class Field;
+class Item;
+class String;
+class THD;
+class partition_info;
+struct TABLE;
+struct TABLE_LIST;
+struct TABLE_SHARE;
 
 #ifndef MYSQL_CLIENT
 
-#include "hash.h"          // HASH
+#include "enum_query_type.h" // enum_query_type
 #include "handler.h"       // row_type
 #include "mdl.h"           // MDL_wait_for_subgraph
-#include "enum_query_type.h" // enum_query_type
 #include "opt_costmodel.h" // Cost_model_table
 #include "record_buffer.h" // Record_buffer
 #include "sql_bitmap.h"    // Bitmap
 #include "sql_sort.h"      // Filesort_info
 #include "table_id.h"      // Table_id
 
-/* Structs that defines the TABLE */
-class File_parser;
-class Item_subselect;
-class Item_field;
-class GRANT_TABLE;
-class SELECT_LEX_UNIT;
-class COND_EQUAL;
-class Security_context;
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
+class COND_EQUAL;
+/* Structs that defines the TABLE */
+class File_parser;
+class GRANT_TABLE;
+class Index_hint;
+class Item_field;
+class Query_result_union;
+class SELECT_LEX_UNIT;
+class Security_context;
 class Table_cache_element;
 class Table_trigger_dispatcher;
-class QEP_TAB;
-class Query_result_union;
 class Temp_table_param;
-class Index_hint;
-struct Name_resolution_context;
 struct LEX;
+
 typedef int8 plan_idx;
 class Opt_hints_qb;
 class Opt_hints_table;
 class SELECT_LEX;
+
 namespace dd {
   class Table;
   class View;
+
   enum class enum_table_type;
 }
 

@@ -15,16 +15,40 @@
 
 #include "sql_audit.h"
 
+#include <sys/types.h>
+
 #include "auto_thd.h"                           // Auto_THD
+#include "check_stack.h"
 #include "current_thd.h"
-#include "log.h"
 #include "error_handler.h"                      // Internal_error_handler
+#include "key.h"
+#include "log.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_psi_config.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/plugin.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_mutex.h"
 #include "mysqld.h"                             // sql_statement_names
+#include "mysqld_error.h"
+#include "prealloced_array.h"
+#include "probes_mysql.h"                       // IWYU pragma: keep
+#include "sql_chars.h"
 #include "sql_class.h"                          // THD
-#include "sql_thd_internal_api.h"               // create_thd / destroy_thd
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
 #include "sql_plugin.h"                         // my_plugin_foreach
+#include "sql_plugin_ref.h"
 #include "sql_rewrite.h"                        // mysql_rewrite_query
-#include "sql_parse.h"                          // check_stack_overrun
+#include "sql_string.h"
+#include "table.h"
+#include "thr_mutex.h"
+#include "violite.h"
 
 /**
   @class Audit_error_handler

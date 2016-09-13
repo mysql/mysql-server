@@ -15,6 +15,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
 #include "rwlock_scoped_lock.h"
 
+#include <stddef.h>
+
 /**
   Acquires lock on specified lock object.
   The lock may be NULL, in which case this is a no-op.
