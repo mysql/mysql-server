@@ -1539,7 +1539,7 @@ TESTCASE("bug#23048816",
   INITIALIZER(runLoadTable);
   TC_PROPERTY("ErrorCode", 17531);
   TC_PROPERTY("AcceptError", 20006);
-  STEPS(runJoin, 2);
+  STEP(runJoin);
   FINALIZER(runClearTable);
 }
 TESTCASE("LookupJoinError", ""){
