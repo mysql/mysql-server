@@ -48,7 +48,7 @@
 #include "sql_db.h"                         // get_default_db_collation
 #include "sql_optimizer.h"                  // JOIN
 #include "sql_parse.h"                      // command_name
-#include "sql_plugin.h"                     // PLUGIN_IS_DELTED
+#include "sql_plugin.h"                     // PLUGIN_IS_DELETED, LOCK_plugin
 #include "sql_table.h"                      // filename_to_tablename
 #include "sql_time.h"                       // interval_type_to_name
 #include "sql_tmp_table.h"                  // create_tmp_table
@@ -273,6 +273,19 @@ static my_bool show_plugins(THD *thd, plugin_ref plugin,
 
   restore_record(table, s->default_values);
 
+  DBUG_EXECUTE_IF("set_uninstall_sync_point",
+                  {
+                    if (strcmp(plugin_name(plugin)->str, "EXAMPLE") == 0)
+                      DEBUG_SYNC(thd, "before_store_plugin_name");
+                  });
+
+  mysql_mutex_lock(&LOCK_plugin);
+  if (plugin == nullptr || plugin_state(plugin) == PLUGIN_IS_FREED)
+  {
+    mysql_mutex_unlock(&LOCK_plugin);
+    return FALSE;
+  }
+
   table->field[0]->store(plugin_name(plugin)->str,
                          plugin_name(plugin)->length, cs);
 
@@ -359,6 +372,7 @@ static my_bool show_plugins(THD *thd, plugin_ref plugin,
     global_plugin_typelib_names[plugin_load_option(plugin)],
     strlen(global_plugin_typelib_names[plugin_load_option(plugin)]),
     cs);
+  mysql_mutex_unlock(&LOCK_plugin);
 
   return schema_table_store_record(thd, table);
 }

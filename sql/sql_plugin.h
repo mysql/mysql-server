@@ -37,6 +37,7 @@ typedef struct st_mysql_lex_string LEX_STRING;
 
 
 extern const char *global_plugin_typelib_names[];
+extern mysql_mutex_t LOCK_plugin;
 extern mysql_mutex_t LOCK_plugin_delete;
 
 #ifdef DBUG_OFF
