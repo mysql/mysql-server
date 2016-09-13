@@ -2164,6 +2164,7 @@ INCLUDE_FILE_PATTERNS  =
 
 PREDEFINED             = WITH_PERFSCHEMA_STORAGE_ENGINE \
                          IN_DOXYGEN \
+                         __cplusplus \
                          HAVE_REPLICATION \
                          HAVE_COMPRESS \
                          HAVE_MYSYS \

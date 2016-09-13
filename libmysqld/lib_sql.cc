@@ -660,7 +660,8 @@ int init_embedded_server(int argc, char **argv, char **groups)
                                          & psi_statement_hook,
                                          & psi_transaction_hook,
                                          & psi_memory_hook,
-                                         & psi_error_hook);
+                                         & psi_error_hook,
+                                         & psi_data_lock_hook);
   }
   initialize_performance_schema_acl(opt_initialize);
   if (! opt_initialize)

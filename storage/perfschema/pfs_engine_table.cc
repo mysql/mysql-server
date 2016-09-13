@@ -107,6 +107,8 @@
 #include "table_prepared_stmt_instances.h"
 
 #include "table_md_locks.h"
+#include "table_data_locks.h"
+#include "table_data_lock_waits.h"
 #include "table_table_handles.h"
 
 #include "table_uvar_by_thread.h"
@@ -630,6 +632,8 @@ static PFS_engine_table_share *all_shares[]=
   &table_mems_by_user_by_event_name::m_share,
   &table_table_handles::m_share,
   &table_metadata_locks::m_share,
+  &table_data_locks::m_share,
+  &table_data_lock_waits::m_share,
 
   &table_replication_connection_configuration::m_share,
   &table_replication_group_members::m_share,
@@ -1015,6 +1019,28 @@ void PFS_engine_table::set_field_varchar_utf8(Field *f, const char* str,
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
   Field_varstring *f2= (Field_varstring*) f;
   f2->store(str, len, &my_charset_utf8_bin);
+}
+
+void PFS_engine_table::set_field_varchar_utf8mb4(Field *f, const char* str,
+                                                 uint len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
+  Field_varstring *f2= (Field_varstring*) f;
+  f2->store(str, len, &my_charset_utf8mb4_bin);
+}
+
+void PFS_engine_table::set_field_varchar_utf8(Field *f, const char* str)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
+  Field_varstring *f2= (Field_varstring*) f;
+  f2->store(str, strlen(str), &my_charset_utf8_bin);
+}
+
+void PFS_engine_table::set_field_varchar_utf8mb4(Field *f, const char* str)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
+  Field_varstring *f2= (Field_varstring*) f;
+  f2->store(str, strlen(str), &my_charset_utf8mb4_bin);
 }
 
 void PFS_engine_table::set_field_longtext_utf8(Field *f, const char* str,

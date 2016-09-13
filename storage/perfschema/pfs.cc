@@ -58,6 +58,7 @@
 #include "pfs_program.h"
 #include "pfs_prepared_stmt.h"
 #include "pfs_error.h"
+#include "pfs_data_lock.h"
 
 /*
   Exporting cmake compilation flags to doxygen,
@@ -82,6 +83,7 @@
 #define DISABLE_PSI_IDLE
 #define DISABLE_PSI_METADATA
 #define DISABLE_PSI_TRANSACTION
+#define DISABLE_PSI_DATA_LOCK
 #endif /* IN_DOXYGEN */
 
 /*
@@ -385,6 +387,8 @@ static void report_memory_accounting_error(
   @subpage PAGE_PFS_PSI
 
   @subpage PAGE_PFS_AGGREGATES
+
+  @subpage PAGE_PFS_DATA_LOCKS
 
   @subpage PAGE_PFS_NEW_TABLE
 */
@@ -6571,6 +6575,27 @@ int pfs_set_thread_connect_attrs_v1(const char *buffer, uint length,
   return 0;
 }
 
+/**
+  Implementation of the get event id interface
+  @sa PSI_v1::get_thread_event_id.
+*/
+void pfs_get_thread_event_id_v1(ulonglong *internal_thread_id,
+                                ulonglong *event_id)
+{
+  PFS_thread *pfs= my_thread_get_THR_PFS();
+
+  if (pfs != NULL)
+  {
+    *internal_thread_id= pfs->m_thread_internal_id;
+    *event_id= pfs->m_event_id;
+  }
+  else
+  {
+    *internal_thread_id= 0;
+    *event_id= 0;
+  }
+}
+
 void pfs_register_memory_v1(const char *category,
                             PSI_memory_info_v1 *info,
                             int count)
@@ -7127,6 +7152,32 @@ void pfs_log_error_v1(uint error_num, PSI_error_operation error_operation)
   stat->aggregate_count(error_stat_index, error_operation);
 }
 
+void pfs_register_data_lock_v1(PSI_engine_data_lock_inspector *inspector)
+{
+  DBUG_ASSERT(g_data_lock_inspector_count < COUNT_DATA_LOCK_ENGINES);
+
+  g_data_lock_inspector[g_data_lock_inspector_count]= inspector;
+  g_data_lock_inspector_count++;
+}
+
+void pfs_unregister_data_lock_v1(PSI_engine_data_lock_inspector * /* inspector */)
+{
+  /*
+    This code is not used yet, because:
+    - there is only one engine exposing data locks (innodb)
+    - the innodb engine is never unloaded.
+  */
+  DBUG_ASSERT(false);
+
+#ifdef LATER
+  for (unsigned int i=0; i < COUNT_DATA_LOCK_ENGINES; i++)
+  {
+    if (g_data_lock_inspector[i] == inspector)
+      g_data_lock_inspector[i]= NULL;
+  }
+#endif
+}
+
 /**
   Implementation of the instrumentation interface.
   @sa PSI_thread_service_v1
@@ -7151,7 +7202,8 @@ PSI_thread_service_v1 pfs_thread_service_v1=
   pfs_set_thread_v1,
   pfs_delete_current_thread_v1,
   pfs_delete_thread_v1,
-  pfs_set_thread_connect_attrs_v1
+  pfs_set_thread_connect_attrs_v1,
+  pfs_get_thread_event_id_v1
 };
 
 PSI_mutex_service_v1 pfs_mutex_service_v1=
@@ -7320,6 +7372,12 @@ PSI_error_service_v1 pfs_error_service_v1=
   pfs_log_error_v1
 };
 
+PSI_data_lock_service_v1 pfs_data_lock_service_v1=
+{
+  pfs_register_data_lock_v1,
+  pfs_unregister_data_lock_v1
+};
+
 static void* get_thread_interface(int version)
 {
   switch (version)
@@ -7474,6 +7532,17 @@ static void* get_error_interface(int version)
   }
 }
 
+static void* get_data_lock_interface(int version)
+{
+  switch (version)
+  {
+  case PSI_DATA_LOCK_VERSION_1:
+    return &pfs_data_lock_service_v1;
+  default:
+    return NULL;
+  }
+}
+
 C_MODE_END
 
 struct PSI_thread_bootstrap pfs_thread_bootstrap=
@@ -7545,3 +7614,9 @@ struct PSI_error_bootstrap pfs_error_bootstrap=
 {
   get_error_interface
 };
+
+struct PSI_data_lock_bootstrap pfs_data_lock_bootstrap=
+{
+  get_data_lock_interface
+};
+

@@ -45,6 +45,7 @@ static void test_oom()
   PSI_transaction_bootstrap *transaction_boot;
   PSI_memory_bootstrap *memory_boot;
   PSI_error_bootstrap *error_boot;
+  PSI_data_lock_bootstrap *data_lock_boot;
 
   memset(& param, 0xFF, sizeof(param));
   param.m_enabled= true;
@@ -99,8 +100,7 @@ static void test_oom()
                                     & cond_boot, & file_boot, & socket_boot,
                                     & table_boot, & mdl_boot, & idle_boot,
                                     & stage_boot, & statement_boot, & transaction_boot,
-                                    & memory_boot,
-                                    & error_boot);
+                                    & memory_boot, & error_boot, & data_lock_boot);
   ok(rc == 0, "init ok");
   thread_service= (PSI_thread_service_t *)thread_boot->get_interface(PSI_THREAD_VERSION_1);
 
@@ -151,7 +151,7 @@ static void do_all_tests()
 
 int main(int, char **)
 {
-  plan(6);
+  plan(7);
   MY_INIT("pfs_user-oom-t");
   do_all_tests();
   return 0;

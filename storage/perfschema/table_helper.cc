@@ -1093,6 +1093,12 @@ bool PFS_key_thread_id::match_writer(const PFS_rwlock *pfs)
   return do_match(false, thread->m_thread_internal_id);
 }
 
+bool PFS_key_event_id::match(ulonglong event_id)
+{
+  bool record_null= (event_id == 0);
+  return do_match(record_null, event_id);
+}
+
 bool PFS_key_event_id::match(const PFS_events *pfs)
 {
   bool record_null= (pfs->m_event_id == 0);
@@ -1133,6 +1139,11 @@ bool PFS_key_processlist_id_int::match(const PFS_thread *pfs)
 {
   bool record_null= (pfs->m_processlist_id == 0);
   return do_match(record_null, pfs->m_processlist_id);
+}
+
+bool PFS_key_engine_transaction_id::match(ulonglong engine_transaction_id)
+{
+  return do_match(false, engine_transaction_id);
 }
 
 bool PFS_key_thread_os_id::match(const PFS_thread *pfs)
@@ -1417,6 +1428,16 @@ bool PFS_key_variable_name::match(const PFS_variable_name_row *pfs)
 {
   bool record_null= (pfs->m_length == 0);
   return do_match(record_null, pfs->m_str, pfs->m_length);
+}
+
+bool PFS_key_engine_name::match(const char* engine_name, size_t length)
+{
+  return do_match(false, engine_name, length);
+}
+
+bool PFS_key_engine_lock_id::match(const char* engine_lock_id, size_t length)
+{
+  return do_match(false, engine_lock_id, length);
 }
 
 bool PFS_key_ip::match(const PFS_socket *pfs)

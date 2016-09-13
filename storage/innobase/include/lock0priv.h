@@ -130,6 +130,11 @@ struct lock_t {
 					LOCK_INSERT_INTENTION,
 					wait flag, ORed */
 
+	/** Performance schema thread that created the lock. */
+	ulonglong m_psi_internal_thread_id;
+	/** Performance schema event that created the lock. */
+	ulonglong m_psi_event_id;
+
 	/** Determine if the lock object is a record lock.
 	@return true if record lock, false otherwise. */
 	bool is_record_lock() const

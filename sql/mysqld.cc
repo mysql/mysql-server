@@ -176,6 +176,7 @@
 
   See #ha_innobase.
 
+  @subpage PAGE_INNODB_PFS
 */
 
 
@@ -4986,7 +4987,8 @@ int mysqld_main(int argc, char **argv)
                                             & psi_statement_hook,
                                             & psi_transaction_hook,
                                             & psi_memory_hook,
-                                            & psi_error_hook);
+                                            & psi_error_hook,
+                                            & psi_data_lock_hook);
       if ((pfs_rc != 0) && pfs_param.m_enabled)
       {
         pfs_param.m_enabled= false;
@@ -5149,6 +5151,16 @@ int mysqld_main(int argc, char **argv)
     if (service != NULL)
     {
       set_psi_error_service(service);
+    }
+  }
+
+  if (psi_data_lock_hook != NULL)
+  {
+    PSI_data_lock_service_t *service;
+    service= (PSI_data_lock_service_t*) psi_data_lock_hook->get_interface(PSI_CURRENT_DATA_LOCK_VERSION);
+    if (service != NULL)
+    {
+      set_psi_data_lock_service(service);
     }
   }
 

@@ -99,6 +99,10 @@
 #define DISABLE_PSI_TRANSACTION
 #endif
 
+#ifndef DISABLE_PSI_DATA_LOCK
+#define DISABLE_PSI_DATA_LOCK
+#endif
+
 #endif /* EMBEDDED_LIBRARY */
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
@@ -130,6 +134,7 @@
   @sa DISABLE_PSI_IDLE
   @sa DISABLE_PSI_METADATA
   @sa DISABLE_PSI_TRANSACTION
+  @sa DISABLE_PSI_DATA_LOCK
 */
 
 #ifndef DISABLE_PSI_MUTEX
@@ -298,6 +303,16 @@
 #ifndef DISABLE_PSI_METADATA
 #define HAVE_PSI_METADATA_INTERFACE
 #endif /* DISABLE_PSI_METADATA */
+
+/**
+  @def DISABLE_PSI_DATA_LOCK
+  Compiling option to disable the data lock instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+
+#ifndef DISABLE_PSI_DATA_LOCK
+#define HAVE_PSI_DATA_LOCK_INTERFACE
+#endif /* DISABLE_PSI_DATA_LOCK */
 
 #endif /* HAVE_PSI_INTERFACE */
 

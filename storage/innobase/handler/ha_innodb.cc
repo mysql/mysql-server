@@ -124,6 +124,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "ha_innodb.h"
 #include "i_s.h"
+#include "p_s.h"
+#include "mysql/psi/mysql_data_lock.h"
 #include "sync0sync.h"
 /* for ha_innopart, Native InnoDB Partitioning. */
 #include "ha_innopart.h"
@@ -4215,6 +4217,9 @@ innodb_init(
 
 	count = array_elements(all_innodb_conds);
 	mysql_cond_register("innodb", all_innodb_conds, count);
+
+	mysql_data_lock_register(Innodb_data_lock_inspector::m_singleton);
+
 #endif /* HAVE_PSI_INTERFACE */
 
 	if (int error = innodb_init_params()) {
@@ -20715,8 +20720,6 @@ mysql_declare_plugin(innobase)
   0,    /* flags */
 },
 i_s_innodb_trx,
-i_s_innodb_locks,
-i_s_innodb_lock_waits,
 i_s_innodb_cmp,
 i_s_innodb_cmp_reset,
 i_s_innodb_cmpmem,
