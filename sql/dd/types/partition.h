@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -112,8 +112,8 @@ public:
   // se_private_id.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong se_private_id() const = 0;
-  virtual void set_se_private_id(ulonglong se_private_id) = 0;
+  virtual Object_id se_private_id() const = 0;
+  virtual void set_se_private_id(Object_id se_private_id) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Tablespace.

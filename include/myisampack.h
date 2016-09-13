@@ -1,7 +1,7 @@
 #ifndef MYISAMPACK_INCLUDED
 #define MYISAMPACK_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,8 @@
 */
 
 /* these two are for uniformity */
+
+#include "my_global.h"
 
 static inline int8 mi_sint1korr(const uchar *A)
 {

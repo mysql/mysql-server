@@ -871,10 +871,12 @@ DROP TABLE t1;
 # precedence
 
 CREATE TABLE t1(c1 VARCHAR(33), KEY USING BTREE (c1) USING HASH) ENGINE=MEMORY;
+ANALYZE TABLE t1;
 SHOW INDEX FROM t1;
 DROP TABLE t1;
 
 CREATE TABLE t1(c1 VARCHAR(33), KEY USING HASH (c1) USING BTREE) ENGINE=MEMORY;
+ANALYZE TABLE t1;
 SHOW INDEX FROM t1;
 DROP TABLE t1;
 
@@ -974,7 +976,6 @@ USE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 --error ER_TOO_LONG_IDENT
 SHOW CREATE DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
 
-#
 # Bug#21432 Database/Table name limited to 64 bytes, not chars, problems with multi-byte
 #
 set names utf8;
@@ -1002,16 +1003,16 @@ from имя_таблицы_в_кодировке_утф8_длиной_больш
 select * from имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48;
 
 select TABLE_NAME from information_schema.tables where
-table_schema='test';
+table_schema='test' order by TABLE_NAME;
 
 select COLUMN_NAME from information_schema.columns where
-table_schema='test';
+table_schema='test' order by COLUMN_NAME;
 
 select INDEX_NAME from information_schema.statistics where
-table_schema='test';
+table_schema='test' order by INDEX_NAME;
 
 select TABLE_NAME from information_schema.views where
-table_schema='test';
+table_schema='test' order by TABLE_NAME;
 
 show create table имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48;
 show create view имя_вью_кодировке_утф8_длиной_больше_чем_42;
@@ -1078,7 +1079,7 @@ create table t2 as select f1() from t1;
 drop table t1,t2;
 drop function f1;
 
-#
+# WL6599_CREATE_LIKE_IS_VIEW
 # Bug#25629 CREATE TABLE LIKE does not work with INFORMATION_SCHEMA
 #
 create table t1 like information_schema.processlist;
@@ -1089,7 +1090,9 @@ create temporary table t1 like information_schema.processlist;
 --replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
 show create table t1;
 drop table t1;
-create table t1 like information_schema.character_sets;
+# See WL6599 HLS/6g on why "CREATE LIKE " is not allowed on I_S system
+# views. We use 'CREATE .. AS SELECT * FROM <I_S table>' now.
+create table t1 as select * from information_schema.character_sets;
 show create table t1;
 drop table t1;
 

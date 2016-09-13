@@ -737,9 +737,7 @@ DROP USER no_user@localhost, user3@localhost,
 no_user1@localhost, user2@localhost,
 no_user2@localhost;
 ERROR HY000: Operation DROP USER failed for 'no_user'@'localhost','no_user1'@'localhost','no_user2'@'localhost'
-SHOW WARNINGS;
-Level	Code	Message
-Error	1396	Operation DROP USER failed for 'no_user'@'localhost','no_user1'@'localhost','no_user2'@'localhost'
+DROP USER user2@localhost, user3@localhost;
 SELECT user, host FROM mysql.user where user like 'user%';
 user	host
 
@@ -769,38 +767,38 @@ Level	Code	Message
 Error	1396	Operation RENAME USER failed for 'no_user'@'localhost'
 SELECT user, host FROM mysql.user where user like 'user%';
 user	host
-user6	localhost
+user3	localhost
 CREATE user user7@localhost;
 RENAME USER user6@localhost TO temp_user@localhost,
 user7@localhost TO user4@localhost,
 no_user@localhost TO no_user1@localhost,
 temp_user@localhost to user7@localhost;
-ERROR HY000: Operation RENAME USER failed for 'no_user'@'localhost'
+ERROR HY000: Operation RENAME USER failed for 'user6'@'localhost','no_user'@'localhost','temp_user'@'localhost'
 SHOW WARNINGS;
 Level	Code	Message
-Error	1396	Operation RENAME USER failed for 'no_user'@'localhost'
+Error	1396	Operation RENAME USER failed for 'user6'@'localhost','no_user'@'localhost','temp_user'@'localhost'
 SELECT user, host FROM mysql.user where user like 'user%';
 user	host
-user4	localhost
+user3	localhost
 user7	localhost
 RENAME USER no_user@localhost TO user7@localhost,
 user7@localhost TO user8@localhost,
 no_user1@localhost TO user11@localhost,
 user4@localhost TO user7@localhost,
 no_user2@localhost TO user12@localhost;
-ERROR HY000: Operation RENAME USER failed for 'no_user'@'localhost','no_user1'@'localhost','no_user2'@'localhost'
+ERROR HY000: Operation RENAME USER failed for 'no_user'@'localhost','no_user1'@'localhost','user4'@'localhost','no_user2'@'localhost'
 SHOW WARNINGS;
 Level	Code	Message
-Error	1396	Operation RENAME USER failed for 'no_user'@'localhost','no_user1'@'localhost','no_user2'@'localhost'
+Error	1396	Operation RENAME USER failed for 'no_user'@'localhost','no_user1'@'localhost','user4'@'localhost','no_user2'@'localhost'
 SELECT user, host FROM mysql.user where user like 'user%';
 user	host
+user3	localhost
 user7	localhost
-user8	localhost
 SET debug="+d,wl7158_handle_grant_table_1";
 RENAME USER user7@localhost TO user7_1@localhost;
 ERROR HY000: The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SET debug="-d,wl7158_handle_grant_table_1";
-DROP USER user7@localhost, user8@localhost;
+DROP USER user7@localhost;
 
 ####################################################################
 # C.3. Tests for 'CREATE USER' statement
@@ -809,16 +807,15 @@ CREATE USER user2@localhost;
 CREATE USER user2@localhost;
 ERROR HY000: Operation CREATE USER failed for 'user2'@'localhost'
 CREATE USER user3@localhost, user2@localhost, user4@localhost;
-ERROR HY000: Operation CREATE USER failed for 'user2'@'localhost'
+ERROR HY000: Operation CREATE USER failed for 'user3'@'localhost','user2'@'localhost'
 SHOW WARNINGS;
 Level	Code	Message
-Error	1396	Operation CREATE USER failed for 'user2'@'localhost'
+Error	1396	Operation CREATE USER failed for 'user3'@'localhost','user2'@'localhost'
 SELECT user, host FROM mysql.user where user like 'user%';
 user	host
 user2	localhost
 user3	localhost
-user4	localhost
-DROP USER user2@localhost, user3@localhost, user4@localhost;
+DROP USER user2@localhost, user3@localhost;
 
 ####################################################################
 # C.4. Tests for 'ALTER USER' statement
@@ -837,7 +834,7 @@ Level	Code	Message
 Error	1396	Operation ALTER USER failed for 'u3'@'l','u4'@'l'
 SELECT user, password_lifetime FROM mysql.user WHERE user LIKE 'u_';
 user	password_lifetime
-u2	7
+u2	5
 DROP USER u2@l;
 
 ####################################################################
@@ -875,13 +872,6 @@ Error	1133	Can't find any matching row in the user table
 SELECT user, column_name, column_priv FROM mysql.columns_priv;
 user	column_name	column_priv
 u1	a	Select
-u1	b	Select
-u3	a	Select
-u3	b	Select
-REVOKE SELECT(b) ON t1 FROM u1@h, u3@h;
-SELECT user, column_name, column_priv FROM mysql.columns_priv;
-user	column_name	column_priv
-u1	a	Select
 u3	a	Select
 
 # GRANT on non existing column for u1@h;
@@ -898,28 +888,36 @@ REVOKE SELECT(a) ON t1 FROM u0@h, u1@h, u2@h, u3@h;
 ERROR 42000: There is no such grant defined for user 'u0' on host 'h'
 SELECT user, column_name, column_priv FROM mysql.columns_priv;
 user	column_name	column_priv
+u1	a	Select
+u3	a	Select
 
 GRANT SELECT(a) ON t1 TO u1@h;
 SELECT user, column_name, column_priv FROM mysql.columns_priv;
 user	column_name	column_priv
 u1	a	Select
+u3	a	Select
 
 # REVOKE with existing and non existing column
 REVOKE SELECT(a), SELECT(b) ON t1 FROM u1@h;
 ERROR 42000: There is no such grant defined for user 'u1' on host 'h' on table 't1'
 SELECT user, column_name, column_priv FROM mysql.columns_priv;
 user	column_name	column_priv
+u1	a	Select
+u3	a	Select
 
 GRANT SELECT(a) ON t1 TO u1@h;
 SELECT user, column_name, column_priv FROM mysql.columns_priv;
 user	column_name	column_priv
 u1	a	Select
+u3	a	Select
 
 # REVOKE with existing, non existing column / user.
 REVOKE SELECT(a),SELECT(c) ON t1 FROM u1@h;
 ERROR 42000: There is no such grant defined for user 'u1' on host 'h' on table 't1'
 SELECT user, column_name, column_priv FROM mysql.columns_priv;
 user	column_name	column_priv
+u1	a	Select
+u3	a	Select
 
 DROP USER u1@h, u3@h;
 DROP TABLE t1;
@@ -1529,7 +1527,7 @@ WHERE table_schema = 'mysql' AND
 table_name IN ('user', 'db', 'columns_priv', 'procs_priv',
 'proxies_priv', 'tables_priv')
 ORDER BY table_name;
-table_name	engine
+TABLE_NAME	ENGINE
 columns_priv	MyISAM
 db	MyISAM
 procs_priv	MyISAM
@@ -1750,7 +1748,7 @@ WHERE table_schema = 'mysql' AND
 table_name IN ('user', 'db', 'columns_priv', 'procs_priv',
 'proxies_priv', 'tables_priv')
 ORDER BY table_name;
-table_name	engine
+TABLE_NAME	ENGINE
 columns_priv	MyISAM
 db	MyISAM
 procs_priv	MyISAM
@@ -1800,7 +1798,6 @@ mysql.time_zone_leap_second                        OK
 mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
-mysql.triggers                                     OK
 mysql.user                                         OK
 mysql.user_bak                                     OK
 The sys schema is already up to date (version 1.5.1).
@@ -1823,7 +1820,7 @@ WHERE table_schema = 'mysql' AND
 table_name IN ('user', 'db', 'columns_priv', 'procs_priv',
 'proxies_priv', 'tables_priv')
 ORDER BY table_name;
-table_name	engine
+TABLE_NAME	ENGINE
 columns_priv	InnoDB
 db	InnoDB
 procs_priv	InnoDB
@@ -1845,7 +1842,7 @@ WHERE table_schema = 'mysql' AND
 table_name IN ('user', 'db', 'columns_priv', 'procs_priv',
 'proxies_priv', 'tables_priv')
 ORDER BY table_name;
-table_name	engine
+TABLE_NAME	ENGINE
 columns_priv	MyISAM
 db	MyISAM
 procs_priv	MyISAM

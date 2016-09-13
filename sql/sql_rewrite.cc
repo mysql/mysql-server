@@ -75,6 +75,7 @@
 #include "sql_parse.h"      // get_current_user
 #include "sql_show.h"       // append_identifier
 #include "sql_string.h"     // String
+#include "log_event.h"      // append_query_string
 
 
 /**
@@ -243,12 +244,15 @@ void mysql_rewrite_grant(THD *thd, String *rlb)
   LEX        *lex= thd->lex;
   TABLE_LIST *first_table= lex->select_lex->table_list.first;
   bool        comma= FALSE, comma_inner;
+  bool        proxy_grant= lex->type == TYPE_ENUM_PROXY;
   String      cols(1024);
   int         c;
 
   rlb->append(STRING_WITH_LEN("GRANT "));
 
-  if (lex->all_privileges)
+  if (proxy_grant)
+    rlb->append(STRING_WITH_LEN("PROXY"));
+  else if (lex->all_privileges)
     rlb->append(STRING_WITH_LEN("ALL PRIVILEGES"));
   else
   {
@@ -301,12 +305,23 @@ void mysql_rewrite_grant(THD *thd, String *rlb)
   rlb->append(STRING_WITH_LEN(" ON "));
   switch(lex->type)
   {
-  case TYPE_ENUM_PROCEDURE: rlb->append(STRING_WITH_LEN("PROCEDURE ")); break;
-  case TYPE_ENUM_FUNCTION:  rlb->append(STRING_WITH_LEN("FUNCTION "));  break;
-  default:                                                              break;
+    case TYPE_ENUM_PROCEDURE: rlb->append(STRING_WITH_LEN("PROCEDURE ")); break;
+    case TYPE_ENUM_FUNCTION:  rlb->append(STRING_WITH_LEN("FUNCTION "));  break;
+    default:                                                              break;
   }
 
-  if (first_table)
+  LEX_USER *user_name, *tmp_user_name;
+  List_iterator <LEX_USER> user_list(lex->users_list);
+  comma= FALSE;
+
+  if (proxy_grant)
+  {
+    tmp_user_name= user_list++;
+    user_name= get_current_user(thd, tmp_user_name);
+    if (user_name)
+      append_user_new(thd, rlb, user_name, comma);
+  }
+  else if (first_table)
   {
     if (first_table->is_view())
     {
@@ -335,21 +350,16 @@ void mysql_rewrite_grant(THD *thd, String *rlb)
   }
 
   rlb->append(STRING_WITH_LEN(" TO "));
-  {
-    LEX_USER *user_name, *tmp_user_name;
-    List_iterator <LEX_USER> user_list(lex->users_list);
-    bool comma= FALSE;
 
-    while ((tmp_user_name= user_list++))
+  while ((tmp_user_name= user_list++))
+  {
+    if ((user_name= get_current_user(thd, tmp_user_name)))
     {
-      if ((user_name= get_current_user(thd, tmp_user_name)))
-      {
-        if (opt_log_builtin_as_identified_by_password)
-          append_user(thd, rlb, user_name, comma, true);
-        else
-          append_user_new(thd, rlb, user_name, comma);
-        comma= TRUE;
-      }
+      if (opt_log_builtin_as_identified_by_password)
+        append_user(thd, rlb, user_name, comma, true);
+      else
+        append_user_new(thd, rlb, user_name, comma);
+      comma= TRUE;
     }
   }
   rewrite_ssl_properties(lex, rlb);
@@ -380,6 +390,62 @@ static void mysql_rewrite_set(THD *thd, String *rlb)
   }
 }
 
+
+/**
+  Rewrite SET PASSWORD for binary log
+
+  @param thd         The THD to rewrite for.
+  @param rlb         An empty string object to put rewritten query in.
+  @param users       List of users
+  @param for_binlog  Whether rewrite is for binlog or not
+*/
+void mysql_rewrite_set_password(THD *thd, String *rlb,
+                                std::set<LEX_USER *> *users,
+                                bool for_binlog) /* = false */
+{
+  if (!for_binlog)
+    mysql_rewrite_set(thd, rlb);
+  else
+  {
+    if (users->size())
+    {
+      /* SET PASSWORD should always have one user */
+      DBUG_ASSERT(users->size() == 1);
+      LEX_USER * user= *(users->begin());
+      String current_user(user->user.str, user->user.length, system_charset_info);
+      String current_host(user->host.str, user->host.length, system_charset_info);
+      if (opt_log_builtin_as_identified_by_password)
+      {
+        /* Construct : SET PASSWORD FOR '<user>'@'<host'>='<HASH>' */
+        rlb->append(STRING_WITH_LEN("SET PASSWORD FOR "));
+        append_query_string(thd, system_charset_info, &current_user, rlb);
+        rlb->append(STRING_WITH_LEN("@"));
+        append_query_string(thd, system_charset_info, &current_host, rlb);
+        rlb->append(STRING_WITH_LEN("='"));
+        rlb->append(user->auth.str, user->auth.length);
+        rlb->append(STRING_WITH_LEN("'"));
+      }
+      else
+      {
+        /*
+          Construct :
+          ALTER USER '<user>'@'<host>' IDENTIFIED WITH '<plugin>' AS '<HASH>'
+        */
+        rlb->append(STRING_WITH_LEN("ALTER USER "));
+        append_query_string(thd, system_charset_info, &current_user, rlb);
+        rlb->append(STRING_WITH_LEN("@"));
+        append_query_string(thd, system_charset_info, &current_host, rlb);
+        rlb->append(STRING_WITH_LEN(" IDENTIFIED WITH '"));
+        rlb->append(user->plugin.str);
+        rlb->append(STRING_WITH_LEN("' AS '"));
+        rlb->append(user->auth.str, user->auth.length);
+        rlb->append(STRING_WITH_LEN("'"));
+      }
+    }
+  }
+}
+
+
 /**
   Rewrite CREATE/ALTER USER statement.
 
@@ -387,10 +453,12 @@ static void mysql_rewrite_set(THD *thd, String *rlb)
   @param rlb      An empty String object to put the rewritten query in.
   @param users_not_to_log Members of this list are not added to the generated
                            statement.
+  @param for_binlog We don't skip any user while writing to binlog
 */
 
 void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
-                                     std::set<LEX_USER *> *users_not_to_log)
+                                     std::set<LEX_USER *> *users_not_to_log,
+                                     bool for_binlog)
 {
   LEX                      *lex= thd->lex;
   LEX_USER                 *user_name, *tmp_user_name;
@@ -412,7 +480,7 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
 
   while ((tmp_user_name= user_list++))
   {
-    if (users_not_to_log &&
+    if (!for_binlog && users_not_to_log &&
         users_not_to_log->find(tmp_user_name) != users_not_to_log->end())
       continue;
     if ((user_name= get_current_user(thd, tmp_user_name)))

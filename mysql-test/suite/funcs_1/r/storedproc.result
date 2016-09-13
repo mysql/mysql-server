@@ -22248,11 +22248,14 @@ set @c = @z;
 insert into res_t9 values (@a, @b, @c);
 SELECT * from res_t9;
 create index index_1 on res_t9 (f1 (5));
+analyze table res_t9;
 show index from res_t9;
 END//
 CALL sp6 (10, 20, 30, 40, 50);
 f1	f2	f3
 10	30	50
+Table	Op	Msg_type	Msg_text
+db_storedproc.res_t9	analyze	status	OK
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 res_t9	1	index_1	1	f1	A	1	5	NULL	YES	BTREE			YES
 DROP PROCEDURE sp6;

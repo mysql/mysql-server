@@ -155,10 +155,12 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
 {
   DBUG_ENTER("mysql_create_db");
 
-  /* do not create 'information_schema' db */
-  if (is_infoschema_db(db))
+  // Reject creation of the system schema except for system threads.
+  if (!thd->is_dd_system_thread() &&
+      dd::get_dictionary()->is_dd_schema_name(db) &&
+      !(create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS))
   {
-    my_error(ER_DB_CREATE_EXISTS, MYF(0), db);
+    my_error(ER_NO_SYSTEM_SCHEMA_ACCESS, MYF(0), db);
     DBUG_RETURN(true);
   }
 
@@ -198,9 +200,14 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   bool store_in_dd= true;
   bool schema_exists= (mysql_file_stat(key_file_misc,
                                        path, &stat_info, MYF(0)) != NULL);
-  if (thd->is_dd_system_thread() && !opt_initialize &&
+  if (thd->is_dd_system_thread() && (!opt_initialize || dd_upgrade_flag) &&
       dd::get_dictionary()->is_dd_schema_name(db))
   {
+    /*
+      CREATE SCHEMA statement is being executed from bootstrap thread.
+      Server should either be in restart mode or upgrade mode to create only
+      dd::Schema object for the dictionary cache.
+    */
     if (!schema_exists)
     {
       sql_print_error("System schema directory does not exist.");
@@ -223,6 +230,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
                         ER_THD(thd, ER_DB_CREATE_EXISTS), db);
     store_in_dd= false;
   }
+  // Don't create folder inside data directory in case we are upgrading.
   else
   {
     if (my_errno() != ENOENT)
@@ -232,7 +240,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
                my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
       DBUG_RETURN(true);
     }
-    if (my_mkdir(path,0777,MYF(0)) < 0)
+    if (my_mkdir(path, 0777, MYF(0)) < 0)
     {
       char errbuf[MYSQL_ERRMSG_SIZE];
       my_error(ER_CANT_CREATE_DB, MYF(0), db, my_errno(),
@@ -293,7 +301,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     if (!create_info->default_table_charset)
       create_info->default_table_charset= thd->variables.collation_server;
 
-    if (dd::create_schema(thd, db, create_info))
+    if (dd::create_schema(thd, db, create_info->default_table_charset))
     {
       /*
         We could be here due an deadlock or some error reported
@@ -323,6 +331,14 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
 {
   DBUG_ENTER("mysql_alter_db");
 
+  // Reject altering the system schema except for system threads.
+  if (!thd->is_dd_system_thread() &&
+      dd::get_dictionary()->is_dd_schema_name(db))
+  {
+    my_error(ER_NO_SYSTEM_SCHEMA_ACCESS, MYF(0), db);
+    DBUG_RETURN(true);
+  }
+
   if (lock_schema_name(thd, db))
     DBUG_RETURN(true);
 
@@ -333,7 +349,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     Do the change in the dd first to catch failures that should prevent
     writing binlog.
   */
-  if (dd::alter_schema(thd, db, create_info))
+  if (dd::alter_schema(thd, db, create_info->default_table_charset))
   {
     // The error has been reported already.
     DBUG_RETURN(true);
@@ -441,6 +457,14 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
 
   DBUG_ENTER("mysql_rm_db");
 
+  // Reject dropping the system schema except for system threads.
+  if (!thd->is_dd_system_thread() &&
+      dd::get_dictionary()->is_dd_schema_name(std::string(db.str)))
+  {
+    my_error(ER_NO_SYSTEM_SCHEMA_ACCESS, MYF(0), db.str);
+    DBUG_RETURN(true);
+  }
+
   if (lock_schema_name(thd, db.str))
     DBUG_RETURN(true);
 
@@ -508,7 +532,8 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
 #ifndef EMBEDDED_LIBRARY
       || Events::lock_schema_events(thd, db.str)
 #endif
-      || lock_db_routines(thd, db.str))
+      || lock_db_routines(thd, db.str)
+      || lock_trigger_names(thd, tables))
     DBUG_RETURN(true);
 
   /* mysql_ha_rm_tables() requires a non-null TABLE_LIST. */
@@ -891,7 +916,7 @@ static my_bool rm_dir_w_symlink(const char *org_path, my_bool send_error)
   char *path= tmp_path;
   DBUG_ENTER("rm_dir_w_symlink");
   unpack_filename(tmp_path, org_path);
-#ifdef HAVE_READLINK
+#ifndef _WIN32
   int error;
   char tmp2_path[FN_REFLEN];
 
@@ -1311,7 +1336,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   {
     db_access= sctx->check_access(DB_ACLS) ?
       DB_ACLS :
-      acl_get(sctx->host().str,
+      acl_get(thd, sctx->host().str,
               sctx->ip().str,
               sctx->priv_user().str,
               new_db_file_name.str,

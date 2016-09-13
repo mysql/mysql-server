@@ -203,7 +203,10 @@ UPDATE gis_point SET g = ST_PointFromText('POINT(200 200)') WHERE g IS NULL OR g
 SELECT ST_AsText(g) FROM gis_point WHERE g IS NULL OR g = ST_PointFromText('POINT(200 200)');
 
 --echo # Check the information schema tables
-SELECT table_name, column_name, data_type, column_type FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name='gis_point' AND (column_name = 'p' OR column_name = 'g');
+SELECT table_name, column_name, data_type, column_type
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE table_name='gis_point' AND (column_name = 'p' OR column_name = 'g')
+  ORDER BY table_name, column_name;
 
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g';
 

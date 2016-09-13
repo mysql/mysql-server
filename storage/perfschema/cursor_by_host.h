@@ -30,15 +30,31 @@
   @{
 */
 
+class PFS_index_hosts : public PFS_engine_index
+{
+public:
+  PFS_index_hosts(PFS_engine_key *key_1)
+    : PFS_engine_index(key_1)
+  {}
+
+  virtual ~PFS_index_hosts()
+  {}
+
+  virtual bool match(PFS_host *pfs) = 0;
+};
+
 /** Cursor CURSOR_BY_HOST. */
 class cursor_by_host : public PFS_engine_table
 {
 public:
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_next();
 
 protected:
   cursor_by_host(const PFS_engine_table_share *share);
@@ -55,6 +71,9 @@ private:
   PFS_simple_index m_pos;
   /** Next position. */
   PFS_simple_index m_next_pos;
+
+protected:
+  PFS_index_hosts *m_opened_index;
 };
 
 /** @} */

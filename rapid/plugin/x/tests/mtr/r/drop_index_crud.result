@@ -103,6 +103,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -224,6 +228,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -345,6 +353,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -466,6 +478,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -587,6 +603,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -708,6 +728,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -839,6 +863,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -960,6 +988,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -1081,6 +1113,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -1212,6 +1248,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -1333,6 +1373,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -1454,6 +1498,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -1585,6 +1633,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -1706,6 +1758,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -1827,6 +1883,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -1958,6 +2018,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -2079,6 +2143,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -2200,6 +2268,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -2321,6 +2393,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -2442,6 +2518,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -2563,6 +2643,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -2684,6 +2768,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -2805,6 +2893,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -2936,6 +3028,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -3057,6 +3153,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -3188,6 +3288,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -3319,6 +3423,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -3440,6 +3548,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -3571,6 +3683,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -3702,6 +3818,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -3823,6 +3943,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -3944,6 +4068,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -4075,6 +4203,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -4196,6 +4328,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -4327,6 +4463,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -4448,6 +4588,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -4569,6 +4713,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -4694,6 +4842,10 @@ Mysqlx.Error {
   sql_state: "HY000"
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -4830,6 +4982,10 @@ Mysqlx.Error {
   sql_state: "HY000"
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -4962,6 +5118,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -5083,6 +5243,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -5214,6 +5378,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -5371,6 +5539,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -5576,6 +5748,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
@@ -5877,6 +6053,10 @@ RUN ALTER TABLE xplugintest.table1 ADD INDEX `fulltext_idx_3` (book(100))
 
 0 rows affected
 Records: 0  Duplicates: 0  Warnings: 0
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
 table1	CREATE TABLE `table1` (
@@ -6063,6 +6243,10 @@ RUN ALTER TABLE xplugintest.table1 DROP COLUMN subject
 
 0 rows affected
 Records: 0  Duplicates: 0  Warnings: 0
+RUN ANALYZE TABLE xplugintest.table1
+Table	Op	Msg_type	Msg_text
+xplugintest.table1	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 0 rows affected
@@ -6164,6 +6348,10 @@ send Mysqlx.Sql.StmtExecute {
 
 0 rows affected
 Records: 0  Duplicates: 0  Warnings: 0
+RUN ANALYZE TABLE xplugintest.table2
+Table	Op	Msg_type	Msg_text
+xplugintest.table2	analyze	status	OK
+0 rows affected
 RUN SHOW INDEX FROM xplugintest.table2
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 table2	0	PRIMARY	1	ID	A	0	null	null		BTREE			YES

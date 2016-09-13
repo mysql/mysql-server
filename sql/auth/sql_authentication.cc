@@ -713,32 +713,26 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
 
 /* Return true if there is no users that can match the given host */
 
-bool acl_check_host(const char *host, const char *ip)
+bool acl_check_host(THD *thd, const char *host, const char *ip)
 {
-  mysql_mutex_lock(&acl_cache->lock);
-  if (allow_all_hosts)
-  {
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
+  if (!acl_cache_lock.lock(false))
+    return 1;
 
-    mysql_mutex_unlock(&acl_cache->lock);
+  if (allow_all_hosts)
     return 0;
-  }
 
   if ((host && my_hash_search(&acl_check_hosts,(uchar*) host,strlen(host))) ||
       (ip && my_hash_search(&acl_check_hosts,(uchar*) ip, strlen(ip))))
-  {
-    mysql_mutex_unlock(&acl_cache->lock);
     return 0;                                   // Found host
-  }
+
   for (ACL_HOST_AND_IP *acl= acl_wild_hosts->begin();
        acl != acl_wild_hosts->end(); ++acl)
   {
     if (acl->compare_hostname(host, ip))
-    {
-      mysql_mutex_unlock(&acl_cache->lock);
       return 0;                                 // Host ok
-    }
   }
-  mysql_mutex_unlock(&acl_cache->lock);
+
   if (ip != NULL)
   {
     /* Increment HOST_CACHE.COUNT_HOST_ACL_ERRORS. */
@@ -799,7 +793,10 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio)
   DBUG_ENTER("find_mpvio_user");
   DBUG_PRINT("info", ("entry: %s", mpvio->auth_info.user_name));
   DBUG_ASSERT(mpvio->acl_user == 0);
-  mysql_mutex_lock(&acl_cache->lock);
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
+  if (!acl_cache_lock.lock(false))
+    DBUG_RETURN(true);
+
   for (ACL_USER *acl_user_tmp= acl_users->begin();
        acl_user_tmp != acl_users->end(); ++acl_user_tmp)
   {
@@ -823,7 +820,7 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio)
       break;
     }
   }
-  mysql_mutex_unlock(&acl_cache->lock);
+  acl_cache_lock.unlock();
 
   if (!mpvio->acl_user)
   {
@@ -2328,11 +2325,14 @@ acl_authenticate(THD *thd, enum_server_command command)
     const char *auth_user = acl_user->user ? acl_user->user : "";
     ACL_PROXY_USER *proxy_user;
     /* check if the user is allowed to proxy as another user */
-    mysql_mutex_lock(&acl_cache->lock);
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
+    if (!acl_cache_lock.lock())
+      DBUG_RETURN(1);
+
     proxy_user= acl_find_proxy_user(auth_user, sctx->host().str, sctx->ip().str,
                                     mpvio.auth_info.authenticated_as,
                                     &is_proxy_user);
-    mysql_mutex_unlock(&acl_cache->lock);
+    acl_cache_lock.unlock();
     if (mpvio.auth_info.user_name && proxy_check)
     {
       acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
@@ -2364,7 +2364,8 @@ acl_authenticate(THD *thd, enum_server_command command)
       sctx->assign_proxy_user(proxy_user_buf, strlen(proxy_user_buf));
 
       /* we're proxying : find the proxy user definition */
-      mysql_mutex_lock(&acl_cache->lock);
+      if (!acl_cache_lock.lock())
+        DBUG_RETURN(1);
       acl_proxy_user= find_acl_user(proxy_user->get_proxied_host() ?
                                     proxy_user->get_proxied_host() : "",
                                     mpvio.auth_info.authenticated_as,
@@ -2376,13 +2377,12 @@ acl_authenticate(THD *thd, enum_server_command command)
         inc_host_errors(mpvio.ip, &errors);
         if (!thd->is_error())
           login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
-        mysql_mutex_unlock(&acl_cache->lock);
         DBUG_RETURN(1);
       }
       acl_user= acl_proxy_user->copy(thd->mem_root);
       DBUG_PRINT("info", ("User %s is a PROXY and will assume a PROXIED"
                           " identity %s", auth_user, acl_user->user));
-      mysql_mutex_unlock(&acl_cache->lock);
+      acl_cache_lock.unlock();
     }
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
@@ -2393,8 +2393,8 @@ acl_authenticate(THD *thd, enum_server_command command)
     /* Assign default role */
     {
       List_of_auth_id_refs default_roles;
-      LOCK_grant_read_guard lock(thd);
-      mysql_mutex_lock(&acl_cache->lock);
+      if (!acl_cache_lock.lock())
+        DBUG_RETURN(1);
       Auth_id_ref authid= create_authid_from(acl_user);
       get_default_roles(authid, &default_roles);
       List_of_auth_id_refs::iterator it= default_roles.begin();
@@ -2408,7 +2408,7 @@ acl_authenticate(THD *thd, enum_server_command command)
                             roleidstr.c_str(), authidstr.c_str());
         }
       }
-      mysql_mutex_unlock(&acl_cache->lock);
+      acl_cache_lock.unlock();
     }
     sctx->checkout_access_maps();
 #endif

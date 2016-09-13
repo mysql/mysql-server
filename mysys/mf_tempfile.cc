@@ -53,7 +53,7 @@
 */
 
 File create_temp_file(char *to, const char *dir, const char *prefix,
-		      int mode, myf MyFlags)
+		      int mode MY_ATTRIBUTE((unused)), myf MyFlags)
 {
   File file= -1;
 #ifdef _WIN32

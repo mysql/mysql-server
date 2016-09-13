@@ -69,7 +69,9 @@ SET(DD_SOURCES
   dd/dd_schema.cc
   dd/dd_table.cc
   dd/dd_tablespace.cc
+  dd/dd_trigger.cc
   dd/dd_view.cc
+  dd/dd_upgrade.cc
 
   dd/impl/bootstrapper.cc
   dd/impl/dd.cc
@@ -81,6 +83,7 @@ SET(DD_SOURCES
   dd/impl/sdi.cc
   dd/impl/sdi_file.cc
   dd/impl/sdi_tablespace.cc
+  dd/impl/string_type.cc
 
   dd/impl/cache/dictionary_client.cc
   dd/impl/cache/local_multi_map.cc
@@ -94,6 +97,8 @@ SET(DD_SOURCES
   dd/impl/raw/raw_record_set.cc
   dd/impl/raw/raw_table.cc
 
+  dd/impl/tables/table_stats.cc
+  dd/impl/tables/index_stats.cc
   dd/impl/tables/character_sets.cc
   dd/impl/tables/collations.cc
   dd/impl/tables/columns.cc
@@ -114,9 +119,13 @@ SET(DD_SOURCES
   dd/impl/tables/tables.cc
   dd/impl/tables/tablespace_files.cc
   dd/impl/tables/tablespaces.cc
+  dd/impl/tables/triggers.cc
   dd/impl/tables/version.cc
+  dd/impl/tables/view_routine_usage.cc
   dd/impl/tables/view_table_usage.cc
 
+  dd/impl/types/index_stat_impl.cc
+  dd/impl/types/table_stat_impl.cc
   dd/impl/types/abstract_table_impl.cc
   dd/impl/types/charset_impl.cc
   dd/impl/types/collation_impl.cc
@@ -142,9 +151,15 @@ SET(DD_SOURCES
   dd/impl/types/table_impl.cc
   dd/impl/types/tablespace_file_impl.cc
   dd/impl/types/tablespace_impl.cc
+  dd/impl/types/trigger_impl.cc
   dd/impl/types/view_impl.cc
+  dd/impl/types/view_routine_impl.cc
   dd/impl/types/view_table_impl.cc
   dd/impl/types/weak_object_impl.cc
+
+  dd/info_schema/show.cc
+  dd/info_schema/show_query_builder.cc
+  dd/info_schema/stats.cc
 )
 
 SET(SQL_SHARED_SOURCES
@@ -167,6 +182,7 @@ SET(SQL_SHARED_SOURCES
   check_stack.cc
   conn_handler/connection_handler_manager.cc 
   current_thd.cc
+  dd_sql_view.cc
   dd_sp.cc
   dd_table_share.cc
   debug_sync.cc
@@ -248,6 +264,7 @@ SET(SQL_SHARED_SOURCES
   parser_service.cc
   partition_info.cc
   partitioning/partition_handler.cc
+  persisted_variable.cc
   procedure.cc 
   protocol_classic.cc
   psi_memory_key.cc
@@ -339,6 +356,7 @@ SET(SQL_SHARED_SOURCES
   sql_union.cc
   sql_update.cc
   sql_view.cc
+  stateless_allocator.cc
   strfunc.cc
   sys_vars.cc
   sys_vars_resource_mgr.cc
@@ -352,7 +370,6 @@ SET(SQL_SHARED_SOURCES
   transaction_info.cc
   trigger.cc
   trigger_creation_ctx.cc
-  trigger_loader.cc
   trigger_chain.cc
   tztime.cc
   uniques.cc
@@ -367,6 +384,7 @@ SET(SQL_SOURCE
   ${GEN_DIGEST_SOURCES}
   ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
+  ../extra/lz4/xxhash.c
   ../libmysql/errmsg.c
   ../sql-common/client.cc
   ../sql-common/client_plugin.c
@@ -443,6 +461,11 @@ SET(SQL_EXPORTED_BOOST_SOURCES ${SQL_BOOST_SOURCES} PARENT_SCOPE)
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR})
+
+ADD_COMPILE_FLAGS(
+  ../extra/lz4/xxhash.c
+  COMPILE_FLAGS -DXXH_NAMESPACE=MY_
+)
 
 # Fixes "C1128: number of sections exceeded object file format limit" in MSVC /MD
 # The flag /bigobj is not added if the build is not WINDOWS_RUNTIME_MD (/MD)
@@ -730,6 +753,7 @@ ADD_CUSTOM_COMMAND(
 MYSQL_ADD_EXECUTABLE(mysql_tzinfo_to_sql tztime.cc)
 SET_TARGET_PROPERTIES(mysql_tzinfo_to_sql PROPERTIES COMPILE_FLAGS "-DTZINFO2SQL")
 TARGET_LINK_LIBRARIES(mysql_tzinfo_to_sql mysys mysys_ssl)
+ADD_DEPENDENCIES(mysql_tzinfo_to_sql GenError)
 
 ADD_CUSTOM_TARGET( 
         GenServerSource

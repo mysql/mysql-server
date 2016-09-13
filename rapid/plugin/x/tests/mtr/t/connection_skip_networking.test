@@ -45,7 +45,7 @@ if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Wind
 --exec $MYSQLXTEST -u nonblank --password='nonblank' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
  
  
- call mtr.add_suppression("Plugin mysqlx reported: .Preparation of IO interfaces failed, X Protocol won't be accessible");
+ call mtr.add_suppression("Plugin mysqlx reported: .Preparation of I/O interfaces failed, X Protocol won't be accessible");
  call mtr.add_suppression("Plugin mysqlx reported: .X Plugin failed to setup .+ .., with:");
  call mtr.add_suppression("Plugin mysqlx reported: .+ path is empt");
  call mtr.add_suppression("Plugin mysqlx reported: .+ is set to empty text");

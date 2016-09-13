@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -91,6 +91,52 @@ static int update_derived_flags()
   update_program_share_derived_flags(thread);
   update_table_derived_flags();
   return 0;
+}
+
+bool PFS_index_setup_objects::match(PFS_setup_object *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key_1.match(pfs->get_object_type()))
+      return false;
+  }
+
+  if (m_fields >= 2)
+  {
+    if (!m_key_2.match(pfs))
+      return false;
+  }
+
+  if (m_fields >= 3)
+  {
+    if (!m_key_3.match(pfs))
+      return false;
+  }
+
+  return true;
+}
+
+bool PFS_index_setup_objects::match(row_setup_objects *row)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key_1.match(row->m_object_type))
+      return false;
+  }
+
+  if (m_fields >= 2)
+  {
+    if (!m_key_2.match(row->m_schema_name, row->m_schema_name_length))
+      return false;
+  }
+
+  if (m_fields >= 3)
+  {
+    if (!m_key_3.match(row->m_object_name, row->m_object_name_length))
+      return false;
+  }
+
+  return true;
 }
 
 PFS_engine_table* table_setup_objects::create(void)
@@ -221,6 +267,41 @@ int table_setup_objects::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
+int table_setup_objects::index_init(uint idx, bool sorted)
+{
+  PFS_index_setup_objects *result= NULL;
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_setup_objects);
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_setup_objects::index_next(void)
+{
+  PFS_setup_object *pfs;
+  bool has_more= true;
+
+  for (m_pos.set_at(&m_next_pos);
+       has_more;
+       m_pos.next())
+  {
+    pfs= global_setup_object_container.get(m_pos.m_index, &has_more);
+
+    if (pfs != NULL)
+    {
+      if (m_opened_index->match(pfs))
+      {
+        make_row(pfs);
+        m_next_pos.set_after(&m_pos);
+        return 0;
+      }
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
+}
+
 void table_setup_objects::make_row(PFS_setup_object *pfs)
 {
   pfs_optimistic_state lock;
@@ -343,7 +424,7 @@ int table_setup_objects::delete_row_values(TABLE *table,
   DBUG_ASSERT(m_row_exists);
 
   CHARSET_INFO *cs= &my_charset_utf8_bin;
-  enum_object_type object_type= OBJECT_TYPE_TABLE;
+  enum_object_type object_type= m_row.m_object_type;
   String object_schema(m_row.m_schema_name, m_row.m_schema_name_length, cs);
   String object_name(m_row.m_object_name, m_row.m_object_name_length, cs);
 

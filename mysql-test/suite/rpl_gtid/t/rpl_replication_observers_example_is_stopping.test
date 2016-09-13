@@ -120,7 +120,7 @@ SET DEBUG_SYNC='now WAIT_FOR reached_sql_thread_started';
 
 # Wait until the SQL thread has failed
 --let $slave_sql_errno= convert_error(ER_TABLE_EXISTS_ERROR)
---let $rpl_channel_name= example_channel
+--let $rpl_channel_name= 'example_channel'
 --source include/wait_for_slave_sql_error.inc
 
 # Remove debug instrumentation
@@ -185,7 +185,7 @@ SET SESSION sql_log_bin= 0;
 SET DEBUG_SYNC='now WAIT_FOR reached_io_thread_started';
 
 --let $slave_io_errno= convert_error(ER_MASTER_FATAL_ERROR_READING_BINLOG)
---let $rpl_channel_name= example_channel
+--let $rpl_channel_name= 'example_channel'
 --source include/wait_for_slave_io_error.inc
 
 # Remove debug instrumentation

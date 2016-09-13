@@ -201,75 +201,60 @@ ROLES_GRAPHML()
   <key id="key1" for="node" attr.name="name" attr.type="string" />
   <graph id="G" edgedefault="directed" parse.nodeids="canonical" parse.edgeids="canonical" parse.order="nodesfirst">
     <node id="n0">
-      <data key="key1">`role1`@`%`</data>
-    </node>
-    <node id="n1">
-      <data key="key1">`role`@`%`</data>
-    </node>
-    <node id="n2">
-      <data key="key1">`user1`@`%`</data>
-    </node>
-    <node id="n3">
-      <data key="key1">`role2`@`host2`</data>
-    </node>
-    <node id="n4">
-      <data key="key1">`role3`@`%`</data>
-    </node>
-    <node id="n5">
-      <data key="key1">`user2`@`%`</data>
-    </node>
-    <node id="n6">
-      <data key="key1">`user3`@`host3`</data>
-    </node>
-    <node id="n7">
       <data key="key1">`joan`@`%`</data>
     </node>
-    <node id="n8">
-      <data key="key1">`engineering`@`%`</data>
-    </node>
-    <node id="n9">
-      <data key="key1">`sally`@`%`</data>
-    </node>
-    <node id="n10">
+    <node id="n1">
       <data key="key1">`consultants`@`%`</data>
     </node>
-    <node id="n11">
-      <data key="key1">`qa`@`%`</data>
+    <node id="n2">
+      <data key="key1">`sally`@`%`</data>
     </node>
-    <node id="n12">
-      <data key="key1">`engineering`@`india`</data>
+    <node id="n3">
+      <data key="key1">`engineering`@`%`</data>
     </node>
-    <node id="n13">
-      <data key="key1">`engineering`@`us`</data>
-    </node>
-    <node id="n14">
-      <data key="key1">`joe`@`localhost`</data>
-    </node>
-    <node id="n15">
-      <data key="key1">`wp_administrators`@`%`</data>
-    </node>
-    <node id="n16">
+    <node id="n4">
       <data key="key1">`root`@`localhost`</data>
     </node>
-    <edge id="e0" source="n7" target="n10">
+    <node id="n5">
+      <data key="key1">`qa`@`%`</data>
+    </node>
+    <node id="n6">
+      <data key="key1">`role`@`%`</data>
+    </node>
+    <node id="n7">
+      <data key="key1">`role1`@`%`</data>
+    </node>
+    <node id="n8">
+      <data key="key1">`joe`@`localhost`</data>
+    </node>
+    <node id="n9">
+      <data key="key1">`wp_administrators`@`%`</data>
+    </node>
+    <node id="n10">
+      <data key="key1">`engineering`@`india`</data>
+    </node>
+    <node id="n11">
+      <data key="key1">`engineering`@`us`</data>
+    </node>
+    <edge id="e0" source="n0" target="n1">
       <data key="key0">0</data>
     </edge>
-    <edge id="e1" source="n9" target="n8">
+    <edge id="e1" source="n1" target="n5">
       <data key="key0">0</data>
     </edge>
-    <edge id="e2" source="n9" target="n10">
+    <edge id="e2" source="n2" target="n1">
       <data key="key0">0</data>
     </edge>
-    <edge id="e3" source="n10" target="n11">
+    <edge id="e3" source="n2" target="n3">
       <data key="key0">0</data>
     </edge>
-    <edge id="e4" source="n12" target="n13">
+    <edge id="e4" source="n4" target="n6">
       <data key="key0">0</data>
     </edge>
-    <edge id="e5" source="n14" target="n15">
+    <edge id="e5" source="n8" target="n9">
       <data key="key0">1</data>
     </edge>
-    <edge id="e6" source="n16" target="n1">
+    <edge id="e6" source="n10" target="n11">
       <data key="key0">0</data>
     </edge>
   </graph>
@@ -705,7 +690,7 @@ Grants for joe_schema_designer@localhost
 GRANT INSERT, DELETE, CREATE, DROP ON *.* TO `joe_schema_designer`@`localhost`
 GRANT UPDATE ON `test`.* TO `joe_schema_designer`@`localhost`
 GRANT SELECT, UPDATE (`c2`) ON `db1`.`t1` TO `joe_schema_designer`@`localhost`
-GRANT `schema_admin`@`%`,`schema_designer`@`%`,`db_admin`@`%` TO `joe_schema_designer`@`localhost`
+GRANT `db_admin`@`%`,`schema_admin`@`%`,`schema_designer`@`%` TO `joe_schema_designer`@`localhost`
 Table SELECT on db1.t1 should fail without proper role.
 SELECT * FROM db1.t1;
 ERROR 42000: SELECT command denied to user 'joe_schema_designer'@'localhost' for table 't1'
@@ -752,7 +737,7 @@ GRANT UPDATE ON `test`.* TO `joe_schema_designer`@`localhost`
 GRANT SELECT, UPDATE (`c2`) ON `db1`.`t1` TO `joe_schema_designer`@`localhost`
 GRANT EXECUTE ON PROCEDURE `db1`.`sp1` TO `joe_schema_designer`@`localhost`
 GRANT EXECUTE ON PROCEDURE `db1`.`sp2` TO `joe_schema_designer`@`localhost`
-GRANT `schema_admin`@`%`,`schema_designer`@`%`,`db_admin`@`%` TO `joe_schema_designer`@`localhost`
+GRANT `db_admin`@`%`,`schema_admin`@`%`,`schema_designer`@`%` TO `joe_schema_designer`@`localhost`
 CALL db1.sp1();
 c1	c2
 1	1
@@ -775,7 +760,7 @@ GRANT UPDATE, EXECUTE ON `test`.* TO `joe_schema_designer`@`localhost`
 GRANT SELECT, UPDATE (`c2`) ON `db1`.`t1` TO `joe_schema_designer`@`localhost`
 GRANT EXECUTE ON PROCEDURE `db1`.`sp1` TO `joe_schema_designer`@`localhost`
 GRANT EXECUTE ON PROCEDURE `db1`.`sp2` TO `joe_schema_designer`@`localhost`
-GRANT `schema_admin`@`%`,`schema_designer`@`%`,`db_admin`@`%` TO `joe_schema_designer`@`localhost`
+GRANT `db_admin`@`%`,`schema_admin`@`%`,`schema_designer`@`%` TO `joe_schema_designer`@`localhost`
 CALL db1.sp1();
 c1	c2
 1	1

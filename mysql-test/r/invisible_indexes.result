@@ -1,6 +1,7 @@
 #
 # WL#8697: Invisible Indexes
 #
+SET SESSION information_schema_stats=latest;
 # Test of ALTER INDEX syntax.
 CREATE TABLE t1 ( a INT, KEY (a) );
 SHOW KEYS FROM t1;
@@ -9,7 +10,7 @@ t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
 ALTER TABLE t1 ALTER INDEX a INVISIBLE;
 SHOW KEYS FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE	disabled		NO
+t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			NO
 ALTER TABLE t1 ALTER INDEX a VISIBLE;
 SHOW KEYS FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
@@ -24,10 +25,10 @@ Warning	1831	Duplicate index 'b_visible' defined on the table 'test.t1'. This is
 CREATE INDEX a_b_invisible ON t1(a, b) INVISIBLE;
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a_invisible	1	a	A	0	NULL	NULL	YES	BTREE	disabled		NO
+t1	1	a_invisible	1	a	A	0	NULL	NULL	YES	BTREE			NO
 t1	1	b_visible	1	a	A	0	NULL	NULL	YES	BTREE			YES
-t1	1	a_b_invisible	1	a	A	0	NULL	NULL	YES	BTREE	disabled		NO
-t1	1	a_b_invisible	2	b	A	0	NULL	NULL	YES	BTREE	disabled		NO
+t1	1	a_b_invisible	1	a	A	0	NULL	NULL	YES	BTREE			NO
+t1	1	a_b_invisible	2	b	A	0	NULL	NULL	YES	BTREE			NO
 DROP TABLE t1;
 # Test that invisible indexes are not used.
 CREATE TABLE t1 ( a INT, KEY (a) );
@@ -75,18 +76,18 @@ b INT, INDEX (b) INVISIBLE
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
-t1	1	b	1	b	A	0	NULL	NULL	YES	BTREE	disabled		NO
+t1	1	b	1	b	A	0	NULL	NULL	YES	BTREE			NO
 ALTER TABLE t1 RENAME INDEX a TO a1;
 ALTER TABLE t1 RENAME INDEX b TO b1;
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a1	1	a	A	0	NULL	NULL	YES	BTREE			YES
-t1	1	b1	1	b	A	0	NULL	NULL	YES	BTREE	disabled		NO
+t1	1	b1	1	b	A	0	NULL	NULL	YES	BTREE			NO
 ALTER TABLE t1 ALTER INDEX a1 INVISIBLE;
 ALTER TABLE t1 ALTER INDEX b1 VISIBLE;
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a1	1	a	A	0	NULL	NULL	YES	BTREE	disabled		NO
+t1	1	a1	1	a	A	0	NULL	NULL	YES	BTREE			NO
 t1	1	b1	1	b	A	0	NULL	NULL	YES	BTREE			YES
 DROP TABLE t1;
 # Test of SHOW CREATE TABLE.
@@ -152,7 +153,7 @@ ALTER TABLE t1 ALTER INDEX a INVISIBLE, ALTER INDEX a VISIBLE;
 ALTER TABLE t1 ALTER INDEX a INVISIBLE, ALTER INDEX b VISIBLE;
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE	disabled		NO
+t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			NO
 t1	1	b	1	b	A	0	NULL	NULL	YES	BTREE			YES
 #
 # Various combinations of RENAME INDEX and ALTER INDEX ... INVISIBLE.
@@ -180,7 +181,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	3	NULL	NULL	YES	BTREE	disabled		NO
+t1	1	a	1	a	A	3	NULL	NULL	YES	BTREE			NO
 t1	1	b	1	b	A	3	NULL	NULL	YES	BTREE			YES
 ALTER TABLE t1 ALTER INDEX a VISIBLE, ALGORITHM = INPLACE;
 affected rows: 0
@@ -200,7 +201,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	3	NULL	NULL	YES	BTREE	disabled		NO
+t1	1	a	1	a	A	3	NULL	NULL	YES	BTREE			NO
 t1	1	b	1	b	A	3	NULL	NULL	YES	BTREE			YES
 ALTER TABLE t1 ALTER INDEX a VISIBLE;
 affected rows: 0
@@ -277,7 +278,7 @@ UNIQUE KEY (a) INVISIBLE
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	PRIMARY	1	b	A	0	NULL	NULL		BTREE			YES
-t1	0	a	1	a	A	0	NULL	NULL		BTREE	disabled		NO
+t1	0	a	1	a	A	0	NULL	NULL		BTREE			NO
 DROP TABLE t1;
 # The check above applies only to the first NOT NULL UNIQUE index.
 CREATE TABLE t1 (
@@ -289,7 +290,7 @@ UNIQUE KEY (b) INVISIBLE
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	a	1	a	A	0	NULL	NULL		BTREE			YES
-t1	0	b	1	b	A	0	NULL	NULL		BTREE	disabled		NO
+t1	0	b	1	b	A	0	NULL	NULL		BTREE			NO
 DROP TABLE t1;
 CREATE TABLE t1 ( a INT NOT NULL, UNIQUE KEY (a) INVISIBLE );
 ERROR HY000: A primary key index cannot be invisible
@@ -335,7 +336,7 @@ ALTER TABLE t1 ALTER INDEX g INVISIBLE;
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	PRIMARY	1	fid	A	X	NULL	NULL		BTREE			YES
-t1	1	g	1	g	A	X	32	NULL		SPATIAL	disabled		NO
+t1	1	g	1	g	A	X	32	NULL		SPATIAL			NO
 EXPLAIN SELECT *
 FROM t1
 WHERE ST_Within(g,
@@ -361,8 +362,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fr
 ALTER TABLE t1 ALTER INDEX a INVISIBLE;
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	NULL	1	NULL	NULL	YES	FULLTEXT	disabled		NO
-t1	1	a	2	b	NULL	1	NULL	NULL	YES	FULLTEXT	disabled		NO
+t1	1	a	1	a	NULL	1	NULL	NULL	YES	FULLTEXT			NO
+t1	1	a	2	b	NULL	1	1	NULL	YES	FULLTEXT			NO
 EXPLAIN SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ("collections");
 ERROR HY000: Can't find FULLTEXT index matching the column list
 DROP TABLE t1;
@@ -382,7 +383,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 ALTER TABLE t1 ALTER INDEX a INVISIBLE;
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	3	NULL	NULL		BTREE	disabled		NO
+t1	1	a	1	a	A	3	NULL	NULL		BTREE			NO
 EXPLAIN SELECT a FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
@@ -456,7 +457,7 @@ DROP TABLE t1;
 CREATE TABLE t1 ( a INT GENERATED ALWAYS AS (1), KEY (a) INVISIBLE );
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE	disabled		NO
+t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			NO
 EXPLAIN SELECT a FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL

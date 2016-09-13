@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,10 @@
 /**
   @file include/mysql/mysql_lex_string.h
 */
+
+#ifndef MYSQL_ABI_CHECK
+#include <stddef.h>
+#endif
 
 struct st_mysql_lex_string
 {

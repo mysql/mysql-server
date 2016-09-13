@@ -15,3 +15,6 @@ ALTER TABLE performance_schema.table_io_waits_summary_by_table ADD INDEX test_in
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index ON performance_schema.table_io_waits_summary_by_table(TABLE_NAME);
 
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `OBJECT`
+  ON performance_schema.table_io_waits_summary_by_table;

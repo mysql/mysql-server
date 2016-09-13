@@ -18,3 +18,6 @@ ALTER TABLE performance_schema.session_status
 CREATE UNIQUE INDEX test_index
   ON performance_schema.session_status(VARIABLE_NAME);
 
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `PRIMARY`
+  ON performance_schema.session_status;

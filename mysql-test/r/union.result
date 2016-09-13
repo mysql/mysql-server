@@ -1388,7 +1388,7 @@ t2	CREATE TABLE `t2` (
   `a` varchar(12) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select row_format from information_schema.TABLES where table_schema="test" and table_name="t2";
-row_format
+ROW_FORMAT
 Dynamic
 alter table t2 ROW_FORMAT=fixed;
 show create table t2;
@@ -1405,7 +1405,7 @@ t2	CREATE TABLE `t2` (
   `a` varchar(12) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 select row_format from information_schema.TABLES where table_schema="test" and table_name="t2";
-row_format
+ROW_FORMAT
 Dynamic
 alter table t2 ROW_FORMAT=fixed;
 ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'ROW_TYPE'
@@ -2000,7 +2000,7 @@ SELECT a FROM t1 UNION ALL SELECT b FROM t2;
 SELECT column_name, column_type
 FROM information_schema.columns
 WHERE TABLE_NAME='t3';
-column_name	column_type
+COLUMN_NAME	COLUMN_TYPE
 a	datetime
 DROP TABLE t1, t2, t3;
 # Bug #17602922 RESULT DIFFERENCES IN UNION QUERIES WITH IN

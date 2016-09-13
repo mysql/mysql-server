@@ -531,7 +531,13 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
             if (!table_deps && table->quick_keys.is_set(key) &&     // (1)
                 table->quick_key_parts[key] > cur_used_keyparts &&  // (2)
                 cur_fanout < (double)table->quick_rows[key])        // (3)
-              cur_fanout= (double)table->quick_rows[key];
+            {
+              trace_access_idx.add("chosen", false).
+                add_alnum("cause",
+                          "unreliable_ref_cost_and_range_uses_more_keyparts");
+              continue;
+            }
+
 
             tmp_fanout= cur_fanout;
           }

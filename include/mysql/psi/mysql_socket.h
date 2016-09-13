@@ -41,6 +41,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
   @file include/mysql/psi/mysql_socket.h
 */
 
+#include "pfs_socket_provider.h"
+
 #ifndef PSI_SOCKET_CALL
 #define PSI_SOCKET_CALL(M) psi_socket_service->M
 #endif

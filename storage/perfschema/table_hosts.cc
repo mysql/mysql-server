@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -71,6 +71,17 @@ table_hosts::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_hosts_by_host::match(PFS_host *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(pfs))
+      return false;
+  }
+
+  return true;
+}
+
 PFS_engine_table* table_hosts::create()
 {
   return new table_hosts();
@@ -106,6 +117,15 @@ table_hosts::table_hosts()
   : cursor_by_host(& m_share),
   m_row_exists(false)
 {}
+
+int table_hosts::index_init(uint idx, bool sorted)
+{
+  PFS_index_hosts *result= NULL;
+  result= PFS_NEW(PFS_index_hosts_by_host);
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
 
 void table_hosts::make_row(PFS_host *pfs)
 {

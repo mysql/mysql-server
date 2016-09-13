@@ -123,6 +123,9 @@ key (n2, n3, n4, n1),
 key (n3, n4, n1, n2),
 key (n4, n1, n2, n3) );
 alter table t1 disable keys;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	n1	1	n1	A	0	NULL	NULL		BTREE			YES
@@ -153,6 +156,9 @@ insert into t1 values(3,RAND()*1000,RAND()*1000,RAND());
 insert into t1 values(2,RAND()*1000,RAND()*1000,RAND());
 insert into t1 values(1,RAND()*1000,RAND()*1000,RAND());
 alter table t1 enable keys;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	n1	1	n1	A	10	NULL	NULL		BTREE			YES
@@ -176,6 +182,9 @@ drop table t1;
 create table t1 (i int unsigned not null auto_increment primary key);
 alter table t1 rename t2;
 alter table t2 rename t1, add c char(10) comment "no comment";
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 i	int(10) unsigned	NO	PRI	NULL	auto_increment
@@ -287,7 +296,7 @@ show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
 t1	0	a	2	b	A	NULL	NULL	NULL	YES	BTREE			YES
-t1	1	b	1	b	A	100	NULL	NULL	YES	BTREE			YES
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE			YES
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
@@ -305,10 +314,13 @@ PRIMARY KEY  (Host,User)
 ALTER TABLE t1 DISABLE KEYS;
 LOCK TABLES t1 WRITE;
 INSERT INTO t1 VALUES ('localhost','root'),('localhost',''),('games','monty');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE			YES
-t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE			YES
+t1	0	PRIMARY	1	Host	A	2	NULL	NULL		BTREE			YES
+t1	0	PRIMARY	2	User	A	3	NULL	NULL		BTREE			YES
 ALTER TABLE t1 ENABLE KEYS;
 UNLOCK TABLES;
 CHECK TABLES t1;
@@ -322,6 +334,9 @@ PRIMARY KEY  (Host,User),
 KEY  (Host)
 ) ENGINE=MyISAM;
 ALTER TABLE t1 DISABLE KEYS;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE			YES
@@ -329,15 +344,21 @@ t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE			YES
 t1	1	Host	1	Host	A	NULL	NULL	NULL		BTREE	disabled		YES
 LOCK TABLES t1 WRITE;
 INSERT INTO t1 VALUES ('localhost','root'),('localhost','');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE			YES
-t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE			YES
+t1	0	PRIMARY	1	Host	A	1	NULL	NULL		BTREE			YES
+t1	0	PRIMARY	2	User	A	2	NULL	NULL		BTREE			YES
 t1	1	Host	1	Host	A	NULL	NULL	NULL		BTREE	disabled		YES
 ALTER TABLE t1 ENABLE KEYS;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE			YES
+t1	0	PRIMARY	1	Host	A	1	NULL	NULL		BTREE			YES
 t1	0	PRIMARY	2	User	A	2	NULL	NULL		BTREE			YES
 t1	1	Host	1	Host	A	1	NULL	NULL		BTREE			YES
 UNLOCK TABLES;
@@ -360,6 +381,9 @@ KEY  (Host)
 ) ENGINE=MyISAM;
 LOCK TABLES t1 WRITE;
 ALTER TABLE t1 DISABLE KEYS;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE			YES
@@ -402,10 +426,16 @@ Warning	1364	Field 'f' doesn't have a default value
 Warning	1364	Field 'g' doesn't have a default value
 Warning	1364	Field 'h' doesn't have a default value
 Warning	1364	Field 'i' doesn't have a default value
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show table status like 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MyISAM	10	Fixed	1	37	X	X	X	X	X	X	X	X	latin1_swedish_ci	NULL		
 alter table t1 modify a int;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 show table status like 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MyISAM	10	Fixed	1	37	X	X	X	X	X	X	X	X	latin1_swedish_ci	NULL		
@@ -421,6 +451,9 @@ Warning	1364	Field 'f' doesn't have a default value
 Warning	1364	Field 'g' doesn't have a default value
 Warning	1364	Field 'h' doesn't have a default value
 Warning	1364	Field 'i' doesn't have a default value
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show table status like 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MyISAM	10	Fixed	1	37	X	X	X	X	X	X	X	X	latin1_swedish_ci	NULL		
@@ -541,36 +574,60 @@ alter table t1 add unique ( a(1) );
 ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
 drop table t1;
 create table t1 (a int, key(a));
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
 "this used not to disable the index"
 alter table t1 modify a int, disable keys;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
 alter table t1 enable keys;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
 alter table t1 modify a bigint, disable keys;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
 alter table t1 enable keys;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
 alter table t1 add b char(10), disable keys;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
 alter table t1 add c decimal(10,2), enable keys;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
 "this however did"
 alter table t1 disable keys;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
@@ -581,16 +638,25 @@ b	char(10)	YES		NULL
 c	decimal(10,2)	YES		NULL	
 alter table t1 add d decimal(15,5);
 "The key should still be disabled"
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
 drop table t1;
 "Now will test with one unique index"
 create table t1(a int, b char(10), unique(a));
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
 alter table t1 disable keys;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
@@ -598,20 +664,32 @@ alter table t1 enable keys;
 "If no copy on noop change, this won't touch the data file"
 "Unique index, no change"
 alter table t1 modify a int, disable keys;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
 "Change the type implying data copy"
 "Unique index, no change"
 alter table t1 modify a bigint, disable keys;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
 alter table t1 modify a bigint;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
 alter table t1 modify a int;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
@@ -623,6 +701,9 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
 t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE			YES
 alter table t1 disable keys;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
@@ -631,11 +712,17 @@ alter table t1 enable keys;
 "If no copy on noop change, this won't touch the data file"
 "The non-unique index will be disabled"
 alter table t1 modify a int, disable keys;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
 t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
 alter table t1 enable keys;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
@@ -643,18 +730,27 @@ t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE			YES
 "Change the type implying data copy"
 "The non-unique index will be disabled"
 alter table t1 modify a bigint, disable keys;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
 t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
 "Change again the type, but leave the indexes as_is"
 alter table t1 modify a int;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
 t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
 "Try the same. When data is no copied on similar tables, this is noop"
 alter table t1 modify a int;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
@@ -691,6 +787,10 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED
 DROP TABLE t1;
 CREATE TABLE bug24219 (a INT, INDEX(a));
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	Error	Table 'test.t1' doesn't exist
+test.t1	analyze	status	Operation failed
 SHOW INDEX FROM bug24219;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 bug24219	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
@@ -1132,6 +1232,9 @@ DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
 int_field	int(10) unsigned	NO	MUL	NULL	
 char_field	char(10)	YES		NULL	
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	int_field	1	int_field	A	NULL	NULL	NULL		BTREE			YES
@@ -1226,9 +1329,15 @@ affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 DROP TABLE t1;
 create table t1(f1 int not null, f2 int not null, key  (f1), key (f2));
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select index_length into @unpaked_keys_size from
 information_schema.tables where table_name='t1';
 alter table t1 pack_keys=1;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 select index_length into @paked_keys_size from
 information_schema.tables where table_name='t1';
 select (@unpaked_keys_size > @paked_keys_size);
@@ -1237,6 +1346,9 @@ select (@unpaked_keys_size > @paked_keys_size);
 select max_data_length into @orig_max_data_length from
 information_schema.tables where table_name='t1';
 alter table t1 max_rows=100;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 select max_data_length into @changed_max_data_length from
 information_schema.tables where table_name='t1';
 select (@orig_max_data_length > @changed_max_data_length);
@@ -2130,6 +2242,9 @@ drop table t1, t2;
 # After the patch, the alter table reflects the new
 # index comment or the lack of comment for the indexes.
 CREATE TABLE t1(fld1 int, key key1(fld1));
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE			YES
@@ -2139,28 +2254,46 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		test	YES
 DROP TABLE t1;
 CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'test');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		test	YES
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE			YES
 DROP TABLE t1;
 CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'test');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		test	YES
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'success';
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		success	YES
 DROP TABLE t1;
 CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'old comment');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		old comment	YES
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'new comment';
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		new comment	YES
@@ -2171,21 +2304,33 @@ DROP TABLE t1;
 #Without the patch, the ALTER TABLE to change the index
 #comment using INPLACE algorithm reports an error.
 CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'test') ENGINE= MyISAM;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		test	YES
 # No error is expected ,because there is no actual change in the table structure
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1), ALGORITHM=INPLACE;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE			YES
 DROP TABLE t1;
 CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'old comment') ENGINE=MyISAM;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		old comment	YES
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'new comment',
 ALGORITHM= INPLACE;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		new comment	YES

@@ -13,9 +13,12 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
+#include <example_services.h>
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/service_implementation.h>
-#include <example_services.h>
+#include <stddef.h>
+
+#include "mysql/components/services/registry.h"
 
 REQUIRES_SERVICE_PLACEHOLDER(example_math);
 

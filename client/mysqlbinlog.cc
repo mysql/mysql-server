@@ -1682,7 +1682,7 @@ static struct my_option my_long_options[] =
    &opt_binlog_rows_event_max_size, 0,
    GET_ULONG, REQUIRED_ARG,
    /* def_value 4GB */ UINT_MAX, /* min_value */ 256,
-   /* max_value */ ULONG_MAX, /* sub_size */ 0,
+   /* max_value */ ULONG_MAX, /* arg_source */ 0,
    /* block_size */ 256, /* app_type */ 0},
   {"skip-gtids", OPT_MYSQLBINLOG_SKIP_GTIDS,
    "Do not preserve Global Transaction Identifiers; instead make the server "
@@ -1987,7 +1987,7 @@ static Exit_status safe_connect()
 {
   /*
     A possible old connection's resources are reclaimed now
-    at new connect attempt. The final safe_connect resouces
+    at new connect attempt. The final safe_connect resources
     are mysql_closed at the end of program, explicitly.
   */
   mysql_close(mysql);

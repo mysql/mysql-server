@@ -18,6 +18,8 @@
 
 #include "my_global.h"
 #include "my_compiler.h"
+#include "sql_class.h"
+#include "current_thd.h"
 
 /**
   @file storage/perfschema/pfs_global.h
@@ -116,6 +118,13 @@ uint pfs_get_socket_address(char *host,
                             uint *port,
                             const struct sockaddr_storage *src_addr,
                             socklen_t src_len);
+
+/**
+  Helper to allocate an object from mem_root.
+  @param CLASS Class to instantiate
+*/
+#define PFS_NEW(CLASS) \
+  reinterpret_cast<CLASS *>(new(current_thd->alloc(sizeof(CLASS))) CLASS())
 
 /**
   Compute a random index value in an interval.

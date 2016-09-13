@@ -1,4 +1,4 @@
-;   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+;   Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 ;
 ;   This program is free software; you can redistribute it and/or modify
 ;   it under the terms of the GNU General Public License as published by
@@ -80,6 +80,7 @@ EXPORTS
 	mysql_row_tell
 	mysql_select_db
 	mysql_send_query
+        mysql_shutdown
 	mysql_ssl_set
 	mysql_stat
 	mysql_store_result

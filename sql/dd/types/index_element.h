@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,7 +42,8 @@ public:
 public:
   enum enum_index_element_order
   {
-    ORDER_ASC= 1,
+    ORDER_UNDEF= 1,
+    ORDER_ASC,
     ORDER_DESC
   };
 

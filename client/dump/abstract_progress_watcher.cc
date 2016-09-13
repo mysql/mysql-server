@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 #include "abstract_progress_watcher.h"
 #include <algorithm>
+#include <chrono>
 #include "table_rows_dump_task.h"
 #include "table_definition_dump_task.h"
 #include "row_group_dump_task.h"
@@ -27,14 +28,14 @@ void Abstract_progress_watcher::progress_changed()
 {
   if (--m_step_countdown == 0)
   {
-    boost::chrono::system_clock::time_point now=
-      boost::chrono::system_clock::now();
+    std::chrono::system_clock::time_point now=
+      std::chrono::system_clock::now();
 
     double stages_past=
-      std::max(boost::chrono::duration_cast<
-      boost::chrono::duration<double> >(
+      std::max(std::chrono::duration_cast<
+      std::chrono::duration<double> >(
       now - m_last_stage_time) /
-      boost::chrono::milliseconds(REPORT_DELAY_MS / STAGES),
+      std::chrono::milliseconds(REPORT_DELAY_MS / STAGES),
       0.1); //  Do not expand stage by more than 10 times the steps.
 
     m_step_countdown= m_last_step_countdown= std::max(1LL,

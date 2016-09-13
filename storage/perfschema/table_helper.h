@@ -24,9 +24,11 @@
 #include "pfs_column_types.h"
 #include "pfs_stat.h"
 #include "pfs_timer.h"
+#include "pfs_events.h"
 #include "pfs_engine_table.h"
 #include "pfs_instr_class.h"
 #include "pfs_digest.h"
+#include "pfs_setup_actor.h"
 
 /*
   Write MD5 hash value in a string to be used
@@ -47,6 +49,15 @@ struct PFS_user;
 struct PFS_account;
 struct PFS_object_name;
 struct PFS_program;
+class System_variable;
+class Status_variable;
+struct User_variable;
+struct PFS_events_waits;
+struct PFS_table;
+struct PFS_prepared_stmt;
+struct PFS_metadata_lock;
+struct PFS_setup_actor;
+struct PFS_setup_object;
 
 /**
   @file storage/perfschema/table_helper.h
@@ -61,6 +72,8 @@ struct PFS_program;
 /** Namespace, internal views used within table setup_instruments. */
 struct PFS_instrument_view_constants
 {
+  static const uint FIRST_INSTRUMENT= 1;
+
   static const uint FIRST_VIEW= 1;
   static const uint VIEW_MUTEX= 1;
   static const uint VIEW_RWLOCK= 2;
@@ -71,6 +84,16 @@ struct PFS_instrument_view_constants
   static const uint VIEW_IDLE= 7;
   static const uint VIEW_METADATA= 8;
   static const uint LAST_VIEW= 8;
+
+  static const uint VIEW_THREAD= 9;
+  static const uint VIEW_STAGE= 10;
+  static const uint VIEW_STATEMENT= 11;
+  static const uint VIEW_TRANSACTION=12;
+  static const uint VIEW_BUILTIN_MEMORY= 13;
+  static const uint VIEW_MEMORY= 14;
+  static const uint VIEW_ERROR= 15;
+
+  static const uint LAST_INSTRUMENT= 15;
 };
 
 /** Namespace, internal views used within object summaries. */
@@ -203,6 +226,8 @@ struct PFS_index_row
   uint m_index_name_length;
 
   /** Build a row from a memory buffer. */
+  int make_index_name(PFS_table_share_index *pfs_index,
+                       uint table_index);
   int make_row(PFS_table_share *pfs, PFS_table_share_index *pfs_index,
                uint table_index);
   /** Set a table field from the row. */
@@ -700,7 +725,494 @@ private:
   size_t m_value_length;
 };
 
+class PFS_key_long_int : public PFS_engine_key
+{
+public:
+  PFS_key_long_int(const char* name)
+  : PFS_engine_key(name), m_key_value(0)
+  {}
+
+  virtual ~PFS_key_long_int()
+  {}
+
+  virtual void read(PFS_key_reader & reader, enum ha_rkey_function find_flag)
+  {
+    m_find_flag= reader.read_long_int(find_flag, m_is_null,
+                                       &m_key_value);
+  }
+
+protected:
+  bool do_match(bool record_null, int32 record_value);
+
+private:
+  int32 m_key_value;
+};
+
+class PFS_key_ulonglong : public PFS_engine_key
+{
+public:
+  PFS_key_ulonglong(const char* name)
+  : PFS_engine_key(name), m_key_value(0)
+  {}
+
+  virtual ~PFS_key_ulonglong()
+  {}
+
+  virtual void read(PFS_key_reader & reader, enum ha_rkey_function find_flag)
+  {
+    m_find_flag= reader.read_ulonglong(find_flag, m_is_null,
+                                       &m_key_value);
+  }
+
+protected:
+  bool do_match(bool record_null, ulonglong record_value);
+
+private:
+  ulonglong m_key_value;
+};
+
+class PFS_key_thread_id : public PFS_key_ulonglong
+{
+public:
+  PFS_key_thread_id(const char* name)
+  : PFS_key_ulonglong(name)
+  {}
+
+  ~PFS_key_thread_id()
+  {}
+
+  bool match(ulonglong thread_id);
+  bool match(const PFS_thread *pfs);
+  bool match_owner(const PFS_table *pfs);
+  bool match_owner(const PFS_socket *pfs);
+  bool match_owner(const PFS_mutex *pfs);
+  bool match_owner(const PFS_prepared_stmt *pfs);
+  bool match_owner(const PFS_metadata_lock *pfs);
+  bool match_writer(const PFS_rwlock *pfs);
+};
+
+class PFS_key_event_id : public PFS_key_ulonglong
+{
+public:
+  PFS_key_event_id(const char* name)
+  : PFS_key_ulonglong(name)
+  {}
+
+  ~PFS_key_event_id()
+  {}
+
+  bool match(const PFS_events *pfs);
+  bool match(const PFS_events_waits *pfs);
+  bool match_owner(const PFS_table *pfs);
+  bool match_owner(const PFS_prepared_stmt *pfs);
+  bool match_owner(const PFS_metadata_lock *pfs);
+};
+
+class PFS_key_processlist_id : public PFS_key_ulonglong
+{
+public:
+  PFS_key_processlist_id(const char* name)
+  : PFS_key_ulonglong(name)
+  {}
+
+  ~PFS_key_processlist_id()
+  {}
+
+  bool match(const PFS_thread *pfs);
+};
+
+class PFS_key_processlist_id_int : public PFS_key_long_int
+{
+public:
+  PFS_key_processlist_id_int(const char* name)
+  : PFS_key_long_int(name)
+  {}
+
+  ~PFS_key_processlist_id_int()
+  {}
+
+  bool match(const PFS_thread *pfs);
+};
+
+class PFS_key_thread_os_id : public PFS_key_ulonglong
+{
+public:
+  PFS_key_thread_os_id(const char* name)
+  : PFS_key_ulonglong(name)
+  {}
+
+  ~PFS_key_thread_os_id()
+  {}
+
+  bool match(const PFS_thread *pfs);
+};
+
+class PFS_key_statement_id : public PFS_key_ulonglong
+{
+public:
+  PFS_key_statement_id(const char* name)
+  : PFS_key_ulonglong(name)
+  {}
+
+  ~PFS_key_statement_id()
+  {}
+
+  bool match(const PFS_prepared_stmt *pfs);
+};
+
+class PFS_key_socket_id : public PFS_key_long_int
+{
+public:
+  PFS_key_socket_id(const char* name)
+  : PFS_key_long_int(name)
+  {}
+
+  ~PFS_key_socket_id()
+  {}
+
+  bool match(const PFS_socket *pfs);
+};
+
+class PFS_key_port : public PFS_key_long_int
+{
+public:
+  PFS_key_port(const char* name)
+  : PFS_key_long_int(name)
+  {}
+
+  ~PFS_key_port()
+  {}
+
+  bool match(const PFS_socket *pfs);
+};
+
+class PFS_key_error_number : public PFS_key_long_int
+{
+public:
+  PFS_key_error_number(const char* name)
+  : PFS_key_long_int(name)
+  {}
+
+  ~PFS_key_error_number()
+  {}
+
+  bool match_error_index(uint error_index);
+};
+
+template <int SIZE>
+class PFS_key_string : public PFS_engine_key
+{
+public:
+  PFS_key_string(const char* name)
+  : PFS_engine_key(name), m_key_value_length(0)
+  {}
+
+  virtual ~PFS_key_string()
+  {}
+
+  virtual void read(PFS_key_reader & reader, enum ha_rkey_function find_flag)
+  {
+    if (reader.get_key_type() == HA_KEYTYPE_TEXT)
+    {
+      m_find_flag= reader.read_text_utf8(find_flag, m_is_null,
+                                         m_key_value, &m_key_value_length, sizeof(m_key_value));
+    }
+    else
+    {
+      m_find_flag= reader.read_varchar_utf8(find_flag, m_is_null,
+                                            m_key_value, &m_key_value_length, sizeof(m_key_value));
+    }
+  }
+
+protected:
+  bool do_match(bool record_null, const char* record_value, size_t record_value_length);
+  bool do_match_prefix(bool record_null, const char* record_value, size_t record_value_length);
+
+private:
+  char m_key_value[SIZE * SYSTEM_CHARSET_MBMAXLEN]; // FIXME FILENAME_CHARSET_MBMAXLEN for file names
+  uint m_key_value_length;
+};
+
+class PFS_key_thread_name : public PFS_key_string<PFS_MAX_INFO_NAME_LENGTH>
+{
+public:
+  PFS_key_thread_name(const char* name)
+  : PFS_key_string(name)
+  {}
+
+  ~PFS_key_thread_name()
+  {}
+
+  bool match(const PFS_thread *pfs);
+  bool match(const PFS_thread_class *klass);
+};
+
+class PFS_key_event_name : public PFS_key_string<PFS_MAX_INFO_NAME_LENGTH>
+{
+public:
+  PFS_key_event_name(const char* name)
+  : PFS_key_string(name)
+  {}
+
+  ~PFS_key_event_name()
+  {}
+
+  bool match(const PFS_instr_class *klass);
+  bool match(const PFS_mutex *pfs);
+  bool match(const PFS_rwlock *pfs);
+  bool match(const PFS_cond *pfs);
+  bool match(const PFS_file *pfs);
+  bool match(const PFS_socket *pfs);
+  bool match_view(uint view);
+};
+
+class PFS_key_user : public PFS_key_string<USERNAME_LENGTH>
+{
+public:
+  PFS_key_user(const char* name)
+  : PFS_key_string(name)
+  {}
+
+  ~PFS_key_user()
+  {}
+
+  bool match(const PFS_thread *pfs);
+  bool match(const PFS_user *pfs);
+  bool match(const PFS_account *pfs);
+  bool match(const PFS_setup_actor *pfs);
+};
+
+class PFS_key_host : public PFS_key_string<HOSTNAME_LENGTH>
+{
+public:
+  PFS_key_host(const char* name)
+  : PFS_key_string(name)
+  {}
+
+  ~PFS_key_host()
+  {}
+
+  bool match(const PFS_thread *pfs);
+  bool match(const PFS_host *pfs);
+  bool match(const PFS_account *pfs);
+  bool match(const PFS_setup_actor *pfs);
+  bool match(const char* host, uint host_length);
+};
+
+class PFS_key_role : public PFS_key_string<ROLENAME_LENGTH>
+{
+public:
+  PFS_key_role(const char* name)
+  : PFS_key_string(name)
+  {}
+
+  ~PFS_key_role()
+  {}
+
+  bool match(const PFS_setup_actor *pfs);
+};
+
+class PFS_key_schema : public PFS_key_string<NAME_CHAR_LEN>
+{
+public:
+  PFS_key_schema(const char* schema)
+  : PFS_key_string(schema)
+  {}
+
+  ~PFS_key_schema()
+  {}
+
+  bool match(const PFS_statements_digest_stat *pfs);
+};
+
+class PFS_key_digest : public PFS_key_string<MAX_KEY_LENGTH>
+{
+public:
+  PFS_key_digest(const char* digest)
+  : PFS_key_string(digest)
+  {}
+
+  ~PFS_key_digest()
+  {}
+
+  bool match(PFS_statements_digest_stat *pfs);
+};
+
+/* Generic NAME key */
+class PFS_key_name : public PFS_key_string<NAME_CHAR_LEN>
+{
+public:
+  PFS_key_name(const char* name)
+  : PFS_key_string(name)
+  {}
+
+  ~PFS_key_name()
+  {}
+
+  bool match(const LEX_STRING *name);
+  bool match(const char* name, uint name_length);
+};
+
+class PFS_key_variable_name : public PFS_key_string<NAME_CHAR_LEN>
+{
+public:
+  PFS_key_variable_name(const char* name)
+  : PFS_key_string(name)
+  {}
+
+  ~PFS_key_variable_name()
+  {}
+
+  bool match(const System_variable *pfs);
+  bool match(const Status_variable *pfs);
+  bool match(const PFS_variable_name_row *pfs);
+};
+
+class PFS_key_ip : public PFS_key_string<PFS_MAX_INFO_NAME_LENGTH> // FIXME <INET6_ADDRSTRLEN+1> fails on freebsd
+{
+public:
+  PFS_key_ip(const char* name)
+  : PFS_key_string(name)
+  {}
+
+  ~PFS_key_ip()
+  {}
+
+  bool match(const PFS_socket *pfs);
+  bool match(const char* ip, uint ip_length);
+};
+
+class PFS_key_statement_name : public PFS_key_string<PFS_MAX_INFO_NAME_LENGTH>
+{
+public:
+  PFS_key_statement_name(const char* name)
+  : PFS_key_string(name)
+  {}
+
+  ~PFS_key_statement_name()
+  {}
+
+  bool match(const PFS_prepared_stmt *pfs);
+};
+
+class PFS_key_file_name : public PFS_key_string<1350> // FIXME FN_REFLEN or FN_REFLEN_SE
+{
+public:
+  PFS_key_file_name(const char* name)
+  : PFS_key_string(name)
+  {}
+
+  ~PFS_key_file_name()
+  {}
+
+  bool match(const PFS_file *pfs);
+};
+
+class PFS_key_object_schema : public PFS_key_string<NAME_CHAR_LEN>
+{
+public:
+  PFS_key_object_schema(const char* name)
+  : PFS_key_string(name)
+  {}
+
+  ~PFS_key_object_schema()
+  {}
+
+  bool match(const PFS_table_share *pfs);
+  bool match(const PFS_program *pfs);
+  bool match(const PFS_prepared_stmt *pfs);
+  bool match(const PFS_object_row *pfs);
+  bool match(const PFS_setup_object *pfs);
+  bool match(const char *schema_name, uint schema_name_length);
+};
+
+class PFS_key_object_name : public PFS_key_string<NAME_CHAR_LEN>
+{
+public:
+  PFS_key_object_name(const char* name)
+  : PFS_key_string(name)
+  {}
+
+  ~PFS_key_object_name()
+  {}
+
+  bool match(const PFS_table_share *pfs);
+  bool match(const PFS_program *pfs);
+  bool match(const PFS_prepared_stmt *pfs);
+  bool match(const PFS_object_row *pfs);
+  bool match(const PFS_index_row *pfs);
+  bool match(const PFS_setup_object *pfs);
+  bool match(const char *schema_name, uint schema_name_length);
+};
+
+class PFS_key_object_type : public PFS_engine_key
+{
+public:
+  PFS_key_object_type(const char* name)
+  : PFS_engine_key(name), m_object_type(NO_OBJECT_TYPE)
+  {}
+
+  virtual ~PFS_key_object_type()
+  {}
+
+  virtual void read(PFS_key_reader & reader, enum ha_rkey_function find_flag);
+
+  bool match(enum_object_type object_type);
+  bool match(const PFS_object_row *pfs);
+  bool match(const PFS_program *pfs);
+
+  enum_object_type m_object_type;
+};
+
+class PFS_key_object_type_enum : public PFS_engine_key
+{
+public:
+  PFS_key_object_type_enum(const char* name)
+  : PFS_engine_key(name), m_object_type(NO_OBJECT_TYPE)
+  {}
+
+  virtual ~PFS_key_object_type_enum()
+  {}
+
+  virtual void read(PFS_key_reader & reader, enum ha_rkey_function find_flag);
+
+  bool match(enum_object_type object_type);
+  bool match(const PFS_prepared_stmt *pfs);
+  bool match(const PFS_object_row *pfs);
+  bool match(const PFS_program *pfs);
+
+  enum_object_type m_object_type;
+};
+
+class PFS_key_object_instance : public PFS_engine_key
+{
+public:
+  PFS_key_object_instance(const char* name)
+  : PFS_engine_key(name), m_identity(NULL)
+  {}
+
+  virtual ~PFS_key_object_instance()
+  {}
+
+  virtual void read(PFS_key_reader & reader, enum ha_rkey_function find_flag)
+  {
+    ulonglong object_instance_begin;
+    m_find_flag= reader.read_ulonglong(find_flag, m_is_null, &object_instance_begin);
+    m_identity= (void *)object_instance_begin;
+  }
+
+  bool match(const PFS_table *pfs);
+  bool match(const PFS_mutex *pfs);
+  bool match(const PFS_rwlock *pfs);
+  bool match(const PFS_cond *pfs);
+  bool match(const PFS_file *pfs);
+  bool match(const PFS_socket *pfs);
+  bool match(const PFS_prepared_stmt *pfs);
+  bool match(const PFS_metadata_lock *pfs);
+
+  const void *m_identity;
+};
+
 /** @} */
 
 #endif
-

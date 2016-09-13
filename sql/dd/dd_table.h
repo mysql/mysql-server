@@ -21,15 +21,16 @@
 #include "binary_log_types.h"        // enum_field_types
 #include "handler.h"                 // legacy_db_type
 
-#include "dd/types/column.h"         // enum_column_types
-#include "dd/types/abstract_table.h" // enum_table_type
+#include "sql_alter.h"               // Alter_info::enum_enable_or_disable
+#include "table.h"                   // ST_FIELD_INFO
+#include "dd/types/column.h"         // dd::enum_column_types
 
-#include <memory>                    // unique_ptr
+#include <memory>                    // std:unique_ptr
 
 class Create_field;
 class THD;
 typedef struct st_ha_create_information HA_CREATE_INFO;
-typedef struct st_key KEY;
+class KEY;
 template <class T> class List;
 
 namespace dd {
@@ -42,13 +43,38 @@ namespace dd {
 static const char FIELD_NAME_SEPARATOR_CHAR = ';';
 
 /**
-  Convert from old field type to new enum types for fields in DD framework.
+  Prepares a dd::Table object from mysql_prepare_create_table() output
+  and updates DD tables. This function creates a user table, as opposed
+  to create_table() which can handle system tables as well.
 
-  @param type Old field type.
+  @param thd            Thread handle
+  @param schema_name    Schema name.
+  @param table_name     Table name.
+  @param create_info    HA_CREATE_INFO describing the table to be created.
+  @param create_fields  List of fields for the table.
+  @param keyinfo        Array with descriptions of keys for the table.
+  @param keys           Number of keys.
+  @param keys_onoff     keys ON or OFF
+  @param fk_keyinfo     Array with descriptions of foreign keys for the table.
+  @param fk_keys        Number of foreign keys.
+  @param file           handler instance for the table.
 
-  @retval New field type.
+  @retval 0 on success.
+  @retval 1 on failure.
 */
-dd::enum_column_types dd_get_new_field_type(enum_field_types type);
+std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
+                             const std::string &schema_name,
+                             const std::string &table_name,
+                             HA_CREATE_INFO *create_info,
+                             const List<Create_field> &create_fields,
+                             const KEY *keyinfo,
+                             uint keys,
+                             Alter_info::enum_enable_or_disable keys_onoff,
+                             const FOREIGN_KEY *fk_keyinfo,
+                             uint fk_keys,
+                             handler *file,
+                             bool commit_dd_changes,
+                             bool store_sdi);
 
 /**
   Prepares a dd::Table object from mysql_prepare_create_table() output
@@ -61,6 +87,7 @@ dd::enum_column_types dd_get_new_field_type(enum_field_types type);
   @param create_fields      List of fields for the table.
   @param keyinfo            Array with descriptions of keys for the table.
   @param keys               Number of keys.
+  @param keys_onoff         Enable or disable keys.
   @param fk_keyinfo         Array with descriptions of foreign keys for the table.
   @param fk_keys            Number of foreign keys.
   @param file               handler instance for the table.
@@ -74,16 +101,17 @@ dd::enum_column_types dd_get_new_field_type(enum_field_types type);
            case of failure).
 */
 std::unique_ptr<Table> create_table(THD *thd,
-                                    const std::string &schema_name,
-                                    const std::string &table_name,
-                                    HA_CREATE_INFO *create_info,
-                                    const List<Create_field> &create_fields,
-                                    const KEY *keyinfo, uint keys,
-                                    const FOREIGN_KEY *fk_keyinfo,
-                                    uint fk_keys,
-                                    handler *file,
-                                    bool commit_dd_changes,
-                                    bool store_sdi);
+                         const std::string &schema_name,
+                         const std::string &table_name,
+                         HA_CREATE_INFO *create_info,
+                         const List<Create_field> &create_fields,
+                         const KEY *keyinfo, uint keys,
+                         Alter_info::enum_enable_or_disable keys_onoff,
+                         const FOREIGN_KEY *fk_keyinfo,
+                         uint fk_keys,
+                         handler *file,
+                         bool commit_dd_changes,
+                         bool store_sdi);
 
 /**
   Prepares a dd::Table object for a temporary table from
@@ -97,6 +125,7 @@ std::unique_ptr<Table> create_table(THD *thd,
   @param create_fields  List of fields for the table.
   @param keyinfo        Array with descriptions of keys for the table.
   @param keys           Number of keys.
+  @param keys_onoff     Enable or disable keys.
   @param file           handler instance for the table.
 
   @returns Constructed dd::Table object, or nullptr in case of an error.
@@ -107,6 +136,7 @@ std::unique_ptr<dd::Table> create_tmp_table(THD *thd,
                              HA_CREATE_INFO *create_info,
                              const List<Create_field> &create_fields,
                              const KEY *keyinfo, uint keys,
+                             Alter_info::enum_enable_or_disable keys_onoff,
                              handler *file);
 
 /**
@@ -318,6 +348,46 @@ std::unique_ptr<T> acquire_uncached_uncommitted_table(THD *thd,
                                                       const char *name);
 
 /**
+  Update dd::Table::options keys_disabled=0/1 based on ALTER TABLE
+  ENABLE/DISABLE KEYS. This will be used by INFORMATION_SCHEMA.STATISTICS system
+  view.
+
+  @param[in]    thd         Thread context
+  @param[in]    schema_name Name of the schema
+  @param[in]    table_name  Name of the table
+  @param[in]    keys_onoff  Wheather keys are enabled or disabled.
+
+  @retval       false       Success
+  @retval       true        Error
+*/
+
+bool update_keys_disabled(THD *thd,
+                          const char *schema_name,
+                          const char *table_name,
+                          Alter_info::enum_enable_or_disable keys_onoff);
+
+/**
+  Function prepares string representing columns data type.
+  This is required for IS implementation which uses views on DD tables
+*/
+std::string get_sql_type_by_field_info(THD *thd,
+                                       enum_field_types field_type,
+                                       uint32 field_length,
+                                       const CHARSET_INFO *field_charset);
+
+/**
+  Convert field type from MySQL server type to new enum types in DD.
+  We have plans to retain both old and new enum values in DD tables so as
+  to handle client compatibility and information schema requirements.
+
+  @param[in]    type   MySQL server field type.
+
+  @retval  field type used by DD framework.
+*/
+
+enum_column_types get_new_field_type(enum_field_types type);
+
+/**
   Update real row format for the table in the data-dictionary with
   value from the storage engine.
 
@@ -331,5 +401,63 @@ std::unique_ptr<T> acquire_uncached_uncommitted_table(THD *thd,
 */
 bool fix_row_type(THD *thd, TABLE_SHARE *share);
 
+/**
+  Update row format for the table with the value
+  value supplied by caller function.
+
+  @pre There must be an exclusive MDL lock on the table.
+
+  @param[in]    thd              Thread context.
+  @param[in]    share            TABLE_SHARE for the table.
+  @param[in]    correct_row_type row_type to be set.
+
+  @retval       false       Success
+  @retval       true        Error
+*/
+bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type);
+
+/**
+  Move all triggers from a table to another.
+
+  @param[in]    thd              Thread context
+  @param[in]    from_schema_name Name of the schema
+  @param[in]    from_name        Name of the table
+  @param[in]    to_schema_name   Name of the schema
+  @param[in]    to_name          Name of the table
+
+  Triggers from from_schema_name.from_table_name will be moved
+  into to_schema_name.to_table_name. And the transaction will be
+  committed.
+
+  @retval       false       Success
+  @retval       true        Error
+*/
+
+bool move_triggers(THD *thd,
+                   const char *from_schema_name,
+                   const char *from_name,
+                   const char *to_schema_name,
+                   const char *to_name,
+                   bool commit_dd_changes);
+
+/**
+  Add column objects to dd::Abstract_table objects according to the
+  list of Create_field objects.
+
+  @param   thd              Thread handle.
+  @param   tab_obj          dd::Table or dd::View's instance.
+  @param   create_fields    List of Create_field objects to fill
+                            dd::Column object(s).
+  @param   file             handler instance for the table.
+
+  @retval  false            On Success
+  @retval  true             On error.
+*/
+
+bool
+fill_dd_columns_from_create_fields(THD *thd,
+                                   Abstract_table *tab_obj,
+                                   const List<Create_field> &create_fields,
+                                   handler *file);
 } // namespace dd
 #endif // DD_TABLE_INCLUDED

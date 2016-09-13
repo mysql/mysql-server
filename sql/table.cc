@@ -41,16 +41,16 @@
 #include "sql_plugin.h"                  // plugin_unlock
 #include "sql_select.h"                  // actual_key_parts
 #include "sql_table.h"                   // build_table_filename
+#include "sql_tablespace.h"              // check_tablespace_name())
 #include "sql_view.h"                    // view_type
 #include "strfunc.h"                     // find_type
 #include "table_cache.h"                 // table_cache_manager
 #include "table_trigger_dispatcher.h"    // Table_trigger_dispatcher
 #include "template_utils.h"              // down_cast
 
-#include "dd/dd.h"
-#include "dd/dictionary.h"
+#include "dd/dd.h"                       // dd::get_dictionary
+#include "dd/dictionary.h"               // dd::Dictionary
 #include "dd/cache/dictionary_client.h"  // dd::cache_Dictionary_client
-
 #include "dd/types/table.h"              // dd::Table
 #include "dd/types/view.h"               // dd::View
 
@@ -332,6 +332,9 @@ TABLE_CATEGORY get_table_category(const LEX_STRING &db,
                        name.str) == 0))
       return TABLE_CATEGORY_GTID;
 
+    if (dd::get_dictionary()->is_dd_table_name(MYSQL_SCHEMA_NAME.str,
+                                               name.str))
+      return TABLE_CATEGORY_DICTIONARY;
   }
 
   return TABLE_CATEGORY_USER;
@@ -834,6 +837,1669 @@ end:
 }
 
 
+//////////////////////////////////////////////////////////////////////////
+
+/*
+  The following section adds code for the interface with the .frm file.
+  These defines and functions comes from the file sql/field.h in 5.7
+
+  Note:
+  These functions should not be used any where else in the code.
+  They are only used in upgrade scenario for migrating old data directory
+  to be compatible with current server. They will be removed in future release.
+
+  Any new code should not be added in this section.
+*/
+
+#define FIELDFLAG_DECIMAL               1
+#define FIELDFLAG_BINARY                1       // Shares same flag
+#define FIELDFLAG_NUMBER                2
+#define FIELDFLAG_ZEROFILL              4
+#define FIELDFLAG_PACK                  120     // Bits used for packing
+#define FIELDFLAG_INTERVAL              256     // mangled with decimals!
+#define FIELDFLAG_BITFIELD              512     // mangled with decimals!
+#define FIELDFLAG_BLOB                  1024    // mangled with decimals!
+#define FIELDFLAG_GEOM                  2048    // mangled with decimals!
+#define FIELDFLAG_JSON                  4096    /* mangled with decimals and
+                                                   with bitfields! */
+
+#define FIELDFLAG_TREAT_BIT_AS_CHAR     4096    /* use Field_bit_as_char */
+
+#define FIELDFLAG_LEFT_FULLSCREEN       8192
+#define FIELDFLAG_RIGHT_FULLSCREEN      16384
+#define FIELDFLAG_FORMAT_NUMBER         16384   // predit: ###,,## in output
+#define FIELDFLAG_NO_DEFAULT            16384   /* sql */
+#define FIELDFLAG_SUM                   ((uint) 32768)// predit: +#fieldflag
+#define FIELDFLAG_MAYBE_NULL            ((uint) 32768)// sql
+#define FIELDFLAG_PACK_SHIFT            3
+#define FIELDFLAG_DEC_SHIFT             8
+#define FIELDFLAG_MAX_DEC               31
+#define FIELDFLAG_NUM_SCREEN_TYPE       0x7F01
+#define FIELDFLAG_ALFA_SCREEN_TYPE      0x7800
+
+#define MTYP_TYPENR(type) (type & 127)  /* Remove bits from type */
+
+#define FIELD_NR_MASK   16383           /* To get fieldnumber */
+
+inline int f_is_dec(int x)
+{
+  return (x & FIELDFLAG_DECIMAL);
+}
+inline int f_is_num(int x)
+{
+  return (x & FIELDFLAG_NUMBER);
+}
+inline int f_is_zerofill(int x)
+{
+  return (x & FIELDFLAG_ZEROFILL);
+}
+inline int f_is_packed(int x)
+{
+  return (x & FIELDFLAG_PACK);
+}
+inline int f_packtype(int x)
+{
+  return ((x >> FIELDFLAG_PACK_SHIFT) & 15);
+}
+inline uint8 f_decimals(int x)
+{
+  return ((uint8) ((x >> FIELDFLAG_DEC_SHIFT) & FIELDFLAG_MAX_DEC));
+}
+inline int f_is_alpha(int x)
+{
+  return (!f_is_num(x));
+}
+inline int f_is_binary(int x)
+{
+  return (x & FIELDFLAG_BINARY); // 4.0- compatibility
+}
+inline int f_is_enum(int x)
+{
+  return ((x & (FIELDFLAG_INTERVAL | FIELDFLAG_NUMBER)) == FIELDFLAG_INTERVAL);
+}
+inline int f_is_bitfield(int x)
+{
+  return ((x & (FIELDFLAG_BITFIELD | FIELDFLAG_NUMBER)) == FIELDFLAG_BITFIELD);
+}
+
+inline int f_is_blob(int x)
+{
+  return ((x & (FIELDFLAG_BLOB | FIELDFLAG_NUMBER)) == FIELDFLAG_BLOB);
+}
+inline int f_is_geom(int x)
+{
+  return ((x & (FIELDFLAG_GEOM | FIELDFLAG_NUMBER)) == FIELDFLAG_GEOM);
+}
+inline int f_is_json(int x)
+{
+  return ((x & (FIELDFLAG_JSON | FIELDFLAG_NUMBER | FIELDFLAG_BITFIELD)) ==
+          FIELDFLAG_JSON);
+}
+inline int f_is_equ(int x)
+{
+  return (x & (1+2+FIELDFLAG_PACK+31*256));
+}
+inline int f_settype(int x)
+{
+  return (x << FIELDFLAG_PACK_SHIFT);
+}
+inline int f_maybe_null(int x)
+{
+  return (x & FIELDFLAG_MAYBE_NULL);
+}
+inline int f_no_default(int x)
+{
+  return (x & FIELDFLAG_NO_DEFAULT);
+}
+inline int f_bit_as_char(int x)
+{
+  return (x & FIELDFLAG_TREAT_BIT_AS_CHAR);
+}
+
+
+/**
+  Read string from a file with malloc
+
+  @note We add an \0 at end of the read string to make reading of C strings
+  easier. This function is added to read .frm file in upgrade scenario. It
+  should not be used any where else in the code. This function will be removed
+  later.
+
+  @param[in]  file        file handler
+  @param[out] to          pointer to read string
+  @param[in]  length      length of string
+
+  @retval 0  Error
+  @retval 1  Success
+*/
+
+static int read_string(File file, uchar**to, size_t length)
+{
+  DBUG_ENTER("read_string");
+
+  my_free(*to);
+  if (!(*to= (uchar*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                length+1,MYF(MY_WME))) ||
+      mysql_file_read(file, *to, length, MYF(MY_NABP)))
+  {
+     my_free(*to);                            /* purecov: inspected */
+    *to= 0;                                   /* purecov: inspected */
+    DBUG_RETURN(1);                           /* purecov: inspected */
+  }
+  *((char*) *to+length)= '\0';
+  DBUG_RETURN (0);
+} /* read_string */
+
+
+/**
+  Un-hex all elements in a typelib.
+
+  @param[in] interval  TYPELIB (struct of pointer to values + lengths + count)
+
+  @note This function is added to read .frm file in upgrade scenario. It should not
+  be used any where else in the code. This function will be removed later.
+*/
+
+static void unhex_type2(TYPELIB *interval)
+{
+  for (uint pos= 0; pos < interval->count; pos++)
+  {
+    char *from, *to;
+    for (from= to= (char*) interval->type_names[pos]; *from; )
+    {
+      /*
+        Note, hexchar_to_int(*from++) doesn't work
+        one some compilers, e.g. IRIX. Looks like a compiler
+        bug in inline functions in combination with arguments
+        that have a side effect. So, let's use from[0] and from[1]
+        and increment 'from' by two later.
+      */
+
+      *to++= (char) (hexchar_to_int(from[0]) << 4) +
+                     hexchar_to_int(from[1]);
+      from+= 2;
+    }
+    interval->type_lengths[pos] /= 2;
+  }
+}
+
+
+/**
+ Search after a field with given start & length
+ If an exact field isn't found, return longest field with starts
+ at right position.
+
+ @note This is needed because in some .frm fields 'fieldnr' was saved wrong.
+ This function is added to read .frm file in upgrade scenario. It should not
+ be used any where else in the code. This function will be removed later.
+
+ @retval 0               error
+ @retval field number +1 success
+*/
+
+static uint find_field(Field **fields, uchar *record, uint start, uint length)
+{
+  Field **field;
+  uint i, pos;
+
+  pos= 0;
+  for (field= fields, i=1 ; *field ; i++,field++)
+  {
+    if ((*field)->offset(record) == start)
+    {
+      if ((*field)->key_length() == length)
+        return (i);
+      if (!pos || fields[pos-1]->pack_length() <
+          (*field)->pack_length())
+        pos= i;
+    }
+  }
+  return (pos);
+}
+
+
+/**
+  fix a str_type to a array type
+  typeparts separated with some char. differents types are separated
+  with a '\0'
+
+  @note This function is added to read .frm file in upgrade scenario. It
+  should not be used any where else in the code. This function will be
+  removed later.
+
+  @param[out]  array          Pointer to interval array
+  @param[in]   point_to_type  Pointer to intervals
+  @param[in]   types          number of intervals
+  @param[out]  names          name of intervals
+
+*/
+
+static void
+fix_type_pointers(const char ***array,
+                  TYPELIB *point_to_type,
+                  uint types,
+                  char **names)
+{
+  char *type_name, *ptr;
+  char chr;
+
+  ptr= *names;
+  while (types--)
+  {
+    point_to_type->name=0;
+    point_to_type->type_names= *array;
+
+    if ((chr= *ptr))            /* Test if empty type */
+    {
+      while ((type_name=strchr(ptr+1,chr)) != NullS)
+      {
+        *((*array)++) = ptr+1;
+        *type_name= '\0';       /* End string */
+        ptr=type_name;
+      }
+      ptr+=2;               /* Skip end mark and last 0 */
+    }
+    else
+      ptr++;
+    point_to_type->count= (uint) (*array - point_to_type->type_names);
+    point_to_type++;
+    *((*array)++)= NullS;       /* End of type */
+  }
+  *names=ptr;               /* Update end */
+  return;
+} /* fix_type_pointers */
+
+
+/**
+  Find where a form starts.
+
+  @note This function is added to read .frm file in upgrade scenario. It should not
+  be used any where else in the code. This function will be removed later.
+
+  @param[in] file   File handler
+  @param[in] head   The start of the form file.
+
+  @remark If formname is NULL then only formnames is read.
+
+  @retval The form position.
+*/
+
+static ulong get_form_pos(File file, uchar *head)
+{
+  uchar *pos, *buf;
+  uint names, length;
+  ulong ret_value=0;
+  DBUG_ENTER("get_form_pos");
+
+  names= uint2korr(head+8);
+
+  if (!(names= uint2korr(head+8)))
+    DBUG_RETURN(0);
+
+  length= uint2korr(head+4);
+
+  mysql_file_seek(file, 64L, MY_SEEK_SET, MYF(0));
+
+  if (!(buf= (uchar*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                length+names*4, MYF(MY_WME))))
+    DBUG_RETURN(0);
+
+  if (mysql_file_read(file, buf, length+names*4, MYF(MY_NABP)))
+  {
+    my_free(buf);
+    DBUG_RETURN(0);
+  }
+
+  pos= buf+length;
+  ret_value= uint4korr(pos);
+
+  my_free(buf);
+
+  DBUG_RETURN(ret_value);
+}
+
+#define STORAGE_TYPE_MASK 7
+#define COLUMN_FORMAT_MASK 7
+#define COLUMN_FORMAT_SHIFT 3
+
+
+/**
+  Auxiliary function which creates Field object from in-memory
+  representation of .FRM file.
+
+  NOTES:
+  This function is added to read .frm file in upgrade scenario. It should not
+  be used any where else in the code. This function will be removed later.
+
+  @param         thd                   Connection context.
+  @param         share                 TABLE_SHARE for which Field object
+                                       needs to be constructed.
+  @param         frm_context           FRM_context for the structures removed
+                                       from TABLE_SHARE.
+  @param         new_frm_ver           .FRM file version.
+  @param         use_hash              Indicates whether we use hash or linear
+                                       search to lookup fields by name.
+  @param         field_idx             Field index in TABLE_SHARE::field array.
+  @param         strpos                Pointer to part of .FRM's screens
+                                       section describing the field to be
+                                       created.
+  @param         format_section_fields Array where each byte contains packed
+                                       values of COLUMN_FORMAT/STORAGE options
+                                       for corresponding column.
+  @param[in,out] comment_pos           Pointer to part of column comments
+                                       section of .FRM which corresponds
+                                       to current field. Advanced to the
+                                       position corresponding to comment
+                                       for the next column.
+  @param[in,out] gcol_screen_pos       Pointer to part of generated columns
+                                       section of .FRM which corresponds
+                                       to current generated field. If field
+                                       to be created is generated advanced
+                                       to the position for the next column
+  @param[in,out] null_pos              Current byte in the record preamble
+                                       to be used for field's null/leftover
+                                       bits if necessary.
+  @param[in,out] null_bit_pos          Current bit in the current preamble
+                                       byte to be used for field's null/
+                                       leftover bits if necessary.
+  @param[out]    errarg                Additional argument for the error to
+                                       be reported.
+
+  @retval 0      Success.
+  @retval non-0  Error number (@sa open_table_def() for details).
+*/
+
+static int make_field_from_frm(THD *thd,
+                               TABLE_SHARE *share,
+                               FRM_context *frm_context,
+                               uint new_frm_ver,
+                               bool use_hash,
+                               uint field_idx,
+                               uchar *strpos,
+                               uchar *format_section_fields,
+                               char **comment_pos,
+                               char **gcol_screen_pos,
+                               uchar **null_pos,
+                               uint *null_bit_pos,
+                               int *errarg)
+{
+  uint pack_flag, interval_nr, unireg_type, recpos, field_length;
+  uint gcol_info_length=0;
+  enum_field_types field_type;
+  const CHARSET_INFO *charset=NULL;
+  Field::geometry_type geom_type= Field::GEOM_GEOMETRY;
+  LEX_STRING comment;
+  Generated_column *gcol_info= 0;
+  bool fld_stored_in_db= true;
+  Field *reg_field;
+
+  if (new_frm_ver >= 3)
+  {
+    /* new frm file in 4.1 */
+    field_length= uint2korr(strpos+3);
+    recpos=       uint3korr(strpos+5);
+    pack_flag=    uint2korr(strpos+8);
+    unireg_type=  (uint) strpos[10];
+    interval_nr=  (uint) strpos[12];
+    uint comment_length=uint2korr(strpos+15);
+    field_type=(enum_field_types) (uint) strpos[13];
+
+    /* charset and geometry_type share the same byte in frm */
+    if (field_type == MYSQL_TYPE_GEOMETRY)
+    {
+      geom_type= (Field::geometry_type) strpos[14];
+      charset= &my_charset_bin;
+    }
+    else
+    {
+      uint csid= strpos[14] + (((uint) strpos[11]) << 8);
+      if (!csid)
+        charset= &my_charset_bin;
+      else if (!(charset= get_charset(csid, MYF(0))))
+      {
+        // Unknown or unavailable charset
+        *errarg= (int) csid;
+        return 5;
+      }
+    }
+
+    if (!comment_length)
+    {
+      comment.str= (char*) "";
+      comment.length=0;
+    }
+    else
+    {
+      comment.str= *comment_pos;
+      comment.length= comment_length;
+      (*comment_pos)+= comment_length;
+    }
+
+    if (unireg_type & FRM_context::GENERATED_FIELD)
+    {
+      /*
+        Get generated column data stored in the .frm file as follows:
+        byte 1      = 1 (always 1 to allow for future extensions)
+        byte 2,3    = expression length
+        byte 4      = flags, as of now:
+                        0 - no flags
+                        1 - field is physically stored
+        byte 5-...  = generated column expression (text data)
+      */
+      gcol_info= new Generated_column();
+      if ((uint)(*gcol_screen_pos)[0] != 1)
+        return 4;
+
+      gcol_info_length= uint2korr(*gcol_screen_pos + 1);
+      DBUG_ASSERT(gcol_info_length); // Expect non-null expression
+
+      fld_stored_in_db= (bool) (uint) (*gcol_screen_pos)[3];
+      gcol_info->set_field_stored(fld_stored_in_db);
+      gcol_info->dup_expr_str(&share->mem_root,
+                              *gcol_screen_pos + (uint)FRM_GCOL_HEADER_SIZE,
+                              gcol_info_length);
+      (*gcol_screen_pos)+= gcol_info_length + FRM_GCOL_HEADER_SIZE;
+      share->vfields++;
+    }
+  }
+  else
+  {
+    field_length= (uint) strpos[3];
+    recpos=       uint2korr(strpos+4),
+    pack_flag=    uint2korr(strpos+6);
+    pack_flag&=   ~FIELDFLAG_NO_DEFAULT;     // Safety for old files
+    unireg_type=  (uint) strpos[8];
+    interval_nr=  (uint) strpos[10];
+
+    /* old frm file */
+    field_type= (enum_field_types) f_packtype(pack_flag);
+    if (f_is_binary(pack_flag))
+    {
+      /*
+        Try to choose the best 4.1 type:
+        - for 4.0 "CHAR(N) BINARY" or "VARCHAR(N) BINARY"
+          try to find a binary collation for character set.
+        - for other types (e.g. BLOB) just use my_charset_bin.
+      */
+      if (!f_is_blob(pack_flag))
+      {
+        // 3.23 or 4.0 string
+        if (!(charset= get_charset_by_csname(share->table_charset->csname,
+                                             MY_CS_BINSORT, MYF(0))))
+          charset= &my_charset_bin;
+      }
+      else
+        charset= &my_charset_bin;
+    }
+    else
+      charset= share->table_charset;
+    memset(&comment, 0, sizeof(comment));
+  }
+
+  if (interval_nr && charset->mbminlen > 1)
+  {
+    /* Unescape UCS2 intervals from HEX notation */
+    TYPELIB *interval= share->intervals + interval_nr - 1;
+    unhex_type2(interval);
+  }
+
+  if (field_type == MYSQL_TYPE_NEWDECIMAL && !share->mysql_version)
+  {
+    /*
+      Fix pack length of old decimal values from 5.0.3 -> 5.0.4
+      The difference is that in the old version we stored precision
+      in the .frm table while we now store the display_length
+    */
+    uint decimals= f_decimals(pack_flag);
+    field_length= my_decimal_precision_to_length(field_length,
+                                                 decimals,
+                                                 f_is_dec(pack_flag) == 0);
+    sql_print_error("Found incompatible DECIMAL field '%s' in %s; "
+                    "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
+                    frm_context->fieldnames.type_names[field_idx],
+                    share->table_name.str,
+                    share->table_name.str);
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_CRASHED_ON_USAGE,
+                        "Found incompatible DECIMAL field '%s' in %s; "
+                        "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
+                        frm_context->fieldnames.type_names[field_idx],
+                        share->table_name.str,
+                        share->table_name.str);
+    share->crashed= 1;                        // Marker for CHECK TABLE
+  }
+
+  if (field_type == MYSQL_TYPE_YEAR && field_length != 4)
+  {
+    sql_print_error("Found incompatible YEAR(x) field '%s' in %s; "
+                    "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
+                    frm_context->fieldnames.type_names[field_idx],
+                    share->table_name.str,
+                    share->table_name.str);
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_CRASHED_ON_USAGE,
+                        "Found incompatible YEAR(x) field '%s' in %s; "
+                        "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
+                        frm_context->fieldnames.type_names[field_idx],
+                        share->table_name.str,
+                        share->table_name.str);
+    share->crashed= 1;
+  }
+
+
+  FRM_context::utype unireg= (FRM_context::utype) MTYP_TYPENR(unireg_type);
+  //Construct auto_flag
+  uchar auto_flags= Field::NONE;
+
+  if (unireg == FRM_context::TIMESTAMP_DN_FIELD ||
+      unireg == FRM_context::TIMESTAMP_DNUN_FIELD)
+    auto_flags|= Field::DEFAULT_NOW;
+  if (unireg == FRM_context::TIMESTAMP_UN_FIELD ||
+      unireg == FRM_context:: TIMESTAMP_DNUN_FIELD)
+    auto_flags|= Field::ON_UPDATE_NOW;
+
+  if (unireg == FRM_context::NEXT_NUMBER)
+    auto_flags|= Field::NEXT_NUMBER;
+
+  share->field[field_idx]= reg_field=
+  make_field(share,
+             share->default_values - 1 + recpos, // recpos starts from 1.
+             (uint32) field_length,
+             *null_pos, *null_bit_pos,
+             field_type,
+             charset,
+             geom_type,
+             auto_flags,
+             (interval_nr ?
+             share->intervals+interval_nr-1 :
+             (TYPELIB*) 0),
+             frm_context->fieldnames.type_names[field_idx],
+             f_maybe_null(pack_flag),
+             f_is_zerofill(pack_flag) != 0,
+             f_is_dec(pack_flag) == 0,
+             f_decimals(pack_flag),
+             f_bit_as_char(pack_flag),
+             0);
+  if (!reg_field)
+  {
+    // Not supported field type
+    return 4;
+  }
+
+  reg_field->field_index= field_idx;
+  reg_field->comment=comment;
+  reg_field->gcol_info= gcol_info;
+  reg_field->stored_in_db= fld_stored_in_db;
+  if (field_type == MYSQL_TYPE_BIT && !f_bit_as_char(pack_flag))
+  {
+    if (((*null_bit_pos)+= field_length & 7) > 7)
+    {
+      (*null_pos)++;
+      (*null_bit_pos)-= 8;
+    }
+  }
+  if (!(reg_field->flags & NOT_NULL_FLAG))
+  {
+    if (!(*null_bit_pos= (*null_bit_pos + 1) & 7))
+      (*null_pos)++;
+  }
+  if (f_no_default(pack_flag))
+    reg_field->flags|= NO_DEFAULT_VALUE_FLAG;
+
+  if (unireg == FRM_context::NEXT_NUMBER)
+    share->found_next_number_field= share->field + field_idx;
+
+  if (use_hash)
+    if (my_hash_insert(&share->name_hash, (uchar*)(share->field + field_idx)))
+    {
+      /*
+        Set return code 8 here to indicate that an error has
+        occurred but that the error message already has been
+        sent (OOM).
+      */
+      return 8;
+    }
+
+  if (format_section_fields)
+  {
+    const uchar field_flags= format_section_fields[field_idx];
+    const uchar field_storage= (field_flags & STORAGE_TYPE_MASK);
+    const uchar field_column_format=
+      ((field_flags >> COLUMN_FORMAT_SHIFT)& COLUMN_FORMAT_MASK);
+    DBUG_PRINT("debug", ("field flags: %u, storage: %u, column_format: %u",
+                         field_flags, field_storage, field_column_format));
+    reg_field->set_storage_type((ha_storage_media)field_storage);
+    reg_field->set_column_format((column_format_type)field_column_format);
+  }
+
+  if (!reg_field->stored_in_db)
+  {
+    frm_context->stored_fields--;
+    if (share->stored_rec_length>=recpos)
+      share->stored_rec_length= recpos-1;
+  }
+
+  return 0;
+}
+
+
+static const longlong FRM_VER= 6;
+static const longlong FRM_VER_TRUE_VARCHAR= (FRM_VER + 4); /* 10 */
+
+/**
+  Read data from a binary .frm file from MySQL 3.23 - 5.0 into TABLE_SHARE
+
+  @note Much of the logic here is duplicated in create_tmp_table()
+  (see sql_select.cc). Hence, changes to this function may have to be
+  repeated there.
+
+  This function is added to read .frm file in upgrade scenario. It should not
+  be used any where else in the code. This function will be removed later.
+
+  @param  thd         thread handle
+  @param  share       TABLE_SHARE to be populated.
+  @param  frm_context structures removed from TABLE_SHARE
+  @param  head        frm file header
+  @param  file        File handle
+*/
+
+static int open_binary_frm(THD *thd, TABLE_SHARE *share,
+                           FRM_context *frm_context,
+                           uchar *head, File file)
+{
+  int error, errarg= 0;
+  uint new_frm_ver, field_pack_length, new_field_pack_flag;
+  uint interval_count, interval_parts, read_length, int_length;
+  uint db_create_options, keys, key_parts, n_length;
+  uint key_info_length, com_length, null_bit_pos, gcol_screen_length;
+  uint extra_rec_buf_length;
+  uint i,j;
+  bool use_extended_sk;   // Supported extending of secondary keys with PK parts
+  bool use_hash;
+  char *keynames, *names, *comment_pos, *gcol_screen_pos;
+  char *orig_comment_pos, *orig_gcol_screen_pos;
+  uchar forminfo[288];
+  uchar *record;
+  uchar *disk_buff, *strpos, *null_flags, *null_pos;
+  ulong pos, record_offset, *rec_per_key, rec_buff_length;
+  rec_per_key_t *rec_per_key_float;
+  handler *handler_file= 0;
+  KEY   *keyinfo;
+  KEY_PART_INFO *key_part;
+  Field  **field_ptr;
+  const char **interval_array;
+  enum legacy_db_type legacy_db_type;
+  my_bitmap_map *bitmaps;
+  uchar *extra_segment_buff= 0;
+  const uint format_section_header_size= 8;
+  uchar *format_section_fields= 0;
+  bool has_vgc= false;
+  DBUG_ENTER("open_binary_frm");
+
+  new_field_pack_flag= head[27];
+  new_frm_ver= (head[2] - FRM_VER);
+  field_pack_length= new_frm_ver < 2 ? 11 : 17;
+  disk_buff= 0;
+
+  error= 3;
+  /* Position of the form in the form file. */
+  if (!(pos= get_form_pos(file, head)))
+    goto err;                                   /* purecov: inspected */
+
+  mysql_file_seek(file,pos,MY_SEEK_SET,MYF(0));
+  if (mysql_file_read(file, forminfo,288,MYF(MY_NABP)))
+    goto err;
+  frm_context->frm_version= head[2];
+  /*
+    Check if .frm file created by MySQL 5.0. In this case we want to
+    display CHAR fields as CHAR and not as VARCHAR.
+    We do it this way as we want to keep the old frm version to enable
+    MySQL 4.1 to read these files.
+  */
+  if (frm_context->frm_version == FRM_VER_TRUE_VARCHAR -1 && head[33] == 5)
+    frm_context->frm_version= FRM_VER_TRUE_VARCHAR;
+
+  if (*(head+61) &&
+      !(frm_context->default_part_db_type=
+        ha_checktype(thd, (enum legacy_db_type) (uint) *(head+61), 1, 0)))
+    goto err;
+  DBUG_PRINT("info", ("default_part_db_type = %u", head[61]));
+  legacy_db_type= (enum legacy_db_type) (uint) *(head+3);
+  DBUG_ASSERT(share->db_plugin == NULL);
+  /*
+    if the storage engine is dynamic, no point in resolving it by its
+    dynamically allocated legacy_db_type. We will resolve it later by name.
+  */
+  if (legacy_db_type > DB_TYPE_UNKNOWN &&
+      legacy_db_type < DB_TYPE_FIRST_DYNAMIC)
+    share->db_plugin= ha_lock_engine(NULL,
+                                     ha_checktype(thd, legacy_db_type, 0, 0));
+  share->db_create_options= db_create_options= uint2korr(head+30);
+  share->db_options_in_use= share->db_create_options;
+  share->mysql_version= uint4korr(head+51);
+  frm_context->null_field_first= 0;
+  if (!head[32])                // New frm file in 3.23
+  {
+    share->avg_row_length= uint4korr(head+34);
+    share->row_type= (row_type) head[40];
+    share->table_charset= get_charset((((uint) head[41]) << 8) +
+                                        (uint) head[38],MYF(0));
+    frm_context->null_field_first= 1;
+    share->stats_sample_pages= uint2korr(head+42);
+    share->stats_auto_recalc= static_cast<enum_stats_auto_recalc>(head[44]);
+  }
+  if (!share->table_charset)
+  {
+    /* unknown charset in head[38] or pre-3.23 frm */
+    if (use_mb(default_charset_info))
+    {
+      /* Warn that we may be changing the size of character columns */
+      sql_print_warning("'%s' had no or invalid character set, "
+                        "and default character set is multi-byte, "
+                        "so character column sizes may have changed",
+                        share->path.str);
+    }
+    share->table_charset= default_charset_info;
+  }
+  share->db_record_offset= 1;
+  /* Set temporarily a good value for db_low_byte_first */
+  share->db_low_byte_first= MY_TEST(legacy_db_type != DB_TYPE_ISAM);
+  error=4;
+  share->max_rows= uint4korr(head+18);
+  share->min_rows= uint4korr(head+22);
+
+  /* Read keyinformation */
+  key_info_length= (uint) uint2korr(head+28);
+  mysql_file_seek(file, (ulong) uint2korr(head+6), MY_SEEK_SET, MYF(0));
+  if (read_string(file, &disk_buff,key_info_length))
+    goto err;                                   /* purecov: inspected */
+  if (disk_buff[0] & 0x80)
+  {
+    share->keys=      keys=      (disk_buff[1] << 7) | (disk_buff[0] & 0x7f);
+    share->key_parts= key_parts= uint2korr(disk_buff+2);
+  }
+  else
+  {
+    share->keys=      keys=      disk_buff[0];
+    share->key_parts= key_parts= disk_buff[1];
+  }
+  share->keys_for_keyread.init(0);
+  share->keys_in_use.init(keys);
+
+  strpos=disk_buff+6;
+
+  use_extended_sk=
+    ha_check_storage_engine_flag(share->db_type(),
+                                 HTON_SUPPORTS_EXTENDED_KEYS);
+
+  uint total_key_parts;
+  if (use_extended_sk)
+  {
+    uint primary_key_parts= keys ?
+      (new_frm_ver >= 3) ? (uint) strpos[4] : (uint) strpos[3] : 0;
+    total_key_parts= key_parts + primary_key_parts * (keys - 1);
+  }
+  else
+    total_key_parts= key_parts;
+  n_length= keys * sizeof(KEY) + total_key_parts * sizeof(KEY_PART_INFO);
+
+  /*
+    Allocate memory for the KEY object, the key part array, and the
+    two rec_per_key arrays.
+  */
+  if (!multi_alloc_root(&share->mem_root,
+                        &keyinfo, n_length + uint2korr(disk_buff + 4),
+                        &rec_per_key, sizeof(ulong) * total_key_parts,
+                        &rec_per_key_float,
+                        sizeof(rec_per_key_t) * total_key_parts,
+                        NULL))
+    goto err;                                   /* purecov: inspected */
+
+  memset(keyinfo, 0, n_length);
+  share->key_info= keyinfo;
+  key_part= reinterpret_cast<KEY_PART_INFO*>(keyinfo+keys);
+
+  for (i=0 ; i < keys ; i++, keyinfo++)
+  {
+    keyinfo->table= 0;                           // Updated in open_frm
+    if (new_frm_ver >= 3)
+    {
+      keyinfo->flags=      (uint) uint2korr(strpos) ^ HA_NOSAME;
+      keyinfo->key_length= (uint) uint2korr(strpos+2);
+      keyinfo->user_defined_key_parts= (uint) strpos[4];
+      keyinfo->algorithm=  (enum ha_key_alg) strpos[5];
+      keyinfo->block_size= uint2korr(strpos+6);
+      strpos+=8;
+    }
+    else
+    {
+      keyinfo->flags=    ((uint) strpos[0]) ^ HA_NOSAME;
+      keyinfo->key_length= (uint) uint2korr(strpos+1);
+      keyinfo->user_defined_key_parts= (uint) strpos[3];
+      // The algorithm was HA_KEY_ALG_UNDEF in 5.7
+      keyinfo->algorithm= HA_KEY_ALG_SE_SPECIFIC;
+      strpos+=4;
+    }
+
+    keyinfo->key_part= key_part;
+    keyinfo->set_rec_per_key_array(rec_per_key, rec_per_key_float);
+    keyinfo->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
+
+    for (j=keyinfo->user_defined_key_parts ; j-- ; key_part++)
+    {
+      *rec_per_key++ = 0;
+      *rec_per_key_float++ = REC_PER_KEY_UNKNOWN;
+
+      key_part->fieldnr=    (uint16) (uint2korr(strpos) & FIELD_NR_MASK);
+      key_part->offset= (uint) uint2korr(strpos+2)-1;
+      // key_part->field=   (Field*) 0; // Will be fixed later
+      if (new_frm_ver >= 1)
+      {
+        key_part->key_part_flag= *(strpos+4);
+        key_part->length=   (uint) uint2korr(strpos+7);
+        strpos+=9;
+      }
+      else
+      {
+        key_part->length=   *(strpos+4);
+        key_part->key_part_flag=0;
+        if (key_part->length > 128)
+        {
+          key_part->length&=127;        /* purecov: inspected */
+          key_part->key_part_flag=HA_REVERSE_SORT; /* purecov: inspected */
+        }
+        strpos+=7;
+      }
+      key_part->store_length=key_part->length;
+    }
+    /*
+      Add primary key parts if engine supports primary key extension for
+      secondary keys. Here we add unique first key parts to the end of
+      secondary key parts array and increase actual number of key parts.
+      Note that primary key is always first if exists. Later if there is no
+      primary key in the table then number of actual keys parts is set to
+      user defined key parts.
+    */
+    keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
+    keyinfo->actual_flags= keyinfo->flags;
+    if (use_extended_sk && i && !(keyinfo->flags & HA_NOSAME))
+    {
+      const uint primary_key_parts= share->key_info->user_defined_key_parts;
+      keyinfo->unused_key_parts= primary_key_parts;
+      key_part+= primary_key_parts;
+      rec_per_key+= primary_key_parts;
+      rec_per_key_float+= primary_key_parts;
+      share->key_parts+= primary_key_parts;
+    }
+  }
+  keynames=(char*) key_part;
+  strpos+= (my_stpcpy(keynames, (char *) strpos) - keynames)+1;
+
+  //reading index comments
+  for (keyinfo= share->key_info, i=0; i < keys; i++, keyinfo++)
+  {
+    if (keyinfo->flags & HA_USES_COMMENT)
+    {
+      keyinfo->comment.length= uint2korr(strpos);
+      keyinfo->comment.str= strmake_root(&share->mem_root, (char*) strpos+2,
+                                         keyinfo->comment.length);
+      strpos+= 2 + keyinfo->comment.length;
+    }
+    DBUG_ASSERT(MY_TEST(keyinfo->flags & HA_USES_COMMENT) ==
+               (keyinfo->comment.length > 0));
+  }
+
+  share->reclength = uint2korr((head+16));
+  share->stored_rec_length= share->reclength;
+  if (*(head+26) == 1)
+    share->system= 1;               /* one-record-database */
+
+  record_offset= (ulong) (uint2korr(head+6)+
+                          ((uint2korr(head+14) == 0xffff ?
+                            uint4korr(head+47) : uint2korr(head+14))));
+
+  if ((n_length= uint4korr(head+55)))
+  {
+    /* Read extra data segment */
+    uchar *next_chunk, *buff_end;
+    DBUG_PRINT("info", ("extra segment size is %u bytes", n_length));
+    if (!(extra_segment_buff= (uchar*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                                 n_length, MYF(MY_WME))))
+      goto err;
+    next_chunk= extra_segment_buff;
+    if (mysql_file_pread(file, extra_segment_buff,
+                         n_length, record_offset + share->reclength,
+                         MYF(MY_NABP)))
+    {
+      goto err;
+    }
+    share->connect_string.length= uint2korr(next_chunk);
+    if (!(share->connect_string.str= strmake_root(&share->mem_root,
+                                                  (char*) next_chunk + 2,
+                                                  share->connect_string.
+                                                  length)))
+    {
+      goto err;
+    }
+    next_chunk+= share->connect_string.length + 2;
+    buff_end= extra_segment_buff + n_length;
+    if (next_chunk + 2 < buff_end)
+    {
+      uint str_db_type_length= uint2korr(next_chunk);
+      LEX_STRING name;
+      name.str= (char*) next_chunk + 2;
+      name.length= str_db_type_length;
+
+      plugin_ref tmp_plugin= ha_resolve_by_name(thd, &name, FALSE);
+      if (tmp_plugin != NULL && !plugin_equals(tmp_plugin, share->db_plugin))
+      {
+        if (legacy_db_type > DB_TYPE_UNKNOWN &&
+            legacy_db_type < DB_TYPE_FIRST_DYNAMIC &&
+            legacy_db_type !=
+            ha_legacy_type(plugin_data<handlerton*>(tmp_plugin)))
+        {
+          /* bad file, legacy_db_type did not match the name */
+          goto err;
+        }
+        /*
+          tmp_plugin is locked with a local lock.
+          we unlock the old value of share->db_plugin before
+          replacing it with a globally locked version of tmp_plugin
+        */
+        plugin_unlock(NULL, share->db_plugin);
+        share->db_plugin= my_plugin_lock(NULL, &tmp_plugin);
+        DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)",
+                            str_db_type_length, next_chunk + 2,
+                            ha_legacy_type(share->db_type())));
+      }
+      else if (!tmp_plugin && str_db_type_length == 9 &&
+               !strncmp((char *) next_chunk + 2, "partition", 9))
+      {
+          error= 8;
+          my_error(ER_FEATURE_NOT_AVAILABLE, MYF(0), "partitioning",
+                   "--skip-partition", "-DWITH_PARTITION_STORAGE_ENGINE=1");
+          goto err;
+      }
+      else if (!tmp_plugin && name.length == 18 &&
+               !strncmp(name.str, "PERFORMANCE_SCHEMA", name.length))
+      {
+        /*
+          A FRM file is present on disk,
+          for a PERFORMANCE_SCHEMA table,
+          but this server binary is not compiled with the performance_schema,
+          as ha_resolve_by_name() did not find the storage engine.
+          This can happen:
+          - (a) during tests with mysql-test-run,
+            because the same database installed image is used
+            for regular builds (with P_S) and embedded builds (without P_S)
+          - (b) in production, when random binaries (without P_S) are thrown
+            on top of random installed database instances on disk (with P_S).
+          For the sake of robustness, pretend the table simply does not exist,
+          so that in particular it does not pollute the information_schema
+          with errors when scanning the disk for FRM files.
+          Note that ER_NO_SUCH_TABLE has a special treatment
+          in fill_schema_table_by_open()
+        */
+        error= 1;
+        my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
+        goto err;
+      }
+      else if (!tmp_plugin)
+      {
+        /* purecov: begin inspected */
+        error= 8;
+        name.str[name.length]=0;
+        my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), name.str);
+        goto err;
+        /* purecov: end */
+      }
+      next_chunk+= str_db_type_length + 2;
+    }
+    if (next_chunk + 5 < buff_end)
+    {
+      uint32 partition_info_str_len = uint4korr(next_chunk);
+      if ((share->partition_info_str_len= partition_info_str_len))
+      {
+        if (!(share->partition_info_str= (char*)
+              memdup_root(&share->mem_root, next_chunk + 4,
+                          partition_info_str_len + 1)))
+        {
+          goto err;
+        }
+      }
+      next_chunk+= 5 + partition_info_str_len;
+    }
+    if (share->mysql_version >= 50110 && next_chunk < buff_end)
+    {
+      /* New auto_partitioned indicator introduced in 5.1.11 */
+      share->auto_partitioned= *next_chunk;
+      next_chunk++;
+    }
+    keyinfo= share->key_info;
+    for (i= 0; i < keys; i++, keyinfo++)
+    {
+      if (keyinfo->flags & HA_USES_PARSER)
+      {
+        if (next_chunk >= buff_end)
+        {
+          DBUG_PRINT("error",
+                     ("fulltext key uses parser that is not defined in .frm"));
+          goto err;
+        }
+        LEX_CSTRING parser_name= {reinterpret_cast<char*>(next_chunk),
+                                  strlen(reinterpret_cast<char*>(next_chunk))};
+        next_chunk+= parser_name.length + 1;
+        keyinfo->parser= my_plugin_lock_by_name(NULL, parser_name,
+                                                MYSQL_FTPARSER_PLUGIN);
+        if (! keyinfo->parser)
+        {
+          my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), parser_name.str);
+          goto err;
+        }
+      }
+    }
+    if (forminfo[46] == (uchar)255)
+    {
+      //reading long table comment
+      if (next_chunk + 2 > buff_end)
+      {
+          DBUG_PRINT("error",
+                     ("long table comment is not defined in .frm"));
+          goto err;
+      }
+      share->comment.length = uint2korr(next_chunk);
+      if (! (share->comment.str= strmake_root(&share->mem_root,
+             (char*)next_chunk + 2, share->comment.length)))
+      {
+          goto err;
+      }
+      next_chunk+= 2 + share->comment.length;
+    }
+
+    if (next_chunk + format_section_header_size < buff_end)
+    {
+      /*
+        New extra data segment called "format section" with additional
+        table and column properties introduced by MySQL Cluster
+        based on 5.1.20
+
+        Table properties:
+        TABLESPACE <ts> and STORAGE [DISK|MEMORY]
+
+        Column properties:
+        COLUMN_FORMAT [DYNAMIC|FIXED] and STORAGE [DISK|MEMORY]
+      */
+      DBUG_PRINT("info", ("Found format section"));
+
+      /* header */
+      const uint format_section_length= uint2korr(next_chunk);
+      const uint format_section_flags= uint4korr(next_chunk+2);
+      /* 2 bytes unused */
+
+      if (next_chunk + format_section_length > buff_end)
+      {
+        DBUG_PRINT("error", ("format section length too long: %u",
+                             format_section_length));
+        goto err;
+      }
+      DBUG_PRINT("info", ("format_section_length: %u, format_section_flags: %u",
+                          format_section_length, format_section_flags));
+
+      share->default_storage_media=
+        (enum ha_storage_media) (format_section_flags & 0x7);
+
+      /* tablespace */
+      const char *tablespace=
+        (const char*)next_chunk + format_section_header_size;
+      const size_t tablespace_length= strlen(tablespace);
+      share->tablespace= NULL;
+      if (tablespace_length)
+      {
+        Tablespace_name_error_handler error_handler;
+        thd->push_internal_handler(&error_handler);
+        Ident_name_check name_check= check_tablespace_name(tablespace);
+        thd->pop_internal_handler();
+        if (name_check == Ident_name_check::OK &&
+          !(share->tablespace= strmake_root(&share->mem_root,
+                                            tablespace, tablespace_length+1)))
+        {
+          goto err;
+        }
+      }
+      DBUG_PRINT("info", ("tablespace: '%s'",
+                          share->tablespace ? share->tablespace : "<null>"));
+
+      /* pointer to format section for fields */
+      format_section_fields=
+        next_chunk + format_section_header_size + tablespace_length + 1;
+
+      next_chunk+= format_section_length;
+    }
+
+    if (next_chunk + 2 <= buff_end)
+    {
+      share->compress.length = uint2korr(next_chunk);
+      if (! (share->compress.str= strmake_root(&share->mem_root,
+             (char*)next_chunk + 2, share->compress.length)))
+      {
+          goto err;
+      }
+      next_chunk+= 2 + share->compress.length;
+    }
+
+    if (next_chunk + 2 <= buff_end)
+    {
+      share->encrypt_type.length = uint2korr(next_chunk);
+      if (! (share->encrypt_type.str= strmake_root(&share->mem_root,
+             (char*)next_chunk + 2, share->encrypt_type.length)))
+      {
+          goto err;
+      }
+      next_chunk+= 2 + share->encrypt_type.length;
+    }
+  }
+  share->key_block_size= uint2korr(head+62);
+
+  error=4;
+  extra_rec_buf_length= uint2korr(head+59);
+  rec_buff_length= ALIGN_SIZE(share->reclength + 1 + extra_rec_buf_length);
+  share->rec_buff_length= rec_buff_length;
+  if (!(record= (uchar *) alloc_root(&share->mem_root,
+                                     rec_buff_length)))
+    goto err;                                   /* purecov: inspected */
+  share->default_values= record;
+  if (mysql_file_pread(file, record, (size_t) share->reclength,
+                       record_offset, MYF(MY_NABP)))
+    goto err;                                   /* purecov: inspected */
+
+  mysql_file_seek(file, pos+288, MY_SEEK_SET, MYF(0));
+
+  share->fields= uint2korr(forminfo+258);
+  pos= uint2korr(forminfo+260);   /* Length of all screens */
+  n_length= uint2korr(forminfo+268);
+  interval_count= uint2korr(forminfo+270);
+  interval_parts= uint2korr(forminfo+272);
+  int_length= uint2korr(forminfo+274);
+  share->null_fields= uint2korr(forminfo+282);
+  com_length= uint2korr(forminfo+284);
+  gcol_screen_length= uint2korr(forminfo+286);
+  share->vfields= 0;
+  frm_context->stored_fields= share->fields;
+  if (forminfo[46] != (uchar)255)
+  {
+    share->comment.length=  (int) (forminfo[46]);
+    share->comment.str= strmake_root(&share->mem_root, (char*) forminfo+47,
+                                     share->comment.length);
+  }
+
+  DBUG_PRINT("info",("i_count: %d  i_parts: %d  index: %d  n_length: %d  int_length: %d  com_length: %d  gcol_screen_length: %d", interval_count,interval_parts, share->keys,n_length,int_length, com_length, gcol_screen_length));
+  if (!(field_ptr = (Field **)
+    alloc_root(&share->mem_root,
+           (uint) ((share->fields+1)*sizeof(Field*)+
+               interval_count*sizeof(TYPELIB)+
+               (share->fields+interval_parts+
+                keys+3)*sizeof(char *)+
+               (n_length+int_length+com_length+
+                   gcol_screen_length)))))
+    goto err;                                   /* purecov: inspected */
+
+  share->field= field_ptr;
+  read_length=(uint) (share->fields * field_pack_length +
+              pos+ (uint) (n_length+int_length+com_length+
+                           gcol_screen_length));
+  if (read_string(file, &disk_buff,read_length))
+    goto err;                                   /* purecov: inspected */
+
+  strpos= disk_buff+pos;
+
+  share->intervals= (TYPELIB*) (field_ptr+share->fields+1);
+  interval_array= (const char **) (share->intervals+interval_count);
+  names= (char*) (interval_array+share->fields+interval_parts+keys+3);
+  if (!interval_count)
+    share->intervals= 0;            // For better debugging
+  memcpy(names, strpos+(share->fields*field_pack_length),
+     (uint) (n_length+int_length));
+  orig_comment_pos= comment_pos= names+(n_length+int_length);
+  memcpy(comment_pos, disk_buff+read_length-com_length-gcol_screen_length,
+         com_length);
+  orig_gcol_screen_pos= gcol_screen_pos= names+(n_length+int_length+com_length);
+  memcpy(gcol_screen_pos, disk_buff+read_length-gcol_screen_length,
+         gcol_screen_length);
+
+  fix_type_pointers(&interval_array, &frm_context->fieldnames, 1, &names);
+  if (frm_context->fieldnames.count != share->fields)
+    goto err;
+  fix_type_pointers(&interval_array, share->intervals, interval_count,
+            &names);
+
+  {
+    /* Set ENUM and SET lengths */
+    TYPELIB *interval;
+    for (interval= share->intervals;
+         interval < share->intervals + interval_count;
+         interval++)
+    {
+      uint count= (uint) (interval->count + 1) * sizeof(uint);
+      if (!(interval->type_lengths= (uint *) alloc_root(&share->mem_root,
+                                                        count)))
+        goto err;
+      for (count= 0; count < interval->count; count++)
+      {
+        char *val= (char*) interval->type_names[count];
+        interval->type_lengths[count]= strlen(val);
+      }
+      interval->type_lengths[count]= 0;
+    }
+  }
+
+  if (keynames)
+    fix_type_pointers(&interval_array, &share->keynames, 1, &keynames);
+
+ /* Allocate handler */
+  if (!(handler_file= get_new_handler(share,
+                                      share->partition_info_str_len != 0,
+                                      thd->mem_root, share->db_type())))
+    goto err;
+
+  if (handler_file->set_ha_share_ref(&share->ha_share))
+    goto err;
+
+  if (frm_context->null_field_first)
+  {
+    null_flags= null_pos= share->default_values;
+    null_bit_pos= (db_create_options & HA_OPTION_PACK_RECORD) ? 0 : 1;
+    /*
+      null_bytes below is only correct under the condition that
+      there are no bit fields.  Correct values is set below after the
+      table struct is initialized
+    */
+    share->null_bytes= (share->null_fields + null_bit_pos + 7) / 8;
+  }
+  else
+  {
+    share->null_bytes= (share->null_fields+7)/8;
+    null_flags= null_pos= share->default_values + share->reclength -
+                          share->null_bytes;
+    null_bit_pos= 0;
+  }
+
+  use_hash= share->fields >= MAX_FIELDS_BEFORE_HASH;
+  if (use_hash)
+    use_hash= !my_hash_init(&share->name_hash,
+                            system_charset_info,
+                            0,0,
+                            (hash_get_key_function) get_field_name,0,0,
+                            PSI_INSTRUMENT_ME);
+
+  for (i=0 ; i < share->fields; i++, strpos+=field_pack_length)
+  {
+    if (new_frm_ver >= 3 &&
+        (strpos[10] & FRM_context::GENERATED_FIELD) && // former Field::unireg_check
+        ! (bool) (uint) (gcol_screen_pos[3]))    // Field::stored_in_db
+    {
+      /*
+        Skip virtual generated columns as we will do separate pass for them.
+
+        We still need to advance pointers to current comment and generated
+        column info in for such fields.
+      */
+      comment_pos+= uint2korr(strpos+15);
+      gcol_screen_pos+= uint2korr(gcol_screen_pos + 1) + FRM_GCOL_HEADER_SIZE;
+      has_vgc= true;
+    }
+    else
+    {
+      if ((error= make_field_from_frm(thd, share, frm_context,
+                                      new_frm_ver, use_hash,
+                                      i, strpos,
+                                      format_section_fields,
+                                      &comment_pos,
+                                      &gcol_screen_pos,
+                                      &null_pos,
+                                      &null_bit_pos,
+                                      &errarg)))
+        goto err;
+    }
+  }
+
+  if (has_vgc)
+  {
+    /*
+      We need to do separate pass through field descriptions for virtual
+      generated columns to ensure that they get allocated null/leftover
+      bits at the tail of record preamble.
+    */
+    strpos= disk_buff+pos;
+    comment_pos= orig_comment_pos;
+    gcol_screen_pos= orig_gcol_screen_pos;
+    // Generated columns can be present only in new .FRMs.
+    DBUG_ASSERT(new_frm_ver >= 3);
+    for (i=0 ; i < share->fields; i++, strpos+=field_pack_length)
+    {
+      if ((strpos[10] & FRM_context::GENERATED_FIELD) && // former Field::unireg_check
+          !(bool) (uint) (gcol_screen_pos[3]))     // Field::stored_in_db
+      {
+        if ((error= make_field_from_frm(thd, share, frm_context,
+                                        new_frm_ver, use_hash,
+                                        i, strpos,
+                                        format_section_fields,
+                                        &comment_pos,
+                                        &gcol_screen_pos,
+                                        &null_pos,
+                                        &null_bit_pos,
+                                        &errarg)))
+          goto err;
+      }
+      else
+      {
+        /*
+          Advance pointers to current comment and generated columns
+          info for stored fields.
+        */
+        comment_pos+= uint2korr(strpos+15);
+        if (strpos[10] & FRM_context::GENERATED_FIELD) // former Field::unireg_check
+        {
+          gcol_screen_pos+= uint2korr(gcol_screen_pos + 1) +
+                            FRM_GCOL_HEADER_SIZE;
+        }
+      }
+    }
+  }
+  error= 4;
+  share->field[share->fields]= 0; // End marker
+  /* Sanity checks: */
+  DBUG_ASSERT(share->fields >= frm_context->stored_fields);
+  DBUG_ASSERT(share->reclength >= share->stored_rec_length);
+
+  /* Fix key->name and key_part->field */
+  if (key_parts)
+  {
+    const int pk_off= find_type(primary_key_name, &share->keynames,
+                                  FIND_TYPE_NO_PREFIX);
+    uint primary_key= (pk_off > 0 ? pk_off-1 : MAX_KEY);
+
+    longlong ha_option= handler_file->ha_table_flags();
+    keyinfo= share->key_info;
+    key_part= keyinfo->key_part;
+
+    for (uint key=0 ; key < share->keys ; key++,keyinfo++)
+    {
+      uint usable_parts= 0;
+      keyinfo->name=(char*) share->keynames.type_names[key];
+      /* Fix fulltext keys for old .frm files */
+      if (share->key_info[key].flags & HA_FULLTEXT)
+    share->key_info[key].algorithm= HA_KEY_ALG_FULLTEXT;
+
+      if (primary_key >= MAX_KEY && (keyinfo->flags & HA_NOSAME))
+      {
+        /*
+          If the UNIQUE key doesn't have NULL columns and is not a part key
+          declare this as a primary key.
+        */
+        primary_key=key;
+        for (i=0 ; i < keyinfo->user_defined_key_parts ;i++)
+        {
+          DBUG_ASSERT(key_part[i].fieldnr > 0);
+          // Table field corresponding to the i'th key part.
+          Field *table_field= share->field[key_part[i].fieldnr - 1];
+
+          // Index on virtual generated columns is not allowed to be PK
+          // even when the conditions below are true, so this case must be
+          // rejected here.
+          if (table_field->is_virtual_gcol())
+          {
+            primary_key= MAX_KEY;               // Can't be used
+            break;
+          }
+
+          /*
+            If the key column is of NOT NULL BLOB type, then it
+            will definitly have key prefix. And if key part prefix size
+            is equal to the BLOB column max size, then we can promote
+            it to primary key.
+          */
+          if (!table_field->real_maybe_null() &&
+              table_field->type() == MYSQL_TYPE_BLOB &&
+              table_field->field_length == key_part[i].length)
+            continue;
+          /*
+            If the key column is of NOT NULL GEOMETRY type, specifically POINT
+            type whose length is known internally (which is 25). And key part
+            prefix size is equal to the POINT column max size, then we can
+            promote it to primary key.
+          */
+          if (!table_field->real_maybe_null() &&
+              table_field->type() == MYSQL_TYPE_GEOMETRY &&
+              table_field->get_geometry_type() == Field::GEOM_POINT &&
+              key_part[i].length == MAX_LEN_GEOM_POINT_FIELD)
+            continue;
+
+          if (table_field->real_maybe_null() ||
+              table_field->key_length() != key_part[i].length)
+
+          {
+            primary_key= MAX_KEY;       // Can't be used
+            break;
+          }
+        }
+      }
+
+      for (i=0 ; i < keyinfo->user_defined_key_parts ; key_part++,i++)
+      {
+        Field *field;
+        if (new_field_pack_flag <= 1)
+        key_part->fieldnr= (uint16) find_field(share->field,
+                                               share->default_values,
+                                               (uint) key_part->offset,
+                                               (uint) key_part->length);
+        if (!key_part->fieldnr)
+        {
+          error= 4;                             // Wrong file
+          goto err;
+        }
+        field= key_part->field= share->field[key_part->fieldnr-1];
+        key_part->type= field->key_type();
+        if (field->real_maybe_null())
+        {
+          key_part->null_offset=field->null_offset(share->default_values);
+          key_part->null_bit= field->null_bit;
+          key_part->store_length+=HA_KEY_NULL_LENGTH;
+          keyinfo->flags|=HA_NULL_PART_KEY;
+          keyinfo->key_length+= HA_KEY_NULL_LENGTH;
+        }
+        if (field->type() == MYSQL_TYPE_BLOB ||
+            field->real_type() == MYSQL_TYPE_VARCHAR ||
+            field->type() == MYSQL_TYPE_GEOMETRY)
+        {
+          key_part->store_length+=HA_KEY_BLOB_LENGTH;
+          if (i + 1 <= keyinfo->user_defined_key_parts)
+            keyinfo->key_length+= HA_KEY_BLOB_LENGTH;
+        }
+        key_part->init_flags();
+
+        if (field->is_virtual_gcol())
+          keyinfo->flags|= HA_VIRTUAL_GEN_KEY;
+
+        setup_key_part_field(share, handler_file, primary_key,
+                             keyinfo, key, i, &usable_parts);
+
+        field->flags|= PART_KEY_FLAG;
+        if (key == primary_key)
+        {
+          field->flags|= PRI_KEY_FLAG;
+          /*
+            If this field is part of the primary key and all keys contains
+            the primary key, then we can use any key to find this column
+          */
+          if (ha_option & HA_PRIMARY_KEY_IN_READ_INDEX)
+          {
+            if (field->key_length() == key_part->length &&
+                !(field->flags & BLOB_FLAG))
+              field->part_of_key= share->keys_in_use;
+            if (field->part_of_sortkey.is_set(key))
+              field->part_of_sortkey= share->keys_in_use;
+          }
+        }
+        if (field->key_length() != key_part->length)
+        {
+          if (field->type() == MYSQL_TYPE_NEWDECIMAL)
+          {
+            /*
+              Fix a fatal error in decimal key handling that causes crashes
+              on Innodb. We fix it by reducing the key length so that
+              InnoDB never gets a too big key when searching.
+              This allows the end user to do an ALTER TABLE to fix the
+              error.
+            */
+            keyinfo->key_length-= (key_part->length - field->key_length());
+            key_part->store_length-= (uint16)(key_part->length -
+                                              field->key_length());
+            key_part->length= (uint16)field->key_length();
+            sql_print_error("Found wrong key definition in %s; "
+                            "Please do \"ALTER TABLE `%s` FORCE \" to fix it!",
+                            share->table_name.str,
+                            share->table_name.str);
+            push_warning_printf(thd, Sql_condition::SL_WARNING,
+                                ER_CRASHED_ON_USAGE,
+                                "Found wrong key definition in %s; "
+                                "Please do \"ALTER TABLE `%s` FORCE\" to fix "
+                                "it!",
+                                share->table_name.str,
+                                share->table_name.str);
+            share->crashed= 1;                // Marker for CHECK TABLE
+            continue;
+          }
+          key_part->key_part_flag|= HA_PART_KEY_SEG;
+        }
+      }
+
+
+      if (use_extended_sk && primary_key < MAX_KEY &&
+          key && !(keyinfo->flags & HA_NOSAME))
+        key_part+= add_pk_parts_to_sk(keyinfo, key, share->key_info, primary_key,
+                                      share,  handler_file, &usable_parts);
+
+      /* Skip unused key parts if they exist */
+      key_part+= keyinfo->unused_key_parts;
+
+      keyinfo->usable_key_parts= usable_parts; // Filesort
+
+      set_if_bigger(share->max_key_length,keyinfo->key_length+
+                    keyinfo->user_defined_key_parts);
+      share->total_key_length+= keyinfo->key_length;
+      /*
+        MERGE tables do not have unique indexes. But every key could be
+        an unique index on the underlying MyISAM table. (Bug #10400)
+      */
+      if ((keyinfo->flags & HA_NOSAME) ||
+          (ha_option & HA_ANY_INDEX_MAY_BE_UNIQUE))
+        set_if_bigger(share->max_unique_length,keyinfo->key_length);
+    }
+    if (primary_key < MAX_KEY && (share->keys_in_use.is_set(primary_key)))
+    {
+      share->primary_key= primary_key;
+      /*
+        If we are using an integer as the primary key then allow the user to
+        refer to it as '_rowid'
+      */
+      if (share->key_info[primary_key].user_defined_key_parts == 1)
+      {
+        Field *field= share->key_info[primary_key].key_part[0].field;
+        if (field && field->result_type() == INT_RESULT)
+        {
+          /* note that fieldnr here (and rowid_field_offset) starts from 1 */
+          share->rowid_field_offset= (share->key_info[primary_key].key_part[0].
+                                      fieldnr);
+        }
+      }
+    }
+    else
+      share->primary_key = MAX_KEY; // we do not have a primary key
+  }
+  else
+    share->primary_key= MAX_KEY;
+  my_free(disk_buff);
+  disk_buff=0;
+  if (new_field_pack_flag <= 1)
+  {
+    /* Old file format with default as not null */
+    uint null_length= (share->null_fields+7)/8;
+    memset(share->default_values + (null_flags - record), 255,
+           null_length);
+  }
+
+  if (share->found_next_number_field)
+  {
+    Field *reg_field= *share->found_next_number_field;
+    if ((int) (share->next_number_index= (uint)
+           find_ref_key(share->key_info, share->keys,
+                            share->default_values, reg_field,
+                &share->next_number_key_offset,
+                            &share->next_number_keypart)) < 0)
+    {
+      /* Wrong field definition */
+      error= 4;
+      goto err;
+    }
+    else
+      reg_field->flags |= AUTO_INCREMENT_FLAG;
+  }
+
+  if (share->blob_fields)
+  {
+    Field **ptr;
+    uint k, *save;
+
+    /* Store offsets to blob fields to find them fast */
+    if (!(share->blob_field= save=
+      (uint*) alloc_root(&share->mem_root,
+                             (uint) (share->blob_fields* sizeof(uint)))))
+      goto err;
+    for (k=0, ptr= share->field ; *ptr ; ptr++, k++)
+    {
+      if ((*ptr)->flags & BLOB_FLAG)
+        (*save++)= k;
+    }
+  }
+
+  /*
+    the correct null_bytes can now be set, since bitfields have been taken
+    into account
+  */
+  share->null_bytes= (null_pos - null_flags +
+                      (null_bit_pos + 7) / 8);
+  share->last_null_bit_pos= null_bit_pos;
+
+  share->db_low_byte_first= handler_file->low_byte_first();
+  share->column_bitmap_size= bitmap_buffer_size(share->fields);
+
+  if (!(bitmaps= (my_bitmap_map*) alloc_root(&share->mem_root,
+                                             share->column_bitmap_size)))
+    goto err;
+  bitmap_init(&share->all_set, bitmaps, share->fields, FALSE);
+  bitmap_set_all(&share->all_set);
+
+  delete handler_file;
+#ifndef DBUG_OFF
+  if (use_hash)
+    (void) my_hash_check(&share->name_hash);
+#endif
+  my_free(extra_segment_buff);
+  DBUG_RETURN (0);
+
+ err:
+  my_free(disk_buff);
+  my_free(extra_segment_buff);
+  delete handler_file;
+  my_hash_free(&share->name_hash);
+
+  open_table_error(thd, share, error, my_errno(), errarg);
+  DBUG_RETURN(error);
+} /*open_binary_frm*/
+
+//////////////////////////////////////////////////////////////////////////
+
+
 /**
   @brief validate_generated_expr
     Validate the generated expression to see whether there are invalid
@@ -1039,27 +2705,15 @@ void Generated_column::print_expr(THD *thd, String *out)
 }
 
 
-/**
+/*
    Unpack the definition of a virtual column. Parses the text obtained from
    TABLE_SHARE and produces an Item.
-
-  @param thd                  Thread handler
-  @param table                Table with the checked field
-  @param field                Pointer to Field object
-  @param is_create_table      Indicates that table is opened as part
-                              of CREATE or ALTER and does not yet exist in SE
-  @param error_reported       updated flag for the caller that no other error
-                              messages are to be generated.
-
-  @retval TRUE Failure.
-  @retval FALSE Success.
- */
-
-static bool unpack_gcol_info(THD *thd,
-                             TABLE *table,
-                             Field *field,
-                             bool is_create_table,
-                             bool *error_reported)
+*/
+bool unpack_gcol_info(THD *thd,
+                      TABLE *table,
+                      Field *field,
+                      bool is_create_table,
+                      bool *error_reported)
 {
   DBUG_ENTER("unpack_gcol_info");
   DBUG_ASSERT(field->table == table);
@@ -1157,6 +2811,10 @@ static bool unpack_gcol_info(THD *thd,
 
   /* Validate the Item tree. */
   status= fix_fields_gcol_func(thd, field);
+
+  // Permanent changes to the item_tree are completed.
+  if (!thd->lex->is_ps_or_view_context_analysis())
+    field->gcol_info->permanent_changes_completed= true;
 
   if (disable_strict_mode)
   {
@@ -1555,7 +3213,7 @@ partition_err:
     const dd::Table *dd_tab= table_def;
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-    if (!dd_tab)
+    if (!dd_tab && !(prgflag & OPEN_NO_DD_TABLE))
     {
 
       if (thd->dd_client()->acquire<dd::Table>(share->db.str,
@@ -1931,7 +3589,7 @@ rename_file_ext(const char * from,const char * to,const char * ext)
 
   @param mem   	MEM_ROOT for allocating
   @param field 	Field for retrieving of string
-  @param res         result String
+  @param res    result String
 
   @retval  1   string is empty
   @retval  0	all ok
@@ -2469,6 +4127,19 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
   }
 }
 
+
+ulonglong TABLE_SHARE::get_table_ref_version() const
+{
+  if (table_category == TABLE_CATEGORY_DICTIONARY ||
+      tmp_table == SYSTEM_TMP_TABLE ||
+      (is_view && view_object &&
+       view_object->type() == dd::enum_table_type::SYSTEM_VIEW))
+    return 0;
+
+  return table_map_id.id();
+}
+
+
 Blob_mem_storage::Blob_mem_storage()
   : truncated_value(false)
 {
@@ -2552,17 +4223,28 @@ bool TABLE::refix_gc_items(THD *thd)
       if (!vfield->gcol_info->expr_item->fixed)
       {
         bool res= false;
-        /**
-          We should keep all the newly-created Items during fixing fields
-          in the same life span as the ones created parsing the generated
-          expression string.
+        /*
+          The call to fix_fields_gcol_func() may create new item objects in the
+          item tree for the generated column expression. If these are permanent
+          changes to the item tree, the new items must have the same life-span
+          as the ones created during parsing of the generated expression
+          string. We achieve this by temporarily switching to use the TABLE's
+          mem_root if the permanent changes to the item tree haven't been
+          completed (by checking the status of
+          gcol_info->permanent_changes_completed) and this call is not part of
+          context analysis (like prepare or show create table).
         */
         Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
         Query_arena backup_arena;
         Query_arena gcol_arena(&vfield->table->mem_root,
                                Query_arena::STMT_CONVENTIONAL_EXECUTION);
-        thd->set_n_backup_active_arena(&gcol_arena, &backup_arena);
-        thd->stmt_arena= &gcol_arena;
+        if (!vfield->gcol_info->permanent_changes_completed &&
+            !thd->lex->is_ps_or_view_context_analysis())
+        {
+          thd->set_n_backup_active_arena(&gcol_arena, &backup_arena);
+          thd->stmt_arena= &gcol_arena;
+        }
+
         /* 
           Temporarily disable privileges check; already done when first fixed,
           and then based on definer's (owner's) rights: this thread has
@@ -2574,8 +4256,23 @@ bool TABLE::refix_gc_items(THD *thd)
         if (fix_fields_gcol_func(thd, vfield))
           res= true;
 
-        thd->stmt_arena= backup_stmt_arena_ptr;
-        thd->restore_active_arena(&gcol_arena, &backup_arena);
+        if (!vfield->gcol_info->permanent_changes_completed &&
+            !thd->lex->is_ps_or_view_context_analysis())
+        {
+          // Switch back to the original stmt_arena.
+          thd->stmt_arena= backup_stmt_arena_ptr;
+          thd->restore_active_arena(&gcol_arena, &backup_arena);
+
+          // Append the new items to the original item_free_list.
+          Item *item= vfield->gcol_info->item_free_list;
+          while (item->next)
+            item= item->next;
+          item->next= gcol_arena.free_list;
+
+          // Permanent changes to the item_tree are completed.
+          vfield->gcol_info->permanent_changes_completed= true;
+        }
+
         // Restore any privileges check
         thd->want_privilege= sav_want_priv;
         get_fields_in_item_tree= FALSE;
@@ -2583,12 +4280,6 @@ bool TABLE::refix_gc_items(THD *thd)
         /* error occurs */
         if (res)
           return res;
-
-        // We need append the new items to orignal item lists
-        Item *item= vfield->gcol_info->item_free_list;
-        while(item->next)
-          item= item->next;
-        item->next= gcol_arena.free_list;
       }
     }
   }
@@ -3297,7 +4988,7 @@ bool TABLE_LIST::prepare_view_security_context(THD *thd)
   {
     DBUG_PRINT("info", ("This table is suid view => load contest"));
     DBUG_ASSERT(view && view_sctx);
-    if (acl_getroot(view_sctx,
+    if (acl_getroot(thd, view_sctx,
                     const_cast<char*>(definer.user.str),
                     const_cast<char*>(definer.host.str),
                     const_cast<char*>(definer.host.str),
@@ -3582,6 +5273,7 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
                                Name_resolution_context *context)
 {
   Item *field= *field_ref;
+  const char *table_name;
   DBUG_ENTER("create_view_field");
 
   if (view->schema_table_reformed)
@@ -3604,15 +5296,36 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
   }
 
   /*
+    Original table name of a field is calculated as follows:
+    - For a view or base table, the view or base table name.
+    - For a derived table, the base table name.
+    - For an expression that is not a simple column reference, an empty string.
+  */
+  if (view->is_derived())
+  {
+    while (field->type() == Item::REF_ITEM)
+    {
+      field= down_cast<Item_ref *>(field)->ref[0];
+    }
+    if (field->type() == Item::FIELD_ITEM)
+      table_name= down_cast<Item_field *>(field)->table_name;
+    else
+      table_name= "";
+  }
+  else
+  {
+    table_name= view->table_name;
+  }
+  /*
     @note Creating an Item_direct_view_ref object on top of an Item_field
           means that the underlying Item_field object may be shared by
           multiple occurrences of superior fields. This is a vulnerable
           practice, so special precaution must be taken to avoid programming
           mistakes, such as forgetting to mark the use of a field in both
           read_set and write_set (may happen e.g in an UPDATE statement).
-  */ 
+  */
   Item *item= new Item_direct_view_ref(context, field_ref,
-                                       view->alias, view->table_name,
+                                       view->alias, table_name,
                                        name, view);
   DBUG_RETURN(item);
 }
@@ -5673,3 +7386,173 @@ st_lex_user::alloc(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg)
   }
   return ret;
 }
+
+
+//////////////////////////////////////////////////////////////////////////
+
+/*
+  NOTE:
+
+  The functions in this block are used to read .frm file.
+  They should not be used any where else in the code. They are only used
+  in upgrade scenario for migrating old data directory to be compatible
+  with current server. They will be removed in future release.
+
+  Any new code should not be added in this section.
+*/
+
+/**
+  Open and Read .frm file.
+  Based on header, it is decided if its a table or view.
+  Prepare TABLE_SHARE if its a table.
+  Prepare File_parser if its a view.
+
+  @param  thd                       thread handle
+  @param  share                     TABLE_SHARE object to be filled.
+  @param  frm_context               FRM_context for structures removed from
+                                    TABLE_SHARE
+  @param  db                        database name
+  @param  table                     table name
+  @param  is_fix_view_cols_and_deps Flag to indicate that we are recreating view
+                                    to create view dependency entry in DD tables
+
+  @retval  true   Error
+  @retval  false  Success
+*/
+static bool read_frm_file(THD *thd,
+                          TABLE_SHARE *share,
+                          FRM_context *frm_context,
+                          const std::string &db,
+                          const std::string &table,
+                          bool is_fix_view_cols_and_deps)
+{
+  File file;
+  uchar head[64];
+  char path[FN_REFLEN + 1];
+  MEM_ROOT **root_ptr, *old_root;
+
+  strxnmov(path, sizeof(path) - 1, share->normalized_path.str, reg_ext, NullS);
+  LEX_STRING pathstr= { path, strlen(path) };
+
+  if ((file= mysql_file_open(key_file_frm,
+                             path, O_RDONLY, MYF(0))) < 0)
+  {
+    sql_print_error("Unable to open file %s\n", path);
+    return true;
+  }
+
+  if (mysql_file_read(file, head, 64, MYF(MY_NABP)))
+  {
+    sql_print_error("Error in reading file %s\n", path);
+    goto err;
+  }
+
+  /*
+    Checking if the given .frm file is TABLE or VIEW.
+  */
+  if (head[0] == (uchar) 254 && head[1] == 1)
+  {
+    if (head[2] == FRM_VER || head[2] == FRM_VER+1 ||
+        (head[2] >= FRM_VER+3 && head[2] <= FRM_VER+4))
+    {
+      /*
+        This means this is a BASE_TABLE.
+        Don't read .frm file for tables if we are recreating views
+        to resolve dependency. At this time, all tables are already upgraded.
+        .frm file should be only read for views.
+      */
+       if (is_fix_view_cols_and_deps)
+       {
+          mysql_file_close(file, MYF(MY_WME));
+          return false;
+       }
+       int error;
+       root_ptr= my_thread_get_THR_MALLOC();
+       old_root= *root_ptr;
+       *root_ptr= &share->mem_root;
+
+       error= open_binary_frm(thd, share, frm_context, head, file);
+
+       *root_ptr= old_root;
+       if (error)
+       {
+         sql_print_error("Error in reading file %s\n", path);
+         goto err;
+       }
+    }
+    else
+    {
+      sql_print_error("Table '%s' was created with a different version "
+                      "of MySQL and cannot be read", table.c_str());
+      goto err;
+    }
+  }
+  else if (memcmp(head, STRING_WITH_LEN("TYPE=")) == 0)
+  {
+    if (memcmp(head+5, "VIEW", 4) == 0)
+    {
+      // View found
+      share->is_view= 1;
+
+      /*
+        Create view file parser and hold it in
+        FRM_context member view_def.
+      */
+      frm_context->view_def= sql_parse_prepare(&pathstr, &share->mem_root, true);
+      if (!frm_context->view_def)
+      {
+        sql_print_error("Unable to read view %s \n", pathstr.str);
+        goto err;
+      }
+    }
+    else
+    {
+      sql_print_error("File %s has unknown type in its header.", pathstr.str);
+      goto err;
+    }
+  }
+  else
+  {
+    sql_print_error("Incorrect information in file %s", pathstr.str);
+    goto err;
+  }
+
+  // Close file and return
+  mysql_file_close(file, MYF(MY_WME));
+  return false;
+
+err:
+  mysql_file_close(file, MYF(MY_WME));
+  return true;
+}
+
+
+
+bool create_table_share_for_upgrade(THD *thd,
+                                    const char *path,
+                                    TABLE_SHARE *share,
+                                    FRM_context *frm_context,
+                                    const char *db_name,
+                                    const char *table_name,
+                                    bool is_fix_view_cols_and_deps)
+{
+  DBUG_ENTER("create_table_share_for_upgrade");
+
+  init_tmp_table_share(thd, share, db_name, 0, table_name, path);
+
+  // Fix table categories set by init_tmp_table_share
+  share->table_category= TABLE_UNKNOWN_CATEGORY;
+  share->tmp_table= NO_TMP_TABLE;
+  mysql_mutex_init(key_TABLE_SHARE_LOCK_ha_data,
+                     &share->LOCK_ha_data, MY_MUTEX_INIT_FAST);
+
+  if (read_frm_file(thd, share, frm_context, db_name,
+                    table_name, is_fix_view_cols_and_deps))
+  {
+    free_table_share(share);
+    DBUG_RETURN(TRUE);
+  }
+  DBUG_RETURN(FALSE);
+}
+
+//////////////////////////////////////////////////////////////////////////

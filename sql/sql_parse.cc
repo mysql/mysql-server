@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
 #include "auth_common.h"      // acl_authenticate
 #include "binlog.h"           // purge_master_logs
 #include "current_thd.h"
+#include "dd/dd.h"            // dd::get_dictionary
+#include "dd/dictionary.h"    // dd::Dictionary::is_system_view_name
 #include "debug_sync.h"       // DEBUG_SYNC
 #include "derror.h"           // ER_THD
 #include "error_handler.h"    // Strict_error_handler
@@ -72,6 +74,9 @@
 #include "system_variables.h" // System_status_var
 #include "table_cache.h"      // table_cache_manager
 #include "transaction.h"      // trans_rollback_implicit
+
+#include "dd/dd.h"            // get_dictionary
+#include "dd/dictionary.h"    // is_dd_table_access_allowed
 
 #include <algorithm>
 #include <sstream>
@@ -183,7 +188,12 @@ bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables)
   for (TABLE_LIST *table= tables; table; table= table->next_global)
   {
     DBUG_ASSERT(table->db && table->table_name);
-    if (table->updating && !find_temporary_table(thd, table))
+    /*
+      Update on performance_schema and temp tables are allowed
+      in readonly mode.
+    */
+    if (table->updating && !find_temporary_table(thd, table) &&
+        !is_perfschema_db(table->db, table->db_length))
       return 1;
   }
   return 0;
@@ -758,6 +768,8 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CREATE_PROCEDURE]|=  CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_DROP_PROCEDURE]|=    CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_ALTER_PROCEDURE]|=   CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_CREATE_TRIGGER]|=   CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_DROP_TRIGGER]|=     CF_NEEDS_AUTOCOMMIT_OFF;
 }
 
 bool sqlcom_can_generate_row_events(enum enum_sql_command command)
@@ -1288,7 +1300,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     Enforce password expiration for all RPC commands, except the
     following:
 
-    COM_QUERY does a more fine-grained check later.
+    COM_QUERY/COM_STMT_PREPARE and COM_STMT_EXECUTE do a more
+    fine-grained check later.
     COM_STMT_CLOSE and COM_STMT_SEND_LONG_DATA don't return anything.
     COM_PING only discloses information that the server is running,
        and that's available through other means.
@@ -1299,7 +1312,9 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
                command != COM_STMT_CLOSE &&
                command != COM_STMT_SEND_LONG_DATA &&
                command != COM_PING &&
-               command != COM_QUIT))
+               command != COM_QUIT &&
+               command != COM_STMT_PREPARE &&
+               command != COM_STMT_EXECUTE))
   {
     my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
     goto done;
@@ -1884,6 +1899,7 @@ done:
 
   thd->reset_query();
   thd->set_command(COM_SLEEP);
+  thd->proc_info= 0;
 
   /* Performance Schema Interface instrumentation, end */
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
@@ -1986,12 +2002,6 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   DBUG_ENTER("prepare_schema_table");
 
   switch (schema_table_idx) {
-  case SCH_SCHEMATA:
-    break;
-
-  case SCH_TABLE_NAMES:
-  case SCH_TABLES:
-  case SCH_VIEWS:
   case SCH_TRIGGERS:
   case SCH_EVENTS:
     {
@@ -2010,8 +2020,8 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
         DBUG_RETURN(1);
       break;
     }
-  case SCH_COLUMNS:
-  case SCH_STATISTICS:
+  case SCH_TMP_TABLE_COLUMNS:
+  case SCH_TMP_TABLE_KEYS:
   {
     DBUG_ASSERT(table_ident);
     TABLE_LIST **query_tables_last= lex->query_tables_last;
@@ -2037,16 +2047,11 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   case SCH_VARIABLES:
   case SCH_STATUS:
   case SCH_PROCEDURES:
-  case SCH_CHARSETS:
   case SCH_ENGINES:
-  case SCH_COLLATIONS:
-  case SCH_COLLATION_CHARACTER_SET_APPLICABILITY:
   case SCH_USER_PRIVILEGES:
   case SCH_SCHEMA_PRIVILEGES:
   case SCH_TABLE_PRIVILEGES:
   case SCH_COLUMN_PRIVILEGES:
-  case SCH_TABLE_CONSTRAINTS:
-  case SCH_KEY_COLUMN_USAGE:
   default:
     break;
   }
@@ -2177,7 +2182,7 @@ bool sp_process_definer(THD *thd)
   /* Check that the specified definer exists. Emit a warning if not. */
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (!is_acl_user(lex->definer->host.str, lex->definer->user.str))
+  if (!is_acl_user(thd, lex->definer->host.str, lex->definer->user.str))
   {
     push_warning_printf(thd,
                         Sql_condition::SL_NOTE,
@@ -2407,8 +2412,6 @@ mysql_execute_command(THD *thd, bool first_level)
 
   thd->work_part_info= 0;
 
-  DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT) ||
-              thd->in_sub_stmt);
   /*
     Each statement or replication event which might produce deadlock
     should handle transaction rollback on its own. So by the start of
@@ -3762,8 +3765,8 @@ mysql_execute_command(THD *thd, bool first_level)
           if (acl_check_proxy_grant_access (thd, user->host.str, user->user.str,
                                         lex->grant & GRANT_ACL))
             goto error;
-        } 
-        else if (is_acl_user(user->host.str, user->user.str) &&
+        }
+        else if (is_acl_user(thd, user->host.str, user->user.str) &&
                  user->auth.str &&
                  check_change_password (thd, user->host.str, user->user.str,
                                         user->auth.str,
@@ -3825,7 +3828,7 @@ mysql_execute_command(THD *thd, bool first_level)
           {
             if (!(user= get_current_user(thd, tmp_user)))
               goto error;
-	    reset_mqh(user, 0);
+	    reset_mqh(thd, user, 0);
           }
 	}
       }
@@ -4063,7 +4066,7 @@ mysql_execute_command(THD *thd, bool first_level)
     */
     thd->binlog_invoker();
 
-    if (! (res= sp_create_routine(thd, lex->sphead)))
+    if (! (res= sp_create_routine(thd, lex->sphead, thd->lex->definer)))
     {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       /* only add privileges if really neccessary */
@@ -4115,7 +4118,7 @@ mysql_execute_command(THD *thd, bool first_level)
           current_host= lex->definer->host;
           current_user= lex->definer->user;
         }
-        if (is_acl_user(current_host.str, current_user.str))
+        if (is_acl_user(thd, current_host.str, current_user.str))
         {
           security_context.change_security_context(thd,
                                                    current_user,
@@ -4488,16 +4491,14 @@ mysql_execute_command(THD *thd, bool first_level)
       break;
     }
   case SQLCOM_CREATE_TRIGGER:
-  {
-    /* Conditionally writes to binlog. */
-    res= mysql_create_or_drop_trigger(thd, all_tables, 1);
-
-    break;
-  }
   case SQLCOM_DROP_TRIGGER:
   {
     /* Conditionally writes to binlog. */
-    res= mysql_create_or_drop_trigger(thd, all_tables, 0);
+    DBUG_ASSERT(lex->m_sql_cmd != nullptr);
+    static_cast<Sql_cmd_ddl_trigger_common*>(lex->m_sql_cmd)->set_table(
+      all_tables);
+
+    res= lex->m_sql_cmd->execute(thd);
     break;
   }
   case SQLCOM_ALTER_TABLESPACE:
@@ -5567,11 +5568,19 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
   ptr->set_derived_unit(table->sel);
   if (!ptr->is_derived() && is_infoschema_db(ptr->db, ptr->db_length))
   {
+    dd::info_schema::convert_table_name_case(
+                       const_cast<char*>(ptr->db),
+                       const_cast<char*>(ptr->table_name));
+
+    ptr->is_system_view=
+      dd::get_dictionary()->is_system_view_name(ptr->db, ptr->table_name);
+
     ST_SCHEMA_TABLE *schema_table;
     if (ptr->updating &&
         /* Special cases which are processed by commands itself */
         lex->sql_command != SQLCOM_CHECK &&
-        lex->sql_command != SQLCOM_CHECKSUM)
+        lex->sql_command != SQLCOM_CHECKSUM &&
+        !(lex->sql_command == SQLCOM_CREATE_VIEW && ptr->is_system_view))
     {
       my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                thd->security_context()->priv_user().str,
@@ -5579,23 +5588,48 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
                INFORMATION_SCHEMA_NAME.str);
       DBUG_RETURN(0);
     }
-    schema_table= find_schema_table(thd, ptr->table_name);
-    if (!schema_table ||
-        (schema_table->hidden && 
-         ((sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0 || 
-          /*
-            this check is used for show columns|keys from I_S hidden table
-          */
-          lex->sql_command == SQLCOM_SHOW_FIELDS ||
-          lex->sql_command == SQLCOM_SHOW_KEYS)))
+    if (ptr->is_system_view)
     {
-      my_error(ER_UNKNOWN_TABLE, MYF(0),
-               ptr->table_name, INFORMATION_SCHEMA_NAME.str);
-      DBUG_RETURN(0);
+      /**
+        Pick the right IS system view definition based on session
+        variables information_schema_stats.
+      */
+      if (thd->lex->sql_command != SQLCOM_CREATE_VIEW &&
+          thd->variables.information_schema_stats ==
+          static_cast<ulong>(dd::info_schema::enum_stats::LATEST))
+      {
+          if(!my_strcasecmp(system_charset_info, ptr->table_name, "TABLES"))
+          {
+            ptr->table_name= thd->mem_strdup("TABLES_DYNAMIC");
+          }
+          else if(!my_strcasecmp(system_charset_info,
+                                 ptr->table_name, "STATISTICS"))
+          {
+            ptr->table_name= thd->mem_strdup("STATISTICS_DYNAMIC");
+          }
+          else if(!my_strcasecmp(system_charset_info,
+                                 ptr->table_name, "SHOW_STATISTICS"))
+          {
+            ptr->table_name= thd->mem_strdup("SHOW_STATISTICS_DYNAMIC");
+          }
+      }
     }
-    ptr->schema_table_name= const_cast<char*>(ptr->table_name);
-    ptr->schema_table= schema_table;
+    else
+    {
+      schema_table= find_schema_table(thd, ptr->table_name);
+      if (!schema_table ||
+          (schema_table->hidden &&
+           (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0))
+      {
+        my_error(ER_UNKNOWN_TABLE, MYF(0),
+                 ptr->table_name, INFORMATION_SCHEMA_NAME.str);
+        DBUG_RETURN(0);
+      }
+      ptr->schema_table_name= const_cast<char*>(ptr->table_name);
+      ptr->schema_table= schema_table;
+    }
   }
+
   ptr->select_lex= this;
   ptr->cacheable_table= 1;
   ptr->index_hints= index_hints_arg;
@@ -5663,6 +5697,38 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
     ptr->derived_key_list.empty();
     derived_table_count++;
   }
+
+  // Check access to DD tables. We must allow CHECK and ALTER TABLE
+  // for the DDSE tables, since this is expected by the upgrade
+  // client. We must also allow DDL access for the initialize thread,
+  // since this thread is creating the I_S views.
+  // Note that at this point, the mdl request for CREATE TABLE is still
+  // MDL_SHARED, so we must explicitly check for SQLCOM_CREATE_TABLE.
+  const dd::Dictionary *dictionary= dd::get_dictionary();
+  if (dictionary && !dictionary->is_dd_table_access_allowed(
+             thd->is_dd_system_thread() || thd->is_initialize_system_thread(),
+             (ptr->mdl_request.is_ddl_or_lock_tables_lock_request() ||
+              (lex->sql_command == SQLCOM_CREATE_TABLE &&
+               ptr == lex->query_tables)) &&
+              lex->sql_command != SQLCOM_CHECK &&
+              lex->sql_command != SQLCOM_ALTER_TABLE,
+             ptr->db, ptr->db_length, ptr->table_name))
+  {
+    // TODO: Allow access to 'st_spatial_reference_systems' until
+    // dedicated DDL statements for adding reference systems are
+    // implemented.
+    // We must allow creation of the system views even for non-system
+    // threads since this is expected by the mysql_upgrade utility.
+    if (!(lex->sql_command == SQLCOM_CREATE_VIEW &&
+          dd::get_dictionary()->is_system_view_name(
+                                  lex->query_tables->db,
+                                  lex->query_tables->table_name)) &&
+        strcmp(ptr->table_name, "st_spatial_reference_systems"))
+    {
+      my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0), ptr->db, ptr->table_name);
+    }
+  }
+
   DBUG_RETURN(ptr);
 }
 

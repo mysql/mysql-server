@@ -141,7 +141,6 @@ mysql.time_zone_leap_second                        OK
 mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
-mysql.triggers                                     OK
 mysql.user                                         OK
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
@@ -183,7 +182,6 @@ mysql.time_zone_leap_second                        OK
 mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
-mysql.triggers                                     OK
 mysql.user                                         OK
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
@@ -221,7 +219,6 @@ mysql.time_zone_leap_second                        OK
 mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
-mysql.triggers                                     OK
 mysql.user                                         OK
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK

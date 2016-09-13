@@ -18,6 +18,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
 #include <my_sys.h>
 
+#include "mysql/psi/mysql_rwlock.h"
+
 /**
   Locks RW-lock and releases lock on scope exit.
 */

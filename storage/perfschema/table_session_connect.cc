@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 
 #include "table_session_connect.h"
 #include "field.h"
+#include "pfs_buffer_container.h"
 
 static const TABLE_FIELD_TYPE field_types[]=
 {
@@ -48,6 +49,28 @@ static const TABLE_FIELD_TYPE field_types[]=
 TABLE_FIELD_DEF table_session_connect::m_field_def=
 { 4, field_types };
 
+bool PFS_index_session_connect::match(PFS_thread *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key_1.match(pfs))
+      return false;
+  }
+
+  return true;
+}
+
+bool PFS_index_session_connect::match(row_session_connect_attrs *row)
+{
+  if (m_fields >= 2)
+  {
+    if (!m_key_2.match(row->m_attr_name, row->m_attr_name_length))
+      return false;
+  }
+
+  return true;
+}
+
 table_session_connect::table_session_connect(const PFS_engine_table_share *share)
  : cursor_by_thread_connect_attr(share)
 {
@@ -67,6 +90,54 @@ table_session_connect::table_session_connect(const PFS_engine_table_share *share
 table_session_connect::~table_session_connect()
 {
   my_free(m_copy_session_connect_attrs);
+}
+
+int table_session_connect::index_init(uint idx, bool sorted)
+{
+  DBUG_ASSERT(idx == 0);
+  m_opened_index= PFS_NEW(PFS_index_session_connect);
+  m_index= m_opened_index;
+  return 0;
+}
+
+int table_session_connect::index_next(void)
+{
+  PFS_thread *thread;
+  bool has_more_thread= true;
+
+  for (m_pos.set_at(&m_next_pos);
+       has_more_thread;
+       m_pos.next_thread())
+  {
+    thread= global_thread_container.get(m_pos.m_index_1, &has_more_thread);
+    if (thread != NULL)
+    {
+      if (m_opened_index->match(thread))
+      {
+        do
+        {
+          /*
+            Here we materialize the row first,
+            and then evaluate if it matches the index.
+            This is simpler, as parsing the session attributes encoded string
+            is done only once.
+          */
+          make_row(thread, m_pos.m_index_2);
+          if (m_row_exists)
+          {
+            if (m_opened_index->match(&m_row))
+            {
+              m_next_pos.set_after(&m_pos);
+              return 0;
+            }
+            m_pos.m_index_2++;
+          }
+        } while (m_row_exists);
+      }
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
 }
 
 /**
@@ -258,7 +329,7 @@ void table_session_connect::make_row(PFS_thread *pfs, uint ordinal)
   {
     /* we don't expect internal threads to have connection attributes */
     if (pfs->m_processlist_id == 0)
-	return;
+      return;
 
     m_row.m_ordinal_position= ordinal;
     m_row.m_process_id= pfs->m_processlist_id;

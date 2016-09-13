@@ -70,8 +70,6 @@ stage/sql/Opening system tables	NULL	NULL
 stage/sql/Locking system tables	NULL	NULL
 stage/sql/Opening system tables	NULL	NULL
 stage/sql/Locking system tables	NULL	NULL
-stage/sql/Opening system tables	NULL	NULL
-stage/sql/Locking system tables	NULL	NULL
 stage/sql/System lock	NULL	NULL
 stage/sql/copy to tmp table	5	5
 stage/sql/rename result table	NULL	NULL
@@ -91,7 +89,15 @@ stage/sql/Opening system tables	NULL	NULL
 stage/sql/Locking system tables	NULL	NULL
 stage/sql/Opening system tables	NULL	NULL
 stage/sql/Locking system tables	NULL	NULL
+stage/sql/Opening system tables	NULL	NULL
+stage/sql/Locking system tables	NULL	NULL
+stage/sql/Opening system tables	NULL	NULL
+stage/sql/Locking system tables	NULL	NULL
+stage/sql/Opening system tables	NULL	NULL
+stage/sql/Locking system tables	NULL	NULL
 stage/sql/end	NULL	NULL
+stage/sql/Opening system tables	NULL	NULL
+stage/sql/Locking system tables	NULL	NULL
 stage/sql/query end	NULL	NULL
 stage/sql/closing tables	NULL	NULL
 stage/sql/freeing items	NULL	NULL

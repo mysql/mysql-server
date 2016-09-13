@@ -52,6 +52,84 @@ struct row_table_handles
   PFS_TL_LOCK_TYPE m_external_lock;
 };
 
+class PFS_index_table_handles : public PFS_engine_index
+{
+public:
+  PFS_index_table_handles(PFS_engine_key *key_1)
+    : PFS_engine_index(key_1)
+  {}
+
+  PFS_index_table_handles(PFS_engine_key *key_1,
+                          PFS_engine_key *key_2)
+    : PFS_engine_index(key_1, key_2)
+  {}
+
+  PFS_index_table_handles(PFS_engine_key *key_1,
+                          PFS_engine_key *key_2,
+                          PFS_engine_key *key_3)
+    : PFS_engine_index(key_1, key_2, key_3)
+  {}
+
+  ~PFS_index_table_handles()
+  {}
+
+  virtual bool match(PFS_table *table) = 0;
+};
+
+class PFS_index_table_handles_by_object : public PFS_index_table_handles
+{
+public:
+  PFS_index_table_handles_by_object()
+    : PFS_index_table_handles(&m_key_1, &m_key_2, &m_key_3),
+    m_key_1("OBJECT_TYPE"), m_key_2("OBJECT_SCHEMA"), m_key_3("OBJECT_NAME")
+  {}
+
+  ~PFS_index_table_handles_by_object()
+  {}
+
+  virtual bool match(PFS_table *table);
+
+private:
+  PFS_key_object_type m_key_1;
+  PFS_key_object_schema m_key_2;
+  PFS_key_object_name m_key_3;
+};
+
+class PFS_index_table_handles_by_instance : public PFS_index_table_handles
+{
+public:
+  PFS_index_table_handles_by_instance()
+    : PFS_index_table_handles(&m_key),
+    m_key("OBJECT_INSTANCE_BEGIN")
+  {}
+
+  ~PFS_index_table_handles_by_instance()
+  {}
+
+  virtual bool match(PFS_table *table);
+
+private:
+  PFS_key_object_instance m_key;
+};
+
+class PFS_index_table_handles_by_owner : public PFS_index_table_handles
+{
+public:
+  PFS_index_table_handles_by_owner()
+    : PFS_index_table_handles(&m_key_1, &m_key_2),
+    m_key_1("OWNER_THREAD_ID"), m_key_2("OWNER_EVENT_ID")
+  {}
+
+  ~PFS_index_table_handles_by_owner()
+  {}
+
+  virtual bool match(PFS_table *table);
+
+private:
+  PFS_key_thread_id m_key_1;
+  PFS_key_event_id m_key_2;
+};
+
 /** Table PERFORMANCE_SCHEMA.TABLE_HANDLES. */
 class table_table_handles : public PFS_engine_table
 {
@@ -61,17 +139,20 @@ public:
   static PFS_engine_table* create();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
   virtual int rnd_init(bool scan);
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
 protected:
   virtual int read_row_values(TABLE *table,
                               unsigned char *buf,
                               Field **fields,
                               bool read_all);
-
   table_table_handles();
 
 public:
@@ -95,6 +176,9 @@ private:
   PFS_simple_index m_pos;
   /** Next position. */
   PFS_simple_index m_next_pos;
+
+protected:
+  PFS_index_table_handles *m_opened_index;
 };
 
 /** @} */

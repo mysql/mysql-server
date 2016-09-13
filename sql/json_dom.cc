@@ -1892,7 +1892,7 @@ Json_dom *Json_wrapper::clone_dom(const THD *thd)
 }
 
 
-bool Json_wrapper::to_binary(String *str) const
+bool Json_wrapper::to_binary(const THD *thd, String *str) const
 {
   if (empty())
   {
@@ -1903,9 +1903,9 @@ bool Json_wrapper::to_binary(String *str) const
   }
 
   if (m_is_dom)
-    return json_binary::serialize(m_dom_value, str);
+    return json_binary::serialize(thd, m_dom_value, str);
 
-  return m_value.raw_binary(str);
+  return m_value.raw_binary(thd, str);
 }
 
 

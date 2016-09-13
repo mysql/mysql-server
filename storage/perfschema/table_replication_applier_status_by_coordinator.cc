@@ -34,6 +34,7 @@
 #include "rpl_mi.h"
 #include "sql_parse.h"
 #include "rpl_msr.h"       /* Multisource replication */
+#include "table_helper.h"
 
 THR_LOCK table_replication_applier_status_by_coordinator::m_table_lock;
 
@@ -94,6 +95,58 @@ table_replication_applier_status_by_coordinator::m_share=
   false, /* checked */
   false  /* perpetual */
 };
+
+#ifdef HAVE_REPLICATION
+bool PFS_index_rpl_applier_status_by_coord_by_channel::match(Master_info *mi)
+{
+  if (m_fields >= 1)
+  {
+    st_row_coordinator row;
+
+    /* Mutex locks not necessary for channel name. */
+    row.channel_name_length= mi->get_channel() ? (uint)strlen(mi->get_channel()) : 0;
+    memcpy(row.channel_name, mi->get_channel(), row.channel_name_length);
+
+    if (!m_key.match(row.channel_name, row.channel_name_length))
+      return false;
+  }
+
+  return true;
+}
+
+bool PFS_index_rpl_applier_status_by_coord_by_thread::match(Master_info *mi)
+{
+  if (m_fields >= 1)
+  {
+    st_row_coordinator row;
+    row.thread_id_is_null= true;
+
+    mysql_mutex_lock(&mi->rli->data_lock);
+
+    if (mi->rli->slave_running)
+    {
+      PSI_thread *psi= thd_get_psi(mi->rli->info_thd);
+      PFS_thread *pfs= reinterpret_cast<PFS_thread *> (psi);
+      if(pfs)
+      {
+        row.thread_id= pfs->m_thread_internal_id;
+        row.thread_id_is_null= false;
+      }
+    }
+
+    mysql_mutex_unlock(&mi->rli->data_lock);
+
+    if (row.thread_id_is_null)
+      return false;
+
+    if (!m_key.match(row.thread_id))
+      return false;
+  }
+
+  return true;
+}
+#endif
+
 
 PFS_engine_table* table_replication_applier_status_by_coordinator::create(void)
 {
@@ -185,6 +238,70 @@ int table_replication_applier_status_by_coordinator::rnd_pos(const void *pos)
 
   return res;
 }
+
+int table_replication_applier_status_by_coordinator::index_init(uint idx, bool sorted)
+{
+#ifdef HAVE_REPLICATION
+  PFS_index_rpl_applier_status_by_coord *result= NULL;
+
+  switch(idx)
+  {
+  case 0:
+    result= PFS_NEW(PFS_index_rpl_applier_status_by_coord_by_channel);
+    break;
+  case 1:
+    result= PFS_NEW(PFS_index_rpl_applier_status_by_coord_by_thread);
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+  m_opened_index= result;
+  m_index= result;
+#endif
+  return 0;
+}
+
+int table_replication_applier_status_by_coordinator::index_next(void)
+{
+  int res= HA_ERR_END_OF_FILE;
+
+#ifdef HAVE_REPLICATION
+  Master_info *mi;
+
+  channel_map.rdlock();
+
+  for(m_pos.set_at(&m_next_pos);
+      m_pos.m_index < channel_map.get_max_channels() && res != 0;
+      m_pos.next())
+  {
+    mi= channel_map.get_mi_at_pos(m_pos.m_index);
+
+    /*
+      Construct and display SQL Thread's (Coordinator) information in
+      'replication_applier_status_by_coordinator' table only in the case of
+      multi threaded slave mode. Code should do nothing in the case of single
+      threaded slave mode. In case of single threaded slave mode SQL Thread's
+      status will be reported as part of
+      'replication_applier_status_by_worker' table.
+    */
+    if (mi && mi->host[0] && mi->rli && mi->rli->get_worker_count() > 0)
+    {
+      if (m_opened_index->match(mi))
+      {
+        make_row(mi);
+        m_next_pos.set_after(&m_pos);
+        res= 0;
+      }
+    }
+  }
+
+  channel_map.unlock();
+#endif /* HAVE_REPLICATION */
+
+  return res;
+}
+
 
 #ifdef HAVE_REPLICATION
 void table_replication_applier_status_by_coordinator::make_row(Master_info *mi)

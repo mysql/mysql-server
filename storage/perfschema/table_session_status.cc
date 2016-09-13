@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,6 +29,17 @@
 #include "field.h"
 #include "sql_class.h"
 #include "mysqld.h"
+
+bool PFS_index_session_status::match(const Status_variable *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(pfs))
+      return false;
+  }
+
+  return true;
+}
 
 THR_LOCK table_session_status::m_table_lock;
 
@@ -82,7 +93,8 @@ ha_rows table_session_status::get_row_count(void)
 
 table_session_status::table_session_status()
   : PFS_engine_table(&m_share, &m_pos),
-    m_status_cache(false), m_row_exists(false), m_pos(0), m_next_pos(0)
+    m_status_cache(false), m_row_exists(false), m_pos(0), m_next_pos(0),
+    m_context(NULL)
 {}
 
 void table_session_status::reset_position(void)
@@ -96,14 +108,8 @@ int table_session_status::rnd_init(bool scan)
  /* Build a cache of all status variables for this thread. */
   m_status_cache.materialize_all(current_thd);
 
-  /* Record the current number of status variables to detect subsequent changes. */
+  /* Record the version of the global status variable array, store in TLS. */
   ulonglong status_version= m_status_cache.get_status_array_version();
-
-  /*
-    The table context holds the current version of the global status array.
-    If scan == true, then allocate a new context from mem_root and store in TLS.
-    If scan == false, then restore from TLS.
-  */
   m_context= (table_session_status_context *)current_thd->alloc(sizeof(table_session_status_context));
   new(m_context) table_session_status_context(status_version, !scan);
   return 0;
@@ -111,16 +117,22 @@ int table_session_status::rnd_init(bool scan)
 
 int table_session_status::rnd_next(void)
 {
+  if (m_context && !m_context->versions_match())
+  {
+    status_variable_warning();
+    return HA_ERR_END_OF_FILE;
+  }
+
   for (m_pos.set_at(&m_next_pos);
        m_pos.m_index < m_status_cache.size();
        m_pos.next())
   {
     if (m_status_cache.is_materialized())
     {
-      const Status_variable *stat_var= m_status_cache.get(m_pos.m_index);
-      if (stat_var != NULL)
+      const Status_variable *status_var= m_status_cache.get(m_pos.m_index);
+      if (status_var != NULL)
       {
-        make_row(stat_var);
+        make_row(status_var);
         m_next_pos.set_after(&m_pos);
         return 0;
       }
@@ -132,9 +144,11 @@ int table_session_status::rnd_next(void)
 int
 table_session_status::rnd_pos(const void *pos)
 {
-  /* If global status array has changed, do nothing. */ // TODO: warning
-  if (!m_context->versions_match())
-    return HA_ERR_RECORD_DELETED;
+  if (m_context && !m_context->versions_match())
+  {
+    status_variable_warning();
+    return HA_ERR_END_OF_FILE;
+  }
 
   set_position(pos);
   DBUG_ASSERT(m_pos.m_index < m_status_cache.size());
@@ -150,6 +164,54 @@ table_session_status::rnd_pos(const void *pos)
   }
 
   return HA_ERR_RECORD_DELETED;
+}
+
+int table_session_status::index_init(uint idx, bool sorted)
+{
+ /* Build a cache of all status variables for this thread. */
+  m_status_cache.materialize_all(current_thd);
+
+  /* Record the version of the global status variable array, store in TLS. */
+  ulonglong status_version= m_status_cache.get_status_array_version();
+  m_context= (table_session_status_context *)current_thd->alloc(sizeof(table_session_status_context));
+  new(m_context) table_session_status_context(status_version, false);
+
+  PFS_index_session_status *result= NULL;
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_session_status);
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_session_status::index_next(void)
+{
+  if (m_context && !m_context->versions_match())
+  {
+    status_variable_warning();
+    return HA_ERR_END_OF_FILE;
+  }
+
+  for (m_pos.set_at(&m_next_pos);
+       m_pos.m_index < m_status_cache.size();
+       m_pos.next())
+  {
+    if (m_status_cache.is_materialized())
+    {
+      const Status_variable *status_var= m_status_cache.get(m_pos.m_index);
+      if (status_var != NULL)
+      {
+        if (m_opened_index->match(status_var))
+        {
+          make_row(status_var);
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
+      }
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
 }
 
 void table_session_status

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,11 @@
 #include "trigger.h"                  // Trigger
 
 
+Trigger_chain::~Trigger_chain()
+{
+  m_triggers.delete_elements();
+}
+
 /**
   Add a new trigger into the list of triggers with the same
   ACTION/TIMING value combination. This method is called during
@@ -45,7 +50,7 @@
 bool Trigger_chain::add_trigger(MEM_ROOT *mem_root,
                                 Trigger *new_trigger,
                                 enum_trigger_order_type ordering_clause,
-                                const LEX_STRING &referenced_trigger_name)
+                                const LEX_CSTRING &referenced_trigger_name)
 {
   switch (ordering_clause)
   {
@@ -211,23 +216,4 @@ bool Trigger_chain::has_updated_trigger_fields(const MY_BITMAP *used_fields)
   }
 
   return false;
-}
-
-
-/**
-  Recalculate action_order value for every trigger in the list.
-*/
-
-void Trigger_chain::renumerate_triggers()
-{
-  ulonglong action_order= 1;
-
-  List_iterator_fast<Trigger> it(m_triggers);
-  Trigger *t;
-
-  while ((t= it++))
-  {
-    t->set_action_order(action_order);
-    ++action_order;
-  }
 }

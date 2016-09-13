@@ -55,7 +55,7 @@ public:
            HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY | HA_READ_OUT_OF_SYNC |
            HA_FILE_BASED | HA_CAN_GEOMETRY);
   }
-  ulong index_flags(uint inx, uint part, bool all_parts) const
+  ulong index_flags(uint inx, uint, bool) const
   {
     return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?
             0 : HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE |

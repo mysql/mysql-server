@@ -33,6 +33,10 @@
        See include/mysql/psi/mysql_thread.h
 */
 
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_global.h"
 #include "my_thread.h"
 #include "thr_mutex.h"
 

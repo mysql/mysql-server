@@ -21,6 +21,7 @@
 #define _NGS_SERVER_ACCEPTORS_
 
 #include "ngs/interface/listener_interface.h"
+#include "ngs/interface/listener_factory_interface.h"
 #include "ngs/interface/server_task_interface.h"
 #include "ngs/time_socket_events.h"
 #include <string>
@@ -38,8 +39,10 @@ class Server_acceptors
 public:
   typedef Listener_interface::On_connection On_connection;
 
-  Server_acceptors(const unsigned short tcp_port,
-                   const std::string &unix_socket_file_or_named_pipe);
+  Server_acceptors(Listener_factory_interface &listener_factory,
+                   const unsigned short tcp_port,
+                   const std::string &unix_socket_file_or_named_pipe,
+                   const uint32 backlog);
 
   bool prepare(On_connection on_connection, const bool skip_networking, const bool use_unix_sockets_or_named_pipes);
   void abort();
@@ -62,8 +65,8 @@ private:
   static void close_listener(Listener_interface *listener);
   static void report_listener_status(Listener_interface *listener);
 
-  boost::scoped_ptr<Listener_interface> m_tcp_socket;
-  boost::scoped_ptr<Listener_interface> m_unix_socket;
+  Listener_interface_ptr m_tcp_socket;
+  Listener_interface_ptr m_unix_socket;
 
   Listener_interface::Sync_variable_state m_time_and_event_state;
   boost::shared_ptr<Server_task_time_and_event> m_time_and_event_task;

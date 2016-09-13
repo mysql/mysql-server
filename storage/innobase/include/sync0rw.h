@@ -41,10 +41,27 @@ Created 9/11/1995 Heikki Tuuri
 
 #endif /* !UNIV_HOTBACKUP */
 
+struct rw_lock_t;
+
 #ifdef UNIV_LIBRARY
 
 #ifdef UNIV_DEBUG
-#define rw_lock_own(A, B)			(A)
+
+/**
+Pass-through version of rw_lock_own(), which normally checks that the
+thread has locked the rw-lock in the specified mode.
+@param[in]	rw-lock		pointer to rw-lock
+@param[in]	lock type	lock type: RW_LOCK_S, RW_LOCK_X
+@return TRUE if success */
+UNIV_INLINE
+bool
+rw_lock_own(
+	rw_lock_t*	lock,
+	ulint		lock_type)
+{
+	return lock != nullptr;
+}
+
 #define sync_check_iterate(A)			true
 #endif /* UNIV_DEBUG */
 
@@ -124,8 +141,6 @@ of concurrent read locks before the rw_lock breaks. */
 /* We decrement lock_word by X_LOCK_HALF_DECR for sx_lock. */
 #define X_LOCK_DECR		0x20000000
 #define X_LOCK_HALF_DECR	0x10000000
-
-struct rw_lock_t;
 
 #ifdef UNIV_DEBUG
 struct rw_lock_debug_t;

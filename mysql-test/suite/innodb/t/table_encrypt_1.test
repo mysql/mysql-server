@@ -251,12 +251,26 @@ SELECT c1, ST_AsText(g) FROM t1 ORDER BY c1 LIMIT 10;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- send_shutdown
 -- source include/wait_until_disconnected.inc
---exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --innodb_strict_mode=OFF --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
 SELECT c1, ST_AsText(g) FROM t1 ORDER BY c1 LIMIT 10;
+
+DROP TABLE t1;
+
+# Test alter table when file per table is OFF and strict mode = 0.
+SET GLOBAL innodb_file_per_table=OFF;
+
+CREATE TABLE t1 (c1 int);
+
+--disable_warnings
+ALTER TABLE t1 COMPRESSION='zlib';
+--enable_warnings
+
+--error ER_TABLESPACE_CANNOT_ENCRYPT
+ALTER TABLE t1 ENCRYPTION='Y',ALGORITHM=COPY;
 
 # Cleanup
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;

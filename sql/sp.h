@@ -20,6 +20,7 @@
 
 #include "item.h"            // Item::Type
 #include "mdl.h"             // MDL_request
+#include "sp_head.h"         // Stored_program_creation_ctx
 
 namespace dd {
   class Routine;
@@ -87,6 +88,85 @@ enum enum_sp_return_code
   SP_INTERNAL_ERROR
 };
 
+
+/*
+  Fields in mysql.proc table in 5.7. This enum is used to read and
+  update mysql.routines dictionary table during upgrade scenario.
+
+  Note:  This enum should not be used for other purpose
+         as it will be removed eventually.
+*/
+enum
+{
+  MYSQL_PROC_FIELD_DB = 0,
+  MYSQL_PROC_FIELD_NAME,
+  MYSQL_PROC_MYSQL_TYPE,
+  MYSQL_PROC_FIELD_SPECIFIC_NAME,
+  MYSQL_PROC_FIELD_LANGUAGE,
+  MYSQL_PROC_FIELD_ACCESS,
+  MYSQL_PROC_FIELD_DETERMINISTIC,
+  MYSQL_PROC_FIELD_SECURITY_TYPE,
+  MYSQL_PROC_FIELD_PARAM_LIST,
+  MYSQL_PROC_FIELD_RETURNS,
+  MYSQL_PROC_FIELD_BODY,
+  MYSQL_PROC_FIELD_DEFINER,
+  MYSQL_PROC_FIELD_CREATED,
+  MYSQL_PROC_FIELD_MODIFIED,
+  MYSQL_PROC_FIELD_SQL_MODE,
+  MYSQL_PROC_FIELD_COMMENT,
+  MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT,
+  MYSQL_PROC_FIELD_COLLATION_CONNECTION,
+  MYSQL_PROC_FIELD_DB_COLLATION,
+  MYSQL_PROC_FIELD_BODY_UTF8,
+  MYSQL_PROC_FIELD_COUNT
+};
+
+
+/*************************************************************************/
+
+/**
+  Stored_routine_creation_ctx -- creation context of stored routines
+  (stored procedures and functions).
+*/
+
+class Stored_routine_creation_ctx : public Stored_program_creation_ctx,
+                                    public Sql_alloc
+{
+public:
+  static Stored_routine_creation_ctx *
+  create_routine_creation_ctx(THD *thd, const dd::Routine *routine);
+
+  static Stored_routine_creation_ctx *
+  load_from_db(THD *thd, const sp_name *name, TABLE *proc_tbl);
+public:
+  virtual Stored_program_creation_ctx *clone(MEM_ROOT *mem_root)
+  {
+    return new (mem_root) Stored_routine_creation_ctx(m_client_cs,
+                                                      m_connection_cl,
+                                                      m_db_cl);
+  }
+
+protected:
+  virtual Object_creation_ctx *create_backup_ctx(THD *thd) const
+  {
+    DBUG_ENTER("Stored_routine_creation_ctx::create_backup_ctx");
+    DBUG_RETURN(new Stored_routine_creation_ctx(thd));
+  }
+
+private:
+  Stored_routine_creation_ctx(THD *thd)
+    : Stored_program_creation_ctx(thd)
+  { }
+
+  Stored_routine_creation_ctx(const CHARSET_INFO *client_cs,
+                              const CHARSET_INFO *connection_cl,
+                              const CHARSET_INFO *db_cl)
+    : Stored_program_creation_ctx(client_cs, connection_cl, db_cl)
+  { }
+};
+
+
+
 /* Drop all routines in database 'db' */
 enum_sp_return_code sp_drop_db_routines(THD *thd, const char *db);
 
@@ -115,7 +195,16 @@ bool sp_exist_routines(THD *thd, TABLE_LIST *procs, bool is_proc);
 
 bool sp_show_create_routine(THD *thd, enum_sp_type type, sp_name *name);
 
-bool sp_create_routine(THD *thd, sp_head *sp);
+enum_sp_return_code
+db_load_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp,
+                sql_mode_t sql_mode, const char *params, const char *returns,
+                const char *body, st_sp_chistics *sp_chistics,
+                const char *definer_user, const char *definer_host,
+                long long created, long long modified,
+                Stored_program_creation_ctx *creation_ctx);
+
+
+bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer);
 
 enum_sp_return_code sp_update_routine(THD *thd, enum_sp_type type,
                                       sp_name *name, st_sp_chistics *chistics);
@@ -179,6 +268,16 @@ const uchar* sp_sroutine_key(const uchar *ptr, size_t *plen);
 sp_head *sp_load_for_information_schema(THD *thd, LEX_CSTRING db_name,
                                         const dd::Routine *routine,
                                         bool *free_sp_head);
+
+bool load_charset(MEM_ROOT *mem_root,
+                  Field *field,
+                  const CHARSET_INFO *dflt_cs,
+                  const CHARSET_INFO **cs);
+
+bool load_collation(MEM_ROOT *mem_root,
+                    Field *field,
+                    const CHARSET_INFO *dflt_cl,
+                    const CHARSET_INFO **cl);
 
 ///////////////////////////////////////////////////////////////////////////
 

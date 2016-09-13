@@ -28,6 +28,7 @@ class Alter_table_ctx;
 class Create_field;
 class THD;
 struct handlerton;
+class handler;
 struct TABLE;
 struct TABLE_LIST;
 typedef struct st_ha_check_opt HA_CHECK_OPT;
@@ -123,7 +124,6 @@ enum enum_explain_filename_mode
 #define MAX_LEN_GEOM_POINT_FIELD   25
 
 #define WSDI_WRITE_SHADOW 1
-#define WSDI_INSTALL_SHADOW 2
 #define WSDI_COMPRESS_SDI 4
 
 /* Flags for conversion functions. */
@@ -218,6 +218,9 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
 bool prepare_sp_create_field(THD *thd,
                              enum enum_field_types field_type,
                              Create_field *field_def);
+bool prepare_pack_create_field(THD *thd, Create_field *sql_field,
+                               longlong table_flags);
+
 const CHARSET_INFO* get_sql_field_charset(const Create_field *sql_field,
                                           const HA_CREATE_INFO *create_info);
 bool validate_comment_length(THD *thd, const char *comment_str,
@@ -240,11 +243,47 @@ bool execute_ddl_log_entry(THD *thd, uint first_entry);
 
 void promote_first_timestamp_column(List<Create_field> *column_definitions);
 
+
+/**
+  Prepares the column definitions for table creation.
+
+  @param thd                       Thread object.
+  @param create_info               Create information.
+  @param[in,out] create_list       List of columns to create.
+  @param[in,out] select_field_pos  Position where the SELECT columns start
+                                   for CREATE TABLE ... SELECT.
+  @param file                      The handler for the new table.
+  @param[in,out] sql_field         Create_field to populate.
+  @param field_no                  Column number.
+
+  @retval false   OK
+  @retval true    error
+*/
+
+bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
+                          List<Create_field> *create_list,
+                          int *select_field_pos, handler *file,
+                          Create_field *sql_field, int field_no);
+
 size_t explain_filename(THD* thd, const char *from, char *to, size_t to_length,
                         enum_explain_filename_mode explain_mode);
 
 
 extern MYSQL_PLUGIN_IMPORT const char *primary_key_name;
 extern mysql_mutex_t LOCK_gdl;
+
+
+/**
+  Acquire metadata lock on triggers associated with a list of tables.
+
+  @param[in] thd     Current thread context
+  @param[in] tables  Tables for that associated triggers have to locked.
+
+  @return Operation status.
+    @retval false Success
+    @retval true  Failure
+*/
+
+bool lock_trigger_names(THD *thd, TABLE_LIST *tables);
 
 #endif /* SQL_TABLE_INCLUDED */

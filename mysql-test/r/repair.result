@@ -12,6 +12,9 @@ drop table t1;
 create table t1(id int PRIMARY KEY, st varchar(10), KEY st_key(st));
 insert into t1 values(1, "One");
 alter table t1 disable keys;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	PRIMARY	1	id	A	1	NULL	NULL		BTREE			YES
@@ -19,6 +22,9 @@ t1	1	st_key	1	st	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
 repair table t1 extended;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	PRIMARY	1	id	A	1	NULL	NULL		BTREE			YES
@@ -45,6 +51,9 @@ SET myisam_repair_threads=2;
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	A	5	NULL	NULL	YES	BTREE			YES

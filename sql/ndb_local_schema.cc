@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,8 @@
 #include "sql_trigger.h"
 #include "mysqld.h"                             // reg_ext
 #include "dd/dd_table.h"  // dd::table_legacy_db_type
+#include "dd/dd_trigger.h"  // dd::table_has_triggers
+#include "sql_trigger.h"  // reload_triggers_for_table
 
 static const char *ndb_ext=".ndb";
 
@@ -220,7 +222,9 @@ Ndb_local_schema::Table::Table(THD* thd,
   m_ndb_file_exist = file_exists(ndb_ext);
 
   // Check if there are trigger files
-  m_has_triggers = file_exists(TRG_EXT);
+  // Ignore possible error from dd::table_has_triggers since
+  // Caller has to check Diagnostics_area to detect whether error happened.
+  (void)dd::table_has_triggers(thd, db, name, &m_has_triggers);
 
   DBUG_VOID_RETURN;
 }
@@ -280,7 +284,7 @@ Ndb_local_schema::Table::rename_table(const char* new_db,
     }
     else
     {
-      if (change_trigger_table_name(m_thd,
+      if (reload_triggers_for_table(m_thd,
                                     m_db, m_name, m_name,
                                     new_db, new_name))
       {

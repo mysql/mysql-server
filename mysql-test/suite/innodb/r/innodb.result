@@ -217,8 +217,14 @@ test.t1	optimize	status	OK
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	PRIMARY	1	id	A	#	NULL	NULL		BTREE			YES
+t1	0	PRIMARY	2	DB_TRX_ID	A	#	0	NULL		BTREE			YES
+t1	0	PRIMARY	3	DB_ROLL_PTR	A	#	0	NULL		BTREE			YES
+t1	0	PRIMARY	4	parent_id	A	#	NULL	NULL		BTREE			YES
+t1	0	PRIMARY	5	level	A	#	NULL	NULL		BTREE			YES
 t1	1	parent_id	1	parent_id	A	#	NULL	NULL		BTREE			YES
+t1	1	parent_id	2	id	A	#	NULL	NULL		BTREE			YES
 t1	1	level	1	level	A	#	NULL	NULL		BTREE			YES
+t1	1	level	2	id	A	#	NULL	NULL		BTREE			YES
 drop table t1;
 CREATE TABLE t1 (
 gesuchnr int(11) DEFAULT '0' NOT NULL,
@@ -260,7 +266,13 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	DB_ROW_ID	A	#	0	NULL		BTREE			YES
+t1	0	PRIMARY	2	DB_TRX_ID	A	#	0	NULL		BTREE			YES
+t1	0	PRIMARY	3	DB_ROLL_PTR	A	#	0	NULL		BTREE			YES
+t1	0	PRIMARY	4	a	A	#	NULL	NULL	YES	BTREE			YES
+t1	0	PRIMARY	5	b	A	#	0	NULL	YES	BTREE			YES
 t1	1	skr	1	a	A	#	NULL	NULL	YES	BTREE			YES
+t1	1	skr	2	DB_ROW_ID	A	#	0	NULL		BTREE			YES
 drop table t1;
 create table t1 (a int,b varchar(20),key(a)) engine=innodb;
 insert into t1 values (1,""), (2,"testing");
@@ -796,6 +808,9 @@ test.t1	optimize	status	OK
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	PRIMARY	1	a	A	#	NULL	NULL		BTREE			YES
+t1	0	PRIMARY	2	DB_TRX_ID	A	#	0	NULL		BTREE			YES
+t1	0	PRIMARY	3	DB_ROLL_PTR	A	#	0	NULL		BTREE			YES
+t1	0	PRIMARY	4	b	A	#	NULL	NULL		BTREE			YES
 drop table t1;
 create table t1 (i int, j int ) ENGINE=innodb;
 insert into t1 values (1,2);
@@ -1002,6 +1017,9 @@ create table t1 (t int not null default 1, key (t)) engine=innodb;
 desc t1;
 Field	Type	Null	Key	Default	Extra
 t	int(11)	NO	MUL	1	
+DB_ROW_ID		NO		NULL	
+DB_TRX_ID		NO		NULL	
+DB_ROLL_PTR		NO		NULL	
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
@@ -1816,13 +1834,13 @@ variable_value
 {checked_valid}
 SELECT variable_value - @innodb_rows_deleted_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted';
 variable_value - @innodb_rows_deleted_orig
-1940
+1942
 SELECT variable_value - @innodb_rows_inserted_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
 variable_value - @innodb_rows_inserted_orig
-2856
+2867
 SELECT variable_value - @innodb_rows_updated_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
 variable_value - @innodb_rows_updated_orig
-2611
+2643
 SELECT variable_value - @innodb_row_lock_waits_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_waits';
 variable_value - @innodb_row_lock_waits_orig
 0
@@ -3272,10 +3290,13 @@ affected rows: 1
 info: Rows matched: 2  Changed: 1  Warnings: 0
 drop table t1;
 create table t1 (id int) comment='this is a comment' engine=innodb;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select table_comment, data_free > 0 as data_free_is_set
 from information_schema.tables
 where table_schema='test' and table_name = 't1';
-table_comment	data_free_is_set
+TABLE_COMMENT	data_free_is_set
 this is a comment	1
 drop table t1;
 CREATE TABLE t1 (
@@ -3288,10 +3309,16 @@ c1 INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
 c2 INT(10) UNSIGNED DEFAULT NULL,
 PRIMARY KEY(c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=200;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't2';
 AUTO_INCREMENT
 200
 ALTER TABLE t2 ADD CONSTRAINT t1_t2_1 FOREIGN KEY(c1) REFERENCES t1(c1);
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't2';
 AUTO_INCREMENT
 200

@@ -759,6 +759,20 @@ INSERT INTO t1 (a) VALUES (0), (0), (0);
 ALTER TABLE t1 ADD INDEX idx (b);
 DELETE FROM t1;
 DROP TEMPORARY TABLE t1;
+#
+#  WL#6599 - Add test case for SHOW COLUMNS/KEYS on a temporary table.
+#
+CREATE TEMPORARY TABLE t1 (
+a INTEGER NOT NULL,
+b INTEGER GENERATED ALWAYS AS (a+1) VIRTUAL
+);
+SHOW FULL COLUMNS FROM t1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+a	int(11)	NULL	NO		NULL	NULL	#	
+b	int(11)	NULL	YES		NULL	VIRTUAL GENERATED	#	
+SHOW KEYS FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+DROP TEMPORARY TABLE t1;
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;

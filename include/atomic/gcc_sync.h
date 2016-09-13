@@ -20,6 +20,8 @@
   @file include/atomic/gcc_sync.h
 */
 
+#include "my_global.h"
+
 /* Old GCC __sync builtins introduced in GCC 4.1 */
 
 static inline int my_atomic_cas32(int32 volatile *a, int32 *cmp, int32 set)

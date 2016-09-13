@@ -107,10 +107,12 @@ public:
   void close();
 
   static void close_socket(my_socket &fd);
+  static void unlink_unix_socket_file(const std::string &unix_socket_file);
+
   static my_socket accept(my_socket sock, struct sockaddr* addr, socklen_t& len, int& err, std::string& strerr);
 
-  static my_socket create_and_bind_socket(const unsigned short port, std::string &error_message);
-  static my_socket create_and_bind_socket(const std::string &unix_socket_file, std::string &error_message);
+  static my_socket create_and_bind_socket(const unsigned short port, std::string &error_message, const uint32 backlog);
+  static my_socket create_and_bind_socket(const std::string &unix_socket_file, std::string &error_message, const uint32 backlog);
 
   static void get_error(int& err, std::string& strerr);
 
@@ -120,7 +122,7 @@ public:
 
 private:
   static bool create_lockfile(const std::string &unix_socket_file, std::string &error_message);
-
+  static std::string get_lockfile_name(const std::string &unix_socket_file);
   friend class Ssl_context;
 
   Mutex m_shutdown_mutex;
@@ -139,7 +141,7 @@ class Ssl_context
 {
 public:
   Ssl_context();
-  void setup(const char* tls_version,
+  bool setup(const char* tls_version,
               const char* ssl_key,
               const char* ssl_ca,
               const char* ssl_capath,

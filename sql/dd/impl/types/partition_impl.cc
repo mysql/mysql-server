@@ -60,7 +60,7 @@ const Object_type &Partition::TYPE()
 Partition_impl::Partition_impl()
  :m_level(-1),
   m_number(-1),
-  m_se_private_id((ulonglong)-1),
+  m_se_private_id(INVALID_OBJECT_ID),
   m_options(new Properties_impl()),
   m_se_private_data(new Properties_impl()),
   m_table(NULL),
@@ -260,7 +260,7 @@ bool Partition_impl::store_attributes(Raw_record *r)
          r->store(Table_partitions::FIELD_OPTIONS, *m_options) ||
          r->store(Table_partitions::FIELD_SE_PRIVATE_DATA, *m_se_private_data) ||
          r->store(Table_partitions::FIELD_SE_PRIVATE_ID,
-                  m_se_private_id, m_se_private_id == (ulonglong) -1) ||
+                  m_se_private_id, m_se_private_id == INVALID_OBJECT_ID) ||
          r->store_ref_id(Table_partitions::FIELD_TABLESPACE_ID, m_tablespace_id);
 }
 

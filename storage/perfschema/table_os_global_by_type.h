@@ -75,6 +75,26 @@ struct pos_os_global_by_type : public PFS_double_index,
   }
 };
 
+class PFS_index_os_global_by_type : public PFS_engine_index
+{
+public:
+  PFS_index_os_global_by_type()
+    : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
+    m_key_1("OBJECT_TYPE"), m_key_2("OBJECT_SCHEMA"), m_key_3("OBJECT_NAME")
+  {}
+
+  ~PFS_index_os_global_by_type()
+  {}
+
+  virtual bool match(PFS_table_share *pfs);
+  virtual bool match(PFS_program *pfs);
+
+private:
+  PFS_key_object_type m_key_1;
+  PFS_key_object_schema m_key_2;
+  PFS_key_object_name m_key_3;
+};
+
 /** Table PERFORMANCE_SCHEMA.OBJECTS_SUMMARY_GLOBAL_BY_TYPE. */
 class table_os_global_by_type : public PFS_engine_table
 {
@@ -85,16 +105,19 @@ public:
   static int delete_all_rows();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
 protected:
   virtual int read_row_values(TABLE *table,
                               unsigned char *buf,
                               Field **fields,
                               bool read_all);
-
   table_os_global_by_type();
 
 public:
@@ -119,6 +142,9 @@ private:
   pos_os_global_by_type m_pos;
   /** Next position. */
   pos_os_global_by_type m_next_pos;
+
+protected:
+  PFS_index_os_global_by_type *m_opened_index;
 };
 
 

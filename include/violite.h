@@ -22,9 +22,12 @@
 #ifndef vio_violite_h_
 #define	vio_violite_h_
 
+#include "my_config.h"
+
 #include <my_thread.h> /* my_thread_handle */
 #include <pfs_socket_provider.h>
 #include <mysql/psi/mysql_socket.h>
+#include "my_psi_config.h"  // IWYU pragma: keep
 
 /* Simple vio interface in C;  The functions are implemented in violite.c */
 

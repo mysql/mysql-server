@@ -8,6 +8,13 @@
 # See include/show_binlog_events.inc
 
 --let $include_filename= show_events.inc
+if ($is_relay_log)
+{
+  if ($rpl_channel_name)
+  {
+    --let $include_filename= $include_filename [FOR CHANNEL $rpl_channel_name]
+  }
+}
 --source include/begin_include_file.inc
 
 --let $_se_old_statement= $statement
@@ -17,9 +24,9 @@
 if ($is_relay_log)
 {
   --let $statement= SHOW RELAYLOG EVENTS
-  if ($rpl_channel_name != '')
+  if ($rpl_channel_name)
   {
-    --let $_se_for_channel= FOR CHANNEL  '$rpl_channel_name'
+    --let $_se_for_channel= FOR CHANNEL $rpl_channel_name
   }
 }
 --let $statement_masked= $statement

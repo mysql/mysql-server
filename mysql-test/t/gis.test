@@ -713,7 +713,6 @@ DROP TABLE t2;
 
 --echo End of 5.0 tests
 
-
 #
 # Bug #11335 View redefines column types
 #

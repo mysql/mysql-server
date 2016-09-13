@@ -22,6 +22,7 @@
 #include "sql_class.h"
 #include <mysql/service_security_context.h>
 #include "current_thd.h"
+#include "sql_thd_internal_api.h"  // create_thd
 
 #define MY_SVC_TRUE  1
 #define MY_SVC_FALSE 0
@@ -178,8 +179,25 @@ my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
                                     const char *user, const char *host,
                                     const char *ip, const char *db)
 {
-  return acl_getroot(ctx, (char *) user, (char *) host, (char *) ip, db) ?
-         TRUE : FALSE;
+  THD *tmp_thd= NULL;
+  my_bool retval;
+  if (current_thd == NULL)
+  {
+    tmp_thd= create_thd(false, true, false, PSI_NOT_INSTRUMENTED);
+    if (!tmp_thd)
+      return TRUE;
+  }
+
+  retval= acl_getroot(tmp_thd ? tmp_thd : current_thd, ctx, (char *) user,
+                      (char *) host, (char *) ip, db) ?
+                      TRUE : FALSE;
+
+  if (tmp_thd)
+  {
+    destroy_thd(tmp_thd);
+    tmp_thd= NULL;
+  }
+  return retval;
 }
 
 /**

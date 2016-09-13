@@ -918,6 +918,8 @@ trx_purge_mark_undo_for_truncate(
 
 	for (ulint i = 1; i <= srv_undo_tablespaces_active; i++) {
 
+		ut_ad(srv_undo_space_id_start != 0);
+
 		if (fil_space_get_size(space_id)
 		    > (srv_max_undo_log_size / srv_page_size)) {
 			/* Tablespace qualifies for truncate. */

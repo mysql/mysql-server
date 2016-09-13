@@ -7,6 +7,9 @@
 # Embedded mode doesn't support restart
 --source include/not_embedded.inc
 
+# Plugin 'InnoDB' has ref_count=1 after shutdown
+call mtr.add_suppression("Plugin \'InnoDB\'");
+
 set global innodb_checksum_algorithm=crc32;
 
 # Table is created with crc32 checksum algorithm.

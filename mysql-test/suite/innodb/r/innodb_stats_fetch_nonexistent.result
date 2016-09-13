@@ -15,13 +15,13 @@ FLUSH TABLE test_ps_fetch_nonexistent;
 SELECT seq_in_index, column_name, cardinality
 FROM information_schema.statistics WHERE table_name = 'test_ps_fetch_nonexistent'
 ORDER BY index_name, seq_in_index;
-seq_in_index	1
-column_name	a
-cardinality	0
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+CARDINALITY	0
 SELECT table_rows, avg_row_length, max_data_length, index_length
 FROM information_schema.tables WHERE table_name = 'test_ps_fetch_nonexistent';
-table_rows	0
-avg_row_length	0
-max_data_length	0
-index_length	0
+TABLE_ROWS	0
+AVG_ROW_LENGTH	0
+MAX_DATA_LENGTH	0
+INDEX_LENGTH	0
 DROP TABLE test_ps_fetch_nonexistent;

@@ -1376,7 +1376,9 @@ static int mysql_test_select(Prepared_statement *stmt,
 
   lex->select_lex->context.resolve_in_select_list= true;
 
-  if (select_precheck(thd, lex, tables, lex->select_lex->table_list.first))
+  if (select_precheck(thd, lex, tables,
+                      lex->select_lex->table_list.first,
+                      stmt->is_sql_prepare()))
     goto error;
 
   if (!lex->result)
@@ -3348,8 +3350,6 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
   /* The order is important */
   lex->unit->cleanup(true);
 
-  /* No need to commit statement transaction, it's not started. */
-  DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
 
   close_thread_tables(thd);
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
@@ -3540,7 +3540,8 @@ Prepared_statement::execute_loop(bool open_cursor,
     return TRUE;
 
   if (unlikely(thd->security_context()->password_expired() &&
-               lex->sql_command != SQLCOM_SET_PASSWORD))
+               lex->sql_command != SQLCOM_SET_PASSWORD &&
+               lex->sql_command != SQLCOM_ALTER_USER))
   {
     my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
     return true;

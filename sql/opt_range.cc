@@ -131,7 +131,9 @@
 #include "opt_hints.h"           // hint_key_state
 #include "mysys_err.h"           // EE_CAPACITY_EXCEEDED
 
+#include <algorithm>
 #include <cmath>                 // std::log2
+#include <set>
 
 using std::min;
 using std::max;
@@ -281,7 +283,7 @@ private:
   In this tree,
     * node1->prev == node7->next == NULL
     * node1->left == node1->right ==
-      node3->left == ... node7->right == &null_element
+      node3->left == ... node7->right == null_element
 
   In an interval list, each member X may have SEL_ARG::next_key_part pointer
   pointing to the root of another interval list Y. The pointed interval list
@@ -450,7 +452,7 @@ public:
   /**
     The rtree index interval to scan, undefined unless
     SEL_ARG::min_flag == GEOM_FLAG.
-   */
+  */
   enum ha_rkey_function rkey_func_flag;
   /* 
     Number of children of this element in the RB-tree, plus 1 for this
@@ -459,14 +461,14 @@ public:
   uint16 elements;
   /**
     Valid only for elements which are RB-tree roots: Number of
-    references to this SEL_ARG tree. References may be from
+    direct references to this SEL_ARG tree. References may be from
     SEL_ARG::next_key_part of SEL_ARGs from earlier keyparts or
     SEL_TREE::keys[i].
 
     The SEL_ARGs are re-used in a lazy-copy manner based on this
     reference counting.
   */
-  ulong use_count;
+  ulong use_count{0};
 
   Field *field;
   uchar *min_value,*max_value;			// Pointer to range
@@ -475,7 +477,7 @@ public:
     eq_tree(), first(), last() etc require that left == right == NULL
     if the type is MAYBE_KEY. Todo: fix this so SEL_ARGs without R-B
     children are handled consistently. See related WL#5894.
-   */
+  */
   SEL_ARG *left,*right;   /* R-B tree children */
   SEL_ARG *next,*prev;    /* Links for bi-directional interval list */
   SEL_ARG *parent;        /* R-B tree parent */
@@ -483,7 +485,42 @@ public:
     R-B tree root of intervals covering keyparts consecutive to this
     SEL_ARG. See documentation of SEL_ARG GRAPH semantics for details.
   */
-  SEL_ARG *next_key_part; 
+  SEL_ARG *next_key_part{nullptr};
+
+  /**
+    Convenience function for removing the next_key_part. The typical
+    use for this function is to disconnect the next_key_part from the
+    root, send it to key_and() or key_or(), and then connect the
+    result of that function back to the SEL_ARG using set_next_key_part().
+
+    @return The previous value of next_key_part.
+  */
+  SEL_ARG *release_next_key_part()
+  {
+    SEL_ARG *ret= next_key_part;
+    if (next_key_part)
+    {
+      DBUG_ASSERT(next_key_part->use_count > 0);
+      --next_key_part->use_count;
+    }
+    next_key_part= nullptr;
+    return ret;
+  }
+
+  /**
+    Convenience function for changing next_key_part, including
+    updating the use_count. The argument is allowed to be nullptr.
+
+    @param next_key_part_arg New value for next_key_part.
+  */
+  void set_next_key_part(SEL_ARG *next_key_part_arg)
+  {
+    release_next_key_part();
+    next_key_part= next_key_part_arg;
+    if (next_key_part)
+      ++next_key_part->use_count;
+  }
+
   enum leaf_color { BLACK,RED } color;
 
   /**
@@ -513,7 +550,7 @@ public:
     KEY_RANGE
   } type;
 
-  SEL_ARG() {}
+  SEL_ARG() : parent(nullptr) {}
   SEL_ARG(SEL_ARG &);
   SEL_ARG(Field *,const uchar *, const uchar *);
   SEL_ARG(Field *field, uint8 part, uchar *min_value, uchar *max_value,
@@ -525,11 +562,23 @@ public:
   */
   SEL_ARG(enum Type type_arg)
     :min_flag(0), part(0), rkey_func_flag(HA_READ_INVALID), elements(1),
-    use_count(1), left(NULL), right(NULL),
-    next_key_part(0), color(BLACK), type(type_arg)
+    left(NULL), right(NULL), parent(NULL),
+    color(BLACK), type(type_arg)
   {
     DBUG_ASSERT(type_arg == MAYBE_KEY || type_arg == IMPOSSIBLE);
   }
+
+  /**
+    Note that almost all SEL_ARGs are created on the MEM_ROOT,
+    so this destructor will only rarely be called.
+  */
+  ~SEL_ARG()
+  {
+    // TODO: Comment this in again when we go to SEL_ROOT.
+    // DBUG_ASSERT(use_count == 0);
+    release_next_key_part();
+  }
+
   /**
     returns true if a range predicate is equal. Use all_same()
     to check for equality of all the predicates on this keypart.
@@ -661,7 +710,7 @@ public:
 
     @param rkey_func The scan function to perform. It must be one of the
                      spatial index specific scan functions.
-   */
+  */
   void set_gis_index_read_function(const enum ha_rkey_function rkey_func)
   {
     DBUG_ASSERT(rkey_func >= HA_READ_MBR_CONTAIN &&
@@ -780,47 +829,24 @@ public:
   {
     return !next_key_part && elements == 1;
   }
+
   /**
-    Update use_count of all SEL_ARG trees for later keyparts to
-    reflect that this SEL_ARG tree is now referred to 'count' more
-    times than it used to be (either through SEL_TREE::keys[] or
-    SEL_ARG::next_key_part pointers).
-
-    This function does NOT update use_count of the current SEL_ARG
-    object.
-
-    @param count The number of additional references to this SEL_ARG
-                 tree.
-
-    @todo consider refactoring this function to also increase
-          use_count of 'this' instead of incrementing use_count only
-          on later keyparts.
+    Signal to the tree that the caller will shortly be dropping it
+    on the floor; if others are still using it, this is a no-op,
+    but if the caller was the last one, it is now an orphan, and
+    references from it should not count.
   */
-  void increment_use_count(long count)
-  {
-    /*
-      Increment use_count for all SEL_ARG trees referenced via
-      next_key_part from any SEL_ARG in this tree.
-    */
-    for (SEL_ARG *cur_selarg= first();
-         cur_selarg;
-         cur_selarg= cur_selarg->next)
-    {
-      if (cur_selarg->next_key_part)
-      {
-        cur_selarg->next_key_part->use_count+= count;
-        cur_selarg->next_key_part->increment_use_count(count);
-      }
-    }
-  }
   void free_tree()
   {
-    for (SEL_ARG *pos=first(); pos ; pos=pos->next)
-      if (pos->next_key_part)
+    if (use_count == 0)
+    {
+      for (SEL_ARG *pos=first(); pos ; pos=pos->next)
       {
-	pos->next_key_part->use_count--;
-	pos->next_key_part->free_tree();
+        SEL_ARG *arg= pos->release_next_key_part();
+        if (arg)
+          arg->free_tree();
       }
+    }
   }
 
   inline SEL_ARG **parent_ptr()
@@ -951,6 +977,10 @@ public:
     keys[i]=0 for all i. (SergeyP: it is not clear whether there is any
     merit in range analyzer functions (e.g. get_mm_parts) returning a
     pointer to such SEL_TREE instead of NULL)
+
+    Note: If you want to set an element in keys[], use set_key()
+    or release_key() to make sure the SEL_ARG's use_count is correctly
+    updated.
   */
   Mem_root_array<SEL_ARG *, true> keys;
   Key_map keys_map;        /* bitmask of non-NULL elements in keys */
@@ -974,6 +1004,41 @@ public:
   struct st_ror_scan_info **ror_scans;     /* list of ROR key scans */
   struct st_ror_scan_info **ror_scans_end; /* last ROR scan */
   /* Note that #records for each key scan is stored in table->quick_rows */
+
+  /**
+    Convenience function for removing an element in keys[]. The typical
+    use for this function is to disconnect the next_key_part from the
+    root, send it to key_and() or key_or(), and then connect the
+    result of that function back to the SEL_ARG using set_key().
+
+    @param index Which index slot to release.
+    @return The value in the slot (before removal).
+  */
+  SEL_ARG *release_key(int index)
+  {
+    SEL_ARG *ret= keys[index];
+    if (keys[index]) {
+      DBUG_ASSERT(keys[index]->use_count > 0);
+      --keys[index]->use_count;
+    }
+    keys[index]= nullptr;
+    return ret;
+  }
+
+  /**
+    Convenience function for changing an element in keys[], including
+    updating the use_count.
+
+    @param index Which index slot to change.
+    @param key The new contents of the index slot. Is allowed to be nullptr.
+  */
+  void set_key(int index, SEL_ARG *key)
+  {
+    release_key(index);
+    keys[index]= key;
+    if (key)
+      ++key->use_count;
+  }
 };
 
 class RANGE_OPT_PARAM
@@ -1150,6 +1215,7 @@ void append_range(String *out,
                   const uchar *min_key, const uchar *max_key,
                   const uint flag);
 
+// Note: tree1 and tree2 are not usable by themselves after tree_and() or tree_or().
 static SEL_TREE *tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
 static SEL_TREE *tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
 /*
@@ -1164,8 +1230,7 @@ static SEL_TREE null_sel_tree(SEL_TREE::IMPOSSIBLE, &null_root, 0);
 
 static SEL_ARG *sel_add(SEL_ARG *key1,SEL_ARG *key2);
 static SEL_ARG *key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2);
-static SEL_ARG *key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2,
-                        uint clone_flag);
+static SEL_ARG *key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2);
 static bool get_range(SEL_ARG **e1,SEL_ARG **e2,SEL_ARG *root1);
 bool get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
                     SEL_ARG *key_tree, uchar *min_key,uint min_key_flag,
@@ -1174,13 +1239,25 @@ static bool eq_tree(SEL_ARG* a,SEL_ARG *b);
 static bool eq_ranges_exceeds_limit(SEL_ARG *keypart_root, uint* count, 
                                     uint limit);
 
-// Shared sentinel node for all trees.
-static SEL_ARG null_element(SEL_ARG::IMPOSSIBLE);
+/**
+  Shared sentinel node for all trees. Initialized by range_optimizer_init(),
+  destroyed by range_optimizer_free();
+*/
+static SEL_ARG *null_element = nullptr;
 static bool null_part_in_key(KEY_PART *key_part, const uchar *key,
                              uint length);
 static bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2,
                                   RANGE_OPT_PARAM* param);
 
+void range_optimizer_init()
+{
+  null_element= ::new SEL_ARG(SEL_ARG::IMPOSSIBLE);
+}
+
+void range_optimizer_free()
+{
+  ::delete null_element;
+}
 
 /*
   SEL_IMERGE is a list of possible ways to do index merge, i.e. it is
@@ -1339,14 +1416,12 @@ SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param):
   {
     if (arg->keys[idx])
     {
-      keys[idx]= arg->keys[idx]->clone_tree(param);
+      set_key(idx, arg->keys[idx]->clone_tree(param));
       if (!keys[idx])
         break;
-      keys[idx]->use_count++;
-      keys[idx]->increment_use_count(1);
     }
     else
-      keys[idx]= NULL;
+      set_key(idx, nullptr);
   }
 
   List_iterator<SEL_IMERGE> it(arg->merges);
@@ -2087,24 +2162,26 @@ SEL_ARG::SEL_ARG(SEL_ARG &arg)
   maybe_null(arg.maybe_null),
   rkey_func_flag(arg.rkey_func_flag),
   elements(1),
-  use_count(1),
   field(arg.field),
   min_value(arg.min_value),
   max_value(arg.max_value),
-  left(&null_element),
-  right(&null_element),
+  left(null_element),
+  right(null_element),
   next(NULL),
   prev(NULL),
+  parent(NULL),
   next_key_part(arg.next_key_part),
   type(arg.type)
 {
   DBUG_ASSERT(arg.type != MAYBE_KEY);  // Would need left=right=NULL
+  if (next_key_part)
+    ++next_key_part->use_count;
 }
 
 
 inline void SEL_ARG::make_root()
 {
-  left=right= &null_element;
+  left=right= null_element;
   color=BLACK;
   next=prev= NULL;
   use_count=0; elements=1;
@@ -2114,12 +2191,12 @@ SEL_ARG::SEL_ARG(Field *f,const uchar *min_value_arg,
                  const uchar *max_value_arg)
   :min_flag(0), max_flag(0), maybe_flag(0), part(0),
   maybe_null(f->real_maybe_null()), rkey_func_flag(HA_READ_INVALID),
-  elements(1), use_count(1), field(f),
+  elements(1), field(f),
   min_value(const_cast<uchar *>(min_value_arg)),
   max_value(const_cast<uchar *>(max_value_arg)),
-  left(&null_element), right(&null_element),
-  next(NULL), prev(NULL),
-  next_key_part(0), color(BLACK), type(KEY_RANGE)
+  left(null_element), right(null_element),
+  next(NULL), prev(NULL), parent(NULL),
+  color(BLACK), type(KEY_RANGE)
 {}
 
 SEL_ARG::SEL_ARG(Field *field_,uint8 part_,
@@ -2127,10 +2204,10 @@ SEL_ARG::SEL_ARG(Field *field_,uint8 part_,
 		 uint8 min_flag_,uint8 max_flag_,uint8 maybe_flag_)
   :min_flag(min_flag_),max_flag(max_flag_),maybe_flag(maybe_flag_), part(part_),
   maybe_null(field_->real_maybe_null()),
-  rkey_func_flag(HA_READ_INVALID), elements(1),use_count(1),
+  rkey_func_flag(HA_READ_INVALID), elements(1),
   field(field_), min_value(min_value_), max_value(max_value_),
-  left(&null_element), right(&null_element),
-  next(NULL), prev(NULL), next_key_part(0), color(BLACK), type(KEY_RANGE)
+  left(null_element), right(null_element),
+  next(NULL), prev(NULL), parent(NULL), color(BLACK), type(KEY_RANGE)
 {}
 
 SEL_ARG *SEL_ARG::clone(RANGE_OPT_PARAM *param, SEL_ARG *new_parent, 
@@ -2156,8 +2233,8 @@ SEL_ARG *SEL_ARG::clone(RANGE_OPT_PARAM *param, SEL_ARG *new_parent,
                                              min_flag, max_flag, maybe_flag)))
       return 0;					// OOM
     tmp->parent=new_parent;
-    tmp->next_key_part=next_key_part;
-    if (left != &null_element)
+    tmp->set_next_key_part(next_key_part);
+    if (left != null_element)
       if (!(tmp->left=left->clone(param, tmp, next_arg)))
 	return 0;				// OOM
 
@@ -2165,11 +2242,10 @@ SEL_ARG *SEL_ARG::clone(RANGE_OPT_PARAM *param, SEL_ARG *new_parent,
     (*next_arg)->next=tmp;
     (*next_arg)= tmp;
 
-    if (right != &null_element)
+    if (right != null_element)
       if (!(tmp->right= right->clone(param, tmp, next_arg)))
 	return 0;				// OOM
   }
-  increment_use_count(1);
   tmp->color= color;
   tmp->elements= this->elements;
   return tmp;
@@ -2187,7 +2263,7 @@ SEL_ARG *SEL_ARG::first()
   SEL_ARG *next_arg=this;
   if (!next_arg->left)
     return 0;					// MAYBE_KEY
-  while (next_arg->left != &null_element)
+  while (next_arg->left != null_element)
     next_arg=next_arg->left;
   return next_arg;
 }
@@ -2202,7 +2278,7 @@ SEL_ARG *SEL_ARG::last()
   SEL_ARG *next_arg=this;
   if (!next_arg->right)
     return 0;					// MAYBE_KEY
-  while (next_arg->right != &null_element)
+  while (next_arg->right != null_element)
     next_arg=next_arg->right;
   return next_arg;
 }
@@ -2327,7 +2403,7 @@ public:
 
      @param param        Parameters for range analysis of this table
      @param trace_object The optimizer trace object the info is appended to
-   */
+  */
   virtual void trace_basic_info(const PARAM *param,
                                 Opt_trace_object *trace_object) const = 0;
 };
@@ -2579,7 +2655,7 @@ private:
   /**
     TRUE if there is an aggregate distinct function, e.g.
     "COUNT(DISTINCT x)"
-   */
+  */
   bool have_agg_distinct;
   /**
     The key_part of the only field used by all MIN/MAX functions.
@@ -3907,7 +3983,7 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
   if (check_stack_overrun(range_par->thd, 3*STACK_MIN_SIZE, NULL))
     return -1;
 
-  if (key_tree->left != &null_element)
+  if (key_tree->left != null_element)
   {
     if (-1 == (left_res= find_used_partitions(ppar,key_tree->left)))
       return -1;
@@ -4245,7 +4321,7 @@ pop_and_go_right:
 
   if (res == -1)
     return -1;
-  if (key_tree->right != &null_element)
+  if (key_tree->right != null_element)
   {
     if (-1 == (right_res= find_used_partitions(ppar,key_tree->right)))
       return -1;
@@ -5073,7 +5149,7 @@ static void find_intersect_order(ROR_SCAN_INFO **start,
       'best' is now the ROR scan that will be sorted in position
       'place'. When searching for the best ROR scans later in the sort
       sequence we do not need coverage of the fields covered by 'best'
-     */
+    */
     bitmap_subtract(&fields_to_cover, &(*best)->covered_fields);
     if (best != place)
       std::swap(*best, *place);
@@ -6040,7 +6116,7 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param,
    @param param              PARAM from test_quick_select
    @param key_num            Key number
    @param field              Field in the predicate
- */
+*/
 static void 
 if_explain_warn_index_not_applicable(const RANGE_OPT_PARAM *param,
                                               const uint key_num,
@@ -6875,7 +6951,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
       predicates that applies to t2 are of interest. In this case a
       call to get_full_func_mm_tree() with reversed operands (see
       below) may succeed.
-     */
+    */
     Item *arg_right;
     if (!ftree && cond_func->have_rev_func() &&
         (arg_right= cond_func->arguments()[1]) &&
@@ -7088,7 +7164,7 @@ get_mm_parts(RANGE_OPT_PARAM *param, Item_func *cond_func, Field *field,
           DBUG_RETURN(NULL);  //OOM
       }
       sel_arg->part=(uchar) key_part->part;
-      tree->keys[key_part->key]=sel_add(tree->keys[key_part->key],sel_arg);
+      tree->set_key(key_part->key, sel_add(tree->release_key(key_part->key), sel_arg));
       tree->keys_map.set_bit(key_part->key);
     }
   }
@@ -7195,7 +7271,7 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
       value to store was either higher than field::max_value or lower
       than field::min_value. The field's max/min value has been stored
       instead.
-     */
+    */
     if (comp_op == Item_func::EQUAL_FUNC || comp_op == Item_func::EQ_FUNC)
     {
       /*
@@ -7351,7 +7427,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
     if (!maybe_null)                            // NOT NULL column
     {
       if (type == Item_func::ISNULL_FUNC)
-        tree= &null_element;
+        tree= null_element;
       goto end;
     }
     uchar *null_string=
@@ -7425,7 +7501,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       goto end;
     if (!(res= value->val_str(&tmp)))
     {
-      tree= &null_element;
+      tree= null_element;
       goto end;
     }
 
@@ -7542,7 +7618,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
   if (type != Item_func::EQUAL_FUNC && field->is_real_null())
   {
     impossible_cond_cause= "comparison_with_null_always_false";
-    tree= &null_element;
+    tree= null_element;
     goto end;
   }
   
@@ -7566,7 +7642,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
     testing, and we also get correct comparison of unsinged integers with
     negative integers (which otherwise fails because at query execution time
     negative integers are cast to unsigned if compared with unsigned).
-   */
+  */
   if (field->result_type() == INT_RESULT &&
       value->result_type() == INT_RESULT &&
       ((field->type() == FIELD_TYPE_BIT || 
@@ -7684,45 +7760,42 @@ end:
 }
 
 
-/*
+/**
   Add a new key test to a key when scanning through all keys
   This will never be called for same key parts.
+
+  @param key1 Old root of key
+  @param key2 Element to insert (must be a single element)
+  @return New root of key
 */
-
 static SEL_ARG *
-sel_add(SEL_ARG *key1,SEL_ARG *key2)
+sel_add(SEL_ARG *key1, SEL_ARG *key2)
 {
-  SEL_ARG *root,**key_link;
-
   if (!key1)
     return key2;
   if (!key2)
     return key1;
 
-  key_link= &root;
-  while (key1 && key2)
+  // key2 is assumed to be a single element.
+  DBUG_ASSERT(!key2->next_key_part);
+
+  if (key2->part < key1->part)
   {
-    if (key1->part < key2->part)
-    {
-      *key_link= key1;
-      key_link= &key1->next_key_part;
-      key1=key1->next_key_part;
-    }
-    else
-    {
-      *key_link= key2;
-      key_link= &key2->next_key_part;
-      key2=key2->next_key_part;
-    }
+    // key2 fits in the start of the list.
+    key2->set_next_key_part(key1);
+    return key2;
   }
-  *key_link=key1 ? key1 : key2;
-  return root;
+
+  // Find out where in the chain in key1 to put key2.
+  SEL_ARG *node= key1;
+  while (node->next_key_part && node->next_key_part->part > key2->part)
+    node = node->next_key_part;
+
+  key2->set_next_key_part(node->release_next_key_part());
+  node->set_next_key_part(key2);
+
+  return key1;
 }
-
-#define CLONE_KEY1_MAYBE 1
-#define CLONE_KEY2_MAYBE 2
-#define swap_clone_flag(A) ((A & 1) << 1) | ((A & 2) >> 1)
-
 
 static SEL_TREE *
 tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
@@ -7758,23 +7831,18 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
   Key_map  result_keys;
   
   /* Join the trees key per key */
-  SEL_ARG **key1,**key2;
   for (uint idx=0; idx< param->keys; idx++)
   {
-    key1= &tree1->keys[idx];
-    key2= &tree2->keys[idx];
+    SEL_ARG *key1= tree1->release_key(idx);
+    SEL_ARG *key2= tree2->release_key(idx);
 
-    uint flag=0;
-    if (*key1 || *key2)
+    if (key1 || key2)
     {
-      if (*key1 && !(*key1)->simple_key())
-	flag|=CLONE_KEY1_MAYBE;
-      if (*key2 && !(*key2)->simple_key())
-	flag|=CLONE_KEY2_MAYBE;
-      *key1= key_and(param, *key1, *key2, flag);
-      if (*key1)
+      SEL_ARG *new_key= key_and(param, key1, key2);
+      tree1->set_key(idx, new_key);
+      if (new_key)
       {
-        if ((*key1)->type == SEL_ARG::IMPOSSIBLE)
+        if (new_key->type == SEL_ARG::IMPOSSIBLE)
         {
           tree1->type= SEL_TREE::IMPOSSIBLE;
           DBUG_RETURN(tree1);
@@ -7786,7 +7854,7 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
           It takes too much time to traverse the tree.
         */
         if (param->mem_root->allocated_size < 2097152)
-          (*key1)->test_use_count(*key1);
+          new_key->test_use_count(new_key);
 #endif
       }
 
@@ -7949,7 +8017,7 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
   if (!tree1->merges.is_empty())
   {
     for (uint i= 0; i < param->keys; i++)
-      if (tree1->keys[i] != NULL && tree1->keys[i] != &null_element)
+      if (tree1->keys[i] != NULL && tree1->keys[i] != null_element)
       {
         tree1->merges.empty();
         break;
@@ -7958,7 +8026,7 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
   if (!tree2->merges.is_empty())
   {
     for (uint i= 0; i< param->keys; i++)
-      if (tree2->keys[i] != NULL && tree2->keys[i] != &null_element)
+      if (tree2->keys[i] != NULL && tree2->keys[i] != null_element)
       {
         tree2->merges.empty();
         break;
@@ -7970,13 +8038,13 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
   if (sel_trees_can_be_ored(tree1, tree2, param))
   {
     /* Join the trees key per key */
-    SEL_ARG **key1,**key2;
     for (uint idx=0; idx < param->keys; idx++)
     {
-      key1= &tree1->keys[idx];
-      key2= &tree2->keys[idx];
-      *key1= key_or(param, *key1, *key2);
-      if (*key1)
+      SEL_ARG *key1= tree1->release_key(idx);
+      SEL_ARG *key2= tree2->release_key(idx);
+      SEL_ARG *new_key= key_or(param, key1, key2);
+      tree1->set_key(idx, new_key);
+      if (new_key)
       {
         result=tree1;				// Added to tree1
         result_keys.set_bit(idx);
@@ -7986,7 +8054,7 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
           It takes too much time to traverse the tree.
         */
         if (param->mem_root->allocated_size < 2097152)
-          (*key1)->test_use_count(*key1);
+          new_key->test_use_count(new_key);
 #endif
       }
     }
@@ -8047,20 +8115,45 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
 }
 
 
-/* And key trees where key1->part < key2 -> part */
+/**
+  And key trees where key1->part < key2->part
+
+  key2 will be connected to every key in key1, and thus
+  have its use_count incremented many times. The returned node
+  will not have its use_count increased; you are supposed to do
+  that yourself when you connect it to a root.
+
+  @param param Range analysis context (needed to track if we have allocated
+               too many SEL_ARGs)
+  @param key1 Root of first tree to AND together
+  @param key2 Root of second tree to AND together
+  @return Root of (key1 AND key2)
+*/
 
 static SEL_ARG *
-and_all_keys(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, 
-             uint clone_flag)
+and_all_keys(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
 {
   SEL_ARG *next;
-  ulong use_count=key1->use_count;
 
-  if (key1->elements != 1)
+  // We will be modifying key1, so clone it if we need to.
+  if (key1->use_count > 0)
   {
-    key2->use_count+=key1->elements-1; //psergey: why we don't count that key1 has n-k-p?
-    key2->increment_use_count((int) key1->elements-1);
+    if (!(key1= key1->clone_tree(param)))
+      return nullptr;  // OOM
   }
+
+  /*
+    We will be using key2 several times, so temporarily increase
+    its use_count artificially to keep key_and() below from modifying
+    it in-place.
+
+    Note that this makes test_use_count() fail since our use_count is
+    now higher than the actual number of references, but that is only ever
+    called from tree_and() and tree_or(), not from anything below this,
+    and we undo it below.
+  */
+  ++key2->use_count;
+
   if (key1->type == SEL_ARG::MAYBE_KEY)
   {
     // See todo for left/right pointers
@@ -8072,22 +8165,29 @@ and_all_keys(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2,
   {
     if (next->next_key_part)
     {
-      SEL_ARG *tmp= key_and(param, next->next_key_part, key2, clone_flag);
+      /*
+        The more complicated case; there's already another AND clause,
+        so we cannot connect key2 to key1 directly, but need to recurse.
+      */
+      SEL_ARG *tmp= key_and(param, next->release_next_key_part(), key2);
+      next->set_next_key_part(tmp);
       if (tmp && tmp->type == SEL_ARG::IMPOSSIBLE)
       {
 	key1=key1->tree_delete(next);
-	continue;
       }
-      next->next_key_part=tmp;
-      if (use_count)
-	next->increment_use_count(use_count);
     }
     else
-      next->next_key_part=key2;
+    {
+      // The trivial case.
+      next->set_next_key_part(key2);
+    }
   }
+
+  // Undo the temporary use_count modification above.
+  --key2->use_count;
+
   if (!key1)
-    return &null_element;			// Impossible ranges
-  key1->use_count++;
+    return null_element;			// Impossible ranges
   return key1;
 }
 
@@ -8102,74 +8202,89 @@ and_all_keys(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2,
       key1    First argument, root of its RB-tree
       key2    Second argument, root of its RB-tree
 
+  key_and() does not modify key1 nor key2 if they are in use by other roots
+  (although typical use is that key1 has been disconnected from its root
+  and thus can be modified in-place). Thus, it does not change their use_count
+  in the typical case.
+
+  The returned node will not have its use_count increased; you are supposed
+  to do that yourself when you connect it to a root.
+
   RETURN
     RB-tree root of the resulting SEL_ARG graph.
     NULL if the result of AND operation is an empty interval {0}.
 */
 
 static SEL_ARG *
-key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
+key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
 {
   if (param->has_errors())
     return 0;
 
   if (key1 == NULL || key1->type == SEL_ARG::ALWAYS)
+  {
+    if (key1)
+      key1->free_tree();
     return key2;
+  }
   if (key2 == NULL || key2->type == SEL_ARG::ALWAYS)
+  {
+    if (key2)
+      key2->free_tree();
     return key1;
+  }
+
   if (key1->part != key2->part)
   {
     if (key1->part > key2->part)
     {
       std::swap(key1, key2);
-      clone_flag=swap_clone_flag(clone_flag);
     }
-    // key1->part < key2->part
-    key1->use_count--;
-    if (key1->use_count > 0)
-      if (!(key1= key1->clone_tree(param)))
-	return 0;				// OOM
-    return and_all_keys(param, key1, key2, clone_flag);
+    DBUG_ASSERT(key1->part < key2->part);
+    return and_all_keys(param, key1, key2);
   }
 
-  if (((clone_flag & CLONE_KEY2_MAYBE) &&
-       !(clone_flag & CLONE_KEY1_MAYBE) &&
+  if ((!key2->simple_key() &&
+       key1->simple_key() &&
        key2->type != SEL_ARG::MAYBE_KEY) ||
       key1->type == SEL_ARG::MAYBE_KEY)
   {						// Put simple key in key2
     std::swap(key1, key2);
-    clone_flag=swap_clone_flag(clone_flag);
   }
 
   /* If one of the key is MAYBE_KEY then the found region may be smaller */
   if (key2->type == SEL_ARG::MAYBE_KEY)
   {
-    if (key1->use_count > 1)
+    if (key1->use_count > 0)
     {
-      key1->use_count--;
-      if (!(key1=key1->clone_tree(param)))
+      // We are going to modify key1, so we need to clone it.
+      if (!(key1= key1->clone_tree(param)))
 	return 0;				// OOM
-      key1->use_count++;
     }
     if (key1->type == SEL_ARG::MAYBE_KEY)
     {						// Both are maybe key
-      key1->next_key_part=key_and(param, key1->next_key_part, 
-                                  key2->next_key_part, clone_flag);
-      if (key1->next_key_part &&
-	  key1->next_key_part->type == SEL_ARG::IMPOSSIBLE)
-	return key1;
+      SEL_ARG *new_part = key_and(param, key1->release_next_key_part(),
+                                  key2->next_key_part);
+      key1->set_next_key_part(new_part);
+      return key1;
     }
     else
     {
       key1->maybe_smaller();
       if (key2->next_key_part)
       {
-	key1->use_count--;			// Incremented in and_all_keys
-	return and_all_keys(param, key1, key2, clone_flag);
+	return and_all_keys(param, key1, key2);
       }
-      key2->use_count--;			// Key2 doesn't have a tree
+      else
+      {
+        // key2 is MAYBE_KEY; simply discard it and reconnect key1.
+        key2->free_tree();
+        return key1;
+      }
     }
-    return key1;
+    // Unreachable.
+    DBUG_ASSERT(false);
+    return null_element;
   }
 
   if ((key1->min_flag | key2->min_flag) & GEOM_FLAG)
@@ -8182,8 +8297,6 @@ key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
     return key1;
   }
 
-  key1->use_count--;
-  key2->use_count--;
   SEL_ARG *e1=key1->first(), *e2=key2->first(), *new_tree=0;
 
   while (e1 && e2)
@@ -8196,16 +8309,21 @@ key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
     }
     else if (get_range(&e2,&e1,key2))
       continue;
-    SEL_ARG *next=key_and(param, e1->next_key_part, e2->next_key_part,
-                          clone_flag);
-    e1->increment_use_count(1);
-    e2->increment_use_count(1);
-    if (!next || next->type != SEL_ARG::IMPOSSIBLE)
+    /*
+      NOTE: We don't destroy e1->next_key_part nor e2->next_key_part
+      (if used at all, the return value here goes into a brand new element;
+      it does not overwrite either of them), so we keep their use_counts
+      intact here.
+    */
+    SEL_ARG *next=key_and(param, e1->next_key_part, e2->next_key_part);
+    if (next && next->type == SEL_ARG::IMPOSSIBLE)
+      next->free_tree();
+    else
     {
       SEL_ARG *new_arg= e1->clone_and(e2, param->mem_root);
       if (!new_arg)
-	return &null_element;			// End of memory
-      new_arg->next_key_part=next;
+	return null_element;			// End of memory
+      new_arg->set_next_key_part(next);
       if (!new_tree)
       {
 	new_tree=new_arg;
@@ -8214,14 +8332,14 @@ key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
 	new_tree=new_tree->insert(new_arg);
     }
     if (e1->cmp_max_to_max(e2) < 0)
-      e1=e1->next;				// e1 can't overlapp next e2
+      e1=e1->next;				// e1 can't overlap next e2
     else
       e2=e2->next;
   }
   key1->free_tree();
   key2->free_tree();
   if (!new_tree)
-    return &null_element;			// Impossible range
+    return null_element;			// Impossible range
   return new_tree;
 }
 
@@ -8301,6 +8419,14 @@ get_range(SEL_ARG **e1,SEL_ARG **e2,SEL_ARG *root1)
    ( 2  <  kp1 < 10 AND 1 < kp2 < 20 ) OR
    ( 10 <= kp1 < 20 AND 4 < kp2 < 20 )
 
+   key_or() does not modify key1 nor key2 if they are in use by other roots
+   (although typical use is that key1 has been disconnected from its root
+   and thus can be modified in-place). Thus, it does not change their
+   use_count.
+
+   The returned node will not have its use_count increased; you are supposed
+   to do that yourself when you connect it to a root.
+
    @param param    PARAM from test_quick_select
    @param key1     Root of RB-tree of SEL_ARGs to be ORed with key2
    @param key2     Root of RB-tree of SEL_ARGs to be ORed with key1
@@ -8315,18 +8441,12 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
   if (key1 == NULL || key1->type == SEL_ARG::ALWAYS)
   {
     if (key2)
-    {
-      key2->use_count--;
       key2->free_tree();
-    }
     return key1;
   }
   if (key2 == NULL || key2->type == SEL_ARG::ALWAYS)
     // Case is symmetric to the one above, just flip parameters.
     return key_or(param, key2, key1);
-
-  key1->use_count--;
-  key2->use_count--;
 
   if (key1->part != key2->part || 
       (key1->min_flag | key2->min_flag) & GEOM_FLAG)
@@ -8340,16 +8460,20 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
   if (key1->type == SEL_ARG::MAYBE_KEY)
   {
     key2->free_tree();
-    key1->use_count++;
     return key1;
   }
   if (key2->type == SEL_ARG::MAYBE_KEY)
   {
     key1->free_tree();
-    key2->use_count++;
     return key2;
   }
 
+  /*
+    We need to modify one of key1 or key2 (whichever we choose, we will
+    call it key1 afterwards). If either is used only by us (use_count == 0),
+    we can use that directly. If not, we need to clone one of them; we pick
+    the one with the fewest elements since that is the cheapest.
+  */
   if (key1->use_count > 0)
   {
     if (key2->use_count == 0 || key1->elements > key2->elements)
@@ -8359,8 +8483,13 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
     if (key1->use_count > 0 && (key1= key1->clone_tree(param)) == NULL)
       return 0;                                 // OOM
   }
+  DBUG_ASSERT(key1->use_count == 0);
 
-  // Add tree at key2 to tree at key1
+  /*
+    Add tree at key2 to tree at key1. If key2 is used by nobody else,
+    we can cannibalize its nodes and add them directly into key1.
+    If not, we'll need to make copies of them.
+  */
   const bool key2_shared= (key2->use_count != 0);
   key1->maybe_flag|= key2->maybe_flag;
 
@@ -8385,7 +8514,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
         Ranges that meet but do not overlap. Example: a = "x < 3", b = "x >= 3"
         a: ----]
         b:      [----
-   */
+  */
 
   SEL_ARG *cur_key2= key2->first();
   while (cur_key2)
@@ -8422,7 +8551,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
       cur_key1:    ------]                   (  ... x <= 10) => cmp== 0
       cur_key1:    --------]                 (  ... x <= 12) => cmp== 1
       (cmp == 2 does not make sense for cmp_max_to_min())
-     */
+    */
     int cmp= 0;
 
     if (!cur_key1)
@@ -8445,7 +8574,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
         This is the case:
         cur_key2:           [-------]
         cur_key1:   [----**]
-       */
+      */
       SEL_ARG *next_key1= cur_key1->next;
       if (cmp == -2 && 
           eq_tree(cur_key1->next_key_part, cur_key2->next_key_part))
@@ -8466,7 +8595,6 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
         {
           if (!(cur_key2= new (param->mem_root) SEL_ARG(*cur_key2)))
             return 0;           // out of memory
-          cur_key2->increment_use_count(key1->use_count+1);
           cur_key2->next= next_key2;                 // New copy of cur_key2
         }
 
@@ -8476,7 +8604,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
           key1->free_tree();
           key2->free_tree();
           key1->type= SEL_ARG::ALWAYS;
-          key2->type= SEL_ARG::ALWAYS;
+          key2->type= SEL_ARG::ALWAYS;  // FIXME: Shouldn't this be cur_key2?
           if (key1->maybe_flag)
             return new (param->mem_root) SEL_ARG(SEL_ARG::MAYBE_KEY);
           return 0;
@@ -8535,11 +8663,13 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
           if (cur_key1->min_flag & NO_MIN_RANGE &&
               cur_key1->max_flag & NO_MAX_RANGE)
           {
+            key1->free_tree();
+            key2->free_tree();
             if (key1->maybe_flag)
               return new (param->mem_root) SEL_ARG(SEL_ARG::MAYBE_KEY);
             return 0;
           }
-          cur_key2->increment_use_count(-1);        // Free not used tree
+          cur_key2->release_next_key_part();        // Free not used tree
           cur_key2=cur_key2->next;
           continue;
         }
@@ -8565,10 +8695,9 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
             if (!cpy)
               return 0;                         // OOM
             key1= key1->insert(cpy);
-            cur_key2->increment_use_count(key1->use_count+1);
           }
           else
-            key1= key1->insert(cur_key2); // Will destroy key2_root
+            key1= key1->insert(cur_key2);
           cur_key2= next_key2;
           continue;
         }
@@ -8593,7 +8722,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
           Use the relevant range in key1.
         */
         cur_key1->merge_flags(cur_key2);        // Copy maybe flags
-        cur_key2->increment_use_count(-1);      // Free not used tree
+        cur_key2->free_tree();                  // Free not used tree
       }
       else
       {
@@ -8679,7 +8808,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
               Extend range of last up to max(last.max, cur_key2.max):
               cur_key2:   [--------*****]
               key1:     [***----------**] [xxxx]
-             */
+            */
             full_range= last->copy_max(cur_key2);
         }
         if (full_range)
@@ -8687,8 +8816,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
           key1->free_tree();
           key1->type= SEL_ARG::ALWAYS;
           key2->type= SEL_ARG::ALWAYS;
-          for (; cur_key2 ; cur_key2= cur_key2->next)
-            cur_key2->increment_use_count(-1);  // Free not used tree
+          cur_key2->free_tree();                // Free not used tree
           if (key1->maybe_flag)
             return new (param->mem_root) SEL_ARG(SEL_ARG::MAYBE_KEY);
           return 0;
@@ -8723,15 +8851,6 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
 
             Move on to next range in key2
           */
-          if (cur_key2->next_key_part)
-          {
-            /*
-              cur_key2 will no longer be used. Reduce reference count
-              of SEL_ARGs in its next_key_part.
-            */
-            cur_key2->next_key_part->use_count--;
-            cur_key2->next_key_part->increment_use_count(-1);
-          }
           cur_key2= cur_key2->next;
           continue;
         }
@@ -8766,8 +8885,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
       SEL_ARG *new_arg= cur_key1->clone_first(cur_key2, param->mem_root);
       if (!new_arg)
         return 0;                               // OOM
-      if ((new_arg->next_key_part= cur_key1->next_key_part))
-        new_arg->increment_use_count(key1->use_count+1);
+      new_arg->set_next_key_part(cur_key1->next_key_part);
       cur_key1->copy_min_to_min(cur_key2);
       key1= key1->insert(new_arg);
     } // cur_key1.min >= cur_key2.min due to this if()
@@ -8776,8 +8894,16 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
       Now cur_key2.min <= cur_key1.min <= cur_key2.max:
       cur_key2:    [---------]
       cur_key1:    [****---*****]
-     */
-    SEL_ARG key2_cpy(*cur_key2); // Get copy we can modify
+    */
+
+    /*
+      Get a copy we can modify. Note that this will keep an extra reference
+      to its next_key_part (if any), but the destructor will clean that up
+      when we exit from the function. key2_cpy is ephemeral and will not be
+      inserted in any tree, although copies of it might be.
+    */
+    SEL_ARG key2_cpy(*cur_key2);
+
     for (;;)
     {
       if (cur_key1->cmp_min_to_min(&key2_cpy) > 0)
@@ -8794,12 +8920,11 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
           key1:        [-------][-*****]
                        ^        ^
                        insert   cur_key1
-         */
+        */
         SEL_ARG *new_arg=key2_cpy.clone_first(cur_key1, param->mem_root);
         if (!new_arg)
           return 0; // OOM
-        if ((new_arg->next_key_part=key2_cpy.next_key_part))
-          new_arg->increment_use_count(key1->use_count+1);
+        new_arg->set_next_key_part(key2_cpy.next_key_part);
         key1= key1->insert(new_arg);
         key2_cpy.copy_min_to_min(cur_key1);
       } 
@@ -8821,11 +8946,10 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
 
            Result:
            key1:          a)  [----][-]    or b)     [----]
-         */
+        */
         cur_key1->maybe_flag|= key2_cpy.maybe_flag;
-        key2_cpy.increment_use_count(key1->use_count+1);
-        cur_key1->next_key_part= 
-          key_or(param, cur_key1->next_key_part, key2_cpy.next_key_part);
+        cur_key1->set_next_key_part(
+          key_or(param, cur_key1->release_next_key_part(), key2_cpy.next_key_part));
 
         if (!cmp)
           break;                     // case b: done with this key2 range
@@ -8892,18 +9016,16 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
         */
         if (!cur_key1->next_key_part) // Step 0
         {
-          key2_cpy.increment_use_count(-1);     // Free not used tree
+          key2_cpy.free_tree();     // Free not used tree
           break;
         }
         SEL_ARG *new_arg= cur_key1->clone_last(&key2_cpy, param->mem_root);
         if (!new_arg)
           return 0; // OOM
         cur_key1->copy_max_to_min(&key2_cpy);
-        cur_key1->increment_use_count(key1->use_count+1);
-        /* Increment key count as it may be used for next loop */
-        key2_cpy.increment_use_count(1);
-        new_arg->next_key_part= key_or(param, cur_key1->next_key_part,
-                                       key2_cpy.next_key_part);
+
+        new_arg->set_next_key_part(key_or(param, cur_key1->next_key_part,
+                                          key2_cpy.next_key_part));
         key1= key1->insert(new_arg);
         break;
       }
@@ -8925,15 +9047,19 @@ end:
       SEL_ARG *key2_cpy=new (param->mem_root) SEL_ARG(*cur_key2);  // Must make copy
       if (!key2_cpy)
         return 0;
-      cur_key2->increment_use_count(key1->use_count+1);
       key1= key1->insert(key2_cpy);
     }
     else
-      key1= key1->insert(cur_key2);   // Will destroy key2_root
+      key1= key1->insert(cur_key2);
     cur_key2= next;
   }
-  key1->use_count++;
 
+  /*
+    TODO: We should call key2->free_tree() here, since this might be the
+    last reference to the tree (if !key2_shared). However, the tree might
+    be in an invalid state since we may have inserted nodes into key1 without
+    taking them out of key2, so we need to clean that up first.
+  */
   return key1;
 }
 
@@ -8946,19 +9072,19 @@ static bool eq_tree(SEL_ARG* a,SEL_ARG *b)
     return 1;
   if (!a || !b || !a->is_same(b))
     return 0;
-  if (a->left != &null_element && b->left != &null_element)
+  if (a->left != null_element && b->left != null_element)
   {
     if (!eq_tree(a->left,b->left))
       return 0;
   }
-  else if (a->left != &null_element || b->left != &null_element)
+  else if (a->left != null_element || b->left != null_element)
     return 0;
-  if (a->right != &null_element && b->right != &null_element)
+  if (a->right != null_element && b->right != null_element)
   {
     if (!eq_tree(a->right,b->right))
       return 0;
   }
-  else if (a->right != &null_element || b->right != &null_element)
+  else if (a->right != null_element || b->right != null_element)
     return 0;
   if (a->next_key_part != b->next_key_part)
   {						// Sub range
@@ -8975,8 +9101,9 @@ SEL_ARG::insert(SEL_ARG *key)
 {
   SEL_ARG *element, **par= NULL, *last_element= NULL;
 
-  DBUG_ASSERT(this != &null_element);
-  for (element= this; element != &null_element ; )
+  // DBUG_ASSERT(this->parent == nullptr);
+  DBUG_ASSERT(this != null_element);
+  for (element= this; element != null_element ; )
   {
     last_element=element;
     if (key->cmp_min_to_min(element) > 0)
@@ -9005,7 +9132,7 @@ SEL_ARG::insert(SEL_ARG *key)
     key->prev=last_element;
     last_element->next=key;
   }
-  key->left=key->right= &null_element;
+  key->left=key->right= null_element;
   SEL_ARG *root=rb_insert(key);			// rebalance tree
   root->use_count=this->use_count;		// copy root info
   root->elements= this->elements+1;
@@ -9026,7 +9153,7 @@ SEL_ARG::find_range(SEL_ARG *key)
 
   for (;;)
   {
-    if (element == &null_element)
+    if (element == null_element)
       return found;
     int cmp=element->cmp_min_to_min(key);
     if (cmp == 0)
@@ -9064,28 +9191,29 @@ SEL_ARG::tree_delete(SEL_ARG *key)
   DBUG_ENTER("tree_delete");
 
   root=this;
-  this->parent= 0;
+  // DBUG_ASSERT(this->parent == nullptr);
 
   /* Unlink from list */
   if (key->prev)
     key->prev->next=key->next;
   if (key->next)
     key->next->prev=key->prev;
-  key->increment_use_count(-1);
+  if (key->next_key_part)
+    --key->next_key_part->use_count;
   if (!key->parent)
     par= &root;
   else
     par=key->parent_ptr();
 
-  if (key->left == &null_element)
+  if (key->left == null_element)
   {
     *par=nod=key->right;
     fix_par=key->parent;
-    if (nod != &null_element)
+    if (nod != null_element)
       nod->parent=fix_par;
     remove_color= key->color;
   }
-  else if (key->right == &null_element)
+  else if (key->right == null_element)
   {
     *par= nod=key->left;
     nod->parent=fix_par=key->parent;
@@ -9096,13 +9224,13 @@ SEL_ARG::tree_delete(SEL_ARG *key)
     SEL_ARG *tmp=key->next;			// next bigger key (exist!)
     nod= *tmp->parent_ptr()= tmp->right;	// unlink tmp from tree
     fix_par=tmp->parent;
-    if (nod != &null_element)
+    if (nod != null_element)
       nod->parent=fix_par;
     remove_color= tmp->color;
 
     tmp->parent=key->parent;			// Move node in place of key
     (tmp->left=key->left)->parent=tmp;
-    if ((tmp->right=key->right) != &null_element)
+    if ((tmp->right=key->right) != null_element)
       tmp->right->parent=tmp;
     tmp->color=key->color;
     *par=tmp;
@@ -9110,7 +9238,7 @@ SEL_ARG::tree_delete(SEL_ARG *key)
       fix_par=tmp;				// new parent of nod
   }
 
-  if (root == &null_element)
+  if (root == null_element)
     DBUG_RETURN(0);				// Maybe root later
   if (remove_color == BLACK)
     root=rb_delete_fixup(root,nod,fix_par);
@@ -9130,7 +9258,7 @@ static void left_rotate(SEL_ARG **root,SEL_ARG *leaf)
 {
   SEL_ARG *y=leaf->right;
   leaf->right=y->left;
-  if (y->left != &null_element)
+  if (y->left != null_element)
     y->left->parent=leaf;
   if (!(y->parent=leaf->parent))
     *root=y;
@@ -9144,7 +9272,7 @@ static void right_rotate(SEL_ARG **root,SEL_ARG *leaf)
 {
   SEL_ARG *y=leaf->left;
   leaf->left=y->right;
-  if (y->right != &null_element)
+  if (y->right != null_element)
     y->right->parent=leaf;
   if (!(y->parent=leaf->parent))
     *root=y;
@@ -9159,11 +9287,14 @@ SEL_ARG *
 SEL_ARG::rb_insert(SEL_ARG *leaf)
 {
   SEL_ARG *y,*par,*par2,*root;
-  root= this; root->parent= 0;
+  root= this;
+  // DBUG_ASSERT(!root->parent);
+  DBUG_ASSERT(root->color == BLACK);
 
   leaf->color=RED;
   while (leaf != root && (par= leaf->parent)->color == RED)
   {					// This can't be root or 1 level under
+    DBUG_ASSERT(leaf->parent->parent);
     if (par == (par2= leaf->parent->parent)->left)
     {
       y= par2->right;
@@ -9305,11 +9436,16 @@ static int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
 {
   int count_l,count_r;
 
-  if (element == &null_element)
+  if (element == null_element)
     return 0;					// Found end of tree
   if (element->parent != parent)
   {
     sql_print_error("Wrong tree: Parent doesn't point at parent");
+    return -1;
+  }
+  if (!parent && element->color != SEL_ARG::BLACK)
+  {
+    sql_print_error("Wrong tree: Root should be black");
     return -1;
   }
   if (element->color == SEL_ARG::RED &&
@@ -9319,7 +9455,7 @@ static int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
     sql_print_error("Wrong tree: Found two red in a row");
     return -1;
   }
-  if (element->left == element->right && element->left != &null_element)
+  if (element->left == element->right && element->left != null_element)
   {						// Dummy test
     sql_print_error("Wrong tree: Found right == left");
     return -1;
@@ -9344,6 +9480,9 @@ static int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
   
   @param root  An RB-Root node in a SEL_ARG graph.
   @param key   Another RB-Root node in that SEL_ARG graph.
+  @param seen  Which SEL_ARGs we have already seen in this traversal.
+               Used for deduplication, so that we only count each
+               SEL_ARG once.
 
   The passed "root" node may refer to "key" node via root->next_key_part,
   root->next->n
@@ -9380,8 +9519,12 @@ static int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
   Number of links to "key" from nodes reachable from "root".
 */
 
-static ulong count_key_part_usage(SEL_ARG *root, SEL_ARG *key)
+static ulong count_key_part_usage(SEL_ARG *root, SEL_ARG *key, std::set<const SEL_ARG *> *seen)
 {
+  // Don't count paths from a given key twice.
+  if (seen->count(root))
+    return 0;
+  seen->insert(root);
   ulong count= 0;
   for (root=root->first(); root ; root=root->next)
   {
@@ -9390,7 +9533,7 @@ static ulong count_key_part_usage(SEL_ARG *root, SEL_ARG *key)
       if (root->next_key_part == key)
 	count++;
       if (root->next_key_part->part < key->part)
-	count+=count_key_part_usage(root->next_key_part,key);
+	count+=count_key_part_usage(root->next_key_part, key, seen);
     }
   }
   return count;
@@ -9420,8 +9563,8 @@ bool SEL_ARG::test_use_count(SEL_ARG *root)
   uint e_count=0;
   if (this == root && use_count != 1)
   {
-    sql_print_information("Use_count: Wrong count %lu for root",use_count);
-    // DBUG_ASSERT(false); // Todo - enable and clean up mess
+    sql_print_information("Use_count: Wrong count %lu for root %p",use_count, this);
+    DBUG_ASSERT(false);
     return true;
   }
   if (this->type != SEL_ARG::KEY_RANGE)
@@ -9431,14 +9574,19 @@ bool SEL_ARG::test_use_count(SEL_ARG *root)
     e_count++;
     if (pos->next_key_part)
     {
-      ulong count=count_key_part_usage(root,pos->next_key_part);
+      std::set<const SEL_ARG *> seen;
+      ulong count=count_key_part_usage(root, pos->next_key_part, &seen);
+      /*
+        This cannot be a strict equality test, since there might be
+        connections from the keys[] array that we don't see.
+      */
       if (count > pos->next_key_part->use_count)
       {
         sql_print_information("Use_count: Wrong count for key at %p, %lu "
-                              "should be %lu", pos,
+                              "should be %lu", pos->next_key_part,
                               pos->next_key_part->use_count, count);
-        // DBUG_ASSERT(false); // Todo - enable and clean up mess
-	return true;
+        DBUG_ASSERT(false);
+        return true;
       }
       pos->next_key_part->test_use_count(root);
     }
@@ -9447,7 +9595,7 @@ bool SEL_ARG::test_use_count(SEL_ARG *root)
   {
     sql_print_warning("Wrong use count: %u (should be %u) for tree at %p",
                       e_count, elements, this);
-    // DBUG_ASSERT(false); // Todo - enable and clean up mess
+    DBUG_ASSERT(false);
     return true;
   }
   return false;
@@ -9532,7 +9680,7 @@ private:
        - keypart 2 has another range, see 2)
        - returns range "1:3:6"
        - values in stack after this: stack[1, 1:3, 1:3:6]
-   */
+  */
   RANGE_SEQ_ENTRY stack[MAX_REF_PARTS];
   /*
     Index of last used element in the above array. A value of -1 means
@@ -9736,7 +9884,7 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
       if (key_tree->next)
       {
         /* This keypart has more ranges */
-        DBUG_ASSERT(key_tree->next != &null_element);
+        DBUG_ASSERT(key_tree->next != null_element);
         key_tree= key_tree->next;
 
         /*
@@ -9772,7 +9920,7 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
       3) the range predicate on the next keypart is usable
   */
   while (key_tree->next_key_part &&                              // 1)
-         key_tree->next_key_part != &null_element &&             // 1)
+         key_tree->next_key_part != null_element &&              // 1)
          key_tree->next_key_part->part == key_tree->part + 1 &&  // 2)
          key_tree->next_key_part->type == SEL_ARG::KEY_RANGE)    // 3)
   {
@@ -9794,7 +9942,7 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
         3) A min or max flag has been set: Because flags denote ranges
            ('<', '<=' etc), any value but 0 indicates a non-equality
            predicate.
-       */
+      */
 
       uchar* min_key_start;
       uchar* max_key_start;
@@ -9920,7 +10068,7 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
            "keypart_x > y") or GIS.
         2) The lower bound and the upper bound of the range has the
            same value (min_key == max_key).
-     */
+    */
     const uint is_open_range= (NO_MIN_RANGE | NO_MAX_RANGE | 
                                NEAR_MIN | NEAR_MAX | GEOM_FLAG);
     const bool is_eq_range_pred=
@@ -10286,7 +10434,7 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
   int min_part= key_tree->part-1, // # of keypart values in min_key buffer
       max_part= key_tree->part-1; // # of keypart values in max_key buffer
 
-  if (key_tree->left != &null_element)
+  if (key_tree->left != null_element)
   {
     if (get_quick_keys(param,quick,key,key_tree->left,
 		       min_key,min_key_flag, max_key, max_key_flag))
@@ -10391,7 +10539,7 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
     return 1;
 
  end:
-  if (key_tree->right != &null_element)
+  if (key_tree->right != null_element)
     return get_quick_keys(param,quick,key,key_tree->right,
 			  min_key,min_key_flag,
 			  max_key,max_key_flag);
@@ -11330,7 +11478,7 @@ bool QUICK_RANGE_SELECT::row_in_ranges()
   class (QUICK_SELECT), and then have two subclasses (_ASC and _DESC)
   which handle the ranges and implement the get_next() function.  But
   for now, this seems to work right at least.
- */
+*/
 
 QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
                                      uint used_key_parts_arg,
@@ -11584,9 +11732,9 @@ int QUICK_RANGE_SELECT::cmp_prev(QUICK_RANGE *range_arg)
 
 
 /*
- * TRUE if this range will require using HA_READ_AFTER_KEY
-   See comment in get_next() about this
- */
+  TRUE if this range will require using HA_READ_AFTER_KEY
+  See comment in get_next() about this
+*/
 
 bool QUICK_SELECT_DESC::range_reads_after_key(QUICK_RANGE *range_arg)
 {
@@ -12624,10 +12772,10 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
     {
       if (min_max_arg_item->eq(cur_arg, 1)) 
       {
-       /*
-         If pred references the MIN/MAX argument, check whether pred is a range
-         condition that compares the MIN/MAX argument with a constant.
-       */
+        /*
+          If pred references the MIN/MAX argument, check whether pred is a range
+          condition that compares the MIN/MAX argument with a constant.
+        */
         Item_func::Functype pred_type= pred->functype();
         if (pred_type != Item_func::EQUAL_FUNC     &&
             pred_type != Item_func::LT_FUNC        &&
@@ -12760,7 +12908,7 @@ get_sel_arg_for_keypart(Field *field,
     /**
       Check if the SEL_ARG tree for 'field' is identical for all ranges in
       'keypart_tree
-     */
+    */
     if (cur_kp == first_kp)
       tree_first_range= curr_tree;
     else if (!all_same(tree_first_range, curr_tree))
@@ -14458,7 +14606,7 @@ print_key_value(String *out, const KEY_PART_INFO *key_part, const uchar *key)
     Binary data cannot be converted to UTF8 which is what the
     optimizer trace expects. If the column is binary, the hex
     representation is printed to the trace instead.
-   */
+  */
   if (field->flags & BINARY_FLAG)
   {
     out->append("0x");
@@ -14499,7 +14647,7 @@ print_key_value(String *out, const KEY_PART_INFO *key_part, const uchar *key)
   @param[in]     max_key      Key tuple describing upper bound of range
   @param[in]     flag         Key range flags defining what min_key
                               and max_key represent @see my_base.h
- */
+*/
 void append_range(String *out,
                   const KEY_PART_INFO *key_part,
                   const uchar *min_key, const uchar *max_key,
@@ -14570,7 +14718,7 @@ static void append_range_all_keyparts(Opt_trace_array *range_trace,
                                       const KEY_PART_INFO *key_parts,
                                       const bool print_full)
 {
-  DBUG_ASSERT(keypart_root && keypart_root != &null_element);
+  DBUG_ASSERT(keypart_root && keypart_root != null_element);
 
   const bool append_to_trace= (range_trace != NULL);
 
@@ -14589,7 +14737,7 @@ static void append_range_all_keyparts(Opt_trace_array *range_trace,
       Skip the rest of condition printing to avoid OOM if appending to
       range_string and the string becomes too long. Printing very long
       range conditions normally doesn't make sense either.
-     */
+    */
     if (!append_to_trace && range_string->length() > 500)
     {
       range_string->append(STRING_WITH_LEN("..."));
@@ -14609,7 +14757,7 @@ static void append_range_all_keyparts(Opt_trace_array *range_trace,
       3) There are no "holes" in the used keyparts (keypartX can only
          be used if there is a range predicate on keypartX-1), and
       4) The current range is an equality range
-     */
+    */
     if (keypart_range->next_key_part &&                                    // 1
         (print_full ||                                                     // 2
          (keypart_range->next_key_part->part == keypart_range->part + 1 && // 3
@@ -14769,7 +14917,7 @@ static inline void print_tree(String *out,
 
   for (uint i= 0; i< param->keys; i++)
   {
-    if (tree->keys[i] == NULL || tree->keys[i] == &null_element)
+    if (tree->keys[i] == NULL || tree->keys[i] == null_element)
       continue;
 
     uint real_key_nr= param->real_keynr[i];

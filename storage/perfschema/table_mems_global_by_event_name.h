@@ -32,6 +32,23 @@
   @{
 */
 
+class PFS_index_mems_global_by_event_name : public PFS_engine_index
+{
+public:
+  PFS_index_mems_global_by_event_name()
+    : PFS_engine_index(&m_key),
+    m_key("EVENT_NAME")
+  {}
+
+  ~PFS_index_mems_global_by_event_name()
+  {}
+
+  virtual bool match(PFS_instr_class *instr_class);
+
+private:
+  PFS_key_event_name m_key;
+};
+
 /** A row of PERFORMANCE_SCHEMA.MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME. */
 struct row_mems_global_by_event_name
 {
@@ -86,9 +103,13 @@ public:
   static int delete_all_rows();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next(void);
 
 private:
   virtual int read_row_values(TABLE *table,
@@ -119,6 +140,8 @@ private:
   pos_t m_pos;
   /** Next position. */
   pos_t m_next_pos;
+
+  PFS_index_mems_global_by_event_name *m_opened_index;
 };
 
 /** @} */

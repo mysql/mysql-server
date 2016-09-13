@@ -21,7 +21,9 @@
 */
 
 #include "my_global.h"
+#include "my_psi_config.h"              /* IWYU pragma: keep */
 #include "m_ctype.h"                    /* CHARSET_INFO */
+#include "m_string.h"                   /* STRING_WITH_LEN */
 #include "my_alloc.h"                   /* USED_MEM */
 
 #ifdef HAVE_ALLOCA_H
@@ -48,6 +50,7 @@
 #include "mysql/psi/mysql_cond.h"       /* mysql_cond_t */
 
 #include "mysql/psi/psi_file.h"         /* PSI_file_service_t */
+#include "mysql/psi/psi_memory.h"       /* PSI_memory_service_t */
 #include "mysql/psi/psi_socket.h"       /* PSI_socket_service_t */
 #include "mysql/psi/psi_stage.h"        /* PSI_stage_info */
 #include "mysql/psi/psi_statement.h"    /* PSI_statement_service_t */
@@ -109,6 +112,7 @@ C_MODE_START
 #define MY_RESOLVE_LINK 128	/* my_realpath(); Only resolve links */
 #define MY_HOLD_ORIGINAL_MODES 128  /* my_copy() holds to file modes */
 #define MY_REDEL_MAKE_BACKUP 256
+#define MY_REDEL_NO_COPY_STAT 512 /* my_redel() doesn't call my_copystat() */
 #define MY_SEEK_NOT_DONE 32	/* my_lock may have to do a seek */
 #define MY_DONT_WAIT	64	/* my_lock() don't wait if can't lock */
 #define MY_ZEROFILL	32	/* my_malloc(), fill array with zero */
@@ -556,7 +560,9 @@ extern File my_create_with_symlink(const char *linkname, const char *filename,
 				   myf MyFlags);
 extern int my_delete_with_symlink(const char *name, myf MyFlags);
 extern int my_rename_with_symlink(const char *from,const char *to,myf MyFlags);
+#ifndef _WIN32
 extern int my_symlink(const char *content, const char *linkname, myf MyFlags);
+#endif
 extern size_t my_read(File Filedes,uchar *Buffer,size_t Count,myf MyFlags);
 extern size_t my_pread(File Filedes,uchar *Buffer,size_t Count,my_off_t offset,
 		     myf MyFlags);

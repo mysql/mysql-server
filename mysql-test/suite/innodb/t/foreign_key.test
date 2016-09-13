@@ -107,6 +107,7 @@ ALTER TABLE t1 ADD FULLTEXT INDEX(a), ADD SPATIAL INDEX(b);
 --echo # Adds a foreign key on column with FULLTEXT index.
 --echo # The FULLTEXT index cannot be used and the generated key must be kept
 ALTER TABLE t1 ADD CONSTRAINT fi_a FOREIGN KEY(a) REFERENCES ti2(a);
+ANALYZE TABLE t1;
 SHOW INDEXES FROM t1;
 
 --echo # Attempt to add a foreign key on column with SPATIAL index.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -90,6 +90,26 @@ table_esgs_by_thread_by_event_name::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_esgs_by_thread_by_event_name::match(PFS_thread *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key_1.match(pfs))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_esgs_by_thread_by_event_name::match(PFS_stage_class *klass)
+{
+  if (m_fields >= 2)
+  {
+    if (!m_key_2.match(klass))
+      return false;
+  }
+  return true;
+}
+
 PFS_engine_table*
 table_esgs_by_thread_by_event_name::create(void)
 {
@@ -152,8 +172,7 @@ int table_esgs_by_thread_by_event_name::rnd_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int
-table_esgs_by_thread_by_event_name::rnd_pos(const void *pos)
+int table_esgs_by_thread_by_event_name::rnd_pos(const void *pos)
 {
   PFS_thread *thread;
   PFS_stage_class *stage_class;
@@ -172,6 +191,52 @@ table_esgs_by_thread_by_event_name::rnd_pos(const void *pos)
   }
 
   return HA_ERR_RECORD_DELETED;
+}
+
+int table_esgs_by_thread_by_event_name::index_init(uint idx, bool sorted)
+{
+  m_normalizer= time_normalizer::get(stage_timer);
+
+  DBUG_ASSERT(idx == 0);
+  m_opened_index= PFS_NEW(PFS_index_esgs_by_thread_by_event_name);
+  m_index= m_opened_index;
+  return 0;
+}
+
+int table_esgs_by_thread_by_event_name::index_next(void)
+{
+  PFS_thread *thread;
+  PFS_stage_class *stage_class;
+  bool has_more_thread= true;
+
+  for (m_pos.set_at(&m_next_pos);
+       has_more_thread;
+       m_pos.next_thread())
+  {
+    thread= global_thread_container.get(m_pos.m_index_1, &has_more_thread);
+    if (thread != NULL)
+    {
+      if (m_opened_index->match(thread))
+      {
+        do
+        {
+          stage_class= find_stage_class(m_pos.m_index_2);
+          if (stage_class != NULL)
+          {
+            if (m_opened_index->match(stage_class))
+            {
+              make_row(thread, stage_class);
+              m_next_pos.set_after(&m_pos);
+              return 0;
+            }
+            m_pos.m_index_2++;
+          }
+        } while (stage_class != NULL);
+      }
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
 }
 
 void table_esgs_by_thread_by_event_name
@@ -229,4 +294,3 @@ int table_esgs_by_thread_by_event_name
 
   return 0;
 }
-

@@ -1314,12 +1314,12 @@ void JOIN::test_skip_sort()
                     // (DISTINCT was rewritten to GROUP BY if skippable)
   {
     /*
-      When there is SQL_BIG_RESULT do not sort using index for GROUP BY,
-      and thus force sorting on disk unless a group min-max optimization
-      is going to be used as it is applied now only for one table queries
-      with covering indexes.
+      When there is SQL_BIG_RESULT or a JSON aggregation function,
+      do not sort using index for GROUP BY, and thus force sorting on disk
+      unless a group min-max optimization is going to be used as it is applied
+      now only for one table queries with covering indexes.
     */
-    if (!(select_lex->active_options() & SELECT_BIG_RESULT) ||
+    if (!(select_lex->active_options() & SELECT_BIG_RESULT || with_json_agg) ||
         (tab->quick() &&
          tab->quick()->get_type() ==
            QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX))
@@ -3795,6 +3795,9 @@ static bool build_equal_items_for_cond(THD *thd, Item *cond, Item **retcond,
   Item_equal *item_equal;
   COND_EQUAL cond_equal;
   cond_equal.upper_levels= inherited;
+
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, NULL))
+    return true;                          // Fatal error flag is set!
 
   const enum Item::Type cond_type= cond->type();
   if (cond_type == Item::COND_ITEM)
@@ -7432,6 +7435,26 @@ add_key_fields(JOIN *join, Key_field **key_fields, uint *and_level,
                            cond_func->arguments()+1, 1, usable_tables,
                            sargables);
     }
+    else
+    {
+      Item *real_item= cond_func->arguments()[0]->real_item();
+      if (real_item->type() == Item::FUNC_ITEM)
+      {
+        Item_func *func_item= down_cast<Item_func*>(real_item);
+        if (func_item->functype() == Item_func::COLLATE_FUNC)
+        {
+          Item *key_item= func_item->key_item();
+          if (key_item->type() == Item::FIELD_ITEM)
+          {
+            add_key_equal_fields(key_fields, *and_level, cond_func,
+                                 down_cast<Item_field*>(key_item),
+                                 equal_func,
+                                 cond_func->arguments()+1, 1, usable_tables,
+                                 sargables);
+          }
+        }
+      }
+    }
     if (is_local_field (cond_func->arguments()[1]) &&
 	cond_func->functype() != Item_func::LIKE_FUNC)
     {
@@ -7441,6 +7464,27 @@ add_key_fields(JOIN *join, Key_field **key_fields, uint *and_level,
                            cond_func->arguments(),1,usable_tables,
                            sargables);
     }
+    else
+    {
+      Item *real_item= cond_func->arguments()[1]->real_item();
+      if (real_item->type() == Item::FUNC_ITEM)
+      {
+        Item_func *func_item= down_cast<Item_func*>(real_item);
+        if (func_item->functype() == Item_func::COLLATE_FUNC)
+        {
+          Item *key_item= func_item->key_item();
+          if (key_item->type() == Item::FIELD_ITEM)
+          {
+            add_key_equal_fields(key_fields, *and_level, cond_func,
+                                 down_cast<Item_field*>(key_item),
+                                 equal_func,
+                                 cond_func->arguments(), 1, usable_tables,
+                                 sargables);
+          }
+        }
+      }
+    }
+
     break;
   }
   case Item_func::OPTIMIZE_NULL:

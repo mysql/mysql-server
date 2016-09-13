@@ -49,6 +49,7 @@ CREATE TABLE t1 (
 # We mask out the Privileges column because it differs with embedded server
 --replace_column 8 #
 show full fields from t1;
+analyze table t1;
 show keys from t1;
 
 CREATE UNIQUE INDEX test on t1 ( auto ) ;

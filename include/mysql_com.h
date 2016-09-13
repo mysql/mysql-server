@@ -22,6 +22,10 @@
 #define _mysql_com_h
 #include "binary_log_types.h"
 #include "my_command.h"
+/*
+  FIXME: #include something that gives us my_bool, but without breaking
+  the ABI checker.
+*/
 #define HOSTNAME_LENGTH 60
 #define SYSTEM_CHARSET_MBMAXLEN 3
 #define FILENAME_CHARSET_MBMAXLEN 5

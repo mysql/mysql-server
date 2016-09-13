@@ -22,6 +22,8 @@
 */
 
 #include "mysql/psi/psi_statement.h"
+#include "pfs_statement_provider.h"  // IWYU pragma: keep
+#include "pfs_stage_provider.h"  // IWYU pragma: keep
 
 class Diagnostics_area;
 typedef struct charset_info_st CHARSET_INFO;
@@ -32,6 +34,10 @@ typedef struct charset_info_st CHARSET_INFO;
 
 #ifndef PSI_DIGEST_CALL
 #define PSI_DIGEST_CALL(M) psi_statement_service->M
+#endif
+
+#ifndef PSI_STAGE_CALL
+#define PSI_STAGE_CALL(M) psi_stage_service->M
 #endif
 
 /**

@@ -21,5 +21,6 @@ select TABLE_SCHEMA, TABLE_NAME from information_schema.tables
 #
 select ORDINAL_POSITION, COLUMN_NAME, COLUMN_TYPE, COLUMN_DEFAULT,
        IS_NULLABLE from information_schema.columns
-  where TABLE_SCHEMA = 'mysql' and TABLE_NAME = 'ndb_binlog_index';
+  where TABLE_SCHEMA = 'mysql' and TABLE_NAME = 'ndb_binlog_index'
+  order by ORDINAL_POSITION;
 

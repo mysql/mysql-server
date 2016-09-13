@@ -688,7 +688,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   /* 
     We reuse name_buff since it is available.
   */
-#ifdef HAVE_READLINK
+#ifndef _WIN32
   if (my_enable_symlinks &&
       create_info->data_file_name &&
       create_info->data_file_name[0] != '#')
@@ -702,7 +702,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
               MY_REPLACE_EXT | MY_UNPACK_FILENAME);
   }
   else
-#endif /* HAVE_READLINK */
+#endif /* !_WIN32 */
   {
     if (create_info->data_file_name)
     {
@@ -738,8 +738,10 @@ int ha_archive::create(const char *name, TABLE *table_arg,
       goto error2;
     }
 
+#ifndef _WIN32
     if (linkname[0])
       my_symlink(name_buff, linkname, MYF(0));
+#endif
 
     // TODO: Write SDI here?
 

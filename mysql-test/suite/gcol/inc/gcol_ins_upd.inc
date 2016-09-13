@@ -654,4 +654,20 @@ DELETE FROM t1;
 
 DROP TEMPORARY TABLE t1;
 
+
+--echo #
+--echo #  WL#6599 - Add test case for SHOW COLUMNS/KEYS on a temporary table.
+--echo #
+
+CREATE TEMPORARY TABLE t1 (
+  a INTEGER NOT NULL,
+  b INTEGER GENERATED ALWAYS AS (a+1) VIRTUAL
+);
+
+--replace_column 8 #
+SHOW FULL COLUMNS FROM t1;
+SHOW KEYS FROM t1;
+
+DROP TEMPORARY TABLE t1;
+
 }

@@ -38,7 +38,7 @@ SHOW CREATE TABLE INFORMATION_SCHEMA.PARAMETERS;
 --replace_column 19 #
 query_vertical SELECT * FROM information_schema.columns
 WHERE table_schema = 'information_schema'
-  AND table_name   = 'parameters'
+  AND table_name   = 'PARAMETERS'
 ORDER BY ordinal_position;
 
 DESCRIBE INFORMATION_SCHEMA.PARAMETERS;

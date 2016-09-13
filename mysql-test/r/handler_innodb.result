@@ -768,7 +768,7 @@ handler t1 close;
 drop table t1;
 USE information_schema;
 HANDLER COLUMNS OPEN;
-ERROR HY000: Incorrect usage of HANDLER OPEN and information_schema
+ERROR HY000: 'information_schema.COLUMNS' is not BASE TABLE
 USE test;
 #
 # Add test coverage for HANDLER and LOCK TABLES, HANDLER and DDL.
@@ -1577,7 +1577,7 @@ CREATE TABLE t1 (id INT);
 HANDLER t1 OPEN;
 SELECT table_name, table_comment FROM information_schema.tables
 WHERE table_schema= 'test' AND table_name= 't1';
-table_name	table_comment
+TABLE_NAME	TABLE_COMMENT
 t1	
 HANDLER t1 CLOSE;
 DROP TABLE t1;

@@ -2,6 +2,9 @@ drop table if exists t1,t2,t3;
 create table t1 (a int not null,b int not null, primary key (a)) engine=heap comment="testing heaps" avg_row_length=100 min_rows=1 max_rows=100;
 insert into t1 values(1,1),(2,2),(3,3),(4,4);
 delete from t1 where a=1 or a=0;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	PRIMARY	1	a	NULL	3	NULL	NULL		HASH			YES
@@ -764,6 +767,10 @@ a
 drop table t1;
 create table t1 (c char(10)) engine=memory;
 create table t2 (c varchar(10)) engine=memory;
+analyze table t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t2	analyze	note	The storage engine for the table doesn't support analyze
 show table status like 't_';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	10	Fixed	0	11	0	#	0	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		

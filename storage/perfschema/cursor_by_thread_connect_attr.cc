@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -40,6 +40,12 @@ cursor_by_thread_connect_attr::cursor_by_thread_connect_attr(
   PFS_engine_table(share, &m_pos), m_row_exists(false)
 {}
 
+void cursor_by_thread_connect_attr::reset_position(void)
+{
+  m_pos.reset();
+  m_next_pos.reset();
+}
+
 int cursor_by_thread_connect_attr::rnd_next(void)
 {
   PFS_thread *thread;
@@ -64,7 +70,6 @@ int cursor_by_thread_connect_attr::rnd_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-
 int cursor_by_thread_connect_attr::rnd_pos(const void *pos)
 {
   PFS_thread *thread;
@@ -80,11 +85,4 @@ int cursor_by_thread_connect_attr::rnd_pos(const void *pos)
   }
 
   return HA_ERR_RECORD_DELETED;
-}
-
-
-void cursor_by_thread_connect_attr::reset_position(void)
-{
-  m_pos.reset();
-  m_next_pos.reset();
 }

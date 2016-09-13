@@ -420,12 +420,7 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
 
   /*Prepare stackframe for the first StackWalk64 call*/
   frame.AddrFrame.Mode= frame.AddrPC.Mode= frame.AddrStack.Mode= AddrModeFlat;
-#if (defined _M_IX86)
-  machine= IMAGE_FILE_MACHINE_I386;
-  frame.AddrFrame.Offset= context.Ebp;
-  frame.AddrPC.Offset=    context.Eip;
-  frame.AddrStack.Offset= context.Esp;
-#elif (defined _M_X64)
+#if (defined _M_X64)
   machine = IMAGE_FILE_MACHINE_AMD64;
   frame.AddrFrame.Offset= context.Rbp;
   frame.AddrPC.Offset=    context.Rip;
@@ -453,19 +448,6 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
     addr= frame.AddrPC.Offset;
 
     have_module= SymGetModuleInfo64(hProcess,addr,&module);
-#ifdef _M_IX86
-    if(!have_module)
-    {
-      /*
-        ModuleInfo structure has been "compatibly" extended in releases after XP,
-        and its size was increased. To make XP dbghelp.dll function
-        happy, pretend passing the old structure.
-      */
-      module.SizeOfStruct= MODULE64_SIZE_WINXP;
-      have_module= SymGetModuleInfo64(hProcess, addr, &module);
-    }
-#endif
-
     have_symbol= SymGetSymFromAddr64(hProcess, addr, &function_offset,
       &(package.sym));
     have_source= SymGetLineFromAddr64(hProcess, addr, &line_offset, &line);
@@ -563,7 +545,7 @@ void my_create_minidump(const char *name, HANDLE process, DWORD pid)
                                         MiniDumpWithProcessThreadData);
     /* Create minidump, use info only if same process. */
     if(MiniDumpWriteDump(process, pid, hFile, mdt,
-                         process ? NULL : &info, 0, 0))
+                         process ? &info : NULL, 0, 0))
     {
       my_safe_printf_stderr("Minidump written to %s\n",
                             _fullpath(path, name, sizeof(path)) ?

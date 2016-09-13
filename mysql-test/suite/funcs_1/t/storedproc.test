@@ -26967,6 +26967,7 @@ BEGIN
     insert into res_t9 values (@a, @b, @c);
     SELECT * from res_t9;
     create index index_1 on res_t9 (f1 (5));
+    analyze table res_t9;
     show index from res_t9;
 END//
 delimiter ;//

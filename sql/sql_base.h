@@ -98,6 +98,17 @@ namespace dd { class Table; }
   This flag is used to instruct tdc_open_view() to check metadata version.
 */
 #define CHECK_METADATA_VERSION OPEN_TRIGGER_ONLY*2
+/**
+  This flag is used to instruct open_table() to open
+  TMP_TABLE_COLUMNS/KEYS I_S table only for the SHOW commands.
+*/
+#define OPEN_FOR_SHOW_ONLY     CHECK_METADATA_VERSION*2
+/**
+  Avoid dd::Table lookup in open_table_from_share() call.
+  Temporary workaround used by upgrade code until we start
+  reading info from InnoDB SYS tables directly.
+*/
+#define OPEN_NO_DD_TABLE       OPEN_FOR_SHOW_ONLY*2
 
 
 /*

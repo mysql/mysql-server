@@ -19,9 +19,12 @@
 */
 
 #include <my_global.h>
-#include <errno.h>
-#include "m_string.h"
+#include <string.h>
+#include <sys/types.h>
+
 #include "m_ctype.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
 
 
 #define is_mb_1(c)            ((uchar) (c) <= 0x7F)

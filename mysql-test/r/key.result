@@ -147,6 +147,9 @@ a	1
 a	2
 drop table t1;
 create table t1 (a int not null unique, b int unique, c int, d int not null primary key, key(c), e int not null unique);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	PRIMARY	1	d	A	0	NULL	NULL		BTREE			YES
@@ -689,7 +692,7 @@ th	CREATE TABLE `th` (
 #
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' order by table_name;
-table_name	index_type
+TABLE_NAME	INDEX_TYPE
 th	HASH
 ti	BTREE
 tm	BTREE
@@ -726,7 +729,7 @@ th	CREATE TABLE `th` (
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'l'
   order by table_name;
-table_name	index_type
+TABLE_NAME	INDEX_TYPE
 th	HASH
 ti	BTREE
 tm	BTREE
@@ -765,7 +768,7 @@ ti	CREATE TABLE `ti` (
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'p'
   order by table_name;
-table_name	index_type
+TABLE_NAME	INDEX_TYPE
 ti	SPATIAL
 tm	SPATIAL
 #
@@ -796,7 +799,7 @@ ti	CREATE TABLE `ti` (
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'q'
   order by table_name;
-table_name	index_type
+TABLE_NAME	INDEX_TYPE
 ti	SPATIAL
 tm	SPATIAL
 drop tables tm, ti;
@@ -826,7 +829,7 @@ ti	CREATE TABLE `ti` (
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'v'
   order by table_name;
-table_name	index_type
+TABLE_NAME	INDEX_TYPE
 ti	FULLTEXT
 tm	FULLTEXT
 #
@@ -857,7 +860,7 @@ ti	CREATE TABLE `ti` (
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'w'
   order by table_name;
-table_name	index_type
+TABLE_NAME	INDEX_TYPE
 ti	FULLTEXT
 tm	FULLTEXT
 drop tables tm, ti;
@@ -894,7 +897,7 @@ th	CREATE TABLE `th` (
 #
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' order by table_name;
-table_name	index_type
+TABLE_NAME	INDEX_TYPE
 th	BTREE
 ti	BTREE
 tm	BTREE
@@ -933,7 +936,7 @@ th	CREATE TABLE `th` (
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'l'
   order by table_name;
-table_name	index_type
+TABLE_NAME	INDEX_TYPE
 th	HASH
 ti	BTREE
 tm	BTREE
@@ -971,7 +974,7 @@ ti	CREATE TABLE `ti` (
 #
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' order by table_name;
-table_name	index_type
+TABLE_NAME	INDEX_TYPE
 ti	BTREE
 tm	BTREE
 #
@@ -1002,7 +1005,7 @@ ti	CREATE TABLE `ti` (
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'l'
   order by table_name;
-table_name	index_type
+TABLE_NAME	INDEX_TYPE
 ti	BTREE
 tm	BTREE
 drop tables tm, ti;
@@ -1021,7 +1024,7 @@ t1	CREATE TABLE `t1` (
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'k'
   order by table_name;
-table_name	index_type
+TABLE_NAME	INDEX_TYPE
 t1	BTREE
 # Change table's SE.
 alter table t1 engine= heap;
@@ -1036,7 +1039,7 @@ t1	CREATE TABLE `t1` (
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'k'
   order by table_name;
-table_name	index_type
+TABLE_NAME	INDEX_TYPE
 t1	HASH
 drop table t1;
 #
@@ -1053,7 +1056,7 @@ t1	CREATE TABLE `t1` (
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'k'
   order by table_name;
-table_name	index_type
+TABLE_NAME	INDEX_TYPE
 t1	BTREE
 # Change table's SE.
 alter table t1 engine= heap;
@@ -1068,7 +1071,7 @@ t1	CREATE TABLE `t1` (
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'k'
   order by table_name;
-table_name	index_type
+TABLE_NAME	INDEX_TYPE
 t1	BTREE
 drop table t1;
 #
@@ -1086,7 +1089,7 @@ t1	CREATE TABLE `t1` (
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'k'
   order by table_name;
-table_name	index_type
+TABLE_NAME	INDEX_TYPE
 t1	HASH
 # Change table's SE. Note will be emitted.
 alter table t1 engine= innodb;
@@ -1103,7 +1106,7 @@ t1	CREATE TABLE `t1` (
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'k'
   order by table_name;
-table_name	index_type
+TABLE_NAME	INDEX_TYPE
 t1	BTREE
 drop table t1;
 #

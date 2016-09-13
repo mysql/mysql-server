@@ -58,8 +58,7 @@ ha_blackhole::ha_blackhole(handlerton *hton,
 {}
 
 
-int ha_blackhole::open(const char *name, int mode, uint test_if_locked,
-                       const dd::Table *)
+int ha_blackhole::open(const char *name, int, uint, const dd::Table*)
 {
   DBUG_ENTER("ha_blackhole::open");
 
@@ -77,9 +76,7 @@ int ha_blackhole::close(void)
   DBUG_RETURN(0);
 }
 
-int ha_blackhole::create(const char *name, TABLE *table_arg,
-                         HA_CREATE_INFO *create_info,
-                         dd::Table *)
+int ha_blackhole::create(const char*, TABLE*, HA_CREATE_INFO*, dd::Table*)
 {
   DBUG_ENTER("ha_blackhole::create");
   DBUG_RETURN(0);
@@ -95,13 +92,13 @@ int ha_blackhole::truncate(dd::Table *)
   DBUG_RETURN(0);
 }
 
-int ha_blackhole::write_row(uchar * buf)
+int ha_blackhole::write_row(uchar*)
 {
   DBUG_ENTER("ha_blackhole::write_row");
   DBUG_RETURN(table->next_number_field ? update_auto_increment() : 0);
 }
 
-int ha_blackhole::update_row(const uchar *old_data, uchar *new_data)
+int ha_blackhole::update_row(const uchar*, uchar*)
 {
   DBUG_ENTER("ha_blackhole::update_row");
   THD *thd= ha_thd();
@@ -110,7 +107,7 @@ int ha_blackhole::update_row(const uchar *old_data, uchar *new_data)
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
-int ha_blackhole::delete_row(const uchar *buf)
+int ha_blackhole::delete_row(const uchar*)
 {
   DBUG_ENTER("ha_blackhole::delete_row");
   THD *thd= ha_thd();
@@ -119,14 +116,14 @@ int ha_blackhole::delete_row(const uchar *buf)
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
-int ha_blackhole::rnd_init(bool scan)
+int ha_blackhole::rnd_init(bool)
 {
   DBUG_ENTER("ha_blackhole::rnd_init");
   DBUG_RETURN(0);
 }
 
 
-int ha_blackhole::rnd_next(uchar *buf)
+int ha_blackhole::rnd_next(uchar*)
 {
   int rc;
   DBUG_ENTER("ha_blackhole::rnd_next");
@@ -143,7 +140,7 @@ int ha_blackhole::rnd_next(uchar *buf)
 }
 
 
-int ha_blackhole::rnd_pos(uchar * buf, uchar *pos)
+int ha_blackhole::rnd_pos(uchar*, uchar*)
 {
   DBUG_ENTER("ha_blackhole::rnd_pos");
   MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
@@ -154,7 +151,7 @@ int ha_blackhole::rnd_pos(uchar * buf, uchar *pos)
 }
 
 
-void ha_blackhole::position(const uchar *record)
+void ha_blackhole::position(const uchar*)
 {
   DBUG_ENTER("ha_blackhole::position");
   DBUG_ASSERT(0);
@@ -172,7 +169,7 @@ int ha_blackhole::info(uint flag)
   DBUG_RETURN(0);
 }
 
-int ha_blackhole::external_lock(THD *thd, int lock_type)
+int ha_blackhole::external_lock(THD*, int)
 {
   DBUG_ENTER("ha_blackhole::external_lock");
   DBUG_RETURN(0);
@@ -215,9 +212,8 @@ THR_LOCK_DATA **ha_blackhole::store_lock(THD *thd,
 }
 
 
-int ha_blackhole::index_read_map(uchar * buf, const uchar * key,
-                                 key_part_map keypart_map,
-                             enum ha_rkey_function find_flag)
+int ha_blackhole::index_read_map(uchar*, const uchar*, key_part_map,
+                                 enum ha_rkey_function)
 {
   int rc;
   DBUG_ENTER("ha_blackhole::index_read");
@@ -233,9 +229,8 @@ int ha_blackhole::index_read_map(uchar * buf, const uchar * key,
 }
 
 
-int ha_blackhole::index_read_idx_map(uchar * buf, uint idx, const uchar * key,
-                                 key_part_map keypart_map,
-                                 enum ha_rkey_function find_flag)
+int ha_blackhole::index_read_idx_map(uchar*, uint, const uchar*, key_part_map,
+                                     enum ha_rkey_function)
 {
   int rc;
   DBUG_ENTER("ha_blackhole::index_read_idx");
@@ -251,8 +246,7 @@ int ha_blackhole::index_read_idx_map(uchar * buf, uint idx, const uchar * key,
 }
 
 
-int ha_blackhole::index_read_last_map(uchar * buf, const uchar * key,
-                                      key_part_map keypart_map)
+int ha_blackhole::index_read_last_map(uchar*, const uchar*, key_part_map)
 {
   int rc;
   DBUG_ENTER("ha_blackhole::index_read_last");
@@ -268,7 +262,7 @@ int ha_blackhole::index_read_last_map(uchar * buf, const uchar * key,
 }
 
 
-int ha_blackhole::index_next(uchar * buf)
+int ha_blackhole::index_next(uchar*)
 {
   int rc;
   DBUG_ENTER("ha_blackhole::index_next");
@@ -280,7 +274,7 @@ int ha_blackhole::index_next(uchar * buf)
 }
 
 
-int ha_blackhole::index_prev(uchar * buf)
+int ha_blackhole::index_prev(uchar*)
 {
   int rc;
   DBUG_ENTER("ha_blackhole::index_prev");
@@ -292,7 +286,7 @@ int ha_blackhole::index_prev(uchar * buf)
 }
 
 
-int ha_blackhole::index_first(uchar * buf)
+int ha_blackhole::index_first(uchar*)
 {
   int rc;
   DBUG_ENTER("ha_blackhole::index_first");
@@ -304,7 +298,7 @@ int ha_blackhole::index_first(uchar * buf)
 }
 
 
-int ha_blackhole::index_last(uchar * buf)
+int ha_blackhole::index_last(uchar*)
 {
   int rc;
   DBUG_ENTER("ha_blackhole::index_last");
@@ -425,7 +419,7 @@ static int blackhole_init(void *p)
   return 0;
 }
 
-static int blackhole_fini(void *p)
+static int blackhole_fini(void*)
 {
   my_hash_free(&blackhole_open_tables);
   mysql_mutex_destroy(&blackhole_mutex);

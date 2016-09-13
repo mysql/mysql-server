@@ -21,7 +21,7 @@
 #include "i_progress_watcher.h"
 #include "abstract_chain_element.h"
 #include "base/atomic.h"
-#include <boost/chrono.hpp>
+#include <chrono>
 
 namespace Mysql{
 namespace Tools{
@@ -84,7 +84,7 @@ private:
   /**
     Throttles progress changes to be reported to progress_changed() about 1 in
     second. It uses 10 stages, each 100ms long, in each there is number of
-    iterations to prevent calling boost::chrono::system_clock::now() on each
+    iterations to prevent calling std::chrono::system_clock::now() on each
     function call.
    */
   void progress_changed();
@@ -92,7 +92,7 @@ private:
   static const int STAGES= 10;
   static const int REPORT_DELAY_MS= 1000;
 
-  boost::chrono::system_clock::time_point m_last_stage_time;
+  std::chrono::system_clock::time_point m_last_stage_time;
   my_boost::atomic_int64_t m_step_countdown;
   my_boost::atomic_int64_t m_stage_countdown;
   int64 m_last_step_countdown;

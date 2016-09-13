@@ -1167,6 +1167,9 @@ end:
 
 static int compare_database_names(const char *name1, const char *name2)
 {
+  if (name1 == nullptr || name2 == nullptr)
+    return 1;
+
   if (lower_case_table_names)
     return native_strcasecmp(name1, name2);
   return strcmp(name1, name2);
@@ -1345,8 +1348,9 @@ int ha_perfschema::open(const char *name, int mode, uint test_if_locked,
 {
   DBUG_ENTER("ha_perfschema::open");
 
-  m_table_share= find_table_share(table_share->db.str,
-                                  table_share->table_name.str);
+  if (! m_table_share)
+    m_table_share= find_table_share(table_share->db.str,
+                                    table_share->table_name.str);
   if (! m_table_share)
     DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 
@@ -1615,6 +1619,163 @@ void ha_perfschema::print_error(int error, myf errflag)
   }
 }
 
+const char *ha_perfschema::index_type(uint)
+{ return ""; }
+
+ulong ha_perfschema::index_flags(uint idx, uint part, bool all_parts) const
+{
+  const PFS_engine_table_share *tmp;
+
+  if (m_table_share != NULL)
+  {
+    tmp= m_table_share;
+  }
+  else
+  {
+    tmp= find_table_share(table_share->db.str,
+                          table_share->table_name.str);
+    /* ha_perfschema::index_flags is const, can not save in m_table_share. */
+  }
+
+  ulong flags = HA_KEY_SCAN_NOT_ROR;
+
+  if (!tmp)
+    return 0;
+
+  return flags;
+}
+
+/**
+  Initializes a handle to use an index.
+  @return 0 or error number
+*/
+int ha_perfschema::index_init(uint idx, bool sorted)
+{
+  int result;
+  DBUG_ENTER("ha_perfschema::index_init");
+
+  DBUG_ASSERT(m_table_share);
+  DBUG_ASSERT(m_table_share->m_open_table != NULL);
+
+  if (m_table == NULL)
+    m_table= m_table_share->m_open_table();
+  else
+    m_table->reset_position();
+
+  active_index= idx;
+
+  if (m_table)
+    result= m_table->index_init(idx, sorted);
+  else
+    result= HA_ERR_OUT_OF_MEM;
+
+  DBUG_RETURN(result);
+}
+
+int ha_perfschema::index_end()
+{
+  DBUG_ENTER("ha_perfschema::index_end");
+  DBUG_ASSERT(m_table);
+  DBUG_ASSERT(active_index != MAX_KEY);
+  delete m_table;
+  m_table= NULL;
+  active_index= MAX_KEY;
+  DBUG_RETURN(0);
+}
+
+/**
+  Positions an index cursor to the index specified in the handle. Fetches the
+  row if any.
+  @return 0, HA_ERR_KEY_NOT_FOUND, or error
+*/
+int ha_perfschema::index_read(uchar *buf, const uchar *key, uint key_len,
+                              enum ha_rkey_function find_flag)
+{
+  DBUG_ENTER("ha_perfschema::index_read");
+  if (!PFS_ENABLED())
+  {
+    table->status= STATUS_NOT_FOUND;
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
+  DBUG_ASSERT(m_table_share);
+  DBUG_ASSERT(m_table_share->m_open_table != NULL);
+
+  if (m_table == NULL)
+    m_table= m_table_share->m_open_table();
+  else
+    m_table->reset_position();
+
+  DBUG_ASSERT(m_table);
+  ha_statistic_increment(&System_status_var::ha_read_key_count);
+
+  DBUG_ASSERT(table != NULL);
+  DBUG_ASSERT(table->s != NULL);
+  DBUG_ASSERT(table->s->key_info != NULL);
+  KEY *key_infos= table->s->key_info;
+
+  int result= m_table->index_read(key_infos, active_index, key, key_len, find_flag);
+  if (result == 0)
+  {
+    result= m_table->read_row(table, buf, table->field);
+  }
+  table->status= (result ? STATUS_NOT_FOUND : 0);
+  DBUG_RETURN(result);
+}
+
+/**
+  Reads the next row from a cursor, which must have previously been
+  positioned by index_read.
+  @return 0, HA_ERR_END_OF_FILE, or error
+*/
+int ha_perfschema::index_next(uchar *buf)
+{
+  DBUG_ENTER("ha_perfschema::index_next");
+  if (!PFS_ENABLED())
+  {
+    table->status= STATUS_NOT_FOUND;
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
+
+  ha_statistic_increment(&System_status_var::ha_read_next_count);
+
+  DBUG_ASSERT(m_table);
+
+  int result= m_table->index_next();
+  if (result == 0)
+  {
+    result= m_table->read_row(table, buf, table->field);
+  }
+  table->status= (result ? STATUS_NOT_FOUND : 0);
+  DBUG_RETURN(result);
+}
+
+/**
+  Reads the next row matching the given key value.
+  @return 0, HA_ERR_END_OF_FILE, or error
+*/
+int ha_perfschema::index_next_same(uchar *buf, const uchar* key, uint keylen)
+{
+  DBUG_ENTER("ha_perfschema::index_next_same");
+  if (!PFS_ENABLED())
+  {
+    table->status= STATUS_NOT_FOUND;
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
+
+  ha_statistic_increment(&System_status_var::ha_read_next_count);
+
+  DBUG_ASSERT(m_table);
+
+  int result= m_table->index_next_same(key, keylen);
+  if (result == 0)
+  {
+    result= m_table->read_row(table, buf, table->field);
+  }
+
+  table->status= (result ? STATUS_NOT_FOUND : 0);
+
+  DBUG_RETURN(result);
+}
 
 bool ha_perfschema::is_executed_by_slave() const
 {
@@ -1622,4 +1783,3 @@ bool ha_perfschema::is_executed_by_slave() const
   DBUG_ASSERT(table->in_use != NULL);
   return table->in_use->slave_thread;
 }
-

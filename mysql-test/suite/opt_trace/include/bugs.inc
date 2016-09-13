@@ -476,3 +476,36 @@ EXECUTE stmt;
 EXECUTE stmt;
 
 DROP TABLE B,C,CC;
+
+--echo #
+--echo # Bug #23259872: OPTIMIZER CHOOSES TO USE NON PRIMARY
+--echo #                INDEX, EVEN THOUGH COST IS HIGHER
+--echo #
+
+CREATE TABLE t1 (
+  a TINYTEXT NOT NULL,
+  b TINYINT(3) UNSIGNED NOT NULL,
+  PRIMARY KEY (a(32),b)
+) ENGINE=MyISAM;
+CREATE TABLE t2 (
+  a TINYTEXT NOT NULL,
+  b TINYINT(3) UNSIGNED NOT NULL,
+  PRIMARY KEY (a(32),b)
+) ENGINE=INNODB;
+
+INSERT INTO t1 VALUES ('a',1),('a',2);
+INSERT INTO t2 VALUES ('a',1),('a',2);
+
+SET optimizer_trace="enabled=on";
+
+# Uses "access_type_changed" to use range over ref
+EXPLAIN SELECT * FROM t1 WHERE a='a' AND b in (1,2);
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+# Uses "unreliable_ref_cost_and_range_uses_more_keyparts" to ignore ref access
+# on index with overly optimistic cost-estimate
+EXPLAIN SELECT * FROM t2 WHERE a='a' AND b in (1,2);
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SET optimizer_trace="enabled=off";
+
+DROP TABLE t1, t2;

@@ -7526,46 +7526,45 @@ static void test_explain_bug()
             mysql_num_fields(result));
   DIE_UNLESS(6 == mysql_num_fields(result));
 
-  verify_prepare_field(result, 0, "Field", "COLUMN_NAME",
+  verify_prepare_field(result, 0, "Field", "Field",
                        mysql_get_server_version(mysql) <= 50000 ?
                        MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
-                       0, 0, "information_schema", 64, 0);
+                       0, 0, "", 64, 0);
 
-  verify_prepare_field(result, 1, "Type", "COLUMN_TYPE", MYSQL_TYPE_BLOB,
-                       0, 0, "information_schema", 0, 0);
+  verify_prepare_field(result, 1, "Type", "Type", MYSQL_TYPE_BLOB,
+                       0, 0, "mysql", 0, 0);
 
-  verify_prepare_field(result, 2, "Null", "IS_NULLABLE",
+  verify_prepare_field(result, 2, "Null", "Null",
                        mysql_get_server_version(mysql) <= 50000 ?
                        MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
-                       0, 0, "information_schema", 3, 0);
+                       0, 0, "", 3, 0);
 
-  verify_prepare_field(result, 3, "Key", "COLUMN_KEY",
-                       mysql_get_server_version(mysql) <= 50000 ?
-                       MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
-                       0, 0, "information_schema", 3, 0);
+  verify_prepare_field(result, 3, "Key", "Key",
+                       MYSQL_TYPE_STRING,
+                       0, 0, "mysql", 3, 0);
 
   if ( mysql_get_server_version(mysql) >= 50027 )
   {
     /*  The patch for bug#23037 changes column type of DEAULT to blob */
-    verify_prepare_field(result, 4, "Default", "COLUMN_DEFAULT",
-                         MYSQL_TYPE_BLOB, 0, 0, "information_schema", 0, 0);
+    verify_prepare_field(result, 4, "Default", "Default",
+                         MYSQL_TYPE_BLOB, 0, 0, "mysql", 0, 0);
   }
   else
   {
-    verify_prepare_field(result, 4, "Default", "COLUMN_DEFAULT",
+    verify_prepare_field(result, 4, "Default", "Default",
                          mysql_get_server_version(mysql) >= 50027 ?
                          MYSQL_TYPE_BLOB :
                          mysql_get_server_version(mysql) <= 50000 ?
                          MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
-                         0, 0, "information_schema",
+                         0, 0, "mysql",
                          mysql_get_server_version(mysql) >= 50027 ? 0 :64, 0);
   }
 
-  verify_prepare_field(result, 5, "Extra", "EXTRA",
+  verify_prepare_field(result, 5, "Extra", "Extra",
                        mysql_get_server_version(mysql) <= 50000 ?
                        MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
-                       0, 0, "information_schema",
-                       mysql_get_server_version(mysql) <= 50602 ? 27 : 30,
+                       0, 0, "",
+                       mysql_get_server_version(mysql) <= 50602 ? 27 : 57,
                        0);
 
   mysql_free_result(result);

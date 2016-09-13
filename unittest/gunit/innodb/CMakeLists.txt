@@ -30,8 +30,7 @@ SET(TESTS
   ha_innodb
   mem0mem
   ut0crc32
-  # Disabled due to Bug#23630781 CRASH IN UT0LOCK_FREE_HASH-T
-  #ut0lock_free_hash
+  ut0lock_free_hash
   ut0mem
   ut0new
 )

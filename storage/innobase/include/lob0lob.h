@@ -135,14 +135,14 @@ public:
 	/** Initialize the external field reference to zeroes. */
 	void set_null()
 	{
-		memset(m_ref, 0x00, BTR_EXTERN_FIELD_REF_SIZE);
+		memset(m_ref, 0x00, SIZE);
 	}
 
 	/** Check if the field reference is made of zeroes.
 	@return true if field reference is made of zeroes, false otherwise. */
 	bool is_null() const
 	{
-		return(memcmp(field_ref_zero, m_ref, BTR_EXTERN_FIELD_REF_SIZE) == 0);
+		return(memcmp(field_ref_zero, m_ref, SIZE) == 0);
 	}
 
 	/** Set the ownership flag in the blob reference.
@@ -290,6 +290,9 @@ public:
 		return(::page_align(m_ref));
 	}
 #endif /* UNIV_DEBUG */
+
+	/** The size of an LOB reference object (in bytes) */
+	static const uint SIZE = BTR_EXTERN_FIELD_REF_SIZE;
 
 private:
 	/** Pointing to a memory of size BTR_EXTERN_FIELD_REF_SIZE */
@@ -456,7 +459,8 @@ public:
 	m_op(OPCODE_UNKNOWN)
 	{
 		ut_ad(m_pcur == NULL || rec_offs_validate());
-		ut_ad(m_block == NULL || m_block->frame == page_align(m_rec));
+		ut_ad(m_block == NULL || m_rec == NULL
+		      || m_block->frame == page_align(m_rec));
 		ut_ad(m_pcur == NULL || m_rec == btr_pcur_get_rec(m_pcur));
 	}
 
@@ -750,10 +754,16 @@ public:
 	}
 
 	/** Get the table object.
-	@return table object */
+	@return table object or NULL. */
 	dict_table_t*	table() const
 	{
-		return(m_pcur->index()->table);
+		dict_table_t*	result = nullptr;
+
+		if (m_pcur != nullptr && m_pcur->index() != nullptr) {
+			result = m_pcur->index()->table;
+		}
+
+		return(result);
 	}
 
 	/** Get the space id.
@@ -1572,13 +1582,11 @@ struct Reader
 	:
 	m_rctx(ctx),
 	m_cur_block(NULL),
-	m_copied_len(0),
-	m_part_len(0),
-	m_copy_len(0)
+	m_copied_len(0)
 	{}
 
-	/** Fetch the complete or prefix of the uncompressed BLOB
-	@return bytes of BLOB data fetched. */
+	/** Fetch the complete or prefix of the uncompressed LOB data.
+	@return bytes of LOB data fetched. */
 	ulint fetch();
 
 	/** Fetch one BLOB page. */
@@ -1589,21 +1597,21 @@ struct Reader
 	/** Buffer block of the current BLOB page */
 	buf_block_t*	m_cur_block;
 
-	/** Bytes of BLOB data that has been copied. */
+	/** Total bytes of LOB data that has been copied from multiple
+	LOB pages. This is a cumulative value.  When this value reaches
+	m_rctx.m_len, then the read operation is completed. */
 	ulint		m_copied_len;
-
-	/** Bytes of BLOB data available in the current BLOB page. */
-	ulint		m_part_len;
-
-	/** Bytes of BLOB data obtained from the current BLOB page. */
-	ulint		m_copy_len;
 };
 
 /** The context information when the delete operation on LOB is
 taking place. */
 struct DeleteContext : public BtrContext
 {
-	DeleteContext(byte *field_ref) : m_blobref(field_ref)
+	DeleteContext(byte *field_ref)
+	:
+	m_blobref(field_ref),
+	m_page_size(table() == nullptr ? get_page_size()
+		: dict_table_page_size(table()))
 	{}
 
 	DeleteContext(
@@ -1615,14 +1623,16 @@ struct DeleteContext : public BtrContext
 	BtrContext(btr),
 	m_blobref(field_ref),
 	m_field_no(field_no),
-	m_rollback(rollback)
+	m_rollback(rollback),
+	m_page_size(table() == nullptr ? get_page_size()
+		: dict_table_page_size(table()))
 	{}
 
 	/** Determine if it is compressed page format.
 	@return true if compressed. */
 	bool is_compressed() const
 	{
-		return(get_page_zip() != NULL);
+		return(m_page_size.is_compressed());
 	}
 
 	/** Check if tablespace supports atomic blobs.
@@ -1668,6 +1678,20 @@ struct DeleteContext : public BtrContext
 	/** Is this operation part of rollback? */
 	bool	m_rollback;
 
+	page_size_t	m_page_size;
+
+private:
+	/** Obtain the page size from the tablespace flags.
+	@return the page size. */
+	page_size_t get_page_size() const
+	{
+		bool	found;
+		space_id_t	space_id = m_blobref.space_id();
+		const page_size_t& tmp = fil_space_get_page_size(
+			space_id, &found);
+		ut_ad(found);
+		return(tmp);
+	}
 };
 
 /* Delete a LOB */
@@ -1693,28 +1717,7 @@ public:
 
 	/** Free the LOB object.
 	@return DB_SUCCESS on success. */
-	dberr_t	destroy()
-	{
-		dberr_t	err(DB_SUCCESS);
-
-		if (!can_free()) {
-			return(DB_SUCCESS);
-		}
-
-		if (dict_index_is_online_ddl(m_ctx.index())) {
-			row_log_table_blob_free(m_ctx.index(),
-						m_ctx.m_blobref.page_no());
-		}
-
-		while (m_ctx.m_blobref.page_no() == FIL_NULL) {
-			err = free_first_page();
-			if (err != DB_SUCCESS) {
-				break;
-			}
-		}
-
-		return(err);
-	}
+	dberr_t	destroy();
 
 	/** Free the first page of the BLOB and update the BLOB reference
 	in the clustered index.

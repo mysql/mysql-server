@@ -55,12 +55,14 @@ enum_sp_return_code find_routine(cache::Dictionary_client *dd_client,
   @param[in]  thd      Thread handle.
   @param[in]  schema   Schema to create the routine in.
   @param[in]  sp       Stored routine object to store.
+  @param[in]  definer  Stored routine definer.
 
   @retval SP_OK      ON SUCCESS
   @retval non-SP_OK  ON FAILURE
 */
 
-enum_sp_return_code create_routine(THD *thd, const Schema *schema, sp_head *sp);
+enum_sp_return_code create_routine(THD *thd, const Schema *schema, sp_head *sp,
+                                   const LEX_USER *definer);
 
 
 /**

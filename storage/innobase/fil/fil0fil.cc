@@ -3460,6 +3460,8 @@ fil_ibd_create(
 
 	space = fil_space_create(name, space_id, flags, FIL_TYPE_TABLESPACE);
 
+	DEBUG_SYNC_C("fil_ibd_created_space");
+
 	err = fil_node_create_low(
 		path, size, space, false, punch_hole, atomic_write)
 		? DB_SUCCESS
@@ -4787,12 +4789,22 @@ fil_io(
 		mutex_exit(&fil_system->mutex);
 
 		if (!req_type.ignore_missing()) {
-			ib::error()
-				<< "Trying to do I/O to a tablespace which"
-				" does not exist. I/O type: "
-				<< (req_type.is_read() ? "read" : "write")
-				<< ", page: " << page_id
-				<< ", I/O length: " << len << " bytes";
+			if (space == NULL) {
+				ib::error()
+					<< "Trying to do I/O on a tablespace"
+					<< " which does not exist. I/O type: "
+					<< (req_type.is_read()
+					    ? "read" : "write")
+					<< ", page: " << page_id
+					<< ", I/O length: " << len << " bytes";
+			} else {
+				ib::error()
+					<< "Trying to do async read on a"
+					<< " tablespace which is being deleted."
+					<< " Tablespace name: \"" << space->name
+					<< "\", page: " << page_id
+					<< ", read length: " << len << " bytes";
+			}
 		}
 
 		return(DB_TABLESPACE_DELETED);
@@ -5955,9 +5967,12 @@ fil_node_next(
 			space->n_pending_ops--;
 			space = UT_LIST_GET_NEXT(space_list, space);
 
-			/* Skip spaces that are being dropped. */
+			/* Skip spaces that are being
+			created by fil_ibd_create(),
+			or dropped. */
 			while (space != NULL
-			       && space->stop_new_ops) {
+			       && (UT_LIST_GET_LEN(space->chain) == 0
+				   || space->stop_new_ops)) {
 				space = UT_LIST_GET_NEXT(space_list, space);
 			}
 

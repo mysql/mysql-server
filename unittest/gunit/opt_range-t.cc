@@ -351,7 +351,9 @@ void OptRangeTest::check_use_count(SEL_TREE *tree)
   {
     SEL_ARG *cur_range= tree->keys[i];
     if (cur_range != NULL)
+    {
       EXPECT_FALSE(cur_range->test_use_count(cur_range));
+    }
   }
 
   if (!tree->merges.is_empty())
@@ -472,7 +474,7 @@ static void print_selarg_ranges(String *s, SEL_ARG *sel_arg,
                                 const KEY_PART_INFO *kpi)
 {
   for (SEL_ARG *cur= sel_arg->first();
-       cur != &null_element;
+       cur != null_element;
        cur= cur->right)
   {
     String current_range;
@@ -1662,19 +1664,6 @@ TEST_F(OptRangeTest, KeyOr2)
                           "(13 < field_1)\n"
     "  merge_tree keys[0]: (14 <= field_2 <= 14)\n";
   create_and_check_tree_or(tree_or1, tree_or2, SEL_TREE::KEY, exp_or3);
-
-  /*
-    fld1_20 was modified to reflect the AND in tree_and1 (and these
-    trees are the same). They are no longer used, as reflected by
-    use_count=0
-  */
-  EXPECT_EQ(fld1_20, tree_and1);
-  EXPECT_EQ(0UL, fld1_20->keys[0]->use_count);
-  EXPECT_EQ(null_arg, fld1_20->keys[0]->next_key_part);
-
-  EXPECT_EQ(0UL, fld1_20->keys[1]->use_count);
-  EXPECT_NE(null_arg, fld1_20->keys[1]->next_key_part);
-  EXPECT_EQ(0UL, fld1_20->keys[1]->next_key_part->use_count);
 }
 
 class Mock_SEL_ARG : public SEL_ARG
@@ -1819,156 +1808,35 @@ TEST_F(OptRangeTest, RowConstructorIn3)
   check_tree_result(sel_tree, SEL_TREE::KEY, expected);
 }
 
-/*
-  Sets up a simplified tree to represent the interval list. The result
-  is not a proper RB-tree: on the "left" side of 'root', only 'left'
-  and 'parent' pointers are used, and on the "right" side of 'root'
-  only 'right' and 'parent' pointers are used. In addition, the nodes
-  are connected via 'next' linked list pointers.
-
-  This is sufficient for SEL_ARG's first() / last() /
-  increment_use_count() functions to work.
-
-  The root node of the tree will not change by calling this function.
-
-  @param root    The root of the tree that 'other' will be added to
-  @param other   SEL_ARG that will be added to the tree.
-
-  @note While it's perfectly fine for 'root' to be a tree of SEL_ARGs,
-  'other' can currently only be a single SEL_ARG (i.e., it cannot
-  refer to any other SEL_ARGs through next/prev/left/right)
-*/
-
-static void build_interval_list(Mock_SEL_ARG *root, Mock_SEL_ARG *other)
-{
-  /*
-    Keep the tree balanced by adding nodes to left and right of
-    'root' in an alternating fashion
-  */
-  if (root->elements % 2)
-  {
-    SEL_ARG *add_to= root->first();
-    add_to->left=  other;
-    other->next=   add_to;
-    other->parent= add_to;
-  }
-  else
-  {
-    SEL_ARG *add_to= root->last();
-    add_to->next=  other;
-    add_to->right= other;
-    other->parent= add_to;
-  }
-
-  root->elements++;
-}
-
-
-TEST_F(OptRangeTest, IncrementUseCount)
-{
-  /*
-    We build the following SEL_ARG graph, corresponding to the condition
-    (kp11 = c AND (kp12 = c OR kp22 = c) AND kp3 = c) OR
-    (kp12 = c AND (kp12 = c OR kp22 = c) AND kp3 = c)
-
-    [kp11*]---[kp21*]---[kp3*]
-       |      /  |      /
-    [kp12]---/ [kp22]--/
-
-    Vertical lines = next/prev pointers
-    Horizontal lines = next_key_part pointers
-    * indicates that the SEL_ARG is root 
-  */
-  Mock_SEL_ARG kp3(NULL, 4);
-
-  Mock_SEL_ARG kp21(&kp3, 2);
-  Mock_SEL_ARG kp22(&kp3, 0);
-  build_interval_list(&kp21, &kp22);
-
-  Mock_SEL_ARG kp11(&kp21, 0);
-  Mock_SEL_ARG kp12(&kp21, 0);
-  build_interval_list(&kp11, &kp12);
-
-  /*
-    At this point, no one refers to this SEL_ARG graph, so the
-    use_count is 0 for all roots. Below we check that
-    increment_use_count() correctly updates use_count for the whole
-    tree. The actual test that use_count is as expected is performed
-    in ~Mock_SEL_ARG.
-   */
-  kp11.increment_use_count(1);
-}
-
-
-TEST_F(OptRangeTest, IncrementUseCount2)
-{
-  /*
-    We build the following SEL_ARG graph, corresponding to the condition
-    (kp11 = c AND kp2 = c AND (kp31 = c OR kp32 = c)) OR
-    (kp12 = c AND kp2 = c AND (kp31 = c OR kp32 = c))
-
-    [kp11*]---[kp2*]---[kp31*]
-       |      /           |
-    [kp12]---/         [kp32]
-
-    Vertical lines = next/prev pointers
-    Horizontal lines = next_key_part pointers
-    * indicates that the SEL_ARG is root 
-  */
-
-  Mock_SEL_ARG kp31(NULL, 2);
-  Mock_SEL_ARG kp32(NULL, 0);
-  build_interval_list(&kp31, &kp32);
-
-  Mock_SEL_ARG kp2(&kp31, 2);
-
-  Mock_SEL_ARG kp11(&kp2, 0);
-  Mock_SEL_ARG kp12(&kp2, 0);
-  build_interval_list(&kp11, &kp12);
-
-  /*
-    At this point, no one refers to this SEL_ARG graph, so the
-    use_count is 0 for all roots. Below we check that
-    increment_use_count() correctly updates use_count for the whole
-    tree. The actual test that use_count is as expected is performed
-    in ~Mock_SEL_ARG.
- 
-   */
-  kp11.increment_use_count(1);
-}
-
 TEST_F(OptRangeTest, CombineAlways)
 {
-  // Gets decremented in key_or() before being compared > 0, triggering
-  // a DBUG_ASSERT in SEL_ARG::SEL_ARG(Type) unless the ALWAYS type is
-  // handled.
-  static const int INITIAL_USE_COUNT= 3;
+  static const int INITIAL_USE_COUNT= 0;
 
   RANGE_OPT_PARAM param; // Not really used
   {
     Mock_SEL_ARG always(SEL_ARG::ALWAYS, INITIAL_USE_COUNT, INITIAL_USE_COUNT),
-      key_range(SEL_ARG::KEY_RANGE, INITIAL_USE_COUNT, INITIAL_USE_COUNT - 1);
+      key_range(SEL_ARG::KEY_RANGE, INITIAL_USE_COUNT, INITIAL_USE_COUNT);
     EXPECT_TRUE(key_or(&param, &always, &key_range) == &always);
   }
   {
     Mock_SEL_ARG always(SEL_ARG::ALWAYS, INITIAL_USE_COUNT, INITIAL_USE_COUNT),
-      key_range(SEL_ARG::KEY_RANGE, INITIAL_USE_COUNT, INITIAL_USE_COUNT - 1);
+      key_range(SEL_ARG::KEY_RANGE, INITIAL_USE_COUNT, INITIAL_USE_COUNT);
     EXPECT_TRUE(key_or(&param, &key_range, &always) == &always);
   }
   {
     Mock_SEL_ARG always1(SEL_ARG::ALWAYS, INITIAL_USE_COUNT, INITIAL_USE_COUNT),
-      always2(SEL_ARG::KEY_RANGE, INITIAL_USE_COUNT, INITIAL_USE_COUNT - 1);
+      always2(SEL_ARG::KEY_RANGE, INITIAL_USE_COUNT, INITIAL_USE_COUNT);
     EXPECT_TRUE(key_or(&param, &always1, &always2) == &always1);
   }
   {
     Mock_SEL_ARG always(SEL_ARG::ALWAYS, INITIAL_USE_COUNT, INITIAL_USE_COUNT),
       key_range(SEL_ARG::KEY_RANGE, INITIAL_USE_COUNT, INITIAL_USE_COUNT);
-    EXPECT_TRUE(key_and(&param, &key_range, &always, 0) == &key_range);
+    EXPECT_TRUE(key_and(&param, &key_range, &always) == &key_range);
   }
   {
     Mock_SEL_ARG always(SEL_ARG::ALWAYS, INITIAL_USE_COUNT, INITIAL_USE_COUNT),
       key_range(SEL_ARG::KEY_RANGE, INITIAL_USE_COUNT, INITIAL_USE_COUNT);
-    EXPECT_TRUE(key_and(&param, &always, &key_range, 0) == &key_range);
+    EXPECT_TRUE(key_and(&param, &always, &key_range) == &key_range);
   }
 }
 
@@ -1987,15 +1855,12 @@ TEST_F(OptRangeTest, CombineAlways2)
       set_endpoints(1, 2);
       next_key_part= NULL;
       make_root();
-      // Gets decremented in key_or() before being compared > 0, triggering
-      // a DBUG_ASSERT in SEL_ARG::SEL_ARG(Type) unless the ALWAYS type is
-      // handled.
-      use_count= 3;
+      use_count= 0;
     }
 
     void add_next_key_part(SEL_ARG *next)
     {
-      next_key_part= next;
+      set_next_key_part(next);
       next->part= part + 1;
     }
   private:
@@ -2024,7 +1889,7 @@ TEST_F(OptRangeTest, CombineAlways2)
   };
 
   RANGE_OPT_PARAM param;
-  Fake_sel_arg always(SEL_ARG::ALWAYS), key_range(SEL_ARG::KEY_RANGE),
+  Fake_sel_arg key_range(SEL_ARG::KEY_RANGE), always(SEL_ARG::ALWAYS),
                other(SEL_ARG::KEY_RANGE);
   Mock_field_long field1("col_1");
   Mock_field_long field2("col_2");
@@ -2040,8 +1905,8 @@ TEST_F(OptRangeTest, CombineAlways2)
   EXPECT_STREQ("(1 <= col_1 <= 2 AND 1 <= col_2 <= 2)", res.ptr());
 
   EXPECT_TRUE(key_or(&param, &always, &other) ==  &always);
-  EXPECT_EQ((ulong) 2, other.use_count);
-  EXPECT_EQ((ulong) 3, always.use_count);
+  EXPECT_EQ((ulong) 0, other.use_count);
+  EXPECT_EQ((ulong) 0, always.use_count);
 }
 
 TEST_F(OptRangeTest, AppendRange)

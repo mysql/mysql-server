@@ -380,7 +380,7 @@ void free_max_user_conn(void)
 }
 
 
-void reset_mqh(LEX_USER *lu, bool get_them= 0)
+void reset_mqh(THD *thd, LEX_USER *lu, bool get_them= 0)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   mysql_mutex_lock(&LOCK_user_conn);
@@ -398,7 +398,7 @@ void reset_mqh(LEX_USER *lu, bool get_them= 0)
                                                    temp_len)))
     {
       uc->questions=0;
-      get_mqh(temp_user,&temp_user[lu->user.length+1],uc);
+      get_mqh(thd, temp_user,&temp_user[lu->user.length+1],uc);
       uc->updates=0;
       uc->conn_per_hour=0;
     }
@@ -411,7 +411,7 @@ void reset_mqh(LEX_USER *lu, bool get_them= 0)
       USER_CONN *uc=(struct user_conn *)
         my_hash_element(&hash_user_connections, idx);
       if (get_them)
-  get_mqh(uc->user,uc->host,uc);
+  get_mqh(thd, uc->user,uc->host,uc);
       uc->questions=0;
       uc->updates=0;
       uc->conn_per_hour=0;
@@ -642,7 +642,7 @@ static int check_connection(THD *thd)
            (thd->m_main_security_ctx.host().length ?
               thd->m_main_security_ctx.host().str : "unknown host"),
            (main_sctx_ip.length ? main_sctx_ip.str : "unknown ip")));
-    if (acl_check_host(thd->m_main_security_ctx.host().str, main_sctx_ip.str))
+    if (acl_check_host(thd, thd->m_main_security_ctx.host().str, main_sctx_ip.str))
     {
       /* HOST_CACHE stats updated by acl_check_host(). */
       my_error(ER_HOST_NOT_PRIVILEGED, MYF(0),

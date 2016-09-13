@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,11 +17,18 @@
 #define STATELESS_ALLOCATOR_INCLUDED
 
 #include "my_global.h"
-#include "my_sys.h"
 
 #include <new>
 #include <limits>
 
+/**
+  Functor struct which invokes my_free. Declared here as it is used as the
+  defalt value for Stateless_allocator's DEALLOC_FUN template parameter.
+*/
+struct My_free_functor
+{
+  void operator()(void *p, size_t) const;
+};
 
 /**
   Stateless_allocator is a C++ STL memory allocator skeleton based on
@@ -70,14 +77,6 @@
   leading to seg faults if memory allocation was not successful.
 
 */
-
-struct My_free_functor
-{
-  void operator()(void *p, size_t) const
-  {
-    my_free(p);
-  }
-};
 
 template <class T, class ALLOC_FUN, class DEALLOC_FUN= My_free_functor>
 class Stateless_allocator

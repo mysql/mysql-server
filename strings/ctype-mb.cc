@@ -14,8 +14,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <my_global.h>
+#include <string.h>
+#include <sys/types.h>
+
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
 
 
 size_t my_caseup_str_mb(const CHARSET_INFO *cs, char *str)

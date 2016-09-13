@@ -7,7 +7,7 @@ Create Table	CREATE TABLE `test_ps_sample_pages` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_sample_pages';
-create_options	
+CREATE_OPTIONS	
 ALTER TABLE test_ps_sample_pages STATS_SAMPLE_PAGES=12345;
 # restart
 SHOW CREATE TABLE test_ps_sample_pages;
@@ -18,7 +18,7 @@ Create Table	CREATE TABLE `test_ps_sample_pages` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_SAMPLE_PAGES=12345
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_sample_pages';
-create_options	stats_sample_pages=12345
+CREATE_OPTIONS	stats_sample_pages=12345
 DROP TABLE test_ps_sample_pages;
 CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
 STATS_SAMPLE_PAGES=default;
@@ -30,7 +30,7 @@ Create Table	CREATE TABLE `test_ps_sample_pages` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_sample_pages';
-create_options	
+CREATE_OPTIONS	
 DROP TABLE test_ps_sample_pages;
 CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
 STATS_SAMPLE_PAGES=-5;
@@ -67,7 +67,7 @@ Create Table	CREATE TABLE `test_ps_sample_pages` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_SAMPLE_PAGES=1
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_sample_pages';
-create_options	stats_sample_pages=1
+CREATE_OPTIONS	stats_sample_pages=1
 DROP TABLE test_ps_sample_pages;
 CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
 STATS_SAMPLE_PAGES=5678;
@@ -80,7 +80,7 @@ Create Table	CREATE TABLE `test_ps_sample_pages` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_SAMPLE_PAGES=5678
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_sample_pages';
-create_options	stats_sample_pages=5678
+CREATE_OPTIONS	stats_sample_pages=5678
 ALTER TABLE test_ps_sample_pages STATS_SAMPLE_PAGES=default;
 # restart
 SHOW CREATE TABLE test_ps_sample_pages;
@@ -91,5 +91,5 @@ Create Table	CREATE TABLE `test_ps_sample_pages` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_sample_pages';
-create_options	
+CREATE_OPTIONS	
 DROP TABLE test_ps_sample_pages;

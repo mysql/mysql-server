@@ -100,7 +100,6 @@
 #cmakedefine HAVE_GETEUID 1
 #cmakedefine HAVE_GETGID 1
 #cmakedefine HAVE_GETEGID 1
-#cmakedefine HAVE_LSTAT 1
 #cmakedefine HAVE_MADVISE 1
 #cmakedefine HAVE_MALLOC_INFO 1
 #cmakedefine HAVE_MEMRCHR 1
@@ -113,8 +112,6 @@
 #cmakedefine HAVE_PREAD 1
 #cmakedefine HAVE_PTHREAD_CONDATTR_SETCLOCK 1
 #cmakedefine HAVE_PTHREAD_SIGMASK 1
-#cmakedefine HAVE_READLINK 1
-#cmakedefine HAVE_REALPATH 1
 #cmakedefine HAVE_SETFD 1
 #cmakedefine HAVE_SIGACTION 1
 #cmakedefine HAVE_SLEEP 1

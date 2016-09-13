@@ -15,5 +15,11 @@
 #                   Create this script based on older scripts and new code.
 #
 
+# Result differences depending on FS case sensitivity.
+if (!$require_case_insensitive_file_system)
+{
+  --source include/have_case_sensitive_file_system.inc
+}
+
 --source include/not_embedded.inc
 --source suite/funcs_1/datadict/is_schemata.inc

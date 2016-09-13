@@ -41,6 +41,9 @@
 #include "mysql/psi/mysql_sp.h"
 #include "mysql/psi/mysql_error.h"
 
+#include "dd/dd.h"             // get_dictionary
+#include "dd/dictionary.h"     // is_dd_table_access_allowed
+
 /**
   @page stored_programs Stored Programs
 
@@ -121,163 +124,10 @@
 
   @subsection sp_storage_trigger Table Trigger Storage
 
-  Information for a given trigger is stored in plain text files
-  in the database directory that contains the table associated with the trigger:
+  Information for a given trigger is stored in the table mysql.triggers
+  of the Data Dictionary.
 
-  - There is one <tt>.TRN</tt> file per trigger.
-  It indicates the table associated with the trigger.
-  The design decision that every trigger has a dedicated
-  <tt>.TRN</tt> file is used to enforce the SQL standard
-  requirement that all triggers in a given schema must be unique.
-
-  - There is one <tt>.TRG</tt> per table that has triggers.
-  It contains information about all the triggers for the table.
-
-  Suppose that we create a table named account and associate with it
-  three triggers named ins_transaction, ins_sum, and upd_check:
-
-@verbatim
-mysql> CREATE TABLE account (acct_num INT, amount DECIMAL(10,2));
-Query OK, 0 rows affected (0.05 sec)
-
-mysql> CREATE TRIGGER ins_sum BEFORE INSERT ON account
-    -> FOR EACH ROW SET @sum = @sum + NEW.amount;
-Query OK, 0 rows affected (0.04 sec)
-
-mysql> CREATE TRIGGER ins_transaction BEFORE INSERT ON account
-    -> FOR EACH ROW PRECEDES ins_sum
-    -> SET
-    -> @deposits = @deposits + IF(NEW.amount>0,NEW.amount,0),
-    -> @withdrawals = @withdrawals + IF(NEW.amount<0,-NEW.amount,0);
-Query OK, 0 rows affected (0.02 sec)
-
-mysql> delimiter //
-mysql> CREATE TRIGGER upd_check BEFORE UPDATE ON account
-    -> FOR EACH ROW
-    -> BEGIN
-    ->     IF NEW.amount < 0 THEN
-    ->         SET NEW.amount = 0;
-    ->     ELSEIF NEW.amount > 100 THEN
-    ->         SET NEW.amount = 100;
-    ->     END IF;
-    -> END;//
-mysql> delimiter ;
-Query OK, 0 rows affected (0.03 sec)
-@endverbatim
-
-  In this case, there are three <tt>.TRN</tt> files named after
-  the triggers (<tt>ins_transaction.TRN</tt>,
-                <tt>ins_sum.TRN</tt>,
-                <tt>upd_check.TRN</tt>),
-  and a <tt>.TRG</tt> file named after the table (<tt>account.TRG</tt>).
-
-  A <tt>.TRN</tt> file is specific to a trigger and contains these fields:
-
-  - @c TYPE: Indicates what the file represents.
-  For a <tt>.TRN</tt> file, this value is always @c TRIGGERNAME,
-  which means that the file name corresponds to the trigger name.
-  For example, a <tt>.TRN</tt> file named <tt>ins_sum.TRN</tt>
-  corresponds to a trigger named @c ins_sum.
-
-  - @c trigger_table: The table associated with the trigger.
-
-  Example <tt>.TRN</tt> file:
-
-@verbatim
-TYPE=TRIGGERNAME
-trigger_table=account
-@endverbatim
-
-  A <tt>.TRG</tt> file is specific to a table and contains these fields:
-
-  - @c TYPE: Indicates what the file represents.
-  For a <tt>.TRN</tt> file, this value is always @c TRIGGERS,
-  which means that the file contains information about the triggers
-  associated with the table that corresponds to the file name.
-  For example, a file named <tt>account.TRG</tt> contains information
-  for the triggers associated with the table @c account.
-
-  - @c triggers: The <tt>CREATE TRIGGER</tt> statements for the
-  triggers associated with the table.
-  Triggers that have the same trigger event and action time
-  are listed in activation order.
-
-  - @c sql_modes: For each trigger, the @c sql_mode value under
-  which the trigger executes, as a numeric value.
-
-  - @c definers: For each trigger, the account of the user
-  who created it, in 'user_name'\@'host_name' format.
-
-  - @c client_cs_names: For each trigger, the session value
-  of the character_set_client system variable when the trigger was created.
-
-  - @c connection_cl_names: For each trigger, the session value
-  of the collation_connection system variable when the trigger was created.
-
-  - @c db_cl_names: For each trigger, the collation
-  of the database with which the trigger is associated.
-
-  - @c created: For each trigger, its creation time.
-  This field is present only if triggers have been created
-  or dropped for the table as of MySQL 5.7.2 or later.
-  A value of 0 means that the trigger was created before 5.7.2
-  and thus that no creation time is known.
-  (Creation time values are not maintained until 5.7.2.)
-
-  Example <tt>.TRG</tt> file:
-
-@verbatim
-TYPE=TRIGGERS
-triggers='CREATE DEFINER=`me`@`localhost` TRIGGER ins_transaction
-BEFORE INSERT ON account\nFOR EACH ROW SET\n@deposits = @deposits
-+ IF(NEW.amount>0,NEW.amount,0),\n@withdrawals = @withdrawals +
-IF(NEW.amount<0,-NEW.amount,0)' 'CREATE DEFINER=`me`@`localhost`
-TRIGGER ins_sum BEFORE INSERT ON account\nFOR EACH ROW SET @sum =
-@sum + NEW.amount' 'CREATE DEFINER=`me`@`localhost` TRIGGER upd_check
-BEFORE UPDATE ON account\nFOR EACH ROW\nBEGIN\n    IF NEW.amount <
-0 THEN\n        SET NEW.amount = 0;\n    ELSEIF NEW.amount > 100
-THEN\n        SET NEW.amount = 100;\n    END IF;\nEND'
-sql_modes=1073741824 1073741824 1073741824
-definers='me@localhost' 'me@localhost' 'me@localhost'
-client_cs_names='utf8' 'utf8' 'utf8'
-connection_cl_names='utf8_general_ci' 'utf8_general_ci' 'utf8_general_ci'
-db_cl_names='latin1_swedish_ci' 'latin1_swedish_ci' 'latin1_swedish_ci'
-created=137339041018 137339026087 137339063431
-@endverbatim
-
-  To convert a value on the @c sql_modes line to more readable form, do this:
-
-@verbatim
-mysql> SET sql_mode = 1073741824;
-mysql> SELECT @@sql_mode;
-+------------------------+
-| @@sql_mode             |
-+------------------------+
-| NO_ENGINE_SUBSTITUTION |
-+------------------------+
-@endverbatim
-
-  To break a value on the created line into integer
-  and fractional seconds parts and convert them
-  to an ISO-format date and time value, do this:
-
-@verbatim
-mysql> SET @ts_int = FLOOR(137339041018/100);
-Query OK, 0 rows affected (0.01 sec)
-
-mysql> SET @ts_frac = 137339041018 % 100;
-Query OK, 0 rows affected (0.00 sec)
-
-mysql> SELECT CONCAT(FROM_UNIXTIME(@ts_int),'.',@ts_frac);
-+---------------------------------------------+
-| CONCAT(FROM_UNIXTIME(@ts_int),'.',@ts_frac) |
-+---------------------------------------------+
-| 2013-07-09 12:20:10.18                      |
-+---------------------------------------------+
-1 row in set (0.00 sec)
-@endverbatim
-
-  The code used to encapsulate file access is:
+  The code used to encapsulate access is:
 
   - #Table_trigger_dispatcher::create_trigger()
 
@@ -287,38 +137,7 @@ mysql> SELECT CONCAT(FROM_UNIXTIME(@ts_int),'.',@ts_frac);
 
   - #Trigger_loader::drop_all_triggers()
 
-  - #Trigger_loader::rename_subject_table()
-
   See the C++ class #Table_trigger_dispatcher in general.
-
-  Using files for triggers is due to historical reasons,
-  and follows the same design as <tt>*.frm</tt> files for table meta data.
-  This approach has several drawbacks:
-
-  - Each file has yet another text file format,
-  which is necessary to print and parse back correctly.
-  Custom code has to be implemented, which is consuming in terms of resources,
-  and introduces technical risk or code duplication.
-
-  - Tables are replicated, values in columns are checked for data validity,
-  integrity constraints can be defined ...
-  where none of the above is available with a file based implementation.
-
-  - With tables, the default locking, transaction and isolation mechanism
-  used by the server in general can be leveraged,
-  but the same is not available with files.
-
-  - Cluster support for any new meta data operation that operates on files
-  will require a custom solution. E.g. to propagate
-  <tt>CREATE %TABLE</tt> statement across MySQL Cluster mysqld nodes
-  we use a so-called “.frm shipping” technique
-  (also named Schema distribution).
-  There is no similar solution implemented for triggers at this point,
-  and thus a trigger created in one mysqld node does not automatically
-  become visible on other nodes.
-
-  @note Various drawbacks of file system based solution are provided
-  in this chapter only for a sake of example.
 
   @warning The current implementation of the storage layer for table triggers
   is considered private to the server,
@@ -1906,8 +1725,7 @@ sp_head::sp_head(MEM_ROOT mem_root, enum_sp_type type)
                key_memory_sp_head_main_root);
 
   m_trg_chistics.ordering_clause= TRG_ORDER_NONE;
-  m_trg_chistics.anchor_trigger_name.str= NULL;
-  m_trg_chistics.anchor_trigger_name.length= 0;
+  m_trg_chistics.anchor_trigger_name= NULL_CSTR;
 }
 
 
@@ -2620,8 +2438,13 @@ bool sp_head::execute_trigger(THD *thd,
   LEX_CSTRING definer_user= {m_definer_user.str, m_definer_user.length};
   LEX_CSTRING definer_host= {m_definer_host.str, m_definer_host.length};
 
-  if (m_chistics->suid != SP_IS_NOT_SUID &&
-      m_security_ctx.change_security_context(thd,
+  /*
+    While parsing CREATE TRIGGER statement or loading trigger metadata from
+    the Data Dictionary we guarantee that definer hasn't empty value.
+    It means, that trigger can't never be NOT-SUID.
+  */
+  DBUG_ASSERT(m_chistics->suid != SP_IS_NOT_SUID);
+  if (m_security_ctx.change_security_context(thd,
                                              definer_user,
                                              definer_host,
                                              &m_db,
@@ -3547,6 +3370,18 @@ bool sp_head::merge_table_list(THD *thd,
   for (; table ; table= table->next_global)
     if (!table->is_derived() && !table->schema_table)
     {
+      /* Fail if this is an inaccessible DD table. */
+      const dd::Dictionary *dictionary= dd::get_dictionary();
+      if (dictionary && !dictionary->is_dd_table_access_allowed(
+                 thd->is_dd_system_thread(),
+                 table->mdl_request.is_ddl_or_lock_tables_lock_request(),
+                 table->db, table->db_length, table->table_name))
+      {
+        my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0), table->db,
+                 table->table_name);
+        return true;
+      }
+
       /*
         Structure of key for the multi-set is "db\0table\0alias\0".
         Since "alias" part can have arbitrary length we use String
@@ -3683,6 +3518,8 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
                             stab->table_name_length + 1,
                             stab->lock_type, mdl_lock_type);
 
+      table->is_system_view=
+        dd::get_dictionary()->is_system_view_name(table->db, table->table_name);
       table->cacheable_table= 1;
       table->prelocking_placeholder= 1;
       table->belong_to_view= belong_to_view;

@@ -17,6 +17,7 @@
 #include "current_thd.h"        // current_thd
 #include "json_dom.h"           // Json_dom
 #include "sql_class.h"          // THD
+#include "sql_parse.h"          // check_stack_overrun
 #include "template_utils.h"     // down_cast
 #include <algorithm>            // std::min
 
@@ -90,10 +91,10 @@ enum enum_serialization_result
 };
 
 static enum_serialization_result
-serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
-                     size_t depth);
+serialize_json_value(const THD *thd, const Json_dom *dom, size_t type_pos,
+                     String *dest, size_t depth);
 
-bool serialize(const Json_dom *dom, String *dest)
+bool serialize(const THD *thd, const Json_dom *dom, String *dest)
 {
   // Reset the destination buffer.
   dest->length(0);
@@ -102,7 +103,7 @@ bool serialize(const Json_dom *dom, String *dest)
   // Reserve space (one byte) for the type identifier.
   if (dest->append('\0'))
     return true;                              /* purecov: inspected */
-  return serialize_json_value(dom, 0, dest, 0) != OK;
+  return serialize_json_value(thd, dom, 0, dest, 0) != OK;
 }
 
 
@@ -317,198 +318,20 @@ static bool is_too_big_for_json(size_t offset_or_size, bool large)
 
 
 /**
-  Check if a value is small enough to be inlined in the value entry at the
-  beginning of an object or an array.
+  Append all the key entries of a JSON object to a destination string.
+  The key entries are just a series of offset/length pairs that point
+  to where the actual key names are stored.
 
-  @param[in] value the JSON value
-  @param[in] large true if the large storage format is used
-  @param[out] inlined_val the numeric value to inline
-  @param[out] inlined_type the type of the inlined value
-  @return true if the value should be inlined, false otherwise
-*/
-static bool should_inline_value(const Json_dom *value, bool large,
-                                int32 *inlined_val, uint8 *inlined_type)
-{
-  switch (value->json_type())
-  {
-  case enum_json_type::J_NULL:
-    *inlined_val= JSONB_NULL_LITERAL;
-    *inlined_type= JSONB_TYPE_LITERAL;
-    return true;
-  case enum_json_type::J_BOOLEAN:
-    *inlined_val= (down_cast<const Json_boolean*>(value)->value()) ?
-                JSONB_TRUE_LITERAL : JSONB_FALSE_LITERAL;
-    *inlined_type= JSONB_TYPE_LITERAL;
-    return true;
-  case enum_json_type::J_INT:
-    {
-      const Json_int *i= down_cast<const Json_int*>(value);
-      if (i->is_16bit() || (large && i->is_32bit()))
-      {
-        *inlined_val= static_cast<int32>(i->value());
-        *inlined_type= i->is_16bit() ? JSONB_TYPE_INT16 : JSONB_TYPE_INT32;
-        return true;
-      }
-      return false;
-    }
-  case enum_json_type::J_UINT:
-    {
-      const Json_uint *i= down_cast<const Json_uint*>(value);
-      if (i->is_16bit() || (large && i->is_32bit()))
-      {
-        *inlined_val= static_cast<int32>(i->value());
-        *inlined_type= i->is_16bit() ? JSONB_TYPE_UINT16 : JSONB_TYPE_UINT32;
-        return true;
-      }
-      return false;
-    }
-  default:
-    return false;
-  }
-}
-
-
-/**
-  Append a Json_dom value to the end of the destination buffer, and go
-  back and update the value entry at the beginning of the parent array or
-  object.
-
-  @param dest the destination buffer
-  @param value the value to append
-  @param start_pos the position in the destination buffer where the
-    parent array or object starts
-  @param entry_pos the position in the destination buffer where the
-    entry for the appended value is located
-  @param large if true, the value is appended to a large array or object;
-    otherwise, it is appended to a small array or object
-  @param depth the current nesting level
+  @param[in]  object  the JSON object
+  @param[out] dest    the destination string
+  @param[in]  offset  the offset of the first key
+  @param[in]  large   if true, the large storage format will be used
   @return serialization status
 */
 static enum_serialization_result
-append_value(String *dest, const Json_dom *value, size_t start_pos,
-             size_t entry_pos, bool large, size_t depth)
+append_key_entries(const Json_object *object, String *dest,
+                   size_t offset, bool large)
 {
-  if (depth >= JSON_DOCUMENT_MAX_DEPTH)
-  {
-    my_error(ER_JSON_DOCUMENT_TOO_DEEP, MYF(0));
-    return FAILURE;
-  }
-
-  uint8 element_type;
-  int32 inlined_value;
-  if (should_inline_value(value, large, &inlined_value, &element_type))
-  {
-    (*dest)[entry_pos]= element_type;
-    insert_offset_or_size(dest, entry_pos + 1, inlined_value, large);
-    return OK;
-  }
-
-  size_t offset= dest->length() - start_pos;
-  if (is_too_big_for_json(offset, large))
-    return VALUE_TOO_BIG;
-
-  insert_offset_or_size(dest, entry_pos + 1, offset, large);
-  return serialize_json_value(value, entry_pos, dest, depth);
-}
-
-
-/**
-  Serialize a JSON array at the end of the destination string.
-
-  @param array  the JSON array to serialize
-  @param dest   the destination string
-  @param large  if true, the large storage format will be used
-  @param depth  the current nesting level
-  @return serialization status
-*/
-static enum_serialization_result
-serialize_json_array(const Json_array *array, String *dest, bool large,
-                     size_t depth)
-{
-  const size_t start_pos= dest->length();
-  const size_t size= array->size();
-
-  if (is_too_big_for_json(size, large))
-    return VALUE_TOO_BIG;
-
-  // First write the number of elements in the array.
-  if (append_offset_or_size(dest, size, large))
-    return FAILURE;                             /* purecov: inspected */
-
-  // Reserve space for the size of the array in bytes. To be filled in later.
-  const size_t size_pos= dest->length();
-  if (append_offset_or_size(dest, 0, large))
-    return FAILURE;                             /* purecov: inspected */
-
-  size_t entry_pos= dest->length();
-
-  // Reserve space for the value entries at the beginning of the array.
-  const size_t entry_size=
-    large ? VALUE_ENTRY_SIZE_LARGE : VALUE_ENTRY_SIZE_SMALL;
-  if (dest->fill(dest->length() + size * entry_size, 0))
-    return FAILURE;                             /* purecov: inspected */
-
-  for (uint32 i= 0; i < size; i++)
-  {
-    const Json_dom *elt= (*array)[i];
-    enum_serialization_result res= append_value(dest, elt, start_pos,
-                                                entry_pos, large, depth + 1);
-    if (res != OK)
-      return res;
-
-    entry_pos+= entry_size;
-  }
-
-  // Finally, write the size of the object in bytes.
-  size_t bytes= dest->length() - start_pos;
-  if (is_too_big_for_json(bytes, large))
-    return VALUE_TOO_BIG;                     /* purecov: inspected */
-  insert_offset_or_size(dest, size_pos, bytes, large);
-
-  return OK;
-}
-
-
-/**
-  Serialize a JSON object at the end of the destination string.
-
-  @param object the JSON object to serialize
-  @param dest   the destination string
-  @param large  if true, the large storage format will be used
-  @param depth  the current nesting level
-  @return serialization status
-*/
-static enum_serialization_result
-serialize_json_object(const Json_object *object, String *dest, bool large,
-                      size_t depth)
-{
-  const size_t start_pos= dest->length();
-  const size_t size= object->cardinality();
-
-  if (is_too_big_for_json(size, large))
-    return VALUE_TOO_BIG;                       /* purecov: inspected */
-
-  // First write the number of members in the object.
-  if (append_offset_or_size(dest, size, large))
-    return FAILURE;                             /* purecov: inspected */
-
-  // Reserve space for the size of the object in bytes. To be filled in later.
-  const size_t size_pos= dest->length();
-  if (append_offset_or_size(dest, 0, large))
-    return FAILURE;                             /* purecov: inspected */
-
-  const size_t key_entry_size=
-    large ? KEY_ENTRY_SIZE_LARGE : KEY_ENTRY_SIZE_SMALL;
-  const size_t value_entry_size=
-    large ? VALUE_ENTRY_SIZE_LARGE : VALUE_ENTRY_SIZE_SMALL;
-
-  /*
-    Calculate the offset of the first key relative to the start of the
-    object. The first key comes right after the value entries.
-  */
-  size_t offset= dest->length() +
-    size * (key_entry_size + value_entry_size) - start_pos;
-
 #ifndef DBUG_OFF
   const std::string *prev_key= NULL;
 #endif
@@ -547,6 +370,194 @@ serialize_json_object(const Json_object *object, String *dest, bool large,
     offset+= len;
   }
 
+  return OK;
+}
+
+
+/**
+  Attempt to inline a value in its value entry at the beginning of an
+  object or an array. This function assumes that the destination
+  string has already allocated enough space to hold the inlined value.
+
+  @param[in] value the JSON value
+  @param[out] dest the destination string
+  @param[in] pos   the offset where the value should be inlined
+  @param[in] large true if the large storage format is used
+  @return true if the value was inlined, false if it was not
+*/
+static bool attempt_inline_value(const Json_dom *value, String *dest,
+                                 size_t pos, bool large)
+{
+  int32 inlined_val;
+  char inlined_type;
+  switch (value->json_type())
+  {
+  case enum_json_type::J_NULL:
+    inlined_val= JSONB_NULL_LITERAL;
+    inlined_type= JSONB_TYPE_LITERAL;
+    break;
+  case enum_json_type::J_BOOLEAN:
+    inlined_val= down_cast<const Json_boolean*>(value)->value() ?
+      JSONB_TRUE_LITERAL : JSONB_FALSE_LITERAL;
+    inlined_type= JSONB_TYPE_LITERAL;
+    break;
+  case enum_json_type::J_INT:
+    {
+      const Json_int *i= down_cast<const Json_int*>(value);
+      if (!i->is_16bit() && !(large && i->is_32bit()))
+        return false;   // cannot inline this value
+      inlined_val= static_cast<int32>(i->value());
+      inlined_type= i->is_16bit() ? JSONB_TYPE_INT16 : JSONB_TYPE_INT32;
+      break;
+    }
+  case enum_json_type::J_UINT:
+    {
+      const Json_uint *i= down_cast<const Json_uint*>(value);
+      if (!i->is_16bit() && !(large && i->is_32bit()))
+        return false;   // cannot inline this value
+      inlined_val= static_cast<int32>(i->value());
+      inlined_type= i->is_16bit() ? JSONB_TYPE_UINT16 : JSONB_TYPE_UINT32;
+      break;
+    }
+  default:
+    return false;       // cannot inline value of this type
+  }
+
+  (*dest)[pos]= inlined_type;
+  insert_offset_or_size(dest, pos + 1, inlined_val, large);
+  return true;
+}
+
+
+/**
+  Serialize a JSON array at the end of the destination string.
+
+  @param thd    THD handle
+  @param array  the JSON array to serialize
+  @param dest   the destination string
+  @param large  if true, the large storage format will be used
+  @param depth  the current nesting level
+  @return serialization status
+*/
+static enum_serialization_result
+serialize_json_array(const THD *thd, const Json_array *array, String *dest,
+                     bool large, size_t depth)
+{
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, nullptr))
+    return FAILURE;                             /* purecov: inspected */
+
+  const size_t start_pos= dest->length();
+  const size_t size= array->size();
+
+  if (size > 0 && ++depth >= JSON_DOCUMENT_MAX_DEPTH)
+  {
+    my_error(ER_JSON_DOCUMENT_TOO_DEEP, MYF(0));
+    return FAILURE;
+  }
+
+  if (is_too_big_for_json(size, large))
+    return VALUE_TOO_BIG;
+
+  // First write the number of elements in the array.
+  if (append_offset_or_size(dest, size, large))
+    return FAILURE;                             /* purecov: inspected */
+
+  // Reserve space for the size of the array in bytes. To be filled in later.
+  const size_t size_pos= dest->length();
+  if (append_offset_or_size(dest, 0, large))
+    return FAILURE;                             /* purecov: inspected */
+
+  size_t entry_pos= dest->length();
+
+  // Reserve space for the value entries at the beginning of the array.
+  const size_t entry_size=
+    large ? VALUE_ENTRY_SIZE_LARGE : VALUE_ENTRY_SIZE_SMALL;
+  if (dest->fill(dest->length() + size * entry_size, 0))
+    return FAILURE;                             /* purecov: inspected */
+
+  for (uint32 i= 0; i < size; i++)
+  {
+    const Json_dom *elt= (*array)[i];
+    if (!attempt_inline_value(elt, dest, entry_pos, large))
+    {
+      size_t offset= dest->length() - start_pos;
+      if (is_too_big_for_json(offset, large))
+        return VALUE_TOO_BIG;
+      insert_offset_or_size(dest, entry_pos + 1, offset, large);
+      enum_serialization_result res=
+        serialize_json_value(thd, elt, entry_pos, dest, depth);
+      if (res != OK)
+        return res;
+    }
+    entry_pos+= entry_size;
+  }
+
+  // Finally, write the size of the object in bytes.
+  size_t bytes= dest->length() - start_pos;
+  if (is_too_big_for_json(bytes, large))
+    return VALUE_TOO_BIG;                     /* purecov: inspected */
+  insert_offset_or_size(dest, size_pos, bytes, large);
+
+  return OK;
+}
+
+
+/**
+  Serialize a JSON object at the end of the destination string.
+
+  @param thd    THD handle
+  @param object the JSON object to serialize
+  @param dest   the destination string
+  @param large  if true, the large storage format will be used
+  @param depth  the current nesting level
+  @return serialization status
+*/
+static enum_serialization_result
+serialize_json_object(const THD *thd, const Json_object *object, String *dest,
+                      bool large, size_t depth)
+{
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, nullptr))
+    return FAILURE;                             /* purecov: inspected */
+
+  const size_t start_pos= dest->length();
+  const size_t size= object->cardinality();
+
+  if (size > 0 && ++depth >= JSON_DOCUMENT_MAX_DEPTH)
+  {
+    my_error(ER_JSON_DOCUMENT_TOO_DEEP, MYF(0));
+    return FAILURE;
+  }
+
+  if (is_too_big_for_json(size, large))
+    return VALUE_TOO_BIG;                       /* purecov: inspected */
+
+  // First write the number of members in the object.
+  if (append_offset_or_size(dest, size, large))
+    return FAILURE;                             /* purecov: inspected */
+
+  // Reserve space for the size of the object in bytes. To be filled in later.
+  const size_t size_pos= dest->length();
+  if (append_offset_or_size(dest, 0, large))
+    return FAILURE;                             /* purecov: inspected */
+
+  const size_t key_entry_size=
+    large ? KEY_ENTRY_SIZE_LARGE : KEY_ENTRY_SIZE_SMALL;
+  const size_t value_entry_size=
+    large ? VALUE_ENTRY_SIZE_LARGE : VALUE_ENTRY_SIZE_SMALL;
+
+  /*
+    Calculate the offset of the first key relative to the start of the
+    object. The first key comes right after the value entries.
+  */
+  const size_t first_key_offset= dest->length() +
+    size * (key_entry_size + value_entry_size) - start_pos;
+
+  // Append all the key entries.
+  enum_serialization_result res=
+    append_key_entries(object, dest, first_key_offset, large);
+  if (res != OK)
+    return res;
+
   const size_t start_of_value_entries= dest->length();
 
   // Reserve space for the value entries. Will be filled in later.
@@ -565,11 +576,16 @@ serialize_json_object(const Json_object *object, String *dest, bool large,
   for (Json_object::const_iterator it= object->begin(); it != object->end();
        ++it)
   {
-    enum_serialization_result res= append_value(dest, it->second,
-                                                start_pos, entry_pos, large,
-                                                depth + 1);
-    if (res != OK)
-      return res;
+    if (!attempt_inline_value(it->second, dest, entry_pos, large))
+    {
+      size_t offset= dest->length() - start_pos;
+      if (is_too_big_for_json(offset, large))
+        return VALUE_TOO_BIG;
+      insert_offset_or_size(dest, entry_pos + 1, offset, large);
+      res= serialize_json_value(thd, it->second, entry_pos, dest, depth);
+      if (res != OK)
+        return res;
+    }
     entry_pos+= value_entry_size;
   }
 
@@ -584,6 +600,64 @@ serialize_json_object(const Json_object *object, String *dest, bool large,
 
 
 /**
+  Serialize a JSON opaque value at the end of the destination string.
+  @param[in]  opaque    the JSON opaque value
+  @param[in]  type_pos  where to write the type specifier
+  @param[out] dest      the destination string
+  @return serialization status
+*/
+static enum_serialization_result
+serialize_opaque(const Json_opaque *opaque, size_t type_pos, String *dest)
+{
+  DBUG_ASSERT(type_pos < dest->length());
+  if (dest->append(static_cast<char>(opaque->type())) ||
+      append_variable_length(dest, opaque->size()) ||
+      dest->append(opaque->value(), opaque->size()))
+    return FAILURE;                       /* purecov: inspected */
+  (*dest)[type_pos]= JSONB_TYPE_OPAQUE;
+  return OK;
+}
+
+
+/**
+  Serialize a DECIMAL value at the end of the destination string.
+  @param[in]  jd        the DECIMAL value
+  @param[in]  type_pos  where to write the type specifier
+  @param[out] dest      the destination string
+  @return serialization status
+*/
+static enum_serialization_result
+serialize_decimal(const Json_decimal *jd, size_t type_pos, String *dest)
+{
+  // Store DECIMALs as opaque values.
+  const int bin_size= jd->binary_size();
+  char buf[Json_decimal::MAX_BINARY_SIZE];
+  if (jd->get_binary(buf))
+    return FAILURE;                       /* purecov: inspected */
+  Json_opaque o(MYSQL_TYPE_NEWDECIMAL, buf, bin_size);
+  return serialize_opaque(&o, type_pos, dest);
+}
+
+
+/**
+  Serialize a DATETIME value at the end of the destination string.
+  @param[in]  jdt       the DATETIME value
+  @param[in]  type_pos  where to write the type specifier
+  @param[out] dest      the destination string
+  @return serialization status
+*/
+static enum_serialization_result
+serialize_datetime(const Json_datetime *jdt, size_t type_pos, String *dest)
+{
+  // Store datetime as opaque values.
+  char buf[Json_datetime::PACKED_SIZE];
+  jdt->to_packed(buf);
+  Json_opaque o(jdt->field_type(), buf, Json_datetime::PACKED_SIZE);
+  return serialize_opaque(&o, type_pos, dest);
+}
+
+
+/**
   Serialize a JSON value at the end of the destination string.
 
   Also go back and update the type specifier for the value to specify
@@ -592,6 +666,7 @@ serialize_json_object(const Json_object *object, String *dest, bool large,
   are nested within other documents, the type specifier is located in
   the value entry portion at the beginning of the parent document.
 
+  @param thd       THD handle
   @param dom       the JSON value to serialize
   @param type_pos  the position of the type specifier to update
   @param dest      the destination string
@@ -599,8 +674,8 @@ serialize_json_object(const Json_object *object, String *dest, bool large,
   @return          serialization status
 */
 static enum_serialization_result
-serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
-                     size_t depth)
+serialize_json_value(const THD *thd, const Json_dom *dom, size_t type_pos,
+                     String *dest, size_t depth)
 {
   const size_t start_pos= dest->length();
   DBUG_ASSERT(type_pos < start_pos);
@@ -613,7 +688,7 @@ serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
     {
       const Json_array *array= down_cast<const Json_array*>(dom);
       (*dest)[type_pos]= JSONB_TYPE_SMALL_ARRAY;
-      result= serialize_json_array(array, dest, false, depth);
+      result= serialize_json_array(thd, array, dest, false, depth);
       /*
         If the array was too large to fit in the small storage format,
         reset the destination buffer and retry with the large storage
@@ -627,7 +702,7 @@ serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
       {
         dest->length(start_pos);
         (*dest)[type_pos]= JSONB_TYPE_LARGE_ARRAY;
-        result= serialize_json_array(array, dest, true, depth);
+        result= serialize_json_array(thd, array, dest, true, depth);
       }
       break;
     }
@@ -635,7 +710,7 @@ serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
     {
       const Json_object *object= down_cast<const Json_object*>(dom);
       (*dest)[type_pos]= JSONB_TYPE_SMALL_OBJECT;
-      result= serialize_json_object(object, dest, false, depth);
+      result= serialize_json_object(thd, object, dest, false, depth);
       /*
         If the object was too large to fit in the small storage format,
         reset the destination buffer and retry with the large storage
@@ -649,7 +724,7 @@ serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
       {
         dest->length(start_pos);
         (*dest)[type_pos]= JSONB_TYPE_LARGE_OBJECT;
-        result= serialize_json_object(object, dest, true, depth);
+        result= serialize_json_object(thd, object, dest, true, depth);
       }
       break;
     }
@@ -743,41 +818,20 @@ serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
       break;
     }
   case enum_json_type::J_OPAQUE:
-    {
-      const Json_opaque *o= down_cast<const Json_opaque*>(dom);
-      if (dest->append(static_cast<char>(o->type())) ||
-          append_variable_length(dest, o->size()) ||
-          dest->append(o->value(), o->size()))
-        return FAILURE;                       /* purecov: inspected */
-      (*dest)[type_pos]= JSONB_TYPE_OPAQUE;
-      result= OK;
-      break;
-    }
+    result= serialize_opaque(down_cast<const Json_opaque*>(dom),
+                             type_pos, dest);
+    break;
   case enum_json_type::J_DECIMAL:
-    {
-      // Store DECIMALs as opaque values.
-      const Json_decimal *jd= down_cast<const Json_decimal*>(dom);
-      const int bin_size= jd->binary_size();
-      char buf[Json_decimal::MAX_BINARY_SIZE];
-      if (jd->get_binary(buf))
-        return FAILURE;                       /* purecov: inspected */
-      Json_opaque o(MYSQL_TYPE_NEWDECIMAL, buf, bin_size);
-      result= serialize_json_value(&o, type_pos, dest, depth);
-      break;
-    }
+    result= serialize_decimal(down_cast<const Json_decimal*>(dom),
+                              type_pos, dest);
+    break;
   case enum_json_type::J_DATETIME:
   case enum_json_type::J_DATE:
   case enum_json_type::J_TIME:
   case enum_json_type::J_TIMESTAMP:
-    {
-      // Store datetime as opaque values.
-      const Json_datetime *jdt= down_cast<const Json_datetime*>(dom);
-      char buf[Json_datetime::PACKED_SIZE];
-      jdt->to_packed(buf);
-      Json_opaque o(jdt->field_type(), buf, Json_datetime::PACKED_SIZE);
-      result= serialize_json_value(&o, type_pos, dest, depth);
-      break;
-    }
+    result= serialize_datetime(down_cast<const Json_datetime*>(dom),
+                               type_pos, dest);
+    break;
   default:
     /* purecov: begin deadcode */
     DBUG_ABORT();
@@ -787,11 +841,11 @@ serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
   }
 
   if (result == OK &&
-      dest->length() > current_thd->variables.max_allowed_packet)
+      dest->length() > thd->variables.max_allowed_packet)
   {
     my_error(ER_WARN_ALLOWED_PACKET_OVERFLOWED, MYF(0),
              "json_binary::serialize",
-             current_thd->variables.max_allowed_packet);
+             thd->variables.max_allowed_packet);
     return FAILURE;
   }
 
@@ -1336,10 +1390,11 @@ Value Value::lookup(const char *key, size_t len) const
   Copy the binary representation of this value into a buffer,
   replacing the contents of the receiving buffer.
 
+  @param thd  THD handle
   @param buf  the receiving buffer
   @return false on success, true otherwise
 */
-bool Value::raw_binary(String *buf) const
+bool Value::raw_binary(const THD *thd, String *buf) const
 {
   // Reset the buffer.
   buf->length(0);
@@ -1362,28 +1417,28 @@ bool Value::raw_binary(String *buf) const
   case INT:
     {
       Json_int i(get_int64());
-      return serialize(&i, buf) != OK;
+      return serialize(thd, &i, buf) != OK;
     }
   case UINT:
     {
       Json_uint i(get_uint64());
-      return serialize(&i, buf) != OK;
+      return serialize(thd, &i, buf) != OK;
     }
   case DOUBLE:
     {
       Json_double d(get_double());
-      return serialize(&d, buf) != OK;
+      return serialize(thd, &d, buf) != OK;
     }
   case LITERAL_NULL:
     {
       Json_null n;
-      return serialize(&n, buf) != OK;
+      return serialize(thd, &n, buf) != OK;
     }
   case LITERAL_TRUE:
   case LITERAL_FALSE:
     {
       Json_boolean b(m_type == LITERAL_TRUE);
-      return serialize(&b, buf) != OK;
+      return serialize(thd, &b, buf) != OK;
     }
   case OPAQUE:
     return buf->append(JSONB_TYPE_OPAQUE) ||

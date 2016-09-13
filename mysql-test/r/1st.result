@@ -1,9 +1,9 @@
 select schema_name from information_schema.schemata where schema_name not in ('sys', 'performance_schema');
-schema_name
-information_schema
-mtr
+SCHEMA_NAME
 mysql
+information_schema
 test
+mtr
 show tables in mysql where Tables_in_mysql != 'ndb_binlog_index';
 Tables_in_mysql
 column_stats
@@ -37,5 +37,4 @@ time_zone_leap_second
 time_zone_name
 time_zone_transition
 time_zone_transition_type
-triggers
 user

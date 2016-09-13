@@ -369,6 +369,7 @@ extern unsigned long long	srv_stats_transient_sample_pages;
 extern my_bool			srv_stats_persistent;
 extern unsigned long long	srv_stats_persistent_sample_pages;
 extern my_bool			srv_stats_auto_recalc;
+extern my_bool			srv_stats_include_delete_marked;
 
 extern ibool	srv_use_doublewrite_buf;
 extern ulong	srv_doublewrite_batch_size;
@@ -411,6 +412,7 @@ extern my_bool	srv_ibuf_disable_background_merge;
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 #ifdef UNIV_DEBUG
+extern my_bool	srv_buf_pool_debug;
 extern my_bool	srv_sync_debug;
 extern my_bool	srv_purge_view_update_only_debug;
 

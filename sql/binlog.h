@@ -291,7 +291,7 @@ public:
                     session is waiting on
     @param stage    which stage queue size to compare count against.
    */
-  time_t wait_count_or_timeout(ulong count, time_t usec, StageID stage);
+  void wait_count_or_timeout(ulong count, ulong usec, StageID stage);
 
   void signal_done(THD *queue);
 

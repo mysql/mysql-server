@@ -936,7 +936,7 @@ create table t2 select sql_big_result f1,count(f2) from t1 group by f1;
 show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	17
+Handler_read_key	20
 Handler_read_last	0
 Handler_read_next	4
 Handler_read_prev	0
@@ -948,11 +948,17 @@ DROP TABLE t1;
 CREATE TABLE t1(c1 VARCHAR(33), KEY (c1) USING BTREE);
 DROP TABLE t1;
 CREATE TABLE t1(c1 VARCHAR(33), KEY USING BTREE (c1) USING HASH) ENGINE=MEMORY;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	c1	1	c1	NULL	0	NULL	NULL	YES	HASH			YES
 DROP TABLE t1;
 CREATE TABLE t1(c1 VARCHAR(33), KEY USING HASH (c1) USING BTREE) ENGINE=MEMORY;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	c1	1	c1	A	NULL	NULL	NULL	YES	BTREE			YES
@@ -1042,21 +1048,21 @@ from имя_таблицы_в_кодировке_утф8_длиной_больш
 select * from имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48;
 имя_поля_в_кодировке_утф8_длиной_больше_чем_45
 select TABLE_NAME from information_schema.tables where
-table_schema='test';
+table_schema='test' order by TABLE_NAME;
 TABLE_NAME
 имя_вью_кодировке_утф8_длиной_больше_чем_42
 имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48
 select COLUMN_NAME from information_schema.columns where
-table_schema='test';
+table_schema='test' order by COLUMN_NAME;
 COLUMN_NAME
 имя_поля_в_кодировке_утф8_длиной_больше_чем_45
 имя_поля_в_кодировке_утф8_длиной_больше_чем_45
 select INDEX_NAME from information_schema.statistics where
-table_schema='test';
+table_schema='test' order by INDEX_NAME;
 INDEX_NAME
 имя_индекса_в_кодировке_утф8_длиной_больше_чем_48
 select TABLE_NAME from information_schema.views where
-table_schema='test';
+table_schema='test' order by TABLE_NAME;
 TABLE_NAME
 имя_вью_кодировке_утф8_длиной_больше_чем_42
 show create table имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48;
@@ -1150,15 +1156,15 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `INFO` longtext
 ) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8
 drop table t1;
-create table t1 like information_schema.character_sets;
+create table t1 as select * from information_schema.character_sets;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `CHARACTER_SET_NAME` varchar(32) NOT NULL DEFAULT '',
-  `DEFAULT_COLLATE_NAME` varchar(32) NOT NULL DEFAULT '',
-  `DESCRIPTION` varchar(60) NOT NULL DEFAULT '',
-  `MAXLEN` bigint(3) NOT NULL DEFAULT '0'
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+  `CHARACTER_SET_NAME` varchar(64) CHARACTER SET utf8 NOT NULL,
+  `DEFAULT_COLLATE_NAME` varchar(64) CHARACTER SET utf8 NOT NULL,
+  `DESCRIPTION` varchar(2048) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `MAXLEN` int(10) unsigned NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 
 # --

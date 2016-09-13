@@ -16,9 +16,11 @@
 #include "dd_table.h"
 
 #include "current_thd.h"
+#include "dd_table_share.h"                   // is_suitable_for_primary_key
 #include "debug_sync.h"                       // DEBUG_SYNC
 #include "default_values.h"                   // max_pack_length
 #include "log.h"                              // sql_print_error
+#include "mysqld.h"                           // dd_upgrade_skip_se
 #include "partition_info.h"                   // partition_info
 #include "psi_memory_key.h"                   // key_memory_frm
 #include "sql_class.h"                        // THD
@@ -131,7 +133,7 @@ namespace dd {
   information schema requirements.
 */
 
-dd::enum_column_types dd_get_new_field_type(enum_field_types type)
+dd::enum_column_types get_new_field_type(enum_field_types type)
 {
   switch (type)
   {
@@ -239,6 +241,150 @@ dd::enum_column_types dd_get_new_field_type(enum_field_types type)
 }
 
 
+/**
+  @brief Function returns string representing column type by Create_field.
+         This is required for the IS implementation which uses views on DD
+         tables
+
+  @param[in]   table           TABLE object.
+  @param[in]   field           Column information.
+
+  @return std::string representing column type.
+*/
+
+static std::string get_sql_type_by_create_field(TABLE *table,
+                                                Create_field *field)
+{
+  DBUG_ENTER("get_sql_type_by_create_field");
+
+  // Create Field object from Create_field
+  std::unique_ptr<Field> fld(make_field(table->s,
+                                        0,
+                                        field->length,
+                                        NULL,
+                                        0,
+                                        field->sql_type,
+                                        field->charset,
+                                        field->geom_type,
+                                        field->auto_flags,
+                                        field->interval,
+                                        field->field_name,
+                                        field->maybe_null,
+                                        field->is_zerofill,
+                                        field->is_unsigned,
+                                        field->decimals,
+                                        field->treat_bit_as_char, 0));
+  fld->init(table);
+
+  // Read column display type.
+  char tmp[MAX_FIELD_WIDTH];
+  String type(tmp, sizeof(tmp), system_charset_info);
+  fld->sql_type(type);
+
+  std::string col_display_str(type.ptr(), type.length());
+
+  DBUG_RETURN(col_display_str);
+}
+
+
+/**
+  Helper method to get default value of column in the string
+  format.  The default value prepared from this methods is stored
+  in the columns.default_value_utf8. This information is mostly
+  used by the I_S queries only.
+  For others, default value can be obtained from the columns.default_values.
+
+  @param[in]      thd        Thread handle.
+  @param[in]      buf        Default value buffer.
+  @param[in]      table      Table object.
+  @param[in]      field      Field information.
+  @param[in]      col_obj    DD column object for the field.
+  @param[out]     def_value  Default value is stored in the string format if
+                             non-NULL default value is specified for the column.
+                             Empty string is stored if no default value is
+                             specified for the column.
+                             def_value is *not* set if default value for the
+                             column is nullptr.
+*/
+
+static void prepare_default_value_string(THD *thd,
+                                         uchar *buf,
+                                         TABLE *table,
+                                         const Create_field &field,
+                                         dd::Column *col_obj,
+                                         String *def_value)
+{
+  // Create a fake field with the default value buffer 'buf'.
+  std::unique_ptr<Field > f(make_field(table->s,
+                                       buf + 1,
+                                       field.length,
+                                       buf,
+                                       0,
+                                       field.sql_type,
+                                       field.charset,
+                                       field.geom_type,
+                                       field.auto_flags,
+                                       field.interval,
+                                       field.field_name,
+                                       field.maybe_null,
+                                       field.is_zerofill,
+                                       field.is_unsigned,
+                                       field.decimals,
+                                       field.treat_bit_as_char, 0));
+  f->init(table);
+
+  if (col_obj->has_no_default())
+    f->flags|= NO_DEFAULT_VALUE_FLAG;
+
+  const bool has_default=
+    (f->type() != FIELD_TYPE_BLOB &&
+     !(f->flags & NO_DEFAULT_VALUE_FLAG) &&
+     !(f->auto_flags & Field::NEXT_NUMBER));
+
+  if (f->gcol_info || !has_default)
+    return;
+
+  // If we have DEFAULT NOW()
+  if (f->has_insert_default_function())
+  {
+    def_value->copy(STRING_WITH_LEN("CURRENT_TIMESTAMP"),
+                    system_charset_info);
+    if (f->decimals() > 0)
+      def_value->append_parenthesized(f->decimals());
+
+    return;
+  }
+
+  // If NOT NULL
+  if(!f->is_null())
+  {
+    char tmp[MAX_FIELD_WIDTH];
+    String type(tmp, sizeof(tmp), f->charset());
+    if (f->type() == MYSQL_TYPE_BIT)
+    {
+      longlong dec= f->val_int();
+      char *ptr= longlong2str(dec, tmp + 2, 2);
+      uint32 length= (uint32) (ptr - tmp);
+      tmp[0]= 'b';
+      tmp[1]= '\'';
+      tmp[length]= '\'';
+      type.length(length + 1);
+    }
+    else
+      f->val_str(&type);
+
+    if (type.length())
+    {
+      uint dummy_errors;
+      def_value->copy(type.ptr(), type.length(), f->charset(),
+                      system_charset_info, &dummy_errors);
+    }
+    else
+      def_value->copy(STRING_WITH_LEN(""), system_charset_info);
+  }
+}
+
+
 static std::string now_with_opt_decimals(uint decimals)
 {
   char buff[17 + 1 + 1 + 1 + 1];
@@ -252,12 +398,12 @@ static std::string now_with_opt_decimals(uint decimals)
 
 
 /**
-  Add column objects to dd::Table according to list of Create_field objects.
+  Add column objects to dd::Abstract_table according to list of Create_field objects.
 */
 
-static bool
+bool
 fill_dd_columns_from_create_fields(THD *thd,
-                                   dd::Table *tab_obj,
+                                   dd::Abstract_table *tab_obj,
                                    const List<Create_field> &create_fields,
                                    handler *file)
 {
@@ -294,7 +440,7 @@ fill_dd_columns_from_create_fields(THD *thd,
   // values, the get_rec_buf() function applied will assume the buffer
   // size to be at least two bytes.
   bufsize= std::max<size_t>(2, bufsize);
-  uchar *buf= reinterpret_cast<uchar*>(my_malloc(key_memory_frm,
+  uchar *buf= reinterpret_cast<uchar*>(my_malloc(key_memory_DD_default_values,
                                                  bufsize, MYF(MY_WME)));
 
   if (!buf)
@@ -329,9 +475,87 @@ fill_dd_columns_from_create_fields(THD *thd,
 
     col_obj->set_name(field->field_name);
 
-    col_obj->set_type(dd_get_new_field_type(field->sql_type));
+    col_obj->set_type(dd::get_new_field_type(field->sql_type));
 
     col_obj->set_char_length(field->length);
+
+    bool unsigned_flag= field->is_unsigned;
+    uint field_length= field->length;
+    uint dec= field->decimals;
+    switch(field->sql_type)
+    {
+      // these value is taken from Field_XXX::max_display_length() -1
+      case MYSQL_TYPE_TINY:
+        col_obj->set_numeric_precision(3);
+        break;
+      case MYSQL_TYPE_SHORT:
+         col_obj->set_numeric_precision(5);
+        break;
+      case MYSQL_TYPE_INT24:
+        col_obj->set_numeric_precision(7);
+        break;
+      case MYSQL_TYPE_LONG:
+        col_obj->set_numeric_precision(10);
+        break;
+      case MYSQL_TYPE_LONGLONG:
+      {
+        if (unsigned_flag)
+          col_obj->set_numeric_precision(20);
+        else
+          col_obj->set_numeric_precision(19);
+        break;
+      }
+      case MYSQL_TYPE_BIT:
+        col_obj->set_numeric_precision(field_length);
+        break;
+      case MYSQL_TYPE_FLOAT:
+      case MYSQL_TYPE_DOUBLE:
+      {
+        if (field->decimals != NOT_FIXED_DEC)
+        {
+          col_obj->set_numeric_scale(dec);
+        }
+        col_obj->set_numeric_precision(field_length);
+        break;
+      }
+      case MYSQL_TYPE_DECIMAL:
+      {
+        uint tmp= field_length;
+        if (!unsigned_flag)
+          tmp--;
+        if (dec)
+          tmp--;
+        col_obj->set_numeric_scale(dec);
+        col_obj->set_numeric_precision(tmp);
+        break;
+      }
+      case MYSQL_TYPE_NEWDECIMAL:
+      {
+        uint length= my_decimal_length_to_precision(field_length,
+                                                    dec, unsigned_flag);
+
+        col_obj->set_numeric_scale(dec);
+        col_obj->set_numeric_precision(length);
+        break;
+      }
+      case MYSQL_TYPE_DATETIME2:
+      case MYSQL_TYPE_TIMESTAMP2:
+      {
+        uint tmp= field_length > MAX_DATETIME_WIDTH ?
+                    (field_length - 1 - MAX_DATETIME_WIDTH) : 0;
+        col_obj->set_datetime_precision(tmp);
+        break;
+      }
+      case MYSQL_TYPE_TIME2:
+      {
+        uint tmp= field_length > MAX_TIME_WIDTH ?
+                    (field_length - 1 - MAX_TIME_WIDTH) : 0;
+        col_obj->set_datetime_precision(tmp);
+        break;
+      }
+      default:
+        break;
+    }
 
     col_obj->set_nullable(field->maybe_null);
 
@@ -376,7 +600,7 @@ fill_dd_columns_from_create_fields(THD *thd,
                  std::string(gc_expr_for_IS.ptr(), gc_expr_for_IS.length()));
     }
 
-    if (field->comment.str)
+    if (field->comment.str && field->comment.length)
       col_obj->set_comment(std::string(field->comment.str,
                                        field->comment.length));
 
@@ -477,10 +701,42 @@ fill_dd_columns_from_create_fields(THD *thd,
 
     }
 
+    // Store column display type in dd::Column
+    col_obj->set_column_type_utf8(get_sql_type_by_create_field(&table, field));
+
+    // Store element count in dd::Column
+    col_options->set_uint32("interval_count", i);
+
+    // Store geometry sub type
+    if (field->sql_type == MYSQL_TYPE_GEOMETRY)
+    {
+      col_options->set_uint32("geom_type", field->geom_type);
+    }
+
     // Reset the buffer and assign the column's default value.
     memset(buf, 0, bufsize);
     if (prepare_default_value(thd, buf, table, *field, col_obj))
       return true;
+
+    /**
+      Storing default value specified for column in
+      columns.default_value_utf8.  The values are stored in
+      string form here. This information is mostly used by the
+      I_S queries. For others, default value can be obtained from
+      the columns.default_values.
+
+      So now column.default_value_utf8 is not just used for
+      storing "CURRENT_TIMESTAMP" for timestamp columns but also
+      used to hold the default value of column of all types.
+
+      To get the default value in string form, buffer "buf"
+      prepared in prepare_default_value() is used.
+    */
+    String def_val;
+    prepare_default_value_string(thd, buf, &table, *field, col_obj, &def_val);
+    if (def_val.ptr() != nullptr)
+      col_obj->set_default_value_utf8(std::string(def_val.ptr(),
+                                                  def_val.length()));
   }
 
   return false;
@@ -551,7 +807,9 @@ static void
 fill_dd_index_elements_from_key_parts(const dd::Table *tab_obj,
                                       dd::Index *idx_obj,
                                       uint key_part_count,
-                                      const KEY_PART_INFO *key_parts)
+                                      const KEY_PART_INFO *key_parts,
+                                      handler *file,
+                                      bool is_primary_key)
 {
   //
   // Iterate through all the index element
@@ -560,7 +818,9 @@ fill_dd_index_elements_from_key_parts(const dd::Table *tab_obj,
   const KEY_PART_INFO *key_part= key_parts;
   const KEY_PART_INFO *key_part_end= key_parts + key_part_count;
 
-  for ( ; key_part != key_part_end; ++key_part)
+  for (uint key_part_no= 0;
+       key_part != key_part_end;
+       ++key_part, ++key_part_no)
   {
     //
     // Get reference to column object
@@ -590,22 +850,205 @@ fill_dd_index_elements_from_key_parts(const dd::Table *tab_obj,
     // Create new index element object
     //
 
+    if (key_col_obj->column_key() == dd::Column::CK_NONE)
+    {
+      // We might have a unique key that would be promoted as PRIMARY
+      dd::Index::enum_index_type idx_type= idx_obj->type();
+      if (is_primary_key)
+        idx_type= dd::Index::IT_PRIMARY;
+
+      switch(idx_type)
+      {
+      case dd::Index::IT_PRIMARY:
+        const_cast<dd::Column*>(key_col_obj)->set_column_key(
+                                                dd::Column::CK_PRIMARY);
+        break;
+      case dd::Index::IT_UNIQUE:
+        if (key_part == key_parts)
+        {
+          if (key_part_count == 1)
+            const_cast<dd::Column*>(key_col_obj)->set_column_key(
+                                                    dd::Column::CK_UNIQUE);
+          else
+            const_cast<dd::Column*>(key_col_obj)->set_column_key(
+                                                    dd::Column::CK_MULTIPLE);
+        }
+        break;
+      case dd::Index::IT_MULTIPLE:
+      case dd::Index::IT_FULLTEXT:
+      case dd::Index::IT_SPATIAL:
+        if (key_part == key_parts)
+          const_cast<dd::Column*>(key_col_obj)->set_column_key(
+                                                  dd::Column::CK_MULTIPLE);
+        break;
+      default:
+        DBUG_ASSERT(!"Invalid index type");
+        break;
+      }
+    }
+
     dd::Index_element *idx_elem=
       idx_obj->add_element(const_cast<dd::Column*>(key_col_obj));
 
     idx_elem->set_length(key_part->length);
 
-    // Note: Sort order is always 0 in FRM file
-    // May be this is part of key_part_flag ? need to study
+    //
+    // Set index order
+    //
+
+    if (file->index_flags(idx_obj->ordinal_position() - 1,
+                          key_part_no,
+                          0) & HA_READ_ORDER)
+      idx_elem->set_order(key_part->key_part_flag & HA_REVERSE_SORT ?
+                          dd::Index_element::ORDER_DESC :
+                          dd::Index_element::ORDER_ASC);
+    else
+      idx_elem->set_order(dd::Index_element::ORDER_UNDEF);
+
   }
 }
 
+//  Check if a given key is candidate to be promoted to primary key.
+static
+bool is_candidate_primary_key(THD *thd,
+                              KEY *key,
+                              const List<Create_field> &create_fields)
+{
+  KEY_PART_INFO *key_part;
+  KEY_PART_INFO *key_part_end= key->key_part + key->user_defined_key_parts;
+
+  if (!(key->flags & HA_NOSAME) || (key->flags & HA_NULL_PART_KEY))
+    return false;
+
+  if (key->flags & HA_VIRTUAL_GEN_KEY)
+    return false;
+
+  // Use temporary objects to get Field*
+  TABLE_SHARE share;
+  TABLE table;
+  memset(&share, 0, sizeof(share));
+  memset(&table, 0, sizeof(table));
+  table.s= &share;
+  table.in_use= thd;
+
+  for (key_part= key->key_part; key_part < key_part_end; key_part++)
+  {
+    /* Create the Create_field object for this key_part */
+
+    Create_field *cfield;
+    List_iterator<Create_field> it(const_cast
+                                     <List<Create_field>&>(create_fields));
+    int i= 0;
+    while ((cfield=it++))
+    {
+      if (i == key_part->fieldnr)
+        break;
+      i++;
+    }
+
+    /* Prepare Field* object from Create_field */
+
+    std::unique_ptr<Field> table_field(make_field(table.s,
+                                         0,
+                                         cfield->length,
+                                         nullptr,
+                                         0,
+                                         cfield->sql_type,
+                                         cfield->charset,
+                                         cfield->geom_type,
+                                         cfield->auto_flags,
+                                         cfield->interval,
+                                         cfield->field_name,
+                                         cfield->maybe_null,
+                                         cfield->is_zerofill,
+                                         cfield->is_unsigned,
+                                         cfield->decimals,
+                                         cfield->treat_bit_as_char, 0));
+    table_field->init(&table);
+
+    if (is_suitable_for_primary_key(key_part, table_field.get()) == false)
+      return false;
+  }
+
+  return true;
+}
 
 /** Add index objects to dd::Table according to array of KEY structures. */
-static void fill_dd_indexes_from_keyinfo(dd::Table *tab_obj,
-                                         uint key_count,
-                                         const KEY *keyinfo)
+static
+void fill_dd_indexes_from_keyinfo(THD *thd,
+                                  dd::Table *tab_obj,
+                                  uint key_count,
+                                  const KEY *keyinfo,
+                                  const List<Create_field> &create_fields,
+                                  handler *file)
 {
+  /**
+    Currently the index order type is not persisted in new DD or in .FRM. In
+    I_S with new DD index order is calculated from the index type. That is,
+    the index order is always calculated as ascending except for FULLTEXT and
+    HASH index.
+    Type of index ordering(ASC/DESC/UNDEF) is property of handler and index
+    type. With the proper handler and the index type, index order type can be
+    easily retrieved.
+    So here using keyinfo with table share of handler to get the index order
+    type. If table share does not exist for handler then dummy_table_share
+    is created. Index order type value is stored in the
+    index_column_usage.index_order.
+
+    Note:
+      The keyinfo prepared here is some what different from one prepared at
+      table opening time.
+      For example: actual_flags, unused_key_parts, usable_key_parts,
+                   rec_per_key, rec_per_key_float ...
+                   member of keyinfo might be different in one prepared at
+                   table opening time.
+
+      But index_flags() implementations mostly uses algorithm and flags members
+      of keyinfo to get the flag value. Apparently these members are not
+      different from the one prepared at table opening time. So approach to get
+      index order type from keyinfo works fine.
+
+    Alternative approach:
+      Introduce a new handler API to get index order type using the index type.
+      Usage of dummy_table_share and backup variables to reset handler's table
+      share can be avoided with this approach.
+
+    TODO:Refine approach during the complete WL6599 review by dlenev.
+  */
+  TABLE_SHARE dummy_table_share;
+  uint *pk_key_nr= nullptr;
+  uint pk_key_nr_bkp= 0;
+  KEY *key_info_bkp= nullptr;
+
+  TABLE_SHARE *table_share= const_cast<TABLE_SHARE *>(file->get_table_share());
+  if (table_share == nullptr)
+  {
+    memset(&dummy_table_share, 0, sizeof(TABLE_SHARE));
+    dummy_table_share.key_info= const_cast<KEY *>(keyinfo);
+    /*
+      Primary key number in table share is set while iterating through all
+      the indexes.
+    */
+    pk_key_nr= &dummy_table_share.primary_key;
+    file->change_table_ptr(nullptr, &dummy_table_share);
+  }
+  else
+  {
+    /*
+      keyinfo and primary key number from it is used with the table_share here
+      to get the index order type. So before assigning keyinfo and primary key
+      number to table_share, backup current key info and primary key number.
+    */
+    key_info_bkp= table_share->key_info;
+    pk_key_nr_bkp= table_share->primary_key;
+    /*
+      Primary key number in table share is set while iterating through all
+      the indexes.
+    */
+    pk_key_nr= &table_share->primary_key;
+    table_share->key_info= const_cast<KEY *>(keyinfo);
+  }
+
   //
   // Iterate through all the indexes
   //
@@ -613,6 +1056,7 @@ static void fill_dd_indexes_from_keyinfo(dd::Table *tab_obj,
   const KEY *key= keyinfo;
   const KEY *end= keyinfo + key_count;
 
+  const KEY *primary_key_info= nullptr;
   for (int key_nr= 1; key != end; ++key, ++key_nr)
   {
     //
@@ -626,6 +1070,12 @@ static void fill_dd_indexes_from_keyinfo(dd::Table *tab_obj,
     idx_obj->set_algorithm(dd_get_new_index_algorithm_type(key->algorithm));
     idx_obj->set_algorithm_explicit(key->is_algorithm_explicit);
     idx_obj->set_visible(key->is_visible);
+
+    if (dd_get_new_index_type(key) == dd::Index::IT_PRIMARY)
+    {
+      *pk_key_nr= key_nr - 1;
+      primary_key_info= key;
+    }
 
     idx_obj->set_type(dd_get_new_index_type(key));
 
@@ -668,11 +1118,33 @@ static void fill_dd_indexes_from_keyinfo(dd::Table *tab_obj,
     if (key->parser_name.str)
       idx_options->set("parser_name", key->parser_name.str);
 
+    /*
+      If we have no primary key, then we pick the first candidate primary
+      key and promote it. When we promote, the field's of key_part needs to
+      be marked as PRIMARY. So we find the candidate key and convey to
+      fill_dd_index_elements_from_key_parts() about the same.
+    */
+    if (primary_key_info == nullptr &&
+        is_candidate_primary_key(thd, const_cast<KEY*>(key), create_fields))
+    {
+      primary_key_info= key;
+    }
+
     // Add Index elements
     fill_dd_index_elements_from_key_parts(tab_obj,
                                           idx_obj,
                                           key->user_defined_key_parts,
-                                          key->key_part);
+                                          key->key_part,
+                                          file,
+                                          key == primary_key_info);
+  }
+
+  if (table_share == nullptr)
+    file->change_table_ptr(nullptr, nullptr);
+  else
+  {
+    table_share->key_info= key_info_bkp;
+    table_share->primary_key= pk_key_nr_bkp;
   }
 }
 
@@ -1440,6 +1912,7 @@ static bool fill_dd_table_from_create_info(THD *thd,
                                            const List<Create_field> &create_fields,
                                            const KEY *keyinfo,
                                            uint keys,
+                                           Alter_info::enum_enable_or_disable keys_onoff,
                                            const FOREIGN_KEY *fk_keyinfo,
                                            uint fk_keys,
                                            handler *file)
@@ -1468,7 +1941,7 @@ static bool fill_dd_table_from_create_info(THD *thd,
   }
 
   // Comments
-  if (create_info->comment.str)
+  if (create_info->comment.str && create_info->comment.length)
     tab_obj->set_comment(std::string(create_info->comment.str,
                                      create_info->comment.length));
 
@@ -1526,14 +1999,17 @@ static bool fill_dd_table_from_create_info(THD *thd,
   */
   DBUG_ASSERT(!((create_info->table_options & HA_OPTION_CHECKSUM) &&
                 (create_info->table_options & HA_OPTION_NO_CHECKSUM)));
-  table_options->set_bool("checksum",
-                          create_info->table_options & HA_OPTION_CHECKSUM);
+  if (create_info->table_options & (HA_OPTION_CHECKSUM|HA_OPTION_NO_CHECKSUM))
+    table_options->set_bool("checksum",
+                            create_info->table_options & HA_OPTION_CHECKSUM);
 
   /* DELAY_KEY_WRITE=# clause. Same situation as for CHECKSUM option. */
   DBUG_ASSERT(!((create_info->table_options & HA_OPTION_DELAY_KEY_WRITE) &&
                 (create_info->table_options & HA_OPTION_NO_DELAY_KEY_WRITE)));
-  table_options->set_bool("delay_key_write", create_info->table_options &
-                                             HA_OPTION_DELAY_KEY_WRITE);
+  if (create_info->table_options & (HA_OPTION_DELAY_KEY_WRITE|
+                                    HA_OPTION_NO_DELAY_KEY_WRITE))
+    table_options->set_bool("delay_key_write", create_info->table_options &
+                                               HA_OPTION_DELAY_KEY_WRITE);
 
   /*
     STATS_PERSISTENT=# clause. Absence option in dd::Properties represents
@@ -1558,6 +2034,9 @@ static bool fill_dd_table_from_create_info(THD *thd,
 
   table_options->set_uint32("avg_row_length", create_info->avg_row_length);
 
+  if (create_info->row_type != ROW_TYPE_DEFAULT)
+    table_options->set_uint32("row_type", create_info->row_type);
+
   // ROW_FORMAT which was explicitly specified by user (if any).
   if (create_info->row_type != ROW_TYPE_DEFAULT)
     table_options->set_uint32("row_type",
@@ -1575,18 +2054,35 @@ static bool fill_dd_table_from_create_info(THD *thd,
 
   table_options->set_uint32("key_block_size", create_info->key_block_size);
 
-  if (create_info->connect_string.str)
-    table_options->set("connection_string", create_info->connect_string.str);
+  if (create_info->connect_string.str && create_info->connect_string.length)
+  {
+    std::string connect_string;
+    connect_string.assign(create_info->connect_string.str,
+                          create_info->connect_string.length);
+    table_options->set("connection_string", connect_string);
+  }
 
-  if (create_info->compress.str)
-    table_options->set("compress", create_info->compress.str);
+  if (create_info->compress.str && create_info->compress.length)
+  {
+    std::string compress;
+    compress.assign(create_info->compress.str, create_info->compress.length);
+    table_options->set("compress", compress);
+  }
 
-  if (create_info->encrypt_type.str)
-    table_options->set("encrypt_type", create_info->encrypt_type.str);
-
+  if (create_info->encrypt_type.str && create_info->encrypt_type.length)
+  {
+    std::string encrypt_type;
+    encrypt_type.assign(create_info->encrypt_type.str,
+                        create_info->encrypt_type.length);
+    table_options->set("encrypt_type", encrypt_type);
+  }
   // Storage media
   if (create_info->storage_media > HA_SM_DEFAULT)
     table_options->set_uint32("storage", create_info->storage_media);
+
+  // Update option keys_disabled
+  table_options->set_uint32("keys_disabled",
+                            (keys_onoff==Alter_info::DISABLE ? 1 : 0));
 
   // Collation ID
   DBUG_ASSERT(create_info->default_table_charset);
@@ -1611,7 +2107,7 @@ static bool fill_dd_table_from_create_info(THD *thd,
     return true;
 
   // Add index definitions
-  fill_dd_indexes_from_keyinfo(tab_obj, keys, keyinfo);
+  fill_dd_indexes_from_keyinfo(thd, tab_obj, keys, keyinfo, create_fields, file);
 
   // Only add foreign key definitions for engines that support it.
   if (ha_check_storage_engine_flag(create_info->db_type,
@@ -1677,38 +2173,61 @@ static std::unique_ptr<dd::Table> create_dd_system_table(THD *thd,
   std::unique_ptr<dd::Table> tab_obj(const_cast<dd::Schema *>(system_schema)->
                                      create_table(thd));
 
+  // Set to be hidden if appropriate.
+  tab_obj->set_hidden(dd_table.hidden());
+
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
-                                     keyinfo, keys, fk_keyinfo, fk_keys, file))
+                                     keyinfo, keys, Alter_info::ENABLE,
+                                     fk_keyinfo, fk_keys, file))
     return nullptr;
 
-  // Get the se private data for the DD table
-  if (file->ha_get_se_private_data(tab_obj.get(),
-                                   dd_table.default_dd_version(thd)))
-    return nullptr;
+  /*
+    Get the se private data for the DD table
+
+    In upgrade scenario, to check the existence of version table,
+    version table is tried to open. This requires dd::Table object
+    for version table. Creation of version table inside Storage Engine
+    should be avoided during the existance check. We skip fetching
+    se_private_id from SE during this process. This is done as
+    a work around to reset variables in InnoDB as it is done for
+    dictionary cache and dictionary object ids.
+
+    TODO: This should be fixed as preparation for InnoDB dictionary upgrade.
+  */
+  if (!dd_upgrade_skip_se)
+  {
+    if (file->ha_get_se_private_data(tab_obj.get(),
+                                     dd_table.default_dd_version(thd)))
+      return nullptr;
+  }
+
+  // Reset id if we are creating version DD table.
+  bool reset_id= (strcmp(table_name.c_str(), "version") == 0);
 
   // "Store" the object in the shared cache, and make it sticky.
   // Ownership of dd::Table object is passed to Auto_releaser;
   dd::Table *tab_obj_auto;
-  thd->dd_client()->add_and_reset_id((tab_obj_auto= tab_obj.release()));
+  thd->dd_client()->add_and_reset_id((tab_obj_auto= tab_obj.release()), reset_id);
   thd->dd_client()->set_sticky(tab_obj_auto, true);
 
   return std::unique_ptr<dd::Table>(tab_obj_auto->clone());
 }
 
 
-static std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
-                                    const std::string &schema_name,
-                                    const std::string &table_name,
-                                    HA_CREATE_INFO *create_info,
-                                    const List<Create_field> &create_fields,
-                                    const KEY *keyinfo,
-                                    uint keys,
-                                    const FOREIGN_KEY *fk_keyinfo,
-                                    uint fk_keys,
-                                    handler *file,
-                                    bool commit_dd_changes,
-                                    bool store_sdi)
+std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
+                             const std::string &schema_name,
+                             const std::string &table_name,
+                             HA_CREATE_INFO *create_info,
+                             const List<Create_field> &create_fields,
+                             const KEY *keyinfo,
+                             uint keys,
+                             Alter_info::enum_enable_or_disable keys_onoff,
+                             const FOREIGN_KEY *fk_keyinfo,
+                             uint fk_keys,
+                             handler *file,
+                             bool commit_dd_changes,
+                             bool store_sdi)
 {
   // Verify that this is not a dd table.
   DBUG_ASSERT(!dd::get_dictionary()->is_dd_table_name(schema_name,
@@ -1738,7 +2257,8 @@ static std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
-                                     keyinfo, keys, fk_keyinfo, fk_keys, file))
+                                     keyinfo, keys, keys_onoff,
+                                     fk_keyinfo, fk_keys, file))
     return nullptr;
 
   // WL7743:/TODO: Consider pulling out commit/rollback code below
@@ -1775,6 +2295,7 @@ std::unique_ptr<dd::Table> create_table(THD *thd,
                              const List<Create_field> &create_fields,
                              const KEY *keyinfo,
                              uint keys,
+                             Alter_info::enum_enable_or_disable keys_onoff,
                              const FOREIGN_KEY *fk_keyinfo,
                              uint fk_keys,
                              handler *file,
@@ -1789,8 +2310,9 @@ std::unique_ptr<dd::Table> create_table(THD *thd,
                            keyinfo, keys, fk_keyinfo, fk_keys,
                            file, *dd_table) :
     create_dd_user_table(thd, schema_name, table_name, create_info,
-                         create_fields, keyinfo, keys, fk_keyinfo, fk_keys,
-                         file, commit_dd_changes, store_sdi);
+                         create_fields, keyinfo, keys, keys_onoff,
+                         fk_keyinfo, fk_keys, file,
+                         commit_dd_changes, store_sdi);
 }
 
 
@@ -1801,6 +2323,7 @@ std::unique_ptr<dd::Table> create_tmp_table(THD *thd,
                              const List<Create_field> &create_fields,
                              const KEY *keyinfo,
                              uint keys,
+                             Alter_info::enum_enable_or_disable keys_onoff,
                              handler *file)
 {
   // Check if the schema exists. We must make sure the schema is released
@@ -1826,7 +2349,7 @@ std::unique_ptr<dd::Table> create_tmp_table(THD *thd,
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
-                                     keyinfo, keys, NULL, 0, file))
+                                     keyinfo, keys, keys_onoff, NULL, 0, file))
     return nullptr;
 
   return tab_obj;
@@ -1907,9 +2430,10 @@ bool drop_table(THD *thd, const char *schema_name, const char *name,
 
   Disable_gtid_state_update_guard disabler(thd);
 
-  // Drop the table/view
+  // Drop the table/view and related dynamic statistics too.
   if (dd::remove_sdi(thd, at, sch) ||
-      client->drop_uncached(table_def.get()))
+      client->drop_uncached(table_def.get()) ||
+      client->remove_table_dynamic_statistics(schema_name, name))
   {
     if (commit_dd_changes)
     {
@@ -2055,8 +2579,8 @@ bool rename_table(THD *thd,
 
   if (to_tab)
   {
-    /* This function can't properly handle sticky (i.e. system tables). */
-    DBUG_ASSERT(! thd->dd_client()->is_sticky(to_tab));
+//    /* This function can't properly handle sticky (i.e. system tables). */
+//    DBUG_ASSERT(! thd->dd_client()->is_sticky(to_tab));
 
     if (dd::remove_sdi(thd, to_tab, to_sch) ||
         thd->dd_client()->drop_uncached(to_tab))
@@ -2383,7 +2907,118 @@ std::unique_ptr<T> acquire_uncached_uncommitted_table(THD *thd,
 }
 
 
+bool update_keys_disabled(THD *thd,
+                          const char *schema_name,
+                          const char *table_name,
+                          Alter_info::enum_enable_or_disable keys_onoff)
+{
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+  // Check if source and destination schema exists
+  const dd::Schema *sch= nullptr;
+  if (thd->dd_client()->acquire<dd::Schema>(schema_name, &sch))
+  {
+    return true;
+  }
+
+  if (!sch)
+  {
+    return true;
+  }
+
+  // Get 'from' table object
+  const dd::Table *tab_obj= nullptr;
+  if (thd->dd_client()->acquire<dd::Table>(schema_name,
+                                           table_name,
+                                           &tab_obj))
+  {
+    return true;
+  }
+
+  if (!tab_obj)
+  {
+    return true;
+  }
+
+  // Update option keys_disabled
+  dd::Properties *table_options= &const_cast<dd::Table*>(tab_obj)->options();
+  table_options->set_uint32("keys_disabled",
+                            (keys_onoff==Alter_info::DISABLE ? 1 : 0));
+
+  // Clone the object to be modified, and make sure the clone is deleted
+  // by wrapping it in a unique_ptr.
+  std::unique_ptr<dd::Table> new_tab(tab_obj->clone());
+
+  // Update the changes
+  if (thd->dd_client()->update(&tab_obj, new_tab.get()))
+  {
+    return true;
+  }
+
+  // The table object will be left in cache.
+
+  return (false);
+}
+
+
+/**
+  @brief Function returns string representing column type by ST_FIELD_INFO.
+         This is required for the IS implementation which uses views on DD
+         tables
+
+  @param[in]   thd             The thread handle.
+  @param[in]   field_type      Column type.
+  @param[in]   field_length    Column length.
+  @param[in]   field_charset   Column charset.
+
+  @return std::string representing column type.
+*/
+
+std::string get_sql_type_by_field_info(THD *thd,
+                                       enum_field_types field_type,
+                                       uint32 field_length,
+                                       const CHARSET_INFO *field_charset)
+{
+  DBUG_ENTER("get_sql_type_by_field_info");
+
+  TABLE_SHARE share;
+  TABLE table;
+  memset(&share, 0, sizeof(share));
+  memset(&table, 0, sizeof(table));
+  table.s= &share;
+  table.in_use= thd;
+
+  Create_field field;
+  // Initializing field using field_type and field_length.
+  field.init_for_tmp_table(field_type, field_length,
+                           0, false, false, 0);
+  field.charset= field_charset;
+
+  DBUG_RETURN(get_sql_type_by_create_field(&table, &field));
+}
+
+
 bool fix_row_type(THD *thd, TABLE_SHARE *share)
+{
+  HA_CREATE_INFO create_info;
+  create_info.row_type= share->row_type;
+  create_info.table_options= share->db_options_in_use;
+
+  handler *file= get_new_handler(share, share->m_part_info != NULL,
+                                 thd->mem_root, share->db_type());
+  if (!file)
+    return true;
+
+  row_type correct_row_type= file->get_real_row_type(&create_info);
+
+  bool error= fix_row_type(thd, share, correct_row_type);
+
+  delete file;
+  return error;
+}
+
+
+bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type)
 {
   Disable_autocommit_guard autocommit_guard(thd);
   dd::Schema_MDL_locker mdl_locker(thd);
@@ -2425,19 +3060,7 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share)
     new_table_def= std::unique_ptr<dd::Table>(old_table_def->clone());
   }
 
-  HA_CREATE_INFO create_info;
-  create_info.row_type= share->row_type;
-  create_info.table_options= share->db_options_in_use;
-
-  handler *file= get_new_handler(share, share->m_part_info != NULL,
-                                 thd->mem_root, share->db_type());
-  if (!file)
-    return true;
-
-  row_type correct_row_type= file->get_real_row_type(&create_info);
   new_table_def->set_row_format(dd_get_new_row_format(correct_row_type));
-
-  delete file;
 
   if (thd->dd_client()->update_uncached_and_invalidate(new_table_def.get()) ||
       store_sdi(thd, new_table_def.get(), sch))
@@ -2448,6 +3071,43 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share)
   }
 
   return trans_commit_stmt(thd) || trans_commit(thd);
+}
+
+bool move_triggers(THD *thd,
+                   const char *from_schema_name,
+                   const char *from_name,
+                   const char *to_schema_name,
+                   const char *to_name,
+                   bool commit_dd_changes)
+{
+  std::unique_ptr<dd::Table> from_tab;
+  std::unique_ptr<dd::Table> to_tab;
+
+  if (!(from_tab= acquire_uncached_uncommitted_table<dd::Table>(thd,
+                    from_schema_name, from_name)))
+    return true;
+
+  if (!(to_tab= acquire_uncached_uncommitted_table<dd::Table>(thd,
+                  to_schema_name, to_name)))
+    return true;
+
+  to_tab->copy_triggers(from_tab.get());
+  from_tab->drop_all_triggers();
+
+  if (thd->dd_client()->update_uncached_and_invalidate(from_tab.get()) ||
+      thd->dd_client()->update_uncached_and_invalidate(to_tab.get()))
+  {
+    if (commit_dd_changes)
+    {
+      trans_rollback_stmt(thd);
+      // Full rollback in case we have THD::transaction_rollback_request.
+      trans_rollback(thd);
+    }
+    return true;
+  }
+
+  return commit_dd_changes &&
+         (trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 } // namespace dd

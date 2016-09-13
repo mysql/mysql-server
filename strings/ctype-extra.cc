@@ -21,8 +21,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <my_global.h>
-#include <m_ctype.h>
+#include <stddef.h>
+
+#include "my_global.h"
+#include "m_ctype.h"
 
 static const uchar ctype_dec8_swedish_ci[] = {
 0x00,
@@ -8562,7 +8564,7 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* cset name     */
   NULL,                       /* coll name     */
   NULL,                       /* comment       */
-  NULL,                       /* tailoging     */
+  NULL,                       /* tailoring     */
   NULL,                       /* coll_param    */
   NULL,                       /* ctype         */
   NULL,                       /* lower         */

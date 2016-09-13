@@ -43,9 +43,9 @@ if (!$_sss_slave_timeout)
 }
 
 --let $_sss_channel_param=
-if ($_saved_channel_name != '')
+if ($_saved_channel_name)
 {
-  --let $_sss_channel_param= , '$_saved_channel_name'
+  --let $_sss_channel_param= , $_saved_channel_name
 }
 
 if ($rpl_debug)
@@ -131,6 +131,7 @@ if ($_sss_result < 0)
   --echo ERROR: _saved_gtids='$_saved_gtids'
   --echo ERROR: _saved_file='$_saved_file'
   --echo ERROR: _saved_pos='$_saved_pos'
+  --echo ERROR: _saved_channel_name=$_saved_channel_name
   --echo ERROR: timeout='$_sss_slave_timeout'
   --echo ERROR: result='$_sss_result'
   --echo ERROR: error type: $error_type

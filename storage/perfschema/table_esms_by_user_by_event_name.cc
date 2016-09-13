@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -185,6 +185,29 @@ table_esms_by_user_by_event_name::m_share=
   false  /* perpetual */
 };
 
+bool PFS_index_esms_by_user_by_event_name::match(PFS_user *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key_1.match(pfs))
+      return false;
+  }
+  return true;
+}
+
+bool PFS_index_esms_by_user_by_event_name::match(PFS_instr_class *instr_class)
+{
+  if (instr_class->is_mutable())
+    return false;
+
+  if (m_fields >= 2)
+  {
+    if (!m_key_2.match(instr_class))
+      return false;
+  }
+  return true;
+}
+
 PFS_engine_table*
 table_esms_by_user_by_event_name::create(void)
 {
@@ -271,6 +294,53 @@ table_esms_by_user_by_event_name::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
+int table_esms_by_user_by_event_name::index_init(uint idx, bool sorted)
+{
+  m_normalizer= time_normalizer::get(statement_timer);
+  PFS_index_esms_by_user_by_event_name *result= NULL;
+  DBUG_ASSERT(idx == 0);
+  result= PFS_NEW(PFS_index_esms_by_user_by_event_name);
+  m_opened_index= result;
+  m_index= result;
+  return 0;
+}
+
+int table_esms_by_user_by_event_name::index_next(void)
+{
+  PFS_user *user;
+  PFS_statement_class *statement_class;
+  bool has_more_user= true;
+
+  for (m_pos.set_at(&m_next_pos);
+       has_more_user;
+       m_pos.next_user())
+  {
+    user= global_user_container.get(m_pos.m_index_1, &has_more_user);
+    if (user != NULL)
+    {
+      if (m_opened_index->match(user))
+      {
+        do
+        {
+          statement_class= find_statement_class(m_pos.m_index_2);
+          if (statement_class)
+          {
+            if (m_opened_index->match(statement_class))
+            {
+              make_row(user, statement_class);
+              m_next_pos.set_after(&m_pos);
+              return 0;
+            }
+            m_pos.m_index_2++;
+          }
+        } while (statement_class != NULL);
+      }
+    }
+  }
+
+  return HA_ERR_END_OF_FILE;
+}
+
 void table_esms_by_user_by_event_name
 ::make_row(PFS_user *user, PFS_statement_class *klass)
 {
@@ -335,4 +405,3 @@ int table_esms_by_user_by_event_name
 
   return 0;
 }
-

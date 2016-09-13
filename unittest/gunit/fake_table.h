@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,32 @@
 #ifndef FAKE_TABLE_H
 #define FAKE_TABLE_H
 
-#include "current_thd.h"
-#include "sql_class.h"
-#include "handler-t.h"
 #include <gmock/gmock.h>
+#include <string.h>
+#include <sys/types.h>
+#include <ostream>
+#include <string>
+#include <vector>
+
+#include "current_thd.h"
+#include "field.h"
+#include "gmock/gmock-generated-nice-strict.h"
+#include "gtest/gtest.h"
+#include "handler-t.h"
+#include "handler.h"
+#include "item.h"
+#include "key.h"
 #include "mock_field_long.h" // todo: put this #include first
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_global.h"
+#include "mysql_com.h"
+#include "sql_bitmap.h"
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_list.h"
+#include "sql_plugin_ref.h"
+#include "table.h"
 
 using ::testing::NiceMock;
 using std::vector;

@@ -213,7 +213,8 @@ select (select variable_value from performance_schema.session_status where varia
 DROP TABLE IF EXISTS tab2;
 
 --disable_warnings
-select (select variable_value from performance_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions;
+select (select variable_value from
+        performance_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions;
 --echo 1 Expected
 
 select (select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4;

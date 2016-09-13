@@ -16,3 +16,6 @@ ALTER TABLE performance_schema.events_statements_summary_by_digest ADD INDEX tes
 CREATE UNIQUE INDEX test_index
   ON performance_schema.events_statements_summary_by_digest(DIGEST);
 
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `SCHEMA_NAME`
+  ON performance_schema.events_statements_summary_by_digest;

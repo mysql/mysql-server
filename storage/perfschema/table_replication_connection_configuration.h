@@ -25,6 +25,7 @@
 
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
+#include "table_helper.h"
 
 #ifdef HAVE_REPLICATION
 
@@ -99,6 +100,24 @@ struct st_row_connect_config {
 
 #endif /* HAVE_REPLICATION */
 
+class PFS_index_rpl_connection_config : public PFS_engine_index
+{
+public:
+  PFS_index_rpl_connection_config()
+    : PFS_engine_index(&m_key),
+    m_key("CHANNEL_NAME")
+  {}
+
+  ~PFS_index_rpl_connection_config()
+  {}
+
+#ifdef HAVE_REPLICATION
+  virtual bool match(Master_info *mi);
+#endif
+private:
+  PFS_key_name m_key;
+};
+
 /** Table PERFORMANCE_SCHEMA.TABLE_REPLICATION_CONNECTION_CONFIGURATION. */
 class table_replication_connection_configuration: public PFS_engine_table
 {
@@ -145,9 +164,16 @@ public:
   static PFS_engine_table_share m_share;
   static PFS_engine_table* create();
   static ha_rows get_row_count();
+  virtual void reset_position(void);
+
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
+
+private:
+  PFS_index_rpl_connection_config *m_opened_index;
 
 };
 

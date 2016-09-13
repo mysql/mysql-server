@@ -17,3 +17,6 @@ ALTER TABLE performance_schema.objects_summary_global_by_type
 CREATE UNIQUE INDEX test_index
   ON performance_schema.objects_summary_global_by_type(OBJECT_NAME);
 
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `OBJECT`
+  ON performance_schema.objects_summary_global_by_type;

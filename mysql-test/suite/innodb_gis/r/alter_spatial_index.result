@@ -603,6 +603,12 @@ CREATE TABLE parent (id POINT, PRIMARY KEY(id)) ENGINE=InnoDB;
 CREATE TABLE child (id GEOMETRY NOT NULL, parent_id POINT NOT NULL) ENGINE=InnoDB;
 ALTER TABLE parent ADD SPATIAL INDEX idx1(id ASC);
 ALTER TABLE child ADD SPATIAL INDEX idx2(parent_id ASC);
+ANALYZE TABLE parent;
+Table	Op	Msg_type	Msg_text
+test.parent	analyze	status	OK
+ANALYZE TABLE child;
+Table	Op	Msg_type	Msg_text
+test.child	analyze	status	OK
 SHOW CREATE TABLE parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
@@ -633,6 +639,12 @@ CREATE TABLE parent (id GEOMETRY, PRIMARY KEY(id(10))) ENGINE=InnoDB;
 CREATE TABLE child (id GEOMETRY NOT NULL, parent_id GEOMETRY NOT NULL) ENGINE=InnoDB;
 ALTER TABLE parent ADD SPATIAL INDEX idx1(id ASC) ;
 ALTER TABLE child ADD SPATIAL INDEX idx2(parent_id ASC);
+ANALYZE TABLE parent;
+Table	Op	Msg_type	Msg_text
+test.parent	analyze	status	OK
+ANALYZE TABLE child;
+Table	Op	Msg_type	Msg_text
+test.child	analyze	status	OK
 SHOW CREATE TABLE parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (

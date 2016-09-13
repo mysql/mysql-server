@@ -94,6 +94,7 @@ INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
                           ('Only MyISAM tables','support collections'),
              ('Function MATCH ... AGAINST()','is used to do a search'),
         ('Full-text search in MySQL', 'implements vector space model');
+ANALYZE TABLE t1;
 SHOW INDEX FROM t1;
 
 # nl search

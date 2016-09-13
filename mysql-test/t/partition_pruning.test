@@ -1970,6 +1970,7 @@ ALTER TABLE t1 REMOVE PARTITIONING;
 }
 select * from t1 where s1 = 0 or s1 is null;
 insert into t1 values ('aa'),('bb'),('0');
+analyze table t1;
 --replace_column 10 #
 explain partitions select * from t1 where s1 = 0 or s1 is null;
 drop table t1;

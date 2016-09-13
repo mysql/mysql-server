@@ -527,6 +527,8 @@ bool lex_start(THD *thd)
   DBUG_ASSERT(lex->current_select() == NULL);
   lex->m_current_select= lex->select_lex;
 
+  lex->m_IS_dyn_stat_cache.invalidate_cache();
+
   DBUG_RETURN(status);
 }
 
@@ -2318,6 +2320,7 @@ SELECT_LEX::SELECT_LEX
   outer_join(0),
   opt_hints_qb(NULL),
   m_agg_func_used(false),
+  m_json_agg_func_used(false),
   sj_candidates(NULL)
 {
 }
@@ -3087,7 +3090,17 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type) const
       }
       else
       {
-        append_identifier(thd, str, table_name, table_name_length);
+        /**
+         Fix for printing empty string when internal_table_name is
+         used. Actual length of internal_table_name cannot be reduced
+         as server expects a valid string of length atleast 1 for any
+         table. So while printing we use the correct length of the
+         table_name i.e 0 when internal_table_name is used.
+        */
+        if (table_name != internal_table_name)
+          append_identifier(thd, str, table_name, table_name_length);
+        else
+          append_identifier(thd, str, table_name, 0);
         cmp_name= table_name;
       }
       if (partition_names && partition_names->elements)
@@ -3597,6 +3610,21 @@ bool LEX::can_use_merged()
   case SQLCOM_REPLACE:
   case SQLCOM_REPLACE_SELECT:
   case SQLCOM_LOAD:
+
+  /*
+    With WL#6599 following SHOW commands are implemented over the
+    INFORMATION_SCHEMA system views, and we do not create
+    temporary tables anymore now. So these queries should be
+    allowed to be mergeable, which makes the INFORMATION_SCHEMA
+    query execution faster.
+  */
+  case SQLCOM_SHOW_CHARSETS:
+  case SQLCOM_SHOW_COLLATIONS:
+  case SQLCOM_SHOW_DATABASES:
+  case SQLCOM_SHOW_TABLES:
+  case SQLCOM_SHOW_TABLE_STATUS:
+  case SQLCOM_SHOW_FIELDS:
+  case SQLCOM_SHOW_KEYS:
     return TRUE;
   default:
     return FALSE;
@@ -3619,12 +3647,6 @@ bool LEX::can_not_use_merged()
   {
   case SQLCOM_CREATE_VIEW:
   case SQLCOM_SHOW_CREATE:
-  /*
-    SQLCOM_SHOW_FIELDS is necessary to make 
-    information schema tables working correctly with views.
-    see get_schema_tables_result function
-  */
-  case SQLCOM_SHOW_FIELDS:
     return TRUE;
   default:
     return FALSE;

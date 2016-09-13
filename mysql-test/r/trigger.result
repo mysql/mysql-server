@@ -949,34 +949,6 @@ drop trigger t1_bi;
 drop table t1;
 drop database mysqltest;
 use test;
-create table t1 (id int);
-create trigger t1_bi before insert on t1 for each row set @a:=new.id;
-create trigger t1_ai after insert on t1 for each row set @b:=new.id;
-insert into t1 values (101);
-select @a, @b;
-@a	@b
-101	101
-select trigger_schema, trigger_name, event_object_schema,
-event_object_table, action_statement from information_schema.triggers
-where event_object_schema = 'test';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
-test	t1_bi	test	t1	set @a:=new.id
-test	t1_ai	test	t1	set @b:=new.id
-rename table t1 to t2;
-ERROR HY000: Can't create/write to file './test/t1_ai.TRN~' (Errcode: 13 - Permission denied)
-insert into t1 values (102);
-select @a, @b;
-@a	@b
-102	102
-select trigger_schema, trigger_name, event_object_schema,
-event_object_table, action_statement from information_schema.triggers
-where event_object_schema = 'test';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
-test	t1_bi	test	t1	set @a:=new.id
-test	t1_ai	test	t1	set @b:=new.id
-drop trigger t1_bi;
-drop trigger t1_ai;
-drop table t1;
 create table t1 (i int);
 create trigger t1_bi before insert on t1 for each row return 0;
 ERROR 42000: RETURN is only allowed in a FUNCTION
@@ -2129,7 +2101,6 @@ INSERT INTO t2 VALUES (1);
 ERROR 42000: Trigger 'trg1' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1 VALUES (1)' at line 1'
 SELECT * FROM t1;
 b
-# Work around Bug#45235
 DROP DATABASE db1;
 USE test;
 End of 5.1 tests.
@@ -2644,3 +2615,29 @@ DROP USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_a
 DROP TRIGGER test.silly_trigger;
 DROP TABLE test.silly_one;
 End of 5.7 tests.
+#
+# Bug #23624693 - USING SHOW CREATE TRIGGER IN A TRANSACTION CRASHES THE SERVER
+#
+SHOW CREATE TRIGGER non_existence_db.some_trigger;
+ERROR 42000: Unknown database 'non_existence_db'
+CREATE TRIGGER non_existent_db.trg1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+ERROR 42000: Unknown database 'non_existent_db'
+DROP TRIGGER non_existent_db.trg1;
+ERROR 42000: Unknown database 'non_existent_db'
+#
+# Bug#24449174 - DROPPING A PARTITION DROPS THE TRIGGER ON 8.0.0
+#
+CREATE TABLE t1 (val INT NOT NULL) ENGINE=InnoDB
+PARTITION BY LIST(val) (
+PARTITION p1 VALUES IN (1,2,3),
+PARTITION p2 VALUES IN (4,5)
+);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+SHOW CREATE TRIGGER t1_bi;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+ALTER TABLE t1 DROP PARTITION p1;
+SHOW CREATE TRIGGER t1_bi;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+DROP TABLE t1;

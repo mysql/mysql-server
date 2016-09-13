@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include "opt_costconstantcache.h"         // init_optimizer_cost_module
 #include "sql_class.h"                     // THD
 
+#include "dd/dd.h"                         // enum_dd_init_type
 #include "dd/cache/dictionary_client.h"    // dd::Dictionary_client
 #include "dd/impl/bootstrapper.h"          // dd::Bootstrapper
 #include "dd/impl/system_registry.h"       // dd::System_tables
@@ -45,19 +46,21 @@ const std::string Dictionary_impl::DEFAULT_CATALOG_NAME("def");
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Dictionary_impl::init(bool install)
+bool Dictionary_impl::init(enum_dd_init_type dd_init)
 {
-  DBUG_ASSERT(!Dictionary_impl::s_instance);
+  if (dd_init == enum_dd_init_type::DD_INITIALIZE ||
+      dd_init == enum_dd_init_type::DD_RESTART_OR_UPGRADE)
+  {
+    DBUG_ASSERT(!Dictionary_impl::s_instance);
 
-  if (Dictionary_impl::s_instance)
-    return false; /* purecov: inspected */
+    if (Dictionary_impl::s_instance)
+      return false; /* purecov: inspected */
 
-  std::unique_ptr<Dictionary_impl> d(new Dictionary_impl());
+    std::unique_ptr<Dictionary_impl> d(new Dictionary_impl());
 
-  Dictionary_impl::s_instance= d.release();
+    Dictionary_impl::s_instance= d.release();
+  }
 
-  // TODO: We need to do basic ACL initialization to get a working LOCK_grant.
-  // We should instead rethink the order stuff happens during server start.
 #ifndef EMBEDDED_LIBRARY
   acl_init(true);
 #endif
@@ -66,17 +69,44 @@ bool Dictionary_impl::init(bool install)
     Initialize the cost model, but delete it after the dd is initialized.
     This is because the cost model is needed for the dd initialization, but
     it must be re-initialized later after the plugins have been initialized.
+    Upgrade process needs heap engine initialized, hence parameter 'true'
+    is passed to the function.
   */
-  init_optimizer_cost_module(false);
+  init_optimizer_cost_module(true);
 
-  /* Install or start the dictionary depending on bootstrapping option */
+  /*
+    Install or start or upgrade the dictionary
+    depending on bootstrapping option.
+  */
+
   bool result= false;
-  if (install)
+
+  // Creation of Data Dictionary through current server
+  if (dd_init == enum_dd_init_type::DD_INITIALIZE)
     result= ::bootstrap::run_bootstrap_thread(NULL, &bootstrap::initialize,
                                               SYSTEM_THREAD_DD_INITIALIZE);
-  else
-    result= ::bootstrap::run_bootstrap_thread(NULL, &bootstrap::restart,
-                                              SYSTEM_THREAD_DD_RESTART);
+
+  /*
+    Creation of Dictionary Tables in old Data Directory
+    This function also takes care of normal server restart.
+  */
+  else if (dd_init == enum_dd_init_type::DD_RESTART_OR_UPGRADE)
+    result= ::bootstrap::run_bootstrap_thread(NULL,
+                         &bootstrap::upgrade_do_pre_checks_and_initialize_dd,
+                         SYSTEM_THREAD_DD_INITIALIZE);
+
+  // Populate metadata in DD tables from old data directory and do cleanup.
+  else if (dd_init == enum_dd_init_type::DD_POPULATE_UPGRADE)
+    result= ::bootstrap::run_bootstrap_thread(NULL,
+                         &bootstrap::upgrade_fill_dd_and_finalize,
+                         SYSTEM_THREAD_DD_INITIALIZE);
+
+
+  // Delete DD tables and do cleanup in case of error in upgrade
+  else if (dd_init == enum_dd_init_type::DD_DELETE)
+    result= ::bootstrap::run_bootstrap_thread(NULL,
+                         &bootstrap::delete_dictionary_and_cleanup,
+                         SYSTEM_THREAD_DD_INITIALIZE);
 
   /* Now that the dd is initialized, delete the cost model. */
   delete_optimizer_cost_module();
@@ -86,6 +116,17 @@ bool Dictionary_impl::init(bool install)
   acl_free(true);
 #endif
   return result;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+bool Dictionary_impl::install_plugin_IS_table_metadata()
+{
+  DBUG_ASSERT(Dictionary_impl::instance());
+
+  return ::bootstrap::run_bootstrap_thread(
+           NULL, &bootstrap::store_plugin_IS_table_metadata,
+           SYSTEM_THREAD_DD_INITIALIZE);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -111,7 +152,15 @@ uint Dictionary_impl::get_target_dd_version()
 ///////////////////////////////////////////////////////////////////////////
 
 uint Dictionary_impl::get_actual_dd_version(THD *thd)
-{ return dd::tables::Version::instance().get_actual_dd_version(thd); }
+{
+  bool not_used;
+  return dd::tables::Version::instance().get_actual_dd_version(thd, &not_used);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+uint Dictionary_impl::get_actual_dd_version(THD *thd, bool *not_used)
+{ return dd::tables::Version::instance().get_actual_dd_version(thd, not_used); }
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -122,18 +171,83 @@ const Object_table *Dictionary_impl::get_dd_table(
   if (!is_dd_schema_name(schema_name))
     return NULL;
 
-  return System_tables::instance()->find(schema_name, table_name);
+  return System_tables::instance()->find_table(schema_name, table_name);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Dictionary_impl::is_system_view_name(const std::string &schema_name,
-                                          const std::string &table_name) const
+bool Dictionary_impl::is_dd_table_access_allowed(
+  bool is_dd_internal_thread,
+  bool is_ddl_statement,
+  const char *schema_name,
+  size_t schema_length,
+  const char *table_name) const
 {
-  if (schema_name.compare(INFORMATION_SCHEMA_NAME.str) != 0)
+  /*
+    From WL#6391, we have the following matrix describing access:
+
+    ---------+---------------------+
+             | Dictionary internal |
+    ---------+----------+----------+
+             |   DDL    |   DML    |
+    ---------+-----+----+-----+----+
+             | IN  | EX | IN  | EX |
+    ---------+-----+----+-----+----+
+    Inert    |  X          X       |
+    Core     |  X          X       |
+    Second   |  X          X       |
+    Support  |  X          X    X  |
+    ---------+---------------------+
+
+    For performance reasons, we first check the schema
+    name to shortcut the evaluation. If the table is not in
+    the 'mysql' schema, we don't need any further checks. Same for
+    checking for internal threads - an internal thread has full
+    access. We also allow access if the appropriate debug flag
+    is set.
+  */
+  if (schema_length != MYSQL_SCHEMA_NAME.length ||
+      strncmp(schema_name, MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length) ||
+      is_dd_internal_thread ||
+      DBUG_EVALUATE_IF("skip_dd_table_access_check", true, false))
+    return true;
+
+  // Now we need to get the table type.
+  const std::string schema_str(schema_name);
+  const std::string table_str(table_name);
+  const System_tables::Types *table_type= System_tables::instance()->
+                               find_type(schema_str, table_str);
+
+  // Access allowed for external DD tables and for DML on DDSE tables.
+  return (table_type == nullptr ||
+          (*table_type == System_tables::Types::DDSE && !is_ddl_statement));
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+bool Dictionary_impl::is_system_view_name(const char *schema_name,
+                                          const char *table_name) const
+{
+  /*
+    TODO One possible improvement here could be to try and use the variant
+    of is_infoschema_db() that takes length as a parameter. Then, if the
+    schema name length is different, this can quickly be used to conclude
+    that this is indeed not a system view, without having to do a strcmp at
+    all.
+  */
+  if (schema_name == nullptr ||
+      table_name == nullptr ||
+      is_infoschema_db(schema_name) == false)
     return false;
 
-  return (System_views::instance()->find(schema_name, table_name) != NULL);
+  // The System_views registry stores the view name in lowercase.
+  // So convert the input to lowercase before search.
+  char tab_name_buf[NAME_LEN + 1];
+  my_stpcpy(tab_name_buf, table_name);
+  my_caseup_str(system_charset_info, tab_name_buf);
+
+  return (System_views::instance()->find(INFORMATION_SCHEMA_NAME.str,
+                                         tab_name_buf) != NULL);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -252,6 +366,24 @@ bool has_exclusive_tablespace_mdl(THD *thd,
                           MDL_EXCLUSIVE);
 }
 
+bool acquire_exclusive_table_mdl(THD *thd,
+                                 const char *schema_name,
+                                 const char *table_name,
+                                 bool no_wait,
+                                 MDL_ticket **out_mdl_ticket)
+{
+  return acquire_mdl(thd, MDL_key::TABLE, schema_name, table_name, no_wait,
+                           MDL_EXCLUSIVE, MDL_EXPLICIT, out_mdl_ticket);
+}
+
+bool acquire_exclusive_schema_mdl(THD *thd,
+                                 const char *schema_name,
+                                 bool no_wait,
+                                 MDL_ticket **out_mdl_ticket)
+{
+  return acquire_mdl(thd, MDL_key::SCHEMA, schema_name, "", no_wait,
+                           MDL_EXCLUSIVE, MDL_EXPLICIT, out_mdl_ticket);
+}
 
 void release_mdl(THD *thd, MDL_ticket *mdl_ticket)
 {

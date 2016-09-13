@@ -872,8 +872,8 @@ Inserter::write_first_page(
 	write_into_page(field);
 
 	const ulint	field_no = field.field_no;
-	byte*	field_ref = btr_rec_get_field_ref(m_ctx->rec(),
-						m_ctx->get_offsets(), field_no);
+	byte*	field_ref = btr_rec_get_field_ref(
+		m_ctx->rec(), m_ctx->get_offsets(), field_no);
 	ref_t	blobref(field_ref);
 
 	blobref.set_length(field.len - m_remaining, mtr);
@@ -945,18 +945,31 @@ Inserter::write_into_page(big_rec_field_t&	field)
 	m_remaining -= store_len;
 }
 
+/** Returns the page number where the next BLOB part is stored.
+@param[in]	blob_header	the BLOB header.
+@return page number or FIL_NULL if no more pages */
+static
+inline
+page_no_t
+btr_blob_get_next_page_no(const byte* blob_header)
+{
+	return(mach_read_from_4(blob_header + BTR_BLOB_HDR_NEXT_PAGE_NO));
+}
+
 /** Free the first page of the BLOB and update the BLOB reference
 in the clustered index.
 @return DB_SUCCESS on pass, error code on failure. */
 dberr_t	Deleter::free_first_page()
 {
 	dberr_t	err(DB_SUCCESS);
+	page_no_t	next_page_no;
 
 	mtr_start(&m_mtr);
 	m_mtr.set_spaces(*m_ctx.m_mtr);
 	m_mtr.set_log_mode(m_ctx.m_mtr->get_log_mode());
 
-	ut_ad(!m_ctx.table()->is_temporary()
+	ut_ad(m_ctx.m_pcur == nullptr
+	      || !m_ctx.table()->is_temporary()
 	      || m_ctx.m_mtr->get_log_mode() == MTR_LOG_NO_REDO);
 
 	page_no_t	page_no = m_ctx.m_blobref.page_no();
@@ -964,7 +977,7 @@ dberr_t	Deleter::free_first_page()
 
 	buf_block_t*	blob_block = buf_page_get(
 		page_id_t(space_id, page_no),
-		dict_table_page_size(m_ctx.table()),
+		m_ctx.m_page_size,
 		RW_X_LATCH, &m_mtr);
 
 	buf_block_dbg_add_level(blob_block, SYNC_EXTERN_STORAGE);
@@ -972,25 +985,56 @@ dberr_t	Deleter::free_first_page()
 
 	ut_a(validate_page_type(page));
 
-	page_no_t	next_page_no = mach_read_from_4(
-		page + FIL_PAGE_NEXT);
+	if (m_ctx.is_compressed()) {
+		next_page_no = mach_read_from_4(page + FIL_PAGE_NEXT);
+	} else {
+		next_page_no = btr_blob_get_next_page_no(
+			page + FIL_PAGE_DATA);
+	}
 
 	btr_page_free_low(m_ctx.m_index, blob_block, ULINT_UNDEFINED,
 			  &m_mtr);
 
-	if (m_ctx.is_compressed()) {
+	if (m_ctx.is_compressed() && m_ctx.get_page_zip() != nullptr) {
 		m_ctx.m_blobref.set_page_no(next_page_no, nullptr);
 		m_ctx.m_blobref.set_length(0, nullptr);
 		page_zip_write_blob_ptr(
 			m_ctx.get_page_zip(), m_ctx.m_rec, m_ctx.m_index,
-			m_ctx.m_offsets, m_ctx.m_field_no, &m_mtr);
+			m_ctx.m_offsets, m_ctx.m_field_no, m_ctx.m_mtr);
 	} else {
-		m_ctx.m_blobref.set_page_no(next_page_no, &m_mtr);
-		m_ctx.m_blobref.set_length(0, &m_mtr);
+		m_ctx.m_blobref.set_page_no(next_page_no, m_ctx.m_mtr);
+		m_ctx.m_blobref.set_length(0, m_ctx.m_mtr);
 	}
 
 	/* Commit mtr and release the BLOB block to save memory. */
 	blob_free(m_ctx.m_index, blob_block, TRUE, &m_mtr);
+
+	return(err);
+}
+
+/** Free the LOB object.
+@return DB_SUCCESS on success. */
+dberr_t	Deleter::destroy()
+{
+	dberr_t	err(DB_SUCCESS);
+
+	if (!can_free()) {
+		return(DB_SUCCESS);
+	}
+
+	if (dict_index_is_online_ddl(m_ctx.index())) {
+		row_log_table_blob_free(m_ctx.index(),
+					m_ctx.m_blobref.page_no());
+	}
+
+	while (m_ctx.m_blobref.page_no() != FIL_NULL) {
+		ut_ad(m_ctx.m_blobref.page_no() > 0);
+
+		err = free_first_page();
+		if (err != DB_SUCCESS) {
+			break;
+		}
+	}
 
 	return(err);
 }
@@ -1071,22 +1115,20 @@ btr_blob_get_part_len(const byte* blob_header)
 	return(mach_read_from_4(blob_header + BTR_BLOB_HDR_PART_LEN));
 }
 
-/** Returns the page number where the next BLOB part is stored.
-@param[in]	blob_header	the BLOB header.
-@return page number or FIL_NULL if no more pages */
-static
-inline
-page_no_t
-btr_blob_get_next_page_no(const byte* blob_header)
-{
-	return(mach_read_from_4(blob_header + BTR_BLOB_HDR_NEXT_PAGE_NO));
-}
-
-
 /** Fetch one BLOB page. */
 void Reader::fetch_page()
 {
 	mtr_t	mtr;
+
+	/* Bytes of LOB data available in the current LOB page. */
+	ulint	part_len;
+
+	/* Bytes of LOB data obtained from the current LOB page. */
+	ulint	copy_len;
+
+	ut_ad(m_rctx.m_page_no != FIL_NULL);
+	ut_ad(m_rctx.m_page_no > 0);
+
 	mtr_start(&mtr);
 
 	m_cur_block = buf_page_get(
@@ -1099,36 +1141,42 @@ void Reader::fetch_page()
 				     page, TRUE);
 
 	byte*	blob_header = page + m_rctx.m_offset;
-	m_part_len = btr_blob_get_part_len(blob_header);
-	m_copy_len = ut_min(m_part_len, m_rctx.m_len - m_copied_len);
+	part_len = btr_blob_get_part_len(blob_header);
+	copy_len = ut_min(part_len, m_rctx.m_len - m_copied_len);
 
 	memcpy(m_rctx.m_buf + m_copied_len, blob_header + BTR_BLOB_HDR_SIZE,
-	       m_copy_len);
+	       copy_len);
 
-	m_copied_len += m_copy_len;
+	m_copied_len += copy_len;
 	m_rctx.m_page_no = btr_blob_get_next_page_no(blob_header);
 	mtr_commit(&mtr);
 	m_rctx.m_offset = FIL_PAGE_DATA;
 }
 
-/** Fetch the complete or prefix of the uncompressed BLOB.
-@return bytes of BLOB data fetched. */
+/** Fetch the complete or prefix of the uncompressed LOB data.
+@return bytes of LOB data fetched. */
 ulint	Reader::fetch()
 {
-	while (true)
+	if (m_rctx.m_blobref.is_null()) {
+		ut_ad(m_copied_len == 0);
+		return(m_copied_len);
+	}
+
+	while (m_copied_len < m_rctx.m_len)
 	{
 		if (m_rctx.m_page_no == FIL_NULL) {
+			/* End of LOB has been reached. */
 			break;
 		}
 
 		fetch_page();
-
-		if (m_part_len != m_copy_len) {
-			break;
-		}
-
-		ut_ad(m_copied_len <= m_rctx.m_len);
 	}
+
+	/* Assure that we have fetched the requested amount or the LOB
+	has ended. */
+	ut_ad(m_copied_len == m_rctx.m_len
+	      || m_rctx.m_page_no == FIL_NULL);
+
 	return(m_copied_len);
 }
 

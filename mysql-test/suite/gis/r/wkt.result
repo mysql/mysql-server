@@ -308,3 +308,110 @@ CALL gis_wkt_funcs(55555555);
 # Clean up
 DROP PROCEDURE gis_wkt_funcs;
 DELETE FROM mysql.st_spatial_reference_systems WHERE id = 55555555;
+#
+# Bug #23632147 MYSQL USES INVALID WKT FOR EMPTY GEOMETRYCOLLECTION
+#
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('POINT EMPTY'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('POINT()'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT(' POINT  EMPTY '));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('POINT EMPTY()'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('POINT EMPT'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('POINT EMPTYNESS'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('LINESTRING EMPTY'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('LINESTRING()'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT(' LINESTRING  EMPTY '));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('LINESTRING EMPTY()'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('LINESTRING EMPT'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('LINESTRING EMPTYNESS'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('POLYGON EMPTY'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('POLYGON()'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT(' POLYGON  EMPTY '));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('POLYGON EMPTY()'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('POLYGON EMPT'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('POLYGON EMPTYNESS'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTIPOINT EMPTY'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTIPOINT()'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT(' MULTIPOINT  EMPTY '));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTIPOINT EMPTY()'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTIPOINT EMPT'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTIPOINT EMPTYNESS'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTILINESTRING EMPTY'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTILINESTRING()'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT(' MULTILINESTRING  EMPTY '));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTILINESTRING EMPTY()'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTILINESTRING EMPT'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTILINESTRING EMPTYNESS'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTIPOLYGON EMPTY'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTIPOLYGON()'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT(' MULTIPOLYGON  EMPTY '));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTIPOLYGON EMPTY()'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTIPOLYGON EMPT'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTIPOLYGON EMPTYNESS'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION EMPTY'));
+ST_ASTEXT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION EMPTY'))
+GEOMETRYCOLLECTION EMPTY
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'));
+ST_ASTEXT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'))
+GEOMETRYCOLLECTION EMPTY
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT(' GEOMETRYCOLLECTION  EMPTY '));
+ST_ASTEXT(ST_GEOMFROMTEXT(' GEOMETRYCOLLECTION  EMPTY '))
+GEOMETRYCOLLECTION EMPTY
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION EMPTY()'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION EMPT'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION EMPTYNESS'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(
+     GEOMETRYCOLLECTION(
+       GEOMETRYCOLLECTION EMPTY,
+       GEOMETRYCOLLECTION ()
+     )
+   )'
+));
+ST_ASTEXT(ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(
+     GEOMETRYCOLLECTION(
+       GEOMETRYCOLLECTION EMPTY,
+       GEOMETRYCOLLECTION ()
+     )
+   )'
+))
+GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION EMPTY,GEOMETRYCOLLECTION EMPTY))

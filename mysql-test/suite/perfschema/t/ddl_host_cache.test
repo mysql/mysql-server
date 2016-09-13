@@ -14,3 +14,6 @@ ALTER TABLE performance_schema.host_cache ADD INDEX test_index(IP);
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index ON performance_schema.host_cache(IP);
 
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `PRIMARY`
+  ON performance_schema.host_cache;

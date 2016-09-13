@@ -22,6 +22,8 @@
   Some useful bit functions.
 */
 
+#include "my_global.h"
+
 C_MODE_START
 
 extern const char _my_bits_nbits[256];

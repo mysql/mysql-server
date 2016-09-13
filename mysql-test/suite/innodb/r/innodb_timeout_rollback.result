@@ -34,3 +34,7 @@ a
 2
 drop table t1;
 End of 5.0 tests
+#
+# Bug#23753319: !M_THD->TRANSACTION_ROLLBACK_REQUEST' AT
+# THD::ATTACHABLE_TRX::INIT IN SQL/SQL_C
+#

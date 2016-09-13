@@ -30,6 +30,7 @@
 #include "sys_vars_shared.h"     // PolyLock_mutex
 #include "sql_audit.h"           // mysql_audit
 #include "template_utils.h"
+#include "persisted_variable.h"
 
 static HASH system_variable_hash;
 static PolyLock_mutex PLock_global_system_variables(&LOCK_global_system_variables);
@@ -163,6 +164,12 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
   option.value= (uchar **)global_var_ptr();
   option.def_value= def_val;
 
+  /* set default values */
+  source.m_source= enum_variable_source::COMPILED;
+
+  source.m_name= 0;
+  option.arg_source = &source;
+
   if (chain->last)
     chain->last->next= this;
   else
@@ -173,7 +180,7 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
 bool sys_var::update(THD *thd, set_var *var)
 {
   enum_var_type type= var->type;
-  if (type == OPT_GLOBAL || scope() == GLOBAL)
+  if (type == OPT_GLOBAL || type == OPT_PERSIST || scope() == GLOBAL)
   {
     /*
       Yes, both locks need to be taken before an update, just as
@@ -269,7 +276,7 @@ bool sys_var::check(THD *thd, set_var *var)
 
 uchar *sys_var::value_ptr(THD *running_thd, THD *target_thd, enum_var_type type, LEX_STRING *base)
 {
-  if (type == OPT_GLOBAL || scope() == GLOBAL)
+  if (type == OPT_GLOBAL || type == OPT_PERSIST || scope() == GLOBAL)
   {
     mysql_mutex_assert_owner(&LOCK_global_system_variables);
     AutoRLock lock(guard);
@@ -287,12 +294,51 @@ uchar *sys_var::value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
 bool sys_var::set_default(THD *thd, set_var* var)
 {
   DBUG_ENTER("sys_var::set_default");
-  if (var->type == OPT_GLOBAL || scope() == GLOBAL)
+  if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST || scope() == GLOBAL)
     global_save_default(thd, var);
   else
     session_save_default(thd, var);
 
   bool ret= check(thd, var) || update(thd, var);
+  DBUG_RETURN(ret);
+}
+
+bool sys_var::is_default(THD *thd, set_var *var)
+{
+  DBUG_ENTER("sys_var::is_default");
+  bool ret= false;
+  longlong def= option.def_value;
+  ulong var_type= (option.var_type & GET_TYPE_MASK);
+  switch(var_type)
+  {
+    case GET_INT:
+    case GET_UINT:
+    case GET_LONG:
+    case GET_ULONG:
+    case GET_LL:
+    case GET_ULL:
+    case GET_BOOL:
+    case GET_ENUM:
+    case GET_SET:
+    case GET_FLAGSET:
+    case GET_ASK_ADDR:
+      if (def == (longlong)var->save_result.ulonglong_value)
+        ret= true;
+      break;
+    case GET_DOUBLE:
+      if ((double)def == (double)var->save_result.double_value)
+        ret= true;
+      break;
+    case GET_STR_ALLOC:
+    case GET_STR:
+    case GET_NO_ARG:
+    case GET_PASSWORD:
+      if ((def == (longlong)var->save_result.string_value.str) ||
+          (((char*)def) &&
+           !strcmp((char*)def, var->save_result.string_value.str)))
+        ret= true;
+      break;
+  }
   DBUG_RETURN(ret);
 }
 
@@ -625,7 +671,6 @@ sys_var *intern_find_sys_var(const char *str, size_t length)
   return var;
 }
 
-
 /**
   Execute update of all variables.
 
@@ -684,7 +729,28 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened)
     if ((error= var->update(thd)))         // Returns 0, -1 or 1
       goto err;
   }
-
+  if (!error)
+  {
+    /* At this point SET statement is considered a success. */
+    Persisted_variables_cache *pv= NULL;
+    it.rewind();
+    while((var= it++))
+    {
+      set_var* setvar= dynamic_cast<set_var*>(var);
+      if (setvar && setvar->type == OPT_PERSIST)
+      {
+        pv= Persisted_variables_cache::get_instance();
+        /* update in-memory copy of persistent options */
+        pv->set_variable(thd, setvar);
+      }
+    }
+    /* flush all persistent options to a file */
+    if (pv && pv->flush_to_file())
+    {
+      my_error(ER_VARIABLE_NOT_PERSISTED, MYF(0));
+      DBUG_RETURN(1);
+    }
+  }
 err:
   free_underlaid_joins(thd, thd->lex->select_lex);
   DBUG_RETURN(error);
@@ -745,11 +811,13 @@ int set_var::resolve(THD *thd)
   }
   if (!var->check_scope(type))
   {
-    int err= type == OPT_GLOBAL ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE;
+    int err= (type == OPT_GLOBAL || type == OPT_PERSIST)
+        ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE;
     my_error(err, MYF(0), var->name.str);
     DBUG_RETURN(-1);
   }
-  if ((type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL)))
+  if ((type == OPT_GLOBAL || type == OPT_PERSIST)
+       && check_global_access(thd, SUPER_ACL))
     DBUG_RETURN(1);
   /* value is a NULL pointer if we are using SET ... = DEFAULT */
   if (!value)
@@ -789,7 +857,7 @@ int set_var::check(THD *thd)
   int ret= var->check(thd, this) ? -1 : 0;
 
 #ifndef EMBEDDED_LIBRARY
-  if (!ret && type == OPT_GLOBAL)
+  if (!ret && (type == OPT_GLOBAL || type == OPT_PERSIST))
   {
     ret= mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_SET),
                             var->name.str,
@@ -818,11 +886,13 @@ int set_var::light_check(THD *thd)
 {
   if (!var->check_scope(type))
   {
-    int err= type == OPT_GLOBAL ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE;
+    int err= (type == OPT_GLOBAL || type == OPT_PERSIST)
+        ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE;
     my_error(err, MYF(0), var->name.str);
     return -1;
   }
-  if (type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL))
+  if ((type == OPT_GLOBAL || type == OPT_PERSIST)
+       && check_global_access(thd, SUPER_ACL))
     return 1;
 
   if (value && ((!value->fixed && value->fix_fields(thd, &value)) ||
@@ -831,6 +901,15 @@ int set_var::light_check(THD *thd)
   return 0;
 }
 
+/**
+  Update variable source.
+*/
+
+void set_var::update_source()
+{
+    var->set_source(enum_variable_source::DYNAMIC);
+    var->set_source_name("");
+}
 /**
   Update variable
 
@@ -845,7 +924,15 @@ int set_var::light_check(THD *thd)
 */
 int set_var::update(THD *thd)
 {
-  return value ? var->update(thd, this) : var->set_default(thd, this);
+  int ret= 0;
+  if (value)
+    ret= (int)var->update(thd, this);
+  else
+    ret= (int)var->set_default(thd, this);
+  if (ret == 0)
+    update_source();
+
+  return ret;
 }
 
 /**
@@ -856,7 +943,12 @@ int set_var::update(THD *thd)
 */
 void set_var::print(THD *thd, String *str)
 {
-  str->append(type == OPT_GLOBAL ? "GLOBAL " : "SESSION ");
+  if (type == OPT_PERSIST)
+    str->append("PERSIST ");
+  else if (type == OPT_GLOBAL)
+    str->append("GLOBAL ");
+  else
+    str->append("SESSION ");
   if (base.length)
   {
     str->append(base.str, base.length);

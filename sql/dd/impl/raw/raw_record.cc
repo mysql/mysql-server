@@ -209,6 +209,14 @@ bool Raw_record::store_time(int field_no, my_time_t val, bool is_null)
 
 ///////////////////////////////////////////////////////////////////////////
 
+bool Raw_record::store_timestamp(int field_no, const timeval &tv)
+{
+  field(field_no)->store_timestamp(&tv);
+  return false;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 bool Raw_record::is_null(int field_no) const
 {
   return field(field_no)->is_null();
@@ -258,6 +266,20 @@ my_time_t Raw_record::read_time(int field_no) const
 
   field(field_no)->get_date(&time, TIME_DATETIME_ONLY);
   return my_tz_OFFSET0->TIME_to_gmt_sec(&time,&not_used);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+timeval Raw_record::read_timestamp(int field_no) const
+{
+  int warnings= 0;
+  timeval tv;
+  if (field(field_no)->get_timestamp(&tv, &warnings))
+  {
+    DBUG_ASSERT(false);
+    return {0, 0};
+  }
+  return tv;
 }
 
 ///////////////////////////////////////////////////////////////////////////

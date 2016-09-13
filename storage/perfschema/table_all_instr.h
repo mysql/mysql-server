@@ -55,6 +55,25 @@ struct pos_all_instr : public PFS_double_index,
   }
 };
 
+class PFS_index_all_instr : public PFS_engine_index
+{
+public:
+  PFS_index_all_instr(PFS_engine_key *key_1)
+    : PFS_engine_index(key_1)
+  {}
+
+  ~PFS_index_all_instr()
+  {}
+
+  virtual bool match(PFS_mutex *pfs) { return false; }
+  virtual bool match(PFS_rwlock *pfs) { return false; }
+  virtual bool match(PFS_cond *pfs) { return false; }
+  virtual bool match(PFS_file *pfs) { return false; }
+  virtual bool match(PFS_socket *pfs) { return false; }
+  /* All views match by default. */
+  virtual bool match_view(uint view) { return true; }
+};
+
 /**
   Abstract table, a union of all instrumentations instances.
   This table is a union of:
@@ -69,9 +88,11 @@ class table_all_instr : public PFS_engine_table
 public:
   static ha_rows get_row_count();
 
+  virtual int index_init(uint idx, bool sorted) { return 0; }
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
   virtual void reset_position(void);
+  virtual int index_next(void);
 
 protected:
   table_all_instr(const PFS_engine_table_share *share);
@@ -111,6 +132,8 @@ protected:
   pos_all_instr m_pos;
   /** Next position. */
   pos_all_instr m_next_pos;
+
+  PFS_index_all_instr *m_opened_index;
 };
 
 /** @} */

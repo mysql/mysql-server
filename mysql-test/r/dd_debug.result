@@ -70,9 +70,11 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG= '-d, fail_while_dropping_dd_object';
 # Do it for real.
 DROP SCHEMA s1;
+SET SESSION debug= '+d,skip_dd_table_access_check';
 SELECT COUNT(*) FROM mysql.schemata WHERE name LIKE 's1';
 COUNT(*)
 0
+SET SESSION debug= '-d,skip_dd_table_access_check';
 ###################################################################
 #
 # 2. Tables
@@ -148,9 +150,11 @@ CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG= '-d, fail_while_storing_dd_object';
 # There should be no trace left in the data-dictionary
+SET SESSION debug= '+d,skip_dd_table_access_check';
 SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
 COUNT(*)
 0
+SET SESSION debug= '-d,skip_dd_table_access_check';
 DROP TABLESPACE ts1;
 ERROR HY000: Tablespace ts1 doesn't exist.
 # Then, we can do it for real.
@@ -164,6 +168,7 @@ DROP TABLESPACE ts1;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG= '-d, fail_while_dropping_dd_object';
 # Tablespace is still in the data-dictionary.
+SET SESSION debug= '+d,skip_dd_table_access_check';
 SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
 COUNT(*)
 1
@@ -179,4 +184,5 @@ ERROR HY000: Failed to drop TABLESPACE ts1
 SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
 COUNT(*)
 0
+SET SESSION debug= '-d,skip_dd_table_access_check';
 ###################################################################

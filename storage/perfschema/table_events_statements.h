@@ -33,6 +33,25 @@ struct PFS_thread;
   @{
 */
 
+class PFS_index_events_statements : public PFS_engine_index
+{
+public:
+  PFS_index_events_statements()
+    : PFS_engine_index(&m_key_1, &m_key_2),
+    m_key_1("THREAD_ID"), m_key_2("EVENT_ID")
+  {}
+
+  ~PFS_index_events_statements()
+  {}
+
+  bool match(PFS_thread *pfs);
+  bool match(PFS_events *pfs);
+
+private:
+  PFS_key_thread_id m_key_1;
+  PFS_key_event_id m_key_2;
+};
+
 /** A row of table_events_statements_common. */
 struct row_events_statements
 {
@@ -208,10 +227,14 @@ public:
   static int delete_all_rows();
   static ha_rows get_row_count();
 
+  virtual void reset_position(void);
+
   virtual int rnd_init(bool scan);
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
 protected:
   table_events_statements_current();
@@ -239,6 +262,9 @@ private:
   pos_events_statements_current m_pos;
   /** Next position. */
   pos_events_statements_current m_next_pos;
+
+  PFS_index_events_statements *m_opened_index;
+
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_HISTORY. */
@@ -250,6 +276,9 @@ public:
   static PFS_engine_table* create();
   static int delete_all_rows();
   static ha_rows get_row_count();
+
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
 
   virtual int rnd_init(bool scan);
   virtual int rnd_next();
@@ -273,6 +302,8 @@ private:
   pos_events_statements_history m_pos;
   /** Next position. */
   pos_events_statements_history m_next_pos;
+
+  PFS_index_events_statements *m_opened_index;
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_HISTORY_LONG. */

@@ -49,3 +49,37 @@ DROP DATABASE db_1;
 --connection default
 --disconnect con_1
 
+--echo #
+--echo # If acl_load() fails unexpectedly we shouldn't delete the acl cache
+--echo #
+use test;
+CREATE ROLE r1,r2;
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+GRANT all on *.* to u1@localhost;
+GRANT r1,r2 TO u1@localhost;
+GRANT ALL ON *.* TO r1;
+SHOW GRANTS FOR u1@localhost USING r1;
+ALTER USER u1@localhost DEFAULT ROLE r1;
+SET DEBUG='+d,induce_acl_load_failure';
+GRANT r1 TO r2;
+--error ER_UNKNOWN_ERROR
+FLUSH PRIVILEGES;
+connect (con1,localhost,u1,foo,);
+SHOW GRANTS;
+connection default;
+REVOKE r1 FROM r2;
+SET DEBUG='+d,induce_acl_load_failure';
+--error ER_UNKNOWN_ERROR
+FLUSH PRIVILEGES;
+--echo # Grant should not have changed
+SHOW GRANTS FOR u1@localhost USING r1;
+connection con1;
+--echo # Grant should not have changed
+SHOW GRANTS;
+connection default;
+disconnect con1;
+SET DEBUG='-d,induce_acl_load_failure';
+FLUSH PRIVILEGES;
+DROP USER u1@localhost;
+DROP ROLE r1,r2;
+

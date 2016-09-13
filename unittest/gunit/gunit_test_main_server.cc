@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,14 +13,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
-
-#include "my_getopt.h"
-#include "test_utils.h"
+#include <gtest/gtest.h>
+#include <stdio.h>
 #include <stdlib.h>
+
+#include "my_config.h"
+#include "my_getopt.h"
+#include "my_global.h"
+#include "my_sys.h"
+#include "test_utils.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"

@@ -116,10 +116,6 @@ ELSE()
       ${BOOST_SOURCES_DIR}/libs/atomic/src/lockpool.cpp)
   ENDIF()
 
-  # Built *without* -DMYSQL_DYNAMIC_PLUGIN
-  ADD_CONVENIENCE_LIBRARY(xplugin
-    ${xplugin_SRC} ${xplugin_HDRS} ${xplugin_PROTOBUF_SRC} ${BOOST_LIB_SOURCES})
-
   ADD_COMPILE_FLAGS(
     src/xpl_plugin.cc
     src/xpl_performance_schema.cc
@@ -128,25 +124,20 @@ ELSE()
     "-I${xplugin_PROTOBUF_DIR}"
     "-I${CMAKE_CURRENT_BINARY_DIR}/generated/")
 
-  TARGET_LINK_LIBRARIES(xplugin ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES})
-  IF(MSVC)
-    TARGET_LINK_LIBRARIES(xplugin strings) 
-  ENDIF(MSVC)
-  
-  # These are built *with* -DMYSQL_DYNAMIC_PLUGIN
   MYSQL_ADD_PLUGIN(mysqlx
     src/xpl_plugin.cc
     src/xpl_performance_schema.cc
-    LINK_LIBRARIES xplugin ${xplugin_PROTOBUF_LIB}
+    ${xplugin_SRC} ${xplugin_HDRS} ${xplugin_PROTOBUF_SRC} ${BOOST_LIB_SOURCES}
+    LINK_LIBRARIES ${xplugin_PROTOBUF_LIB} ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES}
     MODULE_ONLY MODULE_OUTPUT_NAME "mysqlx")
 
   IF(WITH_PROTOBUF STREQUAL "system")
     TARGET_LINK_LIBRARIES(mysqlx "${PROTOBUF_LIBRARY}")
   ENDIF()
 
-  ADD_DEPENDENCIES(xplugin GenError)
+  ADD_DEPENDENCIES(mysqlx GenError)
   IF (WITH_LIBEVENT STREQUAL "bundled")
-    ADD_DEPENDENCIES(xplugin ${LIBEVENT_LIBRARY})
+    ADD_DEPENDENCIES(mysqlx ${LIBEVENT_LIBRARY})
   ENDIF()
 
   IF(XPLUGIN_LOG_PROTOBUF)
