@@ -1530,7 +1530,7 @@ CREATE TABLE t1 (
   clipid INT NOT NULL,
   Tape TINYTEXT,
   PRIMARY KEY (clipid),
-  KEY tape(Tape(255))
+  KEY tape(Tape(85))
 ) CHARACTER SET=utf8;
 ALTER TABLE t1 ADD mos TINYINT DEFAULT 0 AFTER clipid;
 SHOW CREATE TABLE t1;

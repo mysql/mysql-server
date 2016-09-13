@@ -118,6 +118,7 @@ static
 bool validate_comment_length(THD *thd, const char *comment_str,
                              size_t *comment_len, uint max_len,
                              uint err_code, const char *comment_name);
+static uint blob_length_by_type(enum_field_types type);
 
 
 /**
@@ -4408,8 +4409,8 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
         than the BLOB field max size. We handle this case
         using the max_field_size variable below.
       */
-      size_t max_field_size= sql_field->key_length * sql_field->charset->mbmaxlen;
-      if ((max_field_size && key_part_length > max_field_size) ||
+      size_t max_field_size= blob_length_by_type(sql_field->sql_type);
+      if (key_part_length > max_field_size ||
           key_part_length > file->max_key_length() ||
           key_part_length > file->max_key_part_length())
       {

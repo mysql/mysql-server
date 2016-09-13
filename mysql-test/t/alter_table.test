@@ -1179,7 +1179,9 @@ DROP DATABASE IF EXISTS db1;
 --enable_warnings
 
 CREATE DATABASE db1 CHARACTER SET utf8;
+--error ER_TOO_LONG_KEY
 CREATE TABLE db1.t1 (bar TINYTEXT, KEY (bar(100)));
+CREATE TABLE db1.t1 (bar TINYTEXT, KEY (bar(85)));
 ALTER TABLE db1.t1 ADD baz INT;
 
 DROP DATABASE db1;
@@ -2411,7 +2413,6 @@ let $test_dir= `SELECT CONCAT(@@datadir, 'test/')`;
 
 DROP TABLE t1;
 
-
 --echo #
 --echo # Bug#22227958: ASSERT IN DD::FILL_DD_TABLE_FROM_CREATE_INFO, DDL
 --echo #
@@ -2434,4 +2435,50 @@ ALTER TABLE t1 PACK_KEYS=1 PACK_KEYS=0 STATS_PERSISTENT=1 STATS_PERSISTENT=0 CHE
 --echo # Should show PACK_KEYS=0 STATS_PERSISTENT=0 (0 is default for CHECKSUM and DELAY_KEY_WRITE)
 SHOW CREATE TABLE t1;
 
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#22740093: ERROR 1071 (42000): SPECIFIED KEY WAS TOO LONG
+--echo #               ERROR WHILE DROPPING INDEX IN 5.7
+--echo #
+
+# Before you were allowed to create a prefix key for TEXT columns
+# which were larger than the column length. The column length
+# for TINYBLOB is 255 bytes, while prefix length is in characters.
+--error ER_TOO_LONG_KEY
+CREATE TABLE t1(id INT PRIMARY KEY,
+                name TINYTEXT,
+                KEY nameloc (name(64))
+) DEFAULT CHARSET=utf8mb4;
+
+# 63 characters of 4 bytes each fit in 255 bytes.
+CREATE TABLE t1(id INT PRIMARY KEY,
+                name TINYTEXT,
+                KEY nameloc (name(63))
+) DEFAULT CHARSET=utf8mb4;
+
+# Check that we can rebuild the table without issue
+ALTER TABLE t1 FORCE;
+
+# Also check ALTER TABLE
+--error ER_TOO_LONG_KEY
+ALTER TABLE t1 ADD INDEX idx (name(64), id);
+ALTER TABLE t1 ADD INDEX idx (name(63), id);
+DROP TABLE t1;
+
+# Check that we can create a table with a prefix index of
+# 64 4-byte characters for a TEXT column.
+
+# 64 characters of 4 bytes each fit in 65535 bytes.
+CREATE TABLE t1(id INT PRIMARY KEY,
+                name TEXT,
+                KEY nameloc (name(64))
+) DEFAULT CHARSET=utf8mb4;
+
+# Check ALTER TABLE where we change the type of the
+# base column, reducing max field length, keeping the
+# length of the prefix key the same.
+--error ER_TOO_LONG_KEY
+ALTER TABLE t1 MODIFY COLUMN name TINYTEXT;
 DROP TABLE t1;
