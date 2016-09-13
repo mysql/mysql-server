@@ -43,6 +43,10 @@
 using std::min;
 using std::max;
 
+static void fix_num_type_shared_for_case(Item_func *item_func,
+                                         Item_result result_type,
+                                         Item **item,
+                                         uint nitems);
 static bool convert_constant_item(THD *, Item_field *, Item **, bool *);
 static longlong
 get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
@@ -3573,27 +3577,15 @@ bool Item_func_if::resolve_type(THD *thd)
   {
     if (count_string_result_length(cached_field_type, args + 1, 2))
       return true;
+    uint32 char_length=
+      max(args[1]->max_char_length(), args[2]->max_char_length());
+    fix_char_length(char_length);
   }
   else
   {
     collation.set_numeric(); // Number
+    fix_num_type_shared_for_case(this, cached_result_type, args + 1, 2);
   }
-
-  uint32 char_length;
-  if ((cached_result_type == DECIMAL_RESULT )
-      || (cached_result_type == INT_RESULT))
-  {
-    int len1= args[1]->max_length - args[1]->decimals
-      - (args[1]->unsigned_flag ? 0 : 1);
-
-    int len2= args[2]->max_length - args[2]->decimals
-      - (args[2]->unsigned_flag ? 0 : 1);
-
-    char_length= max(len1, len2) + decimals + (unsigned_flag ? 0 : 1);
-  }
-  else
-    char_length= max(args[1]->max_char_length(), args[2]->max_char_length());
-  fix_char_length(char_length);
   return false;
 }
 
@@ -4030,13 +4022,13 @@ static void change_item_tree_if_needed(THD *thd,
 
 /**
   This function is a shared part to resolve_type() for numeric result
-  type of CASE and COALESCE.
+  type of CASE, COALESCE and IF.
   COALESCE is a CASE abbreviation according to the standard.
  */
 static void fix_num_type_shared_for_case(Item_func *item_func,
-                                            Item_result result_type,
-                                            Item **item,
-                                            uint nitems)
+                                         Item_result result_type,
+                                         Item **item,
+                                         uint nitems)
 {
   switch (result_type)
   {
