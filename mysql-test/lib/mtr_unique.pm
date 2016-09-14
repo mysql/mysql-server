@@ -50,7 +50,7 @@ else
   }
 }
 
-my $mtr_unique_fh = undef;
+my @mtr_unique_fh;
 
 END
 {
@@ -63,13 +63,15 @@ END
 # If no unique ID within the specified parameters can be
 # obtained, return undef.
 #
-sub mtr_get_unique_id($$) {
-  my ($min, $max)= @_;;
+sub mtr_get_unique_id($$$) {
+  my ($min, $max, $build_threads_per_thread)= @_;
 
   msg("get $min-$max, $$");
 
-  die "Can only get one unique id per process!" if defined $mtr_unique_fh;
-
+  if (scalar @mtr_unique_fh == $build_threads_per_thread)
+  {
+    die "Can only get $build_threads_per_thread unique id(s) per process!";
+  }
 
   # Make sure our ID directory exists
   if (! -d $dir)
@@ -90,24 +92,47 @@ sub mtr_get_unique_id($$) {
     }
   }
 
-
-  my $fh;
-  for(my $id = $min; $id <= $max; $id++)
+  my $build_thread= 0;
+  while ( $build_thread < $build_threads_per_thread )
   {
-    open( $fh, ">$dir/$id");
-    chmod 0666, "$dir/$id";
-    # Try to lock the file exclusively. If lock succeeds, we're done.
-    if (flock($fh, LOCK_EX|LOCK_NB))
+    for (my $id= $min; $id <= $max; $id++)
     {
-      # Store file handle - we would need it to release the ID (==unlock the file)
-      $mtr_unique_fh = $fh;
-      return $id;
-    }
-    else
-    {
-      close $fh;
+      my $fh;
+      open( $fh, ">$dir/$id");
+      chmod 0666, "$dir/$id";
+
+      # Try to lock the file exclusively. If lock succeeds, we're done.
+      if (flock($fh, LOCK_EX|LOCK_NB))
+      {
+        # Store file handle - we would need it to release the
+        # ID (i.e to unlock the file)
+        $mtr_unique_fh[$build_thread] = $fh;
+        $build_thread= $build_thread + 1;
+      }
+      else
+      {
+        # Not able to get a lock on the file, start the search from
+        # next id(i.e min+1).
+        $min= $min + 1;
+        $build_thread= 0;
+
+        if (defined $mtr_unique_fh[$build_thread-1])
+        {
+          close $mtr_unique_fh[$build_thread-1];
+        }
+
+        # Close the file opened in the current iterartion.
+        close $fh;
+        last;
+      }
+
+      if ($build_thread == $build_threads_per_thread)
+      {
+        return $id - $build_thread + 1;
+      }
     }
   }
+
   return undef;
 }
 
@@ -118,13 +143,15 @@ sub mtr_get_unique_id($$) {
 sub mtr_release_unique_id()
 {
   msg("release $$");
-  if (defined $mtr_unique_fh)
+
+  for (my $i= 0; $i <= $#mtr_unique_fh; $i++)
   {
-    close $mtr_unique_fh;
-    $mtr_unique_fh = undef;
+    if (defined $mtr_unique_fh[$i])
+    {
+      close $mtr_unique_fh[$i];
+    }
   }
+  @mtr_unique_fh= ();
 }
 
-
 1;
-
