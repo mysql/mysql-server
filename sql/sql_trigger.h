@@ -244,8 +244,6 @@ protected:
   bool check_trg_priv_on_subj_table(THD *thd, TABLE_LIST *table) const;
   TABLE* open_and_lock_subj_table(THD *thd, TABLE_LIST *tables,
                                   MDL_ticket **mdl_ticket) const;
-  bool cleanup_on_success(THD *thd, const char *db_name,
-                          TABLE *table, const String &stmt_query) const;
 
 
   /**

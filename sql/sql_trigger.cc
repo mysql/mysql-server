@@ -344,23 +344,25 @@ TABLE* Sql_cmd_ddl_trigger_common::open_and_lock_subj_table(
 
 /**
   Close all open instances of a trigger's table, reopen it if needed,
-  invalidate SP-cache and write a statement to binlog.
+  invalidate SP-cache and possibly write a statement to binlog.
 
   @param[in] thd         Current thread context
   @param[in] db_name     Database name where trigger's table defined
   @param[in] table       Table associated with a trigger
   @param[in] stmt_query  Query string to write to binlog
+  @param[in] binlog_stmt Should the statement be binlogged?
 
   @return Operation status.
     @retval false Success
     @retval true  Failure
 */
 
-bool Sql_cmd_ddl_trigger_common::cleanup_on_success(
+static bool finalize_trigger_ddl(
   THD *thd,
   const char *db_name,
   TABLE *table,
-  const String &stmt_query) const
+  const String &stmt_query,
+  bool binlog_stmt)
 {
   close_all_tables_for_name(thd, table->s, false, nullptr);
   /*
@@ -374,6 +376,9 @@ bool Sql_cmd_ddl_trigger_common::cleanup_on_success(
     pre-locking tables.
   */
   sp_cache_invalidate();
+
+  if (!binlog_stmt)
+    return false;
 
   thd->add_to_binlog_accessed_dbs(db_name);
 
@@ -475,7 +480,10 @@ bool Sql_cmd_create_trigger::execute(THD *thd)
 
   if (acquire_exclusive_mdl_for_trigger(thd, thd->lex->spname->m_db.str,
                                         thd->lex->spname->m_name.str))
+  {
+    restore_original_mdl_state(thd, mdl_ticket);
     DBUG_RETURN(true);
+  }
 
   DEBUG_SYNC(thd, "create_trigger_has_acquired_mdl");
 
@@ -488,8 +496,8 @@ bool Sql_cmd_create_trigger::execute(THD *thd)
 
   result= table->triggers->create_trigger(thd, &stmt_query);
 
-  if (!result)
-    result= cleanup_on_success(thd, m_trigger_table->db, table, stmt_query);
+  result|= finalize_trigger_ddl(thd, m_trigger_table->db, table, stmt_query,
+                                !result);
 
   if (!result)
   {
@@ -647,8 +655,7 @@ bool Sql_cmd_drop_trigger::execute(THD *thd)
   if (!result && trigger_found)
     result= stmt_query.append(thd->query().str, thd->query().length);
 
-  if (!result)
-    result= cleanup_on_success(thd, tables->db, table, stmt_query);
+  result|= finalize_trigger_ddl(thd, tables->db, table, stmt_query, !result);
 
   /* Restore the query table list. */
   thd->lex->restore_backup_query_tables_list(&backup);

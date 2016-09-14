@@ -196,6 +196,11 @@ bool create_trigger(THD *thd, const ::Trigger *new_trigger,
 
   const Table *table= nullptr;
 
+  DBUG_EXECUTE_IF("create_trigger_fail", {
+      my_error(ER_LOCK_DEADLOCK, MYF(0));
+      DBUG_RETURN(true);
+    });
+
   if (schema_mdl_locker.ensure_locked(new_trigger->get_db_name().str) ||
       dd_client->acquire<Table>(new_trigger->get_db_name().str,
                                 new_trigger->get_subject_table_name().str,
