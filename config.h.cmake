@@ -72,7 +72,6 @@
 #cmakedefine HAVE_BACKTRACE 1
 #cmakedefine HAVE_PRINTSTACK 1
 #cmakedefine HAVE_INDEX 1
-#cmakedefine HAVE_CLOCK_GETTIME 1
 #cmakedefine HAVE_CHOWN 1
 #cmakedefine HAVE_CUSERID 1
 #cmakedefine HAVE_DIRECTIO 1
@@ -127,7 +126,6 @@
 #cmakedefine HAVE_MEMALIGN 1
 #cmakedefine HAVE_NL_LANGINFO 1
 #cmakedefine HAVE_HTONLL 1
-#cmakedefine DNS_USE_CPU_CLOCK_FOR_ID 1
 #cmakedefine HAVE_EPOLL 1
 /* #cmakedefine HAVE_EVENT_PORTS 1 */
 #cmakedefine HAVE_INET_NTOP 1
@@ -177,6 +175,8 @@
 #cmakedefine HAVE_VISIBILITY_HIDDEN 1
 
 /* Code tests*/
+#cmakedefine HAVE_CLOCK_GETTIME 1
+#cmakedefine DNS_USE_CPU_CLOCK_FOR_ID 1
 #cmakedefine STACK_DIRECTION @STACK_DIRECTION@
 #cmakedefine TIME_WITH_SYS_TIME 1
 #cmakedefine NO_FCNTL_NONBLOCK 1
