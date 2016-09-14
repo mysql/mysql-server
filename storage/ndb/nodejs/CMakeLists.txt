@@ -19,6 +19,12 @@
 
 set(WITH_NODEJS_INCLUDE_PATH "" CACHE PATH "location of node.js header files")
 
+# For now starting with 7.5.4 we skip attempting to build and link on Windows
+if(WIN32)
+  MESSAGE(STATUS "Skipping jones-ndb on Windows")
+  RETURN()
+endif()
+
 IF(NDB_NODEJS_EXTRAS_PATH)
   set(NODE_VERSION 0.12.15)
   set(NODE_GYP ${NDB_NODEJS_EXTRAS_PATH}/node-gyp/${NODE_VERSION})
