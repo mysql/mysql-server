@@ -15336,6 +15336,10 @@ create_table_info_t::create_table_update_global_dd(
                 }
         }
 
+	/* TODO: This is temporarily to make sure all tables in
+	mysql would not have dd::Tablespace */
+	is_dd_table = (strstr(m_table_name, "mysql") != NULL);
+
 	if (m_form->found_next_number_field != NULL) {
 		dd_set_autoinc(dd_table->se_private_data(),
 			       m_create_info->auto_increment_value);
@@ -16385,7 +16389,8 @@ ha_innobase::delete_table(
 		priv->unregister_table_handler(norm_name);
 	}
 
-	if (err == DB_SUCCESS && !tmp_table && file_per_table) {
+	if (err == DB_SUCCESS && !tmp_table && file_per_table
+	    && strstr(name, "mysql") == NULL) {
 		dd::Object_id   dd_space_id = (*dd_table->indexes().begin())
 			->tablespace_id();
 		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
@@ -16997,7 +17002,10 @@ ha_innobase::rename_table_impl(
 
 	log_buffer_flush_to_disk();
 
-	if (rename_dd_filename) {
+	/* TODO: There is some case that DD tables would be renamed, screen
+	them out temporarily. Once they are in the correct tablespace,
+	this checking can be removed */
+	if (rename_dd_filename && strstr(from, "mysql") == NULL) {
 		ut_ad(new_path != NULL);
 
 		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
@@ -17028,6 +17036,8 @@ ha_innobase::rename_table_impl(
 
 		ut_free(new_path);
 		delete dd_space;
+	} else if (new_path != NULL) {
+		ut_free(new_path);
 	}
 
 	DBUG_RETURN(error);
