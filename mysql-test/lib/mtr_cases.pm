@@ -1123,6 +1123,12 @@ sub collect_one_test_case {
     }
   }
 
+  # Check for group replication tests
+  if ( $tinfo->{'grp_rpl_test'} )
+  {
+    $::group_replication= 1;
+  }
+
   if ( $tinfo->{'not_windows'} && IS_WINDOWS )
   {
     $tinfo->{'skip'}= 1;
@@ -1226,7 +1232,10 @@ my @tags=
  ["include/have_ssl.inc", "need_ssl", 1],
  ["include/have_ssl_communication.inc", "need_ssl", 1],
  ["include/not_windows.inc", "not_windows", 1],
- ["include/not_parallel.inc", "not_parallel", 1]
+ ["include/not_parallel.inc", "not_parallel", 1],
+
+ # Tests with below .inc file are considered to be group replication tests
+ ["have_group_replication_plugin_base.inc", "grp_rpl_test", 1],
 );
 
 
