@@ -158,7 +158,6 @@ void Dbspj::execSIGNAL_DROPPED_REP(Signal* signal)
   {
     jam();
     ErrorSignalReceive= 0;
-    ErrorMaxSegmentsToSeize= 3;
   }
 #endif
 
@@ -1113,12 +1112,6 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
   if (ERROR_INSERTED(17014))
   {
     ndbrequire(refToNode(signal->getSendersBlockRef()) == getOwnNodeId());
-  }
-  if (ERROR_INSERTED(17531))
-  {
-    /* Takes effect for *next* 'long' SPJ signal. Fails to alloc mem section */
-    jam();
-    ErrorSignalReceive= DBSPJ;
   }
 
   const ScanFragReq * req = (ScanFragReq *)&signal->theData[0];
@@ -2145,6 +2138,18 @@ Dbspj::sendConf(Signal* signal, Ptr<Request> requestPtr, bool is_complete)
 
       sendTCKEYREF(signal, resultRef, requestPtr.p->m_senderRef);
     }
+  }
+
+  if (ERROR_INSERTED(17531))
+  {
+    /**
+     * Takes effect for *next* 'long' SPJ signal which will fail
+     * to alloc long mem section. Dbspj::execSIGNAL_DROPPED_REP()
+     * will then be called, which is what we intend to test here.
+     */
+    jam();
+    ErrorSignalReceive= DBSPJ;
+    ErrorMaxSegmentsToSeize= 1;
   }
 }
 
