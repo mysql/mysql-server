@@ -84,11 +84,13 @@ struct set_numa_interleave_t
 	{
 		if (srv_numa_interleave) {
 
+			struct bitmask *numa_mems_allowed =
+				numa_get_mems_allowed();
 			ib::info() << "Setting NUMA memory policy to"
 				" MPOL_INTERLEAVE";
 			if (set_mempolicy(MPOL_INTERLEAVE,
-					  numa_all_nodes_ptr->maskp,
-					  numa_all_nodes_ptr->size) != 0) {
+					  numa_mems_allowed->maskp,
+					  numa_mems_allowed->size) != 0) {
 
 				ib::warn() << "Failed to set NUMA memory"
 					" policy to MPOL_INTERLEAVE: "
@@ -1509,10 +1511,11 @@ buf_chunk_init(
 
 #if defined(HAVE_LIBNUMA) && defined(WITH_NUMA)
 	if (srv_numa_interleave) {
+		struct bitmask *numa_mems_allowed = numa_get_mems_allowed();
 		int	st = mbind(chunk->mem, chunk->mem_size(),
 				   MPOL_INTERLEAVE,
-				   numa_all_nodes_ptr->maskp,
-				   numa_all_nodes_ptr->size,
+				   numa_mems_allowed->maskp,
+				   numa_mems_allowed->size,
 				   MPOL_MF_MOVE);
 		if (st != 0) {
 			ib::warn() << "Failed to set NUMA memory policy of"
