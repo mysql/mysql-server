@@ -132,6 +132,8 @@ public:
   {}
   virtual PSI_engine_data_lock_iterator *create_data_lock_iterator() = 0;
   virtual PSI_engine_data_lock_wait_iterator *create_data_lock_wait_iterator() = 0;
+  virtual void destroy_data_lock_iterator(PSI_engine_data_lock_iterator *it) = 0;
+  virtual void destroy_data_lock_wait_iterator(PSI_engine_data_lock_wait_iterator *it) = 0;
 };
 typedef void (*register_data_lock_v1_t)
   (PSI_engine_data_lock_inspector *inspector);

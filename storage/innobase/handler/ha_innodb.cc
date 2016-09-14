@@ -198,6 +198,8 @@ static my_bool	innodb_optimize_fulltext_only		= FALSE;
 
 static char*	innodb_version_str = (char*) INNODB_VERSION_STR;
 
+static Innodb_data_lock_inspector innodb_data_lock_inspector;
+
 /** Note we cannot use rec_format_enum because we do not allow
 COMPRESSED row format for innodb_default_row_format option. */
 enum default_row_format_enum {
@@ -4217,7 +4219,7 @@ innodb_init(
 	count = array_elements(all_innodb_conds);
 	mysql_cond_register("innodb", all_innodb_conds, count);
 
-	mysql_data_lock_register(Innodb_data_lock_inspector::m_singleton);
+	mysql_data_lock_register(& innodb_data_lock_inspector);
 
 #endif /* HAVE_PSI_INTERFACE */
 

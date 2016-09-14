@@ -371,14 +371,26 @@ public:
   /**
     Create a data lock iterator.
     The iterator returned is used to extract data_locks rows from the storage engine.
+    @sa destroy_data_lock_iterator
   */
   virtual PSI_engine_data_lock_iterator *create_data_lock_iterator() = 0;
 
   /**
     Create a data lock wait iterator.
     The iterator returned is used to extract data_lock_waits rows from the storage engine.
+    @sa destroy_data_lock_wait_iterator
   */
   virtual PSI_engine_data_lock_wait_iterator *create_data_lock_wait_iterator() = 0;
+
+  /**
+    Destroy a data lock iterator.
+  */
+  virtual void destroy_data_lock_iterator(PSI_engine_data_lock_iterator *it) = 0;
+
+  /**
+    Destroy a data lock wait iterator.
+  */
+  virtual void destroy_data_lock_wait_iterator(PSI_engine_data_lock_wait_iterator *it) = 0;
 };
 
 /**

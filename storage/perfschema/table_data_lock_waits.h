@@ -109,8 +109,7 @@ private:
   table_data_lock_waits();
 
 public:
-  ~table_data_lock_waits()
-  {}
+  ~table_data_lock_waits();
 
 private:
   /** Table share lock. */

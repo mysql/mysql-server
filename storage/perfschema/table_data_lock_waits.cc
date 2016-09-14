@@ -131,6 +131,17 @@ table_data_lock_waits::table_data_lock_waits()
   }
 }
 
+table_data_lock_waits::~table_data_lock_waits()
+{
+  for (unsigned int i= 0; i < COUNT_DATA_LOCK_ENGINES; i++)
+  {
+    if (m_iterator[i] != NULL)
+    {
+      g_data_lock_inspector[i]->destroy_data_lock_wait_iterator(m_iterator[i]);
+    }
+  }
+}
+
 void table_data_lock_waits::reset_position(void)
 {
   m_pos.reset();

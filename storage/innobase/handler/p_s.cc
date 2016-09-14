@@ -442,10 +442,6 @@ fetch_trx_in_trx_list(
 	return NULL;
 }
 
-Innodb_data_lock_inspector*
-Innodb_data_lock_inspector::m_singleton =
-new Innodb_data_lock_inspector();
-
 Innodb_data_lock_inspector::Innodb_data_lock_inspector()
 {}
 
@@ -462,6 +458,20 @@ PSI_engine_data_lock_wait_iterator*
 Innodb_data_lock_inspector::create_data_lock_wait_iterator()
 {
 	return new Innodb_data_lock_wait_iterator();
+}
+
+void
+Innodb_data_lock_inspector::destroy_data_lock_iterator(
+	PSI_engine_data_lock_iterator *it)
+{
+	delete it;
+}
+
+void
+Innodb_data_lock_inspector::destroy_data_lock_wait_iterator(
+	PSI_engine_data_lock_wait_iterator *it)
+{
+	delete it;
 }
 
 /** Convert an identifier.

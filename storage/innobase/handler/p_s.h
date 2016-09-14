@@ -33,17 +33,17 @@ This class is used by the performance schema to extract lock data.
 class Innodb_data_lock_inspector : public PSI_engine_data_lock_inspector
 {
 public:
-	static Innodb_data_lock_inspector*	m_singleton;
+	Innodb_data_lock_inspector();
+	~Innodb_data_lock_inspector();
 
-public:
 	virtual PSI_engine_data_lock_iterator*
 		create_data_lock_iterator();
 	virtual PSI_engine_data_lock_wait_iterator*
 		create_data_lock_wait_iterator();
-
-private:
-	Innodb_data_lock_inspector();
-	~Innodb_data_lock_inspector();
+	virtual void destroy_data_lock_iterator(
+		PSI_engine_data_lock_iterator *it);
+	virtual void destroy_data_lock_wait_iterator(
+		PSI_engine_data_lock_wait_iterator *it);
 };
 
 #endif /* p_s_h */

@@ -109,8 +109,7 @@ private:
   table_data_locks();
 
 public:
-  ~table_data_locks()
-  {}
+  ~table_data_locks();
 
 private:
   /** Table share lock. */
