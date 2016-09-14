@@ -434,9 +434,9 @@ IF (USE_LD_GOLD)
   # CheckCXXSourceCompiles tends to compile and link in two steps
   # (which causes warning output about unused flags, which we interpret
   # as the flag not existing).
-  MY_CHECK_C_COMPILER_FLAG("-fuse-ld=gold" C_RESULT)
-  MY_CHECK_CXX_COMPILER_FLAG("-fuse-ld=gold" CXX_RESULT)
-  IF (C_RESULT AND CXX_RESULT)
+  MY_CHECK_C_COMPILER_FLAG("-fuse-ld=gold" C_LD_GOLD_RESULT)
+  MY_CHECK_CXX_COMPILER_FLAG("-fuse-ld=gold" CXX_LD_GOLD_RESULT)
+  IF (C_LD_GOLD_RESULT AND CXX_LD_GOLD_RESULT)
     IF (HAVE_REAL_DTRACE_INSTRUMENTING)
       MESSAGE(WARNING " gold is not compatible with DTrace - using regular ld")
     ELSE()
