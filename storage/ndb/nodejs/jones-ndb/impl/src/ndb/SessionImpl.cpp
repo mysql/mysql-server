@@ -48,7 +48,7 @@ inline CachedTransactionsAccountant::~CachedTransactionsAccountant() {
 }
 
 inline void CachedTransactionsAccountant::tallySetNodeId(int nodeId) { 
-  tc_bitmap ^= (1 << nodeId);
+  tc_bitmap ^= (1ULL << nodeId);
 }
 
 inline void CachedTransactionsAccountant::tallySetMaskedNodeIds(int64_t mask) {

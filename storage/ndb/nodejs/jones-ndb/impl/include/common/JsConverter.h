@@ -186,6 +186,13 @@ inline Local<Value> toJS<unsigned int>(Isolate * isolate, unsigned int cval) {
   return v8::Integer::NewFromUnsigned(isolate, cval);
 }
 
+// unsigned long long
+template <>
+inline Local<Value> toJS<unsigned long long>(Isolate * isolate, unsigned long long cval) {
+  double d = static_cast<double>(cval);
+  return v8::Number::New(isolate, d);
+}
+
 // unsigned short
 template <>
 inline Local<Value> toJS<unsigned short>(Isolate * isolate, unsigned short cval) {
@@ -195,7 +202,7 @@ inline Local<Value> toJS<unsigned short>(Isolate * isolate, unsigned short cval)
 // double
 template <>
 inline Local<Value> toJS<double>(Isolate * isolate, double cval) {
-  return Number::New(isolate, cval);
+  return v8::Number::New(isolate, cval);
 };
 
 // const char *

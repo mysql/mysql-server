@@ -19,7 +19,7 @@
  */
 
 #include <string.h>
-#include <pthread.h>
+#include <uv.h>
 
 #include <NdbApi.hpp>
 #include <mysql.h>
@@ -77,44 +77,12 @@ Envelope * getNdbDictTableEnvelope() {
 /** Dictionary calls run outside the main thread may end up in
     mysys error handling code, and therefore require a call to my_thread_init().
     We must assume that libuv and mysys have compatible thread abstractions.
-    uv_thread_self() returns a uv_thread_t; we maintain a linked list
-    containing the uv_thread_t IDs of threads that have been initialized.
 */
-class ThdIdNode {
-public:
-  uv_thread_t id;
-  ThdIdNode * next;
-  ThdIdNode(uv_thread_t _id, ThdIdNode * _next) : id(_id), next(_next) {};
-};
-
-ThdIdNode * initializedThreadIds = 0;
-pthread_mutex_t threadListMutex = PTHREAD_MUTEX_INITIALIZER;
+uv_once_t initMysysOnce = UV_ONCE_INIT;
 
 void require_thread_specific_initialization() {
-  uv_thread_t thd_id = uv_thread_self();
-  bool isInitialized = false;
-  ThdIdNode * list;
-
-  pthread_mutex_lock(& threadListMutex);
-  {
-    list = initializedThreadIds;
-
-    while(list) {
-      if(uv_thread_equal(& (list->id), & thd_id)) {
-        isInitialized = true;
-        break;
-      }
-      list = list->next;
-    }
-
-    if(! isInitialized) {
-      my_thread_init();
-      initializedThreadIds = new ThdIdNode(thd_id, initializedThreadIds);
-    }
-  }
-  pthread_mutex_unlock(& threadListMutex);
+  my_thread_init();
 }
-
 
 /*** DBDictionary.listTables()
   **
@@ -298,7 +266,7 @@ inline bool GetTableCall::splitNameMatchesDbAndTable(const char * name) {
 
 void GetTableCall::run() {
   DEBUG_PRINT("GetTableCall::run() [%s.%s]", arg1, arg2);
-  require_thread_specific_initialization();
+  uv_once(& initMysysOnce, require_thread_specific_initialization);
   return_val = -1;
 
   /* dbName is optional; if not present, set it from ndb database name */
