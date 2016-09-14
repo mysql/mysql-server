@@ -4401,7 +4401,7 @@ prepare_inplace_alter_table_global_dd(
 
 		/* TODO: Remove the DD tables checking */
 		if (dict_table_is_file_per_table(old_table)
-		    && strstr(old_table->name.m_name, "mysql") == NULL) {
+		    && strstr(old_table->name.m_name, "mysql/") == NULL) {
 			dd::Object_id	old_space_id = dd_space_id;
 
 			const dd::Tablespace*	old_dd_space = NULL;
@@ -4427,7 +4427,7 @@ prepare_inplace_alter_table_global_dd(
 
 		/* TODO: Remove the DD tables checking */
 		if (dict_table_is_file_per_table(new_table)
-		    && strstr(new_table->name.m_name, "mysql") == NULL) {
+		    && strstr(new_table->name.m_name, "mysql/") == NULL) {
 			std::unique_ptr<dd::Tablespace> dd_space(
 				dd::create_object<dd::Tablespace>());
 			if (create_table_info_t::create_dd_tablespace(
