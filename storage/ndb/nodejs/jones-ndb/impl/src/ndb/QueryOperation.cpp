@@ -356,7 +356,7 @@ bool QueryOperation::createNdbQuery(NdbTransaction *tx) {
     NdbQueryOperation * qop = ndbQuery->getQueryOperation(i);
     if(! qop) {
       DEBUG_PRINT("No Query Operation at index %d", i);
-      return -1;
+      return false;
     }
     assert(buffers[i].record);
     qop->setResultRowBuf(buffers[i].record->getNdbRecord(), buffers[i].buffer);
