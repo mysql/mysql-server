@@ -337,14 +337,14 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-PartitionCount: 4
-FragmentCount: 8
-PartitionBalance: FOR_RA_BY_LDM
+PartitionCount: 8
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-4
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 -- Indexes -- 
@@ -381,14 +381,14 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-PartitionCount: 4
-FragmentCount: 8
-PartitionBalance: FOR_RA_BY_LDM
+PartitionCount: 8
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-4
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 y Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_1
@@ -410,14 +410,14 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 0
-PartitionCount: 4
-FragmentCount: 8
-PartitionBalance: FOR_RA_BY_LDM
+PartitionCount: 8
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-4
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 NDB$PART Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
@@ -445,14 +445,14 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-PartitionCount: 4
-FragmentCount: 8
-PartitionBalance: FOR_RA_BY_LDM
+PartitionCount: 8
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-4
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 y Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_1
@@ -474,14 +474,14 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 0
-PartitionCount: 4
-FragmentCount: 8
-PartitionBalance: FOR_RA_BY_LDM
+PartitionCount: 8
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-4
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 NDB$PART Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
@@ -521,14 +521,14 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-PartitionCount: 4
-FragmentCount: 8
-PartitionBalance: FOR_RA_BY_LDM
+PartitionCount: 8
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-4
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 y Int NULL AT=FIXED ST=MEMORY
@@ -561,8 +561,8 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 2
 ForceVarPart: 0
-PartitionCount: 8
-FragmentCount: 8
+PartitionCount: 16
+FragmentCount: 16
 PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
@@ -598,8 +598,8 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 2
 ForceVarPart: 0
-PartitionCount: 8
-FragmentCount: 8
+PartitionCount: 16
+FragmentCount: 16
 PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
@@ -635,14 +635,14 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 2
 ForceVarPart: 0
-PartitionCount: 4
-FragmentCount: 8
-PartitionBalance: FOR_RA_BY_LDM
+PartitionCount: 8
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-4
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 y Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 NDB$PK Unsigned [2] NOT NULL AT=FIXED ST=MEMORY
@@ -668,14 +668,14 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-PartitionCount: 4
-FragmentCount: 8
-PartitionBalance: FOR_RA_BY_LDM
+PartitionCount: 8
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-4
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 y Int NULL AT=FIXED ST=MEMORY
@@ -708,8 +708,8 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 2
 ForceVarPart: 0
-PartitionCount: 8
-FragmentCount: 8
+PartitionCount: 16
+FragmentCount: 16
 PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
@@ -745,8 +745,8 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 2
 ForceVarPart: 0
-PartitionCount: 8
-FragmentCount: 8
+PartitionCount: 16
+FragmentCount: 16
 PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
@@ -782,14 +782,14 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 2
 ForceVarPart: 0
-PartitionCount: 4
-FragmentCount: 8
-PartitionBalance: FOR_RA_BY_LDM
+PartitionCount: 8
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-4
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 y Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 NDB$PK Unsigned [2] NOT NULL AT=FIXED ST=MEMORY
@@ -826,14 +826,14 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-PartitionCount: 4
-FragmentCount: 8
-PartitionBalance: FOR_RA_BY_LDM
+PartitionCount: 8
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-4
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 y Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_1
@@ -867,8 +867,8 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 2
 ForceVarPart: 0
-PartitionCount: 8
-FragmentCount: 8
+PartitionCount: 16
+FragmentCount: 16
 PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
@@ -904,8 +904,8 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 2
 ForceVarPart: 0
-PartitionCount: 8
-FragmentCount: 8
+PartitionCount: 16
+FragmentCount: 16
 PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
@@ -941,14 +941,14 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 2
 ForceVarPart: 0
-PartitionCount: 4
-FragmentCount: 8
-PartitionBalance: FOR_RA_BY_LDM
+PartitionCount: 8
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-4
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 z Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 NDB$PK Unsigned [2] NOT NULL AT=FIXED ST=MEMORY
@@ -970,14 +970,14 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 0
-PartitionCount: 4
-FragmentCount: 8
-PartitionBalance: FOR_RA_BY_LDM
+PartitionCount: 8
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-4
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 NDB$PART Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
@@ -1673,14 +1673,14 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-PartitionCount: 4
-FragmentCount: 12
-PartitionBalance: FOR_RA_BY_LDM
+PartitionCount: 8
+FragmentCount: 24
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-4
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 -- Indexes -- 
@@ -1705,14 +1705,14 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-PartitionCount: 4
-FragmentCount: 12
-PartitionBalance: FOR_RA_BY_LDM
+PartitionCount: 8
+FragmentCount: 24
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-4
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 y Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_1
@@ -1734,14 +1734,14 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 0
-PartitionCount: 4
-FragmentCount: 12
-PartitionBalance: FOR_RA_BY_LDM
+PartitionCount: 8
+FragmentCount: 24
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-4
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 NDB$PART Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
@@ -1769,14 +1769,14 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-PartitionCount: 4
-FragmentCount: 12
-PartitionBalance: FOR_RA_BY_LDM
+PartitionCount: 8
+FragmentCount: 24
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-4
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 y Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_1
@@ -1798,14 +1798,14 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 0
-PartitionCount: 4
-FragmentCount: 12
-PartitionBalance: FOR_RA_BY_LDM
+PartitionCount: 8
+FragmentCount: 24
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-4
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 NDB$PART Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
@@ -1833,14 +1833,14 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-PartitionCount: 4
-FragmentCount: 12
-PartitionBalance: FOR_RA_BY_LDM
+PartitionCount: 8
+FragmentCount: 24
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-4
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 y Int NULL AT=FIXED ST=MEMORY
@@ -1868,14 +1868,14 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-PartitionCount: 4
-FragmentCount: 12
-PartitionBalance: FOR_RA_BY_LDM
+PartitionCount: 8
+FragmentCount: 24
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-4
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 y Int NULL AT=FIXED ST=MEMORY
@@ -1903,14 +1903,14 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-PartitionCount: 4
-FragmentCount: 12
-PartitionBalance: FOR_RA_BY_LDM
+PartitionCount: 8
+FragmentCount: 24
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-4
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 y Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_1
@@ -1935,14 +1935,14 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 0
-PartitionCount: 4
-FragmentCount: 12
-PartitionBalance: FOR_RA_BY_LDM
+PartitionCount: 8
+FragmentCount: 24
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-4
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 x Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 NDB$PART Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
