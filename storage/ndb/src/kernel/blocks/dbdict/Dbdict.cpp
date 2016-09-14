@@ -22023,6 +22023,7 @@ Dbdict::execDICT_TAKEOVER_REQ(Signal* signal)
    Uint32 highest_op_impl_req_gsn = 0;
    SchemaTransPtr trans_ptr;
    bool ending = false;
+   bool restarting = false;
 
    jam();
    bool pending_trans = c_schemaTransList.first(trans_ptr);
@@ -22127,6 +22128,7 @@ Dbdict::execDICT_TAKEOVER_REQ(Signal* signal)
        }
        else
        {
+         SchemaOpPtr last_op_ptr;
          jam();
 #ifdef VM_TRACE
          ndbout_c("Op %u, state %u, rollforward %u/%u, rollback %u/%u",op_ptr.p->op_key,op_ptr.p->m_state, rollforward_op,  rollforward_op_state, rollback_op,  rollback_op_state);
@@ -22141,6 +22143,36 @@ Dbdict::execDICT_TAKEOVER_REQ(Signal* signal)
            jam();
            rollforward_op = op_ptr.p->op_key;
            rollforward_op_state = op_ptr.p->m_state;
+         }
+         list.last(last_op_ptr);
+         /*
+           Check if we didn't found any operation that hasn't completed.
+           Then it could be that we have already completed some operations,
+           then set rollforward point to first operation, if any, and inform
+           we are restarting to ensure the related gci is returned to new master
+           so it can find the operation if it has already completed that operation.
+          */
+         if ((rollforward_op == 0) && (op_ptr.i == last_op_ptr.i))
+         {
+           jam();
+           SchemaOpPtr first_op_ptr;
+           if (list.first(first_op_ptr))
+           {
+             jam();
+             rollforward_op = first_op_ptr.p->op_key;
+             rollforward_op_state = first_op_ptr.p->m_state;
+             lowest_op = first_op_ptr.p->op_key;
+             lowest_op_state = first_op_ptr.p->m_state;
+             /*
+               Find the OpInfo gsn for the first operation,
+               this might be needed by new master to create missing operation.
+             */
+             lowest_op_impl_req_gsn = getOpInfo(first_op_ptr).m_impl_req_gsn;
+#ifdef VM_TRACE
+             ndbout_c("execDICT_TAKEOVER_CONF: Transaction %u rolled forward, resetting rollforward to first %u(%u), gsn %u", trans_ptr.p->trans_key, rollforward_op_state, rollforward_op, lowest_op_impl_req_gsn);
+#endif
+           }
+           restarting = true;
          }
          /*
            Find the starting point for a rollback, the last
@@ -22179,7 +22211,7 @@ Dbdict::execDICT_TAKEOVER_REQ(Signal* signal)
        conf->highest_op_state = highest_op_state;
        conf->highest_op_impl_req_gsn = highest_op_impl_req_gsn;
      }
-     if (ending)
+     if (ending || restarting)
      {
        /*
          New master might already have released lowest operation found.
@@ -22848,27 +22880,13 @@ void Dbdict::check_takeover_replies(Signal* signal)
     */
     if (trans_ptr.p->m_master_recovery_state == SchemaTrans::TRS_ROLLFORWARD)
     {
-      if (trans_ptr.p->m_rollforward_op == 0)
-      {
-        jam();
-        SchemaOpPtr first_op_ptr;
-        LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
-        list.first(first_op_ptr);
-        trans_ptr.p->m_curr_op_ptr_i = first_op_ptr.i;
+      jam();
+      SchemaOpPtr rollforward_op_ptr;
+      ndbrequire(findSchemaOp(rollforward_op_ptr, trans_ptr.p->m_rollforward_op));
+      trans_ptr.p->m_curr_op_ptr_i = rollforward_op_ptr.i;
 #ifdef VM_TRACE
-        ndbout_c("execDICT_TAKEOVER_CONF: Transaction %u rolled forward, but nothing to do", trans_ptr.p->trans_key);
+      ndbout_c("execDICT_TAKEOVER_CONF: Transaction %u rolled forward starting at %u(%u)", trans_ptr.p->trans_key,  trans_ptr.p->m_rollforward_op, trans_ptr.p->m_curr_op_ptr_i);
 #endif
-      }
-      else
-      {
-        jam();
-        SchemaOpPtr rollforward_op_ptr;
-        ndbrequire(findSchemaOp(rollforward_op_ptr, trans_ptr.p->m_rollforward_op));
-        trans_ptr.p->m_curr_op_ptr_i = rollforward_op_ptr.i;
-#ifdef VM_TRACE
-        ndbout_c("execDICT_TAKEOVER_CONF: Transaction %u rolled forward starting at %u(%u)", trans_ptr.p->trans_key,  trans_ptr.p->m_rollforward_op, trans_ptr.p->m_curr_op_ptr_i);
-#endif
-      }
     }
     else // if (trans_ptr.p->master_recovery_state == SchemaTrans::TRS_ROLLBACK)
     {
