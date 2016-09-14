@@ -90,10 +90,9 @@ only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables,
 static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join, uint no_jbuf_after);
 
 static bool
-test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
-                        ha_rows select_limit,
+test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
                         const bool no_changes, const Key_map *map,
-                        int *best_idx);
+                        const char *clause_type);
 
 static Item_func_match *test_if_ft_index_order(ORDER *order);
 
@@ -1172,13 +1171,10 @@ bool JOIN::optimize_distinct_group_order()
           If GROUP BY is a prefix of ORDER BY, then it is safe to leave
           'order' as is.
        */
-      if (order && test_if_subpart(group_list, order))
-      {
-        order= group_list;
-        // Inform EXPLAIN that we sort for ORDER and care about ASC/DESC
-        order.src= ESC_ORDER_BY;
-        order.force_order();
-      }
+      if (!order || test_if_subpart(group_list, order))
+        order= (skip_sort_order ||
+                (unit->item && unit->item->substype() ==
+                 Item_subselect::IN_SUBS)) ? NULL : group_list;
 
       /*
         If we have an IGNORE INDEX FOR GROUP BY(fields) clause, this must be 
@@ -1202,7 +1198,6 @@ bool JOIN::optimize_distinct_group_order()
       plan_is_single_table() &&
       rollup.state == ROLLUP::STATE_NONE)
   {
-    int order_idx= -1, group_idx= -1;
     /*
       We are only using one table. In this case we change DISTINCT to a
       GROUP BY query if:
@@ -1224,7 +1219,7 @@ bool JOIN::optimize_distinct_group_order()
         test_if_skip_sort_order(tab, order, m_select_limit,
                                 true,           // no_changes
                                 &tab->table()->keys_in_use_for_order_by,
-                                &order_idx);
+                                "ORDER BY");
       count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
     }
     ORDER *o;
@@ -1239,11 +1234,8 @@ bool JOIN::optimize_distinct_group_order()
         test_if_skip_sort_order(tab, group_list, m_select_limit,
                                 true,         // no_changes
                                 &tab->table()->keys_in_use_for_group_by,
-                                &group_idx);
+                                "GROUP BY");
       count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
-      // ORDER BY and GROUP BY are using different indexes, can't skip sorting
-      if (group_idx >= 0 && order_idx >= 0 && group_idx != order_idx)
-        skip_sort_order= false;
       if ((skip_group && all_order_fields_used) ||
 	  m_select_limit == HA_POS_ERROR ||
 	  (order && !skip_sort_order))
@@ -1251,13 +1243,17 @@ bool JOIN::optimize_distinct_group_order()
 	/*  Change DISTINCT to GROUP BY */
 	select_distinct= 0;
 	no_order= !order;
-	if (all_order_fields_used && skip_sort_order && order)
-        {
-          /*
-            Force MySQL to read the table in sorted order to get result in
-            ORDER BY order.
-          */
-          tmp_table_param.quick_group=0;
+	if (all_order_fields_used)
+	{
+	  if (order && skip_sort_order)
+	  {
+	    /*
+	      Force MySQL to read the table in sorted order to get result in
+	      ORDER BY order.
+	    */
+	    tmp_table_param.quick_group=0;
+	  }
+	  order=0;
         }
         grouped= true;                    // For end_write_group
       }
@@ -1298,12 +1294,7 @@ bool JOIN::optimize_distinct_group_order()
   if (test_if_subpart(group_list, order) ||
       (!group_list && tmp_table_param.sum_func_count))
   {
-    if (order)
-    {
-      order=0;
-      // now GROUP BY also should provide proper order
-      group_list.force_order();
-    }
+    order=0;
     if (is_indexed_agg_distinct(this, NULL))
       sort_and_group= 0;
   }
@@ -1343,11 +1334,10 @@ void JOIN::test_skip_sort()
           so the specified 'limit' should not be enforced yet.
          */
         const ha_rows limit = need_tmp ? HA_POS_ERROR : m_select_limit;
-        int dummy;
 
         if (test_if_skip_sort_order(tab, group_list, limit, false, 
                                     &tab->table()->keys_in_use_for_group_by,
-                                    &dummy))
+                                    "GROUP BY"))
         {
           ordered_index_usage= ordered_index_group_by;
         }
@@ -1373,10 +1363,9 @@ void JOIN::test_skip_sort()
   else if (order &&                      // ORDER BY wo/ preceding GROUP BY
            (simple_order || skip_sort_order)) // which is possibly skippable
   {
-    int dummy;
     if (test_if_skip_sort_order(tab, order, m_select_limit, false,
                                 &tab->table()->keys_in_use_for_order_by,
-                                &dummy))
+                                "ORDER BY"))
     {
       ordered_index_usage= ordered_index_order_by;
     }
@@ -1416,8 +1405,6 @@ static Item_func_match *test_if_ft_index_order(ORDER *order)
   @param idx                 Index to check
   @param[out] used_key_parts NULL by default, otherwise return value for
                              used key parts.
-  @param[out] skip_quick     Whether found index can be used for backward range
-                             scans
 
   @note
     used_key_parts is set to correct key parts used if return value != 0
@@ -1434,8 +1421,8 @@ static Item_func_match *test_if_ft_index_order(ORDER *order)
     -1   Reverse key can be used
 */
 
-int test_if_order_by_key(ORDER_with_src *order_src, TABLE *table, uint idx,
-                         uint *used_key_parts, bool *skip_quick)
+int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
+                         uint *used_key_parts)
 {
   KEY_PART_INFO *key_part,*key_part_end;
   key_part=table->key_info[idx].key_part;
@@ -1444,12 +1431,6 @@ int test_if_order_by_key(ORDER_with_src *order_src, TABLE *table, uint idx,
   int reverse=0;
   uint key_parts;
   my_bool on_pk_suffix= FALSE;
-  // Whether [extented] key has key parts with mixed ASC/DESC order
-  bool mixed_order= false;
-  // Order direction of the first key part
-  bool reverse_sorted= (bool)(key_part->key_part_flag & HA_REVERSE_SORT);
-  ORDER *order= *order_src;
-  *skip_quick= false;
   DBUG_ENTER("test_if_order_by_key");
 
   for (; order ; order=order->next, const_key_parts>>=1)
@@ -1464,6 +1445,7 @@ int test_if_order_by_key(ORDER_with_src *order_src, TABLE *table, uint idx,
       DBUG_RETURN(0);
 
     Field *field= static_cast<Item_field*>(real_itm)->field;
+    int flag;
 
     /*
       Skip key parts that are constants in the WHERE clause.
@@ -1491,9 +1473,8 @@ int test_if_order_by_key(ORDER_with_src *order_src, TABLE *table, uint idx,
           table->key_info[table->s->primary_key].user_defined_key_parts;
         const_key_parts=table->const_key_parts[table->s->primary_key];
 
-        for (; const_key_parts & 1  && key_part < key_part_end ;
-             const_key_parts>>= 1)
-          key_part++;
+        for (; const_key_parts & 1 ; const_key_parts>>= 1)
+          key_part++; 
         /*
          The primary and secondary key parts were all const (i.e. there's
          one row).  The sorting doesn't matter.
@@ -1511,40 +1492,16 @@ int test_if_order_by_key(ORDER_with_src *order_src, TABLE *table, uint idx,
 
     if (key_part->field != field || !field->part_of_sortkey.is_set(idx))
       DBUG_RETURN(0);
-    // We need proper ordering when order is explicitly specified for GROUP
-    // BY and always for ORDER BY
-    if (order->is_explicit || !order_src->can_ignore_order())
-    {
-      const ORDER::enum_order keypart_order= 
-        (key_part->key_part_flag & HA_REVERSE_SORT) ? 
-        ORDER::ORDER_DESC : ORDER::ORDER_ASC;
-      /* set flag to 1 if we can use read-next on key, else to -1 */
-      int cur_scan_dir= (order->direction == keypart_order) ? 1 : -1;
-      if (reverse && cur_scan_dir != reverse)
-        DBUG_RETURN(0);
-      reverse= cur_scan_dir;				// Remember if reverse
-    }
-    mixed_order|=
-      (reverse_sorted != (bool)((key_part)->key_part_flag & HA_REVERSE_SORT));
 
+    const ORDER::enum_order keypart_order= 
+      (key_part->key_part_flag & HA_REVERSE_SORT) ? 
+      ORDER::ORDER_DESC : ORDER::ORDER_ASC;
+    /* set flag to 1 if we can use read-next on key, else to -1 */
+    flag= (order->direction == keypart_order) ? 1 : -1;
+    if (reverse && flag != reverse)
+      DBUG_RETURN(0);
+    reverse=flag;				// Remember if reverse
     key_part++;
-  }
-  /*
-   The index picked here might be used for range scans with multiple ranges.
-   This will require tricky reordering in case of ranges would have to be
-   scanned backward and index consists of mixed ASC/DESC key parts. Due to that
-   backward scans on such indexes are disabled.
-  */
-  if (mixed_order && reverse < 0)
-    *skip_quick= true;
-
-  if (!reverse)
-  {
-    /*
-      We get here when the key is suitable and we don't care about it's
-      order, i.e. GROUP BY/DISTINCT. Use forward scan.
-    */
-    reverse= 1;
   }
   if (on_pk_suffix)
   {
@@ -1725,8 +1682,8 @@ is_ref_or_null_optimized(const JOIN_TAB *tab, uint ref_key)
 */
 
 static uint
-test_if_subkey(ORDER_with_src *order, JOIN_TAB *tab, uint ref,
-               uint ref_key_parts, const Key_map *usable_keys)
+test_if_subkey(ORDER *order, JOIN_TAB *tab, uint ref, uint ref_key_parts,
+	       const Key_map *usable_keys)
 {
   uint nr;
   uint min_length= (uint) ~0;
@@ -1737,15 +1694,13 @@ test_if_subkey(ORDER_with_src *order, JOIN_TAB *tab, uint ref,
 
   for (nr= 0 ; nr < table->s->keys ; nr++)
   {
-    bool skip_quick;
     if (usable_keys->is_set(nr) &&
 	table->key_info[nr].key_length < min_length &&
 	table->key_info[nr].user_defined_key_parts >= ref_key_parts &&
 	is_subkey(table->key_info[nr].key_part, ref_key_part,
 		  ref_key_part_end) &&
         !is_ref_or_null_optimized(tab, nr) &&
-	test_if_order_by_key(order, table, nr, NULL, &skip_quick) &&
-        !skip_quick)
+	test_if_order_by_key(order, table, nr))
     {
       min_length= table->key_info[nr].key_length;
       best= nr;
@@ -1843,8 +1798,7 @@ public:
   @param select_limit  LIMIT value, or HA_POS_ERROR if no limit
   @param no_changes    No changes will be made to the query plan.
   @param map           Key_map of applicable indexes.
-  @param [out] order_idx Number of index selected, -1 if no applicable index
-                       found
+  @param clause_type   "ORDER BY" etc for printing in optimizer trace
 
   @todo
     - sergeyp: Results of all index merge selects actually are ordered 
@@ -1863,15 +1817,14 @@ public:
 */
 
 static bool
-test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
-                        ha_rows select_limit,
+test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
                         const bool no_changes, const Key_map *map,
-                        int *order_idx)
+                        const char *clause_type)
 {
   int ref_key;
   uint ref_key_parts= 0;
   int order_direction= 0;
-  uint used_key_parts= 0;
+  uint used_key_parts;
   TABLE *const table= tab->table();
   JOIN *const join= tab->join();
   THD *const thd= join->thd;
@@ -1886,7 +1839,7 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
   DBUG_ASSERT((uint)tab->idx() == join->const_tables);
 
   Plan_change_watchdog watchdog(tab, no_changes);
-  *order_idx= -1;
+
   /* Sorting a single row can always be skipped */
   if (tab->type() == JT_EQ_REF ||
       tab->type() == JT_CONST  ||
@@ -2015,9 +1968,7 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
   Opt_trace_object trace_wrapper(trace);
   Opt_trace_object
     trace_skip_sort_order(trace, "reconsidering_access_paths_for_index_ordering");
-  trace_skip_sort_order.add_alnum("clause",
-                                  (order.src == ESC_ORDER_BY ? "ORDER BY" :
-                                   "GROUP BY"));
+  trace_skip_sort_order.add_alnum("clause", clause_type);
 
   if (ref_key >= 0)
   {
@@ -2040,9 +1991,8 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
       if (table->covering_keys.is_set(ref_key))
 	usable_keys.intersect(table->covering_keys);
 
-      if ((new_ref_key=
-           test_if_subkey(&order, tab, ref_key, ref_key_parts,
-                          &usable_keys)) < MAX_KEY)
+      if ((new_ref_key= test_if_subkey(order, tab, ref_key, ref_key_parts,
+				       &usable_keys)) < MAX_KEY)
       {
 	/* Found key that can be used to retrieve data in sorted order */
 	if (tab->ref().key >= 0)
@@ -2106,19 +2056,17 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
         changed_key= new_ref_key;
       }
     }
-    bool dummy;
     /* Check if we get the rows in requested sorted order by using the key */
-    if (usable_keys.is_set(ref_key))
-      // Last parameter can be ignored as it'll be checked later, if needed
-      order_direction= test_if_order_by_key(&order,table,ref_key,
-                                            &used_key_parts, &dummy);
+    if (usable_keys.is_set(ref_key) &&
+        (order_direction= test_if_order_by_key(order,table,ref_key,
+					       &used_key_parts)))
+      goto check_reverse_order;
   }
-  if (ref_key < 0 || order_direction <= 0)
   {
     /*
       There is no ref/index scan/range scan access set up for this
-      table, or it does not provide the requested ordering, or it uses
-      backward scan. Do a cost-based search on all keys.
+      table, or it does not provide the requested ordering. Do a
+      cost-based search on all keys.
     */
     uint best_key_parts= 0;
     uint saved_best_key_parts= 0;
@@ -2133,31 +2081,18 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
     const int ref_key_hint= (order_direction == 0 &&
                              tab->type() == JT_INDEX_SCAN) ? -1 : ref_key;
 
-    test_if_cheaper_ordering(tab, &order, table, usable_keys,
+    test_if_cheaper_ordering(tab, order, table, usable_keys,
                              ref_key_hint,
                              select_limit,
                              &best_key, &best_key_direction,
                              &select_limit, &best_key_parts,
                              &saved_best_key_parts);
 
-    // Try backward scan for previously found key
-    if (best_key < 0 && order_direction < 0)
-        goto check_reverse_order;
-
     if (best_key < 0)
     {
       // No usable key has been found
       can_skip_sorting= false;
       goto fix_ICP;
-    }
-    /*
-      If found index will use backward index scan, ref_key uses backward
-      range/ref, pick the latter as it has better selectivity.
-    */
-    if (order_direction < 0 && order_direction == best_key_direction)
-    {
-      best_key= -1; // reset found best key
-      goto check_reverse_order;
     }
 
     /*
@@ -2210,22 +2145,6 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
                         true,     // force quick range
                         order->direction, tab, tab->condition(),
                         &tab->needed_reg, &qck);
-      if (order_direction < 0 && tab->quick() != NULL &&
-          tab->quick() != save_quick)
-      {
-        /*
-          We came here in case when 3 indexes are available for quick
-          select:
-            1 - found by join order optimizer (greedy search) and saved in
-                save_quick
-            2 - constructed far above, as better suited for order by, but it was
-                found that it requires backward scan.
-            3 - constructed right above
-          In this case we drop quick #2 as #3 is expected to be better.
-        */
-        delete tab->quick();
-        tab->set_quick(NULL);
-      }
       /*
         If tab->quick() pointed to another quick than save_quick, we would
         lose access to it and leak memory.
@@ -2263,9 +2182,8 @@ check_reverse_order:
         can_skip_sorting= true;
         goto fix_ICP;
       }
-      // test_if_cheaper_ordering() might disable range scan on current index
-      if (tab->table()->quick_keys.is_set(tab->quick()->index) &&
-          tab->quick()->reverse_sort_possible())
+
+      if (tab->quick()->reverse_sort_possible())
         can_skip_sorting= true;
       else
       {
@@ -2482,7 +2400,6 @@ fix_ICP:
                                 table->key_info[ref_key].name : "unknown");
     trace_change_index.add("plan_changed", false);
   }
-  *order_idx= best_key < 0 ? ref_key : best_key;
   DBUG_RETURN(can_skip_sorting);
 }
 
@@ -9461,13 +9378,9 @@ static bool make_join_select(JOIN *join, Item *cond)
               if (tab->quick() && tab->quick()->index != MAX_KEY)
               {
                 const uint ref_key= tab->quick()->index;
-                join->order.force_order();
-                bool skip_quick;
-                read_direction= test_if_order_by_key(&join->order,
-                                                     tab->table(), ref_key,
-                                                     NULL, &skip_quick);
-                if (skip_quick)
-                  read_direction= 0;
+
+                read_direction= test_if_order_by_key(join->order,
+                                                     tab->table(), ref_key);
                 /*
                   If the index provides order there is no need to recheck
                   index usage; we already know from the former call to
@@ -9493,7 +9406,7 @@ static bool make_join_select(JOIN *join, Item *cond)
                   usable_keys.intersect(tab->table()->keys_in_use_for_order_by);
 
                 /* Do a cost based search on the indexes that give sort order */
-                test_if_cheaper_ordering(tab, &join->order, tab->table(),
+                test_if_cheaper_ordering(tab, join->order, tab->table(),
                                          usable_keys, -1, select_limit,
                                          &best_key, &read_direction,
                                          &select_limit);

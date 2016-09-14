@@ -1815,9 +1815,9 @@ fts_create_one_common_table(
 			new_table->space, DICT_UNIQUE|DICT_CLUSTERED, 1);
 
 		if (!is_config) {
-			index->add_field("doc_id", 0, true);
+			index->add_field("doc_id", 0);
 		} else {
-			index->add_field("key", 0, true);
+			index->add_field("key", 0);
 		}
 
 		/* We save and restore trx->dict_operation because
@@ -1938,7 +1938,7 @@ fts_create_common_tables(
 	index = dict_mem_index_create(
 		name, FTS_DOC_ID_INDEX_NAME, table->space,
 		DICT_UNIQUE, 1);
-	index->add_field(FTS_DOC_ID_COL_NAME, 0, true);
+	index->add_field(FTS_DOC_ID_COL_NAME, 0);
 
 	op = trx_get_dict_operation(trx);
 
@@ -2026,8 +2026,8 @@ fts_create_one_index_table(
 		dict_index_t*	index = dict_mem_index_create(
 			table_name, "FTS_INDEX_TABLE_IND", new_table->space,
 			DICT_UNIQUE|DICT_CLUSTERED, 2);
-		index->add_field("word", 0, true);
-		index->add_field("first_doc_id", 0, true);
+		index->add_field("word", 0);
+		index->add_field("first_doc_id", 0);
 
 		trx_dict_op_t op = trx_get_dict_operation(trx);
 
@@ -3748,6 +3748,7 @@ fts_get_max_doc_id(
 	dict_field_t*	dfield MY_ATTRIBUTE((unused)) = NULL;
 	doc_id_t	doc_id = 0;
 	mtr_t		mtr;
+	btr_pcur_t	pcur;
 
 	index = table->fts_doc_id_index;
 
@@ -3763,36 +3764,43 @@ fts_get_max_doc_id(
 
 	mtr_start(&mtr);
 
-	const rec_t*	rec = row_search_get_max_rec(index, &mtr);
+	/* fetch the largest indexes value */
+	btr_pcur_open_at_index_side(
+		false, index, BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
 
-	if (rec) {
-		ulint	offsets_[1 + REC_OFFS_HEADER_SIZE + 1];
-		ulint*		offsets	= offsets_;
-		rec_offs_init(offsets_);
-		mem_heap_t*	heap	= NULL;
+	if (!page_is_empty(btr_pcur_get_page(&pcur))) {
+		const rec_t*    rec = NULL;
+		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+		ulint*		offsets = offsets_;
+		mem_heap_t*	heap = NULL;
 		ulint		len;
 		const void*	data;
 
-		offsets = rec_get_offsets(rec, index, offsets, 1, &heap);
-		ut_ad(heap == NULL);
+		rec_offs_init(offsets_);
+
+		do {
+			rec = btr_pcur_get_rec(&pcur);
+
+			if (page_rec_is_user_rec(rec)) {
+				break;
+			}
+		} while (btr_pcur_move_to_prev(&pcur, &mtr));
+
+		if (!rec) {
+			goto func_exit;
+		}
+
+		offsets = rec_get_offsets(
+			rec, index, offsets, ULINT_UNDEFINED, &heap);
 
 		data = rec_get_nth_field(rec, offsets, 0, &len);
 
-		switch (len) {
-		default:
-			/* Unexpected index format! */
-			ut_ad(0);
-			// fall through
-		case UNIV_SQL_NULL:
-			/* No FTS_DOC_ID value present. */
-			break;
-		case 8:
-			doc_id = static_cast<doc_id_t>(
-				fts_read_doc_id(
-					static_cast<const byte*>(data)));
-		}
+		doc_id = static_cast<doc_id_t>(fts_read_doc_id(
+			static_cast<const byte*>(data)));
 	}
 
+func_exit:
+	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 	return(doc_id);
 }

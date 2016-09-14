@@ -878,27 +878,26 @@ static MY_ATTRIBUTE((warn_unused_result))
 int
 row_merge_tuple_cmp(
 /*================*/
-	const dict_index_t*	index,	/*< in: index tree */
 	ulint			n_uniq,	/*!< in: number of unique fields */
-	ulint                   n_field,/*!< in: number of fields */
+	ulint			n_field,/*!< in: number of fields */
 	const mtuple_t&		a,	/*!< in: first tuple to be compared */
 	const mtuple_t&		b,	/*!< in: second tuple to be compared */
 	row_merge_dup_t*	dup)	/*!< in/out: for reporting duplicates,
 					NULL if non-unique index */
 {
-	int			cmp;
-	const dfield_t*		af	= a.fields;
-	const dfield_t*		bf	= b.fields;
-	ulint			n	= n_uniq;
-	const dict_field_t*     f       = index->fields;
-	ut_ad(n > 0);
+	int		cmp;
+	const dfield_t*	af	= a.fields;
+	const dfield_t*	bf	= b.fields;
+	ulint		n	= n_uniq;
+
+	ut_ad(n_uniq > 0);
 	ut_ad(n_uniq <= n_field);
 
 	/* Compare the fields of the tuples until a difference is
 	found or we run out of fields to compare.  If !cmp at the
 	end, the tuples are equal. */
 	do {
-		cmp = cmp_dfield_dfield(af++, bf++, (f++)->is_ascending);
+		cmp = cmp_dfield_dfield(af++, bf++);
 	} while (!cmp && --n);
 
 	if (cmp) {
@@ -923,7 +922,7 @@ no_report:
 	/* The n_uniq fields were equal, but we compare all fields so
 	that we will get the same (internal) order as in the B-tree. */
 	for (n = n_field - n_uniq + 1; --n; ) {
-		cmp = cmp_dfield_dfield(af++, bf++, (f++)->is_ascending);
+		cmp = cmp_dfield_dfield(af++, bf++);
 		if (cmp) {
 			return(cmp);
 		}
@@ -943,7 +942,7 @@ UT_SORT_FUNCTION_BODY().
 @param low lower bound of the sorting area, inclusive
 @param high upper bound of the sorting area, inclusive */
 #define row_merge_tuple_sort_ctx(tuples, aux, low, high)		\
-	row_merge_tuple_sort(index, n_uniq, n_field, dup, tuples, aux, low, high)
+	row_merge_tuple_sort(n_uniq, n_field, dup, tuples, aux, low, high)
 /** Wrapper for row_merge_tuple_cmp() to inject some more context to
 UT_SORT_FUNCTION_BODY().
 @param a first tuple to be compared
@@ -951,7 +950,7 @@ UT_SORT_FUNCTION_BODY().
 @return positive, 0, negative, if a is greater, equal, less, than b,
 respectively */
 #define row_merge_tuple_cmp_ctx(a,b)			\
-	row_merge_tuple_cmp(index, n_uniq, n_field, a, b, dup)
+	row_merge_tuple_cmp(n_uniq, n_field, a, b, dup)
 
 /**********************************************************************//**
 Merge sort the tuple buffer in main memory. */
@@ -959,8 +958,7 @@ static
 void
 row_merge_tuple_sort(
 /*=================*/
-	const dict_index_t*	index,	/*!< in: index tree */
-	ulint			n_uniq, /*!< in: number of unique fields */
+	ulint			n_uniq,	/*!< in: number of unique fields */
 	ulint			n_field,/*!< in: number of fields */
 	row_merge_dup_t*	dup,	/*!< in/out: reporter of duplicates
 					(NULL if non-unique index) */
@@ -989,12 +987,10 @@ row_merge_buf_sort(
 {
 	ut_ad(!dict_index_is_spatial(buf->index));
 
-	row_merge_tuple_sort(
-		buf->index,
-		dict_index_get_n_unique(buf->index),
-		dict_index_get_n_fields(buf->index),
-		dup,
-		buf->tuples, buf->tmp_tuples, 0, buf->n_tuples);
+	row_merge_tuple_sort(dict_index_get_n_unique(buf->index),
+			     dict_index_get_n_fields(buf->index),
+			     dup,
+			     buf->tuples, buf->tmp_tuples, 0, buf->n_tuples);
 }
 
 /******************************************************//**
@@ -1549,9 +1545,7 @@ row_mtuple_cmp(
 	const ulint	n_unique = dict_index_get_n_unique(dup->index);
 
 	return(row_merge_tuple_cmp(
-			dup->index,
-			n_unique, n_unique, *current_mtuple, *prev_mtuple,
-			dup));
+		       n_unique, n_unique, *current_mtuple, *prev_mtuple, dup));
 }
 
 /** Insert cached spatial index rows.
@@ -4199,7 +4193,7 @@ row_merge_create_index(
 
 		}
 
-		index->add_field(name, ifield->prefix_len, ifield->is_ascending);
+		index->add_field(name, ifield->prefix_len);
 	}
 
 	/* Add the index to SYS_INDEXES, using the index prototype. */

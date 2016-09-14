@@ -6322,12 +6322,8 @@ int handler::multi_range_read_next(char **range_info)
 
   do
   {
-    /*
-      Do not call read_range_next() if its equality on a unique
-      index.
-    */
-    if (!((mrr_cur_range.range_flag & UNIQUE_RANGE) &&
-          (mrr_cur_range.range_flag & EQ_RANGE)))
+    /* Save a call if there can be only one row in range. */
+    if (mrr_cur_range.range_flag != (UNIQUE_RANGE | EQ_RANGE))
     {
       result= read_range_next();
       /* On success or non-EOF errors jump to the end. */

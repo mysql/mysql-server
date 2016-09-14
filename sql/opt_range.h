@@ -43,7 +43,7 @@ typedef struct st_key_part {
     Keypart flags (0 when this structure is used by partition pruning code
     for fake partitioning index description)
   */
-  uint16 flag;
+  uint8 flag;
   Field            *field;
   Field::imagetype image_type;
 } KEY_PART;
@@ -438,8 +438,7 @@ protected:
                              QUICK_RANGE_SELECT *quick,KEY_PART *key,
                              SEL_ARG *key_tree,
                              uchar *min_key, uint min_key_flag,
-                             uchar *max_key, uint max_key_flag,
-                             uint *desc_flag);
+                             uchar *max_key, uint max_key_flag);
   friend QUICK_RANGE_SELECT *get_quick_select(PARAM*,uint idx,
                                               SEL_ARG *key_tree,
                                               uint mrr_flags,
@@ -917,10 +916,6 @@ private:
     through index read 
   */
   bool is_index_scan; 
-  /**
-    Whether used part of the index has desc key parts
-  */
-  bool has_desc_keyparts;
 public:
   /*
     The following two members are public to allow easy access from
@@ -934,8 +929,8 @@ private:
   int  next_max_in_range();
   int  next_min();
   int  next_max();
-  void update_min_result(bool reset);
-  void update_max_result(bool reset);
+  void update_min_result();
+  void update_max_result();
 public:
   QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join, bool have_min,
                              bool have_max, bool have_agg_distinct,

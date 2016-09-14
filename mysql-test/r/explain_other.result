@@ -227,11 +227,14 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.40"
+      "query_cost": "3.40"
     },
     "grouping_operation": {
       "using_temporary_table": true,
-      "using_filesort": false,
+      "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "2.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -488,7 +491,7 @@ Explain queries with plan only partially ready
 EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT * FROM (SELECT * FROM t1 GROUP BY 1) tt'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
-2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	17	100.00	Using temporary
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	17	100.00	Using temporary; Using filesort
 EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT * FROM t1 UNION ALL SELECT * FROM t1 ORDER BY
 (SELECT * FROM t1 LIMIT 1)'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -510,11 +513,14 @@ EXPLAIN
         "query_block": {
           "select_id": 2,
           "cost_info": {
-            "query_cost": "4.40"
+            "query_cost": "21.40"
           },
           "grouping_operation": {
             "using_temporary_table": true,
-            "using_filesort": false,
+            "using_filesort": true,
+            "cost_info": {
+              "sort_cost": "17.00"
+            },
             "table": {
               "table_name": "t1",
               "access_type": "ALL",

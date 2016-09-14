@@ -205,38 +205,6 @@ private:
   bool m_is_mem_error;
 };
 
-
-/**
-  A helper function to invert min flags to max flags for DESC key parts.
-  It changes NEAR_MIN, NO_MIN_RANGE to NEAR_MAX, NO_MAX_RANGE appropriately
-*/
-
-static uint invert_min_flag(uint min_flag)
-{
-  uint max_flag_out= min_flag & ~(NEAR_MIN | NO_MIN_RANGE);
-  if (min_flag & NEAR_MIN)
-    max_flag_out|= NEAR_MAX;
-  if (min_flag & NO_MIN_RANGE)
-    max_flag_out|= NO_MAX_RANGE;
-  return max_flag_out;
-}
-
-/**
-  A helper function to invert max flags to min flags for DESC key parts.
-  It changes NEAR_MAX, NO_MAX_RANGE to NEAR_MIN, NO_MIN_RANGE appropriately
-*/
-
-static uint invert_max_flag(uint max_flag)
-{
-  uint min_flag_out= max_flag & ~(NEAR_MAX | NO_MAX_RANGE);
-  if (max_flag & NEAR_MAX)
-    min_flag_out|= NEAR_MIN;
-  if (max_flag & NO_MAX_RANGE)
-    min_flag_out|= NO_MIN_RANGE;
-  return min_flag_out;
-}
-
-
 /*
   A construction block of the SEL_ARG-graph.
   
@@ -582,22 +550,21 @@ public:
     */
     KEY_RANGE
   } type;
-  bool is_ascending; ///< TRUE - ASC order, FALSE - DESC
 
   SEL_ARG() : parent(nullptr) {}
   SEL_ARG(SEL_ARG &);
-  SEL_ARG(Field *,const uchar *, const uchar *, bool asc);
+  SEL_ARG(Field *,const uchar *, const uchar *);
   SEL_ARG(Field *field, uint8 part, uchar *min_value, uchar *max_value,
-	  uint8 min_flag, uint8 max_flag, uint8 maybe_flag, bool asc);
+	  uint8 min_flag, uint8 max_flag, uint8 maybe_flag);
   /*
     Used to construct MAYBE_KEY and IMPOSSIBLE SEL_ARGs. left and
     right is NULL, so this ctor must not be used to create other
     SEL_ARG types. See todo for left/right pointers.
   */
-  SEL_ARG(enum Type type_arg, bool asc)
+  SEL_ARG(enum Type type_arg)
     :min_flag(0), part(0), rkey_func_flag(HA_READ_INVALID), elements(1),
     left(NULL), right(NULL), parent(NULL),
-    color(BLACK), type(type_arg), is_ascending(asc)
+    color(BLACK), type(type_arg)
   {
     DBUG_ASSERT(type_arg == MAYBE_KEY || type_arg == IMPOSSIBLE);
   }
@@ -685,19 +652,18 @@ public:
       new_max=arg->max_value; flag_max=arg->max_flag;
     }
     return new (mem_root) SEL_ARG(field, part, new_min, new_max, flag_min, flag_max,
-		       MY_TEST(maybe_flag && arg->maybe_flag), is_ascending);
+		       MY_TEST(maybe_flag && arg->maybe_flag));
   }
   SEL_ARG *clone_first(SEL_ARG *arg, MEM_ROOT *mem_root)
   {                                             // arg->min <= X < arg->min
     return new (mem_root) SEL_ARG(field,part, min_value, arg->min_value,
 		       min_flag, arg->min_flag & NEAR_MIN ? 0 : NEAR_MAX,
-		       maybe_flag | arg->maybe_flag, is_ascending);
+		       maybe_flag | arg->maybe_flag);
   }
   SEL_ARG *clone_last(SEL_ARG *arg, MEM_ROOT *mem_root)
   {                                             // arg->min <= X <= key_max
     return new (mem_root) SEL_ARG(field, part, min_value, arg->max_value,
-		       min_flag, arg->max_flag,
-                       maybe_flag | arg->maybe_flag, is_ascending);
+		       min_flag, arg->max_flag, maybe_flag | arg->maybe_flag);
   }
   SEL_ARG *clone(RANGE_OPT_PARAM *param, SEL_ARG *new_parent, SEL_ARG **next);
 
@@ -756,7 +722,7 @@ public:
   }
 
   /* returns a number of keypart values (0 or 1) appended to the key buffer */
-  int store_min_value(uint length, uchar **min_key,uint min_key_flag)
+  int store_min(uint length, uchar **min_key,uint min_key_flag)
   {
     /* "(kp1 > c1) AND (kp2 OP c2) AND ..." -> (kp1 > c1) */
     if ((min_flag & GEOM_FLAG) ||
@@ -776,7 +742,7 @@ public:
     return 0;
   }
   /* returns a number of keypart values (0 or 1) appended to the key buffer */
-  int store_max_value(uint length, uchar **max_key, uint max_key_flag)
+  int store_max(uint length, uchar **max_key, uint max_key_flag)
   {
     if (!(max_flag & NO_MAX_RANGE) &&
 	!(max_key_flag & (NO_MAX_RANGE | NEAR_MAX)))
@@ -802,159 +768,49 @@ public:
     we have to stop at the last partition part and not step into
     the subpartition fields. For Range Analysis we set last_part
     to MAX_KEY which we should never reach.
-
-    Note: Caller of this function should take care of sending the
-    correct flags and correct key to be stored into.  In case of
-    ascending indexes, store_min_key() gets called to store the
-    min_value to range start_key. In case of descending indexes, it's
-    called for storing min_value to range end_key.
   */
   int store_min_key(KEY_PART *key,
                     uchar **range_key,
                     uint *range_key_flag,
-                    uint last_part,
-                    bool start_key)
+                    uint last_part)
   {
-
     SEL_ARG *key_tree= first();
-    uint res= key_tree->store_min_value(key[key_tree->part].store_length,
-                                        range_key, *range_key_flag);
-    // We've stored min_value, so append min_flag
+    uint res= key_tree->store_min(key[key_tree->part].store_length,
+                                  range_key, *range_key_flag);
     *range_key_flag|= key_tree->min_flag;
+    
     if (key_tree->next_key_part &&
 	key_tree->next_key_part->type == SEL_ARG::KEY_RANGE &&
         key_tree->part != last_part &&
 	key_tree->next_key_part->part == key_tree->part+1 &&
 	!(*range_key_flag & (NO_MIN_RANGE | NEAR_MIN)))
-    {
-      const bool asc= key_tree->next_key_part->is_ascending;
-      if ((start_key && asc) || (!start_key && !asc))
-        res+= key_tree->next_key_part->store_min_key(key,
-                                                     range_key,
-                                                     range_key_flag,
-                                                     last_part, start_key);
-      else
-      {
-        uint tmp_flag= invert_min_flag(*range_key_flag);
-        res+= key_tree->next_key_part->store_max_key(key,
-                                                     range_key,
-                                                     &tmp_flag,
-                                                     last_part, start_key);
-        *range_key_flag= invert_max_flag(tmp_flag);
-      }
-    }
+      res+= key_tree->next_key_part->store_min_key(key,
+                                                   range_key,
+                                                   range_key_flag,
+                                                   last_part);
     return res;
   }
 
-  /*
-    Returns the number of keypart values appended to the key buffer.
-
-    Note: Caller of this function should take care of sending the
-    correct flags and correct key to be stored into.  In case of
-    ascending indexes, store_max_key() gets called while storing the
-    max_value into range end_key. In case of descending indexes,
-    its max_value to range start_key.
-  */
+  /* returns a number of keypart values appended to the key buffer */
   int store_max_key(KEY_PART *key,
                     uchar **range_key,
                     uint *range_key_flag,
-                    uint last_part,
-                    bool start_key)
+                    uint last_part)
   {
     SEL_ARG *key_tree= last();
-    uint res=key_tree->store_max_value(key[key_tree->part].store_length,
-                                       range_key, *range_key_flag);
-    // We've stored max value, so return max_flag
+    uint res=key_tree->store_max(key[key_tree->part].store_length,
+                                 range_key, *range_key_flag);
     (*range_key_flag)|= key_tree->max_flag;
     if (key_tree->next_key_part &&
 	key_tree->next_key_part->type == SEL_ARG::KEY_RANGE &&
         key_tree->part != last_part &&
 	key_tree->next_key_part->part == key_tree->part+1 &&
 	!(*range_key_flag & (NO_MAX_RANGE | NEAR_MAX)))
-    {
-      const bool asc= key_tree->next_key_part->is_ascending;
-      if ((!start_key && asc) || (start_key && !asc))
-        res+= key_tree->next_key_part->store_max_key(key,
-                                                     range_key,
-                                                     range_key_flag,
-                                                     last_part, start_key);
-      else
-      {
-        uint tmp_flag= invert_max_flag(*range_key_flag);
-        res+= key_tree->next_key_part->store_min_key(key,
-                                                     range_key,
-                                                     &tmp_flag,
-                                                     last_part, start_key);
-        *range_key_flag= invert_min_flag(tmp_flag);
-      }
-    }
+      res+= key_tree->next_key_part->store_max_key(key,
+                                                   range_key,
+                                                   range_key_flag,
+                                                   last_part);
     return res;
-  }
-  /**
-    Helper function for storing min/max values of SEL_ARG taking into account
-    key part's order.
-  */
-  void store_min_max_values(uint length, uchar **min_key, uint min_flag,
-                            uchar **max_key, uint max_flag,
-                            int *min_part, int *max_part)
-  {
-    if (is_ascending)
-    {
-      *min_part+= store_min_value(length, min_key, min_flag);
-      *max_part+= store_max_value(length, max_key, max_flag);
-    }
-    else
-    {
-      *max_part+= store_min_value(length, max_key,min_flag);
-      *min_part+= store_max_value(length, min_key,max_flag);
-    }
-  }
-
-  /**
-    Helper function for storing min/max keys of next SEL_ARG taking into
-    account key part's order.
-
-    @note On checking min/max flags: Flags are used to track whether there's
-    a partial key in the key buffer. So for ASC key parts the flag
-    corresponding to the key being added to should be checked, not
-    corresponding to the value being added. I.e min_flag for min_key.
-    For DESC key parts it's opposite - max_flag for min_key. It's flag
-    of prev key part that should be checked.
-
-  */
-  void store_next_min_max_keys(KEY_PART *key,
-                               uchar **cur_min_key, uint *cur_min_flag,
-                               uchar **cur_max_key, uint *cur_max_flag,
-                               int *min_part, int *max_part)
-  {
-    DBUG_ASSERT(next_key_part);
-    const bool asc= next_key_part->is_ascending;
-    if (!get_min_flag())
-    {
-      if (asc)
-        *min_part+= next_key_part->store_min_key(key, cur_min_key, cur_min_flag,
-                                                 MAX_KEY, true);
-      else
-      {
-        uint tmp_flag= invert_min_flag(*cur_min_flag);
-        *min_part+= next_key_part->store_max_key(key, cur_min_key, &tmp_flag,
-                                                 MAX_KEY, true);
-        *cur_min_flag= invert_max_flag(tmp_flag);
-      }
-    }
-    if (!get_max_flag())
-    {
-      if (asc)
-        *max_part+= next_key_part->store_max_key(key, cur_max_key, cur_max_flag,
-                                                 MAX_KEY, false);
-      else
-      {
-        uint tmp_flag= invert_max_flag(*cur_max_flag);
-        *max_part+= next_key_part->store_min_key(key, cur_max_key, &tmp_flag,
-                                                 MAX_KEY, false);
-        *cur_max_flag= invert_min_flag(tmp_flag);
-      }
-    }
   }
 
   SEL_ARG *insert(SEL_ARG *key);
@@ -1041,28 +897,6 @@ public:
     return !field->key_cmp(min_val, max_val);
   }
   SEL_ARG *clone_tree(RANGE_OPT_PARAM *param);
-  /**
-    Return correct min_flag.
-
-    For DESC key parts max flag should be used as min flag, but in order to
-    be checked correctly, max flag should be flipped as code doesn't expect
-    e.g NEAR_MAX in min flag.
-  */
-  uint get_min_flag()
-  {
-    return (is_ascending ? min_flag : invert_max_flag(max_flag));
-  }
-  /**
-    Return correct max_flag.
-
-    For DESC key parts min flag should be used as max flag, but in order to
-    be checked correctly, min flag should be flipped as code doesn't expect
-    e.g NEAR_MIN in max flag.
-  */
-  uint get_max_flag()
-  {
-    return (is_ascending ? max_flag : invert_min_flag(min_flag));
-  }
 };
 
 /**
@@ -1297,8 +1131,6 @@ public:
 
   /* TRUE if last checked tree->key can be used for ROR-scan */
   bool is_ror_scan;
-  /* TRUE if last checked tree->key can be used for index-merge-scan */
-  bool is_imerge_scan;
   /* Number of ranges in the last checked tree->key */
   uint n_ranges;
 
@@ -1403,7 +1235,7 @@ static SEL_ARG *key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2);
 static bool get_range(SEL_ARG **e1,SEL_ARG **e2,SEL_ARG *root1);
 bool get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
                     SEL_ARG *key_tree, uchar *min_key,uint min_key_flag,
-                    uchar *max_key,uint max_key_flag, uint *desc_flag);
+                    uchar *max_key,uint max_key_flag);
 static bool eq_tree(SEL_ARG* a,SEL_ARG *b);
 static bool eq_ranges_exceeds_limit(SEL_ARG *keypart_root, uint* count, 
                                     uint limit);
@@ -1420,7 +1252,7 @@ static bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2,
 
 void range_optimizer_init()
 {
-  null_element= ::new SEL_ARG(SEL_ARG::IMPOSSIBLE, false);
+  null_element= ::new SEL_ARG(SEL_ARG::IMPOSSIBLE);
 }
 
 void range_optimizer_free()
@@ -2342,8 +2174,7 @@ SEL_ARG::SEL_ARG(SEL_ARG &arg)
   prev(NULL),
   parent(NULL),
   next_key_part(arg.next_key_part),
-  type(arg.type),
-  is_ascending(arg.is_ascending)
+  type(arg.type)
 {
   DBUG_ASSERT(arg.type != MAYBE_KEY);  // Would need left=right=NULL
   if (next_key_part)
@@ -2360,7 +2191,7 @@ inline void SEL_ARG::make_root()
 }
 
 SEL_ARG::SEL_ARG(Field *f,const uchar *min_value_arg,
-                 const uchar *max_value_arg, bool asc)
+                 const uchar *max_value_arg)
   :min_flag(0), max_flag(0), maybe_flag(0), part(0),
   maybe_null(f->real_maybe_null()), rkey_func_flag(HA_READ_INVALID),
   elements(1), field(f),
@@ -2368,20 +2199,18 @@ SEL_ARG::SEL_ARG(Field *f,const uchar *min_value_arg,
   max_value(const_cast<uchar *>(max_value_arg)),
   left(null_element), right(null_element),
   next(NULL), prev(NULL), parent(NULL),
-  color(BLACK), type(KEY_RANGE), is_ascending(asc)
+  color(BLACK), type(KEY_RANGE)
 {}
 
 SEL_ARG::SEL_ARG(Field *field_,uint8 part_,
                  uchar *min_value_, uchar *max_value_,
-		 uint8 min_flag_,uint8 max_flag_,uint8 maybe_flag_,
-                 bool asc)
+		 uint8 min_flag_,uint8 max_flag_,uint8 maybe_flag_)
   :min_flag(min_flag_),max_flag(max_flag_),maybe_flag(maybe_flag_), part(part_),
   maybe_null(field_->real_maybe_null()),
   rkey_func_flag(HA_READ_INVALID), elements(1),
   field(field_), min_value(min_value_), max_value(max_value_),
   left(null_element), right(null_element),
-  next(NULL), prev(NULL), parent(NULL), color(BLACK), type(KEY_RANGE),
-  is_ascending(asc)
+  next(NULL), prev(NULL), parent(NULL), color(BLACK), type(KEY_RANGE)
 {}
 
 SEL_ARG *SEL_ARG::clone(RANGE_OPT_PARAM *param, SEL_ARG *new_parent, 
@@ -2394,7 +2223,7 @@ SEL_ARG *SEL_ARG::clone(RANGE_OPT_PARAM *param, SEL_ARG *new_parent,
 
   if (type != KEY_RANGE)
   {
-    if (!(tmp= new (param->mem_root) SEL_ARG(type, is_ascending)))
+    if (!(tmp= new (param->mem_root) SEL_ARG(type)))
       return 0;					// out of memory
     tmp->prev= *next_arg;			// Link into next/prev chain
     (*next_arg)->next=tmp;
@@ -2404,8 +2233,7 @@ SEL_ARG *SEL_ARG::clone(RANGE_OPT_PARAM *param, SEL_ARG *new_parent,
   else
   {
     if (!(tmp= new (param->mem_root) SEL_ARG(field,part, min_value,max_value,
-                                             min_flag, max_flag, maybe_flag,
-                                             is_ascending)))
+                                             min_flag, max_flag, maybe_flag)))
       return 0;					// OOM
     tmp->parent=new_parent;
     tmp->set_next_key_part(next_key_part);
@@ -2542,11 +2370,6 @@ public:
     scans that can be both ROR and non-ROR.
   */
   bool is_ror;
-
-  /*
-    If TRUE, this plan can be used for index merge scan.
-  */
-  bool is_imerge;
 
   /*
     Create quick select for this plan.
@@ -3236,7 +3059,7 @@ int test_quick_select(THD *thd, Key_map keys_to_use,
             (part < key_info->user_defined_key_parts &&
              key_info->flags & HA_SPATIAL) ? Field::itMBR : Field::itRAW;
           /* Only HA_PART_KEY_SEG is used */
-          key_parts->flag=         key_part_info->key_part_flag;
+          key_parts->flag=         (uint8) key_part_info->key_part_flag;
           trace_keypart.add_utf8(key_parts->field->field_name);
         }
         param.real_keynr[param.keys++]=idx;
@@ -3312,7 +3135,6 @@ int test_quick_select(THD *thd, Key_map keys_to_use,
     group_trp= get_best_group_min_max(&param, tree, &best_cost);
     if (group_trp)
     {
-      DBUG_EXECUTE_IF("force_lis_for_group_by", group_trp->cost_est.reset(););
       param.table->quick_condition_rows= min(group_trp->records,
                                              head->file->stats.records);
       Opt_trace_object grp_summary(trace,
@@ -4202,10 +4024,10 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
       uchar *max_key= ppar->cur_max_key;
       uchar *tmp_min_key= min_key;
       uchar *tmp_max_key= max_key;
-      key_tree->store_min_value(ppar->key[key_tree->part].store_length,
-                                &tmp_min_key, ppar->cur_min_flag);
-      key_tree->store_max_value(ppar->key[key_tree->part].store_length,
-                                &tmp_max_key, ppar->cur_max_flag);
+      key_tree->store_min(ppar->key[key_tree->part].store_length,
+                          &tmp_min_key, ppar->cur_min_flag);
+      key_tree->store_max(ppar->key[key_tree->part].store_length,
+                          &tmp_max_key, ppar->cur_max_flag);
       uint flag;
       if (key_tree->next_key_part &&
           key_tree->next_key_part->part == key_tree->part+1 &&
@@ -4247,14 +4069,12 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
           key_tree->next_key_part->store_min_key(ppar->key,
                                                  &tmp_min_key,
                                                  &tmp_min_flag,
-                                                 ppar->last_part_partno,
-                                                 true);
+                                                 ppar->last_part_partno);
         if (!tmp_max_flag)
           key_tree->next_key_part->store_max_key(ppar->key,
                                                  &tmp_max_key,
                                                  &tmp_max_flag,
-                                                 ppar->last_part_partno,
-                                                 false);
+                                                 ppar->last_part_partno);
         flag= tmp_min_flag | tmp_max_flag;
       }
       else
@@ -4897,12 +4717,6 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
       continue;
     }
 
-    if (!((*cur_child)->is_imerge))
-    {
-      trace_idx.add("chosen", false).add_alnum("cause", "index has DESC key part");
-      continue;
-    }
-
     const uint keynr_in_table= param->real_keynr[(*cur_child)->key_idx];
     imerge_cost+= (*cur_child)->cost_est;
     all_scans_ror_able &= ((*ptree)->n_ror_scans > 0);
@@ -4923,6 +4737,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
 
   // Note: to_merge trace object is closed here
   to_merge.end();
+
 
   trace_best_disjunct.add("cost_of_reading_ranges", imerge_cost);
   if (imerge_too_expensive || (imerge_cost > read_cost) ||
@@ -5561,15 +5376,15 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
       {
         tuple_arg= scan->sel_arg;
         /* Here we use the length of the first key part */
-        tuple_arg->store_min_value(key_part[0].store_length, &key_ptr, 0);
+        tuple_arg->store_min(key_part[0].store_length, &key_ptr, 0);
         is_null_range|= tuple_arg->is_null_interval();
         keypart_map= 1;
       }
       while (tuple_arg->next_key_part != sel_arg)
       {
         tuple_arg= tuple_arg->next_key_part;
-        tuple_arg->store_min_value(key_part[tuple_arg->part].store_length,
-                                   &key_ptr, 0);
+        tuple_arg->store_min(key_part[tuple_arg->part].store_length,
+                             &key_ptr, 0);
         is_null_range|= tuple_arg->is_null_interval();
         keypart_map= (keypart_map << 1) | 1;
       }
@@ -6084,7 +5899,6 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
 
   tree->ror_scans_map.clear_all();
   tree->n_ror_scans= 0;
-  bool is_best_idx_imerge_scan= true;
   for (idx= 0; idx < param->keys; idx++)
   {
     key= tree->keys[idx];
@@ -6149,7 +5963,6 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
         best_idx= idx;
         best_mrr_flags= mrr_flags;
         best_buf_size=  buf_size;
-        is_best_idx_imerge_scan= param->is_imerge_scan;
       }
       else
       {
@@ -6168,7 +5981,6 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
 
   DBUG_EXECUTE("info", print_sel_tree(param, tree, &tree->ror_scans_map,
                                       "ROR scans"););
-
   if (key_to_read)
   {
     if ((read_plan= new (param->mem_root) TRP_RANGE(key_to_read, best_idx,
@@ -6176,7 +5988,6 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
     {
       read_plan->records= best_records;
       read_plan->is_ror= tree->ror_scans_map.is_set(best_idx);
-      read_plan->is_imerge= is_best_idx_imerge_scan;
       read_plan->cost_est= read_cost;
       read_plan->mrr_buf_size= best_buf_size;
       DBUG_PRINT("info",
@@ -7352,9 +7163,7 @@ get_mm_parts(RANGE_OPT_PARAM *param, Item_func *cond_func, Field *field,
           DBUG_RETURN(NULL);
         }
 
-        if (!(sel_arg= new (param->mem_root)
-                SEL_ARG(SEL_ARG::MAYBE_KEY,
-                        !(key_part->flag & HA_REVERSE_SORT))))
+        if (!(sel_arg= new (param->mem_root) SEL_ARG(SEL_ARG::MAYBE_KEY)))
           DBUG_RETURN(NULL);  //OOM
       }
       sel_arg->part=(uchar) key_part->part;
@@ -7580,7 +7389,7 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
   DBUG_ASSERT(FALSE); // Should never get here.
 
 impossible_cond:
-  *tree= new (memroot) SEL_ARG(field, 0, 0, true);
+  *tree= new (memroot) SEL_ARG(field, 0, 0);
   (*tree)->type= SEL_ARG::IMPOSSIBLE;
   return true;
 }
@@ -7681,8 +7490,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
     TRASH(null_string, key_part->store_length + 1);
     memcpy(null_string, is_null_string, sizeof(is_null_string));
 
-    if (!(tree= new (alloc) SEL_ARG(field, null_string, null_string,
-                                    !(key_part->flag & HA_REVERSE_SORT))))
+    if (!(tree= new (alloc) SEL_ARG(field, null_string, null_string)))
       goto end;                                 // out of memory
     if (type == Item_func::ISNOTNULL_FUNC)
     {
@@ -7814,8 +7622,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       int2store(min_str+maybe_null, static_cast<uint16>(min_length));
       int2store(max_str+maybe_null, static_cast<uint16>(max_length));
     }
-    tree= new (alloc) SEL_ARG(field, min_str, max_str,
-                              !(key_part->flag & HA_REVERSE_SORT));
+    tree= new (alloc) SEL_ARG(field, min_str, max_str);
     goto end;
   }
 
@@ -7874,9 +7681,9 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
     *str= (uchar) field->is_real_null();        // Set to 1 if null
   field->get_key_image(str+maybe_null, key_part->length,
                        key_part->image_type);
-  if (!(tree= new (alloc) SEL_ARG(field, str, str,
-                                  !(key_part->flag & HA_REVERSE_SORT))))
+  if (!(tree= new (alloc) SEL_ARG(field, str, str)))
     goto end;                                   // out of memory
+
   /*
     Check if we are comparing an UNSIGNED integer with a negative constant.
     In this case we know that:
@@ -8851,8 +8658,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
           key1->type= SEL_ARG::ALWAYS;
           key2->type= SEL_ARG::ALWAYS;  // FIXME: Shouldn't this be cur_key2?
           if (key1->maybe_flag)
-            return new (param->mem_root) SEL_ARG(SEL_ARG::MAYBE_KEY,
-                                                 key1->is_ascending);
+            return new (param->mem_root) SEL_ARG(SEL_ARG::MAYBE_KEY);
           return 0;
         }
 
@@ -8912,8 +8718,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
             key1->free_tree();
             key2->free_tree();
             if (key1->maybe_flag)
-              return new (param->mem_root) SEL_ARG(SEL_ARG::MAYBE_KEY,
-                                                   key1->is_ascending);
+              return new (param->mem_root) SEL_ARG(SEL_ARG::MAYBE_KEY);
             return 0;
           }
           cur_key2->release_next_key_part();        // Free not used tree
@@ -9065,8 +8870,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
           key2->type= SEL_ARG::ALWAYS;
           cur_key2->free_tree();                // Free not used tree
           if (key1->maybe_flag)
-            return new (param->mem_root) SEL_ARG(SEL_ARG::MAYBE_KEY,
-                                                 key1->is_ascending);
+            return new (param->mem_root) SEL_ARG(SEL_ARG::MAYBE_KEY);
           return 0;
         }
       }
@@ -10004,7 +9808,6 @@ static range_seq_t sel_arg_range_seq_init(void *init_param, uint n_ranges,
 }
 
 
-
 void Sel_arg_range_sequence::stack_push_range(SEL_ARG *key_tree)
 {
 
@@ -10027,8 +9830,8 @@ void Sel_arg_range_sequence::stack_push_range(SEL_ARG *key_tree)
        min/max key flags from the predicate we're about to add to
        stack[0].
     */
-    push_position->min_key_flag= key_tree->get_min_flag();
-    push_position->max_key_flag= key_tree->get_max_flag();
+    push_position->min_key_flag= key_tree->min_flag;
+    push_position->max_key_flag= key_tree->max_flag;
     push_position->rkey_func_flag= key_tree->rkey_func_flag;
   }
   else
@@ -10038,27 +9841,26 @@ void Sel_arg_range_sequence::stack_push_range(SEL_ARG *key_tree)
     push_position->min_key_parts= last_added_kp->min_key_parts;
     push_position->max_key_parts= last_added_kp->max_key_parts;
     push_position->min_key_flag= last_added_kp->min_key_flag |
-                                 key_tree->get_min_flag();
+                                 key_tree->min_flag;
     push_position->max_key_flag= last_added_kp->max_key_flag |
-                                 key_tree->get_max_flag();
+                                 key_tree->max_flag;
     push_position->rkey_func_flag= key_tree->rkey_func_flag;
   }
 
   push_position->key_tree= key_tree;
+  uint16 stor_length= param->key[keyno][key_tree->part].store_length;
   /* psergey-merge-done:
   key_tree->store(arg->param->key[arg->keyno][key_tree->part].store_length,
                   &cur->min_key, prev->min_key_flag,
                   &cur->max_key, prev->max_key_flag);
   */
-  key_tree->store_min_max_values(param->key[keyno][key_tree->part].store_length,
-                                 &push_position->min_key,
-                                 (last_added_kp ?
-                                  last_added_kp->min_key_flag : 0),
-                                 &push_position->max_key,
-                                 (last_added_kp ?
-                                  last_added_kp->max_key_flag : 0),
-                                 (int*)&push_position->min_key_parts,
-                                 (int*)&push_position->max_key_parts);
+  push_position->min_key_parts+=
+    key_tree->store_min(stor_length, &push_position->min_key,
+                        last_added_kp ? last_added_kp->min_key_flag : 0);
+  push_position->max_key_parts+=
+    key_tree->store_max(stor_length, &push_position->max_key,
+                        last_added_kp ? last_added_kp->max_key_flag : 0);
+
   if (key_tree->is_null_interval())
     push_position->min_key_flag |= NULL_RANGE;
   curr_kp++;
@@ -10243,14 +10045,21 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
           I.e., it cannot be divided into subranges, but by storing
           min/max key below we can at least start the scan from 2)
           instead of 1)
-
         */
+        SEL_ARG *store_key_part= key_tree->next_key_part;
         seq->param->is_ror_scan= FALSE;
-        key_tree->store_next_min_max_keys(seq->param->key[seq->keyno],
-                                          &cur->min_key, &cur->min_key_flag,
-                                          &cur->max_key, &cur->max_key_flag,
-                                          (int*)&cur->min_key_parts,
-                                          (int*)&cur->max_key_parts);
+        if (!key_tree->min_flag)
+          cur->min_key_parts += 
+            store_key_part->store_min_key(seq->param->key[seq->keyno],
+                                          &cur->min_key,
+                                          &cur->min_key_flag,
+                                          MAX_KEY);
+        if (!key_tree->max_flag)
+          cur->max_key_parts += 
+            store_key_part->store_max_key(seq->param->key[seq->keyno],
+                                          &cur->max_key,
+                                          &cur->max_key_flag,
+                                          MAX_KEY);
         break;
       }
     }
@@ -10296,14 +10105,15 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
     range->start_key.key=    param->min_key;
     range->start_key.length= cur->min_key - param->min_key;
     range->start_key.keypart_map= make_prev_keypart_map(cur->min_key_parts);
-    range->start_key.flag= (cur->min_key_flag & NEAR_MIN ? HA_READ_AFTER_KEY :
+    range->start_key.flag= (cur->min_key_flag & NEAR_MIN ? HA_READ_AFTER_KEY : 
                                                            HA_READ_KEY_EXACT);
 
     range->end_key.key=    param->max_key;
     range->end_key.length= cur->max_key - param->max_key;
     range->end_key.keypart_map= make_prev_keypart_map(cur->max_key_parts);
-    range->end_key.flag= (cur->max_key_flag & NEAR_MAX ? HA_READ_BEFORE_KEY :
+    range->end_key.flag= (cur->max_key_flag & NEAR_MAX ? HA_READ_BEFORE_KEY : 
                                                          HA_READ_AFTER_KEY);
+
     /* 
       This is an equality range (keypart_0=X and ... and keypart_n=Z) if 
         1) There are no flags indicating open range (e.g., 
@@ -10434,11 +10244,11 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
   param->use_index_statistics= 
     eq_ranges_exceeds_limit(tree, &range_count, 
                             param->thd->variables.eq_range_index_dive_limit);
-  param->is_ror_scan= true;
-  param->is_imerge_scan= true;
-  if (file->index_flags(keynr, 0, TRUE) & HA_KEY_SCAN_NOT_ROR)
-    param->is_ror_scan= false;
 
+  param->is_ror_scan= TRUE;
+  if (file->index_flags(keynr, 0, TRUE) & HA_KEY_SCAN_NOT_ROR)
+    param->is_ror_scan= FALSE;
+  
   *mrr_flags= param->force_default_mrr? HA_MRR_USE_DEFAULT_IMPL: 0;
   *mrr_flags|= HA_MRR_NO_ASSOCIATION;
   /*
@@ -10473,56 +10283,39 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
     }
     param->table->possible_quick_keys.set_bit(keynr);
   }
-  /*
-    Check whether ROR scan could be used. It cannot be used if
-    1. Index algo is not HA_KEY_ALG_BTREE or HA_KEY_ALG_SE_SPECIFIC
-       (this mostly covers engines like Archive/Federated.)
-       TODO: Don't have this logic here, make table engines return
-       appropriate flags instead.
-    2. Any of the keyparts in the index chosen is descending. Desc
-       indexes do not work well for ROR scans, except for clustered PK.
-    3. SE states the index can't be used for ROR. We need 2nd check
-       here to avoid enabling it for a non-ROR PK.
-    4. Index contains virtual columns. QUICK_ROR_INTERSECT_SELECT
-       and QUICK_ROR_UNION_SELECT do read_set manipulations in reset(),
-       which breaks virtual generated column's computation logic, which
-       is used when reading index values. So, disable index merge
-       intersection/union for any index on such column.
-       @todo lift this implementation restriction
-  */
-  //Get the index key algorithm
+  /* Figure out if the key scan is ROR (returns rows in ROWID order) or not */
   enum ha_key_alg key_alg= param->table->key_info[seq.real_keyno].algorithm;
-
-  //Check if index has desc keypart
-  KEY_PART_INFO *key_part= param->table->key_info[keynr].key_part;
-  KEY_PART_INFO *key_part_end=
-    key_part + param->table->key_info[keynr].user_defined_key_parts;
-  for (;key_part != key_part_end; ++key_part)
+  /*
+    The HA_KEY_ALG_SE_SPECIFIC part of the below condition is mostly covers
+    engines like Archive/Federated.
+  */
+  if ((key_alg != HA_KEY_ALG_BTREE) && (key_alg != HA_KEY_ALG_SE_SPECIFIC))
   {
-    if (key_part->key_part_flag & HA_REVERSE_SORT)
-    {
-      // ROR will be enabled again for clustered PK, see 'else if' below.
-      param->is_ror_scan= false;                                    // 2
-      param->is_imerge_scan= false;
-      break;
-    }
-  }
-  if (((key_alg != HA_KEY_ALG_BTREE) &&
-       (key_alg != HA_KEY_ALG_SE_SPECIFIC)) ||                      // 1
-      (file->index_flags(keynr, 0, true) & HA_KEY_SCAN_NOT_ROR) ||  // 3
-      param->table->index_contains_some_virtual_gcol(keynr) )       // 4
-  {
-    param->is_ror_scan= false;
-  }
-  else if (param->table->s->primary_key == keynr && pk_is_clustered)
-  {
-    /*
-      Clustered PK scan is always a ROR scan (TODO: same as above).
-      This can enable ROR back if it was disabled by multi_range_read_info_const
-      call.
+    /* 
+      All scans are non-ROR scans for those index types.
+      TODO: Don't have this logic here, make table engines return 
+      appropriate flags instead.
     */
-    param->is_ror_scan= true;
+    param->is_ror_scan= FALSE;
   }
+  else
+  {
+    /* Clustered PK scan is always a ROR scan (TODO: same as above) */
+    if (param->table->s->primary_key == keynr && pk_is_clustered)
+      param->is_ror_scan= TRUE;
+  }
+  if (param->table->file->index_flags(keynr, 0, TRUE) & HA_KEY_SCAN_NOT_ROR)
+    param->is_ror_scan= FALSE;
+
+  /*
+    QUICK_ROR_INTERSECT_SELECT and QUICK_ROR_UNION_SELECT do read_set
+    manipulations in reset(), which breaks virtual generated column's
+    computation logic, which is used when reading index values.
+    So, disable index merge intersection/union for any index on such column.
+    @todo lift this implementation restriction
+  */
+  if (param->table->index_contains_some_virtual_gcol(keynr))
+    param->is_ror_scan= false;
 
   DBUG_PRINT("exit", ("Records: %lu", (ulong) rows));
   DBUG_RETURN(rows);
@@ -10659,7 +10452,7 @@ get_quick_select(PARAM *param,uint idx,SEL_ARG *key_tree, uint mrr_flags,
   {
     if (create_err ||
 	get_quick_keys(param,quick,param->key[idx],key_tree,param->min_key,0,
-		       param->max_key, 0, NULL))
+		       param->max_key,0))
     {
       delete quick;
       quick=0;
@@ -10680,51 +10473,30 @@ get_quick_select(PARAM *param,uint idx,SEL_ARG *key_tree, uint mrr_flags,
 }
 
 
-/**
-  Generate key values for range select from given sel_arg tree
-
-  @param param          Range's param
-  @param quick          Quick range select to generate keys for
-  @param key            Generate key values for this key
-  @param key_tree       SEL_ARG tree
-  @param min_key        Min key buffer
-  @param min_key_flag   Min key's flags
-  @param max_key        Max key buffer
-  @param max_key_flag   Max key's flags
-  @param desc_flag      Desc flag of the first keypart
-
-  @note Fix this to get all possible sub_ranges
-
-  @returns
-    true    OOM
-    false   Ok
+/*
+** Fix this to get all possible sub_ranges
 */
-
 bool
 get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
 	       SEL_ARG *key_tree, uchar *min_key,uint min_key_flag,
-	       uchar *max_key, uint max_key_flag, uint *desc_flag)
+	       uchar *max_key, uint max_key_flag)
 {
   QUICK_RANGE *range;
-  uint flag= 0;
+  uint flag;
   int min_part= key_tree->part-1, // # of keypart values in min_key buffer
       max_part= key_tree->part-1; // # of keypart values in max_key buffer
 
   if (key_tree->left != null_element)
   {
     if (get_quick_keys(param,quick,key,key_tree->left,
-		       min_key,min_key_flag, max_key, max_key_flag,
-                       desc_flag))
+		       min_key,min_key_flag, max_key, max_key_flag))
       return 1;
   }
   uchar *tmp_min_key=min_key,*tmp_max_key=max_key;
-  const bool asc= key_tree->is_ascending;
-  key_tree->store_min_max_values(key[key_tree->part].store_length,
-                                 &tmp_min_key,min_key_flag,
-                                 &tmp_max_key,max_key_flag,
-                                 &min_part, &max_part);
-  if (!asc)
-    flag|= DESC_FLAG;
+  min_part+= key_tree->store_min(key[key_tree->part].store_length,
+                                 &tmp_min_key,min_key_flag);
+  max_part+= key_tree->store_max(key[key_tree->part].store_length,
+                                 &tmp_max_key,max_key_flag);
 
   if (key_tree->next_key_part &&
       key_tree->next_key_part->type == SEL_ARG::KEY_RANGE &&
@@ -10735,34 +10507,30 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
 	 key_tree->min_flag==0 && key_tree->max_flag==0)
     {
       if (get_quick_keys(param,quick,key,key_tree->next_key_part,
-			 tmp_min_key,
-                         min_key_flag | key_tree->get_min_flag(),
-			 tmp_max_key,
-                         max_key_flag | key_tree->get_max_flag(),
-                         (desc_flag ? desc_flag : &flag)))
+			 tmp_min_key, min_key_flag | key_tree->min_flag,
+			 tmp_max_key, max_key_flag | key_tree->max_flag))
 	return 1;
       goto end;					// Ugly, but efficient
     }
     {
-      uint tmp_min_flag= key_tree->get_min_flag();
-      uint tmp_max_flag= key_tree->get_max_flag();
-      key_tree->store_next_min_max_keys(key, &tmp_min_key, &tmp_min_flag,
-                                        &tmp_max_key, &tmp_max_flag,
-                                        &min_part, &max_part);
-      flag|= tmp_min_flag | tmp_max_flag;
+      uint tmp_min_flag=key_tree->min_flag,tmp_max_flag=key_tree->max_flag;
+      if (!tmp_min_flag)
+        min_part+= key_tree->next_key_part->store_min_key(key,
+                                                          &tmp_min_key,
+                                                          &tmp_min_flag,
+                                                          MAX_KEY);
+      if (!tmp_max_flag)
+        max_part+= key_tree->next_key_part->store_max_key(key,
+                                                          &tmp_max_key,
+                                                          &tmp_max_flag,
+                                                          MAX_KEY);
+      flag=tmp_min_flag | tmp_max_flag;
     }
   }
   else
   {
-    if (asc)
-      flag = (key_tree->min_flag & GEOM_FLAG) ?
-        key_tree->min_flag : key_tree->min_flag | key_tree->max_flag;
-    else
-    {
-      // Invert flags for DESC keypart
-      flag|= invert_min_flag(key_tree->min_flag) |
-        invert_max_flag(key_tree->max_flag);
-    }
+    flag = (key_tree->min_flag & GEOM_FLAG) ?
+      key_tree->min_flag : key_tree->min_flag | key_tree->max_flag;
   }
 
   /*
@@ -10780,14 +10548,14 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
     else
       flag|= NO_MAX_RANGE;
   }
-  if ((flag & ~DESC_FLAG) == 0)
+  if (flag == 0)
   {
     uint length= (uint) (tmp_min_key - param->min_key);
     if (length == (uint) (tmp_max_key - param->max_key) &&
 	!memcmp(param->min_key,param->max_key,length))
     {
       const KEY *table_key=quick->head->key_info+quick->index;
-      flag|= EQ_RANGE;
+      flag=EQ_RANGE;
       /*
         Note that keys which are extended with PK parts have no
         HA_NOSAME flag. So we can use user_defined_key_parts.
@@ -10805,13 +10573,6 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
       }
     }
   }
-  /*
-    Set DESC flag. We need this flag set according to the first keypart.
-    Depending on it, key values will be scanned either forward or backward,
-    preserving the order or records in the index along multiple ranges.
-  */
-  if (desc_flag)
-    flag= (flag & ~DESC_FLAG) | *desc_flag;
 
   /* Get range for retrieving rows in QUICK_SELECT::get_next */
   if (!(range= new QUICK_RANGE(param->min_key,
@@ -10833,7 +10594,7 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
   if (key_tree->right != null_element)
     return get_quick_keys(param,quick,key,key_tree->right,
 			  min_key,min_key_flag,
-			  max_key,max_key_flag, desc_flag);
+			  max_key,max_key_flag);
   return 0;
 }
 
@@ -11502,11 +11263,7 @@ int QUICK_RANGE_SELECT::reset()
     quick_range_seq_init()
       init_param  Caller-opaque paramenter: QUICK_RANGE_SELECT* pointer
       n_ranges    Number of ranges in the sequence (ignored)
-      flags       MRR flags (currently not used)
-
-  @note depending on the ASC/DESC order of the first keypart, list of ranges
-  will be initialized to be scanned either forward or backward, appropriately,
-  to preserve correct record order.
+      flags       MRR flags (currently not used) 
 
   RETURN
     Opaque value to be passed to quick_range_seq_next
@@ -11515,28 +11272,9 @@ int QUICK_RANGE_SELECT::reset()
 range_seq_t quick_range_seq_init(void *init_param, uint n_ranges, uint flags)
 {
   QUICK_RANGE_SELECT *quick= static_cast<QUICK_RANGE_SELECT*>(init_param);
-  QUICK_RANGE **first= quick->ranges.begin();
-  QUICK_RANGE **last= quick->ranges.end();
-  if ((*first)->flag & DESC_FLAG)
-  {
-    /*
-      Initialize to last - 1 because "last" points after the last actual
-      value.
-    */
-    quick->qr_traversal_ctx.first= last - 1;
-    quick->qr_traversal_ctx.cur= last - 1;
-    /*
-      This is beyond allocated space, but quick_range_seq_next won't
-      dereference it.
-    */
-    quick->qr_traversal_ctx.last= first - 1;
-  }
-  else
-  {
-    quick->qr_traversal_ctx.first= first;
-    quick->qr_traversal_ctx.cur= first;
-    quick->qr_traversal_ctx.last= last;
-  }
+  quick->qr_traversal_ctx.first= quick->ranges.begin();
+  quick->qr_traversal_ctx.cur= quick->ranges.begin();
+  quick->qr_traversal_ctx.last= quick->ranges.end();
   return &quick->qr_traversal_ctx;
 }
 
@@ -11548,12 +11286,6 @@ range_seq_t quick_range_seq_init(void *init_param, uint n_ranges, uint flags)
     quick_range_seq_next()
       rseq        Value returned from quick_range_seq_init
       range  OUT  Store information about the range here
-
-  @note This function return next range, and 'next' means next range in the
-  array of ranges relatively to the current one when the first keypart has
-  ASC sort order, or previous range - when key part has DESC sort order.
-  This is needed to preserve correct order of records in case of multiple
-  ranges over DESC keypart.
 
   RETURN
     0  Ok
@@ -11587,16 +11319,7 @@ uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
   end_key->flag=     (cur->flag & NEAR_MAX ? HA_READ_BEFORE_KEY :
                       HA_READ_AFTER_KEY);
   range->range_flag= cur->flag;
-  if (cur->flag & DESC_FLAG)
-  {
-    ctx->cur--;
-    DBUG_ASSERT(ctx->cur >= ctx->last);
-  }
-  else
-  {
-    ctx->cur++;
-    DBUG_ASSERT(ctx->cur <= ctx->last);
-  }
+  ctx->cur++;
   return 0;
 }
 
@@ -11712,8 +11435,7 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length,
 				   last_range->max_keypart_map ? &end_key : 0,
                                    MY_TEST(last_range->flag & EQ_RANGE),
 				   sorted);
-    if ((last_range->flag & (UNIQUE_RANGE | EQ_RANGE)) ==
-        (UNIQUE_RANGE | EQ_RANGE))
+    if (last_range->flag == (UNIQUE_RANGE | EQ_RANGE))
       last_range= 0;			// Stop searching
 
     if (result != HA_ERR_END_OF_FILE)
@@ -11829,18 +11551,8 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
 
   Quick_ranges::const_iterator pr= ranges.begin();
   Quick_ranges::const_iterator end_range= ranges.end();
-  const bool desc= ((*pr)->flag & DESC_FLAG);
   for (; pr != end_range; pr++)
-  {
-    if (desc)
-      /*
-        Ranges are in ASC order, but the index is DESC. So in order to get
-        DESC order from QUICK_SELECT_DESC we preserve ranges' order.
-      */
-      rev_ranges.push_back(*pr);
-    else
-      rev_ranges.push_front(*pr);
-  }
+    rev_ranges.push_front(*pr);
 
   /* Remove EQ_RANGE flag for keys that are not using the full key */
   for (r = rev_it++; r; r = rev_it++)
@@ -11978,8 +11690,7 @@ int QUICK_SELECT_DESC::get_next()
     }
     if (cmp_prev(last_range) == 0)
     {
-      if ((last_range->flag & (UNIQUE_RANGE | EQ_RANGE)) ==
-          (UNIQUE_RANGE | EQ_RANGE))
+      if (last_range->flag == (UNIQUE_RANGE | EQ_RANGE))
 	last_range= 0;				// Stop searching
       DBUG_RETURN(0);				// Found key is in range
     }
@@ -12020,16 +11731,37 @@ QUICK_SELECT_I *QUICK_RANGE_SELECT::make_reverse(uint used_key_parts_arg)
 
 int QUICK_RANGE_SELECT::cmp_next(QUICK_RANGE *range_arg)
 {
-  int cmp;
   if (range_arg->flag & NO_MAX_RANGE)
     return 0;                                   /* key can't be to large */
 
-  cmp= key_cmp(key_part_info, range_arg->max_key,
-               range_arg->max_length);
-  if (cmp < 0 || (cmp == 0 && !(range_arg->flag & NEAR_MAX)))
-    return 0;
-  return 1;                                     // outside of range
+  KEY_PART *key_part=key_parts;
+  uint store_length;
 
+  for (uchar *key=range_arg->max_key, *end=key+range_arg->max_length;
+       key < end;
+       key+= store_length, key_part++)
+  {
+    int cmp;
+    store_length= key_part->store_length;
+    if (key_part->null_bit)
+    {
+      if (*key)
+      {
+        if (!key_part->field->is_null())
+          return 1;
+        continue;
+      }
+      else if (key_part->field->is_null())
+        return 0;
+      key++;					// Skip null byte
+      store_length--;
+    }
+    if ((cmp=key_part->field->key_cmp(key, key_part->length)) < 0)
+      return 0;
+    if (cmp > 0)
+      return 1;
+  }
+  return (range_arg->flag & NEAR_MAX) ? 1 : 0;          // Exact match
 }
 
 
@@ -13742,7 +13474,7 @@ QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join_arg, bool have_min_arg,
    key_infix(key_infix_arg), key_infix_len(key_infix_len_arg),
    min_max_ranges(PSI_INSTRUMENT_ME),
    min_functions_it(NULL), max_functions_it(NULL), 
-   is_index_scan(is_index_scan_arg), has_desc_keyparts(false)
+   is_index_scan(is_index_scan_arg)
 {
   head=       table;
   index=      use_index;
@@ -13755,15 +13487,6 @@ QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join_arg, bool have_min_arg,
   real_prefix_len= group_prefix_len + key_infix_len;
   group_prefix= NULL;
   min_max_arg_len= min_max_arg_part ? min_max_arg_part->store_length : 0;
-  KEY_PART_INFO *kp= table->s->key_info[index].key_part;
-  for (uint i= 0; i < used_key_parts; i++, kp++)
-  {
-    if (kp->key_part_flag & HA_REVERSE_SORT)
-    {
-      has_desc_keyparts= true;
-      break;
-    }
-  }
 
   /*
     We can't have parent_alloc set as the init function can't handle this case
@@ -14151,42 +13874,22 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
       break;
     }
 
-    /*
-      Index might contain both ASC and DESC parts. To avoid excessive
-      checks, here we rely on the MIN/MAX functions implementation to pick
-      min/max value.
-      E.g in case of index with desc key part(s) and MIN() func we check
-      record at start of group (positioned to by have_min()), reset and
-      update MIN() func. Then we read record at the end of group (by
-      have_max()) and just update MIN() func. It'll pick min value out of
-      two records. Same applies to MAX() function(s).
-      has_desc_keyparts is used to reduce number of index lookups when
-      there's no desc key parts.
-    */
-    if (have_min || have_max)
+    if (have_min)
     {
-      // Call next_min() when we have MIN() funcs or desc keyparts. In
-      // latter case max values will be at the beginning of group.
-      min_res= (have_min || (has_desc_keyparts && have_max)) ? next_min() : 0;
+      min_res= next_min();
       if (min_res == 0)
-      {
-        // Reset and update funcs' values
-        if (have_min)
-          update_min_result(true);
-        if (have_max)
-          update_max_result(true);
-      }
-      // Call next_max() when we have MAX() funcs or desc keyparts. In
-      // latter case min values will be at the end of group.
-      max_res= (have_max || (has_desc_keyparts && have_min)) ? next_max() : 0;
+        update_min_result();
+    }
+    /* If there is no MIN in the group, there is no MAX either. */
+    if ((have_max && !have_min) ||
+        (have_max && have_min && (min_res == 0)))
+    {
+      max_res= next_max();
       if (max_res == 0)
-      {
-        // Only update funcs' values
-        if (have_min)
-          update_min_result(false);
-        if (have_max)
-          update_max_result(false);
-      }
+        update_max_result();
+      /* If a MIN was found, a MAX must have been found as well. */
+      DBUG_ASSERT((have_max && !have_min) ||
+                  (have_max && have_min && (max_res == 0)));
     }
     /*
       If this is just a GROUP BY or DISTINCT without MIN or MAX and there
@@ -14722,17 +14425,13 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range()
     None
 */
 
-void QUICK_GROUP_MIN_MAX_SELECT::update_min_result(bool reset)
+void QUICK_GROUP_MIN_MAX_SELECT::update_min_result()
 {
   Item_sum *min_func;
 
   min_functions_it->rewind();
   while ((min_func= (*min_functions_it)++))
-  {
-    if (reset)
-      min_func->aggregator_clear();
-    min_func->aggregator_add();
-  }
+    min_func->reset_and_add();
 }
 
 
@@ -14758,17 +14457,13 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_min_result(bool reset)
     None
 */
 
-void QUICK_GROUP_MIN_MAX_SELECT::update_max_result(bool reset)
+void QUICK_GROUP_MIN_MAX_SELECT::update_max_result()
 {
   Item_sum *max_func;
 
   max_functions_it->rewind();
   while ((max_func= (*max_functions_it)++))
-  {
-    if (reset)
-      max_func->aggregator_clear();
-    max_func->aggregator_add();
-  }
+    max_func->reset_and_add();
 }
 
 

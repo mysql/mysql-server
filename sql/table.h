@@ -245,7 +245,6 @@ typedef struct st_order {
   char   *buff;                         /* If tmp-table group */
   table_map used, depend_map;
   bool is_position;  /* An item expresses a position in a ORDER clause */
-  bool is_explicit;  /* Whether ASC/DESC is explicitly specified */
 } ORDER;
 
 /**

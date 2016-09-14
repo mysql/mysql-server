@@ -663,15 +663,6 @@ dict_index_is_ibuf(
 /*===============*/
 	const dict_index_t*	index)	/*!< in: index */
 	MY_ATTRIBUTE((warn_unused_result));
-
-/** Check whether the index consists of ascending columns only.
-@param[in]	index  index tree
-@return true for ascending-only, false if any descending column */
-UNIV_INLINE
-bool
-dict_index_is_asc(
-	const dict_index_t*	index)
-	MY_ATTRIBUTE((warn_unused_result));
 /********************************************************************//**
 Check whether the index is a secondary index or the insert buffer tree.
 @return nonzero for insert buffer, zero for other indexes */

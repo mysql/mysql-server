@@ -135,11 +135,10 @@ class PT_order_expr : public Parse_tree_node, public ORDER
   typedef Parse_tree_node super;
 
 public:
-  PT_order_expr(Item *item_arg, uint dir)
+  PT_order_expr(Item *item_arg, bool is_asc)
   {
     item_ptr= item_arg;
-    direction= (dir != 0) ? ORDER::ORDER_ASC : ORDER::ORDER_DESC;
-    is_explicit= (dir != 2);
+    direction= is_asc ? ORDER::ORDER_ASC : ORDER::ORDER_DESC;
   }
 
   virtual bool contextualize(Parse_context *pc)

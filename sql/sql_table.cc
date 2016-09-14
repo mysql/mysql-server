@@ -3757,14 +3757,13 @@ static bool check_duplicate_key(THD *thd, const KEY *key,
          key_part++, k_part++)
     {
       /*
-        Key definition is different if we are using a different field,
-        if the used key part length is different or key parts has different
-        direction. Note since both KEY objects come from
-        mysql_prepare_create_table() we can compare field numbers directly.
+        Key definition is different if we are using a different field or
+        if the used key part length is different. Note since both KEY
+        objects come from mysql_prepare_create_table() we can compare
+        field numbers directly.
       */
       if ((key_part->length != k_part->length) ||
-          (key_part->fieldnr != k_part->fieldnr) ||
-          (key_part->key_part_flag != k_part->key_part_flag))
+          (key_part->fieldnr != k_part->fieldnr))
       {
         all_columns_are_identical= false;
         break;
@@ -4208,14 +4207,12 @@ static void calculate_field_offsets(List<Create_field> *create_list)
    @param[out] key_parts    Returned number of key segments (excluding FK).
    @param[out] fk_key_count Returned number of foreign keys.
    @param[in,out] redundant_keys  Array where keys to be ignored will be marked.
-   @param[in]  is_ha_has_desc_index Whether storage supports desc indexes
 */
 
-static bool count_keys(const Prealloced_array<const Key_spec*, 1> &key_list,
+static void count_keys(const Prealloced_array<const Key_spec*, 1> &key_list,
                        uint *key_count, uint *key_parts,
                        uint *fk_key_count,
-                       Mem_root_array<bool> *redundant_keys,
-                       bool is_ha_has_desc_index)
+                       Mem_root_array<bool> *redundant_keys)
 {
   *key_count= 0;
   *key_parts= 0;
@@ -4260,7 +4257,6 @@ static bool count_keys(const Prealloced_array<const Key_spec*, 1> &key_list,
         break;
       }
     }
-
     if (!redundant_keys->at(key_counter))
     {
       if (key->type == KEYTYPE_FOREIGN)
@@ -4269,19 +4265,9 @@ static bool count_keys(const Prealloced_array<const Key_spec*, 1> &key_list,
       {
         (*key_count)++;
         (*key_parts)+= key->columns.size();
-        for (uint i= 0; i < key->columns.size(); i++)
-        {
-          const Key_part_spec *kp= key->columns[i];
-          if (!kp->is_ascending && !is_ha_has_desc_index)
-          {
-            my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "descending indexes");
-            return true;
-          }
-        }
       }
     }
   }
-  return false;
 }
 
 
@@ -4508,7 +4494,6 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
 
   key_part_info->fieldnr= field;
   key_part_info->offset=  static_cast<uint16>(sql_field->offset);
-  key_part_info->key_part_flag|= column->is_ascending ? 0 : HA_REVERSE_SORT;
 
   size_t key_part_length= sql_field->key_length;
 
@@ -4643,7 +4628,6 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
         key_part_length == MAX_LEN_GEOM_POINT_FIELD))
   {
     key_info->flags|= HA_KEY_HAS_PART_KEY_SEG;
-    key_part_info->key_part_flag|= HA_PART_KEY_SEG;
   }
 
   key_info->key_length+= key_part_length;
@@ -5276,10 +5260,8 @@ static bool mysql_prepare_create_table(THD *thd,
   uint key_parts;
   Mem_root_array<bool> redundant_keys(thd->mem_root,
                                       alter_info->key_list.size(), false);
-  if (count_keys(alter_info->key_list, key_count, &key_parts,
-                 fk_key_count, &redundant_keys,
-                 (file->ha_table_flags() & HA_DESCENDING_INDEX)))
-    DBUG_RETURN(true);
+  count_keys(alter_info->key_list, key_count, &key_parts,
+             fk_key_count, &redundant_keys);
   if (*key_count > file->max_keys())
   {
     my_error(ER_TOO_MANY_KEYS,MYF(0), file->max_keys());
@@ -7036,15 +7018,12 @@ static bool has_index_def_changed(Alter_inplace_info *ha_alter_info,
   {
     /*
       Key definition has changed if we are using a different field or
-      if the used key part length is different, or key part direction has
-      changed. It makes sense to check lengths first as in case when fields
-      differ it is likely that lengths differ too and checking fields is more
-      expensive in general case.
-
+      if the used key part length is different. It makes sense to
+      check lengths first as in case when fields differ it is likely
+      that lengths differ too and checking fields is more expensive
+      in general case.
     */
-    if (key_part->length != new_part->length ||
-        (key_part->key_part_flag & HA_REVERSE_SORT) !=
-        (new_part->key_part_flag & HA_REVERSE_SORT))
+    if (key_part->length != new_part->length)
       return true;
 
     new_field= get_field_by_index(alter_info, new_part->fieldnr);
@@ -9202,11 +9181,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 	  key_part_length= 0;			// Use whole field
       }
       key_part_length /= key_part->field->charset()->mbmaxlen;
-      key_parts.push_back(
-        new Key_part_spec(to_lex_cstring(cfield->field_name),
-                          key_part_length,
-                          key_part->key_part_flag & HA_REVERSE_SORT ?
-                            false : true));
+      key_parts.push_back(new Key_part_spec(to_lex_cstring(cfield->field_name),
+                                            key_part_length));
     }
     if (key_parts.elements)
     {

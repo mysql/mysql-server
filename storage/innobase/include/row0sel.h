@@ -244,17 +244,6 @@ row_search_check_if_query_cache_permitted(
 	trx_t*		trx,		/*!< in: transaction object */
 	const char*	norm_name);	/*!< in: concatenation of database name,
 					'/' char, table name */
-/** Get the maximum and non-delete-marked record in an index.
-@param[in]	index	index tree
-@param[in,out]	mtr	mini-transaction (may be committed and restarted)
-@return maximum record, page s-latched in mtr
-@retval NULL if there are no records, or if all of them are delete-marked */
-
-const rec_t*
-row_search_get_max_rec(
-	dict_index_t*	index,
-	mtr_t*		mtr);
-
 /*******************************************************************//**
 Read the max AUTOINC value from an index.
 @return DB_SUCCESS if all OK else error code */

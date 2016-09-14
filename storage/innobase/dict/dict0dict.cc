@@ -3005,7 +3005,7 @@ dict_index_copy(
 		field = index2->get_field(i);
 
 		dict_index_add_col(index1, table, field->col,
-				   field->prefix_len, field->is_ascending);
+				   field->prefix_len);
 	}
 }
 
@@ -3185,13 +3185,13 @@ dict_index_build_internal_clust(
 	if (!dict_index_is_unique(index)) {
 		dict_index_add_col(new_index, table,
 				   table->get_sys_col(DATA_ROW_ID),
-				   0, true);
+				   0);
 		trx_id_pos++;
 	}
 
 	dict_index_add_col(
 		new_index, table,
-		table->get_sys_col(DATA_TRX_ID), 0, true);
+		table->get_sys_col(DATA_TRX_ID), 0);
 
 
 	for (i = 0; i < trx_id_pos; i++) {
@@ -3236,7 +3236,7 @@ dict_index_build_internal_clust(
 		dict_index_add_col(
 			new_index, table,
 			table->get_sys_col(DATA_ROLL_PTR),
-			0, true);
+			0);
 	}
 
 	/* Remember the table columns already contained in new_index */
@@ -3266,7 +3266,7 @@ dict_index_build_internal_clust(
 		ut_ad(col->mtype != DATA_SYS);
 
 		if (!indexed[col->ind]) {
-			dict_index_add_col(new_index, table, col, 0, true);
+			dict_index_add_col(new_index, table, col, 0);
 		}
 	}
 
@@ -3356,14 +3356,12 @@ dict_index_build_internal_non_clust(
 
 		if (!indexed[field->col->ind]) {
 			dict_index_add_col(new_index, table, field->col,
-					   field->prefix_len,
-					   field->is_ascending);
+					   field->prefix_len);
 		} else if (dict_index_is_spatial(index)) {
 			/*For spatial index, we still need to add the
 			field to index. */
 			dict_index_add_col(new_index, table, field->col,
-					   field->prefix_len,
-					   field->is_ascending);
+					   field->prefix_len);
 		}
 	}
 
@@ -6163,7 +6161,7 @@ dict_ind_init(void)
 
 	dict_ind_redundant = dict_mem_index_create("SYS_DUMMY1", "SYS_DUMMY1",
 						   DICT_HDR_SPACE, 0, 1);
-	dict_index_add_col(dict_ind_redundant, table, table->get_col(0), 0, true);
+	dict_index_add_col(dict_ind_redundant, table, table->get_col(0), 0);
 	dict_ind_redundant->table = table;
 	/* avoid ut_ad(index->cached) in dict_index_get_n_unique_in_tree */
 	dict_ind_redundant->cached = TRUE;
@@ -7126,9 +7124,9 @@ DDTableBuffer::init()
 					DICT_HDR_SPACE,
 					DICT_CLUSTERED | DICT_UNIQUE, 2);
 
-	m_index->add_field("TABLE_ID", 0, true);
+	m_index->add_field("TABLE_ID", 0);
 
-	m_index->add_field("METADATA", 0, true);
+	m_index->add_field("METADATA", 0);
 
 	bool	found;
 	found = dict_index_find_cols(table, m_index, NULL);

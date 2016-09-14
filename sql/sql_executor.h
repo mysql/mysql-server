@@ -390,8 +390,7 @@ public:
     quick_traced_before(false),
     m_condition_optim(NULL),
     m_quick_optim(NULL),
-    m_keyread_optim(false),
-    m_reversed_access(false)
+    m_keyread_optim(false)
   {
     /**
        @todo Add constructor to READ_RECORD.
@@ -418,8 +417,6 @@ public:
     if (table())
       m_keyread_optim= table()->key_read;
   }
-  bool reversed_access() const { return m_reversed_access; }
-  void set_reversed_access(bool arg) { m_reversed_access= arg; }
 
   void set_table(TABLE *t)
   {
@@ -669,11 +666,6 @@ public:
      optimizer's decision.
   */
   bool m_keyread_optim;
-
-  /**
-    True if reversed scan is used. This is the optimizer's decision.
-  */
-  bool m_reversed_access;
 
   QEP_TAB(const QEP_TAB&);                      // not defined
   QEP_TAB& operator=(const QEP_TAB&);           // not defined

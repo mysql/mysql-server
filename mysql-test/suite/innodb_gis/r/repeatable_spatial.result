@@ -3,7 +3,6 @@ c3 LINESTRING NOT NULL,c4 POLYGON NOT NULL,c5 GEOMETRY NOT NULL)
 ENGINE=InnoDB;
 ALTER TABLE tab ADD SPATIAL INDEX idx2(c2 ASC);
 ALTER TABLE tab ADD SPATIAL KEY idx3(c3 DESC);
-ERROR HY000: Incorrect usage of spatial or fulltext index and descending index order
 ALTER TABLE tab ADD SPATIAL INDEX idx4(c4 ASC) COMMENT 'testing spatial index on Polygon';
 ALTER TABLE tab ADD SPATIAL KEY idx5(c5 ASC) COMMENT 'testing spatial index on Geometry';
 INSERT INTO tab(c1,c2,c3,c4,c5) 
@@ -81,7 +80,6 @@ c3 LINESTRING NOT NULL,c4 POLYGON NOT NULL,c5 GEOMETRY NOT NULL)
 ENGINE=InnoDB;
 ALTER TABLE tab ADD SPATIAL INDEX idx2(c2 ASC);
 ALTER TABLE tab ADD SPATIAL KEY idx3(c3 DESC);
-ERROR HY000: Incorrect usage of spatial or fulltext index and descending index order
 ALTER TABLE tab ADD SPATIAL INDEX idx4(c4 ASC) COMMENT 'testing spatial index on Polygon';
 ALTER TABLE tab ADD SPATIAL KEY idx5(c5 ASC) COMMENT 'testing spatial index on Geometry';
 INSERT INTO tab(c1,c2,c3,c4,c5) 

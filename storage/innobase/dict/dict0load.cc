@@ -983,7 +983,6 @@ dict_load_field_low(
 	ulint		len;
 	ulint		pos_and_prefix_len;
 	ulint		prefix_len;
-	bool		is_ascending;
 	ibool		first_field;
 	ulint		position;
 
@@ -1039,12 +1038,10 @@ err_len:
 	}
 
 	if (first_field || pos_and_prefix_len > 0xFFFFUL) {
-		prefix_len = pos_and_prefix_len & 0x7FFFUL;
-		is_ascending = !(pos_and_prefix_len & 0x8000UL);
+		prefix_len = pos_and_prefix_len & 0xFFFFUL;
 		position = (pos_and_prefix_len & 0xFFFF0000UL)  >> 16;
 	} else {
 		prefix_len = 0;
-		is_ascending = true;
 		position = pos_and_prefix_len & 0xFFFFUL;
 	}
 
@@ -1068,7 +1065,7 @@ err_len:
 	if (index) {
 		index->add_field(
 			mem_heap_strdupl(heap, (const char*) field, len),
-			prefix_len, is_ascending);
+			prefix_len);
 	} else {
 		ut_a(sys_field);
 		ut_a(pos);
@@ -3668,7 +3665,6 @@ loop:
 
 	if (0 != cmp_data_data(dfield_get_type(dfield)->mtype,
 			       dfield_get_type(dfield)->prtype,
-			       true,
 			       static_cast<const byte*>(
 				       dfield_get_data(dfield)),
 			       dfield_get_len(dfield),
