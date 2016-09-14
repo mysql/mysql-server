@@ -341,9 +341,8 @@ void add_pke(TABLE *table, THD *thd)
   {
     for (uint key_number=0; key_number < table->s->keys; key_number++)
     {
-      // Skip non unique or null key.
-      if (!((table->key_info[key_number].flags & (HA_NOSAME | HA_NULL_PART_KEY))
-            == HA_NOSAME))
+      // Skip non unique.
+      if (!((table->key_info[key_number].flags & (HA_NOSAME )) == HA_NOSAME))
         continue;
 
       std::string unhashed_string;
@@ -361,11 +360,16 @@ void add_pke(TABLE *table, THD *thd)
       }
 
       unhashed_string.append(pke);
-      for (uint i= 0; i < table->key_info[key_number].user_defined_key_parts; i++)
+      uint i= 0;
+      for (/*empty*/; i < table->key_info[key_number].user_defined_key_parts; i++)
       {
         // read the primary key field values in str.
         int index= table->key_info[key_number].key_part[i].fieldnr;
         table->field[index-1]->val_str(&row_data);
+
+        /* Ignore if the value is NULL. */
+        if (table->field[index-1]->is_null())
+          break;
 
         char* pk_value= (char*) my_malloc(
                                 key_memory_write_set_extraction,
@@ -384,7 +388,23 @@ void add_pke(TABLE *table, THD *thd)
         my_free(buf);
         my_free(pk_value);
       }
-      key_list_to_hash.push_back(unhashed_string);
+      /*
+        If any part of the key is NULL, ignore adding it to hash keys.
+        NULL cannot conflict with any value.
+        Eg: create table t1(i int primary key not null, j int, k int,
+                                                unique key (j, k));
+            insert into t1 values (1, 2, NULL);
+            insert into t1 values (2, 2, NULL); => this is allowed.
+      */
+      if (i == table->key_info[key_number].user_defined_key_parts)
+      {
+        key_list_to_hash.push_back(unhashed_string);
+      }
+      else
+      {
+        /* This is impossible to happen in case of primary keys */
+        DBUG_ASSERT(key_number !=0);
+      }
       unhashed_string.clear();
     }
 
@@ -397,6 +417,11 @@ void add_pke(TABLE *table, THD *thd)
       if (referenced_FQTN.size() > 0)
       {
         table->field[i]->val_str(&row_data);
+
+        /* Ignore if the value is NULL. */
+        if (table->field[i]->is_null())
+          continue;
+
         char* pk_value= (char*) my_malloc(
                                 key_memory_write_set_extraction,
                                 row_data.length()+1, MYF(0));
