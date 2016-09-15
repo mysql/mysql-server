@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,35 +13,45 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-# We want gmock-1.6.0.zip in order to build these unit tests.
+# We want release-1.8.0.zip in order to build these unit tests.
 # If you have already downloaded it,
-# invoke cmake with -DWITH_GMOCK=/path/to/gmock-1.6.0.zip
+# invoke cmake with -DWITH_GMOCK=/path/to/release-1.8.0.zip
 #                or -DWITH_GMOCK=/path/to
 #
 # Alternatively, set an environment variable
-# export WITH_GMOCK=/path/to/gmock-1.6.0.zip
+# export WITH_GMOCK=/path/to/release-1.8.0.zip
 #
 # You can also do cmake -DENABLE_DOWNLOADS=1 
-# and we will download it from http://googlemock.googlecode.com
+# and we will download it from https://github.com/google/googletest/archive/
 #
 # Either way: we will unpack the zip, compile gmock-all.cc and gtest-all.cc
 # and link them into the executables.
 
-# Where to download and build gmock/gtest.
+# Disable googletest for Solaris Studio < 12.4 since it doesn't compile.
+IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
+  IF(${CC_MINOR_VERSION} LESS 13)
+    MESSAGE(WARNING "Googletest requires Solaris Studio 12.4 or newer.")
+    UNSET(GMOCK_FOUND)
+    UNSET(GMOCK_FOUND CACHE)
+    RETURN()
+  ENDIF()
+ENDIF()
+
+# Default location for where to download and build gmock/gtest.
 IF(NOT DOWNLOAD_ROOT)
   SET(DOWNLOAD_ROOT ${CMAKE_SOURCE_DIR}/source_downloads)
 ENDIF()
-IF(NOT EXISTS DOWNLOAD_ROOT)
-  MAKE_DIRECTORY(${DOWNLOAD_ROOT})
-ENDIF()
 
-# We want googlemock version 1.6, which also contains googletest.
-SET(GMOCK_PACKAGE_NAME "gmock-1.6.0")
-SET(GMOCK_SOURCE_DIR ${DOWNLOAD_ROOT}/${GMOCK_PACKAGE_NAME})
-SET(GTEST_SOURCE_DIR ${DOWNLOAD_ROOT}/${GMOCK_PACKAGE_NAME}/gtest)
+# We want googletest version 1.8, which also contains googlemock.
+SET(GMOCK_PACKAGE_NAME "release-1.8.0")
 
 IF (DEFINED ENV{WITH_GMOCK} AND NOT DEFINED WITH_GMOCK)
-  SET(WITH_GMOCK "$ENV{WITH_GMOCK}")
+  FILE(TO_CMAKE_PATH "$ENV{WITH_GMOCK}" WITH_GMOCK)
+ENDIF()
+
+IF(LOCAL_GMOCK_ZIP
+   AND NOT ${LOCAL_GMOCK_ZIP} MATCHES ".*${GMOCK_PACKAGE_NAME}\\.zip")
+ SET(LOCAL_GMOCK_ZIP 0)
 ENDIF()
 
 IF (WITH_GMOCK)
@@ -54,21 +64,37 @@ IF (WITH_GMOCK)
               PATHS ${GMOCK_DIR}
               NO_DEFAULT_PATH
              )
+  ELSE()
+    ## Did we get a path name to the directory of the .zip file?
+    ## Check for both release-x.y.z.zip and googletest-release-x.y.z.zip
+    FIND_FILE(LOCAL_GMOCK_ZIP
+              NAMES "${GMOCK_PACKAGE_NAME}.zip" "googletest-${GMOCK_PACKAGE_NAME}.zip"
+              PATHS ${WITH_GMOCK}
+              NO_DEFAULT_PATH
+              )
+    ## If WITH_GMOCK is a directory, use it for download.
+    SET(DOWNLOAD_ROOT ${WITH_GMOCK})
   ENDIF()
-  ## Did we get a path name to the directory of the .zip file?
-  FIND_FILE(LOCAL_GMOCK_ZIP
-            NAMES "${GMOCK_PACKAGE_NAME}.zip"
-            PATHS ${WITH_GMOCK}
-            NO_DEFAULT_PATH
-           )
   MESSAGE(STATUS "Local gmock zip ${LOCAL_GMOCK_ZIP}")
 ENDIF()
 
+IF(NOT EXISTS DOWNLOAD_ROOT)
+  MAKE_DIRECTORY(${DOWNLOAD_ROOT})
+ENDIF()
+SET(GMOCK_SOURCE_DIR ${DOWNLOAD_ROOT}/googletest-${GMOCK_PACKAGE_NAME}/googlemock)
+SET(GTEST_SOURCE_DIR ${DOWNLOAD_ROOT}/googletest-${GMOCK_PACKAGE_NAME}/googletest)
+
 # We may have downloaded gmock/gtest already, building in a different directory.
-IF(EXISTS ${GMOCK_SOURCE_DIR})
+IF(EXISTS ${GMOCK_SOURCE_DIR} OR EXISTS ${LOCAL_GMOCK_ZIP})
   MESSAGE(STATUS "GMOCK_SOURCE_DIR:${GMOCK_SOURCE_DIR}")
   SET(GMOCK_DOWNLOADED 1 CACHE INTERNAL "")
   SET(GMOCK_FOUND 1 CACHE INTERNAL "")
+# If source dir does not exist, reset dependent variables (might be set from before).
+ELSE()
+  SET(LOCAL_GMOCK_ZIP 0 CACHE INTERNAL "")
+  SET(GMOCK_DOWNLOADED 0 CACHE INTERNAL "")
+  SET(GMOCK_FOUND 0 CACHE INTERNAL "")
+  SET(GMOCK_INCLUDE_DIRS 0 CACHE INTERNAL "")
 ENDIF()
 
 
@@ -86,37 +112,34 @@ ENDIF()
 
 
 OPTION(ENABLE_DOWNLOADS
-  "Download and build 3rd party source code components, e.g. google mock"
+  "Download and build 3rd party source code components, e.g. googletest"
   OFF)
 
 # While experimenting, use local URL rather than google.
-SET(GMOCK_TARBALL "${GMOCK_PACKAGE_NAME}.zip")
+SET(GMOCK_TARBALL "googletest-${GMOCK_PACKAGE_NAME}.zip")
 SET(GMOCK_DOWNLOAD_URL 
-  "http://googlemock.googlecode.com/files/${GMOCK_TARBALL}"
+  "https://github.com/google/googletest/archive/${GMOCK_PACKAGE_NAME}.zip"
   )
   
 MACRO(HTTP_PROXY_HINT)
   MESSAGE(STATUS
-    "If you are inside a firewall, you may need to use an http proxy: "
-    "export http_proxy=http://example.com:80")
+    "If you are inside a firewall, you may need to use an https proxy: "
+    "export https_proxy=http://example.com:80")
 ENDMACRO()
 
 
 IF(NOT GMOCK_FOUND)
   IF(NOT ENABLE_DOWNLOADS)
-    # Give one-time warning
-    IF(NOT ONETIME_GTEST_WARNING)
-      MESSAGE(STATUS 
-        "Googlemock was not found. gtest-based unit tests will be disabled. "
-        "You can run cmake . -DENABLE_DOWNLOADS=1 to automatically download "
-        "and build required components from source.")
-      HTTP_PROXY_HINT()
-      SET(ONETIME_GTEST_WARNING 1 CACHE INTERNAL "")
-    ENDIF()
+    # Give warning
+    MESSAGE(STATUS
+      "Googletest was not found. gtest-based unit tests will be disabled. "
+      "You can run cmake . -DENABLE_DOWNLOADS=1 to automatically download "
+      "and build required components from source.")
+    HTTP_PROXY_HINT()
     RETURN()
   ENDIF()
   
-  # Download gmock source
+  # Download googletest source
   IF(NOT EXISTS ${GMOCK_SOURCE_DIR})
     IF(NOT EXISTS ${DOWNLOAD_ROOT}/${GMOCK_TARBALL})
       # Download the tarball
@@ -136,7 +159,7 @@ IF(NOT GMOCK_FOUND)
           "Successfully downloaded ${GMOCK_DOWNLOAD_URL} to ${DOWNLOAD_ROOT}")
       ELSE()
         MESSAGE(STATUS 
-          "To enable google test, please download ${GMOCK_DOWNLOAD_URL} "
+          "To enable googletest, please download ${GMOCK_DOWNLOAD_URL} "
           "to the directory ${DOWNLOAD_ROOT}")
         HTTP_PROXY_HINT()
         RETURN()
