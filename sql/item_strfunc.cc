@@ -66,6 +66,7 @@ C_MODE_END
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
 
+#include <algorithm>
 #include <cmath>                     // isnan
 
 
@@ -1178,139 +1179,79 @@ bool Item_func_reverse::resolve_type(THD *thd)
 
 /**
   Replace all occurences of string2 in string1 with string3.
-
-  Don't reallocate val_str() if not needed.
-
-  @todo
-    Fix that this works with binary strings
 */
 
 String *Item_func_replace::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res,*res2,*res3;
-  int offset= 0;
-  size_t from_length, to_length;
-  bool alloced=0;
-  const char *ptr,*end,*strend,*search,*search_end;
-  uint32 l;
 
-  res=args[0]->val_str(str);
+  String *res1= args[0]->val_str(str);
   if ((null_value= args[0]->null_value))
     return nullptr;
-  res2=args[1]->val_str(&tmp_value);
+  String *res2= args[1]->val_str(&tmp_value);
   if ((null_value= args[1]->null_value))
     return nullptr;
-  res3=args[2]->val_str(&tmp_value2);
+  String *res3= args[2]->val_str(&tmp_value2);
   if ((null_value= args[2]->null_value))
     return nullptr;
 
-  res->set_charset(collation.collation);
-  if (res2->length() == 0)
-    return res;
+  res1->set_charset(collation.collation);
+  if (res1->length() == 0 || res2->length() == 0)
+    return res1;
 
-  const bool binary_cmp= ((res->charset()->state & MY_CS_BINSORT) ||
-                          !use_mb(res->charset()));
+  const bool binary_cmp= ((res1->charset()->state & MY_CS_BINSORT) ||
+                          !use_mb(res1->charset()));
 
-  if (binary_cmp && (offset=res->strstr(*res2)) < 0)
-    return res;
+  if (binary_cmp && res1->strstr(*res2) < 0)
+    return res1;
 
-  from_length= res2->length();
-  to_length=   res3->length();
+  tmp_value_res.length(0);
+  tmp_value_res.set_charset(collation.collation);
+  String *result= &tmp_value_res;
 
-  if (!binary_cmp)
+  THD *thd= current_thd;
+  const unsigned long max_size= thd->variables.max_allowed_packet;
+
+  const char *search= res2->ptr();
+  const size_t from_length= res2->length();
+  const char *search_end= search + from_length;
+  const size_t to_length= res3->length();
+  const char *ptr= res1->ptr();
+  const char *strend= res1->ptr() + res1->length();
+  while (ptr < strend)
   {
-    search=res2->ptr();
-    search_end=search+from_length;
-redo:
-    DBUG_ASSERT(res->ptr() || !offset);
-    ptr=res->ptr()+offset;
-    strend=res->ptr()+res->length();
-    /*
-      In some cases val_str() can return empty string
-      with ptr() == NULL and length() == 0.
-      Let's check strend to avoid overflow.
-    */
-    end= strend ? strend - from_length + 1 : NULL;
-    while (ptr < end)
+    if (ptr + from_length <= strend && std::equal(search, search_end, ptr))
     {
-        if (*ptr == *search)
-        {
-          char *i,*j;
-          i=(char*) ptr+1; j=(char*) search+1;
-          while (j != search_end)
-            if (*i++ != *j++) goto skip;
-          offset= (int) (ptr-res->ptr());
-          if (res->length()-from_length + to_length >
-	      current_thd->variables.max_allowed_packet)
-	  {
-	    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-				ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-				ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
-				func_name(),
-				current_thd->variables.max_allowed_packet);
+      if (to_length > from_length &&
+          result->length() + (to_length - from_length) +
+          (strend - ptr) > max_size)
+      {
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+                            ER_THD(thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+                            func_name(),
+                            current_thd->variables.max_allowed_packet);
+        return error_str();
+      }
+      if (result->append(*res3))
+        return error_str();
+      ptr+= from_length;
+    }
+    else
+    {
+      bool err= false;
+      uint32 l= use_mb(res1->charset()) ?
+        my_ismbchar(res1->charset(), ptr, strend) : 0;
+      if (l != 0)
+        while(l-- > 0) err|= result->append(*ptr++);
+      else
+        err= result->append(*ptr++);
 
-            goto null;
-	  }
-          if (!alloced)
-          {
-            alloced=1;
-            if (res->uses_buffer_owned_by(str))
-            {
-              if (tmp_value_res.alloc(res->length() + to_length) ||
-                  tmp_value_res.copy(*res))
-                goto null;
-              res= &tmp_value_res;
-            }
-            else
-              res= copy_if_not_alloced(str, res, res->length() + to_length);
-          }
-          res->replace((uint) offset,from_length,*res3);
-	  offset+=(int) to_length;
-          goto redo;
-        }
-skip:
-        if ((l= my_ismbchar(res->charset(), ptr,strend)))
-          ptr+= l;
-        else
-          ++ptr;
+      if (err)
+        return error_str();
     }
   }
-  else
-    do
-    {
-      if (res->length()-from_length + to_length >
-	  current_thd->variables.max_allowed_packet)
-      {
-	push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-			    ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			    ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
-                            func_name(),
-			    current_thd->variables.max_allowed_packet);
-        goto null;
-      }
-      if (!alloced)
-      {
-        alloced=1;
-        if (res->uses_buffer_owned_by(str))
-        {
-          if (tmp_value_res.alloc(res->length() + to_length) ||
-              tmp_value_res.copy(*res))
-            goto null;
-          res= &tmp_value_res;
-        }
-        else
-          res= copy_if_not_alloced(str, res, res->length() + to_length);
-      }
-      res->replace((uint) offset,from_length,*res3);
-      offset+=(int) to_length;
-    }
-    while ((offset=res->strstr(*res2,(uint) offset)) >= 0);
-  return res;
-
-null:
-  null_value=1;
-  return 0;
+  return result;
 }
 
 
