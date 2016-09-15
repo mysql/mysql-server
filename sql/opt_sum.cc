@@ -346,6 +346,11 @@ int opt_sum_query(THD *thd,
   {
     if (item->type() == Item::SUM_FUNC_ITEM)
     {
+      if (item->used_tables() & OUTER_REF_TABLE_BIT)
+      {
+        const_result= 0;
+        continue;
+      }
       Item_sum *item_sum= (((Item_sum*) item));
       switch (item_sum->sum_func()) {
       case Item_sum::COUNT_FUNC:
@@ -433,6 +438,18 @@ int opt_sum_query(THD *thd,
           Item_field *item_field= (Item_field*) (expr->real_item());
           TABLE *table= item_field->field->table;
 
+          /*
+            We must not have accessed this table instance yet, because
+            it must be private to this subquery, as we already ensured
+            that OUTER_REF_TABLE_BIT is not set.
+          */
+          DBUG_ASSERT(!table->file->inited);
+          /*
+            Because the table handle has not been opened yet, we cannot have
+            determined yet if the table contains 1 record.
+           */
+          DBUG_ASSERT(!table->const_table);
+
           /* 
             Look for a partial key that can be used for optimization.
             If we succeed, ref.key_length will contain the length of
@@ -441,8 +458,7 @@ int opt_sum_query(THD *thd,
             Type of range for the key part for this field will be
             returned in range_fl.
           */
-          if (table->file->inited ||
-              (outer_tables & item_field->table_ref->map()) ||
+          if ((outer_tables & item_field->table_ref->map()) ||
               !find_key_for_maxmin(is_max, &ref, item_field, conds,
                                    &range_fl, &prefix_len))
           {
