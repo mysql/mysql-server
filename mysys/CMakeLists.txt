@@ -66,7 +66,7 @@ ENDIF()
 
 ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES})
 TARGET_LINK_LIBRARIES(mysys dbug strings ${ZLIB_LIBRARY} 
- ${LIBNSL} ${LIBM} ${LIBRT} ${LIBATOMIC})
+ ${LIBNSL} ${LIBM} ${LIBRT} ${LIBATOMIC} ${LIBEXECINFO})
 DTRACE_INSTRUMENT(mysys)
 
 # Need explicit pthread for gcc -fsanitize=address
@@ -88,13 +88,4 @@ TARGET_LINK_LIBRARIES(base64_test mysys)
 
 IF(MSVC)
    INSTALL_DEBUG_TARGET(mysys DESTINATION ${INSTALL_LIBDIR}/debug)
-ENDIF()
-
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-deprecated-declarations" HAVE_NO_DEPREC_CONST)
-
-IF(CMAKE_GENERATOR MATCHES "Xcode" AND HAVE_NO_DEPREC_CONST)
-  INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-  ADD_COMPILE_FLAGS(
-    stacktrace.c
-    COMPILE_FLAGS -Wno-deprecated-declarations)
 ENDIF()

@@ -33,19 +33,20 @@
 #include <execinfo.h>
 #endif
 
+#ifdef __linux__
+/* __bss_start doesn't seem to work on FreeBSD and doesn't exist on OSX/Solaris. */
 #define PTR_SANE(p) ((p) && (char*)(p) >= heap_start && (char*)(p) <= heap_end)
-
 static char *heap_start;
-
-#ifdef HAVE_BSS_START
 extern char *__bss_start;
-#endif
+#else
+#define PTR_SANE(p) (p)
+#endif /* __linux */
 
 void my_init_stacktrace()
 {
-#ifdef HAVE_BSS_START
+#ifdef __linux__
   heap_start = (char*) &__bss_start;
-#endif
+#endif /* __linux__ */
 }
 
 #ifdef __linux__
@@ -134,14 +135,15 @@ static int safe_print_str(const char *addr, int max_len)
 
 void my_safe_puts_stderr(const char* val, size_t max_len)
 {
+#ifdef __linux__
+/* Only needed by the linux version of PTR_SANE */
   char *heap_end;
 
-#ifdef __linux__
   if (!safe_print_str(val, max_len))
     return;
-#endif
 
   heap_end= (char*) sbrk(0);
+#endif
 
   if (!PTR_SANE(val))
   {
