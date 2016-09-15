@@ -12413,11 +12413,13 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         {
           jam();
           noOfFragments = defaultFragments;
+          partitionCount = noOfFragments;
           set_default_node_groups(signal, noOfFragments);
         }
         else
         {
           jam();
+          ndbrequire(noOfFragments == partitionCount);
           use_specific_fragment_count = true;
         }
         break;
