@@ -21,6 +21,7 @@
   Table DATA_LOCK_WAITS (declarations).
 */
 
+#include "pfs.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
 #include "table_helper.h"

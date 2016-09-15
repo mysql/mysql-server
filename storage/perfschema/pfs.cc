@@ -7620,3 +7620,11 @@ struct PSI_data_lock_bootstrap pfs_data_lock_bootstrap=
   get_data_lock_interface
 };
 
+PSI_engine_data_lock_inspector *
+g_data_lock_inspector[COUNT_DATA_LOCK_ENGINES]=
+{
+    NULL
+};
+unsigned int g_data_lock_inspector_count= 0;
+
+

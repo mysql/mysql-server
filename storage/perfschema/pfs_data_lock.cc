@@ -541,10 +541,3 @@ row_data_lock_wait *PFS_data_lock_wait_container::get_row(unsigned int index)
   return NULL;
 }
 
-PSI_engine_data_lock_inspector *
-g_data_lock_inspector[COUNT_DATA_LOCK_ENGINES]=
-{
-  NULL
-};
-unsigned int g_data_lock_inspector_count= 0;
-

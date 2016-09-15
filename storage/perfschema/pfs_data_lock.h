@@ -734,13 +734,5 @@ private:
   PFS_index_data_lock_waits *m_filter;
 };
 
-extern struct PSI_data_lock_bootstrap pfs_data_lock_bootstrap;
-
-/* Only Innodb so far */
-#define COUNT_DATA_LOCK_ENGINES 1
-
-extern PSI_engine_data_lock_inspector *g_data_lock_inspector[];
-extern unsigned int g_data_lock_inspector_count;
-
 #endif
 

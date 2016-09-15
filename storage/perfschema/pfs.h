@@ -64,5 +64,11 @@ extern thread_local_key_t THR_PFS_SBH; // status_by_account
 /** True when @c THR_PFS and all other Performance Schema TLS keys are initialized. */
 extern bool THR_PFS_initialized;
 
+/* Only Innodb so far */
+#define COUNT_DATA_LOCK_ENGINES 1
+
+extern PSI_engine_data_lock_inspector *g_data_lock_inspector[];
+extern unsigned int g_data_lock_inspector_count;
+
 #endif
 
