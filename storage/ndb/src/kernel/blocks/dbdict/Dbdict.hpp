@@ -3017,7 +3017,10 @@ private:
   void alterTable_abortParse(Signal*, SchemaOpPtr);
   void alterTable_abortPrepare(Signal*, SchemaOpPtr);
 
-  void alterTable_toReadBackup(Signal *signal, SchemaOpPtr op_ptr);
+  void alterTable_toReadBackup(Signal *signal,
+                               SchemaOpPtr op_ptr,
+                               TableRecordPtr indexPtr,
+                               TableRecordPtr tablePtr);
 
   void alterTable_toCopyData(Signal* signal, SchemaOpPtr op_ptr);
   void alterTable_fromCopyData(Signal*, Uint32 op_key, Uint32 ret);

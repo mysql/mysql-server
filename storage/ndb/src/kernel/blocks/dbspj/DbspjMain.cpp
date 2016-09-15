@@ -416,7 +416,7 @@ Dbspj::execALTER_TAB_REQ(Signal* signal)
   case AlterTabReq::AlterTableCommit:
     jam();
     tablePtr.p->m_currentSchemaVersion = newTableVersion;
-    if (AlterTableReq::getReadBackupAnyFlag(req->changeMask))
+    if (AlterTableReq::getReadBackupFlag(req->changeMask))
     {
       /**
        * We simply swap the flag, the preparatory work for this
