@@ -859,7 +859,7 @@ if (`SELECT $PS_PROTOCOL > 0`)
   call p_verify_status_increment(9, 0, 4, 4);
 }
 alter table t3 add column (b int);
-call p_verify_status_increment(8, 0, 2, 0);
+call p_verify_status_increment(6, 0, 2, 0);
 alter table t3 rename t4;
 call p_verify_status_increment(6, 0, 3, 0);
 rename table t4 to t3;

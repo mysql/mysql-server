@@ -365,7 +365,7 @@ public:
                             MEM_ROOT *mem_root,
                             const char *db_name,
                             const char *table_name,
-                            List<Trigger> *triggers);
+                            List<::Trigger> *triggers);
 };
 
 
@@ -521,7 +521,7 @@ bool Trigger_loader::load_triggers(THD *thd,
                                    MEM_ROOT *mem_root,
                                    const char *db_name,
                                    const char *table_name,
-                                   List<Trigger> *triggers)
+                                   List<::Trigger> *triggers)
 {
   DBUG_ENTER("Trigger_loader::load_triggers");
 
@@ -725,22 +725,23 @@ bool Trigger_loader::load_triggers(THD *thd,
     LEX_CSTRING db_cl= { db_cl_name->str, db_cl_name->length };
 
     // Create a new trigger instance.
-    Trigger *t= Trigger::create_from_dd(mem_root,
-                                        tmp_name,
-                                        db_name_str,
-                                        table_name_str,
-                                        orig_definition,
-                                        body_utf8,
-                                        *sql_mode,
-                                        definer_user_name,
-                                        definer_host_name,
-                                        client_cs,
-                                        cn_cl,
-                                        db_cl,
-                                        enum_trigger_event_type::TRG_EVENT_MAX,
-                                        enum_trigger_action_time_type::TRG_ACTION_MAX,
-                                        0,
-                                        timestamp_value);
+    ::Trigger *t= ::Trigger::create_from_dd(
+            mem_root,
+            tmp_name,
+            db_name_str,
+            table_name_str,
+            orig_definition,
+            body_utf8,
+            *sql_mode,
+            definer_user_name,
+            definer_host_name,
+            client_cs,
+            cn_cl,
+            db_cl,
+            enum_trigger_event_type::TRG_EVENT_MAX,
+            enum_trigger_action_time_type::TRG_ACTION_MAX,
+            0,
+            timestamp_value);
 
     /*
       NOTE: new trigger object is not fully initialized here.
@@ -1606,7 +1607,7 @@ static bool add_triggers_to_table(THD *thd,
                                   const String_type &schema_name,
                                   const String_type &table_name)
 {
-  List<Trigger> m_triggers;
+  List<::Trigger> m_triggers;
   if (Trigger_loader::trg_file_exists(schema_name.c_str(),
                                       table_name.c_str()))
   {
@@ -1630,7 +1631,7 @@ static bool add_triggers_to_table(THD *thd,
     }
 
 
-    List_iterator<Trigger> it(m_triggers);
+    List_iterator<::Trigger> it(m_triggers);
     /*
       Fix the order column for the execution of Triggers with
       same action event and same action timing. .TRG filed used to handle
@@ -1638,7 +1639,7 @@ static bool add_triggers_to_table(THD *thd,
     */
 
     // Get 1st Trigger
-    Trigger *t= it++;
+    ::Trigger *t= it++;
 
     // If no Trigger found, return
     if (!t)
@@ -1655,7 +1656,7 @@ static bool add_triggers_to_table(THD *thd,
     // Set action order for rest of the Triggers.
     while (true)
     {
-      Trigger *t= it++;
+      ::Trigger *t= it++;
 
       if (!t)
         break;
@@ -1699,7 +1700,7 @@ static bool add_triggers_to_table(THD *thd,
     // Create entry in DD table for each trigger.
     while (true)
     {
-      Trigger *t= it++;
+      ::Trigger *t= it++;
 
       if (!t)
         break;

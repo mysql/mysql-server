@@ -8373,10 +8373,6 @@ static bool mysql_inplace_alter_table(THD *thd,
   table_list->table= table= NULL;
   close_temporary_table(thd, altered_table, true, false);
 
-  if (dd::move_triggers(thd, alter_ctx->db, alter_ctx->alias,
-                        alter_ctx->new_db, alter_ctx->tmp_name))
-    DBUG_RETURN(true);
-
   /*
     Replace the old .FRM with the new .FRM, but keep the old name for now.
     Rename to the new name (if needed) will be handled separately below.
@@ -8390,8 +8386,6 @@ static bool mysql_inplace_alter_table(THD *thd,
     // transaction. This situation will be fixed in WL#7785.
     DBUG_ASSERT(!thd->transaction_rollback_request);
 
-    (void) dd::move_triggers(thd, alter_ctx->new_db, alter_ctx->tmp_name,
-                             alter_ctx->db, alter_ctx->alias);
     // Since changes were done in-place, we can't revert them.
     (void) quick_rm_table(thd, db_type,
                           alter_ctx->new_db, alter_ctx->tmp_name,
@@ -8439,15 +8433,30 @@ static bool mysql_inplace_alter_table(THD *thd,
   }
 
   /*
-    Transfer pre-existing foreign keys to the new table.
-    Since fk names have to be unique per schema, we cannot
+    Remove TABLE and TABLE_SHARE for new name from TDC to force re-opening
+    in order to reload triggers.
+  */
+  if (!alter_ctx->trg_info.empty())
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
+                     alter_ctx->new_db, alter_ctx->new_alias, false);
+
+  /*
+    Transfer pre-existing foreign keys and triggers to the new table.
+    Since fk and trigger names have to be unique per schema, we cannot
     create them while both the old and the temp version of the
     table exist.
   */
-  if (alter_ctx->fk_count > 0 &&
-      dd::add_foreign_keys(thd, alter_ctx->new_db, alter_ctx->new_alias,
-                           alter_ctx->fk_info, alter_ctx->fk_count))
+  if ((alter_ctx->fk_count > 0 || !alter_ctx->trg_info.empty()) &&
+      dd::add_foreign_keys_and_triggers(thd, alter_ctx->new_db,
+                                        alter_ctx->new_alias,
+                                        alter_ctx->fk_info,
+                                        alter_ctx->fk_count,
+                                        &alter_ctx->trg_info))
     DBUG_RETURN(true);
+
+  // TODO: May move the opening of the table and the call to
+  //       ha_notify_table_changed() here to make sure we don't
+  //       notify the handler until all meta data is complete.
 
   DBUG_RETURN(false);
 
@@ -8662,8 +8671,8 @@ static void to_lex_cstring(MEM_ROOT *mem_root,
 
 
 /**
-  Remember information about pre-existing foreign keys so that they can
-  be added to the new version of the table later.
+  Remember information about pre-existing foreign keys and triggers so
+  that they can be added to the new version of the table later.
 
   @param[in]      thd              Thread handle.
   @param[in]      table            The source table.
@@ -8673,12 +8682,14 @@ static void to_lex_cstring(MEM_ROOT *mem_root,
 */
 
 static
-void remember_preexisting_foreign_keys(THD *thd, TABLE *table,
-                                       Alter_info *alter_info,
-                                       Alter_table_ctx *alter_ctx,
-                                       List<Create_field> *new_create_list)
+void remember_preexisting_foreign_keys_and_triggers(
+        THD *thd,
+        TABLE *table,
+        Alter_info *alter_info,
+        Alter_table_ctx *alter_ctx,
+        List<Create_field> *new_create_list)
 {
-  // FKs are not supported for temporary tables.
+  // FKs and triggers are not supported for temporary tables.
   if (table->s->tmp_table)
     return;
 
@@ -8692,6 +8703,10 @@ void remember_preexisting_foreign_keys(THD *thd, TABLE *table,
     // Should not happen, we know the table exists and can be opened.
     DBUG_ASSERT(false);
   }
+
+  if (src_table->has_trigger())
+    src_table->clone_triggers(&alter_ctx->trg_info);
+
   alter_ctx->fk_info=
     (FOREIGN_KEY*)sql_calloc(sizeof(FOREIGN_KEY) *
                              src_table->foreign_keys().size());
@@ -9383,8 +9398,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       new_drop_list.push_back(drop);
   }
 
-  remember_preexisting_foreign_keys(thd, table, alter_info, alter_ctx,
-                                    &new_create_list);
+  remember_preexisting_foreign_keys_and_triggers(thd, table, alter_info,
+                                                 alter_ctx, &new_create_list);
 
   if (rename_key_list.size() > 0)
   {
@@ -11043,13 +11058,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     goto err_with_mdl;
   }
 
-  // Move triggers from old table to the new table.
-  if (dd::move_triggers(thd, alter_ctx.db, backup_name,
-                        alter_ctx.new_db, alter_ctx.new_alias))
-  {
-    goto err_with_mdl;
-  }
-
   // ALTER TABLE succeeded, delete the backup of the old table.
   if (quick_rm_table(thd, old_db_type, alter_ctx.db, backup_name, FN_IS_TMP))
   {
@@ -11062,14 +11070,17 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   }
 
   /*
-    Transfer pre-existing foreign keys to the new table.
-    Since fk names have to be unique per schema, we cannot
+    Transfer pre-existing foreign keys and triggers to the new table.
+    Since fk and trigger names have to be unique per schema, we cannot
     create them while both the old and the tmp version of the
     table exist.
   */
-  if (alter_ctx.fk_count > 0 &&
-      dd::add_foreign_keys(thd, alter_ctx.new_db, alter_ctx.new_alias,
-                           alter_ctx.fk_info, alter_ctx.fk_count))
+  if ((alter_ctx.fk_count > 0 || !alter_ctx.trg_info.empty()) &&
+      dd::add_foreign_keys_and_triggers(thd, alter_ctx.new_db,
+                                        alter_ctx.new_alias,
+                                        alter_ctx.fk_info,
+                                        alter_ctx.fk_count,
+                                        &alter_ctx.trg_info))
     goto err_with_mdl;
 
 end_inplace:

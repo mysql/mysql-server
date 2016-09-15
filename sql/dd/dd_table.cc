@@ -2307,12 +2307,16 @@ dd::Table *create_tmp_table(THD *thd,
 }
 
 
-bool add_foreign_keys(THD *thd,
-                      const dd::String_type &schema_name,
-                      const dd::String_type &table_name,
-                      const FOREIGN_KEY *fk_keyinfo, uint fk_keys)
+bool add_foreign_keys_and_triggers(THD *thd,
+                                   const dd::String_type &schema_name,
+                                   const dd::String_type &table_name,
+                                   const FOREIGN_KEY *fk_keyinfo, uint fk_keys,
+                                   Prealloced_array<dd::Trigger*, 1> *trg_info)
 {
   DBUG_ENTER("dd::add_foreign_keys");
+  DBUG_ASSERT((fk_keys > 0 && fk_keyinfo != nullptr) ||
+              (trg_info != nullptr && !trg_info->empty()));
+
   dd::cache::Dictionary_client *client= thd->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
@@ -2322,8 +2326,12 @@ bool add_foreign_keys(THD *thd,
 
   std::unique_ptr<dd::Table> table(const_table->clone());
 
-  if (fill_dd_foreign_keys_from_create_fields(table.get(), fk_keys, fk_keyinfo))
+  if (fk_keys > 0 &&
+      fill_dd_foreign_keys_from_create_fields(table.get(), fk_keys, fk_keyinfo))
     DBUG_RETURN(true);
+
+  if (trg_info != nullptr && !trg_info->empty())
+    table->move_triggers(trg_info);
 
   if (client->update(&const_table, table.get()))
     DBUG_RETURN(true);
