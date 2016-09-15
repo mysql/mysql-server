@@ -289,10 +289,14 @@ IF(UNIX)
   IF(NOT LIBRT)
     MY_SEARCH_LIBS(clock_gettime rt LIBRT)
   ENDIF()
+  MY_SEARCH_LIBS(backtrace execinfo LIBEXECINFO)
+
   FIND_PACKAGE(Threads)
 
   SET(CMAKE_REQUIRED_LIBRARIES 
-    ${LIBM} ${LIBNSL} ${LIBBIND} ${LIBCRYPT} ${LIBSOCKET} ${LIBDL} ${CMAKE_THREAD_LIBS_INIT} ${LIBRT})
+    ${LIBM} ${LIBNSL} ${LIBBIND} ${LIBCRYPT} ${LIBSOCKET} ${LIBDL}
+    ${CMAKE_THREAD_LIBS_INIT} ${LIBRT} ${LIBEXECINFO}
+  )
   # Need explicit pthread for gcc -fsanitize=address
   IF(CMAKE_USE_PTHREADS_INIT AND CMAKE_C_FLAGS MATCHES "-fsanitize=")
     SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} pthread)
@@ -1076,14 +1080,6 @@ CHECK_CXX_SOURCE_COMPILES("
   }"
   HAVE_ABI_CXA_DEMANGLE)
 ENDIF()
-
-CHECK_C_SOURCE_COMPILES("
-  int main(int argc, char **argv) 
-  {
-    extern char *__bss_start;
-    return __bss_start ? 1 : 0;
-  }"
-HAVE_BSS_START)
 
 CHECK_C_SOURCE_COMPILES("
     int main()
