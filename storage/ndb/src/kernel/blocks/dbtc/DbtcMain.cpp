@@ -780,7 +780,7 @@ void Dbtc::execALTER_TAB_REQ(Signal * signal)
   switch (requestType) {
   case AlterTabReq::AlterTablePrepare:
     jam();
-    if (AlterTableReq::getReadBackupAnyFlag(req->changeMask))
+    if (AlterTableReq::getReadBackupFlag(req->changeMask))
     {
       if ((tabPtr.p->m_flags & TableRecord::TR_READ_BACKUP) != 0)
       {
@@ -832,7 +832,7 @@ void Dbtc::execALTER_TAB_REQ(Signal * signal)
     jam();
     tabPtr.p->currentSchemaVersion = tableVersion;
 
-    if (AlterTableReq::getReadBackupAnyFlag(req->changeMask))
+    if (AlterTableReq::getReadBackupFlag(req->changeMask))
     {
       if ((tabPtr.p->m_flags & TableRecord::TR_READ_BACKUP) == 0)
       {
@@ -847,7 +847,7 @@ void Dbtc::execALTER_TAB_REQ(Signal * signal)
     break;
   case AlterTabReq::AlterTableCommit:
     jam();
-    if (AlterTableReq::getReadBackupAnyFlag(req->changeMask))
+    if (AlterTableReq::getReadBackupFlag(req->changeMask))
     {
       if ((tabPtr.p->m_flags & TableRecord::TR_READ_BACKUP) != 0)
       {

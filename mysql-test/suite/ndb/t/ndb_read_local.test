@@ -57,6 +57,11 @@ let $ndb_desc_opts= -b -i -d test t2;
 source suite/ndb/include/ndb_desc_print.inc;
 --source ndb_read_local.inc
 
+--exec $NDB_MGM --no-defaults --verbose=0 -e "all restart"
+let $ndb_desc_opts= -b -i -d test t2;
+source suite/ndb/include/ndb_desc_print.inc;
+--source ndb_read_local.inc
+
 drop table test.t1;
 drop table test.t2;
 

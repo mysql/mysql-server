@@ -4598,6 +4598,7 @@ Dbdict::checkPendingSchemaTrans(XSchemaFile* xsf)
         {
           jam();
           tmp->m_transId = 0;
+          D("CheckPendingSchemaTrans, obj id = " << j << " " << V(*tmp));
           switch(tmp->m_tableState){
           case SchemaFile::SF_CREATE:
             if (commit)
@@ -4649,6 +4650,7 @@ Dbdict::checkPendingSchemaTrans(XSchemaFile* xsf)
       transEntry->m_tableType = DictTabInfo::UndefTableType;
       transEntry->m_tableState = SchemaFile::SF_UNUSED;
       transEntry->m_transId = 0;
+      D("CheckPendingSchemaTrans, obj id = " << i << " " << V(*transEntry));
     }
   }
 }
@@ -5645,7 +5647,8 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
 	       CreateTableRef::TableAlreadyExist);
   }
 
-  if (DictTabInfo::isIndex(c_tableDesc.TableType))
+  if (DictTabInfo::isIndex(c_tableDesc.TableType) &&
+      parseP->requestType != DictTabInfo::AlterTableFromAPI)
   {
     jam();
     parseP->requestType = DictTabInfo::AddTableFromDict;
@@ -9580,14 +9583,6 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
     return;
   }
 
-  if (AlterTableReq::getReadBackupSubOpFlag(impl_req->changeMask))
-  {
-    jam();
-    impl_req->newTableVersion =
-      alter_obj_inc_schema_version(tablePtr.p->tableVersion);
-    return;
-  }
-
   // parse new table definition into new table record
   TableRecordPtr newTablePtr;
   {
@@ -9628,13 +9623,16 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
   {
     /**
      * Mark SchemaObject as in-use so that it's won't be found by other op
-     *   choose a state that will be automatically cleaned incase we crash
+     *   choose a state that will be automatically cleaned in case we crash
      */
     SchemaFile::TableEntry *
       objEntry = getTableEntry(alterTabPtr.p->m_newTable_realObjectId);
     objEntry->m_tableType = DictTabInfo::SchemaTransaction;
     objEntry->m_tableState = SchemaFile::SF_STARTED;
     objEntry->m_transId = trans_ptr.p->m_transId + 1;
+    D("alterTable_parse: obj id = " <<
+       alterTabPtr.p->m_newTable_realObjectId << " "
+       V(*objEntry));
   }
 
   // set the new version now
@@ -10222,7 +10220,7 @@ Dbdict::alterTable_subOps(Signal* signal, SchemaOpPtr op_ptr)
         op_ptr.p->m_callback = c;
 
         alterTabPtr.p->m_sub_read_backup_ptr = indexPtr.i;
-        alterTable_toReadBackup(signal, op_ptr);
+        alterTable_toReadBackup(signal, op_ptr, indexPtr, tabPtr);
         return true;
       }
     }
@@ -10368,17 +10366,98 @@ Dbdict::alterTable_toAlterIndex(Signal* signal,
 
 void
 Dbdict::alterTable_toReadBackup(Signal* signal,
-                                SchemaOpPtr op_ptr)
+                                SchemaOpPtr op_ptr,
+                                TableRecordPtr indexPtr,
+                                TableRecordPtr tablePtr)
 {
   jam();
-  AlterTableRecPtr alterTabPtr;
-  getOpRec(op_ptr, alterTabPtr);
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   D("alterTable_toReadBackup");
 
-  TableRecordPtr indexPtr;
-  c_tableRecordPool_.getPtr(indexPtr, alterTabPtr.p->m_sub_read_backup_ptr);
-  ndbrequire(!indexPtr.isNull());
+  // signal data writer
+  Uint32* wbuffer = &c_indexPage.word[0];
+  LinearWriter w(wbuffer, sizeof(c_indexPage) >> 2);
+  w.first();
+
+  w.add(DictTabInfo::TableId, indexPtr.p->tableId);
+  {
+    LocalRope name(c_rope_pool, indexPtr.p->tableName);
+    char tableName[MAX_TAB_NAME_SIZE];
+    name.copy(tableName);
+    w.add(DictTabInfo::TableName, tableName);
+  }
+  {
+    bool flag = indexPtr.p->m_bits & TableRecord::TR_Logged;
+    w.add(DictTabInfo::TableLoggedFlag, (Uint32)flag);
+  }
+  {
+    bool flag = indexPtr.p->m_bits & TableRecord::TR_Temporary;
+    w.add(DictTabInfo::TableTemporaryFlag, (Uint32)flag);
+  }
+  /* Toggle read backup flag since this is changed */
+  {
+    bool flag = ((indexPtr.p->m_bits & TableRecord::TR_ReadBackup) == 0);
+    w.add(DictTabInfo::ReadBackupFlag, (Uint32)flag);
+    D("ReadBackupFlag: " << flag);
+  }
+  {
+    bool flag = indexPtr.p->m_bits & TableRecord::TR_FullyReplicated;
+    w.add(DictTabInfo::FullyReplicatedFlag, (Uint32)flag);
+    D("FullyReplicatedFlag: " << flag);
+  }
+  w.add(DictTabInfo::FragmentTypeVal, indexPtr.p->fragmentType);
+  w.add(DictTabInfo::FragmentCount, indexPtr.p->fragmentCount);
+  w.add(DictTabInfo::PartitionCount, indexPtr.p->partitionCount);
+  w.add(DictTabInfo::PartitionBalance, indexPtr.p->partitionBalance);
+  w.add(DictTabInfo::HashMapObjectId, indexPtr.p->hashMapObjectId);
+  w.add(DictTabInfo::HashMapVersion, indexPtr.p->hashMapVersion);
+
+  w.add(DictTabInfo::TableTypeVal, indexPtr.p->tableType);
+  {
+    LocalRope name(c_rope_pool, tablePtr.p->tableName);
+    char tableName[MAX_TAB_NAME_SIZE];
+    name.copy(tableName);
+    w.add(DictTabInfo::PrimaryTable, tableName);
+  }
+  w.add(DictTabInfo::PrimaryTableId, tablePtr.p->tableId);
+  w.add(DictTabInfo::NoOfAttributes, indexPtr.p->noOfAttributes);
+  w.add(DictTabInfo::NoOfKeyAttr, indexPtr.p->noOfPrimkey);
+  w.add(DictTabInfo::NoOfNullable, indexPtr.p->noOfNullAttr);
+  w.add(DictTabInfo::KeyLength, indexPtr.p->tupKeyLength);
+  w.add(DictTabInfo::SingleUserMode, (Uint32)NDB_SUM_READ_WRITE);
+
+  // write index key attributes
+  {
+    AttributeRecordPtr attrPtr;
+    LocalAttributeRecord_list list(c_attributeRecordPool,
+                                   indexPtr.p->m_attributes);
+    for (list.first(attrPtr); !attrPtr.isNull(); list.next(attrPtr))
+    {
+      jam();
+      { LocalRope attrName(c_rope_pool, attrPtr.p->attributeName);
+        char attributeName[MAX_ATTR_NAME_SIZE];
+        attrName.copy(attributeName);
+        w.add(DictTabInfo::AttributeName, attributeName);
+      }
+
+      const Uint32 attrDesc = attrPtr.p->attributeDescriptor;
+      const bool isNullable = AttributeDescriptor::getNullable(attrDesc);
+      const Uint32 arrayType = AttributeDescriptor::getArrayType(attrDesc);
+      const Uint32 attrType = AttributeDescriptor::getType(attrDesc);
+
+      w.add(DictTabInfo::AttributeId, attrPtr.p->attributeId);
+      w.add(DictTabInfo::AttributeNullableFlag, (Uint32)isNullable);
+      w.add(DictTabInfo::AttributeKeyFlag, attrPtr.p->tupleKey > 0);
+      w.add(DictTabInfo::AttributeArrayType, arrayType);
+      w.add(DictTabInfo::AttributeExtType, attrType);
+      w.add(DictTabInfo::AttributeExtPrecision, attrPtr.p->extPrecision);
+      w.add(DictTabInfo::AttributeExtScale, attrPtr.p->extScale);
+      w.add(DictTabInfo::AttributeExtLength, attrPtr.p->extLength);
+      w.add(DictTabInfo::AttributeEnd, (Uint32)true);
+    }
+  }
+  // finish
+  w.add(DictTabInfo::TableEnd, (Uint32)true);
 
   AlterTableReq* req = (AlterTableReq*)signal->getDataPtrSend();
   req->clientRef = reference();
@@ -10389,9 +10468,14 @@ Dbdict::alterTable_toReadBackup(Signal* signal,
   req->tableId = indexPtr.p->tableId;
   req->tableVersion = indexPtr.p->tableVersion;
   req->changeMask = 0;
-  AlterTableReq::setReadBackupSubOpFlag(req->changeMask, 1);
+  AlterTableReq::setReadBackupFlag(req->changeMask, 1);
+
+  LinearSectionPtr lsPtr[3];
+  lsPtr[0].p = wbuffer;
+  lsPtr[0].sz = w.getWordsUsed();
+
   sendSignal(reference(), GSN_ALTER_TABLE_REQ, signal,
-             AlterTableReq::SignalLength, JBB);
+             AlterTableReq::SignalLength, JBB, lsPtr, 1);
 }
 
 void
@@ -11124,19 +11208,6 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
     tablePtr.p->hashMapVersion = newTablePtr.p->hashMapVersion;
     alterTabPtr.p->m_blockNo[1] = RNIL;
   }
-  else if (AlterTableReq::getReadBackupSubOpFlag(impl_req->changeMask))
-  {
-    jam();
-    tablePtr.p->m_bits ^= TableRecord::TR_ReadBackup;
-    tablePtr.p->tableVersion = impl_req->newTableVersion;
-    tablePtr.p->gciTableCreated = impl_req->gci;
-    /**
-     * Alter online of read backup on indexes only needed in
-     * DBTC and DBSPJ.
-     */
-    alterTabPtr.p->m_blockNo[0] = RNIL;
-    alterTabPtr.p->m_blockNo[1] = RNIL;
-  }
   else if (AlterTableReq::getReorgCommitFlag(impl_req->changeMask))
   {
     jam();
@@ -11353,6 +11424,8 @@ Dbdict::alterTable_fromCommitComplete(Signal* signal,
     objEntry->m_tableType = DictTabInfo::UndefTableType;
     objEntry->m_tableState = SchemaFile::SF_UNUSED;
     objEntry->m_transId = 0;
+    D("alterTable_fromCommitComplete, obj id = " <<
+       alterTabPtr.p->m_newTable_realObjectId << " " << V(*objEntry));
   }
 
   releaseTableObject(alterTabPtr.p->m_newTablePtrI, false);
@@ -11449,6 +11522,8 @@ Dbdict::alterTable_abortParse(Signal* signal, SchemaOpPtr op_ptr)
       objEntry->m_tableType = DictTabInfo::UndefTableType;
       objEntry->m_tableState = SchemaFile::SF_UNUSED;
       objEntry->m_transId = 0;
+      D("alterTable_abortParse, obj id = " << 
+         alterTabPtr.p->m_newTable_realObjectId << " " << V(*objEntry));
     }
 
     releaseTableObject(alterTabPtr.p->m_newTablePtrI, false);
@@ -32508,6 +32583,7 @@ Dbdict::trans_log(SchemaTransPtr trans_ptr)
   default:
     ndbrequire(false);
   }
+  D("trans_log obj id = " << objectId << " " << V(*entry));
 }
 
 /**
@@ -32522,7 +32598,8 @@ Dbdict::trans_log_schema_op(SchemaOpPtr op_ptr,
 
   XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
   SchemaFile::TableEntry * oldEntry = getTableEntry(xsf, objectId);
-  D("trans_log_schema_op" << V(*oldEntry) << V(*newEntry));
+  D("trans_log_schema_op obj id = " << objectId << " "
+    << V(*oldEntry) << V(*newEntry));
 
   if (oldEntry->m_transId != 0)
   {
@@ -32585,6 +32662,7 @@ Dbdict::trans_log_schema_op_abort(SchemaOpPtr op_ptr)
     XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
     SchemaFile::TableEntry * entry = getTableEntry(xsf, objectId);
     * entry = op_ptr.p->m_orig_entry;
+    D("trans_log_schema_op_abort obj id = " << objectId << " " << V(*entry));
   }
 }
 
@@ -32616,6 +32694,7 @@ Dbdict::trans_log_schema_op_complete(SchemaOpPtr op_ptr)
       ndbrequire(false);
     }
     entry->m_transId = 0;
+    D("trans_log_schema_op_complete " << V(*entry));
   }
 }
 

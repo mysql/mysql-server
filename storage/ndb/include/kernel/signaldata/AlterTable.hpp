@@ -51,12 +51,16 @@ struct AlterTableReq {
   a = Add attribute
   f = Add fragment(s)
   r = Reorg fragment(s)
+  c = Reorg commit flag
+  C = Reorg complete
+  u = Reorg Suma enable flag
+  U = Reorg Suma filter flag
+  F = Fragment count type flag
   R = Changed Read Backup flag
-  x = Read Backup Subop flag (used to alter read backup on indexes)
 
            1111111111222222222233
  01234567890123456789012345678901
- nfdrtsafr-----------------------
+ nfdrtsafrcCuUFR-----------------
 */
 #define NAME_SHIFT        (0)
 #define FRM_SHIFT         (1)
@@ -73,7 +77,6 @@ struct AlterTableReq {
 #define REORG_SUMA_FILTER (12)
 #define PARTITION_BALANCE_SHIFT (13)
 #define READ_BACKUP_SHIFT (14)
-#define READ_BACKUP_SUBOP_SHIFT (15)
 
  /**
    * Getters and setters
@@ -136,8 +139,6 @@ struct AlterTableReq {
   static void setReorgSumaFilterFlag(UintR &  changeMask, Uint32 tsFlg);
   static void setPartitionBalanceFlag(UintR & changeMask, Uint32 tsFlg);
   static Uint8 getPartitionBalanceFlag(const UintR & changeMask);
-  static void setReadBackupSubOpFlag(UintR & changeMask, Uint32 tsFlg);
-  static Uint8 getReadBackupSubOpFlag(const UintR & changeMask);
 
   static bool getSubOp(const UintR & changeMask)
   {
@@ -145,8 +146,7 @@ struct AlterTableReq {
       getReorgCommitFlag(changeMask) ||
       getReorgCompleteFlag(changeMask) ||
       getReorgSumaEnableFlag(changeMask) ||
-      getReorgSumaFilterFlag(changeMask) ||
-      getReadBackupSubOpFlag(changeMask);
+      getReorgSumaFilterFlag(changeMask);
   }
 
   static bool getReorgSubOp(const UintR & changeMask)
@@ -156,11 +156,6 @@ struct AlterTableReq {
       getReorgCompleteFlag(changeMask) ||
       getReorgSumaEnableFlag(changeMask) ||
       getReorgSumaFilterFlag(changeMask);
-  }
-  static bool getReadBackupAnyFlag(const UintR & changeMask)
-  {
-    return getReadBackupFlag(changeMask) ||
-           getReadBackupSubOpFlag(changeMask);
   }
 };
 
@@ -343,18 +338,6 @@ inline
 void
 AlterTableReq::setReadBackupFlag(UintR & changeMask, Uint32 rbFlag){
   changeMask |= (rbFlag << READ_BACKUP_SHIFT);
-}
-
-inline
-Uint8
-AlterTableReq::getReadBackupSubOpFlag(const UintR & changeMask){
-  return (Uint8)((changeMask >> READ_BACKUP_SUBOP_SHIFT) & 1);
-}
-
-inline
-void
-AlterTableReq::setReadBackupSubOpFlag(UintR & changeMask, Uint32 rbFlag){
-  changeMask |= (rbFlag << READ_BACKUP_SUBOP_SHIFT);
 }
 
 struct AlterTableConf {
