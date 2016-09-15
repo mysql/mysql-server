@@ -942,10 +942,10 @@ bool channel_is_stopping(const char* channel,
     case CHANNEL_NO_THD:
       break;
     case CHANNEL_RECEIVER_THREAD:
-      is_stopping= likely(mi->is_stopping.atomic_get());
+      is_stopping= likely(mi->atomic_is_stopping);
       break;
     case CHANNEL_APPLIER_THREAD:
-      is_stopping= likely(mi->rli->is_stopping.atomic_get());
+      is_stopping= likely(mi->rli->atomic_is_stopping);
       break;
     default:
       DBUG_ASSERT(0);

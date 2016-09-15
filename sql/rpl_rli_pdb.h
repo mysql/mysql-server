@@ -509,7 +509,7 @@ public:
     Similarly to the Coordinator's
     Relay_log_info::set_rli_description_event() the possibly existing
     old FD is destoyed, carefully; each worker decrements
-    Format_description_log_event::usage_counter and when it is made
+    Format_description_log_event::atomic_usage_counter and when it is made
     zero the destructor runs.
     Unlike to Coordinator's role, the usage counter of the new FD is *not*
     incremented, see @c Log_event::get_slave_worker() where and why it's done
@@ -565,9 +565,9 @@ public:
     }
     if (rli_description_event)
     {
-      DBUG_ASSERT(rli_description_event->usage_counter.atomic_get() > 0);
+      DBUG_ASSERT(rli_description_event->atomic_usage_counter > 0);
 
-      if (rli_description_event->usage_counter.atomic_add(-1) == 1)
+      if (--rli_description_event->atomic_usage_counter == 0)
       {
         /* The being deleted by Worker FD can't be the latest one */
         DBUG_ASSERT(rli_description_event != c_rli->get_rli_description_event());

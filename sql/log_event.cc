@@ -3089,7 +3089,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       This avoids inadvertent FD deletion in a race case where Coordinator
       would install a next new FD before Worker has noticed the previous one.
     */
-    rli->get_rli_description_event()->usage_counter.atomic_add(1);
+    ++rli->get_rli_description_event()->atomic_usage_counter;
     ptr_group->new_fd_event= rli->get_rli_description_event();
     ret_worker->fd_change_notified= true;
   }

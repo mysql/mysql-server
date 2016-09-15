@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1704,7 +1704,7 @@ static inline uint  tmpkeyval(THD *thd, TABLE *table)
   creates one DROP TEMPORARY TABLE binlog event for each pseudo-thread.
 
   TODO: In future, we should have temporary_table= 0 and
-        slave_open_temp_tables.atomic_add() at one place instead of repeating
+        slave_open_temp_tables.fetch_add() at one place instead of repeating
         it all across the function. An alternative would be to use
         close_temporary_table() instead of close_temporary() that maintains
         the correct invariant regarding empty list of temporary tables
@@ -1755,8 +1755,8 @@ bool close_temporary_tables(THD *thd)
 #ifdef HAVE_REPLICATION
     if (thd->slave_thread)
     {
-      slave_open_temp_tables.atomic_add(-slave_closed_temp_tables);
-      thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(-slave_closed_temp_tables);
+      atomic_slave_open_temp_tables -= slave_closed_temp_tables;
+      thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables -= slave_closed_temp_tables;
     }
 #endif
 
@@ -1982,8 +1982,8 @@ bool close_temporary_tables(THD *thd)
 #ifdef HAVE_REPLICATION
   if (thd->slave_thread)
   {
-    slave_open_temp_tables.atomic_add(-slave_closed_temp_tables);
-    thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(-slave_closed_temp_tables);
+    atomic_slave_open_temp_tables -= slave_closed_temp_tables;
+    thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables -= slave_closed_temp_tables;
   }
 #endif
 
@@ -2393,9 +2393,10 @@ void close_temporary_table(THD *thd, TABLE *table,
   if (thd->slave_thread)
   {
     /* natural invariant of temporary_tables */
-    DBUG_ASSERT(thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_get() || !thd->temporary_tables);
-    slave_open_temp_tables.atomic_add(-1);
-    thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(-1);
+    DBUG_ASSERT(thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables ||
+                !thd->temporary_tables);
+    --atomic_slave_open_temp_tables;
+    --thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables;
   }
 #endif
   close_temporary(thd, table, free_share, delete_table);
@@ -7117,8 +7118,8 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 #ifdef HAVE_REPLICATION
     if (thd->slave_thread)
     {
-      slave_open_temp_tables.atomic_add(1);
-      thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(1);
+      ++atomic_slave_open_temp_tables;
+      ++thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables;
     }
 #endif
   }

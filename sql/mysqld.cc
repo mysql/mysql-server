@@ -385,12 +385,13 @@
 #include "nt_servc.h"
 #endif
 
-#include <vector>
 #include <algorithm>
+#include <atomic>
 #include <functional>
 #include <list>
 #include <set>
 #include <string>
+#include <vector>
 
 #include <fenv.h>
 #include <signal.h>
@@ -759,7 +760,7 @@ ulong table_def_size;
 ulong tablespace_def_size;
 ulong what_to_log;
 ulong slow_launch_time;
-Atomic_int32 slave_open_temp_tables;
+std::atomic<int32> atomic_slave_open_temp_tables{0};
 ulong open_files_limit, max_binlog_size, max_relay_log_size;
 ulong slave_trans_retries;
 uint  slave_net_timeout;
@@ -7307,7 +7308,7 @@ static int show_slave_open_temp_tables(THD *thd, SHOW_VAR *var, char *buf)
 {
   var->type= SHOW_INT;
   var->value= buf;
-  *((int *) buf)= slave_open_temp_tables.atomic_get();
+  *((int *) buf)= atomic_slave_open_temp_tables;
   return 0;
 }
 
@@ -7637,7 +7638,7 @@ static int mysql_init_variables(void)
   cleanup_done= 0;
   server_id_supplied= false;
   test_flags= select_errors= dropping_tables= ha_open_options=0;
-  slave_open_temp_tables.atomic_set(0);
+  atomic_slave_open_temp_tables= 0;
   opt_endinfo= using_udf_functions= 0;
   opt_using_transactions= 0;
   set_connection_events_loop_aborted(false);

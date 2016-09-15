@@ -5860,7 +5860,7 @@ err:
                         mi->get_for_channel_str(), mi->get_io_rpl_log_name(),
                         llstr(mi->get_master_log_pos(), llbuff));
   /* At this point the I/O thread will not try to reconnect anymore. */
-  mi->is_stopping.atomic_set(1);
+  mi->atomic_is_stopping= true;
   (void) RUN_HOOK(binlog_relay_io, thread_stop, (thd, mi));
   /*
     Pause the IO thread and wait for 'continue_to_stop_io_thread'
@@ -5914,7 +5914,7 @@ err:
 
   mi->abort_slave= 0;
   mi->slave_running= 0;
-  mi->is_stopping.atomic_set(0);
+  mi->atomic_is_stopping= false;
   mysql_mutex_lock(&mi->info_thd_lock);
   mi->info_thd= NULL;
   mysql_mutex_unlock(&mi->info_thd_lock);
@@ -7384,7 +7384,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
 
  err:
   /* At this point the SQL thread will not try to work anymore. */
-  rli->is_stopping.atomic_set(1);
+  rli->atomic_is_stopping= true;
   (void) RUN_HOOK(binlog_relay_io, applier_stop,
                   (thd, rli->mi,
                    rli->is_error() || !rli->sql_thread_kill_accepted));
@@ -7430,7 +7430,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   DBUG_ASSERT(rli->slave_running == 1); // tracking buffer overrun
   /* When master_pos_wait() wakes up it will check this and terminate */
   rli->slave_running= 0;
-  rli->is_stopping.atomic_set(0);
+  rli->atomic_is_stopping= false;
   /* Forget the relay log's format */
   rli->set_rli_description_event(NULL);
   /* Wake up master_pos_wait() */
@@ -9823,7 +9823,7 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report, bool for_one_channel,
     See WL#7441 regarding this command.
   */
 
-  if (mi->rli->channel_open_temp_tables.atomic_get() &&
+  if (mi->rli->atomic_channel_open_temp_tables &&
       *push_temp_tables_warning)
   {
     push_warning(thd, Sql_condition::SL_WARNING,
@@ -10708,7 +10708,7 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
   */
   if ((lex_mi->host || lex_mi->port || lex_mi->log_file_name || lex_mi->pos ||
        lex_mi->relay_log_name || lex_mi->relay_log_pos) &&
-      (mi->rli->channel_open_temp_tables.atomic_get() > 0))
+      (mi->rli->atomic_channel_open_temp_tables > 0))
     push_warning(thd, Sql_condition::SL_WARNING,
                  ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO,
                  ER_THD(thd, ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO));

@@ -23,8 +23,9 @@
 #include "mysql_com.h"                 // Item_result
 #include "binlog_event.h"              // enum_binlog_checksum_alg
 #include "tc_log.h"                    // TC_LOG
-#include "atomic_class.h"
 #include "rpl_gtid.h"                  // Gtid_set, Sid_map
+
+#include <atomic>
 
 class Relay_log_info;
 class Master_info;
@@ -457,7 +458,7 @@ class MYSQL_BIN_LOG: public TC_LOG
   uint sync_counter;
 
   mysql_cond_t m_prep_xids_cond;
-  Atomic_int32 m_prep_xids;
+  std::atomic<int32> m_atomic_prep_xids{0};
 
   /**
     Increment the prepared XID counter.
@@ -472,8 +473,7 @@ class MYSQL_BIN_LOG: public TC_LOG
   void dec_prep_xids(THD *thd);
 
   int32 get_prep_xids() {
-    int32 result= m_prep_xids.atomic_get();
-    return result;
+    return m_atomic_prep_xids;
   }
 
   inline uint get_sync_period()
@@ -505,7 +505,7 @@ class MYSQL_BIN_LOG: public TC_LOG
 public:
   const char *generate_name(const char *log_name, const char *suffix,
                             char *buff);
-  bool is_open() { return log_state.atomic_get() != LOG_CLOSED; }
+  bool is_open() { return atomic_log_state != LOG_CLOSED; }
 
   /* This is relay log */
   bool is_relay_log;
@@ -692,7 +692,7 @@ public:
   */
   int gtid_end_transaction(THD *thd);
 private:
-  Atomic_int32 log_state; /* atomic enum_log_state */
+  std::atomic<enum_log_state> atomic_log_state{LOG_CLOSED};
 
   /* The previous gtid set in relay log. */
   Gtid_set* previous_gtid_set_relaylog;

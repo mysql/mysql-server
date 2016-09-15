@@ -621,7 +621,7 @@ void Master_info::wait_until_no_reference(THD *thd)
   thd->enter_stage(&stage_waiting_for_no_channel_reference,
                    old_stage, __func__, __FILE__, __LINE__);
 
-  while (references.atomic_get() != 0)
+  while (atomic_references != 0)
     my_sleep(10000);
 
   THD_STAGE_INFO(thd, *old_stage);

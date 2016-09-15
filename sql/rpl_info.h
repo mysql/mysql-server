@@ -20,8 +20,8 @@
 #include "mysql_com.h"            // NAME_LEN
 #include "rpl_info_handler.h"     // Rpl_info_handler
 #include "rpl_reporting.h"        // Slave_reporting_capability
-#include "atomic_class.h"         // Atomic_int32
 
+#include <atomic>
 
 #define  CHANNEL_NAME_LENGTH NAME_LEN
 
@@ -203,6 +203,6 @@ private:
 
 public:
   /* True when the thread is still running, but started the stop procedure */
-  Atomic_int32 is_stopping;
+  std::atomic<bool> atomic_is_stopping{false};
 };
 #endif /* RPL_INFO_H */

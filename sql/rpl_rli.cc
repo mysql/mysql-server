@@ -148,7 +148,6 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   memset(&cache_buf, 0, sizeof(cache_buf));
   cached_charset_invalidate();
   inited_hash_workers= FALSE;
-  channel_open_temp_tables.atomic_set(0);
   /*
     For applier threads, currently_executing_gtid is set to automatic
     when they are not executing any transaction.
@@ -1154,8 +1153,8 @@ void Relay_log_info::close_temporary_tables()
     num_closed_temp_tables++;
   }
   save_temporary_tables= 0;
-  slave_open_temp_tables.atomic_add(-num_closed_temp_tables);
-  channel_open_temp_tables.atomic_add(-num_closed_temp_tables);
+  atomic_slave_open_temp_tables -= num_closed_temp_tables;
+  atomic_channel_open_temp_tables -= num_closed_temp_tables;
   DBUG_VOID_RETURN;
 }
 
@@ -2343,7 +2342,7 @@ void Relay_log_info::set_rli_description_event(Format_description_log_event *fe)
     }
   }
   if (rli_description_event &&
-      rli_description_event->usage_counter.atomic_add(-1) == 1)
+      --rli_description_event->atomic_usage_counter == 0)
     delete rli_description_event;
 #ifndef DBUG_OFF
   else
@@ -2352,7 +2351,7 @@ void Relay_log_info::set_rli_description_event(Format_description_log_event *fe)
 #endif
   rli_description_event= fe;
   if (rli_description_event)
-    rli_description_event->usage_counter.atomic_add(1);
+    ++rli_description_event->atomic_usage_counter;
 
   DBUG_VOID_RETURN;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -405,10 +405,10 @@ int Gtid_table_persistor::save(THD *thd, const Gtid *gtid)
 end:
   table_access_ctx.deinit(thd, table, 0 != error, false);
 
-  /* Do not protect m_count for improving transactions' concurrency */
+  /* Do not protect m_atomic_count for improving transactions' concurrency */
   if (error == 0 && gtid_executed_compression_period != 0)
   {
-    uint32 count= (uint32)m_count.atomic_add(1);
+    uint32 count= (uint32)m_atomic_count++;
     if (count == gtid_executed_compression_period ||
         DBUG_EVALUATE_IF("compress_gtid_table", 1, 0))
     {
@@ -546,7 +546,7 @@ int Gtid_table_persistor::compress(THD *thd)
   while (!is_complete && !error)
     error= compress_in_single_transaction(thd, is_complete);
 
-  m_count.atomic_set(0);
+  m_atomic_count= 0;
 
   DBUG_EXECUTE_IF("compress_gtid_table",
                   {

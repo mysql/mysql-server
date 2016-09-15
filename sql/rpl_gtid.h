@@ -25,10 +25,11 @@
 #include "prealloced_array.h"   // Prealloced_array
 #include "control_events.h"     // binary_log::Uuid
 #include <list>
-#include "atomic_class.h"
 #include "typelib.h"
 #include "mysql/psi/mysql_rwlock.h" // mysql_rwlock_t
 #include "template_utils.h"
+
+#include <atomic>
 
 struct TABLE_LIST;
 
@@ -2494,11 +2495,11 @@ public:
     sid_lock->assert_some_lock();
     DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_ON);
 #ifndef DBUG_OFF
-    int32 old_value=
+    int32 new_value=
 #endif
-      anonymous_gtid_count.atomic_add(1);
-    DBUG_PRINT("info", ("anonymous_gtid_count increased to %d", old_value + 1));
-    DBUG_ASSERT(old_value >= 0);
+      ++atomic_anonymous_gtid_count;
+    DBUG_PRINT("info", ("atomic_anonymous_gtid_count increased to %d", new_value));
+    DBUG_ASSERT(new_value >= 1);
     DBUG_VOID_RETURN;
   }
 
@@ -2509,18 +2510,18 @@ public:
     sid_lock->assert_some_lock();
     DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_ON);
 #ifndef DBUG_OFF
-    int32 old_value=
+    int32 new_value=
 #endif
-      anonymous_gtid_count.atomic_add(-1);
-    DBUG_PRINT("info", ("anonymous_gtid_count decreased to %d", old_value - 1));
-    DBUG_ASSERT(old_value >= 1);
+      --atomic_anonymous_gtid_count;
+    DBUG_PRINT("info", ("atomic_anonymous_gtid_count decreased to %d", new_value));
+    DBUG_ASSERT(new_value >= 0);
     DBUG_VOID_RETURN;
   }
 
   /// Return the number of clients that hold anonymous ownership.
   int32 get_anonymous_ownership_count()
   {
-    return anonymous_gtid_count.atomic_get();
+    return atomic_anonymous_gtid_count;
   }
 
   /**
@@ -2533,11 +2534,11 @@ public:
     DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) <= GTID_MODE_OFF_PERMISSIVE);
     DBUG_ASSERT(get_gtid_consistency_mode() != GTID_CONSISTENCY_MODE_ON);
 #ifndef DBUG_OFF
-    int32 old_value=
+    int32 new_value=
 #endif
-      automatic_gtid_violation_count.atomic_add(1);
-    DBUG_PRINT("info", ("ongoing_automatic_gtid_violating_transaction_count increased to %d", old_value + 1));
-    DBUG_ASSERT(old_value >= 0);
+      ++atomic_automatic_gtid_violation_count;
+    DBUG_PRINT("info", ("ongoing_automatic_gtid_violating_transaction_count increased to %d", new_value));
+    DBUG_ASSERT(new_value >= 1);
     DBUG_VOID_RETURN;
   }
 
@@ -2553,11 +2554,11 @@ public:
     DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) <= GTID_MODE_OFF_PERMISSIVE);
     DBUG_ASSERT(get_gtid_consistency_mode() != GTID_CONSISTENCY_MODE_ON);
     global_sid_lock->unlock();
-    int32 old_value=
+    int32 new_value=
 #endif
-      automatic_gtid_violation_count.atomic_add(-1);
-    DBUG_PRINT("info", ("ongoing_automatic_gtid_violating_transaction_count decreased to %d", old_value - 1));
-    DBUG_ASSERT(old_value >= 1);
+      --atomic_automatic_gtid_violation_count;
+    DBUG_PRINT("info", ("ongoing_automatic_gtid_violating_transaction_count decreased to %d", new_value));
+    DBUG_ASSERT(new_value >= 0);
     DBUG_VOID_RETURN;
   }
 
@@ -2567,7 +2568,7 @@ public:
   */
   int32 get_automatic_gtid_violating_transaction_count()
   {
-    return automatic_gtid_violation_count.atomic_get();
+    return atomic_automatic_gtid_violation_count;
   }
 
   /**
@@ -2580,11 +2581,11 @@ public:
     DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_ON);
     DBUG_ASSERT(get_gtid_consistency_mode() != GTID_CONSISTENCY_MODE_ON);
 #ifndef DBUG_OFF
-    int32 old_value=
+    int32 new_value=
 #endif
-      anonymous_gtid_violation_count.atomic_add(1);
-    DBUG_PRINT("info", ("ongoing_anonymous_gtid_violating_transaction_count increased to %d", old_value + 1));
-    DBUG_ASSERT(old_value >= 0);
+      ++atomic_anonymous_gtid_violation_count;
+    DBUG_PRINT("info", ("atomic_anonymous_gtid_violation_count increased to %d", new_value));
+    DBUG_ASSERT(new_value >= 1);
     DBUG_VOID_RETURN;
   }
 
@@ -2600,11 +2601,11 @@ public:
     DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_ON);
     DBUG_ASSERT(get_gtid_consistency_mode() != GTID_CONSISTENCY_MODE_ON);
     global_sid_lock->unlock();
-    int32 old_value=
+    int32 new_value=
 #endif
-      anonymous_gtid_violation_count.atomic_add(-1);
-    DBUG_PRINT("info", ("ongoing_anonymous_gtid_violating_transaction_count decreased to %d", old_value - 1));
-    DBUG_ASSERT(old_value >= 1);
+      --atomic_anonymous_gtid_violation_count;
+    DBUG_PRINT("info", ("ongoing_anonymous_gtid_violating_transaction_count decreased to %d", new_value));
+    DBUG_ASSERT(new_value >= 0);
     DBUG_VOID_RETURN;
   }
 
@@ -2616,7 +2617,7 @@ public:
   */
   int32 get_anonymous_gtid_violating_transaction_count()
   {
-    return anonymous_gtid_violation_count.atomic_get();
+    return atomic_anonymous_gtid_violation_count;
   }
 
   /**
@@ -2628,13 +2629,13 @@ public:
     DBUG_ENTER("Gtid_state::begin_gtid_wait");
     DBUG_ASSERT(get_gtid_mode(gtid_mode_lock) != GTID_MODE_OFF);
 #ifndef DBUG_OFF
-    int32 old_value=
+    int32 new_value=
 #endif
-      gtid_wait_count.atomic_add(1);
+      ++atomic_gtid_wait_count;
     DBUG_PRINT("info",
-               ("gtid_wait_count changed from %d to %d",
-                old_value, old_value + 1));
-    DBUG_ASSERT(old_value >= 0);
+               ("atomic_gtid_wait_count changed from %d to %d",
+                new_value - 1, new_value));
+    DBUG_ASSERT(new_value >= 1);
     DBUG_VOID_RETURN;
   }
 
@@ -2647,13 +2648,13 @@ public:
     DBUG_ENTER("Gtid_state::end_gtid_wait");
     DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_NONE) != GTID_MODE_OFF);
 #ifndef DBUG_OFF
-    int32 old_value=
+    int32 new_value=
 #endif
-      gtid_wait_count.atomic_add(-1);
+      --atomic_gtid_wait_count;
     DBUG_PRINT("info",
-               ("gtid_wait_count changed from %d to %d",
-                old_value, old_value - 1));
-    DBUG_ASSERT(old_value >= 1);
+               ("atomic_gtid_wait_count changed from %d to %d",
+                new_value + 1, new_value));
+    DBUG_ASSERT(new_value >= 0);
     DBUG_VOID_RETURN;
   }
 
@@ -2663,7 +2664,7 @@ public:
   */
   int32 get_gtid_wait_count()
   {
-    return gtid_wait_count.atomic_get();
+    return atomic_gtid_wait_count;
   }
 
 #endif // ifndef MYSQL_CLIENT
@@ -3021,14 +3022,14 @@ private:
   rpl_sidno server_sidno;
 
   /// The number of anonymous transactions owned by any client.
-  Atomic_int32 anonymous_gtid_count;
+  std::atomic<int32> atomic_anonymous_gtid_count{0};
   /// The number of GTID-violating transactions that use GTID_NEXT=AUTOMATIC.
-  Atomic_int32 automatic_gtid_violation_count;
+  std::atomic<int32> atomic_automatic_gtid_violation_count{0};
   /// The number of GTID-violating transactions that use GTID_NEXT=AUTOMATIC.
-  Atomic_int32 anonymous_gtid_violation_count;
+  std::atomic<int32> atomic_anonymous_gtid_violation_count{0};
   /// The number of clients that are executing
   /// WAIT_FOR_EXECUTED_GTID_SET or WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.
-  Atomic_int32 gtid_wait_count;
+  std::atomic<int32> atomic_gtid_wait_count{0};
 
   /// Used by unit tests that need to access private members.
 #ifdef FRIEND_OF_GTID_STATE

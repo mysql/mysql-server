@@ -24,7 +24,6 @@
 #include "my_thread.h"                     // my_thread_attr_t
 #include "my_thread_local.h"               // my_get_thread_local
 #include "sql_const.h"                     // UUID_LENGTH
-#include "atomic_class.h"                  /* Atomic_int32 */
 #include "mysql/psi/mysql_rwlock.h"        /* mysql_rwlock_t */
 #include "mysql/psi/psi_statement.h"       /* PSI_statement_info */
 
@@ -211,7 +210,7 @@ extern ulong binlog_stmt_cache_use, binlog_stmt_cache_disk_use;
 extern ulong aborted_threads;
 extern ulong delayed_insert_timeout;
 extern ulong delayed_insert_limit, delayed_queue_size;
-extern Atomic_int32 slave_open_temp_tables;
+extern std::atomic<int32> atomic_slave_open_temp_tables;
 extern ulong query_cache_size, query_cache_min_res_unit;
 extern ulong slow_launch_time;
 extern ulong table_cache_size;

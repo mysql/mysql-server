@@ -444,7 +444,7 @@ private:
   Checkable_rwlock *m_channel_lock;
 
   /* References of the channel, the channel can only be deleted when it is 0. */
-  Atomic_int32 references;
+  std::atomic<int32> atomic_references{0};
 public:
   /**
     Acquire the channel read lock.
@@ -475,17 +475,17 @@ public:
   { m_channel_lock->assert_some_wrlock(); }
 
   /**
-    Increase the references to prohibit deleting a channel. This function
-    must be protected by channel_map.rdlock(). dec_reference have to be
-    called with inc_reference() together.
+    Increase the reference count to prohibit deleting a channel. This function
+    must be protected by channel_map.rdlock(). dec_reference has to be
+    called in conjunction with inc_reference().
   */
-  void inc_reference() { references.atomic_add(1); }
+  void inc_reference() { ++atomic_references; }
 
   /**
-    Decrease the references. It doesn't need the protection of
+    Decrease the reference count. Doesn't need the protection of
     channel_map.rdlock.
   */
-  void dec_reference() { references.atomic_add(-1); }
+  void dec_reference() { --atomic_references; }
 
   /**
     It mush be called before deleting a channel and protected by

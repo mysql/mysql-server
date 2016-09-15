@@ -74,8 +74,6 @@ Rpl_info::Rpl_info(const char* type
   else
     /*create a default empty channel*/
     strmake(channel, "", sizeof(channel) -1);
-
-  is_stopping.atomic_set(0);
 }
 
 Rpl_info::~Rpl_info()

@@ -28,6 +28,7 @@
 #include "sql_class.h"         // THD
 #include "rpl_slave_until_options.h"
 
+#include <atomic>
 #include <string>
 #include <vector>
 
@@ -223,7 +224,7 @@ public:
   Master_info *mi;
 
   /* number of temporary tables open in this channel */
-  Atomic_int32 channel_open_temp_tables;
+  std::atomic<int32> atomic_channel_open_temp_tables{0};
 
   /*
     Needed to deal properly with cur_log getting closed and re-opened with

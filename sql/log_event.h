@@ -35,7 +35,6 @@
 #include "rpl_utility.h"             // Hash_slave_rows
 #include "query_options.h"           // OPTION_AUTO_IS_NULL
 #include "mysql_com.h"               // SERVER_VERSION_LENGTH
-#include "atomic_class.h"            // Atomic_int32
 #include "typelib.h"                 // TYPELIB
 #include "rpl_gtid.h"                // enum_group_type
 
@@ -51,6 +50,7 @@
 #include "sql_list.h"                // I_List
 #endif
 
+#include <atomic>
 #include <list>
 #include <map>
 #include <set>
@@ -1594,7 +1594,7 @@ public:
     Notice the counter is processed even in the single-thread mode where
     decrement and increment are done by the single SQL thread.
   */
-  Atomic_int32 usage_counter;
+  std::atomic<int32> atomic_usage_counter{0};
   Format_description_log_event(uint8_t binlog_ver, const char* server_ver=0);
   Format_description_log_event(const char* buf, uint event_len,
                                const Format_description_event
