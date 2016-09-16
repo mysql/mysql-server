@@ -7818,7 +7818,6 @@ Dbdict::execADD_FRAGREQ(Signal* signal)
 
   AddFragReq * const req = (AddFragReq*)signal->getDataPtr();
 
-  D("execADD_FRAGREQ");
   Uint32 dihPtr = req->dihPtr;
   Uint32 senderData = req->senderData;
   Uint32 tableId = req->tableId;
@@ -7831,6 +7830,7 @@ Dbdict::execADD_FRAGREQ(Signal* signal)
   Uint32 logPart = req->logPartId;
   Uint32 changeMask = req->changeMask;
   Uint32 partitionId = req->partitionId;
+  D("execADD_FRAGREQ(" << tableId << "), dihPtr = " << dihPtr);
 
   ndbrequire(node == getOwnNodeId());
 
@@ -7840,7 +7840,8 @@ Dbdict::execADD_FRAGREQ(Signal* signal)
   {
     bool ok = find_object(tabPtr, tableId);
     ndbrequire(ok);
-    if (DictTabInfo::isTable(tabPtr.p->tableType))
+    if (DictTabInfo::isTable(tabPtr.p->tableType) ||
+        DictTabInfo::isUniqueIndex(tabPtr.p->tableType))
     {
       jam();
       AlterTableRecPtr alterTabPtr;
@@ -7940,7 +7941,8 @@ Dbdict::execLQHFRAGCONF(Signal * signal)
     TableRecordPtr tabPtr;
     bool ok = find_object(tabPtr, tableId);
     ndbrequire(ok);
-    if (DictTabInfo::isTable(tabPtr.p->tableType))
+    if (DictTabInfo::isTable(tabPtr.p->tableType) ||
+        DictTabInfo::isUniqueIndex(tabPtr.p->tableType))
     {
       AlterTableRecPtr alterTabPtr;
       findSchemaOp(op_ptr, alterTabPtr, conf->senderData);
@@ -7995,7 +7997,8 @@ Dbdict::execLQHFRAGREF(Signal * signal)
     TableRecordPtr tabPtr;
     bool ok = find_object(tabPtr, tableId);
     ndbrequire(ok);
-    if (DictTabInfo::isTable(tabPtr.p->tableType))
+    if (DictTabInfo::isTable(tabPtr.p->tableType) ||
+        DictTabInfo::isUniqueIndex(tabPtr.p->tableType))
     {
       jam();
       AlterTableRecPtr alterTabPtr;
@@ -9574,6 +9577,13 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
     jam();
     return;
   }
+  if (AlterTableReq::getReadBackupFlag(impl_req->changeMask) &&
+      AlterTableReq::getAddFragFlag(impl_req->changeMask))
+  {
+    jam();
+    setError(error, AlterTableRef::UnsupportedChange, __LINE__);
+    return;
+  }
 
   // save it for abort code
 
@@ -9856,7 +9866,7 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
       if ((newTablePtr.p->m_bits & TableRecord::TR_FullyReplicated) == 0)
       {
         jam();
-        // Non fully replicate tables do not need to move any data.
+        // Non fully replicated tables do not need to move any data.
       }
       else
       {
@@ -10130,9 +10140,14 @@ Dbdict::alterTable_subOps(Signal* signal, SchemaOpPtr op_ptr)
   if (AlterTableReq::getAddFragFlag(impl_req->changeMask))
   {
     jam();
-    if (alterTabPtr.p->m_sub_add_frag == false)
+    if (alterTabPtr.p->m_sub_add_ordered_index_frag == false)
     {
       jam();
+      /**
+       * We need to start with ordered indexes since they depend
+       * on being the first to add to get the base operation's
+       * ::FRAGMENTATION signal handle.
+       */
       TableRecordPtr tabPtr;
       TableRecordPtr indexPtr;
       bool ok = find_object(tabPtr, impl_req->tableId);
@@ -10151,7 +10166,6 @@ Dbdict::alterTable_subOps(Signal* signal, SchemaOpPtr op_ptr)
         list.getPtr(indexPtr, ptrI);
         list.next(indexPtr);
       }
-
       for (; !indexPtr.isNull(); list.next(indexPtr))
       {
         if (DictTabInfo::isOrderedIndex(indexPtr.p->tableType))
@@ -10163,10 +10177,12 @@ Dbdict::alterTable_subOps(Signal* signal, SchemaOpPtr op_ptr)
       if (indexPtr.isNull())
       {
         jam();
-        alterTabPtr.p->m_sub_add_frag = true;
+        alterTabPtr.p->m_sub_add_ordered_index_frag = true;
+        alterTabPtr.p->m_sub_add_frag_index_ptr = RNIL;
       }
       else
       {
+        ndbrequire(DictTabInfo::isOrderedIndex(indexPtr.p->tableType));
         jam();
         Callback c = {
           safe_cast(&Dbdict::alterTable_fromAlterIndex),
@@ -10175,7 +10191,60 @@ Dbdict::alterTable_subOps(Signal* signal, SchemaOpPtr op_ptr)
         op_ptr.p->m_callback = c;
 
         alterTabPtr.p->m_sub_add_frag_index_ptr = indexPtr.i;
-        alterTable_toAlterIndex(signal, op_ptr);
+        alterTable_toAlterOrderedIndex(signal, op_ptr);
+        return true;
+      }
+    }
+    if (alterTabPtr.p->m_sub_add_unique_index_frag == false)
+    {
+      TableRecordPtr newTablePtr;
+      TableRecordPtr tabPtr;
+      TableRecordPtr indexPtr;
+
+      newTablePtr.i = alterTabPtr.p->m_newTablePtrI;
+      c_tableRecordPool_.getPtr(newTablePtr);
+      bool ok = find_object(tabPtr, impl_req->tableId);
+      ndbrequire(ok);
+      LocalTableRecord_list list(c_tableRecordPool_, tabPtr.p->m_indexes);
+      Uint32 ptrI = alterTabPtr.p->m_sub_add_frag_index_ptr;
+
+      if (ptrI == RNIL)
+      {
+        jam();
+        list.first(indexPtr);
+      }
+      else
+      {
+        jam();
+        list.getPtr(indexPtr, ptrI);
+        list.next(indexPtr);
+      }
+      for (; !indexPtr.isNull(); list.next(indexPtr))
+      {
+        if (DictTabInfo::isUniqueIndex(indexPtr.p->tableType))
+        {
+          jam();
+          break;
+        }
+      }
+      if (indexPtr.isNull())
+      {
+        jam();
+        alterTabPtr.p->m_sub_add_unique_index_frag = true;
+        alterTabPtr.p->m_sub_add_frag_index_ptr = RNIL;
+      }
+      else
+      {
+        ndbrequire(DictTabInfo::isUniqueIndex(indexPtr.p->tableType));
+        jam();
+        Callback c = {
+          safe_cast(&Dbdict::alterTable_fromAlterIndex),
+          op_ptr.p->op_key
+        };
+        op_ptr.p->m_callback = c;
+
+        alterTabPtr.p->m_sub_add_frag_index_ptr = indexPtr.i;
+        alterTable_toAlterUniqueIndex(signal, op_ptr, indexPtr, newTablePtr);
         return true;
       }
     }
@@ -10337,14 +10406,14 @@ Dbdict::alterTable_subOps(Signal* signal, SchemaOpPtr op_ptr)
 }
 
 void
-Dbdict::alterTable_toAlterIndex(Signal* signal,
-                                SchemaOpPtr op_ptr)
+Dbdict::alterTable_toAlterOrderedIndex(Signal* signal,
+                                       SchemaOpPtr op_ptr)
 {
   jam();
   AlterTableRecPtr alterTabPtr;
   getOpRec(op_ptr, alterTabPtr);
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
-  D("alterTable_toAlterIndex");
+  D("alterTable_toAlterOrderedIndex");
 
   TableRecordPtr indexPtr;
   c_tableRecordPool_.getPtr(indexPtr, alterTabPtr.p->m_sub_add_frag_index_ptr);
@@ -10469,6 +10538,154 @@ Dbdict::alterTable_toReadBackup(Signal* signal,
   req->tableVersion = indexPtr.p->tableVersion;
   req->changeMask = 0;
   AlterTableReq::setReadBackupFlag(req->changeMask, 1);
+
+  LinearSectionPtr lsPtr[3];
+  lsPtr[0].p = wbuffer;
+  lsPtr[0].sz = w.getWordsUsed();
+
+  sendSignal(reference(), GSN_ALTER_TABLE_REQ, signal,
+             AlterTableReq::SignalLength, JBB, lsPtr, 1);
+}
+
+void
+Dbdict::alterTable_toAlterUniqueIndex(Signal* signal,
+                                      SchemaOpPtr op_ptr,
+                                      TableRecordPtr indexPtr,
+                                      TableRecordPtr tablePtr)
+{
+  jam();
+  /**
+   * The base table is being reorganised, we also need to reorganise
+   * the unique indexes being part of this table. This reorganise
+   * can only reorganise the partitions of the unique index.
+   * We have the following options:
+   *
+   * 1) Base table reorganises to use a new PartitionBalance setting.
+   *    This is only allowed for settings that increase the number
+   *    partitions in the table. The unique index table will be
+   *    reorganised in the same fashion as the base table. This also
+   *    implies that the hashmap is changed.
+   *
+   * 2) Base table reorganises to use a specific number of partitions.
+   *    This is also only allowed for settings that increase the number
+   *    of partitions in the table. The unique index will perform the
+   *    same change, this also implies changing the hashmap.
+   *
+   * 3) Base table is being reorganised to fit into a set of new
+   *    node groups. This implies changing the hashmap for normal
+   *    tables. For fully replicated no change of hashmap is
+   *    performed.
+   *
+   * It is possible to combine 1) and 3) for normal tables, but not
+   * for fully replicated tables.
+   */
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  D("alterTable_toAlterUniqueIndex");
+
+  // signal data writer
+  Uint32* wbuffer = &c_indexPage.word[0];
+  LinearWriter w(wbuffer, sizeof(c_indexPage) >> 2);
+  w.first();
+
+  w.add(DictTabInfo::TableId, indexPtr.p->tableId);
+  {
+    LocalRope name(c_rope_pool, indexPtr.p->tableName);
+    char tableName[MAX_TAB_NAME_SIZE];
+    name.copy(tableName);
+    w.add(DictTabInfo::TableName, tableName);
+  }
+  {
+    bool flag = indexPtr.p->m_bits & TableRecord::TR_Logged;
+    w.add(DictTabInfo::TableLoggedFlag, (Uint32)flag);
+  }
+  {
+    bool flag = indexPtr.p->m_bits & TableRecord::TR_Temporary;
+    w.add(DictTabInfo::TableTemporaryFlag, (Uint32)flag);
+  }
+  {
+    bool flag = indexPtr.p->m_bits & TableRecord::TR_ReadBackup;
+    w.add(DictTabInfo::ReadBackupFlag, (Uint32)flag);
+  }
+  {
+    bool flag = indexPtr.p->m_bits & TableRecord::TR_FullyReplicated;
+    w.add(DictTabInfo::FullyReplicatedFlag, (Uint32)flag);
+  }
+  /**
+   * The unique index table will always inherit fragmentCount,
+   * partitionCount, partitionBalance, hashMapObjectId and
+   * hashMapVersion from base table also when reorganising the
+   * table.
+   */
+  w.add(DictTabInfo::FragmentTypeVal, indexPtr.p->fragmentType);
+  w.add(DictTabInfo::FragmentCount, tablePtr.p->fragmentCount);
+  w.add(DictTabInfo::PartitionCount, tablePtr.p->partitionCount);
+  w.add(DictTabInfo::PartitionBalance, tablePtr.p->partitionBalance);
+  w.add(DictTabInfo::HashMapObjectId, tablePtr.p->hashMapObjectId);
+  w.add(DictTabInfo::HashMapVersion, tablePtr.p->hashMapVersion);
+
+  D("fragCount: " << tablePtr.p->fragmentCount 
+    << " partCount: " << tablePtr.p->partitionCount
+    << " partBal: " << getPartitionBalanceString(tablePtr.p->partitionBalance)
+    << " hashMapObjectId: " << tablePtr.p->hashMapObjectId);
+
+  w.add(DictTabInfo::TableTypeVal, indexPtr.p->tableType);
+  {
+    LocalRope name(c_rope_pool, tablePtr.p->tableName);
+    char tableName[MAX_TAB_NAME_SIZE];
+    name.copy(tableName);
+    w.add(DictTabInfo::PrimaryTable, tableName);
+  }
+  w.add(DictTabInfo::PrimaryTableId, tablePtr.p->tableId);
+  w.add(DictTabInfo::NoOfAttributes, indexPtr.p->noOfAttributes);
+  w.add(DictTabInfo::NoOfKeyAttr, indexPtr.p->noOfPrimkey);
+  w.add(DictTabInfo::NoOfNullable, indexPtr.p->noOfNullAttr);
+  w.add(DictTabInfo::KeyLength, indexPtr.p->tupKeyLength);
+  w.add(DictTabInfo::SingleUserMode, (Uint32)NDB_SUM_READ_WRITE);
+
+  // write index key attributes
+  {
+    AttributeRecordPtr attrPtr;
+    LocalAttributeRecord_list list(c_attributeRecordPool,
+                                   indexPtr.p->m_attributes);
+    for (list.first(attrPtr); !attrPtr.isNull(); list.next(attrPtr))
+    {
+      jam();
+      {
+        LocalRope attrName(c_rope_pool, attrPtr.p->attributeName);
+        char attributeName[MAX_ATTR_NAME_SIZE];
+        attrName.copy(attributeName);
+        w.add(DictTabInfo::AttributeName, attributeName);
+      }
+
+      const Uint32 attrDesc = attrPtr.p->attributeDescriptor;
+      const bool isNullable = AttributeDescriptor::getNullable(attrDesc);
+      const Uint32 arrayType = AttributeDescriptor::getArrayType(attrDesc);
+      const Uint32 attrType = AttributeDescriptor::getType(attrDesc);
+
+      w.add(DictTabInfo::AttributeId, attrPtr.p->attributeId);
+      w.add(DictTabInfo::AttributeNullableFlag, (Uint32)isNullable);
+      w.add(DictTabInfo::AttributeKeyFlag, attrPtr.p->tupleKey > 0);
+      w.add(DictTabInfo::AttributeArrayType, arrayType);
+      w.add(DictTabInfo::AttributeExtType, attrType);
+      w.add(DictTabInfo::AttributeExtPrecision, attrPtr.p->extPrecision);
+      w.add(DictTabInfo::AttributeExtScale, attrPtr.p->extScale);
+      w.add(DictTabInfo::AttributeExtLength, attrPtr.p->extLength);
+      w.add(DictTabInfo::AttributeEnd, (Uint32)true);
+    }
+  }
+  // finish
+  w.add(DictTabInfo::TableEnd, (Uint32)true);
+
+  AlterTableReq* req = (AlterTableReq*)signal->getDataPtrSend();
+  req->clientRef = reference();
+  req->clientData = op_ptr.p->op_key;
+  req->transId = trans_ptr.p->m_transId;
+  req->transKey = trans_ptr.p->trans_key;
+  req->requestInfo = 0;
+  req->tableId = indexPtr.p->tableId;
+  req->tableVersion = indexPtr.p->tableVersion;
+  req->changeMask = 0;
+  AlterTableReq::setAddFragFlag(req->changeMask, 1);
 
   LinearSectionPtr lsPtr[3];
   lsPtr[0].p = wbuffer;
@@ -10787,9 +11004,25 @@ Dbdict::alterTable_prepare(Signal* signal, SchemaOpPtr op_ptr)
   {
     jam();
 
-    D("alterTable_prepare (SubOp)" << *op_ptr.p);
+    D("alterTable_prepare(" << op_ptr.i << ") (SubOp)" << *op_ptr.p);
     /**
      * Get DIH connectPtr for future commit
+     *
+     * We need to get it from the base operation for this sub operation.
+     * This base operation might in itself also be a sub operation of
+     * an operation on a base table. This is the case when we reorg a
+     * table and we are here preparing the reorg sub operations on the
+     * unique index.
+     *
+     * We search for an ALTER TABLE operation which is also on the same
+     * table, which is not a sub operation itself. We only allow for one
+     * "real" operation per table per metadata transaction. There are
+     * a number of things preventing more than this, the below part is
+     * one of them.
+     *
+     * It would be easier to have a reference to base operation from
+     * the operation itself, we have this in the master node, but not in
+     * the client nodes.
      */
     {
       SchemaOpPtr tmp = op_ptr;
@@ -10797,10 +11030,22 @@ Dbdict::alterTable_prepare(Signal* signal, SchemaOpPtr op_ptr)
       for (list.prev(tmp); !tmp.isNull(); list.prev(tmp))
       {
         jam();
-        if (&tmp.p->m_oprec_ptr.p->m_opInfo== &Dbdict::AlterTableRec::g_opInfo)
+        if ((&tmp.p->m_oprec_ptr.p->m_opInfo ==
+             &Dbdict::AlterTableRec::g_opInfo))
         {
           jam();
-          break;
+          AlterTableRecPtr alterTabPtr;
+          getOpRec(tmp, alterTabPtr);
+          AlterTabReq *base_impl_req = &alterTabPtr.p->m_request;
+          if (!AlterTableReq::getSubOp(base_impl_req->changeMask))
+          {
+            jam();
+            if (impl_req->tableId == base_impl_req->tableId)
+            {
+              jam();
+              break;
+            }
+          }
         }
       }
       ndbrequire(!tmp.isNull());
@@ -11029,6 +11274,7 @@ Dbdict::alterTable_fromLocal(Signal* signal,
   case DBDIH:
     jam();
     alterTabPtr.p->m_dihAddFragPtr = conf->connectPtr;
+    D("dihPtr = " << conf->connectPtr);
     break;
   }
 
@@ -11241,7 +11487,7 @@ Dbdict::alterTable_toCommitComplete(Signal* signal,
                                     SchemaOpPtr op_ptr,
                                     Uint32 type)
 {
-  D("alterTable_toCommitComplete");
+  D("alterTable_toCommitComplete(" << op_ptr.i << ")");
 
   AlterTableRecPtr alterTabPtr;
   getOpRec(op_ptr, alterTabPtr);
@@ -28991,7 +29237,7 @@ Dbdict::seizeSchemaOp(SchemaTransPtr trans_ptr, SchemaOpPtr& op_ptr, Uint32 op_k
         }
 
         c_schemaOpHash.add(op_ptr);
-        D("seizeSchemaOp" << V(op_key) << V(info.m_opType));
+        D("seizeSchemaOp(" << op_ptr.i << ")" << V(op_key) << V(info.m_opType));
         return true;
       }
       c_schemaOpPool.release(op_ptr);
@@ -29794,6 +30040,11 @@ Dbdict::handleClientReq(Signal* signal, SchemaOpPtr op_ptr,
     SchemaOpPtr baseOp;
     c_schemaOpPool.getPtr(baseOp, trans_ptr.p->m_curr_op_ptr_i);
     op_ptr.p->m_base_op_ptr_i = baseOp.i;
+    D("m_base_op_ptr_i = " << baseOp.i << *baseOp.p);
+  }
+  else
+  {
+    D("m_base_op_ptr_i not set");
   }
 
   trans_ptr.p->m_curr_op_ptr_i = op_ptr.i;
