@@ -55,7 +55,6 @@ Client::Client(Connection_ptr connection,
 : m_client_id(client_id),
   m_server(server),
   m_connection(connection),
-  m_encoder(NULL),
   m_client_addr("n/c"),
   m_client_port(0),
   m_state(Client_invalid),
@@ -123,8 +122,8 @@ Capabilities_configurator *Client::capabilities_configurator()
 {
   std::vector<Capability_handler_ptr> handlers;
 
-  handlers.push_back(ngs::allocate_shared<Capability_tls>(boost::ref(*this)));
-  handlers.push_back(ngs::allocate_shared<Capability_auth_mech>(boost::ref(*this)));
+  handlers.push_back(ngs::allocate_shared<Capability_tls>(ngs::ref(*this)));
+  handlers.push_back(ngs::allocate_shared<Capability_auth_mech>(ngs::ref(*this)));
 
   handlers.push_back(ngs::allocate_shared<Capability_readonly_value>("doc.formats", "text"));
 
@@ -188,7 +187,7 @@ void Client::handle_message(Request &request)
       {
         log_debug("%s: Authenticating client...", client_id());
 
-        boost::shared_ptr<Session_interface> s(session());
+        ngs::shared_ptr<Session_interface> s(session());
         // start redirecting incoming messages directly to the session
         if (s)
         {
@@ -239,7 +238,7 @@ void Client::on_network_error(int error)
     // trigger all sessions to close and stop whatever they're doing
     log_debug("%s: killing session", client_id());
     if (Session_interface::Closing != m_session->state())
-      server().get_worker_scheduler()->post_and_wait(boost::bind(&Client::on_kill, this, boost::ref(*m_session)));
+      server().get_worker_scheduler()->post_and_wait(ngs::bind(&Client::on_kill, this, ngs::ref(*m_session)));
   }
 }
 
@@ -306,12 +305,12 @@ void Client::on_accept()
   // it can be accessed directly (no other thread access thus object)
   m_state = Client_accepted;
 
-  m_encoder.reset(ngs::allocate_object<Protocol_encoder>(m_connection, boost::bind(&Client::on_network_error, this, _1), boost::ref(m_protocol_monitor)));
+  m_encoder.reset(ngs::allocate_object<Protocol_encoder>(m_connection, ngs::bind(&Client::on_network_error, this, ngs::placeholders::_1), ngs::ref(m_protocol_monitor)));
   reset_accept_time();
 
   // pre-allocate the initial session
   // this is also needed for the srv_session to correctly report us to the audit.log as in the Pre-authenticate state
-  boost::shared_ptr<Session_interface> session(m_server.create_session(*this, *m_encoder, 1));
+  ngs::shared_ptr<Session_interface> session(m_server.create_session(*this, *m_encoder, 1));
   if (!session)
   {
     log_warning("%s: Error creating session for connection from %s", client_id(), m_client_addr.c_str());
@@ -365,7 +364,7 @@ void Client::on_session_reset(Session_interface &s)
   log_debug("%s: Resetting session %i", client_id(), s.session_id());
 
   m_state = Client_accepted_with_session;
-  boost::shared_ptr<Session_interface> session(m_server.create_session(*this, *m_encoder, 1));
+  ngs::shared_ptr<Session_interface> session(m_server.create_session(*this, *m_encoder, 1));
   if (!session)
   {
     log_warning("%s: Error creating session for connection from %s", client_id(), m_client_addr.c_str());
@@ -497,12 +496,12 @@ Request_unique_ptr Client::read_one_message(Error_code &ret_error)
     request->buffer(m_msg_buffer, msg_size-1);
 
     ret_error = m_decoder.parse(*request);
-    return boost::move(request);
+    return ngs::move(request);
   }
   else if (msg_size == 1)
   {
     ret_error = m_decoder.parse(*request);
-    return boost::move(request);
+    return ngs::move(request);
   }
   else
   {
@@ -536,7 +535,7 @@ void Client::run(const bool skip_name_resolve)
         disconnect_and_trigger_close();
         break;
       }
-      boost::shared_ptr<Session_interface> s(session());
+      ngs::shared_ptr<Session_interface> s(session());
       if (m_state != Client_accepted && s)
       {
         // pass the message to the session

@@ -25,9 +25,8 @@
 using namespace ngs;
 
 
-Message_builder::Message_builder() :
-  m_out_buffer(NULL),
-  m_out_stream(NULL)
+Message_builder::Message_builder()
+: m_out_buffer(NULL)
 {}
 
 Message_builder::~Message_builder()

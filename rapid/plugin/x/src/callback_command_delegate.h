@@ -66,8 +66,8 @@ namespace xpl
       void clone_fields(const Row_data& other);
     };
 
-    typedef boost::function<Row_data *()> Start_row_callback;
-    typedef boost::function<bool (Row_data*)> End_row_callback;
+    typedef ngs::function<Row_data *()> Start_row_callback;
+    typedef ngs::function<bool (Row_data*)> End_row_callback;
 
     Callback_command_delegate();
     Callback_command_delegate(Start_row_callback start_row, End_row_callback end_row);

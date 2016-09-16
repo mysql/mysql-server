@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,36 +17,17 @@
  * 02110-1301  USA
  */
 
-#ifndef _NGS_PROTOCOL_CONFIG_H_
-#define _NGS_PROTOCOL_CONFIG_H_
+#ifndef _NGS_BIND_H_
+#define _NGS_BIND_H_
 
-#include <stdint.h>
-#include <list>
-
-#include "ngs_common/posix_time.h"
-
+#include <functional>
 
 namespace ngs
 {
-
-class Protocol_config
-{
-public:
-  uint32_t  default_max_frame_size;
-  uint32_t max_message_size;
-
-  seconds  connect_timeout;
-  milliseconds connect_timeout_hysteresis;
-
-  Protocol_config()
-  : default_max_frame_size(16*1024*1024),
-    max_message_size(16*1024*1024),
-    connect_timeout(not_a_date_time),
-    connect_timeout_hysteresis(100)
-  {
-  }
-};
-
+namespace placeholders = std::placeholders;
+using std::bind;
+using std::function;
+using std::ref;
 } // namespace ngs
 
-#endif // _NGS_PROTOCOL_CONFIG_H_
+#endif // _NGS_BIND_H_

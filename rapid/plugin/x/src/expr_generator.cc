@@ -20,9 +20,7 @@
 #include "expr_generator.h"
 
 #include "json_utils.h"
-#include <boost/bind.hpp>
-#include <boost/function.hpp>
-
+#include "ngs_common/bind.h"
 #include "xpl_error.h"
 #include "mysql/service_my_snprintf.h"
 #include "xpl_regex.h"
@@ -661,7 +659,7 @@ void Expression_generator::binary_expression(const Mysqlx::Expr::Operator &arg, 
 
 namespace
 {
-typedef boost::function<void (const Expression_generator*,
+typedef ngs::function<void (const Expression_generator*,
                               const Mysqlx::Expr::Operator&)> Operator_ptr;
 
 typedef std::pair<const char* const, Operator_ptr> Operator_bind;
@@ -681,45 +679,45 @@ void Expression_generator::generate(const Mysqlx::Expr::Operator &arg) const
 {
   // keep binding in asc order
   static const Operator_bind operators[] = {
-      std::make_pair("!", boost::bind(&Expression_generator::unary_operator, _1, _2,  "!")),
-      std::make_pair("!=", boost::bind(&Expression_generator::binary_operator, _1, _2, " != ")),
-      std::make_pair("%", boost::bind(&Expression_generator::binary_operator, _1, _2, " % ")),
-      std::make_pair("&", boost::bind(&Expression_generator::binary_operator, _1, _2, " & ")),
-      std::make_pair("&&", boost::bind(&Expression_generator::binary_operator, _1, _2, " AND ")),
-      std::make_pair("*", boost::bind(&Expression_generator::asterisk_operator, _1, _2)),
-      std::make_pair("+", boost::bind(&Expression_generator::binary_operator, _1, _2, " + ")),
-      std::make_pair("-", boost::bind(&Expression_generator::binary_operator, _1, _2, " - ")),
-      std::make_pair("/", boost::bind(&Expression_generator::binary_operator, _1, _2, " / ")),
-      std::make_pair("<", boost::bind(&Expression_generator::binary_operator, _1, _2, " < ")),
-      std::make_pair("<<", boost::bind(&Expression_generator::binary_operator, _1, _2, " << ")),
-      std::make_pair("<=", boost::bind(&Expression_generator::binary_operator, _1, _2, " <= ")),
-      std::make_pair("==", boost::bind(&Expression_generator::binary_operator, _1, _2, " = ")),
-      std::make_pair(">", boost::bind(&Expression_generator::binary_operator, _1, _2, " > ")),
-      std::make_pair(">=", boost::bind(&Expression_generator::binary_operator, _1, _2, " >= ")),
-      std::make_pair(">>", boost::bind(&Expression_generator::binary_operator, _1, _2, " >> ")),
-      std::make_pair("^", boost::bind(&Expression_generator::binary_operator, _1, _2, " ^ ")),
-      std::make_pair("between", boost::bind(&Expression_generator::between_expression, _1, _2, " BETWEEN ")),
-      std::make_pair("cast", boost::bind(&Expression_generator::cast_expression, _1, _2)),
-      std::make_pair("date_add", boost::bind(&Expression_generator::date_expression, _1, _2, "DATE_ADD")),
-      std::make_pair("date_sub", boost::bind(&Expression_generator::date_expression, _1, _2, "DATE_SUB")),
-      std::make_pair("default", boost::bind(&Expression_generator::nullary_operator, _1, _2, "DEFAULT")),
-      std::make_pair("div", boost::bind(&Expression_generator::binary_operator, _1, _2, " DIV ")),
-      std::make_pair("in", boost::bind(&Expression_generator::in_expression, _1, _2, "")),
-      std::make_pair("is", boost::bind(&Expression_generator::binary_operator, _1, _2, " IS ")),
-      std::make_pair("is_not", boost::bind(&Expression_generator::binary_operator, _1, _2, " IS NOT ")),
-      std::make_pair("like", boost::bind(&Expression_generator::like_expression, _1, _2, " LIKE ")),
-      std::make_pair("not", boost::bind(&Expression_generator::unary_operator, _1, _2, "NOT ")),
-      std::make_pair("not_between", boost::bind(&Expression_generator::between_expression, _1, _2, " NOT BETWEEN ")),
-      std::make_pair("not_in", boost::bind(&Expression_generator::in_expression, _1, _2, "NOT ")),
-      std::make_pair("not_like", boost::bind(&Expression_generator::like_expression, _1, _2, " NOT LIKE ")),
-      std::make_pair("not_regexp", boost::bind(&Expression_generator::binary_expression, _1, _2, " NOT REGEXP ")),
-      std::make_pair("regexp", boost::bind(&Expression_generator::binary_expression, _1, _2, " REGEXP ")),
-      std::make_pair("sign_minus", boost::bind(&Expression_generator::unary_operator, _1, _2, "-")),
-      std::make_pair("sign_plus", boost::bind(&Expression_generator::unary_operator, _1, _2, "+")),
-      std::make_pair("xor",boost::bind(&Expression_generator::binary_operator, _1, _2, " XOR ")),
-      std::make_pair("|", boost::bind(&Expression_generator::binary_operator, _1, _2, " | ")),
-      std::make_pair("||", boost::bind(&Expression_generator::binary_operator, _1, _2, " OR ")),
-      std::make_pair("~", boost::bind(&Expression_generator::unary_operator, _1, _2, "~"))
+      std::make_pair("!", ngs::bind(&Expression_generator::unary_operator, ngs::placeholders::_1, ngs::placeholders::_2,  "!")),
+      std::make_pair("!=", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " != ")),
+      std::make_pair("%", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " % ")),
+      std::make_pair("&", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " & ")),
+      std::make_pair("&&", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " AND ")),
+      std::make_pair("*", ngs::bind(&Expression_generator::asterisk_operator, ngs::placeholders::_1, ngs::placeholders::_2)),
+      std::make_pair("+", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " + ")),
+      std::make_pair("-", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " - ")),
+      std::make_pair("/", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " / ")),
+      std::make_pair("<", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " < ")),
+      std::make_pair("<<", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " << ")),
+      std::make_pair("<=", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " <= ")),
+      std::make_pair("==", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " = ")),
+      std::make_pair(">", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " > ")),
+      std::make_pair(">=", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " >= ")),
+      std::make_pair(">>", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " >> ")),
+      std::make_pair("^", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " ^ ")),
+      std::make_pair("between", ngs::bind(&Expression_generator::between_expression, ngs::placeholders::_1, ngs::placeholders::_2, " BETWEEN ")),
+      std::make_pair("cast", ngs::bind(&Expression_generator::cast_expression, ngs::placeholders::_1, ngs::placeholders::_2)),
+      std::make_pair("date_add", ngs::bind(&Expression_generator::date_expression, ngs::placeholders::_1, ngs::placeholders::_2, "DATE_ADD")),
+      std::make_pair("date_sub", ngs::bind(&Expression_generator::date_expression, ngs::placeholders::_1, ngs::placeholders::_2, "DATE_SUB")),
+      std::make_pair("default", ngs::bind(&Expression_generator::nullary_operator, ngs::placeholders::_1, ngs::placeholders::_2, "DEFAULT")),
+      std::make_pair("div", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " DIV ")),
+      std::make_pair("in", ngs::bind(&Expression_generator::in_expression, ngs::placeholders::_1, ngs::placeholders::_2, "")),
+      std::make_pair("is", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " IS ")),
+      std::make_pair("is_not", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " IS NOT ")),
+      std::make_pair("like", ngs::bind(&Expression_generator::like_expression, ngs::placeholders::_1, ngs::placeholders::_2, " LIKE ")),
+      std::make_pair("not", ngs::bind(&Expression_generator::unary_operator, ngs::placeholders::_1, ngs::placeholders::_2, "NOT ")),
+      std::make_pair("not_between", ngs::bind(&Expression_generator::between_expression, ngs::placeholders::_1, ngs::placeholders::_2, " NOT BETWEEN ")),
+      std::make_pair("not_in", ngs::bind(&Expression_generator::in_expression, ngs::placeholders::_1, ngs::placeholders::_2, "NOT ")),
+      std::make_pair("not_like", ngs::bind(&Expression_generator::like_expression, ngs::placeholders::_1, ngs::placeholders::_2, " NOT LIKE ")),
+      std::make_pair("not_regexp", ngs::bind(&Expression_generator::binary_expression, ngs::placeholders::_1, ngs::placeholders::_2, " NOT REGEXP ")),
+      std::make_pair("regexp", ngs::bind(&Expression_generator::binary_expression, ngs::placeholders::_1, ngs::placeholders::_2, " REGEXP ")),
+      std::make_pair("sign_minus", ngs::bind(&Expression_generator::unary_operator, ngs::placeholders::_1, ngs::placeholders::_2, "-")),
+      std::make_pair("sign_plus", ngs::bind(&Expression_generator::unary_operator, ngs::placeholders::_1, ngs::placeholders::_2, "+")),
+      std::make_pair("xor",ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " XOR ")),
+      std::make_pair("|", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " | ")),
+      std::make_pair("||", ngs::bind(&Expression_generator::binary_operator, ngs::placeholders::_1, ngs::placeholders::_2, " OR ")),
+      std::make_pair("~", ngs::bind(&Expression_generator::unary_operator, ngs::placeholders::_1, ngs::placeholders::_2, "~"))
   };
   static const Operator_bind *operators_end = operators + sizeof(operators)/sizeof(*operators);
 

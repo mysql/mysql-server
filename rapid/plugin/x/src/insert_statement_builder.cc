@@ -41,8 +41,8 @@ void xpl::Insert_statement_builder::add_projection(const Projection_list &projec
   {
     if (projection.size() != 0)
       m_builder.put(" (").put_list(projection,
-                                   boost::bind(&Builder::put_identifier, m_builder,
-                                               boost::bind(&Mysqlx::Crud::Column::name, _1))).put(")");
+                                   ngs::bind(&Builder::put_identifier, m_builder,
+                                               ngs::bind(&Mysqlx::Crud::Column::name, ngs::placeholders::_1))).put(")");
   }
   else
   {
@@ -58,10 +58,10 @@ void xpl::Insert_statement_builder::add_values(const Row_list &values) const
   if (values.size() == 0)
     throw ngs::Error_code(ER_X_MISSING_ARGUMENT, "Missing row data for Insert");
 
-  m_builder.put(" VALUES ").put_list(values,
-                                     boost::bind(&Insert_statement_builder::add_row, this,
-                                                 boost::bind(&Mysqlx::Crud::Insert_TypedRow::field, _1),
-                                                 m_is_relational ? m_msg.projection().size() : 1));
+  m_builder.put(" VALUES ")
+    .put_list(values, ngs::bind(&Insert_statement_builder::add_row, this,
+                                ngs::bind(&Insert_statement_builder::get_row_fields, this, ngs::placeholders::_1),
+                                m_is_relational ? m_msg.projection().size() : 1));
 }
 
 

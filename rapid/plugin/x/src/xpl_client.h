@@ -77,7 +77,7 @@ namespace xpl
     void get_status_ssl_cipher_list(st_mysql_show_var *var);
 
     void kill();
-    boost::shared_ptr<xpl::Session> get_session();
+    ngs::shared_ptr<xpl::Session> get_session();
 
 
   private:
@@ -87,7 +87,7 @@ namespace xpl
     Protocol_monitor *m_protocol_monitor;
   };
 
-  typedef boost::shared_ptr<Client> Client_ptr;
+  typedef ngs::shared_ptr<Client> Client_ptr;
 
 } // namespace xpl
 

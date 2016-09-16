@@ -18,26 +18,22 @@
  */
 
 
-#ifndef _NGS_TYPES_H_
-#define _NGS_TYPES_H_
+#ifndef _NGS_POSIX_TIME_H_
+#define _NGS_POSIX_TIME_H_
 
-
-#include <string>
 #include <boost/date_time/posix_time/posix_time.hpp>
 
 
 namespace ngs
 {
 
-typedef boost::posix_time::microsec_clock  microsec_clock;
-typedef boost::posix_time::ptime           ptime;
-typedef boost::posix_time::time_duration   time_duration;
-typedef boost::posix_time::milliseconds    milliseconds;
-typedef boost::posix_time::seconds         seconds;
-
-const boost::date_time::special_values not_a_date_time = not_a_date_time;
+using boost::posix_time::microsec_clock;
+using boost::posix_time::ptime;
+using boost::posix_time::time_duration;
+using boost::posix_time::milliseconds;
+using boost::posix_time::seconds;
+using boost::date_time::not_a_date_time;
 
 } // namespcae ngs
 
-
-#endif // _NGS_TYPES_H_
+#endif // _NGS_POSIX_TIME_H_

@@ -155,8 +155,8 @@ void xpl::Update_statement_builder::add_document_operation(const Operation_list 
   bool is_id_synch = true;
   bld.put(doc_column).
       put_each(operation.begin(), operation.end(),
-               boost::bind(&Update_statement_builder::add_document_operation_item,
-                           this, _1, bld, boost::ref(is_id_synch),
+               ngs::bind(&Update_statement_builder::add_document_operation_item,
+                           this, ngs::placeholders::_1, bld, ngs::ref(is_id_synch),
                            static_cast<int>(operation.begin()->operation()))).put(")");
 
   if (is_id_synch)

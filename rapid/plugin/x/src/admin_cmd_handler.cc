@@ -179,7 +179,7 @@ struct Client_data_
 void get_client_data(std::vector<Client_data_> &clients_data, xpl::Session &requesting_session,
                      xpl::Sql_data_context &da, ngs::Client_ptr &client)
 {
-  boost::shared_ptr<xpl::Session> session(boost::static_pointer_cast<xpl::Session>(client->session()));
+  ngs::shared_ptr<xpl::Session> session(ngs::static_pointer_cast<xpl::Session>(client->session()));
   Client_data_ c;
 
   if (session)
@@ -235,7 +235,7 @@ ngs::Error_code xpl::Admin_command_handler::list_clients(Command_arguments &args
       clients.reserve(client_list.size());
 
       std::for_each(client_list.begin(), client_list.end(),
-                    boost::bind(get_client_data, boost::ref(clients), boost::ref(m_session), boost::ref(m_da), _1));
+                    ngs::bind(get_client_data, ngs::ref(clients), ngs::ref(m_session), ngs::ref(m_da), ngs::placeholders::_1));
     }
   }
 
@@ -530,7 +530,7 @@ ngs::Error_code remove_nonvirtual_column_names(const std::string &schema_name, c
     std::string column_name = (*it_field)[0];
     std::string column_desc = (*it_field)[1];
     if (!(column_desc.find("VIRTUAL GENERATED") != std::string::npos))
-      ret_column_names.remove_if(boost::bind(name_is, _1, column_name));
+      ret_column_names.remove_if(ngs::bind(name_is, ngs::placeholders::_1, column_name));
   }
 
   return ngs::Success();
@@ -1753,7 +1753,7 @@ xpl::Admin_command_arguments_object &xpl::Admin_command_arguments_object::object
 xpl::Admin_command_arguments_object *xpl::Admin_command_arguments_object::add_sub_object(const Object &object)
 {
   Admin_command_arguments_object *obj = new Admin_command_arguments_object(object);
-  m_sub_objects.push_back(boost::shared_ptr<Admin_command_arguments_object>(obj));
+  m_sub_objects.push_back(ngs::shared_ptr<Admin_command_arguments_object>(obj));
   return obj;
 }
 

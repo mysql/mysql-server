@@ -20,6 +20,7 @@
 #include "ngs/capabilities/configurator.h"
 #include "ngs/ngs_error.h"
 #include "ngs/log.h"
+#include <algorithm>
 
 
 namespace ngs

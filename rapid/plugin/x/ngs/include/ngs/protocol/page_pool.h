@@ -26,6 +26,7 @@
 
 #include "ngs/thread.h"
 #include "ngs/memory.h"
+#include "ngs_common/atomic.h"
 
 #define BUFFER_PAGE_SIZE 4096
 
@@ -154,10 +155,10 @@ namespace ngs
     std::list<char *> m_pages_list;
     int32_t       m_pages_max;
     int32_t       m_pages_cache_max;
-    int32_t       m_pages_allocated;
     int32_t       m_pages_cached;
     const int32_t m_page_size;
     Mutex         m_mutex;
+    ngs::atomic<int32_t> m_pages_allocated;
   };
 
 

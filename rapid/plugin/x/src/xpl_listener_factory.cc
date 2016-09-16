@@ -212,11 +212,11 @@ private:
 ngs::Listener_interface_ptr Listener_factory::create_unix_socket_listener(const std::string &unix_socket_path, ngs::Time_and_socket_events &event, const uint32 backlog)
 {
   return ngs::Listener_interface_ptr(
-      ngs::allocate_object<details::Unix_socket_listener>(unix_socket_path, boost::ref(event), backlog));
+      ngs::allocate_object<details::Unix_socket_listener>(unix_socket_path, ngs::ref(event), backlog));
 }
 
 ngs::Listener_interface_ptr Listener_factory::create_tcp_socket_listener(const unsigned short port, ngs::Time_and_socket_events &event, const uint32 backlog)
 {
   return ngs::Listener_interface_ptr(
-      ngs::allocate_object<details::Tcp_listener>(port, boost::ref(event), backlog));
+      ngs::allocate_object<details::Tcp_listener>(port, ngs::ref(event), backlog));
 }

@@ -18,8 +18,6 @@
  */
 
 
-#include <boost/move/move.hpp>
-
 #include "ngs_common/connection_vio.h"
 
 namespace ngs
