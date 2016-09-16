@@ -453,8 +453,6 @@ bool Persisted_variables_cache::set_persist_options(bool what_options)
     }
     switch (sysvar->show_type())
     {
-    case SHOW_BOOL:
-    case SHOW_MY_BOOL:
     case SHOW_INT:
     case SHOW_LONG:
     case SHOW_SIGNED_LONG:
@@ -466,6 +464,8 @@ bool Persisted_variables_cache::set_persist_options(bool what_options)
     case SHOW_CHAR:
     case SHOW_CHAR_PTR:
     case SHOW_LEX_STRING:
+    case SHOW_BOOL:
+    case SHOW_MY_BOOL:
       res= new (thd->mem_root) Item_string(iter->second.c_str(),
                                             iter->second.length(),
                                             &my_charset_utf8mb4_bin);

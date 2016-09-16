@@ -325,6 +325,22 @@ SET PERSIST join_buffer_size= DEFAULT;
 SET PERSIST join_buffer_size= 262144;
 # should have all variables persisted
 { "mysql_server": {"innodb_fast_shutdown": "1" , "join_buffer_size": "262144" , "read_only": "OFF" } }# Restart server with all defaults
+#
+# Bug24569624: "SET PERSIST GENERAL_LOG=1" DOES NOT RESUME ON RESTART.
+#
+SET PERSIST general_log=ON;
+SET PERSIST autocommit= 0, innodb_deadlock_detect= OFF;
+SET PERSIST enforce_gtid_consistency=ON;
+SELECT @@global.general_log, @@global.autocommit,
+@@global.innodb_deadlock_detect, @@global.enforce_gtid_consistency;
+@@global.general_log	@@global.autocommit	@@global.innodb_deadlock_detect	@@global.enforce_gtid_consistency
+1	0	0	ON
+# Restart server
+SELECT @@global.general_log, @@global.autocommit,
+@@global.innodb_deadlock_detect, @@global.enforce_gtid_consistency;
+@@global.general_log	@@global.autocommit	@@global.innodb_deadlock_detect	@@global.enforce_gtid_consistency
+1	0	0	ON
+# Restart server with all defaults
 SELECT 'END OF TEST';
 END OF TEST
 END OF TEST
