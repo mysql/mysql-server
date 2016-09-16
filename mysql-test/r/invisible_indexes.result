@@ -397,6 +397,35 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 DROP TABLE t1;
 #
+# Bug#24660093: REMOVING AN INVISIBLE INDEX BREAKS EXPLAIN
+#
+CREATE TABLE t1 ( a INT, KEY(a) INVISIBLE );
+SELECT * FROM t1 FORCE INDEX(a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+SELECT * FROM t1 FORCE INDEX FOR JOIN (a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+SELECT * FROM t1 FORCE INDEX FOR ORDER BY (a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+SELECT * FROM t1 FORCE INDEX FOR GROUP BY (a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+SELECT * FROM t1 USE INDEX(a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+SELECT * FROM t1 USE INDEX FOR JOIN (a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+SELECT * FROM t1 USE INDEX FOR ORDER BY (a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+SELECT * FROM t1 USE INDEX FOR GROUP BY (a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+SELECT * FROM t1 IGNORE INDEX(a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+SELECT * FROM t1 IGNORE INDEX FOR JOIN (a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+SELECT * FROM t1 IGNORE INDEX FOR ORDER BY (a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+SELECT * FROM t1 IGNORE INDEX FOR GROUP BY (a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+DROP TABLE t1;
+#
 # Tests that don't work on MyISAM ( native partitioning, indexes on
 # generated columns, etc.)
 #
