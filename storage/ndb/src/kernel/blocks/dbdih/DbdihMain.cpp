@@ -14080,6 +14080,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
   case AlterTabReq::AlterTablePrepare:
     jam();
 
+    D("AlterTabReq::AlterTablePrepare: tableId: " << tabPtr.i);
     ndbrequire(cfirstconnect != RNIL);
     connectPtr.i = cfirstconnect;
     ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
@@ -14098,6 +14099,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     break;
   case AlterTabReq::AlterTableRevert:
     jam();
+    D("AlterTabReq::AlterTableRevert: tableId: " << tabPtr.i);
     tabPtr.p->schemaVersion = tableVersion;
 
     connectPtr.i = req->connectPtr;
@@ -14134,6 +14136,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
   case AlterTabReq::AlterTableCommit:
   {
     jam();
+    D("AlterTabReq::AlterTableCommit: tableId: " << tabPtr.i);
     tabPtr.p->schemaVersion = newTableVersion;
 
     connectPtr.i = req->connectPtr;
@@ -14146,11 +14149,11 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
   }
   case AlterTabReq::AlterTableComplete:
     jam();
+    D("AlterTabReq::AlterTableComplete: tableId: " << tabPtr.i);
     connectPtr.i = req->connectPtr;
     ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
     connectPtr.p->userpointer = senderData;
     connectPtr.p->userblockref = senderRef;
-
 
     if (!make_old_table_non_writeable(tabPtr, connectPtr))
     {
