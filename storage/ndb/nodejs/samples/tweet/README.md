@@ -66,7 +66,4 @@ option in tweet.js or by editing the call to
 [ConnectionProperties()](../../database-jones/API-documentation/Jones) in the
 API samples.
 
-Copyright
----------
-Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
 

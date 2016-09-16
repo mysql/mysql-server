@@ -1,4 +1,3 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved. */
 
 /* This script provides an example of the Jones Query API. 
    In this example, we query the tweet table for posts 

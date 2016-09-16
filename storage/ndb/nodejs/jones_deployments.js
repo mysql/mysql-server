@@ -1,6 +1,3 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
-*/
-
 var deployments = {};
 
 /* The test deployment is used in automated testing of the Jones projects

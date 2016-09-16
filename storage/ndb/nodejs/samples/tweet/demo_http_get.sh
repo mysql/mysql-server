@@ -1,5 +1,3 @@
-# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
-
 #
 #
 # Before running these, start the tweet.js app as a web server:

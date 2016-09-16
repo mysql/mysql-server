@@ -35,8 +35,6 @@
   "repository"      : { "type" : "git",
                         "url": "https://github.com/mysql/mysql-js.git"
                       }
-  ,
-  "copyright" : "Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved."
 }
 
 
