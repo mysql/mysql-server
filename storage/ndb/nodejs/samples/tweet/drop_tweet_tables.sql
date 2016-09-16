@@ -1,5 +1,3 @@
--- Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
-
 -- tables must be dropped in reverse order of dependencies
 
 use test;

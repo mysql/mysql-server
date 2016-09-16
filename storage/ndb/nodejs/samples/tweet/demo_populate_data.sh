@@ -1,5 +1,3 @@
-# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
-
 # This script populates the sample database
 export JONES_ADAPTER=mysql || setenv JONES_ADAPTER mysql  # sh || csh
 set -x

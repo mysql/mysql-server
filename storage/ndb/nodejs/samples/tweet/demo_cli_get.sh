@@ -1,5 +1,3 @@
-# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
-
 # Some sample queries using the command line
 export JONES_ADAPTER=mysql || setenv JONES_ADAPTER mysql  # sh || csh
 

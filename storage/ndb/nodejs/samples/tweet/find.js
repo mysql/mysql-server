@@ -1,5 +1,3 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved. */
-
 /* This script shows an example find() operation using a table name and
    primary key, and working with promises.
 
