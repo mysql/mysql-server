@@ -10353,7 +10353,7 @@ ha_ndbcluster::update_comment_info(HA_CREATE_INFO *create_info,
     add_str++;
   }
   assert(!add_ndb_table);
-  assert((add_str - new_str) == (extra_len + end_parse_comment_pos));
+  assert(Uint32(add_str - new_str) == (extra_len + end_parse_comment_pos));
   unsigned new_length;
   if (create_info != NULL)
   {
