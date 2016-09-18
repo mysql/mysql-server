@@ -7944,21 +7944,7 @@ dd_open_table(
 	/* Re-check if the table has been opened/added by a concurrent
 	thread */
 	dict_table_t*	exist = dict_table_check_if_in_cache_low(norm_name);
-	bool		free_table = false;
 	if (exist != NULL) {
-		free_table = true;
-	} else {
-		dict_table_add_to_cache(m_table, TRUE, heap);
-
-		dict_table_load_dynamic_metadata(m_table);
-
-		if (m_table->is_corrupted()) {
-			dict_table_remove_from_cache(m_table);
-			free_table = true;
-		}
-	}
-
-	if (free_table) {
 		for (dict_index_t* index = m_table->first_index();
 		     index != NULL;
 		     index = index->next()) {
@@ -7966,10 +7952,18 @@ dd_open_table(
 			UT_LIST_REMOVE(m_table->indexes, index);
 			dict_mem_index_free(index);
 		}
-
 		dict_mem_table_free(m_table);
 
 		m_table = exist;
+	} else {
+		dict_table_add_to_cache(m_table, TRUE, heap);
+
+		dict_table_load_dynamic_metadata(m_table);
+
+		if (m_table->is_corrupted()) {
+			dict_table_remove_from_cache(m_table);
+			m_table = NULL;
+		}
 	}
 
 	mutex_exit(&dict_sys->mutex);
