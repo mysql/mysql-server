@@ -7738,9 +7738,9 @@ create_table_metadata(
 		}
 	}
 #endif
-	mutex_enter(&dict_sys->mutex);
-	dict_table_add_to_cache(m_table, TRUE, heap);
-	mutex_exit(&dict_sys->mutex);
+
+	/* Add system columns to make adding index work */
+	dict_table_add_system_columns(m_table, heap);
 
 	mem_heap_free(heap);
 
@@ -7886,6 +7886,8 @@ dd_open_table(
 
 	mutex_exit(&dict_sys->mutex);
 
+	mem_heap_t*	heap = mem_heap_create(1000);
+
 	/* Now fill the space ID and Root page number for each index */
         dict_index_t* index = m_table->first_index();
         for (const auto dd_index : dd_table->indexes()) {
@@ -7902,9 +7904,7 @@ dd_open_table(
                            index_space_id, &index_space)) {
 			my_error(ER_TABLESPACE_MISSING, MYF(0),
 				 m_table->name.m_name);
-			mutex_enter(&dict_sys->mutex);
-			dict_table_remove_from_cache(m_table);
-			mutex_exit(&dict_sys->mutex);
+			mem_heap_free(heap);
 			return(NULL);
 		}
 		uint32	sid;
@@ -7917,10 +7917,8 @@ dd_open_table(
 			ut_ad(m_table->space == 0);
 			m_table->space = sid;
 
-			mem_heap_t*	heap = mem_heap_create(200);
 			dict_load_tablespace(m_table, heap,
 					     DICT_ERR_IGNORE_NONE);
-			mem_heap_free(heap);
 			first_index = false;
 		}
 
@@ -7928,9 +7926,7 @@ dd_open_table(
                             dd_index_key_strings[DD_INDEX_ID], &id)
                     || se_private_data.get_uint32(
                             dd_index_key_strings[DD_INDEX_ROOT], &root)) {
-			mutex_enter(&dict_sys->mutex);
-			dict_table_remove_from_cache(m_table);
-			mutex_exit(&dict_sys->mutex);
+			mem_heap_free(heap);
 			return(NULL);
                 }
 
@@ -7945,16 +7941,40 @@ dd_open_table(
 
 	mutex_enter(&dict_sys->mutex);
 
-	dict_table_load_dynamic_metadata(m_table);
+	/* Re-check if the table has been opened/added by a concurrent
+	thread */
+	dict_table_t*	exist = dict_table_check_if_in_cache_low(norm_name);
+	bool		free_table = false;
+	if (exist != NULL) {
+		free_table = true;
+	} else {
+		dict_table_add_to_cache(m_table, TRUE, heap);
+
+		dict_table_load_dynamic_metadata(m_table);
+
+		if (m_table->is_corrupted()) {
+			dict_table_remove_from_cache(m_table);
+			free_table = true;
+		}
+	}
+
+	if (free_table) {
+		for (dict_index_t* index = m_table->first_index();
+		     index != NULL;
+		     index = index->next()) {
+			rw_lock_free(&index->lock);
+			UT_LIST_REMOVE(m_table->indexes, index);
+			dict_mem_index_free(index);
+		}
+
+		dict_mem_table_free(m_table);
+
+		m_table = exist;
+	}
 
 	mutex_exit(&dict_sys->mutex);
 
-	if (m_table->is_corrupted()) {
-		mutex_enter(&dict_sys->mutex);
-		dict_table_remove_from_cache(m_table);
-		mutex_exit(&dict_sys->mutex);
-		return(NULL);
-	}
+	mem_heap_free(heap);
 
 	return(m_table);
 }
@@ -12884,6 +12904,8 @@ err_col:
 						table, temp_table_heap, m_thd);
 
 				} else {
+					dict_table_add_system_columns(
+						table, temp_table_heap);
 					dict_table_add_to_cache(
 						table, FALSE, temp_table_heap);
 				}

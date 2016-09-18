@@ -2999,10 +2999,9 @@ err_exit:
 
 	dict_load_virtual(table, heap);
 
+	dict_table_add_system_columns(table, heap);
 	if (cached) {
 		dict_table_add_to_cache(table, TRUE, heap);
-	} else {
-		dict_table_add_system_columns(table, heap);
 	}
 
 	mem_heap_empty(heap);
