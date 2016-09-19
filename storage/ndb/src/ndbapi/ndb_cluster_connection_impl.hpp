@@ -97,12 +97,14 @@ private:
                                         next_group_idx(0),
                                         config_group(_g), // between 0 and 200
                                         adjusted_group(_g),
-                                        id(_id) {};
+                                        id(_id),
+                                        hint_count(0) {};
     Uint32 this_group_idx; // First index of node with same group
     Uint32 next_group_idx; // Next index of node not with same node, or 0.
     Uint32 config_group; // Proximity group from cluster connection config
     Int32 adjusted_group; // Proximity group adjusted via ndbapi calls
     Uint32 id;
+    Uint32 hint_count; // Counts how many times node was choosen for hint when more than one were Ãpossible
   };
 
   NdbNodeBitmask m_db_nodes;
