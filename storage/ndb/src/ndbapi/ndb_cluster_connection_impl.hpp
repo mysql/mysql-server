@@ -22,6 +22,7 @@
 #include <ndb_cluster_connection.hpp>
 #include <Vector.hpp>
 #include <NdbMutex.h>
+#include <NodeBitmask.hpp>
 #include "DictCache.hpp"
 #include "kernel/ndb_limits.h"
 
@@ -98,6 +99,7 @@ private:
     Uint32 id;
   };
 
+  NdbNodeBitmask m_db_nodes;
   Vector<Node> m_all_nodes;
   int init_nodes_vector(Uint32 nodeid, const ndb_mgm_configuration &config);
   int configure(Uint32 nodeid, const ndb_mgm_configuration &config);
