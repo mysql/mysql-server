@@ -9387,7 +9387,7 @@ NDB_Modifiers::parse(THD *thd,
     for (uint i = 0; i < m_len; i++)
     {
       size_t l = m_modifiers[i].m_name_len;
-      if (strncmp(pos, m_modifiers[i].m_name, l) == 0)
+      if (strncasecmp(pos, m_modifiers[i].m_name, l) == 0)
       {
         /**
          * Found modifier...
@@ -9458,7 +9458,7 @@ NDB_Modifiers::get(const char * name) const
 {
   for (uint i = 0; i < m_len; i++)
   {
-    if (strcmp(name, m_modifiers[i].m_name) == 0)
+    if (strncasecmp(name, m_modifiers[i].m_name, m_modifiers[i].m_name_len) == 0)
     {
       return m_modifiers + i;
     }
