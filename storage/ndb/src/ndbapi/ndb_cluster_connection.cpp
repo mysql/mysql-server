@@ -860,6 +860,17 @@ Ndb_cluster_connection_impl::adjust_node_proximity(Uint32 node_id, Int32 adjustm
     }
   }
   m_nodes_proximity[new_idx] = node;
+
+  /**
+   * Clear hint count in new group since the node adjusted will not have a
+   * hint count in sync with its new group.
+   */
+  for (Uint32 idx = node.this_group_idx;
+       idx <= new_idx;
+       idx++)
+  {
+    m_nodes_proximity[idx].hint_count = 0;
+  }
 }
 
 void
@@ -1440,30 +1451,22 @@ Uint32
 Ndb_cluster_connection_impl::select_node(const Uint16 * nodes,
                                          Uint32 cnt)
 {
+  if (cnt == 1)
+  {
+    return nodes[0];
+  }
+  else if (cnt == 0)
+  {
+    return 0;
+  }
+
   NdbNodeBitmask checked;
   const Node *nodes_arr = m_nodes_proximity.getBase();
   const Uint32 nodes_arr_cnt = m_nodes_proximity.size();
 
-  if (m_data_node_neighbour != 0)
-  {
-    /**
-     * If the user has specified a closest data node neighbour AND
-     * this node is among the nodes that we can select, then we
-     * choose this node as the best node.
-     *
-     * Otherwise we'll fall back to the normal check of config
-     * to see if we have a node closer than other nodes.
-     */
-    for (Uint32 i = 0; i < cnt; i++)
-    {
-      if (nodes[i] == m_data_node_neighbour)
-      {
-        return nodes[i];
-      }
-    }
-  }
   Uint32 best_node = nodes[0];
   Int32 best_score = MAX_PROXIMITY_GROUP; // Lower is better
+  Uint32 best_usage;
 
   for (Uint32 j = 0; j < cnt; j++)
   {
@@ -1481,9 +1484,27 @@ Ndb_cluster_connection_impl::select_node(const Uint16 * nodes,
         {
           best_node = candidate_node;
           best_score = nodes_arr[i].adjusted_group;
+          best_usage = nodes_arr[i].hint_count;
         }
-        best_score = nodes_arr[i].adjusted_group;
-        break;
+        else if (nodes_arr[i].adjusted_group == best_score)
+        {
+          Uint32 usage = nodes_arr[i].hint_count;
+          if (best_usage - usage < UINT32_HALF)
+          {
+            /**
+             * hint_count may wrap, for this calculation it is assummed that
+             * the two counts should be near each other, and so if the
+             * difference is small above, best_usage is greater than usage.
+             */
+            best_node = candidate_node;
+            best_usage = usage;
+          }
+        }
+        else
+        {
+          // All further nodes will have group bigger than best_score
+          break;
+        }
       }
     }
   }
