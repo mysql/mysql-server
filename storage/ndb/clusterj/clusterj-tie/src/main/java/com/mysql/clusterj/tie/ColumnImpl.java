@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -108,7 +108,7 @@ class ColumnImpl implements Column {
         this.precision = ndbColumn.getPrecision();
         this.scale = ndbColumn.getScale();
         this.size = ndbColumn.getSize();
-        logger.detail("ColumnImpl column type: " + this.columnType);
+        if (logger.isDetailEnabled()) logger.detail("ColumnImpl column type: " + this.columnType);
         switch(ndbColumn.getType()) {
             case ColumnConst.Type.Tinyint:
             case ColumnConst.Type.Tinyunsigned:
