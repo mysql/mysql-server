@@ -110,6 +110,8 @@ public class ClusterConnectionImpl
     private static final boolean USE_SMART_VALUE_HANDLER =
             ClusterJHelper.getBooleanProperty(USE_SMART_VALUE_HANDLER_NAME, "true");
 
+    protected static boolean queryObjectsInitialized = false;
+
     /** Connect to the MySQL Cluster
      * 
      * @param connectString the connect string
@@ -151,6 +153,8 @@ public class ClusterConnectionImpl
                 Ndb ndbForNdbRecord = Ndb.create(clusterConnection, database, "def");
                 handleError(ndbForNdbRecord, clusterConnection, connectString, nodeId);
                 dbForNdbRecord = new DbImplForNdbRecord(this, ndbForNdbRecord);
+                // get an instance of stand-alone query objects to avoid synchronizing later
+                dbForNdbRecord.initializeQueryObjects();
                 dictionaryForNdbRecord = dbForNdbRecord.getNdbDictionary();
             }
         }
