@@ -81,6 +81,16 @@ public:
    * Set data node neighbour of the connection. This will be used for optimal
    * placement of transaction coordinator.
    *
+   * In normal cases this method, if used, is called when
+   * ndb_cluster_connection is created before query threads are started.
+   *
+   * Note that this method may change internal state of ndb_cluster_connection
+   * shared by all threads using it.  This state is not thread safe and can at
+   * the time change occur cause a non optimal node selection.
+   *
+   * Also any outstanding iterators (Ndb_cluster_connection_node_iter) may
+   * become invalid when method is called.  This may result in a non optimal
+   * node selection the next time the iterator is used.
    */
   void set_data_node_neighbour(Uint32 neighbour_node);
 
