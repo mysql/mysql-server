@@ -413,7 +413,7 @@ void Client::shutdown_connection()
   }
 }
 
-Request_unique_ptr Client::read_one_message(Error_code &ret_error)
+Request *Client::read_one_message(Error_code &ret_error)
 {
   union
   {
@@ -431,7 +431,7 @@ Request_unique_ptr Client::read_one_message(Error_code &ret_error)
   if (nread == 0) // EOF
   {
     on_network_error(0);
-    return Request_unique_ptr();
+    return NULL;
   }
   if (nread < 0)
   {
@@ -443,7 +443,7 @@ Request_unique_ptr Client::read_one_message(Error_code &ret_error)
       log_info("%s: ERROR reading from socket %s (%i) %i", client_id(), strerr.c_str(), err, m_close_reason);
       on_network_error(err);
     }
-    return Request_unique_ptr();
+    return NULL;
   }
 
   m_protocol_monitor.on_receive(static_cast<long>(nread));
@@ -462,7 +462,7 @@ Request_unique_ptr Client::read_one_message(Error_code &ret_error)
     // invalid message size
     // Don't send error, just abort connection
     //ret_error = Fatal(ER_X_BAD_MESSAGE, "Message too large");
-    return Request_unique_ptr();
+    return NULL;
   }
 
   Request_unique_ptr request(ngs::allocate_object<Request>(type));
@@ -480,7 +480,7 @@ Request_unique_ptr Client::read_one_message(Error_code &ret_error)
     {
       log_info("%s: peer disconnected while reading message body", client_id());
       on_network_error(0);
-      return Request_unique_ptr();
+      return NULL;
     }
     if (nread < 0)
     {
@@ -489,24 +489,24 @@ Request_unique_ptr Client::read_one_message(Error_code &ret_error)
       Connection_vio::get_error(err, strerr);
       log_info("%s: ERROR reading from socket %s (%i)", client_id(), strerr.c_str(), err);
       on_network_error(err);
-      return Request_unique_ptr();
+      return NULL;
     }
     m_protocol_monitor.on_receive(static_cast<long>(nread));
 
     request->buffer(m_msg_buffer, msg_size-1);
 
     ret_error = m_decoder.parse(*request);
-    return ngs::move(request);
+    return request.release();
   }
   else if (msg_size == 1)
   {
     ret_error = m_decoder.parse(*request);
-    return ngs::move(request);
+    return request.release();
   }
   else
   {
     ret_error = Error_code(ER_X_BAD_MESSAGE, "Invalid message");
-    return Request_unique_ptr();
+    return NULL;
   }
 }
 
